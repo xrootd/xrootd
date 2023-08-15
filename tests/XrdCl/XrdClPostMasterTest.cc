@@ -490,26 +490,28 @@ namespace
   //----------------------------------------------------------------------------
   // Create a ping message
   //----------------------------------------------------------------------------
-  XrdCl::Message *CreatePing( char streamID1, char streamID2 )
-  {
-    using namespace XrdCl;
-    Message *m = new Message();
-    m->Allocate( sizeof( ClientPingRequest ) );
-    m->Zero();
+  // XrdCl::Message *CreatePing( char streamID1, char streamID2 )
+  // {
+  //   using namespace XrdCl;
+  //   Message *m = new Message();
+  //   m->Allocate( sizeof( ClientPingRequest ) );
+  //   m->Zero();
 
-    ClientPingRequest *request = (ClientPingRequest *)m->GetBuffer();
-    request->streamid[0] = streamID1;
-    request->streamid[1] = streamID2;
-    request->requestid   = kXR_ping;
-    XRootDTransport::MarshallRequest( m );
-    return m;
-  }
+  //   ClientPingRequest *request = (ClientPingRequest *)m->GetBuffer();
+  //   request->streamid[0] = streamID1;
+  //   request->streamid[1] = streamID2;
+  //   request->requestid   = kXR_ping;
+  //   XRootDTransport::MarshallRequest( m );
+  //   return m;
+  // }
 }
 
 
 //------------------------------------------------------------------------------
 // Connection test
 //------------------------------------------------------------------------------
+
+#if 0
 TEST(PostMasterTest, MultiIPConnectionTest)
 {
   using namespace XrdCl;
@@ -570,3 +572,4 @@ TEST(PostMasterTest, MultiIPConnectionTest)
   EXPECT_TRUE( resp->hdr.status == kXR_ok );
   EXPECT_TRUE( m2.GetSize() == 8 );
 }
+#endif

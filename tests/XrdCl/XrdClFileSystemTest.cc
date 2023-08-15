@@ -23,7 +23,7 @@
 #include "GTestXrdHelpers.hh"
 
 #include <pthread.h>
-
+#include <sys/stat.h>
 #include "TestEnv.hh"
 #include "IdentityPlugIn.hh"
 
@@ -394,9 +394,18 @@ void FileSystemTest::StatTest()
 
   std::string address;
   std::string remoteFile;
+  std::string localDataPath;
 
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
   EXPECT_TRUE( testEnv->GetString( "RemoteFile",    remoteFile ) );
+  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
+
+  std::string localFilePath = localDataPath + "/srv1" + remoteFile;
+
+  struct stat localStatBuf;
+  int rc = stat(localFilePath.c_str(), &localStatBuf);
+  EXPECT_TRUE( rc == 0 );
+  uint64_t fileSize = localStatBuf.st_size;
 
   URL url( address );
   EXPECT_TRUE( url.IsValid() );
@@ -405,7 +414,7 @@ void FileSystemTest::StatTest()
   StatInfo *response = 0;
   GTEST_ASSERT_XRDST( fs.Stat( remoteFile, response ) );
   EXPECT_TRUE( response );
-  EXPECT_TRUE( response->GetSize() == 1048576000 );
+  EXPECT_TRUE( response->GetSize() == fileSize );
   EXPECT_TRUE( response->TestFlags( StatInfo::IsReadable ) );
   EXPECT_TRUE( response->TestFlags( StatInfo::IsWritable ) );
   EXPECT_TRUE( !response->TestFlags( StatInfo::IsDir ) );
@@ -525,7 +534,7 @@ void FileSystemTest::DirListTest()
   DirectoryList *list = 0;
   GTEST_ASSERT_XRDST( fs.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list ) );
   EXPECT_TRUE( list );
-  EXPECT_TRUE( list->GetSize() == 40000 );
+  EXPECT_TRUE( list->GetSize() == 4000 );
 
   std::set<std::string> dirls1;
   for( auto itr = list->Begin(); itr != list->End(); ++itr )
@@ -571,14 +580,15 @@ void FileSystemTest::DirListTest()
   //----------------------------------------------------------------------------
   // Now list an empty directory
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( fs.MkDir( "/data/empty", MkDirFlags::None, Access::None ) );
-  GTEST_ASSERT_XRDST( fs.DeepLocate( "/data/empty", OpenFlags::PrefName, info ) );
+  std::string emptyDirPath = dataPath + "/empty" ;
+  GTEST_ASSERT_XRDST( fs.MkDir( emptyDirPath, MkDirFlags::None, Access::None ) );
+  GTEST_ASSERT_XRDST( fs.DeepLocate( emptyDirPath, OpenFlags::PrefName, info ) );
   EXPECT_TRUE( info->GetSize() );
   FileSystem fs3( info->Begin()->GetAddress() );
-  GTEST_ASSERT_XRDST( fs3.DirList( "/data/empty", DirListFlags::Stat, list ) );
+  GTEST_ASSERT_XRDST( fs3.DirList( emptyDirPath, DirListFlags::Stat, list ) );
   EXPECT_TRUE( list );
   EXPECT_TRUE( list->GetSize() == 0 );
-  GTEST_ASSERT_XRDST( fs.RmDir( "/data/empty" ) );
+  GTEST_ASSERT_XRDST( fs.RmDir( emptyDirPath ) );
 
   delete list;
   list = 0;
@@ -632,6 +642,7 @@ void FileSystemTest::PrepareTest()
   std::string dataPath;
 
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
+  EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
   URL url( address );
   EXPECT_TRUE( url.IsValid() );
 
@@ -639,8 +650,10 @@ void FileSystemTest::PrepareTest()
 
   Buffer *id = 0;
   std::vector<std::string> list;
-  list.push_back( "/data/1db882c8-8cd6-4df1-941f-ce669bad3458.dat" );
-  list.push_back( "/data/1db882c8-8cd6-4df1-941f-ce669bad3458.dat" );
+
+  std::string fileLocation = dataPath + "/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
+  list.push_back( fileLocation );
+  list.push_back( fileLocation );
 
   GTEST_ASSERT_XRDST( fs.Prepare( list, PrepareFlags::Stage, 1, id ) );
   EXPECT_TRUE( id );

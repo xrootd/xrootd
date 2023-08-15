@@ -32,6 +32,7 @@ class LocalFileHandlerTest: public ::testing::Test
 {
   public:
     void CreateTestFileFunc( std::string url, std::string content = "GenericTestFile" );
+    void readTestFunc( bool offsetRead, uint32_t offset );
     void OpenCloseTest();
     void ReadTest();
     void ReadWithOffsetTest();
@@ -56,6 +57,46 @@ void LocalFileHandlerTest::CreateTestFileFunc( std::string url, std::string cont
    EXPECT_EQ( rc, int( content.size() ) );
    rc = close( fd );
    EXPECT_EQ( rc, 0 );
+}
+
+//----------------------------------------------------------------------------
+// Performs a ReadTest
+//----------------------------------------------------------------------------
+void LocalFileHandlerTest::readTestFunc(bool offsetRead, uint32_t offset){
+   using namespace XrdCl;
+   std::string targetURL = "/tmp/lfilehandlertestfileread";
+   std::string toBeWritten = "tenBytes10";
+   std::string expectedRead = "Byte";
+   uint32_t size =
+      ( offsetRead ? expectedRead.size() : toBeWritten.size() );
+   char *buffer = new char[size];
+   uint32_t bytesRead = 0;
+
+   //----------------------------------------------------------------------------
+   // Write file with POSIX calls to ensure correct write
+   //----------------------------------------------------------------------------
+   CreateTestFileFunc( targetURL, toBeWritten );
+
+   //----------------------------------------------------------------------------
+   // Open and Read File
+   //----------------------------------------------------------------------------
+   OpenFlags::Flags flags = OpenFlags::Update;
+   Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
+   File *file = new File();
+   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
+   EXPECT_TRUE( file->IsOpen() );
+   GTEST_ASSERT_XRDST( file->Read( offset, size, buffer, bytesRead ) );
+   GTEST_ASSERT_XRDST( file->Close() );
+
+   std::string read( buffer, size );
+   if (offsetRead) EXPECT_TRUE( expectedRead == read );
+   else EXPECT_TRUE( toBeWritten == read );
+
+   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+
+   delete[] buffer;
+   delete file;
+
 }
 
 TEST_F(LocalFileHandlerTest, SyncTest){
@@ -201,70 +242,11 @@ TEST_F(LocalFileHandlerTest, WriteMkdirTest){
    delete file;
 }
 
-TEST_F(LocalFileHandlerTest, ReadTest){
-   using namespace XrdCl;
-   std::string targetURL = "/tmp/lfilehandlertestfileread";
-   std::string toBeWritten = "tenBytes10";
-   uint32_t offset = 0;
-   uint32_t writeSize = toBeWritten.size();
-   char *buffer = new char[writeSize];
-   uint32_t bytesRead = 0;
-
-   //----------------------------------------------------------------------------
-   // Write file with POSIX calls to ensure correct write
-   //----------------------------------------------------------------------------
-   CreateTestFileFunc( targetURL, toBeWritten );
-
-   //----------------------------------------------------------------------------
-   // Open and Read File
-   //----------------------------------------------------------------------------
-   OpenFlags::Flags flags = OpenFlags::Update;
-   Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
-   File *file = new File();
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
-   EXPECT_TRUE( file->IsOpen() );
-   GTEST_ASSERT_XRDST( file->Read( offset, writeSize, buffer, bytesRead ) );
-   GTEST_ASSERT_XRDST( file->Close() );
-
-   std::string read( (char*)buffer, writeSize );
-   EXPECT_TRUE( toBeWritten == read );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
-
-   delete[] buffer;
-   delete file;
-}
-
-TEST_F(LocalFileHandlerTest, ReadWithOffsetTest){
-   using namespace XrdCl;
-   std::string targetURL = "/tmp/lfilehandlertestfileread";
-   std::string toBeWritten = "tenBytes10";
-   uint32_t offset = 3;
-   std::string expectedRead = "Byte";
-   uint32_t readsize = expectedRead.size();
-   char *buffer = new char[readsize];
-   uint32_t bytesRead = 0;
-
-   //----------------------------------------------------------------------------
-   // Write file with POSIX calls to ensure correct write
-   //----------------------------------------------------------------------------
-   CreateTestFileFunc( targetURL, toBeWritten );
-
-   //----------------------------------------------------------------------------
-   // Open and Read File
-   //----------------------------------------------------------------------------
-   OpenFlags::Flags flags = OpenFlags::Update;
-   Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
-   File *file = new File();
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
-   EXPECT_TRUE( file->IsOpen() );
-   GTEST_ASSERT_XRDST( file->Read( offset, readsize, buffer, bytesRead ) );
-   GTEST_ASSERT_XRDST( file->Close() );
-
-   std::string read( buffer, readsize );
-   EXPECT_TRUE( expectedRead == read );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
-   delete[] buffer;
-   delete file;
+TEST_F(LocalFileHandlerTest, ReadTests){
+   // Normal read test
+   readTestFunc(false, 0);
+   // Read with offset test
+   readTestFunc(true, 3);
 }
 
 TEST_F(LocalFileHandlerTest, TruncateTest){
@@ -460,8 +442,14 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   // Initialize
   // (we do the test in /data as /tmp might be on tpmfs,
   //  which does not support xattrs)
+  // In this case, /data is /xrd-data inside of the build directory
   //----------------------------------------------------------------------------
-  std::string targetURL = "/data/lfilehandlertestfilexattr";
+  Env *testEnv = TestEnv::GetEnv();
+  std::string localDataPath;
+  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
+
+  localDataPath = realpath(localDataPath.c_str(), NULL);
+  std::string targetURL = localDataPath + "/metaman/lfilehandlertestfilexattr";
   CreateTestFileFunc( targetURL );
 
   File f;

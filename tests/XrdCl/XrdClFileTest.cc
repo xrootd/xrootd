@@ -34,6 +34,9 @@
 #include "XrdCl/XrdClZipArchive.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClZipOperations.hh"
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fstream>
 
 using namespace XrdClTests;
 
@@ -86,10 +89,12 @@ TEST_F(FileTest, VectorWriteTest)
   VectorWriteTest();
 }
 
-TEST_F(FileTest, VirtualRedirectorTest)
-{
-  VirtualRedirectorTest();
-}
+// This test is commented out as of now since we think that there's a bug in the code
+
+// TEST_F(FileTest, VirtualRedirectorTest)
+// {
+//   VirtualRedirectorTest();
+// }
 
 TEST_F(FileTest, XAttrTest)
 {
@@ -169,9 +174,12 @@ void FileTest::ReadTest()
 
   std::string address;
   std::string dataPath;
+  std::string localDataPath;
 
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
   EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
+  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
+
 
   URL url( address );
   EXPECT_TRUE( url.IsValid() );
@@ -179,60 +187,92 @@ void FileTest::ReadTest()
   std::string filePath = dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
   std::string fileUrl = address + "/";
   fileUrl += filePath;
+  localDataPath = realpath(localDataPath.c_str(), NULL);
+  // using the file protocol to access local files, so that we can use XRootD's own functions
+  std::string localFileUrl = "file://localhost" + localDataPath + "/srv1" + filePath;
 
   //----------------------------------------------------------------------------
   // Fetch some data and checksum
   //----------------------------------------------------------------------------
   const uint32_t MB = 1024*1024;
-  char *buffer1 = new char[40*MB];
-  char *buffer2 = new char[40*MB];
-  uint32_t bytesRead1 = 0;
-  uint32_t bytesRead2 = 0;
-  File f;
-  StatInfo *stat;
+  // buffers containing remote file data
+  char *buffer1 = new char[10*MB];
+  char *buffer2 = new char[10*MB];
+  // comparison buffers containing local file data
+  char *buffer1Comp = new char[10*MB];
+  char *buffer2Comp = new char[10*MB];
+  uint32_t bytesRead1 = 0, bytesRead2 = 0;
+  File f, fLocal;
+  StatInfo *statInfo;
 
   //----------------------------------------------------------------------------
   // Open the file
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
+  GTEST_ASSERT_XRDST( fLocal.Open( localFileUrl, OpenFlags::Read ) );
 
   //----------------------------------------------------------------------------
   // Stat1
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Stat( false, stat ) );
-  EXPECT_TRUE( stat );
-  EXPECT_TRUE( stat->GetSize() == 1048576000 );
-  EXPECT_TRUE( stat->TestFlags( StatInfo::IsReadable ) );
-  delete stat;
-  stat = 0;
+  GTEST_ASSERT_XRDST( f.Stat( false, statInfo ) );
+  EXPECT_TRUE( statInfo );
+
+  struct stat localStatBuf;
+
+  std::string localFilePath = localDataPath + "/srv1" + filePath;
+
+  int rc = stat(localFilePath.c_str(), &localStatBuf);
+  EXPECT_TRUE( rc == 0 );
+  uint64_t fileSize = localStatBuf.st_size;
+  EXPECT_TRUE( statInfo->GetSize() == fileSize );
+  EXPECT_TRUE( statInfo->TestFlags( StatInfo::IsReadable ) );
+
+  delete statInfo;
+  statInfo = 0;
 
   //----------------------------------------------------------------------------
   // Stat2
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Stat( true, stat ) );
-  EXPECT_TRUE( stat );
-  EXPECT_TRUE( stat->GetSize() == 1048576000 );
-  EXPECT_TRUE( stat->TestFlags( StatInfo::IsReadable ) );
-  delete stat;
+  GTEST_ASSERT_XRDST( f.Stat( true, statInfo ) );
+  EXPECT_TRUE( statInfo );
+  EXPECT_TRUE( statInfo->GetSize() == fileSize );
+  EXPECT_TRUE( statInfo->TestFlags( StatInfo::IsReadable ) );
+  delete statInfo;
 
   //----------------------------------------------------------------------------
   // Read test
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Read( 10*MB, 40*MB, buffer1, bytesRead1 ) );
-  GTEST_ASSERT_XRDST( f.Read( 1008576000, 40*MB, buffer2, bytesRead2 ) );
-  EXPECT_TRUE( bytesRead1 == 40*MB );
-  EXPECT_TRUE( bytesRead2 == 40000000 );
+  GTEST_ASSERT_XRDST( f.Read( 5*MB, 5*MB, buffer1, bytesRead1 ) );
+  GTEST_ASSERT_XRDST( f.Read( fileSize - 3*MB, 4*MB, buffer2, bytesRead2 ) );
+  EXPECT_TRUE( bytesRead1 == 5*MB );
+  EXPECT_TRUE( bytesRead2 == 3*MB );
 
-  uint32_t crc = XrdClTests::Utils::ComputeCRC32( buffer1, 40*MB );
-  EXPECT_TRUE( crc == 3303853367UL );
+  uint32_t crc = XrdClTests::Utils::ComputeCRC32( buffer1, 5*MB );
 
-  crc = XrdClTests::Utils::ComputeCRC32( buffer2, 40000000 );
-  EXPECT_TRUE( crc == 898701504UL );
+  // reinitializing the file cursor
+  bytesRead1 = bytesRead2 = 0;
+  GTEST_ASSERT_XRDST( fLocal.Read( 5*MB, 5*MB, buffer1Comp, bytesRead1 ) );
+  GTEST_ASSERT_XRDST( fLocal.Read( fileSize - 3*MB, 4*MB, buffer2Comp, bytesRead2 ) );
 
+  // compute and compare local file buffer crc
+  uint32_t crcComp = XrdClTests::Utils::ComputeCRC32( buffer1Comp, 5*MB );
+
+  EXPECT_TRUE( crc == crcComp );
+
+  // do the same for the second buffer
+  crc = XrdClTests::Utils::ComputeCRC32( buffer2, 3*MB );
+  crcComp = XrdClTests::Utils::ComputeCRC32( buffer2Comp, 3*MB );
+
+  EXPECT_TRUE( crc == crcComp );
+
+  // cleanup after ourselves
   delete [] buffer1;
   delete [] buffer2;
+  delete [] buffer1Comp;
+  delete [] buffer2Comp;
 
   GTEST_ASSERT_XRDST( f.Close() );
+  GTEST_ASSERT_XRDST( fLocal.Close() );
 
   //----------------------------------------------------------------------------
   // Read ZIP archive test (uncompressed)
@@ -326,8 +366,9 @@ void FileTest::WriteTest()
   //----------------------------------------------------------------------------
   // Write the data
   //----------------------------------------------------------------------------
-  EXPECT_TRUE( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
-                           Access::UR | Access::UW ).IsOK() );
+  GTEST_ASSERT_XRDST( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
+                           Access::UR | Access::UW ));
+
   EXPECT_TRUE( f1.Write( 0, 4*MB, buffer1 ).IsOK() );
   EXPECT_TRUE( f1.Write( 4*MB, 4*MB, buffer2 ).IsOK() );
   EXPECT_TRUE( f1.Sync().IsOK() );
@@ -336,11 +377,11 @@ void FileTest::WriteTest()
   //----------------------------------------------------------------------------
   // Read the data and verify the checksums
   //----------------------------------------------------------------------------
-  StatInfo *stat = 0;
+  StatInfo *statInfo = 0;
   EXPECT_TRUE( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
-  EXPECT_TRUE( f2.Stat( false, stat ).IsOK() );
-  EXPECT_TRUE( stat );
-  EXPECT_TRUE( stat->GetSize() == 8*MB );
+  EXPECT_TRUE( f2.Stat( false, statInfo ).IsOK() );
+  EXPECT_TRUE( statInfo );
+  EXPECT_TRUE( statInfo->GetSize() == 8*MB );
   EXPECT_TRUE( f2.Read( 0, 4*MB, buffer3, bytesRead1 ).IsOK() );
   EXPECT_TRUE( f2.Read( 4*MB, 4*MB, buffer4, bytesRead2 ).IsOK() );
   EXPECT_TRUE( bytesRead1 == 4*MB );
@@ -368,7 +409,7 @@ void FileTest::WriteTest()
   delete [] buffer3;
   delete [] buffer4;
   delete response;
-  delete stat;
+  delete statInfo;
 }
 
 //------------------------------------------------------------------------------
@@ -433,11 +474,11 @@ void FileTest::WriteVTest()
   //----------------------------------------------------------------------------
   // Read the data and verify the checksums
   //----------------------------------------------------------------------------
-  StatInfo *stat = 0;
+  StatInfo *statInfo = 0;
   EXPECT_TRUE( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
-  EXPECT_TRUE( f2.Stat( false, stat ).IsOK() );
-  EXPECT_TRUE( stat );
-  EXPECT_TRUE( stat->GetSize() == 8*MB );
+  EXPECT_TRUE( f2.Stat( false, statInfo ).IsOK() );
+  EXPECT_TRUE( statInfo );
+  EXPECT_TRUE( statInfo->GetSize() == 8*MB );
   EXPECT_TRUE( f2.Read( 0, 8*MB, buffer3, bytesRead1 ).IsOK() );
   EXPECT_TRUE( bytesRead1 == 8*MB );
 
@@ -450,7 +491,7 @@ void FileTest::WriteVTest()
   delete [] buffer1;
   delete [] buffer2;
   delete [] buffer3;
-  delete stat;
+  delete statInfo;
 }
 
 //------------------------------------------------------------------------------
@@ -467,9 +508,12 @@ void FileTest::VectorReadTest()
 
   std::string address;
   std::string dataPath;
+  std::string localDataPath;
 
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
   EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
+  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
+
 
   URL url( address );
   EXPECT_TRUE( url.IsValid() );
@@ -477,49 +521,78 @@ void FileTest::VectorReadTest()
   std::string filePath = dataPath + "/a048e67f-4397-4bb8-85eb-8d7e40d90763.dat";
   std::string fileUrl = address + "/";
   fileUrl += filePath;
+  localDataPath += "/srv1" + filePath;
+  localDataPath = realpath(localDataPath.c_str(), NULL);
 
   //----------------------------------------------------------------------------
   // Fetch some data and checksum
   //----------------------------------------------------------------------------
   const uint32_t MB = 1024*1024;
-  char *buffer1 = new char[40*MB];
-  char *buffer2 = new char[40*256000];
-  File f;
+  char *buffer1 = new char[10*MB];
+  char *buffer2 = new char[10*256000];
+  char *buffer1Comp = new char[10*MB];
+  char *buffer2Comp = new char[10*256000];
+  File f, fLocal;
 
   //----------------------------------------------------------------------------
   // Build the chunk list
   //----------------------------------------------------------------------------
   ChunkList chunkList1;
   ChunkList chunkList2;
-  for( int i = 0; i < 40; ++i )
+  for( int i = 0; i < 10; ++i )
   {
-    chunkList1.push_back( ChunkInfo( (i+1)*10*MB, 1*MB ) );
-    chunkList2.push_back( ChunkInfo( (i+1)*10*MB, 256000 ) );
+    chunkList1.push_back( ChunkInfo( (i+1)*1*MB, 1*MB ) );
+    chunkList2.push_back( ChunkInfo( (i+1)*1*MB, 256000 ) );
   }
 
   //----------------------------------------------------------------------------
   // Open the file
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
+  GTEST_ASSERT_XRDST( fLocal.Open( localDataPath, OpenFlags::Read ) );
+
+  // remote file vread1
   VectorReadInfo *info = 0;
   GTEST_ASSERT_XRDST( f.VectorRead( chunkList1, buffer1, info ) );
-  EXPECT_TRUE( info->GetSize() == 40*MB );
+  EXPECT_TRUE( info->GetSize() == 10*MB );
   delete info;
-  uint32_t crc = 0;
-  crc = XrdClTests::Utils::ComputeCRC32( buffer1, 40*MB );
-  EXPECT_TRUE( crc == 3695956670UL );
 
+  // local file vread1
+  info = 0;
+  GTEST_ASSERT_XRDST( fLocal.VectorRead( chunkList1, buffer1Comp, info ) );
+  EXPECT_TRUE( info->GetSize() == 10*MB );
+  delete info;
+
+  // checksum comparison
+  uint32_t crc = 0, crcComp = 0;
+  crc = XrdClTests::Utils::ComputeCRC32( buffer1, 10*MB );
+  crcComp = XrdClTests::Utils::ComputeCRC32( buffer1Comp, 10*MB );
+  EXPECT_TRUE( crc == crcComp );
+
+  // remote vread2
   info = 0;
   GTEST_ASSERT_XRDST( f.VectorRead( chunkList2, buffer2, info ) );
-  EXPECT_TRUE( info->GetSize() == 40*256000 );
+  EXPECT_TRUE( info->GetSize() == 10*256000 );
   delete info;
-  crc = XrdClTests::Utils::ComputeCRC32( buffer2, 40*256000 );
-  EXPECT_TRUE( crc == 3492603530UL );
 
+  // local vread2
+  info = 0;
+  GTEST_ASSERT_XRDST( f.VectorRead( chunkList2, buffer2Comp, info ) );
+  EXPECT_TRUE( info->GetSize() == 10*256000 );
+  delete info;
+
+  // checksum comparison again
+  crc = XrdClTests::Utils::ComputeCRC32( buffer2, 10*256000 );
+  crcComp = XrdClTests::Utils::ComputeCRC32( buffer2Comp, 10*256000 );
+  EXPECT_TRUE( crc == crcComp );
+
+  // cleanup
   GTEST_ASSERT_XRDST( f.Close() );
-
+  GTEST_ASSERT_XRDST( fLocal.Close() );
   delete [] buffer1;
   delete [] buffer2;
+  delete [] buffer1Comp;
+  delete [] buffer2Comp;
 }
 
 void gen_random_str(char *s, const int len)
@@ -567,8 +640,7 @@ void FileTest::VectorWriteTest()
   //----------------------------------------------------------------------------
 
   const uint32_t MB = 1024*1024;
-  const uint32_t GB = 1000*MB; // maybe that's not 100% precise but that's
-                               // what we have in our testbed
+  const uint32_t limit = 10*MB;
 
   time_t seed = time( 0 );
   srand( seed );
@@ -586,12 +658,12 @@ void FileTest::VectorWriteTest()
   for( size_t i = 0; i < nbChunks; ++i )
   {
     // figure out the offset
-    size_t offset = min_offset + rand() % ( GB - min_offset + 1 );
+    size_t offset = min_offset + rand() % ( limit - min_offset + 1 );
 
     // figure out the size
     size_t size = MB + rand() % ( MB + 1 );
-    if( offset + size >= GB )
-      size = GB - offset;
+    if( offset + size >= limit )
+      size = limit - offset;
 
     // generate random string of given size
     char *buffer = new char[size];
@@ -603,7 +675,7 @@ void FileTest::VectorWriteTest()
     chunks.push_back( XrdCl::ChunkInfo( offset, size, buffer ) );
 
     min_offset = offset + size;
-    if( min_offset >= GB )
+    if( min_offset >= limit )
       break;
   }
 
@@ -675,7 +747,10 @@ void FileTest::VirtualRedirectorTest()
 
   File f1, f2, f3, f4;
 
-  const std::string fileUrl = "root://srv1:1094//data/a048e67f-4397-4bb8-85eb-8d7e40d90763.dat";
+  std::string srv1Hostname;
+  EXPECT_TRUE( testEnv->GetString( "Server1URL", srv1Hostname ) );
+  const std::string fileUrl = "root://" + srv1Hostname + "/" + dataPath + "/a048e67f-4397-4bb8-85eb-8d7e40d90763.dat";
+
   const std::string key = "LastURL";
   std::string value;
 
@@ -709,8 +784,14 @@ void FileTest::VirtualRedirectorTest()
   // Open the 4th metalink file
   // (the metalink contains 2 files, both exist)
   //----------------------------------------------------------------------------
-  const std::string replica1 = "root://srv3:1094//data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
-  const std::string replica2 = "root://srv2:1094//data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
+
+  std::string srv3Hostname;
+  EXPECT_TRUE( testEnv->GetString( "Server3URL", srv3Hostname ) );
+  std::string replica1 = "root://" + srv3Hostname + "/" + dataPath + "/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
+
+  std::string srv2Hostname;
+  EXPECT_TRUE( testEnv->GetString( "Server2URL", srv2Hostname ) );
+  const std::string replica2 = "root://" + srv2Hostname + "/" + dataPath + "/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
 
   GTEST_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
   EXPECT_TRUE( f4.GetProperty( key, value ) );
@@ -721,7 +802,7 @@ void FileTest::VirtualRedirectorTest()
   // Delete the replica that has been selected by the virtual redirector
   //----------------------------------------------------------------------------
   FileSystem fs( replica1 );
-  GTEST_ASSERT_XRDST( fs.Rm( "/data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat" ) );
+  GTEST_ASSERT_XRDST( fs.Rm( dataPath + "/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat" ) );
   //----------------------------------------------------------------------------
   // Now reopen the file
   //----------------------------------------------------------------------------

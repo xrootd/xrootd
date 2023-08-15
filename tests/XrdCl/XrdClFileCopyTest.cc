@@ -142,10 +142,12 @@ void FileCopyTest::UploadTestFunc()
   std::string address;
   std::string dataPath;
   std::string localFile;
+  std::string localDataPath;
 
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
   EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
-  EXPECT_TRUE( testEnv->GetString( "LocalFile", localFile ) );
+  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
+  localFile = localDataPath + "/metaman/data/testFile.dat";
 
   URL url( address );
   EXPECT_TRUE( url.IsValid() );
@@ -161,6 +163,7 @@ void FileCopyTest::UploadTestFunc()
   // Open
   //----------------------------------------------------------------------------
   int fd = -1;
+
   GTEST_ASSERT_ERRNO( (fd=open( localFile.c_str(), O_RDONLY )) > 0 )
   GTEST_ASSERT_XRDST( f.Open( fileUrl,
                                 OpenFlags::Delete|OpenFlags::Update ) );
@@ -269,7 +272,18 @@ namespace
       //------------------------------------------------------------------------
       // Constructor/destructor
       //------------------------------------------------------------------------
-      CancelProgressHandler(): pCancel( false ) {}
+
+      // file size limit in MB
+      uint64_t sizeLimit;
+
+      CancelProgressHandler(): pCancel( false ) {
+        sizeLimit = 128*1024*1024;
+      }
+
+      CancelProgressHandler(uint64_t sl): pCancel( false ) {
+        sizeLimit = sl*1024*1024;
+      }
+
       virtual ~CancelProgressHandler() {};
 
       //------------------------------------------------------------------------
@@ -279,7 +293,7 @@ namespace
                                 uint64_t bytesProcessed,
                                 uint64_t bytesTotal )
       {
-        if( bytesProcessed > 128*1024*1024 )
+        if( bytesProcessed > sizeLimit )
           pCancel = true;
       }
 
@@ -310,12 +324,19 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string manager2;
   std::string sourceFile;
   std::string dataPath;
+  std::string relativeDataPath;
+  std::string localDataPath;
 
-  EXPECT_TRUE( testEnv->GetString( "MainServerURL", metamanager ) );
-  EXPECT_TRUE( testEnv->GetString( "Manager1URL",      manager1 ) );
-  EXPECT_TRUE( testEnv->GetString( "Manager2URL",      manager2 ) );
-  EXPECT_TRUE( testEnv->GetString( "RemoteFile",     sourceFile ) );
-  EXPECT_TRUE( testEnv->GetString( "DataPath",         dataPath ) );
+
+  EXPECT_TRUE( testEnv->GetString( "MainServerURL",   metamanager ) );
+  EXPECT_TRUE( testEnv->GetString( "Manager1URL",        manager1 ) );
+  EXPECT_TRUE( testEnv->GetString( "Manager2URL",        manager2 ) );
+  EXPECT_TRUE( testEnv->GetString( "RemoteFile",       sourceFile ) );
+  EXPECT_TRUE( testEnv->GetString( "DataPath",           dataPath ) );
+  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", relativeDataPath ) );
+
+  // getting the abs path to that it can work with the "file" protocol
+  localDataPath = realpath(relativeDataPath.c_str(), NULL);
 
   std::string sourceURL    = manager1 + "/" + sourceFile;
   std::string targetPath   = dataPath + "/tpcFile";
@@ -327,7 +348,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string fileInZip    = "paper.txt";
   std::string fileInZip2   = "bible.txt";
   std::string xcpSourceURL = metamanager + "/" + dataPath + "/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
-  std::string localFile    = "/data/localfile.dat";
+  std::string localFile    = localDataPath + "/metaman/localfile.dat";
 
   CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9,
                process10, process11, process12, process13, process14, process15, process16, process17;
@@ -424,7 +445,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "source",    sourceURL   );
     properties.Set( "target",    targetURL   );
     properties.Set( "xrate",     1024 * 1024 ); //< limit the transfer rate to 1MB/s (the file is 1GB big so the transfer will take 1024 seconds)
-    properties.Set( "cpTimeout", 10          ); //< timeout the job after 10 seconds
+    properties.Set( "cpTimeout", 5          ); //< timeout the job after 10 seconds (now the file are smaller so we have to decrease it to 5 sec)
     GTEST_ASSERT_XRDST( process15.AddJob( properties, &results ) );
     GTEST_ASSERT_XRDST( process15.Prepare() );
     GTEST_ASSERT_XRDST_NOTOK( process15.Run(0), XrdCl::errOperationExpired );
@@ -435,17 +456,17 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     //--------------------------------------------------------------------------
     results.Clear();
     properties.Clear();
-    std::string localtrg = "file://localhost/data/tpcFile.dat";
+    std::string localtrg = "file://localhost" + localDataPath + "/metaman/tpcFile.dat";
     properties.Set( "source",    sourceURL );
     properties.Set( "target",    localtrg  );
     properties.Set( "posc",      true      );
-    CancelProgressHandler progress16; //> abort the copy after 100MB
+    CancelProgressHandler progress16(5); //> abort the copy after 5MB
     GTEST_ASSERT_XRDST( process16.AddJob( properties, &results ) );
     GTEST_ASSERT_XRDST( process16.Prepare() );
     GTEST_ASSERT_XRDST_NOTOK( process16.Run( &progress16 ), errOperationInterrupted );
     XrdCl::FileSystem localfs( "file://localhost" );
     XrdCl::StatInfo *ptr = nullptr;
-    GTEST_ASSERT_XRDST_NOTOK( localfs.Stat( "/data/tpcFile.dat", ptr ), XrdCl::errLocalError );
+    GTEST_ASSERT_XRDST_NOTOK( localfs.Stat( dataPath + "/tpcFile.dat", ptr ), XrdCl::errLocalError );
 
     //--------------------------------------------------------------------------
     // Test --retry and --retry-policy
@@ -474,7 +495,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "source",       metalinkURL );
   properties.Set( "target",       targetURL   );
   properties.Set( "checkSumMode", "end2end"   );
-  properties.Set( "checkSumType", "zcrc32"    );
+  properties.Set( "checkSumType", "crc32c"    );
   GTEST_ASSERT_XRDST( process5.AddJob( properties, &results ) );
   GTEST_ASSERT_XRDST( process5.Prepare() );
   GTEST_ASSERT_XRDST( process5.Run(0) );
@@ -486,7 +507,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "source",         xcpSourceURL  );
   properties.Set( "target",         targetURL     );
   properties.Set( "checkSumMode",   "end2end"     );
-  properties.Set( "checkSumType",   "zcrc32"      );
+  properties.Set( "checkSumType",   "crc32c"      );
   properties.Set( "xcp",            true          );
   properties.Set( "nbXcpSources",   3             );
   GTEST_ASSERT_XRDST( process7.AddJob( properties, &results ) );
@@ -502,7 +523,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "source", sourceURL );
   properties.Set( "target", "file://localhost" + localFile );
   properties.Set( "checkSumMode", "end2end" );
-  properties.Set( "checkSumType", "zcrc32"  );
+  properties.Set( "checkSumType", "crc32c"  );
   GTEST_ASSERT_XRDST( process8.AddJob( properties, &results ) );
   GTEST_ASSERT_XRDST( process8.Prepare() );
   GTEST_ASSERT_XRDST( process8.Run(0) );
@@ -526,7 +547,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "source", "file://localhost" + localFile );
   properties.Set( "target", targetURL );
   properties.Set( "checkSumMode", "end2end" );
-  properties.Set( "checkSumType", "zcrc32"  );
+  properties.Set( "checkSumType", "crc32c"  );
   properties.Set( "preserveXAttr", true );
   GTEST_ASSERT_XRDST( process9.AddJob( properties, &results ) );
   GTEST_ASSERT_XRDST( process9.Prepare() );
@@ -553,7 +574,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "source",       sourceURL );
   properties.Set( "target",       targetURL );
   properties.Set( "checkSumMode", "end2end" );
-  properties.Set( "checkSumType", "zcrc32"  );
+  properties.Set( "checkSumType", "crc32c"  );
   if( thirdParty )
     properties.Set( "thirdParty",   "only"    );
   GTEST_ASSERT_XRDST( process1.AddJob( properties, &results ) );
@@ -595,8 +616,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // Copy from a non-existent source
   //----------------------------------------------------------------------------
   results.Clear();
-  properties.Set( "source",      "root://localhost:9997//test" ); // was 9999, this change allows for
-  properties.Set( "target",      targetURL );                     // parallel testing
+  properties.Set( "source",      "root://localhost:9999//test" );
+  properties.Set( "target",      targetURL );
   properties.Set( "initTimeout", 10 );
   properties.Set( "thirdParty",  "only"    );
   GTEST_ASSERT_XRDST( process3.AddJob( properties, &results ) );
@@ -627,9 +648,9 @@ TEST_F(FileCopyTest, ThirdPartyCopyTest)
 }
 
 //------------------------------------------------------------------------------
-// Cormal copy test
+// Normal copy test
 //------------------------------------------------------------------------------
-TEST_F (FileCopyTest, NormalCopyTest)
+TEST_F(FileCopyTest, NormalCopyTest)
 {
   CopyTestFunc( false );
 }
