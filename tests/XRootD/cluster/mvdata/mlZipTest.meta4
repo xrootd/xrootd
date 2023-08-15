@@ -1,0 +1,9 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <metalink xmlns="urn:ietf:params:xml:ns:metalink">
+   <file name="output.dat">
+     <hash type="zcrc32">75a16a5b</hash>
+     <size>4047392</size>
+     <url location="ch" priority="1">root://localhost:10946//data/large.zip</url>
+   </file>
+ </metalink>
+
