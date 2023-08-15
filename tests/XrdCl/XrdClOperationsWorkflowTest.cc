@@ -34,6 +34,7 @@
 #include "XrdCl/XrdClFwd.hh"
 
 #include <algorithm>
+#include <sys/stat.h>
 
 using namespace XrdClTests;
 
@@ -179,11 +180,24 @@ TEST(WorkflowTest, ReadingWorkflowTest){
   const OpenFlags::Flags flags = OpenFlags::Read;
   uint64_t offset = 0;
 
+  Env *testEnv = TestEnv::GetEnv();
+  std::string localDataPath;
+  std::string dataPath;
+  EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
+  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
+  std::string filePath = dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
+
+  struct stat localStatBuf;
+  std::string localFilePath = localDataPath + "/srv1" + filePath;
+  int rc = stat(localFilePath.c_str(), &localStatBuf);
+  EXPECT_TRUE( rc == 0 );
+  uint64_t fileSize = localStatBuf.st_size;
+
   auto &&pipe = Open( f, fileUrl, flags ) >> openHandler // by reference
-              | Stat( f, true) >> [size, buffer]( XRootDStatus &status, StatInfo &stat ) mutable
+              | Stat( f, true) >> [fileSize, size, buffer]( XRootDStatus &status, StatInfo &stat) mutable
                   {
                     GTEST_ASSERT_XRDST( status );
-                    EXPECT_TRUE( stat.GetSize() == 1048576000 );
+                    EXPECT_TRUE( stat.GetSize() == fileSize );
                     size = stat.GetSize();
                     buffer = new char[stat.GetSize()];
                   }
@@ -561,11 +575,11 @@ TEST(WorkflowTest, ParallelTest){
     //----------------------------------------------------------------------------
     // Test the policies
     //----------------------------------------------------------------------------
-    std::string url_exists = "/data/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
-    std::string not_exists = "/data/blablabla.txt";
+    std::string url_exists = GetPath("1db882c8-8cd6-4df1-941f-ce669bad3458.dat");
+    std::string not_exists = GetPath("blablabla.txt");
     GTEST_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists ), Stat( fs, url_exists ) ).Any() ) );
 
-    std::string also_exists = "/data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
+    std::string also_exists = GetPath("3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat");
     GTEST_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists ),
                                              Stat( fs, also_exists ),
                                              Stat( fs, not_exists ) ).Some( 2 ) ) );
@@ -729,8 +743,8 @@ TEST(WorkflowTest, WorkflowWithFutureTest)
   // Fetch some data and checksum
   //----------------------------------------------------------------------------
   const uint32_t MB = 1024*1024;
-  char *expected = new char[40*MB];
-  char *buffer   = new char[40*MB];
+  char *expected = new char[10*MB];
+  char *buffer   = new char[10*MB];
   uint32_t bytesRead = 0;
   File f;
 
@@ -738,8 +752,8 @@ TEST(WorkflowTest, WorkflowWithFutureTest)
   // Open and Read and Close in standard way
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
-  GTEST_ASSERT_XRDST( f.Read( 10*MB, 40*MB, expected, bytesRead ) );
-  EXPECT_TRUE( bytesRead == 40*MB );
+  GTEST_ASSERT_XRDST( f.Read( 1*MB, 10*MB, expected, bytesRead ) );
+  EXPECT_TRUE( bytesRead == 10*MB );
   GTEST_ASSERT_XRDST( f.Close() );
 
   //----------------------------------------------------------------------------
@@ -747,7 +761,7 @@ TEST(WorkflowTest, WorkflowWithFutureTest)
   //----------------------------------------------------------------------------
   File file;
   std::future<ChunkInfo> ftr;
-  Pipeline pipeline = Open( file, fileUrl, OpenFlags::Read ) | Read( file, 10*MB, 40*MB, buffer ) >> ftr | Close( file );
+  Pipeline pipeline = Open( file, fileUrl, OpenFlags::Read ) | Read( file, 1*MB, 10*MB, buffer ) >> ftr | Close( file );
   std::future<XRootDStatus> status = Async( std::move( pipeline ) );
 
   try
@@ -888,6 +902,7 @@ TEST(WorkflowTest, XAttrWorkflowTest)
 
 TEST(WorkflowTest, MkDirAsyncTest) {
   using namespace XrdCl;
+  std::string asyncTestFile = GetPath("MkDirAsyncTest");
 
   FileSystem fs( GetAddress() );
 
@@ -901,8 +916,8 @@ TEST(WorkflowTest, MkDirAsyncTest) {
                                XrdCl::Access::Mode::UX | XrdCl::Access::Mode::GR |
                                XrdCl::Access::Mode::GW | XrdCl::Access::Mode::GX;
 
-  auto &&t = Async( MkDir( fs, "/data/MkDirAsyncTest", XrdCl::MkDirFlags::None, access ) >> mkdirTask |
-                    RmDir( fs, "/data/MkDirAsyncTest" )
+  auto &&t = Async( MkDir( fs, asyncTestFile, XrdCl::MkDirFlags::None, access ) >> mkdirTask |
+                    RmDir( fs, asyncTestFile )
                   );
 
   EXPECT_TRUE(t.get().status == stOK);
@@ -916,7 +931,10 @@ TEST(WorkflowTest, CheckpointTest) {
                       "czarna ma skore ten nasz kolezka\n"
                       "Uczy sie pilnie przez cale ranki\n"
                       "Ze swej murzynskiej pierwszej czytanki.";
-  std::string url = "root://localhost//data/chkpttest.txt";
+
+  std::string chkpttestFile =  GetPath("chkpttest.txt");
+  std::string serverName = (GetAddress()).GetURL();
+  std::string url = serverName + chkpttestFile;
 
   GTEST_ASSERT_XRDST( WaitFor( Open( f1, url, OpenFlags::New | OpenFlags::Write ) |
                                  Write( f1, 0, sizeof( data ), data ) |
@@ -965,6 +983,6 @@ TEST(WorkflowTest, CheckpointTest) {
   // Now clean up
   //---------------------------------------------------------------------------
   FileSystem fs( url );
-  GTEST_ASSERT_XRDST( WaitFor( Rm( fs, "/data/chkpttest.txt" ) ) );
+  GTEST_ASSERT_XRDST( WaitFor( Rm( fs, chkpttestFile ) ) );
 }
 

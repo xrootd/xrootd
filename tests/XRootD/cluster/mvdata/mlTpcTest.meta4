@@ -1,0 +1,9 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <metalink xmlns="urn:ietf:params:xml:ns:metalink">
+   <file name="output.dat">
+     <hash type="crc32c">b43f105c</hash>
+     <size>16777216</size>
+     <url location="ch" priority="1">root://localhost:10943//data/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat</url>
+   </file>
+ </metalink>
+

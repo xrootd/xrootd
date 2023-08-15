@@ -3,21 +3,11 @@ add_executable(xrdcl-unit-tests
   XrdClURL.cc
   XrdClPoller.cc
   XrdClSocket.cc
-  XrdClZip.cc
   XrdClUtilsTest.cc
-  IdentityPlugIn.cc
-  XrdClFileTest.cc
-  XrdClFileCopyTest.cc
-  XrdClFileSystemTest.cc
-  XrdClOperationsWorkflowTest.cc
-  XrdClLocalFileHandlerTest.cc
-  XrdClPostMasterTest.cc
-  XrdClThreadingTest.cc
   ../common/Server.cc
   ../common/Utils.cc
   ../common/TestEnv.cc
-)
-
+  )
 
 target_link_libraries(xrdcl-unit-tests
   XrdCl
@@ -33,3 +23,44 @@ target_include_directories(xrdcl-unit-tests
 )
 
 gtest_discover_tests(xrdcl-unit-tests TEST_PREFIX XrdCl::)
+
+if(XRDCL_ONLY)
+  return()
+endif()
+
+execute_process(COMMAND id -u OUTPUT_VARIABLE UID OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+if (UID EQUAL 0)
+  return()
+endif()
+
+add_executable(xrdcl-cluster-tests
+  IdentityPlugIn.cc
+  XrdClFileTest.cc
+  XrdClFileCopyTest.cc
+  XrdClFileSystemTest.cc
+  XrdClOperationsWorkflowTest.cc
+  XrdClLocalFileHandlerTest.cc
+  XrdClPostMasterTest.cc
+  XrdClThreadingTest.cc
+  XrdClZip.cc
+  ../common/Server.cc
+  ../common/Utils.cc
+  ../common/TestEnv.cc
+  )
+
+target_link_libraries(xrdcl-cluster-tests
+  XrdCl
+  XrdXml
+  XrdUtils
+  ZLIB::ZLIB
+  GTest::GTest
+  GTest::Main
+)
+
+target_include_directories(xrdcl-cluster-tests
+  PRIVATE ${CMAKE_SOURCE_DIR}/src ../common
+)
+
+gtest_discover_tests(xrdcl-cluster-tests TEST_PREFIX XrdCl::
+  PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster)
