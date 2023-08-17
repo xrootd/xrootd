@@ -6,6 +6,17 @@ Release Notes
 =============
 
 -------------
+Version 5.6.2
+-------------
+
++ **Major bug fixes**
+
++ **Minor bug fixes**
+
++ **Miscellaneous**
+  **[Server]** Correct code that tried to fix auth id spec on 11/2020.
+
+-------------
 Version 5.6.1
 -------------
 
