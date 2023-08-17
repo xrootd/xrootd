@@ -1115,6 +1115,11 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           }
       
+      // The reqstate parameter basically moves us through a simple state machine.
+      // - 0: Perform a stat on the resource
+      // - 1: Perform a checksum request on the resource (only if requested in header; otherwise skipped)
+      // - 2: Perform an open request (dirlist as appropriate).
+      // - 3+: Reads from file; if at end, perform a close.
       switch (reqstate) {
         case 0: // Stat()
           
@@ -1127,7 +1132,36 @@ int XrdHttpReq::ProcessHTTPReq() {
           }
 
           return 0;
-        case 1: // Open() or dirlist
+        case 1: // Checksum request
+          if (!(fileflags & kXR_isDir) && !m_req_digest.empty()) {
+            // In this case, the Want-Digest header was set.
+            bool has_opaque = strchr(resourceplusopaque.c_str(), '?');
+            // Note that doChksum requires that the memory stays alive until the callback is invoked.
+            m_req_cksum = prot->cksumHandler.getChecksumToRun(m_req_digest);
+            if(!m_req_cksum) {
+                // No HTTP IANA checksums have been configured by the server admin, return a "METHOD_NOT_ALLOWED" error
+                prot->SendSimpleResp(403, NULL, NULL, (char *) "No HTTP-IANA compatible checksums have been configured.", 0, false);
+                return -1;
+            }
+            m_resource_with_digest = resourceplusopaque;
+            if (has_opaque) {
+              m_resource_with_digest += "&cks.type=";
+              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
+            } else {
+              m_resource_with_digest += "?cks.type=";
+              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
+            }
+            if (prot->doChksum(m_resource_with_digest) < 0) {
+              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
+              return -1;
+            }
+            return 0;
+          } else {
+            TRACEI(DEBUG, "No checksum requested; skipping to request state 2");
+            reqstate += 1;
+          }
+        // fallthrough
+        case 2: // Open() or dirlist
         {
 
           if (!prot->Bridge) {
@@ -1176,29 +1210,6 @@ int XrdHttpReq::ProcessHTTPReq() {
             // We don't want to be invoked again after this request is finished
             return 1;
 
-          } else if (!m_req_digest.empty()) {
-            // In this case, the Want-Digest header was set.
-            bool has_opaque = strchr(resourceplusopaque.c_str(), '?');
-            // Note that doChksum requires that the memory stays alive until the callback is invoked.
-            m_req_cksum = prot->cksumHandler.getChecksumToRun(m_req_digest);
-            if(!m_req_cksum) {
-                // No HTTP IANA checksums have been configured by the server admin, return a "METHOD_NOT_ALLOWED" error
-                prot->SendSimpleResp(403, NULL, NULL, (char *) "No HTTP-IANA compatible checksums have been configured.", 0, false);
-                return -1;
-            }
-            m_resource_with_digest = resourceplusopaque;
-            if (has_opaque) {
-              m_resource_with_digest += "&cks.type=";
-              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
-            } else {
-              m_resource_with_digest += "?cks.type=";
-              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
-            }
-            if (prot->doChksum(m_resource_with_digest) < 0) {
-              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
-              return -1;
-            }
-            return 0;
           }
           else {
 
@@ -1225,40 +1236,14 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 
         }
-        case 2:  // Open() in the case the user also requested a checksum.
-        {
-          if (!m_req_digest.empty()) {
-            // --------- OPEN
-            memset(&xrdreq, 0, sizeof (ClientRequest));
-            xrdreq.open.requestid = htons(kXR_open);
-            l = resourceplusopaque.length() + 1;
-            xrdreq.open.dlen = htonl(l);
-            xrdreq.open.mode = 0;
-            xrdreq.open.options = htons(kXR_retstat | kXR_open_read);
-
-            if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
-              return -1;
-            }
-
-            // Prepare to chunk up the request
-            writtenbytes = 0;
-
-            // We want to be invoked again after this request is finished
-            return 0;
-          }
-        }
         // fallthrough
-        default: // Read() or Close()
+        default: // Read() or Close(); reqstate is 3+
         {
 
-          if ( ((reqstate == 3 || (!m_req_digest.empty() && (reqstate == 4))) && (rwOps.size() > 1)) ||
-            (writtenbytes >= length) ) {
-
-            // Close() if this was a readv or we have finished, otherwise read the next chunk
-
-            // --------- CLOSE
-
+          // --------- CLOSE
+          if ( ((reqstate == 4) && (rwOps.size() > 1)) || // In this case, we performed a ReadV and it's done.
+            (writtenbytes >= length) ) // No ReadV but we have completed the request.
+          {
             memset(&xrdreq, 0, sizeof (ClientRequest));
             xrdreq.close.requestid = htons(kXR_close);
             memcpy(xrdreq.close.fhandle, fhandle, 4);
@@ -1272,6 +1257,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             return 1;
 
           }
+          // --------- READ or READV
 	  
           if (rwOps.size() <= 1) {
             // No chunks or one chunk... Request the whole file or single read
@@ -1332,7 +1318,7 @@ int XrdHttpReq::ProcessHTTPReq() {
               return -1;
             }
           } else {
-            // More than one chunk to read... use readv
+            // --------- READV
 
             length = ReqReadV();
 
@@ -1345,12 +1331,12 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           // We want to be invoked again after this request is finished
           return 0;
-        }
+        } // case 3+
         
-      }
+      } // switch (reqstate)
 
 
-    }
+    } // case XrdHttpReq::rtGET
 
     case XrdHttpReq::rtPUT:
     {
@@ -2088,10 +2074,15 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         }
 
 
-      } else {
+      } // end handling of dirlist
+      else
+      { // begin handling of open-read-close
 
-
-
+        // To duplicate the state diagram from the rtGET request state
+        // - 0: Perform a stat on the resource
+        // - 1: Perform a checksum request on the resource (only if requested in header; otherwise skipped)
+        // - 2: Perform an open request (dirlist as appropriate).
+        // - 3+: Reads from file; if at end, perform a close.
         switch (reqstate) {
           case 0: //stat
           {
@@ -2137,21 +2128,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             // We are here in the case of a negative response in a non-manager
 
             return 0;
-          }
-          case 1:  // open
-          case 2:  // open when digest was requested
+          } // end stat
+          case 1:  // checksum was requested and now we have its response.
           {
-
-            if (reqstate == 1 && !m_req_digest.empty()) { // We requested a checksum and now have its response.
-              int response = PostProcessChecksum(m_digest_header);
-              if (-1 == response) {
-                return -1;
-              }
-              return 0;
-            } else if (((reqstate == 2 && !m_req_digest.empty()) ||
-                        (reqstate == 1 && m_req_digest.empty()))
-              && (xrdresp == kXR_ok)) {
-
+            return PostProcessChecksum(m_digest_header);
+          }
+          case 2:  // open
+          {
+            if (xrdresp == kXR_ok) {
 
               getfhandle();
               
@@ -2254,28 +2238,21 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
 
 
-            } else if (xrdresp != kXR_ok) {
+            } else { // xrdresp indicates an error occurred
               
-              // If it's a dir then we are in the wrong place and we did the wrong thing.
-              //if (xrderrcode == 3016) {
-              //  fileflags &= kXR_isDir;
-              //  reqstate--;
-              //  return 0;
-              //}
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                    httpStatusText.c_str(), httpStatusText.length(), false);
               return -1;
             }
 
-            // Remaining case: reqstate == 2 and we didn't ask for a digest (should be a read).
+            // Case should not be reachable
+            return -1;
           }
-          // fallthrough
           default: //read or readv
           {
-
             // If we are postprocessing a close, potentially send out informational trailers
             if ((ntohs(xrdreq.header.requestid) == kXR_close) ||
-              ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)))
+              ((reqstate == 4) && (ntohs(xrdreq.header.requestid) == kXR_readv)))
             {
 
               if (m_transfer_encoding_chunked && m_trailer_headers) {
@@ -2330,7 +2307,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             // Prevent scenario where data is expected but none is actually read
             // E.g. Accessing files which return the results of a script
             if ((ntohs(xrdreq.header.requestid) == kXR_read) &&
-                (reqstate > 2) && (iovN == 0)) {
+                (reqstate > 3) && (iovN == 0)) {
               TRACEI(REQ, "Stopping request because more data is expected "
                           "but no data has been read.");
               return -1;
@@ -2406,12 +2383,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             this->iovN = 0;
             
             return 0;
-          }
+          } // end read or readv
 
         } // switch reqstate
 
-
-      }
+      } // End handling of the open-read-close case
 
 
       break;
