@@ -83,6 +83,9 @@ public:
    // Dump CRL object to a file.
    bool ToFile(FILE *fh);
 
+   //Returns true if the CRL certificate has critical extension, false otherwise
+   bool hasCriticalExtension();
+
 private:
    X509_CRL    *crl{nullptr};   // The CRL object
    time_t       lastupdate{-1}; // time of last update
