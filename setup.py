@@ -12,16 +12,16 @@ try:
 except ImportError:
     from distutils.spawn import find_executable as which
 
-cmdline_args = []
-
-for arg in sys.argv:
-    if arg.startswith('-D'):
-        cmdline_args.append(arg)
-
-for arg in cmdline_args:
-    sys.argv.remove(arg)
-
 cmake = which("cmake3") or which("cmake")
+
+def get_cmake_args():
+    args = os.getenv('CMAKE_ARGS')
+
+    if not args:
+        return []
+
+    from shlex import split
+    return split(args)
 
 def get_version():
     try:
@@ -81,7 +81,7 @@ class CMakeBuild(build_ext):
             else:
                 cmake_args += [ '-DCMAKE_INSTALL_RPATH=$ORIGIN' ]
 
-            cmake_args += cmdline_args
+            cmake_args += get_cmake_args()
 
             if not os.path.exists(self.build_temp):
                 os.makedirs(self.build_temp)

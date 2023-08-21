@@ -12,6 +12,15 @@ try:
 except ImportError:
     from distutils.spawn import find_executable as which
 
+def get_cmake_args():
+    args = os.getenv('CMAKE_ARGS')
+
+    if not args:
+        return []
+
+    from shlex import split
+    return split(args)
+
 srcdir = '${CMAKE_CURRENT_SOURCE_DIR}'
 
 cmdline_args = []
@@ -39,12 +48,7 @@ else:
 
     cmake = which("cmake3") or which("cmake")
 
-    for arg in sys.argv:
-        if arg.startswith('-D'):
-            cmdline_args.append(arg)
-
-    for arg in cmdline_args:
-        sys.argv.remove(arg)
+    cmdline_args += get_cmake_args()
 
 def get_version():
     version = '${XRootD_VERSION_STRING}'
