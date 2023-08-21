@@ -161,6 +161,13 @@ public:
      * processFile(...) method, false otherwise
      */
     bool atLeastOneValidCRLFound() const;
+    /**
+     * https://github.com/xrootd/xrootd/issues/2065
+     * To mitigate that issue, we need to defer the insertion of the CRLs that contain
+     * critical extensions at the end of the bundled CRL file
+     * @return true on success.
+     */
+    bool processCRLWithCriticalExt();
 
 private:
     XrdSysError &m_log;
@@ -171,6 +178,9 @@ private:
     std::unordered_set<std::string> m_known_crls;
     const int m_output_fd;
     std::atomic<bool> m_atLeastOneValidCRLFound;
+    //Store the CRLs containing critical extensions to defer their insertion
+    //at the end of the bundled CRL file. Issue https://github.com/xrootd/xrootd/issues/2065
+    std::vector<std::unique_ptr<XrdCryptosslX509Crl>> m_crls_critical_extension;
 };
 
 
@@ -179,7 +189,7 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 {
     file_smart_ptr outputfp(fdopen(dup(m_output_fd), "w"), &fclose);
     if (!outputfp.get()) {
-        m_log.Emsg("CAset", "Failed to reopen file for output", fname.c_str());
+        m_log.Emsg("CRLSet", "Failed to reopen file for output", fname.c_str());
         return false;
     }
 
@@ -202,10 +212,17 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
         //m_log.Emsg("CRLset", "New CRL with hash", fname.c_str(), hash_ptr);
         m_known_crls.insert(hash_ptr);
 
-        if (!xrd_crl->ToFile(outputfp.get())) {
+        if(xrd_crl->hasCriticalExtension()) {
+          // Issue https://github.com/xrootd/xrootd/issues/2065
+          // This CRL will be put at the end of the bundled file
+          m_crls_critical_extension.emplace_back(std::move(xrd_crl));
+        } else {
+          // No critical extension found on that CRL, just insert it on the CRL bundled file
+          if (!xrd_crl->ToFile(outputfp.get())) {
             m_log.Emsg("CRLset", "Failed to write out CRL", fname.c_str());
             fflush(outputfp.get());
             return false;
+          }
         }
     }
     fflush(outputfp.get());
@@ -215,6 +232,26 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 
 bool CRLSet::atLeastOneValidCRLFound() const {
     return m_atLeastOneValidCRLFound;
+}
+
+bool CRLSet::processCRLWithCriticalExt() {
+  // Don't open the output file if not necessary
+  if(!m_crls_critical_extension.empty()) {
+    file_smart_ptr outputfp(fdopen(dup(m_output_fd), "w"), &fclose);
+    if (!outputfp.get()) {
+      m_log.Emsg("CRLSet", "Failed to reopen file for output critical CRLs with critical extension");
+      return false;
+    }
+    for (const auto &crl: m_crls_critical_extension) {
+      if (!crl->ToFile(outputfp.get())) {
+        m_log.Emsg("CRLset", "Failed to write out CRL with critical extension", crl->ParentFile());
+        fflush(outputfp.get());
+        return false;
+      }
+    }
+    fflush(outputfp.get());
+  }
+  return true;
 }
 
 }
@@ -417,8 +454,12 @@ XrdTlsTempCA::Maintenance()
     }
     closedir(dirp);
 
+    if(!crl_builder.processCRLWithCriticalExt()){
+      m_log.Emsg("Maintenance", "Failed to insert CRLs with critical extension for CRLs", result->d_name);
+    }
+
     if (!new_file->commit()) {
-        m_log.Emsg("Mainteance", "Failed to finalize new CA / CRL files");
+        m_log.Emsg("Maintenance", "Failed to finalize new CA / CRL files");
         return false;
     }
     //m_log.Emsg("Maintenance", "Successfully created CA and CRL files", new_file->getCAFilename().c_str(),
