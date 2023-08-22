@@ -60,13 +60,28 @@ static uint64_t monotonic_time_s() {
   return tp.tv_sec + (tp.tv_nsec >= 500000000);
 }
 
-
-class CASet {
+/**
+ * Class managing the CRL or CA output file pointer. It is a RAII-style class that opens the output
+ * file in the constructor and close the file when the instance is destroyed
+ */
+class Set {
 public:
-    CASet(int output_fd, XrdSysError &err)
-    : m_log(err),
-      m_output_fd(output_fd)
-    {}
+  Set(int output_fd, XrdSysError & err) : m_log(err),m_output_fp(file_smart_ptr(fdopen(XrdSysFD_Dup(output_fd), "w"), &fclose)){
+    if(!m_output_fp.get()) {
+      m_output_fp.reset();
+    }
+  }
+  virtual ~Set() = default;
+protected:
+  // Reference to the logging that can be used by the inheriting classes.
+  XrdSysError &m_log;
+  // Pointer to the CA or CRL output file
+  file_smart_ptr m_output_fp;
+};
+
+class CASet : public Set {
+public:
+    CASet(int output_fd, XrdSysError &err):Set(output_fd,err){}
 
     /**
      * Given an open file descriptor pointing to
@@ -82,13 +97,11 @@ public:
     bool processFile(file_smart_ptr &fd, const std::string &fname);
 
 private:
-    XrdSysError &m_log;
 
         // Grid CA directories tend to keep everything in triplicate;
         // we keep a unique hash of all known CAs so we write out each
         // one only once.
     std::unordered_set<std::string> m_known_cas;
-    const int m_output_fd;
 };
 
 
@@ -101,9 +114,8 @@ CASet::processFile(file_smart_ptr &fp, const std::string &fname)
     XrdCryptosslX509ParseFile(fp.get(), &chain, fname.c_str());
 
     auto ca = chain.Begin();
-    file_smart_ptr outputfp(fdopen(XrdSysFD_Dup(m_output_fd), "w"), &fclose);
-    if (!outputfp.get()) {
-        m_log.Emsg("CAset", "Failed to reopen file for output", fname.c_str());
+    if (!m_output_fp.get()) {
+        m_log.Emsg("CAset", "No output file has been opened", fname.c_str());
         chain.Cleanup();
         return false;
     }
@@ -121,28 +133,23 @@ CASet::processFile(file_smart_ptr &fp, const std::string &fname)
         //m_log.Emsg("CAset", "New CA with hash", fname.c_str(), hash_ptr);
         m_known_cas.insert(hash_ptr);
 
-        if (XrdCryptosslX509ToFile(ca, outputfp.get(), fname.c_str())) {
+        if (XrdCryptosslX509ToFile(ca, m_output_fp.get(), fname.c_str())) {
             m_log.Emsg("CAset", "Failed to write out CA", fname.c_str());
             chain.Cleanup();
             return false;
         }
         ca = chain.Next();
     }
-    fflush(outputfp.get());
+    fflush(m_output_fp.get());
     chain.Cleanup();
 
     return true;
 }
 
 
-class CRLSet {
+class CRLSet : public Set {
 public:
-    CRLSet(int output_fd, XrdSysError &err)
-    : m_log(err),
-      m_output_fd(output_fd),
-      m_atLeastOneValidCRLFound(false)
-    {}
-
+    CRLSet(int output_fd, XrdSysError &err):Set(output_fd,err){}
     /**
      * Given an open file descriptor pointing to
      * a file potentially containing a CRL, process it
@@ -170,13 +177,11 @@ public:
     bool processCRLWithCriticalExt();
 
 private:
-    XrdSysError &m_log;
 
         // Grid CA directories tend to keep everything in triplicate;
         // we keep a unique hash of all known CRLs so we write out each
         // one only once.
     std::unordered_set<std::string> m_known_crls;
-    const int m_output_fd;
     std::atomic<bool> m_atLeastOneValidCRLFound;
     //Store the CRLs containing critical extensions to defer their insertion
     //at the end of the bundled CRL file. Issue https://github.com/xrootd/xrootd/issues/2065
@@ -187,12 +192,10 @@ private:
 bool
 CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 {
-    file_smart_ptr outputfp(fdopen(XrdSysFD_Dup(m_output_fd), "w"), &fclose);
-    if (!outputfp.get()) {
-        m_log.Emsg("CRLSet", "Failed to reopen file for output", fname.c_str());
+    if (!m_output_fp.get()) {
+        m_log.Emsg("CRLSet", "No output file has been opened", fname.c_str());
         return false;
     }
-
     // Assume we can safely ignore a failure to parse; we load every file in
     // the directory and that will naturally include a number of non-CRL files.
     for (std::unique_ptr<XrdCryptosslX509Crl> xrd_crl(new XrdCryptosslX509Crl(fp.get(), fname.c_str()));
@@ -218,14 +221,14 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
           m_crls_critical_extension.emplace_back(std::move(xrd_crl));
         } else {
           // No critical extension found on that CRL, just insert it on the CRL bundled file
-          if (!xrd_crl->ToFile(outputfp.get())) {
+          if (!xrd_crl->ToFile(m_output_fp.get())) {
             m_log.Emsg("CRLset", "Failed to write out CRL", fname.c_str());
-            fflush(outputfp.get());
+            fflush(m_output_fp.get());
             return false;
           }
         }
     }
-    fflush(outputfp.get());
+    fflush(m_output_fp.get());
 
     return true;
 }
@@ -235,21 +238,19 @@ bool CRLSet::atLeastOneValidCRLFound() const {
 }
 
 bool CRLSet::processCRLWithCriticalExt() {
-  // Don't open the output file if not necessary
   if(!m_crls_critical_extension.empty()) {
-    file_smart_ptr outputfp(fdopen(XrdSysFD_Dup(m_output_fd), "w"), &fclose);
-    if (!outputfp.get()) {
-      m_log.Emsg("CRLSet", "Failed to reopen file for output critical CRLs with critical extension");
+    if (!m_output_fp.get()) {
+      m_log.Emsg("CRLSet", "No output file has been opened to add CRLs with critical extension");
       return false;
     }
     for (const auto &crl: m_crls_critical_extension) {
-      if (!crl->ToFile(outputfp.get())) {
+      if (!crl->ToFile(m_output_fp.get())) {
         m_log.Emsg("CRLset", "Failed to write out CRL with critical extension", crl->ParentFile());
-        fflush(outputfp.get());
+        fflush(m_output_fp.get());
         return false;
       }
     }
-    fflush(outputfp.get());
+    fflush(m_output_fp.get());
   }
   return true;
 }
@@ -399,8 +400,6 @@ XrdTlsTempCA::Maintenance()
         m_log.Emsg("TempCA", "Failed to create a new temp CA / CRL file");
         return false;
     }
-    CASet ca_builder(new_file->getCAFD(), m_log);
-    CRLSet crl_builder(new_file->getCRLFD(), m_log);
 
     int fddir = XrdSysFD_Open(m_ca_dir.c_str(), O_DIRECTORY);
     if (fddir < 0) {
@@ -416,7 +415,10 @@ XrdTlsTempCA::Maintenance()
 
     struct dirent *result;
     errno = 0;
-    while ((result = readdir(dirp))) {
+    {
+      CASet ca_builder(new_file->getCAFD(), m_log);
+      CRLSet crl_builder(new_file->getCRLFD(), m_log);
+      while ((result = readdir(dirp))) {
         //m_log.Emsg("Will parse file for CA certificates", result->d_name);
         if (result->d_name[0] == '.') {continue;}
         if (result->d_type != DT_REG)
@@ -446,16 +448,18 @@ XrdTlsTempCA::Maintenance()
             m_log.Emsg("Maintenance", "Failed to process file for CRLs", result->d_name);
         }
         errno = 0;
-    }
-    if (errno) {
+      }
+      if (errno) {
         m_log.Emsg("Maintenance", "Failure during readdir", strerror(errno));
         closedir(dirp);
         return false;
-    }
-    closedir(dirp);
+      }
+      closedir(dirp);
 
-    if(!crl_builder.processCRLWithCriticalExt()){
-      m_log.Emsg("Maintenance", "Failed to insert CRLs with critical extension for CRLs", result->d_name);
+      if (!crl_builder.processCRLWithCriticalExt()) {
+        m_log.Emsg("Maintenance", "Failed to insert CRLs with critical extension for CRLs", result->d_name);
+      }
+      m_atLeastOneCRLFound = crl_builder.atLeastOneValidCRLFound();
     }
 
     if (!new_file->commit()) {
@@ -466,7 +470,7 @@ XrdTlsTempCA::Maintenance()
     //    new_file->getCRLFilename().c_str());
     m_ca_file.reset(new std::string(new_file->getCAFilename()));
     m_crl_file.reset(new std::string(new_file->getCRLFilename()));
-    m_atLeastOneCRLFound = crl_builder.atLeastOneValidCRLFound();
+
     return true;
 }
 
