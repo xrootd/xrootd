@@ -187,7 +187,7 @@ private:
 bool
 CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 {
-    file_smart_ptr outputfp(fdopen(dup(m_output_fd), "w"), &fclose);
+    file_smart_ptr outputfp(fdopen(XrdSysFD_Dup(m_output_fd), "w"), &fclose);
     if (!outputfp.get()) {
         m_log.Emsg("CRLSet", "Failed to reopen file for output", fname.c_str());
         return false;
@@ -237,7 +237,7 @@ bool CRLSet::atLeastOneValidCRLFound() const {
 bool CRLSet::processCRLWithCriticalExt() {
   // Don't open the output file if not necessary
   if(!m_crls_critical_extension.empty()) {
-    file_smart_ptr outputfp(fdopen(dup(m_output_fd), "w"), &fclose);
+    file_smart_ptr outputfp(fdopen(XrdSysFD_Dup(m_output_fd), "w"), &fclose);
     if (!outputfp.get()) {
       m_log.Emsg("CRLSet", "Failed to reopen file for output critical CRLs with critical extension");
       return false;
