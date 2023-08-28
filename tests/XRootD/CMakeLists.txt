@@ -8,7 +8,7 @@ if (UID EQUAL 0)
   return()
 endif()
 
-set(XRD_TEST_PORT "10940" CACHE STRING "Port for XRootD Test Server")
+set(XRD_TEST_PORT "11940" CACHE STRING "Port for XRootD Test Server")
 
 list(APPEND XRDENV "XRDCP=$<TARGET_FILE:xrdcp>")
 list(APPEND XRDENV "XRDFS=$<TARGET_FILE:xrdfs>")

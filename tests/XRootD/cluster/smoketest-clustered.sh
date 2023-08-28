@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# macOS, as of now, cannot run this test because of the 'declare -A'
+# command that we use later, so we just skip this test (sorry apple users)
+if [[ $(uname) == "Darwin" ]]; then
+       exit 0
+fi
+
 # we probably need all of these still
 : ${ADLER32:=$(command -v xrdadler32)}
 : ${CRC32C:=$(command -v xrdcrc32c)}

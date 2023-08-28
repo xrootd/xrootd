@@ -1,4 +1,3 @@
-
 add_executable(xrdcl-unit-tests
   XrdClURL.cc
   XrdClPoller.cc
@@ -36,10 +35,10 @@ endif()
 
 add_executable(xrdcl-cluster-tests
   IdentityPlugIn.cc
-  XrdClFileTest.cc
-  XrdClFileCopyTest.cc
-  XrdClFileSystemTest.cc
-  XrdClOperationsWorkflowTest.cc
+  # XrdClFileTest.cc
+  # XrdClFileCopyTest.cc
+  # XrdClFileSystemTest.cc
+  # XrdClOperationsWorkflowTest.cc
   XrdClLocalFileHandlerTest.cc
   XrdClPostMasterTest.cc
   XrdClThreadingTest.cc
@@ -64,3 +63,39 @@ target_include_directories(xrdcl-cluster-tests
 
 gtest_discover_tests(xrdcl-cluster-tests TEST_PREFIX XrdCl::
   PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster)
+
+# tests to be run in serial, otherwise they are problematic
+set(SERIAL_TESTS_FILES
+  XrdClFileTest.cc
+  XrdClFileCopyTest.cc
+  XrdClFileSystemTest.cc
+  XrdClOperationsWorkflowTest.cc
+)
+
+# create a separate executable target for each "problematic" test suite
+foreach(i ${SERIAL_TESTS_FILES})
+  add_executable(${i}-tests
+    ${i}
+    IdentityPlugIn.cc
+    ../common/Server.cc
+    ../common/Utils.cc
+    ../common/TestEnv.cc
+  )
+
+  target_link_libraries(${i}-tests
+    XrdCl
+    XrdXml
+    XrdUtils
+    ZLIB::ZLIB
+    GTest::GTest
+    GTest::Main
+  )
+
+  target_include_directories(${i}-tests
+    PRIVATE ${CMAKE_SOURCE_DIR}/src ../common
+  )
+
+  gtest_discover_tests(${i}-tests TEST_PREFIX XrdCl::
+    PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster RUN_SERIAL 1)
+
+endforeach()
