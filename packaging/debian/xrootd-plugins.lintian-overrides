@@ -1,0 +1,5 @@
+# These are plugins - no soname on purpose
+sharedobject-in-library-directory-missing-soname [usr/lib/*/libXrd*-5.so]
+
+# False positive
+library-not-linked-against-libc [usr/lib/*/libXrdCksCalczcrc32-5.so]

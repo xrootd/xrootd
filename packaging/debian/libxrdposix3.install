@@ -1,0 +1,4 @@
+/usr/lib/*/libXrdPosix.so.*
+/usr/lib/*/libXrdPosixPreload.so.*
+# This lib may be used for LD_PRELOAD so the .so link needs to be included
+/usr/lib/*/libXrdPosixPreload.so

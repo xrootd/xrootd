@@ -1,0 +1,2 @@
+/usr/lib/*/libXrdClHttp-5.so
+/etc/xrootd/client.plugins.d/xrdcl-http-plugin.conf
