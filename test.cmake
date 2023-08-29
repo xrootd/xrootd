@@ -3,6 +3,18 @@ cmake_minimum_required(VERSION 3.16)
 set(ENV{LANG} "C")
 set(ENV{LC_ALL} "C")
 
+macro(section title)
+  if (DEFINED ENV{CI})
+    message("::group::${title}")
+  endif()
+endmacro()
+
+macro(endsection)
+  if (DEFINED ENV{CI})
+    message("::endgroup::")
+  endif()
+endmacro()
+
 site_name(CTEST_SITE)
 
 if(EXISTS "/etc/os-release")
@@ -144,25 +156,32 @@ ctest_read_custom_files("${CTEST_SOURCE_DIRECTORY}")
 ctest_start(${MODEL})
 ctest_update()
 
+section("Configure")
 ctest_configure(OPTIONS "${CMAKE_ARGS}")
 
 ctest_read_custom_files("${CTEST_BINARY_DIRECTORY}")
 list(APPEND CTEST_NOTES_FILES ${CTEST_BINARY_DIRECTORY}/CMakeCache.txt)
+endsection()
 
+section("Build")
 ctest_build()
 
 if(INSTALL)
   set(ENV{DESTDIR} "${CTEST_BINARY_DIRECTORY}/install")
   ctest_build(TARGET install)
 endif()
+endsection()
 
+section("Test")
 ctest_test(PARALLEL_LEVEL $ENV{CTEST_PARALLEL_LEVEL} RETURN_VALUE TEST_RESULT)
 
 if(NOT ${TEST_RESULT} EQUAL 0)
   message(FATAL_ERROR "Tests failed")
 endif()
+endsection()
 
 if(DEFINED CTEST_COVERAGE_COMMAND)
+  section("Coverage")
   find_program(GCOVR NAMES gcovr)
   if(EXISTS ${GCOVR})
     execute_process(COMMAND
@@ -173,8 +192,11 @@ if(DEFINED CTEST_COVERAGE_COMMAND)
     endif()
   endif()
   ctest_coverage()
+  endsection()
 endif()
 
 if(DEFINED CTEST_MEMORYCHECK_COMMAND)
+  section("Memcheck")
   ctest_memcheck()
+  endsection()
 endif()
