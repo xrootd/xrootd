@@ -156,7 +156,11 @@ if(INSTALL)
   ctest_build(TARGET install)
 endif()
 
-ctest_test()
+ctest_test(PARALLEL_LEVEL $ENV{CTEST_PARALLEL_LEVEL} RETURN_VALUE TEST_RESULT)
+
+if(NOT ${TEST_RESULT} EQUAL 0)
+  message(FATAL_ERROR "Tests failed")
+endif()
 
 if(DEFINED CTEST_COVERAGE_COMMAND)
   find_program(GCOVR NAMES gcovr)
