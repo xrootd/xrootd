@@ -3,6 +3,7 @@ add_executable(xrdcl-unit-tests
   XrdClURL.cc
   XrdClPoller.cc
   XrdClSocket.cc
+  XrdClZip.cc
   XrdClUtilsTest.cc
   IdentityPlugIn.cc
   XrdClFileTest.cc
