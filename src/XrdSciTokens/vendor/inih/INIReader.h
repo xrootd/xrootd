@@ -89,7 +89,7 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
 
 /* Maximum line length for any line in INI file. */
 #ifndef INI_MAX_LINE
-#define INI_MAX_LINE 200
+#define INI_MAX_LINE 1024
 #endif
 
 #ifdef __cplusplus
@@ -117,8 +117,8 @@ https://github.com/benhoyt/inih
 #include <cstdlib>
 #endif
 
-#define MAX_SECTION 50
-#define MAX_NAME 50
+#define MAX_SECTION 1024
+#define MAX_NAME 1024
 
 /* Strip whitespace chars off end of given string, in place. Return s. */
 inline static char* rstrip(char* s)
