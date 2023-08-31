@@ -500,7 +500,7 @@ namespace XrdCl
     {
       // the file does not exist in the archive so it only makes sense
       // if our user is opening for append
-      if( flags | OpenFlags::New )
+      if( flags & OpenFlags::New )
       {
         openfn = fn;
         lfh.reset( new LFH( fn, crc32, size, time( 0 ) ) );
