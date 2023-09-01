@@ -97,7 +97,8 @@ fixes are always included in both `master` and `devel`.
 
 This section provides guidelines for people who want to contribute
 code to the XRootD project. It is adapted from git's own guidelines
-for contributors, which can be found at https://github.com/git/git/Documentation/SubmittingPatches.
+for contributors, which can be found in their repository on GitHub at
+https://github.com/git/git/blob/master/Documentation/SubmittingPatches.
 
 #### Deciding what to base your work on
 
