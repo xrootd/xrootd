@@ -324,8 +324,7 @@ XrdSecCredentials *XrdSecProtocolztn::findToken(XrdOucErrInfo *erp,
 
         if (Vec[i].beginswith('/') == 1)
            {char tokPath[MAXPATHLEN+8];
-            snprintf(tokPath, sizeof(tokPath), tokName,
-                     Vec[i].length(), int(geteuid()));
+            snprintf(tokPath, sizeof(tokPath), tokName, int(geteuid()));
             resp = readToken(erp, tokPath, isbad);
             if (resp || isbad) return resp;
             continue;
