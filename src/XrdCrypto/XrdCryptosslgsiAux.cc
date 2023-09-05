@@ -286,7 +286,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    ERR_load_crypto_strings();
 
    // Use default options, if not specified
-   int bits = (pxopt && pxopt->bits >= 512) ? pxopt->bits : 512;
+   int bits = (pxopt && pxopt->bits >= XrdCryptoMinRSABits) ? pxopt->bits : XrdCryptoDefRSABits;
    int valid = (pxopt) ? pxopt->valid : 43200;  // 12 hours
    int depthlen = (pxopt) ? pxopt->depthlen : -1; // unlimited
 
@@ -696,13 +696,13 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
       return -kErrPX_NoResources;
    }
    //
-   // Use same num of bits as the signing certificate, but
-   // less than 512
+   // Use same num of bits as the signing certificate,
+   // but no less than the minimum RSA bits (2048)
    ekro.reset(X509_get_pubkey(xpi));
    int bits = EVP_PKEY_bits(ekro.get());
    ekro = nullptr;
 
-   bits = (bits < 512) ? 512 : bits;
+   bits = (bits < XrdCryptoMinRSABits) ? XrdCryptoDefRSABits : bits;
    //
    // Create the new PKI for the proxy (exponent 65537)
    BIGNUM *e = BN_new();
