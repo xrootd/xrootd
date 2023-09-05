@@ -256,6 +256,10 @@ int main( int argc, char **argv )
       exit(1);
    }
 
+   // use recreated proxy certificate if it a proxy was not already set
+   if (!xPX)
+     xPX = xPXp;
+
    //
    pline("");
    pline("Load CA certificates");
