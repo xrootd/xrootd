@@ -149,7 +149,7 @@ String XrdSecProtocolgsi::UsrCert  = "/.globus/usercert.pem";
 String XrdSecProtocolgsi::UsrKey   = "/.globus/userkey.pem";
 String XrdSecProtocolgsi::PxyValid = "12:00";
 int    XrdSecProtocolgsi::DepLength= 0;
-int    XrdSecProtocolgsi::DefBits  = 512;
+int    XrdSecProtocolgsi::DefBits  = XrdCryptoDefRSABits;
 int    XrdSecProtocolgsi::CACheck  = caVerifyss;
 int    XrdSecProtocolgsi::CRLCheck = crlTry; // 1
 int    XrdSecProtocolgsi::CRLDownload = 0;
@@ -2414,7 +2414,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //                                     ["12:00", i.e. 12 hours]
       //             "XrdSecGSIPROXYDEPLEN"  depth of signature path for proxies;
       //                                     use -1 for unlimited [0]
-      //             "XrdSecGSIPROXYKEYBITS" bits in PKI for proxies [512]
+      //             "XrdSecGSIPROXYKEYBITS" bits in PKI for proxies [default: XrdCryptoDefRSABits]
       //             "XrdSecGSICACHECK"      CA check level [1]:
       //                                      0 do not verify;
       //                                      1 verify if self-signed, warn if not;
@@ -4889,7 +4889,7 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf, X509Chain 
    }
 
    // Add number of bits in key
-   if (pi->bits > 512) {
+   if (pi->bits != XrdCryptoDefRSABits) {
       cmd += " -bits ";
       cmd += pi->bits;
    }
