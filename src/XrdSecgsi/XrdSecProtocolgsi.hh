@@ -188,7 +188,7 @@ public:
    char  *proxy;  // [c] user proxy  [/tmp/x509up_u<uid>]
    char  *valid;  // [c] proxy validity  [12:00]
    int    deplen; // [c] depth of signature path for proxies [0] 
-   int    bits;   // [c] bits in PKI for proxies [512] 
+   int    bits;   // [c] bits in PKI for proxies [default: XrdCryptoDefRSABits]
    char  *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
    int    gmapto; // [s] validity in secs of grid-map cache entries [600 s]
    char  *gmapfun;// [s] file with the function to map DN to usernames [0]
@@ -218,7 +218,7 @@ public:
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
                   cipher = 0; md = 0; ca = 1 ; crl = 1; crlrefresh = 86400;
-                  proxy = 0; valid = 0; deplen = 0; bits = 512;
+                  proxy = 0; valid = 0; deplen = 0; bits = XrdCryptoDefRSABits;
                   gridmap = 0; gmapto = 600;
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0;
                   authzto = -1; authzcall = 1;
