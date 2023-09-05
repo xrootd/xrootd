@@ -122,7 +122,7 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 //
 XrdScheduler::XrdScheduler(int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
-                WorkAvail(0, "sched work")
+                XrdTraceOld(0), WorkAvail(0, "sched work")
 {
    XrdSysLogger *Logger;
    int eFD;
