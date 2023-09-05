@@ -1905,13 +1905,17 @@ namespace XrdCl
     request->flags     = ClientProtocolRequest::kXR_secreqs |
                          ClientProtocolRequest::kXR_bifreqs;
 
-    if (info->encrypted)
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+    int notlsok = DefaultNoTlsOK;
+    env->GetInt( "NoTlsOK", notlsok );
+
+    if (info->encrypted || !notlsok)
       request->flags |= ClientProtocolRequest::kXR_ableTLS;
 
     bool nodata = false;
     if( expect & ClientProtocolRequest::kXR_ExpBind )
     {
-      XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
       int value = DefaultTlsNoData;
       env->GetInt( "TlsNoData", value );
       nodata = bool( value );
