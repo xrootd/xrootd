@@ -98,7 +98,7 @@ typedef bool (*XrdCryptoProxyCertInfo_t)(const void *, int &, bool *);
 typedef void (*XrdCryptoSetPathLenConstraint_t)(void *, int);
 // create a proxy certificate
 typedef struct {
-   int   bits;          // Number of bits in the RSA key [512]
+   int   bits;          // Number of bits in the RSA key [2048]
    int   valid;         // Duration validity in secs [43200 (12 hours)]
    int   depthlen;      // Maximum depth of the path of proxy certificates
                         // that can signed by this proxy certificates

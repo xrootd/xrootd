@@ -88,7 +88,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
 {
    // Constructor
    // Generate a RSA asymmetric key pair
-   // Length will be 'bits' bits (min 512, default 1024), public
+   // Length will be 'bits' bits (min 2048, default 2048), public
    // exponent `pubex` (default 65537).
    EPNAME("RSA::XrdCryptosslRSA");
 
@@ -96,7 +96,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
    prilen = -1;
 
    // Minimum is XrdCryptoMinRSABits
-   bits = (bits >= XrdCryptoMinRSABits) ? bits : XrdCryptoMinRSABits;
+   bits = (bits >= XrdCryptoMinRSABits) ? bits : XrdCryptoDefRSABits;
 
    // If pubex is not odd, use default
    if (!(exp & 1))
