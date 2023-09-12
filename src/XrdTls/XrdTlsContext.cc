@@ -25,7 +25,7 @@
 #include <sys/stat.h>
 
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -33,10 +33,6 @@
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdTls/XrdTlsTrace.hh"
-
-#if __cplusplus >= 201103L
-#include <atomic>
-#endif
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -317,9 +313,45 @@ namespace
 extern "C" {
 #endif
 
+template<bool is32>
+struct tlsmix;
+
+template<>
+struct tlsmix<false> {
+  static unsigned long mixer(unsigned long x) {
+    // mixer based on splitmix64
+    x ^= x >> 30;
+    x *= 0xbf58476d1ce4e5b9UL;
+    x ^= x >> 27;
+    x *= 0x94d049bb133111ebUL;
+    x ^= x >> 31;
+    return x;
+  }
+};
+
+template<>
+struct tlsmix<true> {
+  static unsigned long mixer(unsigned long x) {
+    // mixer based on murmurhash3
+    x ^= x >> 16;
+    x *= 0x85ebca6bU;
+    x ^= x >> 13;
+    x *= 0xc2b2ae35U;
+    x ^= x >> 16;
+    return x;
+  }
+};
+
 unsigned long sslTLS_id_callback(void)
 {
-   return (unsigned long)XrdSysThread::ID();
+   // base thread-id on the id given by XrdSysThread;
+   // but openssl 1.0 uses thread-id as a key for looking
+   // up per thread crypto ERR structures in a hash-table.
+   // So mix bits so that the table's hash function gives
+   // better distribution.
+
+   unsigned long x = (unsigned long)XrdSysThread::ID();
+   return tlsmix<sizeof(unsigned long)==4>::mixer(x);
 }
 
 XrdSysMutex *MutexVector = 0;
@@ -364,12 +396,9 @@ const char *sslCiphers = "ECDHE-ECDSA-AES128-GCM-SHA256:"
 const char *sslCiphers = "ALL:!LOW:!EXP:!MD5:!MD2";
 #endif
 
-XrdSysMutex            ctxMutex;
-#if __cplusplus >= 201103L
-std::atomic<bool>      initDone( false );
-#else
-bool                   initDone = false;
-#endif
+XrdSysMutex            dbgMutex, tlsMutex;
+XrdSys::RAtomic<bool>  initDbgDone{ false };
+bool                   initTlsDone{ false };
 
 /******************************************************************************/
 /*                               I n i t T L S                                */
@@ -377,13 +406,13 @@ bool                   initDone = false;
   
 void InitTLS() // This is strictly a one-time call!
 {
-   XrdSysMutexHelper ctxHelper(ctxMutex);
+   XrdSysMutexHelper tlsHelper(tlsMutex);
 
 // Make sure we are not trying to load the ssl library more than once. This can
 // happen when a server and a client instance happen to be both defined.
 //
-   if (initDone) return;
-   initDone = true;
+   if (initTlsDone) return;
+   initTlsDone = true;
 
 // SSL library initialisation
 //
@@ -575,24 +604,21 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Verify that initialzation has occurred. This is not heavy weight as
 // there will usually be no more than two instances of this object.
 //
-   AtomicBeg(ctxMutex);
-#if __cplusplus >= 201103L
-   bool done = initDone.load();
-#else
-   bool done = AtomicGet(initDone);
-#endif
-   AtomicEnd(ctxMutex);
-   if (!done)
-      {const char *dbg;
-       if (!(opts & servr) && (dbg = getenv("XRDTLS_DEBUG")))
-          {int dbgOpts = 0;
-           if (strstr(dbg, "ctx")) dbgOpts |= XrdTls::dbgCTX;
-           if (strstr(dbg, "sok")) dbgOpts |= XrdTls::dbgSOK;
-           if (strstr(dbg, "sio")) dbgOpts |= XrdTls::dbgSIO;
-           if (!dbgOpts) dbgOpts = XrdTls::dbgALL;
-           XrdTls::SetDebug(dbgOpts|XrdTls::dbgOUT);
+   if (!initDbgDone)
+      {XrdSysMutexHelper dbgHelper(dbgMutex);
+       if (!initDbgDone)
+          {const char *dbg;
+           if (!(opts & servr) && (dbg = getenv("XRDTLS_DEBUG")))
+              {int dbgOpts = 0;
+               if (strstr(dbg, "ctx")) dbgOpts |= XrdTls::dbgCTX;
+               if (strstr(dbg, "sok")) dbgOpts |= XrdTls::dbgSOK;
+               if (strstr(dbg, "sio")) dbgOpts |= XrdTls::dbgSIO;
+               if (!dbgOpts) dbgOpts = XrdTls::dbgALL;
+               XrdTls::SetDebug(dbgOpts|XrdTls::dbgOUT);
+              }
+           if ((emsg = Init())) FATAL(emsg);
+           initDbgDone = true;
           }
-       if ((emsg = Init())) FATAL(emsg);
       }
 
 // If no CA cert information is specified and this is not a server context,

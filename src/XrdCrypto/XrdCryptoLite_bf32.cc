@@ -42,6 +42,9 @@
 
 #include <openssl/evp.h>
 #include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#include "XrdTls/XrdTlsContext.hh"
+#endif
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/provider.h>
 #endif
@@ -178,6 +181,19 @@ int XrdCryptoLite_bf32::Encrypt(const char *key,
 XrdCryptoLite *XrdCryptoLite_New_bf32(const char Type)
 {
 #ifdef HAVE_SSL
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+   // In case nothing has yet configured a libcrypto thread-id callback
+   // function we provide one via the XrdTlsContext Init method. Compared
+   // to the default the aim is to provide better properies when libcrypto
+   // uses the thread-id as hash-table keys for the per-thread error state.
+   static struct configThreadid {
+     configThreadid() {eText = XrdTlsContext::Init();}
+     const char *eText;
+   } ctid;
+   // Make sure all went well
+   //
+   if (ctid.eText) return (XrdCryptoLite *)0;
+#endif
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
    // With openssl v3 the blowfish cipher is only available via the "legacy"
    // provider. Legacy is typically not enabled by default (but can be via
