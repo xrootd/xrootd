@@ -2018,7 +2018,7 @@ int XrdXrootdProtocol::do_Qconf()
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_ior_max", val))
-           {n = snprintf(bp,bleft,"%d\n",maxTransz-(int)sizeof(readahead_list));
+           {n = snprintf(bp,bleft,"%d\n",maxReadv_ior);
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_iov_max", val)) 
@@ -2571,7 +2571,7 @@ int XrdXrootdProtocol::do_ReadV()
 // to copy the read ahead list to our readv vector for later processing.
 //
    raVec = (readahead_list *)argp->buff;
-   totSZ = rdVecLen; Quantum = maxTransz - hdrSZ;
+   totSZ = rdVecLen; Quantum = maxReadv_ior;
    for (i = 0; i < rdVecNum; i++) 
        {totSZ += (rdVec[i].size = ntohl(raVec[i].rlen));
         if (rdVec[i].size < 0)       return Response.Send(kXR_ArgInvalid,

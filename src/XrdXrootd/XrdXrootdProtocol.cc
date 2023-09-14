@@ -113,6 +113,8 @@ XrdNetSocket         *XrdXrootdProtocol::AdminSock= 0;
 int                   XrdXrootdProtocol::hcMax        = 28657; // const for now
 int                   XrdXrootdProtocol::maxBuffsz;
 int                   XrdXrootdProtocol::maxTransz    = 262144; // 256KB
+int                   XrdXrootdProtocol::maxReadv_ior =
+                      XrdXrootdProtocol::maxTransz-(int)sizeof(readahead_list);
 int                   XrdXrootdProtocol::as_maxperlnk = 8;   // Max ops per link
 int                   XrdXrootdProtocol::as_maxperreq = 8;   // Max ops per request
 int                   XrdXrootdProtocol::as_maxpersrv = 4096;// Max ops per server
