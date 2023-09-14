@@ -2115,7 +2115,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 // Full file.
 
                 if (m_transfer_encoding_chunked && m_trailer_headers) {
-                  prot->StartChunkedResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), filesize, keepalive);
+                  prot->StartChunkedResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), -1, keepalive);
                 } else {
                   prot->SendSimpleResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), NULL, filesize, keepalive);
                 }
@@ -2140,8 +2140,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   s += responseHeader.c_str();
                 }
 
-
-                prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
+                if (m_transfer_encoding_chunked && m_trailer_headers) {
+                  prot->StartChunkedResp(206, NULL, (char *)s.c_str(), -1, keepalive);
+                } else {
+                  prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
+                }
                 return 0;
               }
 
@@ -2163,8 +2166,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 header += m_digest_header;
               }
 
-
-              prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
+              if (m_transfer_encoding_chunked && m_trailer_headers) {
+                prot->StartChunkedResp(206, NULL, header.c_str(), -1, keepalive);
+              } else {
+                prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
+              }
               return 0;
 
 
@@ -2814,7 +2820,10 @@ int XrdHttpReq::sendReadResponsesMultiRanges(const XrdHttpIOList &received) {
 
   // report each received byte chunk to the range handler and record the details
   // of original user range it related to and if starts a range or finishes all.
+  // also sum the total of the headers and data which need to be sent to the user,
+  // in case we need it for chunked transfer encoding
   std::vector<rinfo> rvec;
+  off_t sum_len = 0;
 
   rvec.reserve(received.size());
 
@@ -2838,14 +2847,24 @@ int XrdHttpReq::sendReadResponsesMultiRanges(const XrdHttpIOList &received) {
                          (char *) "123456");
 
       rentry.st_header = s;
+      sum_len += s.size();
     }
+
+    sum_len += rcv.size;
 
     if (finish) {
       std::string s = buildPartialHdrEnd((char *) "123456");
       rentry.fin_header = s;
+      sum_len += s.size();
     }
 
     rvec.push_back(rentry);
+  }
+
+
+  // Send chunked encoding header
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    prot->ChunkRespHeader(sum_len);
   }
 
   // send the user the headers / data
@@ -2868,6 +2887,11 @@ int XrdHttpReq::sendReadResponsesMultiRanges(const XrdHttpIOList &received) {
         return -1;
       }
     }
+  }
+
+  // Send chunked encoding footer
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    prot->ChunkRespFooter();
   }
 
   return 0;
