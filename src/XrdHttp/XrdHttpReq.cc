@@ -165,7 +165,10 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcmp(key, "Host")) {
       parseHost(val);
     } else if (!strcmp(key, "Range")) {
-      parseContentRange(val);
+      // (rfc2616 14.35.1) says if Range header contains any range
+      // which is syntactically invalid the Range header should be ignored.
+      // Therefore no need for the range handler to report an error.
+      readRangeHandler.ParseContentRange(val);
     } else if (!strcmp(key, "Content-Length")) {
       length = atoll(val);
 
@@ -219,89 +222,6 @@ int XrdHttpReq::parseHost(char *line) {
   host = line;
   trim(host);
   return 0;
-}
-
-int XrdHttpReq::parseContentRange(char *line) {
-  int j;
-  char *str1, *saveptr1, *token;
-
-
-
-  for (j = 1, str1 = line;; j++, str1 = NULL) {
-    token = strtok_r(str1, " ,\n=", &saveptr1);
-    if (token == NULL)
-      break;
-
-    //printf("%d: %s\n", j, token);
-
-    if (!strlen(token)) continue;
-
-
-    parseRWOp(token);
-
-  }
-
-  return j;
-}
-
-int XrdHttpReq::parseRWOp(char *str) {
-  ReadWriteOp o1;
-  int j;
-  char *saveptr2, *str2, *subtoken, *endptr;
-  bool ok = false;
-
-  for (str2 = str, j = 0;; str2 = NULL, j++) {
-    subtoken = strtok_r(str2, "-", &saveptr2);
-    if (subtoken == NULL)
-      break;
-
-    switch (j) {
-      case 0:
-        o1.bytestart = strtoll(subtoken, &endptr, 0);
-        if (!o1.bytestart && (endptr == subtoken)) o1.bytestart = -1;
-        break;
-      case 1:
-        o1.byteend = strtoll(subtoken, &endptr, 0);
-        if (!o1.byteend && (endptr == subtoken)) o1.byteend = -1;
-        ok = true;
-        break;
-      default:
-        // Malformed!
-        ok = false;
-        break;
-    }
-
-  }
-
-
-  // This can be largely optimized
-  if (ok) {
-
-    kXR_int32 len_ok = 0;
-    long long sz = o1.byteend - o1.bytestart + 1;
-    kXR_int32 newlen = sz;
-
-    if (filesize > 0)
-      newlen = (kXR_int32) std::min(filesize - o1.bytestart, sz);
-
-    rwOps.push_back(o1);
-
-    while (len_ok < newlen) {
-      ReadWriteOp nfo;
-      int len = std::min(newlen - len_ok, READV_MAXCHUNKSIZE);
-
-      nfo.bytestart = o1.bytestart + len_ok;
-      nfo.byteend = nfo.bytestart + len - 1;
-      len_ok += len;
-      rwOps_split.push_back(nfo);
-    }
-    length += len_ok;
-
-
-  }
-
-
-  return j;
 }
 
 int XrdHttpReq::parseFirstLine(char *line, int len) {
@@ -436,29 +356,23 @@ void XrdHttpReq::clientUnMarshallReadAheadList(int nitems) {
   }
 }
 
-int XrdHttpReq::ReqReadV() {
+int XrdHttpReq::ReqReadV(const XrdHttpIOList &cl) {
 
 
-  kXR_int64 total_len = 0;
-  rwOpPartialDone = 0;
   // Now we build the protocol-ready read ahead list
   //  and also put the correct placeholders inside the cache
-  int n = rwOps_split.size();
-  if (!ralist) ralist = (readahead_list *) malloc(n * sizeof (readahead_list));
+  int n = cl.size();
+  ralist.clear();
+  ralist.reserve(n);
 
   int j = 0;
-  for (int i = 0; i < n; i++) {
+  for (const auto &c: cl) {
+    ralist.emplace_back();
+    auto &ra = ralist.back();
+    memcpy(&ra.fhandle, this->fhandle, 4);
 
-    // We can suppose that we know the length of the file
-    // Hence we can sort out requests that are out of boundary or trim them
-    if (rwOps_split[i].bytestart > filesize) continue;
-    if (rwOps_split[i].byteend > filesize - 1) rwOps_split[i].byteend = filesize - 1;
-
-    memcpy(&(ralist[j].fhandle), this->fhandle, 4);
-
-    ralist[j].offset = rwOps_split[i].bytestart;
-    ralist[j].rlen = rwOps_split[i].byteend - rwOps_split[i].bytestart + 1;
-    total_len += ralist[j].rlen;
+    ra.offset = c.offset;
+    ra.rlen = c.size;
     j++;
   }
 
@@ -523,11 +437,21 @@ int XrdHttpReq::File(XrdXrootd::Bridge::Context &info, //!< the result context
         int dlen //!< byte  count
         ) {
 
+  // sendfile about to be sent by bridge for fetching data for GET:
+  // no https, no chunked+trailer, no multirange
+
   //prot->SendSimpleResp(200, NULL, NULL, NULL, dlen);
   int rc = info.Send(0, 0, 0, 0);
   TRACE(REQ, " XrdHttpReq::File dlen:" << dlen << " send rc:" << rc);
-  if (rc) return false;
-  writtenbytes += dlen;
+  bool start, finish;
+  // short read will be classed as error
+  if (rc) {
+    readRangeHandler.NotifyError();
+    return false;
+  }
+
+  if (readRangeHandler.NotifyReadResult(dlen, nullptr, start, finish) < 0)
+    return false;
   
     
   return true;
@@ -538,7 +462,8 @@ bool XrdHttpReq::Done(XrdXrootd::Bridge::Context & info) {
   TRACE(REQ, " XrdHttpReq::Done");
 
   xrdresp = kXR_ok;
-  
+
+  this->iovN = 0;
   
   int r = PostProcessHTTPReq(true);
   // Beware, we don't have to reset() if the result is 0
@@ -1240,10 +1165,14 @@ int XrdHttpReq::ProcessHTTPReq() {
         default: // Read() or Close(); reqstate is 3+
         {
 
+          const XrdHttpIOList &readChunkList = readRangeHandler.NextReadList();
+
+          // Close() if we have finished, otherwise read the next chunk
+
           // --------- CLOSE
-          if ( ((reqstate == 4) && (rwOps.size() > 1)) || // In this case, we performed a ReadV and it's done.
-            (writtenbytes >= length) ) // No ReadV but we have completed the request.
+          if ( readChunkList.empty() )
           {
+
             memset(&xrdreq, 0, sizeof (ClientRequest));
             xrdreq.close.requestid = htons(kXR_close);
             memcpy(xrdreq.close.fhandle, fhandle, 4);
@@ -1254,13 +1183,14 @@ int XrdHttpReq::ProcessHTTPReq() {
             }
 
             // We have finished
+            readClosing = true;
             return 1;
 
           }
           // --------- READ or READV
-	  
-          if (rwOps.size() <= 1) {
-            // No chunks or one chunk... Request the whole file or single read
+
+          if ( readChunkList.size() == 1 ) {
+            // Use a read request for single range
 
             long l;
             long long offs;
@@ -1271,21 +1201,17 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.read.fhandle, fhandle, 4);
             xrdreq.read.dlen = 0;
             
-            if (rwOps.size() == 0) {
-              l = (long)std::min(filesize-writtenbytes, (long long)1024*1024);
-              offs = writtenbytes;
-              xrdreq.read.offset = htonll(writtenbytes);
-              xrdreq.read.rlen = htonl(l);
-            } else {
-              l = std::min(rwOps[0].byteend - rwOps[0].bytestart + 1 - writtenbytes, (long long)1024*1024);
-              offs = rwOps[0].bytestart + writtenbytes;
-              xrdreq.read.offset = htonll(offs);
-              xrdreq.read.rlen = htonl(l);
-            }
+            offs = readChunkList[0].offset;
+            l = readChunkList[0].size;
 
-            // If we are using HTTPS or if the client requested trailers, disable sendfile
-            // (in the latter case, the chunked encoding prevents sendfile usage)
-            if (prot->ishttps || (m_transfer_encoding_chunked && m_trailer_headers)) {
+            xrdreq.read.offset = htonll(offs);
+            xrdreq.read.rlen = htonl(l);
+
+            // If we are using HTTPS or if the client requested trailers, or if the
+            // read concerns a multirange reponse, disable sendfile
+            // (in the latter two cases, the extra framing is only done in PostProcessHTTPReq)
+            if (prot->ishttps || (m_transfer_encoding_chunked && m_trailer_headers) ||
+                !readRangeHandler.isSingleRange()) {
               if (!prot->Bridge->setSF((kXR_char *) fhandle, false)) {
                 TRACE(REQ, " XrdBridge::SetSF(false) failed.");
 
@@ -1320,9 +1246,9 @@ int XrdHttpReq::ProcessHTTPReq() {
           } else {
             // --------- READV
 
-            length = ReqReadV();
+            length = ReqReadV(readChunkList);
 
-            if (!prot->Bridge->Run((char *) &xrdreq, (char *) ralist, length)) {
+            if (!prot->Bridge->Run((char *) &xrdreq, (char *) &ralist[0], length)) {
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
               return -1;
             }
@@ -2105,6 +2031,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                        &fileflags,
                        &filemodtime);
 
+                readRangeHandler.SetFilesize(filesize);
+
                 // We will default the response size specified by the headers; if that
                 // wasn't given, use the file size.
                 if (!length) {
@@ -2152,6 +2080,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                       &fileflags,
                       &filemodtime);
 
+                readRangeHandler.SetFilesize(filesize);
+
                 // As above: if the client specified a response size, we use that.
                 // Otherwise, utilize the filesize
                 if (!length) {
@@ -2175,7 +2105,13 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   responseHeader += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
               }
 
-              if (rwOps.size() == 0) {
+              const XrdHttpReadRangeHandler::UserRangeList &uranges = readRangeHandler.ListResolvedRanges();
+              if (uranges.empty() && readRangeHandler.getError()) {
+                prot->SendSimpleResp(readRangeHandler.getError().httpRetCode, NULL, NULL, readRangeHandler.getError().errMsg.c_str(),0,false);
+                return -1;
+              }
+
+              if (readRangeHandler.isFullFile()) {
                 // Full file.
 
                 if (m_transfer_encoding_chunked && m_trailer_headers) {
@@ -2184,58 +2120,52 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   prot->SendSimpleResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), NULL, filesize, keepalive);
                 }
                 return 0;
-              } else
-                if (rwOps.size() == 1) {
-                // Only one read to perform
-                if (rwOps[0].byteend < 0) // The requested range was along the lines of "Range: 1234-", meaning we need to fill in the end
-                  rwOps[0].byteend = filesize - 1;
-                int cnt = (rwOps[0].byteend - rwOps[0].bytestart + 1);
+              }
+
+              if (readRangeHandler.isSingleRange()) {
+                // Possibly with zero sized file but should have been included
+                // in the FullFile case above
+                if (uranges.size() != 1)
+                  return -1;
+
+                // Only one range to return to the user
                 char buf[64];
-                
+                const off_t cnt = uranges[0].end - uranges[0].start + 1;
+
                 XrdOucString s = "Content-Range: bytes ";
-                sprintf(buf, "%lld-%lld/%lld", rwOps[0].bytestart, rwOps[0].byteend, filesize);
+                sprintf(buf, "%lld-%lld/%lld", (long long int)uranges[0].start, (long long int)uranges[0].end, filesize);
                 s += buf;
                 if (!responseHeader.empty()) {
                   s += "\r\n";
                   s += responseHeader.c_str();
                 }
 
+
                 prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
-                return 0;
-              } else
-                if (rwOps.size() > 1) {
-                // First, check that the amount of range request can be handled by the vector read of the XRoot layer
-                if(rwOps.size() > XrdProto::maxRvecsz) {
-                  std::string errMsg = "Too many range requests provided. Maximum range requests supported is " + std::to_string(XrdProto::maxRvecsz);
-                  prot->SendSimpleResp(400, NULL, NULL,errMsg.c_str(), errMsg.size(), false);
-                  return -1;
-                }
-                // Multiple reads to perform, compose and send the header
-                int cnt = 0;
-                for (size_t i = 0; i < rwOps.size(); i++) {
-
-                  if (rwOps[i].bytestart > filesize) continue;
-                  if (rwOps[i].byteend > filesize - 1)
-                    rwOps[i].byteend = filesize - 1;
-
-                  cnt += (rwOps[i].byteend - rwOps[i].bytestart + 1);
-
-                  cnt += buildPartialHdr(rwOps[i].bytestart,
-                          rwOps[i].byteend,
-                          filesize,
-                          (char *) "123456").size();
-                }
-                cnt += buildPartialHdrEnd((char *) "123456").size();
-                std::string header = "Content-Type: multipart/byteranges; boundary=123456";
-                if (!m_digest_header.empty()) {
-                  header += "\n";
-                  header += m_digest_header;
-                }
-
-                prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
                 return 0;
               }
 
+              // Multiple reads to perform, compose and send the header
+              off_t cnt = 0;
+              for (auto &ur : uranges) {
+                cnt += ur.end - ur.start + 1;
+
+                cnt += buildPartialHdr(ur.start,
+                        ur.end,
+                        filesize,
+                        (char *) "123456").size();
+
+              }
+              cnt += buildPartialHdrEnd((char *) "123456").size();
+              std::string header = "Content-Type: multipart/byteranges; boundary=123456";
+              if (!m_digest_header.empty()) {
+                header += "\n";
+                header += m_digest_header;
+              }
+
+
+              prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
+              return 0;
 
 
             } else { // xrdresp indicates an error occurred
@@ -2251,10 +2181,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           default: //read or readv
           {
             // If we are postprocessing a close, potentially send out informational trailers
-            if ((ntohs(xrdreq.header.requestid) == kXR_close) ||
-              ((reqstate == 4) && (ntohs(xrdreq.header.requestid) == kXR_readv)))
+            if ((ntohs(xrdreq.header.requestid) == kXR_close) || readClosing)
             {
-
+              const XrdHttpReadRangeHandler::Error &rrerror = readRangeHandler.getError();
+              if (rrerror) {
+                httpStatusCode = rrerror.httpRetCode;
+                httpStatusText = rrerror.errMsg;
+              }
+                
               if (m_transfer_encoding_chunked && m_trailer_headers) {
                 if (prot->ChunkRespHeader(0))
                   return -1;
@@ -2271,7 +2205,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   return -1;
               }
 
-              return keepalive ? 1 : -1;
+                if (rrerror) return -1;
+                return keepalive ? 1 : -1;
             }
 
             // On error, we can only send out a message if trailers are enabled and the
@@ -2304,84 +2239,24 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               }
             }
 
-            // Prevent scenario where data is expected but none is actually read
-            // E.g. Accessing files which return the results of a script
-            if ((ntohs(xrdreq.header.requestid) == kXR_read) &&
-                (reqstate > 3) && (iovN == 0)) {
-              TRACEI(REQ, "Stopping request because more data is expected "
-                          "but no data has been read.");
-              return -1;
-            }
-
 
             TRACEI(REQ, "Got data vectors to send:" << iovN);
-            if (ntohs(xrdreq.header.requestid) == kXR_readv) {
-              // Readv case, we must take out each individual header and format it according to the http rules
-              readahead_list *l;
-              char *p;
-              int len;
 
-              // Cycle on all the data that is coming from the server
-              for (int i = 0; i < iovN; i++) {
+            XrdHttpIOList received;
+            getReadResponse(received);
 
-                for (p = (char *) iovP[i].iov_base; p < (char *) iovP[i].iov_base + iovP[i].iov_len;) {
-                  l = (readahead_list *) p;
-                  len = ntohl(l->rlen);
-
-                  // Now we have a chunk coming from the server. This may be a partial chunk
-
-                  if (rwOpPartialDone == 0) {
-                    std::string s = buildPartialHdr(rwOps[rwOpDone].bytestart,
-                            rwOps[rwOpDone].byteend,
-                            filesize,
-                            (char *) "123456");
-
-                    TRACEI(REQ, "Sending multipart: " << rwOps[rwOpDone].bytestart << "-" << rwOps[rwOpDone].byteend);
-                    if (prot->SendData((char *) s.c_str(), s.size())) return -1;
-                  }
-
-                  // Send all the data we have
-                  if (prot->SendData(p + sizeof (readahead_list), len)) return -1;
-
-                  // If we sent all the data relative to the current original chunk request
-                  // then pass to the next chunk, otherwise wait for more data
-                  rwOpPartialDone += len;
-                  if (rwOpPartialDone >= rwOps[rwOpDone].byteend - rwOps[rwOpDone].bytestart + 1) {
-                    rwOpDone++;
-                    rwOpPartialDone = 0;
-                  }
-
-                  p += sizeof (readahead_list);
-                  p += len;
-
-                }
-              }
-
-              if (rwOpDone == rwOps.size()) {
-                std::string s = buildPartialHdrEnd((char *) "123456");
-                if (prot->SendData((char *) s.c_str(), s.size())) return -1;
-              }
-
+            int rc;
+            if (readRangeHandler.isSingleRange()) {
+               rc = sendReadResponseSingleRange(received);
             } else {
-              // Send chunked encoding header
-              if (m_transfer_encoding_chunked && m_trailer_headers) {
-                int sum = 0;
-                for (int i = 0; i < iovN; i++) sum += iovP[i].iov_len;
-                prot->ChunkRespHeader(sum);
-              }
-              for (int i = 0; i < iovN; i++) {
-                if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
-                writtenbytes += iovP[i].iov_len;
-              }
-              if (m_transfer_encoding_chunked && m_trailer_headers) {
-                prot->ChunkRespFooter();
-              }
+               rc = sendReadResponsesMultiRanges(received);
             }
-              
-            // Let's make sure that we avoid sending the same data twice,
-            // in the case where PostProcessHTTPReq is invoked again
-            this->iovN = 0;
-            
+            if (rc) {
+              // make sure readRangeHandler will trigger close
+              // of file after next NextReadList().
+              readRangeHandler.NotifyError();
+            }
+
             return 0;
           } // end read or readv
 
@@ -2800,10 +2675,8 @@ void XrdHttpReq::reset() {
   TRACE(REQ, " XrdHttpReq request ended.");
 
   //if (xmlbody) xmlFreeDoc(xmlbody);
-  rwOps.clear();
-  rwOps_split.clear();
-  rwOpDone = 0;
-  rwOpPartialDone = 0;
+  readRangeHandler.reset();
+  readClosing = false;
   writtenbytes = 0;
   etext.clear();
   redirdest = "";
@@ -2819,8 +2692,8 @@ void XrdHttpReq::reset() {
   depth = 0;
   xrdresp = kXR_noResponsesYet;
   xrderrcode = kXR_noErrorYet;
-  if (ralist) free(ralist);
-  ralist = 0;
+  ralist.clear();
+  ralist.shrink_to_fit();
 
   request = rtUnset;
   resource = "";
@@ -2883,4 +2756,153 @@ void XrdHttpReq::getfhandle() {
   TRACEI(REQ, "fhandle:" <<
           (int) fhandle[0] << ":" << (int) fhandle[1] << ":" << (int) fhandle[2] << ":" << (int) fhandle[3]);
 
+}
+
+void XrdHttpReq::getReadResponse(XrdHttpIOList &received) {
+  received.clear();
+
+  if (ntohs(xrdreq.header.requestid) == kXR_readv) {
+    readahead_list *l;
+    char *p;
+    kXR_int32 len;
+
+    // Cycle on all the data that is coming from the server
+    for (int i = 0; i < iovN; i++) {
+
+      for (p = (char *) iovP[i].iov_base; p < (char *) iovP[i].iov_base + iovP[i].iov_len;) {
+        l = (readahead_list *) p;
+        len = ntohl(l->rlen);
+
+        received.emplace_back(p+sizeof(readahead_list), -1, len);
+
+        p += sizeof (readahead_list);
+        p += len;
+
+      }
+    }
+    return;
+  }
+
+  // kXR_read result
+  for (int i = 0; i < iovN; i++) {
+    received.emplace_back((char*)iovP[i].iov_base, -1, iovP[i].iov_len);
+  }
+
+}
+
+int XrdHttpReq::sendReadResponsesMultiRanges(const XrdHttpIOList &received) {
+
+  if (received.size() == 0) {
+    bool start, finish;
+    if (readRangeHandler.NotifyReadResult(0, nullptr, start, finish) < 0) {
+      return -1;
+    }
+    return 0;
+  }
+
+  // user is expecting multiple ranges, we must be prepared to send an
+  // individual header for each and format it according to the http rules
+
+  struct rinfo {
+    bool start;
+    bool finish;
+    const XrdOucIOVec2 *ci;
+    const XrdHttpReadRangeHandler::UserRange *ur;
+    std::string st_header;
+    std::string fin_header;
+  };
+
+  // report each received byte chunk to the range handler and record the details
+  // of original user range it related to and if starts a range or finishes all.
+  std::vector<rinfo> rvec;
+
+  rvec.reserve(received.size());
+
+  for(const auto &rcv: received) {
+    rinfo rentry;
+    bool start, finish;
+    const XrdHttpReadRangeHandler::UserRange *ur;
+
+    if (readRangeHandler.NotifyReadResult(rcv.size, &ur, start, finish) < 0) {
+      return -1;
+    }
+    rentry.ur = ur;
+    rentry.start = start;
+    rentry.finish = finish;
+    rentry.ci = &rcv;
+
+    if (start) {
+      std::string s = buildPartialHdr(ur->start,
+                         ur->end,
+                         filesize,
+                         (char *) "123456");
+
+      rentry.st_header = s;
+    }
+
+    if (finish) {
+      std::string s = buildPartialHdrEnd((char *) "123456");
+      rentry.fin_header = s;
+    }
+
+    rvec.push_back(rentry);
+  }
+
+  // send the user the headers / data
+  for(const auto &rentry: rvec) {
+
+     if (rentry.start) {
+       TRACEI(REQ, "Sending multipart: " << rentry.ur->start << "-" << rentry.ur->end);
+       if (prot->SendData((char *) rentry.st_header.c_str(), rentry.st_header.size())) {
+         return -1;
+       }
+    }
+
+    // Send all the data we have
+    if (prot->SendData((char *) rentry.ci->data, rentry.ci->size)) {
+      return -1;
+    }
+
+    if (rentry.finish) {
+      if (prot->SendData((char *) rentry.fin_header.c_str(), rentry.fin_header.size())) {
+        return -1;
+      }
+    }
+  }
+
+  return 0;
+}
+
+int XrdHttpReq::sendReadResponseSingleRange(const XrdHttpIOList &received) {
+  // single range http transfer
+
+  if (received.size() == 0) {
+    bool start, finish;
+    if (readRangeHandler.NotifyReadResult(0, nullptr, start, finish) < 0) {
+      return -1;
+    }
+    return 0;
+  }
+
+  off_t sum = 0;
+  // notify the range handler and return if error
+  for(const auto &rcv: received) {
+    bool start, finish;
+    if (readRangeHandler.NotifyReadResult(rcv.size, nullptr, start, finish) < 0) {
+      return -1;
+    }
+    sum += rcv.size;
+  }
+
+  // Send chunked encoding header
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    prot->ChunkRespHeader(sum);
+  }
+  for(const auto &rcv: received) {
+    if (prot->SendData((char *) rcv.data, rcv.size)) return -1;
+  }
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    prot->ChunkRespFooter();
+  }
+  return 0;
 }

@@ -47,6 +47,7 @@
 #include "Xrd/XrdProtocol.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdHttpChecksumHandler.hh"
+#include "XrdHttpReadRangeHandler.hh"
 
 #include <openssl/ssl.h>
 
@@ -128,6 +129,9 @@ public:
 
   // XrdHttp checksum handling class
   static XrdHttpChecksumHandler cksumHandler;
+
+  /// configuration for the read range handler
+  static XrdHttpReadRangeHandler::Configuration ReadRangeConfig;
 
   /// called via https
   bool isHTTPS() { return ishttps; }
