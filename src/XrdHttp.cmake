@@ -25,6 +25,7 @@ if( BUILD_HTTP )
                                       XrdHttp/XrdHttpStatic.hh
                                       XrdHttp/XrdHttpTrace.hh
     XrdHttp/XrdHttpUtils.cc           XrdHttp/XrdHttpUtils.hh
+    XrdHttp/XrdHttpReadRangeHandler.cc  XrdHttp/XrdHttpReadRangeHandler.hh
     XrdHttp/XrdHttpChecksumHandler.cc XrdHttp/XrdHttpChecksumHandler.hh
     XrdHttp/XrdHttpChecksum.cc        XrdHttp/XrdHttpChecksum.hh)
 

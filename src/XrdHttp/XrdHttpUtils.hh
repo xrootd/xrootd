@@ -37,6 +37,9 @@
 
 #include "XProtocol/XPtypes.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdOuc/XrdOucIOVec.hh"
+#include <string>
+#include <vector>
 
 #ifndef XRDHTTPUTILS_HH
 #define	XRDHTTPUTILS_HH
@@ -88,6 +91,8 @@ char *unquote(char *str);
 
 // Escape a string and return a new one
 char *escapeXML(const char *str);
+
+typedef std::vector<XrdOucIOVec2> XrdHttpIOList;
 
 
  

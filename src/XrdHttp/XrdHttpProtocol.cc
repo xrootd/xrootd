@@ -110,6 +110,7 @@ int XrdHttpProtocol::m_bio_type = 0; // BIO type identifier for our custom BIO.
 BIO_METHOD *XrdHttpProtocol::m_bio_method = NULL; // BIO method constructor.
 char *XrdHttpProtocol::xrd_cslist = nullptr;
 XrdHttpChecksumHandler XrdHttpProtocol::cksumHandler = XrdHttpChecksumHandler();
+XrdHttpReadRangeHandler::Configuration XrdHttpProtocol::ReadRangeConfig;
 
 XrdSysTrace XrdHttpTrace("http");
 
@@ -185,7 +186,7 @@ int BIO_get_shutdown(BIO *bio) {
 
 XrdHttpProtocol::XrdHttpProtocol(bool imhttps)
 : XrdProtocol("HTTP protocol handler"), ProtLink(this),
-SecEntity(""), CurrentReq(this) {
+SecEntity(""), CurrentReq(this, ReadRangeConfig) {
   myBuff = 0;
   Addr_str = 0;
   Reset();
@@ -951,6 +952,10 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   char *var;
   int cfgFD, GoNo, NoGo = 0, ismine;
 
+  var = nullptr;
+  XrdOucEnv::Import("XRD_READV_LIMITS", var);
+  XrdHttpReadRangeHandler::Configure(eDest, var, ReadRangeConfig);
+
   cksumHandler.configure(xrd_cslist);
   auto nonIanaChecksums = cksumHandler.getNonIANAConfiguredCksums();
   if(nonIanaChecksums.size()) {
@@ -1527,11 +1532,12 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
     else if (code == 206) ss << "Partial Content";
     else if (code == 302) ss << "Redirect";
     else if (code == 307) ss << "Temporary Redirect";
+    else if (code == 400) ss << "Bad Request";
     else if (code == 403) ss << "Forbidden";
     else if (code == 404) ss << "Not Found";
     else if (code == 405) ss << "Method Not Allowed";
+    else if (code == 416) ss << "Range Not Satisfiable";
     else if (code == 500) ss << "Internal Server Error";
-    else if (code == 400) ss << "Bad Request";
     else ss << "Unknown";
   }
   ss << crlf;
