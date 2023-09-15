@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 : ${ADLER32:=$(command -v xrdadler32)}
 : ${CRC32C:=$(command -v xrdcrc32c)}
 : ${XRDCP:=$(command -v xrdcp)}
@@ -17,9 +19,9 @@ done
 # This script assumes that ${HOST} exports an empty / as read/write.
 # It also assumes that any authentication required is already setup.
 
-set -e
+echo Using ${OPENSSL}: $(${OPENSSL} version)
+echo Using ${XRDCP}: $(${XRDCP} --version)
 
-${XRDCP} --version
 ${XRDFS} ${HOST} query config version
 
 # query some common server configurations
