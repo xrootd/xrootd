@@ -10,12 +10,36 @@ Version 5.6.2
 -------------
 
 + **Major bug fixes**
+  **[XrdHttp]** Fix chunked PUT creating empty files (issue #2058)
 
 + **Minor bug fixes**
+  **[CMake]** Update Findlibuuid.cmake to use correct include paths
+  **[Python]** Fix inclusion of markdown README file in documentation (#2057)
+  **[Server]** Align code with actual documentation for auth idspec (issue #2061)
+  **[XrdCl]** Fix flag check for append in XrdClZipArchive
+  **[XrdCl]** Fix promotion of root:// URLs to use TLS encryption (issue #2078)
+  **[XrdHttp]** Correct chunked response for GET with a byte range (issue #2076)
+  **[XrdHttp]** Refactor read issuing during GET and fix read vector too long (issue #1976)
+  **[XrdSciTokens]** Fix logic error in user mapping (issue #2056)
+  **[XrdSciTokens]** Update maximum header size and line length in INI files (issue #2074)
+  **[XrdSecgsi]** Fix crash of xrdgsitest when proxy is not already set
+  **[XrdSecztn]** Fix template for default ZTN token location (issue #2080)
+  **[XrdTls]** Change the thread-id returned to openssl 1.0 to improve performance (issue #2084)
+  **[XrdTls]** Insert CRLs containing critical extensions at the end of the bundle (issue #2065)
 
 + **Miscellaneous**
-  **[Server]** Default ffdest as per current pmark specification.
-  **[Server]** Correct code that tried to fix auth id spec on 11/2020.
+  **[CMake]** Always compile XrdOssCsi (compiled only with GCC before)
+  **[CMake]** Hide build output for isa-l to not confuse CTest
+  **[CMake]** Run tests in parallel and fail build when tests fail
+  **[Python]** Allow build customization via environment variable (issue #2062)
+  **[Python]** Check for Development.Module with CMake 3.18 and above
+  **[Server]** Add initialiser in one of the XrdScheduler constructors (#2081)
+  **[Server]** Default ffdest as per current pmark specification
+  **[Server]** Export readv comma separated limits via XRD_READV_LIMITS envar
+  **[Server]** Implement Linux epoll maxfd limit (#2063)
+  **[XrdClHttp] Add pgWrite support to the HTTP client plugin
+  **[XrdHttp]** Refactor request statemachine for HTTP GET requests (#2072)
+  **[XrdTls]** Refactor CASet and CRLSet to open the output file only once before the processing
 
 -------------
 Version 5.6.1
