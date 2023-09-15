@@ -18,7 +18,7 @@
 
 Name:		xrootd
 Epoch:		1
-Release:	1%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
+Release:	2%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
 Summary:	Extended ROOT File Server
 Group:		System Environment/Daemons
 License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AND Zlib
@@ -28,7 +28,7 @@ URL:		https://xrootd.slac.stanford.edu
 Version:	%(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
 Source0:	%{name}.tar.gz
 %else
-Version:	5.6.1
+Version:	5.6.2
 Source0:	%{url}/download/v%{version}/%{name}-%{version}.tar.gz
 %endif
 
@@ -36,8 +36,15 @@ Source0:	%{url}/download/v%{version}/%{name}-%{version}.tar.gz
 Source1:	%{url}/download/v%{compat_version}/%{name}-%{compat_version}.tar.gz
 %endif
 
+Patch0:		%{url}/download/v%{version}/%{name}-%{version}-authfile.patch
+
 %undefine __cmake_in_source_build
+
+%if %{?rhel}%{!?rhel:0} == 7
+%define cmake %cmake3
+%define __cmake %__cmake3
 %undefine __cmake3_in_source_build
+%endif
 
 %if %{with tests}
 # CppUnit crashes with LTO enabled
@@ -155,7 +162,7 @@ latency and increased throughput.
 Summary:	XRootD server daemons
 Group:		System Environment/Daemons
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+Requires:	%{name}-client%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-server-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	expect
 Requires:	logrotate
@@ -386,13 +393,13 @@ This package contains compatibility binaries for XRootD 4 servers.
 
 %prep
 %if %{with compat}
-%autosetup -T -b 1 -n %{name}-%{compat_version}
+%setup -T -b 1 -n %{name}-%{compat_version}
 %endif
 
 %if %{with git}
 %autosetup -n %{name}
 %else
-%autosetup
+%autosetup -p1
 %endif
 
 %build
@@ -418,9 +425,14 @@ CXXFLAGS="${CXXFLAGS} -Wno-error=stringop-overflow"
 %endif
 
 %if %{with compat}
-%__cmake3 \
+%__cmake \
     -S %{_builddir}/%{name}-%{compat_version} \
     -B %{_builddir}/%{name}-%{compat_version}/build \
+%if %{with openssl11}
+    -DOPENSSL_INCLUDE_DIR=/usr/include/openssl11 \
+    -DOPENSSL_CRYPTO_LIBRARY=/usr/lib64/libcrypto.so.1.1 \
+    -DOPENSSL_SSL_LIBRARY=/usr/lib64/libssl.so.1.1 \
+%endif
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_FLAGS_RELEASE:STRING='%{optflags}' \
     -DCMAKE_CXX_FLAGS_RELEASE:STRING='%{optflags}' \
@@ -450,7 +462,7 @@ CXXFLAGS="${CXXFLAGS} -Wno-error=stringop-overflow"
 make -C %{_builddir}/%{name}-%{compat_version}/build %{?_smp_mflags}
 %endif
 
-%cmake3 \
+%cmake \
     -DFORCE_ENABLED:BOOL=TRUE \
     -DUSE_SYSTEM_ISAL:BOOL=FALSE \
     -DENABLE_ASAN:BOOL=%{with asan} \
@@ -948,6 +960,13 @@ fi
 
 %changelog
 
+* Mon Sep 18 2023 Guilherme Amadio <amadio@cern.ch> - 1:5.6.2-2
+- Add patch with fix for id parsing in XrdAccAuthFile (#2088)
+
+* Fri Sep 15 2023 Guilherme Amadio <amadio@cern.ch> - 1:5.6.2-1
+- Link XRootD 4 with openssl1.1 when using --with openssl11
+- XRootD 5.6.2
+
 * Fri Aug 11 2023 Guilherme Amadio <amadio@cern.ch> - 1:5.6.1-1
 - Modernize spec file to add more optional features and select
   default build options automatically for each supported OS.
@@ -975,7 +994,7 @@ fi
 * Tue Jan 08 2019 Edgar Fajardo <emfajard@ucsd.edu>
 - Create config dir /etc/xrootd/config.d
 
-* Tue May 08 2018 Michal Simon <michal.simon@cern.ch> 
+* Tue May 08 2018 Michal Simon <michal.simon@cern.ch>
 - Make python3 sub-package optional
 
 * Fri Nov 10 2017 Michal Simon <michal.simon@cern.ch> - 1:4.8.0-1
