@@ -163,7 +163,7 @@ class ReplayArgs
     std::cerr
       << "                -l | --long             : print long - show all file IO counter for each individual file"
       << std::endl;
-    std::cerr << "                -v | --verify           : verify the existance of all input files"
+    std::cerr << "                -v | --verify           : verify the existence of all input files"
               << std::endl;
     std::cerr
       << "                -x | --speed <x>        : change playback speed by factor <x> [ <x> > 0.0 ]"
@@ -176,7 +176,7 @@ class ReplayArgs
       << std::endl;
     std::cerr << std::endl;
     std::cerr
-      << "             [recordfilename]          : if a file is given, it will be used as record input otherwhise STDIN is used to read records!"
+      << "             [recordfilename]          : if a file is given, it will be used as record input otherwise STDIN is used to read records!"
       << std::endl;
     std::cerr
       << "example:        ...  --replace file:://localhost:=root://xrootd.eu/        : redirect local file to remote"

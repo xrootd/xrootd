@@ -247,7 +247,7 @@ bool AssureFile(const std::string& url, uint64_t size, bool viatruncate, bool ve
 
   if (verify)
   {
-    std::cerr << "Verify: file is missing or inaccesible: " << url << std::endl;
+    std::cerr << "Verify: file is missing or inaccessible: " << url << std::endl;
     return false;
   }
 
@@ -1079,7 +1079,7 @@ void usage()
     << "                -f | --suppress         : force to run all IO with all successful result status - suppress all others"
     << std::endl;
   std::cerr
-    << "                                          - by default the player won't run with an unsuccessfull recorded IO"
+    << "                                          - by default the player won't run with an unsuccessfully recorded IO"
     << std::endl;
   std::cerr << std::endl;
   std::cerr
@@ -1145,10 +1145,10 @@ int main(int argc, char** argv)
 
     if (sampling_error)
     {
-      std::cerr << "Warning: IO file contains unsuccessfull samples!" << std::endl;
+      std::cerr << "Warning: IO file contains unsuccessful samples!" << std::endl;
       if (!opt.suppress_error())
       {
-        std::cerr << "... run with [-f] or [--suppress] option to suppress unsuccessfull IO events!"
+        std::cerr << "... run with [-f] or [--suppress] option to suppress unsuccessful IO events!"
                   << std::endl;
         exit(-1);
       }
