@@ -439,7 +439,7 @@ struct XrdFfsPosixX_readdirall_args {
    NULL in this case.
 
    Do we need some protection here? We are not in trouble so far
-   because FUSE's _getattr will test the existance of the dir
+   because FUSE's _getattr will test the existence of the dir
    so we know that at least one data server has the directory.
  */
 void* XrdFfsPosix_x_readdirall(void* x)

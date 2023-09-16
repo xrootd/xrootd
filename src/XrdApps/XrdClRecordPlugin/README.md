@@ -32,7 +32,7 @@ _________________
 
 The **xrdreplay** application provides the following operation modes:
 * <em>print</em> mode (-p)           : display runtime and IO statistics for a record file
-* <em>verify</em> mode (-v)          : verify the existance of the required input files for a record file
+* <em>verify</em> mode (-v)          : verify the existence of the required input files for a record file
 * <em>creation</em> mode (-c,-t)     : create the required input data using file creation and write the minimal required size (-c) or truncate files to the minimal required size (-t)
 * <em>playback</em> mode (default)   : replay a given record file
 
@@ -113,7 +113,7 @@ xrdreplay -v recording.cvs
 # size: 536.87 MB [ 0 B out of 536.87 MB ]  ( 0.00% )
 # ---> info: file exists and has sufficient size
 ```
-On success the shell returns 0, if there was a missing, too small or inaccesible file it returns -5 (251).
+On success the shell returns 0, if there was a missing, too small or inaccessible file it returns -5 (251).
 
 ```bash
 Warning: xrdreplay considers a file only as an input file if it has no bytes written.
@@ -250,12 +250,12 @@ usage: xrdreplay [-p|--print] [-c|--create-data] [t|--truncate-data] [-l|--long]
                 -p | --print            : print only mode - shows all the IO for the given replay file without actually running any IO
                 -s | --summary          : print summary - shows all the aggregated IO counter summed for all files
                 -l | --long             : print long - show all file IO counter for each individual file
-                -v | --verify           : verify the existance of all input files
+                -v | --verify           : verify the existence of all input files
                 -x | --speed <x>        : change playback speed by factor <x> [ <x> > 0.0 ]
                 -r | --replace <a>:=<b> : replace in the argument list the string <a> with <b> 
                                           - option is usable several times e.g. to change storage prefixes or filenames
 
-             [recordfilename]          : if a file is given, it will be used as record input otherwhise STDIN is used to read records!
+             [recordfilename]          : if a file is given, it will be used as record input otherwise STDIN is used to read records!
 example:        ...  --replace file:://localhost:=root://xrootd.eu/        : redirect local file to remote
 ```
 
