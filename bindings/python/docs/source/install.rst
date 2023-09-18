@@ -2,5 +2,5 @@
 **Installing** ``pyxrootd``
 ===========================
 
-.. mdinclude:: ../../README.md
+.. include:: ../../README.md
    :start-line: 8
