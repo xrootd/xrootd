@@ -24,7 +24,7 @@ else()
     install(CODE "
       execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PIP_OPTIONS}
         --prefix \$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_BINARY_DIR}
-        RESULT_VARIABLE INSTALL_STATUS)
+        RESULT_VARIABLE INSTALL_STATUS COMMAND_ECHO STDOUT)
       if(NOT INSTALL_STATUS EQUAL 0)
         message(FATAL_ERROR \"Failed to install Python bindings\")
       endif()
