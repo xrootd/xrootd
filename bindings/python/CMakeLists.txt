@@ -19,7 +19,7 @@ else()
   option(INSTALL_PYTHON_BINDINGS "Install Python bindings" TRUE)
 
   if(INSTALL_PYTHON_BINDINGS)
-    set(PIP_OPTIONS "--use-pep517" CACHE STRING "Install options for pip")
+    set(PIP_OPTIONS "" CACHE STRING "Install options for pip")
 
     install(CODE "
       execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PIP_OPTIONS}
