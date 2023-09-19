@@ -104,11 +104,3 @@ target_link_libraries(
 install(
   TARGETS frm_admin frm_purged frm_xfrd frm_xfragent
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/frm_admin.8
-  ${PROJECT_SOURCE_DIR}/docs/man/frm_purged.8
-  ${PROJECT_SOURCE_DIR}/docs/man/frm_xfrd.8
-  ${PROJECT_SOURCE_DIR}/docs/man/frm_xfragent.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )

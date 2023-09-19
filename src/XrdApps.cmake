@@ -221,13 +221,3 @@ install(
   TARGETS xrdreplay
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdadler32.1
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/mpxstats.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )

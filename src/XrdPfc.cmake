@@ -88,9 +88,3 @@ install(
 install(
   TARGETS xrdpfc_print
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdpfc_print.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )
-

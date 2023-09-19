@@ -62,9 +62,4 @@ if( BUILD_FUSE )
   install(
     TARGETS xrootdfs
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
-
-  install(
-    FILES
-    ${PROJECT_SOURCE_DIR}/docs/man/xrootdfs.1
-    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 endif()

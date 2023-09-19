@@ -49,6 +49,7 @@ if( BUILD_TESTS )
   add_subdirectory( tests )
 endif()
 
+add_subdirectory(docs)
 add_subdirectory(utils)
 
 include( XRootDSummary )

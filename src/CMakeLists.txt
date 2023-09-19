@@ -79,24 +79,3 @@ if( NOT XRDCL_ONLY )
   endif()
 
 endif()
-
-if( NOT XRDCL_LIB_ONLY )
-
-#-------------------------------------------------------------------------------
-# Post process man pages
-#-------------------------------------------------------------------------------
-install(
-  CODE "
-    FILE(GLOB MANPAGES
-      \"\$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man[1,8]/*.[1,8]\" )
-    FOREACH(MANPAGE \${MANPAGES})
-      MESSAGE( \"-- Processing: \" \${MANPAGE} )
-      EXECUTE_PROCESS(
-        COMMAND cat \${MANPAGE}
-        COMMAND sed  -e \"s/__VERSION__/${XRootD_VERSION}/\"
-        OUTPUT_FILE \${MANPAGE}.new )
-      EXECUTE_PROCESS(
-        COMMAND mv -f \${MANPAGE}.new \${MANPAGE} )
-    ENDFOREACH()"
-)
-endif()
