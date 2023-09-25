@@ -382,7 +382,7 @@ XrdOucTList *XrdCmsBlackList::Flatten(XrdOucTList *tList, int tPort)
 /******************************************************************************/
   
 bool XrdCmsBlackList::GetBL(XrdOucTList  *&bList,
-                            XrdOucTList **&rList, int &rcnt)
+                            XrdOucTList **&rList, int &rcnt, bool isInit)
 {
    static int msgCnt = 0;
    XrdOucEnv myEnv;
@@ -455,7 +455,7 @@ bool XrdCmsBlackList::GetBL(XrdOucTList  *&bList,
 // Return ending status
 //
    blFile.Close();
-   bList = (aOK ? bAnchor.Export() : 0);
+   bList = ((aOK || isInit) ? bAnchor.Export() : nullptr);
    rList = rAnchor[1].Array(rcnt);
    return aOK;
 }
@@ -494,7 +494,7 @@ void XrdCmsBlackList::Init(XrdScheduler *sP,   XrdCmsCluster *cP,
 //
    if (!stat(blFN, &Stat))
       {blTime = Stat.st_mtime;
-       GetBL(blReal, blRedr, blRcnt);
+       GetBL(blReal, blRedr, blRcnt, /* isInit = */ true);
        if (blReal) blMN.Ring();
       }
 
