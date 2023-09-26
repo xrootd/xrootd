@@ -14,6 +14,7 @@ Chris Burr <christopher.burr@cern.ch> Chris Burr <chrisburr@users.noreply.github
 Chris Green <greenc@fnal.gov> <artists@fnal.gov>
 David Smith <david.smith@cern.ch> <David.Smith@cern.ch>
 David Smith <david.smith@cern.ch> David Smith <dhsmith@pmpe01.cern.ch>
+Ed J <mohawk2@users.noreply.github.com>
 Edgar Fajardo <efajardo@physics.ucsd.edu> <efajardo@users.noreply.github.com> efajardo <efajardo@physics.ucsd.edu>
 Edgar Fajardo <efajardo@physics.ucsd.edu> efajardo <efajardo@physics.ucsd.edu>
 Elvin Sindrilaru <esindril@cern.ch> <elvin.sindrilaru@gmail.com>
@@ -23,6 +24,7 @@ Fabrizio Furano <furano@cern.ch> Fabrizio Furano <furano@lxplus060.cern.ch>
 Fabrizio Furano <furano@cern.ch> Fabrizio Furano <furano@pcitgt02.cern.ch>
 Fabrizio Furano <furano@cern.ch> ffurano <furano@cern.ch>
 Fabrizio Furano <furano@cern.ch> furano <furano@fab-dpm-dev0.cern.ch>
+Frank Winklmeier <frank.winklmeier@cern.ch> fwinkl <>
 Fritz Mueller <fritzm@slac.stanford.edu> Fritz Mueller <fritzm@fritzm.org>
 Gerardo Ganis <gerardo.ganis@cern.ch> Gerardo GANIS <gerardo.ganis@cern.ch>
 Gerardo Ganis <gerardo.ganis@cern.ch> Gerri Ganis <ganis@gadamx.(none)>
@@ -32,6 +34,7 @@ Gerardo Ganis <gerardo.ganis@cern.ch> ganis <ganis@macphsft12.cern.ch>
 Gerardo Ganis <gerardo.ganis@cern.ch> ganis <gerardo.ganis@cern.ch>
 Gerardo Ganis <gerardo.ganis@cern.ch> gganis <gerardo.ganis@gmail.com>
 Jacek Becla <becla@slac.stanford.edu> <xrdmon@slac.stanford.edu>
+James Walder <james.walder@stfc.ac.uk> snafus <james.walder@gmail.com>
 Jan Iven <jan.iven@cern.ch> <iven.jan@gmail.com>
 Jozsef Makai <jozsef.makai@cern.ch> <jmakai@cern.ch>
 Jozsef Makai <jozsef.makai@cern.ch> Jozsef Makai <jozsef.makai.1992@gmail.com>
@@ -50,7 +53,9 @@ Nikola Hardi <nikola.hardi@cern.ch> <nhardi@cern.ch>
 Paul-Niklas Kramp <p.n.kramp@gsi.de> Paul Kramp <paul-niklas-kramp@web.de>
 Paul-Niklas Kramp <p.n.kramp@gsi.de> niklas <niklas@localhost.localdomain>
 Paul-Niklas Kramp <p.n.kramp@gsi.de> pkramp <paul-niklas-kramp@web.de>
+Remigius Mommsen <remigius.mommsen@cern.ch> mommsen <>
 Sebastien Ponce <sebastien.ponce@cern.ch> <Sebastien.Ponce@cern.ch>
+Thorsten Kollegger <t.kollegger@gsi.de> TKollegger <t.kollegger@gsi.de>
 Wei Yang <yangw@slac.stanford.edu> Wei Yang <wyang007@hotmail.com>
 Wei Yang <yangw@slac.stanford.edu> Wei Yang <yangw@atl-prod01.slac.stanford.edu>
 Wei Yang <yangw@slac.stanford.edu> Wei Yang <yangw@atlint01.slac.stanford.edu>
@@ -63,11 +68,10 @@ Wei Yang <yangw@slac.stanford.edu> Wei Yang <yangw@iris01.slac.stanford.edu>
 Wei Yang <yangw@slac.stanford.edu> Wei Yang <yangw@osgserv04.slac.stanford.edu>
 
 Unknown <unknown> bbrqa <>
-Unknown <unknown> fwinkl <>
-Unknown <unknown> mommsen <>
 Unknown <unknown> otron <oddweb42+gith@gmail.com>
-Unknown <unknown> root <root@centos8-test.cern.ch>
-Unknown <unknown> root <root@littlexrdhttp.cern.ch>
-Unknown <unknown> root <root@lxbre43a05.cern.ch>
-Unknown <unknown> root <root@redirector.t2.ucsd.edu>
-Unknown <unknown> xrootd <xrootd@cabinet-10-10-9.t2.ucsd.edu>
+Unknown <unknown@cern.ch> root <root@centos8-test.cern.ch>
+Unknown <unknown@cern.ch> root <root@littlexrdhttp.cern.ch>
+Unknown <unknown@cern.ch> root <root@lxbre43a05.cern.ch>
+Unknown <unknown@ucsd.edu> root <root@redirector.t2.ucsd.edu>
+Unknown <unknown@ucsd.edu> xrootd <xrootd@cabinet-10-10-9.t2.ucsd.edu>
+Unknown <unknown@stfc.ac.uk> root <root@host-172-16-113-181.nubes.stfc.ac.uk>
