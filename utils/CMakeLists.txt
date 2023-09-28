@@ -9,5 +9,6 @@ if( NOT XRDCL_ONLY )
     ${CMAKE_SOURCE_DIR}/utils/netchk
     ${CMAKE_SOURCE_DIR}/utils/XrdOlbMonPerf
     ${CMAKE_SOURCE_DIR}/utils/cms_monPerf
+    ${CMAKE_SOURCE_DIR}/utils/xrdcp-tpc.sh
     DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/utils)
 endif()
