@@ -72,7 +72,7 @@ void Ret(int iOffs) {Ret(&((slotVec + iOffs)->memSlot));}
                             try {tpl = XrdSys::shm::make_array<T>(shmemfn,count);
                                  vecSlot = std::get<0>(tpl);
                                 }
-                                catch(XrdSys::shm_error shmerr)
+                                catch(XrdSys::shm_error const& shmerr)
                                      {rc = shmerr.errcode; return;}
                            }
                    for (int i = 0; i < count-1; i++)
