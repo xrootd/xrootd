@@ -5,6 +5,7 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdTls/XrdTlsContext.hh"
 #include "XrdVersion.hh"
 
 #include <map>
@@ -432,7 +433,7 @@ class XrdAccSciTokens : public XrdAccAuthorize, public XrdSciTokensHelper,
     };
 
 public:
-    XrdAccSciTokens(XrdSysLogger *lp, const char *parms, XrdAccAuthorize* chain) :
+    XrdAccSciTokens(XrdSysLogger *lp, const char *parms, XrdAccAuthorize* chain, XrdOucEnv *envP) :
         m_chain(chain),
         m_parms(parms ? parms : ""),
         m_next_clean(monotonic_time() + m_expiry_secs),
@@ -441,7 +442,7 @@ public:
         pthread_rwlock_init(&m_config_lock, nullptr);
         m_config_lock_initialized = true;
         m_log.Say("++++++ XrdAccSciTokens: Initialized SciTokens-based authorization.");
-        if (!Config()) {
+        if (!Config(envP)) {
             throw std::runtime_error("Failed to configure SciTokens authorization.");
         }
     }
@@ -926,7 +927,7 @@ private:
     }
 
 
-    bool Config() {
+    bool Config(XrdOucEnv *envP) {
         // Set default mask for logging.
         m_log.setMsgMask(LogMask::Error | LogMask::Warning);
 
@@ -961,6 +962,15 @@ private:
             } while ((val = scitokens_conf.GetToken()));
         }
         m_log.Emsg("Config", "Logging levels enabled -", LogMaskToString(m_log.getMsgMask()).c_str());
+
+        auto xrdEnv = static_cast<XrdOucEnv*>(envP ? envP->GetPtr("xrdEnv*") : nullptr);
+        auto tlsCtx = static_cast<XrdTlsContext*>(xrdEnv ? xrdEnv->GetPtr("XrdTlsContext*") : nullptr);
+        if (tlsCtx) {
+            auto params = tlsCtx->GetParams();
+            if (params && !params->cafile.empty()) {
+                scitoken_config_set_str("tls.ca_file", params->cafile.c_str(), nullptr);
+            }
+        }
 
         return Reconfig();
     }
@@ -1259,10 +1269,10 @@ private:
 };
 
 void InitAccSciTokens(XrdSysLogger *lp, const char *cfn, const char *parm,
-                      XrdAccAuthorize *accP)
+                      XrdAccAuthorize *accP, XrdOucEnv *envP)
 {
     try {
-        accSciTokens = new XrdAccSciTokens(lp, parm, accP);
+        accSciTokens = new XrdAccSciTokens(lp, parm, accP, envP);
         SciTokensHelper = accSciTokens;
     } catch (std::exception &) {
     }
@@ -1273,7 +1283,7 @@ extern "C" {
 XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *lp,
                                           const char   *cfn,
                                           const char   *parm,
-                                       XrdOucEnv    * /*not used*/,
+                                       XrdOucEnv       *envP,
                                        XrdAccAuthorize *accP)
 {
     // Record the parent authorization plugin. There is no need to use
@@ -1283,7 +1293,7 @@ XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *lp,
     // If we have been initialized by a previous load, them return that result.
     // Otherwise, it's the first time through, get a new SciTokens authorizer.
     //
-    if (!accSciTokens) InitAccSciTokens(lp, cfn, parm, accP);
+    if (!accSciTokens) InitAccSciTokens(lp, cfn, parm, accP, envP);
     return accSciTokens;
 }
 
@@ -1291,7 +1301,16 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
                                        const char   *cfn,
                                        const char   *parm)
 {
-    InitAccSciTokens(lp, cfn, parm, 0);
+    InitAccSciTokens(lp, cfn, parm, nullptr, nullptr);
+    return accSciTokens;
+}
+
+XrdAccAuthorize *XrdAccAuthorizeObject2(XrdSysLogger *lp,
+                                        const char   *cfn,
+                                        const char   *parm,
+                                        XrdOucEnv    *envP)
+{
+    InitAccSciTokens(lp, cfn, parm, nullptr, envP);
     return accSciTokens;
 }
 
