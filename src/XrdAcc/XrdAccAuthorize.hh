@@ -150,12 +150,15 @@ virtual                  ~XrdAccAuthorize() {}
 //! XrdAccAuthorizeObject() is an extern "C" function that is called to obtain
 //! an instance of the auth object that will be used for all subsequent
 //! authorization decisions. It must be defined in the plug-in shared library.
+//! A second version which is used preferentially if it exists should be
+//! used if accessto theenvironmental pointer s needed.
 //! All the following extern symbols must be defined at file level!
 //!
 //! @param lp   -> XrdSysLogger to be tied to an XrdSysError object for messages
 //! @param cfn  -> The name of the configuration file
 //! @param parm -> Parameters specified on the authlib directive. If none it 
 //!                is zero.
+//! @param envP -> Pointer to environment only available for version 2.
 //!
 //! @return Success: A pointer to the authorization object.
 //!         Failure: Null pointer which causes initialization to fail.
@@ -169,6 +172,20 @@ typedef XrdAccAuthorize *(*XrdAccAuthorizeObject_t)(XrdSysLogger *lp,
 /*! extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
                                                       const char   *cfn,
                                                       const char   *parm) {...}
+*/
+
+// Alternatively:
+
+typedef XrdAccAuthorize *(*XrdAccAuthorizeObject2_t)(XrdSysLogger *lp,
+                                                     const char   *cfn,
+                                                     const char   *parm,
+                                                     XrdOucEnv    *envP);
+
+
+/*! extern "C" XrdAccAuthorize *XrdAccAuthorizeObject2(XrdSysLogger *lp,
+                                                       const char   *cfn,
+                                                       const char   *parm,
+                                                       XrdOucEnv    *envP) {...}
 */
   
 //------------------------------------------------------------------------------
