@@ -687,7 +687,8 @@ int XrdConfig::Configure(int argc, char **argv)
           else {Log.Say("++++++ ", myInstance, " TLS initialization started.");
                 if (SetupTLS())
                    {Log.Say("------ ",myInstance," TLS initialization ended.");
-                    ProtInfo.tlsCtx = XrdGlobal::tlsCtx;
+                    if ((ProtInfo.tlsCtx = XrdGlobal::tlsCtx))
+                       theEnv.PutPtr("XrdTlsContext*", XrdGlobal::tlsCtx);
                    } else {
                     NoGo = 1;
                     Log.Say("------ ",myInstance," TLS initialization failed.");
