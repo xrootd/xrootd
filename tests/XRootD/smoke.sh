@@ -99,6 +99,45 @@ done
 
 wait
 
+#
+# check return code for xrdfs rm
+# create another 6 files, which should be deleted during the test
+#
+for i in $(seq -w 1 6) ; do
+       ${OPENSSL} rand -out "${TMPDIR}/${i}.exists.ref" $((1024 * $RANDOM))
+       ${XRDCP} ${TMPDIR}/${i}.exists.ref ${HOST}/${TMPDIR}/${i}.exists.ref
+done
+
+# remove 3 existing, should succeed not error
+${XRDFS} ${HOST} rm ${TMPDIR}/1.exists.ref ${TMPDIR}/2.exists.ref ${TMPDIR}/3.exists.ref
+
+set +e
+
+# remove 3 not existing, should error
+#
+${XRDFS} ${HOST} rm ${TMPDIR}/not_exists_1.ref ${TMPDIR}/not_exists_2.ref ${TMPDIR}/not_exists_3.ref
+rm_rc=$?
+if [ $rm_rc -eq 0 ]; then
+  exit 1
+fi
+#
+# remove 2 existing, 1 not existing should error
+#
+${XRDFS} ${HOST} rm ${TMPDIR}/4.exists.ref ${TMPDIR}/5.exists.ref ${TMPDIR}/not_exists_4.ref
+rm_rc=$?
+if [ $rm_rc -eq 0 ]; then
+  exit 1
+fi
+#
+# remove 1 existing, 2 not existing should error
+#
+${XRDFS} ${HOST} rm ${TMPDIR}/6.exists.ref ${TMPDIR}/not_exists_5.ref ${TMPDIR}/not_exists_6.ref
+rm_rc=$?
+if [ $rm_rc -eq 0 ]; then
+  exit 1
+fi
+set -e
+
 ${XRDFS} ${HOST} rmdir ${TMPDIR}
 
 echo "ALL TESTS PASSED"

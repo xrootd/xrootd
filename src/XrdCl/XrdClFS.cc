@@ -701,9 +701,12 @@ XRootDStatus DoRm( FileSystem                      *fs,
   }
 
   //----------------------------------------------------------------------------
-  // Run the query
+  // Run the query:
+  // Parallel() will take the vector of Pipeline by reference and empty the
+  // vector, so rms.size() will change after the call.
   //----------------------------------------------------------------------------
-  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rms.size() ) );
+  const size_t rs = rms.size();
+  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rs ) );
   if( !st.IsOK() )
     return st;
 
