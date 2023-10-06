@@ -650,9 +650,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             }
             int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
             if (now > last_advance_time + timeout) {
+                const char *log_prefix = rec.log_prefix.c_str();
+                bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
+
                 state.SetErrorCode(10);
                 std::stringstream ss;
-                ss << "Transfer failed because no bytes have been received in " << timeout << " seconds.";
+                ss << "Transfer failed because no bytes have been "
+                   << (tpc_pull ? "received from the source (pull mode) in "
+                                : "transmitted to the destination (push mode) in ") << timeout << " seconds.";
                 state.SetErrorMessage(ss.str());
                 curl_multi_remove_handle(multi_handle, curl);
                 curl_multi_cleanup(multi_handle);
