@@ -28,15 +28,14 @@ URL:		https://xrootd.slac.stanford.edu
 Version:	%(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
 Source0:	%{name}.tar.gz
 %else
-Version:	5.6.2
+Version:	5.6.3
 Source0:	%{url}/download/v%{version}/%{name}-%{version}.tar.gz
+Patch0:	%{url}/download/v%{version}/%{name}-%{version}-install-xrdnet-pmark-header.patch
 %endif
 
 %if %{with compat}
 Source1:	%{url}/download/v%{compat_version}/%{name}-%{compat_version}.tar.gz
 %endif
-
-Patch0:		%{url}/download/v%{version}/%{name}-%{version}-authfile.patch
 
 %undefine __cmake_in_source_build
 
@@ -58,6 +57,7 @@ BuildRequires:	%{devtoolset}-toolchain
 BuildRequires:	cmake >= 3.16
 BuildRequires:	gcc-c++
 %endif
+BuildRequires:	gdb
 BuildRequires:	make
 BuildRequires:	pkgconfig
 BuildRequires:	fuse-devel
@@ -413,15 +413,6 @@ This package contains compatibility binaries for XRootD 4 servers.
 %if %{with clang}
 export CC=clang
 export CXX=clang++
-%endif
-
-%if %{?fedora}%{!?fedora:0} >= 36
-# Mark some warnings from gcc 12 as not errors
-# These are likely bogus - hopefully they can be fixed in gcc updates
-%ifarch %{arm}
-%set_build_flags
-CXXFLAGS="${CXXFLAGS} -Wno-error=stringop-overflow"
-%endif
 %endif
 
 %if %{with compat}
@@ -959,6 +950,9 @@ fi
 %endif
 
 %changelog
+
+* Fri Oct 27 2023 Guilherme Amadio <amadio@cern.ch> - 1:5.6.3-2
+- XRootD 5.6.3
 
 * Mon Sep 18 2023 Guilherme Amadio <amadio@cern.ch> - 1:5.6.2-2
 - Add patch with fix for id parsing in XrdAccAuthFile (#2088)
