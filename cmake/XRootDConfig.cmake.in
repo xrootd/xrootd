@@ -47,36 +47,21 @@ SET( XROOTD_SSI_FOUND     FALSE )
 ################################################################################
 # Set XRootD include paths
 ################################################################################
-FIND_PATH( XROOTD_INCLUDE_DIRS XrdVersion.hh
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES include/xrootd
-  PATHS /opt/xrootd
-)
 
-IF( NOT "${XROOTD_INCLUDE_DIRS}" STREQUAL "XROOTD_INCLUDE_DIRS-NOTFOUND" )
-  SET( XROOTD_FOUND TRUE )
-  SET( XROOTD_INCLUDE_DIRS "${XROOTD_INCLUDE_DIRS};${XROOTD_INCLUDE_DIRS}/private" )
-ENDIF()
+set_and_check(XRootD_CMAKE_DIR   "${CMAKE_CURRENT_LIST_DIR}")
+set_and_check(XRootD_DATA_DIR    "@PACKAGE_CMAKE_INSTALL_DATADIR@")
+set_and_check(XRootD_INCLUDE_DIR "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@")
+set_and_check(XRootD_LIB_DIR     "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
 
-IF( NOT XROOTD_FOUND )
-  LIST( APPEND _XROOTD_MISSING_COMPONENTS XROOTD_FOUND )
-ENDIF()
+set(XRootD_INCLUDE_DIRS "${XRootD_INCLUDE_DIR};${XRootD_INCLUDE_DIR}/private")
+set(XROOTD_INCLUDE_DIRS "${XRootD_INCLUDE_DIRS}") # backward compatibility
 
 ################################################################################
 # XRootD client libs
 #  - libXrdCl
 ################################################################################
 FIND_LIBRARY( XROOTD_CLIENT_LIBRARIES XrdCl
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES lib lib64
+  PATHS ${XRootD_LIB_DIR} NO_DEFAULT_PATH
 )
 
 IF( NOT "${XROOTD_CLIENT_LIBRARIES}" STREQUAL "XROOTD_CLIENT_LIBRARIES-NOTFOUND" )
@@ -95,12 +80,7 @@ ENDIF()
 #  - libXrdUtils
 ################################################################################
 FIND_LIBRARY( XROOTD_UTILS_LIBRARIES XrdUtils
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES lib lib64
+  PATHS ${XRootD_LIB_DIR} NO_DEFAULT_PATH
 )
 
 IF( NOT "${XROOTD_UTILS_LIBRARIES}" STREQUAL "XROOTD_UTILS_LIBRARIES-NOTFOUND" )
@@ -119,12 +99,7 @@ ENDIF()
 #  - libXrdServer
 ################################################################################
 FIND_LIBRARY( XROOTD_SERVER_LIBRARIES XrdServer
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES lib lib64
+  PATHS ${XRootD_LIB_DIR} NO_DEFAULT_PATH
 )
 
 IF( NOT "${XROOTD_SERVER_LIBRARIES}" STREQUAL "XROOTD_SERVER_LIBRARIES-NOTFOUND" )
@@ -144,21 +119,11 @@ ENDIF()
 #  - libXrdPosixPreload
 ################################################################################
 FIND_LIBRARY( XROOTD_POSIX_LIBRARY XrdPosix
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES lib lib64
+  PATHS ${XRootD_LIB_DIR} NO_DEFAULT_PATH
 )
 
 FIND_LIBRARY( XROOTD_POSIX_PRELOAD_LIBRARY XrdPosixPreload
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES lib lib64
+  PATHS ${XRootD_LIB_DIR} NO_DEFAULT_PATH
 )
 
 IF( NOT "${XROOTD_POSIX_LIBRARY}" STREQUAL "XROOTD_POSIX_LIBRARY-NOTFOUND" )
@@ -180,12 +145,7 @@ ENDIF()
 #  - libXrdHtppUtils
 ################################################################################
 FIND_LIBRARY( XROOTD_HTTP_LIBRARIES XrdHttpUtils
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES lib lib64
+  PATHS ${XRootD_LIB_DIR} NO_DEFAULT_PATH
 )
 
 IF( NOT "${XROOTD_HTTP_LIBRARIES}" STREQUAL "XROOTD_HTTP_LIBRARIES-NOTFOUND" )
@@ -205,21 +165,11 @@ ENDIF()
 #  - XrdSsiShMap
 ################################################################################
 FIND_LIBRARY( XROOTD_SSI_LIBRARY XrdSsiLib
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES lib lib64
+  PATHS ${XRootD_LIB_DIR} NO_DEFAULT_PATH
 )
 
 FIND_LIBRARY( XROOTD_SSI_SHMAP_LIBRARY XrdSsiShMap
-  HINTS
-  ${XROOTD_DIR}
-  $ENV{XROOTD_DIR}
-  /usr
-  /opt/xrootd
-  PATH_SUFFIXES lib lib64
+  PATHS ${XRootD_LIB_DIR} NO_DEFAULT_PATH
 )
 
 IF( NOT "${XROOTD_SSI_LIBRARY}" STREQUAL "XROOTD_SSI_LIBRARY-NOTFOUND" )
