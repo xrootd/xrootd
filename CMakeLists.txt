@@ -59,11 +59,24 @@ include( XRootDSummary )
 # Install XRootDConfig.cmake module
 #-------------------------------------------------------------------------------
 
-configure_file( "cmake/XRootDConfig.cmake.in" "cmake/XRootDConfig.cmake" @ONLY )
+include(CMakePackageConfigHelpers)
 
-install(
-  FILES ${CMAKE_BINARY_DIR}/cmake/XRootDConfig.cmake
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/cmake )
+write_basic_package_version_file(cmake/${PROJECT_NAME}ConfigVersion.cmake
+  VERSION ${XRootD_VERSION} COMPATIBILITY SameMajorVersion)
+
+configure_package_config_file(cmake/${PROJECT_NAME}Config.cmake.in cmake/${PROJECT_NAME}Config.cmake
+  INSTALL_PREFIX
+    ${CMAKE_INSTALL_PREFIX}
+  INSTALL_DESTINATION
+    ${CMAKE_INSTALL_DATADIR}/xrootd/cmake
+  PATH_VARS
+    CMAKE_INSTALL_INCLUDEDIR
+    CMAKE_INSTALL_LIBDIR
+    CMAKE_INSTALL_DATADIR
+)
+
+install(DIRECTORY ${PROJECT_BINARY_DIR}/cmake/
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/cmake)
 
 #-------------------------------------------------------------------------------
 # Configure an 'uninstall' target

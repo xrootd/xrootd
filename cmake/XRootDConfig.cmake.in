@@ -19,6 +19,20 @@
 #   List of components: CLIENT, UTILS, SERVER, POSIX, HTTP and SSI
 ################################################################################
 
+@PACKAGE_INIT@
+
+set(XRootD_FOUND TRUE)
+
+set(XRootD_VERSION        @XRootD_VERSION@)
+set(XRootD_PLUGIN_VERSION @XRootD_VERSION_MAJOR@)
+
+set(XRootD_VERSION_MAJOR  @XRootD_VERSION_MAJOR@)
+set(XRootD_VERSION_MINOR  @XRootD_VERSION_MINOR@)
+set(XRootD_VERSION_PATCH  @XRootD_VERSION_PATCH@)
+set(XRootD_VERSION_TWEAK  @XRootD_VERSION_TWEAK@)
+set(XRootD_VERSION_NUMBER @XRootD_VERSION_NUMBER@)
+set(XRootD_VERSION_STRING @XRootD_VERSION_STRING@)
+
 ################################################################################
 # Make sure all *_FOUND variables are intialized to FALSE
 ################################################################################
@@ -233,10 +247,6 @@ ENDIF()
 # Set up the XRootD find module
 ################################################################################
 
-IF( XRootD_FIND_REQUIRED )
-  INCLUDE( FindPackageHandleStandardArgs )
-  FIND_PACKAGE_HANDLE_STANDARD_ARGS( XRootD
-    REQUIRED_VARS  XROOTD_INCLUDE_DIRS  ${_XROOTD_MISSING_COMPONENTS}
-  )
-ENDIF()
-
+include(FindPackageHandleStandardArgs)
+set(XRootD_CONFIG ${CMAKE_CURRENT_LIST_FILE})
+find_package_handle_standard_args(XRootD CONFIG_MODE)

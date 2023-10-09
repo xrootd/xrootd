@@ -64,7 +64,7 @@ if(XRootD_VERSION_STRING MATCHES "[_-](.*)$")
   set(XRootD_VERSION_SUFFIX ${CMAKE_MATCH_1})
 endif()
 
-string(REGEX MATCH "[0-9]+[.]*[0-9]*[.]*[0-9]*[.]*[0-9]*(-rc)?[0-9]*"
+string(REGEX MATCH "[0-9]+[.]*[0-9]*[.]*[0-9]*[.]*[0-9]*(-rc)?[0-9].*"
   XRootD_VERSION ${XRootD_VERSION_STRING})
 
 message(DEBUG "XRootD_VERSION_STRING = '${XRootD_VERSION_STRING}'")
