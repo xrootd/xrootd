@@ -165,6 +165,27 @@ check_required_components(XRootD)
 set(XROOTD_FOUND ${XRootD_FOUND})
 set(XRootD_LIBRARIES ${XROOTD_LIBRARIES})
 
+message(DEBUG "XRootD_VERSION        = '${XRootD_VERSION}'")
+message(DEBUG "XRootD_VERSION_MAJOR  = '${XRootD_VERSION_MAJOR}'")
+message(DEBUG "XRootD_VERSION_MINOR  = '${XRootD_VERSION_MINOR}'")
+message(DEBUG "XRootD_VERSION_PATCH  = '${XRootD_VERSION_PATCH}'")
+message(TRACE "XRootD_VERSION_TWEAK  = '${XRootD_VERSION_TWEAK}'")
+message(TRACE "XRootD_VERSION_NUMBER = '${XRootD_VERSION_NUMBER}'")
+
+message(TRACE "XRootD_FOUND          = '${XRootD_FOUND}'")
+message(TRACE "XRootD_INSTALL_PREFIX = '@CMAKE_INSTALL_PREFIX@'")
+message(TRACE "XRootD_INCLUDE_DIR    = '@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@'")
+message(TRACE "XRootD_LIBRARY_DIR    = '@PACKAGE_CMAKE_INSTALL_LIBDIR@'")
+message(TRACE "XRootD_LIBRARIES      = '${XRootD_LIBRARIES}'")
+
+foreach(COMPONENT UTILS CLIENT SERVER HTTP POSIX SSI)
+  message(TRACE "XRootD_${COMPONENT}_FOUND\t\t= '${XRootD_${COMPONENT}_FOUND}'")
+endforeach()
+
+foreach(COMPONENT UTILS CLIENT SERVER HTTP POSIX SSI)
+  message(TRACE "XRootD_${COMPONENT}_LIBRARIES\t= '${XRootD_${COMPONENT}_LIBRARIES}'")
+endforeach()
+
 include(FindPackageHandleStandardArgs)
 set(XRootD_CONFIG ${CMAKE_CURRENT_LIST_FILE})
 find_package_handle_standard_args(XRootD CONFIG_MODE HANDLE_COMPONENTS)
