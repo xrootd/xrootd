@@ -38,7 +38,8 @@ if( BUILD_TPC )
     XrdTpc/XrdTpcCurlMulti.cc     XrdTpc/XrdTpcCurlMulti.hh
     XrdTpc/XrdTpcState.cc         XrdTpc/XrdTpcState.hh
     XrdTpc/XrdTpcStream.cc        XrdTpc/XrdTpcStream.hh
-    XrdTpc/XrdTpcTPC.cc           XrdTpc/XrdTpcTPC.hh)
+    XrdTpc/XrdTpcTPC.cc           XrdTpc/XrdTpcTPC.hh
+    XrdTpc/PMarkManager.cc        XrdTpc/PMarkManager.hh)
 
   target_link_libraries(
     ${LIB_XRD_TPC}

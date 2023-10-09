@@ -225,22 +225,24 @@ int XrdHttpReq::parseHost(char *line) {
 }
 
 void XrdHttpReq::parseScitag(const std::string & val) {
-  int scitag = 0;
+  // The scitag header has been populated and the packet marking was configured, the scitag will either be equal to 0
+  // or to the value passed by the client
+  mScitag = 0;
   std::string scitagS = val;
   trim(scitagS);
   if(scitagS.size()) {
     if(scitagS[0] != '-') {
       try {
-        scitag = std::stoi(scitagS.c_str(), nullptr, 10);
-        if (scitag > XrdNetPMark::maxTotID) {
-          scitag = 0;
+        mScitag = std::stoi(scitagS.c_str(), nullptr, 10);
+        if (mScitag > XrdNetPMark::maxTotID || mScitag < 0) {
+          mScitag = 0;
         }
       } catch (...) {
         //Nothing to do, scitag = 0 by default
       }
     }
   }
-  addCgi("scitag.flow", std::to_string(scitag));
+  addCgi("scitag.flow", std::to_string(mScitag));
 }
 
 int XrdHttpReq::parseFirstLine(char *line, int len) {

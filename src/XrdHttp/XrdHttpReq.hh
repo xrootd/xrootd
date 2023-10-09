@@ -159,6 +159,7 @@ public:
     writtenbytes = 0;
     fopened = false;
     headerok = false;
+    mScitag = -1;
   };
 
   virtual ~XrdHttpReq();
@@ -302,6 +303,8 @@ public:
 
   /// In a long write, we track where we have arrived
   long long writtenbytes;
+
+  int mScitag;
 
 
 
