@@ -112,6 +112,10 @@ verb(req->requestverb), headers(req->allheaders) {
     clientgroups = prot->SecEntity.vorg;
     trim(clientgroups);
   }
-  
+
+  // Get the packet marking handle and the client scitag from the XrdHttp layer
+  pmark = prot->pmarkHandle;
+  mSciTag = req->mScitag;
+
   length = req->length;
 }
