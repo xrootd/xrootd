@@ -1328,14 +1328,24 @@ int XrdHttpReq::ProcessHTTPReq() {
               // Parse out the next chunk size.
             long long idx = 0;
             bool found_newline = false;
-            for (; idx < prot->BuffAvailable(); idx++) {
+            // Set a maximum size of chunk we will allow
+            // Nginx sets this to "NGX_MAX_OFF_T_VALUE", which is 9223372036854775807 (a some crazy number)
+            // We set it to 1TB, which is 1099511627776
+            // This is to prevent a malicious client from sending a very large chunk size
+            // or a malformed chunk request.
+            // 1TB in base-16 is 0x40000000000, so only allow 11 characters, plus the CRLF
+            long long max_chunk_size_chars = std::max(static_cast<long long>(prot->BuffUsed()), static_cast<long long>(13));
+            for (; idx < max_chunk_size_chars; idx++) {
               if (prot->myBuffStart[idx] == '\n') {
                 found_newline = true;
                 break;
               }
             }
-            if ((idx == 0) || prot->myBuffStart[idx-1] != '\r') {
+            // If we found a new line, but it is the first character in the buffer (no chunk length)
+            // or if the previous character is not a CR.
+            if (found_newline && ((idx == 0) || prot->myBuffStart[idx-1] != '\r')) {
               prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
+              TRACE(REQ, "XrdHTTP PUT: Sending invalid chunk encoding.  Start of chunk should have had a length, followed by a CRLF.");
               return -1;
             }
             if (found_newline) {
@@ -1345,6 +1355,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                 // Chunk sizes can be followed by trailer information or CRLF
               if (*endptr != ';' && *endptr != '\r') {
                 prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
+                TRACE(REQ, "XrdHTTP PUT: Sending invalid chunk encoding. Chunk size was not followed by a ';' or CR." << __LINE__);
                 return -1;
               }
               m_current_chunk_size = chunk_contents;
@@ -1373,7 +1384,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.write.offset = htonll(writtenbytes);
             xrdreq.write.dlen = htonl(bytes_to_write);
 
-            TRACEI(REQ, "Writing chunk of size " << bytes_to_write << " starting with '" << *(prot->myBuffStart) << "'");
+            TRACEI(REQ, "XrdHTTP PUT: Writing chunk of size " << bytes_to_write << " starting with '" << *(prot->myBuffStart) << "'" << " with " << chunk_bytes_remaining << " bytes remaining in the chunk");
             if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_write)) {
               prot->SendSimpleResp(500, NULL, NULL, (char *) "Could not run write request.", 0, false);
               return -1;
