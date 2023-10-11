@@ -1334,7 +1334,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             // This is to prevent a malicious client from sending a very large chunk size
             // or a malformed chunk request.
             // 1TB in base-16 is 0x40000000000, so only allow 11 characters, plus the CRLF
-            long long max_chunk_size_chars = std::max(static_cast<long long>(prot->BuffUsed()), static_cast<long long>(13));
+            long long max_chunk_size_chars = std::min(static_cast<long long>(prot->BuffUsed()), static_cast<long long>(13));
             for (; idx < max_chunk_size_chars; idx++) {
               if (prot->myBuffStart[idx] == '\n') {
                 found_newline = true;
