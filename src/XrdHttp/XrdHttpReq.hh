@@ -89,6 +89,8 @@ private:
 
   int parseHost(char *);
 
+  void parseScitag(const std::string & val);
+
   //xmlDocPtr xmlbody; /* the resulting document tree */
   XrdHttpProtocol *prot;
 
@@ -185,6 +187,8 @@ public:
   // Appends the opaque info that we have
   // NOTE: this function assumes that the strings are unquoted, and will quote them
   void appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow);
+
+  void addCgi(const std::string & key, const std::string & value);
 
   // ----------------
   // Description of the request. The header/body parsing

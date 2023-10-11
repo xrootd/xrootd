@@ -48,6 +48,7 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdHttpChecksumHandler.hh"
 #include "XrdHttpReadRangeHandler.hh"
+#include "XrdNet/XrdNetPMark.hh"
 
 #include <openssl/ssl.h>
 
@@ -433,5 +434,8 @@ protected:
 
   /// The list of checksums that were configured via the xrd.cksum parameter on the server config file
   static char * xrd_cslist;
+
+  /// Packet marking handler pointer (assigned from the environment during the Config() call)
+  static XrdNetPMark * pmarkHandle;
 };
 #endif

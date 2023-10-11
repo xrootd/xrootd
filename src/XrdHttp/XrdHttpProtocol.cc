@@ -109,6 +109,7 @@ XrdSecService *XrdHttpProtocol::CIA = 0; // Authentication Server
 int XrdHttpProtocol::m_bio_type = 0; // BIO type identifier for our custom BIO.
 BIO_METHOD *XrdHttpProtocol::m_bio_method = NULL; // BIO method constructor.
 char *XrdHttpProtocol::xrd_cslist = nullptr;
+XrdNetPMark * XrdHttpProtocol::pmarkHandle = nullptr;
 XrdHttpChecksumHandler XrdHttpProtocol::cksumHandler = XrdHttpChecksumHandler();
 XrdHttpReadRangeHandler::Configuration XrdHttpProtocol::ReadRangeConfig;
 
@@ -955,6 +956,8 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   var = nullptr;
   XrdOucEnv::Import("XRD_READV_LIMITS", var);
   XrdHttpReadRangeHandler::Configure(eDest, var, ReadRangeConfig);
+
+  pmarkHandle = (XrdNetPMark* ) myEnv->GetPtr("XrdNetPMark*");
 
   cksumHandler.configure(xrd_cslist);
   auto nonIanaChecksums = cksumHandler.getNonIANAConfiguredCksums();
