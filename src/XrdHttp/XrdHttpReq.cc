@@ -194,6 +194,10 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcasecmp(key, "X-Transfer-Status") && strstr(val, "true")) {
       m_transfer_encoding_chunked = true;
       m_status_trailer = true;
+    } else if (!strcasecmp(key, "SciTag")) {
+      if(prot->pmarkHandle != nullptr) {
+        parseScitag(val);
+      }
     } else {
       // Some headers need to be translated into "local" cgi info.
       auto it = std::find_if(prot->hdr2cgimap.begin(), prot->hdr2cgimap.end(),[key](const auto & item) {
@@ -203,13 +207,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
         std::string s;
         s.assign(val, line+len-val);
         trim(s);
-
-        if (hdr2cgistr.length() > 0) {
-          hdr2cgistr.append("&");
-        }
-        hdr2cgistr.append(it->second);
-        hdr2cgistr.append("=");
-        hdr2cgistr.append(s);
+        addCgi(it->second,s);
       }
     }
 
@@ -224,6 +222,25 @@ int XrdHttpReq::parseHost(char *line) {
   host = line;
   trim(host);
   return 0;
+}
+
+void XrdHttpReq::parseScitag(const std::string & val) {
+  int scitag = 0;
+  std::string scitagS = val;
+  trim(scitagS);
+  if(scitagS.size()) {
+    if(scitagS[0] != '-') {
+      try {
+        scitag = std::stoi(scitagS.c_str(), nullptr, 10);
+        if (scitag > XrdNetPMark::maxTotID) {
+          scitag = 0;
+        }
+      } catch (...) {
+        //Nothing to do, scitag = 0 by default
+      }
+    }
+  }
+  addCgi("scitag.flow", std::to_string(scitag));
 }
 
 int XrdHttpReq::parseFirstLine(char *line, int len) {
@@ -751,6 +768,15 @@ void XrdHttpReq::sanitizeResourcePfx() {
     resource.erasefromstart(p);
     return;
   }
+}
+
+void XrdHttpReq::addCgi(const std::string &key, const std::string &value) {
+  if (hdr2cgistr.length() > 0) {
+    hdr2cgistr.append("&");
+  }
+  hdr2cgistr.append(key);
+  hdr2cgistr.append("=");
+  hdr2cgistr.append(value);
 }
 
 
