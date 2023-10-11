@@ -71,6 +71,9 @@ virtual Handle *Begin(XrdNetAddrInfo &addr, Handle     &handle,
 static  bool    getEA(const char *cgi, int &ecode, int &acode);
 
                 XrdNetPMark() {}
+
+static const int maxTotID = 0x7fff;
+
 protected:
 
 // ID limits and specifications
@@ -80,7 +83,6 @@ static const int mskActID =  63;
 static const int maxActID =  63;
 
 static const int maxExpID = 511;
-static const int maxTotID = 0x7fff;
 
 virtual        ~XrdNetPMark() {} // This object cannot be deleted!
 };
