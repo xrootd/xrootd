@@ -80,6 +80,7 @@ static const int mskActID =  63;
 static const int maxActID =  63;
 
 static const int maxExpID = 511;
+static const int maxTotID = 0x7fff;
 
 virtual        ~XrdNetPMark() {} // This object cannot be deleted!
 };

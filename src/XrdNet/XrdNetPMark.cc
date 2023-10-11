@@ -47,7 +47,7 @@ bool XrdNetPMark::getEA(const char *cgi, int &ecode, int &acode)
        if (stP)
           {char *eol;
            int eacode = strtol(stP+12, &eol, 10);
-           if (eacode >= 0 && eacode <= XrdNetPMark::maxExpID
+           if (eacode >= 0 && eacode <= XrdNetPMark::maxTotID
            &&  (*eol == '&' || *eol ==0))
               {ecode = eacode >> XrdNetPMark::btsActID;
                acode = eacode &  XrdNetPMark::mskActID;
