@@ -58,6 +58,7 @@
 #include "XrdPosix/XrdPosixExtra.hh"
 #include "XrdPosix/XrdPosixInfo.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdOfs/XrdOfsFSctl_PI.hh"
 
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -65,6 +66,7 @@
 #include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -102,6 +104,8 @@ static XrdPssSys   XrdProxySS;
        XrdOucSid    *sidP   = 0;
 
        XrdOucEnv    *envP   = 0;
+
+       XrdOfsFSctl_PI *cacheFSctl = nullptr;
 
        XrdSecsssID  *idMapper = 0;    // -> Auth ID mapper
 
@@ -186,6 +190,12 @@ int XrdPssSys::Init(XrdSysLogger *lp, const char *cFN, XrdOucEnv *envP)
 //
    tmp = ((NoGo = Configure(cFN, envP)) ? "failed." : "completed.");
    eDest.Say("------ Proxy storage system initialization ", tmp);
+
+// Extract Pfc control, if it is there.
+//
+  if (!NoGo)
+      cacheFSctl = (XrdOfsFSctl_PI*)envP->GetPtr("XrdFSCtl_PC*");
+
 
 // All done.
 //
@@ -766,6 +776,28 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
               else return -EROFS;
           }
       }
+
+   // check CGI cache-control paramters
+   if (cacheFSctl)
+   {
+      int elen;
+      char *envcgi = (char *)Env.Env(elen);
+
+      if (envcgi && strstr(envcgi, "only-if-cached"))
+      {
+         XrdOucErrInfo einfo;
+         XrdSfsFSctl myData;
+         myData.Arg1 = "cached";
+         myData.Arg1Len = 1;
+         myData.Arg2Len = 1;
+         const char *myArgs[1];
+         myArgs[0] = path;
+         myData.ArgP = myArgs;
+         int fsctlRes = cacheFSctl->FSctl(SFS_FSCTL_PLUGXC, myData, einfo);
+         if (fsctlRes == SFS_ERROR)
+            return -einfo.getErrInfo();
+      }
+   }
 
 // If this is a third party copy open, then strange rules apply. If this is an
 // outgoing proxy we let everything pass through as this may be a TPC request

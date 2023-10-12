@@ -895,6 +895,9 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
       case kXR_InvalidRequest:
         httpStatusCode = 405; httpStatusText = "Method is not allowed";
         break;
+      case kXR_TimerExpired:
+        httpStatusCode = 504; httpStatusText = "Gateway timeout";
+        break;
       default:
         break;
     }

@@ -102,7 +102,8 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "Request is not possible",    // kXR_Impossible
                     "Conflicting request",        // kXR_Conflict
                     "Too many errors",            // kXR_TooManyErrs
-                    "Request timed out"           // kXR_ReqTimedOut
+                    "Request timed out",          // kXR_ReqTimedOut
+                    "Timer expired"               // kXR_TimerExipred
                    };
 
 const char *reqNames[kXR_REQFENCE-kXR_auth] =
