@@ -35,6 +35,7 @@
 #include "XrdOfs/XrdOfsHandle.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdPfc/XrdPfc.hh"
 #include "XrdPfc/XrdPfcFSctl.hh"
 #include "XrdPfc/XrdPfcTrace.hh"
@@ -129,6 +130,23 @@ int XrdPfcFSctl::FSctl(const int               cmd,
       } else {
    ec = EINVAL;
    rc = SFS_ERROR;
+  }
+
+  if (!strcmp(xeq, "cached"))
+  {
+     const char* path = args.ArgP[0];
+     int rval = myCache.LocalFilePath(path, nullptr, 0, XrdOucCache::LFP_Reason::ForInfo);
+     if (rval == 0 || rval == -EREMOTE)
+     {
+        rc = SFS_OK;
+        ec = 0;
+     }
+     else
+     {
+        ec = ETIME;
+        rc = SFS_ERROR;
+        TRACE(Info,"Cache "<<xeq<<' '<<path<<" rc="<<ec<<" ec="<<ec<<" msg=file not in cache");
+     }
   }
 
 // Return result
