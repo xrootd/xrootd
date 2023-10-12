@@ -1085,6 +1085,10 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
        return 1;
       }
 
+// Some headers must always be converted to CGI key=value pairs
+//
+   hdr2cgimap["Cache-Control"] = "cache-control";
+
 // Test if XrdEC is loaded
    if (getenv("XRDCL_EC")) usingEC = true;
 
@@ -1561,6 +1565,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
     else if (code == 405) ss << "Method Not Allowed";
     else if (code == 416) ss << "Range Not Satisfiable";
     else if (code == 500) ss << "Internal Server Error";
+    else if (code == 504) ss << "Gateway Timeout";
     else ss << "Unknown";
   }
   ss << crlf;
