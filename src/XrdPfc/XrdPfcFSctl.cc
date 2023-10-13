@@ -136,7 +136,7 @@ int XrdPfcFSctl::FSctl(const int               cmd,
   {
      const char* path = args.ArgP[0];
      int rval = myCache.LocalFilePath(path, nullptr, 0, XrdOucCache::LFP_Reason::ForInfo);
-     if (rval == 0 || rval == -EREMOTE)
+     if (rval == 0)
      {
         rc = SFS_OK;
         ec = 0;
