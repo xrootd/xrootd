@@ -1057,7 +1057,7 @@ void XrdConfig::Manifest(const char *pidfn)
 //
    if (pidfn && (Slash = rindex(pidfn, '/')))
       {strncpy(manBuff, pidfn, Slash-pidfn); pidP = manBuff+(Slash-pidfn);}
-      else {strcpy(manBuff, "/tmp");         pidP = manBuff+4;}
+      else {strcpy(manBuff, ProtInfo.AdmPath); pidP = manBuff+strlen(ProtInfo.AdmPath);}
 
 // Construct the pid file name for ourselves
 //
