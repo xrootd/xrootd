@@ -238,7 +238,7 @@ TEST(PollerTest, FunctionTest)
   // All the business happens elsewhere so we have nothing better to do
   // here that wait, otherwise server->stop will hang.
   //----------------------------------------------------------------------------
-  ::sleep(5);
+  ::sleep(1);
 
   //----------------------------------------------------------------------------
   // Cleanup
