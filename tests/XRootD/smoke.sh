@@ -73,24 +73,31 @@ done
 # check that all checksums for downloaded files match
 
 for i in $FILES; do
-       REF32C=$(${CRC32C} < ${TMPDIR}/${i}.ref | cut -d' '  -f1)
-       NEW32C=$(${CRC32C} < ${TMPDIR}/${i}.dat | cut -d' '  -f1)
-       SRV32C=$(${XRDFS} ${HOST} query checksum ${TMPDIR}/${i}.ref?cks.type=crc32c | cut -d' ' -f2)
+    REF32C=$(${CRC32C} < ${TMPDIR}/${i}.ref | cut -d' '  -f1)
+    NEW32C=$(${CRC32C} < ${TMPDIR}/${i}.dat | cut -d' '  -f1)
 
-       REFA32=$(${ADLER32} < ${TMPDIR}/${i}.ref | cut -d' '  -f1)
-       NEWA32=$(${ADLER32} < ${TMPDIR}/${i}.dat | cut -d' '  -f1)
-       SRVA32=$(${XRDFS} ${HOST} query checksum ${TMPDIR}/${i}.ref?cks.type=adler32 | cut -d' ' -f2)
-       echo "${i}:  crc32c: reference: ${REF32C}, server: ${SRV32C}, downloaded: ${REF32C}"
-       echo "${i}: adler32: reference: ${NEWA32}, server: ${SRVA32}, downloaded: ${NEWA32}"
+    REFA32=$(${ADLER32} < ${TMPDIR}/${i}.ref | cut -d' '  -f1)
+    NEWA32=$(${ADLER32} < ${TMPDIR}/${i}.dat | cut -d' '  -f1)
 
-       if [[ "${NEWA32}" != "${REFA32}" || "${SRVA32}" != "${REFA32}" ]]; then
-               echo 1>&2 "$(basename $0): error: adler32 checksum check failed for file: ${i}.dat"
-               exit 1
-       fi
-       if [[ "${NEW32C}" != "${REF32C}" || "${SRV32C}" != "${REF32C}" ]]; then
-               echo 1>&2 "$(basename $0): error: crc32 checksum check failed for file: ${i}.dat"
-               exit 1
-       fi
+    if setfattr -n user.checksum -v ${REF32C} ${TMPDIR}/${i}.ref; then
+        SRV32C=$(${XRDFS} ${HOST} query checksum ${TMPDIR}/${i}.ref?cks.type=crc32c | cut -d' ' -f2)
+        SRVA32=$(${XRDFS} ${HOST} query checksum ${TMPDIR}/${i}.ref?cks.type=adler32 | cut -d' ' -f2)
+    else
+        echo "Extended attributes not supported, using downloaded checksums for server checks"
+        SRV32C=${NEW32C} SRVA32=${NEWA32} # use downloaded file checksum if xattr not supported
+    fi
+
+    if [[ "${NEWA32}" != "${REFA32}" || "${SRVA32}" != "${REFA32}" ]]; then
+        echo 1>&2 "$(basename $0): error: adler32 checksum check failed for file: ${i}.dat"
+        echo 1>&2 "${i}: adler32: reference: ${REFA32}, server: ${SRVA32}, downloaded: ${NEWA32}"
+        exit 1
+    fi
+
+    if [[ "${NEW32C}" != "${REF32C}" || "${SRV32C}" != "${REF32C}" ]]; then
+        echo 1>&2 "$(basename $0): error: crc32 checksum check failed for file: ${i}.dat"
+        echo 1>&2 "${i}:  crc32c: reference: ${REF32C}, server: ${SRV32C}, downloaded: ${NEW32C}"
+        exit 1
+    fi
 done
 
 for i in $FILES; do
