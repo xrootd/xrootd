@@ -34,14 +34,14 @@ using namespace XrdCl;
 //------------------------------------------------------------------------------
 class ZipTest: public ::testing::Test {
   public:
-    void Init();
+    void SetUp() override;
+    void TearDown() override;
     std::string archiveUrl;
     std::string testFileUrl;
     ZipArchive zip_file;
 };
 
-void ZipTest::Init(){
-  using namespace XrdCl;
+void ZipTest::SetUp(){
   Env *testEnv = TestEnv::GetEnv();
 
   std::string address;
@@ -54,41 +54,36 @@ void ZipTest::Init(){
   archiveUrl = address + "/" + path;
   std::string testFilePath = dataPath + "/san_martino.txt";
   testFileUrl = address + "/" + testFilePath;
+
+  GTEST_ASSERT_XRDST(WaitFor(OpenArchive(zip_file, archiveUrl, OpenFlags::Read)));
+}
+
+void ZipTest::TearDown()
+{
+  GTEST_ASSERT_XRDST(WaitFor(CloseArchive(zip_file)));
 }
 
 TEST_F(ZipTest, ExtractTest) {
-  Init();
-  uint16_t timeout = 2;
-  GTEST_ASSERT_XRDST(zip_file.OpenArchive(archiveUrl, OpenFlags::Read, NULL,  timeout));
-  GTEST_ASSERT_XRDST(zip_file.CloseArchive(NULL, timeout));
+  /* intentionally empty, just let SetUp() and TearDown() do the work */
 }
 
 TEST_F(ZipTest, OpenFileTest){
-  Init();
-  GTEST_ASSERT_XRDST(WaitFor(OpenArchive(zip_file, archiveUrl, OpenFlags::Read)))
   GTEST_ASSERT_XRDST(zip_file.OpenFile("paper.txt", OpenFlags::Read));
   // get stat info for the given file
   StatInfo* info_out;
   GTEST_ASSERT_XRDST(zip_file.Stat("paper.txt", info_out));
   GTEST_ASSERT_XRDST(zip_file.CloseFile());
   GTEST_ASSERT_XRDST_NOTOK(zip_file.OpenFile("gibberish.txt", OpenFlags::Read), errNotFound);
-  GTEST_ASSERT_XRDST(WaitFor(CloseArchive(zip_file)));
 }
 
 TEST_F(ZipTest, ListFileTest) {
-  Init();
-  GTEST_ASSERT_XRDST(WaitFor(OpenArchive(zip_file, archiveUrl, OpenFlags::Read)));
   DirectoryList* dummy_list;
   GTEST_ASSERT_XRDST(zip_file.List(dummy_list));
   EXPECT_TRUE(dummy_list != NULL);
-  GTEST_ASSERT_XRDST(WaitFor(CloseArchive(zip_file)));
 }
 
 TEST_F(ZipTest, GetterTests) {
-  Init();
-
   // Get file
-  GTEST_ASSERT_XRDST(WaitFor(OpenArchive(zip_file, archiveUrl, OpenFlags::Read)));
   File* file = NULL;
   file = &(zip_file.GetFile());
   EXPECT_TRUE(file != NULL);
