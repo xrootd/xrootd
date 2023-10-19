@@ -286,7 +286,7 @@ void forkAndRead( ThreadData *data )
   XrdCl::Log *log = XrdClTests::TestEnv::GetLog();
   for( int chld = 0; chld < 5; ++chld )
   {
-    sleep(10);
+    sleep(1);
     pid_t pid;
     log->Debug( 1, "About to fork" );
     GTEST_ASSERT_ERRNO( (pid=fork()) != -1 );

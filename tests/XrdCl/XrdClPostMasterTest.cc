@@ -305,7 +305,7 @@ TEST(PostMasterTest, FunctionalTest)
   Env *env = DefaultEnv::GetEnv();
   Env *testEnv = TestEnv::GetEnv();
   env->PutInt( "TimeoutResolution", 1 );
-  env->PutInt( "ConnectionWindow", 15 );
+  env->PutInt( "ConnectionWindow",  5 );
 
   PostMasterFetch pmfetch;
   PostMaster *postMaster = pmfetch.Get();
@@ -316,7 +316,7 @@ TEST(PostMasterTest, FunctionalTest)
   //----------------------------------------------------------------------------
   // Send a message and wait for the answer
   //----------------------------------------------------------------------------
-  time_t    expires = ::time(0)+1200;
+  time_t    expires = ::time(0)+60;
   Message   m1, m2;
   URL       host( address );
 
@@ -351,7 +351,7 @@ TEST(PostMasterTest, FunctionalTest)
 
   SyncMsgHandler msgHandler2;
   msgHandler2.SetFilter( 1, 2 );
-  time_t shortexp = ::time(0) + 3;
+  time_t shortexp = ::time(0) + 1;
   msgHandler2.SetExpiration( shortexp );
   GTEST_ASSERT_XRDST( postMaster->Send( localhost1, &m1, &msgHandler2, false,
                         shortexp ) );

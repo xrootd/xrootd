@@ -156,11 +156,10 @@ TEST(UtilsTest, TaskManagerTest)
 
   ::sleep( 6 );
   taskMan.UnregisterTask( tsk2 );
+  ::sleep( 1 );
 
-  ::sleep( 2 );
-
-  EXPECT_TRUE( runs1.size() == 1 );
-  EXPECT_TRUE( runs2.size() == 3 );
+  EXPECT_EQ( runs1.size(), 1 );
+  EXPECT_EQ( runs2.size(), 3 );
   EXPECT_TRUE( taskMan.Stop() );
 }
 
