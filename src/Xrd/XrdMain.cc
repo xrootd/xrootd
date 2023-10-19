@@ -165,6 +165,9 @@ int main(int argc, char *argv[])
    char      buff[128];
    int       i, retc;
 
+// Call tzset() early to ensure thread-safety of localtime_r() and mktime().
+   tzset();
+
 // Turn off sigpipe and host a variety of others before we start any threads
 //
    XrdSysUtils::SigBlock();
