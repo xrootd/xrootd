@@ -36,9 +36,9 @@
 
 #include "XrdSys/XrdSysHeaders.hh"
 
-#define QTRACE(act) (cryptoTrace && (cryptoTrace->What & cryptoTRACE_ ## act))
-#define PRINT(y)    {if (cryptoTrace) {cryptoTrace->Beg(epname); \
-                                       std::cerr <<y; cryptoTrace->End();}}
+#define QTRACE(act) (cryptoTrace() && (cryptoTrace()->What & cryptoTRACE_ ## act))
+#define PRINT(y)    {if (cryptoTrace()) {cryptoTrace()->Beg(epname); \
+                                       std::cerr <<y; cryptoTrace()->End();}}
 #define TRACE(act,x) if (QTRACE(act)) PRINT(x)
 #define DEBUG(y)     TRACE(Debug,y)
 #define EPNAME(x)    static const char *epname = x;
@@ -55,6 +55,6 @@
 
 //
 // For error logging and tracing
-extern XrdOucTrace *cryptoTrace;
+XrdOucTrace* cryptoTrace();
 
 #endif

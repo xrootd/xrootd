@@ -36,11 +36,13 @@
 // For error logging and tracing
 static XrdSysLogger Logger;
 static XrdSysError eDest(0,"crypto_");
-XrdOucTrace *cryptoTrace = 0;
+static XrdOucTrace *cryptoTraceObj = nullptr;
 //
 // Time Zone correction (wrt UTC)
 static time_t TZCorr = 0;
 static bool TZInitialized = 0;
+
+XrdOucTrace* cryptoTrace() { return cryptoTraceObj; }
 
 /******************************************************************************/
 /*  X r d C r y p t o S e t T r a c e                                         */
@@ -53,20 +55,20 @@ void XrdCryptoSetTrace(kXR_int32 trace)
    //
    // Initiate error logging and tracing
    eDest.logger(&Logger);
-   if (!cryptoTrace)
-      cryptoTrace = new XrdOucTrace(&eDest);
-   if (cryptoTrace) {
+   if (!cryptoTraceObj)
+      cryptoTraceObj = new XrdOucTrace(&eDest);
+   if (cryptoTraceObj) {
       // Set debug mask
-      cryptoTrace->What = 0;
+      cryptoTraceObj->What = 0;
       // Low level only
       if ((trace & cryptoTRACE_Notify))
-         cryptoTrace->What |= cryptoTRACE_Notify;
+         cryptoTraceObj->What |= cryptoTRACE_Notify;
       // Medium level
       if ((trace & cryptoTRACE_Debug))
-         cryptoTrace->What |= (cryptoTRACE_Notify | cryptoTRACE_Debug);
+         cryptoTraceObj->What |= (cryptoTRACE_Notify | cryptoTRACE_Debug);
       // High level
       if ((trace & cryptoTRACE_Dump))
-         cryptoTrace->What |= cryptoTRACE_ALL;
+         cryptoTraceObj->What |= cryptoTRACE_ALL;
    }
 }
 

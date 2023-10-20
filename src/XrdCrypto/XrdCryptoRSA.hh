@@ -92,7 +92,8 @@ public:
    int DecryptPrivate(XrdSutBucket &buck);
 
 private:
-   static const char *cstatus[3];  // Names of status
+   // Names of status
+   const char *cstatus[3] = { "Invalid", "Public", "Complete" };
 };
 
 #endif

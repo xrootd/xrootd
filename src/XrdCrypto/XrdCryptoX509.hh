@@ -122,7 +122,9 @@ public:
 
 private:
 
-   static const char *ctype[4];  // Names of types
+   // Names of types
+   const char *ctype[4] = { "Unknown", "CA", "EEC", "Proxy" };
+
 };
 
 #endif
