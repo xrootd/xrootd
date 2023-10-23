@@ -211,7 +211,7 @@ namespace XrdEc
       writes.emplace_back( std::move( p ) );
     }
 
-    XrdCl::Async( XrdCl::Parallel( writes ) >> [=]( XrdCl::XRootDStatus &st ){ global_status.report_wrt( st, blksize ); } );
+    XrdCl::WaitFor( XrdCl::Parallel( writes ) >> [=]( XrdCl::XRootDStatus &st ){ global_status.report_wrt( st, blksize ); } );
   }
 
   //---------------------------------------------------------------------------
