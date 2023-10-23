@@ -19,6 +19,7 @@
 #include "GTestXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
 
+#include <climits>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -448,7 +449,9 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   std::string localDataPath;
   EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
 
-  localDataPath = realpath(localDataPath.c_str(), NULL);
+  char resolved_path[PATH_MAX];
+  localDataPath = realpath(localDataPath.c_str(), resolved_path);
+
   std::string targetURL = localDataPath + "/metaman/lfilehandlertestfilexattr";
   CreateTestFileFunc( targetURL );
 
