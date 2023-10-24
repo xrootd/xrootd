@@ -968,7 +968,11 @@ private:
         if (tlsCtx) {
             auto params = tlsCtx->GetParams();
             if (params && !params->cafile.empty()) {
+#ifdef HAVE_SCITOKEN_CONFIG_SET_STR
                 scitoken_config_set_str("tls.ca_file", params->cafile.c_str(), nullptr);
+#else
+                m_log.Log(LogMask::Warning, "Config", "tls.ca_file is set but the platform's libscitokens.so does not support setting config parameters");
+#endif
             }
         }
 

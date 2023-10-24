@@ -31,6 +31,10 @@ target_include_directories(
    XrdSciTokens/vendor/picojson
    XrdSciTokens/vendor/inih )
 
+if (HAVE_SCITOKEN_CONFIG_SET_STR)
+   target_compile_definitions(${LIB_XRD_SCITOKENS} PRIVATE HAVE_SCITOKEN_CONFIG_SET_STR)
+endif()
+
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
