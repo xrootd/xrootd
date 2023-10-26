@@ -37,34 +37,33 @@ using namespace XrdClTests;
 class PostMasterTest: public ::testing::Test
 {
   public:
+    void SetUp() override;
+    void TearDown() override;
+    void Restart();
     void FunctionalTest();
     void ThreadingTest();
     void PingIPv6();
     void MultiIPConnectionTest();
+
+  XrdCl::PostMaster *postMaster = nullptr;
 };
 
-//------------------------------------------------------------------------------
-// Tear down the post master
-//------------------------------------------------------------------------------
-namespace
+void PostMasterTest::SetUp()
 {
-  class PostMasterFetch
-  {
-    public:
-      PostMasterFetch() { }
-      ~PostMasterFetch()  { }
-      XrdCl::PostMaster *Get() {
-        return XrdCl::DefaultEnv::GetPostMaster();
-      }
-      XrdCl::PostMaster *Reset() {
-        XrdCl::PostMaster *pm = Get();
-        pm->Stop();
-        pm->Finalize();
-        EXPECT_NE( pm->Initialize(), 0 );
-        EXPECT_NE( pm->Start(), 0 );
-        return pm;
-      }
-  };
+  postMaster = XrdCl::DefaultEnv::GetPostMaster();
+}
+
+void PostMasterTest::TearDown()
+{
+  postMaster = nullptr;
+}
+
+void PostMasterTest::Restart()
+{
+  ASSERT_TRUE( postMaster->Stop() );
+  ASSERT_TRUE( postMaster->Finalize() );
+  ASSERT_TRUE( postMaster->Initialize() );
+  ASSERT_TRUE( postMaster->Start() );
 }
 
 //------------------------------------------------------------------------------
@@ -275,11 +274,9 @@ void *TestThreadFunc( void *arg )
 //------------------------------------------------------------------------------
 // Threading test
 //------------------------------------------------------------------------------
-TEST(PostMasterTest, ThreadingTest)
+TEST_F(PostMasterTest, ThreadingTest)
 {
   using namespace XrdCl;
-  PostMasterFetch pmfetch;
-  PostMaster *postMaster = pmfetch.Get();
 
   pthread_t thread[100];
   ArgHelper helper[100];
@@ -298,7 +295,7 @@ TEST(PostMasterTest, ThreadingTest)
 //------------------------------------------------------------------------------
 // Test the functionality of a poller
 //------------------------------------------------------------------------------
-TEST(PostMasterTest, FunctionalTest)
+TEST_F(PostMasterTest, FunctionalTest)
 {
   using namespace XrdCl;
 
@@ -310,9 +307,6 @@ TEST(PostMasterTest, FunctionalTest)
   env->PutInt( "TimeoutResolution", 1 );
   env->PutInt( "ConnectionWindow",  5 );
 
-  PostMasterFetch pmfetch;
-  PostMaster *postMaster = pmfetch.Get();
-
   std::string address;
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
 
@@ -320,14 +314,15 @@ TEST(PostMasterTest, FunctionalTest)
   // Send a message and wait for the answer
   //----------------------------------------------------------------------------
   time_t    expires = ::time(0)+60;
-  Message   m1, m2;
   URL       host( address );
 
   SyncMsgHandler msgHandler1;
   msgHandler1.SetFilter( 1, 2 );
   msgHandler1.SetExpiration( expires );
 
-  m1.Allocate( sizeof( ClientPingRequest ) );
+  Message m1, m2;
+
+  m1.Allocate(sizeof(ClientPingRequest));
   m1.Zero();
 
   ClientPingRequest *request = (ClientPingRequest *)m1.GetBuffer();
@@ -339,7 +334,7 @@ TEST(PostMasterTest, FunctionalTest)
 
   EXPECT_XRDST_OK( postMaster->Send( host, &m1, &msgHandler1, false, expires ) );
 
-  EXPECT_XRDST_OK( msgHandler1.WaitFor( m2 ) );
+  ASSERT_XRDST_OK( msgHandler1.WaitFor( m2 ) );
   ServerResponse *resp = (ServerResponse *)m2.GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
@@ -386,7 +381,8 @@ TEST(PostMasterTest, FunctionalTest)
   // Reinitialize and try to do something
   //----------------------------------------------------------------------------
   env->PutInt( "LoadBalancerTTL", 5 );
-  postMaster = pmfetch.Reset();
+
+  Restart();
 
   m2.Free();
   m1.Zero();
@@ -424,13 +420,16 @@ TEST(PostMasterTest, FunctionalTest)
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
   EXPECT_EQ( m2.GetSize(), 8 );
+
+  m1.Free();
+  m2.Free();
 }
 
 
 //------------------------------------------------------------------------------
 // Test the functionality of a poller
 //------------------------------------------------------------------------------
-TEST(PostMasterTest, PingIPv6)
+TEST_F(PostMasterTest, PingIPv6)
 {
   using namespace XrdCl;
 #if 0
@@ -507,7 +506,7 @@ namespace
 //------------------------------------------------------------------------------
 
 #if 0
-TEST(PostMasterTest, MultiIPConnectionTest)
+TEST_F(PostMasterTest, MultiIPConnectionTest)
 {
   using namespace XrdCl;
 
