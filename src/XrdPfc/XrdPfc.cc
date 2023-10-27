@@ -896,6 +896,104 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
    return -ENOENT;
 }
 
+//______________________________________________________________________________
+// Check if the file is cached including m_onlyIfCachedMinSize and m_onlyIfCachedMinFrac
+// pfc configuration parameters. The logic of accessing the Info file is the same
+// as in Cache::LocalFilePath.
+//! @return 0      - the file is complete and the local path to the file is in
+//!                  the buffer, if it has been supllied.
+//!
+//! @return <0     - the request could not be fulfilled. The return value is
+//!                  -errno describing why. If a buffer was supplied and a
+//!                  path could be generated it is returned only if "why" is
+//!                  ForCheck or ForInfo. Otherwise, a null path is returned.
+//!
+//! @return >0     - Reserved for future use.
+//------------------------------------------------------------------------------
+int Cache::ConsiderCached(const char *curl)
+{
+   TRACE(Debug, "ConsiderFileCached '" << curl << "'" );
+
+   XrdCl::URL url(curl);
+   std::string f_name = url.GetPath();
+   std::string i_name = f_name + Info::s_infoExtension;
+
+   {
+      XrdSysCondVarHelper lock(&m_active_cond);
+      m_purge_delay_set.insert(f_name);
+   }
+
+   struct stat sbuff, sbuff2;
+   if (m_oss->Stat(f_name.c_str(), &sbuff) == XrdOssOK &&
+       m_oss->Stat(i_name.c_str(), &sbuff2) == XrdOssOK)
+   {
+      if (S_ISDIR(sbuff.st_mode))
+      {
+         TRACE(Info, "ConsiderCached '" << curl << ", why=ForInfo" << " -> EISDIR");
+         return -EISDIR;
+      }
+      else
+      {
+         bool read_ok = false;
+         bool is_cached = false;
+
+         // Lock and check if the file is active. If NOT, keep the lock
+         // and add dummy access after successful reading of info file.
+         // If it IS active, just release the lock, this ongoing access will
+         // assure the file continues to exist.
+
+         // XXXX How can I just loop over the cinfo file when active?
+         // Can I not get is_complete from the existing file?
+         // Do I still want to inject access record?
+         // Oh, it writes only if not active .... still let's try to use existing File.
+
+         m_active_cond.Lock();
+
+         bool is_active = m_active.find(f_name) != m_active.end();
+
+         if (is_active)
+            m_active_cond.UnLock();
+
+         XrdOssDF *infoFile = m_oss->newFile(m_configuration.m_username.c_str());
+         XrdOucEnv myEnv;
+         int res = infoFile->Open(i_name.c_str(), O_RDWR, 0600, myEnv);
+         if (res >= 0)
+         {
+            Info info(m_trace, 0);
+            if (info.Read(infoFile, i_name.c_str()))
+            {
+               read_ok = true;
+
+               if (info.IsComplete())
+               {
+                  is_cached = true;
+               }
+               else
+               {
+                  long long fileSize = info.GetFileSize();
+                  long long bytesRead = info.GetNDownloadedBytes();
+                  if (bytesRead > m_configuration.m_onlyIfCachedMinSize &&
+                      (float)bytesRead/fileSize > m_configuration.m_onlyIfCachedMinFrac)
+                        is_cached = true;
+               }
+            }
+            infoFile->Close();
+         }
+         delete infoFile;
+
+         if (!is_active) m_active_cond.UnLock();
+
+         if (read_ok)
+         {
+            TRACE(Info, "ConsiderCached '" << curl << "', why=ForInfo" << (is_cached ? " -> FILE_COMPLETE_IN_CACHE" : " -> EREMOTE"));
+            return is_cached ? 0 : -EREMOTE;
+         }
+      }
+   }
+
+   TRACE(Info, "ConsiderCached '" << curl << "', why=ForInfo" << " -> ENOENT");
+   return -ENOENT;
+}
 
 //______________________________________________________________________________
 //! Preapare the cache for a file open request. This method is called prior to
