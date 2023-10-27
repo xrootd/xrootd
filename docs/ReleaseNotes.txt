@@ -6,6 +6,37 @@ Release Notes
 =============
 
 -------------
+Version 5.6.3
+-------------
+
++ **Minor bug fixes**
+  **[CMake]** Export project version in CMake config (issue #2094)
+  **[CMake]** Find only XRootD matching XRootDConfig.cmake installation path
+  **[Python]** Do not use PEP517 by default, not supported on CentOS 7
+  **[Server]** Call tzset() early to ensure thread-safety of localtime_r() and mktime() (issue #2107)
+  **[Server]** Correct maximum exp/act value in XrdNetPMark::getEA
+  **[Server]** Create environment file within adminpath (issue #2106)
+  **[Server]** Fix incorrect patch for authfile parsing (issue #2088)
+  **[Tests]** Skip server checksum query test on unsupported filesystems (issue #2096)
+  **[XrdCl]** Return an error if xrdfs rm fails to delete any file (issue #2097)
+  **[XrdCms]** Try to load blacklist even if some entries are invalid (issue #2092)
+  **[XrdEc]** Wait for pipeline including XrdCl::AppendFile() to finish (issue #2050)
+  **[XrdHttp]** Fix parsing of chunked PUT lengths (#2102, #2103)
+
++ **Miscellaneous**
+  **[CMake]** Add extra debugging messages in XRootDConfig.cmake
+  **[CMake]** Handle components using more standard method
+  **[Misc]** Fix spelling errors reported by lintian (#2087)
+  **[Python]** Convert pyxrootd installation instructions to rst
+  **[Server]** Export ptr to full TLS context into the Xrd env
+  **[XrdCeph]** Align CMake requirement with main CMakeLists.txt
+  **[XrdHttp]** Implemented HTTP TPC Packet Marking (#2109)
+  **[XrdHttp]** Parse headers provided by the client in case-insensitive way when matching header2cgi keys (#2101)
+  **[XrdHttp]** Promote SciTag header if packet marking has been configured on the server (#2101)
+  **[XrdSciTokens]** Use configured CA path in SciTokens plugin if supported (#2095, #2112)
+  **[XrdTpc]** Differentiate error messages for push/pull TPC transfer modes (issue #2060)
+
+-------------
 Version 5.6.2
 -------------
 
