@@ -111,6 +111,9 @@ struct Configuration
    time_t    m_cs_UVKeep;               //!< unverified checksum cache keep
    int       m_cs_Chk;                  //!< Checksum check
    bool      m_cs_ChkTLS;               //!< Allow TLS
+
+   long long m_onlyIfCachedMinSize;     //!< minumum size of downloaded file, used by only-if-cached CGI option
+   double    m_onlyIfCachedMinFrac;     //!< minimum fraction of downloaded file, used by only-if-cached CGI option
 };
 
 //------------------------------------------------------------------------------
@@ -290,6 +293,12 @@ public:
 
    // virtual function of XrdOucCache.
    virtual int  Unlink(const char *url);
+
+   //---------------------------------------------------------------------
+   //  Used by PfcFstcl::Fsctl function.
+   //  Test if file is cached taking in onlyifcached configuration parameters.
+   //---------------------------------------------------------------------
+   virtual int ConsiderCached(const char *url);
 
    //--------------------------------------------------------------------
    //! \brief Makes decision if the original XrdOucCacheIO should be cached.

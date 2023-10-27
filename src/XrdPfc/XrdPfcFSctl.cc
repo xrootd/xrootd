@@ -135,7 +135,7 @@ int XrdPfcFSctl::FSctl(const int               cmd,
   if (!strcmp(xeq, "cached"))
   {
      const char* path = args.ArgP[0];
-     int rval = myCache.LocalFilePath(path, nullptr, 0, XrdOucCache::LFP_Reason::ForInfo);
+     int rval = myCache.ConsiderCached(path);
      if (rval == 0)
      {
         rc = SFS_OK;
