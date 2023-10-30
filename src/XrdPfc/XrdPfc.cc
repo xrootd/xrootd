@@ -968,13 +968,26 @@ int Cache::ConsiderCached(const char *curl)
                {
                   is_cached = true;
                }
+               else if (info.GetFileSize() == 0)
+               {
+                  is_cached = true;
+               }
                else
                {
                   long long fileSize = info.GetFileSize();
                   long long bytesRead = info.GetNDownloadedBytes();
-                  if (bytesRead > m_configuration.m_onlyIfCachedMinSize &&
-                      (float)bytesRead/fileSize > m_configuration.m_onlyIfCachedMinFrac)
+
+                  if (fileSize < m_configuration.m_onlyIfCachedMinSize)
+                  {
+                     if ((float)bytesRead / fileSize > m_configuration.m_onlyIfCachedMinFrac)
                         is_cached = true;
+                  }
+                  else
+                  {
+                     if (bytesRead > m_configuration.m_onlyIfCachedMinSize &&
+                         (float)bytesRead / fileSize > m_configuration.m_onlyIfCachedMinFrac)
+                        is_cached = true;
+                  }
                }
             }
             infoFile->Close();
