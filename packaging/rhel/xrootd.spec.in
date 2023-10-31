@@ -919,7 +919,7 @@ fi
 %{_libdir}/libXrdUtils.so
 %{_libdir}/libXrdXml.so
 %{_includedir}/xrootd/XrdXml/XrdXmlReader.hh
-%{_datadir}/xrootd/cmake
+%{_libdir}/cmake/XRootD
 
 %files client-libs
 %defattr(-,root,root,-)
