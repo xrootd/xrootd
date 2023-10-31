@@ -183,14 +183,13 @@ jobs:
       CXX: clang++
       CMAKE_ARGS: "-DPython_FIND_UNVERSIONED_NAMES=FIRST;-DUSE_SYSTEM_ISAL=TRUE"
       CMAKE_PREFIX_PATH: /usr/local/opt/openssl@3
-      PYTHONPATH: /usr/local/lib/python3.11/site-packages
 
     steps:
     - name: Workaround for issue 1772
       run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
 
     - name: Install dependencies with Homebrew
-      run: brew install cmake cppunit davix googletest isa-l openssl@3 python@3.11
+      run: brew install cmake cppunit davix googletest isa-l openssl@3 python3
 
     - name: Install Python dependencies with pip
       run: python3 -m pip install --upgrade pip setuptools wheel
@@ -207,4 +206,7 @@ jobs:
       run: cmake --install build
 
     - name: Run post-install tests
-      run: tests/post-install.sh
+      run: |
+        export PYVERSION=$(python3 --version | grep -o 3...)
+        export PYTHONPATH=/usr/local/lib/python${PYVERSION}/site-packages
+        tests/post-install.sh
