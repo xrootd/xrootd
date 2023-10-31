@@ -68,7 +68,7 @@ configure_package_config_file(cmake/${PROJECT_NAME}Config.cmake.in cmake/${PROJE
   INSTALL_PREFIX
     ${CMAKE_INSTALL_PREFIX}
   INSTALL_DESTINATION
-    ${CMAKE_INSTALL_DATADIR}/xrootd/cmake
+    ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
   PATH_VARS
     CMAKE_INSTALL_INCLUDEDIR
     CMAKE_INSTALL_LIBDIR
@@ -76,7 +76,7 @@ configure_package_config_file(cmake/${PROJECT_NAME}Config.cmake.in cmake/${PROJE
 )
 
 install(DIRECTORY ${PROJECT_BINARY_DIR}/cmake/
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/cmake)
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 #-------------------------------------------------------------------------------
 # Configure an 'uninstall' target
