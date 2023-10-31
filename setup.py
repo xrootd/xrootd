@@ -101,7 +101,7 @@ setup(name='xrootd',
       keywords=['XRootD', 'network filesystem'],
       license='LGPLv3+',
       long_description=open('README.md').read(),
-      long_description_content_type='text/plain',
+      long_description_content_type='text/markdown',
       packages = ['XRootD', 'XRootD.client', 'pyxrootd'],
       package_dir = {
         'pyxrootd'     : 'bindings/python/src',
