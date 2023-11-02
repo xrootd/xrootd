@@ -282,7 +282,7 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
   // that is is https without invoking TLS on the actual link. Eventually,
   // we should just use the link's TLS native implementation.
   //
-  SecEntity.addrInfo = lp->AddrInfo();
+  hp->SecEntity.addrInfo = lp->AddrInfo();
   XrdNetAddr *netP = const_cast<XrdNetAddr*>(lp->NetAddr());
   netP->SetDialect("https");
   netP->SetTLS(true);
