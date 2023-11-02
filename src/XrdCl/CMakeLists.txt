@@ -206,11 +206,13 @@ install(
 install(
   FILES
     # Additional client headers
+    XrdClJobManager.hh
     XrdClMessage.hh
     XrdClPostMaster.hh
     XrdClPostMasterInterfaces.hh
     XrdClTransportManager.hh
     XrdClResponseJob.hh
+    XrdClSyncQueue.hh
     XrdClZipArchive.hh
     XrdClZipCache.hh
     # Declarative operations
@@ -224,6 +226,8 @@ install(
     XrdClFileOperations.hh
     XrdClFileSystemOperations.hh
     XrdClFinalOperation.hh
+    XrdClUtils.hh
+    XrdClXRootDTransport.hh
     XrdClZipOperations.hh 
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
 
