@@ -30,6 +30,8 @@
 
 namespace XrdCl
 {
+  class XRootDStatus;
+
   //---------------------------------------------------------------------------
   //! Final operation in the pipeline, always executed, no matter if the
   //! pipeline failed or not.
