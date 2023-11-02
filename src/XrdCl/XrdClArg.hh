@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClFwd.hh"
 #include "XrdCl/XrdClOptional.hh"
 
+#include <future>
 #include <string>
 #include <sstream>
 #include <unordered_map>
