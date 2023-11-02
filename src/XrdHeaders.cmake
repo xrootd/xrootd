@@ -128,12 +128,16 @@ set( XROOTD_PRIVATE_HEADERS
   XrdNet/XrdNetIF.hh
   XrdSecsss/XrdSecsssID.hh
   XrdSys/XrdSysPriv.hh
+  XrdOuc/XrdOucCRC32C.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucGatherConf.hh
   XrdOuc/XrdOucPList.hh
   XrdOuc/XrdOucN2NLoader.hh
+  XrdOuc/XrdOucPinLoader.hh
+  XrdOuc/XrdOucTUtils.hh
   XrdPosix/XrdPosixMap.hh
   XrdZip/XrdZipCDFH.hh
+  XrdZip/XrdZipDataDescriptor.hh
   XrdZip/XrdZipEOCD.hh
   XrdZip/XrdZipExtra.hh
   XrdZip/XrdZipLFH.hh
@@ -172,6 +176,7 @@ if( NOT XRDCL_ONLY )
     XrdCrypto/XrdCryptoX509.hh
     XrdCrypto/XrdCryptoX509Chain.hh
     XrdCrypto/XrdCryptoAux.hh
+    XrdCrypto/XrdCryptoFactory.hh
     XrdCrypto/XrdCryptosslAux.hh
     XrdCrypto/XrdCryptoX509Crl.hh
     XrdCrypto/XrdCryptoX509Req.hh
