@@ -25,6 +25,8 @@
 #ifndef SRC_XRDZIP_XRDZIPDATADESCRIPTOR_HH_
 #define SRC_XRDZIP_XRDZIPDATADESCRIPTOR_HH_
 
+#include <cstdint>
+
 namespace XrdZip
 {
   //---------------------------------------------------------------------------
