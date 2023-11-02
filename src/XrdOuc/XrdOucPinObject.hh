@@ -36,7 +36,7 @@
 */
 
 class XrdOucEnv;
-class XrdOucLogger;
+class XrdSysLogger;
 
 template<class T>
 class XrdOucPinObject
