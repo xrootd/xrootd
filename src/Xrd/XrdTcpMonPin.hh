@@ -42,6 +42,8 @@
     @endcode
 */
 
+class XrdNetAddrInfo;
+
 class XrdTcpMonPin
 {
 public:
