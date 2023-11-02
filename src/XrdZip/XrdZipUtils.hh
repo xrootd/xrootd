@@ -25,12 +25,12 @@
 #ifndef SRC_XRDZIP_XRDZIPUTILS_HH_
 #define SRC_XRDZIP_XRDZIPUTILS_HH_
 
-#include <cstring>
-
-#include <ctime>
-#include <vector>
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <ctime>
 #include <iterator>
+#include <vector>
 
 namespace XrdZip
 {
