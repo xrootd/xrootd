@@ -33,6 +33,8 @@
 #include <string>
 #include <vector>
 
+#include <time.h>
+
 //------------------------------------------------------------------------------
 //! This header file defines linkages to various XRootD checksum assistants.
 //! The functions described here are located in libXrdUtils.so.
