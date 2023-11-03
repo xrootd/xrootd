@@ -72,7 +72,9 @@ jobs:
       run: cmake --install build
 
     - name: Run post-install tests
-      run: tests/post-install.sh
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
 
   fedora:
     name: Fedora
@@ -81,7 +83,7 @@ jobs:
 
     env:
       CMAKE_GENERATOR: Ninja
-      CMAKE_ARGS: -DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'
+      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
 
     steps:
     - name: Install dependencies
@@ -102,7 +104,9 @@ jobs:
       run: cmake --install build
 
     - name: Run post-install tests
-      run: tests/post-install.sh
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
 
   ubuntu:
     name: Ubuntu
@@ -168,7 +172,9 @@ jobs:
           --use-pep517 --verbose build/bindings/python
 
     - name: Run post-install tests
-      run: tests/post-install.sh
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
 
   macos:
     strategy:
