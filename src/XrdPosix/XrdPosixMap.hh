@@ -31,10 +31,11 @@
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-#include <cstdint>
-
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+
+#include <cstdint>
+#include <sys/types.h>
 
 class XrdPosixMap
 {
