@@ -36,6 +36,8 @@
 #include <memory>
 #include <tuple>
 
+#include <sys/types.h>
+
 namespace XrdZip
 {
   //---------------------------------------------------------------------------
