@@ -40,15 +40,17 @@ install(
 #------------------------------------------------------------------------------
 # Install private header files
 #------------------------------------------------------------------------------
-install(
-  FILES
-    XrdEcReader.hh
-    XrdEcObjCfg.hh
-    XrdEcStrmWriter.hh
-    XrdEcWrtBuff.hh
-    XrdEcThreadPool.hh
-    XrdEcUtilities.hh
-    XrdEcObjCfg.hh
-    XrdEcConfig.hh
-    XrdEcRedundancyProvider.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdEc )
+if (USE_SYSTEM_ISAL)
+  install(
+    FILES
+      XrdEcReader.hh
+      XrdEcObjCfg.hh
+      XrdEcStrmWriter.hh
+      XrdEcWrtBuff.hh
+      XrdEcThreadPool.hh
+      XrdEcUtilities.hh
+      XrdEcObjCfg.hh
+      XrdEcConfig.hh
+      XrdEcRedundancyProvider.hh
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdEc )
+endif()
