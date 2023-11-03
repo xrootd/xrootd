@@ -1,684 +1,97 @@
 stages:
-  - build:rpm
-  - publish
-  - post:publish
-  - clean
+  - build
 
-.template:deb_ubuntu_build: &deb_ubuntu_build_def
-  stage: build:rpm
-  script:
-    - export DEBIAN_FRONTEND=noninteractive
-    - apt-get update
-    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
-    - cp -R packaging/debian/ .
-    - mk-build-deps --build-dep debian/control
-    - gdebi -n xrootd-build-deps-depends*.deb
-    - version=`./genversion.sh --print-only`
-    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution ${DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
-    - dpkg_version=`dpkg-query --showformat='${Version}' --show dpkg`
-    - rc=0 ; dpkg --compare-versions $dpkg_version "ge" "1.18.11" || rc=$?
-    - if [ $rc -eq "0" ]; then
-        dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" ;
-      else
-        dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages" ;
-      fi
-    - mkdir ${DIST}/
-    - cp deb_packages/*.deb ${DIST}/
-    - if [[ $DEBUG = "true" ]] ; then cp deb_packages/*.ddeb ${DIST}/; fi
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - ${DIST}/
+default:
   tags:
     - docker_node
 
-.template:deb_ubuntu_build: &deb_ubuntu_build_new_def
-  stage: build:rpm
-  script:
-    - export DEBIAN_FRONTEND=noninteractive
-    - apt-get update
-    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
-    - mv packaging/debian/python3-xrootd.install.new packaging/debian/python3-xrootd.install
-    - cp -R packaging/debian/ .
-    - mk-build-deps --build-dep debian/control
-    - gdebi -n xrootd-build-deps-depends*.deb
-    - version=`./genversion.sh --print-only`
-    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution ${DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
-    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --buildinfo-file="deb_packages/xrootd_$(dpkg-parsechangelog -S version)_$(dpkg-architecture -qDEB_BUILD_ARCH).buildinfo" --changes-option="-udeb_packages" --buildinfo-file="deb_packages/xrootd_$(dpkg-parsechangelog -S version)_$(dpkg-architecture -qDEB_BUILD_ARCH).changes"
-    - mkdir ${DIST}/
-    - cp deb_packages/*.deb ${DIST}/
-    - if [[ $DEBUG = "true" ]] ; then cp deb_packages/*.ddeb ${DIST}/; fi
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - ${DIST}/
-  tags:
-    - docker_node
-
-build:cs9:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cs9-base
-  script:
-    - dnf install -y epel-release
-    - dnf install -y gcc-c++ rpm-build tar dnf-plugins-core git
-    - dnf install -y cppunit-devel gtest-devel
-    - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" -D "dist .el9"
-    - dnf builddep -y *.src.rpm
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el9" *.src.rpm
-    - cd ..
-    - mkdir cs-9
-    - cp packaging/RPMS/*.rpm cs-9
-    - cp packaging/*src.rpm   cs-9
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - cs-9/
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-  allow_failure: true
-
-build:cs8:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cs8-base
-  script:
-    - dnf install -y epel-release
-    - dnf install -y gcc-c++ rpm-build tar dnf-plugins-core git
-    - dnf config-manager --set-enabled powertools
-    - cd packaging
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1"
-    - dnf builddep -y *.src.rpm
-    - dnf -y update libarchive
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir cs-8
-    - cp packaging/*.src.rpm cs-8
-    - cp packaging/RPMS/*    cs-8
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - cs-8/
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-
-build:cc7:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - head -n -6 /etc/yum.repos.d/epel.repo > /tmp/epel.repo ; mv -f /tmp/epel.repo /etc/yum.repos.d/epel.repo
-    - yum install -y gcc-c++ rpm-build git python-srpm-macros centos-release-scl
-    - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1"
-    - yum-builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir cc-7/
-    - cp packaging/*.src.rpm cc-7
-    - cp packaging/RPMS/* cc-7
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - cc-7/
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-    
-build:fedora-37:
-  stage: build:rpm
-  image: fedora:37
-  script:
-    - dnf install -y gcc-c++ rpm-build tar dnf-plugins-core git
-    - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
-    - dnf builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir fc-37/
-    - cp packaging/*.src.rpm fc-37
-    - cp packaging/RPMS/* fc-37
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-37/
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-  allow_failure: true
-
-build:fedora-38:
-  stage: build:rpm
-  image: fedora:38
-  script:
-    - dnf install -y gcc-c++ rpm-build tar dnf-plugins-core git
-    - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
-    - dnf builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir fc-38/
-    - cp packaging/*.src.rpm fc-38
-    - cp packaging/RPMS/* fc-38
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-38/
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-  allow_failure: true
-
-build:fedora-39:
-  stage: build:rpm
-  image: fedora:39
-  script:
-    - dnf install -y gcc-c++ rpm-build tar dnf-plugins-core git
-    - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
-    - dnf builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir fc-39/
-    - cp packaging/*.src.rpm fc-39
-    - cp packaging/RPMS/* fc-39
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-39/
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-  allow_failure: true
- 
-build:deb_ubuntu_focal:
-  image: ubuntu:focal
-  <<: *deb_ubuntu_build_def
+.deb_build: &deb_build
+  stage: build
   variables:
-    DIST: focal
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-
-build:deb_ubuntu_jammy:
-  image: ubuntu:jammy
-  <<: *deb_ubuntu_build_new_def
-  variables:
-    DIST: jammy
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-  allow_failure: true
-
-release:cs8-x86_64:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cs8-base
+    DEBIAN_FRONTEND: noninteractive
   script:
-    - dnf install -y epel-release
-    - dnf install -y gcc-c++ rpm-build tar dnf-plugins-core git python-macros
-    - dnf config-manager --set-enabled powertools
-    - dnf install -y cppunit-devel gtest-devel
-    - dnf -y update libarchive
-    - mkdir cs-8-x86_64
-    - ./gen-tarball.sh $CI_COMMIT_TAG
-    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cs-8-x86_64
-    - cd packaging/
-    - git checkout tags/${CI_COMMIT_TAG}
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" -D "dist .el8"
-    - dnf builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el8" *.src.rpm
-    - cd ..
-    - cp packaging/RPMS/*.rpm cs-8-x86_64
-    - cp packaging/*src.rpm   cs-8-x86_64
+    - source /etc/os-release
+    - apt update -qq
+    - apt install -y build-essential devscripts equivs git
+    - mk-build-deps --install --remove debian/control <<< y
+    - VERSION=$(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
+    - dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
+    - debuild --no-tgz-check --no-sign -b
+    - apt install -y ../*.d*eb
+    - mkdir -p DEB/${ID}/${VERSION_CODENAME}
+    - mv ../*.* DEB/${ID}/${VERSION_CODENAME}
+    - tests/post-install.sh
   artifacts:
-    expire_in: 1 day
-    paths:
-    - cs-8-x86_64/
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
+    paths: [ DEB ]
+    expire_in: 1d
 
-release:alma8-x86_64:
-  stage: build:rpm
+.rpm_build_yum: &rpm_build_yum
+  stage: build
+  script:
+    - yum install -y centos-release-scl epel-release git
+    - yum install -y epel-rpm-macros rpmdevtools yum-utils
+    - yum-builddep -y xrootd.spec
+    - rpmdev-setuptree
+    - git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
+    - rpmbuild -bb --with git xrootd.spec
+    - yum install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
+    - tests/post-install.sh
+    - mkdir -p RPMS
+    - mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+  artifacts:
+    paths: [ RPMS ]
+    expire_in: 1d
+
+.rpm_build_dnf: &rpm_build_dnf
+  stage: build
+  script:
+    - dnf install -y dnf-plugins-core git rpmdevtools
+    - rpmdev-setuptree
+    - dnf builddep -y xrootd.spec
+    - git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
+    - rpmbuild -bb --with git xrootd.spec
+    - dnf install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
+    - tests/post-install.sh
+    - mkdir -p RPMS
+    - mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+  artifacts:
+    paths: [ RPMS ]
+    expire_in: 1d
+
+Debian 11:
+  image: debian:11
+  <<: *deb_build
+
+Debian 12:
+  image: debian:12
+  <<: *deb_build
+
+Ubuntu 22.04:
+  image: ubuntu:22.04
+  <<: *deb_build
+
+CentOS 7:
+  image: centos:7
+  <<: *rpm_build_yum
+
+AlmaLinux 8:
   image: almalinux:8
-  script:
+  before_script:
     - dnf install -y epel-release
-    - dnf install -y gcc-c++ rpm-build tar dnf-plugins-core git python-macros
     - dnf config-manager --set-enabled powertools
-    - dnf install -y cppunit-devel gtest-devel
-    - dnf -y update libarchive
-    - mkdir alma-8-x86_64
-    - ./gen-tarball.sh $CI_COMMIT_TAG
-    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz alma-8-x86_64
-    - cd packaging/
-    - git checkout tags/${CI_COMMIT_TAG}
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" -D "dist .el8"
-    - dnf builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el8" *.src.rpm
-    - cd ..
-    - cp packaging/RPMS/*.rpm alma-8-x86_64
-    - cp packaging/*src.rpm   alma-8-x86_64
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - alma-8-x86_64/
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
+  <<: *rpm_build_dnf
 
-release:alma9-x86_64:
-  stage: build:rpm
+AlmaLinux 9:
   image: almalinux:9
-  script:
+  before_script:
     - dnf install -y epel-release
-    - dnf install -y dnf-plugins-core rpmdevtools git
     - dnf config-manager --set-enabled crb
-    - mkdir alma-9-x86_64
-    - ./gen-tarball.sh $CI_COMMIT_TAG
-    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz alma-9-x86_64
-    - cd packaging/
-    - git checkout tags/${CI_COMMIT_TAG}
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" -D "dist .el9"
-    - dnf builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el9" *.src.rpm
-    - cd ..
-    - cp packaging/RPMS/*.rpm alma-9-x86_64
-    - cp packaging/*src.rpm   alma-9-x86_64
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - alma-9-x86_64/
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
+  <<: *rpm_build_dnf
 
-release:cc7-x86_64:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - head -n -6 /etc/yum.repos.d/epel.repo > /tmp/epel.repo ; mv -f /tmp/epel.repo /etc/yum.repos.d/epel.repo
-    - yum install -y gcc-c++ rpm-build git python-srpm-macros centos-release-scl
-    - mkdir cc-7-x86_64
-    - ./gen-tarball.sh $CI_COMMIT_TAG
-    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-x86_64
-    - cd packaging/
-    - git checkout tags/${CI_COMMIT_TAG}
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" -D "dist .el7"
-    - yum-builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el7" *.src.rpm
-    - cd ..
-    - cp packaging/RPMS/*.rpm cc-7-x86_64
-    - cp packaging/*src.rpm   cc-7-x86_64
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - cc-7-x86_64/
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
+Fedora 38:
+  image: fedora:38
+  <<: *rpm_build_dnf
 
-release:deb_ubuntu_focal:
-  image: ubuntu:focal
-  <<: *deb_ubuntu_build_def
-  variables:
-    DIST: focal
-  only:
-    - web
-  except:
-    - branches
-
-release:deb_ubuntu_jammy:
-  image: ubuntu:jammy
-  <<: *deb_ubuntu_build_new_def
-  variables:
-    DIST: jammy
-  only:
-    - web
-  except:
-    - branches
-  allow_failure: true
-
-
-release:pypi:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install -y git python3-pip
-    - cp packaging/wheel/* .
-    - ./publish.sh
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - dist/
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
-  allow_failure: true
-
-publish:pypi:
-  stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install -y sssd-client sudo
-    - sudo -u stci -H mkdir -p /eos/project/s/storage-ci/www/xrootd/release/pypi-dist
-    - sudo -u stci -H cp dist/*.tar.gz /eos/project/s/storage-ci/www/xrootd/release/pypi-dist/.
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
-  allow_failure: true
-
-
-weekly:cs8:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cs8-base
-  script:
-    - dnf install -y epel-release
-    - dnf install -y gcc-c++ rpm-build tar dnf-plugins-core git python-macros
-    - dnf config-manager --set-enabled powertools
-    - dnf install -y cppunit-devel gtest-devel
-    - dnf -y update libarchive
-    - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v' | grep -v 'rc.*$' | grep -v 'osghotfix' | grep -v 'CERN$' | sed -e '$!d')
-    - xrootd_version=${xrootd_version:11}
-    - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
-    - a=( ${xrootd_version//./ } )
-    - ((a[2]++)) || true
-    - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
-    - cd packaging/
-    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1"
-    - dnf builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir epel-8/
-    - cp packaging/*.src.rpm epel-8
-    - cp packaging/RPMS/* epel-8
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - epel-8/
-  tags:
-    - docker_node
-  only:
-    - schedules
-  except:
-    - tags
-
-weekly:cc7:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - head -n -6 /etc/yum.repos.d/epel.repo > /tmp/epel.repo ; mv -f /tmp/epel.repo /etc/yum.repos.d/epel.repo
-    - yum install -y gcc-c++ rpm-build git cppunit-devel gtest-devel python-srpm-macros centos-release-scl
-    - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v5' | grep -v 'rc.*$' | grep -v 'osghotfix' | grep -v 'CERN$' | sed -e '$!d')
-    - xrootd_version=${xrootd_version:11}
-    - echo $xrootd_version
-    - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
-    - a=( ${xrootd_version//./ } )
-    - ((a[2]++)) || true
-    - echo $CI_PIPELINE_ID
-    - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
-    - echo $experimental_version
-    - cd packaging/
-    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1"
-    - yum-builddep -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir epel-7/
-    - cp packaging/*.src.rpm epel-7
-    - cp packaging/RPMS/* epel-7
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - epel-7/
-  tags:
-    - docker_node
-  only:
-    - schedules
-    - web
-  except:
-    - tags
-
-publish:rhel:
-  stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install -y sssd-client sudo createrepo
-    - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in cs-8 cc-7 fc-{37..39}; do
-         repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
-         path=$repo/$(date +'%Y%m%d');
-         sudo -u stci -H mkdir -p $path;
-         sudo -u stci -H find ${path} -type f -name '*.rpm' -delete;
-         sudo -u stci -H cp $platform/* $path;
-         sudo -u stci -H createrepo --update -q $path;
-         sudo -u stci -H createrepo --update -q $repo;
-      done"
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-    
-publish:debian:
-  stage: publish
-  image: ubuntu:jammy
-  script: 
-    - apt-get update
-    - apt-get install -y sudo apt-utils sssd gpg
-    - mkdir /home/stci
-    - chown -R stci:def-cg /home/stci
-    - chmod -R 700 /home/stci
-    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
-    - sudo -u stci -H ./packaging/debian_scripts/publish_debian_cern.sh ${CI_COMMIT_REF_NAME}
-  tags:
-    - docker_node
-  dependencies:
-    - build:deb_ubuntu_focal
-    - build:deb_ubuntu_jammy
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-
-publish:rhel:release:
-  stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install -y sssd-client sudo createrepo
-    - prefix=/eos/project/s/storage-ci/www/xrootd
-    - tarball=cc-7-x86_64/xrootd-*.tar.gz
-    - "for platform in alma-8-x86_64 alma-9-x86_64 cs-8-x86_64 cc-7-x86_64; do
-         path=$prefix/release/$platform/$CI_COMMIT_TAG/;
-         sudo -u stci -H mkdir -p $path/{source,tarball};
-         sudo -u stci -H cp $platform/*.rpm $path;
-         sudo -u stci -H find ${path} -type f -name '*.src.rpm' -delete;
-         sudo -u stci -H cp $platform/*.src.rpm $path/source;
-         sudo -u stci -H cp $tarball $path/tarball;
-         sudo -u stci -H createrepo --update -q $path;
-         sudo -u stci -H createrepo --update -q $prefix/release/$platform;
-      done"
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches 
-
-publish:debian:release:
-  stage: publish
-  image: ubuntu:jammy
-  script:
-    - apt-get update
-    - apt-get install -y sudo apt-utils sssd gpg
-    - mkdir /home/stci
-    - chown -R stci:def-cg /home/stci
-    - chmod -R 700 /home/stci
-    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
-    - repo=release
-    - if [[ $CI_COMMIT_TAG == *rc* ]] ; then repo=testing ; fi
-    - sudo -u stci -H ./packaging/debian_scripts/publish_debian_cern.sh $repo
-  tags:
-    - docker_node
-  dependencies:
-    - release:deb_ubuntu_focal
-    - release:deb_ubuntu_jammy
-  only:
-    - web
-  except:
-    - branches
-
-publish:weekly:
-  stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install -y sssd-client sudo createrepo
-    - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in epel-8 epel-7 epel-6; do
-         if [ -d $platform ] ; then
-           path=$prefix/experimental/$platform/x86_64/;
-           sudo -u stci -H mkdir -p $path;
-           ls -latr $platform/;
-           echo $path;
-           sudo -u stci -H cp $platform/* $path;
-           sudo -u stci -H createrepo --update -q $path;
-         fi;
-      done"
-  tags:
-    - docker_node
-  dependencies:
-    - weekly:cc7
-    - weekly:cs8
-  only:
-    - schedules
-    - web
-  except:
-    - tags
-
-publish:koji:cs8:
-  stage: post:publish
-  image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
-  script:
-    - yum install -y sssd-client
-    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - path=/eos/project/s/storage-ci/www/xrootd/release/cs-8-x86_64/$CI_COMMIT_TAG/source/
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos8 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
-  when: manual
-
-publish:koji:cc7:
-  stage: post:publish
-  image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
-  script:
-    - yum install -y sssd-client
-    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - path=/eos/project/s/storage-ci/www/xrootd/release/cc-7-x86_64/$CI_COMMIT_TAG/source/
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos7 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
-  when: manual
-
-clean:artifacts:
-  stage: clean
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install -y sssd-client sudo createrepo
-    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/master/*/*/; do find ${commit_dir} -mindepth 1 -maxdepth 1 -type d -ctime +10 | xargs rm -rf; createrepo --update -q ${commit_dir}; done'
-    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/stable-*/*/*/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +30 -delete; createrepo --update -q ${commit_dir}; done'
-    - sudo -u stci -H bash -c 'for commit_dir in /eos/project/s/storage-ci/www/xrootd/experimental/*/x86_64/; do find ${commit_dir} -type f -name '"'"'*.rpm'"'"' -mtime +30 -delete; createrepo --update -q ${commit_dir}; done'
-  tags:
-    - docker_node
-  allow_failure: true
-  only:
-    - schedules
-    - web
-  except:
-    - tags
-
+Fedora 39:
+  image: fedora:39
+  <<: *rpm_build_dnf
