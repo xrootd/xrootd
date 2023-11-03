@@ -185,10 +185,15 @@ if( NOT XRDCL_ONLY )
     XrdSut/XrdSutAux.hh
     XrdSut/XrdSutBucket.hh
 
-    XrdVoms/XrdVoms.hh
-
     XrdOuc/XrdOucPgrwUtils.hh
 )
+
+  if ( BUILD_VOMS )
+    set( XROOTD_PRIVATE_HEADERS
+      ${XROOTD_PRIVATE_HEADERS}
+      XrdVoms/XrdVoms.hh
+    )
+  endif()
 endif()
 
 install_headers(
