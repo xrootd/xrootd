@@ -198,7 +198,6 @@ install(
     XrdClXRootDResponses.hh
     XrdClOptional.hh
     XrdClPlugInInterface.hh
-    XrdClPlugInManager.hh
     XrdClPropertyList.hh
     XrdClLog.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
@@ -208,6 +207,7 @@ install(
     # Additional client headers
     XrdClJobManager.hh
     XrdClMessage.hh
+    XrdClPlugInManager.hh
     XrdClPostMaster.hh
     XrdClPostMasterInterfaces.hh
     XrdClTransportManager.hh
