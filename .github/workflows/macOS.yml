@@ -1,0 +1,68 @@
+name: macOS
+
+on:
+  push:
+    branches:
+      - macos
+    paths-ignore:
+      - .gitignore
+      - .gitlab-ci.yml
+      - .mailmap
+      - '**.md'
+      - 'docs/**'
+      - 'docker/**'
+    tags-ignore:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CDASH: ${{ vars.CDASH }}
+  CMAKE_VERBOSE_MAKEFILE: true
+  CTEST_OUTPUT_ON_FAILURE: true
+
+jobs:
+  macos:
+    strategy:
+      matrix:
+        version: [ 12, 13, 14 ]
+      fail-fast: false
+
+    name: macOS
+    runs-on: macos-${{ matrix.version }}
+
+    env:
+      CC: clang
+      CXX: clang++
+      CMAKE_ARGS: "-DPython_FIND_UNVERSIONED_NAMES=FIRST"
+      CMAKE_PREFIX_PATH: /usr/local/opt/openssl@3
+
+    steps:
+    - name: Workaround for issue 1772
+      run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
+
+    - name: Install dependencies with Homebrew
+      run: brew install davix googletest python-setuptools
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Build and Test with CTest
+      run: ctest -VV --repeat until-pass:3 -S test.cmake
+
+    - name: Install with CMake
+      run: cmake --install build
+
+    - name: Run post-install tests
+      run: |
+        export PYVERSION=$(python3 --version | grep -o 3...)
+        export PYTHONPATH=/usr/local/lib/python${PYVERSION}/site-packages
+        tests/post-install.sh
