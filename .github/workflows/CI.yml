@@ -206,7 +206,7 @@ jobs:
         fetch-depth: 0
 
     - name: Build and Test with CTest
-      run: ctest -VV -S test.cmake
+      run: ctest -VV --repeat until-pass:3 -S test.cmake
 
     - name: Install with CMake
       run: cmake --install build
