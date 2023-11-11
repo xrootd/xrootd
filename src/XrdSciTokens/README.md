@@ -117,6 +117,17 @@ are:
       claim name.  If set, it overrides `map_subject` and `default_user`.
    -  `name_mapfile` (options): If set, then the referenced file is parsed as a JSON object and the specified mappings
       are applied to the username inside the XRootD framework.  See below for more information on the mapfile.
+   -  `authorization_strategy` (optional): One or more authorizations to use from the token.  Multiple (space separated)
+      items may be specified from the following valid values:
+
+         - `capability`: Authorize based on capabilities (e.g., `storage.read:/foo`) from the token.
+         - `group`: Pass through the request if there's any group present in the token.
+         - `mapping`: Pass through the request if the user mapping was successful.
+
+      For the `group` and `mapping` cases, the username and group are set in the internal XRootD request credential,
+      but the final authorization must be done by a subsequent plugin.  The default value is `capability group mapping`.
+      *Note*: if `mapping` is present, then a token without a capability may still have authorized actions.
+
 
 Group- and Scope-based authorization
 ------------------------------------
