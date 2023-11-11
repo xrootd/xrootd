@@ -49,7 +49,7 @@ class XrdPosixDir : public XrdPosixObject
 {
 public:
                    XrdPosixDir(const char *path)
-                              : DAdmin(path), myDirVec(0), myDirEnt(0),
+                              : DAdmin(path,ecMsg), myDirVec(0), myDirEnt(0),
                                 nxtEnt(0), numEnt(0), eNum(0)
                               {}
 

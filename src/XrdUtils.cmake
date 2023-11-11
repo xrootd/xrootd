@@ -105,6 +105,7 @@ set ( XrdOucSources
                                 XrdOuc/XrdOucChkPnt.hh
   XrdOuc/XrdOucCRC.cc           XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCRC32C.cc        XrdOuc/XrdOucCRC32C.hh
+  XrdOuc/XrdOucECMsg.cc         XrdOuc/XrdOucECMsg.hh
   XrdOuc/XrdOucEnv.cc           XrdOuc/XrdOucEnv.hh
   XrdOuc/XrdOucERoute.cc        XrdOuc/XrdOucERoute.hh
                                 XrdOuc/XrdOucErrInfo.hh

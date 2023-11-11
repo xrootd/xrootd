@@ -31,6 +31,7 @@
 #include <cerrno>
 #include <sys/stat.h>
 
+#include "XrdOuc/XrdOucECMsg.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
@@ -146,9 +147,9 @@ XrdCl::Access::Mode XrdPosixMap::Mode2Access(mode_t mode)
 /*                                R e s u l t                                 */
 /******************************************************************************/
   
-int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status, bool retneg1)
+int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status,
+                        XrdOucECMsg& ecMsg, bool retneg1)
 {
-   std::string eText;
    int eNum;
 
 // If all went well, return success
@@ -158,21 +159,21 @@ int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status, bool retneg1)
 // If this is an xrootd error then get the xrootd generated error
 //
    if (Status.code == XrdCl::errErrorResponse)
-      {eText = Status.GetErrorMessage();
+      {ecMsg = Status.GetErrorMessage();
        eNum  = XProtocol::toErrno(Status.errNo);
       } else {
-       eText = Status.ToStr();
+       ecMsg = Status.ToStr();
        eNum  = (Status.errNo ? Status.errNo : mapCode(Status.code));
       }
 
 // Trace this if need be (we supress this for as we really need more info to
 // make this messae useful like the opteration and path).
 //
-// if (eNum != ENOENT && !eText.empty() && Debug)
+// if (eNum != ENOENT && !ecMsg.hasMsg() && Debug)
 //    std::cerr <<"XrdPosix: " <<eText <<std::endl;
 
 // Return
 //
-   errno = eNum;
+   ecMsg = errno = eNum;
    return (retneg1 ? -1 : -eNum);
 }

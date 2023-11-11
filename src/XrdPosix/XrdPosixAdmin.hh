@@ -36,6 +36,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdOuc/XrdOucECMsg.hh"
 
 /******************************************************************************/
 /*                         X r d P o s i x A d m i n                          */
@@ -49,8 +50,12 @@ public:
 
 XrdCl::URL        Url;
 XrdCl::FileSystem Xrd;
+XrdOucECMsg&      ecMsg;
 
 bool           isOK() {if (Url.IsValid()) return true;
+                       ecMsg.Set(EINVAL, 0);
+                       ecMsg.Msgf("PosixAdmin", "url '%s' is invalid",
+                                  Url.GetURL());
                        errno = EINVAL;    return false;
                       }
 
@@ -62,8 +67,8 @@ bool           Stat(mode_t *flags=0, time_t *mtime=0);
 
 bool           Stat(struct stat &Stat);
 
-      XrdPosixAdmin(const char *path)
-                      : Url((std::string)path), Xrd(Url) {}
+      XrdPosixAdmin(const char *path, XrdOucECMsg &ecm)
+                      : Url((std::string)path), Xrd(Url), ecMsg(ecm) {}
      ~XrdPosixAdmin() {}
 };
 #endif

@@ -95,8 +95,10 @@ class XrdScheduler;
 
 namespace XrdProxy
 {
+thread_local XrdOucECMsg ecMsg("[pss]");
+
 static XrdPssSys   XrdProxySS;
-  
+
        XrdSysError eDest(0, "pss_");
 
        XrdScheduler *schedP = 0;
@@ -365,7 +367,7 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 
 // Simply return the proxied result here
 //
-   return (XrdPosixXrootd::Mkdir(pbuff, mode) ? -errno : XrdOssOK);
+   return (XrdPosixXrootd::Mkdir(pbuff, mode) ? Info(errno) : XrdOssOK);
 }
   
 /******************************************************************************/
@@ -1264,6 +1266,16 @@ int XrdPssFile::Ftruncate(unsigned long long flen)
     if (fd < 0) return -XRDOSS_E8004;
 
     return (XrdPosixXrootd::Ftruncate(fd, flen) ?  -errno : XrdOssOK);
+}
+  
+/******************************************************************************/
+/*                      I n t e r n a l   M e t h o d s                       */
+/******************************************************************************/
+
+int XrdPssSys::Info(int rc)
+{
+   XrdPosixXrootd::QueryError(XrdProxy.ecMsg.Msg());
+   return -rc;
 }
   
 /******************************************************************************/

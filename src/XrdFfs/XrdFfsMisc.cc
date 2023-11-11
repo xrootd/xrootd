@@ -44,6 +44,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdOuc/XrdOucECMsg.hh"
 #include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
@@ -75,7 +76,8 @@ char XrdFfsMisc_get_current_url(const char *oldurl, char *newurl)
         return 1;
     }
 
-    XrdPosixAdmin adm(oldurl);
+    XrdOucECMsg   ecMsg;
+    XrdPosixAdmin adm(oldurl,ecMsg);
     if (adm.isOK() && adm.Stat())
     {
 // We might have been redirected to a destination server. Better 
@@ -100,7 +102,8 @@ char* XrdFfsMisc_getNameByAddr(char* ipaddr)
 
 int XrdFfsMisc_get_all_urls_real(const char *oldurl, char **newurls, const int nnodes)
 {
-    XrdPosixAdmin adm(oldurl);
+    XrdOucECMsg   ecMsg;
+    XrdPosixAdmin adm(oldurl,ecMsg);
     XrdCl::URL *uVec;
     int i, rval = 0;
 

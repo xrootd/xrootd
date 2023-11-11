@@ -54,7 +54,7 @@ dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
 
 // Reread the directory if we need to (rewind forces this)
 //
-   if (!myDirVec && !Open()) {eNum = errno; return 0;}
+   if (!myDirVec && !Open()) {eNum = errno; return 0;} // Open() sets ecMsg
 
 // Check if dir is empty or all entries have been read
 //
@@ -100,15 +100,17 @@ DIR *XrdPosixDir::Open()
 // some system the dirent structure does not include the name buffer
 //
    if (!myDirEnt && !(myDirEnt = (dirent64 *)malloc(dEntSize)))
-      {errno = ENOMEM; return (DIR *)0;}
+      {ecMsg.SetErrno(ENOMEM);
+       return (DIR*)0;
+      }
 
 // Get the directory list
 //
    rc = XrdPosixMap::Result(DAdmin.Xrd.DirList(DAdmin.Url.GetPathWithParams(),
                                                XrdPosixGlobals::dlFlag,
-                                               myDirVec, (uint16_t)0));
+                                               myDirVec, (uint16_t)0),ecMsg);
 
-// If we failed, return a zero pointer
+// If we failed, return a zero pointer ote that Result() set errno for us
 //
    if (rc) return (DIR *)0;
 

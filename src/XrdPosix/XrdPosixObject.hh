@@ -32,6 +32,7 @@
 
 #include <sys/types.h>
 
+#include "XrdOuc/XrdOucECMsg.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -51,6 +52,8 @@ static  XrdPosixDir  *Dir (int fildes, bool glk=false);
 static  XrdPosixFile *File(int fildes, bool glk=false);
 
         int           FDNum() {return fdNum;}
+
+        XrdOucECMsg*  getECMsg() {return &ecMsg;}
 
 static  int           Init(int numfd);
 
@@ -87,8 +90,10 @@ virtual bool          Who(XrdPosixDir  **dirP)  {return false;}
 
 virtual bool          Who(XrdPosixFile **fileP) {return false;}
 
-                      XrdPosixObject() : fdNum(-1), refCnt(0) {}
+                      XrdPosixObject() : ecMsg("[posix]"),fdNum(-1),refCnt(0) {}
 virtual              ~XrdPosixObject() {if (fdNum >= 0) Release(this);}
+
+       XrdOucECMsg      ecMsg;
 
 protected:
        XrdSysRecMutex   updMutex;
