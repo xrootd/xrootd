@@ -31,6 +31,7 @@
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
+#include <string>
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -208,6 +209,27 @@ static int     QueryChksum(const char *path, time_t &mtime,
                                  char *buff, int     blen);
 
 //-----------------------------------------------------------------------------
+//! QueryError() is a POSIX extension and returns extended information about
+//! the last error returned from a call to a POSIX function.
+//!
+//! @param  emsg  Reference to a string to hold the retruned message text.
+//! @param  fd    The file descriptor associated with the error. A negative
+//!               value returns the last error encountered on the calling
+//!               thread for the last function not releated to a file descritor.
+//!         dirP  Get the error associated with the last directory operation.
+//! @param  reset When true (the default) clears the error information.
+//!
+//! @return The error code and the associated message via parameter emsg.
+//!         A zero return indicates that no error information is available.
+//!         A -1 return indicates the call was bad itself because either the
+//!         fd or dirP was invalid. 
+//-----------------------------------------------------------------------------
+
+static int     QueryError(std::string& emsg, int fd=-1, bool reset=true);
+
+static int     QueryError(std::string& emsg, DIR* dirP, bool reset=true);
+
+//-----------------------------------------------------------------------------
 //! QueryOpaque() is a POSIX extension and returns a file's implementation
 //! specific information.
 //!
@@ -368,16 +390,16 @@ static bool    myFD(int fd);
 
 private:
 
-static int  Fault(XrdPosixFile *fp, int ecode);
+static int  Fault(XrdPosixFile *fp, int ecode, const char *msg=0);
 
 static int  Open(const char *path, int oflag, mode_t mode,
                  XrdPosixCallBack *cbP, XrdPosixInfo *infoP);
 static bool OpenCache(XrdPosixFile &file, XrdPosixInfo &Info);
 
 // functions that will be used when XrdEC is invoked
-static int  EcRename(const char*, const char*, XrdPosixAdmin*);
-static int  EcStat(const char*, struct stat*, XrdPosixAdmin*);
-static int  EcUnlink(const char*, XrdPosixAdmin*);
+static int  EcRename(const char*, const char*, XrdPosixAdmin&);
+static int  EcStat(const char*, struct stat*, XrdPosixAdmin&);
+static int  EcUnlink(const char*, XrdPosixAdmin&);
 
 static int  baseFD;
 static int  initDone;

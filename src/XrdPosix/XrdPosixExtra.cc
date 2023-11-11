@@ -37,6 +37,8 @@
 #include "XrdPosix/XrdPosixExtra.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 
+
+
 /******************************************************************************/
 /*                                p g R e a d                                 */
 /******************************************************************************/
@@ -64,6 +66,7 @@ ssize_t XrdPosixExtra::pgRead (int   fildes, void*    buffer,
 //
    if (rdlen > (size_t)0x7fffffff)
       {fp->UnLock();
+       
        errno = EOVERFLOW;
        if (!cbp) return -1;
        cbp->Complete(-1);
