@@ -61,7 +61,7 @@ XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
 //
    xStatus = Xrd.DeepLocate(Url.GetPathWithParams(),XrdCl::OpenFlags::None,info);
    if (!xStatus.IsOK())
-      {num = XrdPosixMap::Result(xStatus, false);
+      {num = XrdPosixMap::Result(xStatus, ecMsg, false);
        return 0;
       }
 
@@ -110,7 +110,7 @@ int XrdPosixAdmin::Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz)
 
 // Issue the query
 //
-   if (!XrdPosixMap::Result(Xrd.Query(reqCode, reqBuff, rspBuff)))
+   if (!XrdPosixMap::Result(Xrd.Query(reqCode, reqBuff, rspBuff),ecMsg))
       {uint32_t rspSz = rspBuff->GetSize();
        char *rspbuff = rspBuff->GetBuffer();
        if (rspbuff && rspSz)
@@ -121,8 +121,8 @@ int XrdPosixAdmin::Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz)
                ((char*)buff)[rspSz] = 0; // make sure it is null-terminated
                delete rspBuff;
                return static_cast<int>(rspSz + 1);
-              } else errno = ERANGE;
-          } else errno = EFAULT;
+              } else ecMsg.SetErrno(ERANGE,0,"buffer to small to hold result");
+          } else ecMsg.SetErrno(EFAULT,0,"Invalid return results");
       }
 
 // Return error
@@ -148,7 +148,7 @@ bool XrdPosixAdmin::Stat(mode_t *flags, time_t *mtime)
 //
    xStatus = Xrd.Stat(Url.GetPathWithParams(), sInfo);
    if (!xStatus.IsOK())
-      {XrdPosixMap::Result(xStatus);
+      {XrdPosixMap::Result(xStatus,ecMsg);
        delete sInfo;
        return false;
       }
@@ -179,7 +179,7 @@ bool XrdPosixAdmin::Stat(struct stat &Stat)
 //
    xStatus = Xrd.Stat(Url.GetPathWithParams(), sInfo);
    if (!xStatus.IsOK())
-      {XrdPosixMap::Result(xStatus);
+      {XrdPosixMap::Result(xStatus,ecMsg);
        delete sInfo;
        return false;
       }
