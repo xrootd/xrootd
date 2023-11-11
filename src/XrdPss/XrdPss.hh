@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <vector>
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdOuc/XrdOucECMsg.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPList.hh"
@@ -176,6 +177,7 @@ int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0) override;
 static const int    PolNum = 2;
 enum   PolAct {PolPath = 0, PolObj = 1};
 
+static int   Info(int rc);
 static int   P2DST(int &retc, char *hBuff, int hBlen, PolAct pType,
                    const char *path);
 static int   P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo);
