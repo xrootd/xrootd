@@ -42,6 +42,13 @@ enum LogMask {
     All = 0xff
 };
 
+enum IssuerAuthz {
+    Capability = 0x01,
+    Group = 0x02,
+    Mapping = 0x04,
+    Default = 0x07
+};
+
 std::string LogMaskToString(int mask) {
     if (mask == LogMask::All) {return "all";}
 
@@ -272,10 +279,12 @@ struct IssuerConfig
                  const std::vector<std::string> &base_paths,
                  const std::vector<std::string> &restricted_paths,
                  bool map_subject,
+                 uint32_t authz_strategy,
                  const std::string &default_user,
                  const std::string &username_claim,
                  const std::vector<MapRule> rules)
         : m_map_subject(map_subject || !username_claim.empty()),
+          m_authz_strategy(authz_strategy),
           m_name(issuer_name),
           m_url(issuer_url),
           m_default_user(default_user),
@@ -286,6 +295,7 @@ struct IssuerConfig
     {}
 
     const bool m_map_subject;
+    const uint32_t m_authz_strategy;
     const std::string m_name;
     const std::string m_url;
     const std::string m_default_user;
@@ -337,7 +347,9 @@ class XrdAccRules
 {
 public:
     XrdAccRules(uint64_t expiry_time, const std::string &username, const std::string &token_subject,
-        const std::string &issuer, const std::vector<MapRule> &rules, const std::vector<std::string> &groups) :
+        const std::string &issuer, const std::vector<MapRule> &rules, const std::vector<std::string> &groups,
+        uint32_t authz_strategy) :
+        m_authz_strategy(authz_strategy),
         m_expiry_time(expiry_time),
         m_username(username),
         m_token_subject(token_subject),
@@ -420,10 +432,13 @@ public:
     const std::string & get_default_username() const {return m_username;}
     const std::string & get_issuer() const {return m_issuer;}
 
+    uint32_t get_authz_strategy() const {return m_authz_strategy;}
+
     size_t size() const {return m_rules.size();}
     const std::vector<std::string> &groups() const {return m_groups;}
 
 private:
+    uint32_t m_authz_strategy;
     AccessRulesRaw m_rules;
     uint64_t m_expiry_time{0};
     const std::string m_username;
@@ -513,8 +528,9 @@ public:
                 std::string issuer;
                 std::vector<MapRule> map_rules;
                 std::vector<std::string> groups;
-                if (GenerateAcls(authz, cache_expiry, rules, username, token_subject, issuer, map_rules, groups)) {
-                    access_rules.reset(new XrdAccRules(now + cache_expiry, username, token_subject, issuer, map_rules, groups));
+                uint32_t authz_strategy;
+                if (GenerateAcls(authz, cache_expiry, rules, username, token_subject, issuer, map_rules, groups, authz_strategy)) {
+                    access_rules.reset(new XrdAccRules(now + cache_expiry, username, token_subject, issuer, map_rules, groups, authz_strategy));
                     access_rules->parse(rules);
                 } else {
                     m_log.Log(LogMask::Warning, "Access", "Failed to generate ACLs for token");
@@ -533,7 +549,8 @@ public:
             m_log.Log(LogMask::Debug, "Access", "Cached token", access_rules->str().c_str());
         }
 
-        // Strategy: we populate the name in the XrdSecEntity if:
+        // Strategy: assuming the corresponding strategy is enabled, we populate the name in
+        // the XrdSecEntity if:
         //    1. There are scopes present in the token that authorize the request,
         //    2. The token is mapped by some rule in the mapfile (group or subject-based mapping).
         // The default username for the issuer is only used in (1).
@@ -553,7 +570,8 @@ public:
         if (!issuer.empty()) {
             new_secentity.vorg = strdup(issuer.c_str());
         }
-        if (access_rules->groups().size()) {
+        bool group_success = false;
+        if ((access_rules->get_authz_strategy() & IssuerAuthz::Group) && access_rules->groups().size()) {
             std::stringstream ss;
             for (const auto &grp : access_rules->groups()) {
                 ss << grp << " ";
@@ -564,6 +582,7 @@ public:
                 memcpy(new_secentity.grps, groups_str.c_str(), groups_str.size());
                 new_secentity.grps[groups_str.size()] = '\0';
             }
+            group_success = true;
         }
 
         std::string username;
@@ -571,15 +590,15 @@ public:
         bool scope_success = false;
         username = access_rules->get_username(path);
 
-        mapping_success = !username.empty();
-        scope_success = access_rules->apply(oper, path);
+        mapping_success = (access_rules->get_authz_strategy() & IssuerAuthz::Mapping) && !username.empty();
+        scope_success = (access_rules->get_authz_strategy() & IssuerAuthz::Capability) && access_rules->apply(oper, path);
         if (scope_success && (m_log.getMsgMask() & LogMask::Debug)) {
             std::stringstream ss;
             ss << "Grant authorization based on scopes for operation=" << OpToName(oper) << ", path=" << path;
             m_log.Log(LogMask::Debug, "Access", ss.str().c_str());
         }
 
-        if (!scope_success && !mapping_success) {
+        if (!scope_success && !mapping_success && !group_success) {
             auto returned_accs = OnMissing(&new_secentity, path, oper, env);
             // Clean up the new_secentity
             if (new_secentity.vorg != nullptr) free(new_secentity.vorg);
@@ -590,11 +609,13 @@ public:
         }
 
         // Default user only applies to scope-based mappings.
-        if (!mapping_success && scope_success) {
-            mapping_success = !(username = access_rules->get_default_username()).empty();
+        if (scope_success && username.empty()) {
+            username = access_rules->get_default_username();
         }
 
-        if (mapping_success) {
+        // Setting the request.name will pass the username to the next plugin.
+        // Ensure we do that only if map-based or scope-based authorization worked.
+        if (scope_success || mapping_success) {
             // Set scitokens.name in the extra attribute
             Entity->eaAPI->Add("request.name", username, true);
             new_secentity.eaAPI->Add("request.name", username, true);
@@ -730,7 +751,7 @@ private:
         return XrdAccPriv_None;
     }
 
-    bool GenerateAcls(const std::string &authz, uint64_t &cache_expiry, AccessRulesRaw &rules, std::string &username, std::string &token_subject, std::string &issuer, std::vector<MapRule> &map_rules, std::vector<std::string> &groups) {
+    bool GenerateAcls(const std::string &authz, uint64_t &cache_expiry, AccessRulesRaw &rules, std::string &username, std::string &token_subject, std::string &issuer, std::vector<MapRule> &map_rules, std::vector<std::string> &groups, uint32_t &authz_strategy) {
         // Does this look like a JWT?  If not, bail out early and
         // do not pollute the log.
         bool looks_good = true;
@@ -962,6 +983,7 @@ private:
                 xrd_rules.emplace_back(AOP_Delete, write_path);
             }
         }
+        authz_strategy = config.m_authz_strategy;
 
         pthread_rwlock_unlock(&m_config_lock);
 
@@ -1250,10 +1272,30 @@ private:
             auto map_subject = reader.GetBoolean(section, "map_subject", false);
             auto username_claim = reader.Get(section, "username_claim", "");
 
+            auto authz_strategy_str = reader.Get(section, "authorization_strategy", "");
+            uint32_t authz_strategy = 0;
+            if (authz_strategy_str.empty()) {
+                authz_strategy = IssuerAuthz::Default;
+            } else {
+                std::istringstream authz_strategy_stream(authz_strategy_str);
+                std::string authz_str;
+                while (std::getline(authz_strategy_stream, authz_str, ' ')) {
+                    if (!strcasecmp(authz_str.c_str(), "capability")) {
+                        authz_strategy |= IssuerAuthz::Capability;
+                    } else if (!strcasecmp(authz_str.c_str(), "group")) {
+                        authz_strategy |= IssuerAuthz::Group;
+                    } else if (!strcasecmp(authz_str.c_str(), "mapping")) {
+                        authz_strategy |= IssuerAuthz::Mapping;
+                    } else {
+                        m_log.Log(LogMask::Error, "Reconfig", "Unknown authorization strategy (ignoring):", authz_str.c_str());
+                    }
+                }
+            }
+
             issuers.emplace(std::piecewise_construct,
                             std::forward_as_tuple(issuer),
                             std::forward_as_tuple(name, issuer, base_paths, restricted_paths,
-                                                  map_subject, default_user, username_claim, rules));
+                                                  map_subject, authz_strategy, default_user, username_claim, rules));
         }
 
         if (issuers.empty()) {
