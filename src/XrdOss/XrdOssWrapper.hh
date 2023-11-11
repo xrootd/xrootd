@@ -509,7 +509,7 @@ virtual void      Connect(XrdOucEnv &env) {wrapPI.Connect(env);}
 
 virtual int       Create(const char *tid, const char *path, mode_t mode,
                          XrdOucEnv &env, int opts=0)
-                        {return wrapPI.Create(tid, path, mode, env);}
+                        {return wrapPI.Create(tid, path, mode, env, opts);}
 
 //-----------------------------------------------------------------------------
 //! Notify storage system that a client has disconnected.
