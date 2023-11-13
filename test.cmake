@@ -164,7 +164,11 @@ list(APPEND CTEST_NOTES_FILES ${CTEST_BINARY_DIRECTORY}/CMakeCache.txt)
 endsection()
 
 section("Build")
-ctest_build()
+ctest_build(RETURN_VALUE BUILD_RESULT)
+
+if(NOT ${BUILD_RESULT} EQUAL 0)
+  message(FATAL_ERROR "Build failed")
+endif()
 
 if(INSTALL)
   set(ENV{DESTDIR} "${CTEST_BINARY_DIRECTORY}/install")
