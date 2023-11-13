@@ -1274,7 +1274,7 @@ int XrdPssFile::Ftruncate(unsigned long long flen)
 
 int XrdPssSys::Info(int rc)
 {
-   XrdPosixXrootd::QueryError(XrdProxy.ecMsg.Msg());
+   XrdPosixXrootd::QueryError(XrdProxy::ecMsg.Msg());
    return -rc;
 }
   
