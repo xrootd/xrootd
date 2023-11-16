@@ -1,13 +1,17 @@
 FROM almalinux:9
 
 # Install tools necessary for RPM development
-RUN dnf install -y rpm-build rpmdevtools dnf-plugins-core epel-release \
+RUN dnf install -y dnf-plugins-core epel-release rpmdevtools sudo \
  && dnf config-manager --set-enabled crb
+
+# Create xrootd user to avoid running tests as root
+RUN groupadd xrootd && useradd -g xrootd -m xrootd
+
+USER xrootd
+WORKDIR /home/xrootd
 
 # Create directory tree for building RPMs
 RUN rpmdev-setuptree
-
-WORKDIR /root
 
 # XRootD source tarball must be created in the
 # current directory in order to build this image
@@ -16,31 +20,13 @@ COPY xrootd.tar.gz rpmbuild/SOURCES
 # Extract spec file to build RPMs
 RUN tar xzf rpmbuild/SOURCES/xrootd.tar.gz --strip-components=1 xrootd/xrootd.spec
 
+USER root
+
 # Install build dependencies with dnf
-RUN dnf builddep -y -D 'dist .el9' --define '_with_isal 1' --define '_with_python3 1' \
-  --define '_with_scitokens 1' --define '_with_tests 1' --define '_with_xrdclhttp 1' \
-  --define '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' xrootd.spec 
+RUN dnf builddep -y xrootd.spec
 
 # Build RPMS for XRootD
-RUN rpmbuild -bb -D 'dist .el9' --define '_with_isal 1' --define '_with_python3 1' \
-  --define '_with_scitokens 1' --define '_with_tests 1' --define '_with_xrdclhttp 1' \
-  --define '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' xrootd.spec
+RUN sudo -u xrootd rpmbuild -bb --with git xrootd.spec
 
-# Second stage, build test image
-FROM almalinux:9
-
-COPY --from=0 /root/rpmbuild/RPMS/* /tmp/
-
-# Install RPMS for XRootD and cleanup unneeded files
-RUN rm /tmp/*-{devel,doc}* \
- && dnf install -y dnf-plugins-core epel-release \
- && dnf config-manager --set-enabled crb \
- && dnf install -y /tmp/*.rpm \
- && dnf autoremove -y \
- && rm -rf /tmp/*
-
-# Copy configuration files
-COPY config/*.cfg /etc/xrootd/
-COPY scripts/setup.sh /bin/setup.sh
-
-CMD [ "/sbin/init" ]
+# Install RPMS
+RUN yum install -y rpmbuild/RPMS/*/*.rpm

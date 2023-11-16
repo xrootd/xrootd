@@ -1,9 +1,14 @@
 FROM centos:7
 
 # Install tools necessary for RPM development
-RUN yum install -y centos-release-scl epel-release rpm-build rpmdevtools yum-utils
+RUN yum install -y centos-release-scl epel-release git \
+ && yum install -y epel-rpm-macros rpmdevtools sudo yum-utils
 
-WORKDIR /root
+# Create xrootd user to avoid running tests as root
+RUN groupadd xrootd && useradd -g xrootd -m xrootd
+
+USER xrootd
+WORKDIR /home/xrootd
 
 # Create directory tree for building RPMs
 RUN rpmdev-setuptree
@@ -15,30 +20,13 @@ COPY xrootd.tar.gz rpmbuild/SOURCES
 # Extract spec file to build RPMs
 RUN tar xzf rpmbuild/SOURCES/xrootd.tar.gz --strip-components=1 xrootd/xrootd.spec
 
+USER root
+
 # Install build dependencies with yum
-RUN yum-builddep -y --define '_with_isal 1' --define '_with_python3 1' \
-  --define '_with_scitokens 1' --define '_with_tests 1' --define '_with_xrdclhttp 1' \
-  --define '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' xrootd.spec 
+RUN yum-builddep -y xrootd.spec
 
 # Build RPMS for XRootD
-RUN rpmbuild -bb --define '_with_isal 1' --define '_with_python3 1' \
-  --define '_with_scitokens 1' --define '_with_tests 1' --define '_with_xrdclhttp 1' \
-  --define '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' xrootd.spec
+RUN sudo -u xrootd rpmbuild -bb --with git xrootd.spec
 
-# Second stage, build test image
-FROM centos:7
-
-COPY --from=0 /root/rpmbuild/RPMS/* /tmp/
-
-# Install RPMS for XRootD and cleanup unneeded files
-RUN rm /tmp/*-{devel,doc}* \
- && yum install -y epel-release \
- && yum install -y wget /tmp/*.rpm \
- && yum autoremove -y \
- && rm -rf /tmp/*
-
-# Copy configuration files
-COPY config/*.cfg /etc/xrootd/
-COPY scripts/setup.sh /bin/setup.sh
-
-CMD [ "/sbin/init" ]
+# Install RPMS
+RUN yum install -y rpmbuild/RPMS/*/*.rpm

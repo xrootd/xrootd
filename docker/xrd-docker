@@ -11,10 +11,22 @@ build() {
 	${DOCKER} build -f build/Dockerfile.${OS} -t xrootd -t xrootd:${OS} .
 }
 
+
+buildx() {
+	OS=${1:-fedora}
+	ARCH=${2:-amd64}
+	ARCH=${ARCH/linux\/}
+	[[ -f xrootd.tar.gz ]] || package
+	[[ -f build/Dockerfile.${OS} ]] || die "unknwon OS: $OS"
+	${DOCKER} buildx build --platform linux/${ARCH} -f build/Dockerfile.${OS} -t xrootd:${OS}-${ARCH/\/} .
+}
+
+qemu() {
+	${DOCKER} run --rm --privileged multiarch/qemu-user-static --reset -p yes
+}
+
 clean() {
 	rm -f xrootd.tar.gz
-	${DOCKER} rm -f metaman man1 man2 srv1 srv2 srv3 srv4
-	${DOCKER} system prune -f
 }
 
 die() {
@@ -22,122 +34,14 @@ die() {
 	exit 1
 }
 
-fetch() {
-	[[ -d data/tmp ]] || mkdir -p data/tmp
-
-	pushd data >/dev/null
-
-	if ! command -v curl >/dev/null; then
-		die "curl command not availble, cannot download data"
-	fi
-
-	TEST_FILES=(
-		{data,large}.zip
-		input{1..5}.meta{4,link}
-		mlFileTest{1..4}.meta4
-		mlTpcTest.meta4
-		mlZipTest.meta4
-		tmp/{E.coli,bible.txt,world192.txt}
-		1db882c8-8cd6-4df1-941f-ce669bad3458.dat
-		3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat
-		7e480547-fe1a-4eaf-a210-0f3927751a43.dat
-		7235b5d1-cede-4700-a8f9-596506b4cc38.dat
-		89120cec-5244-444c-9313-703e4bee72de.dat
-		a048e67f-4397-4bb8-85eb-8d7e40d90763.dat
-		b3d40b3f-1d15-4ad3-8cb5-a7516acb2bab.dat
-		b74d025e-06d6-43e8-91e1-a862feb03c84.dat
-		cb4aacf1-6f28-42f2-b68a-90a73460f424.dat
-		cef4d954-936f-4945-ae49-60ec715b986e.dat
-	)
-
-	for FILE in ${TEST_FILES[@]}; do
-		if [[ ! -f ${FILE} ]]; then
-			echo ">>> Downloading ${FILE}"
-			curl -L http://xrootd.cern.ch/tests/test-files/${FILE} -o ${FILE}
-		fi
-	done
-}
-
 package() {
 	REPODIR=$(git rev-parse --show-toplevel)
 	VERSION=$(git describe ${1:-HEAD})
-
-	# sanitize version name to work with RPMs
-	VERSION=${VERSION#v} # remove "v" prefix
-	VERSION=${VERSION/-rc/~rc} # release candidates use ~ in RPMs
-	VERSION=${VERSION/-g*/} # snapshots not supported well, filter out
-	VERSION=${VERSION/-/.post} # handle git describe for post releases
-	VERSION=${VERSION//-/.} # replace remaining dashes with dots
-
-	pushd ${REPODIR} >/dev/null
 	echo Creating tarball for XRootD ${VERSION}
-	sed -e "s/__VERSION__/${VERSION}/" -e 's/__RELEASE__/1/' \
-		packaging/rhel/xrootd.spec.in >| xrootd.spec
-	git archive --prefix=xrootd/ --add-file xrootd.spec -o xrootd.tar.gz ${1:-HEAD}
-	rm xrootd.spec
+	pushd ${REPODIR} >/dev/null
+	git archive --prefix=xrootd/ -o xrootd.tar.gz ${1:-HEAD}
 	popd >/dev/null
 	mv ${REPODIR}/xrootd.tar.gz .
-}
-
-run() {
-	TEST_SUITE=(
-		Utils
-		Socket
-		Poller
-		PostMaster
-		FileSystem
-		File
-		FileCopy
-		Threading
-		LocalFileHandler
-		Workflow
-	)
-
-	for T in ${@:-${TEST_SUITE[@]}}; do
-		${DOCKER} exec -it metaman test-runner /usr/lib64/libXrdClTests.so "All Tests/${T}Test"
-	done
-
-	# XrdEc tests are not working
-	# ${DOCKER} exec -it metaman test-runner /usr/lib64/libXrdEcTests.so 'All Tests'
-}
-
-search() {
-	for container in metaman srv{1..4}; do
-		echo ${container}:
-		${DOCKER} exec ${container} find /data $@
-		echo
-	done
-}
-
-setup() {
-	${DOCKER} network create xrootd
-
-	if [[ ${DOCKER} =~ podman ]]; then
-		EXTRA_OPTS="--group-add keep-groups"
-	else
-		EXTRA_OPTS="--privileged"
-	fi
-	for container in metaman man{1,2} srv{1..4}; do
-		echo ">>> Start ${container} container"
-		[[ ${container} =~ ^man* ]] && ALIAS=--network-alias=manalias || ALIAS=''
-		${DOCKER} run -d ${EXTRA_OPTS} --name ${container} -h ${container} \
-			-v ${PWD}/data:/downloads:z --net=xrootd --network-alias=multiip ${ALIAS} \
-			--network-alias=${container} xrootd:${1:-latest} /sbin/init
-		echo ">>> Setup ${container}"
-		${DOCKER} exec ${container} setup.sh
-		echo ">>> Start xrootd and cmsd in ${container}"
-		${DOCKER} exec ${container} systemctl start xrootd@clustered
-		${DOCKER} exec ${container} systemctl start cmsd@clustered
-		echo
-	done
-
-	echo ">>> Start xrootd@srv2 in srv2"
-	${DOCKER} exec srv2 systemctl start xrootd@srv2
-	${DOCKER} ps
-}
-
-shell() {
-	${DOCKER} exec -it ${1:-metaman} /bin/bash
 }
 
 usage() {
@@ -145,19 +49,15 @@ usage() {
 	echo
 	echo COMMANDS:
 	echo
-	echo "  fetch             -- create data/ directory and download all data for running tests"
-	echo "  package [VERSION] -- create xrootd.tar.gz tarball (VERSION=HEAD by default)"
-	echo "  build [OS]        -- build docker image based on OS: centos7 (default), alma8, alma9"
-	echo "  setup [OS]        -- setup and launch all containers required to run the test suite"
-	echo "  run [TEST]        -- run [TEST] test within metaman (runs all tests if called without arguments)"
-	echo "  clean             -- clean up tarball, remove and stop all docker containers and networks"
-	echo "  shell [CONTAINER] -- start a bash shell inside container CONTAINER (default: metaman)"
+	echo "  clean              -- remove tarball created by package command"
+	echo "  package [VERSION]  -- create xrootd.tar.gz tarball (VERSION=HEAD by default)"
+	echo "  build [OS]         -- build docker image based on OS: centos7 (default), alma8, alma9"
+	echo "  buildx [OS] [ARCH] -- cross-build docker image based on OS/ARCH pair. Supported architectures"
+	echo "                        are amd64, aarch64, ppc64le, s390x (big-endian). Default OS is fedora."
+	echo "                        You can see supported platforms with docker buildx inspect --bootstrap."
+	echo "  qemu               -- setup QEMU to be able to run cross-builds with buildx command."
 	echo
-	echo "  A complete run of the test suite requires running the following commands:"
-	echo ""
-	echo "    fetch, package, build, setup, run, clean"
-	echo ""
-	echo "  The fetch command needs to be run only once to download testing data."
+	echo "  Note: The test suite runs automatically during the container builds"
 	echo
 }
 

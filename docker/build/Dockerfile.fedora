@@ -1,8 +1,8 @@
-FROM almalinux:8
+ARG version=rawhide
+FROM fedora:$version
 
 # Install tools necessary for RPM development
-RUN dnf install -y dnf-plugins-core epel-release rpmdevtools sudo \
- && dnf config-manager --set-enabled powertools
+RUN dnf install -y dnf-plugins-core rpmdevtools sudo
 
 # Create xrootd user to avoid running tests as root
 RUN groupadd xrootd && useradd -g xrootd -m xrootd

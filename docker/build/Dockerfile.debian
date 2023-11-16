@@ -1,0 +1,31 @@
+ARG version=12
+FROM debian:$version
+
+RUN apt update
+RUN apt install -y build-essential devscripts equivs sudo
+
+# Create xrootd user to avoid running tests as root
+RUN groupadd xrootd && useradd -g xrootd -m xrootd
+
+USER xrootd
+WORKDIR /home/xrootd
+
+# XRootD source tarball must be created in the
+# current directory in order to build this image
+COPY xrootd.tar.gz .
+
+# Extract tarball
+RUN tar xzf xrootd.tar.gz
+
+USER root
+WORKDIR /home/xrootd/xrootd
+
+# Install build dependencies with dnf
+RUN echo yes | mk-build-deps --install --remove debian/control
+
+# Build DEB packages for XRootD
+RUN export VERSION=$(sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./' < VERSION)  \
+ && sudo -u xrootd dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.' \
+ && sudo -u xrootd debuild --no-tgz-check --no-sign -b
+
+RUN apt install -y ../*.d*eb
