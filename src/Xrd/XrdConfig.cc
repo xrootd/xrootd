@@ -1102,7 +1102,7 @@ bool XrdConfig::PidFile(const char *clpFN, bool optbg)
 // Create the path if it does not exist and write out the pid
 //
    if ((rc = XrdOucUtils::makePath(ppath,XrdOucUtils::pathMode)))
-      {xop = "create"; errno = rc;}
+      {xop = "create"; snprintf(pidFN, sizeof(pidFN), "%s", ppath); errno = rc;}
       else {snprintf(pidFN, sizeof(pidFN), "%s/%s.pid", ppath, myProg);
 
            if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
