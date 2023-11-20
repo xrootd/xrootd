@@ -532,6 +532,7 @@ public:
         new_secentity.grps = nullptr;
         new_secentity.role = nullptr;
         new_secentity.secMon = Entity->secMon;
+        new_secentity.addrInfo = Entity->addrInfo;
         const auto &issuer = access_rules->get_issuer();
         if (!issuer.empty()) {
             new_secentity.vorg = strdup(issuer.c_str());
