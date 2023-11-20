@@ -745,7 +745,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Load certificate
 //
-   if (SSL_CTX_use_certificate_file(pImpl->ctx, cert, SSL_FILETYPE_PEM) != 1)
+   if (SSL_CTX_use_certificate_chain_file(pImpl->ctx, cert) != 1)
       FATAL_SSL("Unable to create TLS context; invalid certificate.");
 
 // Load the private key
