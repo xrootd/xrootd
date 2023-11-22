@@ -280,6 +280,8 @@ int main( int argc, char **argv )
          pdots("Loading CA certificate", 1);
       } else {
          pdots("Loading CA certificate", 0);
+         rCAfound = 0;
+         break;
       }
       // Check if self-signed
       if (!strcmp(xCA[nCA]->IssuerHash(), xCA[nCA]->SubjectHash())) {
@@ -329,7 +331,7 @@ int main( int argc, char **argv )
    pline("Testing ExportChain");
    XrdCryptoX509ExportChain_t ExportChain = gCryptoFactory->X509ExportChain();
    XrdSutBucket *chainbck = 0;
-   if (ExportChain) {
+   if (ExportChain && chain->End()) {
       chainbck = (*ExportChain)(chain, 0);
       pdots("Attach to X509ExportChain", 1);
    } else {
