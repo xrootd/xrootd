@@ -34,6 +34,8 @@
 
 #include "XrdZip/XrdZipCDFH.hh"
 
+#include "XrdSys/XrdSysPlatform.hh"
+
 #include <string>
 #include <memory>
 #include <limits>
@@ -280,7 +282,9 @@ void MicroTest::Init( bool usecrc32c )
   objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, usecrc32c, true ) );
   rawdata.clear();
 
-  char tmpdir[32] = "/tmp/xrootd-xrdec-XXXXXX";
+  char tmpdir[MAXPATHLEN];
+  CPPUNIT_ASSERT( getcwd(tmpdir, MAXPATHLEN - 21) );
+  strcat(tmpdir, "/xrootd-xrdec-XXXXXX");
   // create the data directory
   CPPUNIT_ASSERT( mkdtemp(tmpdir) );
   datadir = tmpdir;

@@ -39,7 +39,7 @@ ${XRDFS} ${HOST} statvfs /
 ${XRDFS} ${HOST} spaceinfo /
 
 # create local temporary directory
-TMPDIR=$(mktemp -d /tmp/xrdfs-test-XXXXXX)
+TMPDIR=$(mktemp -d ${PWD}/xrdfs-test-XXXXXX)
 
 # cleanup after ourselves if something fails
 trap "rm -rf ${TMPDIR}" EXIT
