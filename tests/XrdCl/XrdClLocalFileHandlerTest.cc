@@ -168,7 +168,7 @@ TEST_F(LocalFileHandlerTest, WriteTest){
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
    //----------------------------------------------------------------------------
-   int fd = open( targetURL.c_str(), flags );
+   int fd = open( targetURL.c_str(), O_RDWR );
    int rc = read( fd, buffer, int( writeSize ) );
    EXPECT_EQ( rc, int( writeSize ) );
    std::string read( (char *)buffer, writeSize );
@@ -202,7 +202,7 @@ TEST_F(LocalFileHandlerTest, WriteWithOffsetTest){
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
    //----------------------------------------------------------------------------
-   int fd = open( targetURL.c_str(), flags );
+   int fd = open( targetURL.c_str(), O_RDWR );
    int rc = read( fd, buffer, offset );
    EXPECT_EQ( rc, int( offset ) );
    std::string read( (char *)buffer, offset );
@@ -233,7 +233,7 @@ TEST_F(LocalFileHandlerTest, WriteMkdirTest){
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
    //----------------------------------------------------------------------------
-   int fd = open( targetURL.c_str(), flags );
+   int fd = open( targetURL.c_str(), O_RDWR );
    int rc = read( fd, buffer, writeSize );
    EXPECT_EQ( rc, int( writeSize ) );
    std::string read( buffer, writeSize );
