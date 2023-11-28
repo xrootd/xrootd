@@ -222,9 +222,9 @@ void FileTest::ReadTest()
   std::string localFilePath = localDataPath + "/srv1" + filePath;
 
   int rc = stat(localFilePath.c_str(), &localStatBuf);
-  EXPECT_TRUE( rc == 0 );
+  EXPECT_EQ( rc, 0 );
   uint64_t fileSize = localStatBuf.st_size;
-  EXPECT_TRUE( statInfo->GetSize() == fileSize );
+  EXPECT_EQ( statInfo->GetSize(), fileSize );
   EXPECT_TRUE( statInfo->TestFlags( StatInfo::IsReadable ) );
 
   delete statInfo;
@@ -235,7 +235,7 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Stat( true, statInfo ) );
   EXPECT_TRUE( statInfo );
-  EXPECT_TRUE( statInfo->GetSize() == fileSize );
+  EXPECT_EQ( statInfo->GetSize(), fileSize );
   EXPECT_TRUE( statInfo->TestFlags( StatInfo::IsReadable ) );
   delete statInfo;
 
@@ -244,8 +244,8 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Read( 5*MB, 5*MB, buffer1, bytesRead1 ) );
   GTEST_ASSERT_XRDST( f.Read( fileSize - 3*MB, 4*MB, buffer2, bytesRead2 ) );
-  EXPECT_TRUE( bytesRead1 == 5*MB );
-  EXPECT_TRUE( bytesRead2 == 3*MB );
+  EXPECT_EQ( bytesRead1, 5*MB );
+  EXPECT_EQ( bytesRead2, 3*MB );
 
   uint32_t crc = XrdClTests::Utils::ComputeCRC32( buffer1, 5*MB );
 
@@ -257,13 +257,13 @@ void FileTest::ReadTest()
   // compute and compare local file buffer crc
   uint32_t crcComp = XrdClTests::Utils::ComputeCRC32( buffer1Comp, 5*MB );
 
-  EXPECT_TRUE( crc == crcComp );
+  EXPECT_EQ( crc, crcComp );
 
   // do the same for the second buffer
   crc = XrdClTests::Utils::ComputeCRC32( buffer2, 3*MB );
   crcComp = XrdClTests::Utils::ComputeCRC32( buffer2Comp, 3*MB );
 
-  EXPECT_TRUE( crc == crcComp );
+  EXPECT_EQ( crc, crcComp );
 
   // cleanup after ourselves
   delete [] buffer1;
@@ -314,7 +314,7 @@ void FileTest::ReadTest()
               result.assign( static_cast<char*>(c.buffer), c.length );
           }
       ) );
-    EXPECT_TRUE( testset[i].expected == result );
+    EXPECT_EQ( testset[i].expected, result );
   }
 
   GTEST_ASSERT_XRDST( WaitFor( CloseArchive( zip ) ) );
@@ -358,8 +358,8 @@ void FileTest::WriteTest()
   uint32_t bytesRead2 = 0;
   File f1, f2;
 
-  EXPECT_TRUE( XrdClTests::Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
-  EXPECT_TRUE( XrdClTests::Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
+  EXPECT_EQ( XrdClTests::Utils::GetRandomBytes( buffer1, 4*MB ), 4*MB );
+  EXPECT_EQ( XrdClTests::Utils::GetRandomBytes( buffer2, 4*MB ), 4*MB );
   uint32_t crc1 = XrdClTests::Utils::ComputeCRC32( buffer1, 4*MB );
   crc1 = XrdClTests::Utils::UpdateCRC32( crc1, buffer2, 4*MB );
 
@@ -381,15 +381,15 @@ void FileTest::WriteTest()
   EXPECT_TRUE( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
   EXPECT_TRUE( f2.Stat( false, statInfo ).IsOK() );
   EXPECT_TRUE( statInfo );
-  EXPECT_TRUE( statInfo->GetSize() == 8*MB );
+  EXPECT_EQ( statInfo->GetSize(), 8*MB );
   EXPECT_TRUE( f2.Read( 0, 4*MB, buffer3, bytesRead1 ).IsOK() );
   EXPECT_TRUE( f2.Read( 4*MB, 4*MB, buffer4, bytesRead2 ).IsOK() );
-  EXPECT_TRUE( bytesRead1 == 4*MB );
-  EXPECT_TRUE( bytesRead2 == 4*MB );
+  EXPECT_EQ( bytesRead1, 4*MB );
+  EXPECT_EQ( bytesRead2, 4*MB );
   uint32_t crc2 = XrdClTests::Utils::ComputeCRC32( buffer3, 4*MB );
   crc2 = XrdClTests::Utils::UpdateCRC32( crc2, buffer4, 4*MB );
   EXPECT_TRUE( f2.Close().IsOK() );
-  EXPECT_TRUE( crc1 == crc2 );
+  EXPECT_EQ( crc1, crc2 );
 
   //----------------------------------------------------------------------------
   // Truncate test
@@ -402,7 +402,7 @@ void FileTest::WriteTest()
   StatInfo *response = 0;
   EXPECT_TRUE( fs.Stat( filePath, response ).IsOK() );
   EXPECT_TRUE( response );
-  EXPECT_TRUE( response->GetSize() == 20*MB );
+  EXPECT_EQ( response->GetSize(), 20*MB );
   EXPECT_TRUE( fs.Rm( filePath ).IsOK() );
   delete [] buffer1;
   delete [] buffer2;
@@ -447,8 +447,8 @@ void FileTest::WriteVTest()
   uint32_t bytesRead1 = 0;
   File f1, f2;
 
-  EXPECT_TRUE( XrdClTests::Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
-  EXPECT_TRUE( XrdClTests::Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
+  EXPECT_EQ( XrdClTests::Utils::GetRandomBytes( buffer1, 4*MB ), 4*MB );
+  EXPECT_EQ( XrdClTests::Utils::GetRandomBytes( buffer2, 4*MB ), 4*MB );
   uint32_t crc1 = XrdClTests::Utils::ComputeCRC32( buffer1, 4*MB );
   crc1 = XrdClTests::Utils::UpdateCRC32( crc1, buffer2, 4*MB );
 
@@ -478,13 +478,13 @@ void FileTest::WriteVTest()
   EXPECT_TRUE( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
   EXPECT_TRUE( f2.Stat( false, statInfo ).IsOK() );
   EXPECT_TRUE( statInfo );
-  EXPECT_TRUE( statInfo->GetSize() == 8*MB );
+  EXPECT_EQ( statInfo->GetSize(), 8*MB );
   EXPECT_TRUE( f2.Read( 0, 8*MB, buffer3, bytesRead1 ).IsOK() );
-  EXPECT_TRUE( bytesRead1 == 8*MB );
+  EXPECT_EQ( bytesRead1, 8*MB );
 
   uint32_t crc2 = XrdClTests::Utils::ComputeCRC32( buffer3, 8*MB );
   EXPECT_TRUE( f2.Close().IsOK() );
-  EXPECT_TRUE( crc1 == crc2 );
+  EXPECT_EQ( crc1, crc2 );
 
   FileSystem fs( url );
   EXPECT_TRUE( fs.Rm( filePath ).IsOK() );
@@ -554,37 +554,37 @@ void FileTest::VectorReadTest()
   // remote file vread1
   VectorReadInfo *info = 0;
   GTEST_ASSERT_XRDST( f.VectorRead( chunkList1, buffer1, info ) );
-  EXPECT_TRUE( info->GetSize() == 10*MB );
+  EXPECT_EQ( info->GetSize(), 10*MB );
   delete info;
 
   // local file vread1
   info = 0;
   GTEST_ASSERT_XRDST( fLocal.VectorRead( chunkList1, buffer1Comp, info ) );
-  EXPECT_TRUE( info->GetSize() == 10*MB );
+  EXPECT_EQ( info->GetSize(), 10*MB );
   delete info;
 
   // checksum comparison
   uint32_t crc = 0, crcComp = 0;
   crc = XrdClTests::Utils::ComputeCRC32( buffer1, 10*MB );
   crcComp = XrdClTests::Utils::ComputeCRC32( buffer1Comp, 10*MB );
-  EXPECT_TRUE( crc == crcComp );
+  EXPECT_EQ( crc, crcComp );
 
   // remote vread2
   info = 0;
   GTEST_ASSERT_XRDST( f.VectorRead( chunkList2, buffer2, info ) );
-  EXPECT_TRUE( info->GetSize() == 10*256000 );
+  EXPECT_EQ( info->GetSize(), 10*256000 );
   delete info;
 
   // local vread2
   info = 0;
   GTEST_ASSERT_XRDST( f.VectorRead( chunkList2, buffer2Comp, info ) );
-  EXPECT_TRUE( info->GetSize() == 10*256000 );
+  EXPECT_EQ( info->GetSize(), 10*256000 );
   delete info;
 
   // checksum comparison again
   crc = XrdClTests::Utils::ComputeCRC32( buffer2, 10*256000 );
   crcComp = XrdClTests::Utils::ComputeCRC32( buffer2Comp, 10*256000 );
-  EXPECT_TRUE( crc == crcComp );
+  EXPECT_EQ( crc, crcComp );
 
   // cleanup
   GTEST_ASSERT_XRDST( f.Close() );
@@ -704,9 +704,9 @@ void FileTest::VectorWriteTest()
   VectorReadInfo *info2 = 0;
   GTEST_ASSERT_XRDST( f.VectorRead( chunks, buffer2, info2 ) );
 
-  EXPECT_TRUE( info2->GetSize() == totalSize );
+  EXPECT_EQ( info2->GetSize(), totalSize );
   uint32_t crc32 = XrdClTests::Utils::ComputeCRC32( buffer2, totalSize );
-  EXPECT_TRUE( crc32 == expectedCrc32 );
+  EXPECT_EQ( crc32, expectedCrc32 );
 
   //----------------------------------------------------------------------------
   // And finally revert to the original state
@@ -761,7 +761,7 @@ void FileTest::VirtualRedirectorTest()
   GTEST_ASSERT_XRDST( f1.Open( mlUrl1, OpenFlags::Read ) );
   EXPECT_TRUE( f1.GetProperty( key, value ) );
   URL lastUrl( value );
-  EXPECT_TRUE( lastUrl.GetLocation() == fileUrl );
+  EXPECT_EQ( lastUrl.GetLocation(), fileUrl );
   GTEST_ASSERT_XRDST( f1.Close() );
 
   //----------------------------------------------------------------------------
@@ -771,7 +771,7 @@ void FileTest::VirtualRedirectorTest()
   GTEST_ASSERT_XRDST( f2.Open( mlUrl2, OpenFlags::Read ) );
   EXPECT_TRUE( f2.GetProperty( key, value ) );
   URL lastUrl2( value );
-  EXPECT_TRUE( lastUrl2.GetLocation() == fileUrl );
+  EXPECT_EQ( lastUrl2.GetLocation(), fileUrl );
   GTEST_ASSERT_XRDST( f2.Close() );
 
   //----------------------------------------------------------------------------
@@ -796,7 +796,7 @@ void FileTest::VirtualRedirectorTest()
   GTEST_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
   EXPECT_TRUE( f4.GetProperty( key, value ) );
   URL lastUrl3( value );
-  EXPECT_TRUE( lastUrl3.GetLocation() == replica1 );
+  EXPECT_EQ( lastUrl3.GetLocation(), replica1 );
   GTEST_ASSERT_XRDST( f4.Close() );
   //----------------------------------------------------------------------------
   // Delete the replica that has been selected by the virtual redirector
@@ -809,7 +809,7 @@ void FileTest::VirtualRedirectorTest()
   GTEST_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
   EXPECT_TRUE( f4.GetProperty( key, value ) );
   URL lastUrl4( value );
-  EXPECT_TRUE( lastUrl4.GetLocation() == replica2 );
+  EXPECT_EQ( lastUrl4.GetLocation(), replica2 );
   GTEST_ASSERT_XRDST( f4.Close() );
   //----------------------------------------------------------------------------
   // Recreate the deleted file
@@ -886,8 +886,8 @@ void FileTest::XAttrTest()
   {
     GTEST_ASSERT_XRDST( itr3->status );
     auto match = attributes.find( itr3->name );
-    EXPECT_TRUE( match != attributes.end() );
-    EXPECT_TRUE( match->second == itr3->value );
+    EXPECT_NE( match, attributes.end() );
+    EXPECT_EQ( match->second, itr3->value );
   }
 
   //----------------------------------------------------------------------------
@@ -900,8 +900,8 @@ void FileTest::XAttrTest()
   {
     GTEST_ASSERT_XRDST( itr3->status );
     auto match = attributes.find( itr3->name );
-    EXPECT_TRUE( match != attributes.end() );
-    EXPECT_TRUE( match->second == itr3->value );
+    EXPECT_NE( match, attributes.end() );
+    EXPECT_EQ( match->second, itr3->value );
   }
 
   //----------------------------------------------------------------------------

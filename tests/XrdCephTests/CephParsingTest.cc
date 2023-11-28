@@ -69,12 +69,12 @@ void checkResult(CephFile a, CephFile b) {
             << " / " << b.name << " " << b.pool << " " << b.userId
             << " " << b.nbStripes << " " << b.stripeUnit << " " << b.objectSize
             << std::endl;
-  CPPUNIT_ASSERT(a.name == b.name);
-  CPPUNIT_ASSERT(a.pool == b.pool);
-  CPPUNIT_ASSERT(a.userId == b.userId);
-  CPPUNIT_ASSERT(a.nbStripes == b.nbStripes);
-  CPPUNIT_ASSERT(a.stripeUnit == b.stripeUnit);
-  CPPUNIT_ASSERT(a.objectSize == b.objectSize);
+  CPPUNIT_ASSERT_EQUAL(a.name, b.name);
+  CPPUNIT_ASSERT_EQUAL(a.pool, b.pool);
+  CPPUNIT_ASSERT_EQUAL(a.userId, b.userId);
+  CPPUNIT_ASSERT_EQUAL(a.nbStripes, b.nbStripes);
+  CPPUNIT_ASSERT_EQUAL(a.stripeUnit, b.stripeUnit);
+  CPPUNIT_ASSERT_EQUAL(a.objectSize, b.objectSize);
 }
 
 //------------------------------------------------------------------------------
