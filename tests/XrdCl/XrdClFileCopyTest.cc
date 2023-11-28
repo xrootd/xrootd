@@ -76,7 +76,7 @@ void FileCopyTest::DownloadTestFunc()
 
   const uint32_t  MB = 1024*1024;
   char           *buffer = new char[4*MB];
-  StatInfo       *stat = 0;
+  StatInfo       *stat = nullptr;
   File            f;
 
   //----------------------------------------------------------------------------
@@ -120,7 +120,7 @@ void FileCopyTest::DownloadTestFunc()
   EXPECT_TRUE( f.GetProperty( "LastURL", lastUrl ) );
   GTEST_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
                                                   URL( lastUrl ) ) );
-  EXPECT_TRUE( remoteSum == transferSum );
+  EXPECT_EQ( remoteSum, transferSum );
 
   delete stat;
   delete crc32Sum;
@@ -185,7 +185,7 @@ void FileCopyTest::UploadTestFunc()
     offset += bytesRead;
   }
 
-  EXPECT_TRUE( bytesRead >= 0 );
+  EXPECT_GE( bytesRead, 0 );
   close( fd );
   GTEST_ASSERT_XRDST( f.Close() );
   delete [] buffer;
@@ -194,20 +194,20 @@ void FileCopyTest::UploadTestFunc()
   // Find out which server has the file
   //----------------------------------------------------------------------------
   FileSystem  fs( url );
-  LocationInfo *locations = 0;
+  LocationInfo *locations = nullptr;
   GTEST_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
   EXPECT_TRUE( locations );
-  EXPECT_TRUE( locations->GetSize() != 0 );
+  EXPECT_NE( locations->GetSize(), 0 );
   FileSystem fs1( locations->Begin()->GetAddress() );
   delete locations;
 
   //----------------------------------------------------------------------------
   // Verify the size
   //----------------------------------------------------------------------------
-  StatInfo   *stat = 0;
+  StatInfo   *stat = nullptr;
   GTEST_ASSERT_XRDST( fs1.Stat( remoteFile, stat ) );
   EXPECT_TRUE( stat );
-  EXPECT_TRUE( stat->GetSize() == offset );
+  EXPECT_EQ( stat->GetSize(), offset );
 
   //----------------------------------------------------------------------------
   // Compare the checksums
@@ -220,7 +220,7 @@ void FileCopyTest::UploadTestFunc()
   f.GetProperty( "LastURL", lastUrl );
   GTEST_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
                                                   lastUrl ) );
-  EXPECT_TRUE( remoteSum == transferSum );
+  EXPECT_EQ( remoteSum, transferSum );
 
   //----------------------------------------------------------------------------
   // Delete the file
@@ -400,9 +400,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     GTEST_ASSERT_XRDST( process12.AddJob( properties, &results ) );
     GTEST_ASSERT_XRDST( process12.Prepare() );
     GTEST_ASSERT_XRDST_NOTOK( process12.Run(0), XrdCl::errCheckSumError );
-    XrdCl::StatInfo *info = 0;
-    XrdCl::XRootDStatus status = fs.Stat( targetPath, info );
-    GTEST_ASSERT_XRDST( status.status == XrdCl::stError && status.code == XrdCl::errNotFound );
+    XrdCl::StatInfo *info = nullptr;
+    GTEST_ASSERT_XRDST_NOTOK( fs.Stat( targetPath, info ), XrdCl::errErrorResponse );
     properties.Clear();
 
     //--------------------------------------------------------------------------
@@ -539,7 +538,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::vector<xattr_t> attrs; attrs.push_back( xattr_t( "foo", "bar" ) );
   std::vector<XAttrStatus> result;
   GTEST_ASSERT_XRDST( lf.SetXAttr( attrs, result ) );
-  EXPECT_TRUE( result.size() == 1 );
+  EXPECT_EQ( result.size(), 1 );
   GTEST_ASSERT_XRDST( result.front().status );
   GTEST_ASSERT_XRDST( lf.Close() );
 
@@ -557,16 +556,17 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // now test if the xattrs were preserved
   std::vector<XAttr> xattrs;
   GTEST_ASSERT_XRDST( fs.ListXAttr( targetPath, xattrs ) );
-  EXPECT_TRUE( xattrs.size() == 1 );
+  EXPECT_EQ( xattrs.size(), 1 );
   XAttr &xattr = xattrs.front();
   GTEST_ASSERT_XRDST( xattr.status );
-  EXPECT_TRUE( xattr.name == "foo" && xattr.value == "bar" );
+  EXPECT_EQ( xattr.name, "foo" );
+  EXPECT_EQ( xattr.value, "bar" );
 
   //----------------------------------------------------------------------------
   // Cleanup
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
-  EXPECT_TRUE( remove( localFile.c_str() ) == 0 );
+  EXPECT_EQ( remove( localFile.c_str() ), 0 );
 
   //----------------------------------------------------------------------------
   // Initialize and run the copy

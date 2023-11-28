@@ -79,14 +79,14 @@ TEST_F(ZipTest, OpenFileTest){
 TEST_F(ZipTest, ListFileTest) {
   DirectoryList* dummy_list;
   GTEST_ASSERT_XRDST(zip_file.List(dummy_list));
-  EXPECT_TRUE(dummy_list != NULL);
+  EXPECT_TRUE(dummy_list);
 }
 
 TEST_F(ZipTest, GetterTests) {
   // Get file
   File* file = NULL;
   file = &(zip_file.GetFile());
-  EXPECT_TRUE(file != NULL);
+  EXPECT_TRUE(file);
 
   // Get checksum
   uint32_t cksum;
