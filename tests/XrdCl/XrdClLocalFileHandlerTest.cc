@@ -91,10 +91,10 @@ void LocalFileHandlerTest::readTestFunc(bool offsetRead, uint32_t offset){
    GTEST_ASSERT_XRDST( file->Close() );
 
    std::string read( buffer, size );
-   if (offsetRead) EXPECT_TRUE( expectedRead == read );
-   else EXPECT_TRUE( toBeWritten == read );
+   if (offsetRead) EXPECT_EQ( expectedRead, read );
+   else EXPECT_EQ( toBeWritten, read );
 
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 
    delete[] buffer;
    delete file;
@@ -115,7 +115,7 @@ TEST_F(LocalFileHandlerTest, SyncTest){
    GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
    GTEST_ASSERT_XRDST( file->Sync() );
    GTEST_ASSERT_XRDST( file->Close() );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
    delete file;
 }
 
@@ -133,7 +133,7 @@ TEST_F(LocalFileHandlerTest, OpenCloseTest){
    GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
    EXPECT_TRUE( file->IsOpen() );
    GTEST_ASSERT_XRDST( file->Close() );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 
    //----------------------------------------------------------------------------
    // Try open non-existing file
@@ -144,7 +144,7 @@ TEST_F(LocalFileHandlerTest, OpenCloseTest){
    //----------------------------------------------------------------------------
    // Try close non-opened file, return has to be error
    //----------------------------------------------------------------------------
-   EXPECT_TRUE( file->Close().status == stError );
+   EXPECT_EQ( file->Close().status, stError );
    delete file;
 }
 
@@ -173,8 +173,8 @@ TEST_F(LocalFileHandlerTest, WriteTest){
    int rc = read( fd, buffer, int( writeSize ) );
    EXPECT_EQ( rc, int( writeSize ) );
    std::string read( (char *)buffer, writeSize );
-   EXPECT_TRUE( toBeWritten == read );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( toBeWritten, read );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
    delete[] buffer;
    delete file;
 }
@@ -207,8 +207,8 @@ TEST_F(LocalFileHandlerTest, WriteWithOffsetTest){
    int rc = read( fd, buffer, offset );
    EXPECT_EQ( rc, int( offset ) );
    std::string read( (char *)buffer, offset );
-   EXPECT_TRUE( notToBeOverwritten == read );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( notToBeOverwritten, read );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
    delete[] (char*)buffer;
    delete file;
 }
@@ -238,8 +238,8 @@ TEST_F(LocalFileHandlerTest, WriteMkdirTest){
    int rc = read( fd, buffer, writeSize );
    EXPECT_EQ( rc, int( writeSize ) );
    std::string read( buffer, writeSize );
-   EXPECT_TRUE( toBeWritten == read );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( toBeWritten, read );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
    delete[] buffer;
    delete file;
 }
@@ -278,7 +278,7 @@ TEST_F(LocalFileHandlerTest, TruncateTest){
    GTEST_ASSERT_XRDST( file->Read( 0, truncateSize + 3, buffer, bytesRead ) );
    EXPECT_EQ( truncateSize, bytesRead );
    GTEST_ASSERT_XRDST( file->Close() );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
    delete file;
    delete[] buffer;
 }
@@ -311,7 +311,7 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
    chunks.push_back( ChunkInfo( 10, 5, new char[5] ) );
    GTEST_ASSERT_XRDST( file.VectorRead( chunks, NULL, info ) );
    GTEST_ASSERT_XRDST( file.Close() );
-   EXPECT_TRUE( info->GetSize() == 10 );
+   EXPECT_EQ( info->GetSize(), 10 );
    EXPECT_EQ( 0, memcmp( "Gener",
                                     info->GetChunks()[0].buffer,
                                     info->GetChunks()[0].length ) );
@@ -334,11 +334,11 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
    GTEST_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
    GTEST_ASSERT_XRDST( file.VectorRead( chunks, buffer, info ) );
    GTEST_ASSERT_XRDST( file.Close() );
-   EXPECT_TRUE( info->GetSize() == 10 );
+   EXPECT_EQ( info->GetSize(), 10 );
    EXPECT_EQ( 0, memcmp( "GenertFile",
                                     info->GetChunks()[0].buffer,
                                     info->GetChunks()[0].length ) );
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 
    delete[] buffer;
    delete info;
@@ -387,14 +387,14 @@ TEST_F(LocalFileHandlerTest, VectorWriteTest)
    EXPECT_EQ( 0, memcmp( buffer, "AAAAABBBBB", 10 ) );
 
    GTEST_ASSERT_XRDST( file.Close() );
-   EXPECT_TRUE( info->GetSize() == 10 );
+   EXPECT_EQ( info->GetSize(), 10 );
 
    delete[] (char*)chunks[0].buffer;
    delete[] (char*)chunks[1].buffer;
    delete[] buffer;
    delete   info;
 
-   EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 }
 
 TEST_F(LocalFileHandlerTest, WriteVTest)
@@ -429,11 +429,11 @@ TEST_F(LocalFileHandlerTest, WriteVTest)
   uint32_t bytesRead = 0;
   buffer.resize( 17 );
   GTEST_ASSERT_XRDST( file.Read( 0, 17, buffer.data(), bytesRead ) );
-  EXPECT_TRUE( buffer.size() == 17 );
+  EXPECT_EQ( buffer.size(), 17 );
   std::string expected = "GenericWriteVTest";
-  EXPECT_TRUE( std::string( buffer.data(), buffer.size() ) == expected );
+  EXPECT_EQ( std::string( buffer.data(), buffer.size() ), expected );
   GTEST_ASSERT_XRDST( file.Close() );
-  EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+  EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 }
 
 TEST_F(LocalFileHandlerTest, XAttrTest)
@@ -450,7 +450,7 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   std::string localDataPath;
   EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
 
-  char resolved_path[MAXPATHLEN];
+  char resolved_path[PATH_MAX];
   localDataPath = realpath(localDataPath.c_str(), resolved_path);
 
   std::string targetURL = localDataPath + "/metaman/lfilehandlertestfilexattr";
@@ -487,13 +487,13 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   GTEST_ASSERT_XRDST( resp[0].status );
   GTEST_ASSERT_XRDST( resp[1].status );
 
-  EXPECT_TRUE( resp.size() == 2 );
+  EXPECT_EQ( resp.size(), 2 );
   int vid = resp[0].name == "version" ? 0 : 1;
   int did = vid == 0 ? 1 : 0;
-  EXPECT_TRUE( resp[vid].name == "version" &&
-                  resp[vid].value == "v3.3.3" );
-  EXPECT_TRUE( resp[did].name == "description" &&
-                  resp[did].value == "a very important file" );
+  EXPECT_EQ( resp[vid].name, std::string("version") );
+  EXPECT_EQ( resp[vid].value, std::string("v3.3.3") );
+  EXPECT_EQ( resp[did].name, std::string("description") );
+  EXPECT_EQ( resp[did].value, std::string("a very important file") );
 
   //----------------------------------------------------------------------------
   // Test XAttr Del
@@ -502,7 +502,7 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   names.push_back( "description" );
   st_resp.clear();
   GTEST_ASSERT_XRDST( f.DelXAttr( names, st_resp ) );
-  EXPECT_TRUE( st_resp.size() == 1 );
+  EXPECT_EQ( st_resp.size(), 1 );
   GTEST_ASSERT_XRDST( st_resp[0].status );
 
   //----------------------------------------------------------------------------
@@ -510,17 +510,17 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   //----------------------------------------------------------------------------
   resp.clear();
   GTEST_ASSERT_XRDST( f.ListXAttr( resp ) );
-  EXPECT_TRUE( resp.size() == 2 );
+  EXPECT_EQ( resp.size(), 2 );
   vid = resp[0].name == "version" ? 0 : 1;
   int cid = vid == 0 ? 1 : 0;
-  EXPECT_TRUE( resp[vid].name == "version" &&
-                  resp[vid].value == "v3.3.3" );
-  EXPECT_TRUE( resp[cid].name == "checksum" &&
-                  resp[cid].value == "0x22334455" );
+  EXPECT_EQ( resp[vid].name, std::string("version") );
+  EXPECT_EQ( resp[vid].value, std::string("v3.3.3") );
+  EXPECT_EQ( resp[cid].name, std::string("checksum") );
+  EXPECT_EQ( resp[cid].value, std::string("0x22334455") );
 
   //----------------------------------------------------------------------------
   // Cleanup
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Close() );
-  EXPECT_TRUE( remove( targetURL.c_str() ) == 0 );
+  EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 }

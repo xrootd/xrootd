@@ -182,7 +182,7 @@ void FileSystemTest::LocateTest()
   LocationInfo *locations = 0;
   GTEST_ASSERT_XRDST( fs.Locate( remoteFile, OpenFlags::Refresh, locations ) );
   EXPECT_TRUE( locations );
-  EXPECT_TRUE( locations->GetSize() != 0 );
+  EXPECT_NE( locations->GetSize(), 0 );
   delete locations;
 }
 
@@ -260,7 +260,7 @@ void FileSystemTest::ServerQueryTest()
   arg.FromString( remoteFile );
   GTEST_ASSERT_XRDST( fs.Query( QueryCode::Checksum, arg, response ) );
   EXPECT_TRUE( response );
-  EXPECT_TRUE( response->GetSize() != 0 );
+  EXPECT_NE( response->GetSize(), 0 );
   delete response;
 }
 
@@ -404,7 +404,7 @@ void FileSystemTest::StatTest()
 
   struct stat localStatBuf;
   int rc = stat(localFilePath.c_str(), &localStatBuf);
-  EXPECT_TRUE( rc == 0 );
+  EXPECT_EQ( rc, 0 );
   uint64_t fileSize = localStatBuf.st_size;
 
   URL url( address );
@@ -414,7 +414,7 @@ void FileSystemTest::StatTest()
   StatInfo *response = 0;
   GTEST_ASSERT_XRDST( fs.Stat( remoteFile, response ) );
   EXPECT_TRUE( response );
-  EXPECT_TRUE( response->GetSize() == fileSize );
+  EXPECT_EQ( response->GetSize(), fileSize );
   EXPECT_TRUE( response->TestFlags( StatInfo::IsReadable ) );
   EXPECT_TRUE( response->TestFlags( StatInfo::IsWritable ) );
   EXPECT_TRUE( !response->TestFlags( StatInfo::IsDir ) );
@@ -496,7 +496,7 @@ void FileSystemTest::DeepLocateTest()
   LocationInfo *locations = 0;
   GTEST_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
   EXPECT_TRUE( locations );
-  EXPECT_TRUE( locations->GetSize() != 0 );
+  EXPECT_NE( locations->GetSize(), 0 );
   LocationInfo::Iterator it = locations->Begin();
   for( ; it != locations->End(); ++it )
     EXPECT_TRUE( it->IsServer() );
@@ -534,7 +534,7 @@ void FileSystemTest::DirListTest()
   DirectoryList *list = 0;
   GTEST_ASSERT_XRDST( fs.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list ) );
   EXPECT_TRUE( list );
-  EXPECT_TRUE( list->GetSize() == 4000 );
+  EXPECT_EQ( list->GetSize(), 4000 );
 
   std::set<std::string> dirls1;
   for( auto itr = list->Begin(); itr != list->End(); ++itr )
@@ -575,7 +575,7 @@ void FileSystemTest::DirListTest()
   delete info;
   info = 0;
 
-  EXPECT_TRUE( dirls1 == dirls2 );
+  EXPECT_EQ( dirls1, dirls2 );
 
   //----------------------------------------------------------------------------
   // Now list an empty directory
@@ -587,7 +587,7 @@ void FileSystemTest::DirListTest()
   FileSystem fs3( info->Begin()->GetAddress() );
   GTEST_ASSERT_XRDST( fs3.DirList( emptyDirPath, DirListFlags::Stat, list ) );
   EXPECT_TRUE( list );
-  EXPECT_TRUE( list->GetSize() == 0 );
+  EXPECT_EQ( list->GetSize(), 0 );
   GTEST_ASSERT_XRDST( fs.RmDir( emptyDirPath ) );
 
   delete list;
@@ -621,7 +621,7 @@ void FileSystemTest::SendInfoTest()
   Buffer *id = 0;
   GTEST_ASSERT_XRDST( fs.SendInfo( "test stuff", id ) );
   EXPECT_TRUE( id );
-  EXPECT_TRUE( id->GetSize() == 4 );
+  EXPECT_EQ( id->GetSize(), 4 );
   delete id;
 }
 
@@ -723,8 +723,8 @@ void FileSystemTest::XAttrTest()
   {
     GTEST_ASSERT_XRDST( itr3->status );
     auto match = attributes.find( itr3->name );
-    EXPECT_TRUE( match != attributes.end() );
-    EXPECT_TRUE( match->second == itr3->value );
+    EXPECT_NE( match, attributes.end() );
+    EXPECT_EQ( match->second, itr3->value );
   }
   result2.clear();
 
@@ -738,8 +738,8 @@ void FileSystemTest::XAttrTest()
   {
     GTEST_ASSERT_XRDST( itr3->status );
     auto match = attributes.find( itr3->name );
-    EXPECT_TRUE( match != attributes.end() );
-    EXPECT_TRUE( match->second == itr3->value );
+    EXPECT_NE( match, attributes.end() );
+    EXPECT_EQ( match->second, itr3->value );
   }
 
   result2.clear();

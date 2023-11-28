@@ -79,17 +79,17 @@ class XrdEcTests : public ::testing::Test
     }
 
     inline void VectorReadTest(){
-    	Init(true);
+	Init(true);
 
-    	AlignedWriteRaw();
+	AlignedWriteRaw();
 
-    	Verify();
+	Verify();
 
-    	uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+	uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
 
-    	VerifyVectorRead(seed);
+	VerifyVectorRead(seed);
 
-    	CleanUp();
+	CleanUp();
     }
 
     inline void IllegalVectorReadTest(){
@@ -339,7 +339,7 @@ void XrdEcTests::Init( bool usecrc32c )
     ss << std::setfill('0') << std::setw( 2 ) << i;
     std::string strp = datadir + '/' + ss.str() + '/';
     objcfg->plgr.emplace_back( strp );
-    EXPECT_TRUE( mkdir( strp.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH ) == 0 );
+    EXPECT_EQ( mkdir( strp.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH ), 0 );
   }
 }
 
@@ -378,19 +378,16 @@ void XrdEcTests::CorruptChunk( size_t blknb, size_t strpnb )
   XrdZip::CDFH &cdfh = *cdvec[cdmap[fn]];
   uint64_t offset = cdfh.offset + lfhsize + fn.size(); // offset of the data
   XrdCl::File f;
-  XrdCl::XRootDStatus status2 = f.Open( url, XrdCl::OpenFlags::Write );
-  GTEST_ASSERT_XRDST( status2 );
+  GTEST_ASSERT_XRDST( f.Open( url, XrdCl::OpenFlags::Write ) );
   std::string str = "XXXXXXXX";
-  status2 = f.Write( offset, str.size(), str.c_str() );
-  GTEST_ASSERT_XRDST( status2 );
-  status2 = f.Close();
-  GTEST_ASSERT_XRDST( status2 );
+  GTEST_ASSERT_XRDST( f.Write( offset, str.size(), str.c_str() ) );
+  GTEST_ASSERT_XRDST( f.Close() );
 }
 
 void XrdEcTests::UrlNotReachable( size_t index )
 {
   XrdCl::URL url( objcfg->plgr[index] );
-  EXPECT_TRUE( chmod( url.GetPath().c_str(), 0 ) == 0 );
+  EXPECT_EQ( chmod( url.GetPath().c_str(), 0 ), 0 );
 }
 
 void XrdEcTests::UrlReachable( size_t index )
@@ -398,7 +395,7 @@ void XrdEcTests::UrlReachable( size_t index )
   XrdCl::URL url( objcfg->plgr[index] );
   mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH |
                 S_IXUSR | S_IXGRP | S_IXOTH;
-  EXPECT_TRUE( chmod( url.GetPath().c_str(), mode ) == 0 );
+  EXPECT_EQ( chmod( url.GetPath().c_str(), mode ), 0 );
 }
 
 void XrdEcTests::CorruptedReadVerify()
@@ -453,9 +450,9 @@ void XrdEcTests::VerifyVectorRead(uint32_t seed){
 	    GTEST_ASSERT_XRDST( *status );
 	    delete status;
 	    for(int i = 0; i < 5; i++){
-	    	std::string result(buffers[i].data(), expected[i].size());
-	    	EXPECT_TRUE( result == expected[i] );
-      }
+		std::string result(buffers[i].data(), expected[i].size());
+		EXPECT_EQ( result, expected[i] );
+	    }
 
 	    XrdCl::SyncResponseHandler handler2;
 	      reader.Close( &handler2 );
@@ -472,7 +469,7 @@ void XrdEcTests::IllegalVectorRead(uint32_t seed){
 	reader.Open(&handler1);
 	handler1.WaitForResponse();
 	XrdCl::XRootDStatus *status = handler1.GetStatus();
-	GTEST_ASSERT_XRDST(*status);
+	GTEST_ASSERT_XRDST( *status );
 	delete status;
 
 	std::default_random_engine random_engine(seed);
@@ -500,10 +497,7 @@ void XrdEcTests::IllegalVectorRead(uint32_t seed){
 	h.WaitForResponse();
 	status = h.GetStatus();
 	// the response should be negative since one of the reads was over the file end
-	if (status->IsOK())
-	{
-		EXPECT_TRUE(false);
-	}
+	EXPECT_FALSE(status->IsOK());
 	delete status;
 
 	buffers.clear();
@@ -528,17 +522,14 @@ void XrdEcTests::IllegalVectorRead(uint32_t seed){
 	h2.WaitForResponse();
 	status = h2.GetStatus();
 	// the response should be negative since we requested too many reads
-	if (status->IsOK())
-	{
-		EXPECT_TRUE(false);
-	}
+	EXPECT_FALSE(status->IsOK());
 	delete status;
 
 	XrdCl::SyncResponseHandler handler2;
 	reader.Close(&handler2);
 	handler2.WaitForResponse();
 	status = handler2.GetStatus();
-	GTEST_ASSERT_XRDST(*status);
+	GTEST_ASSERT_XRDST( *status );
 	delete status;
 }
 
@@ -576,7 +567,7 @@ void XrdEcTests::ReadVerify( uint32_t rdsize, uint64_t maxrd )
     if( rawoff + rawsz > rawdata.size() ) rawsz = rawdata.size() - rawoff;
     std::string expected( rawdata.data() + rawoff, rawsz );
     // make sure the expected and actual results are the same
-    EXPECT_TRUE( result == expected );
+    EXPECT_EQ( result, expected );
     delete status;
     delete rsp;
     rdoff += bytesrd;
@@ -632,7 +623,7 @@ void XrdEcTests::RandomReadVerify()
   else if( rawoff + rawlen > rawdata.size() ) rawlen = rawdata.size() - rawoff;
   std::string expected( rawdata.data() + rawoff, rawlen );
   // make sure the expected and actual results are the same
-  EXPECT_TRUE( result == expected );
+  EXPECT_EQ( result, expected );
   delete status;
   delete rsp;
   delete[] rdbuff;
@@ -666,8 +657,7 @@ void XrdEcTests::Corrupted1stBlkReadVerify()
   reader.Read( rdoff, rdlen, rdbuff, &h, 0 );
   h.WaitForResponse();
   status = h.GetStatus();
-  EXPECT_TRUE( status->status == XrdCl::stError &&
-                 status->code == XrdCl::errDataError );
+  GTEST_ASSERT_XRDST_NOTOK( *status, XrdCl::errDataError );
   delete status;
   delete[] rdbuff;
 
@@ -683,7 +673,7 @@ void XrdEcTests::Corrupted1stBlkReadVerify()
 int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
   int rc = remove( fpath );
-  EXPECT_TRUE( rc == 0 );
+  EXPECT_EQ( rc, 0 );
   return rc;
 }
 

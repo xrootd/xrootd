@@ -228,10 +228,10 @@ TEST(SocketTest, TransferTest)
   EXPECT_TRUE( serv.Setup( port, 1, new RandomHandlerFactory() ) );
   EXPECT_TRUE( serv.Start() );
 
-  EXPECT_TRUE( sock.GetStatus() == Socket::Disconnected );
+  EXPECT_EQ( sock.GetStatus(), Socket::Disconnected );
   EXPECT_TRUE( sock.Initialize( AF_INET6 ).IsOK() );
   EXPECT_TRUE( sock.Connect( "localhost", port ).IsOK() );
-  EXPECT_TRUE( sock.GetStatus() == Socket::Connected );
+  EXPECT_EQ( sock.GetStatus(), Socket::Connected );
 
   //----------------------------------------------------------------------------
   // Get the number of packets
@@ -246,7 +246,7 @@ TEST(SocketTest, TransferTest)
   uint64_t receivedCounter = 0;
   uint32_t receivedChecksum = ::Utils::ComputeCRC32( 0, 0 );
   sc = sock.ReadRaw( &packets, 1, 60, bytesTransmitted );
-  EXPECT_TRUE( sc.status == stOK );
+  EXPECT_EQ( sc.status, stOK );
 
   //----------------------------------------------------------------------------
   // Read each packet
@@ -254,9 +254,9 @@ TEST(SocketTest, TransferTest)
   for( int i = 0; i < packets; ++i )
   {
     sc = sock.ReadRaw( &packetSize, 2, 60, bytesTransmitted );
-    EXPECT_TRUE( sc.status == stOK );
+    EXPECT_EQ( sc.status, stOK );
     sc = sock.ReadRaw( buffer, packetSize, 60, bytesTransmitted );
-    EXPECT_TRUE( sc.status == stOK );
+    EXPECT_EQ( sc.status, stOK );
     receivedCounter += bytesTransmitted;
     receivedChecksum = ::Utils::UpdateCRC32( receivedChecksum, buffer,
                                              bytesTransmitted );
@@ -268,17 +268,20 @@ TEST(SocketTest, TransferTest)
   packets = random() % 100;
 
   sc = sock.WriteRaw( &packets, 1, 60, bytesTransmitted );
-  EXPECT_TRUE( (sc.status == stOK) && (bytesTransmitted == 1) );
+  EXPECT_EQ( sc.status, stOK );
+  EXPECT_EQ( bytesTransmitted, 1 );
 
   for( int i = 0; i < packets; ++i )
   {
     packetSize = random() % 50000;
-    EXPECT_TRUE( ::Utils::GetRandomBytes( buffer, packetSize ) == packetSize );
+    EXPECT_EQ( ::Utils::GetRandomBytes( buffer, packetSize ), packetSize );
 
     sc = sock.WriteRaw( (char *)&packetSize, 2, 60, bytesTransmitted );
-    EXPECT_TRUE( (sc.status == stOK) && (bytesTransmitted == 2) );
+    EXPECT_EQ( sc.status, stOK );
+    EXPECT_EQ( bytesTransmitted, 2 );
     sc = sock.WriteRaw( buffer, packetSize, 60, bytesTransmitted );
-    EXPECT_TRUE( (sc.status == stOK) && (bytesTransmitted == packetSize) );
+    EXPECT_EQ( sc.status, stOK );
+    EXPECT_EQ( bytesTransmitted, packetSize );
     sentCounter += bytesTransmitted;
     sentChecksum = ::Utils::UpdateCRC32( sentChecksum, buffer,
                                          bytesTransmitted );
@@ -294,8 +297,8 @@ TEST(SocketTest, TransferTest)
 
   std::pair<uint64_t, uint32_t> sent     = serv.GetSentStats( socketName );
   std::pair<uint64_t, uint32_t> received = serv.GetReceivedStats( socketName );
-  EXPECT_TRUE( sentCounter == received.first );
-  EXPECT_TRUE( receivedCounter == sent.first );
-  EXPECT_TRUE( sentChecksum == received.second );
-  EXPECT_TRUE( receivedChecksum == sent.second );
+  EXPECT_EQ( sentCounter, received.first );
+  EXPECT_EQ( receivedCounter, sent.first );
+  EXPECT_EQ( sentChecksum, received.second );
+  EXPECT_EQ( receivedChecksum, sent.second );
 }

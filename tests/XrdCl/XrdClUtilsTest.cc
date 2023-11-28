@@ -185,18 +185,18 @@ TEST(UtilsTest, SIDManagerTest)
   GTEST_ASSERT_XRDST( manager->AllocateSID( sid5 ) );
 
   EXPECT_TRUE( (sid1[0] != sid2[0]) || (sid1[1] != sid2[1]) );
-  EXPECT_TRUE( manager->NumberOfTimedOutSIDs() == 0 );
+  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 0 );
   manager->TimeOutSID( sid4 );
   manager->TimeOutSID( sid5 );
-  EXPECT_TRUE( manager->NumberOfTimedOutSIDs() == 2 );
-  EXPECT_TRUE( manager->IsTimedOut( sid3 ) == false );
-  EXPECT_TRUE( manager->IsTimedOut( sid1 ) == false );
-  EXPECT_TRUE( manager->IsTimedOut( sid4 ) == true );
-  EXPECT_TRUE( manager->IsTimedOut( sid5 ) == true );
+  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 2 );
+  EXPECT_FALSE( manager->IsTimedOut( sid3 ) );
+  EXPECT_FALSE( manager->IsTimedOut( sid1 ) );
+  EXPECT_TRUE( manager->IsTimedOut( sid4 ) );
+  EXPECT_TRUE( manager->IsTimedOut( sid5 ) );
   manager->ReleaseTimedOut( sid5 );
-  EXPECT_TRUE( manager->IsTimedOut( sid5 ) == false );
+  EXPECT_FALSE( manager->IsTimedOut( sid5 ) );
   manager->ReleaseAllTimedOut();
-  EXPECT_TRUE( manager->NumberOfTimedOutSIDs() == 0 );
+  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 0 );
 }
 
 //------------------------------------------------------------------------------
@@ -213,9 +213,9 @@ TEST(UtilsTest, PropertyListTest)
   std::string s1;
 
   EXPECT_TRUE( l.Get( "s1", s1 ) );
-  EXPECT_TRUE( s1 == "test string 1" );
+  EXPECT_EQ( s1, "test string 1" );
   EXPECT_TRUE( l.Get( "i1", i1 ) );
-  EXPECT_TRUE( i1 == 123456789123ULL );
+  EXPECT_EQ( i1, 123456789123ULL );
   EXPECT_TRUE( l.HasProperty( "s1" ) );
   EXPECT_TRUE( !l.HasProperty( "s2" ) );
   EXPECT_TRUE( l.HasProperty( "i1" ) );
@@ -230,16 +230,16 @@ TEST(UtilsTest, PropertyListTest)
     EXPECT_TRUE( l.Get( "vect_int", i, num ) );
     EXPECT_TRUE( num = i+1000 );
   }
-  EXPECT_TRUE( i == 1000 );
+  EXPECT_EQ( i, 1000 );
 
   XRootDStatus st1, st2;
   st1.SetErrorMessage( "test error message" );
   l.Set( "status", st1 );
   EXPECT_TRUE( l.Get( "status", st2 ) );
-  EXPECT_TRUE( st2.status == st1.status );
-  EXPECT_TRUE( st2.code   == st1.code );
-  EXPECT_TRUE( st2.errNo  == st1.errNo );
-  EXPECT_TRUE( st2.GetErrorMessage() == st1.GetErrorMessage() );
+  EXPECT_EQ( st2.status, st1.status );
+  EXPECT_EQ( st2.code  , st1.code );
+  EXPECT_EQ( st2.errNo , st1.errNo );
+  EXPECT_EQ( st2.GetErrorMessage(), st1.GetErrorMessage() );
 
   std::vector<std::string> v1, v2;
   v1.push_back( "test string 1" );
@@ -248,5 +248,5 @@ TEST(UtilsTest, PropertyListTest)
   l.Set( "vector", v1 );
   EXPECT_TRUE( l.Get( "vector", v2 ) );
   for( size_t i = 0; i < v1.size(); ++i )
-    EXPECT_TRUE( v1[i] == v2[i] );
+    EXPECT_EQ( v1[i], v2[i] );
 }

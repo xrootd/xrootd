@@ -163,7 +163,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
       uint32_t  bytesRead = 0;
 
       GTEST_ASSERT_XRDST( f->Read( offset, 4*MB, buffer, bytesRead ) );
-      EXPECT_TRUE( bytesRead == 4*MB );
+      EXPECT_EQ( bytesRead, 4*MB );
       threadData[j*5+i].firstBlockChecksum =
         XrdClTests::Utils::ComputeCRC32( buffer, 4*MB );
       delete [] buffer;
@@ -215,8 +215,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
     threadData[i].file->GetProperty( "LastURL", lastUrl );
     GTEST_ASSERT_XRDST( Utils::GetRemoteCheckSum(
                             remoteSum, "zcrc32", lastUrl ) );
-    EXPECT_TRUE( remoteSum == transferSum ); // TODO; same test repeated twice?? (check w amadio)
-    EXPECT_TRUE( remoteSum == transferSum ) << path[i];
+    EXPECT_EQ( remoteSum, transferSum ) << path[i];
   }
 
   //----------------------------------------------------------------------------
@@ -263,8 +262,8 @@ int runChild( ThreadData *td )
     uint32_t  bytesRead = 0;
 
     GTEST_ASSERT_XRDST( td[i].file->Read( offset, 4*MB, buffer, bytesRead ) );
-    EXPECT_TRUE( bytesRead == 4*MB );
-    EXPECT_TRUE( td[i].firstBlockChecksum ==
+    EXPECT_EQ( bytesRead, 4*MB );
+    EXPECT_EQ( td[i].firstBlockChecksum,
                     XrdClTests::Utils::ComputeCRC32( buffer, 4*MB ) );
     delete [] buffer;
   }
@@ -299,7 +298,7 @@ void forkAndRead( ThreadData *data )
     GTEST_ASSERT_ERRNO( waitpid( pid, &status, 0 ) != -1 );
     log->Debug( 1, "Wait done, status: %d", status );
     EXPECT_TRUE( WIFEXITED( status ) );
-    EXPECT_TRUE( WEXITSTATUS( status ) == 0 );
+    EXPECT_EQ( WEXITSTATUS( status ), 0 );
   }
 }
 

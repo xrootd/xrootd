@@ -190,14 +190,14 @@ TEST(WorkflowTest, ReadingWorkflowTest){
   struct stat localStatBuf;
   std::string localFilePath = localDataPath + "/srv1" + filePath;
   int rc = stat(localFilePath.c_str(), &localStatBuf);
-  EXPECT_TRUE( rc == 0 );
+  EXPECT_EQ( rc, 0 );
   uint64_t fileSize = localStatBuf.st_size;
 
   auto &&pipe = Open( f, fileUrl, flags ) >> openHandler // by reference
               | Stat( f, true) >> [fileSize, size, buffer]( XRootDStatus &status, StatInfo &stat) mutable
                   {
                     GTEST_ASSERT_XRDST( status );
-                    EXPECT_TRUE( stat.GetSize() == fileSize );
+                    EXPECT_EQ( stat.GetSize(), fileSize );
                     size = stat.GetSize();
                     buffer = new char[stat.GetSize()];
                   }
@@ -274,7 +274,7 @@ TEST(WorkflowTest, WritingWorkflowTest){
                 | Stat( f, true ) >> [size, buffer, createdFileSize]( XRootDStatus &status, StatInfo &info ) mutable
                     {
                       GTEST_ASSERT_XRDST( status );
-                      EXPECT_TRUE( createdFileSize == info.GetSize() );
+                      EXPECT_EQ( createdFileSize, info.GetSize() );
                       size   = info.GetSize();
                       buffer = new char[info.GetSize()];
                     }
@@ -284,7 +284,7 @@ TEST(WorkflowTest, WritingWorkflowTest){
 
   XRootDStatus status = WaitFor( std::move( pipe ) );
   GTEST_ASSERT_XRDST( status );
-  EXPECT_TRUE( rdresp.get() == texts[0] + texts[1] + texts[2] );
+  EXPECT_EQ( rdresp.get(), texts[0] + texts[1] + texts[2] );
 
   free( (*iov)[0].iov_base );
   free( (*iov)[1].iov_base );
@@ -595,7 +595,8 @@ TEST(WorkflowTest, ParallelTest){
     GTEST_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists )  >> hndl,
                                              Stat( fs, also_exists ) >> hndl,
                                              Stat( fs, not_exists )  >> hndl ).AtLeast( 1 ) ) );
-    EXPECT_TRUE( okcnt == 2 && errcnt == 1 );
+    EXPECT_EQ( okcnt, 2 );
+    EXPECT_EQ( errcnt, 1 );
 }
 
 
@@ -710,7 +711,7 @@ TEST(WorkflowTest, MixedWorkflowTest){
       char *buffer = reinterpret_cast<char*>( chunk.buffer );
       std::string result( buffer, chunk.length );
       delete[] buffer;
-      EXPECT_TRUE( result == content[i] );
+      EXPECT_EQ( result, content[i] );
     }
 
     EXPECT_TRUE(cleaningHandlerExecuted);
@@ -753,7 +754,7 @@ TEST(WorkflowTest, WorkflowWithFutureTest)
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
   GTEST_ASSERT_XRDST( f.Read( 1*MB, 10*MB, expected, bytesRead ) );
-  EXPECT_TRUE( bytesRead == 10*MB );
+  EXPECT_EQ( bytesRead, 10*MB );
   GTEST_ASSERT_XRDST( f.Close() );
 
   //----------------------------------------------------------------------------
@@ -768,7 +769,7 @@ TEST(WorkflowTest, WorkflowWithFutureTest)
   {
     ChunkInfo result = ftr.get();
     EXPECT_TRUE( result.length = bytesRead );
-    EXPECT_TRUE( strncmp( expected, (char*)result.buffer, bytesRead ) == 0 );
+    EXPECT_EQ( strncmp( expected, (char*)result.buffer, bytesRead ), 0 );
   }
   catch( PipelineException &ex )
   {
@@ -828,7 +829,7 @@ TEST(WorkflowTest, XAttrWorkflowTest)
 
   try
   {
-    EXPECT_TRUE( xattr_value == rsp1.get() );
+    EXPECT_EQ( xattr_value, rsp1.get() );
   }
   catch( PipelineException &ex )
   {
@@ -856,13 +857,13 @@ TEST(WorkflowTest, XAttrWorkflowTest)
                           [&]( XRootDStatus &status, std::vector<XAttr> &rsp )
                             {
                               GTEST_ASSERT_XRDST( status );
-                              EXPECT_TRUE( rsp.size() == attrs.size() );
+                              EXPECT_EQ( rsp.size(), attrs.size() );
                               for( size_t i = 0; i < rsp.size(); ++i )
                               {
                                 auto itr = std::find_if( attrs.begin(), attrs.end(),
                                     [&]( xattr_t &a ){ return std::get<0>( a ) == rsp[i].name; } );
-                                EXPECT_TRUE( itr != attrs.end() );
-                                EXPECT_TRUE( std::get<1>( *itr ) == rsp[i].value );
+                                EXPECT_NE( itr, attrs.end() );
+                                EXPECT_EQ( std::get<1>( *itr ), rsp[i].value );
                               }
                             }
                         | DelXAttr( file4, names )
@@ -882,9 +883,9 @@ TEST(WorkflowTest, XAttrWorkflowTest)
                       [&]( XRootDStatus &status, std::vector<XAttr> &rsp )
                         {
                           GTEST_ASSERT_XRDST( status );
-                          EXPECT_TRUE( rsp.size() == 1 );
-                          EXPECT_TRUE( rsp[0].name == xattr_name );
-                          EXPECT_TRUE( rsp[0].value == xattr_value );
+                          EXPECT_EQ( rsp.size(), 1 );
+                          EXPECT_EQ( rsp[0].name, xattr_name );
+                          EXPECT_EQ( rsp[0].value, xattr_value );
                         }
                     | DelXAttr( fs, filePath, xattr_name );
 
@@ -892,7 +893,7 @@ TEST(WorkflowTest, XAttrWorkflowTest)
 
   try
   {
-    EXPECT_TRUE( xattr_value == rsp2.get() );
+    EXPECT_EQ( xattr_value, rsp2.get() );
   }
   catch( PipelineException &ex )
   {
@@ -920,7 +921,7 @@ TEST(WorkflowTest, MkDirAsyncTest) {
                     RmDir( fs, asyncTestFile )
                   );
 
-  EXPECT_TRUE(t.get().status == stOK);
+  EXPECT_EQ(t.get().status, stOK);
 }
 
 TEST(WorkflowTest, CheckpointTest) {
@@ -958,7 +959,7 @@ TEST(WorkflowTest, CheckpointTest) {
                                  Read( f3, 0, sizeof( readout ), readout ) |
                                  Close( f3 ) ) );
   // we expect the data to be unchanged
-  EXPECT_TRUE( strncmp( readout, data, sizeof( data ) ) == 0 );
+  EXPECT_EQ( strncmp( readout, data, sizeof( data ) ), 0 );
 
   //---------------------------------------------------------------------------
   // Update the file and commit the changes
@@ -975,7 +976,7 @@ TEST(WorkflowTest, CheckpointTest) {
                                  Read( f5, 0, sizeof( readout ), readout ) |
                                  Close( f5 ) ) );
   // we expect the data to be unchanged
-  EXPECT_TRUE( strncmp( readout, update, sizeof( update ) ) == 0 );
+  EXPECT_EQ( strncmp( readout, update, sizeof( update ) ), 0 );
   EXPECT_TRUE( strncmp( readout + sizeof( update ), data + sizeof( update ),
                            sizeof( data ) - sizeof( update ) ) == 0 );
 

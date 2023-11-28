@@ -254,8 +254,8 @@ TEST(PollerTest, FunctionTest)
     EXPECT_TRUE( !poller->IsRegistered( &s[i] ) );
     stats[i] = handler->GetReceivedStats( s[i].GetSockName() );
     statsServ[i] = server.GetSentStats( s[i].GetSockName() );
-    EXPECT_TRUE( stats[i].first == statsServ[i].first );
-    EXPECT_TRUE( stats[i].second == statsServ[i].second );
+    EXPECT_EQ( stats[i].first, statsServ[i].first );
+    EXPECT_EQ( stats[i].second, statsServ[i].second );
   }
 
   for( int i = 0; i < 3; ++i )
