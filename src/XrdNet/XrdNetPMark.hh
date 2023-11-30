@@ -71,19 +71,22 @@ virtual Handle *Begin(XrdNetAddrInfo &addr, Handle     &handle,
 static  bool    getEA(const char *cgi, int &ecode, int &acode);
 
                 XrdNetPMark() {}
-
-static const int maxTotID = 0x7fff;
-
-protected:
+virtual        ~XrdNetPMark() {} // This object cannot be deleted!
 
 // ID limits and specifications
 //
-static const int btsActID =   6;
-static const int mskActID =  63;
-static const int maxActID =  63;
+/**
+ * From the specifications: Valid value for scitag is a single positive integer > 64 and <65536 (16bit). Any other value is considered invalid.
+ */
+static const int minTotID = 65;
+static const int maxTotID = 65535;
 
-static const int maxExpID = 511;
+protected:
 
-virtual        ~XrdNetPMark() {} // This object cannot be deleted!
+static const int btsActID = 6;
+static const int mskActID = 63;
+static const int maxExpID = maxTotID >> btsActID;
+static const int maxActID = maxTotID & mskActID;
+
 };
 #endif

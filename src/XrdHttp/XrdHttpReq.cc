@@ -234,7 +234,7 @@ void XrdHttpReq::parseScitag(const std::string & val) {
     if(scitagS[0] != '-') {
       try {
         mScitag = std::stoi(scitagS.c_str(), nullptr, 10);
-        if (mScitag > XrdNetPMark::maxTotID || mScitag < 0) {
+        if (mScitag > XrdNetPMark::maxTotID || mScitag < XrdNetPMark::minTotID) {
           mScitag = 0;
         }
       } catch (...) {
