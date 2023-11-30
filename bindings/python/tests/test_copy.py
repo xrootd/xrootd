@@ -61,15 +61,15 @@ def test_copy_noprep():
 
 class TestProgressHandler(object):
   def begin(self, id, total, source, target):
-    print '+++ begin(): %d, total: %d' % (id, total)
-    print '+++ source: %s' % source
-    print '+++ target: %s' % target
+    print('+++ begin(): %d, total: %d' % (id, total))
+    print('+++ source: %s' % source)
+    print('+++ target: %s' % target)
 
   def end(self, jobId, status):
-    print '+++ end(): jobId: %s, status: %s'  % (jobId, status)
+    print('+++ end(): jobId: %s, status: %s'  % (jobId, status))
 
   def update(self, jobId, processed, total):
-    print '+++ update(): jobid: %s, processed: %d, total: %d' % (jobId, processed, total)
+    print('+++ update(): jobid: %s, processed: %d, total: %d' % (jobId, processed, total))
 
 def test_copy_progress_handler():
   c = client.CopyProcess()

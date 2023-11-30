@@ -15,10 +15,10 @@ class TestThread(Thread):
     s, _ = self.file.write(smallbuffer)
     assert s.ok
 
-    print '+++ thread %d says: %s' % (self.id, self.file.read())
+    print('+++ thread %d says: %s' % (self.id, self.file.read()))
 
     for line in self.file:
-      print '+++ thread %d says: %s' % (self.id, line)
+      print('+++ thread %d says: %s' % (self.id, line))
 
     self.file.close()
 
@@ -28,7 +28,7 @@ def test_threads():
 #   assert f.is_open()
 #   f.write(smallbuffer)
 
-  for i in xrange(3):
+  for i in range(3):
     tt = TestThread(f, i)
     tt.start()
     tt.join()

@@ -289,9 +289,9 @@ def test_readlines_big():
   for i, l in enumerate(lines):
     total += len(l)
     if l != pylines[i]:
-      print '!!!!!', total, i
-      print '+++++ py: %r' % pylines[i]
-      print '+++++ me: %r' % l
+      print('!!!!!', total, i)
+      print('+++++ py: %r' % pylines[i])
+      print('+++++ me: %r' % l)
       break
     if pylines[i].endswith('\n'):
       assert l.endswith('\n')
