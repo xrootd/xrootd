@@ -1202,7 +1202,9 @@ namespace XrdCl
       if( pStatus.code == errErrorResponse )
       {
         st->errNo = rsp->body.error.errnum;
-        std::string errmsg( rsp->body.error.errmsg, rsp->hdr.dlen-4 );
+        // omit the last character as the string returned from the server
+        // (acording to protocol specs) should be null-terminated
+        std::string errmsg( rsp->body.error.errmsg, rsp->hdr.dlen-5 );
         if( st->errNo == kXR_noReplicas && !pLastError.IsOK() )
           errmsg += " Last seen error: " + pLastError.ToString();
         st->SetErrorMessage( errmsg );
