@@ -897,7 +897,7 @@ bool XrdNetPMarkCfg::LoadJson(char *buff)
    for (auto it : j_exp)
        {std::string expName = it["expName"].get<std::string>();
         if (expName.empty()) continue;
-        if (!it["expId"].is_number() || it["expId"] < 0 || it["expId"] > maxExpID)
+        if (!it["expId"].is_number() || it["expId"] < minExpID || it["expId"] > maxExpID)
            {eDest->Say("Config warning: ignoring experiment '", expName.c_str(),
                        "'; associated ID is invalid.");
             continue;
@@ -921,7 +921,7 @@ bool XrdNetPMarkCfg::LoadJson(char *buff)
             {std::string actName =  j_acts[i]["activityName"].get<std::string>();
              if (actName.empty()) continue;
              if (!j_acts[i]["activityId"].is_number()
-             ||   j_acts[i]["activityId"] < 0
+             ||   j_acts[i]["activityId"] < minActID
              ||   j_acts[i]["activityId"] > maxActID)
                 {eDest->Say("Config warning:", "ignoring ", expName.c_str(),
                             " actitivity '", actName.c_str(),
