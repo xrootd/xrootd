@@ -40,24 +40,27 @@
 bool XrdNetPMark::getEA(const char *cgi, int &ecode, int &acode)
 {
 
+  ecode = acode = 0;
 // If we have cgi, see if we can extract rge codes from there
 //
-   if (cgi)
-      {const char *stP = strstr(cgi, "scitag.flow=");
-       if (stP)
-          {char *eol;
-           int eacode = strtol(stP+12, &eol, 10);
-           if (eacode >= 0 && eacode <= XrdNetPMark::maxTotID
-           &&  (*eol == '&' || *eol ==0))
-              {ecode = eacode >> XrdNetPMark::btsActID;
-               acode = eacode &  XrdNetPMark::mskActID;
-               return true;
-              }
-          }
+  if (cgi) {
+    const char *stP = strstr(cgi, "scitag.flow=");
+    if (stP) {
+      char *eol;
+      int eacode = strtol(stP + 12, &eol, 10);
+      if (*eol == '&' || *eol == 0) {
+        if (eacode >= XrdNetPMark::minTotID && eacode <= XrdNetPMark::maxTotID) {
+          ecode = eacode >> XrdNetPMark::btsActID;
+          acode = eacode & XrdNetPMark::mskActID;
+        }
+        // According to the specification, if the provided scitag.flow has an incorrect value
+        // the packets will be marked with a scitag = 0
+        return true;
       }
+    }
+  }
 
-// No go
-//
-   ecode = acode = 0;
+   // No go
+   //
    return false;
 }
