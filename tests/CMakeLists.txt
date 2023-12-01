@@ -16,3 +16,4 @@ if( BUILD_CEPH )
 endif()
 
 add_subdirectory( XRootD )
+add_subdirectory( cluster )

@@ -42,7 +42,7 @@ TestEnv::TestEnv()
   PutString( "RemoteFile",       "/data/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat" );
   PutString( "LocalFile",        "/data/testFile.dat" );
   PutString( "MultiIPServerURL", "multiip:1099" );
-  PutString( "LocalDataPath",    "../XRootD/cluster/xrd-data" );
+  PutString( "LocalDataPath",    "../cluster/xrd-data" );
   ImportString( "MainServerURL",    "XRDTEST_MAINSERVERURL" );
   ImportString( "DiskServerURL",    "XRDTEST_DISKSERVERURL" );
   ImportString( "Manager1URL",      "XRDTEST_MANAGER1URL" );

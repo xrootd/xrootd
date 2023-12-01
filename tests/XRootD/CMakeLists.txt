@@ -32,5 +32,3 @@ add_test(NAME XRootD::smoke-test
 
 set_tests_properties(XRootD::smoke-test PROPERTIES
   ENVIRONMENT "${XRDENV}" FIXTURES_REQUIRED XRootD)
-
-add_subdirectory(cluster)
