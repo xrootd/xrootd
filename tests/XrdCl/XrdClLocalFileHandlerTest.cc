@@ -444,7 +444,7 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   // Initialize
   // (we do the test in /data as /tmp might be on tpmfs,
   //  which does not support xattrs)
-  // In this case, /data is /xrd-data inside of the build directory
+  // In this case, /data is /data inside of the build directory
   //----------------------------------------------------------------------------
   Env *testEnv = TestEnv::GetEnv();
   std::string localDataPath;

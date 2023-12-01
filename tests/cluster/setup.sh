@@ -16,11 +16,9 @@ set -e
 servernames=("metaman" "man1" "man2" "srv1" "srv2" "srv3" "srv4")
 datanodes=("srv1" "srv2" "srv3" "srv4")
 
-DATAFOLDER="./xrd-data"
+DATAFOLDER="./data"
 TMPDATAFOLDER="./rout"
 PREDEF="./mvdata"
-
-FILESFOLDER="/xrootd/docker/data"
 
 filenames=("1db882c8-8cd6-4df1-941f-ce669bad3458.dat"
        "3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat"
@@ -150,20 +148,19 @@ start(){
        set -x
        # start for each component
        for i in "${servernames[@]}"; do
-              ${XROOTD} -b -k fifo -l xrootd_${i}.log -s xrootd_${i}.pid -c configs/xrootd_${i}.cfg
+              ${XROOTD} -b -k fifo -n ${i} -l xrootd.log -s xrootd.pid -c configs/xrootd_${i}.cfg
        done
 
        # start cmsd in the redirectors
        for i in "${servernames[@]}"; do
-              ${CMSD} -b -k fifo -l cmsd_${i}.log -s cmsd_${i}.pid -c configs/xrootd_${i}.cfg
+              ${CMSD} -b -k fifo -n ${i} -l cmsd.log -s cmsd.pid -c configs/xrootd_${i}.cfg
        done
 }
 
 stop() {
-       sleep 1
        for i in "${servernames[@]}"; do
-              kill -s TERM $(cat xrootd_${i}.pid) || true
-              kill -s TERM $(cat cmsd_${i}.pid) || true
+              kill -s TERM $(cat ${i}/xrootd.pid) || true
+              kill -s TERM $(cat ${i}/cmsd.pid) || true
        done
        rm -rf ${DATAFOLDER}
 }
