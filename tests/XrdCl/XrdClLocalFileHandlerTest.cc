@@ -450,7 +450,7 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   std::string localDataPath;
   EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
 
-  char resolved_path[PATH_MAX];
+  char resolved_path[MAXPATHLEN];
   localDataPath = realpath(localDataPath.c_str(), resolved_path);
 
   std::string targetURL = localDataPath + "/metaman/lfilehandlertestfilexattr";
