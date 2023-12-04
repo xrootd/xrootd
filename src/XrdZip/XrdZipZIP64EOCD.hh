@@ -28,15 +28,15 @@ namespace XrdZip
     ZIP64_EOCD( const char* buffer ):
       extensibleDataLength( 0 )
     {
-      zip64EocdSize = *reinterpret_cast<const uint64_t*>( buffer + 4 );
-      zipVersion    = *reinterpret_cast<const uint16_t*>( buffer + 12 );
-      minZipVersion = *reinterpret_cast<const uint16_t*>( buffer + 14 );
-      nbDisk        = *reinterpret_cast<const uint32_t*>( buffer + 16 );
-      nbDiskCd      = *reinterpret_cast<const uint32_t*>( buffer + 20 );
-      nbCdRecD      = *reinterpret_cast<const uint64_t*>( buffer + 24 );
-      nbCdRec       = *reinterpret_cast<const uint64_t*>( buffer + 32 );
-      cdSize        = *reinterpret_cast<const uint64_t*>( buffer + 40 );
-      cdOffset      = *reinterpret_cast<const uint64_t*>( buffer + 48 );
+      zip64EocdSize = to<uint64_t>(buffer + 4);
+      zipVersion    = to<uint16_t>(buffer + 12);
+      minZipVersion = to<uint16_t>(buffer + 14);
+      nbDisk        = to<uint32_t>(buffer + 16);
+      nbDiskCd      = to<uint32_t>(buffer + 20);
+      nbCdRecD      = to<uint64_t>(buffer + 24);
+      nbCdRec       = to<uint64_t>(buffer + 32);
+      cdSize        = to<uint64_t>(buffer + 40);
+      cdOffset      = to<uint64_t>(buffer + 48);
 
       zip64EocdTotalSize = zip64EocdBaseSize + extensibleDataLength;
     }

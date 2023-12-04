@@ -2445,10 +2445,10 @@ namespace XrdCl
   {
     if( sizeof( T ) > buflen ) return Status( stError, errDataError );
 
-    result = *reinterpret_cast<T*>( buffer );
+    memcpy(&result, buffer, sizeof(T));
 
     buffer += sizeof( T );
-    buflen   -= sizeof( T );
+    buflen -= sizeof( T );
 
     return Status();
   }

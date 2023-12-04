@@ -194,22 +194,22 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     CDFH( const char *buffer, const uint32_t maxSize = 0 )
     {
-      zipVersion        = *reinterpret_cast<const uint16_t*>( buffer + 4 );
-      minZipVersion     = *reinterpret_cast<const uint16_t*>( buffer + 6 );
-      generalBitFlag    = *reinterpret_cast<const uint16_t*>( buffer + 8 );
-      compressionMethod = *reinterpret_cast<const uint16_t*>( buffer + 10 );
-      timestmp.time     = *reinterpret_cast<const uint16_t*>( buffer + 12 );
-      timestmp.date     = *reinterpret_cast<const uint16_t*>( buffer + 14 );
-      ZCRC32            = *reinterpret_cast<const uint32_t*>( buffer + 16 );
-      compressedSize    = *reinterpret_cast<const uint32_t*>( buffer + 20 );
-      uncompressedSize  = *reinterpret_cast<const uint32_t*>( buffer + 24 );
-      filenameLength    = *reinterpret_cast<const uint16_t*>( buffer + 28 );
-      extraLength       = *reinterpret_cast<const uint16_t*>( buffer + 30 );
-      commentLength     = *reinterpret_cast<const uint16_t*>( buffer + 32 );
-      nbDisk            = *reinterpret_cast<const uint16_t*>( buffer + 34 );
-      internAttr        = *reinterpret_cast<const uint16_t*>( buffer + 36 );
-      externAttr        = *reinterpret_cast<const uint32_t*>( buffer + 38 );
-      offset            = *reinterpret_cast<const uint32_t*>( buffer + 42 );
+      zipVersion        = to<uint16_t>(buffer + 4);
+      minZipVersion     = to<uint16_t>(buffer + 6);
+      generalBitFlag    = to<uint16_t>(buffer + 8);
+      compressionMethod = to<uint16_t>(buffer + 10);
+      timestmp.time     = to<uint16_t>(buffer + 12);
+      timestmp.date     = to<uint16_t>(buffer + 14);
+      ZCRC32            = to<uint32_t>(buffer + 16);
+      compressedSize    = to<uint32_t>(buffer + 20);
+      uncompressedSize  = to<uint32_t>(buffer + 24);
+      filenameLength    = to<uint16_t>(buffer + 28);
+      extraLength       = to<uint16_t>(buffer + 30);
+      commentLength     = to<uint16_t>(buffer + 32);
+      nbDisk            = to<uint16_t>(buffer + 34);
+      internAttr        = to<uint16_t>(buffer + 36);
+      externAttr        = to<uint32_t>(buffer + 38);
+      offset            = to<uint32_t>(buffer + 42);
       if(maxSize > 0 && (uint32_t)(cdfhBaseSize+filenameLength + extraLength + commentLength) > maxSize){
     	  throw bad_data();
       }
