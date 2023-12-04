@@ -31,6 +31,7 @@
 
 // Include stdlib so that ENDIAN macros are defined properly
 //
+#include <cstdint>
 #include <cstdlib>
 
 #ifdef __linux__
@@ -46,6 +47,7 @@
 #include <AvailabilityMacros.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <libkern/OSByteOrder.h>
 #define fdatasync(x) fsync(x)
 #define MAXNAMELEN NAME_MAX
 #ifndef dirent64
@@ -152,6 +154,16 @@ typedef off_t offset_t;
 #define	O_LARGEFILE 0
 typedef off_t off64_t;
 #endif
+
+#if defined(__APPLE__)
+#define bswap_16 OSSwapInt16
+#define bswap_32 OSSwapInt32
+#define bswap_64 OSSwapInt64
+#endif
+
+static inline uint16_t bswap(uint16_t x) { return bswap_16(x); }
+static inline uint32_t bswap(uint32_t x) { return bswap_32(x); }
+static inline uint64_t bswap(uint64_t x) { return bswap_64(x); }
 
 // Only sparc platforms have structure alignment problems w/ optimization
 // so the h2xxx() variants are used when converting network streams.

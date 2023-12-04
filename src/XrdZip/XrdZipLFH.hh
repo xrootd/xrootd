@@ -80,7 +80,8 @@ namespace XrdZip
       from_buffer( minZipVersion, buffer );
       from_buffer( generalBitFlag, buffer );
       from_buffer( compressionMethod, buffer );
-      from_buffer( timestmp, buffer );
+      from_buffer( timestmp.time, buffer );
+      from_buffer( timestmp.date, buffer );
       from_buffer( ZCRC32, buffer );
       from_buffer( compressedSize, buffer );
       from_buffer( uncompressedSize, buffer );
