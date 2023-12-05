@@ -33,6 +33,9 @@ using namespace XrdClTests;
 class LocalFileHandlerTest: public ::testing::Test
 {
   public:
+    void SetUp() override;
+    void TearDown() override;
+
     void CreateTestFileFunc( std::string url, std::string content = "GenericTestFile" );
     void readTestFunc( bool offsetRead, uint32_t offset );
     void OpenCloseTest();
@@ -47,7 +50,22 @@ class LocalFileHandlerTest: public ::testing::Test
     void SyncTest();
     void WriteVTest();
     void XAttrTest();
+
+    std::string m_tmpdir;
 };
+
+void LocalFileHandlerTest::SetUp()
+{
+  char cpath[MAXPATHLEN];
+  ASSERT_TRUE(getcwd(cpath, sizeof(cpath))) <<
+    "Could not get current working directory";
+  m_tmpdir = std::string(cpath) + "/tmp";
+}
+
+void LocalFileHandlerTest::TearDown()
+{
+  /* empty */
+}
 
 //----------------------------------------------------------------------------
 // Create the file to be tested
@@ -66,7 +84,7 @@ void LocalFileHandlerTest::CreateTestFileFunc( std::string url, std::string cont
 //----------------------------------------------------------------------------
 void LocalFileHandlerTest::readTestFunc(bool offsetRead, uint32_t offset){
    using namespace XrdCl;
-   std::string targetURL = "/tmp/lfilehandlertestfileread";
+   std::string targetURL = m_tmpdir + "/lfilehandlertestfileread";
    std::string toBeWritten = "tenBytes10";
    std::string expectedRead = "Byte";
    uint32_t size =
@@ -103,7 +121,7 @@ void LocalFileHandlerTest::readTestFunc(bool offsetRead, uint32_t offset){
 
 TEST_F(LocalFileHandlerTest, SyncTest){
    using namespace XrdCl;
-   std::string targetURL = "/tmp/lfilehandlertestfilesync";
+   std::string targetURL = m_tmpdir + "/lfilehandlertestfilesync";
    CreateTestFileFunc( targetURL );
 
    //----------------------------------------------------------------------------
@@ -121,7 +139,7 @@ TEST_F(LocalFileHandlerTest, SyncTest){
 
 TEST_F(LocalFileHandlerTest, OpenCloseTest){
    using namespace XrdCl;
-   std::string targetURL = "/tmp/lfilehandlertestfileopenclose";
+   std::string targetURL = m_tmpdir + "/lfilehandlertestfileopenclose";
    CreateTestFileFunc( targetURL );
 
    //----------------------------------------------------------------------------
@@ -150,7 +168,7 @@ TEST_F(LocalFileHandlerTest, OpenCloseTest){
 
 TEST_F(LocalFileHandlerTest, WriteTest){
    using namespace XrdCl;
-   std::string targetURL = "/tmp/lfilehandlertestfilewrite";
+   std::string targetURL = m_tmpdir + "/lfilehandlertestfilewrite";
    std::string toBeWritten = "tenBytes1\0";
    uint32_t writeSize = toBeWritten.size();
    CreateTestFileFunc( targetURL, "" );
@@ -181,7 +199,7 @@ TEST_F(LocalFileHandlerTest, WriteTest){
 
 TEST_F(LocalFileHandlerTest, WriteWithOffsetTest){
    using namespace XrdCl;
-   std::string targetURL = "/tmp/lfilehandlertestfilewriteoffset";
+   std::string targetURL = m_tmpdir + "/lfilehandlertestfilewriteoffset";
    std::string toBeWritten = "tenBytes10";
    std::string notToBeOverwritten = "front";
    uint32_t writeSize = toBeWritten.size();
@@ -215,7 +233,7 @@ TEST_F(LocalFileHandlerTest, WriteWithOffsetTest){
 
 TEST_F(LocalFileHandlerTest, WriteMkdirTest){
    using namespace XrdCl;
-   std::string targetURL = "/tmp/testdir/further/muchfurther/evenfurther/lfilehandlertestfilewrite";
+   std::string targetURL = m_tmpdir + "/testdir/further/muchfurther/evenfurther/lfilehandlertestfilewrite";
    std::string toBeWritten = "tenBytes10";
    uint32_t writeSize = toBeWritten.size();
    char *buffer = new char[writeSize];
@@ -256,7 +274,7 @@ TEST_F(LocalFileHandlerTest, TruncateTest){
    //----------------------------------------------------------------------------
    // Initialize
    //----------------------------------------------------------------------------
-   std::string targetURL = "/tmp/lfilehandlertestfiletruncate";
+   std::string targetURL = m_tmpdir + "/lfilehandlertestfiletruncate";
 
    CreateTestFileFunc(targetURL);
    //----------------------------------------------------------------------------
@@ -290,7 +308,7 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
    //----------------------------------------------------------------------------
    // Initialize
    //----------------------------------------------------------------------------
-   std::string targetURL = "/tmp/lfilehandlertestfilevectorread";
+   std::string targetURL = m_tmpdir + "/lfilehandlertestfilevectorread";
    CreateTestFileFunc( targetURL );
    VectorReadInfo *info = 0;
    ChunkList chunks;
@@ -351,7 +369,7 @@ TEST_F(LocalFileHandlerTest, VectorWriteTest)
    //----------------------------------------------------------------------------
    // Initialize
    //----------------------------------------------------------------------------
-   std::string targetURL = "/tmp/lfilehandlertestfilevectorwrite";
+   std::string targetURL = m_tmpdir + "/lfilehandlertestfilevectorwrite";
    CreateTestFileFunc( targetURL );
    ChunkList chunks;
 
@@ -404,7 +422,7 @@ TEST_F(LocalFileHandlerTest, WriteVTest)
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  std::string targetURL = "/tmp/lfilehandlertestfilewritev";
+  std::string targetURL = m_tmpdir + "/lfilehandlertestfilewritev";
   CreateTestFileFunc( targetURL );
 
   //----------------------------------------------------------------------------

@@ -56,9 +56,9 @@ ${XRDFS} ${HOST_METAMAN} statvfs /
 ${XRDFS} ${HOST_METAMAN} spaceinfo /
 
 RMTDATADIR="/srvdata"
-LCLDATADIR="/tmp/localdata"  # client folder
+LCLDATADIR="${PWD}/localdata"  # client folder
 
-mkdir -p /tmp/localdata
+mkdir -p ${LCLDATADIR}
 
 # hostname-address pair, so that we can keep track of files more easily
 declare -A hosts

@@ -159,10 +159,9 @@ start(){
 
 stop() {
        for i in "${servernames[@]}"; do
-              kill -s TERM $(cat ${i}/xrootd.pid) || true
-              kill -s TERM $(cat ${i}/cmsd.pid) || true
+              kill -s TERM $(cat ${i}/cmsd.pid)
+              kill -s TERM $(cat ${i}/xrootd.pid)
        done
-       rm -rf ${DATAFOLDER}
 }
 
 insertFileInfo() {

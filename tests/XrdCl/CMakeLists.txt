@@ -33,6 +33,8 @@ if (UID EQUAL 0)
   return()
 endif()
 
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tmp")
+
 add_executable(xrdcl-cluster-tests
   IdentityPlugIn.cc
   # XrdClFileTest.cc
