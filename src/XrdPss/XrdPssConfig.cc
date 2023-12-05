@@ -800,7 +800,17 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
                     {errp->Emsg("Config", "unable to find tcp service", val);
                      port = 0;
                     }
-       } else errp->Emsg("Config","origin port not specified for",mval);
+       } else {
+         if (protName) {
+           // use default port for protocol
+           port = *protName == 'h' ? (strncmp(protName, "https", 5) == 0 ? 443 : 80) : 1094;
+         } else {
+           // assume protocol is root(s)://
+           port = 1094;
+         }
+         errp->Say("Config warning: origin port not specified, using port ",
+           std::to_string(port).c_str(), " as default for ", protName);
+       }
 
 // If port is invalid or missing, fail this
 //
