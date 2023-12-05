@@ -20,11 +20,11 @@ configure_file(xrootd.cfg xrootd.cfg @ONLY)
 
 add_test(NAME XRootD::start
   COMMAND sh -c "mkdir -p data && \
-  $<TARGET_FILE:xrootd> -b -k fifo -l xrootd.log -s xrootd.pid -c xrootd.cfg")
+  $<TARGET_FILE:xrootd> -b -k fifo -n standalone -l xrootd.log -s xrootd.pid -c xrootd.cfg")
 set_tests_properties(XRootD::start PROPERTIES FIXTURES_SETUP   XRootD)
 
 add_test(NAME XRootD::stop
-  COMMAND sh -c "sleep 1 && rm -rf data && kill -s TERM $(cat xrootd.pid)")
+  COMMAND sh -c "rm -rf data && kill -s TERM $(cat standalone/xrootd.pid)")
 set_tests_properties(XRootD::stop  PROPERTIES FIXTURES_CLEANUP XRootD)
 
 add_test(NAME XRootD::smoke-test
