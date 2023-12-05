@@ -71,10 +71,14 @@ void LocalFileHandlerTest::TearDown()
 // Create the file to be tested
 //----------------------------------------------------------------------------
 void LocalFileHandlerTest::CreateTestFileFunc( std::string url, std::string content ){
+   errno = 0;
    mode_t openmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
    int fd = open( url.c_str(), O_RDWR | O_CREAT | O_TRUNC, openmode );
+   EXPECT_NE( fd, -1 );
+   EXPECT_EQ( errno, 0 );
    int rc = write( fd, content.c_str(), content.size() );
    EXPECT_EQ( rc, int( content.size() ) );
+   EXPECT_EQ( errno, 0 );
    rc = close( fd );
    EXPECT_EQ( rc, 0 );
 }
