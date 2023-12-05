@@ -782,7 +782,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 // Check if there is a port number. This could be as ':port' or ' port'.
 //
     if (!(val = index(mval,':')) && !isURL) val = Config.GetWord();
-       else {*val = '\0'; val++;}
+       else if (val) {*val = '\0'; val++;}
 
 // At this point, make sure we actually have a host name
 //
