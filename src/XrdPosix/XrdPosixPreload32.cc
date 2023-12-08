@@ -32,6 +32,7 @@
 #undef _FORTIFY_SOURCE
 #endif
 
+#if !defined(MUSL)
 #ifdef  _LARGEFILE_SOURCE
 #undef  _LARGEFILE_SOURCE
 #endif
@@ -42,6 +43,7 @@
 
 #ifdef  _FILE_OFFSET_BITS
 #undef  _FILE_OFFSET_BITS
+#endif
 #endif
 
 #define XRDPOSIXPRELOAD32
