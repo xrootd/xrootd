@@ -280,42 +280,42 @@ Dependencies to run containerized tests can be installed with
 apt install podman
 ```
 
-## Running XRootD Containerized Tests with Docker and/or Podman
+## Running XRootD Tests on other platforms with Docker and/or Podman
 
-Some XRootD tests implemented using [CppUnit](http://cppunit.sourceforge.net/)
-require a containerized environment to run. This file explains how to use the
-recently added `xrd-docker` script to setup and run these containerized tests.
-The steps needed are described below.
+If you would like to run XRootD tests on other platforms, you can use
+the `xrd-docker` script and associated `Dockerfile`s in the `docker/`
+subdirectory. The steps needed are described below.
 
-1. Creating an XRootD tarball to build a container image
+### Create an XRootD tarball to build in the container
 
-The first thing that needs to be done is packaging a special tarball with the
-right version of XRootD to be used to build the container image for testing. The
-command `xrd-docker package` by default creates a tarball named `xrootd.tar.gz`
-in the current directory. We recommend changing directory to the `docker/`
+The first thing that needs to be done is packaging a tarball with the version
+of XRootD to be used to build in the container image. The command `xrd-docker package`
+by default creates a tarball named `xrootd.tar.gz` in the current directory using the
+`HEAD` of the currently checked branch. We recommend changing directory to the `docker/`
 directory in the XRootD git repository in order to run these commands. Suppose
-we would like to run the tests for release v5.6.0. Then, we would run
+we would like to run the tests for release v5.6.4. Then, we would run
 ```sh
-$ xrd-docker package v5.6.0
+$ xrd-docker package v5.6.4
 ```
 to create the tarball that will be used to build the container image. The
-tarball created by this command is *not* a standard tarball. It prepares and
-adds a spec file with the version already replaced in that the `Dockerfile`s use
-during the build, so it is important to use `xrd-docker package` instead of
-renaming a standard tarball and placing it in the current directory.
+tarball created by this command is a standard tarball created with `git archive`.
+Inside it, the `VERSION` file contains the expanded version which is used by the
+new spec file to detect the version of XRootD being built. You can also create a
+source RPM with such tarballs, but they must be built with `rpmbuild --with git`
+as done in the CI builds and the `Dockerfile`s in the `docker/build/` subdirectory.
 
-1. Building a container image for testing
+### Build the container image
 
-The next step is to build the container image that will be used for testing.
-The container image can be built with either `docker` or `podman`, and the
-currently supported OSs are CentOS 7, AlmaLinux 8, and AlmaLinux 9. The command
-to build the image is
+The next step is to build the container image for the desired OS. It can be built
+with either `docker` or `podman`. The `xrd-docker` script has the `build` command
+to facilitate this. Currently, supported OSs for building are CentOS 7, AlmaLinux 8,
+AlmaLinux 9, Fedora. The command to build the image is simply
 ```sh
 $ xrd-docker build <OS>
 ```
-where `<OS>` is one of `centos7` (default), `alma8`, or `alma9`. The name
-simply chooses which `Dockerfile` is used from the `build/` directory, as they
-are named `Dockerfile.<OS>` for each suported OS. It is possible to add new
+where `<OS>` is one of `centos7` (default), `alma8`, `alma9`, or `fedora`. The
+name simply chooses which `Dockerfile` is used from the `build/` directory, as
+they are named `Dockerfile.<OS>` for each suported OS. It is possible to add new
 `Dockerfile`s following this same naming scheme to support custom setups and
 still use `xrd-docker build` command to build an image. The images built with
 `xrd-docker build` are named simply `xrootd` (latest being a default tag added
@@ -326,7 +326,7 @@ declared in the spec file, in the first stage, building the RPMs in a second
 stage, then, in a third stage starting from a fresh image, the RPMs built in
 stage 2 are copied over and installed with `yum` or `dnf`.
 
-**Switching between `docker` and `podman` if both are installed
+#### Switching between `docker` and `podman` if both are installed
 
 The `xrd-docker` script takes either `docker` or `podman` if available, in this
 order. If you have only one of the two installed, everything should work without
@@ -337,54 +337,6 @@ environment variable:
 $ export DOCKER=$(command -v podman)
 $ xrd-docker build # uses podman from now on...
 ```
-
-1. Downloading required test data
-
-Before setting up the containers and running the tests, we must ensure that all
-data required to run the tests is present in the `data/` directory. This can be
-done with a call to `xrd-docker fetch`. The `data/` directory is mounted into
-the container images during setup, and each container in the small cluster
-copies part of the data into the root directory to be served via XRootD.
-
-1. Setting up the cluster of containers
-
-Now that we have a container image and test data available, it's time to start
-the cluster of containers that will be used for testing. The setup will create
-a docker or podman network and add each container to it. The cluster structure
-is as follows:
-
-```mermaid
-graph TD;
-    metaman --> man1;
-    metaman --> man2;
-    man1 --> srv1;
-    man1 --> srv2;
-    man2 --> srv3;
-    man2 --> srv4;
-```
-
-The `metaman` container runs `cmsd` and acts as redirector for `man1` and
-`man2`, which themselves are also redirectors for `srv{1..4}`, which in turn
-serve data files. The container cluster can be setup with the command
-```sh
-$ xrd-docker setup <OS>
-```
-where `<OS>` is optional and if not given, the `xrootd:latest` image will be
-used.
-
-1. Running the tests
-
-Now that everything is setup, we can run the tests with
-
-```sh
-$ xrd-docker run
-```
-
-If something goes wrong, it is possible to enter each container with the command
-```sh
-$ xrd-docker shell <container>
-```
-where `<container>` is one of `metaman` (default), `man{1,2}` or `srv{1..4}`.
 
 ### Appendix
 
