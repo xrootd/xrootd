@@ -6,6 +6,37 @@ Release Notes
 =============
 
 -------------
+Version 5.6.4
+-------------
+
++ **Major bug fixes**
+  **[XrdHttp]** Fix segfault with macaroons (issue #2114)
+  **[XrdPss]** Fix segfault if pss.origin uses https protocol with no port (issue #2140)
+
++ **Minor bug fixes**
+  **[CMake]** Fix include path in XRootDConfig.cmake (#2142)
+  **[Headers]** Fix header dependencies and missing includes/declarations (#2119)
+  **[Server]** Initialize pidFN to pidpath base directory if an error occurs
+  **[XrdCl]** Don't try to enable TCP_CORK in GNU/Hurd (#2115)
+  **[XrdCl]** Reapply fix for null-characters in error output (#2138, issue #1501)
+  **[XrdEc]** Fix alignment issues on SPARC (issue #2131)
+  **[XrdHttp,XrdNet]** Adapt Scitag min and max value to change in spec (#2139)
+  **[XrdPosix]** Fix compilation failure with latest MUSL libc
+  **[XrdSciTokens]** Initialize SecEntity.addrInfo to avoid SEGV (#2128)
+  **[XrdTls]** Switch from using a cert file to a cert chain file (issue #2126)
+  **[XrdZip]** Support big endian architectures in XrdZip (#2145)
+
++ **Miscellaneous**
+  **[CMake]** Install CMake config file into lib/lib64 rather than share (#2116)
+  **[DEB/RPM]** Rewrite packaging for Debian and RHEL based distributions
+  **[Tests]** Convert tests to GoogleTest and run without containers (#2055, GSoC 2023)
+  **[Tests]** Other fixes and improvements to tests (#2115, #2129, #2130, #2137, #2141)
+
++ **Known Issues**
+  **[XrdSciTokens]** In this release, as in previous ones, using scitokens with the ZTN
+     protocol may grant more access than should be allowed by the token scopes (issue #2121).
+
+-------------
 Version 5.6.3
 -------------
 
