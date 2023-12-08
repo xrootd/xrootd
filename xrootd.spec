@@ -18,19 +18,21 @@
 
 Name:		xrootd
 Epoch:		1
-Release:	2%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
+Release:	1%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
 Summary:	Extended ROOT File Server
 Group:		System Environment/Daemons
 License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AND Zlib
 URL:		https://xrootd.slac.stanford.edu
 
-%if %{with git}
-Version:	%(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
-Source0:	%{name}.tar.gz
-%else
-Version:	5.6.3
+%if !%{with git}
+Version:	5.6.4
 Source0:	%{url}/download/v%{version}/%{name}-%{version}.tar.gz
-Patch0:	%{url}/download/v%{version}/%{name}-%{version}-install-xrdnet-pmark-header.patch
+%else
+%define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
+%define src_version %(sed -e "s/%%(describe)/v5.7-rc%(date +%%Y%%m%%d)/" <<< "%git_version")
+%define rpm_version %(sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./' <<< "%src_version")
+Version:	%rpm_version
+Source0:	%{name}.tar.gz
 %endif
 
 %if %{with compat}
@@ -51,10 +53,10 @@ Source1:	%{url}/download/v%{compat_version}/%{name}-%{compat_version}.tar.gz
 %endif
 
 %if %{?rhel}%{!?rhel:0} == 7
-BuildRequires:	cmake3 >= 3.16
+BuildRequires:	cmake3
 BuildRequires:	%{devtoolset}-toolchain
 %else
-BuildRequires:	cmake >= 3.16
+BuildRequires:	cmake
 BuildRequires:	gcc-c++
 %endif
 BuildRequires:	gdb
@@ -92,7 +94,7 @@ BuildRequires:	python%{python3_other_pkgversion}-setuptools
 BuildRequires:	json-c-devel
 BuildRequires:	libmacaroons-devel
 BuildRequires:	libuuid-devel
-BuildRequires:	voms-devel >= 2.0.6
+BuildRequires:	voms-devel
 BuildRequires:	scitokens-cpp-devel
 BuildRequires:	davix-devel
 
@@ -131,15 +133,14 @@ BuildRequires:	openssl-devel
 %endif
 
 %if %{with tests}
+BuildRequires:	attr
 BuildRequires:	cppunit-devel
 BuildRequires:	gtest-devel
+BuildRequires:	openssl
 %endif
 
 %if %{with xrdec}
-BuildRequires:	autoconf
-BuildRequires:	automake
-BuildRequires:	libtool
-BuildRequires:	yasm
+BuildRequires:	isa-l-devel
 %endif
 
 Requires:	%{name}-server%{?_isa} = %{epoch}:%{version}-%{release}
@@ -433,7 +434,6 @@ export CXX=clang++
     -DCMAKE_INSTALL_LIBDIR:PATH=%{_libdir} \
     -DCMAKE_INSTALL_SYSCONFDIR:PATH=%{_sysconfdir} \
     -DFORCE_ENABLED:BOOL=TRUE \
-    -DUSE_SYSTEM_ISAL:BOOL=FALSE \
     -DENABLE_ASAN:BOOL=%{with asan} \
     -DENABLE_FUSE:BOOL=TRUE \
     -DENABLE_KRB5:BOOL=TRUE \
@@ -444,7 +444,6 @@ export CXX=clang++
     -DENABLE_VOMS:BOOL=TRUE \
     -DENABLE_XRDCL:BOOL=TRUE \
     -DENABLE_XRDCLHTTP:BOOL=TRUE \
-    -DENABLE_XRDEC:BOOL=%{with xrdec} \
     -DXRDCEPH_SUBMODULE:BOOL=%{with ceph} \
     -DENABLE_XRDCLHTTP:BOOL=TRUE \
     -DXRDCL_ONLY:BOOL=FALSE \
@@ -455,7 +454,7 @@ make -C %{_builddir}/%{name}-%{compat_version}/build %{?_smp_mflags}
 
 %cmake \
     -DFORCE_ENABLED:BOOL=TRUE \
-    -DUSE_SYSTEM_ISAL:BOOL=FALSE \
+    -DUSE_SYSTEM_ISAL:BOOL=TRUE \
     -DENABLE_ASAN:BOOL=%{with asan} \
     -DENABLE_FUSE:BOOL=TRUE \
     -DENABLE_KRB5:BOOL=TRUE \
@@ -950,6 +949,11 @@ fi
 %endif
 
 %changelog
+
+* Fri Dec 08 2023 Guilherme Amadio <amadio@cern.ch> - 1:5.6.4-1
+- Use isa-l library from the system
+- Extract version from tarball when building git snapshots
+- XRootD 5.6.4
 
 * Fri Oct 27 2023 Guilherme Amadio <amadio@cern.ch> - 1:5.6.3-2
 - XRootD 5.6.3
