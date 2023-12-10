@@ -26,6 +26,7 @@ Build-Depends:
  libjson-c-dev,
  libmacaroons-dev,
  uuid-dev,
+ uuid-runtime,
  voms-dev,
  libscitokens-dev,
  davix-dev,
