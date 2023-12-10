@@ -5,6 +5,7 @@ Standards-Version: 4.6.2
 Build-Depends:
  debhelper (>= 13),
  dh-python,
+ attr,
  cmake,
  libgtest-dev,
  libcppunit-dev,
