@@ -878,7 +878,12 @@ private:
             for (const auto &base_path : config.m_base_paths) {
                 if (!acl_path[0] || acl_path[0] != '/') {continue;}
                 std::string path;
-                MakeCanonical(base_path + acl_path, path);
+		if (std::string(acl_path).rfind(base_path, 0) == 0) {
+                    MakeCanonical(acl_path, path);
+                }
+                else{
+                    MakeCanonical(base_path + acl_path, path);
+		}
                 if (!strcmp(acl_authz, "read")) {
                     xrd_rules.emplace_back(AOP_Read, path);
                     xrd_rules.emplace_back(AOP_Readdir, path);
