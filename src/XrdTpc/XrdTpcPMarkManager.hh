@@ -43,6 +43,8 @@
  * In the case of multi-stream HTTP TPC transfers, a packet marking handle will be created for each stream.
  * The first one will be created as a basic one. The other will be created using the first packet marking handle as a basis.
  */
+namespace XrdTpc
+{
 class PMarkManager {
 public:
 
@@ -108,6 +110,6 @@ private:
   // The file descriptor used to create the first packet marking handle
   int mInitialFD = -1;
 };
-
+} // namespace XrdTpc
 
 #endif //XROOTD_PMARKMANAGER_HH

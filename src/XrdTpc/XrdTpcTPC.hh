@@ -10,7 +10,7 @@
 #include "XrdHttp/XrdHttpUtils.hh"
 
 #include "XrdTls/XrdTlsTempCA.hh"
-#include "PMarkManager.hh"
+#include "XrdTpcPMarkManager.hh"
 
 #include <curl/curl.h>
 
@@ -79,7 +79,7 @@ private:
         int tpc_status;
         unsigned int streams;
         bool isIPv6;
-        PMarkManager pmarkManager;
+        XrdTpc::PMarkManager pmarkManager;
     };
 
     int ProcessOptionsReq(XrdHttpExtReq &req);

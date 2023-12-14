@@ -21,8 +21,10 @@
 
 
 #include <sstream>
-#include "PMarkManager.hh"
+#include "XrdTpcPMarkManager.hh"
 
+namespace XrdTpc
+{
 PMarkManager::SocketInfo::SocketInfo(int fd, const struct sockaddr * sockP) {
   netAddr.Set(sockP,fd);
   client.addrInfo = static_cast<XrdNetAddrInfo*>(&netAddr);
@@ -70,3 +72,4 @@ void PMarkManager::endPmark(int fd) {
   // we just look for it and reset the unique_ptr to nullptr to trigger the PMark handle deletion
   mPmarkHandles.erase(fd);
 }
+} // namespace XrdTpc
