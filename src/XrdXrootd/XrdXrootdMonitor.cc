@@ -286,29 +286,45 @@ void XrdXrootdMonitor::User::Enable()
 /******************************************************************************/
 /*      X r d X r o o t d M o n i t o r : : U s e r : : R e g i s t e r       */
 /******************************************************************************/
-  
+
+// The gcc specific pragmas are to prevent gcc from complaining about an
+// impossible situtation. Even if it were possible we don't care in practice.
+// The snprintf below cannot be truncated as we made sure of that by setting
+// null bytes to delimit the source buffer. However, gcc is not clever enough
+// to figure that out and complains. See gcc Bug 1431678 for the history. 
+// BTW checking the return value works in C but not in C++, another oversight.
+// The only other solution is to wait for C++20 and use std::format_to.
+
 void XrdXrootdMonitor::User::Register(const char *Uname, 
                                       const char *Hname,
-                                      const char *Pname)
+                                      const char *Pname, unsigned int xSID)
 {
-   const char *colonP, *atP;
-   char  uBuff[1024], *uBP;
-   int n;
+#ifndef NODEBUG
+    const char *TraceID = "Monitor";
+#endif
+   char *dotP, *colonP, *atP;
+   char  uBuff[1024], tBuff[1024], sBuff[64];
 
-// The identification always starts with the protocol being used
+// Decode the user name as a.b:c@d and remap it for monitoring as
+// <protocol>/a.{b|xSID}:<kySID>@host
 //
-   n = sprintf(uBuff, "%s/", Pname);
-   uBP = uBuff + n;
+   snprintf(tBuff, sizeof(tBuff), Uname);
+   if ((dotP = index(tBuff, '.')) && (colonP = index(dotP+1, ':')) && 
+       (atP = index(colonP+1, '@')))
+      {*dotP = 0; *colonP = 0; *atP = 0;
+       if (xSID)  
+          {snprintf(sBuff, sizeof(sBuff), " %u", xSID);
+           dotP = sBuff;
+          }
 
-// Decode the user name as a.b:c@d
-//
-   if ((colonP = index(Uname, ':')) && (atP = index(colonP+1, '@')))
-      {n = colonP - Uname + 1;
-       strncpy(uBP, Uname, n);
-       strcpy(uBP+n, kySID);
-       n += kySIDSZ; *(uBP+n) = '@'; n++;
-       strcpy(uBP+n, Hname);
-      } else strcpy(uBP, Uname);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+       snprintf(uBuff, sizeof(uBuff), "%s/%s.%s:%s@%s", Pname, tBuff, 
+                                      dotP+1, kySID, atP+1);
+#pragma GCC diagnostic pop
+
+       if (xSID) {TRACE(LOGIN,"Register remap "<<Uname<<" -> "<<uBuff);}
+      } else snprintf(uBuff, sizeof(uBuff), "%s/%s", Pname, Uname);
 
 // Generate a monitor identity for this user. We do not assign a dictioary
 // identifier unless this entry is reported.
