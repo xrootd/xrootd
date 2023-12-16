@@ -582,9 +582,29 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     } else
       CurrentReq.reqstate++;
+  } else if (!DoneSetInfo && !CurrentReq.userAgent().empty()) { // DoingLogin is true, meaning the login finished.
+    std::string mon_info = "monitor info " + CurrentReq.userAgent();
+    DoneSetInfo = true;
+    if (mon_info.size() >= 1024) {
+      TRACEI(ALL, "User agent string too long");
+    } else if (!Bridge) {
+      TRACEI(ALL, "Internal logic error: Bridge is null after login");
+    } else {
+      TRACEI(DEBUG, "Setting " << mon_info);
+      memset(&CurrentReq.xrdreq, 0, sizeof (ClientRequest));
+      CurrentReq.xrdreq.set.requestid = htons(kXR_set);
+      CurrentReq.xrdreq.set.modifier = '\0';
+      memset(CurrentReq.xrdreq.set.reserved, '\0', sizeof(CurrentReq.xrdreq.set.reserved));
+      CurrentReq.xrdreq.set.dlen = htonl(mon_info.size());
+      if (!Bridge->Run((char *) &CurrentReq.xrdreq, (char *) mon_info.c_str(), mon_info.size())) {
+        SendSimpleResp(500, nullptr, nullptr, "Could not set user agent.", 0, false);
+        return -1;
+      }
+      return 0;
+    }
+  } else {
+    DoingLogin = false;
   }
-  DoingLogin = false;
-
 
   // Read the next request header, that is, read until a double CRLF is found
 
@@ -1856,6 +1876,7 @@ void XrdHttpProtocol::Reset() {
   myBuffStart = myBuffEnd = 0;
 
   DoingLogin = false;
+  DoneSetInfo = false;
 
   ResumeBytes = 0;
   Resume = 0;
