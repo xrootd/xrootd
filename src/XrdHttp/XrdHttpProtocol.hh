@@ -298,6 +298,9 @@ private:
 
   /// Tells that we are just logging in
   bool DoingLogin;
+
+  /// Indicates whether we've attempted to send app info.
+  bool DoneSetInfo;
   
   /// Tells that we are just waiting to have N bytes in the buffer
   long ResumeBytes;

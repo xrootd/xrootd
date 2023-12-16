@@ -198,6 +198,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
       if(prot->pmarkHandle != nullptr) {
         parseScitag(val);
       }
+    } else if (!strcasecmp(key, "User-Agent")) {
+      m_user_agent = val;
+      trim(m_user_agent);
     } else {
       // Some headers need to be translated into "local" cgi info.
       auto it = std::find_if(prot->hdr2cgimap.begin(), prot->hdr2cgimap.end(),[key](const auto & item) {
@@ -2752,6 +2755,7 @@ void XrdHttpReq::reset() {
   m_req_cksum = nullptr;
 
   m_resource_with_digest = "";
+  m_user_agent = "";
 
   headerok = false;
   keepalive = true;

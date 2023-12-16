@@ -74,6 +74,9 @@ private:
   int httpStatusCode;
   std::string httpStatusText;
 
+  // The value of the user agent, if specified
+  std::string m_user_agent;
+
   // Whether transfer encoding was requested.
   bool m_transfer_encoding_chunked;
   long long m_current_chunk_offset;
@@ -190,6 +193,9 @@ public:
   void appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow);
 
   void addCgi(const std::string & key, const std::string & value);
+
+  // Return the current user agent; if none has been specified, returns an empty string
+  const std::string &userAgent() const {return m_user_agent;}
 
   // ----------------
   // Description of the request. The header/body parsing
