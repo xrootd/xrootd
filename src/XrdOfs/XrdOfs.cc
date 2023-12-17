@@ -1049,24 +1049,36 @@ int XrdOfsFile::fctl(const int cmd, int alen, const char *args,
 {                             // 12345678901234
    static const char *fctlArg = "ofs.tpc cancel";
    static const int   fctlAsz = 15;
-
-// See if the is a tpc cancellation (the only thing we support here)
-//
-   if (cmd != SFS_FCTL_SPEC1 || !args || alen < fctlAsz || strcmp(fctlArg,args))
-      return XrdOfsFS->FSctl(*this, cmd, alen, args, client);
+   static const char *fctlAdvise = "oss.fadvise";
+   static const int   fctlAdvisesz = 11;
+   EPNAME("fctl");
 
 // Check if we have a tpc operation in progress
 //
-   if (!myTPC)
-      {error.setErrInfo(ESRCH, "tpc operation not found");
-       return SFS_ERROR;
-      }
+   if (cmd == SFS_FCTL_SPEC1 && args && alen >= fctlAsz && !strcmp(fctlArg,args)) {
+      if (!myTPC)
+         {error.setErrInfo(ESRCH, "tpc operation not found");
+          return SFS_ERROR;
+         }
 
 // Cancel the tpc
 //
-   myTPC->Del();
-   myTPC = 0;
-   return SFS_OK;
+      myTPC->Del();
+      myTPC = 0;
+      return SFS_OK;
+   } else if (cmd == SFS_FCTL_SPEC1 && args && alen >= fctlAdvisesz && !strncmp(fctlAdvise, args, fctlAdvisesz)) {
+// Pass the fadvise request to the OSS
+//
+      auto result = (oh->Select().Fctl(cmd, alen, args, nullptr));
+      if (result < 0)
+          return XrdOfsFS->Emsg(epname, error, result, "fctl", oh);
+
+      return SFS_OK;
+   } else {
+// If this is not a directly supported FSctl, we'll invoke the FSctl plugin
+//
+      return XrdOfsFS->FSctl(*this, cmd, alen, args, client);
+   }
 }
 
 /******************************************************************************/

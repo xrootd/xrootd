@@ -105,7 +105,10 @@ public:
   int Stats(char *buff, int blen, int do_sync = 0);
 
 
+  /// Returns true if the filesystem supports fadvise
+  bool GetSupportsFadvise() const {return SupportsFadvise;}
 
+  void SetSupportsFadvise(bool val) {SupportsFadvise = val;}
 
   /// Perform a Stat request
   int doStat(char *fname);
@@ -298,10 +301,16 @@ private:
 
   /// Tells that we are just logging in
   bool DoingLogin;
-  
+
+  /// Indicates whether we've attempted to send app info.
+  bool DoneSetInfo;
+
   /// Tells that we are just waiting to have N bytes in the buffer
   long ResumeBytes;
-  
+
+  /// Tells that we will perform a fadvise hint.
+  bool SupportsFadvise{true};
+
   /// Private SSL context
   SSL *ssl;
 

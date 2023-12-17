@@ -57,9 +57,11 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -1069,9 +1071,38 @@ int XrdOssFile::Fchmod(mode_t Mode)
 int XrdOssFile::Fctl(int cmd, int alen, const char *args, char **resp)
 {
    const struct timeval *utArgs;
+   EPNAME("Fctl");
 
+   TRACE(Debug, "Command: " << cmd << ", args=" << args);
    switch(cmd)
-         {case XrdOssDF::Fctl_utimes:
+         {case SFS_FCTL_SPEC1:
+              {if (!args || !alen) return -EINVAL;
+               std::string cmd_str(args, alen);
+               XrdOucTokenizer tokens(&cmd_str[0]);
+               if (!tokens.GetLine()) return -EINVAL;
+               auto command = tokens.GetToken();
+               if (strcmp(command, "oss.fadvise")) return -ENOTSUP;
+               auto offset = tokens.GetToken();
+               if (!offset) return -EINVAL;
+               auto length = tokens.GetToken();
+               if (!offset) return -EINVAL;
+               auto advise = tokens.GetToken();
+               if (!advise) return -EINVAL;
+               if (strcmp("SEQUENTIAL", advise)) return -ENOTSUP;
+               long long offset_val, len_val;
+               try {
+                   offset_val = std::stoll(offset);
+                   len_val = std::stoll(length);
+               } catch (...) {
+                   return -EINVAL;
+               }
+#if defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+               return -posix_fadvise(fd, offset_val, len_val, POSIX_FADV_SEQUENTIAL);
+#else
+               return -ENOTSUP;
+#endif
+              }
+          case XrdOssDF::Fctl_utimes:
                if (alen != sizeof(struct timeval)*2 || !args) return -EINVAL;
                utArgs = (const struct timeval *)args;
                if (futimes(fd, utArgs)) return -errno;

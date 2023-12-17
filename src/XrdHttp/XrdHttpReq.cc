@@ -500,7 +500,7 @@ bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
         const char *etext_ //!< associated error message
         ) {
 
-  TRACE(REQ, " XrdHttpReq::Error");
+  TRACE(REQ, " XrdHttpReq::Error: " << etext_);
 
   xrdresp = kXR_error;
   xrderrcode = (XErrorCode) ecode;
@@ -516,7 +516,11 @@ bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
   // Second part of the ugly hack on stat()
   if ((request == rtGET) && (xrdreq.header.requestid == ntohs(kXR_stat)))
     return true;
-  
+
+  // If the error was about a query request, don't fail
+  if ((request == rtGET) && (xrdreq.header.requestid == ntohs(kXR_query)))
+    return true;
+
   return false;
 };
 
@@ -1194,6 +1198,26 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 
         }
+        case 3:
+        {
+          const auto &rangeList = readRangeHandler.ListResolvedRanges();
+          if (!rangeList.empty() && prot->GetSupportsFadvise()) {
+            const auto &range = rangeList[0];
+            memset(&xrdreq, 0, sizeof(ClientRequest));
+            xrdreq.query.requestid = htons(kXR_query);
+            xrdreq.query.infotype = htons(kXR_Qopaqug);
+            memcpy(xrdreq.query.fhandle, fhandle, 4);
+            std::string query = "oss.fadvise " + std::to_string(range.start) + " " + std::to_string(range.end - range.start) + " SEQUENTIAL";
+            xrdreq.query.dlen = htonl(query.size());
+            if (!prot->Bridge->Run((char *) &xrdreq, (char *)query.c_str(), query.size())) {
+              prot->SendSimpleResp(500, nullptr, nullptr, (char *) "Could not send file usage hint.", 0, false);
+              return -1;
+            }
+            return 0;
+          } else {
+            reqstate += 1;
+          }
+        }
         // fallthrough
         default: // Read() or Close(); reqstate is 3+
         {
@@ -1290,7 +1314,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           // We want to be invoked again after this request is finished
           return 0;
-        } // case 3+
+        } // case 4+
         
       } // switch (reqstate)
 
@@ -2227,6 +2251,13 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
             // Case should not be reachable
             return -1;
+          }
+          case 3: // fadvise
+          {
+            // This command was advisory; ignore all errors.
+            TRACEI(REQ, "Got post-process for fadvise");
+            if (xrdresp == kXR_error && xrderrcode == kXR_Unsupported) prot->SetSupportsFadvise(false);
+            return 0;
           }
           default: //read or readv
           {
