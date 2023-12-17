@@ -308,7 +308,7 @@ void XrdXrootdMonitor::User::Register(const char *Uname,
 // Decode the user name as a.b:c@d and remap it for monitoring as
 // <protocol>/a.{b|xSID}:<kySID>@host
 //
-   snprintf(tBuff, sizeof(tBuff), Uname);
+   snprintf(tBuff, sizeof(tBuff), "%s", Uname);
    if ((dotP = index(tBuff, '.')) && (colonP = index(dotP+1, ':')) && 
        (atP = index(colonP+1, '@')))
       {*dotP = 0; *colonP = 0; *atP = 0;
