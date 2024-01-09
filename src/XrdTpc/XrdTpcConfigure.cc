@@ -56,7 +56,22 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
                 Config.Close();
                 return false;
             }
-        } else if (!strcmp("tpc.timeout", val)) {
+        } else if (!strcmp("tpc.fixed_route", val)) {
+		if (!(val = Config.GetWord())) {
+                Config.Close();
+                m_log.Emsg("Config", "tpc.fixed_route value not specified");
+                return false;
+            }
+            if (!strcmp("1", val) || !strcasecmp("yes", val) || !strcasecmp("true", val)) {
+                m_fixed_route= true;
+            } else if (!strcmp("0", val) || !strcasecmp("no", val) || !strcasecmp("false", val)) {
+                m_fixed_route= false;
+	    } else{
+                Config.Close();
+                m_log.Emsg("Config", "tpc.fixed_route value is invalid", val);
+                return false;
+	    }
+	} else if (!strcmp("tpc.timeout", val)) {
             if (!(val = Config.GetWord())) {
                 m_log.Emsg("Config","tpc.timeout value not specified.");  return false;
             }

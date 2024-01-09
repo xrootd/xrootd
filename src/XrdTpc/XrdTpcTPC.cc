@@ -1,5 +1,6 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -321,6 +322,7 @@ TPCHandler::~TPCHandler() {
   
 TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
         m_desthttps(false),
+        m_fixed_route(false),
         m_timeout(60),
         m_first_timeout(120),
         m_log(log->logger(), "TPC_"),
@@ -951,6 +953,38 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             rec.status = 500;
             logTransferEvent(LogMask::Error, rec, "PULL_FAIL", msg);
             return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+    }
+    // ddavila 2023-01-05:
+    // The following change was required by the Rucio/SENSE project where
+    // multiple IP addresses, each from a different subnet, are assigned to a
+    // single server and routed differently by SENSE.
+    // The above requires the server to utilize the same IP, that was used to
+    // start the TPC, for the resolution of the given TPC instead of
+    // using any of the IPs available.
+    if (m_fixed_route){
+        XrdNetAddr *nP;
+        int numIP = 0;
+        char buff[1024];
+        char * ip;
+
+        // Get the hostname used to contact the server from the http header
+        auto host_header = req.headers.find("Host");
+        std::string host_used;
+        if (host_header != req.headers.end()) {
+            host_used = host_header->second;
+        }
+
+        // Get the IP addresses associated with the above hostname
+        XrdNetUtils::GetAddrs(host_used.c_str(), &nP, numIP, XrdNetUtils::prefAuto, 0);
+        int ip_size = nP[0].Format(buff, 1024, XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort);
+        ip = (char *)malloc(ip_size-1);
+
+	// Substring to get only the address, remove brackets and garbage
+        memcpy(ip, buff+1, ip_size-2);
+        ip[ip_size-2]='\0';
+        logTransferEvent(LogMask::Info, rec, "LOCAL IP", ip);
+
+        curl_easy_setopt(curl, CURLOPT_INTERFACE, ip);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 //  curl_easy_setopt(curl,CURLOPT_SOCKOPTFUNCTION,sockopt_setcloexec_callback);
