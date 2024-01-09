@@ -56,7 +56,9 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
                 Config.Close();
                 return false;
             }
-        } else if (!strcmp("tpc.timeout", val)) {
+        } else if (!strcmp("tpc.sense", val)) {
+		m_sense = true;
+	} else if (!strcmp("tpc.timeout", val)) {
             if (!(val = Config.GetWord())) {
                 m_log.Emsg("Config","tpc.timeout value not specified.");  return false;
             }

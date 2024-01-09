@@ -144,6 +144,7 @@ private:
     static size_t m_block_size;
     static size_t m_small_block_size;
     bool m_desthttps;
+    bool m_sense;  // forces the destination IP to be the same used to contact the server to trigger the TPC
     int m_timeout; // the 'timeout interval'; if no bytes have been received during this time period, abort the transfer.
     int m_first_timeout; // the 'first timeout interval'; the amount of time we're willing to wait to get the first byte.
                          // Unless explicitly specified, this is 2x the timeout interval.
