@@ -159,7 +159,7 @@ ssize_t XrdCephOssBufferedFile::Read(void *buff, off_t offset, size_t blen) {
     auto buffer_itr = m_bufferReadAlgs.find(thread_id);
     if (buffer_itr == m_bufferReadAlgs.end()) {
       // only create a buffer, if we haven't hit the max buffers yet
-      auto buffer_ptr = std::move(createBuffer());
+      auto buffer_ptr = createBuffer();
       if (buffer_ptr) {
         buffer = buffer_ptr.get();
         m_bufferReadAlgs[thread_id] = std::move(buffer_ptr);
