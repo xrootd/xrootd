@@ -51,14 +51,14 @@ void PMarkManager::beginPMarks() {
     // This base pmark handle will be placed at the beginning of the vector of pmark handles
     std::stringstream ss;
     ss << "scitag.flow=" << mReq->mSciTag;
-    auto sockInfo = mSocketInfos.front();
+    SocketInfo & sockInfo = mSocketInfos.front();
     mInitialFD = sockInfo.client.addrInfo->SockFD();
     mPmarkHandles.emplace(mInitialFD,mPmark->Begin(sockInfo.client, mReq->resource.c_str(), ss.str().c_str(), "http-tpc"));
     mSocketInfos.pop();
   } else {
     // The first pmark handle was created, or not. Create the other pmark handles from the other connected sockets
     while(!mSocketInfos.empty()) {
-      auto & sockInfo = mSocketInfos.front();
+      SocketInfo & sockInfo = mSocketInfos.front();
       if(mPmarkHandles[mInitialFD]){
         mPmarkHandles.emplace(sockInfo.client.addrInfo->SockFD(),mPmark->Begin(*sockInfo.client.addrInfo, *mPmarkHandles[mInitialFD], nullptr));
       }
