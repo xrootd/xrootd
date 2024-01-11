@@ -834,19 +834,43 @@ private:
         int idx = 0;
         std::set<std::string> paths_write_seen;
         std::set<std::string> paths_create_or_modify_seen;
+        std::vector<std::string> acl_paths;
+        acl_paths.reserve(config.m_restricted_paths.size() + 1);
         while (acls[idx].resource && acls[idx++].authz) {
+            acl_paths.clear();
             const auto &acl_path = acls[idx-1].resource;
             const auto &acl_authz = acls[idx-1].authz;
-            if (!config.m_restricted_paths.empty()) {
-                bool found_path = false;
+            if (config.m_restricted_paths.empty()) {
+                acl_paths.push_back(acl_path);
+            } else {
+                auto acl_path_size = strlen(acl_path);
                 for (const auto &restricted_path : config.m_restricted_paths) {
+                    // See if the acl_path is more specific than the restricted path; if so, accept it
+                    // and move on to applying paths.
                     if (!strncmp(acl_path, restricted_path.c_str(), restricted_path.size())) {
-                        found_path = true;
+                        // Only do prefix checking on full path components.  If acl_path=/foobar and
+                        // restricted_path=/foo, then we shouldn't authorize access to /foobar.
+                        if (acl_path_size > restricted_path.size() && acl_path[restricted_path.size()] != '/') {
+                            continue;
+                        }
+                        acl_paths.push_back(acl_path);
                         break;
                     }
+                    // See if the restricted_path is more specific than the acl_path; if so, accept the
+                    // restricted path as the ACL.  Keep looping to see if other restricted paths add
+                    // more possible authorizations.
+                    if (!strncmp(acl_path, restricted_path.c_str(), acl_path_size)) {
+                        // Only do prefix checking on full path components.  If acl_path=/foo and
+                        // restricted_path=/foobar, then we shouldn't authorize access to /foobar.
+                        if (restricted_path.size() > acl_path_size && restricted_path[acl_path_size-1] != '/') { 
+                            continue;
+                        }
+                        acl_paths.push_back(restricted_path);
+                    }
                 }
-                if (!found_path) {continue;}
+                
             }
+            for (const auto &acl_path : acl_paths) {
             for (const auto &base_path : config.m_base_paths) {
                 if (!acl_path[0] || acl_path[0] != '/') {continue;}
                 std::string path;
@@ -873,7 +897,8 @@ private:
                 } else if (!strcmp(acl_authz, "write")) {
                     paths_write_seen.insert(path);
                 }
-            }
+              }
+           }
         }
         for (const auto &write_path : paths_write_seen) {
             if (paths_create_or_modify_seen.find(write_path) == paths_create_or_modify_seen.end()) {
