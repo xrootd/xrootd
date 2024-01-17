@@ -87,7 +87,11 @@ static void pdots(const char *t, bool ok = 1)
    unsigned int i = 0;
    unsigned int l = (t) ? strlen (t) : 0;
    unsigned int np = PRTWIDTH - l - 8;
-   printf("|| %s ", t);
+   if (l > 0) {
+      printf("|| %s ", t);
+   } else {
+      printf("||  ");
+   }
    for (; i < np ; i++) { printf("."); }
    printf("  %s\n", (ok ? "PASSED" : "FAILED"));
 }
