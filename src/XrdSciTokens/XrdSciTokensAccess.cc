@@ -339,7 +339,7 @@ public:
 
     bool apply(Access_Operation oper, std::string path) {
         for (const auto & rule : m_rules) {
-            if ((oper == rule.first) && !path.compare(0, rule.second.size(), rule.second, 0, rule.second.size())) {
+            if ((oper == rule.first) && !path.compare(0, rule.second.size(), rule.second, 0, rule.second.size()) && ( rule.second.size() == path.length() || path[rule.second.size()]=='/') ) {
                 return true;
             }
         }

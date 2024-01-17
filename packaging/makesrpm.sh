@@ -149,7 +149,7 @@ fi
 #-------------------------------------------------------------------------------
 # Deal with release candidates
 #-------------------------------------------------------------------------------
-RELEASE=3
+RELEASE=4
 if test x`echo $VERSION | grep -E $RCEXP` != x; then
   RELEASE=0.`echo $VERSION | sed 's/.*-rc/rc/'`
   VERSION=`echo $VERSION | sed 's/-rc.*//'`
