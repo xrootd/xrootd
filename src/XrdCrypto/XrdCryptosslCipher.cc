@@ -166,7 +166,33 @@ static int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
 }
 #endif
 
+static EVP_PKEY *getFixedDHParams() {
+    static EVP_PKEY *dhparms = [] {
+        EVP_PKEY *dhParam = 0;
+
+        BIO *biop = BIO_new(BIO_s_mem());
+        BIO_write(biop, dh_param_enc, strlen(dh_param_enc));
+        PEM_read_bio_Parameters(biop, &dhParam);
+        BIO_free(biop);
+        return dhParam;
+    }();
+
+    assert(dhparms);
+    return dhparms;
+}
+
 static int XrdCheckDH (EVP_PKEY *pkey) {
+   // If the DH parameters we received are our fixed set we know they
+   // are acceptable. The parameter check requires computation and more
+   // with openssl 3 than previously. So skip if DH params are known.
+   const EVP_PKEY *dhparms = getFixedDHParams();
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+   const bool skipcheck = EVP_PKEY_parameters_eq(pkey, dhparms);
+#else
+   const bool skipcheck = EVP_PKEY_cmp_parameters(pkey, dhparms);
+#endif
+   if (skipcheck) return 1;
+
    int rc;
 #if OPENSSL_VERSION_NUMBER < 0x10101000L
    DH *dh = EVP_PKEY_get0_DH(pkey);
@@ -524,10 +550,9 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
    deflength = 1;
 
    if (!pub) {
-      static EVP_PKEY *dhparms = [] {
-         DEBUG("generate DH parameters");
-         EVP_PKEY *dhParam = 0;
 
+      DEBUG("generate DH parameters");
+      EVP_PKEY *dhparms = getFixedDHParams();
 //
 // Important historical context:
 // - We used to generate DH params on every server startup (commented
@@ -558,18 +583,10 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
          EVP_PKEY_paramgen(pkctx, &dhParam);
          EVP_PKEY_CTX_free(pkctx);
 */
-         BIO *biop = BIO_new(BIO_s_mem());
-         BIO_write(biop, dh_param_enc, strlen(dh_param_enc));
-         PEM_read_bio_Parameters(biop, &dhParam);
-         BIO_free(biop);
-         DEBUG("generate DH parameters done");
-         return dhParam;
-      }();
 
       DEBUG("configure DH parameters");
       //
       // Set params for DH object
-      assert(dhparms);
       EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new(dhparms, 0);
       EVP_PKEY_keygen_init(pkctx);
       EVP_PKEY_keygen(pkctx, &fDH);
