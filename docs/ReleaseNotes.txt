@@ -6,6 +6,22 @@ Release Notes
 =============
 
 -------------
+Version 5.6.5
+-------------
+
++ **Major bug fixes**
+  **[XrdTpc]** Fix potential segmentation fault when creating packet marking handle (issue #2161)
+
++ **Minor bug fixes**
+  **[XrdSecgsi]** Fix compilation with GCC 14 (#2165)
+  **[XrdSys]** Include <byteswap.h> for BSD and GNU/Hurd (#2149)
+
++ **Miscellaneous**
+  **[Server]** Align monitoring ID with HTTP (issue #2133)
+  **[XrdCrypto]** Skip check of our standard DH parameters (issue #2162)
+  **[XrdHttp]** Send User-Agent as part of monitoring info (#2154)
+
+-------------
 Version 5.6.4
 -------------
 
