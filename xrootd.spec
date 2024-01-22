@@ -25,7 +25,7 @@ License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AN
 URL:		https://xrootd.slac.stanford.edu
 
 %if !%{with git}
-Version:	5.6.4
+Version:	5.6.5
 Source0:	%{url}/download/v%{version}/%{name}-%{version}.tar.gz
 %else
 %define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
@@ -949,6 +949,9 @@ fi
 %endif
 
 %changelog
+
+* Mon Jan 22 2024 Guilherme Amadio <amadio@cern.ch> - 1:5.6.5-1
+- XRootD 5.6.5
 
 * Fri Dec 08 2023 Guilherme Amadio <amadio@cern.ch> - 1:5.6.4-1
 - Use isa-l library from the system
