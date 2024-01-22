@@ -282,6 +282,7 @@ struct IssuerConfig
                  uint32_t authz_strategy,
                  const std::string &default_user,
                  const std::string &username_claim,
+                 const std::string &groups_claim,
                  const std::vector<MapRule> rules)
         : m_map_subject(map_subject || !username_claim.empty()),
           m_authz_strategy(authz_strategy),
@@ -289,6 +290,7 @@ struct IssuerConfig
           m_url(issuer_url),
           m_default_user(default_user),
           m_username_claim(username_claim),
+          m_groups_claim(groups_claim),
           m_base_paths(base_paths),
           m_restricted_paths(restricted_paths),
           m_map_rules(rules)
@@ -300,6 +302,7 @@ struct IssuerConfig
     const std::string m_url;
     const std::string m_default_user;
     const std::string m_username_claim;
+    const std::string m_groups_claim;
     const std::vector<std::string> m_base_paths;
     const std::vector<std::string> m_restricted_paths;
     const std::vector<MapRule> m_map_rules;
@@ -842,20 +845,6 @@ private:
         }
         enforcer_destroy(enf);
 
-        char **group_list;
-        std::vector<std::string> groups_parsed;
-        if (!scitoken_get_claim_string_list(token, "wlcg.groups", &group_list, &err_msg)) {
-            for (int idx=0; group_list[idx]; idx++) {
-                groups_parsed.emplace_back(group_list[idx]);
-            }
-            scitoken_free_string_list(group_list);
-        } else {
-            // For now, we silently ignore errors.
-            // std::cerr << "Failed to get groups: " << err_msg << std::endl;
-            free(err_msg);
-        }
-
-
         pthread_rwlock_rdlock(&m_config_lock);
         auto iter = m_issuers.find(token_issuer);
         if (iter == m_issuers.end()) {
@@ -866,6 +855,26 @@ private:
         }
         const auto &config = iter->second;
         value = nullptr;
+
+        char **group_list;
+        std::vector<std::string> groups_parsed;
+        const char* tmp_group_claim;
+        if (!config.m_groups_claim.empty()) {
+            tmp_group_claim = config.m_groups_claim.c_str();
+        } else {
+            tmp_group_claim = "wlcg.groups";
+        }
+        if (!scitoken_get_claim_string_list(token, tmp_group_claim, &group_list, &err_msg)) {
+            for (int idx=0; group_list[idx]; idx++) {
+                groups_parsed.emplace_back(group_list[idx]);
+            }
+            scitoken_free_string_list(group_list);
+        } else {
+            // For now, we silently ignore errors.
+            // std::cerr << "Failed to get groups: " << err_msg << std::endl;
+            free(err_msg);
+        }
+
         if (scitoken_get_claim_string(token, "sub", &value, &err_msg)) {
             pthread_rwlock_unlock(&m_config_lock);
             m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to get token subject:", err_msg);
@@ -1279,6 +1288,7 @@ private:
             auto default_user = reader.Get(section, "default_user", "");
             auto map_subject = reader.GetBoolean(section, "map_subject", false);
             auto username_claim = reader.Get(section, "username_claim", "");
+            auto groups_claim = reader.Get(section, "groups_claim", "");
 
             auto authz_strategy_str = reader.Get(section, "authorization_strategy", "");
             uint32_t authz_strategy = 0;
@@ -1303,7 +1313,7 @@ private:
             issuers.emplace(std::piecewise_construct,
                             std::forward_as_tuple(issuer),
                             std::forward_as_tuple(name, issuer, base_paths, restricted_paths,
-                                                  map_subject, authz_strategy, default_user, username_claim, rules));
+                                                  map_subject, authz_strategy, default_user, username_claim, groups_claim, rules));
         }
 
         if (issuers.empty()) {
