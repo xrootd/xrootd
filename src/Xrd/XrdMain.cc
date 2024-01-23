@@ -165,6 +165,13 @@ int main(int argc, char *argv[])
    char      buff[128];
    int       i, retc;
 
+// Set TZ environment variable to read the system timezone from /etc/localtime
+// if it is not already set, to avoid race conditions between localtime_r() and
+// mktime() during the multi-threaded phase of the initialization.
+
+   if (access("/etc/localtime", R_OK) == 0)
+       setenv("TZ", ":/etc/localtime", /* overwrite */ false);
+
 // Call tzset() early to ensure thread-safety of localtime_r() and mktime().
    tzset();
 
