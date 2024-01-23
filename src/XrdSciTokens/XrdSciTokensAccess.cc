@@ -350,7 +350,16 @@ public:
 
     bool apply(Access_Operation oper, std::string path) {
         for (const auto & rule : m_rules) {
-            if ((oper == rule.first) && !path.compare(0, rule.second.size(), rule.second, 0, rule.second.size())) {
+            // The rule permits if both conditions are met:
+            // - The operation type matches the requested operation,
+            // - The requested path is a substring of the ACL's permitted path, AND
+            // - Either the requested path and ACL path is the same OR the requested path is a subdir of the ACL path.
+            //
+            // The third rule implies if the rule permits read:/foo, we should NOT authorize read:/foobar.
+            if ((oper == rule.first) &&
+                !path.compare(0, rule.second.size(), rule.second, 0, rule.second.size()) &&
+                (rule.second.size() == path.length() || path[rule.second.size()]=='/'))
+            {
                 return true;
             }
         }
