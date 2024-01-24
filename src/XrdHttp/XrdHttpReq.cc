@@ -1776,8 +1776,17 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
 
 int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
-  TRACEI(REQ, "PostProcessHTTPReq req: " << request << " reqstate: " << reqstate);
+  TRACEI(REQ, "PostProcessHTTPReq req: " << request << " reqstate: " << reqstate << " final_:" << final_);
   mapXrdErrorToHttpStatus();
+
+  if(xrdreq.set.requestid == htons(kXR_set)) {
+    // We have set the user agent, if it fails we return a 500 error, otherwise the callback is successful --> we continue
+    if(xrdresp != kXR_ok) {
+      prot->SendSimpleResp(500, nullptr, nullptr, "Could not set user agent.", 0, false);
+      return -1;
+    }
+    return 0;
+  }
 
   switch (request) {
     case XrdHttpReq::rtUnknown:
