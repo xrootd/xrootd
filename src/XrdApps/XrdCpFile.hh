@@ -38,7 +38,7 @@ class XrdCpFile
 public:
 
 enum PType {isOther = 0, isDir,    isFile, isStdIO,
-            isXroot,     isXroots, isHttp, isHttps, isDevNull, isDevZero
+            isXroot,     isXroots, isHttp, isHttps, isPelican, isDevNull, isDevZero
            };
 
 XrdCpFile        *Next;         // -> Next file in list
