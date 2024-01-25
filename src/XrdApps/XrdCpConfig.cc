@@ -385,6 +385,7 @@ do{while(optind < Argc && Legacy(optind)) {}
      if (dstFile->Protocol != XrdCpFile::isFile
      &&  dstFile->Protocol != XrdCpFile::isStdIO
      &&  dstFile->Protocol != XrdCpFile::isXroot
+     &&  dstFile->Protocol != XrdCpFile::isPelican
      &&  (!Want(DoAllowHttp) && ((dstFile->Protocol == XrdCpFile::isHttp) ||
                                  (dstFile->Protocol == XrdCpFile::isHttps))))
         {FMSG(dstFile->ProtName <<"file protocol is not supported.", 22)}
@@ -903,6 +904,7 @@ void XrdCpConfig::ProcFile(const char *fname)
             }
     else if (!((pFile->Protocol == XrdCpFile::isXroot) ||
                (pFile->Protocol == XrdCpFile::isXroots) ||
+               (pFile->Protocol == XrdCpFile::isPelican) ||
                (Want(DoAllowHttp) && ((pFile->Protocol == XrdCpFile::isHttp) ||
                                       (pFile->Protocol == XrdCpFile::isHttps)))))
                {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
