@@ -1257,7 +1257,7 @@ virtual int            stat(const char               *Name,
 //!
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
 //!         When SFS_OK is returned, mode must contain mode information. If
-//!         teh mode is -1 then it is taken as an offline file.
+//!         the mode is -1 then it is taken as an offline file.
 //-----------------------------------------------------------------------------
 
 virtual int            stat(const char               *path,

@@ -1141,7 +1141,7 @@ bool XrdSsiShMam::Resize(XrdSsiShMat::CRZParms &parms)
    parms.mode = accMode;
    if (!newMap.Create(parms)) return false;
 
-// Compute the offset of the first item and get the offset of teh last item.
+// Compute the offset of the first item and get the offset of the last item.
 //
    fence = SHMINFO(lowFree); // Atomic??
    iOff  = shmInfoSz;

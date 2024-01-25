@@ -3387,7 +3387,7 @@ int XrdXrootdProtocol::do_WriteSpan()
 int XrdXrootdProtocol::do_WriteV()
 {
 // This will write multiple buffers at the same time in an attempt to avoid
-// the disk latency. The information with the offsets and lengths of teh data
+// the disk latency. The information with the offsets and lengths of the data
 // to write is passed as a data buffer. We attempt to optimize as best as
 // possible, though certain combinations may result in multiple writes. Since
 // socket flushing is nearly impossible when an error occurs, most errors

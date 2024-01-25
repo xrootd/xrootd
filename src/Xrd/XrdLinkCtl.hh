@@ -113,7 +113,7 @@ static XrdPollInfo *fd2PollInfo(int fd)
 //! @param  curr    Is an internal tracking value that allows repeated calls.
 //!                 It must be set to a value of 0 or less on the initial call
 //!                 and not touched therafter unless a null pointer is returned.
-//! @param  who     If the object use to check if teh link matches the wanted
+//! @param  who     If the object use to check if the link matches the wanted
 //!                 criterea (typically, client name and host name). If the
 //!                 ppointer is nil, the next link is always returned.
 //!

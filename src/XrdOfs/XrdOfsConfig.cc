@@ -760,7 +760,7 @@ char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *sfx,
        return 0;
       }
 
-// list the contents of teh directory
+// list the contents of the directory
 //
    XrdOucNSWalk nsWalk(&Eroute, aPath, 0, nswOpt);
    XrdOucNSWalk::NSEnt *nsX, *nsP = nsWalk.Index(rc);
