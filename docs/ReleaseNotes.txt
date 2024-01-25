@@ -6,6 +6,17 @@ Release Notes
 =============
 
 -------------
+Version 5.6.6
+-------------
+
++ **Major bug fixes**
+  **[XrdHttp]** Fix PostProcessHttpReq to take into account User-Agent setting (#2173)
+
++ **Minor bug fixes**
+  **[Server]** Set TZ environment variable to avoid race conditions (issue #2107)
+  **[XrdCl]** Treat errOperationInterrupted as a recoverable error (issue #2169)
+
+-------------
 Version 5.6.5
 -------------
 
