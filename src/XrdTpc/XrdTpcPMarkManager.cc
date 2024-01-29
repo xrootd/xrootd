@@ -53,16 +53,28 @@ void PMarkManager::beginPMarks() {
     ss << "scitag.flow=" << mReq->mSciTag;
     SocketInfo & sockInfo = mSocketInfos.front();
     mInitialFD = sockInfo.client.addrInfo->SockFD();
-    mPmarkHandles.emplace(mInitialFD,mPmark->Begin(sockInfo.client, mReq->resource.c_str(), ss.str().c_str(), "http-tpc"));
-    mSocketInfos.pop();
+    std::unique_ptr<XrdNetPMark::Handle> initialPmark(mPmark->Begin(sockInfo.client, mReq->resource.c_str(), ss.str().c_str(), "http-tpc"));
+    if(initialPmark) {
+      // It may happen that the socket attached to the file descriptor is not connected yet. If this is the case the initial
+      // Pmark will be nullptr...
+      mPmarkHandles.emplace(mInitialFD,std::move(initialPmark));
+      mSocketInfos.pop();
+    }
   } else {
     // The first pmark handle was created, or not. Create the other pmark handles from the other connected sockets
     while(!mSocketInfos.empty()) {
       SocketInfo & sockInfo = mSocketInfos.front();
       if(mPmarkHandles[mInitialFD]){
-        mPmarkHandles.emplace(sockInfo.client.addrInfo->SockFD(),mPmark->Begin(*sockInfo.client.addrInfo, *mPmarkHandles[mInitialFD], nullptr));
+        std::unique_ptr<XrdNetPMark::Handle> pmark(mPmark->Begin(*sockInfo.client.addrInfo, *mPmarkHandles[mInitialFD], nullptr));
+        if(pmark) {
+          mPmarkHandles.emplace(sockInfo.client.addrInfo->SockFD(),std::move(pmark));
+          mSocketInfos.pop();
+        } else {
+          // We could not create the pmark handle from the socket, we break the loop, we will retry later on when
+          // this function will be called again.
+          break;
+        }
       }
-      mSocketInfos.pop();
     }
   }
 }
