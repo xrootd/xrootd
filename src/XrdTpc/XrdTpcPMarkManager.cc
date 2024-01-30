@@ -42,6 +42,9 @@ void PMarkManager::addFd(int fd, const struct sockaddr * sockP) {
 void PMarkManager::startTransfer(XrdHttpExtReq * req) {
   mReq = req;
   mTransferWillStart = true;
+  // Empty the queue to ensure that every file descriptor that will be added to the queue will be related to the transfer
+  std::queue<SocketInfo> empty;
+  std::swap( mSocketInfos, empty );
 }
 
 void PMarkManager::beginPMarks() {
