@@ -235,7 +235,7 @@ bool XrdSecsssEnt::Serialize()
 // must be at the end because it can optionally be pruned when returned.
 //
    if (eP->credslen && eP->credslen <= XrdSecsssRR_Data::MaxCSz)
-      {tLen += eP->credslen;
+      {tLen += eP->credslen + 3;
        incCreds = true;
       }
 
