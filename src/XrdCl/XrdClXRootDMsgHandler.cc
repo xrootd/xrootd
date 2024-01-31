@@ -904,7 +904,7 @@ namespace XrdCl
       log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
                  pUrl.GetHostId().c_str(), message->GetDescription().c_str() );
 
-      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: 0x%x (message: %s ) from out-queu to in-queue.",
+      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: 0x%x (message: %s ) from out-queue to in-queue.",
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetDescription().c_str() );
 
