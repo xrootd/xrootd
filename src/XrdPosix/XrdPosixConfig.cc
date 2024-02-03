@@ -488,7 +488,7 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 
 void XrdPosixConfig::SetDebug(int val)
 {
-   const std::string dbgType[] = {"Info", "Warning", "Error", "Debug", "Dump"};
+   const std::string dbgType[] = {"Error", "Warning", "Info", "Debug", "Dump"};
 
 // The default is none but once set it cannot be unset in the client
 //
