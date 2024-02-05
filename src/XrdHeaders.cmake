@@ -156,6 +156,7 @@ if( NOT XRDCL_ONLY )
     XrdOfs/XrdOfsHandle.hh
     XrdOfs/XrdOfsTrace.hh
     XrdOfs/XrdOfsTPCInfo.hh
+    XrdSfs/XrdSfsFAttr.hh
     XrdSsi/XrdSsiAtomics.hh
     XrdSsi/XrdSsiCluster.hh
     XrdSsi/XrdSsiEntity.hh
