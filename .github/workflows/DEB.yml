@@ -66,15 +66,15 @@ jobs:
     - name: Move DEBs to Artifact Directory
       run: |
         source /etc/os-release
-        mkdir -p DEB/${ID}/${VERSION_CODENAME}
-        mv ../*.* DEB/${ID}/${VERSION_CODENAME}
+        mkdir -p debian/${VERSION_CODENAME}
+        mv ../*.* debian/${VERSION_CODENAME}
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: DEB
-        path: DEB
-        retention-days: 1
+        name: debian-${{ matrix.version }}
+        path: debian
+        retention-days: 14
 
   ubuntu:
     name: Ubuntu (22.04)
@@ -110,12 +110,12 @@ jobs:
     - name: Move DEBs to Artifact Directory
       run: |
         source /etc/os-release
-        mkdir -p DEB/${ID}/${VERSION_CODENAME}
-        mv ../*.* DEB/${ID}/${VERSION_CODENAME}
+        mkdir -p ubuntu/${VERSION_CODENAME}
+        mv ../*.* ubuntu/${VERSION_CODENAME}
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: DEB
-        path: DEB
-        retention-days: 1
+        name: ubuntu-22.04
+        path: ubuntu
+        retention-days: 14

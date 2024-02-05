@@ -58,9 +58,9 @@ jobs:
     - name: Upload Artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: RPM
+        name: centos7
         path: RPMS
-        retention-days: 1
+        retention-days: 14
 
   alma8:
     name: Alma Linux 8
@@ -101,11 +101,11 @@ jobs:
       run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: RPM
+        name: alma8
         path: RPMS
-        retention-days: 1
+        retention-days: 14
 
   alma9:
     name: Alma Linux 9
@@ -146,11 +146,11 @@ jobs:
       run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: RPM
+        name: alma9
         path: RPMS
-        retention-days: 1
+        retention-days: 14
 
   fedora:
     name: Fedora 39
@@ -190,8 +190,8 @@ jobs:
       run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: RPM
+        name: fc39
         path: RPMS
-        retention-days: 1
+        retention-days: 14
