@@ -952,6 +952,7 @@ int main( int argc, char **argv )
     return st.GetShellCode();
   }
   CleanUpResults( resultVect );
+  XrdCl::DefaultEnv::GetPostMaster()->Stop();
 
   return 0;
 }
