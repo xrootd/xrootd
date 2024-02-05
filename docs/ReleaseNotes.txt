@@ -6,6 +6,22 @@ Release Notes
 =============
 
 -------------
+Version 5.6.7
+-------------
+
++ **Major bug fixes**
+  **[XrdCl]** Fix crash at teardown when using copies with multiple streams (issue #2164)
+  **[XrdSecsss]** Fix buffer overrun when serializing credentials (issue #2143)
+
++ **Minor bug fixes**
+  **[XrdCl]** Fix TPC initialization to take into account control stream (issue #2164)
+  **[XrdPosix]** Fix ordering of debug levels in pss.setop DebugLevel (#2183)
+  **[XrdTpc]** Properly handle creation of packet marking handles when socket is not yet connected (#2179)
+
++ **Miscellaneous**
+  **[XrdHeaders]** Install XrdSfsFAttr.hh as private header
+
+-------------
 Version 5.6.6
 -------------
 
