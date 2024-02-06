@@ -187,7 +187,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PostMaster::Stop()
   {
-    if( !pImpl->pInitialized )
+    if( !pImpl->pInitialized || !pImpl->pRunning )
       return true;
 
     if( !pImpl->pJobManager->Stop() )
