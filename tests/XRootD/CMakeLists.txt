@@ -1,13 +1,3 @@
-if(XRDCL_ONLY)
-  return()
-endif()
-
-execute_process(COMMAND id -u OUTPUT_VARIABLE UID OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-if (UID EQUAL 0)
-  return()
-endif()
-
 set(XRD_TEST_PORT "11940" CACHE STRING "Port for XRootD Test Server")
 
 list(APPEND XRDENV "XRDCP=$<TARGET_FILE:xrdcp>")

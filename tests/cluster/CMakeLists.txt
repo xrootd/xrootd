@@ -1,14 +1,3 @@
-if(XRDCL_ONLY)
-  return()
-endif()
-
-execute_process(COMMAND id -u OUTPUT_VARIABLE UID OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-# ensure that we're not root
-if (UID EQUAL 0)
-  return()
-endif()
-
 # find executables
 list(APPEND XRDENV "XRDCP=$<TARGET_FILE:xrdcp>")
 list(APPEND XRDENV "XRDFS=$<TARGET_FILE:xrdfs>")
