@@ -1,62 +1,52 @@
-#-------------------------------------------------------------------------------
-# Project description
-#-------------------------------------------------------------------------------
-cmake_minimum_required(VERSION 3.16...3.25)
+if(NOT ENABLE_CEPH)
+  unset(BUILD_CEPH CACHE)
+  return()
+endif()
 
-project( xrootd-ceph )
-
-set( CMAKE_MODULE_PATH
- ${PROJECT_SOURCE_DIR}/src
- ${PROJECT_SOURCE_DIR}/cmake )
-
-if( NOT XRDCEPH_SUBMODULE )
-  if(NOT (CMAKE_VERSION VERSION_LESS "3.1"))
-    cmake_policy(SET CMP0054 OLD)
+if(FORCE_ENABLED)
+  find_package(ceph REQUIRED)
+else()
+  find_package(ceph)
+  if(NOT CEPH_FOUND)
+    unset(BUILD_CEPH CACHE)
+    return()
   endif()
 endif()
 
-include( XRootDUtils )
-CheckBuildDirectory()
+set(BUILD_CEPH TRUE CACHE BOOL INTERNAL FORCE)
 
-include( XRootDOSDefs )
-include( XRootDDefaults )
-include( XRootDFindLibs )
+add_library(XrdCephPosix SHARED
+  XrdCephPosix.cc XrdCephPosix.hh)
 
-add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
+target_compile_options(XrdCephPosix
+  PRIVATE -Wno-deprecated-declarations)
 
-#-------------------------------------------------------------------------------
-# Generate the version header
-#-------------------------------------------------------------------------------
-if( NOT XRDCEPH_SUBMODULE )
-  execute_process(
-    COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh --print-only ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE XROOTD_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE )
+target_link_libraries(XrdCephPosix
+  PRIVATE XrdUtils ${RADOS_LIBS})
 
-  add_custom_target(
-    XrdVersion.hh
-    ${CMAKE_SOURCE_DIR}/genversion.sh ${CMAKE_SOURCE_DIR} )
+target_include_directories(XrdCephPosix
+  PUBLIC ${RADOS_INCLUDE_DIR} $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>)
 
-  # sigh, yet another ugly hack :(
-  macro( add_library _target )
-    _add_library( ${_target} ${ARGN} )
-    add_dependencies( ${_target} XrdVersion.hh )
-  endmacro()
+set_target_properties(XrdCephPosix
+  PROPERTIES VERSION 0.0.1 SOVERSION 0)
 
-  macro( add_executable _target )
-    _add_executable( ${_target} ${ARGN} )
-    add_dependencies( ${_target} XrdVersion.hh )
-  endmacro()
-endif()
+set(LIB_XRD_CEPH XrdCeph-${PLUGIN_VERSION})
 
-#-------------------------------------------------------------------------------
-# Build in subdirectories
-#-------------------------------------------------------------------------------
-add_subdirectory( src )
+add_library(${LIB_XRD_CEPH} MODULE
+  XrdCephOss.cc     XrdCephOss.hh
+  XrdCephOssFile.cc XrdCephOssFile.hh
+  XrdCephOssDir.cc  XrdCephOssDir.hh)
 
-if( BUILD_TESTS )
-  ENABLE_TESTING()
-  add_subdirectory( tests )
-endif()
+target_link_libraries(${LIB_XRD_CEPH}
+  PRIVATE ${XROOTD_LIBRARIES} XrdCephPosix)
 
-include( XRootDSummary )
+set(LIB_XRD_CEPH_XATTR XrdCephXattr-${PLUGIN_VERSION})
+
+add_library(${LIB_XRD_CEPH_XATTR} MODULE
+  XrdCephXAttr.cc XrdCephXAttr.hh)
+
+target_link_libraries(${LIB_XRD_CEPH_XATTR}
+  PRIVATE ${XROOTD_LIBRARIES} XrdCephPosix)
+
+install(TARGETS XrdCephPosix ${LIB_XRD_CEPH} ${LIB_XRD_CEPH_XATTR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

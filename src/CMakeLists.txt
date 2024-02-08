@@ -70,9 +70,7 @@ if( NOT XRDCL_ONLY )
     include( XrdVoms )
   endif()
 
-  if( XRDCEPH_SUBMODULE )
-    add_subdirectory( XrdCeph )
-  endif()
+  add_subdirectory( XrdCeph )
 
   if( BUILD_SCITOKENS )
     include( XrdSciTokens )
