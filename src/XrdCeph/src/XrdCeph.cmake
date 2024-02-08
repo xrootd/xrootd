@@ -1,8 +1,3 @@
-include_directories( ${XROOTD_INCLUDE_DIR} )
-include_directories( ${RADOS_INCLUDE_DIR} )
-include_directories( ${CMAKE_SOURCE_DIR}/src )
-
-
 #-------------------------------------------------------------------------------
 # XrdCephPosix library version
 #-------------------------------------------------------------------------------
@@ -27,6 +22,9 @@ target_link_libraries(
   PRIVATE
   ${XROOTD_LIBRARIES}  
   ${RADOS_LIBS} )
+
+target_include_directories(
+  XrdCephPosix PUBLIC ${RADOS_INCLUDE_DIR} $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
 set_target_properties(
   XrdCephPosix
