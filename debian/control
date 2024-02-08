@@ -8,7 +8,6 @@ Build-Depends:
  attr,
  cmake,
  libgtest-dev,
- libcppunit-dev,
  libisal-dev,
  pkg-config,
  libfuse-dev [linux-any kfreebsd-any],
