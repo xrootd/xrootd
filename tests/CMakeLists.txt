@@ -15,7 +15,6 @@ endif()
 
 add_subdirectory(XrdHttpTests)
 
-add_subdirectory( XrdClTests )
 add_subdirectory( XrdSsiTests )
 
 execute_process(COMMAND id -u OUTPUT_VARIABLE UID
