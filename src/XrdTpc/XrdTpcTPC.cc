@@ -1020,7 +1020,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             }
             if (stream_req < 0 || stream_req > 100) {
                 char msg[] = "Invalid request for number of streams";
-                rec.status = 500;
+                rec.status = 400;
                 logTransferEvent(LogMask::Info, rec, "INVALID_REQUEST", msg);
                 return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
             }
