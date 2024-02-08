@@ -8,10 +8,7 @@ add_subdirectory(common)
 
 add_subdirectory(XrdCl)
 add_subdirectory(XrdCeph)
-
-if(BUILD_XRDEC)
 add_subdirectory(XrdEc)
-endif()
 
 add_subdirectory(XrdHttpTests)
 
