@@ -44,7 +44,6 @@ jobs:
         apk add \
           bash \
           cmake \
-          cppunit-dev \
           ceph-dev \
           curl-dev \
           fuse-dev \
@@ -249,7 +248,6 @@ jobs:
           clang \
           davix-dev \
           g++ \
-          libcppunit-dev \
           libcurl4-openssl-dev \
           libfuse-dev \
           libgtest-dev \
@@ -310,7 +308,7 @@ jobs:
       run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
 
     - name: Install dependencies with Homebrew
-      run: brew install cppunit davix googletest isa-l
+      run: brew install davix googletest isa-l
 
     - name: Install Python dependencies with pip
       run: python3 -m pip install --upgrade pip setuptools wheel
