@@ -15,9 +15,5 @@ if( BUILD_XRDEC )
   add_subdirectory( XrdEc ) # new tests with GTest
 endif()
 
-if( BUILD_CEPH )
-  add_subdirectory( XrdCephTests )
-endif()
-
 add_subdirectory( XRootD )
 add_subdirectory( cluster )
