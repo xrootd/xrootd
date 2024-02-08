@@ -2,7 +2,7 @@
 # Print the configuration summary
 #-------------------------------------------------------------------------------
 set( TRUE_VAR TRUE )
-component_status( CEPH      XRDCEPH_SUBMODULE TRUE_VAR)
+component_status( CEPH      ENABLE_CEPH       BUILD_CEPH )
 component_status( FUSE      BUILD_FUSE        FUSE_FOUND )
 component_status( HTTP      BUILD_HTTP        OPENSSL_FOUND )
 component_status( KRB5      BUILD_KRB5        KERBEROS5_FOUND )

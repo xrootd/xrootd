@@ -457,6 +457,7 @@ make -C %{_builddir}/%{name}-%{compat_version}/build %{?_smp_mflags}
     -DFORCE_ENABLED:BOOL=TRUE \
     -DUSE_SYSTEM_ISAL:BOOL=TRUE \
     -DENABLE_ASAN:BOOL=%{with asan} \
+    -DENABLE_CEPH:BOOL=%{with ceph} \
     -DENABLE_FUSE:BOOL=TRUE \
     -DENABLE_KRB5:BOOL=TRUE \
     -DENABLE_MACAROONS:BOOL=TRUE \
@@ -467,7 +468,6 @@ make -C %{_builddir}/%{name}-%{compat_version}/build %{?_smp_mflags}
     -DENABLE_XRDCL:BOOL=TRUE \
     -DENABLE_XRDCLHTTP:BOOL=TRUE \
     -DENABLE_XRDEC:BOOL=%{with xrdec} \
-    -DXRDCEPH_SUBMODULE:BOOL=%{with ceph} \
     -DENABLE_XRDCLHTTP:BOOL=TRUE \
     -DXRDCL_ONLY:BOOL=FALSE \
     -DXRDCL_LIB_ONLY:BOOL=FALSE \

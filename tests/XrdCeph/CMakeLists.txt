@@ -1,6 +1,6 @@
-find_package(GTest REQUIRED)
-
-include(GoogleTest)
+if(NOT BUILD_CEPH)
+  return()
+endif()
 
 add_executable(xrdceph-unit-tests XrdCeph.cc)
 

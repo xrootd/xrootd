@@ -40,4 +40,4 @@ find_library(
 set(RADOS_LIBS ${RADOS_LIB} ${RADOSSTRIPER_LIB})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(ceph DEFAULT_MSG RADOS_INCLUDE_DIR RADOS_LIBS)
+find_package_handle_standard_args(ceph REQUIRED_VARS RADOS_INCLUDE_DIR RADOS_LIB RADOSSTRIPER_LIB)
