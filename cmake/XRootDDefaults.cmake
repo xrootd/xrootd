@@ -12,6 +12,7 @@ endif()
 include( CMakeDependentOption )
 
 define_default( PLUGIN_VERSION    5 )
+option( ENABLE_CEPH      "Enable XrdCeph plugins."                                        FALSE )
 option( ENABLE_FUSE      "Enable the fuse filesystem driver if possible."                 TRUE )
 option( ENABLE_KRB5      "Enable the Kerberos 5 authentication if possible."              TRUE )
 option( ENABLE_READLINE  "Enable the lib readline support in the commandline utilities."  TRUE )
@@ -32,3 +33,8 @@ cmake_dependent_option( ENABLE_MACAROONS "Enable Macaroons plugin." TRUE "NOT XR
 option( FORCE_ENABLED    "Fail build if enabled components cannot be built."              FALSE )
 cmake_dependent_option( USE_SYSTEM_ISAL  "Use isa-l installed in the system" FALSE "ENABLE_XRDEC" FALSE )
 define_default( XRD_PYTHON_REQ_VERSION 3 )
+
+# backward compatibility
+if(XRDCEPH_SUBMODULE)
+  set(ENABLE_CEPH TRUE)
+endif()

@@ -10,6 +10,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all optimize=-lto
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
+		-DENABLE_CEPH:BOOL=1 \
 		-DENABLE_FUSE:BOOL=1 \
 		-DENABLE_HTTP:BOOL=1 \
 		-DENABLE_KRB5:BOOL=1 \
@@ -23,8 +24,7 @@ override_dh_auto_configure:
 		-DENABLE_TESTS:BOOL=1 \
 		-DFORCE_ENABLED:BOOL=1 \
 		-DINSTALL_PYTHON_BINDINGS:BOOL=0 \
-		-DUSE_SYSTEM_ISAL:BOOL=1 \
-		-DXRDCEPH_SUBMODULE:BOOL=1
+		-DUSE_SYSTEM_ISAL:BOOL=1
 
 override_dh_auto_build:
 	dh_auto_build

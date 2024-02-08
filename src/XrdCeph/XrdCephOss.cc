@@ -26,21 +26,18 @@
 #include <string>
 #include <fcntl.h>
 
+#include "XrdVersion.hh"
+#include "XrdCeph/XrdCephOss.hh"
+#include "XrdCeph/XrdCephOssDir.hh"
+#include "XrdCeph/XrdCephOssFile.hh"
 #include "XrdCeph/XrdCephPosix.hh"
+
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#ifdef XRDCEPH_SUBMODULE
 #include "XrdOuc/XrdOucN2NLoader.hh"
-#else
-#include "private/XrdOuc/XrdOucN2NLoader.hh"
-#endif
-#include "XrdVersion.hh"
-#include "XrdCeph/XrdCephOss.hh"
-#include "XrdCeph/XrdCephOssDir.hh"
-#include "XrdCeph/XrdCephOssFile.hh"
 
 XrdVERSIONINFO(XrdOssGetStorageSystem, XrdCephOss);
 

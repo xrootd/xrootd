@@ -26,7 +26,9 @@
 #define __CEPH_OSS_HH__
 
 #include <string>
+
 #include <XrdOss/XrdOss.hh>
+#include <XrdSys/XrdSysError.hh>
 
 //------------------------------------------------------------------------------
 //! This class implements XrdOss interface for usage with a CEPH storage.
