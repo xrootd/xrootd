@@ -16,5 +16,12 @@ if( BUILD_XRDEC )
   add_subdirectory( XrdEc ) # new tests with GTest
 endif()
 
+execute_process(COMMAND id -u OUTPUT_VARIABLE UID
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+if(XRDCL_ONLY OR UID EQUAL 0)
+  return()
+endif()
+
 add_subdirectory( XRootD )
 add_subdirectory( cluster )
