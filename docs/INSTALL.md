@@ -20,7 +20,7 @@ together with the dependencies required to enable them.
 | SciTokens             | scitokens-cpp-devel                      |
 | systemd support       | systemd-devel                            |
 | VOMS                  | voms-devel                               |
-| Testing               | cppunit-devel gtest-devel                |
+| Testing               | gtest-devel                              |
 
 Other optional dependencies: tinyxml-devel, libxml2-devel. These have bundled
 copies which are used if not found in the system. In the following sections, we
@@ -46,7 +46,6 @@ depending on the distribution:
 ```sh
 dnf install \
     cmake \
-    cppunit-devel \
     curl-devel \
     davix-devel \
     diffutils \
@@ -90,7 +89,6 @@ apt install \
     cmake \
     davix-dev \
     g++ \
-    libcppunit-dev \
     libcurl4-openssl-dev \
     libfuse-dev \
     libgtest-dev \
@@ -121,7 +119,6 @@ install dependencies as well when building XRootD from source:
 ```sh
 brew install \
     cmake \
-    cppunit \
     curl \
     davix \
     gcc \
