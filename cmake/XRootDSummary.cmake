@@ -10,7 +10,7 @@ component_status( MACAROONS BUILD_MACAROONS   MACAROONS_FOUND AND JSON_FOUND AND
 component_status( PYTHON    BUILD_PYTHON      Python_Interpreter_FOUND AND Python_Development_FOUND )
 component_status( READLINE  ENABLE_READLINE   READLINE_FOUND )
 component_status( SCITOKENS BUILD_SCITOKENS   SCITOKENSCPP_FOUND )
-component_status( TESTS     BUILD_TESTS       CPPUNIT_FOUND AND GTEST_FOUND )
+component_status( TESTS     BUILD_TESTS       GTEST_FOUND )
 component_status( TPC       BUILD_TPC         CURL_FOUND )
 component_status( VOMSXRD   BUILD_VOMS        VOMS_FOUND )
 component_status( XRDCL     ENABLE_XRDCL      TRUE_VAR )

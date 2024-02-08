@@ -47,11 +47,6 @@ Source1:	%{url}/download/v%{compat_version}/%{name}-%{compat_version}.tar.gz
 %undefine __cmake3_in_source_build
 %endif
 
-%if %{with tests}
-# CppUnit crashes with LTO enabled
-%global _lto_cflags %nil
-%endif
-
 %if %{?rhel}%{!?rhel:0} == 7
 BuildRequires:	cmake3
 BuildRequires:	%{devtoolset}-toolchain
@@ -134,7 +129,6 @@ BuildRequires:	openssl-devel
 
 %if %{with tests}
 BuildRequires:	attr
-BuildRequires:	cppunit-devel
 BuildRequires:	gtest-devel
 BuildRequires:	openssl
 %endif
