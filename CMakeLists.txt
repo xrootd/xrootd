@@ -45,7 +45,7 @@ add_subdirectory( src )
 add_subdirectory( bindings )
 
 if( BUILD_TESTS )
-  ENABLE_TESTING()
+  include(CTest)
   add_subdirectory( tests )
 endif()
 

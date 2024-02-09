@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 set(ENV{LANG} "C")
 set(ENV{LC_ALL} "C")
+set(CTEST_USE_LAUNCHERS TRUE)
 
 macro(section title)
   if (DEFINED ENV{CI})
@@ -206,4 +207,8 @@ if(DEFINED CTEST_MEMORYCHECK_COMMAND)
   section("Memcheck")
   ctest_memcheck()
   endsection()
+endif()
+
+if(CDASH OR (DEFINED ENV{CDASH} AND "$ENV{CDASH}"))
+  ctest_submit()
 endif()
