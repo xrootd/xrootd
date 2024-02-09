@@ -363,9 +363,10 @@ public:
                 return true;
             }
             // according to WLCG token specs, allow creation of required superfolders for a new file if requested
-            if ((oper == AOP_Stat || oper == AOP_Mkdir) && 
-              !rule.second.compare(0, path.size(), path, 0, path.size()) &&  
-              rule.second.size() >= path.length()  ) {
+            if ((oper == rule.first) && (oper == AOP_Stat || oper == AOP_Mkdir)
+             && rule.second.size() >= path.length()
+             && !rule.second.compare(0, path.size(), path, 0, path.size())
+             && (rule.second.size() == path.length() || rule.second[path.length()] == '/')) {
                 return true;
             }
         }
