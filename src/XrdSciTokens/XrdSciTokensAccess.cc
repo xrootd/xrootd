@@ -353,6 +353,12 @@ public:
             if ((oper == rule.first) && !path.compare(0, rule.second.size(), rule.second, 0, rule.second.size())) {
                 return true;
             }
+            // according to WLCG token specs, allow creation of required superfolders for a new file if requested
+            if ((oper == AOP_Stat || oper == AOP_Mkdir) && 
+              !rule.second.compare(0, path.size(), path, 0, path.size()) &&  
+              rule.second.size() >= path.length()  ) {
+                return true;
+            }
         }
         return false;
     }
