@@ -24,14 +24,14 @@ option( XRDCL_ONLY       "Build only the client and necessary dependencies"     
 option( XRDCL_LIB_ONLY   "Build only the client libraries and necessary dependencies"     FALSE )
 option( PYPI_BUILD       "The project is being built for PyPI release"                    FALSE )
 option( ENABLE_VOMS      "Enable VOMS plug-in if possible."                               TRUE )
-option( ENABLE_XRDEC     "Enable erasure coding component."                               FALSE )
+option( ENABLE_XRDEC     "Enable erasure coding component."                               TRUE )
 option( ENABLE_ASAN      "Enable adress sanitizer."                                       FALSE )
 option( ENABLE_TSAN      "Enable thread sanitizer."                                       FALSE )
 option( ENABLE_XRDCLHTTP "Enable xrdcl-http plugin."                                      TRUE )
 cmake_dependent_option( ENABLE_SCITOKENS "Enable SciTokens plugin." TRUE "NOT XRDCL_ONLY" FALSE )
 cmake_dependent_option( ENABLE_MACAROONS "Enable Macaroons plugin." TRUE "NOT XRDCL_ONLY" FALSE )
 option( FORCE_ENABLED    "Fail build if enabled components cannot be built."              FALSE )
-cmake_dependent_option( USE_SYSTEM_ISAL  "Use isa-l installed in the system" FALSE "ENABLE_XRDEC" FALSE )
+cmake_dependent_option( USE_SYSTEM_ISAL  "Use isa-l installed in the system" TRUE "ENABLE_XRDEC" FALSE )
 define_default( XRD_PYTHON_REQ_VERSION 3 )
 
 # backward compatibility
