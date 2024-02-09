@@ -1,0 +1,58 @@
+name: COV
+
+on:
+  push:
+    branches:
+      - devel
+      - master
+    paths-ignore:
+      - .gitignore
+      - .gitlab-ci.yml
+      - .mailmap
+      - '**.md'
+      - 'docs/**'
+      - 'docker/**'
+    tags:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CDASH: ${{ vars.CDASH }}
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+        sudo apt update -q
+        sudo apt install -y build-essential devscripts equivs gcovr git
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install XRootD build dependencies
+      run: mk-build-deps --install --remove -s sudo debian/control <<< yes
+
+    - name: Build and Test with CTest
+      run: ctest -V --output-on-failure -C Debug -DCOVERAGE=1 -S test.cmake
+
+    - if: ${{ vars.CODECOV == 'true' }}
+      name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
