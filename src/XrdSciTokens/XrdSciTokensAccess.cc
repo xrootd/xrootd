@@ -885,6 +885,7 @@ private:
                     xrd_rules.emplace_back(AOP_Mkdir, path);
                     xrd_rules.emplace_back(AOP_Rename, path);
                     xrd_rules.emplace_back(AOP_Excl_Insert, path);
+                    xrd_rules.emplace_back(AOP_Stat, path);
                 } else if (!strcmp(acl_authz, "modify")) {
                     paths_create_or_modify_seen.insert(path);
                     xrd_rules.emplace_back(AOP_Create, path);
@@ -893,6 +894,7 @@ private:
                     xrd_rules.emplace_back(AOP_Insert, path);
                     xrd_rules.emplace_back(AOP_Update, path);
                     xrd_rules.emplace_back(AOP_Chmod, path);
+                    xrd_rules.emplace_back(AOP_Stat, path);
                     xrd_rules.emplace_back(AOP_Delete, path);
                 } else if (!strcmp(acl_authz, "write")) {
                     paths_write_seen.insert(path);
@@ -907,6 +909,7 @@ private:
                 xrd_rules.emplace_back(AOP_Mkdir, write_path);
                 xrd_rules.emplace_back(AOP_Rename, write_path);
                 xrd_rules.emplace_back(AOP_Insert, write_path);
+                xrd_rules.emplace_back(AOP_Stat, write_path);
                 xrd_rules.emplace_back(AOP_Update, write_path);
                 xrd_rules.emplace_back(AOP_Chmod, write_path);
                 xrd_rules.emplace_back(AOP_Delete, write_path);
