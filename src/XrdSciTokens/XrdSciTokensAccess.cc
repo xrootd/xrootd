@@ -342,6 +342,10 @@ public:
             if ((oper == rule.first) && !path.compare(0, rule.second.size(), rule.second, 0, rule.second.size()) && ( rule.second.size() == path.length() || path[rule.second.size()]=='/') ) {
                 return true;
             }
+            // pass the scope if the operation is stat of mkdir
+            if ((oper == AOP_Stat || oper == AOP_Mkdir) && !rule.second.compare(0, path.size(), path, 0, path.size()) &&  rule.second.size() >= path.length()  ) {
+                return true;
+            }
         }
         return false;
     }
