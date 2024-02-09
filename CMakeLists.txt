@@ -41,13 +41,11 @@ configure_file(src/XrdVersion.hh.in src/XrdVersion.hh)
 
 include_directories(BEFORE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src)
 
-add_subdirectory( src )
-add_subdirectory( bindings )
+include(CTest)
 
-if( BUILD_TESTS )
-  ENABLE_TESTING()
-  add_subdirectory( tests )
-endif()
+add_subdirectory(src)
+add_subdirectory(bindings)
+add_subdirectory(tests)
 
 add_subdirectory(docs)
 add_subdirectory(utils)
