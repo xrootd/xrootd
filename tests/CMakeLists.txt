@@ -1,4 +1,5 @@
-include(GoogleTest)
+find_package(GTest REQUIRED)
+
 add_subdirectory( XrdCl )
 add_subdirectory(XrdHttpTests)
 
