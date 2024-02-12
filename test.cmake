@@ -4,22 +4,6 @@ set(ENV{LANG} "C")
 set(ENV{LC_ALL} "C")
 set(CTEST_USE_LAUNCHERS TRUE)
 
-macro(section title)
-  if (DEFINED ENV{CI})
-    message("::group::${title}")
-  endif()
-endmacro()
-
-macro(endsection)
-  if (DEFINED ENV{CI})
-    message("::endgroup::")
-  endif()
-endmacro()
-
-if(NOT DEFINED CTEST_SITE)
-  site_name(CTEST_SITE)
-endif()
-
 if(EXISTS "/etc/os-release")
   file(STRINGS "/etc/os-release" OS_NAME REGEX "^ID=.*$")
   string(REGEX REPLACE "ID=[\"']?([^\"']*)[\"']?$" "\\1" OS_NAME "${OS_NAME}")
@@ -93,30 +77,65 @@ if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
   string(APPEND CTEST_BUILD_NAME " ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
+if(DEFINED ENV{GITHUB_ACTIONS})
+  set(CTEST_SITE "GitHub Actions ($ENV{GITHUB_REPOSITORY_OWNER})")
+
+  if("$ENV{GITHUB_REPOSITORY_OWNER}" STREQUAL "xrootd")
+    set(CDASH TRUE)
+    set(MODEL "Continuous")
+  endif()
+
+  if("$ENV{GITHUB_EVENT_NAME}" MATCHES "pull_request")
+    set(GROUP "Pull Requests")
+    set(ENV{BASE_REF} $ENV{GITHUB_SHA}^1)
+    set(ENV{HEAD_REF} $ENV{GITHUB_SHA}^2)
+    string(REGEX REPLACE "/merge" "" PR_NUMBER "$ENV{GITHUB_REF_NAME}")
+    string(PREPEND CTEST_BUILD_NAME "#${PR_NUMBER} ($ENV{GITHUB_ACTOR})")
+  else()
+    set(ENV{HEAD_REF} $ENV{GITHUB_SHA})
+    string(APPEND CTEST_BUILD_NAME " ($ENV{GITHUB_REF_NAME})")
+  endif()
+
+  if("$ENV{GITHUB_RUN_ATTEMPT}" GREATER 1)
+    string(APPEND CTEST_BUILD_NAME " #$ENV{GITHUB_RUN_ATTEMPT}")
+  endif()
+
+  macro(section title)
+      message("::group::${title}")
+  endmacro()
+
+  macro(endsection)
+      message("::endgroup::")
+  endmacro()
+else()
+  macro(section title)
+  endmacro()
+  macro(endsection)
+  endmacro()
+endif()
+
+if(NOT DEFINED CTEST_SITE)
+  site_name(CTEST_SITE)
+endif()
+
 if(NOT DEFINED CTEST_SOURCE_DIRECTORY)
   set(CTEST_SOURCE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
 endif()
 
 if(NOT DEFINED CTEST_BINARY_DIRECTORY)
-  get_filename_component(CTEST_BINARY_DIRECTORY "$ENV{PWD}/build" REALPATH)
+  get_filename_component(CTEST_BINARY_DIRECTORY "build" REALPATH)
 endif()
 
-find_program(CTEST_GIT_COMMAND NAMES git)
-
-if(EXISTS ${CTEST_GIT_COMMAND})
-  if(DEFINED ENV{GIT_PREVIOUS_COMMIT} AND DEFINED ENV{GIT_COMMIT})
-    set(CTEST_CHECKOUT_COMMAND
-      "${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} checkout -f $ENV{GIT_PREVIOUS_COMMIT}")
-    set(CTEST_GIT_UPDATE_CUSTOM
-      ${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} checkout -f $ENV{GIT_COMMIT})
-  elseif(DEFINED ENV{GIT_COMMIT})
-    set(CTEST_CHECKOUT_COMMAND
-      "${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} checkout -f $ENV{GIT_COMMIT}")
-    set(CTEST_GIT_UPDATE_CUSTOM
-      ${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} checkout -f $ENV{GIT_COMMIT})
+if(NOT DEFINED MODEL)
+  if(DEFINED CTEST_SCRIPT_ARG)
+    set(MODEL ${CTEST_SCRIPT_ARG})
   else()
-    set(CTEST_GIT_UPDATE_CUSTOM ${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} diff HEAD)
+    set(MODEL Experimental)
   endif()
+endif()
+
+if(NOT DEFINED GROUP)
+  set(GROUP ${MODEL})
 endif()
 
 set(CMAKE_ARGS $ENV{CMAKE_ARGS} ${CMAKE_ARGS})
@@ -144,21 +163,37 @@ foreach(FILENAME ${OS_NAME}${OS_VERSION}.cmake ${OS_NAME}.cmake config.cmake)
   endif()
 endforeach()
 
-if(NOT DEFINED MODEL)
-  if(DEFINED CTEST_SCRIPT_ARG)
-    set(MODEL ${CTEST_SCRIPT_ARG})
-  else()
-    set(MODEL Experimental)
-  endif()
-endif()
-
 if(IS_DIRECTORY "${CTEST_BINARY_DIRECTORY}")
   ctest_empty_binary_directory("${CTEST_BINARY_DIRECTORY}")
 endif()
 
 ctest_read_custom_files("${CTEST_SOURCE_DIRECTORY}")
 
-ctest_start(${MODEL})
+find_program(CTEST_GIT_COMMAND NAMES git)
+
+if(EXISTS ${CTEST_GIT_COMMAND} AND DEFINED ENV{HEAD_REF} AND NOT DEFINED ENV{BASE_REF})
+  set(CTEST_CHECKOUT_COMMAND
+    "${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} checkout -f $ENV{HEAD_REF}")
+endif()
+
+ctest_start(${MODEL} GROUP "${GROUP}")
+
+if(EXISTS ${CTEST_GIT_COMMAND})
+  if(DEFINED ENV{BASE_REF})
+    execute_process(COMMAND ${CTEST_GIT_COMMAND} checkout -f $ENV{BASE_REF}
+      WORKING_DIRECTORY ${CTEST_SOURCE_DIRECTORY} ERROR_QUIET RESULT_VARIABLE GIT_STATUS)
+    if(NOT ${GIT_STATUS} EQUAL 0)
+      message(FATAL_ERROR "Could not checkout base ref: $ENV{BASE_REF}")
+    endif()
+  endif()
+  if(DEFINED ENV{HEAD_REF})
+    set(CTEST_GIT_UPDATE_CUSTOM
+      ${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} checkout -f $ENV{HEAD_REF})
+  else()
+    set(CTEST_GIT_UPDATE_CUSTOM ${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} diff)
+  endif()
+endif()
+
 ctest_update()
 
 section("Configure")
