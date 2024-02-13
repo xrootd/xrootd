@@ -898,8 +898,12 @@ private:
                     // more possible authorizations.
                     if (!strncmp(acl_path, restricted_path.c_str(), acl_path_size)) {
                         // Only do prefix checking on full path components.  If acl_path=/foo and
-                        // restricted_path=/foobar, then we shouldn't authorize access to /foobar.
-                        if (restricted_path.size() > acl_path_size && restricted_path[acl_path_size] != '/') {
+                        // restricted_path=/foobar, then we shouldn't authorize access to /foobar. Note:
+                        // - The scitokens-cpp library guaranteees that acl_path is normalized and not
+                        //   of the form `/foo/`.
+                        // - Hence, the only time that the acl_path can end in a '/' is when it is
+                        //   set to `/`.
+                        if ((restricted_path.size() > acl_path_size && restricted_path[acl_path_size] != '/') && (acl_path_size != 1)) {
                             continue;
                         }
                         acl_paths.push_back(restricted_path);
