@@ -45,37 +45,35 @@ void PMarkManager::startTransfer(XrdHttpExtReq * req) {
 }
 
 void PMarkManager::beginPMarks() {
-  if(!mSocketInfos.empty() && mPmarkHandles.empty()) {
-    // Create the first pmark handle that will be used as a basis for the other handles
-    // if that handle cannot be created (mPmark->Begin() would return nullptr), then the packet marking will not work
-    // This base pmark handle will be placed at the beginning of the vector of pmark handles
+  if(mSocketInfos.empty()) {
+    return;
+  }
+
+  if(mPmarkHandles.empty()) {
+    // Create the first pmark handle
     std::stringstream ss;
     ss << "scitag.flow=" << mReq->mSciTag;
     SocketInfo & sockInfo = mSocketInfos.front();
-    mInitialFD = sockInfo.client.addrInfo->SockFD();
-    std::unique_ptr<XrdNetPMark::Handle> initialPmark(mPmark->Begin(sockInfo.client, mReq->resource.c_str(), ss.str().c_str(), "http-tpc"));
-    if(initialPmark) {
-      // It may happen that the socket attached to the file descriptor is not connected yet. If this is the case the initial
-      // Pmark will be nullptr...
-      mPmarkHandles.emplace(mInitialFD,std::move(initialPmark));
-      mSocketInfos.pop();
+    auto pmark = mPmark->Begin(sockInfo.client, mReq->resource.c_str(), ss.str().c_str(), "http-tpc");
+    if(!pmark) {
+      return;
     }
-  } else {
-    // The first pmark handle was created, or not. Create the other pmark handles from the other connected sockets
-    while(!mSocketInfos.empty()) {
-      SocketInfo & sockInfo = mSocketInfos.front();
-      if(mPmarkHandles[mInitialFD]){
-        std::unique_ptr<XrdNetPMark::Handle> pmark(mPmark->Begin(*sockInfo.client.addrInfo, *mPmarkHandles[mInitialFD], nullptr));
-        if(pmark) {
-          mPmarkHandles.emplace(sockInfo.client.addrInfo->SockFD(),std::move(pmark));
-          mSocketInfos.pop();
-        } else {
-          // We could not create the pmark handle from the socket, we break the loop, we will retry later on when
-          // this function will be called again.
-          break;
-        }
-      }
+    mPmarkHandles.emplace(sockInfo.client.addrInfo->SockFD(),std::unique_ptr<XrdNetPMark::Handle>(pmark));
+    mSocketInfos.pop();
+  }
+
+  auto pmarkHandleItor = mPmarkHandles.begin();
+  while(!mSocketInfos.empty()) {
+    SocketInfo & sockInfo = mSocketInfos.front();
+    auto pmark = mPmark->Begin(*sockInfo.client.addrInfo, *(pmarkHandleItor->second), nullptr);
+    if (!pmark) {
+      // The packet marking handle could not be created from the first handle, let's retry next time
+      break;
     }
+
+    int fd = sockInfo.client.addrInfo->SockFD();
+    mPmarkHandles.emplace(fd, std::move(std::unique_ptr<XrdNetPMark::Handle>(pmark)));
+    mSocketInfos.pop();
   }
 }
 
