@@ -184,7 +184,7 @@ section("Test")
 ctest_test(PARALLEL_LEVEL $ENV{CTEST_PARALLEL_LEVEL} RETURN_VALUE TEST_RESULT)
 
 if(NOT ${TEST_RESULT} EQUAL 0)
-  message(FATAL_ERROR "Tests failed")
+  message(SEND_ERROR "Tests failed")
 endif()
 endsection()
 
@@ -196,7 +196,7 @@ if(DEFINED CTEST_COVERAGE_COMMAND)
       ${GCOVR} -r ${CTEST_SOURCE_DIRECTORY}/src ${CTEST_BINARY_DIRECTORY}
         --html-details ${CTEST_BINARY_DIRECTORY}/html/ ERROR_VARIABLE ERROR)
     if(ERROR)
-      message(FATAL_ERROR "Failed to generate coverage report")
+      message(SEND_ERROR "Failed to generate coverage report")
     endif()
   endif()
   ctest_coverage()
