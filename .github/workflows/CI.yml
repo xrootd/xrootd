@@ -38,25 +38,30 @@ jobs:
         apk add \
           bash \
           cmake \
+          ceph-dev \
           curl-dev \
           fuse-dev \
           fuse3-dev \
           g++ \
           git \
           gtest-dev \
+          isa-l-dev \
           json-c-dev \
           krb5-dev \
           libxml2-dev \
           linux-headers \
           make \
+          openssl \
           openssl-dev \
           py3-pip \
           py3-setuptools \
           py3-wheel \
           python3-dev \
           readline-dev \
+          sudo \
           tinyxml-dev \
           util-linux-dev \
+          uuidgen \
           zlib-dev
 
     - name: Clone repository
@@ -64,8 +69,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: CTest Build
-      run: ctest -VV -S test.cmake
+    - name: Setup GitHub runner user within container
+      run: adduser -D --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Build and Test with CTest
+      run: sudo -E -u runner ctest -VV -S test.cmake
 
     - name: Install with CMake
       run: cmake --install build
@@ -93,11 +101,14 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Setup GitHub runner user within container
+      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
     - name: Install XRootD build dependencies
-      run: dnf builddep -y xrootd.spec
+      run: dnf builddep -y --define 'with_ceph 1' xrootd.spec
 
     - name: Build and Test with CTest
-      run: ctest -VV -S test.cmake
+      run: sudo -E -u runner ctest -VV -S test.cmake
 
     - name: Install with CMake
       run: cmake --install build
