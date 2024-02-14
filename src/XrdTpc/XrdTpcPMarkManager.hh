@@ -107,8 +107,6 @@ private:
   bool mTransferWillStart;
   // The XrdHttpTPC request information
   XrdHttpExtReq * mReq;
-  // The file descriptor used to create the first packet marking handle
-  int mInitialFD = -1;
 };
 } // namespace XrdTpc
 
