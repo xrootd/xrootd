@@ -80,18 +80,20 @@ endif()
 if(DEFINED ENV{GITHUB_ACTIONS})
   set(CTEST_SITE "GitHub Actions ($ENV{GITHUB_ACTOR})")
 
+  if("$ENV{GITHUB_REPOSITORY_OWNER}" STREQUAL "xrootd")
+    set(CDASH TRUE)
+    set(MODEL "Continuous")
+  endif()
+
   if("$ENV{GITHUB_EVENT_NAME}" MATCHES "pull_request")
-    set(MODEL "Experimental")
     set(GROUP "Pull Requests")
-    set(ENV{HEAD_REF} $ENV{GITHUB_SHA})
-    set(ENV{BASE_REF} $ENV{GITHUB_BASE_REF})
+    set(ENV{BASE_REF} $ENV{GITHUB_SHA}^1)
+    set(ENV{HEAD_REF} $ENV{GITHUB_SHA}^2)
     string(REGEX REPLACE "/merge" "" PR_NUMBER "$ENV{GITHUB_REF_NAME}")
     string(PREPEND CTEST_BUILD_NAME "#${PR_NUMBER} ")
   else()
+    set(ENV{HEAD_REF} $ENV{GITHUB_SHA})
     string(APPEND CTEST_BUILD_NAME " ($ENV{GITHUB_REF_NAME})")
-    if("$ENV{GITHUB_REPOSITORY_OWNER}" STREQUAL "xrootd")
-      set(MODEL "Continuous")
-    endif()
   endif()
 
   if("$ENV{GITHUB_RUN_ATTEMPT}" GREATER 1)
@@ -167,9 +169,14 @@ endif()
 
 ctest_read_custom_files("${CTEST_SOURCE_DIRECTORY}")
 
-ctest_start(${MODEL} GROUP "${GROUP}")
-
 find_program(CTEST_GIT_COMMAND NAMES git)
+
+if(EXISTS ${CTEST_GIT_COMMAND} AND DEFINED ENV{HEAD_REF} AND NOT DEFINED ENV{BASE_REF})
+  set(CTEST_CHECKOUT_COMMAND
+    "${CTEST_GIT_COMMAND} -C ${CTEST_SOURCE_DIRECTORY} checkout -f $ENV{HEAD_REF}")
+endif()
+
+ctest_start(${MODEL} GROUP "${GROUP}")
 
 if(EXISTS ${CTEST_GIT_COMMAND})
   if(DEFINED ENV{BASE_REF})
