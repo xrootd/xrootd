@@ -95,16 +95,14 @@ void CurlDeleter::operator()(CURL *curl)
  *       was needed for monitoring to report what IP protocol was being used.
  *       It has been kept in case we will need this callback in the future.
  */
-int TPCHandler::sockopt_setcloexec_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
-    int oldFlags = fcntl(curlfd,F_GETFD,0);
-    if(oldFlags < 0) {
-        return CURL_SOCKOPT_ERROR;
-    }
-    oldFlags |= FD_CLOEXEC;
-    if(!fcntl(curlfd,F_SETFD,oldFlags)) {
-        return CURL_SOCKOPT_OK;
-    }
-    return CURL_SOCKOPT_ERROR;
+int TPCHandler::sockopt_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
+  TPCLogRecord * rec = (TPCLogRecord *)clientp;
+  if (purpose == CURLSOCKTYPE_IPCXN && rec && rec->pmarkManager.isEnabled()) {
+      // We will not reach this callback if the corresponding socket could not have been connected
+      // the socket is already connected only if the packet marking is enabled
+      return CURL_SOCKOPT_ALREADY_CONNECTED;
+  }
+  return CURL_SOCKOPT_OK;
 }
 
 /******************************************************************************/
@@ -132,8 +130,12 @@ int TPCHandler::opensocket_callback(void *clientp,
   {XrdNetAddr thePeer(&(aInfo->addr));
     rec->isIPv6 =  (thePeer.isIPType(XrdNetAddrInfo::IPv6)
                     && !thePeer.isMapped());
-    // Register the socket to the packet marking manager
-    rec->pmarkManager.addFd(fd,&aInfo->addr);
+    std::stringstream connectErrMsg;
+
+    if(!rec->pmarkManager.connect(fd, &(aInfo->addr), aInfo->addrlen, CONNECT_TIMEOUT, connectErrMsg)) {
+      rec->m_log->Emsg(rec->log_prefix.c_str(),"Unable to connect socket:", connectErrMsg.str().c_str());
+      return CURL_SOCKET_BAD;
+    }
   }
 
   return fd;
@@ -668,7 +670,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             last_marker = now;
         }
         // The transfer will start after this point, notify the packet marking manager
-      rec.pmarkManager.startTransfer(&req);
+        rec.pmarkManager.startTransfer();
         mres = curl_multi_perform(multi_handle, &running_handles);
         if (mres == CURLM_CALL_MULTI_PERFORM) {
             // curl_multi_perform should be called again immediately.  On newer
@@ -855,10 +857,11 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
 /******************************************************************************/
   
 int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req) {
-    TPCLogRecord rec(req.pmark);
+    TPCLogRecord rec(req);
     rec.log_prefix = "PushRequest";
     rec.local = req.resource;
     rec.remote = resource;
+    rec.m_log = &m_log;
     char *name = req.GetSecEntity().name;
     req.GetClientID(rec.clID);
     if (name) rec.name = name;
@@ -875,10 +878,13 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
 //  curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_setcloexec_callback);
+
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
     curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
     curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT);
     auto query_header = req.headers.find("xrd-http-fullresource");
     std::string redirect_resource = req.resource;
     if (query_header != req.headers.end()) {
@@ -938,10 +944,11 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 /******************************************************************************/
   
 int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
-    TPCLogRecord rec(req.pmark);
+    TPCLogRecord rec(req);
     rec.log_prefix = "PullRequest";
     rec.local = req.resource;
     rec.remote = resource;
+    rec.m_log = &m_log;
     char *name = req.GetSecEntity().name;
     req.GetClientID(rec.clID);
     if (name) rec.name = name;
@@ -992,8 +999,11 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
 //  curl_easy_setopt(curl,CURLOPT_SOCKOPTFUNCTION,sockopt_setcloexec_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTDATA , &rec);
     curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
     curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT);
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
     if (!fh.get()) {
             char msg[] = "Failed to initialize internal transfer file handle";
