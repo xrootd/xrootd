@@ -187,17 +187,13 @@ jobs:
         tests/check-headers.sh
 
   macos:
-    strategy:
-      matrix:
-        version: [ 12, 13 ]
-
     name: macOS
-    runs-on: macos-${{ matrix.version }}
+    runs-on: macos-latest
 
     env:
       CC: clang
       CXX: clang++
-      CMAKE_ARGS: "-DPython_FIND_UNVERSIONED_NAMES=FIRST;-DUSE_SYSTEM_ISAL=TRUE"
+      CMAKE_ARGS: "-DPython_FIND_UNVERSIONED_NAMES=FIRST"
       CMAKE_PREFIX_PATH: /usr/local/opt/openssl@3
 
     steps:
