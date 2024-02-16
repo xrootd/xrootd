@@ -32,6 +32,8 @@
 
 #include <string>
 #include <vector>
+#include <sstream>
+#include <cstdint>
 
 #include "XrdOuc/XrdOucEnum.hh"
 
@@ -425,6 +427,8 @@ static int  SetAuto(AddrOpts aOpts=allIPMap);
 
 static bool Singleton(const char  *hSpec, const char **eText=0);
 
+static bool ConnectWithTimeout(int sockfd, const struct sockaddr* clientAddr, size_t clientAddrLen,uint32_t timeout_sec, std::stringstream & errMsg);
+
 //------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
@@ -448,6 +452,7 @@ const char *GetHostPort(XrdNetSpace::hpSpec &aBuff, const char *hSpec, int pNum)
 static
 const char *getMyFQN(const char *&myDom);
 static int setET(const char **errtxt, int rc);
+static bool SetSockBlocking(int sockfd, bool blocking, std::stringstream & errMsg);
 static int autoFamily;
 static int autoHints;
 };

@@ -22,6 +22,7 @@
 
 #include <sstream>
 #include "XrdTpcPMarkManager.hh"
+#include "XrdNet/XrdNetUtils.hh"
 
 namespace XrdTpc
 {
@@ -30,17 +31,34 @@ PMarkManager::SocketInfo::SocketInfo(int fd, const struct sockaddr * sockP) {
   client.addrInfo = static_cast<XrdNetAddrInfo*>(&netAddr);
 }
 
-PMarkManager::PMarkManager(XrdNetPMark *pmark) : mPmark(pmark), mTransferWillStart(false) {}
+PMarkManager::PMarkManager(XrdHttpExtReq & req) : mPmark(req.pmark), mReq(req), mTransferWillStart(false) {}
 
 void PMarkManager::addFd(int fd, const struct sockaddr * sockP) {
-  if(mPmark && mTransferWillStart && mReq->mSciTag >= 0) {
+  if(isEnabled() && mTransferWillStart) {
     // The transfer will start and the packet marking has been configured, this socket must be registered for future packet marking
     mSocketInfos.emplace(fd, sockP);
   }
 }
 
-void PMarkManager::startTransfer(XrdHttpExtReq * req) {
-  mReq = req;
+bool PMarkManager::connect(int fd, const struct sockaddr *sockP, size_t sockPLen, uint32_t timeout_sec, std::stringstream &err) {
+  if(isEnabled()) {
+    // We only connect if the packet marking is enabled
+    bool couldConnect = XrdNetUtils::ConnectWithTimeout(fd,sockP,sockPLen,timeout_sec,err);
+    if(couldConnect) {
+      addFd(fd,sockP);
+    } else {
+      return false;
+    }
+  }
+  // If pmark is not enabled, we leave libcurl doing the connection
+  return true;
+}
+
+bool PMarkManager::isEnabled() const {
+  return mPmark && (mReq.mSciTag >= 0);
+}
+
+void PMarkManager::startTransfer() {
   mTransferWillStart = true;
 }
 
@@ -52,9 +70,9 @@ void PMarkManager::beginPMarks() {
   if(mPmarkHandles.empty()) {
     // Create the first pmark handle
     std::stringstream ss;
-    ss << "scitag.flow=" << mReq->mSciTag;
+    ss << "scitag.flow=" << mReq.mSciTag;
     SocketInfo & sockInfo = mSocketInfos.front();
-    auto pmark = mPmark->Begin(sockInfo.client, mReq->resource.c_str(), ss.str().c_str(), "http-tpc");
+    auto pmark = mPmark->Begin(sockInfo.client, mReq.resource.c_str(), ss.str().c_str(), "http-tpc");
     if(!pmark) {
       return;
     }
@@ -72,7 +90,7 @@ void PMarkManager::beginPMarks() {
     }
 
     int fd = sockInfo.client.addrInfo->SockFD();
-    mPmarkHandles.emplace(fd, std::move(std::unique_ptr<XrdNetPMark::Handle>(pmark)));
+    mPmarkHandles.emplace(fd, std::unique_ptr<XrdNetPMark::Handle>(pmark));
     mSocketInfos.pop();
   }
 }
