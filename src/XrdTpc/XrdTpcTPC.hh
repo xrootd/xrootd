@@ -51,7 +51,7 @@ public:
 
 private:
 
-    static int sockopt_setcloexec_callback(void * clientp, curl_socket_t curlfd, curlsocktype purpose);
+    static int sockopt_callback(void * clientp, curl_socket_t curlfd, curlsocktype purpose);
     static int opensocket_callback(void *clientp,
                                    curlsocktype purpose,
                                    struct curl_sockaddr *address);
@@ -60,8 +60,8 @@ private:
 
     struct TPCLogRecord {
 
-        TPCLogRecord(XrdNetPMark * pmark) : bytes_transferred( -1 ), status( -1 ),
-                         tpc_status(-1), streams( 1 ), isIPv6(false), pmarkManager(pmark)
+        TPCLogRecord(XrdHttpExtReq & req) : bytes_transferred( -1 ), status( -1 ),
+                         tpc_status(-1), streams( 1 ), isIPv6(false), mReq(req), pmarkManager(mReq)
         {
          gettimeofday(&begT, 0); // Set effective start time
         }
@@ -79,7 +79,9 @@ private:
         int tpc_status;
         unsigned int streams;
         bool isIPv6;
+        XrdHttpExtReq & mReq;
         XrdTpc::PMarkManager pmarkManager;
+        XrdSysError * m_log;
     };
 
     int ProcessOptionsReq(XrdHttpExtReq &req);
@@ -167,5 +169,9 @@ private:
 #endif
 
     bool usingEC; // indicate if XrdEC is used
+
+    // Time to connect the curl socket to the remote server uses the linux's default value
+    // of 60 seconds
+    static const long CONNECT_TIMEOUT = 60;
 };
 }

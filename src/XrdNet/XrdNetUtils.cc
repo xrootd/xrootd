@@ -37,6 +37,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <fcntl.h>
+#include <poll.h>
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetIdentity.hh"
@@ -937,4 +939,82 @@ bool XrdNetUtils::Singleton(const char  *hSpec, const char **eText)
 // All done
 //
    return isSingle;
+}
+
+bool XrdNetUtils::ConnectWithTimeout(int sockfd, const struct sockaddr* clientAddr,size_t clientAddrLen, uint32_t timeout_sec, std::stringstream &errMsg) {
+
+  if (!SetSockBlocking(sockfd, false, errMsg)) {  // Set to non-blocking
+    close(sockfd);
+    return false;
+  }
+
+  int result = connect(sockfd, clientAddr, clientAddrLen);
+  if (result == 0) {
+    //We've managed to connect immediately
+    // Set the socket back to blocking
+    if(!SetSockBlocking(sockfd, true, errMsg)) {
+      ::close(sockfd);
+      return false;
+    }
+    return true;
+  } else if (errno != EINPROGRESS) {
+    errMsg << "Connection failed: " << strerror(errno);
+    ::close(sockfd);
+    return false;
+  }
+
+  struct pollfd fds;
+  fds.fd = sockfd;
+  fds.events = POLLOUT;  // Wait for the socket to be ready to write
+
+  result = poll(&fds, 1, timeout_sec * 1000); //Timeout in milliseconds
+
+  if (result < 0) {
+    errMsg << "Poll error: " << strerror(errno);
+    ::close(sockfd);
+    return false;
+  } else if (result == 0) {
+    errMsg << "Connection timed out";
+    ::close(sockfd);
+    return false;
+  }
+  // Polling succeeded
+  if (!(fds.revents & POLLOUT)) {
+    // We should normally not reach this code
+    errMsg << "Poll returned without error but the corresponding socket (" << sockfd << ") is not ready to write";
+    ::close(sockfd);
+    return false;
+  }
+  // Check for potential errors on the socket after polling
+  int so_error;
+  socklen_t len = sizeof(so_error);
+  getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+  if (so_error != 0) {
+    errMsg << "Connection failed after poll: " << strerror(so_error);
+    ::close(sockfd);
+    return false;
+  }
+  // Everything succeeded, set the socket back to blocking
+  if(!SetSockBlocking(sockfd, true, errMsg)) {
+    ::close(sockfd);
+    return false;
+  }
+  return true;
+}
+
+bool XrdNetUtils::SetSockBlocking(int sockfd, bool blocking, std::stringstream & errMsg) {
+  int flags = fcntl(sockfd, F_GETFL, 0);
+  if (flags == -1) {
+    errMsg << "Failed to get socket flags " << strerror(errno);
+    return false;
+  }
+
+  flags = blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+
+  if (fcntl(sockfd, F_SETFL, flags) == -1) {
+    errMsg << "Failed to set socket blocking/non-blocking " << strerror(errno);
+    return false;
+  }
+
+  return true;
 }

@@ -35,7 +35,7 @@
  * This class will manage packet marking handles for TPC transfers
  *
  * Each time a socket will be opened by curl (via the opensocket_callback), the manager
- * will register the related information to the socket.
+ * will do the connection and register the related information to the socket.
  *
  * Once the transfer will start we will start the packet marking by creating XrdNetPMark::Handle
  * objects from the socket information previously registered.
@@ -62,24 +62,36 @@ public:
     XrdSecEntity client;
   };
 
-  PMarkManager(XrdNetPMark * pmark);
+  PMarkManager(XrdHttpExtReq & req);
+
   /**
-   * Add the connected socket information that will be used for packet marking to this manager class
-   * Note: these info will only be added if startTransfer(...) has been called. It allows
-   * to ensure that the connection will be related to the data transfers and not for anything else. We only want
-   * to mark the traffic of the transfers.
-   * @param fd the socket file descriptor
-   * @param sockP the structure describing the address of the socket
+   * Will connect the socket attached to the file descriptor within a certain timeout and add the file descriptor to the.
+   * packet marking manager so packet marking can be done achieved later on
+   * If pmark is not enabled, this function will just return true without trying to connect (libcurl will
+   * perform the connection). False will be returned in case the connection could not have been done.
+   *
+   * @param fd the fd associated to the socket
+   * @param sockP the connection information
+   * @param sockPLen the length of the connection information
+   * @param timeout_sec the timeout after which the connection is considered failed
+   * @param err the error stream allowing to understand from where the issue comes from
+   * @return true if the connection could be established or if pmark is disabled, false otherwise
    */
-  void addFd(int fd, const struct sockaddr * sockP);
+  bool connect(int fd, const struct sockaddr * sockP, size_t sockPLen, uint32_t timeout_sec, std::stringstream & err);
+
+  /**
+   * @return true if packet marking can happen i.e the packet marking is enabled in
+   * the configuration and a scitag was provided by the user.
+   */
+  bool isEnabled() const;
 
   /**
    * Calling this function will indicate that the connections that will happen will be related to the
    * data transfer. The addFd(...) function will then register any socket that is created after this function
    * will be called.
-   * @param req the request object that will be used later on to get some information about the transfer
    */
-  void startTransfer(XrdHttpExtReq * req);
+  void startTransfer();
+
   /**
    * Creates the different packet marking handles allowing to mark the transfer packets
    *
@@ -97,16 +109,26 @@ public:
 
   virtual ~PMarkManager() = default;
 private:
+  /**
+  * Add the connected socket information that will be used for packet marking to this manager class
+  * Note: these info will only be added if startTransfer(...) has been called. It allows
+  * to ensure that the connection will be related to the data transfers and not for anything else. We only want
+  * to mark the traffic of the transfers.
+  * @param fd the socket file descriptor
+  * @param sockP the structure describing the address of the socket
+  */
+  void addFd(int fd, const struct sockaddr * sockP);
+
   // The queue of socket information from which we will create the packet marking handles
   std::queue<SocketInfo> mSocketInfos;
   // The map of socket FD and packet marking handles
   std::map<int,std::unique_ptr<XrdNetPMark::Handle>> mPmarkHandles;
   // The instance of the packet marking functionality
   XrdNetPMark * mPmark;
+  // The XrdHttpTPC request information
+  XrdHttpExtReq & mReq;
   // Is true when startTransfer(...) has been called
   bool mTransferWillStart;
-  // The XrdHttpTPC request information
-  XrdHttpExtReq * mReq;
 };
 } // namespace XrdTpc
 

@@ -290,6 +290,7 @@ void XrdNetPMarkFF::SockStats(struct sockStats &ss)
 #ifndef __linux__
    memset(&ss, 0, sizeof(struct sockStats));
 #else
+   EPName("SockStats");
    struct tcp_info tcpInfo;
    socklen_t  tiLen = sizeof(tcpInfo);
 
@@ -298,7 +299,10 @@ void XrdNetPMarkFF::SockStats(struct sockStats &ss)
        ss.bSent = static_cast<uint64_t>(tcpInfo.tcpi_bytes_acked);
        ss.msRTT = static_cast<uint32_t>(tcpInfo.tcpi_rtt/1000);
        ss.usRTT = static_cast<uint32_t>(tcpInfo.tcpi_rtt%1000);
-      } else memset(&ss, 0, sizeof(struct sockStats));
+      } else {
+        memset(&ss, 0, sizeof(struct sockStats));
+        DEBUG("Unable to get TCP information errno=" << strerror(errno));
+      }
 #endif
 }
 
