@@ -3,7 +3,6 @@ name: RPM
 on:
   push:
     branches:
-      - devel
       - master
     paths-ignore:
       - .gitignore
@@ -11,7 +10,6 @@ on:
       - '**.md'
       - 'docs/**'
       - 'docker/**'
-  pull_request:
   workflow_dispatch:
 
 concurrency:
