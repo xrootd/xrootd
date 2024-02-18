@@ -29,8 +29,7 @@
 /******************************************************************************/
 
 #define __STDC_FORMAT_MACROS 1
-#include <alloca.h>
-#include <unistd.h>
+
 #include <cctype>
 #include <cerrno>
 #include <fcntl.h>
@@ -40,13 +39,19 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <strings.h>
 #include <ctime>
 #include <vector>
+
+#ifndef __FreeBSD__
+#include <alloca.h>
+#endif
+
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <strings.h>
+#include <unistd.h>
 
 #include "XrdVersion.hh"
 
