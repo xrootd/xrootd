@@ -14,10 +14,7 @@ add_subdirectory(XrdHttpTests)
 
 add_subdirectory( XrdSsiTests )
 
-execute_process(COMMAND id -u OUTPUT_VARIABLE UID
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-if(XRDCL_ONLY OR UID EQUAL 0)
+if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
 
