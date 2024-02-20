@@ -591,8 +591,14 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
          SSL_CTX **ctxLoc;
         } ctx_tracker(&pImpl->ctx);
 
-   static const int sslOpts = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3
-                            | SSL_OP_NO_COMPRESSION;
+   static const int sslOpts = SSL_OP_ALL
+                            | SSL_OP_NO_SSLv2
+                            | SSL_OP_NO_SSLv3
+                            | SSL_OP_NO_COMPRESSION
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+                            | SSL_OP_NO_RENEGOTIATION
+#endif
+                            ;
 
    std::string certFN, eText;
    const char *emsg;
