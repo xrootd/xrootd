@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - .gitignore
       - .gitlab-ci.yml
+      - .mailmap
       - '**.md'
       - 'docs/**'
       - 'docker/**'
