@@ -25,9 +25,12 @@
 
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include <string>
 #include <stdexcept>
+
+static std::unique_ptr<XrdTlsContext> tlsContext = nullptr;
 
 namespace
 {
@@ -85,21 +88,52 @@ namespace
         return XrdTls::dbgOFF;
       }
   };
-
-  //------------------------------------------------------------------------
-  // Helper function for setting the CA directory in TLS context
-  //------------------------------------------------------------------------
-  static const char* GetCaDir()
-  {
-    static const char *envval = getenv("X509_CERT_DIR");
-    static const std::string cadir = envval ? envval :
-                                     "/etc/grid-security/certificates";
-    return cadir.c_str();
-  }
 }
 
 namespace XrdCl
 {
+  bool InitTLS()
+  {
+    if (tlsContext)
+      return true;
+
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+
+    int notls = false;
+    env->GetInt("NoTlsOK", notls);
+
+    if (notls)
+      return false;
+
+    const char *cadir  = getenv("X509_CERT_DIR");
+    const char *cafile = getenv("X509_CERT_FILE");
+
+    if (!cadir && !cafile)
+      cadir = "/etc/grid-security/certificates";
+
+    const char *msg;
+    const mode_t camode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+
+    if (cadir && (msg = XrdOucUtils::ValPath(cadir, camode, true))) {
+      log->Error(XrdCl::TlsMsg, "Failed to initialize TLS context: CA directory %s", msg);
+      env->PutInt("NoTlsOK", 1);
+      return false;
+    }
+
+    std::string emsg = "unknown error";
+    tlsContext = std::make_unique<XrdTlsContext>(nullptr, nullptr, cadir, cafile, 0ul, &emsg);
+
+    if (!tlsContext || !tlsContext->isOK()) {
+      tlsContext.reset(nullptr);
+      log->Error(XrdCl::TlsMsg, "Failed to initialize TLS context: %s", emsg.c_str());
+      env->PutInt("NoTlsOK", 1);
+      return false;
+    }
+
+    return true;
+  }
+
   //------------------------------------------------------------------------
   // Constructor
   //------------------------------------------------------------------------
@@ -109,20 +143,12 @@ namespace XrdCl
     // Set the message callback for TLS layer
     //----------------------------------------------------------------------
     SetTlsMsgCB::Once();
-    //----------------------------------------------------------------------
-    // we only need one instance of TLS
-    //----------------------------------------------------------------------
-    std::string emsg = "Failed to initialize TLS context";
-    static XrdTlsContext tlsContext( 0, 0, GetCaDir(), 0, 0, &emsg );
 
-    //----------------------------------------------------------------------
-    // If the context is not valid throw an exception! We throw generic
-    // exception as this will be translated to TlsError anyway.
-    //----------------------------------------------------------------------
-    if( !tlsContext.isOK() ) throw std::runtime_error( emsg );
+    if( !InitTLS() )
+      throw std::runtime_error( "Failed to initialize TLS" );
 
     pTls.reset(
-        new XrdTlsSocket( tlsContext, pSocket->GetFD(), XrdTlsSocket::TLS_RNB_WNB,
+        new XrdTlsSocket( *tlsContext, pSocket->GetFD(), XrdTlsSocket::TLS_RNB_WNB,
                           XrdTlsSocket::TLS_HS_NOBLK, true ) );
   }
 

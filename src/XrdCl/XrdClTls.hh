@@ -30,6 +30,9 @@ namespace XrdCl
 {
   class Socket;
 
+  /** Initialize TLS context, returns false on failure */
+  bool InitTLS();
+
   //----------------------------------------------------------------------------
   //! TLS layer for socket connection
   //----------------------------------------------------------------------------
