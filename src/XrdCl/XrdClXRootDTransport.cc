@@ -1905,25 +1905,24 @@ namespace XrdCl
     request->flags     = ClientProtocolRequest::kXR_secreqs |
                          ClientProtocolRequest::kXR_bifreqs;
 
+    int notlsok = DefaultNoTlsOK;
+    int tlsnodata = DefaultTlsNoData;
+
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
 
-    int notlsok = DefaultNoTlsOK;
     env->GetInt( "NoTlsOK", notlsok );
 
-    if (info->encrypted || !notlsok)
+    if (expect & ClientProtocolRequest::kXR_ExpBind)
+      env->GetInt( "TlsNoData", tlsnodata );
+
+    if (info->encrypted || InitTLS())
       request->flags |= ClientProtocolRequest::kXR_ableTLS;
 
-    bool nodata = false;
-    if( expect & ClientProtocolRequest::kXR_ExpBind )
-    {
-      int value = DefaultTlsNoData;
-      env->GetInt( "TlsNoData", value );
-      nodata = bool( value );
-    }
-
-    if( info->encrypted && !nodata )
+    if (info->encrypted || !(notlsok || tlsnodata))
       request->flags |= ClientProtocolRequest::kXR_wantTLS;
+
     request->expect = expect;
+
     //--------------------------------------------------------------------------
     // If we are in the curse of establishing a connection in the context of
     // TPC update the expect! (this will be never followed be a bind)
