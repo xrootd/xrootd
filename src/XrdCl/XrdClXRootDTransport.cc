@@ -2635,9 +2635,7 @@ namespace XrdCl
     // credentials
     //--------------------------------------------------------------------------
     XrdNetAddr &srvAddrInfo = *const_cast<XrdNetAddr *>(hsData->serverAddr);
-    if( info->encrypted || ( info->serverFlags & kXR_gotoTLS ) ||
-        ( info->serverFlags & kXR_tlsLogin ) )
-      srvAddrInfo.SetTLS( true );
+    srvAddrInfo.SetTLS( info->encrypted );
     while(1)
     {
       //------------------------------------------------------------------------
