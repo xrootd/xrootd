@@ -11,6 +11,7 @@ on:
       - '**.md'
       - 'docs/**'
       - 'docker/**'
+    tags-ignore:
   workflow_dispatch:
 
 concurrency:

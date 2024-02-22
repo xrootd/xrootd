@@ -11,6 +11,7 @@ on:
       - '**.md'
       - 'docs/**'
       - 'docker/**'
+    tags-ignore:
   pull_request:
   workflow_dispatch:
 
