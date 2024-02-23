@@ -6,6 +6,24 @@ Release Notes
 =============
 
 -------------
+Version 5.6.8
+-------------
+
++ **Minor bug fixes**
+  **[RPM]** Create systemd tmpfiles at post-install step
+  **[XrdCl]** Only claim to be TLS capable if TLS initialization succeeds (issue #2020)
+  **[XrdCl]** Only consider an endpoint TLS-enabled if the connection is encrypted**
+  **[XrdCl]** Remove duplicates from URL list to avoid undefined behavior
+  **[XrdHttpTPC]** Fix infinite loop when scitags packet marking is enabled (issue #2192)
+  **[XrdPosix,XrdSecztn]** Fix build on FreeBSD (issue #2090)
+  **[XrdTls]** Fix automatic renewal of server certificate with OpenSSL>=1.1 (issue #1678)
+
++ **Miscellaneous**
+  **[CMake]** Use CTest module in test.cmake and optionally submit to CDash
+  **[RPM]** Install the client as dependency of main RPM
+  **[Server]** Fix clang compile warnings
+
+-------------
 Version 5.6.7
 -------------
 
