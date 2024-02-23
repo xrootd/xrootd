@@ -143,6 +143,7 @@ BuildRequires:	openssl
 BuildRequires:	isa-l-devel
 %endif
 
+Requires:	%{name}-client%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-server%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-selinux = %{epoch}:%{version}-%{release}
 
