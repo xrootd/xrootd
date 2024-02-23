@@ -674,11 +674,11 @@ if [ $1 -ge 1 ] ; then
 fi
 
 %post selinux
-/usr/sbin/semodule -i %{_datadir}/selinux/packages/%{name}/%{name}.pp >/dev/null 2>&1 || :
+semodule -i %{_datadir}/selinux/packages/%{name}/%{name}.pp >/dev/null 2>&1 || :
 
 %postun selinux
 if [ $1 -eq 0 ] ; then
-	/usr/sbin/semodule -r %{name} >/dev/null 2>&1 || :
+	semodule -r %{name} >/dev/null 2>&1 || :
 fi
 
 %files
