@@ -38,34 +38,44 @@ XRootD is officially supported on the following platforms:
  * Debian 11 and Ubuntu 22.04 or later
  * macOS 11 (Big Sur) or later
 
-Support for other operating systems is provided by the community.
+Support for other operating systems is provided on a best-effort basis
+and by contributions from the community.
 
 ## Installation Instructions
 
 XRootD is available via official channels in most operating systems.
-Installation via the system package manager should be preferred if possible.
+Installation via your system's package manager should be preferred.
 
 In RPM-based distributions, like CentOS, Alma, Rocky, Fedora, etc, one can
 search and install XRootD packages with
 
 ```sh
-$ yum search xrootd
-$ sudo yum install xrootd* python3-xrootd
+$ sudo yum install xrootd
 ```
 or
 ```sh
-$ dnf search xrootd
-$ sudo dnf install xrootd* python3-xrootd
+$ sudo dnf install xrootd
 ```
 
-In some distributions, it may be necessary to first install the EPEL release
-repository with `yum install epel-release` or `dnf install epel-release`.
+In RHEL-based distributions, it will be necessary to first install the EPEL
+release repository with `yum install epel-release` or `dnf install epel-release`.
+
+If you would like to use our official repository for XRootD RPMs, you can enable
+it on RHEL-based distributions with
+
+```sh
+$ sudo curl -L https://cern.ch/xrootd/xrootd.repo -o /etc/yum.repos.d/xrootd.repo
+```
+
+and on Fedora with
+```sh
+$ sudo curl -L https://cern.ch/xrootd/xrootd-fedora.repo -o /etc/yum.repos.d/xrootd.repo
+```
 
 On Debian 11 or later, and Ubuntu 22.04 or later, XRootD can be installed via apt
 
 ```sh
-$ apt search xrootd
-$ sudo apt install xrootd* python3-xrootd
+$ sudo apt install xrootd-client xrootd-server python3-xrootd
 ```
 
 On macOS, XRootD is available via Homebrew
@@ -73,27 +83,35 @@ On macOS, XRootD is available via Homebrew
 $ brew install xrootd
 ```
 
-Finally, it is also possible to install the XRootD python bindings from PyPI
-using pip:
+XRootD can also be installed with conda, as it is also available in conda-forge:
+```sh
+$ conda config --add channels conda-forge
+$ conda config --set channel_priority strict
+$ conda install xrootd
 ```
+
+Finally, it is possible to install the XRootD python bindings from PyPI using pip:
+```sh
 $ pip install xrootd
 ```
 
 For detailed instructions on how to build and install XRootD from source code,
-please see [docs/INSTALL.md](docs/INSTALL.md) in this repository.
+please see [docs/INSTALL.md](https://github.com/xrootd/xrootd/blob/master/docs/INSTALL.md)
+in the main repository on GitHub.
 
 ## User Support and Bug Reports
 
 Bugs should be reported using [GitHub issues](https://github.com/xrootd/xrootd/issues).
 You can open a new ticket by clicking [here](https://github.com/xrootd/xrootd/issues/new).
 
-For general questions about XRootD, you can send a message to our user mailing
-list at xrootd-l@slac.stanford.edu. Please check XRootD's contact page at
-http://xrootd.org/contact.html for further information.
+For general questions about XRootD, please send a message to our user mailing
+list at xrootd-l@slac.stanford.edu or open a new [discussion](https://github.com/xrootd/xrootd/discussions)
+on GitHub. Please check XRootD's contact page at http://xrootd.org/contact.html
+for further information.
 
 ## Contributing
 
 User contributions can be submitted via pull request on GitHub. We recommend
 that you create your own fork of XRootD on GitHub and use it to submit your
 patches. For more detailed instructions on how to contribute, please refer to
-the file [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
+the file [docs/CONTRIBUTING.md](https://github.com/xrootd/xrootd/blob/master/docs/CONTRIBUTING.md).
