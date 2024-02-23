@@ -647,6 +647,8 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -s /sbin/nologin \
 	-d %{_localstatedir}/spool/%{name} -c "System user for XRootD" %{name}
 
 %post server
+%tmpfiles_create %{_tmpfilesdir}/%{name}.conf
+
 if [ $1 -eq 1 ] ; then
 	systemctl daemon-reload >/dev/null 2>&1 || :
 fi
@@ -662,8 +664,6 @@ if [ $1 -eq 0 ] ; then
 fi
 
 %postun server
-%tmpfiles_create %{_tmpfilesdir}/%{name}.conf
-
 if [ $1 -ge 1 ] ; then
 	systemctl daemon-reload >/dev/null 2>&1 || :
 	for DAEMON in xrootd cmsd frm_purged frm_xfrd; do
