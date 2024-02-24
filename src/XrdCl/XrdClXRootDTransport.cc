@@ -1918,7 +1918,7 @@ namespace XrdCl
     if (info->encrypted || InitTLS())
       request->flags |= ClientProtocolRequest::kXR_ableTLS;
 
-    if (info->encrypted || !(notlsok || tlsnodata))
+    if (info->encrypted && !(notlsok || tlsnodata))
       request->flags |= ClientProtocolRequest::kXR_wantTLS;
 
     request->expect = expect;
