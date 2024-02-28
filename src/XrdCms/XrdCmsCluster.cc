@@ -1789,6 +1789,9 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 // Scan for a node (preset possible, suspended, overloaded, full, and dead)
 //
    selR.Reset(); SelTcnt++;
+   int selCap = 0;
+   int randomSel=0;
+   int *weighed = new int[STHi];
    for (int i = 0; i <= STHi; i++)
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {if (!(selR.needNet & np->hasNet))      {selR.xNoNet= true; continue;}
@@ -1800,28 +1803,49 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                                   || (reqSS && np->isNoStage)))
               {selR.xFull = true; continue;}
            if (!sp) sp = np;
-              else{if (selR.needSpace)
-                      {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
-                          {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
-                          else if (sp->myMass > np->myMass)             sp=np;
-                      } else {
-                       if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
-                          {if (selR.selPack)
-                              {if (--selR.selPack)                      sp=np;
-                                  else break;
-                              }
-                              else if (sp->RefR > np->RefR)             sp=np;
-                          }
-                          else if (sp->myLoad > np->myLoad)             sp=np;
-                      }
-                   Multi = true;
-                  }
+              //else{if (selR.needSpace)
+              //        {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
+              //            {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
+              //            else if (sp->myMass > np->myMass)             sp=np;
+              //        } else {
+              //         if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
+              //            {if (selR.selPack)
+               //               {if (--selR.selPack)                      sp=np;
+               //                   else break;
+               //               }
+               //               else if (sp->RefR > np->RefR)             sp=np;
+               //           }
+               //           else if (sp->myLoad > np->myLoad)             sp=np;
+               //       }
+               //    Multi = true;
+               //   }
+            if(i!=0 && selCap==0){
+             selCap=1;
+             randomSel=1;
+            }
+            weighed[i] = selCap + 100 - np->myLoad;
+            selCap += 100 - np->myLoad;  
+                               
           }
 
-// Check for overloaded node and return result
+// pick a random weighed node
 //
+   std::random_device rand_dev;
+   std::mt19937 generator(rand_dev());
+   std::uniform_int_distribution<int> distr(randomSel,selCap);
+   randomSel = distr(generator);
+   for(i=0;i<STHi;i++){
+     if(randomSel<=weighed[i]){
+       sp=NodeTab[i];
+       break;
+     }
+   }
+
+   delete [] weighed;
+// Check for overloaded node and return result
+// //
    if (!sp) return calcDelay(selR);
-   RefCount(sp, Multi, selR.needSpace);
+//   RefCount(sp, Multi, selR.needSpace);
    return sp;
 }
 
