@@ -161,6 +161,7 @@ stop() {
        for i in "${servernames[@]}"; do
               kill -s TERM $(cat ${i}/cmsd.pid)
               kill -s TERM $(cat ${i}/xrootd.pid)
+              [[ -d "${i}" ]] && rm -rf "${i}"
        done
 }
 
