@@ -1789,10 +1789,12 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 // Scan for a node (preset possible, suspended, overloaded, full, and dead)
 //
    selR.Reset(); SelTcnt++;
-   int selCap = 0;
-   int randomSel=0;
+   int selCap = 1;
+   int randomSel=1;
    int *weighed = new int[STHi];
-   for (int i = 0; i <= STHi; i++)
+   for (int i = 0; i <= STHi; i++){
+       //default 0 to skip the node in random selection if the below checks fail
+       weighed[i] = 0;
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {if (!(selR.needNet & np->hasNet))      {selR.xNoNet= true; continue;}
            selR.nPick++;
@@ -1819,15 +1821,11 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                //       }
                //    Multi = true;
                //   }
-            if(i!=0 && selCap==0){
-             selCap=1;
-             randomSel=1;
-            }
             weighed[i] = selCap + 100 - np->myLoad;
             selCap += 100 - np->myLoad;  
                                
           }
-
+   }
 // pick a random weighed node
 //
    std::random_device rand_dev;
