@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <random>
 
 #include "XProtocol/YProtocol.hh"
   
@@ -1784,7 +1785,8 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
 XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 {
     XrdCmsNode *np, *sp = 0;
-    bool Multi = false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
+//  bool Multi = False;
+    bool reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
 // Scan for a node (preset possible, suspended, overloaded, full, and dead)
 //
@@ -1832,7 +1834,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
    std::mt19937 generator(rand_dev());
    std::uniform_int_distribution<int> distr(randomSel,selCap);
    randomSel = distr(generator);
-   for(i=0;i<STHi;i++){
+   for(int i=0;i<STHi;i++){
      if(randomSel<=weighed[i]){
        sp=NodeTab[i];
        break;
