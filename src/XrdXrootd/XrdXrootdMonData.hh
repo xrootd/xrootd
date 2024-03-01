@@ -119,6 +119,7 @@ const kXR_char XROOTD_MON_GSCCM         = 'M'; // pfc: Cache context mgt info
 const kXR_char XROOTD_MON_GSPFC         = 'C'; // pfc: Cache monitoring  info
 const kXR_char XROOTD_MON_GSTCP         = 'T'; // TCP connection statistics
 const kXR_char XROOTD_MON_GSTPC         = 'P'; // TPC Third Party Copy
+const kXR_char XROOTD_MON_GSTHR         = 'R'; // IO activity from the throttle plugin
 
 // The following bits are insert in the low order 4 bits of the MON_REDIRECT
 // entry code to indicate the actual operation that was requestded.
