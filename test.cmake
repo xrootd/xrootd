@@ -235,8 +235,9 @@ if(DEFINED CTEST_COVERAGE_COMMAND)
   find_program(GCOVR NAMES gcovr)
   if(EXISTS ${GCOVR})
     execute_process(COMMAND
-      ${GCOVR} -r ${CTEST_SOURCE_DIRECTORY}/src ${CTEST_BINARY_DIRECTORY}
-        --html-details ${CTEST_BINARY_DIRECTORY}/html/ ERROR_VARIABLE ERROR)
+      ${GCOVR} --gcov-executable ${CTEST_COVERAGE_COMMAND}
+        -r ${CTEST_SOURCE_DIRECTORY} ${CTEST_BINARY_DIRECTORY}
+        --html-details ${CTEST_BINARY_DIRECTORY}/coverage/ ERROR_VARIABLE ERROR)
     if(ERROR)
       message(SEND_ERROR "Failed to generate coverage report")
     endif()
