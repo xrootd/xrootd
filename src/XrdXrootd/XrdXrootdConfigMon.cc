@@ -80,14 +80,16 @@ struct MonParms
 MonParms *MP = 0;
 
 struct XrdXrootdGSReal::GSParms gsObj[] =
-       {{"ccm",    0, XROOTD_MON_CCM,   0, -1, XROOTD_MON_GSCCM, 0,
-                   XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
-        {"pfc",    0, XROOTD_MON_PFC,   0, -1, XROOTD_MON_GSPFC, 0,
-                   XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
-        {"TcpMon", 0, XROOTD_MON_TCPMO, 0, -1, XROOTD_MON_GSTCP, 0,
-                   XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
-        {"Tpc",    0, XROOTD_MON_TPC,   0, -1, XROOTD_MON_GSTPC, 0,
-                   XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm}
+       {{"ccm",      0, XROOTD_MON_CCM,   0, -1, XROOTD_MON_GSCCM, 0,
+                     XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
+        {"pfc",      0, XROOTD_MON_PFC,   0, -1, XROOTD_MON_GSPFC, 0,
+                     XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
+        {"TcpMon",   0, XROOTD_MON_TCPMO, 0, -1, XROOTD_MON_GSTCP, 0,
+                     XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
+        {"Throttle", 0, XROOTD_MON_THROT, 0, -1, XROOTD_MON_GSTHR, 0,
+                     XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
+        {"Tpc",      0, XROOTD_MON_TPC,   0, -1, XROOTD_MON_GSTPC, 0,
+                     XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm}
        };
 }
 
@@ -100,7 +102,7 @@ bool XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
    XrdXrootdGStream *gs;
    static const int numgs=sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
    char vbuff[64];
-   bool aOK, gXrd[numgs] = {false, false, true, true};
+   bool aOK, gXrd[numgs] = {false, false, true, false, true};
 
 // For each enabled monitoring provider, allocate a g-stream and put
 // its address in our environment.
@@ -190,7 +192,7 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
                                       [rbuff <sz>] [rnums <cnt>] [window <sec>]
                                       [dest [Events] <host:port>]
 
-   Events: [ccm] [files] [fstat] [info] [io] [iov] [pfc] [redir] [tcpmon] [user]
+   Events: [ccm] [files] [fstat] [info] [io] [iov] [pfc] [redir] [tcpmon] [throttle] [user]
 
          all                enables monitoring for all connections.
          auth               add authentication information to "user".
@@ -222,6 +224,7 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
          pfc                monitor proxy file cache
          redir              monitors request redirections
          tcpmon             monitors tcp connection closes.
+         throttle           monitors I/O activity via the throttle plugin
          tpc                Third Party Copy
          user               monitors user login and disconnect events.
          <host:port>        where monitor records are to be sentvia UDP.
@@ -350,11 +353,12 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
               else if (!strcmp("io",   val)) MP->monMode[i] |=  XROOTD_MON_IO;
               else if (!strcmp("iov",  val)) MP->monMode[i] |= (XROOTD_MON_IO
                                                                |XROOTD_MON_IOV);
-              else if (!strcmp("pfc",  val)) MP->monMode[i] |=  XROOTD_MON_PFC;
-              else if (!strcmp("redir",val)) MP->monMode[i] |=  XROOTD_MON_REDR;
-              else if (!strcmp("tcpmon",val))MP->monMode[i] |=  XROOTD_MON_TCPMO;
-              else if (!strcmp("tpc",   val))MP->monMode[i] |=  XROOTD_MON_TPC;
-              else if (!strcmp("user", val)) MP->monMode[i] |=  XROOTD_MON_USER;
+              else if (!strcmp("pfc",      val)) MP->monMode[i] |=  XROOTD_MON_PFC;
+              else if (!strcmp("redir",    val)) MP->monMode[i] |=  XROOTD_MON_REDR;
+              else if (!strcmp("tcpmon",   val)) MP->monMode[i] |=  XROOTD_MON_TCPMO;
+              else if (!strcmp("throttle", val)) MP->monMode[i] |=  XROOTD_MON_THROT;
+              else if (!strcmp("tpc",      val)) MP->monMode[i] |=  XROOTD_MON_TPC;
+              else if (!strcmp("user",     val)) MP->monMode[i] |=  XROOTD_MON_USER;
               else break;
 
          if (!val) {eDest.Emsg("Config","monitor dest value not specified");
@@ -456,6 +460,7 @@ char *XrdXrootdProtocol::xmondest(const char *what, char *val)
          ccm                gstream: cache context management
          pfc                gstream: proxy file cache
          tcpmon             gstream: tcp connection monitoring
+         throttle           gstream: monitors I/O activity via the throttle plugin
          tpc                gstream: Third Party Copy
 
          noXXX              do not include information.
@@ -478,7 +483,7 @@ int XrdXrootdProtocol::xmongs(XrdOucStream &Config)
 
    int numgs = sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
    int selAll = XROOTD_MON_CCM | XROOTD_MON_PFC | XROOTD_MON_TCPMO
-              | XROOTD_MON_TPC;
+              | XROOTD_MON_THROT | XROOTD_MON_TPC;
    int i, selMon = 0, opt = -1, hdr = -1, fmt = -1, flushVal = -1;
    long long maxlVal = -1;
    char *val, *dest = 0;

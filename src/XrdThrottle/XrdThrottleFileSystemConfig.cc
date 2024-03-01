@@ -55,10 +55,11 @@ namespace XrdThrottle {
 XrdSfsFileSystem *
 XrdSfsGetFileSystem_Internal(XrdSfsFileSystem *native_fs,
                             XrdSysLogger     *lp,
-                            const char       *configfn)
+                            const char       *configfn,
+                            XrdOucEnv        *envP)
 {
    FileSystem* fs = NULL;
-   FileSystem::Initialize(fs, native_fs, lp, configfn);
+   FileSystem::Initialize(fs, native_fs, lp, configfn, envP);
    return fs;
 }
 }
@@ -70,11 +71,21 @@ XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
                     XrdSysLogger     *lp,
                     const char       *configfn)
 {
-   return XrdSfsGetFileSystem_Internal(native_fs, lp, configfn);
+   return XrdSfsGetFileSystem_Internal(native_fs, lp, configfn, nullptr);
+}
+
+XrdSfsFileSystem *
+XrdSfsGetFileSystem2(XrdSfsFileSystem *native_fs,
+                    XrdSysLogger     *lp,
+                    const char       *configfn,
+                    XrdOucEnv        *envP)
+{
+   return XrdSfsGetFileSystem_Internal(native_fs, lp, configfn, envP);
 }
 }
 
 XrdVERSIONINFO(XrdSfsGetFileSystem, FileSystem);
+XrdVERSIONINFO(XrdSfsGetFileSystem2, FileSystem);
 
 FileSystem* FileSystem::m_instance = 0;
 
@@ -90,7 +101,8 @@ void
 FileSystem::Initialize(FileSystem      *&fs,
                        XrdSfsFileSystem *native_fs, 
                        XrdSysLogger     *lp,
-                       const char       *configfn)
+                       const char       *configfn,
+                       XrdOucEnv        *envP)
 {
    fs = NULL;
    if (m_instance == NULL && !(m_instance = new FileSystem()))
@@ -103,7 +115,7 @@ FileSystem::Initialize(FileSystem      *&fs,
       fs->m_config_file = configfn;
       fs->m_eroute.logger(lp);
       fs->m_eroute.Say("Initializing a Throttled file system.");
-      if (fs->Configure(fs->m_eroute, native_fs))
+      if (fs->Configure(fs->m_eroute, native_fs, envP))
       {
          fs->m_eroute.Say("Initialization of throttled file system failed.");
          fs = NULL;
@@ -116,7 +128,7 @@ FileSystem::Initialize(FileSystem      *&fs,
 
 #define TS_Xeq(key, func) NoGo = (strcmp(key, var) == 0) ? func(Config) : 0
 int
-FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs)
+FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs, XrdOucEnv *envP)
 {
    XrdOucEnv myEnv;
    XrdOucStream Config(&m_eroute, getenv("XRDINSTANCE"), &myEnv, "(Throttle Config)> ");
@@ -164,6 +176,14 @@ FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs)
 
    // Overwrite the environment variable saying that throttling is the fslib.
    XrdOucEnv::Export("XRDOFSLIB", fslib.c_str());
+
+   if (envP)
+   {
+       auto gstream = reinterpret_cast<XrdXrootdGStream*>(envP->GetPtr("Throttle.gStream*"));
+       log.Say("Config", "Throttle g-stream has", gstream ? "" : " NOT", " been configured via xrootd.mongstream directive");
+       m_throttle.SetMonitor(gstream);
+   }
+
 
    return 0;
 }
