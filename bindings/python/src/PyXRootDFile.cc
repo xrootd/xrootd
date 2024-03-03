@@ -106,14 +106,14 @@ namespace PyXRootD
   PyObject* File::Stat( File *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "force", "timeout", "callback", NULL };
-    bool                force    = false;
+    int                 force    = 0;
     uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO:stat", (char**) kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|pHO:stat", (char**) kwlist,
         &force, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
