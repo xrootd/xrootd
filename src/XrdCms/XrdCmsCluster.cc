@@ -1823,8 +1823,9 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                //       }
                //    Multi = true;
                //   }
-            weighed[i] = selCap + 100 - np->myLoad;
-            selCap += 100 - np->myLoad;  
+            //add 1 to the inverse load, this is to allow some selection in case reported loads hit 100
+            weighed[i] = selCap + 101 - np->myLoad;
+            selCap += 101 - np->myLoad;  
                                
           }
    }
@@ -1834,7 +1835,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
    std::mt19937 generator(rand_dev());
    std::uniform_int_distribution<int> distr(randomSel,selCap);
    randomSel = distr(generator);
-   for(int i=0;i<STHi;i++){
+   for(int i=0;i<=STHi;i++){
      if(randomSel<=weighed[i]){
        sp=NodeTab[i];
        break;
