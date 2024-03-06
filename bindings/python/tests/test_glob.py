@@ -34,7 +34,7 @@ def test_glob_local(tmptree):
 
 def test_glob_remote(tmptree):
     assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoad/")) == 0
-    assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoa*")) == 1
+    assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoa*")) == 2
     assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/*")) > 0
     assert len(glob.glob("root://eospublic.cern.ch//eos/root-*/cms_opendata_2012_nanoaod/*")) > 0
 

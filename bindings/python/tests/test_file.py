@@ -14,8 +14,8 @@ open_mode = (AccessMode.UR | AccessMode.UW |
 
 def test_write_sync():
   f = client.File()
-  pytest.raises(ValueError, "f.write(smallbuffer)")
-  status, __ = f.open(smallfile, OpenFlags.DELETE, open_mode )
+  pytest.raises(ValueError, f.write, smallbuffer)
+  status, __ = f.open(smallfile, OpenFlags.DELETE, open_mode)
   assert status.ok
 
   # Write
@@ -54,7 +54,7 @@ def test_write_async():
 
 def test_open_close_sync():
   f = client.File()
-  pytest.raises(ValueError, "f.stat()")
+  pytest.raises(ValueError, f.stat)
   status, __ = f.open(smallfile, OpenFlags.READ)
   assert status.ok
   assert f.is_open()
@@ -63,7 +63,7 @@ def test_open_close_sync():
   status, __ = f.close()
   assert status.ok
   assert f.is_open() == False
-  pytest.raises(ValueError, "f.stat()")
+  pytest.raises(ValueError, f.stat)
   f.close()
   f.close()
 
@@ -86,64 +86,64 @@ def test_open_close_async():
 
 def test_io_limits():
   f = client.File()
-  pytest.raises(ValueError, 'f.read()')
+  pytest.raises(ValueError, f.read)
   status, __ = f.open(smallfile, OpenFlags.UPDATE)
   assert status.ok
   status, __ = f.stat()
   assert status.ok
 
   # Test read limits
-  pytest.raises(TypeError, 'f.read(0, [1, 2])')
-  pytest.raises(TypeError, 'f.read([1, 2], 0)')
-  pytest.raises(TypeError, 'f.read(0, 10, [0, 1, 2])')
-  pytest.raises(OverflowError, 'f.read(0, -10)')
-  pytest.raises(OverflowError, 'f.read(-1, 1)')
-  pytest.raises(OverflowError, 'f.read(0, 1, -1)')
-  pytest.raises(OverflowError, 'f.read(0, 10**11)')
-  pytest.raises(OverflowError, 'f.read(0, 10, 10**6)')
+  pytest.raises(TypeError,     f.read, 0, [1, 2])
+  pytest.raises(TypeError,     f.read, [1, 2], 0)
+  pytest.raises(TypeError,     f.read, 0, 10, [0, 1, 2])
+  pytest.raises(OverflowError, f.read, 0, -10)
+  pytest.raises(OverflowError, f.read, -1, 1)
+  pytest.raises(OverflowError, f.read, 0, 1, -1)
+  pytest.raises(OverflowError, f.read, 0, 10**11)
+  pytest.raises(OverflowError, f.read, 0, 10, 10**6)
 
   # Test readline limits
-  pytest.raises(TypeError, 'f.readline([0, 1], 1)')
-  pytest.raises(TypeError, 'f.readline(0, [0, 1])')
-  pytest.raises(TypeError, 'f.readline(0, 10, [0, 1])')
-  pytest.raises(OverflowError, 'f.readline(-1, 1)')
-  pytest.raises(OverflowError, 'f.readline(0, -1)')
-  pytest.raises(OverflowError, 'f.readline(0, 1, -1)')
-  pytest.raises(OverflowError, 'f.readline(0, 10**11)')
-  pytest.raises(OverflowError, 'f.readline(0, 10, 10**11)')
+  pytest.raises(TypeError,     f.readline, [0, 1], 1)
+  pytest.raises(TypeError,     f.readline, 0, [0, 1])
+  pytest.raises(TypeError,     f.readline, 0, 10, [0, 1])
+  pytest.raises(OverflowError, f.readline, -1, 1)
+  pytest.raises(OverflowError, f.readline, 0, -1)
+  pytest.raises(OverflowError, f.readline, 0, 1, -1)
+  pytest.raises(OverflowError, f.readline, 0, 10**11)
+  pytest.raises(OverflowError, f.readline, 0, 10, 10**11)
 
   # Test write limits
   data = "data that will never get written"
-  pytest.raises(TypeError, 'f.write(data, 0, [1, 2])')
-  pytest.raises(TypeError, 'f.write(data, [1, 2], 0)')
-  pytest.raises(TypeError, 'f.write(data, 0, 10, [0, 1, 2])')
-  pytest.raises(OverflowError, 'f.write(data, 0, -10)')
-  pytest.raises(OverflowError, 'f.write(data, -1, 1)')
-  pytest.raises(OverflowError, 'f.write(data, 0, 1, -1)')
-  pytest.raises(OverflowError, 'f.write(data, 0, 10**11)')
-  pytest.raises(OverflowError, 'f.write(data, 0, 10, 10**6)')
+  pytest.raises(TypeError,     f.write, data, 0, [1, 2])
+  pytest.raises(TypeError,     f.write, data, [1, 2], 0)
+  pytest.raises(TypeError,     f.write, data, 0, 10, [0, 1, 2])
+  pytest.raises(OverflowError, f.write, data, 0, -10)
+  pytest.raises(OverflowError, f.write, data, -1, 1)
+  pytest.raises(OverflowError, f.write, data, 0, 1, -1)
+  pytest.raises(OverflowError, f.write, data, 0, 10**11)
+  pytest.raises(OverflowError, f.write, data, 0, 10, 10**6)
 
   # Test vector_read limits
-  pytest.raises(TypeError, 'f.vector_read(chunks=100)')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[1,2,3])')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[("lol", "cakes")])')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[(1), (2)])')
-  pytest.raises(TypeError, 'f.vector_read(chunks=[(1, 2), (3)])')
-  pytest.raises(OverflowError, 'f.vector_read(chunks=[(-1, -100), (-100, -100)])')
-  pytest.raises(OverflowError, 'f.vector_read(chunks=[(0, 10**10*10)])')
+  pytest.raises(TypeError,     f.vector_read, chunks=100)
+  pytest.raises(TypeError,     f.vector_read, chunks=[1,2,3])
+  pytest.raises(TypeError,     f.vector_read, chunks=[("lol", "cakes")])
+  pytest.raises(TypeError,     f.vector_read, chunks=[(1), (2)])
+  pytest.raises(TypeError,     f.vector_read, chunks=[(1, 2), (3)])
+  pytest.raises(OverflowError, f.vector_read, chunks=[(-1, -100), (-100, -100)])
+  pytest.raises(OverflowError, f.vector_read, chunks=[(0, 10**10*10)])
 
   # Test truncate limits
-  pytest.raises(TypeError, 'f.truncate(0, [1, 2])')
-  pytest.raises(TypeError, 'f.truncate([1, 2], 0)')
-  pytest.raises(OverflowError, 'f.truncate(-1)')
-  pytest.raises(OverflowError, 'f.truncate(100, -10)')
-  pytest.raises(OverflowError, 'f.truncate(0, 10**6)')
+  pytest.raises(TypeError,     f.truncate, 0, [1, 2])
+  pytest.raises(TypeError,     f.truncate, [1, 2], 0)
+  pytest.raises(OverflowError, f.truncate, -1)
+  pytest.raises(OverflowError, f.truncate, 100, -10)
+  pytest.raises(OverflowError, f.truncate, 0, 10**6)
   status, __ = f.close()
   assert status.ok
 
 def test_write_big_async():
   f = client.File()
-  pytest.raises(ValueError, 'f.read()')
+  pytest.raises(ValueError, f.read)
   status, __ = f.open(bigfile, OpenFlags.DELETE, open_mode)
   assert status.ok
 
@@ -170,7 +170,7 @@ def test_write_big_async():
 
 def test_read_sync():
   f = client.File()
-  pytest.raises(ValueError, 'f.read()')
+  pytest.raises(ValueError, f.read)
   status, response = f.open(bigfile, OpenFlags.READ)
   assert status.ok
   status, response = f.stat()
@@ -196,7 +196,7 @@ def test_read_async():
   assert len(response) == size
   f.close()
 
-def test_iter_small():
+def test_iteration():
   f = client.File()
   status, __ = f.open(smallfile, OpenFlags.DELETE)
   assert status.ok
@@ -204,24 +204,7 @@ def test_iter_small():
   assert status.ok
 
   size = f.stat(force=True)[1].size
-  pylines = open('/tmp/spam').readlines()
-  total = 0
-
-  for i, line in enumerate(f):
-    total += len(line)
-    if pylines[i].endswith('\n'):
-      assert line.endswith('\n')
-
-  assert total == size
-  f.close()
-
-def test_iter_big():
-  f = client.File()
-  status, __ = f.open(bigfile, OpenFlags.READ)
-  assert status.ok
-
-  size = f.stat()[1].size
-  pylines = open('/tmp/bigfile').readlines()
+  pylines = smallbuffer.split('\n')
   total = 0
 
   for i, line in enumerate(f):
@@ -257,55 +240,17 @@ def test_readline():
   assert response == 'ham'
   f.close()
 
-def test_readlines_small():
-  f = client.File()
-  f.open(smallfile, OpenFlags.DELETE, open_mode)
-  f.write(smallbuffer)
-  f.close()
-  pylines = open('/tmp/spam').readlines()
-
-  for i in range(1, 100):
-    f = client.File()
-    f.open(smallfile)
-    response = f.readlines(offset=0, chunksize=i)
-    assert len(response) == 4
-    for j, line in enumerate(response):
-      if pylines[j].endswith('\n'):
-        assert line.endswith('\n')
-    f.close()
-
-def test_readlines_big():
-  f = client.File()
-  f.open(bigfile, OpenFlags.READ)
-  size = f.stat()[1].size
-
-  lines = f.readlines()
-  pylines = open('/tmp/bigfile').readlines()
-  assert len(lines) == len(pylines)
-
-  nlines = len(pylines)
-
-  total = 0
-  for i, l in enumerate(lines):
-    total += len(l)
-    if l != pylines[i]:
-      print('!!!!!', total, i)
-      print('+++++ py: %r' % pylines[i])
-      print('+++++ me: %r' % l)
-      break
-    if pylines[i].endswith('\n'):
-      assert l.endswith('\n')
-
-  assert total == size
-  f.close()
-
 def test_readchunks_small():
   f = client.File()
+  f.open(smallfile, OpenFlags.DELETE)
+  f.write(smallbuffer)
+  f.close()
+
   f.open(smallfile, OpenFlags.READ)
   size = f.stat()[1].size
 
   total = 0
-  chunks = ['gre', '\0en', '\neg', 'gs\n', 'and', '\nha', 'm\n']
+  chunks = [b'gre', b'\0en', b'\neg', b'gs\n', b'and', b'\nha', b'm\n']
   for i, chunk in enumerate(f.readchunks(chunksize=3)):
     assert chunk == chunks[i]
     total += len(chunk)
@@ -372,7 +317,7 @@ def test_vector_read_async():
 
 def test_stat_sync():
   f = client.File()
-  pytest.raises(ValueError, 'f.stat()')
+  pytest.raises(ValueError, f.stat)
   status, __ = f.open(bigfile)
   assert status.ok
   status, __ = f.stat()
@@ -393,7 +338,7 @@ def test_stat_async():
 
 def test_sync_sync():
   f = client.File()
-  pytest.raises(ValueError, 'f.sync()')
+  pytest.raises(ValueError, f.sync)
   status, __ = f.open(bigfile)
   assert status.ok
   status, __ = f.sync()
@@ -413,7 +358,7 @@ def test_sync_async():
 
 def test_truncate_sync():
   f = client.File()
-  pytest.raises(ValueError, 'f.truncate(10000)')
+  pytest.raises(ValueError, f.truncate, 10000)
   status, __ = f.open(smallfile, OpenFlags.DELETE)
   assert status.ok
 

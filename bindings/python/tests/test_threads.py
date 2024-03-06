@@ -3,11 +3,12 @@ from XRootD.client.flags import OpenFlags
 from threading import Thread
 from env import *
 
-class TestThread(Thread):
+class MyThread(Thread):
   def __init__(self, file, id):
     Thread.__init__(self)
     self.file = file
     self.id = id
+
   def run(self):
     self.file.open(smallfile, OpenFlags.DELETE)
     assert self.file.is_open()
@@ -24,13 +25,8 @@ class TestThread(Thread):
 
 def test_threads():
   f = client.File()
-#   f.open(smallfile, OpenFlags.DELETE)
-#   assert f.is_open()
-#   f.write(smallbuffer)
-
-  for i in range(3):
-    tt = TestThread(f, i)
+  for i in range(16):
+    tt = MyThread(f, i)
     tt.start()
     tt.join()
-
-#   f.close()
+  f.close()

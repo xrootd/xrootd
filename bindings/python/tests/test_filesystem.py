@@ -181,10 +181,10 @@ def test_mkdir_flags():
 
 def test_args():
   c = client.FileSystem(url=SERVER_URL)
-  assert c
+  assert c is not None
 
-  pytest.raises(TypeError, "c = client.FileSystem(foo='root://localhost')")
-  pytest.raises(TypeError, "c = client.FileSystem(path='root://localhost', foo='bar')")
+  pytest.raises(TypeError, client.FileSystem, foo='root://localhost')
+  pytest.raises(TypeError, client.FileSystem, path='root://localhost', foo='bar')
 
 def test_creation():
   c = client.FileSystem(SERVER_URL)
@@ -193,9 +193,4 @@ def test_creation():
 def test_deletion():
   c = client.FileSystem(SERVER_URL)
   del c
-
-  if sys.hexversion > 0x03000000:
-      pytest.raises(UnboundLocalError, 'assert c')
-  else:
-      pytest.raises(NameError, 'assert c')
-
+  pytest.raises(NameError, eval, "c")
