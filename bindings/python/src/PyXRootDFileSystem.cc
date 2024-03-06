@@ -625,15 +625,16 @@ namespace PyXRootD
     }
 
     std::vector<std::string> files;
-    const char              *file;
-    PyObject                *pyfile;
+    for (int i = 0; i < PyList_Size(pyfiles); ++i) {
+      PyObject *item = PyList_GetItem(pyfiles, i);
 
-    // Convert python list to stl vector
-    for ( int i = 0; i < PyList_Size( pyfiles ); ++i ) {
-      pyfile = PyList_GetItem( pyfiles, i );
-      if ( !pyfile ) return NULL;
-      file = PyUnicode_AsUTF8( pyfile );
-      files.push_back( std::string( file ) );
+      if (!PyUnicode_Check(item)) {
+        PyErr_SetString(PyExc_TypeError,
+          "files parameter must be a list of strings");
+        return NULL;
+      }
+
+      files.emplace_back(PyUnicode_AsUTF8(item));
     }
 
     XrdCl::PrepareFlags::Flags flags;
