@@ -106,7 +106,7 @@ namespace PyXRootD
   PyObject* File::Stat( File *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "force", "timeout", "callback", NULL };
-    bool                force    = false;
+    int                 force    = 0;
     uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
