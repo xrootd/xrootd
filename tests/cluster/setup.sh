@@ -148,21 +148,23 @@ start(){
        set -x
        # start for each component
        for i in "${servernames[@]}"; do
-              ${XROOTD} -b -k fifo -n ${i} -l xrootd.log -s xrootd.pid -c configs/xrootd_${i}.cfg
+              ${XROOTD} -b -k fifo -n ${i} -l xrootd.log -s xrootd.pid -c ${i}.cfg
        done
 
        # start cmsd in the redirectors
        for i in "${servernames[@]}"; do
-              ${CMSD} -b -k fifo -n ${i} -l cmsd.log -s cmsd.pid -c configs/xrootd_${i}.cfg
+              ${CMSD} -b -k fifo -n ${i} -l cmsd.log -s cmsd.pid -c ${i}.cfg
        done
 }
 
 stop() {
-       for i in "${servernames[@]}"; do
-              kill -s TERM $(cat ${i}/cmsd.pid)
-              kill -s TERM $(cat ${i}/xrootd.pid)
-              [[ -d "${i}" ]] && rm -rf "${i}"
-       done
+	for i in "${servernames[@]}"; do
+		if [[ -d "${i}" ]]; then
+			kill -s TERM $(cat ${i}/cmsd.pid)
+			kill -s TERM $(cat ${i}/xrootd.pid)
+			rm -rf "${i}"
+		fi
+	done
 }
 
 insertFileInfo() {
