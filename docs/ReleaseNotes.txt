@@ -6,6 +6,25 @@ Release Notes
 =============
 
 -------------
+Version 5.6.9
+-------------
+
++ **Minor bug fixes**
+  **[Python]** Check list of files in prepare to ensure they are strings
+  **[Python]** Fix iteration over a file with Python3
+  **[Python]** Use int for 'force' in File::Stat (#2208)
+  **[Utils]** Correct comparison that wrongly missed reaping certain directives
+  **[XrdCl]** Fix logic error when upgrading connections to TLS
+  **[XrdCl]** Stop Poller before TaskManager (fixes rare crashes at shutdown)
+  **[XrdHttpTPC]** Fix 500 server response code if X-Number-Of-Streams > 100 (issue #2186)
+  **[XrdSciTokens]** Add stat permissions to create, modify and write operations (issue #2185)
+  **[XrdSciTokens]** Allow creation of parent directories if necessary (#2184)
+  **[XrdSciTokens]** Fix bug when scope includes basepath or `/` (issue #2132)
+
++ **Miscellaneous**
+  **[Tests]** Optimize cluster configuration to speedup tests
+
+-------------
 Version 5.6.8
 -------------
 
