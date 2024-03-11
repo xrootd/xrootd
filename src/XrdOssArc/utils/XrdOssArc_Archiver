@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+import errno
+import os
+import shutil
+import stat
+import sys
+
+# Check for debugging
+#
+x = os.getenv("XRDOSSARC_DEBUG", None)
+if x is None: Debug = False
+else: Debug = True
+
+# Print to stderr a message
+#
+def Emsg(rc, txt):
+   print("OssArc_Archive: " + txt, file=sys.stderr)
+   if rc:
+      sys.exit(rc)
+
+# Translate zip status code to a message
+#
+def zrc2text(rc):
+   if rc == 0:
+      return ""
+   elif rc == 2:
+      return "unexpected end of zip file."
+   elif rc == 3:
+      return "error in the zipfile format was detected."
+   elif rc == 4:
+      return "unable to allocate memory buffers."
+   elif rc == 5:
+      return "a severe error in the zipfile format was detected."
+   elif rc == 6:
+      return "entry too large to be processed."
+   elif rc == 7:
+      return "invalid comment format."
+   elif rc == 8:
+      return "insufficient memory."
+   elif rc == 9:
+      return "the user aborted zip prematurely with control-C."
+   elif rc == 10:
+      return "zip encountered an error while using a temp file."
+   elif rc == 11:
+      return "read or seek error."
+   elif rc == 12:
+      return "zip has nothing to do."
+   elif rc == 13:
+      return "missing or empty zip file."
+   elif rc == 14:
+      return "error writing to a file."
+   elif rc == 15:
+      return "zip was unable to create a file to write to."
+   elif rc == 16:
+      return "bad command line parameters."
+   elif rc == 18:
+      return "zip could not open a specified file to read."
+   elif rc == 19:
+      return "zip was compiled with unsupported options."
+   else: 
+      return "unknown error " + str(rc) + "."
+
+# The actual guts of the script
+#
+def Main(argv):
+
+   # Make sure we have atleast four arguments. These would correspond to:
+   # <dirpath to dsn members <backing dsn dirpath> <arcfilename>
+   #
+   if len(argv) < 3: Emsg(errno.EINVAL, "Too few arguments") 
+   
+   # Assign names to the arguments. Note that the dsnDir is atomically unique.
+   #
+   dsnDir  = argv[0]
+   tapDir  = argv[1]
+   arcName = argv[2]
+
+   arcSrc  = dsnDir.rstrip('/')  + '/' + arcName.lstrip('/')
+   arcDst  = tapDir.rstrip('/')  + '/' + arcName.lstrip('/')
+
+   # Do some debugging
+   #
+   if Debug:
+      Emsg(0, "dsnDir={} tapDir={} arcName={}".format(dsnDir, tapDir, arcName))
+   
+   # Set out working directory to the root of the dataset members
+   #
+   try:
+      os.chdir(dsnDir)
+   except Exception as e:
+      Emsg(errno.ENOENT, str(e) + " (dataset directory)")
+
+   # Verify that we can use the target directory
+   #  
+   if (not os.access(dsnDir, os.W_OK)):
+      Emsg(errno.EACCES, "{} not writable (target directory)".format(dsnDir))
+
+   if Debug: Emsg(0, "Removing '{}', '{}'.".format(arcSrc, arcDst))
+
+   # Remove any existing archive. We ignore errors here
+   #
+   try:
+      os.remove(arcSrc)
+   except Exception:
+      pass
+   try:
+      os.remove(arcDst)
+   except Exception:
+      pass
+
+   # Prepare to create the archive
+   #
+   if Debug: hush = ""
+   else: hush = "-q "
+
+   arcCmd = 'zip -r {} {} .'.format(hush, arcName)
+
+   if Debug: Emsg(0, "Executing '" + arcCmd + "'")
+
+   # Create the archive file using gzip
+   #
+   status = os.system(arcCmd)
+   if os.WIFSIGNALED(status):
+      rc = -os.WTERMSIG(status)
+   elif os.WIFEXITED(status):
+      rc = os.WEXITSTATUS(status)
+   elif os.WIFSTOPPED(status):
+      rc = -os.WSTOPSIG(status)
+   if rc != 0:
+      Emsg(errno.EPROTO, "Unable to create archive {}; [rc {}] {}".
+                         format(str(rc), arcSrc, zrc2text(rc)))
+
+   # Mark the archive as complete. We do this by making it read/only
+   #
+   try:
+      os.chmod(arcName, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+   except Exception as e:
+      Emsg(errno.EINVAL, "Unable to make '{}' r/o; {}".format(arcSrc,str(e)))
+
+   # Create the path where the archive file will reside on tape
+   #
+   try:
+      os.makedirs(tapDir, mode=0o775, exist_ok=True)
+   except Exception as e:
+      Emsg(errno.EINVAL,"Unable to make tape path '{}'; {}".format(tapDir,str(e))) 
+
+   # Now copy the archive to the tape buffer
+   #
+   try:
+      if Debug: Emsg(0, "Copying {} to {}".format(arcSrc, arcDst))
+      shutil.copy2(arcName, tapDir)
+   except Exception as e:
+      Emsg(errno.EINTR, "Unable to copy {} to {}; {}".format(arcName, tapDir,
+                         str(e)))
+
+   # Indicate that the dataset directory can now be deleted in case we crash.
+   # We do this by setting the deferred delete mode bit (a.k.a. sticky bit).
+   # We may need to chnge this logic in order to wait until the archive is
+   # actually on tape.
+   #
+   try:
+      status = os.lstat(arcName)
+   except Exception as e:
+      Emsg(errno.EINVAL, "Unable to get mode bits for {}; {}".format(arcSrc,
+                         str(e)))
+   mode = stat.S_IMODE(status.st_mode) | stat.S_ISVTX
+   try:
+      os.chmod(arcName, mode)
+   except Exception as e:
+      Emsg(errno.EINVAL, "Unable to set sticky bit on {}; {}".format(arcSrc,
+                         str(e)))
+
+   # Now delete the dataset disk copy. The directoru structure is
+   # /prefix/<flat_dataset_name>/<sep> and we want to remove the
+   # <flat_dataset_name> and it's contents.
+   #
+   os.chdir('..')
+   theTree = os.path.basename(os.getcwd())
+   os.chdir('..')
+   if Debug:
+       Emsg(0, "Removing directory tree '{}' from '{}'.".format(theTree,os.getcwd()))
+   shutil.rmtree(theTree)
+
+   # We are done
+   #
+   return 0
+
+if __name__ == "__main__":
+   sys.argv.pop(0)
+   sys.exit(Main(sys.argv))
