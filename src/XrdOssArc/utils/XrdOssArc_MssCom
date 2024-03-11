@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+#******************************************************************************/
+#*                      X r d O s s A r c _ M s s C o m                       */
+#******************************************************************************/
+
+import errno
+import os
+import subprocess
+import sys
+
+# Check for debugging
+#
+x = os.getenv("XRDOSSARC_DEBUG", None)
+if x is None: Debug = False
+else: Debug = True
+
+# Obtain the basic command to talk with the MSS
+#
+MSS_CMD = os.getenv("XRDOSSARC_MSSCMD")
+if not MSS_CMD:
+   MSS_CMD = ("/sdf/home/y/yangw/bin/hsi -q -A keytab " +
+              "-k /local-rubin/lsstsvc1.keytab -l lsstsvc1")
+MSS_CMD = MSS_CMD.split(" ")
+
+MSS_ROOT = os.getenv("XRDOSSARC_MSSROOT")
+if MSS_ROOT:
+   if MSS_ROOT == 'none':
+      MSS_ROOT = ''
+   else:
+      if not MSS_ROOT.endswith('/'):
+         MSS_ROOT += '/'
+else:
+   MSS_ROOT =  '/rubin/dual-copy/'
+
+# Print to stderr a message
+#
+def Emsg(rc, txt):
+   print('OssArc_MssCom:', txt, file=sys.stderr)
+   if rc:
+      sys.exit(rc)
+
+def Execute(argvec):
+   result = subprocess.run(argvec, universal_newlines=True,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+   return result.returncode, result.stdout
+
+# Migrate a file from the disk cache if needed and remove it from the cache
+#
+def do_Evict(pvec):
+
+   # Make sure a path has been specified
+   #
+   if len(pvec) < 1: Emsg(errno.EINVAL, "Path not specified.") 
+
+   # Process all of the files specified
+   #
+   evictVec = []
+   for path in pvec:
+      evictVec.append(MSS_ROOT + path)
+
+   rc, stdout = Execute(MSS_CMD + ['mig', "-P"] + evictVec)
+   
+
+# Process: status <filepath>
+#
+def do_Status(pvec):
+
+   # Make sure a path has been specified
+   #
+   if len(pvec) < 1: Emsg(errno.EINVAL, "Path not specified.") 
+
+   # Attach mss root to the path
+   #
+   path = MSS_ROOT + pvec[0]
+
+   #  Execute the appropriate command to see if the file is online/offline
+   #
+   rc, stdout = Execute(MSS_CMD + ["ls", "-X", path])  
+   if (rc != 0): Emsg(rc, stdout)
+
+   # Parse output to determine where the file is in the hierarchy
+   #
+   rls = stdout.split("\n")
+   sType = ['(disk)', '(tape)']
+   sPres = [True, True]
+   sItem = 0
+   for ll in rls:
+      if sType[sItem] in ll:
+         if '(no data' in ll: sPres[sItem] = False
+         sItem += 1
+         if sItem >= len(sType): break
+
+   # return the status result for easy digestion
+   #
+   return sPres[0], sPres[1]
+
+# The actual guts of the script
+#
+def Main():
+
+   # Make sure we have atleast one argument that corresponds to the comman.
+   # Normally, we would use argparse but that's left for another day.
+   #
+   if len(sys.argv) < 2: Emsg(errno.EINVAL, "Command not specified") 
+   del sys.argv[0]
+   cmd = sys.argv.pop(0)
+
+   # Process the command
+   #
+   if (cmd == 'evict'):
+      return do_Evict(sys.argv)
+
+   if (cmd == 'offline'):
+      onDisk, onTape = do_Status(sys.argv)
+      return onTape
+
+   if (cmd == 'online'):
+      onDisk, onTape = do_Status(sys.argv)
+      return onDisk
+
+   if (cmd == 'status'):
+      onDisk, onTape = do_Status(sys.argv)
+      res = []
+      if onDisk: res += ['Disk']
+      if onTape: res += ['Tape']
+      print(' '.join(res))
+      return 0
+
+   # Unknown command
+   #
+   Emsg(errno.EINVAL, "Unknown command, '" + cmd + "'");
+
+
+if __name__ == "__main__":
+   sys.exit(Main())

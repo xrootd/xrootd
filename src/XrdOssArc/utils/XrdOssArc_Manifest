@@ -1,0 +1,102 @@
+#!/usr/bin/python3
+#******************************************************************************/
+#*                    X r d O s s A r c _ M a n i f e s t                     */
+#******************************************************************************/
+  
+# Invoked as XrdOssArc_Manifest ls <dataset_name>
+#
+# For Rucio style names the <dataset_name> must be composed as <scope>:<did>
+# The end of the list is indicated by three equal signs (i.e. ===).
+
+import errno
+import os
+import sys
+
+from rucio.client.didclient import DIDClient
+
+# Check for debugging
+#
+x = os.getenv("XRDOSSARC_DEBUG", None)
+if x is None: Debug = False
+else: Debug = True
+
+# Print to stderr a message
+#
+def Emsg(rc, txt):
+   print('OssArc_Manifest:', txt, file=sys.stderr)
+   if rc:
+      sys.exit(rc)
+
+def Decompose(dsn):
+   dvec = dsn.split(':',1)
+   if len(dvec) != 2:
+      print(errno.EINVAL, "scope not specified in '" + dsn + "'")
+   return dvec[0],dvec[1]
+
+def getClient():
+
+   # Initialize and return the client
+   #
+   try:
+      return DIDClient()
+   except Exception as e:
+      Emsg(errno.EPROTO, str(e))
+
+def do_LS(dsnvec):
+
+   # Make sure a dataset name has been specified
+   #
+   if len(dsnvec) < 1: Emsg(errno.EINVAL, "Path not specified.") 
+
+   # Get the component of the dataset name (<scope> and <did>)
+   #
+   scope, did = Decompose(dsnvec[0])
+
+   # Get an appropriate client
+   #
+   client = getClient()
+
+   # Get the files in this dataset
+   #
+   try:
+      files = client.list_files(scope, did)
+
+      for file in files:
+         print(file['scope'], ':', file['name'], sep='')
+
+   except Exception as e:
+      etxt = str(e)   
+      if 'not found' in etxt:
+         rc = errno.ENOENT
+      else:
+         rc = errno.ECANCELED
+      Emsg(rc, etxt)
+
+   # All done, print ending sequence
+   #
+   print('===')
+   return 0
+
+# The actual guts of the script
+#
+def Main():
+
+   # Make sure we have atleast one argument that corresponds to the comman.
+   # Normally, we would use argparse but that's left for another day.
+   #
+   if len(sys.argv) < 2: Emsg(errno.EINVAL, "Command not specified") 
+   del sys.argv[0]
+   cmd = sys.argv.pop(0)
+
+   # Process the command
+   #
+   if (cmd == "ls"):
+      return do_LS(sys.argv)
+
+   # Unknown command
+   #
+   Emsg(errno.EINVAL, "Unknown command, '" + cmd + "'");
+
+
+if __name__ == "__main__":
+   sys.exit(Main())
