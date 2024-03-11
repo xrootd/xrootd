@@ -808,7 +808,8 @@ private:
             scitoken_destroy(token);
             return false;
         }
-        const auto &config = iter->second;
+        const auto config = iter->second;
+        pthread_rwlock_unlock(&m_config_lock);
         value = nullptr;
         
         char **group_list;
@@ -831,7 +832,6 @@ private:
         }
 
         if (scitoken_get_claim_string(token, "sub", &value, &err_msg)) {
-            pthread_rwlock_unlock(&m_config_lock);
             m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to get token subject:", err_msg);
             free(err_msg);
             scitoken_destroy(token);
@@ -843,7 +843,6 @@ private:
         auto tmp_username = token_subject;
         if (!config.m_username_claim.empty()) {
             if (scitoken_get_claim_string(token, config.m_username_claim.c_str(), &value, &err_msg)) {
-                pthread_rwlock_unlock(&m_config_lock);
                 m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to get token username:", err_msg);
                 free(err_msg);
                 scitoken_destroy(token);
@@ -924,8 +923,6 @@ private:
                 xrd_rules.emplace_back(AOP_Delete, write_path);
             }
         }
-
-        pthread_rwlock_unlock(&m_config_lock);
 
         cache_expiry = expiry;
         rules = std::move(xrd_rules);
