@@ -465,6 +465,7 @@ int XrdOfsFile::open(const char          *path,      // In
                         SFS_O_CREAT  - Create the file open in RW mode
                         SFS_O_TRUNC  - Trunc  the file open in RW mode
                         SFS_O_POSC   - Presist    file on successful close
+                        SFS_O_SEQIO  - Primarily sequential I/O (e.g. xrdcp)
             Mode      - The Posix access mode bits to be assigned to the file.
                         These bits correspond to the standard Unix permission
                         bits (e.g., 744 == "rwxr--r--"). Additionally, Mode
@@ -722,6 +723,13 @@ int XrdOfsFile::open(const char          *path,      // In
        if (error.getUCap() & XrdOucEI::uUrlOK &&
            error.getUCap() & XrdOucEI::uLclF) open_flag |= O_DIRECT;
       }
+
+// Pass across the sequential I/O hint. We don't support that for MacOS because
+// the open flag we co-opt does not exist there and MacOS can't do it anyway.
+//
+#ifndef __APPLE__
+   if (open_mode & SFS_O_SEQIO) open_flag |= O_RSYNC;
+#endif
 
 // Open the file
 //

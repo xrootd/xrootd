@@ -63,6 +63,7 @@
 #define SFS_O_RAWIO   0x02000000         // allow client-side decompression
 #define SFS_O_RESET   0x04000000         // Reset any cached information
 #define SFS_O_REPLICA 0x08000000         // Open for replication
+#define SFS_O_SEQIO   0x10000000         // Open for sequential I/O
 
 // The following flag may be set in the access mode arg for open() & mkdir()
 // Note that on some systems mode_t is 16-bits so we use a careful value!

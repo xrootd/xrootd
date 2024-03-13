@@ -1438,6 +1438,7 @@ int XrdXrootdProtocol::do_Open()
                                       }
    if (opts & kXR_retstat)            {*op++ = 't'; retStat = 1;}
    if (opts & kXR_posc)               {*op++ = 'p'; openopts |= SFS_O_POSC;}
+   if (opts & kXR_seqio)              {*op++ = 'S'; openopts |= SFS_O_SEQIO;}
    *op = '\0';
    TRACEP(FS, "open " <<opt <<' ' <<fn);
 
