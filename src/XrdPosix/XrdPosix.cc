@@ -69,7 +69,7 @@ static inline void fseterr(FILE *fp)
 #if defined _IO_ERR_SEEN || defined _IO_ftrylockfile || __GNU_LIBRARY__ == 1
   /* GNU libc, BeOS, Haiku, Linux libc5 */
   fp->_flags |= _IO_ERR_SEEN;
-#elif defined __sferror || defined __APPLE__ || defined __DragonFly__ || defined __ANDROID__
+#elif defined __sferror || defined __APPLE__ || defined __DragonFly__ || defined __FreeBSD__ || defined __ANDROID__
   /* FreeBSD, NetBSD, OpenBSD, DragonFly, Mac OS X, Cygwin, Minix 3, Android */
   fp->_flags |= __SERR;
 #elif defined _IOERR

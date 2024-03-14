@@ -143,7 +143,7 @@ int XrdOucGatherConf::Gather(const char *cfname, Level lvl, const char *parms)
    while((var = Config.GetMyFirstWord()))
         {tP = Match;
          while(tP && ((tP->val && strncmp(var, tP->text, tP->val)) ||
-                                  strcmp( var, tP->text))) tP = tP->next;
+                     (!tP->val && strcmp( var, tP->text)))) tP = tP->next;
 
          if (tP)
             {if (addKey)

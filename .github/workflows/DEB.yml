@@ -3,15 +3,15 @@ name: DEB
 on:
   push:
     branches:
-      - devel
       - master
     paths-ignore:
       - .gitignore
       - .gitlab-ci.yml
+      - .mailmap
       - '**.md'
       - 'docs/**'
       - 'docker/**'
-  pull_request:
+    tags-ignore:
   workflow_dispatch:
 
 concurrency:

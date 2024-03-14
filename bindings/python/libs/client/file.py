@@ -44,10 +44,11 @@ class File(object):
     return self
 
   def __next__(self):
-    return self.__file.next()
+    return self.__file.__next__()
 
   # Python 2 compatibility
-  next = __next__
+  def next(self):
+    return self.__file.next()
 
   def open(self, url, flags=0, mode=0, timeout=0, callback=None):
     """Open the file pointed to by the given URL.

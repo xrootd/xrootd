@@ -287,14 +287,6 @@ void XrdXrootdMonitor::User::Enable()
 /*      X r d X r o o t d M o n i t o r : : U s e r : : R e g i s t e r       */
 /******************************************************************************/
 
-// The gcc specific pragmas are to prevent gcc from complaining about an
-// impossible situtation. Even if it were possible we don't care in practice.
-// The snprintf below cannot be truncated as we made sure of that by setting
-// null bytes to delimit the source buffer. However, gcc is not clever enough
-// to figure that out and complains. See gcc Bug 1431678 for the history. 
-// BTW checking the return value works in C but not in C++, another oversight.
-// The only other solution is to wait for C++20 and use std::format_to.
-
 void XrdXrootdMonitor::User::Register(const char *Uname, 
                                       const char *Hname,
                                       const char *Pname, unsigned int xSID)
@@ -317,11 +309,11 @@ void XrdXrootdMonitor::User::Register(const char *Uname,
            dotP = sBuff;
           }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-       snprintf(uBuff, sizeof(uBuff), "%s/%s.%s:%s@%s", Pname, tBuff, 
-                                      dotP+1, kySID, atP+1);
-#pragma GCC diagnostic pop
+       int n = snprintf(uBuff, sizeof(uBuff), "%s/%s.%s:%s@%s", Pname, tBuff,
+                        dotP+1, kySID, atP+1);
+
+       if (n < 0 || n >= (int) sizeof(uBuff))
+         TRACE(LOGIN, "Login ID was truncated: " << uBuff);
 
        if (xSID) {TRACE(LOGIN,"Register remap "<<Uname<<" -> "<<uBuff);}
       } else snprintf(uBuff, sizeof(uBuff), "%s/%s", Pname, Uname);

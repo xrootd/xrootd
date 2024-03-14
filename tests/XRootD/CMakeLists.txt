@@ -24,7 +24,7 @@ add_test(NAME XRootD::start
 set_tests_properties(XRootD::start PROPERTIES FIXTURES_SETUP   XRootD)
 
 add_test(NAME XRootD::stop
-  COMMAND sh -c "rm -rf data && kill -s TERM $(cat standalone/xrootd.pid)")
+  COMMAND sh -c "kill -s TERM $(cat standalone/xrootd.pid); rm -rf data standalone")
 set_tests_properties(XRootD::stop  PROPERTIES FIXTURES_CLEANUP XRootD)
 
 add_test(NAME XRootD::smoke-test

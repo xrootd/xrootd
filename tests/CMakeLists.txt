@@ -1,3 +1,7 @@
+if(NOT BUILD_TESTS)
+  return()
+endif()
+
 include(GoogleTest)
 add_subdirectory( XrdCl )
 add_subdirectory(XrdHttpTests)

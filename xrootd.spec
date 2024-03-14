@@ -25,7 +25,7 @@ License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AN
 URL:		https://xrootd.slac.stanford.edu
 
 %if !%{with git}
-Version:	5.6.7
+Version:	5.6.9
 Source0:	%{url}/download/v%{version}/%{name}-%{version}.tar.gz
 %else
 %define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
@@ -143,6 +143,7 @@ BuildRequires:	openssl
 BuildRequires:	isa-l-devel
 %endif
 
+Requires:	%{name}-client%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-server%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-selinux = %{epoch}:%{version}-%{release}
 
@@ -646,6 +647,8 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -s /sbin/nologin \
 	-d %{_localstatedir}/spool/%{name} -c "System user for XRootD" %{name}
 
 %post server
+%tmpfiles_create %{_tmpfilesdir}/%{name}.conf
+
 if [ $1 -eq 1 ] ; then
 	systemctl daemon-reload >/dev/null 2>&1 || :
 fi
@@ -661,8 +664,6 @@ if [ $1 -eq 0 ] ; then
 fi
 
 %postun server
-%tmpfiles_create %{_tmpfilesdir}/%{name}.conf
-
 if [ $1 -ge 1 ] ; then
 	systemctl daemon-reload >/dev/null 2>&1 || :
 	for DAEMON in xrootd cmsd frm_purged frm_xfrd; do
@@ -673,11 +674,11 @@ if [ $1 -ge 1 ] ; then
 fi
 
 %post selinux
-/usr/sbin/semodule -i %{_datadir}/selinux/packages/%{name}/%{name}.pp >/dev/null 2>&1 || :
+semodule -i %{_datadir}/selinux/packages/%{name}/%{name}.pp >/dev/null 2>&1 || :
 
 %postun selinux
 if [ $1 -eq 0 ] ; then
-	/usr/sbin/semodule -r %{name} >/dev/null 2>&1 || :
+	semodule -r %{name} >/dev/null 2>&1 || :
 fi
 
 %files
@@ -949,6 +950,12 @@ fi
 %endif
 
 %changelog
+
+* Fri Mar 08 2024 Guilherme Amadio <amadio@cern.ch> - 1:5.6.9-1
+- XRootD 5.6.9
+
+* Fri Feb 23 2024 Guilherme Amadio <amadio@cern.ch> - 1:5.6.8-1
+- XRootD 5.6.8
 
 * Tue Feb 06 2024 Guilherme Amadio <amadio@cern.ch> - 1:5.6.7-1
 - XRootD 5.6.7

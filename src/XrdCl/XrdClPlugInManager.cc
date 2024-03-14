@@ -459,7 +459,9 @@ namespace XrdCl
     }
 
     std::sort( normalizedURLs.begin(), normalizedURLs.end() );
-    std::unique( normalizedURLs.begin(), normalizedURLs.end() );
+
+    auto last = std::unique( normalizedURLs.begin(), normalizedURLs.end() );
+    normalizedURLs.erase( last, normalizedURLs.end() );
 
     if( normalizedURLs.empty() )
       return false;

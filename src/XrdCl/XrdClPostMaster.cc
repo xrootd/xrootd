@@ -192,9 +192,9 @@ namespace XrdCl
 
     if( !pImpl->pJobManager->Stop() )
       return false;
-    if( !pImpl->pTaskManager->Stop() )
-      return false;
     if( !pImpl->pPoller->Stop() )
+      return false;
+    if( !pImpl->pTaskManager->Stop() )
       return false;
     pImpl->pRunning = false;
     return true;
