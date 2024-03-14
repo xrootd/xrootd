@@ -724,10 +724,10 @@ int XrdOfsFile::open(const char          *path,      // In
            error.getUCap() & XrdOucEI::uLclF) open_flag |= O_DIRECT;
       }
 
-// Pass across the sequential I/O hint. We don't support that for MacOS because
-// the open flag we co-opt does not exist there and MacOS can't do it anyway.
+// Pass across the sequential I/O hint. We only support that for Linux because
+// the open flag we co-opted does not exist elsewhere and those can't do much.
 //
-#ifndef __APPLE__
+#ifdef __linux__
    if (open_mode & SFS_O_SEQIO) open_flag |= O_RSYNC;
 #endif
 
