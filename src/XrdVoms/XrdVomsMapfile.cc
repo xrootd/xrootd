@@ -324,7 +324,8 @@ XrdVomsMapfile::Configure(XrdSysError *erp)
     if (!XrdOucEnv::Import("XRDCONFIGFN", config_filename)) {
         return VOMS_MAP_FAILED;
     }
-    XrdOucStream stream(erp, getenv("XRDINSTANCE"));
+    XrdOucEnv myEnv;
+    XrdOucStream stream(erp, getenv("XRDINSTANCE"), &myEnv, "=====> ");
 
     int cfg_fd;
     if ((cfg_fd = open(config_filename, O_RDONLY, 0)) < 0) {
