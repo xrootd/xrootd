@@ -146,11 +146,12 @@ void XrdBwmLogger::Event(Info &eInfo)
    tp->Tlen = snprintf(tp->Text, XrdBwmLoggerMsg::msgSize,
                     "<stats id=\"bwm\"><tid>%s</tid><lfn>%s</lfn>"
                     "<lcl>%s</lcl><rmt>%s</rmt><flow>%c</flow>"
-                    "<at>%ld</at><bt>%ld</bt><ct>%ld</ct>"
+                    "<at>%lld</at><bt>%lld</bt><ct>%lld</ct>"
                     "<iq>%d</iq><oq>%d</oq><xq>%d</xq>"
                     "<sz>%lld<sz><esec>%d</esec></stats>%c",
                     eInfo.Tident, eInfo.Lfn, eInfo.lclNode, eInfo.rmtNode,
-                    eInfo.Flow, eInfo.ATime, eInfo.BTime, eInfo.CTime,
+                    eInfo.Flow, (long long) eInfo.ATime,
+                    (long long) eInfo.BTime, (long long) eInfo.CTime,
                     eInfo.numqIn, eInfo.numqOut, eInfo.numqXeq, eInfo.Size,
                     eInfo.ESec, theEOL);
 
