@@ -724,13 +724,6 @@ int XrdOfsFile::open(const char          *path,      // In
            error.getUCap() & XrdOucEI::uLclF) open_flag |= O_DIRECT;
       }
 
-// Pass across the sequential I/O hint. We only support that for Linux because
-// the open flag we co-opted does not exist elsewhere and those can't do much.
-//
-#ifdef __linux__
-   if (open_mode & SFS_O_SEQIO) open_flag |= O_RSYNC;
-#endif
-
 // Open the file
 //
    if ((retc = oP.fP->Open(path, open_flag, theMode, Open_Env)))
@@ -765,6 +758,15 @@ int XrdOfsFile::open(const char          *path,      // In
       }
    oP.hP->Activate(oP.fP);
    oP.hP->UnLock();
+
+// If this is being opened for sequential I/O advise the filesystem about it.
+//
+#ifdef __linux__
+   if (!(XrdOfsFS->OssIsProxy) && open_mode & SFS_O_SEQIO)
+      {int theFD =  oP.fP->getFD();
+       if (theFD >= 0) posix_fadvise(theFD, 0, 0, POSIX_FADV_SEQUENTIAL);
+      }
+#endif
 
 // Send an open event if we must
 //
