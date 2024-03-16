@@ -129,7 +129,8 @@ int XrdXrootdPrepare::List(XrdXrootdPrepArgs &pargs, char *resp, int resplen)
             else continue;
          if ((up = (char *) index((const char *)(up+1), (int)'_'))) *up = ' ';
             else continue;
-         return snprintf(resp, resplen-1, "%s %ld", dp->d_name, buf.st_mtime);
+         return snprintf(resp, resplen-1, "%s %lld",
+                         dp->d_name, (long long) buf.st_mtime);
         }
 
 // Completed

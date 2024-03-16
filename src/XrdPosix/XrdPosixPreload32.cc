@@ -44,6 +44,10 @@
 #ifdef  _FILE_OFFSET_BITS
 #undef  _FILE_OFFSET_BITS
 #endif
+
+#ifdef  _TIME_BITS
+#undef  _TIME_BITS
+#endif
 #endif
 
 #define XRDPOSIXPRELOAD32
