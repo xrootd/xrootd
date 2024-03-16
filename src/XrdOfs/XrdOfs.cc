@@ -74,6 +74,7 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -761,10 +762,15 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // If this is being opened for sequential I/O advise the filesystem about it.
 //
-#ifdef __linux__
+#if defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    if (!(XrdOfsFS->OssIsProxy) && open_mode & SFS_O_SEQIO)
-      {int theFD =  oP.fP->getFD();
-       if (theFD >= 0) posix_fadvise(theFD, 0, 0, POSIX_FADV_SEQUENTIAL);
+      {static RAtomic_int fadFails(0);
+       int theFD =  oP.fP->getFD();
+       if (theFD >= 0 && fadFails < 4096)
+          if (posix_fadvise(theFD, 0, 0, POSIX_FADV_SEQUENTIAL) < 0)
+             {OfsEroute.Emsg(epname, errno, "fadsize for sequential I/O.");
+              fadFails++;
+             }
       }
 #endif
 
