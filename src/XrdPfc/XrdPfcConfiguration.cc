@@ -477,7 +477,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       if (m_configuration.m_cs_UVKeep < 0)
          strcpy(uvk, "lru");
       else
-         sprintf(uvk, "%ld", m_configuration.m_cs_UVKeep);
+         sprintf(uvk, "%lld", (long long) m_configuration.m_cs_UVKeep);
       float rg = (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
                       "       pfc.cschk %s uvkeep %s\n"

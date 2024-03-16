@@ -371,10 +371,11 @@ int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
          if (ktP->Data.Exp && ktP->Data.Exp <= time(0)) {numExp++; continue;}
          if (!isKey(ktCurr, ktP, 0)) {ktCurr.NUG(ktP); numID = 0;}
             else if (Keep && numID >= Keep) continue;
-         n = sprintf(buff, "%s0 u:%s g:%s n:%s N:%lld c:%ld e:%ld f:%lld k:",
+         n = sprintf(buff, "%s0 u:%s g:%s n:%s N:%lld c:%lld e:%lld f:%lld k:",
                     (numKeys ? "\n" : ""),
                      ktP->Data.User,ktP->Data.Grup,ktP->Data.Name,ktP->Data.ID,
-                     ktP->Data.Crt, ktP->Data.Exp, ktP->Data.Flags);
+                     (long long) ktP->Data.Crt, (long long) ktP->Data.Exp,
+                     ktP->Data.Flags);
          numID++; numKeys++; keyB2X(ktP, kbuff);
          if (write(ktFD, buff, n) < 0
          ||  write(ktFD, kbuff, ktP->Data.Len*2) < 0) break;

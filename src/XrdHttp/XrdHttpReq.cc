@@ -656,7 +656,7 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
 
     s += "&xrdhttptime=";
     char buf[256];
-    sprintf(buf, "%ld", tnow);
+    sprintf(buf, "%lld", (long long) tnow);
     s += buf;
 
     if (secent) {
