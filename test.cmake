@@ -200,10 +200,17 @@ if(EXISTS "${CTEST_GIT_COMMAND}")
 endif()
 
 section("Configure")
-ctest_configure(OPTIONS "${CMAKE_ARGS}")
+ctest_configure(OPTIONS "${CMAKE_ARGS}" RETURN_VALUE CONFIG_RESULT)
 
 ctest_read_custom_files("${CTEST_BINARY_DIRECTORY}")
 list(APPEND CTEST_NOTES_FILES ${CTEST_BINARY_DIRECTORY}/CMakeCache.txt)
+
+if(NOT ${CONFIG_RESULT} EQUAL 0)
+  if(CDASH OR (DEFINED ENV{CDASH} AND "$ENV{CDASH}"))
+    ctest_submit()
+  endif()
+  message(FATAL_ERROR "Configuration failed")
+endif()
 endsection()
 
 section("Build")
