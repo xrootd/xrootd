@@ -609,7 +609,7 @@ int XrdOssDir::Readdir(char *buff, int blen)
 
 // Simulate the read operation, if need be.
 //
-   if (noDread)
+   if (dOpts & noDread)
       {if (ateof) *buff = '\0';
           else   {*buff = '.'; ateof = true;}
        return XrdOssOK;
