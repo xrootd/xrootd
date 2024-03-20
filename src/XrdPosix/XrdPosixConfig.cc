@@ -563,7 +563,7 @@ int XrdPosixConfig::Stats(const char *theID, char *buff, int blen)
    static const char stats2[] = "<stats id=\"cache\" type=\"%s\">"
           "<prerd><in>%lld</in><hits>%lld</hits><miss>%lld</miss></prerd>"
           "<rd><in>%lld</in><out>%lld</out>"
-              "<hits>%lld></hits><miss>%lld</miss>"
+              "<hits>%lld</hits><miss>%lld</miss>"
           "</rd>"
           "<pass>%lld<cnt>%lld</cnt></pass>"
           "<wr><out>%lld</out><updt>%lld</updt></wr>"
