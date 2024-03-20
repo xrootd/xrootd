@@ -115,6 +115,15 @@ char* GetLine();
 char* GetToken(char **rest=0, int lowcase=0);
 
 //------------------------------------------------------------------------------
+//! Get the last line.
+//!
+//! @return pointer to the last line. If no last line exists a null string is
+//!         returned. The pointer is valid until GetLine() is called.
+//------------------------------------------------------------------------------
+
+const char* LastLine();
+
+//------------------------------------------------------------------------------
 //! Check if data is present.
 //!
 //! @return True if data is present and false, otherwise.
