@@ -27,6 +27,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdexcept>
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,21 +42,40 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysError.hh"
+
+/******************************************************************************/
+/*                         L o c a l   O b j e c t s                          */
+/******************************************************************************/
+  
+struct XrdOucGatherConfData
+{
+XrdOucTokenizer  Tokenizer;
+XrdSysError     *eDest   = 0;
+XrdOucString     lline;
+XrdOucTList     *Match   = 0;
+char            *gBuff   = 0;
+bool             echobfr = false;
+
+                 XrdOucGatherConfData(XrdSysError *eP)
+                                     : Tokenizer(0), eDest(eP) {}
+                ~XrdOucGatherConfData() {}
+};
 
 /******************************************************************************/
 /*                        C o n s t r u c t o r   # 1                         */
 /******************************************************************************/
 
 XrdOucGatherConf::XrdOucGatherConf(const char *want, XrdSysError *errP)
-                 : XrdOucTokenizer(0), eDest(errP), Match(0), gBuff(0)
+                 : gcP(new XrdOucGatherConfData(errP))
 {
    XrdOucString wlist(want), wtoken;
    int wlen, wPos = 0;
   
    while((wPos = wlist.tokenize(wtoken, wPos, ' ')) != -1)
         {wlen = (wtoken.endswith('.') ? wtoken.length() : 0);
-         Match = new XrdOucTList(wtoken.c_str(), wlen, Match);
+         gcP->Match = new XrdOucTList(wtoken.c_str(), wlen, gcP->Match);
         }
 }
 
@@ -63,14 +84,14 @@ XrdOucGatherConf::XrdOucGatherConf(const char *want, XrdSysError *errP)
 /******************************************************************************/
 
 XrdOucGatherConf::XrdOucGatherConf(const char **&want, XrdSysError *errP)
-                 : XrdOucTokenizer(0), eDest(errP), Match(0), gBuff(0)
+                 : gcP(new XrdOucGatherConfData(errP))
 {
    int n, i = 0;
 
    while(want[i])
        {if ((n = strlen(want[i])))
            {if (*(want[i]+(n-1)) != '.') n = 0;
-            Match = new XrdOucTList(want[i], n, Match);
+            gcP->Match = new XrdOucTList(want[i], n, gcP->Match);
            }
        }
 }
@@ -83,14 +104,40 @@ XrdOucGatherConf::~XrdOucGatherConf()
 {
    XrdOucTList *tP;
 
-   while((tP = Match))
-        {Match = tP->next;
+   while((tP = gcP->Match))
+        {gcP->Match = tP->next;
          delete tP;
         }
 
-   if (gBuff) free(gBuff);
+   if (gcP->gBuff)     free(gcP->gBuff);
 }
 
+/******************************************************************************/
+/*                              E c h o L i n e                               */
+/******************************************************************************/
+
+void XrdOucGatherConf::EchoLine()
+{
+
+// Make sure we can actually display anything
+//
+   if (!(gcP->eDest))
+      throw std::invalid_argument("XrdSysError object not supplied!");
+
+// Echo only when we have something to echo
+//
+   if (gcP->lline.length()) gcP->eDest->Say("=====> ", gcP->lline.c_str());
+}
+  
+/******************************************************************************/
+/*                             E c h o O r d e r                              */
+/******************************************************************************/
+
+void XrdOucGatherConf::EchoOrder(bool doBefore)
+{
+   gcP->echobfr = doBefore;
+}
+  
 /******************************************************************************/
 /*                                G a t h e r                                 */
 /******************************************************************************/
@@ -98,7 +145,7 @@ XrdOucGatherConf::~XrdOucGatherConf()
 int XrdOucGatherConf::Gather(const char *cfname, Level lvl, const char *parms)
 {
    XrdOucEnv myEnv;
-   XrdOucStream Config(eDest, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   XrdOucStream Config(gcP->eDest, getenv("XRDINSTANCE"), &myEnv, "=====> ");
    XrdOucTList *tP;
    XrdOucString theGrab;
    char *var, drctv[64], body[4096];
@@ -107,17 +154,21 @@ int XrdOucGatherConf::Gather(const char *cfname, Level lvl, const char *parms)
 
 // Make sure we have something to compare
 //
-   if (!Match) return 0;
+   if (!(gcP->Match)) return 0;
 
 // Reset the buffer if it has been set
 //
-   if (gBuff) {free(gBuff); gBuff = 0; Attach(0);}
+   if (gcP->gBuff)
+      {free(gcP->gBuff);
+       gcP->gBuff = 0;
+       gcP->Tokenizer.Attach(0);
+      }
 
 // Open the config file
 //
    if ( (cfgFD = open(cfname, O_RDONLY, 0)) < 0)
       {rc = errno;
-       if (eDest) eDest->Emsg("Gcf", rc, "open config file", cfname);
+       if (gcP->eDest) gcP->eDest->Emsg("Gcf", rc, "open config file", cfname);
        return -rc;
       }
 
@@ -141,7 +192,7 @@ int XrdOucGatherConf::Gather(const char *cfname, Level lvl, const char *parms)
 // Process the config file
 //
    while((var = Config.GetMyFirstWord()))
-        {tP = Match;
+        {tP = gcP->Match;
          while(tP && ((tP->val && strncmp(var, tP->text, tP->val)) ||
                      (!tP->val && strcmp( var, tP->text)))) tP = tP->next;
 
@@ -153,13 +204,13 @@ int XrdOucGatherConf::Gather(const char *cfname, Level lvl, const char *parms)
                     }
                  int n =  snprintf(drctv+1, sizeof(drctv)-1, "%s ", var);
                  if (n >= (int)sizeof(drctv)-1)
-                    {if (eDest) eDest->Emsg("Gcf", E2BIG, "handle", var);
+                    {if (gcP->eDest) gcP->eDest->Emsg("Gcf", E2BIG, "handle", var);
                      return -E2BIG;
                     }
                 } else drctv[1] = 0;
 
               if (!Config.GetRest(body, sizeof(body)))
-                 {if (eDest) eDest->Emsg("Gcf", E2BIG, "handle arguments");
+                 {if (gcP->eDest) gcP->eDest->Emsg("Gcf", E2BIG, "handle arguments");
                   return -E2BIG;
                  }
 
@@ -173,7 +224,7 @@ int XrdOucGatherConf::Gather(const char *cfname, Level lvl, const char *parms)
 // Now check if any errors occurred during file i/o
 //
    if ((rc = Config.LastError()))
-      {if (eDest) eDest->Emsg("Gcf", rc, "read config file", cfname);
+      {if (gcP->eDest) gcP->eDest->Emsg("Gcf", rc, "read config file", cfname);
        return (rc < 0 ? rc : -rc);
       }
 
@@ -181,23 +232,192 @@ int XrdOucGatherConf::Gather(const char *cfname, Level lvl, const char *parms)
 // Copy the grab to a modifiable buffer.
 //
    if ((n = theGrab.length()) <= 1) n = 0;
-      else {gBuff = (char *)malloc(n);
-            strcpy(gBuff, theGrab.c_str()+1); // skip 1st byte but add null
-            Attach(gBuff);
+      else {gcP->gBuff = (char *)malloc(n);
+            strcpy(gcP->gBuff, theGrab.c_str()+1); // skip 1st byte but add null
+            gcP->Tokenizer.Attach(gcP->gBuff);
             n--;
            }
    return n;
 }
 
 /******************************************************************************/
+/*                               G e t L i n e                                */
+/******************************************************************************/
+
+char* XrdOucGatherConf::GetLine()
+{
+   char* theLine = gcP->Tokenizer.GetLine();
+
+   while(theLine && *theLine == 0) theLine = gcP->Tokenizer.GetLine();
+
+   if (!theLine) gcP->lline = "";
+      else       gcP->lline = theLine;
+
+   return theLine;
+}
+
+/******************************************************************************/
+/*                              G e t T o k e n                               */
+/******************************************************************************/
+
+char* XrdOucGatherConf::GetToken(char **rest, int lowcase)
+{
+   return gcP->Tokenizer.GetToken(rest, lowcase);
+}
+  
+/******************************************************************************/
 /*                               h a s D a t a                                */
 /******************************************************************************/
   
 bool XrdOucGatherConf::hasData()
 {
-   return gBuff != 0 && *gBuff != 0;
+   return gcP->gBuff != 0 && *(gcP->gBuff) != 0;
 }
 
+/******************************************************************************/
+/*                                  M s g E                                   */
+/******************************************************************************/
+
+void XrdOucGatherConf::MsgE(const char* txt1,const char* txt2,const char* txt3,
+                            const char* txt4,const char* txt5,const char* txt6)
+{
+  const char* mVec[7];
+  int n = 0;
+
+            mVec[n++] = "Config mistake:";
+  if (txt1) mVec[n++] = txt1;
+  if (txt2) mVec[n++] = txt2;
+  if (txt3) mVec[n++] = txt3;
+  if (txt4) mVec[n++] = txt4;
+  if (txt5) mVec[n++] = txt5;
+  if (txt6) mVec[n++] = txt6;
+
+  MsgX(mVec, n+1);
+}
+  
+/******************************************************************************/
+/*                                  M s g W                                   */
+/******************************************************************************/
+
+void XrdOucGatherConf::MsgW(const char* txt1,const char* txt2,const char* txt3,
+                            const char* txt4,const char* txt5,const char* txt6)
+{
+  const char* mVec[7];
+  int n = 0;
+
+            mVec[n++] = "Config warning:";
+  if (txt1) mVec[n++] = txt1;
+  if (txt2) mVec[n++] = txt2;
+  if (txt3) mVec[n++] = txt3;
+  if (txt4) mVec[n++] = txt4;
+  if (txt5) mVec[n++] = txt5;
+  if (txt6) mVec[n++] = txt6;
+
+  MsgX(mVec, n+1);
+}
+
+/******************************************************************************/
+/*                                  M s g X                                   */
+/******************************************************************************/
+
+void XrdOucGatherConf::MsgX(const char** mVec, int n)
+{
+   XrdOucString theMsg(2048);
+
+// Make sure we can actually display anything
+//
+   if (!(gcP->eDest))
+      throw std::invalid_argument("XrdSysError object not supplied!");
+
+// Construct the message in a string
+//
+   for (int i = 0; i < n; i++)
+       {theMsg += mVec[i];
+        if (i+1 < n) theMsg += ' ';
+       }
+
+// Dislay the last line and the message in the proper order
+//
+   if (gcP->echobfr)  EchoLine();
+   gcP->eDest->Say(theMsg.c_str());
+   if (!(gcP->echobfr)) EchoLine();
+}
+  
+/******************************************************************************/
+/*                                 M s g f E                                  */
+/******************************************************************************/
+
+void XrdOucGatherConf::MsgfE(const char *fmt, ...)
+{
+   char buffer[2048];
+   va_list  args;
+   va_start (args, fmt);
+
+// Format the message
+//
+   vsnprintf(buffer, sizeof(buffer), fmt, args);
+
+// Go print the message
+//
+   MsgfX("Config mistake: ", buffer);
+}
+  
+/******************************************************************************/
+/*                                 M s g f W                                  */
+/******************************************************************************/
+
+void XrdOucGatherConf::MsgfW(const char *fmt, ...)
+{
+   char buffer[2048];
+   va_list  args;
+   va_start (args, fmt);
+
+// Format the message
+//
+   vsnprintf(buffer, sizeof(buffer), fmt, args);
+
+// Go print the message
+//
+   MsgfX("Config warning: ", buffer);
+}
+  
+/******************************************************************************/
+/*                                 M s g f X                                  */
+/******************************************************************************/
+
+void XrdOucGatherConf::MsgfX(const char* txt1, const char* txt2)
+{  
+
+// Make sure we can actually display anything
+//
+   if (!(gcP->eDest))
+      throw std::invalid_argument("XrdSysError object not supplied!");
+
+// Dislay the last line and the message in the proper order
+//
+   if (gcP->echobfr)  EchoLine();
+   gcP->eDest->Say(txt1, txt2);
+   if (!(gcP->echobfr)) EchoLine();
+}
+
+/******************************************************************************/
+/*                              R e t T o k e n                               */
+/******************************************************************************/
+
+void XrdOucGatherConf::RetToken()
+{
+   return gcP->Tokenizer.RetToken();
+}
+
+/******************************************************************************/
+/*                                  T a b s                                   */
+/******************************************************************************/
+
+void XrdOucGatherConf::Tabs(int x)
+{
+   gcP->Tokenizer.Tabs(x);
+}
+  
 /******************************************************************************/
 /*                               u s e D a t a                                */
 /******************************************************************************/
@@ -206,8 +426,8 @@ bool XrdOucGatherConf::useData(const char *data)
 {
    if (!data || *data == 0) return false;
 
-   if (gBuff) free(gBuff);
-   gBuff = strdup(data);
-   Attach(gBuff);
+   if (gcP->gBuff) free(gcP->gBuff);
+   gcP->gBuff = strdup(data);
+   gcP->Tokenizer.Attach(gcP->gBuff);
    return true;
 }

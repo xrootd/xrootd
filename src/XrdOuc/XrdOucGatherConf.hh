@@ -29,21 +29,38 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+struct XrdOucGatherConfData;
+class  XrdSysError;
 
-#include "XrdOuc/XrdOucTokenizer.hh"
-
-class XrdOucTList;
-class XrdSysError;
-
-class XrdOucGatherConf : public XrdOucTokenizer
+class XrdOucGatherConf
 {
 public:
+
+//------------------------------------------------------------------------------
+//! Echo the last line retrieved using GetLine() using proper framing.
+//!
+//! @notes  1) An exception is thrown if a XrdSysError object was not supplied.
+//------------------------------------------------------------------------------
+
+void EchoLine();
+
+//------------------------------------------------------------------------------
+//! Specift the order in which the last line is displayed vs a message.
+//!
+//! @paramn doBefore - When true, the line is displayed before the message.
+//!                    When false, it is displayed after the message (default).
+//!
+//! @notes  1) This call is only relevant to calls to MsgE(), MsgW(), MsgfE(),
+//!            and MsgfW.
+//------------------------------------------------------------------------------
+
+void EchoOrder(bool doBefore);
 
 //------------------------------------------------------------------------------
 //! Gather information from a config file.
 //!
 //! @note You must call this method or a successful useData() before calling
-//!       any XrdOucTokenizer methods.
+//!       any Get/Ret methods.
 //!
 //! @param  cfname Path to the configuration file.
 //! @param  lvl    Indicates how the gathered directives are to be saved:
@@ -73,6 +90,31 @@ enum  Level {full_lines = 0,  //!< Complete lines
 int   Gather(const char *cfname, Level lvl, const char *parms=0);
 
 //------------------------------------------------------------------------------
+//! Sequence to the next line in the configuration file.
+//!
+//! @return Pointer to the next line that will be tokenized or NIL if there
+//!         are no more lines left.
+//!
+//! @notes  1) You must call GetLine() before calling GetToken().
+//------------------------------------------------------------------------------
+
+char* GetLine();
+
+//------------------------------------------------------------------------------
+//! Get the next blank-delimited token in the record returned by Getline().
+//!
+//! @param rest     - Address of a char pointer. When specified, a pointer to
+//!                   the first non-blank character after the returned token.
+//! @param lowcasee - When 1, all characters are converted to lower case.
+//!                   When 0, the default, the characters are not changed. 
+//!
+//! @return A pointer to the next token. If the end of the line has been
+//!         reached, a NIL pointer is returned.
+//------------------------------------------------------------------------------
+
+char* GetToken(char **rest=0, int lowcase=0);
+
+//------------------------------------------------------------------------------
 //! Check if data is present.
 //!
 //! @return True if data is present and false, otherwise.
@@ -80,10 +122,71 @@ int   Gather(const char *cfname, Level lvl, const char *parms=0);
 
 bool  hasData();
 
+//-----------------------------------------------------------------------------
+//! Display a space delimited error/warning message.
+//!
+//! @param  txt1,txt2,txt3,txt4,txt5,txt6  the message components formatted as
+//!         "txt1 [txt2] [txt3] [txt4] [txt5] [txt6]"
+//!
+//! @notes  1) This methods throws an exception if a XrdSysError object was not
+//!            passed to the constructor.
+//!         2) The last line returned by this object will be displayed either
+//!            before or after the message (see EchoOrder()).
+//!         3) Messages are truncated at 2048 bytes.
+//!         4} Use MsgE for errors.   The text is prefixed by "Config mistake:"
+//!            Use MsgW for warnings. The text is prefixed by "Config warning:"
+//-----------------------------------------------------------------------------
+
+void  MsgE(const char* txt1,   const char* txt2=0, const char* txt3=0,
+           const char* txt4=0, const char* txt5=0, const char* txt6=0);
+
+void  MsgW(const char* txt1,   const char* txt2=0, const char* txt3=0,
+           const char* txt4=0, const char* txt5=0, const char* txt6=0);
+
+//-----------------------------------------------------------------------------
+//! Display a formated error/warning message using variable args (i.e. vprintf).
+//!
+//! @param  fmt  the message formatting template (i.e. printf format).
+//! @param  ...  the arguments that should be used with the template. The
+//!              formatted message is truncated at 2048 bytes.
+//!
+//! @notes  1) This methods throws an exception if a XrdSysError object was not
+//!            passed to the constructor.
+//!         2) The last line returned by this object will be displayed either
+//!            before or after the message (see EchoOrder()).
+//!         3) Messages are truncated at 2048 bytes.
+//!         4} Use MsgfE for errors.   The text is prefixed by "Config mistake:"
+//!            Use MsgfW for warnings. The text is prefixed by "Config warning:"
+//-----------------------------------------------------------------------------
+
+void  MsgfE(const char *fmt, ...);
+
+void  MsgfW(const char *fmt, ...);
+
+//------------------------------------------------------------------------------
+//! Backups the token scanner just prior to the last returned token.
+//!
+//! @notes 1) Only one backup is allowed. Calling RetToken() more than once
+//!           without an intervening  GetToken() call results in undefined
+//!           behaviour.
+//!        2) This call is useful for backing up due to an overscan.
+//------------------------------------------------------------------------------
+
+void  RetToken();
+
+//------------------------------------------------------------------------------
+//! Specify how tag characters should be handled.
+//!
+//! @param x       - When 0, tabs are converted to spaces.
+//!                  When 1, tabs are untouched (the default).
+//------------------------------------------------------------------------------
+
+void  Tabs(int x=1);
+
 //------------------------------------------------------------------------------
 //! Attempt to use pre-existing data.
 //!
-//! @param  data  Pointer to null terminated pre-existing data.
+//! @param  data  - Pointer to null terminated pre-existing data.
 //!
 //! @return False if the pointer is nil or points to a null string; true o/w.
 //------------------------------------------------------------------------------
@@ -94,8 +197,8 @@ bool  useData(const char *data);
 //! Constructor #1
 //!
 //! @note This object collects relevant configuration directives ready to be
-//!       processed by the inherited XrdOucTokenizer methods. All if-fi, set,
-//!       and variable substitutions are performed.
+//!       processed by the Get/Ret methods. All if-fi, set, and variable
+//!       substitutions are performed.
 //!
 //! @param  want   A space separated list of directive prefixes (i.e. end with a
 //!                dot) and actual directives that should be gathered.
@@ -125,8 +228,9 @@ bool  useData(const char *data);
 
 private:
 
-XrdSysError *eDest;
-XrdOucTList *Match;
-char        *gBuff;
+void MsgX(const char** mVec, int n);
+void MsgfX(const char* txt1, const char* txt2);
+
+XrdOucGatherConfData *gcP;
 };
 #endif
