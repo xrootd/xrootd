@@ -573,9 +573,8 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
       return 0;
     }
     IOCtxDict & ioDict = g_ioCtx[cephPoolIdx];
-    ioDict.insert(std::pair<std::string, librados::IoCtx*>(userAtPool, ioctx));
-    sDict.insert(std::pair<std::string, libradosstriper::RadosStriper*>
-                 (userAtPool, striper)).first;
+    ioDict.emplace(userAtPool, ioctx);
+    sDict.emplace(userAtPool, striper);
   }
   return 1;
 } 
