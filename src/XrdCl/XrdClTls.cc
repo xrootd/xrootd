@@ -27,6 +27,7 @@
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include <mutex>
 #include <string>
 #include <stdexcept>
 
@@ -94,6 +95,9 @@ namespace XrdCl
 {
   bool InitTLS()
   {
+    static std::mutex tls_mutex;
+    std::lock_guard<std::mutex> tls_lock(tls_mutex);
+
     if (tlsContext)
       return true;
 
