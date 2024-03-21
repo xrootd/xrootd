@@ -31,7 +31,7 @@
 
 class XrdOucEnv;
 class XrdOucProg;
-class XrdOucTokenizer;
+class XrdOucGatherConf;
 
 class XrdOssArcConfig
 {
@@ -82,16 +82,16 @@ char        mySep;         // Slash replacement separator
 private:
 
 void ConfigPath(char** pDest, const char* pRoot);
-bool ConfigProc(const char* drctv, const char *lastLine);
+bool ConfigProc(const char* drctv);
 bool ConfigXeq(const char* cfName, const char* parms, XrdOucEnv* envP);
-int  MissArg(const char* what);
+bool MissArg(const char* what);
 bool Usable(const char* path, const char* what, bool useOss=true);
-int  xqGrab(const char* what, char*& theDest, const char* theLine);
-int  xqPaths();
-int  xqStage();
-int  xqTrace();
-int  xqUtils();
+bool xqGrab(const char* what, char*& theDest, const char* theLine);
+bool xqPaths();
+bool xqStage();
+bool xqTrace();
+bool xqUtils();
 
-XrdOucTokenizer* Conf;
+XrdOucGatherConf* Conf;
 };
 #endif
