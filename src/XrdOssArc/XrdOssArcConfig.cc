@@ -169,7 +169,7 @@ void XrdOssArcConfig::ConfigPath(char** pDest, const char* pRoot)
 // If pDest starts with a slash then we use it as is; otherwise qualify it
 //
    if ((*pDest)[0] != '/') 
-      {std::string tmp(pRoot);
+       {std::string tmp(pRoot);
        if (tmp.back() != '/') tmp += '/';
        tmp += *pDest;
        free(*pDest);
@@ -181,27 +181,19 @@ void XrdOssArcConfig::ConfigPath(char** pDest, const char* pRoot)
 /* Private:                   C o n f i g P r o c                             */
 /******************************************************************************/
 
-bool XrdOssArcConfig::ConfigProc(const char* drctv, const char *lastLine)
+bool XrdOssArcConfig::ConfigProc(const char* drctv)
 {  
-   int rc;
 
 // Process each directive
 //
-        if (!strcmp(drctv, "msscmd")) rc = xqGrab("msscmd",MssComCmd,lastLine);
-   else if (!strcmp(drctv, "paths"))  rc = xqPaths();
-   else if (!strcmp(drctv, "stage"))  rc = xqStage();
-   else if (!strcmp(drctv, "trace"))  rc = xqTrace();
-   else if (!strcmp(drctv, "utils"))  rc = xqUtils();
-   else {Elog.Say("Config warning: ignoring unknown directive '", drctv, "'");
-         rc = 1;
-        }
+        if (!strcmp(drctv, "msscmd"))
+           return xqGrab("msscmd", MssComCmd, Conf->LastLine());
+   else if (!strcmp(drctv, "paths"))  return xqPaths();
+   else if (!strcmp(drctv, "stage"))  return xqStage();
+   else if (!strcmp(drctv, "trace"))  return xqTrace();
+   else if (!strcmp(drctv, "utils"))  return xqUtils();
+   else Conf->MsgfW("ignoring unknown directive '%s'", drctv);
 
-// Process result
-//
-   if (rc)
-      {Elog.Say("=====> ", lastLine);
-       if (rc < 0) return false;
-      }
    return true;
 }
 
@@ -214,8 +206,7 @@ bool  XrdOssArcConfig::ConfigXeq(const char* cfName, const char* parms,
                                  XrdOucEnv*  envP)
 {
    XrdOucGatherConf Cfile("ossarc.", &Elog);
-   std::string last_line;
-   char *line, *token;
+   char *token;
    int rc;
    bool NoGo = false;
 
@@ -228,15 +219,14 @@ bool  XrdOssArcConfig::ConfigXeq(const char* cfName, const char* parms,
 
 // We point to the tokenizer to avod passing it around everywhere
 //
-   Conf = (XrdOucTokenizer*)&Cfile;
+   Conf = &Cfile;
 
 // Process each directive
 //
-   while((line = Cfile.GetLine()))
-        {last_line = line;
-         if ((token = Cfile.GetToken()))
+   while(Cfile.GetLine())
+        {if ((token = Cfile.GetToken()))
             {if (!strncmp(token, "ossarc.", 7)) token += 7;
-             NoGo |= !ConfigProc(token, last_line.c_str());
+             NoGo |= !ConfigProc(token);
             }
         }   
       
@@ -290,10 +280,10 @@ int XrdOssArcConfig::GenTapePath(const char* dsn, char* buff, int bSZ,
 /* Private:                      M i s s A r g                                */
 /******************************************************************************/
 
-int XrdOssArcConfig::MissArg(const char* what)
+bool XrdOssArcConfig::MissArg(const char* what)
 {
-   Elog.Say("Config mistake: ", what, " not specified.");
-   return -1;
+   Conf->MsgfE("%s not specified.", what);
+   return false;
 }
   
 /******************************************************************************/
@@ -349,7 +339,7 @@ bool XrdOssArcConfig::Usable(const char* path, const char* what, bool useOss)
 /* Private:                       x q G r a b                                 */
 /******************************************************************************/
   
-int XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
+bool XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
                             const char* theLine)
 {
    const char* tP;
@@ -358,15 +348,15 @@ int XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
 //
    if ((tP = index(theLine, ' '))) while(*tP == ' ') tP++;
    if (!tP || !(*tP))
-      {Elog.Say("Config mistake: ", what, "argument not specified!");
-       return -1;
+      {Conf->MsgfE("%s argument not specified!", what);
+       return false;
       }
 
 // Replace the new argument with the old one
 //
    if (theDest) free(theDest);
    theDest = strdup(tP);
-   return 0;
+   return true;
 }
 
 /******************************************************************************/
@@ -376,35 +366,32 @@ int XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
    paths [backing <path>] [mssfs <path>] [staging <path>] [utils <path>]
 */
 
-int XrdOssArcConfig::xqPaths()
+bool XrdOssArcConfig::xqPaths()
 {
-   char** pDest;
+   char** pDest = 0;
    char *token, *ploc;
-   bool havearg = false, warn = false;
 
 // Process all options
 //
    while((token = Conf->GetToken()))
-        {havearg = true;
-              if (!strcmp("backing",  token)) pDest = &tapePath;
+        {     if (!strcmp("backing",  token)) pDest = &tapePath;
          else if (!strcmp("mssfs",    token)) pDest = &MssComRoot;
          else if (!strcmp("staging",  token)) pDest = &stagePath;
          else if (!strcmp("utils",    token)) pDest = &utilsPath;
-         else {Elog.Say("Config warning: Unknown path type '",token,"'; ignored.");
-               warn = true;
+         else {Conf->MsgfE("Unknown path type '%s'; ignored.", token);
                if (!Conf->GetToken()) break;
                continue;
               }
          if (!(ploc = Conf->GetToken()))
-            {Elog.Say("Config mistake: ", token, "path not specified!");
-             return -1;
+            {Conf->MsgfE("%s path not specified!", token);
+             return false;
             }
 
          // Make sure path starts with a slash
          //
          if (*ploc != '/')
-            {Elog.Say("Config mistake: ",token," path is not absolute!");
-             return -1;
+            {Conf->MsgfE("%s path is not absolute!", token);
+             return false;
             }
 
          if (*pDest) free(*pDest);
@@ -413,11 +400,11 @@ int XrdOssArcConfig::xqPaths()
 
 // Make sure we have at least one argument
 //
-   if (!havearg) Elog.Say("Config warning: 'paths' argument not specified!");
+   if (!pDest) {Conf->MsgfE("no 'path' arguments specified!"); return false;}
 
 // All done
 //
-   return (warn || !havearg ? 1 : 0);
+   return true;
 }
 
 /******************************************************************************/
@@ -427,7 +414,7 @@ int XrdOssArcConfig::xqPaths()
    stage [max <num>] [poll <sec>]
 */
 
-int XrdOssArcConfig::xqStage()
+bool XrdOssArcConfig::xqStage()
 {
    static const int minStg = 1, maxStg = 100, minPoll = 5, maxPoll = 100;
    char* val;
@@ -436,8 +423,8 @@ int XrdOssArcConfig::xqStage()
 // Get the first token (there must be at least one)
 //
    if (!(val = Conf->GetToken()))
-      {Elog.Emsg("Config", "Config mistake: stage parameter not specified");
-       return -1;
+      {Conf->MsgfE("No stage parameters specified");
+       return false;
       }
 
 // Now process all of them
@@ -447,31 +434,31 @@ int XrdOssArcConfig::xqStage()
                  {if (!(val = Conf->GetToken())) return MissArg("'max' value");
                   rc = XrdOuca2x::a2i(Elog, "stage max value", val, &num,
                                       minStg, maxStg);
-                  if (rc) return -1;
+                  if (rc) {Conf->EchoLine(); return false;}
                   maxStage = num;
                  }
          else if (!strcmp(val, "poll"))
                  {if (!(val = Conf->GetToken())) return MissArg("'poll' value");
                   rc = XrdOuca2x::a2tm(Elog, "stage poll value", val, &num,
                                        minPoll, maxPoll);
-                  if (rc) return -1;
+                  if (rc) {Conf->EchoLine(); return false;}
                   wtpStage = num;
                  }
-         else {Elog.Emsg("Config", "Config mistake: unknown option -", val);
-               return -1;
+         else {Conf->MsgE("unknown option -", val);
+               return false;
               }
         } while((val = Conf->GetToken()));
 
 // All done
 //
-   return 0;
+   return true;
 }
 
 /******************************************************************************/
 /* Private:                      x q T r a c e                                */
 /******************************************************************************/
 
-int XrdOssArcConfig::xqTrace()
+bool XrdOssArcConfig::xqTrace()
 {
    char *val;
    struct traceopts {const char *opname; unsigned int opval;} tropts[] =
@@ -484,8 +471,8 @@ int XrdOssArcConfig::xqTrace()
    int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
    if (!(val = Conf->GetToken()))
-      {Elog.Emsg("Config", "Config mistake: trace option not specified");
-       return -1;
+      {Conf->MsgE("no trace options specified");
+       return false;
       }
    while (val)
         {if (!strcmp(val, "off")) trval = 0;
@@ -501,12 +488,12 @@ int XrdOssArcConfig::xqTrace()
                           }
                       }
                   if (i >= numopts)
-                     Elog.Say("Config warning: ignoring invalid trace option '",val,"'.");
+                     Conf->MsgfW("ignoring invalid trace option '%s'", val);
                  }
          val = Conf->GetToken();
         }
    ArcTrace.What = trval;
-   return 0;
+   return true;
 }
 
 /******************************************************************************/
@@ -516,27 +503,24 @@ int XrdOssArcConfig::xqTrace()
    utils [archiver <path>] [manifest <path>] [msscom <path>]
 */
 
-int XrdOssArcConfig::xqUtils()
+bool XrdOssArcConfig::xqUtils()
 {
-   char** uDest;
+   char** uDest = 0;
    char *token, *uloc;
-   bool havearg = false, warn = false;
 
 // Process all options
 //
    while((token = Conf->GetToken()))
-        {havearg = true;
-              if (!strcmp("archiver", token)) uDest = &ArchiverPath;
+        {     if (!strcmp("archiver", token)) uDest = &ArchiverPath;
          else if (!strcmp("manifest", token)) uDest = &getManPath;
          else if (!strcmp("msscom",   token)) uDest = &MssComPath;
-         else {Elog.Say("Config warning: Unknown util '",token,"'; ignored.");
-               warn = true;
+         else {Conf->MsgfW("Unknown util '%s'; ignored.", token);
                if (!Conf->GetToken()) break;
                continue;
               }
          if (!(uloc = Conf->GetToken()))
-            {Elog.Say("Config mistake: ", token, "value not specified!");
-             return -1;
+            {Conf->MsgfE("utils %s value not specified!", token);
+             return false;
             }
          if (*uDest) free(*uDest);
          *uDest = strdup(uloc);
@@ -544,9 +528,9 @@ int XrdOssArcConfig::xqUtils()
 
 // Make sure we have at least one argument
 //
-   if (!havearg) Elog.Say("Config warning: 'utils' argument not specified!");
+   if (!uDest) {Conf->MsgE("no 'utils' arguments specified!"); return false;}
 
 // All done
 //
-   return (warn || !havearg ? 1 : 0);
+   return true;
 }
