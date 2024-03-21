@@ -30,13 +30,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdOss/XrdOss.hh"
+#include "XrdOss/XrdOssWrapper.hh"
 
 class  XrdOssArcZipFile;
 class  XrdOucEnv;
 struct stat;
 
-class XrdOssArcFile : public XrdOssDF
+class XrdOssArcFile : public XrdOssWrapDF
 {
 public:
 
@@ -113,7 +113,7 @@ ssize_t Read(void* buffer, off_t offset, size_t size) override;
 ssize_t Write(const void* buffer, off_t offset, size_t size) override;
 
                 XrdOssArcFile(const char* tident, XrdOssDF* df)
-                             : XrdOssDF(tident, DF_isFile), ossDF(df) {}
+                             : XrdOssWrapDF(*df), ossDF(df) {}
 
 virtual        ~XrdOssArcFile();
 
