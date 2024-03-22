@@ -82,6 +82,34 @@ virtual int       Create(const char* tid, const char* path, mode_t mode,
                          XrdOucEnv& env, int opts=0) override;
 
 //-----------------------------------------------------------------------------
+//! Translate logical name to physical name V1 (deprecated).
+//!
+//! @param  Path   - Path in whose information is wanted.
+//! @param  buff   - Pointer to the buffer to hold the new path.
+//! @param  blen   - Length of the buffer.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Lfn2Pfn(const char *Path, char *buff, int blen) override;
+
+//-----------------------------------------------------------------------------
+//! Translate logical name to physical name V2.
+//!
+//! @param  Path   - Path in whose information is wanted.
+//! @param  buff   - Pointer to the buffer to hold the new path.
+//! @param  blen   - Length of the buffer.
+//! @param  rc     - Place where failure return code is to be returned:
+//!                  -errno or -osserr (see XrdOssError.hh).
+//!
+//! @return Pointer to the translated path upon success or nil on failure.
+//-----------------------------------------------------------------------------
+virtual
+const char       *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
+                         override;
+
+
+//-----------------------------------------------------------------------------
 //! Return state information on a file or directory.
 //!
 //! @param  path   - Pointer to the path in question.
