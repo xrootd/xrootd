@@ -191,6 +191,66 @@ int XrdOssArc::Create(const char* tid, const char* path, mode_t mode,
 }
   
 /******************************************************************************/
+/*                            L f n 2 P f n   v 1                             */
+/******************************************************************************/
+
+int XrdOssArc::Lfn2Pfn(const char *Path, char *buff, int blen)
+{
+   int rc;
+
+// Use v2 version to generate the Pfn
+//
+   if (Lfn2Pfn(Path, buff, blen, rc) == Path && !rc)
+      {if ((int)strlen(Path) >= blen) rc = -ENAMETOOLONG;
+          else strcpy(buff, Path);
+      }
+   return rc;
+}
+  
+/******************************************************************************/
+/*                            L f n 2 P f n   v 2                             */
+/******************************************************************************/
+
+const char *XrdOssArc::Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
+{
+
+// Check if the stat is for the backup qhich is not subject to other N2N's.
+//
+  if (!strncmp(Path, Config.bkupPathLFN, Config.bkupPathLEN))
+     {rc = Config.GenTapePath(Path+Config.bkupPathLEN, buff, blen);
+      if (!rc) return buff;
+      rc =  Neg(rc);
+      return 0;
+     }
+
+// Prepare to process the archive
+//
+   XrdOssArcRecompose dsInfo(Path, rc, false);
+
+// If all went well, continue the mapping. EDOM rc the path is not ours so
+// treat as a regular path with standard mapping.
+//
+   const char* thePath;
+   char* myPath = (char*)alloca(blen);
+   if (!rc)
+      {if (!dsInfo.Compose(myPath, blen))
+          {rc = -ENAMETOOLONG;
+           return 0;
+          }
+       thePath = myPath;
+      }
+      else if (rc == EDOM) thePath = Path;
+              else {rc = -rc;
+                    return 0;
+                   }
+
+// Now apply the N2N of the underlying mapping.
+//
+   if ((rc = wrapPI.Lfn2Pfn(thePath, buff, blen))) return 0;
+   return buff;
+}
+  
+/******************************************************************************/
 /*                                  S t a t                                   */
 /******************************************************************************/
 
