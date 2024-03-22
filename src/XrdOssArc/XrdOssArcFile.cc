@@ -120,6 +120,7 @@ int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
 {
    int rc, tapeFD;
    bool isRW = (Oflag & (O_APPEND|O_CREAT|O_TRUNC|O_WRONLY|O_RDWR)) != 0; 
+   bool isLocal;
 
 // Check if we are trying to open the backup (e.g. /backup/.../Archive.zip)
 //
@@ -162,14 +163,20 @@ int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
        return -rc;
       }
 
+// It is possible that the file still exists in our build cache. If this is
+// the case, we can serve it from there (we always do for R/W requests.
+//
+   char opPath[MAXPATHLEN];
+   if (!dsInfo.Compose(opPath, sizeof(opPath))) return -ENAMETOOLONG;
+   if (!isRW)
+      {struct stat Stat;
+       isLocal = !(ossP->Stat(opPath, &Stat));
+      } isLocal = false;
+
 // This is an open to write an archive file then the file must exist because
 // Create() would have been called prior to this open for writing.
 //
-   if (isRW)
-      {char opPath[MAXPATHLEN];
-       if(!dsInfo.Compose(opPath, sizeof(opPath))) return -ENAMETOOLONG;
-       return ossDF->Open(opPath, Oflag, Mode, env);
-      }
+   if (isRW || isLocal) return ossDF->Open(opPath, Oflag, Mode, env);
 
 // If the client is looking for an individual file then the processing is
 // very different as we must extract it from the archive file that has it.
