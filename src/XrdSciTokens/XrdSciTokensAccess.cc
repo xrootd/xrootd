@@ -585,7 +585,7 @@ public:
         bool scope_success;
         std::string username = GetUser(opers, path, access_rules, scope_success);
 
-        if (username.empty() && !group_success) {
+        if (username.empty() && !scope_success && !group_success) {
             auto returned_accs = OnMissing(&new_secentity, path, oper, env);
             // Clean up the new_secentity
             if (new_secentity.vorg != nullptr) free(new_secentity.vorg);

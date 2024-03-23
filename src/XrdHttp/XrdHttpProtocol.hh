@@ -220,7 +220,7 @@ private:
   static int xheader2cgi(XrdOucStream &Config);
   static int xhttpsmode(XrdOucStream &Config);
   static int xtlsreuse(XrdOucStream &Config);
-  static int xtokenlib(XrdOucStream &Config);
+  static int xredirtoken(XrdOucStream &Config);
   
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
