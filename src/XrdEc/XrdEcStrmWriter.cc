@@ -60,9 +60,9 @@ namespace XrdEc
     }
 
     XrdCl::Async( XrdCl::Parallel( opens ).AtLeast( objcfg.nbchunks ) >>
-                  [=]( XrdCl::XRootDStatus &st )
+                  [handler,this]( XrdCl::XRootDStatus &st )
                   {
-                    if( !st.IsOK() ) global_status.report_open( st );
+                    if( !st.IsOK() ) this->global_status.report_open( st );
                     handler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
                   }, timeout );
   }
@@ -185,7 +185,7 @@ namespace XrdEc
       // Create the Write request
       //-----------------------------------------------------------------------
       XrdCl::Pipeline p = XrdCl::AppendFile( zip, fn, crc32c, strpsize, strpbuff ) >>
-                           [=]( XrdCl::XRootDStatus &st ) mutable
+                           [servers,srvid,wrtbuff,zip,this]( XrdCl::XRootDStatus &st ) mutable
                            {
                              //------------------------------------------------
                              // Try to recover from error
@@ -196,7 +196,7 @@ namespace XrdEc
                                // Select another server
                                //----------------------------------------------
                                if( !servers->dequeue( srvid ) ) return; // if there are no more servers we simply fail
-                               zip = *dataarchs[srvid];
+                               zip = *this->dataarchs[srvid];
                                //----------------------------------------------
                                // Retry this operation at different server
                                //----------------------------------------------
@@ -211,7 +211,7 @@ namespace XrdEc
       writes.emplace_back( std::move( p ) );
     }
 
-    XrdCl::WaitFor( XrdCl::Parallel( writes ) >> [=]( XrdCl::XRootDStatus &st ){ global_status.report_wrt( st, blksize ); } );
+    XrdCl::WaitFor( XrdCl::Parallel( writes ) >> [blksize,this]( XrdCl::XRootDStatus &st ){ this->global_status.report_wrt( st, blksize ); } );
   }
 
   //---------------------------------------------------------------------------

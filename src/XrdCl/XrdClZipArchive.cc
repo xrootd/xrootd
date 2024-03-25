@@ -235,7 +235,7 @@ namespace XrdCl
   {
     OpenFlags::Flags flags = update ? OpenFlags::Update : OpenFlags::Read;
     Pipeline open_only = XrdCl::Open( archive, url, flags ) >>
-                           [=]( XRootDStatus &st, StatInfo &info )
+                           [handler,url,this]( XRootDStatus &st, StatInfo &info )
                            {
                              Log *log = DefaultEnv::GetLog();
                              // check the status is OK
@@ -277,7 +277,7 @@ namespace XrdCl
 
     Pipeline open_archive = // open the archive
                             XrdCl::Open( archive, url, flags ) >>
-                              [=]( XRootDStatus &status, StatInfo &info ) mutable
+                              [log,rdsize,rdoff,rdbuff,maxrdsz,this]( XRootDStatus &status, StatInfo &info ) mutable
                               {
                                  // check the status is OK
                                  if( !status.IsOK() ) return;
@@ -302,7 +302,7 @@ namespace XrdCl
                                }
                             // read the Central Directory (in several stages if necessary)
                           | XrdCl::Read( archive, rdoff, rdsize, rdbuff ) >>
-                              [=]( XRootDStatus &status, ChunkInfo &chunk ) mutable
+                              [log,rdoff,rdsize,rdbuff,this]( XRootDStatus &status, ChunkInfo &chunk ) mutable
                               {
                                 // check the status is OK
                                 if( !status.IsOK() ) return;
@@ -467,7 +467,7 @@ namespace XrdCl
                                   break;
                                 }
                               }
-                          | XrdCl::Final( [=]( const XRootDStatus &status )
+                          | XrdCl::Final( [handler,log,url,this]( const XRootDStatus &status )
                               { // finalize the pipeline by calling the user callback
                                 if( status.IsOK() )
                                   log->Debug( ZipMsg, "[%p] Opened a ZIP archive (%s): %s",
@@ -642,12 +642,12 @@ namespace XrdCl
       if( ckpinit )
         p       |= XrdCl::Checkpoint( archive, ChkPtCode::COMMIT );
       p         |= Close( archive ) >>
-                     [=]( XRootDStatus &st )
+                     [this]( XRootDStatus &st )
                      {
-                       if( st.IsOK() ) Clear();
+                       if( st.IsOK() ) this->Clear();
                        else openstage = Error;
                      }
-                 | XrdCl::Final( [=]( const XRootDStatus &st ) mutable
+                 | XrdCl::Final( [handler,log,wrtbufs,this]( const XRootDStatus &st ) mutable
                      {
                        if( st.IsOK() )
                          log->Dump( ZipMsg, "[%p] Successfully closed ZIP archive "
@@ -667,11 +667,11 @@ namespace XrdCl
     // Otherwise, just close the ZIP archive
     //-------------------------------------------------------------------------
     Pipeline p = Close( archive ) >>
-                   [=]( XRootDStatus &st )
+                   [handler,log,this]( XRootDStatus &st )
                    {
                      if( st.IsOK() )
                      {
-                       Clear();
+                       this->Clear();
                        log->Dump( ZipMsg, "[%p] Successfully closed "
                                           "ZIP archive.", this );
                      }
@@ -794,7 +794,7 @@ namespace XrdCl
     uint32_t wrtlen = iov[0].iov_len + iov[1].iov_len;
 
     Pipeline p;
-    auto wrthandler = [=]( const XRootDStatus &st ) mutable
+    auto wrthandler = [handler,lfhbuf,this]( const XRootDStatus &st ) mutable
                       {
                         if( st.IsOK() ) updated = true;
                         lfhbuf.reset();
