@@ -223,8 +223,8 @@ TEST(SocketTest, TransferTest)
   // Start up the server and connect to it
   //----------------------------------------------------------------------------
   uint16_t port = 9998; // was 9999, but we need to change ports from other
-                    // tests so that we can run all of them in parallel. 
-                    // Will find another, better way to ensure this in the future 
+                        // tests so that we can run all of them in parallel.
+                        // Will find another, better way to ensure this in the future
   EXPECT_TRUE( serv.Setup( port, 1, new RandomHandlerFactory() ) );
   EXPECT_TRUE( serv.Start() );
 
