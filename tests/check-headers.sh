@@ -10,7 +10,7 @@
 # shellcheck disable=SC2086
 
 : "${CXX:=c++}"
-: "${CXXFLAGS:=-Wall}"
+: "${CXXFLAGS:=-Wall -std=c++17}"
 : "${INCLUDE_DIR:=${1:-/usr/include/xrootd}}"
 
 if ! command -v "${CXX}" >/dev/null; then
