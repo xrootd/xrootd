@@ -49,6 +49,7 @@
 #include "XrdHttpChecksumHandler.hh"
 #include "XrdHttpReadRangeHandler.hh"
 #include "XrdNet/XrdNetPMark.hh"
+#include "XrdSciTokens/XrdSciTokensRedir.hh"
 
 #include <openssl/ssl.h>
 
@@ -219,6 +220,7 @@ private:
   static int xheader2cgi(XrdOucStream &Config);
   static int xhttpsmode(XrdOucStream &Config);
   static int xtlsreuse(XrdOucStream &Config);
+  static int xredirtoken(XrdOucStream &Config);
   
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
@@ -440,5 +442,8 @@ protected:
 
   /// Packet marking handler pointer (assigned from the environment during the Config() call)
   static XrdNetPMark * pmarkHandle;
+
+  /// Redirect helper from SciTokens
+  static XrdSciTokensRedir *m_redir;
 };
 #endif

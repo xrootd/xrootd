@@ -54,6 +54,7 @@
 
 #define XRHTTP_TK_GRACETIME     600
 
+XrdVERSIONINFO(XrdHttpProtocol, xrdhttp);
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -82,6 +83,7 @@ bool XrdHttpProtocol::listdeny = false;
 bool XrdHttpProtocol::embeddedstatic = true;
 char *XrdHttpProtocol::staticredir = 0;
 XrdOucHash<XrdHttpProtocol::StaticPreloadInfo> *XrdHttpProtocol::staticpreload = 0;
+XrdSciTokensRedir *XrdHttpProtocol::m_redir = nullptr;
 
 kXR_int32 XrdHttpProtocol::myRole = kXR_isManager;
 bool XrdHttpProtocol::selfhttps2http = false;
@@ -1065,6 +1067,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("header2cgi", xheader2cgi);
       else if TS_Xeq("httpsmode", xhttpsmode);
       else if TS_Xeq("tlsreuse", xtlsreuse);
+      else if TS_Xeq("redirtoken", xredirtoken);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -2804,12 +2807,12 @@ int XrdHttpProtocol::xtlsreuse(XrdOucStream & Config) {
    eDest.Emsg("config", "invalid tlsreuse parameter -", val);
    return 1;
 }
-  
+
 /******************************************************************************/
-/*                                x t r a c e                                 */
+/*                           x r e d i r t o k e n                            */
 /******************************************************************************/
 
-/* Function: xtrace
+/* Function: xredirtoken
 
    Purpose:  To parse the directive: trace <events>
 
@@ -2818,6 +2821,27 @@ int XrdHttpProtocol::xtlsreuse(XrdOucStream & Config) {
 
    Output: 0 upon success or 1 upon failure.
  */
+int XrdHttpProtocol::xredirtoken(XrdOucStream &Config) {
+  auto val = Config.GetWord();
+  if (!val || !val[0])
+  {
+    val = (char *)"libXrdAccSciTokens.so";
+  }
+
+
+  char eMsgBuff[2048];
+  XrdVersionInfo *myVer = &XrdVERSIONINFOVAR(XrdHttpProtocol);
+  XrdOucPinLoader myLib(eMsgBuff, sizeof(eMsgBuff), myVer,
+                        "http.redirtoken", val);
+  auto redir = (XrdSciTokensRedir **)(myLib.Resolve("SciTokensRedir"));
+  if (redir == nullptr) {
+    eDest.Emsg("redirtoken", "Failed to resolve the SciTokenRedir symbol in token library");
+    return 1;
+  }
+
+  m_redir = *redir;
+  return 0;
+}
 
 int XrdHttpProtocol::xtrace(XrdOucStream & Config) {
 
