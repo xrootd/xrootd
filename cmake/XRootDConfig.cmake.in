@@ -53,7 +53,11 @@ set_and_check(XRootD_DATA_DIR    "@PACKAGE_CMAKE_INSTALL_DATADIR@")
 set_and_check(XRootD_INCLUDE_DIR "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/xrootd")
 set_and_check(XRootD_LIB_DIR     "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
 
-set(XRootD_INCLUDE_DIRS "${XRootD_INCLUDE_DIR};${XRootD_INCLUDE_DIR}/private")
+set(XRootD_INCLUDE_DIRS "${XRootD_INCLUDE_DIR}")
+if(IS_DIRECTORY "${XRootD_INCLUDE_DIR}/private")
+  list(APPEND XRootD_INCLUDE_DIRS "${XRootD_INCLUDE_DIR}/private")
+endif()
+
 set(XROOTD_INCLUDE_DIRS "${XRootD_INCLUDE_DIRS}") # backward compatibility
 
 ################################################################################
