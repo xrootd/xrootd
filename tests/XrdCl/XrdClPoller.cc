@@ -216,7 +216,10 @@ TEST(PollerTest, FunctionTest)
   //----------------------------------------------------------------------------
   Server server( Server::Both );
   Socket s[3];
-  EXPECT_TRUE( server.Setup( 9999, 3, new RandomPumpHandlerFactory() ) );
+  uint16_t port = 9996; // was 9999, but we need to change ports from other
+                        // tests so that we can run all of them in parallel.
+                        // Will find another, better way to ensure this in the future
+  EXPECT_TRUE( server.Setup( port, 3, new RandomPumpHandlerFactory() ) );
   EXPECT_TRUE( server.Start() );
   EXPECT_TRUE( poller->Initialize() );
   EXPECT_TRUE( poller->Start() );
@@ -228,7 +231,7 @@ TEST(PollerTest, FunctionTest)
   for( int i = 0; i < 3; ++i )
   {
     GTEST_ASSERT_XRDST( s[i].Initialize() );
-    GTEST_ASSERT_XRDST( s[i].Connect( "localhost", 9999 ) );
+    GTEST_ASSERT_XRDST( s[i].Connect( "localhost", port ) );
     EXPECT_TRUE( poller->AddSocket( &s[i], handler ) );
     EXPECT_TRUE( poller->EnableReadNotification( &s[i], true, 60 ) );
     EXPECT_TRUE( poller->IsRegistered( &s[i] ) );

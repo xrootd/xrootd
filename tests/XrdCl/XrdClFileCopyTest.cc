@@ -616,8 +616,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // Copy from a non-existent source
   //----------------------------------------------------------------------------
   results.Clear();
-  properties.Set( "source",      "root://localhost:9999//test" );
-  properties.Set( "target",      targetURL );
+  properties.Set( "source",      "root://localhost:9997//test" ); // was 9999, this change allows for
+  properties.Set( "target",      targetURL );                     // parallel testing
   properties.Set( "initTimeout", 10 );
   properties.Set( "thirdParty",  "only"    );
   GTEST_ASSERT_XRDST( process3.AddJob( properties, &results ) );
