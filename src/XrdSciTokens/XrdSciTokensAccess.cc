@@ -361,28 +361,36 @@ public:
     ~XrdAccRules() {}
 
     bool apply(Access_Operation oper, std::string path) {
-        for (const auto & rule : m_rules) {
-            // The rule permits if both conditions are met:
-            // - The operation type matches the requested operation,
-            // - The requested path is a substring of the ACL's permitted path, AND
-            // - Either the requested path and ACL path is the same OR the requested path is a subdir of the ACL path.
-            //
-            // The third rule implies if the rule permits read:/foo, we should NOT authorize read:/foobar.
-            if ((oper == rule.first) &&
-                !path.compare(0, rule.second.size(), rule.second, 0, rule.second.size()) &&
-                (rule.second.size() == path.length() || path[rule.second.size()]=='/'))
-            {
-                return true;
-            }
-            // according to WLCG token specs, allow creation of required superfolders for a new file if requested
-            if ((oper == rule.first) && (oper == AOP_Stat || oper == AOP_Mkdir)
-             && rule.second.size() >= path.length()
-             && !rule.second.compare(0, path.size(), path, 0, path.size())
-             && (rule.second.size() == path.length() || rule.second[path.length()] == '/')) {
-                return true;
-            }
+      auto is_subdirectory = [](const std::string& dir, const std::string& subdir) {
+        if (subdir.size() < dir.size())
+          return false;
+
+        if (subdir.compare(0, dir.size(), dir, 0, dir.size()) != 0)
+          return false;
+
+        return dir.size() == subdir.size() || subdir[dir.size()] == '/' || dir == "/";
+      };
+
+      for (const auto & rule : m_rules) {
+        // Skip rules that don't match the current operation
+        if (rule.first != oper)
+          continue;
+
+        // If the rule allows any path, allow the operation
+        if (rule.second == "/")
+          return true;
+
+        // Allow operation if path is a subdirectory of the rule's path
+        if (is_subdirectory(rule.second, path)) {
+          return true;
+        } else {
+          // Allow stat and mkdir of parent directories to comply with WLCG token specs
+          if (oper == AOP_Stat || oper == AOP_Mkdir)
+            if (is_subdirectory(path, rule.second))
+              return true;
         }
-        return false;
+      }
+      return false;
     }
 
     bool expired() const {return monotonic_time() > m_expiry_time;}
