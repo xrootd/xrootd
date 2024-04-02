@@ -859,13 +859,7 @@ private:
 
         char **group_list;
         std::vector<std::string> groups_parsed;
-        const char* tmp_group_claim;
-        if (!config.m_groups_claim.empty()) {
-            tmp_group_claim = config.m_groups_claim.c_str();
-        } else {
-            tmp_group_claim = "wlcg.groups";
-        }
-        if (!scitoken_get_claim_string_list(token, tmp_group_claim, &group_list, &err_msg)) {
+        if (scitoken_get_claim_string_list(token, config.m_groups_claim.c_str(), &group_list, &err_msg) == 0) {
             for (int idx=0; group_list[idx]; idx++) {
                 groups_parsed.emplace_back(group_list[idx]);
             }
@@ -1285,7 +1279,7 @@ private:
             auto default_user = reader.Get(section, "default_user", "");
             auto map_subject = reader.GetBoolean(section, "map_subject", false);
             auto username_claim = reader.Get(section, "username_claim", "");
-            auto groups_claim = reader.Get(section, "groups_claim", "");
+            auto groups_claim = reader.Get(section, "groups_claim", "wlcg.groups");
 
             auto authz_strategy_str = reader.Get(section, "authorization_strategy", "");
             uint32_t authz_strategy = 0;
