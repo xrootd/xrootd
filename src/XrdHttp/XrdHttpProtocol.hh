@@ -219,6 +219,7 @@ private:
   static int xheader2cgi(XrdOucStream &Config);
   static int xhttpsmode(XrdOucStream &Config);
   static int xtlsreuse(XrdOucStream &Config);
+  static int xauth(XrdOucStream &Config);
   
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
@@ -443,5 +444,8 @@ protected:
 
   /// Packet marking handler pointer (assigned from the environment during the Config() call)
   static XrdNetPMark * pmarkHandle;
+
+  /// If set to true, the HTTP TPC transfers will forward the credentials to redirected hosts
+  static bool tpcForwardCreds;
 };
 #endif

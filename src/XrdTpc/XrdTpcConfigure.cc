@@ -73,6 +73,7 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
 	    }
 	} else if (!strcmp("tpc.timeout", val)) {
             if (!(val = Config.GetWord())) {
+                Config.Close();
                 m_log.Emsg("Config","tpc.timeout value not specified.");  return false;
             }
             if (XrdOuca2x::a2tm(m_log, "timeout value", val, &m_timeout, 0)) return false;
