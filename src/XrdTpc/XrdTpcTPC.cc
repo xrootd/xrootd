@@ -494,7 +494,7 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
 }
 
 int TPCHandler::GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t &contentLength, bool & success, TPCLogRecord &rec) {
-    State state(curl);
+    State state(curl,req.tpcForwardCreds);
     //Don't forget to copy the headers of the client's request before doing the HEAD call. Otherwise, if there is a need for authentication,
     //it will fail
     state.CopyHeaders(req);
@@ -923,7 +923,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
     Stream stream(std::move(fh), 0, 0, m_log);
-    State state(0, stream, curl, true);
+    State state(0, stream, curl, true, req.tpcForwardCreds);
     state.CopyHeaders(req);
 
 #ifdef XRD_CHUNK_RESP
@@ -1070,7 +1070,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         return resp_result;
     }
     Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
-    State state(0, stream, curl, false);
+    State state(0, stream, curl, false, req.tpcForwardCreds);
     state.CopyHeaders(req);
 
 #ifdef XRD_CHUNK_RESP

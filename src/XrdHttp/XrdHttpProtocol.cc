@@ -112,6 +112,7 @@ char *XrdHttpProtocol::xrd_cslist = nullptr;
 XrdNetPMark * XrdHttpProtocol::pmarkHandle = nullptr;
 XrdHttpChecksumHandler XrdHttpProtocol::cksumHandler = XrdHttpChecksumHandler();
 XrdHttpReadRangeHandler::Configuration XrdHttpProtocol::ReadRangeConfig;
+bool XrdHttpProtocol::tpcForwardCreds = false;
 
 XrdSysTrace XrdHttpTrace("http");
 
@@ -1065,6 +1066,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("header2cgi", xheader2cgi);
       else if TS_Xeq("httpsmode", xhttpsmode);
       else if TS_Xeq("tlsreuse", xtlsreuse);
+      else if TS_Xeq("auth", xauth);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -2814,7 +2816,27 @@ int XrdHttpProtocol::xtlsreuse(XrdOucStream & Config) {
    eDest.Emsg("config", "invalid tlsreuse parameter -", val);
    return 1;
 }
-  
+
+int XrdHttpProtocol::xauth(XrdOucStream &Config) {
+  char *val = Config.GetWord();
+  if(val) {
+    if(!strcmp("tpc",val)) {
+      if(!(val = Config.GetWord())) {
+        eDest.Emsg("Config", "http.auth tpc value not specified."); return 1;
+      } else {
+        if(!strcmp("fcreds",val)) {
+          tpcForwardCreds = true;
+        } else {
+          eDest.Emsg("Config", "http.auth tpc value is invalid"); return 1;
+        }
+      }
+    } else {
+      eDest.Emsg("Config", "http.auth value is invalid"); return 1;
+    }
+  }
+  return 0;
+}
+
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
