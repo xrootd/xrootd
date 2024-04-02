@@ -47,6 +47,7 @@ void State::Move(State &other)
             curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
         }
     }
+    tpcForwardCreds = other.tpcForwardCreds;
     other.m_headers_copy.clear();
     other.m_curl = NULL;
     other.m_headers = NULL;
@@ -73,6 +74,9 @@ bool State::InstallHandlers(CURL *curl) {
         }
     }
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    if(tpcForwardCreds) {
+      curl_easy_setopt(curl,CURLOPT_UNRESTRICTED_AUTH,1L);
+    }
 
     // Only use low-speed limits with libcurl v7.38 or later.
     // Older versions have poor transfer performance, corrected in curl commit cacdc27f.
@@ -241,7 +245,7 @@ State *State::Duplicate() {
         throw std::runtime_error("Failed to duplicate existing curl handle.");
     }
 
-    State *state = new State(0, *m_stream, curl, m_push);
+    State *state = new State(0, *m_stream, curl, m_push, tpcForwardCreds);
 
     if (m_headers) {
         state->m_headers_copy.reserve(m_headers_copy.size());

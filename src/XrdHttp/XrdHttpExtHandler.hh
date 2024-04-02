@@ -59,6 +59,8 @@ public:
 
   XrdNetPMark * pmark;
 
+  bool tpcForwardCreds = false;
+
   int mSciTag;
 
   // Get full client identifier
