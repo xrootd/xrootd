@@ -68,8 +68,8 @@ const char *XrdHttpSecEntityTident = "http";
 // Static stuff
 //
 
-int XrdHttpProtocol::hailWait = 0;
-int XrdHttpProtocol::readWait = 0;
+int XrdHttpProtocol::hailWait = 60000;
+int XrdHttpProtocol::readWait = 300000;
 int XrdHttpProtocol::Port = 1094;
 char *XrdHttpProtocol::Port_str = 0;
 
@@ -1709,8 +1709,6 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   //  SI = new XrdXrootdStats(pi->Stats);
   Sched = pi->Sched;
   BPool = pi->BPool;
-  hailWait = 10000;
-  readWait = 30000;
   xrd_cslist = getenv("XRD_CSLIST");
 
   Port = pi->Port;
