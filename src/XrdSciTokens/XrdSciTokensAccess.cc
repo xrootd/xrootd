@@ -865,8 +865,8 @@ private:
             }
             scitoken_free_string_list(group_list);
         } else {
-            // For now, we silently ignore errors.
-            // std::cerr << "Failed to get groups: " << err_msg << std::endl;
+            // Failing to parse groups is not fatal, but we should still warn about what's wrong
+            m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to get token groups:", err_msg);
             free(err_msg);
         }
 
