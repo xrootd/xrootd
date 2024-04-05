@@ -353,12 +353,14 @@ public:
             // The rule permits if both conditions are met:
             // - The operation type matches the requested operation,
             // - The requested path is a substring of the ACL's permitted path, AND
-            // - Either the requested path and ACL path is the same OR the requested path is a subdir of the ACL path.
+            // - Either the requested path and ACL path is the same OR the requested path is a subdir of the ACL path
+            //   OR the ACL path applies to the root (/)
             //
             // The third rule implies if the rule permits read:/foo, we should NOT authorize read:/foobar.
+            // If the rule permits read:/, we should authorize read:/foobar.
             if ((oper == rule.first) &&
                 !path.compare(0, rule.second.size(), rule.second, 0, rule.second.size()) &&
-                (rule.second.size() == path.length() || path[rule.second.size()]=='/'))
+                (rule.second.size() == path.length() || path[rule.second.size()]=='/' || rule.second=="/"))
             {
                 return true;
             }
@@ -366,7 +368,7 @@ public:
             if ((oper == rule.first) && (oper == AOP_Stat || oper == AOP_Mkdir)
              && rule.second.size() >= path.length()
              && !rule.second.compare(0, path.size(), path, 0, path.size())
-             && (rule.second.size() == path.length() || rule.second[path.length()] == '/')) {
+             && (rule.second.size() == path.length() || rule.second[path.length()] == '/' || rule.second == "/")) {
                 return true;
             }
         }
