@@ -2883,6 +2883,7 @@ namespace XrdCl
       errSocketError,
       errSocketTimeout,
       errInvalidSession,
+      errInternal,
       errTlsError,
       errOperationInterrupted
     };
