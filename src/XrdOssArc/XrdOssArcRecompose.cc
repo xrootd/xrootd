@@ -84,43 +84,42 @@ XrdOssArcRecompose::XrdOssArcRecompose(const char *path, int& rc, bool isW)
 
 // Duplicate the path and file dsn separator
 //
-   char *sepP, *dsnP;
+   char *sepP, *dsnP, *fnP;
    arcPath = strdup(path);   
-   if (!(sepP = index(arcPath, Config.mySep)) || *(sepP+1) != '/')
+   if (!(sepP = strstr(arcPath, Config.mySep))
+   || *(sepP+Config.mySepLen) != '/')
       {rc = EINVAL;
        return;
       }
 
 // Make sure the dsn and a path exist here
 //
-   *(sepP+1) = 0;
+   *sepP = 0;
+   fnP = sepP + Config.mySepLen + 1;
    dsnP = arcPath+Config.arcvPathLEN;
-   if ((int)strlen(dsnP) < minLenDSN || (int)strlen(sepP+2) < minLenFN)
+   if ((int)strlen(dsnP) < minLenDSN || (int)strlen(fnP) < minLenFN)
       {rc = EINVAL;
        return;
       }
 
 // Extract the dataset name, it does not include the separator character
-// Example: Directory: /archive/mydsn# Datasetname: mydsn
+// Example: Directory: /archive/mydsn<sep> Datasetname: mydsn
 //
-    *sepP   = 0;
     arcDSN = strdup(dsnP);
 
 // Extract out the directory name (see the convention comment). Note that
+// by convention the <sep> starts with a '%' (i.e. hex encoded string) and
 // we have checked that we have "<sep>/" which is why the code here works.
+// The result will be a two level directory scheme.
 //
-   char tmpC[4], seqC[4];
-   memcpy(tmpC, sepP, sizeof(tmpC));
-   *sepP      = '/';
-   *(sepP+1)  = Config.mySep;
-   *(sepP+2)  = '/';
-   *(sepP+3)  = 0;
-   memcpy(seqC, sepP, sizeof(seqC));
+   *sepP      = '/';   // This replaces '%'
+   char tmpC  = *fnP;  // Save first character of filename
+   *fnP       = 0;
 
-   arcDir     = strdup(arcPath); // <dataset_name>/<sep>/
+   arcDir     = strdup(arcPath); // /archive/<dataset_name>/<xx>/
 
-   memcpy(sepP, tmpC, sizeof(tmpC));
-   arcFile    = sepP+2;
+   *fnP       = tmpC;
+   arcFile    = fnP;
    rc = 0;
 
 // The arcDir is the directory path we will use to store the dataset files
@@ -131,9 +130,10 @@ XrdOssArcRecompose::XrdOssArcRecompose(const char *path, int& rc, bool isW)
 // dataset path and using it as the actual directory.
 //
    sepP = arcDir + Config.arcvPathLEN;
+   int n = strlen(arcDSN);
 
-   while(*sepP && memcmp(sepP, seqC, sizeof(seqC)))
-        {if (*sepP == '/') *sepP = Config.mySep;
+   while(*sepP && n--)
+        {if (*sepP == '/') *sepP = '#';
          sepP++;
         }
 
