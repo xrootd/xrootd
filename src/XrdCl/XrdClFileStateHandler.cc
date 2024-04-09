@@ -2879,18 +2879,19 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool FileStateHandler::IsRecoverable( const XRootDStatus &status ) const
   {
-    if( status.code == errSocketError || status.code == errInvalidSession ||
-        status.code == errTlsError || status.code == errSocketTimeout ||
-        status.code == errOperationInterrupted)
-    {
-      if( IsReadOnly() && !pDoRecoverRead )
-        return false;
+    const auto recoverable_errors = {
+      errSocketError,
+      errSocketTimeout,
+      errInvalidSession,
+      errTlsError,
+      errOperationInterrupted
+    };
 
-      if( !IsReadOnly() && !pDoRecoverWrite )
-        return false;
+    if (pDoRecoverRead || pDoRecoverWrite)
+      for (const auto error : recoverable_errors)
+        if (status.code == error)
+          return IsReadOnly() ? pDoRecoverRead : pDoRecoverWrite;
 
-      return true;
-    }
     return false;
   }
 
