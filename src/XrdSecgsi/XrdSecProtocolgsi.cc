@@ -4591,8 +4591,9 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
       }
    } else {
       if (CACheck > caNoVerify) {
-         // Check self-signature
-         if (!(verified = cca->CheckCA()))
+         // Check self-signature and fail if needed
+         bool checkselfsigned = (CACheck > caVerifyss) ? true : false;
+         if (!(verified = cca->CheckCA(checkselfsigned)))
             PRINT("CA certificate self-signed: integrity check failed ("<<xc->SubjectHash()<<")");
       } else {
          // Set OK in any case
