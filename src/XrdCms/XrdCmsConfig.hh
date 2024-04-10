@@ -107,6 +107,7 @@ int         P_io;         // % I/O Capacity in load factor
 int         P_load;       // % MSC Capacity in load factor
 int         P_mem;        // % MEM Capacity in load factor
 int         P_pag;        // % PAG Capacity in load factor
+int         P_randlb;      // enable weighed random load balancing
 
 char        DoMWChk;      // When true (default) perform multiple write check
 char        DoHnTry;      // When true (default) use hostnames for try redirs
