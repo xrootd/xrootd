@@ -35,6 +35,8 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <cmath>
+#include <random>
 
 #include "XProtocol/YProtocol.hh"
   
@@ -1786,10 +1788,15 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
     XrdCmsNode *np, *sp = 0;
     bool Multi = false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
-// Scan for a node (preset possible, suspended, overloaded, full, and dead)
-//
-   selR.Reset(); SelTcnt++;
-   for (int i = 0; i <= STHi; i++)
+    // Scan for a node (preset possible, suspended, overloaded, full, and dead)
+    //
+    selR.Reset(); SelTcnt++;
+    int selCap = 1;
+    int randomSel=1;
+    //default 0 to skip the node in random selection if the below checks fail
+    int *weighed = new int[STHi] {0};
+
+    for (int i = 0; i <= STHi; i++)
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {if (!(selR.needNet & np->hasNet))      {selR.xNoNet= true; continue;}
            selR.nPick++;
@@ -1800,7 +1807,17 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                                   || (reqSS && np->isNoStage)))
               {selR.xFull = true; continue;}
            if (!sp) sp = np;
-              else{if (selR.needSpace)
+              else{
+                 if (Config.P_randlb==1){
+                   //add 1 to the inverse load, this is to allow some selection in case reported loads hit 100
+                   weighed[i] = selCap + static_cast<int>(101 - np->myLoad +
+                     std::pow(101 - np->myLoad,
+                     std::log(100)-std::log(std::min(std::max(Config.P_fuzz,1),100)))/2);
+                   selCap += static_cast<int>(101 - np->myLoad +
+                     std::pow(101 - np->myLoad,
+                     std::log(100)-std::log(std::min(std::max(Config.P_fuzz,1),100)))/2);
+                 }
+                 else{if (selR.needSpace)
                       {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
                           {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
                           else if (sp->myMass > np->myMass)             sp=np;
@@ -1816,12 +1833,29 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                       }
                    Multi = true;
                   }
+               }
           }
-
+    if (Config.P_randlb==1){ 
+    // pick a random weighed node
+    //
+    std::random_device rand_dev;
+    std::mt19937 generator(rand_dev());
+    std::uniform_int_distribution<int> distr(randomSel,selCap);
+    randomSel = distr(generator);
+    for(int i=0;i<=STHi;i++){
+      if(randomSel<=weighed[i]){
+        sp=NodeTab[i];
+        break;
+      }
+    }
+    }
+   delete [] weighed;
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(selR);
+   if (Config.P_randlb!=1){
    RefCount(sp, Multi, selR.needSpace);
+   }
    return sp;
 }
 
