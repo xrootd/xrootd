@@ -2414,7 +2414,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ClassicCopyJob::ClassicCopyJob( uint16_t      jobId,
+  ClassicCopyJob::ClassicCopyJob( uint32_t      jobId,
                                   PropertyList *jobProperties,
                                   PropertyList *jobResults ):
     CopyJob( jobId, jobProperties, jobResults )
