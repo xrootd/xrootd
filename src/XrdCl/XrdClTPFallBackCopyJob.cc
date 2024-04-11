@@ -35,7 +35,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  TPFallBackCopyJob::TPFallBackCopyJob( uint16_t      jobId,
+  TPFallBackCopyJob::TPFallBackCopyJob( uint32_t      jobId,
                                         PropertyList *jobProperties,
                                         PropertyList *jobResults ):
     CopyJob( jobId, jobProperties, jobResults ),
