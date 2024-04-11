@@ -33,7 +33,7 @@
 
 /** @brief This code is based on the basic architecture shown in
  *
- *  @file   XrdHttpVoms.cc
+ *  @file   XrdVomsHttp.cc
  *  @author Fabrizio Furano
  *  @date   November 2013
  */
