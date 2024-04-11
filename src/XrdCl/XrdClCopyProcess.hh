@@ -51,8 +51,8 @@ namespace XrdCl
       //! @param source         the source url of the current job
       //! @param destination    the destination url of the current job
       //------------------------------------------------------------------------
-      virtual void BeginJob( uint16_t   jobNum,
-                             uint16_t   jobTotal,
+      virtual void BeginJob( uint32_t   jobNum,
+                             uint32_t   jobTotal,
                              const URL *source,
                              const URL *destination )
       {
@@ -65,7 +65,7 @@ namespace XrdCl
       //! @param jobNum job number
       //! @param result result of the job
       //------------------------------------------------------------------------
-      virtual void EndJob( uint16_t            jobNum,
+      virtual void EndJob( uint32_t            jobNum,
                            const PropertyList *result )
       {
         (void)jobNum; (void)result;
@@ -79,7 +79,7 @@ namespace XrdCl
       //! @param bytesTotal     total number of bytes to be processed by the 
       //!                       current job
       //------------------------------------------------------------------------
-      virtual void JobProgress( uint16_t jobNum,
+      virtual void JobProgress( uint32_t jobNum,
                                 uint64_t bytesProcessed,
                                 uint64_t bytesTotal )
       {
@@ -89,7 +89,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Determine whether the job should be canceled
       //------------------------------------------------------------------------
-      virtual bool ShouldCancel( uint16_t jobNum )
+      virtual bool ShouldCancel( uint32_t jobNum )
       {
         (void)jobNum;
         return false;
@@ -126,7 +126,7 @@ namespace XrdCl
       //! Configuration properties:
       //! source         [string]   - original source URL
       //! target         [string]   - target directory or file
-      //! sourceLimit    [uint16_t] - maximum number sources
+      //! sourceLimit    [uint32_t] - maximum number sources
       //! force          [bool]     - overwrite target if exists
       //! posc           [bool]     - persistify only on successful close
       //! coerce         [bool]     - ignore locking semantics on destination
