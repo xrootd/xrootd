@@ -1435,7 +1435,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     // End job
     //--------------------------------------------------------------------------
-    virtual void EndJob( uint16_t jobNum, const XrdCl::PropertyList *results )
+    virtual void EndJob( uint32_t jobNum, const XrdCl::PropertyList *results )
     {
       JobProgress( jobNum, pBytesProcessed, pBytesTotal );
       std::cerr << std::endl;
@@ -1444,7 +1444,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     // Job progress
     //--------------------------------------------------------------------------
-    virtual void JobProgress( uint16_t jobNum,
+    virtual void JobProgress( uint32_t jobNum,
                               uint64_t bytesProcessed,
                               uint64_t bytesTotal )
     {
