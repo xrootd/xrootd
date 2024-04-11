@@ -153,7 +153,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ThirdPartyCopyJob::ThirdPartyCopyJob( uint16_t      jobId,
+  ThirdPartyCopyJob::ThirdPartyCopyJob( uint32_t      jobId,
                                         PropertyList *jobProperties,
                                         PropertyList *jobResults ):
     CopyJob( jobId, jobProperties, jobResults ),
