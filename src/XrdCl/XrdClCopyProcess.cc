@@ -48,8 +48,8 @@ namespace
     public:
       QueuedCopyJob( XrdCl::CopyJob             *job,
                      XrdCl::CopyProgressHandler *progress,
-                     uint16_t                    currentJob,
-                     uint16_t                    totalJobs,
+                     uint32_t                    currentJob,
+                     uint32_t                    totalJobs,
                      XrdSysSemaphore            *sem = 0 ):
         pJob(job), pProgress(progress), pCurrentJob(currentJob),
         pTotalJobs(totalJobs), pSem(sem),
@@ -188,8 +188,8 @@ namespace
     private:
       XrdCl::CopyJob             *pJob;
       XrdCl::CopyProgressHandler *pProgress;
-      uint16_t                    pCurrentJob;
-      uint16_t                    pTotalJobs;
+      uint32_t                    pCurrentJob;
+      uint32_t                    pTotalJobs;
       XrdSysSemaphore            *pSem;
       int                         pWrtRetryCnt;
       int                         pRetryCnt;
@@ -518,8 +518,8 @@ namespace XrdCl
     // Run the show
     //--------------------------------------------------------------------------
     std::vector<CopyJob *>::iterator it;
-    uint16_t currentJob = 1;
-    uint16_t totalJobs  = pImpl->pJobs.size();
+    uint32_t currentJob = 1;
+    uint32_t totalJobs  = pImpl->pJobs.size();
 
     //--------------------------------------------------------------------------
     // Single thread
@@ -548,8 +548,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else
     {
-      uint16_t workers = std::min( (uint16_t)parallelThreads,
-                                   (uint16_t)pImpl->pJobs.size() );
+      uint32_t workers = std::min( (uint32_t)parallelThreads,
+                                   (uint32_t)pImpl->pJobs.size() );
       JobManager jm( workers );
       jm.Initialize();
       if( !jm.Start() )
