@@ -408,7 +408,7 @@ void AdjustFileInfo( XrdCpFile *file )
 //------------------------------------------------------------------------------
 XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
                         std::string        basePath,
-                        uint16_t           dirOffset )
+                        long               dirOffset )
 {
   using namespace XrdCl;
 
