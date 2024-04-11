@@ -33,7 +33,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ThirdPartyCopyJob( uint16_t      jobId,
+      ThirdPartyCopyJob( uint32_t      jobId,
                          PropertyList *jobProperties,
                          PropertyList *jobResults );
 
