@@ -183,7 +183,7 @@ xrdreplay recording.cvs
 # =============================================
 ```
 Most of the output fields are self-explaining. <em>Performance Mark</em> puts the original run-time to the achieved run-time into relation.
-The <Gain Marks> indicates if the IO could potentially be run faster than given by the recording (when > 100%). The <em>Synchronicity</em> measures the amount of IO requests within a given file are overlapping between request and response. A value of 100% indicates synchronous IO, a value towards 0 indicates asynchronous IO. This value does not measure parallelism between files.
+The `<Gain Marks>` indicates if the IO could potentially be run faster than given by the recording (when > 100%). The <em>Synchronicity</em> measures the amount of IO requests within a given file are overlapping between request and response. A value of 100% indicates synchronous IO, a value towards 0 indicates asynchronous IO. This value does not measure parallelism between files.
 
 In case of IO errors you will see a response error counter != 0 and a shell return code of -5 (251).
 ```bash
