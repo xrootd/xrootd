@@ -145,7 +145,7 @@ namespace XrdCl
       //! Check if peer supports tpc
       //------------------------------------------------------------------------
       static XRootDStatus CheckTPC( const std::string &server,
-                                    uint16_t           timeout = 0 );
+                                    time_t             timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Check if peer supports tpc / tpc lite
@@ -154,7 +154,7 @@ namespace XrdCl
       //!           supported, stError otherwise
       //------------------------------------------------------------------------
       static XRootDStatus CheckTPCLite( const std::string &server,
-                                        uint16_t           timeout = 0 );
+                                        time_t             timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Convert the fully qualified host name to country code

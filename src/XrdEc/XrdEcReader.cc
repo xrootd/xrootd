@@ -89,11 +89,11 @@ namespace XrdEc
       // @return       :  status of the operation
       //-----------------------------------------------------------------------
       XrdCl::XRootDStatus RunImpl( XrdCl::PipelineHandler *handler,
-                                   uint16_t                pipelineTimeout )
+                                   time_t                  pipelineTimeout )
       {
         std::string      url     = std::get<UrlArg>( this->args ).Get();
         bool             updt    = std::get<UpdtArg>( this->args ).Get();
-        uint16_t         timeout = pipelineTimeout < this->timeout ?
+        time_t           timeout = pipelineTimeout < this->timeout ?
                                    pipelineTimeout : this->timeout;
         return this->zip->OpenOnly( url, updt, handler, timeout );
       }
@@ -105,7 +105,7 @@ namespace XrdEc
   inline OpenOnlyImpl<false> OpenOnly( XrdCl::Ctx<XrdCl::ZipArchive> zip,
                                        XrdCl::Arg<std::string>       fn,
                                        XrdCl::Arg<bool>              updt,
-                                       uint16_t                      timeout = 0 )
+                                       time_t                        timeout = 0 )
   {
     return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ),
                                 std::move( updt ) ).Timeout( timeout );
@@ -155,7 +155,7 @@ namespace XrdEc
                       uint32_t                  size,
                       char                     *usrbuff,
                       callback_t                usrcb,
-                      uint16_t                  timeout )
+                      time_t                    timeout )
     {
       std::unique_lock<std::mutex> lck( self->mtx );
 
@@ -431,7 +431,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   // Open the erasure coded / striped object
   //---------------------------------------------------------------------------
-  void Reader::Open( XrdCl::ResponseHandler *handler, uint16_t timeout )
+  void Reader::Open( XrdCl::ResponseHandler *handler, time_t timeout )
   {
     const size_t size = objcfg.plgr.size();
     std::vector<XrdCl::Pipeline> opens; opens.reserve( size );
@@ -491,7 +491,7 @@ namespace XrdEc
                      uint32_t                length,
                      void                   *buffer,
                      XrdCl::ResponseHandler *handler,
-                     uint16_t                timeout )
+                     time_t                  timeout )
   {
     if( objcfg.nomtfile )
     {
@@ -585,7 +585,7 @@ namespace XrdEc
   //-----------------------------------------------------------------------
   // Close the data object
   //-----------------------------------------------------------------------
-  void Reader::Close( XrdCl::ResponseHandler *handler, uint16_t timeout )
+  void Reader::Close( XrdCl::ResponseHandler *handler, time_t timeout )
   {
     //---------------------------------------------------------------------
     // prepare the pipelines ...
@@ -613,7 +613,7 @@ namespace XrdEc
   //-------------------------------------------------------------------------
   // on-definition is not allowed here beforeiven stripes from given block
   //-------------------------------------------------------------------------
-  void Reader::Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, uint16_t timeout )
+  void Reader::Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, time_t timeout )
   {
     // generate the file name (blknb/strpnb)
     std::string fn = objcfg.GetFileName( blknb, strpnb );
@@ -851,7 +851,7 @@ namespace XrdEc
 	                 };
   }
 
-  void Reader::MissingVectorRead(std::shared_ptr<block_t> &currentBlock, size_t blkid, size_t strpid, uint16_t timeout){
+  void Reader::MissingVectorRead(std::shared_ptr<block_t> &currentBlock, size_t blkid, size_t strpid, time_t timeout){
 	  {
 		std::unique_lock<std::mutex> lk(missingChunksMutex);
 		missingChunksVectorRead.emplace_back(
@@ -865,7 +865,7 @@ namespace XrdEc
   }
 
 
-  void Reader::VectorRead(const XrdCl::ChunkList &chunks, void *buffer, XrdCl::ResponseHandler *handler, uint16_t timeout){
+  void Reader::VectorRead(const XrdCl::ChunkList &chunks, void *buffer, XrdCl::ResponseHandler *handler, time_t timeout){
 	  if(chunks.size() > 1024) {
 		  if(handler) handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs, XrdCl::errInvalidArgs), nullptr);
 		  return;
