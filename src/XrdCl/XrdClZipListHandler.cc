@@ -60,7 +60,7 @@ namespace XrdCl
         delete this;
       return;
     }
-    uint16_t left = pTimeout - took;
+    time_t left = pTimeout - took;
 
     switch( pStep )
     {
