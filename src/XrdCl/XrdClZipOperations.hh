@@ -107,11 +107,11 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         std::string      &url     = std::get<UrlArg>( this->args ).Get();
         OpenFlags::Flags  flags   = std::get<FlagsArg>( this->args ).Get();
-        uint16_t          timeout = pipelineTimeout < this->timeout ?
+        time_t            timeout = pipelineTimeout < this->timeout ?
                                    pipelineTimeout : this->timeout;
         return this->zip->OpenArchive( url, flags, handler, timeout );
       }
@@ -121,7 +121,7 @@ namespace XrdCl
   //! Factory for creating OpenArchiveImpl objects
   //----------------------------------------------------------------------------
   inline OpenArchiveImpl<false> OpenArchive( Ctx<ZipArchive> zip, Arg<std::string> fn,
-      Arg<OpenFlags::Flags> flags, uint16_t timeout = 0 )
+      Arg<OpenFlags::Flags> flags, time_t timeout = 0 )
   {
     return OpenArchiveImpl<false>( std::move( zip ), std::move( fn ),
                                    std::move( flags ) ).Timeout( timeout );
@@ -165,7 +165,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         std::string      &fn      = std::get<FnArg>( this->args ).Get();
         OpenFlags::Flags  flags   = std::get<FlagsArg>( this->args ).Get();
@@ -183,7 +183,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   inline OpenFileImpl<false> OpenFile( Ctx<ZipArchive> zip, Arg<std::string> fn,
       Arg<OpenFlags::Flags> flags = OpenFlags::None, Arg<uint64_t> size = 0,
-      Arg<uint32_t> crc32 = 0, uint16_t timeout = 0 )
+      Arg<uint32_t> crc32 = 0, time_t timeout = 0 )
   {
     return OpenFileImpl<false>( std::move( zip ), std::move( fn ), std::move( flags ),
         std::move( size ), std::move( crc32 ) ).Timeout( timeout );
@@ -227,12 +227,12 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         uint64_t  offset  = std::get<OffsetArg>( this->args ).Get();
         uint32_t  size    = std::get<SizeArg>( this->args ).Get();
         void     *buffer  = std::get<BufferArg>( this->args ).Get();
-        uint16_t  timeout = pipelineTimeout < this->timeout ?
+        time_t    timeout = pipelineTimeout < this->timeout ?
                             pipelineTimeout : this->timeout;
         return this->zip->Read( offset, size, buffer, handler, timeout );
       }
@@ -242,7 +242,7 @@ namespace XrdCl
   //! Factory for creating ArchiveReadImpl objects
   //----------------------------------------------------------------------------
   inline ZipReadImpl<false> Read( Ctx<ZipArchive> zip, Arg<uint64_t> offset, Arg<uint32_t> size,
-                                  Arg<void*> buffer, uint16_t timeout = 0 )
+                                  Arg<void*> buffer, time_t timeout = 0 )
   {
     return ZipReadImpl<false>( std::move( zip ), std::move( offset ), std::move( size ),
                                std::move( buffer ) ).Timeout( timeout );
@@ -284,13 +284,13 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         std::string &fn = std::get<FileNameArg>( this->args ).Get();
         uint64_t     offset  = std::get<OffsetArg>( this->args ).Get();
         uint32_t     size    = std::get<SizeArg>( this->args ).Get();
         void        *buffer  = std::get<BufferArg>( this->args ).Get();
-        uint16_t     timeout = pipelineTimeout < this->timeout ?
+        time_t       timeout = pipelineTimeout < this->timeout ?
                             pipelineTimeout : this->timeout;
         return this->zip->ReadFrom( fn, offset, size, buffer, handler, timeout );
       }
@@ -301,7 +301,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   inline ZipReadFromImpl<false> ReadFrom( Ctx<ZipArchive> zip, Arg<std::string> fn,
                                   Arg<uint64_t> offset, Arg<uint32_t> size,
-                                  Arg<void*> buffer, uint16_t timeout = 0 )
+                                  Arg<void*> buffer, time_t timeout = 0 )
   {
     return ZipReadFromImpl<false>( std::move( zip ), std::move( fn ), std::move( offset ),
                                    std::move( size ), std::move( buffer ) ).Timeout( timeout );
@@ -345,11 +345,11 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         uint32_t    size    = std::get<SizeArg>( this->args ).Get();
         const void *buffer  = std::get<BufferArg>( this->args ).Get();
-        uint16_t    timeout = pipelineTimeout < this->timeout ?
+        time_t      timeout = pipelineTimeout < this->timeout ?
                               pipelineTimeout : this->timeout;
         return this->zip->Write( size, buffer, handler, timeout );
       }
@@ -359,7 +359,7 @@ namespace XrdCl
   //! Factory for creating ArchiveReadImpl objects
   //----------------------------------------------------------------------------
   inline ZipWriteImpl<false> Write( Ctx<ZipArchive> zip, Arg<uint32_t> size, Arg<const void*> buffer,
-                                    uint16_t timeout = 0 )
+                                    time_t timeout = 0 )
   {
     return ZipWriteImpl<false>( std::move( zip ), std::move( size ),
                                 std::move( buffer ) ).Timeout( timeout );
@@ -403,13 +403,13 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         std::string &fn      = std::get<FnArg>( this->args ).Get();
         uint32_t     crc32   = std::get<CrcArg>( this->args ).Get();
         uint32_t     size    = std::get<SizeArg>( this->args ).Get();
         const void  *buffer  = std::get<BufferArg>( this->args ).Get();
-        uint16_t     timeout = pipelineTimeout < this->timeout ?
+        time_t       timeout = pipelineTimeout < this->timeout ?
                               pipelineTimeout : this->timeout;
         return this->zip->AppendFile( fn, crc32, size, buffer, handler, timeout );
       }
@@ -420,7 +420,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   inline AppendFileImpl<false> AppendFile( Ctx<ZipArchive> zip, Arg<std::string> fn,
                                            Arg<uint32_t> crc32, Arg<uint32_t> size,
-                                           Arg<const void*> buffer, uint16_t timeout = 0 )
+                                           Arg<const void*> buffer, time_t timeout = 0 )
   {
     return AppendFileImpl<false>( std::move( zip ), std::move( fn ), std::move( crc32 ),
                                   std::move( size ), std::move( buffer ) ).Timeout( timeout );
@@ -464,7 +464,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         XRootDStatus st = this->zip->CloseFile();
         if( !st.IsOK() ) return st;
@@ -505,7 +505,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         StatInfo *info = nullptr;
         XRootDStatus st = this->zip->Stat( info );
@@ -556,7 +556,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         DirectoryList *list = nullptr;
         XRootDStatus st = this->zip->List( list );
@@ -607,9 +607,9 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
-        uint16_t timeout = pipelineTimeout < this->timeout ?
+        time_t   timeout = pipelineTimeout < this->timeout ?
                            pipelineTimeout : this->timeout;
         return this->zip->CloseArchive( handler, timeout );
       }
@@ -618,7 +618,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating CloseFileImpl objects
   //----------------------------------------------------------------------------
-  inline CloseArchiveImpl<false> CloseArchive( Ctx<ZipArchive> zip, uint16_t timeout = 0 )
+  inline CloseArchiveImpl<false> CloseArchive( Ctx<ZipArchive> zip, time_t timeout = 0 )
   {
     return CloseArchiveImpl<false>( std::move( zip ) ).Timeout( timeout );
   }
