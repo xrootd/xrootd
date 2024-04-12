@@ -275,7 +275,7 @@ namespace XrdCl
       XrdNetAddr                     pSockAddr;
       std::unique_ptr<HandShakeData> pHandShakeData;
       bool                           pHandShakeDone;
-      uint16_t                       pTimeoutResolution;
+      time_t                         pTimeoutResolution;
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
       time_t                         pLastActivity;
