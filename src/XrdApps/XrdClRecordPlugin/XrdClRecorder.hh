@@ -265,7 +265,7 @@ public:
                             OpenFlags::Flags flags,
                             Access::Mode mode,
                             ResponseHandler* handler,
-                            uint16_t timeout)
+                            time_t timeout)
   {
     std::unique_ptr<Action> ptr( new OpenAction( this, url, flags, mode, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -276,7 +276,7 @@ public:
   //! Close
   //----------------------------------------------------------------------------
   virtual XRootDStatus Close(ResponseHandler* handler,
-                             uint16_t         timeout)
+                             time_t           timeout)
   {
     std::unique_ptr<Action> ptr( new CloseAction( this, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -288,7 +288,7 @@ public:
   //----------------------------------------------------------------------------
   virtual XRootDStatus Stat(bool             force,
                             ResponseHandler* handler,
-                            uint16_t         timeout)
+                            time_t           timeout)
   {
     std::unique_ptr<Action> ptr( new StatAction( this, force, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -303,7 +303,7 @@ public:
                             uint32_t         size,
                             void*            buffer,
                             ResponseHandler* handler,
-                            uint16_t         timeout)
+                            time_t           timeout)
   {
     std::unique_ptr<Action> ptr( new ReadAction( this, offset, size, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -317,7 +317,7 @@ public:
                              uint32_t         size,
                              const void*      buffer,
                              ResponseHandler* handler,
-                             uint16_t         timeout)
+                             time_t           timeout)
   {
     std::unique_ptr<Action> ptr( new WriteAction( this, offset, size, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -331,7 +331,7 @@ public:
                                uint32_t         size,
                                void            *buffer,
                                ResponseHandler *handler,
-                               uint16_t         timeout )
+                               time_t           timeout )
   {
     std::unique_ptr<Action> ptr( new PgReadAction( this, offset, size, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -346,7 +346,7 @@ public:
                                 const void            *buffer,
                                 std::vector<uint32_t> &cksums,
                                 ResponseHandler       *handler,
-                                uint16_t               timeout )
+                                time_t                 timeout )
   {
     std::unique_ptr<Action> ptr( new PgWriteAction( this, offset, size, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -357,7 +357,7 @@ public:
   //! Sync
   //----------------------------------------------------------------------------
   virtual XRootDStatus Sync(ResponseHandler* handler,
-                            uint16_t         timeout)
+                            time_t           timeout)
   {
     std::unique_ptr<Action> ptr( new SyncAction( this, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -369,7 +369,7 @@ public:
   //----------------------------------------------------------------------------
   virtual XRootDStatus Truncate(uint64_t         size,
                                 ResponseHandler* handler,
-                                uint16_t         timeout)
+                                time_t           timeout)
   {
     std::unique_ptr<Action> ptr( new TruncateAction( this, size, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -382,7 +382,7 @@ public:
   virtual XRootDStatus VectorRead(const ChunkList& chunks,
                                   void*            buffer,
                                   ResponseHandler* handler,
-                                  uint16_t         timeout)
+                                  time_t           timeout)
   {
     std::unique_ptr<Action> ptr( new VectorReadAction( this, chunks, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -394,7 +394,7 @@ public:
   //----------------------------------------------------------------------------
   virtual XRootDStatus VectorWrite( const ChunkList &chunks,
                                     ResponseHandler *handler,
-                                    uint16_t         timeout )
+                                    time_t           timeout )
   {
     std::unique_ptr<Action> ptr( new VectorWriteAction( this, chunks, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -406,7 +406,7 @@ public:
   //----------------------------------------------------------------------------
   virtual XRootDStatus Fcntl(const Buffer&    arg,
                              ResponseHandler* handler,
-                             uint16_t         timeout)
+                             time_t           timeout)
   {
     std::unique_ptr<Action> ptr( new FcntlAction( this, arg, timeout ) );
     RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
@@ -417,7 +417,7 @@ public:
   //! Visa
   //----------------------------------------------------------------------------
   virtual XRootDStatus Visa(ResponseHandler* handler,
-                            uint16_t         timeout)
+                            time_t           timeout)
   {
     return file.Visa(handler, timeout);
   }

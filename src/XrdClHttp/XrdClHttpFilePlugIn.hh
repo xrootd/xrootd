@@ -42,20 +42,20 @@ class HttpFilePlugIn : public FilePlugIn {
                              OpenFlags::Flags   flags,
                              Access::Mode       mode,
                              ResponseHandler   *handler,
-                             uint16_t           timeout ) override;
+                             time_t             timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::Close
   //------------------------------------------------------------------------
   virtual XRootDStatus Close( ResponseHandler *handler,
-                              uint16_t         timeout ) override;
+                              time_t           timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::Stat
   //------------------------------------------------------------------------
   virtual XRootDStatus Stat( bool             force,
                              ResponseHandler *handler,
-                             uint16_t         timeout ) override;
+                             time_t           timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::Read
@@ -64,7 +64,7 @@ class HttpFilePlugIn : public FilePlugIn {
                              uint32_t         size,
                              void            *buffer,
                              ResponseHandler *handler,
-                             uint16_t         timeout ) override;
+                             time_t           timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::PgRead - async
@@ -73,7 +73,7 @@ class HttpFilePlugIn : public FilePlugIn {
                                uint32_t         size,
                                void            *buffer,
                                ResponseHandler *handler,
-                               uint16_t         timeout ) override;
+                               time_t           timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::Write
@@ -82,7 +82,7 @@ class HttpFilePlugIn : public FilePlugIn {
                               uint32_t         size,
                               const void      *buffer,
                               ResponseHandler *handler,
-                              uint16_t         timeout ) override;
+                              time_t           timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::PgWrite - async
@@ -92,13 +92,13 @@ class HttpFilePlugIn : public FilePlugIn {
                                 const void            *buffer,
                                 std::vector<uint32_t> &cksums,
                                 ResponseHandler       *handler,
-                                uint16_t               timeout ) override;
+                                time_t                 timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::Sync
   //------------------------------------------------------------------------
   virtual XRootDStatus Sync( ResponseHandler *handler,
-                             uint16_t         timeout ) override;
+                             time_t           timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::VectorRead
@@ -106,7 +106,7 @@ class HttpFilePlugIn : public FilePlugIn {
   virtual XRootDStatus VectorRead( const ChunkList &chunks,
                                    void            *buffer,
                                    XrdCl::ResponseHandler *handler,
-                                   uint16_t         timeout ) override;
+                                   time_t           timeout ) override;
 
   //------------------------------------------------------------------------
   //! @see XrdCl::File::IsOpen
