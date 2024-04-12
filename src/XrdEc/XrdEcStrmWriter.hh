@@ -84,7 +84,7 @@ namespace XrdEc
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
-      void Open( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
+      void Open( XrdCl::ResponseHandler *handler, time_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Write data to the data object
@@ -100,7 +100,7 @@ namespace XrdEc
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
-      void Close( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
+      void Close( XrdCl::ResponseHandler *handler, time_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! @return : get file size
@@ -162,7 +162,7 @@ namespace XrdEc
         //---------------------------------------------------------------------
         // Indicate that the user issued close
         //---------------------------------------------------------------------
-        void issue_close( XrdCl::ResponseHandler *handler, uint16_t timeout )
+        void issue_close( XrdCl::ResponseHandler *handler, time_t timeout )
         {
           std::unique_lock<std::recursive_mutex> lck( mtx );
           //-------------------------------------------------------------------
@@ -279,7 +279,7 @@ namespace XrdEc
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
-      void CloseImpl( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
+      void CloseImpl( XrdCl::ResponseHandler *handler, time_t timeout = 0 );
 
       const ObjCfg                                    &objcfg;
       std::unique_ptr<WrtBuff>                         wrtbuff;            //< current write buffer

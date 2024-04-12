@@ -82,7 +82,7 @@ namespace XrdEc
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
-      void Open( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
+      void Open( XrdCl::ResponseHandler *handler, time_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Read data from the data object
@@ -96,7 +96,7 @@ namespace XrdEc
                  uint32_t                length,
                  void                   *buffer,
                  XrdCl::ResponseHandler *handler,
-                 uint16_t                timeout );
+                 time_t                  timeout );
 
       /*
        * Read multiple locations and lengths of data
@@ -108,12 +108,12 @@ namespace XrdEc
       void VectorRead( 	const XrdCl::ChunkList 	&chunks,
     		  	  	  	void 					*buffer,
 					    XrdCl::ResponseHandler 	*handler,
-						uint16_t 				timeout);
+						time_t   				timeout);
 
       //-----------------------------------------------------------------------
       //! Close the data object
       //-----------------------------------------------------------------------
-      void Close( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
+      void Close( XrdCl::ResponseHandler *handler, time_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! @return : get file size
@@ -134,7 +134,7 @@ namespace XrdEc
       //! @param cb      : callback
       //! @param timeout : operation timeout
       //-----------------------------------------------------------------------
-      void Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, uint16_t timeout = 0 );
+      void Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, time_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Read metadata for the object
@@ -171,7 +171,7 @@ namespace XrdEc
 
       inline static callback_t ErrorCorrected(Reader *reader, std::shared_ptr<block_t> &self, size_t blkid, size_t strpid);
 
-      void MissingVectorRead(std::shared_ptr<block_t> &block, size_t blkid, size_t strpid, uint16_t timeout = 0);
+      void MissingVectorRead(std::shared_ptr<block_t> &block, size_t blkid, size_t strpid, time_t timeout = 0);
 
       typedef std::unordered_map<std::string, std::shared_ptr<XrdCl::ZipArchive>> dataarchs_t;
       typedef std::unordered_map<std::string, buffer_t> metadata_t;
