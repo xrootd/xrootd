@@ -67,7 +67,7 @@ namespace
                                  OpenFlags::Flags   flags,
                                  Access::Mode       mode,
                                  ResponseHandler   *handler,
-                                 uint16_t           timeout )
+                                 time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Open" );
@@ -78,7 +78,7 @@ namespace
       // Close
       //------------------------------------------------------------------------
       virtual XRootDStatus Close( ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Close" );
@@ -90,7 +90,7 @@ namespace
       //------------------------------------------------------------------------
       virtual XRootDStatus Stat( bool             force,
                                  ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Stat" );
@@ -105,7 +105,7 @@ namespace
                                  uint32_t         size,
                                  void            *buffer,
                                  ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Read" );
@@ -119,7 +119,7 @@ namespace
                                   uint32_t         size,
                                   const void      *buffer,
                                   ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Write" );
@@ -130,7 +130,7 @@ namespace
       // Sync
       //------------------------------------------------------------------------
       virtual XRootDStatus Sync( ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Sync" );
@@ -142,7 +142,7 @@ namespace
       //------------------------------------------------------------------------
       virtual XRootDStatus Truncate( uint64_t         size,
                                      ResponseHandler *handler,
-                                     uint16_t         timeout )
+                                     time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Truncate" );
@@ -155,7 +155,7 @@ namespace
       virtual XRootDStatus VectorRead( const ChunkList &chunks,
                                        void            *buffer,
                                        ResponseHandler *handler,
-                                       uint16_t         timeout )
+                                       time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::VectorRead" );
@@ -167,7 +167,7 @@ namespace
       //------------------------------------------------------------------------
       virtual XRootDStatus Fcntl( const Buffer    &arg,
                                   ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Fcntl" );
@@ -178,7 +178,7 @@ namespace
       // Visa
       //------------------------------------------------------------------------
       virtual XRootDStatus Visa( ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFile::Visa" );
@@ -253,7 +253,7 @@ namespace
       virtual XRootDStatus Locate( const std::string &path,
                                    OpenFlags::Flags   flags,
                                    ResponseHandler   *handler,
-                                   uint16_t           timeout )
+                                   time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Locate" );
@@ -266,7 +266,7 @@ namespace
       virtual XRootDStatus Mv( const std::string &source,
                                const std::string &dest,
                                ResponseHandler   *handler,
-                               uint16_t           timeout )
+                               time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Mv" );
@@ -279,7 +279,7 @@ namespace
       virtual XRootDStatus Query( QueryCode::Code  queryCode,
                                   const Buffer    &arg,
                                   ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Query" );
@@ -292,7 +292,7 @@ namespace
       virtual XRootDStatus Truncate( const std::string &path,
                                      uint64_t           size,
                                      ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Truncate" );
@@ -304,7 +304,7 @@ namespace
       //------------------------------------------------------------------------
       virtual XRootDStatus Rm( const std::string &path,
                                ResponseHandler   *handler,
-                               uint16_t           timeout )
+                               time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Rm" );
@@ -318,7 +318,7 @@ namespace
                                   MkDirFlags::Flags  flags,
                                   Access::Mode       mode,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::MkDir" );
@@ -330,7 +330,7 @@ namespace
       //------------------------------------------------------------------------
       virtual XRootDStatus RmDir( const std::string &path,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::RmDir" );
@@ -343,7 +343,7 @@ namespace
       virtual XRootDStatus ChMod( const std::string &path,
                                   Access::Mode       mode,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::ChMod" );
@@ -354,7 +354,7 @@ namespace
       // Ping
       //------------------------------------------------------------------------
       virtual XRootDStatus Ping( ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Ping" );
@@ -366,7 +366,7 @@ namespace
       //------------------------------------------------------------------------
       virtual XRootDStatus Stat( const std::string &path,
                                  ResponseHandler   *handler,
-                                 uint16_t           timeout )
+                                 time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Stat" );
@@ -378,7 +378,7 @@ namespace
       //------------------------------------------------------------------------
       virtual XRootDStatus StatVFS( const std::string &path,
                                     ResponseHandler   *handler,
-                                    uint16_t           timeout )
+                                    time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::StatVFS" );
@@ -389,7 +389,7 @@ namespace
       // Protocol
       //------------------------------------------------------------------------
       virtual XRootDStatus Protocol( ResponseHandler *handler,
-                                     uint16_t         timeout = 0 )
+                                     time_t           timeout = 0 )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Protocol" );
@@ -402,7 +402,7 @@ namespace
       virtual XRootDStatus DirList( const std::string   &path,
                                     DirListFlags::Flags  flags,
                                     ResponseHandler     *handler,
-                                    uint16_t             timeout )
+                                    time_t               timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::DirList" );
@@ -414,7 +414,7 @@ namespace
       //------------------------------------------------------------------------
       virtual XRootDStatus SendInfo( const std::string &info,
                                      ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::SendInfo" );
@@ -428,7 +428,7 @@ namespace
                                     PrepareFlags::Flags             flags,
                                     uint8_t                         priority,
                                     ResponseHandler                *handler,
-                                    uint16_t                        timeout )
+                                    time_t                          timeout )
       {
         XrdCl::Log *log = TestEnv::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Prepare" );

@@ -139,7 +139,7 @@ namespace XrdCl
 
       XRootDStatus Open( uint16_t           flags,
                          ResponseHandler   *handler,
-                         uint16_t           timeout )
+                         time_t             timeout )
       {
         if( ( flags & OpenFlags::Write ) || ( flags & OpenFlags::Update ) )
         {
@@ -180,7 +180,7 @@ namespace XrdCl
                          OpenFlags::Flags   flags,
                          Access::Mode       mode,
                          ResponseHandler   *handler,
-                         uint16_t           timeout )
+                         time_t             timeout )
       {
         (void)url; (void)mode;
         return Open( flags, handler, timeout );
@@ -191,7 +191,7 @@ namespace XrdCl
       //!
       //------------------------------------------------------------------------
       XRootDStatus Close( ResponseHandler *handler,
-                                 uint16_t                timeout )
+                                 time_t                  timeout )
       {
         if( writer )
         {
@@ -243,7 +243,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Stat( bool             force,
                          ResponseHandler *handler,
-                         uint16_t         timeout )
+                         time_t           timeout )
       {
 
         if( !objcfg->nomtfile )
@@ -284,7 +284,7 @@ namespace XrdCl
                                 uint32_t                size,
                                 void                   *buffer,
                                 ResponseHandler *handler,
-                                uint16_t                timeout )
+                                time_t                  timeout )
       {
         if( !reader ) return XRootDStatus( stError, errInternal );
     
@@ -297,7 +297,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus PgRead(uint64_t offset, uint32_t size, void *buffer,
                                     ResponseHandler *handler,
-                                    uint16_t timeout) 
+                                    time_t timeout)
       {
         ResponseHandler *substitHandler = new EcPgReadResponseHandler( handler );
         XRootDStatus st = Read(offset, size, buffer, substitHandler, timeout);
@@ -312,7 +312,7 @@ namespace XrdCl
                                  uint32_t                size,
                                  const void             *buffer,
                                  ResponseHandler *handler,
-                                 uint16_t                timeout )
+                                 time_t                  timeout )
       {
         if( cksHelper )
           cksHelper->Update( buffer, size );
@@ -332,7 +332,7 @@ namespace XrdCl
                             const void            *buffer,
                             std::vector<uint32_t> &cksums,
                             ResponseHandler       *handler,
-                            uint16_t               timeout = 0 )
+                            time_t                 timeout = 0 )
       {
         if(! cksums.empty() )
         {
