@@ -101,15 +101,15 @@ namespace PyXRootD
 
     val = XrdCl::DefaultCPInitTimeout;
     env->GetInt( "CPInitTimeout", val );
-    uint16_t initTimeout = val;
+    time_t initTimeout = val;
 
     val = XrdCl::DefaultCPTPCTimeout;
     env->GetInt( "CPTPCTimeout", val );
-    uint16_t tpcTimeout = val;
+    time_t tpcTimeout = val;
 
     val = XrdCl::DefaultCPTimeout;
     env->GetInt( "CPTimeout", val );
-    uint16_t cpTimeout = val;
+    time_t cpTimeout = val;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHbHLLLbs:add_job",
          (char**) kwlist,
