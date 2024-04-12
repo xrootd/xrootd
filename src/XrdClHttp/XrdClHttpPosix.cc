@@ -44,7 +44,7 @@ std::vector<std::string> SplitString(const std::string& input,
   return result;
 }
 
-void SetTimeout(Davix::RequestParams& params, uint16_t timeout) {
+void SetTimeout(Davix::RequestParams& params, time_t timeout) {
 /*
  * At NERSC archive portal, we get error when setOperationTimeout()
  *
@@ -199,7 +199,7 @@ using namespace XrdCl;
 
 std::pair<DAVIX_FD*, XRootDStatus> Open(Davix::DavPosix& davix_client,
                                         const std::string& url, int flags,
-                                        uint16_t timeout) {
+                                        time_t timeout) {
   Davix::RequestParams params;
   SetTimeout(params, timeout);
   SetAuthz(params);
@@ -231,7 +231,7 @@ XRootDStatus Close(Davix::DavPosix& davix_client, DAVIX_FD* fd) {
 
 XRootDStatus MkDir(Davix::DavPosix& davix_client, const std::string& path,
                    XrdCl::MkDirFlags::Flags flags, XrdCl::Access::Mode /*mode*/,
-                   uint16_t timeout) {
+                   time_t timeout) {
 
   return XRootDStatus();
 
@@ -280,7 +280,7 @@ XRootDStatus MkDir(Davix::DavPosix& davix_client, const std::string& path,
 }
 
 XRootDStatus RmDir(Davix::DavPosix& davix_client, const std::string& path,
-                   uint16_t timeout) {
+                   time_t timeout) {
   Davix::RequestParams params;
   SetTimeout(params, timeout);
   SetAuthz(params);
@@ -298,7 +298,7 @@ XRootDStatus RmDir(Davix::DavPosix& davix_client, const std::string& path,
 
 std::pair<XrdCl::DirectoryList*, XrdCl::XRootDStatus> DirList(
     Davix::DavPosix& davix_client, const std::string& path, bool details,
-    bool /*recursive*/, uint16_t timeout) {
+    bool /*recursive*/, time_t timeout) {
   Davix::RequestParams params;
   SetTimeout(params, timeout);
   SetAuthz(params);
@@ -354,7 +354,7 @@ std::pair<XrdCl::DirectoryList*, XrdCl::XRootDStatus> DirList(
 }
 
 XRootDStatus Rename(Davix::DavPosix& davix_client, const std::string& source,
-                    const std::string& dest, uint16_t timeout) {
+                    const std::string& dest, time_t timeout) {
 
   // most s3 storage systems either:
   // 1. do not support rename, especially for files that were uploaded using multi-part
@@ -379,7 +379,7 @@ XRootDStatus Rename(Davix::DavPosix& davix_client, const std::string& source,
 }
 
 XRootDStatus Stat(Davix::DavPosix& davix_client, const std::string& url,
-                  uint16_t timeout, StatInfo* stat_info) {
+                  time_t timeout, StatInfo* stat_info) {
   Davix::RequestParams params;
   SetTimeout(params, timeout);
   SetAuthz(params);
@@ -403,7 +403,7 @@ XRootDStatus Stat(Davix::DavPosix& davix_client, const std::string& url,
 }
 
 XRootDStatus Unlink(Davix::DavPosix& davix_client, const std::string& url,
-                    uint16_t timeout) {
+                    time_t timeout) {
   Davix::RequestParams params;
   SetTimeout(params, timeout);
   SetAuthz(params);
@@ -480,7 +480,7 @@ std::pair<int, XrdCl::XRootDStatus> PReadVec(Davix::DavPosix& davix_client,
 std::pair<int, XrdCl::XRootDStatus> PWrite(Davix::DavPosix& davix_client,
                                            DAVIX_FD* fd, uint64_t offset,
                                            uint32_t size, const void* buffer,
-                                           uint16_t timeout) {
+                                           time_t timeout) {
   Davix::DavixError* err = nullptr;
   off_t new_offset = davix_client.lseek(fd, offset, SEEK_SET, &err);
   if (uint64_t(new_offset) != offset) {
