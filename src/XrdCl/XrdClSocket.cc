@@ -182,7 +182,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus Socket::Connect( const std::string &host,
                                 uint16_t           port,
-                                uint16_t           timeout )
+                                time_t             timeout )
   {
     if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
       return XRootDStatus( stError, errInvalidOp );
@@ -210,7 +210,7 @@ namespace XrdCl
   // Connect to the given host
   //----------------------------------------------------------------------------
   XRootDStatus Socket::ConnectToAddress( const XrdNetAddr &addr,
-                                         uint16_t          timeout )
+                                         time_t            timeout )
   {
     if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
       return XRootDStatus( stError, errInvalidOp );

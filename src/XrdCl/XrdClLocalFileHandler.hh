@@ -49,7 +49,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Open( const std::string &url, uint16_t flags, uint16_t mode,
-          ResponseHandler *handler, uint16_t timeout = 0 );
+          ResponseHandler *handler, time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Handle local redirect to given URL triggered by the given request
@@ -64,7 +64,7 @@ namespace XrdCl
       //!                used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Close( ResponseHandler *handler, uint16_t timeout = 0 );
+      XRootDStatus Close( ResponseHandler *handler, time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Obtain status information for this file - async
@@ -76,7 +76,7 @@ namespace XrdCl
       //!                be used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Stat( ResponseHandler *handler, uint16_t timeout = 0 );
+      XRootDStatus Stat( ResponseHandler *handler, time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - sync
@@ -95,7 +95,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Read( uint64_t offset, uint32_t size, void *buffer,
-          ResponseHandler *handler, uint16_t timeout = 0 );
+          ResponseHandler *handler, time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Read data into scattered buffers in one operation - async
@@ -112,7 +112,7 @@ namespace XrdCl
                           struct iovec    *iov,
                           int              iovcnt,
                           ResponseHandler *handler,
-                          uint16_t         timeout = 0 );
+                          time_t           timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - async
@@ -126,7 +126,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Write( uint64_t offset, uint32_t size, const void *buffer,
-          ResponseHandler *handler, uint16_t timeout = 0 );
+          ResponseHandler *handler, time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Commit all pending disk writes - async
@@ -136,7 +136,7 @@ namespace XrdCl
       //!                used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Sync( ResponseHandler *handler, uint16_t timeout = 0 );
+      XRootDStatus Sync( ResponseHandler *handler, time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Truncate the file to a particular size - async
@@ -148,7 +148,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Truncate( uint64_t size, ResponseHandler *handler,
-          uint16_t timeout = 0 );
+          time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Read scattered data chunks in one operation - async
@@ -161,7 +161,7 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus VectorRead( const ChunkList &chunks, void *buffer,
-          ResponseHandler *handler, uint16_t timeout = 0 );
+          ResponseHandler *handler, time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Write scattered data chunks in one operation - async
@@ -173,7 +173,7 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus VectorWrite( const ChunkList &chunks,
-          ResponseHandler *handler, uint16_t timeout = 0 );
+          ResponseHandler *handler, time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Write scattered buffers in one operation - async
@@ -188,7 +188,7 @@ namespace XrdCl
       XRootDStatus WriteV( uint64_t            offset,
                            ChunkList          *chunks,
                            ResponseHandler    *handler,
-                           uint16_t            timeout = 0 );
+                           time_t              timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Queues a task to the jobmanager
@@ -213,7 +213,7 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Fcntl( const Buffer &arg, ResponseHandler *handler,
-          uint16_t timeout = 0 );
+          time_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Get access token to a file - async
@@ -225,7 +225,7 @@ namespace XrdCl
       //!                  be used
       //! @return          status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Visa( ResponseHandler *handler, uint16_t timeout = 0 );
+      XRootDStatus Visa( ResponseHandler *handler, time_t timeout = 0 );
 
 
       //------------------------------------------------------------------------
@@ -242,7 +242,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus SetXAttr( const std::vector<xattr_t> &attrs,
                              ResponseHandler            *handler,
-                             uint16_t                    timeout = 0 );
+                             time_t                      timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Get extended attributes - async
@@ -258,7 +258,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus GetXAttr( const std::vector<std::string> &attrs,
                              ResponseHandler                *handler,
-                             uint16_t                        timeout = 0 );
+                             time_t                          timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Delete extended attributes - async
@@ -274,7 +274,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus DelXAttr( const std::vector<std::string> &attrs,
                              ResponseHandler                *handler,
-                             uint16_t                        timeout = 0 );
+                             time_t                          timeout = 0 );
 
       //------------------------------------------------------------------------
       //! List extended attributes - async
@@ -288,7 +288,7 @@ namespace XrdCl
       //! @return        : status of the operation
       //------------------------------------------------------------------------
       XRootDStatus ListXAttr( ResponseHandler           *handler,
-                              uint16_t                   timeout = 0 );
+                              time_t                     timeout = 0 );
 
       //------------------------------------------------------------------------
       //! creates the directories specified in path
