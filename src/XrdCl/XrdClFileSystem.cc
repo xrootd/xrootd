@@ -54,7 +54,7 @@ namespace
 
       XrdCl::XRootDStatus Stat( const std::string       &path,
                                 XrdCl::ResponseHandler  *handler,
-                                uint16_t                 timeout )
+                                time_t                   timeout )
       {
         using namespace XrdCl;
 
@@ -93,7 +93,7 @@ namespace
 
       XrdCl::XRootDStatus Rm( const std::string       &path,
                               XrdCl::ResponseHandler  *handler,
-                              uint16_t                 timeout )
+                              time_t                   timeout )
       {
         using namespace XrdCl;
 
@@ -1135,7 +1135,7 @@ namespace XrdCl
   XRootDStatus FileSystem::Locate( const std::string &path,
                                    OpenFlags::Flags   flags,
                                    ResponseHandler   *handler,
-                                   uint16_t           timeout )
+                                   time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->Locate( path, flags, handler, timeout );
@@ -1164,7 +1164,7 @@ namespace XrdCl
   XRootDStatus FileSystem::Locate( const std::string  &path,
                                    OpenFlags::Flags    flags,
                                    LocationInfo      *&response,
-                                   uint16_t            timeout )
+                                   time_t              timeout )
   {
     SyncResponseHandler handler;
     Status st = Locate( path, flags, &handler, timeout );
@@ -1180,7 +1180,7 @@ namespace XrdCl
   XRootDStatus FileSystem::DeepLocate( const std::string &path,
                                        OpenFlags::Flags   flags,
                                        ResponseHandler   *handler,
-                                       uint16_t           timeout )
+                                       time_t             timeout )
   {
     return Locate( path, flags,
                    new DeepLocateHandler( handler, path, flags, timeout ), timeout );
@@ -1192,7 +1192,7 @@ namespace XrdCl
   XRootDStatus FileSystem::DeepLocate( const std::string  &path,
                                        OpenFlags::Flags    flags,
                                        LocationInfo      *&response,
-                                       uint16_t            timeout )
+                                       time_t              timeout )
   {
     SyncResponseHandler handler;
     Status st = DeepLocate( path, flags, &handler, timeout );
@@ -1208,7 +1208,7 @@ namespace XrdCl
   XRootDStatus FileSystem::Mv( const std::string &source,
                                const std::string &dest,
                                ResponseHandler   *handler,
-                               uint16_t           timeout )
+                               time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->Mv( source, dest, handler, timeout );
@@ -1239,7 +1239,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Mv( const std::string &source,
                                const std::string &dest,
-                               uint16_t           timeout )
+                               time_t             timeout )
   {
     SyncResponseHandler handler;
     Status st = Mv( source, dest, &handler, timeout );
@@ -1255,7 +1255,7 @@ namespace XrdCl
   XRootDStatus FileSystem::Query( QueryCode::Code  queryCode,
                                   const Buffer    &arg,
                                   ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
   {
     if( pPlugIn )
       return pPlugIn->Query( queryCode, arg, handler, timeout );
@@ -1281,7 +1281,7 @@ namespace XrdCl
   XRootDStatus FileSystem::Query( QueryCode::Code   queryCode,
                                   const Buffer     &arg,
                                   Buffer          *&response,
-                                  uint16_t          timeout )
+                                  time_t            timeout )
   {
     SyncResponseHandler handler;
     Status st = Query( queryCode, arg, &handler, timeout );
@@ -1297,7 +1297,7 @@ namespace XrdCl
   XRootDStatus FileSystem::Truncate( const std::string &path,
                                      uint64_t           size,
                                      ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->Truncate( path, size, handler, timeout );
@@ -1324,7 +1324,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Truncate( const std::string &path,
                                      uint64_t           size,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
   {
     SyncResponseHandler handler;
     Status st = Truncate( path, size, &handler, timeout );
@@ -1339,7 +1339,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Rm( const std::string &path,
                                ResponseHandler   *handler,
-                               uint16_t           timeout )
+                               time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->Rm( path, handler, timeout );
@@ -1367,7 +1367,7 @@ namespace XrdCl
   // Remove a file - sync
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Rm( const std::string &path,
-                               uint16_t           timeout )
+                               time_t             timeout )
   {
     SyncResponseHandler handler;
     Status st = Rm( path, &handler, timeout );
@@ -1384,7 +1384,7 @@ namespace XrdCl
                                   MkDirFlags::Flags  flags,
                                   Access::Mode       mode,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->MkDir( path, flags, mode, handler, timeout );
@@ -1413,7 +1413,7 @@ namespace XrdCl
   XRootDStatus FileSystem::MkDir( const std::string &path,
                                   MkDirFlags::Flags  flags,
                                   Access::Mode       mode,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
   {
     SyncResponseHandler handler;
     Status st = MkDir( path, flags, mode, &handler, timeout );
@@ -1428,7 +1428,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::RmDir( const std::string &path,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->RmDir( path, handler, timeout );
@@ -1453,7 +1453,7 @@ namespace XrdCl
   // Remove a directory - sync
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::RmDir( const std::string &path,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
   {
     SyncResponseHandler handler;
     Status st = RmDir( path, &handler, timeout );
@@ -1469,7 +1469,7 @@ namespace XrdCl
   XRootDStatus FileSystem::ChMod( const std::string &path,
                                   Access::Mode       mode,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->ChMod( path, mode, handler, timeout );
@@ -1496,7 +1496,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::ChMod( const std::string &path,
                                   Access::Mode       mode,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
   {
     SyncResponseHandler handler;
     Status st = ChMod( path, mode, &handler, timeout );
@@ -1510,7 +1510,7 @@ namespace XrdCl
   // Check if the server is alive - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Ping( ResponseHandler *handler,
-                                 uint16_t        timeout )
+                                 time_t          timeout )
   {
     if( pPlugIn )
       return pPlugIn->Ping( handler, timeout );
@@ -1530,7 +1530,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check if the server is alive - sync
   //----------------------------------------------------------------------------
-  XRootDStatus FileSystem::Ping( uint16_t timeout  )
+  XRootDStatus FileSystem::Ping( time_t   timeout  )
   {
     SyncResponseHandler handler;
     Status st = Ping( &handler, timeout );
@@ -1545,7 +1545,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Stat( const std::string &path,
                                  ResponseHandler   *handler,
-                                 uint16_t           timeout )
+                                 time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->Stat( path, handler, timeout );
@@ -1575,7 +1575,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Stat( const std::string  &path,
                                  StatInfo          *&response,
-                                 uint16_t            timeout )
+                                 time_t              timeout )
   {
     SyncResponseHandler handler;
     Status st = Stat( path, &handler, timeout );
@@ -1590,7 +1590,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::StatVFS( const std::string &path,
                                     ResponseHandler   *handler,
-                                    uint16_t           timeout )
+                                    time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->StatVFS( path, handler, timeout );
@@ -1617,7 +1617,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::StatVFS( const std::string  &path,
                                     StatInfoVFS       *&response,
-                                    uint16_t            timeout )
+                                    time_t              timeout )
   {
     SyncResponseHandler handler;
     Status st = StatVFS( path, &handler, timeout );
@@ -1631,7 +1631,7 @@ namespace XrdCl
   // Obtain server protocol information - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Protocol( ResponseHandler *handler,
-                                     uint16_t         timeout )
+                                     time_t           timeout )
   {
     if( pPlugIn )
       return pPlugIn->Protocol( handler, timeout );
@@ -1653,7 +1653,7 @@ namespace XrdCl
   // Obtain server protocol information - sync
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Protocol( ProtocolInfo *&response,
-                                     uint16_t       timeout )
+                                     time_t         timeout )
   {
     SyncResponseHandler handler;
     Status st = Protocol( &handler, timeout );
@@ -1669,7 +1669,7 @@ namespace XrdCl
   XRootDStatus FileSystem::DirList( const std::string   &path,
                                     DirListFlags::Flags  flags,
                                     ResponseHandler     *handler,
-                                    uint16_t             timeout )
+                                    time_t               timeout )
   {
     if( pPlugIn )
       return pPlugIn->DirList( path, flags, handler, timeout );
@@ -1723,7 +1723,7 @@ namespace XrdCl
   XRootDStatus FileSystem::DirList( const std::string    &path,
                                     DirListFlags::Flags   flags,
                                     DirectoryList       *&response,
-                                    uint16_t              timeout )
+                                    time_t                timeout )
   {
     //--------------------------------------------------------------------------
     // Chunked response is only possible for async DirList call
@@ -1896,7 +1896,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::SendCache( const std::string &info,
                                       ResponseHandler   *handler,
-                                      uint16_t           timeout )
+                                      time_t             timeout )
   {
   // Note: adding SendCache() to the FileSystemPlugin class breaks ABI!
   // So, the class is missing this until we do a major release. TODO
@@ -1910,7 +1910,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::SendCache( const std::string  &info,
                                       Buffer            *&response,
-                                      uint16_t            timeout )
+                                      time_t              timeout )
   {
     SyncResponseHandler handler;
     Status st = SendCache( info, &handler, timeout );
@@ -1925,7 +1925,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::SendInfo( const std::string &info,
                                      ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
   {
     if( pPlugIn )
       return pPlugIn->SendInfo( info, handler, timeout );
@@ -1937,7 +1937,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::SendInfo( const std::string  &info,
                                      Buffer            *&response,
-                                     uint16_t            timeout )
+                                     time_t              timeout )
   {
     SyncResponseHandler handler;
     Status st = SendInfo( info, &handler, timeout );
@@ -1953,7 +1953,7 @@ namespace XrdCl
   XRootDStatus FileSystem::SendSet(  const char        *prefix,
                                      const std::string &info,
                                      ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
   {
 
     Message          *msg;
@@ -1979,7 +1979,7 @@ namespace XrdCl
                                     PrepareFlags::Flags             flags,
                                     uint8_t                         priority,
                                     ResponseHandler                *handler,
-                                    uint16_t                        timeout )
+                                    time_t                          timeout )
   {
     if( pPlugIn )
       return pPlugIn->Prepare( fileList, flags, priority, handler, timeout );
@@ -2019,7 +2019,7 @@ namespace XrdCl
                                     PrepareFlags::Flags              flags,
                                     uint8_t                          priority,
                                     Buffer                         *&response,
-                                    uint16_t                         timeout )
+                                    time_t                           timeout )
   {
     SyncResponseHandler handler;
     Status st = Prepare( fileList, flags, priority, &handler, timeout );
@@ -2035,7 +2035,7 @@ namespace XrdCl
   XRootDStatus FileSystem::SetXAttr( const std::string           &path,
                                      const std::vector<xattr_t>  &attrs,
                                      ResponseHandler             *handler,
-                                     uint16_t                     timeout )
+                                     time_t                       timeout )
   {
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
@@ -2049,7 +2049,7 @@ namespace XrdCl
   XRootDStatus FileSystem::SetXAttr( const std::string           &path,
                                      const std::vector<xattr_t>  &attrs,
                                      std::vector<XAttrStatus>    &result,
-                                     uint16_t                     timeout )
+                                     time_t                       timeout )
   {
     SyncResponseHandler handler;
     XRootDStatus st = SetXAttr( path, attrs, &handler, timeout );
@@ -2070,7 +2070,7 @@ namespace XrdCl
   XRootDStatus FileSystem::GetXAttr( const std::string               &path,
                                      const std::vector<std::string>  &attrs,
                                      ResponseHandler                 *handler,
-                                     uint16_t                         timeout )
+                                     time_t                           timeout )
   {
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
@@ -2084,7 +2084,7 @@ namespace XrdCl
   XRootDStatus FileSystem::GetXAttr( const std::string               &path,
                                      const std::vector<std::string>  &attrs,
                                      std::vector<XAttr>              &result,
-                                     uint16_t                         timeout )
+                                     time_t                           timeout )
   {
     SyncResponseHandler handler;
     XRootDStatus st = GetXAttr( path, attrs, &handler, timeout );
@@ -2105,7 +2105,7 @@ namespace XrdCl
   XRootDStatus FileSystem::DelXAttr( const std::string               &path,
                                      const std::vector<std::string>  &attrs,
                                      ResponseHandler                *handler,
-                                     uint16_t                        timeout )
+                                     time_t                          timeout )
   {
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
@@ -2119,7 +2119,7 @@ namespace XrdCl
   XRootDStatus FileSystem::DelXAttr( const std::string               &path,
                                      const std::vector<std::string>  &attrs,
                                      std::vector<XAttrStatus>        &result,
-                                     uint16_t                         timeout )
+                                     time_t                           timeout )
   {
     SyncResponseHandler handler;
     XRootDStatus st = DelXAttr( path, attrs, &handler, timeout );
@@ -2139,7 +2139,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus FileSystem::ListXAttr( const std::string         &path,
                                       ResponseHandler           *handler,
-                                      uint16_t                   timeout )
+                                      time_t                     timeout )
   {
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
@@ -2154,7 +2154,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus FileSystem::ListXAttr( const std::string    &path,
                                       std::vector<XAttr>   &result,
-                                      uint16_t              timeout )
+                                      time_t                timeout )
   {
     SyncResponseHandler handler;
     XRootDStatus st = ListXAttr( path, &handler, timeout );
@@ -2224,7 +2224,7 @@ namespace XrdCl
                                          const std::string     &path,
                                          const std::vector<T>  &attrs,
                                          ResponseHandler       *handler,
-                                         uint16_t               timeout )
+                                         time_t                 timeout )
   {
     Message            *msg;
     ClientFattrRequest *req;
