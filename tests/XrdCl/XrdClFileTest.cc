@@ -156,7 +156,7 @@ void FileTest::RedirectReturnTest()
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
   delete handler;
   GTEST_ASSERT_XRDST_NOTOK( st1, errRedirect );
-  EXPECT_TRUE( !response );
+  EXPECT_FALSE( response );
   delete response;
 }
 
@@ -215,7 +215,7 @@ void FileTest::ReadTest()
   // Stat1
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Stat( false, statInfo ) );
-  EXPECT_TRUE( statInfo );
+  ASSERT_TRUE( statInfo );
 
   struct stat localStatBuf;
 
@@ -234,7 +234,7 @@ void FileTest::ReadTest()
   // Stat2
   //----------------------------------------------------------------------------
   GTEST_ASSERT_XRDST( f.Stat( true, statInfo ) );
-  EXPECT_TRUE( statInfo );
+  ASSERT_TRUE( statInfo );
   EXPECT_EQ( statInfo->GetSize(), fileSize );
   EXPECT_TRUE( statInfo->TestFlags( StatInfo::IsReadable ) );
   delete statInfo;
@@ -380,7 +380,7 @@ void FileTest::WriteTest()
   StatInfo *statInfo = 0;
   EXPECT_TRUE( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
   EXPECT_TRUE( f2.Stat( false, statInfo ).IsOK() );
-  EXPECT_TRUE( statInfo );
+  ASSERT_TRUE( statInfo );
   EXPECT_EQ( statInfo->GetSize(), 8*MB );
   EXPECT_TRUE( f2.Read( 0, 4*MB, buffer3, bytesRead1 ).IsOK() );
   EXPECT_TRUE( f2.Read( 4*MB, 4*MB, buffer4, bytesRead2 ).IsOK() );
@@ -401,7 +401,7 @@ void FileTest::WriteTest()
   FileSystem fs( url );
   StatInfo *response = 0;
   EXPECT_TRUE( fs.Stat( filePath, response ).IsOK() );
-  EXPECT_TRUE( response );
+  ASSERT_TRUE( response );
   EXPECT_EQ( response->GetSize(), 20*MB );
   EXPECT_TRUE( fs.Rm( filePath ).IsOK() );
   delete [] buffer1;
@@ -477,7 +477,7 @@ void FileTest::WriteVTest()
   StatInfo *statInfo = 0;
   EXPECT_TRUE( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
   EXPECT_TRUE( f2.Stat( false, statInfo ).IsOK() );
-  EXPECT_TRUE( statInfo );
+  ASSERT_TRUE( statInfo );
   EXPECT_EQ( statInfo->GetSize(), 8*MB );
   EXPECT_TRUE( f2.Read( 0, 8*MB, buffer3, bytesRead1 ).IsOK() );
   EXPECT_EQ( bytesRead1, 8*MB );

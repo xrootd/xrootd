@@ -85,7 +85,7 @@ void FileCopyTest::DownloadTestFunc()
   GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
 
   GTEST_ASSERT_XRDST( f.Stat( false, stat ) );
-  EXPECT_TRUE( stat );
+  ASSERT_TRUE( stat );
   EXPECT_TRUE( stat->TestFlags( StatInfo::IsReadable ) );
 
   //----------------------------------------------------------------------------
@@ -95,9 +95,9 @@ void FileCopyTest::DownloadTestFunc()
   uint32_t    bytesRead = 0;
 
   CheckSumManager *man      = DefaultEnv::GetCheckSumManager();
-  EXPECT_TRUE( man );
+  ASSERT_TRUE( man );
   XrdCksCalc      *crc32Sum = man->GetCalculator("zcrc32");
-  EXPECT_TRUE( crc32Sum );
+  ASSERT_TRUE( crc32Sum );
 
   while( 1 )
   {
@@ -176,7 +176,7 @@ void FileCopyTest::UploadTestFunc()
 
   CheckSumManager *man      = DefaultEnv::GetCheckSumManager();
   XrdCksCalc      *crc32Sum = man->GetCalculator("zcrc32");
-  EXPECT_TRUE( crc32Sum );
+  ASSERT_TRUE( crc32Sum );
 
   while( (bytesRead = read( fd, buffer, 4*MB )) > 0 )
   {
@@ -196,7 +196,7 @@ void FileCopyTest::UploadTestFunc()
   FileSystem  fs( url );
   LocationInfo *locations = nullptr;
   GTEST_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
-  EXPECT_TRUE( locations );
+  ASSERT_TRUE( locations );
   EXPECT_NE( locations->GetSize(), 0 );
   FileSystem fs1( locations->Begin()->GetAddress() );
   delete locations;
@@ -206,7 +206,7 @@ void FileCopyTest::UploadTestFunc()
   //----------------------------------------------------------------------------
   StatInfo   *stat = nullptr;
   GTEST_ASSERT_XRDST( fs1.Stat( remoteFile, stat ) );
-  EXPECT_TRUE( stat );
+  ASSERT_TRUE( stat );
   EXPECT_EQ( stat->GetSize(), offset );
 
   //----------------------------------------------------------------------------

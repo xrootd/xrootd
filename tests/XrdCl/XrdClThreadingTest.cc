@@ -141,7 +141,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
     StatInfo *si = 0;
     GTEST_ASSERT_XRDST( f->Open( fileUrl[i], OpenFlags::Read ) );
     GTEST_ASSERT_XRDST( f->Stat( false, si ) );
-    EXPECT_TRUE( si );
+    ASSERT_TRUE( si );
     EXPECT_TRUE( si->TestFlags( StatInfo::IsReadable ) );
 
     uint64_t step = si->GetSize()/4;

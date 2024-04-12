@@ -75,7 +75,7 @@ TEST(UtilsTest, AnyTest)
   any1->Set( a1 );
   any1->Get( b );
   any1->Get( a4 );
-  EXPECT_TRUE( !b );
+  EXPECT_FALSE( b );
   EXPECT_TRUE( a4 );
   EXPECT_TRUE( any1->HasOwnership() );
 
