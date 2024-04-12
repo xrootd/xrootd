@@ -81,7 +81,7 @@ namespace XrdCl
       std::string checkSumType;
       std::string checkSumPreset;
       uint64_t    sourceSize;
-      uint16_t    initTimeout;
+      time_t      initTimeout;
       bool        force;
       bool        coerce;
       bool        delegate;
