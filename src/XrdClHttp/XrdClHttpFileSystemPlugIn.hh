@@ -21,25 +21,25 @@ class HttpFileSystemPlugIn : public FileSystemPlugIn {
   virtual ~HttpFileSystemPlugIn() noexcept;
 
   virtual XRootDStatus Mv(const std::string &source, const std::string &dest,
-                          ResponseHandler *handler, uint16_t timeout) override;
+                          ResponseHandler *handler, time_t timeout) override;
 
   virtual XRootDStatus Rm(const std::string &path, ResponseHandler *handler,
-                          uint16_t timeout) override;
+                          time_t timeout) override;
 
   virtual XRootDStatus MkDir(const std::string &path, MkDirFlags::Flags flags,
                              Access::Mode mode, ResponseHandler *handler,
-                             uint16_t timeout) override;
+                             time_t timeout) override;
 
   virtual XRootDStatus RmDir(const std::string &path, ResponseHandler *handler,
-                             uint16_t timeout) override;
+                             time_t timeout) override;
 
   virtual XRootDStatus DirList(const std::string &path,
                                DirListFlags::Flags flags,
                                ResponseHandler *handler,
-                               uint16_t timeout) override;
+                               time_t timeout) override;
 
   virtual XRootDStatus Stat(const std::string &path, ResponseHandler *handler,
-                            uint16_t timeout) override;
+                            time_t timeout) override;
 
   virtual bool SetProperty(const std::string &name,
                            const std::string &value) override;

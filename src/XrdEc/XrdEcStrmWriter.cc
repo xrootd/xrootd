@@ -41,7 +41,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   // Open the data object for writting
   //---------------------------------------------------------------------------
-  void StrmWriter::Open( XrdCl::ResponseHandler *handler, uint16_t timeout )
+  void StrmWriter::Open( XrdCl::ResponseHandler *handler, time_t timeout )
   {
     const size_t size = objcfg.plgr.size();
 
@@ -105,7 +105,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   // Close the data object
   //---------------------------------------------------------------------------
-  void StrmWriter::Close( XrdCl::ResponseHandler *handler, uint16_t timeout )
+  void StrmWriter::Close( XrdCl::ResponseHandler *handler, time_t timeout )
   {
     //-------------------------------------------------------------------------
     // First, check the global status, if we are in an error state just
@@ -273,7 +273,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   // Close the data object (implementation)
   //---------------------------------------------------------------------------
-  void StrmWriter::CloseImpl( XrdCl::ResponseHandler *handler, uint16_t timeout )
+  void StrmWriter::CloseImpl( XrdCl::ResponseHandler *handler, time_t timeout )
   {
     //-------------------------------------------------------------------------
     // First, check the global status, if we are in an error state just

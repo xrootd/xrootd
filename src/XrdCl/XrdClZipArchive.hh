@@ -67,7 +67,7 @@ namespace XrdCl
     friend class ::XrdEcTests;
 
     template<typename RSP>
-    friend XRootDStatus ReadFromImpl( ZipArchive&, const std::string&, uint64_t, uint32_t, void*, ResponseHandler*, uint16_t );
+    friend XRootDStatus ReadFromImpl( ZipArchive&, const std::string&, uint64_t, uint32_t, void*, ResponseHandler*, time_t );
 
     public:
       //-----------------------------------------------------------------------
@@ -92,7 +92,7 @@ namespace XrdCl
       XRootDStatus OpenArchive( const std::string  &url,
                                 OpenFlags::Flags    flags,
                                 ResponseHandler    *handler,
-                                uint16_t            timeout = 0 );
+                                time_t              timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Open a file within the ZIP Archive
@@ -123,7 +123,7 @@ namespace XrdCl
                          uint32_t         size,
                          void            *buffer,
                          ResponseHandler *handler,
-                         uint16_t         timeout = 0 )
+                         time_t           timeout = 0 )
       {
         if( openfn.empty() ) return XRootDStatus( stError, errInvalidOp );
         return ReadFrom( openfn, offset, size, buffer, handler, timeout );
@@ -144,7 +144,7 @@ namespace XrdCl
                            uint32_t         size,
                            void            *buffer,
                            ResponseHandler *handler,
-                           uint16_t         timeout = 0 )
+                           time_t           timeout = 0 )
       {
         if( openfn.empty() ) return XRootDStatus( stError, errInvalidOp );
         return PgReadFrom( openfn, offset, size, buffer, handler, timeout );
@@ -166,7 +166,7 @@ namespace XrdCl
                              uint32_t           size,
                              void              *buffer,
                              ResponseHandler   *handler,
-                             uint16_t           timeout = 0 );
+                             time_t             timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! PgRead data from a given file
@@ -184,7 +184,7 @@ namespace XrdCl
                                uint32_t           size,
                                void              *buffer,
                                ResponseHandler   *handler,
-                               uint16_t           timeout = 0 );
+                               time_t             timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Append data to a new file
@@ -198,7 +198,7 @@ namespace XrdCl
       inline XRootDStatus Write( uint32_t          size,
                                  const void       *buffer,
                                  ResponseHandler  *handler,
-                                 uint16_t          timeout = 0 )
+                                 time_t            timeout = 0 )
       {
         if( openstage != Done || openfn.empty() )
           return XRootDStatus( stError, errInvalidOp, 0, "Archive not opened." );
@@ -230,7 +230,7 @@ namespace XrdCl
                                uint32_t           size,
                                const void        *buffer,
                                ResponseHandler   *handler,
-                               uint16_t           timeout = 0 );
+                               time_t             timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Get stat info for given file
@@ -330,7 +330,7 @@ namespace XrdCl
       //! @return        : the status of the operation
       //-----------------------------------------------------------------------
       XRootDStatus CloseArchive( ResponseHandler *handler,
-                                 uint16_t         timeout = 0 );
+                                 time_t           timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Close an open file within the ZIP archive
@@ -406,7 +406,7 @@ namespace XrdCl
       XRootDStatus WriteImpl( uint32_t               size,
                               const void            *buffer,
                               ResponseHandler       *handler,
-                              uint16_t               timeout );
+                              time_t                 timeout );
 
       //-----------------------------------------------------------------------
       //! Open the ZIP archive in read-only mode without parsing the central
@@ -420,7 +420,7 @@ namespace XrdCl
       XRootDStatus OpenOnly( const std::string  &url,
                              bool                update,
                              ResponseHandler    *handler,
-                             uint16_t            timeout = 0 );
+                             time_t              timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Get a buffer with central directory of the ZIP archive
