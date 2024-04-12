@@ -57,7 +57,7 @@ HttpFileSystemPlugIn::~HttpFileSystemPlugIn() noexcept {
 XRootDStatus HttpFileSystemPlugIn::Mv(const std::string &source,
                                       const std::string &dest,
                                       ResponseHandler *handler,
-                                      uint16_t timeout) {
+                                      time_t timeout) {
   //const auto full_source_path = url_.GetLocation() + source;
   //const auto full_dest_path = url_.GetLocation() + dest;
   const auto full_source_path = url_.GetProtocol() + "://"
@@ -88,7 +88,7 @@ XRootDStatus HttpFileSystemPlugIn::Mv(const std::string &source,
 
 XRootDStatus HttpFileSystemPlugIn::Rm(const std::string &path,
                                       ResponseHandler *handler,
-                                      uint16_t timeout) {
+                                      time_t timeout) {
   auto url = url_;
   url.SetPath(path);
 
@@ -112,7 +112,7 @@ XRootDStatus HttpFileSystemPlugIn::MkDir(const std::string &path,
                                          MkDirFlags::Flags flags,
                                          Access::Mode mode,
                                          ResponseHandler *handler,
-                                         uint16_t timeout) {
+                                         time_t timeout) {
   auto url = url_;
   url.SetPath(path);
 
@@ -134,7 +134,7 @@ XRootDStatus HttpFileSystemPlugIn::MkDir(const std::string &path,
 
 XRootDStatus HttpFileSystemPlugIn::RmDir(const std::string &path,
                                          ResponseHandler *handler,
-                                         uint16_t timeout) {
+                                         time_t timeout) {
   auto url = url_;
   url.SetPath(path);
 
@@ -155,7 +155,7 @@ XRootDStatus HttpFileSystemPlugIn::RmDir(const std::string &path,
 XRootDStatus HttpFileSystemPlugIn::DirList(const std::string &path,
                                            DirListFlags::Flags flags,
                                            ResponseHandler *handler,
-                                           uint16_t timeout) {
+                                           time_t timeout) {
   auto url = url_;
   url.SetPath(path);
   const auto full_path = url.GetLocation();
@@ -186,7 +186,7 @@ XRootDStatus HttpFileSystemPlugIn::DirList(const std::string &path,
 
 XRootDStatus HttpFileSystemPlugIn::Stat(const std::string &path,
                                         ResponseHandler *handler,
-                                        uint16_t timeout) {
+                                        time_t timeout) {
   //const auto full_path = url_.GetLocation() + path;
   const auto full_path = url_.GetProtocol() + "://" +
                          url_.GetHostName() + ":" +

@@ -43,7 +43,7 @@ namespace PyXRootD
     const  char            *url;
     XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
     XrdCl::Access::Mode     mode     = XrdCl::Access::None;
-    uint16_t                timeout  = 0;
+    time_t                  timeout  = 0;
     PyObject               *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
 
@@ -75,7 +75,7 @@ namespace PyXRootD
   PyObject* File::Close( File *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "timeout", "callback", NULL };
-    uint16_t            timeout  = 0;
+    time_t              timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -107,7 +107,7 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "force", "timeout", "callback", NULL };
     int                 force    = 0;
-    uint16_t            timeout  = 0;
+    time_t              timeout  = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -146,7 +146,7 @@ namespace PyXRootD
                                       NULL };
     uint64_t            offset   = 0;
     uint32_t            size     = 0;
-    uint16_t            timeout  = 0;
+    time_t              timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
     PyObject           *py_offset = NULL, *py_size = NULL, *py_timeout = NULL;
     char               *buffer   = 0;
@@ -159,7 +159,7 @@ namespace PyXRootD
 
     unsigned long long tmp_offset = 0;
     unsigned int tmp_size = 0;
-    unsigned short int tmp_timeout = 0;
+    unsigned int tmp_timeout = 0;
 
     if ( py_offset && PyObjToUllong( py_offset, &tmp_offset, "offset" ) )
       return NULL;
@@ -167,12 +167,12 @@ namespace PyXRootD
     if ( py_size && PyObjToUint(py_size, &tmp_size, "size" ) )
       return NULL;
 
-    if ( py_timeout && PyObjToUshrt(py_timeout, &tmp_timeout, "timeout" ) )
+    if ( py_timeout && PyObjToUint(py_timeout, &tmp_timeout, "timeout" ) )
       return NULL;
 
     offset = (uint64_t)tmp_offset;
     size = (uint32_t)tmp_size;
-    timeout = (uint16_t)tmp_timeout;
+    timeout = (time_t)tmp_timeout;
 
     if (!size) {
       XrdCl::StatInfo *info = 0;
@@ -427,7 +427,7 @@ namespace PyXRootD
     Py_ssize_t   buffsize;
     uint64_t     offset   = 0;
     uint32_t     size     = 0;
-    uint16_t     timeout  = 0;
+    time_t       timeout  = 0;
     PyObject    *callback = NULL, *pystatus = NULL;
     PyObject    *py_offset = NULL, *py_size = NULL, *py_timeout = NULL;
     XrdCl::XRootDStatus status;
@@ -440,7 +440,7 @@ namespace PyXRootD
 
     unsigned long long tmp_offset = 0;
     unsigned int tmp_size = 0;
-    unsigned short int tmp_timeout = 0;
+    unsigned int tmp_timeout = 0;
 
     if (py_offset && PyObjToUllong(py_offset, &tmp_offset, "offset"))
       return NULL;
@@ -448,12 +448,12 @@ namespace PyXRootD
     if (py_size && PyObjToUint(py_size, &tmp_size, "size"))
       return NULL;
 
-    if (py_timeout && PyObjToUshrt(py_timeout, &tmp_timeout, "timeout"))
+    if (py_timeout && PyObjToUint(py_timeout, &tmp_timeout, "timeout"))
       return NULL;
 
     offset = (uint64_t)tmp_offset;
     size = (uint32_t)tmp_size;
-    timeout = (uint16_t)tmp_timeout;
+    timeout = (time_t)tmp_timeout;
 
     if (!size) {
       size = buffsize;
@@ -483,7 +483,7 @@ namespace PyXRootD
   PyObject* File::Sync( File *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "timeout", "callback", NULL };
-    uint16_t            timeout  = 0;
+    time_t              timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -516,7 +516,7 @@ namespace PyXRootD
   {
     static const char *kwlist[] = { "size", "timeout", "callback", NULL };
     uint64_t           size;
-    uint16_t           timeout  = 0;
+    time_t             timeout  = 0;
     PyObject          *callback = NULL, *pystatus = NULL;
     PyObject          *py_size = NULL, *py_timeout = NULL;
     XrdCl::XRootDStatus status;
@@ -527,16 +527,16 @@ namespace PyXRootD
          (char**) kwlist, &py_size, &py_timeout, &callback ) ) return NULL;
 
     unsigned long long tmp_size = 0;
-    unsigned short int tmp_timeout = 0;
+    unsigned int tmp_timeout = 0;
 
     if ( py_size && PyObjToUllong( py_size, &tmp_size, "size" ) )
       return NULL;
 
-    if ( py_timeout && PyObjToUshrt( py_timeout, &tmp_timeout, "timeout" ) )
+    if ( py_timeout && PyObjToUint( py_timeout, &tmp_timeout, "timeout" ) )
       return NULL;
 
     size = (uint64_t)tmp_size;
-    timeout = (uint16_t)tmp_timeout;
+    timeout = (time_t)tmp_timeout;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -562,7 +562,7 @@ namespace PyXRootD
   PyObject* File::VectorRead( File *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "chunks", "timeout", "callback", NULL };
-    uint16_t            timeout  = 0;
+    time_t              timeout  = 0;
     uint64_t            offset   = 0;
     uint32_t            length   = 0;
     PyObject           *pychunks = NULL, *callback = NULL;
@@ -575,12 +575,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO:vector_read",
          (char**) kwlist, &pychunks, &py_timeout, &callback ) ) return NULL;
 
-    unsigned short int tmp_timeout = 0;
+    unsigned int tmp_timeout = 0;
 
-    if ( py_timeout && PyObjToUshrt( py_timeout, &tmp_timeout, "timeout" ) )
+    if ( py_timeout && PyObjToUint( py_timeout, &tmp_timeout, "timeout" ) )
       return NULL;
 
-    timeout = (uint16_t)tmp_timeout;
+    timeout = (time_t)tmp_timeout;
 
     if ( !PyList_Check( pychunks ) ) {
       PyErr_SetString( PyExc_TypeError, "chunks parameter must be a list" );
@@ -642,7 +642,7 @@ namespace PyXRootD
     static const char  *kwlist[] = { "arg", "timeout", "callback", NULL };
     const char         *buffer   = 0;
     Py_ssize_t          buffSize = 0;
-    uint16_t            timeout  = 0;
+    time_t              timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
@@ -684,7 +684,7 @@ namespace PyXRootD
   PyObject* File::Visa( File *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "timeout", "callback", NULL };
-    uint16_t            timeout  = 0;
+    time_t              timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
@@ -770,7 +770,7 @@ namespace PyXRootD
     static const char  *kwlist[] = { "attrs", "timeout", "callback", NULL };
 
     std::vector<XrdCl::xattr_t>  attrs;
-    uint16_t     timeout  = 0;
+    time_t timeout = 0;
 
     PyObject    *callback = NULL, *pystatus   = NULL;
     PyObject    *pyattrs  = NULL, *pyresponse = NULL;
@@ -841,7 +841,7 @@ namespace PyXRootD
     static const char  *kwlist[] = { "attrs", "timeout", "callback", NULL };
 
     std::vector<std::string>  attrs;
-    uint16_t     timeout  = 0;
+    time_t timeout = 0;
 
     PyObject    *callback = NULL, *pystatus   = NULL;
     PyObject    *pyattrs  = NULL, *pyresponse = NULL;
@@ -900,7 +900,7 @@ namespace PyXRootD
     static const char  *kwlist[] = { "attrs", "timeout", "callback", NULL };
 
     std::vector<std::string>  attrs;
-    uint16_t     timeout  = 0;
+    time_t timeout = 0;
 
     PyObject    *callback = NULL, *pystatus   = NULL;
     PyObject    *pyattrs  = NULL, *pyresponse = NULL;
@@ -958,7 +958,7 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "timeout", "callback", NULL };
 
-    uint16_t     timeout  = 0;
+    time_t timeout = 0;
 
     PyObject    *callback   = NULL, *pystatus = NULL;
     PyObject    *pyresponse = NULL;
