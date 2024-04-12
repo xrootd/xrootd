@@ -47,7 +47,7 @@ namespace XrdCl
                              uint32_t           size,
                              void              *usrbuff,
                              ResponseHandler   *usrHandler,
-                             uint16_t           timeout )
+                             time_t             timeout )
   {
     if( me.openstage != ZipArchive::Done || !me.archive.IsOpen() )
       return XRootDStatus( stError, errInvalidOp );
@@ -231,7 +231,7 @@ namespace XrdCl
   XRootDStatus ZipArchive::OpenOnly( const std::string  &url,
                                      bool                update,
                                      ResponseHandler    *handler,
-                                     uint16_t            timeout )
+                                     time_t              timeout )
   {
     OpenFlags::Flags flags = update ? OpenFlags::Update : OpenFlags::Read;
     Pipeline open_only = XrdCl::Open( archive, url, flags ) >>
@@ -266,7 +266,7 @@ namespace XrdCl
   XRootDStatus ZipArchive::OpenArchive( const std::string  &url,
                                         OpenFlags::Flags    flags,
                                         ResponseHandler    *handler,
-                                        uint16_t            timeout )
+                                        time_t              timeout )
   {
     Log *log = DefaultEnv::GetLog();
     Fwd<uint32_t> rdsize; // number of bytes to be read
@@ -602,7 +602,7 @@ namespace XrdCl
   // Create the central directory at the end of ZIP archive and close it
   //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::CloseArchive( ResponseHandler *handler,
-                                         uint16_t         timeout )
+                                         time_t           timeout )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -696,7 +696,7 @@ namespace XrdCl
                                      uint32_t           size,
                                      void              *buffer,
                                      ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
   {
     return ReadFromImpl<ChunkInfo>( *this, fn, offset, size, buffer, handler, timeout );
   }
@@ -709,7 +709,7 @@ namespace XrdCl
                                        uint32_t           size,
                                        void              *buffer,
                                        ResponseHandler   *handler,
-                                       uint16_t           timeout )
+                                       time_t             timeout )
   {
     return ReadFromImpl<PageInfo>( *this, fn, offset, size, buffer, handler, timeout );
   }
@@ -756,7 +756,7 @@ namespace XrdCl
   XRootDStatus ZipArchive::WriteImpl( uint32_t               size,
                                       const void            *buffer,
                                       ResponseHandler       *handler,
-                                      uint16_t               timeout )
+                                      time_t                 timeout )
   {
     Log *log = DefaultEnv::GetLog();
     std::vector<iovec> iov( 2 );
@@ -879,7 +879,7 @@ namespace XrdCl
                                        uint32_t           size,
                                        const void        *buffer,
                                        ResponseHandler   *handler,
-                                       uint16_t           timeout )
+                                       time_t             timeout )
   {
     Log  *log = DefaultEnv::GetLog();
     auto  itr   = cdmap.find( fn );

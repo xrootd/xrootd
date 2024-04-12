@@ -57,10 +57,10 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         ChkPtCode  code    = std::get<CodeArg>( this->args ).Get();
-        uint16_t  timeout = pipelineTimeout < this->timeout ?
+        time_t    timeout = pipelineTimeout < this->timeout ?
                             pipelineTimeout : this->timeout;
         return this->file->Checkpoint( code, handler, timeout );
       }
@@ -69,7 +69,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating ReadImpl objects
   //----------------------------------------------------------------------------
-  inline CheckpointImpl<false> Checkpoint( Ctx<File> file, Arg<ChkPtCode> code, uint16_t timeout = 0 )
+  inline CheckpointImpl<false> Checkpoint( Ctx<File> file, Arg<ChkPtCode> code, time_t timeout = 0 )
   {
     return CheckpointImpl<false>( std::move( file ), std::move( code ) ).Timeout( timeout );
   }
@@ -112,12 +112,12 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         uint64_t    off     = std::get<OffArg>( this->args ).Get();
         uint32_t    len     = std::get<LenArg>( this->args ).Get();
         const void* buf     = std::get<BufArg>( this->args ).Get();
-        uint16_t    timeout = pipelineTimeout < this->timeout ?
+        time_t      timeout = pipelineTimeout < this->timeout ?
                               pipelineTimeout : this->timeout;
         return this->file->ChkptWrt( off, len, buf, handler, timeout );
       }
@@ -128,7 +128,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   inline ChkptWrtImpl<false> ChkptWrt( Ctx<File> file, Arg<uint64_t> offset,
                                        Arg<uint32_t> size, Arg<const void*> buffer,
-                                       uint16_t timeout = 0 )
+                                       time_t timeout = 0 )
   {
     return ChkptWrtImpl<false>( std::move( file ), std::move( offset ),
                                 std::move( size ), std::move( buffer ) ).Timeout( timeout );
@@ -172,11 +172,11 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, time_t pipelineTimeout )
       {
         uint64_t            off     = std::get<OffArg>( this->args ).Get();
         std::vector<iovec> &stdiov  = std::get<IovecArg>( this->args ).Get();
-        uint16_t            timeout = pipelineTimeout < this->timeout ?
+        time_t              timeout = pipelineTimeout < this->timeout ?
                                       pipelineTimeout : this->timeout;
 
         int iovcnt = stdiov.size();
@@ -196,7 +196,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   inline ChkptWrtVImpl<false> ChkptWrtV( Ctx<File> file, Arg<uint64_t> offset,
                                          Arg<std::vector<iovec>> iov,
-                                         uint16_t timeout = 0 )
+                                         time_t timeout = 0 )
   {
     return ChkptWrtVImpl<false>( std::move( file ), std::move( offset ),
                                  std::move( iov ) ).Timeout( timeout );

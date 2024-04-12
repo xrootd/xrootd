@@ -83,7 +83,7 @@ HttpFilePlugIn::~HttpFilePlugIn() noexcept {
 
 XRootDStatus HttpFilePlugIn::Open(const std::string &url,
                                   OpenFlags::Flags flags, Access::Mode /*mode*/,
-                                  ResponseHandler *handler, uint16_t timeout) {
+                                  ResponseHandler *handler, time_t timeout) {
   if (is_open_) {
     logger_->Error(kLogXrdClHttp, "URL %s already open", url.c_str());
     return XRootDStatus(stError, errInvalidOp);
@@ -179,7 +179,7 @@ XRootDStatus HttpFilePlugIn::Open(const std::string &url,
 }
 
 XRootDStatus HttpFilePlugIn::Close(ResponseHandler *handler,
-                                   uint16_t /*timeout*/) {
+                                   time_t /*timeout*/) {
   if (!is_open_) {
     logger_->Error(kLogXrdClHttp,
                    "Cannot close. URL hasn't been previously opened");
@@ -204,7 +204,7 @@ XRootDStatus HttpFilePlugIn::Close(ResponseHandler *handler,
 }
 
 XRootDStatus HttpFilePlugIn::Stat(bool /*force*/, ResponseHandler *handler,
-                                  uint16_t timeout) {
+                                  time_t timeout) {
   if (!is_open_) {
     logger_->Error(kLogXrdClHttp,
                    "Cannot stat. URL hasn't been previously opened");
@@ -238,7 +238,7 @@ XRootDStatus HttpFilePlugIn::Stat(bool /*force*/, ResponseHandler *handler,
 
 XRootDStatus HttpFilePlugIn::Read(uint64_t offset, uint32_t size, void *buffer,
                                   ResponseHandler *handler,
-                                  uint16_t /*timeout*/) {
+                                  time_t /*timeout*/) {
   if (!is_open_) {
     logger_->Error(kLogXrdClHttp,
                    "Cannot read. URL hasn't previously been opened");
@@ -343,7 +343,7 @@ class PgReadSubstitutionHandler : public XrdCl::ResponseHandler {
 
 XRootDStatus HttpFilePlugIn::PgRead(uint64_t offset, uint32_t size, void *buffer,
                                     ResponseHandler *handler,
-                                    uint16_t timeout) {
+                                    time_t timeout) {
   ResponseHandler *substitHandler = new PgReadSubstitutionHandler( handler, isChannelEncrypted );
   XRootDStatus st = Read(offset, size, buffer, substitHandler, timeout);
   return st;
@@ -351,7 +351,7 @@ XRootDStatus HttpFilePlugIn::PgRead(uint64_t offset, uint32_t size, void *buffer
 
 XRootDStatus HttpFilePlugIn::Write(uint64_t offset, uint32_t size,
                                    const void *buffer, ResponseHandler *handler,
-                                   uint16_t timeout) {
+                                   time_t timeout) {
   if (!is_open_) {
     logger_->Error(kLogXrdClHttp,
                    "Cannot write. URL hasn't previously been opened");
@@ -385,12 +385,12 @@ XRootDStatus HttpFilePlugIn::PgWrite( uint64_t               offset,
                                       const void            *buffer,
                                       std::vector<uint32_t> &cksums,
                                       ResponseHandler       *handler,
-                                      uint16_t               timeout )
+                                      time_t                 timeout )
 {   (void)cksums;
     return Write(offset, size, buffer, handler, timeout);
 }
 
-XRootDStatus HttpFilePlugIn::Sync(ResponseHandler *handler, uint16_t timeout) {
+XRootDStatus HttpFilePlugIn::Sync(ResponseHandler *handler, time_t timeout) {
   (void)handler;
   (void)timeout;
 
@@ -402,7 +402,7 @@ XRootDStatus HttpFilePlugIn::Sync(ResponseHandler *handler, uint16_t timeout) {
 
 XRootDStatus HttpFilePlugIn::VectorRead(const ChunkList &chunks, void *buffer,
                                         ResponseHandler *handler,
-                                        uint16_t /*timeout*/) {
+                                        time_t /*timeout*/) {
   if (!is_open_) {
     logger_->Error(kLogXrdClHttp,
                    "Cannot read. URL hasn't previously been opened");

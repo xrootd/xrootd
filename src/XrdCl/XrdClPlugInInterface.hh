@@ -49,7 +49,7 @@ namespace XrdCl
                                  OpenFlags::Flags   flags,
                                  Access::Mode       mode,
                                  ResponseHandler   *handler,
-                                 uint16_t           timeout )
+                                 time_t             timeout )
       {
         (void)url; (void)flags; (void)mode; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -59,7 +59,7 @@ namespace XrdCl
       //! @see XrdCl::File::Close
       //------------------------------------------------------------------------
       virtual XRootDStatus Close( ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
       {
         (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -70,7 +70,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus Stat( bool             force,
                                  ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         (void)force; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -83,7 +83,7 @@ namespace XrdCl
                                  uint32_t         size,
                                  void            *buffer,
                                  ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         (void)offset; (void)size; (void)buffer; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -97,7 +97,7 @@ namespace XrdCl
                                  Optional<uint64_t>  fdoff,
                                  int                 fd,
                                  ResponseHandler    *handler,
-                                 uint16_t            timeout = 0 )
+                                 time_t              timeout = 0 )
       {
         (void)offset; (void)size; (void)fdoff; (void)fd, (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -110,7 +110,7 @@ namespace XrdCl
                                    uint32_t         size,
                                    void            *buffer,
                                    ResponseHandler *handler,
-                                   uint16_t         timeout )
+                                   time_t           timeout )
       {
         (void)offset; (void)size; (void)buffer; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -123,7 +123,7 @@ namespace XrdCl
                                   uint32_t         size,
                                   const void      *buffer,
                                   ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
       {
         (void)offset; (void)size; (void)buffer; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -135,7 +135,7 @@ namespace XrdCl
       virtual XRootDStatus Write( uint64_t          offset,
                                   Buffer          &&buffer,
                                   ResponseHandler  *handler,
-                                  uint16_t          timeout = 0 )
+                                  time_t            timeout = 0 )
       {
         (void)offset; (void)buffer; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -149,7 +149,7 @@ namespace XrdCl
                                   Optional<uint64_t>  fdoff,
                                   int                 fd,
                                   ResponseHandler    *handler,
-                                  uint16_t            timeout = 0 )
+                                  time_t              timeout = 0 )
       {
         (void)offset; (void)size; (void)fdoff; (void)fd, (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -163,7 +163,7 @@ namespace XrdCl
                                     const void            *buffer,
                                     std::vector<uint32_t> &cksums,
                                     ResponseHandler       *handler,
-                                    uint16_t               timeout )
+                                    time_t                 timeout )
       {
         (void)offset; (void)nbpgs; (void)buffer; (void)cksums, (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -173,7 +173,7 @@ namespace XrdCl
       //! @see XrdCl::File::Sync
       //------------------------------------------------------------------------
       virtual XRootDStatus Sync( ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -184,7 +184,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus Truncate( uint64_t         size,
                                      ResponseHandler *handler,
-                                     uint16_t         timeout )
+                                     time_t           timeout )
       {
         (void)size; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -196,7 +196,7 @@ namespace XrdCl
       virtual XRootDStatus VectorRead( const ChunkList &chunks,
                                        void            *buffer,
                                        ResponseHandler *handler,
-                                       uint16_t         timeout )
+                                       time_t           timeout )
       {
         (void)chunks; (void)buffer; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -207,7 +207,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus VectorWrite( const ChunkList &chunks,
                                         ResponseHandler *handler,
-                                        uint16_t         timeout = 0 )
+                                        time_t           timeout = 0 )
       {
         (void)chunks; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -221,7 +221,7 @@ namespace XrdCl
                                    const struct iovec *iov,
                                    int                 iovcnt,
                                    ResponseHandler    *handler,
-                                   uint16_t            timeout = 0 )
+                                   time_t              timeout = 0 )
       {
         (void)offset; (void)iov; (void)iovcnt; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -232,7 +232,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus Fcntl( const Buffer    &arg,
                                   ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
       {
         (void)arg; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -242,7 +242,7 @@ namespace XrdCl
       //! @see XrdCl::File::Visa
       //------------------------------------------------------------------------
       virtual XRootDStatus Visa( ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -294,7 +294,7 @@ namespace XrdCl
       virtual XRootDStatus Locate( const std::string &path,
                                    OpenFlags::Flags   flags,
                                    ResponseHandler   *handler,
-                                   uint16_t           timeout )
+                                   time_t             timeout )
       {
         (void)path; (void)flags; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -306,7 +306,7 @@ namespace XrdCl
       virtual XRootDStatus DeepLocate( const std::string &path,
                                        OpenFlags::Flags   flags,
                                        ResponseHandler   *handler,
-                                       uint16_t           timeout )
+                                       time_t             timeout )
       {
         (void)path; (void)flags; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -318,7 +318,7 @@ namespace XrdCl
       virtual XRootDStatus Mv( const std::string &source,
                                const std::string &dest,
                                ResponseHandler   *handler,
-                               uint16_t           timeout )
+                               time_t             timeout )
       {
         (void)source; (void)dest; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -330,7 +330,7 @@ namespace XrdCl
       virtual XRootDStatus Query( QueryCode::Code  queryCode,
                                   const Buffer    &arg,
                                   ResponseHandler *handler,
-                                  uint16_t         timeout )
+                                  time_t           timeout )
       {
         (void)queryCode; (void)arg; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -342,7 +342,7 @@ namespace XrdCl
       virtual XRootDStatus Truncate( const std::string &path,
                                      uint64_t           size,
                                      ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
       {
         (void)path; (void)size; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -353,7 +353,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus Rm( const std::string &path,
                                ResponseHandler   *handler,
-                               uint16_t           timeout )
+                               time_t             timeout )
       {
         (void)path; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -366,7 +366,7 @@ namespace XrdCl
                                   MkDirFlags::Flags  flags,
                                   Access::Mode       mode,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
       {
         (void)path; (void)flags; (void)mode; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -377,7 +377,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus RmDir( const std::string &path,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
       {
         (void)path; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -389,7 +389,7 @@ namespace XrdCl
       virtual XRootDStatus ChMod( const std::string &path,
                                   Access::Mode       mode,
                                   ResponseHandler   *handler,
-                                  uint16_t           timeout )
+                                  time_t             timeout )
       {
         (void)path; (void)mode; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -399,7 +399,7 @@ namespace XrdCl
       //! @see XrdCl::FileSystem::Ping
       //------------------------------------------------------------------------
       virtual XRootDStatus Ping( ResponseHandler *handler,
-                                 uint16_t         timeout )
+                                 time_t           timeout )
       {
         (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -410,7 +410,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus Stat( const std::string &path,
                                  ResponseHandler   *handler,
-                                 uint16_t           timeout )
+                                 time_t             timeout )
       {
         (void)path; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -421,7 +421,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus StatVFS( const std::string &path,
                                     ResponseHandler   *handler,
-                                    uint16_t           timeout )
+                                    time_t             timeout )
       {
         (void)path; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -431,7 +431,7 @@ namespace XrdCl
       //! @see XrdCl::FileSystem::Protocol
       //------------------------------------------------------------------------
       virtual XRootDStatus Protocol( ResponseHandler *handler,
-                                     uint16_t         timeout = 0 )
+                                     time_t           timeout = 0 )
       {
         (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -443,7 +443,7 @@ namespace XrdCl
       virtual XRootDStatus DirList( const std::string   &path,
                                     DirListFlags::Flags  flags,
                                     ResponseHandler     *handler,
-                                    uint16_t             timeout )
+                                    time_t               timeout )
       {
         (void)path; (void)flags; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -454,7 +454,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus SendInfo( const std::string &info,
                                      ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     time_t             timeout )
       {
         (void)info; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -467,7 +467,7 @@ namespace XrdCl
                                     PrepareFlags::Flags             flags,
                                     uint8_t                         priority,
                                     ResponseHandler                *handler,
-                                    uint16_t                        timeout )
+                                    time_t                          timeout )
       {
         (void)fileList; (void)flags; (void)priority; (void)handler;
         (void)timeout;
@@ -480,7 +480,7 @@ namespace XrdCl
       virtual XRootDStatus SetXAttr( const std::string           &path,
                                      const std::vector<xattr_t>  &attrs,
                                      ResponseHandler             *handler,
-                                     uint16_t                     timeout )
+                                     time_t                       timeout )
       {
         (void)path; (void)attrs; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -492,7 +492,7 @@ namespace XrdCl
       virtual XRootDStatus GetXAttr( const std::string               &path,
                                      const std::vector<std::string>  &attrs,
                                      ResponseHandler                 *handler,
-                                     uint16_t                         timeout )
+                                     time_t                           timeout )
       {
         (void)path; (void)attrs; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -504,7 +504,7 @@ namespace XrdCl
       virtual XRootDStatus DelXAttr( const std::string               &path,
                                      const std::vector<std::string>  &attrs,
                                      ResponseHandler                 *handler,
-                                     uint16_t                         timeout )
+                                     time_t                           timeout )
       {
         (void)path; (void)attrs; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -515,7 +515,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus ListXAttr( const std::string         &path,
                                       ResponseHandler           *handler,
-                                      uint16_t                   timeout )
+                                      time_t                     timeout )
       {
         (void)path; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
