@@ -20,6 +20,7 @@
 #define __XRD_CL_POLLER_HH__
 
 #include <cstdint>
+#include <ctime>
 #include <string>
 
 namespace XrdCl
@@ -135,7 +136,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual bool EnableReadNotification( Socket  *socket,
                                            bool     notify,
-                                           uint16_t timeout = 60 ) = 0;
+                                           time_t   timeout = 60 ) = 0;
 
       //------------------------------------------------------------------------
       //! Notify the handler about write events
@@ -146,7 +147,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual bool EnableWriteNotification( Socket  *socket,
                                             bool     notify,
-                                            uint16_t timeout = 60 ) = 0;
+                                            time_t   timeout = 60 ) = 0;
 
       //------------------------------------------------------------------------
       //! Check whether the socket is registered with the poller

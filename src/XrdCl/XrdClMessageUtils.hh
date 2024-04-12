@@ -133,7 +133,7 @@ namespace XrdCl
     MessageSendParams():
       timeout(0), expires(0), followRedirects(true), chunkedResponse(false),
       stateful(true), hostList(0), chunkList(0), redirectLimit(0), kbuff(0){}
-    uint16_t               timeout;
+    time_t                 timeout;
     time_t                 expires;
     HostInfo               loadBalancer;
     bool                   followRedirects;

@@ -71,13 +71,13 @@ namespace
     public:
       mytimer_t() : start( clock_t::now() ){ }
       void reset(){ start = clock_t::now(); }
-      uint64_t elapsed() const
+      time_t elapsed() const
       {
         return std::chrono::duration_cast<unit_t>( clock_t::now() - start ).count();
       }
     private:
       typedef std::chrono::high_resolution_clock clock_t;
-      typedef std::chrono::duration<uint64_t, U> unit_t;
+      typedef std::chrono::duration<int, U> unit_t;
       std::chrono::time_point<clock_t> start;
   };
 
@@ -2443,7 +2443,7 @@ namespace XrdCl
     int32_t     nbXcpSources;
     long long   xRate;
     long long   xRateThreshold;
-    uint16_t    cpTimeout;
+    time_t      cpTimeout;
     std::vector<std::string> addcksums;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
