@@ -97,22 +97,22 @@ namespace XrdCl
       //!
       //! @param host   name of the host to connect to
       //! @param port   port to connect to
-      //! @param timout timeout in seconds, 0 for no timeout handling (may be
+      //! @param timeout timeout in seconds, 0 for no timeout handling (may be
       //!               used for non blocking IO)
       //------------------------------------------------------------------------
       XRootDStatus Connect( const std::string &host,
                             uint16_t           port,
-                            uint16_t           timout = 10 );
+                            time_t             timeout = 10 );
 
       //------------------------------------------------------------------------
       //! Connect to the given host address
       //!
       //! @param addr   address of the host to connect to
-      //! @param timout timeout in seconds, 0 for no timeout handling (may be
+      //! @param timeout timeout in seconds, 0 for no timeout handling (may be
       //!               used for non blocking IO)
       //------------------------------------------------------------------------
       XRootDStatus ConnectToAddress( const XrdNetAddr &addr,
-                                     uint16_t          timout = 10 );
+                                     time_t            timeout = 10 );
 
       //------------------------------------------------------------------------
       //! Disconnect
@@ -140,7 +140,7 @@ namespace XrdCl
       //!
       //! @param buffer    data to be sent
       //! @param size      size of the data buffer
-      //! @param timeout   timout value in seconds, -1 to wait indefinitely
+      //! @param timeout   timeout value in seconds, -1 to wait indefinitely
       //! @param bytesRead the amount of data actually read
       //------------------------------------------------------------------------
       XRootDStatus ReadRaw( void *buffer, uint32_t size, int32_t timeout,

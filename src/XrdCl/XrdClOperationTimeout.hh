@@ -24,7 +24,7 @@ namespace XrdCl
       {
       }
 
-      Timeout( uint16_t timeout ): timeout( timeout ), start( time( 0 ) )
+      Timeout( time_t timeout ): timeout( timeout ), start( time( 0 ) )
       {
       }
 
@@ -39,7 +39,7 @@ namespace XrdCl
       {
       }
 
-      operator uint16_t() const
+      operator time_t() const
       {
         if( !timeout ) return 0;
         time_t elapsed = time( 0 ) - start;
@@ -49,7 +49,7 @@ namespace XrdCl
 
     private:
 
-      uint16_t timeout;
+      time_t   timeout;
       time_t   start;
   };
 
