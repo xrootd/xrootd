@@ -92,7 +92,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual bool EnableReadNotification( Socket  *socket,
                                            bool     notify,
-                                           uint16_t timeout = 60 );
+                                           time_t   timeout = 60 );
 
       //------------------------------------------------------------------------
       //! Notify the handler about write events
@@ -104,7 +104,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual bool EnableWriteNotification( Socket  *socket,
                                             bool     notify,
-                                            uint16_t timeout = 60);
+                                            time_t   timeout = 60);
 
       //------------------------------------------------------------------------
       //! Check whether the socket is registered with the poller
