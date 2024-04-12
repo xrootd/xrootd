@@ -266,15 +266,21 @@ namespace
       DeepLocateHandler( XrdCl::ResponseHandler   *handler,
                          const std::string        &path,
                          XrdCl::OpenFlags::Flags   flags,
-                         time_t                    expires ):
+                         time_t                    timeout ):
         pFirstTime( true ),
         pPartial( false ),
         pOutstanding( 1 ),
         pHandler( handler ),
         pPath( path ),
-        pFlags( flags ),
-        pExpires(expires)
+        pFlags( flags )
       {
+        if (timeout == 0) {
+          int val = XrdCl::DefaultRequestTimeout;
+          XrdCl::DefaultEnv::GetEnv()->GetInt("RequestTimeout", val);
+          timeout = val;
+        }
+
+        pExpires = ::time(nullptr) + timeout;
         pLocations = new XrdCl::LocationInfo();
       }
 
@@ -1170,9 +1176,7 @@ namespace XrdCl
                                        uint16_t           timeout )
   {
     return Locate( path, flags,
-                   new DeepLocateHandler( handler, path, flags,
-                                          ::time(0)+timeout ),
-                   timeout );
+                   new DeepLocateHandler( handler, path, flags, timeout ), timeout );
   }
 
   //----------------------------------------------------------------------------
