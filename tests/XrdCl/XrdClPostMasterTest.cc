@@ -23,6 +23,7 @@
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClSIDManager.hh>
 
+#include <stdexcept>
 #include <pthread.h>
 
 #include "TestEnv.hh"
@@ -262,11 +263,13 @@ void *TestThreadFunc( void *arg )
     XrdCl::Message msg;
     GTEST_ASSERT_XRDST( msgHandlers[i].WaitFor( msg ) );
     ServerResponse *resp = (ServerResponse *)msg.GetBuffer();
-    EXPECT_TRUE( resp );
+    if (!resp)
+      throw std::runtime_error("server response is NULL");
     EXPECT_EQ( resp->hdr.status, kXR_ok );
     EXPECT_EQ( msg.GetSize(), 8 );
   }
-  return 0;
+
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -338,7 +341,7 @@ TEST(PostMasterTest, FunctionalTest)
 
   GTEST_ASSERT_XRDST( msgHandler1.WaitFor( m2 ) );
   ServerResponse *resp = (ServerResponse *)m2.GetBuffer();
-  EXPECT_TRUE( resp );
+  ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
   EXPECT_EQ( m2.GetSize(), 8 );
 
@@ -376,7 +379,7 @@ TEST(PostMasterTest, FunctionalTest)
                                                    nameObj ) );
   nameObj.Get( name );
 
-  EXPECT_TRUE( name );
+  ASSERT_TRUE( name );
   EXPECT_TRUE( !::strcmp( name, "XRootD" ) );
 
   //----------------------------------------------------------------------------
@@ -402,7 +405,7 @@ TEST(PostMasterTest, FunctionalTest)
 
   GTEST_ASSERT_XRDST( msgHandler4.WaitFor( m2 ) );
   resp = (ServerResponse *)m2.GetBuffer();
-  EXPECT_TRUE( resp );
+  ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
   EXPECT_EQ( m2.GetSize(), 8 );
 
@@ -418,7 +421,7 @@ TEST(PostMasterTest, FunctionalTest)
 
   GTEST_ASSERT_XRDST( msgHandler5.WaitFor( m2 ) );
   resp = (ServerResponse *)m2.GetBuffer();
-  EXPECT_TRUE( resp );
+  ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
   EXPECT_EQ( m2.GetSize(), 8 );
 }
@@ -466,7 +469,7 @@ TEST(PostMasterTest, PingIPv6)
   sc = postMaster->Receive( localhost1, m2, &f1, false, 1200 );
   EXPECT_TRUE( sc.IsOK() );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
-  EXPECT_TRUE( resp );
+  ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
   EXPECT_EQ( m2->GetSize(), 8 );
 
@@ -479,7 +482,7 @@ TEST(PostMasterTest, PingIPv6)
   sc = postMaster->Receive( localhost2, m2, &f1, 1200 );
   EXPECT_TRUE( sc.IsOK() );
   resp = (ServerResponse *)m2->GetBuffer();
-  EXPECT_TRUE( resp );
+  ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
   EXPECT_EQ( m2->GetSize(), 8 );
 #endif
@@ -568,7 +571,7 @@ TEST(PostMasterTest, MultiIPConnectionTest)
   GTEST_ASSERT_XRDST( postMaster->Send( url3, m, &msgHandler3, false, expires ) );
   GTEST_ASSERT_XRDST( msgHandler3.WaitFor( m2 ) );
   ServerResponse *resp = (ServerResponse *)m2.GetBuffer();
-  EXPECT_TRUE( resp );
+  ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
   EXPECT_EQ( m2.GetSize(), 8 );
 }

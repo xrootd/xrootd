@@ -181,7 +181,7 @@ void FileSystemTest::LocateTest()
 
   LocationInfo *locations = 0;
   GTEST_ASSERT_XRDST( fs.Locate( remoteFile, OpenFlags::Refresh, locations ) );
-  EXPECT_TRUE( locations );
+  ASSERT_TRUE( locations );
   EXPECT_NE( locations->GetSize(), 0 );
   delete locations;
 }
@@ -259,7 +259,7 @@ void FileSystemTest::ServerQueryTest()
   Buffer  arg;
   arg.FromString( remoteFile );
   GTEST_ASSERT_XRDST( fs.Query( QueryCode::Checksum, arg, response ) );
-  EXPECT_TRUE( response );
+  ASSERT_TRUE( response );
   EXPECT_NE( response->GetSize(), 0 );
   delete response;
 }
@@ -413,7 +413,7 @@ void FileSystemTest::StatTest()
   FileSystem fs( url );
   StatInfo *response = 0;
   GTEST_ASSERT_XRDST( fs.Stat( remoteFile, response ) );
-  EXPECT_TRUE( response );
+  ASSERT_TRUE( response );
   EXPECT_EQ( response->GetSize(), fileSize );
   EXPECT_TRUE( response->TestFlags( StatInfo::IsReadable ) );
   EXPECT_TRUE( response->TestFlags( StatInfo::IsWritable ) );
@@ -442,7 +442,7 @@ void FileSystemTest::StatVFSTest()
   FileSystem fs( url );
   StatInfoVFS *response = 0;
   GTEST_ASSERT_XRDST( fs.StatVFS( dataPath, response ) );
-  EXPECT_TRUE( response );
+  ASSERT_TRUE( response );
   delete response;
 }
 
@@ -463,7 +463,7 @@ void FileSystemTest::ProtocolTest()
   FileSystem fs( url );
   ProtocolInfo *response = 0;
   GTEST_ASSERT_XRDST( fs.Protocol( response ) );
-  EXPECT_TRUE( response );
+  ASSERT_TRUE( response );
   delete response;
 }
 
@@ -495,7 +495,7 @@ void FileSystemTest::DeepLocateTest()
 
   LocationInfo *locations = 0;
   GTEST_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
-  EXPECT_TRUE( locations );
+  ASSERT_TRUE( locations );
   EXPECT_NE( locations->GetSize(), 0 );
   LocationInfo::Iterator it = locations->Begin();
   for( ; it != locations->End(); ++it )
@@ -533,7 +533,7 @@ void FileSystemTest::DirListTest()
 
   DirectoryList *list = 0;
   GTEST_ASSERT_XRDST( fs.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list ) );
-  EXPECT_TRUE( list );
+  ASSERT_TRUE( list );
   EXPECT_EQ( list->GetSize(), 4000 );
 
   std::set<std::string> dirls1;
@@ -553,7 +553,7 @@ void FileSystemTest::DirListTest()
 
   LocationInfo *info = 0;
   GTEST_ASSERT_XRDST( fs.DeepLocate( lsPath, OpenFlags::PrefName, info ) );
-  EXPECT_TRUE( info );
+  ASSERT_TRUE( info );
 
   for( auto itr = info->Begin(); itr != info->End(); ++itr )
   {
@@ -586,7 +586,7 @@ void FileSystemTest::DirListTest()
   EXPECT_TRUE( info->GetSize() );
   FileSystem fs3( info->Begin()->GetAddress() );
   GTEST_ASSERT_XRDST( fs3.DirList( emptyDirPath, DirListFlags::Stat, list ) );
-  EXPECT_TRUE( list );
+  ASSERT_TRUE( list );
   EXPECT_EQ( list->GetSize(), 0 );
   GTEST_ASSERT_XRDST( fs.RmDir( emptyDirPath ) );
 
@@ -620,7 +620,7 @@ void FileSystemTest::SendInfoTest()
 
   Buffer *id = 0;
   GTEST_ASSERT_XRDST( fs.SendInfo( "test stuff", id ) );
-  EXPECT_TRUE( id );
+  ASSERT_TRUE( id );
   EXPECT_EQ( id->GetSize(), 4 );
   delete id;
 }
@@ -656,7 +656,7 @@ void FileSystemTest::PrepareTest()
   list.push_back( fileLocation );
 
   GTEST_ASSERT_XRDST( fs.Prepare( list, PrepareFlags::Stage, 1, id ) );
-  EXPECT_TRUE( id );
+  ASSERT_TRUE( id );
   EXPECT_TRUE( id->GetSize() );
   delete id;
 }
