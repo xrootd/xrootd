@@ -74,7 +74,7 @@ namespace XrdCl
                       const std::string   &path,
                       DirListFlags::Flags  flags,
                       ResponseHandler     *handler,
-                      uint16_t             timeout = 0 ) :
+                      time_t               timeout = 0 ) :
         pUrl( url ), pFlags( flags ), pHandler( handler ),
         pTimeout( timeout ), pStartTime( time( 0 ) ), pStep( STAT )
       {
@@ -121,7 +121,7 @@ namespace XrdCl
       URL                             pUrl;
       DirListFlags::Flags             pFlags;
       ResponseHandler                *pHandler;
-      uint16_t                        pTimeout;
+      time_t                          pTimeout;
 
       std::unique_ptr<DirectoryList>  pDirList;
       time_t                          pStartTime;
