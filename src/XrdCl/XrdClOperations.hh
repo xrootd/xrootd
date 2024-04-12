@@ -63,7 +63,7 @@ namespace XrdCl
       template<bool>
       friend class Operation;
 
-      friend std::future<XRootDStatus> Async( Pipeline, uint16_t );
+      friend std::future<XRootDStatus> Async( Pipeline, time_t );
 
       friend class Pipeline;
       friend class PipelineHandler;
@@ -135,7 +135,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      virtual XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout ) = 0;
+      virtual XRootDStatus RunImpl( PipelineHandler *handler, time_t timeout ) = 0;
 
       //------------------------------------------------------------------------
       //! Add next operation in the pipeline
@@ -148,7 +148,7 @@ namespace XrdCl
       //! Operation handler
       //------------------------------------------------------------------------
       std::unique_ptr<PipelineHandler> handler;
-;
+
       //------------------------------------------------------------------------
       //! Flag indicating if it is a valid object
       //------------------------------------------------------------------------
@@ -290,7 +290,7 @@ namespace XrdCl
   class Pipeline
   {
       template<bool> friend class ParallelOperation;
-      friend std::future<XRootDStatus> Async( Pipeline, uint16_t );
+      friend std::future<XRootDStatus> Async( Pipeline, time_t );
       friend class PipelineHandler;
 
     public:
@@ -485,7 +485,7 @@ namespace XrdCl
   //!
   //! @return         : future status of the operation
   //----------------------------------------------------------------------------
-  inline std::future<XRootDStatus> Async( Pipeline pipeline, uint16_t timeout = 0 )
+  inline std::future<XRootDStatus> Async( Pipeline pipeline, time_t timeout = 0 )
   {
     pipeline.Run( timeout );
     return std::move( pipeline.ftr );
@@ -500,7 +500,7 @@ namespace XrdCl
   //!
   //! @return         : status of the operation
   //----------------------------------------------------------------------------
-  inline XRootDStatus WaitFor( Pipeline pipeline, uint16_t timeout = 0 )
+  inline XRootDStatus WaitFor( Pipeline pipeline, time_t timeout = 0 )
   {
     return Async( std::move( pipeline ), timeout ).get();
   }
@@ -644,7 +644,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set operation timeout
       //------------------------------------------------------------------------
-      Derived<HasHndl> Timeout( uint16_t timeout )
+      Derived<HasHndl> Timeout( time_t timeout )
       {
         this->timeout = timeout;
         Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
@@ -739,7 +739,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Operation timeout
       //------------------------------------------------------------------------
-      uint16_t timeout;
+      time_t   timeout;
     };
 
   // Out-of-line methods for class Operation

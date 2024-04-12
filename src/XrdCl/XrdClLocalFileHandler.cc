@@ -240,7 +240,7 @@ namespace XrdCl
   // Open
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Open( const std::string& url, uint16_t flags,
-      uint16_t mode, ResponseHandler* handler, uint16_t timeout )
+      uint16_t mode, ResponseHandler* handler, time_t timeout )
   {
     AnyObject *resp = 0;
     XRootDStatus st = OpenImpl( url, flags, mode, resp );
@@ -263,7 +263,7 @@ namespace XrdCl
   // Close
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Close( ResponseHandler* handler,
-      uint16_t timeout )
+      time_t timeout )
   {
     if( close( fd ) == -1 )
     {
@@ -280,7 +280,7 @@ namespace XrdCl
   // Stat
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Stat( ResponseHandler* handler,
-      uint16_t timeout )
+      time_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -314,7 +314,7 @@ namespace XrdCl
   // Read
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Read( uint64_t offset, uint32_t size,
-      void* buffer, ResponseHandler* handler, uint16_t timeout )
+      void* buffer, ResponseHandler* handler, time_t timeout )
   {
 #if defined(__APPLE__)
     Log *log = DefaultEnv::GetLog();
@@ -354,7 +354,7 @@ namespace XrdCl
                                         struct iovec    *iov,
                                         int              iovcnt,
                                         ResponseHandler *handler,
-                                        uint16_t         timeout )
+                                        time_t           timeout )
   {
     Log *log = DefaultEnv::GetLog();
 #if defined(__APPLE__)
@@ -391,7 +391,7 @@ namespace XrdCl
   // Write
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Write( uint64_t offset, uint32_t size,
-      const void* buffer, ResponseHandler* handler, uint16_t timeout )
+      const void* buffer, ResponseHandler* handler, time_t timeout )
   {
 #if defined(__APPLE__)
     const char *buff = reinterpret_cast<const char*>( buffer );
@@ -432,7 +432,7 @@ namespace XrdCl
   // Sync
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Sync( ResponseHandler* handler,
-      uint16_t timeout )
+      time_t timeout )
   {
 #if defined(__APPLE__)
     if( fsync( fd ) )
@@ -463,7 +463,7 @@ namespace XrdCl
   // Truncate
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Truncate( uint64_t size,
-      ResponseHandler* handler, uint16_t timeout )
+      ResponseHandler* handler, time_t timeout )
   {
     if( ftruncate( fd, size ) )
     {
@@ -481,7 +481,7 @@ namespace XrdCl
   // VectorRead
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::VectorRead( const ChunkList& chunks,
-      void* buffer, ResponseHandler* handler, uint16_t timeout )
+      void* buffer, ResponseHandler* handler, time_t timeout )
   {
     std::unique_ptr<VectorReadInfo> info( new VectorReadInfo() );
     size_t totalSize = 0;
@@ -518,7 +518,7 @@ namespace XrdCl
   // VectorWrite
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::VectorWrite( const ChunkList &chunks,
-      ResponseHandler *handler, uint16_t timeout )
+      ResponseHandler *handler, time_t timeout )
   {
 
     for( auto itr = chunks.begin(); itr != chunks.end(); ++itr )
@@ -545,7 +545,7 @@ namespace XrdCl
   XRootDStatus LocalFileHandler::WriteV( uint64_t            offset,
                                          ChunkList          *chunks,
                                          ResponseHandler    *handler,
-                                         uint16_t            timeout )
+                                         time_t              timeout )
   {
     size_t iovcnt = chunks->size();
     iovec iovcp[iovcnt];
@@ -601,7 +601,7 @@ namespace XrdCl
   // Fcntl
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Fcntl( const Buffer &arg,
-      ResponseHandler *handler, uint16_t timeout )
+      ResponseHandler *handler, time_t timeout )
   {
     return XRootDStatus( stError, errNotSupported );
   }
@@ -610,7 +610,7 @@ namespace XrdCl
   // Visa
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::Visa( ResponseHandler *handler,
-      uint16_t timeout )
+      time_t timeout )
   {
     return XRootDStatus( stError, errNotSupported );
   }
@@ -620,7 +620,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::SetXAttr( const std::vector<xattr_t> &attrs,
                                            ResponseHandler            *handler,
-                                           uint16_t                    timeout )
+                                           time_t                      timeout )
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
     std::vector<XAttrStatus> response;
@@ -648,7 +648,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::GetXAttr( const std::vector<std::string> &attrs,
                                            ResponseHandler                *handler,
-                                           uint16_t                        timeout )
+                                           time_t                          timeout )
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
     std::vector<XAttr> response;
@@ -691,7 +691,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::DelXAttr( const std::vector<std::string> &attrs,
                                            ResponseHandler                *handler,
-                                           uint16_t                        timeout )
+                                           time_t                          timeout )
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
     std::vector<XAttrStatus> response;
@@ -717,7 +717,7 @@ namespace XrdCl
   // List extended attributes - async
   //------------------------------------------------------------------------
   XRootDStatus LocalFileHandler::ListXAttr( ResponseHandler  *handler,
-                                            uint16_t          timeout )
+                                            time_t            timeout )
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
     std::vector<XAttr> response;
