@@ -89,11 +89,10 @@ XrdOssArcConfig::XrdOssArcConfig()
 
    maxStage    = 30;
    wtpStage    = 30;
-   mySep       = strdup("%23");
-   mySepLen    = 3;
    arFName     = strdup("Archive.zip");
    arfSfx      = strdup(".zip");
    arfSfxLen   = 4;
+   mySep       = '#';
 
    if (getenv("XRDOSSARC_DEBUG") || getenv("XRDDEBUG"))
       ArcTrace.What |= TRACE_Debug;

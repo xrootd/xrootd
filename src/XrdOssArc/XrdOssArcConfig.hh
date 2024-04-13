@@ -74,11 +74,10 @@ char*       utilsPath;     // Default path to utils
 //
 int         maxStage;      // Maximum number of parallel stages
 int         wtpStage;      // Staging Wait/Poll interval 
-char*       mySep;         // Dataset name/ filename separator (e.g. "%23") 
-int         mySepLen;      // Length of the above
-int         arfSfxLen;     // Length of the below
-char*       arfSfx;        // Archive file suffix
 char*       arFName;       // Full archive filename (e.g. archive.zip)
+char*       arfSfx;        // Archive file suffix
+int         arfSfxLen;     // Length of the above
+char        mySep;         // Slash replacement separator
 
 private:
 
