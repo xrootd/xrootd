@@ -92,7 +92,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    arFName     = strdup("Archive.zip");
    arfSfx      = strdup(".zip");
    arfSfxLen   = 4;
-   mySep       = '#';
+   mySep       = '~';
 
    if (getenv("XRDOSSARC_DEBUG") || getenv("XRDDEBUG"))
       ArcTrace.What |= TRACE_Debug;
