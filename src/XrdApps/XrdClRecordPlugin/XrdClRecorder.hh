@@ -193,7 +193,8 @@ class Recorder: public FilePlugIn
     {
       action->RecordResult( status, response );
       output.Write( std::move( action ) );
-      handler->HandleResponseWithHosts( status, response, hostList );
+      if (handler)
+        handler->HandleResponseWithHosts( status, response, hostList );
       delete this;
     }
 
@@ -207,7 +208,8 @@ class Recorder: public FilePlugIn
     {
       action->RecordResult( status, response );
       output.Write( std::move( action ) );
-      handler->HandleResponse( status, response );
+      if (handler)
+        handler->HandleResponse( status, response );
       delete this;
     }
 
