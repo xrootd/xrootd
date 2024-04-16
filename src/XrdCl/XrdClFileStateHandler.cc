@@ -614,7 +614,8 @@ namespace
                                             XrdCl::AnyObject    *response,
                                             XrdCl::HostList     *hostList )
       {
-        handler->HandleResponseWithHosts( status, response, hostList );
+        if (handler)
+          handler->HandleResponseWithHosts( status, response, hostList );
       }
 
       //------------------------------------------------------------------------
@@ -966,8 +967,8 @@ namespace XrdCl
     {
       AnyObject *obj = new AnyObject();
       obj->Set( new StatInfo( *self->pStatInfo ) );
-      handler->HandleResponseWithHosts( new XRootDStatus(), obj,
-                                        new HostList() );
+      if (handler)
+        handler->HandleResponseWithHosts( new XRootDStatus(), obj, new HostList() );
       return XRootDStatus();
     }
 
