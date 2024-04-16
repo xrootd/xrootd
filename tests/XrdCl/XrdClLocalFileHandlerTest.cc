@@ -506,10 +506,11 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   std::vector<XAttr> resp;
   GTEST_ASSERT_XRDST( f.GetXAttr( names, resp ) );
 
+  ASSERT_EQ( resp.size(), 2 );
+
   GTEST_ASSERT_XRDST( resp[0].status );
   GTEST_ASSERT_XRDST( resp[1].status );
 
-  EXPECT_EQ( resp.size(), 2 );
   int vid = resp[0].name == "version" ? 0 : 1;
   int did = vid == 0 ? 1 : 0;
   EXPECT_EQ( resp[vid].name, std::string("version") );
