@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -109,6 +108,7 @@ add_library(
 
 target_link_libraries(
   XrdCl
+  PRIVATE
   XrdXml
   XrdUtils
   uuid::uuid
@@ -126,7 +126,7 @@ set_target_properties(
 
 if( BUILD_XRDEC )
   target_include_directories(XrdCl PUBLIC ${ISAL_INCLUDE_DIRS})
-  target_link_libraries(XrdCl ${ISAL_LIBRARIES})
+  target_link_libraries(XrdCl PRIVATE ${ISAL_LIBRARIES})
 endif()
 
 #-------------------------------------------------------------------------------
@@ -145,6 +145,10 @@ target_link_libraries(
   XrdUtils
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
+
+if( READLINE_FOUND )
+  target_include_directories(xrdfs PRIVATE ${READLINE_INCLUDE_DIR})
+endif()
 endif()
 
 #-------------------------------------------------------------------------------
@@ -158,6 +162,7 @@ add_executable(
 target_link_libraries(
   xrdcp
   XrdCl
+  XrdUtils
   XrdAppUtils )
 endif()
 
@@ -193,7 +198,6 @@ install(
     XrdClXRootDResponses.hh
     XrdClOptional.hh
     XrdClPlugInInterface.hh
-    XrdClPlugInManager.hh
     XrdClPropertyList.hh
     XrdClLog.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
@@ -201,11 +205,14 @@ install(
 install(
   FILES
     # Additional client headers
+    XrdClJobManager.hh
     XrdClMessage.hh
+    XrdClPlugInManager.hh
     XrdClPostMaster.hh
     XrdClPostMasterInterfaces.hh
     XrdClTransportManager.hh
     XrdClResponseJob.hh
+    XrdClSyncQueue.hh
     XrdClZipArchive.hh
     XrdClZipCache.hh
     # Declarative operations
@@ -219,44 +226,17 @@ install(
     XrdClFileOperations.hh
     XrdClFileSystemOperations.hh
     XrdClFinalOperation.hh
+    XrdClUtils.hh
+    XrdClXRootDTransport.hh
     XrdClZipOperations.hh 
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
 
 if( NOT XRDCL_LIB_ONLY )
 install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp.1
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdmapc.1
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
-
-install(
   CODE "
     EXECUTE_PROCESS(
       COMMAND ln -sf xrdcp xrdcopy
       WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} )"
-)
-
-install(
-  CODE "
-    EXECUTE_PROCESS(
-      COMMAND ln -sf xrdcp.1 xrdcopy.1
-      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )"
-)
-
-install(
-  CODE "
-    FOREACH(MANPAGE xrdfs.1 xrdcp.1 xrdmapc.1)
-      MESSAGE( \"-- Processing: \" \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1/\${MANPAGE} )
-      EXECUTE_PROCESS(
-        COMMAND cat \${MANPAGE}
-        COMMAND sed  -e \"s/__VERSION__/${XROOTD_VERSION}/\"
-        OUTPUT_FILE \${MANPAGE}.new
-        WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )
-      EXECUTE_PROCESS(
-        COMMAND mv -f \${MANPAGE}.new \${MANPAGE}
-        WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )
-    ENDFOREACH()"
 )
 
 endif()

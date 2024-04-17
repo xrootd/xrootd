@@ -47,6 +47,8 @@
 #include "Xrd/XrdProtocol.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdHttpChecksumHandler.hh"
+#include "XrdHttpReadRangeHandler.hh"
+#include "XrdNet/XrdNetPMark.hh"
 
 #include <openssl/ssl.h>
 
@@ -128,6 +130,9 @@ public:
 
   // XrdHttp checksum handling class
   static XrdHttpChecksumHandler cksumHandler;
+
+  /// configuration for the read range handler
+  static XrdHttpReadRangeHandler::Configuration ReadRangeConfig;
 
   /// called via https
   bool isHTTPS() { return ishttps; }
@@ -293,6 +298,9 @@ private:
 
   /// Tells that we are just logging in
   bool DoingLogin;
+
+  /// Indicates whether we've attempted to send app info.
+  bool DoneSetInfo;
   
   /// Tells that we are just waiting to have N bytes in the buffer
   long ResumeBytes;
@@ -429,5 +437,8 @@ protected:
 
   /// The list of checksums that were configured via the xrd.cksum parameter on the server config file
   static char * xrd_cslist;
+
+  /// Packet marking handler pointer (assigned from the environment during the Config() call)
+  static XrdNetPMark * pmarkHandle;
 };
 #endif

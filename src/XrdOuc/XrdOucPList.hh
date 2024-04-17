@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <strings.h>
+#include <cstring>
 #include <cstdlib>
   
 class XrdOucPList

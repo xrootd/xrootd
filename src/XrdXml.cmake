@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 if ( TINYXML_FOUND )
    set( TINYXML_FILES "" )
@@ -45,6 +44,7 @@ add_library(
 
 target_link_libraries(
   XrdXml
+  PRIVATE
   XrdUtils
   ${TINYXML_LIBRARIES}
   ${XRDXML2_LIBRARIES}
@@ -54,9 +54,7 @@ set_target_properties(
   XrdXml
   PROPERTIES
   VERSION   ${XRD_XML_VERSION}
-  SOVERSION ${XRD_XML_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_XML_SOVERSION} )
 
 if ( TINYXML_FOUND )
    target_include_directories( XrdXml PRIVATE ${TINYXML_INCLUDE_DIR} )

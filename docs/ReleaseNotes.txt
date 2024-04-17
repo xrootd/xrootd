@@ -6,6 +6,287 @@ Release Notes
 =============
 
 -------------
+Version 5.6.9
+-------------
+
++ **Minor bug fixes**
+  **[Python]** Check list of files in prepare to ensure they are strings
+  **[Python]** Fix iteration over a file with Python3
+  **[Python]** Use int for 'force' in File::Stat (#2208)
+  **[Utils]** Correct comparison that wrongly missed reaping certain directives
+  **[XrdCl]** Fix logic error when upgrading connections to TLS
+  **[XrdCl]** Stop Poller before TaskManager (fixes rare crashes at shutdown)
+  **[XrdHttpTPC]** Fix 500 server response code if X-Number-Of-Streams > 100 (issue #2186)
+  **[XrdSciTokens]** Add stat permissions to create, modify and write operations (issue #2185)
+  **[XrdSciTokens]** Allow creation of parent directories if necessary (#2184)
+  **[XrdSciTokens]** Fix bug when scope includes basepath or `/` (issue #2132)
+
++ **Miscellaneous**
+  **[Tests]** Optimize cluster configuration to speedup tests
+
+-------------
+Version 5.6.8
+-------------
+
++ **Minor bug fixes**
+  **[RPM]** Create systemd tmpfiles at post-install step
+  **[XrdCl]** Only claim to be TLS capable if TLS initialization succeeds (issue #2020)
+  **[XrdCl]** Only consider an endpoint TLS-enabled if the connection is encrypted**
+  **[XrdCl]** Remove duplicates from URL list to avoid undefined behavior
+  **[XrdHttpTPC]** Fix infinite loop when scitags packet marking is enabled (issue #2192)
+  **[XrdPosix,XrdSecztn]** Fix build on FreeBSD (issue #2090)
+  **[XrdTls]** Fix automatic renewal of server certificate with OpenSSL>=1.1 (issue #1678)
+
++ **Miscellaneous**
+  **[CMake]** Use CTest module in test.cmake and optionally submit to CDash
+  **[RPM]** Install the client as dependency of main RPM
+  **[Server]** Fix clang compile warnings
+
+-------------
+Version 5.6.7
+-------------
+
++ **Major bug fixes**
+  **[XrdCl]** Fix crash at teardown when using copies with multiple streams (issue #2164)
+  **[XrdSecsss]** Fix buffer overrun when serializing credentials (issue #2143)
+
++ **Minor bug fixes**
+  **[XrdCl]** Fix TPC initialization to take into account control stream (issue #2164)
+  **[XrdPosix]** Fix ordering of debug levels in pss.setop DebugLevel (#2183)
+  **[XrdTpc]** Properly handle creation of packet marking handles when socket is not yet connected (#2179)
+
++ **Miscellaneous**
+  **[XrdHeaders]** Install XrdSfsFAttr.hh as private header
+
+-------------
+Version 5.6.6
+-------------
+
++ **Major bug fixes**
+  **[XrdHttp]** Fix PostProcessHttpReq to take into account User-Agent setting (#2173)
+
++ **Minor bug fixes**
+  **[Server]** Set TZ environment variable to avoid race conditions (issue #2107)
+  **[XrdCl]** Treat errOperationInterrupted as a recoverable error (issue #2169)
+
+-------------
+Version 5.6.5
+-------------
+
++ **Major bug fixes**
+  **[XrdTpc]** Fix potential segmentation fault when creating packet marking handle (issue #2161)
+
++ **Minor bug fixes**
+  **[XrdSecgsi]** Fix compilation with GCC 14 (#2165)
+  **[XrdSys]** Include <byteswap.h> for BSD and GNU/Hurd (#2149)
+
++ **Miscellaneous**
+  **[Server]** Align monitoring ID with HTTP (issue #2133)
+  **[XrdCrypto]** Skip check of our standard DH parameters (issue #2162)
+  **[XrdHttp]** Send User-Agent as part of monitoring info (#2154)
+
+-------------
+Version 5.6.4
+-------------
+
++ **Major bug fixes**
+  **[XrdHttp]** Fix segfault with macaroons (issue #2114)
+  **[XrdPss]** Fix segfault if pss.origin uses https protocol with no port (issue #2140)
+
++ **Minor bug fixes**
+  **[CMake]** Fix include path in XRootDConfig.cmake (#2142)
+  **[Headers]** Fix header dependencies and missing includes/declarations (#2119)
+  **[Server]** Initialize pidFN to pidpath base directory if an error occurs
+  **[XrdCl]** Don't try to enable TCP_CORK in GNU/Hurd (#2115)
+  **[XrdCl]** Reapply fix for null-characters in error output (#2138, issue #1501)
+  **[XrdEc]** Fix alignment issues on SPARC (issue #2131)
+  **[XrdHttp,XrdNet]** Adapt Scitag min and max value to change in spec (#2139)
+  **[XrdPosix]** Fix compilation failure with latest MUSL libc
+  **[XrdSciTokens]** Initialize SecEntity.addrInfo to avoid SEGV (#2128)
+  **[XrdTls]** Switch from using a cert file to a cert chain file (issue #2126)
+  **[XrdZip]** Support big endian architectures in XrdZip (#2145)
+
++ **Miscellaneous**
+  **[CMake]** Install CMake config file into lib/lib64 rather than share (#2116)
+  **[DEB/RPM]** Rewrite packaging for Debian and RHEL based distributions
+  **[Tests]** Convert tests to GoogleTest and run without containers (#2055, GSoC 2023)
+  **[Tests]** Other fixes and improvements to tests (#2115, #2129, #2130, #2137, #2141)
+
++ **Known Issues**
+  **[XrdSciTokens]** In this release, as in previous ones, using scitokens with the ZTN
+     protocol may grant more access than should be allowed by the token scopes (issue #2121).
+
+-------------
+Version 5.6.3
+-------------
+
++ **Minor bug fixes**
+  **[CMake]** Export project version in CMake config (issue #2094)
+  **[CMake]** Find only XRootD matching XRootDConfig.cmake installation path
+  **[Python]** Do not use PEP517 by default, not supported on CentOS 7
+  **[Server]** Call tzset() early to ensure thread-safety of localtime_r() and mktime() (issue #2107)
+  **[Server]** Correct maximum exp/act value in XrdNetPMark::getEA
+  **[Server]** Create environment file within adminpath (issue #2106)
+  **[Server]** Fix incorrect patch for authfile parsing (issue #2088)
+  **[Tests]** Skip server checksum query test on unsupported filesystems (issue #2096)
+  **[XrdCl]** Return an error if xrdfs rm fails to delete any file (issue #2097)
+  **[XrdCms]** Try to load blacklist even if some entries are invalid (issue #2092)
+  **[XrdEc]** Wait for pipeline including XrdCl::AppendFile() to finish (issue #2050)
+  **[XrdHttp]** Fix parsing of chunked PUT lengths (#2102, #2103)
+
++ **Miscellaneous**
+  **[CMake]** Add extra debugging messages in XRootDConfig.cmake
+  **[CMake]** Handle components using more standard method
+  **[Misc]** Fix spelling errors reported by lintian (#2087)
+  **[Python]** Convert pyxrootd installation instructions to rst
+  **[Server]** Export ptr to full TLS context into the Xrd env
+  **[XrdCeph]** Align CMake requirement with main CMakeLists.txt
+  **[XrdHttp]** Implemented HTTP TPC Packet Marking (#2109)
+  **[XrdHttp]** Parse headers provided by the client in case-insensitive way when matching header2cgi keys (#2101)
+  **[XrdHttp]** Promote SciTag header if packet marking has been configured on the server (#2101)
+  **[XrdSciTokens]** Use configured CA path in SciTokens plugin if supported (#2095, #2112)
+  **[XrdTpc]** Differentiate error messages for push/pull TPC transfer modes (issue #2060)
+
+-------------
+Version 5.6.2
+-------------
+
++ **Major bug fixes**
+  **[XrdHttp]** Fix chunked PUT creating empty files (issue #2058)
+
++ **Minor bug fixes**
+  **[CMake]** Update Findlibuuid.cmake to use correct include paths
+  **[Python]** Fix inclusion of markdown README file in documentation (#2057)
+  **[Server]** Align code with actual documentation for auth idspec (issue #2061)
+  **[XrdCl]** Fix flag check for append in XrdClZipArchive
+  **[XrdCl]** Fix promotion of root:// URLs to use TLS encryption (issue #2078)
+  **[XrdHttp]** Correct chunked response for GET with a byte range (issue #2076)
+  **[XrdHttp]** Refactor read issuing during GET and fix read vector too long (issue #1976)
+  **[XrdSciTokens]** Fix logic error in user mapping (issue #2056)
+  **[XrdSciTokens]** Update maximum header size and line length in INI files (issue #2074)
+  **[XrdSecgsi]** Fix crash of xrdgsitest when proxy is not already set
+  **[XrdSecztn]** Fix template for default ZTN token location (issue #2080)
+  **[XrdTls]** Change the thread-id returned to openssl 1.0 to improve performance (issue #2084)
+  **[XrdTls]** Insert CRLs containing critical extensions at the end of the bundle (issue #2065)
+
++ **Miscellaneous**
+  **[CMake]** Always compile XrdOssCsi (compiled only with GCC before)
+  **[CMake]** Hide build output for isa-l to not confuse CTest
+  **[CMake]** Run tests in parallel and fail build when tests fail
+  **[Python]** Allow build customization via environment variable (issue #2062)
+  **[Python]** Check for Development.Module with CMake 3.18 and above
+  **[Server]** Add initialiser in one of the XrdScheduler constructors (#2081)
+  **[Server]** Default ffdest as per current pmark specification
+  **[Server]** Export readv comma separated limits via XRD_READV_LIMITS envar
+  **[Server]** Implement Linux epoll maxfd limit (#2063)
+  **[XrdClHttp] Add pgWrite support to the HTTP client plugin
+  **[XrdHttp]** Refactor request statemachine for HTTP GET requests (#2072)
+  **[XrdTls]** Refactor CASet and CRLSet to open the output file only once before the processing
+
+-------------
+Version 5.6.1
+-------------
+
++ **Minor bug fixes**
+  **[CMake]** Fix Findlibuuid.cmake to use kernel provided uuid on macOS
+  **[XrdCl]** Avoid race in postmaster QueryTransport
+  **[XrdCl]** Add missing argument in call to debug log message.
+    This fixes sporadic crashes seen in FTS when debug logging is enabled.
+  **[XrdCrypto]** Avoid race in GetCryptoFactory
+
++ **Miscellaneous**
+  **[CMake]** Make sure Python is required in PyPI build
+  **[CMake]** Set RPATH that works for binaries and libraries on macOS
+  **[CMake,Python]** Handle RPATH for Python bindings on macOS
+  **[Python]** Use PEP517 by default when building Python bindings
+
+-------------
+Version 5.6.0
+-------------
+
++ **New Features**
+  **[CMake]** Modernization of build system, now requires CMake 3.16
+  **[Client]** Add xrdfs cache subcommand to allow for cache evictions
+  **[Misc]** Add support for building with musl libc (issue #1645)
+  **[Python]** Modernization of build system, better support for creating binary wheels,
+               properly propagating CXXFLAGS (issues #1768, #1807, #1833, #1844, #2001, #2002)
+  **[Python]** Better handling of unicode strings in the API (issue #2011)
+  **[Server]** Add gsi option to display DN when it differs from entity name
+  **[Server]** Allow generic prepare plug-in to handle large responses (issue #2023)
+  **[Server]** Allow specfication of minimum and maximum creation mode (issue #649)
+  **[Server]** Make maxfd be configurable (default is 256k) (issue #2010)
+  **[Server]** Include token information in the monitoring stream (phase 1).
+  **[Xcache]** Implement a file evict function
+  **[Xcache,XrdCl]** Increase default number of parallel event loops to 10 (#2047)
+  **[XrdCl]** xrdcp: number of parallel copy jobs increased from 4 to 128
+  **[XrdHttp]** Allow XRootD to return trailers indicating failure (#1912)
+  **[XrdHttp]** Denote Accept-Ranges in HEAD response (issue #1889)
+  **[XrdHttp]** Report cache object age for caching proxy mode (#1919)
+  **[XrdPss]** Allow origin to be a directory of a locally mounted file system
+  **[XrdSciTokens]** Implement ability to have the token username as a separate claim (#1978)
+  **[XrdSecgsi]** Use SHA-256 for signatures, and message digest algorithm (issues #1992, #2030)
+  **[XrdSecztn]** Allow option '-tokenlib none' to disable token validation (issue #1895)
+  **[XrdSecztn]** Allow to point to a token file using CGI '?xrd.ztn=tokenfile' (#1926)
+
++ **Major bug fixes**
+  **[XrdHttp]** Fix SEGV in case request has object for opaque data but no content (#2007)
+  **[XrdSecgsi]** Fix memory leaks in GSI authentication (issue #2021)
+
++ **Minor bug fixes**
+  **[Server]** Use correct value for testing vector size
+  **[XrdCl]** Fix off by one error in failure recovery check in parallel operation (issue #2040)
+  **[XrdCl]** Fix potential stream timeout when a new request is sent to an idle stream (issue #2042)
+  **[XrdCl]** Do not enforce TLS when --notlsok option is used in combination with root:// URL.
+              This allows falling back to e.g. Kerberos authentication on a server with ZTN plugin
+              enabled if the client has no certificates, hence not able to use TLS (issue #2020)
+  **[XrdEc]** Fix compilation issues and underlinking on macOS
+  **[XrdHttp]** Fix error returned when a client provides too many range requests (issue #2003)
+  **[XrdHttp]** Fix regression where performance markers were missing during an HTTP TPC transfer (#2017)
+  **[XrdHttp]** Return 404 instead of 500 error code on GET request on non-existent file (issue #2018)
+  **[XrdHttp]** Return 405 instead of 500 error code on deletion of non-empty directory (issue #1896)
+  **[XrdHttp]** Update HTTP header handling for chunked encoding and status trailer (#2009)
+  **[XrdTls]** Make sure TLS context is marked invalid if not properly constructed (issue #2020)
+  **[XrdTls]** Fix build failure with latest glibc (#2012)
+
++ **Miscellaneous**
+  **[Apps]** Make xrdcrc32c consistent with xrdadler32 (issue #2045)
+  **[CMake]** Build option ENABLE_CRYPTO has been removed. OpenSSL is always required with XRootD 5 (issue #1827)
+  **[CMake]** New test.cmake script added to automate configure/build/test cycle
+  **[CMake]** Fix build with link-time optimizations on 32bit systems (issue #2032)
+  **[docs]** Update READMEs, contribution, installation, and testing documentation
+  **[Misc]** Fix warnings from Clang compiler (#1997)
+  **[Misc]** Add sandboxing settings to systemd service files (initially commented out) (issue #2033)
+  **[Server]** Also check for IPv6 ULA's to determine if an address is private
+  **[Tests]** New script xrd-docker added to automate running of dockerized tests (#1974)
+  **[XProtocol]** Add fallthrough statement for ENOTEMPTY errno code mapping
+  **[XRootD] ** Update code to no longer rely on using namespace std; (needed to support C++17)
+  **[XrdCeph]** Submodule merged back into main repository (#2008)
+  **[XrdCeph]** Minor build system updates and integration with main repository
+  **[XrdCrypto]** Switch to a fixed set of DH parameters compatible with older OpenSSL (issue #2014)
+
+-------------
+Version 5.5.5
+-------------
+
++ **Major bug fixes**
+  **[HTTP]** Initialize SecEntity.addrInfo to avoid SEGV (issue 1986)
+  **[Server]** Allow XrdXrootdFile::Serialize() to be used to wait more than once (issue 1995)
+  **[Server]** Correct file handle returned when reusing it from external table
+  **[XrdCl]** Fix client crash on early closed connection (issue 1934)
+
++ **Minor bug fixes**
+  **[Server]** Use correct format to print size_t (issue 1989)
+  **[XrdApps]** Let XrdClProxyPlugin work with PgRead (issue 1993)
+  **[XrdCl]** Avoid possibility of Channel unregistering the wrong task (issue 1883)
+  **[XrdCl]** Fix ZipArchive issuing VectorWrite which is too large during CloseArchive (issue 2004)
+  **[XrdSys]** Avoid memory leak when overwriting the default message for EBADE
+
++ **Miscellaneous**
+  **[CMake]** Adjust build rules to not depend on scitokenscpp to build libXrdSecztn
+  **[Server,XrdPosix,XrdSecgsi]** Fix compile warnings with Clang compiler
+  **[XrdPosix]** Fix build with Clang and _FORTIFY_SOURCE enabled (issue 1975)
+
+-------------
 Version 5.5.4
 -------------
 

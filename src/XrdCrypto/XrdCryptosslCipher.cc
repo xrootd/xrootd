@@ -47,6 +47,26 @@
 #include <openssl/param_build.h>
 #endif
 
+// Hardcoded DH parameters that are acceptable to both OpenSSL 3.0 (RHEL9)
+// and 1.0.2 (RHEL7).  OpenSSL 3.0 reworked the DH parameter generation algorithm
+// and now produces DH params that don't pass OpenSSL 1.0.2's parameter verification
+// function (`DH_check`).  Accordingly, since these are safe to reuse, we generated
+// a single set of parameters for the server to always utilize.
+static const char dh_param_enc[] =
+R"(
+-----BEGIN DH PARAMETERS-----
+MIIBiAKCAYEAzcEAf3ZCkm0FxJLgKd1YoT16Hietl7QV8VgJNc5CYKmRu/gKylxT
+MVZJqtUmoh2IvFHCfbTGEmZM5LdVaZfMLQf7yXjecg0nSGklYZeQQ3P0qshFLbI9
+u3z1XhEeCbEZPq84WWwXacSAAxwwRRrN5nshgAavqvyDiGNi+GqYpqGPb9JE38R3
+GJ51FTPutZlvQvEycjCbjyajhpItBB+XvIjWj2GQyvi+cqB0WrPQAsxCOPrBTCZL
+OjM0NfJ7PQfllw3RDQev2u1Q+Rt8QyScJQCFUj/SWoxpw2ydpWdgAkrqTmdVYrev
+x5AoXE52cVIC8wfOxaaJ4cBpnJui3Y0jZcOQj0FtC0wf4WcBpHnLLBzKSOQwbxts
+WE8LkskPnwwrup/HqWimFFg40bC9F5Lm3CTDCb45mtlBxi3DydIbRLFhGAjlKzV3
+s9G3opHwwfgXpFf3+zg7NPV3g1//HLgWCvooOvMqaO+X7+lXczJJLMafEaarcAya
+Kyo8PGKIAORrAgEF
+-----END DH PARAMETERS-----
+)";
+
 // ---------------------------------------------------------------------------//
 //
 // Cipher interface
@@ -146,7 +166,33 @@ static int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
 }
 #endif
 
+static EVP_PKEY *getFixedDHParams() {
+    static EVP_PKEY *dhparms = [] {
+        EVP_PKEY *dhParam = 0;
+
+        BIO *biop = BIO_new(BIO_s_mem());
+        BIO_write(biop, dh_param_enc, strlen(dh_param_enc));
+        PEM_read_bio_Parameters(biop, &dhParam);
+        BIO_free(biop);
+        return dhParam;
+    }();
+
+    assert(dhparms);
+    return dhparms;
+}
+
 static int XrdCheckDH (EVP_PKEY *pkey) {
+   // If the DH parameters we received are our fixed set we know they
+   // are acceptable. The parameter check requires computation and more
+   // with openssl 3 than previously. So skip if DH params are known.
+   const EVP_PKEY *dhparms = getFixedDHParams();
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+   const bool skipcheck = EVP_PKEY_parameters_eq(pkey, dhparms);
+#else
+   const bool skipcheck = EVP_PKEY_cmp_parameters(pkey, dhparms);
+#endif
+   if (skipcheck) return 1;
+
    int rc;
 #if OPENSSL_VERSION_NUMBER < 0x10101000L
    DH *dh = EVP_PKEY_get0_DH(pkey);
@@ -504,23 +550,43 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
    deflength = 1;
 
    if (!pub) {
-      static EVP_PKEY *dhparms = [] {
-         DEBUG("generate DH parameters");
-         EVP_PKEY *dhParam = 0;
+
+      DEBUG("generate DH parameters");
+      EVP_PKEY *dhparms = getFixedDHParams();
+//
+// Important historical context:
+// - We used to generate DH params on every server startup (commented
+//   out below).  This was prohibitively costly to do on startup for
+//   DH parameters large enough to be considered secure.
+// - OpenSSL 3.0 improved the DH parameter generation to avoid leaking
+//   the first bit of the session key (see https://github.com/openssl/openssl/issues/9792
+//   for more information).  However, a side-effect is that the new
+//   parameters are not recognized as valid in OpenSSL 1.0.2.
+// - Since we can't control old client versions and new servers can't
+//   generate compatible DH parameters, we switch to a fixed, much stronger
+//   set of DH parameters (3072 bits).
+//
+// The impact is that we continue leaking the first bit of the session key
+// (meaning it's effectively 127 bits not 128 bits -- still plenty secure)
+// but upgrade the DH parameters to something more modern (3072; previously,
+// it was 512 bits which was not considered secure).  The downside
+// of fixed DH parameters is that if a nation-state attacked our selected
+// parameters (using technology not currently available), we would have
+// to upgrade all servers with a new set of DH parameters.
+//
+
+/*
          EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, 0);
          EVP_PKEY_paramgen_init(pkctx);
          EVP_PKEY_CTX_set_dh_paramgen_prime_len(pkctx, kDHMINBITS);
          EVP_PKEY_CTX_set_dh_paramgen_generator(pkctx, 5);
          EVP_PKEY_paramgen(pkctx, &dhParam);
          EVP_PKEY_CTX_free(pkctx);
-         DEBUG("generate DH parameters done");
-         return dhParam;
-      }();
+*/
 
       DEBUG("configure DH parameters");
       //
       // Set params for DH object
-      assert(dhparms);
       EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new(dhparms, 0);
       EVP_PKEY_keygen_init(pkctx);
       EVP_PKEY_keygen(pkctx, &fDH);
@@ -853,6 +919,7 @@ bool XrdCryptosslCipher::Finalize(bool padded,
             EVP_PKEY_derive_set_peer(pkctx, peer);
             EVP_PKEY_derive(pkctx, (unsigned char *)ktmp, &ltmp);
             EVP_PKEY_CTX_free(pkctx);
+            EVP_PKEY_free(peer);
             if (ltmp > 0) {
 #if OPENSSL_VERSION_NUMBER < 0x10101000L
                if (padded) {
@@ -1036,7 +1103,7 @@ void XrdCryptosslCipher::PrintPublic(BIGNUM *pub)
          char *bpub = new char[lpub];
          if (bpub) {
             BIO_read(biop,(void *)bpub,lpub);
-            cerr << bpub << endl;
+            std::cerr << bpub << std::endl;
             delete[] bpub;
          }
          EVP_PKEY_free(dsa);

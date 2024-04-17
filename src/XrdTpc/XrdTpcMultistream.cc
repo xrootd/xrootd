@@ -281,6 +281,9 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         curl_handles.emplace_back(handles.back()->GetHandle());
     }
 
+    // Notify the packet marking manager that the transfer will start after this point
+  rec.pmarkManager.startTransfer(&req);
+
     // Create the multi-handle and add in the current transfer to it.
     MultiCurlHandler mch(handles, m_log);
     CURLM *multi_handle = mch.Get();
@@ -329,9 +332,14 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             }
             int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
             if (now > last_advance_time + timeout) {
+                const char *log_prefix = rec.log_prefix.c_str();
+                bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
+
                 mch.SetErrorCode(10);
                 std::stringstream ss;
-                ss << "Transfer failed because no bytes have been received in " << timeout << " seconds.";
+                ss << "Transfer failed because no bytes have been "
+                   << (tpc_pull ? "received from the source (pull mode) in "
+                                : "transmitted to the destination (push mode) in ") << timeout << " seconds.";
                 mch.SetErrorMessage(ss.str());
                 break;
             }
@@ -346,6 +354,9 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         } else if (mres != CURLM_OK) {
             break;
         }
+
+        rec.pmarkManager.beginPMarks();
+
 
         // Harvest any messages, looking for CURLMSG_DONE.
         CURLMsg *msg;

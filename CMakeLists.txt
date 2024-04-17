@@ -9,6 +9,8 @@ set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
  ${PROJECT_SOURCE_DIR}/cmake )
 
+include(XRootDVersion)
+
 #-------------------------------------------------------------------------------
 # A 'plugins' phony target to simplify building build-tree binaries.
 # Plugins are responsible for adding themselves to this target, where
@@ -30,57 +32,23 @@ add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
 #-------------------------------------------------------------------------------
 # Generate the version header
 #-------------------------------------------------------------------------------
-if (USER_VERSION)
-  set(XROOTD_VERSION "${USER_VERSION}")
-else ()
-execute_process(
-  COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh --print-only ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE XROOTD_VERSION
-  OUTPUT_STRIP_TRAILING_WHITESPACE )
-endif()
 
-add_custom_target(
-  XrdVersion.hh
-  ${CMAKE_SOURCE_DIR}/genversion.sh --version ${XROOTD_VERSION} ${CMAKE_SOURCE_DIR})
-
-# sigh, yet another ugly hack :(
-macro( add_library _target )
-  _add_library( ${_target} ${ARGN} )
-  add_dependencies( ${_target} XrdVersion.hh )
-endmacro()
-
-macro( add_executable _target )
-  _add_executable( ${_target} ${ARGN} )
-  add_dependencies( ${_target} XrdVersion.hh )
-endmacro()
-
-#-------------------------------------------------------------------------------
-# Checkout the vomsxrd submodule
-#-------------------------------------------------------------------------------
-find_package(Git QUIET)
-if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-  option(GIT_SUBMODULES "Check submodules during build" ON)
-  if(GIT_SUBMODULES)
-    message(STATUS "Submodule update")
-    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
-    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-      message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-    endif()
-  endif()
-endif()
+configure_file(src/XrdVersion.hh.in src/XrdVersion.hh)
 
 #-------------------------------------------------------------------------------
 # Build in subdirectories
 #-------------------------------------------------------------------------------
-add_subdirectory( src )
-add_subdirectory( bindings )
 
-if( BUILD_TESTS )
-  ENABLE_TESTING()
-  add_subdirectory( tests )
-endif()
+include_directories(BEFORE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src)
+
+include(CTest)
+
+add_subdirectory(src)
+add_subdirectory(bindings)
+add_subdirectory(tests)
+
+add_subdirectory(docs)
+add_subdirectory(utils)
 
 include( XRootDSummary )
 
@@ -89,11 +57,24 @@ include( XRootDSummary )
 # Install XRootDConfig.cmake module
 #-------------------------------------------------------------------------------
 
-configure_file( "cmake/XRootDConfig.cmake.in" "cmake/XRootDConfig.cmake" @ONLY )
+include(CMakePackageConfigHelpers)
 
-install(
-  FILES ${CMAKE_BINARY_DIR}/cmake/XRootDConfig.cmake
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/cmake )
+write_basic_package_version_file(cmake/${PROJECT_NAME}ConfigVersion.cmake
+  VERSION ${XRootD_VERSION} COMPATIBILITY SameMajorVersion)
+
+configure_package_config_file(cmake/${PROJECT_NAME}Config.cmake.in cmake/${PROJECT_NAME}Config.cmake
+  INSTALL_PREFIX
+    ${CMAKE_INSTALL_PREFIX}
+  INSTALL_DESTINATION
+    ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+  PATH_VARS
+    CMAKE_INSTALL_INCLUDEDIR
+    CMAKE_INSTALL_LIBDIR
+    CMAKE_INSTALL_DATADIR
+)
+
+install(DIRECTORY ${PROJECT_BINARY_DIR}/cmake/
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 #-------------------------------------------------------------------------------
 # Configure an 'uninstall' target

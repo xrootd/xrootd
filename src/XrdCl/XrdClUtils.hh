@@ -272,6 +272,18 @@ namespace XrdCl
         if( !st.IsOK() ) return false;
         return protver >= kXR_PROTPGRWVERSION;
       }
+
+      //------------------------------------------------------------------------
+      //! Split chunks in a ChunkList into one or more ChunkLists
+      //! @param listsvec        : output vector of ChunkLists
+      //! @param chunks          : input ChunkLisits
+      //! @param maxcs           : maximum size of a ChunkInfo in output
+      //! @param maxc            : maximum number of ChunkInfo in each ChunkList
+      //------------------------------------------------------------------------
+      static void SplitChunks( std::vector<ChunkList> &listsvec,
+                               const ChunkList        &chunks,
+                               const uint32_t          maxcs,
+                               const size_t            maxc );
   };
 
   //----------------------------------------------------------------------------

@@ -56,23 +56,22 @@ CPPUNIT_TEST_SUITE_REGISTRATION( PostMasterTest );
 //------------------------------------------------------------------------------
 namespace
 {
-  class PostMasterFinalizer
+  class PostMasterFetch
   {
     public:
-      PostMasterFinalizer( XrdCl::PostMaster *pm = 0 ): pPostMaster(pm) {}
-      ~PostMasterFinalizer()
-      {
-        if( pPostMaster )
-        {
-          pPostMaster->Stop();
-          pPostMaster->Finalize();
-        }
+      PostMasterFetch() { }
+      ~PostMasterFetch()  { }
+      XrdCl::PostMaster *Get() {
+        return XrdCl::DefaultEnv::GetPostMaster();
       }
-      void Set( XrdCl::PostMaster *pm ) { pPostMaster = pm; }
-      XrdCl::PostMaster *Get() { return pPostMaster; }
-
-    private:
-      XrdCl::PostMaster *pPostMaster;
+      XrdCl::PostMaster *Reset() {
+        XrdCl::PostMaster *pm = Get();
+        pm->Stop();
+        pm->Finalize();
+        CPPUNIT_ASSERT( pm->Initialize() != 0 );
+        CPPUNIT_ASSERT( pm->Start() != 0 );
+        return pm;
+      }
   };
 }
 
@@ -285,17 +284,15 @@ void *TestThreadFunc( void *arg )
 void PostMasterTest::ThreadingTest()
 {
   using namespace XrdCl;
-  PostMaster postMaster;
-  PostMasterFinalizer finalizer( &postMaster );
-  postMaster.Initialize();
-  postMaster.Start();
+  PostMasterFetch pmfetch;
+  PostMaster *postMaster = pmfetch.Get();
 
   pthread_t thread[100];
   ArgHelper helper[100];
 
   for( int i = 0; i < 100; ++i )
   {
-    helper[i].pm    = &postMaster;
+    helper[i].pm    = postMaster;
     helper[i].index = i;
     pthread_create( &thread[i], 0, TestThreadFunc, &helper[i] );
   }
@@ -319,10 +316,8 @@ void PostMasterTest::FunctionalTest()
   env->PutInt( "TimeoutResolution", 1 );
   env->PutInt( "ConnectionWindow", 15 );
 
-  PostMaster postMaster;
-  PostMasterFinalizer finalizer( &postMaster );
-  postMaster.Initialize();
-  postMaster.Start();
+  PostMasterFetch pmfetch;
+  PostMaster *postMaster = pmfetch.Get();
 
   std::string address;
   CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
@@ -348,7 +343,7 @@ void PostMasterTest::FunctionalTest()
   request->dlen        = 0;
   XRootDTransport::MarshallRequest( &m1 );
 
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, &msgHandler1, false, expires ) );
+  CPPUNIT_ASSERT_XRDST( postMaster->Send( host, &m1, &msgHandler1, false, expires ) );
 
   CPPUNIT_ASSERT_XRDST( msgHandler1.WaitFor( m2 ) );
   ServerResponse *resp = (ServerResponse *)m2.GetBuffer();
@@ -367,14 +362,14 @@ void PostMasterTest::FunctionalTest()
   msgHandler2.SetFilter( 1, 2 );
   time_t shortexp = ::time(0) + 3;
   msgHandler2.SetExpiration( shortexp );
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( localhost1, &m1, &msgHandler2, false,
+  CPPUNIT_ASSERT_XRDST( postMaster->Send( localhost1, &m1, &msgHandler2, false,
                         shortexp ) );
   CPPUNIT_ASSERT_XRDST_NOTOK( msgHandler2.WaitFor( m2 ), errOperationExpired );
 
   SyncMsgHandler msgHandler3;
   msgHandler3.SetFilter( 1, 2 );
   msgHandler3.SetExpiration( expires );
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( localhost1, &m1, &msgHandler3, false,
+  CPPUNIT_ASSERT_XRDST( postMaster->Send( localhost1, &m1, &msgHandler3, false,
                                           expires ) );
   CPPUNIT_ASSERT_XRDST_NOTOK( msgHandler3.WaitFor( m2 ), errConnectionError );
 
@@ -385,7 +380,7 @@ void PostMasterTest::FunctionalTest()
   Status st1, st2;
   const char *name   = 0;
 
-  CPPUNIT_ASSERT_XRDST( postMaster.QueryTransport( host,
+  CPPUNIT_ASSERT_XRDST( postMaster->QueryTransport( host,
                                                    TransportQuery::Name,
                                                    nameObj ) );
   nameObj.Get( name );
@@ -393,15 +388,11 @@ void PostMasterTest::FunctionalTest()
   CPPUNIT_ASSERT( name );
   CPPUNIT_ASSERT( !::strcmp( name, "XRootD" ) );
 
-  postMaster.Stop();
-  postMaster.Finalize();
-
   //----------------------------------------------------------------------------
   // Reinitialize and try to do something
   //----------------------------------------------------------------------------
   env->PutInt( "LoadBalancerTTL", 5 );
-  postMaster.Initialize();
-  postMaster.Start();
+  postMaster = pmfetch.Reset();
 
   m2.Free();
   m1.Zero();
@@ -416,7 +407,7 @@ void PostMasterTest::FunctionalTest()
   SyncMsgHandler msgHandler4;
   msgHandler4.SetFilter( 1, 2 );
   msgHandler4.SetExpiration( expires );
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, &msgHandler4, false, expires ) );
+  CPPUNIT_ASSERT_XRDST( postMaster->Send( host, &m1, &msgHandler4, false, expires ) );
 
   CPPUNIT_ASSERT_XRDST( msgHandler4.WaitFor( m2 ) );
   resp = (ServerResponse *)m2.GetBuffer();
@@ -432,7 +423,7 @@ void PostMasterTest::FunctionalTest()
   SyncMsgHandler msgHandler5;
   msgHandler5.SetFilter( 1, 2 );
   msgHandler5.SetExpiration( expires );
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, &msgHandler5, false, expires ) );
+  CPPUNIT_ASSERT_XRDST( postMaster->Send( host, &m1, &msgHandler5, false, expires ) );
 
   CPPUNIT_ASSERT_XRDST( msgHandler5.WaitFor( m2 ) );
   resp = (ServerResponse *)m2.GetBuffer();
@@ -452,9 +443,8 @@ void PostMasterTest::PingIPv6()
   //----------------------------------------------------------------------------
   // Initialize the stuff
   //----------------------------------------------------------------------------
-  PostMaster postMaster;
-  postMaster.Initialize();
-  postMaster.Start();
+  PostMasterFetch pmfetch;
+  PostMaster *postMaster = pmfetch.Get();
 
   //----------------------------------------------------------------------------
   // Build the message
@@ -479,10 +469,10 @@ void PostMasterTest::PingIPv6()
   //----------------------------------------------------------------------------
   // Send the message - localhost1
   //----------------------------------------------------------------------------
-  sc = postMaster.Send( localhost1, &m1, false, 1200 );
+  sc = postMaster->Send( localhost1, &m1, false, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
 
-  sc = postMaster.Receive( localhost1, m2, &f1, false, 1200 );
+  sc = postMaster->Receive( localhost1, m2, &f1, false, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
@@ -492,21 +482,15 @@ void PostMasterTest::PingIPv6()
   //----------------------------------------------------------------------------
   // Send the message - localhost2
   //----------------------------------------------------------------------------
-  sc = postMaster.Send( localhost2, &m1, false, 1200 );
+  sc = postMaster->Send( localhost2, &m1, false, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
 
-  sc = postMaster.Receive( localhost2, m2, &f1, 1200 );
+  sc = postMaster->Receive( localhost2, m2, &f1, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
   resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
-
-  //----------------------------------------------------------------------------
-  // Clean up
-  //----------------------------------------------------------------------------
-  postMaster.Stop();
-  postMaster.Finalize();
 #endif
 }
 
@@ -547,10 +531,8 @@ void PostMasterTest::MultiIPConnectionTest()
   env->PutInt( "TimeoutResolution", 1 );
   env->PutInt( "ConnectionWindow",  5 );
 
-  PostMaster postMaster;
-  PostMasterFinalizer finalizer( &postMaster );
-  postMaster.Initialize();
-  postMaster.Start();
+  PostMasterFetch pmfetch;
+  PostMaster *postMaster = pmfetch.Get();
 
   std::string address;
   CPPUNIT_ASSERT( testEnv->GetString( "MultiIPServerURL", address ) );
@@ -569,7 +551,7 @@ void PostMasterTest::MultiIPConnectionTest()
   msgHandler1.SetFilter( 1, 2 );
   msgHandler1.SetExpiration( expires );
   Message *m = CreatePing( 1, 2 );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url1, m, &msgHandler1, false, expires ),
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster->Send( url1, m, &msgHandler1, false, expires ),
                               errInvalidAddr );
 
   //----------------------------------------------------------------------------
@@ -580,7 +562,7 @@ void PostMasterTest::MultiIPConnectionTest()
   msgHandler2.SetExpiration( expires );
   Message m2;
 
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( url2, m, &msgHandler2, false, expires ) );
+  CPPUNIT_ASSERT_XRDST( postMaster->Send( url2, m, &msgHandler2, false, expires ) );
   CPPUNIT_ASSERT_XRDST_NOTOK( msgHandler2.WaitFor( m2 ), errConnectionError );
 
   //----------------------------------------------------------------------------
@@ -590,7 +572,7 @@ void PostMasterTest::MultiIPConnectionTest()
   msgHandler3.SetFilter( 1, 2 );
   msgHandler3.SetExpiration( expires );
 
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( url3, m, &msgHandler3, false, expires ) );
+  CPPUNIT_ASSERT_XRDST( postMaster->Send( url3, m, &msgHandler3, false, expires ) );
   CPPUNIT_ASSERT_XRDST( msgHandler3.WaitFor( m2 ) );
   ServerResponse *resp = (ServerResponse *)m2.GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );

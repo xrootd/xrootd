@@ -25,12 +25,14 @@
 #ifndef SRC_XRDZIP_XRDZIPUTILS_HH_
 #define SRC_XRDZIP_XRDZIPUTILS_HH_
 
-#include <cstring>
+#include "XrdSys/XrdSysPlatform.hh"
 
-#include <ctime>
-#include <vector>
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <ctime>
 #include <iterator>
+#include <vector>
 
 namespace XrdZip
 {
@@ -61,7 +63,11 @@ namespace XrdZip
   {
     const char *begin = reinterpret_cast<const char*>( &value );
     const char *end   = begin + sizeof( INT );
+#ifdef Xrd_Big_Endian
+    std::reverse_copy( begin, end, std::back_inserter( buffer ) );
+#else
     std::copy( begin, end, std::back_inserter( buffer ) );
+#endif
   }
 
   //---------------------------------------------------------------------------
@@ -72,6 +78,9 @@ namespace XrdZip
   inline static void from_buffer( INT &var, const char *&buffer )
   {
     memcpy( &var, buffer, sizeof( INT ) );
+#ifdef Xrd_Big_Endian
+    var = bswap(var);
+#endif
     buffer += sizeof( INT );
   }
 
@@ -82,7 +91,10 @@ namespace XrdZip
   inline static INT to( const char *buffer )
   {
     INT value;
-    memcpy( &value, buffer, sizeof( INT) );
+    memcpy( &value, buffer, sizeof( INT ) );
+#ifdef Xrd_Big_Endian
+    value = bswap(value);
+#endif
     return value;
   }
 

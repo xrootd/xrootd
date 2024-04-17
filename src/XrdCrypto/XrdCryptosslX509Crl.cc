@@ -376,6 +376,12 @@ int XrdCryptosslX509Crl::GetFileType(const char *crlfn)
    return rc;
 }
 
+bool XrdCryptosslX509Crl::hasCriticalExtension() {
+  // If the X509_CRL_get_ext_by_critical() function returns -1, no critical extension
+  // has been found
+  return X509_CRL_get_ext_by_critical(crl,1,-1) != -1;
+}
+
 //_____________________________________________________________________________
 int XrdCryptosslX509Crl::LoadCache()
 {

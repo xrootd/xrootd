@@ -232,8 +232,8 @@ XrdOucCacheIO *XrdRmcReal::Attach(XrdOucCacheIO *ioP, int Opts)
 
 // Some debugging
 //
-   if (Dbg) cerr <<"Cache: Attached " <<Cnt <<'/' <<Attached <<' '
-                 <<std::hex << Fnum <<std::dec <<' ' <<ioP->Path() <<endl;
+   if (Dbg) std::cerr <<"Cache: Attached " <<Cnt <<'/' <<Attached <<' '
+                 <<std::hex << Fnum <<std::dec <<' ' <<ioP->Path() <<std::endl;
 
 // All done
 //
@@ -277,9 +277,9 @@ int XrdRmcReal::Detach(XrdOucCacheIO *ioP)
 
 // Issue debugging message
 //
-   if (Dbg) cerr <<"Cache: " <<Attached <<" att; rel " <<Free <<" slots; "
+   if (Dbg) std::cerr <<"Cache: " <<Attached <<" att; rel " <<Free <<" slots; "
                  <<Faults <<" Faults; " <<std::hex << Fnum <<std::dec <<' '
-                 <<ioP->Path() <<endl;
+                 <<ioP->Path() <<std::endl;
 
 // All done, tell the caller to delete itself
 //
@@ -298,7 +298,7 @@ void XrdRmcReal::eMsg(const char *Path, const char *What, long long xOff,
    if (Dbg)
       {sprintf(Buff, "Cache: Error %d %s %d bytes at %lld; path=",
                      eCode, What, xAmt, xOff);
-       cerr <<Buff <<Path <<endl;
+       std::cerr <<Buff <<Path <<std::endl;
       }
 }
   
@@ -325,7 +325,7 @@ char *XrdRmcReal::Get(XrdOucCacheIO *ioP, long long lAddr, int &rAmt, int &noIO)
           {XrdSysSemaphore ioSem(0);
            XrdRmcSlot::ioQ ioTrans(sP->Status.waitQ, &ioSem);
            sP->Status.waitQ = &ioTrans;
-           if (Dbg > 1) cerr <<"Cache: Wait slot " <<Slot <<endl;
+           if (Dbg > 1) std::cerr <<"Cache: Wait slot " <<Slot <<std::endl;
            CMutex.UnLock(); ioSem.Wait(); CMutex.Lock();
            if (sP->Contents != lAddr) {rAmt = -EIO; return 0;}
           } else {
@@ -335,8 +335,8 @@ char *XrdRmcReal::Get(XrdOucCacheIO *ioP, long long lAddr, int &rAmt, int &noIO)
        rAmt = (sP->Count < 0 ? sP->Count & XrdRmcSlot::lenMask : SegSize);
        if (sP->Count & XrdRmcSlot::isNew)
           {noIO = -1; sP->Count &= ~XrdRmcSlot::isNew;}
-       if (Dbg > 2) cerr <<"Cache: Hit slot " <<Slot <<" sz " <<rAmt <<" nio "
-                         <<noIO <<" uc " <<sP->Status.inUse <<endl;
+       if (Dbg > 2) std::cerr <<"Cache: Hit slot " <<Slot <<" sz " <<rAmt <<" nio "
+                         <<noIO <<" uc " <<sP->Status.inUse <<std::endl;
        return Base+(static_cast<long long>(Slot)*SegSize);
       }
 
@@ -384,8 +384,8 @@ char *XrdRmcReal::Get(XrdOucCacheIO *ioP, long long lAddr, int &rAmt, int &noIO)
        Slots[Fnum].Owner(Slots, sP);
        sP->Count = (rAmt == SegSize ? SegFull : rAmt|XrdRmcSlot::isShort);
        sP->Status.inUse = nUse;
-       if (Dbg > 2) cerr <<"Cache: Miss slot " <<Slot <<" sz "
-                         <<(sP->Count & XrdRmcSlot::lenMask) <<endl;
+       if (Dbg > 2) std::cerr <<"Cache: Miss slot " <<Slot <<" sz "
+                         <<(sP->Count & XrdRmcSlot::lenMask) <<std::endl;
       } else {
        eMsg(ioP->Path(), "reading", (lAddr & Strip) << SegShft, SegSize, rAmt);
        cBuff = 0;
@@ -459,7 +459,7 @@ void XrdRmcReal::PreRead()
 
 // Simply wait and dispatch elements
 //
-   if (Dbg) cerr <<"Cache: preread thread started; now " <<prNum <<endl;
+   if (Dbg) std::cerr <<"Cache: preread thread started; now " <<prNum <<std::endl;
    while(1)
         {prReady.Wait();
          prMutex.Lock();
@@ -476,7 +476,7 @@ void XrdRmcReal::PreRead()
    prNum--;
    if (prNum > 0) prReady.Post();
       else        prStop->Post();
-   if (Dbg) cerr <<"Cache: preread thread exited; left " <<prNum <<endl;
+   if (Dbg) std::cerr <<"Cache: preread thread exited; left " <<prNum <<std::endl;
    prMutex.UnLock();
 }
 
@@ -528,10 +528,10 @@ int XrdRmcReal::Ref(char *Addr, int rAmt, int sFlags)
 
 // All done
 //
-   if (Dbg > 2) cerr <<"Cache: Ref " <<std::hex <<sP->Contents <<std::dec
+   if (Dbg > 2) std::cerr <<"Cache: Ref " <<std::hex <<sP->Contents <<std::dec
                      << " slot " <<((Addr-Base)>>SegShft)
                      <<" sz " <<(sP->Count & XrdRmcSlot::lenMask)
-                     <<" uc " <<sP->Status.inUse <<endl;
+                     <<" uc " <<sP->Status.inUse <<std::endl;
    CMutex.UnLock();
    return !eof;
 }
@@ -563,9 +563,9 @@ void XrdRmcReal::Trunc(XrdOucCacheIO *ioP, long long lAddr)
 
 // Issue debugging message
 //
-   if (Dbg) cerr <<"Cache: Trunc " <<Free <<" slots; "
+   if (Dbg) std::cerr <<"Cache: Trunc " <<Free <<" slots; "
                  <<Left <<" Left; " <<std::hex << Fnum <<std::dec <<' '
-                 <<ioP->Path() <<endl;
+                 <<ioP->Path() <<std::endl;
 }
   
 /******************************************************************************/
@@ -592,9 +592,9 @@ void XrdRmcReal::Upd(char *Addr, int wLen, int wOff)
 
 // All done
 //
-   if (Dbg > 2) cerr <<"Cache: Upd " <<std::hex <<sP->Contents <<std::dec
+   if (Dbg > 2) std::cerr <<"Cache: Upd " <<std::hex <<sP->Contents <<std::dec
                      << " slot " <<((Addr-Base)>>SegShft)
                      <<" sz " <<(sP->Count & XrdRmcSlot::lenMask)
-                     <<" uc " <<sP->Status.inUse <<endl;
+                     <<" uc " <<sP->Status.inUse <<std::endl;
    CMutex.UnLock();
 }

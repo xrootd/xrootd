@@ -1,0 +1,12 @@
+/usr/lib/*/libXrdCksCalczcrc32-5.so
+/usr/lib/*/libXrdCryptossl-5.so
+/usr/lib/*/libXrdSec-5.so
+/usr/lib/*/libXrdSecProt-5.so
+/usr/lib/*/libXrdSecgsi-5.so
+/usr/lib/*/libXrdSecgsiAUTHZVO-5.so
+/usr/lib/*/libXrdSecgsiGMAPDN-5.so
+/usr/lib/*/libXrdSeckrb5-5.so
+/usr/lib/*/libXrdSecpwd-5.so
+/usr/lib/*/libXrdSecsss-5.so
+/usr/lib/*/libXrdSecunix-5.so
+/usr/lib/*/libXrdSecztn-5.so

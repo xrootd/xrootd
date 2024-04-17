@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClAsyncHSReader.hh"
 #include "XrdCl/XrdClAsyncMsgWriter.hh"
 #include "XrdCl/XrdClAsyncHSWriter.hh"
+#include "XrdOuc/XrdOucCompiler.hh"
 
 namespace XrdCl
 {
@@ -149,37 +150,38 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Connect returned
       //------------------------------------------------------------------------
-      virtual void OnConnectionReturn();
+      virtual bool OnConnectionReturn() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Got a write readiness event
       //------------------------------------------------------------------------
-      void OnWrite();
+      bool OnWrite() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Got a write readiness event while handshaking
       //------------------------------------------------------------------------
-      void OnWriteWhileHandshaking();
+      bool OnWriteWhileHandshaking() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Got a read readiness event
       //------------------------------------------------------------------------
-      void OnRead();
+      bool OnRead() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Got a read readiness event while handshaking
       //------------------------------------------------------------------------
-      void OnReadWhileHandshaking();
+      bool OnReadWhileHandshaking() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Handle the handshake message
       //------------------------------------------------------------------------
-      void HandleHandShake( std::unique_ptr<Message> msg );
+      bool HandleHandShake( std::unique_ptr<Message> msg )
+                            XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Prepare the next step of the hand-shake procedure
       //------------------------------------------------------------------------
-      void HandShakeNextStep( bool done );
+      bool HandShakeNextStep( bool done ) XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Handle fault
@@ -194,17 +196,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Handle write timeout event
       //------------------------------------------------------------------------
-      void OnWriteTimeout();
+      bool OnWriteTimeout() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Handle read timeout event
       //------------------------------------------------------------------------
-      void OnReadTimeout();
+      bool OnReadTimeout() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Handle timeout event while handshaking
       //------------------------------------------------------------------------
-      void OnTimeoutWhileHandshaking();
+      bool OnTimeoutWhileHandshaking() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Handle header corruption in case of kXR_status response
@@ -229,12 +231,12 @@ namespace XrdCl
       // Handle read/write event if we are in the middle of a TLS hand-shake
       //------------------------------------------------------------------------
       // Handle read/write event if we are in the middle of a TLS hand-shake
-      void OnTLSHandShake();
+      bool OnTLSHandShake() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Prepare a HS writer for sending and enable uplink
       //------------------------------------------------------------------------
-      void SendHSMsg();
+      bool SendHSMsg() XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Extract the value of a wait response
@@ -248,7 +250,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Check if HS wait time elapsed
       //------------------------------------------------------------------------
-      void CheckHSWait();
+      bool CheckHSWait() XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      // Handler for read related socket events
+      //------------------------------------------------------------------------
+      inline bool EventRead( uint8_t type ) XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      // Handler for write related socket events
+      //------------------------------------------------------------------------
+      inline bool EventWrite( uint8_t type ) XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       // Data members

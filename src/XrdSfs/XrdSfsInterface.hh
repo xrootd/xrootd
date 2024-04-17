@@ -99,6 +99,7 @@
 #define SFS_FSCTL_STATCC  5 // Return Cluster Config status
 #define SFS_FSCTL_PLUGIN  8 // Return Implementation Dependent Data
 #define SFS_FSCTL_PLUGIO 16 // Return Implementation Dependent Data
+#define SFS_FSCTL_PLUGXC 32 // Perform cache oriented operation
 
 // Return values for integer & XrdSfsXferSize returning XrdSfs methods
 //
@@ -156,12 +157,15 @@ enum XrdSfsFileExistence
 
 class XrdOucTList;
 
-struct XrdSfsFSctl //!< SFS_FSCTL_PLUGIN/PLUGIO parms
+struct XrdSfsFSctl //!< SFS_FSCTL_PLUGIN/PLUGIO/PLUGXC parms
 {
- const char            *Arg1;      //!< PLUGIO, PLUGIN
+ const char            *Arg1;      //!< PLUGINO, PLUGION, PLUGXC
        int              Arg1Len;   //!< Length
-       int              Arg2Len;   //!< Length
+       int              Arg2Len;   //!< Length  or -count of args in extension
+ union{
  const char            *Arg2;      //!< PLUGIN  opaque string
+ const char           **ArgP;      //!< PLUGXC  argument list extension
+      };
 };
 
 struct XrdSfsPrep  //!< Prepare parameters
@@ -1253,7 +1257,7 @@ virtual int            stat(const char               *Name,
 //!
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
 //!         When SFS_OK is returned, mode must contain mode information. If
-//!         teh mode is -1 then it is taken as an offline file.
+//!         the mode is -1 then it is taken as an offline file.
 //-----------------------------------------------------------------------------
 
 virtual int            stat(const char               *path,

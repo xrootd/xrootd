@@ -313,7 +313,7 @@ int XrdOucProg::Setup(const char *prog, XrdSysError *errP,
    if (rc <= 0)
       {if (errP)
           {if (!rc || !argV[0])
-              {const char *pgm =  (Proc ? "proceedure" : "program");
+              {const char *pgm =  (Proc ? "procedure" : "program");
                errP->Emsg("Run", pgm, "name not specified.");
               } else errP->Emsg("Run", rc, "set up", argV[0]);
           }
@@ -321,7 +321,7 @@ int XrdOucProg::Setup(const char *prog, XrdSysError *errP,
       }
 
 // Record the arguments including the phamtom null pointer. We must have
-// atleast one, the program or proceedure name.
+// atleast one, the program or procedure name.
 //
    numArgs = rc;
    Arg = new char*[rc+1];

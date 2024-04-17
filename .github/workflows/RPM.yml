@@ -1,0 +1,197 @@
+name: RPM
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - .gitignore
+      - .gitlab-ci.yml
+      - .mailmap
+      - '**.md'
+      - 'docs/**'
+      - 'docker/**'
+    tags-ignore:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  centos7:
+    name: CentOS 7
+    runs-on: ubuntu-latest
+    container: centos:7
+
+    steps:
+    - name: Install git
+      run: yum install -y git
+
+    - name: Clone repository
+      uses: actions/checkout@v1
+
+    - name: Install RPM development tools
+      run: |
+        yum install -y centos-release-scl epel-release
+        yum install -y epel-rpm-macros rpmdevtools yum-utils
+
+    - name: Install XRootD build dependencies
+      run: yum-builddep -y xrootd.spec
+
+    - name: Build RPMs
+      run: |
+        rpmdev-setuptree
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
+        rpmbuild -bb --with git xrootd.spec
+
+    - name: Install RPMs
+      run: yum install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move RPMs to Artifact Directory
+      run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: RPM
+        path: RPMS
+        retention-days: 1
+
+  alma8:
+    name: Alma Linux 8
+    runs-on: ubuntu-latest
+    container: almalinux:8
+
+    steps:
+    - name: Install git
+      run: yum install -y git
+
+    - name: Clone repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install RPM development tools
+      run: |
+        dnf install -y epel-release rpmdevtools dnf-plugins-core
+        dnf config-manager --set-enabled powertools
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y xrootd.spec
+
+    - name: Build RPMs
+      run: |
+        rpmdev-setuptree
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
+        rpmbuild -bb --with git xrootd.spec
+
+    - name: Install RPMs
+      run: dnf install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move RPMs to Artifact Directory
+      run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: RPM
+        path: RPMS
+        retention-days: 1
+
+  alma9:
+    name: Alma Linux 9
+    runs-on: ubuntu-latest
+    container: almalinux:9
+
+    steps:
+    - name: Install git
+      run: yum install -y git
+
+    - name: Clone repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install RPM development tools
+      run: |
+        dnf install -y epel-release rpmdevtools dnf-plugins-core
+        dnf config-manager --set-enabled crb
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y xrootd.spec
+
+    - name: Build RPMs
+      run: |
+        rpmdev-setuptree
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
+        rpmbuild -bb --with git xrootd.spec
+
+    - name: Install RPMs
+      run: dnf install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move RPMs to Artifact Directory
+      run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: RPM
+        path: RPMS
+        retention-days: 1
+
+  fedora:
+    name: Fedora 39
+    runs-on: ubuntu-latest
+    container: fedora:39
+
+    steps:
+    - name: Install git
+      run: yum install -y git
+
+    - name: Clone repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install RPM development tools
+      run: |
+        dnf install -y rpmdevtools dnf-plugins-core
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y --define 'with_ceph 1' xrootd.spec
+
+    - name: Build RPMs
+      run: |
+        rpmdev-setuptree
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
+        rpmbuild -bb --with git --with ceph xrootd.spec
+
+    - name: Install RPMs
+      run: dnf install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move RPMs to Artifact Directory
+      run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: RPM
+        path: RPMS
+        retention-days: 1

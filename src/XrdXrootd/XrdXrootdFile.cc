@@ -170,7 +170,10 @@ void XrdXrootdFile::Ref(int num)
    fileMutex.Lock();
    refCount += num;
    TRACEI(FSAIO,"File::Ref="<<refCount<<" after +"<<num<<' '<<FileKey);
-   if (num < 0 && syncWait && refCount <= 0) syncWait->Post();
+   if (num < 0 && syncWait && refCount <= 0)
+      {syncWait->Post();
+       syncWait = nullptr;
+      }
    fileMutex.UnLock();
 }
 
@@ -215,6 +218,7 @@ int XrdXrootdFileTable::Add(XrdXrootdFile *fp)
           else {i -= XRD_FTABSIZE;
                 if (XTab && i < XTnum) fP = &XTab[i];
                    else fP = 0;
+                i += XRD_FTABSIZE;
                }
        if (fP && *fP == heldSpotP)
           {*fP = fp;

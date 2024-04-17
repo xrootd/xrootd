@@ -210,6 +210,32 @@ namespace XrdCl
     final = std::move( f );
   }
 
+  //------------------------------------------------------------------------
+  // Called by a pipeline on the handler of its first operation before Run
+  //------------------------------------------------------------------------
+  void PipelineHandler::PreparePipelineStart()
+  {
+    // Move any final-function from the handler of the last operaiton to the
+    // first. It will be moved along the pipeline of handlers while the
+    // pipeline is run.
+
+    if( final || !nextOperation ) return;
+    PipelineHandler *last = nextOperation->handler.get();
+    while( last )
+    {
+      Operation<true> *nextop = last->nextOperation.get();
+      if( !nextop ) break;
+      last = nextop->handler.get();
+    }
+    if( last )
+    {
+      // swap-then-move rather than only move as we need to guarantee that
+      // last->final is left without target.
+      std::function<void(const XRootDStatus&)> f;
+      f.swap( last->final );
+      Assign( std::move( f ) );
+    }
+  }
 
   //------------------------------------------------------------------------
   // Stop the current pipeline

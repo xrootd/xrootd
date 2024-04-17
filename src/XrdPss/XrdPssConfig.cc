@@ -199,7 +199,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 
 // Set default number of event loops
 //
-   XrdPosixConfig::SetEnv("ParallelEvtLoop", 3);
+   XrdPosixConfig::SetEnv("ParallelEvtLoop", 10);
 
 // Turn off the fork handler as we always exec after forking.
 //
@@ -782,7 +782,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 // Check if there is a port number. This could be as ':port' or ' port'.
 //
     if (!(val = index(mval,':')) && !isURL) val = Config.GetWord();
-       else {*val = '\0'; val++;}
+       else if (val) {*val = '\0'; val++;}
 
 // At this point, make sure we actually have a host name
 //
@@ -800,7 +800,17 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
                     {errp->Emsg("Config", "unable to find tcp service", val);
                      port = 0;
                     }
-       } else errp->Emsg("Config","origin port not specified for",mval);
+       } else {
+         if (protName) {
+           // use default port for protocol
+           port = *protName == 'h' ? (strncmp(protName, "https", 5) == 0 ? 443 : 80) : 1094;
+         } else {
+           // assume protocol is root(s)://
+           port = 1094;
+         }
+         errp->Say("Config warning: origin port not specified, using port ",
+           std::to_string(port).c_str(), " as default for ", protName);
+       }
 
 // If port is invalid or missing, fail this
 //

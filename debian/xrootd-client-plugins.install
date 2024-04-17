@@ -1,0 +1,5 @@
+/usr/lib/*/libXrdClProxyPlugin-5.so
+/usr/lib/*/libXrdClRecorder-5.so
+/etc/xrootd/client.conf
+/etc/xrootd/client.plugins.d/client-plugin.conf.example
+/etc/xrootd/client.plugins.d/recorder.conf

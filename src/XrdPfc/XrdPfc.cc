@@ -37,6 +37,7 @@
 
 #include "XrdPfc.hh"
 #include "XrdPfcTrace.hh"
+#include "XrdPfcFSctl.hh"
 #include "XrdPfcInfo.hh"
 #include "XrdPfcIOFile.hh"
 #include "XrdPfcIOFileBlock.hh"
@@ -117,6 +118,9 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
 
       XrdSysThread::Run(&tid, PurgeThread, 0, 0, "XrdPfc Purge");
    }
+
+   XrdPfcFSctl* pfcFSctl = new XrdPfcFSctl(instance, logger);
+   env->PutPtr("XrdFSCtl_PC*", pfcFSctl);
 
    return &instance;
 }

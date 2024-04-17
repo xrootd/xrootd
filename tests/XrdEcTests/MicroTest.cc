@@ -34,6 +34,8 @@
 
 #include "XrdZip/XrdZipCDFH.hh"
 
+#include "XrdSys/XrdSysPlatform.hh"
+
 #include <string>
 #include <memory>
 #include <limits>
@@ -280,13 +282,12 @@ void MicroTest::Init( bool usecrc32c )
   objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, usecrc32c, true ) );
   rawdata.clear();
 
-  char cwdbuff[1024];
-  char *cwdptr = getcwd( cwdbuff, sizeof( cwdbuff ) );
-  CPPUNIT_ASSERT( cwdptr );
-  std::string cwd = cwdptr;
+  char tmpdir[MAXPATHLEN];
+  CPPUNIT_ASSERT( getcwd(tmpdir, MAXPATHLEN - 21) );
+  strcat(tmpdir, "/xrootd-xrdec-XXXXXX");
   // create the data directory
-  datadir = cwd + "/data";
-  CPPUNIT_ASSERT( mkdir( datadir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH ) == 0 );
+  CPPUNIT_ASSERT( mkdtemp(tmpdir) );
+  datadir = tmpdir;
   // create a directory for each stripe
   size_t nbstrps = objcfg->nbdata + 2 * objcfg->nbparity;
   for( size_t i = 0; i < nbstrps; ++i )

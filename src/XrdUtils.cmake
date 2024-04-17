@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -83,7 +82,7 @@ set ( XrdCryptoSources
       XrdCrypto/XrdCryptoX509Chain.cc           XrdCrypto/XrdCryptoX509Chain.hh
       XrdCrypto/XrdCryptosslRSA.cc              XrdCrypto/XrdCryptosslRSA.hh
       XrdCrypto/XrdCryptoRSA.cc                 XrdCrypto/XrdCryptoRSA.hh
-      XrdCrypto/XrdCryptosslgsiAux.cc           XrdCrypto/XrdCryptosslgsiAux.hh
+      XrdCrypto/XrdCryptosslgsiAux.cc
       XrdCrypto/XrdCryptosslX509Req.cc          XrdCrypto/XrdCryptosslX509Req.hh
       XrdCrypto/XrdCryptoX509Req.cc             XrdCrypto/XrdCryptoX509Req.hh
       XrdCrypto/XrdCryptoAux.cc                 XrdCrypto/XrdCryptoAux.hh
@@ -266,6 +265,7 @@ set ( XrdSecSources
   XrdSec/XrdSecEntityAttr.cc       XrdSec/XrdSecEntityAttr.hh
   XrdSec/XrdSecEntityXtra.cc       XrdSec/XrdSecEntityXtra.hh
   XrdSec/XrdSecLoadSecurity.cc     XrdSec/XrdSecLoadSecurity.hh
+                                   XrdSec/XrdSecMonitor.hh
   XrdSecsss/XrdSecsssCon.cc        XrdSecsss/XrdSecsssCon.hh
   XrdSecsss/XrdSecsssEnt.cc        XrdSecsss/XrdSecsssEnt.hh
   XrdSecsss/XrdSecsssID.cc         XrdSecsss/XrdSecsssID.hh
@@ -291,6 +291,7 @@ add_library(
 
 target_link_libraries(
   XrdUtils
+  PRIVATE
   OpenSSL::SSL
   ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS}
@@ -300,7 +301,7 @@ target_link_libraries(
 
 if ( SYSTEMD_FOUND )
    target_link_libraries(
-     XrdUtils
+     XrdUtils PRIVATE
      ${SYSTEMD_LIBRARIES}
    )
 endif()
@@ -310,9 +311,7 @@ set_target_properties(
   PROPERTIES
   BUILD_RPATH ${CMAKE_CURRENT_BINARY_DIR}
   VERSION   ${XRD_UTILS_VERSION}
-  SOVERSION ${XRD_UTILS_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_UTILS_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # Install

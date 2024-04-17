@@ -43,16 +43,16 @@
 #define QTRACE(act) Trace.What & TRACE_ ## act
 
 #define DEBUGR(y) if (Trace.What & TRACE_Debug) \
-                  {Trace.Beg(epname, Req.User); cerr <<y; Trace.End();}
+                  {Trace.Beg(epname, Req.User); std::cerr <<y; Trace.End();}
 
 #define DEBUG(y) if (Trace.What & TRACE_Debug) TRACEX(y)
 
 #define TRACE(x,y) if (Trace.What & TRACE_ ## x) TRACEX(y)
 
 #define TRACER(x,y) if (Trace.What & TRACE_ ## x) \
-                       {Trace.Beg(epname, Req.User); cerr <<y; Trace.End();}
+                       {Trace.Beg(epname, Req.User); std::cerr <<y; Trace.End();}
 
-#define TRACEX(y) {Trace.Beg(0,epname); cerr <<y; Trace.End();}
+#define TRACEX(y) {Trace.Beg(0,epname); std::cerr <<y; Trace.End();}
 #define EPNAME(x) static const char *epname = x;
 
 #else

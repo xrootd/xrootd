@@ -132,7 +132,6 @@ namespace XrdCl
   Channel::~Channel()
   {
     pTickGenerator->Invalidate();
-    pTaskManager->UnregisterTask( pTickGenerator );
     delete pStream;
     pTransport->FinalizeChannel( pChannelData );
   }

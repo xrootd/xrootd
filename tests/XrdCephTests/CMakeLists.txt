@@ -1,6 +1,3 @@
-include( XRootDCommon )
-include_directories( ${CPPUNIT_INCLUDE_DIRS} )
-
 add_library(
   XrdCephTests MODULE
   CephParsingTest.cc
@@ -12,6 +9,8 @@ target_link_libraries(
   ${CPPUNIT_LIBRARIES}
   ZLIB::ZLIB
   XrdCephPosix )
+
+target_include_directories( XrdCephTests PRIVATE ${CPPUNIT_INCLUDE_DIRS} )
 
 #-------------------------------------------------------------------------------
 # Install

@@ -53,7 +53,7 @@ using namespace std;
 /*                         D e f i n e   M a c r o s                          */
 /******************************************************************************/
   
-#define EMSG(x) cerr <<PName <<": " <<x <<endl
+#define EMSG(x) std::cerr <<PName <<": " <<x <<std::endl
   
 #define FMSG(x,y) {EMSG(x);exit(y);}
 
@@ -309,7 +309,7 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpVerbose:       OpSpec |= DoVerbose;
                                 Verbose = 1;
                                 break;
-          case OpVersion:       cerr <<XrdVERSION <<endl; exit(0);
+          case OpVersion:       std::cerr <<XrdVERSION <<std::endl; exit(0);
                                 break;
           case OpXrate:         OpSpec |= DoXrate;
                                 if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
@@ -834,7 +834,7 @@ int XrdCpConfig::Legacy(const char *theOp, const char *theArg)
 
    if (!strncmp(theOp,"-OD",3) || !strncmp(theOp,"-OS",3)) return defOpq(theOp);
 
-   if (!strcmp(theOp, "-version")) {cerr <<XrdVERSION <<endl; exit(0);}
+   if (!strcmp(theOp, "-version")) {std::cerr <<XrdVERSION <<std::endl; exit(0);}
 
    if (!strcmp(theOp, "-force"))
       FMSG("-force is no longer supported; use --retry instead!",22);
@@ -852,7 +852,7 @@ void XrdCpConfig::License()
 #include "../../LICENSE"
 ;
 
-   cerr <<theLicense;
+   std::cerr <<theLicense;
    exit(0);
 }
 
@@ -1014,8 +1014,8 @@ void XrdCpConfig::Usage(int rc)
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 
-   cerr <<(Opts & opt1Src    ? Syntax1 : Syntax)  <<Options;
-   cerr <<(Opts & optNoStdIn ? Syntay2 : Syntax2) <<Syntax3 <<endl;
-   if (!rc) cerr <<Detail <<endl;
+   std::cerr <<(Opts & opt1Src    ? Syntax1 : Syntax)  <<Options;
+   std::cerr <<(Opts & optNoStdIn ? Syntay2 : Syntax2) <<Syntax3 <<std::endl;
+   if (!rc) std::cerr <<Detail <<std::endl;
    exit(rc);
 }

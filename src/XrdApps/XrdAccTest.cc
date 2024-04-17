@@ -104,15 +104,15 @@ int opcnt = sizeof(optab)/sizeof(optab[0]);
 
 void Usage(const char *msg)
 {
-   if (msg) cerr <<"xrdacctest: " <<msg <<endl;
-   cerr <<"Usage: xrdacctest [-c <cfn>] [<ids> | <user> <host>] <act>\n\n";
-   cerr <<"<ids>: -a <auth> -g <grp> -h <host> -o <org> -r <role> -u <user>\n";
-   cerr <<"<act>: <opc> <path> [<path> [...]]\n";
-   cerr <<"<opc>: cr - create    mv - rename    st - status    lk - lock\n";
-   cerr <<"       rd - read      wr - write     ls - readdir   rm - remove\n";
-   cerr <<"       ec - excl create              ei - excl rename\n";
-   cerr <<"       *  - zap args  ?  - display privs\n";
-   cerr <<flush;
+   if (msg) std::cerr <<"xrdacctest: " <<msg <<std::endl;
+   std::cerr <<"Usage: xrdacctest [-c <cfn>] [<ids> | <user> <host>] <act>\n\n";
+   std::cerr <<"<ids>: -a <auth> -g <grp> -h <host> -o <org> -r <role> -u <user>\n";
+   std::cerr <<"<act>: <opc> <path> [<path> [...]]\n";
+   std::cerr <<"<opc>: cr - create    mv - rename    st - status    lk - lock\n";
+   std::cerr <<"       rd - read      wr - write     ls - readdir   rm - remove\n";
+   std::cerr <<"       ec - excl create              ei - excl rename\n";
+   std::cerr <<"       *  - zap args  ?  - display privs\n";
+   std::cerr << std::flush;
    exit(msg ? 1 : 0);
 }
   
@@ -212,7 +212,7 @@ bool singleshot=false;
 // Obtain the authorization object
 //
 if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
-   {cerr << "testaccess: Initialization failed." <<endl;
+   {std::cerr << "testaccess: Initialization failed." <<std::endl;
     exit(2);
    }
 
@@ -224,7 +224,7 @@ if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
 //
    bool dequote;
    Command.Attach(0);
-   cerr << "Enter arguments: ";
+   std::cerr << "Enter arguments: ";
    while((lp = Command.GetLine()) && *lp)
       {dequote = false;
        char *xp = lp;
@@ -251,7 +251,7 @@ if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
           }
        Entity.ueid++;
        rc |= DoIt(1, argnum, argval, singleshot=0);
-       cerr << "Enter arguments: ";
+       std::cerr << "Enter arguments: ";
       }
 
 // All done
@@ -339,7 +339,7 @@ XrdAccPrivs auth;
             else {pargs.pprivs = auth; pargs.nprivs = XrdAccPriv_None;
                   result = PrivsConvert(pargs, buff, sizeof(buff));
                  }
-         cout <<result <<": " <<path <<endl;
+         std::cout <<result <<": " <<path <<std::endl;
          if (singleshot) return !auth;
        }
 
@@ -355,7 +355,7 @@ Access_Operation cmd2op(char *opname)
    int i;
    for (i = 0; i < opcnt; i++) 
        if (!strcmp(opname, optab[i].opname)) return optab[i].oper;
-   cerr << "testaccess: Invalid operation - " <<opname <<endl;
+   std::cerr << "testaccess: Invalid operation - " <<opname <<std::endl;
    return AOP_Any;
 }
 

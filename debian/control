@@ -1,0 +1,408 @@
+Source: xrootd
+Section: net
+Priority: optional
+Standards-Version: 4.6.2
+Build-Depends:
+ debhelper (>= 13),
+ dh-python,
+ attr,
+ cmake,
+ libgtest-dev,
+ libcppunit-dev,
+ libisal-dev,
+ pkg-config,
+ libfuse-dev [linux-any kfreebsd-any],
+ libkrb5-dev,
+ libcurl4-openssl-dev,
+ libtinyxml-dev,
+ libxml2-dev,
+ ncurses-dev,
+ libssl-dev,
+ libreadline-dev,
+ zlib1g-dev,
+ libsystemd-dev [linux-any],
+ python3-dev,
+ python3-pip,
+ python3-wheel,
+ libjson-c-dev,
+ libmacaroons-dev,
+ uuid-dev,
+ uuid-runtime,
+ voms-dev,
+ libscitokens-dev,
+ davix-dev,
+ librados-dev [i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x],
+ libradospp-dev [i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x],
+ libradosstriper-dev [i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x]
+Build-Depends-Indep:
+ dh-sequence-sphinxdoc,
+ doxygen,
+ graphviz,
+ python3-sphinx
+Homepage: http://xrootd.org/
+Maintainer: XRootD Developers <xrootd-dev@slac.stanford.edu>
+Vcs-Browser: https://github.com/xrootd/xrootd
+Vcs-Git: https://github.com/xrootd/xrootd.git
+
+Package: xrootd-server
+Architecture: any
+Multi-Arch: foreign
+Section: net
+Depends:
+ xrootd-plugins (= ${binary:Version}),
+ xrootd-server-plugins (= ${binary:Version}),
+ expect,
+ logrotate,
+ adduser,
+ ${perl:Depends},
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Extended ROOT file server
+ The Extended root file server consists of a file server called xrootd
+ and a cluster management server called cmsd.
+ .
+ The xrootd server was developed for the root analysis framework to
+ serve root files. However, the server is agnostic to file types and
+ provides POSIX-like access to any type of file.
+ .
+ The cmsd server is the next generation version of the olbd server,
+ originally developed to cluster and load balance Objectivity/DB AMS
+ database servers. It provides enhanced capability along with lower
+ latency and increased throughput.
+
+Package: libxrdapputils2
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Utilities library for xrootd applications
+ This package contains the xrootd utilities library for applications.
+
+Package: libxrdcrypto2
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Cryptograpic library for xrootd
+ This package contains the xrootd cryptograpic library.
+
+Package: libxrdcryptolite2
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Light version of cryptograpic library for xrootd
+ This package contains the light version of the xrootd cryptograpic library.
+
+Package: libxrdutils3
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Utilities library for xrootd
+ This package contains the xrootd utilities library.
+
+Package: libxrdxml3
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: XML library for xrootd
+ This package contains the xrootd XML library.
+
+Package: xrootd-plugins
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Plugins used by xrootd servers and clients
+ This package contains plugins used by the xrootd servers and clients.
+
+Package: libxrootd-dev
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Depends:
+ libxrdapputils2 (= ${binary:Version}),
+ libxrdcrypto2 (= ${binary:Version}),
+ libxrdcryptolite2 (= ${binary:Version}),
+ libxrdutils3 (= ${binary:Version}),
+ libxrdxml3 (= ${binary:Version}),
+ ${misc:Depends}
+Description: Development files for xrootd
+ This package contains header files and development libraries for xrootd
+ development.
+
+Package: libxrdcl3
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Recommends:
+ xrootd-plugins (= ${binary:Version}),
+ xrootd-client-plugins(= ${binary:Version})
+Description: Client library for xrootd
+ This package contains the xrootd client library.
+
+Package: libxrdec1
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Recommends:
+ xrootd-plugins (= ${binary:Version}),
+ xrootd-client-plugins(= ${binary:Version})
+Description: Client library for xrootd
+ This package contains the xrootd client library for erasure coding.
+
+Package: libxrdffs3
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: File protocol library for xrootd
+ This package contains the xrootd file protocol library.
+
+Package: libxrdposix3
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Posix interface library for xrootd
+ This package contains the xrootd Posix interface library.
+
+Package: libxrdssilib2
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Server internals library for xrootd
+ This package contains an xrootd server internals library.
+
+Package: libxrdssishmap2
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Server internals library for xrootd
+ This package contains an xrootd server internals library.
+
+Package: xrootd-client-plugins
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Plugins used by xrootd clients
+ This package contains plugins used by xrootd clients.
+
+Package: xrootd-client-http-plugins
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: HTTP client plugin for XRootD client
+ This package contains an XRootD client plugin which allows XRootD to
+ interact with HTTP repositories.
+
+Package: libxrootd-client-dev
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Depends:
+ libxrdcl3 (= ${binary:Version}),
+ libxrdffs3 (= ${binary:Version}),
+ libxrdposix3 (= ${binary:Version}),
+ libxrootd-dev (= ${binary:Version}),
+ ${misc:Depends}
+Description: Development files for xrootd clients
+ This package contains header files and development libraries for xrootd
+ client development.
+
+Package: libxrdhttputils2
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: HTTP protocol utilities library for xrootd
+ This package contains the xrootd HTTP protocol utilities library.
+
+Package: libxrdserver3
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Recommends:
+ xrootd-plugins (= ${binary:Version}),
+ xrootd-server-plugins(= ${binary:Version})
+Description: Server library for xrootd
+ This package contains the xrootd server library.
+
+Package: xrootd-server-plugins
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Plugins used by xrootd servers
+ This package contains plugins used by xrootd servers.
+
+Package: libxrootd-server-dev
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Depends:
+ libxrdhttputils2 (= ${binary:Version}),
+ libxrdserver3 (= ${binary:Version}),
+ libxrootd-dev (= ${binary:Version}),
+ libxrootd-client-dev (= ${binary:Version}),
+ ${misc:Depends}
+Description: Development files for xrootd servers
+ This package contains header files and development libraries for xrootd
+ server development.
+
+Package: libxrootd-private-dev
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Depends:
+ libxrdssilib2 (= ${binary:Version}),
+ libxrdssishmap2 (= ${binary:Version}),
+ libxrootd-dev (= ${binary:Version}),
+ libxrootd-client-dev (= ${binary:Version}),
+ libxrootd-server-dev (= ${binary:Version}),
+ ${misc:Depends}
+Description: Private xrootd headers
+ This package contains some private xrootd headers. Backward and forward
+ compatibility between versions is not guaranteed for these headers.
+
+Package: xrootd-client
+Architecture: any
+Multi-Arch: foreign
+Section: net
+Depends:
+ xrootd-plugins (= ${binary:Version}),
+ xrootd-client-plugins(= ${binary:Version}),
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Xrootd command line client tools
+ This package contains the command line tools used to communicate with
+ xrootd servers.
+
+Package: xrootd-fuse
+Architecture: linux-any kfreebsd-any
+Multi-Arch: foreign
+Section: net
+Depends:
+ xrootd-plugins (= ${binary:Version}),
+ xrootd-client-plugins (= ${binary:Version}),
+ fuse,
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Xrootd FUSE tool
+ This package contains the FUSE (file system in user space) xrootd mount
+ tool.
+
+Package: xrootd-voms-plugins
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: VOMS attribute extractor plugin for XRootD
+ This package contains the xrootd VOMS attribute extractor plugin.
+
+Package: xrootd-scitokens-plugins
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: SciTokens authorization support for XRootD
+ This ACC (authorization) plugin for the XRootD framework utilizes the
+ SciTokens library to validate and extract authorization claims from a
+ SciToken passed during a transfer. Configured appropriately, this
+ allows the XRootD server admin to delegate authorization decisions for
+ a subset of the namespace to an external issuer.
+
+Package: libxrdcephposix0
+Architecture: i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Ceph posix library for xrootd
+ This package contains an xrootd library used by the ceph plugins.
+
+Package: xrootd-ceph-plugins
+Architecture: i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x
+Multi-Arch: same
+Section: libs
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: XRootD plugin for interfacing with the Ceph storage platform
+ The xrootd-ceph is an OSS layer plugin for the XRootD server for
+ interfacing with the Ceph storage platform.
+
+Package: python3-xrootd
+Architecture: any
+Multi-Arch: foreign
+Section: python
+Provides:
+ ${python3:Provides}
+Depends:
+ xrootd-plugins (= ${binary:Version}),
+ xrootd-client-plugins (= ${binary:Version}),
+ ${python3:Depends},
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Python 3 bindings for xrootd
+ This package contains Python 3 bindings for xrootd.
+
+Package: xrootd-doc
+Architecture: all
+Multi-Arch: foreign
+Section: doc
+Depends:
+ ${sphinxdoc:Depends},
+ ${misc:Depends}
+Built-Using:
+ ${sphinxdoc:Built-Using}
+Description: Developer documentation for the xrootd libraries
+ This package contains the API documentation of the xrootd libraries.

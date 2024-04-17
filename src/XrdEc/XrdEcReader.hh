@@ -35,6 +35,7 @@
 #include <unordered_set>
 
 class MicroTest;
+class XrdEcTests;
 
 namespace XrdEc
 {
@@ -57,6 +58,7 @@ namespace XrdEc
   class Reader
   {
     friend class ::MicroTest;
+    friend class ::XrdEcTests;
     friend struct block_t;
 
     public:

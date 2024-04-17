@@ -1,0 +1,167 @@
+#-------------------------------------------------------------------------------
+# Helper macros
+#-------------------------------------------------------------------------------
+%if %{?rhel:1}%{!?rhel:0}
+    %if %{rhel} >= 7
+        %define use_systemd 1
+    %else
+        %define use_systemd 0
+    %endif
+%else
+    %if %{?fedora}%{!?fedora:0} >= 19
+        %define use_systemd 1
+    %else
+        %define use_systemd 0
+    %endif
+%endif
+
+%if %{?fedora}%{!?fedora:0} >= 22
+    %define use_libc_semaphore 1
+%else
+    %define use_libc_semaphore 0
+%endif
+
+%if %{?_with_ceph11:1}%{!?_with_ceph11:0}
+    %define _with_ceph 1
+%endif
+
+%if %{?rhel:1}%{!?rhel:0}
+    %if %{rhel} > 7
+        %define use_cmake3 0
+    %else
+        %define use_cmake3 1
+    %endif
+%else
+    %define use_cmake3 0
+%endif
+
+#-------------------------------------------------------------------------------
+# Package definitions
+#-------------------------------------------------------------------------------
+Name:      xrootd-ceph
+Epoch:     1
+Version:   __VERSION__
+Release:   __RELEASE__%{?dist}%{?_with_clang:.clang}
+Summary:   CEPH plug-in for XRootD
+Group:     System Environment/Daemons
+License:   LGPLv3+
+URL:       http://xrootd.org/
+
+# git clone http://xrootd.org/repo/xrootd.git xrootd
+# cd xrootd
+# git-archive master | gzip -9 > ~/rpmbuild/SOURCES/xrootd.tgz
+Source0:   xrootd-ceph.tar.gz
+
+BuildRoot: %{_tmppath}/%{name}-root
+
+%if %{use_cmake3}
+BuildRequires: cmake3
+%else
+BuildRequires: cmake
+%endif
+
+%if %{?_with_tests:1}%{!?_with_tests:0}
+BuildRequires: cppunit-devel
+%endif
+
+BuildRequires: librados-devel = 2:14.2.15
+BuildRequires: libradosstriper-devel = 2:14.2.15
+
+%if %{?_with_clang:1}%{!?_with_clang:0}
+BuildRequires: clang
+%endif
+
+BuildRequires: xrootd-server-devel%{?_isa} = %{epoch}:%{version}-%{release}
+BuildRequires: xrootd-private-devel%{?_isa} = %{epoch}:%{version}-%{release}
+BuildRequires: xrootd-libs%{?_isa} = %{epoch}:%{version}-%{release}
+BuildRequires: xrootd-server-libs%{?_isa} = %{epoch}:%{version}-%{release}
+BuildRequires: xrootd-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+Requires: xrootd-server-libs%{?_isa} = %{epoch}:%{version}-%{release}
+Requires: xrootd-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+Requires: xrootd-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+%description
+The xrootd-ceph is an OSS layer plug-in for the XRootD server for interfacing
+with the Ceph storage platform.
+
+#-------------------------------------------------------------------------------
+# Build instructions
+#-------------------------------------------------------------------------------
+%prep
+%setup -c -n xrootd-ceph
+
+%build
+cd xrootd-ceph
+
+%if %{?_with_clang:1}%{!?_with_clang:0}
+export CC=clang
+export CXX=clang++
+%endif
+
+mkdir build
+pushd build
+
+%if %{use_cmake3}
+cmake3 \
+%else
+cmake  \
+%endif
+       -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+%if %{?_with_tests:1}%{!?_with_tests:0}
+       -DENABLE_TESTS=TRUE \
+%else
+       -DENABLE_TESTS=FALSE \
+%endif
+      ../
+
+make -i VERBOSE=1 %{?_smp_mflags}
+popd
+
+#-------------------------------------------------------------------------------
+# Installation
+#-------------------------------------------------------------------------------
+%install
+rm -rf $RPM_BUILD_ROOT
+
+#-------------------------------------------------------------------------------
+# Install 4.x.y
+#-------------------------------------------------------------------------------
+pushd xrootd-ceph
+pushd  build
+make install DESTDIR=$RPM_BUILD_ROOT
+popd
+
+# ceph posix unversioned so
+rm -f $RPM_BUILD_ROOT%{_libdir}/libXrdCephPosix.so
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+#-------------------------------------------------------------------------------
+# Files
+#-------------------------------------------------------------------------------
+%files
+%defattr(-,root,root,-)
+%{_libdir}/libXrdCeph-5.so
+%{_libdir}/libXrdCephXattr-5.so
+%{_libdir}/libXrdCephPosix.so*
+
+%if %{?_with_tests:1}%{!?_with_tests:0}
+%files tests
+%defattr(-,root,root,-)
+%{_libdir}/libXrdCephTests*.so
+%endif
+
+#-------------------------------------------------------------------------------
+# Changelog
+#-------------------------------------------------------------------------------
+%changelog
+* Wed Dec 16 2020 George Patargias <george.patargias@stfc.ac.uk>
+- updated version for librados-devel and libradosstriper-devel to 14.2.15 following the recent upgrade on external Echo gateways
+- fixed version in xrootd-ceph shared libraries
+* Mon Mar 02 2020 Michal Simon <michal.simon@cern.ch>
+- fixed RPM dependencies
+* Thu Mar 08 2018 Michal Simon <michal.simon@cern.ch>
+- initial release

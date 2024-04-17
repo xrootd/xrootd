@@ -93,14 +93,14 @@ int parseURL(char *url, char *host, int &port, char **path) {
   *path = p2;
 
   char buf[256];
-  int l = min((int)(p2 - p), (int)sizeof (buf));
+  int l = std::min((int)(p2 - p), (int)sizeof (buf));
   strncpy(buf, p, l);
   buf[l] = '\0';
 
   // Now look for :
   p = strchr(buf, ':');
   if (p) {
-    int l = min((int)(p - buf), (int)sizeof (buf));
+    int l = std::min((int)(p - buf), (int)sizeof (buf));
     strncpy(host, buf, l);
     host[l] = '\0';
 

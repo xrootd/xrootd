@@ -10,6 +10,7 @@
 #include "XrdHttp/XrdHttpUtils.hh"
 
 #include "XrdTls/XrdTlsTempCA.hh"
+#include "XrdTpcPMarkManager.hh"
 
 #include <curl/curl.h>
 
@@ -55,10 +56,12 @@ private:
                                    curlsocktype purpose,
                                    struct curl_sockaddr *address);
 
+    static int closesocket_callback(void *clientp, curl_socket_t fd);
+
     struct TPCLogRecord {
 
-        TPCLogRecord() : bytes_transferred( -1 ), status( -1 ),
-                         tpc_status(-1), streams( 1 ), isIPv6(false)
+        TPCLogRecord(XrdNetPMark * pmark) : bytes_transferred( -1 ), status( -1 ),
+                         tpc_status(-1), streams( 1 ), isIPv6(false), pmarkManager(pmark)
         {
          gettimeofday(&begT, 0); // Set effective start time
         }
@@ -76,6 +79,7 @@ private:
         int tpc_status;
         unsigned int streams;
         bool isIPv6;
+        XrdTpc::PMarkManager pmarkManager;
     };
 
     int ProcessOptionsReq(XrdHttpExtReq &req);

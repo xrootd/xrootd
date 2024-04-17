@@ -1,5 +1,6 @@
-
-include( XRootDCommon )
+if ( XRDCL_ONLY )
+  return()
+endif()
 
 add_executable(
   xrdshmap

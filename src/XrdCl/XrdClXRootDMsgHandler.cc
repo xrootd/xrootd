@@ -904,7 +904,7 @@ namespace XrdCl
       log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
                  pUrl.GetHostId().c_str(), message->GetDescription().c_str() );
 
-      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: 0x%x (message: %s ) from out-queu to in-queue.",
+      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: 0x%x (message: %s ) from out-queue to in-queue.",
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetDescription().c_str() );
 
@@ -1202,7 +1202,9 @@ namespace XrdCl
       if( pStatus.code == errErrorResponse )
       {
         st->errNo = rsp->body.error.errnum;
-        std::string errmsg( rsp->body.error.errmsg, rsp->hdr.dlen-4 );
+        // omit the last character as the string returned from the server
+        // (acording to protocol specs) should be null-terminated
+        std::string errmsg( rsp->body.error.errmsg, rsp->hdr.dlen-5 );
         if( st->errNo == kXR_noReplicas && !pLastError.IsOK() )
           errmsg += " Last seen error: " + pLastError.ToString();
         st->SetErrorMessage( errmsg );
@@ -2443,10 +2445,10 @@ namespace XrdCl
   {
     if( sizeof( T ) > buflen ) return Status( stError, errDataError );
 
-    result = *reinterpret_cast<T*>( buffer );
+    memcpy(&result, buffer, sizeof(T));
 
     buffer += sizeof( T );
-    buflen   -= sizeof( T );
+    buflen -= sizeof( T );
 
     return Status();
   }

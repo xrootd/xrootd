@@ -65,7 +65,7 @@ struct ActionMetrics
 
       std::string cnt = i + "::n";  // IOPS
       std::string vol = i + "::b";  // number of bytes
-      std::string err = i + "::e";  // number of unsuccessfull IOs
+      std::string err = i + "::e";  // number of unsuccessful IOs
       std::string off = i + "::o";  // maximum offset seen
 
       ios[cnt] = 0;

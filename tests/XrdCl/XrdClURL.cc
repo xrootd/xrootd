@@ -1,6 +1,8 @@
 #undef NDEBUG
 
 #include <XrdCl/XrdClURL.hh>
+#include "XrdSys/XrdSysPlatform.hh"
+
 #include <gtest/gtest.h>
 
 #include <climits>
@@ -14,7 +16,7 @@ class URLTest : public ::testing::Test {};
 
 TEST(URLTest, LocalURLs)
 {
-  char url[PATH_MAX];
+  char url[MAXPATHLEN];
   for (const auto& protocol : { "", "file://" }) {
     for (const auto& path : { "/dev", "/dev/", "/dev/null" }) {
       for (const auto& params : { "", "?param=value", "?param1=value1&param2=value2" }) {
@@ -44,8 +46,8 @@ TEST(URLTest, LocalURLs)
 
 TEST(URLTest, RemoteURLs)
 {
-  char url[PATH_MAX];
-  char path_params[PATH_MAX];
+  char url[MAXPATHLEN];
+  char path_params[MAXPATHLEN];
   for (const char *protocol : { "", "http", "root", "https", "roots" }) {
     int default_port = *protocol == 'h' ? (strlen(protocol) == 4 ? 80 : 443) : 1094;
     for (const char *user : { "", "alice", "bob", "user_123", "xrootd" }) {

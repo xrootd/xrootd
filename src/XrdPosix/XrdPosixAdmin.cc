@@ -51,7 +51,7 @@ XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
    XrdCl::URL                    *uVec;
    XrdNetAddr netLoc;
    const char *hName;
-   unsigned int i;
+   unsigned long i;
 
 // Make sure admin is ok
 //

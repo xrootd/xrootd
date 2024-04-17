@@ -1497,7 +1497,7 @@ void File::insert_remote_location(const std::string &loc)
    if ( ! loc.empty())
    {
       size_t p = loc.find_first_of('@');
-      m_remote_locations.insert(&loc[p != string::npos ? p + 1 : 0]);
+      m_remote_locations.insert(&loc[p != std::string::npos ? p + 1 : 0]);
    }
 }
 

@@ -30,6 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstring>
+
 class XrdNetAddrInfo;
 class XrdSecEntity;
 
@@ -41,11 +43,11 @@ class Handle
      {public:
 
       bool        getEA(int &ec, int &ac)
-                       {if (eCode >= 0) {ec = eCode; ac = aCode; return true;}
+                       {if (Valid()) {ec = eCode; ac = aCode; return true;}
                         ec = ac = 0; return false;
                        }
-
-      bool        Valid() {return eCode >= 0;}
+                  // According to the specifications, ExpID and actID can be equal to 0 for HTTP-TPC.
+      bool        Valid() {return (eCode == 0 && aCode == 0) || (eCode >= minExpID && eCode <= maxExpID && aCode >= minActID && aCode <= maxActID);}
 
                   Handle(const char *app=0, int ecode=0, int acode=0)
                         : appName(app), eCode(ecode), aCode(acode) {}
@@ -71,16 +73,24 @@ virtual Handle *Begin(XrdNetAddrInfo &addr, Handle     &handle,
 static  bool    getEA(const char *cgi, int &ecode, int &acode);
 
                 XrdNetPMark() {}
-protected:
+virtual        ~XrdNetPMark() {} // This object cannot be deleted!
 
 // ID limits and specifications
 //
-static const int btsActID =   6;
-static const int mskActID =  63;
-static const int maxActID =  63;
+/**
+ * From the specifications: Valid value for scitag is a single positive integer > 64 and <65536 (16bit). Any other value is considered invalid.
+ */
+static const int minTotID = 65;
+static const int maxTotID = 65535;
 
-static const int maxExpID = 511;
+protected:
 
-virtual        ~XrdNetPMark() {} // This object cannot be deleted!
+static const int btsActID = 6;
+static const int mskActID = 63;
+static const int minExpID = minTotID >> btsActID;
+static const int minActID = minTotID & mskActID;
+static const int maxExpID = maxTotID >> btsActID;
+static const int maxActID = maxTotID & mskActID;
+
 };
 #endif

@@ -795,20 +795,22 @@ namespace XrdCl
 
     XrdSysMutexHelper scopedLock( info->mutex );
 
-    uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
+    const time_t now  = time(0);
+    const bool anySID =
+      info->sidManager->IsAnySIDOldAs( now - streamTimeout );
 
     log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
-               "stream timeout: %d, allocated SIDs: %d, wait barrier: %s",
+               "stream timeout: %d, any SID: %d, wait barrier: %s",
                info->streamName.c_str(), inactiveTime, streamTimeout,
-               allocatedSIDs, Utils::TimeToString(info->waitBarrier).c_str() );
+               anySID, Utils::TimeToString(info->waitBarrier).c_str() );
 
     if( inactiveTime < streamTimeout )
       return Status();
 
-    if( time(0) < info->waitBarrier )
+    if( now < info->waitBarrier )
       return Status();
 
-    if( !allocatedSIDs )
+    if( !anySID )
       return Status();
 
     return Status( stError, errSocketTimeout );
@@ -1758,6 +1760,13 @@ namespace XrdCl
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
 
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    int notlsok = DefaultNoTlsOK;
+    env->GetInt( "NoTlsOK", notlsok );
+
+    if( notlsok )
+      return info->encrypted;
+
     // Did the server instructed us to switch to TLS right away?
     if( info->serverFlags & kXR_gotoTLS )
     {
@@ -1894,21 +1903,26 @@ namespace XrdCl
     request->requestid = htons(kXR_protocol);
     request->clientpv  = htonl(kXR_PROTOCOLVERSION);
     request->flags     = ClientProtocolRequest::kXR_secreqs |
-                         ClientProtocolRequest::kXR_bifreqs |
-                         ClientProtocolRequest::kXR_ableTLS;
+                         ClientProtocolRequest::kXR_bifreqs;
 
-    bool nodata = false;
-    if( expect & ClientProtocolRequest::kXR_ExpBind )
-    {
-      XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
-      int value = DefaultTlsNoData;
-      env->GetInt( "TlsNoData", value );
-      nodata = bool( value );
-    }
+    int notlsok = DefaultNoTlsOK;
+    int tlsnodata = DefaultTlsNoData;
 
-    if( info->encrypted && !nodata )
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+    env->GetInt( "NoTlsOK", notlsok );
+
+    if (expect & ClientProtocolRequest::kXR_ExpBind)
+      env->GetInt( "TlsNoData", tlsnodata );
+
+    if (info->encrypted || InitTLS())
+      request->flags |= ClientProtocolRequest::kXR_ableTLS;
+
+    if (info->encrypted && !(notlsok || tlsnodata))
       request->flags |= ClientProtocolRequest::kXR_wantTLS;
+
     request->expect = expect;
+
     //--------------------------------------------------------------------------
     // If we are in the curse of establishing a connection in the context of
     // TPC update the expect! (this will be never followed be a bind)
@@ -2621,9 +2635,7 @@ namespace XrdCl
     // credentials
     //--------------------------------------------------------------------------
     XrdNetAddr &srvAddrInfo = *const_cast<XrdNetAddr *>(hsData->serverAddr);
-    if( info->encrypted || ( info->serverFlags & kXR_gotoTLS ) ||
-        ( info->serverFlags & kXR_tlsLogin ) )
-      srvAddrInfo.SetTLS( true );
+    srvAddrInfo.SetTLS( info->encrypted );
     while(1)
     {
       //------------------------------------------------------------------------

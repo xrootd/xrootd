@@ -212,7 +212,7 @@ void UtilsTest::SIDManagerTest()
 }
 
 //------------------------------------------------------------------------------
-// SID Manager test
+// Property List test
 //------------------------------------------------------------------------------
 void UtilsTest::PropertyListTest()
 {

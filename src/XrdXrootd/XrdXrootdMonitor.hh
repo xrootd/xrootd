@@ -36,6 +36,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 
+#include "XrdSec/XrdSecMonitor.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include "XProtocol/XPtypes.hh"
@@ -167,7 +168,7 @@ static  Hello     *First;
 
 /******************************************************************************/
 
-class  User
+class  User : public XrdSecMonitor
 {
 public:
 
@@ -210,12 +211,14 @@ inline kXR_unt32   MapPath(const char *Path)
                           }
 
        void        Register(const char *Uname, const char *Hname,
-                            const char *Pname);
+                            const char *Pname, unsigned int xSID=0);
 
        void        Report(const char *Info)
                          {Did=XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER,*this,Info);}
 
        void        Report(int eCode, int aCode);
+
+       bool        Report(WhatInfo infoT, const char *info) override;
 
 inline int         Ready()  {return XrdXrootdMonitor::monACTIVE;}
 

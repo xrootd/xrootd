@@ -149,6 +149,5 @@ int main( int argc, char **argv)
     new CppUnit::CompilerOutputter( &runner.result(), std::cerr ) );
 
   bool wasSuccessful = runner.run();
-  dlclose( libHandle );
   return wasSuccessful ? 0 : 1;
 }

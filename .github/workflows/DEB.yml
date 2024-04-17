@@ -1,0 +1,121 @@
+name: DEB
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - .gitignore
+      - .gitlab-ci.yml
+      - .mailmap
+      - '**.md'
+      - 'docs/**'
+      - 'docker/**'
+    tags-ignore:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  debian:
+    name: Debian
+
+    strategy:
+      matrix:
+        version: [ 11, 12 ]
+
+    runs-on: ubuntu-latest
+    container: debian:${{ matrix.version }}
+
+    steps:
+    - name: Install development tools
+      run: |
+        apt update -qq
+        apt install -y build-essential devscripts git
+
+    - name: Clone repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install XRootD build dependencies
+      run: mk-build-deps --install --remove debian/control <<< yes
+
+    - name: Build DEBs
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        VERSION=$(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
+        dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
+        debuild --no-tgz-check --no-sign -b
+
+    - name: Install DEBs
+      run: apt install -y ../*.deb
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move DEBs to Artifact Directory
+      run: |
+        source /etc/os-release
+        mkdir -p DEB/${ID}/${VERSION_CODENAME}
+        mv ../*.* DEB/${ID}/${VERSION_CODENAME}
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: DEB
+        path: DEB
+        retention-days: 1
+
+  ubuntu:
+    name: Ubuntu (22.04)
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Install development tools
+      run: |
+        sudo apt update -qq
+        sudo apt install -y build-essential devscripts equivs git
+
+    - name: Clone repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install XRootD build dependencies
+      run: mk-build-deps --install --remove -s sudo debian/control <<< yes
+
+    - name: Build DEBs
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        VERSION=$(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
+        dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
+        debuild --no-tgz-check --no-sign -b
+
+    - name: Install DEBs
+      run: sudo apt install -y ../*.deb
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move DEBs to Artifact Directory
+      run: |
+        source /etc/os-release
+        mkdir -p DEB/${ID}/${VERSION_CODENAME}
+        mv ../*.* DEB/${ID}/${VERSION_CODENAME}
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: DEB
+        path: DEB
+        retention-days: 1

@@ -1,0 +1,5 @@
+/usr/lib/*/libXrdVoms-5.so
+/usr/lib/*/libXrdHttpVOMS-5.so
+/usr/lib/*/libXrdSecgsiVOMS-5.so
+/usr/share/man/man1/libXrdVoms.1
+/usr/share/man/man1/libXrdSecgsiVOMS.1

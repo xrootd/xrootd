@@ -1,4 +1,3 @@
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -39,6 +38,7 @@ add_library(
 
 target_link_libraries(
   XrdCrypto
+  PRIVATE
   XrdUtils
   ${CMAKE_DL_LIBS} )
 
@@ -46,9 +46,7 @@ set_target_properties(
   XrdCrypto
   PROPERTIES
   VERSION   ${XRD_CRYPTO_VERSION}
-  SOVERSION ${XRD_CRYPTO_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_CRYPTO_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # The XrdCryptoLite library
@@ -65,6 +63,7 @@ add_library(
 
 target_link_libraries(
   XrdCryptoLite
+  PRIVATE
   XrdUtils
   OpenSSL::Crypto )
 
@@ -72,9 +71,7 @@ set_target_properties(
   XrdCryptoLite
   PROPERTIES
   VERSION   ${XRD_CRYPTO_LITE_VERSION}
-  SOVERSION ${XRD_CRYPTO_LITE_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_CRYPTO_LITE_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # The XrdCryptossl module
@@ -99,16 +96,11 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_CRYPTOSSL}
+  PRIVATE
   XrdCrypto
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT}
   OpenSSL::SSL )
-
-set_target_properties(
-  ${LIB_XRD_CRYPTOSSL}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

@@ -203,7 +203,7 @@ char* ClientFattrRequest::VVecInsert( const char *value, char *buffer )
 //
 char* ClientFattrRequest::NVecRead( char* buffer, kXR_unt16 &rc )
  {
-   rc = *reinterpret_cast<const kXR_unt16*>( buffer );
+   memcpy(&rc, buffer, sizeof(kXR_unt16));
    rc = htons( rc );
    buffer += sizeof( kXR_unt16 );
    return buffer;
@@ -222,7 +222,7 @@ char* ClientFattrRequest::NVecRead( char* buffer, char *&name )
 //
 char* ClientFattrRequest::VVecRead( char* buffer, kXR_int32 &len )
 {
-  len = *reinterpret_cast<const kXR_int32*>( buffer );
+  memcpy(&len, buffer, sizeof(kXR_int32));
   len = htonl( len );
   buffer += sizeof( kXR_int32 );
   return buffer;

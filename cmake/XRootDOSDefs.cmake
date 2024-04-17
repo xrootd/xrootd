@@ -19,6 +19,7 @@ define_default( LIBRARY_PATH_PREFIX "lib" )
 # Enable c++14
 #-------------------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 if( ENABLE_ASAN )
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fsanitize=address")
@@ -107,9 +108,9 @@ if( APPLE )
   set( MacOSX TRUE )
   set( XrdClPipelines TRUE )
   
-  if( NOT DEFINED CMAKE_MACOSX_RPATH )
-    set( CMAKE_MACOSX_RPATH 1 )
-  endif()
+  set(CMAKE_MACOSX_RPATH TRUE)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
 
   # this is here because of Apple deprecating openssl and krb5
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )

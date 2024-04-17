@@ -162,7 +162,7 @@ static XrdLink *Find(int &curr, XrdLinkMatch *who=0);
 //!                 criterea (typically, client name and host name). If the
 //!                 pointer is nil, a match always occurs.
 //!
-//! @return !0      The length of teh name placed in the buffer.
+//! @return !0      The length of the name placed in the buffer.
 //!         =0      No more links exist with the specified criterea.
 //-----------------------------------------------------------------------------
 

@@ -397,7 +397,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     CPPUNIT_ASSERT_XRDST_NOTOK( process12.Run(0), XrdCl::errCheckSumError );
     XrdCl::StatInfo *info = 0;
     XrdCl::XRootDStatus status = fs.Stat( targetPath, info );
-    CPPUNIT_ASSERT_XRDST( status.status == XrdCl::stError && st.code == XrdCl::errNotFound );
+    CPPUNIT_ASSERT_XRDST( status.status == XrdCl::stError && status.code == XrdCl::errNotFound );
     properties.Clear();
 
     //--------------------------------------------------------------------------

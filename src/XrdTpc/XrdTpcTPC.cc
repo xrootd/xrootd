@@ -119,18 +119,34 @@ int TPCHandler::opensocket_callback(void *clientp,
                                     curlsocktype purpose,
                                     struct curl_sockaddr *aInfo)
 {
-// See what kind of address will be used to connect
-//
-if (purpose == CURLSOCKTYPE_IPCXN && clientp)
-   {XrdNetAddr thePeer(&(aInfo->addr));
-    ((TPCLogRecord *)clientp)->isIPv6 =  (thePeer.isIPType(XrdNetAddrInfo::IPv6)
-                                      && !thePeer.isMapped());
-   }
+  //Return a socket file descriptor (note the clo_exec flag will be set).
+  int fd = XrdSysFD_Socket(aInfo->family, aInfo->socktype, aInfo->protocol);
+  // See what kind of address will be used to connect
+  //
+  if(fd < 0) {
+    return CURL_SOCKET_BAD;
+  }
+  TPCLogRecord * rec = (TPCLogRecord *)clientp;
+  if (purpose == CURLSOCKTYPE_IPCXN && clientp)
+  {XrdNetAddr thePeer(&(aInfo->addr));
+    rec->isIPv6 =  (thePeer.isIPType(XrdNetAddrInfo::IPv6)
+                    && !thePeer.isMapped());
+    // Register the socket to the packet marking manager
+    rec->pmarkManager.addFd(fd,&aInfo->addr);
+  }
 
-// Return a socket file descriptor (note the clo_exec flag will be set).
-//
-   int fd = XrdSysFD_Socket(aInfo->family, aInfo->socktype, aInfo->protocol);
-   return (fd >= 0 ? fd : CURL_SOCKET_BAD);
+  return fd;
+}
+
+int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
+  TPCLogRecord * rec = (TPCLogRecord *)clientp;
+
+  // Destroy the PMark handle associated to the file descriptor before closing it.
+  // Otherwise, we would lose the socket usage information if the socket is closed before
+  // the PMark handle is closed.
+  rec->pmarkManager.endPmark(fd);
+
+  return close(fd);
 }
 
 /******************************************************************************/
@@ -634,9 +650,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             }
             int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
             if (now > last_advance_time + timeout) {
+                const char *log_prefix = rec.log_prefix.c_str();
+                bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
+
                 state.SetErrorCode(10);
                 std::stringstream ss;
-                ss << "Transfer failed because no bytes have been received in " << timeout << " seconds.";
+                ss << "Transfer failed because no bytes have been "
+                   << (tpc_pull ? "received from the source (pull mode) in "
+                                : "transmitted to the destination (push mode) in ") << timeout << " seconds.";
                 state.SetErrorMessage(ss.str());
                 curl_multi_remove_handle(multi_handle, curl);
                 curl_multi_cleanup(multi_handle);
@@ -644,6 +665,8 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             }
             last_marker = now;
         }
+        // The transfer will start after this point, notify the packet marking manager
+      rec.pmarkManager.startTransfer(&req);
         mres = curl_multi_perform(multi_handle, &running_handles);
         if (mres == CURLM_CALL_MULTI_PERFORM) {
             // curl_multi_perform should be called again immediately.  On newer
@@ -654,6 +677,8 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         } else if (running_handles == 0) {
             break;
         }
+
+        rec.pmarkManager.beginPMarks();
         //printf("There are %d running handles\n", running_handles);
 
         // Harvest any messages, looking for CURLMSG_DONE.
@@ -828,7 +853,7 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
 /******************************************************************************/
   
 int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req) {
-    TPCLogRecord rec;
+    TPCLogRecord rec(req.pmark);
     rec.log_prefix = "PushRequest";
     rec.local = req.resource;
     rec.remote = resource;
@@ -849,6 +874,8 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 //  curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_setcloexec_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
     auto query_header = req.headers.find("xrd-http-fullresource");
     std::string redirect_resource = req.resource;
     if (query_header != req.headers.end()) {
@@ -908,7 +935,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 /******************************************************************************/
   
 int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
-    TPCLogRecord rec;
+    TPCLogRecord rec(req.pmark);
     rec.log_prefix = "PullRequest";
     rec.local = req.resource;
     rec.remote = resource;
@@ -929,6 +956,8 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
 //  curl_easy_setopt(curl,CURLOPT_SOCKOPTFUNCTION,sockopt_setcloexec_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
     if (!fh.get()) {
             char msg[] = "Failed to initialize internal transfer file handle";
@@ -957,7 +986,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             }
             if (stream_req < 0 || stream_req > 100) {
                 char msg[] = "Invalid request for number of streams";
-                rec.status = 500;
+                rec.status = 400;
                 logTransferEvent(LogMask::Info, rec, "INVALID_REQUEST", msg);
                 return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
             }

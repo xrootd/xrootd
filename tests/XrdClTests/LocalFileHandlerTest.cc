@@ -142,7 +142,7 @@ void LocalFileHandlerTest::WriteTest(){
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
    //----------------------------------------------------------------------------
-   int fd = open( targetURL.c_str(), flags );
+   int fd = open( targetURL.c_str(), O_RDWR );
    int rc = read( fd, buffer, int( writeSize ) );
    CPPUNIT_ASSERT_EQUAL( rc, int( writeSize ) );
    std::string read( (char *)buffer, writeSize );
@@ -176,7 +176,7 @@ void LocalFileHandlerTest::WriteWithOffsetTest(){
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
    //----------------------------------------------------------------------------
-   int fd = open( targetURL.c_str(), flags );
+   int fd = open( targetURL.c_str(), O_RDWR );
    int rc = read( fd, buffer, offset );
    CPPUNIT_ASSERT_EQUAL( rc, int( offset ) );
    std::string read( (char *)buffer, offset );
@@ -207,7 +207,7 @@ void LocalFileHandlerTest::WriteMkdirTest(){
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
    //----------------------------------------------------------------------------
-   int fd = open( targetURL.c_str(), flags );
+   int fd = open( targetURL.c_str(), O_RDWR );
    int rc = read( fd, buffer, writeSize );
    CPPUNIT_ASSERT_EQUAL( rc, int( writeSize ) );
    std::string read( buffer, writeSize );

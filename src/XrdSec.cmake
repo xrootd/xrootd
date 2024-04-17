@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -34,15 +33,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC}
+  PRIVATE
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS} )
-
-set_target_properties(
-  ${LIB_XRD_SEC}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdSecpwd module
@@ -58,15 +52,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_PROT}
+  PRIVATE
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT}
   OpenSSL::Crypto )
-
-set_target_properties(
-  ${LIB_XRD_SEC_PROT}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdSecpwd module
@@ -79,16 +68,11 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_PWD}
+  PRIVATE
   XrdCrypto
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT}
   ${CRYPT_LIBRARY} )
-
-set_target_properties(
-  ${LIB_XRD_SEC_PWD}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 if( NOT XRDCL_LIB_ONLY )
 #-------------------------------------------------------------------------------
@@ -115,14 +99,9 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_SSS}
+  PRIVATE
   XrdCryptoLite
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_SEC_SSS}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 if( NOT XRDCL_LIB_ONLY )
 #-------------------------------------------------------------------------------
@@ -147,13 +126,8 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_UNIX}
+  PRIVATE
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_SEC_UNIX}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install
@@ -170,10 +144,4 @@ install(
   xrdsssadmin xrdpwdadmin
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdsssadmin.8
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdpwdadmin.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )
 endif()

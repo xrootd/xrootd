@@ -109,7 +109,9 @@ XrdSecService *XrdHttpProtocol::CIA = 0; // Authentication Server
 int XrdHttpProtocol::m_bio_type = 0; // BIO type identifier for our custom BIO.
 BIO_METHOD *XrdHttpProtocol::m_bio_method = NULL; // BIO method constructor.
 char *XrdHttpProtocol::xrd_cslist = nullptr;
+XrdNetPMark * XrdHttpProtocol::pmarkHandle = nullptr;
 XrdHttpChecksumHandler XrdHttpProtocol::cksumHandler = XrdHttpChecksumHandler();
+XrdHttpReadRangeHandler::Configuration XrdHttpProtocol::ReadRangeConfig;
 
 XrdSysTrace XrdHttpTrace("http");
 
@@ -185,7 +187,7 @@ int BIO_get_shutdown(BIO *bio) {
 
 XrdHttpProtocol::XrdHttpProtocol(bool imhttps)
 : XrdProtocol("HTTP protocol handler"), ProtLink(this),
-SecEntity(""), CurrentReq(this) {
+SecEntity(""), CurrentReq(this, ReadRangeConfig) {
   myBuff = 0;
   Addr_str = 0;
   Reset();
@@ -280,6 +282,7 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
   // that is is https without invoking TLS on the actual link. Eventually,
   // we should just use the link's TLS native implementation.
   //
+  hp->SecEntity.addrInfo = lp->AddrInfo();
   XrdNetAddr *netP = const_cast<XrdNetAddr*>(lp->NetAddr());
   netP->SetDialect("https");
   netP->SetTLS(true);
@@ -579,9 +582,29 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     } else
       CurrentReq.reqstate++;
+  } else if (!DoneSetInfo && !CurrentReq.userAgent().empty()) { // DoingLogin is true, meaning the login finished.
+    std::string mon_info = "monitor info " + CurrentReq.userAgent();
+    DoneSetInfo = true;
+    if (mon_info.size() >= 1024) {
+      TRACEI(ALL, "User agent string too long");
+    } else if (!Bridge) {
+      TRACEI(ALL, "Internal logic error: Bridge is null after login");
+    } else {
+      TRACEI(DEBUG, "Setting " << mon_info);
+      memset(&CurrentReq.xrdreq, 0, sizeof (ClientRequest));
+      CurrentReq.xrdreq.set.requestid = htons(kXR_set);
+      CurrentReq.xrdreq.set.modifier = '\0';
+      memset(CurrentReq.xrdreq.set.reserved, '\0', sizeof(CurrentReq.xrdreq.set.reserved));
+      CurrentReq.xrdreq.set.dlen = htonl(mon_info.size());
+      if (!Bridge->Run((char *) &CurrentReq.xrdreq, (char *) mon_info.c_str(), mon_info.size())) {
+        SendSimpleResp(500, nullptr, nullptr, "Could not set user agent.", 0, false);
+        return -1;
+      }
+      return 0;
+    }
+  } else {
+    DoingLogin = false;
   }
-  DoingLogin = false;
-
 
   // Read the next request header, that is, read until a double CRLF is found
 
@@ -950,6 +973,12 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   char *var;
   int cfgFD, GoNo, NoGo = 0, ismine;
 
+  var = nullptr;
+  XrdOucEnv::Import("XRD_READV_LIMITS", var);
+  XrdHttpReadRangeHandler::Configure(eDest, var, ReadRangeConfig);
+
+  pmarkHandle = (XrdNetPMark* ) myEnv->GetPtr("XrdNetPMark*");
+
   cksumHandler.configure(xrd_cslist);
   auto nonIanaChecksums = cksumHandler.getNonIANAConfiguredCksums();
   if(nonIanaChecksums.size()) {
@@ -1286,7 +1315,7 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
 
 
   // Check for buffer overflow first
-  maxread = min(blen, BuffAvailable());
+  maxread = std::min(blen, BuffAvailable());
   TRACE(DEBUG, "getDataOneShot BuffAvailable: " << BuffAvailable() << " maxread: " << maxread);
 
   if (!maxread)
@@ -1298,7 +1327,7 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
     if (!wait) {
       int l = SSL_pending(ssl);
       if (l > 0)
-        sslavail = min(maxread, SSL_pending(ssl));
+        sslavail = std::min(maxread, SSL_pending(ssl));
     }
 
     if (sslavail < 0) {
@@ -1471,10 +1500,10 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   // And now make available the data taken from the buffer. Note that the buffer
   // may be empty...
   if (myBuffStart <= myBuffEnd) {
-    rlen = min( (long) blen, (long)(myBuffEnd - myBuffStart) );
+    rlen = std::min( (long) blen, (long)(myBuffEnd - myBuffStart) );
 
   } else
-    rlen = min( (long) blen, (long)(myBuff->buff + myBuff->bsize - myBuffStart) );
+    rlen = std::min( (long) blen, (long)(myBuff->buff + myBuff->bsize - myBuffStart) );
 
   *data = myBuffStart;
   BuffConsume(rlen);
@@ -1526,9 +1555,11 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
     else if (code == 206) ss << "Partial Content";
     else if (code == 302) ss << "Redirect";
     else if (code == 307) ss << "Temporary Redirect";
+    else if (code == 400) ss << "Bad Request";
     else if (code == 403) ss << "Forbidden";
     else if (code == 404) ss << "Not Found";
     else if (code == 405) ss << "Method Not Allowed";
+    else if (code == 416) ss << "Range Not Satisfiable";
     else if (code == 500) ss << "Internal Server Error";
     else ss << "Unknown";
   }
@@ -1578,10 +1609,11 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
 /******************************************************************************/
   
 int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
-  if (ChunkRespHeader((bodylen <= 0) ? (body ? strlen(body) : 0) : bodylen))
+  long long content_length = (bodylen <= 0) ? (body ? strlen(body) : 0) : bodylen;
+  if (ChunkRespHeader(content_length))
     return -1;
 
-  if (body && SendData(body, bodylen))
+  if (body && SendData(body, content_length))
     return -1;
 
   return ChunkRespFooter();
@@ -1839,6 +1871,7 @@ void XrdHttpProtocol::Reset() {
   myBuffStart = myBuffEnd = 0;
 
   DoingLogin = false;
+  DoneSetInfo = false;
 
   ResumeBytes = 0;
   Resume = 0;

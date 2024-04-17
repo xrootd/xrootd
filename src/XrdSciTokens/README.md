@@ -35,6 +35,14 @@ ofs.authlib [++] libXrdAccSciTokens.so config=/path/to/config/file
 
 If not given, it defaults to `/etc/xrootd/scitokens.cfg`.  Restart the service for new settings to take effect.
 
+The SciTokens plugin has multiple levels of logging output.  To manage these, set:
+
+```
+scitokens.trace LEVEL_NAME
+```
+
+Valid levels include `error`, `warning`, `info`, `debug`, and `all`.
+
 SciTokens Configuration File
 ----------------------------
 
@@ -104,6 +112,9 @@ are:
    - `default_user` (optional): If set, then all authorized operations will be done under the provided username when
       interacting with the filesystem.  This is useful in the case where the administrator desires that all files owned
       by an issuer should be mapped to a particular Unix user account at the site.
+   - `username_claim` (optional): Not all issuers put the desired username in the `sub` claim (sometimes the subject is
+      set to a de-identified value).  To use an alternate claim as the username, such as `uid`, set this to the desired
+      claim name.  If set, it overrides `map_subject` and `default_user`.
    -  `name_mapfile` (options): If set, then the referenced file is parsed as a JSON object and the specified mappings
       are applied to the username inside the XRootD framework.  See below for more information on the mapfile.
 
@@ -124,12 +135,14 @@ Mapfile format
 The file specified by the `name_mapfile` attribute can be used to perform identity mapping for a given issuer.
 It must parse as valid JSON and may look like this:
 
+```
 [
    {"sub": "bbockelm",    "path": "/home/bbockelm", "result": "bbockelm"},
    {"group": "/cms/prod", "path": "/cms",           "result": "cmsprod" comment="Added 1 Sept 2020"},
    {"group": "/cms",                                "result": "cmsuser"},
    {"group": "/cms",                                "result": "atlas"   ignore="Only for testing"}
 ]
+```
 
 That is, we have a JSON list of objects; each object is interpreted as a rule.  For an incoming request to match a rule,
 each present attribute must evaluate to true.  In this case, the value of the `result` key is populated as the username
@@ -137,6 +150,9 @@ in the XRootD internal credential.
 
 The enumerated keys are:
    - `sub`: True if the `sub` claim in the token matches the value in the mapfile (case-sensitive comparison).
+   - `username`: True if the username in the token (the claim specifying the username is configurable, controlled by the
+     `username_claim` variable in the issuer config; default is `sub`) matches the value in the mapfile (case-sensitive
+     comparison).
    - `path`: True iff the value of the attribute matches (case-sensitive) the prefix of the (normalized) requested path.
      For example, if the issuer's base path is `/home`, the operation is accessing `/home/bbockelm/foo`, and the path in
      the rule is `/bbockelm`, then this attribute evaluates to `true`.  Note the path value and the requested path must

@@ -53,6 +53,16 @@
 #endif
 #endif
 
+// The following tests for Unique Local Addresses (ULA) which Linux does not
+// provide. The SITELOCAL macro only tests for the now deprecated non-routable
+// addresses (RFC 3879). So, we need to implement the ULA test ourselves.
+// Technically, only addresses starting with prefix 0xfd are ULA useable but
+// RFC 4193 doesn't explicitly prohibit ULA's that start with 0xfc which may
+// be used for registered ULA's in the future. So we test for both.
+//
+#define IN6_IS_ADDR_UNIQLOCAL(a) \
+  ( ((const uint8_t *)(a))[0] == 0xfc || ((const uint8_t *)(a))[0] == 0xfd )
+
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -198,6 +208,7 @@ bool XrdNetAddrInfo::isPrivate()
           ipV4 = (unsigned char *)&IP.v6.sin6_addr.s6_addr32[3];
           else  {if ((IN6_IS_ADDR_LINKLOCAL(&IP.v6.sin6_addr))
                  ||  (IN6_IS_ADDR_SITELOCAL(&IP.v6.sin6_addr))
+                 ||  (IN6_IS_ADDR_UNIQLOCAL(&IP.v6.sin6_addr))
                  ||  (IN6_IS_ADDR_LOOPBACK (&IP.v6.sin6_addr))) return true;
                  return false;
                 }

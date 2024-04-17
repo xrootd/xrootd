@@ -64,8 +64,8 @@
 /*                 T r a c i n g  I n i t  O p t i o n s                      */
 /******************************************************************************/
 #ifndef NODEBUG
-//#define POPTS(t,y)    {if (t) {t->Beg(epname); cerr <<y; t->End();}}
-#define POPTS(t,y)      {if (t) {cerr <<"Secgsi" <<y <<'\n' <<flush;}}
+//#define POPTS(t,y)    {if (t) {t->Beg(epname); std::cerr <<y; t->End();}}
+#define POPTS(t,y)      {if (t) {std::cerr <<"Secgsi" <<y <<'\n' << std::flush;}}
 #else
 #define POPTS(t,y)
 #endif
@@ -158,7 +158,7 @@ int    XrdSecProtocolgsi::GMAPOpt  = 1;
 bool   XrdSecProtocolgsi::GMAPuseDNname = 0;
 String XrdSecProtocolgsi::DefCrypto= "ssl";
 String XrdSecProtocolgsi::DefCipher= "aes-128-cbc:bf-cbc:des-ede3-cbc";
-String XrdSecProtocolgsi::DefMD    = "sha1:md5";
+String XrdSecProtocolgsi::DefMD    = "sha256";
 String XrdSecProtocolgsi::DefError = "invalid credentials ";
 int    XrdSecProtocolgsi::PxyReqOpts = 0;
 int    XrdSecProtocolgsi::AuthzPxyWhat = -1;
@@ -1080,7 +1080,7 @@ void XrdSecProtocolgsi::Delete()
    SafeDelete(sessionMD);     // Message Digest instance
    SafeDelete(sessionKsig);   // RSA key to sign
    SafeDelete(sessionKver);   // RSA key to verify
-   if (proxyChain) proxyChain->Cleanup(1);
+   if (proxyChain) proxyChain->Cleanup();
    SafeDelete(proxyChain);    // Chain with delegated proxies
    SafeFree(expectedHost);
 
@@ -2819,13 +2819,13 @@ XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
       if (erp) 
          erp->setErrInfo(ENOMEM, msg);
       else 
-         cerr <<msg <<endl;
+         std::cerr <<msg <<std::endl;
       return (XrdSecProtocol *)0;
    }
    //
    // We are done
    if (!erp)
-      cerr << "protocol object instantiated" << endl;
+      std::cerr << "protocol object instantiated" << std::endl;
    return prot;
 }}
 
@@ -3902,6 +3902,9 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    if (needReq || (hs->Options & kOptsFwdPxy)) {
       // Create a new proxy chain
       hs->PxyChain = new X509Chain();
+      // The new chain must be deleted if still in the handshake info
+      // when the info is destroyed
+      hs->Options |= kOptsDelPxy;
       // Add the current proxy
       if ((*ParseBucket)(bck, hs->PxyChain) > 1) {
          // Reorder it
@@ -3912,21 +3915,34 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
             XrdCryptoRSA *krPXp = 0;
             if ((*X509CreateProxyReq)(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
                // Save key in the cache
-               hs->Cref->buf4.buf = (char *)krPXp;
+               hs->Cref->buf4.len = krPXp->GetPrilen() + 1;
+               hs->Cref->buf4.buf = new char[hs->Cref->buf4.len];
+               if (krPXp->ExportPrivate(hs->Cref->buf4.buf, hs->Cref->buf4.len) != 0) {
+                  delete krPXp;
+                  delete rPXp;
+                  if (hs->PxyChain) hs->PxyChain->Cleanup();
+                  SafeDelete(hs->PxyChain);
+                  cmsg = "cannot export private key of the proxy request!";
+                  return -1;
+               }
                // Prepare export bucket for request
                XrdSutBucket *bckr = rPXp->Export();
                // Add it to the main list
                if ((*bm)->AddBucket(bckr) != 0) {
+                  if (hs->PxyChain) hs->PxyChain->Cleanup();
                   SafeDelete(hs->PxyChain);
                   NOTIFY("WARNING: proxy req: problem adding bucket to main buffer");
                }
+               delete krPXp;
                delete rPXp;
             } else {
+               if (hs->PxyChain) hs->PxyChain->Cleanup();
                SafeDelete(hs->PxyChain);
                NOTIFY("WARNING: proxy req: problem creating request");
             }
          }
       } else {
+         if (hs->PxyChain) hs->PxyChain->Cleanup();
          SafeDelete(hs->PxyChain);
          NOTIFY("WARNING: proxy req: wrong number of certificates");
       }
@@ -4037,8 +4053,12 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
          return 0;
       }
       // Set full PKI
-      XrdCryptoRSA *knpx = (XrdCryptoRSA *)(hs->Cref->buf4.buf);
-      npx->SetPKI((XrdCryptoX509data)(knpx->Opaque()));
+      XrdCryptoRSA *const knpx = npx->PKI();
+      if (!knpx || knpx->ImportPrivate(hs->Cref->buf4.buf, hs->Cref->buf4.len) != 0) {
+        delete npx;
+        cmsg = "could not import private key into signed request";
+        return 0;
+      }
       // Add the new proxy ecert to the chain
       pxyc->PushBack(npx);
    }

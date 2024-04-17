@@ -247,9 +247,9 @@ int XrdOucNSWalk::Emsg(const char *pfx, int rc, const char *txt1,
    if (eDest) eDest->Emsg(pfx, rc, txt1, txt2);
       else if (mPfx)
               {const char *etxt = XrdSysE2T(rc);
-               cerr <<mPfx <<": Unable to " <<txt1;
-               if (txt2) cerr <<' ' <<txt2;
-               cerr <<"; " <<(etxt) <<"\n" <<flush;
+               std::cerr <<mPfx <<": Unable to " <<txt1;
+               if (txt2) std::cerr <<' ' <<txt2;
+               std::cerr <<"; " <<(etxt) <<"\n" << std::flush;
               }
    return rc;
 }

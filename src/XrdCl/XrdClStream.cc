@@ -1024,13 +1024,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnReadTimeout( uint16_t substream )
+  bool Stream::OnReadTimeout( uint16_t substream )
   {
     //--------------------------------------------------------------------------
     // We only take the main stream into account
     //--------------------------------------------------------------------------
     if( substream != 0 )
-      return;
+      return true;
 
     //--------------------------------------------------------------------------
     // Check if there is no outgoing messages and if the stream TTL is elapesed.
@@ -1070,7 +1070,7 @@ namespace XrdCl
         // object that aggregates this Stream.
         //----------------------------------------------------------------------
         DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
-        return;
+        return false;
       }
     }
 
@@ -1083,14 +1083,17 @@ namespace XrdCl
     {
       scopedLock.UnLock();
       OnError( substream, st );
+      return false;
     }
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstru
   //----------------------------------------------------------------------------
-  void Stream::OnWriteTimeout( uint16_t /*substream*/ )
+  bool Stream::OnWriteTimeout( uint16_t /*substream*/ )
   {
+    return true;
   }
 
   //----------------------------------------------------------------------------

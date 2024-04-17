@@ -1,0 +1,54 @@
+
+--------------------------------------------------------------------------------
+                    _    _ ______                   _____
+                   \ \  / (_____ \             _   (____ \
+                    \ \/ / _____) ) ___   ___ | |_  _   \ \
+                     )  ( (_____ ( / _ \ / _ \|  _)| |   | |
+                    / /\ \      | | |_| | |_| | |__| |__/ /
+                   /_/  \_\     |_|\___/ \___/ \___)_____/
+
+--------------------------------------------------------------------------------
+
+0. xrootd-ceph is a OSS layer XRootD plug-in for interfacing with Ceph storage 
+   platform. The plug-in has to be build against respective Ceph version, the
+   repository can be found at:
+
+     https://download.ceph.com/rpm-{ceph-release}/{distro}/$basearch
+
+1. S U P P O R T E D   O P E R A T I N G   S Y S T E M S
+
+   XRootD is supported on the following platforms:
+
+  * RedHat Enterprise Linux 7 and derivatives (Scientific Linux)
+    compiled with gcc
+
+2. B U I L D   I N S T R U C T I O N S
+
+2.1 Build system
+
+  xrootd-ceph uses CMake to handle the build process. Please use CMake version 3 or greater (e.g. cmake3).
+
+2.2 Build steps
+
+  * Create an empty build directory:
+
+    mkdir build
+    cd build
+
+  * Ensure that the correct plugin version number is set in cmake/XRootDDefaults.cmake: 
+ 
+    if( NOT XRDCEPH_SUBMODULE )
+      define_default( PLUGIN_VERSION  5 )
+    endif()
+
+  * Generate the build system files using cmake, ie:
+
+    cmake /path/to/the/xrootd-ceph/source -DCMAKE_INSTALL_PREFIX=/opt/xrootd
+
+  * Build the source:
+
+    make
+
+  * Install the shared libraries:
+
+    make install

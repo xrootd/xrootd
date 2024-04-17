@@ -1,4 +1,4 @@
-.TH xrdcopy 1 "__VERSION__"
+.TH xrdcopy 1 "@XRootD_VERSION_STRING@"
 .SH NAME
 xrdcp - copy files
 .SH SYNOPSIS
@@ -332,7 +332,7 @@ The default value is \fIOFF\fR.
 
 XRD_PARALLELEVTLOOP
 .RS 5
-The number of event loops.
+The number of event loops (i.e. the number of threads handling requests). Default number is 10.
 .RE
 
 XRD_READRECOVERY

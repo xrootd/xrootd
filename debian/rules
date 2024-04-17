@@ -1,0 +1,111 @@
+#!/usr/bin/make -f
+
+export LC_ALL=C
+export DH_VERBOSE=1
+export PYBUILD_NAME=xrootd
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all optimize=-lto
+
+%:
+	dh $@ --with python3 --buildsystem cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DENABLE_FUSE:BOOL=1 \
+		-DENABLE_HTTP:BOOL=1 \
+		-DENABLE_KRB5:BOOL=1 \
+		-DENABLE_MACAROONS:BOOL=1 \
+		-DENABLE_PYTHON:BOOL=1 \
+		-DENABLE_READLINE:BOOL=1 \
+		-DENABLE_SCITOKENS:BOOL=1 \
+		-DENABLE_VOMS:BOOL=1 \
+		-DENABLE_XRDCLHTTP:BOOL=1 \
+		-DENABLE_XRDEC:BOOL=1 \
+		-DENABLE_TESTS:BOOL=1 \
+		-DFORCE_ENABLED:BOOL=1 \
+		-DINSTALL_PYTHON_BINDINGS:BOOL=0 \
+		-DUSE_SYSTEM_ISAL:BOOL=1 \
+		-DXRDCEPH_SUBMODULE:BOOL=1
+
+override_dh_auto_build:
+	dh_auto_build
+	doxygen Doxyfile
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf doxydoc
+	rm -rf bindings/python/docs/build
+
+override_dh_auto_install:
+	dh_auto_install
+	python3 -m pip install --target debian/tmp/usr/lib/python3/dist-packages \
+		--no-deps --no-build-isolation --disable-pip-version-check --verbose \
+		--ignore-installed --use-pep517 obj-$(DEB_HOST_MULTIARCH)/bindings/python
+
+	rm -f debian/tmp/usr/bin/xrdshmap
+	rm -f debian/tmp/usr/bin/test-runner
+	rm -f debian/tmp/usr/lib/*/libXrd*Test*
+	rm -f debian/tmp/usr/lib/*/libXrdCephPosix.so
+
+	rm -f debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/direct_url.json
+	rm -f debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/RECORD
+	[ -r debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/INSTALLER ] && \
+	    sed -i -e s/pip/dpkg/ \
+		debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/INSTALLER
+
+	LD_LIBRARY_PATH=$${LD_LIBRARY_PATH}:$(CURDIR)/debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH) \
+	PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=$(CURDIR)/debian/tmp/usr/lib/python3/dist-packages \
+	make -C bindings/python/docs html && \
+	mv bindings/python/docs/build/html bindings/python/docs/build/python
+
+	# Service unit files
+	mkdir -p debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/xrootd@.service debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/xrootd@.socket debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/xrdhttp@.socket debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/cmsd@.service debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/frm_xfrd@.service debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/frm_purged@.service debian/tmp/lib/systemd/system
+	mkdir -p debian/tmp/usr/lib/tmpfiles.d
+	install -m 644 packaging/rhel/xrootd.tmpfiles debian/tmp/usr/lib/tmpfiles.d/xrootd.conf
+
+	# Server config
+	mkdir -p debian/tmp/etc/xrootd
+	install -m 644 -p packaging/common/xrootd-clustered.cfg \
+	    debian/tmp/etc/xrootd/xrootd-clustered.cfg
+	install -m 644 -p packaging/common/xrootd-standalone.cfg \
+	    debian/tmp/etc/xrootd/xrootd-standalone.cfg
+	install -m 644 -p packaging/common/xrootd-filecache-clustered.cfg \
+	    debian/tmp/etc/xrootd/xrootd-filecache-clustered.cfg
+	install -m 644 -p packaging/common/xrootd-filecache-standalone.cfg \
+	    debian/tmp/etc/xrootd/xrootd-filecache-standalone.cfg
+	sed 's!/usr/lib64/!!' packaging/common/xrootd-http.cfg > \
+	    debian/tmp/etc/xrootd/xrootd-http.cfg
+
+	# Client config
+	mkdir -p debian/tmp/etc/xrootd/client.plugins.d
+	install -m 644 -p packaging/common/client.conf \
+	    debian/tmp/etc/xrootd/client.conf
+	sed 's!/usr/lib/!!' packaging/common/client-plugin.conf.example > \
+	    debian/tmp/etc/xrootd/client.plugins.d/client-plugin.conf.example
+	sed -e 's!/usr/lib64/!!' -e 's!-5!!' packaging/common/recorder.conf > \
+	    debian/tmp/etc/xrootd/client.plugins.d/recorder.conf
+	sed 's!/usr/lib64/!!' packaging/common/http.client.conf.example > \
+	    debian/tmp/etc/xrootd/client.plugins.d/xrdcl-http-plugin.conf
+
+	chmod 644 debian/tmp/usr/share/xrootd/utils/XrdCmsNotify.pm
+	sed 's!/usr/bin/env perl!/usr/bin/perl!' -i \
+	    debian/tmp/usr/share/xrootd/utils/netchk \
+	    debian/tmp/usr/share/xrootd/utils/XrdCmsNotify.pm \
+	    debian/tmp/usr/share/xrootd/utils/XrdOlbMonPerf
+
+	sed 's!/usr/bin/env bash!/bin/bash!' -i \
+	    debian/tmp/usr/bin/xrootd-config
+
+	mkdir -p debian/tmp/etc/xrootd/config.d
+
+	mkdir -p debian/tmp/var/log/xrootd
+	mkdir -p debian/tmp/var/spool/xrootd
+
+	mkdir -p debian/tmp/etc/logrotate.d
+	install -m 644 -p packaging/common/xrootd.logrotate \
+	    debian/tmp/etc/logrotate.d/xrootd

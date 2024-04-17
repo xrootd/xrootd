@@ -77,7 +77,7 @@ void ConfigLog(const char *cFN)
 // Try to open the configuration file.
 //
    if ((cfgFD = open(cFN, O_RDONLY, 0)) < 0)
-      {cerr <<"Config " <<XrdSysE2T(errno) <<" opening " <<cFN <<endl;
+      {std::cerr <<"Config " <<XrdSysE2T(errno) <<" opening " <<cFN <<std::endl;
        return;
       }
    cStrm.Attach(cfgFD);
@@ -91,7 +91,7 @@ void ConfigLog(const char *cFN)
          else if (!strcmp(var, "ssi.svclib")) {lDest = &svcPath; lName = "svc";}
          else continue;
          if (!(val = cStrm.GetWord()) || !val[0])
-            {cerr <<"Config "<<lName<<"lib path not specified."<<endl; NoGo=1;}
+            {std::cerr <<"Config "<<lName<<"lib path not specified."<<std::endl; NoGo=1;}
             else {if (*lDest) free(*lDest);
                   *lDest = strdup(val);
                  }
@@ -100,7 +100,7 @@ void ConfigLog(const char *cFN)
 // Now check if any errors occurred during file i/o
 //
    if ((retc = cStrm.LastError()))
-      {cerr <<"Config " <<XrdSysE2T(-retc) <<" reading " <<cFN <<endl;
+      {std::cerr <<"Config " <<XrdSysE2T(-retc) <<" reading " <<cFN <<std::endl;
        NoGo = 1;
       }
    cStrm.Close();
@@ -113,8 +113,8 @@ void ConfigLog(const char *cFN)
 // Check if we have a logPath (we must)
 //
    if (!NoGo && !logPath)
-      {cerr <<"Config neither ssi.loglib nor ssi.svclib directive specified in "
-            <<cFN <<endl;
+      {std::cerr <<"Config neither ssi.loglib nor ssi.svclib directive specified in "
+            <<cFN <<std::endl;
        return;
       }
 
@@ -122,7 +122,7 @@ void ConfigLog(const char *cFN)
 //
    if (!(myLib = new XrdSysPlugin(eBuff, sizeof(eBuff), logPath, lName,
                                   &myVersion)))
-      {cerr <<"Config " <<eBuff <<endl;
+      {std::cerr <<"Config " <<eBuff <<std::endl;
        return;
       }
 
@@ -131,7 +131,7 @@ void ConfigLog(const char *cFN)
 //
    if (!msgCB)
       {theCB = (XrdSsiLogger::MCB_t **)(myLib->getPlugin("XrdSsiLoggerMCB"));
-       if (!msgCB && !theCB) cerr <<"Config " <<eBuff <<endl;
+       if (!msgCB && !theCB) std::cerr <<"Config " <<eBuff <<std::endl;
           else {if (!msgCB) msgCB = *theCB;
                 myLib->Persist();
                }
@@ -153,8 +153,8 @@ extern "C"
 XrdSysLogPI_t  XrdSysLogPInit(const char *cfgfn, char **argv, int argc)
           {if (cfgfn && *cfgfn) ConfigLog(cfgfn);
            if (!msgCB)
-              cerr <<"Config '-l@' requires a logmsg callback function "
-                   <<"but it was found!" <<endl;
+              std::cerr <<"Config '-l@' requires a logmsg callback function "
+                   <<"but it was found!" <<std::endl;
            return msgCB;
           }
 }

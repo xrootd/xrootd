@@ -112,7 +112,8 @@ enum kgsiHandshakeOpts {
    kOptsPxFile     = 16,     // 0x0010: Save delegated proxies in file
    kOptsDelChn     = 32,     // 0x0020: Delete chain
    kOptsPxCred     = 64,     // 0x0040: Save delegated proxies as credentials
-   kOptsCreatePxy  = 128     // 0x0080: Request a client proxy
+   kOptsCreatePxy  = 128,    // 0x0080: Request a client proxy
+   kOptsDelPxy     = 256     // 0x0100: Delete the proxy PxyChain
 };
 
 // Error codes
@@ -540,9 +541,14 @@ public:
                      XrdSecProtocolgsi::stackCRL->Del(Crl);
                      Crl = 0;
                   }
-                  // The proxy chain is owned by the proxy cache; invalid proxies are
-                  // detected (and eventually removed) by QueryProxy
-                  PxyChain = 0;
+                  if (Options & kOptsDelPxy) {
+                     if (PxyChain) PxyChain->Cleanup();
+                     SafeDelete(PxyChain);
+                  } else {
+                     // The proxy chain is owned by the proxy cache; invalid proxies
+                     // are detected (and eventually removed) by QueryProxy
+                     PxyChain = 0;
+                  }
                   SafeDelete(Parms); }
    void Dump(XrdSecProtocolgsi *p = 0);
 };

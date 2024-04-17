@@ -1,3 +1,0 @@
-[submodule "src/XrdCeph"]
-	path = src/XrdCeph
-	url = https://github.com/xrootd/xrootd-ceph

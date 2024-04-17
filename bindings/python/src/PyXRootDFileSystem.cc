@@ -625,15 +625,16 @@ namespace PyXRootD
     }
 
     std::vector<std::string> files;
-    const char              *file;
-    PyObject                *pyfile;
+    for (int i = 0; i < PyList_Size(pyfiles); ++i) {
+      PyObject *item = PyList_GetItem(pyfiles, i);
 
-    // Convert python list to stl vector
-    for ( int i = 0; i < PyList_Size( pyfiles ); ++i ) {
-      pyfile = PyList_GetItem( pyfiles, i );
-      if ( !pyfile ) return NULL;
-      file = PyBytes_AsString( pyfile );
-      files.push_back( std::string( file ) );
+      if (!PyUnicode_Check(item)) {
+        PyErr_SetString(PyExc_TypeError,
+          "files parameter must be a list of strings");
+        return NULL;
+      }
+
+      files.emplace_back(PyUnicode_AsUTF8(item));
     }
 
     XrdCl::PrepareFlags::Flags flags;
@@ -769,14 +770,14 @@ namespace PyXRootD
         return NULL;
       // extract the attribute name from the tuple
       PyObject *py_name = PyTuple_GetItem( item, 0 );
-      if( !PyBytes_Check( py_name ) )
+      if( !PyUnicode_Check( py_name ) )
         return NULL;
-      std::string name = PyBytes_AsString( py_name );
+      std::string name = PyUnicode_AsUTF8( py_name );
       // extract the attribute value from the tuple
       PyObject *py_value = PyTuple_GetItem( item, 1 );
-      if( !PyBytes_Check( py_value ) )
+      if( !PyUnicode_Check( py_value ) )
         return NULL;
-      std::string value = PyBytes_AsString( py_value );
+      std::string value = PyUnicode_AsUTF8( py_value );
       // update the C++ list of xattrs
       attrs.push_back( XrdCl::xattr_t( name, value ) );
     }
@@ -831,9 +832,9 @@ namespace PyXRootD
       // get the item at respective index
       PyObject *item = PyList_GetItem( pyattrs, i );
       // make sure the item is a string
-      if( !item || !PyBytes_Check( item ) )
+      if( !item || !PyUnicode_Check( item ) )
         return NULL;
-      std::string name = PyBytes_AsString( item );
+      std::string name = PyUnicode_AsUTF8( item );
       // update the C++ list of xattrs
       attrs.push_back( name );
     }
@@ -888,9 +889,9 @@ namespace PyXRootD
       // get the item at respective index
       PyObject *item = PyList_GetItem( pyattrs, i );
       // make sure the item is a string
-      if( !item || !PyBytes_Check( item ) )
+      if( !item || !PyUnicode_Check( item ) )
         return NULL;
-      std::string name = PyBytes_AsString( item );
+      std::string name = PyUnicode_AsUTF8( item );
       // update the C++ list of xattrs
       attrs.push_back( name );
     }

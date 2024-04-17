@@ -1,0 +1,21 @@
+#!/bin/sh
+
+set -e
+
+if test "$1" = "configure" -o "$1" = "reconfigure" ; then
+
+    getent group xrootd > /dev/null || \
+        addgroup --quiet --system xrootd
+
+    getent passwd xrootd > /dev/null || \
+        adduser --quiet --system --home /var/spool/xrootd --shell /bin/false \
+        --ingroup xrootd --disabled-password --disabled-login \
+        --gecos "XRootD runtime user" xrootd
+
+    chown xrootd:xrootd /etc/xrootd/*.cfg
+    chown xrootd:xrootd /var/log/xrootd
+    chown xrootd:xrootd /var/spool/xrootd
+
+fi
+
+#DEBHELPER#
