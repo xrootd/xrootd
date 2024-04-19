@@ -171,7 +171,7 @@ int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
    if (!isRW)
       {struct stat Stat;
        isLocal = !(ossP->Stat(opPath, &Stat));
-      } isLocal = false;
+      } else isLocal = false;
 
 // This is an open to write an archive file then the file must exist because
 // Create() would have been called prior to this open for writing.
