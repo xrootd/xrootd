@@ -2811,6 +2811,8 @@ void XrdHttpReq::reset() {
   fopened = false;
 
   final = false;
+
+  mScitag = -1;
 }
 
 void XrdHttpReq::getfhandle() {
