@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <cerrno>
+#include <memory>
 
 #include "XrdCrypto/XrdCryptosslRSA.hh"
 #include "XrdCrypto/XrdCryptosslX509.hh"
@@ -42,32 +43,6 @@
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 
 #include <openssl/pem.h>
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
-{
-    if (pkey->type != EVP_PKEY_RSA) {
-        return NULL;
-    }
-    return pkey->pkey.rsa;
-}
-#endif
-
-static int XrdCheckRSA (EVP_PKEY *pkey) {
-   int rc;
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-   RSA *rsa = EVP_PKEY_get0_RSA(pkey);
-   if (rsa)
-      rc = RSA_check_key(rsa);
-   else
-      rc = -2;
-#else
-   EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
-   rc = EVP_PKEY_check(ckctx);
-   EVP_PKEY_CTX_free(ckctx);
-#endif
-   return rc;
-}
 
 #define BIO_PRINT(b,c) \
    BUF_MEM *bptr; \
@@ -175,9 +150,10 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
       if ((evpp = PEM_read_PrivateKey(fk,0,0,0))) {
          DEBUG("RSA key completed ");
          // Test consistency
-         if (XrdCheckRSA(evpp) == 1) {
+         auto tmprsa = std::make_unique<XrdCryptosslRSA>(evpp, 1);
+         if (tmprsa->status == XrdCryptoRSA::kComplete) {
             // Save it in pki
-            pki = new XrdCryptosslRSA(evpp);
+            pki = tmprsa.release();
          }
       } else {
          DEBUG("cannot read the key from file");
@@ -432,14 +408,26 @@ void XrdCryptosslX509::CertType()
 //_____________________________________________________________________________
 void XrdCryptosslX509::SetPKI(XrdCryptoX509data newpki)
 {
-   // Set PKI
+   // SetPKI:
+   // if newpki is null does nothing
+   // if newpki contains a consistent private & public key we take ownership
+   //   so that this->PKI()->status will be kComplete.
+   // otherwise, newpki is not consistent:
+   // if the previous PKI() was null or was already kComplete it is and reset
+   //   so that this->PKI()->status will be kInvalid.
 
-   // Cleanup key first
-   if (pki)
-      delete pki;
-   if (newpki)
-      pki = new XrdCryptosslRSA((EVP_PKEY *)newpki, 1);
+   if (!newpki) return;
 
+   auto tmprsa = std::make_unique<XrdCryptosslRSA>((EVP_PKEY*)newpki, 1);
+   if (!pki || pki->status == XrdCryptoRSA::kComplete ||
+       tmprsa->status == XrdCryptoRSA::kComplete) {
+      // Cleanup any existing key first
+      if (pki)
+         delete pki;
+
+      // Set PKI
+      pki = tmprsa.release();
+   }
 }
 
 //_____________________________________________________________________________
