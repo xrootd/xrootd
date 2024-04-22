@@ -236,10 +236,10 @@ XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r) : XrdCryptoRSA()
             }
           } else {
             if ((fEVP = PEM_read_bio_PrivateKey(bcpy,0,0,0))) {
-               // Check consistency
-               if (XrdCheckRSA(fEVP) == 1) {
-                  // Update status
-                  status = kComplete;
+               // Check consistency only if original was not marked complete
+               if (r.status == kComplete || XrdCheckRSA(fEVP) == 1) {
+                 // Update status
+                 status = kComplete;
                }
             }
          }
