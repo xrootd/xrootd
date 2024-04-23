@@ -1811,12 +1811,9 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
               else{
                  if (weighed){
                    //add 1 to the inverse load, this is to allow some selection in case reported loads hit 100
-                   weighed[i] = selCap + static_cast<int>(101 - np->myLoad +
-                     std::pow(101 - np->myLoad,
-                     scalingFactor)/2);
-                   selCap += static_cast<int>(101 - np->myLoad +
-                     std::pow(101 - np->myLoad,
-                     scalingFactor)/2);
+                   int nload = 101 - np->myLoad;
+                   selCap += static_cast<int>(nload + std::pow(nload, scalingFactor)/2);
+                   weighed[i] = selCap;
                  }
                  else{if (selR.needSpace)
                       {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
