@@ -735,7 +735,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    P_load   = 0;
    P_mem    = 0;
    P_pag    = 0;
-   P_randlb = 0;          // SelbyLoad algoruthm choice
+   P_randlb = 0;          // SelbyLoad algorithm choice
    AskPerf  = 10;         // Every 10 pings
    AskPing  = 60;         // Every  1 minute
    PingTick = 0;
