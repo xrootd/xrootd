@@ -113,7 +113,7 @@ def Main(argv):
    if Debug: hush = ""
    else: hush = "-q "
 
-   arcCmd = 'zip -r {} {} .'.format(hush, arcName)
+   arcCmd = 'zip -r -0 {} {} .'.format(hush, arcName)
 
    if Debug: Emsg(0, "Executing '" + arcCmd + "'")
 
