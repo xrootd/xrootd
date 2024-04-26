@@ -183,9 +183,9 @@ int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
 // This file should be accessible via the tape buffer. The first step is to
 // generate the path to the archive that holds the file.
 //   
-   char arcPath[1024];
-   if (snprintf(arcPath,sizeof(arcPath),"%s/%s",dsInfo.arcDSN,Config.arFName) 
-      >= (int)sizeof(arcPath)) return -ENAMETOOLONG;
+   char arcPath[MAXPATHLEN];
+   if ((rc = Config.GenArcPath(dsInfo.arcDSN, arcPath, sizeof(arcPath))))
+      return -rc;
 
 // Now stage the file
 //

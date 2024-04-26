@@ -236,6 +236,16 @@ bool  XrdOssArcConfig::ConfigXeq(const char* cfName, const char* parms,
 }
 
 /******************************************************************************/
+/*                            G e n A r c P a t h                             */
+/******************************************************************************/
+  
+int XrdOssArcConfig::GenArcPath(const char* dsn, char* buff, int bSZ)
+{
+   if (snprintf(buff, bSZ,"%s/%s", dsn, arFName) >= bSZ) return ENAMETOOLONG;
+   return 0;
+}
+  
+/******************************************************************************/
 /*                          G e n L o c a l P a t h                           */
 /******************************************************************************/
   

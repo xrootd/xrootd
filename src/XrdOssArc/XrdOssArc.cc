@@ -257,8 +257,8 @@ const char *XrdOssArc::Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
 int XrdOssArc::Stat(const char *path, struct stat *Stat,
                     int opts, XrdOucEnv *envP)
 {
+   TraceInfo("Stat", 0);
    char buff[MAXPATHLEN];
-// const char *tid = 0; ???
    int rc;
 
 // Check if the stat is for the backup
@@ -283,28 +283,55 @@ int XrdOssArc::Stat(const char *path, struct stat *Stat,
        return wrapPI.Stat(path, Stat, opts, envP);
       }
 
-// See if we have a local copy of this file
+// See if we still have a local copy of this file in the build cache
 //
    if (!dsInfo.Compose(buff, sizeof(buff))) return -ENAMETOOLONG;
 
-// Issue the stat
+// Issue the stat for the file in the build cache (if it is there)
 //
    rc = wrapPI.Stat(buff, Stat, opts, envP);
-   if (rc != -ENOENT) return rc;
+   if (rc != -ENOENT)
+      {DEBUG("Found "<<buff<<" in the build cache!");
+       return rc;
+      }
 
-// The file was not found in the local space. Check if it is in the tape space.
+// The file was not found in the local space. Check if it is on the tape.
 //
-   rc = Config.GenTapePath(dsInfo.arcDSN, buff, sizeof(buff), true);
-   if (rc) return Neg(rc);
+   char tapePath[MAXPATHLEN];
+   rc = Config.GenTapePath(dsInfo.arcDSN, tapePath, sizeof(tapePath), true);
 
-// Issue the actual stat here
-//
-   if (stat(buff, Stat)) return -errno; 
-   if (!(opts & XRDOSS_resonly)) return XrdOssOK;
+   if (stat(tapePath, Stat))
+      {rc = errno;
+       DEBUG("Archive "<<tapePath<<(rc == ENOENT ? "does not exist"
+                                                 : "stat failed"));
+       return -rc; 
+      }
 
-// Check if the file is actually on line
+// Check if the archive is actually online. If it is, we can get the real stat
 //
-   return XrdOssOK; //???  
+   if ((rc = Config.GenArcPath(dsInfo.arcDSN, buff, sizeof(buff)))) return -rc;
+
+    switch(XrdOssArcStage::isOnline(buff))
+          {case XrdOssArcStage::isFalse: // The stat struct holds valid info
+                DEBUG("Archive "<<buff<<" is not online, returning bogus size");
+                return XrdOssOK; break;
+           case XrdOssArcStage::isTrue:
+                break;
+           default: DEBUG("Archive "<<buff<<" online query failed!");
+                    return -EINVAL; break;
+          }
+
+// The file is online so we can extract the stat info for the file.
+//
+   DEBUG("Archive "<<tapePath<<" is online, returning true size!");
+   XrdOssArcZipFile* zFile = new XrdOssArcZipFile(tapePath, rc);
+   if (rc) Elog.Emsg("open", rc, "open archive", tapePath);
+      else rc = zFile->Stat(dsInfo.arcFile, *Stat);
+
+// All done
+//
+   delete zFile;
+   return Neg(rc);
 }
 
 /******************************************************************************/

@@ -43,6 +43,10 @@ public:
 
 virtual  void DoIt() override;
 
+enum MssRC {isBad = -1, isFalse = 0, isTrue = 1};
+
+static MssRC  isOnline(const char* path);
+
 static   int  Stage(const char* path);
 
          XrdOssArcStage(const char* aPath) : XrdJob("Arc Staging"),
@@ -51,10 +55,6 @@ static   int  Stage(const char* path);
 virtual ~XrdOssArcStage() {}
 
 private:
-
-enum MssRC {isBad = -1, isFalse = 0, isTrue = 1};
-
-static MssRC isOnline(const char* path);
        void  Reset(const char* path);
        void  StageError(int rc, const char* what, const char* path);
 

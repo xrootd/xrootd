@@ -39,6 +39,8 @@ public:
 
 bool  Configure(const char* cfn, const char* parms, XrdOucEnv* envP);
 
+int   GenArcPath(const char* dsn, char* buff, int bSZ);
+
 int   GenLocalPath(const char* dsn, char* buff, int bSZ);
 
 int   GenTapePath(const char* dsn, char* buff, int bSZ, bool addafn=false);
