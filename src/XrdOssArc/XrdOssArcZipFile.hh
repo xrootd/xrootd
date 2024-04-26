@@ -54,6 +54,8 @@ ssize_t Read(void *buff, off_t offset, size_t blen);
 
 int     Stat(struct stat& buf);
 
+int     Stat(const char* mName, struct stat& buf);
+
         XrdOssArcZipFile(const char* path, int &rc);
 
        ~XrdOssArcZipFile();

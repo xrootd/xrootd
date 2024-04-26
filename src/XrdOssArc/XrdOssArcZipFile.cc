@@ -241,7 +241,36 @@ int XrdOssArcZipFile::Stat(struct stat& buf)
 // Get information
 //
    if (zip_stat(zFile, zMember, 0, &zStat) < 0)
-      return zip2syserr("close", zip_get_error(zFile));
+      return zip2syserr("stat", zip_get_error(zFile));
+
+// Copy the relevant information
+//
+   if (zStat.valid & ZIP_STAT_INDEX) buf.st_ino  = zStat.index;
+   if (zStat.valid & ZIP_STAT_SIZE)  buf.st_size = zStat.size;
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+
+int XrdOssArcZipFile::Stat(const char* mName, struct stat& buf)
+{
+   zip_stat_t zStat;
+
+// Iniialize the stat buffer
+//
+  memcpy(&buf, &zFStat, sizeof(struct stat));
+
+// Clear the stat structures
+//
+   zip_stat_init(&zStat);
+
+// Get information
+//
+   if (zip_stat(zFile, mName, 0, &zStat) < 0)
+      return zip2syserr("stat", zip_get_error(zFile));
 
 // Copy the relevant information
 //
