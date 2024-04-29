@@ -1105,6 +1105,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
        eDest.Say("Config warning: HTTPS functionality ", why);
        httpsmode = hsmOff;
 
+       LoadExtHandlerNoTls(extHIVec, ConfigFN, *myEnv);
        if (what)
           {eDest.Say("Config failure: ", what, " HTTPS but it ", why);
            NoGo = 1;
@@ -2573,6 +2574,8 @@ int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
                                  std::vector<extHInfo> &hiVec) {
   char *val, path[1024], namebuf[1024];
   char *parm;
+  // By default, every external handler need TLS configured to be loaded
+  bool noTlsOK = false;
   
   // Get the name
   //
@@ -2601,6 +2604,12 @@ int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
   }
 
   strcpy(path, val);
+
+  val = Config.GetWord();
+
+  if(val && !strcmp("notls",val)) {
+    noTlsOK = true;
+  }
   
   // Everything else is a free string
   //
@@ -2626,7 +2635,7 @@ int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
 
   // Create an info struct and push it on the list of ext handlers to load
   //
-  hiVec.push_back(extHInfo(namebuf, path, (parm ? parm : "")));
+  hiVec.push_back(extHInfo(namebuf, path, (parm ? parm : ""), noTlsOK));
 
   return 0;
 }
@@ -2926,10 +2935,22 @@ int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
     myLib.Unload();
     return 1;
 }
-
 /******************************************************************************/
 /*                        L o a d E x t H a n d l e r                         */
 /******************************************************************************/
+
+int XrdHttpProtocol::LoadExtHandlerNoTls(std::vector<extHInfo> &hiVec, const char *cFN, XrdOucEnv &myEnv) {
+  for (int i = 0; i < (int) hiVec.size(); i++) {
+    if(hiVec[i].extHNoTlsOK) {
+      // The external plugin does not need TLS to be loaded
+      if (LoadExtHandler(&eDest, hiVec[i].extHPath.c_str(), cFN,
+                         hiVec[i].extHParm.c_str(), &myEnv,
+                         hiVec[i].extHName.c_str()))
+        return 1;
+    }
+  }
+  return 0;
+}
 
 int XrdHttpProtocol::LoadExtHandler(std::vector<extHInfo> &hiVec,
                                     const char *cFN, XrdOucEnv &myEnv) {
@@ -2943,11 +2964,15 @@ int XrdHttpProtocol::LoadExtHandler(std::vector<extHInfo> &hiVec,
 
   // Load all of the specified external handlers.
   //
-  for (int i = 0; i < (int)hiVec.size(); i++)
+  for (int i = 0; i < (int)hiVec.size(); i++) {
+    // Only load the external handlers that were not already loaded
+    // by LoadExtHandlerNoTls(...)
+    if(!ExtHandlerLoaded(hiVec[i].extHName.c_str())) {
       if (LoadExtHandler(&eDest, hiVec[i].extHPath.c_str(), cFN,
                          hiVec[i].extHParm.c_str(), &myEnv,
                          hiVec[i].extHName.c_str())) return 1;
-
+    }
+  }
   return 0;
 }
   

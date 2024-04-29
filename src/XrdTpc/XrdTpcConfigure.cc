@@ -107,9 +107,10 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     if ((cafile = myEnv->Get("http.cafile"))) {
         m_cafile = cafile;
     }
+
     if (!cadir && !cafile) {
+        // We do not necessary need TLS to perform HTTP TPC transfers, just log that these values were not specified
         m_log.Emsg("Config", "neither xrd.tls cadir nor certfile value specified; is TLS enabled?");
-        return false;
     }
 
     void *sfs_raw_ptr;
