@@ -190,9 +190,9 @@ private:
         {XrdOucString extHName;  // The instance name (1 to 16 characters)
          XrdOucString extHPath;  // The shared library path
          XrdOucString extHParm;  // The parameter (sort of)
-
-         extHInfo(const char *hName, const char *hPath, const char *hParm)
-                 : extHName(hName), extHPath(hPath), extHParm(hParm) {}
+         bool extHNoTlsOK;     // If true the exthandler can be loaded if TLS has NOT been configured
+         extHInfo(const char *hName, const char *hPath, const char *hParm, const bool hNoTlsOK)
+                 : extHName(hName), extHPath(hPath), extHParm(hParm), extHNoTlsOK(hNoTlsOK) {}
         ~extHInfo() {}
   };
   /// Functions related to the configuration
@@ -235,7 +235,10 @@ private:
     XrdHttpExtHandler *ptr;
   } exthandler[MAX_XRDHTTPEXTHANDLERS];
   static int exthandlercnt;
-  
+
+  static int LoadExtHandlerNoTls(std::vector<extHInfo> &hiVec,
+                                 const char *cFN, XrdOucEnv &myEnv);
+
   // Loads the ExtHandler plugin, if available
   static int LoadExtHandler(std::vector<extHInfo> &hiVec,
                             const char *cFN, XrdOucEnv &myEnv);
