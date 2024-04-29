@@ -283,10 +283,7 @@ jobs:
       run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
 
     - name: Install dependencies with Homebrew
-      run: brew install davix googletest isa-l
-
-    - name: Install Python dependencies with pip
-      run: python3 -m pip install --upgrade pip setuptools wheel
+      run: brew install davix googletest python-setuptools
 
     - name: Clone repository
       uses: actions/checkout@v4
