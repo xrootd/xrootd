@@ -2590,10 +2590,17 @@ int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
   }
   strncpy(namebuf, val, sizeof(namebuf));
   namebuf[ sizeof(namebuf)-1 ] = '\0';
-  
+
+  // Get the +notls option if it was provided
+  val = Config.GetWord();
+
+  if(val && !strcmp("+notls",val)) {
+    noTlsOK = true;
+    val = Config.GetWord();
+  }
+
   // Get the path
   //
-  val = Config.GetWord();
   if (!val || !val[0]) {
     eDest.Emsg("Config", "No http external handler plugin specified.");
     return 1;
@@ -2604,12 +2611,6 @@ int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
   }
 
   strcpy(path, val);
-
-  val = Config.GetWord();
-
-  if(val && !strcmp("notls",val)) {
-    noTlsOK = true;
-  }
   
   // Everything else is a free string
   //
