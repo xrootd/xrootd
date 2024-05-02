@@ -616,6 +616,19 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       TRACE(DEBUG, " rc:" << rc << " got hdr line: " << tmpline.c_str());
 
       if ((rc == 2) && (tmpline.length() > 1) && (tmpline[rc - 1] == '\n')) {
+        // A \r\n was detected
+        if(BuffUsed()) {
+          if(CurrentReq.request == CurrentReq.rtUnset){
+            // The first line has a "\n" at the beginning
+            // Bad request
+            return SendSimpleResp(400, nullptr, nullptr, "Got first line break before the HTTP verb", 0, false);
+          } else {
+            // We are getting the headers from the buffer and we detected the header end.
+            // Though, there is still data to read from the buffer, continue to read!
+            continue;
+          }
+        }
+        // We have detected the header end and no data remains in the buffer, we stop this loop
         CurrentReq.headerok = true;
         TRACE(DEBUG, " rc:" << rc << " detected header end.");
         break;
