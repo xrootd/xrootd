@@ -374,8 +374,10 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             }
         } while (msg);
         if (res != static_cast<CURLcode>(-1) && res != CURLE_OK) {
+            std::stringstream ss;
+            ss << "Breaking loop due to failed curl transfer: " << curl_easy_strerror(res);
             logTransferEvent(LogMask::Debug, rec, "MULTISTREAM_CURL_FAILURE",
-                "Breaking loop due to failed curl transfer");
+                ss.str());
             break;
         }
 
@@ -460,7 +462,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             ss2 << "; error message: \"" << err << "\"";
         }
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
-        ss << "failure: " << ss2.str();
+        ss << generateClientErr(ss2, rec);
     } else if (mch.GetErrorCode()) {
         std::string err = mch.GetErrorMessage();
         if (err.empty()) {err = "(no error message provided)";}
@@ -468,21 +470,27 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         std::stringstream ss2;
         ss2 << "Error when interacting with local filesystem: " << err;
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
-        ss << "failure: " << ss2.str();
+        ss << generateClientErr(ss2, rec);
     } else if (res != CURLE_OK) {
         std::stringstream ss2;
-        ss2 << "Request failed when processing: " << curl_easy_strerror(res);
-        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
-        ss << "failure: " << curl_easy_strerror(res);
+        ss2 << "Request failed when processing";
+        std::stringstream ss3;
+        ss3 << ss2.str() << ":" << curl_easy_strerror(res);
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss3.str());
+        ss << generateClientErr(ss2, rec, res);
     } else if (current_offset != content_size) {
-        ss << "failure: Internal logic error led to early abort; current offset is " <<
+        std::stringstream ss2;
+        ss2 << "Internal logic error led to early abort; current offset is " <<
               current_offset << " while full size is " << content_size;
-        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss << generateClientErr(ss2, rec);
     } else {
         if (!handles[0]->Finalize()) {
-            ss << "failure: Failed to finalize and close file handle.";
+            std::stringstream ss2;
+            ss2 << "Failed to finalize and close file handle.";
+            ss << generateClientErr(ss2, rec);
             logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR",
-                "Failed to finalize and close file handle");
+                ss2.str());
         } else {
             ss << "success: Created";
             success = true;
@@ -506,6 +514,7 @@ int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
 {
     std::vector<ManagedCurlHandle> curl_handles;
     std::vector<State*> handles;
+    std::stringstream err_ss;
     try {
         int retval = RunCurlWithStreamsImpl(req, state, streams, handles, curl_handles, rec);
         for (std::vector<State*>::iterator state_iter = handles.begin();
@@ -523,6 +532,9 @@ int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
 
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR", e.what());
+        std::stringstream ss;
+        ss << e.what();
+        err_ss << generateClientErr(ss, rec);
         return req.SendSimpleResp(rec.status, NULL, NULL, e.what(), 0);
     } catch (std::runtime_error &e) {
         for (std::vector<State*>::iterator state_iter = handles.begin();
@@ -533,9 +545,10 @@ int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
 
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR", e.what());
         std::stringstream ss;
-        ss << "failure: " << e.what();
+        ss << e.what();
+        err_ss << generateClientErr(ss, rec);
         int retval;
-        if ((retval = req.ChunkResp(ss.str().c_str(), 0))) {
+        if ((retval = req.ChunkResp(err_ss.str().c_str(), 0))) {
             return retval;
         }
         return req.ChunkResp(NULL, 0);

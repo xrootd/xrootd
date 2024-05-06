@@ -142,6 +142,7 @@ private:
     void logTransferEvent(LogMask lvl, const TPCLogRecord &record,
         const std::string &event, const std::string &message="");
 
+    std::string generateClientErr(std::stringstream &err_ss, const TPCLogRecord &rec, CURLcode cCode = CURLcode::CURLE_OK);
     static int m_marker_period;
     static size_t m_block_size;
     static size_t m_small_block_size;
