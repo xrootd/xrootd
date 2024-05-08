@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <random>
 
 #include "XProtocol/YProtocol.hh"
   
@@ -1784,12 +1785,18 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
 XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 {
     XrdCmsNode *np, *sp = 0;
-    bool Multi = false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
+//  bool Multi = False;
+    bool reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
 // Scan for a node (preset possible, suspended, overloaded, full, and dead)
 //
    selR.Reset(); SelTcnt++;
-   for (int i = 0; i <= STHi; i++)
+   int selCap = 1;
+   int randomSel=1;
+   int *weighed = new int[STHi];
+   for (int i = 0; i <= STHi; i++){
+       //default 0 to skip the node in random selection if the below checks fail
+       weighed[i] = 0;
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {if (!(selR.needNet & np->hasNet))      {selR.xNoNet= true; continue;}
            selR.nPick++;
@@ -1800,28 +1807,46 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                                   || (reqSS && np->isNoStage)))
               {selR.xFull = true; continue;}
            if (!sp) sp = np;
-              else{if (selR.needSpace)
-                      {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
-                          {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
-                          else if (sp->myMass > np->myMass)             sp=np;
-                      } else {
-                       if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
-                          {if (selR.selPack)
-                              {if (--selR.selPack)                      sp=np;
-                                  else break;
-                              }
-                              else if (sp->RefR > np->RefR)             sp=np;
-                          }
-                          else if (sp->myLoad > np->myLoad)             sp=np;
-                      }
-                   Multi = true;
-                  }
+              //else{if (selR.needSpace)
+              //        {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
+              //            {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
+              //            else if (sp->myMass > np->myMass)             sp=np;
+              //        } else {
+              //         if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
+              //            {if (selR.selPack)
+               //               {if (--selR.selPack)                      sp=np;
+               //                   else break;
+               //               }
+               //               else if (sp->RefR > np->RefR)             sp=np;
+               //           }
+               //           else if (sp->myLoad > np->myLoad)             sp=np;
+               //       }
+               //    Multi = true;
+               //   }
+            //add 1 to the inverse load, this is to allow some selection in case reported loads hit 100
+            weighed[i] = selCap + 101 - np->myLoad;
+            selCap += 101 - np->myLoad;  
+                               
           }
-
-// Check for overloaded node and return result
+   }
+// pick a random weighed node
 //
+   std::random_device rand_dev;
+   std::mt19937 generator(rand_dev());
+   std::uniform_int_distribution<int> distr(randomSel,selCap);
+   randomSel = distr(generator);
+   for(int i=0;i<=STHi;i++){
+     if(randomSel<=weighed[i]){
+       sp=NodeTab[i];
+       break;
+     }
+   }
+
+   delete [] weighed;
+// Check for overloaded node and return result
+// //
    if (!sp) return calcDelay(selR);
-   RefCount(sp, Multi, selR.needSpace);
+//   RefCount(sp, Multi, selR.needSpace);
    return sp;
 }
 
