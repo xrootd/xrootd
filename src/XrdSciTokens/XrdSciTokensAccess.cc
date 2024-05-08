@@ -343,7 +343,10 @@ public:
                 return true;
             }
             // pass the scope if the operation is stat of mkdir
-            if ((oper == rule.first) && (oper == AOP_Stat || oper == AOP_Mkdir) && rule.second.size() >= path.length() && !rule.second.compare(0, path.size(), path, 0, path.size()) && (rule.second.size() == path.length() || rule.second[path.length()] == '/') ) {
+            if ((oper == rule.first) && (oper == AOP_Stat || oper == AOP_Mkdir) && 
+                 rule.second.size() >= path.length() && 
+                 !rule.second.compare(0, path.size(), path, 0, path.size()) && 
+                (rule.second.size() == path.length() || rule.second[path.length()] == '/')) {
                 return true;
             }
         }
