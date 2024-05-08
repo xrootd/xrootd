@@ -188,7 +188,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
       m_transfer_encoding_chunked = true;
     } else {
       // Some headers need to be translated into "local" cgi info.
-      std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
+      auto it = std::find_if(prot->hdr2cgimap.begin(), prot->hdr2cgimap.end(),[key](const auto & item) {
+        return !strcasecmp(key,item.first.c_str());
+        });
       if (it != prot->hdr2cgimap.end() && (opaque ? (0 == opaque->Get(it->second.c_str())) : true)) {
         std:: string s;
         s.assign(val, line+len-val);
