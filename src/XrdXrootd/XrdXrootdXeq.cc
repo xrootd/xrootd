@@ -1440,7 +1440,15 @@ int XrdXrootdProtocol::do_Open()
    if (opts & kXR_posc)               {*op++ = 'p'; openopts |= SFS_O_POSC;}
    if (opts & kXR_seqio)              {*op++ = 'S'; openopts |= SFS_O_SEQIO;}
    *op = '\0';
-   TRACEP(FS, "open " <<opt <<' ' <<fn);
+
+// Do some tracing, avoid exposing any security token in the URL
+//
+   if (TRACING(TRACE_FS))
+      {char* cgiP = index(fn, '?');
+       if (cgiP) *cgiP = 0;
+       TRACEP(FS, "open " <<opt <<' ' <<fn);
+       if (cgiP) *cgiP = '?';
+      }
 
 // Check if opaque data has been provided
 //
