@@ -19,8 +19,7 @@ const
 int XrdThrottleManager::m_max_users = 1024;
 
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
-int clock_id;
-int XrdThrottleTimer::clock_id = clock_getcpuclockid(0, &clock_id) != ENOENT ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC;
+clockid_t XrdThrottleTimer::clock_id = CLOCK_MONOTONIC;
 #else
 int XrdThrottleTimer::clock_id = 0;
 #endif
@@ -441,7 +440,7 @@ XrdThrottleManager::RecomputeInternal()
    while (m_stable_io_wait.tv_nsec > 1000000000)
    {
       m_stable_io_wait.tv_nsec -= 1000000000;
-      m_stable_io_wait.tv_nsec --;
+      m_stable_io_wait.tv_sec ++;
    }
    struct timespec io_wait_ts;
    io_wait_ts.tv_sec = m_stable_io_wait.tv_sec;
