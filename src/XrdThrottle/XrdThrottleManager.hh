@@ -167,7 +167,7 @@ public:
 void StopTimer()
 {
    struct timespec end_timer = {0, 0};
-#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+#if defined(__linux__) || defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    int retval = clock_gettime(clock_id, &end_timer);
 #else
    int retval = -1;
@@ -203,7 +203,7 @@ protected:
 XrdThrottleTimer(XrdThrottleManager & manager) :
    m_manager(manager)
 {
-#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+#if defined(__linux__) || defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    int retval = clock_gettime(clock_id, &m_timer);
 #else
    int retval = -1;

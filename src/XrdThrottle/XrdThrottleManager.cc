@@ -18,7 +18,7 @@ XrdThrottleManager::TraceID = "ThrottleManager";
 const
 int XrdThrottleManager::m_max_users = 1024;
 
-#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+#if defined(__linux__) || defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 clockid_t XrdThrottleTimer::clock_id = CLOCK_MONOTONIC;
 #else
 int XrdThrottleTimer::clock_id = 0;
