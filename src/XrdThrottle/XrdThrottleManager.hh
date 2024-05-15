@@ -219,7 +219,7 @@ private:
 XrdThrottleManager &m_manager;
 struct timespec m_timer;
 
-static int clock_id;
+static clockid_t clock_id;
 };
 
 #endif
