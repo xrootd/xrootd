@@ -12,6 +12,7 @@
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
 
 #include "XrdMacaroonsHandler.hh"
 
@@ -202,7 +203,7 @@ int Handler::ProcessOAuthConfig(XrdHttpExtReq &req) {
     {
         return req.SendSimpleResp(405, NULL, NULL, "Only GET is valid for oauth config.", 0);
     }
-    auto header = req.headers.find("Host");
+    auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"Host");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Host header is required.", 0);
@@ -235,7 +236,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(405, NULL, NULL, "Only POST is valid for token request.", 0);
     }
-    auto header = req.headers.find("Content-Type");
+    auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"Content-Type");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type missing; not a valid macaroon request?", 0);
@@ -368,7 +369,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
         return ProcessTokenRequest(req);
     }
 
-    auto header = req.headers.find("Content-Type");
+    auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"Content-Type");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type missing; not a valid macaroon request?", 0);
@@ -377,7 +378,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
     }
-    header = req.headers.find("Content-Length");
+    header = XrdOucTUtils::caseInsensitiveFind(req.headers,"Content-Length");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Length missing; not a valid POST", 0);

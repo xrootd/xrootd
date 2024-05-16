@@ -33,6 +33,7 @@
 #include <cstdio>
 #include <list>
 #include <vector>
+#include <algorithm>
 
 #ifdef WIN32
 #include <direct.h>

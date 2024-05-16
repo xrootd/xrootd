@@ -154,7 +154,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
     // The value is val
     
     // Screen out the needed header lines
-    if (!strcmp(key, "Connection")) {
+    if (!strcasecmp(key, "Connection")) {
 
       if (!strcasecmp(val, "Keep-Alive\r\n")) {
         keepalive = true;
@@ -164,28 +164,28 @@ int XrdHttpReq::parseLine(char *line, int len) {
 
     } else if (!strcmp(key, "Host")) {
       parseHost(val);
-    } else if (!strcmp(key, "Range")) {
+    } else if (!strcasecmp(key, "Range")) {
       // (rfc2616 14.35.1) says if Range header contains any range
       // which is syntactically invalid the Range header should be ignored.
       // Therefore no need for the range handler to report an error.
       readRangeHandler.ParseContentRange(val);
-    } else if (!strcmp(key, "Content-Length")) {
+    } else if (!strcasecmp(key, "Content-Length")) {
       length = atoll(val);
 
-    } else if (!strcmp(key, "Destination")) {
+    } else if (!strcasecmp(key, "Destination")) {
       destination.assign(val, line+len-val);
       trim(destination);
-    } else if (!strcmp(key, "Want-Digest")) {
+    } else if (!strcasecmp(key, "Want-Digest")) {
       m_req_digest.assign(val, line + len - val);
       trim(m_req_digest);
       //Transform the user requests' want-digest to lowercase
       std::transform(m_req_digest.begin(),m_req_digest.end(),m_req_digest.begin(),::tolower);
-    } else if (!strcmp(key, "Depth")) {
+    } else if (!strcasecmp(key, "Depth")) {
       depth = -1;
       if (strcmp(val, "infinity"))
         depth = atoll(val);
 
-    } else if (!strcmp(key, "Expect") && strstr(val, "100-continue")) {
+    } else if (!strcasecmp(key, "Expect") && strstr(val, "100-continue")) {
       sendcontinue = true;
     } else if (!strcasecmp(key, "TE") && strstr(val, "trailers")) {
       m_trailer_headers = true;

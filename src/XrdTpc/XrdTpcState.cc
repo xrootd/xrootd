@@ -97,12 +97,12 @@ void State::CopyHeaders(XrdHttpExtReq &req) {
     for (std::map<std::string, std::string>::const_iterator hdr_iter = req.headers.begin();
          hdr_iter != req.headers.end();
          hdr_iter++) {
-        if (hdr_iter->first == "Copy-Header") {
+        if (!strcasecmp(hdr_iter->first.c_str(),"Copy-Header")) {
             list = curl_slist_append(list, hdr_iter->second.c_str());
             m_headers_copy.emplace_back(hdr_iter->second);
         }
         // Note: len("TransferHeader") == 14
-        if (!hdr_iter->first.compare(0, 14, "TransferHeader")) {
+        if (!strncasecmp(hdr_iter->first.c_str(),"TransferHeader",14)) {
             std::stringstream ss;
             ss << hdr_iter->first.substr(14) << ": " << hdr_iter->second;
             list = curl_slist_append(list, ss.str().c_str());
