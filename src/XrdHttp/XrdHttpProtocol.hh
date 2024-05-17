@@ -225,6 +225,7 @@ private:
   static int xhttpsmode(XrdOucStream &Config);
   static int xtlsreuse(XrdOucStream &Config);
   static int xauth(XrdOucStream &Config);
+  static int xtlsclientauth(XrdOucStream &Config);
   
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;

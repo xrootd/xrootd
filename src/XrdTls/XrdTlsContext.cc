@@ -706,7 +706,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // depth and turn on peer cert validation. For now, we don't set a callback.
 // In the future we may to grab debugging information.
 //
-   if (caDir || caFile)
+   if ((caDir || caFile) && !(opts & clcOF))
      {if (!SSL_CTX_load_verify_locations(pImpl->ctx, caFile, caDir))
          FATAL_SSL("Unable to load the CA cert file or directory.");
 
@@ -1139,4 +1139,15 @@ bool XrdTlsContext::newHostCertificateDetected() {
         }
     }
     return false;
+}
+
+void XrdTlsContext::SetTlsClientAuth(bool setting) {
+    bool LogVF = (pImpl->Parm.opts & logVF) != 0;
+    if (setting)
+       {pImpl->Parm.opts &= ~clcOF;
+        SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
+       } else
+       {pImpl->Parm.opts |= clcOF;
+        SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_NONE, 0);
+       }
 }

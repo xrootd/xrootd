@@ -12,8 +12,9 @@ endif()
 # Note: HAVE_SCITOKEN_CONFIG_SET_STR is required to override the CA file
 # for the scitokens library; otherwise, the test will fail with TLS errors.
 if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
-  list(APPEND XROOTD_CONFIGS scitokens)
+  list(APPEND XROOTD_CONFIGS scitokens httpnoclient)
   list(APPEND scitokens_FIXTURES SciTokens)
+  list(APPEND httpnoclient_FIXTURES SciTokens)
 endif()
 
 # The cache test requires the XRootD::host fixture to be running to
@@ -57,6 +58,10 @@ endforeach()
 
 if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
   set_tests_properties(XRootD::scitokens::setup
+    PROPERTIES
+      FIXTURES_REQUIRED SciTokens
+  )
+  set_tests_properties(XRootD::httpnoclient::setup
     PROPERTIES
       FIXTURES_REQUIRED SciTokens
   )

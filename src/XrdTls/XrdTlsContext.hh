@@ -174,6 +174,21 @@ void            SetDefaultCiphers(const char *ciphers);
       bool      SetCrlRefresh(int refsec=-1);
 
 //------------------------------------------------------------------------
+//! Indicate how the server should handle TLS client authentication.
+//!
+//! @param  setting true:  All clients will be asked to send a TLS client
+//!                        certificate.
+//!                 false: No clients will be asked to send a TLS client
+//!                        certificate.
+//!
+//! Note the TLS connection will not fail if the client is asked for a cert
+//! but none are provided.
+//!
+//------------------------------------------------------------------------
+
+       void     SetTlsClientAuth(bool setting);
+
+//------------------------------------------------------------------------
 //! Check if certificates are being verified.
 //!
 //! @return True if certificates are being verified, false otherwise.
@@ -239,6 +254,7 @@ static const uint64_t crlFC = 0x000000C000000000; //!< Full crl chain checking
 static const uint64_t crlRF = 0x00000000ffff0000; //!< Mask to isolate crl refresh in min
 static const int      crlRS = 16;                 //!< Bits to shift   vdept
 static const uint64_t artON = 0x0000002000000000; //!< Auto retry Handshake
+static const uint64_t clcOF = 0x0000010000000000; //!< Disable client certificate request
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,
