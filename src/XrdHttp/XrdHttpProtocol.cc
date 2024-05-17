@@ -139,6 +139,7 @@ static const int hsmOn   =  1; // Dual purpose but use a meaningful varname
 
 int  httpsmode = hsmAuto;
 int  tlsCache  = XrdTlsContext::scOff;
+XrdTlsContext::ClientAuthSetting tlsClientAuth = XrdTlsContext::ClientAuthSetting::kOn;
 bool httpsspec = false;
 bool xrdctxVer = false;
 }
@@ -510,6 +511,10 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       if (!ssl) {
           sbio = CreateBIO(Link);
           BIO_set_nbio(sbio, 1);
+          if (!xrdctx->SetTlsClientAuth(tlsClientAuth)) {
+            TRACE(ALL, "Failed to configure the TLS client authentication; invalid configuration");
+            return -1;
+          }
           ssl = (SSL*)xrdctx->Session();
         }
 
@@ -557,7 +562,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       strcpy(SecEntity.prot, "https");
 
       // Get the voms string and auth information
-      if (HandleAuthentication(Link)) {
+      if (tlsClientAuth == XrdTlsContext::ClientAuthSetting::kOn && HandleAuthentication(Link)) {
           SSL_free(ssl);
           ssl = 0;
           return -1;
@@ -1082,6 +1087,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("httpsmode", xhttpsmode);
       else if TS_Xeq("tlsreuse", xtlsreuse);
       else if TS_Xeq("auth", xauth);
+      else if TS_Xeq("tlsclientauth", xtlsclientauth);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -2947,6 +2953,24 @@ int XrdHttpProtocol::xtlsreuse(XrdOucStream & Config) {
 //
    eDest.Emsg("config", "invalid tlsreuse parameter -", val);
    return 1;
+}
+
+int XrdHttpProtocol::xtlsclientauth(XrdOucStream &Config) {
+  auto val = Config.GetWord();
+  if (!val || !val[0])
+     {eDest.Emsg("Config", "tlsclientauth argument not specified"); return 1;}
+
+  if (!strcmp(val, "off"))
+     {tlsClientAuth = XrdTlsContext::ClientAuthSetting::kOff;
+      return 0;
+     }
+  if (!strcmp(val, "on"))
+     {tlsClientAuth = XrdTlsContext::ClientAuthSetting::kOn;
+      return 0;
+     }
+
+  eDest.Emsg("config", "invalid tlsclientauth parameter -", val);
+  return 1;
 }
 
 int XrdHttpProtocol::xauth(XrdOucStream &Config) {

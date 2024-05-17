@@ -173,6 +173,27 @@ void            SetDefaultCiphers(const char *ciphers);
 
       bool      SetCrlRefresh(int refsec=-1);
 
+enum ClientAuthSetting {
+      kOn,
+      kOff,
+};
+
+//------------------------------------------------------------------------
+//! Indicate how the server should handle TLS client authentication.
+//!
+//! @param  setting kOn:    All clients will be asked to send a TLS client
+//!                         certificate
+//!                 kOff:   No clients will be asked to send a TLS client
+//!                         certificate;
+//! @return True if the client auth was configured; False on failure.
+//!
+//! Note the TLS connection will not fail if the client is asked for a cert
+//! but none are provided.
+//!
+//------------------------------------------------------------------------
+
+      bool      SetTlsClientAuth(ClientAuthSetting setting);
+
 //------------------------------------------------------------------------
 //! Check if certificates are being verified.
 //!
