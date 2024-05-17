@@ -202,7 +202,7 @@ int Handler::ProcessOAuthConfig(XrdHttpExtReq &req) {
     {
         return req.SendSimpleResp(405, NULL, NULL, "Only GET is valid for oauth config.", 0);
     }
-    auto header = req.headers.find("Host");
+    auto header = req.headers.find("host");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Host header is required.", 0);
@@ -235,7 +235,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(405, NULL, NULL, "Only POST is valid for token request.", 0);
     }
-    auto header = req.headers.find("Content-Type");
+    auto header = req.headers.find("content-type");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type missing; not a valid macaroon request?", 0);
@@ -368,7 +368,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
         return ProcessTokenRequest(req);
     }
 
-    auto header = req.headers.find("Content-Type");
+    auto header = req.headers.find("content-type");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type missing; not a valid macaroon request?", 0);
@@ -377,7 +377,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
     }
-    header = req.headers.find("Content-Length");
+    header = req.headers.find("content-length");
     if (header == req.headers.end())
     {
         return req.SendSimpleResp(400, NULL, NULL, "Content-Length missing; not a valid POST", 0);

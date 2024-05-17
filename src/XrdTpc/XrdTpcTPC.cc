@@ -171,7 +171,7 @@ static std::string prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
     std::map<std::string, std::string>::const_iterator iter = req.headers.find("xrd-http-query");
     if (iter == req.headers.end() || iter->second.empty()) {return req.resource;}
 
-    auto has_authz_header = req.headers.find("Authorization") != req.headers.end();
+    auto has_authz_header = req.headers.find("authorization") != req.headers.end();
 
     std::istringstream requestStream(iter->second);
     std::string token;
@@ -182,7 +182,7 @@ static std::string prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
             continue;
         } else if (!strncmp(token.c_str(), "authz=", 6)) {
             if (!has_authz_header) {
-                req.headers["Authorization"] = token.substr(6);
+                req.headers["authorization"] = token.substr(6);
                 has_authz_header = true;
             }
         } else if (!found_first_header) {
@@ -291,19 +291,19 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
     if (req.verb == "OPTIONS") {
         return ProcessOptionsReq(req);
     }
-    auto header = req.headers.find("Credential");
+    auto header = req.headers.find("credential");
     if (header != req.headers.end()) {
         if (header->second != "none") {
             m_log.Emsg("ProcessReq", "COPY requested an unsupported credential type: ", header->second.c_str());
             return req.SendSimpleResp(400, NULL, NULL, "COPY requestd an unsupported Credential type", 0);
         }
     }
-    header = req.headers.find("Source");
+    header = req.headers.find("source");
     if (header != req.headers.end()) {
         std::string src = PrepareURL(header->second);
         return ProcessPullReq(src, req);
     }
-    header = req.headers.find("Destination");
+    header = req.headers.find("destination");
     if (header != req.headers.end()) {
         return ProcessPushReq(header->second, req);
     }
@@ -359,7 +359,7 @@ int TPCHandler::ProcessOptionsReq(XrdHttpExtReq &req) {
   
 std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
     std::string authz;
-    auto authz_header = req.headers.find("Authorization");
+    auto authz_header = req.headers.find("authorization");
     if (authz_header != req.headers.end()) {
         char * quoted_url = quote(authz_header->second.c_str());
         std::stringstream ss;
@@ -986,7 +986,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         char * ip;
 
         // Get the hostname used to contact the server from the http header
-        auto host_header = req.headers.find("Host");
+        auto host_header = req.headers.find("host");
         std::string host_used;
         if (host_header != req.headers.end()) {
             host_used = host_header->second;
@@ -1028,13 +1028,13 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         redirect_resource = query_header->second;
     }
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
-    auto overwrite_header = req.headers.find("Overwrite");
+    auto overwrite_header = req.headers.find("overwrite");
     if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
         if (! usingEC) mode = SFS_O_TRUNC;
     }
     int streams = 1;
     {
-        auto streams_header = req.headers.find("X-Number-Of-Streams");
+        auto streams_header = req.headers.find("x-number-of-streams");
         if (streams_header != req.headers.end()) {
             int stream_req = -1;
             try {

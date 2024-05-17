@@ -220,6 +220,7 @@ private:
   static int xhttpsmode(XrdOucStream &Config);
   static int xtlsreuse(XrdOucStream &Config);
   static int xauth(XrdOucStream &Config);
+  static int xkeepheadercase(XrdOucStream &Config);
   
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
@@ -447,5 +448,8 @@ protected:
 
   /// If set to true, the HTTP TPC transfers will forward the credentials to redirected hosts
   static bool tpcForwardCreds;
+
+  /// If set to true, the client-provided HTTP header keys will be inserted as-is in addition to their lower-cased version
+  static bool keepHeaderCase;
 };
 #endif
