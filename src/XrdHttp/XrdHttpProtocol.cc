@@ -657,7 +657,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           return -1;
         }
 
-
+#if OPENSSL_VERSION_NUMBER >= 0x10100010L
         // We permit TLS client auth to be deferred until after the request path is sent.
         // If this is a path requiring client auth, then do that now.
         if (tlsClientAuth == XrdTlsContext::ClientAuthSetting::kDefer)
@@ -670,6 +670,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
                }
             }
            }
+#endif
       }
 
 
@@ -698,6 +699,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   }
 
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100010L
   if (postheaderwait) {
     postheaderwait = false;
     if (SSL_verify_client_post_handshake(ssl) != 1) {
@@ -737,6 +739,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       return -1;
     }
   }
+#endif
 
   // If we are in self-redirect mode, then let's do it
   // Do selfredirect only with 'simple' requests, otherwise poor clients may misbehave
@@ -2921,7 +2924,14 @@ int XrdHttpProtocol::xtlsclientauth(XrdOucStream &Config) {
       return 0;
      }
   if (!strcmp(val, "defer"))
-     {tlsClientAuth = XrdTlsContext::ClientAuthSetting::kDefer;
+     {
+#if OPENSSL_VERSION_NUMBER >= 0x10100010L
+     tlsClientAuth = XrdTlsContext::ClientAuthSetting::kDefer;
+     return 0;
+#else
+     eDest.Emsg("config", "http.tlsclientauth defer is not supported on this platform");
+     return 1;
+#endif
      }
 
   eDest.Emsg("config", "invalid tlsclientauth parameter -", val);
