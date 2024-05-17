@@ -447,6 +447,23 @@ static long BIO_XrdLink_ctrl(BIO *bio, int cmd, long num, void * ptr)
   case BIO_CTRL_FLUSH:
     ret = 1;
     break;
+  case BIO_C_SET_NBIO:
+  {
+    auto link = static_cast<XrdLink*>(BIO_get_data(bio));
+    if (link) {
+      struct timeval tv;
+      tv.tv_sec = 10;
+      tv.tv_usec = 0;
+      if (num) {
+        tv.tv_sec = 0;
+        tv.tv_usec = 1;
+      }
+      setsockopt(link->FDnum(), SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+      setsockopt(link->FDnum(), SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+    }
+    ret = 1;
+    break;
+  }
   default:
     ret = 0;
     break;
