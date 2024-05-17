@@ -1151,7 +1151,13 @@ void XrdTlsContext::SetTlsClientAuth(ClientAuthSetting setting) {
          SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_NONE, 0);
          break;
       case kDefer:
+#if OPENSSL_VERSION_NUMBER < 0x10100010L
+         // Post-handhsake auth was added in OpenSSL version 1.1.1; for older version,
+         // simply switch to always request client certificates.
+         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
+#else
          SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER | SSL_VERIFY_POST_HANDSHAKE, (LogVF ? VerCB : 0));
+#endif
          break;
       }
 }
