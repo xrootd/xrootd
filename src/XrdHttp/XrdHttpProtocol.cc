@@ -113,6 +113,7 @@ XrdNetPMark * XrdHttpProtocol::pmarkHandle = nullptr;
 XrdHttpChecksumHandler XrdHttpProtocol::cksumHandler = XrdHttpChecksumHandler();
 XrdHttpReadRangeHandler::Configuration XrdHttpProtocol::ReadRangeConfig;
 bool XrdHttpProtocol::tpcForwardCreds = false;
+bool XrdHttpProtocol::keepHeaderCase = false;
 
 XrdSysTrace XrdHttpTrace("http");
 
@@ -1080,6 +1081,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("httpsmode", xhttpsmode);
       else if TS_Xeq("tlsreuse", xtlsreuse);
       else if TS_Xeq("auth", xauth);
+      else if TS_Xeq("keepheadercase", xkeepheadercase);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -2846,6 +2848,19 @@ int XrdHttpProtocol::xauth(XrdOucStream &Config) {
     } else {
       eDest.Emsg("Config", "http.auth value is invalid"); return 1;
     }
+  }
+  return 0;
+}
+
+int XrdHttpProtocol::xkeepheadercase(XrdOucStream &Config) {
+  char *val = Config.GetWord();
+  if (!val || !val[0])
+  {eDest.Emsg("Config", "keepheadercase argument not specified"); return 1;}
+
+  if(!strcmp("yes",val)) {
+    keepHeaderCase = true;
+  } else {
+    keepHeaderCase = false;
   }
   return 0;
 }
