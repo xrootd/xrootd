@@ -244,8 +244,8 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
    Data.Path    = (char *)arg1;
    Data.Mode    = (char *)arg2;
    Data.Path2   = (char *)arg2;
-   Data.Opaque  = (Env1 ? Env1->Env(opQ1Len) : 0);
-   Data.Opaque2 = (Env2 ? Env2->Env(opQ2Len) : 0);
+   Data.Opaque  = (Env1 ? Env1->EnvTidy(opQ1Len) : 0);
+   Data.Opaque2 = (Env2 ? Env2->EnvTidy(opQ2Len) : 0);
 
 // Pack the arguments
 //
@@ -346,7 +346,7 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 //
    Data.Ident   = (char *)(XrdCmsClientMan::doDebug ? Resp.getErrUser() : "");
    Data.Path    = (char *)path;
-   Data.Opaque  = (Env ? Env->Env(n)       : 0);
+   Data.Opaque  = (Env ? Env->EnvTidy(n)   : 0);
    Data.Avoid   = (Env ? Env->Get("tried") : 0);
 
 // Set options and command
