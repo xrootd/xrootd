@@ -7,6 +7,8 @@ function setup_scitokens() {
 	ln -sf "$PWD/../issuer/export" scitokens/xrootd/issuer
 	mkdir -p scitokens/xrootd/protected
 	echo 'Hello, World' > scitokens/xrootd/protected/hello_world.txt
+	mkdir -p scitokens/xrootd/localhost
+	echo 'Hello, World' > scitokens/xrootd/localhost/hello_world.txt
 
 	# Override the scitoken cache location; otherwise, contents of prior test runs may be cached
 	XDG_CACHE_HOME="${NAME}/cache"
@@ -110,6 +112,11 @@ function test_scitokens() {
 
 	# from now on, we use HTTP
 	export HOST=https://localhost:7095
+
+	# Check that X509 client auth is working
+	assert curl -s --cert ../issuer/tls.crt --key ../issuer/tls.key --cacert ../issuer/tlsca.pem \
+		-o /dev/null -w "%{http_code}" "$HOST/localhost/hello_world.txt" > "${NAME}/curl_output.txt"
+	assert_eq 200 "$(tail -n 1 < "${NAME}/curl_output.txt")" "$(cat scitokens/xrootd.log)"
 
 	execute_curl "$HOST/issuer/one/issuer.jwks" 200 "$(cat scitokens/xrootd/issuer/one/issuer.jwks)"
 	execute_curl "$HOST/protected/hello_world.txt" 403 ""
