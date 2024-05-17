@@ -223,6 +223,8 @@ private:
   static int xhttpsmode(XrdOucStream &Config);
   static int xtlsreuse(XrdOucStream &Config);
   static int xauth(XrdOucStream &Config);
+  static int xtlsclientauth(XrdOucStream &Config);
+  static int xtlsrequiredprefix(XrdOucStream &Config);
   
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
@@ -327,6 +329,15 @@ private:
   /// Flag to tell if the https handshake has finished, in the case of an https
   /// connection being established
   bool ssldone;
+
+  /// Flag indicating we should send a request for client TLS authentication
+  /// after the headers have finished processing.
+  bool postheaderwait;
+
+  /// Flag indicating we should wait for a response to the post-header authentication
+  /// request (after headers have been processed).
+  bool postheaderauth;
+
   static XrdCryptoFactory *myCryptoFactory;
 
 protected:

@@ -70,6 +70,7 @@ struct XrdTlsContextImpl
     time_t                        lastCertModTime = 0;
     int                           sessionCacheOpts = -1;
     std::string                   sessionCacheId;
+    uint64_t                      opts{0};
 };
   
 /******************************************************************************/
@@ -591,7 +592,9 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
          SSL_CTX **ctxLoc;
         } ctx_tracker(&pImpl->ctx);
 
-   static const uint64_t sslOpts = SSL_OP_ALL
+   pImpl->opts = opts;
+
+   static const int sslOpts = SSL_OP_ALL
                             | SSL_OP_NO_SSLv2
                             | SSL_OP_NO_SSLv3
                             | SSL_OP_NO_COMPRESSION
@@ -1135,4 +1138,20 @@ bool XrdTlsContext::newHostCertificateDetected() {
         }
     }
     return false;
+}
+
+void XrdTlsContext::SetTlsClientAuth(ClientAuthSetting setting) {
+
+      bool LogVF = (pImpl->opts & logVF) != 0;
+      switch (setting) {
+      case kOn:
+         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
+         break;
+      case kOff:
+         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_NONE, 0);
+         break;
+      case kDefer:
+         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER | SSL_VERIFY_POST_HANDSHAKE, (LogVF ? VerCB : 0));
+         break;
+      }
 }
