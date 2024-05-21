@@ -19,6 +19,7 @@
 #include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 #include <iostream> // Delete later!!!
 
 #include "XrdTpcState.hh"
@@ -439,7 +440,7 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
         if ((open_result == SFS_STALL) || (open_result == SFS_STARTED)) {
             int secs_to_stall = fh.error.getErrInfo();
             if (open_result == SFS_STARTED) {secs_to_stall = secs_to_stall/2 + 5;}
-            sleep(secs_to_stall);
+            std::this_thread::sleep_for (std::chrono::seconds(secs_to_stall));
         }
         break;
     }
