@@ -630,9 +630,14 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           TRACE(DEBUG, " Parsing of first line failed with " << result);
           return -1;
         }
+      } else {
+        int result = CurrentReq.parseLine((char *) tmpline.c_str(), rc);
+        if(result < 0) {
+          TRACE(DEBUG, " Parsing of header line failed with " << result)
+          SendSimpleResp(400,NULL,NULL,"Malformed header line. Hint: ensure the line finishes with \"\\r\\n\"", 0, false);
+          return -1;
+        }
       }
-      else
-        CurrentReq.parseLine((char *)tmpline.c_str(), rc);
 
 
     }

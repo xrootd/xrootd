@@ -125,7 +125,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
   if (!p) {
 
     request = rtMalformed;
-    return 0;
+    return -1;
   }
 
   pos = (p - line);
@@ -145,6 +145,10 @@ int XrdHttpReq::parseLine(char *line, int len) {
     // We memorize the headers also as a string                                                                                                                                              
     // because external plugins may need to process it differently                                                                                                                          
     std::string ss = val;
+    if(ss.length() >= 2 && ss.substr(ss.length() - 2, 2) != "\r\n") {
+      request = rtMalformed;
+      return -3;
+    }
     trim(ss);
     allheaders[key] = ss;
 	  
