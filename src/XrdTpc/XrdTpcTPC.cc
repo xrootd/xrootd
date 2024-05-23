@@ -1061,7 +1061,8 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         }
     }
 #endif
-    int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY, 0644,
+    int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY,
+                                    0644 | SFS_O_MKPTH,
                                     req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_result) {
         int result = RedirectTransfer(curl, redirect_resource, req, fh->error, rec);
