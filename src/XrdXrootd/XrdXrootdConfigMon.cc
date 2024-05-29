@@ -82,6 +82,8 @@ MonParms *MP = 0;
 struct XrdXrootdGSReal::GSParms gsObj[] =
        {{"ccm",      0, XROOTD_MON_CCM,   0, -1, XROOTD_MON_GSCCM, 0,
                      XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
+        {"oss",      0, XROOTD_MON_OSS,   0, -1, XROOTD_MON_GSOSS, 0,
+                     XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
         {"pfc",      0, XROOTD_MON_PFC,   0, -1, XROOTD_MON_GSPFC, 0,
                      XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
         {"TcpMon",   0, XROOTD_MON_TCPMO, 0, -1, XROOTD_MON_GSTCP, 0,
@@ -448,7 +450,7 @@ char *XrdXrootdProtocol::xmondest(const char *what, char *val)
 
    Purpose:  Parse directive: mongstream <strm> use <opts>
 
-   <strm>:  {all | ccm | pfc | tcpmon | tpc}  [<strm>]
+   <strm>:  {all | ccm | oss | pfc | tcpmon | tpc}  [<strm>]
 
    <opts>:  [flust <t>] [maxlen <l>] [send <fmt> [noident] <host:port>]
 
