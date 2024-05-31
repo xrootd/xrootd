@@ -15,6 +15,7 @@ if( BUILD_MACAROONS )
     XrdMacaroons/XrdMacaroons.cc
     XrdMacaroons/XrdMacaroonsHandler.cc     XrdMacaroons/XrdMacaroonsHandler.hh
     XrdMacaroons/XrdMacaroonsAuthz.cc       XrdMacaroons/XrdMacaroonsAuthz.hh
+    XrdMacaroons/XrdMacaroonsUtils.cc       XrdMacaroons/XrdMacaroonsUtils.hh
     XrdMacaroons/XrdMacaroonsConfigure.cc)
 
   target_link_libraries(
