@@ -8,6 +8,7 @@
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdVersion.hh"
 
+#include <bitset>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -23,9 +24,16 @@
 #include "INIReader.h"
 #include "picojson.h"
 
+#ifdef HAVE_MACAROONS
+#include "macaroons.h"
+#include <uuid/uuid.h>
+#include "XrdMacaroons/XrdMacaroonsUtils.hh"
+#endif
+
 #include "scitokens/scitokens.h"
 #include "XrdSciTokens/XrdSciTokensHelper.hh"
 #include "XrdSciTokens/XrdSciTokensMon.hh"
+#include "XrdSciTokens/XrdSciTokensRedir.hh"
 
 // The status-quo to retrieve the default object is to copy/paste the
 // linker definition and invoke directly.
@@ -152,6 +160,19 @@ const std::string OpToName(Access_Operation op) {
         case AOP_Update: return "update";
     };
     return "unknown";
+}
+
+const std::string OpsToName(std::bitset<AOP_LastOp> ops) {
+    if (ops.none()) {return "none";}
+    std::string result;
+    bool first = true;
+    for (int idx=0; idx<AOP_LastOp; idx++) {
+        if (ops[idx]) {
+            result += (first ? "" : ",") + OpToName(static_cast<Access_Operation>(idx));
+            first = false;
+        }
+    }
+    return result;
 }
 
 std::string AccessRuleStr(const AccessRulesRaw &rules) {
@@ -351,9 +372,10 @@ class XrdAccRules
 public:
     XrdAccRules(uint64_t expiry_time, const std::string &username, const std::string &token_subject,
         const std::string &issuer, const std::vector<MapRule> &rules, const std::vector<std::string> &groups,
-        uint32_t authz_strategy) :
+        uint32_t authz_strategy, time_t token_expiry) :
         m_authz_strategy(authz_strategy),
         m_expiry_time(expiry_time),
+        m_token_expiry(token_expiry),
         m_username(username),
         m_token_subject(token_subject),
         m_issuer(issuer),
@@ -394,6 +416,14 @@ public:
         }
       }
       return false;
+    }
+
+    std::bitset<AOP_LastOp> applyAll(std::string path) {
+        std::bitset<AOP_LastOp> result;
+        for (int idx=0; idx<AOP_LastOp; idx++) {
+            result[idx] = apply((Access_Operation)idx, path);
+        }
+        return result;
     }
 
     bool expired() const {return monotonic_time() > m_expiry_time;}
@@ -442,6 +472,7 @@ public:
     const std::string & get_token_subject() const {return m_token_subject;}
     const std::string & get_default_username() const {return m_username;}
     const std::string & get_issuer() const {return m_issuer;}
+    time_t get_token_expiration() const {return m_token_expiry;}
 
     uint32_t get_authz_strategy() const {return m_authz_strategy;}
 
@@ -451,7 +482,10 @@ public:
 private:
     uint32_t m_authz_strategy;
     AccessRulesRaw m_rules;
+    // Expiration time of cache entry, relative to the CLOCK_MONOTONIC
     uint64_t m_expiry_time{0};
+    // Expiration time of the token, relative to Unix epoch
+    time_t m_token_expiry{0};
     const std::string m_username;
     const std::string m_token_subject;
     const std::string m_issuer;
@@ -463,9 +497,10 @@ class XrdAccSciTokens;
 
 XrdAccSciTokens *accSciTokens = nullptr;
 XrdSciTokensHelper *SciTokensHelper = nullptr;
+XrdSciTokensRedir *SciTokensRedir = nullptr;
 
 class XrdAccSciTokens : public XrdAccAuthorize, public XrdSciTokensHelper,
-                        public XrdSciTokensMon
+                        public XrdSciTokensMon, public XrdSciTokensRedir
 {
 
     enum class AuthzBehavior {
@@ -519,45 +554,9 @@ public:
             return OnMissing(Entity, path, oper, env);
         }
         m_log.Log(LogMask::Debug, "Access", "Trying token-based access control");
-        std::shared_ptr<XrdAccRules> access_rules;
-        uint64_t now = monotonic_time();
-        Check(now);
-        {
-            std::lock_guard<std::mutex> guard(m_mutex);
-            const auto iter = m_map.find(authz);
-            if (iter != m_map.end() && !iter->second->expired()) {
-                access_rules = iter->second;
-            }
-        }
+        auto access_rules = GetRules(authz);
         if (!access_rules) {
-            m_log.Log(LogMask::Debug, "Access", "Token not found in recent cache; parsing.");
-            try {
-                uint64_t cache_expiry;
-                AccessRulesRaw rules;
-                std::string username;
-                std::string token_subject;
-                std::string issuer;
-                std::vector<MapRule> map_rules;
-                std::vector<std::string> groups;
-                uint32_t authz_strategy;
-                if (GenerateAcls(authz, cache_expiry, rules, username, token_subject, issuer, map_rules, groups, authz_strategy)) {
-                    access_rules.reset(new XrdAccRules(now + cache_expiry, username, token_subject, issuer, map_rules, groups, authz_strategy));
-                    access_rules->parse(rules);
-                } else {
-                    m_log.Log(LogMask::Warning, "Access", "Failed to generate ACLs for token");
-                    return OnMissing(Entity, path, oper, env);
-                }
-                if (m_log.getMsgMask() & LogMask::Debug) {
-                    m_log.Log(LogMask::Debug, "Access", "New valid token", access_rules->str().c_str());
-                }
-            } catch (std::exception &exc) {
-                m_log.Log(LogMask::Warning, "Access", "Error generating ACLs for authorization", exc.what());
-                return OnMissing(Entity, path, oper, env);
-            }
-            std::lock_guard<std::mutex> guard(m_mutex);
-            m_map[authz] = access_rules;
-        } else if (m_log.getMsgMask() & LogMask::Debug) {
-            m_log.Log(LogMask::Debug, "Access", "Cached token", access_rules->str().c_str());
+            return OnMissing(Entity, path, oper, env);
         }
 
         // Strategy: assuming the corresponding strategy is enabled, we populate the name in
@@ -595,21 +594,12 @@ public:
             }
             group_success = true;
         }
+        std::bitset<AOP_LastOp> opers;
+        opers[oper] = access_rules->apply(oper, path);
+        bool scope_success;
+        std::string username = GetUser(opers, path, access_rules, scope_success);
 
-        std::string username;
-        bool mapping_success = false;
-        bool scope_success = false;
-        username = access_rules->get_username(path);
-
-        mapping_success = (access_rules->get_authz_strategy() & IssuerAuthz::Mapping) && !username.empty();
-        scope_success = (access_rules->get_authz_strategy() & IssuerAuthz::Capability) && access_rules->apply(oper, path);
-        if (scope_success && (m_log.getMsgMask() & LogMask::Debug)) {
-            std::stringstream ss;
-            ss << "Grant authorization based on scopes for operation=" << OpToName(oper) << ", path=" << path;
-            m_log.Log(LogMask::Debug, "Access", ss.str().c_str());
-        }
-
-        if (!scope_success && !mapping_success && !group_success) {
+        if (username.empty() && !scope_success && !group_success) {
             auto returned_accs = OnMissing(&new_secentity, path, oper, env);
             // Clean up the new_secentity
             if (new_secentity.vorg != nullptr) free(new_secentity.vorg);
@@ -619,14 +609,9 @@ public:
             return returned_accs;
         }
 
-        // Default user only applies to scope-based mappings.
-        if (scope_success && username.empty()) {
-            username = access_rules->get_default_username();
-        }
-
         // Setting the request.name will pass the username to the next plugin.
         // Ensure we do that only if map-based or scope-based authorization worked.
-        if (scope_success || mapping_success) {
+        if (!username.empty()) {
             // Set scitokens.name in the extra attribute
             Entity->eaAPI->Add("request.name", username, true);
             new_secentity.eaAPI->Add("request.name", username, true);
@@ -658,6 +643,184 @@ public:
         if (new_secentity.role != nullptr) free(new_secentity.role);
 
         return returned_op;
+    }
+
+    virtual std::string Redirect(const char *url) override {
+#ifdef HAVE_MACAROONS
+        if (m_macaroon_secret.empty()) {
+            m_log.Log(LogMask::Error, "Redirect", "Cannot overwrite redirect URL; no macaroon secret configured");
+            return "";
+        }
+
+        if (!url) {
+            m_log.Log(LogMask::Debug, "Redirect", "Null URL");
+            return "";
+        }
+        m_log.Log(LogMask::Debug, "Redirect", "Will parse redirect URL", url);
+        auto hostStart = strstr(url, "://");
+        if (!hostStart) {
+            m_log.Log(LogMask::Info, "Redirect", "No host block found in URL", url);
+            return "";
+        }
+        auto pathStart = strchr(hostStart + 3, '/');
+        if (!pathStart) {
+            m_log.Log(LogMask::Debug, "Redirect", "No path found in URL", url);
+            return "";
+        }
+
+        auto queryStart = strchr(pathStart, '?');
+        if (!queryStart) {
+            m_log.Log(LogMask::Debug, "Redirect", "No query string found in URL", url);
+            return "";
+        }
+
+        auto authzStart = strstr(queryStart + 1, "authz=");
+        if (!authzStart) {
+            m_log.Log(LogMask::Debug, "Redirect", "No authz argument found in URL", url);
+            return "";
+        }
+        auto authzEnd = strchr(authzStart, '&');
+        std::string authz;
+        if (authzEnd) {
+            authz = std::string(authzStart + 6, authzEnd - authzStart);
+        } else {
+            authz = std::string(authzStart + 6);
+        }
+        if (!strncmp(authz.c_str(), "Bearer%20", 9)) {
+            authz = authz.substr(9);
+        }
+
+        std::string path(pathStart, queryStart - pathStart);
+
+        auto rules = GetRules(authz);
+        if (!rules) {
+            m_log.Log(LogMask::Warning, "Redirect", "Failed to generate rules for token");
+            return "";
+        }
+
+        auto opers = rules->applyAll(path);
+        if (!opers.any()) {
+            m_log.Log(LogMask::Warning, "Redirect", "Token does not authorize any operations");
+            return "";
+        }
+
+        bool scope_success;
+        auto user = GetUser(opers, path, rules, scope_success);
+
+        std::string activity = "activity:READ_METADATA";
+        if (opers[AOP_Read]) {
+            activity += ",DOWNLOAD";
+        }
+        if (opers[AOP_Create]) {
+            activity += ",UPLOAD";
+        }
+        if (opers[AOP_Delete]) {
+            activity += ",DELETE";
+        }
+        if (opers[AOP_Chown]) {
+            activity += ",MANAGE,UPDATE_METADATA";
+        }
+        if (opers[AOP_Readdir]) {
+            activity += ",LIST";
+        }
+
+        auto expiry = rules->get_token_expiration();
+        auto now = time(NULL);
+        expiry = std::min(now + 10, expiry);
+
+        char utc_time_buf[21];
+        if (!strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&expiry)))
+        {
+            m_log.Log(LogMask::Warning, "Redirect", "Failed to generate UTC time for macaroon");
+            return "";
+        }
+        std::string time_caveat = "before:" + std::string(utc_time_buf);
+
+        uuid_t uu;
+        uuid_generate_random(uu);
+        char uuid_buf[37];
+        uuid_unparse(uu, uuid_buf);
+
+        enum macaroon_returncode mac_err;
+        struct macaroon *mac = macaroon_create(reinterpret_cast<const unsigned char*>(m_macaroon_sitename.c_str()),
+                                           m_macaroon_sitename.size(),
+                                           reinterpret_cast<const unsigned char*>(m_macaroon_secret.c_str()),
+                                           m_macaroon_secret.size(),
+                                           reinterpret_cast<const unsigned char*>(uuid_buf),
+                                           sizeof(uuid_buf), &mac_err);
+        if (!mac) {
+            m_log.Log(LogMask::Warning, "Redirect", "Failed to create a new macaroon");
+            return "";
+        }
+
+        struct macaroon *mac_with_name;
+        if (user.empty()) {
+            mac_with_name = mac;
+        } else {
+            auto name_caveat = "name:" + user;
+            mac_with_name = macaroon_add_first_party_caveat(mac,
+                                                            reinterpret_cast<const unsigned char*>(name_caveat.c_str()),
+                                                            name_caveat.size(),
+                                                            &mac_err);
+            macaroon_destroy(mac);
+        }
+        if (!mac_with_name)
+        {
+            m_log.Log(LogMask::Warning, "Redirect", "Failed to add username to macaroon");
+            return "";
+        }
+
+        struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac_with_name,
+            reinterpret_cast<const unsigned char*>(activity.c_str()),
+            activity.size(),
+            &mac_err);
+        macaroon_destroy(mac_with_name);
+        if (!mac_with_activities)
+        {
+            m_log.Log(LogMask::Warning, "Redirect", "Failed to add activities to macaroon");
+            return "";
+        }
+
+        std::string path_caveat = "path:" + Macaroons::NormalizeSlashes(path);
+        struct macaroon *mac_with_path = macaroon_add_first_party_caveat(mac_with_activities,
+                                                    reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
+                                                    path_caveat.size(),
+                                                    &mac_err);
+        macaroon_destroy(mac_with_activities);
+        if (!mac_with_path) {
+            m_log.Log(LogMask::Warning, "Redirect", "Failed to add path restriction to macaroon");
+            return "";
+        }
+
+        struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac_with_path,
+                                            reinterpret_cast<const unsigned char*>(time_caveat.c_str()),
+                                            time_caveat.size(),
+                                            &mac_err);
+        macaroon_destroy(mac_with_path);
+        if (!mac_with_date) {
+            m_log.Log(LogMask::Warning, "Redirect", "Failed to add expiration date to macaroon");
+            return "";
+        }
+
+        size_t size_hint = macaroon_serialize_size_hint(mac_with_date);
+
+        std::vector<char> macaroon_resp; macaroon_resp.resize(size_hint);
+        if (macaroon_serialize(mac_with_date, &macaroon_resp[0], size_hint, &mac_err))
+        {
+            m_log.Log(LogMask::Warning, "Redirect", "Failed to serialize macaroon to base64");
+            return "";
+        }
+        macaroon_destroy(mac_with_date);
+        std::string urlPrefix(url, authzStart + 6 - url);
+        auto result = urlPrefix + std::string(&macaroon_resp[0]);
+        if (authzEnd) {
+            result += std::string(authzEnd);
+        }
+        return result;
+#else
+        m_log.Log(LogMask::Debug, "Redirect", "Rewriting URLs not supported");
+        return "";
+#endif
     }
 
     virtual  Issuers IssuerList() override
@@ -762,7 +925,7 @@ private:
         return XrdAccPriv_None;
     }
 
-    bool GenerateAcls(const std::string &authz, uint64_t &cache_expiry, AccessRulesRaw &rules, std::string &username, std::string &token_subject, std::string &issuer, std::vector<MapRule> &map_rules, std::vector<std::string> &groups, uint32_t &authz_strategy) {
+    bool GenerateAcls(const std::string &authz, uint64_t &cache_lifetime, AccessRulesRaw &rules, std::string &username, std::string &token_subject, std::string &issuer, std::vector<MapRule> &map_rules, std::vector<std::string> &groups, uint32_t &authz_strategy, time_t &token_expiry) {
         // Does this look like a JWT?  If not, bail out early and
         // do not pollute the log.
         bool looks_good = true;
@@ -801,6 +964,7 @@ private:
             return false;
         }
 
+        long long lifetime;
         long long expiry;
         if (scitoken_get_expiration(token, &expiry, &err_msg)) {
             m_log.Log(LogMask::Warning, "GenerateAcls", "Unable to determine token expiration:", err_msg);
@@ -809,10 +973,10 @@ private:
             return false;
         }
         if (expiry > 0) {
-            expiry = std::max(static_cast<int64_t>(monotonic_time() - expiry),
-                static_cast<int64_t>(60));
+            lifetime = std::max(expiry - time(nullptr), static_cast<long long>(60));
         } else {
-            expiry = 60;
+            expiry = time(nullptr) + 60;
+            lifetime = 60;
         }
 
         char *value = nullptr;
@@ -995,7 +1159,8 @@ private:
         }
         authz_strategy = config.m_authz_strategy;
 
-        cache_expiry = expiry;
+        cache_lifetime = lifetime;
+        token_expiry = expiry;
         rules = std::move(xrd_rules);
         username = std::move(tmp_username);
         issuer = std::move(token_issuer);
@@ -1013,7 +1178,7 @@ private:
         if (!XrdOucEnv::Import("XRDCONFIGFN", config_filename)) {
             return false;
         }
-        XrdOucGatherConf scitokens_conf("scitokens.trace", &m_log);
+        XrdOucGatherConf scitokens_conf("scitokens.trace macaroons.secretkey all.sitename", &m_log);
         int result;
         if ((result = scitokens_conf.Gather(config_filename, XrdOucGatherConf::trim_lines)) < 0) {
             m_log.Emsg("Config", -result, "parsing config file", config_filename);
@@ -1023,8 +1188,32 @@ private:
         char *val;
         std::string map_filename;
         while (scitokens_conf.GetLine()) {
+            auto directive = scitokens_conf.GetToken();
+            if (!strcmp(directive, "secretkey")) {
+#ifdef HAVE_MACAROONS
+                if (!(val = scitokens_conf.GetToken())) {
+                    m_log.Emsg("Config", "macaroons.secretkey requires an argument.  Usage: macaroons.secretkey /path/to/file");
+                    return false;
+                }
+                if (!Macaroons::GetSecretKey(val, &m_log, m_macaroon_secret)) {
+                    m_log.Emsg("Config", "Failed to configure the macaroons secret");
+                    return false;
+                }
+                continue;
+#else
+                m_log.Emsg("Config", "macaroons.secretkey set but XRootD built without macaroons support");
+                continue;
+#endif
+            }
+            if (!strcmp(directive, "sitename")) {
+                if (!(val = scitokens_conf.GetToken())) {
+                    m_log.Emsg("Config", "all.sitename requires an argument.  Usage: all.sitename Site");
+                    return false;
+                }
+                m_macaroon_sitename = val;
+                continue;
+            }
             m_log.setMsgMask(0);
-            scitokens_conf.GetToken(); // Ignore the output; we asked for a single config value, trace
             if (!(val = scitokens_conf.GetToken())) {
                 m_log.Emsg("Config", "scitokens.trace requires an argument.  Usage: scitokens.trace [all|error|warning|info|debug|none]");
                 return false;
@@ -1336,6 +1525,7 @@ private:
         return true;
     }
 
+    // Iterate through the internal cache, check for expiration.
     void Check(uint64_t now)
     {
         if (now <= m_next_clean) {return;}
@@ -1353,6 +1543,85 @@ private:
         m_next_clean = monotonic_time() + m_expiry_secs;
     }
 
+    // Given an access token, return the corresponding access rules
+    std::shared_ptr<XrdAccRules> GetRules(const std::string &authz) {
+        uint64_t now = monotonic_time();
+        Check(now);
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            const auto iter = m_map.find(authz);
+            if (iter != m_map.end() && !iter->second->expired()) {
+                auto rules = iter->second;
+                m_log.Log(LogMask::Debug, "Access", "Cached token", rules->str().c_str());
+                return rules;
+            }
+        }
+        std::shared_ptr<XrdAccRules> access_rules;
+        m_log.Log(LogMask::Debug, "Access", "Token not found in recent cache; parsing.");
+        try {
+            uint64_t cache_lifetime;
+            AccessRulesRaw rules;
+            std::string username;
+            std::string token_subject;
+            std::string issuer;
+            std::vector<MapRule> map_rules;
+            std::vector<std::string> groups;
+            uint32_t authz_strategy;
+            time_t token_expiry;
+            if (GenerateAcls(authz, cache_lifetime, rules, username, token_subject, issuer, map_rules, groups, authz_strategy, token_expiry)) {
+                access_rules.reset(new XrdAccRules(now + cache_lifetime, username, token_subject, issuer, map_rules, groups, authz_strategy, token_expiry));
+                access_rules->parse(rules);
+            } else {
+                m_log.Log(LogMask::Warning, "Access", "Failed to generate ACLs for token");
+                return access_rules;
+            }
+            if (m_log.getMsgMask() & LogMask::Debug) {
+                m_log.Log(LogMask::Debug, "Access", "New valid token", access_rules->str().c_str());
+            }
+        } catch (std::exception &exc) {
+            m_log.Log(LogMask::Warning, "Access", "Error generating ACLs for authorization", exc.what());
+            return access_rules;
+        }
+        std::lock_guard<std::mutex> guard(m_mutex);
+        m_map[authz] = access_rules;
+        return access_rules;
+    }
+
+    // Given a set of rules, determine the authorized username
+    std::string GetUser(std::bitset<AOP_LastOp> opers, std::string path, std::shared_ptr<XrdAccRules> rules, bool &scope_success) {
+
+        std::string username;
+        bool mapping_success = false;
+        username = rules->get_username(path);
+
+        mapping_success = (rules->get_authz_strategy() & IssuerAuthz::Mapping) && !username.empty();
+        scope_success = (rules->get_authz_strategy() & IssuerAuthz::Capability) && opers.any();
+        if (scope_success && (m_log.getMsgMask() & LogMask::Debug)) {
+            std::stringstream ss;
+            ss << "Grant authorization based on scopes for operation=" << OpsToName(opers) << ", path=" << path;
+            m_log.Log(LogMask::Debug, "Access", ss.str().c_str());
+        }
+        bool group_success = (rules->get_authz_strategy() & IssuerAuthz::Group) && rules->groups().size();
+
+        if (!scope_success && !mapping_success && !group_success) {
+            return "";
+        }
+
+        // Default user only applies to scope-based mappings.
+        if (scope_success && username.empty()) {
+            username = rules->get_default_username();
+        }
+
+        // Setting the request.name will pass the username to the next plugin.
+        // Ensure we do that only if map-based or scope-based authorization worked.
+        if (scope_success || mapping_success) {
+            // Set scitokens.name in the extra attribute
+            return username;
+        }
+
+        return "";
+    }
+
     bool m_config_lock_initialized{false};
     std::mutex m_mutex;
     pthread_rwlock_t m_config_lock;
@@ -1367,6 +1636,8 @@ private:
     XrdSysError m_log;
     AuthzBehavior m_authz_behavior{AuthzBehavior::PASSTHROUGH};
     std::string m_cfg_file;
+    std::string m_macaroon_secret;
+    std::string m_macaroon_sitename;
 
     static constexpr uint64_t m_expiry_secs = 60;
 };
@@ -1377,6 +1648,7 @@ void InitAccSciTokens(XrdSysLogger *lp, const char *cfn, const char *parm,
     try {
         accSciTokens = new XrdAccSciTokens(lp, parm, accP, envP);
         SciTokensHelper = accSciTokens;
+        SciTokensRedir = accSciTokens;
     } catch (std::exception &) {
     }
 }

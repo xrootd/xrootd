@@ -230,7 +230,9 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     if (strncmp(reinterpret_cast<const char *>(macaroon_loc), m_location.c_str(), location_sz))
     {
         std::string location_str(reinterpret_cast<const char *>(macaroon_loc), location_sz);
-        m_log.Emsg("Access", "Macaroon is for incorrect location", location_str.c_str());
+        std::stringstream ss;
+        ss << "Macaroon is for incorrect location; requested " << location_str << "; got " << m_location << ".";
+        m_log.Emsg("Access", ss.str().c_str());
         macaroon_verifier_destroy(verifier);
         macaroon_destroy(macaroon);
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
