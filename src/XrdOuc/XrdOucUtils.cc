@@ -33,6 +33,8 @@
 #include <cstdio>
 #include <list>
 #include <vector>
+#include <unordered_set>
+#include <algorithm>
 
 #ifdef WIN32
 #include <direct.h>
@@ -1409,5 +1411,47 @@ void XrdOucUtils::trim(std::string &str) {
     while( str.size() && !isgraph(str[str.size()-1]) )
         str.resize (str.size () - 1);
 }
+
+std::string XrdOucUtils::obfuscate(const std::string & input, const std::unordered_set<std::string>  & keysToObfuscate,const char keyValueDelimiter, const char listDelimiter) {
+    // String stream to build the result
+    std::ostringstream result;
+
+    // Start processing the input string
+    std::istringstream inputStream(input);
+    std::string pair;
+    bool first = true;
+
+    // Split input by listDelimiter
+    while (std::getline(inputStream, pair, listDelimiter)) {
+      if (!first) {
+        result << listDelimiter;
+      } else {
+        first = false;
+      }
+
+      // Find the position of the keyValueDelimiter
+      size_t delimiterPos = pair.find(keyValueDelimiter);
+      if (delimiterPos != std::string::npos) {
+        std::string key = pair.substr(0, delimiterPos);
+        trim(key);
+        std::string lowerCasedKey = key;
+        std::transform(lowerCasedKey.begin(),lowerCasedKey.end(),lowerCasedKey.begin(),::tolower);
+        std::string value = pair.substr(delimiterPos + 1);
+
+        // Check if the key needs to be obfuscated
+        if (keysToObfuscate.find(lowerCasedKey) != keysToObfuscate.end()) {
+          result << key << keyValueDelimiter << OBFUSCATION_STR;
+        } else {
+          result << pair;
+        }
+      } else {
+        result << pair; // In case there's no delimiter in the pair, just append it
+      }
+    }
+
+    return result.str();
+}
+
+
 #endif
 

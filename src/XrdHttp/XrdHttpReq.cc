@@ -936,9 +936,15 @@ int XrdHttpReq::ProcessHTTPReq() {
 
     char *q = quote(hdr2cgistr.c_str());
     resourceplusopaque.append(q);
-    TRACEI(DEBUG, "Appended header fields to opaque info: '" 
-                 << hdr2cgistr.c_str() << "'");
+    if (TRACING(TRACE_DEBUG)) {
+      // The obfuscation of "authz" will only be done if the server http.header2cgi config contains something that maps a header to this "authz" cgi.
+      // Unfortunately the obfuscation code will be called no matter what is configured in http.header2cgi.
+      std::string header2cgistrObf = XrdOucUtils::obfuscate(hdr2cgistr, {"authz"}, '=', '&');
 
+      TRACEI(DEBUG, "Appended header fields to opaque info: '"
+        << header2cgistrObf.c_str() << "'");
+
+    }
     // We assume that anything appended to the CGI str should also
     // apply to the destination in case of a MOVE.
     if (strchr(destination.c_str(), '?')) destination.append("&");
