@@ -12,6 +12,8 @@ add_subdirectory(XrdEc)
 
 add_subdirectory(XrdHttpTests)
 
+add_subdirectory(XrdOucTests)
+
 add_subdirectory( XrdSsiTests )
 
 if(NOT ENABLE_SERVER_TESTS)

@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string>
+#include <unordered_set>
   
 class XrdSysError;
 class XrdOucString;
@@ -41,6 +42,8 @@ class XrdOucStream;
 class XrdOucUtils
 {
 public:
+
+static inline std::string OBFUSCATION_STR = "REDACTED";
 
 static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 
@@ -132,6 +135,8 @@ static bool PidFile(XrdSysError &eDest, const char *path);
 static int getModificationTime(const char * path, time_t & modificationTime);
 
 static void trim(std::string & str);
+
+static std::string obfuscate(const std::string & input, const std::unordered_set<std::string> & keysToObfuscate,const char keyValueDelimiter, const char listDelimiter);
 
     XrdOucUtils() {}
     ~XrdOucUtils() {}

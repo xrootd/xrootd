@@ -42,6 +42,7 @@
 
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -51,6 +52,7 @@
 #include <cctype>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <algorithm>
 
 #define XRHTTP_TK_GRACETIME     600
 
@@ -312,7 +314,6 @@ char *XrdHttpProtocol::GetClientIPStr() {
 
   return strdup(buf);
 }
-
 
 // Various routines for handling XrdLink as BIO objects within OpenSSL.
 #if OPENSSL_VERSION_NUMBER < 0x1000105fL
@@ -615,8 +616,11 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     // Read as many lines as possible into the buffer. An empty line breaks
     while ((rc = BuffgetLine(tmpline)) > 0) {
-      TRACE(DEBUG, " rc:" << rc << " got hdr line: " << tmpline.c_str());
-
+      if (TRACING(TRACE_DEBUG)) {
+        std::string traceLine{tmpline.c_str()};
+        traceLine = XrdOucUtils::obfuscate(traceLine, {"authorization", "transferheaderauthorization"}, ':', '\n');
+        TRACE(DEBUG, " rc:" << rc << " got hdr line: " << traceLine);
+      }
       if ((rc == 2) && (tmpline.length() > 1) && (tmpline[rc - 1] == '\n')) {
         CurrentReq.headerok = true;
         TRACE(DEBUG, " rc:" << rc << " detected header end.");
