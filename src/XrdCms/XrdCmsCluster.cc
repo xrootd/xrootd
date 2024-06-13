@@ -1831,9 +1831,9 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
    }
 // pick a random weighed node
 //
-   std::random_device rand_dev;
-   std::mt19937 generator(rand_dev());
-   std::uniform_int_distribution<int> distr(randomSel,selCap);
+   static std::random_device rand_dev;
+   static std::mt19937 generator(rand_dev());
+   static std::uniform_int_distribution<int> distr(randomSel,selCap);
    randomSel = distr(generator);
    for(int i=0;i<=STHi;i++){
      if(randomSel<=weighed[i]){
