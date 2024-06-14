@@ -1793,7 +1793,13 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
    selR.Reset(); SelTcnt++;
    int selCap = 1;
    int randomSel=1;
-   int *weighed = new int[STHi];
+   int *weighed;
+   if (STHi > 0){
+       weighed = new int[STHi];
+   }
+   else{
+       weighed = new int[1];
+   }
    for (int i = 0; i <= STHi; i++){
        //default 0 to skip the node in random selection if the below checks fail
        weighed[i] = 0;
