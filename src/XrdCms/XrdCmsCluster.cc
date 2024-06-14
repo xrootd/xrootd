@@ -1786,7 +1786,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 {
     XrdCmsNode *np, *sp = 0;
 //  bool Multi = False;
-    bool reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
+    bool Multi=false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
 // Scan for a node (preset possible, suspended, overloaded, full, and dead)
 //
@@ -1813,11 +1813,11 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                                   || (reqSS && np->isNoStage)))
               {selR.xFull = true; continue;}
            if (!sp) sp = np;
-              //else{if (selR.needSpace)
-              //        {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
-              //            {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
-              //            else if (sp->myMass > np->myMass)             sp=np;
-              //        } else {
+              else{if (selR.needSpace)
+                      {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
+                          {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
+                          else if (sp->myMass > np->myMass)             sp=np;
+                      } else {
               //         if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
               //            {if (selR.selPack)
                //               {if (--selR.selPack)                      sp=np;
@@ -1831,12 +1831,13 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                //   }
             //add 1 to the inverse load, this is to allow some selection in case reported loads hit 100
             weighed[i] = selCap + 101 - np->myLoad;
-            selCap += 101 - np->myLoad;  
-                               
+            selCap += 101 - np->myLoad;                     
           }
+          Multi = true;
    }
 // pick a random weighed node
 //
+   if ( STHi > 1 ){
    static std::random_device rand_dev;
    static std::mt19937 generator(rand_dev());
    static std::uniform_int_distribution<int> distr(randomSel,selCap);
@@ -1846,6 +1847,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
        sp=NodeTab[i];
        break;
      }
+   }
    }
 
    delete [] weighed;
