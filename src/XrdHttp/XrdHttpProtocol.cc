@@ -1758,6 +1758,62 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   return 1;
 }
 
+/******************************************************************************/
+/*                   p a r s e H e a d e r 2 C G I                            */
+/******************************************************************************/
+int XrdHttpProtocol::parseHeader2CGI(XrdOucStream &Config, XrdSysError & err,std::map<std::string, std::string> &header2cgi) {
+  char *val, keybuf[1024], parmbuf[1024];
+  char *parm;
+
+  // Get the header key
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    err.Emsg("Config", "No headerkey specified.");
+    return 1;
+  } else {
+
+    // Trim the beginning, in place
+    while ( *val && !isalnum(*val) ) val++;
+    strcpy(keybuf, val);
+
+    // Trim the end, in place
+    char *pp;
+    pp = keybuf + strlen(keybuf) - 1;
+    while ( (pp >= keybuf) && (!isalnum(*pp)) ) {
+      *pp = '\0';
+      pp--;
+    }
+
+    parm = Config.GetWord();
+
+    // Avoids segfault in case a key is given without value
+    if(!parm || !parm[0]) {
+      err.Emsg("Config", "No header2cgi value specified. key: '", keybuf, "'");
+      return 1;
+    }
+
+    // Trim the beginning, in place
+    while ( *parm && !isalnum(*parm) ) parm++;
+    strcpy(parmbuf, parm);
+
+    // Trim the end, in place
+    pp = parmbuf + strlen(parmbuf) - 1;
+    while ( (pp >= parmbuf) && (!isalnum(*pp)) ) {
+      *pp = '\0';
+      pp--;
+    }
+
+    // Add this mapping to the map that will be used
+    try {
+      header2cgi[keybuf] = parmbuf;
+    } catch ( ... ) {
+      err.Emsg("Config", "Can't insert new header2cgi rule. key: '", keybuf, "'");
+      return 1;
+    }
+
+  }
+  return 0;
+}
 
 
 /******************************************************************************/
@@ -2667,54 +2723,7 @@ int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
  */
 
 int XrdHttpProtocol::xheader2cgi(XrdOucStream & Config) {
-  char *val, keybuf[1024], parmbuf[1024];
-  char *parm;
-  
-  // Get the path
-  //
-  val = Config.GetWord();
-  if (!val || !val[0]) {
-    eDest.Emsg("Config", "No headerkey specified.");
-    return 1;
-  } else {
-    
-    // Trim the beginning, in place
-    while ( *val && !isalnum(*val) ) val++;
-    strcpy(keybuf, val);
-    
-    // Trim the end, in place
-    char *pp;
-    pp = keybuf + strlen(keybuf) - 1;
-    while ( (pp >= keybuf) && (!isalnum(*pp)) ) {
-      *pp = '\0';
-      pp--;
-    }
-    
-    parm = Config.GetWord();
-    
-    // Trim the beginning, in place
-    while ( *parm && !isalnum(*parm) ) parm++;
-    strcpy(parmbuf, parm);
-    
-    // Trim the end, in place
-    pp = parmbuf + strlen(parmbuf) - 1;
-    while ( (pp >= parmbuf) && (!isalnum(*pp)) ) {
-      *pp = '\0';
-      pp--;
-    }
-    
-    // Add this mapping to the map that will be used
-    try {
-      hdr2cgimap[keybuf] = parmbuf;
-    } catch ( ... ) {
-      eDest.Emsg("Config", "Can't insert new header2cgi rule. key: '", keybuf, "'");
-      return 1;
-    }
-    
-  }
-  
-  
-  return 0;
+  return parseHeader2CGI(Config,eDest,hdr2cgimap);
 }
 
 /******************************************************************************/

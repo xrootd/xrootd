@@ -161,6 +161,7 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
 // We need to utilize the full URL (including the query string), not just the
 // resource name.  The query portion is hidden in the `xrd-http-query` header;
 // we take this out and combine it with the resource name.
+// We also append the value of the headers configured in tpc.header2cgi to the resource full URL
 //
 // One special key is `authz`; this is always stripped out and copied to the Authorization
 // header (which will later be used for XrdSecEntity).  The latter copy is only done if
@@ -168,36 +169,45 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
 //
 // hasSetOpaque will be set to true if at least one opaque data has been set in the URL that is returned,
 // false otherwise
-static std::string prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
-    std::map<std::string, std::string>::const_iterator iter = XrdOucTUtils::caseInsensitiveFind(req.headers,"xrd-http-query");
-    if (iter == req.headers.end() || iter->second.empty()) {return req.resource;}
+std::string TPCHandler::prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
+  auto iter = XrdOucTUtils::caseInsensitiveFind(req.headers,"xrd-http-query");
+  bool found_first_header = false;
+  std::stringstream opaque;
 
-    auto has_authz_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"authorization") != req.headers.end();
-
-    std::istringstream requestStream(iter->second);
+  if (iter != req.headers.end() && !iter->second.empty()) {
     std::string token;
-    std::stringstream result;
-    bool found_first_header = false;
+    std::istringstream requestStream(iter->second);
+    auto has_authz_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"authorization") != req.headers.end();
     while (std::getline(requestStream, token, '&')) {
-        if (token.empty()) {
-            continue;
-        } else if (!strncmp(token.c_str(), "authz=", 6)) {
-            if (!has_authz_header) {
-                req.headers["Authorization"] = token.substr(6);
-                has_authz_header = true;
-            }
-        } else if (!found_first_header) {
-            result << "?" << token;
-            found_first_header = true;
-        } else {
-            result << "&" << token;
+      if (token.empty()) {
+        continue;
+      } else if (!strncmp(token.c_str(), "authz=", 6)) {
+        if (!has_authz_header) {
+            req.headers["Authorization"] = token.substr(6);
+            has_authz_header = true;
         }
+      } else {
+        opaque << (found_first_header ? "&" : "?") << token;
+        found_first_header = true;
+      }
     }
-    hasSetOpaque = found_first_header;
-    return req.resource + result.str().c_str();
+  }
+
+  // Append CGI coming from the tpc.header2cgi parameter
+  for(auto & hdr2cgi : hdr2cgimap) {
+    auto it = std::find_if(req.headers.begin(),req.headers.end(),[&hdr2cgi](const auto & elt){
+      return !strcasecmp(elt.first.c_str(),hdr2cgi.first.c_str());
+    });
+    if(it != req.headers.end()) {
+      opaque << (found_first_header ? "&" : "?") << hdr2cgi.second << "=" << it->second;
+      found_first_header = true;
+    }
+  }
+  hasSetOpaque = found_first_header;
+  return req.resource + opaque.str();
 }
 
-static std::string prepareURL(XrdHttpExtReq &req) {
+std::string TPCHandler::prepareURL(XrdHttpExtReq &req) {
     bool foundHeader;
     return prepareURL(req,foundHeader);
 }
