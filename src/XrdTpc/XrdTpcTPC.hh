@@ -143,6 +143,10 @@ private:
         const std::string &event, const std::string &message="");
 
     std::string generateClientErr(std::stringstream &err_ss, const TPCLogRecord &rec, CURLcode cCode = CURLcode::CURLE_OK);
+
+    std::string prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque);
+    std::string prepareURL(XrdHttpExtReq &req);
+
     static int m_marker_period;
     static size_t m_block_size;
     static size_t m_small_block_size;
@@ -174,5 +178,8 @@ private:
     // Time to connect the curl socket to the remote server uses the linux's default value
     // of 60 seconds
     static const long CONNECT_TIMEOUT = 60;
+
+    // hdr2cgimap
+    std::map<std::string,std::string> hdr2cgimap;
 };
 }

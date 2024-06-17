@@ -91,6 +91,9 @@ public:
     if (Resume) (*this.*Resume)();
   }
 
+  /// Use this function to parse header2cgi configurations
+  static int parseHeader2CGI(XrdOucStream &Config, XrdSysError & err, std::map<std::string, std::string> & header2cgi);
+
   /// Tells if the oustanding bytes on the socket match this protocol implementation
   XrdProtocol *Match(XrdLink *lp);
 

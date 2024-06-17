@@ -9,7 +9,8 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-
+#include "XrdHttp/XrdHttpProtocol.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
 
 using namespace TPC;
 
@@ -57,7 +58,7 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
                 return false;
             }
         } else if (!strcmp("tpc.fixed_route", val)) {
-		if (!(val = Config.GetWord())) {
+            if (!(val = Config.GetWord())) {
                 Config.Close();
                 m_log.Emsg("Config", "tpc.fixed_route value not specified");
                 return false;
@@ -66,12 +67,24 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
                 m_fixed_route= true;
             } else if (!strcmp("0", val) || !strcasecmp("no", val) || !strcasecmp("false", val)) {
                 m_fixed_route= false;
-	    } else{
+            } else {
                 Config.Close();
                 m_log.Emsg("Config", "tpc.fixed_route value is invalid", val);
                 return false;
-	    }
-	} else if (!strcmp("tpc.timeout", val)) {
+            }
+        } else if (!strcmp("tpc.header2cgi",val)) {
+            // header2cgi parsing
+            if(XrdHttpProtocol::parseHeader2CGI(Config,m_log,hdr2cgimap)){
+              Config.Close();
+              return false;
+            }
+            // remove authorization header2cgi parsing as it will anyway be added to the CGI before the file open
+            // by the HTTP/TPC logic
+            auto authHdr = XrdOucTUtils::caseInsensitiveFind(hdr2cgimap,"authorization");
+            if(authHdr != hdr2cgimap.end()) {
+              hdr2cgimap.erase(authHdr);
+            }
+        }  else if (!strcmp("tpc.timeout", val)) {
             if (!(val = Config.GetWord())) {
                 Config.Close();
                 m_log.Emsg("Config","tpc.timeout value not specified.");  return false;
