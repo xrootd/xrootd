@@ -2,8 +2,11 @@
 
 #include <gtest/gtest.h>
 #include <string>
+#include <map>
 
 #include "XrdOuc/XrdOucUtils.hh"
+
+#include "XrdOuc/XrdOucTUtils.hh"
 
 
 using namespace testing;
@@ -24,4 +27,20 @@ TEST(XrdOucUtilsTests, obfuscate) {
   // Trimmed key obfuscation
   ASSERT_EQ(std::string("Authorization:") + XrdOucUtils::OBFUSCATION_STR, XrdOucUtils::obfuscate("Authorization: Bearer token",{"authorization"},':','\n'));
   ASSERT_EQ(std::string("Authorization:")+ XrdOucUtils::OBFUSCATION_STR, XrdOucUtils::obfuscate("Authorization : Bearer token",{"authorization"},':','\n'));
+}
+
+TEST(XrdOucUtilsTests, caseInsensitiveFind) {
+  {
+    std::map<std::string, std::string> map;
+    ASSERT_EQ(map.end(), XrdOucTUtils::caseInsensitiveFind(map, "test"));
+  }
+  {
+    std::map<std::string, std::string> map { {"test","lowercase"}, {"TEST2","uppercase"},{"AnotherTest", "UpperCamelCase"}};
+
+    ASSERT_EQ("lowercase", XrdOucTUtils::caseInsensitiveFind(map, "test")->second);
+    ASSERT_EQ("uppercase", XrdOucTUtils::caseInsensitiveFind(map, "test2")->second);
+    ASSERT_EQ("UpperCamelCase", XrdOucTUtils::caseInsensitiveFind(map, "anothertest")->second);
+    map[""] = "empty";
+    ASSERT_EQ("empty", XrdOucTUtils::caseInsensitiveFind(map, "")->second);
+  }
 }

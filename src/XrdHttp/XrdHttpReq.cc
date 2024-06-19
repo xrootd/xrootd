@@ -150,15 +150,6 @@ int XrdHttpReq::parseLine(char *line, int len) {
       return -3;
     }
     trim(ss);
-    if(prot->keepHeaderCase) {
-      // Issue #2259, this option has been put in place in order to
-      // allow the header keys passed to external handlers to NOT be lower-cased (backward compatibility preservation)
-      allheaders[key] = ss;
-    }
-    // Lower-case the key of the header
-    std::transform(key,key + std::strlen(key), key, [](unsigned char c){
-      return std::tolower(c);
-    });
     allheaders[key] = ss;
 	  
     // Here we are supposed to initialize whatever flag or variable that is needed
@@ -167,7 +158,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
     // The value is val
     
     // Screen out the needed header lines
-    if (!strcmp(key, "connection")) {
+    if (!strcasecmp(key, "connection")) {
 
       if (!strcasecmp(val, "Keep-Alive\r\n")) {
         keepalive = true;
@@ -175,36 +166,36 @@ int XrdHttpReq::parseLine(char *line, int len) {
         keepalive = false;
       }
 
-    } else if (!strcmp(key, "host")) {
+    } else if (!strcasecmp(key, "host")) {
       parseHost(val);
-    } else if (!strcmp(key, "range")) {
+    } else if (!strcasecmp(key, "range")) {
       // (rfc2616 14.35.1) says if Range header contains any range
       // which is syntactically invalid the Range header should be ignored.
       // Therefore no need for the range handler to report an error.
       readRangeHandler.ParseContentRange(val);
-    } else if (!strcmp(key, "content-length")) {
+    } else if (!strcasecmp(key, "content-length")) {
       length = atoll(val);
 
-    } else if (!strcmp(key, "destination")) {
+    } else if (!strcasecmp(key, "destination")) {
       destination.assign(val, line+len-val);
       trim(destination);
-    } else if (!strcmp(key, "want-digest")) {
+    } else if (!strcasecmp(key, "want-digest")) {
       m_req_digest.assign(val, line + len - val);
       trim(m_req_digest);
       //Transform the user requests' want-digest to lowercase
       std::transform(m_req_digest.begin(),m_req_digest.end(),m_req_digest.begin(),::tolower);
-    } else if (!strcmp(key, "depth")) {
+    } else if (!strcasecmp(key, "depth")) {
       depth = -1;
       if (strcmp(val, "infinity"))
         depth = atoll(val);
 
-    } else if (!strcmp(key, "expect") && strstr(val, "100-continue")) {
+    } else if (!strcasecmp(key, "expect") && strstr(val, "100-continue")) {
       sendcontinue = true;
-    } else if (!strcmp(key, "te") && strstr(val, "trailers")) {
+    } else if (!strcasecmp(key, "te") && strstr(val, "trailers")) {
       m_trailer_headers = true;
-    } else if (!strcmp(key, "transfer-encoding") && strstr(val, "chunked")) {
+    } else if (!strcasecmp(key, "transfer-encoding") && strstr(val, "chunked")) {
       m_transfer_encoding_chunked = true; 
-    } else if (!strcmp(key, "x-transfer-status") && strstr(val, "true")) {
+    } else if (!strcasecmp(key, "x-transfer-status") && strstr(val, "true")) {
       m_transfer_encoding_chunked = true;
       m_status_trailer = true;
     } else if (!strcasecmp(key, "scitag")) {

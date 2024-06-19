@@ -32,6 +32,8 @@
 #define XROOTD_XRDOUCTUTILS_HH
 
 #include <string>
+#include <map>
+#include <algorithm>
 
 /**
  * This class is created to contain template code
@@ -64,6 +66,27 @@ static void splitString( Container &result,  const std::string &input, const std
 
         start = end + delimiter.size();
     } while (end != std::string::npos);
+}
+
+/**
+ * Looks for an element in a std::map<std::string, T> in a case-insensitive way
+ * @tparam T the type of the associated element to search
+ * @param m the map to search
+ * @param lowerCaseSearchKey the key to look for (must be lower-cased!)
+ * @return the iterator related to the map find
+ */
+template<typename T>
+static typename std::map<std::string, T>::const_iterator caseInsensitiveFind(const std::map<std::string, T> & m, const std::string & lowerCaseSearchKey) {
+  auto it = std::find_if(m.begin(),m.end(), [&lowerCaseSearchKey](const std::pair<std::string, T> & p){
+    return std::equal(
+      p.first.begin(), p.first.end(),
+      lowerCaseSearchKey.begin(), lowerCaseSearchKey.end(),
+      [](unsigned char a, unsigned char b) {
+        return (std::tolower(a) == b);
+      }
+    );
+  });
+  return it;
 }
 
 };
