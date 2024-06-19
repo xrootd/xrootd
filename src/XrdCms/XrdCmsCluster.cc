@@ -1787,10 +1787,17 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
     XrdCmsNode *np, *sp = 0;
     bool Multi = false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
-// Scan for a node (preset possible, suspended, overloaded, full, and dead)
-//
-   selR.Reset(); SelTcnt++;
-   for (int i = 0; i <= STHi; i++)
+    // Scan for a node (preset possible, suspended, overloaded, full, and dead)
+    //
+    selR.Reset(); SelTcnt++;
+    int selCap = 1;
+    int randomSel=1;
+    bool useWR=(Config.P_randlb==1);
+    //default 0 to skip the node in random selection if the below checks fail
+    int Weighed[STMax] = { 0 };
+    //float scalingFactor = 1+(1-float(std::clamp(Config.P_fuzz,0,100))/100)*2;
+    for (int i = 0; i <= STHi; i++)
+      // Weighed[i] = 0;
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {if (!(selR.needNet & np->hasNet))      {selR.xNoNet= true; continue;}
            selR.nPick++;
@@ -1801,7 +1808,14 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                                   || (reqSS && np->isNoStage)))
               {selR.xFull = true; continue;}
            if (!sp) sp = np;
-              else{if (selR.needSpace)
+              else{
+                if (useWR){
+                   //add 1 to the inverse load, this is to allow some selection in case reported loads hit 100
+                   int nload = 101 - np->myLoad;
+                   selCap += nload;//static_cast<int>(nload + std::pow(nload, scalingFactor)/2);
+                   Weighed[i] = selCap;
+                 }
+                 else{if (selR.needSpace)
                       {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
                           {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
                           else if (sp->myMass > np->myMass)             sp=np;
@@ -1817,8 +1831,22 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                       }
                    Multi = true;
                   }
+               }
           }
-
+    if (useWR){
+    // pick a random weighed node
+    //
+    static std::random_device rand_dev;
+    static std::default_random_engine generator(rand_dev());
+    static std::uniform_int_distribution<int> distr(randomSel,selCap);
+    randomSel = distr(generator);
+    for(int i=0;i<=STHi;i++){
+      if(randomSel<=Weighed[i]){
+        sp=NodeTab[i];
+        break;
+      }
+    }
+    }
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(selR);
