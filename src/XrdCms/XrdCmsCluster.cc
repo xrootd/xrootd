@@ -1794,9 +1794,9 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
     selR.Reset(); SelTcnt++;
     int selCap = 1;
     int randomSel=1;
+    bool useWR=(Config.P_randlb==1);
     //default 0 to skip the node in random selection if the below checks fail
-    int *weighed = (Config.P_randlb==1 ? new int[STHi] {0} : 0);
-    float scalingFactor = 1+(1-float(std::clamp(Config.P_fuzz,0,100))/100)*2; 
+    int weighed[STMax] = { 0 };
     for (int i = 0; i <= STHi; i++)
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {if (!(selR.needNet & np->hasNet))      {selR.xNoNet= true; continue;}
@@ -1809,10 +1809,10 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
               {selR.xFull = true; continue;}
            if (!sp) sp = np;
               else{
-                 if (weighed){
+                 if (useWR){
                    //add 1 to the inverse load, this is to allow some selection in case reported loads hit 100
                    int nload = 101 - np->myLoad;
-                   selCap += static_cast<int>(nload + std::pow(nload, scalingFactor)/2);
+                   selCap += nload; 
                    weighed[i] = selCap;
                  }
                  else{if (selR.needSpace)
@@ -1833,7 +1833,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
                   }
                }
           }
-    if (weighed){ 
+    if (useWR){ 
     // pick a random weighed node
     //
     static std::random_device rand_dev;
