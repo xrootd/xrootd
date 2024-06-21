@@ -30,8 +30,6 @@
 #include <cctype>
 #include <cstdio>
 #include <sys/uio.h>
-#include <iostream>
-#include <fstream>
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -267,13 +265,6 @@ int XrdXrootdProtocol::do_PgRIO()
    uint32_t *csVP = csVec;
    buff = argp->buff;
    int i = 1, n = items * 2;
-   {
-           using namespace std;
-           ofstream myfile;
-           myfile.open ("/tmp/debug2.txt", std::ios_base::app);
-           myfile << "quantum = " << Quantum << ", items = " << items << "n=" << n << "\n";
-           myfile.close();
-   }
    while(i <= n)
        {iov[i  ].iov_base = csVP++;
         iov[i++].iov_len  = sizeof(uint32_t);
