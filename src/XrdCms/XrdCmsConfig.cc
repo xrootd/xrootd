@@ -752,7 +752,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    DiskOK   = false;      // Does not have any disk
    myPaths  = (char *)""; // Default is 'r /'
    ConfigFN = 0;
-   sched_RR = sched_Pack = sched_AffPC = sched_Level = 0; sched_Force = 1;
+   sched_RR = sched_Pack = sched_AffPC = sched_Level = sched_LoadR = 0; sched_Force = 1;
    isManager= 0;
    isMeta   = 0;
    isPeer   = 0;
@@ -2725,6 +2725,11 @@ int XrdCmsConfig::xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile)
 
    if (!strcmp(val, "strict"))
       {sched_Level = 0;
+       return 1;
+      }
+
+   if (!strcmp(val, "randomized"))
+      {sched_LoadR = 1;
        return 1;
       }
 
