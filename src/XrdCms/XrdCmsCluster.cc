@@ -1846,7 +1846,6 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
         break;
       }
     }
-    delete [] weighed;
     }
 // Check for overloaded node and return result
 //
