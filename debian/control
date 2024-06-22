@@ -2,14 +2,15 @@ Source: xrootd
 Section: net
 Priority: optional
 Standards-Version: 4.6.2
+Rules-Requires-Root: no
 Build-Depends:
  debhelper (>= 13),
+ dpkg-dev,
  dh-python,
  attr,
  cmake,
  libgtest-dev,
- libisal-dev,
- pkg-config,
+ pkgconf,
  libfuse-dev [linux-any kfreebsd-any],
  libkrb5-dev,
  libcurl4-openssl-dev,
@@ -22,6 +23,7 @@ Build-Depends:
  libsystemd-dev [linux-any],
  python3-dev,
  python3-pip,
+ python3-setuptools,
  python3-wheel,
  libjson-c-dev,
  libmacaroons-dev,
@@ -30,23 +32,33 @@ Build-Depends:
  voms-dev,
  libscitokens-dev,
  davix-dev,
- librados-dev [i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x],
- libradospp-dev [i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x],
- libradosstriper-dev [i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x]
+ librados-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
+ libradospp-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
+ libradosstriper-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
+ libisal-dev [!i386 !hppa !hurd-i386 !powerpc !x32],
+ openssl
 Build-Depends-Indep:
  dh-sequence-sphinxdoc,
  doxygen,
  graphviz,
  python3-sphinx
-Homepage: http://xrootd.org/
+Homepage: https://xrootd.slac.stanford.edu/
 Maintainer: XRootD Developers <xrootd-dev@slac.stanford.edu>
 Vcs-Browser: https://github.com/xrootd/xrootd
 Vcs-Git: https://github.com/xrootd/xrootd.git
 
+Package: xrootd
+Architecture: any
+Multi-Arch: foreign
+Depends:
+ xrootd-server (= ${binary:Version}),
+ xrootd-client (= ${binary:Version}),
+ python3-xrootd (= ${binary:Version})
+Description: Metapackage for installing XRootD server and client
+
 Package: xrootd-server
 Architecture: any
 Multi-Arch: foreign
-Section: net
 Depends:
  xrootd-plugins (= ${binary:Version}),
  xrootd-server-plugins (= ${binary:Version}),
@@ -69,7 +81,10 @@ Description: Extended ROOT file server
  database servers. It provides enhanced capability along with lower
  latency and increased throughput.
 
-Package: libxrdapputils2
+Package: libxrdapputils2t64
+Provides: ${t64:Provides}
+Replaces: libxrdapputils2
+Breaks: libxrdapputils2 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -79,7 +94,10 @@ Depends:
 Description: Utilities library for xrootd applications
  This package contains the xrootd utilities library for applications.
 
-Package: libxrdcrypto2
+Package: libxrdcrypto2t64
+Provides: ${t64:Provides}
+Replaces: libxrdcrypto2
+Breaks: libxrdcrypto2 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -89,7 +107,10 @@ Depends:
 Description: Cryptograpic library for xrootd
  This package contains the xrootd cryptograpic library.
 
-Package: libxrdcryptolite2
+Package: libxrdcryptolite2t64
+Provides: ${t64:Provides}
+Replaces: libxrdcryptolite2
+Breaks: libxrdcryptolite2 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -99,7 +120,16 @@ Depends:
 Description: Light version of cryptograpic library for xrootd
  This package contains the light version of the xrootd cryptograpic library.
 
-Package: libxrdutils3
+Package: libxrdutils3t64
+Provides: ${t64:Provides}
+Replaces:
+ libxrdutils3,
+ libxrdcephposix0 [i386 armel armhf mips mipsel powerpc],
+ xrootd-ceph-plugins [i386 armel armhf mips mipsel powerpc]
+Breaks:
+ libxrdutils3 (<< ${source:Version}),
+ libxrdcephposix0 [i386 armel armhf mips mipsel powerpc],
+ xrootd-ceph-plugins [i386 armel armhf mips mipsel powerpc]
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -109,7 +139,10 @@ Depends:
 Description: Utilities library for xrootd
  This package contains the xrootd utilities library.
 
-Package: libxrdxml3
+Package: libxrdxml3t64
+Provides: ${t64:Provides}
+Replaces: libxrdxml3
+Breaks: libxrdxml3 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -134,17 +167,20 @@ Architecture: any
 Multi-Arch: same
 Section: libdevel
 Depends:
- libxrdapputils2 (= ${binary:Version}),
- libxrdcrypto2 (= ${binary:Version}),
- libxrdcryptolite2 (= ${binary:Version}),
- libxrdutils3 (= ${binary:Version}),
- libxrdxml3 (= ${binary:Version}),
+ libxrdapputils2t64 (= ${binary:Version}),
+ libxrdcrypto2t64 (= ${binary:Version}),
+ libxrdcryptolite2t64 (= ${binary:Version}),
+ libxrdutils3t64 (= ${binary:Version}),
+ libxrdxml3t64 (= ${binary:Version}),
  ${misc:Depends}
 Description: Development files for xrootd
  This package contains header files and development libraries for xrootd
  development.
 
-Package: libxrdcl3
+Package: libxrdcl3t64
+Provides: ${t64:Provides}
+Replaces: libxrdcl3
+Breaks: libxrdcl3 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -157,20 +193,23 @@ Recommends:
 Description: Client library for xrootd
  This package contains the xrootd client library.
 
-Package: libxrdec1
+Package: libxrdec1t64
+Provides: ${t64:Provides}
+Replaces: libxrdec1
+Breaks: libxrdec1 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
 Depends:
  ${shlibs:Depends},
  ${misc:Depends}
-Recommends:
- xrootd-plugins (= ${binary:Version}),
- xrootd-client-plugins(= ${binary:Version})
-Description: Client library for xrootd
- This package contains the xrootd client library for erasure coding.
+Description: Erasure code library for xrootd
+ This package contains the xrootd erasure code library.
 
-Package: libxrdffs3
+Package: libxrdffs3t64
+Provides: ${t64:Provides}
+Replaces: libxrdffs3
+Breaks: libxrdffs3 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -180,7 +219,10 @@ Depends:
 Description: File protocol library for xrootd
  This package contains the xrootd file protocol library.
 
-Package: libxrdposix3
+Package: libxrdposix3t64
+Provides: ${t64:Provides}
+Replaces: libxrdposix3
+Breaks: libxrdposix3 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -190,7 +232,10 @@ Depends:
 Description: Posix interface library for xrootd
  This package contains the xrootd Posix interface library.
 
-Package: libxrdssilib2
+Package: libxrdssilib2t64
+Provides: ${t64:Provides}
+Replaces: libxrdssilib2
+Breaks: libxrdssilib2 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -200,7 +245,10 @@ Depends:
 Description: Server internals library for xrootd
  This package contains an xrootd server internals library.
 
-Package: libxrdssishmap2
+Package: libxrdssishmap2t64
+Provides: ${t64:Provides}
+Replaces: libxrdssishmap2
+Breaks: libxrdssishmap2 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -236,16 +284,19 @@ Architecture: any
 Multi-Arch: same
 Section: libdevel
 Depends:
- libxrdcl3 (= ${binary:Version}),
- libxrdffs3 (= ${binary:Version}),
- libxrdposix3 (= ${binary:Version}),
+ libxrdcl3t64 (= ${binary:Version}),
+ libxrdffs3t64 (= ${binary:Version}),
+ libxrdposix3t64 (= ${binary:Version}),
  libxrootd-dev (= ${binary:Version}),
  ${misc:Depends}
 Description: Development files for xrootd clients
  This package contains header files and development libraries for xrootd
  client development.
 
-Package: libxrdhttputils2
+Package: libxrdhttputils2t64
+Provides: ${t64:Provides}
+Replaces: libxrdhttputils2
+Breaks: libxrdhttputils2 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -255,7 +306,10 @@ Depends:
 Description: HTTP protocol utilities library for xrootd
  This package contains the xrootd HTTP protocol utilities library.
 
-Package: libxrdserver3
+Package: libxrdserver3t64
+Provides: ${t64:Provides}
+Replaces: libxrdserver3
+Breaks: libxrdserver3 (<< ${source:Version})
 Architecture: any
 Multi-Arch: same
 Section: libs
@@ -283,8 +337,8 @@ Architecture: any
 Multi-Arch: same
 Section: libdevel
 Depends:
- libxrdhttputils2 (= ${binary:Version}),
- libxrdserver3 (= ${binary:Version}),
+ libxrdhttputils2t64 (= ${binary:Version}),
+ libxrdserver3t64 (= ${binary:Version}),
  libxrootd-dev (= ${binary:Version}),
  libxrootd-client-dev (= ${binary:Version}),
  ${misc:Depends}
@@ -297,8 +351,9 @@ Architecture: any
 Multi-Arch: same
 Section: libdevel
 Depends:
- libxrdssilib2 (= ${binary:Version}),
- libxrdssishmap2 (= ${binary:Version}),
+ libxrdec1t64 (= ${binary:Version}) [!i386 !hppa !hurd-i386 !powerpc !x32],
+ libxrdssilib2t64 (= ${binary:Version}),
+ libxrdssishmap2t64 (= ${binary:Version}),
  libxrootd-dev (= ${binary:Version}),
  libxrootd-client-dev (= ${binary:Version}),
  libxrootd-server-dev (= ${binary:Version}),
@@ -310,7 +365,6 @@ Description: Private xrootd headers
 Package: xrootd-client
 Architecture: any
 Multi-Arch: foreign
-Section: net
 Depends:
  xrootd-plugins (= ${binary:Version}),
  xrootd-client-plugins(= ${binary:Version}),
@@ -323,7 +377,6 @@ Description: Xrootd command line client tools
 Package: xrootd-fuse
 Architecture: linux-any kfreebsd-any
 Multi-Arch: foreign
-Section: net
 Depends:
  xrootd-plugins (= ${binary:Version}),
  xrootd-client-plugins (= ${binary:Version}),
@@ -359,7 +412,7 @@ Description: SciTokens authorization support for XRootD
  a subset of the namespace to an external issuer.
 
 Package: libxrdcephposix0
-Architecture: i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x
+Architecture: amd64 arm64 mips64el ppc64el riscv64 s390x
 Multi-Arch: same
 Section: libs
 Depends:
@@ -369,7 +422,7 @@ Description: Ceph posix library for xrootd
  This package contains an xrootd library used by the ceph plugins.
 
 Package: xrootd-ceph-plugins
-Architecture: i386 amd64 armel armhf arm64 mips mipsel mips64el powerpc ppc64el riscv64 s390x
+Architecture: amd64 arm64 mips64el ppc64el riscv64 s390x
 Multi-Arch: same
 Section: libs
 Depends:

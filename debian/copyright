@@ -1,10 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: xrootd
-Upstream-Contact: https://xrootd.slac.stanford.edu/
+Upstream-Contact: https://xrootd.slac.stanford.edu/contact.html
 
 Files: *
 Copyright:
- 2000-2023 Board of Trustees of the Leland Stanford, Jr. University.
+ 2000-2024 Board of Trustees of the Leland Stanford, Jr. University.
  Produced under contract DE-AC02-76-SF00515 with the US Department of
  Energy. All rights reserved.
 License: LGPL-3 and BSD-3-clause-modified
@@ -85,16 +85,20 @@ Files:
  src/XrdOuc/XrdOucCompiler.hh
  src/XrdOuc/XrdOucEnum.hh
  src/XrdSys/XrdSysKernelBuffer.hh
+ src/XrdSys/XrdSysShmem.hh
  src/XrdTls/XrdTlsContext.*
  src/XrdTls/XrdTlsSocket.*
+ src/XrdTpc/XrdTpcPMarkManager.*
  src/XrdZip/*
  tests/common/*
  tests/XrdCephTests/*
+ tests/XrdCl/*
  tests/XrdClTests/*
+ tests/XrdEc/*
  tests/XrdEcTests/*
  utils/xrootd-config
 Copyright:
- 2011-2023 European Organization for Nuclear Research (CERN)
+ 2011-2024 European Organization for Nuclear Research (CERN)
 Comment:
  In applying this licence, CERN does not waive the privileges and immunities
  granted to it by virtue of its status as an Intergovernmental Organization
@@ -204,7 +208,7 @@ License: zlib/libpng
 
 Files: debian/*
 Copyright:
- 2020-2023 Mattias Ellert <mattias.ellert@physics.uu.se>
+ 2020-2024 Mattias Ellert <mattias.ellert@physics.uu.se>
 License: LGPL-3
 
 License: LGPL-3
