@@ -55,7 +55,7 @@ jobs:
         git config --global --add safe.directory "$GITHUB_WORKSPACE"
         VERSION=$(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
         dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
-        debuild --no-tgz-check --no-sign -b
+        debuild --no-tgz-check --no-sign -- binary-arch
 
     - name: Install DEBs
       run: apt install -y ../*.deb
@@ -99,7 +99,7 @@ jobs:
         git config --global --add safe.directory "$GITHUB_WORKSPACE"
         VERSION=$(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
         dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
-        debuild --no-tgz-check --no-sign -b
+        debuild --no-tgz-check --no-sign -- binary-arch
 
     - name: Install DEBs
       run: sudo apt install -y ../*.deb
