@@ -265,7 +265,7 @@ int XrdXrootdProtocol::do_PgRIO()
    uint32_t *csVP = csVec;
    buff = argp->buff;
    int i = 1, n = items * 2;
-   while(i <= n)
+   while(i < n)
        {iov[i  ].iov_base = csVP++;
         iov[i++].iov_len  = sizeof(uint32_t);
         iov[i  ].iov_base = buff;
