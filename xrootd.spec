@@ -25,7 +25,7 @@ License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AN
 URL:		https://xrootd.slac.stanford.edu
 
 %if !%{with git}
-Version:	5.6.9
+Version:	5.7.0
 Source0:	%{url}/download/v%{version}/%{name}-%{version}.tar.gz
 %else
 %define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
@@ -944,6 +944,9 @@ fi
 %endif
 
 %changelog
+
+* Thu Jun 27 2024 Guilherme Amadio <amadio@cern.ch> - 1:5.7.0-1
+- XRootD 5.7.0
 
 * Fri Mar 08 2024 Guilherme Amadio <amadio@cern.ch> - 1:5.6.9-1
 - XRootD 5.6.9
