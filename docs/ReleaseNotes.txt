@@ -6,6 +6,84 @@ Release Notes
 =============
 
 -------------
+Version 5.7.0
+-------------
+
++ **New Features**
+  **[CMake]** Move baseline required C++ standard to C++17
+  **[OSS]** Add feature setting for Extended Error Text
+  **[Server]** Add enhanced error message interface
+  **[Server]** Add method to get sanitized env/cgi string
+  **[Server]** Implement the kXR_seqio open option for sequential I/O
+  **[XCache]** Add new only-if-cached cache control option using XrdPfcFsctl (#2104)
+  **[XrdApps,XrdPss]** Add support for pelican:// protocol (#2177, issue #2171)
+  **[XrdCms]** Add new load balancing algorithm with randomized affinity
+  **[XrdCrypto,XrdSecgsi]** Update min/default RSA bits to 2048 (#2117, issue #2147)
+  **[XrdHttp]** Add new option to allow for tpc unrestricted redirection (#2232, issue #2228)
+  **[XrdHttp]** External handlers can now be loaded without TLS (#2253, issues #2099, #2123)
+  **[XrdMacaroons]** Support negative directives in macaroons.trace option (issue #2224)
+  **[XrdOuc]** Extend XrdOucGatherConf to do more boiler plate work and be extendable
+  **[XrdOuc]** Provide method to get the last line from XrdOucGatherConf
+  **[XrdSciTokens]** Implement ability to have token groups as a separate claim (#2176)
+  **[XrdSciTokens]** New option to configure authorization strategy for tokens (#2205, issues #2121, #2254)
+  **[XrdThrottle]** Add monitoring packet for IO, based on the throttle plugin
+  **[XrdThrottle]** Improved handling of timing information on macOS (#2262)
+  **[XrdTpc]** Add option to force the destination IP address on a HTTP-TPC (#2172)
+  **[XrdTpc]** Add tpc.header2cgi configuration option (#2285, issue #2283)
+
++ **Major bug fixes**
+  **[Server]** Fix buffer overrun in XrdXrootdProtocol::do_PgRIO() (issue #2287)
+  **[XrdCl]** Ensure clean shutdown also when an error occurs (issue #2164)
+  **[XrdClTls]** Prevent concurrent calls to InitTLS() (issue #2220)
+  **[XrdCrypto]** Fix buffer overrun in XrdCryptosslCipher::Finalize()
+  **[XrdHttp]** Always create directory path when opening dest file for HTTP TPC (issue #2241)
+  **[XrdHttp]** HTTP header parsing is now case-insensitive (#2266, #2286, issues #1964, #2259, #2273)
+
++ **Minor bug fixes**
+  **[Misc]** Fixes for 64 bit time_t on 32 bit systems
+  **[Misc]** Remove 'using namespace std;' from all headers and source files
+  **[Server]** Avoid leaking token information when tracing file open
+  **[XrdApps, XrdCl]** Fix null pointer dereferences when response handler is nullptr
+  **[XrdCl]** Add errInternal to list of recoverable errors (issue #2210)
+  **[XrdCl]** Fix timeout handling for DeepLocate requests
+  **[XrdCms]** Pass sanitized CGI to cmsd server (issue #2247)
+  **[XrdHttpTPC]** Make sure we sleep the full amount needed (issue #2274)
+  **[XrdHttp]** Redact authz tokens from output to avoid leaking credentials in logs (#2284, issue #2222)
+  **[XrdHttp]** Reset HTTP request scitag during reset (#2244, issue #2243)
+  **[XrdHttp]** Return a 400 bad request if header line is not \r\n terminated
+  **[XrdOss]** Fix check for option noDread in XrdOssDir::Readdir() (#2215)
+  **[XrdOss]** Fix directories appearing as files when using oss.rsscmd (#2215)
+  **[XrdPosix]** Correct xml cache summary report (issue #2219)
+  **[XrdSciTokens]** Fix application of access rules when base path is '/'
+  **[XrdSecgsi]** Fail CA check when prococol.gsi -ca:verify is set
+  **[XrdTls]** Enable SSL_OP_IGNORE_UNEXPECTED_EOF option if available (issue #2252)
+  **[XrdTls]** Restrict renegotiation for TLSv1.2 and earlier (issue #1689)
+  **[XrdTpc]** Force HTTP 1.1 for TPC transfers (#2216)
+  **[XrdVoms]** Allow VOMS config to use set variables (issue #2200)
+
++ **Miscellaneous**
+  **[CMake]** Add new option to allow disabling server tests
+  **[CMake]** Allow overriding the default C++ standard (#1929)
+  **[CMake]** Conditionally append private include directory
+  **[CMake]** Enable XrdEc by default and use isa-l from the system
+  **[DEB]** Update packaging and add Ubuntu 24.04 to supported platforms
+  **[Docs]** Add XRootD icon and logos to use with doxygen
+  **[Docs]** Update doxygen configuration
+  **[Server]** Harden kXR_seqio implementation
+  **[Server]** Pass the kXR_seqio option all the way to the Oss plugin
+  **[Tests]** Complete migration to GoogleTest, remove CppUnit tests (#2189, issue #2051)
+  **[Utils]** Add sample shell script for third-party copy transfers
+  **[XrdCeph]** Migrate tests to GoogleTest and run with ctest
+  **[XrdCeph]** Better build system integration, now uses -DENABLE_CEPH=ON option
+  **[XrdCl]** Use long for dirOffset in IndexRemote
+  **[XrdCrypto]** Avoid some repeated calls of EVP_PKEY_check
+  **[XrdHttp]** Increase default read timeouts to 1min/5min
+  **[XrdOuc]** Make XrdOucGatherConf.hh a public header (issue #2214)
+  **[XrdSciTokens]** Warn if something goes wrong when parsing token groups
+  **[XrdTpcTPC]** Connect packet marking curl socket at socket creation (#2242, issue #2201)
+  **[XrdTpcTPC]** Improved curl error reporting to the client (issue #2067)
+
+-------------
 Version 5.6.9
 -------------
 
