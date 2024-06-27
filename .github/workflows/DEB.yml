@@ -77,14 +77,20 @@ jobs:
         retention-days: 14
 
   ubuntu:
-    name: Ubuntu (22.04)
-    runs-on: ubuntu-22.04
+    name: Ubuntu
+
+    strategy:
+      matrix:
+        version: [ "22.04", "24.04" ]
+
+    runs-on: ubuntu-latest
+    container: ubuntu:${{ matrix.version }}
 
     steps:
     - name: Install development tools
       run: |
-        sudo apt update -qq
-        sudo apt install -y build-essential devscripts equivs git
+        apt update -qq
+        apt install -y build-essential devscripts equivs git
 
     - name: Clone repository
       uses: actions/checkout@v4
@@ -92,7 +98,7 @@ jobs:
         fetch-depth: 0
 
     - name: Install XRootD build dependencies
-      run: mk-build-deps --install --remove -s sudo debian/control <<< yes
+      run: mk-build-deps --install --remove debian/control <<< yes
 
     - name: Build DEBs
       run: |
@@ -102,7 +108,7 @@ jobs:
         debuild --no-tgz-check --no-sign -- binary-arch
 
     - name: Install DEBs
-      run: sudo apt install -y ../*.deb
+      run: apt install -y ../*.deb
 
     - name: Run post-install tests
       run: tests/post-install.sh
@@ -116,6 +122,6 @@ jobs:
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ubuntu-22.04
+        name: ubuntu-${{ matrix.version }}
         path: ubuntu
         retention-days: 14
