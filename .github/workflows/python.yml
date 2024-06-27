@@ -46,7 +46,7 @@ jobs:
     - name: Build source distribution tarball
       run: |
         git config --global --add safe.directory "$GITHUB_WORKSPACE"
-        ./genversion.sh >| VERSION
+        ./genversion.sh --sanitize >| VERSION
         ${PYTHON} -m build --sdist
 
     - name: Build binary wheel

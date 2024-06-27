@@ -53,7 +53,7 @@ jobs:
     - name: Build DEBs
       run: |
         git config --global --add safe.directory "$GITHUB_WORKSPACE"
-        VERSION=$(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
+        VERSION=$(./genversion.sh --sanitize)
         dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
         debuild --no-tgz-check --no-sign -- binary-arch
 
@@ -103,7 +103,7 @@ jobs:
     - name: Build DEBs
       run: |
         git config --global --add safe.directory "$GITHUB_WORKSPACE"
-        VERSION=$(git describe --match 'v*' | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
+        VERSION=$(./genversion.sh --sanitize)
         dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
         debuild --no-tgz-check --no-sign -- binary-arch
 
