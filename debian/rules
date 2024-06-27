@@ -1,48 +1,79 @@
 #!/usr/bin/make -f
+# -*- makefile -*-
+
+# Disable ceph dependent packages for architectures without ceph
+# This list should match the Build-Depends on ceph libraries in debian/control
+#
+# Ceph requires boost-context and boost-coroutine
+# These are only available on these Debian architectures:
+#   i386 hurd-i386 kfreebsd-i386 amd64 kfreebsd-amd64 armel armhf arm64
+#   mips mipsel mips64el powerpc ppc64el riscv64 s390x
+#
+# Ceph requires Java
+# Java is not available on these Debian architectures:
+#   hppa hurd-i386 kfreebsd-i386 kfreebsd-amd64
+#
+# Ceph only supports 64 bit architectures
+ifneq ($(filter $(DEB_HOST_ARCH),amd64 arm64 mips64el ppc64el riscv64 s390x),)
+CEPH = ON
+else
+CEPH = OFF
+endif
+
+ifneq ($(filter $(DEB_HOST_ARCH_OS),linux kfreebsd),)
+FUSE = ON
+else
+FUSE = OFF
+endif
+
+ifneq ($(filter $(DEB_HOST_ARCH),i386 hppa hurd-i386 powerpc x32),)
+EC = OFF
+N = -Nlibxrdec1t64
+else
+EC = ON
+N =
+endif
 
 export LC_ALL=C
 export DH_VERBOSE=1
 export PYBUILD_NAME=xrootd
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all optimize=-lto
 
+BUILD_DOC = $(if $(filter xrootd-doc,$(shell dh_listpackages)),TRUE,FALSE)
+
 %:
-	dh $@ --with python3 --buildsystem cmake
+	dh $@ --with python3 --buildsystem cmake $(N)
 
 override_dh_auto_configure:
-	dh_auto_configure -- \
-		-DENABLE_CEPH:BOOL=1 \
-		-DENABLE_FUSE:BOOL=1 \
-		-DENABLE_HTTP:BOOL=1 \
-		-DENABLE_KRB5:BOOL=1 \
-		-DENABLE_MACAROONS:BOOL=1 \
-		-DENABLE_PYTHON:BOOL=1 \
-		-DENABLE_READLINE:BOOL=1 \
-		-DENABLE_SCITOKENS:BOOL=1 \
-		-DENABLE_VOMS:BOOL=1 \
-		-DENABLE_XRDCLHTTP:BOOL=1 \
-		-DENABLE_XRDEC:BOOL=1 \
-		-DENABLE_TESTS:BOOL=1 \
-		-DFORCE_ENABLED:BOOL=1 \
-		-DINSTALL_PYTHON_BINDINGS:BOOL=0 \
-		-DUSE_SYSTEM_ISAL:BOOL=1
+	dh_auto_configure --           \
+	    -DFORCE_ENABLED:BOOL=ON    \
+	    -DUSE_SYSTEM_ISAL:BOOL=ON  \
+	    -DENABLE_CEPH:BOOL=$(CEPH) \
+	    -DENABLE_FUSE:BOOL=$(FUSE) \
+	    -DENABLE_HTTP:BOOL=ON      \
+	    -DENABLE_KRB5:BOOL=ON      \
+	    -DENABLE_MACAROONS:BOOL=ON \
+	    -DENABLE_PYTHON:BOOL=ON    \
+	    -DENABLE_READLINE:BOOL=ON  \
+	    -DENABLE_SCITOKENS:BOOL=ON \
+	    -DENABLE_VOMS:BOOL=ON      \
+	    -DENABLE_XRDCLHTTP:BOOL=ON \
+	    -DENABLE_XRDEC:BOOL=$(EC)  \
+	    -DENABLE_TESTS:BOOL=ON     \
+	    -DINSTALL_PYTHON_BINDINGS:BOOL=OFF
 
 override_dh_auto_build:
 	dh_auto_build
-	doxygen Doxyfile
-
-override_dh_auto_clean:
-	dh_auto_clean
-	rm -rf doxydoc
-	rm -rf bindings/python/docs/build
+	[ "$(BUILD_DOC)" = "FALSE" ] || doxygen Doxyfile
 
 override_dh_auto_install:
 	dh_auto_install
 	python3 -m pip install --target debian/tmp/usr/lib/python3/dist-packages \
 		--no-deps --no-build-isolation --disable-pip-version-check --verbose \
 		--ignore-installed --use-pep517 obj-$(DEB_HOST_MULTIARCH)/bindings/python
+	ln -sf libxrootd-private-dev.install.ec-$(EC) debian/libxrootd-private-dev.install
 
 	rm -f debian/tmp/usr/bin/xrdshmap
-	rm -f debian/tmp/usr/bin/test-runner
 	rm -f debian/tmp/usr/lib/*/libXrd*Test*
 	rm -f debian/tmp/usr/lib/*/libXrdCephPosix.so
 
@@ -50,12 +81,13 @@ override_dh_auto_install:
 	rm -f debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/RECORD
 	[ -r debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/INSTALLER ] && \
 	    sed -i -e s/pip/dpkg/ \
-		debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/INSTALLER
+	        debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/INSTALLER
 
+	[ "$(BUILD_DOC)" = "FALSE" ] || ( \
 	LD_LIBRARY_PATH=$${LD_LIBRARY_PATH}:$(CURDIR)/debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH) \
 	PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=$(CURDIR)/debian/tmp/usr/lib/python3/dist-packages \
 	make -C bindings/python/docs html && \
-	mv bindings/python/docs/build/html bindings/python/docs/build/python
+	mv bindings/python/docs/build/html bindings/python/docs/build/python )
 
 	# Service unit files
 	mkdir -p debian/tmp/lib/systemd/system
