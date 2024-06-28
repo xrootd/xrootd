@@ -10,6 +10,7 @@
 
 #include "XrdXrootd/XrdXrootdTpcMon.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
+#include "XrdTpc/XrdTpcUtils.hh"
 
 #include <curl/curl.h>
 
@@ -170,41 +171,7 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
 // hasSetOpaque will be set to true if at least one opaque data has been set in the URL that is returned,
 // false otherwise
 std::string TPCHandler::prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
-  auto iter = XrdOucTUtils::caseInsensitiveFind(req.headers,"xrd-http-query");
-  bool found_first_header = false;
-  std::stringstream opaque;
-
-  if (iter != req.headers.end() && !iter->second.empty()) {
-    std::string token;
-    std::istringstream requestStream(iter->second);
-    auto has_authz_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"authorization") != req.headers.end();
-    while (std::getline(requestStream, token, '&')) {
-      if (token.empty()) {
-        continue;
-      } else if (!strncmp(token.c_str(), "authz=", 6)) {
-        if (!has_authz_header) {
-            req.headers["Authorization"] = token.substr(6);
-            has_authz_header = true;
-        }
-      } else {
-        opaque << (found_first_header ? "&" : "?") << token;
-        found_first_header = true;
-      }
-    }
-  }
-
-  // Append CGI coming from the tpc.header2cgi parameter
-  for(auto & hdr2cgi : hdr2cgimap) {
-    auto it = std::find_if(req.headers.begin(),req.headers.end(),[&hdr2cgi](const auto & elt){
-      return !strcasecmp(elt.first.c_str(),hdr2cgi.first.c_str());
-    });
-    if(it != req.headers.end()) {
-      opaque << (found_first_header ? "&" : "?") << hdr2cgi.second << "=" << it->second;
-      found_first_header = true;
-    }
-  }
-  hasSetOpaque = found_first_header;
-  return req.resource + opaque.str();
+  return XrdTpcUtils::prepareOpenURL(req.resource, req.headers,hdr2cgimap,hasSetOpaque);
 }
 
 std::string TPCHandler::prepareURL(XrdHttpExtReq &req) {
