@@ -849,7 +849,7 @@ void XrdCryptosslCipher::Cleanup()
 
 //____________________________________________________________________________
 bool XrdCryptosslCipher::Finalize(bool padded,
-                                  char *pub, int /*lpub*/, const char *t)
+                                  char *pub, int lpub, const char *t)
 {
    // Finalize cipher during key agreement. Should be called
    // for a cipher build with special constructor defining member fDH.
@@ -871,8 +871,8 @@ bool XrdCryptosslCipher::Finalize(bool padded,
       //
       // Extract string with bignumber
       BIGNUM *bnpub = 0;
-      char *pb = strstr(pub,"---BPUB---");
-      char *pe = strstr(pub,"---EPUB--");
+      char *pb = static_cast<char*>(memmem(pub, lpub, "---BPUB---", 10));
+      char *pe = static_cast<char*>(memmem(pub, lpub, "---EPUB--", 9));
       if (pb && pe) {
          //lpub = (int)(pb-pub);
          pb += 10;
