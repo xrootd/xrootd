@@ -16,6 +16,8 @@ add_subdirectory(XrdOucTests)
 
 add_subdirectory( XrdSsiTests )
 
+add_subdirectory(XrdTpcTests)
+
 if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
