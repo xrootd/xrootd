@@ -71,7 +71,7 @@ Ubuntu 22.04:
   <<: *deb_build
 
 CentOS 7:
-  image: centos:7
+  image: cern/cc7-base
   <<: *rpm_build_yum
 
 AlmaLinux 8:
