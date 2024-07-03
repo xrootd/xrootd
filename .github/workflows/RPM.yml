@@ -53,7 +53,7 @@ jobs:
       run: tests/post-install.sh
 
     - name: Move RPMs to Artifact Directory
-      run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+      run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/*/*.rpm RPMS/
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v3
