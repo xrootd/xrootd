@@ -618,7 +618,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
     prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
   
   reset();
-  return false;
+  return keepalive;
 };
 
 
