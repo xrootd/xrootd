@@ -37,7 +37,7 @@ default:
     - yum install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
     - tests/post-install.sh
     - mkdir -p RPMS
-    - mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+    - mv $(rpm -E '%{_rpmdir}')/*/*.rpm RPMS/
   artifacts:
     paths: [ RPMS ]
     expire_in: 1d
