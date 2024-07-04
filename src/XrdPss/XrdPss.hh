@@ -33,6 +33,7 @@
 #include <cerrno>
 #include <unistd.h>
 #include <sys/types.h>
+#include <string>
 #include <vector>
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucECMsg.hh"
@@ -49,9 +50,10 @@
 class XrdPssDir : public XrdOssDF
 {
 public:
-int     Close(long long *retsz=0);
-int     Opendir(const char *, XrdOucEnv &);
-int     Readdir(char *buff, int blen);
+int     Close(long long *retsz=0) override;
+bool    getErrMsg(std::string& eText) override;
+int     Opendir(const char *, XrdOucEnv &) override;
+int     Readdir(char *buff, int blen) override;
 
 // Store the `buf` pointer in the directory object.  Future calls to `Readdir`
 // will, as a side-effect, fill in the corresponding `stat` information in
@@ -63,11 +65,13 @@ int     StatRet(struct stat *buf);
         // Constructor and destructor
         XrdPssDir(const char *tid)
                  : XrdOssDF(tid, XrdOssDF::DF_isDir|XrdOssDF::DF_isProxy),
-                   myDir(0) {}
+                   myDir(0), lastEtrc(0) {}
 
        ~XrdPssDir() {if (myDir) Close();}
 private:
          DIR       *myDir;
+    std::string    lastEtext;
+         int       lastEtrc;
 };
   
 /******************************************************************************/
@@ -93,6 +97,7 @@ int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
+bool    getErrMsg(std::string& eText) override;
 ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
                 uint32_t* csvec, uint64_t opts);
 int     pgRead (XrdSfsAio* aioparm, uint64_t opts);
@@ -110,7 +115,7 @@ int     Write(XrdSfsAio *aiop);
          // Constructor and destructor
          XrdPssFile(const char *tid)
                    : XrdOssDF(tid, XrdOssDF::DF_isFile|XrdOssDF::DF_isProxy),
-                     rpInfo(0), tpcPath(0), entity(0) {}
+                     rpInfo(0), tpcPath(0), entity(0), lastEtrc(0) {}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();
                        if (rpInfo) delete(rpInfo);
@@ -133,6 +138,8 @@ struct tprInfo
 
       char         *tpcPath;
 const XrdSecEntity *entity;
+std::string         lastEtext;
+int                 lastEtrc;
 };
 
 /******************************************************************************/
@@ -167,6 +174,7 @@ virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0) override;
 void      EnvInfo(XrdOucEnv *envP) override;
 uint64_t  Features() override {return myFeatures;}
+bool      getErrMsg(std::string& eText) override;
 int       Init(XrdSysLogger *, const char *) override {return -ENOTSUP;}
 int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP) override;
 int       Lfn2Pfn(const char *Path, char *buff, int blen) override;
