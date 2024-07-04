@@ -164,7 +164,8 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
   
 XrdPssSys::XrdPssSys() : HostArena(0), LocalRoot(0), theN2N(0), DirFlags(0),
                          myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
-                         myFeatures(XRDOSS_HASPRXY|XRDOSS_HASPGRW|XRDOSS_HASNOSF)
+                         myFeatures(XRDOSS_HASPRXY|XRDOSS_HASPGRW|
+                         XRDOSS_HASNOSF|XRDOSS_HASXERT)
                          {}
 
 /******************************************************************************/
@@ -312,6 +313,19 @@ void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
 }
   
 /******************************************************************************/
+/*                             g e t E r r M s g                              */
+/******************************************************************************/
+  
+bool        XrdPssSys::getErrMsg(std::string& eText)
+{
+// Return what we have but make sure to reset whatever we have
+//
+   if (XrdProxy::ecMsg.Get() <= 0 || !XrdProxy::ecMsg.hasMsg()) return false;
+   XrdProxy::ecMsg.Get(eText);
+   return true;
+}
+  
+/******************************************************************************/
 /*                               L f n 2 P f n                                */
 /******************************************************************************/
   
@@ -417,7 +431,7 @@ int XrdPssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
   }
 // Issue unlink and return result
 //
-   return (XrdPosixXrootd::Rmdir(pbuff) ? -errno : XrdOssOK);
+   return (XrdPosixXrootd::Rmdir(pbuff) ? Info(errno) : XrdOssOK);
 }
 
 /******************************************************************************/
@@ -466,7 +480,7 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 
 // Execute the rename and return result
 //
-   return (XrdPosixXrootd::Rename(oldName, newName) ? -errno : XrdOssOK);
+   return (XrdPosixXrootd::Rename(oldName, newName) ? Info(errno) : XrdOssOK);
 }
 
 /******************************************************************************/
@@ -522,7 +536,7 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 
 // Return proxied stat
 //
-   return (XrdPosixXrootd::Stat(pbuff, buff) ? -errno : XrdOssOK);
+   return (XrdPosixXrootd::Stat(pbuff, buff) ? Info(errno) : XrdOssOK);
 }
 
 /******************************************************************************/
@@ -582,7 +596,7 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen,
 // Return proxied truncate. We only do this on a single machine because the
 // redirector will forbid the trunc() if multiple copies exist.
 //
-   return (XrdPosixXrootd::Truncate(pbuff, flen) ? -errno : XrdOssOK);
+   return (XrdPosixXrootd::Truncate(pbuff, flen) ? Info(errno) : XrdOssOK);
 }
   
 /******************************************************************************/
@@ -629,7 +643,7 @@ int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 
 // Unlink the file and return result.
 //
-   return (XrdPosixXrootd::Unlink(pbuff) ? -errno : XrdOssOK);
+   return (XrdPosixXrootd::Unlink(pbuff) ? Info(errno) : XrdOssOK);
 }
 
 /******************************************************************************/
@@ -681,7 +695,11 @@ int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 // Open the directory
 //
    myDir = XrdPosixXrootd::Opendir(pbuff);
-   if (!myDir) return -errno;
+   if (!myDir)
+      {rc = -errno;
+       lastEtrc = XrdPosixXrootd::QueryError(lastEtext);
+       return rc;
+      }
    return XrdOssOK;
 }
 
@@ -711,7 +729,10 @@ int XrdPssDir::Readdir(char *buff, int blen)
    if (myDir)
       {dirent *entP, myEnt;
        int    rc = XrdPosixXrootd::Readdir_r(myDir, &myEnt, &entP);
-       if (rc) return -rc;
+       if (rc)
+          {lastEtrc = XrdPosixXrootd::QueryError(lastEtext, myDir);
+           return -rc;
+          }
        if (!entP) *buff = 0;
           else strlcpy(buff, myEnt.d_name, blen);
        return XrdOssOK;
@@ -742,7 +763,11 @@ int XrdPssDir::Close(long long *retsz)
 //
    if ((theDir = myDir))
       {myDir = 0;
-       if (XrdPosixXrootd::Closedir(theDir)) return -errno;
+       if (XrdPosixXrootd::Closedir(theDir))
+          {int rc = errno;
+           lastEtrc = XrdPosixXrootd::QueryError(lastEtext);
+           return -rc;
+          }
        return XrdOssOK;
       }
 
@@ -750,7 +775,22 @@ int XrdPssDir::Close(long long *retsz)
 //
    return -XRDOSS_E8002;
 }
-
+  
+/******************************************************************************/
+/*                             g e t E r r M s g                              */
+/******************************************************************************/
+  
+bool XrdPssDir::getErrMsg(std::string& eText)
+{
+// Return what we have but make sure to reset whatever we have
+//
+   if (lastEtrc <= 0 || lastEtext.empty()) return false;
+   eText = lastEtext;
+   lastEtext.clear();
+   lastEtrc = 0;
+   return true;
+}
+  
 /******************************************************************************/
 /*                     o o s s _ F i l e   M e t h o d s                      */
 /******************************************************************************/
@@ -876,7 +916,11 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 // Try to open and if we failed, return an error
 //
    if (!XrdPssSys::dcaCheck || !ioCache)
-      {if ((fd = XrdPosixXrootd::Open(pbuff,Oflag,Mode)) < 0) return -errno;
+      {if ((fd = XrdPosixXrootd::Open(pbuff,Oflag,Mode)) < 0)
+          {rc = -errno;
+           lastEtrc = XrdPosixXrootd::QueryError(lastEtext);
+           return rc;
+          }
       } else {
        XrdPosixInfo Info;
        Info.ffReady = XrdPssSys::dcaWorld;
@@ -885,7 +929,11 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
            return -EDESTADDRREQ;
           }
        fd = Info.fileFD;
-       if (fd < 0) return -errno;
+       if (fd < 0)
+          {rc = -errno;
+           lastEtrc = XrdPosixXrootd::QueryError(lastEtext);
+           return rc;
+          }
       }
 
 // All done
@@ -924,7 +972,25 @@ int XrdPssFile::Close(long long *retsz)
 //
     rc = XrdPosixXrootd::Close(fd);
     fd = -1;
-    return (rc == 0 ? XrdOssOK : -errno);
+    if (rc == 0) return XrdOssOK;
+    rc = -errno;
+    lastEtrc = XrdPosixXrootd::QueryError(lastEtext);
+    return rc;
+}
+  
+/******************************************************************************/
+/*                             g e t E r r M s g                              */
+/******************************************************************************/
+  
+bool XrdPssFile::getErrMsg(std::string& eText)
+{
+// Return what we have but make sure to reset whatever we have
+//
+   if (lastEtrc <= 0 || lastEtext.empty()) return false;
+   eText = lastEtext;
+   lastEtext.clear();
+   lastEtrc = 0;
+   return true;
 }
 
 /******************************************************************************/
@@ -966,7 +1032,10 @@ ssize_t XrdPssFile::pgRead(void     *buffer,
 // Issue the pgread
 //
    if ((bytes = XrdPosixExtra::pgRead(fd,buffer,offset,rdlen,vecCS,psxOpts)) < 0)
-      return (ssize_t)-errno;
+      {int rc = -errno;
+       lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+       return (ssize_t)rc;
+      }
 
 // Copy out the checksum vector
 //
@@ -1017,7 +1086,11 @@ ssize_t XrdPssFile::pgWrite(void     *buffer,
       {XrdOucPgrwUtils::dataInfo dInfo((const char*)buffer,csvec,offset,wrlen);
        off_t bado;
        int   badc;
-       if (!XrdOucPgrwUtils::csVer(dInfo, bado, badc)) return -EDOM;
+       if (!XrdOucPgrwUtils::csVer(dInfo, bado, badc))
+          {lastEtext = "pgWrite checksum verification failed.";
+           lastEtrc = EDOM;
+           return -EDOM;
+          }
       }
 
 // Check if caller want checksum generated and possibly returned
@@ -1038,7 +1111,12 @@ ssize_t XrdPssFile::pgWrite(void     *buffer,
 
 // Return result
 //
-   return (bytes < 0 ? (ssize_t)-errno : bytes);
+   if (bytes < 0)
+      {int rc = -errno;
+       lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+       return (ssize_t)rc;
+      }
+   return bytes;
 }
 
 /******************************************************************************/
@@ -1084,8 +1162,12 @@ ssize_t XrdPssFile::Read(void *buff, off_t offset, size_t blen)
 
      if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
-     return (retval = XrdPosixXrootd::Pread(fd, buff, blen, offset)) < 0
-            ? (ssize_t)-errno : retval;
+     if ((retval = XrdPosixXrootd::Pread(fd, buff, blen, offset)) < 0)
+        {int rc = -errno;
+         lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+         return (ssize_t)rc;
+        }
+     return retval;
 }
 
 /******************************************************************************/
@@ -1111,7 +1193,12 @@ ssize_t XrdPssFile::ReadV(XrdOucIOVec     *readV,     // In
 
     if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
-    return (retval = XrdPosixXrootd::VRead(fd, readV, readCount)) < 0 ? (ssize_t)-errno : retval;;
+    if ((retval = XrdPosixXrootd::VRead(fd, readV, readCount)) < 0)
+       {int rc = -errno;
+        lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+        return (ssize_t)rc;
+       }
+    return (ssize_t)retval;;
 }
 
 /******************************************************************************/
@@ -1156,8 +1243,12 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
 
      if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
-     return (retval = XrdPosixXrootd::Pwrite(fd, buff, blen, offset)) < 0
-            ? (ssize_t)-errno : retval;
+     if ((retval = XrdPosixXrootd::Pwrite(fd, buff, blen, offset)) < 0)
+        {int rc = -errno;
+         lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+         return (ssize_t)rc;
+        }
+     return (ssize_t)retval;
 }
 
 /******************************************************************************/
@@ -1178,7 +1269,12 @@ int XrdPssFile::Fstat(struct stat *buff)
 
 // If we have a file descriptor then return a stat for it
 //
-   if (fd >= 0) return (XrdPosixXrootd::Fstat(fd, buff) ? -errno : XrdOssOK);
+   if (fd >= 0)
+      {if (XrdPosixXrootd::Fstat(fd, buff) == 0) return XrdOssOK;
+       int rc = -errno;
+       lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+       return (ssize_t)rc;
+      }
 
 // Otherwise, if this is not a tpc of any kind, return an error
 //
@@ -1262,7 +1358,10 @@ int XrdPssFile::Fsync(void)
 {
     if (fd < 0) return -XRDOSS_E8004;
 
-    return (XrdPosixXrootd::Fsync(fd) ? -errno : XrdOssOK);
+    if (XrdPosixXrootd::Fsync(fd) == 0) return XrdOssOK;
+    int rc = -errno;
+    lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+    return (ssize_t)rc;
 }
 
 /******************************************************************************/
@@ -1291,7 +1390,10 @@ int XrdPssFile::Ftruncate(unsigned long long flen)
 {
     if (fd < 0) return -XRDOSS_E8004;
 
-    return (XrdPosixXrootd::Ftruncate(fd, flen) ?  -errno : XrdOssOK);
+    if (XrdPosixXrootd::Ftruncate(fd, flen) == 0) return XrdOssOK;
+    int rc = -errno;
+    lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+    return (ssize_t)rc;
 }
   
 /******************************************************************************/
@@ -1300,7 +1402,7 @@ int XrdPssFile::Ftruncate(unsigned long long flen)
 
 int XrdPssSys::Info(int rc)
 {
-   XrdPosixXrootd::QueryError(XrdProxy::ecMsg.Msg());
+   XrdProxy::ecMsg = XrdPosixXrootd::QueryError(XrdProxy::ecMsg.Msg());
    return -rc;
 }
   
