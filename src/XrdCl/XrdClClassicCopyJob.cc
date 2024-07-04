@@ -1150,7 +1150,7 @@ namespace
       //------------------------------------------------------------------------
       //! Get extended attributes
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::XAttr> &xattrs )
+      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs )
       {
         return XrdCl::XRootDStatus();
       }
