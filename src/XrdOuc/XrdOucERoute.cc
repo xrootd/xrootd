@@ -42,9 +42,11 @@
 /******************************************************************************/
   
 int XrdOucERoute::Format(char *buff, int blen, int ecode, const char *etxt1,
-                                                          const char *etxt2)
+                                                          const char *etxt2,
+                                                          const char *xtra)
 {
    const char *esep = " ", *estr = XrdSysError::ec2text(ecode);
+   const char *xsep = "";
    char ebuff[256];
    int n;
 
@@ -60,10 +62,13 @@ int XrdOucERoute::Format(char *buff, int blen, int ecode, const char *etxt1,
 // Set format elements
 //
    if (!etxt2) etxt2 = esep = "";
+   if (xtra) xsep = "\nAdditional context: ";
+      else   xtra = "";
 
 // Format the message
 //
-   n = snprintf(buff, blen, "Unable to %s%s%s; %s",etxt1,esep,etxt2,estr);
+   n = snprintf(buff, blen, "Unable to %s%s%s; %s%s%s",etxt1,esep,etxt2,estr,
+                                                       xsep, xtra);
    return (n < blen ? n : blen-1);
 }
 

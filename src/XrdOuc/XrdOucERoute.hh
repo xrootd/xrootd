@@ -46,12 +46,14 @@ public:
 //! @param  ecode   the error number associated iwth the error.
 //! @param  etxt1   associated text token #1.
 //! @param  etxt2   associated text token #2 (optional).
+//! @param  xtra    Optional additional text to include on the next line
 //!
 //! @return <int>   The number of characters placed in the buffer less null.
 //-----------------------------------------------------------------------------
 
 static int Format(char *buff, int blen, int ecode, const char *etxt1,
-                                                   const char *etxt2=0);
+                                                   const char *etxt2=0,
+                                                   const char *xtra =0);
 
 //-----------------------------------------------------------------------------
 //! Format an error message using Format() and route it as requested.
