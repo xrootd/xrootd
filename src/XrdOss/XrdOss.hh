@@ -33,6 +33,7 @@
 #include <dirent.h>
 #include <cerrno>
 #include <cstdint>
+#include <string>
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -418,6 +419,21 @@ static const int Fctl_utimes = 1;
 virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 
 //-----------------------------------------------------------------------------
+//! Obtain detailed error message text for the immediately preceeding 
+//! directory or file error (see also XrdOss::getErrMsg()).
+//!
+//! @param  eText  - Where the message text is to be returned.
+//!
+//! @return True if message text is available, false otherwise.
+//!
+//! @note This method should be called using the same thread that encountered
+//!       the error; otherwise, missleading error text may be returned.
+//! @note Upon return, the internal error message text is cleared.
+//-----------------------------------------------------------------------------
+
+virtual bool    getErrMsg(std::string& eText) {return false;}
+
+//-----------------------------------------------------------------------------
 //! Return the underlying file descriptor.
 //!
 //! @return -1 if there is no file descriptor or a non-negative FD number.
@@ -597,6 +613,21 @@ virtual uint64_t  Features();
 //-----------------------------------------------------------------------------
 
 virtual int       FSctl(int cmd, int alen, const char *args, char **resp=0);
+
+//-----------------------------------------------------------------------------
+//! Obtain detailed error message text for the immediately preceeding error
+//! returned by any method in this class.
+//!
+//! @param  eText  - Where the message text is to be returned.
+//!
+//! @return True if message text is available, false otherwise.
+//!
+//! @note This method should be called using the same thread that encountered
+//!       the error; otherwise, missleading error text may be returned.
+//! @note Upon return, the internal error message text is cleared.
+//-----------------------------------------------------------------------------
+
+virtual bool    getErrMsg(std::string& eText) {return false;}
 
 //-----------------------------------------------------------------------------
 //! Initialize the storage system V1 (deprecated).
