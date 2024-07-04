@@ -59,6 +59,7 @@ XrdOucECMsg& Append(char dlm='\n') {Delim = dlm; return *this;}
 //-----------------------------------------------------------------------------
 
 int   Get(std::string& ecm, bool rst=true);
+int   Get() {return eCode;}
 
 //-----------------------------------------------------------------------------
 //! Determine if an error text message exists.
