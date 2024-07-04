@@ -225,6 +225,7 @@ XrdOfs::XrdOfs() : dMask{0000,0775}, fMask{0000,0775}, // Legacy
    DirRdr    = false;
    reProxy   = false;
    OssHasPGrw= false;
+   tryXERT   = false;
 }
 
 /******************************************************************************/
@@ -285,11 +286,19 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
               {fname = strdup(dir_path);
                return SFS_OK;
               }
-              else {delete dp; dp = 0;}
+
+// Handle extended error information
+//
+   std::string eText;
+   const char* etP = 0;
+   if (dp && XrdOfsFS->tryXERT)
+      {if (dp->getErrMsg(eText)) etP = eText.c_str();
+       delete dp; dp = 0;
+      }
 
 // Encountered an error
 //
-   return XrdOfsFS->Emsg(epname, error, retc, "open directory", dir_path);
+   return XrdOfsFS->Emsg(epname, error, retc, "open directory", dir_path, etP);
 }
 
 /******************************************************************************/
@@ -333,7 +342,10 @@ const char *XrdOfsDirectory::nextEntry()
 // Read the next directory entry
 //
    if ((retc = dp->Readdir(dname, sizeof(dname))) < 0)
-      {XrdOfsFS->Emsg(epname, error, retc, "read directory", fname);
+      {std::string eText;
+       const char* etP = 0;
+       if (XrdOfsFS->tryXERT && dp->getErrMsg(eText)) etP = eText.c_str();
+       XrdOfsFS->Emsg(epname, error, retc, "read directory", fname, etP);
        return 0;
       }
 
@@ -383,8 +395,11 @@ int XrdOfsDirectory::close()
 // Close this directory
 //
     if ((retc = dp->Close()))
-       retc = XrdOfsFS->Emsg(epname, error, retc, "close", fname);
-       else retc = SFS_OK;
+      {std::string eText;
+       const char* etP = 0;
+       if (XrdOfsFS->tryXERT && dp->getErrMsg(eText)) etP = eText.c_str();
+       retc = XrdOfsFS->Emsg(epname, error, retc, "close", fname, etP);
+      }  else retc = SFS_OK;
 
 // All done
 //
@@ -582,7 +597,8 @@ int XrdOfsFile::open(const char          *path,      // In
 // Preset TPC handling and if not allowed, complain
 //
    if (tpcKey && (open_mode & SFS_O_NOTPC))
-      return XrdOfsFS->Emsg(epname, error, EPROTOTYPE, "tpc", path);
+      return XrdOfsFS->Emsg(epname, error, EPROTOTYPE, "tpc", path,
+                            "+TPC prohibited due to security configuration");
 
 // Create the file if so requested o/w try to attach the file
 //
@@ -618,7 +634,8 @@ int XrdOfsFile::open(const char          *path,      // In
        if (isPosc)
           {bool isNew = (open_mode & SFS_O_TRUNC) == 0;
            if ((oP.poscNum = XrdOfsFS->poscQ->Add(tident, path, isNew)) < 0)
-              return XrdOfsFS->Emsg(epname, error, oP.poscNum, "pcreate", path);
+              return XrdOfsFS->Emsg(epname, error, oP.poscNum, "pcreate", path,
+                     "+ofs_open: failed to enter file into posc queue");
           }
 
        // Create the file. If ENOTSUP is returned, promote the creation to
@@ -676,7 +693,8 @@ int XrdOfsFile::open(const char          *path,      // In
    if (tpcKey && isRW)
       {char pfnbuff[MAXPATHLEN+8]; const char *pfnP;
        if (!(pfnP = XrdOfsOss->Lfn2Pfn(path, pfnbuff, MAXPATHLEN, retc)))
-          return XrdOfsFS->Emsg(epname, error, retc, "open", path);
+          return XrdOfsFS->Emsg(epname, error, retc, "open", path,
+                           "+ofs_open: mapping tpc target lfn to pfn failed");
        XrdOfsTPC::Facts Args(client, &error, &Open_Env, tpcKey, path, pfnP);
        if ((retc = XrdOfsTPC::Validate(&myTPC, Args))) return retc;
       }
@@ -688,7 +706,8 @@ int XrdOfsFile::open(const char          *path,      // In
       {if (!isRW) return XrdOfsFS->Stall(error, -1, path);
        if ((retc = oP.hP->PoscSet(tident, oP.poscNum, theMode)))
           {if (retc > 0) XrdOfsFS->poscQ->Del(path, retc);
-              else return XrdOfsFS->Emsg(epname, error, retc, "access", path);
+              else return XrdOfsFS->Emsg(epname, error, retc, "access", path,
+                                    "+ofs_open: posc mode initiation failed");
           }
       }
 
@@ -699,7 +718,8 @@ int XrdOfsFile::open(const char          *path,      // In
    if (!(oP.hP->Inactive()))
       {dorawio = (oh->isCompressed && open_mode & SFS_O_RAWIO ? 1 : 0);
        if (tpcKey && isRW)
-          return XrdOfsFS->Emsg(epname, error, EALREADY, "tpc", path);
+          return XrdOfsFS->Emsg(epname, error, EALREADY, "tpc", path,
+                           "+ofs_open: this tpc is already in progress");
        XrdOfsFS->ocMutex.Lock(); oh = oP.hP; XrdOfsFS->ocMutex.UnLock();
        FTRACE(open, "attach use=" <<oh->Usage());
        if (oP.poscNum > 0) XrdOfsFS->poscQ->Commit(path, oP.poscNum);
@@ -740,14 +760,18 @@ int XrdOfsFile::open(const char          *path,      // In
           }
        if (XrdOfsFS->Balancer && retc == -ENOENT)
           XrdOfsFS->Balancer->Removed(path);
-       return XrdOfsFS->Emsg(epname, error, retc, "open", path);
+       const char* etP = 0;
+       std::string eText;
+       if (XrdOfsFS->tryXERT && oP.fP->getErrMsg(eText)) etP = eText.c_str();
+       return XrdOfsFS->Emsg(epname, error, retc, "open", path, etP);
       }
 
 // Verify that we can actually use this file
 //
    if (oP.poscNum > 0)
       {if ((retc = oP.fP->Fchmod(static_cast<mode_t>(theMode|XRDSFS_POSCPEND))))
-          return XrdOfsFS->Emsg(epname, error, retc, "fchmod", path);
+          return XrdOfsFS->Emsg(epname, error, retc, "fchmod", path,
+                                "+ofs_open: POSC file designation failed");
        XrdOfsFS->poscQ->Commit(path, oP.poscNum);
       }
 
@@ -768,7 +792,7 @@ int XrdOfsFile::open(const char          *path,      // In
        int theFD =  oP.fP->getFD();
        if (theFD >= 0 && fadFails < 4096)
           if (posix_fadvise(theFD, 0, 0, POSIX_FADV_SEQUENTIAL) < 0)
-             {OfsEroute.Emsg(epname, errno, "fadsize for sequential I/O.");
+             {OfsEroute.Emsg(epname, errno, "fadvise for sequential I/O.");
               fadFails++;
              }
       }
@@ -1011,13 +1035,15 @@ int            XrdOfsFile::CreateCKP()
 // Verify that this file is open r/w mode
 //
    if (!(oh->isRW)) return XrdOfsFS->Emsg("CreateCKP", error, ENOTTY,
-                           "create checkpoint for R/O", oh->Name());
+                           "create checkpoint for R/O", oh->Name(),
+                           "+ofs_CreateCKP: file is not open in r/w mode");
 
 // POSC and checkpoints are mutally exclusive
 //
    if (oh->isRW == XrdOfsHandle::opPC)
       return XrdOfsFS->Emsg("CreateCKP", error, ENOTTY,
-                            "create checkpoint for POSC file", oh->Name());
+                            "create checkpoint for POSC file", oh->Name(),
+                            "+ofs_CreateCKP: POSC file cannot be checkpointed");
 
 // Get a new checkpoint object
 //
@@ -1130,7 +1156,7 @@ XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsFileOffset   offset,
    nbytes = (XrdSfsXferSize)(oh->Select().pgRead((void *)buffer,
                             (off_t)offset, (size_t)rdlen, csvec, pgOpts));
    if (nbytes < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "pgRead", oh->Name());
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "pgRead", oh);
 
 // Return number of bytes read
 //
@@ -1174,7 +1200,7 @@ XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 // Issue the read. Only true errors are returned here.
 //
    if ((rc = oh->Select().pgRead(aioparm, pgOpts)) < 0)
-      return XrdOfsFS->Emsg(epname, error, rc, "pgRead", oh->Name());
+      return XrdOfsFS->Emsg(epname, error, rc, "pgRead", oh);
 
 // All done
 //
@@ -1211,7 +1237,7 @@ XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsFileOffset   offset,
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgwrite", oh);
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgwrite", oh, true);
 #endif
 
 // Silly Castor stuff
@@ -1230,7 +1256,7 @@ XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsFileOffset   offset,
    nbytes = (XrdSfsXferSize)(oh->Select().pgWrite((void *)buffer,
                             (off_t)offset, (size_t)wrlen, csvec, pgOpts));
    if (nbytes < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "pgwrite", oh);
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "pgwrite", oh, true);
 
 // Return number of bytes written
 //
@@ -1276,7 +1302,7 @@ XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 //
 #if _FILE_OFFSET_BITS!=64
    if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgwrite", oh->Name());
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgwrite", oh, true);
 #endif
 
 // Silly Castor stuff
@@ -1293,7 +1319,7 @@ XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 //
    oh->isPending = 1;
    if ((rc = oh->Select().pgWrite(aioparm, pgOpts)) < 0)
-       return XrdOfsFS->Emsg(epname, error, rc, "pgwrite", oh->Name());
+       return XrdOfsFS->Emsg(epname, error, rc, "pgwrite", oh, true);
 
 // All done
 //
@@ -1332,7 +1358,7 @@ int            XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 // Now preread the actual number of bytes
 //
    if ((retc = oh->Select().Read((off_t)offset, (size_t)blen)) < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)retc, "preread", oh->Name());
+      return XrdOfsFS->Emsg(epname, error, (int)retc, "preread", oh);
 
 // Return number of bytes read
 //
@@ -1380,7 +1406,7 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
           : (XrdSfsXferSize)(oh->Select().Read((void *)buff,
                             (off_t)offset, (size_t)blen)));
    if (nbytes < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "read", oh->Name());
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "read", oh);
 
 // Return number of bytes read
 //
@@ -1410,7 +1436,7 @@ XrdSfsXferSize XrdOfsFile::readv(XrdOucIOVec     *readV,     // In
 
    XrdSfsXferSize nbytes = oh->Select().ReadV(readV, readCount);
    if (nbytes < 0)
-       return XrdOfsFS->Emsg(epname, error, (int)nbytes, "readv", oh->Name());
+       return XrdOfsFS->Emsg(epname, error, (int)nbytes, "readv", oh);
 
    return nbytes;
 
@@ -1458,7 +1484,7 @@ int XrdOfsFile::read(XrdSfsAio *aiop)
 // Issue the read. Only true errors are returned here.
 //
    if ((rc = oh->Select().Read(aiop)) < 0)
-      return XrdOfsFS->Emsg(epname, error, rc, "read", oh->Name());
+      return XrdOfsFS->Emsg(epname, error, rc, "read", oh);
 
 // All done
 //
@@ -1498,7 +1524,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "write", oh);
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "write", oh, true);
 #endif
 
 // Silly Castor stuff
@@ -1512,7 +1538,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
    nbytes = (XrdSfsXferSize)(oh->Select().Write((const void *)buff,
                             (off_t)offset, (size_t)blen));
    if (nbytes < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "write", oh);
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "write", oh, true);
 
 // Return number of bytes written
 //
@@ -1549,7 +1575,7 @@ int XrdOfsFile::write(XrdSfsAio *aiop)
 //
 #if _FILE_OFFSET_BITS!=64
    if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "write", oh->Name());
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "write", oh, true);
 #endif
 
 // Silly Castor stuff
@@ -1561,7 +1587,7 @@ int XrdOfsFile::write(XrdSfsAio *aiop)
 //
    oh->isPending = 1;
    if ((rc = oh->Select().Write(aiop)) < 0)
-       return XrdOfsFS->Emsg(epname, error, rc, "write", oh->Name());
+       return XrdOfsFS->Emsg(epname, error, rc, "write", oh, true);
 
 // All done
 //
@@ -1612,7 +1638,7 @@ int XrdOfsFile::stat(struct stat     *buf)         // Out
 // Perform the function
 //
    if ((retc = oh->Select().Fstat(buf)) < 0)
-      return XrdOfsFS->Emsg(epname,error,retc,"get state for",oh->Name());
+      return XrdOfsFS->Emsg(epname,error,retc,"get state for",oh);
 
    return SFS_OK;
 }
@@ -1657,7 +1683,7 @@ int XrdOfsFile::sync()  // In
 //
    if ((retc = oh->Select().Fsync()))
       {oh->isPending = 1;
-       return XrdOfsFS->Emsg(epname, error, retc, "synchronize", oh);
+       return XrdOfsFS->Emsg(epname, error, retc, "synchronize", oh, true);
       }
 
 // Indicate all went well
@@ -1707,7 +1733,7 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 // Make sure the offset is not too large
 //
    if (sizeof(off_t) < sizeof(flen) && flen >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "truncate", oh);
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "truncate", oh, true);
 
 // Silly Castor stuff
 //
@@ -1718,7 +1744,7 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 //
    oh->isPending = 1;
    if ((retc = oh->Select().Ftruncate(flen)))
-      return XrdOfsFS->Emsg(epname, error, retc, "truncate", oh);
+      return XrdOfsFS->Emsg(epname, error, retc, "truncate", oh, true);
 
 // Indicate Success
 //
@@ -1850,7 +1876,8 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 // At this point we need to convert the lfn to a pfn
 //
    if (CksPfn && !(Path = XrdOfsOss->Lfn2Pfn(Path, buff, MAXPATHLEN, rc)))
-      return Emsg(epname, einfo, rc, "checksum", Path);
+      return Emsg(epname, einfo, rc, "checksum", Path,
+                  "+ofs_chksum: lfn to pfn mapping failed");
 
 // Originally we only passed he env pointer for proxy servers. Due to popular
 // demand, we always pass the env as it points to the SecEntity object unless
@@ -1884,7 +1911,7 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 
 // We failed
 //
-   return Emsg(epname, einfo, rc, "checksum", Path);
+   return Emsg(epname, einfo, rc, "checksum", Path, "?");
 }
   
 /******************************************************************************/
@@ -1935,7 +1962,7 @@ int XrdOfs::chmod(const char             *path,    // In
 // We need to adjust the mode based on whether this is a file or directory.
 //
    if ((retc = XrdOfsOss->Stat(path, &Stat, 0, &chmod_Env)))
-      return XrdOfsFS->Emsg(epname, einfo, retc, "change", path);
+      return XrdOfsFS->Emsg(epname, einfo, retc, "stat", path, "?");
    if (S_ISDIR(Stat.st_mode)) acc_mode = (acc_mode | dMask[0]) & dMask[1];
       else acc_mode = (acc_mode | fMask[0]) & fMask[1];
 
@@ -1952,7 +1979,7 @@ int XrdOfs::chmod(const char             *path,    // In
 
 // An error occurred, return the error info
 //
-   return XrdOfsFS->Emsg(epname, einfo, retc, "change", path);
+   return XrdOfsFS->Emsg(epname, einfo, retc, "chmod", path, "?");
 }
 
 /******************************************************************************/
@@ -2041,7 +2068,7 @@ int XrdOfs::exists(const char                *path,        // In
 
 // An error occurred, return the error info
 //
-   return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path);
+   return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path, "?");
 }
 
 /******************************************************************************/
@@ -2118,7 +2145,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 // Perform the actual operation
 //
     if ((retc = XrdOfsOss->Mkdir(path, acc_mode, mkpath, &mkdir_Env)))
-       return XrdOfsFS->Emsg(epname, einfo, retc, "mkdir", path);
+       return XrdOfsFS->Emsg(epname, einfo, retc, "mkdir", path, "?");
 
 // Check if we should generate an event
 //
@@ -2244,7 +2271,7 @@ int XrdOfs::remove(const char              type,    // In
 //
     retc = (type=='d' ? XrdOfsOss->Remdir(path, 0,   &rem_Env)
                       : XrdOfsOss->Unlink(path, Opt, &rem_Env));
-    if (retc) return XrdOfsFS->Emsg(epname, einfo, retc, "remove", path);
+    if (retc) return XrdOfsFS->Emsg(epname, einfo, retc, "remove", path, "?");
     if (type == 'f') XrdOfsHandle::Hide(path);
     if (Balancer) Balancer->Removed(path);
     return SFS_OK;
@@ -2346,7 +2373,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 // Perform actual rename operation
 //
    if ((retc = XrdOfsOss->Rename(old_name, new_name, &old_Env, &new_Env)))
-      {return XrdOfsFS->Emsg(epname, einfo, retc, "rename", old_name);
+      {return XrdOfsFS->Emsg(epname, einfo, retc, "rename", old_name, "?");
       }
    XrdOfsHandle::Hide(old_name);
    if (Balancer) {Balancer->Removed(old_name);
@@ -2395,7 +2422,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Now try to find the file or directory
 //
    if ((retc = XrdOfsOss->Stat(path, buf, 0, &stat_Env)))
-      return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path);
+      return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path, "?");
    return SFS_OK;
 }
 
@@ -2444,7 +2471,7 @@ int XrdOfs::stat(const char             *path,        // In
    if (!(retc = XrdOfsOss->Stat(path, &buf, XRDOSS_resonly, &stat_Env)))
        mode=buf.st_mode;
       else if ((-ENOMSG) != retc)
-              return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path);
+              return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path, "?");
    return SFS_OK;
 }
 
@@ -2504,7 +2531,7 @@ int XrdOfs::truncate(const char             *path,    // In
 
 // An error occurred, return the error info
 //
-   return XrdOfsFS->Emsg(epname, einfo, retc, "trunc", path);
+   return XrdOfsFS->Emsg(epname, einfo, retc, "trunc", path, "?");
 }
 
 /******************************************************************************/
@@ -2515,18 +2542,29 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
                  XrdOucErrInfo &einfo,  // Place to put text & error code
                  int            ecode,  // The error code
                  const char    *op,     // Operation being performed
-                 XrdOfsHandle  *hP)     // The target handle
+                 XrdOfsHandle  *hP,     // The target handle
+                 bool           posChk) // Unpersist if in posc mode
 {
+   const char* etP = 0;
    int rc;
+
+// Screen out non-errors
+//
+   if ((rc = EmsgType(ecode)) != SFS_ERROR) return rc;
+
+// Get any extended information
+//
+   std::string eText;
+   if (XrdOfsFS->tryXERT && hP->Select().getErrMsg(eText)) etP = eText.c_str();
 
 // First issue the error message so if we have to unpersist it makes sense
 //
-   if ((rc = Emsg(pfx, einfo, ecode, op, hP->Name())) != SFS_ERROR) return rc;
+   rc = Emsg(pfx, einfo, ecode, op, hP->Name(), etP);
 
 // If this is a POSC file then we need to unpersist it. Note that we are always
 // called with the handle **unlocked**
 //
-   if (hP->isRW == XrdOfsHandle::opPC)
+   if (posChk && hP->isRW == XrdOfsHandle::opPC)
       {hP->Lock();
        XrdOfsFS->Unpersist(hP);
        hP->UnLock();
@@ -2534,7 +2572,7 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 
 // Now return the error
 //
-   return SFS_ERROR;
+   return rc;
 }
 
 /******************************************************************************/
@@ -2543,9 +2581,64 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
                  XrdOucErrInfo &einfo,  // Place to put text & error code
                  int            ecode,  // The error code
                  const char    *op,     // Operation being performed
-                 const char    *target) // The target (e.g., fname)
+                 const char    *target, // The target (e.g., fname)
+                 const char    *xtra)   // Optional extra error information
 {
-   char buffer[MAXPATHLEN+80];
+   char* buffer;
+   int buflen, rc;
+   bool msgDone = false;
+
+// Screen out non-errors
+//
+   if ((rc = EmsgType(ecode)) != SFS_ERROR) return rc;
+
+// Setup message handling
+//
+   if (einfo.extData()) einfo.Reset();
+   buffer = einfo.getMsgBuff(buflen);
+   std::string eText;
+
+// Check for extended information
+//
+    if (xtra)
+       switch(*xtra)
+             {case '?': xtra = 0;
+                        if (XrdOfsFS->tryXERT && XrdOfsOss->getErrMsg(eText))
+                           {if (eText.find("Unable") != std::string::npos)
+                               {einfo.setErrInfo(ecode, eText.c_str());
+                                msgDone = true;
+                               } else xtra = eText.c_str();
+                           }
+                        break;
+              case '+': xtra++;
+                        break;
+              default:  einfo.setErrInfo(ecode, xtra);
+                        msgDone = true;
+                        break;
+             }
+
+// Format the error message if it has not been already set
+//
+   if (!msgDone)
+      {XrdOucERoute::Format(buffer, buflen, ecode, op, target, xtra);
+       einfo.setErrCode(ecode);
+      }
+
+// Print it out
+//
+    OfsEroute.Emsg(pfx, einfo.getErrUser(), buffer);
+
+// Return an error
+//
+    return SFS_ERROR;
+}
+
+/******************************************************************************/
+/*                              E m s g T y p e                               */
+/******************************************************************************/
+
+int XrdOfs::EmsgType(int ecode)  // The error code
+{
 
 // If the error is EBUSY then we just need to stall the client. This is
 // a hack in order to provide for proxy support
@@ -2564,22 +2657,11 @@ if (strcmp("read", op) && strcmp("readv", op) && strcmp("pgRead", op) &&
    if (ecode == ETIMEDOUT) return OSSDelay;
    }
 
-// Format the error message
+// This is a real error
 //
-   XrdOucERoute::Format(buffer, sizeof(buffer), ecode, op, target);
-
-// Print it out if debugging is enabled
-//
-#ifndef NODEBUG
-    OfsEroute.Emsg(pfx, einfo.getErrUser(), buffer);
-#endif
-
-// Place the error message in the error object and return
-//
-    einfo.setErrInfo(ecode, buffer);
-    return SFS_ERROR;
+   return SFS_ERROR;
 }
-
+  
 /******************************************************************************/
 /*                     P R I V A T E    S E C T I O N                         */
 /******************************************************************************/

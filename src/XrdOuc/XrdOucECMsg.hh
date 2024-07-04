@@ -62,6 +62,7 @@ XrdOucECMsg& Append(char dlm='\n')
 //-----------------------------------------------------------------------------
 
 int   Get(std::string& ecm, bool rst=true);
+int   Get() {return eCode;}
 
 //-----------------------------------------------------------------------------
 //! Determine if an error text message exists.
