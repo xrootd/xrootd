@@ -1455,11 +1455,11 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
 
    // We support passing the user {proxy, cert, key} paths via Url parameter
    char *upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrpxy") : 0;
-   if (upp) UsrProxy = upp;
+   if (upp) urlUsrProxy = upp;
    upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrcrt") : 0;
-   if (upp) UsrCert = upp;
+   if (upp) urlUsrCert = upp;
    upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrkey") : 0;
-   if (upp) UsrKey = upp;
+   if (upp) urlUsrKey = upp;
 
    // Count interations
    (hs->Iter)++;
@@ -3070,30 +3070,35 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
       DEBUG("Server does not accept pure cert/key authentication: version < "<< (int)XrdSecgsiVersCertKey);
    }
 
+   String clientcert = UsrCert, clientkey = UsrKey, clientproxy = UsrProxy;
+   if (urlUsrCert.length()>0) clientcert = urlUsrCert;
+   if (urlUsrKey.length()>0) clientkey = urlUsrKey;
+   if (urlUsrProxy.length()>0) clientproxy = urlUsrProxy;
+
    //
    // Resolve place-holders in cert, key and proxy file paths, if any
-   if (XrdSutResolve(UsrCert, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-      PRINT("Problems resolving templates in "<<UsrCert);
+   if (XrdSutResolve(clientcert, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
+      PRINT("Problems resolving templates in "<<clientcert);
       return -1;
    }
-   if (XrdSutResolve(UsrKey, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-      PRINT("Problems resolving templates in "<<UsrKey);
+   if (XrdSutResolve(clientkey, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
+      PRINT("Problems resolving templates in "<<clientkey);
       return -1;
    }
    //
    // In the standard case we need to resolve also the proxy file path
    // Get the proxy path
-   if (XrdSutResolve(UsrProxy, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-      PRINT("Problems resolving templates in "<<UsrProxy);
+   if (XrdSutResolve(clientproxy, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
+      PRINT("Problems resolving templates in "<<clientproxy);
       return -1;
    }
    //
    // Load / Attach-to user proxies
-   ProxyIn_t pi = {UsrCert.c_str(), UsrKey.c_str(), CAdir.c_str(),
-                   UsrProxy.c_str(), PxyValid.c_str(),
+   ProxyIn_t pi = {clientcert.c_str(), clientkey.c_str(), CAdir.c_str(),
+                   clientproxy.c_str(), PxyValid.c_str(),
                    DepLength, DefBits, createpxy};
    ProxyOut_t po = {hs->PxyChain, sessionKsig, hs->Cbck };
-   if (QueryProxy(1, &cachePxy, UsrProxy.c_str(),
+   if (QueryProxy(1, &cachePxy, clientproxy.c_str(),
                   sessionCF, hs->TimeStamp, &pi, &po) != 0) {
       emsg = "error getting user proxies";
       hs->Chain = 0;
