@@ -410,6 +410,9 @@ private:
    bool             srvMode;       // TRUE if server mode
    char            *expectedHost;  // Expected hostname if TrustDNS is enabled.
    bool             useIV;         // Use a non-zeroed unique IV in cipher enc/dec operations
+   String           urlUsrProxy;   // Proxy file location if given to client in url
+   String           urlUsrCert;    // Proxy cert location if given to client in url
+   String           urlUsrKey;     // Proxy key location if given to client in url
 
    // Temporary Handshake local info
    gsiHSVars     *hs;
