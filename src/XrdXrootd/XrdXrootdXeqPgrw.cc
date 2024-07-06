@@ -205,8 +205,20 @@ int XrdXrootdProtocol::do_PgRIO()
 // We restrict the maximum transfer size to generate no more than 1023 iovec
 // elements where the first is used for the header.
 //
-   static const int maxIOVZ = IOV_MAX;
-   static const int maxCSSZ = IOV_MAX/2 - 1;
+   static int iovmax = -1;
+   if (iovmax == -1) {
+#ifdef _SC_IOV_MAX
+      iovmax = sysconf(_SC_IOV_MAX);
+      if (iovmax == -1)
+#endif
+#ifdef IOV_MAX
+         iovmax = IOV_MAX;
+#else
+         iovmax = 1024;
+#endif
+   }
+   static const int maxIOVZ = iovmax;
+   static const int maxCSSZ = iovmax/2 - 1;
    static const int maxPGRD = maxCSSZ*pgPageSize; // 2,093,056 usually
    static const int infoLen = sizeof(kXR_int64);
 
