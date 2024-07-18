@@ -59,7 +59,7 @@ namespace XrdCl
         log->Error( XRootDMsg, "[%s] Handling response to %s: "
                                "DiscardReader: we were not expecting "
                                "raw data.", url.GetHostId().c_str(),
-                               request.GetDescription().c_str() );
+                               request.GetObfuscatedDescription().c_str() );
         // Just drop the connection, we don't know if the stream is sane anymore.
         // Recover with a reconnect.
         return XRootDStatus( stError, errCorruptedHeader );

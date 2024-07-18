@@ -183,7 +183,7 @@ namespace XrdCl
               }
 
               log->Dump( AsyncSockMsg, "[%s] Successfully sent message: %s (0x%x).",
-                         strmname.c_str(), outmsg->GetDescription().c_str(), outmsg );
+                         strmname.c_str(), outmsg->GetObfuscatedDescription().c_str(), outmsg );
 
               strm.OnMessageSent( substrmnb, outmsg, outmsgsize );
               return XRootDStatus();

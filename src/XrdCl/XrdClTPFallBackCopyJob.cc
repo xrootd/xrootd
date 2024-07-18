@@ -43,8 +43,8 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Creating a third party fall back copy job, "
-                "from %s to %s", GetSource().GetURL().c_str(),
-                GetTarget().GetURL().c_str() );
+                "from %s to %s", GetSource().GetObfuscatedURL().c_str(),
+                GetTarget().GetObfuscatedURL().c_str() );
   }
 
   //------------------------------------------------------------------------

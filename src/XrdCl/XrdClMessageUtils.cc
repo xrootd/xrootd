@@ -57,7 +57,7 @@ namespace XrdCl
       return XRootDStatus( stError, errUninitialized );
 
     log->Dump( XRootDMsg, "[%s] Sending message %s",
-               url.GetHostId().c_str(), msg->GetDescription().c_str() );
+               url.GetHostId().c_str(), msg->GetObfuscatedDescription().c_str() );
 
     //--------------------------------------------------------------------------
     // Get an instance of SID manager object
@@ -130,7 +130,7 @@ namespace XrdCl
     {
       XRootDTransport::UnMarshallRequest( msg );
       log->Error( XRootDMsg, "[%s] Unable to send the message %s: %s",
-                  url.GetHostId().c_str(), msg->GetDescription().c_str(),
+                  url.GetHostId().c_str(), msg->GetObfuscatedDescription().c_str(),
                   st.ToString().c_str() );
 
       // we need to reassign req as its current value might have been
@@ -171,7 +171,7 @@ namespace XrdCl
       return Status( stError, errUninitialized );
 
     log->Dump( XRootDMsg, "[%s] Redirecting message %s",
-               url.GetHostId().c_str(), msg->GetDescription().c_str() );
+               url.GetHostId().c_str(), msg->GetObfuscatedDescription().c_str() );
 
     XRootDTransport::MarshallRequest( msg );
 
@@ -205,7 +205,7 @@ namespace XrdCl
     {
       XRootDTransport::UnMarshallRequest( msg );
       log->Error( XRootDMsg, "[%s] Unable to send the message %s: %s",
-                  url.GetHostId().c_str(), msg->GetDescription().c_str(),
+                  url.GetHostId().c_str(), msg->GetObfuscatedDescription().c_str(),
                   st.ToString().c_str() );
       delete msgHandler;
       delete list;
