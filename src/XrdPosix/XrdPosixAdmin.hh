@@ -55,7 +55,7 @@ XrdOucECMsg&      ecMsg;
 bool           isOK() {if (Url.IsValid()) return true;
                        ecMsg.Set(EINVAL, 0);
                        ecMsg.Msgf("PosixAdmin", "url '%s' is invalid",
-                                  Url.GetURL().c_str());
+                                  Url.GetObfuscatedURL().c_str());
                        errno = EINVAL;    return false;
                       }
 

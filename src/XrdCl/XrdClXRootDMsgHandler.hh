@@ -45,6 +45,7 @@
 #include "XrdSys/XrdSysPlatform.hh"
 
 #include "XrdOuc/XrdOucPgrwUtils.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include <sys/uio.h>
 #include <arpa/inet.h> // for network unmarshaling stuff
@@ -184,7 +185,7 @@ namespace XrdCl
         Log *log = DefaultEnv::GetLog();
         log->Debug( ExDbgMsg, "[%s] MsgHandler created: 0x%x (message: %s ).",
                     pUrl.GetHostId().c_str(), this,
-                    pRequest->GetDescription().c_str() );
+                    pRequest->GetObfuscatedDescription().c_str() );
 
         ClientRequestHdr *hdr = (ClientRequestHdr*)pRequest->GetBuffer();
         if( ntohs( hdr->requestid ) == kXR_pgread )
