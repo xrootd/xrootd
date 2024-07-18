@@ -940,7 +940,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     if (TRACING(TRACE_DEBUG)) {
       // The obfuscation of "authz" will only be done if the server http.header2cgi config contains something that maps a header to this "authz" cgi.
       // Unfortunately the obfuscation code will be called no matter what is configured in http.header2cgi.
-      std::string header2cgistrObf = XrdOucUtils::obfuscate(hdr2cgistr, {"authz"}, '=', '&');
+      std::string header2cgistrObf = XrdOucUtils::obfuscateAuth(hdr2cgistr);
 
       TRACEI(DEBUG, "Appended header fields to opaque info: '"
         << header2cgistrObf.c_str() << "'");

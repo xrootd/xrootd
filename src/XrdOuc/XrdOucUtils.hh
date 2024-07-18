@@ -34,7 +34,9 @@
 #include <sys/stat.h>
 #include <string>
 #include <unordered_set>
-  
+#include <vector>
+#include <regex>
+
 class XrdSysError;
 class XrdOucString;
 class XrdOucStream;
@@ -136,7 +138,21 @@ static int getModificationTime(const char * path, time_t & modificationTime);
 
 static void trim(std::string & str);
 
-static std::string obfuscate(const std::string & input, const std::unordered_set<std::string> & keysToObfuscate,const char keyValueDelimiter, const char listDelimiter);
+/**
+ * Use this function to obfuscate any string containing key-values with XrdOucUtils::OBFUSCATION_STR
+ * @param input the string to obfuscate
+ * @param regexes the obfuscation regexes to apply to replace the value with XrdOucUtils::OBFUSCATION_STR. The key should be a regex group e.g: "(authz=)"
+ * Have a look at obfuscateAuth for more examples
+ * @return the string with values obfuscated
+ */
+static std::string obfuscate(const std::string & input, const std::vector<std::regex> & regexes);
+
+/**
+ * Obfuscates string containing authz=value key value and Authorization: value, TransferHeaderAuthorization: value, WhateverAuthorization: value
+ * in a case insensitive way
+ * @param input the string to obfuscate
+ */
+static std::string obfuscateAuth(const std::string & input);
 
     XrdOucUtils() {}
     ~XrdOucUtils() {}
