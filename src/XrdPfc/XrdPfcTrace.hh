@@ -32,7 +32,7 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTrace.hh"
 #include "XrdSys/XrdSysE2T.hh"
-
+#include "XrdOuc/XrdOucUtils.hh"
 #ifndef XRD_TRACE
 #define XRD_TRACE GetTrace()->
 #endif
@@ -57,7 +57,7 @@
 
 #define TRACEIO(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) SYSTRACE(XRD_TRACE, 0, m_traceID, 0, \
-       TRACE_STR_ ## act << x << " " << GetPath())
+       TRACE_STR_ ## act << x << " " << XrdOucUtils::obfuscateAuth(GetPath()))
 
 #define TRACEF(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) SYSTRACE(XRD_TRACE, 0, m_traceID, 0, \

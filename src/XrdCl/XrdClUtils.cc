@@ -23,6 +23,7 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClMessage.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 #include "XrdNet/XrdNetAddr.hh"
 
 #include <algorithm>
@@ -618,12 +619,14 @@ namespace XrdCl
                                const char         *format,
                                const PropertyList &list )
   {
-    PropertyList::PropertyMap::const_iterator it;
-    std::string keyVals;
-    for( it = list.begin(); it != list.end(); ++it )
-      keyVals += "'" + it->first + "' = '" + it->second + "', ";
-    keyVals.erase( keyVals.length()-2, 2 );
-    log->Dump( topic, format, keyVals.c_str() );
+    if( unlikely(log->GetLevel() >= Log::DumpMsg) ) {
+      PropertyList::PropertyMap::const_iterator it;
+      std::string keyVals;
+      for (it = list.begin(); it != list.end(); ++it)
+        keyVals += "'" + it->first + "' = '" + XrdOucUtils::obfuscateAuth(it->second) + "', ";
+      keyVals.erase(keyVals.length() - 2, 2);
+      log->Dump(topic, format, keyVals.c_str());
+    }
   }
 
   //----------------------------------------------------------------------------
