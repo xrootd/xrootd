@@ -213,7 +213,7 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 
    if (Cache::GetInstance().Decide(io))
    {
-      TRACE(Info, tpfx << io->Path());
+      TRACE(Info, tpfx << XrdOucUtils::obfuscateAuth(io->Path()));
 
       IO *cio;
 
