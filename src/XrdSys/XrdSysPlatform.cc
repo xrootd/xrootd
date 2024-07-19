@@ -69,3 +69,27 @@ size_t strlcpy(char *dst, const char *src, size_t sz)
 }
 }
 #endif
+
+
+namespace XrdSys {
+
+  long iov_max() {
+    struct iovmax_t {
+      iovmax_t() {
+#ifdef _SC_IOV_MAX
+        value = sysconf(_SC_IOV_MAX);
+        if (value == -1)
+#endif
+#ifdef IOV_MAX
+          value = IOV_MAX;
+#else
+          value = 1024;
+#endif
+      }
+      long value;
+    };
+    static struct iovmax_t iovmax;
+    return iovmax.value;
+  }
+
+}

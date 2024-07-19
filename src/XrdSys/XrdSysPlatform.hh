@@ -301,4 +301,11 @@ extern "C"
 #define LT_MODULE_EXT ".so"
 #endif
 
+namespace XrdSys {
+  //--------------------------------------------------------------------------
+  //! @return : maximum size of I/O vector
+  //--------------------------------------------------------------------------
+  long iov_max();
+}
+
 #endif  // __XRDSYS_PLATFORM_H__

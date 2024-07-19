@@ -72,22 +72,6 @@
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-namespace
-{
-int getIovMax()
-{
-int maxiov;
-#ifdef _SC_IOV_MAX
-    if ((maxiov = sysconf(_SC_IOV_MAX)) > 0) return maxiov;
-#endif
-#ifdef IOV_MAX
-    return IOV_MAX;
-#else
-    return 1024;
-#endif
-}
-};
-
 namespace XrdGlobal
 {
 extern XrdSysError    Log;
@@ -95,7 +79,7 @@ extern XrdScheduler   Sched;
 extern XrdTlsContext *tlsCtx;
        XrdTcpMonPin  *TcpMonPin = 0;
 extern int            devNull;
-       int            maxIOV = getIovMax();
+       const int      maxIOV = XrdSys::iov_max();
 };
 
 using namespace XrdGlobal;
@@ -646,18 +630,6 @@ int XrdLinkXeq::Send(const char *Buff, int Blen)
 int XrdLinkXeq::Send(const struct iovec *iov, int iocnt, int bytes)
 {
    int retc;
-   static int maxIOV = -1;
-   if (maxIOV == -1) {
-#ifdef _SC_IOV_MAX
-      maxIOV = sysconf(_SC_IOV_MAX);
-      if (maxIOV == -1)
-#endif
-#ifdef IOV_MAX
-         maxIOV = IOV_MAX;
-#else
-         maxIOV = 1024;
-#endif
-   }
 
 // Get a lock and assume we will be successful (statistically we are)
 //
