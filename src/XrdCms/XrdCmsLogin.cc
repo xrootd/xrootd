@@ -211,18 +211,7 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
    char         Work[xNum*12];
    struct iovec Liov[xNum];
    CmsRRHdr     Resp={0, kYR_login, 0, 0};
-   static int   iovmax = -1;
-   if (iovmax == -1) {
-#ifdef _SC_IOV_MAX
-      iovmax = sysconf(_SC_IOV_MAX);
-      if (iovmax == -1)
-#endif
-#ifdef IOV_MAX
-         iovmax = IOV_MAX;
-#else
-         iovmax = 1024;
-#endif
-   }
+   static const int iovmax = XrdSys::getIovMax();
 
 // Pack the response (ignore the auth token for now)
 //

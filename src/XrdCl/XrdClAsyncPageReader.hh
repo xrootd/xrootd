@@ -132,33 +132,13 @@ class AsyncPageReader
   private:
 
     //--------------------------------------------------------------------------
-    //! Helper class for retrieving the maximum size of the I/O vector
-    //--------------------------------------------------------------------------
-    struct iovmax_t
-    {
-      iovmax_t()
-      {
-#ifdef _SC_IOV_MAX
-        value = sysconf(_SC_IOV_MAX);
-        if (value == -1)
-#endif
-#ifdef IOV_MAX
-          value = IOV_MAX;
-#else
-          value = 1024;
-#endif
-        value &= ~uint32_t( 1 ); // make sure it is an even number
-      }
-      int32_t value;
-    };
-
-    //--------------------------------------------------------------------------
     //! @return : maximum size of I/O vector
     //--------------------------------------------------------------------------
     inline static int max_iovcnt()
     {
-      static iovmax_t iovmax;
-      return iovmax.value;
+      // make sure it is an even number
+      static const int iovmax = XrdSys::getIovMax() & ~1;
+      return iovmax;
     }
 
     //--------------------------------------------------------------------------
