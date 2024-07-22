@@ -617,8 +617,9 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   else
     prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
   
+  bool ret_keepalive = keepalive; // reset() clears keepalive
   reset();
-  return keepalive;
+  return ret_keepalive;
 };
 
 
@@ -1024,6 +1025,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtGET:
     {
+        bool ret_keepalive = keepalive; // reset() clears keepalive
 
         if (resource.beginswith("/static/")) {
 
@@ -1042,12 +1044,12 @@ int XrdHttpReq::ProcessHTTPReq() {
                 if (resource == "/static/css/xrdhttp.css") {
                     prot->SendSimpleResp(200, NULL, NULL, (char *) static_css_xrdhttp_css, static_css_xrdhttp_css_len, keepalive);
                     reset();
-                    return keepalive ? 1 : -1;
+                    return ret_keepalive ? 1 : -1;
                   }
                 if (resource == "/static/icons/xrdhttp.ico") {
                     prot->SendSimpleResp(200, NULL, NULL, (char *) favicon_ico, favicon_ico_len, keepalive);
                     reset();
-                    return keepalive ? 1 : -1;
+                    return ret_keepalive ? 1 : -1;
                   }
 
               }
@@ -1077,7 +1079,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                     if (mydata) {
                       prot->SendSimpleResp(200, NULL, NULL, (char *) mydata->data, mydata->len, keepalive);
                       reset();
-                      return keepalive ? 1 : -1;
+                      return ret_keepalive ? 1 : -1;
                     }
                   }
                   
@@ -1495,8 +1497,9 @@ int XrdHttpReq::ProcessHTTPReq() {
     case XrdHttpReq::rtOPTIONS:
     {
       prot->SendSimpleResp(200, NULL, (char *) "DAV: 1\r\nDAV: <http://apache.org/dav/propset/fs/1>\r\nAllow: HEAD,GET,PUT,PROPFIND,DELETE,OPTIONS", NULL, 0, keepalive);
+      bool ret_keepalive = keepalive; // reset() clears keepalive
       reset();
-      return  keepalive ? 1 : -1;
+      return ret_keepalive ? 1 : -1;
     }
     case XrdHttpReq::rtDELETE:
     {
@@ -1838,8 +1841,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         }
 
         prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0, keepalive);
+        bool ret_keepalive = keepalive; // reset() clears keepalive
         reset();
-        return keepalive ? 1 : -1;
+        return ret_keepalive ? 1 : -1;
       } else { // We requested a checksum and now have its response.
         if (iovN > 0) {
           std::string response_headers;
