@@ -82,6 +82,10 @@ Ubuntu 22.04:
   image: ubuntu:22.04
   <<: *deb_build
 
+Ubuntu 24.04:
+  image: ubuntu:24.04
+  <<: *deb_build
+
 CentOS 7:
   image: centos:7
   <<: *rpm_build_yum
