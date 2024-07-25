@@ -90,16 +90,29 @@ jobs:
   centos7:
     name: CentOS 7
     runs-on: ubuntu-latest
-    container: cern/cc7-base
+    container: centos:7
 
     env:
       CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
 
     steps:
+    - name: Use CentOS 7 Vault Repository URLs
+      run: |
+        sed -i -e '/mirrorlist/d' \
+               -e 's/# \?baseurl=/baseurl=/g' \
+               -e 's/mirror.centos.org/vault.centos.org/g' \
+               -e 's/$releasever/7.9.2009/g' \
+               /etc/yum.repos.d/*.repo
+        yum install -y centos-release-scl epel-release
+        sed -i -e '/mirrorlist/d' \
+               -e 's/# \?baseurl=/baseurl=/g' \
+               -e 's/mirror.centos.org/vault.centos.org/g' \
+               -e 's/$releasever/7.9.2009/g' \
+               /etc/yum.repos.d/*.repo
+
     - name: Install dependencies
       run: |
-        yum install -y centos-release-scl epel-release git
-        yum install -y epel-rpm-macros rpmdevtools sudo yum-utils
+        yum install -y epel-rpm-macros git rpmdevtools sudo yum-utils
 
     - name: Clone repository
       uses: actions/checkout@v3
