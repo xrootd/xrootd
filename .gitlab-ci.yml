@@ -28,7 +28,19 @@ default:
 .rpm_build_yum: &rpm_build_yum
   stage: build
   script:
+    - |
+      sed -i -e '/mirrorlist/d' \
+             -e 's/# \?baseurl=/baseurl=/g' \
+             -e 's/mirror.centos.org/vault.centos.org/g' \
+             -e 's/$releasever/7.9.2009/g' \
+             /etc/yum.repos.d/*.repo
     - yum install -y centos-release-scl epel-release git
+    - |
+      sed -i -e '/mirrorlist/d' \
+             -e 's/# \?baseurl=/baseurl=/g' \
+             -e 's/mirror.centos.org/vault.centos.org/g' \
+             -e 's/$releasever/7.9.2009/g' \
+             /etc/yum.repos.d/*.repo
     - yum install -y epel-rpm-macros rpmdevtools yum-utils
     - yum-builddep -y xrootd.spec
     - rpmdev-setuptree
@@ -71,7 +83,7 @@ Ubuntu 22.04:
   <<: *deb_build
 
 CentOS 7:
-  image: cern/cc7-base
+  image: centos:7
   <<: *rpm_build_yum
 
 AlmaLinux 8:
