@@ -1577,6 +1577,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
     else if (code == 405) ss << "Method Not Allowed";
     else if (code == 416) ss << "Range Not Satisfiable";
     else if (code == 500) ss << "Internal Server Error";
+    else if (code == 502) ss << "Bad Gateway";
     else if (code == 504) ss << "Gateway Timeout";
     else ss << "Unknown";
   }
