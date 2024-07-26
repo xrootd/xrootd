@@ -1025,7 +1025,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtGET:
     {
-        bool ret_keepalive = keepalive; // reset() clears keepalive
+        int retval = keepalive ? 1 : -1; // reset() clears keepalive
 
         if (resource.beginswith("/static/")) {
 
@@ -1044,12 +1044,12 @@ int XrdHttpReq::ProcessHTTPReq() {
                 if (resource == "/static/css/xrdhttp.css") {
                     prot->SendSimpleResp(200, NULL, NULL, (char *) static_css_xrdhttp_css, static_css_xrdhttp_css_len, keepalive);
                     reset();
-                    return ret_keepalive ? 1 : -1;
+                    return retval;
                   }
                 if (resource == "/static/icons/xrdhttp.ico") {
                     prot->SendSimpleResp(200, NULL, NULL, (char *) favicon_ico, favicon_ico_len, keepalive);
                     reset();
-                    return ret_keepalive ? 1 : -1;
+                    return retval;
                   }
 
               }
@@ -1079,7 +1079,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                     if (mydata) {
                       prot->SendSimpleResp(200, NULL, NULL, (char *) mydata->data, mydata->len, keepalive);
                       reset();
-                      return ret_keepalive ? 1 : -1;
+                      return retval;
                     }
                   }
                   
