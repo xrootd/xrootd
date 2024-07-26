@@ -205,10 +205,10 @@ int XrdXrootdProtocol::do_PgRIO()
 // We restrict the maximum transfer size to generate no more than 1023 iovec
 // elements where the first is used for the header.
 //
-   static const int maxCSSZ = 511;
+   static const int maxIOVZ = IOV_MAX;
+   static const int maxCSSZ = IOV_MAX/2 - 1;
 // static const int maxCSSZ = 32;
    static const int maxPGRD = maxCSSZ*pgPageSize; // 2,093,056 usually
-   static const int maxIOVZ = maxCSSZ*2+1;
    static const int infoLen = sizeof(kXR_int64);
 
    struct pgReadResponse
@@ -216,7 +216,6 @@ int XrdXrootdProtocol::do_PgRIO()
           kXR_int64            ofs;
          } pgrResp;
 
-   char *buff;
    XrdSfsFile *sfsP = IO.File->XrdSfsp;
    uint64_t pgrOpts = 0;
    int dlen, fLen, lLen, rc, xframt, Quantum;
@@ -256,23 +255,22 @@ int XrdXrootdProtocol::do_PgRIO()
 // Quantum is gauranteed to be a multiple of pagesize now. Verify that this
 // calculation was indeed correct to avoid overwriting the stack.
 //
-   int items = 1 + (Quantum / pgPageSize);
-   if (items > maxCSSZ+1)
+   int items = Quantum / pgPageSize;
+   if (items > maxCSSZ)
       return Response.Send(kXR_Impossible, "pgread logic error 1");
 
 // Preinitialize the io vector for checksums and data (leave 1st element free).
 //
    uint32_t *csVP = csVec;
-   buff = argp->buff;
+   char *buff = argp->buff;
    int i = 1, n = items * 2;
-   while(i <= n)
+   while(i < n)
        {iov[i  ].iov_base = csVP++;
         iov[i++].iov_len  = sizeof(uint32_t);
         iov[i  ].iov_base = buff;
         iov[i++].iov_len  = pgPageSize;
         buff += pgPageSize;
        }
-
 // If this is an unaligned read, offset the unaligned segment in the buffer
 // so that remaining pages are page-aligned. It will be reset when needed.
 // We also calculate the actual length of the first read.
