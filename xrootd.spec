@@ -63,6 +63,7 @@ BuildRequires:	krb5-devel
 BuildRequires:	libcurl-devel
 BuildRequires:	tinyxml-devel
 BuildRequires:	libxml2-devel
+BuildRequires:	libzip-devel
 BuildRequires:	ncurses-devel
 BuildRequires:	perl-generators
 BuildRequires:	readline-devel
