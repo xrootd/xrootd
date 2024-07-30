@@ -174,7 +174,6 @@ the build:
 | `FORCE_ENABLED`    |  FALSE  | Fail CMake configuration if enabled components cannot be built
 | `XRDCL_LIB_ONLY`   |  FALSE  | Build only the client libraries and necessary dependencies
 | `XRDCL_ONLY`       |  FALSE  | Build only the client and necessary dependencies
-| `USE_SYSTEM_ISAL`  |  FALSE  | Use isa-l library installed in the system
 
 ### Running XRootD Tests
 

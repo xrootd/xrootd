@@ -31,10 +31,6 @@ if( BUILD_KRB5 )
   include( XrdSeckrb5 )
 endif()
 
-if( BUILD_XRDEC )
-  include( XrdIsal )
-endif()
-
 if( ENABLE_XRDCL )
   add_subdirectory( XrdCl )
 endif()

@@ -247,7 +247,7 @@ jobs:
     env:
       CC: ${{ matrix.compiler }}
       DEBIAN_FRONTEND: noninteractive
-      CMAKE_ARGS: '-DINSTALL_PYTHON_BINDINGS=0;-DUSE_SYSTEM_ISAL=1;-DCMAKE_INSTALL_PREFIX=/usr'
+      CMAKE_ARGS: '-DINSTALL_PYTHON_BINDINGS=0;-DCMAKE_INSTALL_PREFIX=/usr'
 
     steps:
     - name: Install development tools

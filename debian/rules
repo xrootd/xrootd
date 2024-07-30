@@ -47,7 +47,6 @@ BUILD_DOC = $(if $(filter xrootd-doc,$(shell dh_listpackages)),TRUE,FALSE)
 override_dh_auto_configure:
 	dh_auto_configure --           \
 	    -DFORCE_ENABLED:BOOL=ON    \
-	    -DUSE_SYSTEM_ISAL:BOOL=ON  \
 	    -DENABLE_CEPH:BOOL=$(CEPH) \
 	    -DENABLE_FUSE:BOOL=$(FUSE) \
 	    -DENABLE_HTTP:BOOL=ON      \

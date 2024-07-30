@@ -453,7 +453,6 @@ make -C %{_builddir}/%{name}-%{compat_version}/build %{?_smp_mflags}
 
 %cmake \
     -DFORCE_ENABLED:BOOL=TRUE \
-    -DUSE_SYSTEM_ISAL:BOOL=TRUE \
     -DENABLE_ASAN:BOOL=%{with asan} \
     -DENABLE_CEPH:BOOL=%{with ceph} \
     -DENABLE_FUSE:BOOL=TRUE \
