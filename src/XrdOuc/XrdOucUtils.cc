@@ -642,7 +642,7 @@ int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
 /*                                 H S i z e                                  */
 /******************************************************************************/
 
-const char *HSize(size_t bytes, char* buff, int bsz)
+const char *XrdOucUtils::HSize(size_t bytes, char* buff, int bsz)
 {
 
 // Do fast conversion of the quantity is less than 1K
