@@ -17,7 +17,7 @@ component_status( VOMSXRD   BUILD_VOMS        VOMS_FOUND )
 component_status( XRDCL     ENABLE_XRDCL      TRUE_VAR )
 component_status( XRDCLHTTP ENABLE_XRDCLHTTP  DAVIX_FOUND )
 component_status( XRDEC     BUILD_XRDEC       TRUE_VAR )
-component_status( XRDOSSARC ENABLE_XRDOSSARC  LIBZIP_FOUND )
+component_status( XRDOSSARC ENABLE_XRDOSSARC  BUILD_XRDOSSARC )
 
 message( STATUS "----------------------------------------" )
 message( STATUS "Installation path: " ${CMAKE_INSTALL_PREFIX} )
