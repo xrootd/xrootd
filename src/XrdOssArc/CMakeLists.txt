@@ -19,6 +19,12 @@ add_library(${XrdOssArc}
   XrdOssArcZipFile.cc    XrdOssArcZipFile.hh
 )
 
-target_link_libraries(${XrdOssArc} PRIVATE XrdUtils libzip::zip ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${XrdOssArc}
+  PRIVATE
+    XrdUtils
+    XrdServer
+    libzip::zip
+    ${CMAKE_THREAD_LIBS_INIT}
+)
 
 install(TARGETS ${XrdOssArc} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
