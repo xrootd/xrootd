@@ -16,6 +16,7 @@ Build-Depends:
  libcurl4-openssl-dev,
  libtinyxml-dev,
  libxml2-dev,
+ libzip-dev,
  ncurses-dev,
  libssl-dev,
  libreadline-dev,

@@ -58,6 +58,7 @@ jobs:
           krb5-dev \
           krb5-server \
           libxml2-dev \
+          libzip-dev \
           linux-headers \
           make \
           openssl \
