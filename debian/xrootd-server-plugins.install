@@ -8,6 +8,7 @@
 /usr/lib/*/libXrdMacaroons-5.so
 /usr/lib/*/libXrdN2No2p-5.so
 /usr/lib/*/libXrdOfsPrepGPI-5.so
+/usr/lib/*/libXrdOssArc-5.so
 /usr/lib/*/libXrdOssCsi-5.so
 /usr/lib/*/libXrdOssSIgpfsT-5.so
 /usr/lib/*/libXrdOssStats-5.so
