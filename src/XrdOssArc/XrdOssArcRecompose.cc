@@ -166,6 +166,34 @@ bool XrdOssArcRecompose::Compose(char* buff, int bsz)
 }
   
 /******************************************************************************/
+/*                               D S N 2 D i r                                */
+/******************************************************************************/
+
+std::string XrdOssArcRecompose::DSN2Dir(const char* dsn)
+{
+   std::string retdir(dsn);
+   int n = retdir.length();
+
+   for (int i = 0; i < n; i++) if (retdir[i] == '/') retdir[i] = '%';
+
+   return retdir;
+}
+  
+/******************************************************************************/
+/*                               D i r 2 D S N                                */
+/******************************************************************************/
+
+std::string XrdOssArcRecompose::Dir2DSN(const char* dir)
+{
+   std::string retdsn(dir);
+   int n = retdsn.length();
+
+   for (int i = 0; i < n; i++) if (retdsn[i] == '%') retdsn[i] = '/';
+
+   return retdsn;
+}
+  
+/******************************************************************************/
 /*                             i s A r c F i l e                              */
 /******************************************************************************/
   

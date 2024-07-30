@@ -7,9 +7,11 @@ set(XrdOssArc XrdOssArc-${PLUGIN_VERSION})
 add_library(${XrdOssArc}
   MODULE
   XrdOssArc.cc           XrdOssArc.hh
+  XrdOssArcBackup.cc     XrdOssArcBackup.hh
   XrdOssArcConfig.cc     XrdOssArcConfig.hh
   XrdOssArcDataset.cc    XrdOssArcDataset.hh
   XrdOssArcFile.cc       XrdOssArcFile.hh
+  XrdOssArcFSMon.cc       XrdOssArcFSMon.hh
   XrdOssArcPrep.cc
   XrdOssArcRecompose.cc  XrdOssArcRecompose.hh
   XrdOssArcStage.cc      XrdOssArcStage.hh
