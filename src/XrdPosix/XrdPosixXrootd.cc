@@ -652,7 +652,12 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 //
    if (cbP) {errno = EINPROGRESS; return -1;}
    if (fp->Finalize(&Status)) return fp->FDNum();
-   return XrdPosixMap::Result(Status,XrdPosixGlobals::ecMsg,true);
+   auto rc = XrdPosixMap::Result(Status,XrdPosixGlobals::ecMsg,false);
+   if (!Status.IsOK()) {
+       delete fp;
+       errno = -rc;
+   }
+   return rc;
 }
   
 /******************************************************************************/
