@@ -40,6 +40,8 @@
 #include "XrdOssArc/XrdOssArcRecompose.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
 
+#include "XrdOss/XrdOss.hh"
+
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
@@ -420,10 +422,10 @@ bool XrdOssArcDataset::GetManifest()
 
 // Do some tracing
 //
-   DEBUG("Running "<<Config.getManPath<<" ls "<<dsName);
+// DEBUG("Running "<<Config.getManPath<<" ls "<<dsName);
 
-// Run the manifest script.
-//
+// Run the manifest script. ??? No more, we run setup prior to archiver
+/*
    if (!(rc = Config.getManProg->Run(&cmdOut, "ls", dsName)))
       {char* lp;
        while((lp = cmdOut.GetLine()))
@@ -436,6 +438,8 @@ bool XrdOssArcDataset::GetManifest()
             }
        Config.getManProg->RunDone(cmdOut); // This may kill the process
       }
+*/
+   rc = 0;
 
 // Do some tracing here
 //

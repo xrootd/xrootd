@@ -65,18 +65,21 @@ def zrc2text(rc):
 def Main(argv):
 
    # Make sure we have atleast four arguments. These would correspond to:
+   #
    # <dirpath to dsn members <backing dsn dirpath> <arcfilename>
    #
    if len(argv) < 3: Emsg(errno.EINVAL, "Too few arguments") 
    
    # Assign names to the arguments. Note that the dsnDir is atomically unique.
+   # and the arcName is made to reside in the our cwd parent directory.
    #
    dsnDir  = argv[0]
    tapDir  = argv[1]
    arcName = argv[2]
 
-   arcSrc  = dsnDir.rstrip('/')  + '/' + arcName.lstrip('/')
+   arcSrc  = os.path.dirname(dsnDir.rstrip('/')) + '/' + arcName.lstrip('/')
    arcDst  = tapDir.rstrip('/')  + '/' + arcName.lstrip('/')
+   arcName = '../' + arcName
 
    # Do some debugging
    #
@@ -170,7 +173,7 @@ def Main(argv):
       Emsg(errno.EINVAL, "Unable to set sticky bit on {}; {}".format(arcSrc,
                          str(e)))
 
-   # Now delete the dataset disk copy. The directoru structure is
+   # Now delete the dataset disk copy. The directory structure is
    # /prefix/<flat_dataset_name>/<sep> and we want to remove the
    # <flat_dataset_name> and it's contents.
    #

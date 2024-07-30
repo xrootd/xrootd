@@ -1,10 +1,10 @@
-#ifndef _XRDOSSARCRECOMPOSE_H
-#define _XRDOSSARCRECOMPOSE_H
+#ifndef _XRDOSSACFSMON_H
+#define _XRDOSSACFSMON_H
 /******************************************************************************/
 /*                                                                            */
-/*                 X r d O s s A r c R e c o m p o s e . h h                  */
+/*                     X r d O s s A r c F S M o n . h h                      */
 /*                                                                            */
-/* (c) 2023 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2024 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,44 +30,47 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <cstring>
-#include <string>
+#include <deque>
 
-class XrdOssArcRecompose
+#include "Xrd/XrdJob.hh"
+
+#include "XrdSys/XrdSysPthread.hh"
+
+class XrdOssArcBackupTask;
+
+class XrdOssArcFSMon : public XrdJob
 {
-
 public:
 
-       char* arcPath = 0; // Full path to file within this RSE
-       char* arcDir  = 0; // Directory where file should exist (w/ prefix & sep)
-const  char* arcFile = 0; // File path, points into arcPath
-       char* arcDSN  = 0; // The dataset name
+void  DoIt() override;
 
-       bool        Compose(char* buff, int bsz);
+bool  Init(const char* path, long long fVal, int fsupdt);
 
-static std::string Dir2DSN(const char* dir);
-static std::string DSN2Dir(const char* dsn);
+bool  Permit(XrdOssArcBackupTask* btP);
 
-static bool        isArcFile(const char *path);
+void  Release(size_t bytes);
 
-             XrdOssArcRecompose(const char *path, int& retc, bool isW=true);
-
-            ~XrdOssArcRecompose();
-
-XrdOssArcRecompose& operator=(XrdOssArcRecompose&) = delete;
-
-XrdOssArcRecompose& operator=(XrdOssArcRecompose&& rhs)
-                             {if (this != &rhs)
-                                 {arcPath = rhs.arcPath; rhs.arcPath = 0;
-                                  arcDir  = rhs.arcDir;  rhs.arcDir  = 0;
-                                  arcFile = rhs.arcFile; rhs.arcFile = 0;
-                                  arcDSN  = rhs.arcDSN;  rhs.arcDSN  = 0;
-                                 }
-                              return *this;
-                             }
+      XrdOssArcFSMon() : fs_inBkp(0) {}
+     ~XrdOssArcFSMon() {}
 
 private:
-static int   minLenDSN;
-static int   minLenFN;
+
+size_t getFSpace(size_t &Size, const char *path);
+
+XrdSysMutex rmMutex;
+std::deque<XrdOssArcBackupTask*> btWaitQ;
+
+const char* fs_Path;
+
+size_t fs_inBkp;   // Bytes currently committed for backup
+size_t fs_inUse;   // Bytes currently in use (Size - Free) since last update
+
+size_t fs_MaxUsed; // Maximum used space allowed in bytes
+size_t fs_MinFree; // Minimum free space allowed in bytes
+
+size_t fs_Free;    // Filesystem free in bytes
+size_t fs_Size;    // Filesystem size in bytes
+
+int    fs_Updt;    // Interval between async free space updates
 };
 #endif

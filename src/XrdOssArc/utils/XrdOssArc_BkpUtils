@@ -1,0 +1,339 @@
+#!/usr/bin/python3
+#******************************************************************************
+#*                    X r d O s s A r c _ B k p U t i l s                    *
+#******************************************************************************
+
+import errno
+import json
+import os
+import sys
+
+from shutil import rmtree
+from urllib.parse import urlparse
+
+from rucio.client.didclient import DIDClient
+from rucio.client.metaclient import MetaClient
+from rucio.client.replicaclient import ReplicaClient
+
+# Check for debugging
+#
+x = os.getenv("XRDOSSARC_DEBUG", None)
+if x is None: Debug = False
+else: Debug = True
+
+# Initialize the did client
+try:
+   DIDclient = DIDClient()
+except Exception as e:
+   Emsg(8, "Error creating DID client: {}".format(e))
+#******************************************************************************
+#*                                  E m s g                                   *
+#******************************************************************************
+# Print to stderr a message
+#
+def Emsg(rc, txt):
+   print('OssArc_BkupUtils:', txt, file=sys.stderr)
+   if (rc < 0):
+      print("Usage: addkey <key>")
+      print("       list   <key> <value> <scope> <eolval>")
+      print("       qkey   <key>         <scope> <dsname>")
+      print("       set    <key> <value> <scope> <dsname>")
+      print("       setup  <rse> <scope> <dsname> <arenadir> <mountpfn>")
+      rc = -rc
+   if rc:
+      sys.exit(rc)
+
+#******************************************************************************
+#*                           G e t _ l f n 2 p f n                            *
+#******************************************************************************
+
+def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
+
+   if Debug: Emsg(0, 'list_files({}, {})'.format(scope,dsn))
+   DIDclient = DIDClient()
+   try:
+      lfnVec = DIDclient.list_files(scope, dsn)
+   except Exception as e:
+      Emsg(8, "Error getting lfns: {}".format(e))
+
+   qryVec = []
+   totBytes = 0
+   for file in lfnVec:
+      qryVec.append({'scope':file['scope'], 'name':file['name']})
+      totBytes += file['bytes']
+   totFiles = len(qryVec)
+
+   # Get the replicas for the specified data
+   lfn2pfn = []
+   # print('PFN prefix:', pfnPFX)
+   REPclient = ReplicaClient()
+   try:
+      replicas = REPclient.list_replicas(qryVec, rse_expression=rse)
+      for replica in replicas:
+         pfn = pfnPFX + urlparse(replica["rses"][rse][0]).path
+         did = qryVec.pop(0)
+         lfn2pfn.append([did['scope'] + ':' + did['name'], pfn])
+   except Exception as e:
+      Emsg(8, "Error getting pfns: {}".format(e))
+  
+   if Debug:
+      Emsg(0, 'DSN: {}:{} Files: {} Bytes: {}'.format(scope, dsn, totFiles,
+                                                      totBytes))
+
+   return totFiles, totBytes, lfn2pfn
+
+#******************************************************************************
+#*                                A d d K e y                                 *
+#******************************************************************************
+
+def AddKey(key):
+   metaclient = MetaClient()
+
+   # Get all current keys and check if this key is already in tghe set
+   #
+   try:
+      allkeys = metaclient.list_keys()
+      if not key in allkeys:
+         metaclient.add_key(key=key, key_type='COLLECTION')
+   except Exception as e:
+      Emsg(8, 'Unable to add key {}: {}'.format(key, e))
+   return True
+
+#******************************************************************************
+#*                               L S _ B k u p                                *
+#******************************************************************************
+
+def LS_Bkup(argv):
+
+   # Make sure we have atleast four arguments. These would correspond to:
+   # <key> <kval> <scope> <eol> 
+   #
+   if len(argv) < 4: Emsg(-errno.EINVAL, "Too few arguments") 
+   key      = argv[0] 
+   kval     = argv[1]
+   theScope = argv[2]
+   eol      = argv[3]
+
+   try:
+      dids = DIDclient.list_dids(scope=theScope, did_type='DIDType.DATASET',
+                                 filters=({key:kval}), long=False)
+   except Exception as e:
+      Emsg(8, 'Cannot get datasets to be backed up: {}'.format(e))
+
+   dsVec = []
+   for did in dids:
+      dsVec.append({'scope':theScope, 'name':did})
+
+   # Get the metadata for all of the did's potentially needing backup
+   #
+   try:
+      mVec = DIDclient.get_metadata_bulk(dsVec) 
+   except Exception as e:
+      Emsg(8, 'Cannot get dataset backup metadata: {}'.format(e))
+
+   # Construct list of closed datasets as they can only be backed up
+   #
+   for meta in mVec:
+      if not meta['is_open']:
+         print(meta['name'])
+      elif Debug:
+         Emsg(0,"Dataset {}:{} is still open; backup skipped!".format(theScope,
+                                                               meta['name']))
+
+   print(eol)
+
+
+#******************************************************************************
+#*                               Q r y _ K e y                                *
+#******************************************************************************
+
+def Qry_Key(argv):
+
+   # Make sure we have atleast three arguments. These would correspond to:
+   # <key> <scope> <dsn> 
+   #
+   if len(argv) < 3: Emsg(-errno.EINVAL, "Too few arguments") 
+   key      = argv[0] 
+   theScope = argv[1]
+   dsname   = argv[2]
+
+   try:
+       meta = DIDclient.get_metadata(theScope, dsname, 'JSON')
+   except Exception as e:
+      Emsg(8, "Unable to qury key {}: {}".format(key, e))
+
+   print(meta.get(key))
+   return True
+
+#******************************************************************************
+#*                            S e t _ B a c k u p                             *
+#******************************************************************************
+
+def Set_Backup(argv):
+
+   # Make sure we have atleast four arguments. These would correspond to:
+   # <key> <kval> <scope> <dsn> 
+   #
+   if len(argv) < 4: Emsg(-errno.EINVAL, "Too few arguments") 
+   key      = argv[0] 
+   kval     = argv[1]
+   theScope = argv[2]
+   dsname   = argv[3]
+  
+   try:
+      DIDclient.set_metadata(theScope, dsname, key, kval)
+   except Exception as e:
+      Emsg(8, "Unable to set backup status to {}: {}:".format(kval, e))
+
+   return True
+
+#******************************************************************************
+#*                                 S e t u p                                  *
+#******************************************************************************
+ 
+def Setup(argv):
+
+   # Make sure we have atleast five arguments. These would correspond to:
+   # <rse> <scope> <dsn> <path to atomic dsn directory> <pfn path prefix>
+   #
+   if len(argv) < 5: Emsg(-errno.EINVAL, "Too few arguments") 
+   
+   # Assign names to the arguments. Note that the dsnDir is atomically unique.
+   #
+   theRSE   = argv[0]
+   theScope = argv[1]
+   theDSN   = argv[2]
+   dsnDir   = argv[3]
+   pfnPFX   = argv[4]
+
+   # Fix up pfn prefix as it must not end with a slash
+   #
+   while pfnPFX.endswith('/'): pfnPFX = pfnPFX[:-1]
+
+   # Fix up dsnDir as it must not end with a slash
+   #
+   while dsnDir.endswith('/'): dsnDir = dsnDir[:-1]
+
+   # Do some debugging
+   #
+   if Debug:
+      Emsg(0, "RSE={} dsn={}:{} dsnDir={} pfnPFX={}".format(theRSE, theScope,
+                                                            theDSN, dsnDir,
+                                                            pfnPFX))
+   
+   # Set out working directory to the root of the dataset members
+   #
+   try:
+      os.chdir(dsnDir)
+   except Exception as e:
+      Emsg(errno.ENOENT, "unable to chdir to {}: {}".format(dsnDir,e))
+
+   # Verify that we can use the target directory
+   #  
+   if (not os.access(dsnDir, os.W_OK)):
+      Emsg(errno.EACCES, "{} not writable (target directory)".format(dsnDir))
+
+   # Clean this directory of anything that might be left over. We remove the
+   # last directory in the 
+   #
+   bStat = os.stat(dsnDir)
+   bMode = bStat.st_mode & 0o777
+   try:
+      os.chdir('..')
+      rmtree(dsnDir)
+   except Exception as e:
+      Emsg(8, "Unable to clean arena directory {}: {}".format(dsnDir, e))
+   try:
+      os.mkdir(dsnDir, bMode)
+   except Exception as e:
+      Emsg(8, "Unable to recreate arena directory {}: {}".format(dsnDir, e))
+   try:
+      os.chdir(dsnDir)
+   except Exception as e:
+      Emsg(8, "Unable to cd to arena directory {}: {}".format(dsnDir, e))
+
+   # Obtain lfn to pfn map for the dataset
+   #
+   totFiles, totBytes, lfn2pfn = Get_lfn2pfn(theRSE, theScope, theDSN, pfnPFX)
+     
+   # Make sure we have something here to work with
+   #
+   if totFiles != len(lfn2pfn) or not totFiles:
+      Emsg(errno.ENODATA, "Dataset {}:{} is empty!".format(theScope, theDSN))
+
+   # now create all the symlinks using the lfn pointing to the pfn
+   #
+   for fnMap in lfn2pfn:
+      Emsg(0,fnMap)
+      lfn  = fnMap[0]
+      pfn  = fnMap[1]
+      ldir = os.path.dirname(lfn)
+      if ldir and lfn != '/':
+         try:
+            os.makedirs(ldir, bMode, exist_ok=True)
+         except Exception as e:
+            Emsg(8, "Unable to recreate path {}{}: {}".format(dsnDir, ldir, e))
+      try:
+         os.symlink(pfn, lfn)
+      except Exception as e:
+         Emsg(8, "Unable to create symlink {} -> {}: {}".format(lfn,  pfn, e))
+
+   # We are done, tell caller how big the setup is
+   #
+   if Debug:
+      Emsg(0, "Done! {} DS {}:{} has {} files totaling  {} bytes".format(theRSE,
+               theScope, theDSN, totFiles, totBytes))
+
+   print(totFiles, totBytes)
+   return(0)
+
+#******************************************************************************
+#*                                  M a i n                                   *
+#******************************************************************************
+
+# The actual guts of the script
+#
+def Main(argv):
+
+   # Make sure we have the common arguments: <cmd> <metakey> <metaval> <scope>
+   # Normally, we would use argparse but that's left for another day.
+   #
+   if len(argv) < 1:
+      Emsg(-errno.EINVAL, "Command not specified") 
+      return errno.EINVAL
+   cmd = argv[0]
+
+   # There must be atleast one argument left
+   #
+   #
+   if len(argv) < 2: Emsg(-errno.EINVAL, "Too few arguments") 
+
+   # Check for setup as it has special arguments
+   #
+   if cmd == 'setup': return Setup(argv[1:])
+
+   # Process the command
+   #
+   if (cmd == "addkey"):                   
+      AddKey(argv[1])
+      return 0
+
+   if (cmd == "list"):                   
+      LS_Bkup(argv[1:])
+      return 0
+
+   if (cmd == "qkey"):
+      Qry_Key(argv[1:])
+      return 0
+
+   if (cmd == "set"):
+      Set_Backup(argv[1:])
+      return 0
+      
+   # Unknown command
+   #
+   Emsg(-errno.EINVAL, "Unknown command, '{}'".format(cmd))
+   return errno.EINVAL
+
+if __name__ == "__main__":
+   sys.exit(Main(sys.argv[1:]))

@@ -50,9 +50,9 @@ int   GenTapePath(const char* dsn, char* buff, int bSZ, bool addafn=false);
 
 // Program section (i.e. the various scripts to launch
 //
-XrdOucProg* getManProg;    // Obtain the list of files in a dataset
-char*       getManPath;    // The actual path to the program
-const char* getManEOL;     // Character sequence to indicate EOL
+XrdOucProg* BkpUtilProg;   // Various Rucio involved functions
+char*       BkpUtilPath;   // The actual path to the program
+const char* BkpUtilEOL;    // Character sequence to indicate EOL
 
 XrdOucProg* ArchiverProg;  // Create an archive
 char*       ArchiverPath;  // The actual path to the executable
@@ -67,13 +67,25 @@ char*       MssComRoot;    // Root of the MSS Tape File System
 char*       arcvPathLFN;   // LFN of archive path, default "/archive/"
 int         arcvPathLEN;   // Length of the above
 int         bkupPathLEN;   // Length of the below
-char*       bkupPathLFN;   // LFN of backup path, default "/backup/"
+char*       bkupPathLFN;   // LFN of backup  path, default "/backup/"
+char*       dsetPathLFN;   // LFN of dataset path, default "/dataset/"
+char*       dsetRepoPFN;   // Path to directory where dataset backups are staged
+char*       srcData;       // Root path to where srcrse data is mounted
 char*       stagePath;     // Path to directory where zip members are extracted
 char*       tapePath;      // The full path of the tape disk buffer
 char*       utilsPath;     // Default path to utils
 
 // Miscellaneous
 //
+const char* metaBKP;       // Metadat variable name
+char*       doneBKP;       // Metadata value indicating a backup completed
+char*       needBKP;       // Metadata value indicating a backup is needed
+char*       dstRSE;        // The name of the dest rse (our name)
+char*       srcRSE;        // The name of the source rse
+long long   bkpMinF;       // Percentage or bytes that must be always available
+int         bkpMax;        // Maximum number of parallel backups
+int         bkpPoll;       // Polling interval to find new items to backup
+int         bkpFSt;        // Backup fs scan interval in seconds
 int         maxStage;      // Maximum number of parallel stages
 int         wtpStage;      // Staging Wait/Poll interval 
 char*       arFName;       // Full archive filename (e.g. archive.zip)
@@ -83,13 +95,19 @@ char        mySep;         // Slash replacement separator
 
 private:
 
+bool BuildPath(const char* what, const char* baseP, 
+               const char* addP, char*& destP, int mode=0);
 void ConfigPath(char** pDest, const char* pRoot);
 bool ConfigProc(const char* drctv);
 bool ConfigXeq(const char* cfName, const char* parms, XrdOucEnv* envP);
 bool MissArg(const char* what);
 bool Usable(const char* path, const char* what, bool useOss=true);
 bool xqGrab(const char* what, char*& theDest, const char* theLine);
+bool xqBkup();
+bool xqBkupPS(char* tval);
+bool xqBkupScope();
 bool xqPaths();
+bool xqRse();
 bool xqStage();
 bool xqTrace();
 bool xqUtils();

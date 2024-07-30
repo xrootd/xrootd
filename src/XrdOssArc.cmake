@@ -14,9 +14,11 @@ add_library(
   ${LIB_XRD_OSSARC}
   MODULE
   XrdOssArc/XrdOssArc.cc                      XrdOssArc/XrdOssArc.hh
+  XrdOssArc/XrdOssArcBackup.cc                XrdOssArc/XrdOssArcBackup.hh
   XrdOssArc/XrdOssArcConfig.cc                XrdOssArc/XrdOssArcConfig.hh
   XrdOssArc/XrdOssArcDataset.cc               XrdOssArc/XrdOssArcDataset.hh
   XrdOssArc/XrdOssArcFile.cc                  XrdOssArc/XrdOssArcFile.hh
+  XrdOssArc/XrdOssArcFSMon.cc                 XrdOssArc/XrdOssArcFSMon.hh
   XrdOssArc/XrdOssArcPrep.cc
   XrdOssArc/XrdOssArcRecompose.cc             XrdOssArc/XrdOssArcRecompose.hh
   XrdOssArc/XrdOssArcStage.cc                 XrdOssArc/XrdOssArcStage.hh

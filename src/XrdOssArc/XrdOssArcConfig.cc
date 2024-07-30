@@ -31,23 +31,29 @@
 /*                             i n c l u d e s                                */
 /******************************************************************************/
 
+#include <set>
 #include <string>
+#include <vector>
 
 #include <string.h>
 #include <unistd.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include "Xrd/XrdScheduler.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOssArc/XrdOssArc.hh"
+#include "XrdOssArc/XrdOssArcBackup.hh"
 #include "XrdOssArc/XrdOssArcConfig.hh"
+#include "XrdOssArc/XrdOssArcFSMon.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucGatherConf.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
@@ -56,16 +62,27 @@
   
 namespace XrdOssArcGlobals
 {
-extern XrdOss*       ossP;
+extern XrdOss*         ossP;
 
-extern XrdScheduler* schedP;
+extern XrdScheduler*   schedP;
   
-extern XrdSysError   Elog;
+extern XrdSysError     Elog;
 
-extern XrdSysTrace   ArcTrace;
+extern XrdSysTrace     ArcTrace;
+
+       XrdOssArcFSMon  fsMon;
 }
 using namespace XrdOssArcGlobals;
 
+/******************************************************************************/
+/*                         L o c a l   O b j e c t s                          */
+/******************************************************************************/
+
+namespace
+{
+std::set<std::string> bkpScopes;
+}
+  
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -73,20 +90,33 @@ using namespace XrdOssArcGlobals;
 XrdOssArcConfig::XrdOssArcConfig()
 {
 // Establish the defaults 
-   getManPath  = strdup("XrdOssArc_Manifest");
-   getManEOL  = "===";
    ArchiverPath= strdup("XrdOssArc_Archiver");
+   BkpUtilPath = strdup("XrdOssArc_BkpUtils");
    MssComPath  = strdup("XrdOssArc_MssCom");
    MssComCmd   = 0;
    MssComRoot  = 0;
+
    arcvPathLFN = strdup("/archive/");
    arcvPathLEN = strlen(arcvPathLFN);
    bkupPathLFN = strdup("/backup/");
    bkupPathLEN = strlen(bkupPathLFN);
+   dsetPathLFN = strdup("/dataset/");
+   dsetRepoPFN = 0;
+   srcData     = strdup("");
    stagePath   = strdup("/tmp/stage");
    tapePath    = strdup("/TapeBuffer");
    utilsPath   = strdup("/usr/local/etc");
 
+   metaBKP     = "arcBackup";
+   doneBKP     = 0;
+   needBKP     = 0;
+   dstRSE      = 0;
+   srcRSE      = 0;
+
+   bkpMinF     = -20;
+   bkpMax      = 2;
+   bkpPoll     = 15*60;
+   bkpFSt      = -1;  // Eventual default is bkpPoll/3
    maxStage    = 30;
    wtpStage    = 30;
    arFName     = strdup("Archive.zip");
@@ -96,6 +126,58 @@ XrdOssArcConfig::XrdOssArcConfig()
 
    if (getenv("XRDOSSARC_DEBUG") || getenv("XRDDEBUG"))
       ArcTrace.What |= TRACE_Debug;
+}
+  
+/******************************************************************************/
+/* Private:                    B u i l d P a t h                              */
+/******************************************************************************/
+  
+bool XrdOssArcConfig::BuildPath(const char* what, const char* baseP, 
+                                const char* addP, char*& destP, int mode)
+{
+   char lclPath[MAXPATHLEN];
+   int rc;
+   
+// Get the local path to the base directory
+//
+   if ((rc = GenLocalPath(baseP, lclPath, sizeof(lclPath))))
+      {Elog.Emsg("Config", rc, "configure", what);
+       return false;
+      }
+
+// Copy the path for further modification
+//
+   std::string tmpStr(lclPath);
+
+// Trimp off trailing slashes
+//
+   while(tmpStr.back() == '/') tmpStr.pop_back();
+
+// Add any additional element
+//
+   if (addP) tmpStr.append(addP);
+
+// Create modifiable copy
+//
+   char* modStr = strdup(tmpStr.c_str());
+
+// Check if we need to create the full path
+//
+   if (mode)
+      {int rc = XrdOucUtils::makePath(modStr, mode); 
+       if (rc)
+          {std::string msgT("create ");
+           msgT.append(what);
+           Elog.Emsg("Config", rc, msgT.c_str(), tmpStr.c_str());
+           free(modStr);
+           return false;
+          }
+       }
+
+// Set destination and return success
+//
+   destP = modStr;
+   return true;
 }
 
 /******************************************************************************/
@@ -117,20 +199,64 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
    if (ArcTrace.What & TRACE_Debug)
       XrdOucEnv::Export("XRDOSSARC_DEBUG", "1");
 
-// Verify the archive path is usable
+// Make sure that the rse declarations have been specified
 //
-   if (!Usable(arcvPathLFN, "archive path")) NoGo = true;
+   if (dstRSE && srcRSE)
+      {std::string tmp;
+       XrdOucEnv::Export("XRDOSSARC_DSTRSE", dstRSE);
+       DEBUG("exporting XRDOSSARC_DSTRSE="<<dstRSE);
+       XrdOucEnv::Export("XRDOSSARC_SRCRSE", srcRSE);
+       DEBUG("exporting XRDOSSARC_SRCRSE="<<srcRSE);
+
+       tmp = dstRSE;
+       tmp += ":need";
+       needBKP = strdup(tmp.c_str());
+       tmp  = dstRSE;
+       tmp += ":done";
+       doneBKP = strdup(tmp.c_str());
+      } else {
+       Elog.Say("Config mistake: required 'rsedcl' directive not specified!");
+       NoGo = true;
+      }
+
+// Verify the archive path is usable (for now we are not using /archive)
+//
+//??? if (!Usable(arcvPathLFN, "archive path")) NoGo = true;
 
 // Verify that the tape buffer is usable
 //
    if (!Usable(tapePath, "tape buffer path", false)) NoGo = true;
 
-// Create the program to be used to get the manifest. This is a thread safe
-// program so only one instance is needed
+// Initialize the tape buffer resourse monitor
 //
-   getManProg = new XrdOucProg(&Elog);
-   ConfigPath(&getManPath, utilsPath);
-   if (getManProg->Setup(getManPath)) NoGo = true;
+   if (bkpFSt < 0)
+      {bkpFSt = bkpPoll/3;
+       if (bkpFSt < 30) bkpFSt = 30;
+      }
+   if (!fsMon.Init(tapePath, bkpMinF, bkpFSt)) NoGo = true;
+
+// Verify that the data source mount point is usable
+//
+   if (*srcData)
+      {struct stat Stat;
+       if (stat(srcData, &Stat))
+          {Elog.Emsg("Config", errno, "use srcdata path", srcData);
+           NoGo = true;
+          }
+      }
+
+// Create the backup staging path
+//
+   if (!BuildPath("dataset backup arena", dsetPathLFN, "/4bkp/",
+                  dsetRepoPFN, S_IRWXU|S_IRGRP|S_IXGRP))
+      NoGo = true;
+
+// Create the program that returns the datasets that need to be backed up.
+// It also is the one that manipulates the backup status of a dataset.
+//
+   BkpUtilProg = new XrdOucProg(&Elog);
+   ConfigPath(&BkpUtilPath, utilsPath);
+   if (BkpUtilProg->Setup(BkpUtilPath)) NoGo = true;
 
 // Create the program to be used to create the archive
 //
@@ -154,6 +280,38 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
       {XrdOucEnv::Export("XRDOSSARC_MSSROOT", MssComRoot);
        DEBUG("exporting XRDOSSARC_MSSROOT="<<MssComRoot);
       } else MssComRoot = strdup(""); 
+
+// Start the backup process. 
+//
+   std::vector<XrdOssArcBackup*> bkpVec;
+   XrdOssArcBackup* bkpP;
+   if (bkpScopes.empty())
+      {Elog.Emsg("Config", "No backup scopes specified!"); NoGo = true;
+      } else {
+       bool isOK;
+       for (auto it = bkpScopes.begin(); it != bkpScopes.end(); ++it)
+           {bkpP = new XrdOssArcBackup(it->c_str(), isOK);
+            if (!isOK)
+               {NoGo = true;
+                Elog.Emsg("Config", "Unable to start backing up scope",
+                                    it->c_str());
+                delete bkpP;
+               } else bkpVec.push_back(bkpP);
+           }
+      }
+
+// Start the configured number of backup workers The workers will wait for
+// backup tasks which will come shortly as we will start them once we have
+// dispatched workers. However, if we failed in any way, nothing is started.
+//
+   if (!NoGo)
+      {XrdOssArcBackup::StartWorkers(bkpMax);
+       for (auto it = bkpVec.begin(); it != bkpVec.end(); it++) 
+           {Elog.Say("Config process: scheduling backup for scope ",
+                                      (*it)->theScope());
+            schedP->Schedule(*it, time(0)+3);
+           }
+      }
 
 // All done
 //
@@ -186,9 +344,11 @@ bool XrdOssArcConfig::ConfigProc(const char* drctv)
 
 // Process each directive
 //
-        if (!strcmp(drctv, "msscmd"))
+        if (!strcmp(drctv, "backup"))  return xqBkup();
+   else if (!strcmp(drctv, "msscmd"))
            return xqGrab("msscmd", MssComCmd, Conf->LastLine());
    else if (!strcmp(drctv, "paths"))  return xqPaths();
+   else if (!strcmp(drctv, "rsedcl")) return xqRse();
    else if (!strcmp(drctv, "stage"))  return xqStage();
    else if (!strcmp(drctv, "trace"))  return xqTrace();
    else if (!strcmp(drctv, "utils"))  return xqUtils();
@@ -295,7 +455,7 @@ bool XrdOssArcConfig::MissArg(const char* what)
    Conf->MsgfE("%s not specified.", what);
    return false;
 }
-  
+
 /******************************************************************************/
 /*                                U s a b l e                                 */
 /******************************************************************************/
@@ -370,10 +530,134 @@ bool XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
 }
 
 /******************************************************************************/
+/* Private:                       x q B k u p                                 */
+/******************************************************************************/
+/*
+  backup [fscan <sec>] [max <num>] [poll <sec>] [minfree <n>[%|k|m|g]]
+         [scope <name> [<name [...]]]
+*/
+
+bool XrdOssArcConfig::xqBkup()
+{
+   static const int isN  = 0;
+   static const int isT  = 1;
+   static const int isPS = 2;
+
+   struct bkpopts {const char *opname; int* oploc; int minv; int isX;}
+          bkpopt[] =
+             {
+              {"fscan",   &bkpFSt,  30, isT},
+              {"max",     &bkpMax,  60, isN},
+              {"minfree", 0,         1, isPS},
+              {"poll",    &bkpPoll,  1, isT},
+              {"scope",   0,        -1, isN}
+             };
+   int numopts = sizeof(bkpopt)/sizeof(struct bkpopts);
+   int i;
+   char* token, *tval;
+
+// Get the first token, there must be one
+//
+   if (!(token = Conf->GetToken()))
+      {Conf->MsgfE("no backup arguments specified!"); return false;}
+
+// Process all options
+//
+do{for (i = 0; i < numopts; i++)
+       {if (!strcmp(token, bkpopt[i].opname))
+           {if (bkpopt[i].minv == -1) return xqBkupScope();
+            int* val  = bkpopt[i].oploc;
+            int  minv  = bkpopt[i].minv;
+
+            if (!(tval = Conf->GetToken()) || !(*tval))
+               {Conf->MsgE("backup", token, "value not specified!");
+                return false;
+               }
+            
+            if (bkpopt[i].isX == isPS)
+               {if (!xqBkupPS(tval)) return false;
+                break;
+               }
+
+            if (bkpopt[i].isX == isT)
+               {if (XrdOuca2x::a2tm(Elog,bkpopt[i].opname,token,val,minv))
+                   {Conf-> EchoLine();
+                    return false;
+                   }
+                break;
+               }
+
+            if (XrdOuca2x::a2i(Elog,bkpopt[i].opname,token,val,minv))
+               {Conf-> EchoLine();
+                return false;
+               }
+            break;
+           }
+       }
+   if (i >= numopts)
+      {Conf->MsgfE("Unknown backup option '%s'.", token); return false;}
+
+  } while((token = Conf->GetToken()));
+   
+// All done               
+//
+   return true;
+}
+
+/******************************************************************************/
+/* Private:                     x q B k u p P S                               */
+/******************************************************************************/
+
+bool XrdOssArcConfig::xqBkupPS(char* tval)
+{
+   int n = strlen(tval);
+
+// Check for percentage or actual size
+//
+   if (tval[n-1] == '%')
+      {if (XrdOuca2x::a2sp(Elog,"backup minfree",tval,&bkpMinF,1,99))
+          {Conf-> EchoLine();
+           return false;
+          }
+       bkpMinF = -bkpMinF;
+      } else {
+       if (XrdOuca2x::a2sz(Elog,"backup minfree",tval,&bkpMinF,1))
+          {Conf-> EchoLine();
+           return false;
+          }
+      }
+
+// All done
+//
+   return true;
+}
+  
+/******************************************************************************/
+/* Private:                  x q B k u p S c o p e                            */
+/******************************************************************************/
+
+bool XrdOssArcConfig::xqBkupScope()
+{
+   char* scope = Conf->GetToken();
+
+   if (!scope || !(*scope)) 
+      {Conf->MsgfE("backup scope not specified!"); return false;}
+
+do{auto rslt = bkpScopes.insert(std::string(scope));
+   if (!rslt.second)
+      Conf->MsgW("backup scope", scope, "previously specified.");
+   scope = Conf->GetToken();
+  } while(scope && *scope);
+    
+   return true;
+}  
+  
+/******************************************************************************/
 /* Private:                      x q P a t h s                                */
 /******************************************************************************/
 /*  
-   paths [backing <path>] [mssfs <path>] [staging <path>] [utils <path>]
+   paths [backing <path>] [mssfs <path>] [srcdata <path>] [staging <path>]
+         [utils <path>]
 */
 
 bool XrdOssArcConfig::xqPaths()
@@ -386,6 +670,7 @@ bool XrdOssArcConfig::xqPaths()
    while((token = Conf->GetToken()))
         {     if (!strcmp("backing",  token)) pDest = &tapePath;
          else if (!strcmp("mssfs",    token)) pDest = &MssComRoot;
+         else if (!strcmp("srcdata",  token)) pDest = &srcData;
          else if (!strcmp("staging",  token)) pDest = &stagePath;
          else if (!strcmp("utils",    token)) pDest = &utilsPath;
          else {Conf->MsgfE("Unknown path type '%s'; ignored.", token);
@@ -414,6 +699,38 @@ bool XrdOssArcConfig::xqPaths()
 
 // All done
 //
+   return true;
+}
+
+/******************************************************************************/
+/* Private:                        x q R s e                                  */
+/******************************************************************************/
+/*
+   rsedcl <srcrse_name> <dstrse_name>
+*/
+bool XrdOssArcConfig::xqRse()
+{
+   char* token;
+
+// Get the first token, there must be one
+//
+   if (!(token = Conf->GetToken()))
+      {Conf->MsgfE("source rse name not specified!"); return false;}
+
+// Copy it over
+//
+   if (srcRSE) free(srcRSE);
+   srcRSE = strdup(token);
+
+// Get the next token, there must be one
+//
+   if (!(token = Conf->GetToken()))
+      {Conf->MsgfE("destination rse name not specified!"); return false;}
+
+// Copy it over
+//
+   if (dstRSE) free(dstRSE);
+   dstRSE = strdup(token);
    return true;
 }
 
@@ -510,7 +827,7 @@ bool XrdOssArcConfig::xqTrace()
 /* Private:                      x q U t i l s                                */
 /******************************************************************************/
 /*  
-   utils [archiver <path>] [manifest <path>] [msscom <path>]
+   utils [archiver <path>] [bkputils <path>] [msscom <path>]
 */
 
 bool XrdOssArcConfig::xqUtils()
@@ -522,7 +839,7 @@ bool XrdOssArcConfig::xqUtils()
 //
    while((token = Conf->GetToken()))
         {     if (!strcmp("archiver", token)) uDest = &ArchiverPath;
-         else if (!strcmp("manifest", token)) uDest = &getManPath;
+         else if (!strcmp("bkputils", token)) uDest = &BkpUtilPath;
          else if (!strcmp("msscom",   token)) uDest = &MssComPath;
          else {Conf->MsgfW("Unknown util '%s'; ignored.", token);
                if (!Conf->GetToken()) break;
