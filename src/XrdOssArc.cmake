@@ -30,6 +30,7 @@ target_link_libraries(
   ${LIB_XRD_OSSARC}
   PRIVATE
   XrdUtils
+  XrdServer
   libzip::zip
   ${CMAKE_THREAD_LIBS_INIT} )
 
