@@ -1,10 +1,10 @@
-#ifndef _XRDOSSARCRECOMPOSE_H
-#define _XRDOSSARCRECOMPOSE_H
+#ifndef _XRDOSSARC_BACKUP_HH_
+#define _XRDOSSARC_BACKUP_HH_
 /******************************************************************************/
 /*                                                                            */
-/*                 X r d O s s A r c R e c o m p o s e . h h                  */
+/*                       X r d O s s B a c k u p . h h                        */
 /*                                                                            */
-/* (c) 2023 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2024 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,44 +30,94 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <cstring>
+#include <deque>
+#include <set>
 #include <string>
 
-class XrdOssArcRecompose
-{
+#include "Xrd/XrdJob.hh"
 
+#include "XrdSys/XrdSysPthread.hh"
+
+/******************************************************************************/
+/*                   X r d O s s A r c B a c k u p T a s k                    */
+/******************************************************************************/
+
+class XrdOssArcBackup;
+
+class XrdOssArcBackupTask
+{
 public:
 
-       char* arcPath = 0; // Full path to file within this RSE
-       char* arcDir  = 0; // Directory where file should exist (w/ prefix & sep)
-const  char* arcFile = 0; // File path, points into arcPath
-       char* arcDSN  = 0; // The dataset name
+XrdOssArcBackup&       Owner;
+const char*            theScope;
+      char*            theDSN;
+      size_t           numBytes;
+      int              numFiles;
+      bool             relSpace;
+      XrdSysSemaphore  btSem;
 
-       bool        Compose(char* buff, int bsz);
+                       XrdOssArcBackupTask(XrdOssArcBackup& who, char* dsn);
+                      ~XrdOssArcBackupTask();
 
-static std::string Dir2DSN(const char* dir);
-static std::string DSN2Dir(const char* dsn);
+       bool            BkpXeq();
+};
+  
+/******************************************************************************/
+/*                       X r d O s s A r c B a c k u p                        */
+/******************************************************************************/
+  
+class XrdOssArcBackup : public XrdJob
+{
+friend class XrdOssArcBackupTask;
+public:
 
-static bool        isArcFile(const char *path);
+static
+bool  Archive(const char* dsName, const char* dsDir);
 
-             XrdOssArcRecompose(const char *path, int& retc, bool isW=true);
+void  DoIt() override;
 
-            ~XrdOssArcRecompose();
+static
+void  StartWorkers(int maxw);
 
-XrdOssArcRecompose& operator=(XrdOssArcRecompose&) = delete;
+const
+char* theScope() {return Scope;}
 
-XrdOssArcRecompose& operator=(XrdOssArcRecompose&& rhs)
-                             {if (this != &rhs)
-                                 {arcPath = rhs.arcPath; rhs.arcPath = 0;
-                                  arcDir  = rhs.arcDir;  rhs.arcDir  = 0;
-                                  arcFile = rhs.arcFile; rhs.arcFile = 0;
-                                  arcDSN  = rhs.arcDSN;  rhs.arcDSN  = 0;
-                                 }
-                              return *this;
-                             }
+      XrdOssArcBackup(const char* scp, bool& isOK);
+     ~XrdOssArcBackup() {}
 
 private:
-static int   minLenDSN;
-static int   minLenFN;
+
+       bool Add2Bkp(const char* dsn);
+       int  GetManifest();
+
+const char* Scope;
+
+static XrdSysMutex                      dsBkpQMtx;
+static std::deque<XrdOssArcBackupTask*> dsBkpQ;
+static XrdSysCondVar2                   dsBkpQCV;
+
+static int numRunning;
+static int maxRunning;
+
+class BkpWorker : public XrdJob
+{
+public:
+
+void DoIt() override;
+
+     BkpWorker() {}
+    ~BkpWorker() {} // Never deleted
+};
+
+struct cmp_str
+{
+   bool operator()(char const *a, char const *b) const
+   {
+      return std::strcmp(a, b) < 0;
+   }
+};
+
+XrdSysMutex                    dsBkpSetMtx;
+std::set<const char*, cmp_str> dsBkpSet;
 };
 #endif
