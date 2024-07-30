@@ -89,28 +89,28 @@ public:
 // The following two are virtual functions to allow for upcasting derivations
 // of this implementation
 //
-virtual int     Close(long long *retsz=0);
-virtual int     Open(const char *, int, mode_t, XrdOucEnv &);
+virtual int     Close(long long *retsz=0) override;
+virtual int     Open(const char *, int, mode_t, XrdOucEnv &) override;
 
-int     Fchmod(mode_t mode) {return XrdOssOK;}
-int     Fstat(struct stat *);
-int     Fsync();
-int     Fsync(XrdSfsAio *aiop);
-int     Ftruncate(unsigned long long);
+int     Fchmod(mode_t mode) override {return XrdOssOK;}
+int     Fstat(struct stat *) override;
+int     Fsync() override;
+int     Fsync(XrdSfsAio *aiop) override;
+int     Ftruncate(unsigned long long) override;
 bool    getErrMsg(std::string& eText) override;
 ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
-                uint32_t* csvec, uint64_t opts);
-int     pgRead (XrdSfsAio* aioparm, uint64_t opts);
+                uint32_t* csvec, uint64_t opts) override;
+int     pgRead (XrdSfsAio* aioparm, uint64_t opts) override;
 ssize_t pgWrite(void* buffer, off_t offset, size_t wrlen,
-                uint32_t* csvec, uint64_t opts);
-int     pgWrite(XrdSfsAio* aioparm, uint64_t opts);
-ssize_t Read(               off_t, size_t);
-ssize_t Read(       void *, off_t, size_t);
-int     Read(XrdSfsAio *aiop);
-ssize_t ReadV(XrdOucIOVec *readV, int n);
-ssize_t ReadRaw(    void *, off_t, size_t);
-ssize_t Write(const void *, off_t, size_t);
-int     Write(XrdSfsAio *aiop);
+                uint32_t* csvec, uint64_t opts) override;
+int     pgWrite(XrdSfsAio* aioparm, uint64_t opts) override;
+ssize_t Read(               off_t, size_t) override;
+ssize_t Read(       void *, off_t, size_t) override;
+int     Read(XrdSfsAio *aiop) override;
+ssize_t ReadV(XrdOucIOVec *readV, int n) override;
+ssize_t ReadRaw(    void *, off_t, size_t) override;
+ssize_t Write(const void *, off_t, size_t) override;
+int     Write(XrdSfsAio *aiop) override;
  
          // Constructor and destructor
          XrdPssFile(const char *tid)
