@@ -53,28 +53,6 @@ char *unquote(const char *str) {
 
 }
 
-
-std::string Macaroons::NormalizeSlashes(const std::string &input)
-{
-    std::string output;
-      // In most cases, the output should be "about as large"
-      // as the input
-    output.reserve(input.size());
-    char prior_chr = '\0';
-    size_t output_idx = 0;
-    for (size_t idx = 0; idx < input.size(); idx++) {
-        char chr = input[idx];
-        if (prior_chr == '/' && chr == '/') {
-            output_idx++;
-            continue;
-        }
-        output += input[output_idx];
-        prior_chr = chr;
-        output_idx++;
-    }
-    return output;
-}
-
 static
 ssize_t determine_validity(const std::string& input)
 {
@@ -140,7 +118,7 @@ Handler::GenerateID(const std::string &resource,
     uuid_unparse(uu, uuid_buf);
     std::string result(uuid_buf);
 
-// The following code shoul have been strictly for debugging purposes. This
+// The following code should have been strictly for debugging purposes. This
 // added code skips it unless debug logging has been enabled. Due to the code
 // structure, indentation is a bit of a struggle as this is a minimal fix.
 //
