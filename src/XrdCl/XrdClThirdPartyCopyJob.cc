@@ -570,7 +570,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Verify if the destination supports TPC / TPC-lite
     //--------------------------------------------------------------------------
-    st = Utils::CheckTPCLite( realTarget.GetHostId() );
+    st = Utils::CheckTPCLite( realTarget.GetURL() );
     if( !st.IsOK() )
     {
       // we still want to send a close, but we time it out fast
@@ -607,11 +607,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !tpcLite )
     {
-      st = Utils::CheckTPC( URL( tpcSource ).GetHostId(), timeLeft );
+      st = Utils::CheckTPC( URL( tpcSource ).GetURL(), timeLeft );
       if( !st.IsOK() )
       {
         log->Error( UtilityMsg, "Source (%s) does not support TPC",
-                    tpcSource.GetHostId().c_str() );
+                    tpcSource.GetURL().c_str() );
         return XRootDStatus( stError, errNotSupported, 0, "Source does not "
                              "support third-party-copy" );
       }
