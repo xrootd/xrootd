@@ -2026,6 +2026,15 @@ int XrdXrootdProtocol::do_Qconf()
            {n = snprintf(bp, bleft, "%d\n", maxPio+1);
             bp += n; bleft -= n;
            }
+   else if (!strcmp("proxy", val))
+           {const char* pxyOrigin = "proxy";
+            if (myRole & kXR_attrProxy)
+               {pxyOrigin = getenv("XRDXROOTD_PROXY");
+                if (!pxyOrigin) pxyOrigin = "proxy";
+               }
+            n = snprintf(bp,bleft,"%s\n",pxyOrigin);
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("readv_ior_max", val))
            {n = snprintf(bp,bleft,"%d\n",maxReadv_ior);
             bp += n; bleft -= n;
