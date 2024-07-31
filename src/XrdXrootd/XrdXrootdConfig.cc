@@ -408,6 +408,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
       } 
    if (fsFeatures & XrdSfs::hasPRXY) myRole |= kXR_attrProxy;
+   if (fsFeatures & XrdSfs::hasCACH) myRole |= kXR_attrCache;
    myRole |= tlsFlags;
 
 // Turn off client redirects if we are neither a redirector nor a proxy server

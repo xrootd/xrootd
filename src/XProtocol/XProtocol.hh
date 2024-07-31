@@ -1155,6 +1155,7 @@ typedef struct ServerResponseReqs_Protocol secReqs;
 //
 #define kXR_isManager     0x00000002
 #define kXR_isServer      0x00000001
+#define kXR_attrCache     0x00000080
 #define kXR_attrMeta      0x00000100
 #define kXR_attrProxy     0x00000200
 #define kXR_attrSuper     0x00000400
