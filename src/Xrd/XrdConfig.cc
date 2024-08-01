@@ -1415,10 +1415,20 @@ int XrdConfig::SetupAPath()
 // the path for group members.
 //
 //
-   if ((rc = XrdOucUtils::makePath(AdminPath, AdminMode & ~S_IWGRP, true)))
+   if ((rc = XrdOucUtils::makePath(AdminPath, AdminMode & ~S_IWGRP)))
        {Log.Emsg("Config", rc, "create admin path", AdminPath);
         return 1;
        }
+
+// Make sure the last component has the permission that we want
+//
+#ifndef WIN32
+   if (chmod(AdminPath, AdminMode & ~S_IWGRP))
+      {Log.Emsg("Config", errno, "set permision for admin path", AdminPath);
+       return 1;
+      }
+#endif
+
 
 // Setup admin connection now
 //
