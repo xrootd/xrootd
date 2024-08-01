@@ -295,6 +295,7 @@ void FileSystemTest::TruncateRmTest()
                            Access::UR | Access::UW ) );
   EXPECT_XRDST_OK( fs.Truncate( filePath, 10000000 ) );
   EXPECT_XRDST_OK( fs.Rm( filePath ) );
+  sync();
 }
 
 //------------------------------------------------------------------------------
@@ -327,6 +328,7 @@ void FileSystemTest::MkdirRmdirTest()
                              Access::UR | Access::UW | Access::UX ) );
   EXPECT_XRDST_OK( fs.RmDir( dirPath2 ) );
   EXPECT_XRDST_OK( fs.RmDir( dirPath1 ) );
+  sync();
 }
 
 //------------------------------------------------------------------------------
@@ -360,6 +362,7 @@ void FileSystemTest::ChmodTest()
                              Access::UR | Access::UW | Access::UX |
                              Access::GR | Access::GX ) );
   EXPECT_XRDST_OK( fs.RmDir( dirPath ) );
+  sync();
 }
 
 //------------------------------------------------------------------------------
@@ -589,6 +592,7 @@ void FileSystemTest::DirListTest()
   ASSERT_TRUE( list );
   EXPECT_EQ( list->GetSize(), 0 );
   EXPECT_XRDST_OK( fs.RmDir( emptyDirPath ) );
+  sync();
 
   delete list;
   list = 0;

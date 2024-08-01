@@ -403,6 +403,7 @@ void FileTest::WriteTest()
   ASSERT_TRUE( response );
   EXPECT_EQ( response->GetSize(), 20*MB );
   EXPECT_XRDST_OK( fs.Rm( filePath ) );
+  sync();
   delete [] buffer1;
   delete [] buffer2;
   delete [] buffer3;
@@ -487,6 +488,7 @@ void FileTest::WriteVTest()
 
   FileSystem fs( url );
   EXPECT_XRDST_OK( fs.Rm( filePath ) );
+  sync();
   delete [] buffer1;
   delete [] buffer2;
   delete [] buffer3;
@@ -802,6 +804,7 @@ void FileTest::VirtualRedirectorTest()
   //----------------------------------------------------------------------------
   FileSystem fs( replica1 );
   EXPECT_XRDST_OK( fs.Rm( dataPath + "/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat" ) );
+  sync();
   //----------------------------------------------------------------------------
   // Now reopen the file
   //----------------------------------------------------------------------------
