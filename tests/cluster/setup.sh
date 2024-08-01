@@ -155,6 +155,8 @@ start(){
        for i in "${servernames[@]}"; do
               ${CMSD} -b -k fifo -n ${i} -l cmsd.log -s cmsd.pid -c ${i}.cfg
        done
+
+       sleep 1
 }
 
 stop() {
