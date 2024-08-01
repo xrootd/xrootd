@@ -108,7 +108,7 @@ void Cleanup(const std::set<std::string> &Contacts, const XrdSecEntity &Entity)
 
    for (it = Contacts.begin(); it != Contacts.end(); it++)
        {if (Blab) DMSG("Cleanup", "Disconnecting " <<(*it).c_str());
-        PostMaster->ForceDisconnect(XrdCl::URL(*it));}
+        PostMaster->ForceDisconnect(XrdCl::URL(*it), true);}
 }
 
       ConCleanup(XrdCl::PostMaster *pm, bool dbg) : PostMaster(pm), Blab(dbg) {}
