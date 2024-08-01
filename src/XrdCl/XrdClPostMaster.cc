@@ -312,7 +312,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Shut down a channel
   //------------------------------------------------------------------------
-  Status PostMaster::ForceDisconnect( const URL &url )
+  Status PostMaster::ForceDisconnect( const URL &url, bool hush )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock, false );
     PostMasterImpl::ChannelMap::iterator it =
@@ -321,7 +321,7 @@ namespace XrdCl
     if( it == pImpl->pChannelMap.end() )
       return Status( stError, errInvalidOp );
 
-    it->second->ForceDisconnect();
+    it->second->ForceDisconnect( hush );
     delete it->second;
     pImpl->pChannelMap.erase( it );
 

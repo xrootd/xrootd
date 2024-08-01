@@ -123,7 +123,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Force disconnect of all streams
       //------------------------------------------------------------------------
-      Status ForceDisconnect();
+      Status ForceDisconnect( bool hush=false );
 
       //------------------------------------------------------------------------
       //! Force reconnect
