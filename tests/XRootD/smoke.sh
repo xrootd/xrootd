@@ -53,7 +53,7 @@ ${XRDFS} ${HOST} mkdir -p ${TMPDIR}
 FILES=$(seq -w 1 ${NFILES:-10})
 
 for i in $FILES; do
-       ${OPENSSL} rand -out "${TMPDIR}/${i}.ref" $((1024 * $RANDOM))
+       ${OPENSSL} rand -out "${TMPDIR}/${i}.ref" $((1024 * ($RANDOM + 1)))
 done
 
 # upload local files to the server in parallel
@@ -111,7 +111,7 @@ wait
 # create another 6 files, which should be deleted during the test
 #
 for i in $(seq -w 1 6) ; do
-       ${OPENSSL} rand -out "${TMPDIR}/${i}.exists.ref" $((1024 * $RANDOM))
+       ${OPENSSL} rand -out "${TMPDIR}/${i}.exists.ref" $((1024 * ($RANDOM + 1)))
        ${XRDCP} ${TMPDIR}/${i}.exists.ref ${HOST}/${TMPDIR}/${i}.exists.ref
 done
 

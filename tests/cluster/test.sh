@@ -83,7 +83,7 @@ trap "cleanup; exit 1" ABRT
 echo "Creating files for each instance..."
 
 for host in "${!hosts[@]}"; do
-       ${OPENSSL} rand -out "${LCLDATADIR}/${host}.ref" $((1024 * $RANDOM))
+       ${OPENSSL} rand -out "${LCLDATADIR}/${host}.ref" $((1024 * ($RANDOM + 1)))
 done
 
 # upload local files to the servers in parallel
