@@ -82,9 +82,9 @@ void FileCopyTest::DownloadTestFunc()
   //----------------------------------------------------------------------------
   // Open and stat the file
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Read ) );
 
-  GTEST_ASSERT_XRDST( f.Stat( false, stat ) );
+  EXPECT_XRDST_OK( f.Stat( false, stat ) );
   ASSERT_TRUE( stat );
   EXPECT_TRUE( stat->TestFlags( StatInfo::IsReadable ) );
 
@@ -101,7 +101,7 @@ void FileCopyTest::DownloadTestFunc()
 
   while( 1 )
   {
-    GTEST_ASSERT_XRDST( f.Read( totalRead, 4*MB, buffer, bytesRead ) );
+    EXPECT_XRDST_OK( f.Read( totalRead, 4*MB, buffer, bytesRead ) );
     if( bytesRead == 0 )
       break;
     totalRead += bytesRead;
@@ -118,8 +118,8 @@ void FileCopyTest::DownloadTestFunc()
   std::string remoteSum;
   std::string lastUrl;
   EXPECT_TRUE( f.GetProperty( "LastURL", lastUrl ) );
-  GTEST_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
-                                                  URL( lastUrl ) ) );
+  EXPECT_XRDST_OK( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
+                                             URL( lastUrl ) ) );
   EXPECT_EQ( remoteSum, transferSum );
 
   delete stat;
@@ -164,9 +164,8 @@ void FileCopyTest::UploadTestFunc()
   //----------------------------------------------------------------------------
   int fd = -1;
 
-  GTEST_ASSERT_ERRNO( (fd=open( localFile.c_str(), O_RDONLY )) > 0 )
-  GTEST_ASSERT_XRDST( f.Open( fileUrl,
-                                OpenFlags::Delete|OpenFlags::Update ) );
+  EXPECT_ERRNO_OK( (fd=open( localFile.c_str(), O_RDONLY )) > 0 );
+  EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Delete|OpenFlags::Update ) );
 
   //----------------------------------------------------------------------------
   // Read the data
@@ -181,13 +180,13 @@ void FileCopyTest::UploadTestFunc()
   while( (bytesRead = read( fd, buffer, 4*MB )) > 0 )
   {
     crc32Sum->Update( buffer, bytesRead );
-    GTEST_ASSERT_XRDST( f.Write( offset, bytesRead, buffer ) );
+    EXPECT_XRDST_OK( f.Write( offset, bytesRead, buffer ) );
     offset += bytesRead;
   }
 
   EXPECT_GE( bytesRead, 0 );
   close( fd );
-  GTEST_ASSERT_XRDST( f.Close() );
+  EXPECT_XRDST_OK( f.Close() );
   delete [] buffer;
 
   //----------------------------------------------------------------------------
@@ -195,7 +194,7 @@ void FileCopyTest::UploadTestFunc()
   //----------------------------------------------------------------------------
   FileSystem  fs( url );
   LocationInfo *locations = nullptr;
-  GTEST_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
+  EXPECT_XRDST_OK( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
   ASSERT_TRUE( locations );
   EXPECT_NE( locations->GetSize(), 0 );
   FileSystem fs1( locations->Begin()->GetAddress() );
@@ -205,7 +204,7 @@ void FileCopyTest::UploadTestFunc()
   // Verify the size
   //----------------------------------------------------------------------------
   StatInfo   *stat = nullptr;
-  GTEST_ASSERT_XRDST( fs1.Stat( remoteFile, stat ) );
+  EXPECT_XRDST_OK( fs1.Stat( remoteFile, stat ) );
   ASSERT_TRUE( stat );
   EXPECT_EQ( stat->GetSize(), offset );
 
@@ -218,14 +217,13 @@ void FileCopyTest::UploadTestFunc()
 
   std::string remoteSum, lastUrl;
   f.GetProperty( "LastURL", lastUrl );
-  GTEST_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
-                                                  lastUrl ) );
+  EXPECT_XRDST_OK( Utils::GetRemoteCheckSum( remoteSum, "zcrc32", lastUrl ) );
   EXPECT_EQ( remoteSum, transferSum );
 
   //----------------------------------------------------------------------------
   // Delete the file
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( fs.Rm( dataPath + "/testUpload.dat" ) );
+  EXPECT_XRDST_OK( fs.Rm( dataPath + "/testUpload.dat" ) );
 
   delete stat;
   delete crc32Sum;
@@ -365,10 +363,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "target",       targetURL );
     properties.Set( "zipArchive",   true      );
     properties.Set( "zipSource",    fileInZip );
-    GTEST_ASSERT_XRDST( process6.AddJob( properties, &results ) );
-    GTEST_ASSERT_XRDST( process6.Prepare() );
-    GTEST_ASSERT_XRDST( process6.Run(0) );
-    GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+    EXPECT_XRDST_OK( process6.AddJob( properties, &results ) );
+    EXPECT_XRDST_OK( process6.Prepare() );
+    EXPECT_XRDST_OK( process6.Run(0) );
+    EXPECT_XRDST_OK( fs.Rm( targetPath ) );
     properties.Clear();
 
     //--------------------------------------------------------------------------
@@ -381,10 +379,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "checkSumType",   "zcrc32"      );
     properties.Set( "zipArchive",   true      );
     properties.Set( "zipSource",    fileInZip2 );
-    GTEST_ASSERT_XRDST( process10.AddJob( properties, &results ) );
-    GTEST_ASSERT_XRDST( process10.Prepare() );
-    GTEST_ASSERT_XRDST( process10.Run(0) );
-    GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+    EXPECT_XRDST_OK( process10.AddJob( properties, &results ) );
+    EXPECT_XRDST_OK( process10.Prepare() );
+    EXPECT_XRDST_OK( process10.Run(0) );
+    EXPECT_XRDST_OK( fs.Rm( targetPath ) );
     properties.Clear();
 
     //--------------------------------------------------------------------------
@@ -397,11 +395,11 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "checkSumType",   "auto"    );
     properties.Set( "checkSumPreset", "bad-value" ); //< provide wrong checksum value, so the check fails and the file gets removed
     properties.Set( "rmOnBadCksum",   true        );
-    GTEST_ASSERT_XRDST( process12.AddJob( properties, &results ) );
-    GTEST_ASSERT_XRDST( process12.Prepare() );
-    GTEST_ASSERT_XRDST_NOTOK( process12.Run(0), XrdCl::errCheckSumError );
+    EXPECT_XRDST_OK( process12.AddJob( properties, &results ) );
+    EXPECT_XRDST_OK( process12.Prepare() );
+    EXPECT_XRDST_NOTOK( process12.Run(0), XrdCl::errCheckSumError );
     XrdCl::StatInfo *info = nullptr;
-    GTEST_ASSERT_XRDST_NOTOK( fs.Stat( targetPath, info ), XrdCl::errErrorResponse );
+    EXPECT_XRDST_NOTOK( fs.Stat( targetPath, info ), XrdCl::errErrorResponse );
     properties.Clear();
 
     //--------------------------------------------------------------------------
@@ -414,11 +412,11 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "checkSumType",   "zcrc32"     );
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
     env->PutInt( "ZipMtlnCksum", 1 );
-    GTEST_ASSERT_XRDST( process13.AddJob( properties, &results ) );
-    GTEST_ASSERT_XRDST( process13.Prepare() );
-    GTEST_ASSERT_XRDST_NOTOK( process13.Run(0), XrdCl::errCheckSumError );
+    EXPECT_XRDST_OK( process13.AddJob( properties, &results ) );
+    EXPECT_XRDST_OK( process13.Prepare() );
+    EXPECT_XRDST_NOTOK( process13.Run(0), XrdCl::errCheckSumError );
     env->PutInt( "ZipMtlnCksum", 0 );
-    GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+    EXPECT_XRDST_OK( fs.Rm( targetPath ) );
 
     //--------------------------------------------------------------------------
     // Copy with
@@ -431,10 +429,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "target",          targetURL        );
     properties.Set( "xrate",           1024 * 1024 * 32 ); //< limit the transfer rate to 32MB/s
     properties.Set( "xrateThreshold", 1024 * 1024 * 30 ); //< fail the job if the transfer rate drops under 30MB/s
-    GTEST_ASSERT_XRDST( process14.AddJob( properties, &results ) );
-    GTEST_ASSERT_XRDST( process14.Prepare() );
-    GTEST_ASSERT_XRDST( process14.Run(0) );
-    GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+    EXPECT_XRDST_OK( process14.AddJob( properties, &results ) );
+    EXPECT_XRDST_OK( process14.Prepare() );
+    EXPECT_XRDST_OK( process14.Run(0) );
+    EXPECT_XRDST_OK( fs.Rm( targetPath ) );
 
     //--------------------------------------------------------------------------
     // Now test the cp-timeout
@@ -445,10 +443,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "target",    targetURL   );
     properties.Set( "xrate",     1024 * 1024 ); //< limit the transfer rate to 1MB/s (the file is 1GB big so the transfer will take 1024 seconds)
     properties.Set( "cpTimeout", 5          ); //< timeout the job after 10 seconds (now the file are smaller so we have to decrease it to 5 sec)
-    GTEST_ASSERT_XRDST( process15.AddJob( properties, &results ) );
-    GTEST_ASSERT_XRDST( process15.Prepare() );
-    GTEST_ASSERT_XRDST_NOTOK( process15.Run(0), XrdCl::errOperationExpired );
-    GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+    EXPECT_XRDST_OK( process15.AddJob( properties, &results ) );
+    EXPECT_XRDST_OK( process15.Prepare() );
+    EXPECT_XRDST_NOTOK( process15.Run(0), XrdCl::errOperationExpired );
+    EXPECT_XRDST_OK( fs.Rm( targetPath ) );
 
     //--------------------------------------------------------------------------
     // Test posc for local files
@@ -460,12 +458,12 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "target",    localtrg  );
     properties.Set( "posc",      true      );
     CancelProgressHandler progress16(5); //> abort the copy after 5MB
-    GTEST_ASSERT_XRDST( process16.AddJob( properties, &results ) );
-    GTEST_ASSERT_XRDST( process16.Prepare() );
-    GTEST_ASSERT_XRDST_NOTOK( process16.Run( &progress16 ), errOperationInterrupted );
+    EXPECT_XRDST_OK( process16.AddJob( properties, &results ) );
+    EXPECT_XRDST_OK( process16.Prepare() );
+    EXPECT_XRDST_NOTOK( process16.Run( &progress16 ), errOperationInterrupted );
     XrdCl::FileSystem localfs( "file://localhost" );
     XrdCl::StatInfo *ptr = nullptr;
-    GTEST_ASSERT_XRDST_NOTOK( localfs.Stat( dataPath + "/tpcFile.dat", ptr ), XrdCl::errLocalError );
+    EXPECT_XRDST_NOTOK( localfs.Stat( dataPath + "/tpcFile.dat", ptr ), XrdCl::errLocalError );
 
     //--------------------------------------------------------------------------
     // Test --retry and --retry-policy
@@ -478,10 +476,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "target",    targetURL        );
     env->PutInt( "CpRetry", 1 );
     env->PutString( "CpRetryPolicy", "continue" );
-    GTEST_ASSERT_XRDST( process17.AddJob( properties, &results ) );
-    GTEST_ASSERT_XRDST( process17.Prepare() );
-    GTEST_ASSERT_XRDST( process17.Run(0) );
-    GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+    EXPECT_XRDST_OK( process17.AddJob( properties, &results ) );
+    EXPECT_XRDST_OK( process17.Prepare() );
+    EXPECT_XRDST_OK( process17.Run(0) );
+    EXPECT_XRDST_OK( fs.Rm( targetPath ) );
     env->PutInt( "CpRetry", XrdCl::DefaultCpRetry );
     env->PutString( "CpRetryPolicy", XrdCl::DefaultCpRetryPolicy );
   }
@@ -495,10 +493,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "target",       targetURL   );
   properties.Set( "checkSumMode", "end2end"   );
   properties.Set( "checkSumType", "crc32c"    );
-  GTEST_ASSERT_XRDST( process5.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process5.Prepare() );
-  GTEST_ASSERT_XRDST( process5.Run(0) );
-  GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+  EXPECT_XRDST_OK( process5.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process5.Prepare() );
+  EXPECT_XRDST_OK( process5.Run(0) );
+  EXPECT_XRDST_OK( fs.Rm( targetPath ) );
   properties.Clear();
 
   // XCp test
@@ -509,10 +507,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "checkSumType",   "crc32c"      );
   properties.Set( "xcp",            true          );
   properties.Set( "nbXcpSources",   3             );
-  GTEST_ASSERT_XRDST( process7.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process7.Prepare() );
-  GTEST_ASSERT_XRDST( process7.Run(0) );
-  GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+  EXPECT_XRDST_OK( process7.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process7.Prepare() );
+  EXPECT_XRDST_OK( process7.Run(0) );
+  EXPECT_XRDST_OK( fs.Rm( targetPath ) );
   properties.Clear();
 
   //----------------------------------------------------------------------------
@@ -523,9 +521,9 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "target", "file://localhost" + localFile );
   properties.Set( "checkSumMode", "end2end" );
   properties.Set( "checkSumType", "crc32c"  );
-  GTEST_ASSERT_XRDST( process8.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process8.Prepare() );
-  GTEST_ASSERT_XRDST( process8.Run(0) );
+  EXPECT_XRDST_OK( process8.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process8.Prepare() );
+  EXPECT_XRDST_OK( process8.Run(0) );
   properties.Clear();
 
   //----------------------------------------------------------------------------
@@ -534,13 +532,13 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
 
   // set extended attributes in the local source file
   File lf;
-  GTEST_ASSERT_XRDST( lf.Open( "file://localhost" + localFile, OpenFlags::Write ) );
+  EXPECT_XRDST_OK( lf.Open( "file://localhost" + localFile, OpenFlags::Write ) );
   std::vector<xattr_t> attrs; attrs.push_back( xattr_t( "foo", "bar" ) );
   std::vector<XAttrStatus> result;
-  GTEST_ASSERT_XRDST( lf.SetXAttr( attrs, result ) );
+  EXPECT_XRDST_OK( lf.SetXAttr( attrs, result ) );
   EXPECT_EQ( result.size(), 1 );
-  GTEST_ASSERT_XRDST( result.front().status );
-  GTEST_ASSERT_XRDST( lf.Close() );
+  EXPECT_XRDST_OK( result.front().status );
+  EXPECT_XRDST_OK( lf.Close() );
 
   results.Clear();
   properties.Set( "source", "file://localhost" + localFile );
@@ -548,24 +546,24 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "checkSumMode", "end2end" );
   properties.Set( "checkSumType", "crc32c"  );
   properties.Set( "preserveXAttr", true );
-  GTEST_ASSERT_XRDST( process9.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process9.Prepare() );
-  GTEST_ASSERT_XRDST( process9.Run(0) );
+  EXPECT_XRDST_OK( process9.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process9.Prepare() );
+  EXPECT_XRDST_OK( process9.Run(0) );
   properties.Clear();
 
   // now test if the xattrs were preserved
   std::vector<XAttr> xattrs;
-  GTEST_ASSERT_XRDST( fs.ListXAttr( targetPath, xattrs ) );
+  EXPECT_XRDST_OK( fs.ListXAttr( targetPath, xattrs ) );
   EXPECT_EQ( xattrs.size(), 1 );
   XAttr &xattr = xattrs.front();
-  GTEST_ASSERT_XRDST( xattr.status );
+  EXPECT_XRDST_OK( xattr.status );
   EXPECT_EQ( xattr.name, "foo" );
   EXPECT_EQ( xattr.value, "bar" );
 
   //----------------------------------------------------------------------------
   // Cleanup
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+  EXPECT_XRDST_OK( fs.Rm( targetPath ) );
   EXPECT_EQ( remove( localFile.c_str() ), 0 );
 
   //----------------------------------------------------------------------------
@@ -577,10 +575,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "checkSumType", "crc32c"  );
   if( thirdParty )
     properties.Set( "thirdParty",   "only"    );
-  GTEST_ASSERT_XRDST( process1.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process1.Prepare() );
-  GTEST_ASSERT_XRDST( process1.Run(0) );
-  GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+  EXPECT_XRDST_OK( process1.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process1.Prepare() );
+  EXPECT_XRDST_OK( process1.Run(0) );
+  EXPECT_XRDST_OK( fs.Rm( targetPath ) );
   properties.Clear();
 
   //----------------------------------------------------------------------------
@@ -593,10 +591,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "checkSumType", "auto"    );
   if( thirdParty )
     properties.Set( "thirdParty",   "only"    );
-  GTEST_ASSERT_XRDST( process11.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process11.Prepare() );
-  GTEST_ASSERT_XRDST( process11.Run(0) );
-  GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+  EXPECT_XRDST_OK( process11.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process11.Prepare() );
+  EXPECT_XRDST_OK( process11.Run(0) );
+  EXPECT_XRDST_OK( fs.Rm( targetPath ) );
   properties.Clear();
 
   // the further tests are only valid for third party copy for now
@@ -607,10 +605,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // Abort the copy after 100MB
   //----------------------------------------------------------------------------
 //  CancelProgressHandler progress;
-//  GTEST_ASSERT_XRDST( process2.AddJob( properties, &results ) );
-//  GTEST_ASSERT_XRDST( process2.Prepare() );
-//  GTEST_ASSERT_XRDST_NOTOK( process2.Run(&progress), errErrorResponse );
-//  GTEST_ASSERT_XRDST( fs.Rm( targetPath ) );
+//  EXPECT_XRDST_OK( process2.AddJob( properties, &results ) );
+//  EXPECT_XRDST_OK( process2.Prepare() );
+//  EXPECT_XRDST_NOTOK( process2.Run(&progress), errErrorResponse );
+//  EXPECT_XRDST_OK( fs.Rm( targetPath ) );
 
   //----------------------------------------------------------------------------
   // Copy from a non-existent source
@@ -620,8 +618,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "target",      targetURL );                     // parallel testing
   properties.Set( "initTimeout", 10 );
   properties.Set( "thirdParty",  "only"    );
-  GTEST_ASSERT_XRDST( process3.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process3.Prepare() );
+  EXPECT_XRDST_OK( process3.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process3.Prepare() );
   XrdCl::XRootDStatus status = process3.Run(0);
   EXPECT_TRUE( !status.IsOK() && ( status.code == errOperationExpired || status.code == errConnectionError ) );
 
@@ -633,8 +631,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "target",      "root://localhost:9997//test" ); // was 9999, this change allows for
   properties.Set( "initTimeout", 10 );                            // parallel testing
   properties.Set( "thirdParty",  "only"    );
-  GTEST_ASSERT_XRDST( process4.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process4.Prepare() );
+  EXPECT_XRDST_OK( process4.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process4.Prepare() );
   status = process4.Run(0);
   EXPECT_TRUE( !status.IsOK() && ( status.code == errOperationExpired || status.code == errConnectionError ) );
 }

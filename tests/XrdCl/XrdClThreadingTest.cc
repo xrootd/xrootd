@@ -85,8 +85,7 @@ void *DataReader( void *arg )
     if( chunkSize == 0 )
       break;
 
-    GTEST_ASSERT_XRDST( td->file->Read( offset, chunkSize, buffer,
-                                          bytesRead ) );
+    EXPECT_XRDST_OK( td->file->Read( offset, chunkSize, buffer, bytesRead ) );
 
     offset   += bytesRead;
     dataLeft -= bytesRead;
@@ -139,8 +138,8 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
   {
     File     *f = new File();
     StatInfo *si = 0;
-    GTEST_ASSERT_XRDST( f->Open( fileUrl[i], OpenFlags::Read ) );
-    GTEST_ASSERT_XRDST( f->Stat( false, si ) );
+    EXPECT_XRDST_OK( f->Open( fileUrl[i], OpenFlags::Read ) );
+    EXPECT_XRDST_OK( f->Stat( false, si ) );
     ASSERT_TRUE( si );
     EXPECT_TRUE( si->TestFlags( StatInfo::IsReadable ) );
 
@@ -162,7 +161,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
       char     *buffer    = new char[4*MB];
       uint32_t  bytesRead = 0;
 
-      GTEST_ASSERT_XRDST( f->Read( offset, 4*MB, buffer, bytesRead ) );
+      EXPECT_XRDST_OK( f->Read( offset, 4*MB, buffer, bytesRead ) );
       EXPECT_EQ( bytesRead, 4*MB );
       threadData[j*5+i].firstBlockChecksum =
         XrdClTests::Utils::ComputeCRC32( buffer, 4*MB );
@@ -178,14 +177,14 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
   //----------------------------------------------------------------------------
   pthread_t thread[20];
   for( int i = 0; i < 20; ++i )
-    GTEST_ASSERT_PTHREAD( pthread_create( &(thread[i]), 0,
-                            ::DataReader, &(threadData[i]) ) );
+    EXPECT_PTHREAD_OK( pthread_create( &(thread[i]), 0,
+                                       ::DataReader, &(threadData[i]) ) );
 
   if( transferCallback )
     (*transferCallback)( threadData );
 
   for( int i = 0; i < 20; ++i )
-    GTEST_ASSERT_PTHREAD( pthread_join( thread[i], 0 ) );
+    EXPECT_PTHREAD_OK( pthread_join( thread[i], 0 ) );
 
   //----------------------------------------------------------------------------
   // Glue up and compare the checksums
@@ -213,8 +212,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
     //--------------------------------------------------------------------------
     std::string remoteSum, lastUrl;
     threadData[i].file->GetProperty( "LastURL", lastUrl );
-    GTEST_ASSERT_XRDST( Utils::GetRemoteCheckSum(
-                            remoteSum, "zcrc32", lastUrl ) );
+    EXPECT_XRDST_OK( Utils::GetRemoteCheckSum(remoteSum, "zcrc32", lastUrl ) );
     EXPECT_EQ( remoteSum, transferSum ) << path[i];
   }
 
@@ -223,7 +221,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
   //----------------------------------------------------------------------------
   for( int i = 0; i < 5; ++i )
   {
-    GTEST_ASSERT_XRDST( threadData[i].file->Close() );
+    EXPECT_XRDST_OK( threadData[i].file->Close() );
     delete threadData[i].file;
   }
 }
@@ -261,7 +259,7 @@ int runChild( ThreadData *td )
     char     *buffer    = new char[4*MB];
     uint32_t  bytesRead = 0;
 
-    GTEST_ASSERT_XRDST( td[i].file->Read( offset, 4*MB, buffer, bytesRead ) );
+    EXPECT_XRDST_OK( td[i].file->Read( offset, 4*MB, buffer, bytesRead ) );
     EXPECT_EQ( bytesRead, 4*MB );
     EXPECT_EQ( td[i].firstBlockChecksum,
                     XrdClTests::Utils::ComputeCRC32( buffer, 4*MB ) );
@@ -270,7 +268,7 @@ int runChild( ThreadData *td )
 
   for( int i = 0; i < 5; ++i )
   {
-    GTEST_ASSERT_XRDST( td[i].file->Close() );
+    EXPECT_XRDST_OK( td[i].file->Close() );
     delete td[i].file;
   }
 
@@ -288,14 +286,14 @@ void forkAndRead( ThreadData *data )
     sleep(1);
     pid_t pid;
     log->Debug( 1, "About to fork" );
-    GTEST_ASSERT_ERRNO( (pid=fork()) != -1 );
+    EXPECT_ERRNO_OK( (pid=fork()) != -1 );
 
     if( !pid )  _exit( runChild( data ) );
 
     log->Debug( 1, "Forked successfully, pid of the child: %d", pid );
     int status;
     log->Debug( 1, "Waiting for the child" );
-    GTEST_ASSERT_ERRNO( waitpid( pid, &status, 0 ) != -1 );
+    EXPECT_ERRNO_OK( waitpid( pid, &status, 0 ) != -1 );
     log->Debug( 1, "Wait done, status: %d", status );
     EXPECT_TRUE( WIFEXITED( status ) );
     EXPECT_EQ( WEXITSTATUS( status ), 0 );

@@ -108,7 +108,7 @@ namespace {
           }
 
           void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
-              GTEST_ASSERT_XRDST(*status);
+              EXPECT_XRDST_OK(*status);
               delete status;
               delete response;
               executed = true;
@@ -196,7 +196,7 @@ TEST(WorkflowTest, ReadingWorkflowTest){
   auto &&pipe = Open( f, fileUrl, flags ) >> openHandler // by reference
               | Stat( f, true) >> [fileSize, size, buffer]( XRootDStatus &status, StatInfo &stat) mutable
                   {
-                    GTEST_ASSERT_XRDST( status );
+                    EXPECT_XRDST_OK( status );
                     EXPECT_EQ( stat.GetSize(), fileSize );
                     size = stat.GetSize();
                     buffer = new char[stat.GetSize()];
@@ -205,7 +205,7 @@ TEST(WorkflowTest, ReadingWorkflowTest){
               | Close( f ) >> closeHandler; // by reference
 
   XRootDStatus status = WaitFor( pipe );
-  GTEST_ASSERT_XRDST( status );
+  EXPECT_XRDST_OK( status );
 
   EXPECT_TRUE( openHandler.Executed() );
   EXPECT_TRUE( readHandler.Executed() );
@@ -238,7 +238,7 @@ TEST(WorkflowTest, WritingWorkflowTest){
   std::packaged_task<std::string(XRootDStatus&, ChunkInfo&)> parser {
     []( XRootDStatus& status, ChunkInfo &chunk )
       {
-        GTEST_ASSERT_XRDST( status );
+        EXPECT_XRDST_OK( status );
         char* buffer = reinterpret_cast<char*>( chunk.buffer );
         std::string ret( buffer, chunk.length );
         delete[] buffer;
@@ -259,7 +259,7 @@ TEST(WorkflowTest, WritingWorkflowTest){
   //----------------------------------------------------------------------------
   Pipeline pipe = Open( f, fileUrl, flags ) >> [iov, texts]( XRootDStatus &status ) mutable
                     {
-                      GTEST_ASSERT_XRDST( status );
+                      EXPECT_XRDST_OK( status );
                       std::vector<iovec> vec( 3 );
                       vec[0].iov_base = strdup( texts[0].c_str() );
                       vec[0].iov_len  = texts[0].size();
@@ -273,7 +273,7 @@ TEST(WorkflowTest, WritingWorkflowTest){
                 | Sync( f )
                 | Stat( f, true ) >> [size, buffer, createdFileSize]( XRootDStatus &status, StatInfo &info ) mutable
                     {
-                      GTEST_ASSERT_XRDST( status );
+                      EXPECT_XRDST_OK( status );
                       EXPECT_EQ( createdFileSize, info.GetSize() );
                       size   = info.GetSize();
                       buffer = new char[info.GetSize()];
@@ -283,7 +283,7 @@ TEST(WorkflowTest, WritingWorkflowTest){
                 | Rm( fs, relativePath );
 
   XRootDStatus status = WaitFor( std::move( pipe ) );
-  GTEST_ASSERT_XRDST( status );
+  EXPECT_XRDST_OK( status );
   EXPECT_EQ( rdresp.get(), texts[0] + texts[1] + texts[2] );
 
   free( (*iov)[0].iov_base );
@@ -384,7 +384,7 @@ TEST(WorkflowTest, OperationFailureTest){
     }
     catch( PipelineException &ex )
     {
-      GTEST_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+      EXPECT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
     }
 
     try
@@ -393,7 +393,7 @@ TEST(WorkflowTest, OperationFailureTest){
     }
     catch( PipelineException &ex )
     {
-      GTEST_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+      EXPECT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
     }
 
     try
@@ -402,7 +402,7 @@ TEST(WorkflowTest, OperationFailureTest){
     }
     catch( PipelineException &ex )
     {
-      GTEST_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+      EXPECT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
     }
 }
 
@@ -493,7 +493,7 @@ TEST(WorkflowTest, ParallelTest){
     std::vector<Pipeline> pipes; pipes.reserve( 2 );
     pipes.emplace_back( Open( f, lockUrl, createFlags ) | Close( f ) );
     pipes.emplace_back( Open( dataF, secondFileUrl, createFlags ) | Close( dataF ) );
-    GTEST_ASSERT_XRDST( WaitFor( Parallel( pipes ) >> []( XRootDStatus &status ){ GTEST_ASSERT_XRDST( status ); } ) );
+    EXPECT_XRDST_OK( WaitFor( Parallel( pipes ) >> []( XRootDStatus &status ){ EXPECT_XRDST_OK( status ); } ) );
     EXPECT_TRUE( pipes.empty() );
 
     delete f;
@@ -562,9 +562,9 @@ TEST(WorkflowTest, ParallelTest){
     auto dataRelativePath = GetPath(dataFileName);
 
     bool exec1 = false, exec2 = false;
-    Pipeline deletingPipe( Parallel( Rm( fs, lockRelativePath ) >> [&]( XRootDStatus &status ){ GTEST_ASSERT_XRDST( status ); exec1 = true; },
-                                     Rm( fs, dataRelativePath ) >> [&]( XRootDStatus &status ){ GTEST_ASSERT_XRDST( status ); exec2 = true; } ) );
-    GTEST_ASSERT_XRDST( WaitFor( std::move( deletingPipe ) ) );
+    Pipeline deletingPipe( Parallel( Rm( fs, lockRelativePath ) >> [&]( XRootDStatus &status ){ EXPECT_XRDST_OK( status ); exec1 = true; },
+                                     Rm( fs, dataRelativePath ) >> [&]( XRootDStatus &status ){ EXPECT_XRDST_OK( status ); exec2 = true; } ) );
+    EXPECT_XRDST_OK( WaitFor( std::move( deletingPipe ) ) );
 
     EXPECT_TRUE( exec1 );
     EXPECT_TRUE( exec2 );
@@ -577,12 +577,12 @@ TEST(WorkflowTest, ParallelTest){
     //----------------------------------------------------------------------------
     std::string url_exists = GetPath("1db882c8-8cd6-4df1-941f-ce669bad3458.dat");
     std::string not_exists = GetPath("blablabla.txt");
-    GTEST_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists ), Stat( fs, url_exists ) ).Any() ) );
+    EXPECT_XRDST_OK( WaitFor( Parallel( Stat( fs, url_exists ), Stat( fs, url_exists ) ).Any() ) );
 
     std::string also_exists = GetPath("3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat");
-    GTEST_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists ),
-                                             Stat( fs, also_exists ),
-                                             Stat( fs, not_exists ) ).Some( 2 ) ) );
+    EXPECT_XRDST_OK( WaitFor( Parallel( Stat( fs, url_exists ),
+                                        Stat( fs, also_exists ),
+                                        Stat( fs, not_exists ) ).Some( 2 ) ) );
     std::atomic<int> errcnt( 0 );
     std::atomic<int> okcnt( 0 );
 
@@ -592,9 +592,9 @@ TEST(WorkflowTest, ParallelTest){
         else ++errcnt;
       };
 
-    GTEST_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists )  >> hndl,
-                                             Stat( fs, also_exists ) >> hndl,
-                                             Stat( fs, not_exists )  >> hndl ).AtLeast( 1 ) ) );
+    EXPECT_XRDST_OK( WaitFor( Parallel( Stat( fs, url_exists )  >> hndl,
+                                        Stat( fs, also_exists ) >> hndl,
+                                        Stat( fs, not_exists )  >> hndl ).AtLeast( 1 ) ) );
     EXPECT_EQ( okcnt, 2 );
     EXPECT_EQ( errcnt, 1 );
 }
@@ -687,7 +687,7 @@ TEST(WorkflowTest, MixedWorkflowTest){
                        | Sync( file[i] )
                        | Stat( file[i], true ) >> [size, buffer, i]( XRootDStatus &status, StatInfo &info ) mutable
                            {
-                             GTEST_ASSERT_XRDST( status );
+                             EXPECT_XRDST_OK( status );
                              size[i] = info.GetSize();
                              buffer[i] = new char[*size[i]];
                            }
@@ -696,14 +696,14 @@ TEST(WorkflowTest, MixedWorkflowTest){
       fileWorkflows.emplace_back( operation );
     }
 
-    Pipeline pipe = MkDir( fs, dirPath, MkDirFlags::None, Access::None ) >> []( XRootDStatus &status ){ GTEST_ASSERT_XRDST( status ); }
+    Pipeline pipe = MkDir( fs, dirPath, MkDirFlags::None, Access::None ) >> []( XRootDStatus &status ){ EXPECT_XRDST_OK( status ); }
                   | Parallel( fileWorkflows )
                   | Rm( fs, path[0] )
                   | Rm( fs, path[1] )
                   | DeepLocate( fs, dirPath, OpenFlags::Refresh ) >> cleaningHandler;
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
-    GTEST_ASSERT_XRDST( status );
+    EXPECT_XRDST_OK( status );
 
     for( size_t i = 0; i < nbFiles; ++i )
     {
@@ -752,10 +752,10 @@ TEST(WorkflowTest, WorkflowWithFutureTest)
   //----------------------------------------------------------------------------
   // Open and Read and Close in standard way
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
-  GTEST_ASSERT_XRDST( f.Read( 1*MB, 10*MB, expected, bytesRead ) );
+  EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f.Read( 1*MB, 10*MB, expected, bytesRead ) );
   EXPECT_EQ( bytesRead, 10*MB );
-  GTEST_ASSERT_XRDST( f.Close() );
+  EXPECT_XRDST_OK( f.Close() );
 
   //----------------------------------------------------------------------------
   // Now do the test
@@ -776,7 +776,7 @@ TEST(WorkflowTest, WorkflowWithFutureTest)
     EXPECT_TRUE( false );
   }
 
-  GTEST_ASSERT_XRDST( status.get() )
+  EXPECT_XRDST_OK( status.get() );
 
   delete[] expected;
   delete[] buffer;
@@ -815,7 +815,7 @@ TEST(WorkflowTest, XAttrWorkflowTest)
   Pipeline set = Open( file1, fileUrl, OpenFlags::Write )
                | SetXAttr( file1, xattr_name, xattr_value )
                | Close( file1 );
-  GTEST_ASSERT_XRDST( WaitFor( std::move( set ) ) );
+  EXPECT_XRDST_OK( WaitFor( std::move( set ) ) );
 
   // read and delete the extended attribute
   std::future<std::string> rsp1;
@@ -825,7 +825,7 @@ TEST(WorkflowTest, XAttrWorkflowTest)
                    | DelXAttr( file2, xattr_name )
                    | Close( file2 );
 
-  GTEST_ASSERT_XRDST( WaitFor( std::move( get_del ) ) );
+  EXPECT_XRDST_OK( WaitFor( std::move( get_del ) ) );
 
   try
   {
@@ -849,14 +849,14 @@ TEST(WorkflowTest, XAttrWorkflowTest)
   Pipeline set_bulk = Open( file3, fileUrl, OpenFlags::Write )
                     | SetXAttr( file3, attrs )
                     | Close( file3 );
-  GTEST_ASSERT_XRDST( WaitFor( std::move( set_bulk ) ) );
+  EXPECT_XRDST_OK( WaitFor( std::move( set_bulk ) ) );
 
   // read and delete the extended attribute
   Pipeline get_del_bulk = Open( file4, fileUrl, OpenFlags::Update )
                         | ListXAttr( file4 ) >>
                           [&]( XRootDStatus &status, std::vector<XAttr> &rsp )
                             {
-                              GTEST_ASSERT_XRDST( status );
+                              EXPECT_XRDST_OK( status );
                               EXPECT_EQ( rsp.size(), attrs.size() );
                               for( size_t i = 0; i < rsp.size(); ++i )
                               {
@@ -869,7 +869,7 @@ TEST(WorkflowTest, XAttrWorkflowTest)
                         | DelXAttr( file4, names )
                         | Close( file4 );
 
-  GTEST_ASSERT_XRDST( WaitFor( std::move( get_del_bulk ) ) );
+  EXPECT_XRDST_OK( WaitFor( std::move( get_del_bulk ) ) );
 
   //----------------------------------------------------------------------------
   // Test FileSystem xattr
@@ -882,14 +882,14 @@ TEST(WorkflowTest, XAttrWorkflowTest)
                     | ListXAttr( fs, filePath ) >>
                       [&]( XRootDStatus &status, std::vector<XAttr> &rsp )
                         {
-                          GTEST_ASSERT_XRDST( status );
+                          EXPECT_XRDST_OK( status );
                           EXPECT_EQ( rsp.size(), 1 );
                           EXPECT_EQ( rsp[0].name, xattr_name );
                           EXPECT_EQ( rsp[0].value, xattr_value );
                         }
                     | DelXAttr( fs, filePath, xattr_name );
 
-  GTEST_ASSERT_XRDST( WaitFor( std::move( pipeline ) ) );
+  EXPECT_XRDST_OK( WaitFor( std::move( pipeline ) ) );
 
   try
   {
@@ -937,9 +937,9 @@ TEST(WorkflowTest, CheckpointTest) {
   std::string serverName = (GetAddress()).GetURL();
   std::string url = serverName + chkpttestFile;
 
-  GTEST_ASSERT_XRDST( WaitFor( Open( f1, url, OpenFlags::New | OpenFlags::Write ) |
-                                 Write( f1, 0, sizeof( data ), data ) |
-                                 Close( f1 ) ) );
+  EXPECT_XRDST_OK( WaitFor( Open( f1, url, OpenFlags::New | OpenFlags::Write ) |
+                            Write( f1, 0, sizeof( data ), data ) |
+                            Close( f1 ) ) );
 
   //---------------------------------------------------------------------------
   // Update the file without commiting the checkpoint
@@ -947,17 +947,17 @@ TEST(WorkflowTest, CheckpointTest) {
   File f2;
   const char update[] = "Jan A Kowalski";
 
-  GTEST_ASSERT_XRDST( WaitFor( Open( f2, url, OpenFlags::Update ) |
-                                 Checkpoint( f2, ChkPtCode::BEGIN ) |
-                                 ChkptWrt( f2, 0, sizeof( update ), update ) |
-                                 Close( f2 ) ) );
+  EXPECT_XRDST_OK( WaitFor( Open( f2, url, OpenFlags::Update ) |
+                            Checkpoint( f2, ChkPtCode::BEGIN ) |
+                            ChkptWrt( f2, 0, sizeof( update ), update ) |
+                            Close( f2 ) ) );
 
   File f3;
   char readout[sizeof( data )];
   // readout the data to see if the update was succesful (it shouldn't be)
-  GTEST_ASSERT_XRDST( WaitFor( Open( f3, url, OpenFlags::Read ) |
-                                 Read( f3, 0, sizeof( readout ), readout ) |
-                                 Close( f3 ) ) );
+  EXPECT_XRDST_OK( WaitFor( Open( f3, url, OpenFlags::Read ) |
+                            Read( f3, 0, sizeof( readout ), readout ) |
+                            Close( f3 ) ) );
   // we expect the data to be unchanged
   EXPECT_EQ( strncmp( readout, data, sizeof( data ) ), 0 );
 
@@ -965,16 +965,16 @@ TEST(WorkflowTest, CheckpointTest) {
   // Update the file and commit the changes
   //---------------------------------------------------------------------------
   File f4;
-  GTEST_ASSERT_XRDST( WaitFor( Open( f4, url, OpenFlags::Update ) |
-                                 Checkpoint( f4, ChkPtCode::BEGIN ) |
-                                 ChkptWrt( f4, 0, sizeof( update ), update ) |
-                                 Checkpoint( f4, ChkPtCode::COMMIT ) |
-                                 Close( f4 ) ) );
+  EXPECT_XRDST_OK( WaitFor( Open( f4, url, OpenFlags::Update ) |
+                            Checkpoint( f4, ChkPtCode::BEGIN ) |
+                            ChkptWrt( f4, 0, sizeof( update ), update ) |
+                            Checkpoint( f4, ChkPtCode::COMMIT ) |
+                            Close( f4 ) ) );
   File f5;
   // readout the data to see if the update was succesful (it shouldn't be)
-  GTEST_ASSERT_XRDST( WaitFor( Open( f5, url, OpenFlags::Read ) |
-                                 Read( f5, 0, sizeof( readout ), readout ) |
-                                 Close( f5 ) ) );
+  EXPECT_XRDST_OK( WaitFor( Open( f5, url, OpenFlags::Read ) |
+                            Read( f5, 0, sizeof( readout ), readout ) |
+                            Close( f5 ) ) );
   // we expect the data to be unchanged
   EXPECT_EQ( strncmp( readout, update, sizeof( update ) ), 0 );
   EXPECT_TRUE( strncmp( readout + sizeof( update ), data + sizeof( update ),
@@ -984,6 +984,6 @@ TEST(WorkflowTest, CheckpointTest) {
   // Now clean up
   //---------------------------------------------------------------------------
   FileSystem fs( url );
-  GTEST_ASSERT_XRDST( WaitFor( Rm( fs, chkpttestFile ) ) );
+  EXPECT_XRDST_OK( WaitFor( Rm( fs, chkpttestFile ) ) );
 }
 
