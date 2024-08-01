@@ -152,10 +152,10 @@ void FileTest::RedirectReturnTest()
   MessageSendParams params; params.followRedirects = false;
   MessageUtils::ProcessSendParams( params );
   OpenInfo *response = 0;
-  GTEST_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params, 0 ) );
+  EXPECT_XRDST_OK( MessageUtils::SendMessage( url, msg, handler, params, 0 ) );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
   delete handler;
-  GTEST_ASSERT_XRDST_NOTOK( st1, errRedirect );
+  EXPECT_XRDST_NOTOK( st1, errRedirect );
   EXPECT_FALSE( response );
   delete response;
 }
@@ -208,13 +208,13 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Open the file
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
-  GTEST_ASSERT_XRDST( fLocal.Open( localFileUrl, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( fLocal.Open( localFileUrl, OpenFlags::Read ) );
 
   //----------------------------------------------------------------------------
   // Stat1
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Stat( false, statInfo ) );
+  EXPECT_XRDST_OK( f.Stat( false, statInfo ) );
   ASSERT_TRUE( statInfo );
 
   struct stat localStatBuf;
@@ -233,7 +233,7 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Stat2
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Stat( true, statInfo ) );
+  EXPECT_XRDST_OK( f.Stat( true, statInfo ) );
   ASSERT_TRUE( statInfo );
   EXPECT_EQ( statInfo->GetSize(), fileSize );
   EXPECT_TRUE( statInfo->TestFlags( StatInfo::IsReadable ) );
@@ -242,8 +242,8 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Read test
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Read( 5*MB, 5*MB, buffer1, bytesRead1 ) );
-  GTEST_ASSERT_XRDST( f.Read( fileSize - 3*MB, 4*MB, buffer2, bytesRead2 ) );
+  EXPECT_XRDST_OK( f.Read( 5*MB, 5*MB, buffer1, bytesRead1 ) );
+  EXPECT_XRDST_OK( f.Read( fileSize - 3*MB, 4*MB, buffer2, bytesRead2 ) );
   EXPECT_EQ( bytesRead1, 5*MB );
   EXPECT_EQ( bytesRead2, 3*MB );
 
@@ -251,8 +251,8 @@ void FileTest::ReadTest()
 
   // reinitializing the file cursor
   bytesRead1 = bytesRead2 = 0;
-  GTEST_ASSERT_XRDST( fLocal.Read( 5*MB, 5*MB, buffer1Comp, bytesRead1 ) );
-  GTEST_ASSERT_XRDST( fLocal.Read( fileSize - 3*MB, 4*MB, buffer2Comp, bytesRead2 ) );
+  EXPECT_XRDST_OK( fLocal.Read( 5*MB, 5*MB, buffer1Comp, bytesRead1 ) );
+  EXPECT_XRDST_OK( fLocal.Read( fileSize - 3*MB, 4*MB, buffer2Comp, bytesRead2 ) );
 
   // compute and compare local file buffer crc
   uint32_t crcComp = XrdClTests::Utils::ComputeCRC32( buffer1Comp, 5*MB );
@@ -271,8 +271,8 @@ void FileTest::ReadTest()
   delete [] buffer1Comp;
   delete [] buffer2Comp;
 
-  GTEST_ASSERT_XRDST( f.Close() );
-  GTEST_ASSERT_XRDST( fLocal.Close() );
+  EXPECT_XRDST_OK( f.Close() );
+  EXPECT_XRDST_OK( fLocal.Close() );
 
   //----------------------------------------------------------------------------
   // Read ZIP archive test (uncompressed)
@@ -280,7 +280,7 @@ void FileTest::ReadTest()
   std::string archiveUrl = address + "/" + dataPath + "/data.zip";
 
   ZipArchive zip;
-  GTEST_ASSERT_XRDST( WaitFor( OpenArchive( zip, archiveUrl, OpenFlags::Read ) ) );
+  EXPECT_XRDST_OK( WaitFor( OpenArchive( zip, archiveUrl, OpenFlags::Read ) ) );
 
   //----------------------------------------------------------------------------
   // There are 3 files in the data.zip archive:
@@ -306,7 +306,7 @@ void FileTest::ReadTest()
   for( int i = 0; i < 3; ++i )
   {
     std::string result;
-    GTEST_ASSERT_XRDST( WaitFor(
+    EXPECT_XRDST_OK( WaitFor(
         ReadFrom( zip, testset[i].file, testset[i].offset, testset[i].size, testset[i].buffer ) >>
           [&result]( auto& s, auto& c )
           {
@@ -317,7 +317,7 @@ void FileTest::ReadTest()
     EXPECT_EQ( testset[i].expected, result );
   }
 
-  GTEST_ASSERT_XRDST( WaitFor( CloseArchive( zip ) ) );
+  EXPECT_XRDST_OK( WaitFor( CloseArchive( zip ) ) );
 }
 
 
@@ -366,8 +366,8 @@ void FileTest::WriteTest()
   //----------------------------------------------------------------------------
   // Write the data
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
-                           Access::UR | Access::UW ));
+  EXPECT_XRDST_OK( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
+                            Access::UR | Access::UW ));
 
   EXPECT_TRUE( f1.Write( 0, 4*MB, buffer1 ).IsOK() );
   EXPECT_TRUE( f1.Write( 4*MB, 4*MB, buffer2 ).IsOK() );
@@ -548,18 +548,18 @@ void FileTest::VectorReadTest()
   //----------------------------------------------------------------------------
   // Open the file
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
-  GTEST_ASSERT_XRDST( fLocal.Open( localDataPath, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( fLocal.Open( localDataPath, OpenFlags::Read ) );
 
   // remote file vread1
   VectorReadInfo *info = 0;
-  GTEST_ASSERT_XRDST( f.VectorRead( chunkList1, buffer1, info ) );
+  EXPECT_XRDST_OK( f.VectorRead( chunkList1, buffer1, info ) );
   EXPECT_EQ( info->GetSize(), 10*MB );
   delete info;
 
   // local file vread1
   info = 0;
-  GTEST_ASSERT_XRDST( fLocal.VectorRead( chunkList1, buffer1Comp, info ) );
+  EXPECT_XRDST_OK( fLocal.VectorRead( chunkList1, buffer1Comp, info ) );
   EXPECT_EQ( info->GetSize(), 10*MB );
   delete info;
 
@@ -571,13 +571,13 @@ void FileTest::VectorReadTest()
 
   // remote vread2
   info = 0;
-  GTEST_ASSERT_XRDST( f.VectorRead( chunkList2, buffer2, info ) );
+  EXPECT_XRDST_OK( f.VectorRead( chunkList2, buffer2, info ) );
   EXPECT_EQ( info->GetSize(), 10*256000 );
   delete info;
 
   // local vread2
   info = 0;
-  GTEST_ASSERT_XRDST( f.VectorRead( chunkList2, buffer2Comp, info ) );
+  EXPECT_XRDST_OK( f.VectorRead( chunkList2, buffer2Comp, info ) );
   EXPECT_EQ( info->GetSize(), 10*256000 );
   delete info;
 
@@ -587,8 +587,8 @@ void FileTest::VectorReadTest()
   EXPECT_EQ( crc, crcComp );
 
   // cleanup
-  GTEST_ASSERT_XRDST( f.Close() );
-  GTEST_ASSERT_XRDST( fLocal.Close() );
+  EXPECT_XRDST_OK( f.Close() );
+  EXPECT_XRDST_OK( fLocal.Close() );
   delete [] buffer1;
   delete [] buffer2;
   delete [] buffer1Comp;
@@ -683,26 +683,26 @@ void FileTest::VectorWriteTest()
   // Open the file
   //----------------------------------------------------------------------------
   File f;
-  GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Update ) );
+  EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Update ) );
 
   //----------------------------------------------------------------------------
   // First do a VectorRead so we can revert to the original state
   //----------------------------------------------------------------------------
   char *buffer1 = new char[totalSize];
   VectorReadInfo *info1 = 0;
-  GTEST_ASSERT_XRDST( f.VectorRead( chunks, buffer1, info1 ) );
+  EXPECT_XRDST_OK( f.VectorRead( chunks, buffer1, info1 ) );
 
   //----------------------------------------------------------------------------
   // Then do the VectorWrite
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.VectorWrite( chunks ) );
+  EXPECT_XRDST_OK( f.VectorWrite( chunks ) );
 
   //----------------------------------------------------------------------------
   // Now do a vector read and verify that the checksum is the same
   //----------------------------------------------------------------------------
   char *buffer2 = new char[totalSize];
   VectorReadInfo *info2 = 0;
-  GTEST_ASSERT_XRDST( f.VectorRead( chunks, buffer2, info2 ) );
+  EXPECT_XRDST_OK( f.VectorRead( chunks, buffer2, info2 ) );
 
   EXPECT_EQ( info2->GetSize(), totalSize );
   uint32_t crc32 = XrdClTests::Utils::ComputeCRC32( buffer2, totalSize );
@@ -711,8 +711,8 @@ void FileTest::VectorWriteTest()
   //----------------------------------------------------------------------------
   // And finally revert to the original state
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.VectorWrite( info1->GetChunks() ) );
-  GTEST_ASSERT_XRDST( f.Close() );
+  EXPECT_XRDST_OK( f.VectorWrite( info1->GetChunks() ) );
+  EXPECT_XRDST_OK( f.Close() );
 
   delete info1;
   delete info2;
@@ -758,27 +758,27 @@ void FileTest::VirtualRedirectorTest()
   // Open the 1st metalink file
   // (the metalink contains just one file with a correct location)
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f1.Open( mlUrl1, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f1.Open( mlUrl1, OpenFlags::Read ) );
   EXPECT_TRUE( f1.GetProperty( key, value ) );
   URL lastUrl( value );
   EXPECT_EQ( lastUrl.GetLocation(), fileUrl );
-  GTEST_ASSERT_XRDST( f1.Close() );
+  EXPECT_XRDST_OK( f1.Close() );
 
   //----------------------------------------------------------------------------
   // Open the 2nd metalink file
   // (the metalink contains 2 files, the one with higher priority does not exist)
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f2.Open( mlUrl2, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f2.Open( mlUrl2, OpenFlags::Read ) );
   EXPECT_TRUE( f2.GetProperty( key, value ) );
   URL lastUrl2( value );
   EXPECT_EQ( lastUrl2.GetLocation(), fileUrl );
-  GTEST_ASSERT_XRDST( f2.Close() );
+  EXPECT_XRDST_OK( f2.Close() );
 
   //----------------------------------------------------------------------------
   // Open the 3rd metalink file
   // (the metalink contains 2 files, both don't exist)
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST_NOTOK( f3.Open( mlUrl3, OpenFlags::Read ), errErrorResponse );
+  EXPECT_XRDST_NOTOK( f3.Open( mlUrl3, OpenFlags::Read ), errErrorResponse );
 
   //----------------------------------------------------------------------------
   // Open the 4th metalink file
@@ -793,24 +793,24 @@ void FileTest::VirtualRedirectorTest()
   EXPECT_TRUE( testEnv->GetString( "Server2URL", srv2Hostname ) );
   const std::string replica2 = "root://" + srv2Hostname + "/" + dataPath + "/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
 
-  GTEST_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f4.Open( mlUrl4, OpenFlags::Read ) );
   EXPECT_TRUE( f4.GetProperty( key, value ) );
   URL lastUrl3( value );
   EXPECT_EQ( lastUrl3.GetLocation(), replica1 );
-  GTEST_ASSERT_XRDST( f4.Close() );
+  EXPECT_XRDST_OK( f4.Close() );
   //----------------------------------------------------------------------------
   // Delete the replica that has been selected by the virtual redirector
   //----------------------------------------------------------------------------
   FileSystem fs( replica1 );
-  GTEST_ASSERT_XRDST( fs.Rm( dataPath + "/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat" ) );
+  EXPECT_XRDST_OK( fs.Rm( dataPath + "/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat" ) );
   //----------------------------------------------------------------------------
   // Now reopen the file
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f4.Open( mlUrl4, OpenFlags::Read ) );
   EXPECT_TRUE( f4.GetProperty( key, value ) );
   URL lastUrl4( value );
   EXPECT_EQ( lastUrl4.GetLocation(), replica2 );
-  GTEST_ASSERT_XRDST( f4.Close() );
+  EXPECT_XRDST_OK( f4.Close() );
   //----------------------------------------------------------------------------
   // Recreate the deleted file
   //----------------------------------------------------------------------------
@@ -818,9 +818,9 @@ void FileTest::VirtualRedirectorTest()
   PropertyList properties, results;
   properties.Set( "source",       replica2 );
   properties.Set( "target",       replica1 );
-  GTEST_ASSERT_XRDST( process.AddJob( properties, &results ) );
-  GTEST_ASSERT_XRDST( process.Prepare() );
-  GTEST_ASSERT_XRDST( process.Run(0) );
+  EXPECT_XRDST_OK( process.AddJob( properties, &results ) );
+  EXPECT_XRDST_OK( process.Prepare() );
+  EXPECT_XRDST_OK( process.Run(0) );
 }
 
 void FileTest::XAttrTest()
@@ -846,7 +846,7 @@ void FileTest::XAttrTest()
 
 
   File file;
-  GTEST_ASSERT_XRDST( file.Open( fileUrl, OpenFlags::Update ) );
+  EXPECT_XRDST_OK( file.Open( fileUrl, OpenFlags::Update ) );
 
   std::map<std::string, std::string> attributes
   {
@@ -864,11 +864,11 @@ void FileTest::XAttrTest()
     attrs.push_back( std::make_tuple( itr1->first, itr1->second ) );
 
   std::vector<XAttrStatus> result1;
-  GTEST_ASSERT_XRDST( file.SetXAttr( attrs, result1 ) );
+  EXPECT_XRDST_OK( file.SetXAttr( attrs, result1 ) );
 
   auto itr2 = result1.begin();
   for( ; itr2 != result1.end() ; ++itr2 )
-    GTEST_ASSERT_XRDST( itr2->status );
+    EXPECT_XRDST_OK( itr2->status );
 
   //----------------------------------------------------------------------------
   // Test GetXAttr
@@ -879,12 +879,12 @@ void FileTest::XAttrTest()
     names.push_back( itr1->first );
 
   std::vector<XAttr> result2;
-  GTEST_ASSERT_XRDST( file.GetXAttr( names, result2 ) );
+  EXPECT_XRDST_OK( file.GetXAttr( names, result2 ) );
 
   auto itr3 = result2.begin();
   for( ; itr3 != result2.end() ; ++itr3 )
   {
-    GTEST_ASSERT_XRDST( itr3->status );
+    EXPECT_XRDST_OK( itr3->status );
     auto match = attributes.find( itr3->name );
     EXPECT_NE( match, attributes.end() );
     EXPECT_EQ( match->second, itr3->value );
@@ -893,12 +893,12 @@ void FileTest::XAttrTest()
   //----------------------------------------------------------------------------
   // Test ListXAttr
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( file.ListXAttr( result2 ) );
+  EXPECT_XRDST_OK( file.ListXAttr( result2 ) );
 
   itr3 = result2.begin();
   for( ; itr3 != result2.end() ; ++itr3 )
   {
-    GTEST_ASSERT_XRDST( itr3->status );
+    EXPECT_XRDST_OK( itr3->status );
     auto match = attributes.find( itr3->name );
     EXPECT_NE( match, attributes.end() );
     EXPECT_EQ( match->second, itr3->value );
@@ -907,11 +907,11 @@ void FileTest::XAttrTest()
   //----------------------------------------------------------------------------
   // Test DelXAttr
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( file.DelXAttr( names, result1 ) );
+  EXPECT_XRDST_OK( file.DelXAttr( names, result1 ) );
 
   itr2 = result1.begin();
   for( ; itr2 != result1.end() ; ++itr2 )
-    GTEST_ASSERT_XRDST( itr2->status );
+    EXPECT_XRDST_OK( itr2->status );
 
-  GTEST_ASSERT_XRDST( file.Close() );
+  EXPECT_XRDST_OK( file.Close() );
 }

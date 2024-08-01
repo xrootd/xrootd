@@ -107,10 +107,10 @@ void LocalFileHandlerTest::readTestFunc(bool offsetRead, uint32_t offset){
    OpenFlags::Flags flags = OpenFlags::Update;
    Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
    File *file = new File();
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file->Open( targetURL, flags, mode ) );
    EXPECT_TRUE( file->IsOpen() );
-   GTEST_ASSERT_XRDST( file->Read( offset, size, buffer, bytesRead ) );
-   GTEST_ASSERT_XRDST( file->Close() );
+   EXPECT_XRDST_OK( file->Read( offset, size, buffer, bytesRead ) );
+   EXPECT_XRDST_OK( file->Close() );
 
    std::string read( buffer, size );
    if (offsetRead) EXPECT_EQ( expectedRead, read );
@@ -134,9 +134,9 @@ TEST_F(LocalFileHandlerTest, SyncTest){
    OpenFlags::Flags flags = OpenFlags::Update;
    Access::Mode mode = Access::UR | Access::UW | Access::GR | Access::OR;
    File *file = new File();
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
-   GTEST_ASSERT_XRDST( file->Sync() );
-   GTEST_ASSERT_XRDST( file->Close() );
+   EXPECT_XRDST_OK( file->Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file->Sync() );
+   EXPECT_XRDST_OK( file->Close() );
    EXPECT_EQ( remove( targetURL.c_str() ), 0 );
    delete file;
 }
@@ -152,9 +152,9 @@ TEST_F(LocalFileHandlerTest, OpenCloseTest){
    OpenFlags::Flags flags = OpenFlags::Update;
    Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
    File *file = new File();
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file->Open( targetURL, flags, mode ) );
    EXPECT_TRUE( file->IsOpen() );
-   GTEST_ASSERT_XRDST( file->Close() );
+   EXPECT_XRDST_OK( file->Close() );
    EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 
    //----------------------------------------------------------------------------
@@ -183,10 +183,10 @@ TEST_F(LocalFileHandlerTest, WriteTest){
    OpenFlags::Flags flags = OpenFlags::Update;
    Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
    File *file = new File();
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file->Open( targetURL, flags, mode ) );
    EXPECT_TRUE( file->IsOpen() );
-   GTEST_ASSERT_XRDST( file->Write( 0, writeSize, toBeWritten.c_str()) );
-   GTEST_ASSERT_XRDST( file->Close() );
+   EXPECT_XRDST_OK( file->Write( 0, writeSize, toBeWritten.c_str()) );
+   EXPECT_XRDST_OK( file->Close() );
 
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
@@ -217,10 +217,10 @@ TEST_F(LocalFileHandlerTest, WriteWithOffsetTest){
    OpenFlags::Flags flags = OpenFlags::Update;
    Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
    File *file = new File();
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file->Open( targetURL, flags, mode ) );
    EXPECT_TRUE( file->IsOpen() );
-   GTEST_ASSERT_XRDST( file->Write( offset, writeSize, toBeWritten.c_str()) );
-   GTEST_ASSERT_XRDST( file->Close() );
+   EXPECT_XRDST_OK( file->Write( offset, writeSize, toBeWritten.c_str()) );
+   EXPECT_XRDST_OK( file->Close() );
 
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
@@ -248,10 +248,10 @@ TEST_F(LocalFileHandlerTest, WriteMkdirTest){
    OpenFlags::Flags flags = OpenFlags::Update | OpenFlags::MakePath | OpenFlags::New;
    Access::Mode mode = Access::UR|Access::UW|Access::UX;
    File *file = new File();
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file->Open( targetURL, flags, mode ) );
    EXPECT_TRUE( file->IsOpen() );
-   GTEST_ASSERT_XRDST( file->Write( 0, writeSize, toBeWritten.c_str()) );
-   GTEST_ASSERT_XRDST( file->Close() );
+   EXPECT_XRDST_OK( file->Write( 0, writeSize, toBeWritten.c_str()) );
+   EXPECT_XRDST_OK( file->Close() );
 
    //----------------------------------------------------------------------------
    // Read file with POSIX calls to confirm correct write
@@ -294,12 +294,12 @@ TEST_F(LocalFileHandlerTest, TruncateTest){
    // Read after truncate, but with greater length. bytesRead must still be
    // truncate size if truncate works as intended
    //----------------------------------------------------------------------------
-   GTEST_ASSERT_XRDST( file->Open( targetURL, flags, mode ) );
-   GTEST_ASSERT_XRDST( file->Truncate( truncateSize ) );
+   EXPECT_XRDST_OK( file->Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file->Truncate( truncateSize ) );
    char *buffer = new char[truncateSize + 3];
-   GTEST_ASSERT_XRDST( file->Read( 0, truncateSize + 3, buffer, bytesRead ) );
+   EXPECT_XRDST_OK( file->Read( 0, truncateSize + 3, buffer, bytesRead ) );
    EXPECT_EQ( truncateSize, bytesRead );
-   GTEST_ASSERT_XRDST( file->Close() );
+   EXPECT_XRDST_OK( file->Close() );
    EXPECT_EQ( remove( targetURL.c_str() ), 0 );
    delete file;
    delete[] buffer;
@@ -323,7 +323,7 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
    OpenFlags::Flags flags = OpenFlags::Update;
    Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
    File file;
-   GTEST_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file.Open( targetURL, flags, mode ) );
 
    //----------------------------------------------------------------------------
    // VectorRead no cursor
@@ -331,8 +331,8 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
 
    chunks.push_back( ChunkInfo( 0, 5, new char[5] ) );
    chunks.push_back( ChunkInfo( 10, 5, new char[5] ) );
-   GTEST_ASSERT_XRDST( file.VectorRead( chunks, NULL, info ) );
-   GTEST_ASSERT_XRDST( file.Close() );
+   EXPECT_XRDST_OK( file.VectorRead( chunks, NULL, info ) );
+   EXPECT_XRDST_OK( file.Close() );
    EXPECT_EQ( info->GetSize(), 10 );
    EXPECT_EQ( 0, memcmp( "Gener",
                                     info->GetChunks()[0].buffer,
@@ -353,9 +353,9 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
    chunks.push_back( ChunkInfo( 10, 5, 0 ) );
    info = 0;
 
-   GTEST_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
-   GTEST_ASSERT_XRDST( file.VectorRead( chunks, buffer, info ) );
-   GTEST_ASSERT_XRDST( file.Close() );
+   EXPECT_XRDST_OK( file.Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file.VectorRead( chunks, buffer, info ) );
+   EXPECT_XRDST_OK( file.Close() );
    EXPECT_EQ( info->GetSize(), 10 );
    EXPECT_EQ( 0, memcmp( "GenertFile",
                                     info->GetChunks()[0].buffer,
@@ -383,7 +383,7 @@ TEST_F(LocalFileHandlerTest, VectorWriteTest)
    OpenFlags::Flags flags = OpenFlags::Update;
    Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
    File file;
-   GTEST_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
+   EXPECT_XRDST_OK( file.Open( targetURL, flags, mode ) );
 
    //----------------------------------------------------------------------------
    // VectorWrite
@@ -396,7 +396,7 @@ TEST_F(LocalFileHandlerTest, VectorWriteTest)
    memset( chunk.buffer, 'B', chunk.length );
    chunks.push_back( chunk );
 
-   GTEST_ASSERT_XRDST( file.VectorWrite( chunks ) );
+   EXPECT_XRDST_OK( file.VectorWrite( chunks ) );
 
    //----------------------------------------------------------------------------
    // Verify with VectorRead
@@ -404,11 +404,11 @@ TEST_F(LocalFileHandlerTest, VectorWriteTest)
 
    VectorReadInfo *info = 0;
    char *buffer = new char[10];
-   GTEST_ASSERT_XRDST( file.VectorRead( chunks, buffer, info ) );
+   EXPECT_XRDST_OK( file.VectorRead( chunks, buffer, info ) );
 
    EXPECT_EQ( 0, memcmp( buffer, "AAAAABBBBB", 10 ) );
 
-   GTEST_ASSERT_XRDST( file.Close() );
+   EXPECT_XRDST_OK( file.Close() );
    EXPECT_EQ( info->GetSize(), 10 );
 
    delete[] (char*)chunks[0].buffer;
@@ -435,7 +435,7 @@ TEST_F(LocalFileHandlerTest, WriteVTest)
   OpenFlags::Flags flags = OpenFlags::Update;
   Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
   File file;
-  GTEST_ASSERT_XRDST( file.Open( targetURL, flags, mode ) );
+  EXPECT_XRDST_OK( file.Open( targetURL, flags, mode ) );
 
   char str[] = "WriteVTest";
   std::vector<char> buffer( 10 );
@@ -446,15 +446,15 @@ TEST_F(LocalFileHandlerTest, WriteVTest)
   iov[0].iov_len  = 6;
   iov[1].iov_base = buffer.data() + 6;
   iov[1].iov_len  = 4;
-  GTEST_ASSERT_XRDST( file.WriteV( 7, iov, iovcnt ) );
+  EXPECT_XRDST_OK( file.WriteV( 7, iov, iovcnt ) );
 
   uint32_t bytesRead = 0;
   buffer.resize( 17 );
-  GTEST_ASSERT_XRDST( file.Read( 0, 17, buffer.data(), bytesRead ) );
+  EXPECT_XRDST_OK( file.Read( 0, 17, buffer.data(), bytesRead ) );
   EXPECT_EQ( buffer.size(), 17 );
   std::string expected = "GenericWriteVTest";
   EXPECT_EQ( std::string( buffer.data(), buffer.size() ), expected );
-  GTEST_ASSERT_XRDST( file.Close() );
+  EXPECT_XRDST_OK( file.Close() );
   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 }
 
@@ -479,7 +479,7 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   CreateTestFileFunc( targetURL );
 
   File f;
-  GTEST_ASSERT_XRDST( f.Open( targetURL, OpenFlags::Update ) );
+  EXPECT_XRDST_OK( f.Open( targetURL, OpenFlags::Update ) );
 
   //----------------------------------------------------------------------------
   // Test XAttr Set
@@ -491,11 +491,11 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
 
   std::vector<XAttrStatus> st_resp;
 
-  GTEST_ASSERT_XRDST( f.SetXAttr( attrs, st_resp ) );
+  EXPECT_XRDST_OK( f.SetXAttr( attrs, st_resp ) );
 
   std::vector<XAttrStatus>::iterator itr1;
   for( itr1 = st_resp.begin(); itr1 != st_resp.end(); ++itr1 )
-    GTEST_ASSERT_XRDST( itr1->status );
+    EXPECT_XRDST_OK( itr1->status );
 
   //----------------------------------------------------------------------------
   // Test XAttr Get
@@ -504,12 +504,12 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   names.push_back( "version" );
   names.push_back( "description" );
   std::vector<XAttr> resp;
-  GTEST_ASSERT_XRDST( f.GetXAttr( names, resp ) );
+  EXPECT_XRDST_OK( f.GetXAttr( names, resp ) );
 
   ASSERT_EQ( resp.size(), 2 );
 
-  GTEST_ASSERT_XRDST( resp[0].status );
-  GTEST_ASSERT_XRDST( resp[1].status );
+  EXPECT_XRDST_OK( resp[0].status );
+  EXPECT_XRDST_OK( resp[1].status );
 
   int vid = resp[0].name == "version" ? 0 : 1;
   int did = vid == 0 ? 1 : 0;
@@ -524,15 +524,15 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   names.clear();
   names.push_back( "description" );
   st_resp.clear();
-  GTEST_ASSERT_XRDST( f.DelXAttr( names, st_resp ) );
+  EXPECT_XRDST_OK( f.DelXAttr( names, st_resp ) );
   EXPECT_EQ( st_resp.size(), 1 );
-  GTEST_ASSERT_XRDST( st_resp[0].status );
+  EXPECT_XRDST_OK( st_resp[0].status );
 
   //----------------------------------------------------------------------------
   // Test XAttr List
   //----------------------------------------------------------------------------
   resp.clear();
-  GTEST_ASSERT_XRDST( f.ListXAttr( resp ) );
+  EXPECT_XRDST_OK( f.ListXAttr( resp ) );
   EXPECT_EQ( resp.size(), 2 );
   vid = resp[0].name == "version" ? 0 : 1;
   int cid = vid == 0 ? 1 : 0;
@@ -544,6 +544,6 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   //----------------------------------------------------------------------------
   // Cleanup
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( f.Close() );
+  EXPECT_XRDST_OK( f.Close() );
   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 }

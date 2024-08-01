@@ -177,12 +177,12 @@ TEST(UtilsTest, SIDManagerTest)
   uint8_t sid4[2];
   uint8_t sid5[2];
 
-  GTEST_ASSERT_XRDST( manager->AllocateSID( sid1 ) );
-  GTEST_ASSERT_XRDST( manager->AllocateSID( sid2 ) );
+  EXPECT_XRDST_OK( manager->AllocateSID( sid1 ) );
+  EXPECT_XRDST_OK( manager->AllocateSID( sid2 ) );
   manager->ReleaseSID( sid2 );
-  GTEST_ASSERT_XRDST( manager->AllocateSID( sid3 ) );
-  GTEST_ASSERT_XRDST( manager->AllocateSID( sid4 ) );
-  GTEST_ASSERT_XRDST( manager->AllocateSID( sid5 ) );
+  EXPECT_XRDST_OK( manager->AllocateSID( sid3 ) );
+  EXPECT_XRDST_OK( manager->AllocateSID( sid4 ) );
+  EXPECT_XRDST_OK( manager->AllocateSID( sid5 ) );
 
   EXPECT_TRUE( (sid1[0] != sid2[0]) || (sid1[1] != sid2[1]) );
   EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 0 );

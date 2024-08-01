@@ -351,7 +351,7 @@ void XrdEcTests::CorruptChunk( size_t blknb, size_t strpnb )
   reader.Open( &handler1 );
   handler1.WaitForResponse();
   XrdCl::XRootDStatus *status = handler1.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 
   // get the CD buffer
@@ -364,7 +364,7 @@ void XrdEcTests::CorruptChunk( size_t blknb, size_t strpnb )
   reader.Close( &handler2 );
   handler2.WaitForResponse();
   status = handler2.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 
   // parse the CD buffer
@@ -378,10 +378,10 @@ void XrdEcTests::CorruptChunk( size_t blknb, size_t strpnb )
   XrdZip::CDFH &cdfh = *cdvec[cdmap[fn]];
   uint64_t offset = cdfh.offset + lfhsize + fn.size(); // offset of the data
   XrdCl::File f;
-  GTEST_ASSERT_XRDST( f.Open( url, XrdCl::OpenFlags::Write ) );
+  EXPECT_XRDST_OK( f.Open( url, XrdCl::OpenFlags::Write ) );
   std::string str = "XXXXXXXX";
-  GTEST_ASSERT_XRDST( f.Write( offset, str.size(), str.c_str() ) );
-  GTEST_ASSERT_XRDST( f.Close() );
+  EXPECT_XRDST_OK( f.Write( offset, str.size(), str.c_str() ) );
+  EXPECT_XRDST_OK( f.Close() );
 }
 
 void XrdEcTests::UrlNotReachable( size_t index )
@@ -422,7 +422,7 @@ void XrdEcTests::VerifyVectorRead(uint32_t seed){
 	  reader.Open( &handler1 );
 	  handler1.WaitForResponse();
 	  XrdCl::XRootDStatus *status = handler1.GetStatus();
-	  GTEST_ASSERT_XRDST( *status );
+	  EXPECT_XRDST_OK( *status );
 	  delete status;
 
 	  std::default_random_engine random_engine(seed);
@@ -447,7 +447,7 @@ void XrdEcTests::VerifyVectorRead(uint32_t seed){
 	  reader.VectorRead(chunks, nullptr, &h, 0);
 	    h.WaitForResponse();
 	    status = h.GetStatus();
-	    GTEST_ASSERT_XRDST( *status );
+	    EXPECT_XRDST_OK( *status );
 	    delete status;
 	    for(int i = 0; i < 5; i++){
 		std::string result(buffers[i].data(), expected[i].size());
@@ -458,7 +458,7 @@ void XrdEcTests::VerifyVectorRead(uint32_t seed){
 	      reader.Close( &handler2 );
 	      handler2.WaitForResponse();
 	      status = handler2.GetStatus();
-	      GTEST_ASSERT_XRDST( *status );
+	      EXPECT_XRDST_OK( *status );
 	      delete status;
 }
 
@@ -469,7 +469,7 @@ void XrdEcTests::IllegalVectorRead(uint32_t seed){
 	reader.Open(&handler1);
 	handler1.WaitForResponse();
 	XrdCl::XRootDStatus *status = handler1.GetStatus();
-	GTEST_ASSERT_XRDST( *status );
+	EXPECT_XRDST_OK( *status );
 	delete status;
 
 	std::default_random_engine random_engine(seed);
@@ -529,7 +529,7 @@ void XrdEcTests::IllegalVectorRead(uint32_t seed){
 	reader.Close(&handler2);
 	handler2.WaitForResponse();
 	status = handler2.GetStatus();
-	GTEST_ASSERT_XRDST( *status );
+	EXPECT_XRDST_OK( *status );
 	delete status;
 }
 
@@ -541,7 +541,7 @@ void XrdEcTests::ReadVerify( uint32_t rdsize, uint64_t maxrd )
   reader.Open( &handler1 );
   handler1.WaitForResponse();
   XrdCl::XRootDStatus *status = handler1.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
   
   uint64_t  rdoff  = 0;
@@ -554,7 +554,7 @@ void XrdEcTests::ReadVerify( uint32_t rdsize, uint64_t maxrd )
     reader.Read( rdoff, rdsize, rdbuff, &h, 0 );
     h.WaitForResponse();
     status = h.GetStatus();
-    GTEST_ASSERT_XRDST( *status );
+    EXPECT_XRDST_OK( *status );
     // get the actual result
     auto rsp = h.GetResponse();
     XrdCl::ChunkInfo *ch = nullptr;
@@ -581,7 +581,7 @@ void XrdEcTests::ReadVerify( uint32_t rdsize, uint64_t maxrd )
   reader.Close( &handler2 );
   handler2.WaitForResponse();
   status = handler2.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 }
 
@@ -600,7 +600,7 @@ void XrdEcTests::RandomReadVerify()
   reader.Open( &handler1 );
   handler1.WaitForResponse();
   XrdCl::XRootDStatus *status = handler1.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 
   // read the data
@@ -609,7 +609,7 @@ void XrdEcTests::RandomReadVerify()
   reader.Read( rdoff, rdlen, rdbuff, &h, 0 );
   h.WaitForResponse();
   status = h.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   // get the actual result
   auto rsp = h.GetResponse();
   XrdCl::ChunkInfo *ch = nullptr;
@@ -633,7 +633,7 @@ void XrdEcTests::RandomReadVerify()
   reader.Close( &handler2 );
   handler2.WaitForResponse();
   status = handler2.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 }
 
@@ -648,7 +648,7 @@ void XrdEcTests::Corrupted1stBlkReadVerify()
   reader.Open( &handler1 );
   handler1.WaitForResponse();
   XrdCl::XRootDStatus *status = handler1.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 
   // read the data
@@ -657,7 +657,7 @@ void XrdEcTests::Corrupted1stBlkReadVerify()
   reader.Read( rdoff, rdlen, rdbuff, &h, 0 );
   h.WaitForResponse();
   status = h.GetStatus();
-  GTEST_ASSERT_XRDST_NOTOK( *status, XrdCl::errDataError );
+  EXPECT_XRDST_NOTOK( *status, XrdCl::errDataError );
   delete status;
   delete[] rdbuff;
 
@@ -666,7 +666,7 @@ void XrdEcTests::Corrupted1stBlkReadVerify()
   reader.Close( &handler2 );
   handler2.WaitForResponse();
   status = handler2.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 }
 
@@ -692,7 +692,7 @@ void XrdEcTests::AlignedWriteRaw()
   writer.Open( &handler1 );
   handler1.WaitForResponse();
   XrdCl::XRootDStatus *status = handler1.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
   // write to the data object
   for( size_t i = 0; i < nbiters; ++i )
@@ -705,7 +705,7 @@ void XrdEcTests::AlignedWriteRaw()
   writer.Close( &handler2 );
   handler2.WaitForResponse();
   status = handler2.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 }
 
@@ -719,7 +719,7 @@ void XrdEcTests::VarlenWriteTest( uint32_t wrtlen, bool usecrc32c )
   writer.Open( &handler1 );
   handler1.WaitForResponse();
   XrdCl::XRootDStatus *status = handler1.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
   // write the data
   char     wrtbuff[wrtlen];
@@ -738,7 +738,7 @@ void XrdEcTests::VarlenWriteTest( uint32_t wrtlen, bool usecrc32c )
   writer.Close( &handler2 );
   handler2.WaitForResponse();
   status = handler2.GetStatus();
-  GTEST_ASSERT_XRDST( *status );
+  EXPECT_XRDST_OK( *status );
   delete status;
 
   // verify that we wrote the data correctly

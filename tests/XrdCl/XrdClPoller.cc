@@ -230,8 +230,8 @@ TEST(PollerTest, FunctionTest)
   SocketHandler *handler = new SocketHandler();
   for( int i = 0; i < 3; ++i )
   {
-    GTEST_ASSERT_XRDST( s[i].Initialize() );
-    GTEST_ASSERT_XRDST( s[i].Connect( "localhost", port ) );
+    EXPECT_XRDST_OK( s[i].Initialize() );
+    EXPECT_XRDST_OK( s[i].Connect( "localhost", port ) );
     EXPECT_TRUE( poller->AddSocket( &s[i], handler ) );
     EXPECT_TRUE( poller->EnableReadNotification( &s[i], true, 60 ) );
     EXPECT_TRUE( poller->IsRegistered( &s[i] ) );

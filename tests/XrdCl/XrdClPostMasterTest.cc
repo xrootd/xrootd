@@ -252,7 +252,7 @@ void *TestThreadFunc( void *arg )
     request->streamid[1] = i;
     msgHandlers[i].SetFilter( a->index, i );
     msgHandlers[i].SetExpiration( expires );
-    GTEST_ASSERT_XRDST( a->pm->Send( host, &msgs[i], &msgHandlers[i], false, expires ) );
+    EXPECT_XRDST_OK( a->pm->Send( host, &msgs[i], &msgHandlers[i], false, expires ) );
   }
 
   //----------------------------------------------------------------------------
@@ -261,7 +261,7 @@ void *TestThreadFunc( void *arg )
   for( int i = 0; i < 100; ++i )
   {
     XrdCl::Message msg;
-    GTEST_ASSERT_XRDST( msgHandlers[i].WaitFor( msg ) );
+    EXPECT_XRDST_OK( msgHandlers[i].WaitFor( msg ) );
     ServerResponse *resp = (ServerResponse *)msg.GetBuffer();
     if (!resp)
       throw std::runtime_error("server response is NULL");
@@ -337,9 +337,9 @@ TEST(PostMasterTest, FunctionalTest)
   request->dlen        = 0;
   XRootDTransport::MarshallRequest( &m1 );
 
-  GTEST_ASSERT_XRDST( postMaster->Send( host, &m1, &msgHandler1, false, expires ) );
+  EXPECT_XRDST_OK( postMaster->Send( host, &m1, &msgHandler1, false, expires ) );
 
-  GTEST_ASSERT_XRDST( msgHandler1.WaitFor( m2 ) );
+  EXPECT_XRDST_OK( msgHandler1.WaitFor( m2 ) );
   ServerResponse *resp = (ServerResponse *)m2.GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
@@ -356,16 +356,16 @@ TEST(PostMasterTest, FunctionalTest)
   msgHandler2.SetFilter( 1, 2 );
   time_t shortexp = ::time(0) + 1;
   msgHandler2.SetExpiration( shortexp );
-  GTEST_ASSERT_XRDST( postMaster->Send( localhost1, &m1, &msgHandler2, false,
-                        shortexp ) );
-  GTEST_ASSERT_XRDST_NOTOK( msgHandler2.WaitFor( m2 ), errOperationExpired );
+  EXPECT_XRDST_OK( postMaster->Send( localhost1, &m1, &msgHandler2, false,
+                                     shortexp ) );
+  EXPECT_XRDST_NOTOK( msgHandler2.WaitFor( m2 ), errOperationExpired );
 
   SyncMsgHandler msgHandler3;
   msgHandler3.SetFilter( 1, 2 );
   msgHandler3.SetExpiration( expires );
-  GTEST_ASSERT_XRDST( postMaster->Send( localhost1, &m1, &msgHandler3, false,
-                                          expires ) );
-  GTEST_ASSERT_XRDST_NOTOK( msgHandler3.WaitFor( m2 ), errConnectionError );
+  EXPECT_XRDST_OK( postMaster->Send( localhost1, &m1, &msgHandler3, false,
+                                     expires ) );
+  EXPECT_XRDST_NOTOK( msgHandler3.WaitFor( m2 ), errConnectionError );
 
   //----------------------------------------------------------------------------
   // Test the transport queries
@@ -374,9 +374,9 @@ TEST(PostMasterTest, FunctionalTest)
   Status st1, st2;
   const char *name   = 0;
 
-  GTEST_ASSERT_XRDST( postMaster->QueryTransport( host,
-                                                   TransportQuery::Name,
-                                                   nameObj ) );
+  EXPECT_XRDST_OK( postMaster->QueryTransport( host,
+                                               TransportQuery::Name,
+                                               nameObj ) );
   nameObj.Get( name );
 
   ASSERT_TRUE( name );
@@ -401,9 +401,9 @@ TEST(PostMasterTest, FunctionalTest)
   SyncMsgHandler msgHandler4;
   msgHandler4.SetFilter( 1, 2 );
   msgHandler4.SetExpiration( expires );
-  GTEST_ASSERT_XRDST( postMaster->Send( host, &m1, &msgHandler4, false, expires ) );
+  EXPECT_XRDST_OK( postMaster->Send( host, &m1, &msgHandler4, false, expires ) );
 
-  GTEST_ASSERT_XRDST( msgHandler4.WaitFor( m2 ) );
+  EXPECT_XRDST_OK( msgHandler4.WaitFor( m2 ) );
   resp = (ServerResponse *)m2.GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
@@ -417,9 +417,9 @@ TEST(PostMasterTest, FunctionalTest)
   SyncMsgHandler msgHandler5;
   msgHandler5.SetFilter( 1, 2 );
   msgHandler5.SetExpiration( expires );
-  GTEST_ASSERT_XRDST( postMaster->Send( host, &m1, &msgHandler5, false, expires ) );
+  EXPECT_XRDST_OK( postMaster->Send( host, &m1, &msgHandler5, false, expires ) );
 
-  GTEST_ASSERT_XRDST( msgHandler5.WaitFor( m2 ) );
+  EXPECT_XRDST_OK( msgHandler5.WaitFor( m2 ) );
   resp = (ServerResponse *)m2.GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
@@ -547,8 +547,8 @@ TEST(PostMasterTest, MultiIPConnectionTest)
   msgHandler1.SetFilter( 1, 2 );
   msgHandler1.SetExpiration( expires );
   Message *m = CreatePing( 1, 2 );
-  GTEST_ASSERT_XRDST_NOTOK( postMaster->Send( url1, m, &msgHandler1, false, expires ),
-                              errInvalidAddr );
+  EXPECT_XRDST_NOTOK( postMaster->Send( url1, m, &msgHandler1, false, expires ),
+                      errInvalidAddr );
 
   //----------------------------------------------------------------------------
   // Try on the wrong port
@@ -558,8 +558,8 @@ TEST(PostMasterTest, MultiIPConnectionTest)
   msgHandler2.SetExpiration( expires );
   Message m2;
 
-  GTEST_ASSERT_XRDST( postMaster->Send( url2, m, &msgHandler2, false, expires ) );
-  GTEST_ASSERT_XRDST_NOTOK( msgHandler2.WaitFor( m2 ), errConnectionError );
+  EXPECT_XRDST_OK( postMaster->Send( url2, m, &msgHandler2, false, expires ) );
+  EXPECT_XRDST_NOTOK( msgHandler2.WaitFor( m2 ), errConnectionError );
 
   //----------------------------------------------------------------------------
   // Try on a good one
@@ -568,8 +568,8 @@ TEST(PostMasterTest, MultiIPConnectionTest)
   msgHandler3.SetFilter( 1, 2 );
   msgHandler3.SetExpiration( expires );
 
-  GTEST_ASSERT_XRDST( postMaster->Send( url3, m, &msgHandler3, false, expires ) );
-  GTEST_ASSERT_XRDST( msgHandler3.WaitFor( m2 ) );
+  EXPECT_XRDST_OK( postMaster->Send( url3, m, &msgHandler3, false, expires ) );
+  EXPECT_XRDST_OK( msgHandler3.WaitFor( m2 ) );
   ServerResponse *resp = (ServerResponse *)m2.GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
