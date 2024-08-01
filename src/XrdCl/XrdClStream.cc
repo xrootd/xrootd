@@ -910,7 +910,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Force error
   //------------------------------------------------------------------------
-  void Stream::ForceError( XRootDStatus status )
+  void Stream::ForceError( XRootDStatus status, bool hush )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log    *log = DefaultEnv::GetLog();
@@ -919,8 +919,10 @@ namespace XrdCl
       if( pSubStreams[substream]->status != Socket::Connected ) continue;
       pSubStreams[substream]->socket->Close();
       pSubStreams[substream]->status = Socket::Disconnected;
-      log->Error( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
-                  pStreamName.c_str(), status.ToString().c_str() );
+
+      if( !hush )
+        log->Error( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
+                    pStreamName.c_str(), status.ToString().c_str() );
 
       //--------------------------------------------------------------------
       // Reinsert the stuff that we have failed to sent
