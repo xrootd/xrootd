@@ -457,7 +457,7 @@ TEST(WorkflowTest, DoubleRunningTest){
 
     }
 
-    EXPECT_TRUE( status.IsOK() );
+    EXPECT_XRDST_OK( status );
 
     EXPECT_TRUE( opened );
     EXPECT_TRUE( closed );
@@ -531,8 +531,7 @@ TEST(WorkflowTest, ParallelTest){
                   | Parallel( firstPipe, secondPipe ) >> parallelresp
                   | Close( lockFile ) >> closeresp;
 
-    XRootDStatus status = WaitFor( std::move( pipe ) );
-    EXPECT_TRUE(status.IsOK());
+    EXPECT_XRDST_OK( WaitFor( std::move( pipe ) ) );
 
     EXPECT_TRUE(lockHandlerExecuted);
 
@@ -625,8 +624,7 @@ TEST(WorkflowTest, FileSystemWorkflowTest){
 
     Pipeline pipe( std::move( fsPipe) );
 
-    XRootDStatus status = WaitFor( std::move( pipe ) );
-    EXPECT_TRUE(status.IsOK());
+    EXPECT_XRDST_OK( WaitFor( std::move( pipe ) ) );
 
     EXPECT_TRUE(mkDirHandler.Executed());
     EXPECT_TRUE(locateHandler.Executed());
@@ -673,8 +671,7 @@ TEST(WorkflowTest, MixedWorkflowTest){
         {
             auto url = URL(it->GetAddress());
             FileSystem fs(url);
-            auto st = fs.RmDir(dirPath);
-            EXPECT_TRUE(st.IsOK());
+            EXPECT_XRDST_OK( fs.RmDir(dirPath) );
         }
         cleaningHandlerExecuted = true;
       };

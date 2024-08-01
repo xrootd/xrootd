@@ -21,6 +21,7 @@
 #include <ctime>
 #include <random>
 #include <chrono>
+#include "GTestXrdHelpers.hh"
 #include "Server.hh"
 #include "Utils.hh"
 #include "TestEnv.hh"
@@ -229,8 +230,8 @@ TEST(SocketTest, TransferTest)
   EXPECT_TRUE( serv.Start() );
 
   EXPECT_EQ( sock.GetStatus(), Socket::Disconnected );
-  EXPECT_TRUE( sock.Initialize( AF_INET6 ).IsOK() );
-  EXPECT_TRUE( sock.Connect( "localhost", port ).IsOK() );
+  EXPECT_XRDST_OK( sock.Initialize( AF_INET6 ) );
+  EXPECT_XRDST_OK( sock.Connect( "localhost", port ) );
   EXPECT_EQ( sock.GetStatus(), Socket::Connected );
 
   //----------------------------------------------------------------------------
