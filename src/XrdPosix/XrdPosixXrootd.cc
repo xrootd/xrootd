@@ -652,12 +652,22 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 //
    if (cbP) {errno = EINPROGRESS; return -1;}
    if (fp->Finalize(&Status)) return fp->FDNum();
-   auto rc = XrdPosixMap::Result(Status,XrdPosixGlobals::ecMsg,false);
-   if (!Status.IsOK()) {
-       delete fp;
-       errno = -rc;
-   }
-   return rc;
+
+// At this point the open() has failed as we could neither defer nor finalize.
+// We need to delete the file pointer and come up with a rational errno as a
+// file descriptor should not be returned. We need to return the causal error
+// message and errno. It is considered impossible for no error state to exist.
+//
+   delete fp;
+   if (XrdPosixMap::Result(Status,XrdPosixGlobals::ecMsg,true)) return -1;
+
+// The impossible happened, there is no error state. So, create a suitable one.
+// Note that our error text will be included as contextual information since
+// ENOMSG, while logically correct, provides no useful information.
+//
+   XrdPosixGlobals::ecMsg = "Impossible condition detected!";
+   XrdPosixGlobals::ecMsg = errno = ENOMSG;
+   return -1;
 }
   
 /******************************************************************************/
