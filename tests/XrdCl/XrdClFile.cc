@@ -4,6 +4,7 @@
 #include <XrdCl/XrdClFile.hh>
 
 #include <gtest/gtest.h>
+#include "GTestXrdHelpers.hh"
 
 using namespace testing;
 
@@ -21,18 +22,9 @@ TEST(FileTest, StreamTimeout)
   XrdCl::File f;
 
   f.SetProperty("ReadRecovery", "false");
-
-  auto st = f.Open("root://localhost//test.txt", XrdCl::OpenFlags::Read);
-
-  EXPECT_TRUE(st.IsOK()) << "Open not OK:" << st.ToString() << std::endl;
-
+  EXPECT_XRDST_OK(f.Open("root://localhost//test.txt",
+                         XrdCl::OpenFlags::Read));
   sleep(3); // wait for timeout
-
-  st = f.Read(0, 5, buf, BytesRead, 0);
-
-  EXPECT_TRUE(st.IsOK()) << "Read not OK:" << st.ToString() << std::endl;
-
-  st = f.Close();
-
-  EXPECT_TRUE(st.IsOK()) << "Close not OK:" << st.ToString() << std::endl;
+  EXPECT_XRDST_OK(f.Read(0, 5, buf, BytesRead, 0));
+  EXPECT_XRDST_OK(f.Close());
 }

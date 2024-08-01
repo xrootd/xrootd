@@ -160,7 +160,7 @@ TEST_F(LocalFileHandlerTest, OpenCloseTest){
    //----------------------------------------------------------------------------
    // Try open non-existing file
    //----------------------------------------------------------------------------
-   EXPECT_TRUE( !file->Open( targetURL, flags, mode ).IsOK() );
+   EXPECT_XRDST_NOTOK( file->Open( targetURL, flags, mode ), errLocalError );
    EXPECT_TRUE( !file->IsOpen() );
 
    //----------------------------------------------------------------------------

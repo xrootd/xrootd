@@ -458,16 +458,11 @@ TEST(PostMasterTest, PingIPv6)
   request->dlen        = 0;
   XRootDTransport::MarshallRequest( &m1 );
 
-  Status sc;
-
   //----------------------------------------------------------------------------
   // Send the message - localhost1
   //----------------------------------------------------------------------------
-  sc = postMaster->Send( localhost1, &m1, false, 1200 );
-  EXPECT_TRUE( sc.IsOK() );
-
-  sc = postMaster->Receive( localhost1, m2, &f1, false, 1200 );
-  EXPECT_TRUE( sc.IsOK() );
+  EXPECT_XRDST_OK( postMaster->Send( localhost1, &m1, false, 1200 ) );
+  EXPECT_XRDST_OK( postMaster->Receive( localhost1, m2, &f1, false, 1200 ) );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
@@ -476,11 +471,8 @@ TEST(PostMasterTest, PingIPv6)
   //----------------------------------------------------------------------------
   // Send the message - localhost2
   //----------------------------------------------------------------------------
-  sc = postMaster->Send( localhost2, &m1, false, 1200 );
-  EXPECT_TRUE( sc.IsOK() );
-
-  sc = postMaster->Receive( localhost2, m2, &f1, 1200 );
-  EXPECT_TRUE( sc.IsOK() );
+  EXPECT_XRDST_OK ( postMaster->Send( localhost2, &m1, false, 1200 ) );
+  EXPECT_XRDST_OK ( postMaster->Receive( localhost2, m2, &f1, 1200 ) );
   resp = (ServerResponse *)m2->GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );

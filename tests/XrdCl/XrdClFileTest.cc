@@ -368,42 +368,41 @@ void FileTest::WriteTest()
   //----------------------------------------------------------------------------
   EXPECT_XRDST_OK( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
                             Access::UR | Access::UW ));
-
-  EXPECT_TRUE( f1.Write( 0, 4*MB, buffer1 ).IsOK() );
-  EXPECT_TRUE( f1.Write( 4*MB, 4*MB, buffer2 ).IsOK() );
-  EXPECT_TRUE( f1.Sync().IsOK() );
-  EXPECT_TRUE( f1.Close().IsOK() );
+  EXPECT_XRDST_OK( f1.Write( 0, 4*MB, buffer1 ) );
+  EXPECT_XRDST_OK( f1.Write( 4*MB, 4*MB, buffer2 ) );
+  EXPECT_XRDST_OK( f1.Sync() );
+  EXPECT_XRDST_OK( f1.Close() );
 
   //----------------------------------------------------------------------------
   // Read the data and verify the checksums
   //----------------------------------------------------------------------------
   StatInfo *statInfo = 0;
-  EXPECT_TRUE( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
-  EXPECT_TRUE( f2.Stat( false, statInfo ).IsOK() );
+  EXPECT_XRDST_OK( f2.Open( fileUrl, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f2.Stat( false, statInfo ) );
   ASSERT_TRUE( statInfo );
   EXPECT_EQ( statInfo->GetSize(), 8*MB );
-  EXPECT_TRUE( f2.Read( 0, 4*MB, buffer3, bytesRead1 ).IsOK() );
-  EXPECT_TRUE( f2.Read( 4*MB, 4*MB, buffer4, bytesRead2 ).IsOK() );
+  EXPECT_XRDST_OK( f2.Read( 0, 4*MB, buffer3, bytesRead1 ) );
+  EXPECT_XRDST_OK( f2.Read( 4*MB, 4*MB, buffer4, bytesRead2 ) );
   EXPECT_EQ( bytesRead1, 4*MB );
   EXPECT_EQ( bytesRead2, 4*MB );
   uint32_t crc2 = XrdClTests::Utils::ComputeCRC32( buffer3, 4*MB );
   crc2 = XrdClTests::Utils::UpdateCRC32( crc2, buffer4, 4*MB );
-  EXPECT_TRUE( f2.Close().IsOK() );
+  EXPECT_XRDST_OK( f2.Close() );
   EXPECT_EQ( crc1, crc2 );
 
   //----------------------------------------------------------------------------
   // Truncate test
   //----------------------------------------------------------------------------
-  EXPECT_TRUE( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
-                           Access::UR | Access::UW ).IsOK() );
-  EXPECT_TRUE( f1.Truncate( 20*MB ).IsOK() );
-  EXPECT_TRUE( f1.Close().IsOK() );
+  EXPECT_XRDST_OK( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
+                            Access::UR | Access::UW ) );
+  EXPECT_XRDST_OK( f1.Truncate( 20*MB ) );
+  EXPECT_XRDST_OK( f1.Close() );
   FileSystem fs( url );
   StatInfo *response = 0;
-  EXPECT_TRUE( fs.Stat( filePath, response ).IsOK() );
+  EXPECT_XRDST_OK( fs.Stat( filePath, response ) );
   ASSERT_TRUE( response );
   EXPECT_EQ( response->GetSize(), 20*MB );
-  EXPECT_TRUE( fs.Rm( filePath ).IsOK() );
+  EXPECT_XRDST_OK( fs.Rm( filePath ) );
   delete [] buffer1;
   delete [] buffer2;
   delete [] buffer3;
@@ -465,29 +464,29 @@ void FileTest::WriteVTest()
   //----------------------------------------------------------------------------
   // Write the data
   //----------------------------------------------------------------------------
-  EXPECT_TRUE( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
-                           Access::UR | Access::UW ).IsOK() );
-  EXPECT_TRUE( f1.WriteV( 0, iov, iovcnt ).IsOK() );
-  EXPECT_TRUE( f1.Sync().IsOK() );
-  EXPECT_TRUE( f1.Close().IsOK() );
+  EXPECT_XRDST_OK( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
+                            Access::UR | Access::UW ) );
+  EXPECT_XRDST_OK( f1.WriteV( 0, iov, iovcnt ) );
+  EXPECT_XRDST_OK( f1.Sync() );
+  EXPECT_XRDST_OK( f1.Close() );
 
   //----------------------------------------------------------------------------
   // Read the data and verify the checksums
   //----------------------------------------------------------------------------
   StatInfo *statInfo = 0;
-  EXPECT_TRUE( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
-  EXPECT_TRUE( f2.Stat( false, statInfo ).IsOK() );
+  EXPECT_XRDST_OK( f2.Open( fileUrl, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( f2.Stat( false, statInfo ) );
   ASSERT_TRUE( statInfo );
   EXPECT_EQ( statInfo->GetSize(), 8*MB );
-  EXPECT_TRUE( f2.Read( 0, 8*MB, buffer3, bytesRead1 ).IsOK() );
+  EXPECT_XRDST_OK( f2.Read( 0, 8*MB, buffer3, bytesRead1 ) );
   EXPECT_EQ( bytesRead1, 8*MB );
 
   uint32_t crc2 = XrdClTests::Utils::ComputeCRC32( buffer3, 8*MB );
-  EXPECT_TRUE( f2.Close().IsOK() );
+  EXPECT_XRDST_OK( f2.Close() );
   EXPECT_EQ( crc1, crc2 );
 
   FileSystem fs( url );
-  EXPECT_TRUE( fs.Rm( filePath ).IsOK() );
+  EXPECT_XRDST_OK( fs.Rm( filePath ) );
   delete [] buffer1;
   delete [] buffer2;
   delete [] buffer3;
