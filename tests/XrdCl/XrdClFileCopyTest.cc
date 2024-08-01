@@ -224,6 +224,7 @@ void FileCopyTest::UploadTestFunc()
   // Delete the file
   //----------------------------------------------------------------------------
   EXPECT_XRDST_OK( fs.Rm( dataPath + "/testUpload.dat" ) );
+  sync();
 
   delete stat;
   delete crc32Sum;
@@ -367,6 +368,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     EXPECT_XRDST_OK( process6.Prepare() );
     EXPECT_XRDST_OK( process6.Run(0) );
     EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+    sync();
     properties.Clear();
 
     //--------------------------------------------------------------------------
@@ -383,6 +385,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     EXPECT_XRDST_OK( process10.Prepare() );
     EXPECT_XRDST_OK( process10.Run(0) );
     EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+    sync();
     properties.Clear();
 
     //--------------------------------------------------------------------------
@@ -417,6 +420,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     EXPECT_XRDST_NOTOK( process13.Run(0), XrdCl::errCheckSumError );
     env->PutInt( "ZipMtlnCksum", 0 );
     EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+    sync();
 
     //--------------------------------------------------------------------------
     // Copy with
@@ -433,6 +437,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     EXPECT_XRDST_OK( process14.Prepare() );
     EXPECT_XRDST_OK( process14.Run(0) );
     EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+    sync();
 
     //--------------------------------------------------------------------------
     // Now test the cp-timeout
@@ -447,6 +452,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     EXPECT_XRDST_OK( process15.Prepare() );
     EXPECT_XRDST_NOTOK( process15.Run(0), XrdCl::errOperationExpired );
     EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+    sync();
 
     //--------------------------------------------------------------------------
     // Test posc for local files
@@ -480,6 +486,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     EXPECT_XRDST_OK( process17.Prepare() );
     EXPECT_XRDST_OK( process17.Run(0) );
     EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+    sync();
     env->PutInt( "CpRetry", XrdCl::DefaultCpRetry );
     env->PutString( "CpRetryPolicy", XrdCl::DefaultCpRetryPolicy );
   }
@@ -497,6 +504,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   EXPECT_XRDST_OK( process5.Prepare() );
   EXPECT_XRDST_OK( process5.Run(0) );
   EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+  sync();
   properties.Clear();
 
   // XCp test
@@ -511,6 +519,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   EXPECT_XRDST_OK( process7.Prepare() );
   EXPECT_XRDST_OK( process7.Run(0) );
   EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+  sync();
   properties.Clear();
 
   //----------------------------------------------------------------------------
@@ -565,6 +574,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   EXPECT_XRDST_OK( fs.Rm( targetPath ) );
   EXPECT_EQ( remove( localFile.c_str() ), 0 );
+  sync();
 
   //----------------------------------------------------------------------------
   // Initialize and run the copy
@@ -579,6 +589,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   EXPECT_XRDST_OK( process1.Prepare() );
   EXPECT_XRDST_OK( process1.Run(0) );
   EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+  sync();
   properties.Clear();
 
   //----------------------------------------------------------------------------
@@ -595,6 +606,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   EXPECT_XRDST_OK( process11.Prepare() );
   EXPECT_XRDST_OK( process11.Run(0) );
   EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+  sync();
   properties.Clear();
 
   // the further tests are only valid for third party copy for now
@@ -609,6 +621,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
 //  EXPECT_XRDST_OK( process2.Prepare() );
 //  EXPECT_XRDST_NOTOK( process2.Run(&progress), errErrorResponse );
 //  EXPECT_XRDST_OK( fs.Rm( targetPath ) );
+//  sync();
 
   //----------------------------------------------------------------------------
   // Copy from a non-existent source
