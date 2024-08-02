@@ -220,6 +220,7 @@ virtual ~XrdPssSys() {}
 
 private:
 
+char              *HostArena;// -> path qualification for remote origins
 char              *LocalRoot;// -> pss Local n2n root, if any
 XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
