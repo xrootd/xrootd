@@ -80,7 +80,8 @@ int cfOut(const char* outFN, XrdOucString& cFile)
 
 // Open the output file
 //
-   int fd = open(outFN, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU|S_IRWXG);
+   int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+   int fd = open(outFN, O_CREAT | O_TRUNC | O_WRONLY, mode);
    if (fd < 0)
       {Say.Say(Pgm, XrdSysE2T(errno), " opening output file ", outFN);
        return 8;
