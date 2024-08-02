@@ -88,7 +88,10 @@ int cfOut(const char* outFN, XrdOucString& cFile)
 
 // Write out the config file
 //
-   write(fd, cFile.c_str(), cFile.length());
+   if (write(fd, cFile.c_str(), cFile.length()) != cFile.length())
+     {Say.Say(Pgm, XrdSysE2T(errno), " writing output file ", outFN);
+      return 1;
+     }
 
 // All done
 //
