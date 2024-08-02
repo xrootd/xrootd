@@ -161,7 +161,7 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
+XrdPssSys::XrdPssSys() : HostArena(0), LocalRoot(0), theN2N(0), DirFlags(0),
                          myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
                          myFeatures(XRDOSS_HASPRXY|XRDOSS_HASPGRW|
                          XRDOSS_HASNOSF|XRDOSS_HASXERT)
