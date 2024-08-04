@@ -87,36 +87,6 @@ jobs:
         tests/post-install.sh
         tests/check-headers.sh
 
-  centos7:
-    name: CentOS 7
-    runs-on: ubuntu-latest
-    container: centos:7
-
-    env:
-      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
-
-    steps:
-    - name: Install dependencies
-      run: |
-        yum install -y centos-release-scl epel-release git
-        yum install -y epel-rpm-macros rpmdevtools sudo yum-utils
-
-    - name: Clone repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-
-    - name: Setup GitHub runner user within container
-      run: adduser --uid 1001 runner && chown -R runner:runner .
-
-    - name: Install XRootD build dependencies
-      run: yum-builddep -y xrootd.spec
-
-    - name: Build and Test with CTest
-      run: |
-        source /opt/rh/devtoolset-7/enable
-        su -p runner -c 'ctest3 -VV -S test.cmake'
-
   alma8:
     name: Alma 8
     runs-on: ubuntu-latest
