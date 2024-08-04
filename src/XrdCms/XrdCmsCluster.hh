@@ -246,7 +246,6 @@ static const  int AltSize = 254; // We may revert to IP address
 XrdSysRWLock  STMutex;          // Protects all node information  variables
 XrdCmsNode   *NodeTab[STMax];   // Current  set of nodes
 int           NodeWeight[STMax]; // Current set of load balancing weights
-
 int           STHi;             // NodeTab high watermark
 int           Reserved;
 RAtomic_llong SelWtot;          // Total number of r/w selections (successful)

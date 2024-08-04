@@ -270,7 +270,6 @@ int XrdXrootdProtocol::do_PgRIO()
         iov[i++].iov_len  = pgPageSize;
         buff += pgPageSize;
        }
-
 // If this is an unaligned read, offset the unaligned segment in the buffer
 // so that remaining pages are page-aligned. It will be reset when needed.
 // We also calculate the actual length of the first read.

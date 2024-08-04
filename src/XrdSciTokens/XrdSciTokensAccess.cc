@@ -987,6 +987,7 @@ private:
                 xrd_rules.emplace_back(AOP_Mkdir, write_path);
                 xrd_rules.emplace_back(AOP_Rename, write_path);
                 xrd_rules.emplace_back(AOP_Insert, write_path);
+                xrd_rules.emplace_back(AOP_Stat, write_path);
                 xrd_rules.emplace_back(AOP_Update, write_path);
                 xrd_rules.emplace_back(AOP_Stat, write_path);
                 xrd_rules.emplace_back(AOP_Chmod, write_path);
