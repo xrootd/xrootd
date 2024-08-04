@@ -187,14 +187,14 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PostMaster::Stop()
   {
-    if( !pImpl->pInitialized )
+    if( !pImpl->pInitialized || !pImpl->pRunning )
       return true;
 
     if( !pImpl->pJobManager->Stop() )
       return false;
-    if( !pImpl->pTaskManager->Stop() )
-      return false;
     if( !pImpl->pPoller->Stop() )
+      return false;
+    if( !pImpl->pTaskManager->Stop() )
       return false;
     pImpl->pRunning = false;
     return true;
@@ -245,7 +245,15 @@ namespace XrdCl
                                      AnyObject &result )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
+    Channel *channel = 0;
+    {
+      XrdSysMutexHelper scopedLock2( pImpl->pChannelMapMutex );
+      PostMasterImpl::ChannelMap::iterator it =
+          pImpl->pChannelMap.find( url.GetChannelId() );
+      if( it == pImpl->pChannelMap.end() )
+        return Status( stError, errInvalidOp );
+      channel = it->second;
+    }
 
     if( !channel )
       return Status( stError, errNotSupported );
@@ -317,6 +325,19 @@ namespace XrdCl
     delete it->second;
     pImpl->pChannelMap.erase( it );
 
+    return Status();
+  }
+
+  Status PostMaster::ForceReconnect( const URL &url )
+  {
+    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock, false );
+    PostMasterImpl::ChannelMap::iterator it =
+        pImpl->pChannelMap.find( url.GetChannelId() );
+
+    if( it == pImpl->pChannelMap.end() )
+      return Status( stError, errInvalidOp );
+
+    it->second->ForceReconnect();
     return Status();
   }
 

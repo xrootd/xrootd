@@ -1274,7 +1274,7 @@ char *XrdCmsConfig::setupSid()
   
 void XrdCmsConfig::Usage(int rc)
 {
-cerr <<"\nUsage: cmsd [xrdopts] [-i] [-m] [-s] -c <cfile>" <<endl;
+std::cerr <<"\nUsage: cmsd [xrdopts] [-i] [-m] [-s] -c <cfile>" <<std::endl;
 exit(rc);
 }
   
@@ -2730,7 +2730,7 @@ int XrdCmsConfig::xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile)
        return 1;
       }
 
- if (!strcmp(val, "randomized"))
+   if (!strcmp(val, "randomized"))
       {sched_LoadR = 1;
        return 1;
       }

@@ -1,11 +1,11 @@
 
 #include "XrdThrottleManager.hh"
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
-#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdXrootd/XrdXrootdGStream.hh"
 
 #define XRD_TRACE m_trace->
 #include "XrdThrottle/XrdThrottleTrace.hh"
@@ -18,9 +18,8 @@ XrdThrottleManager::TraceID = "ThrottleManager";
 const
 int XrdThrottleManager::m_max_users = 1024;
 
-#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
-int clock_id;
-int XrdThrottleTimer::clock_id = clock_getcpuclockid(0, &clock_id) != ENOENT ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC;
+#if defined(__linux__) || defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+clockid_t XrdThrottleTimer::clock_id = CLOCK_MONOTONIC;
 #else
 int XrdThrottleTimer::clock_id = 0;
 #endif
@@ -33,7 +32,7 @@ XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP) :
    m_ops_per_second(-1),
    m_concurrency_limit(-1),
    m_last_round_allocation(100*1024),
-   m_io_counter(0),
+   m_io_active(0),
    m_loadshed_host(""),
    m_loadshed_port(0),
    m_loadshed_frequency(0),
@@ -430,7 +429,10 @@ XrdThrottleManager::RecomputeInternal()
 
    // Update the IO counters
    m_compute_var.Lock();
-   m_stable_io_counter = AtomicGet(m_io_counter);
+   m_stable_io_active = AtomicGet(m_io_active);
+   auto io_active = m_stable_io_active;
+   m_stable_io_total = static_cast<unsigned>(AtomicGet(m_io_total));
+   auto io_total = m_stable_io_total;
    time_t secs; AtomicFZAP(secs, m_io_wait.tv_sec);
    long nsecs; AtomicFZAP(nsecs, m_io_wait.tv_nsec);
    m_stable_io_wait.tv_sec += static_cast<long>(secs * intervals_per_second);
@@ -438,10 +440,27 @@ XrdThrottleManager::RecomputeInternal()
    while (m_stable_io_wait.tv_nsec > 1000000000)
    {
       m_stable_io_wait.tv_nsec -= 1000000000;
-      m_stable_io_wait.tv_nsec --;
+      m_stable_io_wait.tv_sec ++;
    }
+   struct timespec io_wait_ts;
+   io_wait_ts.tv_sec = m_stable_io_wait.tv_sec;
+   io_wait_ts.tv_nsec = m_stable_io_wait.tv_nsec;
+
    m_compute_var.UnLock();
-   TRACE(IOLOAD, "Current IO counter is " << m_stable_io_counter << "; total IO wait time is " << (m_stable_io_wait.tv_sec*1000+m_stable_io_wait.tv_nsec/1000000) << "ms.");
+   uint64_t io_wait_ms = io_wait_ts.tv_sec*1000+io_wait_ts.tv_nsec/1000000;
+   TRACE(IOLOAD, "Current IO counter is " << io_active << "; total IO wait time is " << io_wait_ms << "ms.");
+   if (m_gstream)
+   {
+        char buf[128];
+        auto len = snprintf(buf, 128,
+                            R"({"event":"throttle_update","io_wait":%.4f,"io_active":%d,"io_total":%d})",
+                            static_cast<double>(io_wait_ms) / 1000.0, io_active, io_total);
+        auto suc = (len < 128) ? m_gstream->Insert(buf, len + 1) : false;
+        if (!suc)
+        {
+            TRACE(IOLOAD, "Failed g-stream insertion of throttle_update record (len=" << len << "): " << buf);
+        }
+   }
    m_compute_var.Broadcast();
 }
 
@@ -459,7 +478,7 @@ XrdThrottleManager::GetUid(const char *username)
       hval %= m_max_users;
       cur++;
    }
-   //cerr << "Calculated UID " << hval << " for " << username << endl;
+   //std::cerr << "Calculated UID " << hval << " for " << username << std::endl;
    return hval;
 }
 
@@ -470,17 +489,18 @@ XrdThrottleTimer
 XrdThrottleManager::StartIOTimer()
 {
    AtomicBeg(m_compute_var);
-   int cur_counter = AtomicInc(m_io_counter);
+   int cur_counter = AtomicInc(m_io_active);
+   AtomicInc(m_io_total);
    AtomicEnd(m_compute_var);
    while (m_concurrency_limit >= 0 && cur_counter > m_concurrency_limit)
    {
       AtomicBeg(m_compute_var);
       AtomicInc(m_loadshed_limit_hit);
-      AtomicDec(m_io_counter);
+      AtomicDec(m_io_active);
       AtomicEnd(m_compute_var);
       m_compute_var.Wait();
       AtomicBeg(m_compute_var);
-      cur_counter = AtomicInc(m_io_counter);
+      cur_counter = AtomicInc(m_io_active);
       AtomicEnd(m_compute_var);
    }
    return XrdThrottleTimer(*this);
@@ -493,7 +513,7 @@ void
 XrdThrottleManager::StopIOTimer(struct timespec timer)
 {
    AtomicBeg(m_compute_var);
-   AtomicDec(m_io_counter);
+   AtomicDec(m_io_active);
    AtomicAdd(m_io_wait.tv_sec, timer.tv_sec);
    // Note this may result in tv_nsec > 1e9
    AtomicAdd(m_io_wait.tv_nsec, timer.tv_nsec);

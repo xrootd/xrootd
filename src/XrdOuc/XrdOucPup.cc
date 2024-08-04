@@ -157,8 +157,8 @@ int XrdOucPup::Pack(struct iovec *iovP, struct iovec *iovE, XrdOucPupArgs *pup,
 
    Dtype = pP->Dtype;
    do {Base.B08 = (char **)(base + pP->Doffs);
-       //cerr <<"arg " <<pP-pup <<" type " <<Dtype <<' '
-       //     <<(Names->NList[pP->Name] ? Names->NList[pP->Name] : "?") <<endl;
+       //std::cerr <<"arg " <<pP-pup <<" type " <<Dtype <<' '
+       //     <<(Names->NList[pP->Name] ? Names->NList[pP->Name] : "?") <<std::endl;
        switch(Dtype)
              {case PT_char:
 /* Null Pointer */ if (!*Base.B08) {vP->iov_base = Nil; vP->iov_len  = 2;

@@ -44,7 +44,6 @@
 #include "XrdSsi/XrdSsiShMam.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
-using namespace std;
 
 /* Gentoo removed OF from their copy of zconf.h but we need it here.
    See https://bugs.gentoo.org/show_bug.cgi?id=383179 for the sad history.
@@ -196,7 +195,7 @@ inline bool ShMam_Flush(void *memP, int sOpt)
 {
    if (msync((void *)((uintptr_t)memP & PageMask), PageSize, sOpt))
       return true;
-   cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
+   std::cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<std::endl;
    return false;
 }
 */
@@ -206,7 +205,7 @@ inline bool ShMam_Flush(void *memP, int mLen, int sOpt)
    uintptr_t memE = ((uintptr_t)memP) + mLen;
    int rc;
    if ((rc = msync((void *)memB, memE-memB, sOpt)))
-      cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
+      std::cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<std::endl;
    return rc == 0;
 }
 */
@@ -768,8 +767,8 @@ bool XrdSsiShMam::ExportIt(bool fLocked)
            if (pwrite(oldFD, &vnum, sizeof(vnum), 0) != (ssize_t)sizeof(vnum))
               noGo = true;
           } else noGo = true;
-       if (noGo) cerr <<"SsiShMam: Unable to update version for " <<shmPath
-                      <<"; " <<XrdSysE2T(errno) <<endl;
+       if (noGo) std::cerr <<"SsiShMam: Unable to update version for " <<shmPath
+                      <<"; " <<XrdSysE2T(errno) <<std::endl;
        close(oldFD);
       }
 
@@ -839,7 +838,7 @@ bool XrdSsiShMam::Flush()
 //
    if (rc)
       {rc = errno;
-       cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
+       std::cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<std::endl;
        errno = rc; rc = -1;
       }
 
@@ -890,7 +889,7 @@ bool XrdSsiShMam::GetItem(void *data, const char *key, int hash)
 /******************************************************************************/
   
 int XrdSsiShMam::HashVal(const char *key)
-{  ZEXTERN uLong ZEXPORT crc32 OF((uLong crc, const Bytef *buf, uInt len));
+{
    uLong crc;
    int hval, klen = strlen(key);
 
@@ -1141,7 +1140,7 @@ bool XrdSsiShMam::Resize(XrdSsiShMat::CRZParms &parms)
    parms.mode = accMode;
    if (!newMap.Create(parms)) return false;
 
-// Compute the offset of the first item and get the offset of teh last item.
+// Compute the offset of the first item and get the offset of the last item.
 //
    fence = SHMINFO(lowFree); // Atomic??
    iOff  = shmInfoSz;

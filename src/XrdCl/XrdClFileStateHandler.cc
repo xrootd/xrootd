@@ -614,7 +614,8 @@ namespace
                                             XrdCl::AnyObject    *response,
                                             XrdCl::HostList     *hostList )
       {
-        handler->HandleResponseWithHosts( status, response, hostList );
+        if (handler)
+          handler->HandleResponseWithHosts( status, response, hostList );
       }
 
       //------------------------------------------------------------------------
@@ -966,8 +967,8 @@ namespace XrdCl
     {
       AnyObject *obj = new AnyObject();
       obj->Set( new StatInfo( *self->pStatInfo ) );
-      handler->HandleResponseWithHosts( new XRootDStatus(), obj,
-                                        new HostList() );
+      if (handler)
+        handler->HandleResponseWithHosts( new XRootDStatus(), obj, new HostList() );
       return XRootDStatus();
     }
 
@@ -2879,17 +2880,20 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool FileStateHandler::IsRecoverable( const XRootDStatus &status ) const
   {
-    if( status.code == errSocketError || status.code == errInvalidSession ||
-        status.code == errTlsError || status.code == errSocketTimeout )
-    {
-      if( IsReadOnly() && !pDoRecoverRead )
-        return false;
+    const auto recoverable_errors = {
+      errSocketError,
+      errSocketTimeout,
+      errInvalidSession,
+      errInternal,
+      errTlsError,
+      errOperationInterrupted
+    };
 
-      if( !IsReadOnly() && !pDoRecoverWrite )
-        return false;
+    if (pDoRecoverRead || pDoRecoverWrite)
+      for (const auto error : recoverable_errors)
+        if (status.code == error)
+          return IsReadOnly() ? pDoRecoverRead : pDoRecoverWrite;
 
-      return true;
-    }
     return false;
   }
 

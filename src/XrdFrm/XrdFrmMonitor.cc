@@ -247,7 +247,7 @@ kXR_unt32 XrdFrmMonitor::Map(char code, const char *uname, const char *path)
 //
    size = sizeof(XrdXrootdMonHeader)+sizeof(kXR_int32)+size;
    fillHeader(&map.hdr, code, size);
-// cerr <<"Mon send "<<code <<": " <<map.info <<endl;
+// std::cerr <<"Mon send "<<code <<": " <<map.info <<std::endl;
    Send(montype, (void *)&map, size);
 
 // Return the dictionary id

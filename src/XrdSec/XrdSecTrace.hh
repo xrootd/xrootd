@@ -40,10 +40,10 @@
 
 #define TRACE(act, x) \
         if (QTRACE(act)) \
-           {SecTrace->Beg(epname,tident); cerr <<x; SecTrace->End();}
+           {SecTrace->Beg(epname,tident); std::cerr <<x; SecTrace->End();}
 
 #define DEBUG(y) if (QTRACE(Debug)) \
-                    {SecTrace->Beg(epname); cerr <<y; SecTrace->End();}
+                    {SecTrace->Beg(epname); std::cerr <<y; SecTrace->End();}
 #define EPNAME(x) static const char *epname = x;
 
 #else

@@ -488,7 +488,7 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 
 void XrdPosixConfig::SetDebug(int val)
 {
-   const std::string dbgType[] = {"Info", "Warning", "Error", "Debug", "Dump"};
+   const std::string dbgType[] = {"Error", "Warning", "Info", "Debug", "Dump"};
 
 // The default is none but once set it cannot be unset in the client
 //
@@ -563,7 +563,7 @@ int XrdPosixConfig::Stats(const char *theID, char *buff, int blen)
    static const char stats2[] = "<stats id=\"cache\" type=\"%s\">"
           "<prerd><in>%lld</in><hits>%lld</hits><miss>%lld</miss></prerd>"
           "<rd><in>%lld</in><out>%lld</out>"
-              "<hits>%lld></hits><miss>%lld</miss>"
+              "<hits>%lld</hits><miss>%lld</miss>"
           "</rd>"
           "<pass>%lld<cnt>%lld</cnt></pass>"
           "<wr><out>%lld</out><updt>%lld</updt></wr>"

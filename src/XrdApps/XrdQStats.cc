@@ -40,7 +40,6 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-using namespace std;
   
 /******************************************************************************/
 /*                                 F a t a l                                  */
@@ -57,7 +56,7 @@ void Fatal(const XrdCl::XRootDStatus &Status)
 
 // Blither and exit
 //
-   cerr <<"xrdqstats: Unable to obtain statistic - " <<eText <<endl;
+   std::cerr <<"xrdqstats: Unable to obtain statistic - " <<eText <<std::endl;
    exit(3);
 }
   
@@ -67,7 +66,7 @@ void Fatal(const XrdCl::XRootDStatus &Status)
   
 void Usage(int rc)
 {
-   cerr <<"\nUsage: xrdqstats [opts] <host>[:<port>]\n"
+   std::cerr <<"\nUsage: xrdqstats [opts] <host>[:<port>]\n"
           "\nopts: -f {cgi|flat|xml} -h -i <sec> -n <cnt> -s what -z\n"
           "\n-f specify display format (default is wordy text format)."
           "\n-i number of seconds to wait before between redisplays, default 10."
@@ -77,7 +76,7 @@ void Usage(int rc)
           "\na - All (default)   b - Buffer usage    d - Device polling"
           "\ni - Identification  c - Connections     p - Protocols"
           "\ns - Scheduling      u - Usage data      z - Synchronized info"
-          <<endl;
+          <<std::endl;
    exit(rc);
 }
 
@@ -110,26 +109,26 @@ int main(int argc, char *argv[])
        case 'f':      if (!strcmp(optarg, "cgi" )) fType = XrdMpxXml::fmtCGI;
                  else if (!strcmp(optarg, "flat")) fType = XrdMpxXml::fmtFlat;
                  else if (!strcmp(optarg, "xml" )) fType = XrdMpxXml::fmtXML;
-                 else {cerr <<pgm <<"Invalid format - " <<optarg <<endl;
+                 else {std::cerr <<pgm <<"Invalid format - " <<optarg <<std::endl;
                        Usage(1);
                       }
                  break;
        case 'h': Usage(0);
                  break;
        case 'i': if ((WTime = atoi(optarg)) <= 0)
-                    {cerr <<pgm <<"Invalid interval - " <<optarg <<endl;
+                    {std::cerr <<pgm <<"Invalid interval - " <<optarg <<std::endl;
                      Usage(1);
                     }
                  break;
        case 'n': if ((Count = atoi(optarg)) <= 0)
-                    {cerr <<pgm <<"Invalid count - " <<optarg <<endl;
+                    {std::cerr <<pgm <<"Invalid count - " <<optarg <<std::endl;
                      Usage(1);
                     }
                  break;
        case 's': sP = optarg;
                  while(*sP)
                       {if (!index("abcdipsuz", *sP))
-                          {cerr <<pgm<<"Invalid statistic letter - "<<*sP<<endl;
+                          {std::cerr <<pgm<<"Invalid statistic letter - "<<*sP<<std::endl;
                            Usage(1);
                           } else if (*sP == 'c') *sP = 'l';
                        sP++;
@@ -138,9 +137,9 @@ int main(int argc, char *argv[])
                  break;
        case 'z': nozed = true;
                  break;
-       default:  cerr <<pgm <<'-' <<char(optopt);
-                 if (c == ':') cerr <<" value not specified." <<endl;
-                    else cerr <<" option is invalid" <<endl;
+       default:  std::cerr <<pgm <<'-' <<char(optopt);
+                 if (c == ':') std::cerr <<" value not specified." <<std::endl;
+                    else std::cerr <<" option is invalid" <<std::endl;
                  Usage(1);
                  break;
        }
@@ -149,7 +148,7 @@ int main(int argc, char *argv[])
 // Make sure host has been specified
 //
    if (optind >= argc)
-      {cerr <<pgm <<"Host has not been specified." <<endl; Usage(1);}
+      {std::cerr <<pgm <<"Host has not been specified." <<std::endl; Usage(1);}
 
 // Construct the URL to get to the server
 //
@@ -157,7 +156,7 @@ int main(int argc, char *argv[])
    sURL += argv[optind];
    XrdCl::URL fsURL(sURL);
    if (!fsURL.IsValid())
-      {cerr <<pgm <<"Invalid host specification - " <<argv[optind] <<endl;
+      {std::cerr <<pgm <<"Invalid host specification - " <<argv[optind] <<std::endl;
        Usage(1);
       }
 
@@ -187,7 +186,7 @@ int main(int argc, char *argv[])
    while(Count--)
         {xStatus = theFS.Query(XrdCl::QueryCode::Stats, wantStats, theStats);
          if (!xStatus.IsOK()) Fatal(xStatus);
-         if (!xP) std::cout <<theStats->GetBuffer() <<endl;
+         if (!xP) std::cout <<theStats->GetBuffer() <<std::endl;
             else {int rc, wLen = xP->Format(0, theStats->GetBuffer(), obuff);
                   char *bP = obuff;
                   while(wLen > 0)
@@ -198,7 +197,7 @@ int main(int argc, char *argv[])
                  }
          delete theStats;
          if (WTime) sleep(WTime);
-         if (Count) cout <<"\n";
+         if (Count) std::cout <<"\n";
         }
 
 // All done

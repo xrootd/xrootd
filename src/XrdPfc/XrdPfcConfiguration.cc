@@ -46,7 +46,9 @@ Configuration::Configuration() :
    m_flushCnt(2000),
    m_cs_UVKeep(-1),
    m_cs_Chk(CSChk_Net),
-   m_cs_ChkTLS(false)
+   m_cs_ChkTLS(false),
+   m_onlyIfCachedMinSize(1024*1024),
+   m_onlyIfCachedMinFrac(1.0)
 {}
 
 
@@ -274,6 +276,9 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    const char *theINS = getenv("XRDINSTANCE");
    m_isClient = (theINS != 0 && strncmp("*client ", theINS, 8) == 0);
 
+   // Tell everyone else we are a caching proxy
+   XrdOucEnv::Export("XRDPFC", 1);
+
    XrdOucEnv myEnv;
    XrdOucStream Config(&m_log, theINS, &myEnv, "=====> ");
 
@@ -472,7 +477,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       if (m_configuration.m_cs_UVKeep < 0)
          strcpy(uvk, "lru");
       else
-         sprintf(uvk, "%ld", m_configuration.m_cs_UVKeep);
+         sprintf(uvk, "%lld", (long long) m_configuration.m_cs_UVKeep);
       float rg = (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
                       "       pfc.cschk %s uvkeep %s\n"
@@ -485,7 +490,9 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       "       pfc.spaces %s %s\n"
                       "       pfc.trace %d\n"
                       "       pfc.flush %lld\n"
-                      "       pfc.acchistorysize %d\n",
+                      "       pfc.acchistorysize %d\n"
+                      "       pfc.onlyIfCachedMinBytes %lld\n"
+                      "       pfc.onlyIfCachedMinFrac %.2f\n",
                       config_filename,
                       csc[int(m_configuration.m_cs_Chk)], uvk,
                       m_configuration.m_bufferSize,
@@ -500,7 +507,9 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       m_configuration.m_meta_space.c_str(),
                       m_trace->What,
                       m_configuration.m_flushCnt,
-                      m_configuration.m_accHistorySize);
+                      m_configuration.m_accHistorySize,
+                      m_configuration.m_onlyIfCachedMinSize,
+                      m_configuration.m_onlyIfCachedMinFrac);
 
       if (m_configuration.is_dir_stat_reporting_on())
       {
@@ -820,6 +829,49 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       {
          m_log.Emsg("Config", "Error: pfc.flush requires a parameter.");
          return false;
+      }
+   }
+   else if ( part == "onlyifcached" )
+   {
+      const char *p = 0;
+      while ((p = cwg.GetWord()) && cwg.HasLast())
+      {
+         if (strcmp(p, "minsize") == 0)
+         {
+            std::string minBytes = cwg.GetWord();
+            long long minBytesTop = 1024 * 1024 * 1024;
+            if (::isalpha(*(minBytes.rbegin())))
+            {
+               if (XrdOuca2x::a2sz(m_log, "Error in parsing minsize value for onlyifcached parameter", minBytes.c_str(), &m_configuration.m_onlyIfCachedMinSize, 0, minBytesTop))
+               {
+                  return false;
+               }
+            }
+            else
+            {
+               if (XrdOuca2x::a2ll(m_log, "Error in parsing numeric minsize value for onlyifcached parameter", minBytes.c_str(),&m_configuration.m_onlyIfCachedMinSize, 0, minBytesTop))
+               {
+                  return false;
+               }
+            }
+         }
+         if (strcmp(p, "minfrac") == 0)
+         {
+            std::string minFrac = cwg.GetWord();
+            char *eP;
+            errno = 0;
+            double frac = strtod(minFrac.c_str(), &eP);
+            if (errno || eP == minFrac.c_str())
+            {
+               m_log.Emsg("Config", "Error setting fraction for only-if-cached directive");
+               return false;
+            }
+            m_configuration.m_onlyIfCachedMinFrac = frac;
+         }
+         else
+         {
+            m_log.Emsg("Config", "Error: onlyifcached stanza contains unknown directive", p);
+         }
       }
    }
    else

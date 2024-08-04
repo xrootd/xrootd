@@ -101,6 +101,7 @@ XrdOucPListAnchor XrdPssSys::XPList;
 XrdNetSecurity   *XrdPssSys::Police[XrdPssSys::PolNum] = {0, 0};
 
 XrdOucTList *XrdPssSys::ManList   =  0;
+      char  *XrdPssSys::fileOrgn  =  0;
 const char  *XrdPssSys::protName  =  "root:";
 const char  *XrdPssSys::hdrData   =  "";
 int          XrdPssSys::hdrLen    =  0;
@@ -198,7 +199,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 
 // Set default number of event loops
 //
-   XrdPosixConfig::SetEnv("ParallelEvtLoop", 3);
+   XrdPosixConfig::SetEnv("ParallelEvtLoop", 10);
 
 // Turn off the fork handler as we always exec after forking.
 //
@@ -210,7 +211,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 
 // Make sure we have some kind of origin
 //
-   if (!ManList && !outProxy)
+   if (!ManList && !outProxy && !fileOrgn)
       {eDest.Emsg("Config", "Origin for proxy service not specified.");
        return 1;
       }
@@ -320,7 +321,8 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 //
    const char *outeq = (outProxy ? "= " : "");
    if (ManList) sprintf(theRdr, "%s%s:%d", outeq, ManList->text, ManList->val);
-      else strcpy(theRdr, outeq);
+      else if (fileOrgn) sprintf(theRdr, "%s%s", outeq, fileOrgn);
+              else strcpy(theRdr, outeq);
    XrdOucEnv::Export("XRDXROOTD_PROXY",  theRdr);
    XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr); // Backward compatibility
 
@@ -330,6 +332,15 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
       {hdrLen = sprintf(theRdr, "%s%%s%s:%d/%%s",
                         protName, ManList->text, ManList->val);
        hdrData = strdup(theRdr);
+      } else {
+       if (fileOrgn)
+//??      {if (!(myFeatures & XRDOSS_HASCACH))
+//            {eDest.Emsg("Config", "File origins only supported for caching proxies.");
+//             return 1;
+//            }
+          {hdrLen = sprintf(theRdr, "%s%s%%s", protName, fileOrgn);
+           hdrData = strdup(theRdr);
+          }
       }
 
 // Check if we have any r/w exports as this will determine whether or not we
@@ -726,6 +737,22 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
       }
       else outProxy = false;
 
+// We must always cleanup the file origin if it exists
+//
+   if (fileOrgn) {free(fileOrgn); fileOrgn = 0;}
+
+// Check if dest is some local filesystem
+//
+   if (*val == '/')
+      {char *vP = val +strlen(val) - 1;
+       while(*vP == '/'&& vP != val) {*vP-- = 0;}
+       if (ManList) {delete ManList; ManList = 0;}
+       protName = "file://";
+       fileOrgn = strdup(val);
+       return 0;
+      }
+
+
 // Check if the <dest> is a url, if so, the protocol, must be supported
 //
    if ((colon = index(val, ':')) && *(colon+1) == '/' && *(colon+2) == '/')
@@ -755,7 +782,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 // Check if there is a port number. This could be as ':port' or ' port'.
 //
     if (!(val = index(mval,':')) && !isURL) val = Config.GetWord();
-       else {*val = '\0'; val++;}
+       else if (val) {*val = '\0'; val++;}
 
 // At this point, make sure we actually have a host name
 //
@@ -773,7 +800,17 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
                     {errp->Emsg("Config", "unable to find tcp service", val);
                      port = 0;
                     }
-       } else errp->Emsg("Config","origin port not specified for",mval);
+       } else {
+         if (protName) {
+           // use default port for protocol
+           port = *protName == 'h' ? (strncmp(protName, "https", 5) == 0 ? 443 : 80) : 1094;
+         } else {
+           // assume protocol is root(s)://
+           port = 1094;
+         }
+         errp->Say("Config warning: origin port not specified, using port ",
+           std::to_string(port).c_str(), " as default for ", protName);
+       }
 
 // If port is invalid or missing, fail this
 //

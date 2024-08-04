@@ -130,6 +130,7 @@ void XrdSecEntity::Init(const char *spV)
    sessvar = 0;
    uid     = 0;
    gid     = 0;
+   secMon  = 0;
    memset(future, 0, sizeof(future));
 }
   

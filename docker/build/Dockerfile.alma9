@@ -1,0 +1,32 @@
+FROM almalinux:9
+
+# Install tools necessary for RPM development
+RUN dnf install -y dnf-plugins-core epel-release rpmdevtools sudo \
+ && dnf config-manager --set-enabled crb
+
+# Create xrootd user to avoid running tests as root
+RUN groupadd xrootd && useradd -g xrootd -m xrootd
+
+USER xrootd
+WORKDIR /home/xrootd
+
+# Create directory tree for building RPMs
+RUN rpmdev-setuptree
+
+# XRootD source tarball must be created in the
+# current directory in order to build this image
+COPY xrootd.tar.gz rpmbuild/SOURCES
+
+# Extract spec file to build RPMs
+RUN tar xzf rpmbuild/SOURCES/xrootd.tar.gz --strip-components=1 xrootd/xrootd.spec
+
+USER root
+
+# Install build dependencies with dnf
+RUN dnf builddep -y xrootd.spec
+
+# Build RPMS for XRootD
+RUN sudo -u xrootd rpmbuild -bb --with git xrootd.spec
+
+# Install RPMS
+RUN yum install -y rpmbuild/RPMS/*/*.rpm

@@ -35,7 +35,6 @@
 
 @include "XrdSys/XrdSysE2T.hh"
 
-using namespace std;
   
 /******************************************************************************/
 /*                        C l a s s   P o l l P o r t                         */
@@ -202,7 +201,7 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
                          // followed by an exec, in which case we don't want to abort
                          //--------------------------------------------------------------
                          if( rc == EBADF && parentPID != getpid() ) return;
-                         cerr <<"PollP: " <<XrdSysE2T(rc) <<" polling for events" <<endl;
+                         std::cerr <<"PollP: " <<XrdSysE2T(rc) <<" polling for events" <<std::endl;
                          abort();
                         }
                }

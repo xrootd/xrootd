@@ -664,6 +664,12 @@ namespace XrdCl
       std::unique_ptr<char[]> buffer;
 
       int size = xattr->Get( name.c_str(), 0, 0, 0, fd );
+      if( size < 0 )
+      {
+        XRootDStatus status( stError, errLocalError, -size );
+        response.push_back( XAttr( *itr, "", status ) );
+        continue;
+      }
       buffer.reset( new char[size] );
       int ret = xattr->Get( name.c_str(), buffer.get(), size, 0, fd );
 

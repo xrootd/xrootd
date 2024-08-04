@@ -207,7 +207,6 @@ int XrdXrootdProtocol::do_PgRIO()
 //
    static const int maxIOVZ = IOV_MAX;
    static const int maxCSSZ = IOV_MAX/2 - 1;
-// static const int maxCSSZ = 32;
    static const int maxPGRD = maxCSSZ*pgPageSize; // 2,093,056 usually
    static const int infoLen = sizeof(kXR_int64);
 

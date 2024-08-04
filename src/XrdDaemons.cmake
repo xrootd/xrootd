@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # xrootd
@@ -73,9 +72,3 @@ install(
   TARGETS xrootd cmsd
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/cmsd.8
-  ${PROJECT_SOURCE_DIR}/docs/man/xrootd.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )

@@ -379,6 +379,11 @@ enum {Authorize = 0x0001,    // Authorization wanted
 int   Options;               // Various options
 int   myPort;                // Port number being used
 
+// Directory and file creation mode controls
+//
+mode_t            dMask[2];  // Min/Max directory mode
+mode_t            fMask[2];  // Min/Max file      mode
+
 // TPC related things
 //
 char             *tpcRdrHost[2];  // TPC redirect target or null if none
@@ -441,6 +446,7 @@ const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
 private:
   
 char             *myRole;
+XrdOfsFSctl_PI   *FSctl_PC;       //    ->FSctl plugin (cache specific)
 XrdOfsFSctl_PI   *FSctl_PI;       //    ->FSctl plugin
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdCmsClient     *Balancer;       //    ->Cluster Local   Interface
@@ -510,6 +516,7 @@ int           FSctl(XrdOfsFile &file, int cmd, int alen, const char *args,
 int           Reformat(XrdOucErrInfo &);
 const char   *theRole(int opts);
 int           xcrds(XrdOucStream &, XrdSysError &);
+int           xcrm(XrdOucStream &, XrdSysError &);
 int           xdirl(XrdOucStream &, XrdSysError &);
 int           xexp(XrdOucStream &, XrdSysError &, bool);
 int           xforward(XrdOucStream &, XrdSysError &);

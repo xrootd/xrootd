@@ -311,33 +311,32 @@ namespace XrdCl
     // Ignore malformed status response
     //--------------------------------------------------------------------------
     if( pResponse->GetSize() < sizeof( ServerResponseStatus ) )
-      return Ignore;
+    {
+      log->Error( XRootDMsg, "[%s] kXR_status: invalid message size.", pUrl.GetHostId().c_str() );
+      return Corrupted;
+    }
 
     ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
     //--------------------------------------------------------------------------
     // Unmarshal the status body
     //--------------------------------------------------------------------------
-    if( !pRspStatusBodyUnMarshaled )
+    XRootDStatus st = XRootDTransport::UnMarshalStatusBody( *pResponse, reqId );
+
+    if( !st.IsOK() && st.code == errDataError )
     {
-      XRootDStatus st = XRootDTransport::UnMarshalStatusBody( *pResponse, reqId );
+      log->Error( XRootDMsg, "[%s] %s", pUrl.GetHostId().c_str(),
+                  st.GetErrorMessage().c_str() );
+      return Corrupted;
+    }
 
-      if( !st.IsOK() && st.code == errDataError )
-      {
-        log->Error( XRootDMsg, "[%s] %s", pUrl.GetHostId().c_str(),
-                    st.GetErrorMessage().c_str() );
-        return Corrupted;
-      }
-
-      if( !st.IsOK() )
-      {
-        log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
-                    pUrl.GetHostId().c_str() );
-        pStatus = st;
-        HandleRspOrQueue();
-        return Ignore;
-      }
-      pRspStatusBodyUnMarshaled = true;
+    if( !st.IsOK() )
+    {
+      log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
+                  pUrl.GetHostId().c_str() );
+      pStatus = st;
+      HandleRspOrQueue();
+      return Ignore;
     }
 
     //--------------------------------------------------------------------------
@@ -377,27 +376,6 @@ namespace XrdCl
       if( size_t( sizeof( ServerResponseHeader ) + rspst->status.hdr.dlen + rspst->status.bdy.dlen ) >
         pResponse->GetCursor() )
         action |= More;
-      // if we already have this data we need to unmarshal it
-      else if( !pRspPgWrtRetrnsmReqUnMarshalled )
-      {
-        XRootDStatus st = XRootDTransport::UnMarchalStatusCSE( *pResponse );
-        if( !st.IsOK() && st.code == errDataError )
-        {
-          log->Error( XRootDMsg, "[%s] %s", pUrl.GetHostId().c_str(),
-                      st.GetErrorMessage().c_str() );
-          return Corrupted;
-        }
-
-        if( !st.IsOK() )
-        {
-          log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
-                      pUrl.GetHostId().c_str() );
-          pStatus = st;
-          HandleRspOrQueue();
-          return Ignore;
-        }
-        pRspPgWrtRetrnsmReqUnMarshalled = true;
-      }
     }
 
     return action;
@@ -926,7 +904,7 @@ namespace XrdCl
       log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
                  pUrl.GetHostId().c_str(), message->GetDescription().c_str() );
 
-      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: 0x%x (message: %s ) from out-queu to in-queue.",
+      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: 0x%x (message: %s ) from out-queue to in-queue.",
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetDescription().c_str() );
 
@@ -1126,7 +1104,6 @@ namespace XrdCl
   void XRootDMsgHandler::PartialReceived()
   {
     pTimeoutFence.store( false, std::memory_order_relaxed ); // Take down the timeout fence
-    pRspStatusBodyUnMarshaled = false;
   }
 
   //----------------------------------------------------------------------------
@@ -1225,7 +1202,9 @@ namespace XrdCl
       if( pStatus.code == errErrorResponse )
       {
         st->errNo = rsp->body.error.errnum;
-        std::string errmsg( rsp->body.error.errmsg, rsp->hdr.dlen-4 );
+        // omit the last character as the string returned from the server
+        // (acording to protocol specs) should be null-terminated
+        std::string errmsg( rsp->body.error.errmsg, rsp->hdr.dlen-5 );
         if( st->errNo == kXR_noReplicas && !pLastError.IsOK() )
           errmsg += " Last seen error: " + pLastError.ToString();
         st->SetErrorMessage( errmsg );
@@ -2466,10 +2445,10 @@ namespace XrdCl
   {
     if( sizeof( T ) > buflen ) return Status( stError, errDataError );
 
-    result = *reinterpret_cast<T*>( buffer );
+    memcpy(&result, buffer, sizeof(T));
 
     buffer += sizeof( T );
-    buflen   -= sizeof( T );
+    buflen -= sizeof( T );
 
     return Status();
   }

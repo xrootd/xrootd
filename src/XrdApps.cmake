@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -29,8 +28,8 @@ if( NOT XRDCL_ONLY )
     xrdadler32
     XrdPosix
     XrdUtils
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${ZLIB_LIBRARIES} )
+    ZLIB::ZLIB
+    ${CMAKE_THREAD_LIBS_INIT})
 
   #-----------------------------------------------------------------------------
   # xrdcks
@@ -163,6 +162,7 @@ add_library(
 
 target_link_libraries(
   XrdAppUtils
+  PRIVATE
   XrdUtils )
 
 set_target_properties(
@@ -180,13 +180,7 @@ add_library(
   XrdApps/XrdClProxyPlugin/ProxyPrefixPlugin.cc
   XrdApps/XrdClProxyPlugin/ProxyPrefixFile.cc)
 
-target_link_libraries(${LIB_XRDCL_PROXY_PLUGIN} XrdCl)
-
-set_target_properties(
-  ${LIB_XRDCL_PROXY_PLUGIN}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+target_link_libraries(${LIB_XRDCL_PROXY_PLUGIN} PRIVATE XrdCl)
 
 #-------------------------------------------------------------------------------
 # XrdClRecorder library
@@ -196,13 +190,7 @@ add_library(
   MODULE
   XrdApps/XrdClRecordPlugin/XrdClRecorderPlugin.cc )
 
-target_link_libraries(${LIB_XRDCL_RECORDER_PLUGIN} XrdCl)
-
-set_target_properties(
-  ${LIB_XRDCL_RECORDER_PLUGIN}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+target_link_libraries(${LIB_XRDCL_RECORDER_PLUGIN} PRIVATE XrdCl)
 
 add_executable(
   xrdreplay
@@ -233,13 +221,3 @@ install(
   TARGETS xrdreplay
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdadler32.1
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/mpxstats.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )

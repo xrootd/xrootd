@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -24,15 +23,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_GSI}
+  PRIVATE
   XrdCrypto
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT} )
-
-set_target_properties(
-  ${LIB_XRD_SEC_GSI}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdSecgsiAuthzVO module
@@ -44,13 +38,8 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_GSI_AUTHZVO}
+  PRIVATE
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_SEC_GSI_AUTHZVO}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdSecgsiGMAPDN module
@@ -62,13 +51,8 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_GSI_GMAPDN}
+  PRIVATE
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_SEC_GSI_GMAPDN}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 if( NOT XRDCL_LIB_ONLY )
 #-------------------------------------------------------------------------------
@@ -82,7 +66,7 @@ target_link_libraries(
   xrdgsiproxy
   XrdCrypto
   XrdUtils
-  ${OPENSSL_CRYPTO_LIBRARY} )
+  OpenSSL::Crypto )
 
 #-------------------------------------------------------------------------------
 # xrdgsitest
@@ -95,7 +79,7 @@ target_link_libraries(
   xrdgsitest
   XrdCrypto
   XrdUtils
-  ${OPENSSL_CRYPTO_LIBRARY} )
+  OpenSSL::Crypto )
 endif()
 
 #-------------------------------------------------------------------------------
@@ -116,12 +100,5 @@ install(
   xrdgsitest
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdgsiproxy.1
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdgsitest.1
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
-
 endif()
 

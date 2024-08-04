@@ -1,0 +1,324 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: xrootd
+Upstream-Contact: https://xrootd.slac.stanford.edu/contact.html
+
+Files: *
+Copyright:
+ 2000-2024 Board of Trustees of the Leland Stanford, Jr. University.
+ Produced under contract DE-AC02-76-SF00515 with the US Department of
+ Energy. All rights reserved.
+License: LGPL-3 and BSD-3-clause-modified
+ The copyright holder's institutional names may not be used to endorse
+ or promote products derived from this software without specific prior
+ written permission.
+ .
+ This file is part of the XRootD software suite.
+ .
+ XRootD is free software: you can redistribute it and/or modify it
+ under the terms of the GNU Lesser General Public License as published
+ by the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ XRootD is distributed in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public
+ License for more details.
+ .
+ You should have received a copy of the GNU Lesser General Public
+ License along with XRootD in a file called COPYING.LESSER (LGPL
+ license) and file COPYING (GPL license). If not, see
+ <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems the full text of the GNU lesser general public
+ license version 3 can be found in /usr/share/common-licenses/LGPL-3.
+ .
+ Prior to September 2nd, 2012 the XRootD software suite was licensed
+ under a modified BSD license shown below. This applies to all code
+ that was in the XRootD git repository prior to that date. All code is
+ now licensed under LGPL.
+ .
+                               Conditions of Use
+ .
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ .
+ a. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ b. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in
+    the documentation and/or other materials provided with the
+    distribution.
+ c. Neither the name of the Leland Stanford, Jr. University nor the
+    names of its contributors may be used to endorse or promote
+    products derived from this software without specific prior written
+    permission.
+ d. Products derived from this software that do not adhere to the
+    xrootd or cmsd protocol specifications may not use the acronyms
+    'cmsd', 'Scalla', 'xroot', and 'xrootd', regardless of
+    capitalization, to describe such derivative works.
+ .
+                                  DISCLAIMER
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files:
+ bindings/python/*
+ src/XrdApps/XrdClProxyPlugin/*
+ src/XrdApps/XrdClRecordPlugin/*
+ src/XrdCeph/*
+ src/XrdCks/XrdCksCalczcrc32.cc
+ src/XrdCl/*
+ src/XrdEc/*
+ src/XrdHttp/*
+ src/XrdOssCsi/*
+ src/XrdOuc/XrdOucCompiler.hh
+ src/XrdOuc/XrdOucEnum.hh
+ src/XrdSys/XrdSysKernelBuffer.hh
+ src/XrdSys/XrdSysShmem.hh
+ src/XrdTls/XrdTlsContext.*
+ src/XrdTls/XrdTlsSocket.*
+ src/XrdTpc/XrdTpcPMarkManager.*
+ src/XrdZip/*
+ tests/common/*
+ tests/XrdCephTests/*
+ tests/XrdCl/*
+ tests/XrdClTests/*
+ tests/XrdEc/*
+ tests/XrdEcTests/*
+ utils/xrootd-config
+Copyright:
+ 2011-2024 European Organization for Nuclear Research (CERN)
+Comment:
+ In applying this licence, CERN does not waive the privileges and immunities
+ granted to it by virtue of its status as an Intergovernmental Organization
+ or submit itself to any jurisdiction.
+License: LGPL-3
+
+Files:
+ src/XrdCks/XrdCksCalcadler32.hh
+ src/XrdOuc/XrdOucCRC32C.*
+Copyright:
+ 1995-1998, 2013, 2015 Mark Adler
+License: zlib/libpng
+
+Files:
+ src/XrdCl/XrdClLocalFileHandler.*
+ src/XrdCl/XrdClLocalFileTask.*
+ src/XrdCms/XrdCmsRedirLocal.*
+ tests/XrdClTests/LocalFileHandlerTest.cc
+Copyright:
+ 2017, 2019 GSI Helmholtzzentrum für Schwerionenforschung GmbH
+License: LGPL-3
+
+Files: src/XrdCl/XrdClMonitor.hh
+Copyright:
+ 2012 Board of Trustees of the Leland Stanford, Jr., University
+ 2012 European Organization for Nuclear Research (CERN)
+License: LGPL-3
+
+Files: src/XrdOuc/XrdOucJson.hh
+Copyright:
+ 2013-2019 Niels Lohmann <http://nlohmann.me>
+License: Expat
+
+Files: src/XrdOuc/XrdOucSHA3.*
+Copyright:
+ 2015 Markku-Juhani O. Saarinen
+License: Expat
+
+Files: src/XrdOuc/XrdOucUri.*
+Copyright:
+ 2016 by David Farrell
+License: BSD-2-clause
+
+Files: src/XrdSciTokens/*
+Copyright:
+ Brian Bockelman, Andrew Hanushevsky, Derek Weitzel
+License: Apache-2.0
+ On Debian systems the full text of the Apache license version 2 can
+ be found in /usr/share/common-licenses/Apache-2.0.
+
+Files: src/XrdSciTokens/vendor/inih/*
+Copyright:
+ 2009, Ben Hoyt. All rights reserved.
+License: BSD-3-clause
+
+Files: src/XrdSciTokens/vendor/picojson/*
+Copyright:
+ 2009-2010 Cybozu Labs, Inc.
+ 2011-2014 Kazuho Oku
+ All rights reserved.
+License: BSD-2-clause
+
+Files: src/XrdSciTokens/vendor/picojson/picotest/*
+Copyright:
+ 2014 DeNA Co., Ltd.
+License: Expat
+
+Files: src/XrdSecztn/XrdSecztn.cc
+Copyright:
+ 2015 Erwin Jansen
+License: Expat
+
+Files: src/XrdSys/XrdSysFallocate.*
+Copyright:
+ 2010 Mozilla Foundation. All Rights Reserved.
+ 2015, 2016 R.J.V. Bertin for KDE project.
+Comment:
+ Original license allows modification / redistribution under LGPL 2.1
+ or higher. Redistributed under LGPL-3 or higher.
+License: LGPL-3
+
+Files: src/XrdTls/XrdTlsHostcheck.*
+Copyright:
+ 1998-2012 Daniel Stenberg, <daniel@haxx.se>, et al.
+License: curl
+ This software is licensed as described in the file COPYING, which
+ you should have received as part of this distribution. The terms
+ are also available at http://curl.haxx.se/docs/copyright.html.
+ .
+ You may opt to use, copy, modify, merge, publish, distribute and/or sell
+ copies of the Software, and permit persons to whom the Software is
+ furnished to do so, under the terms of the COPYING file.
+ .
+ This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
+ KIND, either express or implied.
+
+Files: src/XrdTls/XrdTlsNotaryUtils.*
+Copyright:
+ 2012 iSEC Partners.
+License: Expat
+
+Files: src/XrdXml/tinyxml/*
+Copyright:
+ 2000-2006 Lee Thomason (www.grinninglizard.com)
+Comment: Not used in debian build, libtinyxml-dev used instead.
+License: zlib/libpng
+
+Files: debian/*
+Copyright:
+ 2020-2024 Mattias Ellert <mattias.ellert@physics.uu.se>
+License: LGPL-3
+
+License: LGPL-3
+ This file is part of the XRootD software suite.
+ .
+ XRootD is free software: you can redistribute it and/or modify it
+ under the terms of the GNU Lesser General Public License as published
+ by the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ XRootD is distributed in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public
+ License for more details.
+ .
+ You should have received a copy of the GNU Lesser General Public
+ License along with XRootD in a file called COPYING.LESSER (LGPL
+ license) and file COPYING (GPL license). If not, see
+ <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems the full text of the GNU lesser general public
+ license version 3 can be found in /usr/share/common-licenses/LGPL-3.
+
+License: zlib/libpng
+ This software is provided 'as-is', without any express or implied
+ warranty. In no event will the authors be held liable for any
+ damages arising from the use of this software.
+ .
+ Permission is granted to anyone to use this software for any
+ purpose, including commercial applications, and to alter it and
+ redistribute it freely, subject to the following restrictions:
+ .
+ 1. The origin of this software must not be misrepresented; you must
+    not claim that you wrote the original software. If you use this
+    software in a product, an acknowledgment in the product
+    documentation would be appreciated but is not required.
+ .
+ 2. Altered source versions must be plainly marked as such, and
+    must not be misrepresented as being the original software.
+ .
+ 3. This notice may not be removed or altered from any source
+    distribution.
+
+License: BSD-2-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ .
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in
+    the documentation and/or other materials provided with the
+    distribution.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: BSD-3-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ .
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in
+    the documentation and/or other materials provided with the
+    distribution.
+  * Neither the name of [insert "CERN" or "Ben Hoyt" as appropriate]
+    nor the names of its contributors may be used to endorse or
+    promote products derived from this software without specific prior
+    written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the "Software"),
+ to deal in the Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the
+ Software is furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.

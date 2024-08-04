@@ -74,6 +74,7 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -163,15 +164,17 @@ XrdOss *XrdOfsOss;
 
 /******************************************************************************/
 /*                    X r d O f s   C o n s t r u c t o r                     */
-/******************************************************************************/
+/*****************************************************************************/
 
-XrdOfs::XrdOfs() : tpcRdrHost{}, tpcRdrPort{}
+XrdOfs::XrdOfs() : dMask{0000,0775}, fMask{0000,0775}, // Legacy
+                   tpcRdrHost{}, tpcRdrPort{}
 {
    const char *bp;
 
 // Establish defaults
 //
    ofsConfig     = 0;
+   FSctl_PC      = 0;
    FSctl_PI      = 0;
    Authorization = 0;
    Finder        = 0;
@@ -463,6 +466,7 @@ int XrdOfsFile::open(const char          *path,      // In
                         SFS_O_CREAT  - Create the file open in RW mode
                         SFS_O_TRUNC  - Trunc  the file open in RW mode
                         SFS_O_POSC   - Presist    file on successful close
+                        SFS_O_SEQIO  - Primarily sequential I/O (e.g. xrdcp)
             Mode      - The Posix access mode bits to be assigned to the file.
                         These bits correspond to the standard Unix permission
                         bits (e.g., 744 == "rwxr--r--"). Additionally, Mode
@@ -498,7 +502,7 @@ int XrdOfsFile::open(const char          *path,      // In
                        }
          } oP(path);
 
-   mode_t theMode = Mode & S_IAMB;
+   mode_t theMode = (Mode | XrdOfsFS->fMask[0]) & XrdOfsFS->fMask[1];
    const char *tpcKey;
    int retc, isPosc = 0, crOpts = 0, isRW = 0, open_flag = 0;
    int find_flag = open_mode & (SFS_O_NOWAIT | SFS_O_RESET | SFS_O_MULTIW);
@@ -506,7 +510,8 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Trace entry
 //
-   ZTRACE(open, Xrd::hex1 <<open_mode <<"-" <<Xrd::oct1 <<Mode <<" fn=" <<path);
+   ZTRACE(open, Xrd::hex1 <<open_mode <<"-" <<Xrd::oct1 <<Mode <<" ("
+              <<Xrd::oct1 <<theMode <<") fn=" <<path);
 
 // Verify that this object is not already associated with an open file
 //
@@ -688,7 +693,7 @@ int XrdOfsFile::open(const char          *path,      // In
       }
 
 // If this is a previously existing handle, we are almost done. If this is
-// the target of a third party copy requesy, fail it now. We don't support
+// the target of a third party copy request, fail it now. We don't support
 // multiple writers in tpc mode (this should really never happen).
 //
    if (!(oP.hP->Inactive()))
@@ -722,7 +727,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Open the file
 //
-   if ((retc = oP.fP->Open(path, open_flag, Mode, Open_Env)))
+   if ((retc = oP.fP->Open(path, open_flag, theMode, Open_Env)))
       {if (retc > 0) return XrdOfsFS->Stall(error, retc, path);
        if (retc == -EINPROGRESS)
           {XrdOfsFS->evrObject.Wait4Event(path,&error);
@@ -754,6 +759,20 @@ int XrdOfsFile::open(const char          *path,      // In
       }
    oP.hP->Activate(oP.fP);
    oP.hP->UnLock();
+
+// If this is being opened for sequential I/O advise the filesystem about it.
+//
+#if defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+   if (!(XrdOfsFS->OssIsProxy) && open_mode & SFS_O_SEQIO)
+      {static RAtomic_int fadFails(0);
+       int theFD =  oP.fP->getFD();
+       if (theFD >= 0 && fadFails < 4096)
+          if (posix_fadvise(theFD, 0, 0, POSIX_FADV_SEQUENTIAL) < 0)
+             {OfsEroute.Emsg(epname, errno, "fadsize for sequential I/O.");
+              fadFails++;
+             }
+      }
+#endif
 
 // Send an open event if we must
 //
@@ -1890,6 +1909,7 @@ int XrdOfs::chmod(const char             *path,    // In
 {
    EPNAME("chmod");
    static const int locFlags = SFS_O_RDWR|SFS_O_META;
+   struct stat Stat;
    mode_t acc_mode = Mode & S_IAMB;
    const char *tident = einfo.getErrUser();
    XrdOucEnv chmod_Env(info,0,client);
@@ -1911,6 +1931,13 @@ int XrdOfs::chmod(const char             *path,    // In
           else if ((retc = Finder->Locate(einfo, path, locFlags, &chmod_Env)))
                   return fsError(einfo, retc);
       }
+
+// We need to adjust the mode based on whether this is a file or directory.
+//
+   if ((retc = XrdOfsOss->Stat(path, &Stat, 0, &chmod_Env)))
+      return XrdOfsFS->Emsg(epname, einfo, retc, "change", path);
+   if (S_ISDIR(Stat.st_mode)) acc_mode = (acc_mode | dMask[0]) & dMask[1];
+      else acc_mode = (acc_mode | fMask[0]) & fMask[1];
 
 // Check if we should generate an event
 //
@@ -2065,7 +2092,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 {
    EPNAME("mkdir");
    static const int LocOpts = SFS_O_RDWR | SFS_O_CREAT | SFS_O_META;
-   mode_t acc_mode = Mode & S_IAMB;
+   mode_t acc_mode = (Mode | dMask[0]) & dMask[1];
    int retc, mkpath = Mode & SFS_O_MKPTH;
    const char *tident = einfo.getErrUser();
    XrdOucEnv mkdir_Env(info,0,client);

@@ -88,7 +88,7 @@ int fGetXattrAdler32(int fd, const char* attr, char *value)
     int rc;
 
     if (fstat(fd, &st)) return 0;
-    sprintf(mtime, "%ld", st.st_mtime);
+    sprintf(mtime, "%lld", (long long) st.st_mtime);
 
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
     rc = fgetxattr(fd, attr, attr_val, 25);

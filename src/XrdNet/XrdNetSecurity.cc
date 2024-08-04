@@ -40,11 +40,6 @@
 #include <sys/types.h>
 #include <Winsock2.h>
 #include <io.h>
-int innetgr(const char *netgroup, const char *host, const char *user,
-             const char *domain)
-{
-   return 0;
-}
 #include "XrdSys/XrdWin32.hh"
 #endif
 
@@ -52,6 +47,14 @@ int innetgr(const char *netgroup, const char *host, const char *user,
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdSys/XrdSysTrace.hh"
+
+#if defined(MUSL) || defined(WIN32)
+int innetgr(const char *netgroup, const char *host, const char *user,
+             const char *domain)
+{
+   return 0;
+}
+#endif
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */

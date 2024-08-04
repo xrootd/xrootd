@@ -1,0 +1,16 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <metalink version="3.0" xmlns="http://www.metalinker.org/">
+   <files>
+     <file name="output.dat">
+      <verification>
+         <hash type="adler32">f024c8e5</hash>
+         <hash type="md5">851fef8c18d878b31366d1aabeefdead</hash>
+         <hash type="crc32c">40e5fdb0</hash>
+        </verification>
+       <resources>
+         <url type="file" location="ch" preference="90">root://localhost:10943//data/b74d025e-06d6-43e8-91e1-a862feb03c84.dat</url>
+       </resources>
+     </file>
+   </files>
+ </metalink>
+

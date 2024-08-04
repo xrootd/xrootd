@@ -47,6 +47,8 @@
 #include "Xrd/XrdProtocol.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdHttpChecksumHandler.hh"
+#include "XrdHttpReadRangeHandler.hh"
+#include "XrdNet/XrdNetPMark.hh"
 
 #include <openssl/ssl.h>
 
@@ -89,6 +91,9 @@ public:
     if (Resume) (*this.*Resume)();
   }
 
+  /// Use this function to parse header2cgi configurations
+  static int parseHeader2CGI(XrdOucStream &Config, XrdSysError & err, std::map<std::string, std::string> & header2cgi);
+
   /// Tells if the oustanding bytes on the socket match this protocol implementation
   XrdProtocol *Match(XrdLink *lp);
 
@@ -128,6 +133,9 @@ public:
 
   // XrdHttp checksum handling class
   static XrdHttpChecksumHandler cksumHandler;
+
+  /// configuration for the read range handler
+  static XrdHttpReadRangeHandler::Configuration ReadRangeConfig;
 
   /// called via https
   bool isHTTPS() { return ishttps; }
@@ -185,9 +193,9 @@ private:
         {XrdOucString extHName;  // The instance name (1 to 16 characters)
          XrdOucString extHPath;  // The shared library path
          XrdOucString extHParm;  // The parameter (sort of)
-
-         extHInfo(const char *hName, const char *hPath, const char *hParm)
-                 : extHName(hName), extHPath(hPath), extHParm(hParm) {}
+         bool extHNoTlsOK;     // If true the exthandler can be loaded if TLS has NOT been configured
+         extHInfo(const char *hName, const char *hPath, const char *hParm, const bool hNoTlsOK)
+                 : extHName(hName), extHPath(hPath), extHParm(hParm), extHNoTlsOK(hNoTlsOK) {}
         ~extHInfo() {}
   };
   /// Functions related to the configuration
@@ -214,6 +222,7 @@ private:
   static int xheader2cgi(XrdOucStream &Config);
   static int xhttpsmode(XrdOucStream &Config);
   static int xtlsreuse(XrdOucStream &Config);
+  static int xauth(XrdOucStream &Config);
   
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
@@ -230,7 +239,10 @@ private:
     XrdHttpExtHandler *ptr;
   } exthandler[MAX_XRDHTTPEXTHANDLERS];
   static int exthandlercnt;
-  
+
+  static int LoadExtHandlerNoTls(std::vector<extHInfo> &hiVec,
+                                 const char *cFN, XrdOucEnv &myEnv);
+
   // Loads the ExtHandler plugin, if available
   static int LoadExtHandler(std::vector<extHInfo> &hiVec,
                             const char *cFN, XrdOucEnv &myEnv);
@@ -275,17 +287,27 @@ private:
 
   /// Starts a chunked response; body of request is sent over multiple parts using the SendChunkResp
   //  API.
-  int StartChunkedResp(int code, const char *desc, const char *header_to_add, bool keepalive);
+  int StartChunkedResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);
 
   /// Send a (potentially partial) body in a chunked response; invoking with NULL body
   //  indicates that this is the last chunk in the response.
   int ChunkResp(const char *body, long long bodylen);
-  
+
+  /// Send the beginning of a chunked response but not the body; useful when the size
+  //  of the chunk is known but the body is not immediately available.
+  int ChunkRespHeader(long long bodylen);
+
+  /// Send the footer of the chunk response
+  int ChunkRespFooter();
+
   /// Gets a string that represents the IP address of the client. Must be freed
   char *GetClientIPStr();
-  
+
   /// Tells that we are just logging in
   bool DoingLogin;
+
+  /// Indicates whether we've attempted to send app info.
+  bool DoneSetInfo;
   
   /// Tells that we are just waiting to have N bytes in the buffer
   long ResumeBytes;
@@ -422,5 +444,11 @@ protected:
 
   /// The list of checksums that were configured via the xrd.cksum parameter on the server config file
   static char * xrd_cslist;
+
+  /// Packet marking handler pointer (assigned from the environment during the Config() call)
+  static XrdNetPMark * pmarkHandle;
+
+  /// If set to true, the HTTP TPC transfers will forward the credentials to redirected hosts
+  static bool tpcForwardCreds;
 };
 #endif

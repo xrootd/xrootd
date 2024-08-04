@@ -132,7 +132,6 @@ namespace XrdCl
   Channel::~Channel()
   {
     pTickGenerator->Invalidate();
-    pTaskManager->UnregisterTask( pTickGenerator );
     delete pStream;
     pTransport->FinalizeChannel( pChannelData );
   }
@@ -167,6 +166,15 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     pStream->ForceError( Status( stError, errOperationInterrupted ) );
 
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Force reconnect
+  //----------------------------------------------------------------------------
+  Status Channel::ForceReconnect()
+  {
+    pStream->ForceConnect();
     return Status();
   }
 

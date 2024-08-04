@@ -141,7 +141,7 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
         // get regular target host
         rcode = nativeCmsFinder->Locate(Resp, newPath.c_str(), flags, EnvInfo);
         // set new error message to full url:port//newPath
-        const std::string errText { std::string(Resp.getErrText()) + ':' + to_string(Resp.getErrInfo()) + newPath};
+        const std::string errText { std::string(Resp.getErrText()) + ':' + std::to_string(Resp.getErrInfo()) + newPath};
         Resp.setErrInfo(0, errText.c_str());
         // now have normal redirection to dataserver at url:port
         return rcode;

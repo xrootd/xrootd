@@ -33,6 +33,8 @@
 #include <cstdio>
 #include <list>
 #include <vector>
+#include <unordered_set>
+#include <algorithm>
 
 #ifdef WIN32
 #include <direct.h>
@@ -937,6 +939,47 @@ int XrdOucUtils::makePath(char *path, mode_t mode, bool reset)
 }
  
 /******************************************************************************/
+/*                             m o d e 2 m a s k                              */
+/******************************************************************************/
+
+bool XrdOucUtils::mode2mask(const char *mode, mode_t &mask)
+{
+   mode_t mval[3] = {0}, mbit[3] = {0x04, 0x02, 0x01};
+   const char *mok = "rwx";
+   char mlet;
+
+// Accept octal mode
+//
+   if (isdigit(*mode))
+      {char *eP;
+       mask = strtol(mode, &eP, 8);
+       return *eP == 0;
+      }
+
+// Make sure we have the correct number of characters
+//
+   int n = strlen(mode);
+   if (!n || n > 9 || n/3*3 != n) return false;
+
+// Convert groups of three
+//
+   int k = 0;
+   do {for (int i = 0; i < 3; i++)
+           {mlet = *mode++;
+            if (mlet != '-')
+               {if (mlet != mok[i]) return false;
+                mval[k] |= mbit[i]; 
+               }
+           } 
+       } while(++k < 3 && *mode);
+
+// Combine the modes and return success
+//
+   mask = mval[0]<<6 | mval[1]<<3 | mval[2];
+   return true;
+}
+  
+/******************************************************************************/
 /*                              p a r s e L i b                               */
 /******************************************************************************/
   
@@ -1368,5 +1411,47 @@ void XrdOucUtils::trim(std::string &str) {
     while( str.size() && !isgraph(str[str.size()-1]) )
         str.resize (str.size () - 1);
 }
+
+std::string XrdOucUtils::obfuscate(const std::string & input, const std::unordered_set<std::string>  & keysToObfuscate,const char keyValueDelimiter, const char listDelimiter) {
+    // String stream to build the result
+    std::ostringstream result;
+
+    // Start processing the input string
+    std::istringstream inputStream(input);
+    std::string pair;
+    bool first = true;
+
+    // Split input by listDelimiter
+    while (std::getline(inputStream, pair, listDelimiter)) {
+      if (!first) {
+        result << listDelimiter;
+      } else {
+        first = false;
+      }
+
+      // Find the position of the keyValueDelimiter
+      size_t delimiterPos = pair.find(keyValueDelimiter);
+      if (delimiterPos != std::string::npos) {
+        std::string key = pair.substr(0, delimiterPos);
+        trim(key);
+        std::string lowerCasedKey = key;
+        std::transform(lowerCasedKey.begin(),lowerCasedKey.end(),lowerCasedKey.begin(),::tolower);
+        std::string value = pair.substr(delimiterPos + 1);
+
+        // Check if the key needs to be obfuscated
+        if (keysToObfuscate.find(lowerCasedKey) != keysToObfuscate.end()) {
+          result << key << keyValueDelimiter << OBFUSCATION_STR;
+        } else {
+          result << pair;
+        }
+      } else {
+        result << pair; // In case there's no delimiter in the pair, just append it
+      }
+    }
+
+    return result.str();
+}
+
+
 #endif
 

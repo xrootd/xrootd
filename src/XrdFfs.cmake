@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -22,6 +21,7 @@ add_library(
 
 target_link_libraries(
   XrdFfs
+  PRIVATE
   XrdCl
   XrdPosix
   XrdUtils
@@ -31,9 +31,7 @@ set_target_properties(
   XrdFfs
   PROPERTIES
   VERSION   ${XRD_FFS_VERSION}
-  SOVERSION ${XRD_FFS_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_FFS_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # xrootdfs
@@ -49,6 +47,8 @@ if( BUILD_FUSE )
     XrdPosix
     ${CMAKE_THREAD_LIBS_INIT}
     ${FUSE_LIBRARIES} )
+
+target_include_directories(xrootdfs PRIVATE ${FUSE_INCLUDE_DIR})
 endif()
 
 #-------------------------------------------------------------------------------
@@ -62,9 +62,4 @@ if( BUILD_FUSE )
   install(
     TARGETS xrootdfs
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
-
-  install(
-    FILES
-    ${PROJECT_SOURCE_DIR}/docs/man/xrootdfs.1
-    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 endif()

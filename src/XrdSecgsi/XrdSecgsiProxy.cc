@@ -61,7 +61,7 @@
 
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 
-#define PRT(x) {cerr <<x <<endl;}
+#define PRT(x) {std::cerr <<x <<std::endl;}
 
 //
 // enum

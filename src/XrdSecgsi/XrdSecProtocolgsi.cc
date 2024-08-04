@@ -64,8 +64,8 @@
 /*                 T r a c i n g  I n i t  O p t i o n s                      */
 /******************************************************************************/
 #ifndef NODEBUG
-//#define POPTS(t,y)    {if (t) {t->Beg(epname); cerr <<y; t->End();}}
-#define POPTS(t,y)      {if (t) {cerr <<"Secgsi" <<y <<'\n' <<flush;}}
+//#define POPTS(t,y)    {if (t) {t->Beg(epname); std::cerr <<y; t->End();}}
+#define POPTS(t,y)      {if (t) {std::cerr <<"Secgsi" <<y <<'\n' << std::flush;}}
 #else
 #define POPTS(t,y)
 #endif
@@ -149,7 +149,7 @@ String XrdSecProtocolgsi::UsrCert  = "/.globus/usercert.pem";
 String XrdSecProtocolgsi::UsrKey   = "/.globus/userkey.pem";
 String XrdSecProtocolgsi::PxyValid = "12:00";
 int    XrdSecProtocolgsi::DepLength= 0;
-int    XrdSecProtocolgsi::DefBits  = 512;
+int    XrdSecProtocolgsi::DefBits  = XrdCryptoDefRSABits;
 int    XrdSecProtocolgsi::CACheck  = caVerifyss;
 int    XrdSecProtocolgsi::CRLCheck = crlTry; // 1
 int    XrdSecProtocolgsi::CRLDownload = 0;
@@ -158,7 +158,7 @@ int    XrdSecProtocolgsi::GMAPOpt  = 1;
 bool   XrdSecProtocolgsi::GMAPuseDNname = 0;
 String XrdSecProtocolgsi::DefCrypto= "ssl";
 String XrdSecProtocolgsi::DefCipher= "aes-128-cbc:bf-cbc:des-ede3-cbc";
-String XrdSecProtocolgsi::DefMD    = "sha1:md5";
+String XrdSecProtocolgsi::DefMD    = "sha256";
 String XrdSecProtocolgsi::DefError = "invalid credentials ";
 int    XrdSecProtocolgsi::PxyReqOpts = 0;
 int    XrdSecProtocolgsi::AuthzPxyWhat = -1;
@@ -177,6 +177,7 @@ int    XrdSecProtocolgsi::VOMSCertFmt = -1;
 int    XrdSecProtocolgsi::MonInfoOpt = 0;
 bool   XrdSecProtocolgsi::HashCompatibility = 1;
 bool   XrdSecProtocolgsi::TrustDNS = false;
+bool   XrdSecProtocolgsi::ShowDN = false;
 //
 // Crypto related info
 int  XrdSecProtocolgsi::ncrypt    = 0;                 // Number of factories
@@ -572,6 +573,11 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    // Honour trust / unstrust DNS settings (switch or env)
    TrustDNS = opt.trustdns;
    DEBUG("trust DNS option: "<<TrustDNS);
+
+   //
+   // Enable/disable displaying the DN
+   ShowDN = opt.showDN;
+   DEBUG("show DN option: "<<ShowDN);
 
    //
    // Server specific options
@@ -1074,7 +1080,7 @@ void XrdSecProtocolgsi::Delete()
    SafeDelete(sessionMD);     // Message Digest instance
    SafeDelete(sessionKsig);   // RSA key to sign
    SafeDelete(sessionKver);   // RSA key to verify
-   if (proxyChain) proxyChain->Cleanup(1);
+   if (proxyChain) proxyChain->Cleanup();
    SafeDelete(proxyChain);    // Chain with delegated proxies
    SafeFree(expectedHost);
 
@@ -1970,8 +1976,14 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       }
 
       // Add the DN as default moninfo if requested (the authz plugin may change this)
-      if (MonInfoOpt > 0) {
-         Entity.moninfo = strdup(hs->Chain->EECname());
+      if (MonInfoOpt > 0 || ShowDN) {
+         const char *theDN = hs->Chain->EECname();
+         if (theDN) {
+            if (ShowDN && !GMAPuseDNname) {
+               PRINT(Entity.name<<" Subject DN='"<<theDN<<"'");
+            }
+            if (MonInfoOpt > 0) Entity.moninfo = strdup(theDN);
+         }
       }
 
       if (VOMSAttrOpt > vatIgnore && VOMSFun) {
@@ -2338,6 +2350,7 @@ void gsiOptions::Print(XrdOucTrace *t)
       POPTS(t, " MonInfo option: "<< moninfo);
       if (!hashcomp)
          POPTS(t, " Name hashing algorithm compatibility OFF");
+      POPTS(t, " Show DN option: "<<showDN);
    }
    // Crypto options
    POPTS(t, " Crypto modules: "<< (clist ? clist : XrdSecProtocolgsi::DefCrypto));
@@ -2401,7 +2414,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //                                     ["12:00", i.e. 12 hours]
       //             "XrdSecGSIPROXYDEPLEN"  depth of signature path for proxies;
       //                                     use -1 for unlimited [0]
-      //             "XrdSecGSIPROXYKEYBITS" bits in PKI for proxies [512]
+      //             "XrdSecGSIPROXYKEYBITS" bits in PKI for proxies [default: XrdCryptoDefRSABits]
       //             "XrdSecGSICACHECK"      CA check level [1]:
       //                                      0 do not verify;
       //                                      1 verify if self-signed, warn if not;
@@ -2625,6 +2638,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int moninfo = 0;
       int hashcomp = 1;
       int trustdns = false;
+      int showDN = false;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -2693,6 +2707,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                hashcomp = 0;
             } else if (!strncmp(op, "-trustdns:",10)) {
                trustdns = getOptVal(tdnsOpts, op+10);
+            } else if (!strncmp(op, "-showdn:",8)) {
+               showDN = getOptVal(tdnsOpts, op+8);
             } else {
                PRINT("ignoring unknown switch: "<<op);
             }
@@ -2726,6 +2742,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.moninfo = moninfo;
       opts.hashcomp = hashcomp;
       opts.trustdns = (trustdns <= 0) ? false : true;
+      opts.showDN = (showDN > 0) ? true : false;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)
@@ -2802,13 +2819,13 @@ XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
       if (erp) 
          erp->setErrInfo(ENOMEM, msg);
       else 
-         cerr <<msg <<endl;
+         std::cerr <<msg <<std::endl;
       return (XrdSecProtocol *)0;
    }
    //
    // We are done
    if (!erp)
-      cerr << "protocol object instantiated" << endl;
+      std::cerr << "protocol object instantiated" << std::endl;
    return prot;
 }}
 
@@ -3885,6 +3902,9 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    if (needReq || (hs->Options & kOptsFwdPxy)) {
       // Create a new proxy chain
       hs->PxyChain = new X509Chain();
+      // The new chain must be deleted if still in the handshake info
+      // when the info is destroyed
+      hs->Options |= kOptsDelPxy;
       // Add the current proxy
       if ((*ParseBucket)(bck, hs->PxyChain) > 1) {
          // Reorder it
@@ -3895,21 +3915,34 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
             XrdCryptoRSA *krPXp = 0;
             if ((*X509CreateProxyReq)(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
                // Save key in the cache
-               hs->Cref->buf4.buf = (char *)krPXp;
+               hs->Cref->buf4.len = krPXp->GetPrilen() + 1;
+               hs->Cref->buf4.buf = new char[hs->Cref->buf4.len];
+               if (krPXp->ExportPrivate(hs->Cref->buf4.buf, hs->Cref->buf4.len) != 0) {
+                  delete krPXp;
+                  delete rPXp;
+                  if (hs->PxyChain) hs->PxyChain->Cleanup();
+                  SafeDelete(hs->PxyChain);
+                  cmsg = "cannot export private key of the proxy request!";
+                  return -1;
+               }
                // Prepare export bucket for request
                XrdSutBucket *bckr = rPXp->Export();
                // Add it to the main list
                if ((*bm)->AddBucket(bckr) != 0) {
+                  if (hs->PxyChain) hs->PxyChain->Cleanup();
                   SafeDelete(hs->PxyChain);
                   NOTIFY("WARNING: proxy req: problem adding bucket to main buffer");
                }
+               delete krPXp;
                delete rPXp;
             } else {
+               if (hs->PxyChain) hs->PxyChain->Cleanup();
                SafeDelete(hs->PxyChain);
                NOTIFY("WARNING: proxy req: problem creating request");
             }
          }
       } else {
+         if (hs->PxyChain) hs->PxyChain->Cleanup();
          SafeDelete(hs->PxyChain);
          NOTIFY("WARNING: proxy req: wrong number of certificates");
       }
@@ -4020,8 +4053,12 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
          return 0;
       }
       // Set full PKI
-      XrdCryptoRSA *knpx = (XrdCryptoRSA *)(hs->Cref->buf4.buf);
-      npx->SetPKI((XrdCryptoX509data)(knpx->Opaque()));
+      XrdCryptoRSA *const knpx = npx->PKI();
+      if (!knpx || knpx->ImportPrivate(hs->Cref->buf4.buf, hs->Cref->buf4.len) != 0) {
+        delete npx;
+        cmsg = "could not import private key into signed request";
+        return 0;
+      }
       // Add the new proxy ecert to the chain
       pxyc->PushBack(npx);
    }
@@ -4554,8 +4591,9 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
       }
    } else {
       if (CACheck > caNoVerify) {
-         // Check self-signature
-         if (!(verified = cca->CheckCA()))
+         // Check self-signature and fail if needed
+         bool checkselfsigned = (CACheck > caVerifyss) ? true : false;
+         if (!(verified = cca->CheckCA(checkselfsigned)))
             PRINT("CA certificate self-signed: integrity check failed ("<<xc->SubjectHash()<<")");
       } else {
          // Set OK in any case
@@ -4852,7 +4890,7 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf, X509Chain 
    }
 
    // Add number of bits in key
-   if (pi->bits > 512) {
+   if (pi->bits != XrdCryptoDefRSABits) {
       cmd += " -bits ";
       cmd += pi->bits;
    }

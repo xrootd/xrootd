@@ -1,4 +1,4 @@
-.TH xrdfs 1 "__VERSION__"
+.TH xrdfs 1 "@XRootD_VERSION_STRING@"
 .SH NAME
 xrdfs - xrootd file and directory meta-data utility
 .SH SYNOPSIS
@@ -34,7 +34,7 @@ Modify permissions of the \fIpath\fR. Permission string example:
 .RS 3
 Get directory listing.
 .br
-\fI-l\fR stat every entry and pring long listing
+\fI-l\fR stat every entry and print long listing
 .br
 \fI-u\fR print paths as URLs
 .br
@@ -79,9 +79,9 @@ Creates a directory/tree of directories.
 Move path1 to path2 locally on the same server.
 
 .RE
-\fBstat\fR \fI<path>\fR
+\fBstat\fR \fI<path>\fR \fI[<paths>]\fR
 .RS 3
-Get info about the file or directory.
+Get info about the file(s) or directory(ies).
 .br
 \fI-q\fR \fB<flags>\fR Makes
 xrdfs return error code 55 to the shell if the
@@ -169,7 +169,7 @@ l - connection statistics
 
 
 .RE
-\fBrm\fR \fI<filename>\fR
+\fBrm\fR \fI<filename>\fR \fI[<filenames>]\fR
 .RS 3
 Remove a file.
 

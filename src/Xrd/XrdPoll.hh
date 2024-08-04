@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/poll.h>
+#include <poll.h>
 #include "XrdSys/XrdSysPthread.hh"
 
 #define XRD_NUMPOLLERS 3

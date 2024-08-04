@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+trap 'exit 1' TERM KILL INT QUIT ABRT
+
+: ${DOCKER:=$(command -v docker || command -v podman)}
+
+build() {
+	OS=${1:-centos7}
+	[[ -f xrootd.tar.gz ]] || package
+	[[ -f build/Dockerfile.${OS} ]] || die "unknwon OS: $OS"
+	${DOCKER} build -f build/Dockerfile.${OS} -t xrootd -t xrootd:${OS} .
+}
+
+
+buildx() {
+	OS=${1:-fedora}
+	ARCH=${2:-amd64}
+	ARCH=${ARCH/linux\/}
+	[[ -f xrootd.tar.gz ]] || package
+	[[ -f build/Dockerfile.${OS} ]] || die "unknwon OS: $OS"
+	${DOCKER} buildx build --platform linux/${ARCH} -f build/Dockerfile.${OS} -t xrootd:${OS}-${ARCH/\/} .
+}
+
+qemu() {
+	${DOCKER} run --rm --privileged multiarch/qemu-user-static --reset -p yes
+}
+
+clean() {
+	rm -f xrootd.tar.gz
+}
+
+die() {
+	echo "$(basename $BASH_ARGV0): error: $@"
+	exit 1
+}
+
+package() {
+	REPODIR=$(git rev-parse --show-toplevel)
+	VERSION=$(git describe ${1:-HEAD})
+	echo Creating tarball for XRootD ${VERSION}
+	pushd ${REPODIR} >/dev/null
+	git archive --prefix=xrootd/ -o xrootd.tar.gz ${1:-HEAD}
+	popd >/dev/null
+	mv ${REPODIR}/xrootd.tar.gz .
+}
+
+usage() {
+	echo $(basename $BASH_ARGV0) [COMMAND] [ARGS]
+	echo
+	echo COMMANDS:
+	echo
+	echo "  clean              -- remove tarball created by package command"
+	echo "  package [VERSION]  -- create xrootd.tar.gz tarball (VERSION=HEAD by default)"
+	echo "  build [OS]         -- build docker image based on OS: centos7 (default), alma8, alma9"
+	echo "  buildx [OS] [ARCH] -- cross-build docker image based on OS/ARCH pair. Supported architectures"
+	echo "                        are amd64, aarch64, ppc64le, s390x (big-endian). Default OS is fedora."
+	echo "                        You can see supported platforms with docker buildx inspect --bootstrap."
+	echo "  qemu               -- setup QEMU to be able to run cross-builds with buildx command."
+	echo
+	echo "  Note: The test suite runs automatically during the container builds"
+	echo
+}
+
+[[ $# == 0 ]] && usage && exit 0
+
+CMD=$1
+shift
+[[ $(type -t ${CMD}) == "function" ]] || die "unknown command: ${CMD}"
+cd $(dirname "${BASH_SOURCE[0]}") || die "cannot change directory"
+$CMD $@

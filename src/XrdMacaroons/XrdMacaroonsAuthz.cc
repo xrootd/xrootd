@@ -21,7 +21,7 @@ namespace {
 class AuthzCheck
 {
 public:
-    AuthzCheck(const char *req_path, const Access_Operation req_oper, ssize_t m_max_duration, XrdSysError &log);
+    AuthzCheck(const char *req_path, const Access_Operation req_oper, ssize_t max_duration, XrdSysError &log);
 
     const std::string &GetSecName() const {return m_sec_name;}
     const std::string &GetErrorMessage() const {return m_emsg;}

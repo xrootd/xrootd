@@ -159,6 +159,68 @@ XRootDStatus ConvertMode( Access::Mode &mode, const std::string &modeStr )
 }
 
 //------------------------------------------------------------------------------
+// Perform a cache operation
+//------------------------------------------------------------------------------
+XRootDStatus DoCache( FileSystem                      *fs,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs, 0,
+                                  "Wrong number of arguments." );
+  }
+
+  if( args[1] != "evict" && args[1] != "fevict")
+  {
+    log->Error( AppMsg, "Invalid cache operation." );
+    return XRootDStatus( stError, errInvalidArgs, 0, "Invalid cache operation." );
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, args[2] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid cache path." );
+    return XRootDStatus( stError, errInvalidArgs, 0, "Invalid cache path." );
+  }
+
+  //----------------------------------------------------------------------------
+  // Create the command 
+  //----------------------------------------------------------------------------
+  std::string cmd = args[1];
+  cmd.append(" ");
+  cmd.append(fullPath);
+
+  //----------------------------------------------------------------------------
+  // Run the operation
+  //----------------------------------------------------------------------------
+  Buffer *response = 0;
+  XRootDStatus st = fs->SendCache( cmd, response );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable set cache %s: %s",
+                        fullPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  if( response )
+  {
+    std::cout << response->ToString() << '\n';
+  }
+
+  delete response;
+
+  return XRootDStatus();
+}
+//------------------------------------------------------------------------------
 // Change current working directory
 //------------------------------------------------------------------------------
 XRootDStatus DoCD( FileSystem                      *fs,
@@ -639,9 +701,12 @@ XRootDStatus DoRm( FileSystem                      *fs,
   }
 
   //----------------------------------------------------------------------------
-  // Run the query
+  // Run the query:
+  // Parallel() will take the vector of Pipeline by reference and empty the
+  // vector, so rms.size() will change after the call.
   //----------------------------------------------------------------------------
-  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rms.size() ) );
+  const size_t rs = rms.size();
+  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rs ) );
   if( !st.IsOK() )
     return st;
 
@@ -880,7 +945,7 @@ XRootDStatus DoLocate( FileSystem                      *fs,
 //------------------------------------------------------------------------------
 // Process stat query
 //------------------------------------------------------------------------------
-XRootDStatus ProcessStatQuery( StatInfo *info, const std::string &query )
+XRootDStatus ProcessStatQuery( StatInfo &info, const std::string &query )
 {
   Log *log = DefaultEnv::GetLog();
 
@@ -927,13 +992,13 @@ XRootDStatus ProcessStatQuery( StatInfo *info, const std::string &query )
   if( isOrQuery )
   {
     for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-      if( info->TestFlags( flagMap[*it] ) )
+      if( info.TestFlags( flagMap[*it] ) )
         return XRootDStatus();
   }
   else
   {
     for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-      if( !info->TestFlags( flagMap[*it] ) )
+      if( !info.TestFlags( flagMap[*it] ) )
         return XRootDStatus( stError, errResponseNegative );
   }
 
@@ -955,13 +1020,13 @@ XRootDStatus DoStat( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc != 2 && argc != 4 )
+  if( argc < 2 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  std::string path;
+  std::vector<std::string> paths;
   std::string query;
 
   for( uint32_t i = 1; i < args.size(); ++i )
@@ -980,84 +1045,101 @@ XRootDStatus DoStat( FileSystem                      *fs,
       }
     }
     else
-      path = args[i];
+      paths.emplace_back( args[i] );
   }
 
-  std::string fullPath;
-  if( !BuildPath( fullPath, env, path ).IsOK() )
+  std::vector<XrdCl::Pipeline> stats;
+  std::vector<std::tuple<std::future<StatInfo>, std::string>> results;
+  for( auto &path : paths )
   {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
+    std::string fullPath;
+    if( !BuildPath( fullPath, env, path ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid path." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    std::future<XrdCl::StatInfo> ftr;
+    stats.emplace_back( XrdCl::Stat( fs, fullPath ) >> ftr );
+    results.emplace_back( std::move( ftr ), std::move( fullPath ) );
   }
 
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  StatInfo *info = 0;
-  XRootDStatus st = fs->Stat( fullPath, info );
-
-  if( !st.IsOK() )
-  {
-    log->Error( AppMsg, "Unable stat %s: %s",
-                        fullPath.c_str(),
-                        st.ToStr().c_str() );
-    return st;
-  }
+  XrdCl::Async( XrdCl::Parallel( stats ) );
 
   //----------------------------------------------------------------------------
   // Print the result
   //----------------------------------------------------------------------------
-  std::string flags;
-
-  if( info->TestFlags( StatInfo::XBitSet ) )
-    flags += "XBitSet|";
-  if( info->TestFlags( StatInfo::IsDir ) )
-    flags += "IsDir|";
-  if( info->TestFlags( StatInfo::Other ) )
-    flags += "Other|";
-  if( info->TestFlags( StatInfo::Offline ) )
-    flags += "Offline|";
-  if( info->TestFlags( StatInfo::POSCPending ) )
-    flags += "POSCPending|";
-  if( info->TestFlags( StatInfo::IsReadable ) )
-    flags += "IsReadable|";
-  if( info->TestFlags( StatInfo::IsWritable ) )
-    flags += "IsWritable|";
-  if( info->TestFlags( StatInfo::BackUpExists ) )
-    flags += "BackUpExists|";
-
-  if( !flags.empty() )
-    flags.erase( flags.length()-1, 1 );
-
-  std::cout <<   "Path:   " << fullPath << std::endl;
-  std::cout <<   "Id:     " << info->GetId() << std::endl;
-  std::cout <<   "Size:   " << info->GetSize() << std::endl;
-  std::cout <<   "MTime:  " << info->GetModTimeAsString() << std::endl;
-  // if extended stat information is available we can print also
-  // change time and access time
-  if( info->ExtendedFormat() )
+  XrdCl::XRootDStatus st;
+  for( auto &tpl : results )
   {
-    std::cout << "CTime:  " << info->GetChangeTimeAsString() << std::endl;
-    std::cout << "ATime:  " << info->GetAccessTimeAsString() << std::endl;
-  }
-  std::cout << "Flags:  " << info->GetFlags() << " (" << flags << ")";
+    auto &ftr      = std::get<0>( tpl );
+    auto &fullPath = std::get<1>( tpl );
+    std::cout << std::endl;
+    try
+    {
+      XrdCl::StatInfo info( ftr.get() );
+      std::string flags;
 
-  // check if extended stat information is available
-  if( info->ExtendedFormat() )
-  {
-    std::cout << "\nMode:   " << info->GetModeAsString() << std::endl;
-    std::cout << "Owner:  " << info->GetOwner() << std::endl;
-    std::cout << "Group:  " << info->GetGroup();
+      if( info.TestFlags( StatInfo::XBitSet ) )
+        flags += "XBitSet|";
+      if( info.TestFlags( StatInfo::IsDir ) )
+        flags += "IsDir|";
+      if( info.TestFlags( StatInfo::Other ) )
+        flags += "Other|";
+      if( info.TestFlags( StatInfo::Offline ) )
+        flags += "Offline|";
+      if( info.TestFlags( StatInfo::POSCPending ) )
+        flags += "POSCPending|";
+      if( info.TestFlags( StatInfo::IsReadable ) )
+        flags += "IsReadable|";
+      if( info.TestFlags( StatInfo::IsWritable ) )
+        flags += "IsWritable|";
+      if( info.TestFlags( StatInfo::BackUpExists ) )
+        flags += "BackUpExists|";
+
+      if( !flags.empty() )
+        flags.erase( flags.length()-1, 1 );
+
+      std::cout <<   "Path:   " << fullPath << std::endl;
+      std::cout <<   "Id:     " << info.GetId() << std::endl;
+      std::cout <<   "Size:   " << info.GetSize() << std::endl;
+      std::cout <<   "MTime:  " << info.GetModTimeAsString() << std::endl;
+      // if extended stat information is available we can print also
+      // change time and access time
+      if( info.ExtendedFormat() )
+      {
+        std::cout << "CTime:  " << info.GetChangeTimeAsString() << std::endl;
+        std::cout << "ATime:  " << info.GetAccessTimeAsString() << std::endl;
+      }
+      std::cout << "Flags:  " << info.GetFlags() << " (" << flags << ")";
+
+      // check if extended stat information is available
+      if( info.ExtendedFormat() )
+      {
+        std::cout << "\nMode:   " << info.GetModeAsString() << std::endl;
+        std::cout << "Owner:  " << info.GetOwner() << std::endl;
+        std::cout << "Group:  " << info.GetGroup();
+      }
+
+      std::cout << std::endl;
+
+      if( query.length() != 0 )
+      {
+        XRootDStatus s = ProcessStatQuery( info, query );
+        if( !s.IsOK() )
+          st = s;
+        std::cout << "Query:  " << query << " " << std::endl;
+      }
+    }
+    catch( XrdCl::PipelineException &ex )
+    {
+      st = ex.GetError();
+      log->Error( AppMsg, "Unable stat %s: %s", fullPath.c_str(), st.ToStr().c_str() );
+    }
   }
 
-  std::cout << std::endl;
-  if( query.length() != 0 )
-  {
-    st = ProcessStatQuery( info, query );
-    std::cout << "Query:  " << query << " " << std::endl;
-  }
-
-  delete info;
   return st;
 }
 
@@ -1858,6 +1940,11 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   help\n"                                                         );
   printf( "     This help screen.\n\n"                                        );
 
+  printf( "   cache {evict | fevict} <path>\n"                                );
+  printf( "     Evict a file from a cache if not in use; while fevict\n"      );
+  printf( "     focibly evicts the file causing any current uses of the\n"    );
+  printf( "     file to get read failures on a subsequent read\n\n"           );
+
   printf( "   cd <path>\n"                                                    );
   printf( "     Change the current working directory\n\n"                     );
 
@@ -1991,6 +2078,7 @@ FSExecutor *CreateExecutor( const URL &url )
   Env *env = new Env();
   env->PutString( "CWD", "/" );
   FSExecutor *executor = new FSExecutor( url, env );
+  executor->AddCommand( "cache",       DoCache      );
   executor->AddCommand( "cd",          DoCD         );
   executor->AddCommand( "chmod",       DoChMod      );
   executor->AddCommand( "ls",          DoLS         );

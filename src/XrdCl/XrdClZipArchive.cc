@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClUtils.hh"
 #include "XrdZip/XrdZipZIP64EOCDL.hh"
 
 #include <sys/stat.h>
@@ -499,7 +500,7 @@ namespace XrdCl
     {
       // the file does not exist in the archive so it only makes sense
       // if our user is opening for append
-      if( flags | OpenFlags::New )
+      if( flags & OpenFlags::New )
       {
         openfn = fn;
         lfh.reset( new LFH( fn, crc32, size, time( 0 ) ) );
@@ -626,10 +627,18 @@ namespace XrdCl
       }
 
       auto wrtbuff = std::make_shared<buffer_t>( GetCD() );
-      chunks.emplace_back( cdoff, wrtbuff->size(), wrtbuff->data() );
+      Pipeline p = XrdCl::Write( archive, cdoff,
+                                 wrtbuff->size(),
+                                 wrtbuff->data() );
       wrtbufs.emplace_back( std::move( wrtbuff ) );
 
-      Pipeline p = XrdCl::VectorWrite( archive, chunks );
+      std::vector<ChunkList> listsvec;
+      XrdCl::Utils::SplitChunks( listsvec, chunks, 262144, 1024 );
+
+      for(auto itr = listsvec.rbegin(); itr != listsvec.rend(); ++itr)
+      {
+        p = XrdCl::VectorWrite( archive, *itr ) | p;
+      }
       if( ckpinit )
         p       |= XrdCl::Checkpoint( archive, ChkPtCode::COMMIT );
       p         |= Close( archive ) >>

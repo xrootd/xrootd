@@ -31,6 +31,7 @@
 
 // Include stdlib so that ENDIAN macros are defined properly
 //
+#include <cstdint>
 #include <cstdlib>
 
 #ifdef __linux__
@@ -46,6 +47,7 @@
 #include <AvailabilityMacros.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <libkern/OSByteOrder.h>
 #define fdatasync(x) fsync(x)
 #define MAXNAMELEN NAME_MAX
 #ifndef dirent64
@@ -65,12 +67,18 @@
 #if defined(__FreeBSD__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 #include <sys/types.h>
 #include <sys/param.h>
+#if defined(__FreeBSD__)
+#include <sys/endian.h>
+#else
+#include <byteswap.h>
+#endif
 #define MAXNAMELEN NAME_MAX
 #endif
 
 #ifdef __GNU__
 #include <sys/types.h>
 #include <sys/param.h>
+#include <byteswap.h>
 // These are undefined on purpose in GNU/Hurd.
 // The values below are the ones used in Linux.
 // The proper fix is to rewrite the code to not use hardcoded values,
@@ -152,6 +160,22 @@ typedef off_t offset_t;
 #define	O_LARGEFILE 0
 typedef off_t off64_t;
 #endif
+
+#if defined(__APPLE__)
+#define bswap_16 OSSwapInt16
+#define bswap_32 OSSwapInt32
+#define bswap_64 OSSwapInt64
+#endif
+
+#if defined(__FreeBSD__)
+#define bswap_16 bswap16
+#define bswap_32 bswap32
+#define bswap_64 bswap64
+#endif
+
+static inline uint16_t bswap(uint16_t x) { return bswap_16(x); }
+static inline uint32_t bswap(uint32_t x) { return bswap_32(x); }
+static inline uint64_t bswap(uint64_t x) { return bswap_64(x); }
 
 // Only sparc platforms have structure alignment problems w/ optimization
 // so the h2xxx() variants are used when converting network streams.
@@ -241,16 +265,8 @@ extern "C"
 #if defined(_AIX) || \
    (defined(XR__SUNGCC3) && !defined(__arch64__))
 #   define SOCKLEN_t size_t
-#elif defined(XR__GLIBC) || \
-   defined(__FreeBSD__) || \
-   (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) || \
-   (defined(XR__SUNGCC3) && defined(__arch64__)) || defined(__APPLE__) || \
-   (defined(__sun) && defined(_SOCKLEN_T))
-#   ifndef SOCKLEN_t
-#      define SOCKLEN_t socklen_t
-#   endif
 #elif !defined(SOCKLEN_t)
-#   define SOCKLEN_t int
+#   define SOCKLEN_t socklen_t
 #endif
 
 #ifdef _LP64

@@ -39,6 +39,9 @@
     the entity object, if a stacked plugin exists; unless you return false.
 */
 
+class XrdOucErrInfo;
+class XrdSecEntity;
+
 class XrdSecEntityPin
 {
 public:

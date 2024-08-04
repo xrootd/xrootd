@@ -124,7 +124,7 @@ namespace PyXRootD
     //--------------------------------------------------------------------------
     // Raise StopIteration if the line we just read is empty
     //--------------------------------------------------------------------------
-    if ( PyBytes_Size( line ) == 0 ) {
+    if ( PyUnicode_GET_LENGTH( line ) == 0 ) {
       PyErr_SetNone( PyExc_StopIteration );
       return NULL;
     }

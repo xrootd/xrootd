@@ -33,6 +33,7 @@
 #include <cstdlib>
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucString.hh"
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -92,7 +93,76 @@ char *XrdOucEnv::Delimit(char *value)
                       else value++;
      return (char *)0;
 }
+
+/******************************************************************************/
+/* Private:                 E n v B u i l d T i d y                           */
+/******************************************************************************/
+  
+#define TIDY_ENVVAR " Xrd Ouc Env "
+
+void XrdOucEnv::EnvBuildTidy()
+{
+   char *tidyEnv, *authInfo;
+   int aBeg, aEnd;
+
+// We need to sanitize the current env string by removing auth info. If there
+// is no auth informationn, then we can short cicuit this.
+//
+   if ((authInfo = strstr(global_env, "authz=")) == 0)
+      {Put(TIDY_ENVVAR, "");
+       return;
+      }
+
+// Get position of the auth string and check if we can do a fast deletion.
+// Otherwise, we must trudge along.
+//
+   aBeg = authInfo - global_env;
+   if (aBeg && global_env[aBeg-1] == '&') aBeg--;
+   if (!(tidyEnv = index(authInfo+6, '&')))
+      {char aSave = global_env[aBeg];
+       global_env[aBeg] = 0;
+       Put(TIDY_ENVVAR, global_env);
+       global_env[aBeg] = aSave;
+      } else {
+       XrdOucString tidyStr(global_env);
+       do{if ((aEnd = tidyStr.find('&', aBeg+6)) == STR_NPOS)
+             {tidyStr.erase(aBeg);
+              break;
+             }
+          tidyStr.erase(aBeg, aEnd-aBeg);
+         } while((aBeg = tidyStr.find("&authz=")) != STR_NPOS);
+       Put(TIDY_ENVVAR, tidyStr.c_str());
+      }
+}
  
+/******************************************************************************/
+/*                               E n v T i d y                                */
+/******************************************************************************/
+
+char *XrdOucEnv::EnvTidy(int &envlen)
+{
+   char *tidyEnv;
+   int tries = 1;
+
+// Check if there is no env
+//
+   if ((envlen = global_len) == 0 || global_env == 0) return 0;
+
+// Check if we have produced a tidy version. If noo build one and try again.
+//
+do{if ((tidyEnv = Get(TIDY_ENVVAR)))
+      {if (*tidyEnv == 0) break;
+       envlen = strlen(tidyEnv);
+       return tidyEnv;
+      }
+   EnvBuildTidy();
+  } while(tries--);
+
+// Return standard env
+//
+   return Env(envlen);
+}
+  
 /******************************************************************************/
 /*                                E x p o r t                                 */
 /******************************************************************************/

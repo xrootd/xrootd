@@ -31,10 +31,13 @@
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-#include <cstdint>
-
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+
+#include <cstdint>
+#include <sys/types.h>
+
+class XrdOucECMsg;
 
 class XrdPosixMap
 {
@@ -45,7 +48,7 @@ static mode_t              Flags2Mode(dev_t *rdv, uint32_t flags);
 static XrdCl::Access::Mode Mode2Access(mode_t mode);
 
 static int                 Result(const XrdCl::XRootDStatus &Status,
-                                  bool retneg1=false);
+                                  XrdOucECMsg& ecMsg, bool retneg1=false);
 
 static void                SetDebug(bool dbg) {Debug = dbg;}
 

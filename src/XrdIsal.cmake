@@ -1,57 +1,46 @@
-include( XRootDCommon )
-include( ExternalProject )
+if(USE_SYSTEM_ISAL)
+  find_package(isal REQUIRED)
+endif()
+
+if(ISAL_FOUND)
+  return()
+endif()
 
 #-------------------------------------------------------------------------------
 # Build isa-l
 #-------------------------------------------------------------------------------
 
-set(MAKEOPTIONS "")
-if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i386" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i686")
-    set(MAKEOPTIONS "arch=32")
-endif()
+include(ExternalProject)
+include(FindPackageHandleStandardArgs)
 
-#EXECUTE_PROCESS(
-#     COMMAND git ls-remote --tags https://github.com/01org/isa-l
-#     COMMAND awk "{print $2}"
-#     COMMAND grep -v {}
-#     COMMAND awk -F "/" "{print $3}"
-#     COMMAND tail -1 
-#     OUTPUT_VARIABLE ISAL_VERSION
-#)
+set(ISAL_VERSION v2.30.0)
+message(STATUS "Building ISAL: ${ISAL_VERSION}")
 
-set( ISAL_VERSION v2.30.0 )
-MESSAGE( STATUS "Building ISAL: ${ISAL_VERSION}" )
+set(ISAL_ROOT "${CMAKE_BINARY_DIR}/isa-l")
+set(ISAL_LIBRARY "${ISAL_ROOT}/.libs/libisal.a")
+set(ISAL_INCLUDE_DIRS "${ISAL_ROOT}")
 
-set( ISAL_BUILDDIR "${CMAKE_BINARY_DIR}/isal/build" CACHE INTERNAL "" )
-set( ISAL_INCDIR   "${CMAKE_BINARY_DIR}/isal/include" CACHE INTERNAL "" )
-set( ISAL_LIBDIR   "${CMAKE_BINARY_DIR}/isal/lib" CACHE INTERNAL "" )
-
-set( ISAL_HEADERS 
-	 ${ISAL_BUILDDIR}/include/crc64.h  
-	 ${ISAL_BUILDDIR}/include/crc.h  
-	 ${ISAL_BUILDDIR}/include/erasure_code.h  
-	 ${ISAL_BUILDDIR}/include/gf_vect_mul.h  
-	 ${ISAL_BUILDDIR}/include/igzip_lib.h  
-	 ${ISAL_BUILDDIR}/include/mem_routines.h  
-	 ${ISAL_BUILDDIR}/include/multibinary.asm  
-	 ${ISAL_BUILDDIR}/include/raid.h  
-	 ${ISAL_BUILDDIR}/include/reg_sizes.asm  
-	 ${ISAL_BUILDDIR}/include/test.h  
-	 ${ISAL_BUILDDIR}/include/types.h
+ExternalProject_add(isa-l
+  URL https://github.com/intel/isa-l/archive/refs/tags/${ISAL_VERSION}.tar.gz
+  URL_HASH SHA256=bcf592c04fdfa19e723d2adf53d3e0f4efd5b956bb618fed54a1108d76a6eb56
+  SOURCE_DIR        ${CMAKE_BINARY_DIR}/isa-l
+  BUILD_IN_SOURCE   1
+  CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --with-pic
+  BUILD_COMMAND     make -j ${CMAKE_BUILD_PARALLEL_LEVEL}
+  INSTALL_COMMAND   ${CMAKE_COMMAND} -E copy_directory ${ISAL_ROOT}/include ${ISAL_ROOT}/isa-l
+  BUILD_BYPRODUCTS  ${ISAL_LIBRARY} ${ISAL_INCLUDE_DIRS}
+  LOG_DOWNLOAD 1 LOG_CONFIGURE 1 LOG_BUILD 1 LOG_INSTALL 1
 )
 
-ExternalProject_add(
-        isa-l
-        SOURCE_DIR          ${ISAL_BUILDDIR}
-        BUILD_IN_SOURCE     1
-        GIT_REPOSITORY      https://github.com/01org/isa-l.git
-        GIT_TAG             ${ISAL_VERSION}
-        CONFIGURE_COMMAND   ./autogen.sh COMMAND ./configure --with-pic
-        BUILD_COMMAND       make ${MAKEOPTIONS}
-        INSTALL_COMMAND     mkdir -p  ${ISAL_INCDIR}/isa-l
-        COMMAND             mkdir -p  ${ISAL_LIBDIR}
-        COMMAND             cp ${ISAL_HEADERS}                  ${ISAL_INCDIR}/isa-l
-        COMMAND             cp ${ISAL_BUILDDIR}/isa-l.h         ${ISAL_INCDIR}/isa-l
-        COMMAND             cp ${ISAL_BUILDDIR}/.libs/libisal.a ${ISAL_LIBDIR}/
-)
+add_library(isal INTERFACE)
+add_dependencies(isal isa-l)
 
+target_link_libraries(isal INTERFACE $<BUILD_INTERFACE:${ISAL_LIBRARY}>)
+target_include_directories(isal INTERFACE $<BUILD_INTERFACE:${ISAL_INCLUDE_DIRS}>)
+
+set(ISAL_LIBRARIES isal CACHE INTERNAL "" FORCE)
+set(ISAL_INCLUDE_DIRS ${ISAL_INCLUDE_DIRS} CACHE INTERNAL "" FORCE)
+
+# Emulate what happens when find_package(isal) succeeds
+find_package_handle_standard_args(isal
+  REQUIRED_VARS ISAL_INCLUDE_DIRS ISAL_LIBRARIES VERSION_VAR ISAL_VERSION)

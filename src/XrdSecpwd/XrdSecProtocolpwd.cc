@@ -58,7 +58,7 @@
 /*                 T r a c i n g  I n i t  O p t i o n s                      */
 /******************************************************************************/
 #ifndef NODEBUG
-#define POPTS(t,y)    {if (t) {t->Beg(epname); cerr <<y; t->End();}}
+#define POPTS(t,y)    {if (t) {t->Beg(epname); std::cerr <<y; t->End();}}
 #else
 #define POPTS(t,y)
 #endif
@@ -1916,13 +1916,13 @@ XrdSecProtocol *XrdSecProtocolpwdObject(const char              mode,
       if (erp) 
          erp->setErrInfo(ENOMEM, msg);
       else 
-         cerr <<msg <<endl;
+         std::cerr <<msg <<std::endl;
       return (XrdSecProtocol *)0;
    }
    //
    // We are done
    if (!erp)
-      cerr << "protocol object instantiated" << endl;
+      std::cerr << "protocol object instantiated" << std::endl;
    return prot;
 }}
 

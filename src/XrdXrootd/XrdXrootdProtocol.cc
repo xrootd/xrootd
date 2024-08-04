@@ -113,6 +113,8 @@ XrdNetSocket         *XrdXrootdProtocol::AdminSock= 0;
 int                   XrdXrootdProtocol::hcMax        = 28657; // const for now
 int                   XrdXrootdProtocol::maxBuffsz;
 int                   XrdXrootdProtocol::maxTransz    = 262144; // 256KB
+int                   XrdXrootdProtocol::maxReadv_ior =
+                      XrdXrootdProtocol::maxTransz-(int)sizeof(readahead_list);
 int                   XrdXrootdProtocol::as_maxperlnk = 8;   // Max ops per link
 int                   XrdXrootdProtocol::as_maxperreq = 8;   // Max ops per request
 int                   XrdXrootdProtocol::as_maxpersrv = 4096;// Max ops per server
@@ -796,8 +798,8 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
 
 // Format the default response: <devid> <size> <flags> <mtime>
 //
-   m = snprintf(xxBuff, xxLen, "%lld %lld %d %ld",
-                Dev.uuid, fsz, flags, buf.st_mtime);
+   m = snprintf(xxBuff, xxLen, "%lld %lld %d %lld",
+                Dev.uuid, fsz, flags, (long long) buf.st_mtime);
 // if (!xtnd || m >= xxLen) return xxLen;
 //
 
@@ -806,8 +808,9 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
    char *origP = xxBuff;
    char *nullP = xxBuff + m++;
    xxBuff += m; xxLen -= m;
-   n = snprintf(xxBuff, xxLen, "%ld %ld %04o ",
-                buf.st_ctime, buf.st_atime, buf.st_mode&07777);
+   n = snprintf(xxBuff, xxLen, "%lld %lld %04o ",
+                (long long) buf.st_ctime, (long long) buf.st_atime,
+                buf.st_mode&07777);
    if (n >= xxLen) return m;
    xxBuff += n; xxLen -= n;
 
@@ -1501,7 +1504,7 @@ void XrdXrootdProtocol::Reset()
    doTLS              = tlsNot; // Assume client is not capable. This will be
    ableTLS            = false;  // resolved during the kXR_protocol interchange.
    isTLS              = false;  // Made true when link converted to TLS
-   linkAioReq         = {0};
+   linkAioReq         = 0;
    pioFree = pioFirst = pioLast = 0;
    isActive = isLinkWT= isNOP = isDead = false;
    sigNeed = sigHere = sigRead = false;

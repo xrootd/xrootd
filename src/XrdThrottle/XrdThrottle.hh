@@ -135,7 +135,7 @@ private:
 class FileSystem : public XrdSfsFileSystem
 {
 
-friend XrdSfsFileSystem * XrdSfsGetFileSystem_Internal(XrdSfsFileSystem *, XrdSysLogger *, const char *);
+friend XrdSfsFileSystem * XrdSfsGetFileSystem_Internal(XrdSfsFileSystem *, XrdSysLogger *, const char *, XrdOucEnv *);
 
 public:
 
@@ -260,14 +260,15 @@ public:
             const char             *opaque = 0);
 
    virtual int
-   Configure(XrdSysError &, XrdSfsFileSystem *native_fs);
+   Configure(XrdSysError &, XrdSfsFileSystem *native_fs, XrdOucEnv *envP);
 
 private:
    static void
    Initialize(      FileSystem      *&fs,
                     XrdSfsFileSystem *native_fs,
                     XrdSysLogger     *lp,
-              const char             *config_file);
+              const char             *config_file,
+                    XrdOucEnv        *envP);
 
    FileSystem();
 

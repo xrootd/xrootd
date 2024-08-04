@@ -929,7 +929,7 @@ namespace XrdEc
 			}
 
 			blockMap[blkid]->state[strpid] = block_t::Loading;
-			XrdCl::StatInfo* info;
+			XrdCl::StatInfo* info = nullptr;
 			if(dataarchs[url]->Stat(objcfg.GetFileName(blkid, strpid), info).IsOK())
 				blockMap[blkid]->stripes[strpid].resize( info ->GetSize() );
 

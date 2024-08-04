@@ -215,6 +215,6 @@ const char *XrdSsiLogger::TBeg() {return Logger->traceBeg();}
   
 void XrdSsiLogger::TEnd()
 {
-   cerr <<endl;
+   std::cerr <<std::endl;
    Logger->traceEnd();
 }

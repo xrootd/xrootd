@@ -828,7 +828,8 @@ bool XrdOfsConfigPI::SetupAuth(XrdOucEnv *envP)
                           (XrdSysLogger   *lp,    const char   *cfn,
                            const char     *parm,  XrdVersionInfo &vInfo);
 
-   XrdAccAuthorizeObject_t ep;
+   XrdAccAuthorizeObject_t  ep1;
+   XrdAccAuthorizeObject2_t ep2;
    char *AuthLib   = LP[PIX(theAutLib)].lib;
    char *AuthParms = LP[PIX(theAutLib)].parms;
 
@@ -841,18 +842,24 @@ bool XrdOfsConfigPI::SetupAuth(XrdOucEnv *envP)
        return AddLibAut(envP);
       }
 
-// Create a plugin object
+// Create a plugin object. It will be version 2 or version 1, in that order
 //
   {XrdOucPinLoader myLib(Eroute, urVer, "authlib", AuthLib);
-   ep = (XrdAccAuthorizeObject_t)(myLib.Resolve("XrdAccAuthorizeObject"));
-   if (!ep) return false;
+   ep2 = (XrdAccAuthorizeObject2_t)(myLib.Resolve("XrdAccAuthorizeObject2"));
+   if (!ep2)
+      {ep1 = (XrdAccAuthorizeObject_t)(myLib.Resolve("XrdAccAuthorizeObject"));
+       if (!ep1) return false;
+       if (!(autPI = ep1(Eroute->logger(), ConfigFN, AuthParms))) return false;
+      } else {
+       if (!(autPI = ep2(Eroute->logger(), ConfigFN, AuthParms, envP)))
+          return false;
+      }
    if (strcmp(AuthLib, myLib.Path()))
       {free(AuthLib); AuthLib = LP[PIX(theAutLib)].lib = strdup(myLib.Path());}
   }
 
-// Get the Object now
+// Process additional wrapper objects now
 //
-   if (!(autPI = ep(Eroute->logger(), ConfigFN, AuthParms))) return false;
    return AddLibAut(envP);
 }
 

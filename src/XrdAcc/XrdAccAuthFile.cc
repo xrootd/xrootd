@@ -157,9 +157,11 @@ char XrdAccAuthFile::getID(char **id)
        return 0;
       }
 
-// Id's are of the form 'c:', make sure we have that (don't validate it)
+// Id's are of the form 'c', but historically they were 'c:' so we accept a
+// two character specification but only validate the first to be backward
+// compatible.
 //
-   if (strlen(pp) != 2 || !index("ghoru", *pp))
+   if (strlen(pp) > 2 || !index("ghoru", *pp))
       {Eroute->Emsg("AuthFile", "Invalid ID sprecifier -", pp);
        flags = (DBflags)(flags | dbError);
        return 0;

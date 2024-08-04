@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 //
    if (opts.host)
       {if ((eText = theAddr.Set(opts.host,0)))
-          {cerr <<"testServer: Unable to resolve '" <<opts.host <<"'; " <<eText <<endl;
+          {std::cerr <<"testServer: Unable to resolve '" <<opts.host <<"'; " <<eText <<std::endl;
            exit(1);
           }
       }
@@ -133,13 +133,13 @@ int main(int argc, char **argv)
 //
    ServerSecurity = XrdSecgetService(&Logger, opts.cfn);
    if (!ServerSecurity) 
-      {cerr <<"testServer: Unable to create server." <<endl; exit(1);}
+      {std::cerr <<"testServer: Unable to create server." <<std::endl; exit(1);}
 
 // Get the security token and display it
 //
    const char *sect = ServerSecurity->getParms(i, opts.host);
-   if (!sect) cerr <<"testServer: No security token for " <<opts.host <<endl;
-      else cerr <<"testServer: " <<i <<" bytes of SecToken='" <<sect <<"'" <<endl;
+   if (!sect) std::cerr <<"testServer: No security token for " <<opts.host <<std::endl;
+      else std::cerr <<"testServer: " <<i <<" bytes of SecToken='" <<sect <<"'" <<std::endl;
 
 //Get the credentials from whatever source was specified
 //
@@ -159,8 +159,8 @@ int main(int argc, char **argv)
                                           (const XrdSecCredentials *)&cred,
                                           &einfo)))
       {rc = einfo.getErrInfo();
-       cerr << "testServer: getProtocol error " <<rc <<"; ";
-       cerr  <<einfo.getErrText() <<endl;
+       std::cerr << "testServer: getProtocol error " <<rc <<"; ";
+       std::cerr  <<einfo.getErrText() <<std::endl;
        exit(1);
       }
 
@@ -168,16 +168,16 @@ int main(int argc, char **argv)
 //
    if (pp->Authenticate(&cred, &parmp, &einfo) < 0)
       {rc = einfo.getErrInfo();
-       cerr << "testServer: Authenticate error " <<rc <<"; ";
-       cerr  <<einfo.getErrText() <<endl;
+       std::cerr << "testServer: Authenticate error " <<rc <<"; ";
+       std::cerr  <<einfo.getErrText() <<std::endl;
        exit(1);
       }
 
 // Tell everyone what the client identity is.
 //
-      cout <<(pp->Entity.name ? pp->Entity.name : "?")
+      std::cout <<(pp->Entity.name ? pp->Entity.name : "?")
            <<"@" <<(pp->Entity.host ? pp->Entity.host : "?")
-           <<" prot=" <<pp->Entity.prot <<endl;
+           <<" prot=" <<pp->Entity.prot <<std::endl;
 
 // All done
 //
@@ -307,7 +307,7 @@ void xerr(int x) { emsg(8, errbuff); }
 /*emsg: print message on standard error.
 */
 int emsg(int rc,char *msg) {
-    cerr << "testServer: " <<msg <<endl;
+    std::cerr << "testServer: " <<msg <<std::endl;
     if (!rc) return 0;
     exit(rc);
     }

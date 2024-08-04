@@ -18,7 +18,8 @@ define_default( LIBRARY_PATH_PREFIX "lib" )
 #-------------------------------------------------------------------------------
 # Enable c++14
 #-------------------------------------------------------------------------------
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Standard")
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 if( ENABLE_ASAN )
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fsanitize=address")
@@ -50,14 +51,9 @@ if( CMAKE_COMPILER_IS_GNUCXX )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror" )
   endif()
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
-  # gcc 4.1 is retarded
+
   execute_process( COMMAND ${CMAKE_C_COMPILER} -dumpversion
                    OUTPUT_VARIABLE GCC_VERSION )
-  if( (GCC_VERSION VERSION_GREATER 4.1 OR GCC_VERSION VERSION_EQUAL 4.1)
-      AND GCC_VERSION VERSION_LESS 4.2 )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-strict-aliasing" )
-  endif()
-
   if( GCC_VERSION VERSION_GREATER 4.8.0 )
   	set( XrdClPipelines TRUE )
   endif()
@@ -70,6 +66,21 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
   set( LINUX TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
+
+  # Check for musl libc with the compiler, since it provides way to detect it
+  execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpmachine
+    OUTPUT_VARIABLE TARGET_TRIPLE ERROR_VARIABLE TARGET_ERROR)
+
+  if (NOT TARGET_ERROR)
+    if ("${TARGET_TRIPLE}" MATCHES "musl")
+      message(STATUS "Detected musl libc")
+      add_definitions(-DMUSL=1)
+    endif()
+  else()
+    message(WARNING "Could not detect system information!")
+  endif()
+
+  unset(TARGET_ERROR)
 endif()
 
 #-------------------------------------------------------------------------------
@@ -97,9 +108,9 @@ if( APPLE )
   set( MacOSX TRUE )
   set( XrdClPipelines TRUE )
   
-  if( NOT DEFINED CMAKE_MACOSX_RPATH )
-    set( CMAKE_MACOSX_RPATH 1 )
-  endif()
+  set(CMAKE_MACOSX_RPATH TRUE)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
 
   # this is here because of Apple deprecating openssl and krb5
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )

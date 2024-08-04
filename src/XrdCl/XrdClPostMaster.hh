@@ -153,6 +153,11 @@ namespace XrdCl
       Status ForceDisconnect( const URL &url );
 
       //------------------------------------------------------------------------
+      //! Reconnect the channel
+      //------------------------------------------------------------------------
+      Status ForceReconnect( const URL &url );
+
+      //------------------------------------------------------------------------
       //! Get the number of connected data streams
       //------------------------------------------------------------------------
       uint16_t NbConnectedStrm( const URL &url );

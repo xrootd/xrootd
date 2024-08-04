@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -50,6 +49,7 @@ XrdSsi/XrdSsiUtils.cc                  XrdSsi/XrdSsiUtils.hh)
 
 target_link_libraries(
   XrdSsiLib
+  PRIVATE
   XrdCl
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT} )
@@ -58,8 +58,7 @@ set_target_properties(
   XrdSsiLib
   PROPERTIES
   VERSION   ${XRD_SSI_LIB_VERSION}
-  SOVERSION ${XRD_SSI_LIB_SOVERSION}
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_SSI_LIB_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # The XrdSsiShMap library
@@ -73,16 +72,16 @@ XrdSsi/XrdSsiShMat.cc                  XrdSsi/XrdSsiShMat.hh)
 
 target_link_libraries(
   XrdSsiShMap
+  PRIVATE
   XrdUtils
-  ${ZLIB_LIBRARIES}
+  ZLIB::ZLIB
   ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
   XrdSsiShMap
   PROPERTIES
   VERSION   ${XRD_SSI_SHMAP_VERSION}
-  SOVERSION ${XRD_SSI_SHMAP_SOVERSION}
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_SSI_SHMAP_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # The XrdSsi plugin
@@ -101,15 +100,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SSI}
+  PRIVATE
   XrdSsiLib
   XrdUtils
   XrdServer )
-
-set_target_properties(
-  ${LIB_XRD_SSI}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdSsiLog plugin
@@ -122,15 +116,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SSILOG}
+  PRIVATE
   XrdSsiLib
   XrdUtils
   XrdServer )
-
-set_target_properties(
-  ${LIB_XRD_SSILOG}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

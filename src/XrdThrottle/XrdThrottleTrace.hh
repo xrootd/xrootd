@@ -24,11 +24,11 @@
 
 #define TRACE(act, x) \
    if (XRD_TRACE What & TRACE_ ## act) \
-      {XRD_TRACE Beg(TraceID);   cerr <<x; XRD_TRACE End();}
+      {XRD_TRACE Beg(TraceID);   std::cerr <<x; XRD_TRACE End();}
 
 #define TRACEI(act, x) \
    if (XRD_TRACE What & TRACE_ ## act) \
-      {XRD_TRACE Beg(TraceID,TRACELINK->ID); cerr <<x; \
+      {XRD_TRACE Beg(TraceID,TRACELINK->ID); std::cerr <<x; \
        XRD_TRACE End();}
 
 #define TRACING(x) XRD_TRACE What & x

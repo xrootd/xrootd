@@ -63,8 +63,8 @@ int inList(const char *var, const char **Vec)
   
 void Usage(int rc)
 {
-   cerr <<"\n Usage: cconfig -c <cfn> [-h <host>] [-n <name>] [-x <prog>] [<args>]"
-          "\n<args>: [[pfx]*]<directive> | <directive>[*[sfx]] [<args>]" <<endl;
+   std::cerr <<"\n Usage: cconfig -c <cfn> [-h <host>] [-n <name>] [-x <prog>] [<args>]"
+          "\n<args>: [[pfx]*]<directive> | <directive>[*[sfx]] [<args>]" <<std::endl;
    exit(rc);
 }
 

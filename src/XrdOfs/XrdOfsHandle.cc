@@ -30,7 +30,7 @@
 
 #include <cstdio>
 #include <ctime>
-#include <sys/errno.h>
+#include <errno.h>
 #include <sys/types.h>
 
 #include "XrdOfs/XrdOfsHandle.hh"

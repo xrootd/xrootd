@@ -54,6 +54,58 @@
 extern XrdPosixLinkage   Xunix;
 
 /******************************************************************************/
+/*                      U t i l i t y  F u n c t i o n s                      */
+/******************************************************************************/
+
+#ifdef MUSL
+#include <stdio_ext.h>
+#endif
+
+static inline void fseterr(FILE *fp)
+{
+  /* Most systems provide FILE as a struct and the necessary bitmask in
+     <stdio.h>, because they need it for implementing getc() and putc() as
+     fast macros. This function is based on gnulib's fseterr.c */
+#if defined _IO_ERR_SEEN || defined _IO_ftrylockfile || __GNU_LIBRARY__ == 1
+  /* GNU libc, BeOS, Haiku, Linux libc5 */
+  fp->_flags |= _IO_ERR_SEEN;
+#elif defined __sferror || defined __APPLE__ || defined __DragonFly__ || defined __FreeBSD__ || defined __ANDROID__
+  /* FreeBSD, NetBSD, OpenBSD, DragonFly, Mac OS X, Cygwin, Minix 3, Android */
+  fp->_flags |= __SERR;
+#elif defined _IOERR
+  /* AIX, HP-UX, IRIX, OSF/1, Solaris, OpenServer, UnixWare, mingw, MSVC, NonStop Kernel, OpenVMS */
+  fp->_flag |= _IOERR;
+#elif defined __UCLIBC__            /* uClibc */
+  fp->__modeflags |= __FLAG_ERROR;
+#elif defined MUSL /* musl libc */
+  __fseterr(fp);
+#else
+ #error "Unsupported platform! Please report it as a bug."
+#endif
+}
+
+static inline void fseteof(FILE *fp)
+{
+  /* Most systems provide FILE as a struct and the necessary bitmask in
+     <stdio.h>, because they need it for implementing getc() and putc() as
+     fast macros.  */
+#if defined _IO_EOF_SEEN || defined _IO_ftrylockfile || __GNU_LIBRARY__ == 1
+  /* GNU libc, BeOS, Haiku, Linux libc5 */
+  fp->_flags |= _IO_EOF_SEEN;
+#elif defined __sferror || defined __APPLE__ || defined __DragonFly__ || defined __ANDROID__
+  /* FreeBSD, NetBSD, OpenBSD, DragonFly, Mac OS X, Cygwin, Minix 3, Android */
+  fp->_flags |= __SEOF;
+#elif defined _IOEOF
+  /* AIX, HP-UX, IRIX, OSF/1, Solaris, OpenServer, UnixWare, mingw, MSVC, NonStop Kernel, OpenVMS */
+  fp->_flag |= _IOEOF;
+#elif defined __UCLIBC__            /* uClibc */
+  fp->__modeflags |= __FLAG_EOF;
+#else
+  (void) fseek(fp, 0L, SEEK_END);
+#endif
+}
+
+/******************************************************************************/
 /*                       X r d P o s i x _ A c c e s s                        */
 /******************************************************************************/
   
@@ -308,19 +360,9 @@ size_t XrdPosix_Fread(void *ptr, size_t size, size_t nitems, FILE *stream)
 
 // Get the right return code. Note that we cannot emulate the flags in sunx86
 //
-        if (bytes > 0 && size) rc = bytes/size;
-#ifndef SUNX86
-#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
-   else if (bytes < 0) stream->_flags |= _IO_ERR_SEEN;
-   else                stream->_flags |= _IO_EOF_SEEN;
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-   else if (bytes < 0) stream->_flags |= __SEOF;
-   else                stream->_flags |= __SERR;
-#else
-   else if (bytes < 0) stream->_flag  |= _IOERR;
-   else                stream->_flag  |= _IOEOF;
-#endif
-#endif
+   if (bytes > 0 && size) rc = bytes/size;
+   else if (bytes < 0) fseterr(stream);
+   else                fseteof(stream);
 
    return rc;
 }
@@ -477,18 +519,10 @@ size_t XrdPosix_Fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream
 
    bytes = Xroot.Write(fd, ptr, size*nitems);
 
-// Get the right return code. Note that we cannot emulate the flags in sunx86
+// Get the right return code.
 //
    if (bytes > 0 && size) rc = bytes/size;
-#ifndef SUNX86
-#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
-      else stream->_flags |= _IO_ERR_SEEN;
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-      else stream->_flags |= __SERR;
-#else
-      else stream->_flag  |= _IOERR;
-#endif
-#endif
+   else fseterr(stream);
 
    return rc;
 }

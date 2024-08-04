@@ -348,6 +348,9 @@ namespace XrdCl
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
     env->GetInt( "SubStreamsPerChannel", nbStrm );
 
+    // account for the control stream
+    if (nbStrm > 0) --nbStrm;
+
     bool tpcLiteOnly = false;
 
     if( !delegate )

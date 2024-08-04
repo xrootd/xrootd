@@ -84,7 +84,7 @@
       while ((sp = a.find(' ', sp+1)) != STR_NPOS) { a[sp] = '\t'; } \
    }
 
-#define FATAL(x) {cerr <<"VomsFun: "<<x<<endl; aOK = false;}
+#define FATAL(x) {std::cerr <<"VomsFun: "<<x<<std::endl; aOK = false;}
 
 namespace
 {

@@ -1,0 +1,4 @@
+/usr/include/xrootd/private
+/usr/lib/*/libXrdEc.so
+/usr/lib/*/libXrdSsiLib.so
+/usr/lib/*/libXrdSsiShMap.so

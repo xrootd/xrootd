@@ -112,7 +112,8 @@ enum kgsiHandshakeOpts {
    kOptsPxFile     = 16,     // 0x0010: Save delegated proxies in file
    kOptsDelChn     = 32,     // 0x0020: Delete chain
    kOptsPxCred     = 64,     // 0x0040: Save delegated proxies as credentials
-   kOptsCreatePxy  = 128     // 0x0080: Request a client proxy
+   kOptsCreatePxy  = 128,    // 0x0080: Request a client proxy
+   kOptsDelPxy     = 256     // 0x0100: Delete the proxy PxyChain
 };
 
 // Error codes
@@ -187,7 +188,7 @@ public:
    char  *proxy;  // [c] user proxy  [/tmp/x509up_u<uid>]
    char  *valid;  // [c] proxy validity  [12:00]
    int    deplen; // [c] depth of signature path for proxies [0] 
-   int    bits;   // [c] bits in PKI for proxies [512] 
+   int    bits;   // [c] bits in PKI for proxies [default: XrdCryptoDefRSABits]
    char  *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
    int    gmapto; // [s] validity in secs of grid-map cache entries [600 s]
    char  *gmapfun;// [s] file with the function to map DN to usernames [0]
@@ -212,18 +213,19 @@ public:
    int    hashcomp; // [cs] 1 send hash names with both algorithms; 0 send only the default [1]
 
    bool   trustdns; // [cs] 'true' if DNS is trusted [true]
+   bool   showDN;   // [cs] 'true' display the dn
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
                   cipher = 0; md = 0; ca = 1 ; crl = 1; crlrefresh = 86400;
-                  proxy = 0; valid = 0; deplen = 0; bits = 512;
+                  proxy = 0; valid = 0; deplen = 0; bits = XrdCryptoDefRSABits;
                   gridmap = 0; gmapto = 600;
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0;
                   authzto = -1; authzcall = 1;
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
                   vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0;
-                  hashcomp = 1; trustdns = true; createpxy = 1;}
+                  hashcomp = 1; trustdns = true; showDN = false; createpxy = 1;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
    void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
@@ -359,6 +361,7 @@ private:
    static int              MonInfoOpt;
    static bool             HashCompatibility;
    static bool             TrustDNS;
+   static bool             ShowDN;
    //
    // Crypto related info
    static int              ncrypt;                  // Number of factories
@@ -538,9 +541,14 @@ public:
                      XrdSecProtocolgsi::stackCRL->Del(Crl);
                      Crl = 0;
                   }
-                  // The proxy chain is owned by the proxy cache; invalid proxies are
-                  // detected (and eventually removed) by QueryProxy
-                  PxyChain = 0;
+                  if (Options & kOptsDelPxy) {
+                     if (PxyChain) PxyChain->Cleanup();
+                     SafeDelete(PxyChain);
+                  } else {
+                     // The proxy chain is owned by the proxy cache; invalid proxies
+                     // are detected (and eventually removed) by QueryProxy
+                     PxyChain = 0;
+                  }
                   SafeDelete(Parms); }
    void Dump(XrdSecProtocolgsi *p = 0);
 };

@@ -1,5 +1,4 @@
-include README.rst
-include VERSION_INFO
+include CMakeLists.txt
 recursive-include tests *
 recursive-include examples *.py
 recursive-include docs *

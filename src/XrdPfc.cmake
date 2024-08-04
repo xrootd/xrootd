@@ -1,4 +1,3 @@
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -23,6 +22,7 @@ add_library(
   XrdPfc/XrdPfcPurge.cc
   XrdPfc/XrdPfcCommand.cc
   XrdPfc/XrdPfcFile.cc          XrdPfc/XrdPfcFile.hh
+  XrdPfc/XrdPfcFSctl.cc         XrdPfc/XrdPfcFSctl.hh
   XrdPfc/XrdPfcStats.hh
   XrdPfc/XrdPfcInfo.cc          XrdPfc/XrdPfcInfo.hh
   XrdPfc/XrdPfcIO.cc            XrdPfc/XrdPfcIO.hh
@@ -32,17 +32,12 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_FILECACHE}
+  PRIVATE
 # XrdPosix
   XrdCl
   XrdUtils
   XrdServer
   ${CMAKE_THREAD_LIBS_INIT} )
-
-set_target_properties(
-  ${LIB_XRD_FILECACHE}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdBlacklistDecision library
@@ -54,14 +49,9 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_BLACKLIST}
+  PRIVATE
   XrdUtils
   )
-
-set_target_properties(
-  ${LIB_XRD_BLACKLIST}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # xrdpfc_print
@@ -98,9 +88,3 @@ install(
 install(
   TARGETS xrdpfc_print
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
-
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdpfc_print.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )
-

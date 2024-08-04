@@ -135,6 +135,7 @@ namespace XrdCl
                 readstage = ReadRawData;
                 continue;
               }
+
               //----------------------------------------------------------------
               // The next step is to read the message body
               //----------------------------------------------------------------
@@ -168,6 +169,23 @@ namespace XrdCl
               continue;
             }
             //------------------------------------------------------------------
+            // kXR_status is special as it can have both body and raw data,
+            // handle it separately
+            //------------------------------------------------------------------
+            case ReadMore:
+            {
+              XRootDStatus st = xrdTransport.GetMore( *inmsg, &socket );
+              if( !st.IsOK() || st.code == suRetry )
+                return st;
+              inmsgsize = inmsg->GetCursor();
+
+              //----------------------------------------------------------------
+              // The next step is to finalize the read
+              //----------------------------------------------------------------
+              readstage = ReadDone;
+              continue;
+            }
+            //------------------------------------------------------------------
             // We need to call a raw message handler to get the data from the
             // socket
             //------------------------------------------------------------------
@@ -196,94 +214,38 @@ namespace XrdCl
                 return st;
               inmsgsize = inmsg->GetCursor();
 
-              //----------------------------------------------------------------
-              // Now check if there are some additional raw data to be read
-              //----------------------------------------------------------------
-              if( inhandler )
-              {
-                //--------------------------------------------------------------
-                // The next step is to finalize the read
-                //--------------------------------------------------------------
-                readstage = ReadDone;
-                continue;
-              }
-
-              uint16_t action = strm.InspectStatusRsp( substrmnb,
-                                                       inhandler );
-
-              if( action & MsgHandler::Corrupted )
-                return XRootDStatus( stError, errCorruptedHeader );
-
-              if( action & MsgHandler::Raw )
-              {
-                //--------------------------------------------------------------
-                // The next step is to read the raw data
-                //--------------------------------------------------------------
-                readstage = ReadRawData;
-                continue;
-              }
-
-              if( action & MsgHandler::More )
-              {
-                //--------------------------------------------------------------
-                // The next step is to read the additional data in the message
-                // body
-                //--------------------------------------------------------------
-                readstage = ReadMsgBody;
-                continue;
-              }
 
               //----------------------------------------------------------------
-              // Unless we've got a kXR_status message and no handler the
-              // read is done
+              // kXR_status response needs special handling as it can have
+              // either (body + raw data) or (body + additional body data)
               //----------------------------------------------------------------
-              ServerResponse *rsphdr = (ServerResponse *)inmsg->GetBuffer();
-              if( !( action & MsgHandler::RemoveHandler ) ||
-                  rsphdr->hdr.status != kXR_status ||
-                  inmsg->GetSize() < sizeof( ServerResponseStatus ) )
+              if( IsStatusRsp() )
               {
-                readstage = ReadDone;
-                continue;
-              }
+                uint16_t action = strm.InspectStatusRsp( substrmnb,
+                                                         inhandler );
 
-              //----------------------------------------------------------------
-              // There is no handler and we have a kXR_status message. If we
-              // have already read all the message then we're done.
-              //----------------------------------------------------------------
-              ServerResponseStatus *rspst = (ServerResponseStatus*)inmsg->GetBuffer();
-              const uint32_t hdrSize = rspst->hdr.dlen;
-              if( inmsg->GetSize() != hdrSize + 8 )
-              {
-                readstage = ReadDone;
-                continue;
-              }
+                if( action & MsgHandler::Corrupted )
+                  return XRootDStatus( stError, errCorruptedHeader );
 
-              //----------------------------------------------------------------
-              // Only the header of kXR_status has been read. Unmarshall the
-              // header and if if there is more body data call GetBody() again.
-              //----------------------------------------------------------------
-              const uint16_t reqType = rspst->bdy.requestid + kXR_1stRequest;
-              st = XRootDTransport::UnMarshalStatusBody( *inmsg, reqType );
+                if( action & MsgHandler::Raw )
+                {
+                  //--------------------------------------------------------------
+                  // The next step is to read the raw data
+                  //--------------------------------------------------------------
+                  readstage = ReadRawData;
+                  continue;
+                }
 
-              if( !st.IsOK() && st.code == errDataError )
-              {
-                log->Error( AsyncSockMsg, "[%s] Failed to unmarshall "
-                           "corrupted status body in message 0x%x.",
-                            strmname.c_str(), inmsg.get()  );
-                return XRootDStatus( stError, errCorruptedHeader );
-              }
-              if( !st.IsOK() )
-              {
-               log->Error( AsyncSockMsg, "[%s] Failed to unmarshall "
-                            "status body of message 0x%x.",
-                            strmname.c_str(), inmsg.get() );
-                readstage = ReadDone;
-                continue;
-              }
-              if ( rspst->bdy.dlen != 0 )
-              {
-                readstage = ReadMsgBody;
-                continue;
+                if( action & MsgHandler::More )
+                {
+
+                  //--------------------------------------------------------------
+                  // The next step is to read the additional data in the message
+                  // body
+                  //--------------------------------------------------------------
+                  readstage = ReadMore;
+                  continue;
+                }
               }
 
               //----------------------------------------------------------------
@@ -342,6 +304,12 @@ namespace XrdCl
         return XRootDStatus();
       }
 
+      inline bool IsStatusRsp()
+      {
+        ServerResponseHeader *hdr = (ServerResponseHeader*)inmsg->GetBuffer();
+        return ( hdr->status == kXR_status );
+      }
+
       inline bool HasEmbeddedRsp()
       {
         ServerResponseBody_Attn *attn = (ServerResponseBody_Attn*)inmsg->GetBuffer( 8 );
@@ -356,6 +324,7 @@ namespace XrdCl
         ReadStart,   //< the next step is to initialize the read
         ReadHeader,  //< the next step is to read the header
         ReadAttn,    //< the next step is to read attn action code
+        ReadMore,    //< the next step is to read more status body
         ReadMsgBody, //< the next step is to read the body
         ReadRawData, //< the next step is to read the raw data
         ReadDone     //< the next step is to finalize the read

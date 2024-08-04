@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <cstdio>
 #include <cstdlib>
+#include <random>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>
@@ -1116,10 +1117,12 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 //
    if (isMulti || baseFS.isDFS())
       {STMutex.ReadLock();
-      nP = (Config.sched_RR ? SelbyRef(pmask,selR)
+       nP = (Config.sched_RR ? SelbyRef(pmask,selR)
                              : Config.sched_LoadR == 0 ? SelbyLoad(pmask,selR)
-                                                       : SelbyLoadR(pmask, selR)); 
-      if (nP) hlen = nP->netIF.GetName(hbuff, port, nType) + 1;
+                                                       : SelbyLoadR(pmask, selR));
+
+       if (nP) hlen = nP->netIF.GetName(hbuff, port, nType) + 1;
+
           else hlen = 0;
        STMutex.UnLock();
        return hlen != 1;
@@ -1876,7 +1879,8 @@ XrdCmsNode *XrdCmsCluster::SelbyLoadR(SMask_t mask, XrdCmsSelector &selR)
 
   selR.Reset();
   SelTcnt++;
-int totWeight = 0;
+  int totWeight = 0;
+
 
   for (int i = 0; i <= STHi; ++i) {
     NodeWeight[i] = 0; // make node unselectable first
@@ -1917,7 +1921,6 @@ int totWeight = 0;
 
   return sp ? sp : calcDelay(selR);
 }
-
 
 /******************************************************************************/
 /*                              S e l b y R e f                               */

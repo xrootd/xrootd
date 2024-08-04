@@ -61,7 +61,7 @@ XrdSsiCms::XrdSsiCms(XrdCmsClient *cmsP) : theCms(cmsP)
    tP     = stP;
    while(tP) {manNum++; tP = tP->next;}
 
-// Allocate an array of teh right size
+// Allocate an array of the right size
 //
    manList = new char*[manNum];
 

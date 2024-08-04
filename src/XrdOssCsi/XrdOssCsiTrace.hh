@@ -48,13 +48,13 @@
 
 #define TRACE(act, x) \
         if (QTRACE(act)) \
-           {OssCsiTrace.Beg(epname,tident); cerr <<x; OssCsiTrace.End();}
+           {OssCsiTrace.Beg(epname,tident); std::cerr <<x; OssCsiTrace.End();}
 
 #define TRACEReturn(type, ecode, msg) \
                {TRACE(type, "err " <<ecode <<msg); return ecode;}
 
 #define DEBUG(y) if (QTRACE(Debug)) \
-                    {OssCsiTrace.Beg(epname); cerr <<y; OssCsiTrace.End();}
+                    {OssCsiTrace.Beg(epname); std::cerr <<y; OssCsiTrace.End();}
 
 #define EPNAME(x) static const char *epname = x;
 

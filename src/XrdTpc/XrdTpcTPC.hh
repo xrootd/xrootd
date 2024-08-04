@@ -10,6 +10,7 @@
 #include "XrdHttp/XrdHttpUtils.hh"
 
 #include "XrdTls/XrdTlsTempCA.hh"
+#include "XrdTpcPMarkManager.hh"
 
 #include <curl/curl.h>
 
@@ -50,15 +51,17 @@ public:
 
 private:
 
-    static int sockopt_setcloexec_callback(void * clientp, curl_socket_t curlfd, curlsocktype purpose);
+    static int sockopt_callback(void * clientp, curl_socket_t curlfd, curlsocktype purpose);
     static int opensocket_callback(void *clientp,
                                    curlsocktype purpose,
                                    struct curl_sockaddr *address);
 
+    static int closesocket_callback(void *clientp, curl_socket_t fd);
+
     struct TPCLogRecord {
 
-        TPCLogRecord() : bytes_transferred( -1 ), status( -1 ),
-                         tpc_status(-1), streams( 1 ), isIPv6(false)
+        TPCLogRecord(XrdHttpExtReq & req) : bytes_transferred( -1 ), status( -1 ),
+                         tpc_status(-1), streams( 1 ), isIPv6(false), mReq(req), pmarkManager(mReq)
         {
          gettimeofday(&begT, 0); // Set effective start time
         }
@@ -76,6 +79,9 @@ private:
         int tpc_status;
         unsigned int streams;
         bool isIPv6;
+        XrdHttpExtReq & mReq;
+        XrdTpc::PMarkManager pmarkManager;
+        XrdSysError * m_log;
     };
 
     int ProcessOptionsReq(XrdHttpExtReq &req);
@@ -136,10 +142,17 @@ private:
     void logTransferEvent(LogMask lvl, const TPCLogRecord &record,
         const std::string &event, const std::string &message="");
 
+    std::string generateClientErr(std::stringstream &err_ss, const TPCLogRecord &rec, CURLcode cCode = CURLcode::CURLE_OK);
+
+    std::string prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque);
+    std::string prepareURL(XrdHttpExtReq &req);
+
     static int m_marker_period;
     static size_t m_block_size;
     static size_t m_small_block_size;
     bool m_desthttps;
+    bool m_fixed_route;  // If 'true' the Destination IP in an HTTP-TPC is forced to be the same as the IP used to contact the server
+                           // when 'false' any IP available can be selected
     int m_timeout; // the 'timeout interval'; if no bytes have been received during this time period, abort the transfer.
     int m_first_timeout; // the 'first timeout interval'; the amount of time we're willing to wait to get the first byte.
                          // Unless explicitly specified, this is 2x the timeout interval.
@@ -161,5 +174,12 @@ private:
 #endif
 
     bool usingEC; // indicate if XrdEC is used
+
+    // Time to connect the curl socket to the remote server uses the linux's default value
+    // of 60 seconds
+    static const long CONNECT_TIMEOUT = 60;
+
+    // hdr2cgimap
+    std::map<std::string,std::string> hdr2cgimap;
 };
 }

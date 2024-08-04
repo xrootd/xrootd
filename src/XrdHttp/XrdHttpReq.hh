@@ -44,6 +44,7 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdHttpChecksumHandler.hh"
+#include "XrdHttpReadRangeHandler.hh"
 
 #include <vector>
 #include <string>
@@ -54,14 +55,6 @@
 
 
 
-#define READV_MAXCHUNKS            512
-#define READV_MAXCHUNKSIZE         (1024*128)
-
-struct ReadWriteOp {
-  // < 0 means "not specified"
-  long long bytestart;
-  long long byteend;
-};
 
 struct DirListInfo {
   std::string path;
@@ -81,14 +74,25 @@ private:
   int httpStatusCode;
   std::string httpStatusText;
 
+  // The value of the user agent, if specified
+  std::string m_user_agent;
+
   // Whether transfer encoding was requested.
   bool m_transfer_encoding_chunked;
   long long m_current_chunk_offset;
   long long m_current_chunk_size;
 
-  int parseContentRange(char *);
+  // Whether trailer headers were enabled
+  bool m_trailer_headers{false};
+
+  // Whether the client understands our special status trailer.
+  // The status trailer allows us to report when an IO error occurred
+  // after a response body has started
+  bool m_status_trailer{false};
+
   int parseHost(char *);
-  int parseRWOp(char *);
+
+  void parseScitag(const std::string & val);
 
   //xmlDocPtr xmlbody; /* the resulting document tree */
   XrdHttpProtocol *prot;
@@ -118,6 +122,19 @@ private:
   // Sanitize the resource from http[s]://[host]/ questionable prefix
   void sanitizeResourcePfx();
 
+  // parses the iovN data pointers elements as either a kXR_read or kXR_readv
+  // response and fills out a XrdHttpIOList with the corresponding length and
+  // buffer pointers. File offsets from kXR_readv responses are not recorded.
+  void getReadResponse(XrdHttpIOList &received);
+
+  // notifies the range handler of receipt of bytes and sends the client
+  // the data.
+  int sendReadResponseSingleRange(const XrdHttpIOList &received);
+
+  // notifies the range handler of receipt of bytes and sends the client
+  // the data and necessary headers, assuming multipart/byteranges content type.
+  int sendReadResponsesMultiRanges(const XrdHttpIOList &received);
+
   /**
    * Extract a comma separated list of checksums+metadata into a vector
    * @param checksumList the list like "0:sha1, 1:adler32, 2:md5"
@@ -134,17 +151,18 @@ private:
   static void determineXRootDChecksumFromUserDigest(const std::string & userDigest, std::vector<std::string> & xrootdChecksums);
 
 public:
-  XrdHttpReq(XrdHttpProtocol *protinstance) : keepalive(true) {
+  XrdHttpReq(XrdHttpProtocol *protinstance, const XrdHttpReadRangeHandler::Configuration &rcfg) :
+      readRangeHandler(rcfg), keepalive(true) {
 
     prot = protinstance;
     length = 0;
     //xmlbody = 0;
     depth = 0;
-    ralist = 0;
     opaque = 0;
     writtenbytes = 0;
     fopened = false;
     headerok = false;
+    mScitag = -1;
   };
 
   virtual ~XrdHttpReq();
@@ -161,8 +179,8 @@ public:
   int parseBody(char *body, long long len);
 
   /// Prepare the buffers for sending a readv request
-  int ReqReadV();
-  readahead_list *ralist;
+  int ReqReadV(const XrdHttpIOList &cl);
+  std::vector<readahead_list> ralist;
 
   /// Build a partial header for a multipart response
   std::string buildPartialHdr(long long bytestart, long long byteend, long long filesize, char *token);
@@ -173,6 +191,11 @@ public:
   // Appends the opaque info that we have
   // NOTE: this function assumes that the strings are unquoted, and will quote them
   void appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow);
+
+  void addCgi(const std::string & key, const std::string & value);
+
+  // Return the current user agent; if none has been specified, returns an empty string
+  const std::string &userAgent() const {return m_user_agent;}
 
   // ----------------
   // Description of the request. The header/body parsing
@@ -216,13 +239,9 @@ public:
   /// Tells if we have finished reading the header
   bool headerok;
 
-
-  // This can be largely optimized...
-  /// The original list of multiple reads to perform
-  std::vector<ReadWriteOp> rwOps;
-  /// The new list got from chunking the original req respecting the xrootd
-  /// max sizes etc.
-  std::vector<ReadWriteOp> rwOps_split;
+  /// Tracking the next ranges of data to read during GET
+  XrdHttpReadRangeHandler   readRangeHandler;
+  bool                      readClosing;
 
   bool keepalive;
   long long length;  // Total size from client for PUT; total length of response TO client for GET.
@@ -278,6 +297,7 @@ public:
   long long filesize;
   long fileflags;
   long filemodtime;
+  long filectime;
   char fhandle[4];
   bool fopened;
 
@@ -289,6 +309,8 @@ public:
 
   /// In a long write, we track where we have arrived
   long long writtenbytes;
+
+  int mScitag;
 
 
 

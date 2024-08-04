@@ -1,0 +1,11 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <metalink xmlns="urn:ietf:params:xml:ns:metalink">
+   <file name="output.dat">
+     <identity>A_file:output.dat</identity>
+     <hash type="adler32">f024c8e5</hash>
+     <hash type="md5">851fef8c18d878b31366d1aabeefdead</hash>
+     <hash type="crc32c">40e5fdb0</hash>
+     <url location="ch" priority="2">root://localhost:10943//data/b74d025e-06d6-43e8-91e1-a862feb03c84.dat</url>
+   </file>
+ </metalink>
+

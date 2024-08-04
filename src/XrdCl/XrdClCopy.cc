@@ -408,7 +408,7 @@ void AdjustFileInfo( XrdCpFile *file )
 //------------------------------------------------------------------------------
 XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
                         std::string        basePath,
-                        uint16_t           dirOffset )
+                        long               dirOffset )
 {
   using namespace XrdCl;
 
@@ -616,6 +616,12 @@ int main( int argc, char **argv )
   // Environment settings
   //----------------------------------------------------------------------------
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+  /* Stop PostMaster when exiting main() to ensure proper shutdown */
+  struct scope_exit {
+    ~scope_exit() { XrdCl::DefaultEnv::GetPostMaster()->Stop(); }
+  } stopPostMaster;
+
   if( config.nStrm != 0 )
     env->PutInt( "SubStreamsPerChannel", config.nStrm + 1 /*stands for the control stream*/ );
 
@@ -952,7 +958,6 @@ int main( int argc, char **argv )
     return st.GetShellCode();
   }
   CleanUpResults( resultVect );
-
   return 0;
 }
 

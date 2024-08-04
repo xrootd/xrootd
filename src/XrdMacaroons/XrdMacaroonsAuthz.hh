@@ -43,7 +43,7 @@ public:
 
     // Macaroons don't have a concept off an "issuers"; return an empty
     // list.
-    virtual Issuers IssuerList() {return Issuers();}
+    virtual Issuers IssuerList() override {return Issuers();}
 
 private:
     XrdAccPrivs OnMissing(const XrdSecEntity     *Entity,

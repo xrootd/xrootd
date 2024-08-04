@@ -101,7 +101,7 @@ XrdOucArgs::XrdOucArgs(XrdSysError *erp,
    optp = 0; eDest = erp;
    epfx = strdup(etxt ? etxt : "");
 
-// Process teh valid opts
+// Process the valid opts
 //
    if (StdOpts && *StdOpts == ':') {missarg = ':'; StdOpts++;}
       else missarg = '?';

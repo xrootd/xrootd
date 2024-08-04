@@ -1,5 +1,6 @@
-
-include( XRootDCommon )
+if ( XRDCL_ONLY )
+  return()
+endif()
 
 add_executable(
   xrdshmap
@@ -8,7 +9,7 @@ add_executable(
 
 target_link_libraries(
   xrdshmap
-  ${ZLIB_LIBRARIES}
+  ZLIB::ZLIB
   XrdSsiShMap )
 
 #-------------------------------------------------------------------------------

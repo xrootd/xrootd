@@ -1,0 +1,143 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Disable ceph dependent packages for architectures without ceph
+# This list should match the Build-Depends on ceph libraries in debian/control
+#
+# Ceph requires boost-context and boost-coroutine
+# These are only available on these Debian architectures:
+#   i386 hurd-i386 kfreebsd-i386 amd64 kfreebsd-amd64 armel armhf arm64
+#   mips mipsel mips64el powerpc ppc64el riscv64 s390x
+#
+# Ceph requires Java
+# Java is not available on these Debian architectures:
+#   hppa hurd-i386 kfreebsd-i386 kfreebsd-amd64
+#
+# Ceph only supports 64 bit architectures
+ifneq ($(filter $(DEB_HOST_ARCH),amd64 arm64 mips64el ppc64el riscv64 s390x),)
+CEPH = ON
+else
+CEPH = OFF
+endif
+
+ifneq ($(filter $(DEB_HOST_ARCH_OS),linux kfreebsd),)
+FUSE = ON
+else
+FUSE = OFF
+endif
+
+ifneq ($(filter $(DEB_HOST_ARCH),i386 hppa hurd-i386 powerpc x32),)
+EC = OFF
+N = -Nlibxrdec1t64
+else
+EC = ON
+N =
+endif
+
+export LC_ALL=C
+export DH_VERBOSE=1
+export PYBUILD_NAME=xrootd
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all optimize=-lto
+
+BUILD_DOC = $(if $(filter xrootd-doc,$(shell dh_listpackages)),TRUE,FALSE)
+
+%:
+	dh $@ --with python3 --buildsystem cmake $(N)
+
+override_dh_auto_configure:
+	dh_auto_configure --           \
+	    -DFORCE_ENABLED:BOOL=ON    \
+	    -DUSE_SYSTEM_ISAL:BOOL=ON  \
+	    -DENABLE_CEPH:BOOL=$(CEPH) \
+	    -DENABLE_FUSE:BOOL=$(FUSE) \
+	    -DENABLE_HTTP:BOOL=ON      \
+	    -DENABLE_KRB5:BOOL=ON      \
+	    -DENABLE_MACAROONS:BOOL=ON \
+	    -DENABLE_PYTHON:BOOL=ON    \
+	    -DENABLE_READLINE:BOOL=ON  \
+	    -DENABLE_SCITOKENS:BOOL=ON \
+	    -DENABLE_VOMS:BOOL=ON      \
+	    -DENABLE_XRDCLHTTP:BOOL=ON \
+	    -DENABLE_XRDEC:BOOL=$(EC)  \
+	    -DENABLE_TESTS:BOOL=ON     \
+	    -DINSTALL_PYTHON_BINDINGS:BOOL=OFF
+
+override_dh_auto_build:
+	dh_auto_build
+	[ "$(BUILD_DOC)" = "FALSE" ] || doxygen Doxyfile
+
+override_dh_auto_install:
+	dh_auto_install
+	python3 -m pip install --target debian/tmp/usr/lib/python3/dist-packages \
+		--no-deps --no-build-isolation --disable-pip-version-check --verbose \
+		--ignore-installed --use-pep517 obj-$(DEB_HOST_MULTIARCH)/bindings/python
+	ln -sf libxrootd-private-dev.install.ec-$(EC) debian/libxrootd-private-dev.install
+
+	rm -f debian/tmp/usr/bin/xrdshmap
+	rm -f debian/tmp/usr/lib/*/libXrd*Test*
+	rm -f debian/tmp/usr/lib/*/libXrdCephPosix.so
+
+	rm -f debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/direct_url.json
+	rm -f debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/RECORD
+	[ -r debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/INSTALLER ] && \
+	    sed -i -e s/pip/dpkg/ \
+	        debian/tmp/usr/lib/python3/dist-packages/xrootd-*.*-info/INSTALLER
+
+	[ "$(BUILD_DOC)" = "FALSE" ] || ( \
+	LD_LIBRARY_PATH=$${LD_LIBRARY_PATH}:$(CURDIR)/debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH) \
+	PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=$(CURDIR)/debian/tmp/usr/lib/python3/dist-packages \
+	make -C bindings/python/docs html && \
+	mv bindings/python/docs/build/html bindings/python/docs/build/python )
+
+	# Service unit files
+	mkdir -p debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/xrootd@.service debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/xrootd@.socket debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/xrdhttp@.socket debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/cmsd@.service debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/frm_xfrd@.service debian/tmp/lib/systemd/system
+	install -m 644 packaging/common/frm_purged@.service debian/tmp/lib/systemd/system
+	mkdir -p debian/tmp/usr/lib/tmpfiles.d
+	install -m 644 packaging/rhel/xrootd.tmpfiles debian/tmp/usr/lib/tmpfiles.d/xrootd.conf
+
+	# Server config
+	mkdir -p debian/tmp/etc/xrootd
+	install -m 644 -p packaging/common/xrootd-clustered.cfg \
+	    debian/tmp/etc/xrootd/xrootd-clustered.cfg
+	install -m 644 -p packaging/common/xrootd-standalone.cfg \
+	    debian/tmp/etc/xrootd/xrootd-standalone.cfg
+	install -m 644 -p packaging/common/xrootd-filecache-clustered.cfg \
+	    debian/tmp/etc/xrootd/xrootd-filecache-clustered.cfg
+	install -m 644 -p packaging/common/xrootd-filecache-standalone.cfg \
+	    debian/tmp/etc/xrootd/xrootd-filecache-standalone.cfg
+	sed 's!/usr/lib64/!!' packaging/common/xrootd-http.cfg > \
+	    debian/tmp/etc/xrootd/xrootd-http.cfg
+
+	# Client config
+	mkdir -p debian/tmp/etc/xrootd/client.plugins.d
+	install -m 644 -p packaging/common/client.conf \
+	    debian/tmp/etc/xrootd/client.conf
+	sed 's!/usr/lib/!!' packaging/common/client-plugin.conf.example > \
+	    debian/tmp/etc/xrootd/client.plugins.d/client-plugin.conf.example
+	sed -e 's!/usr/lib64/!!' -e 's!-5!!' packaging/common/recorder.conf > \
+	    debian/tmp/etc/xrootd/client.plugins.d/recorder.conf
+	sed 's!/usr/lib64/!!' packaging/common/http.client.conf.example > \
+	    debian/tmp/etc/xrootd/client.plugins.d/xrdcl-http-plugin.conf
+
+	chmod 644 debian/tmp/usr/share/xrootd/utils/XrdCmsNotify.pm
+	sed 's!/usr/bin/env perl!/usr/bin/perl!' -i \
+	    debian/tmp/usr/share/xrootd/utils/netchk \
+	    debian/tmp/usr/share/xrootd/utils/XrdCmsNotify.pm \
+	    debian/tmp/usr/share/xrootd/utils/XrdOlbMonPerf
+
+	sed 's!/usr/bin/env bash!/bin/bash!' -i \
+	    debian/tmp/usr/bin/xrootd-config
+
+	mkdir -p debian/tmp/etc/xrootd/config.d
+
+	mkdir -p debian/tmp/var/log/xrootd
+	mkdir -p debian/tmp/var/spool/xrootd
+
+	mkdir -p debian/tmp/etc/logrotate.d
+	install -m 644 -p packaging/common/xrootd.logrotate \
+	    debian/tmp/etc/logrotate.d/xrootd

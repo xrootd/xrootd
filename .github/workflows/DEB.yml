@@ -1,0 +1,127 @@
+name: DEB
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - .gitignore
+      - .gitlab-ci.yml
+      - .mailmap
+      - '**.md'
+      - 'docs/**'
+      - 'docker/**'
+    tags-ignore:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  debian:
+    name: Debian
+
+    strategy:
+      matrix:
+        version: [ 11, 12 ]
+
+    runs-on: ubuntu-latest
+    container: debian:${{ matrix.version }}
+
+    steps:
+    - name: Install development tools
+      run: |
+        apt update -qq
+        apt install -y build-essential devscripts git
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install XRootD build dependencies
+      run: mk-build-deps --install --remove debian/control <<< yes
+
+    - name: Build DEBs
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        VERSION=$(./genversion.sh --sanitize)
+        dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
+        debuild --no-tgz-check --no-sign -- binary-arch
+
+    - name: Install DEBs
+      run: apt install -y ../*.deb
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move DEBs to Artifact Directory
+      run: |
+        source /etc/os-release
+        mkdir -p debian/${VERSION_CODENAME}
+        mv ../*.* debian/${VERSION_CODENAME}
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: debian-${{ matrix.version }}
+        path: debian
+        retention-days: 14
+
+  ubuntu:
+    name: Ubuntu
+
+    strategy:
+      matrix:
+        version: [ "22.04", "24.04" ]
+
+    runs-on: ubuntu-latest
+    container: ubuntu:${{ matrix.version }}
+
+    steps:
+    - name: Install development tools
+      run: |
+        apt update -qq
+        apt install -y build-essential devscripts equivs git
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install XRootD build dependencies
+      run: mk-build-deps --install --remove debian/control <<< yes
+
+    - name: Build DEBs
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        VERSION=$(./genversion.sh --sanitize)
+        dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
+        debuild --no-tgz-check --no-sign -- binary-arch
+
+    - name: Install DEBs
+      run: apt install -y ../*.deb
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move DEBs to Artifact Directory
+      run: |
+        source /etc/os-release
+        mkdir -p ubuntu/${VERSION_CODENAME}
+        mv ../*.* ubuntu/${VERSION_CODENAME}
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ubuntu-${{ matrix.version }}
+        path: ubuntu
+        retention-days: 14

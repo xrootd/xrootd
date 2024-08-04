@@ -1,0 +1,75 @@
+name: Python
+
+on:
+  push:
+    branches:
+      - devel
+      - master
+    paths:
+      - setup.py
+      - pyproject.toml
+      - bindings/python
+    tags-ignore:
+  pull_request:
+    paths:
+      - setup.py
+      - pyproject.toml
+      - bindings/python
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manylinux:
+    name: Python
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux_2_28_x86_64
+
+    strategy:
+      matrix:
+        version: [ "3.6", "3.8", "3.10", "3.11", "3.12" ]
+
+    env:
+      PYTHON: python${{ matrix.version }}
+
+    steps:
+    - name: Install dependencies
+      run: dnf install -y git krb5-devel libuuid-devel openssl-devel
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Build source distribution tarball
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        ./genversion.sh --sanitize >| VERSION
+        ${PYTHON} -m build --sdist
+
+    - name: Build binary wheel
+      run: ${PYTHON} -m pip wheel --use-pep517 --verbose dist/*.tar.gz
+
+    - name: Install binary wheel
+      run: ${PYTHON} -m pip install xrootd*.whl
+
+    - name: Run post-installation tests
+      run: |
+        command -v ${PYTHON} && ${PYTHON} --version
+        ${PYTHON} -m pip show xrootd
+        ${PYTHON} -c 'import XRootD; print(XRootD)'
+        ${PYTHON} -c 'import pyxrootd; print(pyxrootd)'
+        ${PYTHON} -c 'from XRootD import client; help(client)'
+        ${PYTHON} -c 'from XRootD import client; print(client.FileSystem("root://localhost"))'
+
+    - name: Move binary wheels to artifact directory
+      run: mv *.whl dist/
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-${{ matrix.version }}
+        path: dist
+        retention-days: 14

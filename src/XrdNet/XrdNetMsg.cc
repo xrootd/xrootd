@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cerrno>
-#include <sys/poll.h>
+#include <poll.h>
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetMsg.hh"

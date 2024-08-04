@@ -60,7 +60,7 @@
 /*                     L o c a l   D e f i n i t i o n s                      */
 /******************************************************************************/
 
-#define EMSG(x) cerr <<"xrdmapc: " <<x <<endl
+#define EMSG(x) std::cerr <<"xrdmapc: " <<x <<std::endl
 
 // Bypass stupid issue with stupid solaris for missdefining 'struct opt'.
 //
@@ -398,7 +398,7 @@ void PrintMap(clMap *clmP, int lvl)
                 {pfxbuff[1] = clnow->hasfile;
                  pfxbuff[2] = clnow->verfile;
                 }
-             cout <<' ' <<pfx <<"Srv " <<clnow->name <<clnow->state <<endl;
+             std::cout <<' ' <<pfx <<"Srv " <<clnow->name <<clnow->state <<std::endl;
              clnow = clnow->nextSrv;
             }
       }
@@ -410,7 +410,7 @@ void PrintMap(clMap *clmP, int lvl)
        if (lvl) pfxbuff[2] = ' ';
        while(clnow)
             {if (lvl) pfxbuff[1] = clnow->hasfile;
-             cout <<lvl <<pfx <<"Man " <<clnow->name <<clnow->state <<endl;
+             std::cout <<lvl <<pfx <<"Man " <<clnow->name <<clnow->state <<std::endl;
              if (clnow->valid && clnow->nextLvl) PrintMap(clnow->nextLvl,lvl+1);
              clnow = clnow->nextMan;
             }
@@ -451,18 +451,18 @@ namespace
 void Usage(const char *emsg)
 {
    if (emsg) EMSG(emsg);
-   cerr <<"Usage: xrdmapc [<opt>] <host>:<port> [<path>]\n"
-        <<"<opt>: [--help] [--list {all|m|s}] [--quiet] [--refresh] [--verify]" <<endl;
+   std::cerr <<"Usage: xrdmapc [<opt>] <host>:<port> [<path>]\n"
+        <<"<opt>: [--help] [--list {all|m|s}] [--quiet] [--refresh] [--verify]" <<std::endl;
    if (!emsg)
-      {cerr <<
+      {std::cerr <<
 "--list    | -l 'all' lists managers and servers (default), 'm' lists only\n"
 "               managers and 's' lists only servers.\n"
-"--quiet   | -q does not print error messages to cerr; errors appear inline.\n"
+"--quiet   | -q does not print error messages to std::cerr; errors appear inline.\n"
 "--refresh | -r does not use cached information but will refresh the cache.\n"
 "--verify  | -v verifies <path> existence status at each server.\n"
 "<path>         when specified, uses <host>:<port> to determine the locations\n"
 "               of path and does optional verification."
-            <<endl;
+            <<std::endl;
       }
    exit((emsg ? 1 : 0));
 }
@@ -567,17 +567,17 @@ int main(int argc, char *argv[])
 
 // Print the first line
 //
-   cout <<eMsg <<baseNode->name <<baseNode->state <<endl;
+   std::cout <<eMsg <<baseNode->name <<baseNode->state <<std::endl;
    PrintMap(baseNode, 1);
 
 // Check if we have any phantom nodes
 //
    if (Path && clLost)
-      {cerr <<"Warning! " <<baseNode->name
-            <<" referred to the following unconnected node:" <<endl;
+      {std::cerr <<"Warning! " <<baseNode->name
+            <<" referred to the following unconnected node:" <<std::endl;
        clNow = clLost;
        while(clNow)
-            {cerr <<"????? " <<clNow->name <<endl;
+            {std::cerr <<"????? " <<clNow->name <<std::endl;
              clNow = clNow->nextSrv;
             }
       }

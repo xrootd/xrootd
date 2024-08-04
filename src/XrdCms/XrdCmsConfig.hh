@@ -131,7 +131,7 @@ char        sched_Pack;   // 1 -> Pick with affinity (>1 same but wait for resps
 char        sched_AffPC;  // Affinity path component count (-255 <= n <= 255)
 char        sched_Level;  // 1 -> Use load-based level for "pack" selection
 char        sched_Force;  // 1 -> Client cannot select mode
-char        sched_LoadR;  // 1 -> Use randomized load-based weighting
+char        sched_LoadR;  // 1 -> Use randomized load-based weighting for selection
 int         doWait;       // 1 -> Wait for a data end-point
 
 int         adsPort;      // Alternate server port

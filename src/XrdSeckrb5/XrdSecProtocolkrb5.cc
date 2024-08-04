@@ -78,8 +78,8 @@ extern "C" {
 
 #define XrdSecMAXPATHLEN      4096
 
-#define CLDBG(x) if (client_options & XrdSecDEBUG) cerr <<"Seckrb5: " <<x <<endl;
-#define CLPRT(x) cerr <<"Seckrb5: " <<x <<endl;
+#define CLDBG(x) if (client_options & XrdSecDEBUG) std::cerr <<"Seckrb5: " <<x <<std::endl;
+#define CLPRT(x) std::cerr <<"Seckrb5: " <<x <<std::endl;
 
 typedef  krb5_error_code krb_rc;
 
@@ -632,8 +632,8 @@ int XrdSecProtocolkrb5::Fatal(XrdOucErrInfo *erp, int rc, const char *msg,
               msgv[i++] = ").";           //6
              }
    if (erp) erp->setErrInfo(rc, msgv, i);
-      else {for (k = 0; k < i; k++) cerr <<msgv[k];
-            cerr <<endl;
+      else {for (k = 0; k < i; k++) std::cerr <<msgv[k];
+            std::cerr <<std::endl;
            }
 
    return -1;
@@ -905,7 +905,7 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
    if (parms) strlcpy(parmbuff, parms, sizeof(parmbuff));
       else {char *msg = (char *)"Seckrb5: Kerberos parameters not specified.";
             if (erp) erp->setErrInfo(EINVAL, msg);
-               else cerr <<msg <<endl;
+               else std::cerr <<msg <<std::endl;
             return (char *)0;
            }
 
@@ -936,7 +936,7 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
    if (!KPrincipal)
       {char *msg = (char *)"Seckrb5: Kerberos principal not specified.";
        if (erp) erp->setErrInfo(EINVAL, msg);
-          else cerr <<msg <<endl;
+          else std::cerr <<msg <<std::endl;
        return (char *)0;
       }
 
@@ -1021,7 +1021,7 @@ XrdSecProtocol *XrdSecProtocolkrb5Object(const char              mode,
        if (!KPrincipal || !*KPrincipal)
           {char *msg = (char *)"Seckrb5: Kerberos principal not specified.";
            if (erp) erp->setErrInfo(EINVAL, msg);
-              else cerr <<msg <<endl;
+              else std::cerr <<msg <<std::endl;
            return (XrdSecProtocol *)0;
           }
       }
@@ -1031,7 +1031,7 @@ XrdSecProtocol *XrdSecProtocolkrb5Object(const char              mode,
    if (!(prot = new XrdSecProtocolkrb5(KPrincipal, hostname, endPoint)))
       {char *msg = (char *)"Seckrb5: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
-          else cerr <<msg <<endl;
+          else std::cerr <<msg <<std::endl;
        return (XrdSecProtocol *)0;
       }
 
