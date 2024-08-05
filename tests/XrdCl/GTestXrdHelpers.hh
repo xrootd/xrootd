@@ -25,6 +25,20 @@
 #include <cstring>
 
 /** Shows the code that we are asserting and its value in the final evaluation. */
+#define ASSERT_XRDST_OK( x )                                                                     \
+{                                                                                                \
+  XrdCl::XRootDStatus _st = x;                                                                   \
+  ASSERT_TRUE(_st.IsOK()) << "[" << #x << "]: " << _st.ToStr() << std::endl;                     \
+}
+
+/** Shows the code that we are asserting and asserts that its execution is throwing an error. */
+#define ASSERT_XRDST_NOTOK( x, err )                                                             \
+{                                                                                                \
+  XrdCl::XRootDStatus _st = x;                                                                   \
+  ASSERT_TRUE(!_st.IsOK() && _st.code == err) << "[" << #x << "]: " << _st.ToStr() << std::endl; \
+}
+
+/** Shows the code that we are asserting and its value in the final evaluation. */
 #define EXPECT_XRDST_OK( x )                                                                     \
 {                                                                                                \
   XrdCl::XRootDStatus _st = x;                                                                   \
