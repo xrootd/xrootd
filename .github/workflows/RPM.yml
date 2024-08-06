@@ -170,9 +170,9 @@ jobs:
         retention-days: 14
 
   fedora:
-    name: Fedora 39
+    name: Fedora 40
     runs-on: ubuntu-latest
-    container: fedora:39
+    container: fedora:40
 
     steps:
     - name: Install git
