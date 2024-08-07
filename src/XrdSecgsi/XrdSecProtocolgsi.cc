@@ -2695,6 +2695,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                authzpxy = 11;
             } else if (!strncmp(op, "-vomsat:",8)) {
                vomsat = getOptVal(vomsatOpts, op+8);
+               if (vomsat != vatIgnore && vomsfun.length() == 0)
+                  vomsfun == "default";
             } else if (!strncmp(op, "-vomsfun:",9)) {
                vomsfun = (const char *)(op+9);
             } else if (!strncmp(op, "-vomsfunparms:",14)) {
