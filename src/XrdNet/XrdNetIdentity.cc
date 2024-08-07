@@ -50,6 +50,10 @@ char *getMyFQN(const char *&myDom, const char *&myErr)
    char *theName[2] = {0}, *theDom[2] = {0}, *theIPA[2] = {0}, hName[1025];
    int hnLen;
 
+// Make sure domain is set to something that is valid
+//
+   myDom = "";
+
 // Obtain the host name, this is mandatory.
 //
    if (gethostname(hName, sizeof(hName)))
