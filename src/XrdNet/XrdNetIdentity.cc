@@ -34,6 +34,7 @@
 #include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 /******************************************************************************/
@@ -61,7 +62,9 @@ char *getMyFQN(const char *&myDom, bool &myFQN, const char *&myErr)
       {if (XrdNetAddrInfo::isHostName(dnsName)
        &&  !(myDom = index(dnsName, '.'))) myDom = "";
        myFQN = false;
-       return strdup(dnsName);
+       char* tmp = strdup(dnsName);
+       XrdOucUtils::toLower(tmp);
+       return tmp;
       }
    myFQN = true;
 
@@ -70,6 +73,7 @@ char *getMyFQN(const char *&myDom, bool &myFQN, const char *&myErr)
    if (gethostname(hName, sizeof(hName)))
       {myErr = XrdSysE2T(errno); myDom = 0; return 0;}
    hnLen = strlen(hName);
+   XrdOucUtils::toLower(hName);
 
 // First step it to get all IP addresses configured on this machine
 //
