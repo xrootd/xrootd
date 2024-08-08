@@ -28,7 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <cerrno>
+#include <sys/errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -41,44 +41,20 @@
 #include <sstream>
 #include <sys/xattr.h>
 #include <time.h>
+#include <chrono>
 #include <limits>
 #include <pthread.h>
+
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-
+#include <XrdOss/XrdOss.hh>
+#include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdCeph/XrdCephPosix.hh"
+#include "XrdCeph/XrdCephBulkAioRead.hh"
+#include "XrdSfs/XrdSfsFlags.hh" // for the OFFLINE flag status 
 
-/// small structs to store file metadata
-struct CephFile {
-  std::string name;
-  std::string pool;
-  std::string userId;
-  unsigned int nbStripes;
-  unsigned long long stripeUnit;
-  unsigned long long objectSize;
-};
-
-struct CephFileRef : CephFile {
-  int flags;
-  mode_t mode;
-  uint64_t offset;
-  // This mutex protects against parallel updates of the stats.
-  XrdSysMutex statsMutex;
-  uint64_t maxOffsetWritten;
-  uint64_t bytesAsyncWritePending;
-  uint64_t bytesWritten;
-  unsigned rdcount;
-  unsigned wrcount;
-  unsigned asyncRdStartCount;
-  unsigned asyncRdCompletionCount;
-  unsigned asyncWrStartCount;
-  unsigned asyncWrCompletionCount;
-  ::timeval lastAsyncSubmission;
-  double longestAsyncWriteTime;
-  double longestCallbackInvocation;
-};
 
 /// small struct for directory listing
 struct DirIterator {
@@ -110,6 +86,9 @@ std::vector<librados::Rados*> g_cluster;
 XrdSysMutex g_striper_mutex;
 /// index of current Striper/IoCtx to be used
 unsigned int g_cephPoolIdx = 0;
+///If aio read operation takes longer than this value, a warning
+///will be issued 
+unsigned int g_cephAioWaitThresh = 15;
 /// size of the Striper/IoCtx pool, defaults to 1
 /// may be overwritten in the configuration file
 /// (See XrdCephOss::configure)
@@ -128,6 +107,9 @@ unsigned int g_nextCephFd = 0;
 XrdSysMutex g_fd_mutex;
 /// mutex protecting initialization of ceph clusters
 XrdSysMutex g_init_mutex;
+
+//JW Counter for number of times a given cluster is resolved.
+std::map<unsigned int, unsigned long long> g_idxCntr;
 
 /// Accessor to next ceph pool index
 /// Note that this is not thread safe, but we do not care
@@ -152,6 +134,8 @@ unsigned int getCephPoolIdxAndIncrease() {
     nextValue = 0;
   }
   g_cephPoolIdx = nextValue;
+  // JW logging of accesses:
+  ++g_idxCntr[res];
   return res;
 }
 
@@ -250,6 +234,33 @@ static unsigned int stoui(const std::string &s) {
     throw std::out_of_range(s);
   }
   return (unsigned int)res;
+}
+
+
+
+void dumpClusterInfo() {
+  //JW
+  // log the current state of the cluster:
+  // don't want to lock here, so the numbers may not be 100% self-consistent
+  int n_cluster = g_cluster.size();
+  int n_ioCtx = g_ioCtx.size();
+  int n_filesOpenForWrite = g_filesOpenForWrite.size();
+  int n_fds = g_fds.size(); 
+  int n_stripers = g_radosStripers.size(); 
+  int n_stripers_pool = 0;
+  for (size_t i = 0; i < g_radosStripers.size(); ++i) {
+    n_stripers_pool += g_radosStripers.at(i).size();
+  }
+  std::stringstream ss;
+  ss << "Counts: " << n_cluster << " " << n_ioCtx << " " << n_filesOpenForWrite << " " 
+     << n_fds << " " << n_stripers << " " << n_stripers_pool << " " << n_stripers_pool 
+     << " CountsbyCluster: [";
+  for (const auto& el : g_idxCntr) {
+    ss << el.first << ":" << el.second << ", " ;
+  } // it
+  ss<< "], ";
+
+    logwrapper((char*)"dumpClusterInfo : %s", ss.str().c_str());
 }
 
 /// fills the userId of a ceph file struct from a string and an environment
@@ -400,9 +411,11 @@ void translateFileName(std::string &physName, std::string logName){
       logwrapper((char*)"ceph_namelib : failed to translate %s using namelib plugin, using it as is", logName.c_str());
       physName = logName;
     } else {
+      logwrapper((char*)"ceph_namelib : translated %s to %s", logName.c_str(), physCName);
       physName = physCName;
     }
   } else {
+    //logwrapper((char*)"ceph_namelib : No mapping done");
     physName = logName;
   }
 }
@@ -417,14 +430,16 @@ void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file) {
   // If env is null or no entry is found for what is missing, defaults are
   // applied. These defaults are initially set to 'admin', 'default', 1, 4MB and 4MB
   // but can be changed via a call to ceph_posix_set_defaults
-  std::string spath = path;
+  std::string spath {path};
+  // If namelib is specified, apply translation to the whole path (which might include pool, etc)
+  translateFileName(spath,path);
   size_t colonPos = spath.find(':');
   if (std::string::npos == colonPos) {
     // deal with name translation
-    translateFileName(file.name, spath);
+    file.name = spath;
     fillCephFileParams("", env, file);
   } else {
-    translateFileName(file.name, spath.substr(colonPos+1));
+    file.name = spath.substr(colonPos+1);
     fillCephFileParams(spath.substr(0, colonPos), env, file);
   }
 }
@@ -573,8 +588,9 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
       return 0;
     }
     IOCtxDict & ioDict = g_ioCtx[cephPoolIdx];
-    ioDict.emplace(userAtPool, ioctx);
-    sDict.emplace(userAtPool, striper);
+    ioDict.insert(std::pair<std::string, librados::IoCtx*>(userAtPool, ioctx));
+    sDict.insert(std::pair<std::string, libradosstriper::RadosStriper*>
+                 (userAtPool, striper)).first;
   }
   return 1;
 } 
@@ -652,20 +668,65 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 
   struct stat buf;
   libradosstriper::RadosStriper *striper = getRadosStriper(fr); //Get a handle to the RADOS striper API
- 
   if (NULL == striper) {
     logwrapper((char*)"Cannot create striper");  
     return -EINVAL;
   }
- 
+  dumpClusterInfo(); // JW enhanced logging
+
   int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime)); //Get details about a file
   
  
   bool fileExists = (rc != -ENOENT); //Make clear what condition we are testing
 
+  logwrapper((char*)"Access Mode: %s flags&O_ACCMODE %d ", pathname, flags);
+
   if ((flags&O_ACCMODE) == O_RDONLY) {  // Access mode is READ
 
     if (fileExists) {
+      librados::bufferlist d_stripeUnit;
+      librados::bufferlist d_objectSize;
+      std::string obj_name;
+      librados::IoCtx *context = getIoCtx(fr);
+  
+      // read first stripe of the object for xattr stripe unit and object size
+      // this will fail if the object was not written in stripes e.g. s3
+      // TBD: fallback to direct object (no stripe id appends to filename,
+      // replace striper metadata with corresponding metadata)
+      //
+      try {
+        obj_name =  fr.name + std::string(".0000000000000000");
+      } catch (std::bad_alloc&) {
+        logwrapper((char*)"Can not create object string for file %s)", fr.name.c_str());
+        return -ENOMEM;
+      }
+      int ret = 0;
+      ret = context->getxattr(obj_name, "striper.layout.stripe_unit", d_stripeUnit);
+      ret = std::min(ret,context->getxattr(obj_name, "striper.layout.object_size", d_objectSize));
+      //log_func((char*)"size xattr for %s , %llu ,%llu", file_ref->name.c_str(), file_ref->objectSize, file_ref->stripeUnit );
+     if (ret<=0){
+       logwrapper((char*)"Could not find size or stripe_unit xattr for %s", fr.name.c_str());
+      }
+     else{
+       //librados's c_str() method does not return a NULL-terminated string, hence why we need to cleanup here
+       char cleanStripeUnit[MAXDIGITSIZE];
+       char cleanObjectSize[MAXDIGITSIZE];
+       unsigned int stripeUnitLength = std::min((unsigned int)MAXDIGITSIZE-1, d_stripeUnit.length());
+       unsigned int objectSizeLength = std::min((unsigned int)MAXDIGITSIZE-1, d_objectSize.length());
+       (void)strncpy( cleanStripeUnit, d_stripeUnit.c_str(), stripeUnitLength );
+       (void)strncpy( cleanObjectSize, d_objectSize.c_str(), objectSizeLength );
+       cleanStripeUnit[stripeUnitLength] = '\0';
+       cleanObjectSize[objectSizeLength] = '\0';
+       //only change defaults if different
+       if(fr.stripeUnit != std::stoull(cleanStripeUnit)){
+         logwrapper((char*)"WARNING: stripe unit of %s does not match defaults. object size is %s", pathname, cleanStripeUnit);
+          fr.stripeUnit = std::stoull(cleanStripeUnit);
+       }
+       if(fr.objectSize != std::stoull(cleanObjectSize)){
+         logwrapper((char*)"WARNING: object size of %s does not match defaults. object size is %s",pathname, cleanObjectSize);
+         fr.objectSize = std::stoull(cleanObjectSize);
+       }
+     } 
       int fd = insertFileRef(fr);
       logwrapper((char*)"File descriptor %d associated to file %s opened in read mode", fd, pathname);
       return fd;
@@ -681,7 +742,11 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
           return rc;
         }
       } else {
-        return -EEXIST;
+        if (flags & O_EXCL) {
+          return -EACCES; // permission denied
+        } else {
+          return -EEXIST; // otherwise return just file exists
+        }
       }
     }
     // At this point, we know either the target file didn't exist, or the ceph_posix_unlink above removed it
@@ -799,7 +864,7 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     XrdSysMutexHelper lock(fr->statsMutex);
     fr->wrcount++;
     fr->bytesWritten+=count;
-    if (offset + count) fr->maxOffsetWritten = std::max(uint64_t(offset + count - 1), fr->maxOffsetWritten);
+    if (offset + count) fr->maxOffsetWritten = std::max(offset + count - 1, fr->maxOffsetWritten);
     return count;
   } else {
     return -EBADF;
@@ -818,7 +883,7 @@ static void ceph_aio_write_complete(rados_completion_t c, void *arg) {
     fr->bytesAsyncWritePending -= awa->nbBytes;
     fr->bytesWritten += awa->nbBytes;
     if (awa->aiop->sfsAio.aio_nbytes)
-      fr->maxOffsetWritten = std::max(fr->maxOffsetWritten, uint64_t(awa->aiop->sfsAio.aio_offset + awa->aiop->sfsAio.aio_nbytes - 1));
+      fr->maxOffsetWritten = std::max(fr->maxOffsetWritten, awa->aiop->sfsAio.aio_offset + awa->aiop->sfsAio.aio_nbytes - 1);
     ::timeval now;
     ::gettimeofday(&now, nullptr);
     double writeTime = 0.000001 * (now.tv_usec - awa->startTime.tv_usec) + 1.0 * (now.tv_sec - awa->startTime.tv_sec);
@@ -880,6 +945,82 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
   }
 }
 
+ssize_t ceph_nonstriper_readv(int fd, XrdOucIOVec *readV, int n) {
+  CephFileRef* fr = getFileRef(fd);
+  if (fr) {
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
+    if ((fr->flags & O_WRONLY) != 0) {
+      return -EBADF;
+    }
+    if (fr->nbStripes != 1) {
+      //Non-striper based read method works only with a single stripe
+      return -ENOTSUP;
+    }
+
+    ssize_t read_bytes;
+    int rc;
+
+    librados::IoCtx *ioctx = getIoCtx(*fr);
+    if (0 == ioctx) {
+      return -EINVAL;
+    }
+
+    try {
+      //Constructor can throw bad alloc
+      bulkAioRead readOp(ioctx, logwrapper, fr);
+
+      for (int i = 0; i < n; i++) {
+        rc = readOp.read(readV[i].data, readV[i].size, readV[i].offset);
+        if (rc < 0) {
+          logwrapper( (char*)"Can not declare read request\n");
+          return rc;
+        }
+      }
+
+      std::time_t wait_time = std::time(0);
+      rc = readOp.submit_and_wait_for_complete();
+      wait_time = std::time(0) - wait_time;
+      if (wait_time > g_cephAioWaitThresh) {
+        logwrapper(
+          (char*)"Waiting for AIO results in readv for %s took %ld seconds, too long!\n",
+          fr->name.c_str(),
+          wait_time
+        );
+      }
+      if (rc < 0) {
+        logwrapper( (char*)"Can not submit read requests\n");
+        return rc;
+      }
+      read_bytes = readOp.get_results();
+      XrdSysMutexHelper lock(fr->statsMutex);
+      //We consider readv as a single operation
+      fr->rdcount += 1;
+      return read_bytes;
+    } catch(std::bad_alloc&) {
+      return -ENOMEM;
+    }
+  } else {
+    return -EBADF;
+  }
+}
+
+ssize_t ceph_striper_readv(int fd, XrdOucIOVec *readV, int n) {
+  /**
+   * Sequential, striper-based readv implementation.
+   */
+  ssize_t nbytes = 0, curCount = 0;
+  for (int i=0; i<n; i++) {
+    curCount = ceph_posix_pread(fd, (void *)readV[i].data, (size_t)readV[i].size, (off_t)readV[i].offset);
+    if (curCount != readV[i].size) {
+      if (curCount < 0) return curCount;
+        return -ESPIPE;
+    }
+    nbytes += curCount;
+  }
+  return nbytes;
+}
+
 ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
@@ -900,6 +1041,68 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
     fr->offset += rc;
     fr->rdcount++;
     return rc;
+  } else {
+    return -EBADF;
+  }
+}
+
+ssize_t ceph_posix_nonstriper_pread(int fd, void *buf, size_t count, off64_t offset) {
+  //The same as pread, but do not relies on rados striper library. Uses direct atomic
+  //reads from ceph object (see BulkAioRead class for details).
+  CephFileRef* fr = getFileRef(fd);
+  if (fr) {
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
+    if ((fr->flags & O_WRONLY) != 0) {
+      return -EBADF;
+    }
+    if (fr->nbStripes != 1) {
+      //Non-striper based read method works only with a single stripe
+      return -ENOTSUP;
+    }
+
+    int rc;
+    ssize_t bytes_read;
+
+    librados::IoCtx *ioctx = getIoCtx(*fr);
+    if (0 == ioctx) {
+      return -EINVAL;
+    }
+
+    try {
+      //Constructor can throw bad alloc
+      bulkAioRead readOp(ioctx, logwrapper, fr);
+      rc = readOp.read(buf, count, offset);
+      if (rc < 0) {
+        logwrapper( (char*)"Can not declare read request\n");
+        return rc;
+      }
+      std::time_t wait_time = std::time(0);
+      rc = readOp.submit_and_wait_for_complete();
+      wait_time = std::time(0) - wait_time;
+      if (wait_time > g_cephAioWaitThresh) {
+        logwrapper(
+          (char*)"Waiting for AIO results in pread for %s took %ld seconds, too long!\n",
+          fr->name.c_str(),
+          wait_time
+        );
+      }
+      if (rc < 0) {
+        logwrapper( (char*)"Can not submit read request\n");
+        return rc;
+      }
+      bytes_read = readOp.get_results();
+
+      if (bytes_read > 0) {
+        XrdSysMutexHelper lock(fr->statsMutex);
+        fr->rdcount++;
+      } else {
+        logwrapper( (char*)"Error while read: %d\n", bytes_read);
+      }
+      return bytes_read;
+    } catch (std::bad_alloc&) {
+      return -ENOMEM;
+    }
   } else {
     return -EBADF;
   }
@@ -928,6 +1131,26 @@ ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
     return -EBADF;
   }
 }
+
+ssize_t ceph_posix_maybestriper_pread(int fd, void *buf, size_t count, off64_t offset, bool allowStriper) {
+  ssize_t rc {0};
+  if (!allowStriper) {
+    rc = ceph_posix_pread(fd,buf,count,offset);
+    return rc; 
+  }
+  rc = ceph_posix_nonstriper_pread(fd, buf, count,offset);
+  if (-ENOENT == rc || -ENOTSUP == rc) {
+    //This might be a sparse file or nbstripes > 1, so let's try striper read
+    rc = ceph_posix_pread(fd, buf, count,offset);
+    if (rc >= 0) {
+      char err_str[100]; //99 symbols should be enough for the short message
+      snprintf(err_str, 100, "WARNING! The file (fd %d) seem to be sparse, this is not expected", fd);
+      logwrapper(err_str);
+    }
+  }
+  return rc; 
+}
+
 
 static void ceph_aio_read_complete(rados_completion_t c, void *arg) {
   AioArgs *awa = reinterpret_cast<AioArgs*>(arg);
@@ -993,7 +1216,7 @@ ssize_t ceph_aio_read(int fd, XrdSfsAio *aiop, AioCB *cb) {
 int ceph_posix_fstat(int fd, struct stat *buf) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
-    logwrapper((char*)"ceph_stat: fd %d", fd);
+    logwrapper((char*)__FUNCTION__,": fd %d", fd);
     // minimal stat : only size and times are filled
     // atime, mtime and ctime are set all to the same value
     // mode is set arbitrarily to 0666 | S_IFREG
@@ -1007,6 +1230,8 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
     if (rc != 0) {
       return -rc;
     }
+    buf->st_dev = 1;
+    buf->st_ino = 1;
     buf->st_mtime = buf->st_atime;
     buf->st_ctime = buf->st_atime;
     buf->st_mode = 0666 | S_IFREG;
@@ -1017,7 +1242,7 @@ int ceph_posix_fstat(int fd, struct stat *buf) {
 }
 
 int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
-  logwrapper((char*)"ceph_stat: %s", pathname);
+  logwrapper((char*)__FUNCTION__, pathname);
   // minimal stat : only size and times are filled
   // atime, mtime and ctime are set all to the same value
   // mode is set arbitrarily to 0666 | S_IFREG
@@ -1038,6 +1263,10 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
       return -rc;
     }
   }
+ // XRootD assumes an 'offline' file if st_dev and st_ino 
+// are zero. Set to non-zero (meaningful) values to avoid this 
+  buf->st_dev = 1;
+  buf->st_ino = 1;
   buf->st_mtime = buf->st_atime;
   buf->st_ctime = buf->st_atime;
   buf->st_mode = 0666 | S_IFREG;
@@ -1242,6 +1471,50 @@ int ceph_posix_statfs(long long *totalSpace, long long *freeSpace) {
   return rc;
 }
 
+/**
+ *
+ * @brief Return the amount of space used in a pool.
+ * @details This function -
+ *   Obtains the statistics that librados holds on a pool
+ *   Calculates the number of bytes allocated to the pool
+ * @params
+ *   poolName: (in) the name of the pool to query
+ *   usedSpace: (out) the number of bytes used in the pool
+ * @return 
+ *   success or failure status
+ *
+ * Implementation:
+ * Jyothish Thomas	STFC RAL, jyothish.thomas@stfc.ac.uk, 2022
+ * Ian Johnson		STFC RAL, ian.johnson@stfc.ac.uk, 2022, 2023
+ *
+ */
+
+int ceph_posix_stat_pool(char const *poolName, long long *usedSpace) {
+
+  logwrapper((char*)__FUNCTION__, poolName);
+  // get the poolIdx to use
+  int cephPoolIdx = getCephPoolIdxAndIncrease();
+  librados::Rados* cluster = checkAndCreateCluster(cephPoolIdx);
+  if (0 == cluster) {
+     return -EINVAL;
+  }
+
+  std::list<std::string> poolNames({poolName});
+  std::map<std::string, librados::pool_stat_t> stat;
+
+  if (cluster->get_pool_stats(poolNames, stat) < 0) {
+
+    logwrapper((char*)"Unable to get_pool_stats for pool ", poolName);
+    return -EINVAL; 
+
+  } else {
+ 
+    *usedSpace = stat[poolName].num_kb * 1024;
+    return XrdOssOK;
+
+  }
+}
+
 static int ceph_posix_internal_truncate(const CephFile &file, unsigned long long size) {
   libradosstriper::RadosStriper *striper = getRadosStriper(file);
   if (0 == striper) {
@@ -1269,13 +1542,48 @@ int ceph_posix_truncate(XrdOucEnv* env, const char *pathname, unsigned long long
 
 int ceph_posix_unlink(XrdOucEnv* env, const char *pathname) {
   logwrapper((char*)"ceph_posix_unlink : %s", pathname);
+  // start the timer
+  auto timer_start = std::chrono::steady_clock::now();
+
   // minimal stat : only size and times are filled
   CephFile file = getCephFile(pathname, env);
   libradosstriper::RadosStriper *striper = getRadosStriper(file);
   if (0 == striper) {
     return -EINVAL;
   }
-  return striper->remove(file.name);
+  int rc = striper->remove(file.name);
+  auto end = std::chrono::steady_clock::now();
+  auto deltime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - timer_start).count();
+
+  if (rc == 0) {
+      logwrapper((char*)"ceph_posix_unlink : %s unlink successful: %d ms", pathname, deltime_ms);
+      return 0;
+  }
+  if (rc != -EBUSY) {
+    logwrapper((char*)"ceph_posix_unlink : %s unlink failed: %d ms; return code %d", pathname, deltime_ms, rc);
+    return rc; 
+  }
+  // if EBUSY returned, assume the file is locked; so try to remove the lock
+  logwrapper((char*)"ceph_posix_unlink : unlink failed with -EBUSY %s, now trying to remove lock.", pathname);  
+
+  // lock name is only exposed in the libradosstriper source file, so hardcode it here. 
+  rc = ceph_posix_internal_removexattr(file, "lock.striper.lock");
+  if (rc !=0 ) {
+    logwrapper((char*)"ceph_posix_unlink : unlink rmxattr failed %s, %d", pathname, rc);
+    return rc;
+  }
+
+  // now try to remove again
+  rc = striper->remove(file.name);
+  end = std::chrono::steady_clock::now();
+  deltime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - timer_start).count();
+
+  if (rc != 0) {
+    logwrapper((char*)"ceph_posix_unlink : unlink failed after lock removal %s, %d ms", pathname, deltime_ms);
+  } else {
+    logwrapper((char*)"ceph_posix_unlink : unlink suceeded after lock removal %s, %d ms", pathname, deltime_ms);
+  }
+  return rc; 
 }
 
 DIR* ceph_posix_opendir(XrdOucEnv* env, const char *pathname) {

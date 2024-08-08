@@ -18,7 +18,7 @@
 
 Name:		xrootd
 Epoch:		1
-Release:	2%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
+Release:	4%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
 Summary:	Extended ROOT File Server
 Group:		System Environment/Daemons
 License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AND Zlib
@@ -26,10 +26,10 @@ URL:		https://xrootd.slac.stanford.edu
 
 %if !%{with git}
 Version:	5.7.0
-Source0:	%{url}/download/v%{version}/%{name}-%{version}.tar.gz
+Source0:	%{name}.tar.gz
 %else
 %define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
-%define src_version 5.7.0
+%define src_version 5.7.0 
 %define rpm_version 5.7.0
 Version:	%rpm_version
 Source0:	%{name}.tar.gz
@@ -102,8 +102,8 @@ Requires:	libasan
 %endif
 
 %if %{with ceph}
-BuildRequires:	librados-devel
-BuildRequires:	libradosstriper-devel
+BuildRequires:	librados-devel = 2:16.2.15
+BuildRequires:	libradosstriper-devel = 2:16.2.15
 %endif
 
 %if %{with clang}

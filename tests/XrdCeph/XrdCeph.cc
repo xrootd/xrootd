@@ -7,7 +7,7 @@
 
 #define MB 1024 * 1024
 
-struct CephFile {
+/*struct CephFile {
   std::string name;
   std::string pool;
   std::string userId;
@@ -15,7 +15,7 @@ struct CephFile {
   unsigned long long stripeUnit;
   unsigned long long objectSize;
 };
-
+*/
 void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file);
 void fillCephFileParams(const std::string &params, XrdOucEnv *env,
                         CephFile &file);
