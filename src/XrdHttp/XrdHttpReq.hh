@@ -107,6 +107,14 @@ private:
   // be included in the response.
   int PostProcessChecksum(std::string &digest_header);
 
+  // Process the listing request of a GET request against a directory
+  // - final_: True if this is the last entry in the listing.
+  int PostProcessListing(bool final_);
+
+  // Send the response for a GET request for a file read (i.e., not a directory)
+  // Invoked after the open is successful but before the first read is issued.
+  int ReturnGetHeaders();
+
   /// Cook and send the response after the bridge did something
   /// Return values:
   ///  0->everything OK, additionsl steps may be required
