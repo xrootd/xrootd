@@ -42,7 +42,7 @@
 
 namespace
 {
-char *getMyFQN(const char *&myDom, const char *&myErr)
+char *getMyFQN(const char *&myDom, bool &myFQN, const char *&myErr)
 {
    XrdNetAddr theAddr;
    XrdOucTList *ifList, *ifNow;
@@ -54,6 +54,17 @@ char *getMyFQN(const char *&myDom, const char *&myErr)
 //
    myDom = "";
 
+// The identity can be specified via an envar. In this case, it short circuits
+// all the subsequent code.
+//
+   if ((dnsName = getenv("XRDNET_IDENTITY")))
+      {if (XrdNetAddrInfo::isHostName(dnsName)
+       &&  !(myDom = index(dnsName, '.'))) myDom = "";
+       myFQN = false;
+       return strdup(dnsName);
+      }
+   myFQN = true;
+
 // Obtain the host name, this is mandatory.
 //
    if (gethostname(hName, sizeof(hName)))
@@ -63,7 +74,7 @@ char *getMyFQN(const char *&myDom, const char *&myErr)
 // First step it to get all IP addresses configured on this machine
 //
    if (!XrdNetIF::GetIF(&ifList, &myErr))
-      {myDom = 0; return strdup(hName);}
+      {myDom = ""; return strdup(hName);}
 
 // Run through the interfaces and try to get the hostname associated with
 // this machine. Note that we may have public and private addresses and
@@ -152,7 +163,8 @@ char *getMyFQN(const char *&myDom, const char *&myErr)
   
 const char *XrdNetIdentity::DNS_Domain;
 const char *XrdNetIdentity::DNS_Error;
-const char *XrdNetIdentity::DNS_FQN = getMyFQN(DNS_Domain, DNS_Error);
+      char *XrdNetIdentity::DNS_FQN = getMyFQN(DNS_Domain, FQN_DNS, DNS_Error);
+      bool  XrdNetIdentity::FQN_DNS;
 
 /******************************************************************************/
 /*                                D o m a i n                                 */
@@ -172,4 +184,16 @@ const char *XrdNetIdentity::FQN(const char **eText)
 {
    if (eText) *eText = DNS_Error;
    return DNS_FQN;
+}
+
+/******************************************************************************/
+/*                                s e t F Q N                                 */
+/******************************************************************************/
+  
+void XrdNetIdentity::SetFQN(const char *fqn)
+{
+   if (DNS_FQN) free(DNS_FQN);
+   DNS_FQN = strdup(fqn);
+   if (!(DNS_Domain = index(DNS_FQN, '.'))) DNS_Domain = "";
+   FQN_DNS = false;
 }

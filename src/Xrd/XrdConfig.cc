@@ -65,6 +65,7 @@
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -401,7 +402,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(urArgc,argv,":a:A:bc:dhHI:k:l:L:n:p:P:R:s:S:vw:W:z"))
+      while ((c = getopt(urArgc,argv,":a:A:bc:dhHI:k:l:L:n:N:p:P:R:s:S:vw:W:z"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -450,6 +451,8 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'n': myInsName = (!strcmp(optarg,"anon")||!strcmp(optarg,"default")
                            ? 0 : optarg);
+                 break;
+       case 'N': XrdNetIdentity::SetFQN(optarg);
                  break;
        case 'p': if ((clPort = XrdOuca2x::a2p(Log,"tcp",optarg)) < 0) Usage(1);
                  break;
@@ -1493,8 +1496,9 @@ void XrdConfig::Usage(int rc)
   if (rc < 0) std::cerr <<XrdLicense;
      else
      std::cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-I {v4|v6}]\n"
-            "[-k {n|sz|sig}] [-l [=]<fn>] [-n name] [-p <port>] [-P <prot>] [-L <libprot>]\n"
-            "[-R] [-s pidfile] [-S site] [-v] [-z] [<prot_options>]" <<std::endl;
+            "[-k {n|sz|sig}] [-l [=]<fn>] [-n <name>] [-N <hname>] [-p <port>]\n"
+            "[-P <prot>] [-L <libprot>] [-R] [-s pidfile] [-S site] [-v] [-z]\n"
+            "[<protocol_options>]" <<std::endl;
      _exit(rc > 0 ? rc : 0);
 }
 

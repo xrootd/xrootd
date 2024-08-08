@@ -96,10 +96,18 @@ XrdNetAddr::XrdNetAddr(int port) : XrdNetAddrInfo()
 {
    const char *fqn = XrdNetIdentity::FQN();
 
-// Otherwise, we cannot initialize this object so force an error!
+// The host name might not be resolvable. If we have an fqn then either the
+// name was manually set or we are using an IP address because reverse
+// lookup did not work. If we have an fqn, then use it as the name. Otherwise,
+// use localhost as that is always a safe fallback.
 //
-   if (!fqn) fqn = "No_DNS_Name!";
-   Set(fqn, port);
+   if (!fqn || Set(fqn, port))
+      {Set("localhost", port);
+       if (fqn)
+          {if (hostName) free(hostName);
+           hostName = strdup(fqn);
+          }
+      }
 }
 
 /******************************************************************************/
