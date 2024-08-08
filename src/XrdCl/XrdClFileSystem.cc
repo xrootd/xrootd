@@ -945,7 +945,7 @@ namespace XrdCl
       XrdSysMutexHelper scopedLock( fs->pMutex );
 
       log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", fs.get(),
-                 fs->pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+                 fs->pUrl->GetHostId().c_str(), msg->GetObfuscatedDescription().c_str() );
 
       AssignLastURLHandler *lastUrlHandler = new AssignLastURLHandler( fs, handler );
       handler = lastUrlHandler;
@@ -1098,7 +1098,7 @@ namespace XrdCl
         if( !pPlugIn )
         {
           log->Error( FileMsg, "Plug-in factory failed to produce a plug-in "
-                      "for %s, continuing without one", urlStr.c_str() );
+                      "for %s, continuing without one", url.GetObfuscatedURL().c_str() );
         }
       }
     }

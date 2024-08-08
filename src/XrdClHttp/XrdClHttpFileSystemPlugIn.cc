@@ -26,7 +26,7 @@ HttpFileSystemPlugIn::HttpFileSystemPlugIn(const std::string &url)
   SetUpLogging(logger_);
   logger_->Debug(kLogXrdClHttp,
                  "HttpFileSystemPlugIn constructed with URL: %s.",
-                 url_.GetURL().c_str());
+                 url_.GetObfuscatedURL().c_str());
   std::string origin = getenv("XRDXROOTD_PROXY")? getenv("XRDXROOTD_PROXY") : "";
   if ( origin.empty() || origin.find("=") == 0) {
       ctx_ = new Davix::Context();
@@ -94,7 +94,7 @@ XRootDStatus HttpFileSystemPlugIn::Rm(const std::string &path,
 
   logger_->Debug(kLogXrdClHttp,
                  "HttpFileSystemPlugIn::Rm - path = %s, timeout = %d",
-                 url.GetURL().c_str(), timeout);
+                 url.GetObfuscatedURL().c_str(), timeout);
 
   auto status = Posix::Unlink(*davix_client_, url.GetURL(), timeout);
 
@@ -119,7 +119,7 @@ XRootDStatus HttpFileSystemPlugIn::MkDir(const std::string &path,
   logger_->Debug(
       kLogXrdClHttp,
       "HttpFileSystemPlugIn::MkDir - path = %s, flags = %d, timeout = %d",
-      url.GetURL().c_str(), flags, timeout);
+      url.GetObfuscatedURL().c_str(), flags, timeout);
 
   auto status = Posix::MkDir(*davix_client_, url.GetURL(), flags, mode, timeout);
   if (status.IsError()) {
@@ -140,7 +140,7 @@ XRootDStatus HttpFileSystemPlugIn::RmDir(const std::string &path,
 
   logger_->Debug(kLogXrdClHttp,
                  "HttpFileSystemPlugIn::RmDir - path = %s, timeout = %d",
-                 url.GetURL().c_str(), timeout);
+                 url.GetObfuscatedURL().c_str(), timeout);
 
   auto status = Posix::RmDir(*davix_client_, url.GetURL(), timeout);
   if (status.IsError()) {

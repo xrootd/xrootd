@@ -1659,7 +1659,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable to open file %s: %s",
-                remoteUrl.GetURL().c_str(), st.ToStr().c_str() );
+                remoteUrl.GetObfuscatedURL().c_str(), st.ToStr().c_str() );
     return st;
   }
 
@@ -1682,7 +1682,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
     if( !st.IsOK() )
     {
       log->Error( AppMsg, "Unable to read from %s: %s",
-                  remoteUrl.GetURL().c_str(), st.ToStr().c_str() );
+                  remoteUrl.GetObfuscatedURL().c_str(), st.ToStr().c_str() );
       delete [] buffer;
       return st;
     }
