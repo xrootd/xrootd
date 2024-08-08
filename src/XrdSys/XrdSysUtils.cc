@@ -177,6 +177,10 @@ int XrdSysUtils::GetSigNum(const char *sname)
    return 0;
 }
 
+#ifdef ENABLE_COVERAGE
+extern "C" void __gcov_dump(void);
+#endif
+
 /******************************************************************************/
 /*                              S i g B l o c k                               */
 /******************************************************************************/
@@ -188,6 +192,11 @@ bool XrdSysUtils::SigBlock()
 // Ignore pipe signals and prepare to blocks others
 //
    signal(SIGPIPE, SIG_IGN);  // Solaris optimization
+
+#ifdef ENABLE_COVERAGE
+   // Dump coverage information and exit upon receiving a TERM signal
+   signal(SIGTERM, [](int) { __gcov_dump(); _exit(EXIT_SUCCESS); });
+#endif
 
 // Add the standard signals we normally always block
 //
