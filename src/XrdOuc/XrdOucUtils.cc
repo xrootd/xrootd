@@ -1145,9 +1145,11 @@ char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 
 void XrdOucUtils::toLower(char *str)
 {
+   unsigned char* ustr = (unsigned char*)str;  // Avoid undefined behaviour
+
 // Change each character to lower case
 //
-   while(*str) {*str = tolower(*str); str++;}
+   while(*ustr) {*ustr = tolower(*ustr); ustr++;}
 }
   
 /******************************************************************************/
