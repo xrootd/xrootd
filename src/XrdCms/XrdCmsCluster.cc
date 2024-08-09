@@ -952,7 +952,8 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
    if (!Cache.Paths.Find(Sel.Path.Val, pinfo)
    || (amask = ((isRW ? pinfo.rwvec : pinfo.rovec) & ~Sel.nmask)) == 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-                       "No servers have %s access to the file", Amode)+1;
+                       "No servers %s %s access to the file",
+                       (isRW && Config.forceRO ? "allowed" : "have"), Amode)+1;
        Sel.Resp.Port = kYR_ENOENT;
        return EReplete;
       }

@@ -123,7 +123,9 @@ int         DiskWT;       // Seconds to defer client while waiting for space
 bool        DiskSS;       // This is a staging server
 bool        DiskOK;       // This configuration has data
 
-char        rsvd[5];
+bool        forceRO;      // Manager will force incoming paths to be r/o
+
+char        rsvd[3];
 
 char        sched_RR;     // 1 -> Simply do round robin scheduling
 char        sched_Pack;   // 1 -> Pick with affinity (>1 same but wait for resps)
@@ -234,6 +236,7 @@ int  xfsxq(XrdSysError *edest, XrdOucStream &CFile);
 int  xfxhld(XrdSysError *edest, XrdOucStream &CFile);
 int  xlclrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xmang(XrdSysError *edest, XrdOucStream &CFile);
+int  xmode(XrdSysError *edest, XrdOucStream &CFile);
 int  xnbsq(XrdSysError *edest, XrdOucStream &CFile);
 int  xperf(XrdSysError *edest, XrdOucStream &CFile);
 int  xping(XrdSysError *edest, XrdOucStream &CFile);
