@@ -294,7 +294,7 @@ int XrdSutFromHex(const char *in, char *out, int &lout)
    for ( ; i<lin; i += 2) {
       st[0] = in[i];
       st[1] = ((i+1) < lin) ? in[i+1] : 0;
-      int c;
+      unsigned int c;
       sscanf(st,"%x",&c);
       out[k++] = (char)(0x000000FF & c);
    }
