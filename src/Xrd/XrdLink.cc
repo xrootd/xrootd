@@ -97,9 +97,9 @@ using namespace XrdGlobal;
 
 namespace
 {
-const char   KillMax =   60;
-const char   KillMsk = 0x7f;
-const char   KillXwt = 0x80;
+const unsigned char   KillMax =   60;
+const unsigned char   KillMsk = 0x7f;
+const unsigned char   KillXwt = 0x80;
 
 const char  *TraceID = "Link";
 }
