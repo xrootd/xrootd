@@ -867,7 +867,8 @@ SMask_t XrdCmsProtocol::AddPath(XrdCmsNode *nP,
 // Process: addpath {r | w | rw}[s] path
 //
    while(*pType)
-        {     if ('r' == *pType) pinfo.rovec =               nP->Mask();
+        {     if ('r' == *pType || (Config.forceRO && 'w' == *pType))
+                                 pinfo.rovec =               nP->Mask();
          else if ('w' == *pType) pinfo.rovec = pinfo.rwvec = nP->Mask();
          else if ('s' == *pType) pinfo.rovec = pinfo.ssvec = nP->Mask();
          else return 0;
