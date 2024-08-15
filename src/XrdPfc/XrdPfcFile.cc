@@ -608,9 +608,20 @@ void File::ProcessBlockRequests(BlockList_t& blks)
 
 void File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, std::vector<XrdOucIOVec>& ioVec, int expected_size)
 {
-   TRACEF(DumpXL, "RequestBlocksDirect() issuing ReadV for n_chunks = " << (int) ioVec.size() << ", total_size = " << expected_size);
+   int iovec_sz = (int) ioVec.size();
+   TRACEF(DumpXL, "RequestBlocksDirect() issuing ReadV for n_chunks = " << iovec_sz << ", total_size = " << expected_size);
 
-   io->GetInput()->ReadV( *handler, ioVec.data(), (int) ioVec.size());
+   /* If there is only one element in the read vector, it may come from a Read request.
+    * Read requests do not respect ReadV max_ior limit, so to avoid erros it should not
+    * be forwarded as ReadV. */
+   if (iovec_sz == 1)
+   {
+      io->GetInput()->Read(*handler, ioVec[0].data, ioVec[0].offset, ioVec[0].size);
+   }
+   else
+   {
+      io->GetInput()->ReadV(*handler, ioVec.data(), iovec_sz);
+   }
 }
 
 //------------------------------------------------------------------------------
