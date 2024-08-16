@@ -42,6 +42,7 @@ class XrdNetSecurity;
 class XrdOucStream;
 class XrdInet;
 class XrdConfigProt;
+class XrdMonitor;
 
 class XrdConfig
 {
@@ -96,6 +97,7 @@ int   xtmo(XrdSysError *edest, XrdOucStream &Config);
 static const char  *TraceID;
 XrdNetSecurity     *Police;
 XrdTcpMonInfo      *tmoInfo;
+XrdMonitor         *theMon;
 const char         *myProg;
 const char         *myName;
 const char         *myDomain;
