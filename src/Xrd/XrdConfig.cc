@@ -59,6 +59,7 @@
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdLinkCtl.hh"
+#include "Xrd/XrdMonitor.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
@@ -264,6 +265,7 @@ XrdConfig::XrdConfig()
    AdminMode= S_IRWXU;
    HomeMode = S_IRWXU;
    Police   = 0;
+   theMon   = 0;
    Net_Opts = XRDNET_KEEPALIVE;
    TLS_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
    TLS_Opts = XRDNET_KEEPALIVE | XRDNET_USETLS;
@@ -1390,7 +1392,10 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 // Now check if we have to setup automatic reporting
 //
    if (repDest[0] != 0 && repOpts) 
-      ProtInfo.Stats->Report(repDest, repInt, repOpts);
+      {ProtInfo.Stats->Report(repDest, repInt, repOpts);
+       theMon = new XrdMonitor;
+       theEnv.PutPtr("XrdMonRoll*", (XrdMonRoll*)theMon);
+      }
 
 // All done
 //
