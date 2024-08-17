@@ -682,8 +682,10 @@ struct read_list {
    kXR_int64 offset;
 };
 static const int rlItemLen = sizeof(read_list);
-static const int maxRvecln = 16384;
-static const int maxRvecsz = maxRvecln/rlItemLen;
+static const int maxRvecln = 16384;               // Max read vector length
+static const int maxRvecsz = maxRvecln/rlItemLen; // Max number of elements
+static const int minRVbsz  = 2097152;             // 2MB minimum buffer size
+static const int maxRVdsz  = minRVbsz-rlItemLen;  // Max amount of data to xfer
 }
 
 /******************************************************************************/
