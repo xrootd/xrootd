@@ -390,7 +390,7 @@ private:
    void   ProcessBlockRequest (Block       *b);
    void   ProcessBlockRequests(BlockList_t& blks);
 
-   void   RequestBlocksDirect(IO *io, DirectResponseHandler *handler, std::vector<XrdOucIOVec>& ioVec, int expected_size);
+   void   RequestBlocksDirect(IO *io, ReadRequest *read_req, std::vector<XrdOucIOVec>& ioVec, int expected_size);
 
    int    ReadBlocksFromDisk(std::vector<XrdOucIOVec>& ioVec, int expected_size);
 

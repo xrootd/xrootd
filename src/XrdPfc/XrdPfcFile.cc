@@ -606,11 +606,23 @@ void File::ProcessBlockRequests(BlockList_t& blks)
 
 //------------------------------------------------------------------------------
 
-void File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, std::vector<XrdOucIOVec>& ioVec, int expected_size)
+void File::RequestBlocksDirect(IO *io, ReadRequest *read_req, std::vector<XrdOucIOVec>& ioVec, int expected_size)
 {
-   TRACEF(DumpXL, "RequestBlocksDirect() issuing ReadV for n_chunks = " << (int) ioVec.size() << ", total_size = " << expected_size);
+   int n_chunks    = ioVec.size();
+   int n_vec_reads = (n_chunks - 1) / XrdProto::maxRvecsz + 1;
 
-   io->GetInput()->ReadV( *handler, ioVec.data(), (int) ioVec.size());
+   TRACEF(DumpXL, "RequestBlocksDirect() issuing ReadV for n_chunks = " << n_chunks <<
+          ", total_size = " << expected_size << ", n_vec_reads = " << n_vec_reads);
+
+   DirectResponseHandler *handler = new DirectResponseHandler(this, read_req, n_vec_reads);
+
+   int pos = 0;
+   while (n_chunks > XrdProto::maxRvecsz) {
+      io->GetInput()->ReadV( *handler, ioVec.data() + pos, XrdProto::maxRvecsz);
+      pos      += XrdProto::maxRvecsz;
+      n_chunks -= XrdProto::maxRvecsz;
+   }
+   io->GetInput()->ReadV( *handler, ioVec.data() + pos, n_chunks);
 }
 
 //------------------------------------------------------------------------------
@@ -820,12 +832,25 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
             {
                TRACEF(DumpXL, tpfx << "direct block " << block_idx << ", blk_off " << blk_off << ", size " << size);
 
-               if (lbe == LB_direct)
-                  iovec_direct.back().size += size;
-               else
-                  iovec_direct.push_back( { block_idx * m_block_size + blk_off, size, 0, iUserBuff + off } );
                iovec_direct_total += size;
                read_req->m_direct_done = false;
+
+               // Make sure we do not issue a ReadV with chunk size above XrdProto::maxRVdsz.
+               // Number of actual ReadVs issued so as to not exceed the XrdProto::maxRvecsz limit
+               // is determined in the RequestBlocksDirect().
+               if (lbe == LB_direct && iovec_direct.back().size + size <= XrdProto::maxRVdsz) {
+                  iovec_direct.back().size += size;
+               } else {
+                  long long  in_offset = block_idx * m_block_size + blk_off;
+                  char      *out_pos   = iUserBuff + off;
+                  while (size > XrdProto::maxRVdsz) {
+                     iovec_direct.push_back( { in_offset, XrdProto::maxRVdsz, 0, out_pos } );
+                     in_offset += XrdProto::maxRVdsz;
+                     out_pos   += XrdProto::maxRVdsz;
+                     size      -= XrdProto::maxRVdsz;
+                  }
+                  iovec_direct.push_back( { in_offset, size, 0, out_pos } );
+               }
 
                lbe = LB_direct;
             }
@@ -847,8 +872,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
    // Second, send out remote direct read requests.
    if ( ! iovec_direct.empty())
    {
-      DirectResponseHandler *direct_handler = new DirectResponseHandler(this, read_req, 1);
-      RequestBlocksDirect(io, direct_handler, iovec_direct, iovec_direct_total);
+      RequestBlocksDirect(io, read_req, iovec_direct, iovec_direct_total);
 
       TRACEF(Dump, tpfx << "direct read requests sent out, n_chunks = " << (int) iovec_direct.size() << ", total_size = " << iovec_direct_total);
    }
