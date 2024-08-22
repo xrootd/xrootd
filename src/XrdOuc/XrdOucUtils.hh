@@ -158,5 +158,10 @@ static std::string obfuscateAuth(const std::string & input);
 
     XrdOucUtils() {}
     ~XrdOucUtils() {}
+
+private:
+  // As the compilation of the regexes when the std::regex object is constructed is expensive,
+  // we initialize the auth obfuscation regexes only once in the XRootD process lifetime
+  static std::vector<std::regex> authObfuscationRegexes;
 };
 #endif
