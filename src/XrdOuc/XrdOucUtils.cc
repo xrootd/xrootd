@@ -113,7 +113,15 @@ int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
    return luRet;
 }
 }
-  
+
+std::vector<std::regex> XrdOucUtils::authObfuscationRegexes {
+  //authz=xxx&... We deal with cases like "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=foo1234, flags: none)" where we do not want to obfuscate
+  // ", flags: none)" + we deal with cases where the 'authz=Bearer token' when an admin could set 'http.header2cgi Authorization authz' in the server config
+  std::regex(R"((authz=)(Bearer\s)?([^ &\",<>#%{}|\^~\[\]`]*))",std::regex_constants::optimize),
+  // HTTP Authorization, TransferHeaderAuthorization headers that with the key that can be prefixed with spaces and value prefixed by spaces
+  std::regex(R"((\s*\w*Authorization\s*:\s*)[^$]*)", std::regex_constants::icase | std::regex_constants::optimize)
+};
+
 /******************************************************************************/
 /*                               a r g L i s t                                */
 /******************************************************************************/
@@ -1415,13 +1423,7 @@ void XrdOucUtils::trim(std::string &str) {
 }
 
 std::string XrdOucUtils::obfuscateAuth(const std::string & input) {
-  return obfuscate(input,{
-    //authz=xxx&... We deal with cases like "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=foo1234, flags: none)" where we do not want to obfuscate
-    // ", flags: none)" + we deal with cases where the 'authz=Bearer token' when an admin could set 'http.header2cgi Authorization authz' in the server config
-    std::regex(R"((authz=)(Bearer\s)?([^ &\",<>#%{}|\^~\[\]`]*))"),
-    // HTTP Authorization, TransferHeaderAuthorization headers that with the key that can be prefixed with spaces and value prefixed by spaces
-    std::regex(R"((\s*\w*Authorization\s*:\s*)[^$]*)", std::regex_constants::icase)
-  });
+  return obfuscate(input, authObfuscationRegexes);
 }
 
 
