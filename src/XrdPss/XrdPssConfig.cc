@@ -345,6 +345,13 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
           }
       }
 
+// Export the URL
+//
+   if (hdrData && *hdrData)
+      {snprintf(theRdr, sizeof(theRdr), hdrData, "", "");
+       XrdOucEnv::Export("XRDXROOTD_PROXYURL", theRdr);
+      }
+
 // Check if we have any r/w exports as this will determine whether or not we
 // need to initialize any r/w cache. Currently, we don't support this so we
 // have no particular initialization to do.
