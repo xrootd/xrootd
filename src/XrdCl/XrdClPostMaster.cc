@@ -312,6 +312,14 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Shut down a channel
   //------------------------------------------------------------------------
+  Status PostMaster::ForceDisconnect( const URL &url )
+  {
+    return ForceDisconnect(url, false);
+  }
+
+  //------------------------------------------------------------------------
+  // Shut down a channel
+  //------------------------------------------------------------------------
   Status PostMaster::ForceDisconnect( const URL &url, bool hush )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock, false );

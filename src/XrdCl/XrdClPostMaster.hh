@@ -150,7 +150,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Shut down a channel
       //------------------------------------------------------------------------
-      Status ForceDisconnect( const URL &url, bool hush=false );
+      Status ForceDisconnect( const URL &url );
+
+      //------------------------------------------------------------------------
+      //! Shut down a channel
+      //------------------------------------------------------------------------
+      Status ForceDisconnect( const URL &url, bool hush );
 
       //------------------------------------------------------------------------
       //! Reconnect the channel
