@@ -1,4 +1,4 @@
-SERVER_URL  = 'root://localhost/'
+SERVER_URL  = 'root://localhost:3094/'
 smallfile   = SERVER_URL + '/tmp/spam'
 smallcopy   = SERVER_URL + '/tmp/eggs'
 smallbuffer = 'gre\0en\neggs\nand\nham\n'
