@@ -62,6 +62,7 @@ jobs:
           py3-setuptools \
           py3-wheel \
           python3-dev \
+          pytest \
           readline-dev \
           sudo \
           util-linux-dev \
@@ -305,6 +306,9 @@ jobs:
 
     - name: Install dependencies with Homebrew
       run: brew install googletest libzip nlohmann-json python-setuptools
+
+    - name: Install Python dependencies with pip
+      run: pip install --user pytest
 
     - name: Clone repository
       uses: actions/checkout@v6
