@@ -54,7 +54,8 @@ namespace PyXRootD
                PyObject_CallObject( (PyObject *) &CopyProcessType, NULL );
     if ( !copyprocess ) return NULL;
 
-    copyprocess->AddJob( copyprocess, args, kwds );
+    pystatus = copyprocess->AddJob( copyprocess, args, kwds );
+    Py_XDECREF( pystatus );
     pystatus = copyprocess->Prepare( copyprocess, NULL, NULL );
     if ( !pystatus ) return NULL;
     if ( PyDict_GetItemString( pystatus, "ok" ) == Py_False )
@@ -65,6 +66,7 @@ namespace PyXRootD
       PyTuple_SetItem(tuple, 1, Py_None);
       return tuple;
     }
+    Py_DECREF( pystatus );
 
     pystatus = copyprocess->Run( copyprocess, PyTuple_New(0), PyDict_New() );
     if ( !pystatus ) return NULL;
@@ -178,7 +180,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -252,7 +254,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -284,7 +286,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -319,7 +321,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -351,7 +353,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -384,7 +386,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -415,7 +417,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }

@@ -67,6 +67,7 @@ namespace PyXRootD
                                  jobNum, pyresult );
       Py_XDECREF(ret);
     }
+    Py_XDECREF(pyresult);
     PyGILState_Release(state);
   }
 
