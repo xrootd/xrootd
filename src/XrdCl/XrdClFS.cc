@@ -1942,7 +1942,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
 
   printf( "   cache {evict | fevict} <path>\n"                                );
   printf( "     Evict a file from a cache if not in use; while fevict\n"      );
-  printf( "     focibly evicts the file causing any current uses of the\n"    );
+  printf( "     forcibly evicts the file causing any current uses of the\n"   );
   printf( "     file to get read failures on a subsequent read\n\n"           );
 
   printf( "   cd <path>\n"                                                    );
@@ -1954,7 +1954,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
 
   printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [dirname]\n"                   );
   printf( "     Get directory listing.\n"                                     );
-  printf( "     -l stat every entry and pring long listing\n"                 );
+  printf( "     -l stat every entry and print long listing\n"                 );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries"                                    );
@@ -1985,29 +1985,29 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "              flags may be combined together using '|' or '&'\n"   );
   printf( "              Available flags:\n"                                  );
   printf( "              XBitSet, IsDir, Other, Offline, POSCPending,\n"      );
-  printf( "              IsReadable, IsWriteable\n\n"                         );
+  printf( "              IsReadable, IsWritable\n\n"                          );
 
   printf( "   statvfs <path>\n"                                               );
   printf( "     Get info about a virtual file system.\n\n"                    );
 
-  printf( "   query <code> <parms>\n"                                         );
+  printf( "   query <code> <parameters>\n"                                    );
   printf( "     Obtain server information. Query codes:\n\n"                  );
 
   printf( "     config         <what>   Server configuration; <what> is\n"    );
   printf( "                             one of the following:\n"              );
   printf( "                               bind_max      - the maximum number of parallel streams\n"  );
   printf( "                               chksum        - the supported checksum\n"                  );
+  printf( "                               cms           - the status of the cmsd\n"                  );
   printf( "                               pio_max       - maximum number of parallel I/O requests\n" );
   printf( "                               readv_ior_max - maximum size of a readv element\n"         );
   printf( "                               readv_iov_max - maximum number of readv entries\n"         );
+  printf( "                               role          - the role in a cluster\n"                   );
+  printf( "                               sitename      - the site name\n"                           );
   printf( "                               tpc           - support for third party copies\n"          );
+  printf( "                               version       - the version of the server\n"               );
   printf( "                               wan_port      - the port to use for wan copies\n"          );
   printf( "                               wan_window    - the wan_port window size\n"                );
   printf( "                               window        - the tcp window size\n"                     );
-  printf( "                               cms           - the status of the cmsd\n"                  );
-  printf( "                               role          - the role in a cluster\n"                   );
-  printf( "                               sitename      - the site name\n"                           );
-  printf( "                               version       - the version of the server\n"               );
   printf( "     checksumcancel <path>   File checksum cancellation\n"       );
   printf( "     checksum       <path>   File checksum\n"                    );
   printf( "     opaque         <arg>    Implementation dependent\n"         );
