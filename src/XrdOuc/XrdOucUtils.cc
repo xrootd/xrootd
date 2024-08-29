@@ -53,6 +53,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -114,7 +115,9 @@ int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
 }
 }
 
-std::vector<std::regex> XrdOucUtils::authObfuscationRegexes {
+const std::string OBFUSCATION_STR = "REDACTED";
+
+const std::vector<std::regex> authObfuscationRegexes = {
   //authz=xxx&... We deal with cases like "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=foo1234, flags: none)" where we do not want to obfuscate
   // ", flags: none)" + we deal with cases where the 'authz=Bearer token' when an admin could set 'http.header2cgi Authorization authz' in the server config
   std::regex(R"((authz=)(Bearer\s)?([^ &\",<>#%{}|\^~\[\]`]*))",std::regex_constants::optimize),
@@ -1422,19 +1425,18 @@ void XrdOucUtils::trim(std::string &str) {
         str.resize (str.size () - 1);
 }
 
-std::string XrdOucUtils::obfuscateAuth(const std::string & input) {
-  return obfuscate(input, authObfuscationRegexes);
-}
-
-
-std::string XrdOucUtils::obfuscate(const std::string &input, const std::vector<std::regex> &regexes) {
+std::string obfuscate(const std::string &input, const std::vector<std::regex> &regexes) {
   std::string result = input;
   for(const auto & regex: regexes) {
-    //Loop over the regexes and replace the values with XrdOucUtils::OBFUSCATION_STR
+    //Loop over the regexes and replace the values with OBFUSCATION_STR
     //$1 matches the first regex subgroup (e.g: "(authz=)")
-    result = std::regex_replace(result, regex, std::string("$1" + XrdOucUtils::OBFUSCATION_STR));
+    result = std::regex_replace(result, regex, std::string("$1" + OBFUSCATION_STR));
   }
   return result;
+}
+
+std::string obfuscateAuth(const std::string & input) {
+  return obfuscate(input, authObfuscationRegexes);
 }
 
 #endif

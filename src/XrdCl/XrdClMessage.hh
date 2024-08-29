@@ -21,6 +21,7 @@
 
 #include "XrdCl/XrdClBuffer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 namespace XrdCl
 {
@@ -88,7 +89,7 @@ namespace XrdCl
       void SetDescription( const std::string &description )
       {
         pDescription = description;
-        pObfuscatedDescription = XrdOucUtils::obfuscateAuth(description);
+        pObfuscatedDescription = obfuscateAuth(description);
       }
 
       //------------------------------------------------------------------------

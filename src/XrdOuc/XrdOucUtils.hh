@@ -45,8 +45,6 @@ class XrdOucUtils
 {
 public:
 
-static inline std::string OBFUSCATION_STR = "REDACTED";
-
 static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 
 static int   argList(char *args, char **argV, int argC);
@@ -138,28 +136,8 @@ static int getModificationTime(const char * path, time_t & modificationTime);
 
 static void trim(std::string & str);
 
-/**
- * Use this function to obfuscate any string containing key-values with XrdOucUtils::OBFUSCATION_STR
- * @param input the string to obfuscate
- * @param regexes the obfuscation regexes to apply to replace the value with XrdOucUtils::OBFUSCATION_STR. The key should be a regex group e.g: "(authz=)"
- * Have a look at obfuscateAuth for more examples
- * @return the string with values obfuscated
- */
-static std::string obfuscate(const std::string & input, const std::vector<std::regex> & regexes);
-
-/**
- * Obfuscates string containing authz=value key value and Authorization: value, TransferHeaderAuthorization: value, WhateverAuthorization: value
- * in a case insensitive way
- * @param input the string to obfuscate
- */
-static std::string obfuscateAuth(const std::string & input);
-
     XrdOucUtils() {}
     ~XrdOucUtils() {}
 
-private:
-  // As the compilation of the regexes when the std::regex object is constructed is expensive,
-  // we initialize the auth obfuscation regexes only once in the XRootD process lifetime
-  static std::vector<std::regex> authObfuscationRegexes;
 };
 #endif

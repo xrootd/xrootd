@@ -623,7 +623,7 @@ namespace XrdCl
       PropertyList::PropertyMap::const_iterator it;
       std::string keyVals;
       for (it = list.begin(); it != list.end(); ++it)
-        keyVals += "'" + it->first + "' = '" + XrdOucUtils::obfuscateAuth(it->second) + "', ";
+        keyVals += "'" + it->first + "' = '" + obfuscateAuth(it->second) + "', ";
       keyVals.erase(keyVals.length() - 2, 2);
       log->Dump(topic, format, keyVals.c_str());
     }
