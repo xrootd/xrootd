@@ -5743,11 +5743,17 @@ XrdSutCacheEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCERef &ceref,
    }
 
    // Reset the entry
-   delete (XrdCryptoX509 *) cent->buf1.buf; // Destroys also xsrv->PKI() pointed in cent->buf2.buf
-   delete (XrdSutBucket *) cent->buf3.buf;
-   cent->buf1.buf = 0;
-   cent->buf2.buf = 0;
-   cent->buf3.buf = 0;
+   XrdCryptoX509 *buf1 = (XrdCryptoX509*) cent->buf1.buf;
+   XrdSutBucket *buf3 = (XrdSutBucket*) cent->buf3.buf;
+
+   if (buf1)
+     delete buf1; // Destroys also xsrv->PKI() pointed in cent->buf2.buf
+   if (buf3)
+     delete buf3;
+
+   cent->buf1.buf = nullptr;
+   cent->buf2.buf = nullptr;
+   cent->buf3.buf = nullptr;
 
    //
    // Get the IDs of the file: we need them to acquire the right privileges when opening
@@ -5823,18 +5829,23 @@ XrdSutCacheEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCERef &ceref,
       cent->status = kCE_ok;
       cent->cnt = 0;
       cent->mtime = xsrv->NotAfter(); // expiration time
+
       // Save pointer to certificate (destroys also xsrv->PKI())
-      if (cent->buf1.buf) delete (XrdCryptoX509 *) cent->buf1.buf;
+      if (cent->buf1.buf)
+        delete (XrdCryptoX509 *) cent->buf1.buf;
       cent->buf1.buf = (char *)xsrv;
       cent->buf1.len = 0;  // just a flag
+
       // Save pointer to key
-      cent->buf2.buf = 0;
       cent->buf2.buf = (char *)(xsrv->PKI());
       cent->buf2.len = 0;  // just a flag
+
       // Save pointer to bucket
-      if (cent->buf3.buf) delete (XrdSutBucket *) cent->buf3.buf;
+      if (cent->buf3.buf)
+        delete (XrdSutBucket *) cent->buf3.buf;
       cent->buf3.buf = (char *)(xbck);
       cent->buf3.len = 0;  // just a flag
+
       // Save CA hash in list to communicate to clients
       if (certcalist.find(xsrv->IssuerHash()) == STR_NPOS) {
          if (certcalist.length() > 0) certcalist += "|";
