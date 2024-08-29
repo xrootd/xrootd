@@ -107,7 +107,7 @@ namespace XrdCl
                                           sizeof(param) );
       if( !st.IsOK() )
         log->Error( AsyncSockMsg, "[%s] Unable to turn on keepalive: %s",
-                    st.ToString().c_str() );
+                    pStreamName.c_str(), st.ToString().c_str() );
 
 #if ( defined(__linux__) || defined(__GNU__) ) && defined( TCP_KEEPIDLE ) && \
     defined( TCP_KEEPINTVL ) && defined( TCP_KEEPCNT )
@@ -117,21 +117,21 @@ namespace XrdCl
       st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPIDLE, &param, sizeof(param));
       if( !st.IsOK() )
         log->Error( AsyncSockMsg, "[%s] Unable to set keepalive time: %s",
-                    st.ToString().c_str() );
+                    pStreamName.c_str(), st.ToString().c_str() );
 
       param = DefaultTCPKeepAliveInterval;
       env->GetInt( "TCPKeepAliveInterval", param );
       st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPINTVL, &param, sizeof(param));
       if( !st.IsOK() )
         log->Error( AsyncSockMsg, "[%s] Unable to set keepalive interval: %s",
-                    st.ToString().c_str() );
+                    pStreamName.c_str(), st.ToString().c_str() );
 
       param = DefaultTCPKeepAliveProbes;
       env->GetInt( "TCPKeepAliveProbes", param );
       st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPCNT, &param, sizeof(param));
       if( !st.IsOK() )
         log->Error( AsyncSockMsg, "[%s] Unable to set keepalive probes: %s",
-                    st.ToString().c_str() );
+                    pStreamName.c_str(), st.ToString().c_str() );
 #endif
     }
 

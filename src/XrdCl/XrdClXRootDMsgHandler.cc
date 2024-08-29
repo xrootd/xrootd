@@ -1906,8 +1906,8 @@ namespace XrdCl
 
       if (!authUrl.FromString(surl))
       {
-        log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data:"
-		    "%s", surl.c_str());
+        log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data: %s",
+                    newUrl.GetHostId().c_str(), surl.c_str());
         return Status(stError, errInvalidRedirectURL);
       }
     }
