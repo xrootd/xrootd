@@ -665,9 +665,12 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
    if (!tokenlib || validated)
       {
        Entity.credslen = strlen(tResp->tkn);
-       if (Entity.creds) free(Entity.creds);
-       Entity.creds = (char *)malloc(Entity.credslen+1);
-       strcpy(Entity.creds, tResp->tkn);
+       if (Entity.creds)
+         free(Entity.creds);
+       if ((Entity.creds = (char *)malloc(Entity.credslen+1)))
+         strcpy(Entity.creds, tResp->tkn);
+       else
+         Fatal(erp, "'ztn' bad alloc", ENOMEM, false);
        if (!Entity.name) Entity.name = strdup("anon");
        return 0;
       }
