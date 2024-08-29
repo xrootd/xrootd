@@ -85,8 +85,8 @@ const char *ffFmt1 =
 const char *ffFmt2 =
   "\"flow-id\":{"
     "\"afi\":\"ipv%c\","            //-> ipv4 | ipv6
-    "\"src-ip\":\"%s\","            //   source which is always server (us)
-    "\"dst-ip\":\"%s\","            //   dest   which is always client
+    "\"src-ip\":\"%s\","            //   source which is always client
+    "\"dst-ip\":\"%s\","            //   dest   which is always server (us)
     "\"protocol\":\"tcp\","
     "\"src-port\":%d,"
     "\"dst-port\":%d"
@@ -294,9 +294,14 @@ void XrdNetPMarkFF::SockStats(struct sockStats &ss)
    struct tcp_info tcpInfo;
    socklen_t  tiLen = sizeof(tcpInfo);
 
+// Note that by convention FF packets must look client generated packets.
+// So, bytes received by the server and actually bytes sent by the client
+// and bytes sent by the server are actually bytes received by the client.
+// This is accomplished by reversing the meaning of sent and received.
+//
    if (getsockopt(sockFD, IPPROTO_TCP, TCP_INFO, (void *)&tcpInfo, &tiLen) == 0)
-      {ss.bRecv = static_cast<uint64_t>(tcpInfo.tcpi_bytes_received);
-       ss.bSent = static_cast<uint64_t>(tcpInfo.tcpi_bytes_acked);
+      {ss.bSent = static_cast<uint64_t>(tcpInfo.tcpi_bytes_received);
+       ss.bRecv = static_cast<uint64_t>(tcpInfo.tcpi_bytes_acked);
        ss.msRTT = static_cast<uint32_t>(tcpInfo.tcpi_rtt/1000);
        ss.usRTT = static_cast<uint32_t>(tcpInfo.tcpi_rtt%1000);
       } else {
@@ -386,9 +391,12 @@ bool XrdNetPMarkFF::Start(XrdNetAddrInfo &addr)
        return false;
       }
 
+// Note that by convention FF packets must look client generated packets.
+// This, source is always he client and destination is alays the server.
+//
    char bseg2[256];
    int len2 = snprintf(bseg2, sizeof(bseg2), ffFmt2,
-                              clType, svIP, clIP, svPort, clPort);
+                              clType, clIP, svIP, clPort, svPort);
    if (len2 >= (int)sizeof(bseg2))
       {eDest->Emsg("PMarkFF", "invalid json; cl bseg2 truncated.");
        return false;
