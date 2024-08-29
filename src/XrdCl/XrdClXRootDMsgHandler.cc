@@ -41,6 +41,7 @@
 #include "XrdCl/XrdClOptimizers.hh"
 
 #include "XrdOuc/XrdOucCRC.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include "XrdSys/XrdSysPlatform.hh" // same as above
 #include "XrdSys/XrdSysAtomics.hh"
@@ -1908,7 +1909,7 @@ namespace XrdCl
       {
         std::string surlLog = surl;
         if( unlikely( log->GetLevel() >= Log::ErrorMsg ) ) {
-          surlLog = XrdOucUtils::obfuscateAuth(surlLog);
+          surlLog = obfuscateAuth(surlLog);
         }
         log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data:"
 		    "%s", surlLog.c_str());

@@ -34,6 +34,7 @@
 #include "XrdCl/XrdClOptimizers.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include <cstdio>
 #include <iostream>
@@ -832,8 +833,8 @@ int main( int argc, char **argv )
     std::string sourcePathObf = sourceFile->Path;
     std::string destPathObf = dest;
     if( unlikely(log->GetLevel() >= Log::DumpMsg) ) {
-      sourcePathObf = XrdOucUtils::obfuscateAuth(sourcePathObf);
-      destPathObf = XrdOucUtils::obfuscateAuth(destPathObf);
+      sourcePathObf = obfuscateAuth(sourcePathObf);
+      destPathObf = obfuscateAuth(destPathObf);
     }
     log->Dump( AppMsg, "Processing source entry: %s, type %s, target file: %s, logLevel = %d",
                sourcePathObf.c_str(), FileType2String( sourceFile->Protocol ),

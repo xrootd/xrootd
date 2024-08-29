@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdCl/XrdClOptimizers.hh"
 
 #include <cstdlib>
@@ -159,7 +160,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     std::string urlLog = url;
     if( unlikely(log->GetLevel() >= Log::DumpMsg)) {
-      urlLog = XrdOucUtils::obfuscateAuth(urlLog);
+      urlLog = obfuscateAuth(urlLog);
     }
     log->Dump( UtilityMsg,
                "URL: %s\n"
@@ -488,7 +489,7 @@ namespace XrdCl
   }
 
   std::string URL::GetObfuscatedURL() const {
-    return XrdOucUtils::obfuscateAuth(pURL);
+    return obfuscateAuth(pURL);
   }
 
   bool URL::PathEndsWith(const std::string & sufix) const
