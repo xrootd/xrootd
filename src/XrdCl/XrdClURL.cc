@@ -487,6 +487,10 @@ namespace XrdCl
     return false;
   }
 
+  std::string URL::GetObfuscatedURL() const {
+    return XrdOucUtils::obfuscateAuth(pURL);
+  }
+
   bool URL::PathEndsWith(const std::string & sufix) const
   {
     if (sufix.size() > pPath.size()) return false;
@@ -553,7 +557,6 @@ namespace XrdCl
   {
     if( !IsValid() ) {
       pURL = "";
-      pObfuscatedURL = "";
     }
 
     std::ostringstream o;
@@ -579,6 +582,5 @@ namespace XrdCl
     o << GetPathWithParams();
 
     pURL = o.str();
-    pObfuscatedURL = XrdOucUtils::obfuscateAuth(pURL);
   }
 }
