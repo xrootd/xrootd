@@ -1,24 +1,43 @@
-set(XRD_TEST_PORT "11940" CACHE STRING "Port for XRootD Test Server")
 
-list(APPEND XRDENV "XRDCP=$<TARGET_FILE:xrdcp>")
-list(APPEND XRDENV "XRDFS=$<TARGET_FILE:xrdfs>")
-list(APPEND XRDENV "CRC32C=$<TARGET_FILE:xrdcrc32c>")
-list(APPEND XRDENV "ADLER32=$<TARGET_FILE:xrdadler32>")
-list(APPEND XRDENV "HOST=root://localhost:${XRD_TEST_PORT}")
+list(APPEND XROOTD_CONFIGS noauth host unix sss)
 
-configure_file(xrootd.cfg xrootd.cfg @ONLY)
+if(BUILD_FUSE)
+  list(APPEND XROOTD_CONFIGS fuse)
+endif()
 
-add_test(NAME XRootD::start
-  COMMAND sh -c "mkdir -p data && \
-  $<TARGET_FILE:xrootd> -b -k fifo -n standalone -l xrootd.log -s xrootd.pid -c xrootd.cfg")
-set_tests_properties(XRootD::start PROPERTIES FIXTURES_SETUP   XRootD)
+if(BUILD_HTTP)
+  list(APPEND XROOTD_CONFIGS http)
+endif()
 
-add_test(NAME XRootD::stop
-  COMMAND sh -c "kill -s TERM $(cat standalone/xrootd.pid); rm -rf data standalone")
-set_tests_properties(XRootD::stop  PROPERTIES FIXTURES_CLEANUP XRootD)
+foreach(CONFIG ${XROOTD_CONFIGS})
+  add_test(NAME XRootD::${CONFIG}::setup
+    COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/test.sh ${CONFIG} setup")
 
-add_test(NAME XRootD::smoke-test
-  COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/smoke.sh")
+  set_tests_properties(XRootD::${CONFIG}::setup
+    PROPERTIES
+      FIXTURES_SETUP XRootD::${CONFIG}
+      ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
+  )
 
-set_tests_properties(XRootD::smoke-test PROPERTIES
-  ENVIRONMENT "${XRDENV}" FIXTURES_REQUIRED XRootD)
+  add_test(NAME XRootD::${CONFIG}::teardown
+    COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/test.sh ${CONFIG} teardown")
+
+  set_tests_properties(XRootD::${CONFIG}::teardown
+    PROPERTIES
+      FIXTURES_CLEANUP XRootD::${CONFIG}
+      ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
+  )
+
+  add_test(NAME XRootD::${CONFIG}::test
+    COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/test.sh ${CONFIG} run")
+
+  list(APPEND ${CONFIG}_LOGS ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG}/client.log)
+  list(APPEND ${CONFIG}_LOGS ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG}/xrootd.log)
+
+  set_tests_properties(XRootD::${CONFIG}::test
+    PROPERTIES
+      FIXTURES_REQUIRED XRootD::${CONFIG}
+      ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
+      ATTACHED_FILES_ON_FAIL "${${CONFIG}_LOGS}"
+  )
+endforeach()
