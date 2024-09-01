@@ -6,6 +6,57 @@ Release Notes
 =============
 
 -------------
+Version 5.7.1
+-------------
+
++ **New Features**
+  **[Apps]** Allow cconfig to write out combined config file (issue #1894)
+  **[Pss]** Allow for API endpoints for fixed remote origins (issue #2068)
+  **[Protocol]** Allow kXR_query to return proxy origin value, for proxy servers
+  **[Protocol]** Define readv limits
+  **[Protocol]** Indicate whether or not server has a cache in kXR_Protocol response
+  **[Server]** Allow server to assume an arbitrary network identity (issue #1855)
+  **[cmsd]** Allow a redirector to be configured read/only (issue #1764)
+  **[systemd]** Harden systemd service units for better security (issue #2033)
+
++ **Major bug fixes**
+  **[POSIX]** Do not leak file pointer on open error (issue #2302)
+  **[Python]** Fix memory leaks when creating Python objects (#2324)
+  **[Secgsi]** Ensure correct certificate is used when passed via cgi with `xrd.gsiusrproxy=...` (issue #2292)
+  **[XrdCl]** Fix too few arguments to formatting function
+
++ **Minor bug fixes**
+  **[POSIX]** Suppress error message when tearing down client connections (issue #2288)
+  **[Secgsi]** Fix code to follow documentation (issue #1817)
+  **[Seckrb5]** Improve error messages and use const where needed (issue #1948)
+  **[Server]** Allow more flexibility in adminpath permissions (issue #2276)
+  **[XrdCl]** Fix hidden overloaded virtual compilation error (#2291)
+  **[XrdCl]** Redact tokens in client logs (issue #2296)
+  **[XrdCl]** xrdfs: Fix typos in command line help string (issue #2323)
+  **[XrdHttp]** Fix CodeQL warning for overrunning write
+  **[XrdNet]** Avoid network identity failures (issue #1772, #2159)
+  **[XrdPfc]** Make sure direct vread requests conform to protocol limits (issue #2308)
+  **[XrdSecgsi]** Fix potential double free in GetSrvCertEnt()
+  **[XrdSecztn]** Fix potential use after free
+
++ **Miscellaneous**
+  **[CMake]** Update CMake minimum requirement and supported versions
+  **[CMake]** Update test.cmake options for coverage builds
+  **[Misc]** Add SECURITY.md file describing XRootD security policy
+  **[Pss]** Export the final origin url for subprocess use
+  **[Tests]** Add new XRootD client/server test configurations
+  **[XrdApps]** Replace pragma once with header guards
+  **[XrdClHttp]** Conditionally load Davix grid module
+  **[XrdCl]** Add flag to optionally suppress force disconnect error messages
+  **[XrdHttp]** Apply keepalive when redirecting HTTP clients (#2290)
+  **[XrdNet]** Make sure domain value is defined
+  **[XrdNet]** Use lower case version of host names
+  **[XrdSys]** Determine `IOV_MAX` at runtime
+  **[XrdSys]** Dump coverage information on `SIGTERM`
+  **[XrdTpc]** Replace pragma once with header guards
+  **[docker]** Update CentOS 7 Dockerfile to use CentOS 7 Vault
+
+-------------
 Version 5.7.0
 -------------
 
