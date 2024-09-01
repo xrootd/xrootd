@@ -256,13 +256,13 @@ int XrdOuca2x::a2sp(XrdSysError &Eroute, const char *emsg, const char *item,
 
 int XrdOuca2x::a2sz(XrdSysError &Eroute, const char *emsg, const char *item,
                                 long long *val, long long minv, long long maxv)
-{   long long qmult;
-    char *eP, *fP = (char *)item + strlen(item) - 1;
-
-    if (!item || !*item)
+{   if (!item || !*item)
        {Eroute.Emsg("a2x", emsg, "value not specified"); return -1;}
 
-         if (*fP == 'k' || *fP == 'K') qmult = 1024LL;
+    long long qmult;
+    char *eP, *fP = (char *)item + strlen(item) - 1;
+
+             if (*fP == 'k' || *fP == 'K') qmult = 1024LL;
     else if (*fP == 'm' || *fP == 'M') qmult = 1024LL*1024LL;
     else if (*fP == 'g' || *fP == 'G') qmult = 1024LL*1024LL*1024LL;
     else if (*fP == 't' || *fP == 'T') qmult = 1024LL*1024LL*1024LL*1024LL;
@@ -287,11 +287,11 @@ int XrdOuca2x::a2sz(XrdSysError &Eroute, const char *emsg, const char *item,
 
 int XrdOuca2x::a2tm(XrdSysError &Eroute, const char *emsg, const char *item, int *val,
                           int minv, int maxv)
-{   int qmult;
-    char *eP, *fP = (char *)item + strlen(item) - 1;
-
-    if (!item || !*item)
+{   if (!item || !*item)
        {Eroute.Emsg("a2x", emsg, "value not specified"); return -1;}
+
+    int qmult;
+    char *eP, *fP = (char *)item + strlen(item) - 1;
 
          if (*fP == 's' || *fP == 'S') qmult = 1;
     else if (*fP == 'm' || *fP == 'M') qmult = 60;

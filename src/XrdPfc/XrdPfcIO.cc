@@ -1,5 +1,6 @@
 #include "XrdPfcIO.hh"
 #include "XrdPfcTrace.hh"
+#include "XrdCl/XrdClURL.hh"
 
 using namespace XrdPfc;
 
@@ -30,6 +31,11 @@ void IO::SetInput(XrdOucCacheIO* x)
 XrdOucCacheIO* IO::GetInput()
 {
    return m_io;
+}
+
+std::string IO::GetFilename()
+{
+   return XrdCl::URL(GetPath()).GetPath();
 }
 
 //==============================================================================
@@ -82,7 +88,7 @@ bool IO::Detach(XrdOucCacheIOCD &iocdP)
          }
       };
 
-      (new FutureDetach(this, &iocdP, 30))->Schedule();
+      (new FutureDetach(this, &iocdP, 10))->Schedule();
 
       return false;
    }

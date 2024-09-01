@@ -19,11 +19,12 @@
 #include "XrdPfcInfo.hh"
 #include "XrdPfc.hh"
 #include "XrdPfcTrace.hh"
+#include "XrdPfcPathParseTools.hh"
+#include "XrdPfcResourceMonitor.hh"
 
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucArgs.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -36,14 +37,16 @@
 #include <vector>
 #include <sys/time.h>
 
+namespace
+{
+   const int MAX_ACCESSES = 20;
+   const long long ONE_MB = 1024ll * 1024;
+   const long long ONE_GB = 1024ll * 1024 * 1024;
+}
+
 using namespace XrdPfc;
 
 //______________________________________________________________________________
-
-const int MAX_ACCESSES = 20;
-
-const long long ONE_MB = 1024ll * 1024;
-const long long ONE_GB = 1024ll * 1024 * 1024;
 
 void Cache::ExecuteCommandUrl(const std::string& command_url)
 {
@@ -60,8 +63,15 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
    }
 
    // Get the command
-   token = cp.get_token();
+   token = cp.get_token_as_string();
 
+   auto get_opt = [](SplitParser &sp) -> char {
+      char *t = sp.get_token();
+      if (t)
+         return (t[0] == '-' && t[1] != 0) ? t[1] : 0;
+      else
+         return -1;
+   };
 
    //================================================================
    // create_file
@@ -82,34 +92,30 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
       const Configuration &conf = m_configuration;
 
-      token = cp.get_token();
-
+      token = cp.get_token_as_string();
       TRACE(Debug, err_prefix << "Entered with argument string '" << token <<"'.");
-
-      std::vector<char*> argv;
-      SplitParser ap(token, " ");
-      int argc = ap.fill_argv(argv);
+      if (token.empty()) {
+         TRACE(Error, err_prefix << "Options section must not be empty, a single space character is OK.");
+         return;
+      }
+      TRACE(Debug, err_prefix << "File path (reminder of URL) is '" << cp.get_reminder() <<"'.");
+      if ( ! cp.has_reminder()) {
+         TRACE(Error, err_prefix << "Path section must not be empty.");
+         return;
+      }
 
       long long   file_size    = ONE_GB;
       long long   block_size   = conf.m_bufferSize;
       int         access_time    [MAX_ACCESSES];
       int         access_duration[MAX_ACCESSES];
       int         at_count = 0, ad_count = 0;
-      XrdOucArgs  Spec(&m_log, err_prefix, "hvs:b:t:d:",
-                       "help",         1, "h",
-                       "verbose",      1, "v",
-                       "size",         1, "s",
-                       "blocksize",    1, "b",
-                       "time",         1, "t",
-                       "duration",     1, "d",
-                       (const char *) 0);
 
       time_t time_now = time(0);
 
-      Spec.Set(argc, &argv[0]);
+      SplitParser ap(token, " ");
       char theOpt;
 
-      while ((theOpt = Spec.getopt()) != (char) -1)
+      while ((theOpt = get_opt(ap)) != (char) -1)
       {
          switch (theOpt)
          {
@@ -118,25 +124,25 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
                return;
             }
             case 's': {
-               if (XrdOuca2x::a2sz(m_log, "Error getting filesize", Spec.getarg(),
+               if (XrdOuca2x::a2sz(m_log, "Error getting filesize", ap.get_token(),
                                    &file_size, 0ll, 32 * ONE_GB))
                   return;
                break;
             }
             case 'b': {
-               if (XrdOuca2x::a2sz(m_log, "Error getting blocksize", Spec.getarg(),
+               if (XrdOuca2x::a2sz(m_log, "Error getting blocksize", ap.get_token(),
                                    &block_size, 0ll, 64 * ONE_MB))
                   return;
                break;
             }
             case 't': {
-               if (XrdOuca2x::a2i(m_log, "Error getting access time", Spec.getarg(),
+               if (XrdOuca2x::a2i(m_log, "Error getting access time", ap.get_token(),
                                   &access_time[at_count++], INT_MIN, INT_MAX))
                   return;
                break;
             }
             case 'd': {
-               if (XrdOuca2x::a2i(m_log, "Error getting access duration", Spec.getarg(),
+               if (XrdOuca2x::a2i(m_log, "Error getting access duration", ap.get_token(),
                                   &access_duration[ad_count++], 0, 24 * 3600))
                   return;
                break;
@@ -146,11 +152,6 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
                return;
             }
          }
-      }
-      if (Spec.getarg())
-      {
-         TRACE(Error, err_prefix << "Options must take up all the arguments.");
-         return;
       }
 
       if (at_count < 1) access_time    [at_count++] = time_now - 10;
@@ -191,14 +192,14 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          int cret;
          if ((cret = GetOss()->Create(myUser, file_path.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Create failed for data file " << file_path << ", " << ERRNO_AND_ERRSTR(-cret));
+            TRACE(Error, err_prefix << "Create failed for data file " << file_path << ERRNO_AND_ERRSTR(-cret));
             return;
          }
 
          XrdOssDF *myFile = GetOss()->newFile(myUser);
          if ((cret = myFile->Open(file_path.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Open failed for data file " << file_path << ", " << ERRNO_AND_ERRSTR(-cret));
+            TRACE(Error, err_prefix << "Open failed for data file " << file_path << ERRNO_AND_ERRSTR(-cret));
             delete myFile;
             return;
          }
@@ -209,7 +210,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          myEnv.Put("oss.cgroup", conf.m_meta_space.c_str());
          if ((cret = GetOss()->Create(myUser, cinfo_path.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Create failed for info file " << cinfo_path << ", " << ERRNO_AND_ERRSTR(-cret));
+            TRACE(Error, err_prefix << "Create failed for info file " << cinfo_path << ERRNO_AND_ERRSTR(-cret));
             myFile->Close(); delete myFile;
             return;
          }
@@ -217,7 +218,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          XrdOssDF *myInfoFile = GetOss()->newFile(myUser);
          if ((cret = myInfoFile->Open(cinfo_path.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Open failed for info file " << cinfo_path << ", " << ERRNO_AND_ERRSTR(-cret));
+            TRACE(Error, err_prefix << "Open failed for info file " << cinfo_path << ERRNO_AND_ERRSTR(-cret));
             delete myInfoFile;
             myFile->Close(); delete myFile;
             return;
@@ -227,7 +228,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
          if ((cret = posix_fallocate(myFile->getFD(), 0, file_size)))
          {
-            TRACE(Error, err_prefix << "posix_fallocate failed for data file " << file_path << ", " << ERRNO_AND_ERRSTR(cret));
+            TRACE(Error, err_prefix << "posix_fallocate failed for data file " << file_path << ERRNO_AND_ERRSTR(cret));
          }
 
          // Fill up cinfo.
@@ -245,15 +246,35 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
          myInfo.Write(myInfoFile, cinfo_path.c_str());
 
+         // Fake last modified time to the last access_time
+         {
+            time_t last_detach;
+            myInfo.GetLatestDetachTime(last_detach);
+            struct timespec acc_mod_time[2] = { {last_detach, UTIME_OMIT}, {last_detach, 0} };
+
+            futimens(myInfoFile->getFD(), acc_mod_time);
+         }
+
          myInfoFile->Close(); delete myInfoFile;
          myFile->Close();     delete myFile;
 
-         TRACE(Info, err_prefix << "Created file '" << file_path << "', size=" << (file_size>>20) << "MB.");
+         struct stat dstat;
+         GetOss()->Stat(file_path.c_str(), &dstat);
+         TRACE(Info, err_prefix << "Created file '" << file_path << "', size=" << (file_size>>20) << "MB, "
+                                << "st_blocks=" << dstat.st_blocks);
 
          {
             XrdSysCondVarHelper lock(&m_writeQ.condVar);
 
             m_writeQ.writes_between_purges += file_size;
+         }
+         {
+            int token = m_res_mon->register_file_open(file_path, time_now, false);
+            XrdPfc::Stats stats;
+            stats.m_BytesWritten  = file_size;
+            stats.m_StBlocksAdded = dstat.st_blocks;
+            m_res_mon->register_file_update_stats(token, stats);
+            m_res_mon->register_file_close(token, time(0), stats);
          }
       }
    }
@@ -272,22 +293,22 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          "Notes:\n"
          "  . If no options are needed one should still leave a space between / separators, ie., '/ /'\n";
 
-      token = cp.get_token();
-
+      token = cp.get_token_as_string();
       TRACE(Debug, err_prefix << "Entered with argument string '" << token <<"'.");
+      if (token.empty()) {
+         TRACE(Error, err_prefix << "Options section must not be empty, a single space character is OK.");
+         return;
+      }
+      TRACE(Debug, err_prefix << "File path (reminder of URL) is '" << cp.get_reminder() <<"'.");
+      if ( ! cp.has_reminder()) {
+         TRACE(Error, err_prefix << "Path section must not be empty.");
+         return;
+      }
 
-      std::vector<char*> argv;
       SplitParser ap(token, " ");
-      int argc = ap.fill_argv(argv);
-
-      XrdOucArgs  Spec(&m_log, err_prefix, "hvs:b:t:d:",
-                       "help",         1, "h",
-                       (const char *) 0);
-
-      Spec.Set(argc, &argv[0]);
       char theOpt;
 
-      while ((theOpt = Spec.getopt()) != (char) -1)
+      while ((theOpt = get_opt(ap)) != (char) -1)
       {
          switch (theOpt)
          {
@@ -301,13 +322,8 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
             }
          }
       }
-      if (Spec.getarg())
-      {
-         TRACE(Error, err_prefix << "Options must take up all the arguments.");
-         return;
-      }
 
-      std::string f_name(cp.get_reminder());
+      std::string f_name(cp.get_reminder_with_delim());
 
       TRACE(Debug, err_prefix << "file argument '" << f_name << "'.");
 
