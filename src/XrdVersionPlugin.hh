@@ -223,7 +223,8 @@
         XrdVERSIONPLUGIN_Mapd(ofs.cmslib,       XrdCmsGetClient               )\
         XrdVERSIONPLUGIN_Mapd(cms.vnid,         XrdCmsgetVnId                 )\
         XrdVERSIONPLUGIN_Mapd(cms.perf,         XrdCmsPerfMonitor             )\
-        XrdVERSIONPLUGIN_Mapd(pfc.decisionlib,  XrdPfcGetDecision       )\
+        XrdVERSIONPLUGIN_Mapd(pfc.decisionlib,  XrdPfcGetDecision             )\
+        XrdVERSIONPLUGIN_Mapd(pfc.purgelib,     XrdPfcGetPurgePin             )\
         XrdVERSIONPLUGIN_Mapd(xrd.protocol,     XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Mapd(http.secxtractor, XrdHttpGetSecXtractor         )\
         XrdVERSIONPLUGIN_Mapd(http.exthandler,  XrdHttpGetExtHandler          )\

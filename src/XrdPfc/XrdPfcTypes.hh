@@ -1,5 +1,6 @@
 #ifndef __XRDPFC_TYPES_HH__
 #define __XRDPFC_TYPES_HH__
+
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz  Tadel, Brian Bockelman
@@ -17,6 +18,9 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
+
+#include <cstdint>
+#include <vector>
 
 namespace XrdPfc
 {

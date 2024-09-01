@@ -27,8 +27,6 @@
 #include "XrdOuc/XrdOucCRC32C.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdSys/XrdSysTrace.hh"
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClConstants.hh"
 #include "XrdPfcInfo.hh"
 #include "XrdPfc.hh"
 #include "XrdPfcStats.hh"
@@ -66,7 +64,7 @@ struct FpHelper
    XrdSysTrace* GetTrace() const { return f_trace; }
 
    FpHelper(XrdOssDF* fp, off_t off, XrdSysTrace *trace, const char *tid, const TraceHeader &thdr) :
-      f_fp(fp), f_off(off), f_trace(trace), m_traceID(tid), f_trace_hdr(thdr) 
+      f_fp(fp), f_off(off), f_trace(trace), m_traceID(tid), f_trace_hdr(thdr)
    {}
 
    // Returns true on error
