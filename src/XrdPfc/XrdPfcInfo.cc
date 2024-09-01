@@ -66,7 +66,7 @@ struct FpHelper
    XrdSysTrace* GetTrace() const { return f_trace; }
 
    FpHelper(XrdOssDF* fp, off_t off, XrdSysTrace *trace, const char *tid, const TraceHeader &thdr) :
-      f_fp(fp), f_off(off), f_trace(trace), m_traceID(tid), f_trace_hdr(thdr) 
+      f_fp(fp), f_off(off), f_trace(trace), m_traceID(tid), f_trace_hdr(thdr)
    {}
 
    // Returns true on error

@@ -21,7 +21,6 @@
 #include <string>
 
 #include "XrdOuc/XrdOucCache.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdPfcIO.hh"
 
@@ -56,7 +55,7 @@ public:
    using XrdOucCacheIO::Read;
 
    int Read(char *Buffer, long long Offset, int Length) override;
-   
+
    int  Fstat(struct stat &sbuff) override;
 
    long long FSize() override;

@@ -19,6 +19,8 @@
 #include "XrdPfcInfo.hh"
 #include "XrdPfc.hh"
 #include "XrdPfcTrace.hh"
+#include "XrdPfcPathParseTools.hh"
+#include "XrdPfcResourceMonitor.hh"
 
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOss/XrdOss.hh"
@@ -245,6 +247,15 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
          myInfo.Write(myInfoFile, cinfo_path.c_str());
 
+         // Fake last modified time to the last access_time
+         {
+            time_t last_detach;
+            myInfo.GetLatestDetachTime(last_detach);
+            struct timespec acc_mod_time[2] = { {last_detach, UTIME_OMIT}, {last_detach, 0} };
+
+            futimens(myInfoFile->getFD(), acc_mod_time);
+         }
+
          myInfoFile->Close(); delete myInfoFile;
          myFile->Close();     delete myFile;
 
@@ -254,6 +265,14 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
             XrdSysCondVarHelper lock(&m_writeQ.condVar);
 
             m_writeQ.writes_between_purges += file_size;
+         }
+         {
+            int token = m_res_mon->register_file_open(file_path, time_now, false);
+            XrdPfc::Stats stats;
+            stats.m_BytesWritten  = file_size;
+            stats.m_StBlocksAdded = (file_size & 0x1ff) ? (file_size >> 9) + 1 : file_size >> 9;
+            m_res_mon->register_file_update_stats(token, stats);
+            m_res_mon->register_file_close(token, time(0), stats);
          }
       }
    }
@@ -280,7 +299,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
       SplitParser ap(token, " ");
       int argc = ap.fill_argv(argv);
 
-      XrdOucArgs  Spec(&m_log, err_prefix, "hvs:b:t:d:",
+      XrdOucArgs  Spec(&m_log, err_prefix, "h",
                        "help",         1, "h",
                        (const char *) 0);
 
@@ -307,7 +326,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          return;
       }
 
-      std::string f_name(cp.get_reminder());
+      std::string f_name(cp.get_reminder_with_delim());
 
       TRACE(Debug, err_prefix << "file argument '" << f_name << "'.");
 
