@@ -12,7 +12,7 @@ function usage()
 {
 	cat 1>&2 <<-EOF
 		Usage:
-			$(basename $0) [--help|--version]
+			$(basename "$0") [--help|--version]
 
 		--help       prints this message
 		--print-only ignored, used for backward compatibility
@@ -21,15 +21,15 @@ function usage()
 	EOF
 }
 
-SRC=$(dirname $0)
-VF=${SRC}/VERSION
+SRC="$(dirname "$0")"
+VF="${SRC}/VERSION"
 
 if [[ -n "${XRDVERSION}" ]]; then
-	VERSION=${XRDVERSION};
+	VERSION="${XRDVERSION}";
 elif [[ -r "${VF}" ]] && grep -vq "Format:" "${VF}"; then
-	VERSION=$(sed -e 's/-g/+git/' "${VF}")
-elif git -C ${SRC} describe --match 'v*' >/dev/null 2>&1; then
-	VERSION=$(git -C ${SRC} describe --match 'v*' | sed -e 's/-g/+git/')
+	VERSION="$(sed -e 's/-g/+git/' "${VF}")"
+elif git -C "${SRC}" describe --match 'v*' >/dev/null 2>&1; then
+	VERSION="$(git -C "${SRC}" describe --match 'v*' | sed -e 's/-g/+git/')"
 else
 	VERSION="v5.7-rc$(date +%Y%m%d)"
 fi
@@ -67,7 +67,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -v SANITIZE ]]; then
-	VERSION=$(sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./' <<< ${VERSION})
+	VERSION=$(sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./' <<< "${VERSION}")
 fi
 
 printf "%s" "${VERSION}"
