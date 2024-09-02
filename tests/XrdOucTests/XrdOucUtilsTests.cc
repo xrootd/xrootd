@@ -12,6 +12,9 @@
 
 using namespace testing;
 
+// duplicated here to avoid becoming a public symbol of XrdUtils
+static const std::string OBFUSCATION_STR = "REDACTED";
+
 class XrdOucUtilsTests : public Test {};
 
 TEST(XrdOucUtilsTests, obfuscateAuth) {

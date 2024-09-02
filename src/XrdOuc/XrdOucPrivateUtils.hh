@@ -23,30 +23,17 @@
 #ifndef XROOTD_XRDOUCPRIVATEUTILS_HH
 #define XROOTD_XRDOUCPRIVATEUTILS_HH
 
+#include <regex>
 #include <string>
 #include <vector>
-#include <regex>
-
-extern const std::string OBFUSCATION_STR;
-
-// As the compilation of the regexes when the std::regex object is constructed is expensive,
-// we initialize the auth obfuscation regexes only once in the XRootD process lifetime
-extern const std::vector<std::regex> authObfuscationRegexes;
 
 /**
- * Obfuscates string containing authz=value key value and Authorization: value, TransferHeaderAuthorization: value, WhateverAuthorization: value
- * in a case insensitive way
+ * Obfuscates strings containing "authz=value", "Authorization: value",
+ * "TransferHeaderAuthorization: value", "WhateverAuthorization: value"
+ * in a case insensitive way.
+ *
  * @param input the string to obfuscate
  */
 std::string obfuscateAuth(const std::string & input);
-
-/**
- * Use this function to obfuscate any string containing key-values with OBFUSCATION_STR
- * @param input the string to obfuscate
- * @param regexes the obfuscation regexes to apply to replace the value with OBFUSCATION_STR. The key should be a regex group e.g: "(authz=)"
- * Have a look at obfuscateAuth for more examples
- * @return the string with values obfuscated
- */
-std::string obfuscate(const std::string &input, const std::vector<std::regex> &regexes);
 
 #endif //XROOTD_XRDOUCPRIVATEUTILS_HH

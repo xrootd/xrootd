@@ -115,9 +115,12 @@ int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
 }
 }
 
-const std::string OBFUSCATION_STR = "REDACTED";
+static const std::string OBFUSCATION_STR = "REDACTED";
 
-const std::vector<std::regex> authObfuscationRegexes = {
+// As the compilation of the regexes when the std::regex object is constructed is expensive,
+// we initialize the auth obfuscation regexes only once in the XRootD process lifetime
+
+static const std::vector<std::regex> authObfuscationRegexes = {
   //authz=xxx&... We deal with cases like "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=foo1234, flags: none)" where we do not want to obfuscate
   // ", flags: none)" + we deal with cases where the 'authz=Bearer token' when an admin could set 'http.header2cgi Authorization authz' in the server config
   std::regex(R"((authz=)(Bearer\s)?([^ &\",<>#%{}|\^~\[\]`]*))",std::regex_constants::optimize),
@@ -1425,6 +1428,14 @@ void XrdOucUtils::trim(std::string &str) {
         str.resize (str.size () - 1);
 }
 
+/**
+ * Use this function to obfuscate any string containing key-values with OBFUSCATION_STR
+ * @param input the string to obfuscate
+ * @param regexes the obfuscation regexes to apply to replace the value with OBFUSCATION_STR.
+ *                The key should be a regex group e.g: "(authz=)"
+ * Have a look at obfuscateAuth for more examples
+ * @return the string with values obfuscated
+ */
 std::string obfuscate(const std::string &input, const std::vector<std::regex> &regexes) {
   std::string result = input;
   for(const auto & regex: regexes) {
