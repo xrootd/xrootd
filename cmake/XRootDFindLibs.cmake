@@ -215,9 +215,10 @@ if( ENABLE_TESTS )
   endif()
 
   if( ENABLE_SERVER_TESTS )
-    if( BUILD_FUSE AND EXISTS "/dev/fuse" )
-      set(ENABLE_FUSE_TESTS TRUE CACHE BOOL "Enable FUSE tests")
-    endif()
+    # Enable only by hand for now
+    #if( BUILD_FUSE AND EXISTS "/dev/fuse" )
+    #  set(ENABLE_FUSE_TESTS TRUE CACHE BOOL "Enable FUSE tests")
+    #endif()
 
     if( BUILD_HTTP AND BUILD_XRDCLHTTP )
       set(ENABLE_HTTP_TESTS TRUE CACHE BOOL "Enable HTTP tests")
