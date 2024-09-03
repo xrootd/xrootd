@@ -129,8 +129,10 @@ BuildRequires:	openssl-devel
 
 %if %{with tests}
 BuildRequires:	attr
+BuildRequires:	coreutils
 BuildRequires:	gtest-devel
 BuildRequires:	openssl
+BuildRequires:	procps-ng
 %endif
 
 %if %{with xrdec}
