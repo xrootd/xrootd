@@ -130,6 +130,7 @@ BuildRequires:	openssl-devel
 %if %{with tests}
 BuildRequires:	attr
 BuildRequires:	coreutils
+BuildRequires:	davix
 BuildRequires:	gtest-devel
 BuildRequires:	openssl
 BuildRequires:	procps-ng
