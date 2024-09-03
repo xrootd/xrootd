@@ -59,6 +59,7 @@ jobs:
           make \
           openssl \
           openssl-dev \
+          procps \
           py3-pip \
           py3-setuptools \
           py3-wheel \
