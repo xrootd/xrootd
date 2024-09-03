@@ -1,11 +1,11 @@
 
 list(APPEND XROOTD_CONFIGS noauth host unix sss)
 
-if(BUILD_FUSE)
+if(ENABLE_FUSE_TESTS)
   list(APPEND XROOTD_CONFIGS fuse)
 endif()
 
-if(BUILD_HTTP)
+if(ENABLE_HTTP_TESTS)
   list(APPEND XROOTD_CONFIGS http)
 endif()
 
