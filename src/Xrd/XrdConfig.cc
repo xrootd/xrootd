@@ -1432,7 +1432,7 @@ int XrdConfig::SetupAPath()
 //
 #ifndef WIN32
    if (chmod(AdminPath, AdminMode & ~S_IWGRP))
-      {Log.Emsg("Config", errno, "set permision for admin path", AdminPath);
+      {Log.Emsg("Config", errno, "set permission for admin path", AdminPath);
        return 1;
       }
 #endif
