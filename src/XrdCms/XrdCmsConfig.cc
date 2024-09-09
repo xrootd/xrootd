@@ -736,6 +736,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    P_load   = 0;
    P_mem    = 0;
    P_pag    = 0;
+   P_randlb = 0;          // SelbyLoad algorithm choice
    AskPerf  = 10;         // Every 10 pings
    AskPing  = 60;         // Every  1 minute
    PingTick = 0;
@@ -2688,7 +2689,8 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
         {"refreset", -1,  &RefReset},
         {"affinity", -2,  0},
         {"affpath",  -3,  0},
-        {"tryhname",   1, &V_hntry}
+        {"tryhname",   1, &V_hntry},
+	{"randlb",    1, &P_randlb}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
 

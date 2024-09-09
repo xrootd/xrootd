@@ -469,7 +469,7 @@ int XrdXrootdProtocol::Process2()
       switch(Request.header.requestid)
             {case kXR_login:    return do_Login();
              case kXR_protocol: return do_Protocol();
-             case kXR_bind:     return do_Bind();
+             //case kXR_bind:     return do_Bind();
              default:           Response.Send(kXR_InvalidRequest,
                                 "Invalid request; user not logged in");
                                 return Link->setEtext("request without login");
