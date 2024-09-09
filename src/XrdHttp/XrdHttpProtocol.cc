@@ -43,6 +43,7 @@
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -617,7 +618,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
     while ((rc = BuffgetLine(tmpline)) > 0) {
       if (TRACING(TRACE_DEBUG)) {
         std::string traceLine{tmpline.c_str()};
-        traceLine = XrdOucUtils::obfuscate(traceLine, {"authorization", "transferheaderauthorization"}, ':', '\n');
+        traceLine = obfuscateAuth(traceLine);
         TRACE(DEBUG, " rc:" << rc << " got hdr line: " << traceLine);
       }
       if ((rc == 2) && (tmpline.length() > 1) && (tmpline[rc - 1] == '\n')) {

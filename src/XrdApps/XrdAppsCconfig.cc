@@ -30,6 +30,7 @@
 
 #include <fcntl.h>
 #include <cstdio>
+#include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -39,6 +40,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucNList.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -46,6 +48,18 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+/******************************************************************************/
+/*                        G l o b a l   O b j e c t s                         */
+/******************************************************************************/
+
+namespace
+{
+   const char *Pgm = "cconfig: ";
+
+   XrdSysLogger       Logger;
+   XrdSysError        Say(&Logger, "cconfig");
+}
+  
 /******************************************************************************/
 /*                                i n L i s t                                 */
 /******************************************************************************/
@@ -58,13 +72,44 @@ int inList(const char *var, const char **Vec)
 }
 
 /******************************************************************************/
+/*                                 c f O u t                                  */
+/******************************************************************************/
+
+int cfOut(const char* outFN, XrdOucString& cFile)
+{
+
+// Open the output file
+//
+   int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+   int fd = open(outFN, O_CREAT | O_TRUNC | O_WRONLY, mode);
+   if (fd < 0)
+      {Say.Say(Pgm, XrdSysE2T(errno), " opening output file ", outFN);
+       return 8;
+      }
+
+// Write out the config file
+//
+   if (write(fd, cFile.c_str(), cFile.length()) != cFile.length())
+     {Say.Say(Pgm, XrdSysE2T(errno), " writing output file ", outFN);
+      return 1;
+     }
+
+// All done
+//
+   close(fd);
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
   
 void Usage(int rc)
 {
-   std::cerr <<"\n Usage: cconfig -c <cfn> [-h <host>] [-n <name>] [-x <prog>] [<args>]"
-          "\n<args>: [[pfx]*]<directive> | <directive>[*[sfx]] [<args>]" <<std::endl;
+   std::cerr <<"Usage:  cconfig -c <cfn> [<opts>] [<args>]\n"
+               "<opts>: [-h <host>] [-n <name>] [-o <file>] [-x <prog>]\n"
+               "<args>: [[pfx]*]<directive> | <directive>[*[sfx]] [<args>]"
+             <<std::endl;
    exit(rc);
 }
 
@@ -74,18 +119,15 @@ void Usage(int rc)
   
 int main(int argc, char *argv[])
 {
-   static const char *Pgm = "cconfig: ";
    extern char *optarg;
    extern int opterr, optind, optopt;
 
-   XrdSysLogger       Logger;
-   XrdSysError        Say(&Logger, "cconfig");
    XrdOucNList_Anchor DirQ;
    XrdOucEnv          myEnv, *oldEnv = 0;
    XrdOucStream      *Config;
    XrdNetAddr         theAddr(0);
 
-   const char *Cfn = 0, *Host = 0, *Name = 0, *Xeq = "xrootd";
+   const char *Cfn = 0, *Host = 0, *Name = 0, *Xeq = "xrootd", *oFile=0;
    const char *noSub[] = {"cms.prepmsg", "ofs.notifymsg", "oss.stagemsg",
                           "frm.xfr.copycmd", 0};
    const char *ifChk[] = {"xrd.port", "all.role", "all.manager", 0};
@@ -98,7 +140,7 @@ int main(int argc, char *argv[])
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,":c:h:n:x:")) && ((unsigned char)c != 0xff))
+      while ((c = getopt(argc,argv,":c:h:n:o:x:")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'c': Cfn = optarg;
@@ -106,6 +148,8 @@ int main(int argc, char *argv[])
        case 'h': Host= optarg;
                  break;
        case 'n': Name= optarg;
+                 break;
+       case 'o': oFile=optarg;
                  break;
        case 'x': Xeq = optarg;
                  break;
@@ -145,6 +189,11 @@ int main(int argc, char *argv[])
    Config = new XrdOucStream(&Say, strdup(buff), &myEnv, "");
    Config->Attach(cfgFD);
 
+// We will capture the resulting config file for later
+//
+   XrdOucString theConfig;
+   Config->Capture(&theConfig);
+
 // Now start reading records until eof.
 //
    while((var = Config->GetMyFirstWord()))
@@ -171,6 +220,10 @@ int main(int argc, char *argv[])
    if ((retc = Config->LastError()))
       {Say.Say(Pgm, XrdSysE2T(retc), " reading config file ", Cfn); retc = 8;}
    Config->Close();
+
+// Output the config file upon success if so wanted
+//
+   if (oFile && !retc) retc = cfOut(oFile, theConfig);
 
 // Should never get here
 //

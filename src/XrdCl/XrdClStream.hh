@@ -215,7 +215,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Force error
       //------------------------------------------------------------------------
-      void ForceError( XRootDStatus status );
+      void ForceError( XRootDStatus status, bool hush=false );
 
       //------------------------------------------------------------------------
       //! On read timeout

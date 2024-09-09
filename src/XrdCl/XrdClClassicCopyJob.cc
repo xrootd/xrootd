@@ -615,7 +615,7 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for reading",
-                                pUrl->GetURL().c_str() );
+                                pUrl->GetObfuscatedURL().c_str() );
 
         std::string value;
         DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
@@ -892,7 +892,7 @@ namespace
         {
           log->Debug( UtilityMsg, "Unable read %d bytes at %ld from %s: %s",
                       ch->chunk.GetLength(), ch->chunk.GetOffset(),
-                      pUrl->GetURL().c_str(), ch->status.ToStr().c_str() );
+                      pUrl->GetObfuscatedURL().c_str(), ch->status.ToStr().c_str() );
           delete [] (char *)ch->chunk.GetBuffer();
           CleanUpChunks();
           return ch->status;
@@ -1013,7 +1013,7 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for reading",
-                                pUrl->GetURL().c_str() );
+                                pUrl->GetObfuscatedURL().c_str() );
 
         std::string value;
         DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
@@ -1150,7 +1150,7 @@ namespace
       //------------------------------------------------------------------------
       //! Get extended attributes
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::XAttr> &xattrs )
+      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs )
       {
         return XrdCl::XRootDStatus();
       }
@@ -1209,7 +1209,7 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for reading",
-                                pUrl->GetURL().c_str() );
+                                pUrl->GetObfuscatedURL().c_str() );
 
         std::string value;
         DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
@@ -1752,7 +1752,7 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for writing",
-                                pUrl.GetURL().c_str() );
+                                pUrl.GetObfuscatedURL().c_str() );
 
         std::string value;
         DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
@@ -1862,7 +1862,7 @@ namespace
           Log *log = DefaultEnv::GetLog();
           log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
                       ch->chunk.GetLength(), ch->chunk.GetOffset(),
-                      pUrl.GetURL().c_str(), ch->status.ToStr().c_str() );
+                      pUrl.GetObfuscatedURL().c_str(), ch->status.ToStr().c_str() );
           delete[] (char*)ci.GetBuffer(); // we took the ownership of the buffer
           CleanUpChunks();
 
@@ -2105,7 +2105,7 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for writing",
-                                pUrl.GetURL().c_str() );
+                                pUrl.GetObfuscatedURL().c_str() );
 
         std::string value;
         DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
@@ -2192,7 +2192,7 @@ namespace
           Log *log = DefaultEnv::GetLog();
           log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
                       ch->chunk.GetLength(), ch->chunk.GetOffset(),
-                      pUrl.GetURL().c_str(), ch->status.ToStr().c_str() );
+                      pUrl.GetObfuscatedURL().c_str(), ch->status.ToStr().c_str() );
           CleanUpChunks();
 
           //--------------------------------------------------------------------
@@ -2420,7 +2420,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Creating a classic copy job, from %s to %s",
-                GetSource().GetURL().c_str(), GetTarget().GetURL().c_str() );
+                GetSource().GetObfuscatedURL().c_str(), GetTarget().GetObfuscatedURL().c_str() );
   }
 
   //----------------------------------------------------------------------------

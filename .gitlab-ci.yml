@@ -28,7 +28,19 @@ default:
 .rpm_build_yum: &rpm_build_yum
   stage: build
   script:
+    - |
+      sed -i -e '/mirrorlist/d' \
+             -e 's/# \?baseurl=/baseurl=/g' \
+             -e 's/mirror.centos.org/vault.centos.org/g' \
+             -e 's/$releasever/7.9.2009/g' \
+             /etc/yum.repos.d/*.repo
     - yum install -y centos-release-scl epel-release git
+    - |
+      sed -i -e '/mirrorlist/d' \
+             -e 's/# \?baseurl=/baseurl=/g' \
+             -e 's/mirror.centos.org/vault.centos.org/g' \
+             -e 's/$releasever/7.9.2009/g' \
+             /etc/yum.repos.d/*.repo
     - yum install -y epel-rpm-macros rpmdevtools yum-utils
     - yum-builddep -y xrootd.spec
     - rpmdev-setuptree
@@ -37,7 +49,7 @@ default:
     - yum install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
     - tests/post-install.sh
     - mkdir -p RPMS
-    - mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+    - mv $(rpm -E '%{_rpmdir}')/*/*.rpm RPMS/
   artifacts:
     paths: [ RPMS ]
     expire_in: 1d
@@ -70,6 +82,10 @@ Ubuntu 22.04:
   image: ubuntu:22.04
   <<: *deb_build
 
+Ubuntu 24.04:
+  image: ubuntu:24.04
+  <<: *deb_build
+
 CentOS 7:
   image: centos:7
   <<: *rpm_build_yum
@@ -88,10 +104,10 @@ AlmaLinux 9:
     - dnf config-manager --set-enabled crb
   <<: *rpm_build_dnf
 
-Fedora 38:
-  image: fedora:38
-  <<: *rpm_build_dnf
-
 Fedora 39:
   image: fedora:39
+  <<: *rpm_build_dnf
+
+Fedora 40:
+  image: fedora:40
   <<: *rpm_build_dnf

@@ -155,6 +155,8 @@ start(){
        for i in "${servernames[@]}"; do
               ${CMSD} -b -k fifo -n ${i} -l cmsd.log -s cmsd.pid -c ${i}.cfg
        done
+
+       sleep 1
 }
 
 stop() {
@@ -173,12 +175,9 @@ insertFileInfo() {
               for i in ${PREDEF}/*.meta*; do
                      # update size and hash
                      if grep -q $file $i; then
-                            echo "Pattern ${file} found in ${i}!!"
                             new_size=$(filesize ${TMPDATAFOLDER}/${file})
                             new_hash=$(${CRC32C} < ${TMPDATAFOLDER}/${file} | cut -d' '  -f1)
                             $(formatfiles $i)
-                     else
-                            echo "URL not found in the XML."
                      fi
               done
        done

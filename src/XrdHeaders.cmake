@@ -136,6 +136,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOuc/XrdOucN2NLoader.hh
   XrdOuc/XrdOucPinLoader.hh
   XrdOuc/XrdOucTUtils.hh
+  XrdOuc/XrdOucPrivateUtils.hh
   XrdPosix/XrdPosixMap.hh
   XrdZip/XrdZipCDFH.hh
   XrdZip/XrdZipDataDescriptor.hh

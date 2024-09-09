@@ -21,7 +21,9 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#pragma once
+#ifndef SRC_XRDAPPS_RECORDPLUGIN_RECORDERPLUGIN_HH_
+#define SRC_XRDAPPS_RECORDPLUGIN_RECORDERPLUGIN_HH_
+
 #include "XrdCl/XrdClPlugInInterface.hh"
 
 namespace XrdCl
@@ -76,3 +78,5 @@ class RecorderFactory : public PlugInFactory
 };
 
 } // namespace xrdcl_proxy
+
+#endif

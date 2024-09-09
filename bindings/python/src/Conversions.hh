@@ -125,7 +125,7 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::StatInfo *info )
       {
-        return Py_BuildValue("{sOsOsOsOsO}",
+        return Py_BuildValue("{sNsNsNsNsN}",
             "id",         Py_BuildValue("s", info->GetId().c_str()),
             "size",       Py_BuildValue("k", info->GetSize()),
             "flags",      Py_BuildValue("I", info->GetFlags()),
@@ -194,10 +194,11 @@ namespace PyXRootD
           for ( unsigned int i = 0; i < list->size(); ++i ) {
             XrdCl::HostInfo *info = &list->at( i );
 
-            PyObject *url = PyObject_CallObject( (PyObject*) &URLType,
-                Py_BuildValue( "(s)", info->url.GetURL().c_str() ) );
+            PyObject *args = Py_BuildValue( "(s)", info->url.GetURL().c_str() ) ;
+            PyObject *url = PyObject_CallObject( (PyObject*) &URLType, args );
+            Py_XDECREF( args );
 
-            PyObject *pyhostinfo = Py_BuildValue( "{sIsIsOsO}",
+            PyObject *pyhostinfo = Py_BuildValue( "{sIsIsNsO}",
                 "flags",         info->flags,
                 "protocol",      info->protocol,
                 "load_balancer", PyBool_FromLong(info->loadBalancer),
@@ -222,7 +223,7 @@ namespace PyXRootD
         for ( XrdCl::LocationInfo::Iterator it = info->Begin(); it < info->End();
             ++it ) {
           PyList_SET_ITEM( locationList, i,
-              Py_BuildValue( "{sssIsIsOsO}",
+              Py_BuildValue( "{sssIsIsNsN}",
                   "address",     it->GetAddress().c_str(),
                   "type",        it->GetType(),
                   "accesstype",  it->GetAccessType(),
@@ -273,7 +274,7 @@ namespace PyXRootD
           delete[] (char*) chunk.buffer;
 
           PyList_SET_ITEM( pychunks, i,
-              Py_BuildValue( "{sOsOsO}",
+              Py_BuildValue( "{sNsNsO}",
                   "offset", Py_BuildValue( "k", chunk.offset ),
                   "length", Py_BuildValue( "I", chunk.length ),
                   "buffer", buffer ) );

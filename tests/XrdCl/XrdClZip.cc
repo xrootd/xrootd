@@ -55,12 +55,12 @@ void ZipTest::SetUp(){
   std::string testFilePath = dataPath + "/san_martino.txt";
   testFileUrl = address + "/" + testFilePath;
 
-  GTEST_ASSERT_XRDST(WaitFor(OpenArchive(zip_file, archiveUrl, OpenFlags::Read)));
+  EXPECT_XRDST_OK(WaitFor(OpenArchive(zip_file, archiveUrl, OpenFlags::Read)));
 }
 
 void ZipTest::TearDown()
 {
-  GTEST_ASSERT_XRDST(WaitFor(CloseArchive(zip_file)));
+  EXPECT_XRDST_OK(WaitFor(CloseArchive(zip_file)));
 }
 
 TEST_F(ZipTest, ExtractTest) {
@@ -68,17 +68,17 @@ TEST_F(ZipTest, ExtractTest) {
 }
 
 TEST_F(ZipTest, OpenFileTest){
-  GTEST_ASSERT_XRDST(zip_file.OpenFile("paper.txt", OpenFlags::Read));
+  EXPECT_XRDST_OK(zip_file.OpenFile("paper.txt", OpenFlags::Read));
   // get stat info for the given file
   StatInfo* info_out;
-  GTEST_ASSERT_XRDST(zip_file.Stat("paper.txt", info_out));
-  GTEST_ASSERT_XRDST(zip_file.CloseFile());
-  GTEST_ASSERT_XRDST_NOTOK(zip_file.OpenFile("gibberish.txt", OpenFlags::Read), errNotFound);
+  EXPECT_XRDST_OK(zip_file.Stat("paper.txt", info_out));
+  EXPECT_XRDST_OK(zip_file.CloseFile());
+  EXPECT_XRDST_NOTOK(zip_file.OpenFile("gibberish.txt", OpenFlags::Read), errNotFound);
 }
 
 TEST_F(ZipTest, ListFileTest) {
   DirectoryList* dummy_list;
-  GTEST_ASSERT_XRDST(zip_file.List(dummy_list));
+  EXPECT_XRDST_OK(zip_file.List(dummy_list));
   ASSERT_TRUE(dummy_list);
 }
 
@@ -90,9 +90,9 @@ TEST_F(ZipTest, GetterTests) {
 
   // Get checksum
   uint32_t cksum;
-  GTEST_ASSERT_XRDST(zip_file.GetCRC32("paper.txt", cksum));
+  EXPECT_XRDST_OK(zip_file.GetCRC32("paper.txt", cksum));
 
   // Get offset (i.e. byte position in the archive)
   uint64_t offset;
-  GTEST_ASSERT_XRDST(zip_file.GetOffset("paper.txt", offset));
+  EXPECT_XRDST_OK(zip_file.GetOffset("paper.txt", offset));
 }

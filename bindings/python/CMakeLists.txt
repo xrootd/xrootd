@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16...3.25)
+cmake_minimum_required(VERSION 3.16...3.30 FATAL_ERROR)
 
 project(PyXRootD LANGUAGES CXX)
 

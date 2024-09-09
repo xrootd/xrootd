@@ -26,6 +26,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -213,7 +214,7 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 
    if (Cache::GetInstance().Decide(io))
    {
-      TRACE(Info, tpfx << io->Path());
+      TRACE(Info, tpfx << obfuscateAuth(io->Path()));
 
       IO *cio;
 

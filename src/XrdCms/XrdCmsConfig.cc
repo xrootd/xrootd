@@ -558,6 +558,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("fsxeq",         xfsxq);   // Server,  non-dynamic
    TS_Xeq("localroot",     xlclrt);  // Any,     non-dynamic
    TS_Xeq("manager",       xmang);   // Server,  non-dynamic
+   TS_Xeq("mode",          xmode);   // Manager, non-dynamic
    TS_Lib("namelib", N2N_Lib, &N2N_Parms);
    TS_Xeq("nbsendq",       xnbsq);   // Any      non-dynamic
    TS_Lib("osslib",  ossLib,  &ossParms);
@@ -751,6 +752,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    DiskWT   = 0;          // Do not defer when out of space
    DiskSS   = false;      // Not a staging server
    DiskOK   = false;      // Does not have any disk
+   forceRO  = false;      // Allow redirects for writing
    myPaths  = (char *)""; // Default is 'r /'
    ConfigFN = 0;
    sched_RR = sched_Pack = sched_AffPC = sched_Level = sched_LoadR = 0; sched_Force = 1;
@@ -2075,6 +2077,41 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
 // Parse the specification and return
 //
    return (XrdCmsUtils::ParseMan(eDest, theList, hSpec, hPort, myPort) ? 0 : 1);
+}
+  
+/******************************************************************************/
+/*                                 x m o d e                                  */
+/******************************************************************************/
+
+/* Function: xmode
+
+   Purpose:  To parse the directive: mode  {r/o | readonly | r/w | readwrite}
+
+             r/o    Only allows read operations, readonly is a synonym.
+             r/w    Allows read and write operations, readwrite is a synonym.
+                    This mode is the default.
+
+   Type: Manager only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xmode(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val;
+
+    if (!isManager) return CFile.noEcho();
+
+    if (!(val = CFile.GetWord()))
+       {eDest->Emsg("Config", "mode type not specified"); return 1;}
+
+    if (!strcmp(val, "r/o") || !strcmp(val, "readonly")) forceRO = true;
+       else if (!strcmp(val,"r/w") || !strcmp(val,"readwrite")) forceRO = false;
+               else {eDest->Emsg("Config", "invalid mode type -", val);
+                     return 1;
+                    }
+
+    return 0;
 }
   
 /******************************************************************************/

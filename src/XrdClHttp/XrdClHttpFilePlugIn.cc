@@ -64,6 +64,8 @@ HttpFilePlugIn::HttpFilePlugIn()
   else {
       if (root_davix_context_ == NULL) {
           root_davix_context_ = new Davix::Context();
+          if (getenv("DAVIX_LOAD_GRID_MODULE_IN_XRD")) 
+               root_davix_context_->loadModule("grid");
           root_davix_client_file_ = new Davix::DavPosix(root_davix_context_);
       }
       davix_context_ = root_davix_context_;

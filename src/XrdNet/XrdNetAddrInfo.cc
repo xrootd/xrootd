@@ -264,7 +264,7 @@ bool XrdNetAddrInfo::isUsingTLS()
   
 char *XrdNetAddrInfo::LowCase(char *str)
 {
-   char *sp = str;
+   unsigned char *sp = (unsigned char*)str;
 
    while(*sp) {if (isupper((int)*sp)) *sp = (char)tolower((int)*sp); sp++;}
 

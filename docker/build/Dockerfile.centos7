@@ -1,7 +1,17 @@
 FROM centos:7
 
-# Install tools necessary for RPM development
-RUN yum install -y centos-release-scl epel-release git \
+# Use CentOS Vault and install RPM development tools
+RUN sed -i -e '/mirrorlist/d' \
+           -e 's/# \?baseurl=/baseurl=/g' \
+           -e 's/mirror.centos.org/vault.centos.org/g' \
+           -e 's/$releasever/7.9.2009/g' \
+           /etc/yum.repos.d/*.repo \
+ && yum install -y centos-release-scl epel-release \
+ && sed -i -e '/mirrorlist/d' \
+           -e 's/# \?baseurl=/baseurl=/g' \
+           -e 's/mirror.centos.org/vault.centos.org/g' \
+           -e 's/$releasever/7.9.2009/g' \
+           /etc/yum.repos.d/*.repo \
  && yum install -y epel-rpm-macros rpmdevtools sudo yum-utils
 
 # Create xrootd user to avoid running tests as root
@@ -26,7 +36,7 @@ USER root
 RUN yum-builddep -y xrootd.spec
 
 # Build RPMS for XRootD
-RUN sudo -u xrootd rpmbuild -bb --with git xrootd.spec
+RUN sudo -u xrootd rpmbuild -bb --with git xrootd.spec && rm -rf rpmbuild/BUILD
 
 # Install RPMS
 RUN yum install -y rpmbuild/RPMS/*/*.rpm

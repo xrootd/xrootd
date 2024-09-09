@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.16...3.30 FATAL_ERROR)
 
 set(ENV{LANG} "C")
 set(ENV{LC_ALL} "C")
@@ -142,8 +142,9 @@ set(CMAKE_ARGS $ENV{CMAKE_ARGS} ${CMAKE_ARGS})
 
 if(COVERAGE)
   find_program(CTEST_COVERAGE_COMMAND NAMES gcov)
-  list(PREPEND CMAKE_ARGS "-DCMAKE_C_FLAGS=--coverage -fprofile-update=atomic")
-  list(PREPEND CMAKE_ARGS "-DCMAKE_CXX_FLAGS=--coverage -fprofile-update=atomic")
+  set(COVERAGE_FLAGS "--coverage -fprofile-update=atomic -DENABLE_COVERAGE")
+  list(PREPEND CMAKE_ARGS "-DCMAKE_C_FLAGS=${COVERAGE_FLAGS}")
+  list(PREPEND CMAKE_ARGS "-DCMAKE_CXX_FLAGS=${COVERAGE_FLAGS}")
 endif()
 
 if(MEMCHECK)

@@ -256,14 +256,14 @@ template<class T>
 class GSIStack {
 public:
    void Add(T *t) {
-      char k[40]; snprintf(k, 40, "%p", t);
+      char k[40]; snprintf(k, 40, "%p", static_cast<void*>(t));
       mtx.Lock();
       if (!stack.Find(k)) stack.Add(k, t, 0, Hash_count); // We need an additional count
       stack.Add(k, t, 0, Hash_count);
       mtx.UnLock();
    }
    void Del(T *t) {
-      char k[40]; snprintf(k, 40, "%p", t);
+      char k[40]; snprintf(k, 40, "%p", static_cast<void*>(t));
       mtx.Lock();
       if (stack.Find(k)) stack.Del(k, Hash_count);
       mtx.UnLock();
@@ -410,6 +410,9 @@ private:
    bool             srvMode;       // TRUE if server mode
    char            *expectedHost;  // Expected hostname if TrustDNS is enabled.
    bool             useIV;         // Use a non-zeroed unique IV in cipher enc/dec operations
+   String           urlUsrProxy;   // Proxy file location if given to client in url
+   String           urlUsrCert;    // Proxy cert location if given to client in url
+   String           urlUsrKey;     // Proxy key location if given to client in url
 
    // Temporary Handshake local info
    gsiHSVars     *hs;

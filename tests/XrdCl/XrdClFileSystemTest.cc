@@ -180,7 +180,7 @@ void FileSystemTest::LocateTest()
   FileSystem fs( url );
 
   LocationInfo *locations = 0;
-  GTEST_ASSERT_XRDST( fs.Locate( remoteFile, OpenFlags::Refresh, locations ) );
+  EXPECT_XRDST_OK( fs.Locate( remoteFile, OpenFlags::Refresh, locations ) );
   ASSERT_TRUE( locations );
   EXPECT_NE( locations->GetSize(), 0 );
   delete locations;
@@ -216,21 +216,21 @@ void FileSystemTest::MvTest()
   FileSystem fs( url );
 
   // move the file
-  GTEST_ASSERT_XRDST( fs.Mv( filePath1, filePath2 ) );
+  EXPECT_XRDST_OK( fs.Mv( filePath1, filePath2 ) );
   // make sure it's not there
-  GTEST_ASSERT_XRDST_NOTOK( fs.Locate( filePath1, OpenFlags::Refresh, info ),
-                              errErrorResponse );
+  EXPECT_XRDST_NOTOK( fs.Locate( filePath1, OpenFlags::Refresh, info ),
+                      errErrorResponse );
   // make sure the destination is there
-  GTEST_ASSERT_XRDST( fs.Locate( filePath2, OpenFlags::Refresh, info ) );
+  EXPECT_XRDST_OK( fs.Locate( filePath2, OpenFlags::Refresh, info ) );
   delete info;
   // move it back
-  GTEST_ASSERT_XRDST( fs.Mv( filePath2, filePath1 ) );
+  EXPECT_XRDST_OK( fs.Mv( filePath2, filePath1 ) );
   // make sure it's there
-  GTEST_ASSERT_XRDST( fs.Locate( filePath1, OpenFlags::Refresh, info ) );
+  EXPECT_XRDST_OK( fs.Locate( filePath1, OpenFlags::Refresh, info ) );
   delete info;
   // make sure the other one is gone
-  GTEST_ASSERT_XRDST_NOTOK( fs.Locate( filePath2, OpenFlags::Refresh, info ),
-                              errErrorResponse );
+  EXPECT_XRDST_NOTOK( fs.Locate( filePath2, OpenFlags::Refresh, info ),
+                      errErrorResponse );
 }
 
 //------------------------------------------------------------------------------
@@ -258,7 +258,7 @@ void FileSystemTest::ServerQueryTest()
   Buffer *response = 0;
   Buffer  arg;
   arg.FromString( remoteFile );
-  GTEST_ASSERT_XRDST( fs.Query( QueryCode::Checksum, arg, response ) );
+  EXPECT_XRDST_OK( fs.Query( QueryCode::Checksum, arg, response ) );
   ASSERT_TRUE( response );
   EXPECT_NE( response->GetSize(), 0 );
   delete response;
@@ -291,10 +291,11 @@ void FileSystemTest::TruncateRmTest()
 
   FileSystem fs( url );
   File       f;
-  GTEST_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Update | OpenFlags::Delete,
-                                Access::UR | Access::UW ) );
-  GTEST_ASSERT_XRDST( fs.Truncate( filePath, 10000000 ) );
-  GTEST_ASSERT_XRDST( fs.Rm( filePath ) );
+  EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Update | OpenFlags::Delete,
+                           Access::UR | Access::UW ) );
+  EXPECT_XRDST_OK( fs.Truncate( filePath, 10000000 ) );
+  EXPECT_XRDST_OK( fs.Rm( filePath ) );
+  sync();
 }
 
 //------------------------------------------------------------------------------
@@ -323,10 +324,11 @@ void FileSystemTest::MkdirRmdirTest()
 
   FileSystem fs( url );
 
-  GTEST_ASSERT_XRDST( fs.MkDir( dirPath2, MkDirFlags::MakePath,
-                              Access::UR | Access::UW | Access::UX ) );
-  GTEST_ASSERT_XRDST( fs.RmDir( dirPath2 ) );
-  GTEST_ASSERT_XRDST( fs.RmDir( dirPath1 ) );
+  EXPECT_XRDST_OK( fs.MkDir( dirPath2, MkDirFlags::MakePath,
+                             Access::UR | Access::UW | Access::UX ) );
+  EXPECT_XRDST_OK( fs.RmDir( dirPath2 ) );
+  EXPECT_XRDST_OK( fs.RmDir( dirPath1 ) );
+  sync();
 }
 
 //------------------------------------------------------------------------------
@@ -354,12 +356,13 @@ void FileSystemTest::ChmodTest()
 
   FileSystem fs( url );
 
-  GTEST_ASSERT_XRDST( fs.MkDir( dirPath, MkDirFlags::MakePath,
-                                  Access::UR | Access::UW | Access::UX ) );
-  GTEST_ASSERT_XRDST( fs.ChMod( dirPath,
-                                  Access::UR | Access::UW | Access::UX |
-                                  Access::GR | Access::GX ) );
-  GTEST_ASSERT_XRDST( fs.RmDir( dirPath ) );
+  EXPECT_XRDST_OK( fs.MkDir( dirPath, MkDirFlags::MakePath,
+                             Access::UR | Access::UW | Access::UX ) );
+  EXPECT_XRDST_OK( fs.ChMod( dirPath,
+                             Access::UR | Access::UW | Access::UX |
+                             Access::GR | Access::GX ) );
+  EXPECT_XRDST_OK( fs.RmDir( dirPath ) );
+  sync();
 }
 
 //------------------------------------------------------------------------------
@@ -380,7 +383,7 @@ void FileSystemTest::PingTest()
   EXPECT_TRUE( url.IsValid() );
 
   FileSystem fs( url );
-  GTEST_ASSERT_XRDST( fs.Ping() );
+  EXPECT_XRDST_OK( fs.Ping() );
 }
 
 //------------------------------------------------------------------------------
@@ -412,7 +415,7 @@ void FileSystemTest::StatTest()
 
   FileSystem fs( url );
   StatInfo *response = 0;
-  GTEST_ASSERT_XRDST( fs.Stat( remoteFile, response ) );
+  EXPECT_XRDST_OK( fs.Stat( remoteFile, response ) );
   ASSERT_TRUE( response );
   EXPECT_EQ( response->GetSize(), fileSize );
   EXPECT_TRUE( response->TestFlags( StatInfo::IsReadable ) );
@@ -441,7 +444,7 @@ void FileSystemTest::StatVFSTest()
 
   FileSystem fs( url );
   StatInfoVFS *response = 0;
-  GTEST_ASSERT_XRDST( fs.StatVFS( dataPath, response ) );
+  EXPECT_XRDST_OK( fs.StatVFS( dataPath, response ) );
   ASSERT_TRUE( response );
   delete response;
 }
@@ -462,7 +465,7 @@ void FileSystemTest::ProtocolTest()
 
   FileSystem fs( url );
   ProtocolInfo *response = 0;
-  GTEST_ASSERT_XRDST( fs.Protocol( response ) );
+  EXPECT_XRDST_OK( fs.Protocol( response ) );
   ASSERT_TRUE( response );
   delete response;
 }
@@ -494,7 +497,7 @@ void FileSystemTest::DeepLocateTest()
   FileSystem fs( url );
 
   LocationInfo *locations = 0;
-  GTEST_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
+  EXPECT_XRDST_OK( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
   ASSERT_TRUE( locations );
   EXPECT_NE( locations->GetSize(), 0 );
   LocationInfo::Iterator it = locations->Begin();
@@ -532,7 +535,7 @@ void FileSystemTest::DirListTest()
   FileSystem fs( url );
 
   DirectoryList *list = 0;
-  GTEST_ASSERT_XRDST( fs.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list ) );
+  EXPECT_XRDST_OK( fs.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list ) );
   ASSERT_TRUE( list );
   EXPECT_EQ( list->GetSize(), 4000 );
 
@@ -552,7 +555,7 @@ void FileSystemTest::DirListTest()
   std::set<std::string> dirls2;
 
   LocationInfo *info = 0;
-  GTEST_ASSERT_XRDST( fs.DeepLocate( lsPath, OpenFlags::PrefName, info ) );
+  EXPECT_XRDST_OK( fs.DeepLocate( lsPath, OpenFlags::PrefName, info ) );
   ASSERT_TRUE( info );
 
   for( auto itr = info->Begin(); itr != info->End(); ++itr )
@@ -560,7 +563,7 @@ void FileSystemTest::DirListTest()
     XrdSysSemaphore sem( 0 );
     auto handler = XrdCl::ResponseHandler::Wrap( [&]( auto &s, auto &r )
       {
-        GTEST_ASSERT_XRDST( s );
+        EXPECT_XRDST_OK( s );
         auto &list = To<XrdCl::DirectoryList>( r );
         for( auto itr = list.Begin(); itr != list.End(); ++itr )
           dirls2.insert( ( *itr )->GetName() );
@@ -569,7 +572,7 @@ void FileSystemTest::DirListTest()
       } );
 
     FileSystem fs1( std::string( itr->GetAddress() ) );
-    GTEST_ASSERT_XRDST( fs1.DirList( lsPath, DirListFlags::Stat | DirListFlags::Chunked, handler ) );
+    EXPECT_XRDST_OK( fs1.DirList( lsPath, DirListFlags::Stat | DirListFlags::Chunked, handler ) );
     sem.Wait();
   }
   delete info;
@@ -581,14 +584,15 @@ void FileSystemTest::DirListTest()
   // Now list an empty directory
   //----------------------------------------------------------------------------
   std::string emptyDirPath = dataPath + "/empty" ;
-  GTEST_ASSERT_XRDST( fs.MkDir( emptyDirPath, MkDirFlags::None, Access::None ) );
-  GTEST_ASSERT_XRDST( fs.DeepLocate( emptyDirPath, OpenFlags::PrefName, info ) );
+  EXPECT_XRDST_OK( fs.MkDir( emptyDirPath, MkDirFlags::None, Access::None ) );
+  EXPECT_XRDST_OK( fs.DeepLocate( emptyDirPath, OpenFlags::PrefName, info ) );
   EXPECT_TRUE( info->GetSize() );
   FileSystem fs3( info->Begin()->GetAddress() );
-  GTEST_ASSERT_XRDST( fs3.DirList( emptyDirPath, DirListFlags::Stat, list ) );
+  EXPECT_XRDST_OK( fs3.DirList( emptyDirPath, DirListFlags::Stat, list ) );
   ASSERT_TRUE( list );
   EXPECT_EQ( list->GetSize(), 0 );
-  GTEST_ASSERT_XRDST( fs.RmDir( emptyDirPath ) );
+  EXPECT_XRDST_OK( fs.RmDir( emptyDirPath ) );
+  sync();
 
   delete list;
   list = 0;
@@ -619,7 +623,7 @@ void FileSystemTest::SendInfoTest()
   FileSystem fs( url );
 
   Buffer *id = 0;
-  GTEST_ASSERT_XRDST( fs.SendInfo( "test stuff", id ) );
+  EXPECT_XRDST_OK( fs.SendInfo( "test stuff", id ) );
   ASSERT_TRUE( id );
   EXPECT_EQ( id->GetSize(), 4 );
   delete id;
@@ -655,7 +659,7 @@ void FileSystemTest::PrepareTest()
   list.push_back( fileLocation );
   list.push_back( fileLocation );
 
-  GTEST_ASSERT_XRDST( fs.Prepare( list, PrepareFlags::Stage, 1, id ) );
+  EXPECT_XRDST_OK( fs.Prepare( list, PrepareFlags::Stage, 1, id ) );
   ASSERT_TRUE( id );
   EXPECT_TRUE( id->GetSize() );
   delete id;
@@ -700,11 +704,11 @@ void FileSystemTest::XAttrTest()
     attrs.push_back( std::make_tuple( itr1->first, itr1->second ) );
 
   std::vector<XAttrStatus> result1;
-  GTEST_ASSERT_XRDST( fs.SetXAttr( remoteFile, attrs, result1 ) );
+  EXPECT_XRDST_OK( fs.SetXAttr( remoteFile, attrs, result1 ) );
 
   auto itr2 = result1.begin();
   for( ; itr2 != result1.end() ; ++itr2 )
-    GTEST_ASSERT_XRDST( itr2->status );
+    EXPECT_XRDST_OK( itr2->status );
   result1.clear();
 
   //----------------------------------------------------------------------------
@@ -716,12 +720,12 @@ void FileSystemTest::XAttrTest()
     names.push_back( itr1->first );
 
   std::vector<XAttr> result2;
-  GTEST_ASSERT_XRDST( fs.GetXAttr( remoteFile, names, result2 ) );
+  EXPECT_XRDST_OK( fs.GetXAttr( remoteFile, names, result2 ) );
 
   auto itr3 = result2.begin();
   for( ; itr3 != result2.end() ; ++itr3 )
   {
-    GTEST_ASSERT_XRDST( itr3->status );
+    EXPECT_XRDST_OK( itr3->status );
     auto match = attributes.find( itr3->name );
     EXPECT_NE( match, attributes.end() );
     EXPECT_EQ( match->second, itr3->value );
@@ -731,12 +735,12 @@ void FileSystemTest::XAttrTest()
   //----------------------------------------------------------------------------
   // Test ListXAttr
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( fs.ListXAttr( remoteFile, result2 ) );
+  EXPECT_XRDST_OK( fs.ListXAttr( remoteFile, result2 ) );
 
   itr3 = result2.begin();
   for( ; itr3 != result2.end() ; ++itr3 )
   {
-    GTEST_ASSERT_XRDST( itr3->status );
+    EXPECT_XRDST_OK( itr3->status );
     auto match = attributes.find( itr3->name );
     EXPECT_NE( match, attributes.end() );
     EXPECT_EQ( match->second, itr3->value );
@@ -747,11 +751,11 @@ void FileSystemTest::XAttrTest()
   //----------------------------------------------------------------------------
   // Test DelXAttr
   //----------------------------------------------------------------------------
-  GTEST_ASSERT_XRDST( fs.DelXAttr( remoteFile, names, result1 ) );
+  EXPECT_XRDST_OK( fs.DelXAttr( remoteFile, names, result1 ) );
 
   itr2 = result1.begin();
   for( ; itr2 != result1.end() ; ++itr2 )
-    GTEST_ASSERT_XRDST( itr2->status );
+    EXPECT_XRDST_OK( itr2->status );
 
   result1.clear();
 }

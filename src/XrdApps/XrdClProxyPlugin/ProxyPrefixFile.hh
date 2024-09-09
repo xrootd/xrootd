@@ -22,7 +22,9 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#pragma once
+#ifndef SRC_XRDAPPS_PROXYPLUGIN_PROXYPREFIXFILE_HH_
+#define SRC_XRDAPPS_PROXYPLUGIN_PROXYPREFIXFILE_HH_
+
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPlugInInterface.hh"
 
@@ -295,3 +297,5 @@ private:
 };
 
 } // namespace xrdcl_proxy
+
+#endif

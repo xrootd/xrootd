@@ -38,8 +38,10 @@
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClTls.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 
 #include "XrdOuc/XrdOucCRC.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include "XrdSys/XrdSysPlatform.hh" // same as above
 #include "XrdSys/XrdSysAtomics.hh"
@@ -123,7 +125,7 @@ namespace XrdCl
         log->Warning( ExDbgMsg, "[%s] MsgHandler is examining a response although "
                                 "it already owns a response: 0x%x (message: %s ).",
                       pUrl.GetHostId().c_str(), this,
-                      pRequest->GetDescription().c_str() );
+                      pRequest->GetObfuscatedDescription().c_str() );
       }
     }
 
@@ -184,7 +186,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Got kXR_waitresp response to "
                    "message %s", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         pResponse.reset();
         return Ignore; // This must be handled synchronously!
@@ -226,7 +228,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request "
                    "%s", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         if( !pOksofarAsAnswer )
         {
@@ -261,7 +263,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Got a kXR_status response to request "
                    "%s", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_pgwrite )
@@ -454,7 +456,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Got a kXR_ok response to request %s",
                    pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
         pStatus  = Status();
         HandleResponse();
         return;
@@ -464,7 +466,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Got a kXR_status response to request %s",
                     pUrl.GetHostId().c_str(),
-                    pRequest->GetDescription().c_str() );
+                    pRequest->GetObfuscatedDescription().c_str() );
         pStatus   = Status();
         HandleResponse();
         return;
@@ -477,7 +479,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request %s",
                    pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
         pStatus  = Status( stOK, suContinue );
         HandleResponse();
         return;
@@ -492,7 +494,7 @@ namespace XrdCl
         memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
         log->Dump( XRootDMsg, "[%s] Got a kXR_error response to request %s "
                    "[%d] %s", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str(), rsp->body.error.errnum,
+                   pRequest->GetObfuscatedDescription().c_str(), rsp->body.error.errnum,
                    errmsg );
         delete [] errmsg;
 
@@ -521,7 +523,7 @@ namespace XrdCl
         delete [] urlInfoBuff;
         log->Dump( XRootDMsg, "[%s] Got kXR_redirect response to "
                    "message %s: %s, port %d", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str(), urlInfo.c_str(),
+                   pRequest->GetObfuscatedDescription().c_str(), urlInfo.c_str(),
                    rsp->body.redirect.port );
 
         //----------------------------------------------------------------------
@@ -532,7 +534,7 @@ namespace XrdCl
           log->Warning( XRootDMsg, "[%s] Redirect limit has been reached for "
                      "message %s, the last known error is: %s",
                      pUrl.GetHostId().c_str(),
-                     pRequest->GetDescription().c_str(),
+                     pRequest->GetObfuscatedDescription().c_str(),
                      pLastError.ToString().c_str() );
 
 
@@ -562,7 +564,7 @@ namespace XrdCl
               log->Dump( XRootDMsg, "[%s] Current server has been assigned "
                          "as a load-balancer for message %s",
                          pUrl.GetHostId().c_str(),
-                         pRequest->GetDescription().c_str() );
+                         pRequest->GetObfuscatedDescription().c_str() );
               HostList::iterator it;
               for( it = pHosts->begin(); it != pHosts->end(); ++it )
                 it->loadBalancer = false;
@@ -744,7 +746,7 @@ namespace XrdCl
           memcpy( infoMsg, rsp->body.wait.infomsg, rsp->hdr.dlen-4 );
           log->Dump( XRootDMsg, "[%s] Got kXR_wait response of %d seconds to "
                      "message %s: %s", pUrl.GetHostId().c_str(),
-                     rsp->body.wait.seconds, pRequest->GetDescription().c_str(),
+                     rsp->body.wait.seconds, pRequest->GetObfuscatedDescription().c_str(),
                      infoMsg );
           delete [] infoMsg;
           waitSeconds = rsp->body.wait.seconds;
@@ -753,7 +755,7 @@ namespace XrdCl
         {
           log->Dump( XRootDMsg, "[%s] Got kXR_wait response of 0 seconds to "
                      "message %s", pUrl.GetHostId().c_str(),
-                     pRequest->GetDescription().c_str() );
+                     pRequest->GetObfuscatedDescription().c_str() );
         }
 
         pAggregatedWaitTime += waitSeconds;
@@ -795,7 +797,7 @@ namespace XrdCl
         {
           log->Debug( ExDbgMsg, "[%s] Scheduling WaitTask for MsgHandler: 0x%x (message: %s ).",
                       pUrl.GetHostId().c_str(), this,
-                      pRequest->GetDescription().c_str() );
+                      pRequest->GetObfuscatedDescription().c_str() );
 
           TaskManager *taskMgr = pPostMaster->GetTaskManager();
           taskMgr->RegisterTask( new WaitTask( this ), resendTime );
@@ -804,7 +806,7 @@ namespace XrdCl
         {
           log->Debug( XRootDMsg, "[%s] Wait time is too long, timing out %s",
                       pUrl.GetHostId().c_str(),
-                      pRequest->GetDescription().c_str() );
+                      pRequest->GetObfuscatedDescription().c_str() );
           HandleError( Status( stError, errOperationExpired) );
         }
         return;
@@ -830,7 +832,7 @@ namespace XrdCl
         log->Dump( XRootDMsg, "[%s] Got kXR_waitresp response of %d seconds to "
                    "message %s", pUrl.GetHostId().c_str(),
                    rsp->body.waitresp.seconds,
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
         return;
       }
 
@@ -841,7 +843,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Got unrecognized response %d to "
                    "message %s", pUrl.GetHostId().c_str(),
-                   rsp->hdr.status, pRequest->GetDescription().c_str() );
+                   rsp->hdr.status, pRequest->GetObfuscatedDescription().c_str() );
         pStatus   = Status( stError, errInvalidResponse );
         HandleResponse();
         return;
@@ -859,7 +861,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( XRootDMsg, "[%s] Stream event reported for msg %s",
-               pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str() );
+               pUrl.GetHostId().c_str(), pRequest->GetObfuscatedDescription().c_str() );
 
     if( event == Ready )
       return 0;
@@ -902,11 +904,11 @@ namespace XrdCl
     if( status.IsOK() )
     {
       log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
-                 pUrl.GetHostId().c_str(), message->GetDescription().c_str() );
+                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
 
       log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: 0x%x (message: %s ) from out-queue to in-queue.",
                   pUrl.GetHostId().c_str(), this,
-                  pRequest->GetDescription().c_str() );
+                  pRequest->GetObfuscatedDescription().c_str() );
 
       pMsgInFly = true;
       return;
@@ -917,7 +919,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     log->Error( XRootDMsg, "[%s] Impossible to send message %s. Trying to "
                 "recover.", pUrl.GetHostId().c_str(),
-                message->GetDescription().c_str() );
+                message->GetObfuscatedDescription().c_str() );
     HandleError( status );
   }
 
@@ -1083,7 +1085,7 @@ namespace XrdCl
       }
 
       log->Debug( XRootDMsg, "[%s] Request %s payload (kernel buffer) transferred to socket.",
-                  pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str() );
+                  pUrl.GetHostId().c_str(), pRequest->GetObfuscatedDescription().c_str() );
     }
 
     return Status();
@@ -1122,7 +1124,7 @@ namespace XrdCl
     log->Debug( ExDbgMsg, "[%s] Calling MsgHandler: 0x%x (message: %s ) "
                 "with status: %s.",
                 pUrl.GetHostId().c_str(), this,
-                pRequest->GetDescription().c_str(),
+                pRequest->GetObfuscatedDescription().c_str(),
                 status->ToString().c_str() );
 
     if( status->IsOK() )
@@ -1310,7 +1312,7 @@ namespace XrdCl
 
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
                    "LocateInfo: %s", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str(), nullBuffer );
+                   pRequest->GetObfuscatedDescription().c_str(), nullBuffer );
         LocationInfo *data = new LocationInfo();
 
         if( data->ParseServerResponse( nullBuffer ) == false )
@@ -1347,7 +1349,7 @@ namespace XrdCl
 
           log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
                      "StatInfoVFS: %s", pUrl.GetHostId().c_str(),
-                     pRequest->GetDescription().c_str(), nullBuffer );
+                     pRequest->GetObfuscatedDescription().c_str(), nullBuffer );
 
           if( data->ParseServerResponse( nullBuffer ) == false )
           {
@@ -1373,7 +1375,7 @@ namespace XrdCl
 
           log->Dump( XRootDMsg, "[%s] Parsing the response to %s as StatInfo: "
                      "%s", pUrl.GetHostId().c_str(),
-                     pRequest->GetDescription().c_str(), nullBuffer );
+                     pRequest->GetObfuscatedDescription().c_str(), nullBuffer );
 
           if( data->ParseServerResponse( nullBuffer ) == false )
           {
@@ -1397,7 +1399,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as ProtocolInfo",
                    pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         if( rsp->hdr.dlen < 8 )
         {
@@ -1422,7 +1424,7 @@ namespace XrdCl
         AnyObject *obj = new AnyObject();
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
                    "DirectoryList", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         char *path = new char[req->dirlist.dlen+1];
         path[req->dirlist.dlen] = 0;
@@ -1469,7 +1471,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as OpenInfo",
                    pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         if( rsp->hdr.dlen < 4 )
         {
@@ -1488,7 +1490,7 @@ namespace XrdCl
         {
           log->Dump( XRootDMsg, "[%s] Parsing StatInfo in response to %s",
                      pUrl.GetHostId().c_str(),
-                     pRequest->GetDescription().c_str() );
+                     pRequest->GetObfuscatedDescription().c_str() );
 
           if( rsp->hdr.dlen >= 12 )
           {
@@ -1509,7 +1511,7 @@ namespace XrdCl
           {
             log->Error( XRootDMsg, "[%s] Unable to parse StatInfo in response "
                         "to %s", pUrl.GetHostId().c_str(),
-                        pRequest->GetDescription().c_str() );
+                        pRequest->GetObfuscatedDescription().c_str() );
             delete obj;
             return Status( stError, errInvalidResponse );
           }
@@ -1530,7 +1532,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as ChunkInfo",
                    pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
@@ -1560,7 +1562,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as PageInfo",
                    pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         //----------------------------------------------------------------------
         // Glue in the cached responses if necessary
@@ -1605,7 +1607,7 @@ namespace XrdCl
           log->Error( XRootDMsg, "[%s] Handling response to %s: user supplied "
                       "buffer is too small for the received data.",
                       pUrl.GetHostId().c_str(),
-                      pRequest->GetDescription().c_str() );
+                      pRequest->GetObfuscatedDescription().c_str() );
           return Status( stError, errInvalidResponse );
         }
 
@@ -1659,7 +1661,7 @@ namespace XrdCl
       {
         log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
                    "VectorReadInfo", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
@@ -1704,7 +1706,7 @@ namespace XrdCl
         AnyObject *obj = new AnyObject();
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as BinaryData",
                    pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         BinaryDataInfo *data = new BinaryDataInfo();
         data->Allocate( length );
@@ -1903,11 +1905,14 @@ namespace XrdCl
       (surl.find('?') == std::string::npos) ? (surl += '?') :
           ((*surl.rbegin() != '&') ? (surl += '&') : (surl += ""));
       surl += xrdCgi;
-
       if (!authUrl.FromString(surl))
       {
-        log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data:"
-		    "%s", surl.c_str());
+        std::string surlLog = surl;
+        if( unlikely( log->GetLevel() >= Log::ErrorMsg ) ) {
+          surlLog = obfuscateAuth(surlLog);
+        }
+        log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data: %s",
+                    newUrl.GetHostId().c_str(), surl.c_str());
         return Status(stError, errInvalidRedirectURL);
       }
     }
@@ -1982,7 +1987,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( XRootDMsg, "[%s] Handling error while processing %s: %s.",
-                pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
+                pUrl.GetHostId().c_str(), pRequest->GetObfuscatedDescription().c_str(),
                 status.ToString().c_str() );
 
     //--------------------------------------------------------------------------
@@ -2038,7 +2043,7 @@ namespace XrdCl
     {
       log->Error( XRootDMsg, "[%s] Unable to get the response to request %s",
                   pUrl.GetHostId().c_str(),
-                  pRequest->GetDescription().c_str() );
+                  pRequest->GetObfuscatedDescription().c_str() );
       pStatus = status;
       HandleRspOrQueue();
       return;
@@ -2062,7 +2067,7 @@ namespace XrdCl
       {
         log->Info( XRootDMsg, "[%s] Retrying request: %s.",
                    pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
+                   pRequest->GetObfuscatedDescription().c_str() );
 
         UpdateTriedCGI( kXR_ServerError );
         HandleError( RetryAtServer( pUrl, RedirectEntry::EntryRetry ) );
@@ -2117,7 +2122,7 @@ namespace XrdCl
         {
           log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
           pUrl.GetHostId().c_str(),
-          pRequest->GetDescription().c_str() );
+          pRequest->GetObfuscatedDescription().c_str() );
           return st;
         }
       }
@@ -2129,7 +2134,7 @@ namespace XrdCl
     {
       log->Debug( ExDbgMsg, "[%s] Metaling redirection for MsgHandler: 0x%x (message: %s ).",
                   pUrl.GetHostId().c_str(), this,
-                  pRequest->GetDescription().c_str() );
+                  pRequest->GetObfuscatedDescription().c_str() );
 
       return pPostMaster->Redirect( pUrl, pRequest, this );
     }
@@ -2142,7 +2147,7 @@ namespace XrdCl
     {
       log->Debug( ExDbgMsg, "[%s] Retry at server MsgHandler: 0x%x (message: %s ).",
                   pUrl.GetHostId().c_str(), this,
-                  pRequest->GetDescription().c_str() );
+                  pRequest->GetObfuscatedDescription().c_str() );
       return pPostMaster->Send( pUrl, pRequest, this, true, pExpiration );
     }
   }
@@ -2246,7 +2251,7 @@ namespace XrdCl
       Log *log = DefaultEnv::GetLog();
       log->Debug( ExDbgMsg, "[%s] Passing to the thread-pool MsgHandler: 0x%x (message: %s ).",
                   pUrl.GetHostId().c_str(), this,
-                  pRequest->GetDescription().c_str() );
+                  pRequest->GetObfuscatedDescription().c_str() );
       jobMgr->QueueJob( new HandleRspJob( this ), 0 );
     }
   }
@@ -2259,7 +2264,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Debug( ExDbgMsg, "[%s] Handling local redirect - MsgHandler: 0x%x (message: %s ).",
                 pUrl.GetHostId().c_str(), this,
-                pRequest->GetDescription().c_str() );
+                pRequest->GetObfuscatedDescription().c_str() );
 
     if( !pLFileHandler )
     {
@@ -2306,7 +2311,7 @@ namespace XrdCl
         log->Debug( XRootDMsg,
                     "[%s] Not allowed to retry open request (OpenRecovery disabled): %s.",
                     pUrl.GetHostId().c_str(),
-                    pRequest->GetDescription().c_str() );
+                    pRequest->GetObfuscatedDescription().c_str() );
         // disallow retry if it is a mutable open
         return false;
       }

@@ -96,10 +96,18 @@ XrdNetAddr::XrdNetAddr(int port) : XrdNetAddrInfo()
 {
    const char *fqn = XrdNetIdentity::FQN();
 
-// Otherwise, we cannot initialize this object so force an error!
+// The host name might not be resolvable. If we have an fqn then either the
+// name was manually set or we are using an IP address because reverse
+// lookup did not work. If we have an fqn, then use it as the name. Otherwise,
+// use localhost as that is always a safe fallback.
 //
-   if (!fqn) fqn = "No_DNS_Name!";
-   Set(fqn, port);
+   if (!fqn || Set(fqn, port))
+      {Set("localhost", port);
+       if (fqn)
+          {if (hostName) free(hostName);
+           hostName = strdup(fqn);
+          }
+      }
 }
 
 /******************************************************************************/
@@ -311,7 +319,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                }
             memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
             protType = (IP.v6.sin6_family == AF_INET6 ? PF_INET6 : PF_INET);
-            if (rP->ai_canonname) hostName = strdup(rP->ai_canonname);
+            if (rP->ai_canonname) hostName = LowCase(strdup(rP->ai_canonname));
             freeaddrinfo(rP);
            }
 
@@ -485,7 +493,7 @@ const char *XrdNetAddr::Set(struct addrinfo *rP, int Port, bool mapit)
 // Cleanup pre-existing information
 //
    if (hostName) free(hostName);
-   hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
+   hostName = (rP->ai_canonname ? LowCase(strdup(rP->ai_canonname)) : 0);
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    IP.v6.sin6_port = htons(static_cast<short>(Port));
    sockNum = 0;

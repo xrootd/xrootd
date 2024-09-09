@@ -25,7 +25,7 @@ License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AN
 URL:		https://xrootd.slac.stanford.edu
 
 %if !%{with git}
-Version:	5.7.0
+Version:	5.7.1
 Source0:	%{name}.tar.gz
 %else
 %define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
@@ -36,7 +36,7 @@ Source0:	%{name}.tar.gz
 %endif
 
 %if %{with compat}
-Source1:	%{url}/download/v%{compat_version}/%{name}-%{compat_version}.tar.gz
+Source1:	https://xrootd.web.cern.ch/download/v%{compat_version}/%{name}-%{compat_version}.tar.gz
 %endif
 
 %undefine __cmake_in_source_build
@@ -129,8 +129,11 @@ BuildRequires:	openssl-devel
 
 %if %{with tests}
 BuildRequires:	attr
+BuildRequires:	coreutils
+BuildRequires:	davix
 BuildRequires:	gtest-devel
 BuildRequires:	openssl
+BuildRequires:	procps-ng
 %endif
 
 %if %{with xrdec}
@@ -944,6 +947,9 @@ fi
 %endif
 
 %changelog
+
+* Mon Sep 02 2024 Guilherme Amadio <amadio@cern.ch> - 1:5.7.1-1
+- XRootD 5.7.1
 
 * Thu Jun 27 2024 Guilherme Amadio <amadio@cern.ch> - 1:5.7.0-1
 - XRootD 5.7.0

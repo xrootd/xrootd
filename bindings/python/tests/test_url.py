@@ -9,11 +9,7 @@ def test_creation():
 def test_deletion():
   u = client.FileSystem(SERVER_URL).url
   del u
-
-  if sys.hexversion > 0x03000000:
-    pytest.raises(UnboundLocalError, 'assert u')
-  else:
-    pytest.raises(NameError, 'assert u')
+  pytest.raises(NameError, eval, "u")
 
 def test_valid():
   u = client.FileSystem(SERVER_URL).url

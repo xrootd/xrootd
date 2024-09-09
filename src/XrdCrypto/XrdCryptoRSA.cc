@@ -199,6 +199,8 @@ int XrdCryptoRSA::EncryptPrivate(XrdSutBucket &bck)
       snew = EncryptPrivate(bck.buffer,bck.size,newbuf,sz);
       if (snew > -1)
          bck.Update(newbuf,snew);
+      else
+         delete[] newbuf;
    }
    return snew;
 }
@@ -217,6 +219,8 @@ int XrdCryptoRSA::EncryptPublic(XrdSutBucket &bck)
       snew = EncryptPublic(bck.buffer,bck.size,newbuf,sz);
       if (snew > -1)
          bck.Update(newbuf,snew);
+      else
+         delete[] newbuf;
    }
    return snew;
 }
@@ -235,6 +239,8 @@ int XrdCryptoRSA::DecryptPrivate(XrdSutBucket &bck)
       snew = DecryptPrivate(bck.buffer,bck.size,newbuf,sz);
       if (snew > -1)
          bck.Update(newbuf,snew);
+      else
+         delete[] newbuf;
    }
    return snew;
 }
@@ -253,6 +259,8 @@ int XrdCryptoRSA::DecryptPublic(XrdSutBucket &bck)
       snew = DecryptPublic(bck.buffer,bck.size,newbuf,sz);
       if (snew > -1)
          bck.Update(newbuf,snew);
+      else
+         delete[] newbuf;
    }
    return snew;
 }

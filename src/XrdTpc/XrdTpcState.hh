@@ -3,7 +3,8 @@
  *
  * Helper class for managing the state of a single TPC request.
  */
-#pragma once
+#ifndef __XRD_TPC_STATE_HH__
+#define __XRD_TPC_STATE_HH__
 
 #include <memory>
 #include <vector>
@@ -173,3 +174,5 @@ private:
 };
 
 };
+
+#endif

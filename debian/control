@@ -31,12 +31,15 @@ Build-Depends:
  uuid-runtime,
  voms-dev,
  libscitokens-dev,
+ davix,
  davix-dev,
  librados-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
  libradospp-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
  libradosstriper-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
  libisal-dev [!i386 !hppa !hurd-i386 !powerpc !x32],
- openssl
+ coreutils,
+ openssl,
+ procps
 Build-Depends-Indep:
  dh-sequence-sphinxdoc,
  doxygen,

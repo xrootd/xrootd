@@ -161,10 +161,18 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Channel::ForceDisconnect()
   {
+    return ForceDisconnect(false);
+  }
+
+  //----------------------------------------------------------------------------
+  // Force disconnect of all streams
+  //----------------------------------------------------------------------------
+  Status Channel::ForceDisconnect( bool hush )
+  {
     //--------------------------------------------------------------------------
     // Disconnect and recreate the streams
     //--------------------------------------------------------------------------
-    pStream->ForceError( Status( stError, errOperationInterrupted ) );
+    pStream->ForceError( Status( stError, errOperationInterrupted ), hush );
 
     return Status();
   }

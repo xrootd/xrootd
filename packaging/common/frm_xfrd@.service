@@ -6,14 +6,14 @@ Requires=network-online.target
 After=network-online.target
 
 [Service]
-#PrivateDevices=true
-#ProtectHostname=true
-#ProtectClock=true
-#ProtectKernelTunables=true
-#ProtectKernelModules=true
-#ProtectKernelLogs=true
-#ProtectControlGroups=true
-#RestrictRealtime=true
+PrivateDevices=true
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictRealtime=true
 ExecStart=/usr/bin/frm_xfrd -l /var/log/xrootd/frm_xfrd.log -c /etc/xrootd/xrootd-%i.cfg -k fifo -s /run/xrootd/frm_xfrd-%i.pid -n %i
 User=xrootd
 Group=xrootd

@@ -33,7 +33,6 @@ done
 
 set -xe
 
-echo "xrdcp/fs-test1"
 ${XRDCP} --version
 
 for host in "${!hosts[@]}"; do
@@ -80,35 +79,28 @@ cleanup() {
 trap "cleanup; exit 1" ABRT
 
 # create local files with random contents using OpenSSL
-echo "Creating files for each instance..."
 
 for host in "${!hosts[@]}"; do
-       ${OPENSSL} rand -out "${LCLDATADIR}/${host}.ref" $((1024 * $RANDOM))
+       ${OPENSSL} rand -out "${LCLDATADIR}/${host}.ref" $((1024 * ($RANDOM + 1)))
 done
 
 # upload local files to the servers in parallel
-echo "Uploading files..."
-
 
 for host in "${!hosts[@]}"; do
        ${XRDCP} ${LCLDATADIR}/${host}.ref ${hosts[$host]}/${RMTDATADIR}/${host}.ref
 done
 
 # list uploaded files, then download them to check for corruption
-echo "Downloading them back..."
 
 for host in "${!hosts[@]}"; do
        ${XRDFS} ${hosts[$host]} ls -l ${RMTDATADIR}
 done
-
-echo "Downloading them back... pt2"
 
 for host in "${!hosts[@]}"; do
        ${XRDCP} ${hosts[$host]}/${RMTDATADIR}/${host}.ref ${LCLDATADIR}/${host}.dat
 done
 
 # check that all checksums for downloaded files match
-echo "Comparing checksum..."
 
 for host in "${!hosts[@]}"; do
        REF32C=$(${CRC32C} < ${LCLDATADIR}/${host}.ref | cut -d' '  -f1)
@@ -118,20 +110,20 @@ for host in "${!hosts[@]}"; do
        REFA32=$(${ADLER32} < ${LCLDATADIR}/${host}.ref | cut -d' '  -f1)
        NEWA32=$(${ADLER32} < ${LCLDATADIR}/${host}.dat | cut -d' '  -f1)
        SRVA32=$(${XRDFS} ${hosts[$host]} query checksum ${RMTDATADIR}/${host}.ref?cks.type=adler32 | cut -d' ' -f2)
-       echo "${host}:  crc32c: reference: ${REF32C}, server: ${SRV32C}, downloaded: ${REF32C}"
-       echo "${host}: adler32: reference: ${NEWA32}, server: ${SRVA32}, downloaded: ${NEWA32}"
 
        if [[ "${NEWA32}" != "${REFA32}" || "${SRVA32}" != "${REFA32}" ]]; then
+               echo "${host}:  crc32c: reference: ${REF32C}, server: ${SRV32C}, downloaded: ${REF32C}"
+               echo "${host}: adler32: reference: ${NEWA32}, server: ${SRVA32}, downloaded: ${NEWA32}"
                echo 1>&2 "$(basename $0): error: adler32 checksum check failed for file: ${host}.dat"
                exit 1r
        fi
        if [[ "${NEW32C}" != "${REF32C}" || "${SRV32C}" != "${REF32C}" ]]; then
+               echo "${host}:  crc32c: reference: ${REF32C}, server: ${SRV32C}, downloaded: ${REF32C}"
+               echo "${host}: adler32: reference: ${NEWA32}, server: ${SRVA32}, downloaded: ${NEWA32}"
                echo 1>&2 "$(basename $0): error: crc32 checksum check failed for file: ${host}.dat"
                exit 1
        fi
 done
-
-echo "All good! Now removing stuff..."
 
 for host in "${!hosts[@]}"; do
        ${XRDFS} ${HOST_METAMAN} rm ${RMTDATADIR}/${host}.ref &

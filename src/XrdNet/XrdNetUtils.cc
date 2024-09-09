@@ -46,6 +46,7 @@
 #include "XrdNet/XrdNetRegistry.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #ifndef HAVE_PROTOR
@@ -706,6 +707,7 @@ XrdNetUtils::NetProt XrdNetUtils::NetConfig(XrdNetUtils::NetType netquery,
 // Get our host name and initialize this object with it
 //
    gethostname(buff, sizeof(buff));
+   XrdOucUtils::toLower(buff);
 
 // Now get all of the addresses associated with this hostname
 //

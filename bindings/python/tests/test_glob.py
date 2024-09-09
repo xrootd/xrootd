@@ -2,7 +2,7 @@ import pytest
 import os
 import glob as norm_glob
 import XRootD.client.glob_funcs as glob
-from pathlib2 import Path
+from pathlib import Path
 
 
 @pytest.fixture
@@ -13,7 +13,7 @@ def tmptree(tmpdir):
     subdir2.mkdir()
     for i in range(3):
         dummy = subdir1 / ("a_file_%d.txt" % i)
-        dummy.write_text(u"This is file %d\n" % i, encoding="utf-8")
+        dummy.write_text("This is file %d\n" % i, encoding="utf-8")
     return tmpdir
 
 
@@ -34,7 +34,7 @@ def test_glob_local(tmptree):
 
 def test_glob_remote(tmptree):
     assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoad/")) == 0
-    assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoa*")) == 1
+    assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoa*")) == 2
     assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/*")) > 0
     assert len(glob.glob("root://eospublic.cern.ch//eos/root-*/cms_opendata_2012_nanoaod/*")) > 0
 
