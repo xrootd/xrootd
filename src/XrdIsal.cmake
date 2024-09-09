@@ -29,18 +29,17 @@ ExternalProject_add(isa-l
   BUILD_COMMAND     make -j ${CMAKE_BUILD_PARALLEL_LEVEL}
   INSTALL_COMMAND   ${CMAKE_COMMAND} -E copy_directory ${ISAL_ROOT}/include ${ISAL_ROOT}/isa-l
   BUILD_BYPRODUCTS  ${ISAL_LIBRARY} ${ISAL_INCLUDE_DIRS}
+  LOG_DOWNLOAD 1 LOG_CONFIGURE 1 LOG_BUILD 1 LOG_INSTALL 1
 )
 
-add_library(isal STATIC IMPORTED)
-
-set(ISAL_LIBRARIES isal)
+add_library(isal INTERFACE)
 add_dependencies(isal isa-l)
 
-set_target_properties(isal
-  PROPERTIES
-    IMPORTED_LOCATION "${ISAL_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${ISAL_INCLUDE_DIRS}>"
-)
+target_link_libraries(isal INTERFACE $<BUILD_INTERFACE:${ISAL_LIBRARY}>)
+target_include_directories(isal INTERFACE $<BUILD_INTERFACE:${ISAL_INCLUDE_DIRS}>)
+
+set(ISAL_LIBRARIES isal CACHE INTERNAL "" FORCE)
+set(ISAL_INCLUDE_DIRS ${ISAL_INCLUDE_DIRS} CACHE INTERNAL "" FORCE)
 
 # Emulate what happens when find_package(isal) succeeds
 find_package_handle_standard_args(isal

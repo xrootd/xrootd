@@ -36,7 +36,7 @@
 
 #define QTRACE(act) (pwdTrace && (pwdTrace->What & TRACE_ ## act))
 #define PRINT(y)    {if (pwdTrace) {pwdTrace->Beg(epname); \
-                                       cerr <<y; pwdTrace->End();}}
+                                       std::cerr <<y; pwdTrace->End();}}
 #define TRACE(act,x) if (QTRACE(act)) PRINT(x)
 #define NOTIFY(y)    TRACE(Debug,y)
 #define DEBUG(y)     TRACE(Authen,y)

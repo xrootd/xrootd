@@ -31,8 +31,10 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClDlgEnv.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include <cstdio>
 #include <iostream>
@@ -408,7 +410,7 @@ void AdjustFileInfo( XrdCpFile *file )
 //------------------------------------------------------------------------------
 XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
                         std::string        basePath,
-                        uint16_t           dirOffset )
+                        long               dirOffset )
 {
   using namespace XrdCl;
 
@@ -616,6 +618,12 @@ int main( int argc, char **argv )
   // Environment settings
   //----------------------------------------------------------------------------
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+  /* Stop PostMaster when exiting main() to ensure proper shutdown */
+  struct scope_exit {
+    ~scope_exit() { XrdCl::DefaultEnv::GetPostMaster()->Stop(); }
+  } stopPostMaster;
+
   if( config.nStrm != 0 )
     env->PutInt( "SubStreamsPerChannel", config.nStrm + 1 /*stands for the control stream*/ );
 
@@ -822,9 +830,15 @@ int main( int argc, char **argv )
 
     AppendCGI( source, config.srcOpq );
 
-    log->Dump( AppMsg, "Processing source entry: %s, type %s, target file: %s",
-               sourceFile->Path, FileType2String( sourceFile->Protocol ),
-               dest.c_str() );
+    std::string sourcePathObf = sourceFile->Path;
+    std::string destPathObf = dest;
+    if( unlikely(log->GetLevel() >= Log::DumpMsg) ) {
+      sourcePathObf = obfuscateAuth(sourcePathObf);
+      destPathObf = obfuscateAuth(destPathObf);
+    }
+    log->Dump( AppMsg, "Processing source entry: %s, type %s, target file: %s, logLevel = %d",
+               sourcePathObf.c_str(), FileType2String( sourceFile->Protocol ),
+               destPathObf.c_str() );
 
     //--------------------------------------------------------------------------
     // Set up the job
@@ -952,7 +966,6 @@ int main( int argc, char **argv )
     return st.GetShellCode();
   }
   CleanUpResults( resultVect );
-
   return 0;
 }
 

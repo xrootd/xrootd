@@ -72,7 +72,7 @@ static int         GetSigNum(const char *sname);
 //! Block common signals. This must be called at program start.
 //!
 //! @return true   - common signals are blocked.
-//! @return false  - common signals not blocked, errno has teh reason.
+//! @return false  - common signals not blocked, errno has the reason.
 //-----------------------------------------------------------------------------
 
 static bool        SigBlock();
@@ -84,7 +84,7 @@ static bool        SigBlock();
 //! @aparam  numsig - The signal value to be blocked.
 //!
 //! @return true   - signal is  blocked.
-//! @return false  - signal not blocked, errno has teh reason.
+//! @return false  - signal not blocked, errno has the reason.
 //-----------------------------------------------------------------------------
 
 static bool        SigBlock(int numsig);

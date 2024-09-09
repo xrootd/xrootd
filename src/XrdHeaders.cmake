@@ -21,6 +21,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdNet/XrdNetCmsNotify.hh
   XrdNet/XrdNetConnect.hh
   XrdNet/XrdNetOpts.hh
+  XrdNet/XrdNetPMark.hh
   XrdNet/XrdNetSockAddr.hh
   XrdNet/XrdNetSocket.hh
   XrdOuc/XrdOucBuffer.hh
@@ -32,6 +33,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucDLlist.hh
   XrdOuc/XrdOucEnv.hh
   XrdOuc/XrdOucErrInfo.hh
+  XrdOuc/XrdOucGatherConf.hh
   XrdOuc/XrdOucGMap.hh
   XrdOuc/XrdOucHash.hh
   XrdOuc/XrdOucHash.icc
@@ -127,12 +129,17 @@ set( XROOTD_PRIVATE_HEADERS
   XrdNet/XrdNetIF.hh
   XrdSecsss/XrdSecsssID.hh
   XrdSys/XrdSysPriv.hh
+  XrdOuc/XrdOucCRC32C.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucGatherConf.hh
   XrdOuc/XrdOucPList.hh
   XrdOuc/XrdOucN2NLoader.hh
+  XrdOuc/XrdOucPinLoader.hh
+  XrdOuc/XrdOucTUtils.hh
+  XrdOuc/XrdOucPrivateUtils.hh
   XrdPosix/XrdPosixMap.hh
   XrdZip/XrdZipCDFH.hh
+  XrdZip/XrdZipDataDescriptor.hh
   XrdZip/XrdZipEOCD.hh
   XrdZip/XrdZipExtra.hh
   XrdZip/XrdZipLFH.hh
@@ -151,6 +158,7 @@ if( NOT XRDCL_ONLY )
     XrdOfs/XrdOfsHandle.hh
     XrdOfs/XrdOfsTrace.hh
     XrdOfs/XrdOfsTPCInfo.hh
+    XrdSfs/XrdSfsFAttr.hh
     XrdSsi/XrdSsiAtomics.hh
     XrdSsi/XrdSsiCluster.hh
     XrdSsi/XrdSsiEntity.hh
@@ -171,19 +179,24 @@ if( NOT XRDCL_ONLY )
     XrdCrypto/XrdCryptoX509.hh
     XrdCrypto/XrdCryptoX509Chain.hh
     XrdCrypto/XrdCryptoAux.hh
+    XrdCrypto/XrdCryptoFactory.hh
     XrdCrypto/XrdCryptosslAux.hh
     XrdCrypto/XrdCryptoX509Crl.hh
     XrdCrypto/XrdCryptoX509Req.hh
     XrdCrypto/XrdCryptoRSA.hh
-    XrdCrypto/XrdCryptosslgsiAux.hh
 
     XrdSut/XrdSutAux.hh
     XrdSut/XrdSutBucket.hh
 
-    XrdVoms/XrdVoms.hh
-
     XrdOuc/XrdOucPgrwUtils.hh
 )
+
+  if ( BUILD_VOMS )
+    set( XROOTD_PRIVATE_HEADERS
+      ${XROOTD_PRIVATE_HEADERS}
+      XrdVoms/XrdVoms.hh
+    )
+  endif()
 endif()
 
 install_headers(

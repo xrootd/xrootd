@@ -1,4 +1,3 @@
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -26,6 +25,7 @@ if( BUILD_HTTP )
                                       XrdHttp/XrdHttpStatic.hh
                                       XrdHttp/XrdHttpTrace.hh
     XrdHttp/XrdHttpUtils.cc           XrdHttp/XrdHttpUtils.hh
+    XrdHttp/XrdHttpReadRangeHandler.cc  XrdHttp/XrdHttpReadRangeHandler.hh
     XrdHttp/XrdHttpChecksumHandler.cc XrdHttp/XrdHttpChecksumHandler.hh
     XrdHttp/XrdHttpChecksum.cc        XrdHttp/XrdHttpChecksum.hh)
 
@@ -43,16 +43,19 @@ if( BUILD_HTTP )
 
   target_link_libraries(
     ${LIB_XRD_HTTP_UTILS}
+    PRIVATE
     XrdServer
     XrdUtils
     XrdCrypto
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    PUBLIC
     OpenSSL::SSL
     OpenSSL::Crypto )
 
   target_link_libraries(
     ${MOD_XRD_HTTP}
+    PRIVATE
     XrdUtils
     ${LIB_XRD_HTTP_UTILS} )
 

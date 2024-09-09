@@ -23,10 +23,10 @@
 # or submit itself to any jurisdiction.
 #-------------------------------------------------------------------------------
 
-version=__VERSION__
-prefix=__PREFIX__
-includedir=${prefix}/__INCLUDEDIR__/xrootd
-plugin_version=__PLUGIN_VERSION__
+version=@XRootD_VERSION_STRING@
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@/xrootd
+plugin_version=@PLUGIN_VERSION@
 
 usage()
 {
@@ -58,7 +58,7 @@ while test $# -gt 0; do
       echo $prefix
       ;;
     --version)
-      echo $version
+      echo ${version#v}
       ;;
     --cflags)
       if test "$includedir" != "/usr/include" ; then

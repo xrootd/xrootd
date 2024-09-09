@@ -109,7 +109,7 @@ char *readline(const char *prompt)
 {
    char buff[4096];
   
-   cout << prompt;
+   std::cout << prompt;
    if (!fgets(buff, 4096, stdin) || *buff == '\n' || !strlen(buff)) return 0;
    return strdup(buff);
 }

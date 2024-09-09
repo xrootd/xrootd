@@ -21,6 +21,9 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
+#include "XrdCl/XrdClOptimizers.hh"
 
 #include <cstdlib>
 #include <vector>
@@ -155,6 +158,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Dump the url
     //--------------------------------------------------------------------------
+    std::string urlLog = url;
+    if( unlikely(log->GetLevel() >= Log::DumpMsg)) {
+      urlLog = obfuscateAuth(urlLog);
+    }
     log->Dump( UtilityMsg,
                "URL: %s\n"
                "Protocol:  %s\n"
@@ -163,7 +170,7 @@ namespace XrdCl
                "Host Name: %s\n"
                "Port:      %d\n"
                "Path:      %s\n",
-               url.c_str(), pProtocol.c_str(), pUserName.c_str(),
+               urlLog.c_str(), pProtocol.c_str(), pUserName.c_str(),
                pPassword.c_str(), pHostName.c_str(), pPort, pPath.c_str() );
     return true;
   }
@@ -481,6 +488,10 @@ namespace XrdCl
     return false;
   }
 
+  std::string URL::GetObfuscatedURL() const {
+    return obfuscateAuth(pURL);
+  }
+
   bool URL::PathEndsWith(const std::string & sufix) const
   {
     if (sufix.size() > pPath.size()) return false;
@@ -545,8 +556,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void URL::ComputeURL()
   {
-    if( !IsValid() )
+    if( !IsValid() ) {
       pURL = "";
+    }
 
     std::ostringstream o;
     if( !pProtocol.empty() )

@@ -1,10 +1,8 @@
 #!/bin/bash
 
-./genversion.sh
-version=$(./genversion.sh --print-only)
-version=${version#v}
-echo $version > bindings/python/VERSION
-rm -r dist
+./genversion.sh >| VERSION
+
+[[ -d dist ]] && rm -rf dist
 
 # Determine if wheel.bdist_wheel is available for wheel.bdist_wheel in setup.py
 python3 -c 'import wheel' &> /dev/null

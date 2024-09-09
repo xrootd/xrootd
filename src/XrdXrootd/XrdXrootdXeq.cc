@@ -1109,10 +1109,11 @@ int XrdXrootdProtocol::do_Login()
 // Allocate a monitoring object, if needed for this connection
 //
    if (Monitor.Ready())
-      {Monitor.Register(Link->ID, Link->Host(), "xroot");
+      {Monitor.Register(Link->ID, Link->Host(), "xroot", mySID);
        if (Monitor.Logins() && (!Monitor.Auths() || !(Status & XRD_NEED_AUTH)))
           {Monitor.Report(Entity.moninfo);
            if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
+           Entity.secMon = &Monitor;
           }
       }
 
@@ -1437,8 +1438,17 @@ int XrdXrootdProtocol::do_Open()
                                       }
    if (opts & kXR_retstat)            {*op++ = 't'; retStat = 1;}
    if (opts & kXR_posc)               {*op++ = 'p'; openopts |= SFS_O_POSC;}
+   if (opts & kXR_seqio)              {*op++ = 'S'; openopts |= SFS_O_SEQIO;}
    *op = '\0';
-   TRACEP(FS, "open " <<opt <<' ' <<fn);
+
+// Do some tracing, avoid exposing any security token in the URL
+//
+   if (TRACING(TRACE_FS))
+      {char* cgiP = index(fn, '?');
+       if (cgiP) *cgiP = 0;
+       TRACEP(FS, "open " <<opt <<' ' <<fn);
+       if (cgiP) *cgiP = '?';
+      }
 
 // Check if opaque data has been provided
 //
@@ -2016,8 +2026,17 @@ int XrdXrootdProtocol::do_Qconf()
            {n = snprintf(bp, bleft, "%d\n", maxPio+1);
             bp += n; bleft -= n;
            }
+   else if (!strcmp("proxy", val))
+           {const char* pxyOrigin = "proxy";
+            if (myRole & kXR_attrProxy)
+               {pxyOrigin = getenv("XRDXROOTD_PROXY");
+                if (!pxyOrigin) pxyOrigin = "proxy";
+               }
+            n = snprintf(bp,bleft,"%s\n",pxyOrigin);
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("readv_ior_max", val))
-           {n = snprintf(bp,bleft,"%d\n",maxTransz-(int)sizeof(readahead_list));
+           {n = snprintf(bp,bleft,"%d\n",maxReadv_ior);
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_iov_max", val)) 
@@ -2551,7 +2570,7 @@ int XrdXrootdProtocol::do_ReadV()
 // partial elements.
 //
    rdVecNum = rdVecLen / sizeof(readahead_list);
-   if ( (rdVecLen <= 0) || (rdVecNum*hdrSZ != rdVecLen) )
+   if ( (rdVecNum <= 0) || (rdVecNum*hdrSZ != rdVecLen) )
       return Response.Send(kXR_ArgInvalid, "Read vector is invalid");
 
 // Make sure that we can copy the read vector to our local stack. We must impose 
@@ -2570,7 +2589,7 @@ int XrdXrootdProtocol::do_ReadV()
 // to copy the read ahead list to our readv vector for later processing.
 //
    raVec = (readahead_list *)argp->buff;
-   totSZ = rdVecLen; Quantum = maxTransz - hdrSZ;
+   totSZ = rdVecLen; Quantum = maxReadv_ior;
    for (i = 0; i < rdVecNum; i++) 
        {totSZ += (rdVec[i].size = ntohl(raVec[i].rlen));
         if (rdVec[i].size < 0)       return Response.Send(kXR_ArgInvalid,
@@ -2770,12 +2789,57 @@ int XrdXrootdProtocol::do_Set()
             return Response.Send();
            }
    else if (!strcmp("monitor", val)) return do_Set_Mon(setargs);
+   else if (!strcmp("cache",   val)) return do_Set_Cache(setargs);
 
 // All done
 //
    return Response.Send(kXR_ArgInvalid, "invalid set parameter");
 }
 
+/******************************************************************************/
+/*                          d o _ S e t _ C a c h e                           */
+/******************************************************************************/
+
+// Process: set cache <cmd> <args>
+
+int XrdXrootdProtocol::do_Set_Cache(XrdOucTokenizer &setargs)
+{
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
+   XrdSfsFSctl myData;
+   char *cmd, *cargs, *opaque;
+   const char *myArgs[2];
+
+// This set is valid only if we implement a cache
+//
+   if ((fsFeatures & XrdSfs::hasCACH) == 0)
+      return Response.Send(kXR_ArgInvalid, "invalid set parameter");
+
+// Get the command and argument
+//
+   if (!(cmd = setargs.GetToken(&cargs)))
+      return Response.Send(kXR_ArgMissing,"set cache argument not specified.");
+
+// Prescreen the path if the next token starts with a slash
+//
+   if (cargs && *cargs == '/')
+      {if (rpCheck(cargs, &opaque)) return rpEmsg("Setting", cargs);
+       if (!Squash(cargs))          return vpEmsg("Setting", cargs);
+       myData.ArgP = myArgs; myData.Arg2Len = -2;
+       myArgs[0] = cargs;
+       myArgs[1] = opaque;
+      } else {
+       myData.Arg2 = opaque; myData.Arg2Len = (opaque ? strlen(opaque) : 0);
+      }
+   myData.Arg1 = cmd; myData.Arg1Len = strlen(cmd);
+
+// Preform the actual function using the supplied arguments
+//
+   int rc = osFS->FSctl(SFS_FSCTL_PLUGXC, myData, myError, CRED);
+   TRACEP(FS, "rc=" <<rc <<"set cache " <<myData.Arg1 <<' ' <<cargs);
+   if (rc == SFS_OK) return Response.Send("");
+   return fsError(rc, 0, myError, 0, 0);
+}
+  
 /******************************************************************************/
 /*                            d o _ S e t _ M o n                             */
 /******************************************************************************/
@@ -3341,7 +3405,7 @@ int XrdXrootdProtocol::do_WriteSpan()
 int XrdXrootdProtocol::do_WriteV()
 {
 // This will write multiple buffers at the same time in an attempt to avoid
-// the disk latency. The information with the offsets and lengths of teh data
+// the disk latency. The information with the offsets and lengths of the data
 // to write is passed as a data buffer. We attempt to optimize as best as
 // possible, though certain combinations may result in multiple writes. Since
 // socket flushing is nearly impossible when an error occurs, most errors
@@ -4034,7 +4098,7 @@ void XrdXrootdProtocol::MonAuth()
    const char *bP = Buff;
 
    if (Client == &Entity) bP = Entity.moninfo;
-      else snprintf(Buff,sizeof(Buff),
+      else {snprintf(Buff,sizeof(Buff),
                     "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s&I=%c",
                      Client->prot,
                     (Client->name ? Client->name : ""),
@@ -4046,6 +4110,8 @@ void XrdXrootdProtocol::MonAuth()
                     (Entity.moninfo  ? Entity.moninfo  : ""),
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6')
                    );
+            Client->secMon = &Monitor;
+           }
 
    Monitor.Report(bP);
    if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}

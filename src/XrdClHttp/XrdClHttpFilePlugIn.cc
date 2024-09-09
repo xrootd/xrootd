@@ -64,6 +64,8 @@ HttpFilePlugIn::HttpFilePlugIn()
   else {
       if (root_davix_context_ == NULL) {
           root_davix_context_ = new Davix::Context();
+          if (getenv("DAVIX_LOAD_GRID_MODULE_IN_XRD")) 
+               root_davix_context_->loadModule("grid");
           root_davix_client_file_ = new Davix::DavPosix(root_davix_context_);
       }
       davix_context_ = root_davix_context_;
@@ -375,6 +377,19 @@ XRootDStatus HttpFilePlugIn::Write(uint64_t offset, uint32_t size,
   return XRootDStatus();
 }
 
+//------------------------------------------------------------------------
+//! @see XrdCl::File::PgWrite
+//------------------------------------------------------------------------
+XRootDStatus HttpFilePlugIn::PgWrite( uint64_t               offset,
+                                      uint32_t               size,
+                                      const void            *buffer,
+                                      std::vector<uint32_t> &cksums,
+                                      ResponseHandler       *handler,
+                                      uint16_t               timeout )
+{   (void)cksums;
+    return Write(offset, size, buffer, handler, timeout);
+}
+
 XRootDStatus HttpFilePlugIn::Sync(ResponseHandler *handler, uint16_t timeout) {
   (void)handler;
   (void)timeout;
@@ -383,6 +398,7 @@ XRootDStatus HttpFilePlugIn::Sync(ResponseHandler *handler, uint16_t timeout) {
 
   return XRootDStatus();
 }
+
 
 XRootDStatus HttpFilePlugIn::VectorRead(const ChunkList &chunks, void *buffer,
                                         ResponseHandler *handler,

@@ -33,7 +33,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string>
-  
+#include <unordered_set>
+#include <vector>
+#include <regex>
+
 class XrdSysError;
 class XrdOucString;
 class XrdOucStream;
@@ -135,5 +138,6 @@ static void trim(std::string & str);
 
     XrdOucUtils() {}
     ~XrdOucUtils() {}
+
 };
 #endif

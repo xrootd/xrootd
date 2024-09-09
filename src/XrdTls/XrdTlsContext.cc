@@ -25,7 +25,7 @@
 #include <sys/stat.h>
 
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -33,10 +33,6 @@
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdTls/XrdTlsTrace.hh"
-
-#if __cplusplus >= 201103L
-#include <atomic>
-#endif
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -317,9 +313,45 @@ namespace
 extern "C" {
 #endif
 
+template<bool is32>
+struct tlsmix;
+
+template<>
+struct tlsmix<false> {
+  static unsigned long mixer(unsigned long x) {
+    // mixer based on splitmix64
+    x ^= x >> 30;
+    x *= 0xbf58476d1ce4e5b9UL;
+    x ^= x >> 27;
+    x *= 0x94d049bb133111ebUL;
+    x ^= x >> 31;
+    return x;
+  }
+};
+
+template<>
+struct tlsmix<true> {
+  static unsigned long mixer(unsigned long x) {
+    // mixer based on murmurhash3
+    x ^= x >> 16;
+    x *= 0x85ebca6bU;
+    x ^= x >> 13;
+    x *= 0xc2b2ae35U;
+    x ^= x >> 16;
+    return x;
+  }
+};
+
 unsigned long sslTLS_id_callback(void)
 {
-   return (unsigned long)XrdSysThread::ID();
+   // base thread-id on the id given by XrdSysThread;
+   // but openssl 1.0 uses thread-id as a key for looking
+   // up per thread crypto ERR structures in a hash-table.
+   // So mix bits so that the table's hash function gives
+   // better distribution.
+
+   unsigned long x = (unsigned long)XrdSysThread::ID();
+   return tlsmix<sizeof(unsigned long)==4>::mixer(x);
 }
 
 XrdSysMutex *MutexVector = 0;
@@ -364,12 +396,9 @@ const char *sslCiphers = "ECDHE-ECDSA-AES128-GCM-SHA256:"
 const char *sslCiphers = "ALL:!LOW:!EXP:!MD5:!MD2";
 #endif
 
-XrdSysMutex            ctxMutex;
-#if __cplusplus >= 201103L
-std::atomic<bool>      initDone( false );
-#else
-bool                   initDone = false;
-#endif
+XrdSysMutex            dbgMutex, tlsMutex;
+XrdSys::RAtomic<bool>  initDbgDone{ false };
+bool                   initTlsDone{ false };
 
 /******************************************************************************/
 /*                               I n i t T L S                                */
@@ -377,13 +406,13 @@ bool                   initDone = false;
   
 void InitTLS() // This is strictly a one-time call!
 {
-   XrdSysMutexHelper ctxHelper(ctxMutex);
+   XrdSysMutexHelper tlsHelper(tlsMutex);
 
 // Make sure we are not trying to load the ssl library more than once. This can
 // happen when a server and a client instance happen to be both defined.
 //
-   if (initDone) return;
-   initDone = true;
+   if (initTlsDone) return;
+   initTlsDone = true;
 
 // SSL library initialisation
 //
@@ -538,8 +567,11 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-#define FATAL(msg) {Fatal(eMsg, msg); return;}
-#define FATAL_SSL(msg) {Fatal(eMsg, msg, true); return;}
+#define KILL_CTX(x) if (x) {SSL_CTX_free(x); x = 0;}
+
+#define FATAL(msg) {Fatal(eMsg, msg); KILL_CTX(pImpl->ctx); return;}
+
+#define FATAL_SSL(msg) {Fatal(eMsg, msg, true); KILL_CTX(pImpl->ctx); return;}
   
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                              const char *caDir, const char *caFile,
@@ -559,8 +591,17 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
          SSL_CTX **ctxLoc;
         } ctx_tracker(&pImpl->ctx);
 
-   static const int sslOpts = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3
-                            | SSL_OP_NO_COMPRESSION;
+   static const uint64_t sslOpts = SSL_OP_ALL
+                            | SSL_OP_NO_SSLv2
+                            | SSL_OP_NO_SSLv3
+                            | SSL_OP_NO_COMPRESSION
+#ifdef SSL_OP_IGNORE_UNEXPECTED_EOF
+                            | SSL_OP_IGNORE_UNEXPECTED_EOF
+#endif
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+                            | SSL_OP_NO_RENEGOTIATION
+#endif
+                            ;
 
    std::string certFN, eText;
    const char *emsg;
@@ -572,24 +613,21 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Verify that initialzation has occurred. This is not heavy weight as
 // there will usually be no more than two instances of this object.
 //
-   AtomicBeg(ctxMutex);
-#if __cplusplus >= 201103L
-   bool done = initDone.load();
-#else
-   bool done = AtomicGet(initDone);
-#endif
-   AtomicEnd(ctxMutex);
-   if (!done)
-      {const char *dbg;
-       if (!(opts & servr) && (dbg = getenv("XRDTLS_DEBUG")))
-          {int dbgOpts = 0;
-           if (strstr(dbg, "ctx")) dbgOpts |= XrdTls::dbgCTX;
-           if (strstr(dbg, "sok")) dbgOpts |= XrdTls::dbgSOK;
-           if (strstr(dbg, "sio")) dbgOpts |= XrdTls::dbgSIO;
-           if (!dbgOpts) dbgOpts = XrdTls::dbgALL;
-           XrdTls::SetDebug(dbgOpts|XrdTls::dbgOUT);
+   if (!initDbgDone)
+      {XrdSysMutexHelper dbgHelper(dbgMutex);
+       if (!initDbgDone)
+          {const char *dbg;
+           if (!(opts & servr) && (dbg = getenv("XRDTLS_DEBUG")))
+              {int dbgOpts = 0;
+               if (strstr(dbg, "ctx")) dbgOpts |= XrdTls::dbgCTX;
+               if (strstr(dbg, "sok")) dbgOpts |= XrdTls::dbgSOK;
+               if (strstr(dbg, "sio")) dbgOpts |= XrdTls::dbgSIO;
+               if (!dbgOpts) dbgOpts = XrdTls::dbgALL;
+               XrdTls::SetDebug(dbgOpts|XrdTls::dbgOUT);
+              }
+           if ((emsg = Init())) FATAL(emsg);
+           initDbgDone = true;
           }
-       if ((emsg = Init())) FATAL(emsg);
       }
 
 // If no CA cert information is specified and this is not a server context,
@@ -716,7 +754,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Load certificate
 //
-   if (SSL_CTX_use_certificate_file(pImpl->ctx, cert, SSL_FILETYPE_PEM) != 1)
+   if (SSL_CTX_use_certificate_chain_file(pImpl->ctx, cert) != 1)
       FATAL_SSL("Unable to create TLS context; invalid certificate.");
 
 // Load the private key
@@ -893,7 +931,6 @@ void *XrdTlsContext::Session()
    //We have a new context generated by Refresh, so we must use it.
    XrdTlsContext * ctxnew = pImpl->ctxnew;
 
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
    /*X509_STORE *newX509 = SSL_CTX_get_cert_store(ctxnew->pImpl->ctx);
    SSL_CTX_set1_verify_cert_store(pImpl->ctx, newX509);
    SSL_CTX_set1_chain_cert_store(pImpl->ctx, newX509);*/
@@ -909,10 +946,6 @@ void *XrdTlsContext::Session()
    //we just created, we don't want that to happen. We therefore set it to 0.
    //The SSL_free called on the session will cleanup the context for us.
    ctxnew->pImpl->ctx = 0;
-#else
-   X509_STORE *newX509 = SSL_CTX_get_cert_store(ctxnew->pImpl->ctx);
-   SSL_CTX_set1_cert_store(pImpl->ctx, newX509);
-#endif
 
 // Save the generated context and clear it's presence
 //

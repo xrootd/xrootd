@@ -163,11 +163,11 @@ public:
 
 static char         *Buffer(XrdSfsXioHandle h, int *bsz); // XrdSfsXio
 
-XrdSfsXioHandle      Claim(const char *buff, int datasz, int minasz=0);// XrdSfsXio
+XrdSfsXioHandle      Claim(const char *buff, int datasz, int minasz=0) override;// XrdSfsXio
 
 static int           Configure(char *parms, XrdProtocol_Config *pi);
 
-       void          DoIt() {(*this.*Resume)();}
+       void          DoIt() override {(*this.*Resume)();}
 
        int           do_WriteSpan();
 
@@ -181,29 +181,29 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           getPathID() {return PathID;}
 
-       XrdProtocol  *Match(XrdLink *lp);
+       XrdProtocol  *Match(XrdLink *lp) override;
 
-       int           Process(XrdLink *lp); //  Sync: Job->Link.DoIt->Process
+       int           Process(XrdLink *lp) override; //  Sync: Job->Link.DoIt->Process
 
        int           Process2();
 
        int           ProcSig();
 
-       void          Recycle(XrdLink *lp, int consec, const char *reason);
+       void          Recycle(XrdLink *lp, int consec, const char *reason) override;
 
 static void          Reclaim(XrdSfsXioHandle h); // XrdSfsXio
 
-       int           SendFile(int fildes); // XrdSfsDio
+       int           SendFile(int fildes) override; // XrdSfsDio
 
-       int           SendFile(XrdOucSFVec *sfvec, int sfvnum); // XrdSfsDio
+       int           SendFile(XrdOucSFVec *sfvec, int sfvnum) override; // XrdSfsDio
 
-       void          SetFD(int fildes); // XrdSfsDio
+       void          SetFD(int fildes) override; // XrdSfsDio
 
-       int           Stats(char *buff, int blen, int do_sync=0);
+       int           Stats(char *buff, int blen, int do_sync=0) override;
 
        void          StreamNOP();
 
-XrdSfsXioHandle      Swap(const char *buff, XrdSfsXioHandle h=0); // XrdSfsXio
+XrdSfsXioHandle      Swap(const char *buff, XrdSfsXioHandle h=0) override; // XrdSfsXio
 
 XrdXrootdProtocol   *VerifyStream(int &rc, int pID, bool lok=true);
 
@@ -285,6 +285,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Rm();
        int   do_Rmdir();
        int   do_Set();
+       int   do_Set_Cache(XrdOucTokenizer &setargs);
        int   do_Set_Mon(XrdOucTokenizer &setargs);
        int   do_Stat();
        int   do_Statx();
@@ -470,6 +471,7 @@ static char   tlsNot;    // TLS requirements for incapable clients
 //
 static int                 maxBuffsz;    // Maximum buffer size we can have
 static int                 maxTransz;    // Maximum transfer size we can have
+static int                 maxReadv_ior; // Maximum readv element length
 
 // Statistical area
 //

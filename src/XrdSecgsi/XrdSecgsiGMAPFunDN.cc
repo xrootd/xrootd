@@ -51,7 +51,7 @@ static XrdOucTrace  *dnTrace = 0;
 
 #define TRACE_Authen   0x0002
 #define EPNAME(x)    static const char *epname = x;
-#define PRINT(y)    {if (dnTrace) {dnTrace->Beg(epname); cerr <<y; dnTrace->End();}}
+#define PRINT(y)    {if (dnTrace) {dnTrace->Beg(epname); std::cerr <<y; dnTrace->End();}}
 #define DEBUG(y)   if (dnTrace && (dnTrace->What & TRACE_Authen)) PRINT(y)
 
 
@@ -204,7 +204,7 @@ int XrdSecgsiGMAPInit(const char *parms)
          if (len < 2) continue;
          if (l[0] == '#') continue;
          if (l[len-1] == '\n') l[len-1] = '\0';
-         if (sscanf(l, "%4096s %256s", val, usr) >= 2) {
+         if (sscanf(l, "%4095s %255s", val, usr) >= 2) {
             XrdOucString stype = "matching";
             char *p = &val[0];
             int type = kFull;

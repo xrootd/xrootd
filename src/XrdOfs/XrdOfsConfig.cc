@@ -53,6 +53,7 @@
 #include "XrdOfs/XrdOfsConfigCP.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
+#include "XrdOfs/XrdOfsFSctl_PI.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTPC.hh"
@@ -85,6 +86,8 @@
 extern XrdOfsStats OfsStats;
 
 extern XrdSysTrace OfsTrace;
+
+extern XrdOfs*     XrdOfsFS;
   
 class  XrdOss;
 extern XrdOss     *XrdOfsOss;
@@ -292,6 +295,12 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                }
            }
 
+// If a cache has been configured then that cache may want to interact with
+// the cache-specific FSctl() operation. We check if a plugin was provided.
+//
+   if (ossFeatures & XRDOSS_HASCACH)
+      FSctl_PC = (XrdOfsFSctl_PI*)EnvInfo->GetPtr("XrdFSCtl_PC*");
+
 // Configure third party copy phase 2, but only if we are not a manager.
 //
    if ((Options & ThirdPC) && !(Options & isManager)) NoGo |= ConfigTPC(Eroute);
@@ -316,6 +325,19 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
    if (ofsConfig->Plugin(FSctl_PI) && !ofsConfig->ConfigCtl(Finder, EnvInfo))
       {Eroute.Emsg("Config", "Unable to configure FSctl plugin.");
        NoGo = 1;
+      }
+
+// Initialize the cache FSctl handler if we have one. The same deferal applies.
+//
+   if (FSctl_PC)
+      {struct XrdOfsFSctl_PI::Plugins thePI = {Authorization, Finder,
+                                               XrdOfsOss, XrdOfsFS};
+       XrdOucEnv pcEnv;                                    
+       pcEnv.PutPtr("XrdOfsHandle*", dummyHandle);
+       if (!FSctl_PC->Configure(ConfigFN, 0, &pcEnv, thePI))
+          {Eroute.Emsg("Config", "Unable to configure cache FSctl handler.");
+           NoGo = 1;
+          }
       }
 
 // Initialize th Evr object if we are an actual server
@@ -738,7 +760,7 @@ char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *sfx,
        return 0;
       }
 
-// list the contents of teh directory
+// list the contents of the directory
 //
    XrdOucNSWalk nsWalk(&Eroute, aPath, 0, nswOpt);
    XrdOucNSWalk::NSEnt *nsX, *nsP = nsWalk.Index(rc);

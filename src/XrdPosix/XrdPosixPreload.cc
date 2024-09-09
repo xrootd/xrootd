@@ -28,6 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#if defined(__clang__) && defined(_FORTIFY_SOURCE)
+#undef _FORTIFY_SOURCE
+#endif
+
 #include <sys/types.h>
 #include <cstdarg>
 #include <unistd.h>

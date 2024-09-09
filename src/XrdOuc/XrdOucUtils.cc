@@ -33,6 +33,8 @@
 #include <cstdio>
 #include <list>
 #include <vector>
+#include <unordered_set>
+#include <algorithm>
 
 #ifdef WIN32
 #include <direct.h>
@@ -51,6 +53,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -111,7 +114,20 @@ int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
    return luRet;
 }
 }
-  
+
+static const std::string OBFUSCATION_STR = "REDACTED";
+
+// As the compilation of the regexes when the std::regex object is constructed is expensive,
+// we initialize the auth obfuscation regexes only once in the XRootD process lifetime
+
+static const std::vector<std::regex> authObfuscationRegexes = {
+  //authz=xxx&... We deal with cases like "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=foo1234, flags: none)" where we do not want to obfuscate
+  // ", flags: none)" + we deal with cases where the 'authz=Bearer token' when an admin could set 'http.header2cgi Authorization authz' in the server config
+  std::regex(R"((authz=)(Bearer\s)?([^ &\",<>#%{}|\^~\[\]`]*))",std::regex_constants::optimize),
+  // HTTP Authorization, TransferHeaderAuthorization headers that with the key that can be prefixed with spaces and value prefixed by spaces
+  std::regex(R"((\s*\w*Authorization\s*:\s*)[^$]*)", std::regex_constants::icase | std::regex_constants::optimize)
+};
+
 /******************************************************************************/
 /*                               a r g L i s t                                */
 /******************************************************************************/
@@ -1143,9 +1159,11 @@ char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 
 void XrdOucUtils::toLower(char *str)
 {
+   unsigned char* ustr = (unsigned char*)str;  // Avoid undefined behaviour
+
 // Change each character to lower case
 //
-   while(*str) {*str = tolower(*str); str++;}
+   while(*ustr) {*ustr = tolower(*ustr); ustr++;}
 }
   
 /******************************************************************************/
@@ -1409,5 +1427,28 @@ void XrdOucUtils::trim(std::string &str) {
     while( str.size() && !isgraph(str[str.size()-1]) )
         str.resize (str.size () - 1);
 }
+
+/**
+ * Use this function to obfuscate any string containing key-values with OBFUSCATION_STR
+ * @param input the string to obfuscate
+ * @param regexes the obfuscation regexes to apply to replace the value with OBFUSCATION_STR.
+ *                The key should be a regex group e.g: "(authz=)"
+ * Have a look at obfuscateAuth for more examples
+ * @return the string with values obfuscated
+ */
+std::string obfuscate(const std::string &input, const std::vector<std::regex> &regexes) {
+  std::string result = input;
+  for(const auto & regex: regexes) {
+    //Loop over the regexes and replace the values with OBFUSCATION_STR
+    //$1 matches the first regex subgroup (e.g: "(authz=)")
+    result = std::regex_replace(result, regex, std::string("$1" + OBFUSCATION_STR));
+  }
+  return result;
+}
+
+std::string obfuscateAuth(const std::string & input) {
+  return obfuscate(input, authObfuscationRegexes);
+}
+
 #endif
 

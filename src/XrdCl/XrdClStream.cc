@@ -318,13 +318,13 @@ namespace XrdCl
     {
       log->Warning( PostMasterMsg, "[%s] Unable to send message %s through "
                     "substream %d, using 0 instead", pStreamName.c_str(),
-                    msg->GetDescription().c_str(), path.up );
+                    msg->GetObfuscatedDescription().c_str(), path.up );
       path.up = 0;
     }
 
     log->Dump( PostMasterMsg, "[%s] Sending message %s (0x%x) through "
                "substream %d expecting answer at %d", pStreamName.c_str(),
-               msg->GetDescription().c_str(), msg, path.up, path.down );
+               msg->GetObfuscatedDescription().c_str(), msg, path.up, path.down );
 
     //--------------------------------------------------------------------------
     // Enable *a* path and insert the message to the right queue
@@ -522,7 +522,7 @@ namespace XrdCl
     if( action & (MsgHandler::NoProcess|MsgHandler::Ignore) )
     {
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
-                 pStreamName.c_str(), msg->GetDescription().c_str() );
+                 pStreamName.c_str(), msg->GetObfuscatedDescription().c_str() );
 
       // if we are handling partial response we have to take down the timeout fence
       if( IsPartial( *msg ) )
@@ -910,7 +910,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Force error
   //------------------------------------------------------------------------
-  void Stream::ForceError( XRootDStatus status )
+  void Stream::ForceError( XRootDStatus status, bool hush )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log    *log = DefaultEnv::GetLog();
@@ -919,8 +919,10 @@ namespace XrdCl
       if( pSubStreams[substream]->status != Socket::Connected ) continue;
       pSubStreams[substream]->socket->Close();
       pSubStreams[substream]->status = Socket::Disconnected;
-      log->Error( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
-                  pStreamName.c_str(), status.ToString().c_str() );
+
+      if( !hush )
+        log->Error( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
+                    pStreamName.c_str(), status.ToString().c_str() );
 
       //--------------------------------------------------------------------
       // Reinsert the stuff that we have failed to sent
@@ -1024,13 +1026,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnReadTimeout( uint16_t substream )
+  bool Stream::OnReadTimeout( uint16_t substream )
   {
     //--------------------------------------------------------------------------
     // We only take the main stream into account
     //--------------------------------------------------------------------------
     if( substream != 0 )
-      return;
+      return true;
 
     //--------------------------------------------------------------------------
     // Check if there is no outgoing messages and if the stream TTL is elapesed.
@@ -1070,7 +1072,7 @@ namespace XrdCl
         // object that aggregates this Stream.
         //----------------------------------------------------------------------
         DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
-        return;
+        return false;
       }
     }
 
@@ -1083,14 +1085,17 @@ namespace XrdCl
     {
       scopedLock.UnLock();
       OnError( substream, st );
+      return false;
     }
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstru
   //----------------------------------------------------------------------------
-  void Stream::OnWriteTimeout( uint16_t /*substream*/ )
+  bool Stream::OnWriteTimeout( uint16_t /*substream*/ )
   {
+    return true;
   }
 
   //----------------------------------------------------------------------------

@@ -110,6 +110,7 @@ const kXR_char XROOTD_MON_MAPPURG       = 'p';
 const kXR_char XROOTD_MON_MAPREDR       = 'r';
 const kXR_char XROOTD_MON_MAPSTAG       = 's'; // Internal use only!
 const kXR_char XROOTD_MON_MAPTRCE       = 't';
+const kXR_char XROOTD_MON_MAPTOKN       = 'T';
 const kXR_char XROOTD_MON_MAPUSER       = 'u';
 const kXR_char XROOTD_MON_MAPUEAC       = 'U'; // User experiment/activity
 const kXR_char XROOTD_MON_MAPXFER       = 'x';
@@ -118,6 +119,7 @@ const kXR_char XROOTD_MON_GSCCM         = 'M'; // pfc: Cache context mgt info
 const kXR_char XROOTD_MON_GSPFC         = 'C'; // pfc: Cache monitoring  info
 const kXR_char XROOTD_MON_GSTCP         = 'T'; // TCP connection statistics
 const kXR_char XROOTD_MON_GSTPC         = 'P'; // TPC Third Party Copy
+const kXR_char XROOTD_MON_GSTHR         = 'R'; // IO activity from the throttle plugin
 
 // The following bits are insert in the low order 4 bits of the MON_REDIRECT
 // entry code to indicate the actual operation that was requestded.

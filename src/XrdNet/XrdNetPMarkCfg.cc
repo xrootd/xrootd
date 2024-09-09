@@ -273,20 +273,16 @@ XrdNetPMark *XrdNetPMarkCfg::Config(XrdSysError *eLog, XrdScheduler *sched,
 // If firefly is enabled, make sure we have an ffdest
 //
    if (useFFly < 0)
-      {if (ffPortD || ffPortO) useFFly = true;
-          else {useFFly = false;
-                eLog->Say("Config warning: firefly disabled; "
-                          "configuration incomplete!");
-                return 0;
-               }
-      } else {
-       if (useFFly && !ffPortD && !ffPortO)
-          {eLog->Say("Config invalid: pmark 'use firefly' requires "
-                     "specifying 'ffdest'!");
-           fatal = true;
+      {if (ffPortD || ffPortO)
+          {useFFly = true;
+           if (!ffPortO) ffPortO = ffPORT;
+          } else {
+           useFFly = false;
+           eLog->Say("Config warning: firefly disabled; "
+                     "configuration incomplete!");
            return 0;
           }
-      }
+      } else if (useFFly && !ffPortO) ffPortO = ffPORT;
 
 // Resolve trace and debug settings
 //
@@ -901,7 +897,7 @@ bool XrdNetPMarkCfg::LoadJson(char *buff)
    for (auto it : j_exp)
        {std::string expName = it["expName"].get<std::string>();
         if (expName.empty()) continue;
-        if (!it["expId"].is_number() || it["expId"] < 0 || it["expId"] > maxExpID)
+        if (!it["expId"].is_number() || it["expId"] < minExpID || it["expId"] > maxExpID)
            {eDest->Say("Config warning: ignoring experiment '", expName.c_str(),
                        "'; associated ID is invalid.");
             continue;
@@ -925,7 +921,7 @@ bool XrdNetPMarkCfg::LoadJson(char *buff)
             {std::string actName =  j_acts[i]["activityName"].get<std::string>();
              if (actName.empty()) continue;
              if (!j_acts[i]["activityId"].is_number()
-             ||   j_acts[i]["activityId"] < 0
+             ||   j_acts[i]["activityId"] < minActID
              ||   j_acts[i]["activityId"] > maxActID)
                 {eDest->Say("Config warning:", "ignoring ", expName.c_str(),
                             " actitivity '", actName.c_str(),
@@ -1042,6 +1038,9 @@ do{if (!strcmp("debug", val) || !strcmp("nodebug", val))
         continue;
        }
 
+   // We accept 'origin' as a dest for backward compatibility. That is the
+   // enforced default should 'use firefly' be specified.
+   //
    if (!strcmp("ffdest", val))
       {const char *addtxt = "";
        char *colon, *comma;

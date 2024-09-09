@@ -26,9 +26,9 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     ZIP64_EOCDL( const char *buffer )
     {
-      nbDiskZip64Eocd = *reinterpret_cast<const uint32_t*>( buffer + 4 );
-      zip64EocdOffset = *reinterpret_cast<const uint64_t*>( buffer + 8 );
-      totalNbDisks    = *reinterpret_cast<const uint32_t*>( buffer + 16 );
+      nbDiskZip64Eocd = to<uint32_t>(buffer + 4);
+      zip64EocdOffset = to<uint64_t>(buffer + 8);
+      totalNbDisks    = to<uint32_t>(buffer + 16);
     }
 
     //-------------------------------------------------------------------------

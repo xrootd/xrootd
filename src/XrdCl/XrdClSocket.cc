@@ -530,7 +530,7 @@ namespace XrdCl
     //----------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
-               strmname.c_str(), msg.GetDescription().c_str(),
+               strmname.c_str(), msg.GetObfuscatedDescription().c_str(),
                &msg, msg.GetSize() );
     return XRootDStatus();
   }
@@ -781,7 +781,8 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus Socket::Cork()
   {
-#if defined(TCP_CORK) // it's not defined on mac, we might want explore the possibility of using TCP_NOPUSH
+#if defined(TCP_CORK) && !defined(__GNU__)
+    // it's not defined on mac, we might want explore the possibility of using TCP_NOPUSH
     if( pCorked ) return XRootDStatus();
 
     int state = 1;
@@ -798,7 +799,8 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus Socket::Uncork()
   {
-#if defined(TCP_CORK) // it's not defined on mac, we might want explore the possibility of using TCP_NOPUSH
+#if defined(TCP_CORK) && !defined(__GNU__)
+    // it's not defined on mac, we might want explore the possibility of using TCP_NOPUSH
     if( !pCorked ) return XRootDStatus();
 
     int state = 0;

@@ -31,6 +31,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdOuc/XrdOucCompiler.hh"
 #include <list>
 #include <vector>
 #include <functional>
@@ -214,17 +215,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Force error
       //------------------------------------------------------------------------
-      void ForceError( XRootDStatus status );
+      void ForceError( XRootDStatus status, bool hush=false );
 
       //------------------------------------------------------------------------
       //! On read timeout
       //------------------------------------------------------------------------
-      void OnReadTimeout( uint16_t subStream );
+      bool OnReadTimeout( uint16_t subStream ) XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! On write timeout
       //------------------------------------------------------------------------
-      void OnWriteTimeout( uint16_t subStream );
+      bool OnWriteTimeout( uint16_t subStream ) XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Register channel event handler

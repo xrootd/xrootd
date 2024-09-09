@@ -40,7 +40,6 @@
 #define Atomic(x) x
 #endif
 
-using namespace std;
   
 /******************************************************************************/
 /*                           C l a s s   P o l l E                            */
@@ -229,7 +228,7 @@ void XrdSys::IOEvents::PollKQ::Begin(XrdSysSemaphore *syncsem,
                 // followed by an exec, in which case we don't want to abort
                 //--------------------------------------------------------------
                 if( rc == EBADF && parentPID != getpid() ) return;
-                cerr <<"KQ: " <<XrdSysE2T(rc) <<" polling for events" <<endl;
+                std::cerr <<"KQ: " <<XrdSysE2T(rc) <<" polling for events" <<std::endl;
                 abort();
                }
        else for (int i = 0; i < numpolled; i++)

@@ -42,7 +42,8 @@ namespace
    struct pEnt {const char *pname; int pnlen;} pTab[] =
                {{ "https://", 8},  { "http://", 7},
                 { "roots://", 8},  { "root://", 7},
-                {"xroots://", 9},  {"xroot://", 8}
+                {"xroots://", 9},  {"xroot://", 8},
+                {"pelican://", 10}
                };
    int pTNum = sizeof(pTab)/sizeof(pEnt);
    int xrBeg = 2;

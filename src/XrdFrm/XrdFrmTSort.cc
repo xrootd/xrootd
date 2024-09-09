@@ -56,7 +56,7 @@ int XrdFrmTSort::Add(XrdFrmFileset *fsp)
    fsp->Next = FSTab[0][n];
    FSTab[0][n] = fsp;
    if (n > DYent) DYent = n;
-//cerr <<"Add " <<std::hex <<fsp->Age <<' ' <<std::dec <<0 <<',' <<n <<' ' <<fsp->basePath() <<endl;
+//std::cerr <<"Add " <<std::hex <<fsp->Age <<' ' <<std::dec <<0 <<',' <<n <<' ' <<fsp->basePath() <<std::endl;
    numEnt++;
    return 1;
 }
@@ -77,7 +77,7 @@ int XrdFrmTSort::Bin(XrdFrmFileset *fsp, int j, int Shift)
          if (Shift || !sortSZ) fsq->Next = FSTab[j][k];
             else fsq = Insert(fsq, FSTab[j][k]);
          FSTab[j][k] = fsq;
-//cerr <<"Bin " <<std::hex <<fsq->Age <<' ' <<std::dec <<j <<',' <<k <<' ' <<fsq->basePath() <<endl;
+//std::cerr <<"Bin " <<std::hex <<fsq->Age <<' ' <<std::dec <<j <<',' <<k <<' ' <<fsq->basePath() <<std::endl;
         }
    return n;
 }
@@ -120,11 +120,11 @@ XrdFrmFileset *XrdFrmTSort::Oldest()
             {if ((fsp = FSTab[3][SCent]))
                 {if (!( FSTab[3][SCent] = fsp->Next)) SCent--;
                  numEnt--;
-//cerr <<"Oldest " <<fsp->Age <<' ' <<fsp->basePath() <<endl;
+//std::cerr <<"Oldest " <<fsp->Age <<' ' <<fsp->basePath() <<std::endl;
                  return fsp;
                 } else SCent--;
             }
-//cerr <<"SC=" <<SCent <<" MN=" <<MNent <<" HR=" <<HRent <<" DY=" <<DYent <<endl;
+//std::cerr <<"SC=" <<SCent <<" MN=" <<MNent <<" HR=" <<HRent <<" DY=" <<DYent <<std::endl;
        fsp = 0;
        while(MNent >= 0 && !fsp) fsp = FSTab[2][MNent--];
        if (fsp) {FSTab[2][MNent+1]=0; SCent = Bin(fsp, 3, SCshift); continue;}

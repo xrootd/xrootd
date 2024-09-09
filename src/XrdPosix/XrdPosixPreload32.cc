@@ -28,6 +28,11 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#if defined(__clang__) && defined(_FORTIFY_SOURCE)
+#undef _FORTIFY_SOURCE
+#endif
+
+#if !defined(MUSL)
 #ifdef  _LARGEFILE_SOURCE
 #undef  _LARGEFILE_SOURCE
 #endif
@@ -38,6 +43,11 @@
 
 #ifdef  _FILE_OFFSET_BITS
 #undef  _FILE_OFFSET_BITS
+#endif
+
+#ifdef  _TIME_BITS
+#undef  _TIME_BITS
+#endif
 #endif
 
 #define XRDPOSIXPRELOAD32

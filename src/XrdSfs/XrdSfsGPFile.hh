@@ -29,6 +29,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdint>
+
 class XrdSfsGPInfo;
 
 class XrdSfsGPFile

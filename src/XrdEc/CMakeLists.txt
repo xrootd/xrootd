@@ -1,4 +1,3 @@
-include( XRootDCommon )
 include( ExternalProject )
 
 #-------------------------------------------------------------------------------
@@ -21,10 +20,8 @@ add_library(
   XrdEcReader.hh               XrdEcReader.cc
 )
 
-target_link_libraries(
-  XrdEc
-  XrdCl
-)
+target_link_libraries(XrdEc PRIVATE XrdCl XrdUtils ${ISAL_LIBRARIES})
+target_include_directories(XrdEc PRIVATE ${ISAL_INCLUDE_DIRS})
 
 set_target_properties(
   XrdEc
@@ -43,15 +40,17 @@ install(
 #------------------------------------------------------------------------------
 # Install private header files
 #------------------------------------------------------------------------------
-install(
-  FILES
-    XrdEcReader.hh
-    XrdEcObjCfg.hh
-    XrdEcStrmWriter.hh
-    XrdEcWrtBuff.hh
-    XrdEcThreadPool.hh
-    XrdEcUtilities.hh
-    XrdEcObjCfg.hh
-    XrdEcConfig.hh
-    XrdEcRedundancyProvider.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdEc )
+if (USE_SYSTEM_ISAL)
+  install(
+    FILES
+      XrdEcReader.hh
+      XrdEcObjCfg.hh
+      XrdEcStrmWriter.hh
+      XrdEcWrtBuff.hh
+      XrdEcThreadPool.hh
+      XrdEcUtilities.hh
+      XrdEcObjCfg.hh
+      XrdEcConfig.hh
+      XrdEcRedundancyProvider.hh
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdEc )
+endif()

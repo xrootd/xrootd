@@ -89,9 +89,12 @@ verb(req->requestverb), headers(req->allheaders) {
   resource = req->resource.c_str();
   int envlen = 0;
   
-  headers["xrd-http-query"] = req->opaque?req->opaque->Env(envlen):"";
-  const char * resourcePlusOpaque = req->resourceplusopaque.c_str();
-  headers["xrd-http-fullresource"] = resourcePlusOpaque != nullptr ? resourcePlusOpaque:"";
+  const char *p = nullptr;
+  if (req->opaque)
+    p = req->opaque->Env(envlen);
+  headers["xrd-http-query"] = p ? p:"";
+  p = req->resourceplusopaque.c_str();
+  headers["xrd-http-fullresource"] = p ? p:"";
   headers["xrd-http-prot"] = prot->isHTTPS()?"https":"http";
   
   // These fields usually identify the client that connected
@@ -109,6 +112,12 @@ verb(req->requestverb), headers(req->allheaders) {
     clientgroups = prot->SecEntity.vorg;
     trim(clientgroups);
   }
-  
+
+  // Get the packet marking handle and the client scitag from the XrdHttp layer
+  pmark = prot->pmarkHandle;
+  mSciTag = req->mScitag;
+
+  tpcForwardCreds = prot->tpcForwardCreds;
+
   length = req->length;
 }

@@ -3,7 +3,8 @@
  *
  * Helper class for managing the state of a single TPC request.
  */
-#pragma once
+#ifndef __XRD_TPC_STATE_HH__
+#define __XRD_TPC_STATE_HH__
 
 #include <memory>
 #include <vector>
@@ -39,19 +40,20 @@ public:
      * Don't use that constructor if you want to do some transfers.
      * @param curl the curl handle
      */
-    State(CURL * curl):
-        m_push(true),
-        m_recv_status_line(false),
-        m_recv_all_headers(false),
-        m_offset(0),
-        m_start_offset(0),
-        m_status_code(-1),
-        m_error_code(0),
-        m_content_length(-1),
-        m_stream(NULL),
-        m_curl(curl),
-        m_headers(NULL),
-        m_is_transfer_state(false)
+    State(CURL * curl, bool tpcForwardCreds):
+      m_push(true),
+      m_recv_status_line(false),
+      m_recv_all_headers(false),
+      m_offset(0),
+      m_start_offset(0),
+      m_status_code(-1),
+      m_error_code(0),
+      m_content_length(-1),
+      m_stream(NULL),
+      m_curl(curl),
+      m_headers(NULL),
+      m_is_transfer_state(false),
+      tpcForwardCreds(tpcForwardCreds)
     {
         InstallHandlers(curl);
     }
@@ -59,19 +61,20 @@ public:
     // Note that we are "borrowing" a reference to the curl handle;
     // it is not owned / freed by the State object.  However, we use it
     // as if there's only one handle per State.
-    State (off_t start_offset, Stream &stream, CURL *curl, bool push) :
-        m_push(push),
-        m_recv_status_line(false),
-        m_recv_all_headers(false),
-        m_offset(0),
-        m_start_offset(start_offset),
-        m_status_code(-1),
-        m_error_code(0),
-        m_content_length(-1),
-        m_stream(&stream),
-        m_curl(curl),
-        m_headers(NULL),
-        m_is_transfer_state(true)
+    State (off_t start_offset, Stream &stream, CURL *curl, bool push, bool tpcForwardCreds) :
+      m_push(push),
+      m_recv_status_line(false),
+      m_recv_all_headers(false),
+      m_offset(0),
+      m_start_offset(start_offset),
+      m_status_code(-1),
+      m_error_code(0),
+      m_content_length(-1),
+      m_stream(&stream),
+      m_curl(curl),
+      m_headers(NULL),
+      m_is_transfer_state(true),
+      tpcForwardCreds(tpcForwardCreds)
     {
         InstallHandlers(curl);
     }
@@ -167,6 +170,9 @@ private:
     std::string m_resp_protocol;  // Response protocol in the HTTP status line.
     std::string m_error_buf;  // Any error associated with a response.
     bool m_is_transfer_state; // If set to true, this state will be used to perform some transfers
+    bool tpcForwardCreds = false; // if set to true, the redirection will send user credentials to the redirection host
 };
 
 };
+
+#endif

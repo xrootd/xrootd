@@ -107,7 +107,7 @@ namespace XrdCl
                                           sizeof(param) );
       if( !st.IsOK() )
         log->Error( AsyncSockMsg, "[%s] Unable to turn on keepalive: %s",
-                    st.ToString().c_str() );
+                    pStreamName.c_str(), st.ToString().c_str() );
 
 #if ( defined(__linux__) || defined(__GNU__) ) && defined( TCP_KEEPIDLE ) && \
     defined( TCP_KEEPINTVL ) && defined( TCP_KEEPCNT )
@@ -117,25 +117,28 @@ namespace XrdCl
       st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPIDLE, &param, sizeof(param));
       if( !st.IsOK() )
         log->Error( AsyncSockMsg, "[%s] Unable to set keepalive time: %s",
-                    st.ToString().c_str() );
+                    pStreamName.c_str(), st.ToString().c_str() );
 
       param = DefaultTCPKeepAliveInterval;
       env->GetInt( "TCPKeepAliveInterval", param );
       st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPINTVL, &param, sizeof(param));
       if( !st.IsOK() )
         log->Error( AsyncSockMsg, "[%s] Unable to set keepalive interval: %s",
-                    st.ToString().c_str() );
+                    pStreamName.c_str(), st.ToString().c_str() );
 
       param = DefaultTCPKeepAliveProbes;
       env->GetInt( "TCPKeepAliveProbes", param );
       st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPCNT, &param, sizeof(param));
       if( !st.IsOK() )
         log->Error( AsyncSockMsg, "[%s] Unable to set keepalive probes: %s",
-                    st.ToString().c_str() );
+                    pStreamName.c_str(), st.ToString().c_str() );
 #endif
     }
 
     pHandShakeDone = false;
+    pTlsHandShakeOngoing = false;
+    pHSWaitStarted = 0;
+    pHSWaitSeconds = 0;
 
     //--------------------------------------------------------------------------
     // Initiate async connection to the address
@@ -214,17 +217,35 @@ namespace XrdCl
     type = pSocket->MapEvent( type );
 
     //--------------------------------------------------------------------------
+    // Handle any read or write events. If any of the handlers indicate an error
+    // we will have been disconnected. A disconnection may cause the current
+    // object to be asynchronously reused or deleted, so we return immediately.
+    //--------------------------------------------------------------------------
+    if( !EventRead( type ) )
+      return;
+
+    if( !EventWrite( type ) )
+      return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Handler for read related socket events
+  //----------------------------------------------------------------------------
+  bool AsyncSocketHandler::EventRead( uint8_t type )
+  {
+    //--------------------------------------------------------------------------
     // Read event
     //--------------------------------------------------------------------------
     if( type & ReadyToRead )
     {
       pLastActivity = time(0);
       if( unlikely( pTlsHandShakeOngoing ) )
-        OnTLSHandShake();
-      else if( likely( pHandShakeDone ) )
-        OnRead();
-      else
-        OnReadWhileHandshaking();
+        return OnTLSHandShake();
+
+      if( likely( pHandShakeDone ) )
+        return OnRead();
+
+      return OnReadWhileHandshaking();
     }
 
     //--------------------------------------------------------------------------
@@ -233,14 +254,25 @@ namespace XrdCl
     else if( type & ReadTimeOut )
     {
       if( pHSWaitSeconds )
-        CheckHSWait();
+      {
+        if( !CheckHSWait() )
+          return false;
+      }
 
       if( likely( pHandShakeDone ) )
-        OnReadTimeout();
-      else
-        OnTimeoutWhileHandshaking();
+        return OnReadTimeout();
+
+      return OnTimeoutWhileHandshaking();
     }
 
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Handler for write related socket events
+  //----------------------------------------------------------------------------
+  bool AsyncSocketHandler::EventWrite( uint8_t type )
+  {
     //--------------------------------------------------------------------------
     // Write event
     //--------------------------------------------------------------------------
@@ -248,19 +280,21 @@ namespace XrdCl
     {
       pLastActivity = time(0);
       if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
-        OnConnectionReturn();
+        return OnConnectionReturn();
+
       //------------------------------------------------------------------------
       // Make sure we are not writing anything if we have been told to wait.
       //------------------------------------------------------------------------
-      else if( pHSWaitSeconds == 0 )
-      {
-        if( unlikely( pTlsHandShakeOngoing ) )
-          OnTLSHandShake();
-        else if( likely( pHandShakeDone ) )
-          OnWrite();
-        else
-          OnWriteWhileHandshaking();
-      }
+      if( pHSWaitSeconds != 0 )
+        return true;
+
+      if( unlikely( pTlsHandShakeOngoing ) )
+        return OnTLSHandShake();
+
+      if( likely( pHandShakeDone ) )
+        return OnWrite();
+
+      return OnWriteWhileHandshaking();
     }
 
     //--------------------------------------------------------------------------
@@ -269,16 +303,18 @@ namespace XrdCl
     else if( type & WriteTimeOut )
     {
       if( likely( pHandShakeDone ) )
-        OnWriteTimeout();
-      else
-        OnTimeoutWhileHandshaking();
+        return OnWriteTimeout();
+
+      return OnTimeoutWhileHandshaking();
     }
+
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Connect returned
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::OnConnectionReturn()
+  bool AsyncSocketHandler::OnConnectionReturn()
   {
     //--------------------------------------------------------------------------
     // Check whether we were able to connect
@@ -303,7 +339,7 @@ namespace XrdCl
                   XrdSysE2T( errno ) );
       pStream->OnConnectError( pSubStreamNum,
                                XRootDStatus( stFatal, errSocketOptError, errno ) );
-      return;
+      return false;
     }
 
     //--------------------------------------------------------------------------
@@ -315,7 +351,7 @@ namespace XrdCl
                   pStreamName.c_str(), XrdSysE2T( errorCode ) );
       pStream->OnConnectError( pSubStreamNum,
                                XRootDStatus( stError, errConnectionError ) );
-      return;
+      return false;
     }
     pSocket->SetStatus( Socket::Connected );
 
@@ -326,7 +362,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       pStream->OnConnectError( pSubStreamNum, st );
-      return;
+      return false;
     }
 
     //--------------------------------------------------------------------------
@@ -344,7 +380,7 @@ namespace XrdCl
       log->Error( AsyncSockMsg, "[%s] Connection negotiation failed",
                   pStreamName.c_str() );
       pStream->OnConnectError( pSubStreamNum, st );
-      return;
+      return false;
     }
 
     if( st.code != suRetry )
@@ -372,19 +408,20 @@ namespace XrdCl
     {
       pStream->OnConnectError( pSubStreamNum,
                                XRootDStatus( stFatal, errPollerError ) );
-      return;
+      return false;
     }
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Got a write readiness event
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::OnWrite()
+  bool AsyncSocketHandler::OnWrite()
   {
     if( !reqwriter )
     {
       OnFault( XRootDStatus( stError, errInternal, 0, "Request writer is null." ) );
-      return;
+      return false;
     }
     //--------------------------------------------------------------------------
     // Let's do the writing ...
@@ -396,30 +433,34 @@ namespace XrdCl
       // We failed
       //------------------------------------------------------------------------
       OnFault( st );
-      return;
+      return false;
     }
     //--------------------------------------------------------------------------
     // We are not done yet
     //--------------------------------------------------------------------------
-    if( st.code == suRetry) return;
+    if( st.code == suRetry) return true;
     //--------------------------------------------------------------------------
     // Disable the respective substream if empty
     //--------------------------------------------------------------------------
     reqwriter->Reset();
     pStream->DisableIfEmpty( pSubStreamNum );
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Got a write readiness event while handshaking
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::OnWriteWhileHandshaking()
+  bool AsyncSocketHandler::OnWriteWhileHandshaking()
   {
     XRootDStatus st;
     if( !hswriter || !hswriter->HasMsg() )
     {
       if( !(st = DisableUplink()).IsOK() )
+      {
         OnFaultWhileHandshaking( st );
-      return;
+        return false;
+      }
+      return true;
     }
     //--------------------------------------------------------------------------
     // Let's do the writing ...
@@ -431,25 +472,29 @@ namespace XrdCl
       // We failed
       //------------------------------------------------------------------------
       OnFaultWhileHandshaking( st );
-      return;
+      return false;
     }
     //--------------------------------------------------------------------------
     // We are not done yet
     //--------------------------------------------------------------------------
-    if( st.code == suRetry ) return;
+    if( st.code == suRetry ) return true;
     //--------------------------------------------------------------------------
     // Disable the uplink
     // Note: at this point we don't deallocate the HS message as we might need
     //       to re-send it in case of a kXR_wait response
     //--------------------------------------------------------------------------
     if( !(st = DisableUplink()).IsOK() )
+    {
       OnFaultWhileHandshaking( st );
+      return false;
+    }
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Got a read readiness event
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::OnRead()
+  bool AsyncSocketHandler::OnRead()
   {
     //--------------------------------------------------------------------------
     // Make sure the response reader object exists
@@ -457,7 +502,7 @@ namespace XrdCl
     if( !rspreader )
     {
       OnFault( XRootDStatus( stError, errInternal, 0, "Response reader is null." ) );
-      return;
+      return false;
     }
 
     //--------------------------------------------------------------------------
@@ -471,7 +516,7 @@ namespace XrdCl
     if( !st.IsOK() && st.code == errCorruptedHeader )
     {
       OnHeaderCorruption();
-      return;
+      return false;
     }
 
     //--------------------------------------------------------------------------
@@ -480,24 +525,25 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       OnFault( st );
-      return;
+      return false;
     }
 
     //--------------------------------------------------------------------------
     // We are not done yet
     //--------------------------------------------------------------------------
-    if( st.code == suRetry ) return;
+    if( st.code == suRetry ) return true;
 
     //--------------------------------------------------------------------------
     // We are done, reset the response reader so we can read out next message
     //--------------------------------------------------------------------------
     rspreader->Reset();
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Got a read readiness event while handshaking
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::OnReadWhileHandshaking()
+  bool AsyncSocketHandler::OnReadWhileHandshaking()
   {
     //--------------------------------------------------------------------------
     // Make sure the response reader object exists
@@ -505,7 +551,7 @@ namespace XrdCl
     if( !hsreader )
     {
       OnFault( XRootDStatus( stError, errInternal, 0, "Hand-shake reader is null." ) );
-      return;
+      return false;
     }
 
     //--------------------------------------------------------------------------
@@ -516,19 +562,19 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       OnFaultWhileHandshaking( st );
-      return;
+      return false;
     }
 
     if( st.code != suDone )
-      return;
+      return true;
 
-    HandleHandShake( hsreader->ReleaseMsg() );
+    return HandleHandShake( hsreader->ReleaseMsg() );
   }
 
   //------------------------------------------------------------------------
   // Handle the handshake message
   //------------------------------------------------------------------------
-  void AsyncSocketHandler::HandleHandShake( std::unique_ptr<Message> msg )
+  bool AsyncSocketHandler::HandleHandShake( std::unique_ptr<Message> msg )
   {
     //--------------------------------------------------------------------------
     // OK, we have a new message, let's deal with it;
@@ -547,7 +593,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       OnFaultWhileHandshaking( st );
-      return;
+      return false;
     }
 
     if( st.code == suRetry )
@@ -568,6 +614,7 @@ namespace XrdCl
                       pStreamName.c_str() );
 
           OnFaultWhileHandshaking( XRootDStatus( stError, errSocketTimeout ) );
+          return false;
         }
         else
         {
@@ -577,19 +624,18 @@ namespace XrdCl
           Log *log = DefaultEnv::GetLog();
           log->Debug( AsyncSockMsg, "[%s] Received a wait response to endsess request, "
                       "will wait for %d seconds before replaying the endsess request",
-                      waitSeconds );
+                      pStreamName.c_str(), waitSeconds );
           pHSWaitStarted = time( 0 );
           pHSWaitSeconds = waitSeconds;
         }
-        return;
+        return true;
       }
       //------------------------------------------------------------------------
       // We are re-sending a protocol request
       //------------------------------------------------------------------------
       else if( pHandShakeData->out )
       {
-        SendHSMsg();
-        return;
+        return SendHSMsg();
       }
     }
 
@@ -600,19 +646,22 @@ namespace XrdCl
          pTransport->NeedEncryption( pHandShakeData.get(), *pChannelData ) )
     {
       XRootDStatus st = DoTlsHandShake();
-      if( !st.IsOK() || st.code == suRetry ) return;
+      if( !st.IsOK() )
+        return false;
+      if ( st.code == suRetry )
+        return true;
     }
 
     //--------------------------------------------------------------------------
     // Now prepare the next step of the hand-shake procedure
     //--------------------------------------------------------------------------
-    HandShakeNextStep( st.IsOK() && st.code == suDone );
+    return HandShakeNextStep( st.IsOK() && st.code == suDone );
   }
 
   //------------------------------------------------------------------------
   // Prepare the next step of the hand-shake procedure
   //------------------------------------------------------------------------
-  void AsyncSocketHandler::HandShakeNextStep( bool done )
+  bool AsyncSocketHandler::HandShakeNextStep( bool done )
   {
     //--------------------------------------------------------------------------
     // We successfully proceeded to the next step
@@ -636,7 +685,7 @@ namespace XrdCl
       if( !(st = EnableUplink()).IsOK() )
       {
         OnFaultWhileHandshaking( st );
-        return;
+        return false;
       }
       pHandShakeDone = true;
       pStream->OnConnect( pSubStreamNum );
@@ -646,8 +695,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else if( pHandShakeData->out )
     {
-      SendHSMsg();
+      return SendHSMsg();
     }
+    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -677,27 +727,31 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle write timeout
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::OnWriteTimeout()
+  bool AsyncSocketHandler::OnWriteTimeout()
   {
-    pStream->OnWriteTimeout( pSubStreamNum );
+    return pStream->OnWriteTimeout( pSubStreamNum );
   }
 
   //----------------------------------------------------------------------------
   // Handler read timeout
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::OnReadTimeout()
+  bool AsyncSocketHandler::OnReadTimeout()
   {
-    pStream->OnReadTimeout( pSubStreamNum );
+    return pStream->OnReadTimeout( pSubStreamNum );
   }
 
   //----------------------------------------------------------------------------
   // Handle timeout while handshaking
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::OnTimeoutWhileHandshaking()
+  bool AsyncSocketHandler::OnTimeoutWhileHandshaking()
   {
     time_t now = time(0);
     if( now > pConnectionStarted+pConnectionTimeout )
+    {
       OnFaultWhileHandshaking( XRootDStatus( stError, errSocketTimeout ) );
+      return false;
+    }
+    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -723,8 +777,8 @@ namespace XrdCl
     XRootDStatus st;
     if( !( st = pSocket->TlsHandShake( this, pUrl.GetHostName() ) ).IsOK() )
     {
-      OnFaultWhileHandshaking( st );
       pTlsHandShakeOngoing = false;
+      OnFaultWhileHandshaking( st );
       return st;
     }
 
@@ -743,25 +797,28 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle read/write event if we are in the middle of a TLS hand-shake
   //----------------------------------------------------------------------------
-  inline void AsyncSocketHandler::OnTLSHandShake()
+  inline bool AsyncSocketHandler::OnTLSHandShake()
   {
     XRootDStatus st = DoTlsHandShake();
-    if( !st.IsOK() || st.code == suRetry ) return;
+    if( !st.IsOK() )
+      return false;
+    if ( st.code == suRetry )
+      return true;
 
-    HandShakeNextStep( pTransport->HandShakeDone( pHandShakeData.get(),
-                                                  *pChannelData ) );
+    return HandShakeNextStep( pTransport->HandShakeDone( pHandShakeData.get(),
+                                                         *pChannelData ) );
   }
 
   //----------------------------------------------------------------------------
   // Prepare a HS writer for sending and enable uplink
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::SendHSMsg()
+  bool AsyncSocketHandler::SendHSMsg()
   {
     if( !hswriter )
     {
       OnFaultWhileHandshaking( XRootDStatus( stError, errInternal, 0,
                                              "HS writer object missing!" ) );
-      return;
+      return false;
     }
     //--------------------------------------------------------------------------
     // We only set a new HS message if this is not a replay due to kXR_wait
@@ -783,8 +840,9 @@ namespace XrdCl
     if( !(st = EnableUplink()).IsOK() )
     {
       OnFaultWhileHandshaking( st );
-      return;
+      return false;
     }
+    return true;
   }
 
   kXR_int32 AsyncSocketHandler::HandleWaitRsp( Message *msg )
@@ -801,7 +859,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check if HS wait time elapsed
   //----------------------------------------------------------------------------
-  void AsyncSocketHandler::CheckHSWait()
+  bool AsyncSocketHandler::CheckHSWait()
   {
     time_t now = time( 0 );
     if( now - pHSWaitStarted >= pHSWaitSeconds )
@@ -809,13 +867,15 @@ namespace XrdCl
       Log *log = DefaultEnv::GetLog();
       log->Debug( AsyncSockMsg, "[%s] The hand-shake wait time elapsed, will "
                   "replay the endsess request.", pStreamName.c_str() );
-      SendHSMsg();
+      if( !SendHSMsg() )
+        return false;
       //------------------------------------------------------------------------
       // Make sure the wait state is reset
       //------------------------------------------------------------------------
       pHSWaitSeconds = 0;
       pHSWaitStarted = 0;
     }
+    return true;
   }
 
   //------------------------------------------------------------------------

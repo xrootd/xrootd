@@ -23,7 +23,9 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClJobManager.hh"
+
 #include <future>
+#include <type_traits>
 
 #ifndef SRC_XRDEC_XRDECTHREADPOOL_HH_
 #define SRC_XRDEC_XRDECTHREADPOOL_HH_
@@ -157,11 +159,11 @@ namespace XrdEc
       //! Schedule a functional (together with its arguments) for execution
       //-----------------------------------------------------------------------
       template<typename FUNC, typename ... ARGs>
-      inline std::future<typename std::result_of<FUNC(ARGs...)>::type>
+      inline std::future<std::invoke_result_t<FUNC, ARGs...>>
       Execute( FUNC func, ARGs... args )
       {
-        using RET = typename std::result_of<FUNC(ARGs...)>::type;
-        AnyJob<FUNC, RET, ARGs...> *job = new AnyJob<FUNC, RET, ARGs...>( func, std::move( args )... );
+        using RET = std::invoke_result_t<FUNC, ARGs...>;
+        auto *job = new AnyJob<FUNC, RET, ARGs...>( func, std::move( args )... );
         std::future<RET> ftr = job->GetFuture();
         threadpool.QueueJob( job, nullptr );
         return ftr;

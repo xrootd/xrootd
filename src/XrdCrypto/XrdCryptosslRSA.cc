@@ -88,7 +88,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
 {
    // Constructor
    // Generate a RSA asymmetric key pair
-   // Length will be 'bits' bits (min 512, default 1024), public
+   // Length will be 'bits' bits (min 2048, default 2048), public
    // exponent `pubex` (default 65537).
    EPNAME("RSA::XrdCryptosslRSA");
 
@@ -96,7 +96,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
    prilen = -1;
 
    // Minimum is XrdCryptoMinRSABits
-   bits = (bits >= XrdCryptoMinRSABits) ? bits : XrdCryptoMinRSABits;
+   bits = (bits >= XrdCryptoMinRSABits) ? bits : XrdCryptoDefRSABits;
 
    // If pubex is not odd, use default
    if (!(exp & 1))
@@ -236,10 +236,10 @@ XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r) : XrdCryptoRSA()
             }
           } else {
             if ((fEVP = PEM_read_bio_PrivateKey(bcpy,0,0,0))) {
-               // Check consistency
-               if (XrdCheckRSA(fEVP) == 1) {
-                  // Update status
-                  status = kComplete;
+               // Check consistency only if original was not marked complete
+               if (r.status == kComplete || XrdCheckRSA(fEVP) == 1) {
+                 // Update status
+                 status = kComplete;
                }
             }
          }
@@ -322,6 +322,8 @@ int XrdCryptosslRSA::ImportPrivate(const char *pri, int lpri)
 
    if (!fEVP)
       return -1;
+
+   int rc = -1;
    prilen = -1;
 
    // Bio for exporting the pub key
@@ -337,9 +339,10 @@ int XrdCryptosslRSA::ImportPrivate(const char *pri, int lpri)
    if (PEM_read_bio_PrivateKey(bpri, &fEVP, 0, 0)) {
       // Update status
       status = kComplete;
-      return 0;
+      rc = 0;
    }
-   return -1;
+   BIO_free(bpri);
+   return rc;
 }
 
 //_____________________________________________________________________________
@@ -354,7 +357,7 @@ void XrdCryptosslRSA::Dump()
       char *btmp = new char[GetPublen()+1];
       if (btmp) {
          ExportPublic(btmp,GetPublen()+1);
-         DEBUG("export pub key:"<<endl<<btmp);
+         DEBUG("export pub key:"<<std::endl<<btmp);
          delete[] btmp;
       } else {
          DEBUG("cannot allocate memory for public key");
@@ -421,7 +424,7 @@ int XrdCryptosslRSA::ExportPublic(char *out, int)
    memcpy(out, cbio, lbio);
    // Null terminate
    out[lbio] = 0;
-   DEBUG("("<<lbio<<" bytes) "<< endl <<out);
+   DEBUG("("<<lbio<<" bytes) "<< std::endl <<out);
    BIO_free(bkey);
 
    return 0;
@@ -484,7 +487,7 @@ int XrdCryptosslRSA::ExportPrivate(char *out, int)
    memcpy(out, cbio, lbio);
    // Null terminate
    out[lbio] = 0;
-   DEBUG("("<<lbio<<" bytes) "<< endl <<out);
+   DEBUG("("<<lbio<<" bytes) "<< std::endl <<out);
    BIO_free(bkey);
 
    return 0;

@@ -199,7 +199,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 
 // Set default number of event loops
 //
-   XrdPosixConfig::SetEnv("ParallelEvtLoop", 3);
+   XrdPosixConfig::SetEnv("ParallelEvtLoop", 10);
 
 // Turn off the fork handler as we always exec after forking.
 //
@@ -325,12 +325,14 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
               else strcpy(theRdr, outeq);
    XrdOucEnv::Export("XRDXROOTD_PROXY",  theRdr);
    XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr); // Backward compatibility
+   if (HostArena) XrdOucEnv::Export("XRDXROOTD_PROXYARENA", HostArena); 
 
 // Construct the contact URL header
 //
    if (ManList)               //<prot><id>@<host>:<port>/<path>
-      {hdrLen = sprintf(theRdr, "%s%%s%s:%d/%%s",
-                        protName, ManList->text, ManList->val);
+      {hdrLen = sprintf(theRdr, "%s%%s%s:%d/%s%%s",
+                        protName, ManList->text, ManList->val,
+                        (HostArena ? HostArena : ""));
        hdrData = strdup(theRdr);
       } else {
        if (fileOrgn)
@@ -341,6 +343,13 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
           {hdrLen = sprintf(theRdr, "%s%s%%s", protName, fileOrgn);
            hdrData = strdup(theRdr);
           }
+      }
+
+// Export the URL
+//
+   if (hdrData && *hdrData)
+      {snprintf(theRdr, sizeof(theRdr), hdrData, "", "");
+       XrdOucEnv::Export("XRDXROOTD_PROXYURL", theRdr);
       }
 
 // Check if we have any r/w exports as this will determine whether or not we
@@ -521,6 +530,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 
    // Match directives that take a single argument
    //
+   TS_String("hostarena",  HostArena);
    TS_String("localroot",  LocalRoot);
 
    // No match found, complain.
@@ -687,7 +697,6 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 
    Purpose:  Parse: origin {=[<prot>,<prot>,...] [<dest>] | <dest>}
 
-                                                                                 d
    where:    <dest> <host>[+][:<port>|<port>] or a URL of the form
                     <prot>://<dest>[:<port>] where <prot> is one
                     http, https, root, xroot
@@ -782,7 +791,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 // Check if there is a port number. This could be as ':port' or ' port'.
 //
     if (!(val = index(mval,':')) && !isURL) val = Config.GetWord();
-       else {*val = '\0'; val++;}
+       else if (val) {*val = '\0'; val++;}
 
 // At this point, make sure we actually have a host name
 //
@@ -800,7 +809,17 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
                     {errp->Emsg("Config", "unable to find tcp service", val);
                      port = 0;
                     }
-       } else errp->Emsg("Config","origin port not specified for",mval);
+       } else {
+         if (protName) {
+           // use default port for protocol
+           port = *protName == 'h' ? (strncmp(protName, "https", 5) == 0 ? 443 : 80) : 1094;
+         } else {
+           // assume protocol is root(s)://
+           port = 1094;
+         }
+         errp->Say("Config warning: origin port not specified, using port ",
+           std::to_string(port).c_str(), " as default for ", protName);
+       }
 
 // If port is invalid or missing, fail this
 //

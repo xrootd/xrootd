@@ -286,29 +286,37 @@ void XrdXrootdMonitor::User::Enable()
 /******************************************************************************/
 /*      X r d X r o o t d M o n i t o r : : U s e r : : R e g i s t e r       */
 /******************************************************************************/
-  
+
 void XrdXrootdMonitor::User::Register(const char *Uname, 
                                       const char *Hname,
-                                      const char *Pname)
+                                      const char *Pname, unsigned int xSID)
 {
-   const char *colonP, *atP;
-   char  uBuff[1024], *uBP;
-   int n;
+#ifndef NODEBUG
+    const char *TraceID = "Monitor";
+#endif
+   char *dotP, *colonP, *atP;
+   char  uBuff[1024], tBuff[1024], sBuff[64];
 
-// The identification always starts with the protocol being used
+// Decode the user name as a.b:c@d and remap it for monitoring as
+// <protocol>/a.{b|xSID}:<kySID>@host
 //
-   n = sprintf(uBuff, "%s/", Pname);
-   uBP = uBuff + n;
+   snprintf(tBuff, sizeof(tBuff), "%s", Uname);
+   if ((dotP = index(tBuff, '.')) && (colonP = index(dotP+1, ':')) && 
+       (atP = index(colonP+1, '@')))
+      {*dotP = 0; *colonP = 0; *atP = 0;
+       if (xSID)  
+          {snprintf(sBuff, sizeof(sBuff), " %u", xSID);
+           dotP = sBuff;
+          }
 
-// Decode the user name as a.b:c@d
-//
-   if ((colonP = index(Uname, ':')) && (atP = index(colonP+1, '@')))
-      {n = colonP - Uname + 1;
-       strncpy(uBP, Uname, n);
-       strcpy(uBP+n, kySID);
-       n += kySIDSZ; *(uBP+n) = '@'; n++;
-       strcpy(uBP+n, Hname);
-      } else strcpy(uBP, Uname);
+       int n = snprintf(uBuff, sizeof(uBuff), "%s/%s.%s:%s@%s", Pname, tBuff,
+                        dotP+1, kySID, atP+1);
+
+       if (n < 0 || n >= (int) sizeof(uBuff))
+         TRACE(LOGIN, "Login ID was truncated: " << uBuff);
+
+       if (xSID) {TRACE(LOGIN,"Register remap "<<Uname<<" -> "<<uBuff);}
+      } else snprintf(uBuff, sizeof(uBuff), "%s/%s", Pname, Uname);
 
 // Generate a monitor identity for this user. We do not assign a dictioary
 // identifier unless this entry is reported.
@@ -334,6 +342,23 @@ void XrdXrootdMonitor::User::Report(int eCode, int aCode)
    XrdXrootdMonitor::Map(XROOTD_MON_MAPUEAC,*this,buff);
 }
   
+/******************************************************************************/
+  
+bool XrdXrootdMonitor::User::Report(WhatInfo infoT, const char *info)
+{
+   char buff[4096];
+
+// Currently we support only the token external report
+//
+   if (infoT != TokenInfo) return false;
+
+   snprintf(buff, sizeof(buff), "&Uc=%d%s%s", ntohl(Did),
+                                (*info == '&' ? "" : "&"), info);
+
+   XrdXrootdMonitor::Map(XROOTD_MON_MAPTOKN,*this,buff);
+
+   return true;
+}
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -836,6 +861,7 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
 //
         if (code == XROOTD_MON_MAPPATH) montype = XROOTD_MON_PATH;
    else if (code == XROOTD_MON_MAPUSER
+        ||  code == XROOTD_MON_MAPTOKN
         ||  code == XROOTD_MON_MAPUEAC) montype = XROOTD_MON_USER;
    else                                 montype = XROOTD_MON_INFO;
    Send(montype, (void *)&map, size);

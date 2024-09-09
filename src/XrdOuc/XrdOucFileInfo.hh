@@ -145,7 +145,7 @@ long long       GetSize() {return fSize;}
 //!
 //! @return Pointer to the url. The url is valid until this object is deleted.
 //!         If no more urls exist, a nil pointer is returned. A subsequent call
-//!         will start at the front of teh list.
+//!         will start at the front of the list.
 //-----------------------------------------------------------------------------
 
 const char     *GetUrl(char *cntry=0, int *prty=0);

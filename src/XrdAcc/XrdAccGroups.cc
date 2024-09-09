@@ -117,7 +117,7 @@ char *XrdAccGroups::AddName(const XrdAccGroupType gtype, const char *name)
    if (!(np = hp->Find(name)))
       {hp->Add(name, 0, 0, Hash_data_is_key);
        if (!(np = hp->Find(name)))
-           cerr <<"XrdAccGroups: Unable to add group " <<name <<endl;
+           std::cerr <<"XrdAccGroups: Unable to add group " <<name <<std::endl;
       }
 
 // All done.
@@ -350,7 +350,7 @@ int XrdAccGroups::addGroup(const char *user, const gid_t gid, char *gname,
 //
    if (gtabi >= NGROUPS_MAX)
       {if (gtabi == NGROUPS_MAX)
-          cerr <<"XrdAccGroups: More than " <<gtabi <<"groups for " <<user <<endl;
+          std::cerr <<"XrdAccGroups: More than " <<gtabi <<"groups for " <<user <<std::endl;
        return gtabi;
       }
 
@@ -408,7 +408,7 @@ int XrdAccCheckNetGroup(const char *netgroup, char *key, void *Arg)
                 XrdAccGroupMaster.Domain()))
        {if (grp->gtabi >= NGROUPS_MAX) 
            {if (grp->gtabi == NGROUPS_MAX)
-               cerr <<"XrdAccGroups: More than " <<grp->gtabi <<"netgroups for " <<grp->user <<endl;
+               std::cerr <<"XrdAccGroups: More than " <<grp->gtabi <<"netgroups for " <<grp->user <<std::endl;
             return 1;
            }
 

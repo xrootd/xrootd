@@ -74,6 +74,7 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -173,6 +174,7 @@ XrdOfs::XrdOfs() : dMask{0000,0775}, fMask{0000,0775}, // Legacy
 // Establish defaults
 //
    ofsConfig     = 0;
+   FSctl_PC      = 0;
    FSctl_PI      = 0;
    Authorization = 0;
    Finder        = 0;
@@ -464,6 +466,7 @@ int XrdOfsFile::open(const char          *path,      // In
                         SFS_O_CREAT  - Create the file open in RW mode
                         SFS_O_TRUNC  - Trunc  the file open in RW mode
                         SFS_O_POSC   - Presist    file on successful close
+                        SFS_O_SEQIO  - Primarily sequential I/O (e.g. xrdcp)
             Mode      - The Posix access mode bits to be assigned to the file.
                         These bits correspond to the standard Unix permission
                         bits (e.g., 744 == "rwxr--r--"). Additionally, Mode
@@ -756,6 +759,20 @@ int XrdOfsFile::open(const char          *path,      // In
       }
    oP.hP->Activate(oP.fP);
    oP.hP->UnLock();
+
+// If this is being opened for sequential I/O advise the filesystem about it.
+//
+#if defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+   if (!(XrdOfsFS->OssIsProxy) && open_mode & SFS_O_SEQIO)
+      {static RAtomic_int fadFails(0);
+       int theFD =  oP.fP->getFD();
+       if (theFD >= 0 && fadFails < 4096)
+          if (posix_fadvise(theFD, 0, 0, POSIX_FADV_SEQUENTIAL) < 0)
+             {OfsEroute.Emsg(epname, errno, "fadsize for sequential I/O.");
+              fadFails++;
+             }
+      }
+#endif
 
 // Send an open event if we must
 //

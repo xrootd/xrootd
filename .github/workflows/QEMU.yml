@@ -1,0 +1,57 @@
+name: QEMU
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: 'OS'
+        required: true
+        default: 'fedora'
+        type: choice
+        options:
+          - alma8
+          - alma9
+          - centos7
+          - debian
+          - fedora
+          - ubuntu
+      arch:
+        description: 'Architecture'
+        required: true
+        default: 's390x'
+        type: choice
+        options:
+          - 386
+          - amd64
+          - arm
+          - arm64
+          - ppc64le
+          - s390x
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.os }}-${{ inputs.arch }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  DOCKER: podman
+
+jobs:
+  buildx:
+    name: QEMU (${{ inputs.os }}-${{ inputs.arch }})
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup QEMU for cross-building images
+      run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+    - name: Cross-build container with docker/podman buildx
+      run: cd docker && ./xrd-docker buildx ${{ inputs.os }} ${{ inputs.arch }}

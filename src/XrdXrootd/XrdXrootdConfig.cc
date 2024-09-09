@@ -219,6 +219,15 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    n = (pi->theEnv ? pi->theEnv->GetInt("MaxBuffSize") : 0);
    maxTransz = maxBuffsz = (n ? n : BPool->MaxSize());
+   maxReadv_ior = maxTransz-(int)sizeof(readahead_list);
+
+// Export the readv_ior_max and readv_iov_max values
+//
+  {char buff[256];
+   snprintf(buff, sizeof(buff), "%d,%d",  maxReadv_ior, XrdProto::maxRvecsz);
+   XrdOucEnv::Export("XRD_READV_LIMITS", buff);
+  }
+
    memset(Route, 0, sizeof(Route));
 
 // Now process and configuration parameters
@@ -399,6 +408,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
       } 
    if (fsFeatures & XrdSfs::hasPRXY) myRole |= kXR_attrProxy;
+   if (fsFeatures & XrdSfs::hasCACH) myRole |= kXR_attrCache;
    myRole |= tlsFlags;
 
 // Turn off client redirects if we are neither a redirector nor a proxy server

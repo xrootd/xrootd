@@ -50,7 +50,7 @@
 /*                 M i s c e l l a n e o u s   D e f i n e s                  */
 /******************************************************************************/
 
-#define DEBUG(x) {if (DebugON) cerr <<"sec_Client: " <<x <<endl;}
+#define DEBUG(x) {if (DebugON) std::cerr <<"sec_Client: " <<x <<std::endl;}
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -100,7 +100,7 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
 // Perform any required debugging
 //
    DEBUG("protocol request for host " <<hostname <<" token='"
-         <<(parms.size > 0 ? setw(parms.size) : setw(1))
+         <<(parms.size > 0 ? std::setw(parms.size) : std::setw(1))
          <<(parms.size > 0 ? parms.buffer : "") <<"'");
 
 // Check if the server wants no security.
@@ -111,7 +111,7 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
 //
    if (!(protp = PManager.Get(hostname, endPoint, parms, einfo)))
       {if (einfo) einfo->setErrInfo(ENOPROTOOPT, noperr);
-         else cerr <<noperr <<endl;
+         else std::cerr <<noperr <<std::endl;
       }
 
 // All done

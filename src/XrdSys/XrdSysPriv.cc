@@ -323,13 +323,13 @@ void XrdSysPriv::DumpUGID(const char *msg)
    if (getresgid(&rgid, &egid, &sgid) != 0)
       return;
 
-   cout << "XrdSysPriv: "  << endl; 
-   cout << "XrdSysPriv: dump values: " << (msg ? msg : "") << endl; 
-   cout << "XrdSysPriv: "  << endl; 
-   cout << "XrdSysPriv: real       = (" << ruid <<","<< rgid <<")" << endl; 
-   cout << "XrdSysPriv: effective  = (" << euid <<","<< egid <<")" << endl; 
-   cout << "XrdSysPriv: saved      = (" << suid <<","<< sgid <<")" << endl; 
-   cout << "XrdSysPriv: "  << endl; 
+   std::cout << "XrdSysPriv: "  << std::endl; 
+   std::cout << "XrdSysPriv: dump values: " << (msg ? msg : "") << std::endl; 
+   std::cout << "XrdSysPriv: "  << std::endl; 
+   std::cout << "XrdSysPriv: real       = (" << ruid <<","<< rgid <<")" << std::endl; 
+   std::cout << "XrdSysPriv: effective  = (" << euid <<","<< egid <<")" << std::endl; 
+   std::cout << "XrdSysPriv: saved      = (" << suid <<","<< sgid <<")" << std::endl; 
+   std::cout << "XrdSysPriv: "  << std::endl; 
    XrdSysPriv::fgMutex.UnLock();
 #endif
 }

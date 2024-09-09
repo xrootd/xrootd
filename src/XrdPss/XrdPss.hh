@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <vector>
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdOuc/XrdOucECMsg.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPList.hh"
@@ -144,38 +145,39 @@ struct XrdVersionInfo;
 class XrdPssSys : public XrdOss
 {
 public:
-virtual XrdOssDF *newDir(const char *tident)
+virtual XrdOssDF *newDir(const char *tident) override
                        {return (XrdOssDF *)new XrdPssDir(tident);}
-virtual XrdOssDF *newFile(const char *tident)
+virtual XrdOssDF *newFile(const char *tident) override
                        {return (XrdOssDF *)new XrdPssFile(tident);}
 
-virtual void      Connect(XrdOucEnv &);
+virtual void      Connect(XrdOucEnv &) override;
 
-virtual void      Disc(XrdOucEnv &);
+virtual void      Disc(XrdOucEnv &) override;
 
-int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
+int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0) override;
 bool      ConfigMapID();
 virtual
-int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
-void      EnvInfo(XrdOucEnv *envP);
-uint64_t  Features() {return myFeatures;}
+int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0) override;
+void      EnvInfo(XrdOucEnv *envP) override;
+uint64_t  Features() override {return myFeatures;}
 int       Init(XrdSysLogger *, const char *) override {return -ENOTSUP;}
 int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP) override;
-int       Lfn2Pfn(const char *Path, char *buff, int blen);
+int       Lfn2Pfn(const char *Path, char *buff, int blen) override;
 const
-char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc);
-int       Mkdir(const char *, mode_t mode, int mkpath=0, XrdOucEnv *eP=0);
-int       Remdir(const char *, int Opts=0, XrdOucEnv *eP=0);
+char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc) override;
+int       Mkdir(const char *, mode_t mode, int mkpath=0, XrdOucEnv *eP=0) override;
+int       Remdir(const char *, int Opts=0, XrdOucEnv *eP=0) override;
 int       Rename(const char *, const char *,
-                 XrdOucEnv *eP1=0, XrdOucEnv *eP2=0);
-int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0);
-int       Stats(char *bp, int bl);
-int       Truncate(const char *, unsigned long long, XrdOucEnv *eP=0);
-int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0);
+                 XrdOucEnv *eP1=0, XrdOucEnv *eP2=0) override;
+int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0) override;
+int       Stats(char *bp, int bl) override;
+int       Truncate(const char *, unsigned long long, XrdOucEnv *eP=0) override;
+int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0) override;
 
 static const int    PolNum = 2;
 enum   PolAct {PolPath = 0, PolObj = 1};
 
+static int   Info(int rc);
 static int   P2DST(int &retc, char *hBuff, int hBlen, PolAct pType,
                    const char *path);
 static int   P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo);
@@ -210,6 +212,7 @@ virtual ~XrdPssSys() {}
 
 private:
 
+char              *HostArena;// -> path qualification for remote origins
 char              *LocalRoot;// -> pss Local n2n root, if any
 XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports

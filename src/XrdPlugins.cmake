@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -34,15 +33,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_PSS}
+  PRIVATE
   XrdPosix
   XrdUtils
   XrdServer )
-
-set_target_properties(
-  ${LIB_XRD_PSS}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdBwm module
@@ -60,15 +54,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_BWM}
+  PRIVATE
   XrdServer
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT} )
-
-set_target_properties(
-  ${LIB_XRD_BWM}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # N2No2p plugin library
@@ -80,13 +69,8 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_N2NO2P}
+  PRIVATE
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_N2NO2P}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # GPFS stat() plugin library
@@ -98,13 +82,8 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_GPFS}
+  PRIVATE
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_GPFS}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Ofs Generic Prepare plugin library
@@ -116,13 +95,8 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_GPI}
+  PRIVATE
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_GPI}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # libz compatible CRC32 plugin
@@ -135,14 +109,9 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_ZCRC32}
+  PRIVATE
   XrdUtils
   ZLIB::ZLIB)
-
-set_target_properties(
-  ${LIB_XRD_ZCRC32}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdThrottle lib
@@ -160,14 +129,9 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_THROTTLE}
+  PRIVATE
   XrdServer
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_THROTTLE}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdCmsRedirLocal module
@@ -179,14 +143,9 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_CMSREDIRL}
+  PRIVATE
   XrdServer
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_CMSREDIRL}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

@@ -97,6 +97,6 @@ static int   AddRD(BL_Grip *rAnchor,    char *rSpec, char *hSpec);
 static bool  AddRD(XrdOucTList **rList, char *rSpec, char *hSpec);
 static
 XrdOucTList *Flatten(XrdOucTList *tList, int tPort);
-static bool  GetBL(XrdOucTList *&bList, XrdOucTList **&rList, int &rcnt);
+static bool  GetBL(XrdOucTList *&bList, XrdOucTList **&rList, int &rcnt, bool isInit = false);
 };
 #endif

@@ -125,7 +125,7 @@ int XrdFrcReqAgent::List(XrdFrcRequest::Item *Items, int Num)
    for (i = 0; i <= XrdFrcRequest::maxPrty; i++)
        {Offs = 0;
         while(rQueue[i]->List(myLfn, sizeof(myLfn), Offs, Items, Num))
-             {cout <<myLfn <<endl; n++;}
+             {std::cout <<myLfn <<std::endl; n++;}
        }
 // All done
 //
@@ -144,7 +144,7 @@ int XrdFrcReqAgent::List(XrdFrcRequest::Item *Items, int Num, int Prty)
    if (Prty <= XrdFrcRequest::maxPrty)
        {Offs = 0;
         while(rQueue[Prty]->List(myLfn, sizeof(myLfn), Offs, Items, Num))
-             {cout <<myLfn <<endl; n++;}
+             {std::cout <<myLfn <<std::endl; n++;}
        }
 
 // All done

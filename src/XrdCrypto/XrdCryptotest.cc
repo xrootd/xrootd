@@ -49,7 +49,7 @@
 //
 // Globals 
 
-#define PRINT(x) {cerr <<x <<endl;}
+#define PRINT(x) {std::cerr <<x <<std::endl;}
 XrdCryptoFactory *gCryptoFactory = 0;
 
 int main( int argc, char **argv )
@@ -218,14 +218,14 @@ int main( int argc, char **argv )
 
       char RSApubexp[4096];
       TestRSA_1->ExportPublic(RSApubexp,4096);
-      PRINT(outname<<": public export:"<<endl<<RSApubexp);
+      PRINT(outname<<": public export:"<<std::endl<<RSApubexp);
       PRINT(outname<<": The two printouts above should be equal");
       PRINT(outname<<": --------------------------------------------------- ");
       PRINT(outname<<": outlen : "<<TestRSA_1->GetPublen());
       PRINT(outname<<": --------------------------------------------------- ");
       char RSApriexp[4096];
       TestRSA_1->ExportPrivate(RSApriexp,4096);
-      PRINT(outname<<": private export:"<<endl<<RSApriexp);
+      PRINT(outname<<": private export:"<<std::endl<<RSApriexp);
       PRINT(outname<<": --------------------------------------------------- ");
       PRINT(outname<<": outlen : "<<TestRSA_1->GetPrilen());
       PRINT(outname<<": --------------------------------------------------- ");

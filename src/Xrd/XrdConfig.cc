@@ -65,6 +65,7 @@
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -92,6 +93,9 @@
 
 #if defined(__linux__) || defined(__GNU__)
 #include <netinet/tcp.h>
+#endif
+#if defined(__linux__)
+#include <sys/epoll.h>
 #endif
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
@@ -274,6 +278,8 @@ XrdConfig::XrdConfig()
    NetADM     = 0;
    coreV      = 1;
    Specs      = 0;
+   isStrict   = false;
+   maxFD      = 256*1024;  // 256K default
 
    Firstcp = Lastcp = 0;
 
@@ -396,7 +402,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(urArgc,argv,":a:A:bc:dhHI:k:l:L:n:p:P:R:s:S:vw:W:z"))
+      while ((c = getopt(urArgc,argv,":a:A:bc:dhHI:k:l:L:n:N:p:P:R:s:S:vw:W:z"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -446,6 +452,8 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'n': myInsName = (!strcmp(optarg,"anon")||!strcmp(optarg,"default")
                            ? 0 : optarg);
                  break;
+       case 'N': XrdNetIdentity::SetFQN(optarg);
+                 break;
        case 'p': if ((clPort = XrdOuca2x::a2p(Log,"tcp",optarg)) < 0) Usage(1);
                  break;
        case 'P': if (dfltProt) free(dfltProt);
@@ -462,7 +470,7 @@ int XrdConfig::Configure(int argc, char **argv)
                  Log.Emsg("Config", buff, "parameter not specified.");
                  Usage(1);
                  break;
-       case 'v': cerr <<XrdVSTRING <<endl;
+       case 'v': std::cerr <<XrdVSTRING <<std::endl;
                  _exit(0);
                  break;
        case 'w': if (HomePath) free(HomePath);
@@ -682,7 +690,8 @@ int XrdConfig::Configure(int argc, char **argv)
           else {Log.Say("++++++ ", myInstance, " TLS initialization started.");
                 if (SetupTLS())
                    {Log.Say("------ ",myInstance," TLS initialization ended.");
-                    ProtInfo.tlsCtx = XrdGlobal::tlsCtx;
+                    if ((ProtInfo.tlsCtx = XrdGlobal::tlsCtx))
+                       theEnv.PutPtr("XrdTlsContext*", XrdGlobal::tlsCtx);
                    } else {
                     NoGo = 1;
                     Log.Say("------ ",myInstance," TLS initialization failed.");
@@ -805,6 +814,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
    TS_Xeq("homepath",      xhpath);
+   TS_Xeq("maxfd",         xmaxfd);
    TS_Xeq("pidpath",       xpidf);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
@@ -1051,7 +1061,7 @@ void XrdConfig::Manifest(const char *pidfn)
 //
    if (pidfn && (Slash = rindex(pidfn, '/')))
       {strncpy(manBuff, pidfn, Slash-pidfn); pidP = manBuff+(Slash-pidfn);}
-      else {strcpy(manBuff, "/tmp");         pidP = manBuff+4;}
+      else {strcpy(manBuff, ProtInfo.AdmPath); pidP = manBuff+strlen(ProtInfo.AdmPath);}
 
 // Construct the pid file name for ourselves
 //
@@ -1095,7 +1105,7 @@ bool XrdConfig::PidFile(const char *clpFN, bool optbg)
 // Create the path if it does not exist and write out the pid
 //
    if ((rc = XrdOucUtils::makePath(ppath,XrdOucUtils::pathMode)))
-      {xop = "create"; errno = rc;}
+      {xop = "create"; snprintf(pidFN, sizeof(pidFN), "%s", ppath); errno = rc;}
       else {snprintf(pidFN, sizeof(pidFN), "%s/%s.pid", ppath, myProg);
 
            if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
@@ -1176,7 +1186,6 @@ void XrdConfig::setCFG(bool start)
   
 int XrdConfig::setFDL()
 {
-   static const int maxFD = 65535; // was 1048576 see XrdNetAddrInfo::sockNum
    struct rlimit rlim;
    char buff[100];
 
@@ -1187,10 +1196,16 @@ int XrdConfig::setFDL()
 
 // Set the limit to the maximum allowed
 //
-   if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > maxFD) rlim.rlim_cur = maxFD;
+   if (rlim.rlim_max == RLIM_INFINITY || (isStrict && rlim.rlim_max > maxFD))
+      rlim.rlim_cur = maxFD;
       else rlim.rlim_cur = rlim.rlim_max;
 #if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_5))
    if (rlim.rlim_cur > OPEN_MAX) rlim.rlim_max = rlim.rlim_cur = OPEN_MAX;
+#endif
+#if defined(__linux__)
+// Setting a limit beyond this value on Linux is guaranteed to fail during epoll_wait()
+   unsigned int epoll_max_fd = (INT_MAX / sizeof(struct epoll_event));
+   if (rlim.rlim_cur > (rlim_t)epoll_max_fd) rlim.rlim_max = rlim.rlim_cur = epoll_max_fd;
 #endif
    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
       return Log.Emsg("Config", errno,"set FD limit");
@@ -1403,10 +1418,20 @@ int XrdConfig::SetupAPath()
 // the path for group members.
 //
 //
-   if ((rc = XrdOucUtils::makePath(AdminPath, AdminMode & ~S_IWGRP, true)))
+   if ((rc = XrdOucUtils::makePath(AdminPath, AdminMode & ~S_IWGRP)))
        {Log.Emsg("Config", rc, "create admin path", AdminPath);
         return 1;
        }
+
+// Make sure the last component has the permission that we want
+//
+#ifndef WIN32
+   if (chmod(AdminPath, AdminMode & ~S_IWGRP))
+      {Log.Emsg("Config", errno, "set permision for admin path", AdminPath);
+       return 1;
+      }
+#endif
+
 
 // Setup admin connection now
 //
@@ -1468,11 +1493,12 @@ void XrdConfig::Usage(int rc)
 {
   extern const char *XrdLicense;
 
-  if (rc < 0) cerr <<XrdLicense;
+  if (rc < 0) std::cerr <<XrdLicense;
      else
-     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-I {v4|v6}]\n"
-            "[-k {n|sz|sig}] [-l [=]<fn>] [-n name] [-p <port>] [-P <prot>] [-L <libprot>]\n"
-            "[-R] [-s pidfile] [-S site] [-v] [-z] [<prot_options>]" <<endl;
+     std::cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-I {v4|v6}]\n"
+            "[-k {n|sz|sig}] [-l [=]<fn>] [-n <name>] [-N <hname>] [-p <port>]\n"
+            "[-P <prot>] [-L <libprot>] [-R] [-s pidfile] [-S site] [-v] [-z]\n"
+            "[<protocol_options>]" <<std::endl;
      _exit(rc > 0 ? rc : 0);
 }
 
@@ -1646,6 +1672,46 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
           return 1;
 
     BuffPool.Set((int)blim, bint);
+    return 0;
+}
+
+
+/******************************************************************************/
+/*                                x m a x f d                                 */
+/******************************************************************************/
+
+/* Function: xmaxfd
+
+   Purpose:  To parse the directive: maxfd [strict] <numfd>
+
+             strict     when specified, the limits is always applied. Otherwise,
+                        it is only applied when rlimit is infinite.
+             <numfd>    maximum number of fs that can be established.
+                        Specify a value optionally suffixed with 'k'.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdConfig::xmaxfd(XrdSysError *eDest, XrdOucStream &Config)
+{
+    long long minV = 1024, maxV = 1024LL*1024LL; // between 1k and 1m
+    long long fdVal;
+    char *val;
+
+    if ((val = Config.GetWord()))
+       {if (!strcmp(val, "strict")) 
+           {isStrict = true;
+            val = Config.GetWord();
+           } else isStrict = false;
+       }
+
+    if (!val)
+       {eDest->Emsg("Config", "file descriptor limit not specified"); return 1;}
+
+
+    if (XrdOuca2x::a2sz(*eDest,"maxfd value",val,&fdVal,minV,maxV)) return 1;
+
+    maxFD = static_cast<unsigned int>(fdVal);
+
     return 0;
 }
 

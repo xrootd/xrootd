@@ -56,7 +56,7 @@ int             XrdCmsPrepArgs::isIdle= 1;
 XrdCmsPrepArgs::XrdCmsPrepArgs(XrdCmsRRData &Arg) : XrdJob("prepare")
 {
 
-// Copy variable pointers and steal teh data buffer behind them
+// Copy variable pointers and steal the data buffer behind them
 //
    Request = Arg.Request; Request.streamid = 0;
    Ident   = Arg.Ident;

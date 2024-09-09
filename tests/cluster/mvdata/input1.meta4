@@ -1,0 +1,8 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <metalink xmlns="urn:ietf:params:xml:ns:metalink">
+   <file name="output.dat">
+     <identity>A_file:output.dat</identity>
+     <url location="ch" priority="5">root://localhost:10943//data/b74d025e-06d6-43e8-91e1-a862feb03c84.dat</url>
+   </file>
+ </metalink>
+

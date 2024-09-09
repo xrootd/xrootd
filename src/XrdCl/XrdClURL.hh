@@ -89,6 +89,11 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Get the URL with authz information obfuscated
+      //------------------------------------------------------------------------
+      std::string GetObfuscatedURL() const;
+
+      //------------------------------------------------------------------------
       //! Get the host part of the URL (user:password\@host:port)
       //------------------------------------------------------------------------
       std::string GetHostId() const

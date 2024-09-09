@@ -20,6 +20,8 @@
 #define __XRD_CL_MESSAGE_HH__
 
 #include "XrdCl/XrdClBuffer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 namespace XrdCl
 {
@@ -87,6 +89,7 @@ namespace XrdCl
       void SetDescription( const std::string &description )
       {
         pDescription = description;
+        pObfuscatedDescription = obfuscateAuth(description);
       }
 
       //------------------------------------------------------------------------
@@ -95,6 +98,14 @@ namespace XrdCl
       const std::string &GetDescription() const
       {
         return pDescription;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the description of the message with authz parameter obfuscated
+      //------------------------------------------------------------------------
+      const std::string & GetObfuscatedDescription() const
+      {
+        return pObfuscatedDescription;
       }
 
       //------------------------------------------------------------------------
@@ -134,6 +145,7 @@ namespace XrdCl
       uint64_t     pSessionId;
       std::string  pDescription;
       uint16_t     pVirtReqID;
+      std::string  pObfuscatedDescription;
   };
 }
 

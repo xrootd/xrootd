@@ -49,32 +49,6 @@
 static int gErrVerifyChain = 0;
 XrdOucTrace *sslTrace = 0;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
-{
-    if (pkey->type != EVP_PKEY_RSA) {
-        return NULL;
-    }
-    return pkey->pkey.rsa;
-}
-#endif
-
-static int XrdCheckRSA (EVP_PKEY *pkey) {
-   int rc;
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-   RSA *rsa = EVP_PKEY_get0_RSA(pkey);
-   if (rsa)
-      rc = RSA_check_key(rsa);
-   else
-      rc = -2;
-#else
-   EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
-   rc = EVP_PKEY_check(ckctx);
-   EVP_PKEY_CTX_free(ckctx);
-#endif
-   return rc;
-}
-
 //____________________________________________________________________________
 int XrdCryptosslX509VerifyCB(int ok, X509_STORE_CTX *ctx)
 {
@@ -552,7 +526,7 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
          DEBUG("found a RSA private key in file " << fname);
          // We need to complete the key
          // check all the public keys of the loaded certificates
-         if (XrdCheckRSA(rsa) == 1) {
+         if (rsa) {
             // Loop over the chain certificates
             XrdCryptoX509 *cert = chain->Begin();
             while (cert && cert->Opaque()) {
@@ -568,12 +542,12 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
 #endif
                         EVP_PKEY_free(evpp);
                         if (rc == 1) {
-                           DEBUG("RSA key completed");
-                           // Update PKI in certificate
+                           // Update PKI in certificate; also tests if the key is complete
                            cert->SetPKI((XrdCryptoX509data)rsa);
-                           // Update status
-                           cert->PKI()->status = XrdCryptoRSA::kComplete;
-                           break;
+                           if (cert->PKI()->status == XrdCryptoRSA::kComplete) {
+                              DEBUG("RSA key completed");
+                              break;
+                           }
                         }
                   }
                }
@@ -662,7 +636,7 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
          DEBUG("found a RSA private key in bucket");
          // We need to complete the key
          // check all the public keys of the loaded certificates
-         if (XrdCheckRSA(rsa) == 1) {
+         if (rsa) {
             // Loop over the chain certificates
             XrdCryptoX509 *cert = chain->Begin();
             while (cert && cert->Opaque()) {
@@ -678,12 +652,12 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
 #endif
                         EVP_PKEY_free(evpp);
                         if (rc == 1) {
-                           DEBUG("RSA key completed");
-                           // Update PKI in certificate
+                           // Update PKI in certificate; also tests if the key is complete
                            cert->SetPKI((XrdCryptoX509data)rsa);
-                           // Update status
-                           cert->PKI()->status = XrdCryptoRSA::kComplete;
-                           break;
+                           if (cert->PKI()->status == XrdCryptoRSA::kComplete) {
+                              DEBUG("RSA key completed");
+                              break;
+                           }
                         }
                   }
                }

@@ -32,6 +32,8 @@
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClConstants.hh>
 
+#include <memory>
+
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------
@@ -185,19 +187,19 @@ namespace PyXRootD
     (void) CopyProcessType;   // Suppress unused variable warning
     static const char          *kwlist[]   = { "handler", NULL };
     PyObject                   *pyhandler  = 0;
-    XrdCl::CopyProgressHandler *handler    = 0;
+    std::unique_ptr<XrdCl::CopyProgressHandler> handler;
 
     if( !PyArg_ParseTupleAndKeywords( args, kwds, "|O", (char**) kwlist,
         &pyhandler ) ) return NULL;
 
-    handler = new CopyProgressHandler( pyhandler );
+    handler = std::make_unique<CopyProgressHandler>( pyhandler );
     XrdCl::XRootDStatus status;
 
     //--------------------------------------------------------------------------
     //! Allow other threads to acquire the GIL while the copy jobs are running
     //--------------------------------------------------------------------------
     Py_BEGIN_ALLOW_THREADS
-    status = self->process->Run( handler );
+    status = self->process->Run( handler.get() );
     Py_END_ALLOW_THREADS
 
     PyObject *tuple = PyTuple_New(2);

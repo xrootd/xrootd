@@ -207,7 +207,7 @@ XrdHttpProtocol::HandleGridMap(XrdLink* lp, const char * eechash)
 
         // Here we have the string in the buffer. Take the last 8 non-space characters
         size_t j = 8;
-        strcpy(bufname2, "unknown-\0"); // note it's 9 chars
+        strcpy(bufname2, "unknown-"); // note it's 8 chars + '\0' at the end
         for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
           if (isalnum(bufname[i])) {
             j--;

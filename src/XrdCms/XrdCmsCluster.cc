@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <cstdio>
 #include <cstdlib>
+#include <random>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>
@@ -951,7 +952,8 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
    if (!Cache.Paths.Find(Sel.Path.Val, pinfo)
    || (amask = ((isRW ? pinfo.rwvec : pinfo.rovec) & ~Sel.nmask)) == 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-                       "No servers have %s access to the file", Amode)+1;
+                       "No servers %s %s access to the file",
+                       (isRW && Config.forceRO ? "allowed" : "have"), Amode)+1;
        Sel.Resp.Port = kYR_ENOENT;
        return EReplete;
       }
@@ -1115,7 +1117,10 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 //
    if (isMulti || baseFS.isDFS())
       {STMutex.ReadLock();
-       nP = (Config.sched_RR ? SelbyRef(pmask,selR) : SelbyLoad(pmask,selR));
+       nP = (Config.sched_RR ? SelbyRef(pmask,selR)
+                             : Config.sched_LoadR == 0 ? SelbyLoad(pmask,selR)
+                                                       : SelbyLoadR(pmask, selR));
+
        if (nP) hlen = nP->netIF.GetName(hbuff, port, nType) + 1;
           else hlen = 0;
        STMutex.UnLock();
@@ -1605,7 +1610,9 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
    while(pass--)
         {if (mask)
             {nP = (Config.sched_RR || (Sel.Opts & XrdCmsSelect::UseRef)
-                ?  SelbyRef(mask,selR) : SelbyLoad(mask,selR));
+                ?  SelbyRef(mask,selR)
+                :  Config.sched_LoadR == 0 ? SelbyLoad(pmask,selR)
+                                           : SelbyLoadR(pmask, selR));
              if (nP || (selR.nPick && selR.delay)
              ||  NodeCnt < Config.SUPCount) break;
             }
@@ -1823,6 +1830,67 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
    if (!sp) return calcDelay(selR);
    RefCount(sp, Multi, selR.needSpace);
    return sp;
+}
+
+/******************************************************************************/
+/*                             S e l b y L o a d R                            */
+/******************************************************************************/
+
+// Caller must have the STMutex locked. The returned node, if any, is unlocked.
+
+XrdCmsNode *XrdCmsCluster::SelbyLoadR(SMask_t mask, XrdCmsSelector &selR)
+{
+  static std::random_device rand_dev;
+  static std::default_random_engine generator(rand_dev());
+
+  XrdCmsNode *np = nullptr, *sp = nullptr;
+  bool reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
+
+  // Scan for a node (preset possible, suspended, overloaded, full, and dead)
+
+  selR.Reset();
+  SelTcnt++;
+
+  int totWeight = 0;
+
+  for (int i = 0; i <= STHi; ++i) {
+    NodeWeight[i] = 0; // make node unselectable first
+
+    if (!((np = NodeTab[i]) && (np->NodeMask & mask)))
+      continue;
+
+    if (!(selR.needNet & np->hasNet)) { selR.xNoNet = true; continue; }
+
+    selR.nPick++;
+
+    if (np->isOffline)                { selR.xOff  = true; continue; }
+    if (np->isBad)                    { selR.xSusp = true; continue; }
+    if (np->myLoad > Config.MaxLoad)  { selR.xOvld = true; continue; }
+
+    if (selR.needSpace) {
+      if (np->DiskFree < np->DiskMinF || (reqSS && np->isNoStage)) {
+        selR.xFull = true;
+        continue;
+      }
+    }
+
+    // If node passes filters, give it a weight
+    totWeight += Config.P_fuzz + (100 - np->myLoad);
+    NodeWeight[i] = totWeight;
+  }
+
+  std::uniform_int_distribution<int> distr(1, totWeight);
+  int selected = distr(generator);
+
+  for (int i = 0; i <= STHi; ++i) {
+    if (NodeWeight[i] < selected)
+      continue;
+
+    sp = NodeTab[i];
+    break;
+  }
+
+  return sp ? sp : calcDelay(selR);
 }
 
 /******************************************************************************/

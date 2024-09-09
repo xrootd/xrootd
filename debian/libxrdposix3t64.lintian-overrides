@@ -1,0 +1,5 @@
+# This lib may be used for LD_PRELOAD so the .so link needs to be included
+link-to-shared-library-in-wrong-package * [usr/lib/*/libXrdPosixPreload.so]
+lacks-unversioned-link-to-shared-library * [usr/lib/*/libXrdPosixPreload.so.*]
+
+package-name-doesnt-match-sonames libXrdPosix3 libXrdPosixPreload2

@@ -76,6 +76,7 @@ int   xallow(XrdSysError *edest, XrdOucStream &Config);
 int   xapath(XrdSysError *edest, XrdOucStream &Config);
 int   xhpath(XrdSysError *edest, XrdOucStream &Config);
 int   xbuf(XrdSysError *edest, XrdOucStream &Config);
+int   xmaxfd(XrdSysError *edest, XrdOucStream &Config);
 int   xnet(XrdSysError *edest, XrdOucStream &Config);
 int   xnkap(XrdSysError *edest, char *val);
 int   xlog(XrdSysError *edest, XrdOucStream &Config);
@@ -134,5 +135,8 @@ char                ppNet;
 signed char         coreV;
 char                Specs;
 static const int    hpSpec = 0x01;
+
+bool                isStrict;
+unsigned int        maxFD;
 };
 #endif

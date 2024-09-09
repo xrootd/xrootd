@@ -42,6 +42,7 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
+#include <memory>
 
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptogsiX509Chain.hh"
@@ -50,6 +51,26 @@
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 #include "XrdCrypto/XrdCryptosslX509.hh"
 #include "XrdCrypto/XrdCryptosslX509Req.hh"
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
+//                                                                           //
+// type aliases to ease use of smart pointers with common ssl structures     //
+//                                                                           //
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
+static void stackOfX509ExtensionDelete(STACK_OF(X509_EXTENSION) *ske) {
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L
+  sk_X509_EXTENSION_pop_free(ske, X509_EXTENSION_free);
+#else /* OPENSSL */
+  sk_pop_free(ske, X509_EXTENSION_free);
+#endif /* OPENSSL */
+}
+using EVP_PKEY_ptr  = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
+using X509_ptr      = std::unique_ptr<X509, decltype(&X509_free)>;
+using X509_NAME_ptr = std::unique_ptr<X509_NAME, decltype(&X509_NAME_free)>;
+using X509_REQ_ptr  = std::unique_ptr<X509_REQ, decltype(&X509_REQ_free)>;
+using X509_EXTENSION_ptr = std::unique_ptr<X509_EXTENSION, decltype(&X509_EXTENSION_free)>;
+using PROXY_CERT_INFO_EXTENSION_ptr = std::unique_ptr<PROXY_CERT_INFO_EXTENSION, decltype(&PROXY_CERT_INFO_EXTENSION_free)>;
+using STACK_OF_X509_EXTENSION_ptr   = std::unique_ptr<STACK_OF(X509_EXTENSION), decltype(&stackOfX509ExtensionDelete)>;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 //                                                                           //
@@ -265,7 +286,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    ERR_load_crypto_strings();
 
    // Use default options, if not specified
-   int bits = (pxopt && pxopt->bits >= 512) ? pxopt->bits : 512;
+   int bits = (pxopt && pxopt->bits >= XrdCryptoMinRSABits) ? pxopt->bits : XrdCryptoDefRSABits;
    int valid = (pxopt) ? pxopt->valid : 43200;  // 12 hours
    int depthlen = (pxopt) ? pxopt->depthlen : -1; // unlimited
 
@@ -455,7 +476,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    }
    //
    // Sign the request
-   if (!(X509_REQ_sign(preq, ekPX, EVP_sha1()))) {
+   if (!(X509_REQ_sign(preq, ekPX, EVP_sha256()))) {
       PRINT("problems signing the request");
       return -kErrPX_Signing;
    }
@@ -549,7 +570,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
 
    //
    // Sign the certificate
-   if (!(X509_sign(xPX, ekEEC, EVP_sha1()))) {
+   if (!(X509_sign(xPX, ekEEC, EVP_sha256()))) {
       PRINT("problems signing the certificate");
       return -kErrPX_Signing;
    }
@@ -656,18 +677,32 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
       PRINT("EEC certificate has expired");
       return -kErrPX_ExpiredEEC;
    }
+
+   // These will be assigned dynamically allocated ssl structures later.
+   // They use type aliases for unique_ptr, to ease use of a smart pointer.
+   //
+   EVP_PKEY_ptr       ekro(nullptr, &EVP_PKEY_free);
+   X509_EXTENSION_ptr ext(nullptr, &X509_EXTENSION_free);
+   X509_NAME_ptr      psubj(nullptr, &X509_NAME_free);
+   X509_REQ_ptr       xro(nullptr, &X509_REQ_free);
+   PROXY_CERT_INFO_EXTENSION_ptr pci(nullptr, &PROXY_CERT_INFO_EXTENSION_free);
+   STACK_OF_X509_EXTENSION_ptr   esk(nullptr, &stackOfX509ExtensionDelete);
+
    //
    // Create a new request
-   X509_REQ *xro = X509_REQ_new();
+   xro.reset(X509_REQ_new());
    if (!xro) {
       PRINT("cannot to create cert request");
       return -kErrPX_NoResources;
    }
    //
-   // Use same num of bits as the signing certificate, but
-   // less than 512
-   int bits = EVP_PKEY_bits(X509_get_pubkey(xpi));
-   bits = (bits < 512) ? 512 : bits;
+   // Use same num of bits as the signing certificate,
+   // but no less than the minimum RSA bits (2048)
+   ekro.reset(X509_get_pubkey(xpi));
+   int bits = EVP_PKEY_bits(ekro.get());
+   ekro = nullptr;
+
+   bits = (bits < XrdCryptoMinRSABits) ? XrdCryptoDefRSABits : bits;
    //
    // Create the new PKI for the proxy (exponent 65537)
    BIGNUM *e = BN_new();
@@ -676,7 +711,6 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
       return -kErrPX_GenerateKey;
    }
    BN_set_word(e, 0x10001);
-   EVP_PKEY *ekro = 0;
    EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, 0);
    EVP_PKEY_keygen_init(pkctx);
    EVP_PKEY_CTX_set_rsa_keygen_bits(pkctx, bits);
@@ -686,7 +720,11 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
 #else
    EVP_PKEY_CTX_set_rsa_keygen_pubexp(pkctx, e);
 #endif
-   EVP_PKEY_keygen(pkctx, &ekro);
+   {
+     EVP_PKEY *tmppk = nullptr;
+     EVP_PKEY_keygen(pkctx, &tmppk);
+     ekro.reset(tmppk);
+   }
    EVP_PKEY_CTX_free(pkctx);
    //
    // Set the key into the request
@@ -694,7 +732,7 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
       PRINT("proxy key could not be generated - return");
       return -kErrPX_GenerateKey;
    }
-   X509_REQ_set_pubkey(xro, ekro);
+   X509_REQ_set_pubkey(xro.get(), ekro.get());
    //
    // Generate a serial number. Specification says that this *should*
    // unique, so we just draw an unsigned random integer
@@ -704,16 +742,16 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
    // with <rand_uint> is a random unsigned int used also as serial
    // number.
    // Duplicate user subject name
-   X509_NAME *psubj = X509_NAME_dup(X509_get_subject_name(xpi));
+   psubj.reset(X509_NAME_dup(X509_get_subject_name(xpi)));
    if (xcro && *xcro && *((int *)(*xcro)) <= 10100) {
       // Delete existing proxy CN addition; for backward compatibility
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
-      int ne = X509_NAME_entry_count(psubj);
+      int ne = X509_NAME_entry_count(psubj.get());
 #else /* OPENSSL */
       int ne = psubj->entries->num;
 #endif /* OPENSSL */
       if (ne >= 0) {
-         X509_NAME_ENTRY *cne = X509_NAME_delete_entry(psubj, ne-1);
+         X509_NAME_ENTRY *cne = X509_NAME_delete_entry(psubj.get(), ne-1);
          if (cne) {
             X509_NAME_ENTRY_free(cne);
          } else {
@@ -725,21 +763,21 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
    // Create an entry with the common name
    unsigned char sn[20] = {0};
    sprintf((char *)sn, "%d", serial);
-   if (!X509_NAME_add_entry_by_txt(psubj, (char *)"CN", MBSTRING_ASC,
+   if (!X509_NAME_add_entry_by_txt(psubj.get(), (char *)"CN", MBSTRING_ASC,
                                    sn, -1, -1, 0)) {
       PRINT("could not add CN - (serial: "<<serial<<", sn: "<<sn<<")");
       return -kErrPX_SetAttribute;
    }
    //
    // Set the name
-   if (X509_REQ_set_subject_name(xro, psubj) != 1) {
+   if (X509_REQ_set_subject_name(xro.get(), psubj.get()) != 1) {
       PRINT("could not set subject name - return");
       return -kErrPX_SetAttribute;
    }
-   X509_NAME_free(psubj);
+   psubj = nullptr;
    //
    // Create the extension CertProxyInfo
-   PROXY_CERT_INFO_EXTENSION *pci = PROXY_CERT_INFO_EXTENSION_new();
+   pci.reset(PROXY_CERT_INFO_EXTENSION_new());
    if (!pci) {
       PRINT("could not create structure for extension - return");
       return -kErrPX_NoResources;
@@ -747,7 +785,7 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
    pci->proxyPolicy->policyLanguage = OBJ_txt2obj("1.3.6.1.5.5.7.21.1", 1);
    //
    // Create a stack
-   STACK_OF(X509_EXTENSION) *esk = sk_X509_EXTENSION_new_null();
+   esk.reset(sk_X509_EXTENSION_new_null());
    if (!esk) {
       PRINT("could not create stack for extensions");
       return -kErrPX_NoResources;
@@ -780,11 +818,13 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
              inpci->pcPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->pcPathLengthConstraint);
          DEBUG("IN depth length: "<<indepthlen);
+         PROXY_CERT_INFO_EXTENSION_free(inpci);
       } else {
          // Duplicate and add to the stack
          X509_EXTENSION *xpiextdup = X509_EXTENSION_dup(xpiext);
-         if (sk_X509_EXTENSION_push(esk, xpiextdup) == 0) {
+         if (sk_X509_EXTENSION_push(esk.get(), xpiextdup) == 0) {
             PRINT("could not push the extension '"<<s<<"' in the stack");
+            X509_EXTENSION_free(xpiextdup);
             return -kErrPX_Error;
          }
          // Notify what we added
@@ -813,59 +853,65 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
    }
    //
    // create extension
-   X509_EXTENSION *ext = X509_EXTENSION_new();
+   ext.reset(X509_EXTENSION_new());
    if (!ext) {
       PRINT("could not create extension object");
       return -kErrPX_NoResources;
    }
    // Extract data in format for extension
-   X509_EXTENSION_get_data(ext)->length = i2d_PROXY_CERT_INFO_EXTENSION(pci, 0);
-   if (!(X509_EXTENSION_get_data(ext)->data = (unsigned char *)malloc(X509_EXTENSION_get_data(ext)->length+1))) {
+   X509_EXTENSION_get_data(ext.get())->length = i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), 0);
+   if (!(X509_EXTENSION_get_data(ext.get())->data = (unsigned char *)malloc(X509_EXTENSION_get_data(ext.get())->length+1))) {
       PRINT("could not allocate data field for extension");
       return -kErrPX_NoResources;
    }
-   unsigned char *pp = X509_EXTENSION_get_data(ext)->data;
-   if ((i2d_PROXY_CERT_INFO_EXTENSION(pci, &pp)) <= 0) {
+   unsigned char *pp = X509_EXTENSION_get_data(ext.get())->data;
+   if ((i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), &pp)) <= 0) {
       PRINT("problem converting data for extension");
       return -kErrPX_Error;
    }
+   pci = nullptr;
+
    // Set extension name.
    ASN1_OBJECT *obj = OBJ_txt2obj(gsiProxyCertInfo_OID, 1);
-   if (!obj || X509_EXTENSION_set_object(ext, obj) != 1) {
+   if (!obj || X509_EXTENSION_set_object(ext.get(), obj) != 1) {
       PRINT("could not set extension name");
+      ASN1_OBJECT_free(obj);
       return -kErrPX_SetAttribute;
    }
+   ASN1_OBJECT_free(obj);
+   obj = 0;
+
    // flag as critical
-   if (X509_EXTENSION_set_critical(ext, 1) != 1) {
+   if (X509_EXTENSION_set_critical(ext.get(), 1) != 1) {
       PRINT("could not set extension critical flag");
       return -kErrPX_SetAttribute;
    }
-   if (sk_X509_EXTENSION_push(esk, ext) == 0) {
+   if (sk_X509_EXTENSION_push(esk.get(), ext.get()) == 0) {
       PRINT("could not push the extension in the stack");
       return -kErrPX_Error;
    }
+   // ext resource now owned by esk
+   ext.release();
+
    // Add extensions
-   if (!(X509_REQ_add_extensions(xro, esk))) {
+   if (!(X509_REQ_add_extensions(xro.get(), esk.get()))) {
       PRINT("problem adding extension");
       return -kErrPX_SetAttribute;
    }
    //
    // Sign the request
-   if (!(X509_REQ_sign(xro, ekro, EVP_sha1()))) {
+   if (!(X509_REQ_sign(xro.get(), ekro.get(), EVP_sha256()))) {
       PRINT("problems signing the request");
       return -kErrPX_Signing;
    }
 
    // Prepare output
-   *xcro = new XrdCryptosslX509Req(xro);
-   *kcro = new XrdCryptosslRSA(ekro);
+   *xcro = new XrdCryptosslX509Req(xro.get());
+   *kcro = new XrdCryptosslRSA(ekro.get());
 
-   // Cleanup
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-   sk_X509_EXTENSION_pop_free(esk, X509_EXTENSION_free);
-#else /* OPENSSL */
-   sk_free(esk);
-#endif /* OPENSSL */
+   // xro, ekro resoruce now owned by *xcro and *kcro
+   xro.release();
+   ekro.release();
 
    // We are done
    return 0;
@@ -900,9 +946,19 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       PRINT("inconsistent key loaded");
       return -kErrPX_BadEECkey;
    }
+
+   // These will be assigned dynamically allocated ssl structures later.
+   // They use type aliases for unique_ptr, to ease use of a smart pointer.
+   //
+   EVP_PKEY_ptr       ekpi(nullptr, &EVP_PKEY_free);
+   X509_ptr           xpo(nullptr, &X509_free);
+   X509_EXTENSION_ptr ext(nullptr, &X509_EXTENSION_free);
+   PROXY_CERT_INFO_EXTENSION_ptr pci(nullptr, &PROXY_CERT_INFO_EXTENSION_free);
+   STACK_OF_X509_EXTENSION_ptr   xrisk(nullptr, &stackOfX509ExtensionDelete);
+
    // Point to the cerificate
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-   EVP_PKEY *ekpi = EVP_PKEY_dup((EVP_PKEY *)(kcpi->Opaque()));
+   ekpi.reset(EVP_PKEY_dup((EVP_PKEY *)(kcpi->Opaque())));
    if (!ekpi) {
       PRINT("could not create a EVP_PKEY * instance - return");
       return -kErrPX_NoResources;
@@ -911,12 +967,12 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    RSA *kpi = EVP_PKEY_get0_RSA((EVP_PKEY *)(kcpi->Opaque()));
    //
    // Set the key into the request
-   EVP_PKEY *ekpi = EVP_PKEY_new();
+   ekpi.reset(EVP_PKEY_new());
    if (!ekpi) {
       PRINT("could not create a EVP_PKEY * instance - return");
       return -kErrPX_NoResources;
    }
-   EVP_PKEY_set1_RSA(ekpi, kpi);
+   EVP_PKEY_set1_RSA(ekpi.get(), kpi);
 #endif
 
    // Get request in raw form
@@ -960,50 +1016,50 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    unsigned int serial = (unsigned int)(strtol(sserial.c_str(), 0, 10));
    //
    // Create new proxy cert
-   X509 *xpo = X509_new();
+   xpo.reset(X509_new());
    if (!xpo) {
       PRINT("could not create certificate object for proxies");
       return -kErrPX_NoResources;
    }
 
    // Set version number
-   if (X509_set_version(xpo, 2L) != 1) {
+   if (X509_set_version(xpo.get(), 2L) != 1) {
       PRINT("could not set version");
       return -kErrPX_SetAttribute;
    }
 
    // Set serial number
-   if (ASN1_INTEGER_set(X509_get_serialNumber(xpo), serial) != 1) {
+   if (ASN1_INTEGER_set(X509_get_serialNumber(xpo.get()), serial) != 1) {
       PRINT("could not set serial number");
       return -kErrPX_SetAttribute;
    }
 
    // Set subject name
-   if (X509_set_subject_name(xpo, X509_REQ_get_subject_name(xri)) != 1) {
+   if (X509_set_subject_name(xpo.get(), X509_REQ_get_subject_name(xri)) != 1) {
       PRINT("could not set subject name");
       return -kErrPX_SetAttribute;
    }
 
    // Set issuer name
-   if (X509_set_issuer_name(xpo, X509_get_subject_name(xpi)) != 1) {
+   if (X509_set_issuer_name(xpo.get(), X509_get_subject_name(xpi)) != 1) {
       PRINT("could not set issuer name");
       return -kErrPX_SetAttribute;
    }
 
    // Set public key
-   if (X509_set_pubkey(xpo, X509_REQ_get_pubkey(xri)) != 1) {
+   if (X509_set_pubkey(xpo.get(), X509_REQ_get_pubkey(xri)) != 1) {
       PRINT("could not set public key");
       return -kErrPX_SetAttribute;
    }
 
    // Set proxy validity: notBefore now
-   if (!X509_gmtime_adj(X509_get_notBefore(xpo), 0)) {
+   if (!X509_gmtime_adj(X509_get_notBefore(xpo.get()), 0)) {
       PRINT("could not set notBefore");
       return -kErrPX_SetAttribute;
    }
 
    // Set proxy validity: notAfter timeleft from now
-   if (!X509_gmtime_adj(X509_get_notAfter(xpo), timeleft)) {
+   if (!X509_gmtime_adj(X509_get_notAfter(xpo.get()), timeleft)) {
       PRINT("could not set notAfter");
       return -kErrPX_SetAttribute;
    }
@@ -1033,6 +1089,7 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
              inpci->pcPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->pcPathLengthConstraint);
          DEBUG("IN depth length: "<<indepthlen);
+         PROXY_CERT_INFO_EXTENSION_free(inpci);
       }
       // Flag key usage extension
       if (!haskeyusage && !strcmp(s, KEY_USAGE_OID)) haskeyusage = 1;
@@ -1052,8 +1109,9 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       } else {
          // Duplicate and add to the stack
          X509_EXTENSION *xpiextdup = X509_EXTENSION_dup(xpiext);
-         if (X509_add_ext(xpo, xpiextdup, -1) == 0) {
+         if (X509_add_ext(xpo.get(), xpiextdup, -1) == 0) {
             PRINT("could not push the extension '"<<s<<"' in the stack");
+            X509_EXTENSION_free( xpiextdup );
             return -kErrPX_Error;
          }
          // Notify what we added
@@ -1067,13 +1125,13 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
 
    //
    // Get signature path depth from the request
-   STACK_OF(X509_EXTENSION) *xrisk = X509_REQ_get_extensions(xri);
+   xrisk.reset(X509_REQ_get_extensions(xri));
    //
    // There must be at most one extension
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
-   int nriext = sk_X509_EXTENSION_num(xrisk);
+   int nriext = sk_X509_EXTENSION_num(xrisk.get());
 #else /* OPENSSL */
-   int nriext = sk_num(xrisk);
+   int nriext = sk_num(xrisk.get());
 #endif /* OPENSSL */
    if (nriext == 0 || !haskeyusage) {
       PRINT("wrong extensions in request: "<< nriext<<", "<<haskeyusage);
@@ -1089,6 +1147,7 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       if (reqpci &&
           reqpci->pcPathLengthConstraint)
          reqdepthlen = ASN1_INTEGER_get(reqpci->pcPathLengthConstraint);
+      PROXY_CERT_INFO_EXTENSION_free(reqpci);
    }
    DEBUG("REQ depth length: "<<reqdepthlen);
 
@@ -1097,7 +1156,7 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
                                                  (indepthlen - 1);
    //
    // Create the extension CertProxyInfo
-   PROXY_CERT_INFO_EXTENSION *pci = PROXY_CERT_INFO_EXTENSION_new();
+   pci.reset(PROXY_CERT_INFO_EXTENSION_new());
    if (!pci) {
       PRINT("could not create structure for extension - return");
       return -kErrPX_NoResources;
@@ -1115,63 +1174,61 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       }
    }
    // create extension
-   X509_EXTENSION *ext = X509_EXTENSION_new();
+   ext.reset(X509_EXTENSION_new());
    if (!ext) {
       PRINT("could not create extension object");
       return -kErrPX_NoResources;
    }
    // Extract data in format for extension
-   X509_EXTENSION_get_data(ext)->length = i2d_PROXY_CERT_INFO_EXTENSION(pci, 0);
-   if (!(X509_EXTENSION_get_data(ext)->data = (unsigned char *)malloc(X509_EXTENSION_get_data(ext)->length+1))) {
+   X509_EXTENSION_get_data(ext.get())->length = i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), 0);
+   if (!(X509_EXTENSION_get_data(ext.get())->data = (unsigned char *)malloc(X509_EXTENSION_get_data(ext.get())->length+1))) {
       PRINT("could not allocate data field for extension");
       return -kErrPX_NoResources;
    }
-   unsigned char *pp = X509_EXTENSION_get_data(ext)->data;
-   if ((i2d_PROXY_CERT_INFO_EXTENSION(pci, &pp)) <= 0) {
+   unsigned char *pp = X509_EXTENSION_get_data(ext.get())->data;
+   if ((i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), &pp)) <= 0) {
       PRINT("problem converting data for extension");
       return -kErrPX_Error;
    }
-   PROXY_CERT_INFO_EXTENSION_free( pci );
+   pci = nullptr;
 
    // Set extension name.
    ASN1_OBJECT *obj = OBJ_txt2obj(gsiProxyCertInfo_OID, 1);
-   if (!obj || X509_EXTENSION_set_object(ext, obj) != 1) {
+   if (!obj || X509_EXTENSION_set_object(ext.get(), obj) != 1) {
       PRINT("could not set extension name");
+      ASN1_OBJECT_free( obj );
       return -kErrPX_SetAttribute;
    }
    ASN1_OBJECT_free( obj );
+   obj = 0;
 
    // flag as critical
-   if (X509_EXTENSION_set_critical(ext, 1) != 1) {
+   if (X509_EXTENSION_set_critical(ext.get(), 1) != 1) {
       PRINT("could not set extension critical flag");
       return -kErrPX_SetAttribute;
    }
 
-   // Add the extension
-   if (X509_add_ext(xpo, ext, -1) == 0) {
+   // Add the extension (adds a copy of the extension)
+   if (X509_add_ext(xpo.get(), ext.get(), -1) == 0) {
       PRINT("could not add extension");
       return -kErrPX_SetAttribute;
    }
 
    //
    // Sign the certificate
-   if (!(X509_sign(xpo, ekpi, EVP_sha1()))) {
+   if (!(X509_sign(xpo.get(), ekpi.get(), EVP_sha256()))) {
       PRINT("problems signing the certificate");
       return -kErrPX_Signing;
    }
 
-   EVP_PKEY_free( ekpi ); // decrement reference counter
-   X509_EXTENSION_free( ext );
+   ekpi = nullptr;
+   ext = nullptr;
 
    // Prepare outputs
-   *xcpo = new XrdCryptosslX509(xpo);
+   *xcpo = new XrdCryptosslX509(xpo.get());
 
-   // Cleanup
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-   sk_X509_EXTENSION_free(xrisk);
-#else /* OPENSSL */
-   sk_free(xrisk);
-#endif /* OPENSSL */
+   // xpo resource is now owned by the *xcpo
+   xpo.release();
 
    // We are done
    return 0;

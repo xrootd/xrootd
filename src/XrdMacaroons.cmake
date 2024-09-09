@@ -1,4 +1,3 @@
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -10,8 +9,6 @@ set( LIB_XRD_MACAROONS  XrdMacaroons-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 
 if( BUILD_MACAROONS )
-  include_directories(${MACAROONS_INCLUDES} ${JSON_INCLUDE_DIRS})
-
   add_library(
     ${LIB_XRD_MACAROONS}
     MODULE
@@ -21,7 +18,8 @@ if( BUILD_MACAROONS )
     XrdMacaroons/XrdMacaroonsConfigure.cc)
 
   target_link_libraries(
-    ${LIB_XRD_MACAROONS} ${CMAKE_DL_LIBS}
+    ${LIB_XRD_MACAROONS}
+    PRIVATE
     XrdHttpUtils
     XrdUtils
     XrdServer
@@ -29,7 +27,11 @@ if( BUILD_MACAROONS )
     ${MACAROONS_LIB}
     ${JSON_LIBRARIES}
     ${XROOTD_HTTP_LIB}
-    OpenSSL::Crypto)
+    OpenSSL::Crypto
+    ${CMAKE_DL_LIBS})
+
+  target_include_directories(${LIB_XRD_MACAROONS}
+    PRIVATE ${MACAROONS_INCLUDES} ${JSON_INCLUDE_DIRS})
 
   if( MacOSX )
     SET( MACAROONS_LINK_FLAGS "-Wl")
@@ -40,8 +42,6 @@ if( BUILD_MACAROONS )
   set_target_properties(
     ${LIB_XRD_MACAROONS}
     PROPERTIES
-    INTERFACE_LINK_LIBRARIES ""
-    LINK_INTERFACE_LIBRARIES ""
     LINK_FLAGS "${MACAROONS_LINK_FLAGS}")
 
   #-----------------------------------------------------------------------------

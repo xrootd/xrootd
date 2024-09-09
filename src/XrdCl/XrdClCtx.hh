@@ -27,6 +27,7 @@
 #define SRC_XRDCL_XRDCLCTX_HH_
 
 #include <memory>
+#include <stdexcept>
 
 namespace XrdCl
 {

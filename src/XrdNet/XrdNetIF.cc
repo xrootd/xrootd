@@ -47,7 +47,6 @@
 #include "XrdSys/XrdSysError.hh"
 
 #include <iostream>
-using namespace std;
   
 /******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */
@@ -409,7 +408,7 @@ int XrdNetIF::GetDest(char *dest, int dlen, ifType ifT, bool prefn)
 /*                                 G e t I F                                  */
 /******************************************************************************/
 
-#define prtaddr(x) cerr <<"Addr!!! " << *x <<endl;
+#define prtaddr(x) std::cerr <<"Addr!!! " << *x <<std::endl;
 
 int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
 {

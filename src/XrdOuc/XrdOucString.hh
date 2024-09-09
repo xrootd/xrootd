@@ -247,8 +247,6 @@
 #include <cstdlib>
 #include <cstdarg>
 
-using namespace std;
-
 #define STR_NPOS -1
 
 class XrdOucString {
@@ -378,7 +376,7 @@ public:
 };
 
 // Operator << is useful to print a string into a stream
-ostream &operator<< (ostream &, const XrdOucString s);
+std::ostream &operator<< (std::ostream &, const XrdOucString s);
 
 XrdOucString const operator+(const char *s1, const XrdOucString s2);
 XrdOucString const operator+(const char c, const XrdOucString s);

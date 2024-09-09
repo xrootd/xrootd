@@ -29,8 +29,7 @@
 /******************************************************************************/
 
 #define __STDC_FORMAT_MACROS 1
-#include <alloca.h>
-#include <unistd.h>
+
 #include <cctype>
 #include <cerrno>
 #include <fcntl.h>
@@ -40,13 +39,19 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <strings.h>
 #include <ctime>
 #include <vector>
+
+#ifndef __FreeBSD__
+#include <alloca.h>
+#endif
+
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <strings.h>
+#include <unistd.h>
 
 #include "XrdVersion.hh"
 
@@ -324,8 +329,7 @@ XrdSecCredentials *XrdSecProtocolztn::findToken(XrdOucErrInfo *erp,
 
         if (Vec[i].beginswith('/') == 1)
            {char tokPath[MAXPATHLEN+8];
-            snprintf(tokPath, sizeof(tokPath), tokName,
-                     Vec[i].length(), int(geteuid()));
+            snprintf(tokPath, sizeof(tokPath), tokName, int(geteuid()));
             resp = readToken(erp, tokPath, isbad);
             if (resp || isbad) return resp;
             continue;
@@ -661,9 +665,12 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
    if (!tokenlib || validated)
       {
        Entity.credslen = strlen(tResp->tkn);
-       if (Entity.creds) free(Entity.creds);
-       Entity.creds = (char *)malloc(Entity.credslen+1);
-       strcpy(Entity.creds, tResp->tkn);
+       if (Entity.creds)
+         free(Entity.creds);
+       if ((Entity.creds = (char *)malloc(Entity.credslen+1)))
+         strcpy(Entity.creds, tResp->tkn);
+       else
+         Fatal(erp, "'ztn' bad alloc", ENOMEM, false);
        if (!Entity.name) Entity.name = strdup("anon");
        return 0;
       }

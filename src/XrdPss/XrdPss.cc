@@ -58,6 +58,7 @@
 #include "XrdPosix/XrdPosixExtra.hh"
 #include "XrdPosix/XrdPosixInfo.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdOfs/XrdOfsFSctl_PI.hh"
 
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -65,6 +66,7 @@
 #include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -93,8 +95,10 @@ class XrdScheduler;
 
 namespace XrdProxy
 {
+thread_local XrdOucECMsg ecMsg("[pss]");
+
 static XrdPssSys   XrdProxySS;
-  
+
        XrdSysError eDest(0, "pss_");
 
        XrdScheduler *schedP = 0;
@@ -102,6 +106,8 @@ static XrdPssSys   XrdProxySS;
        XrdOucSid    *sidP   = 0;
 
        XrdOucEnv    *envP   = 0;
+
+       XrdOfsFSctl_PI *cacheFSctl = nullptr;
 
        XrdSecsssID  *idMapper = 0;    // -> Auth ID mapper
 
@@ -155,7 +161,7 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
+XrdPssSys::XrdPssSys() : HostArena(0), LocalRoot(0), theN2N(0), DirFlags(0),
                          myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
                          myFeatures(XRDOSS_HASPRXY|XRDOSS_HASPGRW|XRDOSS_HASNOSF)
                          {}
@@ -186,6 +192,12 @@ int XrdPssSys::Init(XrdSysLogger *lp, const char *cFN, XrdOucEnv *envP)
 //
    tmp = ((NoGo = Configure(cFN, envP)) ? "failed." : "completed.");
    eDest.Say("------ Proxy storage system initialization ", tmp);
+
+// Extract Pfc control, if it is there.
+//
+  if (!NoGo)
+      cacheFSctl = (XrdOfsFSctl_PI*)envP->GetPtr("XrdFSCtl_PC*");
+
 
 // All done.
 //
@@ -355,7 +367,7 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 
 // Simply return the proxied result here
 //
-   return (XrdPosixXrootd::Mkdir(pbuff, mode) ? -errno : XrdOssOK);
+   return (XrdPosixXrootd::Mkdir(pbuff, mode) ? Info(errno) : XrdOssOK);
 }
   
 /******************************************************************************/
@@ -766,6 +778,28 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
               else return -EROFS;
           }
       }
+
+   // check CGI cache-control paramters
+   if (cacheFSctl)
+   {
+      int elen;
+      char *envcgi = (char *)Env.Env(elen);
+
+      if (envcgi && strstr(envcgi, "only-if-cached"))
+      {
+         XrdOucErrInfo einfo;
+         XrdSfsFSctl myData;
+         myData.Arg1 = "cached";
+         myData.Arg1Len = 1;
+         myData.Arg2Len = 1;
+         const char *myArgs[1];
+         myArgs[0] = path;
+         myData.ArgP = myArgs;
+         int fsctlRes = cacheFSctl->FSctl(SFS_FSCTL_PLUGXC, myData, einfo);
+         if (fsctlRes == SFS_ERROR)
+            return -einfo.getErrInfo();
+      }
+   }
 
 // If this is a third party copy open, then strange rules apply. If this is an
 // outgoing proxy we let everything pass through as this may be a TPC request
@@ -1232,6 +1266,16 @@ int XrdPssFile::Ftruncate(unsigned long long flen)
     if (fd < 0) return -XRDOSS_E8004;
 
     return (XrdPosixXrootd::Ftruncate(fd, flen) ?  -errno : XrdOssOK);
+}
+  
+/******************************************************************************/
+/*                      I n t e r n a l   M e t h o d s                       */
+/******************************************************************************/
+
+int XrdPssSys::Info(int rc)
+{
+   XrdPosixXrootd::QueryError(XrdProxy::ecMsg.Msg());
+   return -rc;
 }
   
 /******************************************************************************/

@@ -120,7 +120,7 @@ void XrdSysFAttr::Free(XrdSysFAttr::AList *aLP)
 {
    AList *aNP;
 
-// Free all teh structs using free as they were allocated using malloc()
+// Free all the structs using free as they were allocated using malloc()
 //
    while(aLP) {aNP = aLP->Next; free(aLP); aLP = aNP;}
 }

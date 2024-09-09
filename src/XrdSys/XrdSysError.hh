@@ -163,7 +163,7 @@ inline const char *SetPrefix(const char *prefix)
                          return oldpfx;
                         }
 
-// TBeg() is used to start a trace on ostream cerr. The TEnd() ends the trace.
+// TBeg() is used to start a trace on std::ostream std::cerr. The TEnd() ends the trace.
 //
 void TBeg(const char *txt1=0, const char *txt2=0, const char *txt3=0);
 void TEnd();

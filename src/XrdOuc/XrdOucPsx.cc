@@ -715,7 +715,7 @@ bool XrdOucPsx::ParseSet(XrdSysError *Eroute, XrdOucStream &Config)
          {"DataServerTTL",         "DataServerTTL",1},       // Default  300
          {"LBServerConn_ttl",      "LoadBalancerTTL",1},     // Default 1200
          {"LoadBalancerTTL",       "LoadBalancerTTL",1},     // Default 1200
-         {"ParallelEvtLoop",       "ParallelEvtLoop",0},     // Default    3
+         {"ParallelEvtLoop",       "ParallelEvtLoop",0},     // Default   10
          {"ParStreamsPerPhyConn",  "SubStreamsPerChannel",0},// Default    1
          {"ReadAheadSize",         0,0},
          {"ReadAheadStrategy",     0,0},

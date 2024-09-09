@@ -1,5 +1,6 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -8,6 +9,8 @@
 #include "XrdVersion.hh"
 
 #include "XrdXrootd/XrdXrootdTpcMon.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
+#include "XrdTpc/XrdTpcUtils.hh"
 
 #include <curl/curl.h>
 
@@ -18,6 +21,7 @@
 #include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 #include <iostream> // Delete later!!!
 
 #include "XrdTpcState.hh"
@@ -94,16 +98,14 @@ void CurlDeleter::operator()(CURL *curl)
  *       was needed for monitoring to report what IP protocol was being used.
  *       It has been kept in case we will need this callback in the future.
  */
-int TPCHandler::sockopt_setcloexec_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
-    int oldFlags = fcntl(curlfd,F_GETFD,0);
-    if(oldFlags < 0) {
-        return CURL_SOCKOPT_ERROR;
-    }
-    oldFlags |= FD_CLOEXEC;
-    if(!fcntl(curlfd,F_SETFD,oldFlags)) {
-        return CURL_SOCKOPT_OK;
-    }
-    return CURL_SOCKOPT_ERROR;
+int TPCHandler::sockopt_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
+  TPCLogRecord * rec = (TPCLogRecord *)clientp;
+  if (purpose == CURLSOCKTYPE_IPCXN && rec && rec->pmarkManager.isEnabled()) {
+      // We will not reach this callback if the corresponding socket could not have been connected
+      // the socket is already connected only if the packet marking is enabled
+      return CURL_SOCKOPT_ALREADY_CONNECTED;
+  }
+  return CURL_SOCKOPT_OK;
 }
 
 /******************************************************************************/
@@ -119,18 +121,38 @@ int TPCHandler::opensocket_callback(void *clientp,
                                     curlsocktype purpose,
                                     struct curl_sockaddr *aInfo)
 {
-// See what kind of address will be used to connect
-//
-if (purpose == CURLSOCKTYPE_IPCXN && clientp)
-   {XrdNetAddr thePeer(&(aInfo->addr));
-    ((TPCLogRecord *)clientp)->isIPv6 =  (thePeer.isIPType(XrdNetAddrInfo::IPv6)
-                                      && !thePeer.isMapped());
-   }
+  //Return a socket file descriptor (note the clo_exec flag will be set).
+  int fd = XrdSysFD_Socket(aInfo->family, aInfo->socktype, aInfo->protocol);
+  // See what kind of address will be used to connect
+  //
+  if(fd < 0) {
+    return CURL_SOCKET_BAD;
+  }
+  TPCLogRecord * rec = (TPCLogRecord *)clientp;
+  if (purpose == CURLSOCKTYPE_IPCXN && clientp)
+  {XrdNetAddr thePeer(&(aInfo->addr));
+    rec->isIPv6 =  (thePeer.isIPType(XrdNetAddrInfo::IPv6)
+                    && !thePeer.isMapped());
+    std::stringstream connectErrMsg;
 
-// Return a socket file descriptor (note the clo_exec flag will be set).
-//
-   int fd = XrdSysFD_Socket(aInfo->family, aInfo->socktype, aInfo->protocol);
-   return (fd >= 0 ? fd : CURL_SOCKET_BAD);
+    if(!rec->pmarkManager.connect(fd, &(aInfo->addr), aInfo->addrlen, CONNECT_TIMEOUT, connectErrMsg)) {
+      rec->m_log->Emsg(rec->log_prefix.c_str(),"Unable to connect socket:", connectErrMsg.str().c_str());
+      return CURL_SOCKET_BAD;
+    }
+  }
+
+  return fd;
+}
+
+int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
+  TPCLogRecord * rec = (TPCLogRecord *)clientp;
+
+  // Destroy the PMark handle associated to the file descriptor before closing it.
+  // Otherwise, we would lose the socket usage information if the socket is closed before
+  // the PMark handle is closed.
+  rec->pmarkManager.endPmark(fd);
+
+  return close(fd);
 }
 
 /******************************************************************************/
@@ -140,6 +162,7 @@ if (purpose == CURLSOCKTYPE_IPCXN && clientp)
 // We need to utilize the full URL (including the query string), not just the
 // resource name.  The query portion is hidden in the `xrd-http-query` header;
 // we take this out and combine it with the resource name.
+// We also append the value of the headers configured in tpc.header2cgi to the resource full URL
 //
 // One special key is `authz`; this is always stripped out and copied to the Authorization
 // header (which will later be used for XrdSecEntity).  The latter copy is only done if
@@ -147,36 +170,11 @@ if (purpose == CURLSOCKTYPE_IPCXN && clientp)
 //
 // hasSetOpaque will be set to true if at least one opaque data has been set in the URL that is returned,
 // false otherwise
-static std::string prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
-    std::map<std::string, std::string>::const_iterator iter = req.headers.find("xrd-http-query");
-    if (iter == req.headers.end() || iter->second.empty()) {return req.resource;}
-
-    auto has_authz_header = req.headers.find("Authorization") != req.headers.end();
-
-    std::istringstream requestStream(iter->second);
-    std::string token;
-    std::stringstream result;
-    bool found_first_header = false;
-    while (std::getline(requestStream, token, '&')) {
-        if (token.empty()) {
-            continue;
-        } else if (!strncmp(token.c_str(), "authz=", 6)) {
-            if (!has_authz_header) {
-                req.headers["Authorization"] = token.substr(6);
-                has_authz_header = true;
-            }
-        } else if (!found_first_header) {
-            result << "?" << token;
-            found_first_header = true;
-        } else {
-            result << "&" << token;
-        }
-    }
-    hasSetOpaque = found_first_header;
-    return req.resource + result.str().c_str();
+std::string TPCHandler::prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
+  return XrdTpcUtils::prepareOpenURL(req.resource, req.headers,hdr2cgimap,hasSetOpaque);
 }
 
-static std::string prepareURL(XrdHttpExtReq &req) {
+std::string TPCHandler::prepareURL(XrdHttpExtReq &req) {
     bool foundHeader;
     return prepareURL(req,foundHeader);
 }
@@ -271,19 +269,19 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
     if (req.verb == "OPTIONS") {
         return ProcessOptionsReq(req);
     }
-    auto header = req.headers.find("Credential");
+    auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"credential");
     if (header != req.headers.end()) {
         if (header->second != "none") {
             m_log.Emsg("ProcessReq", "COPY requested an unsupported credential type: ", header->second.c_str());
             return req.SendSimpleResp(400, NULL, NULL, "COPY requestd an unsupported Credential type", 0);
         }
     }
-    header = req.headers.find("Source");
+    header = XrdOucTUtils::caseInsensitiveFind(req.headers,"source");
     if (header != req.headers.end()) {
         std::string src = PrepareURL(header->second);
         return ProcessPullReq(src, req);
     }
-    header = req.headers.find("Destination");
+    header = XrdOucTUtils::caseInsensitiveFind(req.headers,"destination");
     if (header != req.headers.end()) {
         return ProcessPushReq(header->second, req);
     }
@@ -305,6 +303,7 @@ TPCHandler::~TPCHandler() {
   
 TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
         m_desthttps(false),
+        m_fixed_route(false),
         m_timeout(60),
         m_first_timeout(120),
         m_log(log->logger(), "TPC_"),
@@ -338,7 +337,7 @@ int TPCHandler::ProcessOptionsReq(XrdHttpExtReq &req) {
   
 std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
     std::string authz;
-    auto authz_header = req.headers.find("Authorization");
+    auto authz_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"authorization");
     if (authz_header != req.headers.end()) {
         char * quoted_url = quote(authz_header->second.c_str());
         std::stringstream ss;
@@ -360,9 +359,10 @@ int TPCHandler::RedirectTransfer(CURL *curl, const std::string &redirect_resourc
     const char *ptr = error.getErrText(port);
     if ((ptr == NULL) || (*ptr == '\0') || (port == 0)) {
         rec.status = 500;
-        char msg[] = "Internal error: redirect without hostname";
-        logTransferEvent(LogMask::Error, rec, "REDIRECT_INTERNAL_ERROR", msg);
-        return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+        std::stringstream ss;
+        ss << "Internal error: redirect without hostname";
+        logTransferEvent(LogMask::Error, rec, "REDIRECT_INTERNAL_ERROR", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
 
     // Construct redirection URL taking into consideration any opaque info
@@ -419,7 +419,7 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
         if ((open_result == SFS_STALL) || (open_result == SFS_STARTED)) {
             int secs_to_stall = fh.error.getErrInfo();
             if (open_result == SFS_STARTED) {secs_to_stall = secs_to_stall/2 + 5;}
-            sleep(secs_to_stall);
+            std::this_thread::sleep_for (std::chrono::seconds(secs_to_stall));
         }
         break;
     }
@@ -449,23 +449,26 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
     curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
     if (res == CURLE_HTTP_RETURNED_ERROR) {
         std::stringstream ss;
-        ss << "Remote server failed request: " << curl_easy_strerror(res);
+        ss << "Remote server failed request";
+        std::stringstream ss2;
+        ss2 << ss.str() << ": " << curl_easy_strerror(res);
         rec.status = 500;
-        logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
-        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, const_cast<char *>(curl_easy_strerror(res)), 0) : -1;
+        logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss2.str());
+        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec, res).c_str(), 0) : -1;
     } else if (state.GetStatusCode() >= 400) {
         std::stringstream ss;
-        ss << "Remote side failed with status code " << state.GetStatusCode();
+        ss << "Remote side " << req.clienthost << " failed with status code " << state.GetStatusCode();
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
-        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, const_cast<char *>(ss.str().c_str()), 0): -1;
+        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0) : -1;
     } else if (res) {
         std::stringstream ss;
-        ss << "HTTP library failed: " << curl_easy_strerror(res);
+        ss << "Internal transfer failure";
+        std::stringstream ss2;
+        ss2 << ss.str() << " - HTTP library failed: " << curl_easy_strerror(res);
         rec.status = 500;
-        logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
-        char msg[] = "Unknown internal transfer failure";
-        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, msg, 0) : -1;
+        logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss2.str());
+        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec, res).c_str(), 0) : -1;
     }
     std::stringstream ss;
     ss << "Successfully determined remote size for pull request: "
@@ -476,7 +479,7 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
 }
 
 int TPCHandler::GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t &contentLength, bool & success, TPCLogRecord &rec) {
-    State state(curl);
+    State state(curl,req.tpcForwardCreds);
     //Don't forget to copy the headers of the client's request before doing the HEAD call. Otherwise, if there is a need for authentication,
     //it will fail
     state.CopyHeaders(req);
@@ -577,8 +580,9 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "CURL_INIT_FAIL",
             "Failed to initialize a libcurl multi-handle");
-        char msg[] = "Failed to initialize internal server memory";
-        return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+        std::stringstream ss;
+        ss << "Failed to initialize internal server memory";
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
 
     //curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 128*1024);
@@ -588,11 +592,10 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     if (mres) {
         rec.status = 500;
         std::stringstream ss;
-        ss << "Failed to add transfer to libcurl multi-handle: " << curl_multi_strerror(mres);
+        ss << "Failed to add transfer to libcurl multi-handle: HTTP library failure=" << curl_multi_strerror(mres);
         logTransferEvent(LogMask::Error, rec, "CURL_INIT_FAIL", ss.str());
-        char msg[] = "Failed to initialize internal server handle";
         curl_multi_cleanup(multi_handle);
-        return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
 
     // Start response to client prior to the first call to curl_multi_perform
@@ -634,9 +637,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             }
             int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
             if (now > last_advance_time + timeout) {
+                const char *log_prefix = rec.log_prefix.c_str();
+                bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
+
                 state.SetErrorCode(10);
                 std::stringstream ss;
-                ss << "Transfer failed because no bytes have been received in " << timeout << " seconds.";
+                ss << "Transfer failed because no bytes have been "
+                   << (tpc_pull ? "received from the source (pull mode) in "
+                                : "transmitted to the destination (push mode) in ") << timeout << " seconds.";
                 state.SetErrorMessage(ss.str());
                 curl_multi_remove_handle(multi_handle, curl);
                 curl_multi_cleanup(multi_handle);
@@ -644,6 +652,8 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             }
             last_marker = now;
         }
+        // The transfer will start after this point, notify the packet marking manager
+        rec.pmarkManager.startTransfer();
         mres = curl_multi_perform(multi_handle, &running_handles);
         if (mres == CURLM_CALL_MULTI_PERFORM) {
             // curl_multi_perform should be called again immediately.  On newer
@@ -654,6 +664,8 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         } else if (running_handles == 0) {
             break;
         }
+
+        rec.pmarkManager.beginPMarks();
         //printf("There are %d running handles\n", running_handles);
 
         // Harvest any messages, looking for CURLMSG_DONE.
@@ -685,14 +697,13 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
 
     if (mres != CURLM_OK) {
         std::stringstream ss;
-        ss << "Internal libcurl multi-handle error: " << curl_multi_strerror(mres);
+        ss << "Internal libcurl multi-handle error: HTTP library failure=" << curl_multi_strerror(mres);
         logTransferEvent(LogMask::Error, rec, "TRANSFER_CURL_ERROR", ss.str());
 
-        char msg[] = "Internal server error due to libcurl";
         curl_multi_remove_handle(multi_handle, curl);
         curl_multi_cleanup(multi_handle);
 
-        if ((retval = req.ChunkResp(msg, 0))) {
+        if ((retval = req.ChunkResp(generateClientErr(ss, rec).c_str(), 0))) {
             logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
                 "Failed to send error message to the TPC client");
             return retval;
@@ -715,10 +726,11 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     if (!state.GetErrorCode() && res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
         curl_multi_remove_handle(multi_handle, curl);
         curl_multi_cleanup(multi_handle);
-        char msg[] = "Internal state error in libcurl";
-        logTransferEvent(LogMask::Error, rec, "TRANSFER_CURL_ERROR", msg);
+        std::stringstream ss;
+        ss << "Internal state error in libcurl";
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_CURL_ERROR", ss.str());
 
-        if ((retval = req.ChunkResp(msg, 0))) {
+        if ((retval = req.ChunkResp(generateClientErr(ss, rec).c_str(), 0))) {
             logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
                 "Failed to send error message to the TPC client");
             return retval;
@@ -750,7 +762,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             ss2 << "; error message: \"" << err << "\"";
         }
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
-        ss << "failure: " << ss2.str();
+        ss << generateClientErr(ss2, rec);
     } else if (state.GetErrorCode()) {
         std::string err = state.GetErrorMessage();
         if (err.empty()) {err = "(no error message provided)";}
@@ -758,12 +770,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         std::stringstream ss2;
         ss2 << "Error when interacting with local filesystem: " << err;
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
-        ss << "failure: " << ss2.str();
+        ss << generateClientErr(ss2, rec);
     } else if (res != CURLE_OK) {
         std::stringstream ss2;
-        ss2 << "HTTP library failure: " << curl_easy_strerror(res);
-        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
-        ss << "failure: " << curl_easy_strerror(res);
+        ss2 << "Internal transfer failure";
+        std::stringstream ss3;
+        ss3 << ss2.str() << ": " << curl_easy_strerror(res);
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss3.str());
+        ss << generateClientErr(ss2, rec, res);
     } else {
         ss << "success: Created";
         success = true;
@@ -828,10 +842,11 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
 /******************************************************************************/
   
 int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req) {
-    TPCLogRecord rec;
+    TPCLogRecord rec(req);
     rec.log_prefix = "PushRequest";
     rec.local = req.resource;
     rec.remote = resource;
+    rec.m_log = &m_log;
     char *name = req.GetSecEntity().name;
     req.GetClientID(rec.clID);
     if (name) rec.name = name;
@@ -840,16 +855,23 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     ManagedCurlHandle curlPtr(curl_easy_init());
     auto curl = curlPtr.get();
     if (!curl) {
-        char msg[] = "Failed to initialize internal transfer resources";
+        std::stringstream ss;
+        ss << "Failed to initialize internal transfer resources";
         rec.status = 500;
-        logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", msg);
-        return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+        logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
 //  curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_setcloexec_callback);
+
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
-    auto query_header = req.headers.find("xrd-http-fullresource");
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT);
+    auto query_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"xrd-http-fullresource");
     std::string redirect_resource = req.resource;
     if (query_header != req.headers.end()) {
         redirect_resource = query_header->second;
@@ -861,10 +883,11 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, file_monid));
     if (!fh.get()) {
         rec.status = 500;
+        std::stringstream ss;
+        ss <<  "Failed to initialize internal transfer file handle";
         logTransferEvent(LogMask::Error, rec, "OPEN_FAIL",
-            "Failed to initialize internal transfer file handle");
-        char msg[] = "Failed to initialize internal transfer file handle";
-        return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+                         ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
     std::string full_url = prepareURL(req);
 
@@ -877,15 +900,15 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         return result;
     } else if (SFS_OK != open_results) {
         int code;
-        char msg_generic[] = "Failed to open local resource";
+        std::stringstream ss;
         const char *msg = fh->error.getErrText(code);
-        if (msg == NULL) msg = msg_generic;
+        if (msg == NULL) ss << "Failed to open local resource";
+        else ss << msg;
         rec.status = 400;
         if (code == EACCES) rec.status = 401;
         else if (code == EEXIST) rec.status = 412;
         logTransferEvent(LogMask::Error, rec, "OPEN_FAIL", msg);
-        int resp_result = req.SendSimpleResp(rec.status, NULL, NULL,
-                                             const_cast<char *>(msg), 0);
+        int resp_result = req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
         fh->close();
         return resp_result;
     }
@@ -893,7 +916,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
     Stream stream(std::move(fh), 0, 0, m_log);
-    State state(0, stream, curl, true);
+    State state(0, stream, curl, true, req.tpcForwardCreds);
     state.CopyHeaders(req);
 
 #ifdef XRD_CHUNK_RESP
@@ -908,10 +931,11 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 /******************************************************************************/
   
 int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
-    TPCLogRecord rec;
+    TPCLogRecord rec(req);
     rec.log_prefix = "PullRequest";
     rec.local = req.resource;
     rec.remote = resource;
+    rec.m_log = &m_log;
     char *name = req.GetSecEntity().name;
     req.GetClientID(rec.clID);
     if (name) rec.name = name;
@@ -920,35 +944,75 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     ManagedCurlHandle curlPtr(curl_easy_init());
     auto curl = curlPtr.get();
     if (!curl) {
-            char msg[] = "Failed to initialize internal transfer resources";
-            rec.status = 500;
-            logTransferEvent(LogMask::Error, rec, "PULL_FAIL", msg);
-            return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+        std::stringstream ss;
+        ss << "Failed to initialize internal transfer resources";
+        rec.status = 500;
+        logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+    }
+    // ddavila 2023-01-05:
+    // The following change was required by the Rucio/SENSE project where
+    // multiple IP addresses, each from a different subnet, are assigned to a
+    // single server and routed differently by SENSE.
+    // The above requires the server to utilize the same IP, that was used to
+    // start the TPC, for the resolution of the given TPC instead of
+    // using any of the IPs available.
+    if (m_fixed_route){
+        XrdNetAddr *nP;
+        int numIP = 0;
+        char buff[1024];
+        char * ip;
+
+        // Get the hostname used to contact the server from the http header
+        auto host_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"host");
+        std::string host_used;
+        if (host_header != req.headers.end()) {
+            host_used = host_header->second;
+        }
+
+        // Get the IP addresses associated with the above hostname
+        XrdNetUtils::GetAddrs(host_used.c_str(), &nP, numIP, XrdNetUtils::prefAuto, 0);
+        int ip_size = nP[0].Format(buff, 1024, XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort);
+        ip = (char *)malloc(ip_size-1);
+
+	// Substring to get only the address, remove brackets and garbage
+        memcpy(ip, buff+1, ip_size-2);
+        ip[ip_size-2]='\0';
+        logTransferEvent(LogMask::Info, rec, "LOCAL IP", ip);
+
+        curl_easy_setopt(curl, CURLOPT_INTERFACE, ip);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
 //  curl_easy_setopt(curl,CURLOPT_SOCKOPTFUNCTION,sockopt_setcloexec_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTDATA , &rec);
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT);
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
     if (!fh.get()) {
-            char msg[] = "Failed to initialize internal transfer file handle";
-             rec.status = 500;
-            logTransferEvent(LogMask::Error, rec, "PULL_FAIL", msg);
-            return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+        std::stringstream ss;
+        ss << "Failed to initialize internal transfer file handle";
+        rec.status = 500;
+        logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
-    auto query_header = req.headers.find("xrd-http-fullresource");
+    auto query_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"xrd-http-fullresource");
     std::string redirect_resource = req.resource;
     if (query_header != req.headers.end()) {
         redirect_resource = query_header->second;
     }
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
-    auto overwrite_header = req.headers.find("Overwrite");
+    auto overwrite_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"overwrite");
     if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
         if (! usingEC) mode = SFS_O_TRUNC;
     }
     int streams = 1;
     {
-        auto streams_header = req.headers.find("X-Number-Of-Streams");
+        auto streams_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"x-number-of-streams");
         if (streams_header != req.headers.end()) {
             int stream_req = -1;
             try {
@@ -956,10 +1020,11 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             } catch (...) { // Handled below
             }
             if (stream_req < 0 || stream_req > 100) {
-                char msg[] = "Invalid request for number of streams";
-                rec.status = 500;
-                logTransferEvent(LogMask::Info, rec, "INVALID_REQUEST", msg);
-                return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+                std::stringstream ss;
+                ss << "Invalid request for number of streams";
+                rec.status = 400;
+                logTransferEvent(LogMask::Info, rec, "INVALID_REQUEST", ss.str());
+                return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
             }
             streams = stream_req == 0 ? 1 : stream_req;
         }
@@ -985,27 +1050,29 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         }
     }
 #endif
-    int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY, 0644,
+    int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY,
+                                    0644 | SFS_O_MKPTH,
                                     req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_result) {
         int result = RedirectTransfer(curl, redirect_resource, req, fh->error, rec);
         return result;
     } else if (SFS_OK != open_result) {
         int code;
-        char msg_generic[] = "Failed to open local resource";
+        std::stringstream ss;
         const char *msg = fh->error.getErrText(code);
-        if ((msg == NULL) || (*msg == '\0')) msg = msg_generic;
+        if ((msg == NULL) || (*msg == '\0')) ss << "Failed to open local resource";
+        else ss << msg;
         rec.status = 400;
         if (code == EACCES) rec.status = 401;
         else if (code == EEXIST) rec.status = 412;
-        logTransferEvent(LogMask::Error, rec, "OPEN_FAIL", msg);
+        logTransferEvent(LogMask::Error, rec, "OPEN_FAIL", ss.str());
         int resp_result = req.SendSimpleResp(rec.status, NULL, NULL,
-                                             const_cast<char *>(msg), 0);
+                                             generateClientErr(ss, rec).c_str(), 0);
         fh->close();
         return resp_result;
     }
     Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
-    State state(0, stream, curl, false);
+    State state(0, stream, curl, false, req.tpcForwardCreds);
     state.CopyHeaders(req);
 
 #ifdef XRD_CHUNK_RESP
@@ -1047,6 +1114,14 @@ void TPCHandler::logTransferEvent(LogMask mask, const TPCLogRecord &rec,
     m_log.Log(mask, rec.log_prefix.c_str(), ss.str().c_str());
 }
 
+std::string TPCHandler::generateClientErr(std::stringstream &err_ss, const TPCLogRecord &rec, CURLcode cCode) {
+  std::stringstream ssret;
+  ssret << "failure: " << err_ss.str() << ", local=" << rec.local <<", remote=" << rec.remote;
+  if(cCode != CURLcode::CURLE_OK) {
+    ssret << ", HTTP library failure=" << curl_easy_strerror(cCode);
+  }
+  return ssret.str();
+}
 /******************************************************************************/
 /*                  X r d H t t p G e t E x t H a n d l e r                   */
 /******************************************************************************/

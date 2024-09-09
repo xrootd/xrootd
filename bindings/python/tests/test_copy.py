@@ -3,16 +3,16 @@ from XRootD.client.flags import OpenFlags
 from env import *
 
 def test_copy_smallfile():
-
   f = client.File()
-  s, r = f.open(smallfile, OpenFlags.DELETE )
+  s, r = f.open(smallfile, OpenFlags.DELETE)
   assert s.ok
   f.write(smallbuffer)
   size1 = f.stat(force=True)[1].size
-  f.close()
+  s, r = f.close()
+  assert s.ok
 
   c = client.CopyProcess()
-  c.add_job( source=smallfile, target=smallcopy, force=True )
+  c.add_job(source=smallfile, target=smallcopy, force=True)
   s = c.prepare()
   assert s.ok
   s, __ = c.run()
@@ -25,6 +25,17 @@ def test_copy_smallfile():
   assert size1 == size2
   f.close()
 
+def test_create_bigfile():
+  f = client.File()
+  s, r = f.open(bigfile, OpenFlags.DELETE)
+  assert s.ok
+
+  for i in range(1000):
+    f.write(smallbuffer)
+  size1 = f.stat(force=True)[1].size
+  s, r = f.close()
+  assert s.ok
+
 def test_copy_bigfile():
   f = client.File()
   s, r = f.open(bigfile)
@@ -33,7 +44,7 @@ def test_copy_bigfile():
   f.close()
 
   c = client.CopyProcess()
-  c.add_job( source=bigfile, target=bigcopy, force=True )
+  c.add_job(source=bigfile, target=bigcopy, force=True)
   s = c.prepare()
   assert s.ok
   s, __ = c.run()
@@ -55,26 +66,32 @@ def test_copy_nojobs():
 
 def test_copy_noprep():
   c = client.CopyProcess()
-  c.add_job( source=bigfile, target=bigcopy, force=True )
+  c.add_job(source=bigfile, target=bigcopy, force=True)
   s, __ = c.run()
   assert s.ok
 
 class TestProgressHandler(object):
   def begin(self, id, total, source, target):
-    print '+++ begin(): %d, total: %d' % (id, total)
-    print '+++ source: %s' % source
-    print '+++ target: %s' % target
+    print('+++ begin(): %d, total: %d' % (id, total))
+    print('+++ source: %s' % source)
+    print('+++ target: %s' % target)
 
   def end(self, jobId, status):
-    print '+++ end(): jobId: %s, status: %s'  % (jobId, status)
+    print('+++ end(): jobId: %s, status: %s'  % (jobId, status))
 
   def update(self, jobId, processed, total):
-    print '+++ update(): jobid: %s, processed: %d, total: %d' % (jobId, processed, total)
+    print('+++ update(): jobid: %s, processed: %d, total: %d' % (jobId, processed, total))
+
+  def should_cancel(self, jobId):
+    print('+++ should_cancel(): jobid: %s' % (jobId))
+    return False
 
 def test_copy_progress_handler():
   c = client.CopyProcess()
   c.add_job( source=bigfile, target=bigcopy, force=True )
-  c.prepare()
+  s = c.prepare()
+  assert s.ok
 
   h = TestProgressHandler()
-  c.run(handler=h)
+  s, _ = c.run(handler=h)
+  assert s.ok

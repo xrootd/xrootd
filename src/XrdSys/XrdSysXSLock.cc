@@ -103,7 +103,7 @@ void XrdSysXSLock::UnLock(const XrdSysXS_Type usage)
 //
    if (!cur_count)
       {LockContext.UnLock();
-       cerr << "XSLock: Attempt to unlock inactive lock." <<endl;
+       std::cerr << "XSLock: Attempt to unlock inactive lock." <<std::endl;
        throw "XSLock: unlocking inactive lock.";
       }
 
@@ -111,9 +111,9 @@ void XrdSysXSLock::UnLock(const XrdSysXS_Type usage)
 //
    if (usage && cur_usage != usage)
       {LockContext.UnLock();
-       cerr << "XSLock: Incorrect unlock usage - "
+       std::cerr << "XSLock: Incorrect unlock usage - "
             <<  (cur_usage == xs_Shared ? "shr" : "exc") << "!="
-            <<  (    usage == xs_Shared ? "shr" : "exc") << endl;
+            <<  (    usage == xs_Shared ? "shr" : "exc") << std::endl;
        throw "XSLock: invalid unlock usage specified.";
       }
 

@@ -137,7 +137,7 @@ namespace XrdCl
                                            "response to %s: user supplied buffer is "
                                            "too small for the received data.",
                                            url.GetHostId().c_str(),
-                                           request.GetDescription().c_str() );
+                                           request.GetObfuscatedDescription().c_str() );
               // Just drop the connection, we don't know if the stream is sane
               // anymore. Recover with a reconnect.
               return XRootDStatus( stError, errCorruptedHeader );

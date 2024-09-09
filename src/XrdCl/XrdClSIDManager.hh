@@ -83,6 +83,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void TimeOutSID( uint8_t sid[2] );
 
+      //----------------------------------------------------------------------------
+      //! Check if any SID was allocated at or before a given time
+      //----------------------------------------------------------------------------
+      bool IsAnySIDOldAs( const time_t tlim ) const;
+
       //------------------------------------------------------------------------
       //! Check if a SID is timed out
       //------------------------------------------------------------------------
@@ -113,6 +118,7 @@ namespace XrdCl
       uint16_t GetNumberOfAllocatedSIDs() const;
 
     private:
+      std::unordered_map<uint16_t, time_t> pAllocTime;
       std::list<uint16_t>  pFreeSIDs;
       std::set<uint16_t>   pTimeOutSIDs;
       uint16_t             pSIDCeiling;

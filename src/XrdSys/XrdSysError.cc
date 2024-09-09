@@ -160,14 +160,14 @@ void XrdSysError::Say(const char *txt1, const char *txt2, const char *txt3,
   
 void XrdSysError::TBeg(const char *txt1, const char *txt2, const char *txt3)
 {
- cerr <<Logger->traceBeg();
- if (txt1) cerr <<txt1 <<' ';
- if (txt2) cerr <<epfx <<txt2 <<": ";
- if (txt3) cerr <<txt3;
+ std::cerr <<Logger->traceBeg();
+ if (txt1) std::cerr <<txt1 <<' ';
+ if (txt2) std::cerr <<epfx <<txt2 <<": ";
+ if (txt3) std::cerr <<txt3;
 }
 
 /******************************************************************************/
 /*                                  T E n d                                   */
 /******************************************************************************/
   
-void XrdSysError::TEnd() {cerr <<endl; Logger->traceEnd();}
+void XrdSysError::TEnd() {std::cerr <<std::endl; Logger->traceEnd();}

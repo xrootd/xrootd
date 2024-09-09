@@ -641,6 +641,36 @@ namespace XrdCl
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
+      //! Send cache into the server - async
+      //!
+      //! @param info      the info string to be sent
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successful
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SendCache( const std::string &info,
+                              ResponseHandler   *handler,
+                              uint16_t           timeout = 0 )
+                              XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Send cache into the server - sync
+      //!
+      //! @param info      the info string to be sent
+      //! @param response  the response (to be deleted by the user)
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SendCache( const std::string  &info,
+                              Buffer            *&response,
+                              uint16_t            timeout = 0 )
+                              XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
       //! Send info to the server (up to 1024 characters)- async
       //!
       //! @param info      the info string to be sent
@@ -860,6 +890,20 @@ namespace XrdCl
       // Unlock the internal lock
       //------------------------------------------------------------------------
       void UnLock();
+
+      //------------------------------------------------------------------------
+      //! Generic implementation of SendCache and SendInfo
+      //!
+      //! @param info    : the info string to be sent
+      //! @param handler : handler to be notified when the response arrives.
+      //! @param timeout : timeout value or 0 for default.
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SendSet( const char        *prefix,
+                            const std::string &info,
+                            ResponseHandler   *handler,
+                            uint16_t           timeout = 0 )
+                            XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Generic implementation of xattr operation

@@ -41,7 +41,6 @@
 
 #include "XrdSsi/XrdSsiShMap.hh"
 
-using namespace std;
 
 /* Gentoo removed OF from their copy of zconf.h but we need it here.
    See https://bugs.gentoo.org/show_bug.cgi?id=383179 for the sad history.
@@ -74,10 +73,10 @@ namespace
 /*                               D e f i n e s                                */
 /******************************************************************************/
   
-#define FMSG(x) xRC|=1,cerr <<MeMe <<x <<endl
-#define EMSG(x) xRC|=2,cerr <<MeMe <<x <<endl
-#define SAY(x)  cerr <<MeMe <<x <<endl
-#define UMSG(x) xRC=1,cerr <<MeMe <<"Unable to " <<x <<"; " <<strerror(errno) <<endl
+#define FMSG(x) xRC|=1,std::cerr <<MeMe <<x <<std::endl
+#define EMSG(x) xRC|=2,std::cerr <<MeMe <<x <<std::endl
+#define SAY(x)  std::cerr <<MeMe <<x <<std::endl
+#define UMSG(x) xRC=1,std::cerr <<MeMe <<"Unable to " <<x <<"; " <<strerror(errno) <<std::endl
 
 #define IFCMD1(x)   if (!strcmp(x, cmd))
 #define IFCMD2(x,y) if (!strcmp(x, cmd) || !strcmp(y, cmd))
@@ -374,13 +373,13 @@ void Usage()
 int Usage(int rc, bool terse=true)
 {
 
-cerr <<"Usage:   xrdshmap [options] [command [command [...]]]\n\n";
-cerr <<"options: [-e] [-h {a32|c32|x32}] [-i <file>] [-p <path>] [-t <atmo>]\n\n";
+std::cerr <<"Usage:   xrdshmap [options] [command [command [...]]]\n\n";
+std::cerr <<"options: [-e] [-h {a32|c32|x32}] [-i <file>] [-p <path>] [-t <atmo>]\n\n";
 
    if (terse) return rc;
 
    if (!uLine) Usage();
-   cerr <<uLine <<endl;
+   std::cerr <<uLine <<std::endl;
 
 return rc;
 }
@@ -403,15 +402,15 @@ void Explain(const char *what)
                     {n = i+1; break;}
                 }
             if (i >= n)
-               {cerr <<MeMe <<"No explanation for " <<what <<"; try help!" <<endl;
+               {std::cerr <<MeMe <<"No explanation for " <<what <<"; try help!" <<std::endl;
                 return;
                }
            }
 
    for (int k = i; k < n; k++)
-       {if (k > i) cerr <<'\n' <<endl;
+       {if (k > i) std::cerr <<'\n' <<std::endl;
         for (int j = 0; j < helpInfo[k].dsz; j++)
-            {cerr <<helpInfo[k].dtl[j] <<endl;}
+            {std::cerr <<helpInfo[k].dtl[j] <<std::endl;}
        }
    return;
 }
@@ -423,7 +422,6 @@ void Explain(const char *what)
   
 int DoA32(const char *buff)
 {
-   ZEXTERN uLong ZEXPORT adler32 OF((uLong adler, const Bytef *buf, uInt len));
    uLong adler = adler32(0L, Z_NULL, 0);
 
 // Check for ID request now
@@ -435,8 +433,8 @@ int DoA32(const char *buff)
    int blen = strlen(buff);
    adler = adler32(adler, (const Bytef *)buff, blen);
    int a32 = static_cast<int>(adler);
-// cerr <<"Z a32 sz=" <<sizeof(adler) <<" val=" <<hex <<adler <<dec <<endl;
-// cerr <<"S a32 sz=" <<sizeof(a32)   <<" val=" <<hex <<a32   <<dec <<endl;
+// std::cerr <<"Z a32 sz=" <<sizeof(adler) <<" val=" << std::hex <<adler << std::dec <<std::endl;
+// std::cerr <<"S a32 sz=" <<sizeof(a32)   <<" val=" << std::hex <<a32   << std::dec <<std::endl;
    return a32;
 }
 
@@ -446,8 +444,6 @@ int DoA32(const char *buff)
   
 int DoC32(const char *buff)
 {
-   ZEXTERN uLong ZEXPORT crc32 OF((uLong crc, const Bytef *buf, uInt len));
-
 // Check for ID request now
 //
    if (!buff) {int myID; memcpy(&myID, "c32 ", sizeof(int)); return myID;}
@@ -458,8 +454,8 @@ int DoC32(const char *buff)
    int blen = strlen(buff);
    crc   = crc32(crc,   (const Bytef *)buff, blen);
    int c32 = static_cast<int>(crc);
-// cerr <<"Z c32 sz=" <<sizeof(crc) <<" val=" <<hex <<crc <<dec <<endl;
-// cerr <<"S c32 sz=" <<sizeof(c32) <<" val=" <<hex <<c32   <<dec <<endl;
+// std::cerr <<"Z c32 sz=" <<sizeof(crc) <<" val=" << std::hex <<crc << std::dec <<std::endl;
+// std::cerr <<"S c32 sz=" <<sizeof(c32) <<" val=" << std::hex <<c32   << std::dec <<std::endl;
    return c32;
 }
 
@@ -516,11 +512,11 @@ void DoDump(bool getdata)
    int  *dataP, num = 0;;
 
    while(theMap->Enumerate(myJar, kbuff, dataP))
-        {cout <<kbuff <<" = " <<*dataP <<endl;
+        {std::cout <<kbuff <<" = " <<*dataP <<std::endl;
          num++;
         }
 
-   if (errno == ENOENT) cerr <<num <<" entries displayed." <<endl;
+   if (errno == ENOENT) std::cerr <<num <<" entries displayed." <<std::endl;
       else EMSG("Unable to fully enumerate keys; " <<strerror(errno));
 }
 }
@@ -546,7 +542,7 @@ void DoInfo()
       {UMSG("get info for atomics");
        if (errno == ENOTCONN) return;
       }
-   cout <<"atomics = " <<iBuff <<endl;
+   std::cout <<"atomics = " <<iBuff <<std::endl;
 
 // Get the hash name.
 //
@@ -555,7 +551,7 @@ void DoInfo()
       {UMSG("get info for hash");
        if (errno == ENOTCONN) return;
       }
-   cout <<"hash = " <<iBuff <<endl;
+   std::cout <<"hash = " <<iBuff <<std::endl;
 
 // Get the implementation
 //
@@ -564,13 +560,13 @@ void DoInfo()
       {UMSG("get info for implementation");
        if (errno == ENOTCONN) return;
       }
-   cout <<"impl = " <<iBuff <<endl;
+   std::cout <<"impl = " <<iBuff <<std::endl;
 
 // Print the rest of them
 //
    while(vname[i])
         {n = theMap->Info(vname[i]);
-         if (n >= 0) cout <<vname[i] <<" = " <<n <<endl;
+         if (n >= 0) std::cout <<vname[i] <<" = " <<n <<std::endl;
             else UMSG("get info for " <<vname[i]);
          i++;
         }
@@ -582,7 +578,7 @@ void DoInfo()
       {UMSG("get info for the type");
        if (errno == ENOTCONN) return;
       }
-   cout <<"type = " <<iBuff <<endl;
+   std::cout <<"type = " <<iBuff <<std::endl;
 }
 }
 
@@ -643,7 +639,7 @@ namespace
    char               **Argv  = 0;
    int                  Argc  = 0;
    int                  Apos  = 0;
-   istream             *inStream;
+   std::istream        *inStream;
    std::string          inLine;
    char                *line   = 0;
    const char          *prompt = 0;
@@ -669,9 +665,9 @@ char *Token(const char *what1, const char *what2=0, bool cont=true)
 do{if (!line || !cont)
       {if (line) {delete [] line; line = 0;}
        if (prompt)
-          {cerr <<what1;
-           if (what2) cerr <<' ' <<what2 <<": ";
-              else    cerr <<": ";
+          {std::cerr <<what1;
+           if (what2) std::cerr <<' ' <<what2 <<": ";
+              else    std::cerr <<": ";
           }
        std::getline(*inStream, inLine, '\n');
        if (!(n = inLine.length()))
@@ -680,7 +676,7 @@ do{if (!line || !cont)
           }
        line = new char[n+1];
        strcpy(line, inLine.c_str());
-       if (echo) cerr <<MeMe <<line <<endl;
+       if (echo) std::cerr <<MeMe <<line <<std::endl;
        token = strtok(line, " ");
       } else token = strtok(0, " ");
 
@@ -690,7 +686,7 @@ do{if (!line || !cont)
 
 // Check if we should complain
 //
-   if (cont) cerr <<what1 <<(what2 ? what2 : "") <<" not specified." <<endl;
+   if (cont) std::cerr <<what1 <<(what2 ? what2 : "") <<" not specified." <<std::endl;
    delete [] line; line = 0;
    if (cont) return 0;
   } while(true);
@@ -817,7 +813,7 @@ while(true)
            {if (!(key = Token("key to hash"))) continue;
             if (!hashF) kval = DoC32(key);
                else     kval = hashF(key);
-            cout <<hashN <<' ' <<hex <<kval <<dec <<' ' <<key <<endl;
+            std::cout <<hashN <<' ' << std::hex <<kval << std::dec <<' ' <<key <<std::endl;
             continue;
            }
 
@@ -847,13 +843,13 @@ while(true)
            }
 
       IFCMD1("qmax")
-            {cerr <<"setmax create index  " <<sParms.indexSize <<endl;
-             cerr <<"setmax create keylen " <<sParms.maxKeyLen <<endl;
-             cerr <<"setmax create keys   " <<sParms.maxKeys   <<endl;
-             cerr <<"setmax create mode   " <<oct <<sParms.mode <<dec <<endl;
-             cerr <<"setmax resize index  " <<rParms.indexSize <<endl;
-             cerr <<"setmax resize keylen " <<rParms.maxKeyLen <<endl;
-             cerr <<"setmax resize keys   " <<rParms.maxKeys   <<endl;
+            {std::cerr <<"setmax create index  " <<sParms.indexSize <<std::endl;
+             std::cerr <<"setmax create keylen " <<sParms.maxKeyLen <<std::endl;
+             std::cerr <<"setmax create keys   " <<sParms.maxKeys   <<std::endl;
+             std::cerr <<"setmax create mode   " <<std::oct <<sParms.mode << std::dec <<std::endl;
+             std::cerr <<"setmax resize index  " <<rParms.indexSize <<std::endl;
+             std::cerr <<"setmax resize keylen " <<rParms.maxKeyLen <<std::endl;
+             std::cerr <<"setmax resize keys   " <<rParms.maxKeys   <<std::endl;
              continue;
             }
 
@@ -926,7 +922,7 @@ while(true)
             }
 
       IFCMD2("sus", "suspend")
-           {cerr <<"Hit enter to continue:"; cin.getline(&c,1); continue;}
+           {std::cerr <<"Hit enter to continue:"; std::cin.getline(&c,1); continue;}
 
       IFCMD1("sync")
            {XrdSsi::SyncOpt sopt;
@@ -999,7 +995,7 @@ int main(int argc, char **argv)
 {
    extern char *optarg;
    extern int optind, opterr;
-   ifstream inFile;
+   std::ifstream inFile;
    char *inpath = 0, c;
 
 // Process options
@@ -1039,13 +1035,13 @@ int main(int argc, char **argv)
 //
         if (inpath)
            {if (optind < argc)
-               cerr <<MeMe <<"Warning, -i supersedes arguments!" <<endl;
+               std::cerr <<MeMe <<"Warning, -i supersedes arguments!" <<std::endl;
             inFile.open(inpath, std::ifstream::in);
             if (!inFile.good()) {UMSG("open " <<inpath); exit(8);}
             inStream = &inFile;
            }
    else if (optind < argc) {Argv = argv; Argc = argc; Apos = optind;}
-   else {inStream = &cin; prompt = MeMe;}
+   else {inStream = &std::cin; prompt = MeMe;}
 
 // Allocate a map
 //

@@ -1,4 +1,3 @@
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Modules
@@ -13,8 +12,6 @@ if( BUILD_TPC )
   #-----------------------------------------------------------------------------
   # The XrdHttp library
   #-----------------------------------------------------------------------------
-  include_directories( ${CURL_INCLUDE_DIRS} )
-
   # On newer versions of libcurl, we can use pipelining of requests.
   include (CheckCSourceCompiles)
   SET( CMAKE_REQUIRED_INCLUDES "${CURL_INCLUDE_DIRS}" )
@@ -41,16 +38,21 @@ if( BUILD_TPC )
     XrdTpc/XrdTpcCurlMulti.cc     XrdTpc/XrdTpcCurlMulti.hh
     XrdTpc/XrdTpcState.cc         XrdTpc/XrdTpcState.hh
     XrdTpc/XrdTpcStream.cc        XrdTpc/XrdTpcStream.hh
-    XrdTpc/XrdTpcTPC.cc           XrdTpc/XrdTpcTPC.hh)
+    XrdTpc/XrdTpcTPC.cc           XrdTpc/XrdTpcTPC.hh
+    XrdTpc/XrdTpcPMarkManager.cc  XrdTpc/XrdTpcPMarkManager.hh
+    XrdTpc/XrdTpcUtils.cc         XrdTpc/XrdTpcUtils.hh)
 
   target_link_libraries(
     ${LIB_XRD_TPC}
+    PRIVATE
     XrdServer
     XrdUtils
     XrdHttpUtils
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
     ${CURL_LIBRARIES} )
+
+  target_include_directories( ${LIB_XRD_TPC} PRIVATE ${CURL_INCLUDE_DIRS} )
 
   if( MacOSX )
     set( TPC_LINK_FLAGS, "-Wl" )
@@ -61,8 +63,6 @@ if( BUILD_TPC )
   set_target_properties(
     ${LIB_XRD_TPC}
     PROPERTIES
-    INTERFACE_LINK_LIBRARIES ""
-    LINK_INTERFACE_LIBRARIES ""
     LINK_FLAGS "${TPC_LINK_FLAGS}"
     COMPILE_DEFINITIONS "${XRD_COMPILE_DEFS}")
 

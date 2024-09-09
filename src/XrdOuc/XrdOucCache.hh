@@ -721,7 +721,7 @@ virtual       ~XrdOucCache() {}
 //!
 //! @param Logger  Pointer to the logger object that should be used with an
 //!                instance of XrdSysError to direct messages to a log file.
-//!                If Logger is null, you should use cerr to output messages.
+//!                If Logger is null, you should use std::cerr to output messages.
 //! @param Config  Pointer to the configuration file name from where you
 //!                should get additional information. If Config is null, there
 //!                is no configuration file is present.

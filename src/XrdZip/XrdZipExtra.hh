@@ -27,6 +27,9 @@
 
 #include "XrdZip/XrdZipUtils.hh"
 
+#include <cstdint>
+#include <sys/types.h>
+
 namespace XrdZip
 {
   //---------------------------------------------------------------------------

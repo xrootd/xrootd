@@ -56,6 +56,7 @@
 #include <string>
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include "XrdHttpUtils.hh"
 
@@ -86,7 +87,7 @@ std::string ISOdatetime(time_t t) {
   gmtime_r(&t, &t1);
 
   strftime(datebuf, 127, "%a, %d %b %Y %H:%M:%S GMT", &t1);
-  return (string) datebuf;
+  return (std::string) datebuf;
 
 }
 
@@ -125,7 +126,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
   if (!p) {
 
     request = rtMalformed;
-    return 0;
+    return -1;
   }
 
   pos = (p - line);
@@ -145,6 +146,10 @@ int XrdHttpReq::parseLine(char *line, int len) {
     // We memorize the headers also as a string                                                                                                                                              
     // because external plugins may need to process it differently                                                                                                                          
     std::string ss = val;
+    if(ss.length() >= 2 && ss.substr(ss.length() - 2, 2) != "\r\n") {
+      request = rtMalformed;
+      return -3;
+    }
     trim(ss);
     allheaders[key] = ss;
 	  
@@ -154,7 +159,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
     // The value is val
     
     // Screen out the needed header lines
-    if (!strcmp(key, "Connection")) {
+    if (!strcasecmp(key, "connection")) {
 
       if (!strcasecmp(val, "Keep-Alive\r\n")) {
         keepalive = true;
@@ -162,48 +167,55 @@ int XrdHttpReq::parseLine(char *line, int len) {
         keepalive = false;
       }
 
-    } else if (!strcmp(key, "Host")) {
+    } else if (!strcasecmp(key, "host")) {
       parseHost(val);
-    } else if (!strcmp(key, "Range")) {
-      parseContentRange(val);
-    } else if (!strcmp(key, "Content-Length")) {
+    } else if (!strcasecmp(key, "range")) {
+      // (rfc2616 14.35.1) says if Range header contains any range
+      // which is syntactically invalid the Range header should be ignored.
+      // Therefore no need for the range handler to report an error.
+      readRangeHandler.ParseContentRange(val);
+    } else if (!strcasecmp(key, "content-length")) {
       length = atoll(val);
 
-    } else if (!strcmp(key, "Destination")) {
+    } else if (!strcasecmp(key, "destination")) {
       destination.assign(val, line+len-val);
       trim(destination);
-    } else if (!strcmp(key, "Want-Digest")) {
+    } else if (!strcasecmp(key, "want-digest")) {
       m_req_digest.assign(val, line + len - val);
       trim(m_req_digest);
       //Transform the user requests' want-digest to lowercase
       std::transform(m_req_digest.begin(),m_req_digest.end(),m_req_digest.begin(),::tolower);
-    } else if (!strcmp(key, "Depth")) {
+    } else if (!strcasecmp(key, "depth")) {
       depth = -1;
       if (strcmp(val, "infinity"))
         depth = atoll(val);
 
-    } else if (!strcmp(key, "Expect") && strstr(val, "100-continue")) {
+    } else if (!strcasecmp(key, "expect") && strstr(val, "100-continue")) {
       sendcontinue = true;
-    } else if (!strcasecmp(key, "Transfer-Encoding") && strstr(val, "chunked")) {
-      m_transfer_encoding_chunked = true;
-    } else if (!strcasecmp(key, "TE") && strstr(val, "trailers")) {
+    } else if (!strcasecmp(key, "te") && strstr(val, "trailers")) {
       m_trailer_headers = true;
-    } else if (!strcasecmp(key, "X-Transfer-Status") && strstr(val, "true")) {
+    } else if (!strcasecmp(key, "transfer-encoding") && strstr(val, "chunked")) {
+      m_transfer_encoding_chunked = true; 
+    } else if (!strcasecmp(key, "x-transfer-status") && strstr(val, "true")) {
+      m_transfer_encoding_chunked = true;
       m_status_trailer = true;
+    } else if (!strcasecmp(key, "scitag")) {
+      if(prot->pmarkHandle != nullptr) {
+        parseScitag(val);
+      }
+    } else if (!strcasecmp(key, "user-agent")) {
+      m_user_agent = val;
+      trim(m_user_agent);
     } else {
       // Some headers need to be translated into "local" cgi info.
-      std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
+      auto it = std::find_if(prot->hdr2cgimap.begin(), prot->hdr2cgimap.end(),[key](const auto & item) {
+        return !strcasecmp(key,item.first.c_str());
+      });
       if (it != prot->hdr2cgimap.end() && (opaque ? (0 == opaque->Get(it->second.c_str())) : true)) {
-        std:: string s;
+        std::string s;
         s.assign(val, line+len-val);
         trim(s);
-
-        if (hdr2cgistr.length() > 0) {
-          hdr2cgistr.append("&");
-        }
-        hdr2cgistr.append(it->second);
-        hdr2cgistr.append("=");
-        hdr2cgistr.append(s);
+        addCgi(it->second,s);
       }
     }
 
@@ -220,87 +232,25 @@ int XrdHttpReq::parseHost(char *line) {
   return 0;
 }
 
-int XrdHttpReq::parseContentRange(char *line) {
-  int j;
-  char *str1, *saveptr1, *token;
-
-
-
-  for (j = 1, str1 = line;; j++, str1 = NULL) {
-    token = strtok_r(str1, " ,\n=", &saveptr1);
-    if (token == NULL)
-      break;
-
-    //printf("%d: %s\n", j, token);
-
-    if (!strlen(token)) continue;
-
-
-    parseRWOp(token);
-
-  }
-
-  return j;
-}
-
-int XrdHttpReq::parseRWOp(char *str) {
-  ReadWriteOp o1;
-  int j;
-  char *saveptr2, *str2, *subtoken, *endptr;
-  bool ok = false;
-
-  for (str2 = str, j = 0;; str2 = NULL, j++) {
-    subtoken = strtok_r(str2, "-", &saveptr2);
-    if (subtoken == NULL)
-      break;
-
-    switch (j) {
-      case 0:
-        o1.bytestart = strtoll(subtoken, &endptr, 0);
-        if (!o1.bytestart && (endptr == subtoken)) o1.bytestart = -1;
-        break;
-      case 1:
-        o1.byteend = strtoll(subtoken, &endptr, 0);
-        if (!o1.byteend && (endptr == subtoken)) o1.byteend = -1;
-        ok = true;
-        break;
-      default:
-        // Malformed!
-        ok = false;
-        break;
+void XrdHttpReq::parseScitag(const std::string & val) {
+  // The scitag header has been populated and the packet marking was configured, the scitag will either be equal to 0
+  // or to the value passed by the client
+  mScitag = 0;
+  std::string scitagS = val;
+  trim(scitagS);
+  if(scitagS.size()) {
+    if(scitagS[0] != '-') {
+      try {
+        mScitag = std::stoi(scitagS.c_str(), nullptr, 10);
+        if (mScitag > XrdNetPMark::maxTotID || mScitag < XrdNetPMark::minTotID) {
+          mScitag = 0;
+        }
+      } catch (...) {
+        //Nothing to do, scitag = 0 by default
+      }
     }
-
   }
-
-
-  // This can be largely optimized
-  if (ok) {
-
-    kXR_int32 len_ok = 0;
-    long long sz = o1.byteend - o1.bytestart + 1;
-    kXR_int32 newlen = sz;
-
-    if (filesize > 0)
-      newlen = (kXR_int32) min(filesize - o1.bytestart, sz);
-
-    rwOps.push_back(o1);
-
-    while (len_ok < newlen) {
-      ReadWriteOp nfo;
-      int len = min(newlen - len_ok, READV_MAXCHUNKSIZE);
-
-      nfo.bytestart = o1.bytestart + len_ok;
-      nfo.byteend = nfo.bytestart + len - 1;
-      len_ok += len;
-      rwOps_split.push_back(nfo);
-    }
-    length += len_ok;
-
-
-  }
-
-
-  return j;
+  addCgi("scitag.flow", std::to_string(mScitag));
 }
 
 int XrdHttpReq::parseFirstLine(char *line, int len) {
@@ -435,29 +385,23 @@ void XrdHttpReq::clientUnMarshallReadAheadList(int nitems) {
   }
 }
 
-int XrdHttpReq::ReqReadV() {
+int XrdHttpReq::ReqReadV(const XrdHttpIOList &cl) {
 
 
-  kXR_int64 total_len = 0;
-  rwOpPartialDone = 0;
   // Now we build the protocol-ready read ahead list
   //  and also put the correct placeholders inside the cache
-  int n = rwOps_split.size();
-  if (!ralist) ralist = (readahead_list *) malloc(n * sizeof (readahead_list));
+  int n = cl.size();
+  ralist.clear();
+  ralist.reserve(n);
 
   int j = 0;
-  for (int i = 0; i < n; i++) {
+  for (const auto &c: cl) {
+    ralist.emplace_back();
+    auto &ra = ralist.back();
+    memcpy(&ra.fhandle, this->fhandle, 4);
 
-    // We can suppose that we know the length of the file
-    // Hence we can sort out requests that are out of boundary or trim them
-    if (rwOps_split[i].bytestart > filesize) continue;
-    if (rwOps_split[i].byteend > filesize - 1) rwOps_split[i].byteend = filesize - 1;
-
-    memcpy(&(ralist[j].fhandle), this->fhandle, 4);
-
-    ralist[j].offset = rwOps_split[i].bytestart;
-    ralist[j].rlen = rwOps_split[i].byteend - rwOps_split[i].bytestart + 1;
-    total_len += ralist[j].rlen;
+    ra.offset = c.offset;
+    ra.rlen = c.size;
     j++;
   }
 
@@ -479,7 +423,7 @@ int XrdHttpReq::ReqReadV() {
 }
 
 std::string XrdHttpReq::buildPartialHdr(long long bytestart, long long byteend, long long fsz, char *token) {
-  ostringstream s;
+  std::ostringstream s;
 
   s << "\r\n--" << token << "\r\n";
   s << "Content-type: text/plain; charset=UTF-8\r\n";
@@ -489,7 +433,7 @@ std::string XrdHttpReq::buildPartialHdr(long long bytestart, long long byteend, 
 }
 
 std::string XrdHttpReq::buildPartialHdrEnd(char *token) {
-  ostringstream s;
+  std::ostringstream s;
 
   s << "\r\n--" << token << "--\r\n";
 
@@ -522,11 +466,21 @@ int XrdHttpReq::File(XrdXrootd::Bridge::Context &info, //!< the result context
         int dlen //!< byte  count
         ) {
 
+  // sendfile about to be sent by bridge for fetching data for GET:
+  // no https, no chunked+trailer, no multirange
+
   //prot->SendSimpleResp(200, NULL, NULL, NULL, dlen);
   int rc = info.Send(0, 0, 0, 0);
   TRACE(REQ, " XrdHttpReq::File dlen:" << dlen << " send rc:" << rc);
-  if (rc) return false;
-  writtenbytes += dlen;
+  bool start, finish;
+  // short read will be classed as error
+  if (rc) {
+    readRangeHandler.NotifyError();
+    return false;
+  }
+
+  if (readRangeHandler.NotifyReadResult(dlen, nullptr, start, finish) < 0)
+    return false;
   
     
   return true;
@@ -537,7 +491,8 @@ bool XrdHttpReq::Done(XrdXrootd::Bridge::Context & info) {
   TRACE(REQ, " XrdHttpReq::Done");
 
   xrdresp = kXR_ok;
-  
+
+  this->iovN = 0;
   
   int r = PostProcessHTTPReq(true);
   // Beware, we don't have to reset() if the result is 0
@@ -663,8 +618,9 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   else
     prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
   
+  bool ret_keepalive = keepalive; // reset() clears keepalive
   reset();
-  return false;
+  return ret_keepalive;
 };
 
 
@@ -706,7 +662,7 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
 
     s += "&xrdhttptime=";
     char buf[256];
-    sprintf(buf, "%ld", tnow);
+    sprintf(buf, "%lld", (long long) tnow);
     s += buf;
 
     if (secent) {
@@ -825,6 +781,15 @@ void XrdHttpReq::sanitizeResourcePfx() {
   }
 }
 
+void XrdHttpReq::addCgi(const std::string &key, const std::string &value) {
+  if (hdr2cgistr.length() > 0) {
+    hdr2cgistr.append("&");
+  }
+  hdr2cgistr.append(key);
+  hdr2cgistr.append("=");
+  hdr2cgistr.append(value);
+}
+
 
 // Parse a resource line:
 // - sanitize
@@ -927,10 +892,20 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
         httpStatusCode = 409; httpStatusText = "Resource is a directory";
         break;
       case kXR_ItExists:
-        httpStatusCode = 409; httpStatusText = "File already exists";
+        if(request != ReqType::rtDELETE) {
+          httpStatusCode = 409; httpStatusText = "File already exists";
+        } else {
+          // In the case the XRootD layer returns a kXR_ItExists after a deletion
+          // was submitted, we return a 405 status code with the error message set by
+          // the XRootD layer
+          httpStatusCode = 405;
+        }
         break;
       case kXR_InvalidRequest:
         httpStatusCode = 405; httpStatusText = "Method is not allowed";
+        break;
+      case kXR_TimerExpired:
+        httpStatusCode = 504; httpStatusText = "Gateway timeout";
         break;
       default:
         break;
@@ -963,9 +938,15 @@ int XrdHttpReq::ProcessHTTPReq() {
 
     char *q = quote(hdr2cgistr.c_str());
     resourceplusopaque.append(q);
-    TRACEI(DEBUG, "Appended header fields to opaque info: '" 
-                 << hdr2cgistr.c_str() << "'");
+    if (TRACING(TRACE_DEBUG)) {
+      // The obfuscation of "authz" will only be done if the server http.header2cgi config contains something that maps a header to this "authz" cgi.
+      // Unfortunately the obfuscation code will be called no matter what is configured in http.header2cgi.
+      std::string header2cgistrObf = obfuscateAuth(hdr2cgistr);
 
+      TRACEI(DEBUG, "Appended header fields to opaque info: '"
+        << header2cgistrObf.c_str() << "'");
+
+    }
     // We assume that anything appended to the CGI str should also
     // apply to the destination in case of a MOVE.
     if (strchr(destination.c_str(), '?')) destination.append("&");
@@ -1045,6 +1026,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtGET:
     {
+        int retval = keepalive ? 1 : -1; // reset() clears keepalive
 
         if (resource.beginswith("/static/")) {
 
@@ -1063,12 +1045,12 @@ int XrdHttpReq::ProcessHTTPReq() {
                 if (resource == "/static/css/xrdhttp.css") {
                     prot->SendSimpleResp(200, NULL, NULL, (char *) static_css_xrdhttp_css, static_css_xrdhttp_css_len, keepalive);
                     reset();
-                    return keepalive ? 1 : -1;
+                    return retval;
                   }
                 if (resource == "/static/icons/xrdhttp.ico") {
                     prot->SendSimpleResp(200, NULL, NULL, (char *) favicon_ico, favicon_ico_len, keepalive);
                     reset();
-                    return keepalive ? 1 : -1;
+                    return retval;
                   }
 
               }
@@ -1098,7 +1080,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                     if (mydata) {
                       prot->SendSimpleResp(200, NULL, NULL, (char *) mydata->data, mydata->len, keepalive);
                       reset();
-                      return keepalive ? 1 : -1;
+                      return retval;
                     }
                   }
                   
@@ -1107,6 +1089,11 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           }
       
+      // The reqstate parameter basically moves us through a simple state machine.
+      // - 0: Perform a stat on the resource
+      // - 1: Perform a checksum request on the resource (only if requested in header; otherwise skipped)
+      // - 2: Perform an open request (dirlist as appropriate).
+      // - 3+: Reads from file; if at end, perform a close.
       switch (reqstate) {
         case 0: // Stat()
           
@@ -1119,7 +1106,36 @@ int XrdHttpReq::ProcessHTTPReq() {
           }
 
           return 0;
-        case 1: // Open() or dirlist
+        case 1: // Checksum request
+          if (!(fileflags & kXR_isDir) && !m_req_digest.empty()) {
+            // In this case, the Want-Digest header was set.
+            bool has_opaque = strchr(resourceplusopaque.c_str(), '?');
+            // Note that doChksum requires that the memory stays alive until the callback is invoked.
+            m_req_cksum = prot->cksumHandler.getChecksumToRun(m_req_digest);
+            if(!m_req_cksum) {
+                // No HTTP IANA checksums have been configured by the server admin, return a "METHOD_NOT_ALLOWED" error
+                prot->SendSimpleResp(403, NULL, NULL, (char *) "No HTTP-IANA compatible checksums have been configured.", 0, false);
+                return -1;
+            }
+            m_resource_with_digest = resourceplusopaque;
+            if (has_opaque) {
+              m_resource_with_digest += "&cks.type=";
+              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
+            } else {
+              m_resource_with_digest += "?cks.type=";
+              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
+            }
+            if (prot->doChksum(m_resource_with_digest) < 0) {
+              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
+              return -1;
+            }
+            return 0;
+          } else {
+            TRACEI(DEBUG, "No checksum requested; skipping to request state 2");
+            reqstate += 1;
+          }
+        // fallthrough
+        case 2: // Open() or dirlist
         {
 
           if (!prot->Bridge) {
@@ -1149,7 +1165,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             }
 
 
-            string res;
+            std::string res;
             res = resourceplusopaque.c_str();
             //res += "?xrd.dirstat=1";
 
@@ -1168,29 +1184,6 @@ int XrdHttpReq::ProcessHTTPReq() {
             // We don't want to be invoked again after this request is finished
             return 1;
 
-          } else if (!m_req_digest.empty()) {
-            // In this case, the Want-Digest header was set.
-            bool has_opaque = strchr(resourceplusopaque.c_str(), '?');
-            // Note that doChksum requires that the memory stays alive until the callback is invoked.
-            m_req_cksum = prot->cksumHandler.getChecksumToRun(m_req_digest);
-            if(!m_req_cksum) {
-                // No HTTP IANA checksums have been configured by the server admin, return a "METHOD_NOT_ALLOWED" error
-                prot->SendSimpleResp(403, NULL, NULL, (char *) "No HTTP-IANA compatible checksums have been configured.", 0, false);
-                return -1;
-            }
-            m_resource_with_digest = resourceplusopaque;
-            if (has_opaque) {
-              m_resource_with_digest += "&cks.type=";
-              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
-            } else {
-              m_resource_with_digest += "?cks.type=";
-              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
-            }
-            if (prot->doChksum(m_resource_with_digest) < 0) {
-              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
-              return -1;
-            }
-            return 0;
           }
           else {
 
@@ -1217,39 +1210,17 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 
         }
-        case 2:  // Open() in the case the user also requested a checksum.
-        {
-          if (!m_req_digest.empty()) {
-            // --------- OPEN
-            memset(&xrdreq, 0, sizeof (ClientRequest));
-            xrdreq.open.requestid = htons(kXR_open);
-            l = resourceplusopaque.length() + 1;
-            xrdreq.open.dlen = htonl(l);
-            xrdreq.open.mode = 0;
-            xrdreq.open.options = htons(kXR_retstat | kXR_open_read);
-
-            if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
-              return -1;
-            }
-
-            // Prepare to chunk up the request
-            writtenbytes = 0;
-
-            // We want to be invoked again after this request is finished
-            return 0;
-          }
-        }
         // fallthrough
-        default: // Read() or Close()
+        default: // Read() or Close(); reqstate is 3+
         {
 
-          if ( ((reqstate == 3 || (!m_req_digest.empty() && (reqstate == 4))) && (rwOps.size() > 1)) ||
-            (writtenbytes >= length) ) {
+          const XrdHttpIOList &readChunkList = readRangeHandler.NextReadList();
 
-            // Close() if this was a readv or we have finished, otherwise read the next chunk
+          // Close() if we have finished, otherwise read the next chunk
 
-            // --------- CLOSE
+          // --------- CLOSE
+          if ( readChunkList.empty() )
+          {
 
             memset(&xrdreq, 0, sizeof (ClientRequest));
             xrdreq.close.requestid = htons(kXR_close);
@@ -1261,12 +1232,14 @@ int XrdHttpReq::ProcessHTTPReq() {
             }
 
             // We have finished
+            readClosing = true;
             return 1;
 
           }
-	  
-          if (rwOps.size() <= 1) {
-            // No chunks or one chunk... Request the whole file or single read
+          // --------- READ or READV
+
+          if ( readChunkList.size() == 1 ) {
+            // Use a read request for single range
 
             long l;
             long long offs;
@@ -1277,21 +1250,17 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.read.fhandle, fhandle, 4);
             xrdreq.read.dlen = 0;
             
-            if (rwOps.size() == 0) {
-              l = (long)min(filesize-writtenbytes, (long long)1024*1024);
-              offs = writtenbytes;
-              xrdreq.read.offset = htonll(writtenbytes);
-              xrdreq.read.rlen = htonl(l);
-            } else {
-              l = min(rwOps[0].byteend - rwOps[0].bytestart + 1 - writtenbytes, (long long)1024*1024);
-              offs = rwOps[0].bytestart + writtenbytes;
-              xrdreq.read.offset = htonll(offs);
-              xrdreq.read.rlen = htonl(l);
-            }
+            offs = readChunkList[0].offset;
+            l = readChunkList[0].size;
 
-            // If we are using HTTPS or if the client requested trailers, disable sendfile
-            // (in the latter case, the chunked encoding prevents sendfile usage)
-            if (prot->ishttps || (m_transfer_encoding_chunked && m_trailer_headers)) {
+            xrdreq.read.offset = htonll(offs);
+            xrdreq.read.rlen = htonl(l);
+
+            // If we are using HTTPS or if the client requested trailers, or if the
+            // read concerns a multirange reponse, disable sendfile
+            // (in the latter two cases, the extra framing is only done in PostProcessHTTPReq)
+            if (prot->ishttps || (m_transfer_encoding_chunked && m_trailer_headers) ||
+                !readRangeHandler.isSingleRange()) {
               if (!prot->Bridge->setSF((kXR_char *) fhandle, false)) {
                 TRACE(REQ, " XrdBridge::SetSF(false) failed.");
 
@@ -1324,11 +1293,11 @@ int XrdHttpReq::ProcessHTTPReq() {
               return -1;
             }
           } else {
-            // More than one chunk to read... use readv
+            // --------- READV
 
-            length = ReqReadV();
+            length = ReqReadV(readChunkList);
 
-            if (!prot->Bridge->Run((char *) &xrdreq, (char *) ralist, length)) {
+            if (!prot->Bridge->Run((char *) &xrdreq, (char *) &ralist[0], length)) {
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
               return -1;
             }
@@ -1337,12 +1306,12 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           // We want to be invoked again after this request is finished
           return 0;
-        }
+        } // case 3+
         
-      }
+      } // switch (reqstate)
 
 
-    }
+    } // case XrdHttpReq::rtGET
 
     case XrdHttpReq::rtPUT:
     {
@@ -1408,14 +1377,24 @@ int XrdHttpReq::ProcessHTTPReq() {
               // Parse out the next chunk size.
             long long idx = 0;
             bool found_newline = false;
-            for (; idx < prot->BuffAvailable(); idx++) {
+            // Set a maximum size of chunk we will allow
+            // Nginx sets this to "NGX_MAX_OFF_T_VALUE", which is 9223372036854775807 (a some crazy number)
+            // We set it to 1TB, which is 1099511627776
+            // This is to prevent a malicious client from sending a very large chunk size
+            // or a malformed chunk request.
+            // 1TB in base-16 is 0x40000000000, so only allow 11 characters, plus the CRLF
+            long long max_chunk_size_chars = std::min(static_cast<long long>(prot->BuffUsed()), static_cast<long long>(13));
+            for (; idx < max_chunk_size_chars; idx++) {
               if (prot->myBuffStart[idx] == '\n') {
                 found_newline = true;
                 break;
               }
             }
-            if ((idx == 0) || prot->myBuffStart[idx-1] != '\r') {
+            // If we found a new line, but it is the first character in the buffer (no chunk length)
+            // or if the previous character is not a CR.
+            if (found_newline && ((idx == 0) || prot->myBuffStart[idx-1] != '\r')) {
               prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
+              TRACE(REQ, "XrdHTTP PUT: Sending invalid chunk encoding.  Start of chunk should have had a length, followed by a CRLF.");
               return -1;
             }
             if (found_newline) {
@@ -1425,6 +1404,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                 // Chunk sizes can be followed by trailer information or CRLF
               if (*endptr != ';' && *endptr != '\r') {
                 prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
+                TRACE(REQ, "XrdHTTP PUT: Sending invalid chunk encoding. Chunk size was not followed by a ';' or CR." << __LINE__);
                 return -1;
               }
               m_current_chunk_size = chunk_contents;
@@ -1447,13 +1427,13 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.write.fhandle, fhandle, 4);
 
             long long chunk_bytes_remaining = m_current_chunk_size - m_current_chunk_offset;
-            long long bytes_to_write = min(static_cast<long long>(prot->BuffUsed()),
+            long long bytes_to_write = std::min(static_cast<long long>(prot->BuffUsed()),
                                            chunk_bytes_remaining);
 
             xrdreq.write.offset = htonll(writtenbytes);
             xrdreq.write.dlen = htonl(bytes_to_write);
 
-            TRACEI(REQ, "Writing chunk of size " << bytes_to_write << " starting with '" << *(prot->myBuffStart) << "'");
+            TRACEI(REQ, "XrdHTTP PUT: Writing chunk of size " << bytes_to_write << " starting with '" << *(prot->myBuffStart) << "'" << " with " << chunk_bytes_remaining << " bytes remaining in the chunk");
             if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_write)) {
               prot->SendSimpleResp(500, NULL, NULL, (char *) "Could not run write request.", 0, false);
               return -1;
@@ -1470,7 +1450,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.write.requestid = htons(kXR_write);
           memcpy(xrdreq.write.fhandle, fhandle, 4);
 
-          long long bytes_to_read = min(static_cast<long long>(prot->BuffUsed()),
+          long long bytes_to_read = std::min(static_cast<long long>(prot->BuffUsed()),
                                         length - writtenbytes);
 
           xrdreq.write.offset = htonll(writtenbytes);
@@ -1518,8 +1498,9 @@ int XrdHttpReq::ProcessHTTPReq() {
     case XrdHttpReq::rtOPTIONS:
     {
       prot->SendSimpleResp(200, NULL, (char *) "DAV: 1\r\nDAV: <http://apache.org/dav/propset/fs/1>\r\nAllow: HEAD,GET,PUT,PROPFIND,DELETE,OPTIONS", NULL, 0, keepalive);
+      bool ret_keepalive = keepalive; // reset() clears keepalive
       reset();
-      return  keepalive ? 1 : -1;
+      return ret_keepalive ? 1 : -1;
     }
     case XrdHttpReq::rtDELETE:
     {
@@ -1534,7 +1515,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           // --------- STAT is always the first step
           memset(&xrdreq, 0, sizeof (ClientRequest));
           xrdreq.stat.requestid = htons(kXR_stat);
-          string s = resourceplusopaque.c_str();
+          std::string s = resourceplusopaque.c_str();
 
 
           l = resourceplusopaque.length() + 1;
@@ -1555,7 +1536,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             memset(&xrdreq, 0, sizeof (ClientRequest));
             xrdreq.rmdir.requestid = htons(kXR_rmdir);
 
-            string s = resourceplusopaque.c_str();
+            std::string s = resourceplusopaque.c_str();
 
             l = s.length() + 1;
             xrdreq.rmdir.dlen = htonl(l);
@@ -1569,7 +1550,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             memset(&xrdreq, 0, sizeof (ClientRequest));
             xrdreq.rm.requestid = htons(kXR_rm);
 
-            string s = resourceplusopaque.c_str();
+            std::string s = resourceplusopaque.c_str();
 
             l = s.length() + 1;
             xrdreq.rm.dlen = htonl(l);
@@ -1628,7 +1609,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           // --------- STAT is always the first step
           memset(&xrdreq, 0, sizeof (ClientRequest));
           xrdreq.stat.requestid = htons(kXR_stat);
-          string s = resourceplusopaque.c_str();
+          std::string s = resourceplusopaque.c_str();
 
 
           l = resourceplusopaque.length() + 1;
@@ -1659,7 +1640,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           memset(&xrdreq, 0, sizeof (ClientRequest));
           xrdreq.dirlist.requestid = htons(kXR_dirlist);
 
-          string s = resourceplusopaque.c_str();
+          std::string s = resourceplusopaque.c_str();
           xrdreq.dirlist.options[0] = kXR_dstat;
           //s += "?xrd.dirstat=1";
 
@@ -1686,7 +1667,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       memset(&xrdreq, 0, sizeof (ClientRequest));
       xrdreq.mkdir.requestid = htons(kXR_mkdir);
 
-      string s = resourceplusopaque.c_str();
+      std::string s = resourceplusopaque.c_str();
       xrdreq.mkdir.options[0] = (kXR_char) kXR_mkdirpath;
 
       l = s.length() + 1;
@@ -1707,7 +1688,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       memset(&xrdreq, 0, sizeof (ClientRequest));
       xrdreq.mv.requestid = htons(kXR_mv);
 
-      string s = resourceplusopaque.c_str();
+      std::string s = resourceplusopaque.c_str();
       s += " ";
 
       char buf[256];
@@ -1799,7 +1780,7 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
     if (convert_to_base64) {free(digest_value);}
     return 0;
   } else {
-    prot->SendSimpleResp(500, NULL, NULL, "Underlying filesystem failed to calculate checksum.", 0, false);
+    prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpStatusText.c_str(), httpStatusText.length(), false);
     return -1;
   }
 }
@@ -1809,8 +1790,17 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
 
 int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
-  TRACEI(REQ, "PostProcessHTTPReq req: " << request << " reqstate: " << reqstate);
+  TRACEI(REQ, "PostProcessHTTPReq req: " << request << " reqstate: " << reqstate << " final_:" << final_);
   mapXrdErrorToHttpStatus();
+
+  if(xrdreq.set.requestid == htons(kXR_set)) {
+    // We have set the user agent, if it fails we return a 500 error, otherwise the callback is successful --> we continue
+    if(xrdresp != kXR_ok) {
+      prot->SendSimpleResp(500, nullptr, nullptr, "Could not set user agent.", 0, false);
+      return -1;
+    }
+    return 0;
+  }
 
   switch (request) {
     case XrdHttpReq::rtUnknown:
@@ -1852,8 +1842,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         }
 
         prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0, keepalive);
+        bool ret_keepalive = keepalive; // reset() clears keepalive
         reset();
-        return keepalive ? 1 : -1;
+        return ret_keepalive ? 1 : -1;
       } else { // We requested a checksum and now have its response.
         if (iovN > 0) {
           std::string response_headers;
@@ -1953,7 +1944,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
             if (e.path.length() && (e.path != ".") && (e.path != "..")) {
               // The entry is filled. <td class="ft-file"><a href="file1.txt">file1.txt</a></td>
-              string p = "<tr>"
+              std::string p = "<tr>"
                       "<td class=\"mode\">";
 
               if (e.flags & kXR_isDir) p += "d";
@@ -2080,10 +2071,15 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         }
 
 
-      } else {
+      } // end handling of dirlist
+      else
+      { // begin handling of open-read-close
 
-
-
+        // To duplicate the state diagram from the rtGET request state
+        // - 0: Perform a stat on the resource
+        // - 1: Perform a checksum request on the resource (only if requested in header; otherwise skipped)
+        // - 2: Perform an open request (dirlist as appropriate).
+        // - 3+: Reads from file; if at end, perform a close.
         switch (reqstate) {
           case 0: //stat
           {
@@ -2105,6 +2101,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                        &filesize,
                        &fileflags,
                        &filemodtime);
+
+                readRangeHandler.SetFilesize(filesize);
 
                 // We will default the response size specified by the headers; if that
                 // wasn't given, use the file size.
@@ -2129,21 +2127,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             // We are here in the case of a negative response in a non-manager
 
             return 0;
-          }
-          case 1:  // open
-          case 2:  // open when digest was requested
+          } // end stat
+          case 1:  // checksum was requested and now we have its response.
           {
-
-            if (reqstate == 1 && !m_req_digest.empty()) { // We requested a checksum and now have its response.
-              int response = PostProcessChecksum(m_digest_header);
-              if (-1 == response) {
-                return -1;
-              }
-              return 0;
-            } else if (((reqstate == 2 && !m_req_digest.empty()) ||
-                        (reqstate == 1 && m_req_digest.empty()))
-              && (xrdresp == kXR_ok)) {
-
+            return PostProcessChecksum(m_digest_header);
+          }
+          case 2:  // open
+          {
+            if (xrdresp == kXR_ok) {
 
               getfhandle();
               
@@ -2159,6 +2150,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                       &filesize,
                       &fileflags,
                       &filemodtime);
+
+                readRangeHandler.SetFilesize(filesize);
 
                 // As above: if the client specified a response size, we use that.
                 // Otherwise, utilize the filesize
@@ -2183,87 +2176,96 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   responseHeader += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
               }
 
-              if (rwOps.size() == 0) {
+              const XrdHttpReadRangeHandler::UserRangeList &uranges = readRangeHandler.ListResolvedRanges();
+              if (uranges.empty() && readRangeHandler.getError()) {
+                prot->SendSimpleResp(readRangeHandler.getError().httpRetCode, NULL, NULL, readRangeHandler.getError().errMsg.c_str(),0,false);
+                return -1;
+              }
+
+              if (readRangeHandler.isFullFile()) {
                 // Full file.
 
                 if (m_transfer_encoding_chunked && m_trailer_headers) {
-                  prot->StartChunkedResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), filesize, keepalive);
+                  prot->StartChunkedResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), -1, keepalive);
                 } else {
                   prot->SendSimpleResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), NULL, filesize, keepalive);
                 }
                 return 0;
-              } else
-                if (rwOps.size() == 1) {
-                // Only one read to perform
-                if (rwOps[0].byteend < 0) // The requested range was along the lines of "Range: 1234-", meaning we need to fill in the end
-                  rwOps[0].byteend = filesize - 1;
-                int cnt = (rwOps[0].byteend - rwOps[0].bytestart + 1);
+              }
+
+              if (readRangeHandler.isSingleRange()) {
+                // Possibly with zero sized file but should have been included
+                // in the FullFile case above
+                if (uranges.size() != 1)
+                  return -1;
+
+                // Only one range to return to the user
                 char buf[64];
-                
+                const off_t cnt = uranges[0].end - uranges[0].start + 1;
+
                 XrdOucString s = "Content-Range: bytes ";
-                sprintf(buf, "%lld-%lld/%lld", rwOps[0].bytestart, rwOps[0].byteend, filesize);
+                sprintf(buf, "%lld-%lld/%lld", (long long int)uranges[0].start, (long long int)uranges[0].end, filesize);
                 s += buf;
                 if (!responseHeader.empty()) {
                   s += "\r\n";
                   s += responseHeader.c_str();
                 }
 
-                prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
-                return 0;
-              } else
-                if (rwOps.size() > 1) {
-                // Multiple reads to perform, compose and send the header
-                int cnt = 0;
-                for (size_t i = 0; i < rwOps.size(); i++) {
-
-                  if (rwOps[i].bytestart > filesize) continue;
-                  if (rwOps[i].byteend > filesize - 1)
-                    rwOps[i].byteend = filesize - 1;
-
-                  cnt += (rwOps[i].byteend - rwOps[i].bytestart + 1);
-
-                  cnt += buildPartialHdr(rwOps[i].bytestart,
-                          rwOps[i].byteend,
-                          filesize,
-                          (char *) "123456").size();
+                if (m_transfer_encoding_chunked && m_trailer_headers) {
+                  prot->StartChunkedResp(206, NULL, (char *)s.c_str(), -1, keepalive);
+                } else {
+                  prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
                 }
-                cnt += buildPartialHdrEnd((char *) "123456").size();
-                std::string header = "Content-Type: multipart/byteranges; boundary=123456";
-                if (!m_digest_header.empty()) {
-                  header += "\n";
-                  header += m_digest_header;
-                }
-
-                prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
                 return 0;
               }
 
+              // Multiple reads to perform, compose and send the header
+              off_t cnt = 0;
+              for (auto &ur : uranges) {
+                cnt += ur.end - ur.start + 1;
+
+                cnt += buildPartialHdr(ur.start,
+                        ur.end,
+                        filesize,
+                        (char *) "123456").size();
+
+              }
+              cnt += buildPartialHdrEnd((char *) "123456").size();
+              std::string header = "Content-Type: multipart/byteranges; boundary=123456";
+              if (!m_digest_header.empty()) {
+                header += "\n";
+                header += m_digest_header;
+              }
+
+              if (m_transfer_encoding_chunked && m_trailer_headers) {
+                prot->StartChunkedResp(206, NULL, header.c_str(), -1, keepalive);
+              } else {
+                prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
+              }
+              return 0;
 
 
-            } else if (xrdresp != kXR_ok) {
+            } else { // xrdresp indicates an error occurred
               
-              // If it's a dir then we are in the wrong place and we did the wrong thing.
-              //if (xrderrcode == 3016) {
-              //  fileflags &= kXR_isDir;
-              //  reqstate--;
-              //  return 0;
-              //}
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                    httpStatusText.c_str(), httpStatusText.length(), false);
               return -1;
             }
 
-            // Remaining case: reqstate == 2 and we didn't ask for a digest (should be a read).
+            // Case should not be reachable
+            return -1;
           }
-          // fallthrough
           default: //read or readv
           {
-
             // If we are postprocessing a close, potentially send out informational trailers
-            if ((ntohs(xrdreq.header.requestid) == kXR_close) ||
-              ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)))
+            if ((ntohs(xrdreq.header.requestid) == kXR_close) || readClosing)
             {
-
+              const XrdHttpReadRangeHandler::Error &rrerror = readRangeHandler.getError();
+              if (rrerror) {
+                httpStatusCode = rrerror.httpRetCode;
+                httpStatusText = rrerror.errMsg;
+              }
+                
               if (m_transfer_encoding_chunked && m_trailer_headers) {
                 if (prot->ChunkRespHeader(0))
                   return -1;
@@ -2280,7 +2282,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   return -1;
               }
 
-              return keepalive ? 1 : -1;
+                if (rrerror) return -1;
+                return keepalive ? 1 : -1;
             }
 
             // On error, we can only send out a message if trailers are enabled and the
@@ -2313,91 +2316,30 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               }
             }
 
-            // Prevent scenario where data is expected but none is actually read
-            // E.g. Accessing files which return the results of a script
-            if ((ntohs(xrdreq.header.requestid) == kXR_read) &&
-                (reqstate > 2) && (iovN == 0)) {
-              TRACEI(REQ, "Stopping request because more data is expected "
-                          "but no data has been read.");
-              return -1;
-            }
-
 
             TRACEI(REQ, "Got data vectors to send:" << iovN);
-            if (ntohs(xrdreq.header.requestid) == kXR_readv) {
-              // Readv case, we must take out each individual header and format it according to the http rules
-              readahead_list *l;
-              char *p;
-              int len;
 
-              // Cycle on all the data that is coming from the server
-              for (int i = 0; i < iovN; i++) {
+            XrdHttpIOList received;
+            getReadResponse(received);
 
-                for (p = (char *) iovP[i].iov_base; p < (char *) iovP[i].iov_base + iovP[i].iov_len;) {
-                  l = (readahead_list *) p;
-                  len = ntohl(l->rlen);
-
-                  // Now we have a chunk coming from the server. This may be a partial chunk
-
-                  if (rwOpPartialDone == 0) {
-                    string s = buildPartialHdr(rwOps[rwOpDone].bytestart,
-                            rwOps[rwOpDone].byteend,
-                            filesize,
-                            (char *) "123456");
-
-                    TRACEI(REQ, "Sending multipart: " << rwOps[rwOpDone].bytestart << "-" << rwOps[rwOpDone].byteend);
-                    if (prot->SendData((char *) s.c_str(), s.size())) return -1;
-                  }
-
-                  // Send all the data we have
-                  if (prot->SendData(p + sizeof (readahead_list), len)) return -1;
-
-                  // If we sent all the data relative to the current original chunk request
-                  // then pass to the next chunk, otherwise wait for more data
-                  rwOpPartialDone += len;
-                  if (rwOpPartialDone >= rwOps[rwOpDone].byteend - rwOps[rwOpDone].bytestart + 1) {
-                    rwOpDone++;
-                    rwOpPartialDone = 0;
-                  }
-
-                  p += sizeof (readahead_list);
-                  p += len;
-
-                }
-              }
-
-              if (rwOpDone == rwOps.size()) {
-                string s = buildPartialHdrEnd((char *) "123456");
-                if (prot->SendData((char *) s.c_str(), s.size())) return -1;
-              }
-
+            int rc;
+            if (readRangeHandler.isSingleRange()) {
+               rc = sendReadResponseSingleRange(received);
             } else {
-              // Send chunked encoding header
-              if (m_transfer_encoding_chunked && m_trailer_headers) {
-                int sum = 0;
-                for (int i = 0; i < iovN; i++) sum += iovP[i].iov_len;
-                prot->ChunkRespHeader(sum);
-              }
-              for (int i = 0; i < iovN; i++) {
-                if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
-                writtenbytes += iovP[i].iov_len;
-              }
-              if (m_transfer_encoding_chunked && m_trailer_headers) {
-                prot->ChunkRespFooter();
-              }
+               rc = sendReadResponsesMultiRanges(received);
             }
-              
-            // Let's make sure that we avoid sending the same data twice,
-            // in the case where PostProcessHTTPReq is invoked again
-            this->iovN = 0;
-            
+            if (rc) {
+              // make sure readRangeHandler will trigger close
+              // of file after next NextReadList().
+              readRangeHandler.NotifyError();
+            }
+
             return 0;
-          }
+          } // end read or readv
 
         } // switch reqstate
 
-
-      }
+      } // End handling of the open-read-close case
 
 
       break;
@@ -2419,7 +2361,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         fopened = true;
 
         // We try to completely fill up our buffer before flushing
-        prot->ResumeBytes = min(length - writtenbytes, (long long) prot->BuffAvailable());
+        prot->ResumeBytes = std::min(length - writtenbytes, (long long) prot->BuffAvailable());
 
         if (sendcontinue) {
           prot->SendSimpleResp(100, NULL, NULL, 0, 0, keepalive);
@@ -2446,7 +2388,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           }
 
           // We try to completely fill up our buffer before flushing
-          prot->ResumeBytes = min(length - writtenbytes, (long long) prot->BuffAvailable());
+          prot->ResumeBytes = std::min(length - writtenbytes, (long long) prot->BuffAvailable());
 
           return 0;
         }
@@ -2557,7 +2499,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               /* The entry is filled. */
 
 
-              string p;
+              std::string p;
               stringresp += "<D:response xmlns:lp1=\"DAV:\" xmlns:lp2=\"http://apache.org/dav/props/\" xmlns:lp3=\"LCGDM:\">\n";
               
               char *estr = escapeXML(e.path.c_str());
@@ -2611,7 +2553,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
           // If this was the last bunch of entries, send the buffer and empty it immediately
           if ((depth == 0) || !(e.flags & kXR_isDir)) {
-            string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
+            std::string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
             prot->SendSimpleResp(207, (char *) "Multi-Status", (char *) "Content-Type: text/xml; charset=\"utf-8\"",
@@ -2673,7 +2615,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                  */
 
 
-                string p = resource.c_str();
+                std::string p = resource.c_str();
                 if (*p.rbegin() != '/') p += "/";
                 
                 p += e.path;
@@ -2735,7 +2677,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
           // If this was the last bunch of entries, send the buffer and empty it immediately
           if (final_) {
-            string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
+            std::string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
             prot->SendSimpleResp(207, (char *) "Multi-Status", (char *) "Content-Type: text/xml; charset=\"utf-8\"",
@@ -2810,10 +2752,8 @@ void XrdHttpReq::reset() {
   TRACE(REQ, " XrdHttpReq request ended.");
 
   //if (xmlbody) xmlFreeDoc(xmlbody);
-  rwOps.clear();
-  rwOps_split.clear();
-  rwOpDone = 0;
-  rwOpPartialDone = 0;
+  readRangeHandler.reset();
+  readClosing = false;
   writtenbytes = 0;
   etext.clear();
   redirdest = "";
@@ -2829,8 +2769,8 @@ void XrdHttpReq::reset() {
   depth = 0;
   xrdresp = kXR_noResponsesYet;
   xrderrcode = kXR_noErrorYet;
-  if (ralist) free(ralist);
-  ralist = 0;
+  ralist.clear();
+  ralist.shrink_to_fit();
 
   request = rtUnset;
   resource = "";
@@ -2842,6 +2782,7 @@ void XrdHttpReq::reset() {
   m_req_cksum = nullptr;
 
   m_resource_with_digest = "";
+  m_user_agent = "";
 
   headerok = false;
   keepalive = true;
@@ -2885,6 +2826,8 @@ void XrdHttpReq::reset() {
   fopened = false;
 
   final = false;
+
+  mScitag = -1;
 }
 
 void XrdHttpReq::getfhandle() {
@@ -2893,4 +2836,171 @@ void XrdHttpReq::getfhandle() {
   TRACEI(REQ, "fhandle:" <<
           (int) fhandle[0] << ":" << (int) fhandle[1] << ":" << (int) fhandle[2] << ":" << (int) fhandle[3]);
 
+}
+
+void XrdHttpReq::getReadResponse(XrdHttpIOList &received) {
+  received.clear();
+
+  if (ntohs(xrdreq.header.requestid) == kXR_readv) {
+    readahead_list *l;
+    char *p;
+    kXR_int32 len;
+
+    // Cycle on all the data that is coming from the server
+    for (int i = 0; i < iovN; i++) {
+
+      for (p = (char *) iovP[i].iov_base; p < (char *) iovP[i].iov_base + iovP[i].iov_len;) {
+        l = (readahead_list *) p;
+        len = ntohl(l->rlen);
+
+        received.emplace_back(p+sizeof(readahead_list), -1, len);
+
+        p += sizeof (readahead_list);
+        p += len;
+
+      }
+    }
+    return;
+  }
+
+  // kXR_read result
+  for (int i = 0; i < iovN; i++) {
+    received.emplace_back((char*)iovP[i].iov_base, -1, iovP[i].iov_len);
+  }
+
+}
+
+int XrdHttpReq::sendReadResponsesMultiRanges(const XrdHttpIOList &received) {
+
+  if (received.size() == 0) {
+    bool start, finish;
+    if (readRangeHandler.NotifyReadResult(0, nullptr, start, finish) < 0) {
+      return -1;
+    }
+    return 0;
+  }
+
+  // user is expecting multiple ranges, we must be prepared to send an
+  // individual header for each and format it according to the http rules
+
+  struct rinfo {
+    bool start;
+    bool finish;
+    const XrdOucIOVec2 *ci;
+    const XrdHttpReadRangeHandler::UserRange *ur;
+    std::string st_header;
+    std::string fin_header;
+  };
+
+  // report each received byte chunk to the range handler and record the details
+  // of original user range it related to and if starts a range or finishes all.
+  // also sum the total of the headers and data which need to be sent to the user,
+  // in case we need it for chunked transfer encoding
+  std::vector<rinfo> rvec;
+  off_t sum_len = 0;
+
+  rvec.reserve(received.size());
+
+  for(const auto &rcv: received) {
+    rinfo rentry;
+    bool start, finish;
+    const XrdHttpReadRangeHandler::UserRange *ur;
+
+    if (readRangeHandler.NotifyReadResult(rcv.size, &ur, start, finish) < 0) {
+      return -1;
+    }
+    rentry.ur = ur;
+    rentry.start = start;
+    rentry.finish = finish;
+    rentry.ci = &rcv;
+
+    if (start) {
+      std::string s = buildPartialHdr(ur->start,
+                         ur->end,
+                         filesize,
+                         (char *) "123456");
+
+      rentry.st_header = s;
+      sum_len += s.size();
+    }
+
+    sum_len += rcv.size;
+
+    if (finish) {
+      std::string s = buildPartialHdrEnd((char *) "123456");
+      rentry.fin_header = s;
+      sum_len += s.size();
+    }
+
+    rvec.push_back(rentry);
+  }
+
+
+  // Send chunked encoding header
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    prot->ChunkRespHeader(sum_len);
+  }
+
+  // send the user the headers / data
+  for(const auto &rentry: rvec) {
+
+     if (rentry.start) {
+       TRACEI(REQ, "Sending multipart: " << rentry.ur->start << "-" << rentry.ur->end);
+       if (prot->SendData((char *) rentry.st_header.c_str(), rentry.st_header.size())) {
+         return -1;
+       }
+    }
+
+    // Send all the data we have
+    if (prot->SendData((char *) rentry.ci->data, rentry.ci->size)) {
+      return -1;
+    }
+
+    if (rentry.finish) {
+      if (prot->SendData((char *) rentry.fin_header.c_str(), rentry.fin_header.size())) {
+        return -1;
+      }
+    }
+  }
+
+  // Send chunked encoding footer
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    prot->ChunkRespFooter();
+  }
+
+  return 0;
+}
+
+int XrdHttpReq::sendReadResponseSingleRange(const XrdHttpIOList &received) {
+  // single range http transfer
+
+  if (received.size() == 0) {
+    bool start, finish;
+    if (readRangeHandler.NotifyReadResult(0, nullptr, start, finish) < 0) {
+      return -1;
+    }
+    return 0;
+  }
+
+  off_t sum = 0;
+  // notify the range handler and return if error
+  for(const auto &rcv: received) {
+    bool start, finish;
+    if (readRangeHandler.NotifyReadResult(rcv.size, nullptr, start, finish) < 0) {
+      return -1;
+    }
+    sum += rcv.size;
+  }
+
+  // Send chunked encoding header
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    prot->ChunkRespHeader(sum);
+  }
+  for(const auto &rcv: received) {
+    if (prot->SendData((char *) rcv.data, rcv.size)) return -1;
+  }
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    prot->ChunkRespFooter();
+  }
+  return 0;
 }

@@ -29,6 +29,8 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
+
+#include <cstring>
   
 class XrdPosixXrootPath
 {

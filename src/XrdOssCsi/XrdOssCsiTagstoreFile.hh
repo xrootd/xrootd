@@ -34,22 +34,10 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOssCsiTagstore.hh"
 #include "XrdOuc/XrdOucCRC.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 #include <memory>
 #include <mutex>
-
-#if defined(__APPLE__)
-// Make sure that byte swap functions are not already defined.
-#if !defined(bswap_16)
-// Mac OS X / Darwin features
-#include <libkern/OSByteOrder.h>
-#define bswap_16(x) OSSwapInt16(x)
-#define bswap_32(x) OSSwapInt32(x)
-#define bswap_64(x) OSSwapInt64(x)
-#endif
-#else
-#include <byteswap.h>
-#endif
 
 class XrdOssCsiTagstoreFile : public XrdOssCsiTagstore
 {

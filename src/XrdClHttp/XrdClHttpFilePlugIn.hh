@@ -85,6 +85,16 @@ class HttpFilePlugIn : public FilePlugIn {
                               uint16_t         timeout ) override;
 
   //------------------------------------------------------------------------
+  //! @see XrdCl::File::PgWrite - async
+  //------------------------------------------------------------------------
+  virtual XRootDStatus PgWrite( uint64_t               offset,
+                                uint32_t               size,
+                                const void            *buffer,
+                                std::vector<uint32_t> &cksums,
+                                ResponseHandler       *handler,
+                                uint16_t               timeout ) override;
+
+  //------------------------------------------------------------------------
   //! @see XrdCl::File::Sync
   //------------------------------------------------------------------------
   virtual XRootDStatus Sync( ResponseHandler *handler,

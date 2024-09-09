@@ -194,7 +194,7 @@ XrdVomsMapfile::ParseLine(const std::string &line, std::vector<std::string> &ent
 
 
 std::string
-XrdVomsMapfile::Map(const std::vector<string> &fqan)
+XrdVomsMapfile::Map(const std::vector<std::string> &fqan)
 {
     decltype(m_entries) entries = m_entries;
     if (!entries) {return "";}
@@ -324,7 +324,8 @@ XrdVomsMapfile::Configure(XrdSysError *erp)
     if (!XrdOucEnv::Import("XRDCONFIGFN", config_filename)) {
         return VOMS_MAP_FAILED;
     }
-    XrdOucStream stream(erp, getenv("XRDINSTANCE"));
+    XrdOucEnv myEnv;
+    XrdOucStream stream(erp, getenv("XRDINSTANCE"), &myEnv, "=====> ");
 
     int cfg_fd;
     if ((cfg_fd = open(config_filename, O_RDONLY, 0)) < 0) {

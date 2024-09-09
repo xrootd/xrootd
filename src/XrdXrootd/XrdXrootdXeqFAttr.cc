@@ -180,18 +180,7 @@ class IOVec
 {
 public:
 struct iovec *Alloc(int &num)
-                   {static int iovmax = -1;
-                    if (iovmax == -1) {
-#ifdef _SC_IOV_MAX
-                       iovmax = sysconf(_SC_IOV_MAX);
-                       if (iovmax == -1)
-#endif
-#ifdef IOV_MAX
-                          iovmax = IOV_MAX;
-#else
-                          iovmax = 1024;
-#endif
-                    }
+                   {static const int iovmax = XrdSys::getIovMax();
                     if (num > iovmax) num = iovmax;
                     theIOV = new struct iovec[num];
                     return theIOV;

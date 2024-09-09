@@ -83,7 +83,7 @@
 
 // The following is used by child processes prior to exec() to avoid deadlocks
 //
-#define Erx(p, a, b) cerr <<#p <<": " <<XrdSysE2T(a) <<' ' <<b <<endl;
+#define Erx(p, a, b) std::cerr <<#p <<": " <<XrdSysE2T(a) <<' ' <<b <<std::endl;
 
 /******************************************************************************/
 /*              S t a t i c   M e m b e r s   &   O b j e c t s               */

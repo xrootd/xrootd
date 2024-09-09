@@ -159,6 +159,68 @@ XRootDStatus ConvertMode( Access::Mode &mode, const std::string &modeStr )
 }
 
 //------------------------------------------------------------------------------
+// Perform a cache operation
+//------------------------------------------------------------------------------
+XRootDStatus DoCache( FileSystem                      *fs,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs, 0,
+                                  "Wrong number of arguments." );
+  }
+
+  if( args[1] != "evict" && args[1] != "fevict")
+  {
+    log->Error( AppMsg, "Invalid cache operation." );
+    return XRootDStatus( stError, errInvalidArgs, 0, "Invalid cache operation." );
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, args[2] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid cache path." );
+    return XRootDStatus( stError, errInvalidArgs, 0, "Invalid cache path." );
+  }
+
+  //----------------------------------------------------------------------------
+  // Create the command 
+  //----------------------------------------------------------------------------
+  std::string cmd = args[1];
+  cmd.append(" ");
+  cmd.append(fullPath);
+
+  //----------------------------------------------------------------------------
+  // Run the operation
+  //----------------------------------------------------------------------------
+  Buffer *response = 0;
+  XRootDStatus st = fs->SendCache( cmd, response );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable set cache %s: %s",
+                        fullPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  if( response )
+  {
+    std::cout << response->ToString() << '\n';
+  }
+
+  delete response;
+
+  return XRootDStatus();
+}
+//------------------------------------------------------------------------------
 // Change current working directory
 //------------------------------------------------------------------------------
 XRootDStatus DoCD( FileSystem                      *fs,
@@ -639,9 +701,12 @@ XRootDStatus DoRm( FileSystem                      *fs,
   }
 
   //----------------------------------------------------------------------------
-  // Run the query
+  // Run the query:
+  // Parallel() will take the vector of Pipeline by reference and empty the
+  // vector, so rms.size() will change after the call.
   //----------------------------------------------------------------------------
-  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rms.size() ) );
+  const size_t rs = rms.size();
+  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rs ) );
   if( !st.IsOK() )
     return st;
 
@@ -1594,7 +1659,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable to open file %s: %s",
-                remoteUrl.GetURL().c_str(), st.ToStr().c_str() );
+                remoteUrl.GetObfuscatedURL().c_str(), st.ToStr().c_str() );
     return st;
   }
 
@@ -1617,7 +1682,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
     if( !st.IsOK() )
     {
       log->Error( AppMsg, "Unable to read from %s: %s",
-                  remoteUrl.GetURL().c_str(), st.ToStr().c_str() );
+                  remoteUrl.GetObfuscatedURL().c_str(), st.ToStr().c_str() );
       delete [] buffer;
       return st;
     }
@@ -1875,6 +1940,11 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   help\n"                                                         );
   printf( "     This help screen.\n\n"                                        );
 
+  printf( "   cache {evict | fevict} <path>\n"                                );
+  printf( "     Evict a file from a cache if not in use; while fevict\n"      );
+  printf( "     forcibly evicts the file causing any current uses of the\n"   );
+  printf( "     file to get read failures on a subsequent read\n\n"           );
+
   printf( "   cd <path>\n"                                                    );
   printf( "     Change the current working directory\n\n"                     );
 
@@ -1884,7 +1954,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
 
   printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [dirname]\n"                   );
   printf( "     Get directory listing.\n"                                     );
-  printf( "     -l stat every entry and pring long listing\n"                 );
+  printf( "     -l stat every entry and print long listing\n"                 );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries"                                    );
@@ -1915,29 +1985,29 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "              flags may be combined together using '|' or '&'\n"   );
   printf( "              Available flags:\n"                                  );
   printf( "              XBitSet, IsDir, Other, Offline, POSCPending,\n"      );
-  printf( "              IsReadable, IsWriteable\n\n"                         );
+  printf( "              IsReadable, IsWritable\n\n"                          );
 
   printf( "   statvfs <path>\n"                                               );
   printf( "     Get info about a virtual file system.\n\n"                    );
 
-  printf( "   query <code> <parms>\n"                                         );
+  printf( "   query <code> <parameters>\n"                                    );
   printf( "     Obtain server information. Query codes:\n\n"                  );
 
   printf( "     config         <what>   Server configuration; <what> is\n"    );
   printf( "                             one of the following:\n"              );
   printf( "                               bind_max      - the maximum number of parallel streams\n"  );
   printf( "                               chksum        - the supported checksum\n"                  );
+  printf( "                               cms           - the status of the cmsd\n"                  );
   printf( "                               pio_max       - maximum number of parallel I/O requests\n" );
   printf( "                               readv_ior_max - maximum size of a readv element\n"         );
   printf( "                               readv_iov_max - maximum number of readv entries\n"         );
+  printf( "                               role          - the role in a cluster\n"                   );
+  printf( "                               sitename      - the site name\n"                           );
   printf( "                               tpc           - support for third party copies\n"          );
+  printf( "                               version       - the version of the server\n"               );
   printf( "                               wan_port      - the port to use for wan copies\n"          );
   printf( "                               wan_window    - the wan_port window size\n"                );
   printf( "                               window        - the tcp window size\n"                     );
-  printf( "                               cms           - the status of the cmsd\n"                  );
-  printf( "                               role          - the role in a cluster\n"                   );
-  printf( "                               sitename      - the site name\n"                           );
-  printf( "                               version       - the version of the server\n"               );
   printf( "     checksumcancel <path>   File checksum cancellation\n"       );
   printf( "     checksum       <path>   File checksum\n"                    );
   printf( "     opaque         <arg>    Implementation dependent\n"         );
@@ -2008,6 +2078,7 @@ FSExecutor *CreateExecutor( const URL &url )
   Env *env = new Env();
   env->PutString( "CWD", "/" );
   FSExecutor *executor = new FSExecutor( url, env );
+  executor->AddCommand( "cache",       DoCache      );
   executor->AddCommand( "cd",          DoCD         );
   executor->AddCommand( "chmod",       DoChMod      );
   executor->AddCommand( "ls",          DoLS         );

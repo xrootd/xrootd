@@ -64,7 +64,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -95,7 +95,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -106,7 +106,7 @@ namespace PyXRootD
   PyObject* File::Stat( File *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "force", "timeout", "callback", NULL };
-    bool                force    = false;
+    int                 force    = 0;
     uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
@@ -254,12 +254,12 @@ namespace PyXRootD
     if ( size < chunksize ) chunksize = size;
 
     uint64_t off_end = offset + size;
-    XrdCl::Buffer* chunk = new XrdCl::Buffer();
-    XrdCl::Buffer* line = new XrdCl::Buffer();
+    std::unique_ptr<XrdCl::Buffer> chunk;
+    std::unique_ptr<XrdCl::Buffer> line = std::make_unique<XrdCl::Buffer>();
 
     while ( offset < off_end )
     {
-      chunk = self->ReadChunk( self, offset, chunksize );
+      chunk.reset( self->ReadChunk( self, offset, chunksize ) );
       offset += chunk->GetSize();
 
       // Reached end of file
@@ -295,13 +295,11 @@ namespace PyXRootD
       if ( off_init == 0 )
         self->currentOffset += line->GetSize();
 
-      pyline = PyBytes_FromStringAndSize( line->GetBuffer(), line->GetSize() );
+      pyline = PyUnicode_FromStringAndSize( line->GetBuffer(), line->GetSize() );
     }
     else
-      pyline = PyBytes_FromString( "" );
+      pyline = PyUnicode_FromString( "" );
 
-    delete line;
-    delete chunk;
     return pyline;
   }
 
@@ -346,10 +344,11 @@ namespace PyXRootD
     {
       line = self->ReadLine( self, args, kwds );
 
-      if ( !line || PyBytes_Size( line ) == 0 )
+      if ( !line || PyUnicode_GET_LENGTH( line ) == 0 )
         break;
 
       PyList_Append( lines, line );
+      Py_DECREF( line );
     }
 
     return lines;
@@ -406,7 +405,7 @@ namespace PyXRootD
 
     if ( PyType_Ready( &ChunkIteratorType ) < 0 ) return NULL;
 
-    args = Py_BuildValue( "OOO", self, Py_BuildValue("k", offset),
+    args = Py_BuildValue( "ONN", self, Py_BuildValue("k", offset),
                                        Py_BuildValue("I", chunksize) );
     iterator = (ChunkIterator*)
                PyObject_CallObject( (PyObject *) &ChunkIteratorType, args );
@@ -472,7 +471,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -504,7 +503,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -551,7 +550,7 @@ namespace PyXRootD
     pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
     PyObject *o = ( callback && callback != Py_None ) ?
             Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue( "" ) );
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
     Py_DECREF( pystatus );
     return o;
   }
@@ -587,6 +586,17 @@ namespace PyXRootD
       return NULL;
     }
 
+    struct chunkGuard {
+      chunkGuard(XrdCl::ChunkList &c) : c_(&c) { }
+      ~chunkGuard() {
+        if (c_)
+          std::for_each(c_->begin(), c_->end(), [](XrdCl::ChunkInfo &ci) { delete[] (char*)ci.buffer; });
+      }
+      void disarm() { c_ = nullptr; }
+
+       XrdCl::ChunkList *c_;
+    } cg(chunks);
+
     for ( int i = 0; i < PyList_Size( pychunks ); ++i ) {
       PyObject *chunk = PyList_GetItem( pychunks, i );
 
@@ -616,11 +626,13 @@ namespace PyXRootD
       XrdCl::ResponseHandler *handler
           = GetHandler<XrdCl::VectorReadInfo>( callback );
       if ( !handler ) return NULL;
+      cg.disarm(); // handler will call ConvertType and free chunk buffers
       async( status = self->file->VectorRead( chunks, 0, handler, timeout ) );
     }
     else {
       XrdCl::VectorReadInfo *info = 0;
       async( status = self->file->VectorRead( chunks, 0, info, timeout ) );
+      cg.disarm(); // ConvertType will free chunk buffers
       pyresponse = ConvertType<XrdCl::VectorReadInfo>( info );
       delete info;
     }
@@ -800,14 +812,14 @@ namespace PyXRootD
         return NULL;
       // extract the attribute name from the tuple
       PyObject *py_name = PyTuple_GetItem( item, 0 );
-      if( !PyBytes_Check( py_name ) )
+      if( !PyUnicode_Check( py_name ) )
         return NULL;
-      std::string name = PyBytes_AsString( py_name );
+      std::string name = PyUnicode_AsUTF8( py_name );
       // extract the attribute value from the tuple
       PyObject *py_value = PyTuple_GetItem( item, 1 );
-      if( !PyBytes_Check( py_value ) )
+      if( !PyUnicode_Check( py_value ) )
         return NULL;
-      std::string value = PyBytes_AsString( py_value );
+      std::string value = PyUnicode_AsUTF8( py_value );
       // update the C++ list of xattrs
       attrs.push_back( XrdCl::xattr_t( name, value ) );
     }
@@ -864,9 +876,9 @@ namespace PyXRootD
       // get the item at respective index
       PyObject *item = PyList_GetItem( pyattrs, i );
       // make sure the item is a string
-      if( !item || !PyBytes_Check( item ) )
+      if( !item || !PyUnicode_Check( item ) )
         return NULL;
-      std::string name = PyBytes_AsString( item );
+      std::string name = PyUnicode_AsUTF8( item );
       // update the C++ list of xattrs
       attrs.push_back( name );
     }
@@ -923,9 +935,9 @@ namespace PyXRootD
       // get the item at respective index
       PyObject *item = PyList_GetItem( pyattrs, i );
       // make sure the item is a string
-      if( !item || !PyBytes_Check( item ) )
+      if( !item || !PyUnicode_Check( item ) )
         return NULL;
-      std::string name = PyBytes_AsString( item );
+      std::string name = PyUnicode_AsUTF8( item );
       // update the C++ list of xattrs
       attrs.push_back( name );
     }

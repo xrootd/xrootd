@@ -1,0 +1,319 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - master
+    paths-ignore:
+      - .gitignore
+      - .gitlab-ci.yml
+      - .mailmap
+      - '**.md'
+      - 'docs/**'
+      - 'docker/**'
+    tags-ignore:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CDASH: ${{ vars.CDASH }}
+  CMAKE_VERBOSE_MAKEFILE: true
+  CTEST_OUTPUT_ON_FAILURE: true
+
+jobs:
+  alpine:
+    name: Alpine
+    runs-on: ubuntu-latest
+    container: alpine
+
+    env:
+      CMAKE_ARGS: -DCMAKE_INSTALL_PREFIX=/usr
+
+    steps:
+    - name: Install dependencies
+      shell: sh
+      run: |
+        apk add \
+          bash \
+          cmake \
+          ceph-dev \
+          curl-dev \
+          fuse-dev \
+          fuse3-dev \
+          g++ \
+          git \
+          gtest-dev \
+          isa-l-dev \
+          json-c-dev \
+          krb5-dev \
+          libxml2-dev \
+          linux-headers \
+          make \
+          openssl \
+          openssl-dev \
+          procps \
+          py3-pip \
+          py3-setuptools \
+          py3-wheel \
+          python3-dev \
+          readline-dev \
+          sudo \
+          tinyxml-dev \
+          util-linux-dev \
+          uuidgen \
+          zlib-dev
+
+    - name: Clone repository
+      uses: actions/checkout@v1
+
+    - name: Setup GitHub runner user within container
+      run: adduser -D --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Build and Test with CTest
+      run: sudo -E -u runner ctest -VV -S test.cmake
+
+    - name: Install with CMake
+      run: cmake --install build
+
+    - name: Run post-install tests
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
+
+  centos7:
+    name: CentOS 7
+    runs-on: ubuntu-latest
+    container: centos:7
+
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
+      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+
+    steps:
+    - name: Use CentOS 7 Vault Repository URLs
+      run: |
+        sed -i -e '/mirrorlist/d' \
+               -e 's/# \?baseurl=/baseurl=/g' \
+               -e 's/mirror.centos.org/vault.centos.org/g' \
+               -e 's/$releasever/7.9.2009/g' \
+               /etc/yum.repos.d/*.repo
+        yum install -y centos-release-scl epel-release
+        sed -i -e '/mirrorlist/d' \
+               -e 's/# \?baseurl=/baseurl=/g' \
+               -e 's/mirror.centos.org/vault.centos.org/g' \
+               -e 's/$releasever/7.9.2009/g' \
+               /etc/yum.repos.d/*.repo
+
+    - name: Install dependencies
+      run: |
+        yum install -y epel-rpm-macros git rpmdevtools sudo yum-utils
+
+    - name: Clone repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Setup GitHub runner user within container
+      run: adduser --uid 1001 runner && chown -R runner:runner .
+
+    - name: Install XRootD build dependencies
+      run: yum-builddep -y xrootd.spec
+
+    - name: Build and Test with CTest
+      run: |
+        source /opt/rh/devtoolset-7/enable
+        su -p runner -c 'ctest3 -VV -S test.cmake'
+
+  alma8:
+    name: Alma 8
+    runs-on: ubuntu-latest
+    container: almalinux:8
+
+    env:
+      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+
+    steps:
+    - name: Install dependencies
+      run: |
+        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+        dnf config-manager --set-enabled powertools
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup GitHub runner user within container
+      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y xrootd.spec
+
+    - name: Build and Test with CTest
+      run: sudo -E -u runner ctest -VV -S test.cmake
+
+    - name: Install with CMake
+      run: cmake --install build
+
+    - name: Run post-install tests
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
+
+  alma9:
+    name: Alma 9
+    runs-on: ubuntu-latest
+    container: almalinux:9
+
+    env:
+      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+
+    steps:
+    - name: Install dependencies
+      run: |
+        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+        dnf config-manager --set-enabled crb
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup GitHub runner user within container
+      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y xrootd.spec
+
+    - name: Build and Test with CTest
+      run: sudo -E -u runner ctest -VV -S test.cmake
+
+    - name: Install with CMake
+      run: cmake --install build
+
+    - name: Run post-install tests
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
+
+  fedora:
+    name: Fedora
+    runs-on: ubuntu-latest
+    container: fedora
+
+    env:
+      CMAKE_GENERATOR: Ninja
+      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+
+    steps:
+    - name: Install dependencies
+      run: dnf install -y dnf-plugins-core git ninja-build rpmdevtools
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup GitHub runner user within container
+      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y --define 'with_ceph 1' xrootd.spec
+
+    - name: Build and Test with CTest
+      run: sudo -E -u runner ctest -VV -S test.cmake
+
+    - name: Install with CMake
+      run: cmake --install build
+
+    - name: Run post-install tests
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
+
+  ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        compiler: [ gcc, clang ]
+
+    env:
+      CC: ${{ matrix.compiler }}
+      DEBIAN_FRONTEND: noninteractive
+      CMAKE_ARGS: '-DINSTALL_PYTHON_BINDINGS=0;-DUSE_SYSTEM_ISAL=1;-DCMAKE_INSTALL_PREFIX=/usr'
+
+    steps:
+    - name: Install development tools
+      run: |
+        sudo apt update -qq
+        sudo apt install -y build-essential devscripts equivs git
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install XRootD build dependencies
+      run: mk-build-deps --install --remove -s sudo debian/control <<< yes
+
+    - name: Build and Test with CTest
+      run: env CC=${CC} CXX=${CC/g*/g++} ctest -VV -S test.cmake
+
+    - name: Install with CMake
+      run: sudo cmake --install build
+
+    - name: Install Python bindings
+      run: |
+        sudo python3 -m pip install \
+          --target /usr/lib/python3/dist-packages \
+          --use-pep517 --verbose build/bindings/python
+
+    - name: Run post-install tests
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
+
+  macos:
+    name: macOS
+    runs-on: macos-13
+
+    env:
+      CC: clang
+      CXX: clang++
+      CMAKE_ARGS: "-DPython_FIND_UNVERSIONED_NAMES=FIRST"
+      CMAKE_PREFIX_PATH: /usr/local/opt/openssl@3
+
+    steps:
+    - name: Workaround for issue 1772
+      run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
+
+    - name: Install dependencies with Homebrew
+      run: brew install davix googletest python-setuptools
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Build and Test with CTest
+      run: ctest -VV --repeat until-pass:3 -S test.cmake
+
+    - name: Install with CMake
+      run: cmake --install build
+
+    - name: Run post-install tests
+      run: |
+        export PYVERSION=$(python3 --version | grep -o 3...)
+        export PYTHONPATH=/usr/local/lib/python${PYVERSION}/site-packages
+        tests/post-install.sh

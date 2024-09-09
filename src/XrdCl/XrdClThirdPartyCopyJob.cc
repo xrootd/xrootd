@@ -168,7 +168,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Creating a third party copy job, from %s to %s",
-                GetSource().GetURL().c_str(), GetTarget().GetURL().c_str() );
+                GetSource().GetObfuscatedURL().c_str(), GetTarget().GetObfuscatedURL().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -325,8 +325,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Check if third party copy between %s and %s "
-                "is possible", source.GetURL().c_str(),
-                target.GetURL().c_str() );
+                "is possible", source.GetObfuscatedURL().c_str(),
+                target.GetObfuscatedURL().c_str() );
 
     if( target.GetProtocol() != "root"  &&
         target.GetProtocol() != "xroot" &&
@@ -347,6 +347,9 @@ namespace XrdCl
 
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
     env->GetInt( "SubStreamsPerChannel", nbStrm );
+
+    // account for the control stream
+    if (nbStrm > 0) --nbStrm;
 
     bool tpcLiteOnly = false;
 
@@ -393,7 +396,7 @@ namespace XrdCl
       params["tpc.stage"] = "placement";
       sourceURL.SetParams( params );
       log->Debug( UtilityMsg, "Trying to open %s for reading",
-                  sourceURL.GetURL().c_str() );
+                  sourceURL.GetObfuscatedURL().c_str() );
       st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read, Access::None,
                             timeLeft );
     }
@@ -423,7 +426,7 @@ namespace XrdCl
     else
     {
       log->Info( UtilityMsg, "Cannot open source file %s: %s",
-                  source.GetURL().c_str(), st.ToStr().c_str() );
+                  source.GetObfuscatedURL().c_str(), st.ToStr().c_str() );
       if( !delegate )
       {
         //----------------------------------------------------------------------
@@ -522,7 +525,7 @@ namespace XrdCl
 
     realTarget.SetParams( params );
 
-    log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetURL().c_str() );
+    log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetObfuscatedURL().c_str() );
 
     //--------------------------------------------------------------------------
     // Open the target file
@@ -545,7 +548,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable to open target %s: %s",
-                  realTarget.GetURL().c_str(), st.ToStr().c_str() );
+                  realTarget.GetObfuscatedURL().c_str(), st.ToStr().c_str() );
       if( st.code == errErrorResponse &&
           st.errNo == kXR_FSError &&
           st.GetErrorMessage().find( "tpc not supported" ) != std::string::npos )
@@ -567,7 +570,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Verify if the destination supports TPC / TPC-lite
     //--------------------------------------------------------------------------
-    st = Utils::CheckTPCLite( realTarget.GetHostId() );
+    st = Utils::CheckTPCLite( realTarget.GetURL() );
     if( !st.IsOK() )
     {
       // we still want to send a close, but we time it out fast
@@ -604,11 +607,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !tpcLite )
     {
-      st = Utils::CheckTPC( URL( tpcSource ).GetHostId(), timeLeft );
+      st = Utils::CheckTPC( URL( tpcSource ).GetURL(), timeLeft );
       if( !st.IsOK() )
       {
         log->Error( UtilityMsg, "Source (%s) does not support TPC",
-                    tpcSource.GetHostId().c_str() );
+                    tpcSource.GetURL().c_str() );
         return XRootDStatus( stError, errNotSupported, 0, "Source does not "
                              "support third-party-copy" );
       }
@@ -654,7 +657,7 @@ namespace XrdCl
     params["tpc.stage"] = "copy";
     tpcSource.SetParams( params );
 
-    log->Debug( UtilityMsg, "Source url is: %s", tpcSource.GetURL().c_str() );
+    log->Debug( UtilityMsg, "Source url is: %s", tpcSource.GetObfuscatedURL().c_str() );
 
     // Set the close timeout to the default value of the stream timeout
     int closeTimeout = 0;
@@ -694,7 +697,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable to open source %s: %s",
-                  tpcSource.GetURL().c_str(), st.ToStr().c_str() );
+                  tpcSource.GetObfuscatedURL().c_str(), st.ToStr().c_str() );
       XRootDStatus status = dstFile.Close( closeTimeout );
       return UpdateErrMsg( st, "source" );
     }
@@ -767,7 +770,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Third party copy from %s to %s failed: %s",
-                  GetSource().GetURL().c_str(), GetTarget().GetURL().c_str(),
+                  GetSource().GetObfuscatedURL().c_str(), GetTarget().GetObfuscatedURL().c_str(),
                   st.ToStr().c_str() );
 
       // Ignore close response
@@ -783,14 +786,14 @@ namespace XrdCl
     {
       st = (statusS.IsOK() ? statusT : statusS);
       log->Error( UtilityMsg, "Third party copy from %s to %s failed during "
-                  "close of %s: %s", GetSource().GetURL().c_str(),
-                  GetTarget().GetURL().c_str(),
+                  "close of %s: %s", GetSource().GetObfuscatedURL().c_str(),
+                  GetTarget().GetObfuscatedURL().c_str(),
                   (statusS.IsOK() ? "destination" : "source"), st.ToStr().c_str() );
       return UpdateErrMsg( st, statusS.IsOK() ? "source" : "destination" );
     }
 
     log->Debug( UtilityMsg, "Third party copy from %s to %s successful",
-                GetSource().GetURL().c_str(), GetTarget().GetURL().c_str() );
+                GetSource().GetObfuscatedURL().c_str(), GetTarget().GetObfuscatedURL().c_str() );
 
     pResults->Set( "size", sourceSize );
 
@@ -885,7 +888,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Third party copy from %s to %s failed: %s",
-                  GetSource().GetURL().c_str(), GetTarget().GetURL().c_str(),
+                  GetSource().GetObfuscatedURL().c_str(), GetTarget().GetObfuscatedURL().c_str(),
                   st.ToStr().c_str() );
 
       // Ignore close response
@@ -898,14 +901,14 @@ namespace XrdCl
     if ( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Third party copy from %s to %s failed during "
-                  "close of %s: %s", GetSource().GetURL().c_str(),
-                  GetTarget().GetURL().c_str(),
+                  "close of %s: %s", GetSource().GetObfuscatedURL().c_str(),
+                  GetTarget().GetObfuscatedURL().c_str(),
                   "destination", st.ToStr().c_str() );
       return UpdateErrMsg( st, "destination" );
     }
 
     log->Debug( UtilityMsg, "Third party copy from %s to %s successful",
-                GetSource().GetURL().c_str(), GetTarget().GetURL().c_str() );
+                GetSource().GetObfuscatedURL().c_str(), GetTarget().GetObfuscatedURL().c_str() );
 
     pResults->Set( "size", sourceSize );
 

@@ -302,11 +302,11 @@ void XrdSutBuffer::Message(const char *prepose)
          if (bp->size > 0 && bp->buffer) {
             if (pripre) {
                XrdOucString premsg(prepose);
-               cerr << premsg << endl;
+               std::cerr << premsg << std::endl;
                pripre = 0;
             }
             XrdOucString msg(bp->buffer,bp->size);
-            cerr << msg << endl;
+            std::cerr << msg << std::endl;
          }
       }
       // Get next

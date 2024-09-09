@@ -25,9 +25,13 @@
 // heavily edited to solve this particular problem. For more info see:
 // https://github.com/pokowaka/jwt-cpp
 
-#include <alloca.h>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+
+#ifndef __FreeBSD__
+#include <alloca.h>
+#endif
 
 #define WHITESPACE 64
 #define EQUALS 65

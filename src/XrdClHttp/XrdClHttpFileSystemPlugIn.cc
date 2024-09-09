@@ -26,8 +26,13 @@ HttpFileSystemPlugIn::HttpFileSystemPlugIn(const std::string &url)
   SetUpLogging(logger_);
   logger_->Debug(kLogXrdClHttp,
                  "HttpFileSystemPlugIn constructed with URL: %s.",
-                 url_.GetURL().c_str());
+                 url_.GetObfuscatedURL().c_str());
   std::string origin = getenv("XRDXROOTD_PROXY")? getenv("XRDXROOTD_PROXY") : "";
+
+  if (getenv("DAVIX_DBG_LOGGING_IN_XRD")) {
+      Davix::setLogScope(DAVIX_LOG_HEADER | DAVIX_LOG_S3 | DAVIX_LOG_BODY | DAVIX_LOG_CHAIN);
+      Davix::setLogLevel(DAVIX_LOG_DEBUG);
+  }
   if ( origin.empty() || origin.find("=") == 0) {
       ctx_ = new Davix::Context();
       davix_client_ = new Davix::DavPosix(ctx_);
@@ -35,6 +40,8 @@ HttpFileSystemPlugIn::HttpFileSystemPlugIn(const std::string &url)
   else {
       if (root_ctx_ == NULL) {
           root_ctx_ = new Davix::Context();
+          if (getenv("DAVIX_LOAD_GRID_MODULE_IN_XRD"))
+               root_ctx_->loadModule("grid");
           root_davix_client_ = new Davix::DavPosix(root_ctx_); 
       }
       ctx_ = root_ctx_;
@@ -94,7 +101,7 @@ XRootDStatus HttpFileSystemPlugIn::Rm(const std::string &path,
 
   logger_->Debug(kLogXrdClHttp,
                  "HttpFileSystemPlugIn::Rm - path = %s, timeout = %d",
-                 url.GetURL().c_str(), timeout);
+                 url.GetObfuscatedURL().c_str(), timeout);
 
   auto status = Posix::Unlink(*davix_client_, url.GetURL(), timeout);
 
@@ -119,7 +126,7 @@ XRootDStatus HttpFileSystemPlugIn::MkDir(const std::string &path,
   logger_->Debug(
       kLogXrdClHttp,
       "HttpFileSystemPlugIn::MkDir - path = %s, flags = %d, timeout = %d",
-      url.GetURL().c_str(), flags, timeout);
+      url.GetObfuscatedURL().c_str(), flags, timeout);
 
   auto status = Posix::MkDir(*davix_client_, url.GetURL(), flags, mode, timeout);
   if (status.IsError()) {
@@ -140,7 +147,7 @@ XRootDStatus HttpFileSystemPlugIn::RmDir(const std::string &path,
 
   logger_->Debug(kLogXrdClHttp,
                  "HttpFileSystemPlugIn::RmDir - path = %s, timeout = %d",
-                 url.GetURL().c_str(), timeout);
+                 url.GetObfuscatedURL().c_str(), timeout);
 
   auto status = Posix::RmDir(*davix_client_, url.GetURL(), timeout);
   if (status.IsError()) {
