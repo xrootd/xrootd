@@ -74,6 +74,9 @@ int initErrTable()
       if (EBADE - ERRNOBASE > lastGood)
          lastGood = EBADE - ERRNOBASE;
    }
+   else {
+      e2sMap[EBADE] = "authentication failed - possible invalid exchange";
+   }
 #endif
 
    // Supply generic message for missing ones
