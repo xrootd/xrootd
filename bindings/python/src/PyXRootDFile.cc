@@ -159,7 +159,7 @@ namespace PyXRootD
 
     unsigned long long tmp_offset = 0;
     unsigned int tmp_size = 0;
-    unsigned int tmp_timeout = 0;
+    unsigned long long tmp_timeout = 0;
 
     if ( py_offset && PyObjToUllong( py_offset, &tmp_offset, "offset" ) )
       return NULL;
@@ -167,7 +167,7 @@ namespace PyXRootD
     if ( py_size && PyObjToUint(py_size, &tmp_size, "size" ) )
       return NULL;
 
-    if ( py_timeout && PyObjToUint(py_timeout, &tmp_timeout, "timeout" ) )
+    if ( py_timeout && PyObjToUllong(py_timeout, &tmp_timeout, "timeout" ) )
       return NULL;
 
     offset = (uint64_t)tmp_offset;
@@ -439,7 +439,7 @@ namespace PyXRootD
 
     unsigned long long tmp_offset = 0;
     unsigned int tmp_size = 0;
-    unsigned int tmp_timeout = 0;
+    unsigned long long tmp_timeout = 0;
 
     if (py_offset && PyObjToUllong(py_offset, &tmp_offset, "offset"))
       return NULL;
@@ -447,7 +447,7 @@ namespace PyXRootD
     if (py_size && PyObjToUint(py_size, &tmp_size, "size"))
       return NULL;
 
-    if (py_timeout && PyObjToUint(py_timeout, &tmp_timeout, "timeout"))
+    if (py_timeout && PyObjToUllong(py_timeout, &tmp_timeout, "timeout"))
       return NULL;
 
     offset = (uint64_t)tmp_offset;
@@ -526,12 +526,12 @@ namespace PyXRootD
          (char**) kwlist, &py_size, &py_timeout, &callback ) ) return NULL;
 
     unsigned long long tmp_size = 0;
-    unsigned int tmp_timeout = 0;
+    unsigned long long tmp_timeout = 0;
 
     if ( py_size && PyObjToUllong( py_size, &tmp_size, "size" ) )
       return NULL;
 
-    if ( py_timeout && PyObjToUint( py_timeout, &tmp_timeout, "timeout" ) )
+    if ( py_timeout && PyObjToUllong( py_timeout, &tmp_timeout, "timeout" ) )
       return NULL;
 
     size = (uint64_t)tmp_size;
@@ -574,9 +574,9 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO:vector_read",
          (char**) kwlist, &pychunks, &py_timeout, &callback ) ) return NULL;
 
-    unsigned int tmp_timeout = 0;
+    unsigned long long tmp_timeout = 0;
 
-    if ( py_timeout && PyObjToUint( py_timeout, &tmp_timeout, "timeout" ) )
+    if ( py_timeout && PyObjToUllong( py_timeout, &tmp_timeout, "timeout" ) )
       return NULL;
 
     timeout = (time_t)tmp_timeout;
