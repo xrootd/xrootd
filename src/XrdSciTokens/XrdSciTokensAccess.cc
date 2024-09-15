@@ -24,10 +24,9 @@
 #include "INIReader.h"
 #include "picojson.h"
 
-#ifdef HAVE_MACAROONS
-#include "macaroons.h"
 #include <uuid/uuid.h>
-#include "XrdMacaroons/XrdMacaroonsUtils.hh"
+#ifdef HAVE_MACAROONS
+#include "XrdMacaroons/XrdMacaroonsGenerate.hh"
 #endif
 
 #include "scitokens/scitokens.h"
@@ -522,6 +521,16 @@ public:
         if (!Config(envP)) {
             throw std::runtime_error("Failed to configure SciTokens authorization.");
         }
+
+#ifdef HAVE_MACAROONS
+        // TODO: When there's a separate plugin interface for reaching into XrdMacaroons,
+        // remove the ifdef and try loading the plugin instead
+        try {
+            m_generator = std::make_unique<Macaroons::XrdMacaroonsGenerator>(m_log);
+        } catch (std::runtime_error &exc) {
+            m_log.Emsg("XrdAccSciTokens", "failed to configure token generator: ", exc.what());
+        }
+#endif
     }
 
     virtual ~XrdAccSciTokens() {
@@ -646,9 +655,8 @@ public:
     }
 
     virtual std::string Redirect(const char *url) override {
-#ifdef HAVE_MACAROONS
-        if (m_macaroon_secret.empty()) {
-            m_log.Log(LogMask::Error, "Redirect", "Cannot overwrite redirect URL; no macaroon secret configured");
+        // No generator has been configured; do not log the skipped redirector override.
+        if (!m_generator) {
             return "";
         }
 
@@ -707,120 +715,26 @@ public:
         bool scope_success;
         auto user = GetUser(opers, path, rules, scope_success);
 
-        std::string activity = "activity:READ_METADATA";
-        if (opers[AOP_Read]) {
-            activity += ",DOWNLOAD";
-        }
-        if (opers[AOP_Create]) {
-            activity += ",UPLOAD";
-        }
-        if (opers[AOP_Delete]) {
-            activity += ",DELETE";
-        }
-        if (opers[AOP_Chown]) {
-            activity += ",MANAGE,UPDATE_METADATA";
-        }
-        if (opers[AOP_Readdir]) {
-            activity += ",LIST";
-        }
-
         auto expiry = rules->get_token_expiration();
         auto now = time(NULL);
         expiry = std::min(now + 10, expiry);
-
-        char utc_time_buf[21];
-        if (!strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&expiry)))
-        {
-            m_log.Log(LogMask::Warning, "Redirect", "Failed to generate UTC time for macaroon");
-            return "";
-        }
-        std::string time_caveat = "before:" + std::string(utc_time_buf);
 
         uuid_t uu;
         uuid_generate_random(uu);
         char uuid_buf[37];
         uuid_unparse(uu, uuid_buf);
 
-        enum macaroon_returncode mac_err;
-        struct macaroon *mac = macaroon_create(reinterpret_cast<const unsigned char*>(m_macaroon_sitename.c_str()),
-                                           m_macaroon_sitename.size(),
-                                           reinterpret_cast<const unsigned char*>(m_macaroon_secret.c_str()),
-                                           m_macaroon_secret.size(),
-                                           reinterpret_cast<const unsigned char*>(uuid_buf),
-                                           sizeof(uuid_buf), &mac_err);
-        if (!mac) {
-            m_log.Log(LogMask::Warning, "Redirect", "Failed to create a new macaroon");
+        auto macaroon_encoded = m_generator->Generate(uuid_buf, user, path, opers, expiry);
+        if (macaroon_encoded.empty()) {
             return "";
         }
 
-        struct macaroon *mac_with_name;
-        if (user.empty()) {
-            mac_with_name = mac;
-        } else {
-            auto name_caveat = "name:" + user;
-            mac_with_name = macaroon_add_first_party_caveat(mac,
-                                                            reinterpret_cast<const unsigned char*>(name_caveat.c_str()),
-                                                            name_caveat.size(),
-                                                            &mac_err);
-            macaroon_destroy(mac);
-        }
-        if (!mac_with_name)
-        {
-            m_log.Log(LogMask::Warning, "Redirect", "Failed to add username to macaroon");
-            return "";
-        }
-
-        struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac_with_name,
-            reinterpret_cast<const unsigned char*>(activity.c_str()),
-            activity.size(),
-            &mac_err);
-        macaroon_destroy(mac_with_name);
-        if (!mac_with_activities)
-        {
-            m_log.Log(LogMask::Warning, "Redirect", "Failed to add activities to macaroon");
-            return "";
-        }
-
-        std::string path_caveat = "path:" + Macaroons::NormalizeSlashes(path);
-        struct macaroon *mac_with_path = macaroon_add_first_party_caveat(mac_with_activities,
-                                                    reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
-                                                    path_caveat.size(),
-                                                    &mac_err);
-        macaroon_destroy(mac_with_activities);
-        if (!mac_with_path) {
-            m_log.Log(LogMask::Warning, "Redirect", "Failed to add path restriction to macaroon");
-            return "";
-        }
-
-        struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac_with_path,
-                                            reinterpret_cast<const unsigned char*>(time_caveat.c_str()),
-                                            time_caveat.size(),
-                                            &mac_err);
-        macaroon_destroy(mac_with_path);
-        if (!mac_with_date) {
-            m_log.Log(LogMask::Warning, "Redirect", "Failed to add expiration date to macaroon");
-            return "";
-        }
-
-        size_t size_hint = macaroon_serialize_size_hint(mac_with_date);
-
-        std::vector<char> macaroon_resp; macaroon_resp.resize(size_hint);
-        if (macaroon_serialize(mac_with_date, &macaroon_resp[0], size_hint, &mac_err))
-        {
-            m_log.Log(LogMask::Warning, "Redirect", "Failed to serialize macaroon to base64");
-            return "";
-        }
-        macaroon_destroy(mac_with_date);
         std::string urlPrefix(url, authzStart + 6 - url);
-        auto result = urlPrefix + std::string(&macaroon_resp[0]);
+        auto result = urlPrefix + macaroon_encoded;
         if (authzEnd) {
             result += std::string(authzEnd);
         }
         return result;
-#else
-        m_log.Log(LogMask::Debug, "Redirect", "Rewriting URLs not supported");
-        return "";
-#endif
     }
 
     virtual  Issuers IssuerList() override
@@ -1178,7 +1092,7 @@ private:
         if (!XrdOucEnv::Import("XRDCONFIGFN", config_filename)) {
             return false;
         }
-        XrdOucGatherConf scitokens_conf("scitokens.trace macaroons.secretkey all.sitename", &m_log);
+        XrdOucGatherConf scitokens_conf("scitokens.trace", &m_log);
         int result;
         if ((result = scitokens_conf.Gather(config_filename, XrdOucGatherConf::trim_lines)) < 0) {
             m_log.Emsg("Config", -result, "parsing config file", config_filename);
@@ -1188,32 +1102,8 @@ private:
         char *val;
         std::string map_filename;
         while (scitokens_conf.GetLine()) {
-            auto directive = scitokens_conf.GetToken();
-            if (!strcmp(directive, "secretkey")) {
-#ifdef HAVE_MACAROONS
-                if (!(val = scitokens_conf.GetToken())) {
-                    m_log.Emsg("Config", "macaroons.secretkey requires an argument.  Usage: macaroons.secretkey /path/to/file");
-                    return false;
-                }
-                if (!Macaroons::GetSecretKey(val, &m_log, m_macaroon_secret)) {
-                    m_log.Emsg("Config", "Failed to configure the macaroons secret");
-                    return false;
-                }
-                continue;
-#else
-                m_log.Emsg("Config", "macaroons.secretkey set but XRootD built without macaroons support");
-                continue;
-#endif
-            }
-            if (!strcmp(directive, "sitename")) {
-                if (!(val = scitokens_conf.GetToken())) {
-                    m_log.Emsg("Config", "all.sitename requires an argument.  Usage: all.sitename Site");
-                    return false;
-                }
-                m_macaroon_sitename = val;
-                continue;
-            }
             m_log.setMsgMask(0);
+            scitokens_conf.GetToken(); // Ignore the output; we asked for a single config value, trace
             if (!(val = scitokens_conf.GetToken())) {
                 m_log.Emsg("Config", "scitokens.trace requires an argument.  Usage: scitokens.trace [all|error|warning|info|debug|none]");
                 return false;
@@ -1636,8 +1526,7 @@ private:
     XrdSysError m_log;
     AuthzBehavior m_authz_behavior{AuthzBehavior::PASSTHROUGH};
     std::string m_cfg_file;
-    std::string m_macaroon_secret;
-    std::string m_macaroon_sitename;
+    std::unique_ptr<Macaroons::XrdMacaroonsGenerator> m_generator;
 
     static constexpr uint64_t m_expiry_secs = 60;
 };
