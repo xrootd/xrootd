@@ -724,7 +724,8 @@ public:
         char uuid_buf[37];
         uuid_unparse(uu, uuid_buf);
 
-        auto macaroon_encoded = m_generator->Generate(uuid_buf, user, path, opers, expiry);
+        std::vector<std::string> other_caveats;
+        auto macaroon_encoded = m_generator->Generate(uuid_buf, user, path, opers, expiry, other_caveats);
         if (macaroon_encoded.empty()) {
             return "";
         }

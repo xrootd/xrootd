@@ -1,8 +1,13 @@
 
+#ifndef __XRD_MACAROONS_HANDLER_H
+#define __XRD_MACAROONS_HANDLER_H
+
 #include <string>
 #include <memory>
 #include <stdexcept>
 #include <vector>
+
+#include "XrdMacaroonsGenerate.hh"
 
 #include "XrdHttp/XrdHttpExtHandler.hh"
 
@@ -42,10 +47,12 @@ public:
         XrdAccAuthorize *chain) :
         m_max_duration(86400),
         m_chain(chain),
-        m_log(log)
+        m_log(log),
+        m_generator(*m_log)
     {
         AuthzBehavior behavior;
-        if (!Config(config, myEnv, m_log, m_location, m_secret, m_max_duration, behavior))
+        std:: string location, secret;
+        if (!Config(config, myEnv, m_log, location, secret, m_max_duration, behavior))
         {
             throw std::runtime_error("Macaroon handler config failed.");
         }
@@ -71,8 +78,10 @@ public:
         AuthzBehavior &behavior);
 
 private:
-    std::string GenerateID(const std::string &, const XrdSecEntity &, const std::string &, const std::vector<std::string> &, const std::string &);
-    std::string GenerateActivities(const XrdHttpExtReq &, const std::string &) const;
+    std::string GenerateID(const std::string &, const XrdSecEntity &, const std::string &, const std::vector<std::string> &, time_t);
+    std::bitset<AOP_LastOp> GenerateActivities(const XrdHttpExtReq &, const std::string &) const;
+    std::string GenerateActivitiesStr(const std::bitset<AOP_LastOp> &opers) const;
+
 
     int ProcessOAuthConfig(XrdHttpExtReq &req);
     int ProcessTokenRequest(XrdHttpExtReq& req);
@@ -86,8 +95,9 @@ private:
     ssize_t m_max_duration;
     XrdAccAuthorize *m_chain;
     XrdSysError *m_log;
-    std::string m_location;
-    std::string m_secret;
+    XrdMacaroonsGenerator m_generator;
 };
 
 }
+
+#endif

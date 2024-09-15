@@ -11,7 +11,7 @@
 using namespace Macaroons;
 
 std::string
-XrdMacaroonsGenerator::Generate(const std::string &id, const std::string &user, const std::string &path, const std::bitset<AOP_LastOp> &opers, time_t expiry)
+XrdMacaroonsGenerator::Generate(const std::string &id, const std::string &user, const std::string &path, const std::bitset<AOP_LastOp> &opers, time_t expiry, const std::vector<std::string> &other_caveats)
 {
     if (m_secret.empty()) {
         m_log.Log(LogMask::Error, "Redirect", "Cannot overwrite redirect URL; no macaroon secret configured");
@@ -96,6 +96,20 @@ XrdMacaroonsGenerator::Generate(const std::string &id, const std::string &user, 
     if (!mac_with_path) {
         m_log.Log(LogMask::Warning, "Redirect", "Failed to add path restriction to macaroon");
         return "";
+    }
+
+    for (const auto &caveat : other_caveats)
+    {
+        struct macaroon *mac_tmp = mac_with_activities;
+        mac_with_activities = macaroon_add_first_party_caveat(mac_tmp,
+            reinterpret_cast<const unsigned char*>(caveat.c_str()),
+            caveat.size(),
+            &mac_err);
+        macaroon_destroy(mac_tmp);
+        if (!mac_with_activities)
+        {
+            return "";
+        }
     }
 
     struct macaroon *mac_with_date = macaroon_add_first_party_caveat(
