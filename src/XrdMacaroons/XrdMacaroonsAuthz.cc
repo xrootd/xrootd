@@ -132,14 +132,13 @@ Authz::Authz(XrdSysLogger *log, char const *config, XrdAccAuthorize *chain)
     : m_max_duration(86400),
     m_chain(chain),
     m_log(log, "macarons_"),
-    m_authz_behavior(static_cast<int>(Handler::AuthzBehavior::PASSTHROUGH))
+    m_authz_behavior(static_cast<int>(AuthzBehavior::PASSTHROUGH))
 {
-    Handler::AuthzBehavior behavior(Handler::AuthzBehavior::PASSTHROUGH);
+    AuthzBehavior behavior(AuthzBehavior::PASSTHROUGH);
     XrdOucEnv env;
-    if (!Handler::Config(config, &env, &m_log, m_location, m_secret, m_max_duration, behavior))
-    {
-        throw std::runtime_error("Macaroon authorization config failed.");
-    }
+    auto &configObj = XrdMacaroonsConfigFactory::Get(m_log);
+    m_location = configObj.site;
+    m_secret = configObj.secret;
     m_authz_behavior = static_cast<int>(behavior);
 }
 
@@ -149,11 +148,11 @@ Authz::OnMissing(const XrdSecEntity *Entity, const char *path,
                  const Access_Operation oper, XrdOucEnv *env)
 {
     switch (m_authz_behavior) {
-        case Handler::AuthzBehavior::PASSTHROUGH:
+        case AuthzBehavior::PASSTHROUGH:
             return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
-        case Handler::AuthzBehavior::ALLOW:
+        case AuthzBehavior::ALLOW:
             return AddPriv(oper, XrdAccPriv_None);;
-        case Handler::AuthzBehavior::DENY:
+        case AuthzBehavior::DENY:
             return XrdAccPriv_None;
     }
     // Code should be unreachable.

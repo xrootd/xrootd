@@ -5,6 +5,8 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucGatherConf.hh>
 #include <XrdOuc/XrdOucStream.hh>
 #include <XrdSys/XrdSysE2T.hh>
 
@@ -13,91 +15,106 @@
 
 using namespace Macaroons;
 
+bool XrdMacaroonsConfigFactory::m_configured = false;
+XrdMacaroonsConfig XrdMacaroonsConfigFactory::m_config;
 
-static bool xonmissing(XrdOucStream &config_obj, XrdSysError *log, Handler::AuthzBehavior &behavior)
+
+static bool xonmissing(XrdOucGatherConf &config_obj, XrdSysError &log, AuthzBehavior &behavior)
 {
-  char *val = config_obj.GetWord();
+  char *val = config_obj.GetToken();
   if (!val || !val[0])
   {
-    log->Emsg("Config", "macaroons.onmissing requires a value (valid values: passthrough [default], allow, deny)");
+    log.Emsg("Config", "macaroons.onmissing requires a value (valid values: passthrough [default], allow, deny)");
     return false;
   }
   if (!strcasecmp(val, "passthrough")) {
-    behavior = Handler::AuthzBehavior::PASSTHROUGH;
+    behavior = AuthzBehavior::PASSTHROUGH;
   } else if (!strcasecmp(val, "allow")) {
-    behavior = Handler::AuthzBehavior::ALLOW;
+    behavior = AuthzBehavior::ALLOW;
   } else if (!strcasecmp(val, "deny")) {
-    behavior = Handler::AuthzBehavior::DENY;
+    behavior = AuthzBehavior::DENY;
   } else
   {
-    log->Emsg("Config", "macaroons.onmissing is invalid (valid values: passthrough [default], allow, deny)! Provided value:", val);
+    log.Emsg("Config", "macaroons.onmissing is invalid (valid values: passthrough [default], allow, deny)! Provided value:", val);
     return false;
   }
   return true;
 }
 
-bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
-    std::string &location, std::string &secret, ssize_t &max_duration,
-    AuthzBehavior &behavior)
-{
-  XrdOucStream config_obj(log, getenv("XRDINSTANCE"), env, "=====> ");
-
-  // Open and attach the config file
-  //
-  int cfg_fd;
-  if ((cfg_fd = open(config, O_RDONLY, 0)) < 0) {
-    return log->Emsg("Config", errno, "open config file", config);
+const XrdMacaroonsConfig &
+XrdMacaroonsConfigFactory::Get(XrdSysError &log) {
+  if (m_configured) {
+    return m_config;
   }
-  config_obj.Attach(cfg_fd);
-  static const char *cvec[] = { "*** macaroons plugin config:", 0 };
-  config_obj.Capture(cvec);
+  if (!Config(log)) {
+    throw std::runtime_error("failed to generate the macaroons configuration");
+  }
+  log.setMsgMask(m_config.mask);
+  m_configured = true;
+  return m_config;
+}
+
+
+bool XrdMacaroonsConfigFactory::Config(XrdSysError &log)
+{
+  char *config_filename = nullptr;
+  if (!XrdOucEnv::Import("XRDCONFIGFN", config_filename)) {
+    return false;
+  }
+  XrdOucGatherConf macaroons_conf("macaroons.trace macaroons.secretkey all.sitename macaroons.maxduration macaroons.onmissing", &log);
+  int result;
+  if ((result = macaroons_conf.Gather(config_filename, XrdOucGatherConf::trim_lines)) < 0) {
+    log.Emsg("Config", -result, "parsing config file", config_filename);
+    return false;
+  }
 
   // Set default mask for logging.
-  log->setMsgMask(LogMask::Error | LogMask::Warning);
+  m_config.mask = LogMask::Error | LogMask::Warning;
 
   // Set default maximum duration (24 hours).
-  max_duration = 24*3600;
+  m_config.maxDuration = 24*3600;
 
   // Process items
   //
   char *orig_var, *var;
   bool success = true, ismine;
-  while ((orig_var = config_obj.GetMyFirstWord())) {
-    var = orig_var;
-    if ((ismine = !strncmp("all.sitename", var, 12))) var += 4;
-    else if ((ismine = !strncmp("macaroons.", var, 10)) && var[10]) var += 10;
-
-    
-
-    if (!ismine) {continue;}
-
-    if (!strcmp("secretkey", var)) {success = xsecretkey(config_obj, log, secret);}
-    else if (!strcmp("sitename", var)) {success = xsitename(config_obj, log, location);}
-    else if (!strcmp("trace", var)) {success = xtrace(config_obj, log);}
-    else if (!strcmp("maxduration", var)) {success = xmaxduration(config_obj, log, max_duration);}
-    else if (!strcmp("onmissing", var)) {success = xonmissing(config_obj, log, behavior);}
+  while (macaroons_conf.GetLine()) {
+    auto directive = macaroons_conf.GetToken();
+    if (!strcmp(directive, "secretkey")) {success = xsecretkey(macaroons_conf, log, m_config.secret);}
+    else if (!strcmp("sitename", var)) {success = xsitename(macaroons_conf, log, m_config.site);}
+    else if (!strcmp("trace", var)) {success = xtrace(macaroons_conf, log);}
+    else if (!strcmp("maxduration", var)) {success = xmaxduration(macaroons_conf, log, m_config.maxDuration);}
+    else if (!strcmp("onmissing", var)) {success = xonmissing(macaroons_conf, log, m_config.behavior);}
     else {
-        log->Say("Config warning: ignoring unknown directive '", orig_var, "'.");
-        config_obj.Echo();
+        log.Say("Config warning: ignoring unknown directive '", directive, "'.");
+        macaroons_conf.EchoLine();
         continue;
     }
     if (!success) {
-        config_obj.Echo();
+        log.Emsg("MacaroonsConfig", "failed to process configuration directive");
+        macaroons_conf.EchoLine();
         break;
     }
   }
 
-  if (success && !location.size())
-  {
-    log->Emsg("Config", "all.sitename must be specified to use macaroons.");
-    return false;
+  if (success) {
+    if (m_config.site.empty())
+    {
+      log.Emsg("Config", "all.sitename must be specified to use macaroons.");
+      return false;
+    }
+    if (m_config.secret.empty())
+    {
+      log.Emsg("Config", "macaroons.secretkey must be specified and the file non-empty to use macaroons.");
+      return false;
+    }
   }
 
   return success;
 }
 
 
-bool Handler::xtrace(XrdOucStream &Config, XrdSysError *log)
+bool XrdMacaroonsConfigFactory::xtrace(XrdOucGatherConf &Config, XrdSysError &log)
 {
   static struct traceopts { const char *opname; enum LogMask opval; } tropts[] = {
     { "all",     LogMask::All     },
@@ -109,10 +126,10 @@ bool Handler::xtrace(XrdOucStream &Config, XrdSysError *log)
 
   int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
-  char *val = Config.GetWord();
+  char *val = Config.GetToken();
 
   if (!val || !*val) {
-    log->Emsg("Config", "macaroons.trace requires at least one directive"
+    log.Emsg("Config", "macaroons.trace requires at least one directive"
                         " [ all | error | warning | info | debug | none | off ]");
     return false;
   }
@@ -134,46 +151,46 @@ bool Handler::xtrace(XrdOucStream &Config, XrdSysError *log)
       }
       if (neg) --val;
       if (i >= numopts)
-        log->Emsg("Config", "macaroons.trace: ignoring invalid trace option:", val);
+        log.Emsg("Config", "macaroons.trace: ignoring invalid trace option:", val);
     }
-    val = Config.GetWord();
+    val = Config.GetToken();
   }
 
-  log->setMsgMask(trval);
+  log.setMsgMask(trval);
 
   return true;
 }
 
-bool Handler::xmaxduration(XrdOucStream &config_obj, XrdSysError *log, ssize_t &max_duration)
+bool XrdMacaroonsConfigFactory::xmaxduration(XrdOucGatherConf &config_obj, XrdSysError &log, ssize_t &max_duration)
 {
-  char *val = config_obj.GetWord();
+  char *val = config_obj.GetToken();
   if (!val || !val[0])
   {
-    log->Emsg("Config", "macaroons.maxduration requires a value");
+    log.Emsg("Config", "macaroons.maxduration requires a value");
     return false;
   }
   char *endptr = NULL;
   long int max_duration_parsed = strtoll(val, &endptr, 10);
   if (endptr == val)
   {
-    log->Emsg("Config", "Unable to parse macaroons.maxduration as an integer", val);
+    log.Emsg("Config", "Unable to parse macaroons.maxduration as an integer", val);
     return false;
   }
   if (errno != 0)
   {
-    log->Emsg("Config", errno, "parse macaroons.maxduration as an integer.");
+    log.Emsg("Config", errno, "parse macaroons.maxduration as an integer.");
   }
   max_duration = max_duration_parsed;
 
   return true;
 }
 
-bool Handler::xsitename(XrdOucStream &config_obj, XrdSysError *log, std::string &location)
+bool XrdMacaroonsConfigFactory::xsitename(XrdOucGatherConf &config_obj, XrdSysError &log, std::string &location)
 {
-  char *val = config_obj.GetWord();
+  char *val = config_obj.GetToken();
   if (!val || !val[0])
   {
-    log->Emsg("Config", "all.sitename requires a name");
+    log.Emsg("Config", "all.sitename requires a name");
     return false;
   }
 
@@ -181,19 +198,19 @@ bool Handler::xsitename(XrdOucStream &config_obj, XrdSysError *log, std::string 
   return true;
 }
 
-bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string &secret)
+bool XrdMacaroonsConfigFactory::xsecretkey(XrdOucGatherConf &config_obj, XrdSysError &log, std::string &secret)
 {
-  char *val = config_obj.GetWord();
+  char *val = config_obj.GetToken();
   if (!val || !val[0])
   {
-    log->Emsg("Config", "Shared secret key not specified");
+    log.Emsg("Config", "Shared secret key not specified");
     return false;
   }
 
   FILE *fp = fopen(val, "rb");
 
   if (fp == NULL) {
-    log->Emsg("Config", errno, "open shared secret key file", val);
+    log.Emsg("Config", errno, "open shared secret key file", val);
     return false;
   }
 
@@ -204,14 +221,14 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
   b64 = BIO_new(BIO_f_base64());
   if (!b64)
   {
-    log->Emsg("Config", "Failed to allocate base64 filter");
+    log.Emsg("Config", "Failed to allocate base64 filter");
     return false;
   }
   bio = BIO_new_fp(fp, 0); // fp will be closed when BIO is freed.
   if (!bio)
   {
     BIO_free_all(b64);
-    log->Emsg("Config", "Failed to allocate BIO filter");
+    log.Emsg("Config", "Failed to allocate BIO filter");
     return false;
   }
   bio_out = BIO_new(BIO_s_mem());
@@ -219,7 +236,7 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
   {
     BIO_free_all(b64);
     BIO_free_all(bio);
-    log->Emsg("Config", "Failed to allocate BIO output");
+    log.Emsg("Config", "Failed to allocate BIO output");
     return false;
   }
 
@@ -236,13 +253,13 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
   if (inlen < 0) {
     BIO_free_all(b64);
     BIO_free_all(bio_out);
-    log->Emsg("Config", errno, "read secret key.");
+    log.Emsg("Config", errno, "read secret key.");
     return false;
   }
   if (!BIO_flush(bio_out)) {
     BIO_free_all(b64);
     BIO_free_all(bio_out);
-    log->Emsg("Config", errno, "flush secret key.");
+    log.Emsg("Config", errno, "flush secret key.");
     return false;
   }
 
@@ -255,7 +272,7 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
   BIO_free_all(bio_out);
 
   if (secret.size() < 32) {
-    log->Emsg("Config", "Secret key is too short; must be 32 bytes long.  Try running 'openssl rand -base64 -out", val, "64' to generate a new key");
+    log.Emsg("Config", "Secret key is too short; must be 32 bytes long.  Try running 'openssl rand -base64 -out", val, "64' to generate a new key");
     return false;
   }
 

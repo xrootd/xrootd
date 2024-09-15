@@ -2,6 +2,8 @@
 #ifndef __XRDMACAROONS_GENERATOR_H
 #define __XRDMACAROONS_GENERATOR_H
 
+#include "XrdMacaroonsUtils.hh"
+
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdSys/XrdSysError.hh"
 
@@ -11,14 +13,14 @@
 
 namespace Macaroons {
 
-class XrdMacaroonsGenerator {
+class XrdMacaroonsGenerator final {
 public:
     XrdMacaroonsGenerator(XrdSysError &err) :
       m_log(err)
     {
-        if (!Config()) {
-            throw std::runtime_error("Failed to configure the xrootd macaroons generator");
-        }
+        auto &config = XrdMacaroonsConfigFactory::Get(m_log);
+        m_secret = config.secret;
+        m_sitename = config.site;
     }
 
     // Generate a macaroon, returning it as an encoded string.
@@ -29,8 +31,6 @@ public:
     std::string Generate(const std::string &id, const std::string &user, const std::string &path, const std::bitset<AOP_LastOp> &opers, time_t expiry, const std::vector<std::string> &other_caveats);
 
 private:
-    // Configure the macaroon generator, based on the global process configuration file
-    bool Config();
 
     XrdSysError &m_log;
     std::string m_secret;

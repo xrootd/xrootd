@@ -13,11 +13,12 @@ add_library(
    ${LIB_XRD_SCITOKENS}
    MODULE
    XrdSciTokens/XrdSciTokensAccess.cc
-   XrdMacaroons/XrdMacaroonsUtils.cc    XrdMacaroons/XrdMacaroonsUtils.hh
-   XrdMacaroons/XrdMacaroonsGenerate.cc XrdMacaroons/XrdMacaroonsGenerate.hh
-                                        XrdSciTokens/XrdSciTokensRedir.hh
-                                        XrdSciTokens/XrdSciTokensHelper.hh
-   XrdSciTokens/XrdSciTokensMon.cc      XrdSciTokens/XrdSciTokensMon.hh )
+   XrdMacaroons/XrdMacaroonsUtils.cc     XrdMacaroons/XrdMacaroonsUtils.hh
+   XrdMacaroons/XrdMacaroonsGenerate.cc  XrdMacaroons/XrdMacaroonsGenerate.hh
+   XrdMacaroons/XrdMacaroonsConfigure.cc
+                                         XrdSciTokens/XrdSciTokensRedir.hh
+                                         XrdSciTokens/XrdSciTokensHelper.hh
+   XrdSciTokens/XrdSciTokensMon.cc       XrdSciTokens/XrdSciTokensMon.hh )
 target_link_libraries(
    ${LIB_XRD_SCITOKENS}
    PRIVATE
