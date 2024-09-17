@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d O u c E R o u t e . h h                        */
+/*                         X r d M o n i t o r . c c                          */
 /*                                                                            */
-/* (c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2024 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -28,72 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <cctype>
-#include <cstdio>
-#include <cstring>
-
-#include "XrdOuc/XrdOucERoute.hh"
-#include "XrdOuc/XrdOucStream.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlatform.hh"
+#include "Xrd/XrdMonRoll.hh"
 
 /******************************************************************************/
-/*                                F o r m a t                                 */
+/*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
   
-int XrdOucERoute::Format(char *buff, int blen, int ecode, const char *etxt1,
-                                                          const char *etxt2,
-                                                          const char *xtra)
-{
-   const char *esep = " ", *estr = XrdSysError::ec2text(ecode);
-   const char *xsep = "";
-   char ebuff[256];
-   int n;
-
-// Substitute something of no ecode translation exists
-//
-   if (!estr) estr = "reason unknown";
-      else if (isupper(static_cast<int>(*estr)))
-              {strlcpy(ebuff, estr, sizeof(ebuff));
-               *ebuff = static_cast<char>(tolower(static_cast<int>(*estr)));
-               estr = ebuff;
-              }
-
-// Set format elements
-//
-   if (!etxt2) etxt2 = esep = "";
-   if (xtra) xsep = "\nAdditional context: ";
-      else   xtra = "";
-
-// Format the message
-//
-   n = snprintf(buff, blen, "Unable to %s%s%s; %s%s%s",etxt1,esep,etxt2,estr,
-                                                       xsep, xtra);
-   return (n < blen ? n : blen-1);
-}
-
-/******************************************************************************/
-/*                                 R o u t e                                  */
-/******************************************************************************/
-  
-int XrdOucERoute::Route(XrdSysError *elog,  XrdOucStream *estrm,
-                        const char  *esfx,  int           ecode,
-                        const char  *etxt1, const char   *etxt2)
-{
-   char ebuff[2048];
-   int elen;
-
-// Format the error message
-//
-   elen = Format(ebuff, sizeof(ebuff), ecode, etxt1, etxt2);
-
-// Route appropriately
-//
-   if (elog)  elog->Emsg(esfx, ebuff);
-   if (estrm) estrm->Put(ebuff, elen);
-
-// Return the error number
-//
-   if (ecode) return (ecode < 0 ? ecode : -ecode);
-   return -1;
-}
+RAtomic_uint XrdMonRoll::EOV = {0};

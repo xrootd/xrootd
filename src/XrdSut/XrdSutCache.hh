@@ -40,10 +40,10 @@
 
 typedef bool (*XrdSutCacheGet_t)(XrdSutCacheEntry *, void *);
 typedef struct {
-   long arg1;
-   long arg2;
-   long arg3;
-   long arg4;
+   long long arg1;
+   long long arg2;
+   long long arg3;
+   long long arg4;
 } XrdSutCacheArg_t;
 
 class XrdSutCache {
