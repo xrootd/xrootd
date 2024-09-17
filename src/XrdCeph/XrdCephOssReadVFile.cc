@@ -145,7 +145,7 @@ ssize_t XrdCephOssReadVFile::ReadV(XrdOucIOVec *readV, int rnum) {
     } // timer scope 
     ++m_timer_count;
     auto l = m_timer_longest.load(); 
-    m_timer_longest.store(max(l,timed_read_ns)); // doesn't quite prevent race conditions
+    m_timer_longest.store(std::max(l,timed_read_ns)); // doesn't quite prevent race conditions
     m_timer_read_ns.fetch_add(timed_read_ns);
     m_timer_size.fetch_add(curCount);
 
