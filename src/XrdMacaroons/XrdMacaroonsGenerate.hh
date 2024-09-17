@@ -10,6 +10,7 @@
 #include <bitset>
 #include <exception>
 #include <string>
+#include <vector>
 
 namespace Macaroons {
 

@@ -76,8 +76,7 @@ bool XrdMacaroonsConfigFactory::Config(XrdSysError &log)
 
   // Process items
   //
-  char *orig_var;
-  bool success = true, ismine;
+  bool success = true;
   while (macaroons_conf.GetLine()) {
     auto directive = macaroons_conf.GetToken();
     if (!strcmp(directive, "secretkey")) {success = xsecretkey(macaroons_conf, log, m_config.secret);}
