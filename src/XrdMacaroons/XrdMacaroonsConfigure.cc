@@ -76,15 +76,15 @@ bool XrdMacaroonsConfigFactory::Config(XrdSysError &log)
 
   // Process items
   //
-  char *orig_var, *var;
+  char *orig_var;
   bool success = true, ismine;
   while (macaroons_conf.GetLine()) {
     auto directive = macaroons_conf.GetToken();
     if (!strcmp(directive, "secretkey")) {success = xsecretkey(macaroons_conf, log, m_config.secret);}
-    else if (!strcmp("sitename", var)) {success = xsitename(macaroons_conf, log, m_config.site);}
-    else if (!strcmp("trace", var)) {success = xtrace(macaroons_conf, log);}
-    else if (!strcmp("maxduration", var)) {success = xmaxduration(macaroons_conf, log, m_config.maxDuration);}
-    else if (!strcmp("onmissing", var)) {success = xonmissing(macaroons_conf, log, m_config.behavior);}
+    else if (!strcmp("sitename", directive)) {success = xsitename(macaroons_conf, log, m_config.site);}
+    else if (!strcmp("trace", directive)) {success = xtrace(macaroons_conf, log);}
+    else if (!strcmp("maxduration", directive)) {success = xmaxduration(macaroons_conf, log, m_config.maxDuration);}
+    else if (!strcmp("onmissing", directive)) {success = xonmissing(macaroons_conf, log, m_config.behavior);}
     else {
         log.Say("Config warning: ignoring unknown directive '", directive, "'.");
         macaroons_conf.EchoLine();
@@ -109,6 +109,7 @@ bool XrdMacaroonsConfigFactory::Config(XrdSysError &log)
       return false;
     }
   }
+  m_config.mask = log.getMsgMask();
 
   return success;
 }

@@ -469,7 +469,7 @@ AuthzCheck::verify_before(const unsigned char * pred, size_t pred_sz)
 int
 AuthzCheck::verify_activity(const unsigned char * pred, size_t pred_sz)
 {
-    if (!m_desired_activity.size()) {return 1;}
+    if (m_desired_activity.empty()) {return 1;}
     std::string pred_str(reinterpret_cast<const char *>(pred), pred_sz);
     if (strncmp("activity:", pred_str.c_str(), 9)) {return 1;}
     m_log.Log(LogMask::Debug, "AuthzCheck", "running verify activity", pred_str.c_str());

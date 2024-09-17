@@ -86,18 +86,6 @@ XrdMacaroonsGenerator::Generate(const std::string &id, const std::string &user, 
         return "";
     }
 
-    std::string path_caveat = "path:" + Macaroons::NormalizeSlashes(path);
-    struct macaroon *mac_with_path = macaroon_add_first_party_caveat(
-                                                    mac_with_activities,
-                                                    reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
-                                                    path_caveat.size(),
-                                                    &mac_err);
-    macaroon_destroy(mac_with_activities);
-    if (!mac_with_path) {
-        m_log.Log(LogMask::Warning, "Redirect", "Failed to add path restriction to macaroon");
-        return "";
-    }
-
     for (const auto &caveat : other_caveats)
     {
         struct macaroon *mac_tmp = mac_with_activities;
@@ -110,6 +98,19 @@ XrdMacaroonsGenerator::Generate(const std::string &id, const std::string &user, 
         {
             return "";
         }
+    }
+
+    std::string path_caveat = "path:" + Macaroons::NormalizeSlashes(path);
+    m_log.Emsg("Generate", "Creating path caveat at ", path_caveat.c_str());
+    struct macaroon *mac_with_path = macaroon_add_first_party_caveat(
+                                                    mac_with_activities,
+                                                    reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
+                                                    path_caveat.size(),
+                                                    &mac_err);
+    macaroon_destroy(mac_with_activities);
+    if (!mac_with_path) {
+        m_log.Log(LogMask::Warning, "Redirect", "Failed to add path restriction to macaroon");
+        return "";
     }
 
     struct macaroon *mac_with_date = macaroon_add_first_party_caveat(

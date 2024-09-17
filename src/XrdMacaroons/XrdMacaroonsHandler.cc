@@ -255,7 +255,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
     }
     if (header->second != "application/x-www-form-urlencoded")
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
+        return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/x-www-form-urlencoded' to process a form-encoded request", 0);
     }
     char *request_data_raw;
     // Note: this does not null-terminate the buffer contents.
@@ -448,6 +448,10 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     {
         json_object_put(macaroon_req);
         return req.SendSimpleResp(400, NULL, NULL, "Invalid ISO 8601 duration for validity key", 0);
+    } else {
+        std::stringstream ss;
+        ss << "Generating macaroon with validity of " << validity << " seconds";
+        m_log->Log(LogMask::Debug, "ProcessReq", ss.str().c_str());
     }
     json_object *caveats_obj;
     std::vector<std::string> other_caveats;
@@ -490,7 +494,8 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     std::bitset<AOP_LastOp> opers = GenerateActivities(req, resource);
     std::string macaroon_id = GenerateID(resource, req.GetSecEntity(), GenerateActivitiesStr(opers), other_caveats, expiry);
 
-    auto macaroon_encoded = m_generator.Generate(macaroon_id, req.GetSecEntity().name, resource, opers, expiry, other_caveats);
+    auto username = req.GetSecEntity().name ? std::string(req.GetSecEntity().name) : "";
+    auto macaroon_encoded = m_generator.Generate(macaroon_id, username, resource, opers, expiry, other_caveats);
     if (macaroon_encoded.empty()) {
         return req.SendSimpleResp(500, nullptr, nullptr, "Internal error when generating new macaroon", 0);
     }
