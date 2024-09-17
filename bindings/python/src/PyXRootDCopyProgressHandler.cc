@@ -32,8 +32,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   // Notify when a new job is about to start
   //----------------------------------------------------------------------------
-  void CopyProgressHandler::BeginJob( uint16_t          jobNum,
-                                      uint16_t          jobTotal,
+  void CopyProgressHandler::BeginJob( uint32_t          jobNum,
+                                      uint32_t          jobTotal,
                                       const XrdCl::URL *source,
                                       const XrdCl::URL *target )
   {
@@ -54,7 +54,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   // Notify when the previous job has finished
   //----------------------------------------------------------------------------
-  void CopyProgressHandler::EndJob( uint16_t                   jobNum,
+  void CopyProgressHandler::EndJob( uint32_t                   jobNum,
                                     const XrdCl::PropertyList *result )
   {
     PyGILState_STATE  state    = PyGILState_Ensure();
@@ -74,7 +74,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   // Notify about the progress of the current job
   //----------------------------------------------------------------------------
-  void CopyProgressHandler::JobProgress( uint16_t jobNum,
+  void CopyProgressHandler::JobProgress( uint32_t jobNum,
                                          uint64_t bytesProcessed,
                                          uint64_t bytesTotal )
   {
@@ -93,7 +93,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   // Check if the job should be canceled
   //----------------------------------------------------------------------------
-  bool CopyProgressHandler::ShouldCancel( uint16_t jobNum )
+  bool CopyProgressHandler::ShouldCancel( uint32_t jobNum )
   {
     PyGILState_STATE state = PyGILState_Ensure();
     bool             ret   = false;

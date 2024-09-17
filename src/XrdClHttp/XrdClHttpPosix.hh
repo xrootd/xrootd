@@ -22,31 +22,31 @@ namespace Posix {
 
 std::pair<DAVIX_FD*, XrdCl::XRootDStatus> Open(Davix::DavPosix& davix_client,
                                                const std::string& url,
-                                               int flags, uint16_t timeout);
+                                               int flags, time_t timeout);
 
 XrdCl::XRootDStatus Close(Davix::DavPosix& davix_client, DAVIX_FD* fd);
 
 XrdCl::XRootDStatus MkDir(Davix::DavPosix& davix_client,
                           const std::string& path,
                           XrdCl::MkDirFlags::Flags flags,
-                          XrdCl::Access::Mode mode, uint16_t timeout);
+                          XrdCl::Access::Mode mode, time_t timeout);
 
 XrdCl::XRootDStatus RmDir(Davix::DavPosix& davix_client,
-                          const std::string& path, uint16_t timeout);
+                          const std::string& path, time_t timeout);
 
 std::pair<XrdCl::DirectoryList*, XrdCl::XRootDStatus> DirList(
     Davix::DavPosix& davix_client, const std::string& path, bool details,
-    bool recursive, uint16_t timeout);
+    bool recursive, time_t timeout);
 
 XrdCl::XRootDStatus Rename(Davix::DavPosix& davix_client,
                            const std::string& source, const std::string& dest,
-                           uint16_t timeout);
+                           time_t timeout);
 
 XrdCl::XRootDStatus Stat(Davix::DavPosix& davix_client, const std::string& url,
-                         uint16_t timeout, XrdCl::StatInfo* stat_info);
+                         time_t timeout, XrdCl::StatInfo* stat_info);
 
 XrdCl::XRootDStatus Unlink(Davix::DavPosix& davix_client,
-                           const std::string& url, uint16_t timeout);
+                           const std::string& url, time_t timeout);
 
 std::pair<int, XrdCl::XRootDStatus> Read(Davix::DavPosix& davix_client,
                                          DAVIX_FD* fd, void* buffer,
@@ -64,7 +64,7 @@ std::pair<int, XrdCl::XRootDStatus> PReadVec(Davix::DavPosix& davix_client,
 std::pair<int, XrdCl::XRootDStatus> PWrite(Davix::DavPosix& davix_client,
                                            DAVIX_FD* fd, uint64_t offset,
                                            uint32_t size, const void* buffer,
-                                           uint16_t timeout);
+                                           time_t timeout);
 
 }  // namespace Posix
 

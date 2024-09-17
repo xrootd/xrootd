@@ -1,10 +1,10 @@
-#ifndef __SYS_EROUTE_H__
-#define __SYS_EROUTE_H__
+#ifndef __XRDMONROLL__
+#define __XRDMONROLL__
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d O u c E R o u t e . h h                        */
+/*                         X r d M o n R o l l . h h                          */
 /*                                                                            */
-/* (c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2024 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,51 +30,59 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-class XrdOucStream;
-class XrdSysError;
-  
-class XrdOucERoute
+#include "XrdSys/XrdSysRAtomic.hh"
+
+//-----------------------------------------------------------------------------
+//! XrdMonRoll
+//!
+//! This class is used to register counter sets to be included in the summary
+//! statistics that out reported as defined by the xrootd.report directive.
+//! A pointer to an instance of this object is placed in the Xrd environment
+//! with a key of "XrdMonRoll*".
+//-----------------------------------------------------------------------------
+
+class XrdMonRoll
 {
 public:
 
 //-----------------------------------------------------------------------------
-//! Format an error message into a buffer in the form of:
-//! "Unable to <etxt1> <etxt2>; <syserror[enum]>"
+//! The setMember structure is used to define a set of counters that will be
+//! registered with this class. These counters are report in the summary.
 //!
-//! @param  buff    pointer to the buffer where the msg is to be placed.
-//! @param  blen    the length of the buffer.
-//! @param  ecode   the error number associated iwth the error.
-//! @param  etxt1   associated text token #1.
-//! @param  etxt2   associated text token #2 (optional).
-//! @param  xtra    Optional additional text to include on the next line
-//!
-//! @return <int>   The number of characters placed in the buffer less null.
+//! @param varName - Is the name of the variable and becomes the xml tag or
+//!                  of JSON key for the reported value.
+//! @param varValu - Is the reference to the associated counter variable
+//!                  holding the value.
 //-----------------------------------------------------------------------------
 
-static int Format(char *buff, int blen, int ecode, const char *etxt1,
-                                                   const char *etxt2=0,
-                                                   const char *xtra =0);
+struct setMember {const char* varName; RAtomic_uint& varValu;}; 
 
 //-----------------------------------------------------------------------------
-//! Format an error message using Format() and route it as requested.
+//! Register a set of counters to be reported.
 //!
-//! @param  elog    pointer to the XrdSysError object to use to route the
-//!                 message to the log, If null, the message isn't routed there.
-//! @param  estrm   pointer to the XrdOucStrean object which is to receive the
-//!                 error message text or null if none exists.
-//! @param  esfx    The suffix identifier to use when routing to the log.
-//! @param  ecode   the error number associated iwth the error.
-//! @param  etxt1   associated text token #1.
-//! @param  etxt2   associated text token #2 (optional).
+//! @param setType - Is the type of set being defined:
+//!                  Misc     - counters for miscellaneous activities.
+//!                  Protocol - counters for a protocol.
+//! @param setName - Is the name of the set of counter variables. The name
+//!                  must not already be registered. The name is reported in
+//!                  stats xml tag or JSON stats key value.
+//! @param setVec  - Is a vector of setMember items that define the set of 
+//!                  variables for the summary report. The last element of
+//!                  the vector must be initialized to {0, EOV}. The vector
+//!                  must reside in allocated storage until execution ends.
 //!
-//! @return <int>   The -abs(enum) or -1 if enum is zero.
+//! @return true when the set has been registered and false if the set is
+//!         already registered (i.e. setName is in use).
 //-----------------------------------------------------------------------------
 
-static int Route(XrdSysError *elog, XrdOucStream *estrm, const char *esfx,
-                 int ecode, const char *etxt1, const char *etxt2=0);
+static RAtomic_uint EOV; // Variable at the end of the setVec.
 
-         XrdOucERoute() {}
+enum rollType {Misc, Protocol};
 
-        ~XrdOucERoute() {}
+virtual bool Register(rollType setType, const char* setName, setMember setVec[])
+                     {return true;}
+
+             XrdMonRoll() {}
+            ~XrdMonRoll() {}
 };
 #endif
