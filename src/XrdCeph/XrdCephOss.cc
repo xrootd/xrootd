@@ -113,7 +113,7 @@ ssize_t getNumericAttr(const char* const path, const char* attrName, const int m
   if (attrLen <= 0) {
     retval = -EINVAL;
   } else {
-    attrValue[attrLen] = (char)NULL;
+    attrValue[attrLen] = (char)'\0';
     char *endPointer = (char *)NULL;
     retval = strtoll(attrValue, &endPointer, 10);
   }
