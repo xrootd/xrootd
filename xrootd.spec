@@ -18,7 +18,7 @@
 
 Name:		xrootd
 Epoch:		1
-Release:	5%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
+Release:	1%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
 Summary:	Extended ROOT File Server
 Group:		System Environment/Daemons
 License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AND Zlib
@@ -26,11 +26,11 @@ URL:		https://xrootd.slac.stanford.edu
 
 %if !%{with git}
 Version:	5.7.1
-Source0:	%{name}.tar.gz
+Source0:	https://xrootd.web.cern.ch/download/v%{version}/%{name}-%{version}.tar.gz
 %else
 %define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
-%define src_version 5.7.0 
-%define rpm_version 5.7.0
+%define src_version %(sed -e "s/%%(describe)/v5.7-rc%(date +%%Y%%m%%d)/" <<< "%git_version")
+%define rpm_version %(sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./' <<< "%src_version")
 Version:	%rpm_version
 Source0:	%{name}.tar.gz
 %endif
@@ -103,7 +103,7 @@ Requires:	libasan
 
 %if %{with ceph}
 BuildRequires:	librados-devel
-BuildRequires:	libradosstriper-devel 
+BuildRequires:	libradosstriper-devel
 %endif
 
 %if %{with clang}
@@ -319,12 +319,12 @@ xrdcl-http is an XRootD client plugin which allows XRootD to interact
 with HTTP repositories.
 
 %if %{with ceph}
-%package ceph-buffered
+%package ceph
 Summary:	XRootD plugin for interfacing with the Ceph storage platform
 Group:		System Environment/Libraries
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
-%description ceph-buffered
+%description ceph
 The xrootd-ceph is an OSS layer plugin for the XRootD server for
 interfacing with the Ceph storage platform.
 %endif
@@ -870,7 +870,7 @@ fi
 %config(noreplace) %{_sysconfdir}/%{name}/client.plugins.d/xrdcl-http-plugin.conf
 
 %if %{with ceph}
-%files ceph-buffered
+%files ceph
 %{_libdir}/libXrdCeph-5.so
 %{_libdir}/libXrdCephXattr-5.so
 %{_libdir}/libXrdCephPosix.so.*
