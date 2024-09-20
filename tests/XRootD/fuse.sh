@@ -43,7 +43,7 @@ function test_fuse() {
 	FILES=$(seq -w 1 "${NFILES:-10}")
 
 	for i in ${FILES}; do
-		assert openssl rand -base64 -out "${i}.ref" $((1024 * (RANDOM % 1024)))
+		assert openssl rand -base64 -out "${i}.ref" $((1024 * ((RANDOM % 1024) + 1)))
 
 		# TODO: Fix "Resource deadlock avoided" if this sleep is removed
 		sleep 0.1
