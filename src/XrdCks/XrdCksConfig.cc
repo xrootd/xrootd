@@ -58,7 +58,7 @@ XrdCksConfig::XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
                            XrdVersionInfo &vInfo)
                           : eDest(Eroute), cfgFN(cFN), CksLib(0), CksParm(0),
                             CksList(0), CksLast(0), LibList(0), LibLast(0),
-                            myVersion(vInfo)
+                            myVersion(vInfo), CKSopts(0)
 {
    static XrdVERSIONINFODEF(myVer, XrdCks, XrdVNUMBER, XrdVERSION);
 
@@ -155,8 +155,11 @@ XrdCks *XrdCksConfig::getCks(XrdOss *ossP, int rdsz)
 // Cks manager comes from the library or we use the default
 //
    if (!CksLib)
-      {if (ossP) return (XrdCks *)new XrdCksManOss (ossP,eDest,rdsz,myVersion);
-          else   return (XrdCks *)new XrdCksManager(     eDest,rdsz,myVersion);
+      {XrdCksManager* manP;
+       if (ossP) manP = new XrdCksManOss (ossP,eDest,rdsz,myVersion);
+          else   manP = new XrdCksManager(     eDest,rdsz,myVersion);
+       manP->SetOpts(CKSopts);
+       return manP;
       }
 
 // Create a plugin object (we will throw this away without deletion because
@@ -192,12 +195,13 @@ XrdCks *XrdCksConfig::getCks(XrdOss *ossP, int rdsz)
 
 int XrdCksConfig::Manager(const char *Path, const char *Parms)
 {
-// Replace the library path and parameters
+// Replace the library path and parameters. Note that for default plugins
+// we reset the path to null to indicate we want the default plugin.
 //
    if (CksLib) free(CksLib);
-   CksLib = strdup(Path);
+   CksLib = (Path  ? strdup(Path) : 0);
    if (CksParm) free(CksParm);
-   CksParm = (Parms  && *Parms ? strdup(Parms) : 0);
+   CksParm = (Parms && *Parms ? strdup(Parms) : 0);
    return 0;
 }
   
@@ -235,6 +239,12 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config, int &libType)
       {eDest->Emsg("Config", "ckslib digest name too long -", val); return 1;}
    strcpy(buff, val); XrdOucUtils::toLower(buff); bP = buff+n; *bP++ = ' ';
 
+// Determine the library type
+//
+   if (!strcmp(val, "*")) libType = -1;
+      else if (!strcmp(val, "=")) libType = 1;
+              else libType = 0;
+
 // Get the path
 //
    if (!(val = Config.GetWord()) || !val[0])
@@ -244,6 +254,17 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config, int &libType)
       {eDest->Emsg("Config", "ckslib path name too long -", val); return 1;}
    strcpy(bP, val); bP += n;
 
+// Check if path is 'default' and is appropriate for this context
+//
+   if (!strcmp("default", val))
+      {if (!libType)
+          {eDest->Emsg("Config","ckslib 'default' is only valid for '*' and '='");
+           return 1;
+          }
+       if (!ParseOpt(Config)) return 1;
+       return Manager(0,0);
+      }
+
 // Record any parms
 //
    *parms = 0;
@@ -252,10 +273,7 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config, int &libType)
 
 // Check if this is for the manager
 //
-   if ((*buff == '*' || *buff == '=') && *(buff+1) == ' ')
-      {libType = (*buff == '*' ? -1 : 1);
-       return Manager(buff+2, parms);
-      } else libType = 0;
+   if (libType) return Manager(buff+2, parms);
 
 // Create a new TList object either for a digest or stackable library
 //
@@ -278,4 +296,37 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config, int &libType)
        CksLast = tP;
       }
    return 0;
+}
+  
+/******************************************************************************/
+/*                              P a r s e O p t                               */
+/******************************************************************************/
+  
+/* Function: ParseOpt
+
+   Purpose:  To parse the paramneters for the default manager plugin
+
+
+   Output: true upon success or false upon failure.
+*/
+
+bool XrdCksConfig::ParseOpt(XrdOucStream &Config)
+{
+   char* val = Config.GetWord();
+
+// Get the next word, if any
+//
+   while(val)
+        {if (!strcmp(val, "nomtchk")) CKSopts |= XrdCksManager::Cks_nomtchk;
+            else break;
+         val = Config.GetWord();
+        }
+
+// Check for errors
+//
+   if (val)
+      {eDest->Emsg("Config", "Invalid default ckslib plugin parameter -", val);
+       return false;
+      }
+   return true;
 }
