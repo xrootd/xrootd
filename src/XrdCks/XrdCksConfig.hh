@@ -56,6 +56,8 @@ char   *ManLib() {return CksLib;}
 
 int     ParseLib(XrdOucStream &Config, int &libType);
 
+bool    ParseOpt(XrdOucStream &Config);
+
         XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
                      XrdVersionInfo &vInfo);
        ~XrdCksConfig() {XrdOucTList *tP;
@@ -78,5 +80,6 @@ XrdOucTList    *CksLast;
 XrdOucTList    *LibList;
 XrdOucTList    *LibLast;
 XrdVersionInfo &myVersion;
+int            CKSopts;
 };
 #endif
