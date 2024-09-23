@@ -60,6 +60,15 @@
 #endif
 
 /******************************************************************************/
+/*                         L o c a l   S t a t i c s                          */
+/******************************************************************************/
+
+namespace
+{
+int CksOpts = 0;
+}
+  
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
@@ -472,9 +481,11 @@ int XrdCksManager::Get(const char *Pfn, XrdCksData &Cks)
    nFault = strcmp(xCS.Attr.Cks.Name, Cks.Name);
    Cks = xCS.Attr.Cks;
 
-// Verify the file
+// Verify the file. We do this with modification time unless that check
+// has been turned off.
 //
-   if ((rc = ModTime(Pfn, MTime))) return rc;
+   if (CksOpts & Cks_nomtchk) MTime = Cks.fmTime;
+      else if ((rc = ModTime(Pfn, MTime))) return rc;
 
 // Return result
 //
@@ -614,6 +625,12 @@ int XrdCksManager::Set(const char *Pfn, XrdCksData &Cks, int myTime)
    return xCS.Set(Pfn);
 }
 
+/******************************************************************************/
+/*                               S e t O p t s                                */
+/******************************************************************************/
+
+void XrdCksManager::SetOpts(int opt) {CksOpts = opt;}
+  
 /******************************************************************************/
 /*                                   V e r                                    */
 /******************************************************************************/
