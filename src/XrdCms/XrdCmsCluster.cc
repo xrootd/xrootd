@@ -970,7 +970,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
               pmask |= pinfo.ssvec & Sel.nmask;
            if (pmask && maxBits(pmask, baseFS.dfsTries()))
               {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-               "Too many attempts to gain dfs %s access to the file", Amode)+1;
+               "File not found - too many attempts to gain dfs %s access to the file", Amode)+1;
                return RetryErr;
               }
           }
