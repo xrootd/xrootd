@@ -100,7 +100,7 @@ def test_io_limits():
   pytest.raises(OverflowError, f.read, -1, 1)
   pytest.raises(OverflowError, f.read, 0, 1, -1)
   pytest.raises(OverflowError, f.read, 0, 10**11)
-  pytest.raises(OverflowError, f.read, 0, 10, 10**6)
+  pytest.raises(OverflowError, f.read, 0, 10, 2**65)
 
   # Test readline limits
   pytest.raises(TypeError,     f.readline, [0, 1], 1)
@@ -121,7 +121,7 @@ def test_io_limits():
   pytest.raises(OverflowError, f.write, data, -1, 1)
   pytest.raises(OverflowError, f.write, data, 0, 1, -1)
   pytest.raises(OverflowError, f.write, data, 0, 10**11)
-  pytest.raises(OverflowError, f.write, data, 0, 10, 10**6)
+  pytest.raises(OverflowError, f.write, data, 0, 10, 2**65)
 
   # Test vector_read limits
   pytest.raises(TypeError,     f.vector_read, chunks=100)
@@ -137,7 +137,7 @@ def test_io_limits():
   pytest.raises(TypeError,     f.truncate, [1, 2], 0)
   pytest.raises(OverflowError, f.truncate, -1)
   pytest.raises(OverflowError, f.truncate, 100, -10)
-  pytest.raises(OverflowError, f.truncate, 0, 10**6)
+  pytest.raises(OverflowError, f.truncate, 0, 2**65)
   status, __ = f.close()
   assert status.ok
 
