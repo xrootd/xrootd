@@ -22,45 +22,50 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CEPH_OSS_FILE_HH__
-#define __XRD_CEPH_OSS_FILE_HH__
+#ifndef __XRD_CEPH_OSS_READV_FILE_HH__
+#define __XRD_CEPH_OSS_READV_FILE_HH__
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdCeph/XrdCephOss.hh"
+#include "XrdCeph/XrdCephOssFile.hh"
+
+#include "XrdCeph/XrdCephBuffers/IXrdCephBufferData.hh"
+#include "XrdCeph/XrdCephBuffers/IXrdCephBufferAlg.hh"
+#include "XrdCeph/XrdCephBuffers/IXrdCephReadVAdapter.hh"
+
+#include <memory>
+
 
 //------------------------------------------------------------------------------
-//! This class implements XrdOssDF interface for usage with a CEPH storage.
-//!
-//! This plugin is able to use any pool of ceph with any userId.
-//! There are several ways to provide the pool and userId to be used for a given
-//! operation. Here is the ordered list of possibilities.
-//! First one defined wins :
-//!   - the path can be prepended with userId and pool. Syntax is :
-//!       [[userId@]pool:]<actual path>
-//!   - the XrdOucEnv parameter, when existing, can have 'cephUserId' and/or
-//!     'cephPool' entries
-//!   - the ofs.osslib directive can provide an argument with format :
-//!       [userID@]pool
-//!   - default are 'admin' and 'default' for userId and pool respectively
-//!
-//! Note that the definition of a default via the ofs.osslib directive may
-//! clash with one used in a ofs.xattrlib directive. In case both directives
-//! have a default and they are different, the behavior is not defined.
-//! In case one of the two only has a default, it will be applied for both plugins.
+//! Decorator class XrdCephOssReadVFile designed to wrap XrdCephOssFile
+//! Functionality for ReadV access to/from data in Ceph to avoid inefficient
+//! small reads / writes from the client side.
+//! Initially for monitoring purposes
 //------------------------------------------------------------------------------
 
-class XrdCephOssFile : virtual public XrdOssDF {
+class XrdCephOssReadVFile : virtual public XrdCephOssFile {
 
 public:
 
-  explicit XrdCephOssFile(XrdCephOss *cephoss);
-  virtual ~XrdCephOssFile() {};
+  explicit XrdCephOssReadVFile(XrdCephOss *cephoss, XrdCephOssFile *cephossDF,const std::string& algname); 
+  virtual ~XrdCephOssReadVFile();
   virtual int Open(const char *path, int flags, mode_t mode, XrdOucEnv &env);
   virtual int Close(long long *retsz=0);
+
+//-----------------------------------------------------------------------------
+//! Read file bytes as directed by the read vector.
+//!
+//! @param  readV     pointer to the array of read requests.
+//! @param  rdvcnt    the number of elements in readV.
+//!
+//! @return >=0       The numbe of bytes read.
+//! @return < 0       -errno or -osserr upon failure (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+  virtual ssize_t ReadV(XrdOucIOVec *readV, int rdvcnt);
+
   virtual ssize_t Read(off_t offset, size_t blen);
   virtual ssize_t Read(void *buff, off_t offset, size_t blen);
   virtual int     Read(XrdSfsAio *aoip);
-  virtual ssize_t ReadV(XrdOucIOVec *readV, int n);
   virtual ssize_t ReadRaw(void *, off_t, size_t);
   virtual int Fstat(struct stat *buff);
   virtual ssize_t Write(const void *buff, off_t offset, size_t blen);
@@ -68,12 +73,19 @@ public:
   virtual int Fsync(void);
   virtual int Ftruncate(unsigned long long);
 
-  inline virtual int getFileDescriptor() const {return m_fd;}
 protected:
+  XrdCephOss *m_cephoss  = nullptr;
+  XrdCephOssFile * m_xrdOssDF = nullptr; // holder of the XrdCephOssFile instance
+  bool m_extraLogging = true; // use verbose logging
+  std::string m_algname = "passthrough";
+  std::unique_ptr<XrdCephBuffer::IXrdCephReadVAdapter> m_readVAdapter;
 
-  int m_fd;
-  XrdCephOss *m_cephOss;
+  std::atomic<long> m_timer_read_ns {0}; //! timer for the reads against ceph
+  std::atomic<long> m_timer_count {0}; //! number of reads
+  std::atomic<long> m_timer_size {0}; //! number of reads
+  std::atomic<long> m_timer_longest {0}; //! size read in bytes
+
 
 };
 
-#endif /* __XRD_CEPH_OSS_FILE_HH__ */
+#endif /* __XRD_CEPH_OSS_READV_FILE_HH__ */
