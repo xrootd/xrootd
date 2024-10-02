@@ -53,28 +53,6 @@ char *unquote(const char *str) {
 
 }
 
-
-std::string Macaroons::NormalizeSlashes(const std::string &input)
-{
-    std::string output;
-      // In most cases, the output should be "about as large"
-      // as the input
-    output.reserve(input.size());
-    char prior_chr = '\0';
-    size_t output_idx = 0;
-    for (size_t idx = 0; idx < input.size(); idx++) {
-        char chr = input[idx];
-        if (prior_chr == '/' && chr == '/') {
-            output_idx++;
-            continue;
-        }
-        output += input[output_idx];
-        prior_chr = chr;
-        output_idx++;
-    }
-    return output;
-}
-
 static
 ssize_t determine_validity(const std::string& input)
 {
@@ -127,12 +105,24 @@ Handler::~Handler()
 }
 
 
+// Generate and return an ID for use with the new macaroon
+//
+// Note: this also writes the creation of the ID (and the input
+// information) into the log for auditing purposes.
+//
+// @param resource      - the URL resource / path prefix the macaroon will authorize
+// @param entity        - the security principal that will receive the macaroon
+// @param activities    - the activities the macaroon will be authorized for
+// @param other_caveats - additional caveats that will restrict the macaroon
+// @param expiry        - the Unix timestamp when the token will expire
+//
+// @return              - the ID to embed into the macaroon.  The function will not fail
 std::string
 Handler::GenerateID(const std::string &resource,
                     const XrdSecEntity &entity,
                     const std::string &activities,
                     const std::vector<std::string> &other_caveats,
-                    const std::string &before)
+                    time_t expiry)
 {
     uuid_t uu;
     uuid_generate_random(uu);
@@ -140,7 +130,7 @@ Handler::GenerateID(const std::string &resource,
     uuid_unparse(uu, uuid_buf);
     std::string result(uuid_buf);
 
-// The following code shoul have been strictly for debugging purposes. This
+// The following code should have been strictly for debugging purposes. This
 // added code skips it unless debug logging has been enabled. Due to the code
 // structure, indentation is a bit of a struggle as this is a minimal fix.
 //
@@ -165,7 +155,14 @@ if (m_log->getMsgMask() & LogMask::Debug)
         ss << "user_caveat=" << *iter << ", ";
     }
 
-    ss << "expires=" << before;
+    char utc_time_buf[21];
+    if (strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&expiry)))
+    {
+        std::string utc_time_str(utc_time_buf);
+        ss << "expires=" << utc_time_str;
+    } else {
+        m_log->Emsg("MacaroonGen", "Failed to generate the human-readable expiry time");
+    }
 
     m_log->Emsg("MacaroonGen", ss.str().c_str());  // Mask::Debug
    }
@@ -173,17 +170,31 @@ if (m_log->getMsgMask() & LogMask::Debug)
 }
 
 
-std::string
+std::bitset<AOP_LastOp>
 Handler::GenerateActivities(const XrdHttpExtReq & req, const std::string &resource) const
 {
-    std::string result = "activity:READ_METADATA";
+    std::bitset<AOP_LastOp> result;
     // TODO - generate environment object that includes the Authorization header.
     XrdAccPrivs privs = m_chain ? m_chain->Access(&req.GetSecEntity(), resource.c_str(), AOP_Any, NULL) : XrdAccPriv_None;
-    if ((privs & XrdAccPriv_Create) == XrdAccPriv_Create) {result += ",UPLOAD";}
-    if (privs & XrdAccPriv_Read) {result += ",DOWNLOAD";}
-    if (privs & XrdAccPriv_Delete) {result += ",DELETE";}
-    if ((privs & XrdAccPriv_Chown) == XrdAccPriv_Chown) {result += ",MANAGE,UPDATE_METADATA";}
-    if (privs & XrdAccPriv_Readdir) {result += ",LIST";}
+    if ((privs & XrdAccPriv_Create) == XrdAccPriv_Create) {result.set(AOP_Create);}
+    if (privs & XrdAccPriv_Read) {result.set(AOP_Read);}
+    if (privs & XrdAccPriv_Delete) {result.set(AOP_Delete);}
+    if ((privs & XrdAccPriv_Chown) == XrdAccPriv_Chown) {result.set(AOP_Chown);}
+    if (privs & XrdAccPriv_Readdir) {result.set(AOP_Readdir);}
+    return result;
+}
+
+
+// Given a list of operations, returns a human-readable list of activities that are authorized
+std::string
+Handler::GenerateActivitiesStr(const std::bitset<AOP_LastOp> &opers) const
+{
+    std::string result = "READ_METADATA";
+    if (opers[AOP_Create]) {result += ",UPLOAD";}
+    if (opers[AOP_Read]) {result += ",DOWNLOAD";}
+    if (opers[AOP_Delete]) {result += ",DELETE";}
+    if (opers[AOP_Chown]) {result += ",MANAGE,UPDATE_METADATA";}
+    if (opers[AOP_Readdir]) {result += ",LIST";}
     return result;
 }
 
@@ -244,7 +255,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
     }
     if (header->second != "application/x-www-form-urlencoded")
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
+        return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/x-www-form-urlencoded' to process a form-encoded request", 0);
     }
     char *request_data_raw;
     // Note: this does not null-terminate the buffer contents.
@@ -437,6 +448,10 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     {
         json_object_put(macaroon_req);
         return req.SendSimpleResp(400, NULL, NULL, "Invalid ISO 8601 duration for validity key", 0);
+    } else {
+        std::stringstream ss;
+        ss << "Generating macaroon with validity of " << validity << " seconds";
+        m_log->Log(LogMask::Debug, "ProcessReq", ss.str().c_str());
     }
     json_object *caveats_obj;
     std::vector<std::string> other_caveats;
@@ -474,116 +489,23 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     {
         validity = (validity > m_max_duration) ? m_max_duration : validity;
     }
-    now += validity;
+    auto expiry = now + validity;
 
-    char utc_time_buf[21];
-    if (!strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&now)))
-    {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error constructing UTC time", 0);
+    std::bitset<AOP_LastOp> opers = GenerateActivities(req, resource);
+    std::string macaroon_id = GenerateID(resource, req.GetSecEntity(), GenerateActivitiesStr(opers), other_caveats, expiry);
+
+    auto username = req.GetSecEntity().name ? std::string(req.GetSecEntity().name) : "";
+    auto macaroon_encoded = m_generator.Generate(macaroon_id, username, resource, opers, expiry, other_caveats);
+    if (macaroon_encoded.empty()) {
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error when generating new macaroon", 0);
     }
-    std::string utc_time_str(utc_time_buf);
-    std::stringstream ss;
-    ss << "before:" << utc_time_str;
-    std::string utc_time_caveat = ss.str();
-
-    std::string activities = GenerateActivities(req, resource);
-    std::string macaroon_id = GenerateID(resource, req.GetSecEntity(), activities, other_caveats, utc_time_str);
-    enum macaroon_returncode mac_err;
-
-    struct macaroon *mac = macaroon_create(reinterpret_cast<const unsigned char*>(m_location.c_str()),
-                                           m_location.size(),
-                                           reinterpret_cast<const unsigned char*>(m_secret.c_str()),
-                                           m_secret.size(),
-                                           reinterpret_cast<const unsigned char*>(macaroon_id.c_str()),
-                                           macaroon_id.size(), &mac_err);
-    if (!mac) {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error constructing the macaroon", 0);
-    }
-
-    // Embed the SecEntity name, if present.
-    struct macaroon *mac_with_name;
-    const char * sec_name = req.GetSecEntity().name;
-    if (sec_name) {
-        std::stringstream name_caveat_ss;
-        name_caveat_ss << "name:" << sec_name;
-        std::string name_caveat = name_caveat_ss.str();
-        mac_with_name = macaroon_add_first_party_caveat(mac,
-                                                        reinterpret_cast<const unsigned char*>(name_caveat.c_str()),
-                                                        name_caveat.size(),
-                                                        &mac_err);
-        macaroon_destroy(mac);
-    } else {
-        mac_with_name = mac;
-    }
-    if (!mac_with_name)
-    {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding default activities to macaroon", 0);
-    }
-
-    struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac_with_name,
-                                             reinterpret_cast<const unsigned char*>(activities.c_str()),
-                                             activities.size(),
-                                             &mac_err);
-    macaroon_destroy(mac_with_name);
-    if (!mac_with_activities)
-    {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding default activities to macaroon", 0);
-    }
-
-
-    for (const auto &caveat : other_caveats)
-    {
-        struct macaroon *mac_tmp = mac_with_activities;
-        mac_with_activities = macaroon_add_first_party_caveat(mac_tmp,
-            reinterpret_cast<const unsigned char*>(caveat.c_str()),
-            caveat.size(),
-            &mac_err);
-        macaroon_destroy(mac_tmp);
-        if (!mac_with_activities)
-        {
-            return req.SendSimpleResp(500, NULL, NULL, "Internal error adding user caveat to macaroon", 0);
-        }
-    }
-
-    // Note we don't call `NormalizeSlashes` here; for backward compatibility reasons, we ensure the
-    // token issued is identical to what was working with prior versions of XRootD.  This allows for a
-    // mix of old/new versions in a single cluster to interoperate.  In a few years, it might be reasonable
-    // to invoke it here as well.
-    std::string path_caveat = "path:" + resource;
-    struct macaroon *mac_with_path = macaroon_add_first_party_caveat(mac_with_activities,
-                                                 reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
-                                                 path_caveat.size(),
-                                                 &mac_err);
-    macaroon_destroy(mac_with_activities);
-    if (!mac_with_path) {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding path to macaroon", 0);
-    }
-
-    struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac_with_path,
-                                        reinterpret_cast<const unsigned char*>(utc_time_caveat.c_str()),
-                                        utc_time_caveat.size(),
-                                        &mac_err);
-    macaroon_destroy(mac_with_path);
-    if (!mac_with_date) {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding date to macaroon", 0);
-    }
-
-    size_t size_hint = macaroon_serialize_size_hint(mac_with_date);
-
-    std::vector<char> macaroon_resp; macaroon_resp.resize(size_hint);
-    if (macaroon_serialize(mac_with_date, &macaroon_resp[0], size_hint, &mac_err))
-    {
-        printf("Returned macaroon_serialize code: %lu\n", (unsigned long)size_hint);
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error serializing macaroon", 0);
-    }
-    macaroon_destroy(mac_with_date);
 
     json_object *response_obj = json_object_new_object();
     if (!response_obj)
     {
         return req.SendSimpleResp(500, NULL, NULL, "Unable to create new JSON response object.", 0);
     }
-    json_object *macaroon_obj = json_object_new_string_len(&macaroon_resp[0], strlen(&macaroon_resp[0]));
+    json_object *macaroon_obj = json_object_new_string_len(macaroon_encoded.c_str(), macaroon_encoded.length());
     if (!macaroon_obj)
     {
         return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON macaroon string.", 0);
