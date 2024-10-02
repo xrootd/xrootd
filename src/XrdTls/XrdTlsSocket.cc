@@ -23,6 +23,7 @@
 #include <poll.h>
 #include <cstdio>
 #include <ctime>
+#include <sstream>
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -598,6 +599,69 @@ XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
     //
     return XrdTls::TLS_SYS_Error;
   }
+
+/******************************************************************************/
+/*                     P o s t A u t h H a n d s h a k e                      */
+/******************************************************************************/
+
+XrdTls::RC XrdTlsSocket::PostAuthHandshake( void *ssl_ptr )
+{
+    auto ssl = reinterpret_cast<SSL*>(ssl_ptr);
+#if OPENSSL_VERSION_NUMBER >= 0x10100010L
+    if (SSL_verify_client_post_handshake(ssl) != 1) {
+        // This is hit if the remote client doesn't support the post-handshake authentication
+        // (curl, Mac OSX) or TLS v1.3 (RHEL7).
+        //
+        // Copying the behavior when the authentication is turned on at the beginning of the
+        // handshake, the lack of authentication is not a failure -- the authorization layer
+        // will decide what to do with this.
+        XrdTls::Emsg("PostAuthHandshake", "Unable to request client X.509 authentication", true);
+        return XrdTls::TLS_CLT_Support;
+    } else {
+        // We must invoke an empty write to trigger the authentication request in the TLS layer.
+        size_t write_size;
+        auto res = SSL_write_ex(ssl, nullptr, 0, &write_size);
+        if (res <= 0) {
+            std::stringstream ss;
+            ss << "SSL post-handshake auth failed with error: " << SSL_get_error(ssl, res);
+            XrdTls::Emsg("PostAuthHandshake", ss.str().c_str(), true);
+            return XrdTls::TLS_SSL_Error;
+        } else {
+            return XrdTls::TLS_AOK;
+        }
+    }
+#else
+    return XrdTls::TLS_SRV_Support;
+#endif
+}
+
+/******************************************************************************/
+/*               P o s t A u t h H a n d s h a k e F i n i s h                */
+/******************************************************************************/
+
+XrdTls::RC XrdTlsSocket::PostAuthHandshakeFinish( void *ssl_ptr )
+{
+#if OPENSSL_VERSION_NUMBER >= 0x10100010L
+    auto ssl = reinterpret_cast<SSL*>(ssl_ptr);
+    auto bio = SSL_get_rbio(ssl);
+    if (!bio) {
+        return XrdTls::TLS_UNK_Error;
+    }
+    BIO_set_nbio(bio, 1);
+    size_t readbytes;
+    auto res = SSL_peek_ex(ssl, nullptr, 0, &readbytes);
+    if ((res <= 0) && SSL_get_error(ssl, res) != SSL_ERROR_WANT_READ) {
+        std::stringstream ss;
+        ss << "SSL post-handshake auth negotiation failed with error: " << SSL_get_error(ssl, res);
+        XrdTls::Emsg("PostAuthHandshake", ss.str().c_str(), true);
+        return XrdTls::TLS_SSL_Error;
+    }
+    BIO_set_nbio(bio, 0);
+    return XrdTls::TLS_AOK;
+#else
+    return XrdTls::TLS_SRV_Support;
+#endif
+}
 
 /******************************************************************************/
 /*                               P e n d i n g                                */

@@ -38,11 +38,13 @@ class XrdTls
 public:
 
 enum RC {TLS_AOK = 0,          //!< All went well, will always be zero.
+         TLS_CLT_Support,      //!< TLS client support is missing for this feature
          TLS_CON_Closed,       //!< TLS connection has been closed
          TLS_CRT_Missing,      //!< The x509 certificate missing
          TLS_CTX_Missing,      //!< The TLS context is missing.
          TLS_HNV_Error,        //!< A hostname validation error occuured
          TLS_SSL_Error,        //!< An SSL error occurred
+         TLS_SRV_Support,      //!< TLS server support is missing for this feature
          TLS_SYS_Error,        //!< A system call error occurred
          TLS_UNK_Error,        //!< An unknown error occurred
          TLS_VER_Error,        //!< Certificate verification failed

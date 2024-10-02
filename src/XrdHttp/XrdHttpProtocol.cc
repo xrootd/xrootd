@@ -42,6 +42,7 @@
 
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
+#include "XrdTls/XrdTlsSocket.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 
@@ -135,6 +136,8 @@ static const int hsmOn   =  1; // Dual purpose but use a meaningful varname
 
 int  httpsmode = hsmAuto;
 int  tlsCache  = XrdTlsContext::scOff;
+XrdTlsContext::ClientAuthSetting tlsClientAuth = XrdTlsContext::ClientAuthSetting::kOn;
+std::vector<std::string> tlsAuthRequestPrefixes;
 bool httpsspec = false;
 bool xrdctxVer = false;
 }
@@ -448,6 +451,23 @@ static long BIO_XrdLink_ctrl(BIO *bio, int cmd, long num, void * ptr)
   case BIO_CTRL_FLUSH:
     ret = 1;
     break;
+  case BIO_C_SET_NBIO:
+  {
+    auto link = static_cast<XrdLink*>(BIO_get_data(bio));
+    if (link) {
+      struct timeval tv;
+      tv.tv_sec = 10;
+      tv.tv_usec = 0;
+      if (num) {
+        tv.tv_sec = 0;
+        tv.tv_usec = 1;
+      }
+      setsockopt(link->FDnum(), SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+      setsockopt(link->FDnum(), SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+    }
+    ret = 1;
+    break;
+  }
   default:
     ret = 0;
     break;
@@ -506,7 +526,14 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       if (!ssl) {
           sbio = CreateBIO(Link);
           BIO_set_nbio(sbio, 1);
+          if (!xrdctx->SetTlsClientAuth(tlsClientAuth)) {
+            TRACE(ALL, "Failed to configure the TLS client authentication; invalid configuration");
+            return -1;
+          }
           ssl = (SSL*)xrdctx->Session();
+          postheaderauth = false;
+          postheaderwait = false;
+          postheaderauthdone = false;
         }
 
       if (!ssl) {
@@ -553,7 +580,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       strcpy(SecEntity.prot, "https");
 
       // Get the voms string and auth information
-      if (HandleAuthentication(Link)) {
+      if (tlsClientAuth == XrdTlsContext::ClientAuthSetting::kOn && HandleAuthentication(Link)) {
           SSL_free(ssl);
           ssl = 0;
           return -1;
@@ -585,7 +612,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     } else
       CurrentReq.reqstate++;
-  } else if (!DoneSetInfo && !CurrentReq.userAgent().empty()) { // DoingLogin is true, meaning the login finished.
+  } else if (!DoneSetInfo && !postheaderwait && !postheaderauth && !CurrentReq.userAgent().empty()) { // DoingLogin is true, meaning the login finished.
     std::string mon_info = "monitor info " + CurrentReq.userAgent();
     DoneSetInfo = true;
     if (mon_info.size() >= 1024) {
@@ -605,7 +632,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       }
       return 0;
     }
-  } else {
+  } else if (!postheaderwait) {
     DoingLogin = false;
   }
 
@@ -635,6 +662,19 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           TRACE(DEBUG, " Parsing of first line failed with " << result);
           return -1;
         }
+
+        // We permit TLS client auth to be deferred until after the request path is sent.
+        // If this is a path requiring client auth, then do that now.
+        if (!postheaderauthdone && tlsClientAuth == XrdTlsContext::ClientAuthSetting::kDefer)
+           {for (const auto &prefix : tlsAuthRequestPrefixes) {
+               {if (!strncmp(prefix.c_str(), CurrentReq.resource.c_str(), prefix.length()))
+                   {postheaderwait = true;
+                    DoingLogin = true;
+                    break;
+                   }
+               }
+            }
+           }
       } else {
         int result = CurrentReq.parseLine((char *) tmpline.c_str(), rc);
         if(result < 0) {
@@ -667,6 +707,41 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       return 1;
     }
 
+  }
+
+
+  if (postheaderwait) {
+    postheaderwait = false;
+    auto res = XrdTlsSocket::PostAuthHandshake(ssl);
+    switch (res) {
+    case XrdTls::TLS_AOK:
+        TRACEI(DEBUG, " SSL post-handshake auth finished successfully");
+        postheaderauth = true;
+        return 1;
+    case XrdTls::TLS_SRV_Support: // fallthrough
+    case XrdTls::TLS_CLT_Support:
+        break;
+    case XrdTls::TLS_SSL_Error:
+        SendSimpleResp(500, nullptr, nullptr, "Failed post-handshake authentication", 0, false);
+        return -1;
+    default:
+        SendSimpleResp(500, nullptr, nullptr, "Failed post-handshake authentication due to unknown error", 0, false);
+        return -1;
+    }
+  }
+  if (postheaderauth) {
+    postheaderauth = false;
+    postheaderauthdone = true;
+    TRACEI(REQ, "Reading out response to post-handshake authentication");
+
+    if (XrdTlsSocket::PostAuthHandshakeFinish(ssl)) {
+        SendSimpleResp(500, nullptr, nullptr, "Failed to process authentication frames", 0, false);
+    }
+    BIO_set_nbio(sbio, 0);
+    if (HandleAuthentication(Link)) {
+      SendSimpleResp(500, nullptr, nullptr, "Failed to extract authentication information from handshake", 0, false);
+      return -1;
+    }
   }
 
   // If we are in self-redirect mode, then let's do it
@@ -1077,6 +1152,8 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("httpsmode", xhttpsmode);
       else if TS_Xeq("tlsreuse", xtlsreuse);
       else if TS_Xeq("auth", xauth);
+      else if TS_Xeq("tlsclientauth", xtlsclientauth);
+      else if TS_Xeq("tlsrequiredprefix", xtlsrequiredprefix);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -1945,6 +2022,8 @@ void XrdHttpProtocol::Reset() {
 
   DoingLogin = false;
   DoneSetInfo = false;
+  postheaderauth = false;
+  postheaderwait = false;
 
   ResumeBytes = 0;
   Resume = 0;
@@ -2833,6 +2912,46 @@ int XrdHttpProtocol::xtlsreuse(XrdOucStream & Config) {
 //
    eDest.Emsg("config", "invalid tlsreuse parameter -", val);
    return 1;
+}
+
+int XrdHttpProtocol::xtlsclientauth(XrdOucStream &Config) {
+  auto val = Config.GetWord();
+  if (!val || !val[0])
+     {eDest.Emsg("Config", "tlsclientauth argument not specified"); return 1;}
+
+  if (!strcmp(val, "off"))
+     {tlsClientAuth = XrdTlsContext::ClientAuthSetting::kOff;
+      return 0;
+     }
+  if (!strcmp(val, "on"))
+     {tlsClientAuth = XrdTlsContext::ClientAuthSetting::kOn;
+      return 0;
+     }
+  if (!strcmp(val, "defer"))
+     {
+#if OPENSSL_VERSION_NUMBER >= 0x10100010L
+     tlsClientAuth = XrdTlsContext::ClientAuthSetting::kDefer;
+     return 0;
+#else
+     eDest.Emsg("config", "http.tlsclientauth defer is not supported on this platform");
+     return 1;
+#endif
+     }
+
+  eDest.Emsg("config", "invalid tlsclientauth parameter -", val);
+  return 1;
+}
+
+int XrdHttpProtocol::xtlsrequiredprefix(XrdOucStream &Config) {
+  auto val = Config.GetWord();
+  if (!val || !val[0])
+     {eDest.Emsg("Config", "tlsrequiredprefix argument not specified"); return 1;}
+
+  if (val[0] != '/')
+     {eDest.Emsg("Config", "http.tlsrequiredprefix argument must be an absolute path"); return 1;}
+
+  tlsAuthRequestPrefixes.push_back(val);
+  return 0;
 }
 
 int XrdHttpProtocol::xauth(XrdOucStream &Config) {
