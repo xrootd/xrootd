@@ -110,7 +110,7 @@ if( APPLE )
   
   set(CMAKE_MACOSX_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+  set(CMAKE_INSTALL_RPATH "@loader_path/../lib" CACHE STRING "Install RPATH")
 
   # this is here because of Apple deprecating openssl and krb5
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )
