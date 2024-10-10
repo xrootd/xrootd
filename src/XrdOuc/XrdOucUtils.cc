@@ -123,7 +123,7 @@ static const std::string OBFUSCATION_STR = "REDACTED";
 static const std::vector<std::regex> authObfuscationRegexes = {
   //authz=xxx&... We deal with cases like "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=foo1234, flags: none)" where we do not want to obfuscate
   // ", flags: none)" + we deal with cases where the 'authz=Bearer token' when an admin could set 'http.header2cgi Authorization authz' in the server config
-  std::regex(R"((authz=)(Bearer\s)?([^ &\",<>#%{}|\^~\[\]`]*))",std::regex_constants::optimize),
+  std::regex(R"((authz=)(Bearer(\s|%20))?([^ &\",<>#%{}|\^~\[\]`]*))",std::regex_constants::optimize),
   // HTTP Authorization, TransferHeaderAuthorization headers that with the key that can be prefixed with spaces and value prefixed by spaces
   std::regex(R"((\s*\w*Authorization\s*:\s*)[^$]*)", std::regex_constants::icase | std::regex_constants::optimize)
 };
