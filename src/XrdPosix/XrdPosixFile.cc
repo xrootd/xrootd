@@ -38,6 +38,7 @@
 #include <sys/stat.h>
 
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixFile.hh"
@@ -236,9 +237,9 @@ do{if (doWait)
                 }
              if (Say)
                 {snprintf(buff, sizeof(buff), "%s timeout closing", eTxt);
-                 Say->Emsg("DDestroy", buff, fCurr->Origin());
+                 Say->Emsg("DDestroy", buff, obfuscateAuth(fCurr->Origin()).c_str());
                 } else {
-                 DMSG("DDestroy", eTxt <<" timeout closing " <<fCurr->Origin()
+                 DMSG("DDestroy", eTxt <<" timeout closing " << obfuscateAuth(fCurr->Origin())
                         <<' ' <<ddNumLost <<" objects lost");
                 }
              fCurr->nextFile = ddLost;
@@ -295,9 +296,10 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
    fp->numTries = 0;
    ddMutex.UnLock();
 
-   DEBUG("DLY destroy "<<(doPost ? "post " : "has ")<<ddCount
-                       <<" objects; added "<<fp->Origin());
-
+   if(DEBUGON) {
+     DEBUG("DLY destroy " << (doPost ? "post " : "has ") << ddCount
+                          << " objects; added " << obfuscateAuth(fp->Origin()));
+   }
    if (doPost) ddSem.Post();
 }
 

@@ -37,6 +37,7 @@
 #include "XrdVersion.hh"
 
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPss/XrdPssUrlInfo.hh"
 
@@ -129,7 +130,11 @@ int XrdPssCks::Get(const char *Pfn, XrdCksData &Cks)
 
 // Do some debugging
 //
-    DEBUG(uInfo.Tident(),"url="<<pBuff);
+
+    if(DEBUGON) {
+      auto urlObf = obfuscateAuth(pBuff);
+      DEBUG(uInfo.Tident(),"url="<<urlObf);
+    }
 
 // First step is to getthe checksum value
 //

@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdPosix/XrdPosixObjGuard.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
 #include "XrdPosix/XrdPosixStats.hh"
@@ -52,7 +53,9 @@ void XrdPosixPrepIO::Disable()
    EPNAME("PrepIODisable");
    XrdPosixObjGuard objGuard(fileP);
 
-   DEBUG("Disabling deferred open "<<fileP->Origin());
+   if(DEBUGON) {
+     DEBUG("Disabling deferred open " << obfuscateAuth(fileP->Origin()));
+   }
 
    openRC = -ESHUTDOWN;
 }
@@ -102,7 +105,7 @@ bool XrdPosixPrepIO::Init(XrdOucCacheIOCB *iocbP)
       else {openRC = XrdPosixMap::Result(Status, fileP->ecMsg, false);
             if (DEBUGON && errno != ENOENT && errno != ELOOP)
                {std::string eTxt = Status.ToString();
-                DEBUG(eTxt<<" deferred open "<<fileP->Origin());
+                DEBUG(eTxt<<" deferred open "<< obfuscateAuth(fileP->Origin()));
                }
             XrdPosixGlobals::Stats.Count(XrdPosixGlobals::Stats.X.OpenErrs);
             return false;
