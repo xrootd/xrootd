@@ -64,6 +64,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -363,7 +364,10 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 
 // Some tracing
 //
-   DEBUG(uInfo.Tident(),"url="<<pbuff);
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
 
 // Simply return the proxied result here
 //
@@ -407,8 +411,10 @@ int XrdPssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
 
 // Do some tracing
 //
-   DEBUG(uInfo.Tident(),"url="<<pbuff);
-
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
 // Issue unlink and return result
 //
    return (XrdPosixXrootd::Rmdir(pbuff) ? -errno : XrdOssOK);
@@ -451,7 +457,12 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 
 // Do some tracing
 //
-   DEBUG(uInfoOld.Tident(),"old url="<<oldName <<" new url=" <<newName);
+  if(DEBUGON) {
+    auto oldNameObf = obfuscateAuth(oldName);
+    auto newNameObf = obfuscateAuth(newName);
+    DEBUG(uInfoOld.Tident(),"old url="<<oldNameObf <<" new url=" <<newNameObf);
+  }
+
 
 // Execute the rename and return result
 //
@@ -504,7 +515,10 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 
 // Do some tracing
 //
-   DEBUG(uInfo.Tident(),"url="<<pbuff);
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
 
 // Return proxied stat
 //
@@ -560,7 +574,10 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen,
 
 // Do some tracing
 //
-   DEBUG(uInfo.Tident(),"url="<<pbuff);
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
 
 // Return proxied truncate. We only do this on a single machine because the
 // redirector will forbid the trunc() if multiple copies exist.
@@ -605,7 +622,10 @@ int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 
 // Do some tracing
 //
-   DEBUG(uInfo.Tident(),"url="<<pbuff);
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
 
 // Unlink the file and return result.
 //
@@ -653,7 +673,10 @@ int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 
 // Do some tracing
 //
-   DEBUG(uInfo.Tident(),"url="<<pbuff);
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
 
 // Open the directory
 //
@@ -845,7 +868,10 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Do some tracing
 //
-   DEBUG(uInfo.Tident(),"url="<<pbuff);
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
 
 // Try to open and if we failed, return an error
 //

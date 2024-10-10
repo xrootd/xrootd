@@ -39,8 +39,12 @@
 
 #define QTRACE(act) SysTrace.What & TRACEPSS_ ## act
 
+#define TRACING(x) (SysTrace.What & x)
+
+#define DEBUGON TRACING(TRACEPSS_Debug)
+
 #define DEBUG(tid,y)\
-    if (SysTrace.What & TRACEPSS_Debug) SYSTRACE(SysTrace., tid, epname, 0, y)
+    if (DEBUGON) SYSTRACE(SysTrace., tid, epname, 0, y)
 
 #define EPNAME(x) static const char *epname = x;
 

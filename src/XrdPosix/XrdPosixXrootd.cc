@@ -55,6 +55,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPsx.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
@@ -287,7 +288,7 @@ int XrdPosixXrootd::Close(int fildes)
       {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
           else if (DEBUGON)
                   {std::string eTxt = Status.ToString();
-                   DEBUG(eTxt <<" closing " <<fP->Origin());
+                   DEBUG(eTxt <<" closing " << obfuscateAuth(fP->Origin()));
                   }
       } else {
        ret = true;
@@ -634,7 +635,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
       {XrdPosixGlobals::Stats.Count(XrdPosixGlobals::Stats.X.OpenErrs);
        int rc = XrdPosixMap::Result(Status,XrdPosixGlobals::ecMsg,false);
        if (DEBUGON && rc != -ENOENT && rc != -ELOOP)
-          {DEBUG(XrdPosixGlobals::ecMsg.Msg() <<" open " <<fp->Origin());}
+          {DEBUG(XrdPosixGlobals::ecMsg.Msg() <<" open " << obfuscateAuth(fp->Origin()));}
        delete fp;
        errno = -rc;  // Saved errno across the delete
        return -1;
