@@ -41,6 +41,7 @@ TEST(XrdOucUtilsTests, obfuscateAuth) {
   ASSERT_EQ(std::string("Appended header field to opaque info: 'authz=") + OBFUSCATION_STR, obfuscateAuth("Appended header field to opaque info: 'authz=Bearer abcdef'"));
   ASSERT_EQ(std::string("Appended header fields to opaque info: 'authz=") + OBFUSCATION_STR + std::string("&scitag.flow=65'"), obfuscateAuth("Appended header fields to opaque info: 'authz=Bearer token&scitag.flow=65'"));
   ASSERT_EQ(std::string("Processing source entry: /etc/passwd, type local file, target file: root://localhost:1094//tmp/passwd?authz=") + OBFUSCATION_STR, obfuscateAuth("Processing source entry: /etc/passwd, type local file, target file: root://localhost:1094//tmp/passwd?authz=testabcd"));
+  ASSERT_EQ(std::string("240919 08:11:07 20995 unknown.3:33@[::1] Pss_Stat: url=pelican://p0@F4HP7QL65F.local:61631//first/namespace/token_gen/test1171569942?&authz=") + OBFUSCATION_STR + std::string("&pelican.timeout=9.5s"),obfuscateAuth("240919 08:11:07 20995 unknown.3:33@[::1] Pss_Stat: url=pelican://p0@F4HP7QL65F.local:61631//first/namespace/token_gen/test1171569942?&authz=Bearer%20tokentoberedacted&pelican.timeout=9.5s"));
 }
 
 TEST(XrdOucUtilsTests, caseInsensitiveFind) {
