@@ -258,16 +258,10 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     size_t streams, std::vector<State*> &handles,
     std::vector<ManagedCurlHandle> &curl_handles, TPCLogRecord &rec)
 {
-    int result;
     bool success;
-    CURL *curl = state.GetHandle();
-    if ((result = DetermineXferSize(curl, req, state, success, rec)) || !success) {
-        return result;
-    }
+    // The content-length was set thanks to the call to GetContentLengthTPCPull() before calling this function
     off_t content_size = state.GetContentLength();
     off_t current_offset = 0;
-
-    state.ResetAfterRequest();    
 
     size_t concurrency = streams * m_pipelining_multiplier;
 
