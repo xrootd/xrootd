@@ -427,11 +427,8 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
 }
 
 /******************************************************************************/
-/* XRD_CHUNK_RESP:                                                            */
 /*         T P C H a n d l e r : : D e t e r m i n e X f e r S i z e          */
 /******************************************************************************/
-  
-#ifdef XRD_CHUNK_RESP
 
 
 
@@ -493,7 +490,6 @@ int TPCHandler::GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t
 }
   
 /******************************************************************************/
-/* XRD_CHUNK_RESP:                                                            */
 /*            T P C H a n d l e r : : S e n d P e r f M a r k e r             */
 /******************************************************************************/
   
@@ -518,7 +514,6 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State
 }
 
 /******************************************************************************/
-/* XRD_CHUNK_RESP:                                                            */
 /*            T P C H a n d l e r : : S e n d P e r f M a r k e r             */
 /******************************************************************************/
   
@@ -567,7 +562,6 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vecto
 }
 
 /******************************************************************************/
-/* XRD_CHUNK_RESP:                                                            */
 /*        T P C H a n d l e r : : R u n C u r l W i t h U p d a t e s         */
 /******************************************************************************/
   
@@ -795,49 +789,6 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
 }
 
 /******************************************************************************/
-/* !XRD_CHUNK_RESP:                                                           */
-/*              T P C H a n d l e r : : R u n C u r l B a s i c               */
-/******************************************************************************/
-  
-#else
-int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
-                             TPCLogRecord &rec) {
-    const char *log_prefix = rec.log_prefix.c_str();
-    CURLcode res;
-    res = curl_easy_perform(curl);
-    state.Flush();
-    state.Finalize();
-    if (state.GetErrorCode()) {
-        std::string err = state.GetErrorMessage();
-        if (err.empty()) {err = "(no error message provided)";}
-        else {std::replace(err.begin(), err.end(), '\n', ' ');}
-        std::stringstream ss2;
-        ss2 << "Error when interacting with local filesystem: " << err;
-        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
-        ss << "failure: " << ss2.str();
-    } else if (res == CURLE_HTTP_RETURNED_ERROR) {
-        m_log.Emsg(log_prefix, "Remote server failed request", curl_easy_strerror(res));
-        return req.SendSimpleResp(500, NULL, NULL,
-                                  const_cast<char *>(curl_easy_strerror(res)), 0);
-    } else if (state.GetStatusCode() >= 400) {
-        std::stringstream ss;
-        ss << "Remote side failed with status code " << state.GetStatusCode();
-        m_log.Emsg(log_prefix, "Remote server failed request", ss.str().c_str());
-        return req.SendSimpleResp(500, NULL, NULL,
-                                  const_cast<char *>(ss.str().c_str()), 0);
-    } else if (res) {
-        m_log.Emsg(log_prefix, "Curl failed", curl_easy_strerror(res));
-        char msg[] = "Unknown internal transfer failure";
-        return req.SendSimpleResp(500, NULL, NULL, msg, 0);
-    } else {
-        char msg[] = "Created";
-        rec.status = 0;
-        return req.SendSimpleResp(201, NULL, NULL, msg, 0);
-    }
-}
-#endif
-
-/******************************************************************************/
 /*            T P C H a n d l e r : : P r o c e s s P u s h R e q             */
 /******************************************************************************/
   
@@ -919,11 +870,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     State state(0, stream, curl, true, req.tpcForwardCreds);
     state.CopyHeaders(req);
 
-#ifdef XRD_CHUNK_RESP
     return RunCurlWithUpdates(curl, req, state, rec);
-#else
-    return RunCurlBasic(curl, req, state, rec);
-#endif
 }
 
 /******************************************************************************/
@@ -1035,7 +982,6 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     std::string authz = GetAuthz(req);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
     ConfigureCurlCA(curl);
-#ifdef XRD_CHUNK_RESP
     {
         //Get the content-length of the source file and pass it to the OSS layer
         //during the open
@@ -1049,7 +995,6 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             full_url += "oss.asize=" + std::to_string(sourceFileContentLength);
         }
     }
-#endif
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY,
                                     0644 | SFS_O_MKPTH,
                                     req.GetSecEntity(), authz);
@@ -1075,15 +1020,11 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     State state(0, stream, curl, false, req.tpcForwardCreds);
     state.CopyHeaders(req);
 
-#ifdef XRD_CHUNK_RESP
     if (streams > 1) {
         return RunCurlWithStreams(req, state, streams, rec);
     } else {
         return RunCurlWithUpdates(curl, req, state, rec);
     }
-#else
-    return RunCurlBasic(curl, req, state, rec);
-#endif
 }
 
 /******************************************************************************/

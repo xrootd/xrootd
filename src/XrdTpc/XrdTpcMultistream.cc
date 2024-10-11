@@ -2,8 +2,6 @@
  * Implementation of multi-stream HTTP transfers for the TPCHandler
  */
 
-#ifdef XRD_CHUNK_RESP
-
 #include "XrdTpcTPC.hh"
 #include "XrdTpcState.hh"
 #include "XrdTpcCurlMulti.hh"
@@ -554,5 +552,3 @@ int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
         return req.ChunkResp(NULL, 0);
     }
 }
-
-#endif // XRD_CHUNK_RESP
