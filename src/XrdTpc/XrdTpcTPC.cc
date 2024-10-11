@@ -439,14 +439,18 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
                                   bool &success, TPCLogRecord &rec, bool shouldReturnErrorToClient) {
     success = false;
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+    // Set a custom timeout of 60 seconds (= CONNECT_TIMEOUT for convenience) for the HEAD request
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, CONNECT_TIMEOUT);
     CURLcode res;
     res = curl_easy_perform(curl);
     //Immediately set the CURLOPT_NOBODY flag to 0 as we anyway
     //don't want the next curl call to do be a HEAD request
     curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
+    // Reset the CURLOPT_TIMEOUT to no timeout (default)
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
     if (res == CURLE_HTTP_RETURNED_ERROR) {
         std::stringstream ss;
-        ss << "Remote server failed request";
+        ss << "Remote server failed request while fetching remote size";
         std::stringstream ss2;
         ss2 << ss.str() << ": " << curl_easy_strerror(res);
         rec.status = 500;
@@ -454,13 +458,13 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
         return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec, res).c_str(), 0) : -1;
     } else if (state.GetStatusCode() >= 400) {
         std::stringstream ss;
-        ss << "Remote side " << req.clienthost << " failed with status code " << state.GetStatusCode();
+        ss << "Remote side " << req.clienthost << " failed with status code " << state.GetStatusCode() << " while fetching remote size";
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
         return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0) : -1;
     } else if (res) {
         std::stringstream ss;
-        ss << "Internal transfer failure";
+        ss << "Internal transfer failure while fetching remote size";
         std::stringstream ss2;
         ss2 << ss.str() << " - HTTP library failed: " << curl_easy_strerror(res);
         rec.status = 500;
@@ -481,8 +485,8 @@ int TPCHandler::GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t
     //it will fail
     state.CopyHeaders(req);
     int result;
-    //In case we cannot get the content length, we don't return anything to the client
-    if ((result = DetermineXferSize(curl, req, state, success, rec, false)) || !success) {
+    //In case we cannot get the content length, we return the error to the client
+    if ((result = DetermineXferSize(curl, req, state, success, rec)) || !success) {
         return result;
     }
     contentLength = state.GetContentLength();
@@ -982,10 +986,10 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     std::string authz = GetAuthz(req);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
     ConfigureCurlCA(curl);
+    uint64_t sourceFileContentLength = 0;
     {
         //Get the content-length of the source file and pass it to the OSS layer
         //during the open
-        uint64_t sourceFileContentLength = 0;
         bool success;
         GetContentLengthTPCPull(curl, req, sourceFileContentLength, success, rec);
         if(success) {
@@ -993,6 +997,10 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             //we just don't add the size information to the opaque of the local file to open
             full_url += hasSetOpaque ? "&" : "?";
             full_url += "oss.asize=" + std::to_string(sourceFileContentLength);
+        } else {
+          // In the case the GetContentLength is not successful, an error will be returned to the client
+          // just exit here so we don't open the file!
+          return 0;
         }
     }
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY,
@@ -1019,6 +1027,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
     State state(0, stream, curl, false, req.tpcForwardCreds);
     state.CopyHeaders(req);
+    state.SetContentLength(sourceFileContentLength);
 
     if (streams > 1) {
         return RunCurlWithStreams(req, state, streams, rec);

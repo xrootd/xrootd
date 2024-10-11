@@ -87,6 +87,8 @@ public:
 
     off_t BytesTransferred() const {return m_offset;}
 
+    void SetContentLength(const off_t content_length) { m_content_length = content_length; }
+
     off_t GetContentLength() const {return m_content_length;}
 
     int GetErrorCode() const {return m_error_code;}
