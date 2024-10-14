@@ -1394,7 +1394,8 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
    if (repDest[0] != 0 && repOpts) 
       {ProtInfo.Stats->Report(repDest, repInt, repOpts);
        theMon = new XrdMonitor;
-       theEnv.PutPtr("XrdMonRoll*", (XrdMonRoll*)theMon);
+       XrdMonRoll* monRoll = new XrdMonRoll(*theMon);
+       theEnv.PutPtr("XrdMonRoll*", monRoll);
       }
 
 // All done

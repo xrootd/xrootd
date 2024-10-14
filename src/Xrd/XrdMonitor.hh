@@ -32,12 +32,13 @@
 
 #include "Xrd/XrdMonRoll.hh"
 
-class XrdMonitor : public XrdMonRoll
+class XrdMonitor
 {
 public:
 
-bool Register(rollType setType, const char* setName, setMember setVec[])
-              override {return true;}
+bool Register(XrdMonRoll::rollType  setType, const char* setName,
+              XrdMonRoll::setMember setVec[])
+              {return true;}
 
 
      XrdMonitor() {}
