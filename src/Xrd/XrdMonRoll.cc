@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                         X r d M o n i t o r . c c                          */
+/*                         X r d M o n R o l l . h h                          */
 /*                                                                            */
 /* (c) 2024 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -28,5 +28,29 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstring>
+
 #include "Xrd/XrdMonitor.hh"
 #include "Xrd/XrdMonRoll.hh"
+
+/******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+  
+RAtomic_uint XrdMonRoll::EOV = {0};
+
+/******************************************************************************/
+/*                           C o n s t r u c t o r                            */
+/******************************************************************************/
+
+XrdMonRoll::XrdMonRoll(XrdMonitor& xMon) : xrdMon(xMon)
+{   memset(rsvd, 0, sizeof(rsvd));}
+  
+/******************************************************************************/
+/*                              R e g i s t e r                               */
+/******************************************************************************/
+  
+bool XrdMonRoll::Register(rollType  setType, const char* setName,
+                          setMember setVec[])
+{   return xrdMon.Register(setType, setName, setVec);}
+
