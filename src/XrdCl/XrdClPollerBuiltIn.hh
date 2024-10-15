@@ -146,8 +146,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static int GetNbPollerInit();
 
-      // associates channel ID to a pair: poller and count (how many sockets where mapped to this poller)
-      typedef std::map<const AnyObject *, std::pair<XrdSys::IOEvents::Poller *, size_t> > PollerMap;
+      // associates socket file descriptor to a poller
+      typedef std::map<int, XrdSys::IOEvents::Poller *> PollerMap;
 
       typedef std::map<Socket *, void *>              SocketMap;
       typedef std::vector<XrdSys::IOEvents::Poller *> PollerPool;

@@ -547,34 +547,31 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XrdSys::IOEvents::Poller* PollerBuiltIn::RegisterAndGetPoller(const Socket * socket)
   {
-    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    PollerMap::iterator itr = pPollerMap.find( socket->GetFD() );
+
     if( itr == pPollerMap.end() )
     {
       XrdSys::IOEvents::Poller* poller = GetNextPoller();
       if( poller )
-        pPollerMap[socket->GetChannelID()] = std::make_pair( poller, size_t( 1 ) );
+        pPollerMap[socket->GetFD()] = poller;
       return poller;
     }
 
-    ++( itr->second.second );
-    return itr->second.first;
+    return itr->second;
   }
 
   void PollerBuiltIn::UnregisterFromPoller( const Socket *socket )
   {
-    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    PollerMap::iterator itr = pPollerMap.find( socket->GetFD() );
     if( itr == pPollerMap.end() ) return;
-    --itr->second.second;
-    if( itr->second.second == 0 )
-      pPollerMap.erase( itr );
-
+    pPollerMap.erase( itr );
   }
 
   XrdSys::IOEvents::Poller* PollerBuiltIn::GetPoller(const Socket * socket)
   {
-    PollerMap::iterator itr = pPollerMap.find( socket->GetChannelID() );
+    PollerMap::iterator itr = pPollerMap.find( socket->GetFD() );
     if( itr == pPollerMap.end() ) return 0;
-    return itr->second.first;
+    return itr->second;
   }
 
   //----------------------------------------------------------------------------
