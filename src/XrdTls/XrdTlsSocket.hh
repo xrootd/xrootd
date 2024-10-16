@@ -240,6 +240,43 @@ XrdTlsPeerCerts *getCerts(bool ver=true);
   XrdTls::RC Write( const char *buffer, size_t size, int &bytesOut );
 
 //------------------------------------------------------------------------
+//! Static method: given a raw OpenSSL connection, try to perform a post-
+//! connection handshake.
+//!
+//! This is done as a static method to support the XrdHttpProtocol
+//! implementation as it does not currently use XrdTlsSocket.
+//!
+//! @param  ssl - SSL connection pointer; should be of type SSL* from
+//!               OpenSSL
+//!
+//! @return TLS_AOK if the operation was successful; TLS_CLT_Support if
+//!         the remote client does not support post-authentication
+//!         handshakes; TLS_SRV_Support if support for this functionality
+//!         is not compiled in; otherwise, the appropriate return code
+//!         indicating the problem
+//------------------------------------------------------------------------
+
+  static XrdTls::RC PostAuthHandshake( void *ssl );
+
+//------------------------------------------------------------------------
+//! Static method: given a raw OpenSSL connection, finish the post-
+//! connection handshake.
+//!
+//! This is done as a static method to support the XrdHttpProtocol
+//! implementation as it does not currently use XrdTlsSocket.
+//!
+//! @param  ssl - SSL connection pointer; should be of type SSL* from
+//!               OpenSSL
+//!
+//! @return TLS_AOK if the operation was successful; TLS_SSL_Error if the
+//!         handshake completion failed; TLS_UNK_Error if the SSL object
+//!         is in an inconsistent state; TLS_SRV_Support if support for
+//!         this functionality is not compiled in.
+//------------------------------------------------------------------------
+
+  static XrdTls::RC PostAuthHandshakeFinish( void *ssl );
+
+//------------------------------------------------------------------------
 //! @return  :  true if the TLS/SSL session is not established yet,
 //!             false otherwise
 //------------------------------------------------------------------------
