@@ -178,6 +178,7 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdSecEntity &client,
                                            const char   *app)
 {
    EPName("PMBegin");
+   XrdOucString altApp;
    int eCode, aCode;
 
 // If we need to screen out domains, do that
@@ -204,6 +205,23 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdSecEntity &client,
    if (!getCodes(client, path, cgi, eCode, aCode))
       {TRACE("Unable to determine experiment; flow not marked.");
        return 0;
+      }
+
+// Obtain the appname overridefrom the cgi
+//
+   if (cgi)                        // 01234567890123
+      {const char *apP = strstr(cgi, "pmark.appname=");
+       if (apP)
+          {apP += 14;
+           const char* aP = apP;
+           while(*aP && *aP != '&') aP++;
+           int apLen = aP - apP;
+           if (apLen > 0)
+              {altApp = "";
+               altApp.insert(apP, 0, apLen);
+               app = altApp.c_str();
+              }
+          }
       }
 
 // Continue with successor function to complete the logic
