@@ -132,14 +132,13 @@ Authz::Authz(XrdSysLogger *log, char const *config, XrdAccAuthorize *chain)
     : m_max_duration(86400),
     m_chain(chain),
     m_log(log, "macarons_"),
-    m_authz_behavior(static_cast<int>(Handler::AuthzBehavior::PASSTHROUGH))
+    m_authz_behavior(static_cast<int>(AuthzBehavior::PASSTHROUGH))
 {
-    Handler::AuthzBehavior behavior(Handler::AuthzBehavior::PASSTHROUGH);
+    AuthzBehavior behavior(AuthzBehavior::PASSTHROUGH);
     XrdOucEnv env;
-    if (!Handler::Config(config, &env, &m_log, m_location, m_secret, m_max_duration, behavior))
-    {
-        throw std::runtime_error("Macaroon authorization config failed.");
-    }
+    auto &configObj = XrdMacaroonsConfigFactory::Get(m_log);
+    m_location = configObj.site;
+    m_secret = configObj.secret;
     m_authz_behavior = static_cast<int>(behavior);
 }
 
@@ -149,11 +148,11 @@ Authz::OnMissing(const XrdSecEntity *Entity, const char *path,
                  const Access_Operation oper, XrdOucEnv *env)
 {
     switch (m_authz_behavior) {
-        case Handler::AuthzBehavior::PASSTHROUGH:
+        case AuthzBehavior::PASSTHROUGH:
             return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
-        case Handler::AuthzBehavior::ALLOW:
+        case AuthzBehavior::ALLOW:
             return AddPriv(oper, XrdAccPriv_None);;
-        case Handler::AuthzBehavior::DENY:
+        case AuthzBehavior::DENY:
             return XrdAccPriv_None;
     }
     // Code should be unreachable.
@@ -230,7 +229,9 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     if (strncmp(reinterpret_cast<const char *>(macaroon_loc), m_location.c_str(), location_sz))
     {
         std::string location_str(reinterpret_cast<const char *>(macaroon_loc), location_sz);
-        m_log.Emsg("Access", "Macaroon is for incorrect location", location_str.c_str());
+        std::stringstream ss;
+        ss << "Macaroon is for incorrect location; requested " << location_str << "; got " << m_location << ".";
+        m_log.Emsg("Access", ss.str().c_str());
         macaroon_verifier_destroy(verifier);
         macaroon_destroy(macaroon);
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
@@ -468,7 +469,7 @@ AuthzCheck::verify_before(const unsigned char * pred, size_t pred_sz)
 int
 AuthzCheck::verify_activity(const unsigned char * pred, size_t pred_sz)
 {
-    if (!m_desired_activity.size()) {return 1;}
+    if (m_desired_activity.empty()) {return 1;}
     std::string pred_str(reinterpret_cast<const char *>(pred), pred_sz);
     if (strncmp("activity:", pred_str.c_str(), 9)) {return 1;}
     m_log.Log(LogMask::Debug, "AuthzCheck", "running verify activity", pred_str.c_str());
