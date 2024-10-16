@@ -430,9 +430,9 @@ XrdCmsClient *Finder;         // ->Cluster Management Service
 
 virtual int   ConfigXeq(char *var, XrdOucStream &, XrdSysError &);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
-                   XrdOfsHandle *hP, bool posChk=false);
+                   XrdOfsHandle *hP, bool posChk=false, bool chktype=true);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
-                   const char *y="", const char* xtra=0);
+                   const char *y="", const char* xtra=0, bool chktype=true);
 static  int   EmsgType(int ecode);
 static  int   fsError(XrdOucErrInfo &myError, int rc);
 const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
