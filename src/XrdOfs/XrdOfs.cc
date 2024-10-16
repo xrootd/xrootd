@@ -1156,7 +1156,7 @@ XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsFileOffset   offset,
    nbytes = (XrdSfsXferSize)(oh->Select().pgRead((void *)buffer,
                             (off_t)offset, (size_t)rdlen, csvec, pgOpts));
    if (nbytes < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "pgRead", oh);
+      return XrdOfsFS->Emsg(epname,error,(int)nbytes,"pgRead",oh,false,false);
 
 // Return number of bytes read
 //
@@ -1189,7 +1189,7 @@ XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 //
 #if _FILE_OFFSET_BITS!=64
    if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgRead", oh->Name());
+      return  XrdOfsFS->Emsg(epname,error,-EFBIG,"pgRead",oh->Name(),0,false);
 #endif
 
 // Pass through any flags of interest
@@ -1200,7 +1200,7 @@ XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 // Issue the read. Only true errors are returned here.
 //
    if ((rc = oh->Select().pgRead(aioparm, pgOpts)) < 0)
-      return XrdOfsFS->Emsg(epname, error, rc, "pgRead", oh);
+      return XrdOfsFS->Emsg(epname, error, rc, "pgRead", oh, false, false);
 
 // All done
 //
@@ -1237,7 +1237,7 @@ XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsFileOffset   offset,
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgwrite", oh, true);
+      return  XrdOfsFS->Emsg(epname, error, -EFBIG, "pgwrite", oh, true, false);
 #endif
 
 // Silly Castor stuff
@@ -1256,7 +1256,7 @@ XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsFileOffset   offset,
    nbytes = (XrdSfsXferSize)(oh->Select().pgWrite((void *)buffer,
                             (off_t)offset, (size_t)wrlen, csvec, pgOpts));
    if (nbytes < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "pgwrite", oh, true);
+      return XrdOfsFS->Emsg(epname,error,(int)nbytes,"pgwrite",oh,true,false);
 
 // Return number of bytes written
 //
@@ -1302,7 +1302,7 @@ XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 //
 #if _FILE_OFFSET_BITS!=64
    if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgwrite", oh, true);
+      return  XrdOfsFS->Emsg(epname, error, -EFBIG, "pgwrite", oh, true, false);
 #endif
 
 // Silly Castor stuff
@@ -1319,7 +1319,7 @@ XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 //
    oh->isPending = 1;
    if ((rc = oh->Select().pgWrite(aioparm, pgOpts)) < 0)
-       return XrdOfsFS->Emsg(epname, error, rc, "pgwrite", oh, true);
+       return XrdOfsFS->Emsg(epname, error, rc, "pgwrite", oh, true, false);
 
 // All done
 //
@@ -1352,13 +1352,13 @@ int            XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "read", oh->Name());
+      return  XrdOfsFS->Emsg(epname,error,-EFBIG,"read",oh->Name(),0,false);
 #endif
 
 // Now preread the actual number of bytes
 //
    if ((retc = oh->Select().Read((off_t)offset, (size_t)blen)) < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)retc, "preread", oh);
+      return XrdOfsFS->Emsg(epname, error, (int)retc, "preread", oh, 0, false);
 
 // Return number of bytes read
 //
@@ -1395,7 +1395,7 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "read", oh->Name());
+      return  XrdOfsFS->Emsg(epname,error,-EFBIG,"read",oh->Name(),0,false);
 #endif
 
 // Now read the actual number of bytes
@@ -1406,7 +1406,7 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
           : (XrdSfsXferSize)(oh->Select().Read((void *)buff,
                             (off_t)offset, (size_t)blen)));
    if (nbytes < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "read", oh);
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "read", oh, 0, false);
 
 // Return number of bytes read
 //
@@ -1436,7 +1436,7 @@ XrdSfsXferSize XrdOfsFile::readv(XrdOucIOVec     *readV,     // In
 
    XrdSfsXferSize nbytes = oh->Select().ReadV(readV, readCount);
    if (nbytes < 0)
-       return XrdOfsFS->Emsg(epname, error, (int)nbytes, "readv", oh);
+       return XrdOfsFS->Emsg(epname,error,(int)nbytes,"readv",oh,false,false);
 
    return nbytes;
 
@@ -1478,13 +1478,13 @@ int XrdOfsFile::read(XrdSfsAio *aiop)
 //
 #if _FILE_OFFSET_BITS!=64
    if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "read", oh->Name());
+      return  XrdOfsFS->Emsg(epname,error,-EFBIG,"read",oh->Name(),0,false);
 #endif
 
 // Issue the read. Only true errors are returned here.
 //
    if ((rc = oh->Select().Read(aiop)) < 0)
-      return XrdOfsFS->Emsg(epname, error, rc, "read", oh);
+      return XrdOfsFS->Emsg(epname, error, rc, "read", oh, false, false);
 
 // All done
 //
@@ -1524,7 +1524,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "write", oh, true);
+      return  XrdOfsFS->Emsg(epname,error,-EFBIG,"write",oh,true,false);
 #endif
 
 // Silly Castor stuff
@@ -1538,7 +1538,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
    nbytes = (XrdSfsXferSize)(oh->Select().Write((const void *)buff,
                             (off_t)offset, (size_t)blen));
    if (nbytes < 0)
-      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "write", oh, true);
+      return XrdOfsFS->Emsg(epname,error,(int)nbytes,"write",oh,true,false);
 
 // Return number of bytes written
 //
@@ -1575,7 +1575,7 @@ int XrdOfsFile::write(XrdSfsAio *aiop)
 //
 #if _FILE_OFFSET_BITS!=64
    if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
-      return  XrdOfsFS->Emsg(epname, error, EFBIG, "write", oh, true);
+      return  XrdOfsFS->Emsg(epname, error, -EFBIG, "write", oh, true, false);
 #endif
 
 // Silly Castor stuff
@@ -1587,7 +1587,7 @@ int XrdOfsFile::write(XrdSfsAio *aiop)
 //
    oh->isPending = 1;
    if ((rc = oh->Select().Write(aiop)) < 0)
-       return XrdOfsFS->Emsg(epname, error, rc, "write", oh, true);
+       return XrdOfsFS->Emsg(epname, error, rc, "write", oh, true, false);
 
 // All done
 //
@@ -2543,14 +2543,15 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
                  int            ecode,  // The error code
                  const char    *op,     // Operation being performed
                  XrdOfsHandle  *hP,     // The target handle
-                 bool           posChk) // Unpersist if in posc mode
+                 bool           posChk, // Unpersist if in posc mode
+                 bool           chkType)// Check for type of error & subclass
 {
    const char* etP = 0;
    int rc;
 
 // Screen out non-errors
 //
-   if ((rc = EmsgType(ecode)) != SFS_ERROR) return rc;
+   if (chkType && (rc = EmsgType(ecode)) != SFS_ERROR) return rc;
 
 // Get any extended information
 //
@@ -2582,7 +2583,8 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
                  int            ecode,  // The error code
                  const char    *op,     // Operation being performed
                  const char    *target, // The target (e.g., fname)
-                 const char    *xtra)   // Optional extra error information
+                 const char    *xtra,   // Optional extra error information
+                 bool           chkType)// Check for type of error & subclass
 {
    char* buffer;
    int buflen, rc;
@@ -2590,7 +2592,7 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 
 // Screen out non-errors
 //
-   if ((rc = EmsgType(ecode)) != SFS_ERROR) return rc;
+   if (chkType && (rc = EmsgType(ecode)) != SFS_ERROR) return rc;
 
 // Setup message handling
 //
@@ -2643,19 +2645,12 @@ int XrdOfs::EmsgType(int ecode)  // The error code
 // If the error is EBUSY then we just need to stall the client. This is
 // a hack in order to provide for proxy support
 //
-// The hack unfotunately is now beinng triggered for reads and writes when
-// it was never so before (presumably due to client changes). So do not
-// apply the hack for these operations. This gets a better fix in R 6.0
-//
-if (strcmp("read", op) && strcmp("readv", op) && strcmp("pgRead", op) && 
-    strcmp("write",op) && strcmp("pgwrite",op)) {
     if (ecode < 0) ecode = -ecode;
     if (ecode == EBUSY) return 5;  // A hack for proxy support
 
 // Check for timeout conditions that require a client delay
 //
    if (ecode == ETIMEDOUT) return OSSDelay;
-   }
 
 // This is a real error
 //
