@@ -251,6 +251,11 @@ void XrdHttpReq::parseScitag(const std::string & val) {
     }
   }
   addCgi("scitag.flow", std::to_string(mScitag));
+  if(request == ReqType::rtGET || request == ReqType::rtPUT) {
+    // We specify to the packet marking handle the type of transfer this request is
+    // so the source and destination in the firefly are properly set
+    addCgi("pmark.appname",this->request == ReqType::rtGET ? "http-get" : "http-put");
+  }
 }
 
 int XrdHttpReq::parseFirstLine(char *line, int len) {
