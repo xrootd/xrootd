@@ -96,9 +96,18 @@ int IOFile::initCachedStat()
             // The filesize from the file itself may be misleading if its download is incomplete; take it from the cinfo.
             tmpStat.st_size = info.GetFileSize();
             // We are arguably abusing the mtime to be the creation time of the file; then ctime becomes the
-            // last time additional data was cached.
-            tmpStat.st_mtime = info.GetCreationTime();
-            TRACEIO(Info, trace_pfx << "successfully read size " << tmpStat.st_size << " and creation time " << tmpStat.st_mtime << " from info file");
+            // last time additional data was cached.  Note we only set the mtime if the file is complete; this
+            // helps clients know whether there was a cache hit or miss.
+            if (info.IsComplete())
+            {
+               tmpStat.st_mtime = info.GetCreationTime();
+               TRACEIO(Info, trace_pfx << "successfully read size " << tmpStat.st_size << " and creation time " << tmpStat.st_mtime << " from info file");
+            }
+            else
+            {
+               tmpStat.st_mtime = 0;
+               TRACEIO(Info, trace_pfx << "successfully read size from info file = " << tmpStat.st_size);
+            }
             res = 0;
          }
          else
@@ -120,10 +129,9 @@ int IOFile::initCachedStat()
       res = GetInput()->Fstat(tmpStat);
       TRACEIO(Debug, trace_pfx << "got stat from client res = " << res << ", size = " << tmpStat.st_size);
       // The mtime / atime / ctime for cached responses come from the file on disk in the cache hit case.
-      // To avoid weirdness when two subsequent stat queries can give wildly divergent times (one from the
-      // origin, one from the cache), set the times to "now" so we effectively only report the *time as the
-      // cache service sees it.
-      tmpStat.st_ctime = tmpStat.st_mtime = tmpStat.st_atime = time(NULL);
+      // In the cache miss cache, we set the various *time attributes to 0 as they are meant to indicate
+      // the age of the cache information and 0 indicates non-existence.
+      tmpStat.st_ctime = tmpStat.st_mtime = tmpStat.st_atime = 0;
    }
 
    if (res == 0)
