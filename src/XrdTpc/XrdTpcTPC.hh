@@ -100,7 +100,6 @@ private:
                       int openMode, const XrdSecEntity &sec,
                       const std::string &authz);
 
-#ifdef XRD_CHUNK_RESP
     int DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                           bool &success, TPCLogRecord &, bool shouldReturnErrorToClient = true);
 
@@ -125,10 +124,6 @@ private:
                            size_t streams, std::vector<TPC::State*> &streams_handles,
                            std::vector<ManagedCurlHandle> &curl_handles,
                            TPCLogRecord &rec);
-#else
-    int RunCurlBasic(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
-                     TPCLogRecord &rec);
-#endif
 
     int ProcessPushReq(const std::string & resource, XrdHttpExtReq &req);
     int ProcessPullReq(const std::string &resource, XrdHttpExtReq &req);
