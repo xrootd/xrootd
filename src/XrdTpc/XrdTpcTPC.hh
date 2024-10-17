@@ -32,6 +32,10 @@ enum LogMask {
     All     = 0xff
 };
 
+enum class TpcType {
+  Pull,
+  Push
+};
 
 struct CurlDeleter {
     void operator()(CURL *curl);
@@ -60,8 +64,8 @@ private:
 
     struct TPCLogRecord {
 
-        TPCLogRecord(XrdHttpExtReq & req) : bytes_transferred( -1 ), status( -1 ),
-                         tpc_status(-1), streams( 1 ), isIPv6(false), mReq(req), pmarkManager(mReq)
+        TPCLogRecord(XrdHttpExtReq & req, const TpcType tpcType) : bytes_transferred( -1 ), status( -1 ),
+                         tpc_status(-1), streams( 1 ), isIPv6(false), mReq(req), pmarkManager(mReq,tpcType), mTpcType(tpcType)
         {
          gettimeofday(&begT, 0); // Set effective start time
         }
@@ -82,6 +86,7 @@ private:
         XrdHttpExtReq & mReq;
         XrdTpc::PMarkManager pmarkManager;
         XrdSysError * m_log;
+        TpcType mTpcType;
     };
 
     int ProcessOptionsReq(XrdHttpExtReq &req);
