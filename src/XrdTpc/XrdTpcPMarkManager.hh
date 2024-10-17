@@ -31,6 +31,10 @@
 #include <memory>
 #include <queue>
 
+namespace TPC {
+  enum class TpcType;
+}
+
 /**
  * This class will manage packet marking handles for TPC transfers
  *
@@ -62,7 +66,7 @@ public:
     XrdSecEntity client;
   };
 
-  PMarkManager(XrdHttpExtReq & req);
+  PMarkManager(XrdHttpExtReq & req, const TPC::TpcType type);
 
   /**
    * Will connect the socket attached to the file descriptor within a certain timeout and add the file descriptor to the.
@@ -129,6 +133,9 @@ private:
   XrdHttpExtReq & mReq;
   // Is true when startTransfer(...) has been called
   bool mTransferWillStart;
+  // Is true if this transfer is a HTTP TPC PULL transfer, false otherwise
+  // by default is true
+  TPC::TpcType mTpcType;
 };
 } // namespace XrdTpc
 
