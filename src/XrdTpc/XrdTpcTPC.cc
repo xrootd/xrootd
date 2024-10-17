@@ -57,7 +57,7 @@ TPCHandler::TPCLogRecord::~TPCLogRecord()
        monInfo.begT = begT;
        gettimeofday(&monInfo.endT, 0);
 
-       if (log_prefix == "PullRequest")
+       if (mTpcType == TpcType::Pull)
           {monInfo.dstURL = local.c_str();
            monInfo.srcURL = remote.c_str();
           } else {
@@ -842,7 +842,7 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
 /******************************************************************************/
   
 int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req) {
-    TPCLogRecord rec(req);
+    TPCLogRecord rec(req, TpcType::Push);
     rec.log_prefix = "PushRequest";
     rec.local = req.resource;
     rec.remote = resource;
@@ -931,7 +931,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 /******************************************************************************/
   
 int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
-    TPCLogRecord rec(req);
+    TPCLogRecord rec(req,TpcType::Pull);
     rec.log_prefix = "PullRequest";
     rec.local = req.resource;
     rec.remote = resource;
