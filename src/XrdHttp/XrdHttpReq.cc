@@ -1166,8 +1166,8 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.close.fhandle, fhandle, 4);
 
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0, false);
-              return -1;
+              XrdHttpReq::mapXrdErrorToHttpStatus();
+              return sendFooterError("Could not run close request on the bridge");
             }
             return 0;
           } else {
@@ -1206,8 +1206,9 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.dirlist.dlen = htonl(l);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) res.c_str(), l)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
-              return -1;
+              XrdHttpReq::mapXrdErrorToHttpStatus();
+              prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpStatusText.c_str(), httpStatusText.length(), false);
+              return sendFooterError("Could not run listing request on the bridge");
             }
 
             // We don't want to be invoked again after this request is finished
@@ -1240,7 +1241,10 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.close.fhandle, fhandle, 4);
 
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0, false);
+              TRACEI(REQ, " Failed to run close request on the bridge.");
+              // Note: we have already completed the request and sent the data to the client.
+              // Hence, there's no need to send an error.  However, since the bridge is potentially
+              // in a bad state, we close the TCP socket to force the client to reconnect.
               return -1;
             }
 
@@ -1297,13 +1301,15 @@ int XrdHttpReq::ProcessHTTPReq() {
             if ((offs >= filesize) || (offs+l > filesize)) {
               TRACE(ALL, " Requested range " << l << "@" << offs <<
               " is past the end of file (" << filesize << ")");
-              //prot->SendSimpleResp(522, NULL, NULL, (char *) "Invalid range request", 0);
-              return -1;
+              httpStatusCode = 552;
+              httpStatusText = "Invalid range request";
+              return sendFooterError("Requested range is past end of file");
             }
             
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
-              return -1;
+              TRACEI(REQ, " Failed to run read request on the bridge.");
+              XrdHttpReq::mapXrdErrorToHttpStatus();
+              return sendFooterError("Could not run read request on the bridge");
             }
           } else {
             // --------- READV
@@ -1311,8 +1317,9 @@ int XrdHttpReq::ProcessHTTPReq() {
             length = ReqReadV(readChunkList);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) &ralist[0], length)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
-              return -1;
+              TRACEI(REQ, " Failed to run ReadV request on the bridge.");
+              XrdHttpReq::mapXrdErrorToHttpStatus();
+              return sendFooterError("Could not run ReadV request on the bridge");
             }
 
           }
@@ -1448,8 +1455,9 @@ int XrdHttpReq::ProcessHTTPReq() {
 
             TRACEI(REQ, "XrdHTTP PUT: Writing chunk of size " << bytes_to_write << " starting with '" << *(prot->myBuffStart) << "'" << " with " << chunk_bytes_remaining << " bytes remaining in the chunk");
             if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_write)) {
-              prot->SendSimpleResp(500, NULL, NULL, (char *) "Could not run write request.", 0, false);
-              return -1;
+              TRACEI(REQ, " Failed to run write request on the bridge.");
+              XrdHttpReq::mapXrdErrorToHttpStatus();
+              return sendFooterError("Could not run write request on the bridge");
             }
             // If there are more bytes in the buffer, then immediately call us after the
             // write is finished; otherwise, wait for data.
@@ -1471,8 +1479,9 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           TRACEI(REQ, "Writing " << bytes_to_read);
           if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_read)) {
-            prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run write request.", 0, false);
-            return -1;
+            TRACEI(REQ, " Failed to run write request on the bridge.");
+            XrdHttpReq::mapXrdErrorToHttpStatus();
+            return sendFooterError("Could not run write request on the bridge");
           }
 
           if (writtenbytes + prot->BuffUsed() >= length)
@@ -1494,8 +1503,9 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 
           if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-            prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0, false);
-            return -1;
+            TRACEI(REQ, " Failed to run close request on the bridge.");
+            XrdHttpReq::mapXrdErrorToHttpStatus();
+            return sendFooterError("Could not run close request on the bridge");
           }
 
           // We have finished
@@ -2718,6 +2728,29 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
 
   return 0;
+}
+
+int
+XrdHttpReq::sendFooterError(const std::string &extra_text) {
+  if (m_transfer_encoding_chunked && m_trailer_headers) {
+    if (prot->ChunkRespHeader(0))
+      return -1;
+
+    const std::string crlf = "\r\n";
+    std::stringstream ss;
+    ss << "X-Transfer-Status: " << httpStatusCode << ": " << httpStatusText;
+    if (!extra_text.empty())
+      ss << ": " << extra_text;
+    ss << crlf;
+
+    const auto header = ss.str();
+    if (prot->SendData(header.c_str(), header.size()))
+      return -1;
+
+    if (prot->ChunkRespFooter())
+      return -1;
+  }
+  return -1;
 }
 
 void XrdHttpReq::reset() {

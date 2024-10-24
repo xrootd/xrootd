@@ -143,6 +143,10 @@ private:
   // the data and necessary headers, assuming multipart/byteranges content type.
   int sendReadResponsesMultiRanges(const XrdHttpIOList &received);
 
+  // If requested by the client, sends any I/O errors that occur during the transfer
+  // into a footer.
+  int sendFooterError(const std::string &);
+
   /**
    * Extract a comma separated list of checksums+metadata into a vector
    * @param checksumList the list like "0:sha1, 1:adler32, 2:md5"
