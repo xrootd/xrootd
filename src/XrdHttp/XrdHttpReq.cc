@@ -1230,7 +1230,11 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.close.fhandle, fhandle, 4);
 
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0, false);
+              if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
+                std::string errMsg {"Could not run close request."};
+                TRACE(REQ, " " << errMsg);
+                sendTrailerInfos(500, errMsg);
+              }
               return -1;
             }
 
@@ -1292,7 +1296,11 @@ int XrdHttpReq::ProcessHTTPReq() {
             }
             
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
+              if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
+                std::string errMsg {"Could not run read request."};
+                TRACE(ALL, " " << errMsg);
+                sendTrailerInfos(500, errMsg);
+              }
               return -1;
             }
           } else {
@@ -1301,7 +1309,11 @@ int XrdHttpReq::ProcessHTTPReq() {
             length = ReqReadV(readChunkList);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) &ralist[0], length)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
+              if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
+                std::string errMsg {"Could not run readv request."};
+                TRACE(ALL, " " << errMsg);
+                sendTrailerInfos(500, errMsg);
+              }
               return -1;
             }
 
@@ -2270,19 +2282,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               }
                 
               if (m_transfer_encoding_chunked && m_trailer_headers) {
-                if (prot->ChunkRespHeader(0))
+                if(sendTrailerInfos(httpStatusCode, httpStatusText)) {
                   return -1;
-
-                const std::string crlf = "\r\n";
-                std::stringstream ss;
-                ss << "X-Transfer-Status: " << httpStatusCode << ": " << httpStatusText << crlf;
-
-                const auto header = ss.str();
-                if (prot->SendData(header.c_str(), header.size()))
-                  return -1;
-
-                if (prot->ChunkRespFooter())
-                  return -1;
+                }
               }
 
                 if (rrerror) return -1;
@@ -2293,30 +2295,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             // status response in trailer behavior is requested.
             if (xrdresp == kXR_error) {
               if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
-                // A trailer header is appropriate in this case; this is signified by
-                // a chunk with size zero, then the trailer, then a crlf.
-                //
-                // We only send the status trailer when explicitly requested; otherwise a
-                // "normal" HTTP client might simply see a short response and think it's a
-                // success
-                if (prot->ChunkRespHeader(0))
-                  return -1;
-
-                const std::string crlf = "\r\n";
-                std::stringstream ss;
-                ss << "X-Transfer-Status: " << httpStatusCode << ": " << httpStatusText << crlf;
-
-		const auto header = ss.str();
-                if (prot->SendData(header.c_str(), header.size()))
-                  return -1;
-
-                if (prot->ChunkRespFooter())
-                  return -1;
-
-                return -1;
-              } else {
-                return -1;
+                sendTrailerInfos(httpStatusCode, httpStatusText);
               }
+              return -1;
             }
 
 
@@ -3005,5 +2986,24 @@ int XrdHttpReq::sendReadResponseSingleRange(const XrdHttpIOList &received) {
   if (m_transfer_encoding_chunked && m_trailer_headers) {
     prot->ChunkRespFooter();
   }
+  return 0;
+}
+
+int XrdHttpReq::sendTrailerInfos(int httpStatusCde, const std::string &infos) {
+
+  if (prot->ChunkRespHeader(0))
+    return -1;
+
+  const std::string crlf = "\r\n";
+  std::stringstream ss;
+  ss << "X-Transfer-Status: " << httpStatusCde << ": " << infos << crlf;
+
+  const auto header = ss.str();
+  if (prot->SendData(header.c_str(), header.size()))
+    return -1;
+
+  if (prot->ChunkRespFooter())
+    return -1;
+
   return 0;
 }

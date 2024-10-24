@@ -150,6 +150,14 @@ private:
    */
   static void determineXRootDChecksumFromUserDigest(const std::string & userDigest, std::vector<std::string> & xrootdChecksums);
 
+  /**
+   * Sends a message to the client in the trailer/footer of the HTTP response.
+   * @param httpStatusCde the http status code to be printed
+   * @param infos the error text to be printed
+   * @return 0 upon success, -1 upon failure
+   */
+  int sendTrailerInfos(int httpStatusCde, const std::string & infos);
+
 public:
   XrdHttpReq(XrdHttpProtocol *protinstance, const XrdHttpReadRangeHandler::Configuration &rcfg) :
       readRangeHandler(rcfg), keepalive(true) {
