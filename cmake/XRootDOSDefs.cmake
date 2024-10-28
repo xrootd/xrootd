@@ -43,6 +43,12 @@ if( CMAKE_COMPILER_IS_GNUCXX )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
 endif()
 
+# Disable warnings with nvc++ (for when we are built as ROOT built-in dependency)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "NVHPC")
+  add_compile_options(-w)
+endif()
+
 #-------------------------------------------------------------------------------
 # Linux
 #-------------------------------------------------------------------------------
