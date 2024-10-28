@@ -87,7 +87,7 @@ class CMakeBuild(build_ext):
                 os.makedirs(self.build_temp)
 
             check_call([cmake, ext.src, '-B', self.build_temp] + cmake_args)
-            check_call([cmake, '--build', self.build_temp, '--parallel'])
+            check_call([cmake, '--build', self.build_temp])
 
 version = get_version()
 
