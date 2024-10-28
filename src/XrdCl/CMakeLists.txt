@@ -8,20 +8,17 @@ set( XRD_CL_SOVERSION 3 )
 
 #-------------------------------------------------------------------------------
 # The XrdCl Pipelining API
-# (we build this API only if the compiler has a good support for c++11)
 #-------------------------------------------------------------------------------
-if( XrdClPipelines )
-  set( XrdClPipelineSources
-       XrdClOperations.cc            XrdClOperations.hh
-       XrdClOperationHandlers.hh
-       XrdClArg.hh
-       XrdClFwd.hh
-       XrdClParallelOperation.hh
-       XrdClFileOperations.hh
-       XrdClFileSystemOperations.hh
-       XrdClZipOperations.hh
-  )
-endif()
+set( XrdClPipelineSources
+     XrdClOperations.cc            XrdClOperations.hh
+     XrdClOperationHandlers.hh
+     XrdClArg.hh
+     XrdClFwd.hh
+     XrdClParallelOperation.hh
+     XrdClFileOperations.hh
+     XrdClFileSystemOperations.hh
+     XrdClZipOperations.hh
+)
 
 #-------------------------------------------------------------------------------
 # XrdEc sources
