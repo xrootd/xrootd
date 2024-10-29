@@ -37,14 +37,26 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
-      //! Add a listener that should be notified about incoming messages
+      //! Add a listener that should be notified about incoming messages.
+      //! Freshly added handlers have no expire time set and will not trigger
+      //! the timeout reporting. The expiry is added by AssignTimeout or
+      //! GetHandlerForMessage.
       //!
       //! @param handler message handler
-      //! @param expires time when the message handler expires
       //! @param rmMsg   will be set to true if a left over message matching the
       //!                request has been removed from the queue
       //------------------------------------------------------------------------
-      void AddMessageHandler( MsgHandler *handler, time_t expires, bool &rmMsg );
+      void AddMessageHandler( MsgHandler *handler, bool &rmMsg );
+
+      //------------------------------------------------------------------------
+      //! If the specified handler is in the queue but has not yet had an
+      //! expiry time assigned, query the handler for the expiry and record
+      //! it. Expiry will also be assigned by GetHandlerForMessage if not
+      //! already assigned.
+      //!
+      //! @param handler handler to check
+      //------------------------------------------------------------------------
+      void AssignTimeout( MsgHandler *handler );
 
       //------------------------------------------------------------------------
       //! Get a message handler interested in receiving message whose header

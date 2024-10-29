@@ -108,6 +108,22 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   uint16_t XRootDMsgHandler::Examine( std::shared_ptr<Message> &msg )
   {
+    const int sst = pSendingState.fetch_or( kSawResp );
+
+    if( !( sst & kSendDone ) && !( sst & kSawResp ) )
+    {
+      // we must have been sent although we haven't got the OnStatusReady
+      // notification yet. Set the inflight notice.
+
+      Log *log = DefaultEnv::GetLog();
+      log->Dump( XRootDMsg, "[%s] Message %s reply received before notification "
+                 "that it was sent, assuming it was sent ok.",
+                 pUrl.GetHostId().c_str(),
+                 pRequest->GetObfuscatedDescription().c_str() );
+
+      pMsgInFly = true;
+    }
+
     //--------------------------------------------------------------------------
     // if the MsgHandler is already being used to process another request
     // (kXR_oksofar) we need to wait
@@ -898,6 +914,25 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
+    const int sst = pSendingState.fetch_or( kSendDone );
+
+    if( sst & kFinalResp )
+    {
+      log->Dump( XRootDMsg, "[%s] Got late notification that outgoing message %s was "
+                 "sent, already have final response, queuing handler callback.",
+                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
+      HandleRspOrQueue();
+      return;
+    }
+
+    if( sst & kSawResp )
+    {
+      log->Dump( XRootDMsg, "[%s] Got late notification that message %s has "
+                 "been successfully sent.",
+                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
+      return;
+    }
+
     //--------------------------------------------------------------------------
     // We were successful, so we now need to listen for a response
     //--------------------------------------------------------------------------
@@ -905,10 +940,6 @@ namespace XrdCl
     {
       log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
                  pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
-
-      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: %p (message: %s ) from out-queue to in-queue.",
-                  pUrl.GetHostId().c_str(), this,
-                  pRequest->GetObfuscatedDescription().c_str() );
 
       pMsgInFly = true;
       return;
@@ -1114,6 +1145,20 @@ namespace XrdCl
   void XRootDMsgHandler::HandleResponse()
   {
     //--------------------------------------------------------------------------
+    // Is it a final response?
+    //--------------------------------------------------------------------------
+    bool finalrsp = !( pStatus.IsOK() && pStatus.code == suContinue );
+    if( finalrsp )
+    {
+      // Do not do final processing of the response if we haven't had
+      // confirmation the original request was sent (via OnStatusReady).
+      // The final processing will be triggered when we get the confirm.
+      const int sst = pSendingState.fetch_or( kFinalResp );
+      if( !( sst & kSendDone ) )
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // Process the response and notify the listener
     //--------------------------------------------------------------------------
     XRootDTransport::UnMarshallRequest( pRequest );
@@ -1147,11 +1192,6 @@ namespace XrdCl
       pRdirEntry->status = *status;
       pRedirectTraceBack.push_back( std::move( pRdirEntry ) );
     }
-
-    //--------------------------------------------------------------------------
-    // Is it a final response?
-    //--------------------------------------------------------------------------
-    bool finalrsp = !( pStatus.IsOK() && pStatus.code == suContinue );
 
     //--------------------------------------------------------------------------
     // Release the stream id
@@ -2243,6 +2283,20 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void XRootDMsgHandler::HandleRspOrQueue()
   {
+    //--------------------------------------------------------------------------
+    // Is it a final response?
+    //--------------------------------------------------------------------------
+    bool finalrsp = !( pStatus.IsOK() && pStatus.code == suContinue );
+    if( finalrsp )
+    {
+      // Do not do final processing of the response if we haven't had
+      // confirmation the original request was sent (via OnStatusReady).
+      // The final processing will be triggered when we get the confirm.
+      const int sst = pSendingState.fetch_or( kFinalResp );
+      if( !( sst & kSendDone ) )
+        return;
+    }
+
     JobManager *jobMgr = pPostMaster->GetJobManager();
     if( jobMgr->IsWorker() )
       HandleResponse();
