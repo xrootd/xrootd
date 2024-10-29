@@ -366,8 +366,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       timeval                        pConnectionStarted;
       timeval                        pConnectionDone;
-      uint64_t                       pBytesSent;
-      uint64_t                       pBytesReceived;
+      std::atomic<uint64_t>          pBytesSent;
+      std::atomic<uint64_t>          pBytesReceived;
 
       //------------------------------------------------------------------------
       // Data stream on-connect handler

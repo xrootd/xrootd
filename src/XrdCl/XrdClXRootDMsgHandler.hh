@@ -168,6 +168,7 @@ namespace XrdCl
         pAggregatedWaitTime( 0 ),
 
         pMsgInFly( false ),
+        pSendingState( 0 ),
 
         pTimeoutFence( false ),
 
@@ -233,7 +234,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t Examine( std::shared_ptr<Message> &msg  );
+      virtual uint16_t Examine( std::shared_ptr<Message> &msg  ) override;
 
       //------------------------------------------------------------------------
       //! Reexamine the incoming message, and decide on the action to be taken
@@ -245,21 +246,21 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t InspectStatusRsp();
+      virtual uint16_t InspectStatusRsp() override;
 
       //------------------------------------------------------------------------
       //! Get handler sid
       //!
       //! return sid of the corresponding request, otherwise 0
       //------------------------------------------------------------------------
-      virtual uint16_t GetSid() const;
+      virtual uint16_t GetSid() const override;
 
       //------------------------------------------------------------------------
       //! Process the message if it was "taken" by the examine action
       //!
       //! @param msg the message to be processed
       //------------------------------------------------------------------------
-      virtual void Process();
+      virtual void Process() override;
 
       //------------------------------------------------------------------------
       //! Read message body directly from a socket - called if Examine returns
@@ -274,7 +275,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual XRootDStatus ReadMessageBody( Message  *msg,
                                             Socket   *socket,
-                                            uint32_t &bytesRead );
+                                            uint32_t &bytesRead ) override;
 
       //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
@@ -283,18 +284,18 @@ namespace XrdCl
       //! @param status    status info
       //------------------------------------------------------------------------
       virtual uint8_t OnStreamEvent( StreamEvent  event,
-                                     XRootDStatus status );
+                                     XRootDStatus status ) override;
 
       //------------------------------------------------------------------------
       //! The requested action has been performed and the status is available
       //------------------------------------------------------------------------
       virtual void OnStatusReady( const Message *message,
-                                  XRootDStatus   status );
+                                  XRootDStatus   status ) override;
 
       //------------------------------------------------------------------------
       //! Are we a raw writer or not?
       //------------------------------------------------------------------------
-      virtual bool IsRaw() const;
+      virtual bool IsRaw() const override;
 
       //------------------------------------------------------------------------
       //! Write message body directly to a socket - called if IsRaw returns
@@ -307,7 +308,7 @@ namespace XrdCl
       //!                  stError on failure
       //------------------------------------------------------------------------
       XRootDStatus WriteMessageBody( Socket   *socket,
-                                     uint32_t &bytesWritten );
+                                     uint32_t &bytesWritten ) override;
 
       //------------------------------------------------------------------------
       //! Called after the wait time for kXR_wait has elapsed
@@ -327,7 +328,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get a timestamp after which we give up
       //------------------------------------------------------------------------
-      time_t GetExpiration()
+      time_t GetExpiration() override
       {
         return pExpiration;
       }
@@ -429,7 +430,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void PartialReceived();
 
+      void OnReadyToSend( [[maybe_unused]] Message *msg ) override
+      {
+        pSendingState = 0;
+      }
+
     private:
+
+      // bit flags used with pSendingState
+      static constexpr int kSendDone   = 0x0001;
+      static constexpr int kSawResp    = 0x0002;
+      static constexpr int kFinalResp  = 0x0004;
 
       //------------------------------------------------------------------------
       //! Recover error
@@ -642,6 +653,7 @@ namespace XrdCl
       RedirectTraceBack                      pRedirectTraceBack;
 
       bool                                   pMsgInFly;
+      std::atomic<int>                       pSendingState;
 
       //------------------------------------------------------------------------
       // true if MsgHandler is both in inQueue and installed in respective

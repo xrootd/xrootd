@@ -51,12 +51,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Add a listener that should be notified about incoming messages
   //----------------------------------------------------------------------------
-  void InQueue::AddMessageHandler( MsgHandler *handler, time_t expires, bool &rmMsg )
+  void InQueue::AddMessageHandler( MsgHandler *handler, bool &rmMsg )
   {
     uint16_t handlerSid = handler->GetSid();
     XrdSysMutexHelper scopedLock( pMutex );
 
-    pHandlers[handlerSid] = HandlerAndExpire( handler, expires );
+    pHandlers[handlerSid] = HandlerAndExpire( handler, 0 );
   }
 
   //----------------------------------------------------------------------------
@@ -85,6 +85,11 @@ namespace XrdCl
       Log *log = DefaultEnv::GetLog();
       handler = it->second.first;
       act     = handler->Examine( msg );
+      if( it->second.second == 0 ) {
+        it->second.second = handler->GetExpiration();
+        log->Debug( ExDbgMsg, "[handler: 0x%x] Assigned expiration %d.",
+                    handler, it->second.second );
+      }
       exp     = it->second.second;
       log->Debug( ExDbgMsg, "[msg: 0x%x] Assigned MsgHandler: 0x%x.",
                   msg.get(), handler );
@@ -167,7 +172,7 @@ namespace XrdCl
     HandlerMap::iterator it = pHandlers.begin();
     while( it != pHandlers.end() )
     {
-      if( it->second.second <= now )
+      if( it->second.second && it->second.second <= now )
       {
         uint8_t act = it->second.first->OnStreamEvent( MsgHandler::Timeout,
                                          Status( stError, errOperationExpired ) );
@@ -180,4 +185,27 @@ namespace XrdCl
         ++it;
     }
   }
+
+  //----------------------------------------------------------------------------
+  // Query the handler and extract the expiration time
+  //----------------------------------------------------------------------------
+  void InQueue::AssignTimeout( MsgHandler *handler )
+  {
+    uint16_t handlerSid = handler->GetSid();
+    XrdSysMutexHelper scopedLock( pMutex );
+    HandlerMap::iterator it = pHandlers.find( handlerSid );
+    if( it != pHandlers.end() )
+    {
+      if( it->second.second == 0 )
+      {
+        it->second.second   = handler->GetExpiration();
+
+        Log *log = DefaultEnv::GetLog();
+        log->Debug( ExDbgMsg, "[handler: 0x%x] Assigned expiration %d.",
+                    handler, it->second.second );
+
+      }
+    }
+  }
+
 }
