@@ -26,6 +26,7 @@ from __future__ import absolute_import, division, print_function
 from pyxrootd import client
 from XRootD.client.url import URL
 from XRootD.client.responses import XRootDStatus
+from .env import EnvGetInt, EnvGetString
 
 class ProgressHandlerWrapper(object):
   """Internal progress handler wrapper to convert parameters to friendly 
@@ -83,17 +84,17 @@ class CopyProcess(object):
               checksumtype    = '',
               checksumpreset  = '',
               dynamicsource   = False,
-              chunksize       = 8388608,
-              parallelchunks  = 4,
-              inittimeout     = 600,
-              tpctimeout      = 1800,
+              chunksize       = EnvGetInt('CPChunkSize'),
+              parallelchunks  = EnvGetInt('CPParallelChunks'),
+              inittimeout     = EnvGetInt('CPInitTimeout'),
+              tpctimeout      = EnvGetInt('CPTPCTimeout'),
               rmBadCksum      = False,
-              cptimeout       = 0,
-              xrateThreshold  = 0,
+              cptimeout       = EnvGetInt('CPTimeout'),
+              xrateThreshold  = EnvGetInt('XRateThreshold'),
               xrate           = 0,
-              retry           = 0,
+              retry           = EnvGetInt('CpRetry'),
               cont            = False,
-              rtrplc          = "force" ):
+              rtrplc          = EnvGetString('CpRetryPolicy') ):
     """Add a job to the copy process.
 
     :param         source: original source URL
