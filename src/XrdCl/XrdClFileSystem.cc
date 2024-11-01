@@ -1737,37 +1737,49 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( flags & DirListFlags::Locate )
     {
-      //------------------------------------------------------------------------
-      // Locate all the disk servers holding the directory
-      //------------------------------------------------------------------------
-      LocationInfo *locations;
-      std::string locatePath = "*"; locatePath += path;
-      XRootDStatus st = DeepLocate( locatePath,
-          OpenFlags::PrefName | OpenFlags::Compress | OpenFlags::IntentDirList, locations );
-
-      if( !st.IsOK() )
-        return st;
-
-      if( locations->GetSize() == 0 )
-      {
-        delete locations;
-        return XRootDStatus( stError, errNotFound );
-      }
-
-      // Check if destination is a data server
       bool isserver = false;
-      AnyObject obj;
-      st = DefaultEnv::GetPostMaster()->QueryTransport( *pImpl->fsdata->pUrl, XRootDQuery::ServerFlags, obj );
-      if( st.IsOK() )
+      //------------------------------------------------------------------------
+      // Check if destination is a data server
+      //------------------------------------------------------------------------
       {
-        int *ptr = 0;
-        obj.Get( ptr );
-        isserver = ( *ptr & kXR_isServer );
-        delete ptr;
+        AnyObject obj;
+        XRootDStatus st = DefaultEnv::GetPostMaster()->QueryTransport(
+            *pImpl->fsdata->pUrl, XRootDQuery::ServerFlags, obj);
+
+        if( st.IsOK() )
+        {
+          int *ptr = 0;
+          obj.Get( ptr );
+          isserver = ( *ptr & kXR_isServer );
+          delete ptr;
+        }
       }
 
-      if( !isserver )
-      {
+      if (isserver) {
+        // Just disable the locate flag if we are talking to a single server
+        flags &= ~DirListFlags::Locate;
+      } else {
+        //------------------------------------------------------------------------
+        // Locate all the disk servers holding the directory
+        //------------------------------------------------------------------------
+        LocationInfo *locations;
+        std::string locatePath = "*"; locatePath += path;
+
+        XRootDStatus st = DeepLocate(locatePath,
+                                     OpenFlags::PrefName |
+                                     OpenFlags::Compress |
+                                     OpenFlags::IntentDirList,
+                                     locations);
+
+        if( !st.IsOK() )
+          return st;
+
+        if( locations->GetSize() == 0 )
+        {
+          delete locations;
+          return XRootDStatus( stError, errNotFound );
+        }
+
         //------------------------------------------------------------------------
         // Ask each server for a directory list
         //------------------------------------------------------------------------
@@ -1811,6 +1823,7 @@ namespace XrdCl
           fs          = 0;
           currentResp = 0;
         }
+
         delete locations;
 
         if( flags & DirListFlags::Merge )
@@ -1824,8 +1837,6 @@ namespace XrdCl
         }
         return XRootDStatus();
       }
-      else
-        delete locations;
     }
 
     //--------------------------------------------------------------------------
