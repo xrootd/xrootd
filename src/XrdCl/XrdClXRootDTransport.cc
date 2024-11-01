@@ -2857,6 +2857,9 @@ namespace XrdCl
     if( flags & kXR_attrMeta )
       repr += "meta ";
 
+    else if( flags & kXR_attrCache )
+      repr += "cache ";
+
     else if( flags & kXR_attrProxy )
       repr += "proxy ";
 
