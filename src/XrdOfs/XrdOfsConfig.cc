@@ -277,7 +277,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       else {ofsConfig->Plugin(XrdOfsOss);
             ossFeatures = XrdOfsOss->Features();
             if (ossFeatures & XRDOSS_HASNOSF)  FeatureSet |= XrdSfs::hasNOSF;
-            if (ossFeatures & XRDOSS_HASCACH)  FeatureSet |= XrdSfs::hasCACH;
+            if (ossFeatures & XRDOSS_HASCACH)
+               {FeatureSet |= XrdSfs::hasCACH;
+                if (xrdEnv) xrdEnv->Put("XrdCache", "T"); // Existence check
+               }
             if (ossFeatures & XRDOSS_HASNAIO)  FeatureSet |= XrdSfs::hasNAIO;
             if (xrdEnv) xrdEnv->PutPtr("XrdOss*", XrdOfsOss);
             ofsConfig->Plugin(Cks);
