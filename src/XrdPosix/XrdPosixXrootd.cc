@@ -1165,6 +1165,7 @@ void XrdPosixXrootd::Seekdir(DIR *dirp, long loc)
 int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 {
    XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+   bool cacheChk = false;
 
 // Make sure the admin is OK
 //
@@ -1182,6 +1183,7 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
       int rc = XrdPosixGlobals::theCache->Stat(statX.path, *buf);
       if (!rc) return 0;
       if (rc < 0) {errno = -rc; return -1;} // does the cache set this???
+      cacheChk = true;
      }
 
 // Issue the stat and verify that all went well
@@ -1190,6 +1192,12 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
        return EcStat(path, buf, admin);
 
    if (!admin.Stat(*buf)) return -1;
+
+// If we are here and the cache was checked then the file was not in the cache.
+// We informally tell the caller this is the case by setting atime to zero.
+// Normally, atime will never be zero in any other case.
+//
+   if (cacheChk) buf->st_atime = 0;
    return 0;
 }        
 

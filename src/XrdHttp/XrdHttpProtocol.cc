@@ -104,6 +104,7 @@ int XrdHttpProtocol::exthandlercnt = 0;
 std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
 
 bool XrdHttpProtocol::usingEC = false;
+bool XrdHttpProtocol::hasCache= false;
 
 XrdScheduler *XrdHttpProtocol::Sched = 0; // System scheduler
 XrdBuffManager *XrdHttpProtocol::BPool = 0; // Buffer manager
@@ -1103,6 +1104,10 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 
 // Test if XrdEC is loaded
    if (getenv("XRDCL_EC")) usingEC = true;
+
+// Test if this is a caching server
+//
+   if (myEnv->Get("XrdCache")) hasCache = true;
 
 // If https was disabled, then issue a warning message if xrdtls configured
 // of it's disabled because httpsmode was auto and xrdtls was not configured.
