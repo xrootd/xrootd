@@ -228,6 +228,7 @@ private:
   static XrdHttpSecXtractor *secxtractor;
   
   static bool usingEC;   // using XrdEC
+  static bool hasCache;  // This is a caching server
   // Loads the SecXtractor plugin, if available
   static int LoadSecXtractor(XrdSysError *eDest, const char *libName,
                       const char *libParms);
