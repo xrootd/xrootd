@@ -88,8 +88,6 @@ private:
 
    struct stat *m_localStat;
    int initCachedStat();
-
-
 };
 
 }

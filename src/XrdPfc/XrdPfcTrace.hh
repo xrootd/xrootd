@@ -64,6 +64,11 @@
    if (XRD_TRACE What >= TRACE_ ## act) SYSTRACE(XRD_TRACE, 0, m_traceID, 0, \
        TRACE_STR_ ## act << x << " " << GetLocalPath())
 
+#define TRACEF_INT(act, x) \
+   if (XRD_TRACE What >= act) \
+   {static const char* t_what[]={"","error ","warning ","info ","debug ","dump "};\
+    SYSTRACE(XRD_TRACE, 0, m_traceID, 0, t_what[act] << x << " " << GetLocalPath())}
+
 #else
 
 #define ERRNO_AND_ERRSTR(err_code)
@@ -71,6 +76,7 @@
 #define TRACE_PC(act, pre_code, x)
 #define TRACEIO(act, x)
 #define TRACEF(act, x)
+#define TRACEF_INT(act, x)
 
 #endif
 
