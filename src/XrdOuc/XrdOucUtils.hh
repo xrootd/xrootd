@@ -35,7 +35,6 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
-#include <regex>
 
 class XrdSysError;
 class XrdOucString;
