@@ -147,7 +147,7 @@ function teardown() {
 	# Kill all processes that created pid files and are still running
 	for PIDFILE in *.pid; do
 		test -s "${PIDFILE}" || continue
-		PID="$(ps -o pid= "$(cat "${PIDFILE}")")"
+		PID="$(ps -o pid= "$(cat "${PIDFILE}")" || true)"
 		if test -n "${PID}"; then
 			kill -s TERM "${PID}"
 		fi
