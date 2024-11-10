@@ -121,64 +121,6 @@ int StatsFileSystem::Chmod(const char * path, mode_t mode, XrdOucEnv *env)
     return wrapPI.Chmod(path, mode, env);
 }
 
-void StatsFileSystem::Connect(XrdOucEnv &env)
-{
-    wrapPI.Connect(env);
-}
-
-int       StatsFileSystem::Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env,
-                        int opts)
-{
-    return wrapPI.Create(tid, path, mode, env, opts);
-}
-
-void      StatsFileSystem::Disc(XrdOucEnv &env)
-{
-    wrapPI.Disc(env);
-}
-
-void      StatsFileSystem::EnvInfo(XrdOucEnv *env)
-{
-    wrapPI.EnvInfo(env);
-}
-
-uint64_t  StatsFileSystem::Features()
-{
-    return wrapPI.Features();
-}
-
-int       StatsFileSystem::FSctl(int cmd, int alen, const char *args, char **resp)
-{
-    return wrapPI.FSctl(cmd, alen, args, resp);
-}
-
-int       StatsFileSystem::Init(XrdSysLogger *lp, const char *cfn)
-{
-    return 0;
-}
-
-int       StatsFileSystem::Init(XrdSysLogger *lp, const char *cfn, XrdOucEnv *env)
-{
-    return Init(lp, cfn);
-}
-
-int       StatsFileSystem::Mkdir(const char *path, mode_t mode, int mkpath,
-                    XrdOucEnv  *env)
-{
-    return wrapPI.Mkdir(path, mode, mkpath, env);
-}
-
-int       StatsFileSystem::Reloc(const char *tident, const char *path,
-                    const char *cgName, const char *anchor)
-{
-    return wrapPI.Reloc(tident, path, cgName, anchor);
-}
-
-int       StatsFileSystem::Remdir(const char *path, int Opts, XrdOucEnv *env)
-{
-    return wrapPI.Remdir(path, Opts, env);
-}
-
 int       StatsFileSystem::Rename(const char *oPath, const char *nPath,
                         XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
 {
@@ -191,11 +133,6 @@ int       StatsFileSystem::Stat(const char *path, struct stat *buff,
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.Stat(path, buff, opts, env);
-}
-
-int       StatsFileSystem::Stats(char *buff, int blen)
-{
-    return wrapPI.Stats(buff, blen);
 }
 
 int       StatsFileSystem::StatFS(const char *path, char *buff, int &blen,
@@ -255,16 +192,6 @@ int       StatsFileSystem::Unlink(const char *path, int Opts, XrdOucEnv *env)
 {
     OpTimer op(m_ops.m_unlink_ops, m_slow_ops.m_unlink_ops, m_times.m_unlink, m_slow_times.m_unlink, m_slow_duration);
     return wrapPI.Unlink(path, Opts, env);
-}
-
-int       StatsFileSystem::Lfn2Pfn(const char *Path, char *buff, int blen)
-{
-    return wrapPI.Lfn2Pfn(Path, buff, blen);
-}
-
-const char       *StatsFileSystem::Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
-{
-    return wrapPI.Lfn2Pfn(Path, buff, blen, rc);
 }
 
 void StatsFileSystem::AggregateStats()
