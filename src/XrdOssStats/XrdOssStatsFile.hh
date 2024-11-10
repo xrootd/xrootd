@@ -33,41 +33,16 @@ public:
         return wrapDF.Fchmod(mode);
     }
 
-    void    Flush() override
-    {
-        return wrapDF.Flush();
-    }
-
     int     Fstat(struct stat *buf) override
     {
         StatsFileSystem::OpTimer op(m_oss.m_ops.m_stat_ops, m_oss.m_slow_ops.m_stat_ops, m_oss.m_times.m_stat, m_oss.m_slow_times.m_stat, m_oss.m_slow_duration);
         return wrapDF.Fstat(buf);
     }
 
-    int     Fsync() override
-    {
-        return wrapDF.Fsync();
-    }
-
-    int     Fsync(XrdSfsAio *aiop) override
-    {
-        return wrapDF.Fsync(aiop);
-    }
-
     int     Ftruncate(unsigned long long size) override
     {
         StatsFileSystem::OpTimer op(m_oss.m_ops.m_truncate_ops, m_oss.m_slow_ops.m_truncate_ops, m_oss.m_times.m_truncate, m_oss.m_slow_times.m_truncate, m_oss.m_slow_duration);
         return wrapDF.Ftruncate(size);
-    }
-
-    off_t   getMmap(void **addr) override
-    {
-        return wrapDF.getMmap(addr);
-    }
-
-    int     isCompressed(char *cxidp=0) override
-    {
-        return wrapDF.isCompressed(cxidp);
     }
 
     ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
@@ -153,11 +128,6 @@ public:
     {
         StatsFileSystem::OpTimer op(m_oss.m_ops.m_write_ops, m_oss.m_slow_ops.m_write_ops, m_oss.m_times.m_write, m_oss.m_slow_times.m_write, m_oss.m_slow_duration);
         return wrapDF.WriteV(writeV, wrvcnt);
-    }
-
-    int Close(long long *retsz=0) override
-    {
-        return wrapDF.Close(retsz);
     }
 
 private:
