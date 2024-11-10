@@ -30,25 +30,10 @@ public:
     XrdOssDF *newDir(const char *user=0) override;
     XrdOssDF *newFile(const char *user=0) override;
     int Chmod(const char * path, mode_t mode, XrdOucEnv *env=0) override;
-    void      Connect(XrdOucEnv &env) override;
-    int       Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env,
-                         int opts=0) override;
-    void      Disc(XrdOucEnv &env) override;
-    void      EnvInfo(XrdOucEnv *env) override;
-    uint64_t  Features() override;
-    int       FSctl(int cmd, int alen, const char *args, char **resp=0) override;
-    int       Init(XrdSysLogger *lp, const char *cfn) override;
-    int       Init(XrdSysLogger *lp, const char *cfn, XrdOucEnv *env) override;
-    int       Mkdir(const char *path, mode_t mode, int mkpath=0,
-                        XrdOucEnv  *env=0) override;
-    int       Reloc(const char *tident, const char *path,
-                        const char *cgName, const char *anchor=0) override;
-    int       Remdir(const char *path, int Opts=0, XrdOucEnv *env=0) override;
     int       Rename(const char *oPath, const char *nPath,
                          XrdOucEnv  *oEnvP=0, XrdOucEnv *nEnvP=0) override;
     int       Stat(const char *path, struct stat *buff,
                        int opts=0, XrdOucEnv *env=0) override;
-    int       Stats(char *buff, int blen) override;
     int       StatFS(const char *path, char *buff, int &blen,
                          XrdOucEnv  *env=0) override;
     int       StatLS(XrdOucEnv &env, const char *path,
@@ -63,8 +48,6 @@ public:
     int       Truncate(const char *path, unsigned long long fsize,
                            XrdOucEnv *env=0) override;
     int       Unlink(const char *path, int Opts=0, XrdOucEnv *env=0) override;
-    int       Lfn2Pfn(const char *Path, char *buff, int blen) override;
-    const char       *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc) override;
 
 private:
     static void * AggregateBootstrap(void *instance);

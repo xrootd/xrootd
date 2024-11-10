@@ -35,16 +35,6 @@ public:
         return wrapDF.Readdir(buff, blen);
     }
 
-    int StatRet(struct stat *statStruct) override
-    {
-        return wrapDF.StatRet(statStruct);
-    }
-
-    int Close(long long *retsz=0) override
-    {
-        return wrapDF.Close(retsz);
-    }
-
 
 private:
     std::unique_ptr<XrdOssDF> m_wrappedDir;
