@@ -2280,31 +2280,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           // On error, we can only send out a message if trailers are enabled and the
           // status response in trailer behavior is requested.
           if (xrdresp == kXR_error) {
-            if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
-              // A trailer header is appropriate in this case; this is signified by
-              // a chunk with size zero, then the trailer, then a crlf.
-              //
-              // We only send the status trailer when explicitly requested; otherwise a
-              // "normal" HTTP client might simply see a short response and think it's a
-              // success
-              if (prot->ChunkRespHeader(0))
-                return -1;
-
-              const std::string crlf = "\r\n";
-              std::stringstream ss;
-              ss << "X-Transfer-Status: " << httpStatusCode << ": " << httpStatusText << crlf;
-
-              const auto header = ss.str();
-              if (prot->SendData(header.c_str(), header.size()))
-                return -1;
-
-              if (prot->ChunkRespFooter())
-                return -1;
-
-              return -1;
-            } else {
-              return -1;
-            }
+            sendFooterError("");
+            return -1;
           }
 
 
@@ -2736,6 +2713,13 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 void
 XrdHttpReq::sendFooterError(const std::string &extra_text) {
   if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
+    // A trailer header is appropriate in this case; this is signified by
+    // a chunk with size zero, then the trailer, then a crlf.
+    //
+    // We only send the status trailer when explicitly requested; otherwise a
+    // "normal" HTTP client might simply see a short response and think it's a
+    // success
+
     if (prot->ChunkRespHeader(0))
       return;
 
