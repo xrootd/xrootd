@@ -145,7 +145,7 @@ private:
 
   // If requested by the client, sends any I/O errors that occur during the transfer
   // into a footer.
-  int sendFooterError(const std::string &);
+  void sendFooterError(const std::string &);
 
   /**
    * Extract a comma separated list of checksums+metadata into a vector
