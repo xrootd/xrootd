@@ -10,6 +10,9 @@
 #   XROOTD_LIBRARIES
 #     Specifies XRootD libraries that should be passed to target_link_libararies.
 #
+#   XROOTD_DEFINITIONS
+#     Specifies XRootD definitions that should be passed to add_definitions.
+#
 #   XROOTD_<COMPONENT>_LIBRARIES
 #     Specifies the libraries of a specific <COMPONENT>
 #
@@ -58,7 +61,10 @@ if(IS_DIRECTORY "${XRootD_INCLUDE_DIR}/private")
   list(APPEND XRootD_INCLUDE_DIRS "${XRootD_INCLUDE_DIR}/private")
 endif()
 
+set(XRootD_DEFINITIONS "-D_FILE_OFFSET_BITS=64")
+
 set(XROOTD_INCLUDE_DIRS "${XRootD_INCLUDE_DIRS}") # backward compatibility
+set(XROOTD_DEFINITIONS "${XRootD_DEFINITIONS}")
 
 ################################################################################
 # XRootD client libs
@@ -178,9 +184,10 @@ message(TRACE "XRootD_VERSION_NUMBER = '${XRootD_VERSION_NUMBER}'")
 
 message(TRACE "XRootD_FOUND          = '${XRootD_FOUND}'")
 message(TRACE "XRootD_INSTALL_PREFIX = '@CMAKE_INSTALL_PREFIX@'")
-message(TRACE "XRootD_INCLUDE_DIR    = '${XRootD_INCLUDE_DIR}'")
-message(TRACE "XRootD_LIBRARY_DIR    = '${XRootD_LIBRARY_DIR}'")
+message(TRACE "XRootD_INCLUDE_DIRS   = '${XRootD_INCLUDE_DIRS}'")
+message(TRACE "XRootD_LIB_DIR        = '${XRootD_LIB_DIR}'")
 message(TRACE "XRootD_LIBRARIES      = '${XRootD_LIBRARIES}'")
+message(TRACE "XRootD_DEFINITIONS    = '${XRootD_DEFINITIONS}'")
 
 foreach(COMPONENT UTILS CLIENT SERVER HTTP POSIX SSI)
   message(TRACE "XRootD_${COMPONENT}_FOUND\t\t= '${XRootD_${COMPONENT}_FOUND}'")
