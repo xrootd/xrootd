@@ -616,11 +616,11 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     // Read as many lines as possible into the buffer. An empty line breaks
     while ((rc = BuffgetLine(tmpline)) > 0) {
+      std::string traceLine = tmpline.c_str();
       if (TRACING(TRACE_DEBUG)) {
-        std::string traceLine{tmpline.c_str()};
         traceLine = obfuscateAuth(traceLine);
-        TRACE(DEBUG, " rc:" << rc << " got hdr line: " << traceLine);
       }
+      TRACE(DEBUG, " rc:" << rc << " got hdr line: " << traceLine);
       if ((rc == 2) && (tmpline.length() > 1) && (tmpline[rc - 1] == '\n')) {
         CurrentReq.headerok = true;
         TRACE(DEBUG, " rc:" << rc << " detected header end.");
@@ -629,7 +629,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
 
       if (CurrentReq.request == CurrentReq.rtUnset) {
-        TRACE(DEBUG, " Parsing first line: " << tmpline.c_str());
+        TRACE(DEBUG, " Parsing first line: " << traceLine.c_str());
         int result = CurrentReq.parseFirstLine((char *)tmpline.c_str(), rc);
         if (result < 0) {
           TRACE(DEBUG, " Parsing of first line failed with " << result);
