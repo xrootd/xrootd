@@ -300,6 +300,10 @@ public:
    //---------------------------------------------------------------------
    virtual int ConsiderCached(const char *url);
 
+   bool DecideIfConsideredCached(long long file_size, long long bytes_on_disk);
+   void WriteFileSizeXAttr(int cinfo_fd, long long file_size);
+   long long DetermineFullFileSize(const std::string &cinfo_fname);
+
    //--------------------------------------------------------------------
    //! \brief Makes decision if the original XrdOucCacheIO should be cached.
    //!
@@ -409,6 +413,7 @@ private:
    bool xcschk(XrdOucStream &);
    bool xdlib(XrdOucStream &);
    bool xtrace(XrdOucStream &);
+   bool test_oss_basics_and_features();
 
    bool cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name);
 
@@ -437,6 +442,8 @@ private:
    int              m_RAM_std_size;
 
    bool        m_isClient;                  //!< True if running as client
+   bool        m_dataXattr = false;         //!< True if xattrs are available on the data space
+   bool        m_metaXattr = false;         //!< True if xattrs are available on the meta space
 
    struct WriteQ
    {
