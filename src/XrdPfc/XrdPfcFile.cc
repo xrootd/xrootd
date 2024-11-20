@@ -68,6 +68,7 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_block_size(0),
    m_num_blocks(0),
    m_prefetch_state(kOff),
+   m_prefetch_bytes(0),
    m_prefetch_read_cnt(0),
    m_prefetch_hit_cnt(0),
    m_prefetch_score(0)
@@ -1321,6 +1322,7 @@ void File::ProcessBlockResponse(Block *b, int res)
             m_state_cond.UnLock();
             return;
          }
+         m_prefetch_bytes += b->get_size();
       }
       else
       {
