@@ -474,6 +474,7 @@ bool File::Open()
       m_cfi.ResetNoCkSumTime();
       m_cfi.Write(m_info_file, ifn.c_str());
       m_info_file->Fsync();
+      cache()->WriteFileSizeXAttr(m_info_file->getFD(), m_file_size);
       TRACEF(Debug, tpfx << "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << m_cfi.GetNBlocks());
    }
 
@@ -487,6 +488,27 @@ bool File::Open()
    return true;
 }
 
+int File::Fstat(struct stat &sbuff)
+{
+   // Stat on an open file.
+   // Corrects size to actual full size of the file.
+   // Sets atime to 0 if the file is only partially downloaded, in accordance
+   // with pfc.onlyifcached settings.
+   // Called from IO::Fstat() and Cache::Stat() when the file is active.
+   // Returns 0 on success, -errno on error.
+
+   int res;
+
+   if ((res = m_data_file->Fstat(&sbuff))) return res;
+
+   sbuff.st_size = m_file_size;
+
+   bool is_cached = cache()->DecideIfConsideredCached(m_file_size, sbuff.st_blocks * 512ll);
+   if ( ! is_cached)
+      sbuff.st_atime = 0;
+
+   return 0;
+}
 
 //==============================================================================
 // Read and helpers

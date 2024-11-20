@@ -86,8 +86,7 @@ private:
    int ReadVBegin(const XrdOucIOVec *readV, int n, ReadReqRH *rh);
    int ReadVEnd(int retval, ReadReqRH *rh);
 
-   struct stat *m_localStat;
-   int initCachedStat();
+   int initialStat(struct stat &sbuff);
 };
 
 }

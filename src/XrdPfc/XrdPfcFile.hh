@@ -295,6 +295,8 @@ public:
    long long          GetPrefetchedBytes()   const { return m_prefetch_bytes; }
    const Stats&       RefStats()             const { return m_stats; }
 
+   int Fstat(struct stat &sbuff);
+
    // These three methods are called under Cache's m_active lock
    int get_ref_cnt() { return   m_ref_cnt; }
    int inc_ref_cnt() { return ++m_ref_cnt; }
