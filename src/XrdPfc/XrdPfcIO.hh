@@ -77,7 +77,6 @@ private:
 
    void SetInput(XrdOucCacheIO*);
 
-protected:
    // Variables used by File to store IO-relates state. Managed under
    // File::m_state_cond mutex.
    friend class File;
@@ -87,6 +86,7 @@ protected:
    bool   m_allow_prefetching {true};
    bool   m_in_detach         {false};
 
+protected:
    int                m_incomplete_count {0};
    std::map<int, int> m_error_counts;
    bool register_incomplete_read() {

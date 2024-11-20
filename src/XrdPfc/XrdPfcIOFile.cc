@@ -158,7 +158,6 @@ void IOFile::DetachFinalize()
    m_file->RequestSyncOfDetachStats();
    Cache::GetInstance().ReleaseFile(m_file, this);
 
-#ifndef NODEBUG
    if (( ! m_error_counts.empty() || m_incomplete_count > 0) && XRD_TRACE What >= TRACE_Error) {
       char info[1024];
       int pos = 0, cap = 1024;
@@ -175,7 +174,6 @@ void IOFile::DetachFinalize()
       TRACE(Error, "DetachFinalize() " << this << " n_incomplete_reads=" << m_incomplete_count
             << ", block (error : count) report:" << info << (truncated ? " - truncated" : ""));
    }
-#endif
 
    delete this;
 }
