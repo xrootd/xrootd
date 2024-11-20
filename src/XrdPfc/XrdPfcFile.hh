@@ -291,6 +291,7 @@ public:
    int                GetBlockSize()         const { return m_cfi.GetBufferSize(); }
    int                GetNBlocks()           const { return m_cfi.GetNBlocks(); }
    int                GetNDownloadedBlocks() const { return m_cfi.GetNDownloadedBlocks(); }
+   long long          GetPrefetchedBytes()   const { return m_prefetch_bytes; }
    const Stats&       RefStats()             const { return m_stats; }
 
    // These three methods are called under Cache's m_active lock
@@ -364,6 +365,7 @@ private:
 
    PrefetchState_e m_prefetch_state;
 
+   long long m_prefetch_bytes;
    int   m_prefetch_read_cnt;
    int   m_prefetch_hit_cnt;
    float m_prefetch_score;              // cached

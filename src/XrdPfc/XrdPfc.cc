@@ -648,12 +648,14 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
             int  len = snprintf(buf, 4096, "{\"event\":\"file_close\","
                                  "\"lfn\":\"%s\",\"size\":%lld,\"blk_size\":%d,\"n_blks\":%d,\"n_blks_done\":%d,"
                                  "\"access_cnt\":%lu,\"attach_t\":%lld,\"detach_t\":%lld,\"remotes\":%s,"
-                                 "\"b_hit\":%lld,\"b_miss\":%lld,\"b_bypass\":%lld,\"n_cks_errs\":%d}",
+                                 "\"b_hit\":%lld,\"b_miss\":%lld,\"b_bypass\":%lld,"
+                                 "\"b_todisk\":%lld,\"b_prefetch\":%lld,\"n_cks_errs\":%d}",
                                  f->GetLocalPath().c_str(), f->GetFileSize(), f->GetBlockSize(),
                                  f->GetNBlocks(), f->GetNDownloadedBlocks(),
                                  (unsigned long) f->GetAccessCnt(), (long long) as->AttachTime, (long long) as->DetachTime,
                                  f->GetRemoteLocations().c_str(),
-                                 as->BytesHit, as->BytesMissed, as->BytesBypassed, st.m_NCksumErrors
+                                 as->BytesHit, as->BytesMissed, as->BytesBypassed,
+                                 st.m_BytesWritten, f->GetPrefetchedBytes(), st.m_NCksumErrors
             );
             bool suc = false;
             if (len < 4096)
