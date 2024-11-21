@@ -2644,8 +2644,8 @@ int XrdOfs::EmsgType(int ecode)  // The error code
 // If the error is EBUSY then we just need to stall the client. This is
 // a hack in order to provide for proxy support
 //
-    if (ecode < 0) ecode = -ecode;
-    if (ecode == EBUSY) return 5;  // A hack for proxy support
+   if (ecode < 0) ecode = -ecode;
+   if (ecode == EBUSY) return 5;  // A hack for proxy support
 
 // Check for timeout conditions that require a client delay
 //

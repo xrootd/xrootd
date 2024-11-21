@@ -1671,6 +1671,12 @@ namespace XrdCl
                                      uint32_t   bytesSent,
                                      AnyObject &channelData )
   {
+    // Called when a message has been sent. For messages that return on a
+    // different pathid (and hence may use a different poller) it is possible
+    // that the server has already replied and the reply will trigger
+    // MessageReceived() before this method has been called. However for open
+    // and close this is never the case and this method is used for tracking
+    // only those.
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
     XrdSysMutexHelper scopedLock( info->mutex );

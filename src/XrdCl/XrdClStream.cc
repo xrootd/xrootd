@@ -559,9 +559,26 @@ namespace XrdCl
     h.msg = pSubStreams[subStream]->outQueue->PopMessage( h.handler,
                                                           h.expires,
                                                           h.stateful );
+
+    log->Debug( PostMasterMsg, "[%s] Duplicating MsgHandler: 0x%x (message: %s ) "
+                "from out-queue to in-queue, starting to send outgoing.",
+                pUrl->GetHostId().c_str(), h.handler,
+                h.msg->GetObfuscatedDescription().c_str() );
+
     scopedLock.UnLock();
+
     if( h.handler )
+    {
+      bool rmMsg = false;
+      pIncomingQueue->AddMessageHandler( h.handler, rmMsg );
+      if( rmMsg )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Warning( PostMasterMsg, "[%s] Removed a leftover msg from the in-queue.",
+                      pStreamName.c_str(), subStream );
+      }
       h.handler->OnReadyToSend( h.msg );
+    }
     return std::make_pair( h.msg, h.handler );
   }
 
@@ -591,15 +608,11 @@ namespace XrdCl
     pBytesSent += bytesSent;
     if( h.handler )
     {
+      // ensure expiration time is assigned if still in queue
+      pIncomingQueue->AssignTimeout( h.handler );
+      // OnStatusReady may cause the handler to delete itself, in
+      // which case the handler or the user callback may also delete msg
       h.handler->OnStatusReady( msg, XRootDStatus() );
-      bool rmMsg = false;
-      pIncomingQueue->AddMessageHandler( h.handler, h.handler->GetExpiration(), rmMsg );
-      if( rmMsg )
-      {
-        Log *log = DefaultEnv::GetLog();
-        log->Warning( PostMasterMsg, "[%s] Removed a leftover msg from the in-queue.",
-                      pStreamName.c_str(), subStream );
-      }
     }
     pSubStreams[subStream]->outMsgHelper.Reset();
   }
@@ -824,6 +837,7 @@ namespace XrdCl
       OutQueue::MsgHelper &h = pSubStreams[subStream]->outMsgHelper;
       pSubStreams[subStream]->outQueue->PushFront( h.msg, h.handler, h.expires,
                                                    h.stateful );
+      pIncomingQueue->RemoveMessageHandler(h.handler);
       pSubStreams[subStream]->outMsgHelper.Reset();
     }
 
@@ -932,6 +946,7 @@ namespace XrdCl
         OutQueue::MsgHelper &h = pSubStreams[substream]->outMsgHelper;
         pSubStreams[substream]->outQueue->PushFront( h.msg, h.handler, h.expires,
                                                      h.stateful );
+        pIncomingQueue->RemoveMessageHandler(h.handler);
         pSubStreams[substream]->outMsgHelper.Reset();
       }
 
