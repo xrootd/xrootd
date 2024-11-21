@@ -921,7 +921,7 @@ namespace XrdCl
       pSubStreams[substream]->status = Socket::Disconnected;
 
       if( !hush )
-        log->Error( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
+        log->Debug( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
                     pStreamName.c_str(), status.ToString().c_str() );
 
       //--------------------------------------------------------------------
