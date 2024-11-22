@@ -85,6 +85,16 @@ private:
    int    m_active_prefetches {0};
    bool   m_allow_prefetching {true};
    bool   m_in_detach         {false};
+
+protected:
+   int                m_incomplete_count {0};
+   std::map<int, int> m_error_counts;
+   bool register_incomplete_read() {
+      return m_incomplete_count++ == 0;
+   }
+   bool register_block_error(int res) {
+      return m_error_counts[res]++ == 0;
+   }
 };
 }
 

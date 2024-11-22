@@ -923,7 +923,8 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
    if (read_req)
    {
       read_req->m_bytes_read += bytes_read;
-      read_req->update_error_cond(error_cond);
+      if (error_cond)
+         read_req->update_error_cond(error_cond);
       read_req->m_stats.m_BytesHit += bytes_read;
       read_req->m_sync_done = true;
 
@@ -1217,7 +1218,7 @@ void File::ProcessBlockError(Block *b, ReadRequest *rreq)
    // Does not manage m_read_req.
    // Will not complete the request.
 
-   TRACEF(Error, "ProcessBlockError() io " << b->m_io << ", block "<< b->m_offset/m_block_size <<
+   TRACEF(Debug, "ProcessBlockError() io " << b->m_io << ", block "<< b->m_offset/m_block_size <<
                  " finished with error " << -b->get_error() << " " << XrdSysE2T(-b->get_error()));
 
    rreq->update_error_cond(b->get_error());
@@ -1353,9 +1354,15 @@ void File::ProcessBlockResponse(Block *b, int res)
    else
    {
       if (res < 0) {
-         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset << " error=" << res);
+         bool new_error = b->get_io()->register_block_error(res);
+         int tlvl = new_error ? TRACE_Error : TRACE_Debug;
+         TRACEF_INT(tlvl, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset
+                    << ", io=" <<  b->get_io() << ", error=" << res);
       } else {
-         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset << " incomplete, got " << res << " expected " << b->get_size());
+         bool first_p = b->get_io()->register_incomplete_read();
+         int tlvl = first_p ? TRACE_Error : TRACE_Debug;
+         TRACEF_INT(tlvl, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset
+                    << ", io=" <<  b->get_io() << " incomplete, got " << res << " expected " << b->get_size());
 #if defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) || defined(__FreeBSD__)
          res = -EIO;
 #else
@@ -1393,7 +1400,7 @@ void File::ProcessBlockResponse(Block *b, int res)
       {
          ReadRequest *rreq = creqs_to_keep.front().m_read_req;
 
-         TRACEF(Info, "ProcessBlockResponse() requested block " << (void*)b << " failed with another io " <<
+         TRACEF(Debug, "ProcessBlockResponse() requested block " << (void*)b << " failed with another io " <<
                b->get_io() << " - reissuing request with my io " << rreq->m_io);
 
          b->reset_error_and_set_io(rreq->m_io, rreq);

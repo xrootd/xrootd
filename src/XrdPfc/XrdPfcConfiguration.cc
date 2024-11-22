@@ -15,6 +15,11 @@
 
 #include <fcntl.h>
 
+namespace XrdPfc
+{
+   const char *trace_what_strings[] = {"","error ","warning ","info ","debug ","dump "};
+}
+
 using namespace XrdPfc;
 
 XrdVERSIONINFO(XrdOucGetCache, XrdPfc);

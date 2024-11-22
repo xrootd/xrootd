@@ -153,10 +153,27 @@ void IOFile::DetachFinalize()
 {
    // Effectively a destructor.
 
-   TRACE(Info, "DetachFinalize() " << this);
+   TRACE(Debug, "DetachFinalize() " << this);
 
    m_file->RequestSyncOfDetachStats();
    Cache::GetInstance().ReleaseFile(m_file, this);
+
+   if (( ! m_error_counts.empty() || m_incomplete_count > 0) && XRD_TRACE What >= TRACE_Error) {
+      char info[1024];
+      int pos = 0, cap = 1024;
+      bool truncated = false;
+      for (auto [err, cnt] : m_error_counts) {
+         int len = snprintf(&info[pos], cap, " ( %d : %d)", err, cnt);
+         if (len >= cap) {
+            truncated = true;
+            break;
+         }
+         pos += len;
+         cap -= len;
+      }
+      TRACE(Error, "DetachFinalize() " << this << " n_incomplete_reads=" << m_incomplete_count
+            << ", block (error : count) report:" << info << (truncated ? " - truncated" : ""));
+   }
 
    delete this;
 }
@@ -273,9 +290,9 @@ int IOFile::ReadEnd(int retval, ReadReqRH *rh)
    TRACEIO(Dump, "ReadEnd() " << (rh->m_iocb ? "a" : "") << "sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " retval: " << retval << " expected_size: " << rh->m_expected_size);
 
    if (retval < 0) {
-      TRACEIO(Warning, "ReadEnd() error in File::Read(), exit status=" << retval << ", error=" << XrdSysE2T(-retval) << " sid: " << Xrd::hex1 << rh->m_seq_id);
+      TRACEIO(Debug, "ReadEnd() error in File::Read(), exit status=" << retval << ", error=" << XrdSysE2T(-retval) << " sid: " << Xrd::hex1 << rh->m_seq_id);
    } else if (retval < rh->m_expected_size) {
-      TRACEIO(Warning, "ReadEnd() bytes missed " << rh->m_expected_size - retval << " sid: " << Xrd::hex1 << rh->m_seq_id);
+      TRACEIO(Debug, "ReadEnd() bytes missed " << rh->m_expected_size - retval << " sid: " << Xrd::hex1 << rh->m_seq_id);
    }
    if (rh->m_iocb)
       rh->m_iocb->Done(retval);
@@ -362,9 +379,9 @@ int IOFile::ReadVEnd(int retval, ReadReqRH *rh)
                  " retval: " << retval << " n_chunks: " << rh->m_n_chunks << " expected_size: " << rh->m_expected_size);
 
    if (retval < 0) {
-      TRACEIO(Warning, "ReadVEnd() error in File::ReadV(), exit status=" << retval << ", error=" << XrdSysE2T(-retval));
+      TRACEIO(Debug, "ReadVEnd() error in File::ReadV(), exit status=" << retval << ", error=" << XrdSysE2T(-retval));
    } else if (retval < rh->m_expected_size) {
-      TRACEIO(Warning, "ReadVEnd() bytes missed " << rh->m_expected_size - retval);
+      TRACEIO(Debug, "ReadVEnd() bytes missed " << rh->m_expected_size - retval);
    }
    if (rh->m_iocb)
       rh->m_iocb->Done(retval);

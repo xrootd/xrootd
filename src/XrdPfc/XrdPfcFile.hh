@@ -78,6 +78,7 @@ struct ReadRequest
 
    long long   m_bytes_read = 0;
    int         m_error_cond = 0; // to be set to -errno
+   int         m_error_count = 0;
    Stats       m_stats;
 
    int         m_n_chunk_reqs = 0;
@@ -88,7 +89,7 @@ struct ReadRequest
       m_io(io), m_rh(rh)
    {}
 
-   void update_error_cond(int ec) { if (m_error_cond == 0 ) m_error_cond = ec; }
+   void update_error_cond(int ec) { ++m_error_count; if (m_error_cond == 0 ) m_error_cond = ec; }
 
    bool is_complete()  const { return m_n_chunk_reqs == 0 && m_sync_done && m_direct_done; }
    int  return_value() const { return m_error_cond ? m_error_cond : m_bytes_read; }
@@ -311,7 +312,7 @@ private:
    static const char *m_traceID;
 
    int            m_ref_cnt;            //!< number of references from IO or sync
-   
+
    XrdOssDF      *m_data_file;          //!< file handle for data file on disk
    XrdOssDF      *m_info_file;          //!< file handle for data-info file on disk
    Info           m_cfi;                //!< download status of file blocks and access statistics

@@ -38,6 +38,11 @@
 #define XRD_TRACE GetTrace()->
 #endif
 
+namespace XrdPfc
+{
+   extern const char *trace_what_strings[];
+}
+
 #define ERRNO_AND_ERRSTR(err_code) ", err_code=" << err_code << ", err_str=" << XrdSysE2T(err_code)
 
 #define TRACE(act, x) \
@@ -46,8 +51,7 @@
 
 #define TRACE_INT(act, x) \
    if (XRD_TRACE What >= act) \
-   {static const char* t_what[]={"","error ","warning ","info ","debug ","dump "};\
-    SYSTRACE(XRD_TRACE, 0, m_traceID, 0, t_what[act] << x)}
+       SYSTRACE(XRD_TRACE, 0, m_traceID, 0, trace_what_strings[act] << x)
 
 #define TRACE_TEST(act, x) \
     SYSTRACE(XRD_TRACE, 0, m_traceID, 0, TRACE_STR_ ## act << x)
@@ -64,6 +68,10 @@
    if (XRD_TRACE What >= TRACE_ ## act) SYSTRACE(XRD_TRACE, 0, m_traceID, 0, \
        TRACE_STR_ ## act << x << " " << GetLocalPath())
 
+#define TRACEF_INT(act, x) \
+   if (XRD_TRACE What >= act) \
+       SYSTRACE(XRD_TRACE, 0, m_traceID, 0, trace_what_strings[act] << x << " " << GetLocalPath())
+
 #else
 
 #define ERRNO_AND_ERRSTR(err_code)
@@ -71,6 +79,7 @@
 #define TRACE_PC(act, pre_code, x)
 #define TRACEIO(act, x)
 #define TRACEF(act, x)
+#define TRACEF_INT(act, x)
 
 #endif
 
