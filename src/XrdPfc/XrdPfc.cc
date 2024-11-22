@@ -1128,7 +1128,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
    int res = m_oss->Stat(f_name.c_str(), &sbuff);
    if (res != XrdOssOK) {
       TRACE(Debug, tpfx << curl << " -> " << res);
-      return res;
+      return 1; // res; -- for only-if-cached
    }
    if (S_ISDIR(sbuff.st_mode))
    {
@@ -1139,7 +1139,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
    long long file_size = DetermineFullFileSize(f_name + Info::s_infoExtension);
    if (file_size < 0) {
       TRACE(Debug, tpfx << curl << " -> " << file_size);
-      return (int) file_size;
+      return 1; // (int) file_size; -- for only-if-cached
    }
    sbuff.st_size = file_size;
    bool is_cached = DecideIfConsideredCached(file_size, sbuff.st_blocks * 512ll);
