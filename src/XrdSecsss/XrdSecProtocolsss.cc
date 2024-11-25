@@ -590,7 +590,7 @@ int XrdSecProtocolsss::getCred(XrdOucErrInfo       *einfo,
 
 // Extract out the loginid. This messy code is for backwards compatibility.
 //
-   bP = prData.Data; eodP = dLen + (char *)&prData;
+   bP = prData.Data; eodP = prData.Data + dLen;
    while(bP < eodP)
         {idType = *bP++;
          if (!XrdOucPup::Unpack(&bP, eodP, &idP, idSz) || !idP || *idP == 0)
