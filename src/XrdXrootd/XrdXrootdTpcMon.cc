@@ -46,7 +46,7 @@ const char *json_fmt = "{\"TPC\":\"%s\",\"Client\":\"%s\","
         "\"IPv\":%c},"
 "\"Src\":\"%s\",\"Dst\":\"%s\",\"Size\":%zu}";
 
-const char *urlFMT = "";
+const char *hostport = "";
 
 XrdSysError eDest(0, "Ouc");
 }
@@ -72,8 +72,8 @@ XrdXrootdTpcMon::XrdXrootdTpcMon(const char       *proto,
    const char *host = getenv("XRDHOST"); if (!host) host = "localhost";
    const char *port = getenv("XRDPORT"); if (!port) {colon = ""; port = "";}
 
-   snprintf(buff, sizeof(buff), "%%s://%s%s%s/%%s", host, colon, port);
-   urlFMT = strdup(buff);
+   snprintf(buff, sizeof(buff), "%s%s%s", host, colon, port);
+   hostport = strdup(buff);
 }
 
 /******************************************************************************/
@@ -86,7 +86,7 @@ const char *XrdXrootdTpcMon::getURL(const char *spec, const char *prot,
 // Handle the spec
 //
    if (*spec == '/')
-      {snprintf(buff, bsz, urlFMT, prot, spec);
+      {snprintf(buff, bsz, "%s://%s/%s", prot, hostport, spec);
        spec = buff;
       }
    return spec;
