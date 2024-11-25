@@ -186,11 +186,11 @@ XRootDStatus HttpFilePlugIn::Close(ResponseHandler *handler,
     return XRootDStatus(stError, errInvalidOp);
   }
 
-  logger_->Debug(kLogXrdClHttp, "Closing davix fd: %ld", davix_fd_);
+  logger_->Debug(kLogXrdClHttp, "Closing davix fd: %p", davix_fd_);
 
   auto status = Posix::Close(*davix_client_, davix_fd_);
   if (status.IsError()) {
-    logger_->Error(kLogXrdClHttp, "Could not close davix fd: %ld, error: %s",
+    logger_->Error(kLogXrdClHttp, "Could not close davix fd: %p, error: %s",
                    davix_fd_, status.ToStr().c_str());
     return status;
   }
@@ -272,7 +272,7 @@ XRootDStatus HttpFilePlugIn::Read(uint64_t offset, uint32_t size, void *buffer,
   curr_offset = offset + num_bytes_read;
   if (avoid_pread_) offset_locker.unlock();
 
-  logger_->Debug(kLogXrdClHttp, "Read %d bytes, at offset %d, from URL: %s",
+  logger_->Debug(kLogXrdClHttp, "Read %d bytes, at offset %llu, from URL: %s",
                  num_bytes_read, offset, url_.c_str());
 
   auto status = new XRootDStatus();
@@ -369,7 +369,7 @@ XRootDStatus HttpFilePlugIn::Write(uint64_t offset, uint32_t size,
   else
     filesize += res.first;
 
-  logger_->Debug(kLogXrdClHttp, "Wrote %d bytes, at offset %d, to URL: %s",
+  logger_->Debug(kLogXrdClHttp, "Wrote %d bytes, at offset %llu, to URL: %s",
                  res.first, offset, url_.c_str());
 
   handler->HandleResponse(new XRootDStatus(), nullptr);
