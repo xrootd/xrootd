@@ -177,7 +177,9 @@ RedundancyProvider::CodingTable& RedundancyProvider::getCodingTable( const std::
     /* Expand pattern */
     int nerrs = 0, nsrcerrs = 0;
     unsigned char err_indx_list[objcfg.nbparity];
-    for (std::uint8_t i = 0; i < pattern.size(); i++) {
+    /* Avoid narrowing cast warning, size is always < 256 */
+    uint8_t n = static_cast<uint8_t>(pattern.size() & 0xff);
+    for (uint8_t i = 0; i < n; i++) {
       if (pattern[i]) {
         err_indx_list[nerrs++] = i;
         if (i < objcfg.nbdata) { nsrcerrs++; }
