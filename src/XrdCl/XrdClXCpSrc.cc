@@ -490,7 +490,7 @@ void XCpSrc::Steal( XCpSrc *src )
     // need to notify
     pCtx->NotifyIdleSrc();
 
-    log->Debug( UtilityMsg, "s%: Stealing everything from %s", myHost.c_str(), srcHost.c_str() );
+    log->Debug( UtilityMsg, "%s: Stealing everything from %s", myHost.c_str(), srcHost.c_str() );
 
     return;
   }
@@ -515,7 +515,7 @@ void XCpSrc::Steal( XCpSrc *src )
     pBlkEnd        = src->pBlkEnd;
     src->pBlkEnd  -= steal;
 
-    log->Debug( UtilityMsg, "s%: Stealing fraction (%f) of block from %s", myHost.c_str(), fraction, srcHost.c_str() );
+    log->Debug( UtilityMsg, "%s: Stealing fraction (%f) of block from %s", myHost.c_str(), fraction, srcHost.c_str() );
 
     return;
   }
@@ -530,7 +530,7 @@ void XCpSrc::Steal( XCpSrc *src )
       src->pRecovered.erase( itr );
     }
 
-    log->Debug( UtilityMsg, "s%: Stealing fraction (%f) of recovered chunks from %s", myHost.c_str(), fraction, srcHost.c_str() );
+    log->Debug( UtilityMsg, "%s: Stealing fraction (%f) of recovered chunks from %s", myHost.c_str(), fraction, srcHost.c_str() );
 
     return;
   }
@@ -551,7 +551,7 @@ void XCpSrc::Steal( XCpSrc *src )
       src->pOngoing.erase( itr );
     }
 
-    log->Debug( UtilityMsg, "s%: Stealing fraction (%f) of ongoing chunks from %s", myHost.c_str(), fraction, srcHost.c_str() );
+    log->Debug( UtilityMsg, "%s: Stealing fraction (%f) of ongoing chunks from %s", myHost.c_str(), fraction, srcHost.c_str() );
   }
 }
 
@@ -567,7 +567,7 @@ XRootDStatus XCpSrc::GetWork()
 
     Log *log = DefaultEnv::GetLog();
     std::string myHost = URL( pUrl ).GetHostName();
-    log->Debug( UtilityMsg, "s% got next block", myHost.c_str() );
+    log->Debug( UtilityMsg, "%s got next block", myHost.c_str() );
 
     return XRootDStatus();
   }
