@@ -183,7 +183,7 @@ namespace XrdCl
           pHasSessionId = true;
 
         Log *log = DefaultEnv::GetLog();
-        log->Debug( ExDbgMsg, "[%s] MsgHandler created: 0x%x (message: %s ).",
+        log->Debug( ExDbgMsg, "[%s] MsgHandler created: %p (message: %s ).",
                     pUrl.GetHostId().c_str(), this,
                     pRequest->GetObfuscatedDescription().c_str() );
 
@@ -222,7 +222,7 @@ namespace XrdCl
         pEffectiveDataServerUrl = reinterpret_cast<URL*>( 0xDEADBEEF );
 
         Log *log = DefaultEnv::GetLog();
-        log->Debug( ExDbgMsg, "[%s] Destroying MsgHandler: 0x%x.",
+        log->Debug( ExDbgMsg, "[%s] Destroying MsgHandler: %p.",
                     pUrl.GetHostId().c_str(), this );
       }
 

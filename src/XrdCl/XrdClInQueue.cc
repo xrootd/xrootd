@@ -86,14 +86,14 @@ namespace XrdCl
       handler = it->second.first;
       act     = handler->Examine( msg );
       exp     = it->second.second;
-      log->Debug( ExDbgMsg, "[msg: 0x%x] Assigned MsgHandler: 0x%x.",
+      log->Debug( ExDbgMsg, "[msg: %p] Assigned MsgHandler: %p.",
                   msg.get(), handler );
 
 
       if( act & MsgHandler::RemoveHandler )
       {
         pHandlers.erase( it );
-        log->Debug( ExDbgMsg, "[handler: 0x%x] Removed MsgHandler: 0x%x from the in-queue.",
+        log->Debug( ExDbgMsg, "[handler: %p] Removed MsgHandler: %p from the in-queue.",
                     handler, handler );
       }
     }
@@ -127,7 +127,7 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     pHandlers.erase(handlerSid);
     Log *log = DefaultEnv::GetLog();
-    log->Debug( ExDbgMsg, "[handler: 0x%x] Removed MsgHandler: 0x%x from the in-queue.",
+    log->Debug( ExDbgMsg, "[handler: %p] Removed MsgHandler: %p from the in-queue.",
                 handler, handler );
 
   }

@@ -368,7 +368,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     std::vector<PropertyList>::iterator it;
 
-    log->Debug( UtilityMsg, "CopyProcess: %d jobs to prepare",
+    log->Debug( UtilityMsg, "CopyProcess: %llu jobs to prepare",
                 pImpl->pJobProperties.size() );
 
     std::map<std::string, uint32_t> targetFlags;
