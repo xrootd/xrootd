@@ -73,6 +73,8 @@ jobs:
 
     - name: Clone repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup GitHub runner user within container
       run: adduser -D --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
