@@ -159,6 +159,51 @@ jobs:
         path: RPMS
         retention-days: 14
 
+  alma10beta:
+    name: Alma Linux 10 (beta)
+    runs-on: ubuntu-latest
+    container: almalinux:9
+
+    steps:
+    - name: Install git
+      run: yum install -y git
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install RPM development tools
+      run: |
+        dnf install -y epel-release rpmdevtools dnf-plugins-core
+        dnf config-manager --set-enabled crb
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y xrootd.spec
+
+    - name: Build RPMs
+      run: |
+        rpmdev-setuptree
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
+        rpmbuild -bb --with git xrootd.spec
+
+    - name: Install RPMs
+      run: dnf install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
+
+    - name: Run post-install tests
+      run: tests/post-install.sh
+
+    - name: Move RPMs to Artifact Directory
+      run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: alma10
+        path: RPMS
+        retention-days: 14
+
   fedora:
     name: Fedora 40
     runs-on: ubuntu-latest
