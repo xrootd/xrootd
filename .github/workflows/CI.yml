@@ -205,6 +205,42 @@ jobs:
         tests/post-install.sh
         tests/check-headers.sh
 
+  alma10beta:
+    name: Alma 10 (beta)
+    runs-on: ubuntu-latest
+    container: almalinux:10-kitten
+
+    env:
+      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+
+    steps:
+    - name: Install dependencies
+      run: |
+        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+        dnf config-manager --set-enabled crb
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup GitHub runner user within container
+      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y xrootd.spec
+
+    - name: Build and Test with CTest
+      run: sudo -E -u runner ctest -VV -S test.cmake
+
+    - name: Install with CMake
+      run: cmake --install build
+
+    - name: Run post-install tests
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
+
   fedora:
     name: Fedora
     runs-on: ubuntu-latest
