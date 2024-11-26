@@ -69,16 +69,6 @@ jobs:
     - name: Run post-install tests
       run: tests/post-install.sh
 
-    - name: Move RPMs to Artifact Directory
-      run: mkdir RPMS && mv $(rpm -E '%{_rpmdir}')/*/*.rpm RPMS/
-
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: centos7
-        path: RPMS
-        retention-days: 14
-
   alma8:
     name: Alma Linux 8
     runs-on: ubuntu-latest
