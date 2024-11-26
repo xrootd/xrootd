@@ -54,7 +54,7 @@ int copyCGI(const char *cgi, char *Buff, int Blen)
 {
    int n;
 
-//std::cerr <<"PSS cgi IN: '" <<cgi <<"' " <<strlen(cgi) <<'\n' <<std::flush;
+   if (!cgi) {*Buff = 0; return 0;}
 
 // Skip over initial ampersands
 //
@@ -62,7 +62,7 @@ int copyCGI(const char *cgi, char *Buff, int Blen)
 
 // Check if there is anything here
 //
-   if (!cgi || *cgi == 0) {*Buff = 0; return 0;}
+   if (*cgi == 0) {*Buff = 0; return 0;}
 
 // Copy out all variables omitting the ones that cause trouble
 //
