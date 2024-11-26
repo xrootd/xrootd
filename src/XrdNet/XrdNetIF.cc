@@ -729,7 +729,6 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, int port,
 
 // Process the iflist (up to four interfaces)
 //
-   if (ifList && *ifList)
    do {while (*ifBeg && *ifBeg == ' ') ifBeg++;
        if ( !(*ifBeg)) break;
        if (!(ifEnd = index(ifBeg, ' '))) {ifAdr = ifBeg; ifBeg = "";}
