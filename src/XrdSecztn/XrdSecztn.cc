@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 
 #ifndef __FreeBSD__
 #include <alloca.h>
@@ -81,7 +82,10 @@ namespace
 int DecodeUrl(const char *decode, size_t num_decode, char *out, size_t &num_out)
 {
   // No integer overflows please.
-  if ((decode + num_decode) < decode || (out + num_out) < out)
+  if (num_decode > std::numeric_limits<size_t>::max() - (size_t)decode)
+    return 1;
+
+  if (num_out > std::numeric_limits<size_t>::max() - (size_t)out)
     return 1;
 
   if (num_out < DecodeBytesNeeded(num_decode))
