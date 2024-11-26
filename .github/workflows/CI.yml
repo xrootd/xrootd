@@ -72,7 +72,7 @@ jobs:
           zlib-dev
 
     - name: Clone repository
-      uses: actions/checkout@v1
+      uses: actions/checkout@v4
 
     - name: Setup GitHub runner user within container
       run: adduser -D --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
