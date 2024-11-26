@@ -2235,20 +2235,31 @@ int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
   if (val[0] == '/') {
     struct stat st;
     inFile = true;
-    if ( stat(val, &st) ) {
-      eDest.Emsg("Config", errno, "stat shared secret key file", val);
+    int fd = open(val, O_RDONLY);
+
+    if ( fd == -1 ) {
+      eDest.Emsg("Config", errno, "open shared secret key file", val);
+      return 1;
+    }
+
+    if ( fstat(fd, &st) != 0 ) {
+      eDest.Emsg("Config", errno, "fstat shared secret key file", val);
+      close(fd);
       return 1;
     }
 
     if ( st.st_mode & S_IWOTH & S_IWGRP & S_IROTH) {
-      eDest.Emsg("Config", "For your own security, the shared secret key file cannot be world readable or group writable'", val, "'");
+      eDest.Emsg("Config",
+        "For your own security, the shared secret key file cannot be world readable or group writable '", val, "'");
+      close(fd);
       return 1;
     }
 
-    FILE *fp = fopen(val,"r");
+    FILE *fp = fdopen(fd, "r");
 
-    if( fp == NULL ) {
-      eDest.Emsg("Config", errno, "open shared secret key file", val);
+    if ( fp == nullptr ) {
+      eDest.Emsg("Config", errno, "fdopen shared secret key file", val);
+      close(fd);
       return 1;
     }
 
