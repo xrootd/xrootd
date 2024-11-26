@@ -118,7 +118,7 @@ jobs:
         yum install -y epel-rpm-macros git rpmdevtools sudo yum-utils
 
     - name: Clone repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v1
       with:
         fetch-depth: 0
 
