@@ -278,8 +278,10 @@ bool XrdDigAuth::Parse(XrdOucStream &aFile, int lNum)
             return Failure(lNum, "Invalid entity type -", var);
          if (*(var+1) != '=' || !*(var+2))
             return Failure(lNum, "Badly formed entity value in", var);
-         n = snprintf(bP, bLeft, "%s", var+2) + 1;
-         if ((bLeft -= n) <= 0) break;
+         n = snprintf(bP, bLeft, "%s", var+2);
+         if (n < 0 || n >= bLeft) break;
+         ++n;
+         bLeft -= n;
          if ((var = index(bP, '\\'))) Squash(var);
          aEnt.eP->eChk[eCode-eVec] = bP; bP += n;
          aOK = true;
