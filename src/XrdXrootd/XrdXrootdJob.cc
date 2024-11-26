@@ -612,7 +612,7 @@ int XrdXrootdJob::Schedule(const char         *jkey,
 // First find if this is a duplicate or create a new one
 //
    myMutex.Lock();
-   if (!(Opts & JOB_Unique) && jkey && (jp = JobTable.Find(jkey)))
+   if (!(Opts & JOB_Unique) && (jp = JobTable.Find(jkey)))
       {if (jp->Status == XrdXrootdJob2Do::Job_Done)
           {rc = sendResult(resp, args[0], jp);
            myMutex.UnLock();
