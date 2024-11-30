@@ -929,14 +929,35 @@ int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
 
+  // State variable for tracking the query parameter search
+  // - 0: Indicates we've not yet searched the URL for '?'
+  // - 1: Indicates we have a '?' and hence query parameters
+  // - 2: Indicates we do *not* have '?' present -- no query parameters
+  int query_param_status = 0;
+  if (!m_appended_asize) {
+    m_appended_asize = true;
+    if (request == rtPUT && length) {
+      if (query_param_status == 0) {
+        query_param_status = strchr(resourceplusopaque.c_str(), '?') ? 1 : 2;
+      }
+      resourceplusopaque.append((query_param_status == 1) ? '&' : '?');
+      query_param_status = 1;
+      auto length_str = std::to_string(length);
+      resourceplusopaque.append("oss.asize=");
+      resourceplusopaque.append(length_str.c_str());
+      if (!opaque) {
+        opaque = new XrdOucEnv();
+      }
+      opaque->Put("oss.asize", length_str.c_str());
+    }
+  }
+
   /// If we have to add extra header information, add it here.
   if (!m_appended_hdr2cgistr && !hdr2cgistr.empty()) {
-    const char *p = strchr(resourceplusopaque.c_str(), '?');
-    if (p) {
-      resourceplusopaque.append("&");
-    } else {
-      resourceplusopaque.append("?");
+    if (query_param_status == 0) {
+      query_param_status = strchr(resourceplusopaque.c_str(), '?') ? 1 : 2;
     }
+    resourceplusopaque.append((query_param_status == 1) ? '&' : '?');
 
     char *q = quote(hdr2cgistr.c_str());
     resourceplusopaque.append(q);
@@ -2799,6 +2820,7 @@ void XrdHttpReq::reset() {
   destination = "";
   hdr2cgistr = "";
   m_appended_hdr2cgistr = false;
+  m_appended_asize = false;
 
   iovP = 0;
   iovN = 0;
