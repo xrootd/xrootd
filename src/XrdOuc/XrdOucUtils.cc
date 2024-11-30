@@ -1417,6 +1417,22 @@ void XrdOucUtils::trim(std::string &str) {
         str.resize (str.size () - 1);
 }
 
+std::string_view XrdOucUtils::trim_view(std::string_view str) {
+    // Trim leading non-letters
+    auto iter = std::find_if(str.begin(), str.end(), isgraph);
+    if (iter == str.end()) {
+      return std::string_view();
+    }
+    str = str.substr(std::distance(str.begin(), iter));
+
+    // Trim trailing non-letters
+    auto iter2 = std::find_if(str.rbegin(), str.rend(), isgraph);
+    if (iter2 == str.rend()) {
+      return str;
+    }
+    return str.substr(0, str.size() - std::distance(str.rbegin(), iter2));
+}
+
 /**
  * Returns a boolean indicating whether 'c' is a valid token character or not.
  * See https://datatracker.ietf.org/doc/html/rfc6750#section-2.1 for details.
@@ -1427,7 +1443,7 @@ static bool is_token_character(int c)
   if (isalnum(c))
     return true;
 
-  static constexpr char token_chars[] = "-._~+/=:";
+  static constexpr char token_chars[] = "-._~+/=:,";
 
   for (char ch : token_chars)
     if (c == ch)

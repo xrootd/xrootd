@@ -135,6 +135,9 @@ static int getModificationTime(const char * path, time_t & modificationTime);
 
 static void trim(std::string & str);
 
+// Trim a string view of whitespace characters from left and right.
+static std::string_view trim_view(std::string_view str);
+
     XrdOucUtils() {}
     ~XrdOucUtils() {}
 
