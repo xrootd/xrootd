@@ -281,7 +281,9 @@ public:
   /// Additional opaque info that may come from the hdr2cgi directive
   std::string hdr2cgistr;
   bool m_appended_hdr2cgistr;
-  
+  /// Track whether we already appended the oss.asize argument for PUTs.
+  bool m_appended_asize{false};
+
   //
   // Area for coordinating request and responses to/from the bridge
   //

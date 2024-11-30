@@ -937,14 +937,31 @@ int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
 
+  int has_query_params = 0;
+  if (!m_appended_asize) {
+    m_appended_asize = true;
+    if (request == rtPUT && length) {
+      if (has_query_params == 0) {
+        has_query_params = strchr(resourceplusopaque.c_str(), '?') ? 1 : 2;
+      }
+      resourceplusopaque.append((has_query_params == 1) ? '&' : '?');
+      has_query_params = 1;
+      auto length_str = std::to_string(length);
+      resourceplusopaque.append("oss.asize=");
+      resourceplusopaque.append(length_str.c_str());
+      if (!opaque) {
+        opaque = new XrdOucEnv();
+      }
+      opaque->Put("oss.asize", length_str.c_str());
+    }
+  }
+
   /// If we have to add extra header information, add it here.
   if (!m_appended_hdr2cgistr && !hdr2cgistr.empty()) {
-    const char *p = strchr(resourceplusopaque.c_str(), '?');
-    if (p) {
-      resourceplusopaque.append("&");
-    } else {
-      resourceplusopaque.append("?");
+    if (has_query_params == 0) {
+      has_query_params = strchr(resourceplusopaque.c_str(), '?') ? 1 : 2;
     }
+    resourceplusopaque.append((has_query_params == 1) ? '&' : '?');
 
     char *q = quote(hdr2cgistr.c_str());
     resourceplusopaque.append(q);
@@ -2807,6 +2824,7 @@ void XrdHttpReq::reset() {
   destination = "";
   hdr2cgistr = "";
   m_appended_hdr2cgistr = false;
+  m_appended_asize = false;
 
   iovP = 0;
   iovN = 0;
