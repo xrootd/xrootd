@@ -101,7 +101,8 @@ XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
 bool XrdHttpProtocol::isRequiredXtractor = false;
 struct XrdHttpProtocol::XrdHttpExtHandlerInfo XrdHttpProtocol::exthandler[MAX_XRDHTTPEXTHANDLERS];
 int XrdHttpProtocol::exthandlercnt = 0;
-std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
+std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap;
+detail::HeaderMap XrdHttpProtocol::hdr2cgimultimap;
 
 bool XrdHttpProtocol::usingEC = false;
 
@@ -1762,57 +1763,53 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 /******************************************************************************/
 /*                   p a r s e H e a d e r 2 C G I                            */
 /******************************************************************************/
-int XrdHttpProtocol::parseHeader2CGI(XrdOucStream &Config, XrdSysError & err,std::map<std::string, std::string> &header2cgi) {
-  char *val, keybuf[1024], parmbuf[1024];
+int XrdHttpProtocol::parseHeader2CGI(XrdOucStream &Config, XrdSysError & err, std::map<std::string, std::string> &header2cgimap, detail::HeaderMap *header2cgimultimap) {
+  char *val;
+  std::string valstr;
   char *parm;
 
   // Get the header key
   val = Config.GetWord();
   if (!val || !val[0]) {
-    err.Emsg("Config", "No headerkey specified.");
+    err.Emsg("Config", "No header key specified.");
     return 1;
-  } else {
-
-    // Trim the beginning, in place
-    while ( *val && !isalnum(*val) ) val++;
-    strcpy(keybuf, val);
-
-    // Trim the end, in place
-    char *pp;
-    pp = keybuf + strlen(keybuf) - 1;
-    while ( (pp >= keybuf) && (!isalnum(*pp)) ) {
-      *pp = '\0';
-      pp--;
-    }
-
-    parm = Config.GetWord();
-
-    // Avoids segfault in case a key is given without value
-    if(!parm || !parm[0]) {
-      err.Emsg("Config", "No header2cgi value specified. key: '", keybuf, "'");
-      return 1;
-    }
-
-    // Trim the beginning, in place
-    while ( *parm && !isalnum(*parm) ) parm++;
-    strcpy(parmbuf, parm);
-
-    // Trim the end, in place
-    pp = parmbuf + strlen(parmbuf) - 1;
-    while ( (pp >= parmbuf) && (!isalnum(*pp)) ) {
-      *pp = '\0';
-      pp--;
-    }
-
-    // Add this mapping to the map that will be used
-    try {
-      header2cgi[keybuf] = parmbuf;
-    } catch ( ... ) {
-      err.Emsg("Config", "Can't insert new header2cgi rule. key: '", keybuf, "'");
-      return 1;
-    }
-
   }
+  // Note: the code previously trimmed the word to be alphanumeric here; however, that
+  // should already be done by the config subsystem.
+
+  auto multi = false;
+  if (!strcmp(val, "-multi")) {
+    multi = true;
+    val = Config.GetWord();
+    if (!val || !val[0]) {
+      err.Emsg("Config", "No header key specified after the '-multi' option.");
+      return 1;
+    }
+  }
+  valstr = val;
+
+  parm = Config.GetWord();
+  if(!parm || !parm[0]) {
+    err.Emsg("Config", "No header2cgi value specified. key: '", valstr.c_str(), "'");
+    return 1;
+  }
+
+  // Add this mapping to the map that will be used
+  if (multi && header2cgimultimap) {
+    (*header2cgimultimap)[valstr] = parm;
+    err.Emsg("Config", "Multi header map specified:", valstr.c_str(), parm);
+    if (header2cgimap.find(val) != header2cgimap.end()) {
+      err.Emsg("Config", "Value specified both with and without -multi argument:", valstr.c_str());
+      return 1;
+    }
+  } else {
+    header2cgimap[valstr] = parm;
+    if (header2cgimultimap && (*header2cgimultimap).find(valstr) != (*header2cgimultimap).end()) {
+      err.Emsg("Config", "Value specified both with and without -multi argument:", valstr.c_str());
+      return 1;
+    }
+  }
+
   return 0;
 }
 
@@ -2724,8 +2721,10 @@ int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
   
 /* Function: xheader2cgi
  * 
- *   Purpose:  To parse the directive: header2cgi <headerkey> <cgikey>
+ *   Purpose:  To parse the directive: header2cgi [-multi] <headerkey> <cgikey>
  * 
+ *             -multi        indicates the header may be repeated multiple times and
+ *                           should be put into a comma-separate CGI
  *             <headerkey>   the name of an incoming HTTP header
  *                           to be transformed
  *             <cgikey>      the name to be given when adding it to the cgi info
@@ -2735,7 +2734,7 @@ int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
  */
 
 int XrdHttpProtocol::xheader2cgi(XrdOucStream & Config) {
-  return parseHeader2CGI(Config,eDest,hdr2cgimap);
+  return parseHeader2CGI(Config,eDest, hdr2cgimap, &hdr2cgimultimap);
 }
 
 /******************************************************************************/

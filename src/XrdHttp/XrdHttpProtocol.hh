@@ -52,6 +52,9 @@
 
 #include <openssl/ssl.h>
 
+#include <algorithm>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "XrdHttpReq.hh"
@@ -76,6 +79,41 @@ struct XrdVersionInfo;
 class XrdOucGMap;
 class XrdCryptoFactory;
 
+namespace detail {
+
+struct CaseInsensitiveEqual{
+  bool operator()(const std::string &left, const std::string &right) const noexcept {
+    return std::equal(left.begin(), left.end(), right.begin(), right.end(),
+      [](char c1, char c2) { return std::tolower(c1) == std::tolower(c2); });
+  }
+};
+
+struct CaseInsensitiveHash{
+    size_t operator()(const std::string& s) const {
+      // Small optimization: for smaller strings, used a fixed-size
+      // array on the stack to avoid an allocation.
+      // 64 bytes is chosen as it is the CPU cache line size, keeping
+      // the data nearby before handing it off to the hash algorithm.
+      if (s.size() <= 64) {
+        char lower[64];
+        for (unsigned idx=0; idx<s.size(); idx++) {
+          lower[idx] = ::tolower(s[idx]);
+        }
+        std::hash<std::string_view> hasher;
+        return hasher(std::string_view(lower, s.size()));
+      } else {
+        std::string lower = s;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+        std::hash<std::string> hasher;
+        return hasher(lower);
+      }
+    }
+};
+
+using HeaderMap = std::unordered_map<std::string, std::string, detail::CaseInsensitiveHash, detail::CaseInsensitiveEqual>;
+
+}
+
 class XrdHttpProtocol : public XrdProtocol {
   
   friend class XrdHttpReq;
@@ -92,7 +130,7 @@ public:
   }
 
   /// Use this function to parse header2cgi configurations
-  static int parseHeader2CGI(XrdOucStream &Config, XrdSysError & err, std::map<std::string, std::string> & header2cgi);
+  static int parseHeader2CGI(XrdOucStream &Config, XrdSysError & err, std::map<std::string, std::string> &, detail::HeaderMap*);
 
   /// Tells if the oustanding bytes on the socket match this protocol implementation
   XrdProtocol *Match(XrdLink *lp);
@@ -435,6 +473,10 @@ protected:
   
   /// Rules that turn HTTP headers to cgi tokens in the URL, for internal comsumption
   static std::map< std::string, std::string > hdr2cgimap;
+
+  /// Rules that turn HTTP headers to cgi tokens in the URL; if the header is given multiple times, they
+  /// will be added to the CGI in a comma-separate manner.
+  static detail::HeaderMap hdr2cgimultimap;
 
   /// Type identifier for our custom BIO objects.
   static int m_bio_type;

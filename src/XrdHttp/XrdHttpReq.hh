@@ -48,6 +48,7 @@
 
 #include <vector>
 #include <string>
+#include <unordered_map>
 #include <map>
 
 //#include <libxml/parser.h>
@@ -196,6 +197,7 @@ public:
   void appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow);
 
   void addCgi(const std::string & key, const std::string & value);
+  void addMultiCgi(const std::string & key, const std::string_view value);
 
   // Return the current user agent; if none has been specified, returns an empty string
   const std::string &userAgent() const {return m_user_agent;}
@@ -271,7 +273,13 @@ public:
 
   /// Additional opaque info that may come from the hdr2cgi directive
   std::string hdr2cgistr;
+  /// Opaque information from the hdr2cgi directive where multiple headers are turned
+  /// into comma-separated values
+  std::unordered_map<std::string, std::string> hdr2cgimultistr;
   bool m_appended_hdr2cgistr;
+
+  /// Whether the multi-valued headers have been appended to the CGI strings
+  bool m_appended_multihdr2cgistr{false};
   
   //
   // Area for coordinating request and responses to/from the bridge
