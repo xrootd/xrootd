@@ -103,7 +103,7 @@ static const std::string authz_strings[] = {
   "/path/test.txt?scitag.flow=44&authz=REDACTED done close.",
   "/path/test.txt?authz=REDACTED&scitag.flow=44 done close.",
   "(message: kXR_stat (path: /tmp/xrootd/public/foo?authz=REDACTED&pelican.timeout=3s, flags: none) ).",
-  "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=REDACTED, flags: none) ).",
+  "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=REDACTED flags: none) ).",
   "Appended header field to opaque info: 'authz=REDACTED'",
   "Processing source entry: /etc/passwd, target file: root://localhost:1094//tmp/passwd?authz=REDACTED",
   "240919 08:11:07 20995 unknown.3:33@[::1] Pss_Stat: url=pelican://p0@F4HP7QL65F.local:" /* no comma! */
