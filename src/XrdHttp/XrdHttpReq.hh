@@ -164,18 +164,9 @@ private:
 
 public:
   XrdHttpReq(XrdHttpProtocol *protinstance, const XrdHttpReadRangeHandler::Configuration &rcfg) :
-      readRangeHandler(rcfg), keepalive(true) {
-
-    prot = protinstance;
-    length = 0;
-    //xmlbody = 0;
-    depth = 0;
-    opaque = 0;
-    writtenbytes = 0;
-    fopened = false;
-    headerok = false;
-    mScitag = -1;
-  };
+    prot(protinstance),
+    readRangeHandler(rcfg)
+  {}
 
   virtual ~XrdHttpReq();
 
@@ -243,21 +234,21 @@ public:
   /// The resource specified by the request, stripped of opaque data
   XrdOucString resource;
   /// The opaque data, after parsing
-  XrdOucEnv *opaque;
+  XrdOucEnv *opaque{nullptr};
   /// The resource specified by the request, including all the opaque data
   XrdOucString resourceplusopaque;
   
   
   /// Tells if we have finished reading the header
-  bool headerok;
+  bool headerok{false};
 
   /// Tracking the next ranges of data to read during GET
   XrdHttpReadRangeHandler   readRangeHandler;
   bool                      readClosing;
 
-  bool keepalive;
-  long long length;  // Total size from client for PUT; total length of response TO client for GET.
-  int depth;
+  bool keepalive{true};
+  long long length{0};  // Total size from client for PUT; total length of response TO client for GET.
+  int depth{0};
   bool sendcontinue;
 
   /// The host field specified in the req
@@ -311,7 +302,7 @@ public:
   long filemodtime;
   long filectime;
   char fhandle[4];
-  bool fopened;
+  bool fopened{false};
 
   /// If we want to give a string as a response, we compose it here
   std::string stringresp;
@@ -320,9 +311,9 @@ public:
   int reqstate;
 
   /// In a long write, we track where we have arrived
-  long long writtenbytes;
+  long long writtenbytes{0};
 
-  int mScitag;
+  int mScitag{-1};
 
 
 
