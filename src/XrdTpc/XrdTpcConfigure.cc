@@ -74,7 +74,7 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
             }
         } else if (!strcmp("tpc.header2cgi",val)) {
             // header2cgi parsing
-            if(XrdHttpProtocol::parseHeader2CGI(Config,m_log,hdr2cgimap)){
+            if(XrdHttpProtocol::parseHeader2CGI(Config,m_log,hdr2cgimap,nullptr)){
               Config.Close();
               return false;
             }
