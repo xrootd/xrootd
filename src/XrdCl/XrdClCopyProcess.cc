@@ -369,7 +369,7 @@ namespace XrdCl
     std::vector<PropertyList>::iterator it;
 
     log->Debug( UtilityMsg, "CopyProcess: %llu jobs to prepare",
-                pImpl->pJobProperties.size() );
+                (unsigned long long) pImpl->pJobProperties.size() );
 
     std::map<std::string, uint32_t> targetFlags;
     int i = 0;
