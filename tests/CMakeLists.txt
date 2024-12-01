@@ -18,6 +18,10 @@ add_subdirectory( XrdSsiTests )
 
 add_subdirectory(XrdTpcTests)
 
+if( BUILD_SCITOKENS )
+  add_subdirectory( scitokens )
+endif()
+
 if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
