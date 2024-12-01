@@ -247,7 +247,7 @@ namespace XrdCl
     }
     addrStr.erase( addrStr.length()-2, 2 );
     log->Debug( type, "[%s] Found %llu address(es): %s",
-                      hostId.c_str(), addresses.size(), addrStr.c_str() );
+                      hostId.c_str(), (unsigned long long) addresses.size(), addrStr.c_str() );
   }
 
   //----------------------------------------------------------------------------

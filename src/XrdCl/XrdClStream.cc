@@ -648,7 +648,7 @@ namespace XrdCl
       if( pSubStreams.size() > 1 )
       {
         log->Debug( PostMasterMsg, "[%s] Attempting to connect %llu additional streams.",
-                    pStreamName.c_str(), pSubStreams.size()-1 );
+                    pStreamName.c_str(), (unsigned long long) (pSubStreams.size() - 1) );
         for( size_t i = 1; i < pSubStreams.size(); ++i )
         {
           pSubStreams[i]->socket->SetAddress( pSubStreams[0]->socket->GetAddress() );
