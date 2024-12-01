@@ -166,8 +166,8 @@ namespace
           if( crcval != cksums[pgnb] )
           {
             Log *log = DefaultEnv::GetLog();
-            log->Info( FileMsg, "[%p@%s] Received corrupted page, will retry page #%llu.",
-                        this, stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+            log->Info( FileMsg, "[%p@%s] Received corrupted page, will retry page #%zu.",
+                       this, stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
 
             XRootDStatus st = XrdCl::FileStateHandler::PgReadRetry( stateHandler, pgoff, pgsize, pgnb, buffer, this, 0 );
             if( !st.IsOK())
@@ -257,8 +257,8 @@ namespace
         if( !status->IsOK() )
         {
           Log *log = DefaultEnv::GetLog();
-          log->Info( FileMsg, "[%p@%s] Failed to recover page #%llu.",
-                      this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+          log->Info( FileMsg, "[%p@%s] Failed to recover page #%zu.",
+                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
           pgReadHandler->HandleResponseWithHosts( status, response, hostList );
           delete this;
           return;
@@ -269,8 +269,8 @@ namespace
         if( pginf->GetLength() > (uint32_t)XrdSys::PageSize || pginf->GetCksums().size() != 1 )
         {
           Log *log = DefaultEnv::GetLog();
-          log->Info( FileMsg, "[%p@%s] Failed to recover page #%llu.",
-                      this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+          log->Info( FileMsg, "[%p@%s] Failed to recover page #%zu.",
+                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
           // we retry a page at a time so the length cannot exceed 4KB
           DeleteArgs( status, response, hostList );
           pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
@@ -282,8 +282,8 @@ namespace
         if( crcval != pginf->GetCksums().front() )
         {
           Log *log = DefaultEnv::GetLog();
-          log->Info( FileMsg, "[%p@%s] Failed to recover page #%llu.",
-                      this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+          log->Info( FileMsg, "[%p@%s] Failed to recover page #%zu.",
+                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
           DeleteArgs( status, response, hostList );
           pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
           delete this;
@@ -291,8 +291,8 @@ namespace
         }
 
         Log *log = DefaultEnv::GetLog();
-        log->Info( FileMsg, "[%p@%s] Successfully recovered page #%llu.",
-                    this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+        log->Info( FileMsg, "[%p@%s] Successfully recovered page #%zu.",
+                   this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
 
         DeleteArgs( 0, response, hostList );
         pgReadHandler->UpdateCksum( pgnb, crcval );
@@ -2459,7 +2459,7 @@ namespace XrdCl
                pFileUrl->GetObfuscatedURL().c_str(), pDataServer->GetHostId().c_str(),
                status->ToStr().c_str() );
 
-    log->Dump(FileMsg, "[%p@%s] Items in the fly %llu, queued for recovery %llu",
+    log->Dump(FileMsg, "[%p@%s] Items in the fly %zu, queued for recovery %zu",
               this, pFileUrl->GetObfuscatedURL().c_str(), pInTheFly.size(), pToBeRecovered.size() );
 
     MonitorClose( status );

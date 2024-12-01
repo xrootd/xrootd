@@ -83,7 +83,7 @@ namespace XrdCl
       }
     }
     pRunning = true;
-    log->Debug( JobMgrMsg, "Job manager started, %llu workers", pWorkers.size() );
+    log->Debug( JobMgrMsg, "Job manager started, %zu workers", pWorkers.size() );
     return true;
   }
 
