@@ -273,7 +273,7 @@ XRootDStatus HttpFilePlugIn::Read(uint64_t offset, uint32_t size, void *buffer,
   if (avoid_pread_) offset_locker.unlock();
 
   logger_->Debug(kLogXrdClHttp, "Read %d bytes, at offset %llu, from URL: %s",
-                 num_bytes_read, offset, url_.c_str());
+                 num_bytes_read, (unsigned long long) offset, url_.c_str());
 
   auto status = new XRootDStatus();
   auto chunk_info = new ChunkInfo(offset, num_bytes_read, buffer);
@@ -370,7 +370,7 @@ XRootDStatus HttpFilePlugIn::Write(uint64_t offset, uint32_t size,
     filesize += res.first;
 
   logger_->Debug(kLogXrdClHttp, "Wrote %d bytes, at offset %llu, to URL: %s",
-                 res.first, offset, url_.c_str());
+                 res.first, (unsigned long long) offset, url_.c_str());
 
   handler->HandleResponse(new XRootDStatus(), nullptr);
 

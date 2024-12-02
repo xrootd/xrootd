@@ -135,7 +135,7 @@ namespace XrdCl
               if( !chfound )
               {
                 log->Error( XRootDMsg, "[%s] VectorReader: Impossible to find chunk "
-                            "buffer corresponding to %d bytes at %ld",
+                            "buffer corresponding to %d bytes at %lld",
                             url.GetHostId().c_str(), rdlst.rlen, rdlst.offset );
                 readstage = ReadDiscard;
                 continue;
@@ -181,7 +181,7 @@ namespace XrdCl
               if( !st.IsOK() || st.code == suRetry )
                  return st;
 
-              log->Dump( XRootDMsg, "[%s] VectorReader: read buffer for chunk %d@%ld",
+              log->Dump( XRootDMsg, "[%s] VectorReader: read buffer for chunk %d@%lld",
                          url.GetHostId().c_str(), rdlst.rlen, rdlst.offset );
 
               //----------------------------------------------------------------

@@ -156,8 +156,8 @@ namespace XrdCl
                        [relativeOffset, rdbuff, &cache, &me]( XRootDStatus &st, RSP &rsp )
                        {
                          Log *log = DefaultEnv::GetLog();
-                         log->Dump( ZipMsg, "[%p] Read %d bytes of remote data at offset %llu.",
-                                            &me, rsp.GetLength(), rsp.GetOffset() );
+                         log->Dump( ZipMsg, "[%p] Read %u bytes of remote data at offset %llu.",
+                                            &me, rsp.GetLength(), (unsigned long long) rsp.GetOffset() );
                          cache.QueueRsp( st, relativeOffset, std::move( *rdbuff ) );
                        };
         Async( std::move( p ), timeout );
@@ -187,8 +187,8 @@ namespace XrdCl
     Pipeline p = XrdCl::RdWithRsp<RSP>( me.archive, offset, size, usrbuff ) >>
                    [=, &me]( XRootDStatus &st, RSP &r )
                    {
-                     log->Dump( ZipMsg, "[%p] Read %d bytes of remote data at "
-                                        "offset %llu.", &me, r.GetLength(), r.GetOffset() );
+                     log->Dump( ZipMsg, "[%p] Read %u bytes of remote data at "
+                                        "offset %llu.", &me, r.GetLength(), (unsigned long long) r.GetOffset() );
                      if( usrHandler )
                      {
                        XRootDStatus *status = ZipArchive::make_status( st );
@@ -298,7 +298,7 @@ namespace XrdCl
                                  rdbuff = buffer.get();
                                  openstage = HaveEocdBlk;
                                  log->Dump( ZipMsg, "[%p] Opened a ZIP archive, reading "
-                                                    "Central Directory at offset: %llu.", this, *rdoff );
+                                                    "Central Directory at offset: %llu.", this, (unsigned long long) *rdoff );
                                }
                             // read the Central Directory (in several stages if necessary)
                           | XrdCl::Read( archive, rdoff, rdsize, rdbuff ) >>
@@ -327,12 +327,12 @@ namespace XrdCl
                                       log->Dump( ZipMsg, "[%p] EOCD record parsed: %s", this,
                                                          eocd->ToString().c_str() );
                                       if(eocd->cdOffset > archsize || eocd->cdOffset + eocd->cdSize > archsize)
-                                    	  throw bad_data();
+                                        throw bad_data();
                                       }
                                       catch(const bad_data &ex){
-                                    	  XRootDStatus error( stError, errDataError, 0,
-                                    	               "End-of-central-directory signature corrupted." );
-                                    	  Pipeline::Stop( error );
+                                        XRootDStatus error( stError, errDataError, 0,
+                                                            "End-of-central-directory signature corrupted." );
+                                        Pipeline::Stop( error );
                                       }
                                       // Do we have the whole archive?
                                       if( chunk.length == archsize )
@@ -372,7 +372,7 @@ namespace XrdCl
                                       rdbuff    = buffer.get();
                                       openstage = HaveCdRecords;
                                       log->Dump( ZipMsg, "[%p] Reading additional data at offset: %llu.",
-                                                         this, *rdoff );
+                                                         this, (unsigned long long) *rdoff );
                                       Pipeline::Repeat(); break; // the break is really not needed ...
                                     }
 
@@ -391,7 +391,7 @@ namespace XrdCl
                                         rdbuff = buffer.get();
                                         openstage = HaveZip64EocdBlk;
                                         log->Dump( ZipMsg, "[%p] Reading additional data at offset: %llu.",
-                                                           this, *rdoff );
+                                                           this, (unsigned long long) *rdoff );
                                         Pipeline::Repeat();
                                       }
 
@@ -423,7 +423,7 @@ namespace XrdCl
                                       rdbuff    = buffer.get();
                                       openstage = HaveCdRecords;
                                       log->Dump( ZipMsg, "[%p] Reading additional data at offset: %llu.",
-                                                         this, *rdoff );
+                                                         this, (unsigned long long) *rdoff );
                                       Pipeline::Repeat(); break; // the break is really not needed ...
                                     }
 
