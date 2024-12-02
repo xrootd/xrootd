@@ -1415,21 +1415,21 @@ namespace XrdCl
                   if( inf->NeedRetry() ) // so we failed in the end
                   {
                     DefaultEnv::GetLog()->Warning( FileMsg, "[%p@%s] Failed retransmitting corrupted "
-                                                   "page: pgoff=%llu, pglen=%du, pgdigest=%du", self.get(),
-                                                   self->pFileUrl->GetObfuscatedURL().c_str(), pgoff, pglen, pgdigest );
+                                                   "page: pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                                   self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
                     pgwrt->SetStatus( new XRootDStatus( stError, errDataError, 0,
                                       "Failed to retransmit corrupted page" ) );
                   }
                   else
                     DefaultEnv::GetLog()->Info( FileMsg, "[%p@%s] Succesfuly retransmitted corrupted "
-                                                "page: pgoff=%llu, pglen=%du, pgdigest=%du", self.get(),
-                                                self->pFileUrl->GetObfuscatedURL().c_str(), pgoff, pglen, pgdigest );
+                                                "page: pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                                self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
                 } );
             auto st = PgWriteRetry( self, pgoff, pglen, pgbuf, pgdigest, h, timeout );
             if( !st.IsOK() ) pgwrt->SetStatus( new XRootDStatus( st ) );
             DefaultEnv::GetLog()->Info( FileMsg, "[%p@%s] Retransmitting corrupted page: "
-                                        "pgoff=%llu, pglen=%du, pgdigest=%du", self.get(),
-                                        self->pFileUrl->GetObfuscatedURL().c_str(), pgoff, pglen, pgdigest );
+                                        "pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                        self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
           }
         } );
 
@@ -2420,9 +2420,9 @@ namespace XrdCl
       }
 
       log->Debug( FileMsg, "[%p@%s] successfully opened at %s, handle: %#x, "
-                  "session id: %ld", this, pFileUrl->GetObfuscatedURL().c_str(),
+                  "session id: %llu", this, pFileUrl->GetObfuscatedURL().c_str(),
                   pDataServer->GetHostId().c_str(), *((uint32_t*)pFileHandle),
-                  pSessionId );
+                  (unsigned long long) pSessionId );
 
       //------------------------------------------------------------------------
       // Inform the monitoring about opening success
