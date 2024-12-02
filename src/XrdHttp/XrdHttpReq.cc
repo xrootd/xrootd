@@ -2371,7 +2371,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
         if (ntohs(xrdreq.header.requestid) == kXR_close) {
           if (xrdresp == kXR_ok) {
-            prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0, keepalive);
+            prot->SendSimpleResp(201, NULL, NULL, (char *) ":-)", 0, keepalive);
             return keepalive ? 1 : -1;
           } else {
             prot->SendSimpleResp(httpStatusCode, NULL, NULL,
