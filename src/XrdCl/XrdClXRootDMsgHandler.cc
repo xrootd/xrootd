@@ -2438,9 +2438,9 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     if( warn )
-      log->Warning( XRootDMsg, sstrm.str().c_str() );
+      log->Warning( XRootDMsg, "%s", sstrm.str().c_str() );
     else
-      log->Debug( XRootDMsg, sstrm.str().c_str() );
+      log->Debug( XRootDMsg, "%s", sstrm.str().c_str() );
   }
   
   // Read data from buffer

@@ -643,10 +643,10 @@ void FileTest::VectorWriteTest()
   const uint32_t MB = 1024*1024;
   const uint32_t limit = 10*MB;
 
-  time_t seed = time( 0 );
+  unsigned int seed = (unsigned int) time( 0 );
   srand( seed );
   DefaultEnv::GetLog()->Info( UtilityMsg,
-      "Carrying out the VectorWrite test with seed: %d", seed );
+      "Carrying out the VectorWrite test with seed: %u", seed );
 
   // figure out how many chunks are we going to write/read
   size_t nbChunks = rand() % 100 + 1;

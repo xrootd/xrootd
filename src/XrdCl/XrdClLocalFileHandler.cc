@@ -298,7 +298,7 @@ namespace XrdCl
     std::ostringstream data;
     data << ssp.st_dev << " " << ssp.st_size << " " << ssp.st_mode << " "
         << ssp.st_mtime;
-    log->Debug( FileMsg, data.str().c_str() );
+    log->Debug( FileMsg, "%s", data.str().c_str() );
 
     StatInfo *statInfo = new StatInfo();
     if( !statInfo->ParseServerResponse( data.str().c_str() ) )

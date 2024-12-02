@@ -142,7 +142,7 @@ namespace XrdCl
       XrdSys::IOEvents::Poller* poller = IOEvents::Poller::Create( errNum, &errMsg );
       if( !poller )
       {
-        log->Error( PollerMsg, "Unable to create the internal poller object: ",
+        log->Error( PollerMsg, "Unable to create the internal poller object: "
                                "%s (%s)", XrdSysE2T( errno ), errMsg );
         return false;
       }
@@ -170,7 +170,7 @@ namespace XrdCl
                                                helper->readTimeout, &errMsg );
         if( !status )
         {
-          log->Error( PollerMsg, "Unable to enable read notifications ",
+          log->Error( PollerMsg, "Unable to enable read notifications "
                       "while re-starting %s (%s)", XrdSysE2T( errno ), errMsg );
 
           return false;
@@ -183,7 +183,7 @@ namespace XrdCl
                                                helper->writeTimeout, &errMsg );
         if( !status )
         {
-          log->Error( PollerMsg, "Unable to enable write notifications ",
+          log->Error( PollerMsg, "Unable to enable write notifications "
                       "while re-starting %s (%s)", XrdSysE2T( errno ), errMsg );
 
           return false;

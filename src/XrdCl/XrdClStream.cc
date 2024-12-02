@@ -598,7 +598,7 @@ namespace XrdCl
       {
         Log *log = DefaultEnv::GetLog();
         log->Warning( PostMasterMsg, "[%s] Removed a leftover msg from the in-queue.",
-                      pStreamName.c_str(), subStream );
+                      pStreamName.c_str() );
       }
     }
     pSubStreams[subStream]->outMsgHelper.Reset();
@@ -745,8 +745,8 @@ namespace XrdCl
     // Check if we still have time to try and do something in the current window
     //--------------------------------------------------------------------------
     time_t elapsed = now-pConnectionInitTime;
-    log->Error( PostMasterMsg, "[%s] elapsed = %ld, pConnectionWindow = %d seconds.",
-                pStreamName.c_str(), elapsed, pConnectionWindow );
+    log->Error( PostMasterMsg, "[%s] elapsed = %lld, pConnectionWindow = %d seconds.",
+                pStreamName.c_str(), (long long) elapsed, pConnectionWindow );
 
     //------------------------------------------------------------------------
     // If we have some IP addresses left we try them
@@ -775,8 +775,8 @@ namespace XrdCl
     else if( elapsed < pConnectionWindow && pConnectionCount < pConnectionRetry
              && !status.IsFatal() )
     {
-      log->Info( PostMasterMsg, "[%s] Attempting reconnection in %ld seconds.",
-                 pStreamName.c_str(), pConnectionWindow-elapsed );
+      log->Info( PostMasterMsg, "[%s] Attempting reconnection in %lld seconds.",
+                 pStreamName.c_str(), (long long) (pConnectionWindow - elapsed) );
 
       Task *task = new ::StreamConnectorTask( *pUrl, pStreamName );
       pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
