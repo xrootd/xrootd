@@ -10,13 +10,7 @@ target_link_libraries(xrdcl-unit-tests
 
 gtest_discover_tests(xrdcl-unit-tests TEST_PREFIX XrdCl::)
 
-if(XRDCL_ONLY)
-  return()
-endif()
-
-execute_process(COMMAND id -u OUTPUT_VARIABLE UID OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-if (UID EQUAL 0)
+if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
 
