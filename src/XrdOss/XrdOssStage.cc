@@ -393,8 +393,9 @@ int XrdOssSys::CalcTime()
 
 int XrdOssSys::CalcTime(XrdOssStage_Req *req) // StageMutex lock held!
 {
+    unsigned long long numq = 1;
     unsigned long long tbytes = req->size + stgbytes/2;
-    int xfrtime, numq = 1;
+    int xfrtime;
     time_t now;
     XrdOssStage_Req *rqp = req;
 

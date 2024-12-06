@@ -104,10 +104,17 @@ AlmaLinux 9:
     - dnf config-manager --set-enabled crb
   <<: *rpm_build_dnf
 
-Fedora 39:
-  image: fedora:39
+AlmaLinux 10 (beta):
+  image: almalinux:10-kitten
+  before_script:
+    - dnf install -y epel-release
+    - dnf config-manager --set-enabled crb
   <<: *rpm_build_dnf
 
 Fedora 40:
   image: fedora:40
+  <<: *rpm_build_dnf
+
+Fedora 41:
+  image: fedora:41
   <<: *rpm_build_dnf

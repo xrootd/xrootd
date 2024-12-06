@@ -68,6 +68,7 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_block_size(0),
    m_num_blocks(0),
    m_prefetch_state(kOff),
+   m_prefetch_bytes(0),
    m_prefetch_read_cnt(0),
    m_prefetch_hit_cnt(0),
    m_prefetch_score(0)
@@ -473,6 +474,7 @@ bool File::Open()
       m_cfi.ResetNoCkSumTime();
       m_cfi.Write(m_info_file, ifn.c_str());
       m_info_file->Fsync();
+      cache()->WriteFileSizeXAttr(m_info_file->getFD(), m_file_size);
       TRACEF(Debug, tpfx << "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << m_cfi.GetNBlocks());
    }
 
@@ -486,6 +488,27 @@ bool File::Open()
    return true;
 }
 
+int File::Fstat(struct stat &sbuff)
+{
+   // Stat on an open file.
+   // Corrects size to actual full size of the file.
+   // Sets atime to 0 if the file is only partially downloaded, in accordance
+   // with pfc.onlyifcached settings.
+   // Called from IO::Fstat() and Cache::Stat() when the file is active.
+   // Returns 0 on success, -errno on error.
+
+   int res;
+
+   if ((res = m_data_file->Fstat(&sbuff))) return res;
+
+   sbuff.st_size = m_file_size;
+
+   bool is_cached = cache()->DecideIfConsideredCached(m_file_size, sbuff.st_blocks * 512ll);
+   if ( ! is_cached)
+      sbuff.st_atime = 0;
+
+   return 0;
+}
 
 //==============================================================================
 // Read and helpers
@@ -923,7 +946,8 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
    if (read_req)
    {
       read_req->m_bytes_read += bytes_read;
-      read_req->update_error_cond(error_cond);
+      if (error_cond)
+         read_req->update_error_cond(error_cond);
       read_req->m_stats.m_BytesHit += bytes_read;
       read_req->m_sync_done = true;
 
@@ -1217,7 +1241,7 @@ void File::ProcessBlockError(Block *b, ReadRequest *rreq)
    // Does not manage m_read_req.
    // Will not complete the request.
 
-   TRACEF(Error, "ProcessBlockError() io " << b->m_io << ", block "<< b->m_offset/m_block_size <<
+   TRACEF(Debug, "ProcessBlockError() io " << b->m_io << ", block "<< b->m_offset/m_block_size <<
                  " finished with error " << -b->get_error() << " " << XrdSysE2T(-b->get_error()));
 
    rreq->update_error_cond(b->get_error());
@@ -1320,6 +1344,7 @@ void File::ProcessBlockResponse(Block *b, int res)
             m_state_cond.UnLock();
             return;
          }
+         m_prefetch_bytes += b->get_size();
       }
       else
       {
@@ -1353,9 +1378,15 @@ void File::ProcessBlockResponse(Block *b, int res)
    else
    {
       if (res < 0) {
-         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset << " error=" << res);
+         bool new_error = b->get_io()->register_block_error(res);
+         int tlvl = new_error ? TRACE_Error : TRACE_Debug;
+         TRACEF_INT(tlvl, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset
+                    << ", io=" <<  b->get_io() << ", error=" << res);
       } else {
-         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset << " incomplete, got " << res << " expected " << b->get_size());
+         bool first_p = b->get_io()->register_incomplete_read();
+         int tlvl = first_p ? TRACE_Error : TRACE_Debug;
+         TRACEF_INT(tlvl, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset
+                    << ", io=" <<  b->get_io() << " incomplete, got " << res << " expected " << b->get_size());
 #if defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) || defined(__FreeBSD__)
          res = -EIO;
 #else
@@ -1393,7 +1424,7 @@ void File::ProcessBlockResponse(Block *b, int res)
       {
          ReadRequest *rreq = creqs_to_keep.front().m_read_req;
 
-         TRACEF(Info, "ProcessBlockResponse() requested block " << (void*)b << " failed with another io " <<
+         TRACEF(Debug, "ProcessBlockResponse() requested block " << (void*)b << " failed with another io " <<
                b->get_io() << " - reissuing request with my io " << rreq->m_io);
 
          b->reset_error_and_set_io(rreq->m_io, rreq);

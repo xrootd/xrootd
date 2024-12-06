@@ -616,11 +616,11 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     // Read as many lines as possible into the buffer. An empty line breaks
     while ((rc = BuffgetLine(tmpline)) > 0) {
+      std::string traceLine = tmpline.c_str();
       if (TRACING(TRACE_DEBUG)) {
-        std::string traceLine{tmpline.c_str()};
         traceLine = obfuscateAuth(traceLine);
-        TRACE(DEBUG, " rc:" << rc << " got hdr line: " << traceLine);
       }
+      TRACE(DEBUG, " rc:" << rc << " got hdr line: " << traceLine);
       if ((rc == 2) && (tmpline.length() > 1) && (tmpline[rc - 1] == '\n')) {
         CurrentReq.headerok = true;
         TRACE(DEBUG, " rc:" << rc << " detected header end.");
@@ -629,7 +629,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
 
       if (CurrentReq.request == CurrentReq.rtUnset) {
-        TRACE(DEBUG, " Parsing first line: " << tmpline.c_str());
+        TRACE(DEBUG, " Parsing first line: " << traceLine.c_str());
         int result = CurrentReq.parseFirstLine((char *)tmpline.c_str(), rc);
         if (result < 0) {
           TRACE(DEBUG, " Parsing of first line failed with " << result);
@@ -2235,20 +2235,31 @@ int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
   if (val[0] == '/') {
     struct stat st;
     inFile = true;
-    if ( stat(val, &st) ) {
-      eDest.Emsg("Config", errno, "stat shared secret key file", val);
+    int fd = open(val, O_RDONLY);
+
+    if ( fd == -1 ) {
+      eDest.Emsg("Config", errno, "open shared secret key file", val);
+      return 1;
+    }
+
+    if ( fstat(fd, &st) != 0 ) {
+      eDest.Emsg("Config", errno, "fstat shared secret key file", val);
+      close(fd);
       return 1;
     }
 
     if ( st.st_mode & S_IWOTH & S_IWGRP & S_IROTH) {
-      eDest.Emsg("Config", "For your own security, the shared secret key file cannot be world readable or group writable'", val, "'");
+      eDest.Emsg("Config",
+        "For your own security, the shared secret key file cannot be world readable or group writable '", val, "'");
+      close(fd);
       return 1;
     }
 
-    FILE *fp = fopen(val,"r");
+    FILE *fp = fdopen(fd, "r");
 
-    if( fp == NULL ) {
-      eDest.Emsg("Config", errno, "open shared secret key file", val);
+    if ( fp == nullptr ) {
+      eDest.Emsg("Config", errno, "fdopen shared secret key file", val);
+      close(fd);
       return 1;
     }
 

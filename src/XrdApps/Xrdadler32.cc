@@ -186,14 +186,14 @@ int main(int argc, char *argv[])
     }
     if (argc == 1 || path[0] == '\0')
     {                        /* this is a local file */
-        if (argc > 1) 
+        if (argc > 1)
         {
             strcpy(path, argv[1]);
-            rc = stat(path, &stbuf);        
-            if (rc != 0 || ! S_ISREG(stbuf.st_mode) ||
-                (fd = open(path,O_RDONLY)) < 0) 
+            if ((fd = open(path, O_RDONLY)) < 0 || fstat(fd, &stbuf) != 0 || !S_ISREG(stbuf.st_mode))
             {
-                printf("Error_accessing %s\n", path);
+                if (fd != -1)
+                  close(fd);
+                printf("Error opening %s: %s\n", path, strerror(errno));
                 return 1;
             }
             else  /* see if the adler32 is saved in attribute already */

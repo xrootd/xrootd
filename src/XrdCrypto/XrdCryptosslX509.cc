@@ -31,18 +31,20 @@
 /* OpenSSL implementation of XrdCryptoX509                                    */
 /*                                                                            */
 /* ************************************************************************** */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <cerrno>
-#include <memory>
-
 #include "XrdCrypto/XrdCryptosslRSA.hh"
 #include "XrdCrypto/XrdCryptosslX509.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 
 #include <openssl/pem.h>
+
+#include <cerrno>
+#include <memory>
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define BIO_PRINT(b,c) \
    BUF_MEM *bptr; \
@@ -90,19 +92,28 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
    }
    // Make sure file exists;
    struct stat st;
-   if (stat(cf, &st) != 0) {
+   int fd = open(cf, O_RDONLY);
+
+   if (fd == -1) {
       if (errno == ENOENT) {
          DEBUG("file "<<cf<<" does not exist - do nothing");
       } else {
-         DEBUG("cannot stat file "<<cf<<" (errno: "<<errno<<")");
+         DEBUG("cannot open file "<<cf<<" (errno: "<<errno<<")");
       }
+      return;
+   }
+
+   if (fstat(fd, &st) != 0) {
+      DEBUG("cannot stat file "<<cf<<" (errno: "<<errno<<")");
+      close(fd);
       return;
    }
    //
    // Open file in read mode
-   FILE *fc = fopen(cf, "r");
+   FILE *fc = fdopen(fd, "r");
    if (!fc) {
-      DEBUG("cannot open file "<<cf<<" (errno: "<<errno<<")");
+      DEBUG("cannot fdopen file "<<cf<<" (errno: "<<errno<<")");
+      close(fd);
       return;
    }
    //
@@ -129,8 +140,14 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
    EVP_PKEY *evpp = 0;
    // Read the private key file, if specified
    if (kf) {
-      if (stat(kf, &st) == -1) {
+      int fd = open(kf, O_RDONLY);
+      if (fd == -1) {
+         DEBUG("cannot open file "<<kf<<" (errno: "<<errno<<")");
+         return;
+      }
+      if (fstat(fd, &st) == -1) {
          DEBUG("cannot stat private key file "<<kf<<" (errno:"<<errno<<")");
+         close(fd);
          return;
       }
       if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
@@ -138,12 +155,14 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
             (st.st_mode & (S_IWGRP)) != 0) {
          DEBUG("private key file "<<kf<<" has wrong permissions "<<
                (st.st_mode & 0777) << " (should be at most 0640)");
+         close(fd);
          return;
       }
       // Open file in read mode
-      FILE *fk = fopen(kf, "r");
+      FILE *fk = fdopen(fd, "r");
       if (!fk) {
          DEBUG("cannot open file "<<kf<<" (errno: "<<errno<<")");
+         close(fd);
          return;
       }
       // This call fills the full key, i.e. also the public part (not really documented, though)

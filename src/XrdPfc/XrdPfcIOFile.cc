@@ -35,8 +35,7 @@ using namespace XrdPfc;
 //______________________________________________________________________________
 IOFile::IOFile(XrdOucCacheIO *io, Cache & cache) :
    IO(io, cache),
-   m_file(0),
-   m_localStat(0)
+   m_file(0)
 {
    m_file = Cache::GetInstance().GetFile(GetFilename(), this);
 }
@@ -47,22 +46,20 @@ IOFile::~IOFile()
    // called from Detach() if no sync is needed or
    // from Cache's sync thread
    TRACEIO(Debug, "~IOFile() " << this);
-
-   delete m_localStat;
 }
 
 //______________________________________________________________________________
 int IOFile::Fstat(struct stat &sbuff)
 {
-   int res = 0;
-   if( ! m_localStat)
-   {
-      res = initCachedStat();
-      if (res) return res;
+   // This is only called during Cache::Attach / Cache::GetFile() for file creation.
+   // Should really be separate name but one needs to change virtual interface
+   // so initialStat() becomes virtual in the base-class.
+   // Also, IOFileBlock should be ditched.
+   if ( ! m_file) {
+      return initialStat(sbuff);
    }
 
-   memcpy(&sbuff, m_localStat, sizeof(struct stat));
-   return 0;
+   return m_file->Fstat(sbuff);
 }
 
 //______________________________________________________________________________
@@ -72,65 +69,30 @@ long long IOFile::FSize()
 }
 
 //______________________________________________________________________________
-int IOFile::initCachedStat()
+int IOFile::initialStat(struct stat &sbuff)
 {
-   // Called indirectly from the constructor.
+   // Get stat to determine file-size.
+   // Called indirectly from the constructor, via Cache::GetFile().
+   // Either read it from cinfo file or obtain it from the remote IO.
 
-   static const char* trace_pfx = "initCachedStat ";
-
-   int res = -1;
-   struct stat tmpStat;
+   static const char* trace_pfx = "initialStat ";
 
    std::string fname = GetFilename();
-   std::string iname = fname + Info::s_infoExtension;
-   if (m_cache.GetOss()->Stat(fname.c_str(), &tmpStat) == XrdOssOK)
+   if (m_cache.GetOss()->Stat(fname.c_str(), &sbuff) == XrdOssOK)
    {
-      XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
-      XrdOucEnv myEnv;
-      int       res_open;
-      if ((res_open = infoFile->Open(iname.c_str(), O_RDONLY, 0600, myEnv)) == XrdOssOK)
+      long long file_size = m_cache.DetermineFullFileSize(fname + Info::s_infoExtension);
+      if (file_size >= 0)
       {
-         Info info(m_cache.GetTrace());
-         if (info.Read(infoFile, iname.c_str()))
-         {
-            // The filesize from the file itself may be misleading if its download is incomplete; take it from the cinfo.
-            tmpStat.st_size = info.GetFileSize();
-            // We are arguably abusing the mtime to be the creation time of the file; then ctime becomes the
-            // last time additional data was cached.
-            tmpStat.st_mtime = info.GetCreationTime();
-            TRACEIO(Info, trace_pfx << "successfully read size " << tmpStat.st_size << " and creation time " << tmpStat.st_mtime << " from info file");
-            res = 0;
-         }
-         else
-         {
-            // file exist but can't read it
-            TRACEIO(Info, trace_pfx << "info file is incomplete or corrupt");
-         }
+         sbuff.st_size = file_size;
+         TRACEIO(Info, trace_pfx << "successfully read size " << sbuff.st_size << " from info file");
+         return 0;
       }
-      else
-      {
-         TRACEIO(Error, trace_pfx << "can't open info file " << XrdSysE2T(-res_open));
-      }
-      infoFile->Close();
-      delete infoFile;
+      TRACEIO(Error, trace_pfx << "failed reading from info file " << XrdSysE2T(-file_size));
    }
 
-   if (res)
-   {
-      res = GetInput()->Fstat(tmpStat);
-      TRACEIO(Debug, trace_pfx << "got stat from client res = " << res << ", size = " << tmpStat.st_size);
-      // The mtime / atime / ctime for cached responses come from the file on disk in the cache hit case.
-      // To avoid weirdness when two subsequent stat queries can give wildly divergent times (one from the
-      // origin, one from the cache), set the times to "now" so we effectively only report the *time as the
-      // cache service sees it.
-      tmpStat.st_ctime = tmpStat.st_mtime = tmpStat.st_atime = time(NULL);
-   }
+   int res = GetInput()->Fstat(sbuff);
+   TRACEIO(Debug, trace_pfx << "stat from client res = " << res << ", size = " << sbuff.st_size);
 
-   if (res == 0)
-   {
-      m_localStat = new struct stat;
-      memcpy(m_localStat, &tmpStat, sizeof(struct stat));
-   }
    return res;
 }
 
@@ -153,10 +115,27 @@ void IOFile::DetachFinalize()
 {
    // Effectively a destructor.
 
-   TRACE(Info, "DetachFinalize() " << this);
+   TRACE(Debug, "DetachFinalize() " << this);
 
    m_file->RequestSyncOfDetachStats();
    Cache::GetInstance().ReleaseFile(m_file, this);
+
+   if (( ! m_error_counts.empty() || m_incomplete_count > 0) && XRD_TRACE What >= TRACE_Error) {
+      char info[1024];
+      int pos = 0, cap = 1024;
+      bool truncated = false;
+      for (auto [err, cnt] : m_error_counts) {
+         int len = snprintf(&info[pos], cap, " ( %d : %d)", err, cnt);
+         if (len >= cap) {
+            truncated = true;
+            break;
+         }
+         pos += len;
+         cap -= len;
+      }
+      TRACE(Error, "DetachFinalize() " << this << " n_incomplete_reads=" << m_incomplete_count
+            << ", block (error : count) report:" << info << (truncated ? " - truncated" : ""));
+   }
 
    delete this;
 }
@@ -273,9 +252,9 @@ int IOFile::ReadEnd(int retval, ReadReqRH *rh)
    TRACEIO(Dump, "ReadEnd() " << (rh->m_iocb ? "a" : "") << "sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " retval: " << retval << " expected_size: " << rh->m_expected_size);
 
    if (retval < 0) {
-      TRACEIO(Warning, "ReadEnd() error in File::Read(), exit status=" << retval << ", error=" << XrdSysE2T(-retval) << " sid: " << Xrd::hex1 << rh->m_seq_id);
+      TRACEIO(Debug, "ReadEnd() error in File::Read(), exit status=" << retval << ", error=" << XrdSysE2T(-retval) << " sid: " << Xrd::hex1 << rh->m_seq_id);
    } else if (retval < rh->m_expected_size) {
-      TRACEIO(Warning, "ReadEnd() bytes missed " << rh->m_expected_size - retval << " sid: " << Xrd::hex1 << rh->m_seq_id);
+      TRACEIO(Debug, "ReadEnd() bytes missed " << rh->m_expected_size - retval << " sid: " << Xrd::hex1 << rh->m_seq_id);
    }
    if (rh->m_iocb)
       rh->m_iocb->Done(retval);
@@ -362,9 +341,9 @@ int IOFile::ReadVEnd(int retval, ReadReqRH *rh)
                  " retval: " << retval << " n_chunks: " << rh->m_n_chunks << " expected_size: " << rh->m_expected_size);
 
    if (retval < 0) {
-      TRACEIO(Warning, "ReadVEnd() error in File::ReadV(), exit status=" << retval << ", error=" << XrdSysE2T(-retval));
+      TRACEIO(Debug, "ReadVEnd() error in File::ReadV(), exit status=" << retval << ", error=" << XrdSysE2T(-retval));
    } else if (retval < rh->m_expected_size) {
-      TRACEIO(Warning, "ReadVEnd() bytes missed " << rh->m_expected_size - retval);
+      TRACEIO(Debug, "ReadVEnd() bytes missed " << rh->m_expected_size - retval);
    }
    if (rh->m_iocb)
       rh->m_iocb->Done(retval);

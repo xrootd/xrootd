@@ -838,7 +838,7 @@ int main( int argc, char **argv )
     }
     log->Dump( AppMsg, "Processing source entry: %s, type %s, target file: %s, logLevel = %d",
                sourcePathObf.c_str(), FileType2String( sourceFile->Protocol ),
-               destPathObf.c_str() );
+               destPathObf.c_str(), log->GetLevel() );
 
     //--------------------------------------------------------------------------
     // Set up the job

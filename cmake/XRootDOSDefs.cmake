@@ -10,8 +10,6 @@ set( Hurd     FALSE )
 set( MacOSX   FALSE )
 set( Solaris  FALSE )
 
-set( XrdClPipelines FALSE )
-
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 define_default( LIBRARY_PATH_PREFIX "lib" )
 
@@ -30,14 +28,6 @@ if( ENABLE_TSAN )
 endif()
 
 #-------------------------------------------------------------------------------
-# Enable XrdCl::Pipelines for clang compiler
-# Note: once we move to c++14 globaly we can remove this
-#-------------------------------------------------------------------------------
-if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
-  set( XrdClPipelines TRUE )
-endif()
-
-#-------------------------------------------------------------------------------
 # GCC
 #-------------------------------------------------------------------------------
 if( CMAKE_COMPILER_IS_GNUCXX )
@@ -51,12 +41,12 @@ if( CMAKE_COMPILER_IS_GNUCXX )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror" )
   endif()
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
+endif()
 
-  execute_process( COMMAND ${CMAKE_C_COMPILER} -dumpversion
-                   OUTPUT_VARIABLE GCC_VERSION )
-  if( GCC_VERSION VERSION_GREATER 4.8.0 )
-  	set( XrdClPipelines TRUE )
-  endif()
+# Disable warnings with nvc++ (for when we are built as ROOT built-in dependency)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "NVHPC")
+  add_compile_options(-w)
 endif()
 
 #-------------------------------------------------------------------------------
@@ -106,11 +96,10 @@ endif()
 #-------------------------------------------------------------------------------
 if( APPLE )
   set( MacOSX TRUE )
-  set( XrdClPipelines TRUE )
   
   set(CMAKE_MACOSX_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+  set(CMAKE_INSTALL_RPATH "@loader_path/../lib" CACHE STRING "Install RPATH")
 
   # this is here because of Apple deprecating openssl and krb5
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )

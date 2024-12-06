@@ -980,7 +980,7 @@ namespace XrdEc
 
 										if(!st.IsOK())
 										{
-											log->Dump(XrdCl::XRootDMsg, "EC Vector Read of host %d failed entirely.", i);
+											log->Dump(XrdCl::XRootDMsg, "EC Vector Read of host %llu failed entirely.", i);
 											MissingVectorRead(currentBlock, blkid, strpid, timeout);
 										}
 										else{
@@ -1002,7 +1002,7 @@ namespace XrdEc
 											uint32_t cksum = objcfg.digest( 0, currentBlock->stripes[strpid].data(), currentBlock->stripes[strpid].size() );
 											if( orgcksum != cksum )
 											{
-												log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Wrong checksum for block %d stripe %d.", blkid, strpid);
+												log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Wrong checksum for block %llu stripe %llu.", blkid, strpid);
 												MissingVectorRead(currentBlock, blkid, strpid, timeout);
 												continue;
 											}
@@ -1010,7 +1010,7 @@ namespace XrdEc
 												currentBlock->state[strpid] = block_t::Valid;
 												bool recoverable = currentBlock->error_correction( currentBlock );
 												if(!recoverable)
-													log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't recover block %d.", blkid);
+													log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't recover block %llu.", blkid);
 											}
 										}
 									}
@@ -1045,12 +1045,12 @@ namespace XrdEc
 
 				  // put received data into given buffers
 			      if(blockMap.find(blkid) == blockMap.end() || blockMap[blkid] == nullptr){
-			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Missing block %d.", blkid);
+			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Missing block %llu.", blkid);
 			    	  failed = true;
 			    	  break;
 			      }
 			      if(blockMap[blkid]->state[strpid] != block_t::Valid){
-			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Invalid stripe in block %d stripe %d.", blkid, strpid);
+			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Invalid stripe in block %llu stripe %llu.", blkid, strpid);
 			    	  failed = true;
 			    	  break;
 			      }

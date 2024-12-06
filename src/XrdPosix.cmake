@@ -74,7 +74,13 @@ set_target_properties(
 # It is meant to replace symbols from the system and as such
 # must not be compiled with link-time optimizations.
 
-target_compile_options(XrdPosixPreload PRIVATE -fno-lto)
+include(CheckCXXCompilerFlag)
+
+check_cxx_compiler_flag(-fno-lto HAS_NOLTO)
+
+if(HAS_NOLTO)
+  target_compile_options(XrdPosixPreload PRIVATE -fno-lto)
+endif()
 
 #-------------------------------------------------------------------------------
 # Install

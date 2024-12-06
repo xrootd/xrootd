@@ -2549,12 +2549,19 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 // If the error is EBUSY then we just need to stall the client. This is
 // a hack in order to provide for proxy support
 //
+// The hack unfotunately is now beinng triggered for reads and writes when
+// it was never so before (presumably due to client changes). So do not
+// apply the hack for these operations. This gets a better fix in R 6.0
+//
+if (strcmp("read", op) && strcmp("readv", op) && strcmp("pgRead", op) && 
+    strcmp("write",op) && strcmp("pgwrite",op)) {
     if (ecode < 0) ecode = -ecode;
     if (ecode == EBUSY) return 5;  // A hack for proxy support
 
 // Check for timeout conditions that require a client delay
 //
    if (ecode == ETIMEDOUT) return OSSDelay;
+   }
 
 // Format the error message
 //

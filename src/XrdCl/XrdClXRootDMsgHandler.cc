@@ -123,7 +123,7 @@ namespace XrdCl
       {
         Log *log = DefaultEnv::GetLog();
         log->Warning( ExDbgMsg, "[%s] MsgHandler is examining a response although "
-                                "it already owns a response: 0x%x (message: %s ).",
+                                "it already owns a response: %p (message: %s ).",
                       pUrl.GetHostId().c_str(), this,
                       pRequest->GetObfuscatedDescription().c_str() );
       }
@@ -795,7 +795,7 @@ namespace XrdCl
 
         if( resendTime < pExpiration )
         {
-          log->Debug( ExDbgMsg, "[%s] Scheduling WaitTask for MsgHandler: 0x%x (message: %s ).",
+          log->Debug( ExDbgMsg, "[%s] Scheduling WaitTask for MsgHandler: %p (message: %s ).",
                       pUrl.GetHostId().c_str(), this,
                       pRequest->GetObfuscatedDescription().c_str() );
 
@@ -906,7 +906,7 @@ namespace XrdCl
       log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
                  pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
 
-      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: 0x%x (message: %s ) from out-queue to in-queue.",
+      log->Debug( ExDbgMsg, "[%s] Moving MsgHandler: %p (message: %s ) from out-queue to in-queue.",
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetObfuscatedDescription().c_str() );
 
@@ -1121,7 +1121,7 @@ namespace XrdCl
     AnyObject    *response = 0;
 
     Log *log = DefaultEnv::GetLog();
-    log->Debug( ExDbgMsg, "[%s] Calling MsgHandler: 0x%x (message: %s ) "
+    log->Debug( ExDbgMsg, "[%s] Calling MsgHandler: %p (message: %s ) "
                 "with status: %s.",
                 pUrl.GetHostId().c_str(), this,
                 pRequest->GetObfuscatedDescription().c_str(),
@@ -1659,7 +1659,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_readv:
       {
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %p as "
                    "VectorReadInfo", pUrl.GetHostId().c_str(),
                    pRequest->GetObfuscatedDescription().c_str() );
 
@@ -2132,7 +2132,7 @@ namespace XrdCl
 
     if( pUrl.IsMetalink() && pFollowMetalink )
     {
-      log->Debug( ExDbgMsg, "[%s] Metaling redirection for MsgHandler: 0x%x (message: %s ).",
+      log->Debug( ExDbgMsg, "[%s] Metaling redirection for MsgHandler: %p (message: %s ).",
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetObfuscatedDescription().c_str() );
 
@@ -2145,7 +2145,7 @@ namespace XrdCl
     }
     else
     {
-      log->Debug( ExDbgMsg, "[%s] Retry at server MsgHandler: 0x%x (message: %s ).",
+      log->Debug( ExDbgMsg, "[%s] Retry at server MsgHandler: %p (message: %s ).",
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetObfuscatedDescription().c_str() );
       return pPostMaster->Send( pUrl, pRequest, this, true, pExpiration );
@@ -2249,7 +2249,7 @@ namespace XrdCl
     else
     {
       Log *log = DefaultEnv::GetLog();
-      log->Debug( ExDbgMsg, "[%s] Passing to the thread-pool MsgHandler: 0x%x (message: %s ).",
+      log->Debug( ExDbgMsg, "[%s] Passing to the thread-pool MsgHandler: %p (message: %s ).",
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetObfuscatedDescription().c_str() );
       jobMgr->QueueJob( new HandleRspJob( this ), 0 );
@@ -2262,7 +2262,7 @@ namespace XrdCl
   void XRootDMsgHandler::HandleLocalRedirect( URL *url )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Debug( ExDbgMsg, "[%s] Handling local redirect - MsgHandler: 0x%x (message: %s ).",
+    log->Debug( ExDbgMsg, "[%s] Handling local redirect - MsgHandler: %p (message: %s ).",
                 pUrl.GetHostId().c_str(), this,
                 pRequest->GetObfuscatedDescription().c_str() );
 

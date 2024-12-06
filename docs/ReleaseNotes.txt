@@ -6,6 +6,44 @@ Release Notes
 =============
 
 -------------
+Version 5.7.2
+-------------
+
++ **Performance Improvements**
+  **[XrdHttp]** Avoid calling `stat` on HTTP GET (#2299, #2300)
+  **[XrdPfc]** Fix behavior and improve performance of stat calls (#2349)
+
++ **Major bug fixes**
+  **[XrdOuc]** Migrate away from `std::regex` to avoid stack overflow bug in C++ standard library
+  **[XrdHttp]** Client plugin returning XrdCl::errSocketTimeout triggers near-infinite loop in XrdHttp (#2357)
+  **[XrdHttp]** Invalid chunk framing for HTTP (#2351)
+
++ **Minor bug fixes**
+  **[Misc]** Fix various issues reported by code scanning tool CodeQL
+  **[Python]** Do not build in parallel by default to avoid using too many threads (#2356)
+  **[Python]** Fix RPATH setting for Python bindings on macOS (#2350)
+  **[Python]** Make environment take precedence over default arguments of add_job (#1657)
+  **[XCache]** Add number of bytes prefetched and written to disk to the gstream record (#2366)
+  **[XCache]** Fix errors that happen under high load (#2360)
+  **[XCache]** Reduce verbosity of error messages (#2288, #2327, #2370)
+  **[XrdCl]** xrdfs ls on a directory on a server runs locate (#2120)
+  **[XrdHttpTPC]** Race condition during HTTP TPC request may cause file deletion (#2354)
+  **[XrdHttp]** Redact tokens from additional places to prevent them leaking into logs (#2343, #2371)
+  **[XrdSut]** Fix narrowing conversion on 32-bit systems (#2272)
+  **[XrdSys]** Protect against array index out of bounds (#2329)
+
++ **Miscellaneous**
+  **[CI]** Update GitHub Actions and GitLab CI, add Alma 10 beta builds
+  **[CMake]** Support building with Nvidia HPC Toolkit compilers (#2361)
+  **[Doxygen]** Make documentation builds reproducible (#2337)
+  **[Tests]** Avoid test failures when $RANDOM returns a multiple of 1024 (#2344)
+  **[Tests]** Increase default timeouts in client/server tests
+  **[Tests]** More HTTP tests added to the test suite (#2375)
+  **[XrdCl]** Downgrade force disconnect error message to debug level (#2370)
+  **[XrdCl]** Handle kXR_attrCache attribute in protocol response
+  **[XrdCms]** Improve DFS error message to be less confusing (#2345)
+
+-------------
 Version 5.7.1
 -------------
 

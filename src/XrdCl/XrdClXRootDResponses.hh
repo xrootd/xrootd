@@ -348,6 +348,7 @@ namespace XrdCl
       {
         IsManager = kXR_isManager,   //!< Manager
         IsServer  = kXR_isServer,    //!< Data server
+        AttrCache = kXR_attrCache,   //!< Cache attribute
         AttrMeta  = kXR_attrMeta,    //!< Meta attribute
         AttrProxy = kXR_attrProxy,   //!< Proxy attribute
         AttrSuper = kXR_attrSuper    //!< Supervisor attribute

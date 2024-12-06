@@ -529,7 +529,7 @@ namespace XrdCl
     // We have written the message successfully
     //----------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
-    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
+    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (%p), %d bytes",
                strmname.c_str(), msg.GetObfuscatedDescription().c_str(),
                &msg, msg.GetSize() );
     return XRootDStatus();

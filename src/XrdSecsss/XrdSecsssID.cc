@@ -132,7 +132,7 @@ XrdSecsssID::XrdSecsssID(authType aType, const XrdSecEntity *idP,
 /* Private:                   D e s t r u c t o r                             */
 /******************************************************************************/
 
-XrdSecsssID::~XrdSecsssID() {if (defaultID) free(defaultID);}
+XrdSecsssID::~XrdSecsssID() {if (defaultID) defaultID->Delete();}
   
 /******************************************************************************/
 /* Private:                         F i n d                                   */

@@ -36,6 +36,8 @@
 #include <unordered_set>
 #include <algorithm>
 
+#include <regex.h>
+
 #ifdef WIN32
 #include <direct.h>
 #include "XrdSys/XrdWin32.hh"
@@ -114,19 +116,6 @@ int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
    return luRet;
 }
 }
-
-static const std::string OBFUSCATION_STR = "REDACTED";
-
-// As the compilation of the regexes when the std::regex object is constructed is expensive,
-// we initialize the auth obfuscation regexes only once in the XRootD process lifetime
-
-static const std::vector<std::regex> authObfuscationRegexes = {
-  //authz=xxx&... We deal with cases like "(message: kXR_stat (path: /tmp/xrootd/public/foo?pelican.timeout=3s&authz=foo1234, flags: none)" where we do not want to obfuscate
-  // ", flags: none)" + we deal with cases where the 'authz=Bearer token' when an admin could set 'http.header2cgi Authorization authz' in the server config
-  std::regex(R"((authz=)(Bearer\s)?([^ &\",<>#%{}|\^~\[\]`]*))",std::regex_constants::optimize),
-  // HTTP Authorization, TransferHeaderAuthorization headers that with the key that can be prefixed with spaces and value prefixed by spaces
-  std::regex(R"((\s*\w*Authorization\s*:\s*)[^$]*)", std::regex_constants::icase | std::regex_constants::optimize)
-};
 
 /******************************************************************************/
 /*                               a r g L i s t                                */
@@ -1429,26 +1418,62 @@ void XrdOucUtils::trim(std::string &str) {
 }
 
 /**
- * Use this function to obfuscate any string containing key-values with OBFUSCATION_STR
- * @param input the string to obfuscate
- * @param regexes the obfuscation regexes to apply to replace the value with OBFUSCATION_STR.
- *                The key should be a regex group e.g: "(authz=)"
- * Have a look at obfuscateAuth for more examples
- * @return the string with values obfuscated
+ * Returns a boolean indicating whether 'c' is a valid token character or not.
+ * See https://datatracker.ietf.org/doc/html/rfc6750#section-2.1 for details.
  */
-std::string obfuscate(const std::string &input, const std::vector<std::regex> &regexes) {
-  std::string result = input;
-  for(const auto & regex: regexes) {
-    //Loop over the regexes and replace the values with OBFUSCATION_STR
-    //$1 matches the first regex subgroup (e.g: "(authz=)")
-    result = std::regex_replace(result, regex, std::string("$1" + OBFUSCATION_STR));
-  }
-  return result;
+
+static bool is_token_character(int c)
+{
+  if (isalnum(c))
+    return true;
+
+  static constexpr char token_chars[] = "-._~+/=:";
+
+  for (char ch : token_chars)
+    if (c == ch)
+      return true;
+
+  return false;
 }
 
-std::string obfuscateAuth(const std::string & input) {
-  return obfuscate(input, authObfuscationRegexes);
+/**
+ * This function obfuscates away authz= cgi elements and/or HTTP authorization
+ * headers from URL or other log line strings which might contain them.
+ *
+ * @param input the string to obfuscate
+ * @return the string with token values obfuscated
+ */
+
+std::string obfuscateAuth(const std::string& input)
+{
+  static const regex_t auth_regex = []() {
+    constexpr char re[] =
+      "(authz=|(transferheader)?(www-|proxy-)?auth(orization|enticate)[[:space:]]*:[[:space:]]*)"
+      "(Bearer([[:space:]]|%20)?(token([[:space:]]|%20)?)?)?";
+
+    regex_t regex;
+
+    if (regcomp(&regex, re, REG_EXTENDED | REG_ICASE) != 0)
+      throw std::runtime_error("Failed to compile regular expression");
+
+    return regex;
+  }();
+
+  regmatch_t match;
+  size_t offset = 0;
+  std::string redacted;
+  const char *const text = input.c_str();
+
+  while (regexec(&auth_regex, text + offset, 1, &match, 0) == 0) {
+    redacted.append(text + offset, match.rm_eo).append("REDACTED");
+
+    offset += match.rm_eo;
+
+    while (offset < input.size() && is_token_character(input[offset]))
+      ++offset;
+  }
+
+  return redacted.append(text + offset);
 }
 
 #endif
-

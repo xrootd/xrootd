@@ -10,6 +10,11 @@ function assert() {
 	echo "$@"; "$@" || error "command \"$*\" failed";
 }
 
+# $1 is expected_value $2 is received value $3 is the error message
+function assert_eq() {
+  [[ "$1" == "$2" ]] || error "$3: expected $1 but received $2"
+}
+
 function assert_failure() {
 	echo "$@"; "$@" && error "command \"$*\" did not fail";
 }
@@ -47,8 +52,8 @@ export XRD_LOGLEVEL XRD_LOGFILE
 # Reduce default timeouts to catch errors quickly and prevent the test
 # suite from getting stuck waiting for timeouts while running.
 
-: "${XRD_REQUESTTIMEOUT:=2}"
-: "${XRD_STREAMTIMEOUT:=2}"
+: "${XRD_REQUESTTIMEOUT:=10}"
+: "${XRD_STREAMTIMEOUT:=5}"
 : "${XRD_TIMEOUTRESOLUTION:=1}"
 
 export XRD_REQUESTTIMEOUT XRD_STREAMTIMEOUT XRD_TIMEOUTRESOLUTION

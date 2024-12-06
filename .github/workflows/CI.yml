@@ -72,7 +72,9 @@ jobs:
           zlib-dev
 
     - name: Clone repository
-      uses: actions/checkout@v1
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup GitHub runner user within container
       run: adduser -D --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
@@ -95,7 +97,7 @@ jobs:
 
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
+      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node18
       CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
 
     steps:
@@ -118,7 +120,7 @@ jobs:
         yum install -y epel-rpm-macros git rpmdevtools sudo yum-utils
 
     - name: Clone repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v1
       with:
         fetch-depth: 0
 
@@ -172,6 +174,42 @@ jobs:
     name: Alma 9
     runs-on: ubuntu-latest
     container: almalinux:9
+
+    env:
+      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+
+    steps:
+    - name: Install dependencies
+      run: |
+        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+        dnf config-manager --set-enabled crb
+
+    - name: Clone repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup GitHub runner user within container
+      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Install XRootD build dependencies
+      run: dnf builddep -y xrootd.spec
+
+    - name: Build and Test with CTest
+      run: sudo -E -u runner ctest -VV -S test.cmake
+
+    - name: Install with CMake
+      run: cmake --install build
+
+    - name: Run post-install tests
+      run: |
+        tests/post-install.sh
+        tests/check-headers.sh
+
+  alma10beta:
+    name: Alma 10 (beta)
+    runs-on: ubuntu-latest
+    container: almalinux:10-kitten
 
     env:
       CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"

@@ -2504,7 +2504,7 @@ int XrdXrootdProtocol::do_ReadNone(int &retc, int &pathID)
    XrdXrootdFHandle fh;
    int ralsz = Request.header.dlen;
    struct read_args *rargs=(struct read_args *)(argp->buff);
-   struct readahead_list *ralsp = (readahead_list *)(rargs+sizeof(read_args));
+   struct readahead_list *ralsp = (readahead_list *)(rargs+1);
 
 // Return the pathid
 //

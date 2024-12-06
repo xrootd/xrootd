@@ -237,13 +237,15 @@ int XrdOucTPC::copyCGI(const char *cgi, char *Buff, int Blen)
    int xlen;
    bool eqs;
 
+   if (!cgi) {*Buff = 0; return 0;}
+
 // Skip over initial ampersands
 //
    while(*cgi == '&' && *cgi) cgi++;
 
 // Check if there is anything here
 //
-   if (!cgi || *cgi == 0) {*Buff = 0; return 0;}
+   if (!*cgi) {*Buff = 0; return 0;}
    Blen--;
 
 // Copy all keys except system oriented ones.

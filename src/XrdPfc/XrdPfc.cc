@@ -31,6 +31,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysTrace.hh"
+#include "XrdSys/XrdSysXAttr.hh"
 
 #include "XrdXrootd/XrdXrootdGStream.hh"
 
@@ -42,6 +43,8 @@
 #include "XrdPfcInfo.hh"
 #include "XrdPfcIOFile.hh"
 #include "XrdPfcIOFileBlock.hh"
+
+extern XrdSysXAttr *XrdSysXAttrActive;
 
 using namespace XrdPfc;
 
@@ -411,7 +414,7 @@ void Cache::ReleaseRAM(char* buf, long long size)
 
 File* Cache::GetFile(const std::string& path, IO* io, long long off, long long filesize)
 {
-   // Called from virtual IO::Attach
+   // Called from virtual IOFile constructor.
    
    TRACE(Debug, "GetFile " << path << ", io " << io);
 
@@ -447,6 +450,7 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
       }
    }
 
+   // This is always true, now that IOFileBlock is unsupported.
    if (filesize == 0)
    {
       struct stat st;
@@ -504,7 +508,7 @@ void Cache::ReleaseFile(File* f, IO* io)
    dec_ref_cnt(f, true);
 }
 
-  
+
 namespace
 {
 
@@ -581,7 +585,8 @@ void Cache::inc_ref_cnt(File* f, bool lock, bool high_debug)
 
 void Cache::dec_ref_cnt(File* f, bool high_debug)
 {
-   // Called from ReleaseFile() or DiskSync callback.
+   // NOT under active lock.
+   // Called from ReleaseFile(), DiskSync callback and stat-like functions.
 
    int tlvl = high_debug ? TRACE_Debug : TRACE_Dump;
    int cnt;
@@ -590,6 +595,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
      XrdSysCondVarHelper lock(&m_active_cond);
 
      cnt = f->get_ref_cnt();
+     TRACE_INT(tlvl, "dec_ref_cnt " << f->GetLocalPath() << ", cnt at entry = " << cnt);
 
      if (f->is_in_emergency_shutdown())
      {
@@ -607,12 +613,14 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
            TRACE_INT(tlvl, "dec_ref_cnt " << f->GetLocalPath() << " is in shutdown, ref_cnt = " << cnt
                      << " -- waiting");
         }
-
+        return;
+     }
+     if (cnt > 1)
+     {
+        f->dec_ref_cnt();
         return;
      }
    }
-
-   TRACE_INT(tlvl, "dec_ref_cnt " << f->GetLocalPath() << ", cnt at entry = " << cnt);
 
    if (cnt == 1)
    {
@@ -648,12 +656,14 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
             int  len = snprintf(buf, 4096, "{\"event\":\"file_close\","
                                  "\"lfn\":\"%s\",\"size\":%lld,\"blk_size\":%d,\"n_blks\":%d,\"n_blks_done\":%d,"
                                  "\"access_cnt\":%lu,\"attach_t\":%lld,\"detach_t\":%lld,\"remotes\":%s,"
-                                 "\"b_hit\":%lld,\"b_miss\":%lld,\"b_bypass\":%lld,\"n_cks_errs\":%d}",
+                                 "\"b_hit\":%lld,\"b_miss\":%lld,\"b_bypass\":%lld,"
+                                 "\"b_todisk\":%lld,\"b_prefetch\":%lld,\"n_cks_errs\":%d}",
                                  f->GetLocalPath().c_str(), f->GetFileSize(), f->GetBlockSize(),
                                  f->GetNBlocks(), f->GetNDownloadedBlocks(),
                                  (unsigned long) f->GetAccessCnt(), (long long) as->AttachTime, (long long) as->DetachTime,
                                  f->GetRemoteLocations().c_str(),
-                                 as->BytesHit, as->BytesMissed, as->BytesBypassed, st.m_NCksumErrors
+                                 as->BytesHit, as->BytesMissed, as->BytesBypassed,
+                                 st.m_BytesWritten, f->GetPrefetchedBytes(), st.m_NCksumErrors
             );
             bool suc = false;
             if (len < 4096)
@@ -898,6 +908,78 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
 }
 
 //______________________________________________________________________________
+// If supported, write file_size as xattr to cinfo file.
+//------------------------------------------------------------------------------
+void Cache::WriteFileSizeXAttr(int cinfo_fd, long long file_size)
+{
+   if (m_metaXattr) {
+      int res = XrdSysXAttrActive->Set("pfc.fsize", &file_size, sizeof(long long), 0, cinfo_fd, 0);
+      if (res != 0) {
+         TRACE(Debug, "WriteFileSizeXAttr error setting xattr " << res);
+      }
+   }
+}
+
+//______________________________________________________________________________
+// Determine full size of the data file from the corresponding cinfo-file name.
+// Attempts to read xattr first and falls back to reading of the cinfo file.
+// Returns -error on failure.
+//------------------------------------------------------------------------------
+long long Cache::DetermineFullFileSize(const std::string &cinfo_fname)
+{
+   if (m_metaXattr) {
+      char pfn[4096];
+      m_oss->Lfn2Pfn(cinfo_fname.c_str(), pfn, 4096);
+      long long fsize = -1ll;
+      int res = XrdSysXAttrActive->Get("pfc.fsize", &fsize, sizeof(long long), pfn);
+      if (res == sizeof(long long))
+      {
+         return fsize;
+      }
+      else
+      {
+         TRACE(Debug, "DetermineFullFileSize error getting xattr " << res);
+      }
+   }
+
+   XrdOssDF *infoFile = m_oss->newFile(m_configuration.m_username.c_str());
+   XrdOucEnv env;
+   int res = infoFile->Open(cinfo_fname.c_str(), O_RDONLY, 0600, env);
+   if (res < 0)
+      return res;
+   Info info(m_trace, 0);
+   if ( ! info.Read(infoFile, cinfo_fname.c_str()))
+      return -EBADF;
+   return info.GetFileSize();
+}
+
+//______________________________________________________________________________
+// Calculate if the file is to be considered cached for the purposes of
+// only-if-cached and setting of atime of the Stat() calls.
+// Returns true if the file is to be conidered cached.
+//------------------------------------------------------------------------------
+bool Cache::DecideIfConsideredCached(long long file_size, long long bytes_on_disk)
+{
+   if (file_size == 0 || bytes_on_disk >= file_size)
+      return true;
+
+   double frac_on_disk = (double) bytes_on_disk / file_size;
+
+   if (file_size <= m_configuration.m_onlyIfCachedMinSize)
+   {
+      if (frac_on_disk >= m_configuration.m_onlyIfCachedMinFrac)
+         return true;
+   }
+   else
+   {
+      if (bytes_on_disk >= m_configuration.m_onlyIfCachedMinSize &&
+          frac_on_disk  >= m_configuration.m_onlyIfCachedMinFrac)
+         return true;
+   }
+   return false;
+}
+
+//______________________________________________________________________________
 // Check if the file is cached including m_onlyIfCachedMinSize and m_onlyIfCachedMinFrac
 // pfc configuration parameters. The logic of accessing the Info file is the same
 // as in Cache::LocalFilePath.
@@ -905,108 +987,58 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
 //!                  the buffer, if it has been supllied.
 //!
 //! @return <0     - the request could not be fulfilled. The return value is
-//!                  -errno describing why. If a buffer was supplied and a
-//!                  path could be generated it is returned only if "why" is
-//!                  ForCheck or ForInfo. Otherwise, a null path is returned.
+//!                  -errno describing why.
 //!
 //! @return >0     - Reserved for future use.
 //------------------------------------------------------------------------------
 int Cache::ConsiderCached(const char *curl)
 {
-   TRACE(Debug, "ConsiderFileCached '" << curl << "'" );
+   static const char* tpfx = "ConsiderCached ";
+
+   TRACE(Debug, tpfx << curl);
 
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + Info::s_infoExtension;
 
+   File *file = nullptr;
    {
       XrdSysCondVarHelper lock(&m_active_cond);
-      m_purge_delay_set.insert(f_name);
+      auto it = m_active.find(f_name);
+      if (it != m_active.end()) {
+         file = it->second;
+         inc_ref_cnt(file, false, false);
+      }
+   }
+   if (file) {
+      struct stat sbuff;
+      int res = file->Fstat(sbuff);
+      dec_ref_cnt(file, false);
+      if (res)
+         return res;
+      // DecideIfConsideredCached() already called in File::Fstat().
+      return sbuff.st_atime > 0 ? 0 : -EREMOTE;
    }
 
-   struct stat sbuff, sbuff2;
-   if (m_oss->Stat(f_name.c_str(), &sbuff) == XrdOssOK &&
-       m_oss->Stat(i_name.c_str(), &sbuff2) == XrdOssOK)
+   struct stat sbuff;
+   int res = m_oss->Stat(f_name.c_str(), &sbuff);
+   if (res != XrdOssOK) {
+      TRACE(Debug, tpfx << curl << " -> " << res);
+      return res;
+   }
+   if (S_ISDIR(sbuff.st_mode))
    {
-      if (S_ISDIR(sbuff.st_mode))
-      {
-         TRACE(Info, "ConsiderCached '" << curl << ", why=ForInfo" << " -> EISDIR");
-         return -EISDIR;
-      }
-      else
-      {
-         bool read_ok = false;
-         bool is_cached = false;
-
-         // Lock and check if the file is active. If NOT, keep the lock
-         // and add dummy access after successful reading of info file.
-         // If it IS active, just release the lock, this ongoing access will
-         // assure the file continues to exist.
-
-         // XXXX How can I just loop over the cinfo file when active?
-         // Can I not get is_complete from the existing file?
-         // Do I still want to inject access record?
-         // Oh, it writes only if not active .... still let's try to use existing File.
-
-         m_active_cond.Lock();
-
-         bool is_active = m_active.find(f_name) != m_active.end();
-
-         if (is_active)
-            m_active_cond.UnLock();
-
-         XrdOssDF *infoFile = m_oss->newFile(m_configuration.m_username.c_str());
-         XrdOucEnv myEnv;
-         int res = infoFile->Open(i_name.c_str(), O_RDWR, 0600, myEnv);
-         if (res >= 0)
-         {
-            Info info(m_trace, 0);
-            if (info.Read(infoFile, i_name.c_str()))
-            {
-               read_ok = true;
-
-               if (info.IsComplete())
-               {
-                  is_cached = true;
-               }
-               else if (info.GetFileSize() == 0)
-               {
-                  is_cached = true;
-               }
-               else
-               {
-                  long long fileSize = info.GetFileSize();
-                  long long bytesRead = info.GetNDownloadedBytes();
-
-                  if (fileSize < m_configuration.m_onlyIfCachedMinSize)
-                  {
-                     if ((float)bytesRead / fileSize > m_configuration.m_onlyIfCachedMinFrac)
-                        is_cached = true;
-                  }
-                  else
-                  {
-                     if (bytesRead > m_configuration.m_onlyIfCachedMinSize &&
-                         (float)bytesRead / fileSize > m_configuration.m_onlyIfCachedMinFrac)
-                        is_cached = true;
-                  }
-               }
-            }
-            infoFile->Close();
-         }
-         delete infoFile;
-
-         if (!is_active) m_active_cond.UnLock();
-
-         if (read_ok)
-         {
-            TRACE(Info, "ConsiderCached '" << curl << "', why=ForInfo" << (is_cached ? " -> FILE_COMPLETE_IN_CACHE" : " -> EREMOTE"));
-            return is_cached ? 0 : -EREMOTE;
-         }
-      }
+      TRACE(Debug, tpfx << curl << " -> EISDIR");
+      return -EISDIR;
    }
 
-   TRACE(Info, "ConsiderCached '" << curl << "', why=ForInfo" << " -> ENOENT");
-   return -ENOENT;
+   long long file_size = DetermineFullFileSize(f_name + Info::s_infoExtension);
+   if (file_size < 0) {
+      TRACE(Debug, tpfx << curl << " -> " << file_size);
+      return (int) file_size;
+   }
+   bool is_cached = DecideIfConsideredCached(file_size, sbuff.st_blocks * 512ll);
+
+   return is_cached ? 0 : -EREMOTE;
 }
 
 //______________________________________________________________________________
@@ -1051,8 +1083,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    }
 
    struct stat sbuff;
-   int res = m_oss->Stat(i_name.c_str(), &sbuff);
-   if (res == 0)
+   if (m_oss->Stat(i_name.c_str(), &sbuff) == XrdOssOK)
    {
       TRACE(Dump, "Prepare defer open " << f_name);
       return 1;
@@ -1073,44 +1104,51 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
 
 int Cache::Stat(const char *curl, struct stat &sbuff)
 {
+   const char *tpfx = "Stat ";
+
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
 
+   File *file = nullptr;
    {
       XrdSysCondVarHelper lock(&m_active_cond);
-      m_purge_delay_set.insert(f_name);
+      auto it = m_active.find(f_name);
+      if (it != m_active.end()) {
+         file = it->second;
+         inc_ref_cnt(file, false, false);
+      }
+   }
+   if (file) {
+      int res = file->Fstat(sbuff);
+      dec_ref_cnt(file, false);
+      TRACE(Debug, tpfx << "from active file " << curl << " -> " << res);
+      return res;
    }
 
-   if (m_oss->Stat(f_name.c_str(), &sbuff) == XrdOssOK)
+   int res = m_oss->Stat(f_name.c_str(), &sbuff);
+   if (res != XrdOssOK) {
+      TRACE(Debug, tpfx << curl << " -> " << res);
+      return 1; // res; -- for only-if-cached
+   }
+   if (S_ISDIR(sbuff.st_mode))
    {
-      if (S_ISDIR(sbuff.st_mode))
-      {
-         return 0;
-      }
-      else
-      {
-         bool success = false;
-         XrdOssDF* infoFile = m_oss->newFile(m_configuration.m_username.c_str());
-         XrdOucEnv myEnv;
-
-         f_name += Info::s_infoExtension;
-         int res = infoFile->Open(f_name.c_str(), O_RDONLY, 0600, myEnv);
-         if (res >= 0)
-         {
-            Info info(m_trace, 0);
-            if (info.Read(infoFile, f_name.c_str()))
-            {
-               sbuff.st_size = info.GetFileSize();
-               success = true;
-            }
-         }
-         infoFile->Close();
-         delete infoFile;
-         return success ? 0 : 1;
-      }
+      TRACE(Debug, tpfx << curl << " -> EISDIR");
+      return -EISDIR;
    }
 
-   return 1;
+   long long file_size = DetermineFullFileSize(f_name + Info::s_infoExtension);
+   if (file_size < 0) {
+      TRACE(Debug, tpfx << curl << " -> " << file_size);
+      return 1; // (int) file_size; -- for only-if-cached
+   }
+   sbuff.st_size = file_size;
+   bool is_cached = DecideIfConsideredCached(file_size, sbuff.st_blocks * 512ll);
+   if ( ! is_cached)
+      sbuff.st_atime = 0;
+
+   TRACE(Debug, tpfx << "from disk " << curl << " -> " << res);
+
+   return 0;
 }
 
 //______________________________________________________________________________

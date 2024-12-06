@@ -31,12 +31,6 @@
 /* OpenSSL implementation of XrdCryptoX509Crl                                 */
 /*                                                                            */
 /* ************************************************************************** */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <cerrno>
-#include <ctime>
-
 #include "XrdCrypto/XrdCryptosslRSA.hh"
 #include "XrdCrypto/XrdCryptosslX509Crl.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
@@ -44,6 +38,14 @@
 
 #include <openssl/bn.h>
 #include <openssl/pem.h>
+
+#include <cerrno>
+#include <ctime>
+
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 #define X509_REVOKED_get0_revocationDate(x) (x)->revocationDate
@@ -164,21 +166,25 @@ int XrdCryptosslX509Crl::Init(const char *cf)
       DEBUG("file name undefined");
       return -1;
    }
+
    // Make sure file exists;
-   struct stat st;
-   if (stat(cf, &st) != 0) {
+   int fd = open(cf, O_RDONLY);
+
+   if (fd == -1) {
       if (errno == ENOENT) {
          DEBUG("file "<<cf<<" does not exist - do nothing");
       } else {
-         DEBUG("cannot stat file "<<cf<<" (errno: "<<errno<<")");
+         DEBUG("cannot open file "<<cf<<" (errno: "<<errno<<")");
       }
       return -1;
    }
-   //
+
    // Open file in read mode
-   FILE *fc = fopen(cf, "r");
+   FILE *fc = fdopen(fd, "r");
+
    if (!fc) {
       DEBUG("cannot open file "<<cf<<" (errno: "<<errno<<")");
+      close(fd);
       return -1;
    }
 

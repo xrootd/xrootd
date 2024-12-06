@@ -463,6 +463,11 @@ void XrdXrootdTransit::Redrive()
         if (rc == 0) {
           rc = realProt->Process(NULL);
         }
+        if (runStatus)
+           {AtomicBeg(runMutex);
+            AtomicZAP(runStatus);
+            AtomicEnd(runMutex);
+           }
       } while((rc == 0) && !runError && !runWait);
    }
       else rc = Send(kXR_error, ioV, 2, 0);
@@ -567,7 +572,10 @@ bool XrdXrootdTransit::Run(const char *xreqP, char *xdataP, int xdataL)
    AtomicBeg(runMutex);
    rc = AtomicInc(runStatus);
    AtomicEnd(runMutex);
-   if (rc) return false;
+   if (rc)
+      {TRACEP(REQ, "Bridge request failed due to re-entry");
+       return false;
+      }
 
 // Copy the request header
 //
@@ -579,13 +587,17 @@ bool XrdXrootdTransit::Run(const char *xreqP, char *xdataP, int xdataL)
    if (Request.header.requestid & 0x8000
    || Request.header.requestid > static_cast<kXR_unt16>(kXR_truncate)
    || !reqTab[Request.header.requestid - kXR_auth])
-      return Fail(kXR_Unsupported, "Unsupported bridge request");
+      {TRACEP(REQ, "Unsupported bridge request");
+       return Fail(kXR_Unsupported, "Unsupported bridge request");
+      }
 
 // Validate the data length
 //
    Request.header.dlen      = ntohl(Request.header.dlen);
    if (Request.header.dlen < 0)
-      return Fail(kXR_ArgInvalid, "Invalid request data length");
+      {TRACEP(REQ, "Invalid request data length");
+       return Fail(kXR_ArgInvalid, "Invalid request data length");
+      }
 
 // Copy the stream id and trace this request
 //
@@ -607,7 +619,9 @@ bool XrdXrootdTransit::Run(const char *xreqP, char *xdataP, int xdataL)
        if (!runArgs || movLen > runABsz)
           {if (runArgs) free(runArgs);
            if (!(runArgs = (char *)malloc(movLen)))
-              return Fail(kXR_NoMemory, "Insufficient memory");
+              {TRACEP(REQ, "Failed to allocate memory");
+               return Fail(kXR_NoMemory, "Insufficient memory");
+              }
            runABsz = movLen;
           }
        memcpy(runArgs, xdataP, movLen); runALen = movLen;

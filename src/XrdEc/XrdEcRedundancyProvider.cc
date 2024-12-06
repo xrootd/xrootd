@@ -87,10 +87,11 @@ static int gf_gen_decode_matrix(
   unsigned char* invert_matrix, * backup, * b, s;
   int incr = 0;
 
-  std::vector<unsigned char> memory((size_t) (m * k * 3));
+  size_t mk = (size_t)m * (size_t)k;
+  std::vector<unsigned char> memory(3 * mk);
   b = &memory[0];
-  backup = &memory[m * k];
-  invert_matrix = &memory[2 * m * k];
+  backup = &memory[mk];
+  invert_matrix = &memory[2 * mk];
 
   // Construct matrix b by removing error rows
   for (i = 0, r = 0; i < k; i++, r++) {
@@ -109,7 +110,7 @@ static int gf_gen_decode_matrix(
       return -1;
     }
     incr++;
-    memcpy(b, backup, (size_t) (m * k));
+    memcpy(b, backup, mk);
     for (i = nsrcerrs; i < nerrs - nsrcerrs; i++) {
       if (src_err_list[i] == (decode_index[k - 1] + incr)) {
         // skip the erased parity line
@@ -177,7 +178,9 @@ RedundancyProvider::CodingTable& RedundancyProvider::getCodingTable( const std::
     /* Expand pattern */
     int nerrs = 0, nsrcerrs = 0;
     unsigned char err_indx_list[objcfg.nbparity];
-    for (std::uint8_t i = 0; i < pattern.size(); i++) {
+    /* Avoid narrowing cast warning, size is always < 256 */
+    uint8_t n = static_cast<uint8_t>(pattern.size() & 0xff);
+    for (uint8_t i = 0; i < n; i++) {
       if (pattern[i]) {
         err_indx_list[nerrs++] = i;
         if (i < objcfg.nbdata) { nsrcerrs++; }
