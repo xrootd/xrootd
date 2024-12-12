@@ -94,17 +94,20 @@ public:
 //!
 //! @param  name  Reference to where a pointer to the name will be placed
 //! @param  ifT   Desired ifType (PublicV6 is the default)
+//! @param  asIP  When true the IP address is returned not the hostname.
 //!
 //! @return The length of the name whose pointer is placed in name.
 //!         A value of zero indicates that no such interface exists.
 //------------------------------------------------------------------------------
 
-inline int  GetName(const char *&name, ifType ifT=PublicV6)
+inline int  GetName(const char *&name, ifType ifT=PublicV6, bool asIP=false)
                    {if (ifT >= ifAny) ifT = static_cast<ifType>(ifAvail);
-//                  name = ifName[ifT]->iVal;
-//                  return ifName[ifT]->iLen;
-                    name = ifDest[ifT]->iVal;
-                    return ifDest[ifT]->iLen;
+                    if (asIP)
+                       {name = ifDest[ifT]->iVal;
+                        return ifDest[ifT]->iLen;
+                       }
+                     name = ifName[ifT]->iVal;
+                     return ifName[ifT]->iLen;
                    }
 
 //------------------------------------------------------------------------------
@@ -114,17 +117,20 @@ inline int  GetName(const char *&name, ifType ifT=PublicV6)
 //!               be atleast 256 bytes in length.
 //! @param  nport Place where the port number will be placed.
 //! @param  ifT   Desired ifType (PublicV6 is the default)
+//! @param  asIP  When true the IP address is returned not the hostname.
 //!
 //! @return The length of the name copied into the buffer.
 //!         A value of zero indicates that no such interface exists.
 //------------------------------------------------------------------------------
 
-inline int  GetName(char *nbuff, int &nport, ifType ifT=PublicV6)
+inline int  GetName(char *nbuff, int &nport, ifType ifT=PublicV6, bool asIP=false)
                    {if (ifT >= ifAny) ifT = static_cast<ifType>(ifAvail);
-//                  strcpy(nbuff, ifName[ifT]->iVal); nport = ifPort;
-//                  return ifName[ifT]->iLen;
-                    strcpy(nbuff, ifDest[ifT]->iVal); nport = ifPort;
-                    return ifDest[ifT]->iLen;
+                    if (asIP)
+                       {strcpy(nbuff, ifDest[ifT]->iVal); nport = ifPort;
+                        return ifDest[ifT]->iLen;
+                       }
+                    strcpy(nbuff, ifName[ifT]->iVal); nport = ifPort;
+                    return ifName[ifT]->iLen;
                    }
 
 //------------------------------------------------------------------------------
