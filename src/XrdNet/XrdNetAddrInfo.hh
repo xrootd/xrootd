@@ -88,7 +88,7 @@ int         Family() const {return static_cast<int>(IP.Addr.sa_family);}
 //! @param  fmtOpts  additional formatting options (can be or'd):
 //!                  noPort    - do not append the port number to the address.
 //!                  noPortRaw - no port and no brackets for IPv6.
-//!                  old6Map4  - use deprecated IPV6 mapped format '[::x.x.x.x]'
+//!                  old6Map4  - this option is now ignored.
 //!
 //! @return Success: The number of characters (less null) in Buff.
 //! @return Failure: 0 (buffer is too small or not a valid address). However,
@@ -103,7 +103,7 @@ enum fmtUse {fmtAuto=0, //!< Hostname if already resolved o/w use fmtAddr
 
 static const int noPort    = 0x0000001; //!< Do not add port number
 static const int noPortRaw = 0x0000002; //!< Use raw address format (no port)
-static const int old6Map4  = 0x0000004; //!< Use deprecated IPV6 mapped format
+static const int old6Map4  = 0x0000004; //!< This option is now ignored
 static const int prefipv4  = 0x0000008; //!< Use if mapped  IPV4 actual format
 
 int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtAuto, int fmtOpts=0);
