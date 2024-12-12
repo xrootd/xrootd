@@ -101,8 +101,10 @@ public:
 
 inline int  GetName(const char *&name, ifType ifT=PublicV6)
                    {if (ifT >= ifAny) ifT = static_cast<ifType>(ifAvail);
-                    name = ifName[ifT]->iVal;
-                    return ifName[ifT]->iLen;
+//                  name = ifName[ifT]->iVal;
+//                  return ifName[ifT]->iLen;
+                    name = ifDest[ifT]->iVal;
+                    return ifDest[ifT]->iLen;
                    }
 
 //------------------------------------------------------------------------------
@@ -119,8 +121,10 @@ inline int  GetName(const char *&name, ifType ifT=PublicV6)
 
 inline int  GetName(char *nbuff, int &nport, ifType ifT=PublicV6)
                    {if (ifT >= ifAny) ifT = static_cast<ifType>(ifAvail);
-                    strcpy(nbuff, ifName[ifT]->iVal); nport = ifPort;
-                    return ifName[ifT]->iLen;
+//                  strcpy(nbuff, ifName[ifT]->iVal); nport = ifPort;
+//                  return ifName[ifT]->iLen;
+                    strcpy(nbuff, ifDest[ifT]->iVal); nport = ifPort;
+                    return ifDest[ifT]->iLen;
                    }
 
 //------------------------------------------------------------------------------
