@@ -167,7 +167,7 @@ namespace
           {
             Log *log = DefaultEnv::GetLog();
             log->Info( FileMsg, "[%p@%s] Received corrupted page, will retry page #%llu.",
-                        this, stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                       this, stateHandler->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgnb );
 
             XRootDStatus st = XrdCl::FileStateHandler::PgReadRetry( stateHandler, pgoff, pgsize, pgnb, buffer, this, 0 );
             if( !st.IsOK())
@@ -258,7 +258,7 @@ namespace
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[%p@%s] Failed to recover page #%llu.",
-                      this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgnb );
           pgReadHandler->HandleResponseWithHosts( status, response, hostList );
           delete this;
           return;
@@ -270,7 +270,7 @@ namespace
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[%p@%s] Failed to recover page #%llu.",
-                      this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgnb );
           // we retry a page at a time so the length cannot exceed 4KB
           DeleteArgs( status, response, hostList );
           pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
@@ -283,7 +283,7 @@ namespace
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[%p@%s] Failed to recover page #%llu.",
-                      this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgnb );
           DeleteArgs( status, response, hostList );
           pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
           delete this;
@@ -292,7 +292,7 @@ namespace
 
         Log *log = DefaultEnv::GetLog();
         log->Info( FileMsg, "[%p@%s] Successfully recovered page #%llu.",
-                    this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                   this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgnb );
 
         DeleteArgs( 0, response, hostList );
         pgReadHandler->UpdateCksum( pgnb, crcval );
@@ -1415,21 +1415,21 @@ namespace XrdCl
                   if( inf->NeedRetry() ) // so we failed in the end
                   {
                     DefaultEnv::GetLog()->Warning( FileMsg, "[%p@%s] Failed retransmitting corrupted "
-                                                   "page: pgoff=%llu, pglen=%du, pgdigest=%du", self.get(),
-                                                   self->pFileUrl->GetObfuscatedURL().c_str(), pgoff, pglen, pgdigest );
+                                                   "page: pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                                   self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
                     pgwrt->SetStatus( new XRootDStatus( stError, errDataError, 0,
                                       "Failed to retransmit corrupted page" ) );
                   }
                   else
                     DefaultEnv::GetLog()->Info( FileMsg, "[%p@%s] Succesfuly retransmitted corrupted "
-                                                "page: pgoff=%llu, pglen=%du, pgdigest=%du", self.get(),
-                                                self->pFileUrl->GetObfuscatedURL().c_str(), pgoff, pglen, pgdigest );
+                                                "page: pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                                self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
                 } );
             auto st = PgWriteRetry( self, pgoff, pglen, pgbuf, pgdigest, h, timeout );
             if( !st.IsOK() ) pgwrt->SetStatus( new XRootDStatus( st ) );
             DefaultEnv::GetLog()->Info( FileMsg, "[%p@%s] Retransmitting corrupted page: "
-                                        "pgoff=%llu, pglen=%du, pgdigest=%du", self.get(),
-                                        self->pFileUrl->GetObfuscatedURL().c_str(), pgoff, pglen, pgdigest );
+                                        "pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                        self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
           }
         } );
 
@@ -2420,9 +2420,9 @@ namespace XrdCl
       }
 
       log->Debug( FileMsg, "[%p@%s] successfully opened at %s, handle: %#x, "
-                  "session id: %ld", this, pFileUrl->GetObfuscatedURL().c_str(),
+                  "session id: %llu", this, pFileUrl->GetObfuscatedURL().c_str(),
                   pDataServer->GetHostId().c_str(), *((uint32_t*)pFileHandle),
-                  pSessionId );
+                  (unsigned long long) pSessionId );
 
       //------------------------------------------------------------------------
       // Inform the monitoring about opening success
@@ -2460,7 +2460,9 @@ namespace XrdCl
                status->ToStr().c_str() );
 
     log->Dump(FileMsg, "[%p@%s] Items in the fly %llu, queued for recovery %llu",
-              this, pFileUrl->GetObfuscatedURL().c_str(), pInTheFly.size(), pToBeRecovered.size() );
+              this, pFileUrl->GetObfuscatedURL().c_str(),
+              (unsigned long long) pInTheFly.size(),
+              (unsigned long long) pToBeRecovered.size() );
 
     MonitorClose( status );
     ResetMonitoringVars();

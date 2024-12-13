@@ -890,8 +890,8 @@ namespace
 
         if( !ch->status.IsOK() )
         {
-          log->Debug( UtilityMsg, "Unable read %d bytes at %ld from %s: %s",
-                      ch->chunk.GetLength(), ch->chunk.GetOffset(),
+          log->Debug( UtilityMsg, "Unable read %d bytes at %llu from %s: %s",
+                      ch->chunk.GetLength(), (unsigned long long) ch->chunk.GetOffset(),
                       pUrl->GetObfuscatedURL().c_str(), ch->status.ToStr().c_str() );
           delete [] (char *)ch->chunk.GetBuffer();
           CleanUpChunks();
@@ -1458,7 +1458,7 @@ namespace
         {
           ss << *itr << ", ";
         }
-        log->Debug( XrdCl::UtilityMsg, ss.str().c_str() );
+        log->Debug( XrdCl::UtilityMsg, "%s", ss.str().c_str() );
 
         pXCpCtx = new XrdCl::XCpCtx( pReplicas, pBlockSize, pNbSrc, pChunkSize, pParallelChunks, fileSize );
 
@@ -1619,7 +1619,7 @@ namespace
         if( pCurrentOffset != ci.GetOffset() )
         {
           log->Error( UtilityMsg, "Got out-of-bounds chunk, expected offset:"
-                      " %ld, got %ld", pCurrentOffset, ci.GetOffset() );
+                      " %llu, got %llu", (unsigned long long) pCurrentOffset, (unsigned long long) ci.GetOffset() );
           return XRootDStatus( stError, errInternal );
         }
 
@@ -1860,8 +1860,8 @@ namespace
         if( !ch->status.IsOK() )
         {
           Log *log = DefaultEnv::GetLog();
-          log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
-                      ch->chunk.GetLength(), ch->chunk.GetOffset(),
+          log->Debug( UtilityMsg, "Unable write %d bytes at %llu from %s: %s",
+                      ch->chunk.GetLength(), (unsigned long long) ch->chunk.GetOffset(),
                       pUrl.GetObfuscatedURL().c_str(), ch->status.ToStr().c_str() );
           delete[] (char*)ci.GetBuffer(); // we took the ownership of the buffer
           CleanUpChunks();
@@ -2190,8 +2190,8 @@ namespace
         if( !ch->status.IsOK() )
         {
           Log *log = DefaultEnv::GetLog();
-          log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
-                      ch->chunk.GetLength(), ch->chunk.GetOffset(),
+          log->Debug( UtilityMsg, "Unable write %d bytes at %llu from %s: %s",
+                      ch->chunk.GetLength(), (unsigned long long) ch->chunk.GetOffset(),
                       pUrl.GetObfuscatedURL().c_str(), ch->status.ToStr().c_str() );
           CleanUpChunks();
 
@@ -2702,8 +2702,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( src->GetSize() >= 0 && size != total_processed )
     {
-      log->Error( UtilityMsg, "The declared source size is %ld bytes, but "
-                  "received %ld bytes.", size, total_processed );
+      log->Error( UtilityMsg, "The declared source size is %llu bytes, but "
+                  "received %llu bytes.", (unsigned long long) size, (unsigned long long) total_processed );
       return SetResult( stError, errDataError );
     }
     pResults->Set( "size", total_processed );

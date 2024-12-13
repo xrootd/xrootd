@@ -764,9 +764,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     XrdSysMutexHelper scopedLock( info->mutex );
     uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
-    log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %ld seconds, "
+    log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %lld seconds, "
                "TTL: %d, allocated SIDs: %d, open files: %d, bound file objects: %d",
-               info->streamName.c_str(), inactiveTime, ttl, allocatedSIDs,
+               info->streamName.c_str(), (long long) inactiveTime, ttl, allocatedSIDs,
                info->openFiles, info->finstcnt.load( std::memory_order_relaxed ) );
 
     if( info->openFiles != 0 && info->finstcnt.load( std::memory_order_relaxed ) != 0 )
@@ -799,9 +799,9 @@ namespace XrdCl
     const bool anySID =
       info->sidManager->IsAnySIDOldAs( now - streamTimeout );
 
-    log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %ld seconds, "
+    log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %lld seconds, "
                "stream timeout: %d, any SID: %d, wait barrier: %s",
-               info->streamName.c_str(), inactiveTime, streamTimeout,
+               info->streamName.c_str(), (long long) inactiveTime, streamTimeout,
                anySID, Utils::TimeToString(info->waitBarrier).c_str() );
 
     if( inactiveTime < streamTimeout )
