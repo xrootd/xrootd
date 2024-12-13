@@ -5,7 +5,7 @@ trap 'exit 1' TERM KILL INT QUIT ABRT
 : ${DOCKER:=$(command -v docker || command -v podman)}
 
 build() {
-	OS=${1:-centos7}
+	OS=${1:-alma9}
 	[[ -f xrootd.tar.gz ]] || package
 	[[ -f build/Dockerfile.${OS} ]] || die "unknwon OS: $OS"
 	${DOCKER} build -f build/Dockerfile.${OS} -t xrootd -t xrootd:${OS} .
@@ -51,7 +51,7 @@ usage() {
 	echo
 	echo "  clean              -- remove tarball created by package command"
 	echo "  package [VERSION]  -- create xrootd.tar.gz tarball (VERSION=HEAD by default)"
-	echo "  build [OS]         -- build docker image based on OS: centos7 (default), alma8, alma9"
+	echo "  build [OS]         -- build docker image based on OS: alma8, alma9 (default), fedora, debian, ubuntu"
 	echo "  buildx [OS] [ARCH] -- cross-build docker image based on OS/ARCH pair. Supported architectures"
 	echo "                        are amd64, aarch64, ppc64le, s390x (big-endian). Default OS is fedora."
 	echo "                        You can see supported platforms with docker buildx inspect --bootstrap."
