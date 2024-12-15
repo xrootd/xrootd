@@ -25,35 +25,6 @@ default:
     paths: [ DEB ]
     expire_in: 1d
 
-.rpm_build_yum: &rpm_build_yum
-  stage: build
-  script:
-    - |
-      sed -i -e '/mirrorlist/d' \
-             -e 's/# \?baseurl=/baseurl=/g' \
-             -e 's/mirror.centos.org/vault.centos.org/g' \
-             -e 's/$releasever/7.9.2009/g' \
-             /etc/yum.repos.d/*.repo
-    - yum install -y centos-release-scl epel-release git
-    - |
-      sed -i -e '/mirrorlist/d' \
-             -e 's/# \?baseurl=/baseurl=/g' \
-             -e 's/mirror.centos.org/vault.centos.org/g' \
-             -e 's/$releasever/7.9.2009/g' \
-             /etc/yum.repos.d/*.repo
-    - yum install -y epel-rpm-macros rpmdevtools yum-utils
-    - yum-builddep -y xrootd.spec
-    - rpmdev-setuptree
-    - git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
-    - rpmbuild -bb --with git xrootd.spec
-    - yum install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
-    - tests/post-install.sh
-    - mkdir -p RPMS
-    - mv $(rpm -E '%{_rpmdir}')/*/*.rpm RPMS/
-  artifacts:
-    paths: [ RPMS ]
-    expire_in: 1d
-
 .rpm_build_dnf: &rpm_build_dnf
   stage: build
   script:
@@ -85,10 +56,6 @@ Ubuntu 22.04:
 Ubuntu 24.04:
   image: ubuntu:24.04
   <<: *deb_build
-
-CentOS 7:
-  image: centos:7
-  <<: *rpm_build_yum
 
 AlmaLinux 8:
   image: almalinux:8
