@@ -19,56 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  centos7:
-    name: CentOS 7
-    runs-on: ubuntu-latest
-    container: centos:7
-
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node18
-
-    steps:
-    - name: Use CentOS 7 Vault Repository URLs
-      run: |
-        sed -i -e '/mirrorlist/d' \
-               -e 's/# \?baseurl=/baseurl=/g' \
-               -e 's/mirror.centos.org/vault.centos.org/g' \
-               -e 's/$releasever/7.9.2009/g' \
-               /etc/yum.repos.d/*.repo
-        yum install -y centos-release-scl epel-release
-        sed -i -e '/mirrorlist/d' \
-               -e 's/# \?baseurl=/baseurl=/g' \
-               -e 's/mirror.centos.org/vault.centos.org/g' \
-               -e 's/$releasever/7.9.2009/g' \
-               /etc/yum.repos.d/*.repo
-
-    - name: Install git
-      run: yum install -y git
-
-    - name: Clone repository
-      uses: actions/checkout@v1
-
-    - name: Install RPM development tools
-      run: |
-        yum install -y epel-rpm-macros rpmdevtools yum-utils
-
-    - name: Install XRootD build dependencies
-      run: yum-builddep -y xrootd.spec
-
-    - name: Build RPMs
-      run: |
-        rpmdev-setuptree
-        git config --global --add safe.directory "$GITHUB_WORKSPACE"
-        git archive --prefix xrootd/ -o $(rpm -E '%{_sourcedir}')/xrootd.tar.gz HEAD
-        rpmbuild -bb --with git xrootd.spec
-
-    - name: Install RPMs
-      run: yum install -y $(rpm -E '%{_rpmdir}')/*/*.rpm
-
-    - name: Run post-install tests
-      run: tests/post-install.sh
-
   alma8:
     name: Alma Linux 8
     runs-on: ubuntu-latest
