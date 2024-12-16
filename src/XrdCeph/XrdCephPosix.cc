@@ -564,6 +564,7 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     }
     int rc = g_cluster[cephPoolIdx]->ioctx_create(file.pool.c_str(), *ioctx);
     if (rc != 0) {
+      logwrapper((char*)"checkAndCreateStriper : ioctx_create failed, user@pool = %s", userAtPool);
       logwrapper((char*)"checkAndCreateStriper : ioctx_create failed, rc = %d", rc);
       cluster->shutdown();
       delete cluster;
