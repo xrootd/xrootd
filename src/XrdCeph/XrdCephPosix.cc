@@ -564,7 +564,7 @@ int checkAndCreateStriper(unsigned int cephPoolIdx, std::string &userAtPool, con
     }
     int rc = g_cluster[cephPoolIdx]->ioctx_create(file.pool.c_str(), *ioctx);
     if (rc != 0) {
-      logwrapper((char*)"checkAndCreateStriper : ioctx_create failed, user@pool = %s", userAtPool);
+      logwrapper((char*)"checkAndCreateStriper : ioctx_create failed, user@pool = %s", userAtPool.c_str());
       logwrapper((char*)"checkAndCreateStriper : ioctx_create failed, rc = %d", rc);
       cluster->shutdown();
       delete cluster;
@@ -807,6 +807,9 @@ int ceph_posix_close(int fd) {
     if (fr->lastAsyncSubmission.tv_sec && fr->lastAsyncSubmission.tv_usec) {
       lastAsyncAge = 1.0 * (now.tv_sec - fr->lastAsyncSubmission.tv_sec) 
               + 0.000001 * (now.tv_usec - fr->lastAsyncSubmission.tv_usec);
+    }
+    if (fr->bytesWritten > 0){
+      ceph_posix_fremovexattr(fd,"XrdCks.adler32");
     }
     logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d, "
                "async write ops %d/%d, async pending write bytes %ld, "
