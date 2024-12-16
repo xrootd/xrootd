@@ -217,7 +217,11 @@ int XrdHttpReq::parseLine(char *line, int len) {
         trim(s);
         addCgi(it->second,s);
       }
-    }
+      auto iter = prot->hdr2cgimultimap.find(key);
+      if (iter != prot->hdr2cgimultimap.end()) {
+        addMultiCgi(iter->second, XrdOucUtils::trim_view(std::string_view(val, line+len-val)));
+      }
+  }
 
 
     line[pos] = ':';
@@ -633,7 +637,21 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
   if (opaque)
     p = opaque->Env(l);
 
-  if (hdr2cgistr.empty() && (l < 2) && !hash) return;
+  auto is_empty = true;
+  for (const auto &info : hdr2cgimultistr) {
+    if (!info.second.empty()) {
+      is_empty = false;
+      break;
+    }
+  }
+  if (is_empty && hdr2cgistr.empty() && (l < 2) && !hash) return;
+
+  if (!is_empty) {
+    for (auto &info : hdr2cgimultistr) {
+      hdr2cgistr += (hdr2cgistr.empty() ? "" : "&") + info.second;
+      info.second = "";
+    }
+  }
 
   // this works in most cases, except if the url already contains the xrdhttp tokens
   s = s + "?";
@@ -792,6 +810,31 @@ void XrdHttpReq::addCgi(const std::string &key, const std::string &value) {
   hdr2cgistr.append(value);
 }
 
+void XrdHttpReq::addMultiCgi(const std::string &key, const std::string_view value) {
+  auto iter = hdr2cgimultistr.find(key);
+  if (iter == hdr2cgimultistr.end()) {
+    std::string new_value;
+    new_value.reserve(key.size() + 1 + value.size());
+    new_value += key;
+    new_value += "=";
+    new_value += value;
+    hdr2cgimultistr.insert(iter, {key, new_value});
+  } else {
+    std::string new_value;
+    if (iter->second.empty()) {
+      new_value.reserve(key.size() + 1 + value.size());
+      new_value += key;
+      new_value += "=";
+    } else {
+      new_value.reserve(1 + value.size());
+      new_value += ",";
+    }
+    new_value += value;
+    iter->second += new_value;
+    return;
+  }
+}
+
 
 // Parse a resource line:
 // - sanitize
@@ -928,6 +971,17 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
 int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
+
+  /// If we have multi-valued headers, add them to the hdr2cgistr now
+  if (!m_appended_multihdr2cgistr) {
+    m_appended_multihdr2cgistr = true;
+    for (auto & info : hdr2cgimultistr) {
+      if (!info.second.empty()) {
+        hdr2cgistr += (hdr2cgistr.empty() ? "" : "&") + info.second;
+        info.second = "";
+      }
+    }
+  }
 
   /// If we have to add extra header information, add it here.
   if (!m_appended_hdr2cgistr && !hdr2cgistr.empty()) {
@@ -2799,6 +2853,10 @@ void XrdHttpReq::reset() {
   destination = "";
   hdr2cgistr = "";
   m_appended_hdr2cgistr = false;
+  m_appended_multihdr2cgistr = false;
+  for (auto &val : hdr2cgimultistr) {
+    val.second = "";
+  }
 
   iovP = 0;
   iovN = 0;
