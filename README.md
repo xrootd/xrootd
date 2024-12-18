@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://xrootd.slac.stanford.edu/images/xrootd-logo.png"/>
+  <img src="https://xrootd.github.io/images/xrootd-logo.png"/>
 </p>
 
 ## XRootD: eXtended ROOT Daemon
@@ -34,9 +34,9 @@ can be found on the XRootD website at http://xrootd.org/docs.html.
 
 XRootD is officially supported on the following platforms:
 
- * RedHat Enterprise Linux 7 or later and their derivatives
+ * RedHat Enterprise Linux 8 or later and their derivatives
  * Debian 11 and Ubuntu 22.04 or later
- * macOS 11 (Big Sur) or later
+ * macOS 13 (Ventura) or later
 
 Support for other operating systems is provided on a best-effort basis
 and by contributions from the community.
@@ -46,53 +46,47 @@ and by contributions from the community.
 XRootD is available via official channels in most operating systems.
 Installation via your system's package manager should be preferred.
 
-In RPM-based distributions, like CentOS, Alma, Rocky, Fedora, etc, one can
-search and install XRootD packages with
+In RPM-based distributions, like Alma, Rocky, Fedora, CentOS Stream,
+and RHEL, one can install XRootD with
 
 ```sh
-$ sudo yum install xrootd
-```
-or
-```sh
-$ sudo dnf install xrootd
+dnf install xrootd-client xrootd-server python3-xrootd
 ```
 
 In RHEL-based distributions, it will be necessary to first install the EPEL
-release repository with `yum install epel-release` or `dnf install epel-release`.
-
-If you would like to use our official repository for XRootD RPMs, you can enable
-it on RHEL-based distributions with
+release repository with
 
 ```sh
-$ sudo curl -L https://cern.ch/xrootd/xrootd.repo -o /etc/yum.repos.d/xrootd.repo
-```
-
-and on Fedora with
-```sh
-$ sudo curl -L https://cern.ch/xrootd/xrootd-fedora.repo -o /etc/yum.repos.d/xrootd.repo
+dnf install epel-release
 ```
 
 On Debian 11 or later, and Ubuntu 22.04 or later, XRootD can be installed via apt
 
 ```sh
-$ sudo apt install xrootd-client xrootd-server python3-xrootd
+apt install xrootd-client xrootd-server python3-xrootd
 ```
+
+If you would like to use our official repositories for XRootD packages instead,
+please follow the instructions on our website at one of the links below:
+
+- RPM repositories: http://xrootd.org/dload.html#official-rpm-repositories
+- DEB repositories: http://xrootd.org/dload.html#official-deb-repositories
 
 On macOS, XRootD is available via Homebrew
 ```sh
-$ brew install xrootd
+brew install xrootd
 ```
 
-XRootD can also be installed with conda, as it is also available in conda-forge:
+XRootD can also be installed with conda, as it is available in conda-forge:
 ```sh
-$ conda config --add channels conda-forge
-$ conda config --set channel_priority strict
-$ conda install xrootd
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+conda install xrootd
 ```
 
 Finally, it is possible to install the XRootD python bindings from PyPI using pip:
 ```sh
-$ pip install xrootd
+pip install xrootd
 ```
 
 For detailed instructions on how to build and install XRootD from source code,
