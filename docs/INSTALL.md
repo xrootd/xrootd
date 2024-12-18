@@ -3,16 +3,16 @@
 ### XRootD Required and Optional Build Dependencies
 
 The required build-time dependencies are: bash, cmake, make, a C++ compiler with
-support for C++14, kernel headers from the OS, and development packages for
+support for C++17, kernel headers from the OS, and development packages for
 libuuid, OpenSSL, and zlib. The optional features are shown in the table below
-together with the dependencies required to enable them.
+together with the extra dependencies required to enable them.
 
 | Feature               | Dependencies                             |
 |:----------------------|:-----------------------------------------|
 | FUSE support          | fuse-devel                               |
 | HTTP support (client) | davix-devel                              |
 | HTTP support (server) | libcurl-devel                            |
-| Erasure coding        | isa-l / autoconf automake libtool yasm   |
+| Erasure coding        | isa-l-devel                              |
 | Kerberos5             | krb5-devel                               |
 | Macaroons             | json-c-devel libmacaroons-devel          |
 | Python bindings       | python3-devel python3-setuptools         |
@@ -27,7 +27,7 @@ copies which are used if not found in the system. In the following sections, we
 show how to install all available dependencies in most of the supported operating
 systems.
 
-#### RPM-based distributions: RedHat, Fedora, CentOS, Alma, Rocky
+#### RPM-based distributions: Alma, CentOS Stream, Fedora, Rocky, RedHat
 
 On RedHat Enterprise Linux and derivatives, all dependencies are available,
 except for Intel's [isa-l](https://github.com/intel/isa-l) library. You may
@@ -37,11 +37,7 @@ the bundled isa-l be built along XRootD. On Fedora, it's not necessary to
 install the `epel-release` package, but on most others it is required, as some
 dependencies are only available in [EPEL](https://docs.fedoraproject.org/en-US/epel/).
 It may also be necessary to enable other repositories manually if they are not
-already enabled by default, like the `PowerTools`, `crb`, or `scl` repositories.
-On CentOS 7, this can be done by installing `centos-release-scl` in addition to
-`epel-release`. The command to install all dependencies is shown below. You may,
-however, need to replace `dnf` with `yum` or prepend `sudo` to this command,
-depending on the distribution:
+already enabled by default, like `PowerTools` or `crb`.
 
 ```sh
 dnf install \
@@ -72,11 +68,6 @@ dnf install \
     yasm \
     zlib-devel
 ```
-
-On CentOS 7, the default compiler is too old, so `devtoolset-11` should be used
-instead. It can be enabled afterwards with `source /opt/rh/devtoolset-11/enable`.
-Moreover, `cmake` installs CMake 2.x on CentOS 7, so `cmake3` needs to be installed
-instead and `cmake3`/`ctest3` used in the command line.
 
 #### DEB-based distrubutions: Debian 11, Ubuntu 22.04
 
@@ -175,6 +166,7 @@ the build:
 | `ENABLE_VOMS`      |  TRUE   | Enable VOMS plug-in
 | `ENABLE_XRDCLHTTP` |  TRUE   | Enable xrdcl-http plugin
 | `ENABLE_XRDCL`     |  TRUE   | Enable XRootD client
+| `ENABLE_CEPH`      |  FALSE  | Enable Ceph plugin (XrdCeph)
 | `ENABLE_XRDEC`     |  FALSE  | Enable support for erasure coding
 | `ENABLE_ASAN`      |  FALSE  | Build with adress sanitizer enabled
 | `ENABLE_TSAN`      |  FALSE  | Build with thread sanitizer enabled

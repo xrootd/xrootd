@@ -240,7 +240,7 @@ safely ignored.
 
 ### Dependencies Required for Coverage, Memory Checking, and Static Analysis
 
-#### RPM-based distributions: RedHat, Fedora, CentOS, Alma, Rocky
+#### RPM-based distributions: RedHat, Fedora, CentOS Stream, Alma, Rocky
 
 The [test.cmake](../test.cmake) script may also need some extra dependencies for
 some of its features. For memory checking, `valgrind` is needed, and for static
@@ -258,12 +258,12 @@ but can be installed with `pip`. See https://gcovr.com/en/stable/installation.ht
 for more information.
 
 Dependencies to run containerized tests with `podman` on RHEL 8/9 and derivatives
-can be installed with `dnf groupinstall 'Container Management'`. On CentOS 7 and
-RHEL 7, one can use `docker` by installing it with `yum install docker`. In this
-case, you will need to ensure that your user is in the `docker` group so that
-you can run docker without using `sudo`, and that the system daemon for Docker
-is running. A quick test to check if everything is correctly setup is to try to
-start a busybox image: `docker run --rm -it busybox`.
+can be installed with `dnf groupinstall 'Container Management'`. A quick test to check
+if everything is correctly setup is to try to start a busybox image with:
+
+```sh
+podman run --rm -it busybox
+```
 
 #### DEB-based distributions: Debian 11, Ubuntu 22.04
 
@@ -307,16 +307,16 @@ as done in the CI builds and the `Dockerfile`s in the `docker/build/` subdirecto
 
 The next step is to build the container image for the desired OS. It can be built
 with either `docker` or `podman`. The `xrd-docker` script has the `build` command
-to facilitate this. Currently, supported OSs for building are CentOS 7, AlmaLinux 8,
-AlmaLinux 9, Fedora. The command to build the image is simply
+to facilitate this. Currently, supported OSs for building are AlmaLinux 8, 9 and
+10, Fedora, Alpine, Debian, and Ubuntu. The command to build the image is simply
 ```sh
 $ xrd-docker build <OS>
 ```
-where `<OS>` is one of `centos7` (default), `alma8`, `alma9`, or `fedora`. The
-name simply chooses which `Dockerfile` is used from the `build/` directory, as
-they are named `Dockerfile.<OS>` for each suported OS. It is possible to add new
-`Dockerfile`s following this same naming scheme to support custom setups and
-still use `xrd-docker build` command to build an image. The images built with
+where `<OS>` is one of `alma9` (default), `alma8`, `fedora`, `alpine`, `debian`,
+or `ubuntu`. The name simply chooses which `Dockerfile` is used from the `build/`
+directory, as they are named `Dockerfile.<OS>` for each suported OS. It is possible
+to add new `Dockerfile`s following this same naming scheme to support custom setups
+and still use `xrd-docker build` command to build an image. The images built with
 `xrd-docker build` are named simply `xrootd` (latest being a default tag added
 by docker), and an extra `xrootd:<OS>` tag is added to allow having it built for
 multiple OSs at the same time. The current `Dockerfile`s use the spec file and
