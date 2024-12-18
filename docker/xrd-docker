@@ -2,13 +2,13 @@
 
 trap 'exit 1' TERM KILL INT QUIT ABRT
 
-: ${DOCKER:=$(command -v docker || command -v podman)}
+: ${DOCKER:=$(command -v podman || command -v docker)}
 
 build() {
 	OS=${1:-alma9}
 	[[ -f xrootd.tar.gz ]] || package
-	[[ -f build/Dockerfile.${OS} ]] || die "unknwon OS: $OS"
-	${DOCKER} build -f build/Dockerfile.${OS} -t xrootd -t xrootd:${OS} .
+	[[ -f Dockerfile.${OS} ]] || die "unknwon OS: $OS"
+	${DOCKER} build -f Dockerfile.${OS} -t xrootd -t xrootd:${OS} .
 }
 
 
@@ -17,8 +17,8 @@ buildx() {
 	ARCH=${2:-amd64}
 	ARCH=${ARCH/linux\/}
 	[[ -f xrootd.tar.gz ]] || package
-	[[ -f build/Dockerfile.${OS} ]] || die "unknwon OS: $OS"
-	${DOCKER} buildx build --platform linux/${ARCH} -f build/Dockerfile.${OS} -t xrootd:${OS}-${ARCH/\/} .
+	[[ -f Dockerfile.${OS} ]] || die "unknwon OS: $OS"
+	${DOCKER} buildx build --platform linux/${ARCH} -f Dockerfile.${OS} -t xrootd:${OS}-${ARCH/\/} .
 }
 
 qemu() {
