@@ -1,0 +1,46 @@
+FROM alpine
+
+RUN apk add \
+	bash \
+	cmake \
+	ceph-dev \
+	curl-dev \
+	fuse-dev \
+	fuse3-dev \
+	g++ \
+	git \
+	gtest-dev \
+	isa-l-dev \
+	json-c-dev \
+	krb5-dev \
+	libxml2-dev \
+	linux-headers \
+	make \
+	openssl \
+	openssl-dev \
+	procps \
+	py3-pip \
+	py3-setuptools \
+	py3-wheel \
+	python3-dev \
+	readline-dev \
+	sudo \
+	tinyxml-dev \
+	util-linux-dev \
+	uuidgen \
+	zlib-dev
+
+RUN adduser -D xrootd && echo "xrootd ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+USER xrootd
+WORKDIR /home/xrootd
+
+COPY xrootd.tar.gz xrootd.tar.gz
+
+RUN tar xf xrootd.tar.gz \
+ && env CMAKE_ARGS='-DCMAKE_INSTALL_PREFIX=/usr' \
+    ctest -VV -S xrootd/test.cmake  \
+ && sudo cmake --install build      \
+ && xrootd/tests/post-install.sh    \
+ && xrootd/tests/check-headers.sh   \
+ && sudo rm -rf /home/xrootd/*
