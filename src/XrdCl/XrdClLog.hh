@@ -135,27 +135,47 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Report an error
       //------------------------------------------------------------------------
-      void Error( uint64_t topic, const char *format, ... );
+      void Error( uint64_t topic, const char *format, ... )
+#if defined(__GNUC__)
+        __attribute__ ((__format__ (__printf__, 3, 4)))
+#endif
+        ;
 
       //------------------------------------------------------------------------
       //! Report a warning
       //------------------------------------------------------------------------
-      void Warning( uint64_t topic, const char *format, ... );
+      void Warning( uint64_t topic, const char *format, ... )
+#if defined(__GNUC__)
+        __attribute__ ((__format__ (__printf__, 3, 4)))
+#endif
+        ;
 
       //------------------------------------------------------------------------
       //! Print an info
       //------------------------------------------------------------------------
-      void Info( uint64_t topic, const char *format, ... );
+      void Info( uint64_t topic, const char *format, ... )
+#if defined(__GNUC__)
+        __attribute__ ((__format__ (__printf__, 3, 4)))
+#endif
+        ;
 
       //------------------------------------------------------------------------
       //! Print a debug message
       //------------------------------------------------------------------------
-      void Debug( uint64_t topic, const char *format, ... );
+      void Debug( uint64_t topic, const char *format, ... )
+#if defined(__GNUC__)
+        __attribute__ ((__format__ (__printf__, 3, 4)))
+#endif
+        ;
 
       //------------------------------------------------------------------------
       //! Print a dump message
       //------------------------------------------------------------------------
-      void Dump( uint64_t topic, const char *format, ... );
+      void Dump( uint64_t topic, const char *format, ... )
+#if defined(__GNUC__)
+        __attribute__ ((__format__ (__printf__, 3, 4)))
+#endif
+        ;
 
       //------------------------------------------------------------------------
       //! Always print the message

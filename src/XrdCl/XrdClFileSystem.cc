@@ -75,7 +75,7 @@ namespace
         std::ostringstream data;
         data << ssp.st_dev << " " << ssp.st_size << " " << flags << " "
             << ssp.st_mtime;
-        log->Debug( FileMsg, data.str().c_str() );
+        log->Debug( FileMsg, "%s", data.str().c_str() );
 
         StatInfo *statInfo = new StatInfo();
         if( !statInfo->ParseServerResponse( data.str().c_str() ) )
@@ -641,7 +641,7 @@ namespace
               XRootDStatus st = pCtx->fs->DirList( child, flags, handler, timeout );
               if( !st.IsOK() )
               {
-                log->Error( FileMsg, "Recursive directory list operation for %s failed: ",
+                log->Error( FileMsg, "Recursive directory list operation for %s failed: %s",
                             child.c_str(), st.ToString().c_str() );
                 pCtx->UpdateStatus( st );
                 continue;
