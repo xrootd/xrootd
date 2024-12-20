@@ -944,13 +944,21 @@ long long Cache::DetermineFullFileSize(const std::string &cinfo_fname)
 
    XrdOssDF *infoFile = m_oss->newFile(m_configuration.m_username.c_str());
    XrdOucEnv env;
+   long long ret;
    int res = infoFile->Open(cinfo_fname.c_str(), O_RDONLY, 0600, env);
-   if (res < 0)
-      return res;
-   Info info(m_trace, 0);
-   if ( ! info.Read(infoFile, cinfo_fname.c_str()))
-      return -EBADF;
-   return info.GetFileSize();
+   if (res < 0) {
+      ret = res;
+   } else {
+      Info info(m_trace, 0);
+      if ( ! info.Read(infoFile, cinfo_fname.c_str())) {
+         ret = -EBADF;
+      } else {
+         ret = info.GetFileSize();
+      }
+      infoFile->Close();
+   }
+   delete infoFile;
+   return ret;
 }
 
 //______________________________________________________________________________
