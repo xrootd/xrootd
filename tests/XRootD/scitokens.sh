@@ -32,6 +32,7 @@ function setup_scitokens() {
 		echo "Failed to create 'storage.create' token"
 		exit 1
 	fi
+	chmod 0600 "$OUTPUTDIR/token_create"
 
 	# Create a modify token
 	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
@@ -39,6 +40,7 @@ function setup_scitokens() {
 		echo "Failed to create 'storage.modify' token"
 		exit 1
 	fi
+	chmod 0600 "$OUTPUTDIR/token_modify"
 
 	popd || exit 1
 }
@@ -98,6 +100,16 @@ function test_scitokens() {
 
 	# create local temporary directory
 	TMPDIR=$(mktemp -d "${NAME}/test-XXXXXX")
+
+	# Perform tests over the root protocol using ZTN
+	unset BEARER_TOKEN_FILE
+	assert_failure xrdcp "$SOURCE_DIR/scitokens.cfg" "$HOST/protected/subdir/root/scitokens.cfg"
+	export BEARER_TOKEN_FILE=scitokens/token_create
+	xrdcp "$SOURCE_DIR/scitokens.cfg" "$HOST/protected/subdir/root/scitokens.cfg"
+	assert_failure xrdcp -f "$HOST/protected/subdir/root/scitokens.cfg" .
+	export BEARER_TOKEN_FILE=scitokens/token
+	assert xrdcp -f "$HOST/protected/subdir/root/scitokens.cfg" .
+	assert diff -u "$SOURCE_DIR/scitokens.cfg" scitokens.cfg
 
 	# from now on, we use HTTP
 	export HOST=https://localhost:7095
