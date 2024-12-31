@@ -6,6 +6,15 @@ add_executable(xrdscitokens-create-token XrdScitokensCreateToken.cc)
 target_link_libraries(xrdscitokens-create-token PRIVATE ${SCITOKENS_CPP_LIBRARIES})
 target_include_directories(xrdscitokens-create-token PRIVATE ${SCITOKENS_CPP_INCLUDE_DIR})
 
+add_executable(xrdscitokens-unit-tests
+  XrdSciTokens.cc
+)
+
+target_link_libraries(xrdscitokens-unit-tests
+  XrdSciTokensObj GTest::GTest GTest::Main)
+
+gtest_discover_tests(xrdscitokens-unit-tests)
+
 add_test(NAME SciTokens::setup
   COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/setup.sh ${CMAKE_BINARY_DIR}/tests/issuer")
 
