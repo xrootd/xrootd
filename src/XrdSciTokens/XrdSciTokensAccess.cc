@@ -474,23 +474,11 @@ public:
         authz_list.reserve(1);
 
         // Parse the authz environment entry as a comma-separated list of tokens.
-        const char *authz = env ? env->Get("authz") : nullptr;
-        if (authz) {
-            std::string_view authz_view(authz);
-            size_t pos;
-            do {
-                // Note: this is more permissive than the plugin was previously.
-                // The prefix 'Bearer%20' used to be required as that's what HTTP
-                // required.  However, to make this more pleasant for XRootD protocol
-                // users, we now simply "handle" the prefix insterad of requiring it.
-                if (authz_view.substr(0, 9) == "Bearer%20") {
-                    authz_view = authz_view.substr(9);
-                }
-                pos = authz_view.find(",");
-                authz_list.push_back(authz_view.substr(0, pos));
-                authz_view = authz_view.substr(pos + 1);
-            } while (pos != std::string_view::npos);
-        }
+        // Traditionally, `authz` has been used as the parameter for XRootD; however,
+        // RFC 6750 Section 2.3 ("URI Query Parameter") specifies that access_token
+        // is correct.  We support both.
+        ParseTokenString("authz", env, authz_list);
+        ParseTokenString("access_token", env, authz_list);
 
         if (Entity && !strcmp("ztn", Entity->prot) && Entity->creds &&
             Entity->credslen && Entity->creds[Entity->credslen] == '\0')
