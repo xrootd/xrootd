@@ -3379,6 +3379,7 @@ int XrdXrootdProtocol::do_WriteSpan()
    if (Monitor.InOut())
       Monitor.Agent->Add_wr(IO.File->Stats.FileID, Request.write.dlen,
                                                   Request.write.offset);
+   IO.File->Stats.wrOps(IO.IOLen); // Optimistically correct
 
 // Trace this entry
 //
