@@ -95,6 +95,7 @@ function test_http() {
   secondUrlLength=$(grep " $uploadThread " "$XROOTD_SERVER_LOGFILE" | grep PUT -A 30 | grep alphabet.txt.2 -A 30 | grep 'Xrootd_Protocol: 0000 Bridge req=3010' | head -n 1 | tr '=' ' ' | awk '{print $NF}')
   assert_eq "$((firstUrlLength+15))" "$secondUrlLength" "PUT request is missing oss.asize argument"
 
+  assert curl -L -H 'Transfer-Encoding: chunked' "${HOST}/$alphabetFilePath" --upload-file "$alphabetFilePath"
   outputFilePath=${TMPDIR}/output.txt
   ## Download the file to a file and sanitize the output (remove '\r')
   curl -v -L --silent -H 'range: bytes=0-3,24-26' "${HOST}/$alphabetFilePath" --output - | tr -d '\r' > "$outputFilePath"
@@ -155,4 +156,37 @@ function test_http() {
   assert_eq 200 "$HTTP_CODE"
   HTTP_CONTENTS=$(curl -v -L "${HOST}/${TMPDIR}" | tr '"' '\n' | tr '<' '\n' | tr '>' '\n' | grep testlistings/ | wc -l | tr -d ' ')
   assert_eq 2 "$HTTP_CONTENTS"
+
+  ## OPTIONS has appropriate static headers
+  curl -s -X OPTIONS -v --raw "${HOST}/$alphabetFilePath" 2>&1 | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedHeader='< Access-Control-Allow-Origin: *'
+  receivedHeader=$(grep -i 'Access-Control-Allow-Origin:' "$outputFilePath")
+  assert_eq "$expectedHeader" "$receivedHeader" "OPTIONS is missing statically-defined Access-Control-Allow-Origin"
+  expectedHeader='< Test: 1'
+  receivedHeader=$(grep -i 'Test:' "$outputFilePath")
+  assert_eq "$expectedHeader" "$receivedHeader" "OPTIONS is missing statically-defined Test header"
+
+  ## GET has appropriate static headers
+  curl -s -v --raw "${HOST}/$alphabetFilePath" 2>&1 | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedHeader='< Foo: Bar'
+  receivedHeader=$(grep -i 'Foo: Bar' "$outputFilePath")
+  assert_eq "1" "$(echo "$receivedHeader" | wc -l | sed 's/^ *//')" "Incorrect number of 'Foo' header values"
+  assert_eq "$expectedHeader" "$receivedHeader" "GET is missing statically-defined 'Foo: Bar' header"
+  expectedHeader='< Foo: Baz'
+  receivedHeader=$(grep -i 'Foo: Baz' "$outputFilePath")
+  assert_eq "1" "$(echo "$receivedHeader" | wc -l | sed 's/^ *//')" "Incorrect number of 'Foo' header values"
+  assert_eq "$expectedHeader" "$receivedHeader" "GET is missing statically-defined 'Foo: Baz' header"
+  expectedHeader='< Test: 1'
+  receivedHeader=$(grep -i 'Test:' "$outputFilePath")
+  assert_eq "1" "$(echo "$receivedHeader" | wc -l | sed 's/^ *//')" "Incorrect number of 'Test' header values"
+  assert_eq "$expectedHeader" "$receivedHeader" "GET is missing statically-defined Test header"
+
+  ## HEAD has appropriate static headers (note HEAD has no verb-specific headers)
+  curl -I -s --raw "${HOST}/$alphabetFilePath" 2>&1 | tr -d '\r' > "$outputFilePath"
+  expectedHeader='Test: 1'
+  receivedHeader=$(grep -i 'Test:' "$outputFilePath")
+  assert_eq "1" "$(echo "$receivedHeader" | wc -l | sed 's/^ *//')" "Incorrect number of 'Test' header values"
+  assert_eq "$expectedHeader" "$receivedHeader" "HEAD is missing statically-defined Test header"
 }
