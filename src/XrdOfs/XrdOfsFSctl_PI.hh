@@ -41,7 +41,7 @@ class XrdOucErrInfo;
 class XrdSecEntity;
 class XrdSfsFile;
 class XrdSfsFileSystem;
-class XrdSfsFSctl;
+struct XrdSfsFSctl;
 class XrdSysError;
   
 /******************************************************************************/
