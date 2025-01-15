@@ -58,6 +58,15 @@ export XRD_LOGLEVEL XRD_LOGFILE
 
 export XRD_REQUESTTIMEOUT XRD_STREAMTIMEOUT XRD_TIMEOUTRESOLUTION
 
+# Expose the location of the server logfile to the tests.
+# Allows us to test side-effects that are easily visible through logs
+# but difficult to expose otherwise (the driving case is checking that
+# the OSS layer is called with specific CGI set.
+
+XROOTD_SERVER_LOGFILE="${PWD}/${NAME}/xrootd.log"
+
+export XROOTD_SERVER_LOGFILE
+
 # Source directory is the directory where this script is located
 : "${SOURCE_DIR:="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"}"
 
