@@ -1,5 +1,7 @@
 
 #include "XrdOssStatsFile.hh"
 
-StatsFile::~StatsFile() {}
+using namespace XrdOssStats;
+
+File::~File() {}
 
