@@ -7,8 +7,6 @@
 
 #include <sstream>
 
-XrdVERSIONINFO(XrdOssGetFileSystem, Stats);
-
 
 std::string LogMaskToString(int mask) {
     if (mask == LogMask::All) {return "all";}
@@ -115,12 +113,20 @@ XrdOss *XrdOssAddStorageSystem2(XrdOss       *curr_oss,
 {
                    
     XrdSysError log(logger, "fsstats_");
-    try {
-        return new StatsFileSystem(curr_oss, logger, config_fn, envP);
-    } catch (std::runtime_error &re) {
-        log.Emsg("Initialize", "Encountered a runtime failure:", re.what());
+    auto new_oss = new XrdOssStats::FileSystem(curr_oss, logger, config_fn, envP);
+    if (!new_oss) {
         return nullptr;
     }
+    std::string errMsg;
+    if (!new_oss->InitSuccessful(errMsg)) {
+        if (errMsg.empty()) { // Initialization failure was non-fatal; just bypass this module.
+            return curr_oss;
+        } else {
+            log.Emsg("Initialize", "Encountered a fatal XrdOssStats initialization failure:", errMsg.c_str());
+            return nullptr;
+        }
+    }
+    return new_oss;
 }
 
 XrdVERSIONINFO(XrdOssAddStorageSystem2,fsstats);

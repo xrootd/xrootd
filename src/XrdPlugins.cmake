@@ -144,11 +144,22 @@ add_library(
   XrdOssStats/XrdOssStatsFileSystem.cc XrdOssStats/XrdOssStatsFileSystem.hh
   XrdOssStats/XrdOssStatsFile.cc       XrdOssStats/XrdOssStatsFile.hh )
 
+if( MacOSX )
+  SET( OSSSTATS_LINK_FLAGS "-Wl")
+else()
+  SET( OSSSTATS_LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdOssStats/export-lib-symbols" )
+endif()
+
 target_link_libraries(
   ${LIB_XRD_OSSSTATS}
   PRIVATE
   XrdServer
   XrdUtils )
+
+set_target_properties(
+  ${LIB_XRD_OSSSTATS}
+  PROPERTIES
+  LINK_FLAGS "${OSSSTATS_LINK_FLAGS}")
 
 #-------------------------------------------------------------------------------
 # The XrdCmsRedirLocal module
