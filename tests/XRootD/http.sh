@@ -81,6 +81,19 @@ function test_http() {
   alphabetFilePath="${TMPDIR}/$alphabetFile"
   echo -n "abcdefghijklmnopqrstuvw987" > "$alphabetFilePath"
   assert curl -v -L -H 'Transfer-Encoding: chunked' "${HOST}/$alphabetFilePath" --upload-file "$alphabetFilePath"
+  ## Upload a file without chunked encoding; search to see if the oss.asize flag is set in the OSS query
+  assert curl -v -L "${HOST}/$alphabetFilePath.2" --upload-file "$alphabetFilePath"
+  # Since the query parameters are not logged, we look to see if the length of the URL (which *is* logged) is increased
+  # by the correct amount between the first and second upload.  The first upload was done with transfer encoding, meaning
+  # XRootD doesn't know the final size of the object and hence doesn't append the '?oss.asize=' flag
+  # First, look for the thread that performed the alphabet.txt upload, then the size of the command
+  uploadThread=$(grep PUT "$XROOTD_SERVER_LOGFILE" | grep 'alphabet.txt HTTP/1.1' | awk '{print $3}' | head -n 1)
+  firstUrlLength=$(grep " $uploadThread " "$XROOTD_SERVER_LOGFILE" | grep PUT -A 30 | grep alphabet.txt -A 30 | grep 'Xrootd_Protocol: 0000 Bridge req=3010' | head -n 1 | tr '=' ' ' | awk '{print $NF}')
+  # Next, the addition of '.2?oss.asize=26' is an increase of 15 characters
+  uploadThread=$(grep PUT "$XROOTD_SERVER_LOGFILE" | grep 'alphabet.txt.2 HTTP/1.1' | awk '{print $3}' | head -n 1)
+  secondUrlLength=$(grep " $uploadThread " "$XROOTD_SERVER_LOGFILE" | grep PUT -A 30 | grep alphabet.txt.2 -A 30 | grep 'Xrootd_Protocol: 0000 Bridge req=3010' | head -n 1 | tr '=' ' ' | awk '{print $NF}')
+  assert_eq "$((firstUrlLength+15))" "$secondUrlLength" "PUT request is missing oss.asize argument"
+
   outputFilePath=${TMPDIR}/output.txt
   ## Download the file to a file and sanitize the output (remove '\r')
   curl -v -L --silent -H 'range: bytes=0-3,24-26' "${HOST}/$alphabetFilePath" --output - | tr -d '\r' > "$outputFilePath"
