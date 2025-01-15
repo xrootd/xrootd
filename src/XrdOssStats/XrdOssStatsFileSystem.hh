@@ -1,4 +1,7 @@
 
+#ifndef __XRDSTATS_FILESYSTEM_H
+#define __XRDSTATS_FILESYSTEM_H
+
 #pragma once
 
 #include "XrdOss/XrdOssWrapper.hh"
@@ -10,22 +13,33 @@
 
 class XrdXrootdGStream;
 
+namespace XrdOssStats {
+
 // The "stats" filesystem is a wrapper that collects information
 // about the performance of the underlying storage.
 //
 // It allows one to accumulate time spent in I/O, the number of operations,
 // and information about "slow" operations
-class StatsFileSystem : public XrdOssWrapper {
-    friend class StatsFile;
-    friend class StatsDirectory;
+class FileSystem : public XrdOssWrapper {
+    friend class File;
+    friend class Directory;
 
 public:
     // Note: StatsFileSystem takes ownerhip of the underlying oss
-    StatsFileSystem(XrdOss *oss, XrdSysLogger *log, const char *configName, XrdOucEnv *envP);
-    virtual ~StatsFileSystem();
+    FileSystem(XrdOss *oss, XrdSysLogger *log, const char *configName, XrdOucEnv *envP);
+    virtual ~FileSystem();
 
     bool
     Config(const char *configfn);
+
+    // Indicate whether the initialization of the object was successful
+    //
+    // If `false` and `errMsg` is set, then the failure is fatal and the
+    // xrootd server should not startup.
+    // If `false` and `errMsg` is empty, then it's OK to bypass this object
+    // and just use the wrapped OSS pointer directly.
+    bool
+    InitSuccessful(std::string &errMsg);
 
     XrdOssDF *newDir(const char *user=0) override;
     XrdOssDF *newFile(const char *user=0) override;
@@ -55,6 +69,13 @@ private:
 
     XrdXrootdGStream* m_gstream{nullptr};
 
+    // Indicates whether the class was able to initialize.
+    // On initialization failure, if there is no failure message
+    // set, then we assume it is OK to proceed with the wrapped OSS.
+    // If m_failure is set, then we assume the initialization failure
+    // was fatal and it's better to halt startup than proceed.
+    bool m_ready{false};
+    std::string m_failure;
     std::unique_ptr<XrdOss> m_oss;
     XrdOucEnv *m_env;
     XrdSysError m_log;
@@ -111,3 +132,7 @@ private:
     OpTiming m_slow_times;
     std::chrono::steady_clock::duration m_slow_duration;
 };
+
+}
+
+#endif // __XRDSTATS_FILESYSTEM_H

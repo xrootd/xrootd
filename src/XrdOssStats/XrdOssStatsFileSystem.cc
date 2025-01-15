@@ -11,7 +11,9 @@
 #include <stdexcept>
 #include <thread>
 
-StatsFileSystem::StatsFileSystem(XrdOss *oss, XrdSysLogger *lp, const char *configfn, XrdOucEnv *envP) :
+using namespace XrdOssStats;
+
+FileSystem::FileSystem(XrdOss *oss, XrdSysLogger *lp, const char *configfn, XrdOucEnv *envP) :
     XrdOssWrapper(*oss),
     m_oss(oss),
     m_env(envP),
@@ -20,34 +22,53 @@ StatsFileSystem::StatsFileSystem(XrdOss *oss, XrdSysLogger *lp, const char *conf
 {
     m_log.Say("------ Initializing the storage statistics plugin.");
     if (!Config(configfn)) {
-        throw std::runtime_error("Failed to configure the storage statistics plugin.");
-    }
-    pthread_t tid;
-    int rc;
-    if ((rc = XrdSysThread::Run(&tid, StatsFileSystem::AggregateBootstrap, static_cast<void *>(this), 0, "FS Stats Compute Thread"))) {
-      m_log.Emsg("StatsFileSystem", rc, "create stats compute thread");
-      throw std::runtime_error("Failed to create the statistics computing thread.");
+        m_failure = "Failed to configure the storage statistics plugin.";
+        return;
     }
 
     // While the plugin _does_ print its activity to the debugging facility (if enabled), its relatively useless
-    // unless the g-stream is available.  Hence, if it's _not_ available, we should fail to startup.
+    // unless the g-stream is available.  Hence, if it's _not_ available, we stop the OSS initialization but do
+    // not cause the server startup to fail.
     if (envP) {
-       m_gstream = reinterpret_cast<XrdXrootdGStream*>(envP->GetPtr("oss.gStream*"));
-       if (m_gstream) {
-         m_log.Say("Config", "Stats monitoring has been configured via xrootd.mongstream directive");
-       } else {
-         throw std::runtime_error("XrdOssStats plugin is loaded but it requires the oss monitoring g-stream to also be enabled to be set; try adding `xrootd.mongstream oss ...` to your configuration");
-       }
+        m_gstream = reinterpret_cast<XrdXrootdGStream*>(envP->GetPtr("oss.gStream*"));
+        if (m_gstream) {
+            m_log.Say("Config", "Stats monitoring has been configured via xrootd.mongstream directive");
+        } else {
+            m_log.Say("Config", "XrdOssStats plugin is loaded but it requires the oss monitoring g-stream to also be enabled to be useful; try adding `xrootd.mongstream oss ...` to your configuration");
+            return;
+        }
     } else {
-       throw std::runtime_error("XrdOssStats plugin invoked without a configured environment; likely an internal error");
+        m_failure = "XrdOssStats plugin invoked without a configured environment; likely an internal error";
+        return;
     }
+
+    pthread_t tid;
+    int rc;
+    if ((rc = XrdSysThread::Run(&tid, FileSystem::AggregateBootstrap, static_cast<void *>(this), 0, "FS Stats Compute Thread"))) {
+        m_log.Emsg("StatsFileSystem", rc, "create stats compute thread");
+        m_failure = "Failed to create the statistics computing thread.";
+        return;
+    }
+
+    m_ready = true;
 }
 
-StatsFileSystem::~StatsFileSystem() {}
+FileSystem::~FileSystem() {}
+
+bool
+FileSystem::InitSuccessful(std::string &errMsg) {
+    if (m_ready) return true;
+
+    errMsg = m_failure;
+    if (errMsg.empty()) {
+        m_oss.release();
+    }
+    return false;
+}
 
 void *
-StatsFileSystem::AggregateBootstrap(void *me) {
-    auto myself = static_cast<StatsFileSystem*>(me);
+FileSystem::AggregateBootstrap(void *me) {
+    auto myself = static_cast<FileSystem*>(me);
     while (1) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         myself->AggregateStats();
@@ -56,7 +77,7 @@ StatsFileSystem::AggregateBootstrap(void *me) {
 }
 
 bool
-StatsFileSystem::Config(const char *configfn)
+FileSystem::Config(const char *configfn)
 {
     m_log.setMsgMask(LogMask::Error | LogMask::Warning);
 
@@ -101,100 +122,100 @@ StatsFileSystem::Config(const char *configfn)
     return true;
 }
 
-XrdOssDF *StatsFileSystem::newDir(const char *user)
+XrdOssDF *FileSystem::newDir(const char *user)
 {
     // Call the underlying OSS newDir
     std::unique_ptr<XrdOssDF> wrapped(wrapPI.newDir(user));
-    return new StatsDirectory(std::move(wrapped), m_log, *this);
+    return new Directory(std::move(wrapped), m_log, *this);
 }
 
-XrdOssDF *StatsFileSystem::newFile(const char *user)
+XrdOssDF *FileSystem::newFile(const char *user)
 {
     // Call the underlying OSS newFile
     std::unique_ptr<XrdOssDF> wrapped(wrapPI.newFile(user));
-    return new StatsFile(std::move(wrapped), m_log, *this);
+    return new File(std::move(wrapped), m_log, *this);
 }
 
-int StatsFileSystem::Chmod(const char * path, mode_t mode, XrdOucEnv *env)
+int FileSystem::Chmod(const char * path, mode_t mode, XrdOucEnv *env)
 {
     OpTimer op(m_ops.m_chmod_ops, m_slow_ops.m_chmod_ops, m_times.m_chmod, m_slow_times.m_chmod, m_slow_duration);
     return wrapPI.Chmod(path, mode, env);
 }
 
-int       StatsFileSystem::Rename(const char *oPath, const char *nPath,
+int       FileSystem::Rename(const char *oPath, const char *nPath,
                         XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
 {
     OpTimer op(m_ops.m_rename_ops, m_slow_ops.m_rename_ops, m_times.m_rename, m_slow_times.m_rename, m_slow_duration);
     return wrapPI.Rename(oPath, nPath, oEnvP, nEnvP);
 }
 
-int       StatsFileSystem::Stat(const char *path, struct stat *buff,
+int       FileSystem::Stat(const char *path, struct stat *buff,
                     int opts, XrdOucEnv *env)
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.Stat(path, buff, opts, env);
 }
 
-int       StatsFileSystem::StatFS(const char *path, char *buff, int &blen,
+int       FileSystem::StatFS(const char *path, char *buff, int &blen,
                         XrdOucEnv  *env)
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.StatFS(path, buff, blen, env);
 }
 
-int       StatsFileSystem::StatLS(XrdOucEnv &env, const char *path,
+int       FileSystem::StatLS(XrdOucEnv &env, const char *path,
                         char *buff, int &blen)
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.StatLS(env, path, buff, blen);
 }
 
-int       StatsFileSystem::StatPF(const char *path, struct stat *buff, int opts)
+int       FileSystem::StatPF(const char *path, struct stat *buff, int opts)
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.StatPF(path, buff, opts);
 }
 
-int       StatsFileSystem::StatPF(const char *path, struct stat *buff)
+int       FileSystem::StatPF(const char *path, struct stat *buff)
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.StatPF(path, buff, 0);
 }
 
-int       StatsFileSystem::StatVS(XrdOssVSInfo *vsP, const char *sname, int updt)
+int       FileSystem::StatVS(XrdOssVSInfo *vsP, const char *sname, int updt)
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.StatVS(vsP, sname, updt);
 }
 
-int       StatsFileSystem::StatXA(const char *path, char *buff, int &blen,
+int       FileSystem::StatXA(const char *path, char *buff, int &blen,
                         XrdOucEnv *env)
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.StatXA(path, buff, blen, env);
 }
 
-int       StatsFileSystem::StatXP(const char *path, unsigned long long &attr,
+int       FileSystem::StatXP(const char *path, unsigned long long &attr,
                         XrdOucEnv  *env)
 {
     OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
     return wrapPI.StatXP(path, attr, env);
 }
 
-int       StatsFileSystem::Truncate(const char *path, unsigned long long fsize,
+int       FileSystem::Truncate(const char *path, unsigned long long fsize,
                         XrdOucEnv *env)
 {
     OpTimer op(m_ops.m_truncate_ops, m_slow_ops.m_truncate_ops, m_times.m_truncate, m_slow_times.m_truncate, m_slow_duration);
     return wrapPI.Truncate(path, fsize, env);
 }
 
-int       StatsFileSystem::Unlink(const char *path, int Opts, XrdOucEnv *env)
+int       FileSystem::Unlink(const char *path, int Opts, XrdOucEnv *env)
 {
     OpTimer op(m_ops.m_unlink_ops, m_slow_ops.m_unlink_ops, m_times.m_unlink, m_slow_times.m_unlink, m_slow_duration);
     return wrapPI.Unlink(path, Opts, env);
 }
 
-void StatsFileSystem::AggregateStats()
+void FileSystem::AggregateStats()
 {
     char buf[1500];
     auto len = snprintf(buf, 1500,
@@ -250,7 +271,7 @@ void StatsFileSystem::AggregateStats()
     }
 }
 
-StatsFileSystem::OpTimer::OpTimer(std::atomic<uint64_t> &op_count, std::atomic<uint64_t> &slow_op_count, std::atomic<uint64_t> &timing, std::atomic<uint64_t> &slow_timing, std::chrono::steady_clock::duration duration)
+FileSystem::OpTimer::OpTimer(std::atomic<uint64_t> &op_count, std::atomic<uint64_t> &slow_op_count, std::atomic<uint64_t> &timing, std::atomic<uint64_t> &slow_timing, std::chrono::steady_clock::duration duration)
     : m_op_count(op_count),
     m_slow_op_count(slow_op_count),
     m_timing(timing),
@@ -259,7 +280,7 @@ StatsFileSystem::OpTimer::OpTimer(std::atomic<uint64_t> &op_count, std::atomic<u
     m_slow_duration(duration)
 {}
 
-StatsFileSystem::OpTimer::~OpTimer()
+FileSystem::OpTimer::~OpTimer()
 {
     auto dur = std::chrono::steady_clock::now() - m_start;
     m_op_count++;
