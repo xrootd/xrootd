@@ -66,7 +66,7 @@ public:
 
    void MoveListEntriesToMap();
 
-   void CheckFile(const FsTraversal &fst, const char *fname, Info &info, struct stat &fstat);
+   void CheckFile(const FsTraversal &fst, const char *fname, time_t atime, struct stat &fstat);
 
    void ProcessDirAndRecurse(FsTraversal &fst);
    bool TraverseNamespace(const char *root_path);

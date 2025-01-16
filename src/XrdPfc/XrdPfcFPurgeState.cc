@@ -16,11 +16,6 @@
 
 using namespace XrdPfc;
 
-namespace
-{
-    XrdSysTrace* GetTrace() { return Cache::GetInstance().GetTrace(); }
-}
-
 const char *FPurgeState::m_traceID = "Purge";
 
 //----------------------------------------------------------------------------
@@ -55,19 +50,10 @@ void FPurgeState::MoveListEntriesToMap()
 //! @param stat of the given file
 //!
 //----------------------------------------------------------------------------
-void FPurgeState::CheckFile(const FsTraversal &fst, const char *fname, Info &info, struct stat &fstat)
+void FPurgeState::CheckFile(const FsTraversal &fst, const char *fname, time_t atime, struct stat &fstat)
 {
-   static const char *trc_pfx = "FPurgeState::CheckFile ";
-
    long long nblocks = fstat.st_blocks;
-   time_t atime;
-   if (!info.GetLatestDetachTime(atime))
-   {
-      // cinfo file does not contain any known accesses, use fstat.mtime instead.
-      TRACE(Debug, trc_pfx << "could not get access time for " << fst.m_current_path << fname << ", using mtime from stat instead.");
-      atime = fstat.st_mtime;
-   }
-   // TRACE(Dump, trc_pfx << "checking " << fname << " accessTime  " << atime);
+   // TRACE(Dump, trc_pfx << "FPurgeState::CheckFile checking " << fname << " accessTime  " << atime);
 
    m_nStBlocksTotal += nblocks;
 
@@ -78,13 +64,6 @@ void FPurgeState::CheckFile(const FsTraversal &fst, const char *fname, Info &inf
    // disk-space has been freed.
 
    if (m_tMinTimeStamp > 0 && atime < m_tMinTimeStamp)
-   {
-      m_flist.push_back(PurgeCandidate(fst.m_current_path, fname, nblocks, 0));
-      m_nStBlocksAccum += nblocks;
-   }
-   else if (m_tMinUVKeepTimeStamp > 0 &&
-            Cache::Conf().does_cschk_have_missing_bits(info.GetCkSumState()) &&
-            info.GetNoCkSumTimeForUVKeep() < m_tMinUVKeepTimeStamp)
    {
       m_flist.push_back(PurgeCandidate(fst.m_current_path, fname, nblocks, 0));
       m_nStBlocksAccum += nblocks;
@@ -105,16 +84,11 @@ void FPurgeState::CheckFile(const FsTraversal &fst, const char *fname, Info &inf
 
 void FPurgeState::ProcessDirAndRecurse(FsTraversal &fst)
 {
-   static const char *trc_pfx = "FPurgeState::ProcessDirAndRecurse ";
-
    for (auto it = fst.m_current_files.begin(); it != fst.m_current_files.end(); ++it)
    {
         // Check if the file is currently opened / purge-protected is done before unlinking of the file.
       const std::string &f_name = it->first;
       const std::string  i_name = f_name + Info::s_infoExtension;
-
-      XrdOssDF    *fh = nullptr;
-      Info         cinfo(GetTrace());
 
       // XXX Note, the initial scan now uses stat information only!
 
@@ -124,20 +98,8 @@ void FPurgeState::ProcessDirAndRecurse(FsTraversal &fst)
          continue;
       }
 
-      if (fst.open_at_ro(i_name.c_str(), fh) == XrdOssOK &&
-          cinfo.Read(fh, fst.m_current_path.c_str(), i_name.c_str()))
-      {
-         CheckFile(fst, i_name.c_str(), cinfo, it->second.stat_data);
-      }
-      else
-      {
-         TRACE(Warning, trc_pfx << "can't open or read " << fst.m_current_path << i_name << ", err " << XrdSysE2T(errno) << "; purging.");
-         fst.unlink_at(i_name.c_str());
-         fst.unlink_at(f_name.c_str());
-         // generate purge event or not? or just flag possible discrepancy?
-         // should this really be done in some other consistency-check traversal?
-      }
-      fst.close_delete(fh);
+      time_t atime = it->second.stat_cinfo.st_mtim.tv_sec;
+      CheckFile(fst, i_name.c_str(), atime, it->second.stat_data);
 
       // Protected top-directories are skipped.
    }
