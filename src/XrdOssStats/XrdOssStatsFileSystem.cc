@@ -12,6 +12,7 @@
 #include <thread>
 
 using namespace XrdOssStats;
+using namespace XrdOssStats::detail;
 
 FileSystem::FileSystem(XrdOss *oss, XrdSysLogger *lp, const char *configfn, XrdOucEnv *envP) :
     XrdOssWrapper(*oss),
@@ -45,7 +46,7 @@ FileSystem::FileSystem(XrdOss *oss, XrdSysLogger *lp, const char *configfn, XrdO
     pthread_t tid;
     int rc;
     if ((rc = XrdSysThread::Run(&tid, FileSystem::AggregateBootstrap, static_cast<void *>(this), 0, "FS Stats Compute Thread"))) {
-        m_log.Emsg("StatsFileSystem", rc, "create stats compute thread");
+        m_log.Emsg("FileSystem", rc, "create stats compute thread");
         m_failure = "Failed to create the statistics computing thread.";
         return;
     }
@@ -240,24 +241,24 @@ void FileSystem::AggregateStats()
         "\"slow_dirlist_t\":%.4f,\"slow_stat_t\":%.4f,\"slow_truncate_t\":%.4f,"
         "\"slow_unlink_t\":%.4f,\"slow_rename_t\":%.4f,\"slow_chmod_t\":%.4f"
         "}",
-        m_ops.m_read_ops.load(), m_ops.m_write_ops.load(), m_ops.m_stat_ops.load(),
-        m_ops.m_pgread_ops.load(), m_ops.m_pgwrite_ops.load(), m_ops.m_readv_ops.load(),
-        m_ops.m_readv_segs.load(), m_ops.m_dirlist_ops.load(), m_ops.m_dirlist_entries.load(),
-        m_ops.m_truncate_ops.load(), m_ops.m_unlink_ops.load(), m_ops.m_chmod_ops.load(),
-        m_ops.m_open_ops.load(), m_ops.m_rename_ops.load(),
-        m_slow_ops.m_read_ops.load(), m_slow_ops.m_write_ops.load(), m_slow_ops.m_stat_ops.load(),
-        m_slow_ops.m_pgread_ops.load(), m_slow_ops.m_pgwrite_ops.load(), m_slow_ops.m_readv_ops.load(),
-        m_slow_ops.m_readv_segs.load(), m_slow_ops.m_dirlist_ops.load(), m_slow_ops.m_dirlist_entries.load(),
-        m_slow_ops.m_truncate_ops.load(), m_slow_ops.m_unlink_ops.load(), m_slow_ops.m_chmod_ops.load(),
-        m_slow_ops.m_open_ops.load(), m_slow_ops.m_rename_ops.load(),
-        static_cast<float>(m_times.m_open.load())/1e9, static_cast<float>(m_times.m_read.load())/1e9, static_cast<float>(m_times.m_readv.load())/1e9,
-        static_cast<float>(m_times.m_pgread.load())/1e9, static_cast<float>(m_times.m_write.load())/1e9, static_cast<float>(m_times.m_pgwrite.load())/1e9,
-        static_cast<float>(m_times.m_dirlist.load())/1e9, static_cast<float>(m_times.m_stat.load())/1e9, static_cast<float>(m_times.m_truncate.load())/1e9,
-        static_cast<float>(m_times.m_unlink.load())/1e9, static_cast<float>(m_times.m_rename.load())/1e9, static_cast<float>(m_times.m_chmod.load())/1e9,
-        static_cast<float>(m_slow_times.m_open.load())/1e9, static_cast<float>(m_slow_times.m_read.load())/1e9, static_cast<float>(m_slow_times.m_readv.load())/1e9,
-        static_cast<float>(m_slow_times.m_pgread.load())/1e9, static_cast<float>(m_slow_times.m_write.load())/1e9, static_cast<float>(m_slow_times.m_pgwrite.load())/1e9,
-        static_cast<float>(m_slow_times.m_dirlist.load())/1e9, static_cast<float>(m_slow_times.m_stat.load())/1e9, static_cast<float>(m_slow_times.m_truncate.load())/1e9,
-        static_cast<float>(m_slow_times.m_unlink.load())/1e9, static_cast<float>(m_slow_times.m_rename.load())/1e9, static_cast<float>(m_slow_times.m_chmod.load())/1e9
+        static_cast<uint64_t>(m_ops.m_read_ops), static_cast<uint64_t>(m_ops.m_write_ops), static_cast<uint64_t>(m_ops.m_stat_ops),
+        static_cast<uint64_t>(m_ops.m_pgread_ops), static_cast<uint64_t>(m_ops.m_pgwrite_ops), static_cast<uint64_t>(m_ops.m_readv_ops),
+        static_cast<uint64_t>(m_ops.m_readv_segs), static_cast<uint64_t>(m_ops.m_dirlist_ops), static_cast<uint64_t>(m_ops.m_dirlist_entries),
+        static_cast<uint64_t>(m_ops.m_truncate_ops), static_cast<uint64_t>(m_ops.m_unlink_ops), static_cast<uint64_t>(m_ops.m_chmod_ops),
+        static_cast<uint64_t>(m_ops.m_open_ops), static_cast<uint64_t>(m_ops.m_rename_ops),
+        static_cast<uint64_t>(m_slow_ops.m_read_ops), static_cast<uint64_t>(m_slow_ops.m_write_ops), static_cast<uint64_t>(m_slow_ops.m_stat_ops),
+        static_cast<uint64_t>(m_slow_ops.m_pgread_ops), static_cast<uint64_t>(m_slow_ops.m_pgwrite_ops), static_cast<uint64_t>(m_slow_ops.m_readv_ops),
+        static_cast<uint64_t>(m_slow_ops.m_readv_segs), static_cast<uint64_t>(m_slow_ops.m_dirlist_ops), static_cast<uint64_t>(m_slow_ops.m_dirlist_entries),
+        static_cast<uint64_t>(m_slow_ops.m_truncate_ops), static_cast<uint64_t>(m_slow_ops.m_unlink_ops), static_cast<uint64_t>(m_slow_ops.m_chmod_ops),
+        static_cast<uint64_t>(m_slow_ops.m_open_ops), static_cast<uint64_t>(m_slow_ops.m_rename_ops),
+        static_cast<float>(m_times.m_open)/1e9, static_cast<float>(m_times.m_read)/1e9, static_cast<float>(m_times.m_readv)/1e9,
+        static_cast<float>(m_times.m_pgread)/1e9, static_cast<float>(m_times.m_write)/1e9, static_cast<float>(m_times.m_pgwrite)/1e9,
+        static_cast<float>(m_times.m_dirlist)/1e9, static_cast<float>(m_times.m_stat)/1e9, static_cast<float>(m_times.m_truncate)/1e9,
+        static_cast<float>(m_times.m_unlink)/1e9, static_cast<float>(m_times.m_rename)/1e9, static_cast<float>(m_times.m_chmod)/1e9,
+        static_cast<float>(m_slow_times.m_open)/1e9, static_cast<float>(m_slow_times.m_read)/1e9, static_cast<float>(m_slow_times.m_readv)/1e9,
+        static_cast<float>(m_slow_times.m_pgread)/1e9, static_cast<float>(m_slow_times.m_write)/1e9, static_cast<float>(m_slow_times.m_pgwrite)/1e9,
+        static_cast<float>(m_slow_times.m_dirlist)/1e9, static_cast<float>(m_slow_times.m_stat)/1e9, static_cast<float>(m_slow_times.m_truncate)/1e9,
+        static_cast<float>(m_slow_times.m_unlink)/1e9, static_cast<float>(m_slow_times.m_rename)/1e9, static_cast<float>(m_slow_times.m_chmod)/1e9
 
     );
     if (len >= 1500) {
@@ -271,7 +272,7 @@ void FileSystem::AggregateStats()
     }
 }
 
-FileSystem::OpTimer::OpTimer(std::atomic<uint64_t> &op_count, std::atomic<uint64_t> &slow_op_count, std::atomic<uint64_t> &timing, std::atomic<uint64_t> &slow_timing, std::chrono::steady_clock::duration duration)
+FileSystem::OpTimer::OpTimer(RAtomic_uint64_t &op_count, RAtomic_uint64_t &slow_op_count, RAtomic_uint64_t &timing, RAtomic_uint64_t &slow_timing, std::chrono::steady_clock::duration duration)
     : m_op_count(op_count),
     m_slow_op_count(slow_op_count),
     m_timing(timing),

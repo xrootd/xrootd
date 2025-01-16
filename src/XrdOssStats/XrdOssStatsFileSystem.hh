@@ -1,13 +1,11 @@
 
-#ifndef __XRDSTATS_FILESYSTEM_H
-#define __XRDSTATS_FILESYSTEM_H
-
-#pragma once
+#ifndef __XRDOSSSTATS_FILESYSTEM_H
+#define __XRDOSSSTATS_FILESYSTEM_H
 
 #include "XrdOss/XrdOssWrapper.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 
-#include <atomic>
 #include <chrono>
 #include <memory>
 
@@ -25,7 +23,7 @@ class FileSystem : public XrdOssWrapper {
     friend class Directory;
 
 public:
-    // Note: StatsFileSystem takes ownerhip of the underlying oss
+    // Note: FileSystem takes ownership of the underlying oss
     FileSystem(XrdOss *oss, XrdSysLogger *log, const char *configName, XrdOucEnv *envP);
     virtual ~FileSystem();
 
@@ -82,48 +80,48 @@ private:
 
     class OpTimer {
         public:
-            OpTimer(std::atomic<uint64_t> &op_count, std::atomic<uint64_t> &slow_op_count, std::atomic<uint64_t> &timing, std::atomic<uint64_t> &slow_timing, std::chrono::steady_clock::duration duration);
+            OpTimer(RAtomic_uint64_t &op_count, RAtomic_uint64_t &slow_op_count, RAtomic_uint64_t &timing, RAtomic_uint64_t &slow_timing, std::chrono::steady_clock::duration duration);
             ~OpTimer();
 
         private:
-            std::atomic<uint64_t> &m_op_count;
-            std::atomic<uint64_t> &m_slow_op_count;
-            std::atomic<uint64_t> &m_timing;
-            std::atomic<uint64_t> &m_slow_timing;
+            RAtomic_uint64_t &m_op_count;
+            RAtomic_uint64_t &m_slow_op_count;
+            RAtomic_uint64_t &m_timing;
+            RAtomic_uint64_t &m_slow_timing;
             std::chrono::steady_clock::time_point m_start;
             std::chrono::steady_clock::duration m_slow_duration;
     };
 
     struct OpRecord {
-        std::atomic<uint64_t> m_read_ops{0};
-        std::atomic<uint64_t> m_write_ops{0};
-        std::atomic<uint64_t> m_stat_ops{0};
-        std::atomic<uint64_t> m_pgread_ops{0};
-        std::atomic<uint64_t> m_pgwrite_ops{0};
-        std::atomic<uint64_t> m_readv_ops{0};
-        std::atomic<uint64_t> m_readv_segs{0};
-        std::atomic<uint64_t> m_dirlist_ops{0};
-        std::atomic<uint64_t> m_dirlist_entries{0};
-        std::atomic<uint64_t> m_truncate_ops{0};
-        std::atomic<uint64_t> m_unlink_ops{0};
-        std::atomic<uint64_t> m_chmod_ops{0};
-        std::atomic<uint64_t> m_open_ops{0};
-        std::atomic<uint64_t> m_rename_ops{0};
+        RAtomic_uint64_t m_read_ops{0};
+        RAtomic_uint64_t m_write_ops{0};
+        RAtomic_uint64_t m_stat_ops{0};
+        RAtomic_uint64_t m_pgread_ops{0};
+        RAtomic_uint64_t m_pgwrite_ops{0};
+        RAtomic_uint64_t m_readv_ops{0};
+        RAtomic_uint64_t m_readv_segs{0};
+        RAtomic_uint64_t m_dirlist_ops{0};
+        RAtomic_uint64_t m_dirlist_entries{0};
+        RAtomic_uint64_t m_truncate_ops{0};
+        RAtomic_uint64_t m_unlink_ops{0};
+        RAtomic_uint64_t m_chmod_ops{0};
+        RAtomic_uint64_t m_open_ops{0};
+        RAtomic_uint64_t m_rename_ops{0};
     };
 
     struct OpTiming {
-        std::atomic<uint64_t> m_open{0};
-        std::atomic<uint64_t> m_read{0};
-        std::atomic<uint64_t> m_readv{0};
-        std::atomic<uint64_t> m_pgread{0};
-        std::atomic<uint64_t> m_write{0};
-        std::atomic<uint64_t> m_pgwrite{0};
-        std::atomic<uint64_t> m_dirlist{0};
-        std::atomic<uint64_t> m_stat{0};
-        std::atomic<uint64_t> m_truncate{0};
-        std::atomic<uint64_t> m_unlink{0};
-        std::atomic<uint64_t> m_rename{0};
-        std::atomic<uint64_t> m_chmod{0};
+        RAtomic_uint64_t m_open{0};
+        RAtomic_uint64_t m_read{0};
+        RAtomic_uint64_t m_readv{0};
+        RAtomic_uint64_t m_pgread{0};
+        RAtomic_uint64_t m_write{0};
+        RAtomic_uint64_t m_pgwrite{0};
+        RAtomic_uint64_t m_dirlist{0};
+        RAtomic_uint64_t m_stat{0};
+        RAtomic_uint64_t m_truncate{0};
+        RAtomic_uint64_t m_unlink{0};
+        RAtomic_uint64_t m_rename{0};
+        RAtomic_uint64_t m_chmod{0};
     };
 
     OpRecord m_ops;
@@ -133,6 +131,6 @@ private:
     std::chrono::steady_clock::duration m_slow_duration;
 };
 
-}
+} // XrdOssStats
 
-#endif // __XRDSTATS_FILESYSTEM_H
+#endif // __XRDOSSSTATS_FILESYSTEM_H

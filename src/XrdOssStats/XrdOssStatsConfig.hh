@@ -1,8 +1,13 @@
 
-#pragma once
+#ifndef __XRDOSSSTATS_CONFIG_H
+#define __XRDOSSSTATS_CONFIG_H
 
 #include <chrono>
 #include <string>
+
+namespace XrdOssStats {
+
+namespace detail {
 
 enum LogMask {
     Debug =   0x01,
@@ -15,3 +20,9 @@ enum LogMask {
 std::string LogMaskToString(int mask);
 
 bool ParseDuration(const std::string &duration, std::chrono::steady_clock::duration &result, std::string &errmsg);
+
+} // detail
+
+} // namespace XrdOssStats
+
+#endif // __XRDOSSSTATS_CONFIG_H
