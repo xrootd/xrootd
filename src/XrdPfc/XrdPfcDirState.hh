@@ -133,8 +133,8 @@ struct DirState : public DirStateBase
 
    // This should be optional, only if needed and only up to some max level.
    // Preferably stored in some extrnal vector (as AccessTokens are) and indexed from here.
+   DirStats     m_sshot_stats; // here + subdir, reset after sshot dump
    // DirStats     m_purge_stats;  // here + subdir, running avg., as per purge params
-   // DirStats     m_sshot_stats; // here + subdir, reset after sshot dump
 
    DirState    *m_parent = nullptr;
    DsMap_t      m_subdirs;
@@ -171,6 +171,7 @@ struct DirState : public DirStateBase
    // stat & usages updates / management
    void update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink_foo);
    void reset_stats();
+   void reset_sshot_stats();
 
    int count_dirs_to_level(int max_depth) const;
 
@@ -185,7 +186,7 @@ struct DirState : public DirStateBase
 struct DataFsState : public DataFsStateBase
 {
    DirState        m_root;
-   // time_t          m_sshot_stats_reset_time = 0;
+   time_t          m_sshot_stats_reset_time = 0;
    // time_t          m_purge_stats_reset_time = 0;
 
    DataFsState() : m_root() {}
@@ -197,9 +198,9 @@ struct DataFsState : public DataFsStateBase
       return m_root.find_path(lfn, -1, true, true, last_existing_dir);
    }
 
-   void update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink_foo);
-   void reset_stats();
-   // void reset_sshot_stats();
+   void update_stats_and_usages(time_t last_update, bool purge_empty_dirs, unlink_func unlink_foo);
+   void reset_stats(time_t last_update);
+   void reset_sshot_stats(time_t last_update);
    // void reset_purge_stats();
 
    void dump_recursively(int max_depth) const;

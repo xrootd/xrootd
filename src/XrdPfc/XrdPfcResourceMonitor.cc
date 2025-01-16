@@ -395,11 +395,11 @@ void ResourceMonitor::heart_beat()
          }
       }
 
-      now = time(0);
+      time_t queue_swap_time = time(0);
 
       // Always process the queues.
       int n_processed = process_queues();
-      next_queue_proc_time = now + s_queue_proc_interval;
+      next_queue_proc_time = queue_swap_time + s_queue_proc_interval;
       TRACE(Debug, tpfx << "process_queues -- n_records=" << n_processed);
 
       // Always update basic info on m_fs_state (space, usage, file_usage).
@@ -410,59 +410,67 @@ void ResourceMonitor::heart_beat()
       // ToDo (along with sshot/purge_stats in DirState):
       // Make planning for fs_state_update, sshot dump and purge task.
       // Second two require the first, so figure out what is going to happen.
+      bool do_sshot_report     = next_sshot_report_time <= now;
+      bool do_purge_check      = next_purge_check_time <= now;
+      bool do_purge_report     = next_purge_report_time <= now;
+      bool do_purge_cold_files = next_purge_cold_files_time <= now;
 
-      if (next_sshot_report_time <= now)
+      // Update stats in usages if any secondary activity will happen.
+      if (do_sshot_report || do_purge_check || do_purge_report || do_purge_cold_files)
       {
-         // Keep this one equidistant. Ideally, eventually, align it to, say, full 5-minutes.
-         next_sshot_report_time += s_sshot_report_interval;
-
-         // Potentially only prune the empty leaf dirs when doing sshot (this update will be out
-         // of 'if sshot' on next iteration) or even less frequently, once per hour, maybe?
-         bool purge_leaf_dirs = ! m_purge_task_active;
-         m_fs_state.update_stats_and_usages(purge_leaf_dirs, [&](const std::string &dp)->int {
+         unlink_func unlink_foo = [&](const std::string &dp)->int {
             int ret = m_oss.Unlink(dp.c_str());
             if (ret != 0) {
                TRACE(Info, tpfx << "Empty dir unlink error: " << ret << " at " << dp);
             } else {
                TRACE(Debug, tpfx << "Empty dir unlink success: " << dp);
             }
-            return ret; });
+            return ret;
+         };
 
-         // Dump statistics before actual purging so maximum usage values get recorded.
-         // This should dump out binary snapshot into /pfc-stats/, if so configured.
-         // Also, optionally, json.
-         // Could also go to gstream but this easily gets too large.
-         if (conf.is_dir_stat_reporting_on())
+         // Potentially prune the empty leaf dirs even less frequently, once per hour, maybe?
+         bool purge_leaf_dirs = do_sshot_report && ! m_purge_task_active;
+         m_fs_state.update_stats_and_usages(queue_swap_time, purge_leaf_dirs, unlink_foo);
+
+         // This reporting into log/stdout is to be removed.
+         // Meaning of conf.is_dir_stat_reporting_on() etc is to be clarified / improved.
+         if (do_sshot_report && conf.is_dir_stat_reporting_on())
          {
             const int store_depth  =  conf.m_dirStatsStoreDepth;
-            #ifdef RM_DEBUG
+         #ifdef RM_DEBUG
             const DirState      &root_ds = *m_fs_state.get_root();
             dprintf("Snapshot n_dirs=%d, total n_dirs=%d\n", root_ds.count_dirs_to_level(store_depth),
                   root_ds.m_here_usage.m_NDirectories + root_ds.m_recursive_subdir_usage.m_NDirectories + 1);
-            #endif
+         #endif
             m_fs_state.dump_recursively(store_depth);
-
-            /*
-            // json dump to std::out for debug purpose
-            DataFsSnapshot ss(m_fs_state);
-            ss.m_dir_states.reserve(n_sshot_dirs);
-
-            ss.m_dir_states.emplace_back( DirStateElement(root_ds, -1) );
-            fill_sshot_vec_children(root_ds, 0, ss.m_dir_states, store_depth);
-
-            // This should really be export to a file (preferably binary, but then bin->json command is needed, too).
-            ss.dump();
-            */
          }
 
-         m_fs_state.reset_stats();
-
-         now = time(0);
+         m_fs_state.reset_stats(queue_swap_time);
       }
 
-      bool do_purge_check      = next_purge_check_time <= now;
-      bool do_purge_report     = next_purge_report_time <= now;
-      bool do_purge_cold_files = next_purge_cold_files_time <= now;
+      if (do_sshot_report)
+      {
+         // Keep this one equidistant. Ideally, eventually, align it to, say, full 5-minutes.
+         next_sshot_report_time += s_sshot_report_interval;
+
+         // This should dump out binary snapshot into /pfc-stats/, if so configured.
+
+         /*
+         // json dump to std::out for debug purpose
+         DataFsSnapshot ss(m_fs_state);
+         ss.m_dir_states.reserve(n_sshot_dirs);
+
+         ss.m_dir_states.emplace_back( DirStateElement(root_ds, -1) );
+         fill_sshot_vec_children(root_ds, 0, ss.m_dir_states, store_depth);
+
+         // This should really be export to a file (preferably binary, but then bin->json command is needed, too).
+         ss.dump();
+
+         m_fs_state.reset_sshot_stats(queue_swap_time);
+
+         */
+      }
+
       if (do_purge_check || do_purge_report || do_purge_cold_files)
       {
          perform_purge_check(do_purge_cold_files, do_purge_report ? TRACE_Info : TRACE_Debug);

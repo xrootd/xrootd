@@ -25,7 +25,7 @@ struct DirStateElement : public DirStateBase
    DirStateElement() {}
    DirStateElement(const DirState &b, int parent) :
      DirStateBase(b),
-     m_stats(b.m_here_stats, b.m_recursive_subdir_stats),
+     m_stats(b.m_sshot_stats),
      m_usage(b.m_here_usage, b.m_recursive_subdir_usage),
      m_parent(parent)
    {}
@@ -34,10 +34,12 @@ struct DirStateElement : public DirStateBase
 struct DataFsSnapshot : public DataFsStateBase
 {
    std::vector<DirStateElement> m_dir_states;
+   time_t                       m_sshot_stats_reset_time = 0;
 
    DataFsSnapshot() {}
    DataFsSnapshot(const DataFsState &b) :
-     DataFsStateBase(b)
+     DataFsStateBase(b),
+     m_sshot_stats_reset_time(b.m_sshot_stats_reset_time)
    {}
 
    // Import of data into vector form is implemented in ResourceMonitor

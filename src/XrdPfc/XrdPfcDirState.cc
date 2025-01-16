@@ -196,6 +196,10 @@ void DirState::update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink
          ++i;
    }
 
+   // Apply current deltas to sshot_stats (and, if eventually needed, purge_stats).
+   m_sshot_stats.AddUp(m_recursive_subdir_stats);
+   m_sshot_stats.AddUp(m_here_stats);
+
    // Apply deltas / stats to usages.
    m_here_usage.update_from_stats(m_here_stats);
    m_recursive_subdir_usage.update_from_stats(m_recursive_subdir_stats);
@@ -215,6 +219,15 @@ void DirState::reset_stats()
    }
    m_here_stats.Reset();
    m_recursive_subdir_stats.Reset();
+}
+
+void DirState::reset_sshot_stats()
+{
+   for (DsMap_i i = m_subdirs.begin(); i != m_subdirs.end(); ++i)
+   {
+      i->second.reset_sshot_stats();
+   }
+   m_sshot_stats.Reset();
 }
 
 int DirState::count_dirs_to_level(int max_depth) const
@@ -259,27 +272,22 @@ void DirState::dump_recursively(const char *name, int max_depth) const
 // DataFsState
 //==============================================================================
 
-// void DataFsState::upward_propagate_stats_and_times()
-// {
-//    m_root.upward_propagate_stats_and_times();
-// }
-
-// void DataFsState::apply_stats_to_usages()
-// {
-//    m_usage_update_time = time(0);
-//    m_root.apply_stats_to_usages();
-// }
-
-void DataFsState::update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink_foo)
+void DataFsState::update_stats_and_usages(time_t last_update, bool purge_empty_dirs, unlink_func unlink_foo)
 {
    m_root.update_stats_and_usages(purge_empty_dirs, unlink_foo);
-   m_usage_update_time = time(0);
+   m_usage_update_time = last_update;
 }
 
-void DataFsState::reset_stats()
+void DataFsState::reset_stats(time_t last_update)
 {
    m_root.reset_stats();
-   m_stats_reset_time = time(0);
+   m_stats_reset_time = last_update;
+}
+
+void DataFsState::reset_sshot_stats(time_t last_update)
+{
+   m_root.reset_stats();
+   m_sshot_stats_reset_time = last_update;
 }
 
 void DataFsState::dump_recursively(int max_depth) const
