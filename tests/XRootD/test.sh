@@ -132,6 +132,14 @@ function setup() {
 		teardown "${NAME}"
 		error "failed to start XRootD server"
 	fi
+
+	# Prepare a test environment file -- can be used by other unit tests that
+	# utilize this fixture but don't inherit the shell environment from run()
+	XRD_PORT="$(cconfig -x xrootd -c "${CONF}" 2>&1 | grep xrd.port | tr -cd '0-9')"
+	HOST="root://${HOSTNAME:-localhost}:${XRD_PORT}/"
+	cat > "${LOCAL_DIR}/test_config.sh" << EOF
+HOST=$HOST
+EOF
 }
 
 function run() {
