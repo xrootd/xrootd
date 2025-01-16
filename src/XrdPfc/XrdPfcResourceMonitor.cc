@@ -395,24 +395,38 @@ void ResourceMonitor::heart_beat()
          }
       }
 
+      now = time(0);
+
       // Always process the queues.
       int n_processed = process_queues();
-      next_queue_proc_time += s_queue_proc_interval;
+      next_queue_proc_time = now + s_queue_proc_interval;
       TRACE(Debug, tpfx << "process_queues -- n_records=" << n_processed);
 
       // Always update basic info on m_fs_state (space, usage, file_usage).
       update_vs_and_file_usage_info();
 
       now = time(0);
+
+      // ToDo (along with sshot/purge_stats in DirState):
+      // Make planning for fs_state_update, sshot dump and purge task.
+      // Second two require the first, so figure out what is going to happen.
+
       if (next_sshot_report_time <= now)
       {
+         // Keep this one equidistant. Ideally, eventually, align it to, say, full 5-minutes.
          next_sshot_report_time += s_sshot_report_interval;
 
-         // XXXX pass in m_purge_task_active as control over "should empty dirs be purged";
-         // Or should this be separate pass or variant in purge?
-         m_fs_state.upward_propagate_stats_and_times();
-
-         m_fs_state.apply_stats_to_usages();
+         // Potentially only prune the empty leaf dirs when doing sshot (this update will be out
+         // of 'if sshot' on next iteration) or even less frequently, once per hour, maybe?
+         bool purge_leaf_dirs = ! m_purge_task_active;
+         m_fs_state.update_stats_and_usages(purge_leaf_dirs, [&](const std::string &dp)->int {
+            int ret = m_oss.Unlink(dp.c_str());
+            if (ret != 0) {
+               TRACE(Info, tpfx << "Empty dir unlink error: " << ret << " at " << dp);
+            } else {
+               TRACE(Debug, tpfx << "Empty dir unlink success: " << dp);
+            }
+            return ret; });
 
          // Dump statistics before actual purging so maximum usage values get recorded.
          // This should dump out binary snapshot into /pfc-stats/, if so configured.
