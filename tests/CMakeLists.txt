@@ -28,3 +28,4 @@ endif()
 
 add_subdirectory( XRootD )
 add_subdirectory( cluster )
+add_subdirectory( stress )
