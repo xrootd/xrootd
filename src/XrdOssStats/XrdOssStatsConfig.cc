@@ -7,8 +7,7 @@
 
 #include <sstream>
 
-
-std::string LogMaskToString(int mask) {
+std::string XrdOssStats::detail::LogMaskToString(int mask) {
     if (mask == LogMask::All) {return "all";}
 
     bool has_entry = false;
@@ -36,7 +35,7 @@ std::string LogMaskToString(int mask) {
 //
 // Example:
 //    1s500ms
-bool ParseDuration(const std::string &duration, std::chrono::steady_clock::duration &result, std::string &errmsg) {
+bool XrdOssStats::detail::ParseDuration(const std::string &duration, std::chrono::steady_clock::duration &result, std::string &errmsg) {
 
     if (duration.empty()) {
         errmsg = "cannot parse empty string as a time duration";
@@ -113,7 +112,7 @@ XrdOss *XrdOssAddStorageSystem2(XrdOss       *curr_oss,
 {
                    
     XrdSysError log(logger, "fsstats_");
-    auto new_oss = new XrdOssStats::FileSystem(curr_oss, logger, config_fn, envP);
+    std::unique_ptr<XrdOssStats::FileSystem> new_oss(new XrdOssStats::FileSystem(curr_oss, logger, config_fn, envP));
     if (!new_oss) {
         return nullptr;
     }
@@ -126,7 +125,7 @@ XrdOss *XrdOssAddStorageSystem2(XrdOss       *curr_oss,
             return nullptr;
         }
     }
-    return new_oss;
+    return new_oss.release();
 }
 
 XrdVERSIONINFO(XrdOssAddStorageSystem2,fsstats);

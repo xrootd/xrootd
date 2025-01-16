@@ -1,6 +1,6 @@
 
-#ifndef __XRDSTATS_FILE_H
-#define __XRDSTATS_FILE_H
+#ifndef __XRDOSSSTATS_FILE_H
+#define __XRDOSSSTATS_FILE_H
 
 #include "XrdOss/XrdOssWrapper.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -142,4 +142,4 @@ private:
 
 } // namespace XrdOssStats
 
-#endif // __XRDSTATS_FILE_H
+#endif // __XRDOSSSTATS_FILES_H
