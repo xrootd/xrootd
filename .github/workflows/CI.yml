@@ -279,7 +279,7 @@ jobs:
 
   macos:
     name: macOS
-    runs-on: macos-13
+    runs-on: macos-15
 
     env:
       CC: clang
@@ -303,7 +303,7 @@ jobs:
       run: ctest -VV --repeat until-pass:3 -S test.cmake
 
     - name: Install with CMake
-      run: cmake --install build
+      run: sudo cmake --install build
 
     - name: Run post-install tests
       run: |
