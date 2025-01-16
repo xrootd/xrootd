@@ -23,7 +23,7 @@ function test_http() {
 	assert xrdfs "${HOST}" mkdir -p "${TMPDIR}"
 
 	# from now on, we use HTTP
-	export HOST=http://localhost:8094
+	export HOST="http://localhost:${XRD_PORT}"
 
 	# create local files with random contents using OpenSSL
 
