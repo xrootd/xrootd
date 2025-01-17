@@ -5,6 +5,11 @@
 
 #include <vector>
 
+class XrdOss;
+namespace XrdPfc {
+  class Configuration;
+}
+
 //==============================================================================
 // Structs for DirState export in vector form
 //==============================================================================
@@ -45,7 +50,7 @@ struct DataFsSnapshot : public DataFsStateBase
    // Import of data into vector form is implemented in ResourceMonitor
    // in order to avoid dependence of this struct on DirState.
 
-   void write_json_file(const std::string &fname, bool include_preamble);
+   void write_json_file(const std::string &fname, XrdOss& oss, bool include_preamble);
    void dump();
 };
 

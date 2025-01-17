@@ -407,7 +407,6 @@ void ResourceMonitor::heart_beat()
 
       now = time(0);
 
-      // ToDo (along with sshot/purge_stats in DirState):
       // Make planning for fs_state_update, sshot dump and purge task.
       // Second two require the first, so figure out what is going to happen.
       bool do_sshot_report     = next_sshot_report_time <= now;
@@ -455,20 +454,21 @@ void ResourceMonitor::heart_beat()
 
          // This should dump out binary snapshot into /pfc-stats/, if so configured.
 
-         /*
          // json dump to std::out for debug purpose
          DataFsSnapshot ss(m_fs_state);
+         const DirState &root_ds = *m_fs_state.get_root();
+         const int store_depth  =  conf.m_dirStatsStoreDepth;
+         const int n_sshot_dirs = root_ds.count_dirs_to_level(store_depth);
          ss.m_dir_states.reserve(n_sshot_dirs);
-
          ss.m_dir_states.emplace_back( DirStateElement(root_ds, -1) );
          fill_sshot_vec_children(root_ds, 0, ss.m_dir_states, store_depth);
 
          // This should really be export to a file (preferably binary, but then bin->json command is needed, too).
-         ss.dump();
+         // ss.dump();
 
+         const char* dumpfile = "/pfc-stats/DirStat.json";
+         ss.write_json_file(dumpfile, m_oss, false);
          m_fs_state.reset_sshot_stats(queue_swap_time);
-
-         */
       }
 
       if (do_purge_check || do_purge_report || do_purge_cold_files)
