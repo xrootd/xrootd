@@ -309,6 +309,11 @@ XrdConfig::XrdConfig()
    ProtInfo.totalCF  = &totalCF;
 
    XrdNetAddr::SetCache(3*60*60); // Cache address resolutions for 3 hours
+
+   // This may reset the NPROC resource limit, which is done here as we
+   // expect to be operating as a daemon. We set the argument limlower=true
+   // to potentially set a more restrictive limit than the current one.
+   Sched.setNproc(true);
 }
   
 /******************************************************************************/
@@ -1238,7 +1243,7 @@ int XrdConfig::setFDL()
 //
 #if ( defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) ) && defined(RLIMIT_NPROC)
 
-// Obtain the actual limit now (Scheduler construction sets this to rlim_max)
+// Obtain the actual limit now (Scheduler::setNproc may change this)
 //
    if (getrlimit(RLIMIT_NPROC, &rlim) < 0)
       return Log.Emsg("Config", errno, "get thread limit");

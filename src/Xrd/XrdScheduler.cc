@@ -164,51 +164,10 @@ void XrdScheduler::Boot(XrdSysError *eP, XrdSysTrace *tP,
    XrdTrace    =  tP;
    Init(minw, maxw, maxi);
 
-// Make sure we are using the maximum number of threads allowed (Linux only)
-//
-#if ( defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) ) && defined(RLIMIT_NPROC)
-
-   struct rlimit rlim;
-
-// First determine the absolute maximum we can have
-//
-   rlim_t theMax = MAX_SCHED_PROCS;
-   int pdFD, rdsz;
-   if ((pdFD = open("/proc/sys/kernel/pid_max", O_RDONLY)) >= 0)
-      {char pmBuff[32];
-       if ((rdsz = read(pdFD, pmBuff, sizeof(pmBuff))) > 0)
-          {rdsz = atoi(pmBuff);
-           if (rdsz < 16384) theMax = 16384; // This is unlikely
-              else if (rdsz < MAX_SCHED_PROCS)
-                      theMax = static_cast<rlim_t>(rdsz-2000);
-          }
-       close(pdFD);
-      }
-
-// Get the resource thread limit and set to maximum. In Linux this may be -1
-// to indicate useless infnity, so we have to come up with a number, sigh.
-//
-   if (!getrlimit(RLIMIT_NPROC, &rlim))
-      {if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > theMax)
-          {rlim.rlim_cur = theMax;
-           setrlimit(RLIMIT_NPROC, &rlim);
-          } else {
-           if (rlim.rlim_cur != rlim.rlim_max)
-              {rlim.rlim_cur = rlim.rlim_max;
-               setrlimit(RLIMIT_NPROC, &rlim);
-              }
-          }
-      }
-
-// Readjust our internal maximum to be the actual maximum
-//
-   if (!getrlimit(RLIMIT_NPROC, &rlim))
-      {if (rlim.rlim_cur == RLIM_INFINITY || rlim.rlim_cur > theMax)
-               max_Workers = static_cast<int>(theMax);
-          else max_Workers = static_cast<int>(rlim.rlim_cur);
-      }
-#endif
-
+  // possibly raise the nproc limit. In some cases (e.g. for servers)
+  // this method may be called again with argument true, to allow
+  // a more stringent limit than the current one.
+  setNproc(false);
 }
 
 /******************************************************************************/
@@ -506,6 +465,75 @@ void XrdScheduler::Schedule(XrdJob *jp, time_t atime)
 // All done
 //
    TimerMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                               s e t N p r o c                              */
+/******************************************************************************/
+  
+void XrdScheduler::setNproc(const bool limlower)
+{
+  // If supported change the NPROC resource limit and set max_Workers.
+  // Caller can select leaving or increasing the limit, or potentially
+  // setting a more restrictive limit than the current one.
+
+  // If this method is called the setParms method should be called after, so
+  // that a caller supplied value of max_Workers can override the value here.
+
+  // We attempt to set the limit to our maximum supported threads in the
+  // XrdScheduler (with a margin for pid_max).
+
+// Reset the soft limit applied to our process concerning the system wide
+// number threads for our uid (Linux only).
+//
+#if ( defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) ) && defined(RLIMIT_NPROC)
+
+   struct rlimit rlim;
+
+// First determine the absolute maximum we can have
+//
+   rlim_t theMax = MAX_SCHED_PROCS;
+   int pdFD, rdsz;
+   if ((pdFD = open("/proc/sys/kernel/pid_max", O_RDONLY)) >= 0)
+      {char pmBuff[32];
+       if ((rdsz = read(pdFD, pmBuff, sizeof(pmBuff))) > 0)
+          {rdsz = atoi(pmBuff);
+           if (rdsz < 16384) theMax = 16384; // This is unlikely
+              else if (rdsz < MAX_SCHED_PROCS)
+                      theMax = static_cast<rlim_t>(rdsz-2000);
+          }
+       close(pdFD);
+      }
+
+// We allow disabling the NPROC setting entirely.
+//
+   const bool setnp = (getenv("XRDLEAVENPROC") == 0);
+
+// Get the resource thread limit and set to maximum. In Linux this may be -1
+// to indicate useless infnity, so we have to come up with a number, sigh.
+//
+   if (setnp && !getrlimit(RLIMIT_NPROC, &rlim))
+      {if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > theMax)
+          {if (limlower || (rlim.rlim_cur != RLIM_INFINITY && rlim.rlim_cur < theMax))
+              {rlim.rlim_cur = theMax;
+               setrlimit(RLIMIT_NPROC, &rlim);
+              }
+          } else {
+           if (rlim.rlim_cur != rlim.rlim_max)
+              {rlim.rlim_cur = rlim.rlim_max;
+               setrlimit(RLIMIT_NPROC, &rlim);
+              }
+          }
+      }
+
+// Readjust our internal maximum to be the actual maximum
+//
+   if (!getrlimit(RLIMIT_NPROC, &rlim))
+      {if (rlim.rlim_cur == RLIM_INFINITY || rlim.rlim_cur > theMax)
+               max_Workers = static_cast<int>(theMax);
+          else max_Workers = static_cast<int>(rlim.rlim_cur);
+      }
+#endif
 }
 
 /******************************************************************************/
