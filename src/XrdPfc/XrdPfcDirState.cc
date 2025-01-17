@@ -286,7 +286,7 @@ void DataFsState::reset_stats(time_t last_update)
 
 void DataFsState::reset_sshot_stats(time_t last_update)
 {
-   m_root.reset_stats();
+   m_root.reset_sshot_stats();
    m_sshot_stats_reset_time = last_update;
 }
 
