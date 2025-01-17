@@ -34,6 +34,8 @@
 #include "Xrd/XrdPollPoll.hh"
 #include "Xrd/XrdScheduler.hh"
 
+#include <vector>
+
 /******************************************************************************/
 /*                             n e w P o l l e r                              */
 /******************************************************************************/
@@ -274,7 +276,15 @@ void XrdPollPoll::Start(XrdSysSemaphore *syncsem, int &retcode)
 
 // Now do the main poll loop
 //
-   do {do {numpolled = poll(PollTab, PollTNum, -1);}
+   std::vector<struct pollfd> PollTabCopy;
+   do {// Duplicate the polling table so we don't need to hold the PollMutex
+       // while we are sleeping in the poll()
+       PollMutex.Lock();
+       PollTabCopy.resize(PollTNum);
+       memcpy(PollTabCopy.data(), PollTab, sizeof(struct pollfd) * PollTNum);
+       PollMutex.UnLock();
+
+       do {numpolled = poll(PollTabCopy.data(), PollTabCopy.size(), -1);}
           while(numpolled < 0 && (errno == EAGAIN || errno == EINTR));
 
        // Check if we had a polling error
@@ -286,16 +296,25 @@ void XrdPollPoll::Start(XrdSysSemaphore *syncsem, int &retcode)
           }
        numEvents += numpolled;
 
+       // Note this thread is the only one that writes directly to the poll
+       // table (everything else is a read).  Hence, it's OK to assume that
+       // the table after the poll() is unchanged and we can write back the
+       // revents field.
+       PollMutex.Lock();
+       for (size_t idx=0; idx<PollTabCopy.size(); idx++)
+           PollTab[idx].revents = PollTabCopy[idx].revents;
+
        // Check out base poll table entry, we can do this without a lock
        //
        if (PollTab[0].revents & pollOK)
-          {doRequests(numpolled); 
+          {PollMutex.UnLock();
+           doRequests(numpolled);
            if (--numpolled <= 0) continue;
+           PollMutex.Lock();
           }
 
        // Checkout which links must be dispatched (do this locked)
        //
-       PollMutex.Lock();
        plp = 0; nlp = PollQ; jfirst = jlast = 0; num2sched = 0;
        while ((pInfo = nlp) && numpolled > 0)
              {if ((pollevents = pInfo->PollEnt->revents))
@@ -333,26 +352,26 @@ void XrdPollPoll::Start(XrdSysSemaphore *syncsem, int &retcode)
 /******************************************************************************/
 /*                              d o D e t a c h                               */
 /******************************************************************************/
-
+// Detach a given offset in the poll table, `pti`, from the PollTab.
+//
+// This method must be called with the PollMutex held.
 void XrdPollPoll::doDetach(int pti)
 {
    int lastent;
 
 // Get some starting values
 //
-   PollMutex.Lock();
    if ((lastent = PollTNum-1) < 0)
       {Log.Emsg("Poll","Underflow during detach"); abort();}
 
    if (pti == lastent)
       do {PollTNum--;} while(PollTNum && PollTab[PollTNum-1].fd == -1);
-  PollMutex.UnLock();
 }
 
 /******************************************************************************/
 /*                            d o R e q u e s t s                             */
 /******************************************************************************/
-
+// This must be called with the PollMutex unlocked
 void XrdPollPoll::doRequests(int maxreq)
 {
    const char *act;
@@ -367,17 +386,23 @@ void XrdPollPoll::doRequests(int maxreq)
 // Now process all poll table manipulation requests
 //
    while(num2do-- && getRequest())
-        {     if (ReqBuff.req == PipeData::Post)
+        {XrdSysMutexHelper PollGuard(PollMutex);
+              if (ReqBuff.req == PipeData::Post)
                  {ReqBuff.Parms.theSem->Post();
                   continue;
                  }
               pti = ReqBuff.Parms.Arg.ent;
               if ((ptfd = abs(PollTab[pti].fd)) != ReqBuff.Parms.Arg.fd)
-                 {LogEvent(ReqBuff.req, PollTab[pti].fd, ReqBuff.Parms.Arg.fd);
+                 {auto fd = PollTab[pti].fd;
+                  PollGuard.UnLock();
+                  LogEvent(ReqBuff.req, fd, ReqBuff.Parms.Arg.fd);
                   continue;
                  }
               if (!(piP = XrdLinkCtl::fd2PollInfo(ptfd)))
-                 {LogEvent(ReqBuff.req, -1, ptfd); continue;}
+                 {PollGuard.UnLock();
+                  LogEvent(ReqBuff.req, -1, ptfd);
+                  continue;
+                 }
               if (ReqBuff.req == PipeData::EnFD)
                  {PollTab[pti].events = POLLIN | POLLRDNORM;
                   PollTab[pti].fd     = ptfd;
@@ -395,9 +420,11 @@ void XrdPollPoll::doRequests(int maxreq)
                   act = " detached fd ";
                   piP->isEnabled = false;
                  }
-         else {Log.Emsg("Poll", "Received an invalid poll pipe request");
+         else {PollGuard.UnLock();
+               Log.Emsg("Poll", "Received an invalid poll pipe request");
                continue;
               }
+         PollGuard.UnLock();
          TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.Parms.Arg.fd
                      <<" entry " <<pti <<" now at " <<PollTNum);
         }
@@ -464,7 +491,7 @@ void XrdPollPoll::LogEvent(int req, int pollfd, int cmdfd)
 /******************************************************************************/
 /*                               R e c o v e r                                */
 /******************************************************************************/
-  
+// This must be called with PollMutex locked.
 void XrdPollPoll::Recover(int numleft)
 {
    int i;
@@ -486,7 +513,7 @@ void XrdPollPoll::Recover(int numleft)
 /******************************************************************************/
 /*                               R e s t a r t                                */
 /******************************************************************************/
-  
+// This must be called with the PollMutex unlocked
 void XrdPollPoll::Restart(int ecode)
 {
    XrdPollInfo *pInfo;
