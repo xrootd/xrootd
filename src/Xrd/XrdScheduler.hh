@@ -73,6 +73,8 @@ int           Stats(char *buff, int blen, int do_sync=0);
 
 void          TimeSched();
 
+void          setNproc(const bool limlower);
+
 // Statistical information
 //
 int        num_TCreate; // Number of threads created
