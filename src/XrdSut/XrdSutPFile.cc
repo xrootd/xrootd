@@ -1520,7 +1520,8 @@ kXR_int32 XrdSutPFile::ReadInd(kXR_int32 ofs, XrdSutPFEntInd &ind)
       ind.name = 0;
    }
    if (lnam) {
-      ind.name = new char[lnam+1];
+      if (lnam > 0)
+         ind.name = new char[lnam+1];
       if (ind.name) {
          if ((nr = read(fFd,ind.name,lnam)) != lnam)
             return Err(kPFErrRead,"ReadInd",(const char *)&fFd);
