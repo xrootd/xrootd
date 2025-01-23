@@ -6,9 +6,7 @@
 #include <vector>
 
 class XrdOss;
-namespace XrdPfc {
-  class Configuration;
-}
+
 
 //==============================================================================
 // Structs for DirState export in vector form

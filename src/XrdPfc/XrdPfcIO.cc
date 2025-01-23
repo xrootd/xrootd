@@ -82,7 +82,7 @@ bool IO::Detach(XrdOucCacheIOCD &iocdP)
          }
       };
 
-      (new FutureDetach(this, &iocdP, 30))->Schedule();
+      (new FutureDetach(this, &iocdP, 10))->Schedule();
 
       return false;
    }

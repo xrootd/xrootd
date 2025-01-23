@@ -207,16 +207,14 @@ public:
 
 class File
 {
+   friend class Cache;
    friend class BlockResponseHandler;
    friend class DirectResponseHandler;
 public:
-   // Constructor and Open() are private.
+   // Constructor, destructor, Open() and Close() are private.
 
    //! Static constructor that also does Open. Returns null ptr if Open fails.
    static File* FileOpen(const std::string &path, long long offset, long long fileSize);
-
-   //! Destructor.
-   ~File();
 
    //! Handle removal of a block from Cache's write queue.
    void BlockRemovedFromWriteQ(Block*);
@@ -301,6 +299,12 @@ public:
 private:
    //! Constructor.
    File(const std::string &path, long long offset, long long fileSize);
+
+   //! Destructor.
+   ~File();
+
+   //! Close data and cinfo file.
+   void Close();
 
    //! Open file handle for data file and info file on local disk.
    bool Open();

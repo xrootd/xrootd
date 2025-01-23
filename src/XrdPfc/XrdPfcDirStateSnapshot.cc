@@ -139,7 +139,6 @@ void DataFsSnapshot::write_json_file(const std::string &file_path, XrdOss& oss, 
       return;
    }
 
-
    // Fill up cinfo.
 
    Info myInfo(GetTrace(), false);
@@ -153,7 +152,7 @@ void DataFsSnapshot::write_json_file(const std::string &file_path, XrdOss& oss, 
 
 void DataFsSnapshot::dump()
 {
-   nlohmann::ordered_json j; //  = *this;
+   nlohmann::ordered_json j;
    to_json(j, *this);
    std::cout << j.dump(3) << "\n";
 }

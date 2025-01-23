@@ -566,6 +566,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
    int tlvl = high_debug ? TRACE_Debug : TRACE_Dump;
    int cnt;
 
+   bool emergency_close = false;
    {
      XrdSysCondVarHelper lock(&m_active_cond);
 
@@ -580,21 +581,28 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
         if (cnt == 1)
         {
            TRACE_INT(tlvl, "dec_ref_cnt " << f->GetLocalPath() << " is in shutdown, ref_cnt = " << cnt
-                     << " -- deleting File object without further ado");
-           delete f;
+                     << " -- closing and deleting File object without further ado");
+            emergency_close = true;
         }
         else
         {
            TRACE_INT(tlvl, "dec_ref_cnt " << f->GetLocalPath() << " is in shutdown, ref_cnt = " << cnt
                      << " -- waiting");
+           f->dec_ref_cnt();
+           return;
         }
-        return;
      }
      if (cnt > 1)
      {
         f->dec_ref_cnt();
         return;
      }
+   }
+   if (emergency_close)
+   {
+      f->Close();
+      delete f;
+      return;
    }
 
    if (cnt == 1)
@@ -611,6 +619,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
    }
 
    bool finished_p = false;
+   ActiveMap_i act_it;
    {
       XrdSysCondVarHelper lock(&m_active_cond);
 
@@ -618,14 +627,20 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
       TRACE_INT(tlvl, "dec_ref_cnt " << f->GetLocalPath() << ", cnt after sync_check and dec_ref_cnt = " << cnt);
       if (cnt == 0)
       {
-         ActiveMap_i it = m_active.find(f->GetLocalPath());
-         m_active.erase(it);
+         act_it = m_active.find(f->GetLocalPath());
+         act_it->second = 0;
 
          finished_p = true;
       }
    }
    if (finished_p)
    {
+      f->Close();
+      {
+         XrdSysCondVarHelper lock(&m_active_cond);
+         m_active.erase(act_it);
+      }
+
       if (m_gstream)
       {
          const Stats       &st = f->RefStats();

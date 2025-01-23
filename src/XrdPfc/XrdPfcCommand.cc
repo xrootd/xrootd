@@ -38,14 +38,16 @@
 #include <vector>
 #include <sys/time.h>
 
+namespace
+{
+   const int MAX_ACCESSES = 20;
+   const long long ONE_MB = 1024ll * 1024;
+   const long long ONE_GB = 1024ll * 1024 * 1024;
+}
+
 using namespace XrdPfc;
 
 //______________________________________________________________________________
-
-const int MAX_ACCESSES = 20;
-
-const long long ONE_MB = 1024ll * 1024;
-const long long ONE_GB = 1024ll * 1024 * 1024;
 
 void Cache::ExecuteCommandUrl(const std::string& command_url)
 {
@@ -97,9 +99,8 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
       int         access_time    [MAX_ACCESSES];
       int         access_duration[MAX_ACCESSES];
       int         at_count = 0, ad_count = 0;
-      XrdOucArgs  Spec(&m_log, err_prefix, "hvs:b:t:d:",
+      XrdOucArgs  Spec(&m_log, err_prefix, "hs:b:t:d:",
                        "help",         1, "h",
-                       "verbose",      1, "v",
                        "size",         1, "s",
                        "blocksize",    1, "b",
                        "time",         1, "t",
@@ -259,7 +260,10 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          myInfoFile->Close(); delete myInfoFile;
          myFile->Close();     delete myFile;
 
-         TRACE(Info, err_prefix << "Created file '" << file_path << "', size=" << (file_size>>20) << "MB.");
+         struct stat dstat;
+         GetOss()->Stat(file_path.c_str(), &dstat);
+         TRACE(Info, err_prefix << "Created file '" << file_path << "', size=" << (file_size>>20) << "MB, "
+                                << "st_blocks=" << dstat.st_blocks);
 
          {
             XrdSysCondVarHelper lock(&m_writeQ.condVar);
@@ -270,7 +274,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
             int token = m_res_mon->register_file_open(file_path, time_now, false);
             XrdPfc::Stats stats;
             stats.m_BytesWritten  = file_size;
-            stats.m_StBlocksAdded = (file_size & 0x1ff) ? (file_size >> 9) + 1 : file_size >> 9;
+            stats.m_StBlocksAdded = dstat.st_blocks;
             m_res_mon->register_file_update_stats(token, stats);
             m_res_mon->register_file_close(token, time(0), stats);
          }

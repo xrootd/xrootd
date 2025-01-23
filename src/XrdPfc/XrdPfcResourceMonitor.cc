@@ -495,6 +495,12 @@ void ResourceMonitor::fill_sshot_vec_children(const DirState &parent_ds,
    int pos = vec.size();
    int n_children = parent_ds.m_subdirs.size();
 
+   DirStateElement &parent_dse = vec[parent_idx];
+   parent_dse.m_daughters_begin = pos;
+   parent_dse.m_daughters_end   = pos + n_children;
+
+   if (n_children == 0) return;
+
    for (auto const & [name, child] : parent_ds.m_subdirs)
    {
       vec.emplace_back( DirStateElement(child, parent_idx) );
@@ -502,14 +508,9 @@ void ResourceMonitor::fill_sshot_vec_children(const DirState &parent_ds,
 
    if (parent_ds.m_depth < max_depth)
    {
-      DirStateElement &parent_dse = vec[parent_idx];
-      parent_dse.m_daughters_begin = pos;
-      parent_dse.m_daughters_end   = pos + n_children;
-
       for (auto const & [name, child] : parent_ds.m_subdirs)
       {
-         if (n_children > 0)
-            fill_sshot_vec_children(child, pos, vec, max_depth);
+         fill_sshot_vec_children(child, pos, vec, max_depth);
          ++pos;
       }
    }
@@ -523,6 +524,12 @@ void ResourceMonitor::fill_pshot_vec_children(const DirState &parent_ds,
    int pos = vec.size();
    int n_children = parent_ds.m_subdirs.size();
 
+   DirPurgeElement &parent_dpe = vec[parent_idx];
+   parent_dpe.m_daughters_begin = pos;
+   parent_dpe.m_daughters_end   = pos + n_children;
+
+   if (n_children == 0) return;
+
    for (auto const & [name, child] : parent_ds.m_subdirs)
    {
       vec.emplace_back( DirPurgeElement(child, parent_idx) );
@@ -530,14 +537,9 @@ void ResourceMonitor::fill_pshot_vec_children(const DirState &parent_ds,
 
    if (parent_ds.m_depth < max_depth)
    {
-      DirPurgeElement &parent_dpe = vec[parent_idx];
-      parent_dpe.m_daughters_begin = pos;
-      parent_dpe.m_daughters_end   = pos + n_children;
-
       for (auto const & [name, child] : parent_ds.m_subdirs)
       {
-         if (n_children > 0)
-            fill_pshot_vec_children(child, pos, vec, max_depth);
+         fill_pshot_vec_children(child, pos, vec, max_depth);
          ++pos;
       }
    }

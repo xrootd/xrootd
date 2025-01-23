@@ -79,9 +79,27 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
 
 File::~File()
 {
+   TRACEF(Debug, "~File() for ");
+}
+
+void File::Close()
+{
+   // Close is called while nullptr is put into Cache::m_active map, see Cache::dec_ref_count(File*).
+   // A stat is called after close to re-check that m_stat_blocks have been reported correctly
+   // to the resource-monitor. Note that the reporting is already clamped down to m_file_size
+   // in report_and_merge_delta_stats() below.
+   //
+   // XFS can pre-allocate significant amount of blocks (1 GB at 1GB mark, 4 GB above 4GB) and those
+   // get reported in as stat.st_blocks.
+   // The reported number is correct in a stat immediately following a close.
+   // If one starts off by writing the last byte of the file, this pre-allocation does not get
+   // triggered up to that point. But comes back with a vengeance right after.
+   //
+   // To be determined if other FSes do something similar (Ceph, ZFS, ...). Ext4 doesn't.
+
    if (m_info_file)
    {
-      TRACEF(Debug, "~File() close info ");
+      TRACEF(Debug, "Close() closing info-file ");
       m_info_file->Close();
       delete m_info_file;
       m_info_file = nullptr;
@@ -89,7 +107,7 @@ File::~File()
 
    if (m_data_file)
    {
-      TRACEF(Debug, "~File() close output  ");
+      TRACEF(Debug, "Close() closing data-file ");
       m_data_file->Close();
       delete m_data_file;
       m_data_file = nullptr;
@@ -97,11 +115,24 @@ File::~File()
 
    if (m_resmon_token >= 0)
    {
-      // Last update of file stats has been sent from the final Sync.
+      // Last update of file stats has been sent from the final Sync unless we are in_shutdown --
+      // but in this case the file will get unlinked by the cache and reported as purge event.
+      // We check if the reported st_blocks so far is correct.
+      if (m_stats.m_BytesWritten > 0 && ! m_in_shutdown) {
+         struct stat s;
+         int sr = Cache::GetInstance().GetOss()->Stat(m_filename.c_str(), &s);
+         if (sr == 0 && s.st_blocks != m_st_blocks) {
+            Stats stats;
+            stats.m_StBlocksAdded = s.st_blocks - m_st_blocks;
+            m_st_blocks = s.st_blocks;
+            Cache::ResMon().register_file_update_stats(m_resmon_token, stats);
+         }
+      }
+
       Cache::ResMon().register_file_close(m_resmon_token, time(0), m_stats);
    }
 
-   TRACEF(Debug, "~File() ended, prefetch score = " <<  m_prefetch_score);
+   TRACEF(Debug, "Close() finished, prefetch score = " <<  m_prefetch_score);
 }
 
 //------------------------------------------------------------------------------
@@ -143,6 +174,8 @@ void File::initiate_emergency_shutdown()
          m_prefetch_state = kStopped;
          cache()->DeRegisterPrefetchFile(this);
       }
+
+      report_and_merge_delta_stats();
    }
 }
 
@@ -152,7 +185,7 @@ void File::check_delta_stats()
 {
    // Called under m_state_cond lock.
    // BytesWritten indirectly trigger an unconditional merge through periodic Sync().
-   if (m_delta_stats.BytesRead() >= m_resmon_report_threshold)
+   if (m_delta_stats.BytesReadAndWritten() >= m_resmon_report_threshold && ! m_in_shutdown)
       report_and_merge_delta_stats();
 }
 
@@ -161,8 +194,13 @@ void File::report_and_merge_delta_stats()
    // Called under m_state_cond lock.
    struct stat s;
    m_data_file->Fstat(&s);
-   m_delta_stats.m_StBlocksAdded = s.st_blocks - m_st_blocks;
-   m_st_blocks = s.st_blocks;
+   // Do not report st_blocks beyond 4kB round-up over m_file_size. Some FSs report
+   // aggressive pre-allocation in this field (XFS, 4GB).
+   long long max_st_blocks_to_report = (m_file_size & 0xfff) ? ((m_file_size >> 12) + 1) << 3
+                                                             :   m_file_size >> 9;
+   long long st_blocks_to_report = std::min((long long) s.st_blocks, max_st_blocks_to_report);
+   m_delta_stats.m_StBlocksAdded = st_blocks_to_report - m_st_blocks;
+   m_st_blocks = st_blocks_to_report;
    Cache::ResMon().register_file_update_stats(m_resmon_token, m_delta_stats);
    m_stats.AddUp(m_delta_stats);
    m_delta_stats.Reset();
@@ -515,7 +553,8 @@ bool File::Open()
    m_st_blocks = data_stat.st_blocks;
 
    m_resmon_token = Cache::ResMon().register_file_open(m_filename, time(0), data_existed);
-   m_resmon_report_threshold = std::min(std::max(200ll * 1024, m_file_size / 50), 500ll * 1024 * 1024);
+   constexpr long long MB = 1024 * 1024;
+   m_resmon_report_threshold = std::min(std::max(10 * MB, m_file_size / 20), 500 * MB);
    // m_resmon_report_threshold_scaler; // something like 10% of original threshold, to adjust
    // actual threshold based on return values from register_file_update_stats().
 
@@ -1046,12 +1085,9 @@ void File::WriteBlockToDisk(Block* b)
 
    if (retval < size)
    {
-      if (retval < 0)
-      {
-         GetLog()->Emsg("WriteToDisk()", -retval, "write block to disk", GetLocalPath().c_str());
-      }
-      else
-      {
+      if (retval < 0) {
+         TRACEF(Error, "WriteToDisk() write error " << retval);
+      } else {
          TRACEF(Error, "WriteToDisk() incomplete block write ret=" << retval << " (should be " << size << ")");
       }
 
