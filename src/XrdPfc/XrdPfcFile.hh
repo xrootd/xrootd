@@ -293,8 +293,8 @@ public:
    int inc_ref_cnt() { return ++m_ref_cnt; }
    int dec_ref_cnt() { return --m_ref_cnt; }
 
-   void initiate_emergency_shutdown();
-   bool is_in_emergency_shutdown() { return m_in_shutdown; }
+   long long initiate_emergency_shutdown();
+   bool      is_in_emergency_shutdown() { return m_in_shutdown; }
 
 private:
    //! Constructor.

@@ -1171,6 +1171,7 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
    static const char* trc_pfx = "UnlinkFile ";
    ActiveMap_i  it;
    File        *file = 0;
+   long long    st_blocks_to_purge = 0;
    {
       XrdSysCondVarHelper lock(&m_active_cond);
 
@@ -1193,7 +1194,7 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
          }
 
          file = it->second;
-         file->initiate_emergency_shutdown();
+         st_blocks_to_purge = file->initiate_emergency_shutdown();
          it->second = 0;
       }
       else
@@ -1202,21 +1203,22 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
       }
    }
 
-   if (file)
-   {
+   if (file) {
       RemoveWriteQEntriesFor(file);
+   } else {
+      struct stat f_stat;
+      if (m_oss->Stat(f_name.c_str(), &f_stat) == XrdOssOK)
+         st_blocks_to_purge = f_stat.st_blocks;
    }
 
    std::string i_name = f_name + Info::s_infoExtension;
 
    // Unlink file & cinfo
-   struct stat f_stat;
-   bool stat_ok = (m_oss->Stat(f_name.c_str(), &f_stat) == XrdOssOK);
    int f_ret = m_oss->Unlink(f_name.c_str());
    int i_ret = m_oss->Unlink(i_name.c_str());
 
-   if (stat_ok)
-      m_res_mon->register_file_purge(f_name, f_stat.st_blocks);
+   if (st_blocks_to_purge)
+      m_res_mon->register_file_purge(f_name, st_blocks_to_purge);
 
    TRACE(Debug, trc_pfx << f_name << ", f_ret=" << f_ret << ", i_ret=" << i_ret);
 

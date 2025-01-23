@@ -150,7 +150,7 @@ File* File::FileOpen(const std::string &path, long long offset, long long fileSi
 
 //------------------------------------------------------------------------------
 
-void File::initiate_emergency_shutdown()
+long long File::initiate_emergency_shutdown()
 {
    // Called from Cache::Unlink() when the file is currently open.
    // Cache::Unlink is also called on FSync error and when wrong number of bytes
@@ -161,22 +161,21 @@ void File::initiate_emergency_shutdown()
    //
    // File's entry in the Cache's active map is set to nullptr and will be
    // removed from there shortly, in any case, well before this File object
-   // shuts down. So we do not communicate to Cache about our destruction when
-   // it happens.
+   // shuts down. Cache::Unlink() also reports the appropriate purge event.
 
+   XrdSysCondVarHelper _lck(m_state_cond);
+
+   m_in_shutdown = true;
+
+   if (m_prefetch_state != kStopped && m_prefetch_state != kComplete)
    {
-      XrdSysCondVarHelper _lck(m_state_cond);
-
-      m_in_shutdown = true;
-
-      if (m_prefetch_state != kStopped && m_prefetch_state != kComplete)
-      {
-         m_prefetch_state = kStopped;
-         cache()->DeRegisterPrefetchFile(this);
-      }
-
-      report_and_merge_delta_stats();
+      m_prefetch_state = kStopped;
+      cache()->DeRegisterPrefetchFile(this);
    }
+
+   report_and_merge_delta_stats();
+
+   return m_st_blocks;
 }
 
 //------------------------------------------------------------------------------
