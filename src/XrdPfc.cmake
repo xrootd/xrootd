@@ -110,6 +110,7 @@ install(
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcDirStateBase.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcDirStatePurgeshot.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcStats.hh
+    ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcPathParseTools.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfc.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcFile.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcTypes.hh
