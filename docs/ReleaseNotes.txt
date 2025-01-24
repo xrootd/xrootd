@@ -6,6 +6,32 @@ Release Notes
 =============
 
 -------------
+Version 5.7.3
+-------------
+
++ **Major bug fixes**
+  **[Seckrb5]** Avoid null pointer dereference (#2385)
+  **[XrdPfc]** Fix file descriptor leak when reading file size from cinfo file (#2392)
+
++ **Minor bug fixes**
+  **[Protocol]** do_WriteSpan() - Add written bytes in file statistics (#2368)
+  **[XrdHttp]** Correct response code for PUT (from 200 to 201) (#2381)
+  **[XrdHttp]** Set oss.asize if object size is known (#2378)
+  **[XrdOfs]** Correct forward declaration of XrdSfsFSctl (#2405)
+
++ **Miscellaneous**
+  **[CI]** Drop CentOS 7 builds from GitHub and GitLab CI
+  **[CI]** Move macOS GitHub Actions workflow to macOS 15
+  **[CMake]** Force finding GTest using GTestConfig.cmake
+  **[Docker]** Add Dockerfile for Alpine Linux
+  **[Docker]** Remove Dockerfile to build on CentOS 7
+  **[Docker]** Update docker/ subdirectory setup and xrd-docker script
+  **[Misc]** Fix compilation with GCC 15 (#2411)
+  **[Tests]** Fix check for running process to prevent setup failures
+  **[XrdCl]** Improve checking of logging format strings (#2380)
+  **[XrdSciTokens]** Add tests for token-based authorization (#2381)
+
+-------------
 Version 5.7.2
 -------------
 
