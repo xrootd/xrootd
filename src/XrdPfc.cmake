@@ -107,8 +107,8 @@ install(
 install(
   FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcPurgePin.hh
-    ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcDirStateSnapshot.hh
-    ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcDirState.hh
+    ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcDirStateBase.hh
+    ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcDirStatePurgeshot.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcStats.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfc.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcFile.hh
