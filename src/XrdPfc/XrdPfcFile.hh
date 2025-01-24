@@ -22,23 +22,17 @@
 #include "XrdPfcInfo.hh"
 #include "XrdPfcStats.hh"
 
-#include "XrdCl/XrdClXRootDResponses.hh"
-
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
 #include <functional>
+#include <list>
 #include <map>
 #include <set>
 #include <string>
 
 class XrdJob;
 class XrdOucIOVec;
-
-namespace XrdCl
-{
-class Log;
-}
 
 namespace XrdPfc
 {

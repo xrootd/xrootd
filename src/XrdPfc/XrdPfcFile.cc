@@ -23,9 +23,7 @@
 #include "XrdPfcIO.hh"
 #include "XrdPfcTrace.hh"
 
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClFile.hh"
+#include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"

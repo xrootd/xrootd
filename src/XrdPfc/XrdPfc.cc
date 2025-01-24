@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <sys/statvfs.h>
 
-#include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClURL.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"

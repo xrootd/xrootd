@@ -156,34 +156,3 @@ void DataFsSnapshot::dump()
    to_json(j, *this);
    std::cout << j.dump(3) << "\n";
 }
-
-// DataFsPurgeshot
-
-int DataFsPurgeshot::find_dir_entry_from_tok(int entry, PathTokenizer &pt, int pos, int *last_existing_entry) const
-{
-   if (pos == pt.get_n_dirs())
-      return entry;
-
-   const DirPurgeElement &dpe = m_dir_vec[entry];
-   for (int i = dpe.m_daughters_begin; i != dpe.m_daughters_end; ++i)
-   {
-      if (m_dir_vec[i].m_dir_name == pt.get_dir(pos)) {
-         return find_dir_entry_from_tok(i, pt, pos + 1, last_existing_entry);
-      }
-   }
-   if (last_existing_entry)
-      *last_existing_entry = entry;
-   return -1;
-}
-
-int DataFsPurgeshot::find_dir_entry_for_dir_path(const std::string &dir_path) const
-{
-   PathTokenizer pt(dir_path, -1, false);
-   return find_dir_entry_from_tok(0, pt, 0, nullptr);
-}
-
-const DirUsage* DataFsPurgeshot::find_dir_usage_for_dir_path(const std::string &dir_path) const
-{
-   int entry = find_dir_entry_for_dir_path(dir_path);
-   return entry >= 0 ? &m_dir_vec[entry].m_usage : nullptr;
-}

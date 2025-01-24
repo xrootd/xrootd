@@ -1,6 +1,5 @@
-#include "XrdPfc.hh"
-#include "XrdPfcPurgePin.hh"
-#include "XrdPfcDirStateSnapshot.hh"
+#include "XrdPfc/XrdPfcPurgePin.hh"
+#include "XrdPfc/XrdPfcDirStatePurgeshot.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -11,9 +10,10 @@
 
 class XrdPfcPurgeQuota : public XrdPfc::PurgePin
 {
-   XrdSysError *log;
+   XrdSysError &m_log;
 public:
-   XrdPfcPurgeQuota() : log(XrdPfc::Cache::GetInstance().GetLog()) {}
+
+   XrdPfcPurgeQuota(XrdSysError &log) : m_log(log) {}
 
    //----------------------------------------------------------------------------
    //! Set directory statistics
@@ -40,7 +40,7 @@ public:
       {
          if (it->dirUsage == nullptr)
          {
-            log->Emsg("PurgeQuotaPin--GetBytesToRecover", "directory not found:", it->path.c_str());
+            m_log.Emsg("PurgeQuotaPin--GetBytesToRecover", "directory not found:", it->path.c_str());
             continue;
          }
          long long cv = 512ll * it->dirUsage->m_StBlocks - it->nBytesQuota;
@@ -63,21 +63,21 @@ public:
       // retrive configuration file name
       if (!parms || !parms[0] || (strlen(parms) == 0))
       {
-         log->Emsg("ConfigPurgePin", "Quota file not specified.");
+         m_log.Emsg("ConfigPurgePin", "Quota file not specified.");
          return false;
       }
-      log->Emsg("ConfigPurgePin", "Using directory list", parms);
+      m_log.Emsg("ConfigPurgePin", "Using directory list", parms);
 
       //  parse the file to get directory quotas
       const char *config_filename = parms;
       const char *theINS = getenv("XRDINSTANCE");
       XrdOucEnv myEnv;
-      XrdOucStream Config(log, theINS, &myEnv, "=====> PurgeQuota ");
+      XrdOucStream Config(&m_log, theINS, &myEnv, "=====> PurgeQuota ");
 
       int fd;
       if ((fd = open(config_filename, O_RDONLY, 0)) < 0)
       {
-         log->Emsg("ConfigPurgePin() can't open configuration file ", config_filename);
+         m_log.Emsg("ConfigPurgePin() can't open configuration file ", config_filename);
       }
 
       Config.Attach(fd);
@@ -92,7 +92,7 @@ public:
 
          if (!(val = Config.GetWord()))
          {
-            log->Emsg("PurgeQuota plugin", "quota not specified");
+            m_log.Emsg("PurgeQuota plugin", "quota not specified");
             continue;
          }
 
@@ -100,14 +100,14 @@ public:
          long long quota = 0;
          if (::isalpha(*(tmpc.rbegin())))
          {
-            if (XrdOuca2x::a2sz(*log, "Error getting quota", tmpc.c_str(), &quota))
+            if (XrdOuca2x::a2sz(m_log, "Error getting quota", tmpc.c_str(), &quota))
             {
                continue;
             }
          }
          else
          {
-            if (XrdOuca2x::a2ll(*log, "Error getting quota", tmpc.c_str(), &quota))
+            if (XrdOuca2x::a2ll(m_log, "Error getting quota", tmpc.c_str(), &quota))
             {
                continue;
             }
@@ -130,8 +130,8 @@ public:
 // Return a purge object to use.
 extern "C"
 {
-   XrdPfc::PurgePin *XrdPfcGetPurgePin(XrdSysError &)
+   XrdPfc::PurgePin *XrdPfcGetPurgePin(XrdSysError &log)
    {
-      return new XrdPfcPurgeQuota();
+      return new XrdPfcPurgeQuota(log);
    }
 }

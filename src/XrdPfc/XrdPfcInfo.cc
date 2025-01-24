@@ -27,8 +27,6 @@
 #include "XrdOuc/XrdOucCRC32C.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdSys/XrdSysTrace.hh"
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClConstants.hh"
 #include "XrdPfcInfo.hh"
 #include "XrdPfc.hh"
 #include "XrdPfcStats.hh"

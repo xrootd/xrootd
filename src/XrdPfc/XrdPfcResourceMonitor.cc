@@ -4,6 +4,7 @@
 #include "XrdPfcFsTraversal.hh"
 #include "XrdPfcDirState.hh"
 #include "XrdPfcDirStateSnapshot.hh"
+#include "XrdPfcDirStatePurgeshot.hh"
 #include "XrdPfcTrace.hh"
 #include "XrdPfcPurgePin.hh"
 
@@ -455,7 +456,7 @@ void ResourceMonitor::heart_beat()
          // This should dump out binary snapshot into /pfc-stats/, if so configured.
 
          // json dump to std::out for debug purpose
-         DataFsSnapshot ss(m_fs_state);
+         DataFsSnapshot ss(m_fs_state, m_fs_state.m_sshot_stats_reset_time);
          const DirState &root_ds = *m_fs_state.get_root();
          const int store_depth  =  conf.m_dirStatsStoreDepth;
          const int n_sshot_dirs = root_ds.count_dirs_to_level(store_depth);
@@ -532,7 +533,7 @@ void ResourceMonitor::fill_pshot_vec_children(const DirState &parent_ds,
 
    for (auto const & [name, child] : parent_ds.m_subdirs)
    {
-      vec.emplace_back( DirPurgeElement(child, parent_idx) );
+      vec.emplace_back( DirPurgeElement(child, child.m_here_usage, child.m_recursive_subdir_usage, parent_idx) );
    }
 
    if (parent_ds.m_depth < max_depth)
@@ -756,7 +757,7 @@ void ResourceMonitor::perform_purge_check(bool purge_cold_files, int tl)
    dprintf("purge dir count recursive=%d vs from_usage=%d\n", n_pshot_dirs, n_calc_dirs);
 #endif
    ps.m_dir_vec.reserve(n_calc_dirs);
-   ps.m_dir_vec.emplace_back( DirPurgeElement(root_ds, -1) );
+   ps.m_dir_vec.emplace_back( DirPurgeElement(root_ds, root_ds.m_here_usage, root_ds.m_recursive_subdir_usage, -1) );
    fill_pshot_vec_children(root_ds, 0, ps.m_dir_vec, 9999);
 
    m_purge_task_active = true;

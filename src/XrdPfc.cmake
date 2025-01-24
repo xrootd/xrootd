@@ -16,15 +16,17 @@ set( LIB_XRD_PURGEQUOTA  XrdPfcPurgeQuota-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 add_library(
   ${LIB_XRD_FILECACHE}
-  SHARED
+  MODULE
   XrdPfc/XrdPfcTypes.hh
   XrdPfc/XrdPfc.cc              XrdPfc/XrdPfc.hh
   XrdPfc/XrdPfcConfiguration.cc
+  XrdPfc/XrdPfcDirStateBase.hh
   XrdPfc/XrdPfcDirState.cc      XrdPfc/XrdPfcDirState.hh
   XrdPfc/XrdPfcDirStateSnapshot.cc      XrdPfc/XrdPfcDirStateSnapshot.hh
   XrdPfc/XrdPfcFPurgeState.cc   XrdPfc/XrdPfcFPurgeState.hh
   XrdPfc/XrdPfcPurge.cc
   XrdPfc/XrdPfcPurgePin.hh
+  XrdPfc/XrdPfcDirStatePurgeshot.hh
   XrdPfc/XrdPfcResourceMonitor.cc XrdPfc/XrdPfcResourceMonitor.hh
   XrdPfc/XrdPfcPathParseTools.hh
   XrdPfc/XrdPfcFsTraversal.cc   XrdPfc/XrdPfcFsTraversal.hh
@@ -41,7 +43,6 @@ add_library(
 target_link_libraries(
   ${LIB_XRD_FILECACHE}
   PRIVATE
-# XrdPosix
   XrdCl
   XrdUtils
   XrdServer
@@ -73,7 +74,6 @@ target_link_libraries(
     ${LIB_XRD_PURGEQUOTA}
     PRIVATE
     XrdUtils
-    ${LIB_XRD_FILECACHE}
     )
 
 #-------------------------------------------------------------------------------
