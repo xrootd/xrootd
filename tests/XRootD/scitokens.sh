@@ -28,6 +28,24 @@ function setup_scitokens() {
 	fi
 	chmod 0600 "$OUTPUTDIR/token"
 
+	# Create a read-only token with the redirector audience
+	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
+		"https://localhost:7095/issuer/one" storage.read:/ \
+		https://redirector.example.com:7095 > "$OUTPUTDIR/token-redir"; then
+		echo "Failed to create token"
+		exit 1
+	fi
+	chmod 0600 "$OUTPUTDIR/token-redir"
+
+	# Create a read-only token with an invalid audience
+	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
+		"https://localhost:7095/issuer/one" storage.read:/ \
+		invalid.example.com > "$OUTPUTDIR/token-invalid"; then
+		echo "Failed to create token"
+		exit 1
+	fi
+	chmod 0600 "$OUTPUTDIR/token-invalid"
+
 	# Create a create-only token
 	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
 		"https://localhost:7095/issuer/one" storage.create:/subdir > "$OUTPUTDIR/token_create"; then
@@ -126,6 +144,10 @@ function test_scitokens() {
 	execute_curl "$HOST/issuer/one/issuer.jwks" 200 "$(cat scitokens/xrootd/issuer/one/issuer.jwks)"
 	execute_curl "$HOST/protected/hello_world.txt" 403 ""
 	execute_curl "$HOST/protected/hello_world.txt" 200 "Hello, World" scitokens/token
+
+	# Check audience validity
+	execute_curl "$HOST/protected/hello_world.txt" 200 "Hello, World" scitokens/token-redir
+	execute_curl "$HOST/protected/hello_world.txt" 403 "" scitokens/token-invalid
 
 	# Downloading $HOST/protected/hello_world.txt with create-only token (expected 403)
 	execute_curl "$HOST/protected/hello_world.txt" 403 "" scitokens/token_create

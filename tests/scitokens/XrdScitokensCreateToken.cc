@@ -83,8 +83,8 @@ bool readShortFile(const std::string &fileName, std::string &contents) {
 
 
 int main(int argc, char *argv[]) {
-    if (argc != 6) {
-        std::cerr << "Usage: " << argv[0] << " issuer.pem issuer.key kid iss prefix" << std::endl;
+    if (argc != 6 && argc != 7) {
+        std::cerr << "Usage: " << argv[0] << " issuer.pem issuer.key kid iss prefix [aud]" << std::endl;
         return 1;
     }
 
@@ -128,6 +128,12 @@ int main(int argc, char *argv[]) {
     if (rv) {
         std::cerr << err_msg << std::endl;
         return 8;
+    }
+
+    // Add an optional audience to the token
+    if ((argc >= 7) && (rv = scitoken_set_claim_string(token.get(), "aud", argv[6], &err_msg))) {
+        std::cerr << err_msg << std::endl;
+        return 10;
     }
 
     scitoken_set_lifetime(token.get(), 60);

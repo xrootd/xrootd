@@ -8,6 +8,8 @@
 
 #include <string.h>
 
+class XrdSysError;
+
 /**
  * Class and function definitions for the SciTokens plugin.
  */
@@ -220,3 +222,8 @@ bool AuthorizesRequiredIssuers(Access_Operation client_oper, const std::string_v
     const std::vector<std::pair<std::unique_ptr<SubpathMatch>, std::string>> &required_issuers,
     const std::vector<std::shared_ptr<XrdAccRules>> &access_rules_list);
 
+bool
+appendWLCGAudiences(const std::vector<std::string> &hostnames, XrdOucEnv *env,
+    XrdSysError &eDest, std::vector<std::string> &audiences);
+
+void splitEntries(const std::string_view entry_string, std::vector<std::string> &entries);

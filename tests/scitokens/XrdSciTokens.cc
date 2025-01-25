@@ -1,7 +1,158 @@
 
 #include "XrdSciTokens/XrdSciTokensAccess.hh"
 
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
+
 #include <gtest/gtest.h>
+
+#include <algorithm>
+
+TEST(XrdSciTokens, appendWLCGAudiences) {
+    XrdSysLogger log;
+    XrdSysError eDest(&log, "XrdSciTokens");
+    std::vector<std::string> audiences;
+    std::vector<std::string> hostnames = {"host1", "host2"};
+    XrdOucEnv env;
+
+    // Mock the environment variables
+    char xrdHost[] = "XRDHOST=localhost";
+    putenv(xrdHost);
+    char xrdPort[] = "XRDPORT=1094";
+    putenv(xrdPort);
+    env.PutPtr("xrdEnv*", &env);
+    env.PutPtr("XrdTlsContext*", &env);
+
+    ASSERT_TRUE(appendWLCGAudiences(hostnames, &env, eDest, audiences));
+
+    EXPECT_EQ(audiences.size(), 13);
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "root://localhost") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "roots://localhost") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "https://localhost:1094") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "https://host1:1094") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "root://host1") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "roots://host1") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "https://host2:1094") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "root://host2") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "roots://host2") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "localhost") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "host1") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "host2") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "https://wlcg.cern.ch/jwt/v1/any") != audiences.end());
+}
+
+TEST(XrdSciTokens, appendWLCGAudiences_noHostnames) {
+    XrdSysLogger log;
+    XrdSysError eDest(&log, "XrdSciTokens");
+    std::vector<std::string> audiences = {"https://wlcg.cern.ch/jwt/v1/any"};
+    std::vector<std::string> hostnames;
+    XrdOucEnv env;
+
+    // Mock the environment variables
+    char xrdHost[] = "XRDHOST=localhost";
+    putenv(xrdHost);
+    char xrdPort[] = "XRDPORT=443";
+    putenv(xrdPort);
+    env.PutPtr("xrdEnv*", &env);
+    env.PutPtr("XrdTlsContext*", &env);
+
+    ASSERT_TRUE(appendWLCGAudiences(hostnames, &env, eDest, audiences));
+
+    EXPECT_EQ(audiences.size(), 5);
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "root://localhost:443") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "roots://localhost:443") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "https://localhost") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "localhost") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "https://wlcg.cern.ch/jwt/v1/any") != audiences.end());
+}
+
+TEST(XrdSciTokens, appendWLCGAudiences_noTLS) {
+    XrdSysLogger log;
+    XrdSysError eDest(&log, "XrdSciTokens");
+    std::vector<std::string> audiences = {"https://wlcg.cern.ch/jwt/v1/any"};
+    std::vector<std::string> hostnames;
+    XrdOucEnv env;
+
+    // Mock the environment variables
+    char xrdHost[] = "XRDHOST=example.com";
+    putenv(xrdHost);
+    char xrdPort[] = "XRDPORT=8443";
+    putenv(xrdPort);
+
+    ASSERT_TRUE(appendWLCGAudiences(hostnames, &env, eDest, audiences));
+
+    EXPECT_EQ(audiences.size(), 3);
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "root://example.com:8443") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "example.com") != audiences.end());
+    ASSERT_TRUE(std::find(audiences.begin(), audiences.end(), "https://wlcg.cern.ch/jwt/v1/any") != audiences.end());
+}
+
+TEST(XrdSciTokens, splitEntries) {
+    std::string_view entry_string = "entry1,entry2,entry3";
+    std::vector<std::string> entries;
+
+    splitEntries(entry_string, entries);
+
+    ASSERT_EQ(entries.size(), 3);
+    ASSERT_EQ(entries[0], "entry1");
+    ASSERT_EQ(entries[1], "entry2");
+    ASSERT_EQ(entries[2], "entry3");
+}
+
+TEST(XrdSciTokens, splitEntries_EmptyString) {
+    std::string_view entry_string = "";
+    std::vector<std::string> entries;
+
+    splitEntries(entry_string, entries);
+
+    ASSERT_EQ(entries.size(), 0);
+}
+
+TEST(XrdSciTokens, splitEntries_SingleEntry) {
+    std::string_view entry_string = "single_entry";
+    std::vector<std::string> entries;
+
+    splitEntries(entry_string, entries);
+
+    ASSERT_EQ(entries.size(), 1);
+    ASSERT_EQ(entries[0], "single_entry");
+}
+
+TEST(XrdSciTokens, splitEntries_MultipleCommas) {
+    std::string_view entry_string = "entry1,,entry2,entry3,,";
+    std::vector<std::string> entries;
+
+    splitEntries(entry_string, entries);
+
+    ASSERT_EQ(entries.size(), 3);
+    ASSERT_EQ(entries[0], "entry1");
+    ASSERT_EQ(entries[1], "entry2");
+    ASSERT_EQ(entries[2], "entry3");
+}
+
+TEST(XrdSciTokens, splitEntries_CommasSpaces) {
+    std::string_view entry_string = " entry1, entry2 entry3 ,";
+    std::vector<std::string> entries;
+
+    splitEntries(entry_string, entries);
+
+    ASSERT_EQ(entries.size(), 3);
+    ASSERT_EQ(entries[0], "entry1");
+    ASSERT_EQ(entries[1], "entry2");
+    ASSERT_EQ(entries[2], "entry3");
+}
+
+TEST(XrdSciTokens, splitEntries_DuplicateEntries) {
+    std::string_view entry_string = " entry1\tentry1 entry2";
+    std::vector<std::string> entries;
+
+    splitEntries(entry_string, entries);
+
+    ASSERT_EQ(entries.size(), 2);
+    ASSERT_EQ(entries[0], "entry1");
+    ASSERT_EQ(entries[1], "entry2");
+}
 
 TEST(XrdSciTokens, MapRule) {
   MapRule rule("subject", "user", "/prefix", "group", "result");

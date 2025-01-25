@@ -321,6 +321,112 @@ ParseTokenString(const std::string &param, XrdOucEnv *env, std::vector<std::stri
 
 } // namespace
 
+
+// Split strings in the SciTokens configuration
+//
+// Assuming ',' is not a valid character, assume the administrator
+// is allowed to have a ',' or a whitespace as a separator.
+void splitEntries(const std::string_view entry_string, std::vector<std::string> &entries) {
+    auto pos = entry_string.begin();
+    do {
+        while (pos != entry_string.end() && (*pos == ',' || isspace(*pos))) {pos++;}
+        auto next_pos = std::find_if(pos, entry_string.end(), [](unsigned char c){return c == ',' || isspace(c);});
+        auto next_entry = entry_string.substr(std::distance(entry_string.begin(), pos), std::distance(pos, next_pos));
+        pos = next_pos;
+        if (!next_entry.empty()) {
+            if (std::find(entries.begin(), entries.end(), next_entry) == entries.end()) {
+                entries.emplace_back(next_entry);
+            }
+        }
+    } while (pos != entry_string.end());
+}
+
+// Append the WLCG-style audiences that can be automatically determined.
+//
+// These include:
+// - The "any" audience (for compatibility with older scitokens libraries that do not
+//   understand it).
+// - The hostname (and any additional hostnames provided by the configuration).
+// - The hostname with various potential schemas attached.
+//
+// Returns false on failure (e.g., if the XRDHOST or XRDPORT are not set or not valid).
+bool
+appendWLCGAudiences(const std::vector<std::string> &hostnames, XrdOucEnv *env,
+    XrdSysError &eDest, std::vector<std::string> &audiences)
+{
+    auto xrdEnv = static_cast<XrdOucEnv*>(env ? env->GetPtr("xrdEnv*") : nullptr);
+    auto tlsCtx = static_cast<XrdTlsContext*>(xrdEnv ? xrdEnv->GetPtr("XrdTlsContext*") : nullptr);
+    auto hasTLS = tlsCtx != nullptr;
+
+    auto hostname = getenv("XRDHOST");
+    if (!hostname || !hostname[0]) {
+        eDest.Log(LogMask::Error, "AppendWLCGAudiences", "Internal error: XRDHOST variable not set");
+        return false;
+    }
+
+    // Guess the reasonable protocols we might support for protocol-specific
+    // audience names.
+    // This doesn't have to be exact -- little harm in being forgiving here.
+    // Note we don't include 'http' as that should never accept tokens.
+    std::vector<std::string> schemes = {"root"};
+    if (hasTLS) {
+        schemes.push_back("roots");
+        schemes.push_back("https");
+    }
+
+    auto port_char = getenv("XRDPORT");
+    if (!port_char || !port_char[0]) {
+        eDest.Log(LogMask::Error, "AppendWLCGAudiences", "Internal error: XRDPORT variable not set");
+        return false;
+    }
+    std::string port(port_char);
+    int portnum = 0;
+    size_t char_processed = 0;
+    try {
+        portnum = std::stoi(port, &char_processed);
+    } catch (std::exception &exc) {
+        eDest.Log(LogMask::Error, "AppendWLCGAudiences", "Failed to convert port to int:", exc.what());
+        return false;
+    }
+    if (char_processed != port.size()) {
+        eDest.Log(LogMask::Error, "AppendWLCGAudiences", "XRDPORT variable had unprocessed characters in it:", port_char);
+        return false;
+    }
+
+    std::set<std::string> hostname_set;
+    hostname_set.insert(hostname);
+    for (const auto &hname : hostnames) {
+        hostname_set.insert(hname);
+    }
+
+    for (const auto &hname : hostname_set) {
+        // Add the hostname directly to the audiences
+        if (std::find(audiences.begin(), audiences.end(), hname) == audiences.end()) {
+            audiences.push_back(hname);
+        }
+        for (const auto &scheme : schemes) {
+            auto aud = scheme + "://" + hname;
+            if ((scheme == "root" || scheme == "roots") && portnum != 1094) {
+                aud += ":" + port;
+            } else if (scheme == "https" && portnum != 443) {
+                aud += ":" + port;
+            }
+            if (std::find(audiences.begin(), audiences.end(), aud) == audiences.end()) {
+                audiences.push_back(aud);
+            }
+        }
+    }
+
+    // Default "ANY" audience.  Newer versions of the scitokens library accept this
+    // automatically; there's little penalty to have this to support older setups.
+    static const std::string any = "https://wlcg.cern.ch/jwt/v1/any";
+    if (std::find(audiences.begin(), audiences.end(), any) == audiences.end()) {
+        audiences.push_back(any);
+    }
+
+    return true;
+}
+
 std::string
 SubpathMatch::str() const {
     return AccessRuleStr(m_rules); // Returns a human-friendly representation of the access rules
@@ -446,6 +552,7 @@ class XrdAccSciTokens : public XrdAccAuthorize, public XrdSciTokensHelper,
 public:
     XrdAccSciTokens(XrdSysLogger *lp, const char *parms, XrdAccAuthorize* chain, XrdOucEnv *envP) :
         m_chain(chain),
+        m_env(envP),
         m_parms(parms ? parms : ""),
         m_next_clean(monotonic_time() + m_expiry_secs),
         m_log(lp, "scitokens_")
@@ -1216,16 +1323,7 @@ private:
             if (section_lower.substr(0, 6) == "global") {
                 auto audience = reader.Get(section, "audience", "");
                 if (!audience.empty()) {
-                    size_t pos = 0;
-                    do {
-                        while (audience.size() > pos && (audience[pos] == ',' || audience[pos] == ' ')) {pos++;}
-                        auto next_pos = audience.find_first_of(", ", pos);
-                        auto next_aud = audience.substr(pos, next_pos - pos);
-                        pos = next_pos;
-                        if (!next_aud.empty()) {
-                            audiences.push_back(next_aud);
-                        }
-                    } while (pos != std::string::npos);
+                    splitEntries(audience, audiences);
                 }
                 audience = reader.Get(section, "audience_json", "");
                 if (!audience.empty()) {
@@ -1246,6 +1344,19 @@ private:
                         }
                         audiences.push_back(val.get<std::string>());
                     }
+                }
+                auto hostnames_string = reader.Get(section, "wlcg_audience_hostnames", "");
+                std::vector<std::string> hostnames;
+                splitEntries(hostnames_string, hostnames);
+                auto wlcg_auto_str = reader.Get(section, "append_wlcg_audiences", "");
+                std::transform(wlcg_auto_str.begin(), wlcg_auto_str.end(), wlcg_auto_str.begin(), [](unsigned char c){return std::tolower(c);});
+                if (wlcg_auto_str == "1" || wlcg_auto_str == "on" || wlcg_auto_str == "true") {
+                    if (!appendWLCGAudiences(hostnames, m_env, m_log, audiences)) {
+                        return false;
+                    }
+                } else if (wlcg_auto_str != "0" && wlcg_auto_str != "off" && wlcg_auto_str != "false") {
+                    m_log.Log(LogMask::Error, "Reconfig", "invalid value for append_wlcg_audience (must be true or false):", wlcg_auto_str.c_str());
+                    return false;
                 }
                 auto onmissing = reader.Get(section, "onmissing", "");
                 if (onmissing == "passthrough") {
@@ -1374,6 +1485,16 @@ private:
         if (issuers.empty()) {
             m_log.Log(LogMask::Warning, "Reconfig", "No issuers configured.");
         }
+        if (audiences.empty()) {
+            m_log.Log(LogMask::Warning, "Reconfig", "No audiences configured.");
+        } else {
+            std::stringstream ss;
+            ss << "Configured audiences:";
+            for (const auto &aud : audiences) {
+                ss << " " << aud;
+            }
+            m_log.Log(LogMask::Info, "Reconfig", ss.str().c_str());
+        }
 
         pthread_rwlock_wrlock(&m_config_lock);
         try {
@@ -1424,6 +1545,7 @@ private:
     std::vector<const char *> m_audiences_array;
     std::map<std::string, std::shared_ptr<XrdAccRules>, std::less<>> m_map; // Note: std::less<> is used as the comparator to enable transparent casting from std::string_view for key lookup
     XrdAccAuthorize* m_chain;
+    XrdOucEnv* m_env{nullptr};
     const std::string m_parms;
     std::vector<const char*> m_valid_issuers_array;
     // Authorization from these issuers are required for any matching path.  The map tracks the
