@@ -63,7 +63,15 @@ using namespace XrdGlobal;
 
        XrdLinkCtl    **XrdLinkCtl::LinkTab  = 0;
        char           *XrdLinkCtl::LinkBat  = 0;
-       unsigned int    XrdLinkCtl::LinkAlloc= 0;
+       // Compute the number of link objects we should allocate at a time.
+       // Generally, we like to allocate 8k of them at a time but always
+       // as a power of two.
+       const unsigned int XrdLinkCtl::LinkAlloc = [] {
+          unsigned i = 8192 / sizeof(XrdLink);
+          unsigned j = 1;
+          while (i >>= 1) j <<= 1;
+          return j;
+       } ();
        int             XrdLinkCtl::LTLast   = -1;
        int             XrdLinkCtl::maxFD    = 0;
        XrdSysMutex     XrdLinkCtl::LTMutex;
@@ -328,15 +336,7 @@ void XrdLinkCtl::setKWT(int wkSec, int kwSec)
 
 int XrdLinkCtl::Setup(int maxfds, int idlewait)
 {
-   int numalloc;
-
-// Compute the number of link objects we should allocate at a time. Generally,
-// we like to allocate 8k of them at a time but always as a power of two.
-//
    maxFD = maxfds;
-   numalloc = 8192 / sizeof(XrdLink);
-   LinkAlloc = 1;
-   while((numalloc = numalloc/2)) LinkAlloc = LinkAlloc*2;
    TRACE(DEBUG, "Allocating " <<LinkAlloc <<" link objects at a time");
 
 // Create the link table

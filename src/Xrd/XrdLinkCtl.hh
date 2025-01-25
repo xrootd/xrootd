@@ -202,7 +202,7 @@ private:
 static XrdSysMutex   LTMutex;    // For the LinkTab only LTMutex->IOMutex allowed
 static XrdLinkCtl  **LinkTab;
 static char         *LinkBat;
-static unsigned int  LinkAlloc;
+static const unsigned int LinkAlloc;
 static int           LTLast;
 static int           maxFD;
 static const char   *TraceID;
