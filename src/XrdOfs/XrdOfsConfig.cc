@@ -299,7 +299,9 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // the cache-specific FSctl() operation. We check if a plugin was provided.
 //
    if (ossFeatures & XRDOSS_HASCACH)
-      FSctl_PC = (XrdOfsFSctl_PI*)EnvInfo->GetPtr("XrdFSCtl_PC*");
+      {FSctl_PC = (XrdOfsFSctl_PI*)EnvInfo->GetPtr("XrdFSCtl_PC*");
+       if (xrdEnv && FSctl_PC) xrdEnv->PutPtr("XrdFSCtl_PC*", FSctl_PC);
+      }
 
 // Configure third party copy phase 2, but only if we are not a manager.
 //
