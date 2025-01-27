@@ -112,7 +112,7 @@ jobs:
   alma10beta:
     name: Alma Linux 10 (beta)
     runs-on: ubuntu-latest
-    container: almalinux:9
+    container: almalinux:10-kitten
 
     steps:
     - name: Install git
