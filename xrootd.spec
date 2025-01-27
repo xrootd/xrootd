@@ -55,6 +55,7 @@ BuildRequires:	cmake
 BuildRequires:	gcc-c++
 %endif
 BuildRequires:	gdb
+BuildRequires:	which
 BuildRequires:	make
 BuildRequires:	pkgconfig
 BuildRequires:	fuse-devel
