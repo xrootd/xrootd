@@ -235,11 +235,13 @@ jobs:
 
   ubuntu:
     name: Ubuntu
-    runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        compiler: [ gcc, clang ]
+        os: [ '24.04', '24.04-arm' ]
+        compiler: [ 'gcc', 'clang' ]
+
+    runs-on: ubuntu-${{ matrix.os }}
 
     env:
       CC: ${{ matrix.compiler }}
