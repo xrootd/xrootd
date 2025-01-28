@@ -98,7 +98,7 @@ void FPurgeState::ProcessDirAndRecurse(FsTraversal &fst)
          continue;
       }
 
-      time_t atime = it->second.stat_cinfo.st_mtim.tv_sec;
+      time_t atime = it->second.stat_cinfo.st_mtime;
       CheckFile(fst, i_name.c_str(), atime, it->second.stat_data);
 
       // Protected top-directories are skipped.
