@@ -355,7 +355,7 @@ void ResourceMonitor::heart_beat()
 
    const int s_queue_proc_interval   = 10;
    // const s_stats_up_prop_interval = 60; -- for when we have dedicated purge / stat report structs
-   const int s_sshot_report_interval = 60; // to be bumped (300s?) or made configurable.
+   const int s_sshot_report_interval = conf.m_dirStatsInterval; // must be 1m 5m 10m 15m
    const int s_purge_check_interval  = 60;
    const int s_purge_report_interval = conf.m_purgeInterval;
    const int s_purge_cold_files_interval = conf.m_purgeInterval * conf.m_purgeAgeBasedPeriod;
@@ -364,7 +364,7 @@ void ResourceMonitor::heart_beat()
 
    time_t now = time(0);
    time_t next_queue_proc_time       = now + s_queue_proc_interval;
-   time_t next_sshot_report_time     = now + s_sshot_report_interval;
+   time_t next_sshot_report_time     = now + s_purge_check_interval; // first stat dump is not realted to config
    time_t next_purge_check_time      = now + s_purge_check_interval;
    time_t next_purge_report_time     = now + s_purge_report_interval;
    time_t next_purge_cold_files_time = now + s_purge_cold_files_interval;
@@ -451,7 +451,7 @@ void ResourceMonitor::heart_beat()
       if (do_sshot_report)
       {
          // Keep this one equidistant. Ideally, eventually, align it to, say, full 5-minutes.
-         next_sshot_report_time += s_sshot_report_interval;
+         next_sshot_report_time = (time(0)/s_sshot_report_interval) * s_sshot_report_interval + s_sshot_report_interval;
 
          // This should dump out binary snapshot into /pfc-stats/, if so configured.
 

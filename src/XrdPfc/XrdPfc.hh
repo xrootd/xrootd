@@ -101,6 +101,7 @@ struct Configuration
 
    std::set<std::string> m_dirStatsDirs;     //!< directories for which stat reporting was requested
    std::set<std::string> m_dirStatsDirGlobs; //!< directory globs for which stat reporting was requested
+   int       m_dirStatsInterval;        //!< time between resource monitor statistics dump in seconds
    int       m_dirStatsMaxDepth;        //!< maximum depth for statistics write out
    int       m_dirStatsStoreDepth;      //!< depth to which statistics should be collected
 

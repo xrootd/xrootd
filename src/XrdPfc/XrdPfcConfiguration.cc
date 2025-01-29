@@ -45,6 +45,7 @@ Configuration::Configuration() :
    m_purgeColdFilesAge(-1),
    m_purgeAgeBasedPeriod(10),
    m_accHistorySize(20),
+   m_dirStatsInterval(1500),
    m_dirStatsMaxDepth(-1),
    m_dirStatsStoreDepth(0),
    m_bufferSize(128*1024),
@@ -674,8 +675,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       if (m_configuration.is_dir_stat_reporting_on())
       {
          loff += snprintf(buff + loff, sizeof(buff) - loff,
-                          "       pfc.dirstats maxdepth %d ((internal: store_depth %d, size_of_dirlist %d, size_of_globlist %d))\n",
-                          m_configuration.m_dirStatsMaxDepth, m_configuration.m_dirStatsStoreDepth,
+                          "       pfc.dirstats interval %d maxdepth %d ((internal: store_depth %d, size_of_dirlist %d, size_of_globlist %d))\n",
+                          m_configuration.m_dirStatsInterval, m_configuration.m_dirStatsMaxDepth, m_configuration.m_dirStatsStoreDepth,
                           (int) m_configuration.m_dirStatsDirs.size(), (int) m_configuration.m_dirStatsDirGlobs.size());
          loff += snprintf(buff + loff, sizeof(buff) - loff, "           dirlist:\n");
          for (std::set<std::string>::iterator i = m_configuration.m_dirStatsDirs.begin(); i != m_configuration.m_dirStatsDirs.end(); ++i)
@@ -834,7 +835,32 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       const char *p = 0;
       while ((p = cwg.GetWord()) && cwg.HasLast())
       {
-         if (strcmp(p, "maxdepth") == 0)
+         if (strcmp(p, "interval") == 0)
+         {
+            if (XrdOuca2x::a2i(m_log, "Error getting dirstsat interval", cwg.GetWord(), &m_configuration.m_dirStatsInterval, 0, 7 * 24 * 3600))
+            {
+               return false;
+            }
+            int validIntervals[] = {60, 300, 600, 900, 1800, 3600};
+            int size = sizeof(validIntervals) / sizeof(validIntervals[0]);
+            bool match = false;
+            std::string vvl;
+            for (int i = 0; i < size; i++) {
+              if (validIntervals[i] == m_configuration.m_dirStatsInterval) {
+                 match = true;
+                 break;
+              }
+              vvl += std::to_string(validIntervals[i]);
+              if ((i+1) != size) vvl += ", ";
+            }
+
+            if (!match) {
+                m_log.Emsg("Config", "Error: Dirstat interval is not valid. Possible interval values are ", vvl.c_str());
+                return false;
+            }
+
+         }
+         else if (strcmp(p, "maxdepth") == 0)
          {
             if (XrdOuca2x::a2i(m_log, "Error getting maxdepth value", cwg.GetWord(), &m_configuration.m_dirStatsMaxDepth, 0, 16))
             {
