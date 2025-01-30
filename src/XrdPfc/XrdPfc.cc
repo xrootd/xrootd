@@ -1014,7 +1014,13 @@ int Cache::ConsiderCached(const char *curl)
       auto it = m_active.find(f_name);
       if (it != m_active.end()) {
          file = it->second;
-         inc_ref_cnt(file, false, false);
+         // If the file-open is in progress, `file` is a nullptr
+         // so we cannot increase the reference count.  For now,
+         // simply treat it as if the file open doesn't exist instead
+         // of trying to wait and see if it succeeds.
+         if (file) {
+            inc_ref_cnt(file, false, false);
+         }
       }
    }
    if (file) {
@@ -1123,7 +1129,12 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
       auto it = m_active.find(f_name);
       if (it != m_active.end()) {
          file = it->second;
-         inc_ref_cnt(file, false, false);
+         // If `file` is nullptr, the file-open is in progress; instead
+         // of waiting for the file-open to finish, simply treat it as if
+         // the file-open doesn't exist.
+         if (file) {
+            inc_ref_cnt(file, false, false);
+         }
       }
    }
    if (file) {
