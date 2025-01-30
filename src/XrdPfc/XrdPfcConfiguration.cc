@@ -842,7 +842,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
                return false;
             }
             int validIntervals[] = {60, 300, 600, 900, 1800, 3600};
-            int size = sizeof(validIntervals) / sizeof(validIntervals[0]);
+            int size = sizeof(validIntervals) / sizeof(int);
             bool match = false;
             std::string vvl;
             for (int i = 0; i < size; i++) {

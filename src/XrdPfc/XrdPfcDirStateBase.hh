@@ -67,7 +67,6 @@ struct DirStateBase
 struct DataFsStateBase
 {
    time_t    m_usage_update_time = 0;
-   time_t    m_stats_reset_time = 0;
 
    long long m_disk_total = 0; // In bytes, from Oss::StatVS() on space data
    long long m_disk_used  = 0; // ""

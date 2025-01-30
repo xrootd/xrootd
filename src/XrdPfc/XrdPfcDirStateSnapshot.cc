@@ -40,7 +40,7 @@ PFC_DEFINE_TYPE_NON_INTRUSIVE(DirStateElement,
    m_dir_name, m_stats, m_usage,
    m_parent, m_daughters_begin, m_daughters_end)
 PFC_DEFINE_TYPE_NON_INTRUSIVE(DataFsSnapshot, 
-   m_sshot_stats_reset_time, m_usage_update_time, m_stats_reset_time, m_disk_total, m_disk_used, m_file_usage, m_meta_total, m_meta_used,
+   m_sshot_stats_reset_time, m_usage_update_time, m_disk_total, m_disk_used, m_file_usage, m_meta_total, m_meta_used,
    m_dir_states)
 }
 /*

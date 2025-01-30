@@ -118,10 +118,13 @@ struct DirState : public DirStateBase
 struct DataFsState : public DataFsStateBase
 {
    DirState        m_root;
+   time_t          m_stats_reset_time = 0;
    time_t          m_sshot_stats_reset_time = 0;
    // time_t          m_purge_stats_reset_time = 0;
 
    DataFsState() : m_root() {}
+
+   void init_stat_reset_times(time_t t) { m_stats_reset_time = m_sshot_stats_reset_time = t; }
 
    DirState* get_root() { return & m_root; }
 
