@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
-  
+
 // These OS-Compatible (not C++) externs are included by XrdPosix.hh to
 // complete the macro definitions contained therein.
 
@@ -115,7 +115,7 @@ extern size_t     XrdPosix_Fread(void *ptr, size_t size, size_t nitems, FILE *st
 
 extern int        XrdPosix_Fseek(FILE *stream, long offset, int whence);
 
-extern int        XrdPosix_Fseeko(FILE *stream, long long offset, int whence);
+extern int        XrdPosix_Fseeko(FILE *stream, off64_t offset, int whence);
 
 extern int        XrdPosix_Fstat(int fildes, struct stat *buf);
 
@@ -127,21 +127,21 @@ extern int        XrdPosix_Fsync(int fildes);
 
 extern long       XrdPosix_Ftell(FILE *stream);
 
-extern long long  XrdPosix_Ftello(FILE *stream);
+extern off64_t  XrdPosix_Ftello(FILE *stream);
 
-extern int        XrdPosix_Ftruncate(int fildes, long long offset);
+extern int        XrdPosix_Ftruncate(int fildes, off64_t offset);
 
 extern size_t     XrdPosix_Fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream);
 
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
-extern long long  XrdPosix_Getxattr (const char *path, const char *name, 
+extern off64_t  XrdPosix_Getxattr (const char *path, const char *name,
                                      void *value, unsigned long long size);
 
-extern long long  XrdPosix_Lgetxattr(const char *path, const char *name, 
+extern off64_t  XrdPosix_Lgetxattr(const char *path, const char *name,
                                      void *value, unsigned long long size);
 #endif
 
-extern long long  XrdPosix_Lseek(int fildes, long long offset, int whence);
+extern off64_t  XrdPosix_Lseek(int fildes, off64_t offset, int whence);
 
 extern int        XrdPosix_Lstat(const char *path, struct stat *buf);
 
@@ -150,14 +150,14 @@ extern int        XrdPosix_Mkdir(const char *path, mode_t mode);
 extern int        XrdPosix_Open(const char *path, int oflag, ...);
 
 extern DIR*       XrdPosix_Opendir(const char *path);
-  
+
 extern long       XrdPosix_Pathconf(const char *path, int name);
 
-extern long long  XrdPosix_Pread(int fildes, void *buf, unsigned long long nbyte,
-                                 long long offset);
+extern ssize_t  XrdPosix_Pread(int fildes, void *buf, size_t nbyte,
+                                 off64_t offset);
 
-extern long long  XrdPosix_Read(int fildes, void *buf, unsigned long long nbyte);
-  
+extern ssize_t  XrdPosix_Read(int fildes, void *buf, size_t nbyte);
+
 extern long long  XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt);
 
 extern struct dirent*   XrdPosix_Readdir  (DIR *dirp);
@@ -182,19 +182,19 @@ extern int        XrdPosix_Statfs(const char *path, struct statfs *buf);
 
 extern int        XrdPosix_Statvfs(const char *path, struct statvfs *buf);
 
-extern long long  XrdPosix_Pwrite(int fildes, const void *buf, 
-                                  unsigned long long nbyte, long long offset);
+extern ssize_t  XrdPosix_Pwrite(int fildes, const void *buf,
+                                  size_t nbyte, off64_t offset);
 
 extern long       XrdPosix_Telldir(DIR *dirp);
 
-extern int        XrdPosix_Truncate(const char *path, long long offset);
+extern int        XrdPosix_Truncate(const char *path, off64_t offset);
 
 extern int        XrdPosix_Unlink(const char *path);
 
-extern long long  XrdPosix_Write(int fildes, const void *buf,
-                                 unsigned long long nbyte);
+extern ssize_t  XrdPosix_Write(int fildes, const void *buf,
+                                 size_t nbyte);
 
-extern long long  XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt);
+extern ssize_t  XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt);
 
 #ifdef __cplusplus
 };
