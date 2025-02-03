@@ -69,7 +69,11 @@ struct statfs;
 struct statvfs;
 
 #include <dirent.h>
+#ifdef __cplusplus
 #include <cstdio>
+#else
+#include <stdio.h>
+#endif
 #include <unistd.h>
 #include <sys/types.h>
 
