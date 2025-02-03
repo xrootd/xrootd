@@ -36,6 +36,11 @@
 // to accomplish this. So, redefinition is the most portable way of doing this.
 //
 
+// First define the external interfaces (not C++ but OS compatabile)
+#include <dirent.h>
+#include "XrdPosixExtern.hh"
+
+// Then redefine them
 #define access(a,b)      XrdPosix_Access(a,b)
 
 #define chdir(a)         XrdPosix_Chdir(a)
@@ -110,9 +115,5 @@
 #define write(a,b,c)     XrdPosix_Write(a,b,c)
 
 #define writev(a,b,c)    XrdPosix_Writev(a,b,c)
-
-// Now define the external interfaces (not C++ but OS compatabile)
-//
-#include "XrdPosix/XrdPosixExtern.hh"
 
 #endif
