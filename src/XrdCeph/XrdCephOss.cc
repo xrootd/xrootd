@@ -162,6 +162,8 @@ XrdCephOss::~XrdCephOss() {
 // declared and used in XrdCephPosix.cc
 extern unsigned int g_maxCephPoolIdx;
 extern unsigned int g_cephAioWaitThresh;
+extern bool g_useAdler32;
+extern bool g_useCRC32;
 
 int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
    int NoGo = 0;
@@ -359,9 +361,15 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
            m_configPoolnames = var;
          } else {
            Eroute.Emsg("Config", "Missing value for ceph.reportingpools in config file", configfn);
-           return 1; 
+           return 1;
          }
-       }       
+       }
+       if (!strcmp(var, "ceph.useadler32")) {
+         g_useAdler32 = true;
+       } // useadler32
+       if (!strcmp(var, "ceph.usecrc32")) {
+         g_useCRC32 = true;
+       } // usecrc32
      }
      // Now check if any errors occured during file i/o
      int retc = Config.LastError();

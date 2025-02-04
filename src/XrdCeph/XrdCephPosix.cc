@@ -54,7 +54,38 @@
 #include "XrdCeph/XrdCephPosix.hh"
 #include "XrdCeph/XrdCephBulkAioRead.hh"
 #include "XrdSfs/XrdSfsFlags.hh" // for the OFFLINE flag status 
+#include "XrdCks/XrdCksData.hh"
 
+#include <XrdCks/XrdCksAssist.hh>
+
+using namespace std;
+
+int setXrdCksAttr(const int fd, const char* cstype, const char* ckSumbuf) {
+
+      int rc = -1;
+
+      std::vector<char> attrData = XrdCksAttrData(cstype, ckSumbuf, time(0));
+
+      rc = ceph_posix_fsetxattr(fd, XrdCksAttrName(cstype).c_str(),
+      attrData.data(), attrData.size(), 0);
+
+      return rc;
+}
+
+
+std::vector<char> checksumData(const char* algName, const int algLen, const char* ckBuf) {
+
+  XrdCksData xd;
+  xd.Set(algName);
+  xd.Set(ckBuf, algLen);
+  xd.fmTime = time(0);
+  xd.csTime = xd.fmTime;
+
+  auto attrData = std::vector<char>( (char *)&xd, ((char *)&xd)+sizeof(xd));
+
+  return attrData;
+
+}
 
 /// small struct for directory listing
 struct DirIterator {
@@ -110,6 +141,10 @@ XrdSysMutex g_init_mutex;
 
 //JW Counter for number of times a given cluster is resolved.
 std::map<unsigned int, unsigned long long> g_idxCntr;
+
+//IJJ: Falg whether to calculate Adler32 checksum
+bool g_useAdler32;
+bool g_useCRC32;
 
 /// Accessor to next ceph pool index
 /// Note that this is not thread safe, but we do not care
@@ -750,6 +785,9 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
       }
     }
     // At this point, we know either the target file didn't exist, or the ceph_posix_unlink above removed it
+    if (g_useAdler32) {
+      fr.adler32 = adler32(0L, Z_NULL, 0);
+    }
     int fd = insertFileRef(fr);
     logwrapper((char*)"File descriptor %d associated to file %s opened in write mode", fd, pathname);
     return fd;
@@ -778,6 +816,20 @@ int ceph_posix_close(int fd) {
                fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesAsyncWritePending,
                fr->asyncRdCompletionCount, fr->asyncRdStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
                fr->longestAsyncWriteTime, fr->longestCallbackInvocation, (lastAsyncAge));
+    if (g_useAdler32) {
+      char ckBuf[8+1];
+
+      snprintf(ckBuf, 8+1, "%08lx", fr->adler32);
+      ckBuf[8] = '\0';
+      logwrapper((char*)"ceph_close: Adler32 checksum = %s", ckBuf);
+
+      int rc = setXrdCksAttr(fd, "adler32", (const char*)ckBuf);
+
+      if (rc != 0) {
+         logwrapper((char*)"ceph_close: Can't set attribute XrdCks.adler32 for checksum");
+      }
+
+    }
     deleteFileRef(fd, *fr);
     return 0;
   } else {
@@ -839,6 +891,9 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
     fr->wrcount++;
     fr->bytesWritten+=count;
     if (fr->offset) fr->maxOffsetWritten = std::max(fr->offset - 1, fr->maxOffsetWritten);
+    if (g_useAdler32) {
+      fr->adler32 = adler32(fr->adler32, (const Bytef*)buf, count);
+    }
     return count;
   } else {
     return -EBADF;
@@ -849,7 +904,8 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
     // TODO implement proper logging level for this plugin - this should be only debug
-    //logwrapper((char*)"ceph_write: for fd %d, count=%d", fd, count);
+    //logwrapper((char*)"ceph_posix_pwrite: for fd %d, count=%d", fd, count);
+
     if ((fr->flags & (O_WRONLY|O_RDWR)) == 0) {
       return -EBADF;
     }
@@ -865,6 +921,9 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     fr->wrcount++;
     fr->bytesWritten+=count;
     if (offset + count) fr->maxOffsetWritten = std::max(offset + count - 1, fr->maxOffsetWritten);
+    if (g_useAdler32) {
+      fr->adler32 = adler32(fr->adler32, (const Bytef*)buf, count); 
+    }
     return count;
   } else {
     return -EBADF;
@@ -909,7 +968,7 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
     const char *buf = (const char*)aiop->sfsAio.aio_buf;
     size_t offset = aiop->sfsAio.aio_offset;
     // TODO implement proper logging level for this plugin - this should be only debug
-    //logwrapper((char*)"ceph_aio_write: for fd %d, count=%d", fd, count);
+    logwrapper((char*)"ceph_aio_write: for fd %d, count=%d", fd, count);
     if ((fr->flags & (O_WRONLY|O_RDWR)) == 0) {
       return -EBADF;
     }
@@ -939,6 +998,9 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
     fr->asyncWrStartCount++;
     ::gettimeofday(&fr->lastAsyncSubmission, nullptr);
     fr->bytesAsyncWritePending+=count;
+    if (g_useAdler32) {
+      fr->adler32 = adler32(fr->adler32, (const Bytef*)buf, count);
+    }
     return rc;
   } else {
     return -EBADF;
