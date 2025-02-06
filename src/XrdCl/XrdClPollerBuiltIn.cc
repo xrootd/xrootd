@@ -396,8 +396,8 @@ namespace XrdCl
         return true;
       helper->readTimeout = timeout;
 
-      log->Dump( PollerMsg, "%s Enable read notifications, timeout: %d",
-                            socket->GetName().c_str(), timeout );
+      log->Dump( PollerMsg, "%s Enable read notifications, timeout: %lld",
+                            socket->GetName().c_str(), (long long)timeout );
 
       if( poller )
       {
@@ -482,8 +482,8 @@ namespace XrdCl
 
       helper->writeTimeout = timeout;
 
-      log->Dump( PollerMsg, "%s Enable write notifications, timeout: %d",
-                            socket->GetName().c_str(), timeout );
+      log->Dump( PollerMsg, "%s Enable write notifications, timeout: %lld",
+                            socket->GetName().c_str(), (long long)timeout );
 
       if( poller )
       {
