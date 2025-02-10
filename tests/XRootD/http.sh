@@ -38,6 +38,7 @@ function test_http() {
 	for i in $FILES; do
 		assert davix-put "${TMPDIR}/${i}.ref" "${HOST}/${TMPDIR}/${i}.ref"
 	done
+	assert davix-put "${TMPDIR}/${i}.ref" "${HOST}/${TMPDIR}/testlistings/01.ref"
 
 	# list uploaded files, then download them to check for corruption
 
@@ -148,4 +149,10 @@ function test_http() {
   receivedDigest=$(grep -i "Digest" "$outputFilePath")
   assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (digest not supported)"
 	wait
+
+  ## Generated HTML has appropriate trailing slashes for directories
+  HTTP_CODE=$(curl --output "$outputFilePath" -v -L --write-out '%{http_code}' "${HOST}/${TMPDIR}")
+  assert_eq 200 "$HTTP_CODE"
+  HTTP_CONTENTS=$(curl -v -L "${HOST}/${TMPDIR}" | tr '"' '\n' | tr '<' '\n' | tr '>' '\n' | grep testlistings/ | wc -l | tr -d ' ')
+  assert_eq 2 "$HTTP_CONTENTS"
 }

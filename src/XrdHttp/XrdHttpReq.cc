@@ -1936,14 +1936,12 @@ XrdHttpReq::PostProcessListing(bool final_) {
 
           free(estr);
         }
-
-        char *estr = escapeXML(e.path.c_str());
-
-        p += e.path + "\">";
-        p += e.path;
-
-        free(estr);
-
+        std::unique_ptr<char, decltype(&free)> estr(escapeXML(e.path.c_str()), &free);
+        p += estr.get();
+        if (e.flags & kXR_isDir) p += "/";
+        p += "\">";
+        p += estr.get();
+        if (e.flags & kXR_isDir) p += "/";
         p += "</a></td></tr>";
 
         stringresp += p;
