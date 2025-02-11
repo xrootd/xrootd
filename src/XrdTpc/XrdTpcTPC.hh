@@ -48,7 +48,7 @@ public:
     virtual int ProcessReq(XrdHttpExtReq &req);
     // Abstract method in the base class, but does not seem to be used
     virtual int Init(const char *cfgfile) {return 0;}
-
+    static constexpr std::string_view OSS_TASK_OPAQUE = "oss.task=httptpc";
 private:
 
     static int sockopt_callback(void * clientp, curl_socket_t curlfd, curlsocktype purpose);
@@ -139,7 +139,6 @@ private:
 
     std::string generateClientErr(std::stringstream &err_ss, const TPCLogRecord &rec, CURLcode cCode = CURLcode::CURLE_OK);
 
-    std::string prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque);
     std::string prepareURL(XrdHttpExtReq &req);
 
     static int m_marker_period;

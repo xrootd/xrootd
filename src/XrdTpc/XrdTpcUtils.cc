@@ -20,13 +20,16 @@
 //------------------------------------------------------------------------------
 #include "XrdTpcUtils.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
+#include "XrdTpc/XrdTpcTPC.hh"
 
 #include <sstream>
 
-std::string XrdTpcUtils::prepareOpenURL(const std::string & reqResource, std::map<std::string,std::string> & reqHeaders, const std::map<std::string,std::string> & hdr2cgimap, bool & hasSetOpaque) {
+std::string XrdTpcUtils::prepareOpenURL(const std::string & reqResource, std::map<std::string,std::string> & reqHeaders, const std::map<std::string,std::string> & hdr2cgimap) {
   auto iter = XrdOucTUtils::caseInsensitiveFind(reqHeaders,"xrd-http-query");
-  bool found_first_header = false;
   std::stringstream opaque;
+
+  // https://github.com/xrootd/xrootd/issues/2427 we tell the oss layer that this transfer is a HTTP TPC one
+  opaque << "?" << TPC::TPCHandler::OSS_TASK_OPAQUE;
 
   if (iter != reqHeaders.end() && !iter->second.empty()) {
     std::string token;
@@ -41,8 +44,7 @@ std::string XrdTpcUtils::prepareOpenURL(const std::string & reqResource, std::ma
           has_authz_header = true;
         }
       } else {
-        opaque << (found_first_header ? "&" : "?") << token;
-        found_first_header = true;
+        opaque << "&" << token;
       }
     }
   }
@@ -53,10 +55,9 @@ std::string XrdTpcUtils::prepareOpenURL(const std::string & reqResource, std::ma
       return !strcasecmp(elt.first.c_str(),hdr2cgi.first.c_str());
     });
     if(it != reqHeaders.end()) {
-      opaque << (found_first_header ? "&" : "?") << hdr2cgi.second << "=" << it->second;
-      found_first_header = true;
+      opaque << "&" << hdr2cgi.second << "=" << it->second;
     }
   }
-  hasSetOpaque = found_first_header;
+
   return reqResource + opaque.str();
 }

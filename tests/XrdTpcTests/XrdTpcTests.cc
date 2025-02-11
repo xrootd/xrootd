@@ -1,6 +1,7 @@
 #undef NDEBUG
 
 #include "XrdTpc/XrdTpcUtils.hh"
+#include "XrdTpc/XrdTpcTPC.hh"
 #include <exception>
 #include <gtest/gtest.h>
 #include <string>
@@ -15,11 +16,9 @@ TEST(XrdTpcTests, prepareOpenURLTest) {
     // Nothing to set in the openURL
     std::map<std::string, std::string> headers {{"Test","Test"}};
     std::map<std::string, std::string> hdr2cgi {};
-    bool hasSetOpaque;
-    auto openURL = XrdTpcUtils::prepareOpenURL(resource,headers,hdr2cgi,hasSetOpaque);
+    auto openURL = XrdTpcUtils::prepareOpenURL(resource,headers,hdr2cgi);
 
-    ASSERT_EQ(resource,openURL);
-    ASSERT_FALSE(hasSetOpaque);
+    ASSERT_EQ(resource + "?" + TPC::TPCHandler::OSS_TASK_OPAQUE.data(),openURL);
   }
 
   {
@@ -28,14 +27,13 @@ TEST(XrdTpcTests, prepareOpenURLTest) {
     // the open URL
     std::map<std::string, std::string> headers {{"xrd-http-query","authz=test&scitag.flow=144"}};
     std::map<std::string, std::string> hdr2cgi {};
-    bool hasSetOpaque = false;
-    auto openURL = XrdTpcUtils::prepareOpenURL(resource,headers,hdr2cgi,hasSetOpaque);
+    auto openURL = XrdTpcUtils::prepareOpenURL(resource,headers,hdr2cgi);
 
     ASSERT_NE(resource,openURL);
-    ASSERT_TRUE(hasSetOpaque);
     ASSERT_TRUE(headers.find("Authorization") != headers.end());
-    ASSERT_TRUE(openURL.find("authz") == std::string::npos);
-    ASSERT_TRUE(openURL.find("scitag.flow") != std::string::npos);
+    ASSERT_TRUE(openURL.find("&authz") == std::string::npos);
+    ASSERT_TRUE(openURL.find("&scitag.flow") != std::string::npos);
+    ASSERT_TRUE(openURL.find(std::string("?") + TPC::TPCHandler::OSS_TASK_OPAQUE.data()) != std::string::npos);
   }
 
   {
@@ -43,13 +41,11 @@ TEST(XrdTpcTests, prepareOpenURLTest) {
     // and if the the authorization header is provided, we should not override the provided authorization header
     std::map<std::string, std::string> headers {{"xrd-http-query","authz=test&scitag.flow=144"},{"Authorization","abcd"}};
     std::map<std::string, std::string> hdr2cgi {};
-    bool hasSetOpaque = false;
-    auto openURL = XrdTpcUtils::prepareOpenURL(resource,headers,hdr2cgi,hasSetOpaque);
+    auto openURL = XrdTpcUtils::prepareOpenURL(resource,headers,hdr2cgi);
 
     ASSERT_NE(resource,openURL);
-    ASSERT_TRUE(hasSetOpaque);
-    ASSERT_TRUE(openURL.find("authz") == std::string::npos);
-    ASSERT_TRUE(openURL.find("scitag.flow") != std::string::npos);
+    ASSERT_TRUE(openURL.find("&authz") == std::string::npos);
+    ASSERT_TRUE(openURL.find("&scitag.flow") != std::string::npos);
     ASSERT_EQ("abcd",headers["Authorization"]);
   }
 
@@ -57,13 +53,12 @@ TEST(XrdTpcTests, prepareOpenURLTest) {
     // Some hdr2cgi has been configured, we should find them in the opaque of the openURL
     std::map<std::string, std::string> headers {{"xrd-http-query","authz=test&test1=test2"},{"Scitag","144"},{"lowercase_header","test1"} };
     std::map<std::string, std::string> hdr2cgi {{"SciTag","scitag.flow"},{"LOWERCASE_HEADER","lowercase"}};
-    bool hasSetOpaque = false;
-    auto openURL = XrdTpcUtils::prepareOpenURL(resource,headers,hdr2cgi,hasSetOpaque);
+    auto openURL = XrdTpcUtils::prepareOpenURL(resource,headers,hdr2cgi);
 
-    ASSERT_TRUE(hasSetOpaque);
-    ASSERT_TRUE(openURL.find("test1=test2") != std::string::npos);
-    ASSERT_TRUE(openURL.find("scitag.flow=144") != std::string::npos);
-    ASSERT_TRUE(openURL.find("lowercase=test1") != std::string::npos);
+    ASSERT_TRUE(openURL.find("&test1=test2") != std::string::npos);
+    ASSERT_TRUE(openURL.find("&scitag.flow=144") != std::string::npos);
+    ASSERT_TRUE(openURL.find("&lowercase=test1") != std::string::npos);
+    ASSERT_TRUE(openURL.find(std::string("?") + TPC::TPCHandler::OSS_TASK_OPAQUE.data()) != std::string::npos);
   }
 
 }
