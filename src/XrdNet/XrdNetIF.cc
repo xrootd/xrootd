@@ -190,7 +190,6 @@ void XrdNetIF::Display(const char *pfx)
 bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src)
 {
    static const int noPort  = XrdNetAddr::noPort;
-   static const int old6M4  = XrdNetAddr::noPort | XrdNetAddr::old6Map4;
    int n;
 
 // If this is an IPV4 address, then format as it
@@ -200,7 +199,7 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src)
       {if (!(ifTab.hALen = src->Format(ifTab.hAddr,  sizeof(ifTab.hAddr),
                                 XrdNetAddr::fmtAddr, noPort))
        ||  !(ifTab.hDLen = src->Format(ifTab.hDest,  sizeof(ifTab.hDest),
-                                XrdNetAddr::fmtAdv6, old6M4))) return false;
+                                XrdNetAddr::fmtAdv6, noPort))) return false;
        return true;
       }
 
@@ -215,7 +214,7 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src)
        n = strlen(Colon+1);
        memmove(ifTab.hAddr,Colon+1,n); ifTab.hAddr[n-1] = 0; ifTab.hALen = n-1;
        if (!(ifTab.hDLen = src->Format(ifTab.hDest, sizeof(ifTab.hDest),
-                                XrdNetAddr::fmtAdv6, old6M4))) return false;
+                                XrdNetAddr::fmtAdv6, noPort))) return false;
        return true;
       }
 

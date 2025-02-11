@@ -7,6 +7,8 @@ function setup_scitokens() {
 	ln -sf "$PWD/../issuer/export" scitokens/xrootd/issuer
 	mkdir -p scitokens/xrootd/protected
 	echo 'Hello, World' > scitokens/xrootd/protected/hello_world.txt
+	mkdir -p "$PWD/scitokens/xrootd/dual"
+	echo 'Hello, World' > "$PWD/scitokens/xrootd/dual/hello_world.txt"
 
 	# Override the scitoken cache location; otherwise, contents of prior test runs may be cached
 	XDG_CACHE_HOME="${NAME}/cache"
@@ -26,6 +28,24 @@ function setup_scitokens() {
 	fi
 	chmod 0600 "$OUTPUTDIR/token"
 
+	# Create a read-only token with the redirector audience
+	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
+		"https://localhost:7095/issuer/one" storage.read:/ \
+		https://redirector.example.com:7095 > "$OUTPUTDIR/token-redir"; then
+		echo "Failed to create token"
+		exit 1
+	fi
+	chmod 0600 "$OUTPUTDIR/token-redir"
+
+	# Create a read-only token with an invalid audience
+	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
+		"https://localhost:7095/issuer/one" storage.read:/ \
+		invalid.example.com > "$OUTPUTDIR/token-invalid"; then
+		echo "Failed to create token"
+		exit 1
+	fi
+	chmod 0600 "$OUTPUTDIR/token-invalid"
+
 	# Create a create-only token
 	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
 		"https://localhost:7095/issuer/one" storage.create:/subdir > "$OUTPUTDIR/token_create"; then
@@ -41,6 +61,13 @@ function setup_scitokens() {
 		exit 1
 	fi
 	chmod 0600 "$OUTPUTDIR/token_modify"
+
+	# Create an issuer-two read token
+	if ! xrdscitokens-create-token issuer_pub_2.pem issuer_key_2.pem test_2 \
+		"https://localhost:7095/issuer/two" storage.read:/ > "$OUTPUTDIR/token_two"; then
+		echo "Failed to create second 'storage.read' token from issuer two"
+		exit 1
+	fi
 
 	popd || exit 1
 }
@@ -118,6 +145,10 @@ function test_scitokens() {
 	execute_curl "$HOST/protected/hello_world.txt" 403 ""
 	execute_curl "$HOST/protected/hello_world.txt" 200 "Hello, World" scitokens/token
 
+	# Check audience validity
+	execute_curl "$HOST/protected/hello_world.txt" 200 "Hello, World" scitokens/token-redir
+	execute_curl "$HOST/protected/hello_world.txt" 403 "" scitokens/token-invalid
+
 	# Downloading $HOST/protected/hello_world.txt with create-only token (expected 403)
 	execute_curl "$HOST/protected/hello_world.txt" 403 "" scitokens/token_create
 
@@ -135,4 +166,16 @@ function test_scitokens() {
 	# Re-uploading $HOST/protected/subdir_modify/hello_world.txt with modify token (expected 201)
 	execute_curl "$HOST/protected/subdir_modify/hello_world.txt" 201 'hello, world' scitokens/token_modify PUT
 	execute_curl "$HOST/protected/subdir_modify/hello_world.txt" 200 'hello, world' scitokens/token
+
+	###
+	## Tests for requiring multiple tokens to authorize an operation
+	###
+	execute_curl "$HOST/dual/hello_world.txt" 403 "" scitokens/token
+	execute_curl "$HOST/dual/hello_world.txt" 403 "" scitokens/token_two
+	execute_curl "$HOST/dual/hello_world.txt?access_token=$(cat scitokens/token)" 200 "" scitokens/token_two
+
+	HOST="roots://localhost:${XRD_PORT}/"
+	export BEARER_TOKEN_FILE=scitokens/token
+	assert xrdcp -f "$HOST/dual/hello_world.txt?authz=$(cat scitokens/token_two)" .
+	assert_eq "Hello, World" "$(cat hello_world.txt)"
 }

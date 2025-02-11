@@ -129,6 +129,15 @@ are:
       For the `group` and `mapping` cases, the username and group are set in the internal XRootD request credential,
       but the final authorization must be done by a subsequent plugin.  The default value is `capability group mapping`.
       *Note*: if `mapping` is present, then a token without a capability may still have authorized actions.
+   -  `required_authorization` (optional): In some configurations, there may be multiple possible issuers for a given path; by
+      default, authorization from any one issuer is sufficient.  This option indicates the issuer's authorization is _required_
+      for the path (meaning that a token from this issuer is always required for the paths it manages, regardless of what
+      other issuers may authorize).  Valid values are `none`, `read`, `write`, or `all`; default is `none`.
+   -  `acceptable_authorization` (optional): Whether a valid token from this issuer is acceptable for the XRootD authorization
+      framework.  If so, the user, issuer, and group information will be extracted from the token and passed to the
+      XRootD credential (the username may, for example, be used by a subsequent OSS plugin for interacting with the
+      filesystem).  This may be useful in cases where a token is required from a given issuer but shouldn't be used
+      to populate the username.  Valid values are `none`, `read`, `write`, or `all`; default is `all`.
 
 
 Group- and Scope-based authorization
@@ -141,6 +150,8 @@ it is approved immediately by the plugin.
 If there is a group-based attribute, then the contents are copied into XRootD's internal credential.  The plugin does
 not necessarily immediately authorize (see the `onmissing` attribute) but rather can be used by a further authorization
 plugin.
+
+If there are multiple tokens in the request, they are processed in order until an acceptable authorization is found.
 
 Mapfile format
 --------------
