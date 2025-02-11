@@ -158,25 +158,10 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
 /******************************************************************************/
 /*                            p r e p a r e U R L                             */
 /******************************************************************************/
-  
-// We need to utilize the full URL (including the query string), not just the
-// resource name.  The query portion is hidden in the `xrd-http-query` header;
-// we take this out and combine it with the resource name.
-// We also append the value of the headers configured in tpc.header2cgi to the resource full URL
-//
-// One special key is `authz`; this is always stripped out and copied to the Authorization
-// header (which will later be used for XrdSecEntity).  The latter copy is only done if
-// the Authorization header is not already present.
-//
-// hasSetOpaque will be set to true if at least one opaque data has been set in the URL that is returned,
-// false otherwise
-std::string TPCHandler::prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
-  return XrdTpcUtils::prepareOpenURL(req.resource, req.headers,hdr2cgimap,hasSetOpaque);
-}
 
+// See XrdTpcUtils::prepareOpenURL() documentation
 std::string TPCHandler::prepareURL(XrdHttpExtReq &req) {
-    bool foundHeader;
-    return prepareURL(req,foundHeader);
+  return XrdTpcUtils::prepareOpenURL(req.resource, req.headers,hdr2cgimap);
 }
 
 /******************************************************************************/
@@ -981,8 +966,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         }
     }
     rec.streams = streams;
-    bool hasSetOpaque = false;
-    std::string full_url = prepareURL(req, hasSetOpaque);
+    std::string full_url = prepareURL(req);
     std::string authz = GetAuthz(req);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
     ConfigureCurlCA(curl);
@@ -995,8 +979,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         if(success) {
             //In the case we cannot get the information from the source server (offline or other error)
             //we just don't add the size information to the opaque of the local file to open
-            full_url += hasSetOpaque ? "&" : "?";
-            full_url += "oss.asize=" + std::to_string(sourceFileContentLength);
+            full_url += "&oss.asize=" + std::to_string(sourceFileContentLength);
         } else {
           // In the case the GetContentLength is not successful, an error will be returned to the client
           // just exit here so we don't open the file!

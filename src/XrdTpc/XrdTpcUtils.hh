@@ -25,17 +25,32 @@
 #include <string>
 #include "XrdHttp/XrdHttpExtHandler.hh"
 
+namespace TPC {
+  class TPCHandler;
+}
+
+
 class XrdTpcUtils {
 public:
   /**
    * Prepares the file XRootD open URL from the request resource, the xrd-http-query header of the HTTP request and the hdr2cgi map passed in parameter
+   *
+   * We first append oss.task=httptpc opaque info. It is therefore guaranteed that after
+   * this function is called, at least one opaque info will be part of the full URL.
+   * We need to utilize the full URL (including the query string), not just the
+   * resource name.  The query portion is hidden in the `xrd-http-query` header;
+   * we take this out and combine it with the resource name.
+   * We also append the value of the headers configured in tpc.header2cgi to the resource full URL
+
+   * One special key is `authz`; this is always stripped out and copied to the Authorization
+   * header (which will later be used for XrdSecEntity).  The latter copy is only done if
+   * the Authorization header is not already present.
    * @param reqResource the HTTP request resource
-   * @param the HTTP request headers
+   * @param reqHeaders HTTP request headers that will be modified to contain what is in the authz opaque query if it was provided
    * @param hdr2cgimap the map containing header keys --> XRootD cgi mapping
-   * @param hasSetOpaque is set to true if the returned URL contains opaque query, false otherwise
-   * @return the XRootD open URL
+   * @return the XRootD open URL that will contain at least one opaque parameter (oss.task)
    */
-  static std::string prepareOpenURL(const std::string & reqResource, std::map<std::string,std::string> & reqHeaders, const std::map<std::string,std::string> & hdr2cgimap, bool & hasSetOpaque);
+  static std::string prepareOpenURL(const std::string & reqResource, std::map<std::string,std::string> & reqHeaders, const std::map<std::string,std::string> & hdr2cgimap);
 };
 
 
