@@ -176,6 +176,10 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     {
         authz += 9;
     }
+    else if (!authz && (authz = env ? env->Get("access_token") : nullptr) && !strncmp(authz, "Bearer%20", 9))
+    {
+        authz += 9;
+    }
 
         // If there's no request-specific token, check for a ZTN session token
     if (!authz && Entity && !strcmp("ztn", Entity->prot) && Entity->creds &&
