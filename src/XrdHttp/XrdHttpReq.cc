@@ -580,7 +580,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
     redirdest += buf;
   }
 
-  redirdest += resource.c_str();
+  redirdest += quote(resource.c_str());
   
   // Here we put back the opaque info, if any
   if (vardata) {
