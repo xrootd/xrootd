@@ -4,6 +4,7 @@ RUN apk add \
 	bash \
 	cmake \
 	ceph-dev \
+	curl \
 	curl-dev \
 	fuse-dev \
 	fuse3-dev \

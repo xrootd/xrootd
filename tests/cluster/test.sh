@@ -126,8 +126,8 @@ for host in "${!hosts[@]}"; do
        count=0
 
        for suffix in "${HTTP_SUFFIX[@]}"; do
-           ${CURL} -v -L ${hosts_http[$host]}/${RMTDATADIR}/${host}${suffix} -o ${LCLDATADIR}/${host}.dat_http${count}
-           count=$((count + 1))
+               ${CURL} -v -L ${hosts_http[$host]}/${RMTDATADIR}/${host}${suffix} -o ${LCLDATADIR}/${host}.dat_http${count}
+               count=$((count + 1))
        done
 done
 
@@ -197,9 +197,9 @@ for host in "${!hosts[@]}"; do
        count=0
 
        for suffix in "${HTTP_SUFFIX[@]}"; do
-           ${XRDFS} ${HOST_METAMAN} rm "${RMTDATADIR}/${host}${MAP_HTTP_XRD_SUFFIX[$suffix]}" &
-           rm ${LCLDATADIR}/${host}.dat_http${count} &
-           count=$((count + 1))
+               ${XRDFS} ${HOST_METAMAN} rm "${RMTDATADIR}/${host}${MAP_HTTP_XRD_SUFFIX[$suffix]}" &
+               rm ${LCLDATADIR}/${host}.dat_http${count} &
+               count=$((count + 1))
        done
 done
 
