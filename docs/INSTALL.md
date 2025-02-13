@@ -142,9 +142,9 @@ For the anxious user, assuming the repository is cloned into the `xrootd`
 directory under the current working directory, the basic workflow is
 
 ```sh
-cmake -S xrootd -B xrootd_build
-cmake --build xrootd_build --parallel
-cmake --install xrootd_build
+cmake -S xrootd -B xrootd/build
+cmake --build xrootd/build --parallel
+cmake --install xrootd/build
 ```
 
 If you'd like to install somewhere other than the default of `/usr/local`,
