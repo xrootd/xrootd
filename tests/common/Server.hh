@@ -184,6 +184,11 @@ class Server
     //--------------------------------------------------------------------------
     int HandleConnections();
 
+    //--------------------------------------------------------------------------
+    //! Get port where server is running
+    //--------------------------------------------------------------------------
+    int GetPort() const;
+
   private:
 
     TransferMap                 pSent;
@@ -193,7 +198,7 @@ class Server
     int                         pListenSocket;
     ClientHandlerFactory       *pHandlerFactory;
     ProtocolFamily              pProtocolFamily;
-
+    int                         pPort;
 };
 
 }
