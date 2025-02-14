@@ -236,20 +236,18 @@ TEST(PollerTest, FunctionTest)
   }
 
   //----------------------------------------------------------------------------
-  // All the business happens elsewhere so we have nothing better to do
-  // here that wait, otherwise server->stop will hang.
-  //----------------------------------------------------------------------------
-  ::sleep(1);
-
-  //----------------------------------------------------------------------------
   // Cleanup
   //----------------------------------------------------------------------------
   EXPECT_TRUE( poller->Stop() );
   EXPECT_TRUE( server.Stop() );
   EXPECT_TRUE( poller->Finalize() );
 
+  for( int i = 0; i < 3; ++i )
+    s[i].Close();
+
   std::pair<uint64_t, uint32_t> stats[3];
   std::pair<uint64_t, uint32_t> statsServ[3];
+
   for( int i = 0; i < 3; ++i )
   {
     EXPECT_TRUE( !poller->IsRegistered( &s[i] ) );
@@ -258,9 +256,6 @@ TEST(PollerTest, FunctionTest)
     EXPECT_EQ( stats[i].first, statsServ[i].first );
     EXPECT_EQ( stats[i].second, statsServ[i].second );
   }
-
-  for( int i = 0; i < 3; ++i )
-    s[i].Close();
 
   delete handler;
   delete poller;
