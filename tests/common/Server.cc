@@ -105,7 +105,7 @@ void ClientHandler::UpdateReceivedData( char *buffer, uint32_t size )
 //------------------------------------------------------------------------------
 Server::Server( ProtocolFamily family ):
   pServerThread(0), pListenSocket(-1), pHandlerFactory(0),
-  pProtocolFamily( family )
+  pProtocolFamily( family ), pPort(0)
 {
 }
 
@@ -177,7 +177,7 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
   sockaddr     *servAddr     = 0;
   sockaddr_in6  servAddr6;
   sockaddr_in   servAddr4;
-  int           servAddrSize = 0;
+  socklen_t     servAddrSize = 0;
 
   if( pProtocolFamily == Inet4 )
   {
@@ -208,6 +208,19 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
   {
     log->Error( 1, "Unable to listen on the socket: %s", strerror( errno ) );
     return false;
+  }
+
+  if( port == 0 ) {
+    if( getsockname(pListenSocket, servAddr, &servAddrSize) ) {
+      log->Error( 1, "Unable to determine server port: %s", strerror( errno ) );
+      return false;
+    }
+
+    pPort = pProtocolFamily == Inet4 ?
+      ntohs(servAddr4.sin_port) : ntohs(servAddr6.sin6_port);
+
+  } else {
+    pPort = port;
   }
 
   pClients.resize( accept, 0 );
@@ -368,6 +381,11 @@ int Server::HandleConnections()
     delete *it;
   }
   return 0;
+}
+
+int Server::GetPort() const
+{
+  return pPort;
 }
 
 }
