@@ -70,8 +70,10 @@ XrdPosixLinkage Xunix;
 
       Retv_Access      Xrd_U_Access(Args_Access)
                          {return (Retv_Access)Xunix.Load_Error("access");}
+#ifndef __APPLE__
       Retv_Acl         Xrd_U_Acl(Args_Acl)
                          {return (Retv_Acl)Xunix.Load_Error("acl");}
+#endif
       Retv_Chdir       Xrd_U_Chdir(Args_Chdir) 
                          {return (Retv_Chdir)Xunix.Load_Error("chdir");}
       Retv_Close       Xrd_U_Close(Args_Close) 
@@ -122,8 +124,10 @@ XrdPosixLinkage Xunix;
                          {return (Retv_Fgetxattr)Xunix.Load_Error("fgetxattr");}
       Retv_Getxattr    Xrd_U_Getxattr(Args_Getxattr)
                          {return (Retv_Getxattr)Xunix.Load_Error("getxattr");}
+#ifndef __APPLE__
       Retv_Lgetxattr   Xrd_U_Lgetxattr(Args_Lgetxattr)
                          {return (Retv_Lgetxattr)Xunix.Load_Error("lgetxattr");}
+#endif
       Retv_Lseek       Xrd_U_Lseek(Args_Lseek) 
                          {return (Retv_Lseek)Xunix.Load_Error("lseek");}
       Retv_Lseek64     Xrd_U_Lseek64(Args_Lseek64)
@@ -202,7 +206,9 @@ XrdPosixLinkage Xunix;
 int XrdPosixLinkage::Resolve()
 {
   LOOKUP_UNIX(Access)
+#ifndef __APPLE__
   LOOKUP_UNIX(Acl)
+#endif
   LOOKUP_UNIX(Chdir)
   LOOKUP_UNIX(Close)
   LOOKUP_UNIX(Closedir)
@@ -228,7 +234,9 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Fwrite)
   LOOKUP_UNIX(Fgetxattr)
   LOOKUP_UNIX(Getxattr)
+#ifndef __APPLE__
   LOOKUP_UNIX(Lgetxattr)
+#endif
   LOOKUP_UNIX(Lseek)
   LOOKUP_UNIX(Lseek64)
   LOOKUP_UNIX(Lstat)
