@@ -43,6 +43,7 @@
 #include "XrdOssArc/XrdOssArc.hh"
 #include "XrdOssArc/XrdOssArcConfig.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
+#include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucGatherConf.hh"
 #include "XrdOuc/XrdOucProg.hh"
@@ -152,7 +153,7 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
    if (MssComRoot)
       {XrdOucEnv::Export("XRDOSSARC_MSSROOT", MssComRoot);
        DEBUG("exporting XRDOSSARC_MSSROOT="<<MssComRoot);
-      }
+      } else MssComRoot = strdup(""); 
 
 // All done
 //
@@ -188,6 +189,7 @@ bool XrdOssArcConfig::ConfigProc(const char* drctv, const char *lastLine)
 //
         if (!strcmp(drctv, "msscmd")) rc = xqGrab("msscmd",MssComCmd,lastLine);
    else if (!strcmp(drctv, "paths"))  rc = xqPaths();
+   else if (!strcmp(drctv, "stage"))  rc = xqStage();
    else if (!strcmp(drctv, "trace"))  rc = xqTrace();
    else if (!strcmp(drctv, "utils"))  rc = xqUtils();
    else {Elog.Say("Config warning: ignoring unknown directive '", drctv, "'");
@@ -266,16 +268,32 @@ int XrdOssArcConfig::GenLocalPath(const char* dsn, char* buff, int bSZ)
 
 // Typical Path: <tapePath>/<dsn>
 
-int XrdOssArcConfig::GenTapePath( const char* dsn, char* buff, int bSZ)
+int XrdOssArcConfig::GenTapePath(const char* dsn, char* buff, int bSZ,
+                                 bool addafn)
 {
+   int n;
 
 // Generate the tape path
 //
-   if (snprintf(buff, bSZ, "%s/%s", tapePath, dsn) >= bSZ)
-      {Elog.Emsg("Archive", ENAMETOOLONG, "generate tape file path for", dsn);
+   if (addafn) n = snprintf(buff, bSZ, "%s/%s/%s", tapePath, dsn, arFName);
+      else     n = snprintf(buff, bSZ, "%s/%s",    tapePath, dsn);
+   if (n >= bSZ)
+      {const char* eTxt = (addafn ? "generate tape archive file path for"
+                                  : "generate tape directory path for");
+       Elog.Emsg("Archive", ENAMETOOLONG, eTxt, dsn);
        return ENAMETOOLONG;
       }
    return 0;
+}
+  
+/******************************************************************************/
+/* Private:                      M i s s A r g                                */
+/******************************************************************************/
+
+int XrdOssArcConfig::MissArg(const char* what)
+{
+   Elog.Say("Config mistake: ", what, " not specified.");
+   return -1;
 }
   
 /******************************************************************************/
@@ -403,45 +421,92 @@ int XrdOssArcConfig::xqPaths()
 }
 
 /******************************************************************************/
+/* Private:                      x q S t a g e                                */
+/******************************************************************************/
+/*  
+   stage [max <num>] [poll <sec>]
+*/
+
+int XrdOssArcConfig::xqStage()
+{
+   static const int minStg = 1, maxStg = 100, minPoll = 5, maxPoll = 100;
+   char* val;
+   int   num, rc;
+
+// Get the first token (there must be at least one)
+//
+   if (!(val = Conf->GetToken()))
+      {Elog.Emsg("Config", "Config mistake: stage parameter not specified");
+       return -1;
+      }
+
+// Now process all of them
+//
+   while(val)
+        {     if (!strcmp(val, "max"))
+                 {if (!(val = Conf->GetToken())) return MissArg("'max' value");
+                  rc = XrdOuca2x::a2i(Elog, "stage max value", val, &num,
+                                      minStg, maxStg);
+                  if (rc) return -1;
+                  maxStage = num;
+                 }
+         else if (!strcmp(val, "poll"))
+                 {if (!(val = Conf->GetToken())) return MissArg("'poll' value");
+                  rc = XrdOuca2x::a2tm(Elog, "stage poll value", val, &num,
+                                       minPoll, maxPoll);
+                  if (rc) return -1;
+                  wtpStage = num;
+                 }
+         else {Elog.Emsg("Config", "Config mistake: unknown option -", val);
+               return -1;
+              }
+        } while((val = Conf->GetToken()));
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
 /* Private:                      x q T r a c e                                */
 /******************************************************************************/
 
 int XrdOssArcConfig::xqTrace()
 {
-    char *val;
-    struct traceopts {const char *opname; unsigned int opval;} tropts[] =
-       {
-        {"all",      TRACE_All},
-        {"off",      TRACE_None},
-        {"none",     TRACE_None},
-        {"debug",    TRACE_Debug}
-       };
-    int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
+   char *val;
+   struct traceopts {const char *opname; unsigned int opval;} tropts[] =
+      {
+       {"all",      TRACE_All},
+       {"off",      TRACE_None},
+       {"none",     TRACE_None},
+       {"debug",    TRACE_Debug}
+      };
+   int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
-    if (!(val = Conf->GetToken()))
-       {Elog.Emsg("Config", "Config mistake: trace option not specified");
-        return -1;
-       }
-    while (val)
-         {if (!strcmp(val, "off")) trval = 0;
-             else {if ((neg = (val[0] == '-' && val[1]))) val++;
-                   for (i = 0; i < numopts; i++)
-                       {if (!strcmp(val, tropts[i].opname))
-                           {if (neg)
-                               if (tropts[i].opval) trval &= ~tropts[i].opval;
-                                  else trval = TRACE_All;
-                               else if (tropts[i].opval) trval |= tropts[i].opval;
-                                       else trval = TRACE_None;
-                            break;
-                           }
-                       }
-                   if (i >= numopts)
-                      Elog.Say("Config warning: ignoring invalid trace option '",val,"'.");
-                  }
-          val = Conf->GetToken();
-         }
-    ArcTrace.What = trval;
-    return 0;
+   if (!(val = Conf->GetToken()))
+      {Elog.Emsg("Config", "Config mistake: trace option not specified");
+       return -1;
+      }
+   while (val)
+        {if (!strcmp(val, "off")) trval = 0;
+            else {if ((neg = (val[0] == '-' && val[1]))) val++;
+                  for (i = 0; i < numopts; i++)
+                      {if (!strcmp(val, tropts[i].opname))
+                          {if (neg)
+                              if (tropts[i].opval) trval &= ~tropts[i].opval;
+                                 else trval = TRACE_All;
+                              else if (tropts[i].opval) trval |= tropts[i].opval;
+                                      else trval = TRACE_None;
+                           break;
+                          }
+                      }
+                  if (i >= numopts)
+                     Elog.Say("Config warning: ignoring invalid trace option '",val,"'.");
+                 }
+         val = Conf->GetToken();
+        }
+   ArcTrace.What = trval;
+   return 0;
 }
 
 /******************************************************************************/

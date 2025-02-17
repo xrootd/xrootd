@@ -37,11 +37,13 @@
 #include <stdlib.h>
 
 #include "Xrd/XrdScheduler.hh"
-#include "XrdOss/XrdOss.hh"
 #include "XrdOssArc/XrdOssArcConfig.hh"
 #include "XrdOssArc/XrdOssArcStage.hh"
+#include "XrdOssArc/XrdOssArcTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucProg.hh"
+#include "XrdSys/XrdSysFD.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
@@ -50,8 +52,6 @@
   
 namespace XrdOssArcGlobals
 {
-extern XrdOss*         ossP;
-
 extern XrdScheduler*   schedP;
 
 extern XrdSysError     Elog;
@@ -61,11 +61,25 @@ extern XrdOssArcConfig Config;
 XrdSysMutex schedMtx;
 XrdSysMutex stageMtx;
 
-bool cmpLess(const char* a, const char* b) {return strcmp(a, b) < 0;}
+struct ActInfo
+      {int         rc;
+       const char* path;
+             char* pMem;
 
-std::set<const char*, decltype(&cmpLess)> Active(&cmpLess);
+       ActInfo(const char* p, bool cpy=false) : rc(0)
+              {if (cpy) path = pMem = strdup(p);
+                  else {path = p; pMem = 0;} 
+              }
 
-std::queue<char*> Pending;
+      ~ActInfo() {if (pMem) free(pMem);}
+      };
+
+bool cmpLess(const ActInfo* a, const ActInfo* b)
+            {return strcmp(a->path, b->path) < 0;}
+
+std::set<ActInfo*, decltype(&cmpLess)> Active(&cmpLess);
+
+std::queue<const char*> Pending;
 }
 using namespace XrdOssArcGlobals;
 
@@ -75,29 +89,26 @@ using namespace XrdOssArcGlobals;
 
 void XrdOssArcStage::DoIt()
 {
-   XrdOucEnv stageEnv;
-   char* nxtPath;
-   int rc;
+   TraceInfo("Bring_Online",0);
+   char  pBuff[MAXPATHLEN];
+   const char* nxtPath;
+   time_t seTime;
+   int   fd, rc;
 
-// Obtain a file object
+// Generate the path to the tape buffer as that's where it will be placed
+// and open it to force it to be stage online.
 //
-   XrdOssDF* fileP = ossP->newFile("XrdOssArcStage");
-
-// Open the file in read mode. This will force the file to come online
-//
-do{rc = fileP->Open(arcvPath, O_RDONLY, 0, stageEnv);
-
-// Diagnose any errors or merely close the file
-//
-   if (rc == 0) rc = fileP->Close();
-      else Elog.Emsg("XrdOssArcStage", rc, "open/stage file", arcvPath);
-
-// Perform any required cleanup
-//
-   if (rc)
-      {delete fileP;
-       fileP = 0;
-      }
+do{rc = Config.GenTapePath(arcvPath, pBuff, sizeof(pBuff));
+   if (rc) StageError(rc, "prepare file for staging", arcvPath);
+      else {DEBUG("Staging "<<pBuff);
+            seTime = time(0);
+            if ((fd = XrdSysFD_Open(pBuff, O_RDONLY)) < 0)
+               StageError(errno, "open/stage file", pBuff);
+               else {close(fd);
+                     seTime = time(0) - seTime;
+                     DEBUG(pBuff<<" staged in "<<seTime<<" second(s)");
+                    }
+           }
 
 // Check if there is something pending that we can do now
 //
@@ -111,15 +122,17 @@ do{rc = fileP->Open(arcvPath, O_RDONLY, 0, stageEnv);
 //
    Reset(nxtPath);
 
-// Allocate a new file object if we deleted the previous one
-//
-   if (!fileP) fileP = ossP->newFile("XrdOssArcStage");
   } while(true);
+
+// Do final reset as we finished processing
+//
+   Reset(0);
 
 // We are done, so delete this object and return 
 //
-   Config.maxStage++;  // schedMtx is still held
+   int n = Config.maxStage++;  // schedMtx is still held
    schedMtx.UnLock();
+   DEBUG("Staging queue empty; MaxStage="<<n+1);
    delete this;
 }
 
@@ -129,47 +142,73 @@ do{rc = fileP->Open(arcvPath, O_RDONLY, 0, stageEnv);
   
 XrdOssArcStage::MssRC XrdOssArcStage::isOnline(const char* path)
 {
-   int rc;
+   TraceInfo("isOnline",0);
+   int rc, finrc;
  
+   DEBUG("Running "<<Config.MssComPath<<" online "<<path);
    rc = Config.MssComProg->Run("online", path);
-   if (rc != 0 && rc != 1) rc = -1;
-   return static_cast<MssRC>(rc);
+
+// Adjust return code. Note that XrdOucProg return -status!
+//
+   if (rc < -1 || rc > 1) finrc = -1;
+      else finrc = -rc;
+   DEBUG("MssComCmd returned "<<rc<<" -> "<<finrc);
+          
+   return static_cast<MssRC>(finrc);
 }
 
 /******************************************************************************/
 /* Private:                        R e s e t                                  */
 /******************************************************************************/
 
-void XrdOssArcStage::Reset(char* path)
+void XrdOssArcStage::Reset(const char* path)
 {
 
-// Remove ourselves from the staging set
+// Remove ourselves from the active set if we still have a path
 //
-   stageMtx.Lock();
-   Active.erase(arcvPath);
-   stageMtx.UnLock();
+   if (arcvPath)
+      {ActInfo aInfo(arcvPath);
+       stageMtx.Lock();
+       auto it = Active.find(&aInfo);
+       if (it != Active.end())
+          {ActInfo* aiP = *it;
+           Active.erase(it);
+           delete aiP;
+          }
+       stageMtx.UnLock();
+      }
 
-// Free the current path and replace it with the new path
+// Replace out path with the new path
 //
-   free(arcvPath);
    arcvPath = path;
 }
   
 /******************************************************************************/
 /*                                 S t a g e                                  */
 /******************************************************************************/
-  
-int XrdOssArcStage::Stage(const char *path, const char* member)
+
+int XrdOssArcStage::Stage(const char *path)
 {
+   TraceInfo("Stage",0);
+   ActInfo aInfo(path);
 
 // Check if this is being staged
 //
    stageMtx.Lock();
-   auto it = Active.find(path);
-   stageMtx.UnLock();
-   if (it != Active.end()) return EINPROGRESS;
+   auto it = Active.find(&aInfo);
+   if (it != Active.end())
+      {int rc;
+       if ((*it)->rc == 0) rc = EINPROGRESS;
+          else {rc = (*it)->rc;
+                ActInfo* aiP = *it;
+                Active.erase(it);
+                delete aiP;
+               }
+       stageMtx.UnLock();
+       return rc;
+      } else stageMtx.UnLock();
 
-// Make sure the path is actually online
+// Make sure the path exists and is actually online
 //
    MssRC mssRC = isOnline(path);
    switch(mssRC)
@@ -178,37 +217,67 @@ int XrdOssArcStage::Stage(const char *path, const char* member)
           default:      return EINVAL; break;
          }
 
-// Create a copy of the const path
+// Create a an action information object. This will copy the path and we
+// can use the copy in other places as the pointer i
 //
-   char* stagePath = strdup(path);
+   ActInfo* stageInfo = new ActInfo(path, true);
 
 // Add the path to the staging set. Another thread may have beat us to it.
 //
    stageMtx.Lock();
-   auto iResult = Active.insert(stagePath);
+   auto iResult = Active.insert(stageInfo);
    stageMtx.UnLock();
    if (!iResult.second)
-      {free(stagePath);
+      {delete stageInfo;
        return EINPROGRESS;
       }
 
-// Schedule this staging request if are allowed to do so
+// Schedule this staging request if we are allowed to do so
 //
+   int smx;
    schedMtx.Lock();
    if (Config.maxStage)
-      {Config.maxStage--;
+      {smx = Config.maxStage--; 
        schedMtx.UnLock();
-       XrdOssArcStage *asP = new XrdOssArcStage(stagePath);
+       XrdOssArcStage *asP = new XrdOssArcStage(stageInfo->path);
        schedP->Schedule((XrdJob*)asP);
        return EINPROGRESS;
-      }
+      } else smx = 0;
 
-// Too manny things being staged, so queue this request
+// Too many things being staged, so queue this request
 //
-   Pending.push(stagePath);
+   Pending.push(stageInfo->path);
    schedMtx.UnLock();
+
+// Do some debugging
+//
+   DEBUG("MaxStage="<<smx<<" staging '"<<path<<(smx?"' scheduled":"' queued"));
 
 // All done
 //
    return EINPROGRESS;
+}
+
+/******************************************************************************/
+/* Private:                   S t a g e E r r o r                             */
+/******************************************************************************/
+  
+void XrdOssArcStage::StageError(int rc, const char* what, const char* path)
+{
+   ActInfo aInfo(arcvPath);
+
+// Flag this request as failed
+//
+   stageMtx.Lock();
+   auto it = Active.find(&aInfo);
+   stageMtx.UnLock();
+   if (it != Active.end()) (*it)->rc = rc;
+   
+// Issue error message
+//
+   Elog.Emsg("Stage", rc, what, path);
+
+// We now must clear our arcvPath to prevent removal from the active set
+//
+   arcvPath = 0;
 }

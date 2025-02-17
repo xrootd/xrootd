@@ -44,6 +44,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -117,40 +118,56 @@ int XrdOssArcFile::Fstat(struct stat* buf)
   
 int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
 {
-   int retc;
+   int rc, tapeFD;
    bool isRW = (Oflag & (O_APPEND|O_CREAT|O_TRUNC|O_WRONLY|O_RDWR)) != 0; 
 
-// Check if we are trying to open the backup
+// Check if we are trying to open the backup (e.g. /backup/.../Archive.zip)
 //
    if (!strncmp(path, Config.bkupPathLFN, Config.bkupPathLEN))
       {if (isRW) return -EROFS;
-       if ((retc = XrdOssArcStage::Stage(path)))
-          {if (retc == EINPROGRESS) return Config.wtpStage;
-           if (retc != EEXIST) return -retc;
+       if (!XrdOssArcRecompose::isArcFile(path)) return -EPERM;
+       if ((rc = XrdOssArcStage::Stage(path+Config.bkupPathLEN)))
+          {if (rc == EINPROGRESS) return Config.wtpStage;
+           if (rc != EEXIST) return -rc;
           }
-       return ossDF->Open(path, Oflag, Mode, env);
+       char opPath[MAXPATHLEN];
+       rc = Config.GenTapePath(path+Config.bkupPathLEN,opPath,sizeof(opPath));
+       if (rc)
+          {Elog.Emsg("open", "prepare to open", path);
+           return -rc;
+          }
+       if ((tapeFD = XrdSysFD_Open(opPath, O_RDONLY, Mode)) < 0)
+          {rc = errno;
+           Elog.Emsg("open", rc, "open", path);
+           return -rc;
+          }
+       rc = ossDF->Fctl(XrdOssDF::Fctl_setFD,sizeof(int),(const char*)&tapeFD);
+       if (rc)
+          {Elog.Emsg("open", rc, "promote open", path);
+           close(tapeFD);
+           return rc;
+          }
+       return XrdOssOK;
       }
 
 // Recompose this request
 //
-   XrdOssArcRecompose dsInfo(path, retc, isRW);
+   XrdOssArcRecompose dsInfo(path, rc, isRW);
 
 // Verify we can handle this
 //
-   if (retc)
-      {if (retc == EDOM) return ossDF->Open(path, Oflag, Mode, env);
-       Elog.Emsg("open", retc, "open", path);
-       return -retc;
+   if (rc)
+      {if (rc == EDOM) return ossDF->Open(path, Oflag, Mode, env);
+       Elog.Emsg("open", rc, "open", path);
+       return -rc;
       }
 
 // This is an open to write an archive file then the file must exist because
 // Create() would have been called prior to this open for writing.
 //
    if (isRW)
-      {struct stat Stat;
-       char buff[MAXPATHLEN], *opPath = dsInfo.Compose(buff, sizeof(buff));
-       if (!opPath) return -ENAMETOOLONG;
-       if ((retc = ossP->Stat(opPath, &Stat, 0, &env))) return retc;
+      {char opPath[MAXPATHLEN];
+       if(!dsInfo.Compose(opPath, sizeof(opPath))) return -ENAMETOOLONG;
        return ossDF->Open(opPath, Oflag, Mode, env);
       }
 
@@ -159,30 +176,36 @@ int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
 // This file should be accessible via the tape buffer. The first step is to
 // generate the path to the archive that holds the file.
 //   
-   char arcTapePath[1024];
-   retc = Config.GenTapePath(dsInfo.arcDSN, arcTapePath, sizeof(arcTapePath)); 
-   if (retc) return Neg(retc);
+   char arcPath[1024];
+   if (snprintf(arcPath,sizeof(arcPath),"%s/%s",dsInfo.arcDSN,Config.arFName) 
+      >= (int)sizeof(arcPath)) return -ENAMETOOLONG;
 
 // Now stage the file
 //
-   if ((retc = XrdOssArcStage::Stage(arcTapePath, dsInfo.arcFile)))
-      {if (retc == EINPROGRESS) return Config.wtpStage;
-       if (retc != EEXIST) return -retc;
+   if ((rc = XrdOssArcStage::Stage(arcPath)))
+      {if (rc == EINPROGRESS) return Config.wtpStage;
+       if (rc != EEXIST) return -rc;
       }
+
+// Get path as it exists in the tape buffer
+//
+   rc = Config.GenTapePath(dsInfo.arcDSN, arcPath, sizeof(arcPath), true); 
+   if (rc) return Neg(rc);
 
 // The archive is online, Get a zip file object and open it.
 //
-   zFile = new XrdOssArcZipFile(*ossDF, arcTapePath, retc);
+   zFile = new XrdOssArcZipFile(arcPath, rc);
 
 // Open the member in the archive if possibe
 //
-   if (!retc) retc = zFile->Open(dsInfo.arcFile);
+   if (!rc) rc = zFile->Open(dsInfo.arcFile);
 
 // Diagnose any errors
 //
-   if (retc)
-      {delete zFile; zFile = 0;
-       return Neg(retc);
+   if (rc)
+      {Elog.Emsg("open", rc, "open archive", path);
+       delete zFile; zFile = 0;
+       return Neg(rc);
       }
    return 0;
 }

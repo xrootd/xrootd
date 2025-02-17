@@ -113,12 +113,13 @@ ssize_t Read(void* buffer, off_t offset, size_t size) override;
 ssize_t Write(const void* buffer, off_t offset, size_t size) override;
 
                 XrdOssArcFile(const char* tident, XrdOssDF* df)
-                             : XrdOssDF(tident, DF_isFile), ossDF(df) {} 
+                             : XrdOssDF(tident, DF_isFile), ossDF(df) {}
 
 virtual        ~XrdOssArcFile();
 
 private:
 XrdOssDF*         ossDF;          // Underlying dir/file object
-XrdOssArcZipFile* zFile  = 0;
+XrdOssArcZipFile* zFile =  0;
+int               theFD = -1;
 };
 #endif

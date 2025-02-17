@@ -144,7 +144,7 @@ void XrdOssArcPrep::Add2Resp(const char* path, std::string& rspBuff,
        online  = "false";
        hasID   = "false";
       }
-    bcont = (rspBuff.size() ? "," : "[");
+    bcont = (rspBuff.size() ? "," : "");
 
 // Get corect time value
 //
@@ -295,7 +295,7 @@ int XrdOssArcPrep::RetErr(XrdOucErrInfo &eInfo, int rc, const char *txt1,
 void XrdOssArcPrep::setResp(XrdSfsPrep& pargs, std::string& rspVec,
                             XrdOucErrInfo& eInfo)
 {
-   static const char* fmt = "{\"request_id\":\"%s\",\"responses\":%s}";
+   static const char* fmt = "{\"request_id\":\"%s\",\"responses\":[%s]}";
    static const int fmtLen = strlen(fmt);
    const char* reqID = (pargs.reqid ? pargs.reqid : "");
    int n, bL;

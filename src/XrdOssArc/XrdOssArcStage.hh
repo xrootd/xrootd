@@ -43,20 +43,21 @@ public:
 
 virtual  void DoIt() override;
 
-static   int  Stage(const char* path, const char* member=0);
+static   int  Stage(const char* path);
 
-         XrdOssArcStage(char* aPath) : XrdJob("Arc Staging"),
+         XrdOssArcStage(const char* aPath) : XrdJob("Arc Staging"),
                         arcvPath(aPath) {}
 
-virtual ~XrdOssArcStage() {free(arcvPath);}
+virtual ~XrdOssArcStage() {}
 
 private:
 
 enum MssRC {isBad = -1, isFalse = 0, isTrue = 1};
 
 static MssRC isOnline(const char* path);
-       void  Reset(char* path);
+       void  Reset(const char* path);
+       void  StageError(int rc, const char* what, const char* path);
 
-char* arcvPath;
+const char* arcvPath; // Valid if present in Active set.
 };
 #endif

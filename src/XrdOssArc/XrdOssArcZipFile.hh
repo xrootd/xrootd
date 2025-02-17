@@ -54,7 +54,7 @@ ssize_t Read(void *buff, off_t offset, size_t blen);
 
 int     Stat(struct stat& buf);
 
-        XrdOssArcZipFile(XrdOssDF& df, const char* path, int &rc);
+        XrdOssArcZipFile(const char* path, int &rc);
 
        ~XrdOssArcZipFile();
 
@@ -64,7 +64,7 @@ void zipEmsg(const char *what, zip_error_t* zerr);
 int  zip2syserr(const char *what, zip_error_t* zerr, bool msg=true);
 int  zip2syserr(const char *what, int zrc, bool msg=true);
 
-XrdOssDF&   ossDF;
+struct stat zFStat;
 char*       zPath     = 0;
 char*       zMember   = 0;
 zip_t*      zFile     = 0;

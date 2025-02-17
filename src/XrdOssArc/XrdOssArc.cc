@@ -183,13 +183,70 @@ int XrdOssArc::Create(const char* tid, const char* path, mode_t mode,
 
 // We now need to create the file.
 //
-   char buff[MAXPATHLEN], *crPath = dsInfo.Compose(buff, sizeof(buff));
+   char buff[MAXPATHLEN];
+   if (!dsInfo.Compose(buff, sizeof(buff))) return -ENAMETOOLONG;
 
-   if (!crPath) return -ENAMETOOLONG;
    opts |= XRDOSS_mkpath;
-   return wrapPI.Create(tid, crPath, mode, env, opts);
+   return wrapPI.Create(tid, buff, mode, env, opts);
 }
   
+/******************************************************************************/
+/*                                  S t a t                                   */
+/******************************************************************************/
+
+int XrdOssArc::Stat(const char *path, struct stat *Stat,
+                    int opts, XrdOucEnv *envP)
+{
+   char buff[MAXPATHLEN];
+// const char *tid = 0; ???
+   int rc;
+
+// Check if the stat is for the backup
+//
+  if (!strncmp(path, Config.bkupPathLFN, Config.bkupPathLEN))
+     {rc = Config.GenTapePath(path+Config.bkupPathLEN, buff, sizeof(buff));
+      if (rc) return Neg(rc);
+      return stat(buff, Stat);
+     }
+
+// Prepare to process the archive
+//
+   XrdOssArcRecompose dsInfo(path, rc, false);
+
+// Make sure all went well
+//
+   if (rc)
+      {if (rc != EDOM)
+          {Elog.Emsg("Stat", rc, "locate", path);
+           return -rc;
+          }
+       return wrapPI.Stat(path, Stat, opts, envP);
+      }
+
+// See if we have a local copy of this file
+//
+   if (!dsInfo.Compose(buff, sizeof(buff))) return -ENAMETOOLONG;
+
+// Issue the stat
+//
+   rc = wrapPI.Stat(buff, Stat, opts, envP);
+   if (rc != -ENOENT) return rc;
+
+// The file was not found in the local space. Check if it is in the tape space.
+//
+   rc = Config.GenTapePath(dsInfo.arcDSN, buff, sizeof(buff), true);
+   if (rc) return Neg(rc);
+
+// Issue the actual stat here
+//
+   if (stat(buff, Stat)) return -errno; 
+   if (!(opts & XRDOSS_resonly)) return XrdOssOK;
+
+// Check if the file is actually on line
+//
+   return XrdOssOK; //???  
+}
+
 /******************************************************************************/
 /*                                U n l i n k                                 */
 /******************************************************************************/
@@ -212,9 +269,9 @@ int XrdOssArc::Unlink(const char* path, int Opts, XrdOucEnv* envP)
 
 // Passthrough the unlink and return it there was an error
 //
-   char buff[MAXPATHLEN], *rmPath = dsInfo.Compose(buff, sizeof(buff));
+   char rmPath[MAXPATHLEN];
 
-   if (!rmPath) return -ENAMETOOLONG;
+   if (!dsInfo.Compose(rmPath, sizeof(rmPath))) return -ENAMETOOLONG;
    if ((rc = wrapPI.Unlink(rmPath, Opts, envP))) return rc;
 
 // Obtain the trace identifier

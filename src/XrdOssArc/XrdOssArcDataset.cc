@@ -204,7 +204,7 @@ bool XrdOssArcDataset::Archive()
        return false;
       }
 
-   if ((rc = Config.GenTapePath(dsName, tapPath, sizeof(tapPath))))
+   if ((rc = Config.GenTapePath(dsName,tapPath,sizeof(tapPath))))
       {Elog.Emsg("Archive", rc, "tape path for dataset", dsName);
        Elog.Emsg("Archive", "Dataset", dsName, "needs manual intervention!!!");
        return false;

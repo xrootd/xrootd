@@ -94,11 +94,9 @@ virtual int       Create(const char* tid, const char* path, mode_t mode,
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
-/*
+
 virtual int       Stat(const char *path, struct stat *buff,
-                       int opts=0, XrdOucEnv *envP=0)
-                      {return wrapPI.Stat(path, buff, opts, envP);}
-*/
+                       int opts=0, XrdOucEnv *envP=0) override;
 
 //-----------------------------------------------------------------------------
 //! Remove a file.
