@@ -66,6 +66,10 @@ if( NOT XRDCL_ONLY )
     include( XrdVoms )
   endif()
 
+  if( BUILD_XRDOSSARC )
+    include( XrdOssArc )
+  endif()
+
   add_subdirectory( XrdCeph )
 
   if( BUILD_SCITOKENS )
