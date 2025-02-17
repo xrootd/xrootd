@@ -57,22 +57,22 @@ using namespace XrdOssArcGlobals;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdOssArcZipFile::XrdOssArcZipFile(XrdOssDF& df, const char* path, int &rc)
-                                  : ossDF(df)
+XrdOssArcZipFile::XrdOssArcZipFile(const char* path, int &rc)
 {
    XrdOucEnv zipEnv;
    int zFD, zrc;
 
-// Try to open the file. We only support read mode. We need to get a duplicate
-// file descriptor as attaching the FD to a zipfile destroys the original FD.
+// Try to open the file. We only support read mode.
 //
-   if ((rc = ossDF.Open(path, O_RDONLY, 0, zipEnv)) < 0) return;
-   if ((zFD = ossDF.getFD()) < 0) {rc = -ENOTBLK; return;}
-   if ((zFD = XrdSysFD_Dup(zFD)) < 0) 
-      {rc = errno;
-       Elog.Emsg("ZipFile", rc, "dup FD for", path);
+   if ((zFD = XrdSysFD_Open(path, O_RDONLY)) < 0)
+      {rc = -errno;
        return;
       }
+
+// Get the stat information for the archive now using the retrned FD as
+// as attaching the FD to a zipfile "destroys" the original FD.
+//
+   if (fstat(zFD, &zFStat)) memset(&zFStat, 0, sizeof(zFStat));
 
 // Record path
 //
@@ -82,6 +82,7 @@ XrdOssArcZipFile::XrdOssArcZipFile(XrdOssDF& df, const char* path, int &rc)
 //
    if ((zFile = zip_fdopen(zFD, ZIP_CHECKCONS, &zrc)) == 0)
       {rc = zip2syserr("fdopen", zrc);
+       close(zFD);
        return;
       }
 }
@@ -126,13 +127,9 @@ int XrdOssArcZipFile::Close()
        zSubFile = 0;
       }
 
-// Close the underlying file
-//
-   ossDF.Close();
-
 // Remove all vestigaes of this subfile
 //
-   if (zMember) free(zMember);
+   if (zMember) {free(zMember); zMember = 0;}
 
 // All done
 //
@@ -154,7 +151,7 @@ int XrdOssArcZipFile::Open(const char* member)
 // If an archive member is alreaddy open then close it
 //
    if (zSubFile)
-      {if ((rc = zip_fclose(zSubFile))) {} //???
+      {if ((rc = zip_fclose(zSubFile))) zip2syserr("close", rc, true);
        free(zMember);
        zMember  = 0;
        zSubFile = 0;
@@ -228,15 +225,14 @@ ssize_t XrdOssArcZipFile::Read(void *buff, off_t offset, size_t blen)
 int XrdOssArcZipFile::Stat(struct stat& buf)
 {
    zip_stat_t zStat;
-   int rc;
 
 // Make sure this file is actually open
 //
    if (zSubFile == 0) return -EBADF;
 
-// Get the stat of the base file
+// Iniialize the stat buffer
 //
-  if ((rc = ossDF.Fstat(&buf))) return rc;
+  memcpy(&buf, &zFStat, sizeof(struct stat));
 
 // Clear the stat structures
 //

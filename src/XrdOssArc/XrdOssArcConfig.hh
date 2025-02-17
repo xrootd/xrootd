@@ -41,7 +41,7 @@ bool  Configure(const char* cfn, const char* parms, XrdOucEnv* envP);
 
 int   GenLocalPath(const char* dsn, char* buff, int bSZ);
 
-int   GenTapePath( const char* dsn, char* buff, int bSZ);
+int   GenTapePath(const char* dsn, char* buff, int bSZ, bool addafn=false);
   
       XrdOssArcConfig();
      ~XrdOssArcConfig() {} // Never gets deleted
@@ -84,9 +84,11 @@ private:
 void ConfigPath(char** pDest, const char* pRoot);
 bool ConfigProc(const char* drctv, const char *lastLine);
 bool ConfigXeq(const char* cfName, const char* parms, XrdOucEnv* envP);
+int  MissArg(const char* what);
 bool Usable(const char* path, const char* what, bool useOss=true);
 int  xqGrab(const char* what, char*& theDest, const char* theLine);
 int  xqPaths();
+int  xqStage();
 int  xqTrace();
 int  xqUtils();
 

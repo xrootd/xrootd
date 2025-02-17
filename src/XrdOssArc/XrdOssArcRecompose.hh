@@ -42,7 +42,7 @@ public:
 const  char* arcFile = 0; // File path, points into arcPath
        char* arcDSN  = 0; // The dataset name
 
-       char*       Compose(char* buff, int bsz);
+       bool        Compose(char* buff, int bsz);
 
 static bool        isArcFile(const char *path);
 

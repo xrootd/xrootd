@@ -63,6 +63,7 @@ class XrdSfsAio;
 class XrdOssDF
 {
 public:
+friend class XrdOssArcDF;
 
 /******************************************************************************/
 /*            D i r e c t o r y   O r i e n t e d   M e t h o d s             */

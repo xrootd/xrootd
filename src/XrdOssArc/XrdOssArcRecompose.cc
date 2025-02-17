@@ -158,12 +158,11 @@ XrdOssArcRecompose::~XrdOssArcRecompose()
 /*                               C o m p o s e                                */
 /******************************************************************************/
 
-char* XrdOssArcRecompose::Compose(char* buff, int bsz)
+bool XrdOssArcRecompose::Compose(char* buff, int bsz)
 {            
 // Construct new path
 //
-   int n = snprintf(buff, bsz, "%s%s", arcDir, arcFile);
-   return (n < bsz ? buff : 0); 
+   return snprintf(buff, bsz, "%s%s", arcDir, arcFile) < bsz;
 }
   
 /******************************************************************************/
@@ -180,5 +179,5 @@ bool XrdOssArcRecompose::isArcFile(const char *path)
 
 // Verify the ending
 //
-   return !strncmp(Config.arfSfx, path+n-Config.arfSfxLen, Config.arfSfxLen);
+   return !strcmp(Config.arfSfx, path+n-Config.arfSfxLen);
 }
