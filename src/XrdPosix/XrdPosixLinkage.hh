@@ -151,7 +151,7 @@
 #define Args_Fstat64 int, int, struct stat64 *
 #else
 #ifdef __APPLE__
-#define Symb_Fstat64 UNIX_PFX "fstat64"
+#define Symb_Fstat64 UNIX_PFX "fstat"
 #define Retv_Fstat64 int
 #define Args_Fstat64 int, struct stat64 *
 #else
@@ -321,7 +321,7 @@
 
 #ifdef __APPLE__
 #define Symb_Readdir64 UNIX_PFX "readdir"
-#define Retv_Readdir64 struct dirent64 *
+#define Retv_Readdir64 struct dirent *
 #define Args_Readdir64 DIR *
 #else
 #define Symb_Readdir64 UNIX_PFX "readdir64"
