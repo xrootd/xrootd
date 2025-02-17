@@ -1224,7 +1224,8 @@ enum XStatRespFlags {
    kXR_readable=16,
    kXR_writable=32,
    kXR_poscpend=64,
-   kXR_bkpexist=128
+   kXR_bkpexist=128,
+   kXR_cachersp=512
 };
   
 /******************************************************************************/

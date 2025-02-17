@@ -794,6 +794,8 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
             if (buf.st_rdev & XRDSFS_HASBKUP)  flags |= kXR_bkpexist;
            }
        }
+        if ((fsFeatures & XrdSfs::hasCACH) != 0 && buf.st_atime != 0)
+                                               flags |= kXR_cachersp; 
    fsz = static_cast<long long>(buf.st_size);
 
 // Format the default response: <devid> <size> <flags> <mtime>
