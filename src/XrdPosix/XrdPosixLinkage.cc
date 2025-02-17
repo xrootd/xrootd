@@ -45,6 +45,7 @@
 #endif
 
 #include <cerrno>
+#include <cstdio>
 
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
@@ -70,7 +71,7 @@ XrdPosixLinkage Xunix;
 
       Retv_Access      Xrd_U_Access(Args_Access)
                          {return (Retv_Access)Xunix.Load_Error("access");}
-#ifndef __APPLE__
+#if !defined(__APPLE__) and !defined(__linux__)
       Retv_Acl         Xrd_U_Acl(Args_Acl)
                          {return (Retv_Acl)Xunix.Load_Error("acl");}
 #endif
@@ -206,7 +207,7 @@ XrdPosixLinkage Xunix;
 int XrdPosixLinkage::Resolve()
 {
   LOOKUP_UNIX(Access)
-#ifndef __APPLE__
+#if !defined(__APPLE__) and !defined(__linux__)
   LOOKUP_UNIX(Acl)
 #endif
   LOOKUP_UNIX(Chdir)
@@ -295,21 +296,23 @@ int XrdPosixLinkage::Load_Error(const char *epname, int retv)
   
 void XrdPosixLinkage::Missing(const char *epname)
 {
-   struct Missing
-         {struct Missing *Next;
-          const char     *What;
-
-                          Missing(Missing *Prev, const char *That)
-                                 : Next(Prev), What(That) {}
-                         ~Missing() {}
-         };
-
-   static Missing *epList = 0;
-
-   if (epname) epList = new Missing(epList, epname);
-      else {Missing *np = epList;
-            while(np) std::cerr << "PosixPreload: Unable to resolve Unix '" 
-                           <<np->What <<"()'" <<std::endl;
-            np = np->Next;
-           }
+  struct Missing
+  {struct Missing *Next;
+    const char     *What;
+    
+    Missing(Missing *Prev, const char *That)
+      : Next(Prev), What(That) {}
+    ~Missing() {}
+  };
+  
+  static Missing *epList = 0;
+  
+  if (epname) epList = new Missing(epList, epname);
+  else {
+    Missing *np = epList;
+    while(np){
+      printf( "PosixPreload: Unable to resolve Unix '%s()\n", np->What);
+      np = np->Next;
+    }
+  }
 }
