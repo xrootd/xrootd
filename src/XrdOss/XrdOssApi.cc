@@ -1077,6 +1077,19 @@ int XrdOssFile::Fctl(int cmd, int alen, const char *args, char **resp)
                if (futimes(fd, utArgs)) return -errno;
                return XrdOssOK;
                break;
+          case XrdOssDF::Fctl_setFD:
+               if (dfType != DF_isFile) return -ENOTBLK;
+               if (fd >= 0) return -EALREADY;
+               if (alen != (int)sizeof(int)) return -EINVAL;
+               int retc, newFD;
+               memcpy(&newFD, args, sizeof(int));
+               struct stat buf;
+               do {retc = fstat(newFD, &buf);} while(retc && errno == EINTR);
+               if (retc) return -errno;
+               fd = newFD;
+               FSize = buf.st_size;
+               return XrdOssOK;
+               break;
           default: break;
          }
    return -ENOTSUP;
