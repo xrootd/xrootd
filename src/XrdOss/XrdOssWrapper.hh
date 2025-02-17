@@ -393,6 +393,9 @@ uint16_t        DFType() {return wrapDF.DFType();}
 //!                                Response: Pointer to XrdOucChkPnt object.
 //!                  Fctl_utimes - Set atime and mtime (no response).
 //!                                Argument: struct timeval tv[2]
+//!                  Fctl_setFD  - Set file descriptor for unopened file. 
+//!                                Argument: pointer to int file descriptor
+//! @param  alen   - Length of data pointed to by args.
 //! @param  alen   - Length of data pointed to by args.
 //! @param  args   - Data sent with request, zero if alen is zero.
 //! @param  resp   - Where the response is to be set. The caller must call
