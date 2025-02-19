@@ -19,6 +19,8 @@
 #include "XrdPfcInfo.hh"
 #include "XrdPfc.hh"
 #include "XrdPfcTrace.hh"
+#include "XrdPfcPathParseTools.hh"
+#include "XrdPfcResourceMonitor.hh"
 
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOss/XrdOss.hh"
@@ -36,14 +38,16 @@
 #include <vector>
 #include <sys/time.h>
 
+namespace
+{
+   const int MAX_ACCESSES = 20;
+   const long long ONE_MB = 1024ll * 1024;
+   const long long ONE_GB = 1024ll * 1024 * 1024;
+}
+
 using namespace XrdPfc;
 
 //______________________________________________________________________________
-
-const int MAX_ACCESSES = 20;
-
-const long long ONE_MB = 1024ll * 1024;
-const long long ONE_GB = 1024ll * 1024 * 1024;
 
 void Cache::ExecuteCommandUrl(const std::string& command_url)
 {
@@ -95,9 +99,8 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
       int         access_time    [MAX_ACCESSES];
       int         access_duration[MAX_ACCESSES];
       int         at_count = 0, ad_count = 0;
-      XrdOucArgs  Spec(&m_log, err_prefix, "hvs:b:t:d:",
+      XrdOucArgs  Spec(&m_log, err_prefix, "hs:b:t:d:",
                        "help",         1, "h",
-                       "verbose",      1, "v",
                        "size",         1, "s",
                        "blocksize",    1, "b",
                        "time",         1, "t",
@@ -245,15 +248,35 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
          myInfo.Write(myInfoFile, cinfo_path.c_str());
 
+         // Fake last modified time to the last access_time
+         {
+            time_t last_detach;
+            myInfo.GetLatestDetachTime(last_detach);
+            struct timespec acc_mod_time[2] = { {last_detach, UTIME_OMIT}, {last_detach, 0} };
+
+            futimens(myInfoFile->getFD(), acc_mod_time);
+         }
+
          myInfoFile->Close(); delete myInfoFile;
          myFile->Close();     delete myFile;
 
-         TRACE(Info, err_prefix << "Created file '" << file_path << "', size=" << (file_size>>20) << "MB.");
+         struct stat dstat;
+         GetOss()->Stat(file_path.c_str(), &dstat);
+         TRACE(Info, err_prefix << "Created file '" << file_path << "', size=" << (file_size>>20) << "MB, "
+                                << "st_blocks=" << dstat.st_blocks);
 
          {
             XrdSysCondVarHelper lock(&m_writeQ.condVar);
 
             m_writeQ.writes_between_purges += file_size;
+         }
+         {
+            int token = m_res_mon->register_file_open(file_path, time_now, false);
+            XrdPfc::Stats stats;
+            stats.m_BytesWritten  = file_size;
+            stats.m_StBlocksAdded = dstat.st_blocks;
+            m_res_mon->register_file_update_stats(token, stats);
+            m_res_mon->register_file_close(token, time(0), stats);
          }
       }
    }
@@ -280,7 +303,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
       SplitParser ap(token, " ");
       int argc = ap.fill_argv(argv);
 
-      XrdOucArgs  Spec(&m_log, err_prefix, "hvs:b:t:d:",
+      XrdOucArgs  Spec(&m_log, err_prefix, "h",
                        "help",         1, "h",
                        (const char *) 0);
 
@@ -307,7 +330,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          return;
       }
 
-      std::string f_name(cp.get_reminder());
+      std::string f_name(cp.get_reminder_with_delim());
 
       TRACE(Debug, err_prefix << "file argument '" << f_name << "'.");
 

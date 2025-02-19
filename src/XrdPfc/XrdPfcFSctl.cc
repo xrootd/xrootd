@@ -49,7 +49,7 @@
 XrdPfcFSctl::XrdPfcFSctl(XrdPfc::Cache &cInst, XrdSysLogger *logP)
                         : myCache(cInst), hProc(0), Log(logP, "PfcFsctl"),
                           sysTrace(cInst.GetTrace()), m_traceID("PfcFSctl") {}
-  
+
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
@@ -64,11 +64,11 @@ bool XrdPfcFSctl::Configure(const char    *CfgFN,
    hProc = (XrdOfsHandle*)envP->GetPtr("XrdOfsHandle*");
    return hProc != 0;
 }
-    
+
 /******************************************************************************/
 /*                          F S c t l   [ F i l e ]                           */
 /******************************************************************************/
-  
+
 int XrdPfcFSctl::FSctl(const int               cmd,
                              int               alen,
                        const char             *args,
@@ -76,7 +76,7 @@ int XrdPfcFSctl::FSctl(const int               cmd,
                              XrdOucErrInfo    &eInfo,
                        const XrdSecEntity     *client)
 {
-   eInfo.setErrInfo(ENOTSUP, "File based fstcl not supported for a cache."); 
+   eInfo.setErrInfo(ENOTSUP, "File based fstcl not supported for a cache.");
    return SFS_ERROR;
 }
 
@@ -95,14 +95,14 @@ int XrdPfcFSctl::FSctl(const int               cmd,
 // Verify command
 //
    if (cmd != SFS_FSCTL_PLUGXC)
-      {eInfo.setErrInfo(EIDRM, "None-cache command issued to a cache."); 
+      {eInfo.setErrInfo(EIDRM, "None-cache command issued to a cache.");
        return SFS_ERROR;
       }
 
 // Very that we have a command
 //
-   if (!xeq || args.Arg1Len < 1) 
-      {eInfo.setErrInfo(EINVAL, "Missing cache command or argument."); 
+   if (!xeq || args.Arg1Len < 1)
+      {eInfo.setErrInfo(EINVAL, "Missing cache command or argument.");
        return SFS_ERROR;
       }
 

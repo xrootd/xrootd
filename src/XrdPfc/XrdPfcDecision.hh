@@ -19,10 +19,8 @@
 //----------------------------------------------------------------------------------
 
 #include <string>
-#include <iostream>
-#include <cstdio>
-#include "XrdOss/XrdOss.hh"
 
+class XrdOss;
 class XrdSysError;
 
 namespace XrdPfc

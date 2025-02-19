@@ -30,6 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdOuc/XrdOucEnv.hh"
+
 #include <cstdint>
 #include <sys/types.h>
 

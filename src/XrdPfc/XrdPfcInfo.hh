@@ -18,16 +18,12 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
+#include "XrdPfcTypes.hh"
+
 #include <cstdio>
 #include <ctime>
-#include <assert.h>
+#include <cassert>
 #include <vector>
-
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
-
-#include "XrdPfcTypes.hh"
 
 class XrdOssDF;
 class XrdCksCalc;
@@ -369,7 +365,7 @@ inline void Info::SetBitWritten(int i)
 inline void Info::SetBitPrefetch(int i)
 {
    if (!m_buff_prefetch) return;
-      
+
    const int cn = i/8;
    assert(cn < GetBitvecSizeInBytes());
 
