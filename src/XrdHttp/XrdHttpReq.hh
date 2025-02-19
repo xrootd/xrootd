@@ -147,6 +147,8 @@ private:
   // into a footer.
   void sendFooterError(const std::string &);
 
+  // Set the age header from the file modification time
+  void addAgeHeader(std::string & headers);
   /**
    * Extract a comma separated list of checksums+metadata into a vector
    * @param checksumList the list like "0:sha1, 1:adler32, 2:md5"
