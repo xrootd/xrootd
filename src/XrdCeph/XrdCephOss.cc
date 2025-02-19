@@ -350,7 +350,7 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
            if (!Config.GetRest(parms, sizeof(parms)) || parms[0]) {
              Eroute.Emsg("Config", "readvalgname parameters will be ignored");
            }
-          m_configBufferIOmode = var; // allowed values would be aio, io
+          m_configBufferIOmode = var; // allowed values would be aio, io, write-only-io
          } else {
            Eroute.Emsg("Config", "Missing value for ceph.bufferiomode in config file", configfn);
            return 1;
