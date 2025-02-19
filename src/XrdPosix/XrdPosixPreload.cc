@@ -32,6 +32,10 @@
 #undef _FORTIFY_SOURCE
 #endif
 
+#if defined(__APPLE__)
+#define _DARWIN_USE_64_BIT_INODE 1
+#endif
+
 #include <sys/types.h>
 #include <cstdarg>
 #include <unistd.h>
