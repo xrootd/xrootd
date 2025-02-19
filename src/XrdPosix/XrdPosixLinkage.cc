@@ -45,9 +45,7 @@
 #endif
 
 #include <cerrno>
-#ifdef __linux__
 #include <cstdio>
-#endif
 
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
@@ -313,12 +311,7 @@ void XrdPosixLinkage::Missing(const char *epname)
   else {
     Missing *np = epList;
     while(np){
-#ifdef __linux__
       fprintf(stderr, "PosixPreload: Unable to resolve Unix '%s()\n", np->What);
-#else
-      std::cerr << "PosixPreload: Unable to resolve Unix '"
-		<<np->What <<"()'" <<std::endl;
-#endif
       np = np->Next;
     }
   }
