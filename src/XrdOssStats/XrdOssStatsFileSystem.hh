@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <memory>
+#include <string>
 
 class XrdXrootdGStream;
 

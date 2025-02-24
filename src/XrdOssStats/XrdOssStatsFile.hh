@@ -7,6 +7,7 @@
 #include "XrdOssStatsFileSystem.hh"
 
 #include <memory>
+#include <string>
 
 class XrdSecEntity;
 
