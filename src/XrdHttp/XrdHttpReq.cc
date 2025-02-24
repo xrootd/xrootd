@@ -2034,13 +2034,11 @@ XrdHttpReq::ReturnGetHeaders() {
   if (!m_digest_header.empty()) {
     responseHeader = m_digest_header;
   }
-  long one;
-  if (filemodtime && XrdOucEnv::Import("XRDPFC", one)) {
+  if (fileflags & kXR_cachersp) {
       if (!responseHeader.empty()) {
         responseHeader += "\r\n";
       }
-      long object_age = time(NULL) - filemodtime;
-      responseHeader += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
+    addAgeHeader(responseHeader);
   }
 
   const XrdHttpReadRangeHandler::UserRangeList &uranges = readRangeHandler.ListResolvedRanges();
@@ -2103,6 +2101,12 @@ XrdHttpReq::ReturnGetHeaders() {
     header += "\n";
     header += m_digest_header;
   }
+  if (fileflags & kXR_cachersp) {
+    if (!header.empty()) {
+      header += "\r\n";
+    }
+    addAgeHeader(header);
+  }
 
   if (m_transfer_encoding_chunked && m_trailer_headers) {
     prot->StartChunkedResp(206, NULL, header.c_str(), -1, keepalive);
@@ -2147,6 +2151,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         return -1;
       } else if (reqstate == 0) {
         if (iovN > 0) {
+          std::string response_headers;
 
           // Now parse the stat info
           TRACEI(REQ, "Stat for HEAD " << resource.c_str()
@@ -2162,7 +2167,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           if (m_req_digest.size()) {
             return 0;
           } else {
-            prot->SendSimpleResp(200, NULL, "Accept-Ranges: bytes", NULL, filesize, keepalive);
+            if (fileflags & kXR_cachersp) {
+              addAgeHeader(response_headers);
+              response_headers += "\r\n";
+            }
+            response_headers += "Accept-Ranges: bytes";
+            prot->SendSimpleResp(200, NULL, response_headers.c_str(), NULL, filesize, keepalive);
             return keepalive ? 1 : -1;
           }
         }
@@ -2179,6 +2189,10 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 return -1;
           }
           if (!response_headers.empty()) {response_headers += "\r\n";}
+          if (fileflags & kXR_cachersp) {
+            addAgeHeader(response_headers);
+            response_headers += "\r\n";
+          }
           response_headers += "Accept-Ranges: bytes";
           prot->SendSimpleResp(200, NULL, response_headers.c_str(), NULL, filesize, keepalive);
           return keepalive ? 1 : -1;
@@ -2757,6 +2771,11 @@ XrdHttpReq::sendFooterError(const std::string &extra_text) {
   } else {
     TRACEI(REQ, httpStatusCode << ": " << httpStatusText << (extra_text.empty() ? "" : (": " + extra_text)));
   }
+}
+
+void XrdHttpReq::addAgeHeader(std::string &headers) {
+  long object_age = time(NULL) - filemodtime;
+  headers += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
 }
 
 void XrdHttpReq::reset() {
