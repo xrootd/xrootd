@@ -582,7 +582,7 @@ int XrdCephOss::StatLS(XrdOucEnv &env, const char *charPath, char *buff, int &bl
 {
   XrdCephEroute.Say(__FUNCTION__, " incoming path = ", charPath); 
 
-  std::string  path({charPath});
+  std::string path(charPath);
   path = extractPool(path);  
   std::string spath {path};
  
