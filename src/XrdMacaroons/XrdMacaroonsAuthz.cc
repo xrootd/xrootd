@@ -173,7 +173,8 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     }
 
     const char *authz = env ? env->Get("authz") : nullptr;
-    if (authz && !strncmp(authz, "Bearer%20", 9))
+    if ((authz && !strncmp(authz, "Bearer%20", 9)) ||
+        (!authz && (authz = env ? env->Get("access_token") : nullptr) && !strncmp(authz, "Bearer%20", 9)))
     {
         authz += 9;
     }
