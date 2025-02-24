@@ -102,13 +102,13 @@ char *XrdOucEnv::Delimit(char *value)
 
 void XrdOucEnv::EnvBuildTidy()
 {
-   char *tidyEnv, *authInfo;
-   int aBeg, aEnd;
+   char *tidyEnv, *authInfo, *accessAuthInfo = nullptr, *working=global_env;
+   int aBeg, aEnd, aCount = 6;
 
 // We need to sanitize the current env string by removing auth info. If there
-// is no auth informationn, then we can short cicuit this.
+// is no auth information, then we can short circuit this.
 //
-   if ((authInfo = strstr(global_env, "authz=")) == 0)
+   if ((authInfo = strstr(global_env, "authz=")) == 0 && (accessAuthInfo = strstr(global_env, "access_token=")) == 0)
       {Put(TIDY_ENVVAR, "");
        return;
       }
@@ -116,23 +116,42 @@ void XrdOucEnv::EnvBuildTidy()
 // Get position of the auth string and check if we can do a fast deletion.
 // Otherwise, we must trudge along.
 //
-   aBeg = authInfo - global_env;
-   if (aBeg && global_env[aBeg-1] == '&') aBeg--;
-   if (!(tidyEnv = index(authInfo+6, '&')))
-      {char aSave = global_env[aBeg];
-       global_env[aBeg] = 0;
-       Put(TIDY_ENVVAR, global_env);
-       global_env[aBeg] = aSave;
-      } else {
-       XrdOucString tidyStr(global_env);
-       do{if ((aEnd = tidyStr.find('&', aBeg+6)) == STR_NPOS)
-             {tidyStr.erase(aBeg);
-              break;
-             }
-          tidyStr.erase(aBeg, aEnd-aBeg);
-         } while((aBeg = tidyStr.find("&authz=")) != STR_NPOS);
-       Put(TIDY_ENVVAR, tidyStr.c_str());
-      }
+   for (int idx = 0; idx < 2; idx++)
+       {if (idx == 1)
+           {if (authInfo)
+               {working=Get(TIDY_ENVVAR);
+                accessAuthInfo = strstr(working, "access_token=");
+               }
+            aCount = 13;
+            authInfo = accessAuthInfo;
+           }
+        if (!authInfo) continue;
+        aBeg = authInfo - working;
+        if (aBeg && working[aBeg-1] == '&') aBeg--;
+        if (!(tidyEnv = index(authInfo+aCount, '&')))
+           {char aSave = working[aBeg];
+            if (aBeg) {
+                working[aBeg] = 0;
+                Put(TIDY_ENVVAR, working);
+                if (idx == 0)
+                    working[aBeg] = aSave;
+               } else {
+                Put(TIDY_ENVVAR, "&");
+               }
+           } else {
+            XrdOucString tidyStr(working);
+            do{if ((aEnd = tidyStr.find('&', aBeg+aCount)) == STR_NPOS)
+                  {tidyStr.erase(aBeg);
+                   break;
+                  }
+               tidyStr.erase(aBeg, aEnd-aBeg);
+              } while((aBeg = tidyStr.find(idx ? "&access_token=" : "&authz=")) != STR_NPOS);
+             if (!tidyStr.length())
+                Put(TIDY_ENVVAR, "&");
+             else
+                Put(TIDY_ENVVAR, tidyStr.c_str());
+           }
+       }
 }
  
 /******************************************************************************/
