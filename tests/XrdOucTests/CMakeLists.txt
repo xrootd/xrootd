@@ -1,4 +1,4 @@
-add_executable(xrdoucutils-unit-tests XrdOucUtilsTests.cc)
+add_executable(xrdoucutils-unit-tests XrdOucUtilsTests.cc XrdOucEnvTests.cc)
 
 target_link_libraries(xrdoucutils-unit-tests XrdUtils GTest::GTest GTest::Main)
 target_include_directories(xrdoucutils-unit-tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
