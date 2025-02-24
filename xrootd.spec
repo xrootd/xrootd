@@ -807,6 +807,7 @@ fi
 %{_libdir}/libXrdOfsPrepGPI-5.so
 %{_libdir}/libXrdOssCsi-5.so
 %{_libdir}/libXrdOssSIgpfsT-5.so
+%{_libdir}/libXrdOssStats-5.so
 %{_libdir}/libXrdPfc-5.so
 %{_libdir}/libXrdPss-5.so
 %{_libdir}/libXrdSsi-5.so
