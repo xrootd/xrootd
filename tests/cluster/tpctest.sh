@@ -31,7 +31,8 @@ done
 # Set up directories
 RMTDATADIR="/srvdata"
 LCLDATADIR="${PWD}/localdata"
-mkdir -p ${LCLDATADIR}
+LCLDATADIR_TPC="${LCLDATADIR}/tpc"
+mkdir -p ${LCLDATADIR_TPC}
 
 # Define server list
 declare -A hosts
@@ -45,20 +46,20 @@ hosts["srv4"]="${HOST_SRV4}"
 cleanup() {
        echo "Error occurred. Cleaning up..."
        for host in "${!hosts[@]}"; do
-              rm -rf ${LCLDATADIR}/${host}.dat
-              rm -rf ${LCLDATADIR}/${host}.ref
+              rm -rf ${LCLDATADIR}/tpc/${host}.dat
+              rm -rf ${LCLDATADIR}/tpc/${host}.ref
        done
 }
 trap "cleanup; exit 1" ABRT
 
 # Generate random files
 for host in "${!hosts[@]}"; do
-       ${OPENSSL} rand -out "${LCLDATADIR}/${host}.ref" $((1024 * ($RANDOM + 1)))
+       ${OPENSSL} rand -out "${LCLDATADIR}/tpc/${host}.ref" $((1024 * ($RANDOM + 1)))
 done
 
 # Upload local files to servers
 for host in "${!hosts[@]}"; do
-       ${XRDCP} ${LCLDATADIR}/${host}.ref ${hosts[$host]}/${RMTDATADIR}/${host}.ref &
+       ${XRDCP} ${LCLDATADIR}/tpc/${host}.ref ${hosts[$host]}/${RMTDATADIR}/tpc/${host}.ref &
 done
 wait  # Ensure uploads complete
 
@@ -66,7 +67,7 @@ wait  # Ensure uploads complete
 for src in "${!hosts[@]}"; do
     for dst in "${!hosts[@]}"; do
         echo "Performing TPC from ${src} -> ${dst}"
-        ${XRDCP} ${hosts[$src]}/${RMTDATADIR}/${src}.ref ${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}.ref &
+        ${XRDCP} ${hosts[$src]}/${RMTDATADIR}/tpc/${src}.ref ${hosts[$dst]}/${RMTDATADIR}/tpc/${src}_to_${dst}.ref &
     done
 done
 wait  # Ensure TPCs complete
@@ -74,19 +75,19 @@ wait  # Ensure TPCs complete
 # List files on each server
 for host in "${!hosts[@]}"; do
        echo "Files on ${host}:"
-       ${XRDFS} ${hosts[$host]} ls -l ${RMTDATADIR}
+       ${XRDFS} ${hosts[$host]} ls -l ${RMTDATADIR}/tpc
 done
 
 # Download and verify original files
 for host in "${!hosts[@]}"; do
-       ${XRDCP} ${hosts[$host]}/${RMTDATADIR}/${host}.ref ${LCLDATADIR}/${host}.dat
+       ${XRDCP} ${hosts[$host]}/${RMTDATADIR}/tpc/${host}.ref ${LCLDATADIR}/tpc/${host}.dat
 done
 
 # Verify Checksums (CRC32C & Adler32)
 for host in "${!hosts[@]}"; do
-       REF32C=$(${CRC32C} < ${LCLDATADIR}/${host}.ref | cut -d' ' -f1)
-       NEW32C=$(${CRC32C} < ${LCLDATADIR}/${host}.dat | cut -d' ' -f1)
-       SRV32C=$(${XRDFS} ${hosts[$host]} query checksum ${RMTDATADIR}/${host}.ref?cks.type=crc32c | cut -d' ' -f2)
+       REF32C=$(${CRC32C} < ${LCLDATADIR}/tpc/${host}.ref | cut -d' ' -f1)
+       NEW32C=$(${CRC32C} < ${LCLDATADIR}/tpc/${host}.dat | cut -d' ' -f1)
+       SRV32C=$(${XRDFS} ${hosts[$host]} query checksum ${RMTDATADIR}/tpc/${host}.ref?cks.type=crc32c | cut -d' ' -f2)
 
        if [[ "${NEW32C}" != "${REF32C}" || "${SRV32C}" != "${REF32C}" ]]; then
               echo "${host}:  CRC32C mismatch!"
@@ -95,9 +96,9 @@ for host in "${!hosts[@]}"; do
               exit 1
        fi
 
-       REFA32=$(${ADLER32} < ${LCLDATADIR}/${host}.ref | cut -d' ' -f1)
-       NEWA32=$(${ADLER32} < ${LCLDATADIR}/${host}.dat | cut -d' ' -f1)
-       SRVA32=$(${XRDFS} ${hosts[$host]} query checksum ${RMTDATADIR}/${host}.ref?cks.type=adler32 | cut -d' ' -f2)
+       REFA32=$(${ADLER32} < ${LCLDATADIR}/tpc/${host}.ref | cut -d' ' -f1)
+       NEWA32=$(${ADLER32} < ${LCLDATADIR}/tpc/${host}.dat | cut -d' ' -f1)
+       SRVA32=$(${XRDFS} ${hosts[$host]} query checksum ${RMTDATADIR}/tpc/${host}.ref?cks.type=adler32 | cut -d' ' -f2)
 
        if [[ "${NEWA32}" != "${REFA32}" || "${SRVA32}" != "${REFA32}" ]]; then
                echo "${host}:  Adler32 mismatch!"
@@ -110,7 +111,7 @@ done
 # Download and verify TPC files
 for src in "${!hosts[@]}"; do
     for dst in "${!hosts[@]}"; do
-       ${XRDCP} ${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}.ref ${LCLDATADIR}/${src}_to_${dst}.dat
+       ${XRDCP} ${hosts[$dst]}/${RMTDATADIR}/tpc/${src}_to_${dst}.ref ${LCLDATADIR}/tpc/${src}_to_${dst}.dat
     done
 done
 
@@ -118,17 +119,17 @@ done
 for src in "${!hosts[@]}"; do
     for dst in "${!hosts[@]}"; do
         echo "Verifying TPC from ${src} -> ${dst}"
-        REF32C=$(${CRC32C} < ${LCLDATADIR}/${src}.ref | cut -d' ' -f1)
-        NEW32C=$(${CRC32C} < ${LCLDATADIR}/${src}_to_${dst}.dat | cut -d' ' -f1)
-        SRV32C=$(${XRDFS} ${hosts[$dst]} query checksum ${RMTDATADIR}/${src}_to_${dst}.ref?cks.type=crc32c | cut -d' ' -f2)
+        REF32C=$(${CRC32C} < ${LCLDATADIR}/tpc/${src}.ref | cut -d' ' -f1)
+        NEW32C=$(${CRC32C} < ${LCLDATADIR}/tpc/${src}_to_${dst}.dat | cut -d' ' -f1)
+        SRV32C=$(${XRDFS} ${hosts[$dst]} query checksum ${RMTDATADIR}/tpc/${src}_to_${dst}.ref?cks.type=crc32c | cut -d' ' -f2)
         if [[ "${SRV32C}" != "${REF32C}" || "${NEW32C}" != "${REF32C}" ]]; then
             echo "ERROR: CRC32C mismatch for ${src}_to_${dst}"
             echo "${src}_to_${dst}:  crc32c: reference: ${REF32C}, server: ${SRV32C}, downloaded: ${NEW32C}"
             exit 1
         fi
-        REFA32=$(${ADLER32} < ${LCLDATADIR}/${src}.ref | cut -d' ' -f1)
-        NEWA32=$(${ADLER32} < ${LCLDATADIR}/${src}_to_${dst}.dat | cut -d' ' -f1)
-        SRVA32=$(${XRDFS} ${hosts[$dst]} query checksum ${RMTDATADIR}/${src}_to_${dst}.ref?cks.type=adler32 | cut -d' ' -f2)
+        REFA32=$(${ADLER32} < ${LCLDATADIR}/tpc/${src}.ref | cut -d' ' -f1)
+        NEWA32=$(${ADLER32} < ${LCLDATADIR}/tpc/${src}_to_${dst}.dat | cut -d' ' -f1)
+        SRVA32=$(${XRDFS} ${hosts[$dst]} query checksum ${RMTDATADIR}/tpc/${src}_to_${dst}.ref?cks.type=adler32 | cut -d' ' -f2)
         if [[ "${SRVA32}" != "${REFA32}" || "${NEWA32}" != "${REFA32}" ]]; then
             echo "ERROR: Adler32 mismatch for ${src}_to_${dst}"
             echo "${src}_to_${dst}:  adler32: reference: ${REFA32}, server: ${SRVA32}, downloaded: ${NEWA32}"
@@ -139,11 +140,11 @@ done
 
 # Cleanup remote and local files
 for host in "${!hosts[@]}"; do
-       ${XRDFS} ${hosts[$host]} rm ${RMTDATADIR}/${host}.ref &
-       rm ${LCLDATADIR}/${host}.dat &
+       ${XRDFS} ${hosts[$host]} rm ${RMTDATADIR}/tpc/${host}.ref &
+       rm ${LCLDATADIR}/tpc/${host}.dat &
        for dst in "${!hosts[@]}"; do
-                ${XRDFS} ${hosts[$dst]} rm ${RMTDATADIR}/${host}_to_${dst}.ref &
-                rm ${LCLDATADIR}/${host}_to_${dst}.dat &
+                ${XRDFS} ${hosts[$dst]} rm ${RMTDATADIR}/tpc/${host}_to_${dst}.ref &
+                rm ${LCLDATADIR}/tpc/${host}_to_${dst}.dat &
        done
 done
 wait
