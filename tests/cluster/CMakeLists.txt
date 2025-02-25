@@ -22,6 +22,11 @@ add_test(NAME XRootD::cluster::test
 set_tests_properties(XRootD::cluster::test
   PROPERTIES ENVIRONMENT "${XRDENV}" FIXTURES_REQUIRED XRootD_Cluster)
 
+add_test(NAME XRootD::cluster::tpctest
+  COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/tpctest.sh")
+set_tests_properties(XRootD::cluster::tpctest
+  PROPERTIES ENVIRONMENT "${XRDENV}" FIXTURES_REQUIRED XRootD_Cluster)
+
 add_test(NAME XRootD::cluster::stop
   COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/setup.sh stop")
 set_tests_properties(XRootD::cluster::stop
