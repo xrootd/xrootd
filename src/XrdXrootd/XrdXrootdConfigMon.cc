@@ -104,7 +104,7 @@ bool XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
    XrdXrootdGStream *gs;
    static const int numgs=sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
    char vbuff[64];
-   bool aOK, gXrd[numgs] = {false, false, true, false, true};
+   bool aOK, gXrd[numgs] = {false, false, false, true, false, true};
 
 // For each enabled monitoring provider, allocate a g-stream and put
 // its address in our environment.
