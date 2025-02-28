@@ -128,6 +128,19 @@ ssize_t getNumericAttr(const char* const path, const char* attrName, const int m
 
 }
 
+extern FILE *g_cksLogFile;
+
+
+char *ts_rfc3339() {
+
+    std::time_t now = std::time({});
+    char timeString[std::size("yyyy-mm-dd hh:mm:ss")];
+    std::strftime(std::data(timeString), std::size(timeString),
+                  "%F %TZ", std::gmtime(&now));
+    return strdup(timeString);
+}
+
+
 extern "C"
 {
   XrdOss*
@@ -164,8 +177,12 @@ XrdCephOss::~XrdCephOss() {
 // declared and used in XrdCephPosix.cc
 extern unsigned int g_maxCephPoolIdx;
 extern unsigned int g_cephAioWaitThresh;
-extern bool g_useAdler32;
-extern bool g_useCRC32;
+
+extern bool g_calcStreamedAdler32;
+extern bool g_storeStreamedAdler32;
+extern bool g_logStreamedAdler32;
+
+
 
 int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
    int NoGo = 0;
@@ -366,12 +383,67 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
            return 1;
          }
        }
-       if (!strcmp(var, "ceph.useadler32")) {
-         g_useAdler32 = true;
-       } // useadler32
-       if (!strcmp(var, "ceph.usecrc32")) {
-         g_useCRC32 = true;
-       } // usecrc32
+       if (!strcmp(var, "ceph.streamed-cks-adler32")) { // Streaming Adler32 checksum
+
+
+	 char hostname[32];
+	 (void)gethostname(hostname, 31);
+	 Eroute.Emsg("Hostname is ", hostname);
+	 var = Config.GetWord();
+         if (var) {
+
+/*
+ * Currently, actions are simply additive:
+ *
+ * Store implies calculate, log, store
+ * Log   implies calculate, log
+ * Calc  implies calculate
+ *
+ * Might want to make e.g. logging optional in the future,
+ * when storing is more prevalent.
+ *
+ * Instead of setting g_* flags in three conditionals,
+ * can switch to setting values in a single bitfield flag
+ *
+ */
+           if (strstr(var, "calc")) {
+	       g_calcStreamedAdler32 = true;
+               g_logStreamedAdler32 = false;
+	       g_storeStreamedAdler32 = false;
+           }
+           if (strstr(var, "log")) {
+	       g_calcStreamedAdler32 = true;
+               g_logStreamedAdler32 = true;
+	       g_storeStreamedAdler32 = false;
+           }
+           if (strstr(var, "store")) {
+	       g_calcStreamedAdler32 = true;
+               g_logStreamedAdler32 = true;
+	       g_storeStreamedAdler32 = true;
+           }
+
+	   if (g_logStreamedAdler32) {
+	       const char *cksLogFilename = "/var/log/xrootd/checksums/checksums.log";
+               g_cksLogFile = fopen(cksLogFilename, "a");
+	       if (NULL == g_cksLogFile) {
+	          g_logStreamedAdler32 = false;
+		  Eroute.Emsg("Config cannot open file for logging checksum values and pathnames: ", cksLogFilename);
+	       } else {
+		  Eroute.Emsg("Opened file for logging checksum values and pathname: ", cksLogFilename);
+	       }
+	   }
+         }
+       }// "ceph.streamed-cks-adler32"
+
+/*
+       if (!strcmp(var, "ceph.streamed-cks-adler32-log")) {
+	  var = Config.GetWord();
+	  // Test path for being writable after exiting parse loop...
+	  //
+          g_logStreamedAdler32StreamedPath = strdup(var);
+       }
+*/
+
      } // while
 
      // Now check if any errors occurred during file i/o
@@ -382,6 +454,7 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
                           configfn);
      }
      Config.Close();
+
    }
    return NoGo;
 }
