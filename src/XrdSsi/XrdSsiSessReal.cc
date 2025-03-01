@@ -461,7 +461,7 @@ int  XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
           {sessMutex.UnLock();
            return 1;
           }
-       if (!status->IsOK()) Shutdown(*status, false);
+       if (!status->IsOK()) {Shutdown(*status, false); return -1;}
           else {if (!isHeld) return (Unprovision() ? 1 : -1);
                    else sessMutex.UnLock();
                }
@@ -478,7 +478,7 @@ int  XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
        do {tP->SchedError(&eInfo); tP = tP->attList.next;}
           while(tP != attBase);
        sessMutex.UnLock();
-       return 1;
+       return -1; // Halt processing as this object may now be deleted
       }
 
 // Obtain the endpoint name
