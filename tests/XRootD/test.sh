@@ -15,6 +15,12 @@ function assert_eq() {
   [[ "$1" == "$2" ]] || error "$3: expected $1 but received $2"
 }
 
+# Ensure two returned values are not equal to each other
+# $1 is expected_value $2 is received value $3 is the error message
+function assert_ne() {
+  [[ "$1" != "$2" ]] || error "$3: expected $1 to not be equal to $2"
+}
+
 function assert_failure() {
 	echo "$@"; "$@" && error "command \"$*\" did not fail";
 }
