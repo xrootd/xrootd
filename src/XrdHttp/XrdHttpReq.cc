@@ -524,7 +524,10 @@ bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
     free(s);
   }
 
-  if (PostProcessHTTPReq()) reset();
+  auto rc = PostProcessHTTPReq();
+  if (rc) {
+    reset();
+  }
 
   // If we are servicing a GET on a directory, it'll generate an error for the default
   // OSS (we don't assume this is always true).  Catch and suppress the error so we can instead
@@ -532,7 +535,7 @@ bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
   if ((request == rtGET) && (xrdreq.header.requestid == ntohs(kXR_open)) && (xrderrcode == kXR_isDirectory))
     return true;
   
-  return false;
+  return rc == 0 ? true : false;
 };
 
 bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
@@ -1188,8 +1191,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
               mapXrdErrorToHttpStatus();
-              sendFooterError("Could not run close request on the bridge");
-              return -1;
+              return sendFooterError("Could not run close request on the bridge");
             }
             return 0;
           } else {
@@ -1230,8 +1232,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) res.c_str(), l)) {
               mapXrdErrorToHttpStatus();
               prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpStatusText.c_str(), httpStatusText.length(), false);
-              sendFooterError("Could not run listing request on the bridge");
-              return -1;
+              return sendFooterError("Could not run listing request on the bridge");
             }
 
             // We don't want to be invoked again after this request is finished
@@ -1256,7 +1257,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           // Close() if we have finished, otherwise read the next chunk
 
           // --------- CLOSE
-          if ( readChunkList.empty() )
+          if ( closeAfterError || readChunkList.empty() )
           {
 
             memset(&xrdreq, 0, sizeof (ClientRequest));
@@ -1326,14 +1327,12 @@ int XrdHttpReq::ProcessHTTPReq() {
               httpStatusText = "Range Not Satisfiable";
               std::stringstream ss;
               ss << "Requested range " << l << "@" << offs << " is past the end of file (" << filesize << ")";
-              sendFooterError(ss.str());
-              return -1;
+              return sendFooterError(ss.str());
             }
             
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
               mapXrdErrorToHttpStatus();
-              sendFooterError("Could not run read request on the bridge");
-              return -1;
+              return sendFooterError("Could not run read request on the bridge");
             }
           } else {
             // --------- READV
@@ -1342,8 +1341,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) &ralist[0], length)) {
               mapXrdErrorToHttpStatus();
-              sendFooterError("Could not run ReadV request on the bridge");
-              return -1;
+              return sendFooterError("Could not run ReadV request on the bridge");
             }
 
           }
@@ -1480,8 +1478,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             TRACEI(REQ, "XrdHTTP PUT: Writing chunk of size " << bytes_to_write << " starting with '" << *(prot->myBuffStart) << "'" << " with " << chunk_bytes_remaining << " bytes remaining in the chunk");
             if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_write)) {
               mapXrdErrorToHttpStatus();
-              sendFooterError("Could not run write request on the bridge");
-              return -1;
+              return sendFooterError("Could not run write request on the bridge");
             }
             // If there are more bytes in the buffer, then immediately call us after the
             // write is finished; otherwise, wait for data.
@@ -1504,8 +1501,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           TRACEI(REQ, "Writing " << bytes_to_read);
           if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_read)) {
             mapXrdErrorToHttpStatus();
-            sendFooterError("Could not run write request on the bridge");
-            return -1;
+            return sendFooterError("Could not run write request on the bridge");
           }
 
           if (writtenbytes + prot->BuffUsed() >= length)
@@ -1528,8 +1524,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
             mapXrdErrorToHttpStatus();
-            sendFooterError("Could not run close request on the bridge");
-            return -1;
+            return sendFooterError("Could not run close request on the bridge");
           }
 
           // We have finished
@@ -2053,6 +2048,7 @@ XrdHttpReq::ReturnGetHeaders() {
     // Full file.
     TRACEI(REQ, "Sending full file: " << filesize);
     if (m_transfer_encoding_chunked && m_trailer_headers) {
+      setTransferStatusHeader(responseHeader);
       prot->StartChunkedResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), -1, keepalive);
     } else {
       prot->SendSimpleResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), NULL, filesize, keepalive);
@@ -2070,18 +2066,19 @@ XrdHttpReq::ReturnGetHeaders() {
     char buf[64];
     const off_t cnt = uranges[0].end - uranges[0].start + 1;
 
-    XrdOucString s = "Content-Range: bytes ";
+    std::string header = "Content-Range: bytes ";
     sprintf(buf, "%lld-%lld/%lld", (long long int)uranges[0].start, (long long int)uranges[0].end, filesize);
-    s += buf;
+    header += buf;
     if (!responseHeader.empty()) {
-      s += "\r\n";
-      s += responseHeader.c_str();
+      header += "\r\n";
+      header += responseHeader.c_str();
     }
 
     if (m_transfer_encoding_chunked && m_trailer_headers) {
-      prot->StartChunkedResp(206, NULL, (char *)s.c_str(), -1, keepalive);
+      setTransferStatusHeader(header);
+      prot->StartChunkedResp(206, NULL, header.empty() ? nullptr : header.c_str(), -1, keepalive);
     } else {
-      prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
+      prot->SendSimpleResp(206, NULL, header.empty() ? nullptr : header.c_str(), NULL, cnt, keepalive);
     }
     return 0;
   }
@@ -2105,11 +2102,22 @@ XrdHttpReq::ReturnGetHeaders() {
   }
 
   if (m_transfer_encoding_chunked && m_trailer_headers) {
+    setTransferStatusHeader(header);
     prot->StartChunkedResp(206, NULL, header.c_str(), -1, keepalive);
   } else {
     prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
   }
   return 0;
+}
+
+void XrdHttpReq::setTransferStatusHeader(std::string &header) {
+  if (m_status_trailer) {
+    if (header.empty()) {
+      header += "Trailer: X-Transfer-Status";
+    } else {
+      header += "\r\nTrailer: X-Transfer-Status";
+    }
+  }
 }
 
 // This is invoked by the callbacks, after something has happened in the bridge
@@ -2270,6 +2278,13 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           // If we are postprocessing a close, potentially send out informational trailers
           if ((ntohs(xrdreq.header.requestid) == kXR_close) || readClosing)
           {
+            // If we already sent out an error, then we cannot send any further
+            // messages
+            if (closeAfterError) {
+              TRACEI(REQ, "Close was completed after an error: " << xrdresp);
+              return xrdresp != kXR_ok ? -1 : 1;
+            }
+
             const XrdHttpReadRangeHandler::Error &rrerror = readRangeHandler.getError();
             if (rrerror) {
               httpStatusCode = rrerror.httpRetCode;
@@ -2299,7 +2314,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           // On error, we can only send out a message if trailers are enabled and the
           // status response in trailer behavior is requested.
           if (xrdresp == kXR_error) {
-            sendFooterError("");
+            auto rc = sendFooterError("");
+            if (rc == 1) {
+              closeAfterError = true;
+              return 0;
+            }
             return -1;
           }
 
@@ -2729,7 +2748,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
   return 0;
 }
 
-void
+int
 XrdHttpReq::sendFooterError(const std::string &extra_text) {
   if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
     // A trailer header is appropriate in this case; this is signified by
@@ -2740,10 +2759,20 @@ XrdHttpReq::sendFooterError(const std::string &extra_text) {
     // success
 
     if (prot->ChunkRespHeader(0))
-      return;
+      return -1;
 
     std::stringstream ss;
-    ss << httpStatusCode << ": " << httpStatusText;
+    ss << httpStatusCode;
+    if (!httpStatusText.empty()) {
+      std::string_view statusView(httpStatusText);
+      // Remove trailing newline; this is not valid in a trailer value
+      // and causes incorrect framing of the response, confusing clients.
+      if (statusView[statusView.size() - 1] == '\n') {
+        ss << ": " << statusView.substr(0, statusView.size() - 1);
+      } else {
+        ss << ": " << httpStatusText;
+      }
+    }
     if (!extra_text.empty())
       ss << ": " << extra_text;
     TRACEI(REQ, ss.str());
@@ -2751,11 +2780,15 @@ XrdHttpReq::sendFooterError(const std::string &extra_text) {
 
     const auto header = "X-Transfer-Status: " + ss.str();
     if (prot->SendData(header.c_str(), header.size()))
-      return;
+      return -1;
 
-    prot->ChunkRespFooter();
+    if (prot->ChunkRespFooter())
+      return -1;
+
+    return keepalive ? 1 : -1;
   } else {
-    TRACEI(REQ, httpStatusCode << ": " << httpStatusText << (extra_text.empty() ? "" : (": " + extra_text)));
+    TRACEI(REQ, "Failure during response: " << httpStatusCode << ": " << httpStatusText << (extra_text.empty() ? "" : (": " + extra_text)));
+    return -1;
   }
 }
 
@@ -2766,6 +2799,7 @@ void XrdHttpReq::reset() {
   //if (xmlbody) xmlFreeDoc(xmlbody);
   readRangeHandler.reset();
   readClosing = false;
+  closeAfterError = false;
   writtenbytes = 0;
   etext.clear();
   redirdest = "";
