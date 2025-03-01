@@ -145,7 +145,7 @@ private:
 
   // If requested by the client, sends any I/O errors that occur during the transfer
   // into a footer.
-  void sendFooterError(const std::string &);
+  int sendFooterError(const std::string &);
 
   // Set the age header from the file modification time
   void addAgeHeader(std::string & headers);
@@ -166,7 +166,7 @@ private:
 
 public:
   XrdHttpReq(XrdHttpProtocol *protinstance, const XrdHttpReadRangeHandler::Configuration &rcfg) :
-      readRangeHandler(rcfg), keepalive(true) {
+      readRangeHandler(rcfg), closeAfterError(false), keepalive(true) {
 
     prot = protinstance;
     length = 0;
@@ -207,6 +207,9 @@ public:
   void appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash, time_t tnow);
 
   void addCgi(const std::string & key, const std::string & value);
+
+  // Set the transfer status header, if requested by the client
+  void setTransferStatusHeader(std::string &header);
 
   // Return the current user agent; if none has been specified, returns an empty string
   const std::string &userAgent() const {return m_user_agent;}
@@ -256,6 +259,10 @@ public:
   /// Tracking the next ranges of data to read during GET
   XrdHttpReadRangeHandler   readRangeHandler;
   bool                      readClosing;
+
+  // Indication that there was a read error and the next
+  // request processing state should cleanly close the file.
+  bool                      closeAfterError;
 
   bool keepalive;
   long long length;  // Total size from client for PUT; total length of response TO client for GET.
