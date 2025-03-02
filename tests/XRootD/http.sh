@@ -193,10 +193,12 @@ function test_http() {
   assert_eq "$expectedHeader" "$receivedHeader" "HEAD is missing statically-defined Test header"
 
   ## Download fails on a read failure
-  curl -v --no-progress-meter --raw "${HOST}/${TMPDIR}/fail_read.txt" 2>&1 | sed 's/blah//g' >"$outputFilePath"
-
+  # Default HTTP request: TCP socket abruptly closes
+  curl -v --raw "${HOST}/${TMPDIR}/fail_read.txt" 2>&1 | sed 's/blah//g' >"$outputFilePath"
   assert_eq "1" "$(grep -c -E '\* transfer closed with [0-9]+ bytes remaining to read' "$outputFilePath")" "Download did not fail as expected: '$(cat "$outputFilePath")'"
-  curl -v --no-progress-meter --raw -H 'TE: trailers' -H 'Connection: Keep-Alive' -H 'X-Transfer-Status: true' "${HOST}/${TMPDIR}/fail_read.txt?try=1" -v "${HOST}/${TMPDIR}/fail_read.txt?try=2" > "$outputFilePath" 2> "${TMPDIR}/stderr.txt"
+
+  # With transfer status summary enabled, connection is kept and error returned
+  curl -v --raw -H 'TE: trailers' -H 'Connection: Keep-Alive' -H 'X-Transfer-Status: true' "${HOST}/${TMPDIR}/fail_read.txt?try=1" -v "${HOST}/${TMPDIR}/fail_read.txt?try=2" > "$outputFilePath" 2> "${TMPDIR}/stderr.txt"
   assert_eq "2" "$(grep -B 1 "X-Transfer-Status: 500: Unable to read" "$outputFilePath" | grep -c -E "^0")" "$(cat "$outputFilePath" | sed -e 's/blah//g')"
   assert_eq "0" "$(grep -c "Leftovers after chunking" "${TMPDIR}/stderr.txt")" "Incorrect framing in response: $(cat "${TMPDIR}/stderr.txt" | sed -e 's/blah//g')"
   assert_eq "0" "$(grep -c "Connection died" "${TMPDIR}/stderr.txt")" "Connection reuse did not work.  Server log: $(cat "${XROOTD_SERVER_LOGFILE}") Client log: $(cat "${TMPDIR}/stderr.txt" | sed -e 's/blah//g') Issue:"
