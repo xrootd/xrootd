@@ -1,12 +1,3 @@
-#-------------------------------------------------------------------------------
-# Define the OS variables
-#-------------------------------------------------------------------------------
-
-set( LINUX    FALSE )
-set( KFREEBSD FALSE )
-set( Hurd     FALSE )
-set( Solaris  FALSE )
-
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 define_default( LIBRARY_PATH_PREFIX "lib" )
 
@@ -50,7 +41,6 @@ endif()
 # Linux
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
-  set( LINUX TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 
@@ -74,7 +64,6 @@ endif()
 # GNU/kFreeBSD
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "kFreeBSD" )
-  set( KFREEBSD TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 endif()
@@ -83,7 +72,6 @@ endif()
 # GNU/Hurd
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "GNU" )
-  set( Hurd TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 endif()
@@ -128,7 +116,6 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   define_default( CMAKE_INSTALL_MANDIR "man" )
   define_default( CMAKE_INSTALL_INCLUDEDIR "include" )
   define_default( CMAKE_INSTALL_DATADIR "share" )
-  set( Solaris TRUE )
   add_definitions( -D__solaris__=1 )
   add_definitions( -DSUNCC -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS )
   set( EXTRA_LIBS rt  Crun Cstd )

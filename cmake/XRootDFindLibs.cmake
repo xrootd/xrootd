@@ -158,7 +158,7 @@ if( ENABLE_PYTHON OR PYPI_BUILD )
   endif()
 endif()
 
-if( ENABLE_VOMS AND (LINUX OR KFREEBSD OR Hurd) )
+if( ENABLE_VOMS )
   if( FORCE_ENABLED )
     find_package( VOMS REQUIRED )
   else()
