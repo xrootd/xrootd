@@ -27,7 +27,6 @@
 #include "XrdTpcState.hh"
 #include "XrdTpcStream.hh"
 #include "XrdTpcTPC.hh"
-#include "XrdTpcCurlMulti.hh"
 #include <fstream>
 
 using namespace TPC;
@@ -668,11 +667,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             continue;
         }
         int fd_count;
-#ifdef HAVE_CURL_MULTI_WAIT
         mres = curl_multi_wait(multi_handle, NULL, 0, max_sleep_time*1000, &fd_count);
-#else
-        mres = curl_multi_wait_impl(multi_handle, max_sleep_time*1000, &fd_count);
-#endif
         if (mres != CURLM_OK) {
             break;
         }
