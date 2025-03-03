@@ -33,7 +33,7 @@ if( BUILD_MACAROONS )
   target_include_directories(${LIB_XRD_MACAROONS}
     PRIVATE ${MACAROONS_INCLUDES} ${JSON_INCLUDE_DIRS})
 
-  if( MacOSX )
+  if( APPLE )
     SET( MACAROONS_LINK_FLAGS "-Wl")
   else()
     SET( MACAROONS_LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdMacaroons/export-lib-symbols" )

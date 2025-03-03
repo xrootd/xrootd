@@ -52,7 +52,7 @@ if( BUILD_TPC )
     ${CMAKE_THREAD_LIBS_INIT}
     CURL::libcurl )
 
-  if( MacOSX )
+  if( APPLE )
     set( TPC_LINK_FLAGS, "-Wl" )
   else()
     set( TPC_LINK_FLAGS, "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdTpc/export-lib-symbols" )
