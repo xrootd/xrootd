@@ -238,8 +238,8 @@ TEST(PollerTest, FunctionTest)
   //----------------------------------------------------------------------------
   // Cleanup
   //----------------------------------------------------------------------------
-  EXPECT_TRUE( poller->Stop() );
   EXPECT_TRUE( server.Stop() );
+  EXPECT_TRUE( poller->Stop() );
   EXPECT_TRUE( poller->Finalize() );
 
   for( int i = 0; i < 3; ++i )
