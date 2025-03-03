@@ -55,8 +55,9 @@ if( ENABLE_KRB5 )
   endif()
 endif()
 
-# mac fuse not supported
-if( ENABLE_FUSE AND (LINUX OR KFREEBSD) )
+# FUSE is only supported on Linux and GNU/FreeBSD
+
+if( ENABLE_FUSE AND CMAKE_SYSTEM_NAME MATCHES "Linux|kFreeBSD" )
   if( FORCE_ENABLED )
     find_package( fuse REQUIRED )
   else()
