@@ -147,7 +147,7 @@ function run() {
 		error "required function not defined in ${SCRIPT}: test_${NAME}"
 	fi
 
-	test_"${NAME}" || (printlogs && exit 1)
+	(test_"${NAME}") || (printlogs && exit 1)
 }
 
 function teardown() {
