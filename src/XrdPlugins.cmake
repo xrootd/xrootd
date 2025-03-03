@@ -144,7 +144,7 @@ add_library(
   XrdOssStats/XrdOssStatsFileSystem.cc XrdOssStats/XrdOssStatsFileSystem.hh
   XrdOssStats/XrdOssStatsFile.cc       XrdOssStats/XrdOssStatsFile.hh )
 
-if( MacOSX )
+if( APPLE )
   SET( OSSSTATS_LINK_FLAGS "-Wl")
 else()
   SET( OSSSTATS_LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdOssStats/export-lib-symbols" )

@@ -67,7 +67,7 @@ endif()
 #-------------------------------------------------------------------------------
 # Sendfile
 #-------------------------------------------------------------------------------
-if( NOT MacOSX )
+if( NOT APPLE )
   check_function_exists( sendfile HAVE_SENDFILE )
   compiler_define_if_found( HAVE_SENDFILE HAVE_SENDFILE )
   set( SENDFILE_LIBRARY "" )

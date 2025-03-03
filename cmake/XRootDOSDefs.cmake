@@ -7,7 +7,6 @@ include( CheckCXXSourceRuns )
 set( LINUX    FALSE )
 set( KFREEBSD FALSE )
 set( Hurd     FALSE )
-set( MacOSX   FALSE )
 set( Solaris  FALSE )
 
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
@@ -92,11 +91,9 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "GNU" )
 endif()
 
 #-------------------------------------------------------------------------------
-# MacOSX
+# macOS
 #-------------------------------------------------------------------------------
 if( APPLE )
-  set( MacOSX TRUE )
-  
   set(CMAKE_MACOSX_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
   set(CMAKE_INSTALL_RPATH "@loader_path/../lib" CACHE STRING "Install RPATH")
