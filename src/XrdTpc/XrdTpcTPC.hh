@@ -166,11 +166,7 @@ private:
     // 16 blocks in flight at 16 MB each, meaning that there will be up to 256MB
     // in flight; this is equal to the bandwidth delay product of a 200ms transcontinental
     // connection at 10Gbps.
-#ifdef USE_PIPELINING
     static const int m_pipelining_multiplier = 16;
-#else
-    static const int m_pipelining_multiplier = 1;
-#endif
 
     bool usingEC; // indicate if XrdEC is used
 
