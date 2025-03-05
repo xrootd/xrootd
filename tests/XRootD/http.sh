@@ -195,7 +195,7 @@ function test_http() {
   ## Download fails on a read failure
   # Default HTTP request: TCP socket abruptly closes
   curl -v --raw "${HOST}/${TMPDIR}/fail_read.txt" 2>&1 | sed 's/blah//g' >"$outputFilePath"
-  assert_eq "1" "$(grep -c -E '\* transfer closed with [0-9]+ bytes remaining to read' "$outputFilePath")" "Download did not fail as expected: '$(cat "$outputFilePath")'"
+  assert_eq "1" "$(grep -c -E '\* (end of response with [0-9]+ bytes missing|transfer closed with [0-9]+ bytes remaining to read)' "$outputFilePath")" "Download did not fail as expected: '$(cat "$outputFilePath")'"
 
   # With transfer status summary enabled, connection is kept and error returned
   curl -v --raw -H 'TE: trailers' -H 'Connection: Keep-Alive' -H 'X-Transfer-Status: true' "${HOST}/${TMPDIR}/fail_read.txt?try=1" -v "${HOST}/${TMPDIR}/fail_read.txt?try=2" > "$outputFilePath" 2> "${TMPDIR}/stderr.txt"
