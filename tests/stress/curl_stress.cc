@@ -83,7 +83,7 @@ int HttpStressTest::CreateCurlUploadHandles(const std::string &url_prefix) {
     auto &handle = m_handles.back();
     auto url_final = url_prefix + "/test" + std::to_string(idx);
     curl_easy_setopt(handle.get(), CURLOPT_URL, url_final.c_str());
-    curl_easy_setopt(handle.get(), CURLOPT_PUT, 1);
+    curl_easy_setopt(handle.get(), CURLOPT_UPLOAD, 1);
     if (idx != 2) curl_easy_setopt(handle.get(), CURLOPT_FORBID_REUSE, 1L);
     curl_easy_setopt(handle.get(), CURLOPT_INFILESIZE_LARGE, (curl_off_t)g_hello_world.size());
     curl_easy_setopt(handle.get(), CURLOPT_READFUNCTION, hello_read_cb);
