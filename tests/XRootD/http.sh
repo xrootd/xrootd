@@ -38,6 +38,8 @@ function test_http() {
 	for i in $FILES; do
 		assert davix-put "${TMPDIR}/${i}.ref" "${HOST}/${TMPDIR}/${i}.ref"
 	done
+	printf "%1048576s" | sed 's/ /blah/g' > "${TMPDIR}/fail_read.txt"
+	assert davix-put "${TMPDIR}/fail_read.txt" "${HOST}/${TMPDIR}/fail_read.txt"
 	assert davix-put "${TMPDIR}/${i}.ref" "${HOST}/${TMPDIR}/testlistings/01.ref"
 
 	# list uploaded files, then download them to check for corruption
@@ -189,4 +191,15 @@ function test_http() {
   receivedHeader=$(grep -i 'Test:' "$outputFilePath")
   assert_eq "1" "$(echo "$receivedHeader" | wc -l | sed 's/^ *//')" "Incorrect number of 'Test' header values"
   assert_eq "$expectedHeader" "$receivedHeader" "HEAD is missing statically-defined Test header"
+
+  ## Download fails on a read failure
+  # Default HTTP request: TCP socket abruptly closes
+  curl -v --raw "${HOST}/${TMPDIR}/fail_read.txt" 2>&1 | sed 's/blah//g' >"$outputFilePath"
+  assert_eq "1" "$(grep -c -E '\* (end of response with [0-9]+ bytes missing|transfer closed with [0-9]+ bytes remaining to read)' "$outputFilePath")" "Download did not fail as expected: '$(cat "$outputFilePath")'"
+
+  # With transfer status summary enabled, connection is kept and error returned
+  curl -v --raw -H 'TE: trailers' -H 'Connection: Keep-Alive' -H 'X-Transfer-Status: true' "${HOST}/${TMPDIR}/fail_read.txt?try=1" -v "${HOST}/${TMPDIR}/fail_read.txt?try=2" > "$outputFilePath" 2> "${TMPDIR}/stderr.txt"
+  assert_eq "2" "$(grep -B 1 "X-Transfer-Status: 500: Unable to read" "$outputFilePath" | grep -c -E "^0")" "$(cat "$outputFilePath" | sed -e 's/blah//g')"
+  assert_eq "0" "$(grep -c "Leftovers after chunking" "${TMPDIR}/stderr.txt")" "Incorrect framing in response: $(cat "${TMPDIR}/stderr.txt" | sed -e 's/blah//g')"
+  assert_eq "0" "$(grep -c "Connection died" "${TMPDIR}/stderr.txt")" "Connection reuse did not work.  Server log: $(cat "${XROOTD_SERVER_LOGFILE}") Client log: $(cat "${TMPDIR}/stderr.txt" | sed -e 's/blah//g') Issue:"
 }
