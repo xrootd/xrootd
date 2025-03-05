@@ -22,7 +22,7 @@ for idx in 1 2; do
   fi
 
   # Generate the JWKS file
-  if ! "$BINARY_DIR/tests/scitokens/xrdscitokens-create-jwks" "issuer_pub_$idx.pem" "issuer_$idx.jwks" "test_$idx"; then
+  if ! "$BINARY_DIR/bin/xrdscitokens-create-jwks" "issuer_pub_$idx.pem" "issuer_$idx.jwks" "test_$idx"; then
     echo "Failed to generate JWKS file"
     exit 1
   fi
