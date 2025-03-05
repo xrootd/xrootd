@@ -18,6 +18,8 @@ add_subdirectory( XrdSsiTests )
 
 add_subdirectory(XrdTpcTests)
 
+add_subdirectory(TPCTests)
+
 if( BUILD_SCITOKENS )
   add_subdirectory( scitokens )
 endif()
