@@ -28,6 +28,21 @@
 #include <vector>
 
 /**
+ * Returns true if path @p subdir is a subdirectory of @p dir.
+ */
+static inline bool is_subdirectory(const std::string& dir,
+                                   const std::string& subdir)
+{
+    if (subdir.size() < dir.size())
+      return false;
+
+    if (subdir.compare(0, dir.size(), dir, 0, dir.size()) != 0)
+      return false;
+
+    return dir.size() == subdir.size() || subdir[dir.size()] == '/' || dir == "/";
+}
+
+/**
  * Obfuscates strings containing "authz=value", "Authorization: value",
  * "TransferHeaderAuthorization: value", "WhateverAuthorization: value"
  * in a case insensitive way.
