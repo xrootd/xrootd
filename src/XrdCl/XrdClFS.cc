@@ -34,6 +34,7 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystemOperations.hh"
 #include "XrdCl/XrdClParallelOperation.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <cstdlib>
@@ -626,6 +627,10 @@ XRootDStatus DoMv( FileSystem                      *fs,
     log->Error( AppMsg, "Invalid destination path." );
     return XRootDStatus( stError, errInvalidArgs );
   }
+
+  if( is_subdirectory(fullPath1, fullPath2) )
+    return XRootDStatus( stError, errInvalidArgs, 0,
+      "cannot move directory to a subdirectory of itself." );
 
   //----------------------------------------------------------------------------
   // Run the query
