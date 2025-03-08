@@ -58,8 +58,7 @@ TEST(URLTest, RemoteURLs)
               for (const char *params : { "", "?param=value", "?param1=value1&param2=value2" }) {
                 snprintf(url, sizeof(url), "%s%s%s%s%s%s%s%s%s%s%s%s",
                   protocol, *protocol ? "://" : "",
-                  // TODO: allow empty user and/or password in the login part
-                  user, *user && *password ? ":" : "", *user ? password : "", *user ? "@" : "",
+                  user, *password ? ":" : "", password, *user || *password ? "@" : "",
                   // TODO: accept URLs with empty path and non-empty parameters
                   host, *port ? ":" : "", port, *params && !*path ? "/" : "", path, params);
                 snprintf(path_params, sizeof(path_params), "%s%s", *path == '/' ? path+1 : path, params);
@@ -69,7 +68,8 @@ TEST(URLTest, RemoteURLs)
                 EXPECT_TRUE(remote_url.IsValid()) << "URL " << url << " is invalid" << std::endl;
                 EXPECT_EQ(remote_url.GetPort(), *port ? atoi(port) : default_port);
                 EXPECT_STREQ(remote_url.GetProtocol().c_str(), *protocol ? protocol : "root");
-                EXPECT_STREQ(remote_url.GetPassword().c_str(), *user && *password ? password : "");
+                EXPECT_STREQ(remote_url.GetUserName().c_str(), user);
+                EXPECT_STREQ(remote_url.GetPassword().c_str(), password);
                 EXPECT_STREQ(remote_url.GetHostName().c_str(), host);
                 EXPECT_STREQ(remote_url.GetPath().c_str(), *path == '/' ? path+1 : path);
                 EXPECT_STREQ(remote_url.GetParamsAsString().c_str(), params);

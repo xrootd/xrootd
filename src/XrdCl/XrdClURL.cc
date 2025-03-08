@@ -206,16 +206,12 @@ namespace XrdCl
       {
         pUserName = userPass.substr( 0, pos );
         pPassword = userPass.substr( pos+1 );
-        if( pPassword.empty() )
-          return false;
       }
       //------------------------------------------------------------------------
       // It's just the user name
       //------------------------------------------------------------------------
       else
         pUserName = userPass;
-      if( pUserName.empty() )
-        return false;
     }
 
     //--------------------------------------------------------------------------
