@@ -282,8 +282,8 @@ namespace XrdCl
     if( !hostPort.empty() )
     {
       char *result;
-      pPort = ::strtol( hostPort.c_str(), &result, 0 );
-      if( *result != 0 )
+      pPort = ::strtol( hostPort.c_str(), &result, 10 );
+      if( *result != '\0' || pPort < 0 || pPort > 65535 )
         return false;
     }
 

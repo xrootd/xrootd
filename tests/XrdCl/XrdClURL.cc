@@ -53,7 +53,7 @@ TEST(URLTest, RemoteURLs)
     for (const char *user : { "", "alice", "bob", "user_123", "xrootd" }) {
       for (const char *password : { "", "abc ABC 123", "symbols \\~`!#$%^&*()_-+={[}]|:;'\"<,>.?" }) {
         for (const char *host : { "localhost", "[::1]", "127.0.0.1", "eospilot.cern.ch" }) {
-          for (const char *port : { "", "-1", "1094", "9999", "65535" }) {
+          for (const char *port : { "", "0", "1094", "9999", "65535" }) {
             for (const char *path : { "", "/", "/data", "/data/", "/data/file.dat", "/data//file" }) {
               for (const char *params : { "", "?param=value", "?param1=value1&param2=value2" }) {
                 snprintf(url, sizeof(url), "%s%s%s%s%s%s%s%s%s%s%s%s",
@@ -119,6 +119,7 @@ TEST(URLTest, InvalidURLs)
   const char *invalid_urls[] = {
     "root://",
     "://asds",
+    "root://localhost:-1",
     "root:////path?param1=val1&param2=val2",
     "root://@//path?param1=val1&param2=val2",
     "root://:@//path?param1=val1&param2=val2",
