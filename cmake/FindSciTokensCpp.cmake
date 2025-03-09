@@ -1,6 +1,9 @@
 
 include(CheckSymbolExists)
 
+unset(SCITOKENS_CPP_INCLUDE_DIR CACHE)
+unset(SCITOKENS_CPP_LIBRARIES CACHE)
+
 FIND_PATH(SCITOKENS_CPP_INCLUDE_DIR scitokens/scitokens.h
   HINTS
   ${SCITOKENS_CPP_DIR}
