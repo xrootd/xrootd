@@ -849,7 +849,7 @@ namespace XrdCl
     if( flags & kXR_delete )
       openflags |= O_CREAT | O_TRUNC;
 
-    if( flags & kXR_mkdir )
+    if( flags & (kXR_mkpath | kXR_async) )
     {
       XRootDStatus st = MkdirPath( path );
       if( !st.IsOK() )
