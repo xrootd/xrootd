@@ -126,13 +126,13 @@ bool XrdOssArcBackupTask::BkpXeq()
    char dsnDir[MAXPATHLEN];
    int n, rc;
 
-// Compose the arena path. Note that dsetRepoPFN already ends with a slash
+// Compose the arena path. Note that our arena path already ends with a slash
 //
-   n = snprintf(dsnDir, sizeof(dsnDir), "%s%s/%c/", Config.dsetRepoPFN,
+   n = snprintf(dsnDir, sizeof(dsnDir), "%s%s/%c/", Owner.Arena(),
                         XrdOssArcRecompose::DSN2Dir(theDSN).c_str(),
                         Config.mySep);
    if (n >= (int)sizeof(dsnDir))
-      {Elog.Emsg("Backup",ENAMETOOLONG,"bkup staging path for dataset",theDSN);
+      {Elog.Emsg("Backup",ENAMETOOLONG,"bkup arena path for dataset",theDSN);
        return false;
       }
 
@@ -200,7 +200,7 @@ bool XrdOssArcBackupTask::BkpXeq()
 
 // We can now create the archive
 //
-   if (!XrdOssArcBackup::Archive(theDSN, dsnDir)) return false;
+   if (!Owner.Archive(theDSN, dsnDir)) return false;
 
 // We can now safely mark this dataset as having been backed up
 //
@@ -274,7 +274,13 @@ do{if (!dsBkpQ.empty())
 XrdOssArcBackup::XrdOssArcBackup(const char *scp, bool& isOK)
                 : XrdJob("Backup"), Scope(scp)
 {
-   isOK = true;
+   char abuff[1024];
+
+// Construct the arena where our backups will be staged
+//
+   snprintf(abuff, sizeof(abuff), "/%s/4bkp/",scp);
+   isOK = Config.BuildPath("dataset backup arena", Config.dsetPathLFN, abuff,
+                           myArena, S_IRWXU|S_IRGRP|S_IXGRP);
 }
 
 /******************************************************************************/
@@ -328,8 +334,12 @@ bool XrdOssArcBackup::Archive(const char* dsName, const char* dsDir)
 // <arcfn>:    The actual filename to be used for the archive. By convention
 //             the archive is created as '<src_dir>/../<arcfn>'.
 //
-   if ((rc = Config.GenTapePath(dsName,tapPath,sizeof(tapPath))))
-      {Elog.Emsg("Archive", rc, "tape path for dataset", dsName);
+   int n = snprintf(tapPath, sizeof(tapPath), "%s/%s/%s", Config.tapePath,
+                             Scope, dsName);
+   if (n >= (int)sizeof(tapPath))
+      {rc = -ENAMETOOLONG;
+       snprintf(tapPath, sizeof(tapPath), "%s:%s", Scope, dsName);
+       Elog.Emsg("Archive", rc, "generate tape path for dataset", tapPath);
        Elog.Emsg("Archive", "Dataset", dsName, "needs manual intervention!!!");
        return false;
       }

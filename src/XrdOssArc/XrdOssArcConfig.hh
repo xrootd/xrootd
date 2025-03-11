@@ -37,6 +37,9 @@ class XrdOssArcConfig
 {
 public:
 
+bool  BuildPath(const char* what, const char* baseP, 
+                const char* addP, char*& destP, int mode=0);
+
 bool  Configure(const char* cfn, const char* parms, XrdOucEnv* envP);
 
 int   GenArcPath(const char* dsn, char* buff, int bSZ);
@@ -69,7 +72,6 @@ int         arcvPathLEN;   // Length of the above
 int         bkupPathLEN;   // Length of the below
 char*       bkupPathLFN;   // LFN of backup  path, default "/backup/"
 char*       dsetPathLFN;   // LFN of dataset path, default "/dataset/"
-char*       dsetRepoPFN;   // Path to directory where dataset backups are staged
 char*       srcData;       // Root path to where srcrse data is mounted
 char*       stagePath;     // Path to directory where zip members are extracted
 char*       tapePath;      // The full path of the tape disk buffer
@@ -94,9 +96,6 @@ int         arfSfxLen;     // Length of the above
 char        mySep;         // Slash replacement separator
 
 private:
-
-bool BuildPath(const char* what, const char* baseP, 
-               const char* addP, char*& destP, int mode=0);
 void ConfigPath(char** pDest, const char* pRoot);
 bool ConfigProc(const char* drctv);
 bool ConfigXeq(const char* cfName, const char* parms, XrdOucEnv* envP);
