@@ -71,8 +71,10 @@ class XrdOssArcBackup : public XrdJob
 friend class XrdOssArcBackupTask;
 public:
 
-static
 bool  Archive(const char* dsName, const char* dsDir);
+
+const
+char* Arena() {return myArena;}
 
 void  DoIt() override;
 
@@ -91,6 +93,7 @@ private:
        int  GetManifest();
 
 const char* Scope;
+      char* myArena;
 
 static XrdSysMutex                      dsBkpQMtx;
 static std::deque<XrdOssArcBackupTask*> dsBkpQ;

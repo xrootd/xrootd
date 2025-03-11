@@ -101,7 +101,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    bkupPathLFN = strdup("/backup/");
    bkupPathLEN = strlen(bkupPathLFN);
    dsetPathLFN = strdup("/dataset/");
-   dsetRepoPFN = 0;
+
    srcData     = strdup("");
    stagePath   = strdup("/tmp/stage");
    tapePath    = strdup("/TapeBuffer");
@@ -244,12 +244,6 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
            NoGo = true;
           }
       }
-
-// Create the backup staging path
-//
-   if (!BuildPath("dataset backup arena", dsetPathLFN, "/4bkp/",
-                  dsetRepoPFN, S_IRWXU|S_IRGRP|S_IXGRP))
-      NoGo = true;
 
 // Create the program that returns the datasets that need to be backed up.
 // It also is the one that manipulates the backup status of a dataset.
