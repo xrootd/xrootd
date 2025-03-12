@@ -101,7 +101,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    bkupPathLFN = strdup("/backup/");
    bkupPathLEN = strlen(bkupPathLFN);
    dsetPathLFN = strdup("/dataset/");
-
+   dsetRepoPFN = 0;
    srcData     = strdup("");
    stagePath   = strdup("/tmp/stage");
    tapePath    = strdup("/TapeBuffer");
@@ -244,6 +244,12 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
            NoGo = true;
           }
       }
+
+// Create the backup staging path
+//
+   if (!BuildPath("dataset backup arena", dsetPathLFN, "/4bkp/",
+                  dsetRepoPFN, S_IRWXU|S_IRGRP|S_IXGRP))
+      NoGo = true;
 
 // Create the program that returns the datasets that need to be backed up.
 // It also is the one that manipulates the backup status of a dataset.
@@ -541,7 +547,7 @@ bool XrdOssArcConfig::xqBkup()
           bkpopt[] =
              {
               {"fscan",   &bkpFSt,  30, isT},
-              {"max",     &bkpMax,  60, isN},
+              {"max",     &bkpMax,   1, isN},
               {"minfree", 0,         1, isPS},
               {"poll",    &bkpPoll,  1, isT},
               {"scope",   0,        -1, isN}
@@ -574,14 +580,14 @@ do{for (i = 0; i < numopts; i++)
                }
 
             if (bkpopt[i].isX == isT)
-               {if (XrdOuca2x::a2tm(Elog,bkpopt[i].opname,token,val,minv))
+               {if (XrdOuca2x::a2tm(Elog,bkpopt[i].opname,tval,val,minv))
                    {Conf-> EchoLine();
                     return false;
                    }
                 break;
                }
 
-            if (XrdOuca2x::a2i(Elog,bkpopt[i].opname,token,val,minv))
+            if (XrdOuca2x::a2i(Elog,bkpopt[i].opname,tval,val,minv))
                {Conf-> EchoLine();
                 return false;
                }
