@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -Eeuxo pipefail
+set -Eexo pipefail
 
 # Skip on macOS due to missing 'declare -A' support
 if [[ $(uname) == "Darwin" ]]; then
@@ -74,6 +74,18 @@ setup_scitokens() {
 # Cleanup function
 # shellcheck disable=SC2317
 cleanup() {
+    set +e
+    ## Cleanup empty files
+    src_empty="srv1"
+    dst_empty="srv2"
+    rm "${LCLDATADIR}/${src_empty}_empty.dat"
+    rm "${LCLDATADIR}/${src_empty}_empty.ref"
+    ${XRDFS} "${hosts[$src_empty]}" rm "${RMTDATADIR}/${src_empty}_empty.ref"
+    for mode in "_http_pull" "_http_push" ""; do
+        rm "${LCLDATADIR}/${src_empty}_to_${dst_empty}_empty.dat${mode}"
+        ${XRDFS} "${hosts[$dst_empty]}" rm "${RMTDATADIR}/${src_empty}_to_${dst_empty}_empty.ref${mode}"
+    done
+
     # Cleanup local and remote files
     for src in "${!hosts[@]}"; do
     rm "${LCLDATADIR}/${src}.dat"
@@ -96,7 +108,9 @@ cleanup() {
 
     rmdir "${LCLDATADIR}"
 }
-trap "cleanup" ERR EXIT
+trap "cleanup" ERR
+
+
 
 # Set up directories
 RMTDATADIR="/srvdata/tpc"
@@ -105,18 +119,20 @@ mkdir -p "${LCLDATADIR}"
 mkdir -p "${PWD}/generated_tokens"
 mkdir -p "$XDG_CACHE_HOME/scitokens" && rm -rf "$XDG_CACHE_HOME/scitokens"/*
 
-
 # Set up scitokens
 setup_scitokens
 export BEARER_TOKEN_FILE="$PWD/generated_tokens/token"
 BEARER_TOKEN=$(cat "$BEARER_TOKEN_FILE")
 export BEARER_TOKEN
 
-
-
 generate_file() {
     local local_file=$1
     ${OPENSSL} rand -out "${local_file}" $((1024 * (RANDOM + 1)))
+}
+
+generate_empty_file() {
+    local local_file=$1
+    touch "${local_file}"
 }
 
 upload_file() {
@@ -128,8 +144,15 @@ upload_file() {
 perform_tpc() {
     local src=$1
     local dst=$2
-    local src_file="${hosts[$src]}/${RMTDATADIR}/${src}.ref"
-    local dst_file="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}.ref"
+    local file_suffix=$3
+
+    if [[ -z "${file_suffix}" ]]; then
+        file_suffix=""
+    fi
+
+    local src_file="${hosts[$src]}/${RMTDATADIR}/${src}${file_suffix}.ref"
+    local dst_file="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}${file_suffix}.ref"
+
     ${XRDCP} "${src_file}" "${dst_file}"
 }
 
@@ -139,14 +162,19 @@ perform_http_tpc() {
     local mode=$3
     local token_src=$4
     local token_dst=$5
+    local file_suffix=$6
 
-    local src_file_http="${hosts_http[$src]}/${RMTDATADIR}/${src}.ref"
-    local dst_file_http="${hosts_http[$dst]}/${RMTDATADIR}/${src}_to_${dst}.ref_http"
+    if [[ -z "${file_suffix}" ]]; then
+        file_suffix=""
+    fi
+
+    local src_file_http="${hosts_http[$src]}/${RMTDATADIR}/${src}${file_suffix}.ref"
+    local dst_file_http="${hosts_http[$dst]}/${RMTDATADIR}/${src}_to_${dst}${file_suffix}.ref_http"
     local http_code
 
     if [[ "$mode" == "push" ]]; then
         dst_file_http="${dst_file_http}_push"
-        http_code=$(${CURL} -X COPY -L -s -o /dev/null -w "%{http_code}" \
+        http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
             -H "Destination: ${dst_file_http}" \
             -H "Authorization: Bearer ${token_dst}" \
             -H "TransferHeaderAuthorization: Bearer ${token_src}" \
@@ -154,7 +182,7 @@ perform_http_tpc() {
             "${src_file_http}")
     elif [[ "$mode" == "pull" ]]; then
         dst_file_http="${dst_file_http}_pull"
-        http_code=$(${CURL} -X COPY -L -s -o /dev/null -w "%{http_code}" \
+        http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
             -H "Source: ${src_file_http}" \
             -H "Authorization: Bearer ${token_src}" \
             -H "TransferHeaderAuthorization: Bearer ${token_dst}" \
@@ -276,6 +304,38 @@ for src in "${!hosts[@]}"; do
         verify_checksum "adler32" "${ref_file_http}" "${new_file_http}_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_push"
     done
 done
+
+## Empty files test
+src="srv1"
+dst="srv2"
+generate_empty_file "${LCLDATADIR}/${src}_empty.ref"
+upload_file "${LCLDATADIR}/${src}_empty.ref" "${hosts[$src]}/${RMTDATADIR}/${src}_empty.ref"
+download_file "${hosts[$src]}/${RMTDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat"
+verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src]}" "${RMTDATADIR}/${src}_empty.ref"
+verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src]}" "${RMTDATADIR}/${src}_empty.ref"
+
+perform_tpc "${src}" "${dst}" "_empty"
+assert_eq "201" "$(perform_http_tpc "$src" "$dst" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC pull failed"
+assert_eq "201" "$(perform_http_tpc "$src" "$dst" "push" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC push failed"
+
+remote_file="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref"
+local_file="${LCLDATADIR}/${src}_to_${dst}_empty.dat"
+download_file "${remote_file}" "${local_file}"
+verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref"
+verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref"
+
+remote_file_http="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref_http"
+local_file_http="${LCLDATADIR}/${src}_to_${dst}_empty.dat_http"
+download_file "${remote_file_http}_pull" "${local_file_http}_pull"
+verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_pull" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_pull"
+verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_pull" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_pull"
+
+download_file "${remote_file_http}_push" "${local_file_http}_push"
+verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
+verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
+
+
+cleanup
 
 echo "ALL TESTS PASSED"
 exit 0
