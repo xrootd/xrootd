@@ -72,6 +72,7 @@ int         arcvPathLEN;   // Length of the above
 int         bkupPathLEN;   // Length of the below
 char*       bkupPathLFN;   // LFN of backup  path, default "/backup/"
 char*       dsetPathLFN;   // LFN of dataset path, default "/dataset/"
+char*       dsetRepoPFN;   // Path to directory where dataset backups are staged
 char*       srcData;       // Root path to where srcrse data is mounted
 char*       stagePath;     // Path to directory where zip members are extracted
 char*       tapePath;      // The full path of the tape disk buffer
