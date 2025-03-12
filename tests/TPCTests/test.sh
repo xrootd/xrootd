@@ -138,7 +138,23 @@ generate_empty_file() {
 upload_file() {
     local local_file=$1
     local remote_file=$2
-    ${XRDCP} "${local_file}" "${remote_file}"
+    local protocol=$3
+
+    if [[ -z "${protocol}" || "${protocol}" == "root" ]]; then
+        ${XRDCP} "${local_file}" "${remote_file}"
+    elif [[ "${protocol}" == "http" ]]; then
+        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -v -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${BEARER_TOKEN}" \
+            -H "Transfer-Encoding: chunked" \
+            --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+            --data-binary "@${local_file}" "${remote_file}" \
+            2>&1 1>&3 | cat >&2)
+
+        echo "$http_code"
+    else
+        echo "ERROR: Unsupported protocol: $protocol" >&2
+        return 1
+    fi
 }
 
 perform_tpc() {
@@ -200,7 +216,20 @@ perform_http_tpc() {
 download_file() {
     local src=$1
     local dest=$2
-    ${XRDCP} "${src}" "${dest}"
+    local protocol=$3
+
+    if [[ -z "${protocol}" || "${protocol}" == "root" ]]; then
+        ${XRDCP} "${src}" "${dest}"
+    elif [[ "${protocol}" == "http" ]]; then
+        ${CURL} -X GET -L -s -v -o "${dest}" \
+            -H "Authorization: Bearer ${BEARER_TOKEN}" \
+            -H "Transfer-Encoding: chunked" \
+            --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+            "${src}" 2>&1 >&2
+    else
+        echo "ERROR: Unsupported protocol: $protocol" >&2
+        return 1
+    fi
 }
 
 verify_checksum() {
@@ -309,8 +338,9 @@ done
 src="srv1"
 dst="srv2"
 generate_empty_file "${LCLDATADIR}/${src}_empty.ref"
-upload_file "${LCLDATADIR}/${src}_empty.ref" "${hosts[$src]}/${RMTDATADIR}/${src}_empty.ref"
-download_file "${hosts[$src]}/${RMTDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat"
+assert_eq "201" "$(upload_file "${LCLDATADIR}/${src}_empty.ref" "${hosts_http[$src]}/${RMTDATADIR}/${src}_empty.ref" "http")" "HTTP Upload failed"
+download_file "${hosts_http[$src]}/${RMTDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "http"
+
 verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src]}" "${RMTDATADIR}/${src}_empty.ref"
 verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src]}" "${RMTDATADIR}/${src}_empty.ref"
 
@@ -318,19 +348,19 @@ perform_tpc "${src}" "${dst}" "_empty"
 assert_eq "201" "$(perform_http_tpc "$src" "$dst" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC pull failed"
 assert_eq "201" "$(perform_http_tpc "$src" "$dst" "push" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC push failed"
 
-remote_file="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref"
+remote_file="${hosts_http[$dst]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref"
 local_file="${LCLDATADIR}/${src}_to_${dst}_empty.dat"
-download_file "${remote_file}" "${local_file}"
+download_file "${remote_file}" "${local_file}" "http"
 verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref"
 verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref"
 
-remote_file_http="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref_http"
+remote_file_http="${hosts_http[$dst]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref_http"
 local_file_http="${LCLDATADIR}/${src}_to_${dst}_empty.dat_http"
-download_file "${remote_file_http}_pull" "${local_file_http}_pull"
+download_file "${remote_file_http}_pull" "${local_file_http}_pull" "http"
 verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_pull" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_pull"
 verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_pull" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_pull"
 
-download_file "${remote_file_http}_push" "${local_file_http}_push"
+download_file "${remote_file_http}_push" "${local_file_http}_push" "http"
 verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
 verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
 
