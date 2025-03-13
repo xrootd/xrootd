@@ -1424,7 +1424,8 @@ int XrdXrootdProtocol::do_Open()
            }
    else if (opts & kXR_delete)
            {openopts  = SFS_O_TRUNC;   *op++ = 'd'; opC = XROOTD_MON_OPENW;
-            if (opts & kXR_mkdir)     {*op++ = 'm';
+            if (opts & (kXR_mkpath | kXR_async))
+                                      {*op++ = 'm';
                                        mode |= SFS_O_MKPTH;
                                       }
            }
