@@ -58,8 +58,6 @@
 
 #include <XrdCks/XrdCksAssist.hh>
 
-//#include "XrdCeph/XrdCephGlobals.hh"
-
 char *ts_rfc3339() {
 
     std::time_t now = std::time({});
@@ -69,7 +67,22 @@ char *ts_rfc3339() {
     return strdup(timeString);
 }
 
+constexpr char hex2ascii(char nibble)   { return (0<= nibble && nibble<=9) ? nibble+'0' : nibble-10+'a'; }
+constexpr char hiNibble(uint8_t hexbyte) { return (hexbyte & 0xf0) >> 4; }
+constexpr char loNibble(uint8_t hexbyte) { return (hexbyte & 0x0f); }
 
+constexpr char *hexbytes2ascii(const char bytes[], const unsigned int length){
+
+  char asciiVal[2*length+1] {};
+  for (unsigned int i = 0, j = 0; i < length; i++) {
+
+     const uint8_t hexbyte = bytes[i];
+     asciiVal[j++] = hex2ascii(hiNibble(hexbyte));
+     asciiVal[j++] = hex2ascii(loNibble(hexbyte));
+
+  }
+  return strdup(asciiVal);
+}
 
 using namespace std;
 
@@ -83,21 +96,6 @@ int setXrdCksAttr(const int fd, const char* cstype, const char* ckSumbuf) {
       attrData.data(), attrData.size(), 0);
 
       return rc;
-}
-
-
-std::vector<char> checksumData(const char* algName, const int algLen, const char* ckBuf) {
-
-  XrdCksData xd;
-  xd.Set(algName);
-  xd.Set(ckBuf, algLen);
-  xd.fmTime = time(0);
-  xd.csTime = xd.fmTime;
-
-  auto attrData = std::vector<char>( (char *)&xd, ((char *)&xd)+sizeof(xd));
-
-  return attrData;
-
 }
 
 /// small struct for directory listing
@@ -158,13 +156,11 @@ std::map<unsigned int, unsigned long long> g_idxCntr;
 //IJJ: Actions for Adler32 checksum
 
 extern bool g_calcStreamedAdler32;
+bool g_calcStreamedAdler32 = false;
 extern bool g_logStreamedAdler32;
-extern bool g_storeStreamedAdler32;
-=======
-bool g_calcStreamedAdler32;
-bool g_logStreamedAdler32;
-bool g_storeStreamedAdler32;
->>>>>>> 0aed50f31 ([XrdCeph] swap extern use to pass compilation)
+bool g_logStreamedAdler32 = false;
+extern bool g_storeStreamedAdler32; 
+bool g_storeStreamedAdler32 = false;
 
 FILE *g_cksLogFile;
 
@@ -806,10 +802,12 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
         }
       }
     }
+
     // At this point, we know either the target file didn't exist, or the ceph_posix_unlink above removed it
     if (g_calcStreamedAdler32) {
       fr.adler32 = adler32(0L, Z_NULL, 0);
     }
+    fr.writingData = true;
     int fd = insertFileRef(fr);
     logwrapper((char*)"File descriptor %d associated to file %s opened in write mode", fd, pathname);
     return fd;
@@ -856,26 +854,29 @@ int ceph_posix_close(int fd) {
                fr->asyncRdCompletionCount, fr->asyncRdStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
                fr->longestAsyncWriteTime, fr->longestCallbackInvocation, (lastAsyncAge));
 
-    if (g_calcStreamedAdler32) {
+    if (fr->writingData) {
+      if (g_calcStreamedAdler32) {
         const char* adler32str = formatAdler32(fr->adler32);
-  	logwrapper((char*)"ceph_close: Adler32 streamed checksum = %s", adler32str);
+  	logwrapper((char*)"ceph_close: fd: %d, Adler32 streamed checksum = %s", fd, adler32str);
 
-      if (g_logStreamedAdler32) {
-        const char *timestamp = ts_rfc3339(); // "2025-02-24 13:09:01+00:00"
-	const char *path = (fr->pool + ":" + fr->name).c_str();
-	const char *cksMode = "streamed";
-	const char *cksType = "adler32";
-	const char *cksValue = adler32str;
+        if (g_logStreamedAdler32) {
 
-  	fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", timestamp, path, cksMode, cksType, cksValue);
-        fflush(g_cksLogFile);
-      }
+	  const char *timestamp = ts_rfc3339(); // "2025-02-24 13:09:01+00:00"
+	  const char *path = (fr->pool + ":" + fr->name).c_str();
+	  const char *cksMode = "streamed";
+	  const char *cksType = "adler32";
+          const char *cksValue = adler32str;
 
-      if (g_storeStreamedAdler32) {
-        int rc = setXrdCksAttr(fd, "adler32", adler32str);
+          fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", timestamp, path, cksMode, cksType, cksValue);
+          fflush(g_cksLogFile);
+        }
 
-        if (rc != 0) {
-           logwrapper((char*)"ceph_close: Can't set attribute XrdCks.adler32 for checksum");
+        if (g_storeStreamedAdler32) {
+          int rc = setXrdCksAttr(fd, "adler32", adler32str);
+
+          if (rc != 0) {
+            logwrapper((char*)"ceph_close: Can't set attribute XrdCks.adler32 for checksum");
+          }
         }
       }
     }
@@ -941,12 +942,9 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
     fr->wrcount++;
     fr->bytesWritten+=count;
     if (fr->offset) fr->maxOffsetWritten = std::max(fr->offset - 1, fr->maxOffsetWritten);
-    if (g_calcStreamedAdler32) {
+    if (fr->writingData && g_calcStreamedAdler32) {
       fr->adler32 = adler32(fr->adler32, (const Bytef*)buf, count);
-    } else {
-      logwrapper((char*)"ceph_write: g_calcAdler is false!");
     }
-
     return count;
   } else {
     return -EBADF;
@@ -976,7 +974,7 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     fr->bytesWritten+=count;
     if (offset + count) fr->maxOffsetWritten = std::max(uint64_t(offset + count - 1), fr->maxOffsetWritten);
 
-    if (g_calcStreamedAdler32) {
+    if (fr->writingData && g_calcStreamedAdler32) {
       fr->adler32 = adler32(fr->adler32, (const Bytef*)buf, count); 
     }
 
@@ -1468,8 +1466,21 @@ static ssize_t ceph_posix_internal_setxattr(const CephFile &file, const char* na
 ssize_t ceph_posix_setxattr(XrdOucEnv* env, const char* path,
                             const char* name, const void* value,
                             size_t size, int flags) {
+  int rc;
+
+  auto *cks = (XrdCksData*)value;	
   logwrapper((char*)"ceph_setxattr: path %s name=%s value=%s", path, name, value);
-  return ceph_posix_internal_setxattr(getCephFile(path, env), name, value, size, flags);
+  rc = ceph_posix_internal_setxattr(getCephFile(path, env), name, value, size, flags);
+
+  if (0 == rc && !strcmp(name, "XrdCks.adler32") && g_logStreamedAdler32) {
+
+      auto cksAscii = (const char*)hexbytes2ascii(cks->Value, cks->Length);
+      logwrapper((char*)"readback checksum = %s", cksAscii);
+      fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "readback", "adler32", cksAscii);
+      fflush(g_cksLogFile);
+
+  }
+  return rc;
 }
 
 int ceph_posix_fsetxattr(int fd,

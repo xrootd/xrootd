@@ -131,6 +131,7 @@ struct CephFileRef : CephFile {
   double longestCallbackInvocation;
   uLong adler32;
   uLong crc32;
+  bool writingData;
 };
 
 #endif // __XRD_CEPH_POSIX__
