@@ -31,20 +31,6 @@
 #include "XrdCks/XrdCksData.hh"
 #include <string.h>
 
-//#include "XrdCeph/XrdCephGlobals.hh"
-
-FILE *g_cksLogFile;
-
-char *ts_rfc3339() {
-
-    std::time_t now = std::time({});
-    char timeString[std::size("yyyy-mm-dd hh:mm:ss")];
-    std::strftime(std::data(timeString), std::size(timeString),
-                  "%F %TZ", std::gmtime(&now));
-    return strdup(timeString);
-}
-
-
 XrdSysError XrdCephXattrEroute(0);
 XrdOucTrace XrdCephXattrTrace(&XrdCephXattrEroute);
 
@@ -67,33 +53,8 @@ extern "C"
       return 0;
     }
 
-    const char *cksLogFilename = "/var/log/xrootd/checksums/checksums.log";
-    g_cksLogFile = fopen(cksLogFilename, "a");
-    if (NULL == g_cksLogFile) {
-           XrdCephXattrEroute.Emsg("Config cannot open file for logging checksum values and pathnames: ", cksLogFilename);
-       } else {
-           XrdCephXattrEroute.Emsg("Opened file for logging checksum values and pathname: ", cksLogFilename);
-    }
     return new XrdCephXAttr();
   }
-}
-extern bool g_storeStreamedAdler32;
-
-constexpr char hex2ascii(char nibble)   { return (0<= nibble && nibble<=9) ? nibble+'0' : nibble-10+'a'; }
-constexpr char hiNibble(uint8_t hexbyte) { return (hexbyte & 0xf0) >> 4; }
-constexpr char loNibble(uint8_t hexbyte) { return (hexbyte & 0x0f); }
-
-constexpr char *hexbytes2ascii(const char bytes[], const unsigned int length){
-
-  char asciiVal[2*length+1] {};
-  for (unsigned int i = 0, j = 0; i < length; i++) {
-
-     const uint8_t hexbyte = bytes[i];
-     asciiVal[j++] = hex2ascii(hiNibble(hexbyte));
-     asciiVal[j++] = hex2ascii(loNibble(hexbyte));
-
-  }
-  return strdup(asciiVal);
 }
 
 XrdCephXAttr::XrdCephXAttr() {}
@@ -142,7 +103,6 @@ int XrdCephXAttr::List(AList **aPL, const char *Path, int fd, int getSz) {
 
 int XrdCephXAttr::Set(const char *Aname, const void *Aval, int Avsz,
                       const char *Path,  int fd,  int isNew) {
-
   int rc = 0;
 
   if (fd >= 0) {
@@ -152,24 +112,9 @@ int XrdCephXAttr::Set(const char *Aname, const void *Aval, int Avsz,
       rc = ceph_posix_setxattr(0, Path, Aname, Aval, Avsz, 0);
     } catch (std::exception &e) {
       XrdCephXattrEroute.Say("Set : invalid syntax in file parameters", Path);
-     rc = -EINVAL;
+      rc = -EINVAL;
     }
   }
-
-  if (0 == rc && !strcmp(Aname, "XrdCks.adler32") ) { 
-
-
-      auto *cks = (XrdCksData *)Aval;
-      auto cksAscii = (const char*)hexbytes2ascii(cks->Value, cks->Length);
-      XrdCephXattrEroute.Say("readback checksum = ", cksAscii);
-      fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), Path, "readback", "adler32", cksAscii);
-      fflush(g_cksLogFile);
-/*
-      char cksBuff[8+1];//      sprintf(cksBuff, "%08x", (uint8_t)*(cks->Value));// Produces "00000084"
-      fflush(g_cksLogFile);
-*/
-  }
-
   return rc;
 }
 
