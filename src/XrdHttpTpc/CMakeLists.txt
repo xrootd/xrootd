@@ -19,13 +19,13 @@ endif()
 set(XrdHttpTPC XrdHttpTPC-${PLUGIN_VERSION})
 
 add_library(${XrdHttpTPC} MODULE
-  XrdTpcConfigure.cc
-  XrdTpcMultistream.cc
-  XrdTpcState.cc         XrdTpcState.hh
-  XrdTpcStream.cc        XrdTpcStream.hh
-  XrdTpcTPC.cc           XrdTpcTPC.hh
-  XrdTpcPMarkManager.cc  XrdTpcPMarkManager.hh
-  XrdTpcUtils.cc         XrdTpcUtils.hh)
+  XrdHttpTpcConfigure.cc
+  XrdHttpTpcMultistream.cc
+  XrdHttpTpcState.cc         XrdHttpTpcState.hh
+  XrdHttpTpcStream.cc        XrdHttpTpcStream.hh
+  XrdHttpTpcTPC.cc           XrdHttpTpcTPC.hh
+  XrdHttpTpcPMarkManager.cc  XrdHttpTpcPMarkManager.hh
+  XrdHttpTpcUtils.cc         XrdHttpTpcUtils.hh)
 
 target_link_libraries(${XrdHttpTPC}
   PRIVATE

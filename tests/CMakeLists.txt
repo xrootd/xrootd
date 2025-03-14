@@ -16,7 +16,7 @@ add_subdirectory(XrdOucTests)
 
 add_subdirectory( XrdSsiTests )
 
-add_subdirectory(XrdTpcTests)
+add_subdirectory(XrdHttpTpc)
 
 if( BUILD_SCITOKENS )
   add_subdirectory( scitokens )

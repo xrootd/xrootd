@@ -9,8 +9,8 @@
 
 #include <curl/curl.h>
 
-#include "XrdTpcState.hh"
-#include "XrdTpcStream.hh"
+#include "XrdHttpTpcState.hh"
+#include "XrdHttpTpcStream.hh"
 
 using namespace TPC;
 
