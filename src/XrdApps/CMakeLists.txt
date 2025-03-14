@@ -22,7 +22,7 @@ if( NOT XRDCL_ONLY )
   #-----------------------------------------------------------------------------
   add_executable(
     xrdadler32
-    XrdApps/Xrdadler32.cc )
+    Xrdadler32.cc )
 
   target_link_libraries(
     xrdadler32
@@ -36,7 +36,7 @@ if( NOT XRDCL_ONLY )
   #-----------------------------------------------------------------------------
   add_executable(
     xrdcks
-    XrdApps/XrdCks.cc )
+    XrdCks.cc )
 
   target_link_libraries(
     xrdcks
@@ -47,7 +47,7 @@ if( NOT XRDCL_ONLY )
   #-----------------------------------------------------------------------------
   add_executable(
     xrdcrc32c
-    XrdApps/XrdCrc32c.cc )
+    XrdCrc32c.cc )
 
   target_link_libraries(
     xrdcrc32c
@@ -58,7 +58,7 @@ if( NOT XRDCL_ONLY )
   #-----------------------------------------------------------------------------
   add_executable(
     cconfig
-    XrdApps/XrdAppsCconfig.cc )
+    XrdAppsCconfig.cc )
 
   target_link_libraries(
     cconfig
@@ -69,7 +69,7 @@ if( NOT XRDCL_ONLY )
   #-----------------------------------------------------------------------------
   add_executable(
     mpxstats
-    XrdApps/XrdMpxStats.cc )
+    XrdMpxStats.cc )
 
   target_link_libraries(
     mpxstats
@@ -84,7 +84,7 @@ if( NOT XRDCL_ONLY )
   #-----------------------------------------------------------------------------
   add_executable(
     xrdprep
-    XrdApps/XrdPrep.cc )
+    XrdPrep.cc )
 
   target_link_libraries(
     xrdprep
@@ -96,7 +96,7 @@ if( NOT XRDCL_ONLY )
   #-----------------------------------------------------------------------------
   add_executable(
     wait41
-    XrdApps/XrdWait41.cc )
+    XrdWait41.cc )
 
   target_link_libraries(
     wait41
@@ -109,7 +109,7 @@ if( NOT XRDCL_ONLY )
   #-----------------------------------------------------------------------------
   add_executable(
     xrdacctest
-    XrdApps/XrdAccTest.cc )
+    XrdAccTest.cc )
 
   target_link_libraries(
     xrdacctest
@@ -121,7 +121,7 @@ if( NOT XRDCL_ONLY )
   #-------------------------------------------------------------------------------
   add_executable(
     xrdmapc
-    XrdApps/XrdMapCluster.cc )
+    XrdMapCluster.cc )
 
   target_link_libraries(
     xrdmapc
@@ -133,14 +133,14 @@ if( NOT XRDCL_ONLY )
   #-------------------------------------------------------------------------------
   add_executable(
     xrdpinls
-    XrdApps/XrdPinls.cc )
+    XrdPinls.cc )
 
   #-------------------------------------------------------------------------------
   # xrdqstats
   #-------------------------------------------------------------------------------
   add_executable(
     xrdqstats
-    XrdApps/XrdQStats.cc )
+    XrdQStats.cc )
 
   target_link_libraries(
     xrdqstats
@@ -156,9 +156,9 @@ endif()
 add_library(
   XrdAppUtils
   SHARED
-  XrdApps/XrdCpConfig.cc          XrdApps/XrdCpConfig.hh
-  XrdApps/XrdCpFile.cc            XrdApps/XrdCpFile.hh
-  XrdApps/XrdMpxXml.cc            XrdApps/XrdMpxXml.hh )
+  XrdCpConfig.cc          XrdCpConfig.hh
+  XrdCpFile.cc            XrdCpFile.hh
+  XrdMpxXml.cc            XrdMpxXml.hh )
 
 target_link_libraries(
   XrdAppUtils
@@ -177,8 +177,8 @@ set_target_properties(
 add_library(
   ${LIB_XRDCL_PROXY_PLUGIN}
   MODULE
-  XrdApps/XrdClProxyPlugin/ProxyPrefixPlugin.cc
-  XrdApps/XrdClProxyPlugin/ProxyPrefixFile.cc)
+  XrdClProxyPlugin/ProxyPrefixPlugin.cc
+  XrdClProxyPlugin/ProxyPrefixFile.cc)
 
 target_link_libraries(${LIB_XRDCL_PROXY_PLUGIN} PRIVATE XrdCl)
 
@@ -188,13 +188,13 @@ target_link_libraries(${LIB_XRDCL_PROXY_PLUGIN} PRIVATE XrdCl)
 add_library(
   ${LIB_XRDCL_RECORDER_PLUGIN}
   MODULE
-  XrdApps/XrdClRecordPlugin/XrdClRecorderPlugin.cc )
+  XrdClRecordPlugin/XrdClRecorderPlugin.cc )
 
 target_link_libraries(${LIB_XRDCL_RECORDER_PLUGIN} PRIVATE XrdCl)
 
 add_executable(
   xrdreplay
-  XrdApps/XrdClRecordPlugin/XrdClReplay.cc )
+  XrdClRecordPlugin/XrdClReplay.cc )
 
 target_link_libraries(
   xrdreplay
