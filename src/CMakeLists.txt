@@ -32,7 +32,7 @@ add_subdirectory( XrdSecsss )
 add_subdirectory( XrdSecunix )
 add_subdirectory( XrdSecztn )
 
-include( XrdXml )
+add_subdirectory( XrdXml )
 
 if( ENABLE_XRDCL )
   add_subdirectory( XrdCl )
