@@ -45,7 +45,7 @@ if( NOT XRDCL_ONLY )
   include( XrdFfs )
   include( XrdPlugins )
   include( XrdSsi )
-  include( XrdPfc )
+  add_subdirectory( XrdPfc )
   add_subdirectory( XrdOssCsi )
 
   add_subdirectory( XrdHttp )
