@@ -50,7 +50,7 @@ if( NOT XRDCL_ONLY )
 
   if( BUILD_HTTP )
     include( XrdHttp )
-    add_subdirectory( XrdTpc )
+    add_subdirectory( XrdHttpTpc )
   endif()
 
   add_subdirectory( XrdMacaroons )
