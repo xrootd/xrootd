@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// This file is part of XrdTpcTPC
+// This file is part of XrdHttpTpcTPC
 //
 // Copyright (c) 2023 by European Organization for Nuclear Research (CERN)
 // Author: Cedric Caffy <ccaffy@cern.ch>
@@ -21,11 +21,11 @@
 
 
 #include <sstream>
-#include "XrdTpcPMarkManager.hh"
+#include "XrdHttpTpcPMarkManager.hh"
 #include "XrdNet/XrdNetUtils.hh"
-#include "XrdTpc/XrdTpcTPC.hh"
+#include "XrdHttpTpc/XrdHttpTpcTPC.hh"
 
-namespace XrdTpc
+namespace XrdHttpTpc
 {
 PMarkManager::SocketInfo::SocketInfo(int fd, const struct sockaddr * sockP) {
   netAddr.Set(sockP,fd);
@@ -113,4 +113,4 @@ void PMarkManager::endPmark(int fd) {
   // we just look for it and reset the unique_ptr to nullptr to trigger the PMark handle deletion
   mPmarkHandles.erase(fd);
 }
-} // namespace XrdTpc
+} // namespace XrdHttpTpc

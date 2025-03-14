@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// This file is part of XrdTpcTPC
+// This file is part of XrdHttpTpcTPC
 //
 // Copyright (c) 2023 by European Organization for Nuclear Research (CERN)
 // Author: Cedric Caffy <ccaffy@cern.ch>
@@ -30,7 +30,7 @@ namespace TPC {
 }
 
 
-class XrdTpcUtils {
+class XrdHttpTpcUtils {
 public:
   /**
    * Prepares the file XRootD open URL from the request resource, the xrd-http-query header of the HTTP request and the hdr2cgi map passed in parameter

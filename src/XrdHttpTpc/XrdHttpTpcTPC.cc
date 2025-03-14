@@ -10,7 +10,7 @@
 
 #include "XrdXrootd/XrdXrootdTpcMon.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
-#include "XrdTpc/XrdTpcUtils.hh"
+#include "XrdHttpTpc/XrdHttpTpcUtils.hh"
 
 #include <curl/curl.h>
 
@@ -24,9 +24,9 @@
 #include <thread>
 #include <iostream> // Delete later!!!
 
-#include "XrdTpcState.hh"
-#include "XrdTpcStream.hh"
-#include "XrdTpcTPC.hh"
+#include "XrdHttpTpcState.hh"
+#include "XrdHttpTpcStream.hh"
+#include "XrdHttpTpcTPC.hh"
 #include <fstream>
 
 using namespace TPC;
@@ -158,9 +158,9 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
 /*                            p r e p a r e U R L                             */
 /******************************************************************************/
 
-// See XrdTpcUtils::prepareOpenURL() documentation
+// See XrdHttpTpcUtils::prepareOpenURL() documentation
 std::string TPCHandler::prepareURL(XrdHttpExtReq &req) {
-  return XrdTpcUtils::prepareOpenURL(req.resource, req.headers,hdr2cgimap);
+  return XrdHttpTpcUtils::prepareOpenURL(req.resource, req.headers,hdr2cgimap);
 }
 
 /******************************************************************************/

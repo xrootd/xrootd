@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// This file is part of XrdTpcTPC
+// This file is part of XrdHttpTpcTPC
 //
 // Copyright (c) 2023 by European Organization for Nuclear Research (CERN)
 // Author: Cedric Caffy <ccaffy@cern.ch>
@@ -18,13 +18,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
-#include "XrdTpcUtils.hh"
+#include "XrdHttpTpcUtils.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
-#include "XrdTpc/XrdTpcTPC.hh"
+#include "XrdHttpTpc/XrdHttpTpcTPC.hh"
 
 #include <sstream>
 
-std::string XrdTpcUtils::prepareOpenURL(const std::string & reqResource, std::map<std::string,std::string> & reqHeaders, const std::map<std::string,std::string> & hdr2cgimap) {
+std::string XrdHttpTpcUtils::prepareOpenURL(const std::string & reqResource, std::map<std::string,std::string> & reqHeaders, const std::map<std::string,std::string> & hdr2cgimap) {
   auto iter = XrdOucTUtils::caseInsensitiveFind(reqHeaders,"xrd-http-query");
   std::stringstream opaque;
 
