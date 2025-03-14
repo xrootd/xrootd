@@ -18,17 +18,17 @@ endif()
 # Include the subcomponents
 #-------------------------------------------------------------------------------
 include( XrdUtils )
+include( XrdHeaders )
 
 add_subdirectory( XrdApps )
 add_subdirectory( XrdCrypto )
 add_subdirectory( XrdPosix )
 add_subdirectory( XrdSec )
+add_subdirectory( XrdSecgsi )
 add_subdirectory( XrdSecpwd )
 add_subdirectory( XrdSecsss )
 add_subdirectory( XrdSecunix )
 include( XrdXml )
-include( XrdHeaders )
-include( XrdSecgsi )
 include( XrdSecztn )
 
 if( BUILD_KRB5 )
