@@ -18,7 +18,8 @@ endif()
 # Include the subcomponents
 #-------------------------------------------------------------------------------
 include( XrdUtils )
-include( XrdApps )
+
+add_subdirectory( XrdApps )
 include( XrdCrypto )
 include( XrdPosix )
 include( XrdSec )
