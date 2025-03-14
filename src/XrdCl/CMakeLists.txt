@@ -1,4 +1,6 @@
-
+if(NOT ENABLE_XRDCL)
+  return()
+endif()
 
 #-------------------------------------------------------------------------------
 # Shared library version

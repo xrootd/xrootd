@@ -1,3 +1,7 @@
+if(NOT BUILD_XRDCLHTTP)
+  return()
+endif()
+
 set(libXrdClHttp_sources
   XrdClHttpPlugInFactory.cc
   XrdClHttpPlugInUtil.cc
