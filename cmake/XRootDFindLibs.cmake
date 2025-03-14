@@ -53,22 +53,6 @@ if( ENABLE_KRB5 )
   endif()
 endif()
 
-# FUSE is only supported on Linux and GNU/FreeBSD
-
-if( ENABLE_FUSE AND CMAKE_SYSTEM_NAME MATCHES "Linux|kFreeBSD" )
-  if( FORCE_ENABLED )
-    find_package( fuse REQUIRED )
-  else()
-    find_package( fuse )
-  endif()
-  if( FUSE_FOUND )
-    add_definitions( -DHAVE_FUSE )
-    set( BUILD_FUSE TRUE )
-  else()
-    set( BUILD_FUSE FALSE )
-  endif()
-endif()
-
 if( ENABLE_HTTP )
   set( BUILD_HTTP TRUE )
 endif()
