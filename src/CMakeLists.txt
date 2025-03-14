@@ -53,10 +53,7 @@ if( NOT XRDCL_ONLY )
     include( XrdTpc )
   endif()
 
-  if( BUILD_MACAROONS )
-    include( XrdMacaroons )
-  endif()
-
+  add_subdirectory( XrdMacaroons )
   add_subdirectory( XrdVoms )
   add_subdirectory( XrdCeph )
   add_subdirectory( XrdSciTokens )
