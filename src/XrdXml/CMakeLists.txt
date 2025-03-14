@@ -5,17 +5,17 @@ if ( TINYXML_FOUND )
    set( TINYXML_LIBRARIES ${TINYXML_LIBRARIES} )
 else()
    set( TINYXML_FILES
-        XrdXml/tinyxml/tinystr.cpp       XrdXml/tinyxml/tinystr.h
-        XrdXml/tinyxml/tinyxml.cpp       XrdXml/tinyxml/tinyxml.h
-        XrdXml/tinyxml/tinyxmlerror.cpp
-        XrdXml/tinyxml/tinyxmlparser.cpp )
+        tinyxml/tinystr.cpp       tinyxml/tinystr.h
+        tinyxml/tinyxml.cpp       tinyxml/tinyxml.h
+        tinyxml/tinyxmlerror.cpp
+        tinyxml/tinyxmlparser.cpp )
    set( TINYXML_LIBRARIES "" )
 endif()
 
 if ( LIBXML2_FOUND )
    set( XRDXML2_READER_FILES
-        XrdXml/XrdXmlRdrXml2.cc
-        XrdXml/XrdXmlRdrXml2.hh )
+        XrdXmlRdrXml2.cc
+        XrdXmlRdrXml2.hh )
    set( XRDXML2_LIBRARIES ${LIBXML2_LIBRARIES} )
 else()
    set( XRDXML2_READER_FILES "" )
@@ -37,9 +37,9 @@ add_library(
   XrdXml
   SHARED
   ${TINYXML_FILES}
-  XrdXml/XrdXmlMetaLink.cc         XrdXml/XrdXmlMetaLink.hh
-  XrdXml/XrdXmlRdrTiny.cc          XrdXml/XrdXmlRdrTiny.hh
-  XrdXml/XrdXmlReader.cc           XrdXml/XrdXmlReader.hh
+  XrdXmlMetaLink.cc         XrdXmlMetaLink.hh
+  XrdXmlRdrTiny.cc          XrdXmlRdrTiny.hh
+  XrdXmlReader.cc           XrdXmlReader.hh
   ${XRDXML2_READER_FILES} )
 
 target_link_libraries(
@@ -59,7 +59,7 @@ set_target_properties(
 if ( TINYXML_FOUND )
    target_include_directories( XrdXml PRIVATE ${TINYXML_INCLUDE_DIR} )
 else()
-   target_include_directories( XrdXml PRIVATE XrdXml/tinyxml )
+   target_include_directories( XrdXml PRIVATE tinyxml )
 endif()
 
 if ( LIBXML2_FOUND )
