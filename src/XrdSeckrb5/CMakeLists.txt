@@ -1,24 +1,12 @@
-#-------------------------------------------------------------------------------
-# The XrdSeckrb5 module
-#-------------------------------------------------------------------------------
-set( LIB_XRD_SEC_KRB5 XrdSeckrb5-${PLUGIN_VERSION} )
+if(NOT BUILD_KRB5)
+  return()
+endif()
 
-add_library(
-  ${LIB_XRD_SEC_KRB5}
-  MODULE
-  XrdSeckrb5/XrdSecProtocolkrb5.cc )
+set(XrdSeckrb5 XrdSeckrb5-${PLUGIN_VERSION})
 
-target_link_libraries(
-  ${LIB_XRD_SEC_KRB5}
-  PRIVATE
-  XrdUtils
-  ${KERBEROS5_LIBRARIES} )
+add_library(${XrdSeckrb5} MODULE XrdSecProtocolkrb5.cc)
 
-target_include_directories( ${LIB_XRD_SEC_KRB5} PRIVATE ${KERBEROS5_INCLUDE_DIR} )
+target_link_libraries(${XrdSeckrb5} PRIVATE XrdUtils ${KERBEROS5_LIBRARIES})
+target_include_directories(${XrdSeckrb5} PRIVATE ${KERBEROS5_INCLUDE_DIR})
 
-#-------------------------------------------------------------------------------
-# Install
-#-------------------------------------------------------------------------------
-install(
-  TARGETS ${LIB_XRD_SEC_KRB5}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+install(TARGETS ${XrdSeckrb5} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
