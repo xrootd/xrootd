@@ -48,10 +48,8 @@ if( NOT XRDCL_ONLY )
   include( XrdPfc )
   include( XrdOssCsi )
 
-  if( BUILD_HTTP )
-    include( XrdHttp )
-    add_subdirectory( XrdHttpTpc )
-  endif()
+  add_subdirectory( XrdHttp )
+  add_subdirectory( XrdHttpTpc )
 
   add_subdirectory( XrdMacaroons )
   add_subdirectory( XrdVoms )
