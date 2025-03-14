@@ -20,7 +20,7 @@ endif()
 include( XrdUtils )
 
 add_subdirectory( XrdApps )
-include( XrdCrypto )
+add_subdirectory( XrdCrypto )
 include( XrdPosix )
 include( XrdSec )
 include( XrdXml )
