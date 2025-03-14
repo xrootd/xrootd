@@ -1,45 +1,8 @@
-
-
-#-------------------------------------------------------------------------------
-# Shared library version
-#-------------------------------------------------------------------------------
-set( XRD_CL_VERSION   3.0.0 )
-set( XRD_CL_SOVERSION 3 )
-
-#-------------------------------------------------------------------------------
-# The XrdCl Pipelining API
-#-------------------------------------------------------------------------------
-set( XrdClPipelineSources
-     XrdClOperations.cc            XrdClOperations.hh
-     XrdClOperationHandlers.hh
-     XrdClArg.hh
-     XrdClFwd.hh
-     XrdClParallelOperation.hh
-     XrdClFileOperations.hh
-     XrdClFileSystemOperations.hh
-     XrdClZipOperations.hh
-)
-
-#-------------------------------------------------------------------------------
-# XrdEc sources
-#-------------------------------------------------------------------------------
-if( BUILD_XRDEC )
-  set( XrdEcSources
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcRedundancyProvider.cc
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcUtilities.cc
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcStrmWriter.cc
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcReader.cc
-       XrdClEcHandler.cc
-  )
-  add_compile_definitions( WITH_XRDEC )
+if(NOT ENABLE_XRDCL)
+  return()
 endif()
 
-#-------------------------------------------------------------------------------
-# The XrdCl lib
-#-------------------------------------------------------------------------------
-add_library(
-  XrdCl
-  SHARED
+add_library(XrdCl SHARED
   XrdClLog.cc                    XrdClLog.hh
   XrdClUtils.cc                  XrdClUtils.hh
                                  XrdClOptimizers.hh
@@ -97,86 +60,45 @@ add_library(
   XrdClLocalFileTask.cc          XrdClLocalFileTask.hh
   XrdClZipListHandler.cc         XrdClZipListHandler.hh
   XrdClZipArchive.cc             XrdClZipArchive.hh
-  
-  ${XrdClPipelineSources}
-
-  ${XrdEcSources}
+  XrdClOperations.cc             XrdClOperations.hh
+  XrdClOperationHandlers.hh
+  XrdClArg.hh
+  XrdClFwd.hh
+  XrdClParallelOperation.hh
+  XrdClFileOperations.hh
+  XrdClFileSystemOperations.hh
+  XrdClZipOperations.hh
 )
 
-target_link_libraries(
-  XrdCl
+target_link_libraries(XrdCl
   PRIVATE
-  XrdXml
-  XrdUtils
-  uuid::uuid
-  ZLIB::ZLIB
-  OpenSSL::SSL
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${EXTRA_LIBS}
-  ${CMAKE_DL_LIBS})
+    XrdXml
+    XrdUtils
+    uuid::uuid
+    ZLIB::ZLIB
+    OpenSSL::SSL
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${EXTRA_LIBS}
+    ${CMAKE_DL_LIBS}
+)
 
-set_target_properties(
-  XrdCl
-  PROPERTIES
-  VERSION   ${XRD_CL_VERSION}
-  SOVERSION ${XRD_CL_SOVERSION} )
+if(BUILD_XRDEC)
+  target_sources(XrdCl
+    PRIVATE
+      ../XrdEc/XrdEcRedundancyProvider.cc
+      ../XrdEc/XrdEcUtilities.cc
+      ../XrdEc/XrdEcStrmWriter.cc
+      ../XrdEc/XrdEcReader.cc
+      XrdClEcHandler.cc
+  )
 
-if( BUILD_XRDEC )
-  target_include_directories(XrdCl PUBLIC ${ISAL_INCLUDE_DIRS})
+  target_compile_definitions(XrdCl PRIVATE WITH_XRDEC)
+  target_include_directories(XrdCl PRIVATE ${ISAL_INCLUDE_DIRS})
   target_link_libraries(XrdCl PRIVATE ${ISAL_LIBRARIES})
 endif()
 
-#-------------------------------------------------------------------------------
-# xrdfs
-#-------------------------------------------------------------------------------
-if( NOT XRDCL_LIB_ONLY )
-add_executable(
-  xrdfs
-  XrdClFS.cc
-  XrdClFSExecutor.cc         XrdClFSExecutor.hh )
-
-target_link_libraries(
-  xrdfs
-  ${CMAKE_THREAD_LIBS_INIT}
-  XrdCl
-  XrdUtils
-  ${READLINE_LIBRARY}
-  ${NCURSES_LIBRARY} )
-
-if( READLINE_FOUND )
-  target_include_directories(xrdfs PRIVATE ${READLINE_INCLUDE_DIR})
-endif()
-endif()
-
-#-------------------------------------------------------------------------------
-# xrdcopy
-#-------------------------------------------------------------------------------
-if( NOT XRDCL_LIB_ONLY )
-add_executable(
-  xrdcp
-  XrdClCopy.cc )
-
-target_link_libraries(
-  xrdcp
-  XrdCl
-  XrdUtils
-  XrdAppUtils )
-endif()
-
-#-------------------------------------------------------------------------------
-# Install
-#-------------------------------------------------------------------------------
-install(
-  TARGETS XrdCl
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-
-if( NOT XRDCL_LIB_ONLY )
-install(
-  TARGETS xrdfs xrdcp
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-endif()
+set_target_properties(XrdCl
+  PROPERTIES VERSION 3.0.0 SOVERSION 3)
 
 install(
   FILES
@@ -197,8 +119,10 @@ install(
     XrdClPlugInInterface.hh
     XrdClPropertyList.hh
     XrdClLog.hh
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
-  
+  DESTINATION
+    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl
+)
+
 install(
   FILES
     # Additional client headers
@@ -225,15 +149,54 @@ install(
     XrdClFinalOperation.hh
     XrdClUtils.hh
     XrdClXRootDTransport.hh
-    XrdClZipOperations.hh 
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
-
-if( NOT XRDCL_LIB_ONLY )
-install(
-  CODE "
-    EXECUTE_PROCESS(
-      COMMAND ln -sf xrdcp xrdcopy
-      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} )"
+    XrdClZipOperations.hh
+  DESTINATION
+    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl
 )
 
+install(
+  TARGETS
+    XrdCl
+  LIBRARY
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PRIVATE_HEADER
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl
+)
+
+if(NOT XRDCL_LIB_ONLY)
+  add_executable(xrdcp XrdClCopy.cc)
+
+  target_link_libraries(xrdcp
+    XrdCl
+    XrdUtils
+    XrdAppUtils
+  )
+
+  add_executable(xrdfs XrdClFS.cc XrdClFSExecutor.cc XrdClFSExecutor.hh)
+
+  target_link_libraries(xrdfs
+    XrdCl
+    XrdUtils
+    ${READLINE_LIBRARY}
+    ${NCURSES_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+  )
+
+  if(READLINE_FOUND)
+    target_include_directories(xrdfs PRIVATE ${READLINE_INCLUDE_DIR})
+  endif()
+
+  install(
+    TARGETS
+      xrdcp
+      xrdfs
+    RUNTIME
+      DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+
+  install(CODE "
+    execute_process(COMMAND ln -sf xrdcp xrdcopy
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+    )
+  ")
 endif()

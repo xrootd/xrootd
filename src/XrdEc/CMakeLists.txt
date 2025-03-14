@@ -1,54 +1,37 @@
-include( ExternalProject )
+if(NOT BUILD_XRDEC)
+  return()
+endif()
 
-#-------------------------------------------------------------------------------
-# The XrdEc shared library
-#-------------------------------------------------------------------------------
-
-set( XRD_EC_VERSION   1.0.0 )
-set( XRD_EC_SOVERSION 1 )
-
-add_library(
-  XrdEc
-  SHARED
+add_library(XrdEc SHARED
   XrdEcConfig.hh
   XrdEcObjCfg.hh
-  XrdEcRedundancyProvider.hh   XrdEcRedundancyProvider.cc 
-  XrdEcUtilities.hh            XrdEcUtilities.cc
-  XrdEcWrtBuff.hh
+  XrdEcReader.hh              XrdEcReader.cc
+  XrdEcRedundancyProvider.hh  XrdEcRedundancyProvider.cc 
+  XrdEcStrmWriter.hh          XrdEcStrmWriter.cc
   XrdEcThreadPool.hh
-  XrdEcStrmWriter.hh           XrdEcStrmWriter.cc
-  XrdEcReader.hh               XrdEcReader.cc
+  XrdEcUtilities.hh           XrdEcUtilities.cc
+  XrdEcWrtBuff.hh
 )
 
 target_link_libraries(XrdEc PRIVATE XrdCl XrdUtils ${ISAL_LIBRARIES})
 target_include_directories(XrdEc PRIVATE ${ISAL_INCLUDE_DIRS})
 
-set_target_properties(
-  XrdEc
-  PROPERTIES
-  VERSION   ${XRD_EC_VERSION}
-  SOVERSION ${XRD_EC_SOVERSION} )
-  
-#------------------------------------------------------------------------------
-# Install XrdEc library
-#------------------------------------------------------------------------------
-install(
-  TARGETS XrdEc
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+set_target_properties(XrdEc
+  PROPERTIES VERSION 1.0.0 SOVERSION 1)
 
-#------------------------------------------------------------------------------
-# Install private header files
-#------------------------------------------------------------------------------
 install(
   FILES
-    XrdEcReader.hh
+    XrdEcConfig.hh
     XrdEcObjCfg.hh
+    XrdEcObjCfg.hh
+    XrdEcReader.hh
+    XrdEcRedundancyProvider.hh
     XrdEcStrmWriter.hh
-    XrdEcWrtBuff.hh
     XrdEcThreadPool.hh
     XrdEcUtilities.hh
-    XrdEcObjCfg.hh
-    XrdEcConfig.hh
-    XrdEcRedundancyProvider.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdEc )
+    XrdEcWrtBuff.hh
+  DESTINATION
+    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdEc
+)
+
+install(TARGETS XrdEc LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
