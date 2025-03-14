@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// This file is part of XrdTpcTPC
+// This file is part of XrdHttpTpcTPC
 //
 // Copyright (c) 2023 by European Organization for Nuclear Research (CERN)
 // Author: Cedric Caffy <ccaffy@cern.ch>
@@ -47,7 +47,7 @@ namespace TPC {
  * In the case of multi-stream HTTP TPC transfers, a packet marking handle will be created for each stream.
  * The first one will be created as a basic one. The other will be created using the first packet marking handle as a basis.
  */
-namespace XrdTpc
+namespace XrdHttpTpc
 {
 class PMarkManager {
 public:
@@ -137,6 +137,6 @@ private:
   // by default is true
   TPC::TpcType mTpcType;
 };
-} // namespace XrdTpc
+} // namespace XrdHttpTpc
 
 #endif //XROOTD_PMARKMANAGER_HH

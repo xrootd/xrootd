@@ -1,7 +1,7 @@
 
 #include <sstream>
 
-#include "XrdTpcStream.hh"
+#include "XrdHttpTpcStream.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"

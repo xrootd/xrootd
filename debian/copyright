@@ -88,7 +88,7 @@ Files:
  src/XrdSys/XrdSysShmem.hh
  src/XrdTls/XrdTlsContext.*
  src/XrdTls/XrdTlsSocket.*
- src/XrdTpc/XrdTpcPMarkManager.*
+ src/XrdHttpTpc/XrdHttpTpcPMarkManager.*
  src/XrdZip/*
  tests/common/*
  tests/XrdCephTests/*
