@@ -9,7 +9,6 @@ set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
 set( LIB_XRD_GPI        XrdOfsPrepGPI-${PLUGIN_VERSION} )
 set( LIB_XRD_ZCRC32     XrdCksCalczcrc32-${PLUGIN_VERSION} )
 set( LIB_XRD_THROTTLE   XrdThrottle-${PLUGIN_VERSION} )
-set( LIB_XRD_OSSSTATS   XrdOssStats-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -90,33 +89,6 @@ target_link_libraries(
   XrdUtils )
 
 #-------------------------------------------------------------------------------
-# An OSS plugin for calculating storage performance statistics
-#-------------------------------------------------------------------------------
-add_library(
-  ${LIB_XRD_OSSSTATS}
-  MODULE
-  XrdOssStats/XrdOssStatsConfig.cc     XrdOssStats/XrdOssStatsConfig.hh
-  XrdOssStats/XrdOssStatsFileSystem.cc XrdOssStats/XrdOssStatsFileSystem.hh
-  XrdOssStats/XrdOssStatsFile.cc       XrdOssStats/XrdOssStatsFile.hh )
-
-if( APPLE )
-  SET( OSSSTATS_LINK_FLAGS "-Wl")
-else()
-  SET( OSSSTATS_LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdOssStats/export-lib-symbols" )
-endif()
-
-target_link_libraries(
-  ${LIB_XRD_OSSSTATS}
-  PRIVATE
-  XrdServer
-  XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_OSSSTATS}
-  PROPERTIES
-  LINK_FLAGS "${OSSSTATS_LINK_FLAGS}")
-
-#-------------------------------------------------------------------------------
 # The XrdCmsRedirLocal module
 #-------------------------------------------------------------------------------
 add_library(
@@ -134,5 +106,5 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_THROTTLE} ${LIB_XRD_N2NO2P} ${LIB_XRD_CMSREDIRL} ${LIB_XRD_GPI} ${LIB_XRD_OSSSTATS}
+  TARGETS ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_THROTTLE} ${LIB_XRD_N2NO2P} ${LIB_XRD_CMSREDIRL} ${LIB_XRD_GPI}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
