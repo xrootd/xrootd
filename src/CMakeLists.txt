@@ -62,9 +62,5 @@ if( NOT XRDCL_ONLY )
   endif()
 
   add_subdirectory( XrdCeph )
-
-  if( BUILD_SCITOKENS )
-    include( XrdSciTokens )
-  endif()
-
+  add_subdirectory( XrdSciTokens )
 endif()
