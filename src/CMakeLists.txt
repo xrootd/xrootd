@@ -23,18 +23,16 @@ include( XrdHeaders )
 add_subdirectory( XrdApps )
 add_subdirectory( XrdCrypto )
 add_subdirectory( XrdPosix )
+
 add_subdirectory( XrdSec )
 add_subdirectory( XrdSecgsi )
+add_subdirectory( XrdSeckrb5 )
 add_subdirectory( XrdSecpwd )
 add_subdirectory( XrdSecsss )
 add_subdirectory( XrdSecunix )
 add_subdirectory( XrdSecztn )
 
 include( XrdXml )
-
-if( BUILD_KRB5 )
-  include( XrdSeckrb5 )
-endif()
 
 if( ENABLE_XRDCL )
   add_subdirectory( XrdCl )
