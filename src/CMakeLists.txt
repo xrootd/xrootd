@@ -21,7 +21,7 @@ include( XrdUtils )
 
 add_subdirectory( XrdApps )
 add_subdirectory( XrdCrypto )
-include( XrdPosix )
+add_subdirectory( XrdPosix )
 include( XrdSec )
 include( XrdXml )
 include( XrdHeaders )

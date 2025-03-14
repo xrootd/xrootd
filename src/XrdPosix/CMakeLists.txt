@@ -14,23 +14,23 @@ set( XRD_POSIX_PRELOAD_SOVERSION 2 )
 add_library(
   XrdPosix
   SHARED
-  XrdPosix/XrdPosixAdmin.cc        XrdPosix/XrdPosixAdmin.hh
-  XrdPosix/XrdPosixCache.cc        XrdPosix/XrdPosixCache.hh
-  XrdPosix/XrdPosixCallBack.cc     XrdPosix/XrdPosixCallBack.hh
-  XrdPosix/XrdPosixConfig.cc       XrdPosix/XrdPosixConfig.hh
-  XrdPosix/XrdPosixDir.cc          XrdPosix/XrdPosixDir.hh
-  XrdPosix/XrdPosixExtra.cc        XrdPosix/XrdPosixExtra.hh
-  XrdPosix/XrdPosixFile.cc         XrdPosix/XrdPosixFile.hh
-  XrdPosix/XrdPosixFileRH.cc       XrdPosix/XrdPosixFileRH.hh
-  XrdPosix/XrdPosixMap.cc          XrdPosix/XrdPosixMap.hh
-  XrdPosix/XrdPosixObject.cc       XrdPosix/XrdPosixObject.hh
-                                   XrdPosix/XrdPosixObjGuard.hh
-  XrdPosix/XrdPosixPrepIO.cc       XrdPosix/XrdPosixPrepIO.hh
-                                   XrdPosix/XrdPosixStats.hh
-                                   XrdPosix/XrdPosixTrace.hh
-  XrdPosix/XrdPosixXrootd.cc       XrdPosix/XrdPosixXrootd.hh
-  XrdPosix/XrdPosixXrootdPath.cc   XrdPosix/XrdPosixXrootdPath.hh
-                                   XrdPosix/XrdPosixOsDep.hh    )
+  XrdPosixAdmin.cc        XrdPosixAdmin.hh
+  XrdPosixCache.cc        XrdPosixCache.hh
+  XrdPosixCallBack.cc     XrdPosixCallBack.hh
+  XrdPosixConfig.cc       XrdPosixConfig.hh
+  XrdPosixDir.cc          XrdPosixDir.hh
+  XrdPosixExtra.cc        XrdPosixExtra.hh
+  XrdPosixFile.cc         XrdPosixFile.hh
+  XrdPosixFileRH.cc       XrdPosixFileRH.hh
+  XrdPosixMap.cc          XrdPosixMap.hh
+  XrdPosixObject.cc       XrdPosixObject.hh
+                          XrdPosixObjGuard.hh
+  XrdPosixPrepIO.cc       XrdPosixPrepIO.hh
+                          XrdPosixStats.hh
+                          XrdPosixTrace.hh
+  XrdPosixXrootd.cc       XrdPosixXrootd.hh
+  XrdPosixXrootdPath.cc   XrdPosixXrootdPath.hh
+                          XrdPosixOsDep.hh    )
 
 target_link_libraries(
   XrdPosix
@@ -51,12 +51,12 @@ set_target_properties(
 add_library(
   XrdPosixPreload
   SHARED
-  XrdPosix/XrdPosixPreload32.cc
-  XrdPosix/XrdPosixPreload.cc
-  XrdPosix/XrdPosix.cc           XrdPosix/XrdPosix.hh
-  XrdPosix/XrdPosixLinkage.cc    XrdPosix/XrdPosixLinkage.hh
-                                 XrdPosix/XrdPosixExtern.hh
-                                 XrdPosix/XrdPosixOsDep.hh )
+  XrdPosixPreload32.cc
+  XrdPosixPreload.cc
+  XrdPosix.cc           XrdPosix.hh
+  XrdPosixLinkage.cc    XrdPosixLinkage.hh
+                        XrdPosixExtern.hh
+                        XrdPosixOsDep.hh )
 
 target_link_libraries(
   XrdPosixPreload
