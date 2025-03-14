@@ -41,7 +41,6 @@
 #endif
 #endif
 
-#ifdef HAVE_FUSE
 #include <fuse.h>
 #include <fuse/fuse_opt.h>
 #include <cctype>
@@ -1495,11 +1494,3 @@ int main(int argc, char *argv[])
 
     return fuse_main(args.argc, args.argv, &xrootdfs_oper, NULL);
 }
-#else
-
-int main(int argc, char *argv[])
-{
-    printf("This platform does not have FUSE; xrootdfs cannot be started!");
-    exit(13);
-}
-#endif

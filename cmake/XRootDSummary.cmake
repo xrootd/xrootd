@@ -14,7 +14,7 @@ endmacro()
 
 set( TRUE_VAR TRUE )
 component_status( CEPH      ENABLE_CEPH       BUILD_CEPH )
-component_status( FUSE      BUILD_FUSE        FUSE_FOUND )
+component_status( FUSE      ENABLE_FUSE       BUILD_FUSE )
 component_status( HTTP      ENABLE_HTTP       BUILD_HTTP )
 component_status( KRB5      BUILD_KRB5        KERBEROS5_FOUND )
 component_status( MACAROONS ENABLE_MACAROONS  BUILD_MACAROONS )
