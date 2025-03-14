@@ -3,7 +3,6 @@
 #-------------------------------------------------------------------------------
 # Modules
 #-------------------------------------------------------------------------------
-set( LIB_XRD_BWM        XrdBwm-${PLUGIN_VERSION} )
 set( LIB_XRD_N2NO2P     XrdN2No2p-${PLUGIN_VERSION} )
 set( LIB_XRD_CMSREDIRL  XrdCmsRedirectLocal-${PLUGIN_VERSION} )
 set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
@@ -15,27 +14,6 @@ set( LIB_XRD_OSSSTATS   XrdOssStats-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-
-#-------------------------------------------------------------------------------
-# The XrdBwm module
-#-------------------------------------------------------------------------------
-add_library(
-  ${LIB_XRD_BWM}
-  MODULE
-  XrdBwm/XrdBwm.cc             XrdBwm/XrdBwm.hh
-  XrdBwm/XrdBwmConfig.cc
-  XrdBwm/XrdBwmHandle.cc       XrdBwm/XrdBwmHandle.hh
-  XrdBwm/XrdBwmLogger.cc       XrdBwm/XrdBwmLogger.hh
-  XrdBwm/XrdBwmPolicy1.cc      XrdBwm/XrdBwmPolicy1.hh
-                               XrdBwm/XrdBwmPolicy.hh
-                               XrdBwm/XrdBwmTrace.hh )
-
-target_link_libraries(
-  ${LIB_XRD_BWM}
-  PRIVATE
-  XrdServer
-  XrdUtils
-  ${CMAKE_THREAD_LIBS_INIT} )
 
 #-------------------------------------------------------------------------------
 # N2No2p plugin library
@@ -156,5 +134,5 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_THROTTLE} ${LIB_XRD_N2NO2P} ${LIB_XRD_CMSREDIRL} ${LIB_XRD_GPI} ${LIB_XRD_OSSSTATS}
+  TARGETS ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_THROTTLE} ${LIB_XRD_N2NO2P} ${LIB_XRD_CMSREDIRL} ${LIB_XRD_GPI} ${LIB_XRD_OSSSTATS}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
