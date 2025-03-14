@@ -34,17 +34,9 @@ add_subdirectory( XrdSecztn )
 
 add_subdirectory( XrdXml )
 
-if( ENABLE_XRDCL )
-  add_subdirectory( XrdCl )
-endif()
-
-if( BUILD_XRDCLHTTP )
-  add_subdirectory( XrdClHttp )
-endif()
-
-if( BUILD_XRDEC )
-  add_subdirectory( XrdEc )
-endif()
+add_subdirectory( XrdCl )
+add_subdirectory( XrdClHttp )
+add_subdirectory( XrdEc )
 
 if( NOT XRDCL_ONLY )
   include( XrdServer )
