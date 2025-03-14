@@ -28,8 +28,9 @@ add_subdirectory( XrdSecgsi )
 add_subdirectory( XrdSecpwd )
 add_subdirectory( XrdSecsss )
 add_subdirectory( XrdSecunix )
+add_subdirectory( XrdSecztn )
+
 include( XrdXml )
-include( XrdSecztn )
 
 if( BUILD_KRB5 )
   include( XrdSeckrb5 )
