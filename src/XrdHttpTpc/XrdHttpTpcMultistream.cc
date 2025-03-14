@@ -2,8 +2,8 @@
  * Implementation of multi-stream HTTP transfers for the TPCHandler
  */
 
-#include "XrdTpcTPC.hh"
-#include "XrdTpcState.hh"
+#include "XrdHttpTpcTPC.hh"
+#include "XrdHttpTpcState.hh"
 
 #include "XrdSys/XrdSysError.hh"
 

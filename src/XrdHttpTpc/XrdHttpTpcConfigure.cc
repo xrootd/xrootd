@@ -1,5 +1,5 @@
 
-#include "XrdTpcTPC.hh"
+#include "XrdHttpTpcTPC.hh"
 
 #include <dlfcn.h>
 #include <fcntl.h>
