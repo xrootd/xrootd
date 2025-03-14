@@ -49,6 +49,7 @@ if( NOT XRDCL_ONLY )
   add_subdirectory( XrdSsi )
   add_subdirectory( XrdPfc )
   add_subdirectory( XrdOssCsi )
+  add_subdirectory( XrdOssStats )
 
   add_subdirectory( XrdHttp )
   add_subdirectory( XrdHttpTpc )
