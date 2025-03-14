@@ -57,10 +57,7 @@ if( NOT XRDCL_ONLY )
     include( XrdMacaroons )
   endif()
 
-  if( BUILD_VOMS )
-    include( XrdVoms )
-  endif()
-
+  add_subdirectory( XrdVoms )
   add_subdirectory( XrdCeph )
   add_subdirectory( XrdSciTokens )
 endif()
