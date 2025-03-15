@@ -123,7 +123,17 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   set( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fast" )
   set( CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fast" )
 
-  define_solaris_flavor()
+  execute_process( COMMAND isainfo
+                   OUTPUT_VARIABLE SOLARIS_ARCH )
+  string( REPLACE " " ";" SOLARIS_ARCH_LIST ${SOLARIS_ARCH} )
+
+  # amd64 (opteron)
+  list( FIND SOLARIS_ARCH_LIST amd64 SOLARIS_AMD64 )
+  if( SOLARIS_AMD64 EQUAL -1 )
+    set( SOLARIS_AMD64 FALSE )
+  else()
+    set( SOLARIS_AMD64 TRUE )
+  endif()
 
   #-----------------------------------------------------------------------------
   # Define solaris version
