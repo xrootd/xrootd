@@ -67,6 +67,8 @@ endif()
 string(REGEX MATCH "[0-9]+[.]*[0-9]*[.]*[0-9]*[.]*[0-9]*(-rc)?[0-9].*"
   XRootD_VERSION ${XRootD_VERSION_STRING})
 
+set(PLUGIN_VERSION ${XRootD_VERSION_MAJOR} CACHE STRING "XRootD Plugin Version")
+
 message(DEBUG "XRootD_VERSION_STRING = '${XRootD_VERSION_STRING}'")
 message(DEBUG "XRootD_VERSION_NUMBER = '${XRootD_VERSION_NUMBER}'")
 message(DEBUG "XRootD_VERSION_MAJOR  = '${XRootD_VERSION_MAJOR}'")

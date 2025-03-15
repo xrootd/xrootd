@@ -31,8 +31,6 @@ include( XRootDDefaults )
 include( XRootDSystemCheck )
 include( XRootDFindLibs )
 
-add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
-
 #-------------------------------------------------------------------------------
 # Generate the version header
 #-------------------------------------------------------------------------------

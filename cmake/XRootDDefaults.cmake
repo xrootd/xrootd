@@ -3,7 +3,6 @@
 #-------------------------------------------------------------------------------
 include( CMakeDependentOption )
 
-define_default( PLUGIN_VERSION    5 )
 option( ENABLE_CEPH      "Enable XrdCeph plugins."                                        FALSE )
 option( ENABLE_FUSE      "Enable the fuse filesystem driver if possible."                 TRUE )
 option( ENABLE_KRB5      "Enable the Kerberos 5 authentication if possible."              TRUE )
