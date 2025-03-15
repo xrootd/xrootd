@@ -1,5 +1,14 @@
 set(XrdSecsss XrdSecsss-${PLUGIN_VERSION})
 
+target_sources(XrdUtils
+  PRIVATE
+    XrdSecsssCon.cc  XrdSecsssCon.hh
+    XrdSecsssEnt.cc  XrdSecsssEnt.hh
+    XrdSecsssID.cc   XrdSecsssID.hh
+    XrdSecsssKT.cc   XrdSecsssKT.hh
+                     XrdSecsssMap.hh
+)
+
 add_library(${XrdSecsss} MODULE
   XrdSecProtocolsss.cc   XrdSecProtocolsss.hh
                          XrdSecsssRR.hh
