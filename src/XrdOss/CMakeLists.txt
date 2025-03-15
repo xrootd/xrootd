@@ -29,3 +29,12 @@ target_sources(XrdServer
                      XrdOssWrapper.hh
                      XrdOssVS.hh
 )
+
+#-------------------------------------------------------------------------------
+# GPFS stat() plugin library
+#-------------------------------------------------------------------------------
+set(XrdOssSIgpfsT XrdOssSIgpfsT-${PLUGIN_VERSION})
+add_library(${XrdOssSIgpfsT} MODULE XrdOssSIgpfsT.cc)
+target_link_libraries(${XrdOssSIgpfsT} PRIVATE XrdUtils)
+
+install(TARGETS ${XrdOssSIgpfsT} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
