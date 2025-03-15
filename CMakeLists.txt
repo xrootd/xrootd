@@ -1,5 +1,14 @@
 cmake_minimum_required(VERSION 3.16...3.31 FATAL_ERROR)
 
+# Check for in-source builds
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+  message(FATAL_ERROR "XRootD cannot be built in-source! "
+                      "Please run cmake <src-dir> outside the "
+                      "source directory and be sure to remove "
+                      "CMakeCache.txt or CMakeFiles if they "
+                      "exist in the source directory.")
+endif()
+
 project( XRootD )
 
 set( CMAKE_MODULE_PATH
@@ -17,8 +26,6 @@ ADD_CUSTOM_TARGET(plugins)
 
 
 include( XRootDUtils )
-CheckBuildDirectory()
-
 include( XRootDOSDefs )
 include( XRootDDefaults )
 include( XRootDSystemCheck )
