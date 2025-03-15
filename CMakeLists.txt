@@ -35,7 +35,6 @@ ADD_CUSTOM_TARGET(plugins)
 
 include(GNUInstallDirs)
 
-include( XRootDUtils )
 include( XRootDOSDefs )
 include( XRootDDefaults )
 include( XRootDSystemCheck )
