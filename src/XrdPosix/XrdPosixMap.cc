@@ -80,6 +80,44 @@ mode_t XrdPosixMap::Flags2Mode(dev_t *rdv, uint32_t flags)
 
    return newflags;
 }
+
+/******************************************************************************/
+/*                             S t a t F i l l                                */
+/******************************************************************************/
+
+int XrdPosixMap::Entry2Buf(const XrdCl::DirectoryList::ListEntry &dirEnt, struct stat &buf, XrdOucECMsg &ecMsg)
+{
+   auto statInfo = dirEnt.GetStatInfo();
+   if (!statInfo) {
+      ecMsg.Set(EIO, "Directory entry is missing expected stat information");
+      return EIO;
+   }
+
+   memset(&buf, '\0', sizeof(buf));
+   buf.st_mode   = Flags2Mode(nullptr, statInfo->GetFlags());
+   // Since the UID/GID isn't known by the client, when these are translated by
+   // XrdXrootdProtocol::StatGen back to xroot protocol flags, they will get zero'd
+   // out if only the user access mode is set (e.g., S_IRUSR).  Therefor, upgrade the
+   // access mode in the mapping to "other" as well (e.g., S_ROTH).  This way, the
+   // computed mode is the same for both the origin and the cache
+   if (buf.st_mode & S_IRUSR) buf.st_mode |= S_IROTH;
+   if (buf.st_mode & S_IWUSR) buf.st_mode |= S_IWOTH;
+   if (buf.st_mode & S_IXUSR) buf.st_mode |= S_IXOTH;
+   buf.st_mtime  = static_cast<time_t>(statInfo->GetModTime());
+   buf.st_ctime  = buf.st_mtime;
+   buf.st_size   = static_cast<size_t>(statInfo->GetSize());
+   buf.st_ino    = static_cast<ino_t>(strtoll(statInfo->GetId().c_str(), 0, 10));
+   buf.st_blocks = buf.st_size/512 + buf.st_size%512;
+   // If the device is zero'd out, then the listing later is translated to being offline
+   buf.st_dev    = 1;
+
+   if (statInfo->ExtendedFormat())
+      {buf.st_ctime = static_cast<time_t>(statInfo->GetChangeTime());
+       buf.st_atime = static_cast<time_t>(statInfo->GetAccessTime());
+      }
+
+   return 0;
+}
   
 /******************************************************************************/
 /* Private:                      m a p C o d e                                */

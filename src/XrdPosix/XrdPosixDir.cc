@@ -83,10 +83,26 @@ dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
    dp->d_reclen = d_nlen + dirhdrln;
    strncpy(dp->d_name, d_name, d_nlen);
    dp->d_name[d_nlen] = '\0';
+
+   // Note we fail if the stat info is needed but not available
+   int rc;
+   if (myBuf && (rc = XrdPosixMap::Entry2Buf(*dirEnt, *myBuf, ecMsg)))
+      {eNum = rc;
+       dp = nullptr;
+      }
    nxtEnt++;
    return dp;
 }
-  
+
+/******************************************************************************/
+/*                               S t a t R e t                                */
+/******************************************************************************/
+int XrdPosixDir::StatRet(struct stat *buf)
+{
+   myBuf = buf;
+   return 0;
+}
+
 /******************************************************************************/
 /*                                  O p e n                                   */
 /******************************************************************************/
