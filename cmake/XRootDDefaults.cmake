@@ -23,7 +23,6 @@ option( ENABLE_XRDCLHTTP "Enable xrdcl-http plugin."                            
 cmake_dependent_option( ENABLE_SCITOKENS "Enable SciTokens plugin." TRUE "NOT XRDCL_ONLY" FALSE )
 cmake_dependent_option( ENABLE_MACAROONS "Enable Macaroons plugin." TRUE "NOT XRDCL_ONLY" FALSE )
 option( FORCE_ENABLED    "Fail build if enabled components cannot be built."              FALSE )
-define_default( XRD_PYTHON_REQ_VERSION 3 )
 
 # backward compatibility
 if(XRDCEPH_SUBMODULE)
