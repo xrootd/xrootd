@@ -1,4 +1,26 @@
+set(XrdCryptoSources
+  XrdCryptosslAux.cc      XrdCryptosslAux.hh
+  XrdCryptosslX509.cc     XrdCryptosslX509.hh
+  XrdCryptoX509.cc        XrdCryptoX509.hh
+  XrdCryptoX509Chain.cc   XrdCryptoX509Chain.hh
+  XrdCryptosslRSA.cc      XrdCryptosslRSA.hh
+  XrdCryptoRSA.cc         XrdCryptoRSA.hh
+  XrdCryptosslgsiAux.cc
+  XrdCryptosslX509Req.cc  XrdCryptosslX509Req.hh
+  XrdCryptoX509Req.cc     XrdCryptoX509Req.hh
+  XrdCryptoAux.cc         XrdCryptoAux.hh
+  XrdCryptosslX509Crl.cc  XrdCryptosslX509Crl.hh
+  XrdCryptoX509Crl.cc     XrdCryptoX509Crl.hh
+                          XrdCryptoTrace.hh
+)
 
+#-----------------------------------------------------------------------------
+# XrdCrypto: linking against a few functions that are useful for XrdTls; avoids
+# linking against all of libXrdCryptossl in XrdUtils
+
+target_sources(XrdUtils PRIVATE ${XrdCryptoSources})
+
+#-----------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 # Modules
 #-------------------------------------------------------------------------------
