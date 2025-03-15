@@ -1,6 +1,15 @@
 set(XrdSec     XrdSec-${PLUGIN_VERSION})
 set(XrdSecProt XrdSecProt-${PLUGIN_VERSION})
 
+target_sources(XrdUtils
+  PRIVATE
+    XrdSecEntity.cc        XrdSecEntity.hh
+    XrdSecEntityAttr.cc    XrdSecEntityAttr.hh
+    XrdSecEntityXtra.cc    XrdSecEntityXtra.hh
+    XrdSecLoadSecurity.cc  XrdSecLoadSecurity.hh
+                           XrdSecMonitor.hh
+)
+
 add_library(${XrdSec} MODULE
                          XrdSecAttr.hh
   XrdSecClient.cc
