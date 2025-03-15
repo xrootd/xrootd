@@ -52,6 +52,7 @@ SET( XROOTD_SSI_FOUND     FALSE )
 ################################################################################
 
 set_and_check(XRootD_CMAKE_DIR   "${CMAKE_CURRENT_LIST_DIR}")
+set_and_check(XRootD_BIN_DIR     "@PACKAGE_CMAKE_INSTALL_BINDIR@")
 set_and_check(XRootD_DATA_DIR    "@PACKAGE_CMAKE_INSTALL_DATADIR@")
 set_and_check(XRootD_INCLUDE_DIR "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/xrootd")
 set_and_check(XRootD_LIB_DIR     "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
