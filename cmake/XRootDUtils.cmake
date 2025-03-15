@@ -14,16 +14,6 @@ macro( define_default variable value )
   endif()
 endmacro()
 
-macro( component_status name flag found )
-  if( ${flag} AND ${found} )
-    set( STATUS_${name} "yes" )
-  elseif( ${flag} AND NOT ${found} )
-    set( STATUS_${name} "libs not found" )
-  else()
-    set( STATUS_${name} "disabled" )
-  endif()
-endmacro()
-
 #-------------------------------------------------------------------------------
 # Detect what kind of solaris machine we're running
 #-------------------------------------------------------------------------------

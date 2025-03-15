@@ -1,6 +1,17 @@
 #-------------------------------------------------------------------------------
 # Print the configuration summary
 #-------------------------------------------------------------------------------
+
+macro( component_status name flag found )
+  if( ${flag} AND ${found} )
+    set( STATUS_${name} "yes" )
+  elseif( ${flag} AND NOT ${found} )
+    set( STATUS_${name} "libs not found" )
+  else()
+    set( STATUS_${name} "disabled" )
+  endif()
+endmacro()
+
 set( TRUE_VAR TRUE )
 component_status( CEPH      ENABLE_CEPH       BUILD_CEPH )
 component_status( FUSE      BUILD_FUSE        FUSE_FOUND )
