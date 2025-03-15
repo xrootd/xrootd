@@ -67,8 +67,35 @@ add_subdirectory( XrdClHttp )
 add_subdirectory( XrdEc )
 
 if( NOT XRDCL_ONLY )
-  include( XrdServer )
+  add_library(XrdServer SHARED)
+
+  set_target_properties(XrdServer
+    PROPERTIES VERSION 3.0.0 SOVERSION 3
+  )
+
+  target_link_libraries(XrdServer
+    PRIVATE
+    XrdUtils
+    ${CMAKE_DL_LIBS}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${ATOMIC_LIBRARY}
+    ${EXTRA_LIBS}
+    ${SOCKET_LIBRARY}
+  )
+
+  install(TARGETS XrdServer LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+  add_subdirectory( XrdAcc )
+  add_subdirectory( XrdCms )
+  add_subdirectory( XrdDig )
+  add_subdirectory( XrdFrc )
+  add_subdirectory( XrdOfs )
+  add_subdirectory( XrdOss )
+  add_subdirectory( XrdSfs )
+  add_subdirectory( XrdXrootd )
+
   include( XrdDaemons )
+
   add_subdirectory( XrdFrm )
   add_subdirectory( XrdFfs )
   include( XrdPlugins )
