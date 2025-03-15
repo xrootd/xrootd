@@ -1,4 +1,6 @@
-include( ExternalProject )
+if(NOT BUILD_XRDEC)
+  return()
+endif()
 
 #-------------------------------------------------------------------------------
 # The XrdEc shared library

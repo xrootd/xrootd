@@ -1,15 +1,3 @@
-#-------------------------------------------------------------------------------
-# Define the OS variables
-#-------------------------------------------------------------------------------
-
-include( CheckCXXSourceRuns )
-
-set( LINUX    FALSE )
-set( KFREEBSD FALSE )
-set( Hurd     FALSE )
-set( MacOSX   FALSE )
-set( Solaris  FALSE )
-
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 define_default( LIBRARY_PATH_PREFIX "lib" )
 
@@ -53,7 +41,6 @@ endif()
 # Linux
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
-  set( LINUX TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 
@@ -77,7 +64,6 @@ endif()
 # GNU/kFreeBSD
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "kFreeBSD" )
-  set( KFREEBSD TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 endif()
@@ -86,17 +72,14 @@ endif()
 # GNU/Hurd
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "GNU" )
-  set( Hurd TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 endif()
 
 #-------------------------------------------------------------------------------
-# MacOSX
+# macOS
 #-------------------------------------------------------------------------------
 if( APPLE )
-  set( MacOSX TRUE )
-  
   set(CMAKE_MACOSX_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
   set(CMAKE_INSTALL_RPATH "@loader_path/../lib" CACHE STRING "Install RPATH")
@@ -133,7 +116,6 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   define_default( CMAKE_INSTALL_MANDIR "man" )
   define_default( CMAKE_INSTALL_INCLUDEDIR "include" )
   define_default( CMAKE_INSTALL_DATADIR "share" )
-  set( Solaris TRUE )
   add_definitions( -D__solaris__=1 )
   add_definitions( -DSUNCC -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS )
   set( EXTRA_LIBS rt  Crun Cstd )
@@ -164,21 +146,4 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
     set( LIB_SEARCH_OPTIONS NO_DEFAULT_PATH )
     define_default( LIBRARY_PATH_PREFIX "lib/64" )
   endif()
-
-  #-----------------------------------------------------------------------------
-  # Check if the SunCC compiler can do optimizations
-  #-----------------------------------------------------------------------------
-  check_cxx_source_runs(
-  "
-    int main()
-    {
-      #if __SUNPRO_CC > 0x5100
-      return 0;
-      #else
-      return 1;
-      #endif
-    }
-  "
-  SUNCC_CAN_DO_OPTS )
-
 endif()

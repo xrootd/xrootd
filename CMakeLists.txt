@@ -1,13 +1,15 @@
-#-------------------------------------------------------------------------------
-# Project description
-#-------------------------------------------------------------------------------
-cmake_minimum_required(VERSION 3.16...3.30 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.16...3.31 FATAL_ERROR)
 
 project( XRootD )
 
 set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
  ${PROJECT_SOURCE_DIR}/cmake )
+
+# Place build artifacts in ${CMAKE_BINARY_DIR}/{bin,lib}
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 include(XRootDVersion)
 
