@@ -33,6 +33,7 @@ add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
 #-------------------------------------------------------------------------------
 ADD_CUSTOM_TARGET(plugins)
 
+include(GNUInstallDirs)
 
 include( XRootDUtils )
 include( XRootDOSDefs )
