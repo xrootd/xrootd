@@ -53,6 +53,13 @@ int     Close(long long *retsz=0);
 int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 
+// Store the `buf` pointer in the directory object.  Future calls to `Readdir`
+// will, as a side-effect, fill in the corresponding `stat` information in
+// the memory referred to from the pointer.
+//
+// Returns -errno on failure; otherwise, returns 0 and stashes away the pointer.
+int     StatRet(struct stat *buf);
+
         // Constructor and destructor
         XrdPssDir(const char *tid)
                  : XrdOssDF(tid, XrdOssDF::DF_isDir|XrdOssDF::DF_isProxy),
