@@ -1,3 +1,9 @@
+macro( define_default variable value )
+  if( NOT DEFINED ${variable} )
+    set( ${variable} ${value} )
+  endif()
+endmacro()
+
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 define_default( LIBRARY_PATH_PREFIX "lib" )
 
