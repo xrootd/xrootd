@@ -25,3 +25,21 @@ target_sources(XrdUtils
     XrdSendQ.cc      XrdSendQ.hh
                      XrdTrace.hh
 )
+
+add_executable(xrootd
+  XrdConfig.cc    XrdConfig.hh
+  XrdProtLoad.cc  XrdProtLoad.hh
+  XrdStats.cc     XrdStats.hh
+  XrdMain.cc
+)
+
+target_link_libraries(xrootd
+  XrdServer
+  XrdUtils
+  ${CMAKE_DL_LIBS}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${EXTRA_LIBS}
+  ${SOCKET_LIBRARY}
+)
+
+install(TARGETS xrootd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
