@@ -141,6 +141,8 @@ if( ENABLE_XRDEC )
 endif()
 
 if( ENABLE_PYTHON OR PYPI_BUILD )
+  set(XRD_PYTHON_REQ_VERSION 3 CACHE STRING "Required Python Version")
+
   if( CMAKE_VERSION VERSION_LESS 3.18 )
     set(PYTHON_COMPONENTS Interpreter Development)
   else()
