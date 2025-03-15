@@ -17,13 +17,14 @@ target_sources(XrdServer
                            XrdXrootdFileLock.hh
     XrdXrootdFileLock1.cc  XrdXrootdFileLock1.hh
                            XrdXrootdFileStats.hh
+    XrdXrootdGSReal.cc     XrdXrootdGSReal.hh
+    XrdXrootdGStream.cc    XrdXrootdGStream.hh
     XrdXrootdJob.cc        XrdXrootdJob.hh
     XrdXrootdLoadLib.cc
                            XrdXrootdMonData.hh
-    XrdXrootdMonFile.cc    XrdXrootdMonFile.hh
     XrdXrootdMonFMap.cc    XrdXrootdMonFMap.hh
+    XrdXrootdMonFile.cc    XrdXrootdMonFile.hh
     XrdXrootdMonitor.cc    XrdXrootdMonitor.hh
-
     XrdXrootdNormAio.cc    XrdXrootdNormAio.hh
     XrdXrootdPgrwAio.cc    XrdXrootdPgrwAio.hh
     XrdXrootdPgwBadCS.cc   XrdXrootdPgwBadCS.hh
@@ -35,30 +36,22 @@ target_sources(XrdServer
                            XrdXrootdReqID.hh
     XrdXrootdResponse.cc   XrdXrootdResponse.hh
     XrdXrootdStats.cc      XrdXrootdStats.hh
-    XrdXrootdGSReal.cc     XrdXrootdGSReal.hh
-    XrdXrootdGStream.cc    XrdXrootdGStream.hh
     XrdXrootdTpcMon.cc     XrdXrootdTpcMon.hh
                            XrdXrootdTrace.hh
-    XrdXrootdTransit.cc    XrdXrootdTransit.hh
     XrdXrootdTransPend.cc  XrdXrootdTransPend.hh
     XrdXrootdTransSend.cc  XrdXrootdTransSend.hh
+    XrdXrootdTransit.cc    XrdXrootdTransit.hh
                            XrdXrootdWVInfo.hh
+                           XrdXrootdXPath.hh
     XrdXrootdXeq.cc        XrdXrootdXeq.hh
     XrdXrootdXeqChkPnt.cc
     XrdXrootdXeqFAttr.cc
     XrdXrootdXeqPgrw.cc
-                           XrdXrootdXPath.hh
 )
 
 set(XrdXrootd XrdXrootd-${PLUGIN_VERSION})
 
 add_library(${XrdXrootd} MODULE XrdXrootdPlugin.cc)
-
-target_link_libraries(${XrdXrootd}
-  PRIVATE
-    XrdServer
-    XrdUtils
-    ${EXTRA_LIBS}
-)
+target_link_libraries(${XrdXrootd} PRIVATE XrdServer XrdUtils ${EXTRA_LIBS})
 
 install(TARGETS ${XrdXrootd} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

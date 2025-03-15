@@ -28,3 +28,12 @@ target_sources(XrdServer
     XrdOfsTPCProg.cc   XrdOfsTPCProg.hh
                        XrdOfsTrace.hh
 )
+
+#-------------------------------------------------------------------------------
+# Ofs Generic Prepare plugin library
+#-------------------------------------------------------------------------------
+set(XrdOfsPrepGPI XrdOfsPrepGPI-${PLUGIN_VERSION})
+add_library(${XrdOfsPrepGPI} MODULE XrdOfsPrepGPI.cc)
+target_link_libraries(${XrdOfsPrepGPI} PRIVATE XrdUtils)
+
+install(TARGETS ${XrdOfsPrepGPI} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
