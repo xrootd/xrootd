@@ -22,6 +22,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 include(XRootDVersion)
 
+set(PLUGIN_VERSION ${XRootD_VERSION_MAJOR} CACHE STRING "XRootD Plugin Version")
+
+add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
+
 #-------------------------------------------------------------------------------
 # A 'plugins' phony target to simplify building build-tree binaries.
 # Plugins are responsible for adding themselves to this target, where
@@ -35,8 +39,6 @@ include( XRootDOSDefs )
 include( XRootDDefaults )
 include( XRootDSystemCheck )
 include( XRootDFindLibs )
-
-add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
 
 #-------------------------------------------------------------------------------
 # Generate the version header
