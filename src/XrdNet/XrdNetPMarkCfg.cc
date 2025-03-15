@@ -1001,6 +1001,14 @@ do{if (!strcmp("debug", val) || !strcmp("nodebug", val))
            return 1;
           }
 
+       if (!strcmp("fail", val) || !strcmp("nofail", val))
+          {noFail = (*val == 'n');
+           if (!(val = Config.GetWord()))
+              {eLog->Say("Config invalid: pmark defsfile locationnot specified");
+               return 1;
+              }
+          }
+
        if (*val == '/')
           {Cfg->defsFile = val;
            continue;
