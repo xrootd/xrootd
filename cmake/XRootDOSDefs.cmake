@@ -41,7 +41,6 @@ endif()
 # Linux
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
-  include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 
   # Check for musl libc with the compiler, since it provides way to detect it
@@ -64,7 +63,6 @@ endif()
 # GNU/kFreeBSD
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "kFreeBSD" )
-  include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 endif()
 
@@ -72,7 +70,6 @@ endif()
 # GNU/Hurd
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "GNU" )
-  include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 endif()
 
@@ -88,22 +85,6 @@ if( APPLE )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )
 
   add_definitions( -DLT_MODULE_EXT=".dylib" )
-  define_default( CMAKE_INSTALL_LIBDIR "lib" )
-  define_default( CMAKE_INSTALL_BINDIR "bin" )
-  define_default( CMAKE_INSTALL_MANDIR "share/man" )
-  define_default( CMAKE_INSTALL_INCLUDEDIR "include" )
-  define_default( CMAKE_INSTALL_DATADIR "share" )
-endif()
-
-#-------------------------------------------------------------------------------
-# FreeBSD
-#-------------------------------------------------------------------------------
-if( ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD" )
-  define_default( CMAKE_INSTALL_LIBDIR "lib" )
-  define_default( CMAKE_INSTALL_BINDIR "bin" )
-  define_default( CMAKE_INSTALL_MANDIR "man" )
-  define_default( CMAKE_INSTALL_INCLUDEDIR "include" )
-  define_default( CMAKE_INSTALL_DATADIR "share" )
 endif()
 
 #-------------------------------------------------------------------------------
@@ -111,11 +92,6 @@ endif()
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   define_default( FORCE_32BITS FALSE )
-  define_default( CMAKE_INSTALL_LIBDIR "lib" )
-  define_default( CMAKE_INSTALL_BINDIR "bin" )
-  define_default( CMAKE_INSTALL_MANDIR "man" )
-  define_default( CMAKE_INSTALL_INCLUDEDIR "include" )
-  define_default( CMAKE_INSTALL_DATADIR "share" )
   add_definitions( -D__solaris__=1 )
   add_definitions( -DSUNCC -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS )
   set( EXTRA_LIBS rt  Crun Cstd )
