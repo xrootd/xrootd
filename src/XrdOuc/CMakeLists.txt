@@ -63,3 +63,12 @@ target_sources(XrdUtils
                          XrdOucXAttr.hh
                          XrdOucEnum.hh
 )
+
+#-------------------------------------------------------------------------------
+# N2No2p plugin library
+#-------------------------------------------------------------------------------
+set(XrdN2No2p XrdN2No2p-${PLUGIN_VERSION})
+add_library(${XrdN2No2p} MODULE XrdOucN2No2p.cc)
+target_link_libraries(${XrdN2No2p} PRIVATE XrdUtils)
+
+install(TARGETS ${XrdN2No2p} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

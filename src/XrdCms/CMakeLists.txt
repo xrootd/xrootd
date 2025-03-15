@@ -22,3 +22,14 @@ target_sources(XrdServer
     XrdCmsUtils.cc         XrdCmsUtils.hh
                            XrdCmsVnId.hh
 )
+
+#-------------------------------------------------------------------------------
+# The XrdCmsRedirLocal module
+#-------------------------------------------------------------------------------
+set(XrdCmsRedirLocal XrdCmsRedirectLocal-${PLUGIN_VERSION})
+
+add_library(${XrdCmsRedirLocal} MODULE XrdCmsRedirLocal.cc XrdCmsRedirLocal.hh)
+
+target_link_libraries(${XrdCmsRedirLocal} PRIVATE XrdServer XrdUtils)
+
+install(TARGETS ${XrdCmsRedirLocal} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -14,3 +14,13 @@ target_sources(XrdUtils
                          XrdCks.hh
                          XrdCksXAttr.hh
 )
+
+#-------------------------------------------------------------------------------
+# libz compatible CRC32 plugin
+#-------------------------------------------------------------------------------
+set(XrdClsCalczcrc32 XrdCksCalczcrc32-${PLUGIN_VERSION})
+
+add_library(${XrdClsCalczcrc32} MODULE XrdCksCalczcrc32.cc)
+target_link_libraries(${XrdClsCalczcrc32} PRIVATE XrdUtils ZLIB::ZLIB)
+
+install(TARGETS ${XrdClsCalczcrc32} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
