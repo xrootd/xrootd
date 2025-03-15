@@ -94,8 +94,6 @@ if( NOT XRDCL_ONLY )
   add_subdirectory( XrdSfs )
   add_subdirectory( XrdXrootd )
 
-  include( XrdDaemons )
-
   add_subdirectory( XrdFrm )
   add_subdirectory( XrdFfs )
   add_subdirectory( XrdBwm )
