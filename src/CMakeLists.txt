@@ -14,11 +14,39 @@ if( XRDCL_LIB_ONLY )
   set ( XRDCL_ONLY TRUE )
 endif()
 
-#-------------------------------------------------------------------------------
-# Include the subcomponents
-#-------------------------------------------------------------------------------
-include( XrdUtils )
 include( XrdHeaders )
+
+add_library(XrdUtils SHARED)
+
+set_target_properties(XrdUtils
+  PROPERTIES BUILD_RPATH $ORIGIN VERSION 3.0.0 SOVERSION 3
+)
+
+target_link_libraries(XrdUtils
+  PRIVATE
+    OpenSSL::SSL
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${CMAKE_DL_LIBS}
+    ${SOCKET_LIBRARY}
+    ${SENDFILE_LIBRARY}
+    ${EXTRA_LIBS}
+)
+
+if(SYSTEMD_FOUND)
+  target_link_libraries(XrdUtils PRIVATE ${SYSTEMD_LIBRARIES})
+endif()
+
+install(TARGETS XrdUtils LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+add_subdirectory( XProtocol )
+add_subdirectory( Xrd )
+add_subdirectory( XrdCks )
+add_subdirectory( XrdNet )
+add_subdirectory( XrdSut )
+add_subdirectory( XrdSys )
+add_subdirectory( XrdOuc )
+add_subdirectory( XrdTls )
+add_subdirectory( XrdRmc )
 
 add_subdirectory( XrdApps )
 add_subdirectory( XrdCrypto )
