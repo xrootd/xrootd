@@ -64,7 +64,7 @@ declare -A hosts_http=(
 
 setup_scitokens() {
 	if ! ${XRDSCITOKENS_CREATE_TOKEN} "${XRDSCITOKENS_ISSUER_DIR}"/issuer_pub_1.pem "${XRDSCITOKENS_ISSUER_DIR}"/issuer_key_1.pem test_1 \
-		"https://localhost:7095/issuer/one" "storage.modify:/ storage.create:/ storage.read:/"> "${PWD}/generated_tokens/token"; then
+		"https://localhost:7095/issuer/one" "storage.modify:/ storage.create:/ storage.read:/" 1800 > "${PWD}/generated_tokens/token"; then
 		echo "Failed to create token"
 		exit 1
 	fi
@@ -139,6 +139,7 @@ upload_file() {
     local local_file=$1
     local remote_file=$2
     local protocol=$3
+    local http_code
 
     if [[ -z "${protocol}" || "${protocol}" == "root" ]]; then
         ${XRDCP} "${local_file}" "${remote_file}"
