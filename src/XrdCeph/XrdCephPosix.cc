@@ -73,7 +73,7 @@ constexpr char loNibble(uint8_t hexbyte) { return (hexbyte & 0x0f); }
 
 constexpr char *hexbytes2ascii(const char bytes[], const unsigned int length){
 
-  char asciiVal[2*length+1] {};
+  char asciiVal[9] {};
   for (unsigned int i = 0, j = 0; i < length; i++) {
 
      const uint8_t hexbyte = bytes[i];
@@ -860,14 +860,8 @@ int ceph_posix_close(int fd) {
   	logwrapper((char*)"ceph_close: fd: %d, Adler32 streamed checksum = %s", fd, adler32str);
 
         if (g_logStreamedAdler32) {
-
-	  const char *timestamp = ts_rfc3339(); // "2025-02-24 13:09:01+00:00"
-	  const char *path = (fr->pool + ":" + fr->name).c_str();
-	  const char *cksMode = "streamed";
-	  const char *cksType = "adler32";
-          const char *cksValue = adler32str;
-
-          fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", timestamp, path, cksMode, cksType, cksValue);
+	  const char *path = strdup((fr->pool + ":" + fr->name).c_str());
+          fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "streamed", "adler32", adler32str);
           fflush(g_cksLogFile);
         }
 
