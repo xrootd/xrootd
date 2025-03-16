@@ -81,10 +81,9 @@ bool readShortFile(const std::string &fileName, std::string &contents) {
     return true;
 }
 
-
 int main(int argc, char *argv[]) {
-    if (argc != 6) {
-        std::cerr << "Usage: " << argv[0] << " issuer.pem issuer.key kid iss prefix" << std::endl;
+    if (argc < 6 || argc > 7) {
+        std::cerr << "Usage: " << argv[0] << " issuer.pem issuer.key kid iss prefix [lifetime]" << std::endl;
         return 1;
     }
 
@@ -130,7 +129,21 @@ int main(int argc, char *argv[]) {
         return 8;
     }
 
-    scitoken_set_lifetime(token.get(), 60);
+    // Parse lifetime if provided, otherwise use default
+    int lifetime = 60;
+    if (argc == 7) {
+        try {
+            lifetime = std::stoi(argv[6]);
+            if (lifetime <= 0) {
+                throw std::invalid_argument("Lifetime must be positive");
+            }
+        } catch (const std::exception &e) {
+            std::cerr << "Invalid lifetime value: " << argv[6] << std::endl;
+            return 10;
+        }
+    }
+
+    scitoken_set_lifetime(token.get(), lifetime);
     scitoken_set_serialize_profile(token.get(), SciTokenProfile::WLCG_1_0);
 
     char *token_value;
