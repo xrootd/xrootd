@@ -131,17 +131,6 @@ char *g_cksLogFileName;
 
 extern FILE *g_cksLogFile;
 
-
-char *ts_rfc3339() {
-
-    std::time_t now = std::time({});
-    char timeString[std::size("yyyy-mm-dd hh:mm:ss")];
-    std::strftime(std::data(timeString), std::size(timeString),
-                  "%F %TZ", std::gmtime(&now));
-    return strdup(timeString);
-}
-
-
 extern "C"
 {
   XrdOss*
