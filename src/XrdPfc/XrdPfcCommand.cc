@@ -66,7 +66,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
    token = cp.get_token_as_string();
 
    auto get_opt = [](SplitParser &sp) -> char {
-      char *t = sp.get_token();
+      const char *t = sp.get_token();
       if (t)
          return (t[0] == '-' && t[1] != 0) ? t[1] : 0;
       else

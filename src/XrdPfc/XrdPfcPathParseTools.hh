@@ -14,57 +14,65 @@ struct SplitParser
    char       *f_str;
    const char *f_delim;
    char       *f_state;
-   bool        f_first;
 
    SplitParser(const std::string &s, const char *d) :
-      f_str(strdup(s.c_str())), f_delim(d), f_state(0), f_first(true)
+      f_str(strdup(s.c_str())), f_delim(d), f_state(f_str)
    {}
    ~SplitParser() { free(f_str); }
 
-   char* get_token()
+   bool is_first() const { return f_state == f_str; }
+
+   const char* get_token()
    {
-      if (f_first) { f_first = false; return strtok_r(f_str, f_delim, &f_state); }
-      else         { return strtok_r(0, f_delim, &f_state); }
+      if ( ! f_state) return 0;
+      // Skip leading delimiters, if any.
+      char *t = f_state + strspn(f_state, f_delim);
+      if (*t == (char) 0) { f_state = 0; return 0; }
+      // Advance state to the next delimeter, if any.
+      f_state = strpbrk(t, f_delim);
+      if (f_state) {
+          *f_state = (char) 0;
+          ++f_state;
+      }
+      return t;
    }
 
    std::string get_token_as_string()
    {
-      char *t = get_token();
+      const char *t = get_token();
       return std::string(t ? t : "");
    }
 
-   char* get_reminder_with_delim()
+   const char* get_reminder_with_delim()
    {
-      if (f_first) { return f_str; }
-      else         { *(f_state - 1) = f_delim[0]; return f_state - 1; }
+      if (is_first()) { return f_str; }
+      else            { *(f_state - 1) = f_delim[0]; return f_state - 1; }
    }
 
-   char *get_reminder()
+   const char *get_reminder()
    {
-      return f_first ? f_str : f_state;
+      return f_state ? f_state : "";
    }
 
    bool has_reminder()
    {
-      char *r = get_reminder();
-      return r && r[0] != 0;
+      return f_state && f_state[0] != 0;
    }
 
-   int fill_argv(std::vector<char*> &argv)
-   {
-      if (!f_first) return 0;
-      int dcnt = 0; { char *p = f_str; while (*p) { if (*(p++) == f_delim[0]) ++dcnt; } }
-      argv.reserve(dcnt + 1);
-      int argc = 0;
-      char *i = strtok_r(f_str, f_delim, &f_state);
-      while (i)
-      {
-         ++argc;
-         argv.push_back(i);
-         // printf("  arg %d : '%s'\n", argc, i);
-         i = strtok_r(0, f_delim, &f_state);
+   int pre_count_n_tokens() {
+      int n_tok = 0;
+      char *p = f_state;
+      while (*p) {
+         p += strspn(p, f_delim);
+         if (*p == (char) 0)
+            break;
+         ++n_tok;
+         p = strpbrk(p, f_delim);
+         if ( ! p)
+            break;
+         ++p;
       }
-      return argc;
+      return n_tok;
    }
 };
 
@@ -86,16 +94,16 @@ struct PathTokenizer : private SplitParser
 
       if (max_depth < 0)
          max_depth = 4096;
-      m_dirs.reserve(std::min(8, max_depth));
+      m_dirs.reserve(std::min(pre_count_n_tokens(), max_depth));
 
-      char *t = 0;
+      const char *t = 0;
       for (int i = 0; i < max_depth; ++i)
       {
          t = get_token();
          if (t == 0) break;
          m_dirs.emplace_back(t);
       }
-      if (parse_as_lfn && *get_reminder() == 0 && ! m_dirs.empty())
+      if (parse_as_lfn && ! has_reminder() && ! m_dirs.empty())
       {
          m_reminder = m_dirs.back();
          m_dirs.pop_back();
