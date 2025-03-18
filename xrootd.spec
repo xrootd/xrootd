@@ -1,24 +1,15 @@
 %bcond_with    asan
 %bcond_with    ceph
 %bcond_with    clang
-%bcond_with    compat
 %bcond_with    docs
 %bcond_with    git
 
 %bcond_without tests
 %bcond_without xrdec
 
-%if %{?rhel}%{!?rhel:0} == 7
-%bcond_with    openssl11
-%endif
-
-%global compat_version 4.12.9
-%global devtoolset devtoolset-7
-%global llvmtoolset llvm-toolset-7
-
 Name:		xrootd
 Epoch:		1
-Release:	1%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}%{?with_openssl11:.ssl11}
+Release:	1%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}
 Summary:	Extended ROOT File Server
 Group:		System Environment/Daemons
 License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AND Zlib
@@ -35,25 +26,10 @@ Version:	%rpm_version
 Source0:	%{name}.tar.gz
 %endif
 
-%if %{with compat}
-Source1:	https://xrootd.web.cern.ch/download/v%{compat_version}/%{name}-%{compat_version}.tar.gz
-%endif
-
 %undefine __cmake_in_source_build
 
-%if %{?rhel}%{!?rhel:0} == 7
-%define cmake %cmake3
-%define __cmake %__cmake3
-%undefine __cmake3_in_source_build
-%endif
-
-%if %{?rhel}%{!?rhel:0} == 7
-BuildRequires:	cmake3
-BuildRequires:	%{devtoolset}-toolchain
-%else
 BuildRequires:	cmake
 BuildRequires:	gcc-c++
-%endif
 BuildRequires:	gdb
 BuildRequires:	which
 BuildRequires:	make
@@ -64,29 +40,17 @@ BuildRequires:	libcurl-devel
 BuildRequires:	tinyxml-devel
 BuildRequires:	libxml2-devel
 BuildRequires:	ncurses-devel
+BuildRequires:	openssl-devel
 BuildRequires:	perl-generators
 BuildRequires:	readline-devel
 BuildRequires:	zlib-devel
 BuildRequires:	selinux-policy-devel
 BuildRequires:	systemd-rpm-macros
 BuildRequires:	systemd-devel
-%if %{?fedora}%{!?fedora:0} || %{?rhel}%{!?rhel:0} >= 8
 BuildRequires:	python3-devel
 BuildRequires:	python3-pip
 BuildRequires:	python3-setuptools
 BuildRequires:	python3-wheel
-%endif
-%if %{?rhel}%{!?rhel:0} == 7
-BuildRequires:	python2-devel
-BuildRequires:	python2-pip
-BuildRequires:	python2-setuptools
-BuildRequires:	python%{python3_pkgversion}-devel
-BuildRequires:	python%{python3_pkgversion}-pip
-BuildRequires:	python%{python3_pkgversion}-setuptools
-BuildRequires:	python%{python3_other_pkgversion}-devel
-BuildRequires:	python%{python3_other_pkgversion}-pip
-BuildRequires:	python%{python3_other_pkgversion}-setuptools
-%endif
 BuildRequires:	json-c-devel
 BuildRequires:	libmacaroons-devel
 BuildRequires:	libuuid-devel
@@ -96,10 +60,6 @@ BuildRequires:	davix-devel
 
 %if %{with asan}
 BuildRequires:	libasan
-%if %{?rhel}%{!?rhel:0} == 7
-BuildRequires:	%{devtoolset}-libasan-devel
-%endif
-Requires:	libasan
 %endif
 
 %if %{with ceph}
@@ -108,24 +68,13 @@ BuildRequires:	libradosstriper-devel
 %endif
 
 %if %{with clang}
-%if %{?rhel}%{!?rhel:0} == 7
-BuildRequires:	%{llvmtoolset}-clang
-%else
 BuildRequires:	clang
-%endif
 %endif
 
 %if %{with docs}
 BuildRequires:	doxygen
 BuildRequires:	graphviz
-%{?el7:BuildRequires:	python2-sphinx}
-%{!?el7:BuildRequires:	python3-sphinx}
-%endif
-
-%if %{with openssl11}
-BuildRequires:	openssl11-devel
-%else
-BuildRequires:	openssl-devel
+BuildRequires:	python3-sphinx
 %endif
 
 %if %{with tests}
@@ -330,20 +279,6 @@ The xrootd-ceph is an OSS layer plugin for the XRootD server for
 interfacing with the Ceph storage platform.
 %endif
 
-%if %{?rhel}%{!?rhel:0} == 7
-%package -n python2-%{name}
-Summary:	Python 2 bindings for XRootD
-Group:		System Environment/Libraries
-%py_provides	python2-%{name}
-Provides:	%{name}-python = %{epoch}:%{version}-%{release}
-Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Obsoletes:	%{name}-python < %{epoch}:%{version}-%{release}
-
-%description -n python2-%{name}
-This package contains Python 2 bindings for XRootD.
-%endif
-
 %package -n python%{python3_pkgversion}-%{name}
 Summary:	Python 3 bindings for XRootD
 Group:		System Environment/Libraries
@@ -354,18 +289,6 @@ Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 %description -n python%{python3_pkgversion}-%{name}
 This package contains Python 3 bindings for XRootD.
 
-%if %{?rhel}%{!?rhel:0} == 7
-%package -n python%{?python3_other_pkgversion}-%{name}
-Summary:	Python 3 bindings for XRootD
-Group:		System Environment/Libraries
-%py_provides	python%{python3_other_pkgversion}-%{name}
-Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description -n python%{?python3_other_pkgversion}-%{name}
-This package contains Python 3 bindings for XRootD.
-%endif
-
 %package doc
 Summary:	Developer documentation for the XRootD libraries
 Group:		Documentation
@@ -374,27 +297,7 @@ BuildArch:	noarch
 %description doc
 This package contains the API documentation of the XRootD libraries.
 
-%if %{with compat}
-%package client-compat
-Summary:	XRootD 4 compatibility client libraries
-Group:		System Environment/Libraries
-
-%description client-compat
-This package contains compatibility libraries for XRootD 4 clients.
-
-%package server-compat
-Summary:	XRootD 4 compatibility server binaries
-Group:		System Environment/Daemons
-Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description server-compat
-This package contains compatibility binaries for XRootD 4 servers.
-%endif
-
 %prep
-%if %{with compat}
-%setup -T -b 1 -n %{name}-%{compat_version}
-%endif
 
 %if %{with git}
 %autosetup -n %{name}
@@ -403,52 +306,10 @@ This package contains compatibility binaries for XRootD 4 servers.
 %endif
 
 %build
-%if %{?rhel}%{!?rhel:0} == 7
-. /opt/rh/%{devtoolset}/enable
-%if %{with clang}
-. /opt/rh/%{llvmtoolset}/enable
-%endif
-%endif
 
 %if %{with clang}
 export CC=clang
 export CXX=clang++
-%endif
-
-%if %{with compat}
-%__cmake \
-    -S %{_builddir}/%{name}-%{compat_version} \
-    -B %{_builddir}/%{name}-%{compat_version}/build \
-%if %{with openssl11}
-    -DOPENSSL_INCLUDE_DIR=/usr/include/openssl11 \
-    -DOPENSSL_CRYPTO_LIBRARY=/usr/lib64/libcrypto.so.1.1 \
-    -DOPENSSL_SSL_LIBRARY=/usr/lib64/libssl.so.1.1 \
-%endif
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS_RELEASE:STRING='%{optflags}' \
-    -DCMAKE_CXX_FLAGS_RELEASE:STRING='%{optflags}' \
-    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
-    -DCMAKE_INSTALL_PREFIX:PATH=%{_prefix} \
-    -DINCLUDE_INSTALL_DIR:PATH=%{_includedir} \
-    -DCMAKE_INSTALL_LIBDIR:PATH=%{_libdir} \
-    -DCMAKE_INSTALL_SYSCONFDIR:PATH=%{_sysconfdir} \
-    -DFORCE_ENABLED:BOOL=TRUE \
-    -DENABLE_ASAN:BOOL=%{with asan} \
-    -DENABLE_FUSE:BOOL=TRUE \
-    -DENABLE_KRB5:BOOL=TRUE \
-    -DENABLE_MACAROONS:BOOL=TRUE \
-    -DENABLE_READLINE:BOOL=TRUE \
-    -DENABLE_SCITOKENS:BOOL=TRUE \
-    -DENABLE_TESTS:BOOL=FALSE \
-    -DENABLE_VOMS:BOOL=TRUE \
-    -DENABLE_XRDCL:BOOL=TRUE \
-    -DENABLE_XRDCLHTTP:BOOL=TRUE \
-    -DXRDCEPH_SUBMODULE:BOOL=%{with ceph} \
-    -DENABLE_XRDCLHTTP:BOOL=TRUE \
-    -DXRDCL_ONLY:BOOL=FALSE \
-    -DXRDCL_LIB_ONLY:BOOL=FALSE \
-    -DENABLE_PYTHON:BOOL=FALSE
-make -C %{_builddir}/%{name}-%{compat_version}/build %{?_smp_mflags}
 %endif
 
 %cmake \
@@ -468,18 +329,9 @@ make -C %{_builddir}/%{name}-%{compat_version}/build %{?_smp_mflags}
     -DENABLE_XRDCLHTTP:BOOL=TRUE \
     -DXRDCL_ONLY:BOOL=FALSE \
     -DXRDCL_LIB_ONLY:BOOL=FALSE \
-%if %{with openssl11}
-    -DOPENSSL_INCLUDE_DIR=/usr/include/openssl11 \
-    -DOPENSSL_CRYPTO_LIBRARY=/usr/lib64/libcrypto.so.1.1 \
-    -DOPENSSL_SSL_LIBRARY=/usr/lib64/libssl.so.1.1 \
-%endif
     -DENABLE_PYTHON:BOOL=TRUE \
     -DINSTALL_PYTHON_BINDINGS:BOOL=FALSE \
-%if %{?rhel}%{!?rhel:0} == 7
-    -DXRD_PYTHON_REQ_VERSION=%{python2_version}
-%else
     -DXRD_PYTHON_REQ_VERSION=%{python3_version}
-%endif
 
 %cmake3_build
 
@@ -495,29 +347,6 @@ doxygen Doxyfile
 %endif
 
 %install
-%if %{?rhel}%{!?rhel:0} == 7
-. /opt/rh/%{devtoolset}/enable
-%endif
-
-%if %{with compat}
-pushd %{_builddir}/%{name}-%{compat_version}/build
-
-make install DESTDIR=%{buildroot}
-
-rm -rf %{buildroot}%{_datadir} %{buildroot}%{_includedir}
-rm -f %{buildroot}%{_libdir}/libXrd{AppUtils,Cl,Client,Crypto,CryptoLite}.so
-rm -f %{buildroot}%{_libdir}/libXrd{Ffs,Main,Ofs,Posix*,Server,Utils}.so
-
-for i in cmsd frm_purged frm_xfrd xrootd; do
-	mv %{buildroot}%{_bindir}/$i %{buildroot}%{_bindir}/${i}-4
-done
-
-pushd %{buildroot}%{_bindir}
-find . ! -name '*-4' -delete
-popd
-
-popd
-%endif
 
 %cmake3_install
 
@@ -542,29 +371,11 @@ rm -f %{buildroot}%{python3_sitearch}/xrootd-*.*-info/RECORD
 	--no-deps --ignore-installed --disable-pip-version-check --verbose \
 	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/bindings/python
 
-%if %{?rhel}%{!?rhel:0} == 7
-%{__python2} -m pip install \
-	--no-deps --ignore-installed --disable-pip-version-check --verbose \
-	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/bindings/python
-
-%{__python3_other} -m pip install \
-	--no-deps --ignore-installed --disable-pip-version-check --verbose \
-	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/bindings/python
-%endif
-
 %if %{with docs}
-%if %{?rhel}%{!?rhel:0} == 7
-LD_LIBRARY_PATH=%{buildroot}%{_libdir} \
-PYTHONPATH=%{buildroot}%{python2_sitearch} \
-PYTHONDONTWRITEBYTECODE=1 \
-make -C bindings/python/docs html
-%endif
-%if %{?fedora}%{!?fedora:0} || %{?rhel}%{!?rhel:0} >= 8
 LD_LIBRARY_PATH=%{buildroot}%{_libdir} \
 PYTHONPATH=%{buildroot}%{python3_sitearch} \
 PYTHONDONTWRITEBYTECODE=1 \
 make -C bindings/python/docs html SPHINXBUILD=sphinx-build-3
-%endif
 %endif
 
 # Service unit files
@@ -882,69 +693,9 @@ fi
 %{python3_sitearch}/pyxrootd
 %{python3_sitearch}/XRootD
 
-%if %{?rhel}%{!?rhel:0} == 7
-%files -n python2-%{name}
-%{python2_sitearch}/xrootd-*.*-info
-%{python2_sitearch}/pyxrootd
-%{python2_sitearch}/XRootD
-
-%files -n python%{?python3_other_pkgversion}-%{name}
-%{python3_other_sitearch}/xrootd-*.*-info
-%{python3_other_sitearch}/pyxrootd
-%{python3_other_sitearch}/XRootD
-%endif
-
 %if %{with docs}
 %files doc
 %doc %{_pkgdocdir}
-%endif
-
-%if %{with compat}
-%files client-compat
-# from xrootd-libs:
-%{_libdir}/libXrdAppUtils.so.1*
-%{_libdir}/libXrdCks*-4.so
-%{_libdir}/libXrdClProxyPlugin-4.so
-%{_libdir}/libXrdCrypto.so.1*
-%{_libdir}/libXrdCryptoLite.so.1*
-%{_libdir}/libXrdCryptossl-4.so
-%{_libdir}/libXrdSec*-4.so
-%{_libdir}/libXrdUtils.so.2*
-%{_libdir}/libXrdXml.so.2*
-
-# from xrootd-client-libs
-%{_libdir}/libXrdCl.so.2*
-%{_libdir}/libXrdClient.so.2*
-%{_libdir}/libXrdFfs.so.2*
-%{_libdir}/libXrdPosix.so.2*
-%{_libdir}/libXrdPosixPreload.so.1*
-%{_libdir}/libXrdSsiLib.so.1*
-%{_libdir}/libXrdSsiShMap.so.1*
-
-%files server-compat
-# from server (renamed)
-%{_bindir}/cmsd-4
-%{_bindir}/frm_purged-4
-%{_bindir}/frm_xfrd-4
-%{_bindir}/xrootd-4
-# from server-libs
-%{_libdir}/libXrdBwm-4.so
-%{_libdir}/libXrdPss-4.so
-%{_libdir}/libXrdXrootd-4.so
-%{_libdir}/libXrdFileCache-4.so
-%{_libdir}/libXrdBlacklistDecision-4.so
-%{_libdir}/libXrdHttp-4.so
-%{_libdir}/libXrdHttpTPC-4.so
-%{_libdir}/libXrdHttpUtils.so.1*
-%{_libdir}/libXrdMacaroons-4.so
-%{_libdir}/libXrdN2No2p-4.so
-%{_libdir}/libXrdOssSIgpfsT-4.so
-%{_libdir}/libXrdServer.so.2*
-%{_libdir}/libXrdSsi-4.so
-%{_libdir}/libXrdSsiLog-4.so
-%{_libdir}/libXrdThrottle-4.so
-%{_libdir}/libXrdCmsRedirectLocal-4.so
-%{_libdir}/libXrdVoms-4.so
 %endif
 
 %changelog
