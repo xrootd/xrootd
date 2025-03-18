@@ -1004,7 +1004,7 @@ do{if (!strcmp("debug", val) || !strcmp("nodebug", val))
        if (!strcmp("fail", val) || !strcmp("nofail", val))
           {noFail = (*val == 'n');
            if (!(val = Config.GetWord()))
-              {eLog->Say("Config invalid: pmark defsfile locationnot specified");
+              {eLog->Say("Config invalid: pmark defsfile location not specified");
                return 1;
               }
           }
