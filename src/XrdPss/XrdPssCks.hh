@@ -78,7 +78,7 @@ struct csInfo
 
 csInfo *Find(const char *Name);
 
-static const int csMax = 4;
+static const int csMax = 8;
 csInfo           csTab[csMax];
 int              csLast;
 };
