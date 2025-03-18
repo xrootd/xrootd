@@ -8,7 +8,15 @@ include( CheckLibraryExists )
 include( CheckIncludeFile )
 include( CheckCXXSourceCompiles )
 include( CheckCXXSourceRuns )
-include( XRootDUtils )
+
+#-------------------------------------------------------------------------------
+# Add a compiler define flag if a variable is defined
+#-------------------------------------------------------------------------------
+function( compiler_define_if_found predicate name )
+  if( ${predicate} )
+    add_definitions( -D${name} )
+  endif()
+endfunction()
 
 #-------------------------------------------------------------------------------
 # OS stuff
@@ -67,7 +75,7 @@ endif()
 #-------------------------------------------------------------------------------
 # Sendfile
 #-------------------------------------------------------------------------------
-if( NOT MacOSX )
+if( NOT APPLE )
   check_function_exists( sendfile HAVE_SENDFILE )
   compiler_define_if_found( HAVE_SENDFILE HAVE_SENDFILE )
   set( SENDFILE_LIBRARY "" )

@@ -52,6 +52,7 @@ SET( XROOTD_SSI_FOUND     FALSE )
 ################################################################################
 
 set_and_check(XRootD_CMAKE_DIR   "${CMAKE_CURRENT_LIST_DIR}")
+set_and_check(XRootD_BIN_DIR     "@PACKAGE_CMAKE_INSTALL_BINDIR@")
 set_and_check(XRootD_DATA_DIR    "@PACKAGE_CMAKE_INSTALL_DATADIR@")
 set_and_check(XRootD_INCLUDE_DIR "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/xrootd")
 set_and_check(XRootD_LIB_DIR     "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
@@ -66,6 +67,24 @@ set(XRootD_DEFINITIONS "-D_FILE_OFFSET_BITS=64")
 set(XROOTD_INCLUDE_DIRS "${XRootD_INCLUDE_DIRS}") # backward compatibility
 set(XROOTD_DEFINITIONS "${XRootD_DEFINITIONS}")
 
+function(add_exported_library lib var)
+  if(lib AND NOT TARGET XRootD::${lib})
+    add_library(XRootD::${lib} INTERFACE IMPORTED)
+    set_target_properties(XRootD::${lib} PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${XRootD_INCLUDE_DIRS}")
+
+    if (XRootD_DEFINITIONS)
+      string(REGEX REPLACE "-D" "" _localdefs "${XRootD_DEFINITIONS}")
+      set_target_properties(XRootD::${lib} PROPERTIES
+        INTERFACE_COMPILE_DEFINITIONS "${_localdefs}")
+      unset(_localdefs)
+    endif()
+
+    set_target_properties(XRootD::${lib} PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${${var}}")
+  endif()
+endfunction()
+
 ################################################################################
 # XRootD client libs
 #  - libXrdCl
@@ -77,6 +96,7 @@ FIND_LIBRARY( XROOTD_CLIENT_LIBRARIES XrdCl
 IF( NOT "${XROOTD_CLIENT_LIBRARIES}" STREQUAL "XROOTD_CLIENT_LIBRARIES-NOTFOUND" )
   SET( XROOTD_CLIENT_FOUND TRUE )
   LIST( APPEND XROOTD_LIBRARIES ${XROOTD_CLIENT_LIBRARIES} )
+  add_exported_library(Client XROOTD_CLIENT_LIBRARIES)
 ENDIF()
 
 ################################################################################
@@ -90,6 +110,7 @@ FIND_LIBRARY( XROOTD_UTILS_LIBRARIES XrdUtils
 IF( NOT "${XROOTD_UTILS_LIBRARIES}" STREQUAL "XROOTD_UTILS_LIBRARIES-NOTFOUND" )
   SET( XROOTD_UTILS_FOUND TRUE )
   LIST( APPEND XROOTD_LIBRARIES ${XROOTD_UTILS_LIBRARIES} )
+  add_exported_library(Utils XROOTD_UTILS_LIBRARIES)
 ENDIF()
 
 ################################################################################
@@ -103,6 +124,7 @@ FIND_LIBRARY( XROOTD_SERVER_LIBRARIES XrdServer
 IF( NOT "${XROOTD_SERVER_LIBRARIES}" STREQUAL "XROOTD_SERVER_LIBRARIES-NOTFOUND" )
   SET( XROOTD_SERVER_FOUND TRUE )
   LIST( APPEND XROOTD_LIBRARIES ${XROOTD_SERVER_LIBRARIES} )
+  add_exported_library(Server XROOTD_SERVER_LIBRARIES)
 ENDIF()
 
 ################################################################################
@@ -123,6 +145,7 @@ IF( NOT "${XROOTD_POSIX_LIBRARY}" STREQUAL "XROOTD_POSIX_LIBRARY-NOTFOUND" )
     SET( XROOTD_POSIX_LIBRARIES ${XROOTD_POSIX_LIBRARY} ${XROOTD_POSIX_PRELOAD_LIBRARY} )
     SET( XROOTD_POSIX_FOUND TRUE )  
     LIST( APPEND XROOTD_LIBRARIES ${XROOTD_POSIX_LIBRARIES} )
+    add_exported_library(Posix XROOTD_POSIX_LIBRARIES)
   ENDIF()
 ENDIF()
 
@@ -137,6 +160,7 @@ FIND_LIBRARY( XROOTD_HTTP_LIBRARIES XrdHttpUtils
 IF( NOT "${XROOTD_HTTP_LIBRARIES}" STREQUAL "XROOTD_HTTP_LIBRARIES-NOTFOUND" )
   SET( XROOTD_HTTP_FOUND TRUE )
   LIST( APPEND XROOTD_LIBRARIES ${XROOTD_HTTP_LIBRARIES} )
+  add_exported_library(Http XROOTD_HTTP_LIBRARIES)
 ENDIF()
 
 ################################################################################
@@ -157,6 +181,7 @@ IF( NOT "${XROOTD_SSI_LIBRARY}" STREQUAL "XROOTD_SSI_LIBRARY-NOTFOUND" )
     SET( XROOTD_SSI_LIBRARIES ${XROOTD_SSI_LIBRARY} ${XROOTD_SSI_SHMAP_LIBRARY} )
     SET( XROOTD_SSI_FOUND TRUE )
     LIST( APPEND XROOTD_LIBRARIES ${XROOTD_SSI_LIBRARIES} )
+    add_exported_library(Ssi XROOTD_SSI_LIBRARIES)
   ENDIF()
 ENDIF()
 

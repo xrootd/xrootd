@@ -1,17 +1,8 @@
 #-------------------------------------------------------------------------------
 # Define the default build parameters
 #-------------------------------------------------------------------------------
-if( "${CMAKE_BUILD_TYPE}" STREQUAL "" )
-  if( Solaris AND NOT SUNCC_CAN_DO_OPTS )
-    set( CMAKE_BUILD_TYPE Debug )
-  else()
-    set( CMAKE_BUILD_TYPE RelWithDebInfo )
-  endif()
-endif()
-
 include( CMakeDependentOption )
 
-define_default( PLUGIN_VERSION    5 )
 option( ENABLE_CEPH      "Enable XrdCeph plugins."                                        FALSE )
 option( ENABLE_FUSE      "Enable the fuse filesystem driver if possible."                 TRUE )
 option( ENABLE_KRB5      "Enable the Kerberos 5 authentication if possible."              TRUE )
@@ -32,7 +23,6 @@ option( ENABLE_XRDCLHTTP "Enable xrdcl-http plugin."                            
 cmake_dependent_option( ENABLE_SCITOKENS "Enable SciTokens plugin." TRUE "NOT XRDCL_ONLY" FALSE )
 cmake_dependent_option( ENABLE_MACAROONS "Enable Macaroons plugin." TRUE "NOT XRDCL_ONLY" FALSE )
 option( FORCE_ENABLED    "Fail build if enabled components cannot be built."              FALSE )
-define_default( XRD_PYTHON_REQ_VERSION 3 )
 
 # backward compatibility
 if(XRDCEPH_SUBMODULE)

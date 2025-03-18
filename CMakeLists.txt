@@ -1,7 +1,13 @@
-#-------------------------------------------------------------------------------
-# Project description
-#-------------------------------------------------------------------------------
-cmake_minimum_required(VERSION 3.16...3.30 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.16...3.31 FATAL_ERROR)
+
+# Check for in-source builds
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+  message(FATAL_ERROR "XRootD cannot be built in-source! "
+                      "Please run cmake <src-dir> outside the "
+                      "source directory and be sure to remove "
+                      "CMakeCache.txt or CMakeFiles if they "
+                      "exist in the source directory.")
+endif()
 
 project( XRootD )
 
@@ -9,7 +15,16 @@ set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
  ${PROJECT_SOURCE_DIR}/cmake )
 
+# Place build artifacts in ${CMAKE_BINARY_DIR}/{bin,lib}
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
 include(XRootDVersion)
+
+set(PLUGIN_VERSION ${XRootD_VERSION_MAJOR} CACHE STRING "XRootD Plugin Version")
+
+add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
 
 #-------------------------------------------------------------------------------
 # A 'plugins' phony target to simplify building build-tree binaries.
@@ -18,16 +33,12 @@ include(XRootDVersion)
 #-------------------------------------------------------------------------------
 ADD_CUSTOM_TARGET(plugins)
 
-
-include( XRootDUtils )
-CheckBuildDirectory()
+include(GNUInstallDirs)
 
 include( XRootDOSDefs )
 include( XRootDDefaults )
 include( XRootDSystemCheck )
 include( XRootDFindLibs )
-
-add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
 
 #-------------------------------------------------------------------------------
 # Generate the version header
@@ -68,6 +79,7 @@ configure_package_config_file(cmake/${PROJECT_NAME}Config.cmake.in cmake/${PROJE
   INSTALL_DESTINATION
     ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
   PATH_VARS
+    CMAKE_INSTALL_BINDIR
     CMAKE_INSTALL_INCLUDEDIR
     CMAKE_INSTALL_LIBDIR
     CMAKE_INSTALL_DATADIR

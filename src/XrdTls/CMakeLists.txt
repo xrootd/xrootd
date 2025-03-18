@@ -1,0 +1,20 @@
+target_sources(XrdUtils
+  PRIVATE
+    XrdTls.hh
+    XrdTlsContext.hh
+    XrdTlsHostcheck.icc
+    XrdTlsHostcheck.hh
+    XrdTlsNotary.hh
+    XrdTlsNotaryUtils.icc
+    XrdTlsNotaryUtils.hh
+    XrdTlsPeerCerts.hh
+    XrdTlsSocket.hh
+    XrdTlsTempCA.hh
+
+    XrdTls.cc
+    XrdTlsContext.cc
+    XrdTlsNotary.cc
+    XrdTlsPeerCerts.cc
+    XrdTlsSocket.cc
+    XrdTlsTempCA.cc
+)
