@@ -85,7 +85,8 @@ XrdPssCks::XrdPssCks(XrdSysError *erP) : XrdCks(erP)
    csTab[0].Len =  4; strcpy(csTab[0].Name, "adler32");
    csTab[1].Len =  4; strcpy(csTab[1].Name, "crc32");
    csTab[2].Len = 16; strcpy(csTab[2].Name, "md5");
-   csLast = 2;
+   csTab[3].Len =  4; strcpy(csTab[3].Name, "crc32c");
+   csLast = 3;
 }
 
 /******************************************************************************/
