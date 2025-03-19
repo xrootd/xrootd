@@ -1060,6 +1060,22 @@ int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
    return rc;
 }
 
+int XrdPosixXrootd::StatRet(DIR *dirp, struct stat *buf)
+{
+
+// Find the object
+//
+   auto fildes = XrdPosixDir::dirNo(dirp);
+   auto dP = XrdPosixObject::Dir(fildes);
+   if (!dP) return EBADF;
+
+// Get the stat info
+   auto rc = dP->StatRet(buf);
+
+   dP->UnLock();
+   return rc;
+}
+
 /******************************************************************************/
 /*                                R e n a m e                                 */
 /******************************************************************************/
