@@ -119,6 +119,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    bkpFSt      = -1;  // Eventual default is bkpPoll/3
    maxStage    = 30;
    wtpStage    = 30;
+   r_maxItems  = 1000;
    arFName     = strdup("Archive.zip");
    arfSfx      = strdup(".zip");
    arfSfxLen   = 4;
@@ -218,6 +219,10 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
        Elog.Say("Config mistake: required 'rsedcl' directive not specified!");
        NoGo = true;
       }
+
+// Export values needed by the metadata script
+//
+   XrdOucEnv::Export("XRDOSSARC_MAXITEMS", r_maxItems);
 
 // Verify the archive path is usable (for now we are not using /archive)
 //
@@ -349,6 +354,7 @@ bool XrdOssArcConfig::ConfigProc(const char* drctv)
            return xqGrab("msscmd", MssComCmd, Conf->LastLine());
    else if (!strcmp(drctv, "paths"))  return xqPaths();
    else if (!strcmp(drctv, "rsedcl")) return xqRse();
+   else if (!strcmp(drctv, "rucio"))  return xqRucio();
    else if (!strcmp(drctv, "stage"))  return xqStage();
    else if (!strcmp(drctv, "trace"))  return xqTrace();
    else if (!strcmp(drctv, "utils"))  return xqUtils();
@@ -731,6 +737,50 @@ bool XrdOssArcConfig::xqRse()
 //
    if (dstRSE) free(dstRSE);
    dstRSE = strdup(token);
+   return true;
+}
+
+/******************************************************************************/
+/* Private:                      x q R u c i o                                */
+/******************************************************************************/
+/*
+Note: the maxitems value should match what is specified in the schema.py file
+      that is used to describe the Rucio schema.
+
+   maxitems <items>
+*/
+bool XrdOssArcConfig::xqRucio()
+{
+   char* token, *val;
+   int num;
+
+// Get the first token, there must be one
+//
+   if (!(token = Conf->GetToken()))
+      {Conf->MsgfE("rucio parameter not specified!"); return false;}
+
+// Process the attribute
+//
+do{if (!strcmp(token, "maxitems"))
+      {if (!(val = Conf->GetToken())
+       ||  XrdOuca2x::a2i(Elog, "rucio maxitems value", val, &num, 1)) break;
+       r_maxItems = num;
+      } else {
+       Conf->MsgfE("Invalid rucio parameter, '%s'!", token);
+       return false;
+      }
+  } while((token = Conf->GetToken()));
+
+// Check ending
+//
+   if (token)
+      {if (val) Conf->EchoLine();
+          else Conf->MsgfE("rucio %s parameter value not specified.", token);
+       return false;
+      }
+     
+// All done
+//
    return true;
 }
 
