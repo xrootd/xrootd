@@ -91,6 +91,7 @@ int         bkpPoll;       // Polling interval to find new items to backup
 int         bkpFSt;        // Backup fs scan interval in seconds
 int         maxStage;      // Maximum number of parallel stages
 int         wtpStage;      // Staging Wait/Poll interval 
+int         r_maxItems;    // rucio maximum response lines (query limit)
 char*       arFName;       // Full archive filename (e.g. archive.zip)
 char*       arfSfx;        // Archive file suffix
 int         arfSfxLen;     // Length of the above
@@ -108,6 +109,7 @@ bool xqBkupPS(char* tval);
 bool xqBkupScope();
 bool xqPaths();
 bool xqRse();
+bool xqRucio();
 bool xqStage();
 bool xqTrace();
 bool xqUtils();

@@ -67,14 +67,29 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
    lfn2pfn = []
    # print('PFN prefix:', pfnPFX)
    REPclient = ReplicaClient()
-   try:
-      replicas = REPclient.list_replicas(qryVec, rse_expression=rse)
-      for replica in replicas:
-         pfn = pfnPFX + urlparse(replica["rses"][rse][0]).path
-         did = qryVec.pop(0)
-         lfn2pfn.append([did['scope'] + ':' + did['name'], pfn])
-   except Exception as e:
-      Emsg(8, "Error getting pfns: {}".format(e))
+
+   # Get the maximum allowed items in a bulk query
+   maxitems = 1000
+   x = os.getenv("XRDOSSARC_MAXITEMS", None)
+   if x is not None:
+      try:
+         maxitems = int(x)
+         if maxitems < 1: maxitems = 1
+      except Exception as e:
+         Emsg(0, "XRDOSSARC_MAXITEMS={} is not an integer ({})".format(x, e))
+
+   if Debug:
+      Emsg(0, 'Rucio maxitems = {}'.format(maxitems))
+
+   while (len(qryVec) > 0):
+      try:
+         replicas = REPclient.list_replicas(qryVec[0:min(len(qryVec), maxitems)], rse_expression=rse)
+         for replica in replicas:
+            pfn = pfnPFX + urlparse(replica["rses"][rse][0]).path
+            did = qryVec.pop(0)
+            lfn2pfn.append([did['scope'] + ':' + did['name'], pfn])
+      except Exception as e:
+         Emsg(8, "Error getting pfns: {}".format(e))
   
    if Debug:
       Emsg(0, 'DSN: {}:{} Files: {} Bytes: {}'.format(scope, dsn, totFiles,
