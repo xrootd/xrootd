@@ -72,7 +72,7 @@ release candidates (due to the reduced need for additional testing).
 RPM packages are built for each release, including release candidates. All the
 packages are pushed to the testing yum repository. Additionally, all the bug fix
 releases and all the final `master` releases are pushed to the stable repository.
-See the [download](https://xrootd.slac.stanford.edu/dload.html) page for details.
+See the [download](https://xrootd.org/dload.html) page for details.
 
 ### Stable and Develoment Branches
 

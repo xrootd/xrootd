@@ -45,7 +45,7 @@ Build-Depends-Indep:
  doxygen,
  graphviz,
  python3-sphinx
-Homepage: https://xrootd.slac.stanford.edu/
+Homepage: https://xrootd.org/
 Maintainer: XRootD Developers <xrootd-dev@slac.stanford.edu>
 Vcs-Browser: https://github.com/xrootd/xrootd
 Vcs-Git: https://github.com/xrootd/xrootd.git
