@@ -61,6 +61,7 @@ AlmaLinux 8:
   image: almalinux:8
   before_script:
     - dnf install -y epel-release
+    - dnf install -y epel-rpm-macros
     - dnf config-manager --set-enabled powertools
   <<: *rpm_build_dnf
 

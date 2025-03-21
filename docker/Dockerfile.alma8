@@ -2,6 +2,7 @@ FROM almalinux:8
 
 # Install tools necessary for RPM development
 RUN dnf install -y dnf-plugins-core epel-release rpmdevtools sudo \
+ && dnf install -y epel-rpm-macros \
  && dnf config-manager --set-enabled powertools
 
 # Create xrootd user to avoid running tests as root

@@ -103,6 +103,7 @@ jobs:
     - name: Install dependencies
       run: |
         dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+        dnf install -y epel-rpm-macros
         dnf config-manager --set-enabled powertools
 
     - name: Clone repository
