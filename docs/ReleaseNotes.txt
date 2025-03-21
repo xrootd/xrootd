@@ -6,6 +6,52 @@ Release Notes
 =============
 
 -------------
+Version 5.8.0
+-------------
+
++ **New Features**
+  **[CMake]** XRootDConfig.cmake now defines XRootD_BIN_DIR variable (#2432)
+  **[CMake]** XRootDConfig.cmake now defines XRootD_DEFINITIONS variable (#2369)
+  **[CMake]** XRootDConfig.cmake now exports library targets (#2415)
+  **[Server]** Add generic interface to report summary values for monitoring (XrdMonitor)
+  **[Server]** Add stat flag to indicate a cached stat response (#2435)
+  **[Server]** Allow bypass of mtime check to declare a checksum as stale (#2338)
+  **[XrdCeph]** Merge back features and bug fixes developed at RAL (#2342)
+  **[XrdCl]** Add support for IPv4 mapped IPv6 addresses (#2422)
+  **[XrdCl]** Improve client performance when using multiple streams (#1938)
+  **[XrdHttp]** Add new http.staticheader directive to configure static HTTP headers (#2389)
+  **[XrdHttp]** Send Age header for cached files in GET and HEAD requests (#2349, #2437)
+  **[XrdOssStats]** New OSS statistics/monitoring plugin (#2279)
+  **[XrdPfc]** New ResourceMonitor and PurgePlugin for XCache (#2436)
+  **[XrdTpcTPC]** Indicate to the oss layer which kind of HTTP TPC operation is performed (open) (#2427, #2429)
+
++ **Major bug fixes**
+  **[XrdPfc]** Fix segmentation fault under load (#2420, #2421)
+
++ **Minor bug fixes**
+  **[Server]** XRootD drops poller events on macOS (#2212)
+  **[XrdCl/Server]** Replace mistakenly used kXR_mkdir with kXR_mkpath (#2393)
+  **[XrdCl]** Fix URL parsing to not accept invalid parameters (#1960)
+  **[XrdHttp]** Quote the resource when handling a redirect (#2430)
+  **[XrdNet]** Fix name resolution for long hostnames seen in Kubernetes (#2307)
+  **[XrdNet]** Fix xrootd.pmark defsfile directive (#2449)
+  **[XrdPfc]** Fix usage of saveptr in strtok_r used by PathTokenizer (#2455)
+  **[XrdPosix]** Fix XrdPosix headers when called in C context (#2424)
+  **[XrdPosix]** Fixes for XrdPosix on macOS (#2434)
+  **[XrdPosix]** Return entry type DT_UNKNOWN in XrdPosixDir::nextEntry() (#2347)
+  **[XrdScheduler]** Add control of NPROC limit reset (#2396, #2407)
+  **[xrdfs]** Disallow renaming a directory into a subdirectory of itself (#2250)
+
++ **Miscellaneous**
+  **[CI]** Add Ubuntu builds on ARM 64bit to GitHub Actions
+  **[CMake]** Remove builtin isa-l library from repository
+  **[RPM]** Drop support for CentOS 7 in xrootd.spec
+  **[RPM]** Use sysusers.d config file for creating the xrootd system user (#2433)
+  **[Tests]** Add new concurrent upload stress test for HTTP protocol (#2408)
+  **[XrdHttp]** Add trailing slash to directories in listing (#2428)
+  **[XrdTpcTPC]** Adapt packet marking to fit the new specifications (#2322, #2359)
+
+-------------
 Version 5.7.3
 -------------
 
