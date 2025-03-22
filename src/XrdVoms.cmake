@@ -10,10 +10,10 @@ set( LIB_XRD_HTTP_VOMS        XrdHttpVOMS-${PLUGIN_VERSION} )
 add_library(
    ${LIB_XRD_VOMS}
    MODULE
-   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsFun.cc
-   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsMapfile.cc
-   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsgsi.cc
-   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsHttp.cc )
+   XrdVoms/XrdVomsFun.cc
+   XrdVoms/XrdVomsMapfile.cc
+   XrdVoms/XrdVomsgsi.cc
+   XrdVoms/XrdVomsHttp.cc )
 
 target_link_libraries(
    ${LIB_XRD_VOMS}

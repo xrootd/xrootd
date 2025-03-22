@@ -36,7 +36,7 @@ if( BUILD_MACAROONS )
   if( APPLE )
     SET( MACAROONS_LINK_FLAGS "-Wl")
   else()
-    SET( MACAROONS_LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdMacaroons/export-lib-symbols" )
+    SET( MACAROONS_LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/XrdMacaroons/export-lib-symbols" )
   endif()
 
   set_target_properties(

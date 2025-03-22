@@ -55,7 +55,7 @@ if( BUILD_TPC )
   if( APPLE )
     set( TPC_LINK_FLAGS, "-Wl" )
   else()
-    set( TPC_LINK_FLAGS, "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdTpc/export-lib-symbols" )
+    set( TPC_LINK_FLAGS, "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/XrdTpc/export-lib-symbols" )
   endif()
 
   set_target_properties(

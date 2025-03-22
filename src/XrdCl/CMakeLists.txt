@@ -25,10 +25,10 @@ set( XrdClPipelineSources
 #-------------------------------------------------------------------------------
 if( BUILD_XRDEC )
   set( XrdEcSources
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcRedundancyProvider.cc
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcUtilities.cc
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcStrmWriter.cc
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcReader.cc
+       ../XrdEc/XrdEcRedundancyProvider.cc
+       ../XrdEc/XrdEcUtilities.cc
+       ../XrdEc/XrdEcStrmWriter.cc
+       ../XrdEc/XrdEcReader.cc
        XrdClEcHandler.cc
   )
   add_compile_definitions( WITH_XRDEC )
