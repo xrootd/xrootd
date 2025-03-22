@@ -147,7 +147,7 @@ add_library(
 if( APPLE )
   SET( OSSSTATS_LINK_FLAGS "-Wl")
 else()
-  SET( OSSSTATS_LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/src/XrdOssStats/export-lib-symbols" )
+  SET( OSSSTATS_LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/XrdOssStats/export-lib-symbols" )
 endif()
 
 target_link_libraries(

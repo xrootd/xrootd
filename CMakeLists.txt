@@ -41,7 +41,7 @@ configure_file(src/XrdVersion.hh.in src/XrdVersion.hh)
 # Build in subdirectories
 #-------------------------------------------------------------------------------
 
-include_directories(BEFORE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src)
+include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/src)
 
 include(CTest)
 
