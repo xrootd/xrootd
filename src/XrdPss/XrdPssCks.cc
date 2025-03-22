@@ -170,7 +170,7 @@ int XrdPssCks::Init(const char *ConfigFN, const char *DfltCalc)
 // See if we need to set the default calculation
 //
    if (DfltCalc)
-      {for (i = 0; i < csLast; i++) if (!strcmp(csTab[i].Name, DfltCalc)) break;
+      {for (i = 0; i <= csLast; i++) if (!strcmp(csTab[i].Name, DfltCalc)) break;
        if (i >= csMax)
           {eDest->Emsg("Config", DfltCalc, "cannot be made the default; "
                                            "not supported.");
