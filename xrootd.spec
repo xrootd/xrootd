@@ -453,7 +453,7 @@ install -m 644 -p packaging/common/%{name}.pp \
 %ldconfig_scriptlets server-libs
 
 %pre server
-%sysusers_create_compat packaging/rhel/%{name}-sysusers.conf
+%sysusers_create_compat %(tar -z -x -f %SOURCE0 %{name}%{!?_with_git:-%{version}}/packaging/rhel/xrootd-sysusers.conf -O > /tmp/xrootd-sysusers.conf && echo /tmp/xrootd-sysusers.conf)
 
 %post server
 %tmpfiles_create %{_tmpfilesdir}/%{name}.conf
