@@ -48,6 +48,8 @@ long long   FSize() {return (Init() ? fileP->FSize() : openRC);}
 int         Fstat(struct stat &buf)
                  {return (Init() ? fileP->Fstat(buf) : openRC);}
 
+int         Fcntl(const XrdCl::Buffer& args, XrdCl::Buffer*& res) { return (Init() ? fileP->Fcntl(args, res) : openRC); }
+
 int         Open() {Init(); return openRC;}
 
 const char *Path()  {return fileP->Path();}
