@@ -186,8 +186,12 @@ public:
    virtual int ConsiderCached(const char *url);
 
    bool DecideIfConsideredCached(long long file_size, long long bytes_on_disk);
+   void WriteCacheControlXAttr(int cinfo_fd, const char* path, const std::string& cc);
    void WriteFileSizeXAttr(int cinfo_fd, long long file_size);
    long long DetermineFullFileSize(const std::string &cinfo_fname);
+   int GetCacheControlXAttr(const std::string &cinfo_fname, std::string& res);
+   int GetCacheControlXAttr(int fd, std::string& res);
+
 
    //--------------------------------------------------------------------
    //! \brief Makes decision if the original XrdOucCacheIO should be cached.

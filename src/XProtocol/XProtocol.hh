@@ -620,6 +620,7 @@ enum XQueryType {
    kXR_Qckscan= 6,
    kXR_Qconfig= 7,
    kXR_Qvisa  = 8,
+   kXR_Qhead  = 9,
    kXR_Qopaque=16,
    kXR_Qopaquf=32,
    kXR_Qopaqug=64
