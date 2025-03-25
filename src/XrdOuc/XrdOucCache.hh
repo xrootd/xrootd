@@ -37,6 +37,7 @@
 
 #include "XrdOuc/XrdOucCacheStats.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
+#include "XrdCl/XrdClBuffer.hh"
 
 struct stat;
 class  XrdOucEnv;
@@ -164,6 +165,20 @@ long long    FSize() = 0;
 //------------------------------------------------------------------------------
 
 virtual int  Fstat(struct stat &sbuff) {(void)sbuff; return 1;}
+
+
+//------------------------------------------------------------------------------
+//! Perform an fcntl() operation (defaults to passthrough).
+//!
+//! @param  AMT, for the moment XrdCl::Buffer to pass query code value and
+//!         XrdCl::Buffer to pass the string response. The XrdCL::Buffers is
+//!         interpreted as std::string
+//!
+//! @return <0 - fstat failed, value is -errno.
+//!         =0 - fstat succeeded, sbuff holds stat information.
+//!         >0 - fstat could not be done, forward operation to next level.
+//------------------------------------------------------------------------------
+virtual int Fcntl(const XrdCl::Buffer& args, XrdCl::Buffer*& res) { return -1; }
 
 //-----------------------------------------------------------------------------
 //! Get the file's location (i.e. endpoint hostname and port)

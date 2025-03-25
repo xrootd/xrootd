@@ -100,6 +100,8 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        int           Fstat(struct stat &buf) override;
 
+       int           Fcntl(const XrdCl::Buffer& args, XrdCl::Buffer*& res) override;
+
        const char   *Location(bool refresh=false) override;
 
        void          HandleResponse(XrdCl::XRootDStatus *status,
