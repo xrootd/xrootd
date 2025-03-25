@@ -88,7 +88,7 @@ hosts_http["srv3"]="${HOST_HTTP_SRV3}"
 hosts_http["srv4"]="${HOST_HTTP_SRV4}"
 
 cleanup() {
-       echo "Error occured. Cleaning up..."
+       echo "Error occurred. Cleaning up..."
        for host in "${!hosts[@]}"; do
               rm -rf ${LCLDATADIR}/${host}.dat
               rm -rf ${LCLDATADIR}/${host}.ref

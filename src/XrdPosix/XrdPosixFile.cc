@@ -407,7 +407,7 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
 
 // Issue XrdPosixCallBack callback with the correct result. Errors are indicated
 // by result set < 0 (typically -1) and errno set to the error number. In our
-// case, rc is -errno if an error occured and that is what the callback gets.
+// case, rc is -errno if an error occurred and that is what the callback gets.
 //
    xeqCB->Complete(rc);
 
