@@ -175,7 +175,7 @@ void XrdHttpReadRangeHandler::NotifyError()
   if( error_ )
     return;
 
-  error_.set( 500, "An error occured." );
+  error_.set( 500, "An error occurred." );
 }
 
 //------------------------------------------------------------------------------
