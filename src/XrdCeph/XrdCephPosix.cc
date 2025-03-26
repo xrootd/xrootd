@@ -805,7 +805,8 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 
     // At this point, we know either the target file didn't exist, or the ceph_posix_unlink above removed it
     if (g_calcStreamedAdler32) {
-      fr.adler32 = adler32(0L, Z_NULL, 0);
+      fr.cksCalcadler32 = new XrdCksCalcadler32();
+      fr.cksCalcadler32->Init();
     }
     fr.writingData = true;
     int fd = insertFileRef(fr);
@@ -819,16 +820,13 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 
 const char* formatAdler32(unsigned long adler32) {
 
-#define ADLER32_LENGTH 8
-
-  char ckBuf[ADLER32_LENGTH+1];
-  snprintf(ckBuf, ADLER32_LENGTH+1, "%0*lx", ADLER32_LENGTH, adler32);
-  ckBuf[ADLER32_LENGTH] = '\0';
-
-  return (const char*)strdup(ckBuf);
-
+#ifndef Xrd_Big_Endian
+  adler32 = htonl(adler32);
+#endif
+  char adler32Cks[8+1];
+  sprintf(adler32Cks, "%08lx", adler32);
+  return (const char*)strdup(adler32Cks);
 }
-
 
 int ceph_posix_close(int fd) {
   CephFileRef* fr = getFileRef(fd);
@@ -856,18 +854,21 @@ int ceph_posix_close(int fd) {
 
     if (fr->writingData) {
       if (g_calcStreamedAdler32) {
-        const char* adler32str = formatAdler32(fr->adler32);
-  	logwrapper((char*)"ceph_close: fd: %d, Adler32 streamed checksum = %s", fd, adler32str);
+
+	unsigned long adlerULong;
+	memcpy((&adlerULong), fr->cksCalcadler32->Final(), 4);
+	const char* adler32Cks = formatAdler32(adlerULong);
+
+  	logwrapper((char*)"ceph_close: fd: %d, Adler32 streamed checksum = %s", fd, adler32Cks);
 
         if (g_logStreamedAdler32) {
 	  const char *path = strdup((fr->pool + ":" + fr->name).c_str());
-          fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "streamed", "adler32", adler32str);
+          fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "streamed", "adler32", adler32Cks);
           fflush(g_cksLogFile);
         }
 
         if (g_storeStreamedAdler32) {
-          int rc = setXrdCksAttr(fd, "adler32", adler32str);
-
+          int rc = setXrdCksAttr(fd, "adler32", adler32Cks); 
           if (rc != 0) {
             logwrapper((char*)"ceph_close: Can't set attribute XrdCks.adler32 for checksum");
           }
@@ -936,8 +937,8 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
     fr->wrcount++;
     fr->bytesWritten+=count;
     if (fr->offset) fr->maxOffsetWritten = std::max(fr->offset - 1, fr->maxOffsetWritten);
-    if (fr->writingData && g_calcStreamedAdler32) {
-      fr->adler32 = adler32(fr->adler32, (const Bytef*)buf, count);
+    if (g_calcStreamedAdler32) {
+      fr->cksCalcadler32->Update((const char*)buf, count);
     }
     return count;
   } else {
@@ -968,8 +969,8 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     fr->bytesWritten+=count;
     if (offset + count) fr->maxOffsetWritten = std::max(uint64_t(offset + count - 1), fr->maxOffsetWritten);
 
-    if (fr->writingData && g_calcStreamedAdler32) {
-      fr->adler32 = adler32(fr->adler32, (const Bytef*)buf, count); 
+    if (g_calcStreamedAdler32) {
+      fr->cksCalcadler32->Update((const char*)buf, count);
     }
 
     return count;
@@ -1047,7 +1048,7 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
     ::gettimeofday(&fr->lastAsyncSubmission, nullptr);
     fr->bytesAsyncWritePending+=count;
     if (g_calcStreamedAdler32) {
-      fr->adler32 = adler32(fr->adler32, (const Bytef*)buf, count);
+      fr->cksCalcadler32->Update((const char*)buf, count);
     }
     return rc;
   } else {
@@ -1467,7 +1468,9 @@ ssize_t ceph_posix_setxattr(XrdOucEnv* env, const char* path,
   rc = ceph_posix_internal_setxattr(getCephFile(path, env), name, value, size, flags);
 
   if (0 == rc && !strcmp(name, "XrdCks.adler32") && g_logStreamedAdler32) {
-
+//
+// We know that streamed checksums use ceph_posix_fsetxattr below, so this must be a readback checksum
+//
       auto cksAscii = (const char*)hexbytes2ascii(cks->Value, cks->Length);
       logwrapper((char*)"readback checksum = %s", cksAscii);
       fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "readback", "adler32", cksAscii);
