@@ -67,7 +67,7 @@ public:
        char   isMan     = 0; //5 Set when node acts as manager
        char   isPeer    = 0; //6 Set when node acts as peer manager
        char   isBound   = 0; //7 Set when node is in the configuration
-       char   isKnown   = 0; //0 Set when we have recieved a "state"
+       char   isKnown   = 0; //0 Set when we have received a "state"
        char   isConn    = 0; //1 Set when node is network connected
        char   isGone    = 0; //2 Set when node must be deleted
        char   isPerm    = 0; //3 Set when node is permanently bound
