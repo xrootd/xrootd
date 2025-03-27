@@ -253,6 +253,11 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdNetAddrInfo      &addrInfo,
       {XrdNetPMarkFF *pmFF = new XrdNetPMarkFF(handle, tident);
        if (pmFF->Start(addrInfo)) return pmFF;
        delete pmFF;
+       eDest->Emsg("PMark_Begin", "Unable to start pmark for session",tident);
+      } else {
+       if (useFFly)
+          eDest->Emsg("PMark_Begin", "Flow value is invalid; "
+                                     "pmark disabled for session", tident);
       }
 
 // All done, nothing will be pmarked
@@ -639,10 +644,11 @@ void XrdNetPMarkCfg::Display()
    std::map<std::string, ExpInfo*>::iterator itV;
    for (itV = v2eMap.begin(); itV != v2eMap.end(); itV++)
        {int eCode = itV->second->Code;
+        std::string vName = std::string(" ") + itV->first;
          if ((it2E = pvRefs.find(eCode)) != pvRefs.end())
-            it2E->second.push_back(itV->first.c_str());
+            it2E->second.push_back(vName.c_str());
             else {std::vector<const char*> vec;
-                  vec.push_back(itV->first.c_str());
+                  vec.push_back(vName.c_str());
                   pvRefs[eCode] = vec;
                  }
        }
@@ -663,7 +669,7 @@ void XrdNetPMarkCfg::Display()
         if ((it2E = pvRefs.find(expCode)) != pvRefs.end())
            {std::vector<const char*> &vec = it2E->second;
             for (int i = 0; i < (int)vec.size(); i++)
-                {const char *rType = (*vec[i] == '/' ? "path " : "vorg ");
+                {const char *rType = (*vec[i] == ' ' ? "vorg" : "path ");
                  eDest->Say(hdrplu, rType, vec[i]);
                 }
            }
@@ -832,7 +838,7 @@ bool XrdNetPMarkCfg::getCodes(XrdSecEntity &client, const char *path,
 
 // If a default activity exists, return that. Otherwise, it's unspecified.
 //
-   acode = (expP->dAct >= 0 ? expP->dAct : 0);
+   acode = (expP->dAct > 0 ? expP->dAct : 1);
    return true;
 }
   

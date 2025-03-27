@@ -49,10 +49,13 @@ class Handle
                         ec = ac = 0; return false;
                        }
                   // According to the specifications, ExpID and actID can be equal to 0 for HTTP-TPC.
-      bool        Valid() {return (eCode == 0 && aCode == 0) || (eCode >= minExpID && eCode <= maxExpID && aCode >= minActID && aCode <= maxActID);}
+      bool        Valid() {return (eCode == 0 && aCode == 0) 
+                               || (eCode >= minExpID && eCode <= maxExpID
+                               &&  aCode >= minActID && aCode <= maxActID);}
 
                   Handle(const char *app=0, int ecode=0, int acode=0)
-                        : appName(strdup(app)), eCode(ecode), aCode(acode) {}
+                        : appName(strdup(app ? app : "unknow")),
+                          eCode(ecode), aCode(acode) {}
 
                   Handle(Handle &h)
                         : appName(strdup(h.appName)), eCode(h.eCode),
