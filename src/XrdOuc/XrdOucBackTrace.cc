@@ -45,8 +45,12 @@
 #define TidType long long
 #define TidFmt  "%lld"
 #elif defined(__GNU__)
-#define TidType pthread_t // int
+#define TidType pthread_t // int (ix86), long (x86_64)
+#ifdef __x86_64__
+#define TidFmt  "%ld"
+#else
 #define TidFmt  "%d"
+#endif
 #else
 #define TidType pthread_t
 #define TidFmt  "%p"
