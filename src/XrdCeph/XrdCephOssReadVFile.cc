@@ -56,7 +56,7 @@ XrdCephOssFile(cephoss), m_cephoss(cephoss), m_xrdOssDF(cephossDF),m_algname(alg
   } else if (m_algname == "basic") { 
       m_readVAdapter =  std::unique_ptr<XrdCephBuffer::IXrdCephReadVAdapter>(new XrdCephBuffer::XrdCephReadVBasic());
   } else {
-    XrdCephEroute.Say("XrdCephOssReadVFile::ERROR Invalid ReadV algorthm passed; defaulting to passthrough");
+    XrdCephEroute.Say("XrdCephOssReadVFile::ERROR Invalid ReadV algorithm passed; defaulting to passthrough");
     m_algname = "passthrough";
     m_readVAdapter =  std::unique_ptr<XrdCephBuffer::IXrdCephReadVAdapter>(new XrdCephBuffer::XrdCephReadVNoOp());
   }
