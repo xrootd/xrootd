@@ -151,7 +151,7 @@ virtual char   *GetText(const char *ename, bool reqd=false)=0;
 //!                  default implementation is used. Currently, only "libxml2"
 //!                  and "tinyxml" are supported.
 //!
-//! @return true     Initialization suceeded.
+//! @return true     Initialization succeeded.
 //! @return false    Initialization failed, errno has the reason.
 //-----------------------------------------------------------------------------
 

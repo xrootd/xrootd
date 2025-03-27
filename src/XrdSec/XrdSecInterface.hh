@@ -149,7 +149,7 @@ XrdSecEntity               Entity;
 //!                be null, messages should be written to stderr.
 //!
 //! @return > 0 -> parms  present (more authentication needed)
-//!         = 0 -> Entity present (authentication suceeded)
+//!         = 0 -> Entity present (authentication succeeded)
 //!         < 0 -> einfo  present (error has occurred)
 //------------------------------------------------------------------------------
 

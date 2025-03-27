@@ -1040,7 +1040,7 @@ int XrdCmsNode::do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel,
        return -1;
       }
 
-// We suceeded, indicate selection can proceed.
+// We succeeded, indicate selection can proceed.
 //
    return 0;
 }

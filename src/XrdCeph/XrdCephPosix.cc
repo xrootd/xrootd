@@ -1580,7 +1580,7 @@ int ceph_posix_unlink(XrdOucEnv* env, const char *pathname) {
   if (rc != 0) {
     logwrapper((char*)"ceph_posix_unlink : unlink failed after lock removal %s, %d ms", pathname, deltime_ms);
   } else {
-    logwrapper((char*)"ceph_posix_unlink : unlink suceeded after lock removal %s, %d ms", pathname, deltime_ms);
+    logwrapper((char*)"ceph_posix_unlink : unlink succeeded after lock removal %s, %d ms", pathname, deltime_ms);
   }
   return rc; 
 }
