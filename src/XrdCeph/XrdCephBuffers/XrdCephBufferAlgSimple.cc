@@ -276,7 +276,7 @@ ssize_t XrdCephBufferAlgSimple::write (const void *buf, off_t offset, size_t ble
      * We call an error on this conditions as there is no immediate solution that is satisfactory.
      */
     if ((offset != expected_offset) && (m_bufferLength > 0) ) {
-        BUFLOG("Error trying to write out of order: expeted at: " << expected_offset 
+        BUFLOG("Error trying to write out of order: expected at: " << expected_offset
         << " got offset" << offset << " of len " << blen);
         return -EINVAL; 
     }
