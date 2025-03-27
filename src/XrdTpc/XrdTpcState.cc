@@ -131,7 +131,7 @@ size_t State::HeaderCB(char *buffer, size_t size, size_t nitems, void *userdata)
 }
 
 int State::Header(const std::string &header) {
-    //printf("Recieved remote header (%d, %d): %s", m_recv_all_headers, m_recv_status_line, header.c_str());
+    //printf("Received remote header (%d, %d): %s", m_recv_all_headers, m_recv_status_line, header.c_str());
     if (m_recv_all_headers) {  // This is the second request -- maybe processed a redirect?
         m_recv_all_headers = false;
         m_recv_status_line = false;

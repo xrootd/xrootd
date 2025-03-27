@@ -181,7 +181,7 @@ ssize_t XrdCephOssBufferedFile::Read(void *buff, off_t offset, size_t blen) {
   while (retry_counter > 0) {
     rc = buffer->read(buff, offset, blen);
     if (rc != -EBUSY) break; // either worked, or is a real non busy error
-    LOGCEPH( "XrdCephOssBufferedFile::Read Recieved EBUSY for fd: " << m_fd << " on try: " << (m_maxBufferRetries-retry_counter) << ". Sleeping .. "
+    LOGCEPH( "XrdCephOssBufferedFile::Read Received EBUSY for fd: " << m_fd << " on try: " << (m_maxBufferRetries-retry_counter) << ". Sleeping .. "
               << " rc:" << rc  << " off:" << offset << " len:" << blen);
     std::this_thread::sleep_for(m_maxBufferRetrySleepTime_ms * 1ms);
     --retry_counter;
@@ -257,7 +257,7 @@ ssize_t XrdCephOssBufferedFile::Write(const void *buff, off_t offset, size_t ble
   while (retry_counter > 0) {
     rc = m_bufferAlg->write(buff, offset, blen);
     if (rc != -EBUSY) break; // either worked, or is a real non busy error
-    LOGCEPH( "XrdCephOssBufferedFile::Write Recieved EBUSY for fd: " << m_fd << " on try: " << (m_maxBufferRetries-retry_counter) << ". Sleeping .. "
+    LOGCEPH( "XrdCephOssBufferedFile::Write Received EBUSY for fd: " << m_fd << " on try: " << (m_maxBufferRetries-retry_counter) << ". Sleeping .. "
               << " rc:" << rc  << " off:" << offset << " len:" << blen);
     std::this_thread::sleep_for(m_maxBufferRetrySleepTime_ms * 1ms);
     --retry_counter;
