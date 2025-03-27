@@ -873,6 +873,7 @@ int ceph_posix_close(int fd) {
             logwrapper((char*)"ceph_close: Can't set attribute XrdCks.adler32 for checksum");
           }
         }
+        delete fr->cksCalcadler32;
       }
     }
 
