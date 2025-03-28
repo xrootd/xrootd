@@ -26,7 +26,7 @@ target_link_libraries(XrdCephPosix
   PRIVATE XrdUtils ${RADOS_LIBS})
 
 target_include_directories(XrdCephPosix
-  PUBLIC ${RADOS_INCLUDE_DIR} $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>)
+  PUBLIC ${RADOS_INCLUDE_DIR} $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
 set_target_properties(XrdCephPosix
   PROPERTIES VERSION 0.0.1 SOVERSION 0)
