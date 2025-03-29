@@ -35,6 +35,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 #include <cstdint>
+#include <sys/stat.h>
 #include <sys/types.h>
 
 class XrdOucECMsg;
@@ -44,6 +45,10 @@ class XrdPosixMap
 public:
 
 static mode_t              Flags2Mode(dev_t *rdv, uint32_t flags);
+
+// Convert a directory entry from the XrdCl to the OS's stat.
+// Will return non-zero (EIO) if the directory entry does not include any StatInfo.
+static int                 Entry2Buf(const XrdCl::DirectoryList::ListEntry &dirEnt, struct stat &buf);
 
 static XrdCl::Access::Mode Mode2Access(mode_t mode);
 
