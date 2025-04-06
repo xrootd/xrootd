@@ -180,7 +180,11 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 {
    const char* tpfx = "Attach() ";
 
-   if (Cache::GetInstance().Decide(io))
+   if (Options & XrdOucCache::optRW)
+   {
+      TRACE(Info, tpfx << "passing through write operation" << obfuscateAuth(io->Path()));
+   }
+   else if (Cache::GetInstance().Decide(io))
    {
       TRACE(Info, tpfx << obfuscateAuth(io->Path()));
 
@@ -1072,6 +1076,10 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    // Do not allow write access.
    if ((oflags & O_ACCMODE) != O_RDONLY)
    {
+      if (Cache::GetInstance().RefConfiguration().m_write_through)
+      {
+         return 0;
+      }
       TRACE(Warning, "Prepare write access requested on file " << f_name << ". Denying access.");
       return -EROFS;
    }

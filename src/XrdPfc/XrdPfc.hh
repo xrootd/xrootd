@@ -81,6 +81,7 @@ struct Configuration
 
    bool should_uvkeep_purge(time_t delta) const { return m_cs_UVKeep >= 0 && delta > m_cs_UVKeep; }
 
+   bool m_write_through;                //!< flag indicating write-through mode is enabled
    bool m_hdfsmode;                     //!< flag for enabling block-level operation
    bool m_allow_xrdpfc_command;         //!< flag for enabling access to /xrdpfc-command/ functionality.
 
@@ -144,6 +145,7 @@ struct TmpConfiguration
    std::string m_fileUsageNominal;
    std::string m_fileUsageMax;
    std::string m_flushRaw;
+   std::string m_writemodeRaw;
 
    TmpConfiguration() :
       m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95"),
