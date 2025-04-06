@@ -31,6 +31,7 @@ using namespace XrdPfc;
 XrdVERSIONINFO(XrdOucGetCache, XrdPfc);
 
 Configuration::Configuration() :
+   m_write_through(false),
    m_hdfsmode(false),
    m_allow_xrdpfc_command(false),
    m_data_space("public"),
@@ -638,6 +639,21 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
       }
    }
 
+   // set the write mode
+   if ( ! tmpc.m_writemodeRaw.empty())
+   {
+      if (tmpc.m_writemodeRaw == "writethrough")
+      {
+         m_configuration.m_write_through = true;
+      }
+      else if (tmpc.m_writemodeRaw != "off")
+      {
+         m_log.Emsg("ConfigParameters()", "Unknown value for pfc.writemode (valid values are `writethrough` or `off`): %s",
+                    tmpc.m_writemodeRaw.c_str());
+         return false;
+      }
+   }
+
    // get number of available RAM blocks after process configuration
    if (m_configuration.m_RamAbsAvailable == 0)
    {
@@ -732,6 +748,7 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
       {
          loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
       }
+      loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.writemode %s\n", m_configuration.m_write_through ? "writethrough" : "off");
 
       if (m_configuration.m_username.empty())
       {
@@ -1108,6 +1125,15 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
             m_log.Emsg("Config", "Error setting the fragment size parameter name");
             return false;
          }
+      }
+   }
+   else if ( part == "writemode" )
+   {
+      tmpc.m_writemodeRaw = cwg.GetWord();
+      if ( ! cwg.HasLast())
+      {
+          m_log.Emsg("Config", "Error: pfc.writemode requires a parameter.");
+          return false;
       }
    }
    else if ( part == "flush" )
