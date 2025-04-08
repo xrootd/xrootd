@@ -2927,6 +2927,8 @@ namespace XrdCl
           o << "none";
         else
         {
+          if( sreq->options & kXR_compress )
+            o << "kXR_compress ";
           if( sreq->options & kXR_delete )
             o << "kXR_delete ";
           if( sreq->options & kXR_force )
@@ -2936,17 +2938,23 @@ namespace XrdCl
           if( sreq->options & kXR_new )
             o << "kXR_new ";
           if( sreq->options & kXR_nowait )
-            o << "kXR_delete ";
+            o << "kXR_nowait ";
           if( sreq->options & kXR_open_apnd )
             o << "kXR_open_apnd ";
           if( sreq->options & kXR_open_read )
             o << "kXR_open_read ";
           if( sreq->options & kXR_open_updt )
             o << "kXR_open_updt ";
+          if( sreq->options & kXR_open_wrto )
+            o << "kXR_open_wrto ";
           if( sreq->options & kXR_posc )
             o << "kXR_posc ";
+          if( sreq->options & kXR_prefname )
+            o << "kXR_prefname ";
           if( sreq->options & kXR_refresh )
             o << "kXR_refresh ";
+          if( sreq->options & kXR_4dirlist )
+            o << "kXR_4dirlist ";
           if( sreq->options & kXR_replica )
             o << "kXR_replica ";
           if( sreq->options & kXR_seqio )
