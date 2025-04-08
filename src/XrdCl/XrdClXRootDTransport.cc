@@ -3071,6 +3071,47 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // kXR_fattr
+      //------------------------------------------------------------------------
+      case kXR_fattr:
+      {
+        ClientFattrRequest *sreq = (ClientFattrRequest *)msg;
+        int nattr = sreq->numattr;
+        int options = sreq->options;
+        o << "kXR_fattr";
+        switch (sreq->subcode) {
+          case kXR_fattrGet:
+            o << "Get";
+            break;
+          case kXR_fattrSet:
+            o << "Set";
+            break;
+          case kXR_fattrList:
+            o << "List";
+            break;
+          case kXR_fattrDel:
+            o << "Delete";
+            break;
+          default:
+            o << " unknown subcode: " << sreq->subcode;
+            break;
+        }
+        o << " (handle: " << FileHandleToStr( sreq->fhandle );
+        o << std::setbase(10);
+        if (nattr)
+          o << ", numattr: " << nattr;
+        if (options) {
+          o << ", options: ";
+          if (options & 0x01)
+            o << "new";
+          if (options & 0x10)
+            o << "list values";
+        }
+        o << ", total size: " << req->dlen << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
       // kXR_sync
       //------------------------------------------------------------------------
       case kXR_sync:
