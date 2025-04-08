@@ -54,7 +54,7 @@ class Handle
                                &&  aCode >= minActID && aCode <= maxActID);}
 
                   Handle(const char *app=0, int ecode=0, int acode=0)
-                        : appName(strdup(app ? app : "unknow")),
+                        : appName(strdup(app ? app : "unknown")),
                           eCode(ecode), aCode(acode) {}
 
                   Handle(Handle &h)
