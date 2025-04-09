@@ -33,6 +33,7 @@ void State::Move(State &other)
     m_start_offset = other.m_start_offset;
     m_status_code = other.m_status_code;
     m_content_length = other.m_content_length;
+    m_push_length = other.m_push_length;
     m_stream = other.m_stream;
     m_curl = other.m_curl;
     m_headers = other.m_headers;
@@ -66,6 +67,7 @@ bool State::InstallHandlers(CURL *curl) {
             curl_easy_setopt(curl, CURLOPT_READDATA, this);
             struct stat buf;
             if (SFS_OK == m_stream->Stat(&buf)) {
+                m_push_length = buf.st_size;
                 curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, buf.st_size);
             }
         } else {
@@ -90,9 +92,13 @@ bool State::InstallHandlers(CURL *curl) {
 }
 
 /**
- * Handle the 'Copy-Headers' feature
+ * Setup any headers necessary for the GET/PUT operation
+ *
+ * Currently includes:
+ * - Handle the 'Copy-Headers' feature
+ * - Adding `Expect: 100-continue` to get around a libcurl bug on uploads.
  */
-void State::CopyHeaders(XrdHttpExtReq &req) {
+void State::SetupHeaders(XrdHttpExtReq &req) {
     struct curl_slist *list = NULL;
     for (std::map<std::string, std::string>::const_iterator hdr_iter = req.headers.begin();
          hdr_iter != req.headers.end();
@@ -109,6 +115,17 @@ void State::CopyHeaders(XrdHttpExtReq &req) {
             m_headers_copy.emplace_back(ss.str());
         }
     }
+
+    if (m_is_transfer_state && m_push && m_push_length > 0) {
+        // On libcurl 8.5.0 - 8.9.1, we've observed bugs causing failures whenever
+        // `Expect: 100-continue` is not used.  Older versions of libcurl unconditionally
+        // set `Expect` whenever PUT is used (likely an older bug).  To workaround the issue,
+        // we force `Expect` to be set, triggering the older libcurl behavior.
+        // See: https://github.com/xrootd/xrootd/issues/2470
+        // See: https://github.com/curl/curl/issues/17004
+        list = curl_slist_append(list, "Expect: 100-continue");
+    }
+
     if (list != NULL) {
         curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
         m_headers = list;
@@ -119,6 +136,7 @@ void State::ResetAfterRequest() {
     m_offset = 0;
     m_status_code = -1;
     m_content_length = -1;
+    m_push_length = -1;
     m_recv_all_headers = false;
     m_recv_status_line = false;
 }

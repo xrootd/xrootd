@@ -49,6 +49,7 @@ public:
       m_status_code(-1),
       m_error_code(0),
       m_content_length(-1),
+      m_push_length(-1),
       m_stream(NULL),
       m_curl(curl),
       m_headers(NULL),
@@ -70,6 +71,7 @@ public:
       m_status_code(-1),
       m_error_code(0),
       m_content_length(-1),
+      m_push_length(-1),
       m_stream(&stream),
       m_curl(curl),
       m_headers(NULL),
@@ -83,7 +85,7 @@ public:
 
     void SetTransferParameters(off_t offset, size_t size);
 
-    void CopyHeaders(XrdHttpExtReq &req);
+    void SetupHeaders(XrdHttpExtReq &req);
 
     off_t BytesTransferred() const {return m_offset;}
 
@@ -165,6 +167,7 @@ private:
     int m_status_code;  // status code from HTTP response.
     int m_error_code; // error code from underlying stream operations.
     off_t m_content_length;  // value of Content-Length header, if we received one.
+    off_t m_push_length; // For push transfers, the size of the file on our server.
     Stream *m_stream;  // stream corresponding to this transfer.
     CURL *m_curl;  // libcurl handle
     struct curl_slist *m_headers; // any headers we set as part of the libcurl request.
