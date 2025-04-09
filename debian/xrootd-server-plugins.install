@@ -11,6 +11,7 @@
 /usr/lib/*/libXrdOssSIgpfsT-5.so
 /usr/lib/*/libXrdOssStats-5.so
 /usr/lib/*/libXrdPfc-5.so
+/usr/lib/*/libXrdPfcPurgeQuota-5.so
 /usr/lib/*/libXrdPss-5.so
 /usr/lib/*/libXrdSsi-5.so
 /usr/lib/*/libXrdSsiLog-5.so

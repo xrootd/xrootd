@@ -95,7 +95,7 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_FILECACHE}
+  TARGETS ${LIB_XRD_FILECACHE} ${LIB_XRD_PURGEQUOTA}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(

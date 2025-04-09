@@ -621,6 +621,7 @@ fi
 %{_libdir}/libXrdOssSIgpfsT-5.so
 %{_libdir}/libXrdOssStats-5.so
 %{_libdir}/libXrdPfc-5.so
+%{_libdir}/libXrdPfcPurgeQuota-5.so
 %{_libdir}/libXrdPss-5.so
 %{_libdir}/libXrdSsi-5.so
 %{_libdir}/libXrdSsiLog-5.so
