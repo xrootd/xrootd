@@ -469,11 +469,11 @@ void XrdSsiFileReq::Finalize()
    switch(urState)
          // Request is being scheduled, so we can simply abort it.
          //
-         {case isNew:    DEBUGXQ("Aborting request processing");
-                         urState = isAbort;
+         {case isNew:    urState = isAbort;
                          cbInfo  = 0;
                          sessN   = "???";
                          Stats.Bump(Stats.ReqAborts);
+                         DEBUGXQ("Aborting request processing");
                          return;
                          break;
 
