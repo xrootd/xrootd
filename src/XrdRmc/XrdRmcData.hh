@@ -74,6 +74,8 @@ void           QueuePR(long long SegOffs, int rLen, int prHow, int isAuto=0);
 int            Read (XrdOucCacheStats &Now,
                      char *Buffer, long long Offs, int Length);
 
+using XrdOucCacheIO::Read;
+
 // The following is for read/write support
 //
 class MrSw
