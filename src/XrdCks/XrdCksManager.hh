@@ -96,6 +96,8 @@ virtual int         ModTime(const char *Pfn, time_t &MTime);
 
 private:
 
+using XrdCks::Calc;
+
 struct csInfo
       {char          Name[XrdCksData::NameSize];
        XrdCksCalc   *Obj;
