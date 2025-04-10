@@ -115,7 +115,7 @@ install(
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcFile.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcTypes.hh
     ${CMAKE_CURRENT_SOURCE_DIR}/XrdPfc/XrdPfcInfo.hh
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/xrootd/XrdPfc
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdPfc
 )
 
 install(
