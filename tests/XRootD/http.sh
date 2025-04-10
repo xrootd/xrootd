@@ -141,7 +141,7 @@ function test_http() {
   xrdcrc32c -s "$alphabetFilePath"
   curl -v -I -H 'Want-Digest: crc32c' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
   cat "$outputFilePath"
-  expectedDigest="Digest: crc32c=7iTyng=="
+  expectedDigest="Digest: crc32c=ee24f29e"
   receivedDigest=$(grep "Digest" "$outputFilePath")
   assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (crc32c)"
   curl -v -I -H 'Want-Digest: NotSupported, adler32, crc32c' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"

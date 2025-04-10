@@ -36,7 +36,7 @@ void XrdHttpChecksumHandlerImpl::initializeCksumsMaps() {
     addChecksumToMaps(std::make_unique<XrdHttpChecksum>("sha512","sha-512",true));
     addChecksumToMaps(std::make_unique<XrdHttpChecksum>("cksum","UNIXcksum",false));
     addChecksumToMaps(std::make_unique<XrdHttpChecksum>("crc32","crc32",false));
-    addChecksumToMaps(std::make_unique<XrdHttpChecksum>("crc32c","crc32c",true));
+    addChecksumToMaps(std::make_unique<XrdHttpChecksum>("crc32c","crc32c",false));
 }
 
 void XrdHttpChecksumHandlerImpl::addChecksumToMaps(XrdHttpChecksumHandlerImpl::XrdHttpChecksumPtr && checksum) {
