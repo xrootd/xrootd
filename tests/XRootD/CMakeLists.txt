@@ -1,5 +1,5 @@
 
-list(APPEND XROOTD_CONFIGS noauth host unix sss)
+list(APPEND XROOTD_CONFIGS noauth host unix sss cache)
 
 if(ENABLE_FUSE_TESTS)
   list(APPEND XROOTD_CONFIGS fuse)
@@ -15,6 +15,10 @@ if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
   list(APPEND XROOTD_CONFIGS scitokens)
   list(APPEND scitokens_FIXTURES SciTokens)
 endif()
+
+# The cache test requires the XRootD::host fixture to be running to
+# act as an origin
+list(APPEND cache_FIXTURES XRootD::host)
 
 foreach(CONFIG ${XROOTD_CONFIGS})
   add_test(NAME XRootD::${CONFIG}::setup
