@@ -34,6 +34,10 @@
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdTls/XrdTlsTrace.hh"
 
+#if OPENSSL_VERSION_NUMBER >= 0x30400010
+#define SSL_CTX_flush_sessions SSL_CTX_flush_sessions_ex
+#endif
+
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
