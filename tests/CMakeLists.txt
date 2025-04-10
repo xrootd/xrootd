@@ -19,7 +19,6 @@ add_subdirectory( XrdSsiTests )
 add_subdirectory(XrdTpcTests)
 
 add_subdirectory(XrdPfcTests)
-add_subdirectory(TPCTests)
 
 if( BUILD_SCITOKENS )
   add_subdirectory( scitokens )
@@ -32,3 +31,4 @@ endif()
 add_subdirectory( XRootD )
 add_subdirectory( cluster )
 add_subdirectory( stress )
+add_subdirectory( TPCTests )
