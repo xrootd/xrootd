@@ -3,9 +3,6 @@
 set -Eexo pipefail
 
 # Skip on macOS due to missing 'declare -A' support
-if [[ $(uname) == "Darwin" ]]; then
-       exit 0
-fi
 
 # Check for required commands
 : "${ADLER32:=$(command -v xrdadler32)}"
@@ -52,14 +49,19 @@ function assert_failure() {
 check_commands "${ADLER32}" "${CRC32C}" "${XRDCP}" "${XRDFS}" "${OPENSSL}" "${CURL}"
 
 # Server host mappings
-declare -A hosts=(
-    [srv1]="root://localhost:10951"
-    [srv2]="root://localhost:10952"
+declare -a hosts=(
+    "root://localhost:10951"
+    "root://localhost:10952"
 )
 
-declare -A hosts_http=(
-    [srv1]="https://localhost:10951"
-    [srv2]="https://localhost:10952"
+declare -a hosts_http=(
+    "https://localhost:10951"
+    "https://localhost:10952"
+)
+
+declare -a hosts_abbrev=(
+    "srv1"
+    "srv2"
 )
 
 setup_scitokens() {
@@ -74,39 +76,42 @@ setup_scitokens() {
 # Cleanup function
 # shellcheck disable=SC2317
 cleanup() {
-    set +e
     ## Cleanup empty files
-    src_empty="srv1"
-    dst_empty="srv2"
-    rm "${LCLDATADIR}/${src_empty}_empty.dat"
-    rm "${LCLDATADIR}/${src_empty}_empty.ref"
-    ${XRDFS} "${hosts[$src_empty]}" rm "${RMTDATADIR}/${src_empty}_empty.ref"
+    src_idx=0
+    dst_idx=1
+    src=${hosts_abbrev[${src_idx}]}
+    dst=${hosts_abbrev[${dst_idx}]}
+    rm "${LCLDATADIR}/${src}_empty.dat" || :
+    rm "${LCLDATADIR}/${dst}_empty.ref" || :
+    ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}_empty.ref" || :
     for mode in "_http_pull" "_http_push" ""; do
-        rm "${LCLDATADIR}/${src_empty}_to_${dst_empty}_empty.dat${mode}"
-        ${XRDFS} "${hosts[$dst_empty]}" rm "${RMTDATADIR}/${src_empty}_to_${dst_empty}_empty.ref${mode}"
+        rm "${LCLDATADIR}/${src}_to_${dst}_empty.dat${mode}" || :
+        ${XRDFS} "${hosts[$dst_idx]}" rm "${RMTDATADIR}/${src}_to_${dst}_empty.ref${mode}" || :
     done
 
     # Cleanup local and remote files
-    for src in "${!hosts[@]}"; do
-    rm "${LCLDATADIR}/${src}.dat"
-    rm "${LCLDATADIR}/${src}.ref"
+    for src_idx in {0..1}; do
+        src=${hosts_abbrev[${src_idx}]}
+        rm "${LCLDATADIR}/${src}.dat" || :
+        rm "${LCLDATADIR}/${src}.ref" || :
 
-    ${XRDFS} "${hosts[$src]}" rm "${RMTDATADIR}/${src}.ref"
+        ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}.ref" || :
 
-    for dst in "${!hosts[@]}"; do
-           rm "${LCLDATADIR}/${src}_to_${dst}.dat"
-           rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_pull"
-           rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_push"
+        for dst_idx in {0..1}; do
+           dst=${hosts_abbrev[${dst_idx}]}
+           rm "${LCLDATADIR}/${src}_to_${dst}.dat" || :
+           rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_pull" || :
+           rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_push" || :
 
-           ${XRDFS} "${hosts[$src]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref"
-           ${XRDFS} "${hosts[$src]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref_http_push"
-           ${XRDFS} "${hosts[$src]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref_http_pull"
-    done
+           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref" || :
+           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref_http_push" || :
+           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref_http_pull" || :
+        done
        
-    ${XRDFS} "${hosts[$src]}" rmdir "${RMTDATADIR}"
+    ${XRDFS} "${hosts[$src_idx]}" rmdir "${RMTDATADIR}" || :
     done
 
-    rmdir "${LCLDATADIR}"
+    rmdir "${LCLDATADIR}" || :
 }
 trap "cleanup" ERR
 
@@ -159,23 +164,25 @@ upload_file() {
 }
 
 perform_tpc() {
-    local src=$1
-    local dst=$2
+    local src_idx=$1
+    local dst_idx=$2
     local file_suffix=$3
 
     if [[ -z "${file_suffix}" ]]; then
         file_suffix=""
     fi
 
-    local src_file="${hosts[$src]}/${RMTDATADIR}/${src}${file_suffix}.ref"
-    local dst_file="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}${file_suffix}.ref"
+    local src_file="${hosts[$src_idx]}/${RMTDATADIR}/${hosts_abbrev[$src_idx]}${file_suffix}.ref"
+    local dst_file="${hosts[$dst_idx]}/${RMTDATADIR}/${hosts_abbrev[$src_idx]}_to_${hosts_abbrev[$dst_idx]}${file_suffix}.ref"
 
     ${XRDCP} "${src_file}" "${dst_file}"
 }
 
 perform_http_tpc() {
-    local src=$1
-    local dst=$2
+    local src_idx=$1
+    local dst_idx=$2
+    local src=${hosts_abbrev[$src_idx]}
+    local dst=${hosts_abbrev[$dst_idx]}
     local mode=$3
     local token_src=$4
     local token_dst=$5
@@ -185,8 +192,8 @@ perform_http_tpc() {
         file_suffix=""
     fi
 
-    local src_file_http="${hosts_http[$src]}/${RMTDATADIR}/${src}${file_suffix}.ref"
-    local dst_file_http="${hosts_http[$dst]}/${RMTDATADIR}/${src}_to_${dst}${file_suffix}.ref_http"
+    local src_file_http="${hosts_http[$src_idx]}/${RMTDATADIR}/${src}${file_suffix}.ref"
+    local dst_file_http="${hosts_http[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}${file_suffix}.ref_http"
     local http_code
 
     if [[ "$mode" == "push" ]]; then
@@ -265,44 +272,50 @@ verify_checksum() {
 
 
 # Generate, upload, download, and verify checksums for each host
-for host in "${!hosts[@]}"; do
+for host_idx in {0..1}; do
+    host=${hosts_abbrev[$host_idx]}
     generate_file "${LCLDATADIR}/${host}.ref"
 done
  
-for host in "${!hosts[@]}"; do
+for host_idx in {0..1}; do
+    host=${hosts_abbrev[$host_idx]}
     local_file="${LCLDATADIR}/${host}.ref"
-    remote_file="${hosts[$host]}/${RMTDATADIR}/${host}.ref"
+    remote_file="${hosts[$host_idx]}/${RMTDATADIR}/${host}.ref"
     upload_file "${local_file}" "${remote_file}"
 done
 
-for host in "${!hosts[@]}"; do
+for host_idx in {0..1}; do
+    host=${hosts_abbrev[$host_idx]}
     local_file="${LCLDATADIR}/${host}.dat"
-    remote_file="${hosts[$host]}/${RMTDATADIR}/${host}.ref"
+    remote_file="${hosts[$host_idx]}/${RMTDATADIR}/${host}.ref"
     download_file "${remote_file}" "${local_file}"
 done
 
-for host in "${!hosts[@]}"; do
-    verify_checksum "adler32" "${LCLDATADIR}/${host}.ref" "${LCLDATADIR}/${host}.dat" "${hosts[$host]}" "${RMTDATADIR}/${host}.ref"
-    verify_checksum "crc32c" "${LCLDATADIR}/${host}.ref" "${LCLDATADIR}/${host}.dat" "${hosts[$host]}" "${RMTDATADIR}/${host}.ref"
+for host_idx in {0..1}; do
+    host=${hosts_abbrev[$host_idx]}
+    verify_checksum "adler32" "${LCLDATADIR}/${host}.ref" "${LCLDATADIR}/${host}.dat" "${hosts[$host_idx]}" "${RMTDATADIR}/${host}.ref"
+    verify_checksum "crc32c" "${LCLDATADIR}/${host}.ref" "${LCLDATADIR}/${host}.dat" "${hosts[$host_idx]}" "${RMTDATADIR}/${host}.ref"
 done
 
 # Perform TPC copies between hosts
-for src in "${!hosts[@]}"; do
-    for dst in "${!hosts[@]}"; do     
-       perform_tpc "${src}" "${dst}"
-       assert_eq "201" "$(perform_http_tpc "$src" "$dst" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN")" "HTTP TPC pull failed"
-       assert_eq "201" "$(perform_http_tpc "$src" "$dst" "push" "$BEARER_TOKEN" "$BEARER_TOKEN")" "HTTP TPC push failed"
+for src_idx in {0..1}; do
+    for dst_idx in {0..1}; do
+       perform_tpc "${src_idx}" "${dst_idx}"
+       assert_eq "201" "$(perform_http_tpc "$src_idx" "$dst_idx" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN")" "HTTP TPC pull failed"
+       assert_eq "201" "$(perform_http_tpc "$src_idx" "$dst_idx" "push" "$BEARER_TOKEN" "$BEARER_TOKEN")" "HTTP TPC push failed"
     done
 done
 
 # Download TPC Copies
-for src in "${!hosts[@]}"; do
-    for dst in "${!hosts[@]}"; do
-        remote_file="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}.ref"
+for src_idx in {0..1}; do
+    for dst_idx in {0..1}; do
+        src="${hosts_abbrev[$src_idx]}"
+        dst="${hosts_abbrev[$dst_idx]}"
+        remote_file="${hosts[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}.ref"
         local_file="${LCLDATADIR}/${src}_to_${dst}.dat"
         download_file "${remote_file}" "${local_file}"
 
-        remote_file_http="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}.ref_http"
+        remote_file_http="${hosts[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}.ref_http"
         local_file_http="${LCLDATADIR}/${src}_to_${dst}.dat_http"
         # Download files transferred via the pull mode
         download_file "${remote_file_http}_pull" "${local_file_http}_pull"
@@ -312,58 +325,62 @@ for src in "${!hosts[@]}"; do
 done
 
 # Verify TPC copies
-for src in "${!hosts[@]}"; do
-    for dst in "${!hosts[@]}"; do
+for src_idx in {0..1}; do
+    for dst_idx in {0..1}; do
+        src="${hosts_abbrev[$src_idx]}"
+        dst="${hosts_abbrev[$dst_idx]}"
         ref_file="${LCLDATADIR}/${src}.ref"
         new_file="${LCLDATADIR}/${src}_to_${dst}.dat"
         remote_file="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}.ref"
 
-        verify_checksum "crc32c" "${ref_file}" "${new_file}" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}.ref"
-        verify_checksum "adler32" "${ref_file}" "${new_file}" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}.ref"
+        verify_checksum "crc32c" "${ref_file}" "${new_file}" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}.ref"
+        verify_checksum "adler32" "${ref_file}" "${new_file}" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}.ref"
 
         ref_file_http="${LCLDATADIR}/${src}.ref"
         new_file_http="${LCLDATADIR}/${src}_to_${dst}.dat_http"
-        remote_file_http="${hosts[$dst]}/${RMTDATADIR}/${src}_to_${dst}.ref_http"
+        remote_file_http="${hosts[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}.ref_http"
 
         # Verify checksums for files transferred via the pull mode
-        verify_checksum "crc32c" "${ref_file_http}" "${new_file_http}_pull" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_pull"
-        verify_checksum "adler32" "${ref_file_http}" "${new_file_http}_pull" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_pull"
+        verify_checksum "crc32c" "${ref_file_http}" "${new_file_http}_pull" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_pull"
+        verify_checksum "adler32" "${ref_file_http}" "${new_file_http}_pull" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_pull"
 
         # Verify checksums for files transferred via the push mode
-        verify_checksum "crc32c" "${ref_file_http}" "${new_file_http}_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_push"
-        verify_checksum "adler32" "${ref_file_http}" "${new_file_http}_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_push"
+        verify_checksum "crc32c" "${ref_file_http}" "${new_file_http}_push" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_push"
+        verify_checksum "adler32" "${ref_file_http}" "${new_file_http}_push" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}.ref_http_push"
     done
 done
 
 ## Empty files test
-src="srv1"
-dst="srv2"
+src_idx=0
+dst_idx=1
+src="${hosts_abbrev[$src_idx]}"
+dst="${hosts_abbrev[$dst_idx]}"
 generate_empty_file "${LCLDATADIR}/${src}_empty.ref"
-assert_eq "201" "$(upload_file "${LCLDATADIR}/${src}_empty.ref" "${hosts_http[$src]}/${RMTDATADIR}/${src}_empty.ref" "http")" "HTTP Upload failed"
-download_file "${hosts_http[$src]}/${RMTDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "http"
+assert_eq "201" "$(upload_file "${LCLDATADIR}/${src}_empty.ref" "${hosts_http[$src_idx]}/${RMTDATADIR}/${src}_empty.ref" "http")" "HTTP Upload failed"
+download_file "${hosts_http[$src_idx]}/${RMTDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "http"
 
-verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src]}" "${RMTDATADIR}/${src}_empty.ref"
-verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src]}" "${RMTDATADIR}/${src}_empty.ref"
+verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src_idx]}" "${RMTDATADIR}/${src}_empty.ref"
+verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src_idx]}" "${RMTDATADIR}/${src}_empty.ref"
 
-perform_tpc "${src}" "${dst}" "_empty"
-assert_eq "201" "$(perform_http_tpc "$src" "$dst" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC pull failed"
-assert_eq "201" "$(perform_http_tpc "$src" "$dst" "push" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC push failed"
+perform_tpc "${src_idx}" "${dst_idx}" "_empty"
+assert_eq "201" "$(perform_http_tpc "$src_idx" "$dst_idx" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC pull failed"
+assert_eq "201" "$(perform_http_tpc "$src_idx" "$dst_idx" "push" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC push failed"
 
-remote_file="${hosts_http[$dst]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref"
+remote_file="${hosts_http[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref"
 local_file="${LCLDATADIR}/${src}_to_${dst}_empty.dat"
 download_file "${remote_file}" "${local_file}" "http"
-verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref"
-verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref"
+verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref"
+verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref"
 
-remote_file_http="${hosts_http[$dst]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref_http"
+remote_file_http="${hosts_http[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref_http"
 local_file_http="${LCLDATADIR}/${src}_to_${dst}_empty.dat_http"
 download_file "${remote_file_http}_pull" "${local_file_http}_pull" "http"
-verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_pull" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_pull"
-verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_pull" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_pull"
+verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_pull" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_pull"
+verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_pull" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_pull"
 
 download_file "${remote_file_http}_push" "${local_file_http}_push" "http"
-verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
-verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
+verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
+verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
 
 
 cleanup
