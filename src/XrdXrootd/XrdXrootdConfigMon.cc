@@ -84,6 +84,8 @@ struct XrdXrootdGSReal::GSParms gsObj[] =
                      XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
         {"oss",      0, XROOTD_MON_OSS,   0, -1, XROOTD_MON_GSOSS, 0,
                      XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
+        {"http",     0, XROOTD_MON_HTTP,  0, -1, XROOTD_MON_GSHTP, 0,
+                     XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
         {"pfc",      0, XROOTD_MON_PFC,   0, -1, XROOTD_MON_GSPFC, 0,
                      XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
         {"TcpMon",   0, XROOTD_MON_TCPMO, 0, -1, XROOTD_MON_GSTCP, 0,
@@ -104,7 +106,7 @@ bool XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
    XrdXrootdGStream *gs;
    static const int numgs=sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
    char vbuff[64];
-   bool aOK, gXrd[numgs] = {false, false, false, true, false, true};
+   bool aOK, gXrd[numgs] = {false, false, false, false, true, false, true};
 
 // For each enabled monitoring provider, allocate a g-stream and put
 // its address in our environment.
@@ -450,7 +452,7 @@ char *XrdXrootdProtocol::xmondest(const char *what, char *val)
 
    Purpose:  Parse directive: mongstream <strm> use <opts>
 
-   <strm>:  {all | ccm | oss | pfc | tcpmon | tpc}  [<strm>]
+   <strm>:  {all | ccm | http | oss | pfc | tcpmon | tpc}  [<strm>]
 
    <opts>:  [flust <t>] [maxlen <l>] [send <fmt> [noident] <host:port>]
 
