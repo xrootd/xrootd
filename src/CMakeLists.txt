@@ -14,62 +14,101 @@ if( XRDCL_LIB_ONLY )
   set ( XRDCL_ONLY TRUE )
 endif()
 
-#-------------------------------------------------------------------------------
-# Include the subcomponents
-#-------------------------------------------------------------------------------
-include( XrdUtils )
-include( XrdApps )
-include( XrdCrypto )
-include( XrdPosix )
-include( XrdSec )
-include( XrdXml )
 include( XrdHeaders )
-include( XrdSecgsi )
-include( XrdSecztn )
 
-if( BUILD_KRB5 )
-  include( XrdSeckrb5 )
+add_library(XrdUtils SHARED)
+
+set_target_properties(XrdUtils
+  PROPERTIES BUILD_RPATH $ORIGIN VERSION 3.0.0 SOVERSION 3
+)
+
+target_link_libraries(XrdUtils
+  PRIVATE
+    OpenSSL::SSL
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${CMAKE_DL_LIBS}
+    ${SOCKET_LIBRARY}
+    ${SENDFILE_LIBRARY}
+    ${EXTRA_LIBS}
+)
+
+if(SYSTEMD_FOUND)
+  target_link_libraries(XrdUtils PRIVATE ${SYSTEMD_LIBRARIES})
 endif()
 
-if( ENABLE_XRDCL )
-  add_subdirectory( XrdCl )
-endif()
+install(TARGETS XrdUtils LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-if( BUILD_XRDCLHTTP )
-  add_subdirectory( XrdClHttp )
-endif()
+add_subdirectory( XProtocol )
+add_subdirectory( Xrd )
+add_subdirectory( XrdCks )
+add_subdirectory( XrdNet )
+add_subdirectory( XrdSut )
+add_subdirectory( XrdSys )
+add_subdirectory( XrdOuc )
+add_subdirectory( XrdTls )
+add_subdirectory( XrdRmc )
 
-if( BUILD_XRDEC )
-  add_subdirectory( XrdEc )
-endif()
+add_subdirectory( XrdApps )
+add_subdirectory( XrdCrypto )
+add_subdirectory( XrdPosix )
+
+add_subdirectory( XrdSec )
+add_subdirectory( XrdSecgsi )
+add_subdirectory( XrdSeckrb5 )
+add_subdirectory( XrdSecpwd )
+add_subdirectory( XrdSecsss )
+add_subdirectory( XrdSecunix )
+add_subdirectory( XrdSecztn )
+
+add_subdirectory( XrdXml )
+
+add_subdirectory( XrdCl )
+add_subdirectory( XrdClHttp )
+add_subdirectory( XrdEc )
 
 if( NOT XRDCL_ONLY )
-  include( XrdServer )
-  include( XrdDaemons )
-  include( XrdFrm )
-  include( XrdFfs )
-  include( XrdPlugins )
-  include( XrdSsi )
-  include( XrdPfc )
-  include( XrdOssCsi )
+  add_library(XrdServer SHARED)
 
-  if( BUILD_HTTP )
-    include( XrdHttp )
-    include( XrdTpc )
-  endif()
+  set_target_properties(XrdServer
+    PROPERTIES VERSION 3.0.0 SOVERSION 3
+  )
 
-  if( BUILD_MACAROONS )
-    include( XrdMacaroons )
-  endif()
+  target_link_libraries(XrdServer
+    PRIVATE
+    XrdUtils
+    ${CMAKE_DL_LIBS}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${ATOMIC_LIBRARY}
+    ${EXTRA_LIBS}
+    ${SOCKET_LIBRARY}
+  )
 
-  if( BUILD_VOMS )
-    include( XrdVoms )
-  endif()
+  install(TARGETS XrdServer LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
+  add_subdirectory( XrdAcc )
+  add_subdirectory( XrdCms )
+  add_subdirectory( XrdDig )
+  add_subdirectory( XrdFrc )
+  add_subdirectory( XrdOfs )
+  add_subdirectory( XrdOss )
+  add_subdirectory( XrdSfs )
+  add_subdirectory( XrdXrootd )
+
+  add_subdirectory( XrdFrm )
+  add_subdirectory( XrdFfs )
+  add_subdirectory( XrdBwm )
+  add_subdirectory( XrdPss )
+  add_subdirectory( XrdSsi )
+  add_subdirectory( XrdPfc )
+  add_subdirectory( XrdOssCsi )
+  add_subdirectory( XrdOssStats )
+  add_subdirectory( XrdThrottle )
+
+  add_subdirectory( XrdHttp )
+  add_subdirectory( XrdHttpTpc )
+
+  add_subdirectory( XrdMacaroons )
+  add_subdirectory( XrdVoms )
   add_subdirectory( XrdCeph )
-
-  if( BUILD_SCITOKENS )
-    include( XrdSciTokens )
-  endif()
-
+  add_subdirectory( XrdSciTokens )
 endif()

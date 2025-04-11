@@ -79,7 +79,7 @@ PATH="${SOURCE_DIR}:${PATH}"
 # XRootD commands really come from there.
 
 if [[ -n "${BINARY_DIR}" ]]; then
-	PATH="${BINARY_DIR}/src:${BINARY_DIR}/src/XrdCl:${PATH}"
+	PATH="${BINARY_DIR}/bin:${PATH}"
 	for PROG in cconfig cmsd xrootd xrdcp xrdfs xrdadler32; do
 		if [[ ! "$(command -v "${PROG}")" =~ ${BINARY_DIR} ]]; then
 			error "'${PROG}': not used from build directory"
