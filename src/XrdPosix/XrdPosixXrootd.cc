@@ -93,7 +93,7 @@ XrdSysTrace      Trace("Posix", 0,
                       (getenv("XRDPOSIX_DEBUG") ? TRACE_Debug : 0));
 int              ddInterval= 30;
 int              ddMaxTries= 180/30;
-XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
+XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::Stat;
 bool             oidsOK    = false;
 bool             p2lSRC    = false;
 bool             p2lSGI    = false;
@@ -1240,9 +1240,28 @@ int XrdPosixXrootd::Statfs(const char *path, struct statfs *buf)
 }
 
 /******************************************************************************/
+/*                               S t a t R e t                                */
+/******************************************************************************/
+
+int XrdPosixXrootd::StatRet(DIR *dirp, struct stat *buf)
+{
+// Find the object
+//
+   auto fildes = XrdPosixDir::dirNo(dirp);
+   auto dP = XrdPosixObject::Dir(fildes);
+   if (!dP) return EBADF;
+
+// Get the stat info
+   auto rc = dP->StatRet(buf);
+
+   dP->UnLock();
+   return rc;
+}
+
+/******************************************************************************/
 /*                               S t a t v f s                                */
 /******************************************************************************/
-  
+
 int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 {
    static const int szVFS = sizeof(buf->f_bfree);

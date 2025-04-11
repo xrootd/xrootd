@@ -45,12 +45,15 @@
 #include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdPosix/XrdPosixObject.hh"
 
+// Forward declarations
+struct stat;
+
 class XrdPosixDir : public XrdPosixObject
 {
 public:
                    XrdPosixDir(const char *path)
                               : DAdmin(path,ecMsg), myDirVec(0), myDirEnt(0),
-                                nxtEnt(0), numEnt(0), eNum(0)
+                                myBuf(nullptr), nxtEnt(0), numEnt(0), eNum(0)
                               {}
 
                   ~XrdPosixDir() {delete myDirVec;
@@ -68,6 +71,11 @@ static int         dirNo(DIR *dirP)  {return *(int *)dirP;}
        dirent64   *nextEntry(dirent64 *dp=0);
 
        DIR        *Open();
+
+       // Return the stat info corresponding to the current directory entry
+       // On error, returns -errno; otherwise, returns 0 and stores a pointer
+       // to buf internally
+       int         StatRet(struct stat *buf);
 
        void        rewind() {objMutex.WriteLock();
                              nxtEnt = 0; delete myDirVec; myDirVec = 0;
@@ -87,6 +95,7 @@ private:
   XrdPosixAdmin         DAdmin;
   XrdCl::DirectoryList *myDirVec;
   dirent64             *myDirEnt;
+  struct stat          *myBuf;
   uint32_t              nxtEnt;
   uint32_t              numEnt;
   int                   eNum;
