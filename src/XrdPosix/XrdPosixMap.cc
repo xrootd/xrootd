@@ -148,7 +148,7 @@ int XrdPosixMap::mapCode(int rc)
         case XrdCl::errLoginFailed:          return ECONNABORTED; // Cl:203
         case XrdCl::errAuthFailed:           return EAUTH;        // Cl:204
         case XrdCl::errQueryNotSupported:    return ENOTSUP;      // Cl:205
-        case XrdCl::errOperationExpired:     return ESTALE;       // Cl:206
+        case XrdCl::errOperationExpired:     return ETIME;        // Cl:206
         case XrdCl::errOperationInterrupted: return EINTR;        // Cl:207
         case XrdCl::errNoMoreFreeSIDs:       return ENOSR;        // Cl:301
         case XrdCl::errInvalidRedirectURL:   return ESPIPE;       // Cl:302
