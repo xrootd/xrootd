@@ -184,7 +184,10 @@ FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs, XrdOucEnv 
        m_throttle.SetMonitor(gstream);
    }
 
-
+   // The Feature function is not a virtual but implemented by the base class to
+   // look at a protected member.  Thus, to forward the call, we need to copy
+   // from the underlying filesystem
+   FeatureSet = m_sfs_ptr->Features();
    return 0;
 }
 
