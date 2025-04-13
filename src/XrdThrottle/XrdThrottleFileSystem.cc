@@ -91,12 +91,6 @@ FileSystem::FAttr(      XrdSfsFACtl      *faReq,
    return m_sfs_ptr->FAttr(faReq, eInfo, client);
 }
 
-uint64_t
-FileSystem::Features()
-{
-   return m_sfs_ptr->Features();
-}
-
 int
 FileSystem::fsctl(const int               cmd,
                   const char             *args,
