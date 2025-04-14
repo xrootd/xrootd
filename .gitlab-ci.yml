@@ -79,10 +79,10 @@ AlmaLinux 10 (beta):
     - dnf config-manager --set-enabled crb
   <<: *rpm_build_dnf
 
-Fedora 40:
-  image: fedora:40
-  <<: *rpm_build_dnf
-
 Fedora 41:
   image: fedora:41
+  <<: *rpm_build_dnf
+
+Fedora 42:
+  image: fedora:42
   <<: *rpm_build_dnf
