@@ -1600,14 +1600,18 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
   } else {
     if (code == 200) ss << "OK";
     else if (code == 100) ss << "Continue";
+    else if (code == 201) ss << "Created";
     else if (code == 206) ss << "Partial Content";
     else if (code == 302) ss << "Redirect";
     else if (code == 307) ss << "Temporary Redirect";
     else if (code == 400) ss << "Bad Request";
+    else if (code == 401) ss << "Unauthorized";
     else if (code == 403) ss << "Forbidden";
     else if (code == 404) ss << "Not Found";
     else if (code == 405) ss << "Method Not Allowed";
+    else if (code == 409) ss << "Conflict";
     else if (code == 416) ss << "Range Not Satisfiable";
+    else if (code == 423) ss << "Locked";
     else if (code == 500) ss << "Internal Server Error";
     else if (code == 502) ss << "Bad Gateway";
     else if (code == 504) ss << "Gateway Timeout";
