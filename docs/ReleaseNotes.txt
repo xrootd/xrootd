@@ -6,6 +6,37 @@ Release Notes
 =============
 
 -------------
+Version 5.8.1
+-------------
+
++ **New Features**
+  **[XrdPss]** Enable crc32c as a valid checksum for XrdPss (#2457)
+
++ **Major bug fixes**
+  **[PMark]** Fix null pointer dereference when initializing packet marking handle
+  **[XrdSsi]** Fix null pointer dereference in XrdSsiFileReq::Finalize() (#2469)
+
++ **Minor bug fixes**
+  **[CMake]** Fix install rule for XrdPfc headers (#2478)
+  **[RPM]** Workaround for %pre being evaluated before sources are unpacked (#2460)
+  **[XrdHttp]** Do not use base64 encoding with crc32c checksums (#2456)
+  **[XrdPfc]** Add XrdPfcPurgeQuota plugin to install targets
+  **[XrdThrottle]** Fix Features() function implementation (#2483)
+  **[XrdTpc]** Fix third-party copy transfers of small files with curl 8.x (#2470, #2475)
+
++ **Miscellaneous**
+  **[CI]** Move Fedora builds to Fedora 42
+  **[Misc]** Fix GCC 15 compiler warnings
+  **[Tests]** Add new tests for third-party copy transfers with tokens (#2441)
+  **[Tests]** Add simple integration test for XCache (#2477)
+  **[XrdCl]** Implement description for kXR_fattr requests
+  **[XrdCl]** Update description of kXR_open requests with remaining flags
+  **[XrdOuc]** Use correct format for pthread_t on GNU/Hurd (#2465)
+  **[XrdPss]** Include environment CGI info when proxying checksum
+  **[XrdThrottle]** Ensure all virtuals are overrides (#2483)
+  **[XrdTls]** Fix deprecation warnings with OpenSSL 3.4 and later
+
+-------------
 Version 5.8.0
 -------------
 
