@@ -14,10 +14,10 @@ function test_cache() {
 
 	ORIGIN_HOST="root://localhost:5094"
 
-	assert xrdcp -f "${SOURCE_DIR}"/host.cfg "${ORIGIN_HOST}//host.cfg"
-	assert xrdcp -f "${ORIGIN_HOST}"//host.cfg host.origin.cfg
-	assert diff -u "${SOURCE_DIR}"/host.cfg host.origin.cfg
+	assert xrdcp -f "${SOURCE_DIR}"/cache.cfg "${ORIGIN_HOST}//cache.cfg"
+	assert xrdcp -f "${ORIGIN_HOST}"//cache.cfg cache.origin.cfg
+	assert diff -u "${SOURCE_DIR}"/cache.cfg cache.origin.cfg
 
-	assert xrdcp -f "${HOST}"//host.cfg host.cache.cfg
-	assert diff -u "${SOURCE_DIR}"/host.cfg host.cache.cfg
+	assert xrdcp -f "${HOST}"//cache.cfg host.cache.cfg
+	assert diff -u "${SOURCE_DIR}"/cache.cfg host.cache.cfg
 }
