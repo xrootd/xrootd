@@ -9,4 +9,5 @@ target_link_libraries(xrdec-unit-tests
 
 target_include_directories(xrdec-unit-tests PRIVATE ${ISAL_INCLUDE_DIRS})
 
-gtest_discover_tests(xrdec-unit-tests TEST_PREFIX XrdEc::)
+gtest_discover_tests(xrdec-unit-tests TEST_PREFIX XrdEc::
+  PROPERTIES DISCOVERY_TIMEOUT 10)

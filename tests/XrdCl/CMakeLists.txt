@@ -8,7 +8,8 @@ add_executable(xrdcl-unit-tests
 target_link_libraries(xrdcl-unit-tests
   XrdTestUtils GTest::GTest GTest::Main)
 
-gtest_discover_tests(xrdcl-unit-tests TEST_PREFIX XrdCl::)
+gtest_discover_tests(xrdcl-unit-tests TEST_PREFIX XrdCl:: 
+  PROPERTIES DISCOVERY_TIMEOUT 10)
 
 if(NOT ENABLE_SERVER_TESTS)
   return()
@@ -32,7 +33,7 @@ target_link_libraries(xrdcl-cluster-tests
   XrdTestUtils GTest::GTest GTest::Main)
 
 gtest_discover_tests(xrdcl-cluster-tests TEST_PREFIX XrdCl::
-  PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster)
+  PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster DISCOVERY_TIMEOUT 10)
 
 # tests to be run in serial, otherwise they are problematic
 set(SERIAL_TESTS_FILES
@@ -50,5 +51,5 @@ foreach(i ${SERIAL_TESTS_FILES})
     XrdTestUtils GTest::GTest GTest::Main)
 
   gtest_discover_tests(${i}-tests TEST_PREFIX XrdCl::
-    PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster RUN_SERIAL 1)
+    PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster RUN_SERIAL 1 DISCOVERY_TIMEOUT 10)
 endforeach()
