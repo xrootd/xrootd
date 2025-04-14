@@ -6,4 +6,5 @@ add_library(XrdTpcUtils
 target_link_libraries(xrdtpc-unit-tests XrdTpcUtils GTest::GTest GTest::Main)
 target_include_directories(xrdtpc-unit-tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
-gtest_discover_tests(xrdtpc-unit-tests)
+gtest_discover_tests(xrdtpc-unit-tests
+  PROPERTIES DISCOVERY_TIMEOUT 10)
