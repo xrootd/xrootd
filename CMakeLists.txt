@@ -15,6 +15,11 @@ set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
  ${PROJECT_SOURCE_DIR}/cmake )
 
+# Place build artifacts in ${CMAKE_BINARY_DIR}/{bin,lib}
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin CACHE PATH "")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib CACHE PATH "")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib CACHE PATH "")
+
 include(XRootDVersion)
 
 #-------------------------------------------------------------------------------
@@ -41,7 +46,7 @@ configure_file(src/XrdVersion.hh.in src/XrdVersion.hh)
 # Build in subdirectories
 #-------------------------------------------------------------------------------
 
-include_directories(BEFORE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src)
+include_directories(BEFORE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
 
 include(CTest)
 
