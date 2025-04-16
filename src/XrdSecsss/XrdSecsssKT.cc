@@ -428,7 +428,7 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
 {
    static const int altMode = S_IRWXG | S_IRWXO;
    XrdOucStream myKT;
-   int ktFD, retc, tmpID, recno = 0, NoGo = 0;
+   int ktFD = -1, retc, tmpID, recno = 0, NoGo = 0;
    const char *What = 0, *ktFN;
    char *lp, *tp, rbuff[64];
    ktEnt *ktP, *ktPP, *ktNew, *ktBase = 0;
@@ -454,7 +454,11 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
 
 // Attach the fd to the stream
 //
-   myKT.Attach(ktFD);
+   if (ktFD < 0 || myKT.Attach(ktFD) != 0)
+      {if (eInfo) eInfo->setErrInfo(EBADF, "Unable to attach to keytab file descriptor for reading.");
+       eMsg("getKeyTab", -1, "Unable to attach to keytab file descriptor.");
+       return nullptr;
+      }
 
 // Now start reading the keytable which always has the form:
 //
