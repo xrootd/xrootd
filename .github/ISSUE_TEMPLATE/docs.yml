@@ -1,0 +1,35 @@
+name: Documentation Bug Report
+description: Report errors, mistakes, typos or other problems in the documentation.
+body:
+- type: markdown
+  attributes:
+    value: |
+      **Welcome!**
+
+      This issue tracker is used to track actual bugs and feature requests.
+      You are about to *report a bug* you encountered in XRootD documentation.
+
+      Please see below how to report other types of issues.
+      - To propose a new feature, please use the *Feature Request* template.
+      - To report a **security vulnerability**, please use https://github.com/xrootd/xrootd/security instead.
+      - For general questions about XRootD, or if you just need help with a particular issue,
+        please send a message to the mailing list at xrootd-l@slac.stanford.edu
+        or open a new [discussion](https://github.com/xrootd/xrootd/discussions) on GitHub.
+
+      Thanks for understanding, and for contributing to the project!
+
+- type: textarea
+  id: source
+  attributes:
+    label: Specify which document you found a problem with
+    description: |
+      Please cite here the URL, XRootD version, and other relevant details that identify the documentation source.
+  validations:
+    required: true
+
+- type: textarea
+  id: problem
+  attributes:
+    label: The problem
+  validations:
+    required: true

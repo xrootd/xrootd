@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: XRootD Discussion Forum
+    url: https://github.com/xrootd/xrootd/discussions/new/choose
+    about: Open a new discussion about XRootD on GitHub
+  - name: XRootD Users Mailing List
+    url: https://listserv.slac.stanford.edu/scripts/wa.exe?A0=xrootd-l
+    about: Ask a question about XRootD on the mailing list

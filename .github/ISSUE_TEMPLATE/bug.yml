@@ -1,0 +1,67 @@
+name: Bug Report
+description: Report a problem with XRootD to help us resolve it.
+body:
+- type: markdown
+  attributes:
+    value: |
+      **Welcome!**
+
+      This issue tracker is used to track actual bugs and feature requests.
+      You are about to **report a bug** you encountered in XRootD.
+
+      Please see below how to report other types of issues.
+      - To propose a new feature, please use the *Feature Request* template.
+      - To report a **security vulnerability**, please use https://github.com/xrootd/xrootd/security instead.
+      - For general questions about XRootD, or if you just need help with a particular issue,
+        please send a message to the mailing list at xrootd-l@slac.stanford.edu
+        or open a new [discussion](https://github.com/xrootd/xrootd/discussions) on GitHub.
+
+      Thanks for understanding, and for contributing to the project!
+
+- type: input
+  id: os
+  attributes:
+    label: Operating System
+    description: |
+      Please post the output of `uname -a` (Linux) or `sw_vers` (macOS) here.
+    placeholder: 'Alma Linux 10'
+  validations:
+    required: true
+
+- type: input
+  id: version
+  attributes:
+    label: XRootD Version
+    description: |
+      Please post here the output of `rpm -qa | grep xrootd`, `xrootd -v`, or `xrdcp --version`.
+  validations:
+    required: true
+
+- type: textarea
+  id: description
+  attributes:
+    label: Description
+    description: |
+      Please describe the problem here. In this section, please try to concentrate on your direct observations.
+  validations:
+    required: true
+
+- type: textarea
+  id: reproducer
+  attributes:
+    label: Steps to Reproduce the Behavior
+    description: The better you describe how to reproduce the problem, the easier it is for us to actually fix it!
+    placeholder: |
+      1.
+      2.
+      3.
+  validations:
+    required: false
+
+- type: textarea
+  id: extras
+  attributes:
+    label: Additional Information
+    description: |
+      Please paste or attach here relevant output logs, stack traces, etc.
+      Do not forget to enclose code blocks in backquotes to make them render correctly on GitHub.
