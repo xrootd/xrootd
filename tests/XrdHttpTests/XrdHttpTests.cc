@@ -574,3 +574,111 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
     ASSERT_EQ(false, static_cast<bool>(error));
   }
 }
+
+TEST(XrdHttpTests, urlDecodeEncodeTest) {
+  std::string input = "zteos64%3AMDAF5PGJ4Wa12g%3D";
+  {
+    std::string decoded(url_decode<std::string>(input.c_str()));
+    std::string encoded(url_encode<std::string>(decoded.c_str()));
+    ASSERT_EQ(input, encoded);
+  }
+
+  {
+    char *decodedPtr = url_decode<char *>(input.c_str());
+    char *encodedPtr = url_encode<char *>(decodedPtr);
+    ASSERT_STREQ(input.c_str(), encodedPtr);
+    free(encodedPtr);
+    free(decodedPtr);
+  }
+
+  {
+    char *nullStr = nullptr;
+    char *decodedPtr = url_decode<char *>(nullStr);
+    char *encodedPtr = url_encode<char *>(nullStr);
+    ASSERT_EQ(nullptr,decodedPtr);
+    ASSERT_EQ(nullptr,encodedPtr);
+  }
+}
+
+TEST(XrdHttpTests, urlEncodeDecodeTest) {
+  std::string input = "zteos64:MDAw...XAQ==";
+  {
+    std::string encoded(url_encode<std::string>(input.c_str()));
+    std::string decoded(url_decode<std::string>(encoded.c_str()));
+    ASSERT_EQ(input, decoded);
+  }
+  {
+    std::string encoded(url_encode<std::string>(nullptr));
+    std::string decoded(url_decode<std::string>(encoded.c_str()));
+    ASSERT_EQ("",encoded);
+    ASSERT_EQ("",decoded);
+  }
+  {
+    char *encodedPtr = url_encode<char *>(input.c_str());
+    char *decodedPtr = url_decode<char *>(encodedPtr);
+    ASSERT_STREQ(input.c_str(), decodedPtr);
+    free(decodedPtr);
+    free(encodedPtr);
+  }
+  {
+    char *nullStr = nullptr;
+    char *decodedPtr = url_encode<char *>(nullStr);
+    char *encodedPtr = url_decode<char *>(nullStr);
+    ASSERT_EQ(nullptr,decodedPtr);
+    ASSERT_EQ(nullptr,encodedPtr);
+  }
+}
+
+TEST(XrdHttpTests, urlDecodeTest) {
+  {
+    ASSERT_EQ(nullptr,url_decode<char *>(nullptr));
+    {
+      char * urlDecoded = url_decode<char *>("");
+      ASSERT_STREQ("", urlDecoded);
+      free(urlDecoded);
+      ASSERT_EQ("", url_decode<std::string>(nullptr));
+      ASSERT_EQ("", url_decode<std::string>(""));
+    }
+
+    std::string input = "zteos64%3aMDAw...XAQ%3d%3d";
+    std::string expected = "zteos64:MDAw...XAQ==";
+    ASSERT_EQ(expected, url_decode<std::string>(input.c_str()));
+
+    char * decodedPtr = url_decode<char *>(input.c_str());
+    ASSERT_STREQ(expected.c_str(),decodedPtr);
+    free(decodedPtr);
+  }
+  {
+    std::string input = "zteos64%3AMDAw...XAQ%3D%3D";
+    std::string expected = "zteos64:MDAw...XAQ==";
+    ASSERT_EQ(expected, url_decode<std::string>(input.c_str()));
+
+    char * decodedPtr = url_decode<char *>(input.c_str());
+    ASSERT_STREQ(expected.c_str(),decodedPtr);
+    free(decodedPtr);
+  }
+  {
+    std::string input = "%00hello%00";
+    char * decodedPtr = url_decode<char *>(input.c_str());
+    ASSERT_STREQ("",decodedPtr);
+    free(decodedPtr);
+  }
+}
+
+TEST(XrdHttpTests, urlEncodeTest) {
+  ASSERT_EQ(nullptr,url_encode<char *>(nullptr));
+  {
+    char * urlEncoded = url_encode<char *>("");
+    ASSERT_STREQ("",urlEncoded);
+    free(urlEncoded);
+  }
+  ASSERT_EQ("",url_encode<std::string>(nullptr));
+  ASSERT_EQ("",url_encode<std::string>(""));
+  std::string input = "zteos64:MDAw...XAQ==";
+  std::string expected = "zteos64%3AMDAw...XAQ%3D%3D";
+  ASSERT_EQ(expected, url_encode<std::string>(input.c_str()));
+
+  char * encodedPtr = url_encode<char *>(input.c_str());
+  ASSERT_STREQ(expected.c_str(),encodedPtr);
+  free(encodedPtr);
+}
