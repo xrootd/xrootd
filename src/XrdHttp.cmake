@@ -51,7 +51,8 @@ if( BUILD_HTTP )
     ${CMAKE_THREAD_LIBS_INIT}
     PUBLIC
     OpenSSL::SSL
-    OpenSSL::Crypto )
+    OpenSSL::Crypto
+    CURL::libcurl)
 
   target_link_libraries(
     ${MOD_XRD_HTTP}
