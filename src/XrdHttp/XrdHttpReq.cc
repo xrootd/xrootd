@@ -585,14 +585,12 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
     redirdest += buf;
   }
 
-  redirdest += quote(resource.c_str());
+  redirdest += url_encode<std::string>(resource.c_str()).c_str();
   
   // Here we put back the opaque info, if any
   if (vardata) {
-    char *newvardata = quote(vardata);
     redirdest += "?&";
-    redirdest += newvardata;
-    free(newvardata);
+    redirdest += url_encode<std::string>(vardata).c_str();
   }
   
   // Shall we put also the opaque data of the request? Maybe not
@@ -643,24 +641,14 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
   // this works in most cases, except if the url already contains the xrdhttp tokens
   s = s + "?";
   if (!hdr2cgistr.empty()) {
-    char *s1 = quote(hdr2cgistr.c_str());
-    if (s1) {
-        s += s1;
-        free(s1);
-    }
+    s += url_encode<std::string>(hdr2cgistr.c_str()).c_str();
   }
   if (p && (l > 1)) {
-    char *s1 = quote(p+1);
-    if (s1) {
-      if (!hdr2cgistr.empty()) {
-        s = s + "&";
-      }
-      s = s + s1;
-      free(s1);
+    if (!hdr2cgistr.empty()) {
+      s = s + "&";
     }
+    s = s + url_encode<std::string>(p+1).c_str();
   }
-
-
 
   if (hash) {
     if (l > 1) s += "&";
@@ -675,76 +663,45 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
     if (secent) {
       if (secent->name) {
         s += "&xrdhttpname=";
-        char *s1 = quote(secent->name);
-        if (s1) {
-          s += s1;
-          free(s1);
+        s += url_encode<std::string>(secent->name).c_str();
         }
       }
 
       if (secent->vorg) {
         s += "&xrdhttpvorg=";
-        char *s1 = quote(secent->vorg);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += url_encode<std::string>(secent->vorg).c_str();
       }
 
       if (secent->host) {
         s += "&xrdhttphost=";
-        char *s1 = quote(secent->host);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += url_encode<std::string>(secent->host).c_str();
       }
       
       if (secent->moninfo) {
         s += "&xrdhttpdn=";
-        char *s1 = quote(secent->moninfo);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += url_encode<std::string>(secent->moninfo).c_str();
       }
 
       if (secent->role) {
         s += "&xrdhttprole=";
-        char *s1 = quote(secent->role);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += url_encode<std::string>(secent->role).c_str();
       }
       
       if (secent->grps) {
         s += "&xrdhttpgrps=";
-        char *s1 = quote(secent->grps);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += url_encode<std::string>(secent->grps).c_str();
       }
       
       if (secent->endorsements) {
         s += "&xrdhttpendorsements=";
-        char *s1 = quote(secent->endorsements);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += url_encode<std::string>(secent->endorsements).c_str();
       }
       
       if (secent->credslen) {
         s += "&xrdhttpcredslen=";
         char buf[16];
         sprintf(buf, "%d", secent->credslen);
-        char *s1 = quote(buf);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += url_encode<std::string>(buf).c_str();
       }
       
       if (secent->credslen) {
@@ -753,21 +710,13 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
           // Apparently this string might be not 0-terminated (!)
           char *zerocreds = strndup(secent->creds, secent->credslen);
           if (zerocreds) {
-            char *s1 = quote(zerocreds);
-            if (s1) {
-              s += s1;
-              free(s1);
-            }
+            s += url_encode<std::string>(zerocreds).c_str();
             free(zerocreds);
           }
         }
       }
-      
     }
   }
-
-}
-
 
 // Sanitize the resource from the http[s]://[host]/ questionable prefix
 // https://github.com/xrootd/xrootd/issues/1675
@@ -817,8 +766,8 @@ void XrdHttpReq::parseResource(char *res) {
     // Some poor client implementations may inject a http[s]://[host]/ prefix
     // to the resource string. Here we choose to ignore it as a protection measure
     sanitizeResourcePfx();  
-    
-    char *buf = unquote((char *)resource.c_str());
+
+    char *buf = url_decode<char *>(resource.c_str());
     resource.assign(buf, 0);
     resourceplusopaque.assign(buf, 0);
     free(buf);
@@ -843,7 +792,7 @@ void XrdHttpReq::parseResource(char *res) {
   // to the resource string. Here we choose to ignore it as a protection measure
   sanitizeResourcePfx();  
   
-  char *buf = unquote((char *)resource.c_str());
+  char *buf = url_decode<char *>(resource.c_str());
   resource.assign(buf, 0);
   free(buf);
       
@@ -858,7 +807,7 @@ void XrdHttpReq::parseResource(char *res) {
   resourceplusopaque = resource;
   // Whatever comes after is opaque data to be parsed
   if (strlen(p) > 1) {
-    buf = unquote(p + 1);
+    buf = url_decode<char *>(p + 1);
     opaque = new XrdOucEnv(buf);
     resourceplusopaque.append('?');
     resourceplusopaque.append(p + 1);
@@ -967,8 +916,8 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     resourceplusopaque.append((query_param_status == 1) ? '&' : '?');
 
-    char *q = quote(hdr2cgistr.c_str());
-    resourceplusopaque.append(q);
+    std::string hdr2cgistrEncoded = url_encode<std::string>(hdr2cgistr.c_str());
+    resourceplusopaque.append(hdr2cgistrEncoded.c_str());
     if (TRACING(TRACE_DEBUG)) {
       // The obfuscation of "authz" will only be done if the server http.header2cgi config contains something that maps a header to this "authz" cgi.
       // Unfortunately the obfuscation code will be called no matter what is configured in http.header2cgi.
@@ -982,9 +931,8 @@ int XrdHttpReq::ProcessHTTPReq() {
     // apply to the destination in case of a MOVE.
     if (strchr(destination.c_str(), '?')) destination.append("&");
     else destination.append("?");
-    destination.append(q);
+    destination.append(hdr2cgistrEncoded.c_str());
 
-    free(q);
     m_appended_hdr2cgistr = true;
     }
 
