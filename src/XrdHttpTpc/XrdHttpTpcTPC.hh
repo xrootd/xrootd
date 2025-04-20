@@ -11,6 +11,7 @@
 
 #include "XrdTls/XrdTlsTempCA.hh"
 #include "XrdHttpTpcPMarkManager.hh"
+#include "XrdHttpTpcPool.hh"
 
 #include <curl/curl.h>
 
@@ -162,6 +163,7 @@ private:
     XrdSysError m_log;
     XrdSfsFileSystem *m_sfs;
     std::shared_ptr<XrdTlsTempCA> m_ca_file;
+    TPCRequestManager m_request_manager; // Manager of the request & worker pools for executing TPC transfers
 
     // 16 blocks in flight at 16 MB each, meaning that there will be up to 256MB
     // in flight; this is equal to the bandwidth delay product of a 200ms transcontinental
