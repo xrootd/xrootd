@@ -421,6 +421,9 @@ int XrdOucStream::Exec(const char *theCmd, int inrd, int efd)
     int j;
     char *cmd, *origcmd, *parm[MaxARGC];
 
+    if (!theCmd)
+      return EINVAL;
+
     // Allocate a buffer for the command as we will be modifying it
     //
     origcmd = cmd = (char *)malloc(strlen(theCmd)+1);
@@ -439,9 +442,9 @@ int XrdOucStream::Exec(const char *theCmd, int inrd, int efd)
 
     // Continue with normal processing
     //
-    j = Exec(parm, inrd, efd);
+    int ret = j > 0 ? Exec(parm, inrd, efd) : EINVAL;
     free(origcmd);
-    return j;
+    return ret;
 }
 
 int XrdOucStream::Exec(char **parm, int inrd, int efd)
