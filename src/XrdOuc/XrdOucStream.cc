@@ -1356,9 +1356,9 @@ int XrdOucStream::isSet(char *var)
    static const char *Mtxt1[2] = {"setenv", "set"};
    static const char *Mtxt2[2] = {"Setenv variable", "Set variable"};
    static const char *Mtxt3[2] = {"Variable", "Environmental variable"};
-   char *tp, *vn, *vp, *pv, Vname[64], ec, Nil = 0, sawIT = 0;
+   char *tp, *vn, *vp, *pv, Vname[64] = "", ec, Nil = 0, sawIT = 0;
    int Set = 1;
-   char valBuff[1024];
+   char valBuff[1024] = "";
 
 // Process set var = value | set -v | setenv = value
 //
