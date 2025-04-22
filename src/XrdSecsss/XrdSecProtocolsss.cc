@@ -222,7 +222,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
                 case XrdSecsssRR_Data::theCred: myID.creds    = idP;
                                                 myID.credslen = idSz;break;
                 case XrdSecsssRR_Data::theHost: 
-                                     if (*idP == '[')
+                                     if (idP && *idP == '[')
                                         myID.host =   theIP   = idP;
 
                                         else          theHost = idP;
