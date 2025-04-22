@@ -853,7 +853,7 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
           {Fatal(erp, "Load_Client", ENOMEM, "Unable to create keytab object.");
            return (char *)0;
           }
-       if (erp->getErrInfo())
+       if (erp && erp->getErrInfo())
           {delete ktObject, ktObject = 0; return (char *)0;}
        CLDBG("Client keytab='" <<kP <<"'");
       }
