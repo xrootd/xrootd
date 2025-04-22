@@ -737,7 +737,7 @@ int XrdOucString::replace(const char *s1, const char *s2, int from, int to)
    // Return signed size of length modification (in bytes)
 
    // We must have something to replace
-   if (!str || len <= 0)
+   if (!str || len <= 0 || !s1 || !s2)
       return 0;
    
    // The string to replace must be defined and not empty
@@ -813,12 +813,12 @@ int XrdOucString::replace(const char *s1, const char *s2, int from, int to)
          }
          dl = nr*dd;
       }
+      // Variation of string length
+      len += dl;
+      // Ensure null-termination
+      str[len] = '\0';
    }
 
-   // Variation of string length
-   len += dl;
-   // Insure null-termination
-   str[len] = 0;
    // We are done
    return dl;
 }
