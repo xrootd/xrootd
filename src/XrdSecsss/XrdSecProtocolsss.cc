@@ -685,7 +685,10 @@ XrdSecCredentials *XrdSecProtocolsss::getCredentials(XrdSecParameters *parms,
 //
    if (v2EndPnt)
       {int k = strlen(encKey.Data.Name), n = (k + 8) & ~7;
-       strcpy(rrHdr.keyName, encKey.Data.Name);
+       if (strlcpy(rrHdr.keyName, encKey.Data.Name, sizeof(rrHdr.keyName)) >= sizeof(rrHdr.keyName))
+          { Fatal(einfo, "getCredentials", EINVAL, "Encryption key name is too long.");
+            return nullptr;
+          }
        if (n - k > 1) memset(rrHdr.keyName + k, 0, n - k);
        rrHdr.knSize = static_cast<uint8_t>(n);
       } else rrHdr.knSize = 0;
