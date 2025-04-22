@@ -969,12 +969,12 @@ void XrdOucString::reset(const char c, int j, int k)
    j = (j >= 0 && j < siz) ? j : 0;
    k = (k >= j && k < siz) ? k : siz-1;
 
-   if (str) {
-      volatile char *buf = (volatile char *)str;
-      int i = j;
-      for (; i <= k; i++)
-         buf[i] = c;
-   }
+   if (!str)
+      return;
+
+   for (int i = j; i <= k; i++)
+      str[i] = c;
+
    while (str[len-1] == 0)
       --len; 
 }
