@@ -952,12 +952,10 @@ void XrdOucString::upper(int start, int size)
 void XrdOucString::hardreset()
 {
    // Reset string making sure to erase completely the information.
+   if (str)
+     while (len > 0)
+       str[--len] = '\0';
 
-   if (str) {
-      volatile char *buf = 0;
-      for (buf = (volatile char *)str; len; buf[--len] = 0) {}
-      len = 0;
-   }
    len = 0;
 }
 
