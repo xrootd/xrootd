@@ -115,7 +115,7 @@ Requires:	%{name}-client%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-server-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	expect
 Requires:	logrotate
-%{?sysusers_requires_compat}
+Requires(pre): shadow-utils
 %{?systemd_requires}
 
 %description server
@@ -389,9 +389,6 @@ install -m 644 packaging/common/frm_purged@.service %{buildroot}%{_unitdir}
 mkdir -p %{buildroot}%{_tmpfilesdir}
 install -m 644 packaging/rhel/xrootd.tmpfiles %{buildroot}%{_tmpfilesdir}/%{name}.conf
 
-mkdir -p %{buildroot}%{_sysusersdir}
-install -m 644 packaging/rhel/%{name}-sysusers.conf %{buildroot}%{_sysusersdir}/%{name}.conf
-
 # Server config
 mkdir -p %{buildroot}%{_sysconfdir}/%{name}
 install -m 644 -p packaging/common/%{name}-clustered.cfg \
@@ -453,7 +450,9 @@ install -m 644 -p packaging/common/%{name}.pp \
 %ldconfig_scriptlets server-libs
 
 %pre server
-%sysusers_create_compat %(tar -z -x -f %{SOURCE0} --no-anchored xrootd-sysusers.conf -O > /tmp/xrootd-sysusers.conf && echo /tmp/xrootd-sysusers.conf)
+getent group %{name} >/dev/null || groupadd -r %{name}
+getent passwd %{name} >/dev/null || useradd -r -g %{name} -s /sbin/nologin \
+	-d %{_localstatedir}/spool/%{name} -c "System user for XRootD" %{name}
 
 %post server
 %tmpfiles_create %{_tmpfilesdir}/%{name}.conf
@@ -521,7 +520,6 @@ fi
 %{_datadir}/%{name}/utils
 %{_unitdir}/*
 %{_tmpfilesdir}/%{name}.conf
-%{_sysusersdir}/%{name}.conf
 %config(noreplace) %{_sysconfdir}/logrotate.d/%{name}
 %dir %{_sysconfdir}/%{name}/config.d
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/%{name}/*.cfg
