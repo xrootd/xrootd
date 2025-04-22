@@ -162,7 +162,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    XrdSecsssKT::ktEnt  decKey;
    Persona             myID(&decKey);
 
-   char *idP, *dP, *eodP, *theIP = 0, *theHost = 0, *atKey = 0, eType;
+   char *idP = 0, *dP = 0, *eodP = 0, *theIP = 0, *theHost = 0, *atKey = 0, eType = '\0';
    int idNum = 0, idTLen, idSz, dLen;
    bool badAttr = false;
 
