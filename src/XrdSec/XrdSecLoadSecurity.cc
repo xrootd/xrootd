@@ -115,7 +115,7 @@ int Load(      char       *eBuff,      int         eBlen,
 //
    rc = Plug(piP, getP, &ep);
    if (rc == 0)
-      {if (secP && !(*secP = (*ep)(eDest->logger(), cfn))) rc = 1;
+      {if (secP && !(*secP = (*ep)(eDest ? eDest->logger() : nullptr, cfn))) rc = 1;
        if (!rc) {delete piP; return 0;}
       }
 
