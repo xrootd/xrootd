@@ -515,7 +515,7 @@ do{while((lp = myKT.GetLine()))
 
 // Check if an error should be returned
 //
-   if (!NoGo) eInfo->setErrCode(0);
+   if (eInfo && !NoGo) eInfo->setErrCode(0);
 
 // All done
 //
