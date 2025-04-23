@@ -1,12 +1,9 @@
-
 # Curl is necessary for this test
-if( NOT CURL_FOUND )
-  return()
-endif()
+find_package(CURL)
 
 # If XRootD::http fixture is not available, we
 # cannot run the HTTP stress test.
-if( NOT ENABLE_HTTP_TESTS )
+if(NOT CURL_FOUND OR NOT ENABLE_HTTP_TESTS)
   return()
 endif()
 
