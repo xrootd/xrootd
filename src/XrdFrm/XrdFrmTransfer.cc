@@ -607,8 +607,9 @@ const char *XrdFrmTransfer::Throw()
    XrdFrmTranChk Chk(&begStat);
    time_t xfrET;
    const char *eTxt, *retMsg = 0;
-   char Rfn[MAXPATHLEN+256], *lfnpath = xfrP->reqData.LFN, *theDest;
-   char pdBuff[1024];
+   char Rfn[MAXPATHLEN+256] = "";
+   char *lfnpath = xfrP->reqData.LFN, *theDest = nullptr;
+   char pdBuff[1024] = "";
    int isMigr = xfrP->reqData.Options & XrdFrcRequest::Migrate;
    int iXfr, isURL, pdSZ, rc, mDP = -1;
 
