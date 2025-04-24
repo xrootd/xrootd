@@ -46,10 +46,114 @@
 namespace XrdCl
 {
 
-  template<bool HasHndl> class Operation;
-
   class Pipeline;
+  class PipelineHandler;
 
+  //----------------------------------------------------------------------------
+  //! Operation template. An Operation is a once-use-only object - once executed
+  //! by a Workflow engine it is invalidated. Also if used as an argument for
+  //! >> or | the original object gets invalidated.
+  //!
+  //! @arg HasHndl : true if operation has a handler, false otherwise
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class Operation
+  {
+      // Declare friendship between templates
+      template<bool>
+      friend class Operation;
+
+      friend std::future<XRootDStatus> Async( Pipeline, uint16_t );
+
+      friend class Pipeline;
+      friend class PipelineHandler;
+
+    public:
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      Operation() : valid( true )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Move constructor between template instances.
+      //------------------------------------------------------------------------
+      template<bool from>
+      Operation( Operation<from> && op ) :
+          handler( std::move( op.handler ) ), valid( true )
+      {
+        if( !op.valid ) throw std::invalid_argument( "Cannot construct "
+            "Operation from an invalid Operation!" );
+        op.valid = false;
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~Operation()
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Name of the operation.
+      //------------------------------------------------------------------------
+      virtual std::string ToString() = 0;
+
+      //------------------------------------------------------------------------
+      //! Move current object into newly allocated instance
+      //!
+      //! @return : the new instance
+      //------------------------------------------------------------------------
+      virtual Operation<HasHndl>* Move() = 0;
+
+      //------------------------------------------------------------------------
+      //! Move current object into newly allocated instance, and convert
+      //! it into 'handled' operation.
+      //!
+      //! @return : the new instance
+      //------------------------------------------------------------------------
+      virtual Operation<true>* ToHandled() = 0;
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! Run operation
+      //!
+      //! @param prms   : the promise that we will have a result
+      //! @param final  : the object to call at the end of pipeline
+      //------------------------------------------------------------------------
+      void Run( Timeout                                   timeout,
+                std::promise<XRootDStatus>                prms,
+                std::function<void(const XRootDStatus&)>  final );
+
+      //------------------------------------------------------------------------
+      //! Run the actual operation
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      virtual XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Add next operation in the pipeline
+      //!
+      //! @param op : operation to add
+      //------------------------------------------------------------------------
+      void AddOperation( Operation<true> *op );
+
+      //------------------------------------------------------------------------
+      //! Operation handler
+      //------------------------------------------------------------------------
+      std::unique_ptr<PipelineHandler> handler;
+;
+      //------------------------------------------------------------------------
+      //! Flag indicating if it is a valid object
+      //------------------------------------------------------------------------
+      bool valid;
+  };
 
   //----------------------------------------------------------------------------
   //! Type of the recovery function to be provided by the user
@@ -174,144 +278,6 @@ namespace XrdCl
       //! pipeline (traveling along the pipeline)
       //------------------------------------------------------------------------
       std::function<void(const XRootDStatus&)> final;
-  };
-
-  //----------------------------------------------------------------------------
-  //! Operation template. An Operation is a once-use-only object - once executed
-  //! by a Workflow engine it is invalidated. Also if used as an argument for
-  //! >> or | the original object gets invalidated.
-  //!
-  //! @arg HasHndl : true if operation has a handler, false otherwise
-  //----------------------------------------------------------------------------
-  template<bool HasHndl>
-  class Operation
-  {
-      // Declare friendship between templates
-      template<bool>
-      friend class Operation;
-
-      friend std::future<XRootDStatus> Async( Pipeline, uint16_t );
-
-      friend class Pipeline;
-      friend class PipelineHandler;
-
-    public:
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      Operation() : valid( true )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Move constructor between template instances.
-      //------------------------------------------------------------------------
-      template<bool from>
-      Operation( Operation<from> && op ) :
-          handler( std::move( op.handler ) ), valid( true )
-      {
-        if( !op.valid ) throw std::invalid_argument( "Cannot construct "
-            "Operation from an invalid Operation!" );
-        op.valid = false;
-      }
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~Operation()
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Name of the operation.
-      //------------------------------------------------------------------------
-      virtual std::string ToString() = 0;
-
-      //------------------------------------------------------------------------
-      //! Move current object into newly allocated instance
-      //!
-      //! @return : the new instance
-      //------------------------------------------------------------------------
-      virtual Operation<HasHndl>* Move() = 0;
-
-      //------------------------------------------------------------------------
-      //! Move current object into newly allocated instance, and convert
-      //! it into 'handled' operation.
-      //!
-      //! @return : the new instance
-      //------------------------------------------------------------------------
-      virtual Operation<true>* ToHandled() = 0;
-
-    protected:
-
-      //------------------------------------------------------------------------
-      //! Run operation
-      //!
-      //! @param prms   : the promise that we will have a result
-      //! @param final  : the object to call at the end of pipeline
-      //------------------------------------------------------------------------
-      void Run( Timeout                                   timeout,
-                std::promise<XRootDStatus>                prms,
-                std::function<void(const XRootDStatus&)>  final )
-      {
-        static_assert(HasHndl, "Only an operation that has a handler can be assigned to workflow");
-        handler->Assign( timeout, std::move( prms ), std::move( final ), this );
-
-        PipelineHandler *h = handler.release();
-        XRootDStatus st;
-        try
-        {
-          st = RunImpl( h, timeout );
-        }
-        catch( const operation_expired& ex )
-        {
-          st = XRootDStatus( stError, errOperationExpired );
-        }
-        catch( const PipelineException& ex ) // probably not needed
-        {
-          st = ex.GetError();
-        }
-        catch( const std::exception& ex )
-        {
-          st = XRootDStatus( stError, errInternal, 0, ex.what() );
-        }
-
-        if( !st.IsOK() ){
-          ResponseJob *job = new ResponseJob(h, new XRootDStatus(st), 0, nullptr);
-          DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob(job);
-        }
-      }
-
-      //------------------------------------------------------------------------
-      //! Run the actual operation
-      //!
-      //! @param params :  container with parameters forwarded from
-      //!                  previous operation
-      //! @return       :  status of the operation
-      //------------------------------------------------------------------------
-      virtual XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout ) = 0;
-
-      //------------------------------------------------------------------------
-      //! Add next operation in the pipeline
-      //!
-      //! @param op : operation to add
-      //------------------------------------------------------------------------
-      void AddOperation( Operation<true> *op )
-      {
-        if( handler )
-          handler->AddOperation( op );
-      }
-
-      //------------------------------------------------------------------------
-      //! Operation handler
-      //------------------------------------------------------------------------
-      std::unique_ptr<PipelineHandler> handler;
-
-      //------------------------------------------------------------------------
-      //! Flag indicating if it is a valid object
-      //------------------------------------------------------------------------
-      bool valid;
   };
 
   //----------------------------------------------------------------------------
@@ -775,6 +741,41 @@ namespace XrdCl
       //------------------------------------------------------------------------
       uint16_t timeout;
     };
+
+  // Out-of-line methods for class Operation
+
+  template <bool HasHndl>
+  void Operation<HasHndl>::Run(Timeout timeout, std::promise<XRootDStatus> prms,
+                               std::function<void(const XRootDStatus &)> f)
+  {
+    static_assert(HasHndl, "Only an operation that has a handler can be assigned to workflow");
+
+    XRootDStatus st;
+    handler->Assign(timeout, std::move(prms), std::move(f), this);
+    PipelineHandler *h = handler.release();
+
+    try {
+      st = RunImpl(h, timeout);
+    } catch (const operation_expired &ex) {
+      st = XRootDStatus(stError, errOperationExpired);
+    } catch (const PipelineException &ex) { // probably not needed
+      st = ex.GetError();
+    } catch (const std::exception &ex) {
+      st = XRootDStatus(stError, errInternal, 0, ex.what());
+    }
+
+    if (!st.IsOK()) {
+      ResponseJob *job = new ResponseJob(h, new XRootDStatus(st), 0, nullptr);
+      DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob(job);
+    }
+  }
+
+  template <bool HasHndl>
+  void Operation<HasHndl>::AddOperation(Operation<true> *op)
+  {
+    if (handler)
+      handler->AddOperation(op);
+  }
 }
 
 #endif // __XRD_CL_OPERATIONS_HH__
