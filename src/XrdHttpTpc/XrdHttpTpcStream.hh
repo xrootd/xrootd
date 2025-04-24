@@ -7,6 +7,8 @@
  * supports single-stream writes.
  */
 
+#include "XrdSfs/XrdSfsInterface.hh"
+
 #include <memory>
 #include <vector>
 #include <string>
@@ -15,7 +17,6 @@
 
 struct stat;
 
-class XrdSfsFile;
 class XrdSysError;
 
 namespace TPC {
