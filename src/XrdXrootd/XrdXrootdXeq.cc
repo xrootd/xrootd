@@ -105,8 +105,6 @@ struct XrdXrootdSessID
 
 namespace
 {
-static const int op_isOpen    = 0x00010000;
-static const int op_isRead    = 0x00020000;
 
 const char *getTime()
 {
