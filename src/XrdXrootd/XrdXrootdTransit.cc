@@ -271,7 +271,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
 
 // Indicate that this brige supports asynchronous responses
 //
-   CapVer = kXR_asyncap | kXR_ver002;
+   CapVer = (kXR_char) kXR_asyncap | (kXR_char) kXR_ver002;
 
 // Mark the client as IPv4 if they came in as IPv4 or mapped IPv4. Note
 // there is no way we can figure out if this is a dual-stack client.

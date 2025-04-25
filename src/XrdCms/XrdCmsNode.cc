@@ -578,7 +578,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // Encode if type into the options
 //
    Sel.Opts = static_cast<int>(ifType) & XrdCmsSelect::ifWant;
-   lsopts   = static_cast<XrdCmsCluster::CmsLSOpts>(lsopts | ifType);
+   lsopts   = lsopts | static_cast<XrdCmsCluster::CmsLSOpts>(ifType);
 
 // Grab various options
 //
