@@ -159,11 +159,11 @@ TEST_P(HttpStressTest, Upload) {
 // INSTANTIATE_TEST_CASE_P was renamed to INSTANTIATE_TEST_SUITE_P after GTest 1.8.0.
 // Currently, AlmaLinux 8 is the only platform that has a sufficiently old version
 // of GTest that we need to use this ifdef to switch between the two.
-#ifdef INSTANTIATE_TEST_SUITE_P
-INSTANTIATE_TEST_SUITE_P(
-#else
-INSTANTIATE_TEST_CASE_P(
+#ifndef INSTANTIATE_TEST_SUITE_P
+#define INSTANTIATE_TEST_SUITE_P INSTANTIATE_TEST_CASE_P
 #endif
+
+INSTANTIATE_TEST_SUITE_P(
   StressTests, HttpStressTest,
   testing::Combine(testing::Values(1, 10, 20), testing::Values("/stress_upload"))
 );
