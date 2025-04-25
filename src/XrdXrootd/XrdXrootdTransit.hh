@@ -44,7 +44,7 @@
 //! The Bridge object implementation.
 //-----------------------------------------------------------------------------
 
-class  XrdOucSFVec;
+struct XrdOucSFVec;
 class  XrdScheduler;
 class  XrdXrootdTransPend;
 struct iovec;

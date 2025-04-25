@@ -36,8 +36,8 @@
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 
 class XrdXrootdFileStats;
-class XrdXrootdMonHeader;
-class XrdXrootdMonTrace;
+struct XrdXrootdMonHeader;
+struct XrdXrootdMonTrace;
   
 class XrdXrootdMonFile : XrdJob
 {

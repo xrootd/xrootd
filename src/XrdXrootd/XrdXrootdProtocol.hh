@@ -76,7 +76,6 @@ class XrdOucTokenizer;
 class XrdSecProtect;
 class XrdSecProtector;
 class XrdSfsDirectory;
-class XrdSfsFACtl;
 class XrdSfsFileSystem;
 class XrdSecProtocol;
 class XrdBuffer;
@@ -90,8 +89,10 @@ class XrdXrootdMonitor;
 class XrdXrootdPgwCtl;
 class XrdXrootdPio;
 class XrdXrootdStats;
-class XrdXrootdWVInfo;
 class XrdXrootdXPath;
+
+struct XrdSfsFACtl;
+struct XrdXrootdWVInfo;
 
 /******************************************************************************/
 /*                   N a m e s p a c e   X r d X r o o t d                    */

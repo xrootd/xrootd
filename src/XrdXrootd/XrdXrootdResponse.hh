@@ -42,8 +42,8 @@
 /******************************************************************************/
   
 class XrdLink;
-class XrdOucSFVec;
 class XrdXrootdTransit;
+struct XrdOucSFVec;
 
 class XrdXrootdResponse
 {
