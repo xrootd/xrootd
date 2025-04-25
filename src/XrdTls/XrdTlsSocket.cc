@@ -105,10 +105,6 @@ extern XrdSysTrace SysTrace;
   
 namespace
 {
-static const int noBlock = 0;
-static const int rwBlock = 'a';
-static const int xyBlock = 'x';
-
 static const int xVerify = 0x01;   //!< Peer cetrificate is to be verified
 static const int DNSok   = 0x04;   //!< DNS can be used to verify peer.
 
