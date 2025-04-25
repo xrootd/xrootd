@@ -27,7 +27,7 @@
 
 class  XrdSysLogger;
 struct XrdTlsContextImpl;
-struct XrdTlsSocket;
+class  XrdTlsSocket;
 
 /******************************************************************************/
 /*                         X r d T l s C o n t e x t                          */
