@@ -2807,7 +2807,7 @@ int XrdXrootdProtocol::do_Set_Cache(XrdOucTokenizer &setargs)
 {
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    XrdSfsFSctl myData;
-   char *cmd, *cargs, *opaque;
+   char *cmd, *cargs, *opaque = nullptr;
    const char *myArgs[2];
 
 // This set is valid only if we implement a cache
