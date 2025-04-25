@@ -63,9 +63,5 @@ virtual            ~XrdCksManOss() {}
 protected:
 virtual int         Calc(const char *Lfn, time_t &MTime, XrdCksCalc *CksObj);
 virtual int         ModTime(const char *Pfn, time_t &MTime);
-
-private:
-
-int buffSZ;
 };
 #endif
