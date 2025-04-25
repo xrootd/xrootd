@@ -137,15 +137,9 @@ const char *XrdSutBuckStr(int kbck)
 /*  X r d S u t M e m S e t                                                   */
 /******************************************************************************/
 //______________________________________________________________________________
-volatile void *XrdSutMemSet(volatile void *dst, int c, int len)
+void *XrdSutMemSet(void *dst, int c, int len)
 {
-   // To avoid problems due to compiler optmization
-   // Taken from Viega&Messier, "Secure Programming Cookbook", O'Really, #13.2
-   // (see discussion there)
-   volatile char *buf;
-
-   for (buf = (volatile char *)dst; len; buf[--len] = c) {}
-   return dst;
+   return memset(dst, c, len);
 }
 
 #ifndef USE_EXTERNAL_GETPASS
@@ -170,7 +164,7 @@ int XrdSutGetPass(const char *prompt, XrdOucString &passwd)
          if (pw[i] > 0x20) pw[k++] = pw[i];
       pw[k] = 0;
       passwd = pw;
-      XrdSutMemSet((volatile void *)pw,0,len);
+      XrdSutMemSet((void *)pw,0,len);
    } else {
       DEBUG("error from getpass");
       return -1;
