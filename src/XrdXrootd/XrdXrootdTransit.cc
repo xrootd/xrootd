@@ -449,6 +449,11 @@ void XrdXrootdTransit::Redrive()
                                 {(char *)&eText,sizeof(eText)}};
    int rc;
 
+// Do some tracing
+//
+   TRACEP(REQ, "Bridge redrive runStatus="<<runStatus<<" runError="<<runError
+               <<" runWait="<<runWait<<" runWTot="<<runWTot);
+
 // Update wait statistics
 //
    runWTot += runWait;
@@ -458,10 +463,19 @@ void XrdXrootdTransit::Redrive()
 // be deleted while a timer is outstanding as the link has been disabled. So,
 // we can reissue the request with little worry.
 //
+// This is a bit tricky here as a redriven request may result in a wait. If
+// this happens we cannot hand the result off to the real protocol until we
+// wait and successfully redrive. The wait handling occurs asynchronously
+// so all we need to do is honor it here.
+//
    if (!runALen || RunCopy(runArgs, runALen)) {
       do{rc = Process2();
-        if (rc == 0) {
+         TRACEP(REQ, "Bridge redrive Process2 rc="<<rc
+                     <<" runError="<<runError<<" runWait="<<runWait);
+        if (rc == 0 && !runWait && !runError) {
           rc = realProt->Process(NULL);
+          TRACEP(REQ, "Bridge redrive callback rc="<<rc
+                      <<" runStatus="<<runStatus);
         }
         if (runStatus)
            {AtomicBeg(runMutex);
