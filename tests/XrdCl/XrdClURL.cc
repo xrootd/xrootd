@@ -123,7 +123,7 @@ TEST(URLTest, InvalidURLs)
     "root:////path?param1=val1&param2=val2",
     "root://@//path?param1=val1&param2=val2",
     "root://:@//path?param1=val1&param2=val2",
-    "root://asd@://path?param1=val1&param2=val2"
+    "root://asd@://path?param1=val1&param2=val2",
     "root://user1:passwd1host1:123//path?param1=val1&param2=val2",
     "root://user1:passwd1@host1:asd//path?param1=val1&param2=val2",
   };
