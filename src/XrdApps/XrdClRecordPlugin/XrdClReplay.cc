@@ -372,7 +372,7 @@ class ActionExecutor
 
       if (!simulate)
         WaitFor(Open(file, url, flags, mode, timeout) >>
-                [this, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
+                [orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
                 {
                   metric.addIos("Open", "e", HandleStatus(s, orgststr, "Open"));
                   metric.addDelays("Open", "tmeas", timer.elapsed());
@@ -401,7 +401,7 @@ class ActionExecutor
 
       if (!simulate)
         Async(Close(file, timeout) >>
-              [this, orgststr{ orgststr }, ending, timer, &metric](XRootDStatus& s) mutable
+              [orgststr{ orgststr }, ending, timer, &metric](XRootDStatus& s) mutable
               {
                 metric.addIos("Close", "e", HandleStatus(s, orgststr, "Close"));
                 metric.addDelays("Close", "tmeas", timer.elapsed());
@@ -422,7 +422,7 @@ class ActionExecutor
 
       if (!simulate)
         Async(Stat(file, force, timeout) >>
-              [this, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s, StatInfo& r) mutable
+              [orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s, StatInfo& r) mutable
               {
                 metric.addIos("Stat", "e", HandleStatus(s, orgststr, "Stat"));
                 metric.addDelays("Stat", "tmeas", timer.elapsed());
@@ -560,7 +560,7 @@ class ActionExecutor
       mytimer_t timer;
       if (!simulate)
         Async(Sync(file, timeout) >>
-              [this, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              [orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
               {
                 metric.addIos("Sync", "e", HandleStatus(s, orgststr, "Sync"));
                 metric.addDelays("Sync", "tmeas", timer.elapsed());
@@ -585,7 +585,7 @@ class ActionExecutor
       mytimer_t timer;
       if (!simulate)
         Async(Truncate(file, size, timeout) >>
-              [this, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              [orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
               {
                 metric.addIos("Truncate", "e", HandleStatus(s, orgststr, "Truncate"));
                 metric.addDelays("Truncate", "tmeas", timer.elapsed());
@@ -616,7 +616,7 @@ class ActionExecutor
       if (!simulate)
         Async(
           VectorRead(file, chunks, timeout) >>
-          [this, orgststr{ orgststr }, buffers, ending, closing, timer, &metric](XRootDStatus& s, VectorReadInfo& r) mutable
+          [orgststr{ orgststr }, buffers, ending, closing, timer, &metric](XRootDStatus& s, VectorReadInfo& r) mutable
           {
             metric.addIos("VectorRead", "e", HandleStatus(s, orgststr, "VectorRead"));
             metric.addDelays("VectorRead", "tmeas", timer.elapsed());
@@ -647,7 +647,7 @@ class ActionExecutor
       mytimer_t timer;
       if (!simulate)
         Async(VectorWrite(file, chunks, timeout) >>
-              [this, orgststr{ orgststr }, buffers, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              [orgststr{ orgststr }, buffers, ending, closing, timer, &metric](XRootDStatus& s) mutable
               {
                 metric.addIos("VectorWrite", "e", HandleStatus(s, orgststr, "VectorWrite"));
                 metric.addDelays("VectorWrite", "tmeas", timer.elapsed());
