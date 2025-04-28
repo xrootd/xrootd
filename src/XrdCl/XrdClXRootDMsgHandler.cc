@@ -1610,7 +1610,6 @@ namespace XrdCl
         ChunkInfo  chunk         = pChunkList->front();
         bool       sizeMismatch  = false;
         uint32_t   currentOffset = 0;
-        char      *cursor        = (char*)chunk.buffer;
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
           ServerResponseV2 *part  = (ServerResponseV2*)pPartialResps[i]->GetBuffer();
@@ -1628,7 +1627,6 @@ namespace XrdCl
           }
 
           currentOffset += datalen;
-          cursor        += datalen;
         }
 
         ServerResponseV2 *rspst = (ServerResponseV2*)pResponse->GetBuffer();
