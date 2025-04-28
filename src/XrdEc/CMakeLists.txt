@@ -6,7 +6,7 @@ add_library(XrdEc SHARED
   XrdEcConfig.hh
   XrdEcObjCfg.hh
   XrdEcReader.hh              XrdEcReader.cc
-  XrdEcRedundancyProvider.hh  XrdEcRedundancyProvider.cc 
+  XrdEcRedundancyProvider.hh  XrdEcRedundancyProvider.cc
   XrdEcStrmWriter.hh          XrdEcStrmWriter.cc
   XrdEcThreadPool.hh
   XrdEcUtilities.hh           XrdEcUtilities.cc
@@ -22,7 +22,6 @@ set_target_properties(XrdEc
 install(
   FILES
     XrdEcConfig.hh
-    XrdEcObjCfg.hh
     XrdEcObjCfg.hh
     XrdEcReader.hh
     XrdEcRedundancyProvider.hh
