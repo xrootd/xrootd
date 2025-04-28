@@ -53,7 +53,7 @@ struct XrdOucIOVec;
 class XrdPosixCallBack;
 class XrdPosixCallBackIO;
 class XrdPosixFile;
-class XrdPosixInfo;
+struct XrdPosixInfo;
 class XrdPosixAdmin;
 
 //-----------------------------------------------------------------------------

@@ -37,7 +37,7 @@
 class XrdOucEnv;
 class XrdOucPsx;
 class XrdScheduler;
-class XrdPosixInfo;
+struct XrdPosixInfo;
 class XrdSecsssCon;
 class XrdSysLogger;
 
