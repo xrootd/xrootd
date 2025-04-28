@@ -89,10 +89,21 @@ int                 credslen;
 char               *pident;
 
                     Persona(XrdSecsssKT::ktEnt *kP)
-                           {memset(this, 0, sizeof(Persona));
-                            kTab = kP;
-                           }
-                   ~Persona() {}
+                      : kTab(kP),
+                        xAuth(nullptr),
+                        xUser(nullptr),
+                        xGrup(nullptr),
+                        name(nullptr),
+                        host(nullptr),
+                        vorg(nullptr),
+                        role(nullptr),
+                        grps(nullptr),
+                        caps(nullptr),
+                        endo(nullptr),
+                        creds(nullptr),
+                        credslen(0),
+                        pident(nullptr)
+                    {}
 
 bool Clonable(const char *aTypes)
              {char aKey[XrdSecPROTOIDSIZE+2];
