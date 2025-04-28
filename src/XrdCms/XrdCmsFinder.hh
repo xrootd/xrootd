@@ -122,6 +122,8 @@ class XrdOucTList;
 class XrdCmsFinderTRG : public XrdCmsClient, public XrdCmsPerfMon
 {
 public:
+        using XrdCmsPerfMon::Configure;
+
         void   Added(const char *path, int Pend=0);
 
         int    Configure(const char *cfn, char *Args, XrdOucEnv *EnvInfo);
