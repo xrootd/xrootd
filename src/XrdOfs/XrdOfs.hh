@@ -230,7 +230,7 @@ class XrdCmsClient;
 class XrdOfsConfigPI;
 class XrdOfsFSctl_PI;
 class XrdOfsPoscq;
-class XrdSfsFACtl;
+struct XrdSfsFACtl;
   
 class XrdOfs : public XrdSfsFileSystem
 {

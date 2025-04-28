@@ -41,7 +41,7 @@ class XrdOucEnv;
 class XrdOucErrInfo;
 class XrdSecEntity;
 class XrdSfsFileSystem;
-class XrdSfsPrep;
+struct XrdSfsPrep;
   
 class XrdOfsPrepare
 {

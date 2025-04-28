@@ -33,7 +33,7 @@ class XrdOucEnv;
 class XrdOucStream;
 class XrdSsiCluster;
 class XrdSsiServer;
-class XrdVersionInfo;
+struct XrdVersionInfo;
 
 class XrdSsiSfsConfig
 {

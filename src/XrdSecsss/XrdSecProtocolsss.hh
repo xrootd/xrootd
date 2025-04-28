@@ -39,7 +39,7 @@
 
 class XrdOucErrInfo;
 
-struct XrdSecsssEnt;
+class XrdSecsssEnt;
 
 class XrdSecProtocolsss : public XrdSecProtocol
 {

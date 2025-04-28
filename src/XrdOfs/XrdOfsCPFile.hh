@@ -34,7 +34,7 @@
 #include <ctime>
   
 struct stat;
-class  XrdOucIOVec;
+struct XrdOucIOVec;
 
 class XrdOfsCPFile
 {
