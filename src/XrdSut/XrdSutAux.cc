@@ -137,9 +137,9 @@ const char *XrdSutBuckStr(int kbck)
 /*  X r d S u t M e m S e t                                                   */
 /******************************************************************************/
 //______________________________________________________________________________
-void *XrdSutMemSet(void *dst, int c, int len)
+volatile void *XrdSutMemSet(volatile void *dst, int c, int len)
 {
-   return memset(dst, c, len);
+   return memset((void*)dst, c, len);
 }
 
 #ifndef USE_EXTERNAL_GETPASS

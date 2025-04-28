@@ -119,7 +119,7 @@ void XrdSutSetTrace(kXR_int32 trace);
 /*  Taken from Viega&Messier, "Secure Programming Cookbook", O'Really, #13.2  */
 /*                                                                            */
 /******************************************************************************/
-void *XrdSutMemSet(void *dst, int c, int len);
+volatile void *XrdSutMemSet(volatile void *dst, int c, int len);
 
 /******************************************************************************/
 /*  X r d S u t G e t P a s s                                                 */
