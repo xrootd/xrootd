@@ -35,7 +35,7 @@ namespace XrdCl
 {
   class LocalFileHandler;
 
-  class XAttr;
+  struct XAttr;
 
   //----------------------------------------------------------------------------
   //! Synchronize the response
