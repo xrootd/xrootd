@@ -13,12 +13,12 @@ class XrdOss;
 
 namespace XrdPfc {
 
-class DataFsState;
-class DirState;
-class DirStateElement;
-class DataFsSnapshot;
-class DirPurgeElement;
-class DataFsPurgeshot;
+struct DataFsState;
+struct DirState;
+struct DirStateElement;
+struct DataFsSnapshot;
+struct DirPurgeElement;
+struct DataFsPurgeshot;
 class FsTraversal;
 
 //==============================================================================

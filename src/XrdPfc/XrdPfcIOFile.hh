@@ -27,7 +27,7 @@
 
 class XrdSysError;
 class XrdOssDF;
-class XrdOucIOVec;
+struct XrdOucIOVec;
 
 namespace XrdPfc
 {

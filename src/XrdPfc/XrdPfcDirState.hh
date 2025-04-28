@@ -33,7 +33,7 @@
 
 namespace XrdPfc
 {
-class PathTokenizer;
+struct PathTokenizer;
 
 using unlink_func = std::function<int(const std::string&)>;
 

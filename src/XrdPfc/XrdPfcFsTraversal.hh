@@ -15,7 +15,7 @@ class XrdOssDF;
 
 namespace XrdPfc {
 
-class DirState;
+struct DirState;
 
 class FsTraversal
 {

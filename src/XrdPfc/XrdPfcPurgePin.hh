@@ -6,8 +6,8 @@
 
 namespace XrdPfc
 {
-class DataFsPurgeshot;
-class DirUsage;
+struct DataFsPurgeshot;
+struct DirUsage;
 
 //----------------------------------------------------------------------------
 //! Base class for reguesting directory space to obtain.

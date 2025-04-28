@@ -32,7 +32,7 @@
 #include <string>
 
 class XrdJob;
-class XrdOucIOVec;
+struct XrdOucIOVec;
 
 namespace XrdPfc
 {
