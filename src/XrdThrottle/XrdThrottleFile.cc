@@ -20,7 +20,13 @@ using namespace XrdThrottle;
 #define DO_THROTTLE(amount) \
 DO_LOADSHED \
 m_throttle.Apply(amount, 1, m_uid); \
-XrdThrottleTimer xtimer = m_throttle.StartIOTimer();
+bool ok; \
+auto xtimer = m_throttle.StartIOTimer(m_uid, ok); \
+if (!ok) { \
+   error.setErrInfo(EMFILE, "I/O limit exceeded and wait time hit"); \
+   return SFS_ERROR; \
+}
+
 
 File::File(const char                     *user,
                  unique_sfs_ptr            sfs,

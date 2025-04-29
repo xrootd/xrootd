@@ -28,13 +28,16 @@
 #define unlikely(x)     x
 #endif
 
-#include <string>
-#include <vector>
+#include <array>
 #include <ctime>
-#include <mutex>
-#include <unordered_map>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdSysError;
@@ -69,6 +72,8 @@ void        SetMaxOpen(unsigned long max_open) {m_max_open = max_open;}
 
 void        SetMaxConns(unsigned long max_conns) {m_max_conns = max_conns;}
 
+void        SetMaxWait(unsigned long max_wait) {m_max_wait_time = std::chrono::seconds(max_wait);}
+
 void        SetMonitor(XrdXrootdGStream *gstream) {m_gstream = gstream;}
 
 //int         Stats(char *buff, int blen, int do_sync=0) {return m_pool.Stats(buff, blen, do_sync);}
@@ -76,7 +81,11 @@ void        SetMonitor(XrdXrootdGStream *gstream) {m_gstream = gstream;}
 static
 int         GetUid(const char *username);
 
-XrdThrottleTimer StartIOTimer();
+// Notify that an I/O operation has started for a given user.
+//
+// If we are at the maximum concurrency limit then this will block;
+// if we block for too long, the second return value will return false.
+XrdThrottleTimer StartIOTimer(uint16_t uid, bool &ok);
 
 void        PrepLoadShed(const char *opaque, std::string &lsOpaque);
 
@@ -90,7 +99,10 @@ void        PerformLoadShed(const std::string &opaque, std::string &host, unsign
 
 protected:
 
-void        StopIOTimer(struct timespec);
+// Notify the manager an I/O operation has completed for a given user.
+// This is used to update the I/O wait time for the user and, potentially,
+// wake up a waiting thread.
+void        StopIOTimer(std::chrono::steady_clock::duration & event_duration, uint16_t uid);
 
 private:
 
@@ -101,11 +113,30 @@ void        RecomputeInternal();
 static
 void *      RecomputeBootstrap(void *pp);
 
+// Compute the order of wakeups for the existing waiters.
+void ComputeWaiterOrder();
+
+// Walk through the outstanding IO operations and compute the per-user
+// IO time.
+//
+// Meant to be done periodically as part of the Recompute interval.  Used
+// to make sure we have a better estimate of the concurrency for each user.
+void UserIOAccounting();
+
 int         WaitForShares();
 
 void        GetShares(int &shares, int &request);
 
 void        StealShares(int uid, int &reqsize, int &reqops);
+
+// Return the timer hash list ID to use for the current request.
+//
+// When on Linux, this will hash across the CPU ID; the goal is to distribute
+// the different timers across several lists to avoid mutex contention.
+static unsigned GetTimerListHash();
+
+// Notify a single waiter thread that it can proceed.
+void NotifyOne();
 
 XrdOucTrace * m_trace;
 XrdSysError * m_log;
@@ -119,28 +150,79 @@ float       m_ops_per_second;
 int         m_concurrency_limit;
 
 // Maintain the shares
-static const
-int         m_max_users;
+
+static constexpr int m_max_users = 1024; // Maximum number of users we can have; used for various fixed-size arrays.
 std::vector<int> m_primary_bytes_shares;
 std::vector<int> m_secondary_bytes_shares;
 std::vector<int> m_primary_ops_shares;
 std::vector<int> m_secondary_ops_shares;
 int         m_last_round_allocation;
 
-// Active IO counter
-int         m_io_active;
-struct timespec m_io_wait;
-unsigned    m_io_total{0};
-// Stable IO counters - must hold m_compute_var lock when reading/writing;
-int m_stable_io_active;
-int m_stable_io_total{0}; // It would take ~3 years to overflow a 32-bit unsigned integer at 100Hz of IO operations.
-struct timespec m_stable_io_wait;
+// Waiter counts for each user
+struct alignas(64) Waiter
+{
+   std::condition_variable m_cv; // Condition variable for waiters of this user.
+   std::mutex m_mutex; // Mutex for this structure
+   unsigned m_waiting{0}; // Number of waiting operations for this user.
+
+   // EWMA of the concurrency for this user.  This is used to determine how much
+   // above / below the user's concurrency share they've been recently.  This subsequently
+   // will affect the likelihood of being woken up.
+   float m_concurrency{0};
+
+   // I/O time for this user since the last recompute interval.  The value is used
+   // to compute the EWMA of the concurrency (m_concurrency).
+   XrdSys::RAtomic<std::chrono::steady_clock::duration::rep> m_io_time{0};
+
+   // Pointer to the XrdThrottleManager object that owns this waiter.
+   XrdThrottleManager *m_manager{nullptr};
+
+   // Causes the current thread to wait until it's the user's turn to wake up.
+   bool Wait();
+
+   // Wakes up one I/O operation for this user.
+   void NotifyOne(std::unique_lock<std::mutex> lock)
+   {
+      m_cv.notify_one();
+   }
+};
+std::array<Waiter, m_max_users> m_waiter_info;
+
+// Array with the wake up ordering of the waiter users.
+// Every recompute interval, we compute how much over the concurrency limit
+// each user is, quantize this to an integer number of shares and then set the
+// array value to the user ID (so if user ID 5 has two shares, then there are two
+// entries with value 5 in the array).  The array is then shuffled to randomize the
+// order of the wakeup.
+//
+// All reads and writes to the wake order array are meant to be relaxed atomics; if a thread
+// has an outdated view of the array, it simply means that a given user might get slightly
+// incorrect random probability of being woken up.  That's seen as acceptable to keep
+// the selection algorithm lock and fence-free.
+std::array<XrdSys::RAtomic<int16_t>, m_max_users> m_wake_order_0;
+std::array<XrdSys::RAtomic<int16_t>, m_max_users> m_wake_order_1; // A second wake order array; every recompute interval, we will swap the active array, avoiding locks.
+XrdSys::RAtomic<char> m_wake_order_active; // The current active wake order array; 0 or 1
+std::atomic<size_t> m_waiter_offset{0}; // Offset inside the wake order array; this is used to wake up the next potential user in line.  Cannot be relaxed atomic as offsets need to be seen in order.
+std::chrono::steady_clock::time_point m_last_waiter_recompute_time; // Last time we recomputed the wait ordering.
+
+std::atomic<uint32_t> m_io_active; // Count of in-progress IO operations: cannot be a relaxed atomic as ordering of inc/dec matters.
+XrdSys::RAtomic<std::chrono::steady_clock::duration::rep> m_io_active_time; // Total IO wait time recorded since the last recompute interval; reset to zero about every second.
+XrdSys::RAtomic<uint64_t> m_io_total{0}; // Monotonically increasing count of IO operations; reset to zero about every second.
+
+int m_stable_io_active{0}; // Number of IO operations in progress as of the last recompute interval; must hold m_compute_var lock when reading/writing.
+uint64_t m_stable_io_total{0}; // Total IO operations since startup.  Recomputed every second; must hold m_compute_var lock when reading/writing.
+
+std::chrono::steady_clock::duration m_stable_io_wait; // Total IO wait time as of the last recompute interval.
 
 // Load shed details
 std::string m_loadshed_host;
 unsigned m_loadshed_port;
 unsigned m_loadshed_frequency;
-int m_loadshed_limit_hit;
+
+// The number of times we have an I/O operation that hit the concurrency limit.
+// This is monotonically increasing and is "relaxed" because it's purely advisory;
+// ordering of the increments between threads is not important.
+XrdSys::RAtomic<int> m_loadshed_limit_hit;
 
 // Maximum number of open files
 unsigned long m_max_open{0};
@@ -149,6 +231,27 @@ std::unordered_map<std::string, unsigned long> m_file_counters;
 std::unordered_map<std::string, unsigned long> m_conn_counters;
 std::unordered_map<std::string, std::unique_ptr<std::unordered_map<pid_t, unsigned long>>> m_active_conns;
 std::mutex m_file_mutex;
+
+// Track the ongoing I/O operations.  We have several linked lists (hashed on the
+// CPU ID) of I/O operations that are in progress.  This way, we can periodically sum
+// up the time spent in ongoing operations - which is important for operations that
+// last longer than the recompute interval.
+struct TimerList {
+   std::mutex m_mutex;
+   XrdThrottleTimer *m_first{nullptr};
+   XrdThrottleTimer *m_last{nullptr};
+};
+#if defined(__linux__)
+static constexpr size_t m_timer_list_size = 32;
+#else
+static constexpr size_t m_timer_list_size = 1;
+#endif
+std::array<TimerList, m_timer_list_size> m_timer_list; // A vector of linked lists of I/O operations.  We keep track of multiple instead of a single one to avoid a global mutex.
+
+// Maximum wait time for a user to perform an I/O operation before failing.
+// Most clients have some sort of operation timeout; after that point, if we go
+// ahead and do the work, it's wasted effort as the client has gone.
+std::chrono::steady_clock::duration m_max_wait_time{std::chrono::seconds(30)};
 
 // Monitoring handle, if configured
 XrdXrootdGStream* m_gstream{nullptr};
@@ -164,62 +267,81 @@ friend class XrdThrottleManager;
 
 public:
 
-void StopTimer()
-{
-   struct timespec end_timer = {0, 0};
-#if defined(__linux__) || defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
-   int retval = clock_gettime(clock_id, &end_timer);
-#else
-   int retval = -1;
-#endif
-   if (likely(retval == 0))
-   {
-      end_timer.tv_sec -= m_timer.tv_sec;
-      end_timer.tv_nsec -= m_timer.tv_nsec;
-      if (end_timer.tv_nsec < 0)
-      {
-         end_timer.tv_sec--;
-         end_timer.tv_nsec += 1000000000;
-      }
-   }
-   if (m_timer.tv_nsec != -1)
-   {
-      m_manager.StopIOTimer(end_timer);
-   }
-   m_timer.tv_sec = 0;
-   m_timer.tv_nsec = -1;
-}
-
 ~XrdThrottleTimer()
 {
-   if (!((m_timer.tv_sec == 0) && (m_timer.tv_nsec == -1)))
-   {
+   if (m_manager) {
       StopTimer();
    }
 }
 
 protected:
 
-XrdThrottleTimer(XrdThrottleManager & manager) :
-   m_manager(manager)
+XrdThrottleTimer() :
+   m_start_time(std::chrono::steady_clock::time_point::min())
+{}
+
+XrdThrottleTimer(XrdThrottleManager *manager, int uid) :
+   m_owner(uid),
+   m_timer_list_entry(XrdThrottleManager::GetTimerListHash()),
+   m_manager(manager),
+   m_start_time(std::chrono::steady_clock::now())
 {
-#if defined(__linux__) || defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
-   int retval = clock_gettime(clock_id, &m_timer);
-#else
-   int retval = -1;
-#endif
-   if (unlikely(retval == -1))
-   {
-      m_timer.tv_sec = 0;
-      m_timer.tv_nsec = 0;
+   if (!m_manager) {
+      return;
    }
+   auto &timerList = m_manager->m_timer_list[m_timer_list_entry];
+   std::lock_guard<std::mutex> lock(timerList.m_mutex);
+   if (timerList.m_first == nullptr) {
+      timerList.m_first = this;
+   } else {
+      m_prev = timerList.m_last;
+      m_prev->m_next = this;
+   }
+   timerList.m_last = this;
+}
+
+std::chrono::steady_clock::duration Reset() {
+   auto now = std::chrono::steady_clock::now();
+   auto last_start = m_start_time.exchange(now);
+   return now - last_start;
 }
 
 private:
-XrdThrottleManager &m_manager;
-struct timespec m_timer;
 
-static clockid_t clock_id;
+   void StopTimer()
+   {
+      if (!m_manager) return;
+
+      auto event_duration = Reset();
+      auto &timerList = m_manager->m_timer_list[m_timer_list_entry];
+      {
+         std::unique_lock<std::mutex> lock(timerList.m_mutex);
+         if (m_prev) {
+            m_prev->m_next = m_next;
+            if (m_next) {
+               m_next->m_prev = m_prev;
+            } else {
+               timerList.m_last = m_prev;
+            }
+         } else {
+            timerList.m_first = m_next;
+            if (m_next) {
+               m_next->m_prev = nullptr;
+            } else {
+               timerList.m_last = nullptr;
+            }
+         }
+      }
+      m_manager->StopIOTimer(event_duration, m_owner);
+   }
+
+   const uint16_t m_owner{0};
+   const uint16_t m_timer_list_entry{0};
+   XrdThrottleManager *m_manager{nullptr};
+   XrdThrottleTimer *m_prev{nullptr};
+   XrdThrottleTimer *m_next{nullptr};
+   XrdSys::RAtomic<std::chrono::steady_clock::time_point> m_start_time;
+
 };
 
 #endif
