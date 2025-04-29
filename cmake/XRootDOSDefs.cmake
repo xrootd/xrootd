@@ -4,6 +4,14 @@ macro( define_default variable value )
   endif()
 endmacro()
 
+# Set a default build type of RelWithDebInfo if not set
+if(NOT GENERATOR_IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
+  if(NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
+      "CMake build type for single-configuration generators" FORCE)
+  endif()
+endif()
+
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 define_default( LIBRARY_PATH_PREFIX "lib" )
 
