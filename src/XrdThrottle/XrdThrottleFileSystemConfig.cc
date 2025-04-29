@@ -163,6 +163,7 @@ FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs, XrdOucEnv 
       TS_Xeq("throttle.max_active_connections", xmaxconn);
       TS_Xeq("throttle.throttle", xthrottle);
       TS_Xeq("throttle.loadshed", xloadshed);
+      TS_Xeq("throttle.max_wait_time", xmaxwait);
       TS_Xeq("throttle.trace", xtrace);
       if (NoGo)
       {
@@ -234,7 +235,7 @@ FileSystem::xmaxconn(XrdOucStream &Config)
 {
     auto val = Config.GetWord();
     if (!val || val[0] == '\0')
-       {m_eroute.Emsg("Config", "Max active cconnections not specified!  Example usage: throttle.max_active_connections 4000");}
+       {m_eroute.Emsg("Config", "Max active connections not specified!  Example usage: throttle.max_active_connections 4000");}
     long long max_conn = -1;
     if (XrdOuca2x::a2sz(m_eroute, "max active connections value", val, &max_conn, 1)) return 1;
 
@@ -242,6 +243,32 @@ FileSystem::xmaxconn(XrdOucStream &Config)
     return 0;
 }
 
+/******************************************************************************/
+/*                            x m a x w a i t                                 */
+/******************************************************************************/
+
+/* Function: xmaxwait
+
+   Purpose:  Parse the directive: throttle.max_wait_time <limit>
+
+             <limit>   maximum wait time, in seconds, before an operation should fail
+
+   If the directive is not provided, the default is 30 seconds.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+int
+FileSystem::xmaxwait(XrdOucStream &Config)
+{
+    auto val = Config.GetWord();
+    if (!val || val[0] == '\0')
+       {m_eroute.Emsg("Config", "Max waiting time not specified (must be in seconds)!  Example usage: throttle.max_wait_time 20");}
+    long long max_wait = -1;
+    if (XrdOuca2x::a2sz(m_eroute, "max waiting time value", val, &max_wait, 1)) return 1;
+
+    m_throttle.SetMaxWait(max_wait);
+    return 0;
+}
 
 /******************************************************************************/
 /*                            x t h r o t t l e                               */
