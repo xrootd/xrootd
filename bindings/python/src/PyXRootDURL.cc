@@ -136,11 +136,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetPort( URL *self, void *closure )
   {
-#ifdef IS_PY3K
     return PyLong_FromLong( self->url->GetPort() );
-#else
-    return PyInt_FromLong( self->url->GetPort() );
-#endif
   }
 
   //----------------------------------------------------------------------------
@@ -148,20 +144,12 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   int URL::SetPort( URL *self, PyObject *port, void *closure )
   {
-#ifdef IS_PY3K
     if ( !PyLong_Check( port ) ) {
-#else
-    if ( !PyInt_Check( port ) ) {
-#endif
       PyErr_SetString( PyExc_TypeError, "port must be int" );
       return -1;
     }
 
-#ifdef IS_PY3K
     self->url->SetPort( PyLong_AsLong( port ) );
-#else
-    self->url->SetPort( PyInt_AsLong( port ) );
-#endif
     return 0;
   }
 

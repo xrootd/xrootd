@@ -54,7 +54,6 @@ namespace PyXRootD
       { NULL, NULL, 0, NULL }
     };
 
-#if PY_MAJOR_VERSION >= 3
   //----------------------------------------------------------------------------
   //! Module properties
   //----------------------------------------------------------------------------
@@ -69,76 +68,40 @@ namespace PyXRootD
     NULL,                  /* m_clear */
     NULL,                  /* m_free */
   };
-#endif
 
   //----------------------------------------------------------------------------
   //! Module initialization function
   //----------------------------------------------------------------------------
-#ifdef IS_PY3K
   PyMODINIT_FUNC PyInit_client( void )
-#else
-  PyMODINIT_FUNC initclient( void )
-#endif
   {
-#if PY_VERSION_HEX < 0x03070000
-    // Ensure GIL state is initialized
-    if ( !PyEval_ThreadsInitialized() ) {
-      PyEval_InitThreads();
-    }
-#endif
-
     FileSystemType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &FileSystemType ) < 0 ) {
-#ifdef IS_PY3K
       return NULL;
-#else
-      return;
-#endif
     }
     Py_INCREF( &FileSystemType );
 
     FileType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &FileType ) < 0 ) {
-#ifdef IS_PY3K
       return NULL;
-#else
-      return;
-#endif
     }
     Py_INCREF( &FileType );
 
     URLType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &URLType ) < 0 ) {
-#ifdef IS_PY3K
       return NULL;
-#else
-      return;
-#endif
     }
     Py_INCREF( &URLType );
 
     CopyProcessType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &CopyProcessType ) < 0 ) {
-#ifdef IS_PY3K
       return NULL;
-#else
-      return;
-#endif
     }
     Py_INCREF( &CopyProcessType );
 
-#ifdef IS_PY3K
     ClientModule = PyModule_Create(&moduledef);
-#else
-    ClientModule = Py_InitModule3("client", module_methods, client_module_doc);
-#endif
 
     if (ClientModule == NULL) {
-#ifdef IS_PY3K
       return NULL;
-#else
-      return;
-#endif
     }
 
     PyModule_AddObject( ClientModule, "FileSystem", (PyObject *) &FileSystemType );
@@ -146,8 +109,6 @@ namespace PyXRootD
     PyModule_AddObject( ClientModule, "URL", (PyObject *) &URLType );
     PyModule_AddObject( ClientModule, "CopyProcess", (PyObject *) &CopyProcessType );
 
-#ifdef IS_PY3K
     return ClientModule;
-#endif
   }
 }

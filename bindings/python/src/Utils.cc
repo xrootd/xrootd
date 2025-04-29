@@ -59,11 +59,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   int PyIntToUlong(PyObject *py_val, unsigned long *val, const char *name)
   {
-#ifdef IS_PY3K
     const long tmp = PyLong_AsLong(py_val);
-#else
-    const long tmp = PyInt_AsLong(py_val);
-#endif
 
     if (tmp == -1 && PyErr_Occurred())
     {
@@ -88,11 +84,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   int PyObjToUlong(PyObject *py_val, unsigned long *val, const char *name)
   {
-#ifdef IS_PY3K
     if (PyLong_Check(py_val))
-#else
-    if (PyInt_Check(py_val))
-#endif
       return PyIntToUlong(py_val, val, name);
 
     if (!PyLong_Check(py_val))
@@ -162,11 +154,7 @@ namespace PyXRootD
   int PyObjToUllong(PyObject *py_val, unsigned PY_LONG_LONG *val,
                     const char *name)
   {
-#ifdef IS_PY3K
     if (PyLong_Check(py_val))
-#else
-    if (PyInt_Check(py_val))
-#endif
     {
       unsigned long tmp;
 
