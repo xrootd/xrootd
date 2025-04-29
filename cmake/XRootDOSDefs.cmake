@@ -21,20 +21,25 @@ if( ENABLE_TSAN )
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fsanitize=thread")
 endif()
 
-#-------------------------------------------------------------------------------
-# GCC
-#-------------------------------------------------------------------------------
-if( CMAKE_COMPILER_IS_GNUCXX )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra" )
-  #-----------------------------------------------------------------------------
-  # Set -Werror only for Debug (or undefined) build type or if we have been
-  # explicitly asked to do so
-  #-----------------------------------------------------------------------------
-  if( ( CMAKE_BUILD_TYPE STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL ""
-        OR FORCE_WERROR ) )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror" )
-  endif()
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
+# Set baseline warning level for GCC and Clang
+
+add_compile_options(
+  -Wall
+  -Wextra
+  $<$<NOT:$<BOOL:${APPLE}>>:-Wdeprecated>
+  -Werror=null-dereference
+  -Wno-unused-parameter
+  -Wno-vla
+)
+
+# Disable some warnings currently triggered with Clang
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(
+    -Wno-deprecated-copy-with-user-provided-dtor
+    -Wno-unused-const-variable
+    -Wno-unused-private-field
+  )
 endif()
 
 # Disable warnings with nvc++ (for when we are built as ROOT built-in dependency)
