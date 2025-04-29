@@ -835,10 +835,10 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 //
    myNode = new XrdCmsNode(Link); myNode->Lock();
    if (!(RSlot = RTable.Add(myNode)))
-      {myNode->UnLock();
+      {Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
+       myNode->UnLock();
        delete myNode;
        myNode = 0;
-       Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
        return 0;
       } else myNode->setSlot(RSlot);
 
