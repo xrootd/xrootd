@@ -212,7 +212,7 @@ ssize_t XrdCephBufferAlgSimple::write (const void *buf, off_t offset, size_t ble
     // take the data in buf and put it into the cache; when the cache is full, write to underlying storage
     // remember to flush the cache at the end of operations ... 
     ssize_t rc(-1);
-    ssize_t bytesWrittenToStorage(0);
+    // ssize_t bytesWrittenToStorage(0);
 
     if (blen == 0) {
         return 0; // nothing to write; are we done?
@@ -301,7 +301,7 @@ ssize_t XrdCephBufferAlgSimple::write (const void *buf, off_t offset, size_t ble
             if (rc < 0) {
                return rc; 
             }
-            bytesWrittenToStorage += rc;
+            // bytesWrittenToStorage += rc;
         } // at capacity; 
 
         if (m_bufferLength == 0) {
@@ -342,7 +342,7 @@ ssize_t XrdCephBufferAlgSimple::write (const void *buf, off_t offset, size_t ble
         {
             return rc; // TODO return correct errors
         }
-        bytesWrittenToStorage += rc;
+        // bytesWrittenToStorage += rc;
     } // at capacity;
 
     //BUFLOG( "WriteBuffer " << bytesWritten << " " << bytesWrittenToStorage << "  " << offset << "  " << blen << " " );
