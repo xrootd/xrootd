@@ -286,6 +286,9 @@ private:
    int
    xmaxconn(XrdOucStream &Config);
 
+   int
+   xmaxwait(XrdOucStream &Config);
+
    static FileSystem  *m_instance;
    XrdSysError         m_eroute;
    XrdOucTrace         m_trace;

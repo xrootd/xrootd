@@ -10,19 +10,33 @@
 #define XRD_TRACE m_trace->
 #include "XrdThrottle/XrdThrottleTrace.hh"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <random>
 #include <sstream>
+
+#if defined(__linux__)
+
+#include <sched.h>
+unsigned XrdThrottleManager::GetTimerListHash() {
+    int cpu = sched_getcpu();
+    if (cpu < 0) {
+        return 0;
+    }
+    return cpu % m_timer_list_size;
+}
+
+#else
+
+unsigned XrdThrottleManager::GetTimerListHash() {
+    return 0;
+}
+
+#endif
 
 const char *
 XrdThrottleManager::TraceID = "ThrottleManager";
-
-const
-int XrdThrottleManager::m_max_users = 1024;
-
-#if defined(__linux__) || defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
-clockid_t XrdThrottleTimer::clock_id = CLOCK_MONOTONIC;
-#else
-int XrdThrottleTimer::clock_id = 0;
-#endif
 
 XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP) :
    m_trace(tP),
@@ -32,14 +46,10 @@ XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP) :
    m_ops_per_second(-1),
    m_concurrency_limit(-1),
    m_last_round_allocation(100*1024),
-   m_io_active(0),
    m_loadshed_host(""),
    m_loadshed_port(0),
-   m_loadshed_frequency(0),
-   m_loadshed_limit_hit(0)
+   m_loadshed_frequency(0)
 {
-   m_stable_io_wait.tv_sec = 0;
-   m_stable_io_wait.tv_nsec = 0;
 }
 
 void
@@ -51,6 +61,10 @@ XrdThrottleManager::Init()
    m_secondary_bytes_shares.resize(m_max_users);
    m_primary_ops_shares.resize(m_max_users);
    m_secondary_ops_shares.resize(m_max_users);
+   for (auto & waiter : m_waiter_info) {
+      waiter.m_manager = this;
+   }
+
    // Allocate each user 100KB and 10 ops to bootstrap;
    for (int i=0; i<m_max_users; i++)
    {
@@ -59,9 +73,6 @@ XrdThrottleManager::Init()
       m_primary_ops_shares[i] = 10;
       m_secondary_ops_shares[i] = 0;
    }
-
-   m_io_wait.tv_sec = 0;
-   m_io_wait.tv_nsec = 0;
 
    int rc;
    pthread_t tid;
@@ -289,12 +300,153 @@ XrdThrottleManager::Apply(int reqsize, int reqops, int uid)
          if (reqsize) TRACE(BANDWIDTH, "Sleeping to wait for throttle fairshare.");
          if (reqops) TRACE(IOPS, "Sleeping to wait for throttle fairshare.");
          m_compute_var.Wait();
-         AtomicBeg(m_compute_var);
-         AtomicInc(m_loadshed_limit_hit);
-         AtomicEnd(m_compute_var);
+         m_loadshed_limit_hit++;
       }
    }
 
+}
+
+void
+XrdThrottleManager::UserIOAccounting()
+{
+    std::chrono::steady_clock::duration::rep total_active_time = 0;
+    for (size_t idx = 0; idx < m_timer_list.size(); idx++) {
+        auto &timerList = m_timer_list[idx];
+        std::unique_lock<std::mutex> lock(timerList.m_mutex);
+        auto timer = timerList.m_first;
+        while (timer) {
+            auto next = timer->m_next;
+            auto uid = timer->m_owner;
+            auto &waiter = m_waiter_info[uid];
+            auto recent_duration = timer->Reset();
+            waiter.m_io_time += recent_duration.count();
+
+            total_active_time += recent_duration.count();
+            timer = next;
+        }
+    }
+    m_io_active_time += total_active_time;
+}
+
+void
+XrdThrottleManager::ComputeWaiterOrder()
+{
+    // Update the IO time for long-running I/O operations.  This prevents,
+    // for example, a 2-minute I/O operation from causing a spike in
+    // concurrency because it's otherwise only reported at the end.
+    UserIOAccounting();
+
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = now - m_last_waiter_recompute_time;
+    m_last_waiter_recompute_time = now;
+    std::chrono::duration<double> elapsed_secs = elapsed;
+    // Alpha is the decay factor for the exponential moving average.  One window is 10 seconds,
+    // so every 10 seconds we decay the prior average by 1/e (that is, the weight is 64% of the
+    // total).  This means the contribution of I/O load from a minute ago is 0.2% of the total.
+
+    // The moving average will be used to determine how close the user is to their "fair share"
+    // of the concurrency limit among the users that are waiting.
+    auto alpha = 1 - std::exp(-1 * elapsed_secs.count() / 10.0);
+
+    std::vector<double> share;
+    share.resize(m_max_users);
+    size_t users_with_waiters = 0;
+    // For each user, compute their current concurrency and determine how many waiting users
+    // total there are.
+    for (int i = 0; i < m_max_users; i++)
+    {
+        auto &waiter = m_waiter_info[i];
+        auto io_duration_rep = waiter.m_io_time.exchange(std::chrono::steady_clock::duration(0).count());
+        std::chrono::steady_clock::duration io_duration = std::chrono::steady_clock::duration(io_duration_rep);
+        std::chrono::duration<double> io_duration_secs = io_duration;
+        auto recent_concurrency = io_duration_secs.count() / elapsed_secs.count();
+
+        auto new_concurrency = (1 - alpha) * waiter.m_concurrency + alpha * recent_concurrency;
+        waiter.m_concurrency = new_concurrency;
+        if (new_concurrency > 0) {
+            TRACE(DEBUG, "User " << i << " has concurrency of " << waiter.m_concurrency);
+        }
+        unsigned waiting;
+        {
+            std::lock_guard<std::mutex> lock(waiter.m_mutex);
+            waiting = waiter.m_waiting;
+        }
+        if (waiting > 0)
+        {
+            share[i] = new_concurrency;
+            TRACE(DEBUG, "User " << i << " has concurrency of " << share[i] << " and is waiting for " << waiting);
+            // Handle the division-by-zero case; if we have no history of usage whatsoever, we should pretend we
+            // have at least some minimal load
+            if (share[i] == 0) {
+                share[i] = 0.1;
+            }
+            users_with_waiters++;
+        }
+        else
+        {
+            share[i] = 0;
+        }
+    }
+    auto fair_share = static_cast<double>(m_concurrency_limit) / static_cast<double>(users_with_waiters);
+    std::vector<uint16_t> waiter_order;
+    waiter_order.resize(m_max_users);
+
+    // Calculate the share for each user.  We assume the user should get a share proportional to how
+    // far above or below the fair share they are.  So, a user with concurrency of 20 when the fairshare
+    // is 10 will get 0.5 shares; a user with concurrency of 5 when the fairshare is 10 will get 2.0 shares.
+    double shares_sum = 0;
+    for (int idx = 0; idx < m_max_users; idx++)
+    {
+        if (share[idx]) {
+            shares_sum += fair_share / share[idx];
+        }
+    }
+
+    // We must quantize the overall shares into an array of 1024 elements.  We do this by
+    // scaling up (or down) based on the total number of shares computed above.  Note this
+    // quantization can lead to an over-provisioned user being assigned zero shares; thus,
+    // we scale based on (1024-#users) so we can give one extra share to each user.
+    auto scale_factor = (static_cast<double>(m_max_users) - static_cast<double>(users_with_waiters)) / shares_sum;
+    size_t offset = 0;
+    for (int uid = 0; uid < m_max_users; uid++) {
+        if (share[uid] > 0) {
+            auto shares = static_cast<unsigned>(scale_factor * fair_share / share[uid]) + 1;
+            TRACE(DEBUG, "User " << uid << " has " << shares << " shares");
+            for (unsigned idx = 0; idx < shares; idx++)
+            {
+                waiter_order[offset % m_max_users] = uid;
+                offset++;
+            }
+        }
+    }
+    if (offset < m_max_users) {
+        for (size_t idx = offset; idx < m_max_users; idx++) {
+            waiter_order[idx] = -1;
+        }
+    }
+    // Shuffle the order to randomize the wakeup order.
+    std::shuffle(waiter_order.begin(), waiter_order.end(), std::default_random_engine());
+
+    // Copy the order to the inactive array.  We do not shuffle in-place because RAtomics are
+    // not move constructible, which is a requirement for std::shuffle.
+    auto &waiter_order_to_modify = (m_wake_order_active == 0) ? m_wake_order_1 : m_wake_order_0;
+    std::copy(waiter_order.begin(), waiter_order.end(), waiter_order_to_modify.begin());
+
+    // Set the array we just modified to be the active one.  Since this is a relaxed write, it could take
+    // some time for other CPUs to see the change; that's OK as this is all stochastic anyway.
+    m_wake_order_active = (m_wake_order_active + 1) % 2;
+
+    m_waiter_offset = 0;
+
+    // If we find ourselves below the concurrency limit because we woke up too few operations in the last
+    // interval, try waking up enough operations to fill the gap.  If we race with new incoming operations,
+    // the threads will just go back to sleep.
+    if (users_with_waiters) {
+        auto io_active = m_io_active.load(std::memory_order_acquire);
+        for (size_t idx = io_active; idx < static_cast<size_t>(m_concurrency_limit); idx++) {
+            NotifyOne();
+        }
+    }
 }
 
 void *
@@ -353,6 +505,7 @@ XrdThrottleManager::Recompute()
 
       TRACE(DEBUG, "Recomputing fairshares for throttle.");
       RecomputeInternal();
+      ComputeWaiterOrder();
       TRACE(DEBUG, "Finished recomputing fairshares for throttle; sleeping for " << m_interval_length_seconds << " seconds.");
       XrdSysTimer::Wait(static_cast<int>(1000*m_interval_length_seconds));
    }
@@ -421,40 +574,31 @@ XrdThrottleManager::RecomputeInternal()
       m_primary_ops_shares[i] = ops_shares;
    }
 
-   // Reset the loadshed limit counter.
-   int limit_hit = AtomicFAZ(m_loadshed_limit_hit);
-   TRACE(DEBUG, "Throttle limit hit " << limit_hit << " times during last interval.");
-
    AtomicEnd(m_compute_var);
+
+   // Reset the loadshed limit counter.
+   int limit_hit = m_loadshed_limit_hit.exchange(0);
+   TRACE(DEBUG, "Throttle limit hit " << limit_hit << " times during last interval.");
 
    // Update the IO counters
    m_compute_var.Lock();
-   m_stable_io_active = AtomicGet(m_io_active);
+   m_stable_io_active = m_io_active.load(std::memory_order_acquire);
    auto io_active = m_stable_io_active;
-   m_stable_io_total = static_cast<unsigned>(AtomicGet(m_io_total));
+   m_stable_io_total = m_io_total;
    auto io_total = m_stable_io_total;
-   time_t secs; AtomicFZAP(secs, m_io_wait.tv_sec);
-   long nsecs; AtomicFZAP(nsecs, m_io_wait.tv_nsec);
-   m_stable_io_wait.tv_sec += static_cast<long>(secs * intervals_per_second);
-   m_stable_io_wait.tv_nsec += static_cast<long>(nsecs * intervals_per_second);
-   while (m_stable_io_wait.tv_nsec > 1000000000)
-   {
-      m_stable_io_wait.tv_nsec -= 1000000000;
-      m_stable_io_wait.tv_sec ++;
-   }
-   struct timespec io_wait_ts;
-   io_wait_ts.tv_sec = m_stable_io_wait.tv_sec;
-   io_wait_ts.tv_nsec = m_stable_io_wait.tv_nsec;
+   auto io_wait_rep = m_io_active_time.exchange(std::chrono::steady_clock::duration(0).count());
+   m_stable_io_wait += std::chrono::steady_clock::duration(io_wait_rep);
 
    m_compute_var.UnLock();
-   uint64_t io_wait_ms = io_wait_ts.tv_sec*1000+io_wait_ts.tv_nsec/1000000;
-   TRACE(IOLOAD, "Current IO counter is " << io_active << "; total IO wait time is " << io_wait_ms << "ms.");
+
+   auto io_wait_ms = std::chrono::duration_cast<std::chrono::milliseconds>(m_stable_io_wait).count();
+   TRACE(IOLOAD, "Current IO counter is " << io_active << "; total IO active time is " << io_wait_ms << "ms.");
    if (m_gstream)
    {
         char buf[128];
         auto len = snprintf(buf, 128,
-                            R"({"event":"throttle_update","io_wait":%.4f,"io_active":%d,"io_total":%d})",
-                            static_cast<double>(io_wait_ms) / 1000.0, io_active, io_total);
+                            R"({"event":"throttle_update","io_wait":%.4f,"io_active":%d,"io_total":%llu})",
+                            static_cast<double>(io_wait_ms) / 1000.0, io_active, static_cast<long long unsigned>(io_total));
         auto suc = (len < 128) ? m_gstream->Insert(buf, len + 1) : false;
         if (!suc)
         {
@@ -483,41 +627,69 @@ XrdThrottleManager::GetUid(const char *username)
 }
 
 /*
+ * Notify a single waiter thread that it can proceed.
+ */
+void
+XrdThrottleManager::NotifyOne()
+{
+    auto &wake_order = (m_wake_order_active == 0) ? m_wake_order_0 : m_wake_order_1;
+
+    for (size_t idx = 0; idx < m_max_users; ++idx)
+    {
+        auto offset = m_waiter_offset.fetch_add(1, std::memory_order_acq_rel);
+        int16_t uid = wake_order[offset % m_max_users];
+        if (uid < 0)
+        {
+            continue;
+        }
+        auto &waiter_info = m_waiter_info[uid];
+        std::unique_lock<std::mutex> lock(waiter_info.m_mutex);
+        if (waiter_info.m_waiting) {
+            waiter_info.NotifyOne(std::move(lock));
+            return;
+        }
+   }
+}
+
+/*
  * Create an IO timer object; increment the number of outstanding IOs.
  */
 XrdThrottleTimer
-XrdThrottleManager::StartIOTimer()
+XrdThrottleManager::StartIOTimer(uint16_t uid, bool &ok)
 {
-   AtomicBeg(m_compute_var);
-   int cur_counter = AtomicInc(m_io_active);
-   AtomicInc(m_io_total);
-   AtomicEnd(m_compute_var);
-   while (m_concurrency_limit >= 0 && cur_counter > m_concurrency_limit)
+   int cur_counter = m_io_active.fetch_add(1, std::memory_order_acq_rel);
+   m_io_total++;
+
+   while (m_concurrency_limit >= 0 && cur_counter >= m_concurrency_limit)
    {
-      AtomicBeg(m_compute_var);
-      AtomicInc(m_loadshed_limit_hit);
-      AtomicDec(m_io_active);
-      AtomicEnd(m_compute_var);
-      m_compute_var.Wait();
-      AtomicBeg(m_compute_var);
-      cur_counter = AtomicInc(m_io_active);
-      AtomicEnd(m_compute_var);
+      m_loadshed_limit_hit++;
+      m_io_active.fetch_sub(1, std::memory_order_acq_rel);
+      TRACE(DEBUG, "ThrottleManager (user=" << uid << "): IO concurrency limit hit; waiting for other IOs to finish.");
+      ok = m_waiter_info[uid].Wait();
+      if (!ok) {
+        TRACE(DEBUG, "ThrottleManager (user=" << uid << "): timed out waiting for other IOs to finish.");
+        return XrdThrottleTimer();
+      }
+      cur_counter = m_io_active.fetch_add(1, std::memory_order_acq_rel);
    }
-   return XrdThrottleTimer(*this);
+
+   ok = true;
+   return XrdThrottleTimer(this, uid);
 }
 
 /*
  * Finish recording an IO timer.
  */
 void
-XrdThrottleManager::StopIOTimer(struct timespec timer)
+XrdThrottleManager::StopIOTimer(std::chrono::steady_clock::duration & event_duration, uint16_t uid)
 {
-   AtomicBeg(m_compute_var);
-   AtomicDec(m_io_active);
-   AtomicAdd(m_io_wait.tv_sec, timer.tv_sec);
-   // Note this may result in tv_nsec > 1e9
-   AtomicAdd(m_io_wait.tv_nsec, timer.tv_nsec);
-   AtomicEnd(m_compute_var);
+   m_io_active_time += event_duration.count();
+   auto old_active = m_io_active.fetch_sub(1, std::memory_order_acq_rel);
+   m_waiter_info[uid].m_io_time += event_duration.count();
+   if (old_active == static_cast<unsigned>(m_concurrency_limit))
+   {
+      NotifyOne();
+   }
 }
 
 /*
@@ -534,7 +706,7 @@ XrdThrottleManager::CheckLoadShed(const std::string &opaque)
    {
       return false;
    }
-   if (AtomicGet(m_loadshed_limit_hit) == 0)
+   if (m_loadshed_limit_hit == 0)
    {
       return false;
    }
@@ -580,4 +752,21 @@ XrdThrottleManager::PerformLoadShed(const std::string &opaque, std::string &host
    host += "?";
    host += opaque;
    port = m_loadshed_port;
+}
+
+bool
+XrdThrottleManager::Waiter::Wait()
+{
+    auto timeout = std::chrono::steady_clock::now() + m_manager->m_max_wait_time;
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_waiting++;
+        m_cv.wait_until(lock, timeout,
+                        [&] { return m_manager->m_io_active.load(std::memory_order_acquire) < static_cast<unsigned>(m_manager->m_concurrency_limit) || std::chrono::steady_clock::now() >= timeout; });
+        m_waiting--;
+    }
+    if (std::chrono::steady_clock::now() > timeout) {
+        return false;
+    }
+    return true;
 }
