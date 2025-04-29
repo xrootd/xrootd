@@ -22,7 +22,7 @@ public:
         std::runtime_error(msg)
     {}
 
-    virtual ~CurlHandlerSetupError() throw () {}
+    virtual ~CurlHandlerSetupError() noexcept {}
 };
 
 namespace {
