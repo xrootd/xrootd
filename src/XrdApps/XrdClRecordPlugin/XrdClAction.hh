@@ -201,6 +201,8 @@ struct StatAction : public Action
       return;
     StatInfo* info = nullptr;
     response->Get(info);
+    if (!info)
+      return;
     std::stringstream ss;
     ss << std::to_string(info->GetSize()) << ';';
     ss << std::to_string(info->GetFlags()) << ';';
@@ -239,7 +241,7 @@ struct ReadAction : public Action
       return;
     ChunkInfo* ptr = nullptr;
     response->Get(ptr);
-    serialrsp = std::to_string(ptr->length);
+    serialrsp = std::to_string(ptr ? ptr->length : 0);
   }
 
   uint64_t offset;
@@ -265,7 +267,10 @@ struct PgReadAction : public Action
       return;
     PageInfo* ptr = nullptr;
     response->Get(ptr);
-    serialrsp = std::to_string(ptr->GetLength()) + ';' + std::to_string(ptr->GetNbRepair());
+    if (ptr)
+      serialrsp = std::to_string(ptr->GetLength()) + ';' + std::to_string(ptr->GetNbRepair());
+    else
+      serialrsp = "0;0";
   }
 
   uint64_t offset;
@@ -377,6 +382,8 @@ struct VectorReadAction : public Action
       return;
     VectorReadInfo* ptr = nullptr;
     response->Get(ptr);
+    if (!ptr)
+      return;
     std::stringstream ss;
     ss << ptr->GetSize();
     auto& chunks = ptr->GetChunks();
@@ -436,7 +443,7 @@ struct FcntlAction : Action
       return;
     Buffer* ptr = nullptr;
     response->Get(ptr);
-    serialrsp = std::to_string(ptr->GetSize());
+    serialrsp = std::to_string(ptr ? ptr->GetSize() : 0);
   }
 
   uint32_t req;
