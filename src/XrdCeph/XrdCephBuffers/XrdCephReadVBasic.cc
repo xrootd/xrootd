@@ -41,14 +41,12 @@ std::vector<ExtentHolder> XrdCephReadVBasic::convert(const ExtentHolder &extents
     while (it_r != it_end)
     {
         ExtentHolder tmp;
-        int counter(0);
         it_l = it_r;
         // inner loop over each internal extent range
         while (it_r != it_end) {
             if ((it_r->end() - it_l->begin()) > m_maxSize) break; // start a new holder
             tmp.push_back(*it_r); // just put it into an extent
             ++it_r;
-            ++counter;
         }
         outputs.push_back(tmp);
         usedBytes += tmp.bytesContained();
