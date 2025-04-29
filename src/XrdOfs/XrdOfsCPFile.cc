@@ -363,7 +363,7 @@ bool XrdOfsCPFile::Reserve(int dlen, int nseg)
 // Now allocate the space
 //
 #ifdef __APPLE__
-   fstore_t Store = {F_ALLOCATEALL, F_PEOFPOSMODE, ckpSize, dlen};
+   fstore_t Store = {F_ALLOCATEALL, F_PEOFPOSMODE, ckpSize, dlen, 0};
    if (fcntl(ckpFD, F_PREALLOCATE, &Store) == -1
    &&  ftruncate(ckpFD, ckpSize + dlen)    == -1) return false;
 #else
