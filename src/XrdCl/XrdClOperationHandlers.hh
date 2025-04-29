@@ -60,7 +60,9 @@ namespace XrdCl
 
         std::vector<XAttrStatus> *bulk = nullptr;
         response->Get( bulk );
-        *status = bulk->front().status;
+        if (status && bulk && !bulk->empty()) {
+          *status = bulk->front().status;
+        }
         handler->HandleResponse( status, nullptr );
         delete response;
       }
@@ -90,10 +92,16 @@ namespace XrdCl
 
         std::vector<XAttr> *bulk = nullptr;
         response->Get( bulk );
-        *status = bulk->front().status;
-        std::string *rsp = new std::string( std::move( bulk->front().value ) );
+
+        if (bulk && !bulk->empty()) {
+          if (status)
+            *status = bulk->front().status;
+
+          std::string *rsp = new std::string(std::move(bulk->front().value));
+          response->Set( rsp );
+        }
+
         delete bulk;
-        response->Set( rsp );
         handler->HandleResponse( status, response );
       }
 

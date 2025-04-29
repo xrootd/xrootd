@@ -240,6 +240,8 @@ namespace XrdCl
         if( !st.IsOK() ) return st;
         int *tmp = 0;
         qryResult.Get( tmp );
+        if( !tmp )
+          return st;
         protver = *tmp;
         delete tmp;
         return XrdCl::XRootDStatus();

@@ -199,17 +199,13 @@ namespace
 
         // if it is simply the sync handler we can release the semaphore
         // and return there is no need to execute this in the thread-pool
-        SyncResponseHandler *syncHandler =
-            dynamic_cast<SyncResponseHandler*>( handler );
-        if( syncHandler || DefaultEnv::GetPostMaster() == nullptr )
-        {
+        if(SyncResponseHandler *syncHandler = dynamic_cast<SyncResponseHandler*>( handler )) {
           syncHandler->HandleResponse( status, resp );
-        }
-        else
-        {
-          JobManager *jmngr = DefaultEnv::GetPostMaster()->GetJobManager();
-          LocalFileTask *task = new LocalFileTask( status, resp, hosts, handler );
-          jmngr->QueueJob( task );
+        } else if(auto postmaster = DefaultEnv::GetPostMaster()) {
+          if (JobManager *jmngr = postmaster->GetJobManager()) {
+            LocalFileTask *task = new LocalFileTask( status, resp, hosts, handler );
+            jmngr->QueueJob( task );
+          }
         }
       }
       
@@ -770,17 +766,16 @@ namespace XrdCl
   {
     // if it is simply the sync handler we can release the semaphore
     // and return there is no need to execute this in the thread-pool
-    SyncResponseHandler *syncHandler =
-        dynamic_cast<SyncResponseHandler*>( handler );
-    if( syncHandler || DefaultEnv::GetPostMaster() == nullptr )
-    {
+    if (SyncResponseHandler *syncHandler = dynamic_cast<SyncResponseHandler*>(handler)) {
       syncHandler->HandleResponse( st, resp );
       return XRootDStatus();
     }
 
-    HostList *hosts = pHostList.empty() ? 0 : new HostList( pHostList );
-    LocalFileTask *task = new LocalFileTask( st, resp, hosts, handler );
-    DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( task );
+    if (auto postmaster = DefaultEnv::GetPostMaster()) {
+      HostList *hosts = pHostList.empty() ? 0 : new HostList( pHostList );
+      LocalFileTask *task = new LocalFileTask( st, resp, hosts, handler );
+      postmaster->GetJobManager()->QueueJob( task );
+    }
     return XRootDStatus();
   }
 

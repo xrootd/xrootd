@@ -694,11 +694,17 @@ namespace XrdCl
         i.streams = pSubStreams.size();
 
         AnyObject    qryResult;
-        std::string *qryResponse = 0;
+        std::string *qryResponse = nullptr;
         pTransport->Query( TransportQuery::Auth, qryResult, *pChannelData );
         qryResult.Get( qryResponse );
-        i.auth    = *qryResponse;
-        delete qryResponse;
+
+        if (qryResponse) {
+          i.auth = *qryResponse;
+          delete qryResponse;
+        } else {
+          i.auth = "";
+        }
+
         mon->Event( Monitor::EvConnect, &i );
       }
 

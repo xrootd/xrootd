@@ -431,13 +431,20 @@ namespace XrdCl
     else
     {
       AnyObject  qryResult;
-      int       *qryResponse = 0;
+      int       *qryResponse = nullptr;
       pPostMaster->QueryTransport( pUrl, XRootDQuery::ServerFlags, qryResult );
       qryResult.Get( qryResponse );
-      pHosts->back().flags = *qryResponse; delete qryResponse; qryResponse = 0;
+      if (qryResponse) {
+        pHosts->back().flags = *qryResponse;
+        delete qryResponse;
+        qryResponse = nullptr;
+      }
       pPostMaster->QueryTransport( pUrl, XRootDQuery::ProtocolVersion, qryResult );
       qryResult.Get( qryResponse );
-      pHosts->back().protocol = *qryResponse; delete qryResponse;
+      if (qryResponse) {
+        pHosts->back().protocol = *qryResponse;
+        delete qryResponse;
+      }
     }
 
     //--------------------------------------------------------------------------

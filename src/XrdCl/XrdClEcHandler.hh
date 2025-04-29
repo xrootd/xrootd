@@ -89,6 +89,11 @@ namespace XrdCl
   
       ChunkInfo *chunk = 0;
       rdresp->Get(chunk);
+
+      if (!chunk) {
+        delete this;
+        return;
+      }
   
       std::vector<uint32_t> cksums;
       size_t nbpages = chunk->length / XrdSys::PageSize;

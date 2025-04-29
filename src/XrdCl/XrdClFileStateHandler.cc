@@ -1068,7 +1068,7 @@ namespace XrdCl
     {
       int *ptr = 0;
       obj.Get( ptr );
-      issupported = ( *ptr & kXR_suppgrw ) && ( protver >= kXR_PROTPGRWVERSION );
+      issupported = ( ptr && (*ptr & kXR_suppgrw) ) && ( protver >= kXR_PROTPGRWVERSION );
       delete ptr;
     }
     else
@@ -2373,7 +2373,7 @@ namespace XrdCl
       {
         bool *isenc;
         isencobj.Get( isenc );
-        pIsChannelEncrypted = *isenc;
+        pIsChannelEncrypted = isenc ? *isenc : false;
         delete isenc;
       }
     }

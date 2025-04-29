@@ -352,6 +352,13 @@ namespace
         response->Get( info );
         LocationInfo::Iterator it;
 
+        if(!info) {
+          log->Error(FileSystemMsg,
+            "[%p@DeepLocate(%s)] No locations received in response",
+            this, pPath.c_str());
+          return;
+        }
+
         log->Dump( FileSystemMsg, "[%p@DeepLocate(%s)] Got %d locations",
                    this, pPath.c_str(), info->GetSize() );
 
@@ -1750,7 +1757,7 @@ namespace XrdCl
         {
           int *ptr = 0;
           obj.Get( ptr );
-          isserver = ( *ptr & kXR_isServer );
+          isserver = ( ptr && (*ptr & kXR_isServer) );
           delete ptr;
         }
       }

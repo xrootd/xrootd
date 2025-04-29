@@ -469,6 +469,10 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
+    if (!info)
+      return XRootDStatus(stFatal, errInternal);
+
     XrdSysMutexHelper scopedLock( info->mutex );
 
     if( info->stream.size() <= handShakeData->subStreamId )
@@ -496,6 +500,14 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
+    if (!info) {
+      DefaultEnv::GetLog()->Error(XRootDTransportMsg,
+        "[%s] Internal error: no channel info",
+        handShakeData->streamName.c_str());
+      return XRootDStatus(stFatal, errInternal);
+    }
+
     XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
 
     //--------------------------------------------------------------------------
@@ -655,6 +667,13 @@ namespace XrdCl
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
 
+    if (!info) {
+      DefaultEnv::GetLog()->Error(XRootDTransportMsg,
+        "[%s] Internal error: no channel info",
+        handShakeData->streamName.c_str());
+      return XRootDStatus(stFatal, errInternal);
+    }
+
     XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
 
     //--------------------------------------------------------------------------
@@ -729,6 +748,14 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
+    if (!info) {
+      DefaultEnv::GetLog()->Error(XRootDTransportMsg,
+        "[%s] Internal error: no channel info",
+        handShakeData->streamName.c_str());
+      return false;
+    }
+
     XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
     return ( sInfo.status == XRootDStreamInfo::Connected );
   }
@@ -741,8 +768,15 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
     Env *env = DefaultEnv::GetEnv();
     Log *log = DefaultEnv::GetLog();
+
+    if (!info) {
+      log->Error(XRootDTransportMsg,
+        "Internal error: no channel info, behaving as if TTL has elapsed");
+      return true;
+    }
 
     //--------------------------------------------------------------------------
     // Check the TTL settings for the current server
@@ -790,6 +824,12 @@ namespace XrdCl
     Env *env = DefaultEnv::GetEnv();
     Log *log = DefaultEnv::GetLog();
 
+    if (!info) {
+      log->Error(XRootDTransportMsg,
+        "Internal error: no channel info, behaving as if stream is broken");
+      return true;
+    }
+
     int streamTimeout = DefaultStreamTimeout;
     env->GetInt( "StreamTimeout", streamTimeout );
 
@@ -833,6 +873,13 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
+    if (!info) {
+      DefaultEnv::GetLog()->Error(XRootDTransportMsg,
+        "Internal error: no channel info, cannot multiplex");
+      return PathID(0,0);
+    }
+
     XrdSysMutexHelper scopedLock( info->mutex );
 
     //--------------------------------------------------------------------------
@@ -996,6 +1043,12 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
+    if (!info) {
+      DefaultEnv::GetLog()->Error(XRootDTransportMsg, "Internal error: no channel info");
+      return 1;
+    }
+
     XrdSysMutexHelper scopedLock( info->mutex );
 
     //--------------------------------------------------------------------------
@@ -1469,6 +1522,12 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
+    if (!info) {
+      DefaultEnv::GetLog()->Error(XRootDTransportMsg, "Internal error: no channel info");
+      return 0;
+    }
+
     XrdSysMutexHelper scopedLock( info->mutex );
 
     uint16_t nbConnected = 0;
@@ -1487,6 +1546,12 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
+    if (!info) {
+      DefaultEnv::GetLog()->Error(XRootDTransportMsg, "Internal error: no channel info");
+      return;
+    }
+
     XrdSysMutexHelper scopedLock( info->mutex );
 
     CleanUpProtection( info );
@@ -1516,6 +1581,10 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
+    if (!info)
+      return XRootDStatus(stFatal, errInternal);
+
     XrdSysMutexHelper scopedLock( info->mutex );
 
     switch( query )
@@ -1770,6 +1839,7 @@ namespace XrdCl
     int notlsok = DefaultNoTlsOK;
     env->GetInt( "NoTlsOK", notlsok );
 
+
     if( notlsok )
       return info->encrypted;
 
@@ -1843,7 +1913,8 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
-    if( !bool( info->bindSelector ) )
+
+    if(!info || !info->bindSelector)
       return url;
 
     return URL( info->bindSelector->Get() );
