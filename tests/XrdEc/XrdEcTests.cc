@@ -559,6 +559,7 @@ void XrdEcTests::ReadVerify( uint32_t rdsize, uint64_t maxrd )
     auto rsp = h.GetResponse();
     XrdCl::ChunkInfo *ch = nullptr;
     rsp->Get( ch );
+    ASSERT_TRUE(ch != nullptr);
     bytesrd = ch->length;
     std::string result( reinterpret_cast<char*>( ch->buffer ), bytesrd );
     // get the expected result
@@ -614,6 +615,7 @@ void XrdEcTests::RandomReadVerify()
   auto rsp = h.GetResponse();
   XrdCl::ChunkInfo *ch = nullptr;
   rsp->Get( ch );
+  ASSERT_TRUE(ch != nullptr);
   uint32_t bytesrd = ch->length;
   std::string result( reinterpret_cast<char*>( ch->buffer ), bytesrd );
   // get the expected result

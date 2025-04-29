@@ -561,15 +561,19 @@ void FileSystemTest::DirListTest()
   for( auto itr = info->Begin(); itr != info->End(); ++itr )
   {
     XrdSysSemaphore sem( 0 );
-    auto handler = XrdCl::ResponseHandler::Wrap( [&]( auto &s, auto &r )
-      {
-        EXPECT_XRDST_OK( s );
-        auto &list = To<XrdCl::DirectoryList>( r );
-        for( auto itr = list.Begin(); itr != list.End(); ++itr )
-          dirls2.insert( ( *itr )->GetName() );
-        if( s.code == XrdCl::suDone )
-          sem.Post();
-      } );
+    auto handler = XrdCl::ResponseHandler::Wrap([&sem, &dirls2](auto &s, auto &r) {
+      EXPECT_XRDST_OK(s);
+      XrdCl::DirectoryList *list = nullptr;
+      r.Get(list);
+      ASSERT_TRUE(list);
+
+      for (auto itr = list->Begin(); itr != list->End(); ++itr) {
+        ASSERT_TRUE(*itr);
+        dirls2.insert((*itr)->GetName());
+      }
+      if (s.code == XrdCl::suDone)
+        sem.Post();
+    });
 
     FileSystem fs1( std::string( itr->GetAddress() ) );
     EXPECT_XRDST_OK( fs1.DirList( lsPath, DirListFlags::Stat | DirListFlags::Chunked, handler ) );
