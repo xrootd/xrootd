@@ -2150,7 +2150,11 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
 
 // Get optional "every"
 //
-   if (!(val = Config.GetWord())) {repOpts = XRD_STATS_ALL; return 0;}
+   if (!(val = Config.GetWord()))
+      {repOpts = static_cast<char>(XRD_STATS_ALL);
+       return 0;
+      }
+
    if (!strcmp("every", val))
       {if (!(val = Config.GetWord()))
           {eDest->Emsg("Config", "report every value not specified"); return 1;}
