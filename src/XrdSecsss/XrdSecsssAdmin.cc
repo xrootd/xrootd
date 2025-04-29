@@ -499,7 +499,7 @@ int  XrdSecsssAdmin_lstKey(XrdsecsssAdmin_Opts &Opt)
                   }
                ktSP = ktS; ktS = ktS->Next;
               }
-         if (!ktS) ktSP->Next = ktX;
+         if (ktSP && !ktS) ktSP->Next = ktX;
         }
 
 // List the keys
