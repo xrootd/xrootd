@@ -2634,8 +2634,9 @@ int XrdHttpProtocol::xstaticheader(XrdOucStream & Config) {
 
   for (const auto &verb : verbs) {
     auto iter = m_staticheader_map.find(verb);
-    if (iter == m_staticheader_map.end() && !header_value.empty()) {
-      m_staticheader_map.insert(iter, {verb, {{header, header_value}}});
+    if (iter == m_staticheader_map.end()) {
+      if (!header_value.empty())
+        m_staticheader_map.insert(iter, {verb, {{header, header_value}}});
     } else if (header_value.empty()) {
       iter->second.clear();
     } else {
