@@ -195,7 +195,7 @@ bool XrdSecsssEnt::Serialize()
    if (n < XrdSecsssRR_Data::MinDSz)
       {rLen = XrdSecsssRR_Data::MinDSz - n;
        XrdSecsssKT::genKey(rBuff, rLen);
-       if (!rBuff[0]) rBuff[0] = 0xff;
+       if (!rBuff[0]) rBuff[0] = '\xff';
        iLen += rLen + 4;
       }
 
