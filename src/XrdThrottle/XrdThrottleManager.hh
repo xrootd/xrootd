@@ -40,6 +40,7 @@
 #include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+class XrdSecEntity;
 class XrdSysError;
 class XrdOucTrace;
 class XrdThrottleTimer;
@@ -61,6 +62,11 @@ void        Apply(int reqsize, int reqops, int uid);
 
 bool        IsThrottling() {return (m_ops_per_second > 0) || (m_bytes_per_second > 0);}
 
+// Returns the user name and UID for the given client.
+//
+// The UID is a hash of the user name; it is not guaranteed to be unique.
+std::tuple<std::string, uint16_t> GetUserInfo(const XrdSecEntity *client);
+
 void        SetThrottles(float reqbyterate, float reqoprate, int concurrency, float interval_length)
             {m_interval_length_seconds = interval_length; m_bytes_per_second = reqbyterate;
              m_ops_per_second = reqoprate; m_concurrency_limit = concurrency;}
@@ -77,9 +83,6 @@ void        SetMaxWait(unsigned long max_wait) {m_max_wait_time = std::chrono::s
 void        SetMonitor(XrdXrootdGStream *gstream) {m_gstream = gstream;}
 
 //int         Stats(char *buff, int blen, int do_sync=0) {return m_pool.Stats(buff, blen, do_sync);}
-
-static
-int         GetUid(const char *username);
 
 // Notify that an I/O operation has started for a given user.
 //
@@ -105,6 +108,11 @@ protected:
 void        StopIOTimer(std::chrono::steady_clock::duration & event_duration, uint16_t uid);
 
 private:
+
+// Determine the UID for a given user name.
+// This is a hash of the username; it is not guaranteed to be unique.
+// The UID is used to index into the waiters array and cannot be more than m_max_users.
+uint16_t    GetUid(const std::string &);
 
 void        Recompute();
 
@@ -168,7 +176,7 @@ struct alignas(64) Waiter
    // EWMA of the concurrency for this user.  This is used to determine how much
    // above / below the user's concurrency share they've been recently.  This subsequently
    // will affect the likelihood of being woken up.
-   float m_concurrency{0};
+   XrdSys::RAtomic<float> m_concurrency{0};
 
    // I/O time for this user since the last recompute interval.  The value is used
    // to compute the EWMA of the concurrency (m_concurrency).
@@ -204,6 +212,7 @@ std::array<XrdSys::RAtomic<int16_t>, m_max_users> m_wake_order_1; // A second wa
 XrdSys::RAtomic<char> m_wake_order_active; // The current active wake order array; 0 or 1
 std::atomic<size_t> m_waiter_offset{0}; // Offset inside the wake order array; this is used to wake up the next potential user in line.  Cannot be relaxed atomic as offsets need to be seen in order.
 std::chrono::steady_clock::time_point m_last_waiter_recompute_time; // Last time we recomputed the wait ordering.
+XrdSys::RAtomic<unsigned> m_waiting_users{0}; // Number of users waiting behind the throttle as of the last recompute time.
 
 std::atomic<uint32_t> m_io_active; // Count of in-progress IO operations: cannot be a relaxed atomic as ordering of inc/dec matters.
 XrdSys::RAtomic<std::chrono::steady_clock::duration::rep> m_io_active_time; // Total IO wait time recorded since the last recompute interval; reset to zero about every second.
