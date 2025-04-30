@@ -271,24 +271,6 @@ private:
    virtual
   ~FileSystem();
 
-   int
-   xthrottle(XrdOucStream &Config);
-
-   int
-   xloadshed(XrdOucStream &Config);
-
-   int
-   xtrace(XrdOucStream &Config);
-
-   int
-   xmaxopen(XrdOucStream &Config);
-
-   int
-   xmaxconn(XrdOucStream &Config);
-
-   int
-   xmaxwait(XrdOucStream &Config);
-
    static FileSystem  *m_instance;
    XrdSysError         m_eroute;
    XrdOucTrace         m_trace;

@@ -7,6 +7,7 @@
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdThrottle/XrdThrottleConfig.hh"
 #include "XrdXrootd/XrdXrootdGStream.hh"
 
 #define XRD_TRACE m_trace->
@@ -52,6 +53,34 @@ XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP) :
    m_loadshed_port(0),
    m_loadshed_frequency(0)
 {
+}
+
+void
+XrdThrottleManager::FromConfig(XrdThrottle::Configuration &config)
+{
+
+    auto max_open = config.GetMaxOpen();
+    if (max_open != -1) SetMaxOpen(max_open);
+    auto max_conn = config.GetMaxConn();
+    if (max_conn != -1) SetMaxConns(max_conn);
+    auto max_wait = config.GetMaxWait();
+    if (max_wait != -1) SetMaxWait(max_wait);
+
+    SetThrottles(config.GetThrottleDataRate(),
+       config.GetThrottleIOPSRate(),
+       config.GetThrottleConcurrency(),
+       static_cast<float>(config.GetThrottleRecomputeIntervalMS())/1000.0);
+
+    m_trace->What = config.GetTraceLevels();
+
+    auto loadshed_host = config.GetLoadshedHost();
+    auto loadshed_port = config.GetLoadshedPort();
+    auto loadshed_freq = config.GetLoadshedFreq();
+    if (!loadshed_host.empty() && loadshed_port > 0 && loadshed_freq > 0)
+    {
+       // Loadshed specified, so set it.
+       SetLoadShed(loadshed_host, loadshed_port, loadshed_freq);
+    }
 }
 
 void
