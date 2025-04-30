@@ -46,6 +46,10 @@ class XrdOucTrace;
 class XrdThrottleTimer;
 class XrdXrootdGStream;
 
+namespace XrdThrottle {
+   class Configuration;
+}
+
 class XrdThrottleManager
 {
 
@@ -59,6 +63,8 @@ bool        OpenFile(const std::string &entity, std::string &open_error_message)
 bool        CloseFile(const std::string &entity);
 
 void        Apply(int reqsize, int reqops, int uid);
+
+void        FromConfig(XrdThrottle::Configuration &config);
 
 bool        IsThrottling() {return (m_ops_per_second > 0) || (m_bytes_per_second > 0);}
 
