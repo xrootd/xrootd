@@ -26,6 +26,10 @@ target_sources(XrdUtils
                      XrdTrace.hh
 )
 
+if(XRDCL_ONLY)
+  return()
+endif()
+
 add_executable(xrootd
   XrdConfig.cc    XrdConfig.hh
   XrdProtLoad.cc  XrdProtLoad.hh
