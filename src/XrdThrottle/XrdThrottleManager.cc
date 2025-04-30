@@ -2,6 +2,8 @@
 #include "XrdThrottleManager.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -79,6 +81,23 @@ XrdThrottleManager::Init()
    if ((rc = XrdSysThread::Run(&tid, XrdThrottleManager::RecomputeBootstrap, static_cast<void *>(this), 0, "Buffer Manager throttle")))
       m_log->Emsg("ThrottleManager", rc, "create throttle thread");
 
+}
+
+std::tuple<std::string, uint16_t>
+XrdThrottleManager::GetUserInfo(const XrdSecEntity *client) {
+    // Try various potential "names" associated with the request, from the most
+    // specific to most generic.
+    std::string user;
+
+    if (client->eaAPI && client->eaAPI->Get("token.subject", user)) {
+        if (client->vorg) user = std::string(client->vorg) + ":" + user;
+    } else if (client->eaAPI) {
+        std::string request_name;
+        if (client->eaAPI->Get("request.name", request_name) && !request_name.empty()) user = request_name;
+    }
+    if (user.empty()) {user = client->name ? client->name : "nobody";}
+    uint16_t uid = GetUid(user.c_str());
+    return std::make_tuple(user, uid);
 }
 
 /*
@@ -359,12 +378,13 @@ XrdThrottleManager::ComputeWaiterOrder()
         auto io_duration_rep = waiter.m_io_time.exchange(std::chrono::steady_clock::duration(0).count());
         std::chrono::steady_clock::duration io_duration = std::chrono::steady_clock::duration(io_duration_rep);
         std::chrono::duration<double> io_duration_secs = io_duration;
-        auto recent_concurrency = io_duration_secs.count() / elapsed_secs.count();
+        auto prev_concurrency = io_duration_secs.count() / elapsed_secs.count();
+        float new_concurrency = waiter.m_concurrency;
 
-        auto new_concurrency = (1 - alpha) * waiter.m_concurrency + alpha * recent_concurrency;
+        new_concurrency = (1 - alpha) * new_concurrency + alpha * prev_concurrency;
         waiter.m_concurrency = new_concurrency;
         if (new_concurrency > 0) {
-            TRACE(DEBUG, "User " << i << " has concurrency of " << waiter.m_concurrency);
+            TRACE(DEBUG, "User " << i << " has concurrency of " << new_concurrency);
         }
         unsigned waiting;
         {
@@ -442,6 +462,7 @@ XrdThrottleManager::ComputeWaiterOrder()
     // interval, try waking up enough operations to fill the gap.  If we race with new incoming operations,
     // the threads will just go back to sleep.
     if (users_with_waiters) {
+        m_waiting_users = users_with_waiters;
         auto io_active = m_io_active.load(std::memory_order_acquire);
         for (size_t idx = io_active; idx < static_cast<size_t>(m_concurrency_limit); idx++) {
             NotifyOne();
@@ -611,19 +632,14 @@ XrdThrottleManager::RecomputeInternal()
 /*
  * Do a simple hash across the username.
  */
-int
-XrdThrottleManager::GetUid(const char *username)
+uint16_t
+XrdThrottleManager::GetUid(const std::string &username)
 {
-   const char *cur = username;
-   int hval = 0;
-   while (cur && *cur && *cur != '@' && *cur != '.')
-   {
-      hval += *cur;
-      hval %= m_max_users;
-      cur++;
-   }
-   //std::cerr << "Calculated UID " << hval << " for " << username << std::endl;
-   return hval;
+    std::hash<std::string> hash_fn;
+    auto hash = hash_fn(username);
+    auto uid = static_cast<uint16_t>(hash % m_max_users);
+    TRACE(DEBUG, "Mapping user " << username << " to UID " << uid);
+    return uid;
 }
 
 /*
@@ -662,6 +678,13 @@ XrdThrottleManager::StartIOTimer(uint16_t uid, bool &ok)
 
    while (m_concurrency_limit >= 0 && cur_counter >= m_concurrency_limit)
    {
+      // If the user has essentially no concurrency, then we let them
+      // temporarily exceed the limit.  This prevents potential waits for
+      // every single read for an infrequent user.
+      if (m_waiter_info[uid].m_concurrency < 1)
+      {
+         break;
+      }
       m_loadshed_limit_hit++;
       m_io_active.fetch_sub(1, std::memory_order_acq_rel);
       TRACE(DEBUG, "ThrottleManager (user=" << uid << "): IO concurrency limit hit; waiting for other IOs to finish.");
@@ -688,6 +711,20 @@ XrdThrottleManager::StopIOTimer(std::chrono::steady_clock::duration & event_dura
    m_waiter_info[uid].m_io_time += event_duration.count();
    if (old_active == static_cast<unsigned>(m_concurrency_limit))
    {
+      // If we are below the concurrency limit threshold and have another waiter
+      // for our user, then execute it immediately.  Otherwise, we will give
+      // someone else a chance to run (as we have gotten more than our share recently).
+      unsigned waiting_users = m_waiting_users;
+      if (waiting_users == 0) waiting_users = 1;
+      if (m_waiter_info[uid].m_concurrency < m_concurrency_limit / waiting_users)
+      {
+         std::unique_lock<std::mutex> lock(m_waiter_info[uid].m_mutex);
+         if (m_waiter_info[uid].m_waiting > 0)
+         {
+            m_waiter_info[uid].NotifyOne(std::move(lock));
+            return;
+         }
+      }
       NotifyOne();
    }
 }

@@ -58,16 +58,7 @@ File::open(const char                *fileName,
            const XrdSecEntity        *client,
            const char                *opaque)
 {
-   // Try various potential "names" associated with the request, from the most
-   // specific to most generic.
-   if (client->eaAPI && client->eaAPI->Get("token.subject", m_user)) {
-       if (client->vorg) m_user = std::string(client->vorg) + ":" + m_user;
-   } else if (client->eaAPI) {
-       std::string user;
-       if (client->eaAPI->Get("request.name", user) && !user.empty()) m_user = user;
-   }
-   if (m_user.empty()) {m_user = client->name ? client->name : "nobody";}
-   m_uid = XrdThrottleManager::GetUid(m_user.c_str());
+   std::tie(m_user, m_uid) = m_throttle.GetUserInfo(client);
    m_throttle.PrepLoadShed(opaque, m_loadshed);
    std::string open_error_message;
    if (!m_throttle.OpenFile(m_user, open_error_message)) {
