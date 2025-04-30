@@ -57,6 +57,7 @@ BuildRequires:	libuuid-devel
 BuildRequires:	voms-devel
 BuildRequires:	scitokens-cpp-devel
 BuildRequires:	davix-devel
+BuildRequires:  libxcrypt-devel
 
 %if %{with asan}
 BuildRequires:	libasan
@@ -80,6 +81,7 @@ BuildRequires:	python3-sphinx
 %if %{with tests}
 BuildRequires:	attr
 BuildRequires:	coreutils
+BuildRequires:	curl
 BuildRequires:	davix
 BuildRequires:	gtest-devel
 BuildRequires:	openssl
