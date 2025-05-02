@@ -109,7 +109,7 @@ private:
   // Optionally, it also contains the trailer headers whereever applicable
   // e.g. X-Transfer-Status: 200: OK
   // or X-Transfer-Status: 500: ERROR: <error message>: <additional text>
-  std::string httpStatusText;
+  std::string httpErrorBody;
 
 
   // The value of the user agent, if specified
