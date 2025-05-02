@@ -1615,6 +1615,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
     else if (code == 500) ss << "Internal Server Error";
     else if (code == 502) ss << "Bad Gateway";
     else if (code == 504) ss << "Gateway Timeout";
+    else if (code == 507) ss << "Insufficient Storage";
     else ss << "Unknown";
   }
   ss << crlf;
