@@ -206,4 +206,61 @@ function test_http() {
   assert_eq "2" "$(grep -B 1 "X-Transfer-Status: 500: Unable to read" "$outputFilePath" | grep -c -E "^0")" "$(sed -e 's/blah//g' < "$outputFilePath")"
   assert_eq "0" "$(grep -c "Leftovers after chunking" "${TMPDIR}/stderr.txt")" "Incorrect framing in response: $(sed -e 's/blah//g' < "${TMPDIR}/stderr.txt")"
   assert_eq "0" "$(grep -c "Connection died" "${TMPDIR}/stderr.txt")" "Connection reuse did not work.  Server log: $(cat "${XROOTD_SERVER_LOGFILE}") Client log: $(sed -e 's/blah//g' < "${TMPDIR}/stderr.txt") Issue:"
+  
+
+  run_and_assert_http_and_error_code() {
+    local expected_http_code="$1"
+    local expected_error_code="$2"
+    shift 2
+
+    local body_file
+    body_file=$(mktemp)
+    local http_code
+
+    # Run the curl command, capture HTTP code and body
+    http_code=$(curl -s -v -L -w "%{http_code}" -o "$body_file" "$@")
+    local body
+    body=$(< "$body_file")
+    rm -f "$body_file"
+
+    # Assertions
+    assert_eq "$expected_http_code" "$http_code"
+
+    # Only assert on error code if HTTP status is 400+
+    if [[ "$http_code" -ge 400 && -n "$expected_error_code" ]]; then
+      local error_code
+      error_code=$(echo "$body" | grep -oE 'ERROR: [0-9]+(\.[0-9]+){1,2}' | awk '{print $2}')
+      # Print body only if assertion fails
+      assert_eq "$expected_error_code" "$error_code" "$body" 
+    fi
+  }
+
+  # Overwrite a directory with a file - File / Directory conflict
+  run_and_assert_http_and_error_code 409 "8.1" \
+    --upload-file "$alphabetFilePath" "${HOST}/$TMPDIR"
+
+  # Upload a file that should fail due to insufficient space
+  # The server can only close the connection if no space if left mid write
+  # noSpaceFilePath="$TMPDIR/no_space.txt"
+  # run_and_assert_http_and_error_code 507 "8.4.1" \
+  #   --upload-file "$alphabetFilePath" "${HOST}/$noSpaceFilePath"
+
+  # Upload a file that should fail due to insufficient inodes
+  noInodeFilePath="$TMPDIR/no_inode.txt"
+  run_and_assert_http_and_error_code 507 "8.3.1" \
+    --upload-file "$alphabetFilePath" "${HOST}/$noInodeFilePath"
+
+  # # Fail upload due to insufficient user quota for space
+  # Not handled yet - connection is closed instead
+  # outOfSpaceQuotaFilePath="$TMPDIR/out_of_space_quota.txt"
+  # run_and_assert_http_and_error_code 507 "8.4.2" \
+  #   --upload-file "$alphabetFilePath" "${HOST}/$outOfSpaceQuotaFilePath"
+
+  # Fail upload due to insufficient user quota for inodes
+  outOfInodeQuotaFilePath="$TMPDIR/out_of_inode_quota.txt"
+  run_and_assert_http_and_error_code 507 "8.3.2" \
+    --upload-file "$alphabetFilePath" "${HOST}/$outOfInodeQuotaFilePath"
+
+  run_and_assert_http_and_error_code 200 "" \
+    --header "Want-Digest: crc32c" -I "${HOST}/$alphabetFilePath"
 }
