@@ -1589,36 +1589,47 @@ int XrdHttpProtocol::SendData(const char *body, int bodylen) {
 /******************************************************************************/
 /*                       S t a r t S i m p l e R e s p                        */
 /******************************************************************************/
-  
-int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive) {
+
+int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
+                                     const char *header_to_add,
+                                     long long bodylen, bool keepalive) {
+  static const std::unordered_map<int, std::string> statusTexts = {
+      {100, "Continue"},
+      {200, "OK"},
+      {201, "Created"},
+      {206, "Partial Content"},
+      {302, "Redirect"},
+      {307, "Temporary Redirect"},
+      {400, "Bad Request"},
+      {401, "Unauthorized"},
+      {403, "Forbidden"},
+      {404, "Not Found"},
+      {405, "Method Not Allowed"},
+      {409, "Conflict"},
+      {416, "Range Not Satisfiable"},
+      {423, "Locked"},
+      {500, "Internal Server Error"},
+      {502, "Bad Gateway"},
+      {504, "Gateway Timeout"},
+      {507, "Insufficient Storage"}};
+
   std::stringstream ss;
   const std::string crlf = "\r\n";
 
   ss << "HTTP/1.1 " << code << " ";
+
   if (desc) {
     ss << desc;
   } else {
-    if (code == 200) ss << "OK";
-    else if (code == 100) ss << "Continue";
-    else if (code == 201) ss << "Created";
-    else if (code == 206) ss << "Partial Content";
-    else if (code == 302) ss << "Redirect";
-    else if (code == 307) ss << "Temporary Redirect";
-    else if (code == 400) ss << "Bad Request";
-    else if (code == 401) ss << "Unauthorized";
-    else if (code == 403) ss << "Forbidden";
-    else if (code == 404) ss << "Not Found";
-    else if (code == 405) ss << "Method Not Allowed";
-    else if (code == 409) ss << "Conflict";
-    else if (code == 416) ss << "Range Not Satisfiable";
-    else if (code == 423) ss << "Locked";
-    else if (code == 500) ss << "Internal Server Error";
-    else if (code == 502) ss << "Bad Gateway";
-    else if (code == 504) ss << "Gateway Timeout";
-    else if (code == 507) ss << "Insufficient Storage";
-    else ss << "Unknown";
+    auto it = statusTexts.find(code);
+    if (it != statusTexts.end()) {
+      ss << it->second;
+    } else {
+      ss << "Unknown";
+    }
   }
   ss << crlf;
+
   if (keepalive && (code != 100))
     ss << "Connection: Keep-Alive" << crlf;
   else
@@ -1632,19 +1643,18 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
   } else {
     ss << m_staticheaders[""];
   }
-  
+
   if ((bodylen >= 0) && (code != 100))
     ss << "Content-Length: " << bodylen << crlf;
 
-  if (header_to_add && (header_to_add[0] != '\0'))
-    ss << header_to_add << crlf;
+  if (header_to_add && (header_to_add[0] != '\0')) ss << header_to_add << crlf;
 
   ss << crlf;
 
   const std::string &outhdr = ss.str();
   TRACEI(RSP, "Sending resp: " << code << " header len:" << outhdr.size());
   if (SendData(outhdr.c_str(), outhdr.size()))
-    return -1;
+   return -1;
 
   return 0;
 }
