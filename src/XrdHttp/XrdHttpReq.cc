@@ -818,6 +818,57 @@ void XrdHttpReq::parseResource(char *res) {
   
 }
 
+void XrdHttpReq::sendWebdavErrorMessage(
+    XResponseType xrdresp, XErrorCode xrderrcode, XrdHttpReq::ReqType httpVerb,
+    XRequestTypes xrdOperation, std::string etext, const char *desc,
+    const char *header_to_add, bool keepalive) {
+  int code{0};
+  std::string errCode{"Unknown"};
+  std::string statusText;
+
+  switch (httpVerb) {
+    case XrdHttpReq::rtPUT:
+      if (xrdOperation == kXR_open) {
+        if (xrderrcode == kXR_isDirectory) {
+          code = 409;
+          errCode = "8.1";
+        } else if (xrderrcode == kXR_NoSpace) {
+          code = 507;
+          errCode = "8.3.1";
+        } else if (xrderrcode == kXR_overQuota) {
+          code = 507;
+          errCode = "8.3.2";
+        } else if (xrderrcode == kXR_NotAuthorized) {
+          code = 403;
+          errCode = "9.3";
+        }
+      } else if (xrdOperation == kXR_write) {
+        if (xrderrcode == kXR_NoSpace) {
+          code = 507;
+          errCode = "8.4.1";
+        } else if (xrderrcode == kXR_overQuota) {
+          code = 507;
+          errCode = "8.4.2";
+        }
+      }
+      break;
+    default:
+      break;
+  }
+
+  // Remove the if at the end of project completion
+  // Till then status text defaults to as set by mapXrdResponseToHttpStatus
+  if (code != 0) {
+    httpStatusCode = code;
+    httpErrorCode = errCode;
+    httpStatusText = "ERROR: " + errCode + ": " + etext + "\n";
+
+    prot->SendSimpleResp(httpStatusCode, desc, header_to_add,
+                         httpStatusText.c_str(), httpStatusText.length(),
+                         keepalive);
+  }
+}
+
 // Map an XRootD error code to an appropriate HTTP status code and message
 // The variables httpStatusCode and httpStatusText will be populated
 
@@ -2309,11 +2360,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     case XrdHttpReq::rtPUT:
     {
       if (!fopened) {
-
         if (xrdresp != kXR_ok) {
-
-          prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                               httpStatusText.c_str(), httpStatusText.length(), keepalive);
+          sendWebdavErrorMessage(xrdresp, xrderrcode, XrdHttpReq::rtPUT,
+                                 kXR_open, etext, NULL, NULL, keepalive);
           return -1;
         }
 
@@ -2355,16 +2404,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
         if (ntohs(xrdreq.header.requestid) == kXR_close) {
           if (xrdresp == kXR_ok) {
-            prot->SendSimpleResp(201, NULL, NULL, (char *) ":-)", 0, keepalive);
+            prot->SendSimpleResp(201, NULL, NULL, (char *)":-)", 0, keepalive);
             return keepalive ? 1 : -1;
           } else {
-            prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                                 httpStatusText.c_str(), httpStatusText.length(), keepalive);
+            sendWebdavErrorMessage(xrdresp, xrderrcode, XrdHttpReq::rtPUT,
+                                   kXR_close, etext, NULL, NULL, keepalive);
             return -1;
           }
         }
-
-
       }
 
 
