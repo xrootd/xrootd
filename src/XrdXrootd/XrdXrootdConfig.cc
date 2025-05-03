@@ -73,6 +73,7 @@
 #include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
+#include "XrdXrootd/XrdXrootdRedirPI.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdTransit.hh"
@@ -123,6 +124,12 @@ extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *,
                                                  XrdSfsFileSystem *,
                                                  const char *,
                                                  const char *, XrdOucEnv *);
+
+extern XrdXrootdRedirPI *XrdXrootdloadRedirLib(XrdSysError *,
+                                               XrdXrootdRedirPI *,
+                                               const char *, const char *,
+                                               const char *, XrdOucEnv *);
+
 extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem
                          (XrdSfsFileSystem *nativeFS,
                           XrdSysLogger     *Logger,
@@ -148,7 +155,9 @@ namespace
 {
 char                    *digParm  = 0;
 char                    *FSLib[2] = {0,0};
-std::vector<std::string> FSLPath;
+std::vector<std::string> FSLPath;    // fslib
+std::vector<std::string> RDLPath;    // redirlib 
+std::vector<std::string> RDLParm;    // redirlib 
 char                    *gpfLib  = 0;// Normally zero for default
 char                    *gpfParm = 0;
 char                    *SecLib;
@@ -333,7 +342,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                // Check natively supported checksum
                if (osFS->chksum(XrdSfsFileSystem::csSize, tP->text, 0, myError)) {
                    eDest.Emsg("Config", tP->text, "checksum is not natively supported.");
-                   return 0;
+                  return 0;
                }
            }
            tP->ival[1] = myError.getErrInfo();
@@ -346,6 +355,16 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        } while (tP);
        if (csNum) XrdOucEnv::Export("XRD_CSLIST", csList.c_str());
    }
+
+// Configure the redirect plugins
+//
+   if (!RDLPath.empty())
+      {for (int i = 0; i < (int)RDLPath.size(); i++)
+           {const char* parm = (RDLParm[i].length() ? RDLParm[i].c_str() : 0);
+            if (!ConfigRedirPI(RDLPath[i].c_str(),xrootdEnv,pi->ConfigFN,parm))
+               return 0;
+           }
+      }
 
 // Initialiaze for AIO. If we are not in debug mode and aio is enabled then we
 // turn off async I/O if tghe filesystem requests it or if this is a caching
@@ -575,6 +594,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Zeq("pmark",         XrdNetPMarkCfg::Parse);
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("redirect",      xred);
+             else if TS_Xeq("redirlib",      xrdl);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("tls",           xtls);
              else if TS_Xeq("tlsreuse",      xtlsr);
@@ -722,6 +742,21 @@ bool XrdXrootdProtocol::ConfigFS(const char *path, XrdOucEnv &xEnv,
       }
    osFS->EnvInfo(&xEnv);
    return true;
+}
+  
+/******************************************************************************/
+/*                         C o n f i g R e d i r P I                          */
+/******************************************************************************/
+
+bool XrdXrootdProtocol::ConfigRedirPI(const char *path, XrdOucEnv &xEnv,
+                                      const char *cfn, const char *parms)
+{
+
+// Try to load this wrapper library
+//
+   TRACE(DEBUG, "Loading redirect plugin library " <<path);
+   RedirPI = XrdXrootdloadRedirLib(&eDest, RedirPI, path, parms, cfn, &xEnv);
+   return RedirPI != 0;
 }
   
 /******************************************************************************/
@@ -1524,6 +1559,88 @@ int XrdXrootdProtocol::xprep(XrdOucStream &Config)
            return 1;
           }
    return 0;
+}
+  
+/******************************************************************************/
+/*                                  x r d l                                   */
+/******************************************************************************/
+
+/* Function: xrdl
+
+   Purpose:  To parse the directive: redirlib [++] [<opts>] <libpath> [<parm>]
+
+             ++        Pushes a wrapper onto the library stack.
+             <opts>    Options:
+                       +iphold <time>
+             <libpath> load the named library as the head interface.
+             <parms>   optional parameters
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xrdl(XrdOucStream &Config)
+{
+    char *val;
+    char pbuff[4096];
+
+// Get the path
+//
+   if (!(val = Config.GetWord()))
+      {eDest.Emsg("Config", "redirlib path not specified"); return 1;}
+
+// First check for a psuhdown
+//
+   if (!strcmp("++", val))
+      {if (!(val = Config.GetWord()))
+          {eDest.Emsg("Config", "redrilib wrapper not specified"); return 1;}
+       if (RDLPath.empty())
+          {eDest.Emsg("Config", "base redrilib not specified"); return 1;}
+       if (*val == '+' && !(val = xrdlopt(Config, val))) return 1;
+       RDLPath.push_back((std::string)val);
+       if (!Config.GetRest(pbuff, sizeof(pbuff)))
+          {eDest.Emsg("Config", "redirlib parameters too long"); return 1;}
+       RDLParm.push_back((std::string)pbuff);
+       return 0;
+      } else if (*val == '+' && !(val = xrdlopt(Config, val))) return 1;
+
+// This is either a base library specification or a replacement
+//
+   if (RDLPath.empty()) RDLPath.push_back((std::string)val);
+      else RDLPath[0] = val;
+
+// Get the optional parameters
+//
+   if (!Config.GetRest(pbuff, sizeof(pbuff)))
+      {eDest.Emsg("Config", "redirlib parameters too long"); return 1;}
+   if (RDLParm.empty()) RDLParm.push_back((std::string)pbuff);
+      else RDLParm[0] = pbuff;
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+/*                               x r d r o p t                                */
+/******************************************************************************/
+  
+char* XrdXrootdProtocol::xrdlopt(XrdOucStream &Config, char* val)
+{
+    int num;
+
+// Check for valid options
+//
+do{if (!strcmp(val, "+iphold"))
+      {if (!(val = Config.GetWord()))
+          {eDest.Emsg("Config", "+iphold value not specified"); return 0;}
+       if (XrdOuca2x::a2tm(eDest,"redirlib iphold",val,&num,0)) return 0;
+       redirIPHold = num;
+      }
+  } while((val = Config.GetWord()) && *val == '+');
+
+// All done
+//
+   return val;
 }
 
 /******************************************************************************/

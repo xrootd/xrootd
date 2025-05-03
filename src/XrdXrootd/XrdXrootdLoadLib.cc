@@ -35,6 +35,7 @@
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdXrootd/XrdXrootdRedirPI.hh"
 
 /******************************************************************************/
 /*                 x r o o t d _ l o a d F i l e s y s t e m                  */
@@ -72,4 +73,33 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
 // All done
 //
    return FS;
+}
+
+/******************************************************************************/
+/*                X r d X r o o t d _ l o a d R e d i r L i b                 */
+/******************************************************************************/
+
+XrdXrootdRedirPI* XrdXrootdloadRedirLib(XrdSysError *eDest,
+                                        XrdXrootdRedirPI *prevPI,
+                                        const char *rdrlib,
+                                        const char *parms,
+                                        const char *cfn, XrdOucEnv *envP)
+{
+   static XrdVERSIONINFODEF(myVersion, XrdRdrLoader, XrdVNUMBER, XrdVERSION);
+   XrdOucPinLoader rdrLib(eDest, &myVersion, "redirlib", rdrlib);
+   XrdXrootdRedirPI_t ep;
+   XrdXrootdRedirPI *rdrPI = 0;
+
+// Get the plugin object creator and the resulting plugin
+//
+   if ((ep = (XrdXrootdRedirPI_t)rdrLib.Resolve("XrdXrootGetdRedirPI")))
+      rdrPI = (*ep)(prevPI, eDest->logger(), parms, cfn, envP);
+
+// Issue message if we could not load it
+//
+   if (!rdrPI) eDest->Emsg("Config","Unable to load redirect plugin via",rdrlib);
+
+// All done
+//
+   return rdrPI;
 }
