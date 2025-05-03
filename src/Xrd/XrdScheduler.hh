@@ -41,6 +41,7 @@ class XrdSysError;
 class XrdSysTrace;
 
 #define MAX_SCHED_PROCS 30000
+#define DFL_SCHED_PROCS  8192
 
 class XrdScheduler : public XrdJob
 {

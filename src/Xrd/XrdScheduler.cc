@@ -533,6 +533,11 @@ void XrdScheduler::setNproc(const bool limlower)
                max_Workers = static_cast<int>(theMax);
           else max_Workers = static_cast<int>(rlim.rlim_cur);
       }
+
+// The above may allow way too many threads. We make sure that the default
+// maximum threads is adhered to.
+//
+   if (max_Workers > DFL_SCHED_PROCS) max_Workers = DFL_SCHED_PROCS;
 #endif
 }
 
