@@ -33,6 +33,7 @@ target_sources(XrdServer
     XrdXrootdPio.cc        XrdXrootdPio.hh
     XrdXrootdPrepare.cc    XrdXrootdPrepare.hh
     XrdXrootdProtocol.cc   XrdXrootdProtocol.hh
+                           XrdXrootdRedirPI.hh
                            XrdXrootdReqID.hh
     XrdXrootdResponse.cc   XrdXrootdResponse.hh
     XrdXrootdStats.cc      XrdXrootdStats.hh

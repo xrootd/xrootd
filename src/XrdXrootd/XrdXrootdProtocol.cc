@@ -90,6 +90,7 @@ XrdScheduler         *XrdXrootdProtocol::Sched;
 XrdBuffManager       *XrdXrootdProtocol::BPool;
 XrdSysError          &XrdXrootdProtocol::eDest = XrdXrootd::eLog;
 XrdNetPMark          *XrdXrootdProtocol::PMark    = 0;
+XrdXrootdRedirPI     *XrdXrootdProtocol::RedirPI  = 0;
 XrdXrootdStats       *XrdXrootdProtocol::SI;
 XrdXrootdJob         *XrdXrootdProtocol::JobCKS   = 0;
 char                 *XrdXrootdProtocol::JobCKT   = 0;
@@ -105,6 +106,7 @@ int                   XrdXrootdProtocol::readWait;
 int                   XrdXrootdProtocol::Port;
 int                   XrdXrootdProtocol::Window;
 int                   XrdXrootdProtocol::tlsPort = 0;
+int                   XrdXrootdProtocol::redirIPHold = 8*60*60; // 8 Hours
 char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::JobLCL  = 0;
 char                  XrdXrootdProtocol::JobCKCGI=0;
