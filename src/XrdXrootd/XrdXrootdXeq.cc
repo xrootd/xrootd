@@ -29,6 +29,7 @@
 
 #include <cctype>
 #include <cstdio>
+#include <map>
 #include <string>
 #include <sys/time.h>
 
@@ -63,6 +64,7 @@
 #include "XrdXrootd/XrdXrootdPio.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
+#include "XrdXrootd/XrdXrootdRedirPI.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdWVInfo.hh"
@@ -3734,7 +3736,9 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
                                   << eMsg <<':' <<ecode);
                    }
           }
-       rs = Response.Send(kXR_redirect, ecode, eMsg, myError.getErrTextLen());
+       if (RedirPI) rs = fsRedirPI(eMsg, ecode, myError.getErrTextLen());
+          else rs = Response.Send(kXR_redirect, ecode, eMsg,
+                                  myError.getErrTextLen());
        if (myError.extData()) myError.Reset();
        return rs;
       }
@@ -3937,6 +3941,153 @@ int XrdXrootdProtocol::fsRedirNoEnt(const char *eMsg, char *Cgi, int popt)
    return Response.Send(kXR_redirect, ioV, 4, tlen);
 }
 
+/******************************************************************************/
+/*                             f s R e d i r I P                              */
+/******************************************************************************/
+
+namespace XrdXrootd
+{
+   struct netInfo
+         {XrdNetAddr   netAddr;
+          XrdSysMutex  niMutex;
+          char*        netID;
+          time_t       expTime = 0;
+          RAtomic_uint refs = {0};
+
+          netInfo(const char*id) : netID(strdup(id)) {} 
+         ~netInfo() {if (netID) free(netID);}
+         };
+}
+
+XrdXrootd::netInfo* XrdXrootdProtocol::fsRedirIP(const char *netID, int port)
+{
+   auto cmpchr = [](const char* a, const char* b) {return strcmp(a,b)<0;};
+   static std::map<const char*,XrdXrootd::netInfo*,decltype(cmpchr)> niMap(cmpchr);
+   static XrdSysMutex niMapMtx;
+
+   XrdXrootd::netInfo* niP;
+
+// First, chek if we have an entry for this item. We need a lock because
+// some oher thread may be adding a node to the map. Nodes are never deleted.
+//
+   niMapMtx.Lock();
+   auto it = niMap.find(netID);
+   if (it == niMap.end())
+      {niP = new XrdXrootd::netInfo(netID);
+       niMap[niP->netID] = niP;
+      } else niP = it->second;
+    niMapMtx.UnLock();
+    niP->niMutex.Lock();
+
+// Validate/initialize the corresponding netaddr object. For newly allocated
+// objects it is always done. For pre-exiting objects only when they expire.
+// Note: when expTime is zero then refs must be 1 and this is a 1st time init,
+//
+   time_t nowT = time(0);
+   niP->refs++;
+   if (niP->expTime <= nowT && niP->refs == 1)
+      {const char* eTxt = niP->netAddr.Set(netID, port);
+       if (eTxt)
+          {if (niP->expTime == 0)
+              {eDest.Emsg("RedirIP", "Unable to init NetInfo for", netID, eTxt);
+               niP->refs--;
+               niP->niMutex.UnLock();
+               return 0;
+              }
+           eDest.Emsg("RedirIP", "Unable to refresh NetInfo for", netID, eTxt);
+           niP->expTime += 60;
+          } else niP->expTime = nowT + redirIPHold;
+      }
+
+// We have valid network info on the target
+//
+   niP->niMutex.UnLock();
+   return niP;
+}
+
+/******************************************************************************/
+/*                             f s R e d i r P I                              */
+/******************************************************************************/
+
+int XrdXrootdProtocol::fsRedirPI(const char *trg, int port, int trglen)
+{
+   struct THandle
+         {XrdXrootd::netInfo* Info;
+                     THandle() : Info(0) {}
+                    ~THandle() {if (Info) Info->refs--;}
+         }       T;
+   std::string   Target;
+   int newPort = port;
+
+// Handle the most comman case first - a simple host and port.
+//
+   if (port >= 0)
+      {std::string TDst;
+       const char* TCgi = index(trg, '?');
+       if (!TCgi)  {TCgi = ""; TDst = trg;}
+          else TDst.assign(trg, TCgi-trg);
+       T.Info = fsRedirIP(TDst.c_str(), port);
+       if (!T.Info) return Response.Send(kXR_redirect, port, trg, trglen);
+       uint16_t TPort = static_cast<uint16_t>(newPort);
+       Target = RedirPI->Redirect(TDst.c_str(), TPort, TCgi, T.Info->netAddr,
+                                 *(Link->AddrInfo()));
+       newPort = static_cast<int>(TPort);
+      } else {
+
+// This is a url which requires additional handling. If the url is not
+// valid we skip calling the plugin as the situation is not salvageable
+// and the client will complain. We also require that the host and optional
+// port be atleast two characters long.
+//
+       std::string urlHead, TDst, urlPort;
+       const char* urlTail;
+       const char* hBeg = strstr(trg, "://");
+       if (!hBeg)
+          {eDest.Emsg("RedirPI", "Invalid redirect URL -", trg);
+           return Response.Send(kXR_redirect, port, trg, trglen);
+          }
+       hBeg += 3;
+       urlHead.assign(trg, hBeg-trg);
+       urlTail = strstr(hBeg, "/");
+       if (!urlTail) {urlTail = ""; TDst = hBeg;}
+          else {if (urlTail-hBeg < 3)
+                   {eDest.Emsg("RedirPI", "Mlalformed URL -", trg);
+                    return Response.Send(kXR_redirect, port, trg, trglen);
+                   }
+                TDst.assign(hBeg, urlTail-hBeg);
+               }
+       T.Info = fsRedirIP(TDst.c_str(), port);
+       if (!T.Info) return Response.Send(kXR_redirect, port, trg, trglen);
+       size_t colon = TDst.find(":");
+       if (colon != std::string::npos)
+          {urlPort.assign(TDst, colon+1, std::string::npos); 
+           TDst.erase(colon);
+          }
+       Target = RedirPI->RedirectURL(urlHead.c_str(), Target.c_str(),
+                                     urlPort.c_str(), urlTail, newPort,
+                                     T.Info->netAddr, *(Link->AddrInfo()));
+       if (port == -1 || newPort >= 0) newPort = port;
+      }
+
+// Handle the result of calling the plugin
+//
+   if (!Target.size()) return Response.Send(kXR_redirect, port, trg, trglen);
+
+   if (Target.front() != '!')
+      {TRACEI(REDIR, Response.ID() <<"plugin redirects to "
+                                   <<Target.c_str() <<" portarg="<<newPort);
+
+       return Response.Send(kXR_redirect,port,Target.c_str(),Target.size());
+      }
+
+// The redirect plgin enountered an error, so we bail.
+//
+   char mbuff[1024];
+   snprintf(mbuff,sizeof(mbuff),"Redirect failed; %s",Target.c_str());
+   eDest.Emsg("Xeq_RedirPI", mbuff);
+   return Response.Send(kXR_ServerError, mbuff);
+}
+  
 /******************************************************************************/
 /*                               g e t B u f f                                */
 /******************************************************************************/
