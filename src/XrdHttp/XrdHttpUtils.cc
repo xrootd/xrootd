@@ -365,11 +365,6 @@ int compareHash(
 
 }
 
-
-
-
-
-
 // unquote a string and return a new one
 
 char *unquote(char *str) {
@@ -441,6 +436,10 @@ char *quote(const char *str) {
         break;
       case '\r':
         strcpy(r + j, "%0D");
+        j += 3;
+        break;
+      case '=':
+        strcpy(r + j, "%3D");
         j += 3;
         break;
       default:

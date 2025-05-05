@@ -323,11 +323,9 @@ std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
     std::string authz;
     auto authz_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"authorization");
     if (authz_header != req.headers.end()) {
-        char * quoted_url = quote(authz_header->second.c_str());
         std::stringstream ss;
-        ss << "authz=" << quoted_url;
-        free(quoted_url);
-        authz = ss.str();
+        ss << "authz=" << encode_str(authz_header->second);
+        authz += ss.str();
     }
     return authz;
 }
