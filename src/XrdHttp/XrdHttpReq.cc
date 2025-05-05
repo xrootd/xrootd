@@ -585,14 +585,12 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
     redirdest += buf;
   }
 
-  redirdest += quote(resource.c_str());
+  redirdest += encode_str(resource.c_str()).c_str();
   
   // Here we put back the opaque info, if any
   if (vardata) {
-    char *newvardata = quote(vardata);
     redirdest += "?&";
-    redirdest += newvardata;
-    free(newvardata);
+    redirdest += encode_opaque(vardata).c_str();
   }
   
   // Shall we put also the opaque data of the request? Maybe not
@@ -643,24 +641,14 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
   // this works in most cases, except if the url already contains the xrdhttp tokens
   s = s + "?";
   if (!hdr2cgistr.empty()) {
-    char *s1 = quote(hdr2cgistr.c_str());
-    if (s1) {
-        s += s1;
-        free(s1);
-    }
+    s += encode_opaque(hdr2cgistr).c_str();
   }
   if (p && (l > 1)) {
-    char *s1 = quote(p+1);
-    if (s1) {
-      if (!hdr2cgistr.empty()) {
-        s = s + "&";
-      }
-      s = s + s1;
-      free(s1);
+    if (!hdr2cgistr.empty()) {
+      s = s + "&";
     }
+    s = s + encode_opaque(p + 1).c_str();
   }
-
-
 
   if (hash) {
     if (l > 1) s += "&";
@@ -675,76 +663,45 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
     if (secent) {
       if (secent->name) {
         s += "&xrdhttpname=";
-        char *s1 = quote(secent->name);
-        if (s1) {
-          s += s1;
-          free(s1);
+        s += encode_str(secent->name).c_str();
         }
       }
 
       if (secent->vorg) {
         s += "&xrdhttpvorg=";
-        char *s1 = quote(secent->vorg);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += encode_str(secent->vorg).c_str();
       }
 
       if (secent->host) {
         s += "&xrdhttphost=";
-        char *s1 = quote(secent->host);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += encode_str(secent->host).c_str();
       }
       
       if (secent->moninfo) {
         s += "&xrdhttpdn=";
-        char *s1 = quote(secent->moninfo);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += encode_str(secent->moninfo).c_str();
       }
 
       if (secent->role) {
         s += "&xrdhttprole=";
-        char *s1 = quote(secent->role);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += encode_str(secent->role).c_str();
       }
       
       if (secent->grps) {
         s += "&xrdhttpgrps=";
-        char *s1 = quote(secent->grps);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += encode_str(secent->grps).c_str();
       }
       
       if (secent->endorsements) {
         s += "&xrdhttpendorsements=";
-        char *s1 = quote(secent->endorsements);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += encode_str(secent->endorsements).c_str();
       }
       
       if (secent->credslen) {
         s += "&xrdhttpcredslen=";
         char buf[16];
         sprintf(buf, "%d", secent->credslen);
-        char *s1 = quote(buf);
-        if (s1) {
-          s += s1;
-          free(s1);
-        }
+        s += encode_str(buf).c_str();
       }
       
       if (secent->credslen) {
@@ -753,21 +710,13 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
           // Apparently this string might be not 0-terminated (!)
           char *zerocreds = strndup(secent->creds, secent->credslen);
           if (zerocreds) {
-            char *s1 = quote(zerocreds);
-            if (s1) {
-              s += s1;
-              free(s1);
-            }
+            s += encode_str(zerocreds).c_str();
             free(zerocreds);
           }
         }
       }
-      
     }
   }
-
-}
-
 
 // Sanitize the resource from the http[s]://[host]/ questionable prefix
 // https://github.com/xrootd/xrootd/issues/1675
@@ -817,11 +766,11 @@ void XrdHttpReq::parseResource(char *res) {
     // Some poor client implementations may inject a http[s]://[host]/ prefix
     // to the resource string. Here we choose to ignore it as a protection measure
     sanitizeResourcePfx();  
-    
-    char *buf = unquote((char *)resource.c_str());
-    resource.assign(buf, 0);
-    resourceplusopaque.assign(buf, 0);
-    free(buf);
+
+    std::string resourceDecoded = decode_str(resource.c_str());
+    resource = resourceDecoded.c_str();
+    resourceplusopaque = resourceDecoded.c_str();
+
     
     // Sanitize the resource string, removing double slashes
     int pos = 0;
@@ -843,9 +792,7 @@ void XrdHttpReq::parseResource(char *res) {
   // to the resource string. Here we choose to ignore it as a protection measure
   sanitizeResourcePfx();  
   
-  char *buf = unquote((char *)resource.c_str());
-  resource.assign(buf, 0);
-  free(buf);
+  resource = decode_str(resource.c_str()).c_str();
       
   // Sanitize the resource string, removing double slashes
   int pos = 0;
@@ -858,11 +805,10 @@ void XrdHttpReq::parseResource(char *res) {
   resourceplusopaque = resource;
   // Whatever comes after is opaque data to be parsed
   if (strlen(p) > 1) {
-    buf = unquote(p + 1);
-    opaque = new XrdOucEnv(buf);
+    std::string decoded = decode_str(p + 1);
+    opaque = new XrdOucEnv(decoded.c_str());
     resourceplusopaque.append('?');
     resourceplusopaque.append(p + 1);
-    free(buf);
   }
   
   
@@ -967,8 +913,8 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     resourceplusopaque.append((query_param_status == 1) ? '&' : '?');
 
-    char *q = quote(hdr2cgistr.c_str());
-    resourceplusopaque.append(q);
+    std::string hdr2cgistrEncoded = encode_opaque(hdr2cgistr);
+    resourceplusopaque.append(hdr2cgistrEncoded.c_str());
     if (TRACING(TRACE_DEBUG)) {
       // The obfuscation of "authz" will only be done if the server http.header2cgi config contains something that maps a header to this "authz" cgi.
       // Unfortunately the obfuscation code will be called no matter what is configured in http.header2cgi.
@@ -982,9 +928,8 @@ int XrdHttpReq::ProcessHTTPReq() {
     // apply to the destination in case of a MOVE.
     if (strchr(destination.c_str(), '?')) destination.append("&");
     else destination.append("?");
-    destination.append(q);
+    destination.append(hdr2cgistrEncoded.c_str());
 
-    free(q);
     m_appended_hdr2cgistr = true;
     }
 

@@ -574,3 +574,36 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
     ASSERT_EQ(false, static_cast<bool>(error));
   }
 }
+
+static inline const std::pair<std::string,std::string> encodedDecodedStrings [] {
+  {"zteos64%3AMDAF5PGJ4Wa12g%3D","zteos64:MDAF5PGJ4Wa12g="},
+  //"zteos64%3BAMDAF5PGJ4Wa12g%3B%3B",
+  {"xrootd_tpc-helloworld","xrootd_tpc-helloworld"},
+  {"",""},
+  //"zteos64:%%test",
+  {"Bearer%20token","Bearer token"},
+  {"%20%5B%5D%3A%23%3D%0A%0D"," []:#=\n\r"}
+};
+
+TEST(XrdHttpTests, strEncodeDecodeTest) {
+  for(auto [encoded,decoded]: encodedDecodedStrings) {
+    ASSERT_EQ(decode_str(encoded), decoded);
+    ASSERT_EQ(encoded, encode_str(decoded));
+    ASSERT_EQ(encode_str(decode_str(encoded)), encoded);
+    ASSERT_EQ(decode_str(encode_str(decoded)), decoded);
+  }
+}
+
+static inline const std::pair<std::string,std::string> decodedEncodedOpaque [] {
+  {"",""},
+  {"authz=Bearer token","authz=Bearer%20token"},
+  {"test=test1&authz=Bearer token","test=test1&authz=Bearer%20token"},
+  {"test=","test="},
+  {"test=&authz=Bearer token&authz2=[]","test=&authz=Bearer%20token&authz2=%5B%5D"}
+};
+
+TEST(XrdHttpTests,encodeOpaqueTest) {
+  for(auto [decoded,encoded]: decodedEncodedOpaque) {
+    ASSERT_EQ(encoded,encode_opaque(decoded));
+  }
+}
