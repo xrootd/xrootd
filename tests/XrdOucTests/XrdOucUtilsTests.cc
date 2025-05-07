@@ -55,6 +55,13 @@ static const std::string tokens[] = {
   "l5qaC5RVS8qwUCoryS6xK8zIrFBILCqwUQCqsEGpT8nMTM_MgAhC2QnpqvpVCcWlKvpWhkIKUmL3V"
   "4wPOwTNXqXcybNGTYjp9eOrjQr",
 
+  /* encoded eos token */
+  "zteos64%3AMDAwMDAyMGN4nON6z8jFXFReIbBj16edbBqMRmL6qfnF-snJiWlplfoZJSUF8SWpxSX6F"
+  "oxeKqlmhiapqWZGuonGpkm6hoapaboW5iaWummJhmbGqaamKZaJqUHzGaPdijIV_PLLFAxNgcjK0M"
+  "TK0EzByMDIJFahNDPFyiC6KD-_JFYhHYldkpmSmldiBeLoGRuYmBobW1iZGJs65OQnJ-Zk5BeXKOQ"
+  "l5qaC5RVS8qwUCoryS6xK8zIrFBILCqwUQCqsEGpT8nMTM_MgAhC2QnpqvpVCcWlKvpWhkIKUmL3V"
+  "4wPOwTNXqXcybNGTYjp9eOrjQr",
+
   /* demo scitoken */
   "eyJhbGciOiJSUzI1NiIsImtpZCI6ImtleS1yczI1NiIsInR5cCI6IkpXVCJ9.eyJ2ZXIiOiJzY2l0"
   "b2tlbjoyLjAiLCJhdWQiOiJodHRwczovL2RlbW8uc2NpdG9rZW5zLm9yZyIsImlzcyI6Imh0dHBzO"

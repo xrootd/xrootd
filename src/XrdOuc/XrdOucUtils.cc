@@ -1459,7 +1459,7 @@ static bool is_token_character(int c)
   if (isalnum(c))
     return true;
 
-  static constexpr char token_chars[] = "-._~+/=:";
+  static constexpr char token_chars[] = "-._~+/=:%";
 
   for (char ch : token_chars)
     if (c == ch)
