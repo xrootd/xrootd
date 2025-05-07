@@ -103,6 +103,10 @@ class TPCRequestManager final {
             bool IsIdle() const { return m_idle; }
             void SetIdle(bool idle) { m_idle = idle; }
             std::condition_variable m_cv;
+    
+            static int closesocket_callback(void *clientp, curl_socket_t fd);
+            static int opensocket_callback(void *clientp, curlsocktype purpose, struct curl_sockaddr *address);
+			static int sockopt_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose);
 
           private:
             bool RunCurl(CURLM *multi_handle, TPCRequest &request);
@@ -112,6 +116,7 @@ class TPCRequestManager final {
             TPCQueue &m_queue;
         };
 
+        static const long CONNECT_TIMEOUT = 60;
         bool m_done{false};
         const std::string m_label;
         std::vector<std::unique_ptr<TPCWorker>> m_workers;
