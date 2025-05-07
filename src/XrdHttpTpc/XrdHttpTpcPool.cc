@@ -5,6 +5,7 @@
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdSys/XrdSysError.hh>
+#include <XrdSys/XrdSysFD.hh>
 #include <algorithm>
 #include <sstream>
 #include <string>
@@ -27,7 +28,15 @@ void TPCRequestManager::TPCQueue::TPCWorker::RunStatic(TPCWorker *myself) { myse
 
 bool TPCRequestManager::TPCQueue::TPCWorker::RunCurl(CURLM *multi_handle, TPCRequestManager::TPCRequest &request) {
     CURLMcode mres;
-    mres = curl_multi_add_handle(multi_handle, request.GetHandle());
+    auto curl = request.GetHandle();
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
+    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, this);
+    curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
+    curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, this);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTDATA, this);
+
+    mres = curl_multi_add_handle(multi_handle, curl);
     if (mres) {
         std::stringstream ss;
         ss << "Failed to add transfer to libcurl multi-handle: HTTP library "
@@ -113,6 +122,86 @@ void TPCRequestManager::TPCQueue::TPCWorker::Run() {
     }
     curl_multi_cleanup(multi_handle);
     m_queue.Done(this);
+}
+
+/******************************************************************************/
+/*           s o c k o p t _ s e t c l o e x e c _ c a l l b a c k            */
+/******************************************************************************/
+
+/**
+ * The callback that will be called by libcurl when the socket has been created
+ * https://curl.se/libcurl/c/CURLOPT_SOCKOPTFUNCTION.html
+ *
+ * Note: that this callback has been replaced by the opensocket_callback as it
+ *       was needed for monitoring to report what IP protocol was being used.
+ *       It has been kept in case we will need this callback in the future.
+ */
+
+int TPCRequestManager::TPCQueue::TPCWorker::sockopt_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
+    //   TPCWorker *tpcWorker = (TPCWorker *)clientp;
+
+    //   if (purpose == CURLSOCKTYPE_IPCXN && tpcWorker &&
+    //   tpcWorker->m_pmark_manager.isEnabled()) {
+    //       // We will not reach this callback if the corresponding socket
+    //       could not have been connected
+    //       // the socket is already connected only if the packet marking is
+    //       enabled return CURL_SOCKOPT_ALREADY_CONNECTED;
+    //   }
+    return CURL_SOCKOPT_OK;
+}
+
+/******************************************************************************/
+/*                   o p e n s o c k e t _ c a l l b a c k                    */
+/******************************************************************************/
+/**
+ * The callback that will be called by libcurl when the socket is about to be
+ * opened so we can capture the protocol that will be used.
+ */
+
+int TPCRequestManager::TPCQueue::TPCWorker::opensocket_callback(void *clientp, curlsocktype purpose, struct curl_sockaddr *address) {
+    // Return a socket file descriptor (note the clo_exec flag will be set).
+    int fd = XrdSysFD_Socket(address->family, address->socktype, address->protocol);
+    // See what kind of address will be used to connect
+    if (fd < 0) {
+        return CURL_SOCKET_BAD;
+    }
+    // TPCWorker *tpcWorker = (TPCWorker *)clientp;
+
+    if (purpose == CURLSOCKTYPE_IPCXN && clientp) {
+        XrdNetAddr thePeer(&(address->addr));
+        //   rec->isIPv6 =  (thePeer.isIPType(XrdNetAddrInfo::IPv6)
+        //                   && !thePeer.isMapped());
+        std::stringstream connectErrMsg;
+
+        // if (!tpcWorker->m_pmark_manager.connect(fd, &(address->addr),
+        // address->addrlen, 									CONNECT_TIMEOUT, connectErrMsg)) {
+        // tpcWorker->m_queue.m_parent.m_log.Emsg(
+        // 	"TPCWorker:", "Unable to connect socket:",
+        // 	connectErrMsg.str().c_str());
+        // return CURL_SOCKET_BAD;
+        // }
+
+        // tpcWorker->m_pmark_manager.startTransfer();
+        // tpcWorker->m_pmark_manager.beginPMarks();
+    }
+
+    return fd;
+}
+
+/******************************************************************************/
+/*                   c l o s e s o c k e t _ c a l l b a c k */
+/******************************************************************************/
+/**
+ * The callback that will be called by libcurl when the socket is about to be
+ * closed so we can send the done packet marking information.
+ *
+ */
+
+int TPCRequestManager::TPCQueue::TPCWorker::closesocket_callback(void *clientp, curl_socket_t fd) {
+    // TPCWorker *tpcWorker = (TPCWorker *)clientp;
+
+    // tpcWorker->m_pmark_manager.endPmark(fd);
+    return close(fd);
 }
 
 void TPCRequestManager::TPCQueue::Done(TPCWorker *worker) {
