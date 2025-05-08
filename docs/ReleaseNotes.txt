@@ -6,6 +6,28 @@ Release Notes
 =============
 
 -------------
+Version 5.8.2
+-------------
+
++ **Minor bug fixes**
+  **[Server]** Correct handling of wait during redrive (#2480)
+  **[Server]** Enforce reasonable default thread limit of 8192 (#2468)
+  **[XrdHttp]** Add missing default HTTP status messages (#2486)
+  **[XrdHttp]** Handle '=' sign correctly in URL encoding/decoding (#2491)
+  **[XrdOuc]** Redact URL-encoded tokens with '%' character (#2500)
+  **[XrdPosix]** Map operation timeouts to ETIME (#2482)
+  **[XrdPss]** Implement the auto-stat protocol for XrdPss (#2454)
+  **[XrdSecsss]** Fix issues reported by clang-tidy static analysis
+  **[XrdSecsss]** Protect against buffer overflow due to large key name
+
++ **Miscellaneous**
+  **[CMake]** General modernization of the build system (#2453)
+  **[CMake]** Set stricter baseline compiler warning level
+  **[Misc]** Fix compiler warnings with C++20/23, GCC 15 and Clang 20
+  **[RPM]** Revert move to sysusers.d config file for user/group creation
+  **[Tests]** Set a discovery timeout for gtest_discover_tests (#2485)
+
+-------------
 Version 5.8.1
 -------------
 
