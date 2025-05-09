@@ -108,6 +108,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    utilsPath   = strdup("/usr/local/etc");
 
    metaBKP     = "arcBackup";
+   metaIDX     = "arcIndex";
    doneBKP     = 0;
    needBKP     = 0;
    dstRSE      = 0;
@@ -124,6 +125,11 @@ XrdOssArcConfig::XrdOssArcConfig()
    arfSfx      = strdup(".zip");
    arfSfxLen   = 4;
    mySep       = '~';
+
+   arcSZ_Skip  = false;
+   arcSZ_Want  = 0;  // The XrdOssArc_BkpUtils defines the default
+   arcSZ_MinV  = 0;
+   arcSZ_MaxV  = 0;
 
    if (getenv("XRDOSSARC_DEBUG") || getenv("XRDDEBUG"))
       ArcTrace.What |= TRACE_Debug;
@@ -224,6 +230,15 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
 //
    XrdOucEnv::Export("XRDOSSARC_MAXITEMS", r_maxItems);
 
+// Export archive size parameters if specified
+//
+   if (arcSZ_Want)
+      {char buff[1024];
+       snprintf(buff, sizeof(buff), "%lld %lld %lld %d", arcSZ_Want,
+                arcSZ_MinV, arcSZ_MaxV, (int)arcSZ_Skip);
+        XrdOucEnv::Export("XRDOSSARC_SIZE", buff);
+      }
+
 // Verify the archive path is usable (for now we are not using /archive)
 //
 //??? if (!Usable(arcvPathLFN, "archive path")) NoGo = true;
@@ -285,6 +300,12 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
       {XrdOucEnv::Export("XRDOSSARC_MSSROOT", MssComRoot);
        DEBUG("exporting XRDOSSARC_MSSROOT="<<MssComRoot);
       } else MssComRoot = strdup(""); 
+
+// Make sure all the required metadata keys have been defined
+//
+   DEBUG("Running "<<BkpUtilPath<<" addkey "<<metaBKP<<' '<<metaIDX);
+   if (BkpUtilProg->Run("addkey", metaBKP, metaIDX))
+      Elog.Emsg("Config","Unable to create/verify metadata keys; continuing...");
 
 // Start the backup process. 
 //
@@ -349,7 +370,8 @@ bool XrdOssArcConfig::ConfigProc(const char* drctv)
 
 // Process each directive
 //
-        if (!strcmp(drctv, "backup"))  return xqBkup();
+        if (!strcmp(drctv, "arcsize")) return xqArcsz();
+   else if (!strcmp(drctv, "backup"))  return xqBkup();
    else if (!strcmp(drctv, "msscmd"))
            return xqGrab("msscmd", MssComCmd, Conf->LastLine());
    else if (!strcmp(drctv, "paths"))  return xqPaths();
@@ -512,29 +534,91 @@ bool XrdOssArcConfig::Usable(const char* path, const char* what, bool useOss)
 }
 
 /******************************************************************************/
-/* Private:                       x q G r a b                                 */
+/* Private:                      x q A r c s z                                */
 /******************************************************************************/
-  
-bool XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
-                            const char* theLine)
-{
-   const char* tP;
+/*
+  arcsize <target> [range <min> <max>] [skip]
+*/
 
-// Get all text after the direcive keyword in the last line
+namespace
+{
+bool getVal(XrdOucGatherConf* Conf, const char* what, long long& theval,
+            long long minV, long long maxV)
+{
+   char* token;
+
+// Get next token
 //
-   if ((tP = index(theLine, ' '))) while(*tP == ' ') tP++;
-   if (!tP || !(*tP))
-      {Conf->MsgfE("%s argument not specified!", what);
+   if (!(token = Conf->GetToken()))
+      {Conf->MsgE(what, "value not specified!"); return false;}
+
+// Convert it
+//
+   if (XrdOuca2x::a2sz(Elog,what, token, &theval, minV, maxV))
+      {Conf-> EchoLine();
        return false;
       }
 
-// Replace the new argument with the old one
+// All done, success
 //
-   if (theDest) free(theDest);
-   theDest = strdup(tP);
    return true;
 }
+}
 
+bool XrdOssArcConfig::xqArcsz()
+{
+   static const long long MinV =      104857600LL; // minimum value 100 MB
+   static const long long MaxV = 500*1073741824LL; // maximum value 500 GB
+
+   char* token;
+   long long tVal, minVal = 0, maxVal = 0;
+
+// Get first value which is the target size
+//
+   if (!getVal(Conf, "arcsize target", tVal, MinV, MaxV)) return false;
+
+// Get optional arguments   
+//
+   while((token = Conf->GetToken()))
+        {if (!strcmp(token, "range"))
+            {if (!getVal(Conf, "arcsize range minimum", minVal, MinV, MaxV))
+                return false;
+             if (!getVal(Conf, "arcsize range maximum", maxVal, MinV, MaxV))
+                return false;
+             if (minVal > maxVal)
+                {Conf->MsgE("arcsize range minimum is greater than maximum!");
+                 return false;
+                }
+             if (tVal < minVal || tVal > maxVal)
+                {Conf->MsgE("arcsize target value out of specified range!");
+                 return false;
+                }
+            } else if (!strcmp(token, "skip"))
+                      {arcSZ_Skip = true;
+            } else {
+             Conf->MsgE("Invalid arcsize option -", token);
+             return false;
+            }
+        }
+        
+// If no range has been specified, provide one
+//
+   if (!minVal)
+      {minVal = tVal/2;
+       maxVal = tVal*2;
+      }
+
+// Set the values in common area
+//
+   arcSZ_Want = tVal;
+   arcSZ_MinV = minVal;
+   arcSZ_MaxV = maxVal;
+
+// Return success
+//
+   return true;
+}
+  
 /******************************************************************************/
 /* Private:                       x q B k u p                                 */
 /******************************************************************************/
@@ -657,6 +741,30 @@ do{auto rslt = bkpScopes.insert(std::string(scope));
     
    return true;
 }  
+
+/******************************************************************************/
+/* Private:                       x q G r a b                                 */
+/******************************************************************************/
+  
+bool XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
+                            const char* theLine)
+{
+   const char* tP;
+
+// Get all text after the direcive keyword in the last line
+//
+   if ((tP = index(theLine, ' '))) while(*tP == ' ') tP++;
+   if (!tP || !(*tP))
+      {Conf->MsgfE("%s argument not specified!", what);
+       return false;
+      }
+
+// Replace the new argument with the old one
+//
+   if (theDest) free(theDest);
+   theDest = strdup(tP);
+   return true;
+}
   
 /******************************************************************************/
 /* Private:                      x q P a t h s                                */
