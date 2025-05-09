@@ -101,7 +101,7 @@ struct XrdXrootdWVInfo;
   
 namespace XrdXrootd
 {
-class netInfo;
+struct netInfo;
 
 /******************************************************************************/
 /*                            g d C a l l B a c k                             */
