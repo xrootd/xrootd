@@ -34,7 +34,7 @@ except Exception as e:
 def Emsg(rc, txt):
    print('OssArc_BkupUtils:', txt, file=sys.stderr)
    if (rc < 0):
-      print("Usage: addkey <key>")
+      print("Usage: addkey <key> [<key [...]]")
       print("       list   <key> <value> <scope> <eolval>")
       print("       qkey   <key>         <scope> <dsname>")
       print("       set    <key> <value> <scope> <dsname>")
@@ -42,6 +42,151 @@ def Emsg(rc, txt):
       rc = -rc
    if rc:
       sys.exit(rc)
+
+#******************************************************************************
+#*                                A d d K e y                                 *
+#******************************************************************************
+
+def AddKey(keys):
+   metaclient = MetaClient()
+
+   # Get all current keys
+   #
+   try:
+      allkeys = metaclient.list_keys()
+   except Exception as e:
+         Emsg(8, 'Unable to list keys: {}'.format(key, e))
+
+   # Add all missing keys
+   #
+   for key in keys:
+      if not key in allkeys:
+         try:
+            metaclient.add_key(key=key, key_type='COLLECTION')
+            if Debug: Emsg(0, "Metadata key '{}' added.".format(key))
+         except Exception as e:
+            Emsg(8, 'Unable to add key {}: {}'.format(key, e))
+      elif Debug: Emsg(0, "Metadata key '{}' exists.".format(key))
+
+   return True
+
+#******************************************************************************
+#*                              a r c S p l i t                               *
+#******************************************************************************
+  
+def arcSplit(didVec, optSZ, minSZ, maxSZ):
+   noGo = False
+   vecSet = [] # Holds didVec grouped by conforming sizes
+   vecMD  = [] # Holds medata description about vecSet
+
+   # Now we try to group didVec entries to be about optSZ but not smaller
+   # than maxSZ. Failure to do so is indicated by setting noGo to true.
+   #
+   curSize = 0
+   curVec  = []
+   while (len(didVec) > 0):
+       didSZ = didVec[0][2]
+       newSize = curSize + didSZ 
+       if newSize < optSZ:
+          curVec.append(didVec.pop(0))
+          curSize = newSize
+       elif newSize <= maxSZ:
+          curVec.append(didVec.pop(0))
+          vecSet.append(curVec)
+          vecMD.append([len(curVec),newSize])
+          curSize = 0
+          curVec = []
+       else:
+          if len(curVec) == 0:
+             noGo = True
+             vecSet.append([didVec.pop(0)])
+             vecMD.append([1, newSize])
+          else:
+             if curSize < minSZ:
+                noGo = True
+             vecSet.append(curVec)
+             vecMD.append([len(curVec), curSize])
+             curVec = []
+             curSize = 0
+
+   # Handle any residual memvec entries not included in vecSet. The residual
+   # may create an additional vecSet member if it is conformable, or it may
+   # be added to the last member of vecSet. Ideally, we would rebalance
+   # vecSet to avoid violating maxSZ but better too large than too small.
+   #
+   if len(curVec) > 0:
+      if curSize < minSZ:
+         if len(vecSet) > 0:
+            vsEnd = vecMD[-1]
+            if vsEnd[1] + curSize > maxSZ:
+               noGo = True
+            vecMD[-1] = [vsEnd[0]+len(curVec), vsEnd[1] + curSize]
+            for x in curVec: vecSet[-1].append(x)
+         else:
+            vecSet.append(curVec)
+            vecMD.append([len(curVec), curSize])
+      else:
+         vecSet.append(curVec)
+         vecMD.append([len(curVec), curSize])
+
+   # Compute the ordinal metadata vector that can be used to locate which
+   # set has the desired file using the original input file set.
+   #
+   if len(vecMD) > 1:
+      ordN = vecMD[0][0]
+      ordV = [ordN]
+      for vsEnt in vecMD[1:-1]:
+         ordN = ordN + vsEnt[0]
+         ordV.append(ordN)
+      ordMD = ' '.join(list(map(str, ordV)))
+   else:
+      ordMD = '' 
+   return noGo, ordMD, vecSet, vecMD 
+       
+#******************************************************************************
+#*                            a r c S y m l i n k                             *
+#******************************************************************************
+  
+def arcSymlink(lfn2pfn, dsnDir, subDir=""):
+
+   # If we need place the symlink in a subdirectory, create it, and chdir
+   # to it, this is used when we are creating multiple archives.
+   #
+   if subDir: 
+      if not os.path.exists(subDir):
+         dsnDir = "{}/{}".format(dsnDir, subDir)
+         try:
+            os.mkdir(subDir)
+         except Exception as e:
+            Emsg(8, "Unable to create path {}: {}".format(dsnDir, e))
+      try:
+         os.chdir(subDir)
+      except Exception as e:
+          Emsg(errno.ENOENT, "Unable to chdir to {}: {}".format(dsnDir, e))
+
+   # now create all the symlinks using the lfn pointing to the pfn
+   #
+   for fnMap in lfn2pfn:
+      lfn  = fnMap[0]
+      pfn  = fnMap[1]
+      ldir = os.path.dirname(lfn)
+      if ldir and lfn != '/':
+         try:
+            os.makedirs(ldir, 0o775, exist_ok=True)
+         except Exception as e:
+            Emsg(8, "Unable to recreate path {}{}: {}".format(dsnDir, ldir, e))
+      try:
+         os.symlink(pfn, lfn)
+      except Exception as e:
+         Emsg(8, "Unable to create symlink {} -> {}: {}".format(lfn,  pfn, e))
+
+   # If we changed the current working directory, set it back to what it was
+   #
+   if subDir:
+      try:
+         os.chdir("..")
+      except Exception as e:
+          Emsg(errno.ENOENT, "Unable to chdir .. from {}: {}".format(dsnDir,e))
 
 #******************************************************************************
 #*                           G e t _ l f n 2 p f n                            *
@@ -52,15 +197,33 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
    if Debug: Emsg(0, 'list_files({}, {})'.format(scope,dsn))
    DIDclient = DIDClient()
    try:
-      lfnVec = DIDclient.list_files(scope, dsn)
+      didVec = DIDclient.list_files(scope, dsn)
    except Exception as e:
       Emsg(8, "Error getting lfns: {}".format(e))
 
+   # Convert an object list to a standard list so we can sort it.
+   #
+   lfnVec = []
+   for file in didVec:
+      lfnVec.append([file['scope'], file['name'], file['bytes']])
+
+   # We must sort the lfns in order to be able to figure out which archive
+   # the file was placed in should we need to spill over into multiple ones.
+   # Also note that the sort key must include the scope due to collections.
+   #
+#  lfnVec.sort(key=lambda x: x['scope']+x['name'])
+   lfnVec.sort(key=lambda x: x[0]+':'+x[1])
+
    qryVec = []
+   sizVec = []
    totBytes = 0
    for file in lfnVec:
-      qryVec.append({'scope':file['scope'], 'name':file['name']})
-      totBytes += file['bytes']
+      qryVec.append({'scope':file[0], 'name':file[1]})
+#     qryVec.append({'scope':file['scope'], 'name':file['name']})
+#     sizVec.append(file['bytes'])
+      sizVec.append(file[2])
+      totBytes += file[2]
+#     totBytes += file['bytes']
    totFiles = len(qryVec)
 
    # Get the replicas for the specified data
@@ -78,8 +241,7 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
       except Exception as e:
          Emsg(0, "XRDOSSARC_MAXITEMS={} is not an integer ({})".format(x, e))
 
-   if Debug:
-      Emsg(0, 'Rucio maxitems = {}'.format(maxitems))
+   if Debug: Emsg(0, 'Rucio maxitems = {}'.format(maxitems))
 
    while (len(qryVec) > 0):
       try:
@@ -87,7 +249,8 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
          for replica in replicas:
             pfn = pfnPFX + urlparse(replica["rses"][rse][0]).path
             did = qryVec.pop(0)
-            lfn2pfn.append([did['scope'] + ':' + did['name'], pfn])
+            siz = sizVec.pop(0)
+            lfn2pfn.append([did['scope'] + ':' + did['name'], pfn, siz])
       except Exception as e:
          Emsg(8, "Error getting pfns: {}".format(e))
   
@@ -96,23 +259,6 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
                                                       totBytes))
 
    return totFiles, totBytes, lfn2pfn
-
-#******************************************************************************
-#*                                A d d K e y                                 *
-#******************************************************************************
-
-def AddKey(key):
-   metaclient = MetaClient()
-
-   # Get all current keys and check if this key is already in tghe set
-   #
-   try:
-      allkeys = metaclient.list_keys()
-      if not key in allkeys:
-         metaclient.add_key(key=key, key_type='COLLECTION')
-   except Exception as e:
-      Emsg(8, 'Unable to add key {}: {}'.format(key, e))
-   return True
 
 #******************************************************************************
 #*                               L S _ B k u p                                *
@@ -198,10 +344,24 @@ def Set_Backup(argv):
    try:
       DIDclient.set_metadata(theScope, dsname, key, kval)
    except Exception as e:
-      Emsg(8, "Unable to set backup status to {}: {}:".format(kval, e))
+      {Emsg(8, "Unable to set {}:{} backup status to {}: {}".
+               format(theScope, dsname, kval, e))
+      }
 
    return True
 
+#******************************************************************************
+#*                               S e t _ K e y                                *
+#******************************************************************************
+
+def Set_Key(theScope, dsname, key, kval):
+  
+   try:
+      DIDclient.set_metadata(theScope, dsname, key, kval)
+   except Exception as e:
+      Emsg(8, "Unable to set {}:{} metadata key {}: {}:".format(theScope,
+              dsname, key, e))
+  
 #******************************************************************************
 #*                                 S e t u p                                  *
 #******************************************************************************
@@ -233,8 +393,7 @@ def Setup(argv):
    #
    if Debug:
       Emsg(0, "RSE={} dsn={}:{} dsnDir={} pfnPFX={}".format(theRSE, theScope,
-                                                            theDSN, dsnDir,
-                                                            pfnPFX))
+                                                     theDSN, dsnDir, pfnPFX))
    
    # Set out working directory to the root of the dataset members
    #
@@ -276,28 +435,56 @@ def Setup(argv):
    if totFiles != len(lfn2pfn) or not totFiles:
       Emsg(errno.ENODATA, "Dataset {}:{} is empty!".format(theScope, theDSN))
 
-   # now create all the symlinks using the lfn pointing to the pfn
+   # Check if we want to possibly split this archive into segments
    #
-   for fnMap in lfn2pfn:
-      Emsg(0,fnMap)
-      lfn  = fnMap[0]
-      pfn  = fnMap[1]
-      ldir = os.path.dirname(lfn)
-      if ldir and lfn != '/':
-         try:
-            os.makedirs(ldir, bMode, exist_ok=True)
-         except Exception as e:
-            Emsg(8, "Unable to recreate path {}{}: {}".format(dsnDir, ldir, e))
+   x = os.getenv("XRDOSSARC_SIZE", None)
+   if x is not None:
       try:
-         os.symlink(pfn, lfn)
+         nparms = x.split()
+         if len(nparms) < 4:
+            Emsg(errno.EINVAL,"XRDOSSARC_SIZE={} has too few args!").format(x)
+         wantSZ = int(nparms[0])
+         aminSZ = int(nparms[1])
+         amaxSZ = int(nparms[2])
+         doSkip = int(nparms[3])
       except Exception as e:
-         Emsg(8, "Unable to create symlink {} -> {}: {}".format(lfn,  pfn, e))
+         Emsg(errno.EINVAL,"XRDOSSARC_SIZE={} has non-integers ({})".format(x,e))
+   else:
+      amaxSZ = None
+      doSkip = False
+
+   if Debug: Emsg(0, 'XRDOSSARC_SIZE = {}'.format(x))
+
+   # If split archives allowed, perform the split as requested
+   #
+   if amaxSZ:
+      noGo, ordMD, arcSet, arcMD = arcSplit(lfn2pfn,wantSZ,aminSZ,amaxSZ)
+      if noGo and doSkip:
+         Set_Backup("arcBackup", "Skip", theScope, theDSN)
+         {Emsg(16,"Unable to split {}:{} into conforming archives; skipping")
+                   .format(theScope, theDSN)
+         }
+      Set_Key(theScope, theDSN, "arcIndex", ordMD)
+      numArcs = len(arcMD)
+      arcNum = 0
+      for arcFiles in arcSet: 
+          arcNum = arcNum + 1
+          subDir = "~{}".format(arcNum)
+          arcSymlink(arcFiles, dsnDir, subDir)
+          arcEnt = arcMD.pop(0)
+          if Debug:
+             {Emsg(0, "Created {} symlinks in {}/{} for {} bytes".
+                       format(arcEnt[0], dsnDir, subDir, arcEnt[1]))
+             }
+   else:
+      numArcs = 1
+      arcSymlink(lfn2pfn, dsnDir, '~1')
 
    # We are done, tell caller how big the setup is
    #
-   if Debug:
-      Emsg(0, "Done! {} DS {}:{} has {} files totaling  {} bytes".format(theRSE,
-               theScope, theDSN, totFiles, totBytes))
+   {Emsg(0, "Setup {} {}:{} for {} archive(s) totalling {} files and {} bytes".
+            format(theRSE, theScope, theDSN, numArcs, totFiles, totBytes))
+   }
 
    print(totFiles, totBytes)
    return(0)
@@ -330,7 +517,7 @@ def Main(argv):
    # Process the command
    #
    if (cmd == "addkey"):                   
-      AddKey(argv[1])
+      AddKey(argv[1:])
       return 0
 
    if (cmd == "list"):                   

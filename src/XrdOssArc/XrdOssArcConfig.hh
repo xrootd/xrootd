@@ -81,6 +81,7 @@ char*       utilsPath;     // Default path to utils
 // Miscellaneous
 //
 const char* metaBKP;       // Metadat variable name
+const char* metaIDX;       // Metadat variable name
 char*       doneBKP;       // Metadata value indicating a backup completed
 char*       needBKP;       // Metadata value indicating a backup is needed
 char*       dstRSE;        // The name of the dest rse (our name)
@@ -97,6 +98,11 @@ char*       arfSfx;        // Archive file suffix
 int         arfSfxLen;     // Length of the above
 char        mySep;         // Slash replacement separator
 
+bool        arcSZ_Skip;    // When true skip archiving if size can't be met
+long long   arcSZ_Want;    // Preferred size of archive
+long long   arcSZ_MinV;    // Minimum size archive can have
+long long   arcSZ_MaxV;    // Maximum size archive can have
+
 private:
 void ConfigPath(char** pDest, const char* pRoot);
 bool ConfigProc(const char* drctv);
@@ -104,6 +110,7 @@ bool ConfigXeq(const char* cfName, const char* parms, XrdOucEnv* envP);
 bool MissArg(const char* what);
 bool Usable(const char* path, const char* what, bool useOss=true);
 bool xqGrab(const char* what, char*& theDest, const char* theLine);
+bool xqArcsz();
 bool xqBkup();
 bool xqBkupPS(char* tval);
 bool xqBkupScope();
