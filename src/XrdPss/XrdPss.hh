@@ -60,7 +60,7 @@ int     Readdir(char *buff, int blen) override;
 // the memory referred to from the pointer.
 //
 // Returns -errno on failure; otherwise, returns 0 and stashes away the pointer.
-int     StatRet(struct stat *buf);
+int     StatRet(struct stat *buf) override;
 
         // Constructor and destructor
         XrdPssDir(const char *tid)
