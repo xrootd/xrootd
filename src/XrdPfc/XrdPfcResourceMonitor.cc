@@ -47,11 +47,11 @@ void ResourceMonitor::CrossCheckIfScanIsInProgress(const std::string &lfn, XrdSy
 {
    m_dir_scan_mutex.Lock();
    if (m_dir_scan_in_progress) {
-      m_dir_scan_open_requests.push_back({lfn, cond});
-      LfnCondRecord &lcr = m_dir_scan_open_requests.back();
+      bool dir_checked = false;
+      m_dir_scan_open_requests.push_back({lfn, cond, dir_checked});
       cond.Lock();
       m_dir_scan_mutex.UnLock();
-      while ( ! lcr.f_checked)
+      while ( ! dir_checked)
          cond.Wait();
       cond.UnLock();
    } else {
@@ -85,6 +85,9 @@ void ResourceMonitor::cross_check_or_process_oob_lfn(const std::string &lfn, FsT
    // the DirState accordingly (partially processed oob).
    static const char *trc_pfx = "cross_check_or_process_oob_lfn() ";
 
+   // last-existing-dir-state is currently not used. It was expected some work would need
+   // to be done along the path ... but we know they are all empty as they were just
+   // created. We could tag them all as already scanned.
    DirState *last_existing_ds = nullptr;
    DirState *ds = m_fs_state.find_dirstate_for_lfn(lfn, &last_existing_ds);
    if (ds->m_scanned)
@@ -179,11 +182,9 @@ bool ResourceMonitor::perform_initial_scan()
    if ( ! fst.begin_traversal(root_ds, "/"))
       return false;
 
-   {
-      XrdSysMutexHelper _lock(m_dir_scan_mutex);
-      m_dir_scan_in_progress = true;
-      m_dir_scan_check_counter = 0; // recheck oob file-open requests periodically.
-   }
+   // The following are initialized in ResourceMonitor.hh to avoid a race at startup:
+   //   m_dir_scan_in_progress = true;
+   //   m_dir_scan_check_counter = 0;
 
    scan_dir_and_recurse(fst);
 
@@ -195,17 +196,17 @@ bool ResourceMonitor::perform_initial_scan()
       XrdSysMutexHelper _lock(m_dir_scan_mutex);
       m_dir_scan_in_progress = false;
       m_dir_scan_check_counter = 0;
+   }
+   // m_dir_scan_open_requests should now be final, ie, no new entries will be added.
+   while ( ! m_dir_scan_open_requests.empty())
+   {
+      LfnCondRecord &lcr = m_dir_scan_open_requests.front();
+      lcr.f_cond.Lock();
+      lcr.f_checked = true;
+      lcr.f_cond.Signal();
+      lcr.f_cond.UnLock();
 
-      while ( ! m_dir_scan_open_requests.empty())
-      {
-         LfnCondRecord &lcr = m_dir_scan_open_requests.front();
-         lcr.f_cond.Lock();
-         lcr.f_checked = true;
-         lcr.f_cond.Signal();
-         lcr.f_cond.UnLock();
-
-         m_dir_scan_open_requests.pop_front();
-      }
+      m_dir_scan_open_requests.pop_front();
    }
 
    // Do upward propagation of usages.
