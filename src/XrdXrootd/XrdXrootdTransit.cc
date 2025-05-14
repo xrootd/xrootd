@@ -398,7 +398,10 @@ void XrdXrootdTransit::Recycle(XrdLink *lp, int consec, const char *reason)
 // Note that Recycle() can only be called if the link is enabled. So, this bit
 // of code is improbable but we check it anyway.
 //
-   if (runWait > 0) Sched->Cancel(&waitJob);
+   if (runWait > 0) {
+       TRACEP(EMSG, "WARNING: Recycle is canceling wait job; the wait job might already be running during recycle.");
+       Sched->Cancel(&waitJob);
+   }
 
 // First we need to recycle the real protocol
 //
