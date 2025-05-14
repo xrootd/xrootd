@@ -38,6 +38,8 @@
 
 #include "Xrd/XrdObject.hh"
 
+#include <atomic>
+
 //-----------------------------------------------------------------------------
 //! Transit
 //!
@@ -206,7 +208,11 @@ char                        *runArgs;
 int                          runALen;
 int                          runABsz;
 int                          runError;
-int                          runStatus;
+
+ // Set to 1 if there is a xroot request to the bridge; 0 otherwise.  Used to prevent multiple
+ // active requests from going on at once for a given link - or for disconnecting while a
+ // request is ongoing.
+std::atomic<int>             runStatus;
 int                          runWait;
 int                          runWTot;
 int                          runWMax;
