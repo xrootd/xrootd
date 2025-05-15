@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -Eexo pipefail
-
 # Skip on macOS due to missing 'declare -A' support
 
 # Check for required commands
@@ -28,12 +26,12 @@ check_commands() {
 }
 
 function error() {
-	echo "error: $*" >&2; exit 1;
+    echo "error: $*" >&2; exit 1;
 }
 
 # shellcheck disable=SC2317
 function assert() {
-	echo "$@"; "$@" || error "command \"$*\" failed";
+    echo "$@"; "$@" || error "command \"$*\" failed";
 }
 
 # $1 is expected_value $2 is received value $3 is the error message
@@ -43,7 +41,7 @@ function assert_eq() {
 
 # shellcheck disable=SC2317
 function assert_failure() {
-	echo "$@"; "$@" && error "command \"$*\" did not fail";
+    echo "$@"; "$@" && error "command \"$*\" did not fail";
 }
 
 check_commands "${ADLER32}" "${CRC32C}" "${XRDCP}" "${XRDFS}" "${OPENSSL}" "${CURL}"
@@ -65,12 +63,12 @@ declare -a hosts_abbrev=(
 )
 
 setup_scitokens() {
-	if ! ${XRDSCITOKENS_CREATE_TOKEN} "${XRDSCITOKENS_ISSUER_DIR}"/issuer_pub_1.pem "${XRDSCITOKENS_ISSUER_DIR}"/issuer_key_1.pem test_1 \
-		"https://localhost:7095/issuer/one" "storage.modify:/ storage.create:/ storage.read:/" 1800 > "${PWD}/generated_tokens/token"; then
-		echo "Failed to create token"
-		exit 1
-	fi
-	chmod 0600 "$PWD/generated_tokens/token"
+    if ! ${XRDSCITOKENS_CREATE_TOKEN} "${XRDSCITOKENS_ISSUER_DIR}"/issuer_pub_1.pem "${XRDSCITOKENS_ISSUER_DIR}"/issuer_key_1.pem test_1 \
+        "https://localhost:7095/issuer/one" "storage.modify:/ storage.create:/ storage.read:/" 1800 > "${PWD}/generated_tokens/token"; then
+        echo "Failed to create token"
+        exit 1
+    fi
+    chmod 0600 "$PWD/generated_tokens/token"
 }
 
 # Cleanup function
@@ -144,17 +142,32 @@ upload_file() {
     local local_file=$1
     local remote_file=$2
     local protocol=$3
+    local scitag_flow=$4
     local http_code
 
     if [[ -z "${protocol}" || "${protocol}" == "root" ]]; then
+        if [[ -n "${scitag_flow}" ]]; then
+            remote_file="${remote_file}?scitag.flow=${scitag_flow}"
+        fi
         ${XRDCP} "${local_file}" "${remote_file}"
     elif [[ "${protocol}" == "http" ]]; then
-        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -v -o /dev/null -w "%{http_code}" \
+        remote_file="${remote_file/root:\/\//https:\/\/}"
+        if [[ -n "${scitag_flow}" ]]; then
+        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${BEARER_TOKEN}" \
+            -H "Transfer-Encoding: chunked" \
+            -H "Scitag: ${scitag_flow}" \
+            --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+            --data-binary "@${local_file}" "${remote_file}" \
+            2>&1 1>&3 | cat >&2)
+        else
+        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${BEARER_TOKEN}" \
             -H "Transfer-Encoding: chunked" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             --data-binary "@${local_file}" "${remote_file}" \
             2>&1 1>&3 | cat >&2)
+        fi
 
         echo "$http_code"
     else
@@ -187,9 +200,14 @@ perform_http_tpc() {
     local token_src=$4
     local token_dst=$5
     local file_suffix=$6
+    local scitag_flow=$7
 
     if [[ -z "${file_suffix}" ]]; then
         file_suffix=""
+    fi
+
+    if [[ -z "${scitag_flow}" ]]; then
+        scitag_flow=66
     fi
 
     local src_file_http="${hosts_http[$src_idx]}/${RMTDATADIR}/${src}${file_suffix}.ref"
@@ -205,6 +223,7 @@ perform_http_tpc() {
             -H "Destination: ${dst_file_http}" \
             -H "Authorization: Bearer ${token_dst}" \
             -H "TransferHeaderAuthorization: Bearer ${token_src}" \
+            -H "Scitag: ${scitag_flow}" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             "${src_file_http}")
     elif [[ "$mode" == "pull" ]]; then
@@ -213,6 +232,7 @@ perform_http_tpc() {
             -H "Source: ${src_file_http}" \
             -H "Authorization: Bearer ${token_src}" \
             -H "TransferHeaderAuthorization: Bearer ${token_dst}" \
+            -H "Scitag: ${scitag_flow}" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             "${dst_file_http}")
     else
