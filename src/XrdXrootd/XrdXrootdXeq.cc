@@ -1466,8 +1466,8 @@ int XrdXrootdProtocol::do_Open()
      if (Route[RD_open1].Host[rdType])
        ropt = RPList.Validate(fn);
      else
-       if (Route[RD_write].Host[rdType] && ('w' == usage || strchr(op, 'd')))
-         ropt = RD_write;
+       if (Route[RD_openw].Host[rdType] && ('w' == usage || strchr(op, 'd')))
+         ropt = RD_openw;
      if (ropt > 0)
        return Response.Send(
          kXR_redirect, Route[ropt].Port[rdType],

@@ -1563,13 +1563,13 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
         {"locate",   RD_locate},
         {"mkdir",    RD_mkdir},
         {"mv",       RD_mv},
+        {"openw",    RD_openw},
         {"prepare",  RD_prepare},
         {"prepstage",RD_prepstg},
         {"rm",       RD_rm},
         {"rmdir",    RD_rmdir},
         {"stat",     RD_stat},
         {"trunc",    RD_trunc},
-        {"write",    RD_write}
        };
     static const int rHLen = 264;
     char rHost[2][rHLen], *hP[2], *val;
