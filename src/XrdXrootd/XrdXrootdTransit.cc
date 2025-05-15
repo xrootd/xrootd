@@ -462,7 +462,6 @@ void XrdXrootdTransit::Redrive()
           TRACEP(REQ, "Bridge redrive callback rc="<<rc
                       <<" runStatus="<<runStatus.load(std::memory_order_acquire));
         }
-        runStatus.store(0, std::memory_order_release);
       } while((rc == 0) && !runError && !runWait);
    }
       else rc = Send(kXR_error, ioV, 2, 0);
