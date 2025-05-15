@@ -32,6 +32,7 @@
 
 #include <sys/types.h>
 
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -213,7 +214,7 @@ int                          runError;
  // active requests from going on at once for a given link - or for disconnecting while a
  // request is ongoing.
 std::atomic<int>             runStatus;
-int                          runWait;
+RAtomic_int                  runWait;
 int                          runWTot;
 int                          runWMax;
 bool                         runDone;
