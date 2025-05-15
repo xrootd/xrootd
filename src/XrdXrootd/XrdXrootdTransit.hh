@@ -32,11 +32,14 @@
 
 #include <sys/types.h>
 
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 
 #include "Xrd/XrdObject.hh"
+
+#include <atomic>
 
 //-----------------------------------------------------------------------------
 //! Transit
@@ -206,8 +209,12 @@ char                        *runArgs;
 int                          runALen;
 int                          runABsz;
 int                          runError;
-int                          runStatus;
-int                          runWait;
+
+ // Set to 1 if there is a xroot request to the bridge; 0 otherwise.  Used to prevent multiple
+ // active requests from going on at once for a given link - or for disconnecting while a
+ // request is ongoing.
+std::atomic<int>             runStatus;
+RAtomic_int                  runWait;
 int                          runWTot;
 int                          runWMax;
 bool                         runDone;
