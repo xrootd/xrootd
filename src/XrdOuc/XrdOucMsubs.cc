@@ -217,7 +217,7 @@ char *XrdOucMsubs::getVal(XrdOucMsubsInfo &Info, int vNum)
                   return Info.mbuff;
 
       case vOFL:  op = Info.obuff;
-                  if (!(Info.Oflag & (O_WRONLY | O_RDWR)))  *op++ = 'r';
+                  if ((Info.Oflag & O_ACCMODE) == O_RDONLY)  *op++ = 'r';
                      else {*op++ = 'w';
                            if (Info.Oflag & O_CREAT) *op++ = 'c';
                            if (Info.Oflag & O_EXCL)  *op++ = 'x';

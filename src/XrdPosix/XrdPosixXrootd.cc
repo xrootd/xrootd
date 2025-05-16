@@ -571,7 +571,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 
 // Translate R/W and R/O flags
 //
-   if (oflags & (O_WRONLY | O_RDWR))
+   if ((oflags & O_ACCMODE) != O_RDONLY)
       {Opts    = XrdPosixFile::isUpdt;
        XOflags = XrdCl::OpenFlags::Update;
       } else {

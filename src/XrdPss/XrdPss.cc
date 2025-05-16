@@ -788,7 +788,7 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    char pbuff[PBsz];
    int  rc;
    bool tpcMode = (Oflag & O_NOFOLLOW) != 0;
-   bool rwMode  = (Oflag & (O_WRONLY | O_RDWR | O_APPEND)) != 0;
+   bool rwMode  = (Oflag & O_ACCMODE) != O_RDONLY;
    bool ucgiOK  = true;
    bool ioCache = (Oflag & O_DIRECT);
 

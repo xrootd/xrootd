@@ -100,7 +100,7 @@ int XrdCephOssBufferedFile::Open(const char *path, int flags, mode_t mode, XrdOu
 
 int XrdCephOssBufferedFile::Close(long long *retsz) {
   // if data is still in the buffer and we are writing, make sure to write it
-  if (m_bufferAlg && (m_flags & (O_WRONLY|O_RDWR)) != 0) {
+  if (m_bufferAlg && ((m_flags & O_ACCMODE) != O_RDONLY)) {
     ssize_t rc = m_bufferAlg->flushWriteCache();
     if (rc < 0) {
         LOGCEPH( "XrdCephOssBufferedFile::Close: flush Error fd: " << m_fd << " rc:" << rc );
