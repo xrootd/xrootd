@@ -72,9 +72,9 @@ int XrdFfsPosix_stat(const char *path, struct stat *buf)
     {                                     /* So we re-mark it to a regular file */
         buf->st_mode &= 0007777;
         if ( buf->st_mode & S_IXUSR )
-            buf->st_mode |= 0040000;   /* a directory */
+            buf->st_mode |= S_IFDIR;   /* a directory */
         else
-            buf->st_mode |= 0100000;   /* a file */
+            buf->st_mode |= S_IFREG;   /* a file */
     }
     return rc;
 }
