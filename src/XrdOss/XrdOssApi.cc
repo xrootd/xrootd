@@ -742,7 +742,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Check if this is a read/only filesystem
 //
-   if ((Oflag & (O_WRONLY | O_RDWR)) && (popts & XRDEXP_NOTRW))
+   if (((Oflag & O_ACCMODE) != O_RDONLY) && (popts & XRDEXP_NOTRW))
       {if (popts & XRDEXP_FORCERO) Oflag = O_RDONLY;
           else return OssEroute.Emsg("Open",-XRDOSS_E8005,"open r/w",path);
       }
@@ -765,7 +765,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
       {do {retc = fstat(fd, &buf);} while(retc && errno == EINTR);
        if (!retc && !(buf.st_mode & S_IFREG))
           {close(fd); fd = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
-       if (Oflag & (O_WRONLY | O_RDWR))
+       if ((Oflag & O_ACCMODE) != O_RDONLY)
           {FSize = buf.st_size; cacheP = XrdOssCache::Find(local_path);}
           else {if (buf.st_mode & XRDSFS_POSCPEND && fd >= 0)
                    {close(fd); fd=-ETXTBSY;}
@@ -1224,7 +1224,6 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
                          unsigned long long popts)
 {
     EPNAME("Open_ufs")
-    static const int isWritable = O_WRONLY|O_RDWR;
     int myfd, newfd;
 #ifndef NODEBUG
     char *ftype = (char *)" path=";
@@ -1250,7 +1249,7 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
 // while it is open. This is advisory so we can ignore any errors.
 //
    if (myfd >= 0
-   && (popts & XRDEXP_PURGE || (popts & XRDEXP_MIG && Oflag & isWritable)))
+   && (popts & XRDEXP_PURGE || (popts & XRDEXP_MIG && ((Oflag & O_ACCMODE) != O_RDONLY))))
       {FLOCK_t lock_args;
        bzero(&lock_args, sizeof(lock_args));
        lock_args.l_type = F_RDLCK;

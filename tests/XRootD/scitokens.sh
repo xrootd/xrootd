@@ -13,9 +13,6 @@ function setup_scitokens() {
 	export XDG_CACHE_HOME
 	mkdir -p "$XDG_CACHE_HOME/scitokens"
 
-	# Add the xrdscitokens-create-token command to the PATH to simplify invocations below.
-	PATH="$PWD/../scitokens:$PATH"
-
 	# Create a read-only token
 	OUTPUTDIR=$PWD/scitokens
 	pushd ../issuer || exit 1

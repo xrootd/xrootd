@@ -319,11 +319,13 @@ FILE *XrdPosix_Fopen(const char *path, const char *mode)
         if (ISMODE("r")  || ISMODE("rb"))                   omode = O_RDONLY;
    else if (ISMODE("w")  || ISMODE("wb"))                   omode = O_WRONLY
                                                         | O_CREAT | O_TRUNC;
-   else if (ISMODE("a")  || ISMODE("ab"))                   omode = O_APPEND;
+   else if (ISMODE("a")  || ISMODE("ab"))                   omode = O_WRONLY
+                                                        | O_CREAT | O_APPEND;
    else if (ISMODE("r+") || ISMODE("rb+") || ISMODE("r+b")) omode = O_RDWR;
    else if (ISMODE("w+") || ISMODE("wb+") || ISMODE("w+b")) omode = O_RDWR
                                                         | O_CREAT | O_TRUNC;
-   else if (ISMODE("a+") || ISMODE("ab+") || ISMODE("a+b")) omode = O_APPEND;
+   else if (ISMODE("a+") || ISMODE("ab+") || ISMODE("a+b")) omode = O_RDWR
+                                                        | O_CREAT | O_APPEND;
    else {errno = EINVAL; return 0;}
 
 // Now open the file

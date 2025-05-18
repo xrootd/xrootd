@@ -123,13 +123,13 @@ class ResourceMonitor
    {
       const std::string &f_lfn;
       XrdSysCondVar     &f_cond;
-      bool               f_checked = false;
+      bool              &f_checked;
    };
 
    XrdSysMutex              m_dir_scan_mutex;
    std::list<LfnCondRecord> m_dir_scan_open_requests;
-   int                      m_dir_scan_check_counter;
-   bool                     m_dir_scan_in_progress = false;
+   int                      m_dir_scan_check_counter = 0;
+   bool                     m_dir_scan_in_progress = true;
 
    void process_inter_dir_scan_open_requests(FsTraversal &fst);
    void cross_check_or_process_oob_lfn(const std::string &lfn, FsTraversal &fst);
