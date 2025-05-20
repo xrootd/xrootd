@@ -1459,15 +1459,22 @@ int XrdXrootdProtocol::do_Open()
 //
    doDig = (digFS && SFS_LCLPATH(fn));
 
-// Validate the path and then check if static redirection applies
+// Validate the path/req type and then check if static redirection applies
 //
    if (doDig) {popt = XROOTDXP_NOLK; opC = 0;}
-      else {int ropt;
-            if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
-            if (Route[RD_open1].Host[rdType] && (ropt = RPList.Validate(fn)))
-               return Response.Send(kXR_redirect, Route[ropt].Port[rdType],
-                                                  Route[ropt].Host[rdType]);
-           }
+   else {int ropt = -1;
+     if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
+     if (Route[RD_open1].Host[rdType])
+       ropt = RPList.Validate(fn);
+     else
+       if (Route[RD_openw].Host[rdType] && ('w' == usage || strchr(op, 'd')))
+         ropt = RD_openw;
+     if (ropt > 0)
+       return Response.Send(
+         kXR_redirect, Route[ropt].Port[rdType],
+         Route[ropt].Host[rdType]
+       );
+   }
 
 // Add the multi-write option if this path supports it
 //
