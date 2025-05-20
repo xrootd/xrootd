@@ -23,19 +23,31 @@ class File final : public XrdOssWrapDF {
         std::string path_str(path);
         auto const pos = path_str.find_last_of('/');
         const auto leaf = path_str.substr(pos + 1);
+
         m_fail = leaf == "fail_read.txt";
+
+        if (leaf == "no_space.txt") errorCode = ENOSPC;
+        else if (leaf == "out_of_space_quota.txt") errorCode = EDQUOT;
         return wrapDF.Open(path, Oflag, Mode, env);
     }
 
     ssize_t Read(void *buffer, off_t offset, size_t size) override {
         if (m_fail && offset > 0) return -EIO;
+
         return wrapDF.Read(buffer, offset, size);
+    }
+
+    ssize_t Write(const void *buffer, off_t offset, size_t size) override {
+        if (errorCode >= 0) return -errorCode;
+
+        return wrapDF.Write(buffer, offset, size);
     }
 
     int getFD() override {return -1;}
 
   private:
     bool m_fail{false};
+    int errorCode{-1};
     std::unique_ptr<XrdOssDF> m_wrapped;
 };
 
@@ -50,6 +62,19 @@ class FileSystem final : public XrdOssWrapper {
         std::unique_ptr<XrdOssDF> wrapped(wrapPI.newFile(user));
         return new File(std::move(wrapped));
     }
+
+    int Create(const char *tid, const char *path, mode_t mode,
+      XrdOucEnv &env, int opts=0) override {
+        std::string path_str(path);
+        auto const pos = path_str.find_last_of('/');
+        const auto filename = path_str.substr(pos + 1);
+
+        if (filename == "no_inode.txt" ) return -ENOSPC;
+        else if (filename == "out_of_inode_quota.txt") return -EDQUOT;
+        return wrapPI.Create(tid, path, mode, env, opts);
+      }
+
+
 
   private:
     std::unique_ptr<XrdOss> m_oss;
@@ -68,4 +93,3 @@ XrdOss *XrdOssAddStorageSystem2(XrdOss *curr_oss, XrdSysLogger *logger,
 XrdVERSIONINFO(XrdOssAddStorageSystem2, slowfs);
 
 } // extern "C"
-
