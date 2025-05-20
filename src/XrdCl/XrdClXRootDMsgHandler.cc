@@ -914,7 +914,9 @@ namespace XrdCl
 
   //----------------------------------------------------------------------------
   // We're here when we requested sending something over the wire
-  // and there has been a status update on this action
+  // or other status update on this action.
+  // We can be called when message is still in out-queue, with an
+  // error status indicating message will not be sent.
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::OnStatusReady( const Message *message,
                                         XRootDStatus   status )
@@ -922,6 +924,18 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
 
     const int sst = pSendingState.fetch_or( kSendDone );
+
+    // if we have already seen a response we can not be in the out-queue
+    // anymore, so we should be getting notified of a successful send.
+    // If not log and do our best to recover.
+    if( !status.IsOK() && ( ( sst & kFinalResp ) || ( sst & kSawResp ) ) )
+    {
+      log->Error( XRootDMsg, "[%s] Unexpected error for message %s. Trying to "
+                  "recover.", pUrl.GetHostId().c_str(),
+                  message->GetObfuscatedDescription().c_str() );
+      HandleError( status );
+      return;
+    }
 
     if( sst & kFinalResp )
     {
@@ -2129,6 +2143,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RetryAtServer( const URL &url, RedirectEntry::Type entryType )
   {
+    // prepare to possibly be requeued in the out-queue for a different channel.
+    // reset sendingstate; this is reset by OnReadyToSend() when our message is
+    // removed from out-queue, however OnStatusReady() may be called before that
+    // in case something happens before sending has been attempted. (e.g. stream
+    // broken or request timeout)
+    pSendingState = 0;
+
     pResponse.reset();
     Log *log = DefaultEnv::GetLog();
 
