@@ -38,6 +38,8 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdOuc/XrdOucECMsg.hh"
 
+#include <mutex>
+
 /******************************************************************************/
 /*                         X r d P o s i x A d m i n                          */
 /******************************************************************************/
@@ -50,12 +52,13 @@ public:
 
 XrdCl::URL        Url;
 XrdCl::FileSystem Xrd;
-XrdOucECMsg&      ecMsg;
 
 bool           isOK() {if (Url.IsValid()) return true;
+                       if (ecMutex) ecMutex->lock();
                        ecMsg.Set(EINVAL, 0);
                        ecMsg.Msgf("PosixAdmin", "url '%s' is invalid",
                                   Url.GetObfuscatedURL().c_str());
+                       if (ecMutex) ecMutex->unlock();
                        errno = EINVAL;    return false;
                       }
 
@@ -67,8 +70,11 @@ bool           Stat(mode_t *flags=0, time_t *mtime=0);
 
 bool           Stat(struct stat &Stat);
 
-      XrdPosixAdmin(const char *path, XrdOucECMsg &ecm)
-                      : Url((std::string)path), Xrd(Url), ecMsg(ecm) {}
+      XrdPosixAdmin(const char *path, XrdOucECMsg &ecm, std::mutex *ecmut)
+                      : Url((std::string)path), Xrd(Url), ecMutex(ecmut), ecMsg(ecm) {}
      ~XrdPosixAdmin() {}
+
+std::mutex *      ecMutex;
+XrdOucECMsg&      ecMsg;
 };
 #endif

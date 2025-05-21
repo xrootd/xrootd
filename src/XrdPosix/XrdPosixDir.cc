@@ -85,10 +85,16 @@ dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
    dp->d_name[d_nlen] = '\0';
 
    // Note we fail if the stat info is needed but not available
-   int rc;
-   if (myBuf && (rc = XrdPosixMap::Entry2Buf(*dirEnt, *myBuf, ecMsg)))
-      {eNum = rc;
-       dp = nullptr;
+   if (myBuf)
+      {int rc;
+       {
+          std::unique_lock lock(ecMutex);
+          rc = XrdPosixMap::Entry2Buf(*dirEnt, *myBuf, ecMsg);
+       }
+       if (rc)
+          {eNum = rc;
+           dp = nullptr;
+          }
       }
    nxtEnt++;
    return dp;
@@ -116,15 +122,20 @@ DIR *XrdPosixDir::Open()
 // some system the dirent structure does not include the name buffer
 //
    if (!myDirEnt && !(myDirEnt = (dirent64 *)malloc(dEntSize)))
-      {ecMsg.SetErrno(ENOMEM);
+      {std::unique_lock lock(ecMutex);
+       ecMsg.SetErrno(ENOMEM);
        return (DIR*)0;
       }
 
 // Get the directory list
 //
-   rc = XrdPosixMap::Result(DAdmin.Xrd.DirList(DAdmin.Url.GetPathWithParams(),
-                                               XrdPosixGlobals::dlFlag,
-                                               myDirVec, (uint16_t)0),ecMsg);
+   auto st = DAdmin.Xrd.DirList(DAdmin.Url.GetPathWithParams(),
+                                XrdPosixGlobals::dlFlag,
+                                myDirVec, (uint16_t)0);
+   {
+      std::unique_lock lock(ecMutex);
+      rc = XrdPosixMap::Result(st, ecMsg);
+   }
 
 // If we failed, return a zero pointer ote that Result() set errno for us
 //

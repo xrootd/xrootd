@@ -36,6 +36,8 @@
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <mutex>
+
 class XrdPosixDir;
 class XrdPosixFile;
 
@@ -53,7 +55,7 @@ static  XrdPosixFile *File(int fildes, bool glk=false);
 
         int           FDNum() {return fdNum;}
 
-        XrdOucECMsg*  getECMsg() {return &ecMsg;}
+        XrdOucECMsg   getECMsg() const;
 
 static  int           Init(int numfd);
 
@@ -90,16 +92,18 @@ virtual bool          Who(XrdPosixDir  **dirP)  {return false;}
 
 virtual bool          Who(XrdPosixFile **fileP) {return false;}
 
-                      XrdPosixObject() : ecMsg("[posix]"),fdNum(-1),refCnt(0) {}
+                      XrdPosixObject() : fdNum(-1),refCnt(0),ecMsg("[posix]") {}
 virtual              ~XrdPosixObject() {if (fdNum >= 0) Release(this);}
-
-       XrdOucECMsg      ecMsg;
 
 protected:
        XrdSysRecMutex   updMutex;
        XrdSysRWLock     objMutex;
        int              fdNum;
        int              refCnt;
+
+public:
+       mutable std::mutex ecMutex; // Mutex protecting concurrenct access to ecMsg.
+       XrdOucECMsg        ecMsg; // Last error occurring on this file.  Note multiple operations may be in flight; this may not correspond to the last operation your thread performed
 
 private:
 

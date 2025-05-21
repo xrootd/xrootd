@@ -199,6 +199,12 @@ do{if (fd >= lastFD || fd < baseFD)
    return (XrdPosixFile *)0;
 }
 
+XrdOucECMsg
+XrdPosixObject::getECMsg() const {
+    std::unique_lock lock(ecMutex);
+    return ecMsg;
+}
+
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/

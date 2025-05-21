@@ -241,7 +241,7 @@ XrdPosixXrootd::~XrdPosixXrootd()
   
 int XrdPosixXrootd::Access(const char *path, int amode)
 {
-   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
    mode_t stMode;
    bool   aOK = true;
 
@@ -464,7 +464,7 @@ int XrdPosixXrootd::Ftruncate(int fildes, off_t offset)
 long long XrdPosixXrootd::Getxattr (const char *path, const char *name, 
                                     void *value, unsigned long long size)
 {
-  XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+  XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
   XrdCl::QueryCode::Code reqCode;
   int vsize = static_cast<int>(size);
 
@@ -527,7 +527,7 @@ off_t   XrdPosixXrootd::Lseek(int fildes, off_t offset, int whence)
 
 int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 {
-  XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+  XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
   XrdCl::MkDirFlags::Flags flags;
 
 // Preferentially make the whole path unless told otherwise
@@ -785,7 +785,10 @@ void XrdPosixXrootd::Pread(int fildes, void *buf, size_t nbyte, off_t offset,
 //
    if (nbyte > (size_t)0x7fffffff)
       {fp->UnLock();
-       fp->ecMsg.SetErrno(EOVERFLOW,0,"read size too large");
+       {
+          std::unique_lock lock(fp->ecMutex);
+          fp->ecMsg.SetErrno(EOVERFLOW,0,"read size too large");
+       }
        cbp->Complete(-1);
        return;
       }
@@ -852,7 +855,10 @@ void XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte,
 //
    if (nbyte > (size_t)0x7fffffff)
       {fp->UnLock();
-       fp->ecMsg.SetErrno(EOVERFLOW,0,"read size too large");
+       {
+          std::unique_lock lock(fp->ecMutex);
+          fp->ecMsg.SetErrno(EOVERFLOW,0,"read size too large");
+       }
        cbp->Complete(-1);
        return;
       }
@@ -1066,7 +1072,7 @@ int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
 
 int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 {
-   XrdPosixAdmin admin(oldpath,XrdPosixGlobals::ecMsg);
+   XrdPosixAdmin admin(oldpath,XrdPosixGlobals::ecMsg,nullptr);
    XrdCl::URL newUrl((std::string)newpath);
 
 // Make sure the admin is OK and the new url is valid
@@ -1116,7 +1122,7 @@ void XrdPosixXrootd::Rewinddir(DIR *dirp)
 
 int XrdPosixXrootd::Rmdir(const char *path)
 {
-   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
 
 // Make sure the admin is OK
 //
@@ -1165,7 +1171,7 @@ void XrdPosixXrootd::Seekdir(DIR *dirp, long loc)
   
 int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 {
-   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
    bool cacheChk = false;
 
 // Make sure the admin is OK
@@ -1267,7 +1273,7 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
    static const int szVFS = sizeof(buf->f_bfree);
    static const long long max32 = 0x7fffffffLL;
 
-   XrdPosixAdmin       admin(path,XrdPosixGlobals::ecMsg);
+   XrdPosixAdmin       admin(path,XrdPosixGlobals::ecMsg,nullptr);
    XrdCl::StatInfoVFS *vfsStat;
 
    long long rwFree, ssFree, rwBlks;
@@ -1352,7 +1358,7 @@ long XrdPosixXrootd::Telldir(DIR *dirp)
   
 int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 {
-  XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+  XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
   uint64_t tSize = static_cast<uint64_t>(Size);
 
 // Make sure the admin is OK
@@ -1380,7 +1386,7 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 int XrdPosixXrootd::Unlink(const char *path)
 {
-   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
 
 // Make sure the admin is OK
 //
@@ -1489,7 +1495,7 @@ bool XrdPosixXrootd::myFD(int fd)
 int XrdPosixXrootd::QueryChksum(const char *path,  time_t &Mtime,
                                       char *value, int     vsize)
 {
-   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
 
 // Stat the file first to allow vectoring of the request to the right server
 //
@@ -1506,19 +1512,14 @@ int XrdPosixXrootd::QueryChksum(const char *path,  time_t &Mtime,
   
 int XrdPosixXrootd::QueryError(std::string& emsg, int fd, bool reset)
 {
-   XrdOucECMsg* ecmP;
-
 // If global wanted then use that one otherwise find the object specific one
 //
-   if (fd < 0) ecmP = &XrdPosixGlobals::ecMsg;
+   if (fd < 0) return XrdPosixGlobals::ecMsg.Get(emsg, reset);
        else {XrdPosixFile *fp;
              if (!(fp = XrdPosixObject::File(fd))) return -1;
-             ecmP = fp->getECMsg();
+             std::unique_lock lock(fp->ecMutex);
+             return fp->ecMsg.Get(emsg, reset);
             }
-
-// Return the message information
-//
-   return ecmP->Get(emsg, reset);
 }
   
 /******************************************************************************/
@@ -1535,7 +1536,7 @@ int XrdPosixXrootd::QueryError(std::string& emsg, DIR* dirP, bool reset)
 
 // Return result
 //
-   return dP->getECMsg()->Get(emsg, reset);
+   return dP->getECMsg().Get(emsg, reset);
 }
 
 /******************************************************************************/
@@ -1544,7 +1545,7 @@ int XrdPosixXrootd::QueryError(std::string& emsg, DIR* dirP, bool reset)
   
 long long XrdPosixXrootd::QueryOpaque(const char *path, char *value, int size)
 {
-   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg,nullptr);
 
 // Stat the file first to allow vectoring of the request to the right server
 //
@@ -1619,10 +1620,14 @@ int XrdPosixXrootd::EcRename(const char *oldpath, const char *newpath,
     for( size_t i = 0; i < info->GetSize(); ++i )
     {
         std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
-        XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str(),admin.ecMsg);
-        int x = XrdPosixMap::Result(admin_i->Xrd.Mv(admin_i->Url.GetPathWithParams(),
-                                                    newUrl.GetPathWithParams()),
-                                                    admin.ecMsg);
+        XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str(),admin.ecMsg,admin.ecMutex);
+        auto st = admin_i->Xrd.Mv(admin_i->Url.GetPathWithParams(),
+                                  newUrl.GetPathWithParams());
+        int x;
+        {
+           std::unique_lock lock(*admin.ecMutex);
+           x = XrdPosixMap::Result(st, admin.ecMsg);
+        }
         if (x != -ENOENT && rc != 0)
             rc = x;
         if (admin_i) delete admin_i;
@@ -1690,7 +1695,7 @@ int XrdPosixXrootd::EcStat(const char *path, struct stat *buf,
    for( size_t i = 0; i < info->GetSize(); ++i )
    {
        std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
-       XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str(),admin.ecMsg);
+       XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str(),admin.ecMsg,admin.ecMutex);
  
        if (admin_i->Stat(buf_i)) 
        {
@@ -1756,25 +1761,31 @@ int XrdPosixXrootd::EcUnlink(const char *path, XrdPosixAdmin &admin)
                    || queryResp->ToString() == "server\n")
     {
         if (queryResp) delete queryResp;
-        return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()),
-                                   admin.ecMsg, true);
+        auto st = admin.Xrd.Rm(admin.Url.GetPathWithParams());
+        std::unique_lock lock(*admin.ecMutex);
+        return XrdPosixMap::Result(st, admin.ecMsg, true);
     }
     else
         if (queryResp) delete queryResp;
 
     st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
     std::unique_ptr<XrdCl::LocationInfo> ptr( info );
-    if( !st.IsOK() ) 
-      return XrdPosixMap::Result(st, admin.ecMsg, true);
+    if( !st.IsOK() )
+      {std::unique_lock lock(*admin.ecMutex);
+       return XrdPosixMap::Result(st, admin.ecMsg, true);
+      }
 
     int rc = -ENOENT;
     for( size_t i = 0; i < info->GetSize(); ++i )
     {
         std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
-        XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str(),admin.ecMsg);
-        int x = XrdPosixMap::Result(admin_i->
-                                    Xrd.Rm(admin_i->Url.GetPathWithParams()),
-                                    admin.ecMsg);
+        XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str(),admin.ecMsg,admin.ecMutex);
+        auto st = admin_i->Xrd.Rm(admin_i->Url.GetPathWithParams());
+        int x;
+        {
+           std::unique_lock lock(*admin.ecMutex);
+           x = XrdPosixMap::Result(st, admin.ecMsg);
+        }
         if (x != -ENOENT && rc != 0)
             rc = x;
         if (admin_i) delete admin_i;

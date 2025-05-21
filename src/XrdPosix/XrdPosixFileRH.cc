@@ -112,7 +112,9 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
 // Determine ending status. Note: error indicated as result set to -errno.
 //
         if (!(status->IsOK()))
-           result = XrdPosixMap::Result(*status, theFile->ecMsg, false);
+           {std::unique_lock lock(theFile->ecMutex);
+            result = XrdPosixMap::Result(*status, theFile->ecMsg, false);
+           }
    else if (typeIO == nonIO) result = 0;
    else if (typeIO == isRead)
            {XrdCl::ChunkInfo *cInfo = 0;

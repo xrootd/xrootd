@@ -77,7 +77,7 @@ char XrdFfsMisc_get_current_url(const char *oldurl, char *newurl)
     }
 
     XrdOucECMsg   ecMsg;
-    XrdPosixAdmin adm(oldurl,ecMsg);
+    XrdPosixAdmin adm(oldurl,ecMsg,nullptr);
     if (adm.isOK() && adm.Stat())
     {
 // We might have been redirected to a destination server. Better 
@@ -103,7 +103,7 @@ char* XrdFfsMisc_getNameByAddr(char* ipaddr)
 int XrdFfsMisc_get_all_urls_real(const char *oldurl, char **newurls, const int nnodes)
 {
     XrdOucECMsg   ecMsg;
-    XrdPosixAdmin adm(oldurl,ecMsg);
+    XrdPosixAdmin adm(oldurl,ecMsg,nullptr);
     XrdCl::URL *uVec;
     int i, rval = 0;
 

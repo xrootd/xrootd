@@ -402,8 +402,13 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
 
 // If no errors occurred, complete the open
 //
-   if (!(status->IsOK()))          rc = XrdPosixMap::Result(*status,ecMsg,false);
-      else if (!Finalize(&Status)) rc = XrdPosixMap::Result( Status,ecMsg,false);
+   if (!(status->IsOK()))
+      {std::unique_lock lock(ecMutex);
+       rc = XrdPosixMap::Result(*status,ecMsg,false);
+      } else if (!Finalize(&Status))
+      {std::unique_lock lock(ecMutex);
+       rc = XrdPosixMap::Result( Status,ecMsg,false);
+      }
 
 // Issue XrdPosixCallBack callback with the correct result. Errors are indicated
 // by result set < 0 (typically -1) and errno set to the error number. In our
@@ -495,7 +500,12 @@ void XrdPosixFile::pgRead(XrdOucCacheIOCB       &iocb,
 // Check status, upon error we pass -errno as the result.
 //
    if (!Status.IsOK())
-      {rhP->Sched(XrdPosixMap::Result(Status, ecMsg, false));
+      {int rc;
+       {
+          std::unique_lock lock(ecMutex);
+          rc = XrdPosixMap::Result(Status, ecMsg, false);
+       }
+       rhP->Sched(rc);
        unRef();
       }
 }
@@ -523,7 +533,11 @@ int XrdPosixFile::pgWrite(char                  *buff,
    Status = clFile.PgWrite((uint64_t)offs, (uint32_t)wlen, buff, csvec);
    unRef();
 
-   return (Status.IsOK() ? wlen : XrdPosixMap::Result(Status,ecMsg,true));
+   if (Status.IsOK()) return wlen;
+   else
+      {std::unique_lock lock(ecMutex);
+       return XrdPosixMap::Result(Status,ecMsg,true);
+      }
 }
   
 /******************************************************************************/
@@ -559,7 +573,12 @@ void XrdPosixFile::pgWrite(XrdOucCacheIOCB       &iocb,
 // Check status, if error pass along -errno as the result.
 //
    if (!Status.IsOK())
-      {rhP->Sched(XrdPosixMap::Result(Status,ecMsg,false));
+      {int rc;
+       {
+          std::unique_lock lock(ecMutex);
+          rc = XrdPosixMap::Result(Status,ecMsg,false);
+       }
+       rhP->Sched(rc);
        unRef();
       }
 }
@@ -587,7 +606,11 @@ int XrdPosixFile::Read (char *Buff, long long Offs, int Len)
    Status = clFile.Read((uint64_t)Offs, (uint32_t)Len, Buff, bytes);
    unRef();
 
-   return (Status.IsOK() ? (int)bytes : XrdPosixMap::Result(Status,ecMsg,false));
+   if (Status.IsOK()) return (int)bytes;
+   else
+      {std::unique_lock lock(ecMutex);
+       return XrdPosixMap::Result(Status,ecMsg,false);
+      }
 }
   
 /******************************************************************************/
@@ -614,7 +637,12 @@ void XrdPosixFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,
 // Check status. Upon error pass along -errno as the result.
 //
    if (!Status.IsOK())
-      {rhP->Sched(XrdPosixMap::Result(Status, ecMsg, false));
+      {int rc;
+       {
+          std::unique_lock lock(ecMutex);
+          rc = XrdPosixMap::Result(Status, ecMsg, false);
+       }
+       rhP->Sched(rc);
        unRef();
       }
 }
@@ -651,7 +679,11 @@ int XrdPosixFile::ReadV (const XrdOucIOVec *readV, int n)
 
 // Return appropriate result (here we return -errno as the result)
 //
-   return (Status.IsOK() ? nbytes : XrdPosixMap::Result(Status, ecMsg, false));
+   if (Status.IsOK()) return nbytes;
+   else
+      {std::unique_lock lock(ecMutex);
+       return XrdPosixMap::Result(Status, ecMsg, false);
+      }
 }
 
 /******************************************************************************/
@@ -683,7 +715,12 @@ void XrdPosixFile::ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n)
 // Return appropriate result
 //
    if (!Status.IsOK())
-      {rhp->Sched(XrdPosixMap::Result(Status, ecMsg, false));
+      {int rc;
+       {
+          std::unique_lock lock(ecMutex);
+          rc = XrdPosixMap::Result(Status, ecMsg, false);
+       }
+       rhp->Sched(rc);
        unRef();
       }
 }
@@ -747,6 +784,7 @@ int XrdPosixFile::Sync()
 
 // Return result
 //
+   std::unique_lock lock(ecMutex);
    return XrdPosixMap::Result(Status, ecMsg, false);
 }
 
@@ -764,7 +802,14 @@ void XrdPosixFile::Sync(XrdOucCacheIOCB &iocb)
 
 // Check status
 //
-   if (!Status.IsOK()) rhp->Sched(XrdPosixMap::Result(Status, ecMsg, false));
+   if (!Status.IsOK())
+      {int rc;
+       {
+          std::unique_lock lock(ecMutex);
+          rc = XrdPosixMap::Result(Status, ecMsg, false);
+       }
+       rhp->Sched(rc);
+      }
 }
   
 /******************************************************************************/
@@ -783,6 +828,7 @@ int XrdPosixFile::Trunc(long long Offset)
 
 // Return results
 //
+   std::unique_lock lock(ecMutex);
    return XrdPosixMap::Result(Status,ecMsg,false);
 }
   
@@ -800,7 +846,11 @@ int XrdPosixFile::Write(char *Buff, long long Offs, int Len)
    Status = clFile.Write((uint64_t)Offs, (uint32_t)Len, Buff);
    unRef();
 
-   return (Status.IsOK() ? Len : XrdPosixMap::Result(Status,ecMsg,false));
+   if (Status.IsOK()) return Len;
+   else
+      {std::unique_lock lock(ecMutex);
+       return XrdPosixMap::Result(Status,ecMsg,false);
+      }
 }
   
 /******************************************************************************/
@@ -820,7 +870,12 @@ void XrdPosixFile::Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
 // Check status
 //
    if (!Status.IsOK())
-      {rhp->Sched(XrdPosixMap::Result(Status,ecMsg,false));
+      {int rc;
+       {
+          std::unique_lock lock(ecMutex);
+          rc = XrdPosixMap::Result(Status,ecMsg,false);
+       }
+       rhp->Sched(rc);
        unRef();
       }
 }
