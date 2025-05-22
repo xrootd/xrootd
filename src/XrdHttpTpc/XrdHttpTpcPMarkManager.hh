@@ -66,7 +66,9 @@ public:
     XrdSecEntity client;
   };
 
-  PMarkManager(XrdHttpExtReq & req, const TPC::TpcType type);
+  PMarkManager(XrdHttpExtReq &req, const TPC::TpcType type);
+
+  PMarkManager(XrdNetPMark *pmark, int sciTag, const TPC::TpcType type);
 
   /**
    * Will connect the socket attached to the file descriptor within a certain timeout and add the file descriptor to the.
@@ -128,9 +130,11 @@ private:
   // The map of socket FD and packet marking handles
   std::map<int,std::unique_ptr<XrdNetPMark::Handle>> mPmarkHandles;
   // The instance of the packet marking functionality
-  XrdNetPMark * mPmark;
-  // The XrdHttpTPC request information
-  XrdHttpExtReq & mReq;
+  XrdNetPMark *mPmark;
+  // SciTag provided by the user; extracted from the request
+  int mSciTag;
+  // Path to the resource
+  const char *mResource;
   // Is true when startTransfer(...) has been called
   bool mTransferWillStart;
   // Is true if this transfer is a HTTP TPC PULL transfer, false otherwise

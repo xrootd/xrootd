@@ -1,4 +1,3 @@
-
 #include "XrdHttpTpcPool.hh"
 
 #include <fcntl.h>
@@ -22,7 +21,13 @@ decltype(TPCRequestManager::m_idle_timeout) TPCRequestManager::m_idle_timeout = 
 unsigned TPCRequestManager::m_max_pending_ops = 20;
 unsigned TPCRequestManager::m_max_workers = 20;
 
-TPCRequestManager::TPCQueue::TPCWorker::TPCWorker(const std::string &label, TPCQueue &queue) : m_label(label), m_queue(queue) {}
+TPCRequestManager::TPCQueue::TPCWorker::TPCWorker(const std::string &label, int scitag, TPCQueue &queue)
+    : m_label(label),
+      m_queue(queue),
+      m_scitag(scitag),  // use this to generate the queue identifier: queues
+                         // will be based on the scitag
+      m_pmark_handle((XrdNetPMark *)queue.m_parent.m_xrdEnv.GetPtr("XrdNetPMark*")),
+      m_pmark_manager(m_pmark_handle, scitag, TPC::TpcType::Pull) {}
 
 void TPCRequestManager::TPCQueue::TPCWorker::RunStatic(TPCWorker *myself) { myself->Run(); }
 
@@ -138,15 +143,14 @@ void TPCRequestManager::TPCQueue::TPCWorker::Run() {
  */
 
 int TPCRequestManager::TPCQueue::TPCWorker::sockopt_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
-    //   TPCWorker *tpcWorker = (TPCWorker *)clientp;
+    TPCWorker *tpcWorker = (TPCWorker *)clientp;
 
-    //   if (purpose == CURLSOCKTYPE_IPCXN && tpcWorker &&
-    //   tpcWorker->m_pmark_manager.isEnabled()) {
-    //       // We will not reach this callback if the corresponding socket
-    //       could not have been connected
-    //       // the socket is already connected only if the packet marking is
-    //       enabled return CURL_SOCKOPT_ALREADY_CONNECTED;
-    //   }
+    if (purpose == CURLSOCKTYPE_IPCXN && tpcWorker && tpcWorker->m_pmark_manager.isEnabled()) {
+        // We will not reach this callback if the corresponding socket could not
+        // have been connected the socket is already connected only if the
+        // packet marking is enabled
+        return CURL_SOCKOPT_ALREADY_CONNECTED;
+    }
     return CURL_SOCKOPT_OK;
 }
 
@@ -165,7 +169,7 @@ int TPCRequestManager::TPCQueue::TPCWorker::opensocket_callback(void *clientp, c
     if (fd < 0) {
         return CURL_SOCKET_BAD;
     }
-    // TPCWorker *tpcWorker = (TPCWorker *)clientp;
+    TPCWorker *tpcWorker = (TPCWorker *)clientp;
 
     if (purpose == CURLSOCKTYPE_IPCXN && clientp) {
         XrdNetAddr thePeer(&(address->addr));
@@ -173,18 +177,14 @@ int TPCRequestManager::TPCQueue::TPCWorker::opensocket_callback(void *clientp, c
         //                   && !thePeer.isMapped());
         std::stringstream connectErrMsg;
 
-        // if (!tpcWorker->m_pmark_manager.connect(fd, &(address->addr),
-        // address->addrlen, 									CONNECT_TIMEOUT, connectErrMsg)) {
-        // tpcWorker->m_queue.m_parent.m_log.Emsg(
-        // 	"TPCWorker:", "Unable to connect socket:",
-        // 	connectErrMsg.str().c_str());
-        // return CURL_SOCKET_BAD;
-        // }
+        if (!tpcWorker->m_pmark_manager.connect(fd, &(address->addr), address->addrlen, CONNECT_TIMEOUT, connectErrMsg)) {
+            tpcWorker->m_queue.m_parent.m_log.Emsg("TPCWorker:", "Unable to connect socket:", connectErrMsg.str().c_str());
+            return CURL_SOCKET_BAD;
+        }
 
-        // tpcWorker->m_pmark_manager.startTransfer();
-        // tpcWorker->m_pmark_manager.beginPMarks();
+        tpcWorker->m_pmark_manager.startTransfer();
+        tpcWorker->m_pmark_manager.beginPMarks();
     }
-
     return fd;
 }
 
@@ -198,9 +198,9 @@ int TPCRequestManager::TPCQueue::TPCWorker::opensocket_callback(void *clientp, c
  */
 
 int TPCRequestManager::TPCQueue::TPCWorker::closesocket_callback(void *clientp, curl_socket_t fd) {
-    // TPCWorker *tpcWorker = (TPCWorker *)clientp;
+    TPCWorker *tpcWorker = (TPCWorker *)clientp;
 
-    // tpcWorker->m_pmark_manager.endPmark(fd);
+    tpcWorker->m_pmark_manager.endPmark(fd);
     return close(fd);
 }
 
@@ -218,7 +218,7 @@ void TPCRequestManager::TPCQueue::Done(TPCWorker *worker) {
 
 void TPCRequestManager::Done(const std::string &ident) {
     m_log.Log(LogMask::Info, "TPCRequestManager", "Worker pool", ident.c_str(), "is idle and all workers have exited.");
-    std::unique_lock lock(m_mutex);
+    std::unique_lock<std::shared_mutex> lock(m_mutex);
 
     auto iter = m_pool_map.find(ident);
     if (iter != m_pool_map.end()) {
@@ -242,7 +242,7 @@ void TPCRequestManager::Done(const std::string &ident) {
 //   potentially exit due to lack of work.  This is done to reduce the number of
 //   "mostly idle" workers in the thread pool.
 bool TPCRequestManager::TPCQueue::Produce(TPCRequest &handler) {
-    std::unique_lock lk{m_mutex};
+    std::unique_lock<std::mutex> lk(m_mutex);
     if (m_ops.size() == m_max_pending_ops) {
         m_parent.m_log.Log(LogMask::Warning, "TPCQueue", "Queue is full; rejecting request");
         return false;
@@ -257,7 +257,7 @@ bool TPCRequestManager::TPCQueue::Produce(TPCRequest &handler) {
     }
 
     if (m_workers.size() < m_max_workers) {
-        auto worker = std::make_unique<TPCRequestManager::TPCQueue::TPCWorker>(handler.GetIdentifier(), *this);
+        auto worker = std::make_unique<TPCRequestManager::TPCQueue::TPCWorker>(handler.GetIdentifier(), handler.GetScitag(), *this);
         std::thread t(TPCRequestManager::TPCQueue::TPCWorker::RunStatic, worker.get());
         t.detach();
         m_workers.push_back(std::move(worker));
@@ -307,20 +307,20 @@ void TPCRequestManager::TPCRequest::SetProgress(off_t offset) {
 }
 
 void TPCRequestManager::TPCRequest::SetDone(int status, const std::string &msg) {
-    std::unique_lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     m_status = status;
     m_message = msg;
     m_cv.notify_one();
 }
 
 int TPCRequestManager::TPCRequest::WaitFor(std::chrono::steady_clock::duration dur) {
-    std::unique_lock lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     m_cv.wait_for(lock, dur, [&] { return m_status >= 0; });
 
     return m_status;
 }
 
-TPCRequestManager::TPCRequestManager(XrdOucEnv &xrdEnv, XrdSysError &eDest) : m_log(eDest) {}
+TPCRequestManager::TPCRequestManager(XrdOucEnv &xrdEnv, XrdSysError &eDest) : m_log(eDest), m_xrdEnv(xrdEnv) {}
 
 void TPCRequestManager::SetWorkerIdleTimeout(std::chrono::steady_clock::duration dur) { m_idle_timeout = dur; }
 
@@ -335,7 +335,7 @@ bool TPCRequestManager::Produce(TPCRequestManager::TPCRequest &handler) {
     // get the lock and remove itself from the map).
     while (true) {
         m_mutex.lock_shared();
-        std::lock_guard guard{m_mutex, std::adopt_lock};
+        std::lock_guard<std::shared_mutex> guard{m_mutex, std::adopt_lock};
         auto iter = m_pool_map.find(handler.GetIdentifier());
         if (iter != m_pool_map.end()) {
             if (!iter->second->IsDone()) {
@@ -350,7 +350,7 @@ bool TPCRequestManager::Produce(TPCRequestManager::TPCRequest &handler) {
         auto created_queue = false;
         std::string queue_name = "";
         {
-            std::lock_guard guard(m_mutex);
+            std::lock_guard<std::shared_mutex> guard(m_mutex);
             auto iter = m_pool_map.find(handler.GetIdentifier());
             if (iter == m_pool_map.end()) {
                 queue = std::make_shared<TPCQueue>(handler.GetIdentifier(), *this);
