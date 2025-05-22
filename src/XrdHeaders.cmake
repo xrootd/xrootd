@@ -134,6 +134,7 @@ endif()
 
 set( XROOTD_PRIVATE_HEADERS
   Xrd/XrdPoll.hh
+  Xrd/XrdSendQ.hh
   XrdNet/XrdNetPeer.hh
   XrdNet/XrdNetBuffer.hh
   XrdNet/XrdNetIF.hh
