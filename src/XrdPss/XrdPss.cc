@@ -1414,7 +1414,10 @@ int XrdPssFile::Ftruncate(unsigned long long flen)
 
 int XrdPssSys::Info(int rc)
 {
-   XrdProxy::ecMsg = XrdPosixXrootd::QueryError(XrdProxy::ecMsg.Msg());
+   std::string psxMsg;
+   int n = XrdPosixXrootd::QueryError(psxMsg);
+
+   XrdProxy::ecMsg.Set(n, psxMsg);
    return -rc;
 }
   
