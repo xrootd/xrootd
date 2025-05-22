@@ -33,6 +33,8 @@
 #include <cstdarg>
 #include <string>
 
+#include "XrdSys/XrdSysPthread.hh"
+
 class XrdOucECMsg
 {
 public:
@@ -47,7 +49,8 @@ public:
 //! @return Reference to the subject object.
 //-----------------------------------------------------------------------------
 
-XrdOucECMsg& Append(char dlm='\n') {Delim = dlm; return *this;}
+XrdOucECMsg& Append(char dlm='\n')
+                   {ecMTX.Lock(); Delim = dlm; ecMTX.UnLock(); return *this;}
 
 //-----------------------------------------------------------------------------
 //! Get err code and error message.
@@ -66,7 +69,9 @@ int   Get(std::string& ecm, bool rst=true);
 //! @return true if an error text message exists, false otherwise.
 //-----------------------------------------------------------------------------
 
-bool  hasMsg() const {return !ecMsg.empty();}
+bool  hasMsg() const {ecMTX.Lock(); bool hm = !ecMsg.empty();
+                      ecMTX.UnLock(); return hm;
+                     }
 
 //-----------------------------------------------------------------------------
 //! Return the message string.
@@ -74,7 +79,9 @@ bool  hasMsg() const {return !ecMsg.empty();}
 //! @return A reference to the message string.
 //-----------------------------------------------------------------------------
 
-std::string& Msg() {return ecMsg;}
+std::string Msg() {ecMTX.Lock(); std::string m = ecMsg; ecMTX.UnLock();
+                   return m;
+                  }
 
 //-----------------------------------------------------------------------------
 //! Insert a space delimited error message into ecMsg string.
@@ -135,9 +142,11 @@ void  MsgVec(const char* pfx, char const* const* vecP, int vecN);
 //! @param  ecm  The error message, if nil then message is not changed.
 //-----------------------------------------------------------------------------
 
-void  Set(int ecc, const char*  ecm="") {eCode = ecc; if (ecm) ecMsg = ecm;}
+void  Set(int ecc, const char*  ecm="")
+         {ecMTX.Lock(); eCode = ecc; if (ecm) ecMsg = ecm; ecMTX.UnLock();}
 
-void  Set(int ecc, std::string& ecm) {eCode = ecc; ecMsg = ecm;}
+void  Set(int ecc, std::string& ecm)
+         {ecMTX.Lock(); eCode = ecc; ecMsg = ecm; ecMTX.UnLock();}
 
 //-----------------------------------------------------------------------------
 //! Set default error message, error code, and errno.
@@ -149,30 +158,37 @@ void  Set(int ecc, std::string& ecm) {eCode = ecc; ecMsg = ecm;}
 //! @return The ret parameter value is returned.
 //-----------------------------------------------------------------------------
 
-int   SetErrno(int ecc, int retval=-1, const char *alt=0);
+int   SetErrno(int ecc, int ret=-1, const char *alt=0);
 
 //-----------------------------------------------------------------------------
 //! Assignment operators for convenience.
 //-----------------------------------------------------------------------------
 
-   XrdOucECMsg& operator=(const int rhs) {eCode = rhs; return *this;};
+   XrdOucECMsg& operator=(const int rhs)
+           {ecMTX.Lock(); eCode = rhs; ecMTX.UnLock(); return *this;}
 
-   XrdOucECMsg& operator=(const std::string& rhs) {ecMsg = rhs; return *this;};
+   XrdOucECMsg& operator=(const std::string& rhs)
+           {ecMTX.Lock(); ecMsg = rhs; ecMTX.UnLock(); return *this;}
 
-   XrdOucECMsg& operator=(const char* rhs) {ecMsg = rhs; return *this;};
+   XrdOucECMsg& operator=(const char* rhs)
+           {ecMTX.Lock(); ecMsg = rhs; ecMTX.UnLock(); return *this;}
 
    XrdOucECMsg& operator=(XrdOucECMsg& rhs)
-                         {ecMsg = rhs.ecMsg; eCode = rhs.eCode; return *this;};
+           {ecMTX.Lock(); ecMsg = rhs.ecMsg; eCode = rhs.eCode; ecMTX.UnLock();
+            return *this;
+           }
 
-      XrdOucECMsg(const char *msgid=0) : msgID(msgid)  {}
+      XrdOucECMsg(const char *msgid=0) : msgID(msgid), eCode(0), Delim(0)  {}
      ~XrdOucECMsg() {}
 
 private:
 
 void        Setup(const char *pfx, int n);
+mutable
+XrdSysMutex ecMTX;
 const char* msgID;
 std::string ecMsg;
-int         eCode = 0;
-char        Delim = 0;
+int         eCode;
+char        Delim;
 };
 #endif

@@ -40,6 +40,8 @@
   
 int XrdOucECMsg::Get(std::string& ecm, bool rst)
 {
+   XrdSysMutexHelper mScope(ecMTX);
+
    if (!rst)
       {ecm = ecMsg;
        return eCode;
@@ -101,8 +103,10 @@ void XrdOucECMsg::Msgf(const char *pfx, const char *fmt, ...)
 // Append as needed
 //
    if (n > (int)sizeof(buffer)) n = sizeof(buffer);
+   ecMTX.Lock();
    Setup(pfx, n);
    ecMsg.append(buffer);
+   ecMTX.UnLock();
 }
 
 /******************************************************************************/
@@ -120,8 +124,10 @@ void XrdOucECMsg::MsgVA(const char *pfx, const char *fmt, va_list aP)
 // Append as needed
 //
    if (n > (int)sizeof(buffer)) n = sizeof(buffer);
+   ecMTX.Lock();
    Setup(pfx, n);
    ecMsg.append(buffer);
+   ecMTX.UnLock();
 }
 
 /******************************************************************************/
@@ -133,8 +139,10 @@ void XrdOucECMsg::MsgVec(const char* pfx, char const* const* vecP, int vecN)
    int n = 0;
 
    for (int i = 0; i < vecN; i++) n += strlen(vecP[i]);
+   ecMTX.Lock();
    Setup(pfx, n);
    for (int i = 0; i < vecN; i++) ecMsg.append(vecP[i]);
+   ecMTX.UnLock();
 }
 
 /******************************************************************************/
@@ -143,9 +151,12 @@ void XrdOucECMsg::MsgVec(const char* pfx, char const* const* vecP, int vecN)
 
 int XrdOucECMsg::SetErrno(int ecc, int ret, const char *alt)
 {
+   XrdSysMutexHelper mScope(ecMTX);
+
    if (!alt || *alt != '*')
-      {if (!msgID) ecMsg = (alt ? alt : XrdSysE2T(ecc));
-          else Msgf(msgID, XrdSysE2T(ecc));
+      {if (!alt) alt = XrdSysE2T(ecc);
+       Setup(msgID, strlen(alt));
+       ecMsg.append(alt);
       }
    errno = eCode = ecc;
    return ret;
@@ -155,13 +166,14 @@ int XrdOucECMsg::SetErrno(int ecc, int ret, const char *alt)
 /*                                 S e t u p                                  */
 /******************************************************************************/
   
-void XrdOucECMsg::Setup(const char* pfx, int n)
+void XrdOucECMsg::Setup(const char* pfx, int n) // Called w/ ecMTX locked!
 {
    int k = (pfx && *pfx ? strlen(pfx)+2 : 0);
+   char dlm;
       
-   if (Delim)
+   if ((dlm = Delim))
       {ecMsg.reserve(ecMsg.length() + n + k + 2);
-       ecMsg.append(&Delim, 1);
+       ecMsg.append(&dlm, 1);
        Delim = 0;
       } else {
        ecMsg.reserve(n + k + 1);
