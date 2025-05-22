@@ -8,10 +8,12 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 
 #include <curl/curl.h>
+#include "XrdHttpTpcPMarkManager.hh"
 
 // Forward dec'ls
 class XrdOucEnv;
@@ -36,15 +38,20 @@ class TPCRequestManager final {
 
     class TPCRequest {
       public:
-        TPCRequest(const std::string &ident, CURL *handle)
-            : m_ident(ident), m_curl(handle) {}
+        TPCRequest(const std::string &ident, const int scitag, CURL *handle)
+            : m_ident(ident), m_scitag(scitag), m_curl(handle) {}
 
         int WaitFor(std::chrono::steady_clock::duration);
 
         CURL *GetHandle() const { return m_curl; }
         void SetProgress(off_t offset);
         void SetDone(int status, const std::string &msg);
-        const std::string &GetIdentifier() const { return m_ident; }
+	    std::string GetIdentifier() const { 
+	        std::stringstream ss;
+	        ss << m_ident << "_" << m_scitag;
+	        return ss.str();
+	    }
+        int GetScitag() const { return m_scitag;}
         bool IsActive() const {
             return m_active.load(std::memory_order_relaxed);
         }
@@ -57,9 +64,10 @@ class TPCRequestManager final {
 
       private:
         std::atomic<bool> m_active{false};
-        int m_status{-1};
+		int m_status{-1}; 
         std::atomic<off_t> m_progress_offset{0};
         std::string m_ident;
+		int m_scitag;
         CURL *m_curl;
         std::condition_variable m_cv;
         std::mutex m_mutex;
@@ -94,7 +102,7 @@ class TPCRequestManager final {
       private:
         class TPCWorker final {
           public:
-            TPCWorker(const std::string &label, TPCQueue &queue);
+            TPCWorker(const std::string &label, int scitag, TPCQueue &queue);
             TPCWorker(const TPCWorker &) = delete;
 
             void Run();
@@ -108,12 +116,17 @@ class TPCRequestManager final {
             static int opensocket_callback(void *clientp, curlsocktype purpose, struct curl_sockaddr *address);
 			static int sockopt_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose);
 
+            std::string getLabel() const { return m_label; }
+
           private:
             bool RunCurl(CURLM *multi_handle, TPCRequest &request);
 
             bool m_idle{false};
             const std::string m_label;
             TPCQueue &m_queue;
+            int m_scitag;
+            XrdNetPMark *m_pmark_handle;
+            XrdHttpTpc::PMarkManager m_pmark_manager;
         };
 
         static const long CONNECT_TIMEOUT = 60;
@@ -137,6 +150,7 @@ class TPCRequestManager final {
     static unsigned m_max_pending_ops;
     static unsigned m_max_workers;
     static std::once_flag m_init_once;
+    XrdOucEnv &m_xrdEnv;
 };
 
 } // namespace TPC
