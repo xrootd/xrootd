@@ -485,7 +485,7 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vecto
 /******************************************************************************/
 
 int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state, TPCLogRecord &rec) {
-    TPCRequestManager::TPCRequest request("tpc", curl);
+    TPCRequestManager::TPCRequest request("tpc", req.mSciTag, curl);
 
     if (!m_request_manager.Produce(request)) {
         int retval = req.StartChunkedResp(429, "Too Many Requests",
