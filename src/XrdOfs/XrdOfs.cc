@@ -639,14 +639,24 @@ int XrdOfsFile::open(const char          *path,      // In
                      "+ofs_open: failed to enter file into posc queue");
           }
 
+       std::string cinfo = info;
        // If placement information is present provide a hint to the oss plugin
        //
-       if ((open_mode & ~SFS_O_CREAT) & SFS_O_CREATAT) crOpts |= XRDOSS_coloc;
+
+       XrdOucEnv Create_Env(cinfo.c_str(),0,client);
+       if ((open_mode & ~SFS_O_CREAT) & SFS_O_CREATAT)
+          {XrdSfsFile *sfp = (XrdSfsFile*)Open_Env.GetPtr("sfs.coloc*");
+           XrdOfsFile *ofsFile = dynamic_cast<XrdOfsFile*>(sfp);
+           if (ofsFile)
+              {Create_Env.PutPtr("oss.coloc*", &ofsFile->oh->Select());
+               crOpts |= XRDOSS_coloc;
+              }
+          }
 
        // Create the file. If ENOTSUP is returned, promote the creation to
        // the subsequent open. This is to accomodate proxy support.
        //
-       if ((retc = XrdOfsOss->Create(tident, path, theMode, Open_Env,
+       if ((retc = XrdOfsOss->Create(tident, path, theMode, Create_Env,
                                      ((open_flag << 8) | crOpts))))
           {if (retc > 0) return XrdOfsFS->Stall(error, retc, path);
            if (retc == -EINPROGRESS)
@@ -859,13 +869,23 @@ int XrdOfsFile::Clone(XrdOucCloneSeg cVec[], int n)
    EPNAME("Clone");
    int i, j = 0;
 
-do{XrdOfsFile& curFile = *cVec[j].src.ofsFile;
+do{
+   XrdSfsFile *sf = cVec[j].src.sfsFile;
+   cVec[j].src.ofsFile = nullptr;
+   if (sf) cVec[j].src.ofsFile = dynamic_cast<XrdOfsFile*>(sf);
+   if (!cVec[j].src.ofsFile)
+      {char etxt[4096];
+       snprintf(etxt,sizeof(etxt),"%s",oh->Name());
+       return XrdOfsFS->Emsg(epname, error, -EINVAL, "clone", etxt);
+      }
+   XrdOfsFile& curFile = *cVec[j].src.ofsFile;
    XrdOssDF*   ossFile = &curFile.oh->Select();
+   cVec[j].src.ossFile = ossFile;
 
-   for (i = j+1; i < n && cVec[i].src.ofsFile == &curFile; i++)
+   for (i = j+1; i < n && cVec[i].src.sfsFile == sf; i++)
        {cVec[i].src.ossFile = ossFile;}
    int k = i - j;
-   int rc = curFile.oh->Select().Clone(&cVec[j], k);
+   int rc = oh->Select().Clone(&cVec[j], k);
 
    if (rc < 0)
       {char etxt[4096];
