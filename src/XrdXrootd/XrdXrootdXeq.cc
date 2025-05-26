@@ -33,6 +33,7 @@
 #include <memory>
 #include <string>
 #include <sys/time.h>
+#include <vector>
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
@@ -526,6 +527,7 @@ int XrdXrootdProtocol::do_Clone()
    XrdXrootdFHandle fh(Request.clone.fhandle);
    XrdXrootdFile* fP;
    XrdSfsFile *dstFile, *srcFile = 0;
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    int clVecNum, clVecLen = Request.header.dlen;
    int currFH =- -1;
 
@@ -549,19 +551,18 @@ int XrdXrootdProtocol::do_Clone()
          (clVecNum*(int)sizeof(XrdProto::clone_list) != clVecLen) )
       return Response.Send(kXR_ArgInvalid, "Clone vector is invalid");
 
-// Make sure that we can copy the read vector to our local stack. We must impose 
+// Make sure that we can copy the clone vector to our local stack. We must impose 
 // a limit on it's size. We do this to be able to reuse the data buffer to 
 // prevent cross-cpu memory cache synchronization.
 //
    if (clVecNum > XrdProto::maxClonesz)
       return Response.Send(kXR_ArgTooLong, "Clone vector is too long");
 
-// Allocate a new cloe vector
+// Allocate a new clone vector
 //
-   std::unique_ptr<XrdOucCloneSeg[]> u_clVecP(new XrdOucCloneSeg[clVecNum]);
-   XrdOucCloneSeg* clVec = u_clVecP.get();
+   std::vector<XrdOucCloneSeg> clVec(clVecNum);
 
-// Setup for clone vector creation
+// Setup for clone vector initialisation
 //
    XrdProto::clone_list* clList = (XrdProto::clone_list *)argp->buff;
 
@@ -576,7 +577,21 @@ int XrdXrootdProtocol::do_Clone()
                                     "clone does not refer to an open src file");
             srcFile = fP->XrdSfsp;
            }
-        clVec[i].src.sfsFile = srcFile;
+
+        int fdNum;
+        if (srcFile->fctl(SFS_FCTL_GETFD, 0, myError) != SFS_OK)
+           {int ecode;
+            const char *eMsg = myError.getErrText(ecode);
+            const int rc = XProtocol::mapError(ecode);
+            return Response.Send((XErrorCode)rc, eMsg);
+           }
+           else fdNum = myError.getErrInfo();
+
+        if (fdNum<0)
+           return Response.Send(kXR_FileNotOpen,
+                                "clone does not refer to an open src file");
+
+        clVec[i].srcFD = fdNum;
         n2hll(clList[i].srcOffs, clVec[i].srcOffs);
         n2hll(clList[i].srcLen,  clVec[i].srcLen);
         n2hll(clList[i].dstOffs, clVec[i].dstOffs);
@@ -584,7 +599,7 @@ int XrdXrootdProtocol::do_Clone()
 
 // Now execute the clone request
 //
-   int rc = dstFile->Clone(clVec, clVecNum);
+   int rc = dstFile->Clone(clVec);
    if (SFS_OK != rc) return fsError(rc, 0, dstFile->error, 0, 0);
 
    return Response.Send();
@@ -1520,14 +1535,17 @@ int XrdXrootdProtocol::do_Open()
    if (opts & kXR_seqio)              {*op++ = 'S'; openopts |= SFS_O_SEQIO;}
    if (optt & kXR_samefs || optt & kXR_dup)
       {XrdXrootdFHandle fh(Request.open.fhtemplt);
+       if (!(fsFeatures & XrdSfs::hasFICL))
+              return Response.Send(kXR_Unsupported,(optt & kXR_dup) ?
+                      "file cloning is not supported" :
+                      "colocating with a specified file is not supported");
        if (optt & kXR_dup)
-          {if (!(fsFeatures & XrdSfs::hasFICL))
-              return Response.Send(kXR_Unsupported,
-                                  "file cloning is not supported");
-           if (usage != 'w') return Response.Send(kXR_ArgInvalid,
+          {if (usage != 'w') return Response.Send(kXR_ArgInvalid,
                                     "cloned file is not being opened R/W");
                                       {*op++ = 'K'; doClone = true;}
           }
+       if (!(opts & kXR_new)) return Response.Send(kXR_ArgInvalid,
+                 "file must be opened as a new file in order to colocate");
        if (openopts &= SFS_O_CREAT)   {*op++ = 'L'; openopts |= SFS_O_CREATAT;}
 
        if (!FTab || !(sameFS = FTab->Get(fh.handle)))
@@ -1623,10 +1641,20 @@ int XrdXrootdProtocol::do_Open()
    if ((doTLS & Req_TLSTPC) && !isTLS && !Link->hasBridge())
       openopts|= SFS_O_NOTPC;
 
+// If needed add the colocation information. This is the filesystem in
+// which the new file should be created.
+//
+   std::string oinfo(opaque ? opaque : "");
+   if ((openopts & SFS_O_CREATAT) == SFS_O_CREATAT)
+      {std::string coloc = sameFS->XrdSfsp->FName();
+       coloc = "oss.coloc=" + coloc;
+       oinfo += (!oinfo.empty() ? "&" : "") + coloc;
+      }
+
 // Open the file
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
-                     (mode_t)mode, CRED, opaque)))
+                     (mode_t)mode, CRED, oinfo.c_str())))
       return fsError(rc, opC, fp->error, fn, opaque);
 
 // If file needs to be cloned, do so now

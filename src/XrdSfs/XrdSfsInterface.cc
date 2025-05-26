@@ -85,9 +85,9 @@ int XrdSfsFile::Clone(XrdSfsFile& srcFile)
    return SFS_ERROR;
 }
 
-int XrdSfsFile::Clone(XrdOucCloneSeg cVec[], int n)
+int XrdSfsFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
 {
-   (void)cVec; (void)n;
+   (void)cVec;
    error.setErrInfo(ENOTSUP, "Not supported.");
    return SFS_ERROR;
 }

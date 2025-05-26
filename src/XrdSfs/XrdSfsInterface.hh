@@ -32,8 +32,10 @@
 #include <cstring>      // For strlcpy()
 #include <cerrno>
 #include <cstdint>
+#include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <vector>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
@@ -186,7 +188,7 @@ struct XrdSfsPrep  //!< Prepare parameters
 /******************************************************************************/
 
 class  XrdOucEnv;
-class  XrdOucCloneSeg;
+struct XrdOucCloneSeg;
 class  XrdSecEntity;
 struct XrdSfsFACtl;
 
@@ -402,7 +404,6 @@ public:
 //! @param  createMode - The file's mode if it will be created.
 //! @param  client     - Client's identify (see common description).
 //! @param  opaque     - path's CGI information (see common description).
-//! @param  file       - path's CGI information (see common description).
 //!
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
 //!
@@ -461,15 +462,14 @@ virtual int            checkpoint(cpAct act, struct iov *range=0, int n=0);
 virtual int            Clone(XrdSfsFile& srcFile);
 
 //-----------------------------------------------------------------------------
-//! Clone contents of a file from one or more oher files.
+//! Clone contents of a file from one or more other files.
 //!
 //! @param  cVec  - A vector of struct XrdOucCloneSeg describing the action.
-//! @param  n     - The number of elements in cVec.
 //!
 //! @return One of SFS_OK or SFS_ERROR.
 //-----------------------------------------------------------------------------
 
-virtual int            Clone(XrdOucCloneSeg cVec[], int n);
+virtual int            Clone(const std::vector<XrdOucCloneSeg> &cVec);
 
 //-----------------------------------------------------------------------------
 //! Close the file.

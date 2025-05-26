@@ -144,6 +144,22 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
             }
    if (retc && retc != ENOENT) return -retc;
 
+// Check if we are requested to create the file at a specific location.
+// If so set the cgroup to match the location we have been passed in the env.
+   bool forcecg = false;
+   if (Opts & XRDOSS_coloc)
+      {if (crInfo.pOpts & XRDEXP_NOFICL) return -EPERM;
+       const char *coloc = env.Get("oss.coloc");
+       char  coloc_local[MAXPATHLEN+1];
+       coloc_local[0] = '\0';
+       if (coloc && (retc = GenLocalPath(coloc, coloc_local))) return retc;
+       XrdOssCache_FS *cp = XrdOssCache::Find(coloc_local);
+       std::string gpath;
+       if (cp) gpath = cp->group + std::string(":") + cp->path;
+       env.Put(OSS_CGROUP, gpath.c_str());
+       forcecg = true;
+      }
+
 // At this point, creation requests may need to be routed via the stagecmd.
 // This is done if the file/link do not exist. Otherwise, we drop through.
 //
@@ -204,7 +220,7 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
 // Created file in the extended cache or the local name space
 //
    if (XrdOssCache::fsfirst && !(crInfo.pOpts & XRDEXP_INPLACE))
-           retc = Alloc_Cache(crInfo, env);
+           retc = Alloc_Cache(crInfo, env, forcecg);
       else retc = Alloc_Local(crInfo, env);
 
 // If successful then check if xattrs were actually set
@@ -226,7 +242,7 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
 /*                           A l l o c _ C a c h e                            */
 /******************************************************************************/
 
-int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
+int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env, bool forcecg)
 {
    EPNAME("Alloc_Cache")
    int datfd, rc;
@@ -243,7 +259,7 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
 // Determine the space we should use for this allocation
 //
    spName = env.Get(OSS_CGROUP);
-   if (!spName || (SPList.NotEmpty() && SPList.Default() == spAssign))
+   if (!spName || (!forcecg && SPList.NotEmpty() && SPList.Default() == spAssign))
       {XrdOucPList *pl = SPList.About(crInfo.LFN);
        if (pl && (!spName || pl->Attr() == spAssign)) spName = pl->Name();
       }
