@@ -275,6 +275,23 @@ namespace XrdCl
         (void)name; (void)value;
         return false;
       }
+
+      virtual void *GetTemplateRef()
+      {
+        return nullptr;
+      }
+
+      virtual XRootDStatus SetOpenFileTemplate( File &file, bool dup )
+      {
+        (void)file; (void)dup;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      virtual XRootDStatus Clone( const CloneLocations &locs, ResponseHandler *handler, uint16_t timeout )
+      {
+        (void)locs; (void)handler, (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
   };
 
   //----------------------------------------------------------------------------

@@ -33,6 +33,8 @@
 #include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
+#include <sstream>
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -881,5 +883,39 @@ namespace XrdCl
       return pPlugIn->GetProperty( name, value );
 
     return pImpl->pStateHandler->GetProperty( name, value );
+  }
+
+  void *File::GetTemplateRef()
+  {
+    if( pPlugIn )
+      return pPlugIn->GetTemplateRef();
+
+    return &pImpl->pStateHandler;
+  }
+
+  XRootDStatus File::SetOpenFileTemplate( File &file, bool dup )
+  {
+    if( pPlugIn )
+      return pPlugIn->SetOpenFileTemplate( file, dup );
+
+    return pImpl->pStateHandler->SetOpenFileTemplate( pImpl->pStateHandler, file, dup );
+  }
+
+  XRootDStatus File::Clone( const CloneLocations &locs, ResponseHandler *handler, uint16_t timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->Clone( locs, handler, timeout );
+
+    return pImpl->pStateHandler->Clone( pImpl->pStateHandler, locs, handler, timeout );
+  }
+
+  XRootDStatus File::Clone( const CloneLocations &locs, uint16_t timeout )
+  {
+    SyncResponseHandler handler;
+    XRootDStatus st = Clone( locs, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForStatus( &handler );
   }
 }

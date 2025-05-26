@@ -102,6 +102,32 @@ namespace XrdCl
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
+      //! Clone files and ranges specified into the current file - async
+      //!
+      //! @param locs    files, source ranges and dest offsets to be cloned
+      //! @param handler handler to be notified about the status of the operation
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Clone( const CloneLocations &locs,
+                          ResponseHandler      *handler,
+                          uint16_t              timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Clone files and ranges specified into the current file - sync
+      //!
+      //! @param locs    files, source ranges and dest offsets to be cloned
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Clone( const CloneLocations &locs,
+                          uint16_t              timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
       //! Close the file - async
       //!
       //! @param handler handler to be notified about the status of the operation
@@ -783,6 +809,10 @@ namespace XrdCl
       //! LastURL    [string] - final file URL with all the cgi information
       //------------------------------------------------------------------------
       bool GetProperty( const std::string &name, std::string &value ) const;
+
+      void *GetTemplateRef();
+
+      XRootDStatus SetOpenFileTemplate( File &file, bool dup );
 
     private:
 
