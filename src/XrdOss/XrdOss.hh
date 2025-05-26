@@ -40,9 +40,9 @@
 #include <cstring>
 
 #include "XrdOss/XrdOssVS.hh"
+#include "XrdOuc/XrdOucCloneSeg.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
-class XrdOucCloneSeg;
 class XrdOucEnv;
 class XrdSysLogger;
 class XrdSfsAio;
@@ -504,6 +504,7 @@ short       rsvd;    // Reserved
 #define XRDOSS_HASNAIO 0x0000000000000020ULL
 #define XRDOSS_HASRPXY 0x0000000000000040ULL
 #define XRDOSS_HASXERT 0x0000000000000080ULL
+#define XRDOSS_HASFICL 0x0000000000000100ULL
 
 // Options that can be passed to Stat()
 //

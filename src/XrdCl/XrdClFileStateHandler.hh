@@ -609,6 +609,20 @@ namespace XrdCl
                                      uint16_t                           timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Clone ranges of files into the current file
+      //!
+      //! @param handler : handler to be notified when the response arrives.
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      static XRootDStatus Clone(std::shared_ptr<FileStateHandler>      &self,
+                                const CloneLocations                   &locs,
+                                ResponseHandler                        *handler,
+                                uint16_t                                timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Process the results of the opening operation
       //------------------------------------------------------------------------
       void OnOpen( const XRootDStatus *status,
@@ -661,6 +675,13 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Set the file template infromation for use at open
+      //------------------------------------------------------------------------
+      static XRootDStatus SetOpenFileTemplate( std::shared_ptr<FileStateHandler> &self,
+                                               File                              &file,
+                                               bool                               dup );
+
+      //------------------------------------------------------------------------
       //! Set file property
       //!
       //! @see File::GetProperty for propert list
@@ -710,6 +731,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static XRootDStatus TryOtherServer( std::shared_ptr<FileStateHandler> &self,
                                           uint16_t                           timeout );
+
 
     private:
       //------------------------------------------------------------------------
@@ -800,6 +822,15 @@ namespace XrdCl
       //! Fail queued messages
       //------------------------------------------------------------------------
       void FailQueuedMessages( XRootDStatus status );
+
+      //------------------------------------------------------------------------
+      //! Helper to fill in filehandle template related options during open
+      //------------------------------------------------------------------------
+      static XRootDStatus FillFhTemplt( std::shared_ptr<FileStateHandler> &self,
+                                        const URL                         &url,
+                                        Message                           *msg,
+                                        bool                              &useSend,
+                                        URL                               &sendUrl );
 
       //------------------------------------------------------------------------
       //! Re-send queued messages
@@ -900,6 +931,12 @@ namespace XrdCl
       // Responsible for Writing/Reading erasure-coded files
       //------------------------------------------------------------------------
       FilePlugIn           *&pPlugin;
+
+      //------------------------------------------------------------------------
+      // Used to select use of file template, with optional duplication on open
+      //------------------------------------------------------------------------
+      std::weak_ptr<FileStateHandler> pTemplateFileWp;
+      bool                            pTemplDup;
   };
 }
 
