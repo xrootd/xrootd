@@ -184,7 +184,7 @@ struct XrdSfsPrep  //!< Prepare parameters
 /******************************************************************************/
 
 class  XrdOucEnv;
-class  XrdOucCloneSeg;
+struct XrdOucCloneSeg;
 class  XrdSecEntity;
 struct XrdSfsFACtl;
 

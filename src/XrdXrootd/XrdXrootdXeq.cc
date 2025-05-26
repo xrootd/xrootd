@@ -1518,14 +1518,17 @@ int XrdXrootdProtocol::do_Open()
    if (opts & kXR_seqio)              {*op++ = 'S'; openopts |= SFS_O_SEQIO;}
    if (optt & kXR_samefs || optt & kXR_dup)
       {XrdXrootdFHandle fh(Request.open.fhtemplt);
+       if (!(fsFeatures & XrdSfs::hasFICL))
+              return Response.Send(kXR_Unsupported,(optt & kXR_dup) ?
+                      "file cloning is not supported" :
+                      "colocating with a specified file is not supported");
        if (optt & kXR_dup)
-          {if (!(fsFeatures & XrdSfs::hasFICL))
-              return Response.Send(kXR_Unsupported,
-                                  "file cloning is not supported");
-           if (usage != 'w') return Response.Send(kXR_ArgInvalid,
+          {if (usage != 'w') return Response.Send(kXR_ArgInvalid,
                                     "cloned file is not being opened R/W");
                                       {*op++ = 'K'; doClone = true;}
           }
+       if (!(opts & kXR_new)) return Response.Send(kXR_ArgInvalid,
+                 "file must be opened as a new file in order to colocate");
        if (openopts &= SFS_O_CREAT)   {*op++ = 'L'; openopts |= SFS_O_CREATAT;}
 
        if (!FTab || !(sameFS = FTab->Get(fh.handle)))
@@ -1614,10 +1617,24 @@ int XrdXrootdProtocol::do_Open()
    if ((doTLS & Req_TLSTPC) && !isTLS && !Link->hasBridge())
       openopts|= SFS_O_NOTPC;
 
+// If needed add the colocation pointer. We add it to the end of the opaque
+// string and rely on later use of XrdOucEnv to keep this value, ignoring
+// any possible user supplied key/value pair with our key.
+//
+   std::string oinfo(opaque ? opaque : "");
+   if ((openopts & SFS_O_CREATAT) == SFS_O_CREATAT)
+      {XrdOucEnv te;
+       te.PutPtr("sfs.coloc*", sameFS->XrdSfsp);
+       const char *v = te.Get("sfs.coloc*");
+       char buf[128];
+       snprintf(buf, sizeof(buf), "sfs.coloc*=%s", v);
+       oinfo += (!oinfo.empty() ? "&" : "") + std::string(buf);
+      }
+
 // Open the file
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
-                     (mode_t)mode, CRED, opaque)))
+                     (mode_t)mode, CRED, oinfo.c_str())))
       return fsError(rc, opC, fp->error, fn, opaque);
 
 // If file needs to be cloned, do so now
