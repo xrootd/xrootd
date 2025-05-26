@@ -105,7 +105,9 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
         {"lock",          XRDEXP_NOLK,    0,              XRDEXP_NOLK_X},
         {"nolock",        0,              XRDEXP_NOLK,    XRDEXP_NOLK_X},
         {"xattrs",        XRDEXP_NOXATTR, 0,              XRDEXP_NOXATTR_X},
-        {"noxattrs",      0,              XRDEXP_NOXATTR, XRDEXP_NOXATTR_X}
+        {"noxattrs",      0,              XRDEXP_NOXATTR, XRDEXP_NOXATTR_X},
+        {"noficl",        0,              XRDEXP_NOFICL,  XRDEXP_NOFICL_X},
+        {"ficl",          XRDEXP_NOFICL,  0,              XRDEXP_NOFICL_X}
        };
     int i, numopts = sizeof(rpopts)/sizeof(struct rpathopts);
     char *val;

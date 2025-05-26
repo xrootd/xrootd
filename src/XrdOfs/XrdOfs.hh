@@ -127,7 +127,7 @@ public:
 
         int            Clone(XrdSfsFile& srcFile);
 
-        int            Clone(XrdOucCloneSeg cVec[], int n);
+        int            Clone(const std::vector<XrdOucCloneSeg> &cVec);
 
         int            close();
 

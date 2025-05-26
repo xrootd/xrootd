@@ -37,7 +37,11 @@
 #include <signal.h>
 #include <strings.h>
 #include <cstdio>
+#if defined(__linux__)
+#include <linux/fs.h>
+#endif
 #include <sys/file.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -54,6 +58,7 @@
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssTrace.hh"
+#include "XrdOuc/XrdOucCloneSeg.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
@@ -252,6 +257,61 @@ int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
     if (strlen(oldp) >= MAXPATHLEN) return -ENAMETOOLONG;
     strcpy(newp, oldp);
     return 0;
+}
+
+/******************************************************************************/
+/*                                  C l o n e                                 */
+/******************************************************************************/
+/*
+  Function: Clone contents of a file from another file.
+
+  Input:    srcFile     - clone contents of this file.
+
+  Output:   Returns XrdOssOK upon success and -errno or -osserr upon failure.
+*/
+
+int XrdOssFile::Clone(XrdOssDF& srcFile)
+{
+#if defined(FICLONE)
+  if (!canClone)
+    return -EPERM;
+
+  if (fd<0)
+     return -EBADF;
+  if (srcFile.getFD() < 0)
+     return -EBADF;
+
+  if (ioctl(fd, FICLONE, srcFile.getFD())==-1)
+    return -errno;
+
+  return XrdOssOK;
+#else
+  return -ENOTSUP;
+#endif
+}
+
+int XrdOssFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
+{
+#if defined(FICLONERANGE)
+  if (!canClone)
+    return -EPERM;
+
+  if (fd<0)
+     return -EBADF;
+
+  for(auto &seg: cVec)
+    {struct file_clone_range fr;
+     fr.src_fd      = seg.srcFD;
+     fr.src_offset  = seg.srcOffs;
+     fr.src_length  = seg.srcLen;
+     fr.dest_offset = seg.dstOffs;
+     if (ioctl(fd, FICLONERANGE, &fr) == -1) return -errno;
+    }
+
+  return XrdOssOK;
+#else
+  return -ENOTSUP;
+#endif
 }
 
 /******************************************************************************/
@@ -832,6 +892,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
        if (mopts) mmFile = XrdOssMio::Map(local_path, fd, mopts);
       } else mmFile = 0;
 
+   canClone = !(popts & XRDEXP_NOFICL);
 // Return the result of this open
 //
    return (fd < 0 ? fd : XrdOssOK);
