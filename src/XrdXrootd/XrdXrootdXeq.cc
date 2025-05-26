@@ -1612,10 +1612,24 @@ int XrdXrootdProtocol::do_Open()
    if ((doTLS & Req_TLSTPC) && !isTLS && !Link->hasBridge())
       openopts|= SFS_O_NOTPC;
 
+// If needed add the colocation pointer. We add it to the end of the opaque
+// string and rely on later use of XrdOucEnv to keep this value, ignoring
+// any possible user supplied key/value pair with our key.
+//
+   std::string oinfo(opaque ? opaque : "");
+   if ((openopts & SFS_O_CREATAT) == SFS_O_CREATAT)
+      {XrdOucEnv te;
+       te.PutPtr("sfs.coloc*", sameFS->XrdSfsp);
+       const char *v = te.Get("sfs.coloc*");
+       char buf[128];
+       snprintf(buf, sizeof(buf), "sfs.coloc*=%s", v);
+       oinfo += (!oinfo.empty() ? "&" : "") + std::string(buf);
+      }
+
 // Open the file
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
-                     (mode_t)mode, CRED, opaque)))
+                     (mode_t)mode, CRED, oinfo.c_str())))
       return fsError(rc, opC, fp->error, fn, opaque);
 
 // If file needs to be cloned, do so now

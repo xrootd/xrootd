@@ -849,6 +849,16 @@ namespace XrdCl
     req->mode      = mode;
     req->options   = flags | kXR_async | kXR_retstat;
     req->dlen      = path.length();
+    bool useSend = false;
+    URL sendUrl;
+    XRootDStatus st = FillFhTemplt( self, *self->pFileUrl, msg, useSend, sendUrl );
+    if( !st.IsOK() )
+    {
+      delete openHandler;
+      self->pStatus    = st;
+      self->pFileState = Closed;
+      return st;
+    }
     msg->Append( path.c_str(), path.length(), 24 );
 
     XRootDTransport::SetDescription( msg );
@@ -856,7 +866,10 @@ namespace XrdCl
     params.followRedirects = self->pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
 
-    XRootDStatus st = self->IssueRequest( *self->pFileUrl, msg, openHandler, params );
+    if ( !useSend )
+      st = self->IssueRequest( *self->pFileUrl, msg, openHandler, params );
+    else
+      st = self->IssueRequest( sendUrl, msg, openHandler, params );
 
     if( !st.IsOK() )
     {
@@ -3037,6 +3050,15 @@ namespace XrdCl
     req->mode      = self->pOpenMode;
     req->options   = self->pOpenFlags;
     req->dlen      = path.length();
+    bool useSend = false;
+    URL sendUrl;
+    XRootDStatus st = FillFhTemplt( self, url, msg, useSend, sendUrl );
+    if( !st.IsOK() )
+    {
+      self->pStatus    = st;
+      self->pFileState = Closed;
+      return st;
+    }
     msg->Append( path.c_str(), path.length(), 24 );
 
     // create a new reopen handler
@@ -3050,7 +3072,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Issue the open request
     //--------------------------------------------------------------------------
-    XRootDStatus st = self->IssueRequest( url, msg, openHandler, params );
+    if ( !useSend )
+      st = self->IssueRequest( url, msg, openHandler, params );
+    else
+      st = self->IssueRequest( sendUrl, msg, openHandler, params );
 
     // if there was a problem destroy the open handler
     if( !st.IsOK() )
@@ -3281,6 +3306,137 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     StatefulHandler *stHandler = new StatefulHandler( self, handler, msg, params );
+
+    return SendOrQueue( self, *self->pDataServer, msg, stHandler, params );
+  }
+
+  XRootDStatus FileStateHandler::FillFhTemplt(std::shared_ptr<FileStateHandler> &self, const URL &url, Message *msg, bool &useSend, URL &sendUrl)
+  {
+    ClientOpenRequest *req = (ClientOpenRequest*)msg->GetBuffer();
+    using wp = std::weak_ptr<FileStateHandler>;
+
+    if (!self->pTemplateFileWp.owner_before(wp{}) && !wp{}.owner_before(self->pTemplateFileWp)) {
+      // no tempalte file was set
+      useSend = false;
+      return XRootDStatus();
+    }
+
+    req->optiont |= self->pTemplDup ? kXR_dup : kXR_samefs;
+
+    std::shared_ptr<FileStateHandler> tfp = self->pTemplateFileWp.lock();
+    if (!tfp) {
+      return XRootDStatus( stError, errInvalidArgs, 0, "Template file object does not exist" );
+    }
+
+    XrdSysMutexHelper scopedLock( tfp->pMutex );
+
+    if( tfp->pFileState != Opened )
+      return XRootDStatus( stError, errInvalidOp, 0, "Template file not open" );
+
+    if (!tfp->pDataServer || !tfp->pFileHandle) {
+      return XRootDStatus( stError, errInvalidArgs, 0, "Template file not connected" );
+    }
+
+    useSend = true;
+    sendUrl = url;
+    sendUrl.SetHostPort(tfp->pDataServer->GetHostName(),tfp->pDataServer->GetPort());
+    sendUrl.SetUserName(tfp->pDataServer->GetUserName());
+    msg->SetSessionId( tfp->pSessionId );
+    memcpy(req->fhtemplt, tfp->pFileHandle, sizeof(req->fhtemplt));
+
+    if( !Utils::HasClone( sendUrl ) )
+      return XRootDStatus( stError, errNotSupported );
+
+    return XRootDStatus();
+  }
+
+  XRootDStatus FileStateHandler::SetOpenFileTemplate(std::shared_ptr<FileStateHandler> &self,
+                                                     File &file, bool dup)
+  {
+    if( self->pFileState == Error )
+      return self->pStatus;
+
+    if( self->pFileState == OpenInProgress )
+      return XRootDStatus( stError, errInProgress );
+
+    if( self->pFileState == CloseInProgress || self->pFileState == Opened ||
+        self->pFileState == Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    void *vfp = file.GetTemplateRef();
+    std::shared_ptr<FileStateHandler> *fp = static_cast<std::shared_ptr<FileStateHandler>*>(vfp);
+    self->pTemplateFileWp = *fp;
+    self->pTemplDup = dup;
+    return XRootDStatus();
+  }
+
+  XRootDStatus FileStateHandler::Clone(std::shared_ptr<FileStateHandler> &self,
+                                       const CloneLocations &locs,
+                                       ResponseHandler *handler,
+                                       uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( self->pMutex );
+
+    if( self->pFileState == Error ) return self->pStatus;
+
+    if( self->pFileState != Opened && self->pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    if( !Utils::HasClone( *self->pDataServer ) )
+      return XRootDStatus( stError, errNotSupported );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[%p@%s] Sending a clone command for handle %#x to %s",
+                self.get(), self->pFileUrl->GetURL().c_str(),
+                *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
+
+    Message           *msg;
+    ClientReadRequest *req;
+
+    size_t nrange = locs.locs.size();
+
+    MessageUtils::CreateRequest( msg, req, sizeof(XrdProto::clone_list)*nrange );
+
+    req->requestid  = kXR_clone;
+    req->dlen       = sizeof(XrdProto::clone_list)*nrange;
+    memcpy( req->fhandle, self->pFileHandle, 4 );
+
+    XrdProto::clone_list *cl = (XrdProto::clone_list*)msg->GetBuffer( 24 );
+    int idx=0;
+    for(auto &loc: locs.locs)
+    {
+      void *vfp = loc.file->GetTemplateRef();
+      std::shared_ptr<FileStateHandler> *fp = static_cast<std::shared_ptr<FileStateHandler>*>(vfp);
+      std::shared_ptr<FileStateHandler> tfp = *fp;
+      XrdSysMutexHelper scopedLock( tfp->pMutex );
+      if( tfp->pFileState != Opened )
+        return XRootDStatus( stError, errInvalidOp, 0, "Template file not open" );
+
+      if (tfp->pDataServer->GetHostName() != self->pDataServer->GetHostName() ||
+          tfp->pDataServer->GetPort() != self->pDataServer->GetPort() ||
+          tfp->pDataServer->GetUserName() != self->pDataServer->GetUserName()) {
+        return XRootDStatus( stError, errInvalidOp );
+      }
+
+      if (tfp->pSessionId != self->pSessionId )
+      {
+        return XRootDStatus( stError, errInvalidOp );
+      }
+
+      memcpy(cl[idx].srcFH, tfp->pFileHandle, 4);
+      cl[idx].srcOffs = loc.srcOffs;
+      cl[idx].srcLen = loc.srcLen;
+      cl[idx].dstOffs = loc.dstOffs;
+      ++idx;
+    }
+
+    XRootDTransport::SetDescription( msg );
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+    StatefulHandler  *stHandler = new StatefulHandler( self, handler, msg, params );
 
     return SendOrQueue( self, *self->pDataServer, msg, stHandler, params );
   }

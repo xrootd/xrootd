@@ -39,6 +39,7 @@ namespace XrdCl
 {
   class PostMaster;
   class FileSystemPlugIn;
+  class File;
   struct MessageSendParams;
 
   //----------------------------------------------------------------------------
@@ -190,6 +191,27 @@ namespace XrdCl
     };
   };
   XRDOUC_ENUM_OPERATORS( PrepareFlags::Flags )
+
+  struct CloneLocation {
+    File *file;
+    off_t srcOffs;
+    off_t srcLen;
+    off_t dstOffs;
+  };
+
+  struct CloneLocations {
+    void add(File &file, off_t dstOffs, off_t srcOffs, off_t srcLen)
+    {
+      CloneLocation loc;
+      loc.srcOffs = srcOffs;
+      loc.dstOffs = dstOffs;
+      loc.srcLen = srcLen;
+      loc.file = &file;
+      locs.push_back(loc);
+    }
+
+    std::vector<CloneLocation> locs;
+  };
 
   //----------------------------------------------------------------------------
   //! Forward declaration of the implementation class holding the data members
