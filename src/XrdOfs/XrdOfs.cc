@@ -854,27 +854,16 @@ int XrdOfsFile::Clone(XrdSfsFile& srcFile)
   
 /******************************************************************************/
 
-int XrdOfsFile::Clone(XrdOucCloneSeg cVec[], int n)
+int XrdOfsFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
 {
    EPNAME("Clone");
-   int i, j = 0;
-
-do{XrdOfsFile& curFile = *cVec[j].src.ofsFile;
-   XrdOssDF*   ossFile = &curFile.oh->Select();
-
-   for (i = j+1; i < n && cVec[i].src.ofsFile == &curFile; i++)
-       {cVec[i].src.ossFile = ossFile;}
-   int k = i - j;
-   int rc = curFile.oh->Select().Clone(&cVec[j], k);
+   int rc = oh->Select().Clone(cVec);
 
    if (rc < 0)
       {char etxt[4096];
-       snprintf(etxt,sizeof(etxt),"%s from %s",oh->Name(),curFile.oh->Name()); 
+       snprintf(etxt,sizeof(etxt),"%s from file ranges",oh->Name());
        return XrdOfsFS->Emsg(epname, error, rc, "clone", etxt);
       }
-
-   j = i;
-  } while(j < n);
 
   return SFS_OK;
 }

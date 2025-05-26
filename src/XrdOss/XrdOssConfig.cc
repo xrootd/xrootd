@@ -558,7 +558,7 @@ void XrdOssSys::ConfigCache(XrdSysError &Eroute, bool pass2)
          ||  (pfcMode && !(pflag & XRDEXP_PFCACHE_X)))
             {if (!(pflag & XRDEXP_NOTRW)) pflag |= XRDEXP_READONLY;
              pflag &= ~conFlags;
-             pflag |=  XRDEXP_PFCACHE;
+             pflag |=  XRDEXP_PFCACHE | XRDEXP_NOFICL;
              if (oflag != pflag) fp->Set(pflag);
             }
          fp = fp->Next();
@@ -567,7 +567,7 @@ void XrdOssSys::ConfigCache(XrdSysError &Eroute, bool pass2)
 // Handle default settings
 //
    if (DirFlags & XRDEXP_PFCACHE)
-      {DirFlags |=  XRDEXP_READONLY;
+      {DirFlags |=  XRDEXP_READONLY | XRDEXP_NOFICL;
        DirFlags &= ~conFlags;
       }
 }
@@ -2166,6 +2166,7 @@ void XrdOssSys::List_Path(const char *pfx, const char *pname,
          ss += (flags & XRDEXP_PURGE    ? " purge"   : " nopurge");
          ss += (flags & XRDEXP_RCREATE  ? " rcreate" : " norcreate");
          ss += (flags & XRDEXP_STAGE    ? " stage"   : " nostage");
+         ss += (flags & XRDEXP_NOFICL   ? " noficl"  : " ficl");
         } else ss += " cache";
 
 

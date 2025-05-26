@@ -121,6 +121,7 @@ if( NOT XRDCL_ONLY )
     XrdOss/XrdOssDefaultSS.hh
     XrdOss/XrdOssStatInfo.hh
     XrdOss/XrdOssWrapper.hh
+    XrdOuc/XrdOucCloneSeg.hh
     XrdSfs/XrdSfsAio.hh
     XrdSfs/XrdSfsDio.hh
     XrdSfs/XrdSfsXio.hh
