@@ -119,7 +119,7 @@ virtual int     Clone(XrdOssDF& srcFile) {return wrapDF.Clone(srcFile);}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Clone(XrdOucCloneSeg cVec[], int n) {return wrapDF.Clone(cVec, n);
+virtual int     Clone(XrdOucCloneSeg cVec[], int n) {return wrapDF.Clone(cVec, n);}
 
 //-----------------------------------------------------------------------------
 //! Change file mode settings.
@@ -128,7 +128,7 @@ virtual int     Clone(XrdOucCloneSeg cVec[], int n) {return wrapDF.Clone(cVec, n
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
-x
+
 virtual int     Fchmod(mode_t mode) {return wrapDF.Fchmod(mode);}
 
 //-----------------------------------------------------------------------------
