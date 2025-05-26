@@ -43,7 +43,7 @@
 #include "XrdOss/XrdOssVS.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
-class XrdOucCloneSeg;
+struct XrdOucCloneSeg;
 class XrdOucEnv;
 class XrdSysLogger;
 class XrdSfsAio;
@@ -526,6 +526,7 @@ short       rsvd;    // Reserved
 #define XRDOSS_HASNAIO 0x0000000000000020ULL
 #define XRDOSS_HASRPXY 0x0000000000000040ULL
 #define XRDOSS_HASXERT 0x0000000000000080ULL
+#define XRDOSS_HASFICL 0x0000000000000100ULL
 
 // Options that can be passed to Stat()
 //
@@ -596,8 +597,8 @@ virtual void      Connect(XrdOucEnv &env);
 //! @param  mode   - The new file mode setting.
 //! @param  env    - Reference to environmental information.
 //! @param  opts   - Create options:
-//!                  XRDOSS_coloc  - Colocate file relative to file object
-//!                                  in env with key "oss.coloc*"
+//!                  XRDOSS_coloc  - Colocate file using the placement
+//!                                  information in env "oss.coloc"
 //!                  XRDOSS_mkpath - create dir path if it does not exist.
 //!                  XRDOSS_new    - the file must not already exist.
 //!                  oflags<<8     - open flags shifted 8 bits to the left/

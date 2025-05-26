@@ -36,22 +36,14 @@
 //!
 //! The struct defined here is a generic data structure that is used whenever
 //! we need to pass a vector of file segments that need to be cloned into
-//! anothe file. Generally, this vector is transformed as it passes through.
+//! anothe file.
 //-----------------------------------------------------------------------------
-
-class XrdSfsFile;
-class XrdOfsFile;
-class XrdOssDF;
 
 struct XrdOucCloneSeg
 {
-union {XrdSfsFile* sfsFile; // Pointer to source file at Sfs level
-       XrdOfsFile* ofsFile; // Pointer to source file at Ofs level
-       XrdOssDF*   ossFile; // Pointer to source file at Oss level
-       int64_t     unxFD;   // The source file descriptor
-      } src;
-      uint64_t     srcOffs; // The source offset
-      uint64_t     srcLen;  // The source length
+      int64_t      srcFD;    // The source file descriptor
+      uint64_t     srcOffs;  // The source offset
+      uint64_t     srcLen;   // The source length
       uint64_t     dstOffs;  // The dest   offset
 };
 #endif

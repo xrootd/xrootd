@@ -32,6 +32,7 @@
 #include <cstring>      // For strlcpy()
 #include <cerrno>
 #include <cstdint>
+#include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -186,7 +187,7 @@ struct XrdSfsPrep  //!< Prepare parameters
 /******************************************************************************/
 
 class  XrdOucEnv;
-class  XrdOucCloneSeg;
+struct XrdOucCloneSeg;
 class  XrdSecEntity;
 struct XrdSfsFACtl;
 
@@ -402,7 +403,6 @@ public:
 //! @param  createMode - The file's mode if it will be created.
 //! @param  client     - Client's identify (see common description).
 //! @param  opaque     - path's CGI information (see common description).
-//! @param  file       - path's CGI information (see common description).
 //!
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
 //!

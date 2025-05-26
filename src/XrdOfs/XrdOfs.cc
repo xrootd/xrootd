@@ -859,17 +859,16 @@ int XrdOfsFile::Clone(XrdOucCloneSeg cVec[], int n)
    EPNAME("Clone");
    int i, j = 0;
 
-do{XrdOfsFile& curFile = *cVec[j].src.ofsFile;
-   XrdOssDF*   ossFile = &curFile.oh->Select();
+do{
+   const int64_t srcFD = cVec[j].srcFD;
 
-   for (i = j+1; i < n && cVec[i].src.ofsFile == &curFile; i++)
-       {cVec[i].src.ossFile = ossFile;}
+   for (i = j+1; i < n && cVec[i].srcFD == srcFD; i++);
    int k = i - j;
-   int rc = curFile.oh->Select().Clone(&cVec[j], k);
+   int rc = oh->Select().Clone(&cVec[j], k);
 
    if (rc < 0)
       {char etxt[4096];
-       snprintf(etxt,sizeof(etxt),"%s from %s",oh->Name(),curFile.oh->Name()); 
+       snprintf(etxt,sizeof(etxt),"%s from FD %d",oh->Name(), (int)srcFD);
        return XrdOfsFS->Emsg(epname, error, rc, "clone", etxt);
       }
 
