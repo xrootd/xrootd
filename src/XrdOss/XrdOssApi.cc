@@ -58,6 +58,7 @@
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssTrace.hh"
+#include "XrdOuc/XrdOucCloneSeg.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
