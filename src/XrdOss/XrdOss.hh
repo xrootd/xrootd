@@ -40,9 +40,9 @@
 #include <cstring>
 
 #include "XrdOss/XrdOssVS.hh"
-#include "XrdOuc/XrdOucCloneSeg.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
+struct XrdOucCloneSeg;
 class XrdOucEnv;
 class XrdSysLogger;
 class XrdSfsAio;

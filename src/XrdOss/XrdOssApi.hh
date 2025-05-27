@@ -96,26 +96,26 @@ int     Clone(XrdOucCloneSeg cVec[], int n) override;
 // The following two are virtual functions to allow for upcasting derivations
 // of this implementation
 //
-virtual int     Close(long long *retsz=0);
-virtual int     Open(const char *, int, mode_t, XrdOucEnv &);
+virtual int     Close(long long *retsz=0) override;
+virtual int     Open(const char *, int, mode_t, XrdOucEnv &) override;
 
-int     Fchmod(mode_t mode);
-int     Fctl(int cmd, int alen, const char *args, char **resp=0);
-void    Flush();
-int     Fstat(struct stat *);
-int     Fsync();
-int     Fsync(XrdSfsAio *aiop);
-int     Ftruncate(unsigned long long);
-int     getFD() {return fd;}
-off_t   getMmap(void **addr);
-int     isCompressed(char *cxidp=0);
-ssize_t Read(               off_t, size_t);
-ssize_t Read(       void *, off_t, size_t);
-int     Read(XrdSfsAio *aiop);
-ssize_t ReadV(XrdOucIOVec *readV, int);
-ssize_t ReadRaw(    void *, off_t, size_t);
-ssize_t Write(const void *, off_t, size_t);
-int     Write(XrdSfsAio *aiop);
+int     Fchmod(mode_t mode) override;
+int     Fctl(int cmd, int alen, const char *args, char **resp=0) override;
+void    Flush() override;
+int     Fstat(struct stat *) override;
+int     Fsync() override;
+int     Fsync(XrdSfsAio *aiop) override;
+int     Ftruncate(unsigned long long) override;
+int     getFD() override {return fd;}
+off_t   getMmap(void **addr) override;
+int     isCompressed(char *cxidp=0) override;
+ssize_t Read(               off_t, size_t) override;
+ssize_t Read(       void *, off_t, size_t) override;
+int     Read(XrdSfsAio *aiop) override;
+ssize_t ReadV(XrdOucIOVec *readV, int) override;
+ssize_t ReadRaw(    void *, off_t, size_t) override;
+ssize_t Write(const void *, off_t, size_t) override;
+int     Write(XrdSfsAio *aiop) override;
  
         // Constructor and destructor
         XrdOssFile(const char *tid, int fdnum=-1)
