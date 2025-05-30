@@ -725,7 +725,7 @@ int main( int argc, char **argv )
         targetIsDir = true;
       targetExists = true;
     }
-    else if( st.errNo == kXR_NotFound && config.Want( XrdCpConfig::DoPath ) )
+    else if( st.errNo == kXR_NotFound && makedir )
     {
       int n = strlen(config.dstFile->Path);
       if( config.dstFile->Path[n-1] == '/' )
