@@ -226,7 +226,16 @@ bool XrdSsiFileSess::AttnInfo(XrdOucErrInfo &eInfo, const XrdSsiRespInfo *respP,
 // If we sent the full response we must remove the request from the request
 // table as it will get finished off when the response is actually sent.
 //
-   if (doFin) rTab.Del(reqID, false);
+   if (doFin)
+     {XrdSsiRRTableItem<XrdSsiFileReq> rqstP;
+      if (!(rqstP = rTab.LookUp(reqID)))
+        {eInfo.setErrInfo(0, "");
+         return false;
+        }
+      attnFinCallBack.setReq(std::move(rqstP));
+      eInfo.setErrCB(&attnFinCallBack);
+      rTab.Del(reqID);
+     }
 
 // Setup to have metadata actually sent to the requestor
 //
@@ -288,7 +297,7 @@ int XrdSsiFileSess::fctl(const int           cmd,
 {
    static const char *epname = "fctl";
    XrdSsiRRInfo      *rInfo;
-   XrdSsiFileReq     *rqstP;
+   XrdSsiRRTableItem<XrdSsiFileReq> rqstP;
    unsigned int       reqID;
 
 // If this isn't the special query, then return an error
@@ -326,7 +335,9 @@ int XrdSsiFileSess::fctl(const int           cmd,
 // Put this client into callback state
 //
    DEBUG(reqID <<':' <<gigID <<" resp not ready");
-   eInfo->setErrCB((XrdOucEICB *)rqstP);
+   fctlCallBack.setReq(std::move(rqstP));
+
+   eInfo->setErrCB(&fctlCallBack);
    eInfo->setErrInfo(respWT, "");
    Stats.Bump(Stats.RspUnRdy);
    return SFS_STARTED;
@@ -372,12 +383,16 @@ bool XrdSsiFileSess::NewRequest(unsigned int     reqid,
 
 // Add it to the table
 //
-   rTab.Add(reqP, reqid);
+   XrdSsiRRTableItem<XrdSsiFileReq> rqstP = rTab.Add(reqP, reqid);
+   if (!rqstP)
+      {delete reqP;
+       return false;
+      }
 
 // Activate the request
 //
    inProg = false;
-   reqP->Activate(oP, bR, rSz);
+   rqstP->Activate(oP, bR, rSz);
    return true;
 }
   
@@ -495,7 +510,7 @@ XrdSfsXferSize XrdSsiFileSess::read(XrdSfsFileOffset  offset,    // In
 {
    static const char *epname = "read";
    XrdSsiRRInfo   rInfo(offset);
-   XrdSsiFileReq *rqstP;
+   XrdSsiRRTableItem<XrdSsiFileReq> rqstP;
    XrdSfsXferSize retval;
    unsigned int   reqID = rInfo.Id();
    bool           noMore = false;
@@ -517,8 +532,7 @@ XrdSfsXferSize XrdSsiFileSess::read(XrdSfsFileOffset  offset,    // In
 // See if we just completed this request
 //
    if (noMore)
-      {rqstP->Finalize();
-       rTab.Del(reqID);
+      {rTab.DelFinalize(std::move(rqstP));
        eofVec.Set(reqID);
       }
 
@@ -583,7 +597,7 @@ int XrdSsiFileSess::SendData(XrdSfsDio         *sfDio,
 {
    static const char *epname = "SendData";
    XrdSsiRRInfo   rInfo(offset);
-   XrdSsiFileReq *rqstP;
+   XrdSsiRRTableItem<XrdSsiFileReq> rqstP;
    unsigned int reqID = rInfo.Id();
    int rc;
 
@@ -599,9 +613,8 @@ int XrdSsiFileSess::SendData(XrdSfsDio         *sfDio,
 // Determine how this ended
 //
    if (rc > 0) rc = SFS_OK;
-      else {rqstP->Finalize();
-            rTab.Del(reqID);
-           }
+      else rTab.DelFinalize(std::move(rqstP));
+
    return rc;
 }
 
@@ -619,7 +632,7 @@ int XrdSsiFileSess::truncate(XrdSfsFileOffset  flen)  // In
 */
 {
    static const char *epname = "trunc";
-   XrdSsiFileReq     *rqstP;
+   XrdSsiRRTableItem<XrdSsiFileReq> rqstP;
    XrdSsiRRInfo       rInfo(flen);
    XrdSsiRRInfo::Opc  reqXQ = rInfo.Cmd();
    unsigned int       reqID = rInfo.Id();
@@ -642,8 +655,7 @@ int XrdSsiFileSess::truncate(XrdSfsFileOffset  flen)  // In
 // Perform the cancellation
 //
    DEBUG(reqID <<':' <<gigID <<" cancelled");
-   rqstP->Finalize();
-   rTab.Del(reqID);
+   rTab.DelFinalize(std::move(rqstP));
    return SFS_OK;
 }
 
