@@ -405,6 +405,21 @@ virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0)
                     {return wrapDF.Fctl(cmd, alen, args, resp);}
 
 //-----------------------------------------------------------------------------
+//! Obtain detailed error message text for the immediately preceeding 
+//! directory or file error (see also XrdOssWrapper::getErrMsg()).
+//!
+//! @param  eText  - Where the message text is to be returned.
+//!
+//! @return True if message text is available, false otherwise.
+//!
+//! @note This method should be called using the same thread that encountered
+//!       the error; otherwise, missleading error text may be returned.
+//! @note Upon return, the internal error message text is cleared.
+//-----------------------------------------------------------------------------
+
+virtual bool    getErrMsg(std::string& eText) {return wrapDF.getErrMsg(eText);}
+
+//-----------------------------------------------------------------------------
 //! Return the underlying file descriptor.
 //!
 //! @return -1 if there is no file descriptor or a non-negative FD number.
@@ -534,6 +549,22 @@ virtual void      EnvInfo(XrdOucEnv *envP) {wrapPI.EnvInfo(envP);}
 //-----------------------------------------------------------------------------
 
 virtual uint64_t  Features() {return wrapPI.Features();}
+
+//-----------------------------------------------------------------------------
+//! Obtain detailed error message text for the immediately preceeding error
+//! returned by any method in this class.
+//!
+//! @param  eText  - Where the message text is to be returned.
+//!
+//! @return True if message text is available, false otherwise.
+//!
+//! @note This method should be called using the same thread that encountered
+//!       the error; otherwise, missleading error text may be returned.
+//! @note Upon return, the internal error message text is cleared.
+//-----------------------------------------------------------------------------
+
+virtual bool      getErrMsg(std::string& eText)
+                           {return wrapPI.getErrMsg(eText);}
 
 //-----------------------------------------------------------------------------
 //! Execute a special storage system operation.
