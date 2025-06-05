@@ -567,11 +567,19 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
    while(rP)
         {qP = &(rP->reqData);
          if (qP->addT && poscHold)
-            {if (XrdOfsHandle::Alloc(qP->LFN, XrdOfsHandle::opPC, &hP))
+            {bool isOpening = false;
+             bool sharedOpen; // Note we don't check the value of sharedOpen afterward;
+                              // Shared open can only be true if there was contention for
+                              // the handle and we assume this cannot be true during startup.
+             int openRC;
+             if (XrdOfsHandle::Alloc(qP->LFN, XrdOfsHandle::opPC, &hP, isOpening, sharedOpen, openRC))
                 {Eroute.Emsg("Config", "Unable to persist", qP->User, qP->LFN);
                  qP->addT = 0;
                 } else {
                  hP->PoscSet(qP->User, rP->Offset, rP->Mode);
+                 if (isOpening)
+                     hP->FinishOpen(-EIO); // Notify other waiters the "open" was done; since there
+                                           // are no waiters, this is a no-op.
                  hP->Retire(hCB, poscHold);
                 }
             }
