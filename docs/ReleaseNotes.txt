@@ -6,6 +6,29 @@ Release Notes
 =============
 
 -------------
+Version 5.8.3
+-------------
+
++ **Major bug fixes**
+  **[XrdCl]** Fix occasionally missed reply messages from the server (#2516)
+  **[XrdHttp]** Fix crash due to thread-safety issue in bridge redrive (#2503)
+  **[XrdPfc]** Fix deadlock at startup (#2505, #2507)
+  **[Server]** Fix crash caused by race condition in XrdPosix callback handler (#2517)
+
++ **Minor bug fixes**
+  **[XrdHttp]** Fix HTTP protocol errors when using `X-Transfer-Status` (#2443)
+  **[XrdOss]** Fix file access mode detection (#2510)
+  **[XrdPfc]** Fix file access mode detection (#2508)
+  **[XrdPosix]** Correct file open mode conversion (#2510)
+  **[XrdCl]** Create directory target by default with recursive copies (#2501)
+
++ **Miscellaneous**
+  **[CMake]** Add Xrd/XrdSendQ.hh to list of installed private headers (#2497)
+  **[XrdHttp]** Add unit tests for read failures during transfers (#2443)
+  **[Python]** Replace license classifier with SPDX license expression (#2502)
+  **[XrdHttp]** Add initial webdav error codes for file path and permission errors (#2261)
+
+-------------
 Version 5.8.2
 -------------
 
