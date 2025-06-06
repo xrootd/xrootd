@@ -179,7 +179,8 @@ namespace XrdCl
       { to_lower( "TlsDbgLvl" ),          DefaultTlsDbgLvl },
       { to_lower( "ClConfDir" ),          DefaultClConfDir },
       { to_lower( "DefaultClConfFile" ),  DefaultClConfFile },
-      { to_lower( "CpTarget" ),           DefaultCpTarget }
+      { to_lower( "CpTarget" ),           DefaultCpTarget },
+      { to_lower( "CpRetryPolicy" ),      DefaultCpRetryPolicy }
     };
 }
 
