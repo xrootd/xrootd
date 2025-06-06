@@ -45,6 +45,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 
+#include <charconv>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <vector>
@@ -84,6 +85,7 @@ char *XrdHttpProtocol::listredir = 0;
 bool XrdHttpProtocol::listdeny = false;
 bool XrdHttpProtocol::embeddedstatic = true;
 char *XrdHttpProtocol::staticredir = 0;
+unsigned XrdHttpProtocol::m_maxdelay = 30;
 XrdOucHash<XrdHttpProtocol::StaticPreloadInfo> *XrdHttpProtocol::staticpreload = 0;
 
 kXR_int32 XrdHttpProtocol::myRole = kXR_isManager;
@@ -898,6 +900,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       TRACEI(REQ, " Authorization failed.");
       return -1;
     }
+    Bridge->SetWait(m_maxdelay, false);
 
     // Let the bridge process the login, and then reinvoke us
     DoingLogin = true;
@@ -1082,6 +1085,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("httpsmode", xhttpsmode);
       else if TS_Xeq("tlsreuse", xtlsreuse);
       else if TS_Xeq("auth", xauth);
+      else if TS_Xeq("maxdelay", xmaxdelay);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -2981,6 +2985,27 @@ int XrdHttpProtocol::xauth(XrdOucStream &Config) {
     } else {
       eDest.Emsg("Config", "http.auth value is invalid"); return 1;
     }
+  }
+  return 0;
+}
+
+int XrdHttpProtocol::xmaxdelay(XrdOucStream &Config) {
+  char *val = Config.GetWord();
+  if(val) {
+    auto len = strlen(val);
+    unsigned maxdelay;
+    auto result = std::from_chars(val, val + len, maxdelay);
+    if (result.ec != std::errc()) {
+      eDest.Emsg("Config", "http.maxdelay seconds parsing failed.  Example: http.maxdelay 30");
+      return 1;
+    } else if (result.ptr != val + len) {
+      eDest.Emsg("Config", "http.maxdelay has unparsed data at end of seconds argument.  Example usage: http.maxdelay 30");
+      return 1;
+    }
+    m_maxdelay = maxdelay;
+  } else {
+    eDest.Emsg("Config", "http.maxdelay requires an argument in seconds (default is 30).  Example: http.maxdelay 30");
+    return 1;
   }
   return 0;
 }
