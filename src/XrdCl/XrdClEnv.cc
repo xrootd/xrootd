@@ -143,6 +143,43 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get pointer
+  //----------------------------------------------------------------------------
+  bool Env::GetPtr( const std::string &k, void* &value )
+  {
+    std::string key = UnifyKey( k );
+    XrdSysRWLockHelper scopedLock( pLock );
+    PtrMap::iterator it;
+    it = pPtrMap.find( key );
+    if( it == pPtrMap.end() )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Debug( UtilityMsg,
+                  "Env: trying to get a non-existent pointer entry: %s",
+                  key.c_str() );
+      return false;
+    }
+    value = it->second;
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Put pointer
+  //----------------------------------------------------------------------------
+  bool Env::PutPtr( const std::string &k, void* value )
+  {
+    std::string key = UnifyKey( k );
+    XrdSysRWLockHelper scopedLock( pLock, false );
+
+    // Pointers cannot be imported from shell environment, we always set it.
+    bool ret = pPtrMap.find(key) == pPtrMap.end();
+
+    pPtrMap[key] = value;
+
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
   // Import int
   //----------------------------------------------------------------------------
   bool Env::ImportInt( const std::string &k, const std::string &shellKey )
