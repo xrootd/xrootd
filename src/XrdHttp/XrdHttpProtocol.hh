@@ -226,7 +226,8 @@ private:
   static int xtlsreuse(XrdOucStream &Config);
   static int xauth(XrdOucStream &Config);
   static int xtlsclientauth(XrdOucStream &Config);
-  
+  static int xmaxdelay(XrdOucStream &Config);
+
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
   
@@ -426,6 +427,10 @@ protected:
   
   // Url to redirect to in the case a /static is requested
   static char *staticredir;
+
+  // Maximum amount of time an operation on the bridge can be
+  // delayed
+  static int m_maxdelay;
 
   // Hash that keeps preloaded files
   struct StaticPreloadInfo {
