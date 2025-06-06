@@ -6,6 +6,7 @@
 #include "XrdVersion.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
 
 #include <curl/curl.h>
 
@@ -124,6 +125,12 @@ void State::SetupHeaders(XrdHttpExtReq &req) {
         // See: https://github.com/xrootd/xrootd/issues/2470
         // See: https://github.com/curl/curl/issues/17004
         list = curl_slist_append(list, "Expect: 100-continue");
+        // Add Repr-Digest header to PUT request (PUSH)
+        auto reprDigest = XrdOucTUtils::caseInsensitiveFind(req.headers,"repr-digest");
+        if(reprDigest != req.headers.end()) {
+          std::string reprDigestHeader {"Repr-Digest: " + reprDigest->second};
+          curl_slist_append(list,reprDigestHeader.c_str());
+        }
     }
 
     if (list != NULL) {
