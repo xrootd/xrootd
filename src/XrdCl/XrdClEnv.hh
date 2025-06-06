@@ -73,6 +73,20 @@ namespace XrdCl
       bool PutInt( const std::string &key, int value );
 
       //------------------------------------------------------------------------
+      //! Get a pointer associated to the given key
+      //!
+      //! @return true if the value was found, false otherwise
+      //------------------------------------------------------------------------
+      bool GetPtr( const std::string &key, void* &value );
+
+      //------------------------------------------------------------------------
+      //! Associate an int with the given key
+      //!
+      //! @return true if the key was previously unset, false otherwise.
+      //------------------------------------------------------------------------
+      bool PutPtr( const std::string &key, void* value );
+
+      //------------------------------------------------------------------------
       //! Import an int from the shell environment. Any imported setting
       //! takes precedence over the one set by other means.
       //!
@@ -169,10 +183,12 @@ namespace XrdCl
       std::string GetEnv( const std::string &key );
       typedef std::map<std::string, std::pair<std::string, bool> > StringMap;
       typedef std::map<std::string, std::pair<int, bool> >         IntMap;
+      typedef std::map<std::string, void* >                        PtrMap;
 
       XrdSysRWLock pLock;
       StringMap    pStringMap;
       IntMap       pIntMap;
+      PtrMap       pPtrMap;
   };
 }
 
