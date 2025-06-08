@@ -1115,8 +1115,6 @@ void File::WriteBlockToDisk(Block* b)
          m_cfi.ResetCkSumNet();
       }
 
-      dec_ref_count(b);
-
       // Set synced bit or stash block index if in actual sync.
       // Synced state is only written out to cinfo file when data file is synced.
       if (m_in_sync)
@@ -1135,11 +1133,19 @@ void File::WriteBlockToDisk(Block* b)
             m_non_flushed_cnt = 0;
          }
       }
+      // As soon as the reference count is decreased on the block, the
+      // file object may be deleted.  Thus, to avoid holding both locks at a time,
+      // we defer the ref count decrease until later if a sync is needed
+      if (!schedule_sync) {
+         dec_ref_count(b);
+      }
    }
 
    if (schedule_sync)
    {
       cache()->ScheduleFileSync(this);
+      XrdSysCondVarHelper _lck(m_state_cond);
+      dec_ref_count(b);
    }
 }
 
