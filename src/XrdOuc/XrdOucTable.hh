@@ -137,7 +137,9 @@ T  *Remove(int Tnum)
            Table[Tnum].Fnum = avlnum;
            avlnum = Tnum;
            if (Tnum == (curnum-1))
-              while(curnum && Table[curnum].Item == 0) curnum--;
+              {if (curnum == maxnum) curnum--;
+               while(curnum && Table[curnum].Item == 0) curnum--;
+              }
            return temp;
           }
 
