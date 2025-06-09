@@ -52,6 +52,7 @@ class XrdOssDir : public XrdOssDF
 {
 public:
 int     Close(long long *retsz=0);
+int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 int     StatRet(struct stat *buff);

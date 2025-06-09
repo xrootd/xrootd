@@ -696,6 +696,44 @@ int XrdOssDir::Close(long long *retsz)
 //
    return retc;
 }
+  
+/******************************************************************************/
+/*                                  F c t l                                   */
+/******************************************************************************/
+/*
+  Function: Perform control operations on a file.
+
+  Input:    cmd       - The command.
+            alen      - length of arguments.
+            args      - Pointer to arguments.
+            resp      - Pointer to where response should be placed.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+*/
+
+int XrdOssDir::Fctl(int cmd, int alen, const char *args, char **resp)
+{
+
+   switch(cmd)
+         {case XrdOssDF::Fctl_utimes: break; // Unsupported
+          case XrdOssDF::Fctl_setFD:
+               if (dfType != DF_isDir) return -ENOTBLK;
+               if (lclfd) return -EALREADY;
+               if (alen != (int)sizeof(int)) return -EINVAL;
+               int retc, newFD;
+               memcpy(&newFD, args, sizeof(int));
+               struct stat buf;
+               do {retc = fstat(newFD, &buf);} while(retc && errno == EINTR);
+               if (retc) return -errno;
+               fd = newFD;
+               if (!(lclfd = fdopendir(newFD))) return -errno;
+               isopen = true;
+               return XrdOssOK;
+               break;
+          default: break;
+         }
+   return -ENOTSUP;
+}
 
 /******************************************************************************/
 /*                     o o s s _ F i l e   M e t h o d s                      */
