@@ -137,6 +137,8 @@ static int getModificationTime(const char * path, time_t & modificationTime);
 
 static void trim(std::string & str);
 
+static void trim(std::string_view & sv);
+
     XrdOucUtils() {}
     ~XrdOucUtils() {}
 

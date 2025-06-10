@@ -4,6 +4,7 @@
 #include "XrdHttp/XrdHttpProtocol.hh"
 #include "XrdHttp/XrdHttpChecksumHandler.hh"
 #include "XrdHttp/XrdHttpReadRangeHandler.hh"
+#include "XrdHttp/XrdHttpHeaderUtils.hh"
 #include <exception>
 #include <gtest/gtest.h>
 #include <string>
@@ -605,5 +606,26 @@ static inline const std::pair<std::string,std::string> decodedEncodedOpaque [] {
 TEST(XrdHttpTests,encodeOpaqueTest) {
   for(auto [decoded,encoded]: decodedEncodedOpaque) {
     ASSERT_EQ(encoded,encode_opaque(decoded));
+  }
+}
+
+static inline const std::pair<std::string, std::map<std::string,std::string>> reprDigest[] {
+  {"", {}},
+  {"adler=:test:",{{"adler","test"}}},
+  {"adler=:RXJyb3IK=:",{{"adler","RXJyb3IK="}}},
+  {"adler=:test:, sha256=:sha256value:",{{"adler","test"},{"sha256","sha256value"}}},
+  {"adler=",{}},
+  {"adler=,sha256=:sha256value:",{{"sha256","sha256value"}}},
+  {"azerty",{}},
+  {"adler=:abc:def:",{{"adler","abc:def"}}},
+  {"adler=::abc:",{{"adler",":abc"}}},
+  {"=::value:",{}}
+};
+
+TEST(XrdHttpTests, parseReprDigest) {
+  for(const auto & [input, expectedMap]: reprDigest) {
+    std::map<std::string,std::string> output;
+    XrdHttpHeaderUtils::parseReprDigest(input,output);
+    ASSERT_EQ(expectedMap, output);
   }
 }
