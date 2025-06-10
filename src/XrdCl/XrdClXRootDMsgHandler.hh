@@ -432,15 +432,16 @@ namespace XrdCl
 
       void OnReadyToSend( [[maybe_unused]] Message *msg ) override
       {
-        pSendingState = 0;
+        pSendingState |= kSawReadySend;
       }
 
     private:
 
       // bit flags used with pSendingState
-      static constexpr int kSendDone   = 0x0001;
-      static constexpr int kSawResp    = 0x0002;
-      static constexpr int kFinalResp  = 0x0004;
+      static constexpr int kSendDone     = 0x0001;
+      static constexpr int kSawResp      = 0x0002;
+      static constexpr int kFinalResp    = 0x0004;
+      static constexpr int kSawReadySend = 0x0008;
 
       //------------------------------------------------------------------------
       //! Recover error
