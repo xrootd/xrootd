@@ -1449,6 +1449,16 @@ void XrdOucUtils::trim(std::string &str) {
         str.resize (str.size () - 1);
 }
 
+void XrdOucUtils::trim(std::string_view & sv) {
+  const auto toTrim = [](char c) { return !isgraph(c); };
+  size_t start = 0;
+  size_t end = sv.size();
+
+  while (start < end && toTrim(sv[start])) ++start;
+  while (end > start && toTrim(sv[end - 1])) --end;
+
+  sv = sv.substr(start, end - start);
+}
 /**
  * Returns a boolean indicating whether 'c' is a valid token character or not.
  * See https://datatracker.ietf.org/doc/html/rfc6750#section-2.1 for details.
