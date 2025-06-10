@@ -927,7 +927,7 @@ namespace XrdCl
 
     // if we have already seen a response we can not be in the out-queue
     // anymore, so we should be getting notified of a successful send.
-    // If not log and do our best to recover.
+    // But if not, log and do our best to recover.
     if( !status.IsOK() && ( ( sst & kFinalResp ) || ( sst & kSawResp ) ) )
     {
       log->Error( XRootDMsg, "[%s] Unexpected error for message %s. Trying to "
@@ -1175,7 +1175,7 @@ namespace XrdCl
       // confirmation the original request was sent (via OnStatusReady).
       // The final processing will be triggered when we get the confirm.
       const int sst = pSendingState.fetch_or( kFinalResp );
-      if( !( sst & kSendDone ) )
+      if( ( sst & kSawReadySend ) && !( sst & kSendDone ) )
         return;
     }
 
@@ -2143,11 +2143,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RetryAtServer( const URL &url, RedirectEntry::Type entryType )
   {
-    // prepare to possibly be requeued in the out-queue for a different channel.
-    // reset sendingstate; this is reset by OnReadyToSend() when our message is
-    // removed from out-queue, however OnStatusReady() may be called before that
-    // in case something happens before sending has been attempted. (e.g. stream
-    // broken or request timeout)
+    // prepare to possibly be requeued in the out-queue for a different channel,
+    // so reset sendingstate.
     pSendingState = 0;
 
     pResponse.reset();
@@ -2319,7 +2316,7 @@ namespace XrdCl
       // confirmation the original request was sent (via OnStatusReady).
       // The final processing will be triggered when we get the confirm.
       const int sst = pSendingState.fetch_or( kFinalResp );
-      if( !( sst & kSendDone ) )
+      if( ( sst & kSawReadySend ) && !( sst & kSendDone ) )
         return;
     }
 
