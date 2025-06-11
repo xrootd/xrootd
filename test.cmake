@@ -100,6 +100,8 @@ if(DEFINED ENV{GITHUB_ACTIONS})
     string(APPEND CTEST_BUILD_NAME " #$ENV{GITHUB_RUN_ATTEMPT}")
   endif()
 
+  message("::add-matcher::${CMAKE_CURRENT_LIST_DIR}/.github/matchers/gcc.json")
+
   macro(section title)
       message("::group::${title}")
   endmacro()
