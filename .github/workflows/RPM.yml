@@ -114,9 +114,9 @@ jobs:
         retention-days: 14
 
   alma10beta:
-    name: Alma Linux 10 (beta)
+    name: Alma Linux 10
     runs-on: ubuntu-latest
-    container: almalinux:10-kitten
+    container: almalinux:10
 
     steps:
     - name: Install git

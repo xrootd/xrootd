@@ -72,8 +72,8 @@ AlmaLinux 9:
     - dnf config-manager --set-enabled crb
   <<: *rpm_build_dnf
 
-AlmaLinux 10 (beta):
-  image: almalinux:10-kitten
+AlmaLinux 10:
+  image: almalinux:10
   before_script:
     - dnf install -y epel-release
     - dnf config-manager --set-enabled crb

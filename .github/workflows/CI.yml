@@ -168,9 +168,9 @@ jobs:
         tests/check-headers.sh
 
   alma10beta:
-    name: Alma 10 (beta)
+    name: Alma 10
     runs-on: ubuntu-latest
-    container: almalinux:10-kitten
+    container: almalinux:10
 
     env:
       CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
