@@ -53,6 +53,12 @@ static  XrdSsiFileSess  *Alloc(XrdOucErrInfo &einfo, const char *user);
                                   const XrdSsiRespInfo *respP,
                                         unsigned int    reqID);
 
+        bool             DeferFinalize(XrdSsiFileReq *req,uint64_t itemID)
+                           {return rTab.DeferFinalize(req,itemID);}
+
+        void             DeferredFinalizeDone(XrdSsiFileReq *req, uint64_t itemID)
+                           {return rTab.DeferredFinalizeDone(req, itemID);}
+
         XrdOucErrInfo   *errInfo() {return eInfo;}
                         
         int              close(bool viaDel=false);
@@ -98,6 +104,28 @@ private:
                                        {Init(einfo, user, false);}
                         ~XrdSsiFileSess() {} // Recycle() calls Reset()
 
+// Callback to keep a request object from an rable lookup referenced
+// until the callback completes
+//
+class reqItemCB : public XrdOucEICB
+{
+public:
+
+               reqItemCB() { }
+virtual       ~reqItemCB() { }
+
+void           Done(int &Result, XrdOucErrInfo *cbInfo,
+                    const char *path=0)
+                   {rqstP->Done(Result,cbInfo,path); rqstP.reset();}
+
+int            Same(unsigned long long arg1, unsigned long long arg2)
+                   {return 0;}
+
+void           setReq(XrdSsiRRTableItem<XrdSsiFileReq> &&r) { rqstP = std::move(r); }
+
+XrdSsiRRTableItem<XrdSsiFileReq> rqstP;
+};
+
 void                     Init(XrdOucErrInfo &einfo, const char *user, bool forReuse);
 bool                     NewRequest(unsigned int reqid, XrdOucBuffer *oP,
                                     XrdSfsXioHandle bR, int rSz);
@@ -129,5 +157,7 @@ bool                     inProg;
 
 XrdSsiBVec               eofVec;
 XrdSsiRRTable<XrdSsiFileReq> rTab;
+reqItemCB                fctlCallBack;
+reqItemCB                attnFinCallBack;
 };
 #endif
