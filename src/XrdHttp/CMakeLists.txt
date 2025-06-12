@@ -17,6 +17,7 @@ add_library(XrdHttpUtils SHARED
                              XrdHttpStatic.hh
                              XrdHttpTrace.hh
   XrdHttpUtils.cc            XrdHttpUtils.hh
+  XrdHttpHeaderUtils.cc      XrdHttpHeaderUtils.hh
 )
 
 set_target_properties(XrdHttpUtils
