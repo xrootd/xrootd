@@ -145,7 +145,7 @@ XrdOssArcStage::MssRC XrdOssArcStage::isOnline(const char* path)
    TraceInfo("isOnline",0);
    int rc, finrc;
  
-   DEBUG("Running "<<Config.MssComPath<<" online "<<path);
+   DEBUG("Running "<<Config.MssComName<<" online "<<path);
    rc = Config.MssComProg->Run("online", path);
 
 // Adjust return code. Note that XrdOucProg return -status!
@@ -213,7 +213,7 @@ int XrdOssArcStage::Stage(const char *path)
    MssRC mssRC = isOnline(path);
    switch(mssRC)
          {case isFalse: break;
-          case isTrue:  return EEXIST; break;
+          case isTrue:  return 0;      break;
           default:      return EINVAL; break;
          }
 

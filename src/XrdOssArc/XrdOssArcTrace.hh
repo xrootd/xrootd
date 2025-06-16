@@ -32,8 +32,9 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTrace.hh"
 
-#define TRACE_All   0xffffffff
+#define TRACE_All   0xfffffffc
 #define TRACE_Debug 0x00000001
+#define TRACE_Save  0x00000002
 #define TRACE_None  0x00000000
 
 namespace XrdOssArcGlobals

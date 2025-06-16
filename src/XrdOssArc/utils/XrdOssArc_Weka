@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+#******************************************************************************
+#*                        X r d O s s A r c _ W e k a                         *
+#******************************************************************************
+
+import ast
+import errno
+import os
+import sys
+
+# Some Commands we Use
+#
+Weka_Fetch   = 'weka fs tier fetch'.split()
+Weka_Release = 'weka fs tier release'.split()
+
+# Check for debugging
+#
+x = os.getenv("XRDOSSARC_DEBUG", None)
+if x is None: Debug = False
+else:
+   Debug = True
+   Weka_Fetch   += ['-v']
+   Weka_Release += ['-v']
+
+#******************************************************************************
+#*                                  E m s g                                   *
+#******************************************************************************
+
+# Print to stderr a message
+#
+def Emsg(rc, txt):
+   print('OssArc_Weka:', txt, file=sys.stderr)
+   if (rc < 0):
+      print("Usage: {dispose | prepare} <scope> <manifest>")
+      rc = -rc
+
+   # Normally we would exit with a non-zero rc but we only do advisory
+   # actions and the worst, when they fail, is more resource usage.
+   #
+   sys.exit(0)
+
+#******************************************************************************
+#*                               E x e c u t e                                *
+#******************************************************************************
+  
+def Execute(argvec):
+   if Debug:
+      xline = ' '.join(argvec)
+      if len(xline) > 256: xline = xline[0:256] + ' ...'
+      Emsg(0, "Executing: " + xline)
+
+   try:
+      result = subprocess.run(argvec, universal_newlines=True,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      rc = result.returncode
+   except Exception as e:
+      if isinstance(e, OSError) and e.errno != 0: rc = e.errno
+      else: rc = 8
+
+   return rc, result.stdout
+
+#******************************************************************************
+#*                          g e t _ M a n i f e s t                           *
+#******************************************************************************
+  
+def get_Manifest(ManFN):
+
+   # Read the manifest file.
+   #
+   try:
+      file = open(ManFN, 'r')
+      content = file.readlines()
+      file.close()
+   except Exception as e:
+      if isinstance(e, OSError) and e.errno != 0: rc = e.errno
+      else: rc = 8
+      Emsg(rc, "Unable to setup using {}: {}".format(ManFN, e))
+
+   # Make sure we read what we think we should have read 
+   #
+   if not isinstance(content, list) or len(content) < 1: 
+      Emsg(8, "Unable to evaluate {}: invalid file format".format(ManFN))
+
+   # The manifest contains the list of pfn that need to be staged in. So, we
+   # need to evaluate the contents to instnatiate the list.
+   #
+   content[0].rstrip('\n')
+   try:
+      fList = ast.literal_eval(content[0])
+   except Exception as e:
+      Emsg(8, "Unable to evaluate {}: {}".format(ManFN, e))
+
+   # It better be a list and have at least one element
+   #
+   if type(fList) is not list or len(fList) < 1:
+      Emsg(errno.EINVAL, "Manifest {} is not a list or is empty.".format(manFN))
+
+   # Return the result
+   #
+   return fList
+
+#******************************************************************************
+#*                                W e k a f y                                 *
+#******************************************************************************
+  
+def Wekafy(action, argv):
+
+   # Make sure we have the scope and path to the manifest
+   #
+   if len(argv) < 2: Emsg(-errno.EINVAL, "Too few arguments for request") 
+
+   Scope = argv[0]
+   ManFN = argv[1]
+
+   # Fetch the manifest
+   #
+   manifest = get_Manifest(ManFN)
+
+   # At the moment we only care about the pfn's in the manifest.
+   #
+   pfnlist = [row[1] for row in manifest]
+
+   # In order not to overwhelm weka, we issue fetch requests maxitems at a
+   # time. We really should let this be configurable *TO DO*
+   #
+   maxitems = 100
+   while len(pfnlist) > 0:
+      n = min(len(pfnlist), maxitems)
+      fList = pfnlist[0:n]
+      flArg = [','.join(fList)]
+      rc, stdout = Execute(action + flArg)
+      if rc:
+         Emsg(rc, "Failed to fetch {} file(s): {}".format(len(fList), stdout))
+      del pfnlist[0:n]
+
+   return 0
+  
+#******************************************************************************
+#*                                  M a i n                                   *
+#******************************************************************************
+
+# The actual guts of the script
+#
+def Main(argv):
+
+   # Make sure we have the common arguments: <cmd> 
+   # Normally, we would use argparse but that's left for another day.
+   #
+   if len(argv) < 1:
+      Emsg(-errno.EINVAL, "Command not specified") 
+      return errno.EINVAL
+   cmd = argv[0]
+
+   # There must be atleast one argument left
+   #
+   if len(argv) < 2: Emsg(-errno.EINVAL, "Too few arguments") 
+
+   # Process the command
+   #
+   if cmd == "dispose": return Wekafy(Weka_Release, argv[1:])
+   if cmd == "prepare": return Wekafy(Weka_Fetch,   argv[1:])
+   Emsg(-errno.EINVAL, "Invalid request - {}".format(cmd))
+
+if __name__ == "__main__":
+   sys.exit(Main(sys.argv[1:]))

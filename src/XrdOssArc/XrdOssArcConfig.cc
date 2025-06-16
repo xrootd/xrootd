@@ -49,6 +49,7 @@
 #include "XrdOssArc/XrdOssArcFSMon.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucECMsg.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucGatherConf.hh"
 #include "XrdOuc/XrdOucProg.hh"
@@ -71,6 +72,8 @@ extern XrdSysError     Elog;
 extern XrdSysTrace     ArcTrace;
 
        XrdOssArcFSMon  fsMon;
+
+       thread_local    XrdOucECMsg ecMsg("[ossArc]");
 }
 using namespace XrdOssArcGlobals;
 
@@ -90,9 +93,22 @@ std::set<std::string> bkpScopes;
 XrdOssArcConfig::XrdOssArcConfig()
 {
 // Establish the defaults 
-   ArchiverPath= strdup("XrdOssArc_Archiver");
+//
    BkpUtilPath = strdup("XrdOssArc_BkpUtils");
+   BkpUtilName = BkpUtilPath;
+
+   PrepArcPath = 0;
+   PrepArcName = 0;
+
+   PostArcPath = 0;
+   PostArcName = 0;
+
+   ArchiverPath= strdup("XrdOssArc_Archiver");
+   ArchiverName= ArchiverPath;
+   ArchiverSave= 0;
+
    MssComPath  = strdup("XrdOssArc_MssCom");
+   MssComName  = MssComPath;
    MssComCmd   = 0;
    MssComRoot  = 0;
 
@@ -124,7 +140,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    arFName     = strdup("Archive.zip");
    arfSfx      = strdup(".zip");
    arfSfxLen   = 4;
-   mySep       = '~';
+   bkpLocal    = true;
 
    arcSZ_Skip  = false;
    arcSZ_Want  = 0;  // The XrdOssArc_BkpUtils defines the default
@@ -203,8 +219,8 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
 
 // Set the external debug flag as needed
 //
-   if (ArcTrace.What & TRACE_Debug)
-      XrdOucEnv::Export("XRDOSSARC_DEBUG", "1");
+   if (ArcTrace.What & (TRACE_Debug | TRACE_Save))
+      XrdOucEnv::Export("XRDOSSARC_DEBUG",ArcTrace.What & TRACE_Save ? "2":"1");
 
 // Make sure that the rse declarations have been specified
 //
@@ -277,18 +293,18 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
    BkpUtilProg = new XrdOucProg(&Elog);
    ConfigPath(&BkpUtilPath, utilsPath);
    if (BkpUtilProg->Setup(BkpUtilPath)) NoGo = true;
-
-// Create the program to be used to create the archive
-//
-   ArchiverProg = new XrdOucProg(&Elog);
-   ConfigPath(&ArchiverPath, utilsPath);
-   if (ArchiverProg->Setup(ArchiverPath)) NoGo = true;
+      else {const char* rslash = rindex(BkpUtilPath, '/');
+            BkpUtilName = (rslash ? rslash+1 : BkpUtilPath);
+           }
 
 // Create program to communicate with the MSS
 //
    MssComProg = new XrdOucProg(&Elog);
    ConfigPath(&MssComPath, utilsPath);
    if (MssComProg->Setup(MssComPath)) NoGo = true;
+      else {const char* rslash = rindex(MssComPath, '/');
+            MssComName = (rslash ? rslash+1 : MssComPath);
+           }
 
 // Export envars that the programs needs
 //
@@ -301,9 +317,54 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
        DEBUG("exporting XRDOSSARC_MSSROOT="<<MssComRoot);
       } else MssComRoot = strdup(""); 
 
+// Create the pre archiver program if it has been specified
+//
+   if (PrepArcPath)
+      {PrepArcProg = new XrdOucProg(&Elog);
+       ConfigPath(&PrepArcPath, utilsPath);
+       if (PrepArcProg->Setup(PrepArcPath)) NoGo = true;
+          else {const char* rslash = rindex(PrepArcPath, '/');
+                PrepArcName = (rslash ? rslash+1 : PrepArcPath);
+               }
+      } else PrepArcProg = 0;
+
+// Create the post archiver program if it has been specified
+//
+   if (PostArcPath)
+      {PostArcProg = new XrdOucProg(&Elog);
+       ConfigPath(&PostArcPath, utilsPath);
+       if (PostArcProg->Setup(PostArcPath)) NoGo = true;
+          else {const char* rslash = rindex(PostArcPath, '/');
+                PostArcName = (rslash ? rslash+1 : PostArcPath);
+               }
+      } else {
+       PostArcProg = 0;
+       PostArcName = PostArcPath = strdup("");
+      }
+
+// Create the program to be used to create the archive
+//
+   ArchiverProg = new XrdOucProg(&Elog);
+   ConfigPath(&ArchiverPath, utilsPath);
+   if (ArchiverProg->Setup(ArchiverPath)) NoGo = true;
+      else {const char* rslash = rindex(ArchiverPath, '/');
+            ArchiverName = (rslash ? rslash+1 : ArchiverPath);
+           }
+
+// Setup the remote copy command the archiver should use for backups
+//
+   if (bkpLocal)
+      {if (ArchiverSave) free(ArchiverSave);
+       ArchiverSave = strdup("");
+      } else {
+       if (!ArchiverSave) ArchiverSave = MssComPath;
+       else ConfigPath(&ArchiverSave, utilsPath);
+       DEBUG("Archiver remote copycmd="<<ArchiverSave);
+      }
+
 // Make sure all the required metadata keys have been defined
 //
-   DEBUG("Running "<<BkpUtilPath<<" addkey "<<metaBKP<<' '<<metaIDX);
+   DEBUG("Running "<<BkpUtilName<<" addkey "<<metaBKP<<' '<<metaIDX);
    if (BkpUtilProg->Run("addkey", metaBKP, metaIDX))
       Elog.Emsg("Config","Unable to create/verify metadata keys; continuing...");
 
@@ -422,19 +483,9 @@ bool  XrdOssArcConfig::ConfigXeq(const char* cfName, const char* parms,
 //
    return !NoGo;
 }
-
-/******************************************************************************/
-/*                            G e n A r c P a t h                             */
-/******************************************************************************/
-  
-int XrdOssArcConfig::GenArcPath(const char* dsn, char* buff, int bSZ)
-{
-   if (snprintf(buff, bSZ,"%s/%s", dsn, arFName) >= bSZ) return ENAMETOOLONG;
-   return 0;
-}
   
 /******************************************************************************/
-/*                          G e n L o c a l P a t h                           */
+/* Private:                 G e n L o c a l P a t h                           */
 /******************************************************************************/
   
 int XrdOssArcConfig::GenLocalPath(const char* dsn, char* buff, int bSZ)
@@ -623,15 +674,16 @@ bool XrdOssArcConfig::xqArcsz()
 /* Private:                       x q B k u p                                 */
 /******************************************************************************/
 /*
-  backup [fscan <sec>] [max <num>] [poll <sec>] [minfree <n>[%|k|m|g]]
-         [scope <name> [<name [...]]]
+  backup [fscan <sec>] [max <num>] [mode {copy|fuse}] [poll <sec>] 
+         [minfree <n>[%|k|m|g]] [scope <name> [<name [...]]]
 */
 
 bool XrdOssArcConfig::xqBkup()
 {
-   static const int isN  = 0;
-   static const int isT  = 1;
-   static const int isPS = 2;
+   static const int isN  = 0;  // Argument is int
+   static const int isT  = 1;  // Argument is time
+   static const int isPS = 2;  // Atgument is size value or percentage
+   static const int isM  = 3;  // Atgument is mode
 
    struct bkpopts {const char *opname; int* oploc; int minv; int isX;}
           bkpopt[] =
@@ -639,6 +691,7 @@ bool XrdOssArcConfig::xqBkup()
               {"fscan",   &bkpFSt,  30, isT},
               {"max",     &bkpMax,   1, isN},
               {"minfree", 0,         1, isPS},
+              {"mode",    0,         0, isM},
               {"poll",    &bkpPoll,  1, isT},
               {"scope",   0,        -1, isN}
              };
@@ -662,6 +715,15 @@ do{for (i = 0; i < numopts; i++)
             if (!(tval = Conf->GetToken()) || !(*tval))
                {Conf->MsgE("backup", token, "value not specified!");
                 return false;
+               }
+            
+            if (bkpopt[i].isX == isM)
+               {     if (!strcmp("remote", tval)) bkpLocal = false;
+                else if (!strcmp("local",  tval)) bkpLocal = true;
+                else {Conf->MsgfE("Invalid backup mode '%s'.", token);
+                      return false;
+                     }
+                break;
                }
             
             if (bkpopt[i].isX == isPS)
@@ -951,6 +1013,7 @@ bool XrdOssArcConfig::xqTrace()
        {"all",      TRACE_All},
        {"off",      TRACE_None},
        {"none",     TRACE_None},
+       {"save",     TRACE_Save},
        {"debug",    TRACE_Debug}
       };
    int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
@@ -985,7 +1048,8 @@ bool XrdOssArcConfig::xqTrace()
 /* Private:                      x q U t i l s                                */
 /******************************************************************************/
 /*  
-   utils [archiver <path>] [bkputils <path>] [msscom <path>]
+   utils [archiver <path>] [bkputils <path>] [disparc <path>] [msscom <path>]
+         [preparc <path>]
 */
 
 bool XrdOssArcConfig::xqUtils()
@@ -999,6 +1063,9 @@ bool XrdOssArcConfig::xqUtils()
         {     if (!strcmp("archiver", token)) uDest = &ArchiverPath;
          else if (!strcmp("bkputils", token)) uDest = &BkpUtilPath;
          else if (!strcmp("msscom",   token)) uDest = &MssComPath;
+         else if (!strcmp("postarc",  token)) uDest = &PostArcPath;
+         else if (!strcmp("preparc",  token)) uDest = &PrepArcPath;
+         else if (!strcmp("saver",    token)) uDest = &ArchiverSave;
          else {Conf->MsgfW("Unknown util '%s'; ignored.", token);
                if (!Conf->GetToken()) break;
                continue;

@@ -6,7 +6,12 @@
 import errno
 import json
 import os
+import shutil
+import pwd
 import sys
+
+from datetime import datetime
+from datetime import timezone
 
 from shutil import rmtree
 from urllib.parse import urlparse
@@ -14,6 +19,8 @@ from urllib.parse import urlparse
 from rucio.client.didclient import DIDClient
 from rucio.client.metaclient import MetaClient
 from rucio.client.replicaclient import ReplicaClient
+
+from rucio.common.exception import RucioException
 
 # Check for debugging
 #
@@ -26,6 +33,7 @@ try:
    DIDclient = DIDClient()
 except Exception as e:
    Emsg(8, "Error creating DID client: {}".format(e))
+
 #******************************************************************************
 #*                                  E m s g                                   *
 #******************************************************************************
@@ -35,10 +43,14 @@ def Emsg(rc, txt):
    print('OssArc_BkupUtils:', txt, file=sys.stderr)
    if (rc < 0):
       print("Usage: addkey <key> [<key [...]]")
+      print("       finish <rse> <scope> <dsname> <dsndir> <finkey> <finval>")
       print("       list   <key> <value> <scope> <eolval>")
-      print("       qkey   <key>         <scope> <dsname>")
+      print("       qkey   <key>[,...]   <scope> <dsname>")
       print("       set    <key> <value> <scope> <dsname>")
-      print("       setup  <rse> <scope> <dsname> <arenadir> <mountpfn>")
+      print("       setup  <rse> <scope> <dsname> <arenadir> <mntpfn> [<manpfn>]")
+      print("       stat   <fmt> <scope> <did>")
+      print("              <fmt>: cgi")
+      print("       which  <arc> <fname> <scope> <dsname>")
       rc = -rc
    if rc:
       sys.exit(rc)
@@ -68,7 +80,7 @@ def AddKey(keys):
             Emsg(8, 'Unable to add key {}: {}'.format(key, e))
       elif Debug: Emsg(0, "Metadata key '{}' exists.".format(key))
 
-   return True
+   return 0
 
 #******************************************************************************
 #*                              a r c S p l i t                               *
@@ -187,12 +199,12 @@ def arcSymlink(lfn2pfn, dsnDir, subDir=""):
          os.chdir("..")
       except Exception as e:
           Emsg(errno.ENOENT, "Unable to chdir .. from {}: {}".format(dsnDir,e))
-
+  
 #******************************************************************************
-#*                           G e t _ l f n 2 p f n                            *
+#*                              G e t _ l f n s                               *
 #******************************************************************************
-
-def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
+  
+def Get_lfns(scope, dsn):
 
    if Debug: Emsg(0, 'list_files({}, {})'.format(scope,dsn))
    DIDclient = DIDClient()
@@ -211,9 +223,24 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
    # the file was placed in should we need to spill over into multiple ones.
    # Also note that the sort key must include the scope due to collections.
    #
-#  lfnVec.sort(key=lambda x: x['scope']+x['name'])
    lfnVec.sort(key=lambda x: x[0]+':'+x[1])
 
+   # Return the vector
+   #
+   return lfnVec
+  
+#******************************************************************************
+#*                           G e t _ l f n 2 p f n                            *
+#******************************************************************************
+
+def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
+
+   # Get the list of filenames in the wanted dataset (this will be sorted)
+   #
+   lfnVec = Get_lfns(scope, dsn)
+
+   # Map the lfns to ther pfns for the wanted RSE
+   #
    qryVec = []
    sizVec = []
    totBytes = 0
@@ -227,11 +254,13 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
    totFiles = len(qryVec)
 
    # Get the replicas for the specified data
+   #
    lfn2pfn = []
    # print('PFN prefix:', pfnPFX)
    REPclient = ReplicaClient()
 
    # Get the maximum allowed items in a bulk query
+   #
    maxitems = 1000
    x = os.getenv("XRDOSSARC_MAXITEMS", None)
    if x is not None:
@@ -259,7 +288,7 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
                                                       totBytes))
 
    return totFiles, totBytes, lfn2pfn
-
+  
 #******************************************************************************
 #*                               L S _ B k u p                                *
 #******************************************************************************
@@ -302,13 +331,13 @@ def LS_Bkup(argv):
                                                                meta['name']))
 
    print(eol)
-
+   return 0
 
 #******************************************************************************
-#*                               Q r y _ K e y                                *
+#*                                 Q r y _ K e y                                *
 #******************************************************************************
 
-def Qry_Key(argv):
+def Qry_Key(argv, retval=False, mtype='JSON'):
 
    # Make sure we have atleast three arguments. These would correspond to:
    # <key> <scope> <dsn> 
@@ -316,15 +345,29 @@ def Qry_Key(argv):
    if len(argv) < 3: Emsg(-errno.EINVAL, "Too few arguments") 
    key      = argv[0] 
    theScope = argv[1]
-   dsname   = argv[2]
+   didName  = argv[2]
+   theDID   = theScope+':'+didName
 
    try:
-       meta = DIDclient.get_metadata(theScope, dsname, 'JSON')
+       meta = DIDclient.get_metadata(theScope, didName, mtype)
+   except RucioException as e:
+      if type(e).__name__ == 'DataIdentifierNotFound':
+         if retval: return None 
+         Emsg(errno.ENOENT, "Unable to query {}: data identifier notfound"
+                            .format(theDID))
+      Emsg(errno.EINVAL, "Unable to query {} for key {}: {}"
+                         .format(theDID, key[0], e))
    except Exception as e:
-      Emsg(8, "Unable to qury key {}: {}".format(key, e))
+      Emsg(errno.EINVAL, "Unable to query {} for key {}: {}"
+                         .format(theDID, key[0], e))
 
-   print(meta.get(key))
-   return True
+   if retval:
+      valV= []
+      for kv in key: valV.append(meta.get(kv))
+      return valV
+
+   for kv in key: print(meta.get(kv))
+   return 0
 
 #******************************************************************************
 #*                            S e t _ B a c k u p                             *
@@ -348,7 +391,7 @@ def Set_Backup(argv):
                format(theScope, dsname, kval, e))
       }
 
-   return True
+   return 0
 
 #******************************************************************************
 #*                               S e t _ K e y                                *
@@ -361,6 +404,7 @@ def Set_Key(theScope, dsname, key, kval):
    except Exception as e:
       Emsg(8, "Unable to set {}:{} metadata key {}: {}:".format(theScope,
               dsname, key, e))
+      return 0
   
 #******************************************************************************
 #*                                 S e t u p                                  *
@@ -381,6 +425,9 @@ def Setup(argv):
    dsnDir   = argv[3]
    pfnPFX   = argv[4]
 
+   if len(argv) > 5 and argv[5][0:1] == '/': manpfn = argv[5]
+   else: manpfn = None
+
    # Fix up pfn prefix as it must not end with a slash
    #
    while pfnPFX.endswith('/'): pfnPFX = pfnPFX[:-1]
@@ -392,8 +439,8 @@ def Setup(argv):
    # Do some debugging
    #
    if Debug:
-      Emsg(0, "RSE={} dsn={}:{} dsnDir={} pfnPFX={}".format(theRSE, theScope,
-                                                     theDSN, dsnDir, pfnPFX))
+      Emsg(0, "RSE={} dsn={}:{} dsnDir={} pfnPFX={} manpfn={}"
+              .format(theRSE, theScope, theDSN, dsnDir, pfnPFX, manpfn))
    
    # Set out working directory to the root of the dataset members
    #
@@ -434,6 +481,18 @@ def Setup(argv):
    #
    if totFiles != len(lfn2pfn) or not totFiles:
       Emsg(errno.ENODATA, "Dataset {}:{} is empty!".format(theScope, theDSN))
+
+   # If we need to write out a manifest, do so now
+   #
+   if manpfn is not None:
+      try:
+         with open(manpfn, "w") as f:
+            print(lfn2pfn, file=f)
+            f.close()
+      except Exception as e:
+         if isinstance(e, OSError) and e.errno != 0: rc = e.errno
+         else: rc = 8
+         Emsg(rc, "Unable to create {}: {}".format(manpfn, e))
 
    # Check if we want to possibly split this archive into segments
    #
@@ -487,8 +546,222 @@ def Setup(argv):
    }
 
    print(totFiles, totBytes)
-   return(0)
+   return 0
 
+#******************************************************************************
+#*                                  S t a t                                   *
+#******************************************************************************
+
+def Stat(argv):
+
+   # Make sure we have atleast three arguments. These would correspond to:
+   # 'cgi' <scope> <did>
+   #
+   if len(argv) < 3: Emsg(-errno.EINVAL, "Too few arguments") 
+
+   # The first argument tels us how to print he response, Right now we only
+   # support cgi format.
+   #
+   if argv[0] != 'cgi':
+      Emsg(-errno.EINVAL, "{} format not supported".format(argv[0]))
+   
+   # Assign names to the arguments.
+   #
+   Scope = argv[1]
+   Did   = argv[2]
+
+   # Get the metadata for this did
+   #
+   qVec = ['created_at','updated_at','accessed_at','bytes','account','did_type']
+   resp = Qry_Key([qVec, Scope, Did], retval=True, mtype='DID_COLUMN')
+
+   # The did might not exist, check that out
+   #
+   if resp is None:
+      print('!ENOENT')
+      return 2
+
+   # We will always have a vreate dat but might not have an access or update 
+   # So, we use the create data as the fallback
+   #
+   ctime = int(resp.pop(0).timestamp())
+   mtime = resp.pop(0)
+   if mtime is None: mtime = ctime
+   else: mtime = int(mtime.timestamp())
+   atime = resp.pop(0)
+   if atime is None: atime = mtime
+   else: atime = int(atime.timestamp())
+
+   bytes = resp.pop(0)
+   user  = resp.pop(0)
+
+   # Establish type of DID
+   #
+   didT  = resp.pop(0)
+   if didT != 'FILE': didT = 'DIR'
+
+   # Get the uid and gid for this did
+   #
+   try:
+      uInfo = pwd.getpwnam(user)
+      uid = uInfo.pw_uid
+      gid = uInfo.pw_gid
+   except:
+      uid = 0
+      gid = 0
+
+   # Return result
+   #
+   print("mode={}&uid={}&gid={}&size={}&atime={}&mtime={}&ctime={}"
+         .format(didT, uid, gid, bytes, atime, mtime, ctime))
+   return 0   
+  
+#******************************************************************************
+#*                                  W h a t                                   *
+#******************************************************************************
+
+def What(aName, aNum, aCnt):
+    # Output the name of the archive that has a particular file
+    #
+    aVec = aName.rsplit('.', 1)
+    if len(aVec) == 1:
+       print("{}{}-{}".format(aVec[0], aNum, aCnt))
+    else:
+       print("{}{}-{}.{}".format(aVec[0], aNum, aCnt, aVec[1]))
+    return 0
+  
+#******************************************************************************
+#*                            x e q _ F i n i s h                             *
+#******************************************************************************
+
+def xeq_Finish(argv):
+
+   # Make sure we have atleast three arguments. These would correspond to:
+   # <rse> <scope> <dsname> <dsndir> <finkey> <finval>
+   #
+   if len(argv) < 6: Emsg(-errno.EINVAL, "Too few arguments") 
+   theRSE = argv[0]
+   Scope  = argv[1]
+   dsName = argv[2]
+   dsnDir = argv[3] 
+   finKey = argv[4]
+   finVal = argv[5]
+
+   # First step is to completely remove the backup tree we created starting
+   # at the dsnDir which is a flat structure. If dsnDir is not given, then
+   # we skip this step as the caller want to keep the structure but still
+   # set the metadata key to indicate how we completed the backup.
+   #
+   if dsnDir:
+      if Debug:
+         Emsg(0, "Removing directory tree '{}' from '{}'."
+                 .format(dsnDir, os.path.basename(dsnDir)))
+         try:
+            shutil.rmtree(dsnDir)
+         except Exception as e:
+            Emsg(8, "Unable to remove directory tree '{}' from '{}'."
+                    .format(dsnDir, os.path.basename(dsnDir)))
+
+   # Last step is to indicate how the backup completed
+   #
+   if Debug:
+      Emsg(0,"Setting backup ending status: {} = '{}'.".format(finKey,finVal))
+   Set_Key(Scope, dsName, finKey, finVal)
+
+   return 0
+  
+#******************************************************************************
+#*                                 W h i c h                                  *
+#******************************************************************************
+
+def Which(argv):
+
+   # Get the parameters
+   #
+   if len(argv) < 4:
+      Emsg(-errno.EINVAL, "Insufficient number of arguments") 
+      return errno.EINVAL
+
+   aName = argv[0]
+   fName = argv[1]
+   Scope = argv[2]
+   dName = argv[3]
+   theDS = Scope+':'+dName
+
+   # get the backup metadata for this dataset
+   #
+   mdVec = Qry_Key([["arcBackup", "arcIndex"], Scope, dName], retval=True)
+   if mdVec is None:
+      print('!ENOENT')
+      sys.exit(2)
+   
+
+   # Verify that this dataset was actually backed up
+   #
+   bkpVal = mdVec.pop(0)
+   if not bkpVal.endswith(":done"):
+      print('!ENOANO')
+      Emsg(errno.ENOANO, "Dataset {}:{} not backed up!".format(Scope, dName))
+
+   # Get the ordinal index as without we can do nothing
+   #
+   ordIndex = mdVec.pop(0)
+   ordSVec  = ordIndex.split()
+   ordIlen  = len(ordSVec)
+
+   # Now get the files in the dataset
+   #
+   lfnVec = Get_lfns(Scope, dName)
+   lfnVlen = len(lfnVec)
+
+   # The returned list has [<scope>,<did>,<size>] so we need to remove <size>
+   #
+   for row in lfnVec: del row[2]
+   theLFNS = []
+   for file in lfnVec:
+       theLFNS.append(file[0]+':'+file[1])
+
+   # If the file name has no scope, use the the dataset scope
+   #
+   if ':' in fName: fWant = fName.split(':',1)
+   else:
+      fWant = [Scope, fName]
+      fName = Scope+':'+fName
+
+   # Do some debugging
+   #
+   if Debug: Emsg(0, "lfn {} cnt={} ord cnt={} index={}".format(fName,
+                     lfnVlen, ordIlen, ordSVec))
+
+   # Get the ordinal for the file in the list of lfn's
+   #
+   try:
+      oNum = lfnVec.index(fWant)
+   except:
+      print("!ENOENT")
+      Emsg(errno.ENOENT, "File {} not found in dataset {}".format(fName,theDS))
+
+   # If the index is empty then we know what to return
+   #
+   if not ordIlen: return What(aName, 1, 1)
+
+   # Convert the ordinal index into a list of integers
+   #
+   try:
+      ordIVec = list(map(int, ordSVec))
+   except:
+      {Emsg(errno.EINVAL,"Dataset {} arcIndex has non-integers; {}".
+            format(dname, e))
+      }
+   
+   # Compute the archive this file is in
+   #
+   aNum = 1
+   aCnt = ordIlen + 1
+   for ordX in ordIVec:
+      if oNum < ordX: return What(aName, aNum, aCnt)
+   return What(aName, aCnt, aCnt)
+  
 #******************************************************************************
 #*                                  M a i n                                   *
 #******************************************************************************
@@ -507,30 +780,31 @@ def Main(argv):
 
    # There must be atleast one argument left
    #
-   #
    if len(argv) < 2: Emsg(-errno.EINVAL, "Too few arguments") 
-
-   # Check for setup as it has special arguments
-   #
-   if cmd == 'setup': return Setup(argv[1:])
 
    # Process the command
    #
-   if (cmd == "addkey"):                   
-      AddKey(argv[1:])
-      return 0
+   if cmd == "addkey": return AddKey(argv[1:])
 
-   if (cmd == "list"):                   
-      LS_Bkup(argv[1:])
-      return 0
+   # There must be atleast two arguments left
+   #
+   if len(argv) < 3: Emsg(-errno.EINVAL, "Too few arguments") 
 
-   if (cmd == "qkey"):
-      Qry_Key(argv[1:])
-      return 0
+   if cmd == "finish": return xeq_Finish(argv[1:])
 
-   if (cmd == "set"):
-      Set_Backup(argv[1:])
-      return 0
+   if cmd == "list":   return LS_Bkup(argv[1:])
+
+   if cmd == "qkey":
+      kVec = argv[1].split(',')
+      return Qry_Key(kVec, argv[2:])
+
+   if cmd == "set":    return Set_Backup(argv[1:])
+
+   if cmd == 'setup':  return Setup(argv[1:])
+
+   if cmd == "stat":   return Stat(argv[1:])
+
+   if cmd == "which":  return Which(argv[1:])
       
    # Unknown command
    #

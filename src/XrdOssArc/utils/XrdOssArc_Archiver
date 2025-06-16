@@ -3,6 +3,7 @@ import errno
 import os
 import shutil
 import stat
+import subprocess
 import sys
 
 # Check for debugging
@@ -10,10 +11,12 @@ import sys
 x = os.getenv("XRDOSSARC_DEBUG", None)
 if x is None:
    Debug = False
-   zipHush = ''
+   DKeep = False
+   zipHush = "-q "
 else:
    Debug = True
-   zipHush = "-q "
+   zipHush = ''
+   DKeep = x > '1' 
 
 # Print to stderr a message
 #
@@ -84,7 +87,7 @@ def arcDirs(dsnDir):
          if entry.name.startswith('~') and entry.is_dir():
             if entry.name[1:].isdigit():
                dList.append(entry.name[1:])
-   except:
+   except Exception as e:
       Emsg(8, "Unable to scan for arc directory in {}: {}".format(dsnDir, e))
       return None,None
 
@@ -166,9 +169,8 @@ def arcZip(arcDir, arcFN):
    try:
       os.chdir(arcDir)
    except Exception as e:
-      {Emsg(errno.ENOENT, "Unable to chdir to dataset source at {}/{}; {}".
+      Emsg(errno.ENOENT, "Unable to chdir to dataset source at {}/{}; {}".
             format(os.getcwd(), arcDir, str(e)))
-      }
 
    # Prepare to create the archive
    #
@@ -194,18 +196,16 @@ def arcZip(arcDir, arcFN):
    try:
       os.chdir('..')
    except Exception as e:
-      {Emsg(errno.ENOENT, "Unable to chdir to dataset archive at {}/..; {}".
-            format(os.getcwd(), str(e)))
-      }
+      Emsg(errno.ENOENT, "Unable to chdir to dataset archive at {}/..; {}".
+           format(os.getcwd(), str(e)))
 
    # Mark the archive as complete. We do this by making it read/only
    #
    try:
       os.chmod(arcFN, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
    except Exception as e:
-      {Emsg(errno.EINVAL, "Unable to make '{}' r/o; {}".
+      Emsg(errno.EINVAL, "Unable to make '{}' r/o; {}".
            format(os.getcwd(), arcFN, str(e)))
-      }
 
 #******************************************************************************
 #*                                  M a i n                                   *
@@ -217,7 +217,7 @@ def Main(argv):
 
    # Make sure we have atleast four arguments. These would correspond to:
    #
-   # <dirpath to dsn members <backing dsn dirpath> <arcfilename>
+   # <dirpath to dsn members> <backing dsn dirpath> <arcfilename> [<copy_cmd>]
    #
    if len(argv) < 3: Emsg(errno.EINVAL, "Too few arguments") 
    
@@ -227,6 +227,12 @@ def Main(argv):
    dsnDir  = argv[0]
    tapDir  = argv[1]
    arcName = argv[2]
+
+   # If we have an extra argument then this is the copy command template to
+   # use to backup the data. The command may be null to indicate no command.
+   #
+   if len(argv) > 3 and argv[3]: arcRCP = argv[3]
+   else: arcRCP = None
 
    # Cleanup the base directories
    #
@@ -243,9 +249,8 @@ def Main(argv):
    try:
       os.chdir(dsnDir)
    except Exception as e:
-      {Emsg(errno.ENOENT, "Unable to cd to {} (dataset source directory); {}"
-                          .format(dsnDir, str(e)))
-      }
+      Emsg(errno.ENOENT, "Unable to cd to {} (dataset source directory); {}"
+                         .format(dsnDir, str(e)))
 
    # Verify that we can use the target directory
    #  
@@ -262,6 +267,7 @@ def Main(argv):
    arcName = arcName.lstrip('/')
    arcnvec = arcName.rsplit('.', 1)
    arcNfmt = arcnvec[0] + '{}-' + str(len(dList)) + '.' + arcnvec[1]
+   arcList = []
 
    # Process each segment
    #
@@ -275,20 +281,22 @@ def Main(argv):
       #
       arcZip(arcDir, arcName)
 
-      # Save the archive to backup medium
+      # Save the archive to backup medium if not doing a remote copy
       #
-      arcSave(tapDir, arcName),
+      if arcRCP is None: arcSave(tapDir, arcName)
+      else: arcList.append(arcName)
 
-   # Now delete the dataset disk copy. The directory structure is
-   # /prefix/<flat_dataset_name>/<sep> and we want to remove the
-   # <flat_dataset_name> and it's contents.
+   # If we are saving the archives using a remote script, invoke it.
    #
-   os.chdir('..')
-   theTree = os.path.basename(os.getcwd())
-   os.chdir('..')
-   if Debug:
-       Emsg(0, "Removing directory tree '{}' from '{}'.".format(theTree,os.getcwd()))
-   shutil.rmtree(theTree)
+   if arcRCP is not None:
+      arcCMD = [arcRCP,  'save', tapDir] + arcList 
+      if Debug:
+         Emsg(0, "Running: "+' '.join(arcCMD))
+      try:
+         subprocess.run(arcCMD, check=True)
+      except Exception as e:
+          Emsg(8, "Unable to save archive files in {} via {}: {}"
+                          .format(dsnDir, arcRCP, str(e)))
 
    # We are done
    #

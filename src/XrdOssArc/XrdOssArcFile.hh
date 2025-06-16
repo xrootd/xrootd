@@ -62,6 +62,21 @@ int     Close(long long* retsz=0) override;
 int     Fstat(struct stat* buf) override;
 
 //-----------------------------------------------------------------------------
+//! Obtain detailed error message text for the immediately preceeding 
+//! directory or file error (see also XrdOss::getErrMsg()).
+//!
+//! @param  eText  - Where the message text is to be returned.
+//!
+//! @return True if message text is available, false otherwise.
+//!
+//! @note This method should be called using the same thread that encountered
+//!       the error; otherwise, missleading error text may be returned.
+//! @note Upon return, the internal error message text is cleared.
+//-----------------------------------------------------------------------------
+
+bool    getErrMsg(std::string& eText) override;
+
+//-----------------------------------------------------------------------------
 //! Open a file.
 //!
 //! @param  path   - Pointer to the path of the file to be opened.
@@ -120,6 +135,5 @@ virtual        ~XrdOssArcFile();
 private:
 XrdOssDF*         ossDF;          // Underlying dir/file object
 XrdOssArcZipFile* zFile =  0;
-int               theFD = -1;
 };
 #endif

@@ -31,6 +31,7 @@
 /******************************************************************************/
 
 #include "XrdOss/XrdOssWrapper.hh"
+#include "XrdOssArc/XrdOssArcDir.hh"
 #include "XrdOssArc/XrdOssArcFile.hh"
 
 class XrdOucEnv;
@@ -47,10 +48,10 @@ public:
 //! @return pointer- Pointer to a possibly wrapped XrdOssDF object.
 //! @return nil    - Insufficient memory to allocate an object.
 //-----------------------------------------------------------------------------
-/*
-virtual XrdOssDF     *newDir(const char *tident)
-                            {return wrapPI.newDir(tident);}
-*/
+
+virtual XrdOssDF *newDir(const char *tident) override
+                        {return new XrdOssArcDir(tident,wrapPI.newDir(tident));}
+
 //-----------------------------------------------------------------------------
 //! Obtain a new file object to be used for a future file requests.
 //!
@@ -62,6 +63,19 @@ virtual XrdOssDF     *newDir(const char *tident)
 
 virtual XrdOssDF *newFile(const char *tident) override
                          {return new XrdOssArcFile(tident,wrapPI.newFile(tident));}
+
+//-----------------------------------------------------------------------------
+//! Change file mode settings.
+//!
+//! @param  path   - Pointer to the path of the file in question.
+//! @param  mode   - The new file mode setting.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Chmod(const char * path, mode_t mode, XrdOucEnv *envP=0)
+                       override;
 
 //-----------------------------------------------------------------------------
 //! Create file.
@@ -80,6 +94,44 @@ virtual XrdOssDF *newFile(const char *tident) override
 
 virtual int       Create(const char* tid, const char* path, mode_t mode,
                          XrdOucEnv& env, int opts=0) override;
+
+//-----------------------------------------------------------------------------
+//! Return storage system features.
+//!
+//! @return Storage system features (see XRDOSS_HASxxx flags).
+//-----------------------------------------------------------------------------
+
+virtual uint64_t  Features() override;
+
+//-----------------------------------------------------------------------------
+//! Execute a special storage system operation.
+//!
+//! @param  cmd    - The operation to be performed:
+//!                  XRDOSS_FSCTLFA - Perform proxy file attribute operation
+//! @param  alen   - Length of data pointed to by args.
+//! @param  args   - Data sent with request, zero if alen is zero.
+//! @param  resp   - Where the response is to be set, if any.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       FSctl(int cmd, int alen, const char *args, char **resp=0)
+                       override;
+
+//-----------------------------------------------------------------------------
+//! Obtain detailed error message text for the immediately preceeding error
+//! returned by any method in this class.
+//!
+//! @param  eText  - Where the message text is to be returned.
+//!
+//! @return True if message text is available, false otherwise.
+//!
+//! @note This method should be called using the same thread that encountered
+//!       the error; otherwise, missleading error text may be returned.
+//! @note Upon return, the internal error message text is cleared.
+//-----------------------------------------------------------------------------
+
+virtual bool    getErrMsg(std::string& eText) override;
 
 //-----------------------------------------------------------------------------
 //! Translate logical name to physical name V1 (deprecated).
@@ -108,6 +160,49 @@ virtual
 const char       *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
                          override;
 
+//-----------------------------------------------------------------------------
+//! Create a directory.
+//!
+//! @param  path   - Pointer to the path of the directory to be created.
+//! @param  mode   - The directory mode setting.
+//! @param  mkpath - When true the path is created if it does not exist.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Mkdir(const char *path, mode_t mode, int mkpath=0,
+                        XrdOucEnv  *envP=0) override;
+
+//-----------------------------------------------------------------------------
+//! Remove a directory.
+//!
+//! @param  path   - Pointer to the path of the directory to be removed.
+//! @param  Opts   - The processing options:
+//!                  XRDOSS_Online   - only remove online copy
+//!                  XRDOSS_isPFN    - path is already translated.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Remdir(const char *path, int Opts=0, XrdOucEnv *envP=0)
+                        override;
+
+//-----------------------------------------------------------------------------
+//! Rename a file or directory.
+//!
+//! @param  oPath   - Pointer to the path to be renamed.
+//! @param  nPath   - Pointer to the path oPath is to have.
+//! @param  oEnvP   - Environmental information for oPath.
+//! @param  nEnvP   - Environmental information for nPath.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Rename(const char *oPath, const char *nPath,
+                         XrdOucEnv  *oEnvP=0, XrdOucEnv *nEnvP=0) override;
+
 
 //-----------------------------------------------------------------------------
 //! Return state information on a file or directory.
@@ -125,6 +220,19 @@ const char       *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
 
 virtual int       Stat(const char *path, struct stat *buff,
                        int opts=0, XrdOucEnv *envP=0) override;
+
+//-----------------------------------------------------------------------------
+//! Truncate a file.
+//!
+//! @param  path   - Pointer to the path of the file to be truncated.
+//! @param  fsize  - The size that the file is to have.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Truncate(const char *path, unsigned long long fsize,
+                           XrdOucEnv *envP=0) override;
 
 //-----------------------------------------------------------------------------
 //! Remove a file.

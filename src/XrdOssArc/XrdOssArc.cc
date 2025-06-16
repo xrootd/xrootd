@@ -38,17 +38,18 @@
 #include "Xrd/XrdScheduler.hh"
 
 #include "XrdOssArc/XrdOssArc.hh"
+#include "XrdOssArc/XrdOssArcCompose.hh"
 #include "XrdOssArc/XrdOssArcConfig.hh"
-#include "XrdOssArc/XrdOssArcDataset.hh"
-#include "XrdOssArc/XrdOssArcRecompose.hh"
 #include "XrdOssArc/XrdOssArcStage.hh"
 #include "XrdOssArc/XrdOssArcZipFile.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucECMsg.hh"
 
 #include "XrdSec/XrdSecEntity.hh"
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -69,6 +70,8 @@ XrdOssArcConfig Config;
 XrdSysError     Elog(0, "OssArc_");
 
 XrdSysTrace     ArcTrace("OssArc");
+
+extern thread_local XrdOucECMsg ecMsg;
 }
 using namespace XrdOssArcGlobals;
 
@@ -113,7 +116,81 @@ XrdOss *XrdOssAddStorageSystem2(XrdOss       *curr_oss,
    return (XrdOss*)ArcSS;
 }
 }
+
+/******************************************************************************/
+/*                                 C h m o d                                  */
+/******************************************************************************/
+
+int XrdOssArc::Chmod(const char *path, mode_t mode, XrdOucEnv *envP)
+{
+
+// chmod is only valid for non-archive paths
+//
+   if (XrdOssArcCompose::isMine(path))
+      {Elog.Emsg("Chmod", EROFS, "chmod using", path);
+       return -EROFS;
+      }
+
+// Pass this through
+//
+   return wrapPI.Chmod(path, mode, envP);
+}
+
+/******************************************************************************/
+/*                                C r e a t e                                 */
+/******************************************************************************/
   
+int XrdOssArc::Create(const char* tid, const char* path, mode_t mode,
+                      XrdOucEnv& env, int opts)
+{
+
+// Create is only valid for non-archive paths
+//
+   if (XrdOssArcCompose::isMine(path))
+      {Elog.Emsg("create", EROFS, "create file using", path);
+           return -EROFS;
+      }
+
+// Pass this through
+//
+   return wrapPI.Create(tid, path, mode, env, opts);
+}
+  
+/******************************************************************************/
+/*                              F e a t u r e s                               */
+/******************************************************************************/
+
+uint64_t XrdOssArc::Features()
+{
+   return XRDOSS_HASXERT | wrapPI.Features(); 
+}
+  
+/******************************************************************************/
+/*                                 F S c t l                                  */
+/******************************************************************************/
+
+int XrdOssArc:: FSctl(int cmd, int alen, const char *args, char **resp)
+{
+// Pass this through
+//
+   return wrapPI.FSctl(cmd, alen, args, resp);
+}
+  
+/******************************************************************************/
+/*                             g e t E r r M s g                              */
+/******************************************************************************/
+
+bool XrdOssArc::getErrMsg(std::string& eText)
+{
+// Return any extened error mesage associated with this thread
+//
+   if (ecMsg.hasMsg())
+      {ecMsg.Get(eText);
+       return true;
+      }
+   return false;
+}
+
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
@@ -154,41 +231,6 @@ int XrdOssArc::Init(const char* configfn, const char* parms, XrdOucEnv* envP)
 //
    return retc;
 }
-
-/******************************************************************************/
-/*                                C r e a t e                                 */
-/******************************************************************************/
-  
-int XrdOssArc::Create(const char* tid, const char* path, mode_t mode,
-                      XrdOucEnv& env, int opts)
-{
-   int rc;
-   XrdOssArcRecompose dsInfo(path, rc, true);
-
-// Make sure all went well
-//
-   if (rc)
-      {if (rc != EDOM)
-          {Elog.Emsg("create", rc, "create dataset from", path);
-           return -rc;
-          }
-       return wrapPI.Create(tid, path, mode, env, opts);
-      }
-
-
-// Indicate a creation event has occurred. This may create a dataset entry
-// if this is the first reference to the dataset.
-//
-   if ((rc = XrdOssArcDataset::Create(tid, dsInfo))) return rc;
-
-// We now need to create the file.
-//
-   char buff[MAXPATHLEN];
-   if (!dsInfo.Compose(buff, sizeof(buff))) return -ENAMETOOLONG;
-
-   opts |= XRDOSS_mkpath;
-   return wrapPI.Create(tid, buff, mode, env, opts);
-}
   
 /******************************************************************************/
 /*                            L f n 2 P f n   v 1                             */
@@ -196,7 +238,7 @@ int XrdOssArc::Create(const char* tid, const char* path, mode_t mode,
 
 int XrdOssArc::Lfn2Pfn(const char *Path, char *buff, int blen)
 {
-   int rc;
+   int rc = 0;
 
 // Use v2 version to generate the Pfn
 //
@@ -214,42 +256,78 @@ int XrdOssArc::Lfn2Pfn(const char *Path, char *buff, int blen)
 const char *XrdOssArc::Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
 {
 
-// Check if the stat is for the backup qhich is not subject to other N2N's.
+// The caller typically needs the LFN2PFN mapping to handle file attributes,
+// checksums, and prepare requests. All of these are disallowed for our
+// internal paths so we simply fail the mapping here.
 //
-  if (!strncmp(Path, Config.bkupPathLFN, Config.bkupPathLEN))
-     {rc = Config.GenTapePath(Path+Config.bkupPathLEN, buff, blen);
-      if (!rc) return buff;
-      rc =  Neg(rc);
+  if (XrdOssArcCompose::isMine(Path))
+     {rc = -EPERM;
       return 0;
      }
 
-// Prepare to process the archive
+// Use the underlying mapping.
 //
-   XrdOssArcRecompose dsInfo(Path, rc, false);
-
-// If all went well, continue the mapping. EDOM rc the path is not ours so
-// treat as a regular path with standard mapping.
-//
-   const char* thePath;
-   char* myPath = (char*)alloca(blen);
-   if (!rc)
-      {if (!dsInfo.Compose(myPath, blen))
-          {rc = -ENAMETOOLONG;
-           return 0;
-          }
-       thePath = myPath;
-      }
-      else if (rc == EDOM) thePath = Path;
-              else {rc = -rc;
-                    return 0;
-                   }
-
-// Now apply the N2N of the underlying mapping.
-//
-   if ((rc = wrapPI.Lfn2Pfn(thePath, buff, blen))) return 0;
-   return buff;
+   return wrapPI.Lfn2Pfn(Path, buff, blen, rc);
 }
-  
+
+/******************************************************************************/
+/*                                 M k d i r                                  */
+/******************************************************************************/
+
+int XrdOssArc::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *envP)
+{
+
+// mkdir is only valid for non-archive paths
+//
+   if (XrdOssArcCompose::isMine(path))
+      {Elog.Emsg("Mkdir", EROFS, "create directory using", path);
+       return -EROFS;
+      }
+
+// Pass this through
+//
+   return wrapPI.Mkdir(path, mode, mkpath, envP);
+}
+
+/******************************************************************************/
+/*                                R e m d i r                                 */
+/******************************************************************************/
+
+int XrdOssArc::Remdir(const char *path, int Opts, XrdOucEnv *envP)
+{
+
+// Remdir is only valid for non-archive paths
+//
+   if (XrdOssArcCompose::isMine(path))
+      {Elog.Emsg("Remdir", EROFS, "remove", path);
+       return -EROFS;
+      }
+
+// Pass this through
+//
+   return wrapPI.Remdir(path, Opts, envP);
+}
+
+/******************************************************************************/
+/*                                R e n a m e                                 */
+/******************************************************************************/
+
+int XrdOssArc::Rename(const char *oldname, const char *newname,
+                      XrdOucEnv  *old_env, XrdOucEnv  *new_env)
+{
+
+// Rename is only valid for non-archive paths
+//
+   if (XrdOssArcCompose::isMine(oldname) || (XrdOssArcCompose::isMine(newname)))
+      {Elog.Emsg("Rename", EROFS, "rename", newname);
+       return -EROFS;
+      }
+
+// Pass this through
+//
+   return wrapPI.Rename(oldname, newname, old_env, new_env);
+}
+
 /******************************************************************************/
 /*                                  S t a t                                   */
 /******************************************************************************/
@@ -261,17 +339,9 @@ int XrdOssArc::Stat(const char *path, struct stat *Stat,
    char buff[MAXPATHLEN];
    int rc;
 
-// Check if the stat is for the backup
+// Prepare to process the archive/backup request
 //
-  if (!strncmp(path, Config.bkupPathLFN, Config.bkupPathLEN))
-     {rc = Config.GenTapePath(path+Config.bkupPathLEN, buff, sizeof(buff));
-      if (rc) return Neg(rc);
-      return stat(buff, Stat);
-     }
-
-// Prepare to process the archive
-//
-   XrdOssArcRecompose dsInfo(path, rc, false);
+   XrdOssArcCompose dsInfo(path, envP, rc, false);
 
 // Make sure all went well
 //
@@ -283,55 +353,47 @@ int XrdOssArc::Stat(const char *path, struct stat *Stat,
        return wrapPI.Stat(path, Stat, opts, envP);
       }
 
-// See if we still have a local copy of this file in the build cache
+// If this is a stat for an archive, we can do this here
 //
-   if (!dsInfo.Compose(buff, sizeof(buff))) return -ENAMETOOLONG;
-
-// Issue the stat for the file in the build cache (if it is there)
-//
-   rc = wrapPI.Stat(buff, Stat, opts, envP);
-   if (rc != -ENOENT)
-      {DEBUG("Found "<<buff<<" in the build cache!");
-       return rc;
-      }
-
-// The file was not found in the local space. Check if it is on the tape.
-//
-   char tapePath[MAXPATHLEN];
-   rc = Config.GenTapePath(dsInfo.arcDSN, tapePath, sizeof(tapePath), true);
-
-   if (stat(tapePath, Stat))
-      {rc = errno;
-       DEBUG("Archive "<<tapePath<<(rc == ENOENT ? "does not exist"
-                                                 : "stat failed"));
-       return -rc; 
-      }
-
-// Check if the archive is actually online. If it is, we can get the real stat
-//
-   if ((rc = Config.GenArcPath(dsInfo.arcDSN, buff, sizeof(buff)))) return -rc;
-
-    switch(XrdOssArcStage::isOnline(buff))
-          {case XrdOssArcStage::isFalse: // The stat struct holds valid info
-                DEBUG("Archive "<<buff<<" is not online, returning bogus size");
-                return XrdOssOK; break;
-           case XrdOssArcStage::isTrue:
-                break;
-           default: DEBUG("Archive "<<buff<<" online query failed!");
-                    return -EINVAL; break;
+   if (dsInfo.didType == dsInfo.isARC)
+      {if ((rc = dsInfo.ArcPath(buff, sizeof(buff), true))) return -rc;
+       if (stat(buff, Stat))
+          {rc = errno;
+           DEBUG("Stat archive "<<buff<<" failed; "<<XrdSysE2T(rc));
+           return -rc;
           }
+       return XrdOssOK;
+      }
 
-// The file is online so we can extract the stat info for the file.
+// The person want to stat a particular file in an archive. The most sensible
+// way to do this is to ask the DM system for than information.
 //
-   DEBUG("Archive "<<tapePath<<" is online, returning true size!");
-   XrdOssArcZipFile* zFile = new XrdOssArcZipFile(tapePath, rc);
-   if (rc) Elog.Emsg("open", rc, "open archive", tapePath);
-      else rc = zFile->Stat(dsInfo.arcFile, *Stat);
+   if ((rc = dsInfo.Stat(dsInfo.flScope.c_str(), dsInfo.flName.c_str(), Stat)))
+      {DEBUG("Stat file "<<dsInfo.flScope.c_str()<<':'<<dsInfo.flName.c_str()
+             <<" failed; "<<XrdSysE2T(rc));
+       return -rc;
+      }
+   return XrdOssOK;
+}
 
-// All done
+/******************************************************************************/
+/*                              T r u n c a t e                               */
+/******************************************************************************/
+
+int XrdOssArc::Truncate(const char *path, unsigned long long size,
+                        XrdOucEnv *envP)
+{
+
+// Truncate is only valid for non-archive paths
 //
-   delete zFile;
-   return Neg(rc);
+   if (XrdOssArcCompose::isMine(path))
+      {Elog.Emsg("Truncate", EROFS, "truncate", path);
+       return -EROFS;
+      }
+
+// Pass this through
+//
+   return wrapPI.Truncate(path, size, envP);
 }
 
 /******************************************************************************/
@@ -340,36 +402,15 @@ int XrdOssArc::Stat(const char *path, struct stat *Stat,
   
 int XrdOssArc::Unlink(const char* path, int Opts, XrdOucEnv* envP)
 {
-   const char *tid = 0;
-   int rc;
-   XrdOssArcRecompose dsInfo(path, rc, true);
 
-// Make sure all went well
+// Unlink is only valid for non-archive paths
 //
-   if (rc)
-      {if (rc != EDOM)
-          {Elog.Emsg("Unlink", rc, "unlink", path);
-           return -rc;
-          }
-       return wrapPI.Unlink(path, Opts, envP);
+   if (XrdOssArcCompose::isMine(path))
+      {Elog.Emsg("Rename", EROFS, "remove", path);
+       return -EROFS;
       }
 
-// Passthrough the unlink and return it there was an error
+// Pass this through
 //
-   char rmPath[MAXPATHLEN];
-
-   if (!dsInfo.Compose(rmPath, sizeof(rmPath))) return -ENAMETOOLONG;
-   if ((rc = wrapPI.Unlink(rmPath, Opts, envP))) return rc;
-
-// Obtain the trace identifier
-//
-   if (envP)
-      {const XrdSecEntity* secent = envP->secEnv();
-       if (secent) tid = secent->tident;
-      }
-
-// Process this in case it refers to one of our pending files
-//
-   XrdOssArcDataset::Unlink(tid, dsInfo);
-   return rc;
+   return wrapPI.Unlink(path, Opts, envP);
 }
