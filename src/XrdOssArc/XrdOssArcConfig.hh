@@ -42,10 +42,6 @@ bool  BuildPath(const char* what, const char* baseP,
 
 bool  Configure(const char* cfn, const char* parms, XrdOucEnv* envP);
 
-int   GenArcPath(const char* dsn, char* buff, int bSZ);
-
-int   GenLocalPath(const char* dsn, char* buff, int bSZ);
-
 int   GenTapePath(const char* dsn, char* buff, int bSZ, bool addafn=false);
   
       XrdOssArcConfig();
@@ -55,13 +51,25 @@ int   GenTapePath(const char* dsn, char* buff, int bSZ, bool addafn=false);
 //
 XrdOucProg* BkpUtilProg;   // Various Rucio involved functions
 char*       BkpUtilPath;   // The actual path to the program
+const char* BkpUtilName;   // Last component for debugging
 const char* BkpUtilEOL;    // Character sequence to indicate EOL
+
+XrdOucProg* PrepArcProg;   // Create an archive
+char*       PrepArcPath;   // The actual path to the executable
+const char* PrepArcName;   // Last component for debugging
+
+XrdOucProg* PostArcProg;   // Create an archive
+char*       PostArcPath;   // The actual path to the executable
+const char* PostArcName;   // Last component for debugging
 
 XrdOucProg* ArchiverProg;  // Create an archive
 char*       ArchiverPath;  // The actual path to the executable
+const char* ArchiverName;  // Last component for debugging
+char*       ArchiverSave;  // The command to use to save archives for backup
 
 XrdOucProg* MssComProg;    // Communicate with the MSS
 char*       MssComPath;    // Path to prog script
+const char* MssComName;    // Last component for debugging
 char*       MssComCmd;     // Actual command to be invoked
 char*       MssComRoot;    // Root of the MSS Tape File System
 
@@ -80,8 +88,8 @@ char*       utilsPath;     // Default path to utils
 
 // Miscellaneous
 //
-const char* metaBKP;       // Metadat variable name
-const char* metaIDX;       // Metadat variable name
+const char* metaBKP;       // Metadata variable name of backup status
+const char* metaIDX;       // Metadata variable name of ordinal index
 char*       doneBKP;       // Metadata value indicating a backup completed
 char*       needBKP;       // Metadata value indicating a backup is needed
 char*       dstRSE;        // The name of the dest rse (our name)
@@ -96,7 +104,7 @@ int         r_maxItems;    // rucio maximum response lines (query limit)
 char*       arFName;       // Full archive filename (e.g. archive.zip)
 char*       arfSfx;        // Archive file suffix
 int         arfSfxLen;     // Length of the above
-char        mySep;         // Slash replacement separator
+bool        bkpLocal;      // T->Use fuse mount for backup, else do remote copy.
 
 bool        arcSZ_Skip;    // When true skip archiving if size can't be met
 long long   arcSZ_Want;    // Preferred size of archive
@@ -107,6 +115,7 @@ private:
 void ConfigPath(char** pDest, const char* pRoot);
 bool ConfigProc(const char* drctv);
 bool ConfigXeq(const char* cfName, const char* parms, XrdOucEnv* envP);
+int  GenLocalPath(const char* dsn, char* buff, int bSZ);
 bool MissArg(const char* what);
 bool Usable(const char* path, const char* what, bool useOss=true);
 bool xqGrab(const char* what, char*& theDest, const char* theLine);

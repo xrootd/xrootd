@@ -28,20 +28,20 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "XrdOssArc/XrdOssArcCompose.hh"
 #include "XrdOssArc/XrdOssArcConfig.hh"
 #include "XrdOssArc/XrdOssArcFile.hh"
-#include "XrdOssArc/XrdOssArcRecompose.hh"
 #include "XrdOssArc/XrdOssArcStage.hh"
 #include "XrdOssArc/XrdOssArcZipFile.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucECMsg.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
@@ -60,6 +60,8 @@ extern XrdOssArcConfig Config;
 extern XrdSysError     Elog;
 
 extern XrdSysTrace     ArcTrace;
+
+extern thread_local XrdOucECMsg ecMsg;
 }
 using namespace XrdOssArcGlobals;
 
@@ -83,7 +85,7 @@ int XrdOssArcFile::Close(long long *retsz)
    int rc;
 
 // Issue close to possible zipfile appendage and delete it. The underlying
-// oss did not open the file, so we not not issue a close to that. 
+// oss did not open the file, so we do not issue a close to that. 
 //
    if (zFile) 
       {rc = zFile->Close();
@@ -113,104 +115,92 @@ int XrdOssArcFile::Fstat(struct stat* buf)
 }
 
 /******************************************************************************/
+/*                             g e t E r r M s g                              */
+/******************************************************************************/
+
+bool XrdOssArcFile::getErrMsg(std::string& eText)
+{
+// Return any extened error mesage associated with this thread
+//
+   if (ecMsg.hasMsg())
+      {std::string xMsg;
+       if (ossDF->getErrMsg(xMsg))
+          {ecMsg.Append();
+           ecMsg.Msg("oss", xMsg.c_str());
+          }
+       ecMsg.Get(eText);
+       return true;
+      }
+   return ossDF->getErrMsg(eText);
+}
+  
+/******************************************************************************/
 /*                                  O p e n                                   */
 /******************************************************************************/
   
 int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
 {
-   int rc, tapeFD;
+   int rc, arcFD;
    bool isRW = (Oflag & (O_APPEND|O_CREAT|O_TRUNC|O_WRONLY|O_RDWR)) != 0; 
-   bool isLocal;
 
-// Check if we are trying to open the backup (e.g. /backup/.../Archive.zip)
+// Check what we should be doing here. Options are:
+// a) Forward open to underlying storage system (not our path),
+// b) Handle and error,
+// c) Open an actual arvhive, or
+// d) Open a file inside an archive.
 //
-   if (!strncmp(path, Config.bkupPathLFN, Config.bkupPathLEN))
-      {if (isRW) return -EROFS;
-       if (!XrdOssArcRecompose::isArcFile(path)) return -EPERM;
-       if ((rc = XrdOssArcStage::Stage(path+Config.bkupPathLEN)))
-          {if (rc == EINPROGRESS) return Config.wtpStage;
-           if (rc != EEXIST) return -rc;
-          }
-       char opPath[MAXPATHLEN];
-       rc = Config.GenTapePath(path+Config.bkupPathLEN,opPath,sizeof(opPath));
-       if (rc)
-          {Elog.Emsg("open", "prepare to open", path);
-           return -rc;
-          }
-       if ((tapeFD = XrdSysFD_Open(opPath, O_RDONLY, Mode)) < 0)
+   XrdOssArcCompose dsInfo(path, &env, rc, isRW);
+
+   if (rc == EDOM) return ossDF->Open(path, Oflag, Mode, env);
+   if (rc != 0)    return -rc;
+
+// Whether this is a request for an archve or a file in the archive, we
+// need to bring the archive file online. We do this first.
+//
+   char arcPath[MAXPATHLEN];
+   if ((rc = dsInfo.ArcPath(arcPath, sizeof(arcPath), true))) return -rc;
+   if ((rc = XrdOssArcStage::Stage(arcPath)))
+      {if (rc == EINPROGRESS) return Config.wtpStage;
+       return -rc;
+      }
+
+// If this was a request for the actual archive file, then open it and promote
+// the open to the underlying file system as it will handle all I/O.
+//
+   if (dsInfo.didType == XrdOssArcCompose::isARC)
+      {if ((arcFD = XrdSysFD_Open(arcPath, O_RDONLY, Mode)) < 0)
           {rc = errno;
-           Elog.Emsg("open", rc, "open", path);
+           Elog.Emsg("open", rc, "open", arcPath);
            return -rc;
           }
-       rc = ossDF->Fctl(XrdOssDF::Fctl_setFD,sizeof(int),(const char*)&tapeFD);
+       rc = ossDF->Fctl(XrdOssDF::Fctl_setFD,sizeof(int),(const char*)&arcFD);
        if (rc)
-          {Elog.Emsg("open", rc, "promote open", path);
-           close(tapeFD);
-           return rc;
+          {Elog.Emsg("open", rc, "promote open", arcPath);
+           close(arcFD);
+           return Neg(rc);
           }
        return XrdOssOK;
       }
 
-// Recompose this request
+// Create the name of the archive member in the archive file
 //
-   XrdOssArcRecompose dsInfo(path, rc, isRW);
+   char arcMember[MAXPATHLEN];
+   if ((rc = dsInfo.ArcMember(arcMember, sizeof(arcMember)))) return -rc;
 
-// Verify we can handle this
-//
-   if (rc)
-      {if (rc == EDOM) return ossDF->Open(path, Oflag, Mode, env);
-       Elog.Emsg("open", rc, "open", path);
-       return -rc;
-      }
-
-// It is possible that the file still exists in our build cache. If this is
-// the case, we can serve it from there (we always do for R/W requests.
-//
-   char opPath[MAXPATHLEN];
-   if (!dsInfo.Compose(opPath, sizeof(opPath))) return -ENAMETOOLONG;
-   if (!isRW)
-      {struct stat Stat;
-       isLocal = !(ossP->Stat(opPath, &Stat));
-      } else isLocal = false;
-
-// This is an open to write an archive file then the file must exist because
-// Create() would have been called prior to this open for writing.
-//
-   if (isRW || isLocal) return ossDF->Open(opPath, Oflag, Mode, env);
-
-// If the client is looking for an individual file then the processing is
-// very different as we must extract it from the archive file that has it.
-// This file should be accessible via the tape buffer. The first step is to
-// generate the path to the archive that holds the file.
-//   
-   char arcPath[MAXPATHLEN];
-   if ((rc = Config.GenArcPath(dsInfo.arcDSN, arcPath, sizeof(arcPath))))
-      return -rc;
-
-// Now stage the file
-//
-   if ((rc = XrdOssArcStage::Stage(arcPath)))
-      {if (rc == EINPROGRESS) return Config.wtpStage;
-       if (rc != EEXIST) return -rc;
-      }
-
-// Get path as it exists in the tape buffer
-//
-   rc = Config.GenTapePath(dsInfo.arcDSN, arcPath, sizeof(arcPath), true); 
-   if (rc) return Neg(rc);
-
-// The archive is online, Get a zip file object and open it.
+// This is a request for a particular file. Get a zip file object and open it.
 //
    zFile = new XrdOssArcZipFile(arcPath, rc);
 
 // Open the member in the archive if possibe
 //
-   if (!rc) rc = zFile->Open(dsInfo.arcFile);
+   if (!rc) rc = zFile->Open(arcMember);
 
 // Diagnose any errors
 //
    if (rc)
       {Elog.Emsg("open", rc, "open archive", path);
+       ecMsg.Msg("open", "Unable to access member", arcMember, "in archive",
+                         arcPath);
        delete zFile; zFile = 0;
        return Neg(rc);
       }

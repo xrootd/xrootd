@@ -36,9 +36,9 @@
 #include "XrdOss/XrdOss.hh"
 
 #include "XrdOssArc/XrdOssArcBackup.hh"
+#include "XrdOssArc/XrdOssArcCompose.hh"
 #include "XrdOssArc/XrdOssArcConfig.hh"
 #include "XrdOssArc/XrdOssArcFSMon.hh"
-#include "XrdOssArc/XrdOssArcRecompose.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
 
 #include "XrdOuc/XrdOucProg.hh"
@@ -123,37 +123,47 @@ bool XrdOssArcBackupTask::BkpXeq()
 //
    TraceInfo("BkpTask", 0);
    XrdOucStream cmdSup;
-   char dsnDir[MAXPATHLEN];
+   char dsnDir[MAXPATHLEN], manPFN[MAXPATHLEN];
    int n, rc;
 
 // Compose the arena path. Note that our arena path already ends with a slash
 //
-   n = snprintf(dsnDir, sizeof(dsnDir), "%s%s/%c/", Owner.Arena(),
-                        XrdOssArcRecompose::DSN2Dir(theDSN).c_str(),
-                        Config.mySep);
+   n = snprintf(dsnDir, sizeof(dsnDir), "%s%s/", Owner.Arena(),
+                        XrdOssArcCompose::DSN2Dir(theDSN).c_str());
    if (n >= (int)sizeof(dsnDir))
-      {Elog.Emsg("Backup",ENAMETOOLONG,"bkup arena path for dataset",theDSN);
+      {Elog.Emsg("Backup",ENAMETOOLONG,"create arena path for dataset",theDSN);
        return false;
       }
 
 // We now must create the directory path to the arena 
 //
    if ((rc = XrdOucUtils::makePath(dsnDir, S_IRWXU|S_IRGRP|S_IXGRP)))
-       {Elog.Emsg("Backup", rc, "dataset backup arena", dsnDir);
+       {Elog.Emsg("Backup", rc, "create dataset backup arena", dsnDir);
        return false;
       }
+
+// Generate name of the manifest file if we need to invoke the preparc utility
+//
+   if (Config.PrepArcProg || Config.PostArcProg)
+      {n = snprintf(manPFN, sizeof(manPFN), "%sManifest", dsnDir);
+       if (n >= (int)sizeof(manPFN))
+          {Elog.Emsg("Backup",ENAMETOOLONG,"create bkp manifest for dataset",
+                     theDSN);
+           return false;
+          }
+      } else *manPFN = 0;
 
 // Construct the argument list
 //
    const char* supArgv[] = {"setup", Config.srcRSE, theScope, theDSN, dsnDir, 
-                            Config.srcData};
+                            Config.srcData, manPFN};
    int supArgc = sizeof(supArgv)/sizeof(char*);
 
 // Do some tracing
 //
-   DEBUG("Running "<<Config.BkpUtilPath<<' '<<supArgv[0]<<' '<<supArgv[1]<<
+   DEBUG("Running "<<Config.BkpUtilName<<' '<<supArgv[0]<<' '<<supArgv[1]<<
                   ' '<<supArgv[2]<<' '<<supArgv[3]<<' '<<supArgv[4]<<
-                  ' '<<supArgv[5]);
+                  ' '<<supArgv[5]<<' '<<supArgv[6]);
 
 // Run the setup script which prepares the dataset for archiving. It should 
 // output a single line: <files> <bytes>
@@ -171,19 +181,19 @@ bool XrdOssArcBackupTask::BkpXeq()
               else {char etxt[1024];
                     snprintf(etxt, sizeof(etxt),
                              "%s setup returned bad output '",
-                             Config.BkpUtilPath);
+                             Config.BkpUtilName);
                     Elog.Emsg("Backup", etxt, retStr,"'");
                    }
            free(retStr);
           } else {
-           Elog.Emsg("Backup",Config.BkpUtilPath,"setup returned no output");
+           Elog.Emsg("Backup",Config.BkpUtilName,"setup returned no output");
            return false;
           }
 
        Config.BkpUtilProg->RunDone(cmdSup); // This may kill the process
        if (!isOK) return false;
       } else {
-       Elog.Emsg("Backup",rc, "run setup via", Config.BkpUtilPath);
+       Elog.Emsg("Backup",rc, "run setup via", Config.BkpUtilName);
        return false;                                                     
       }
 
@@ -198,29 +208,76 @@ bool XrdOssArcBackupTask::BkpXeq()
        snprintf(buff,sizeof(buff),"Retrying to archive %s:%s",theScope,theDSN);
       }
 
-// We can now create the archive
+// bBefore we create the archive, check if we must run a pre-archive utility.
+// These utilities usually pre-fetch the files that we will be archiving.
+//
+   if (Config.PrepArcProg)
+      {XrdOucStream prpSup;
+       const char* prpArgv[] = {"prepare", theScope, manPFN};
+       int prpArgc = sizeof(prpArgv)/sizeof(char*);
+
+       DEBUG("Running "<<Config.PrepArcName<<' '<<prpArgv[0]<<' '<<prpArgv[1]
+                  <<' '<<prpArgv[2]);
+
+       if (!(rc = Config.PrepArcProg->Run(&prpSup, prpArgv, prpArgc)))
+          {char* lp;
+           while((lp = prpSup.GetLine())) {}
+           Config.PrepArcProg->RunDone(prpSup); // This may kill the process
+          } else {
+           Elog.Emsg("Backup", rc, "run preparc", Config.PrepArcName);
+           return false;                                                     
+          }
+      }
+
+// Run the archive script
 //
    if (!Owner.Archive(theDSN, dsnDir)) return false;
 
+// Run post-archive script if we need to
+//
+   if (Config.PostArcProg)
+      {XrdOucStream pstSup;
+       const char* pstArgv[] = {"dispose", theScope, manPFN};
+       int pstArgc = sizeof(pstArgv)/sizeof(char*);
+
+       DEBUG("Running "<<Config.PrepArcName<<' '<<pstArgv[0]<<' '<<pstArgv[1]
+                  <<' '<<pstArgv[2]);
+
+       if (!(rc = Config.PostArcProg->Run(&pstSup, pstArgv, pstArgc)))
+          {char* lp;
+           while((lp = pstSup.GetLine())) {}
+           Config.PostArcProg->RunDone(pstSup); // This may kill the process
+          } else {
+           Elog.Emsg("Backup", rc, "run postarc", Config.PostArcName);
+           return false;                                                     
+          }
+      }
+
 // We can now safely mark this dataset as having been backed up
 //
-   XrdOucStream cmdSet;
-   const char* setArgv[] = {"set", Config.metaBKP, Config.doneBKP,
-                                   theScope,  theDSN};
-   int setArgc = sizeof(setArgv)/sizeof(char*);
+   XrdOucStream cmdFin;
+   const char* finArgv[] = {"finish", Config.srcRSE, theScope, theDSN, dsnDir,
+                            Config.metaBKP, Config.doneBKP};
+   int finArgc = sizeof(finArgv)/sizeof(char*);
+
+// If the debug setting indicates we need to save the setup, disallow delete
+//
+   if (TRACING(TRACE_Save)) finArgv[4] = "";
 
 // Do some tracing
 //
-   DEBUG("Running "<<Config.BkpUtilPath<<' '<<setArgv[0]<<' '<<setArgv[1]<<
-                  ' '<<setArgv[2]<<' '<<setArgv[3]<<' '<<setArgv[4]);
+   DEBUG("Running "<<Config.BkpUtilName<<' '<<finArgv[0]<<' '<<finArgv[1]<<
+                  ' '<<finArgv[2]<<' '<<finArgv[3]<<' '<<
+                     (*finArgv[4] ? finArgv[4] : "n/d")<<
+                  ' '<<finArgv[5]<<' '<<finArgv[6]);
 
 // Run the setup script which sets the dataset backup metadata to completed
 //
-   if (!(rc = Config.BkpUtilProg->Run(&cmdSet, setArgv, setArgc)))
-      {while((cmdSet.GetLine())) {}
-       Config.BkpUtilProg->RunDone(cmdSet); // This may kill the process
+   if (!(rc = Config.BkpUtilProg->Run(&cmdFin, finArgv, finArgc)))
+      {while((cmdFin.GetLine())) {}
+       Config.BkpUtilProg->RunDone(cmdFin); // This may kill the process
       } else {
-       Elog.Emsg("Backup",rc, "run set via", Config.BkpUtilPath);
+       Elog.Emsg("Backup",rc, "run finish via", Config.BkpUtilName);
        return false;                                                     
       }
 
@@ -275,12 +332,19 @@ XrdOssArcBackup::XrdOssArcBackup(const char *scp, bool& isOK)
                 : XrdJob("Backup"), Scope(scp)
 {
    char abuff[1024];
+   int rc;
 
 // Construct the arena where our backups will be staged
 //
-   snprintf(abuff, sizeof(abuff), "/%s/4bkp/",scp);
-   isOK = Config.BuildPath("dataset backup arena", Config.dsetPathLFN, abuff,
-                           myArena, S_IRWXU|S_IRGRP|S_IXGRP);
+   snprintf(abuff, sizeof(abuff), "%s%s/",Config.dsetRepoPFN,scp);
+   rc = XrdOucUtils::makePath(abuff, S_IRWXU|S_IRGRP|S_IXGRP);
+   if (rc)
+      {Elog.Emsg("Backup", rc, "create arena", abuff);
+       isOK = false;
+      } else {
+       myArena = strdup(abuff);
+       isOK = true;
+      }
 }
 
 /******************************************************************************/
@@ -316,16 +380,16 @@ bool XrdOssArcBackup::Archive(const char* dsName, const char* dsDir)
    TraceInfo("Archive",0);
    XrdOucStream cmdOut;
    char tapPath[MAXPATHLEN];
-   int rc;
+   int n, rc;
 
-// Add we need to do is launch the archive program to complete the steps:
+// All we need to do is launch the archive program to complete the steps:
 // 1. Create the zip file of all files in the dataset.
 // 2. Move the zip file to the <tape_dir>.
 // 3. Do a recursvive delete starting at and including <src_dir>.
 // 4. Delete file <trg_dir>/<zipfn>.
 
 // The calling parameters are:
-// <src_dir> <tape_dir> <arcfn>
+// <src_dir> <tape_dir> <arcfn> [{<arcpy> | ""} [<arcdsp> <manifest>]]
 //
 // <src_dir>:  The directory containing all of the files in the dataset.
 //             This is apssed as a PFN via dsDir parameter.
@@ -333,25 +397,40 @@ bool XrdOssArcBackup::Archive(const char* dsName, const char* dsDir)
 //             We need to build this using the dsName parameter.
 // <arcfn>:    The actual filename to be used for the archive. By convention
 //             the archive is created as '<src_dir>/../<arcfn>'.
+//[<arcpy>]    Optional parameter to drive remote mode backups.
+//                       0      1        2               3
+   const char* argV[] = {dsDir, tapPath, Config.arFName, Config.ArchiverSave};
+//                                       4                   5
+   if (Config.bkpLocal)
+      {n = snprintf(tapPath, sizeof(tapPath), "%s/%s/%s",
+                             Config.tapePath, Scope, dsName);
+       argV[3] = "";
+      } else {
+       n = snprintf(tapPath, sizeof(tapPath), "%s/%s", Scope, dsName);
+       argV[3] =  Config.ArchiverSave;
+      }
+
+
+
+// Verify we didn't truncate the path
 //
-   int n = snprintf(tapPath, sizeof(tapPath), "%s/%s/%s", Config.tapePath,
-                             Scope, dsName);
    if (n >= (int)sizeof(tapPath))
       {rc = -ENAMETOOLONG;
        snprintf(tapPath, sizeof(tapPath), "%s:%s", Scope, dsName);
        Elog.Emsg("Archive", rc, "generate tape path for dataset", tapPath);
-       Elog.Emsg("Archive", "Dataset", dsName, "needs manual intervention!!!");
+       Elog.Emsg("Archive","Dataset",dsName,"needs manual intervention!!!");
        return false;
       }
 
 // Do some tracing
 //
-   DEBUG("Running "<<Config.ArchiverPath<<' '<<dsDir<<' '
-                   <<tapPath<<' '<<Config.arFName);
+   DEBUG("Running "<<Config.ArchiverName<<' '<<argV[0]<<' '
+                   <<argV[1]<<' '<<argV[2]<<' '<<argV[3]);
 
 // Run the archive script.
 //
-   if (!(rc = Config.ArchiverProg->Run(&cmdOut,dsDir,tapPath,Config.arFName)))
+   n = sizeof(argV)/sizeof(char*);
+   if (!(rc = Config.ArchiverProg->Run(&cmdOut, argV, n)))
       {char* lp;
        while((lp = cmdOut.GetLine())) {} // Throw away stdout
        rc = Config.ArchiverProg->RunDone(cmdOut);
@@ -411,7 +490,7 @@ int XrdOssArcBackup::GetManifest()
 
 // Do some tracing
 //
-   DEBUG("Running "<<Config.BkpUtilPath<<' '<<lsbArgv[0]<<' '<<lsbArgv[1]<<
+   DEBUG("Running "<<Config.BkpUtilName<<' '<<lsbArgv[0]<<' '<<lsbArgv[1]<<
                   ' '<<lsbArgv[2]<<' '<<lsbArgv[3]<<' '<<lsbArgv[4]);
 
 // To avoid placing a huge load on the dataset we will be querying, only one

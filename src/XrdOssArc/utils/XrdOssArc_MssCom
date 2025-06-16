@@ -24,7 +24,7 @@ MSS_CMD = MSS_CMD.split(" ")
 
 MSS_ROOT = os.getenv("XRDOSSARC_MSSROOT")
 if MSS_ROOT:
-   if MSS_ROOT == 'none':
+   if MSS_ROOT is None:
       MSS_ROOT = ''
    else:
       if not MSS_ROOT.endswith('/'):
@@ -39,11 +39,25 @@ def Emsg(rc, txt):
    if rc:
       sys.exit(rc)
 
+#******************************************************************************
+#*                               E x e c u t e                                *
+#******************************************************************************
+  
 def Execute(argvec):
-   result = subprocess.run(argvec, universal_newlines=True,
-                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-   return result.returncode, result.stdout
+   try:
+      result = subprocess.run(argvec, universal_newlines=True,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      rc = result.returncode
+   except Exception as e:
+      if isinstance(e, OSError) and e.errno != 0: rc = e.errno
+      else: rc = 8
 
+   return rc, result.stdout
+
+#******************************************************************************
+#*                              d o _ E v i c t                               *
+#******************************************************************************
+  
 # Migrate a file from the disk cache if needed and remove it from the cache
 #
 def do_Evict(pvec):
@@ -60,6 +74,41 @@ def do_Evict(pvec):
 
    rc, stdout = Execute(MSS_CMD + ['mig', "-P"] + evictVec)
    
+#******************************************************************************
+#*                               d o _ S a v e                                *
+#******************************************************************************
+
+# Process: save <dirpath_in_msss> ./<file> [./<file> [. . .]]
+#
+def do_Save(pvec):
+
+   # Make sure target directory specfied
+   #
+   if len(pvec) < 1: Emsg(errno.EINVAL, "Target directory not specified.") 
+
+   # Make sure we have at least one source file
+   #
+   if len(pvec) < 2: Emsg(errno.EINVAL, "No source files specified.")
+
+   # Adjust target directory. It may already be prepended with the root
+   #
+   target = pvec.pop(0)
+   if MSS_ROOT and not target.startswith(MSS_ROOT):
+      target = MSS_ROOT + target.lstrip('/')
+   
+   # Construct the commands needed to save the files
+   #
+   cmd  = 'mkdir -p {}; cd {}; put '.format(target,target)+' '.join(pvec)
+
+   #  Execute the appropriate command to see if the file is online/offline
+   #
+   rc, stdout = Execute(MSS_CMD + [cmd])
+   if (rc != 0): Emsg(rc, "Saving files to MSS failed:\n" + stdout)
+   return 0
+
+#******************************************************************************
+#*                             d o _ S t a t u s                              *
+#******************************************************************************
 
 # Process: status <filepath>
 #
@@ -94,6 +143,10 @@ def do_Status(pvec):
    #
    return sPres[0], sPres[1]
 
+#******************************************************************************
+#*                                  M a i n                                   *
+#******************************************************************************
+  
 # The actual guts of the script
 #
 def Main():
@@ -118,6 +171,9 @@ def Main():
       onDisk, onTape = do_Status(sys.argv)
       return onDisk
 
+   if (cmd == 'save'):
+      return do_Save(sys.argv)
+
    if (cmd == 'status'):
       onDisk, onTape = do_Status(sys.argv)
       res = []
@@ -129,7 +185,6 @@ def Main():
    # Unknown command
    #
    Emsg(errno.EINVAL, "Unknown command, '" + cmd + "'");
-
 
 if __name__ == "__main__":
    sys.exit(Main())
