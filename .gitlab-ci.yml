@@ -19,7 +19,7 @@ default:
     - debuild --no-tgz-check --no-sign -b
     - apt install -y ../*.d*eb
     - mkdir -p DEB/${ID}/${VERSION_CODENAME}
-    - mv ../*.* DEB/${ID}/${VERSION_CODENAME}
+    - mv ../*.deb DEB/${ID}/${VERSION_CODENAME}
     - tests/post-install.sh
   artifacts:
     paths: [ DEB ]
