@@ -23,7 +23,7 @@ default:
     - tests/post-install.sh
   artifacts:
     paths: [ DEB ]
-    expire_in: 1d
+    expire_in: 1 day
 
 .rpm_build_dnf: &rpm_build_dnf
   stage: build
@@ -39,7 +39,7 @@ default:
     - mv $(rpm -E '%{_rpmdir}')/ RPMS$(rpm -E '%{dist}' | tr . /)
   artifacts:
     paths: [ RPMS ]
-    expire_in: 1d
+    expire_in: 1 day
 
 Debian 11:
   image: debian:11
