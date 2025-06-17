@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -Eexo pipefail
-
 # Skip on macOS due to missing 'declare -A' support
 
 # Check for required commands
@@ -144,17 +142,32 @@ upload_file() {
     local local_file=$1
     local remote_file=$2
     local protocol=$3
+	local scitag_flow=$4
     local http_code
 
     if [[ -z "${protocol}" || "${protocol}" == "root" ]]; then
+		if [[ -n "${scitag_flow}" ]]; then
+			remote_file="${remote_file}?scitag.flow=${scitag_flow}"
+		fi
         ${XRDCP} "${local_file}" "${remote_file}"
     elif [[ "${protocol}" == "http" ]]; then
+		remote_file="${remote_file/root:\/\//https:\/\/}"
+		if [[ -n "${scitag_flow}" ]]; then
+		http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -v -o /dev/null -w "%{http_code}" \
+			-H "Authorization: Bearer ${BEARER_TOKEN}" \
+			-H "Transfer-Encoding: chunked" \
+			-H "Scitag: ${scitag_flow}" \
+			--cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+			--data-binary "@${local_file}" "${remote_file}" \
+			2>&1 1>&3 | cat >&2)
+		else
         http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -v -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${BEARER_TOKEN}" \
             -H "Transfer-Encoding: chunked" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             --data-binary "@${local_file}" "${remote_file}" \
             2>&1 1>&3 | cat >&2)
+		fi
 
         echo "$http_code"
     else
@@ -187,33 +200,52 @@ perform_http_tpc() {
     local token_src=$4
     local token_dst=$5
     local file_suffix=$6
+	local scitag_flow=$7
 
     if [[ -z "${file_suffix}" ]]; then
         file_suffix=""
     fi
 
+	if [[ -z "${scitag_flow}" ]]; then
+		scitag_flow=66
+	fi
+
     local src_file_http="${hosts_http[$src_idx]}/${RMTDATADIR}/${src}${file_suffix}.ref"
     local dst_file_http="${hosts_http[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}${file_suffix}.ref_http"
     local http_code
+    local result_line
+    local body_file
+    body_file=$(mktemp)
 
     if [[ "$mode" == "push" ]]; then
         dst_file_http="${dst_file_http}_push"
-        http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
+        http_code=$(${CURL} -X COPY -L -s -v -o "$body_file" -w "%{http_code}" \
             -H "Destination: ${dst_file_http}" \
             -H "Authorization: Bearer ${token_dst}" \
             -H "TransferHeaderAuthorization: Bearer ${token_src}" \
+			-H "Scitag: ${scitag_flow}" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             "${src_file_http}")
     elif [[ "$mode" == "pull" ]]; then
         dst_file_http="${dst_file_http}_pull"
-        http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
+        http_code=$(${CURL} -X COPY -L -s -v -o "$body_file" -w "%{http_code}" \
             -H "Source: ${src_file_http}" \
             -H "Authorization: Bearer ${token_src}" \
             -H "TransferHeaderAuthorization: Bearer ${token_dst}" \
+			-H "Scitag: ${scitag_flow}" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             "${dst_file_http}")
     else
         echo "ERROR: Unsupported mode: $mode" >&2
+        rm -f "$body_file"
+        return 1
+    fi
+
+    result_line=$(tail -n1 "$body_file")
+    rm -f "$body_file"
+
+    if [[ "$result_line" != "success: Created" ]]; then
+        echo "Transfer failed: $result_line" >&2
         return 1
     fi
 
