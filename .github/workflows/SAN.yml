@@ -1,0 +1,59 @@
+name: SAN
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - sanitize
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CDASH: ${{ vars.CDASH }}
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  sanitizers:
+    name: Sanitize
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        sanitizer:
+          - address
+          - bounds
+          - leak
+          - memory
+          - thread
+          - undefined
+      fail-fast: false
+
+    env:
+      CC: clang
+      CXX: clang++
+
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt update -q
+        sudo apt install -y build-essential devscripts equivs git
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install XRootD build dependencies
+      run: mk-build-deps --install --remove -s sudo debian/control <<< yes
+
+    - name: Build and Test with CTest
+      run: ctest -VV -DSANITIZE=${{ matrix.sanitizer }} -S test.cmake
