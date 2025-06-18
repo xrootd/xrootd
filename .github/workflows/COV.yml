@@ -52,7 +52,13 @@ jobs:
       run: mk-build-deps --install --remove -s sudo debian/control <<< yes
 
     - name: Build and Test with CTest
-      run: ctest -V --output-on-failure -C Debug -DCOVERAGE=1 -S test.cmake
+      run: ctest -V --output-on-failure -C Debug -DCOVERAGE=1 --output-junit junit.xml -S test.cmake
+
+    - if: ${{ vars.CODECOV == 'true' }}
+      name: Upload test results to Codecov
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
 
     - if: ${{ vars.CODECOV == 'true' }}
       name: Upload coverage to Codecov
