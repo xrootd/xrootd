@@ -127,7 +127,7 @@ def Wekafy(action, argv):
    while len(pfnlist) > 0:
       n = min(len(pfnlist), maxitems)
       fList = pfnlist[0:n]
-      flArg = [','.join(fList)]
+      flArg = [' '.join(fList)]
       rc, stdout = Execute(action + flArg)
       if rc:
          Emsg(rc, "Failed to fetch {} file(s): {}".format(len(fList), stdout))
