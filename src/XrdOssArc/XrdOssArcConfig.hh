@@ -85,6 +85,7 @@ char*       dsetRepoPFN;   // Path to directory where dataset backups are staged
 char*       admnPath;      // The admin path
 char*       srcData;       // Root path to where srcrse data is mounted
 char*       stagePath;     // Path to directory where zip members are extracted
+char*       stopPath;      // Path where the stop file should be written
 char*       tapePath;      // The full path of the tape disk buffer
 char*       utilsPath;     // Default path to utils
 
