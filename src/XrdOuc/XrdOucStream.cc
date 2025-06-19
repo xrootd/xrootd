@@ -577,8 +577,7 @@ char *XrdOucStream::GetLine()
   
    // There is no next record, so move up data in the buffer.
    //
-      strncpy(buff, bnext, bleft);
-      bnext = buff + bleft;
+      bnext = stpncpy(buff, bnext, bleft);
       }
       else bnext = buff;
 
