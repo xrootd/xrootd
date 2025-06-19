@@ -51,7 +51,7 @@ def Execute(argvec):
 
    try:
       result = subprocess.run(argvec, universal_newlines=True,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                              stdout=subprocess.PIPE)
       rc = result.returncode
    except Exception as e:
       if isinstance(e, OSError) and e.errno != 0: rc = e.errno
