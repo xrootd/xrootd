@@ -273,6 +273,16 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
         XrdOucEnv::Export("XRDOSSARC_SIZE", buff);
       }
 
+// Handle the admin path
+//
+   if (admnPath)
+      {int rc = XrdOucUtils::makePath(admnPath, S_IRWXU | S_IRGRP);
+       if (rc) {Elog.Emsg("Config", rc, "create admin path", admnPath);
+                NoGo = true;
+               }
+          else if (!Usable(admnPath, "admin path", false)) NoGo = true;
+      }
+
 // Handle the stop file path
 //
    if (!stopPath) stopPath = admnPath;
