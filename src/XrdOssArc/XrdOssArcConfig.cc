@@ -131,6 +131,7 @@ XrdOssArcConfig::XrdOssArcConfig()
        as.append("OssArc/");
        admnPath = strdup(as.c_str());
       }
+   stopPath    = 0;
 
    srcData     = strdup("");
    stagePath   = strdup("/tmp/stage");
@@ -272,16 +273,27 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
         XrdOucEnv::Export("XRDOSSARC_SIZE", buff);
       }
 
-// Handle the admin path
+// Handle the stop file path
 //
-   if (!admnPath)
-      {Elog.Emsg("Config", "Unable to determine the admin path!");
+   if (!stopPath) stopPath = admnPath;
+      else {std::string ss = stopPath;
+            if (ss.back() != '/')
+               {ss.append("/");
+                free(stopPath);
+                stopPath = strdup(ss.c_str());
+               }
+           }
+
+// Create the stop monitor
+//
+   if (!stopPath)
+      {Elog.Emsg("Config", "Unable to determine the stopfile path!");
        NoGo = true;
       } else {
-       if (!Usable(admnPath, "admin path", false)) NoGo = true;
+       if (!Usable(stopPath, "stopfile path", false)) NoGo = true;
           else if (!NoGo)
                   {bool uOK;
-                   stopMon = new XrdOssArcStopMon(admnPath, stopChk, uOK);
+                   stopMon = new XrdOssArcStopMon(stopPath, stopChk, uOK);
                    if (!uOK)
                       {NoGo = true;
                        delete stopMon;
@@ -876,11 +888,11 @@ bool XrdOssArcConfig::xqPaths()
 // Process all options
 //
    while((token = Conf->GetToken()))
-        {     if (!strcmp("admin",    token)) pDest = &admnPath;
-         else if (!strcmp("backing",  token)) pDest = &tapePath;
+        {     if (!strcmp("backing",  token)) pDest = &tapePath;
          else if (!strcmp("mssfs",    token)) pDest = &MssComRoot;
          else if (!strcmp("srcdata",  token)) pDest = &srcData;
          else if (!strcmp("staging",  token)) pDest = &stagePath;
+         else if (!strcmp("stopfile", token)) pDest = &stopPath;
          else if (!strcmp("utils",    token)) pDest = &utilsPath;
          else {Conf->MsgfE("Unknown path type '%s'; ignored.", token);
                if (!Conf->GetToken()) break;
