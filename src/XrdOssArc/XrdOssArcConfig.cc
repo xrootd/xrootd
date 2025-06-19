@@ -42,12 +42,16 @@
 #include <sys/types.h>
 
 #include "Xrd/XrdScheduler.hh"
+
 #include "XrdOss/XrdOss.hh"
+
 #include "XrdOssArc/XrdOssArc.hh"
 #include "XrdOssArc/XrdOssArcBackup.hh"
 #include "XrdOssArc/XrdOssArcConfig.hh"
 #include "XrdOssArc/XrdOssArcFSMon.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
+#include "XrdOssArc/XrdOssArcStopMon.hh"
+
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucECMsg.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -55,6 +59,7 @@
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+
 #include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
@@ -118,10 +123,21 @@ XrdOssArcConfig::XrdOssArcConfig()
    bkupPathLEN = strlen(bkupPathLFN);
    dsetPathLFN = strdup("/dataset/");
    dsetRepoPFN = 0;
+
+   const char*atmp;
+   if ((atmp = getenv("XRDADMINPATH"))) 
+      {std::string as = atmp;
+       if (as.back() != '/') as.append("/");
+       as.append("OssArc/");
+       admnPath = strdup(as.c_str());
+      }
+
    srcData     = strdup("");
    stagePath   = strdup("/tmp/stage");
    tapePath    = strdup("/TapeBuffer");
    utilsPath   = strdup("/usr/local/etc");
+
+   stopMon     = 0;
 
    metaBKP     = "arcBackup";
    metaIDX     = "arcIndex";
@@ -140,6 +156,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    arFName     = strdup("Archive.zip");
    arfSfx      = strdup(".zip");
    arfSfxLen   = 4;
+   stopChk     = 10;
    bkpLocal    = true;
 
    arcSZ_Skip  = false;
@@ -255,9 +272,23 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
         XrdOucEnv::Export("XRDOSSARC_SIZE", buff);
       }
 
-// Verify the archive path is usable (for now we are not using /archive)
+// Handle the admin path
 //
-//??? if (!Usable(arcvPathLFN, "archive path")) NoGo = true;
+   if (!admnPath)
+      {Elog.Emsg("Config", "Unable to determine the admin path!");
+       NoGo = true;
+      } else {
+       if (!Usable(admnPath, "admin path", false)) NoGo = true;
+          else if (!NoGo)
+                  {bool uOK;
+                   stopMon = new XrdOssArcStopMon(admnPath, stopChk, uOK);
+                   if (!uOK)
+                      {NoGo = true;
+                       delete stopMon;
+                       stopMon = 0;
+                      }
+                  }
+      }     
 
 // Verify that the tape buffer is usable
 //
@@ -674,8 +705,8 @@ bool XrdOssArcConfig::xqArcsz()
 /* Private:                       x q B k u p                                 */
 /******************************************************************************/
 /*
-  backup [fscan <sec>] [max <num>] [mode {copy|fuse}] [poll <sec>] 
-         [minfree <n>[%|k|m|g]] [scope <name> [<name [...]]]
+  backup [fscan <sec>] [max <num>] [mode {local|remote}] [poll <sec>] 
+         [stopchk <sec>] [minfree <n>[%|k|m|g]] [scope <name> [<name [...]]]
 */
 
 bool XrdOssArcConfig::xqBkup()
@@ -688,11 +719,12 @@ bool XrdOssArcConfig::xqBkup()
    struct bkpopts {const char *opname; int* oploc; int minv; int isX;}
           bkpopt[] =
              {
+              {"check",   &stopChk,  5, isT},
               {"fscan",   &bkpFSt,  30, isT},
               {"max",     &bkpMax,   1, isN},
               {"minfree", 0,         1, isPS},
               {"mode",    0,         0, isM},
-              {"poll",    &bkpPoll,  1, isT},
+              {"poll",    &bkpPoll, 60, isT},
               {"scope",   0,        -1, isN}
              };
    int numopts = sizeof(bkpopt)/sizeof(struct bkpopts);
@@ -832,8 +864,8 @@ bool XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
 /* Private:                      x q P a t h s                                */
 /******************************************************************************/
 /*  
-   paths [backing <path>] [mssfs <path>] [srcdata <path>] [staging <path>]
-         [utils <path>]
+   paths [admin <path>] [backing <path>] [mssfs <path>] [srcdata <path>]
+         [staging <path>] [utils <path>]
 */
 
 bool XrdOssArcConfig::xqPaths()
@@ -844,7 +876,8 @@ bool XrdOssArcConfig::xqPaths()
 // Process all options
 //
    while((token = Conf->GetToken()))
-        {     if (!strcmp("backing",  token)) pDest = &tapePath;
+        {     if (!strcmp("admin",    token)) pDest = &admnPath;
+         else if (!strcmp("backing",  token)) pDest = &tapePath;
          else if (!strcmp("mssfs",    token)) pDest = &MssComRoot;
          else if (!strcmp("srcdata",  token)) pDest = &srcData;
          else if (!strcmp("staging",  token)) pDest = &stagePath;

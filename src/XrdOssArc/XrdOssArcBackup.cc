@@ -39,6 +39,7 @@
 #include "XrdOssArc/XrdOssArcCompose.hh"
 #include "XrdOssArc/XrdOssArcConfig.hh"
 #include "XrdOssArc/XrdOssArcFSMon.hh"
+#include "XrdOssArc/XrdOssArcStopMon.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
 
 #include "XrdOuc/XrdOucProg.hh"
@@ -126,6 +127,11 @@ bool XrdOssArcBackupTask::BkpXeq()
    char dsnDir[MAXPATHLEN], manPFN[MAXPATHLEN];
    int n, rc;
 
+// We create an instance of the stop monitor. If a stop is in effect, it
+// will not complete construction until the stop file is removed.
+//
+   XrdOssArcStopMon stopMon(Config.stopMon);
+
 // Compose the arena path. Note that our arena path already ends with a slash
 //
    n = snprintf(dsnDir, sizeof(dsnDir), "%s%s/", Owner.Arena(),
@@ -197,16 +203,21 @@ bool XrdOssArcBackupTask::BkpXeq()
        return false;                                                     
       }
 
-// We can only proceed if there is enough space to hold the backup
+// We can only proceed if there is enough space to hold the backup. This only
+// applies to local backups. Remote backups have unlimited space.
 //
-   while(!fsMon.Permit(this))   
-      {char buff[1024];
-       snprintf(buff,sizeof(buff),"Insufficient free space; defering archiving"
-                     " of %s:%s", theScope, theDSN);
-       Elog.Emsg("BkpXeq", buff);
-       btSem.Wait();               
-       snprintf(buff,sizeof(buff),"Retrying to archive %s:%s",theScope,theDSN);
-      }
+   if (Config.bkpLocal)
+      while(!fsMon.Permit(this))   
+         {char buff[1024];
+          snprintf(buff,sizeof(buff),"Insufficient free space; defering "
+                                     "archiving of %s:%s", theScope, theDSN);
+          Elog.Emsg("BkpXeq", buff);
+          stopMon.Deactivate();
+          btSem.Wait();               
+          stopMon.Activate();
+          snprintf(buff,sizeof(buff),"Retrying to archive %s:%s",
+                                     theScope, theDSN);
+         }
 
 // bBefore we create the archive, check if we must run a pre-archive utility.
 // These utilities usually pre-fetch the files that we will be archiving.
