@@ -37,8 +37,9 @@
 #include "XrdOssArc/XrdOssArcConfig.hh"
 #include "XrdOssArc/XrdOssArcFile.hh"
 #include "XrdOssArc/XrdOssArcStage.hh"
-#include "XrdOssArc/XrdOssArcZipFile.hh"
+#include "XrdOssArc/XrdOssArcStopMon.hh"
 #include "XrdOssArc/XrdOssArcTrace.hh"
+#include "XrdOssArc/XrdOssArcZipFile.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucECMsg.hh"
@@ -153,6 +154,11 @@ int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
 
    if (rc == EDOM) return ossDF->Open(path, Oflag, Mode, env);
    if (rc != 0)    return -rc;
+
+// We will be doing a MSS orinted restore. This is subject to pausing.
+// So, we must run under the control of the stop monitor.
+//
+   XrdOssArcStopMon stopMon(Config.stopMon);
 
 // Whether this is a request for an archve or a file in the archive, we
 // need to bring the archive file online. We do this first.

@@ -32,6 +32,7 @@
 class XrdOucEnv;
 class XrdOucProg;
 class XrdOucGatherConf;
+class XrdOssArcStopMon;
 
 class XrdOssArcConfig
 {
@@ -81,6 +82,7 @@ int         bkupPathLEN;   // Length of the below
 char*       bkupPathLFN;   // LFN of backup  path, default "/backup/"
 char*       dsetPathLFN;   // LFN of dataset path, default "/dataset/"
 char*       dsetRepoPFN;   // Path to directory where dataset backups are staged
+char*       admnPath;      // The admin path
 char*       srcData;       // Root path to where srcrse data is mounted
 char*       stagePath;     // Path to directory where zip members are extracted
 char*       tapePath;      // The full path of the tape disk buffer
@@ -88,6 +90,8 @@ char*       utilsPath;     // Default path to utils
 
 // Miscellaneous
 //
+XrdOssArcStopMon* stopMon; // Pointer to the parent stop monitor
+
 const char* metaBKP;       // Metadata variable name of backup status
 const char* metaIDX;       // Metadata variable name of ordinal index
 char*       doneBKP;       // Metadata value indicating a backup completed
@@ -104,12 +108,12 @@ int         r_maxItems;    // rucio maximum response lines (query limit)
 char*       arFName;       // Full archive filename (e.g. archive.zip)
 char*       arfSfx;        // Archive file suffix
 int         arfSfxLen;     // Length of the above
-bool        bkpLocal;      // T->Use fuse mount for backup, else do remote copy.
-
-bool        arcSZ_Skip;    // When true skip archiving if size can't be met
+int         stopChk;       // Stat interval for STOP file
 long long   arcSZ_Want;    // Preferred size of archive
 long long   arcSZ_MinV;    // Minimum size archive can have
 long long   arcSZ_MaxV;    // Maximum size archive can have
+bool        arcSZ_Skip;    // When true skip archiving if size can't be met
+bool        bkpLocal;      // T->Use fuse mount for backup, else do remote copy.
 
 private:
 void ConfigPath(char** pDest, const char* pRoot);

@@ -14,6 +14,7 @@ add_library(${XrdOssArc}
   XrdOssArcFile.cc       XrdOssArcFile.hh
   XrdOssArcFSMon.cc      XrdOssArcFSMon.hh
   XrdOssArcStage.cc      XrdOssArcStage.hh
+  XrdOssArcStopMon.cc    XrdOssArcStopMon.hh
                          XrdOssArcTrace.hh
   XrdOssArcZipFile.cc    XrdOssArcZipFile.hh
 )
