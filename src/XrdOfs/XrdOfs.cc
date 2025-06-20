@@ -2299,7 +2299,8 @@ int XrdOfs::rename(const char             *old_name,  // In
    if (client && XrdOfsFS->Authorization &&
       !XrdOfsFS->Authorization->Access(client, new_name, AOP_Insert, &new_Env))
       {cannot_overwrite = true;
-       AUTHORIZE(client, &new_Env, AOP_Excl_Insert, "renaming to (no overwrite)", new_name, einfo);
+       AUTHORIZE(client, &new_Env, AOP_Excl_Insert,
+             "rename to existing file (overwrite disallowed)", new_name, einfo);
       }
 
 // Find out where we should rename this file
