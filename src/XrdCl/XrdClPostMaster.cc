@@ -75,11 +75,17 @@ namespace XrdCl
     }
 
     typedef std::map<std::string, Channel*> ChannelMap;
+    typedef std::map<const URL*, Channel*>  CollapsedMap;
 
     Poller               *pPoller;
     TaskManager          *pTaskManager;
     ChannelMap            pChannelMap;
+    CollapsedMap          pCollapsedMap;
+
+    // lock MapMutex if accessing maps while holding pDisconnectLock Read
+    // if MapMutex is required, acquire after pDisconnetLock.
     XrdSysMutex           pChannelMapMutex;
+
     bool                  pInitialized;
     bool                  pRunning;
     JobManager           *pJobManager;
@@ -88,7 +94,10 @@ namespace XrdCl
     std::unique_ptr<Job>  pOnConnJob;
     std::function<void( const URL&, const XRootDStatus& )> pOnConnErrCB;
 
-    XrdSysRWLock          pDisconnectLock;
+    // take DisconnectLock: Read while using Channel* from map.
+    //                      Write if destroying Channel
+    // if MapMutex is required, acquire DisconnectLock first.
+    XrdSysRWLock          pDisconnectLock; 
   };
 
   //----------------------------------------------------------------------------
@@ -323,6 +332,22 @@ namespace XrdCl
   Status PostMaster::ForceDisconnect( const URL &url, bool hush )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock, false );
+    {
+      //--------------------------------------------------------------------
+      // See if this is called by channel replaced by collapse, reaching TTL
+      //--------------------------------------------------------------------
+      PostMasterImpl::CollapsedMap::iterator it =
+          pImpl->pCollapsedMap.find( &url );
+      if( it != pImpl->pCollapsedMap.end() )
+      {
+        Channel *passive = it->second;
+        passive->ForceDisconnect( hush );
+        delete passive;
+        pImpl->pCollapsedMap.erase( it );
+        return Status();
+      }
+    }
+
     PostMasterImpl::ChannelMap::iterator it =
         pImpl->pChannelMap.find( url.GetChannelId() );
 
@@ -421,7 +446,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void PostMaster::CollapseRedirect( const URL &alias, const URL &url )
   {
-    XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
+    XrdSysRWLockHelper scopedDiscLock( pImpl->pDisconnectLock );
+    XrdSysMutexHelper scopedMapLock( pImpl->pChannelMapMutex );
 
     //--------------------------------------------------------------------------
     // Get the passive channel
@@ -462,6 +488,7 @@ namespace XrdCl
     Channel *active = new Channel( alias, pImpl->pPoller, trHandler,
                                    pImpl->pTaskManager, pImpl->pJobManager, url );
     pImpl->pChannelMap[alias.GetChannelId()] = active;
+    pImpl->pCollapsedMap[&passive->GetURL()] = passive;
 
     //--------------------------------------------------------------------------
     // The passive channel will be deallocated by TTL

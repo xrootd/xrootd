@@ -1091,6 +1091,9 @@ namespace XrdCl
         // This destroys the Stream object itself, the underlined
         // AsyncSocketHandler object (that called this method) and the Channel
         // object that aggregates this Stream.
+        //
+        // Additionally &(*pUrl) is used by ForceDisconnect to check if we are
+        // in a Channel that was previously collapsed in a redirect.
         //----------------------------------------------------------------------
         DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
         return false;
