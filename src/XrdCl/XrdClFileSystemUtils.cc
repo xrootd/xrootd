@@ -103,7 +103,8 @@ namespace XrdCl
     // Locate all the disk servers containing the space
     //--------------------------------------------------------------------------
     LocationInfo *locationInfo = 0;
-    XRootDStatus st = fs->DeepLocate( path, OpenFlags::Compress, locationInfo );
+    OpenFlags::Flags flags = OpenFlags::Compress | OpenFlags::PrefName;
+    XRootDStatus st = fs->DeepLocate( path, flags, locationInfo );
     if( !st.IsOK() )
       return st;
 

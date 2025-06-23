@@ -364,7 +364,7 @@ namespace XrdCl
       inline XRootDStatus LoadPlacement()
       {
         LocationInfo *infoAll = nullptr;
-        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, infoAll );
+        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::PrefName, infoAll );
         std::unique_ptr<LocationInfo> ptr( infoAll );
         if( !st.IsOK() ) return st;
 
@@ -389,7 +389,7 @@ namespace XrdCl
       inline XRootDStatus LoadPlacement( const std::string &path )
       {
         LocationInfo *info = nullptr;
-        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, info );
+        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::PrefName, info );
         std::unique_ptr<LocationInfo> ptr( info );
         if( !st.IsOK() ) return st;
         // The following check become meaningless

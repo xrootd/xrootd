@@ -101,7 +101,7 @@ int XrdFfsPosix_mkdir(const char *path, mode_t mode)
     XrdCl::LocationInfo *info = nullptr;
     XrdCl::FileSystem fs(path);
 
-    XrdCl::XRootDStatus st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
+    XrdCl::XRootDStatus st = fs.DeepLocate("*", XrdCl::OpenFlags::PrefName, info );
     std::unique_ptr<XrdCl::LocationInfo> ptr( info );  
 
     if( !st.IsOK() )

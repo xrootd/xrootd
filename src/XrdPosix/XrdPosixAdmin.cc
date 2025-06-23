@@ -59,7 +59,7 @@ XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
 
 // Issue the deep locate and verify that all went well
 //
-   xStatus = Xrd.DeepLocate(Url.GetPathWithParams(),XrdCl::OpenFlags::None,info);
+   xStatus = Xrd.DeepLocate(Url.GetPathWithParams(),XrdCl::OpenFlags::PrefName,info);
    if (!xStatus.IsOK())
       {num = XrdPosixMap::Result(xStatus, ecMsg, false);
        return 0;

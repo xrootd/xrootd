@@ -1599,7 +1599,7 @@ int XrdPosixXrootd::EcRename(const char *oldpath, const char *newpath,
     else
         if (queryResp) delete queryResp;
 
-    st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
+    st = fs.DeepLocate("*", XrdCl::OpenFlags::PrefName, info );
     std::unique_ptr<XrdCl::LocationInfo> ptr( info );
     if( !st.IsOK() ) 
       return XrdPosixMap::Result(st, XrdPosixGlobals::ecMsg, true);
@@ -1675,7 +1675,7 @@ int XrdPosixXrootd::EcStat(const char *path, struct stat *buf,
    else
        if (queryResp) delete queryResp;
 
-   st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
+   st = fs.DeepLocate("*", XrdCl::OpenFlags::PrefName, info );
    std::unique_ptr<XrdCl::LocationInfo> ptr( info );
    if( !st.IsOK() ) 
    {
@@ -1762,7 +1762,7 @@ int XrdPosixXrootd::EcUnlink(const char *path, XrdPosixAdmin &admin)
     else
         if (queryResp) delete queryResp;
 
-    st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
+    st = fs.DeepLocate("*", XrdCl::OpenFlags::PrefName, info );
     std::unique_ptr<XrdCl::LocationInfo> ptr( info );
     if( !st.IsOK() ) 
       return XrdPosixMap::Result(st, admin.ecMsg, true);

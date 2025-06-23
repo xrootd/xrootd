@@ -497,7 +497,8 @@ void FileSystemTest::DeepLocateTest()
   FileSystem fs( url );
 
   LocationInfo *locations = 0;
-  EXPECT_XRDST_OK( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
+  OpenFlags::Flags flags = OpenFlags::PrefName | OpenFlags::Refresh;
+  EXPECT_XRDST_OK( fs.DeepLocate( remoteFile, flags, locations ) );
   ASSERT_TRUE( locations );
   EXPECT_NE( locations->GetSize(), 0 );
   LocationInfo::Iterator it = locations->Begin();

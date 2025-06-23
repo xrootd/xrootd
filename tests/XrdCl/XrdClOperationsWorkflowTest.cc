@@ -697,7 +697,7 @@ TEST(WorkflowTest, MixedWorkflowTest){
                   | Parallel( fileWorkflows )
                   | Rm( fs, path[0] )
                   | Rm( fs, path[1] )
-                  | DeepLocate( fs, dirPath, OpenFlags::Refresh ) >> cleaningHandler;
+                  | DeepLocate( fs, dirPath, OpenFlags::PrefName | OpenFlags::Refresh ) >> cleaningHandler;
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
     EXPECT_XRDST_OK( status );

@@ -121,7 +121,7 @@ namespace PyXRootD
     static const char      *kwlist[] = { "path", "flags", "timeout", "callback",
                                          NULL };
     const  char            *path;
-    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
+    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::PrefName;
     uint16_t                timeout  = 0;
     PyObject               *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
