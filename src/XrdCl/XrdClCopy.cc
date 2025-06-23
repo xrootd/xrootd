@@ -768,7 +768,8 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   bool remoteSrcIsDir = false;
   if( config.Want( XrdCpConfig::DoRecurse ) &&
-      config.srcFile->Protocol == XrdCpFile::isXroot )
+      (config.srcFile->Protocol == XrdCpFile::isXroot ||
+       config.srcFile->Protocol == XrdCpFile::isXroots) )
   {
     URL          source( config.srcFile->Path );
     FileSystem  *fs       = new FileSystem( source );
