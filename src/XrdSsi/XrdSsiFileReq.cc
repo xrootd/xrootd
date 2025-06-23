@@ -87,6 +87,32 @@ const char     *reqstID[XrdSsiFileReq::rsEnd] =
                                        " doRsp] ", " odRsp] ", " erRsp] "
                                       };
 };
+
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+
+namespace
+{
+class FinalizeJob : public XrdJob
+{
+public:
+
+void  DoIt() {reqP->Finalize();
+              fileP->DeferredFinalizeDone(reqP, reqID);
+              delete this;
+             }
+
+      FinalizeJob(XrdSsiFileReq *rP, XrdSsiFileSess *fP, unsigned int id) :
+         reqP(rP), fileP(fP), reqID(id) {}
+     ~FinalizeJob() {}
+
+private:
+XrdSsiFileReq *reqP;
+XrdSsiFileSess *fileP;
+unsigned int reqID;
+};
+}
   
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
@@ -270,6 +296,15 @@ void XrdSsiFileReq::BindDone()
 }
 
 /******************************************************************************/
+/*                    D e f e r r e d F i n a l i z e                         */
+/******************************************************************************/
+
+void XrdSsiFileReq::DeferredFinalize()
+{
+   Sched->Schedule(new FinalizeJob(this, fileP, reqID));
+}
+
+/******************************************************************************/
 /*                               D i s p o s e                                */
 /******************************************************************************/
 
@@ -359,7 +394,7 @@ void XrdSsiFileReq::Done(int &retc, XrdOucErrInfo *eiP, const char *name)
 //
    if (myState == odRsp)
       {DEBUGXQ("resp sent; no additional data remains");
-       Finalize();
+       if (!fileP->DeferFinalize(this,reqID)) Finalize();
        return;
       }
 
@@ -993,8 +1028,7 @@ bool XrdSsiFileReq::WantResponse(XrdOucErrInfo &eInfo)
 // if (rspP->rType)
    if (haveResp)
       {respCBarg   = 0;
-       if (fileP->AttnInfo(eInfo, rspP, reqID))
-          {    eInfo.setErrCB((XrdOucEICB *)this); myState = odRsp;}
+       if (fileP->AttnInfo(eInfo, rspP, reqID)) myState = odRsp;
           else eInfo.setErrCB((XrdOucEICB *)0);
        return true;
       }
@@ -1040,7 +1074,7 @@ void XrdSsiFileReq::WakeUp(XrdSsiAlert *aP) // Called with frqMutex locked!
                  <<(alrtPend ? "" : "no ") <<"more pending");
       } else {
        if (fileP->AttnInfo(*wuInfo, rspP, reqID))
-          {wuInfo->setErrCB((XrdOucEICB *)this, respCBarg); myState = odRsp;}
+          {wuInfo->setErrArg(respCBarg); myState = odRsp;}
       }
 
 // Tell the client to issue a read now or handle the alert or full response.
