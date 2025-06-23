@@ -370,6 +370,7 @@ const char *FileType2String( XrdCpFile::PType type )
     case XrdCpFile::isDir:   return "directory";
     case XrdCpFile::isFile:  return "local file";
     case XrdCpFile::isXroot: return "xroot";
+    case XrdCpFile::isXroots: return "xroots";
     case XrdCpFile::isHttp:  return "http";
     case XrdCpFile::isHttps: return "https";
     case XrdCpFile::isStdIO: return "stdio";
