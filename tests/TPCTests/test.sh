@@ -303,7 +303,8 @@ verify_checksum() {
     fi
 }
 
-source /home/rchauhan/dev/xrootd/tests/TPCTests/test_tpc_cancellations.sh
+# shellcheck disable=SC1091
+source "${CURRENT_SOURCE_DIR}/test_tpc_cancellations.sh"
 
 # Generate, upload, download, and verify checksums for each host
 for host_idx in {0..1}; do

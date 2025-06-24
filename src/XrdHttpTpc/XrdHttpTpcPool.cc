@@ -41,12 +41,13 @@ bool TPCRequestManager::TPCQueue::TPCWorker::RunCurl(
 
     CURLMcode mres;
     auto curl = request.GetHandle();
+
     curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
     curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, this);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
     curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, this);
-	curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
-	curl_easy_setopt(curl, CURLOPT_SOCKOPTDATA, this);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTDATA, this);
 
     mres = curl_multi_add_handle(multi_handle, curl);
     if (mres) {
@@ -60,10 +61,11 @@ bool TPCRequestManager::TPCQueue::TPCWorker::RunCurl(
 
     CURLcode res = static_cast<CURLcode>(-1);
     int running_handles = 1;
+
     do {
         mres = curl_multi_perform(multi_handle, &running_handles);
         if (mres != CURLM_OK) {
-            curl_multi_remove_handle(multi_handle, request.GetHandle());
+    		curl_multi_remove_handle(multi_handle, curl);
             std::stringstream ss;
             ss << "Internal curl multi-handle error: " << curl_multi_strerror(mres);
             m_queue.m_parent.m_log.Log(LogMask::Error, "TPCWorker", ss.str().c_str());
@@ -83,12 +85,28 @@ bool TPCRequestManager::TPCQueue::TPCWorker::RunCurl(
 
         mres = curl_multi_wait(multi_handle, NULL, 0, 1000, nullptr);
         if (mres != CURLM_OK) {
-            break; // TODO: Handle this error
+			curl_multi_remove_handle(multi_handle, curl);
+            std::stringstream ss;
+            ss << "Error during curl_multi_wait: " << curl_multi_strerror(mres);
+            m_queue.m_parent.m_log.Log(LogMask::Error, "TPCWorker", ss.str().c_str());
+            request.SetDone(500, ss.str());
+            return false;
         }
+
+        // Check for cancellation 
+        if (!request.IsActive()) {
+			curl_multi_remove_handle(multi_handle, curl);
+            std::stringstream ss;
+            ss << "Transfer cancelled";
+            m_queue.m_parent.m_log.Log(LogMask::Info, "TPCWorker", ss.str().c_str());
+            request.SetDone(499, ss.str());
+            return false;
+        }
+
     } while (running_handles);
 
-    if (res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
-        curl_multi_remove_handle(multi_handle, request.GetHandle());
+    if (res == static_cast<CURLcode>(-1)) {
+		curl_multi_remove_handle(multi_handle, curl);
         std::stringstream ss;
         ss << "Internal state error in libcurl - no transfer results returned";
         m_queue.m_parent.m_log.Log(LogMask::Error, "TPCWorker", ss.str().c_str());
@@ -96,8 +114,9 @@ bool TPCRequestManager::TPCQueue::TPCWorker::RunCurl(
         return false;
     }
 
-    curl_multi_remove_handle(multi_handle, request.GetHandle());
+	curl_multi_remove_handle(multi_handle, curl);
     request.SetDone(res, "Transfer complete");
+
     return true;
 }
 

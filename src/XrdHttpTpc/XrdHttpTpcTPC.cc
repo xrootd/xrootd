@@ -22,7 +22,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <thread>
-#include <iostream> // Delete later!!!
 
 #include "XrdHttpTpcState.hh"
 #include "XrdHttpTpcStream.hh"
@@ -506,7 +505,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         request.Cancel();
         logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
             "Failed to send the initial response to the TPC client");
-        return retval;
+        return retval; // Todo: should not return here: the request is already in the process queue, wait for set done before going out of scope
     } else {
         logTransferEvent(LogMask::Debug, rec, "RESPONSE_START",
             "Initial transfer response sent to the TPC client");
@@ -531,13 +530,12 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             request.Cancel();
             logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL",
                 "Failed to send a perf marker to the TPC client");
-            return -1;
         }
         int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
         if (now > last_advance_time + timeout) {
             const char *log_prefix = rec.log_prefix.c_str();
             bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
-
+			request.Cancel();
             state.SetErrorCode(10);
             std::stringstream ss;
             ss << "Transfer failed because no bytes have been "
@@ -823,8 +821,11 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     State state(0, stream, curl, false, req.tpcForwardCreds);
     state.SetupHeaders(req);
     state.SetContentLength(sourceFileContentLength);
+	
+	fprintf(stderr, "HTTPULL:: %d We got number of streams \n", streams);
 
     if (streams > 1) {
+		// TODO: Make the run curl with streams work with the new pattern
         return RunCurlWithStreams(req, state, streams, rec);
     } else {
         return RunCurlWithUpdates(curl, req, state, rec);
