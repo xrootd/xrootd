@@ -1,9 +1,8 @@
 //------------------------------------------------------------------------------
-// This file is part of XrdHTTP: A pragmatic implementation of the
-// HTTP/WebDAV protocol for the Xrootd framework
+// This file is part of the XRootD framework
 //
 // Copyright (c) 2025 by European Organization for Nuclear Research (CERN)
-// Author: Cedric Caffy <ccaffy@cern.ch>
+// Author: Cedric Caffy <cedric.caffy@cern.ch>
 // File Date: Jun 2025
 //------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
@@ -20,17 +19,31 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef XROOTD_XRDHTTPHEADERUTILS_HH
-#define XROOTD_XRDHTTPHEADERUTILS_HH
+#pragma once
 
 #include <map>
 #include <string>
+#include <string_view>
+#include <optional>
 
-class XrdHttpHeaderUtils {
+
+class XrdOucEnv;
+class XrdOucErrInfo;
+class XrdSysError;
+
+class XrdCors {
 public:
-  static void parseReprDigest(const std::string & header, std::map<std::string,std::string> & output);
-  static void parseSimpleValue(const std::string & header, std::string & out);
+  virtual int Configure(const char * configFN, XrdSysError *errP) = 0;
+  virtual void addAllowedOrigin(std::string_view origin) = 0;
+  virtual std::optional<std::string>  getCORSAllowOriginHeader(const std::string & origin) = 0;
 };
 
+typedef XrdCors *(*XrdCorsget_t)(XrdSysError *eDest,
+                                             const char  *confg,
+                                             XrdOucEnv   *envP
+);
 
-#endif //XROOTD_XRDHTTPHEADERUTILS_HH
+#define XrdCorsGetHandlerArgs
+
+extern "C" XrdCors* XrdCorsGetHandler(XrdCorsGetHandlerArgs);
+
