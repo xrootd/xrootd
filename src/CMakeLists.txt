@@ -109,6 +109,7 @@ if( NOT XRDCL_ONLY )
 
   add_subdirectory( XrdMacaroons )
   add_subdirectory( XrdVoms )
+  add_subdirectory( XrdHttpCors )
   add_subdirectory( XrdCeph )
   add_subdirectory( XrdSciTokens )
 endif()

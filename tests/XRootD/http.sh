@@ -206,7 +206,16 @@ function test_http() {
   assert_eq "2" "$(grep -B 1 "X-Transfer-Status: 500: Unable to read" "$outputFilePath" | grep -c -E "^0")" "$(sed -e 's/blah//g' < "$outputFilePath")"
   assert_eq "0" "$(grep -c "Leftovers after chunking" "${TMPDIR}/stderr.txt")" "Incorrect framing in response: $(sed -e 's/blah//g' < "${TMPDIR}/stderr.txt")"
   assert_eq "0" "$(grep -c "Connection died" "${TMPDIR}/stderr.txt")" "Connection reuse did not work.  Server log: $(cat "${XROOTD_SERVER_LOGFILE}") Client log: $(sed -e 's/blah//g' < "${TMPDIR}/stderr.txt") Issue:"
-  
+
+  # Test CORS origin functionality
+  curl -v -H 'Origin: does_not_exist' "${HOST}/$alphabetFilePath" 2>&1 | tr -d '\r' > "$outputFilePath"
+  assert_eq 0 $(grep -c 'Access-Control-Allow-Origin' "$outputFilePath")
+
+  curl -v -H 'Origin: https://webserver.bli.bla.blo' "${HOST}/$alphabetFilePath" 2>&1 | tr -d '\r' > "$outputFilePath"
+
+  assert_eq 1 $(grep -c 'Access-Control-Allow-Origin' "$outputFilePath")
+  accessControlAllowOrigin=$(cat "$outputFilePath" | grep 'Access-Control-Allow-Origin' | awk -F'< ' '{print $2}')
+  assert_eq 'Access-Control-Allow-Origin: https://webserver.bli.bla.blo' "$accessControlAllowOrigin"
 
   run_and_assert_http_and_error_code() {
     local expected_http_code="$1"
