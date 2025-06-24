@@ -1,9 +1,8 @@
 //------------------------------------------------------------------------------
-// This file is part of XrdHTTP: A pragmatic implementation of the
-// HTTP/WebDAV protocol for the Xrootd framework
+// This file is part of the XRootD framework
 //
 // Copyright (c) 2025 by European Organization for Nuclear Research (CERN)
-// Author: Cedric Caffy <ccaffy@cern.ch>
+// Author: Cedric Caffy <cedric.caffy@cern.ch>
 // File Date: Jun 2025
 //------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
@@ -20,16 +19,24 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef XROOTD_XRDHTTPHEADERUTILS_HH
-#define XROOTD_XRDHTTPHEADERUTILS_HH
+#ifndef __XROOTD_XRDHTTPCORSHANDLER_HH__
+#define __XROOTD_XRDHTTPCORSHANDLER_HH__
 
-#include <map>
-#include <string>
+#include "XrdHttpCors/XrdHttpCors.hh"
+#include <unordered_set>
 
-class XrdHttpHeaderUtils {
+/**
+ * Basic CORS plugin implementation
+ */
+class XrdHttpCorsHandler : public XrdHttpCors {
 public:
-  static void parseReprDigest(const std::string & header, std::map<std::string,std::string> & output);
+  XrdHttpCorsHandler() = default;
+  void addAllowedOrigin(const std::string & origin) override;
+  int Configure(const char * configFN, XrdSysError *errP) override;
+  std::optional<std::string> getCORSAllowOriginHeader(const std::string & origin) override;
+private:
+  std::unordered_set<std::string> m_origins;
 };
 
 
-#endif //XROOTD_XRDHTTPHEADERUTILS_HH
+#endif //__XROOTD_XRDHTTPCORSHANDLER_HH__

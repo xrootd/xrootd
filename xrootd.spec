@@ -614,6 +614,7 @@ fi
 %{_libdir}/libXrdFileCache-5.so
 %{_libdir}/libXrdHttp-5.so
 %{_libdir}/libXrdHttpTPC-5.so
+%{_libdir}/libXrdHttpCors-5.so
 %{_libdir}/libXrdMacaroons-5.so
 %{_libdir}/libXrdN2No2p-5.so
 %{_libdir}/libXrdOfsPrepGPI-5.so

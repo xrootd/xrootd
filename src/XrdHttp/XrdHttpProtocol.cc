@@ -44,6 +44,7 @@
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
+#include "XrdHttpCors/XrdHttpCors.hh"
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -100,6 +101,8 @@ BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
 bool XrdHttpProtocol::isRequiredXtractor = false;
 struct XrdHttpProtocol::XrdHttpExtHandlerInfo XrdHttpProtocol::exthandler[MAX_XRDHTTPEXTHANDLERS];
+std::string XrdHttpProtocol::xrdcorsLibPath;
+XrdHttpCors * XrdHttpProtocol::xrdcors = nullptr;
 int XrdHttpProtocol::exthandlercnt = 0;
 std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
 
@@ -1070,6 +1073,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("secretkey", xsecretkey);
       else if TS_Xeq("desthttps", xdesthttps);
       else if TS_Xeq("secxtractor", xsecxtractor);
+      else if TS_Xeq("cors", xcors);
       else if TS_Xeq3("exthandler", xexthandler);
       else if TS_Xeq("selfhttps2http", xselfhttps2http);
       else if TS_Xeq("embeddedstatic", xembeddedstatic);
@@ -1134,6 +1138,16 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 // Test if this is a caching server
 //
    if (myEnv->Get("XrdCache")) hasCache = true;
+
+   // Load CORS plugin if configured
+   if(xrdcorsLibPath.size()) {
+     if(LoadCorsHandler(&eDest, xrdcorsLibPath.c_str()) != 0) {
+       return 1;
+     }
+     if (xrdcors->Configure(ConfigFN, &eDest) != 0) {
+       return 1;
+     }
+   }
 
 // If https was disabled, then issue a warning message if xrdtls configured
 // of it's disabled because httpsmode was auto and xrdtls was not configured.
@@ -1642,6 +1656,13 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
     ss << iter->second;
   } else {
     ss << m_staticheaders[""];
+  }
+
+  if(xrdcors) {
+    auto corsAllowOrigin = xrdcors->getCORSAllowOriginHeader(CurrentReq.m_origin);
+    if(corsAllowOrigin) {
+      ss << *corsAllowOrigin << crlf;
+    }
   }
 
   if ((bodylen >= 0) && (code != 100))
@@ -2750,6 +2771,18 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream& Config) {
   return 0;
 }
 
+int XrdHttpProtocol::xcors(XrdOucStream& Config) {
+  char * val;
+  // Get the path
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "No CORS plugin specified.");
+    return 1;
+  }
+  xrdcorsLibPath = val;
+  return 0;
+}
+
 /******************************************************************************/
 /*                            x e x t h a n d l e r                           */
 /******************************************************************************/
@@ -3186,6 +3219,15 @@ int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
 }
 
 
+int XrdHttpProtocol::LoadCorsHandler(XrdSysError *eDest, const char *libname) {
+  if(xrdcors) return 1;
+  XrdOucPinLoader corsLib(eDest, &compiledVer, "corslib",libname);
+  XrdHttpCors *(*ep)(XrdHttpCorsGetHandlerArgs);
+  ep = (XrdHttpCors *(*)(XrdHttpCorsGetHandlerArgs))(corsLib.Resolve("XrdHttpCorsGetHandler"));
+  if(ep && (xrdcors = ep())) return 0;
+  corsLib.Unload();
+  return 1;
+}
 
 // Tells if we have already loaded a certain exthandler. Try to
 // privilege speed, as this func may be invoked pretty often
