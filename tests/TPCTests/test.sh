@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-# Skip on macOS due to missing 'declare -A' support
-
 # Check for required commands
 : "${ADLER32:=$(command -v xrdadler32)}"
 : "${CRC32C:=$(command -v xrdcrc32c)}"
@@ -80,7 +78,7 @@ cleanup() {
     src=${hosts_abbrev[${src_idx}]}
     dst=${hosts_abbrev[${dst_idx}]}
     rm "${LCLDATADIR}/${src}_empty.dat" || :
-    rm "${LCLDATADIR}/${dst}_empty.ref" || :
+    rm "${LCLDATADIR}/${src}_empty.ref" || :
     ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}_empty.ref" || :
     for mode in "_http_pull" "_http_push" ""; do
         rm "${LCLDATADIR}/${src}_to_${dst}_empty.dat${mode}" || :
@@ -111,8 +109,7 @@ cleanup() {
 
     rmdir "${LCLDATADIR}" || :
 }
-trap "cleanup" ERR
-
+# trap "cleanup" ERR
 
 
 # Set up directories
@@ -130,7 +127,11 @@ export BEARER_TOKEN
 
 generate_file() {
     local local_file=$1
-    ${OPENSSL} rand -out "${local_file}" $((1024 * (RANDOM + 1)))
+	local min_size=$2
+	if [[ -z "${min_size}" ]]; then
+		min_size=0
+	fi
+    ${OPENSSL} rand -out "${local_file}" $(((1024 * (RANDOM + 1)) + min_size ))
 }
 
 generate_empty_file() {
@@ -153,7 +154,7 @@ upload_file() {
     elif [[ "${protocol}" == "http" ]]; then
 		remote_file="${remote_file/root:\/\//https:\/\/}"
 		if [[ -n "${scitag_flow}" ]]; then
-		http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -v -o /dev/null -w "%{http_code}" \
+		http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -o /dev/null -w "%{http_code}" \
 			-H "Authorization: Bearer ${BEARER_TOKEN}" \
 			-H "Transfer-Encoding: chunked" \
 			-H "Scitag: ${scitag_flow}" \
@@ -161,7 +162,7 @@ upload_file() {
 			--data-binary "@${local_file}" "${remote_file}" \
 			2>&1 1>&3 | cat >&2)
 		else
-        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -v -o /dev/null -w "%{http_code}" \
+        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${BEARER_TOKEN}" \
             -H "Transfer-Encoding: chunked" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
@@ -219,7 +220,7 @@ perform_http_tpc() {
 
     if [[ "$mode" == "push" ]]; then
         dst_file_http="${dst_file_http}_push"
-        http_code=$(${CURL} -X COPY -L -s -v -o "$body_file" -w "%{http_code}" \
+        http_code=$(${CURL} -X COPY -L -s -o "$body_file" -w "%{http_code}" \
             -H "Destination: ${dst_file_http}" \
             -H "Authorization: Bearer ${token_dst}" \
             -H "TransferHeaderAuthorization: Bearer ${token_src}" \
@@ -228,7 +229,7 @@ perform_http_tpc() {
             "${src_file_http}")
     elif [[ "$mode" == "pull" ]]; then
         dst_file_http="${dst_file_http}_pull"
-        http_code=$(${CURL} -X COPY -L -s -v -o "$body_file" -w "%{http_code}" \
+        http_code=$(${CURL} -X COPY -L -s -o "$body_file" -w "%{http_code}" \
             -H "Source: ${src_file_http}" \
             -H "Authorization: Bearer ${token_src}" \
             -H "TransferHeaderAuthorization: Bearer ${token_dst}" \
@@ -261,7 +262,7 @@ download_file() {
     if [[ -z "${protocol}" || "${protocol}" == "root" ]]; then
         ${XRDCP} "${src}" "${dest}"
     elif [[ "${protocol}" == "http" ]]; then
-        ${CURL} -X GET -L -s -v -o "${dest}" \
+        ${CURL} -X GET -L -s -o "${dest}" \
             -H "Authorization: Bearer ${BEARER_TOKEN}" \
             -H "Transfer-Encoding: chunked" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
@@ -302,13 +303,14 @@ verify_checksum() {
     fi
 }
 
+source /home/rchauhan/dev/xrootd/tests/TPCTests/test_tpc_cancellations.sh
 
 # Generate, upload, download, and verify checksums for each host
 for host_idx in {0..1}; do
     host=${hosts_abbrev[$host_idx]}
     generate_file "${LCLDATADIR}/${host}.ref"
 done
- 
+
 for host_idx in {0..1}; do
     host=${hosts_abbrev[$host_idx]}
     local_file="${LCLDATADIR}/${host}.ref"
