@@ -5,6 +5,7 @@
 #include "XrdHttp/XrdHttpChecksumHandler.hh"
 #include "XrdHttp/XrdHttpReadRangeHandler.hh"
 #include "XrdHttp/XrdHttpHeaderUtils.hh"
+#include "XrdHttpCors/XrdHttpCorsHandler.hh"
 #include <exception>
 #include <gtest/gtest.h>
 #include <string>
@@ -628,4 +629,25 @@ TEST(XrdHttpTests, parseReprDigest) {
     XrdHttpHeaderUtils::parseReprDigest(input,output);
     ASSERT_EQ(expectedMap, output);
   }
+}
+
+TEST(XrdHttpTests, getCORSAllowOriginHeader) {
+  std::unordered_set<std::string> allowedOrigins = {
+    "https://helloworld.cern.ch",
+    "https://anotherorigins.cern.ch"
+  };
+  XrdHttpCorsHandler corsHandler;
+  for(const auto & allowedOrigin: allowedOrigins) {
+    corsHandler.addAllowedOrigin(allowedOrigin);
+  }
+  ASSERT_EQ(std::nullopt,corsHandler.getCORSAllowOriginHeader("test"));
+  ASSERT_EQ(std::nullopt,corsHandler.getCORSAllowOriginHeader(""));
+  for(const auto & allowedOrigin: allowedOrigins) {
+    std::string expected {"Access-Control-Allow-Origin: " + allowedOrigin};
+    ASSERT_EQ(expected,corsHandler.getCORSAllowOriginHeader(allowedOrigin));
+  }
+  corsHandler.addAllowedOrigin("");
+  corsHandler.addAllowedOrigin(" ");
+  ASSERT_EQ(std::nullopt,corsHandler.getCORSAllowOriginHeader(""));
+  ASSERT_EQ(std::nullopt,corsHandler.getCORSAllowOriginHeader(" "));
 }

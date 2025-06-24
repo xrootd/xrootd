@@ -49,6 +49,7 @@
 #include "XrdHttpChecksumHandler.hh"
 #include "XrdHttpReadRangeHandler.hh"
 #include "XrdNet/XrdNetPMark.hh"
+#include "XrdHttpCors/XrdHttpCors.hh"
 
 #include <openssl/ssl.h>
 
@@ -206,6 +207,7 @@ private:
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);
   static int xsecxtractor(XrdOucStream &Config);
+  static int xcors(XrdOucStream &Config);
   static int xexthandler(XrdOucStream & Config, std::vector<extHInfo> &hiVec);
   static int xsslcadir(XrdOucStream &Config);
   static int xsslcipherfilter(XrdOucStream &Config);
@@ -256,6 +258,7 @@ private:
                             const char *configFN, const char *libParms,
                             XrdOucEnv *myEnv, const char *instName);
 
+  static int LoadCorsHandler(XrdSysError *eDest, const char * libname);
   // Determines whether one of the loaded ExtHandlers are interested in
   // handling a given request.
   //
@@ -376,7 +379,9 @@ protected:
   /// This also can process HTTP/DAV stuff
   XrdHttpReq CurrentReq;
 
+  static std::string xrdcorsLibPath;
 
+  static XrdHttpCors * xrdcors;
   //
   // Processing configuration values
   //
