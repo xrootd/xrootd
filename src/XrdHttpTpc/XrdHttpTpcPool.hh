@@ -55,7 +55,8 @@ class TPCRequestManager final {
         bool IsActive() const {
             return m_active.load(std::memory_order_relaxed);
         }
-        void Cancel() { // TODO: implement.
+        void Cancel() {
+			m_active.store(false, std::memory_order_relaxed);
         }
         std::string GetResults() const { return m_message; }
         off_t GetProgress() const {
