@@ -109,7 +109,7 @@ cleanup() {
 
     rmdir "${LCLDATADIR}" || :
 }
-# trap "cleanup" ERR
+trap "cleanup" ERR
 
 
 # Set up directories

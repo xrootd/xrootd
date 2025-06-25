@@ -1,7 +1,8 @@
 #!/bin/bash
 set -x
 
-NUM_FILES=10
+NUM_FILES=5
+NUM_STREAMS=5
 
 # Clean up any old files
 for i in $(seq 1 $NUM_FILES); do
@@ -48,14 +49,16 @@ for i in $(seq 1 $NUM_FILES); do
     	        --max-time 1 \
     	        "${remote_large_file}" &
     	else
-    	    # No max-time (normal)
+    	    # Multstream is only implemented in pull mode
+			# No max-time (normal) 
     	    ${CURL} -X COPY -L -s -v \
-    	        -H "Destination: ${remote_large_file_srv}" \
+    	        -H "Source: ${remote_large_file}" \
     	        -H "Authorization: Bearer ${BEARER_TOKEN}" \
     	        -H "TransferHeaderAuthorization: Bearer ${BEARER_TOKEN}" \
 				-H "Scitag: ${scitag_flow}" \
+				-H "X-Number-Of-Streams: $NUM_STREAMS" \
     	        --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
-    	        "${remote_large_file}" &
+    	        "${remote_large_file_srv}" &
     	fi
 	done
 done
