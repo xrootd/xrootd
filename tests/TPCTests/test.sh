@@ -246,7 +246,7 @@ perform_http_tpc() {
     rm -f "$body_file"
 
     if [[ "$result_line" != "success: Created" ]]; then
-        echo "Transfer failed: $result_line" >&2
+        echo "Transfer failed: from src $src_file_http to $dst_file_http with mode $mode and http_code $http_code result line: $result_line" >&2
         return 1
     fi
 

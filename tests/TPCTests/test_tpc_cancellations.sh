@@ -1,7 +1,8 @@
 #!/bin/bash
 set -x
 
-NUM_FILES=10
+NUM_FILES=9
+NUM_STREAMS=3
 
 # Clean up any old files
 for i in $(seq 1 $NUM_FILES); do
@@ -17,9 +18,12 @@ for i in $(seq 1 $NUM_FILES); do
     remote_large_file="https://localhost:10951/${RMTDATADIR}/largefile.ref.${i}"
     downloaded_large_file="${LCLDATADIR}/largefile.dat.${i}"
 
-    generate_file "${local_large_file}" 500000000
-    upload_file "${local_large_file}" "${remote_large_file}" http
-    download_file "${remote_large_file}" "${downloaded_large_file}" http
+    generate_file "${local_large_file}" 200000000 &
+    wait
+    upload_file "${local_large_file}" "${remote_large_file}" http &
+    wait
+    download_file "${remote_large_file}" "${downloaded_large_file}" http &
+    wait
 
 done
 
@@ -34,11 +38,11 @@ for i in $(seq 1 $NUM_FILES); do
     remote_large_file_srvs=(
         "https://localhost:10951/${RMTDATADIR}/largefile.ref1.${i}"
         "https://localhost:10952/${RMTDATADIR}/largefile.ref2.${i}"
-    )	
+    )
 
     for remote_large_file_srv in "${remote_large_file_srvs[@]}"; do
     # Randomly cancel some requests
-        if (( 3 > ( RANDOM % 5 ))); then
+        if (( NUM_FILES/3 > ( RANDOM % NUM_FILES))); then
             ${CURL} -X COPY -L -s -v \
                 -H "Destination: ${remote_large_file_srv}" \
                 -H "Authorization: Bearer ${BEARER_TOKEN}" \
@@ -47,6 +51,17 @@ for i in $(seq 1 $NUM_FILES); do
                 --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
                 --max-time 1 \
                 "${remote_large_file}" &
+        elif (( NUM_FILES*2/3 > (RANDOM % NUM_FILES) )); then
+            # Multstream is only implemented in pull mode
+            # No max-time (normal) 
+            ${CURL} -X COPY -L -s -v \
+                -H "Source: ${remote_large_file}" \
+                -H "Authorization: Bearer ${BEARER_TOKEN}" \
+                -H "TransferHeaderAuthorization: Bearer ${BEARER_TOKEN}" \
+                -H "Scitag: ${scitag_flow}" \
+                -H "X-Number-Of-Streams: $NUM_STREAMS" \
+                --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+                "${remote_large_file_srv}" &
         else
             # No max-time (normal)
             ${CURL} -X COPY -L -s -v \
