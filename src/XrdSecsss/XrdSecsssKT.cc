@@ -220,8 +220,8 @@ int XrdSecsssKT::getKey(ktEnt &theEnt, bool andKeyID)
             while(ktP && ktP->Data.ID != theEnt.Data.ID)  ktP = ktP->Next;
         }
    else if (andKeyID)
-        {while((ktP && ktP->Data.ID != theEnt.Data.ID)
-            || strcmp(ktP->Data.Name,theEnt.Data.Name)) ktP=ktP->Next;
+        {while(ktP && ((ktP->Data.ID != theEnt.Data.ID)
+            || strcmp(ktP->Data.Name,theEnt.Data.Name))) ktP=ktP->Next;
         }
    else {while(ktP && strcmp(ktP->Data.Name,theEnt.Data.Name)) ktP=ktP->Next;
          while(ktP && ktP->Data.Exp <= time(0))
