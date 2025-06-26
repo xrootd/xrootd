@@ -35,18 +35,6 @@ add_library(XrdPosixPreload SHARED
 target_link_libraries(XrdPosixPreload PRIVATE XrdPosix ${CMAKE_DL_LIBS})
 set_target_properties(XrdPosixPreload PROPERTIES VERSION 2.0.0 SOVERSION 2)
 
-# This is a special library meant to be loaded with LD_PRELOAD.
-# It is meant to replace symbols from the system and as such
-# must not be compiled with link-time optimizations.
-
-include(CheckCXXCompilerFlag)
-
-check_cxx_compiler_flag(-fno-lto HAS_NOLTO)
-
-if(HAS_NOLTO)
-  target_compile_options(XrdPosixPreload PRIVATE -fno-lto)
-endif()
-
 install(
   TARGETS
     XrdPosix
