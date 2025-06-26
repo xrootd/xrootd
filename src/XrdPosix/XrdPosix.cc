@@ -268,8 +268,7 @@ int XrdPosix_Fdatasync(int fildes)
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
-long long XrdPosix_Fgetxattr (int fd, const char *name, void *value, 
-                              unsigned long long size)
+ssize_t XrdPosix_Fgetxattr (int fd, const char *name, void *value, size_t size)
 {
    if (Xroot.myFD(fd)) {errno = ENOTSUP; return -1;}
    return Xunix.Fgetxattr(fd, name, value, size);
@@ -537,8 +536,7 @@ size_t XrdPosix_Fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
-long long XrdPosix_Getxattr (const char *path, const char *name, void *value, 
-                             unsigned long long size)
+ssize_t XrdPosix_Getxattr (const char *path, const char *name, void *value, size_t size)
 {
    char *myPath, buff[2048];
 
@@ -557,8 +555,7 @@ long long XrdPosix_Getxattr (const char *path, const char *name, void *value,
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
-long long XrdPosix_Lgetxattr (const char *path, const char *name, void *value, 
-                              unsigned long long size)
+ssize_t XrdPosix_Lgetxattr (const char *path, const char *name, void *value, size_t size)
 {
    if (XrootPath.URL(path, 0, 0)) {errno = ENOTSUP; return -1;}
    return Xunix.Lgetxattr(path, name, value, size);
@@ -572,7 +569,7 @@ long long XrdPosix_Lgetxattr (const char *path, const char *name, void *value,
   
 extern "C"
 {
-long long XrdPosix_Lseek(int fildes, long long offset, int whence)
+off_t XrdPosix_Lseek(int fildes, off_t offset, int whence)
 {
 
 // Return the operation of the seek
@@ -715,8 +712,7 @@ long XrdPosix_Pathconf(const char *path, int name)
   
 extern "C"
 {
-long long XrdPosix_Pread(int fildes, void *buf, unsigned long long nbyte,
-                         long long offset)
+ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off_t offset)
 {
 
 // Return the results of the read
@@ -732,8 +728,7 @@ long long XrdPosix_Pread(int fildes, void *buf, unsigned long long nbyte,
   
 extern "C"
 {
-long long XrdPosix_Pwrite(int fildes, const void *buf, unsigned long long nbyte,
-                          long long offset)
+ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
 {
 
 // Return the results of the write
@@ -749,7 +744,7 @@ long long XrdPosix_Pwrite(int fildes, const void *buf, unsigned long long nbyte,
   
 extern "C"
 {
-long long XrdPosix_Read(int fildes, void *buf, unsigned long long nbyte)
+ssize_t XrdPosix_Read(int fildes, void *buf, size_t nbyte)
 {
 
 // Return the results of the read
@@ -765,7 +760,7 @@ long long XrdPosix_Read(int fildes, void *buf, unsigned long long nbyte)
   
 extern "C"
 {
-long long XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt)
+ssize_t XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt)
 {
 
 // Return results of the readv
@@ -1002,7 +997,7 @@ long XrdPosix_Telldir(DIR *dirp)
   
 extern "C"
 {
-int XrdPosix_Truncate(const char *path, long long offset)
+int XrdPosix_Truncate(const char *path, off_t offset)
 {
    char *myPath, buff[2048];
 
@@ -1052,7 +1047,7 @@ int XrdPosix_Unlink(const char *path)
   
 extern "C"
 {
-long long XrdPosix_Write(int fildes, const void *buf, unsigned long long nbyte)
+ssize_t XrdPosix_Write(int fildes, const void *buf, size_t nbyte)
 {
 
 // Return the results of the write
@@ -1068,7 +1063,7 @@ long long XrdPosix_Write(int fildes, const void *buf, unsigned long long nbyte)
   
 extern "C"
 {
-long long XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt)
+ssize_t XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt)
 {
 
 // Return results of the writev
