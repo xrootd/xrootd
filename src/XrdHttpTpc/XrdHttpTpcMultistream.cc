@@ -273,7 +273,6 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     }
 
     // Notify the packet marking manager that the transfer will start after this point
-    rec.pmarkManager.startTransfer();
 
     // Create the multi-handle and add in the current transfer to it.
     MultiCurlHandler mch(handles, m_log);
@@ -343,8 +342,6 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         } else if (mres != CURLM_OK) {
             break;
         }
-
-        rec.pmarkManager.beginPMarks();
 
 
         // Harvest any messages, looking for CURLMSG_DONE.
