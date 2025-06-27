@@ -171,7 +171,7 @@ int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
 
 // Setup the primary destination
 //
-   InetDest1 = new XrdNetMsg(&Say, Dest1, &aOK);
+   InetDest1 = new XrdNetMsg(&Say, Dest1, &aOK, true);
    if (!aOK)
       {Say.Emsg("Monitor", "setup monitor collector;", etext);
        return 0;
@@ -180,7 +180,7 @@ int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
 // Do the same for the secondary destination
 //
    if (Dest2)
-      {InetDest2 = new XrdNetMsg(&Say, Dest2, &aOK);
+      {InetDest2 = new XrdNetMsg(&Say, Dest2, &aOK, true);
        if (!aOK)
           {Say.Emsg("Monitor", "setup monitor collector;", etext);
            return 0;

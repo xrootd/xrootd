@@ -117,8 +117,8 @@ void XrdStats::Report(char **Dest, int iVal, int Opts)
    if (Dest)
    // Establish up to two destinations
    //
-      {if (Dest[0]) netDest[0] = new XrdNetMsg(XrdLog, Dest[0]);
-       if (Dest[1]) netDest[1] = new XrdNetMsg(XrdLog, Dest[1]);
+      {if (Dest[0]) netDest[0] = new XrdNetMsg(XrdLog, Dest[0], 0, true);
+       if (Dest[1]) netDest[1] = new XrdNetMsg(XrdLog, Dest[1], 0, true);
        if (!(repOpts & XRD_STATS_ALL)) repOpts |= XRD_STATS_ALL;
        autoSync = repOpts & XRD_STATS_SYNCA;
 

@@ -134,7 +134,7 @@ XrdXrootdGSReal::XrdXrootdGSReal(const XrdXrootdGSReal::GSParms &gsParms,
 
 // If we have a specific end-point, then create a network relay to it
 //
-   if (gsParms.dest) udpDest = new XrdNetMsg(eDest, gsParms.dest, &aOK);
+   if (gsParms.dest) udpDest = new XrdNetMsg(eDest, gsParms.dest, &aOK, true);
       else udpDest = 0;
 
 // Setup autoflush (a negative value uses the default)
