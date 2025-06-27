@@ -129,6 +129,12 @@ static int setWindow(int fd, int  Windowsz, XrdSysError *eDest=0);
 
 static int getWindow(int fd, int &Windowsz, XrdSysError *eDest=0);
 
+// Obtain the name of the host that the socket will connect to. Upon success,
+// a pointer to the hostname is returned. Otherwise null is returned. An
+// optional address may be requested.
+//
+const char *SockData(XrdNetSockAddr& InetAddr);
+
 // Return the name of the socket into the provided buffer. Returns 0
 // upon success or errno upon failure.
 //
