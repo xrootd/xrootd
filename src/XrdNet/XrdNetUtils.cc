@@ -2,7 +2,7 @@
 /*                                                                            */
 /*                        X r d N e t U t i l s . c c                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2025 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -63,6 +63,41 @@ int  XrdNetUtils::autoFamily;
 //
 int  XrdNetUtils::autoHints  = XrdNetUtils::SetAuto(XrdNetUtils::prefAuto);
   
+/******************************************************************************/
+/*                               C o m p a r e                                */
+/******************************************************************************/
+  
+XrdNetUtils::IPComp XrdNetUtils::Compare(XrdNetSockAddr& ip1,
+                                         XrdNetSockAddr& ip2, bool* psame)
+{
+// The family code is always in the same place so trivially check equivalence
+//
+   if (ip1.Addr.sa_family != ip2.Addr.sa_family) return IPDFam;
+
+// Since the mailies are te same we need to check if he actual ip addess is
+// same, What we check depends on the address family. Start with IPv6.
+//
+   if (ip1.Addr.sa_family == AF_INET6)
+      {if (memcmp(&ip1.v6.sin6_addr,&ip2.v6.sin6_addr,sizeof(struct in6_addr)))
+          return IPDiff;
+       if (psame) *psame = (ip1.v6.sin6_port == ip2.v6.sin6_port);
+       return IPSame;
+      }
+         
+// Try IPv4
+//
+   if (ip1.Addr.sa_family == AF_INET)
+      {if (memcmp(&ip1.v4.sin_addr,&ip2.v4.sin_addr, sizeof(struct in_addr)))
+          return IPDiff;
+       if (psame) *psame = (ip1.v4.sin_port == ip2.v4.sin_port);
+       return IPSame;
+      }
+
+// We don't support the address family
+//
+   return IPNSup;
+}
+
 /******************************************************************************/
 /*                                D e c o d e                                 */
 /******************************************************************************/
