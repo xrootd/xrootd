@@ -16,6 +16,7 @@ target_sources(XrdUtils
     XrdNetPMark.cc      XrdNetPMark.hh
     XrdNetPMarkCfg.cc   XrdNetPMarkCfg.hh
     XrdNetPMarkFF.cc    XrdNetPMarkFF.hh
+    XrdNetRefresh.cc    XrdNetRefresh.hh
     XrdNetRegistry.cc   XrdNetRegistry.hh
     XrdNetSecurity.cc   XrdNetSecurity.hh
     XrdNetSocket.cc     XrdNetSocket.hh
