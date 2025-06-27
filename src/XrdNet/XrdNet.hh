@@ -199,6 +199,9 @@ int             Relay(XrdNetPeer &Peer,   // Peer object to be initialized
                       int         opts=0  // Optional options as above
                      );
 
+// Relay() V2 only takes an optional dest and return a non-negative file
+//         descriptor upon success or -1 upon failure.
+//
 int             Relay(const char *dest);  // Optional destination
 
 //------------------------------------------------------------------------------

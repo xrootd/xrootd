@@ -287,8 +287,11 @@ int XrdNet::Connect(XrdNetPeer &myPeer,
    if (mySocket.Open(host, port, opts, buffsz) < 0) return 0;
    if (myPeer.InetName) free(myPeer.InetName);
    if ((opts & XRDNET_UDPSOCKET) || !host) 
-      {myPeer.InetName = strdup("n/a");
+      {const char* sn;
        memset((void *)&myPeer.Inet, 0, sizeof(myPeer.Inet));
+       if (host && (sn = mySocket.SockData(myPeer.Inet)))
+          {myPeer.InetName = strdup(sn);}
+          else myPeer.InetName = 0;
       } else {
        const char *pn = mySocket.Peername(&sap);
        if (pn) {memcpy((void *)&myPeer.Inet, sap, sizeof(myPeer.Inet));
@@ -296,7 +299,7 @@ int XrdNet::Connect(XrdNetPeer &myPeer,
                 if (Domain && !(opts & XRDNET_NODNTRIM)) Trim(myPeer.InetName);
                } else {
                 memset((void *)&myPeer.Inet, 0, sizeof(myPeer.Inet));
-                myPeer.InetName = strdup("unknown");
+                myPeer.InetName = strdup("unknown!");
                }
       }
    myPeer.fd = mySocket.Detach();
