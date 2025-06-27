@@ -4,7 +4,7 @@
 /*                                                                            */
 /*                        X r d N e t U t i l s . h h                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2025 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -46,6 +46,24 @@ namespace XrdNetSpace {struct hpSpec;}
 class XrdNetUtils
 {
 public:
+
+//------------------------------------------------------------------------------
+//! Compare two IP addresses and indicate differe\nces, if any.
+//!
+//! @param  ip1      The first address.
+//! @param  ip2      The second addres.
+//! @param  psame    If not zero set to true if ports are the same, o/w false.
+//!
+//! @return IPSame   The addresses are the same.
+//!         IPDFam   The addresses differ in address family.
+//!         IPDiff   The addresses have different destination, same family.
+//!         IPNSuf   The address family of one or both addresses not supported.
+//------------------------------------------------------------------------------
+
+enum IPComp {IPSame = 0, IPDFam, IPDiff, IPNSup};
+
+static
+IPComp      Compare(XrdNetSockAddr& ip1, XrdNetSockAddr& ip2, bool* psame=0);
 
 //------------------------------------------------------------------------------
 //! Decode an "encoded" ipv6/4 address and place it "sockaddr" type structure.
