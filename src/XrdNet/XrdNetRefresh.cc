@@ -59,8 +59,7 @@ namespace XrdNetSocketCFG
 {
 XrdNetRefresh* NetRefresh; // This may not be deleted once allocated
 
-//int            udpRefr = 8*60*60;
-int            udpRefr = 30;
+int            udpRefr = 8*60*60;
 };
 using namespace XrdNetSocketCFG;
 

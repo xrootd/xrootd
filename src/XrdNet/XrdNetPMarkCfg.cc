@@ -356,7 +356,7 @@ XrdNetPMark *XrdNetPMarkCfg::Config(XrdSysError *eLog, XrdScheduler *sched,
            return 0;
           }
        if (spec.Format(buff, sizeof(buff)))
-          netMsg = new XrdNetMsg(eDest, buff, &aOK);
+          netMsg = new XrdNetMsg(eDest, buff, &aOK, true);
        if (!aOK)
           {eLog->Emsg("Config", "pmark unable to create UDP tunnel to", ffDest);
            fatal = true;

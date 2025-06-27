@@ -250,7 +250,7 @@ void XrdNetPMarkCfg::Registry(XrdNetPMarkFF *ffobj, bool doadd)
 // This is firefly so we must get a netmsg object
 //
    bool aOK;
-   netMsg = new XrdNetMsg(eLog, ffDest, aOK);
+   netMsg = new XrdNetMsg(eLog, ffDest, aOK, true);
    if (!aOK)
       {eLog->Emsg("Config", "Unable to create UDP tunnel to", ffDest);
        return 0;

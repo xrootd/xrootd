@@ -738,7 +738,7 @@ int XrdXrootdMonitor::Init()
 // Setup the primary destination
 //
    if (Dest1)
-      {InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK);
+      {InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK, true);
        if (!aOK)
           {eDest->Emsg("Monitor", "Unable to setup primary monitor collector.");
            return 0;
@@ -748,7 +748,7 @@ int XrdXrootdMonitor::Init()
 // Setup the secondary destination
 //
    if (Dest2)
-      {InetDest2 = new XrdNetMsg(eDest, Dest2, &aOK);
+      {InetDest2 = new XrdNetMsg(eDest, Dest2, &aOK, true);
        if (!aOK)
           {eDest->Emsg("Monitor","Unable to setup secondary monitor collector.");
            return 0;
