@@ -68,6 +68,7 @@
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetIF.hh"
+#include "XrdNet/XrdNetRefresh.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetUtils.hh"
 
@@ -128,6 +129,9 @@ namespace XrdNetSocketCFG
 extern int ka_Idle;
 extern int ka_Itvl;
 extern int ka_Icnt;
+extern int udpRefr;
+
+extern XrdNetRefresh* NetRefresh;
 };
   
 /******************************************************************************/
@@ -739,6 +743,10 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    if ((myInsName || HomePath)
    &&  !XrdOucUtils::makeHome(Log, myInsName, HomePath, HomeMode)) NoGo = 1;
+
+// Start the UDP network address refresher.
+//
+   XrdNetRefresh::Start(&Logger, &Sched);
 
 // Create the pid file
 //
@@ -1736,6 +1744,7 @@ int XrdConfig::xmaxfd(XrdSysError *eDest, XrdOucStream &Config)
                                          [kaparms parms] [cache <ct>] [[no]dnr]
                                          [routes <rtype> [use <ifn1>,<ifn2>]]
                                          [[no]rpipa] [[no]dyndns]
+                                         [udprefresh <sec>]
 
              <rtype>: split | common | local
 
@@ -1748,6 +1757,8 @@ int XrdConfig::xmaxfd(XrdSysError *eDest, XrdOucStream &Config)
              routes    specifies the network configuration (see reference)
              [no]rpipa do [not] resolve private IP addresses.
              [no]dyndns This network does [not] use a dynamic DNS.
+             udprefresh Refreshes udp sendto addresses should they change
+                        This only works for connected udp sockets.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1756,7 +1767,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     int  i, n, V_keep = -1, V_nodnr = 0, V_istls = 0, V_blen = -1, V_ct = -1;
-    int   V_assumev4 = -1, v_rpip = -1, V_dyndns = -1;
+    int   V_assumev4 = -1, v_rpip = -1, V_dyndns = -1, V_udpref = -1;
     long long llp;
     struct netopts {const char *opname; int hasarg; int opval;
                            int *oploc;  const char *etxt;}
@@ -1775,7 +1786,8 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         {"routes",     3, 1, 0,         "routes"},
         {"rpipa",      0, 1, &v_rpip,   "rpipa"},
         {"norpipa",    0, 0, &v_rpip,   "norpipa"},
-        {"tls",        0, 1, &V_istls,  "option"}
+        {"tls",        0, 1, &V_istls,  "option"},
+        {"udprefresh", 2, 1, &V_udpref, "udprefresh"}
        };
     int numopts = sizeof(ntopts)/sizeof(struct netopts);
 
@@ -1843,6 +1855,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
          if (V_keep >= 0) Net_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
          Net_Opts |= (V_nodnr ? XRDNET_NORLKUP   : 0);
         }
+
   // Turn off name chaing if not specified and dynamic dns was specified
   //
      if (V_dyndns >= 0)
@@ -1853,6 +1866,9 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 
      if (v_rpip >= 0) XrdInet::netIF.SetRPIPA(v_rpip != 0);
      if (V_assumev4 >= 0) XrdInet::SetAssumeV4(true);
+
+     if (V_udpref >= 0)
+         XrdNetSocketCFG::udpRefr = (V_udpref < 1800 ? 1800 : V_udpref);
      return 0;
 }
 
