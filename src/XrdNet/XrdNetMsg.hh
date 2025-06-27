@@ -76,8 +76,10 @@ int           Send(const char *buff,          // The data to be send
 //! @param  buff     The data to send.
 //! @param  blen     Length of the data in buff. If not specified, the length is
 //!                  computed as strlen(buff).
-//! @param  dest     The endpoint in the form as in "host:port".
+//! @param  dest     The endpoint in the form as in "host:port". This is
+//!                  strictly used for error messages.
 //! @param  netSA    The endpoint address. This overrides the constructor.
+//!                  The family must be AF_INET or AF_INET6.
 //! @param  tmo      maximum seconds to wait for a idle socket. When negative,
 //!                  the default, no time limit applies.
 //! @return <0       Message not sent due to error.
@@ -113,31 +115,37 @@ int           Send(const struct  iovec iov[], // Remaining parms as above
 //! Constructor
 //!
 //! @param  erp      The error message object for routing error messages.
-//! @param  aOK      If supplied, set to true upon success; false otherwise.
 //! @param  dest     The endpint name which can be host:port or a named socket.
 //!                  This becomes the default endpoint. Any specified endpoint
 //!                  to send must be in the same family (e.g. UNIX). If not
 //!                  specified, then an endpoint must always be specified with
 //!                  send and is restricted to be in the INET family.
+//! @param  aOK      If supplied, set to true upon success; false otherwise.
+//! @param  refr     When true, registers to socket for address refresh. This
+//!                  is done by periodically (as specified by the xrd.network
+//!                  directive) retranslating the dest host name to see if its
+//!                  IP address changed and if it did, updating the IP address.
+//!                  This option is ignored if dest is null (i.e. unspecified).
 //------------------------------------------------------------------------------
 
-                XrdNetMsg(XrdSysError *erp, const char *dest=0, bool *aOK=0);
+                XrdNetMsg(XrdSysError *erp, const char *dest=0, bool *aOK=0,
+                          bool refr=false);
 
 //------------------------------------------------------------------------------
 //! Destructor
 //------------------------------------------------------------------------------
 
-               ~XrdNetMsg() {if (FD >= 0) close(FD);}
+               ~XrdNetMsg();
 
 protected:
 int OK2Send(int timeout, const char *dest);
-int retErr(int ecode, const char *theDest);
-int retErr(int ecode, XrdNetAddr *theDest);
+int retErr(int ecode, const char* theDest);
+int retErr(int ecode, XrdNetAddr& theDest);
 
-XrdSysError       *eDest;
-XrdNetAddr         dfltDest;
-XrdNetAddr         specDest;
-int                destOK;
-int                FD;
+XrdSysError* eDest;
+char*        dfltDest;
+int          FD     = -1;;
+bool         destOK = false;
+bool         isRefr = false;
 };
 #endif
