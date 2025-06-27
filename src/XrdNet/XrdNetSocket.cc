@@ -286,14 +286,13 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
                   }
        if (SockProt == PF_UNIX) chmod(inpath, S_IRWXU);
       } else {
-       if (SockType == SOCK_STREAM)
-          {int tmo = flags & XRDNET_TOUT;
-           action = "connect socket to";
-           if (tmo) myEC = XrdNetConnect::Connect(SockFD, SockInfo.SockAddr(),
-                                                  SockInfo.SockSize(),tmo);
-              else if (connect(SockFD,SockInfo.SockAddr(),SockInfo.SockSize()))
-                      myEC = errno;
-          }
+       int tmo = flags & XRDNET_TOUT;
+       action = "connect socket to";
+       if (SockType == SOCK_STREAM && tmo)
+          myEC = XrdNetConnect::Connect(SockFD, SockInfo.SockAddr(),
+                                                SockInfo.SockSize(), tmo);
+          else if (connect(SockFD,SockInfo.SockAddr(),SockInfo.SockSize()))
+                  myEC = errno;
       }
 
 // Check for any errors and return (Close() sets SockFD to -1).
@@ -424,6 +423,49 @@ int XrdNetSocket::setWindow(int xfd, int Windowsz, XrdSysError *eDest)
        if (eDest) eDest->Emsg("setWindow", errno, "set socket RCVBUF");
       }
    return rc;
+}
+  
+/******************************************************************************/
+/*                              S o c k D a t a                               */
+/******************************************************************************/
+  
+const char *XrdNetSocket::SockData(XrdNetSockAddr& InetAddr)
+{
+   const char *errtxt, *Name;
+
+// Make sure  we have something to look at
+//
+   if (SockFD < 0) 
+      {if (eroute) eroute->Emsg("SockInfo", 
+                                "Unable to obtain socket info; socket not open");
+       return (const char *)0;
+      }
+
+// Return possible address, length and the name
+//
+   const XrdNetSockAddr *netSA = SockInfo.NetAddr();
+   if (!netSA)
+      {if (eroute) 
+          {eroute->Emsg("SockInfo", "Unable to obtain socker info; "
+                                    "not an network socket.");
+           ErrCode = EOPNOTSUPP;
+           return (const char *)0;
+          }
+      }
+   memcpy(&InetAddr, netSA, sizeof(XrdNetSockAddr));
+
+// Get the host name on the other side of this socket
+//
+   if (!(Name = SockInfo.Name(0, &errtxt)))
+      {if (eroute) 
+          eroute->Emsg("SockInfo", "Unable to obtain socker info; ",errtxt);
+       ErrCode = ESRCH;
+       return (const char *)0;
+      }
+
+// All done
+//
+   return Name;
 }
 
 /******************************************************************************/
