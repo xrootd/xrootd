@@ -61,6 +61,8 @@ static bool    OpenFC(const char *path, int oflag, mode_t mode,
 
 static void    SetEnv(const char *kword, int kval);
 
+static void    SetEnv(const char *kword, void* ptr);
+
 static void    setOids(bool isok);
 
 static int     Stats(const char *theID, char *buff, int blen);

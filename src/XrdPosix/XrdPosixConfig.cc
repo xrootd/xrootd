@@ -529,6 +529,15 @@ void XrdPosixConfig::SetEnv(const char *kword, int kval)
 }
   
 /******************************************************************************/
+
+void XrdPosixConfig::SetEnv(const char *kword, void* ptr)
+{
+   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+   env->PutPtr((std::string)kword, ptr);
+}
+
+/******************************************************************************/
 /* Private:                      S e t I P V 4                                */
 /******************************************************************************/
 
