@@ -166,6 +166,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
   Output:   0 upon success or !0 otherwise.
 */
    char theRdr[maxHLen];
+   void* voidPtr;
    int NoGo = 0;
 
 // Get environmental values
@@ -215,6 +216,12 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
       {eDest.Emsg("Config", "Origin for proxy service not specified.");
        return 1;
       }
+
+// Re-export pfc.gStream* internal envar. Normally, this is used inconjunction
+// with a cache but that isn't necessarily true in the future.
+//
+   if ((voidPtr = envP->GetPtr("pfc.gStream*")))
+       XrdPosixConfig::SetEnv("pfc.gStream*", voidPtr);
 
 // Check if we should configure authentication security mapping
 //
