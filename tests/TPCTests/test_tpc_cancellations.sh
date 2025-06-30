@@ -18,9 +18,12 @@ for i in $(seq 1 $NUM_FILES); do
     remote_large_file="https://localhost:10951/${RMTDATADIR}/largefile.ref.${i}"
     downloaded_large_file="${LCLDATADIR}/largefile.dat.${i}"
 
-    generate_file "${local_large_file}" 500000000
-    upload_file "${local_large_file}" "${remote_large_file}" http
-    download_file "${remote_large_file}" "${downloaded_large_file}" http
+    generate_file "${local_large_file}" 500000000 &
+	wait
+    upload_file "${local_large_file}" "${remote_large_file}" http &
+	wait
+    download_file "${remote_large_file}" "${downloaded_large_file}" http &
+	wait
 
 done
 
@@ -75,4 +78,4 @@ done
 # Wait for all background curl jobs
 wait
 
-set +x
+# set +x
