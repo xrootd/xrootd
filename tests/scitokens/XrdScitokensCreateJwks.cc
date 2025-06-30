@@ -128,6 +128,7 @@ bool readPubkey(const std::string &fname, std::string &x, std::string &y) {
         return false;
     }
 
+	OPENSSL_free(buf);
     OSSL_PARAM_free(params);
 #else
     std::unique_ptr<EC_KEY, decltype(&EC_KEY_free)> pkey(
