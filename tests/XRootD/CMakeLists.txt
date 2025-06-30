@@ -1,5 +1,5 @@
 
-list(APPEND XROOTD_CONFIGS noauth host unix sss cache)
+list(APPEND XROOTD_CONFIGS noauth host unix sss cache posix)
 
 if(ENABLE_FUSE_TESTS)
   list(APPEND XROOTD_CONFIGS fuse)
