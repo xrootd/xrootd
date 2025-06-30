@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
 //
    Name = XrdOucUtils::InstName(Name);
    sprintf(buff,"%s %s@%s", Xeq, Name, Host);
-   Config = new XrdOucStream(&Say, strdup(buff), &myEnv, "");
+   Config = new XrdOucStream(&Say, buff, &myEnv, "");
    Config->Attach(cfgFD);
 
 // We will capture the resulting config file for later
@@ -225,7 +225,5 @@ int main(int argc, char *argv[])
 //
    if (oFile && !retc) retc = cfOut(oFile, theConfig);
 
-// Should never get here
-//
    exit(retc);
 }
