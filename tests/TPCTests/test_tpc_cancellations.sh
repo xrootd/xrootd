@@ -1,8 +1,8 @@
 #!/bin/bash
 set -x
 
-NUM_FILES=5
-NUM_STREAMS=5
+NUM_FILES=9
+NUM_STREAMS=3
 
 # Clean up any old files
 for i in $(seq 1 $NUM_FILES); do
@@ -39,7 +39,7 @@ for i in $(seq 1 $NUM_FILES); do
 
 	for remote_large_file_srv in "${remote_large_file_srvs[@]}"; do
     # Randomly cancel some requests
-    	if (( 3 > ( RANDOM % 5 ))); then
+    	if (( NUM_FILES/3 > ( RANDOM % NUM_FILES))); then
     	    ${CURL} -X COPY -L -s -v \
     	        -H "Destination: ${remote_large_file_srv}" \
     	        -H "Authorization: Bearer ${BEARER_TOKEN}" \
@@ -48,7 +48,7 @@ for i in $(seq 1 $NUM_FILES); do
     	        --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
     	        --max-time 1 \
     	        "${remote_large_file}" &
-    	else
+    	elif (( NUM_FILES*2/3 > (RANDOM % NUM_FILES) )); then
     	    # Multstream is only implemented in pull mode
 			# No max-time (normal) 
     	    ${CURL} -X COPY -L -s -v \
@@ -59,6 +59,15 @@ for i in $(seq 1 $NUM_FILES); do
 				-H "X-Number-Of-Streams: $NUM_STREAMS" \
     	        --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
     	        "${remote_large_file_srv}" &
+		else
+			# No max-time (normal) 
+    	    ${CURL} -X COPY -L -s -v \
+    	        -H "Destination: ${remote_large_file_srv}" \
+    	        -H "Authorization: Bearer ${BEARER_TOKEN}" \
+    	        -H "TransferHeaderAuthorization: Bearer ${BEARER_TOKEN}" \
+				-H "Scitag: ${scitag_flow}" \
+    	        --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+    	        "${remote_large_file}" &
     	fi
 	done
 done
