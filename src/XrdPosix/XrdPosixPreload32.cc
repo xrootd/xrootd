@@ -32,6 +32,8 @@
 #undef _FORTIFY_SOURCE
 #endif
 
+#if defined(__LP64__) || defined(_LP64)
+
 #if !defined(MUSL)
 #ifdef  _LARGEFILE_SOURCE
 #undef  _LARGEFILE_SOURCE
@@ -580,4 +582,6 @@ int truncate(const char *path, off_t offset)
    return XrdPosix_Truncate(path, offset);
 }
 }
+#endif
+
 #endif
