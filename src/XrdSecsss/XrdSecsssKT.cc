@@ -634,7 +634,7 @@ XrdSecsssKT::ktEnt *XrdSecsssKT::ktDecode0(XrdOucStream  &kTab,
    };
    static const int ktDnum = sizeof(ktDesc)/sizeof(ktDesc[0]);
 
-   ktEnt *ktNew = new ktEnt;
+   ktEnt ktNew{};
    const char *Prob = 0, *What = "Whatever";
    char Tag, *Dest, *ep, *tp;
    long long nVal;
@@ -648,11 +648,11 @@ while((tp = kTab.GetToken()) && !Prob)
       if (*tp++ == ':')
          for (i = 0; i < ktDnum; i++)
              if (ktDesc[i].Tag == Tag)
-                {Dest = (char *)&(ktNew->Data) + ktDesc[i].Offset;
+                {Dest = (char *)&(ktNew.Data) + ktDesc[i].Offset;
                  Have |= ktDesc[i].What; What = ktDesc[i].Name;
                  if (ktDesc[i].Ctl)
                     {if ((int)strlen(tp) > ktDesc[i].Ctl) Prob=" is too long";
-                        else if (Tag == 'k') keyX2B(ktNew, tp);
+                        else if (Tag == 'k') keyX2B(&ktNew, tp);
                                 else strcpy(Dest, tp);
                     } else {
                      nVal = strtoll(tp, &ep, 10);
@@ -667,13 +667,13 @@ while((tp = kTab.GetToken()) && !Prob)
 // If no problem, make sure we have the essential elements
 //
    if (!Prob)
-      {if (!(Have & haveGRP)) strcpy(ktNew->Data.Grup, "nogroup");
-       if (!(Have & haveNAM)) strcpy(ktNew->Data.Name, "nowhere");
-          else {int n = strlen(ktNew->Data.Name);
-                if (ktNew->Data.Name[n-1] == '+')
-                   ktNew->Data.Opts |= ktEnt::noIPCK;
+      {if (!(Have & haveGRP)) strcpy(ktNew.Data.Grup, "nogroup");
+       if (!(Have & haveNAM)) strcpy(ktNew.Data.Name, "nowhere");
+          else {int n = strlen(ktNew.Data.Name);
+                if (ktNew.Data.Name[n-1] == '+')
+                   ktNew.Data.Opts |= ktEnt::noIPCK;
                }
-       if (!(Have & haveUSR)) strcpy(ktNew->Data.User, "nobody");
+       if (!(Have & haveUSR)) strcpy(ktNew.Data.User, "nobody");
             if (!(Have & haveKEY)) {What = "keyval"; Prob = " not found";}
        else if (!(Have & haveNUM)) {What = "keynum"; Prob = " not found";}
       }
@@ -683,22 +683,21 @@ while((tp = kTab.GetToken()) && !Prob)
    if (Prob)
       {const char *eVec[] = {What, Prob};
        if (eInfo) eInfo->setErrInfo(-1, eVec, 2);
-       delete ktNew;
        return 0;
       }
 
 // Set special value options
 //
-   if (!strcmp(ktNew->Data.Grup, "anygroup"))       
-      ktNew->Data.Opts|=ktEnt::anyGRP;
-      else if (!strcmp(ktNew->Data.Grup, "usrgroup"))
-              ktNew->Data.Opts|=ktEnt::usrGRP;
-   if (!strcmp(ktNew->Data.User, "anybody"))
-      ktNew->Data.Opts|=ktEnt::anyUSR;
-      else if (!strcmp(ktNew->Data.User, "allusers"))
-              ktNew->Data.Opts|=ktEnt::allUSR;
+   if (!strcmp(ktNew.Data.Grup, "anygroup"))
+      ktNew.Data.Opts|=ktEnt::anyGRP;
+      else if (!strcmp(ktNew.Data.Grup, "usrgroup"))
+              ktNew.Data.Opts|=ktEnt::usrGRP;
+   if (!strcmp(ktNew.Data.User, "anybody"))
+      ktNew.Data.Opts|=ktEnt::anyUSR;
+      else if (!strcmp(ktNew.Data.User, "allusers"))
+              ktNew.Data.Opts|=ktEnt::allUSR;
 
 // All done
 //
-   return ktNew;
+   return new ktEnt(ktNew);
 }
