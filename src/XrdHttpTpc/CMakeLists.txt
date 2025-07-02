@@ -22,6 +22,7 @@ add_library(${XrdHttpTPC} MODULE
   XrdHttpTpcConfigure.cc
   XrdHttpTpcMultistream.cc
   XrdHttpTpcPMarkManager.cc  XrdHttpTpcPMarkManager.hh
+  XrdHttpTpcPool.cc          XrdHttpTpcPool.hh
   XrdHttpTpcState.cc         XrdHttpTpcState.hh
   XrdHttpTpcStream.cc        XrdHttpTpcStream.hh
   XrdHttpTpcTPC.cc           XrdHttpTpcTPC.hh
