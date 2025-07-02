@@ -341,7 +341,7 @@ int XrdOssArc::Stat(const char *path, struct stat *Stat,
 
 // Prepare to process the archive/backup request
 //
-   XrdOssArcCompose dsInfo(path, envP, rc, false);
+   XrdOssArcCompose dsInfo(path, envP, rc, false, true);
 
 // Make sure all went well
 //
