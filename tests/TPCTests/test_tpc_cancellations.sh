@@ -78,4 +78,4 @@ done
 # Wait for all background curl jobs
 wait
 
-# set +x
+set +x

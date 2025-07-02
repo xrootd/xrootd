@@ -11,6 +11,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
+#include <thread>
 
 #include <curl/curl.h>
 #include "XrdHttpTpcPMarkManager.hh"
@@ -38,34 +39,26 @@ class TPCRequestManager final {
 
     class TPCRequest {
       public:
-        TPCRequest(const std::string &ident, const int scitag, CURL *handle)
-            : m_ident(ident), m_scitag(scitag), m_curl(handle) {}
+       TPCRequest(const std::string &ident, const int scitag, CURL *handle)
+           : m_ident(ident), m_scitag(scitag), m_curl(handle) {}
 
-        int WaitFor(std::chrono::steady_clock::duration);
+       int WaitFor(std::chrono::steady_clock::duration);
+       CURL *GetHandle() const;
+       std::string GetIdentifier() const;
+       int GetScitag() const;
+       std::string GetRemoteConnDesc();
+       void SetActive();
+       void SetDone(int status, const std::string &msg);
+       bool IsActive() const; 
+       void Cancel();
+       void UpdateRemoteConnDesc();
 
-        CURL *GetHandle() const { return m_curl; }
-        void SetProgress(off_t offset);
-        void SetDone(int status, const std::string &msg);
-	    std::string GetIdentifier() const { 
-	        std::stringstream ss;
-	        ss << m_ident << "_" << m_scitag;
-	        return ss.str();
-	    }
-        int GetScitag() const { return m_scitag;}
-        bool IsActive() const {
-            return m_active.load(std::memory_order_relaxed);
-        }
-        void Cancel() {
-			m_active.store(false, std::memory_order_relaxed);
-        }
-        std::string GetResults() const { return m_message; }
-        off_t GetProgress() const {
-            return m_progress_offset.load(std::memory_order_relaxed);
-        }
 
       private:
         std::atomic<bool> m_active{false};
 		int m_status{-1}; 
+		std::string m_conn_list;
+		std::mutex m_conn_mutex;
         std::atomic<off_t> m_progress_offset{0};
         std::string m_ident;
 		int m_scitag;
@@ -99,6 +92,15 @@ class TPCRequestManager final {
                                       TPCWorker *worker);
         void Done(TPCWorker *);
         bool IsDone() const { return m_done; }
+
+		~TPCQueue() {
+			m_alive = false;
+    		fprintf(stderr,
+        		"[DESTRUCTOR][tid: %lu] rahul TPCQueue is being destroyed. m_ops.size() = %zu, label = %s\n",
+        		std::hash<std::thread::id>{}(std::this_thread::get_id()),
+        		m_ops.size(),
+        		m_label.c_str());
+		}
 
       private:
         class TPCWorker final {
@@ -136,6 +138,7 @@ class TPCRequestManager final {
         std::vector<std::unique_ptr<TPCWorker>> m_workers;
         std::deque<TPCRequest *> m_ops;
         std::mutex m_mutex;
+		bool m_alive{true};
         TPCRequestManager &m_parent;
     };
 
