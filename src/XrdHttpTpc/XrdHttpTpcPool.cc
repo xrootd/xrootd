@@ -52,20 +52,31 @@ bool TPCRequestManager::TPCQueue::TPCWorker::RunCurl(CURLM *multi_handle, TPCReq
         request.SetDone(500, ss.str());
         return false;
     }
-    request.SetProgress(0);
+    request.SetActive();
 
     CURLcode res = static_cast<CURLcode>(-1);
     int running_handles = 1;
+    const int update_interval{1};
+    time_t now = time(NULL);
+    time_t last_update = now - update_interval;  // Inorder to always fetch on first pass
+
+    auto fail_and_exit = [&](int code, const std::string &msg) -> bool {
+        curl_multi_remove_handle(multi_handle, curl);
+        m_queue.m_parent.m_log.Log(code >= 500 ? LogMask::Error : LogMask::Info, "TPCWorker", msg.c_str());
+        request.SetDone(code, msg);
+        return false;
+    };
 
     do {
         mres = curl_multi_perform(multi_handle, &running_handles);
         if (mres != CURLM_OK) {
-            curl_multi_remove_handle(multi_handle, curl);
-            std::stringstream ss;
-            ss << "Internal curl multi-handle error: " << curl_multi_strerror(mres);
-            m_queue.m_parent.m_log.Log(LogMask::Error, "TPCWorker", ss.str().c_str());
-            request.SetDone(500, ss.str());
-            return false;
+            return fail_and_exit(500, "Internal curl multi-handle error: " + std::string(curl_multi_strerror(mres)));
+        }
+
+        now = time(NULL);
+        if (now - last_update >= update_interval) {
+            request.UpdateRemoteConnDesc();
+            last_update = now;
         }
 
         CURLMsg *msg;
@@ -80,33 +91,19 @@ bool TPCRequestManager::TPCQueue::TPCWorker::RunCurl(CURLM *multi_handle, TPCReq
 
         mres = curl_multi_wait(multi_handle, NULL, 0, 1000, nullptr);
         if (mres != CURLM_OK) {
-            curl_multi_remove_handle(multi_handle, curl);
-            std::stringstream ss;
-            ss << "Error during curl_multi_wait: " << curl_multi_strerror(mres);
-            m_queue.m_parent.m_log.Log(LogMask::Error, "TPCWorker", ss.str().c_str());
-            request.SetDone(500, ss.str());
-            return false;
+            return fail_and_exit(500, "Error during curl_multi_wait: " + std::string(curl_multi_strerror(mres)));
         }
 
-        // Check for cancellation
         if (!request.IsActive()) {
-            curl_multi_remove_handle(multi_handle, curl);
-            std::stringstream ss;
-            ss << "Transfer cancelled";
-            m_queue.m_parent.m_log.Log(LogMask::Info, "TPCWorker", ss.str().c_str());
-            request.SetDone(499, ss.str());
-            return false;
+            return fail_and_exit(499, "Transfer cancelled");
         }
 
     } while (running_handles);
 
+    request.UpdateRemoteConnDesc();
+
     if (res == static_cast<CURLcode>(-1)) {
-        curl_multi_remove_handle(multi_handle, curl);
-        std::stringstream ss;
-        ss << "Internal state error in libcurl - no transfer results returned";
-        m_queue.m_parent.m_log.Log(LogMask::Error, "TPCWorker", ss.str().c_str());
-        request.SetDone(500, ss.str());
-        return false;
+        return fail_and_exit(500, "Internal state error in libcurl - no transfer results returned");
     }
 
     curl_multi_remove_handle(multi_handle, curl);
@@ -318,11 +315,60 @@ TPCRequestManager::TPCRequest *TPCRequestManager::TPCQueue::ConsumeUntil(std::ch
     return result;
 }
 
-void TPCRequestManager::TPCRequest::SetProgress(off_t offset) {
-    if (offset == 0) {
-        m_active.store(true, std::memory_order_relaxed);
+void TPCRequestManager::TPCRequest::SetActive() { m_active.store(true, std::memory_order_relaxed); }
+
+void TPCRequestManager::TPCRequest::Cancel() { m_active.store(false, std::memory_order_relaxed); }
+
+CURL *TPCRequestManager::TPCRequest::GetHandle() const { return m_curl; }
+
+int TPCRequestManager::TPCRequest::GetScitag() const { return m_scitag; }
+
+bool TPCRequestManager::TPCRequest::IsActive() const { return m_active.load(std::memory_order_relaxed); }
+
+std::string TPCRequestManager::TPCRequest::GetIdentifier() const {
+    std::stringstream ss;
+    ss << m_ident << "_" << m_scitag;
+    return ss.str();
+}
+
+// Logic from State::GetConnectionDescription
+void TPCRequestManager::TPCRequest::UpdateRemoteConnDesc() {
+#if LIBCURL_VERSION_NUM >= 0x071500
+    // Retrieve IP address and port from the curl handle
+    const char *curl_ip = nullptr;
+    CURLcode rc = curl_easy_getinfo(m_curl, CURLINFO_PRIMARY_IP, &curl_ip);
+    if (rc != CURLE_OK || !curl_ip) {
+        return;  // Failed to get IP, cannot update connection descriptor
     }
-    m_progress_offset.store(offset, std::memory_order_relaxed);
+
+    long curl_port = 0;
+    rc = curl_easy_getinfo(m_curl, CURLINFO_PRIMARY_PORT, &curl_port);
+    if (rc != CURLE_OK || curl_port == 0) {
+        return;  // Failed to get port, cannot update connection descriptor
+    }
+
+    // Format the connection string according to HTTP-TPC spec
+    // IPv6 addresses must be enclosed in square brackets
+    std::stringstream ss;
+    if (strchr(curl_ip, ':') == nullptr) {
+        ss << "tcp:" << curl_ip << ":" << curl_port;
+    } else {
+        ss << "tcp:[" << curl_ip << "]:" << curl_port;
+    }
+
+    {
+        std::unique_lock<std::mutex> lock(m_conn_mutex);
+        m_conn_list = ss.str();
+    }
+#else
+    // For older libcurl versions, do nothing
+    return;
+#endif
+}
+
+std::string TPCRequestManager::TPCRequest::GetRemoteConnDesc() {
+    std::unique_lock<std::mutex> lock(m_conn_mutex);
+    return m_conn_list;
 }
 
 void TPCRequestManager::TPCRequest::SetDone(int status, const std::string &msg) {
