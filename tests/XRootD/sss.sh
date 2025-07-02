@@ -42,11 +42,11 @@ function test_sss() {
 	# Make sure auth fails with a bad (insecure) sss keytab
 	chmod 644 "${XrdSecSSSKT}"
 	assert_failure xrdfs "${HOST}" ls /
-	assert grep "Auth failed" "${XRD_LOGFILE}"
+	assert grep -c "Auth failed" "${XRD_LOGFILE}"
 
 	assert truncate -s 0 "${XRD_LOGFILE}"
 
 	# Make sure auth fails with an invalid sss keytab (/dev/null)
 	assert_failure env XrdSecSSSKT=/dev/null xrdfs "${HOST}" ls /
-	assert grep "Auth failed" "${XRD_LOGFILE}"
+	assert grep -c "Auth failed" "${XRD_LOGFILE}"
 }
