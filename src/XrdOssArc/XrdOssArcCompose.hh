@@ -68,7 +68,7 @@ static bool        isMine(const char *path);
 static int         Stat(const char* Scope, const char* Name, struct stat* Stat);
 
        XrdOssArcCompose(const char *path, XrdOucEnv *env,
-                        int& retc, bool isW=true);
+                        int& retc, bool isW=true, bool optfn=false);
 
       ~XrdOssArcCompose() {}
 

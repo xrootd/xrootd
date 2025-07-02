@@ -67,7 +67,7 @@ int   XrdOssArcCompose::minLenFN  = 4;
 /******************************************************************************/
   
 XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
-                                   int& rc, bool isW)
+                                   int& rc, bool isW, bool optfn)
 {
    TraceInfo("Compose",0);
 
@@ -86,6 +86,7 @@ XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
    else if (!strncmp(Config.bkupPathLFN, path, Config.bkupPathLEN))
            {didType = isBKP;
             path += Config.bkupPathLEN;
+            optfn = false;  // ossarc.fn is required for /backup
            }
    else {rc = EDOM; return;}  // This will forward the request
 
@@ -93,7 +94,7 @@ XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
 // only a construction for datasets.
 //
    if ((rc = getDSN(path))) return;
-   if (!env) return;
+   if (!env) {rc = 0; return;}
 
 // Prepare for full construction (note: we know we have an env pointer)
 //
@@ -105,11 +106,13 @@ XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
 //
    if (isW) {rc = EROFS; return;}
 
-// Make sure we have an env file name to work with
+// Make sure we have an env file name to work with if so required
 //
    if (!(theFN = env->Get("ossarc.fn")))
-      {rc = EINVAL;
-       ecMsg.Msg("Compose", "CGI ossarc.fn=<target_fname> not specified");
+      {if (optfn) rc = 0;
+          else {rc = EINVAL;
+                ecMsg.Msg("Compose","CGI ossarc.fn=<target_fname> not specified");
+               }
        return;
       }
 
