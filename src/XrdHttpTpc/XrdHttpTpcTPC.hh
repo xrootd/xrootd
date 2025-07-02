@@ -112,6 +112,7 @@ private:
     int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state);
     int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vector<State*> &state,
         off_t bytes_transferred);
+    int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state, std::string desc);
 
     // Perform the libcurl transfer, periodically sending back chunked updates.
     int RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, TPC::State &state,

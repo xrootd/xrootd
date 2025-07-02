@@ -407,11 +407,30 @@ int TPCHandler::GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t
     contentLength = state.GetContentLength();
     return result;
 }
-  
+
 /******************************************************************************/
 /*            T P C H a n d l e r : : S e n d P e r f M a r k e r             */
 /******************************************************************************/
-  
+
+int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state, std::string desc) {
+    std::stringstream ss;
+    const std::string crlf = "\n";
+    ss << "Perf Marker" << crlf;
+    ss << "Timestamp: " << time(NULL) << crlf;
+    ss << "Stripe Index: 0" << crlf;
+    ss << "Stripe Bytes Transferred: " << state.BytesTransferred() << crlf;
+    ss << "Total Stripe Count: 1" << crlf;
+    if (!desc.empty()) ss << "RemoteConnections: " << desc << crlf;
+    ss << "End" << crlf;
+    rec.bytes_transferred = state.BytesTransferred();
+    logTransferEvent(LogMask::Debug, rec, "PERF_MARKER");
+    return req.ChunkResp(ss.str().c_str(), 0);
+}
+
+/******************************************************************************/
+/*            T P C H a n d l e r : : S e n d P e r f M a r k e r             */
+/******************************************************************************/
+
 int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state) {
     std::stringstream ss;
     const std::string crlf = "\n";
@@ -498,13 +517,13 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         return -1;
     }
 
-    // Start response to client prior to the first call to curl_multi_perform
+    // curl_multi_perform is independently called in the worker thread
+    // we can however initiate a cancel here
     int retval = req.StartChunkedResp(201, "Created", "Content-Type: text/plain");
     if (retval) {
         request.Cancel();
         logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
             "Failed to send the initial response to the TPC client");
-        return retval;  // Todo: should not return here: the request is already in the process queue, wait for set done before going out of scope
     } else {
         logTransferEvent(LogMask::Debug, rec, "RESPONSE_START",
             "Initial transfer response sent to the TPC client");
@@ -521,12 +540,13 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
 
     while ((res = (CURLcode)request.WaitFor(std::chrono::seconds(m_marker_period))) < 0) {
         auto now = time(NULL);
+        std::string conn_desc = request.GetRemoteConnDesc();
         off_t bytes_xfer = state.BytesTransferred();
         if (bytes_xfer > last_advance_bytes) {
             last_advance_bytes = bytes_xfer;
             last_advance_time = now;
         }
-        if (SendPerfMarker(req, rec, state)) {
+        if (SendPerfMarker(req, rec, state, conn_desc)) {
             request.Cancel();
             logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL", "Failed to send a perf marker to the TPC client");
         }
