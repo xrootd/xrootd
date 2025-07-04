@@ -122,6 +122,7 @@ function setup() {
 	# Make sure to start with a fresh configuration
 	[[ -d "${LOCAL_DIR}" ]] && teardown "${NAME}"
 
+	rm -rf "${NAME}"
 	mkdir -p "${LOCAL_DIR}" "${REMOTE_DIR}"
 
 	if [[ $(type -t "setup_${NAME}") == "function" ]]; then
@@ -176,7 +177,7 @@ function teardown() {
 		fi
 	done
 	popd >/dev/null || exit
-	rm -rf "${NAME}"
+	rm -rf "${LOCAL_DIR}" "${REMOTE_DIR}"
 	if [[ $(type -t "teardown_${NAME}") == "function" ]]; then
 		"teardown_${NAME}"
 	fi
