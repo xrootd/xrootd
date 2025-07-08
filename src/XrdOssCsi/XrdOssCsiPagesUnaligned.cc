@@ -55,6 +55,7 @@ int XrdOssCsiPages::UpdateRangeHoleUntilPage(XrdOssDF *fd, const off_t until, co
 
    static const uint32_t crczero = CrcUtils.crc32c_extendwith_zero(0u, XrdSys::PageSize);
    static const std::vector<uint32_t> crc32Vec(stsize_, crczero);
+   static const std::vector<uint32_t> crc32VecZ(stsize_, 0u);
 
    const off_t trackinglen = sizes.first;
    const off_t tracked_page = trackinglen / XrdSys::PageSize;
@@ -90,8 +91,6 @@ int XrdOssCsiPages::UpdateRangeHoleUntilPage(XrdOssDF *fd, const off_t until, co
       }
    }
 
-   if (!writeHoles_) return 0;
-
    const off_t nAllEmpty = (tracked_off>0) ? (until - tracked_page - 1) : (until - tracked_page);
    const off_t firstEmpty = (tracked_off>0) ? (tracked_page + 1) : tracked_page;
 
@@ -99,8 +98,26 @@ int XrdOssCsiPages::UpdateRangeHoleUntilPage(XrdOssDF *fd, const off_t until, co
    off_t nwritten = 0;
    while(towrite>0)
    {
-      const size_t nw = std::min(towrite, (off_t)crc32Vec.size());
-      const ssize_t wret = ts_->WriteTags(&crc32Vec[0], firstEmpty+nwritten, nw);
+      off_t wblks = 0;
+      const uint32_t *wpointer = 0;
+      // unless we are configured with nofill (!nofill means writeHoles_ is true), we fill
+      // in the crc for an implied zero block. Reads from this hole will be valid, which
+      // is the usual behavior for sparse files. If nofill is configured it is assumed that the
+      // user knows the application does not expect to make such reads, so we set a zero tag
+      // so there will be a mismatch to catch the situation; we write the zero tag explicitly
+      // so that the tag file itself is not sparse.
+      if (writeHoles_)
+      {
+        wblks = (off_t)crc32Vec.size();
+        wpointer = &crc32Vec[0];
+      }
+      else
+      {
+        wblks = (off_t)crc32VecZ.size();
+        wpointer = &crc32VecZ[0];
+      }
+      const size_t nw = std::min(towrite, wblks);
+      const ssize_t wret = ts_->WriteTags(wpointer, firstEmpty+nwritten, nw);
       if (wret<0)
       {
          TRACE(Warn, TagsWriteError(firstEmpty+nwritten, nw, wret) << " (new)");
