@@ -39,6 +39,7 @@
 
 #include <string>
 #include <memory>
+#include <functional>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -188,7 +189,9 @@ int XrdOssCsi::Rename(const char *oldname, const char *newname,
 
    // take in consistent order
    XrdSysMutexHelper lck(NULL), lck2(NULL);
-   if (newpmi > pmi)
+   // using the pointer here to get a total order, which is not
+   // guaranteed for operator<() so use std::less
+   if (std::less{}(pmi,newpmi))
    {
      lck.Lock(&newpmi->mtx);
      lck2.Lock(&pmi->mtx);
