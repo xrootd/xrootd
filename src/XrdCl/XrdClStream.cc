@@ -324,7 +324,7 @@ namespace XrdCl
 
     log->Dump( PostMasterMsg, "[%s] Sending message %s (%p) through "
                "substream %d expecting answer at %d", pStreamName.c_str(),
-               msg->GetObfuscatedDescription().c_str(), msg, path.up, path.down );
+               msg->GetObfuscatedDescription().c_str(), (void*)msg, path.up, path.down );
 
     //--------------------------------------------------------------------------
     // Enable *a* path and insert the message to the right queue
@@ -508,7 +508,7 @@ namespace XrdCl
       ServerResponse *rsp = (ServerResponse*)msg->GetBuffer();
       log->Warning( PostMasterMsg, "[%s] Discarding received message: %p "
                     "(status=%d, SID=[%d,%d]), no MsgHandler found.",
-                    pStreamName.c_str(), msg.get(), rsp->hdr.status,
+                    pStreamName.c_str(), (void*)msg.get(), rsp->hdr.status,
                     rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
       return;
     }
@@ -517,7 +517,7 @@ namespace XrdCl
     // We have a handler, so we call the callback
     //--------------------------------------------------------------------------
     log->Dump( PostMasterMsg, "[%s] Handling received message: %p.",
-               pStreamName.c_str(), msg.get() );
+               pStreamName.c_str(), (void*)msg.get() );
 
     if( action & (MsgHandler::NoProcess|MsgHandler::Ignore) )
     {
@@ -562,7 +562,7 @@ namespace XrdCl
 
     log->Debug( PostMasterMsg, "[%s] Duplicating MsgHandler: %p (message: %s) "
                 "from out-queue to in-queue, starting to send outgoing.",
-                pUrl->GetHostId().c_str(), h.handler,
+                pUrl->GetHostId().c_str(), (void*)h.handler,
                 h.msg->GetObfuscatedDescription().c_str() );
 
     scopedLock.UnLock();

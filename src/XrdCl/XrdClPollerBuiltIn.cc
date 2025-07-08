@@ -269,7 +269,7 @@ namespace XrdCl
       return false;
     }
 
-    log->Debug( PollerMsg, "Adding socket %p to the poller", socket );
+    log->Debug( PollerMsg, "Adding socket %p to the poller", (void*)socket );
 
     //--------------------------------------------------------------------------
     // Check if the socket is already registered

@@ -186,12 +186,12 @@ XRootDStatus HttpFilePlugIn::Close(ResponseHandler *handler,
     return XRootDStatus(stError, errInvalidOp);
   }
 
-  logger_->Debug(kLogXrdClHttp, "Closing davix fd: %p", davix_fd_);
+  logger_->Debug(kLogXrdClHttp, "Closing davix fd: %p", (void*)davix_fd_);
 
   auto status = Posix::Close(*davix_client_, davix_fd_);
   if (status.IsError()) {
     logger_->Error(kLogXrdClHttp, "Could not close davix fd: %p, error: %s",
-                   davix_fd_, status.ToStr().c_str());
+                   (void*)davix_fd_, status.ToStr().c_str());
     return status;
   }
 

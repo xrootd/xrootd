@@ -531,7 +531,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (%p), %d bytes",
                strmname.c_str(), msg.GetObfuscatedDescription().c_str(),
-               &msg, msg.GetSize() );
+               (void*)&msg, msg.GetSize() );
     return XRootDStatus();
   }
 

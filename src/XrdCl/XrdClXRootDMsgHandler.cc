@@ -140,7 +140,7 @@ namespace XrdCl
         Log *log = DefaultEnv::GetLog();
         log->Warning( ExDbgMsg, "[%s] MsgHandler is examining a response although "
                                 "it already owns a response: %p (message: %s ).",
-                      pUrl.GetHostId().c_str(), this,
+                      pUrl.GetHostId().c_str(), (void*)this,
                       pRequest->GetObfuscatedDescription().c_str() );
       }
     }
@@ -819,7 +819,7 @@ namespace XrdCl
         if( resendTime < pExpiration )
         {
           log->Debug( ExDbgMsg, "[%s] Scheduling WaitTask for MsgHandler: %p (message: %s ).",
-                      pUrl.GetHostId().c_str(), this,
+                      pUrl.GetHostId().c_str(), (void*)this,
                       pRequest->GetObfuscatedDescription().c_str() );
 
           TaskManager *taskMgr = pPostMaster->GetTaskManager();
@@ -1189,7 +1189,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Debug( ExDbgMsg, "[%s] Calling MsgHandler: %p (message: %s ) "
                 "with status: %s.",
-                pUrl.GetHostId().c_str(), this,
+                pUrl.GetHostId().c_str(), (void*)this,
                 pRequest->GetObfuscatedDescription().c_str(),
                 status->ToString().c_str() );
 
@@ -1718,7 +1718,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_readv:
       {
-        log->Dump( XRootDMsg, "[%s] Parsing the response to %p as "
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
                    "VectorReadInfo", pUrl.GetHostId().c_str(),
                    pRequest->GetObfuscatedDescription().c_str() );
 
@@ -2196,7 +2196,7 @@ namespace XrdCl
     if( pUrl.IsMetalink() && pFollowMetalink )
     {
       log->Debug( ExDbgMsg, "[%s] Metaling redirection for MsgHandler: %p (message: %s ).",
-                  pUrl.GetHostId().c_str(), this,
+                  pUrl.GetHostId().c_str(), (void*)this,
                   pRequest->GetObfuscatedDescription().c_str() );
 
       return pPostMaster->Redirect( pUrl, pRequest, this );
@@ -2209,7 +2209,7 @@ namespace XrdCl
     else
     {
       log->Debug( ExDbgMsg, "[%s] Retry at server MsgHandler: %p (message: %s ).",
-                  pUrl.GetHostId().c_str(), this,
+                  pUrl.GetHostId().c_str(), (void*)this,
                   pRequest->GetObfuscatedDescription().c_str() );
       return pPostMaster->Send( pUrl, pRequest, this, true, pExpiration );
     }
@@ -2327,7 +2327,7 @@ namespace XrdCl
     {
       Log *log = DefaultEnv::GetLog();
       log->Debug( ExDbgMsg, "[%s] Passing to the thread-pool MsgHandler: %p (message: %s ).",
-                  pUrl.GetHostId().c_str(), this,
+                  pUrl.GetHostId().c_str(), (void*)this,
                   pRequest->GetObfuscatedDescription().c_str() );
       jobMgr->QueueJob( new HandleRspJob( this ), 0 );
     }
@@ -2340,7 +2340,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( ExDbgMsg, "[%s] Handling local redirect - MsgHandler: %p (message: %s ).",
-                pUrl.GetHostId().c_str(), this,
+                pUrl.GetHostId().c_str(), (void*)this,
                 pRequest->GetObfuscatedDescription().c_str() );
 
     if( !pLFileHandler )

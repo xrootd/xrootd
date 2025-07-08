@@ -676,7 +676,7 @@ void File::ProcessBlockRequest(Block *b)
    if (XRD_TRACE What >= TRACE_Dump) {
       char buf[256];
       snprintf(buf, 256, "idx=%lld, block=%p, prefetch=%d, off=%lld, req_size=%d, buff=%p, resp_handler=%p ",
-         b->get_offset()/m_block_size, b, b->m_prefetch, b->get_offset(), b->get_req_size(), b->get_buff(), brh);
+         b->get_offset()/m_block_size, (void*)b, b->m_prefetch, b->get_offset(), b->get_req_size(), (void*)b->get_buff(), (void*)brh);
       TRACEF(Dump, "ProcessBlockRequest() " << buf);
    }
 

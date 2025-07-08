@@ -167,7 +167,7 @@ namespace
           {
             Log *log = DefaultEnv::GetLog();
             log->Info( FileMsg, "[%p@%s] Received corrupted page, will retry page #%zu.",
-                       this, stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                       (void*)this, stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
 
             XRootDStatus st = XrdCl::FileStateHandler::PgReadRetry( stateHandler, pgoff, pgsize, pgnb, buffer, this, 0 );
             if( !st.IsOK())
@@ -258,7 +258,7 @@ namespace
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[%p@%s] Failed to recover page #%zu.",
-                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                     (void*)this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
           pgReadHandler->HandleResponseWithHosts( status, response, hostList );
           delete this;
           return;
@@ -270,7 +270,7 @@ namespace
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[%p@%s] Failed to recover page #%zu.",
-                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                     (void*)this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
           // we retry a page at a time so the length cannot exceed 4KB
           DeleteArgs( status, response, hostList );
           pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
@@ -283,7 +283,7 @@ namespace
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[%p@%s] Failed to recover page #%zu.",
-                     this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                     (void*)this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
           DeleteArgs( status, response, hostList );
           pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
           delete this;
@@ -292,7 +292,7 @@ namespace
 
         Log *log = DefaultEnv::GetLog();
         log->Info( FileMsg, "[%p@%s] Successfully recovered page #%zu.",
-                   this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
+                   (void*)this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
 
         DeleteArgs( 0, response, hostList );
         pgReadHandler->UpdateCksum( pgnb, crcval );
@@ -801,7 +801,7 @@ namespace XrdCl
     if( !self->pFileUrl->IsValid() )
     {
       log->Error( FileMsg, "[%p@%s] Trying to open invalid url: %s",
-                  self.get(), self->pFileUrl->GetPath().c_str(), url.c_str() );
+                  (void*)self.get(), self->pFileUrl->GetPath().c_str(), url.c_str() );
       self->pStatus    = XRootDStatus( stError, errInvalidArgs );
       self->pFileState = Closed;
       return self->pStatus;
@@ -818,7 +818,7 @@ namespace XrdCl
     {
       self->pDoRecoverRead = false;
       log->Debug( FileMsg, "[%p@%s] Read recovery procedures are disabled",
-                  self.get(), self->pFileUrl->GetObfuscatedURL().c_str() );
+                  (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str() );
     }
 
     it = urlParams.find( "xrdcl.recover-writes" );
@@ -827,13 +827,13 @@ namespace XrdCl
     {
       self->pDoRecoverWrite = false;
       log->Debug( FileMsg, "[%p@%s] Write recovery procedures are disabled",
-                  self.get(), self->pFileUrl->GetObfuscatedURL().c_str() );
+                  (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str() );
     }
 
     //--------------------------------------------------------------------------
     // Open the file
     //--------------------------------------------------------------------------
-    log->Debug( FileMsg, "[%p@%s] Sending an open command", self.get(),
+    log->Debug( FileMsg, "[%p@%s] Sending an open command", (void*)self.get(),
                 self->pFileUrl->GetObfuscatedURL().c_str() );
 
     self->pOpenMode  = mode;
@@ -899,7 +899,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a close command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -975,7 +975,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a stat command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -1022,7 +1022,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a read command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message           *msg;
@@ -1077,7 +1077,7 @@ namespace XrdCl
     if( !issupported )
     {
       DefaultEnv::GetLog()->Debug( FileMsg, "[%p@%s] PgRead not supported; substituting with Read.",
-                                  self.get(), self->pFileUrl->GetObfuscatedURL().c_str() );
+                                  (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str() );
       ResponseHandler *substitHandler = new PgReadSubstitutionHandler( self, handler );
       auto st = Read( self, offset, size, buffer, substitHandler, timeout );
       if( !st.IsOK() ) delete substitHandler;
@@ -1125,7 +1125,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a pgread command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message             *msg;
@@ -1181,7 +1181,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a write command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message            *msg;
@@ -1227,7 +1227,7 @@ namespace XrdCl
     {
       Log *log = DefaultEnv::GetLog();
       log->Info( FileMsg, "[%p@%s] Buffer for handle %#x is not page aligned (4KB), "
-                 "cannot convert it to kernel space buffer.", self.get(),
+                 "cannot convert it to kernel space buffer.", (void*)self.get(),
                  self->pFileUrl->GetObfuscatedURL().c_str(), *((uint32_t*)self->pFileHandle) );
 
       void     *buff = buffer.GetBuffer();
@@ -1415,20 +1415,20 @@ namespace XrdCl
                   if( inf->NeedRetry() ) // so we failed in the end
                   {
                     DefaultEnv::GetLog()->Warning( FileMsg, "[%p@%s] Failed retransmitting corrupted "
-                                                   "page: pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                                   "page: pgoff=%llu, pglen=%u, pgdigest=%u", (void*)self.get(),
                                                    self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
                     pgwrt->SetStatus( new XRootDStatus( stError, errDataError, 0,
                                       "Failed to retransmit corrupted page" ) );
                   }
                   else
                     DefaultEnv::GetLog()->Info( FileMsg, "[%p@%s] Succesfuly retransmitted corrupted "
-                                                "page: pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                                "page: pgoff=%llu, pglen=%u, pgdigest=%u", (void*)self.get(),
                                                 self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
                 } );
             auto st = PgWriteRetry( self, pgoff, pglen, pgbuf, pgdigest, h, timeout );
             if( !st.IsOK() ) pgwrt->SetStatus( new XRootDStatus( st ) );
             DefaultEnv::GetLog()->Info( FileMsg, "[%p@%s] Retransmitting corrupted page: "
-                                        "pgoff=%llu, pglen=%u, pgdigest=%u", self.get(),
+                                        "pgoff=%llu, pglen=%u, pgdigest=%u", (void*)self.get(),
                                         self->pFileUrl->GetObfuscatedURL().c_str(), (unsigned long long) pgoff, pglen, pgdigest );
           }
         } );
@@ -1478,7 +1478,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a pgwrite command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -1528,7 +1528,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a sync command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message           *msg;
@@ -1567,7 +1567,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a truncate command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message               *msg;
@@ -1611,7 +1611,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a vector read command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -1687,7 +1687,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a vector write command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -1763,7 +1763,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a write command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message            *msg;
@@ -1819,7 +1819,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a read command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message           *msg;
@@ -1876,7 +1876,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a fcntl command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message            *msg;
@@ -1917,7 +1917,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a visa command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message            *msg;
@@ -1957,7 +1957,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a fattr set command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -1983,7 +1983,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a fattr get command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -2009,7 +2009,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a fattr del command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -2034,7 +2034,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a fattr list command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
@@ -2070,7 +2070,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a checkpoint command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message               *msg;
@@ -2121,7 +2121,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a write command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message               *msg;
@@ -2183,7 +2183,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a write command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message               *msg;
@@ -2359,7 +2359,7 @@ namespace XrdCl
     }
 
     log->Debug(FileMsg, "[%p@%s] Open has returned with status %s",
-               this, pFileUrl->GetObfuscatedURL().c_str(), status->ToStr().c_str() );
+               (void*)this, pFileUrl->GetObfuscatedURL().c_str(), status->ToStr().c_str() );
 
     if( pDataServer && !pDataServer->IsLocalFile() )
     {
@@ -2385,7 +2385,7 @@ namespace XrdCl
     if( !pStatus.IsOK() || !openInfo )
     {
       log->Debug(FileMsg, "[%p@%s] Error while opening at %s: %s",
-                 this, pFileUrl->GetObfuscatedURL().c_str(), lastServer.c_str(),
+                 (void*)this, pFileUrl->GetObfuscatedURL().c_str(), lastServer.c_str(),
                  pStatus.ToStr().c_str() );
       FailQueuedMessages( pStatus );
       pFileState = Error;
@@ -2420,7 +2420,7 @@ namespace XrdCl
       }
 
       log->Debug( FileMsg, "[%p@%s] successfully opened at %s, handle: %#x, "
-                  "session id: %llu", this, pFileUrl->GetObfuscatedURL().c_str(),
+                  "session id: %llu", (void*)this, pFileUrl->GetObfuscatedURL().c_str(),
                   pDataServer->GetHostId().c_str(), *((uint32_t*)pFileHandle),
                   (unsigned long long) pSessionId );
 
@@ -2455,12 +2455,12 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
 
-    log->Debug(FileMsg, "[%p@%s] Close returned from %s with: %s", this,
+    log->Debug(FileMsg, "[%p@%s] Close returned from %s with: %s", (void*)this,
                pFileUrl->GetObfuscatedURL().c_str(), pDataServer->GetHostId().c_str(),
                status->ToStr().c_str() );
 
     log->Dump(FileMsg, "[%p@%s] Items in the fly %zu, queued for recovery %zu",
-              this, pFileUrl->GetObfuscatedURL().c_str(), pInTheFly.size(), pToBeRecovered.size() );
+              (void*)this, pFileUrl->GetObfuscatedURL().c_str(), pInTheFly.size(), pToBeRecovered.size() );
 
     MonitorClose( status );
     ResetMonitoringVars();
@@ -2505,7 +2505,7 @@ namespace XrdCl
     self->pInTheFly.erase( message );
 
     log->Dump( FileMsg, "[%p@%s] File state error encountered. Message %s "
-               "returned with %s", self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+               "returned with %s", (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                message->GetObfuscatedDescription().c_str(), status->ToStr().c_str() );
 
     //--------------------------------------------------------------------------
@@ -2540,7 +2540,7 @@ namespace XrdCl
     if( !self->IsRecoverable( *status ) || sendParams.kbuff )
     {
       log->Error( FileMsg, "[%p@%s] Fatal file state error. Message %s "
-                 "returned with %s", self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                 "returned with %s", (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                  message->GetObfuscatedDescription().c_str(), status->ToStr().c_str() );
 
       self->FailMessage( RequestData( message, userHandler, sendParams ), *status );
@@ -2600,7 +2600,7 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( self->pMutex );
 
     log->Dump( FileMsg, "[%p@%s] Got state response for message %s",
-               self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+               (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                message->GetObfuscatedDescription().c_str() );
 
     //--------------------------------------------------------------------------
@@ -2718,7 +2718,7 @@ namespace XrdCl
     if( !pToBeRecovered.empty() )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Dump( FileMsg, "[%p@%s] Got a timer event", this,
+      log->Dump( FileMsg, "[%p@%s] Got a timer event", (void*)this,
                  pFileUrl->GetObfuscatedURL().c_str() );
       RequestList::iterator it;
       JobManager *jobMan = DefaultEnv::GetPostMaster()->GetJobManager();
@@ -2752,7 +2752,7 @@ namespace XrdCl
         (!IsReadOnly() && pDoRecoverWrite) )
     {
       log->Debug( FileMsg, "[%p@%s] Putting the file in recovery state in "
-                  "process %d", this, pFileUrl->GetObfuscatedURL().c_str(), getpid() );
+                  "process %d", (void*)this, pFileUrl->GetObfuscatedURL().c_str(), getpid() );
       pFileState = Recovering;
       pInTheFly.clear();
       pToBeRecovered.clear();
@@ -2775,7 +2775,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Reopen file at next data server.",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str() );
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str() );
 
     // merge CGI
     auto lbcgi = self->pLoadBalancer->GetParams();
@@ -2919,7 +2919,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Dump( FileMsg, "[%p@%s] Putting message %s in the recovery list",
-               self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+               (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                rd.request->GetObfuscatedDescription().c_str() );
 
     Status st = RunRecovery( self );
@@ -2947,7 +2947,7 @@ namespace XrdCl
       return Status();
 
     Log *log = DefaultEnv::GetLog();
-    log->Debug( FileMsg, "[%p@%s] Running the recovery procedure", self.get(),
+    log->Debug( FileMsg, "[%p@%s] Running the recovery procedure", (void*)self.get(),
                 self->pFileUrl->GetObfuscatedURL().c_str() );
 
     Status st;
@@ -3008,7 +3008,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( FileMsg, "[%p@%s] Sending a recovery open command to %s",
-               self.get(), self->pFileUrl->GetObfuscatedURL().c_str(), url.GetObfuscatedURL().c_str() );
+               (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(), url.GetObfuscatedURL().c_str() );
 
     //--------------------------------------------------------------------------
     // Remove the kXR_delete and kXR_new flags, as we don't want the recovery
@@ -3069,7 +3069,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( FileMsg, "[%p@%s] Failing message %s with %s",
-               this, pFileUrl->GetObfuscatedURL().c_str(),
+               (void*)this, pFileUrl->GetObfuscatedURL().c_str(),
                rd.request->GetObfuscatedDescription().c_str(),
                status.ToStr().c_str() );
 
@@ -3078,7 +3078,7 @@ namespace XrdCl
     {
       Log *log = DefaultEnv::GetLog();
       log->Error( FileMsg, "[%p@%s] Internal error while recovering %s",
-                  this, pFileUrl->GetObfuscatedURL().c_str(),
+                  (void*)this, pFileUrl->GetObfuscatedURL().c_str(),
                   rd.request->GetObfuscatedDescription().c_str() );
       return;
     }
@@ -3189,7 +3189,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Dump( FileMsg, "[%p@%s] Rewritten file handle for %s to %#x",
-               this, pFileUrl->GetObfuscatedURL().c_str(), msg->GetObfuscatedDescription().c_str(),
+               (void*)this, pFileUrl->GetObfuscatedURL().c_str(), msg->GetObfuscatedDescription().c_str(),
                *((uint32_t*)pFileHandle) );
     XRootDTransport::SetDescription( msg );
   }
@@ -3258,7 +3258,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[%p@%s] Sending a write command for handle %#x to %s",
-                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
                 *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
 
     Message            *msg;

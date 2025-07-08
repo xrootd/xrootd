@@ -309,7 +309,7 @@ namespace
         if( !status->IsOK() )
         {
           log->Dump( FileSystemMsg, "[%p@DeepLocate(%s)] Got error "
-                     "response: %s", this, pPath.c_str(),
+                     "response: %s", (void*)this, pPath.c_str(),
                      status->ToStr().c_str() );
 
           //--------------------------------------------------------------------
@@ -318,7 +318,7 @@ namespace
           if( pFirstTime )
           {
             log->Debug( FileSystemMsg, "[%p@DeepLocate(%s)] Failed to get "
-                        "the initial location list: %s", this, pPath.c_str(),
+                        "the initial location list: %s", (void*)this, pPath.c_str(),
                         status->ToStr().c_str() );
             pHandler->HandleResponse( status, response );
             scopedLock.UnLock();
@@ -335,7 +335,7 @@ namespace
           if( !pOutstanding )
           {
             log->Debug( FileSystemMsg, "[%p@DeepLocate(%s)] No outstanding "
-                        "requests, give out what we've got", this,
+                        "requests, give out what we've got", (void*)this,
                         pPath.c_str() );
             scopedLock.UnLock();
             HandleFinalResponse();
@@ -355,12 +355,12 @@ namespace
         if(!info) {
           log->Error(FileSystemMsg,
             "[%p@DeepLocate(%s)] No locations received in response",
-            this, pPath.c_str());
+            (void*)this, pPath.c_str());
           return;
         }
 
         log->Dump( FileSystemMsg, "[%p@DeepLocate(%s)] Got %d locations",
-                   this, pPath.c_str(), info->GetSize() );
+                   (void*)this, pPath.c_str(), info->GetSize() );
 
         for( it = info->Begin(); it != info->End(); ++it )
         {
@@ -951,7 +951,7 @@ namespace XrdCl
       Log *log = DefaultEnv::GetLog();
       XrdSysMutexHelper scopedLock( fs->pMutex );
 
-      log->Dump( FileSystemMsg, "[%p@%s] Sending %s", fs.get(),
+      log->Dump( FileSystemMsg, "[%p@%s] Sending %s", (void*)fs.get(),
                  fs->pUrl->GetHostId().c_str(), msg->GetObfuscatedDescription().c_str() );
 
       AssignLastURLHandler *lastUrlHandler = new AssignLastURLHandler( fs, handler );
@@ -987,7 +987,7 @@ namespace XrdCl
       if( pLoadBalancerLookupDone )
         return;
 
-      log->Dump( FileSystemMsg, "[%p@%s] Assigning %s as load balancer", this,
+      log->Dump( FileSystemMsg, "[%p@%s] Assigning %s as load balancer", (void*)this,
                  pUrl->GetHostId().c_str(), url.GetHostId().c_str() );
 
       pUrl.reset( new URL( url ) );
@@ -1002,7 +1002,7 @@ namespace XrdCl
       Log *log = DefaultEnv::GetLog();
       XrdSysMutexHelper scopedLock( pMutex );
 
-      log->Dump( FileSystemMsg, "[%p@%s] Assigning %s as last URL", this,
+      log->Dump( FileSystemMsg, "[%p@%s] Assigning %s as last URL", (void*)this,
                  pUrl->GetHostId().c_str(), url.GetHostId().c_str() );
 
       pLastUrl.reset( new URL( url ) );

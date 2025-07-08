@@ -334,7 +334,7 @@ namespace XrdCl
       uint32_t bodySize = *(uint32_t*)(message.GetBuffer(4));
       Log *log = DefaultEnv::GetLog();
       log->Dump( XRootDTransportMsg, "[msg: %p] Expecting %d bytes of message "
-                 "body", &message, bodySize );
+                 "body", (void*)&message, bodySize );
 
       return XRootDStatus( stOK, suDone );
     }
@@ -418,7 +418,7 @@ namespace XrdCl
     XRootDStatus st = XRootDTransport::UnMarchalStatusMore( message );
     if( !st.IsOK() && st.code == errDataError )
     {
-      log->Error( XRootDTransportMsg, "[msg: %p] %s", &message,
+      log->Error( XRootDTransportMsg, "[msg: %p] %s", (void*)&message,
                   st.GetErrorMessage().c_str() );
       return st;
     }
@@ -426,7 +426,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       log->Error( XRootDTransportMsg, "[msg: %p] Failed to unmarshall status body.",
-                  &message );
+                  (void*)&message );
       return st;
     }
 
@@ -1655,7 +1655,7 @@ namespace XrdCl
     {
       log->Error( XRootDTransportMsg, "Message %p, stream [%d, %d] is a "
                   "response that we're no longer interested in (timed out)",
-                  &msg, rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
+                  (void*)&msg, rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
       //------------------------------------------------------------------------
       // If it is kXR_waitresp there will be another one,
       // so we don't release the sid yet

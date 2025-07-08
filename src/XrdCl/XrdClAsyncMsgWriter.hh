@@ -161,7 +161,7 @@ namespace XrdCl
                 if( !st.IsOK() || st.code == suRetry ) return st;
                 outmsgsize += wrtcnt;
                 log->Dump( AsyncSockMsg, "[%s] Wrote %d bytes of raw data of message"
-                           "(%p) body.", strmname.c_str(), wrtcnt, outmsg );
+                           "(%p) body.", strmname.c_str(), wrtcnt, (void*)outmsg );
               }
               //----------------------------------------------------------------
               // The next step is to finalize the write operation
@@ -183,7 +183,7 @@ namespace XrdCl
               }
 
               log->Dump( AsyncSockMsg, "[%s] Successfully sent message: %s (%p).",
-                         strmname.c_str(), outmsg->GetObfuscatedDescription().c_str(), outmsg );
+                         strmname.c_str(), outmsg->GetObfuscatedDescription().c_str(), (void*)outmsg );
 
               strm.OnMessageSent( substrmnb, outmsg, outmsgsize );
               return XRootDStatus();

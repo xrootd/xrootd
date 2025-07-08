@@ -185,7 +185,7 @@ namespace XrdCl
 
         Log *log = DefaultEnv::GetLog();
         log->Debug( ExDbgMsg, "[%s] MsgHandler created: %p (message: %s ).",
-                    pUrl.GetHostId().c_str(), this,
+                    pUrl.GetHostId().c_str(), (void*)this,
                     pRequest->GetObfuscatedDescription().c_str() );
 
         ClientRequestHdr *hdr = (ClientRequestHdr*)pRequest->GetBuffer();
@@ -224,7 +224,7 @@ namespace XrdCl
 
         Log *log = DefaultEnv::GetLog();
         log->Debug( ExDbgMsg, "[%s] Destroying MsgHandler: %p.",
-                    pUrl.GetHostId().c_str(), this );
+                    pUrl.GetHostId().c_str(), (void*)this );
       }
 
       //------------------------------------------------------------------------

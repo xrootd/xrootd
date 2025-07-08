@@ -93,7 +93,7 @@ namespace XrdCl
     // if it is a compressed file use ZIP cache to read from the file
     if( cdfh->compressionMethod == Z_DEFLATED )
     {
-      log->Dump( ZipMsg, "[%p] Reading compressed data.", &me );
+      log->Dump( ZipMsg, "[%p] Reading compressed data.", (void*)&me );
       // check if respective ZIP cache exists
       bool empty = me.zipcache.find( fn ) == me.zipcache.end();
       // if the entry does not exist, it will be created using
@@ -157,7 +157,7 @@ namespace XrdCl
                        {
                          Log *log = DefaultEnv::GetLog();
                          log->Dump( ZipMsg, "[%p] Read %u bytes of remote data at offset %llu.",
-                                            &me, rsp.GetLength(), (unsigned long long) rsp.GetOffset() );
+                                            (void*)&me, rsp.GetLength(), (unsigned long long) rsp.GetOffset() );
                          cache.QueueRsp( st, relativeOffset, std::move( *rdbuff ) );
                        };
         Async( std::move( p ), timeout );
@@ -172,7 +172,7 @@ namespace XrdCl
       if( size )
       {
         memcpy( usrbuff, me.buffer.get() + offset, size );
-        log->Dump( ZipMsg, "[%p] Serving read from local cache.", &me );
+        log->Dump( ZipMsg, "[%p] Serving read from local cache.", (void*)&me );
       }
 
       if( usrHandler )
@@ -188,7 +188,7 @@ namespace XrdCl
                    [=, &me]( XRootDStatus &st, RSP &r )
                    {
                      log->Dump( ZipMsg, "[%p] Read %u bytes of remote data at "
-                                        "offset %llu.", &me, r.GetLength(), (unsigned long long) r.GetOffset() );
+                                        "offset %llu.", (void*)&me, r.GetLength(), (unsigned long long) r.GetOffset() );
                      if( usrHandler )
                      {
                        XRootDStatus *status = ZipArchive::make_status( st );
@@ -244,12 +244,12 @@ namespace XrdCl
                                archsize  = info.GetSize();
                                openstage = NotParsed;
                                log->Debug( ZipMsg, "[%p] Opened (only) a ZIP archive (%s).",
-                                           this, url.c_str() );
+                                           (void*)this, url.c_str() );
                              }
                              else
                              {
                                log->Error( ZipMsg, "[%p] Failed to open-only a ZIP archive (%s): %s",
-                                           this, url.c_str(), st.ToString().c_str() );
+                                           (void*)this, url.c_str(), st.ToString().c_str() );
                              }
 
                              if( handler )
@@ -288,7 +288,7 @@ namespace XrdCl
                                  {
                                    cdexists = false;
                                    openstage = Done;
-                                   log->Dump( ZipMsg, "[%p] Opened a ZIP archive (file empty).", this );
+                                   log->Dump( ZipMsg, "[%p] Opened a ZIP archive (file empty).", (void*)this );
                                    Pipeline::Stop();
                                  }
                                  // prepare the arguments for the subsequent read
@@ -298,7 +298,7 @@ namespace XrdCl
                                  rdbuff = buffer.get();
                                  openstage = HaveEocdBlk;
                                  log->Dump( ZipMsg, "[%p] Opened a ZIP archive, reading "
-                                                    "Central Directory at offset: %llu.", this, (unsigned long long) *rdoff );
+                                                    "Central Directory at offset: %llu.", (void*)this, (unsigned long long) *rdoff );
                                }
                             // read the Central Directory (in several stages if necessary)
                           | XrdCl::Read( archive, rdoff, rdsize, rdbuff ) >>
@@ -324,7 +324,7 @@ namespace XrdCl
                                       }
                                       try{
                                       eocd.reset( new EOCD( eocdBlock, chunk.length - uint32_t(eocdBlock - buff) ) );
-                                      log->Dump( ZipMsg, "[%p] EOCD record parsed: %s", this,
+                                      log->Dump( ZipMsg, "[%p] EOCD record parsed: %s", (void*)this,
                                                          eocd->ToString().c_str() );
                                       if(eocd->cdOffset > archsize || eocd->cdOffset + eocd->cdSize > archsize)
                                         throw bad_data();
@@ -372,7 +372,7 @@ namespace XrdCl
                                       rdbuff    = buffer.get();
                                       openstage = HaveCdRecords;
                                       log->Dump( ZipMsg, "[%p] Reading additional data at offset: %llu.",
-                                                         this, (unsigned long long) *rdoff );
+                                                         (void*)this, (unsigned long long) *rdoff );
                                       Pipeline::Repeat(); break; // the break is really not needed ...
                                     }
 
@@ -380,7 +380,7 @@ namespace XrdCl
                                     {
                                       std::unique_ptr<ZIP64_EOCDL> eocdl( new ZIP64_EOCDL( buff ) );
                                       log->Dump( ZipMsg, "[%p] EOCDL record parsed: %s",
-                                                         this, eocdl->ToString().c_str() );
+                                                         (void*)this, eocdl->ToString().c_str() );
 
                                       if( chunk.offset > eocdl->zip64EocdOffset )
                                       {
@@ -391,7 +391,7 @@ namespace XrdCl
                                         rdbuff = buffer.get();
                                         openstage = HaveZip64EocdBlk;
                                         log->Dump( ZipMsg, "[%p] Reading additional data at offset: %llu.",
-                                                           this, (unsigned long long) *rdoff );
+                                                           (void*)this, (unsigned long long) *rdoff );
                                         Pipeline::Repeat();
                                       }
 
@@ -411,7 +411,7 @@ namespace XrdCl
                                       }
                                       zip64eocd.reset( new ZIP64_EOCD( buff ) );
                                       log->Dump( ZipMsg, "[%p] ZIP64EOCD record parsed: %s",
-                                                         this, zip64eocd->ToString().c_str() );
+                                                         (void*)this, zip64eocd->ToString().c_str() );
 
                                       // now we can read the CD records, adjust the read arguments
                                       cdoff     = zip64eocd->cdOffset;
@@ -423,7 +423,7 @@ namespace XrdCl
                                       rdbuff    = buffer.get();
                                       openstage = HaveCdRecords;
                                       log->Dump( ZipMsg, "[%p] Reading additional data at offset: %llu.",
-                                                         this, (unsigned long long) *rdoff );
+                                                         (void*)this, (unsigned long long) *rdoff );
                                       Pipeline::Repeat(); break; // the break is really not needed ...
                                     }
 
@@ -438,7 +438,7 @@ namespace XrdCl
                                           std::tie( cdvec, cdmap ) = CDFH::Parse( buff, zip64eocd->cdSize, zip64eocd->nbCdRec );
                                         else
                                           std::tie( cdvec, cdmap ) = CDFH::Parse( buff, eocd->cdSize, eocd->nbCdRec );
-                                        log->Dump( ZipMsg, "[%p] CD records parsed.", this );
+                                        log->Dump( ZipMsg, "[%p] CD records parsed.", (void*)this );
                                         uint64_t sumCompSize = 0;
                                         for (auto it = cdvec.begin(); it != cdvec.end(); it++)
                                         {
@@ -471,10 +471,10 @@ namespace XrdCl
                               { // finalize the pipeline by calling the user callback
                                 if( status.IsOK() )
                                   log->Debug( ZipMsg, "[%p] Opened a ZIP archive (%s): %s",
-                                              this, url.c_str(), status.ToString().c_str() );
+                                              (void*)this, url.c_str(), status.ToString().c_str() );
                                 else
                                   log->Error( ZipMsg, "[%p] Failed to open a ZIP archive (%s): %s",
-                                              this, url.c_str(), status.ToString().c_str() );
+                                              (void*)this, url.c_str(), status.ToString().c_str() );
                                 if( handler )
                                   handler->HandleResponse( make_status( status ), nullptr );
                               } );
@@ -505,11 +505,11 @@ namespace XrdCl
         openfn = fn;
         lfh.reset( new LFH( fn, crc32, size, time( 0 ) ) );
         log->Dump( ZipMsg, "[%p] File %s opened for append.",
-                           this, fn.c_str() );
+                           (void*)this, fn.c_str() );
         return XRootDStatus();
       }
       log->Dump( ZipMsg, "[%p] Open failed: %s not in the ZIP archive.",
-                         this, fn.c_str() );
+                         (void*)this, fn.c_str() );
       return XRootDStatus( stError, errNotFound );
     }
 
@@ -518,14 +518,14 @@ namespace XrdCl
     if( flags & OpenFlags::New )
     {
       log->Dump( ZipMsg, "[%p] Open failed: file exists %s, cannot append.",
-                         this, fn.c_str() );
+                         (void*)this, fn.c_str() );
 
       return XRootDStatus( stError, errInvalidOp, EEXIST, "The file already exists in the ZIP archive." );
     }
 
     openfn = fn;
     log->Dump( ZipMsg, "[%p] File %s opened for reading.",
-                       this, fn.c_str() );
+                       (void*)this, fn.c_str() );
     return XRootDStatus();
   }
 
@@ -651,10 +651,10 @@ namespace XrdCl
                      {
                        if( st.IsOK() )
                          log->Dump( ZipMsg, "[%p] Successfully closed ZIP archive "
-                                            "(CD written).", this );
+                                            "(CD written).", (void*)this );
                        else
                          log->Error( ZipMsg, "[%p] Failed to close ZIP archive: %s",
-                                             this, st.ToString().c_str() );
+                                             (void*)this, st.ToString().c_str() );
                        wrtbufs.clear();
                        if( handler ) handler->HandleResponse( make_status( st ), nullptr );
                      } );
@@ -673,13 +673,13 @@ namespace XrdCl
                      {
                        this->Clear();
                        log->Dump( ZipMsg, "[%p] Successfully closed "
-                                          "ZIP archive.", this );
+                                          "ZIP archive.", (void*)this );
                      }
                      else
                      {
                        openstage = Error;
                        log->Error( ZipMsg, "[%p] Failed to close ZIP archive:"
-                                           " %s", this, st.ToString().c_str() );
+                                           " %s", (void*)this, st.ToString().c_str() );
                      }
                      if( handler )
                        handler->HandleResponse( make_status( st ), nullptr );
@@ -774,7 +774,7 @@ namespace XrdCl
       lfh->Serialize( *lfhbuf );
       iov[0].iov_base = lfhbuf->data();
       iov[0].iov_len  = lfhlen;
-      log->Dump( ZipMsg, "[%p] Will write LFH.", this );
+      log->Dump( ZipMsg, "[%p] Will write LFH.", (void*)this );
     }
     //-------------------------------------------------------------------------
     // If there is no LFH just make the first chunk empty.
@@ -887,11 +887,11 @@ namespace XrdCl
     if( itr != cdmap.end() )
     {
       log->Dump( ZipMsg, "[%p] Open failed: file exists %s, cannot append.",
-                         this, fn.c_str() );
+                         (void*)this, fn.c_str() );
       return XRootDStatus( stError, errInvalidOp );
     }
 
-    log->Dump( ZipMsg, "[%p] Appending file: %s.", this, fn.c_str() );
+    log->Dump( ZipMsg, "[%p] Appending file: %s.", (void*)this, fn.c_str() );
     //-------------------------------------------------------------------------
     // Create Local File Header record
     //-------------------------------------------------------------------------

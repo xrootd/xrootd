@@ -226,7 +226,7 @@ void XrdCmsNode::Delete(XrdSysFusedMutex &gMutex)
    if (doDel) delete this;
       else {char eBuff[256];
             snprintf(eBuff, sizeof(eBuff),
-                     " (%p) delete timeout; node object lost!", this);
+                     " (%p) delete timeout; node object lost!", (void*)this);
             Say.Emsg("Delete", Ident, eBuff);
            }
 }

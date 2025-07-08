@@ -88,18 +88,18 @@ namespace XrdCl
       if( it->second.second == 0 ) {
         it->second.second = handler->GetExpiration();
         log->Debug( ExDbgMsg, "[handler: %p] Assigned expiration %lld.",
-                    handler, (long long)it->second.second );
+                    (void*)handler, (long long)it->second.second );
       }
       exp     = it->second.second;
       log->Debug( ExDbgMsg, "[msg: %p] Assigned MsgHandler: %p.",
-                  msg.get(), handler );
+                  (void*)msg.get(), (void*)handler );
 
 
       if( act & MsgHandler::RemoveHandler )
       {
         pHandlers.erase( it );
         log->Debug( ExDbgMsg, "[handler: %p] Removed MsgHandler: %p from the in-queue.",
-                    handler, handler );
+                    (void*)handler, (void*)handler );
       }
     }
 
@@ -133,7 +133,7 @@ namespace XrdCl
     pHandlers.erase(handlerSid);
     Log *log = DefaultEnv::GetLog();
     log->Debug( ExDbgMsg, "[handler: %p] Removed MsgHandler: %p from the in-queue.",
-                handler, handler );
+                (void*)handler, (void*)handler );
 
   }
 
@@ -202,7 +202,7 @@ namespace XrdCl
 
         Log *log = DefaultEnv::GetLog();
         log->Debug( ExDbgMsg, "[handler: %p] Assigned expiration %lld.",
-                    handler, (long long)it->second.second );
+                    (void*)handler, (long long)it->second.second );
 
       }
     }

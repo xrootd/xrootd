@@ -110,13 +110,13 @@ namespace XrdCl
                 return st;
 
               log->Dump( AsyncSockMsg, "[%s] Received message header for %p size: %d",
-                        strmname.c_str(), inmsg.get(), inmsg->GetCursor() );
+                        strmname.c_str(), (void*)inmsg.get(), inmsg->GetCursor() );
 
               ServerResponse *rsp = (ServerResponse*)inmsg->GetBuffer();
               if( rsp->hdr.status == kXR_attn )
               {
                 log->Dump( AsyncSockMsg, "[%s] Will readout the attn action code "
-                           "of message %p", strmname.c_str(), inmsg.get() );
+                           "of message %p", strmname.c_str(), (void*)inmsg.get() );
                 inmsg->ReAllocate( 16 ); // header (bytes 8) + action code (8 bytes)
                 readstage = ReadAttn;
                 continue;
@@ -128,7 +128,7 @@ namespace XrdCl
               if( inhandler )
               {
                 log->Dump( AsyncSockMsg, "[%s] Will use the raw handler to read body "
-                           "of message %p", strmname.c_str(), inmsg.get() );
+                           "of message %p", strmname.c_str(), (void*)inmsg.get() );
                 //--------------------------------------------------------------
                 // The next step is to read raw data
                 //--------------------------------------------------------------
@@ -261,7 +261,7 @@ namespace XrdCl
               // Report the incoming message
               //----------------------------------------------------------------
               log->Dump( AsyncSockMsg, "[%s] Received message %p of %d bytes",
-                         strmname.c_str(), inmsg.get(), inmsgsize );
+                         strmname.c_str(), (void*)inmsg.get(), inmsgsize );
 
               strm.OnIncoming( substrmnb, std::move( inmsg ), inmsgsize );
             }
