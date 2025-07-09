@@ -357,6 +357,8 @@ public:
 
   int mScitag;
 
+  std::string m_origin;
+
 
 
 

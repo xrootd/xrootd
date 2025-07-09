@@ -57,3 +57,8 @@ void XrdHttpHeaderUtils::parseReprDigest(const std::string &header, std::map<std
     // Malformed entries are silently ignored
   }
 }
+
+void XrdHttpHeaderUtils::parseSimpleValue(const std::string &header, std::string &out) {
+  out = header;
+  XrdOucUtils::trim(out);
+}
