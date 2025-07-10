@@ -6,6 +6,41 @@ Release Notes
 =============
 
 -------------
+Version 5.8.4
+-------------
+
++ **Major bug fixes**
+  **[XrdPfc]** Fix XCache crash caused by use-after-free (#2533)
+  **[XrdSecsss]** Fix null pointer dereference in XrdSecsssKT::getKey()
+  **[XrdXrootd]** Fix server segfaults while computing checksums (#2534)
+
++ **Minor bug fixes**
+  **[CMake]** Remove -D from ${XRootD_DEFINITIONS} in XRootDConfig.cmake (#2543)
+  **[Server]** Improve rename error message when it fails due to overwrite
+  **[Tests]** Fix memory leak in scitokens test reported by adress sanitizer (#2554)
+  **[XrdApps]** Fix memory leak reported by adress sanitizer (#2553)
+  **[XrdCl]** Add missing CpRetryPolicy to defaults
+  **[XrdCl]** Avoid losing error response during retry at different server (#2537)
+  **[XrdCl]** Do not apply timeout of Channel to its redirect-collapsed replacement (#2549)
+  **[XrdCl]** Fix recursive copies with TLS enabled (#2490)
+  **[XrdCl]** Request for hostname in replies to locate requests (#2540, #2551)
+  **[XrdOuc]** Fix strncpy parameter overlap reported by address sanitizer
+  **[XrdOssCsi]** Do not write sparse tag files when using nofill option (#2557)
+  **[XrdPosix]** Fix one-definition-rule (ODR) violations in 32bit systems (#2032)
+  **[XrdPosix]** Match function prototypes with respective syscalls (#2032)
+  **[XrdSecsss]** Avoid potential use of uninitialized memory in XrdSecsssKT::ktDecode0()
+
++ **Miscellaneous**
+  **[CI]** Add GCC/Clang compiler problem matcher to GitHub Actions
+  **[CMake]** Add option to enable sanitizers in test.cmake
+  **[CMake]** Display C/C++ compile flags in configuration summary
+  **[Misc]** Add GitHub issue templates
+  **[XrdCl]** Add missing CpRetryPolicy to list of defaults
+  **[XrdOssCsi]** Use std::less to compare pointers (#2557)
+  **[Tests]** Add simple integration tests for XrdPosix and XrdDig
+  **[Tests]** Add test of connection failure or hostname failure after redirect (#2537)
+
+-------------
 Version 5.8.3
 -------------
 
