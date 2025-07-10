@@ -309,8 +309,8 @@ int XrdSutTimeString(int t, char *st, int opt)
    //     24Apr2006-091023         (opt = 1)
    // The buffer st must be supplied by the caller to contain at least 20.
    // This length is returned when calling the function with t=-1 
-   static char month[12][4] = {"Jan","Feb","Mar","Apr","May","Jun",
-                               "Jul","Aug","Sep","Oct","Nov","Dec"};
+   static const char month[12][4] = {"Jan","Feb","Mar","Apr","May","Jun",
+                                     "Jul","Aug","Sep","Oct","Nov","Dec"};
    static short flen = strlen("24Apr2006:09:10:23");
 
    // Check if the length is required
