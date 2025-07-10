@@ -629,7 +629,7 @@ int XrdScheduler::Stats(char *buff, int blen, int do_sync)
 {
     int cnt_Jobs, cnt_JobsinQ, xam_QLength, cnt_Workers, cnt_idl;
     int cnt_TCreate, cnt_TDestroy, cnt_Limited;
-    static char statfmt[] = "<stats id=\"sched\"><jobs>%d</jobs>"
+    static const char statfmt[] = "<stats id=\"sched\"><jobs>%d</jobs>"
                 "<inq>%d</inq><maxinq>%d</maxinq>"
                 "<threads>%d</threads><idle>%d</idle>"
                 "<tcr>%d</tcr><tde>%d</tde>"

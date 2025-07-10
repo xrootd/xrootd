@@ -198,7 +198,7 @@ void XrdBuffXL::Release(XrdBuffer *bp)
   
 int XrdBuffXL::Stats(char *buff, int blen, int do_sync)
 {
-    static char statfmt[] = "<xlreqs>%d</xlreqs>"
+    static const char statfmt[] = "<xlreqs>%d</xlreqs>"
                 "<xlmem>%lld</xlmem><xlbuffs>%d</xlbuffs>";
     int nlen;
 

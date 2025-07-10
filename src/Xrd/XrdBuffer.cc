@@ -322,7 +322,7 @@ void XrdBuffManager::Set(int maxmem, int minw)
   
 int XrdBuffManager::Stats(char *buff, int blen, int do_sync)
 {
-    static char statfmt[] = "<stats id=\"buff\"><reqs>%d</reqs>"
+    static const char statfmt[] = "<stats id=\"buff\"><reqs>%d</reqs>"
                 "<mem>%lld</mem><buffs>%d</buffs><adj>%d</adj>%s</stats>";
     char xlStats[1024];
     int nlen;
