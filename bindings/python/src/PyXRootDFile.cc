@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2012-2014 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2012-2025 by European Organization for Nuclear Research (CERN)
 // Author: Justin Salmon <jsalmon@cern.ch>
 //------------------------------------------------------------------------------
 // This file is part of the XRootD software suite.
@@ -33,6 +33,203 @@
 
 namespace PyXRootD
 {
+
+  //----------------------------------------------------------------------------
+  //! Set exception and return null if I/O op on closed file is attempted
+  //----------------------------------------------------------------------------
+  static PyObject* FileClosedError()
+  {
+    PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
+    return NULL;
+  }
+
+  //----------------------------------------------------------------------------
+  //! __init__() equivalent
+  //----------------------------------------------------------------------------
+  static int File_init( File *self, PyObject *args )
+  {
+    self->file    = new XrdCl::File();
+    self->currentOffset = 0;
+    return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Deallocation function, called when object is deleted
+  //----------------------------------------------------------------------------
+  static void File_dealloc( File *self )
+  {
+    delete self->file;
+    Py_TYPE(self)->tp_free( (PyObject*) self );
+  }
+
+  //----------------------------------------------------------------------------
+  //! __iter__
+  //----------------------------------------------------------------------------
+  static PyObject* File_iter( File *self )
+  {
+    if ( !self->file->IsOpen() ) return FileClosedError();
+
+    //--------------------------------------------------------------------------
+    // Return ourselves for iteration
+    //--------------------------------------------------------------------------
+    Py_INCREF( self );
+    return (PyObject*) self;
+  }
+
+  //----------------------------------------------------------------------------
+  //! __iternext__
+  //----------------------------------------------------------------------------
+  static PyObject* File_iternext( File *self )
+  {
+    if ( !self->file->IsOpen() ) return FileClosedError();
+
+    PyObject *line = PyObject_CallMethod( (PyObject*) self,
+                                          const_cast<char*>("readline"), NULL );
+    if( !line ) return NULL;
+    //--------------------------------------------------------------------------
+    // Raise StopIteration if the line we just read is empty
+    //--------------------------------------------------------------------------
+    if ( PyUnicode_GET_LENGTH( line ) == 0 ) {
+      PyErr_SetNone( PyExc_StopIteration );
+      return NULL;
+    }
+
+    return line;
+  }
+
+  //----------------------------------------------------------------------------
+  //! __enter__
+  //----------------------------------------------------------------------------
+  static PyObject* File_enter( File *self )
+  {
+    Py_INCREF( self );
+    return (PyObject*) self;
+  }
+
+  //----------------------------------------------------------------------------
+  //! __exit__
+  //----------------------------------------------------------------------------
+  static PyObject* File_exit( File *self )
+  {
+    PyObject *ret = PyObject_CallMethod( (PyObject*) self,
+                                         const_cast<char*>("close"), NULL );
+    if ( !ret ) return NULL;
+    Py_DECREF( ret );
+    Py_RETURN_NONE ;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Visible method definition
+  //----------------------------------------------------------------------------
+  static PyMethodDef FileMethods[] =
+  {
+    { "open",
+       (PyCFunction) PyXRootD::File::Open,                METH_VARARGS | METH_KEYWORDS, NULL },
+    { "close",
+       (PyCFunction) PyXRootD::File::Close,               METH_VARARGS | METH_KEYWORDS, NULL },
+    { "stat",
+       (PyCFunction) PyXRootD::File::Stat,                METH_VARARGS | METH_KEYWORDS, NULL },
+    { "read",
+       (PyCFunction) PyXRootD::File::Read,                METH_VARARGS | METH_KEYWORDS, NULL },
+    { "readline",
+       (PyCFunction) PyXRootD::File::ReadLine,            METH_VARARGS | METH_KEYWORDS, NULL },
+    { "readlines",
+       (PyCFunction) PyXRootD::File::ReadLines,           METH_VARARGS | METH_KEYWORDS, NULL },
+    { "readchunks",
+       (PyCFunction) PyXRootD::File::ReadChunks,          METH_VARARGS | METH_KEYWORDS, NULL },
+    { "write",
+       (PyCFunction) PyXRootD::File::Write,               METH_VARARGS | METH_KEYWORDS, NULL },
+    { "sync",
+       (PyCFunction) PyXRootD::File::Sync,                METH_VARARGS | METH_KEYWORDS, NULL },
+    { "truncate",
+       (PyCFunction) PyXRootD::File::Truncate,            METH_VARARGS | METH_KEYWORDS, NULL },
+    { "vector_read",
+       (PyCFunction) PyXRootD::File::VectorRead,          METH_VARARGS | METH_KEYWORDS, NULL },
+    { "fcntl",
+       (PyCFunction) PyXRootD::File::Fcntl,               METH_VARARGS | METH_KEYWORDS, NULL },
+    { "visa",
+       (PyCFunction) PyXRootD::File::Visa,                METH_VARARGS | METH_KEYWORDS, NULL },
+    { "is_open",
+       (PyCFunction) PyXRootD::File::IsOpen,              METH_VARARGS | METH_KEYWORDS, NULL },
+    { "get_property",
+       (PyCFunction) PyXRootD::File::GetProperty,         METH_VARARGS | METH_KEYWORDS, NULL },
+    { "set_property",
+       (PyCFunction) PyXRootD::File::SetProperty,         METH_VARARGS | METH_KEYWORDS, NULL },
+    { "set_xattr",
+       (PyCFunction) PyXRootD::File::SetXAttr,            METH_VARARGS | METH_KEYWORDS, NULL },
+    { "get_xattr",
+       (PyCFunction) PyXRootD::File::GetXAttr,            METH_VARARGS | METH_KEYWORDS, NULL },
+    { "del_xattr",
+       (PyCFunction) PyXRootD::File::DelXAttr,            METH_VARARGS | METH_KEYWORDS, NULL },
+    { "list_xattr",
+       (PyCFunction) PyXRootD::File::ListXAttr,           METH_VARARGS | METH_KEYWORDS, NULL },
+    { "openusingtemplate",
+       (PyCFunction) PyXRootD::File::OpenUsingTemplate,   METH_VARARGS | METH_KEYWORDS, NULL },
+    { "clone",
+       (PyCFunction) PyXRootD::File::Clone,               METH_VARARGS | METH_KEYWORDS, NULL },
+    {"__enter__",
+       (PyCFunction) File_enter,                          METH_NOARGS,   NULL},
+    {"__exit__",
+       (PyCFunction) File_exit,                           METH_VARARGS,  NULL},
+
+    { NULL } /* Sentinel */
+  };
+
+  //----------------------------------------------------------------------------
+  //! Visible member definition
+  //----------------------------------------------------------------------------
+  static PyMemberDef FileMembers[] =
+  {
+    { NULL } /* Sentinel */
+  };
+
+  //----------------------------------------------------------------------------
+  //! Docstring definition
+  //----------------------------------------------------------------------------
+  PyDoc_STRVAR(file_type_doc, "File object (internal)");
+
+  //----------------------------------------------------------------------------
+  //! File binding type object definition (with external linkage)
+  //----------------------------------------------------------------------------
+  PyTypeObject FileType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "pyxrootd.File",                            /* tp_name */
+    sizeof(File),                               /* tp_basicsize */
+    0,                                          /* tp_itemsize */
+    (destructor) File_dealloc,                  /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+    file_type_doc,                              /* tp_doc */
+    0,                                          /* tp_traverse */
+    0,                                          /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    (getiterfunc)  File_iter,                   /* tp_iter */
+    (iternextfunc) File_iternext,               /* tp_iternext */
+    FileMethods,                                /* tp_methods */
+    FileMembers,                                /* tp_members */
+    0,                                          /* tp_getset */
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    (initproc) File_init,                       /* tp_init */
+  };
+
   //----------------------------------------------------------------------------
   //! Open the file pointed to by the given URL
   //----------------------------------------------------------------------------
@@ -999,6 +1196,160 @@ namespace PyXRootD
             Py_BuildValue( "OO", pystatus, pyresponse );
     Py_DECREF( pystatus );
     Py_XDECREF( pyresponse );
+    return o;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Open the file pointed to by the given URL
+  //! Alows one to specify template file. Required if using DUP or SAMEFS
+  //! flags.
+  //----------------------------------------------------------------------------
+  PyObject* File::OpenUsingTemplate( File *self, PyObject *args, PyObject *kwds )
+  {
+    static const char      *kwlist[] = { "src_file", "url", "flags", "mode",
+                                         "timeout", "callback", NULL };
+    const  char            *url;
+    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
+    XrdCl::Access::Mode     mode     = XrdCl::Access::None;
+    time_t                  timeout  = 0;
+    PyObject               *callback = NULL, *pystatus = NULL;
+    XrdCl::XRootDStatus     status;
+    PyObject               *tfile   = NULL;
+
+    // note flags must be parsed as 32 bit (unsigned int), since the DUP is the
+    // first to use bits beyond the length of short. Open() was not expecting
+    // flags beyond short.
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O!s|IHHO:open",
+         (char**) kwlist, &FileType, &tfile, &url, &flags, &mode, &timeout, &callback ) )
+      return NULL;
+
+    if ( !tfile || tfile == Py_None ) {
+      PyErr_SetString( PyExc_TypeError, "openusingtemplate() expects an existing file as argument" );
+      return NULL;
+    }
+
+    File *fp = reinterpret_cast<File*>(tfile);
+
+    if ( callback && callback != Py_None ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->file->OpenUsingTemplate( *fp->file, url, flags, mode, handler, timeout ) );
+    }
+
+    else {
+      async( status = self->file->OpenUsingTemplate( *fp->file, url, flags, mode, timeout ) );
+    }
+
+    pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    PyObject *o = ( callback && callback != Py_None ) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
+    Py_DECREF( pystatus );
+    return o;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Clone
+  //----------------------------------------------------------------------------
+  PyObject* File::Clone( File *self, PyObject *args, PyObject *kwds )
+  {
+    static const char  *kwlist[] = { "locs", "timeout", "callback", NULL };
+
+    PyObject    *locs_list   = NULL;
+    time_t              timeout  = 0;
+    PyObject           *callback = NULL;
+
+    XrdCl::XRootDStatus status;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O!|HO:clone",
+         (char**) kwlist, &PyList_Type, &locs_list, &timeout, &callback ) ) return NULL;
+
+    if ( !locs_list || locs_list == Py_None ) {
+      PyErr_SetString( PyExc_TypeError, "clone() expects a list of locations" );
+      return NULL;
+    }
+
+    XrdCl::CloneLocations locs;
+    std::unique_ptr<PyObject,decltype(&Py_DecRef)> k1
+      {Py_BuildValue( "s", "src_file" ), &Py_DecRef};
+    std::unique_ptr<PyObject,decltype(&Py_DecRef)> k2
+      {Py_BuildValue( "s", "src_offset" ), &Py_DecRef};
+    std::unique_ptr<PyObject,decltype(&Py_DecRef)> k3
+      {Py_BuildValue( "s", "src_length" ), &Py_DecRef};
+    std::unique_ptr<PyObject,decltype(&Py_DecRef)> k4
+      {Py_BuildValue( "s", "dest_offset" ), &Py_DecRef};
+
+    for(Py_ssize_t i=0;i<PyList_Size(locs_list);i++) {
+      PyObject *loc_dict = PyList_GetItem(locs_list, i);
+      if (!loc_dict || loc_dict == Py_None || !PyDict_Check(loc_dict)) {
+        PyErr_Format( PyExc_TypeError,
+                      "clone() list of locations at index %l is not a dictionary",
+                      (long)i );
+        return NULL;
+      }
+      PyObject *tfile = PyDict_GetItem(loc_dict, k1.get());
+      if (!tfile || tfile == Py_None || !PyObject_TypeCheck(tfile, &FileType)) {
+        PyErr_Format( PyExc_TypeError,
+                      "clone() list of locations at index %l dictionary 'src_file' key is missing or is wrong type",
+                      (long)i );
+        return NULL;
+      }
+      PyObject *srcoffs = PyDict_GetItem(loc_dict, k2.get());
+      if (!srcoffs || srcoffs == Py_None) {
+        PyErr_Format( PyExc_TypeError,
+                      "clone() list of locations at index %l dictionary 'src_offset' key missing",
+                      (long)i );
+        return NULL;
+      }
+      PyObject *srclen = PyDict_GetItem(loc_dict, k3.get());
+      if (!srclen || srclen == Py_None) {
+        PyErr_Format( PyExc_TypeError,
+                      "clone() list of locations at index %l dictionary 'src_length' key missing",
+                      (long)i );
+        return NULL;
+      }
+      PyObject *dstoffs = PyDict_GetItem(loc_dict, k4.get());
+      if (!dstoffs || dstoffs == Py_None) {
+        PyErr_Format( PyExc_TypeError,
+                      "clone() list of locations at index %l dictionary 'dest_offset' key missing",
+                      (long)i );
+        return NULL;
+      }
+      File *fp = reinterpret_cast<File*>(tfile);
+      unsigned long long tmp_l1 = 0;
+      unsigned long long tmp_l2 = 0;
+      unsigned long long tmp_l3 = 0;
+      if ( PyObjToUllong(dstoffs, &tmp_l1, "dest_offset") ) {
+        // error message already set
+        return NULL;
+      }
+      if ( PyObjToUllong(srcoffs, &tmp_l2, "src_offset") ) {
+        // error message already set
+        return NULL;
+      }
+      if ( PyObjToUllong(srclen, &tmp_l3, "src_length") ) {
+        // error message already set
+        return NULL;
+      }
+      locs.Add(*fp->file, (off_t)tmp_l1, (off_t)tmp_l2, (off_t)tmp_l3);
+    }
+
+    if ( callback && callback != Py_None ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::ChunkInfo>( callback );
+      if ( !handler ) {
+        return NULL;
+      }
+      async( status = self->file->Clone( locs, handler, timeout ) );
+    }
+    else {
+      async( status = self->file->Clone( locs, timeout ) );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    PyObject *o = ( callback && callback != Py_None ) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "ON", pystatus, Py_BuildValue( "" ) );
+    Py_DECREF( pystatus );
     return o;
   }
 }
