@@ -297,7 +297,7 @@ void *XrdOucEnv::GetPtr(const char *varname)
 
 void XrdOucEnv::PutPtr(const char *varname, void *value)
 {
-   static char hv[] = "0123456789abcdef";
+   static const char hv[] = "0123456789abcdef";
    char Buff[sizeof(void *)*2+1], *Value = (char *)&value;
    int i, j = 0;
 

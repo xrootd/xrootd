@@ -468,7 +468,7 @@ int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID,
 
 void XrdXrootdResponse::Set(unsigned char *stream)
 {
-   static char hv[] = "0123456789abcdef";
+   static const char hv[] = "0123456789abcdef";
    char *outbuff;
    int i;
 

@@ -382,7 +382,7 @@ if (XTab)
   
 int XrdXrootdFile::bin2hex(char *outbuff, char *inbuff, int inlen)
 {
-    static char hv[] = "0123456789abcdef";
+    static const char hv[] = "0123456789abcdef";
     int i, j = 0;
 
 // Skip leading zeroes

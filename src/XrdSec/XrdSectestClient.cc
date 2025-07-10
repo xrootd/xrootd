@@ -172,7 +172,7 @@ void help(int);
 }
 
 char *tohex(char *inbuff, int inlen, char *outbuff) {
-     static char hv[] = "0123456789abcdef";
+     static const char hv[] = "0123456789abcdef";
      int i, j = 0;
      for (i = 0; i < inlen; i++) {
          outbuff[j++] = hv[(inbuff[i] >> 4) & 0x0f];

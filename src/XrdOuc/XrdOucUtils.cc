@@ -164,7 +164,7 @@ for (j = 0; j < argC; j++)
 char *XrdOucUtils::bin2hex(char *inbuff, int dlen, char *buff, int blen,
                            bool sep)
 {
-    static char hv[] = "0123456789abcdef";
+    static const char hv[] = "0123456789abcdef";
     char *outbuff = buff;
     for (int i = 0; i < dlen && blen > 2; i++) {
         *outbuff++ = hv[(inbuff[i] >> 4) & 0x0f];

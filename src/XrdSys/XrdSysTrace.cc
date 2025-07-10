@@ -165,7 +165,7 @@ XrdSysTrace& XrdSysTrace::operator<<(bool val)
   
 XrdSysTrace& XrdSysTrace::operator<<(char val)
 {
-   static char hv[] = "0123456789abcdef";
+   static const char hv[] = "0123456789abcdef";
 
 // If we have enough space then format the value
 //

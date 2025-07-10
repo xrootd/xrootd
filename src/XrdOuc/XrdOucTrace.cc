@@ -35,7 +35,7 @@
   
 char *XrdOucTrace::bin2hex(char *inbuff, int dlen, char *buff)
 {
-    static char hv[] = "0123456789abcdef";
+    static const char hv[] = "0123456789abcdef";
     static char xbuff[56];
     char *outbuff = (buff ? buff : xbuff);
     int i;

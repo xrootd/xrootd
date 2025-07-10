@@ -116,7 +116,7 @@ bool               isActive;
 char *XrdSsiUtils::b2x(const char *ibuff, int ilen, char *obuff, int olen,
                              char xbuff[4])
 {
-    static char hv[] = "0123456789abcdef";
+    static const char hv[] = "0123456789abcdef";
     char *oP = obuff;
 
     // Gaurd against too short of an output buffer (minimum if 3 bytes)
