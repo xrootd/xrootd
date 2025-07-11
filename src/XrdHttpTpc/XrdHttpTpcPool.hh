@@ -95,9 +95,11 @@ class TPCRequestManager final {
 
 		~TPCQueue() {
 			m_alive = false;
+			int num_workers = m_workers.size();
     		fprintf(stderr,
-        		"[DESTRUCTOR][tid: %lu] rahul TPCQueue is being destroyed. m_ops.size() = %zu, label = %s\n",
+        		"[DESTRUCTOR][tid: %lu] rahul TPCQueue is being destroyed. int_num_workers = %d m_ops.size() = %zu, label = %s\n",
         		std::hash<std::thread::id>{}(std::this_thread::get_id()),
+				num_workers,
         		m_ops.size(),
         		m_label.c_str());
 		}

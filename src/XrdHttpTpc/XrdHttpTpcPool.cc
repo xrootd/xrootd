@@ -19,6 +19,7 @@ TPCRequestManager::m_init_once;
 decltype(TPCRequestManager::m_mutex) TPCRequestManager::m_mutex;
 decltype(TPCRequestManager::m_idle_timeout)
 TPCRequestManager::m_idle_timeout = std::chrono::minutes(1);
+// TPCRequestManager::m_idle_timeout = std::chrono::seconds(5);
 unsigned TPCRequestManager::m_max_pending_ops = 20;
 unsigned TPCRequestManager::m_max_workers = 20;
 
@@ -250,7 +251,7 @@ void TPCRequestManager::TPCQueue::Done(TPCWorker *worker) {
     m_workers.erase(it, m_workers.end());
 
     if (m_workers.empty()) {
-        lock.unlock();
+        // lock.unlock();
         m_parent.Done(m_label);
     }
 }
