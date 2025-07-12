@@ -56,7 +56,8 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
                            {"root://",   7, isXroot},
                            {"roots://",  8, isXroots},
                            {"http://",   7, isHttp},
-                           {"pelican://",  10, isPelican},
+                           {"pelican://", 10,  isPelican},
+                           {"s3://",     5, isS3},
                            {"https://",  8, isHttps}
                           };
    static int pTnum = sizeof(pTab)/sizeof(struct proto);
