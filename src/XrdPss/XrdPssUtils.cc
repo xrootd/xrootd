@@ -43,7 +43,7 @@ namespace
                {{ "https://", 8},  { "http://", 7},
                 { "roots://", 8},  { "root://", 7},
                 {"xroots://", 9},  {"xroot://", 8},
-                {"pelican://", 10}
+                {"pelican://", 10}, {"s3://", 5}
                };
    int pTNum = sizeof(pTab)/sizeof(pEnt);
    int xrBeg = 2;
