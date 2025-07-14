@@ -30,18 +30,56 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <map>
+#include <cstring>
+#include <vector>
+
 #include "Xrd/XrdMonRoll.hh"
 
 class XrdMonitor
 {
 public:
 
-bool Register(XrdMonRoll::rollType  setType, const char* setName,
-              XrdMonRoll::setMember setVec[])
-              {return true;}
+// Format Options:
+//
+enum Mopts {F_JSON = 0x10000000, X_PLUG = 0x00000001, X_ADON = 0x00000002};
 
+int      Format(char* buff, int bsize, int& item, int opts=0);
 
-     XrdMonitor() {}
-    ~XrdMonitor() {}
+int      Format(char* buff, int bsize, const char* setName, int opts=0);
+
+bool     Register(XrdMonRoll::rollType  setType, const char* setName,
+                  XrdMonRoll::setMember setVec[]);
+
+bool     Registered() {return !regVec.empty();}
+
+         XrdMonitor() {}
+        ~XrdMonitor() {}
+
+private:
+enum sType {isAdon=0x00000001, isPlug=0x00000002};
+
+struct RegInfo
+      {char* setName;
+       int   setType;
+       struct {char* hdr;
+               std::vector<char*> key;
+              } Json;
+       struct {char* hdr;
+               std::vector<char*> keyBeg;
+               std::vector<char*> keyEnd;
+              } Xml;
+       RAtomic_uint**     keyVal;
+
+       RegInfo(const char* sName, int sType)
+              : setName(strdup(sName)), setType(sType) {}
+      ~RegInfo() {}  // Never gets deleted
+      };
+
+RegInfo* FindSet(const char* setName, int sType);
+int      FormJSON(RegInfo& regInfo, char* buff, int bsize);
+int      FormXML( RegInfo& regInfo, char* buff, int bsize);
+
+std::vector<RegInfo*> regVec;
 };
 #endif

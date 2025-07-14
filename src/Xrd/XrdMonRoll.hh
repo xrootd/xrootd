@@ -79,7 +79,10 @@ struct setMember {const char* varName; RAtomic_uint& varValu;};
 
 static RAtomic_uint EOV; // Variable at the end of the setVec.
 
-enum rollType {Misc, Protocol};
+// Misc mapped to AddOn and Protocol is mapped to Plugin since Misc and
+// Protocol are now deprecated. Use AddOn or Plugin!
+//
+enum rollType {Misc, Protocol, AddOn, Plugin};
 
 bool Register(rollType setType, const char* setName, setMember setVec[]);
 

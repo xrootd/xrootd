@@ -298,9 +298,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    xrootdEnv.PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
    xrootdEnv.PutPtr("XrdScheduler*", Sched);
 
-// Copy over the xrd environment which contains plugin argv's
+// Copy over the xrd environment which contains plugin argv's and re-export
+// the monitoring registration object into out own env for simplicity
 //
-   if (pi->theEnv) xrootdEnv.PutPtr("xrdEnv*", pi->theEnv);
+   if (pi->theEnv)
+      {xrootdEnv.PutPtr("xrdEnv*", pi->theEnv);
+       void* theMon = pi->theEnv->GetPtr("XrdMonRoll*");
+       if (theMon) xrootdEnv.PutPtr("XrdMonRoll*", theMon);
+      }
 
 // Initialize monitoring (it won't do anything if it wasn't enabled). This
 // needs to be done before we load any plugins as plugins may need monitoring.

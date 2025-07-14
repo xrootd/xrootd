@@ -59,7 +59,6 @@
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdLinkCtl.hh"
-#include "Xrd/XrdMonitor.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
@@ -269,14 +268,12 @@ XrdConfig::XrdConfig()
    AdminMode= S_IRWXU;
    HomeMode = S_IRWXU;
    Police   = 0;
-   theMon   = 0;
    Net_Opts = XRDNET_KEEPALIVE;
    TLS_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
    TLS_Opts = XRDNET_KEEPALIVE | XRDNET_USETLS;
    repDest[0] = 0;
    repDest[1] = 0;
    repInt     = 600;
-   repOpts    = 0;
    ppNet      = 0;
    tlsOpts    = 9ULL | XrdTlsContext::servr | XrdTlsContext::logVF;
    tlsNoVer   = false;
@@ -1350,6 +1347,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
    ProtInfo.Stats = new XrdStats(&Log, &Sched, &BuffPool,
                                  ProtInfo.myName, Firstcp->port,
                                  ProtInfo.myInst, ProtInfo.myProg, mySitName);
+   ProtInfo.Stats->Export(theEnv);
 
 // If the base protocol is xroot, then save the base port number so we can
 // extend the port to the http protocol should it have been loaded. That way
@@ -1404,12 +1402,8 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 
 // Now check if we have to setup automatic reporting
 //
-   if (repDest[0] != 0 && repOpts) 
-      {ProtInfo.Stats->Report(repDest, repInt, repOpts);
-       theMon = new XrdMonitor;
-       XrdMonRoll* monRoll = new XrdMonRoll(*theMon);
-       theEnv.PutPtr("XrdMonRoll*", monRoll);
-      }
+   if (repDest[0] != 0 && (repOpts[0] || repOpts[1])) 
+      ProtInfo.Stats->Init(repDest, repInt, repOpts[0], repOpts[1]);
 
 // All done
 //
@@ -2112,24 +2106,27 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
 
 int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
 {
-   static struct repopts {const char *opname; int opval;} rpopts[] =
+   static struct repopts {const char *opname; int opval; bool jOK;} rpopts[] =
        {
-        {"all",      XRD_STATS_ALL},
-        {"buff",     XRD_STATS_BUFF},
-        {"info",     XRD_STATS_INFO},
-        {"link",     XRD_STATS_LINK},
-        {"poll",     XRD_STATS_POLL},
-        {"process",  XRD_STATS_PROC},
-        {"protocols",XRD_STATS_PROT},
-        {"prot",     XRD_STATS_PROT},
-        {"sched",    XRD_STATS_SCHD},
-        {"sgen",     XRD_STATS_SGEN},
-        {"sync",     XRD_STATS_SYNC},
-        {"syncwp",   XRD_STATS_SYNCA}
+        {"addons",   XRD_STATS_ADON, true},
+        {"all",      XRD_STATS_ALLX, true},
+        {"buff",     XRD_STATS_BUFF, false},
+        {"info",     XRD_STATS_INFO, false},
+        {"link",     XRD_STATS_LINK, false},
+        {"plugins",  XRD_STATS_PLUG, true},
+        {"poll",     XRD_STATS_POLL, false},
+        {"process",  XRD_STATS_PROC, false},
+        {"protocols",XRD_STATS_PROT, false},
+        {"prot",     XRD_STATS_PROT, false},
+        {"sched",    XRD_STATS_SCHD, false},
+        {"sgen",     XRD_STATS_SGEN, false},
+        {"sync",     XRD_STATS_SYNC, true},
+        {"syncwp",   XRD_STATS_SYNCA,true}
        };
    int i, neg, numopts = sizeof(rpopts)/sizeof(struct repopts);
    char  *val, *cp;
-
+   int  isJSON = 0;
+  
    if (!(val = Config.GetWord()))
       {eDest->Emsg("Config", "report parameters not specified"); return 1;}
 
@@ -2137,7 +2134,7 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
 //
    if (repDest[0]) {free(repDest[0]); repDest[0] = 0;}
    if (repDest[1]) {free(repDest[1]); repDest[1] = 0;}
-   repOpts = 0;
+   repOpts[0] = 0; repOpts[1] = 0;
    repInt  = 600;
 
 // Decode the destination
@@ -2167,7 +2164,7 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
 // Get optional "every"
 //
    if (!(val = Config.GetWord()))
-      {repOpts = static_cast<char>(XRD_STATS_ALL);
+      {repOpts[0] = XRD_STATS_ALLX; // Default is XML
        return 0;
       }
 
@@ -2181,25 +2178,52 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
 // Get reporting options
 //
    while(val)
-        {if (!strcmp(val, "off")) repOpts = 0;
-            else {if ((neg = (val[0] == '-' && val[1]))) val++;
-                  for (i = 0; i < numopts; i++)
-                      {if (!strcmp(val, rpopts[i].opname))
-                          {if (neg) repOpts &= ~rpopts[i].opval;
-                              else  repOpts |=  rpopts[i].opval;
-                           break;
+        {if (!strcmp(val, "json"))
+            {isJSON = 1;
+             val = Config.GetWord(); continue;
+            }
+         if (!strcmp(val, "off"))
+            {repOpts[isJSON] = 0;
+             val = Config.GetWord(); continue;
+            }
+         if ((neg = (val[0] == '-' && val[1]))) val++;
+         for (i = 0; i < numopts; i++)
+             {if (!strcmp(val, rpopts[i].opname))
+                 {if (neg) repOpts[isJSON] &= ~rpopts[i].opval;
+                     else {if (isJSON && !rpopts[i].jOK)
+                              {eDest->Emsg("Config",val,"does not support JSON");
+                               return 1;
+                              }
+                           repOpts[isJSON] |=  rpopts[i].opval;
                           }
-                      }
-                  if (i >= numopts)
-                     eDest->Say("Config warning: ignoring invalid report option '",val,"'.");
-                 }
+                   break;
+                  }
+             }
+         if (i >= numopts)
+            eDest->Say("Config warning: ignoring invalid report option '",val,"'.");
          val = Config.GetWord();
         }
 
+// Apply the sync option to all formats
+//
+   if ((repOpts[0] | repOpts[1]) & XRD_STATS_SYNC)
+      {repOpts[0] |= XRD_STATS_SYNC; repOpts[0] &= ~XRD_STATS_SYNCA;
+       repOpts[1] |= XRD_STATS_SYNC; repOpts[1] &= ~XRD_STATS_SYNCA;
+      } else {
+       if ((repOpts[0] | repOpts[1]) & XRD_STATS_SYNCA)
+          {repOpts[0] |= XRD_STATS_SYNCA;
+           repOpts[1] |= XRD_STATS_SYNCA;
+          }
+      }
+
+// If at the end nothing was selected, then provide the default
+//
+   if (!((repOpts[0] | repOpts[1])  & XRD_STATS_ALLX))
+      repOpts[0] |= (XRD_STATS_ALLX & ~XRD_STATS_INFO);
+   repOpts[1] &= XRD_STATS_ALLJ | XRD_STATS_SYNC | XRD_STATS_SYNCA;
+
 // All done
 //
-   if (!(repOpts & XRD_STATS_ALL))
-      repOpts = char(XRD_STATS_ALL & ~XRD_STATS_INFO);
    return 0;
 }
 
