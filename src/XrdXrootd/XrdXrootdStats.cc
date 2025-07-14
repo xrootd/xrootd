@@ -136,6 +136,8 @@ int XrdXrootdStats::Stats(XrdXrootdResponse &resp, const char *opts)
     class statsInfo : public XrdStats::CallBack
          {public:  void Info(const char *buff, int bsz)
                             {rc = respP->Send((void *)buff, bsz+1);}
+                   void Info(struct iovec* ioVec, int iovn)
+                            {rc = respP->Send(ioVec, iovn);}
                         statsInfo(XrdXrootdResponse *rP) : respP(rP), rc(0) {}
                        ~statsInfo() {}
           XrdXrootdResponse *respP;
@@ -146,14 +148,17 @@ int XrdXrootdStats::Stats(XrdXrootdResponse &resp, const char *opts)
 
     while(*opts)
          {switch(*opts)
-                {case 'a': xopts |= XRD_STATS_ALL;  break;
+                {case 'a': xopts |= XRD_STATS_ALLX; break;
                  case 'b': xopts |= XRD_STATS_BUFF; break;    // b_uff
-                 case 'i': xopts |= XRD_STATS_INFO; break;    // i_nfo
-                 case 'l': xopts |= XRD_STATS_LINK; break;    // l_ink
                  case 'd': xopts |= XRD_STATS_POLL; break;    // d_evice
-                 case 'u': xopts |= XRD_STATS_PROC; break;    // u_sage
+                 case 'i': xopts |= XRD_STATS_INFO; break;    // i_nfo
+// Not yet       case 'J': xopts |= XRD_STATS_JSON; break;    // Want JSON
+                 case 'l': xopts |= XRD_STATS_LINK; break;    // l_ink
+                 case 'n': xopts |= XRD_STATS_ADON; break;    // addo_n
                  case 'p': xopts |= XRD_STATS_PROT; break;    // p_rotocol
+                 case 'P': xopts |= XRD_STATS_PLUG; break;    // P_lugins
                  case 's': xopts |= XRD_STATS_SCHD; break;    // s_scheduler
+                 case 'u': xopts |= XRD_STATS_PROC; break;    // u_sage
                  default:  break;
                 }
           opts++;
@@ -161,6 +166,6 @@ int XrdXrootdStats::Stats(XrdXrootdResponse &resp, const char *opts)
 
     if (!xopts) return resp.Send();
 
-    xstats->Stats(&statsResp, xopts);
+    xstats->Stats(&statsResp, xopts, 0);
     return statsResp.rc;
 }

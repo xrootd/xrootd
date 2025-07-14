@@ -30,13 +30,17 @@
 /******************************************************************************/
 
 #include <cstdlib>
+#include <vector>
 
 #include "XrdSys/XrdSysPthread.hh"
 
-#define XRD_STATS_ALL    0x000000FF
+#define XRD_STATS_ADON   0x00000200
+#define XRD_STATS_ALLJ   0x00000300
+#define XRD_STATS_ALLX   0x000003FF
 #define XRD_STATS_INFO   0x00000001
 #define XRD_STATS_BUFF   0x00000002
 #define XRD_STATS_LINK   0x00000004
+#define XRD_STATS_PLUG   0x00000100
 #define XRD_STATS_POLL   0x00000008
 #define XRD_STATS_PROC   0x00000010
 #define XRD_STATS_PROT   0x00000020
@@ -45,23 +49,41 @@
 #define XRD_STATS_SYNC   0x40000000
 #define XRD_STATS_SYNCA  0x20000000
 
+#define XRD_STATS_JSON   0x10000000
+
+class XrdOucEnv;
+class XrdNetMsg;
+class XrdMonitor;
 class XrdScheduler;
 class XrdBuffManager;
+
+struct iovec;
 
 class XrdStats
 {
 public:
 
-void  Report(char **Dest=0, int iVal=600, int Opts=0);
+void  Export(XrdOucEnv& env);
+
+void  Init(char **Dest, int iVal=600, int xOpts=0, int jOpts=0);
+
+void  Report();
 
 class CallBack
-     {public: virtual void Info(const char *data, int dlen) = 0;
+     {public: virtual void Info(const  char*  data,  int dlen) = 0;
+              virtual void Info(struct iovec* ioVec, int iovn) = 0;
                            CallBack() {}
               virtual     ~CallBack() {}
      };
 
+// The following method is virtual only because we need to defer ld's
+// symbol resolution to avoid reporting a missing symbol in libServer.so.
+// This class is linked into the executable 'xrootd" so that XrdConfig
+// class can resolve the symbol that will be passed on to plugins.
+// This is a packaging issue that needs to get resolved at some point.
+//
 virtual
-void  Stats(CallBack *InfoBack, int opts);
+void  Stats(XrdStats::CallBack *InfoBack, int xOpts, int jOpts=0);
 
       XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                const char *hn, int port, const char *in, const char *pn,
@@ -72,20 +94,32 @@ virtual ~XrdStats() {if (buff) free(buff);}
 private:
 
 const char *GenStats(int &rsz, int opts);
-int        InfoStats(char *buff, int blen, int dosync=0);
-int        ProcStats(char *buff, int blen, int dosync=0);
+void        GenStats(std::vector<struct iovec>& ioVec, int opts);
+int         InfoStats(char *buff, int blen, int dosync=0);
+int         ProcStats(char *buff, int blen, int dosync=0);
 
 static long     tBoot;       // Time at boot time
 
+XrdNetMsg      *netDest[2] = {0,0};
 XrdScheduler   *XrdSched;
 XrdSysError    *XrdLog;
 XrdBuffManager *BuffPool;
+XrdMonitor     *theMon;
 XrdSysMutex     statsMutex;
 
-char       *buff;        // Used by all callers
 int         blen;
-int         Hlen;
+char       *buff;        // Used by all callers
 char       *Head;
+const char *Hend;
+char       *Jead;
+int         Htln;
+int         Jtln;
+const char *Jend;
+
+int         jsonOpts;
+int         xmlOpts;
+bool        autoSync = false;
+
 const char *myHost;
 const char *myName;
 int         myPort;

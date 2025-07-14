@@ -31,15 +31,18 @@
 #include <cstdlib>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/uio.h>
   
 #include "XrdVersion.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdMonitor.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdNet/XrdNetMsg.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -81,59 +84,98 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                    const char *hname, int port,
                    const char *iname, const char *pname, const char *site)
 {
-   static const char *head =
+   const char *head =
           "<statistics tod=\"%%ld\" ver=\"" XrdVERSION "\" src=\"%s:%d\" "
                       "tos=\"%ld\" pgm=\"%s\" ins=\"%s\" pid=\"%d\" "
                       "site=\"%s\">";
+               Hend = "</statistics>";
+               Htln = strlen(Hend);
+   
+   const char *jead =
+          "{\"statistics\":{\"tod\":%%ld,\"ver\":\"" XrdVERSION "\",\"src\":\"%s:%d\","
+                      "\"tos\":%ld,\"pgm\":\"%s\",\"ins\":\"%s\",\"pid\":%d,"
+                      "\"site\":\"%s\",";
+               Jend = "}}";
+               Jtln = 2;
+
    char myBuff[1024];
 
    XrdLog   = eP;
    XrdSched = sP;
    BuffPool = bP;
 
-   Hlen = sprintf(myBuff, head, hname, port, tBoot, pname, iname,
-                          static_cast<int>(getpid()), (site ? site : ""));
+   sprintf(myBuff, head, hname, port, tBoot, pname, iname,
+                   static_cast<int>(getpid()), (site ? site : ""));
    Head = strdup(myBuff);
-   buff = 0;
-   blen = 0;
+
+   sprintf(myBuff, jead, hname, port, tBoot, pname, iname,
+                   static_cast<int>(getpid()), (site ? site : ""));
+   Jead = strdup(myBuff);
+
+// Allocate a shared buffer. Buffer use is serialized via the statsMutex.
+//
+   blen = 64*1024; // 64K which is the largest allowed UDP packet
+   if (posix_memalign((void **)&buff, getpagesize(), blen)) buff = 0;
+
    myHost = hname;
    myName = iname;
    myPort = port;
+
+   theMon = new XrdMonitor;
 }
  
+/******************************************************************************/
+/*                                E x p o r t                                 */
+/******************************************************************************/
+
+void XrdStats::Export(XrdOucEnv& theEnv)
+{
+   XrdMonRoll* monRoll = new XrdMonRoll(*theMon);
+   theEnv.PutPtr("XrdMonRoll*", monRoll);
+}
+  
+/******************************************************************************/
+/*                                  I n i t                                   */
+/******************************************************************************/
+  
+void XrdStats::Init(char **Dest, int iVal, int xOpts, int jOpts)
+{
+
+// Establish up to two destinations
+//
+   if (Dest[0]) netDest[0] = new XrdNetMsg(XrdLog, Dest[0]);
+   if (Dest[1]) netDest[1] = new XrdNetMsg(XrdLog, Dest[1]);
+
+// Establish auto reporting options
+//
+   if (!(jOpts & XRD_STATS_ALLJ) && !(xOpts & XRD_STATS_ALLX))
+      xOpts |= XRD_STATS_ALLX; // ALLX includes ALLJ
+   jsonOpts = (jOpts & XRD_STATS_ALLJ) | XRD_STATS_JSON; xmlOpts = xOpts;
+   autoSync = xOpts & XRD_STATS_SYNCA;
+
+// Get and schedule a new job to report
+//
+   if (netDest[0]) new XrdStatsJob(XrdSched, this, iVal);
+   return;
+}
+  
 /******************************************************************************/
 /*                                R e p o r t                                 */
 /******************************************************************************/
   
-void XrdStats::Report(char **Dest, int iVal, int Opts)
+void XrdStats::Report()
 {
-   static XrdNetMsg *netDest[2] = {0,0};
-   static int autoSync, repOpts = Opts;
+   char udpBuff[64*1024];
    const char *Data;
           int theOpts, Dlen;
 
-// If we have dest then this is for initialization
+// This is an entry for reporting purposes, establish the sync flag
 //
-   if (Dest)
-   // Establish up to two destinations
-   //
-      {if (Dest[0]) netDest[0] = new XrdNetMsg(XrdLog, Dest[0], 0, true);
-       if (Dest[1]) netDest[1] = new XrdNetMsg(XrdLog, Dest[1], 0, true);
-       if (!(repOpts & XRD_STATS_ALL)) repOpts |= XRD_STATS_ALL;
-       autoSync = repOpts & XRD_STATS_SYNCA;
+   if (!autoSync || XrdSched->Active() <= 30) theOpts = xmlOpts;
+      else theOpts = xmlOpts & ~XRD_STATS_SYNC;
 
-   // Get and schedule a new job to report
-   //
-      if (netDest[0]) new XrdStatsJob(XrdSched, this, iVal);
-       return;
-      }
-
-// This is a re-entry for reporting purposes, establish the sync flag
-//
-   if (!autoSync || XrdSched->Active() <= 30) theOpts = repOpts;
-      else theOpts = repOpts & ~XRD_STATS_SYNC;
-
-// Now get the statistics
+// Now get the statistics in xml format. Note that there is only one buufer
+// so we lock this code path to protect it.
 //
    statsMutex.Lock();
    if ((Data = GenStats(Dlen, theOpts)))
@@ -141,22 +183,57 @@ void XrdStats::Report(char **Dest, int iVal, int Opts)
        if (netDest[1]) netDest[1]->Send(Data, Dlen);
       }
    statsMutex.UnLock();
+
+// Check if we have additional data registered via addons and plugins that
+// we need in JSON format. These are sent as separate udp packets.
+// 
+   theOpts = XrdMonitor::F_JSON;
+   if (jsonOpts & XRD_STATS_ADON) theOpts |= XrdMonitor::X_ADON;
+   if (jsonOpts & XRD_STATS_PLUG) theOpts |= XrdMonitor::X_PLUG;
+   if (!(theOpts & ~XrdMonitor::F_JSON) || !theMon->Registered()) return;
+
+// Format the header and setup for sending packets
+//
+   int   hL = sprintf(udpBuff, Jead, time(0));
+   int   bL = sizeof(udpBuff) - hL - Jtln - 8; 
+   char* bP = udpBuff + hL;
+
+// Get each item and send it off
+//
+   struct iovec ioV[3];
+   ioV[0].iov_base = udpBuff;
+   ioV[0].iov_len  = hL;
+   ioV[1].iov_base = bP;
+   ioV[2].iov_base = (void*)Jend;
+   ioV[2].iov_len  = Jtln;
+   int uL, sItem = 0;
+   while((uL = theMon->Format(bP, bL, sItem, theOpts)))
+        {ioV[1].iov_len = uL;
+         netDest[0]->Send(ioV, 3);
+         if (netDest[1]) netDest[1]->Send(ioV, 3);
+        }
 }
 
 /******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
 
-void XrdStats::Stats(XrdStats::CallBack *cbP, int opts)
+void XrdStats::Stats(XrdStats::CallBack *cbP, int xOpts, int jOpts)
 {
    const char *info;
-   int sz;
+   int sz, opts;
+
+// Note that currently we do not support json for client requests, so we 
+// ignore the jOpts as they should never be set.
+//
+   opts = xOpts;
 
 // Lock the buffer,
 //
    statsMutex.Lock();
 
-// Obtain the stats, if we have some, do the callback
+// Obtain the stats, if we have some, do the callback. We currently do not
+// support return of JSON format as some statistics can't provide it.
 //
    if ((info = GenStats(sz, opts))) cbP->Info(info, sz);
 
@@ -186,17 +263,10 @@ const char *XrdStats::GenStats(int &rsz, int opts) // statsMutex must be locked!
    char *bp;
    int   n, bl, sz, do_sync = (opts & XRD_STATS_SYNC ? 1 : 0);
 
-// If buffer is not allocated, do it now. We must defer buffer allocation
-// until all components that can provide statistics have been loaded
+// If buffer is not allocated we cannot generate a report (not likely)
 //
-   if (!(bp = buff))
-      {blen = InfoStats(0,0) + BuffPool->Stats(0,0) + XrdLink::Stats(0,0)
-            + ProcStats(0,0) + XrdSched->Stats(0,0) + XrdPoll::Stats(0,0)
-            + XrdProtLoad::Statistics(0,0) + ovrhed + Hlen;
-       if (posix_memalign((void **)&buff, getpagesize(), blen+256)) buff = 0;
-       if (!(bp = buff)) {rsz = snulsz; return snul;}
-      }
-   bl = blen;
+   if (!(bp = buff)) {rsz = snulsz; return snul;}
+   bl = blen - ovrhed;
 
 // Start the time if need be
 //
@@ -251,11 +321,71 @@ const char *XrdStats::GenStats(int &rsz, int opts) // statsMutex must be locked!
        bp += sz; bl -= sz;
       }
 
+// Set the type of object we are interested in
+//
+   int fOpts = 0;
+   if (opts & XRD_STATS_ADON) fOpts |= XrdMonitor::X_ADON;
+   if (opts & XRD_STATS_PLUG) fOpts |= XrdMonitor::X_PLUG;
+   if (fOpts)
+      {int uL, sItem = 0;
+       while(bl > 0 && (uL = theMon->Format(bp, bl, sItem, fOpts)))
+            {bp += uL; bl -= uL;}
+      }
+
    sz = bp - buff;
    if (bl > 0) n = strlcpy(bp, tail, bl);
       else n = 0;
    rsz = sz + (n >= bl ? bl : n);
    return buff;
+}
+
+/******************************************************************************/
+
+
+void XrdStats::GenStats(std::vector<struct iovec>& ioVec, int opts)
+{
+   const char* sTail;
+   char *sbP, sBuff[64*1024];  // Maximum size of UDP packet
+   std::vector<struct iovec> ioV;
+   int sTLen, sbFree, sdSZ, fOpts, sItem = 0;
+
+// Insert the header in the buffer
+//
+   if (opts & XRD_STATS_JSON)
+      {int Jlen = sprintf(sBuff, Jead, time(0));
+       sdSZ = sbFree = sizeof(sBuff) - Jlen - 64;  // Generous extra for tail 
+       sbP = sBuff + Jlen;
+       sTail = Jend;
+       sTLen = Jtln;
+       fOpts = XrdMonitor::F_JSON;
+      } else {
+       int Hlen = sprintf(sBuff, Head, time(0));
+       sdSZ = sbFree = sizeof(sBuff) - Hlen - 64;  // Generous extra for tail 
+       sbP = sBuff + Hlen;
+       sTail = Hend;
+       sTLen = Htln;
+       fOpts = 0;
+      }
+
+// Set the type of object we are interested in
+//
+   if (opts & XRD_STATS_ADON) fOpts |= XrdMonitor::X_ADON;
+   if (opts & XRD_STATS_PLUG) fOpts |= XrdMonitor::X_PLUG;
+
+// Generate all plugin statistics, one at a time
+//
+   while((sdSZ = theMon->Format(sbP, sbFree, sItem, fOpts)))
+        {if (sdSZ > 0 && sdSZ <= sbFree)
+            {char* bP = sbP + sdSZ;
+             struct iovec ioV;
+             strcpy(bP, sTail);
+             strcpy(bP+sTLen, "\n");
+             bP++;
+             ioV.iov_base = strdup(sBuff);
+             ioV.iov_len  = bP - sBuff + sTLen;
+             ioVec.push_back(ioV);
+            }
+        }
 }
 
 /******************************************************************************/

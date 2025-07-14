@@ -97,7 +97,6 @@ int   xtmo(XrdSysError *edest, XrdOucStream &Config);
 static const char  *TraceID;
 XrdNetSecurity     *Police;
 XrdTcpMonInfo      *tmoInfo;
-XrdMonitor         *theMon;
 const char         *myProg;
 const char         *myName;
 const char         *myDomain;
@@ -132,13 +131,14 @@ uint64_t            tlsOpts;
 bool                tlsNoVer;
 bool                tlsNoCAD;
 
-char                repOpts;
+bool                isStrict;
+
 char                ppNet;
 signed char         coreV;
 char                Specs;
 static const int    hpSpec = 0x01;
 
-bool                isStrict;
+int                 repOpts[2] = {0, 0}; // XML = 0, JSON = 1
 unsigned int        maxFD;
 };
 #endif
