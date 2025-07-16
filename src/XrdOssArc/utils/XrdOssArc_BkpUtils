@@ -213,11 +213,29 @@ def Get_lfns(scope, dsn):
    except Exception as e:
       Emsg(8, "Error getting lfns: {}".format(e))
 
+   # Get the checksum that should be included, if any
+   #
+   cksum = os.getenv("XRDOSSARC_CKSUM", None)
+
    # Convert an object list to a standard list so we can sort it.
    #
    lfnVec = []
+   noCKS  = 0
    for file in didVec:
       lfnVec.append([file['scope'], file['name'], file['bytes']])
+      if cksum:
+         try:
+            ckval = file[cksum]
+         except:
+            ckval = None
+            noCKS += 1
+         lfnVec[-1].append([cksum, ckval])
+
+   # Check is we should produce a warning about missing checkums
+   #
+   if noCKS:
+      Emsg(0, "Warning! {} of {} files have no {} checksum!".format(noCKS,
+               len(lfnVec), cksum))
 
    # We must sort the lfns in order to be able to figure out which archive
    # the file was placed in should we need to spill over into multiple ones.
@@ -242,15 +260,10 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
    # Map the lfns to ther pfns for the wanted RSE
    #
    qryVec = []
-   sizVec = []
    totBytes = 0
    for file in lfnVec:
       qryVec.append({'scope':file[0], 'name':file[1]})
-#     qryVec.append({'scope':file['scope'], 'name':file['name']})
-#     sizVec.append(file['bytes'])
-      sizVec.append(file[2])
       totBytes += file[2]
-#     totBytes += file['bytes']
    totFiles = len(qryVec)
 
    # Get the replicas for the specified data
@@ -278,8 +291,8 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
          for replica in replicas:
             pfn = pfnPFX + urlparse(replica["rses"][rse][0]).path
             did = qryVec.pop(0)
-            siz = sizVec.pop(0)
-            lfn2pfn.append([did['scope'] + ':' + did['name'], pfn, siz])
+            xtr = lfnVec.pop(0)
+            lfn2pfn.append([did['scope'] + ':'+did['name'],pfn,xtr[2],xtr[3]])
       except Exception as e:
          Emsg(8, "Error getting pfns: {}".format(e))
   
@@ -487,7 +500,7 @@ def Setup(argv):
    if manpfn is not None:
       try:
          with open(manpfn, "w") as f:
-            print(lfn2pfn, file=f)
+            print(lfn2pfn, '# Source-RSE='+theRSE, file=f)
             f.close()
       except Exception as e:
          if isinstance(e, OSError) and e.errno != 0: rc = e.errno
@@ -538,6 +551,11 @@ def Setup(argv):
    else:
       numArcs = 1
       arcSymlink(lfn2pfn, dsnDir, '~1')
+
+   # If a manifest file was henerated, make sure it is included in the
+   # first archive file of the set of archives
+   #
+   if manpfn: os.symlink(manpfn, dsnDir+'/~1/Manifest')
 
    # We are done, tell caller how big the setup is
    #

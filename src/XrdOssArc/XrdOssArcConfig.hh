@@ -99,6 +99,7 @@ char*       doneBKP;       // Metadata value indicating a backup completed
 char*       needBKP;       // Metadata value indicating a backup is needed
 char*       dstRSE;        // The name of the dest rse (our name)
 char*       srcRSE;        // The name of the source rse
+char*       manCKS;        // Checksum algorithm to add to manifest
 long long   bkpMinF;       // Percentage or bytes that must be always available
 int         bkpMax;        // Maximum number of parallel backups
 int         bkpPoll;       // Polling interval to find new items to backup
@@ -128,6 +129,7 @@ bool xqArcsz();
 bool xqBkup();
 bool xqBkupPS(char* tval);
 bool xqBkupScope();
+bool xqManf();
 bool xqPaths();
 bool xqRse();
 bool xqRucio();

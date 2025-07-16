@@ -146,6 +146,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    needBKP     = 0;
    dstRSE      = 0;
    srcRSE      = 0;
+   manCKS      = strdup("adler32");
 
    bkpMinF     = -20;
    bkpMax      = 2;
@@ -263,6 +264,10 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
 // Export values needed by the metadata script
 //
    XrdOucEnv::Export("XRDOSSARC_MAXITEMS", r_maxItems);
+
+// Export manifest checksum, unless none wanted
+//
+   if (strcmp(manCKS, "none")) XrdOucEnv::Export("XRDOSSARC_CKSUM", manCKS);
 
 // Export archive size parameters if specified
 //
@@ -486,6 +491,7 @@ bool XrdOssArcConfig::ConfigProc(const char* drctv)
 //
         if (!strcmp(drctv, "arcsize")) return xqArcsz();
    else if (!strcmp(drctv, "backup"))  return xqBkup();
+   else if (!strcmp(drctv, "manifest"))return xqManf();
    else if (!strcmp(drctv, "msscmd"))
            return xqGrab("msscmd", MssComCmd, Conf->LastLine());
    else if (!strcmp(drctv, "paths"))  return xqPaths();
@@ -879,6 +885,42 @@ bool XrdOssArcConfig::xqGrab(const char* what, char*& theDest,
 //
    if (theDest) free(theDest);
    theDest = strdup(tP);
+   return true;
+}
+  
+/******************************************************************************/
+/* Private:                       x q M a n f                                 */
+/******************************************************************************/
+/*
+   manifest cksum <ckalg>
+*/
+
+bool XrdOssArcConfig::xqManf()
+{
+   char** tDest = 0;
+   char *token, *targ;
+
+   if (!(token = Conf->GetToken()))
+      {Conf->MsgfE("No manifest parameters specified!");
+       return false;
+      }
+
+// Process all options
+//
+   do {     if (!strcmp("cksum",    token)) tDest = &manCKS;
+       else {Conf->MsgfE("Unknown manifest parameter '%s'; ignored.", token);
+             return false;
+            }
+       if (!(targ = Conf->GetToken()))
+          {Conf->MsgfE("%s argument not specified!", token);
+           return false;
+          }
+       if (*tDest) free(*tDest);
+       *tDest = strdup(targ);
+      } while((token = Conf->GetToken()));
+
+// All done
+//
    return true;
 }
   

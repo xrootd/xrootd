@@ -148,16 +148,15 @@ bool XrdOssArcBackupTask::BkpXeq()
        return false;
       }
 
-// Generate name of the manifest file if we need to invoke the preparc utility
+// Generate name of the manifest file. This is needed by the preparc and
+// postarc utilities plus we want to add it to the zip archive as provenance.
 //
-   if (Config.PrepArcProg || Config.PostArcProg)
-      {n = snprintf(manPFN, sizeof(manPFN), "%sManifest", dsnDir);
-       if (n >= (int)sizeof(manPFN))
-          {Elog.Emsg("Backup",ENAMETOOLONG,"create bkp manifest for dataset",
-                     theDSN);
-           return false;
-          }
-      } else *manPFN = 0;
+   n = snprintf(manPFN, sizeof(manPFN), "%sManifest", dsnDir);
+   if (n >= (int)sizeof(manPFN))
+      {Elog.Emsg("Backup",ENAMETOOLONG,"create bkp manifest for dataset",
+                  theDSN);
+       return false;
+      }
 
 // Construct the argument list
 //
