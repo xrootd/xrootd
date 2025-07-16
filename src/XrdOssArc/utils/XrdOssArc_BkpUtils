@@ -229,7 +229,7 @@ def Get_lfns(scope, dsn):
          except:
             ckval = None
             noCKS += 1
-         lfnVec[-1].append([cksum, ckval])
+         lfnVec[-1].append({cksum:ckval})
 
    # Check is we should produce a warning about missing checkums
    #
