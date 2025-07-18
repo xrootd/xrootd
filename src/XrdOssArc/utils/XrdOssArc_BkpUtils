@@ -28,11 +28,9 @@ x = os.getenv("XRDOSSARC_DEBUG", None)
 if x is None: Debug = False
 else: Debug = True
 
-# Initialize the did client
-try:
-   DIDclient = DIDClient()
-except Exception as e:
-   Emsg(8, "Error creating DID client: {}".format(e))
+# The following will be initialized in "main"
+#
+DIDclient = None
 
 #******************************************************************************
 #*                                  E m s g                                   *
@@ -55,6 +53,27 @@ def Emsg(rc, txt):
    if rc:
       sys.exit(rc)
 
+#******************************************************************************
+#*                          g e t _ M a x I t e m s                           *
+#******************************************************************************
+
+def get_MaxItems():
+
+   # Get the maximum allowed items in a bulk query
+   #
+   maxItems = 1000
+   x = os.getenv("XRDOSSARC_MAXITEMS", None)
+   if x is not None:
+      try:
+         maxItems = int(x)
+         if maxItems < 1: maxItems = 1
+      except Exception as e:
+         Emsg(0, "XRDOSSARC_MAXITEMS={} is not an integer ({})".format(x, e))
+
+   if Debug: Emsg(0, 'Rucio maxitems = {}'.format(maxItems))
+
+   return maxItems
+  
 #******************************************************************************
 #*                                A d d K e y                                 *
 #******************************************************************************
@@ -272,18 +291,9 @@ def Get_lfn2pfn(rse, scope, dsn, pfnPFX):
    # print('PFN prefix:', pfnPFX)
    REPclient = ReplicaClient()
 
-   # Get the maximum allowed items in a bulk query
+   # Get the maximum allowed items in a bulk query (sets global maxItems)
    #
-   maxitems = 1000
-   x = os.getenv("XRDOSSARC_MAXITEMS", None)
-   if x is not None:
-      try:
-         maxitems = int(x)
-         if maxitems < 1: maxitems = 1
-      except Exception as e:
-         Emsg(0, "XRDOSSARC_MAXITEMS={} is not an integer ({})".format(x, e))
-
-   if Debug: Emsg(0, 'Rucio maxitems = {}'.format(maxitems))
+   maxitems = get_MaxItems()
 
    while (len(qryVec) > 0):
       try:
@@ -327,27 +337,37 @@ def LS_Bkup(argv):
    for did in dids:
       dsVec.append({'scope':theScope, 'name':did})
 
+   # Get the maximum items we can have in a bulk query
+   #
+   maxitems = get_MaxItems()
+
    # Get the metadata for all of the did's potentially needing backup
    #
-   try:
-      mVec = DIDclient.get_metadata_bulk(dsVec) 
-   except Exception as e:
-      Emsg(8, 'Cannot get dataset backup metadata: {}'.format(e))
+   while (len(dsVec) > 0):
+      try:
+         mLen = min(len(dsVec), maxitems)
+         mVec = DIDclient.get_metadata_bulk(dsVec[0:mLen]) 
+      except Exception as e:
+         Emsg(8, 'Cannot get dataset backup metadata: {}'.format(e))
 
-   # Construct list of closed datasets as they can only be backed up
-   #
-   for meta in mVec:
-      if not meta['is_open']:
-         print(meta['name'])
-      else:
-         Emsg(0,"Dataset {}:{} is still open; backup skipped!".format(theScope,
-                                                               meta['name']))
+      # Remove the queried elements from the list
+      #
+      del dsVec[:mLen]
+   
+      # Construct list of closed datasets as they can only be backed up
+      #
+      for meta in mVec:
+         if not meta['is_open']:
+            print(meta['name'])
+         else:
+            Emsg(0,"Dataset {}:{} is still open; backup skipped!"
+                   .format(theScope, meta['name']))
 
    print(eol)
    return 0
 
 #******************************************************************************
-#*                                 Q r y _ K e y                                *
+#*                                 Q r y _ K e y                              *
 #******************************************************************************
 
 def Qry_Key(argv, retval=False, mtype='JSON'):
@@ -830,4 +850,11 @@ def Main(argv):
    return errno.EINVAL
 
 if __name__ == "__main__":
+
+   # Initialize the did client
+   try:
+      DIDclient = DIDClient()
+   except Exception as e:
+      Emsg(8, "Error creating DID client: {}".format(e))
+
    sys.exit(Main(sys.argv[1:]))
