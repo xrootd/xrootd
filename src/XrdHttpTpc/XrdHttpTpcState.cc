@@ -66,6 +66,8 @@ bool State::InstallHandlers(CURL *curl) {
             curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
             curl_easy_setopt(curl, CURLOPT_READFUNCTION, &State::ReadCB);
             curl_easy_setopt(curl, CURLOPT_READDATA, this);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &State::PushRespCB);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
             struct stat buf;
             if (SFS_OK == m_stream->Stat(&buf)) {
                 m_push_length = buf.st_size;
@@ -219,6 +221,29 @@ size_t State::WriteCB(void *buffer, size_t size, size_t nitems, void *userdata) 
             return size*nitems;
     }  // Status indicates failure.
     return obj->Write(static_cast<char*>(buffer), size*nitems);
+}
+
+/**
+ * This callback is used to give users the error message returns by the passive server of
+ * the TPC PUSH
+ * It is a write callback! --> the error message is written to the buffer
+ */
+size_t State::PushRespCB(void *buffer, size_t size, size_t nitems, void *userdata) {
+  State *obj = static_cast<State*>(userdata);
+  // Note: The obj's status code is set by the HeaderCB once there's a reply from the passive server
+  if (obj->GetStatusCode() < 0) {
+    return 0;
+  }  // malformed request - got body before headers.
+  if (obj->GetStatusCode() >= 400) {
+    obj->m_error_buf += std::string(static_cast<char*>(buffer),
+                                    std::min(static_cast<size_t>(1024), size*nitems));
+    // Record error messages until we hit a KB; at that point, fail out.
+    if (obj->m_error_buf.size() >= 1024)
+      return 0;
+    else
+      return size*nitems;
+  }
+  return size*nitems;
 }
 
 ssize_t State::Write(char *buffer, size_t size) {

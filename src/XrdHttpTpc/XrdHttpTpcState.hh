@@ -156,6 +156,11 @@ private:
     int Header(const std::string &header);
     static size_t WriteCB(void *buffer, size_t size, size_t nitems, void *userdata);
     ssize_t Write(char *buffer, size_t size);
+    /**
+    * This callback is used to give users the error message returns by the passive server of
+    * the TPC PUSH
+    */
+    static size_t PushRespCB(void *buffer, size_t size, size_t nitems, void *userdata);
     static size_t ReadCB(void *buffer, size_t size, size_t nitems, void *userdata);
     int Read(char *buffer, size_t size);
 
