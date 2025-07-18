@@ -928,7 +928,7 @@ bool XrdOssArcConfig::xqManf()
 /* Private:                      x q P a t h s                                */
 /******************************************************************************/
 /*  
-   paths [admin <path>] [backing <path>] [mssfs <path>] [srcdata <path>]
+   paths [backing <path>] [{mssfs|mssroot} <path>] [srcdata <path>]
          [staging <path>] [utils <path>]
 */
 
@@ -942,6 +942,7 @@ bool XrdOssArcConfig::xqPaths()
    while((token = Conf->GetToken()))
         {     if (!strcmp("backing",  token)) pDest = &tapePath;
          else if (!strcmp("mssfs",    token)) pDest = &MssComRoot;
+         else if (!strcmp("mssroot",  token)) pDest = &MssComRoot;
          else if (!strcmp("srcdata",  token)) pDest = &srcData;
          else if (!strcmp("staging",  token)) pDest = &stagePath;
          else if (!strcmp("stopfile", token)) pDest = &stopPath;
