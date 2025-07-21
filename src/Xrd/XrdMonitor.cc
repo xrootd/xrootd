@@ -108,7 +108,7 @@ int  XrdMonitor::FormJSON(XrdMonitor::RegInfo& regInfo, char* buff, int bsize)
 
 // Format the header
 //
-   n = snprintf(buff, bsize, regInfo.Json.hdr);
+   n = snprintf(buff, bsize, "%s", regInfo.Json.hdr);
    Updt(n);
 
 // Format all the variable
@@ -137,7 +137,7 @@ int  XrdMonitor::FormXML(XrdMonitor::RegInfo& regInfo, char* buff, int bsize)
 
 // Format the header
 //
-   n = snprintf(buff, bsize, regInfo.Xml.hdr);
+   n = snprintf(buff, bsize, "%s", regInfo.Xml.hdr);
    Updt(n);
 
 // Format all the variables
@@ -151,7 +151,7 @@ int  XrdMonitor::FormXML(XrdMonitor::RegInfo& regInfo, char* buff, int bsize)
 
 // Insert end and return
 //
-   n = snprintf(buff, bsize, "</stats>");
+   n = snprintf(buff, bsize, "%s", "</stats>");
    Updt(n);
    return bLen;  
 }
