@@ -638,6 +638,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
       {
          XrdSysCondVarHelper lock(&m_active_cond);
          m_active.erase(act_it);
+         m_active_cond.Broadcast();
       }
 
       if (m_gstream)
@@ -1242,8 +1243,8 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
 
    {
       XrdSysCondVarHelper lock(&m_active_cond);
-
       m_active.erase(it);
+      m_active_cond.Broadcast();
    }
 
    return std::min(f_ret, i_ret);
