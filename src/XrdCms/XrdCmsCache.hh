@@ -84,9 +84,8 @@ static const int min_nxTime = 60;
                             nilTMO(0),
                             DLTime(5), QDelay(5), Bhits(0), Bmiss(0), vecHi(-1),
                             isDFS(0)
-                          {memset(Bounced,  0, sizeof(Bounced));
-                           memset(Bhistory, 0, sizeof(Bhistory));
-                          }
+                          {memset(Bounced,  0, sizeof(Bounced));}
+
            ~XrdCmsCache() {}   // Never gets deleted
 
 private:
@@ -97,10 +96,12 @@ void          Dispatch(XrdCmsSelect &Sel, XrdCmsKeyItem *cinfo,
 SMask_t       getBVec(unsigned int todA, unsigned int &todB);
 void          Recycle(XrdCmsKeyItem *theList);
 
-struct  {SMask_t      Vec;
-         unsigned int Start;
-         unsigned int End;
-        }             Bhistory[XrdCmsKeyItem::TickRate];
+struct BHistory {SMask_t      Vec;
+                 unsigned int Start;
+                 unsigned int End;
+                              BHistory() : Vec(0), Start(0), End(0) {}
+                             ~BHistory() {}
+                }  Bhistory[XrdCmsKeyItem::TickRate];
 
 XrdSysMutex   myMutex;
 XrdCmsNash    CTable;
