@@ -223,8 +223,6 @@ XrdCmsNode *AddAlt(XrdCmsClustID *cidP, XrdLink *lp, int port, int Status,
 XrdCmsNode *calcDelay(XrdCmsSelector &selR);
 int         Drop(int sent, int sinst, XrdCmsDrop *djp=0);
 void        Record(char *path, const char *reason, bool force=false);
-bool        maxBits(SMask_t mVec, int mbits);
-int         Multiple(SMask_t mVec);
 enum        {eExists, eDups, eROfs, eNoRep, eNoSel, eNoEnt}; // Passed to SelFail
 int         SelFail(XrdCmsSelect &Sel, int rc);
 int         SelNode(XrdCmsSelect &Sel, SMask_t  pmask, SMask_t  amask);

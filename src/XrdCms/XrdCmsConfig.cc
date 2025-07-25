@@ -1045,7 +1045,7 @@ int XrdCmsConfig::MergeP()
                 else        npinfo.ssvec = (Opts &  stageAny   ? 1 : 0);
              if (!PathList.Add(plp->Path(), &npinfo))
                 Say.Emsg("Config","Ignoring duplicate export path",plp->Path());
-                else if (npinfo.ssvec) DiskSS = true;
+                else if (npinfo.ssvec.any()) DiskSS = true;
             }
           plp = plp->Next();
          }

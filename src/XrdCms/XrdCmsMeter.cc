@@ -58,6 +58,20 @@ using namespace XrdCms;
        XrdCmsMeter   XrdCms::Meter;
 
 /******************************************************************************/
+/*                        S t a t i c   O b j e c t s                         */
+/******************************************************************************/
+
+namespace
+{
+
+// A mask that has all bits set
+//
+SMask_t AllOnes() {SMask_t mask; return mask.flip();}
+
+const SMask_t allNodes = AllOnes();
+};
+
+/******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
 
@@ -630,7 +644,6 @@ void XrdCmsMeter::SpaceMsg(int why)
   
 void XrdCmsMeter::UpdtSpace()
 {
-   static const SMask_t allNodes(~0);
    SpaceData mySpace;
 
 // Get new space values for the cluser

@@ -50,6 +50,7 @@
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsClustID.hh"
 #include "XrdCms/XrdCmsNode.hh"
+#include "XrdCms/XrdCmsReadOut.hh"
 #include "XrdCms/XrdCmsRole.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
 #include "XrdCms/XrdCmsState.hh"
@@ -71,6 +72,20 @@ using namespace XrdCms;
 
        XrdCmsCluster   XrdCms::Cluster;
 
+/******************************************************************************/
+/*                        S t a t i c   O b j e c t s                         */
+/******************************************************************************/
+
+namespace
+{
+
+// A mask that has all bits set
+//
+SMask_t AllOnes() {SMask_t mask; return mask.flip();}
+
+const SMask_t allNodes = AllOnes();
+};
+  
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */
 /******************************************************************************/
@@ -547,7 +562,7 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts, bool &oksel)
    oksel = false;
    STMutex.ReadLock();
    for (i = 0; i <= STHi; i++)
-        if ((nP=NodeTab[i]) && (nP->NodeMask & mask))
+        if ((nP=NodeTab[i]) && (nP->NodeMask & mask).any())
            {oksel = true;
             if (retDest)
                {     if (nP->netIF.HasDest(ifType)) ifGet = ifType;
@@ -605,7 +620,8 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 //
    if (*Sel.Path.Val != '*') Path = Sel.Path.Val;
       else {if (*(Sel.Path.Val+1) == '\0')
-               {Sel.Vec.hf = ~0LL; Sel.Vec.pf = Sel.Vec.wf = 0;
+               {Sel.Vec.hf = Sel.Vec.pf = Sel.Vec.wf = 0;
+                Sel.Vec.hf.flip();
                 return 0;
                }
             Path = Sel.Path.Val+1;
@@ -613,7 +629,7 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 
 // Find out who serves this path
 //
-   if (!Cache.Paths.Find(Path, pinfo) || !pinfo.rovec)
+   if (!Cache.Paths.Find(Path, pinfo) || !pinfo.rovec.any())
       {Sel.Vec.hf = Sel.Vec.pf = Sel.Vec.wf = 0;
        return NotFound;
       } else Sel.Vec.wf = pinfo.rwvec;
@@ -661,19 +677,19 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 
 // Compute the delay, if any
 //
-   if ((!qfVec && retc >= 0) || (Sel.Vec.hf && Sel.InfoP)) retc =  0;
+   if ((!qfVec.any() && retc >= 0) || (Sel.Vec.hf.any() && Sel.InfoP)) retc = 0;
       else if (!(retc = Cache.WT4File(Sel, Sel.Vec.hf)))   retc = Wait4CBk;
 
 // Check if we have to ask any nodes if they have the file
 //
-   if (qfVec)
+   if (qfVec.any())
       {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
           QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
        TRACE(Files, "seeking " <<Sel.Path.Val);
        qfVec = Cluster.Broadcast(qfVec, QReq.Hdr, 
                                  (void *)Sel.Path.Val, Sel.Path.Len+1);
-       if (qfVec) Cache.UnkFile(Sel, qfVec);
+       if (qfVec.any()) Cache.UnkFile(Sel, qfVec);
       }
    return retc;
 }
@@ -688,7 +704,6 @@ void *XrdCmsCluster::MonPerf()
    struct iovec ioV[] = {{(char *)&Usage, sizeof(Usage)}};
    int ioVnum = sizeof(ioV)/sizeof(struct iovec);
    int ioVtot = sizeof(Usage);
-   SMask_t allNodes(~0);
    int uInterval = Config.AskPing*Config.AskPerf;
 
 // Sleep for the indicated amount of time, then ask for load on each server
@@ -963,11 +978,11 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // make sure the client is needlessly avoiding them as this signals an error.
 //
    if (baseFS.isDFS())
-      {if (Sel.nmask && !(Sel.Opts & XrdCmsSelect::NoTryLim))
+      {if (Sel.nmask.any() && !(Sel.Opts & XrdCmsSelect::NoTryLim))
           {pmask = (isRW ? pinfo.rwvec : pinfo.rovec) & Sel.nmask;
            if (!(Sel.Opts & XrdCmsSelect::Online))
               pmask |= pinfo.ssvec & Sel.nmask;
-           if (pmask && maxBits(pmask, baseFS.dfsTries()))
+           if (pmask.any() && pmask.count() >= (size_t)baseFS.dfsTries())
               {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                "Too many DFS %s attempts; operation terminated", Amode)+1;
                return RetryErr;
@@ -998,30 +1013,32 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
           {     if (retc<0) return Config.LUPDelay;
               else if (Sel.Opts & XrdCmsSelect::Replica)
                    {pmask = amask & ~(Sel.Vec.hf | Sel.Vec.bf); smask = 0;
-                    if (!pmask && !Sel.Vec.bf) return SelFail(Sel,eNoRep);
+                    if (!pmask.any() && !Sel.Vec.bf.any())
+                       return SelFail(Sel,eNoRep);
                    }
-           else if (Sel.Vec.bf) pmask = smask = 0;
-           else if (Sel.Vec.hf)
+           else if (Sel.Vec.bf.any()) pmask = smask = 0;
+           else if (Sel.Vec.hf.any())
                    {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,eExists);
                     if (!(Sel.Opts & XrdCmsSelect::MWFiles))
                        {if (!(Sel.Opts & XrdCmsSelect::isMeta)
-                        &&  maxBits(Sel.Vec.hf,2))      return SelFail(Sel,eDups);
+                        && Sel.Vec.hf.count() > 1)      return SelFail(Sel,eDups);
                         if ((Sel.Vec.hf & pinfo.rwvec)
                         !=  (Sel.Vec.hf & pinfo.rovec)) return SelFail(Sel,eROfs);
                        }
-                    if (!(pmask = Sel.Vec.hf & amask))  return SelFail(Sel,eNoSel);
+                    pmask = Sel.Vec.hf & amask;
+                    if (!pmask.any())                   return SelFail(Sel,eNoSel);
                     smask = 0;
                    }
            else if (Sel.Opts & (XrdCmsSelect::Trunc | XrdCmsSelect::NewFile))
                    {pmask = amask; smask = 0;}
-           else if ((smask = pinfo.ssvec & amask)) pmask = 0;
+           else if ((smask = pinfo.ssvec & amask).any()) pmask = 0;
            else pmask = smask = 0;
           } else {
            pmask = Sel.Vec.hf  & amask; 
            if (Sel.Opts & XrdCmsSelect::Online) {pmask &= ~Sel.Vec.pf; smask=0;}
            else smask = (retc < 0 ? 0 : pinfo.ssvec & amask);
           }
-       if (Sel.Vec.hf & Sel.nmask) Cache.UnkFile(Sel, Sel.nmask);
+       if ((Sel.Vec.hf & Sel.nmask).any()) Cache.UnkFile(Sel, Sel.nmask);
       } else {
        Cache.AddFile(Sel, 0); 
        Sel.Vec.bf = pinfo.rovec; 
@@ -1031,12 +1048,12 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 
 // A wait is required if we don't have any primary or seconday servers
 //
-   dowt = (!pmask && !smask);
+   dowt = (!pmask.any() && !smask.any());
 
 // If we can query additional servers, do so now. The client will be placed
 // in the callback queue only if we have no possible selections
 //
-   if (Sel.Vec.bf)
+   if (Sel.Vec.bf.any())
       {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
           QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
@@ -1044,14 +1061,14 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
        TRACE(Files, "seeking " <<Sel.Path.Val);
        amask = Cluster.Broadcast(Sel.Vec.bf, QReq.Hdr,
                                  (void *)Sel.Path.Val,Sel.Path.Len+1);
-       if (amask) Cache.UnkFile(Sel, amask);
+       if (amask.any()) Cache.UnkFile(Sel, amask);
        if (dowt) return retc;
       } else if (dowt && retc < 0 && !noSel)
                 return (fRD ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
 
 // Broadcast a freshen up request if wanted
 //
-   if ((Sel.Opts & XrdCmsSelect::Freshen) && (amask = pmask & ~Sel.Vec.bf))
+   if ((Sel.Opts & XrdCmsSelect::Freshen) && (amask = pmask & ~Sel.Vec.bf).any())
       {CmsStateRequest Qupt={{0,kYR_state,(kXR_char)kYR_raw|(kXR_char)CmsStateRequest::kYR_noresp,0}};
        Cluster.Broadcast(amask, Qupt.Hdr,(void *)Sel.Path.Val,Sel.Path.Len+1);
       }
@@ -1067,9 +1084,10 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // Check if should eliminate staging servers. We may need to do this if the
 // client has been eliminating too many of them as they all should be equal.
 //
-   if (Sel.nmask && pinfo.ssvec && !(Sel.Opts & XrdCmsSelect::NoTryLim)
-   &&  maxBits(Sel.nmask & pinfo.ssvec, baseFS.stgTries()))
-      {if (!pmask)
+   if (Sel.nmask.any() && pinfo.ssvec.any()
+   && !(Sel.Opts & XrdCmsSelect::NoTryLim)
+   &&  (Sel.nmask & pinfo.ssvec).count() >= (size_t)baseFS.stgTries())
+      {if (!pmask.any())
           {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
            "Too many attempts to stage %s access to the file", Amode)+1;
            return RetryErr;
@@ -1096,7 +1114,7 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 
 // If there is nothing to select from, return failure
 //
-   if (!pmask) return 0;
+   if (!pmask.any()) return 0;
 
 // Obtain the network we need for the client
 //
@@ -1130,9 +1148,9 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 // In shared-nothing systems the incoming mask will only have a single node.
 // Compute the a single node number that is contained in the mask.
 //
-   do {if (!(tmask = pmask & smLow)) Snum += 8;
-         else {while((tmask = tmask>>1)) Snum++; break;}
-      } while((pmask = pmask >> 8));
+   XrdCmsReadOut rOut(pmask);
+   Snum = rOut.Next();
+   if (Snum >= (int)pmask.size()) return 0; // No bits were set
 
 // See if the node passes muster
 //
@@ -1184,7 +1202,7 @@ int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
     case eNoRep:  etext = "Unable to replicate %s; no new sites available.";
                   Sel.Resp.Port = kYR_noReplicas;
                   break;
-    case eNoSel:  if (Sel.Vec.hf & Sel.nmask)
+    case eNoSel:  if ((Sel.Vec.hf & Sel.nmask).any())
                      {etext = "Unable to access %s; eligible servers shunned.";
                       if (Sel.Opts & XrdCmsSelect::isDir) Item = "directory";
                      } else {
@@ -1323,7 +1341,7 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
 // Get the statistics
 //
    if (AddFrq) RRQ.Statistics(Frq);
-   mngrsp.sp = sp = List(FULLMASK, LS_NULL, oksel);
+   mngrsp.sp = sp = List(allNodes, LS_NULL, oksel);
 
 // Count number of nodes we have
 //
@@ -1478,7 +1496,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 
 // Invalidate any cached entries for this node
 //
-   if (nP->NodeMask) Cache.Drop(nP->NodeMask, sent, STHi);
+   if (nP->NodeMask.any()) Cache.Drop(nP->NodeMask, sent, STHi);
 
 // We can now delete the node object if we were called via a job as we are on
 // a different thread. Direct calls require that we schedule the deletion as
@@ -1491,59 +1509,6 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 //
    Say.Emsg("Drop_Node", hname, "dropped.");
    return 0;
-}
-
-/******************************************************************************/
-/*                              M u l t i p l e                               */
-/******************************************************************************/
-
-int XrdCmsCluster::Multiple(SMask_t mVec)
-{
-   static const unsigned long long Left32  = 0xffffffff00000000LL;
-   static const unsigned long long Right32 = 0x00000000ffffffffLL;
-   static const unsigned long long Left16  = 0x00000000ffff0000LL;
-   static const unsigned long long Right16 = 0x000000000000ffffLL;
-   static const unsigned long long Left08  = 0x000000000000ff00LL;
-   static const unsigned long long Right08 = 0x00000000000000ffLL;
-   static const unsigned long long Left04  = 0x00000000000000f0LL;
-   static const unsigned long long Right04 = 0x000000000000000fLL;
-//                                0 1 2 3 4 5 6 7 8 9 A B C D E F
-   static const int isMult[16] = {0,0,0,1,0,1,1,1,0,1,1,1,1,1,1,1};
-
-   if (mVec & Left32) {if (mVec & Right32) return 1;
-                          else mVec = mVec >> 32LL;
-                      }
-   if (mVec & Left16) {if (mVec & Right16) return 1;
-                          else mVec = mVec >> 16LL;
-                      }
-   if (mVec & Left08) {if (mVec & Right08) return 1;
-                          else mVec = mVec >>  8LL;
-                      }
-   if (mVec & Left04) {if (mVec & Right04) return 1;
-                          else mVec = mVec >>  4LL;
-                      }
-   return isMult[mVec];
-}
-  
-/******************************************************************************/
-/*                               m a x B i t s                                */
-/******************************************************************************/
-  
-bool XrdCmsCluster::maxBits(SMask_t mVec, int mbits)
-{
-   int count = 0;
-
-// Count bits. This is the fastest way assuming few bits are set
-//
-   while(mVec)
-        {mVec &= (mVec - 1);
-         count++;
-         if (count >= mbits) return true;
-        }
-
-// Indicate we have not reached the maximum bits set
-//
-   return false;
 }
 
 /******************************************************************************/
@@ -1588,8 +1553,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
    if (!(Sel.Opts & XrdCmsSelect::Pack)) selR.selPack = 0;
       else {unsigned int theHash = (Sel.Opts & XrdCmsSelect::UseAH
                                  ?  Sel.AltHash : Sel.Path.Hash);
-            SMask_t sVec = pmask;
-            for (count = 0; sVec; count++) sVec &= (sVec - 1);
+            count = pmask.count();
             if (count > 1) selR.selPack = affsel = (theHash % count) + 1;
                else        selR.selPack = 0;
            }
@@ -1608,7 +1572,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
    STMutex.ReadLock();
    mask = pmask & peerMask;
    while(pass--)
-        {if (mask)
+        {if (mask.any())
             {nP = (Config.sched_RR || (Sel.Opts & XrdCmsSelect::UseRef)
                 ?  SelbyRef(mask,selR)
                 :  Config.sched_LoadR == 0 ? SelbyLoad(pmask,selR)
@@ -1687,7 +1651,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
       {const char *reason1 = selR.reason;
        int delay1 = selR.delay;
        bool noNet = selR.xNoNet;
-       if ((mask = (pmask | amask) & peerHost)) nP = SelbyCost(mask, selR);
+       if ((mask = (pmask | amask) & peerHost).any()) nP = SelbyCost(mask, selR);
        if (nP)
           {nP->g2nLock(STMutex);
            Sel.Resp.DLen = nP->netIF.GetName(Sel.Resp.Data,Sel.Resp.Port,nType);
@@ -1745,14 +1709,16 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 
 XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
 {
-    XrdCmsNode *np, *sp = 0;
-    bool Multi = false;
+   XrdCmsReadOut rOut(mask);   
+   XrdCmsNode *np, *sp = 0;
+   int i;
+   bool Multi = false;
 
 // Scan for a node (sp points to the selected one)
 //
    selR.Reset(); SelTcnt++;
-   for (int i = 0; i <= STHi; i++)
-       if ((np = NodeTab[i]) && (np->NodeMask & mask))
+   while((i = rOut.Next()) >= 0 && i < STMax)
+       if ((np = NodeTab[i]))
           {if (!(selR.needNet &  np->hasNet))    {selR.xNoNet= true; continue;}
            selR.nPick++;
            if (np->isOffline)                    {selR.xOff  = true; continue;}
@@ -1790,14 +1756,16 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
   
 XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 {
-    XrdCmsNode *np, *sp = 0;
-    bool Multi = false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
+   XrdCmsReadOut rOut(mask);   
+   XrdCmsNode *np, *sp = 0;
+   int i;
+   bool Multi = false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
 // Scan for a node (preset possible, suspended, overloaded, full, and dead)
 //
    selR.Reset(); SelTcnt++;
-   for (int i = 0; i <= STHi; i++)
-       if ((np = NodeTab[i]) && (np->NodeMask & mask))
+   while((i = rOut.Next()) >= 0 && i < STMax)
+       if ((np = NodeTab[i]))
           {if (!(selR.needNet & np->hasNet))      {selR.xNoNet= true; continue;}
            selR.nPick++;
            if (np->isOffline)                     {selR.xOff  = true; continue;}
@@ -1843,7 +1811,9 @@ XrdCmsNode *XrdCmsCluster::SelbyLoadR(SMask_t mask, XrdCmsSelector &selR)
   static std::random_device rand_dev;
   static std::default_random_engine generator(rand_dev());
 
+  XrdCmsReadOut rOut(mask);   
   XrdCmsNode *np = nullptr, *sp = nullptr;
+  int i;
   bool reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
   // Scan for a node (preset possible, suspended, overloaded, full, and dead)
@@ -1853,10 +1823,10 @@ XrdCmsNode *XrdCmsCluster::SelbyLoadR(SMask_t mask, XrdCmsSelector &selR)
 
   int totWeight = 0;
 
-  for (int i = 0; i <= STHi; ++i) {
+  while((i = rOut.Next()) >= 0 && i < STMax) {
     NodeWeight[i] = 0; // make node unselectable first
 
-    if (!((np = NodeTab[i]) && (np->NodeMask & mask)))
+    if (!((np = NodeTab[i]) && (np->NodeMask & mask).any()))
       continue;
 
     if (!(selR.needNet & np->hasNet)) { selR.xNoNet = true; continue; }
@@ -1901,14 +1871,17 @@ XrdCmsNode *XrdCmsCluster::SelbyLoadR(SMask_t mask, XrdCmsSelector &selR)
 
 XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, XrdCmsSelector &selR)
 {
-    XrdCmsNode *np, *sp = 0;
-    bool Multi = false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
+   XrdCmsReadOut rOut(mask);   
+   XrdCmsNode *np, *sp = 0;
+   int i;
+   bool Multi = false, reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
-// Scan for a node (sp points to the selected one)
+//The rOut object returns successive indices of nodes represented in the mask.
+// At the end sp points to the selected node.
 //
    selR.Reset(); SelTcnt++;
-   for (int i = 0; i <= STHi; i++)
-       if ((np = NodeTab[i]) && (np->NodeMask & mask))
+   while((i = rOut.Next()) >= 0 && i < STMax)
+       if ((np = NodeTab[i]))
           {if (!(selR.needNet & np->hasNet))    {selR.xNoNet= true; continue;}
            selR.nPick++;
            if (np->isOffline)                   {selR.xOff  = true; continue;}
@@ -1943,7 +1916,6 @@ int XrdCmsCluster::SelDFS(XrdCmsSelect &Sel, SMask_t amask,
                           SMask_t &pmask, SMask_t &smask, int isRW)
 {
    EPNAME("SelDFS");
-   static const SMask_t allNodes(~0);
    int oldOpts, rc;
 
 // The first task is to find out if the file exists somewhere. If we are doing
@@ -1974,14 +1946,14 @@ int XrdCmsCluster::SelDFS(XrdCmsSelect &Sel, SMask_t amask,
 
 // Screen out online requests where the file is pending
 //
-   if (Sel.Opts & XrdCmsSelect::Online && Sel.Vec.pf)
+   if (Sel.Opts & XrdCmsSelect::Online && Sel.Vec.pf.any())
       {pmask = smask = 0;
        return 1;
       }
 
 // If the file is to be written and the files exists then it can't be a new file
 //
-   if (isRW && Sel.Vec.hf)
+   if (isRW && Sel.Vec.hf.any())
       {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,eExists);
        if (Sel.Opts & XrdCmsSelect::Trunc) smask = 0;
        return 1;
@@ -1989,7 +1961,7 @@ int XrdCmsCluster::SelDFS(XrdCmsSelect &Sel, SMask_t amask,
 
 // Final verification that we have something to select
 //
-   if (!Sel.Vec.hf
+   if (!Sel.Vec.hf.any()
    && (!isRW || !(Sel.Opts & (XrdCmsSelect::Trunc | XrdCmsSelect::NewFile))))
       return SelFail(Sel, eNoEnt);
    return 1;

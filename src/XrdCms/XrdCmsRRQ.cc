@@ -293,7 +293,7 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 
 // Send a delay if we timed out
 //
-   if (!(lP->Arg1))
+   if (!(lP->Arg1.any()))
       {sendLwtResp(lP);
        return;
       }
@@ -364,9 +364,10 @@ void XrdCmsRRQ::sendRedResp(XrdCmsRRQSlot *rP)
 
 // Determine where the client should be redirected
 //
-   if ((doredir = (rP->Arg1 && Cluster.Select(rP->Arg1, port, hostbuff, hlen,
-                                              rP->Info.isRW, rP->Info.actR,
-                                              rP->Info.ifOP))))
+   if ((doredir = (rP->Arg1.any() &&
+                   Cluster.Select(rP->Arg1, port, hostbuff, hlen,
+                                            rP->Info.isRW, rP->Info.actR,
+                                            rP->Info.ifOP))))
       {redrResp.Val = htonl(port);
        redrResp.Hdr.datalen = htons(static_cast<unsigned short>(hlen+ovhd));
        redr_iov[1].iov_len  = hlen;

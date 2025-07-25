@@ -133,7 +133,7 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
 // Add/Modify the entry
 //
    if (iP)
-      {if (!mask)
+      {if (!mask.any())  // bset: slightly faster than none()
           {iP->Loc.deadline = QDelay + time(0);
            iP->Loc.lifeline = nilTMO + iP->Loc.deadline;
            iP->Loc.hfvec = 0; iP->Loc.pfvec = 0; iP->Loc.qfvec = 0;
@@ -232,7 +232,7 @@ int XrdCmsCache::DelFile(XrdCmsSelect &Sel, SMask_t mask)
 int  XrdCmsCache::GetFile(XrdCmsSelect &Sel, SMask_t mask)
 {
    XrdCmsKeyItem *iP;
-   SMask_t bVec;
+   SMask_t bVec; // bSet: default is all bits are zero
    int retc;
 
 // Lock the hash table
@@ -242,8 +242,9 @@ int  XrdCmsCache::GetFile(XrdCmsSelect &Sel, SMask_t mask)
 // Look up the entry and return location information
 //
    if ((iP = CTable.Find(Sel.Path)))
-      {if ((bVec = (iP->Loc.TOD_B < BClock 
-                 ? getBVec(iP->Key.TOD, iP->Loc.TOD_B) & mask : 0)))
+      {if (iP->Loc.TOD_B < BClock)
+          bVec = getBVec(iP->Key.TOD, iP->Loc.TOD_B) & mask;
+       if (bVec.any())
           {iP->Loc.hfvec &= ~bVec; 
            iP->Loc.pfvec &= ~bVec;
            iP->Loc.qfvec &= ~mask;
@@ -482,7 +483,7 @@ void XrdCmsCache::Dispatch(XrdCmsSelect &Sel, XrdCmsKeyItem *iP,
    if (isDFS)
       {if (roQ && RRQ.Ready(roQ, iP, Sel.Vec.hf, Sel.Vec.pf & Sel.Vec.hf))
           iP->Loc.roPend = 0;
-       if((rwQ && Sel.Vec.wf)
+       if((rwQ && Sel.Vec.wf.any())
        &&         RRQ.Ready(rwQ, iP, Sel.Vec.wf, Sel.Vec.pf & Sel.Vec.wf))
           iP->Loc.rwPend = 0;
        return;
@@ -516,7 +517,7 @@ SMask_t XrdCmsCache::getBVec(unsigned int TODa, unsigned int &TODb)
 // Calculate the new vector
 //
    for (i = 0; i <= vecHi; i++)
-       if (TODb < Bounced[i]) BVec |= 1ULL << i;
+       if (TODb < Bounced[i]) BVec.set(i);
 
    Bhistory[TODa].Vec   = BVec;
    Bhistory[TODa].Start = TODb;

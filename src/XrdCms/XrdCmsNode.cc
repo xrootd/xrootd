@@ -89,6 +89,12 @@ const char *msrcmsg = "Cluster does not support multi-source access.";
 int msrclen = strlen(msrcmsg)+1;
 const char *mtrymsg = "Cluster retry limit exceeded.";
 int mtrylen = strlen(mtrymsg)+1;
+
+// A mask that has all bits set
+//
+SMask_t AllOnes() {SMask_t mask; return mask.flip();}
+
+const SMask_t allNodes = AllOnes();
 };
   
 /******************************************************************************/
@@ -99,11 +105,15 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
                        int port, int lvl, int id)
 {
     static XrdSysMutex   iMutex;
-    static const SMask_t smask_1(1);
     static int           iNum = 1;
 
     Link     =  lnkp;
-    NodeMask =  (id < 0 ? 0 : smask_1 << id);
+    NodeMask.reset();
+    if (id >= 0 && id < (int)NodeMask.size()) NodeMask.set(id);
+       else {char buff[80];
+             snprintf(buff, sizeof(buff), "Invalid node index %d for", id);
+             Say.Emsg("CmsNode", buff, lnkp->Host());
+            }
     NodeID   = id;
     isOffline=  (lnkp == 0);
     logload  =  Config.LogPerf;
@@ -364,7 +374,6 @@ const char *XrdCmsNode::do_Disc(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Gone(XrdCmsRRData &Arg)
 {
    EPNAME("do_Gone")
-   static const SMask_t allNodes(~0);
    int newgone;
 
 // Do some debugging
@@ -406,7 +415,6 @@ const char *XrdCmsNode::do_Gone(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 {
    EPNAME("do_Have")
-   static const SMask_t allNodes(~0);
    XrdCmsPInfo  pinfo;
    int isnew, Opts;
 
@@ -417,7 +425,7 @@ const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 
 // Find if we can handle the file in r/w mode and if staging is present
 //
-   Opts = (Cache.Paths.Find(Arg.Path, pinfo) && (pinfo.rwvec & NodeMask)
+   Opts = (Cache.Paths.Find(Arg.Path, pinfo) && (pinfo.rwvec & NodeMask).any()
         ? XrdCmsSelect::Write : 0);
    if (Arg.Request.modifier & CmsHaveRequest::Pending)
       Opts |= XrdCmsSelect::Pending;
@@ -613,7 +621,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // List the servers
 //
    if (!rc)
-      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf, lsopts, oksel)))
+      {if (!Sel.Vec.hf.any() || !(sP=Cluster.List(Sel.Vec.hf, lsopts, oksel)))
           {const char *eTxt;
            Arg.Request.rrCode = kYR_error;
            if (oksel)
@@ -690,7 +698,7 @@ if (lsall)
    while(sP)
         {*oP = (sP->Status & XrdCmsSelected::isMangr ? 'M' : 'S');
          if (sP->Status & Hung) *oP = tolower(*oP);
-         *(oP+1) = (sP->Mask   & wfVec               ? 'w' : 'r');
+         *(oP+1) = ((sP->Mask   & wfVec).any()       ? 'w' : 'r');
          strcpy(oP+2, sP->Ident); oP += sP->IdentLen + 2;
          if (sP->next) *oP++ = ' ';
          pP = sP; sP = sP->next; delete pP;
@@ -699,8 +707,8 @@ if (lsall)
    while(sP)
         {if (!(sP->Status & Skip))
             {*oP     = (sP->Status & XrdCmsSelected::isMangr ? 'M' : 'S');
-             if (sP->Mask & pfVec) *oP = tolower(*oP);
-             *(oP+1) = (sP->Mask   & wfVec                   ? 'w' : 'r');
+             if ((sP->Mask & pfVec).any()) *oP = tolower(*oP);
+             *(oP+1) = ((sP->Mask  & wfVec).any()            ? 'w' : 'r');
              strcpy(oP+2, sP->Ident); oP += sP->IdentLen + 2;
              if (sP->next) *oP++ = ' ';
             }
@@ -786,7 +794,6 @@ const char *XrdCmsNode::do_Mkpath(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 {
    EPNAME("do_Mv")
-   static const SMask_t allNodes(~0);
    int rc;
 
 // Do some debugging
@@ -812,7 +819,7 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
        //
        if ((rc = Cluster.Select(Sel2)))
           {if (rc > 0) {Arg.waitVal = rc; return "!mv";}
-              else if (Sel2.Vec.hf)
+              else if (Sel2.Vec.hf.any())
                      {Say.Emsg("do_Mv",Arg.Path2,"exists; mv failed for",Arg.Path);
                       return "target file exists";
                      }
@@ -916,7 +923,6 @@ const char *XrdCmsNode::do_PrepDel(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 {
    EPNAME("do_Rm")
-   static const SMask_t allNodes(~0);
    int rc;
 
 // Do some debugging
@@ -951,7 +957,6 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 {
    EPNAME("do_Rmdir")
-   static const SMask_t allNodes(~0);
    int rc;
 
 // Do some debugging
@@ -1348,7 +1353,6 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
 void XrdCmsNode::do_StateDFS(XrdCmsBaseFR *rP, int rc)
 {
    EPNAME("StateDFs");
-   static const SMask_t allNodes(~0);
    CmsRRHdr Request = {rP->Sid, 0, (kXR_char)(rP->Mod | kYR_raw), 0};
    XrdCmsSelect Sel(0, rP->Path, rP->PathLen);
    int isNew;
@@ -1401,7 +1405,6 @@ void XrdCmsNode::do_StateDFS(XrdCmsBaseFR *rP, int rc)
 int XrdCmsNode::do_StateFWD(XrdCmsRRData &Arg)
 {
    EPNAME("do_StateFWD");
-   static const SMask_t allNodes(~0);
    XrdCmsSelect Sel(0, Arg.Path, Arg.PathLen-1);
    XrdCmsPInfo  pinfo;
    int retc;
@@ -1489,7 +1492,7 @@ const char *XrdCmsNode::do_StatFS(XrdCmsRRData &Arg)
 
 // Find out who serves this path and get space relative to it
 //
-   if (Cache.Paths.Find(Arg.Path, pinfo) && pinfo.rovec)
+   if (Cache.Paths.Find(Arg.Path, pinfo) && pinfo.rovec.any())
       {Cluster.Space(theSpace, pinfo.rovec);
        if (Arg.Request.modifier &  CmsStatfsRequest::kYR_qvfs)
           {bytes = sprintf(buff, "A %lld %lld %d",

@@ -1,10 +1,10 @@
-#ifndef XRDCMSTYPES__H
-#define XRDCMSTYPES__H
+#ifndef XRDCMSREADOUT__H
+#define XRDCMSREADOUT__H
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d C m s T y p e s . h h                         */
+/*                      X r d C m s R e a d O u t . h h                       */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2025 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,23 +30,26 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <bitset>
+class XrdCmsReadOut
+{
+public:
 
-// The following defines our cell size (maximum subscribers)
-//
-#define STMax 128
+size_t Next()
+           {size_t nowBit;
+            if ((nowBit = pendBit) < maxiBit)
+               pendBit = theVec._Find_next(nowBit);
+            return nowBit;
+           }
 
-// Nodes are represented in a bit vector which must have as many bits as
-// we may have subscribers. We define that vector here.
-//
-typedef std::bitset<STMax> SMask_t;
+    XrdCmsReadOut(SMask_t& vec) : theVec(vec),
+                                  pendBit(vec._Find_first()),
+                                  maxiBit(vec.size()) {}
 
-// The following defines the maximum number of redirectors. It is one greater
-// than the actual maximum as the zeroth is never used.
-//
-#define maxRD 65
+   ~XrdCmsReadOut() {}
 
-#define XrdCmsMAX_PATH_LEN 1024
-
-#define XrdCmsVERSION "1.0.0"
+private:
+SMask_t& theVec;
+size_t   pendBit;
+size_t   maxiBit;
+};
 #endif

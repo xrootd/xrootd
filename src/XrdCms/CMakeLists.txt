@@ -13,6 +13,7 @@ target_sources(XrdServer
     XrdCmsLogin.cc         XrdCmsLogin.hh
     XrdCmsParser.cc        XrdCmsParser.hh
                            XrdCmsPerfMon.hh
+                           XrdCmsReadOut.hh
     XrdCmsResp.cc          XrdCmsResp.hh
     XrdCmsRRData.cc        XrdCmsRRData.hh
     XrdCmsRTable.cc        XrdCmsRTable.hh

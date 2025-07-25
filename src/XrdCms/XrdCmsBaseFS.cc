@@ -121,7 +121,7 @@ int XrdCmsBaseFS::Exists(XrdCmsRRData &Arg, XrdCmsPInfo &Who, int noLim)
 //
    if (!lclStat)
       {aOK = (!theQ.rLimit || noLim || (!Fixed && Bypass()));
-       if (Who.rovec) Queue(Arg, Who, -(Arg.PathLen-1), !aOK);
+       if (Who.rovec.any()) Queue(Arg, Who, -(Arg.PathLen-1), !aOK);
        return 0;
       }
 
@@ -142,7 +142,7 @@ int XrdCmsBaseFS::Exists(XrdCmsRRData &Arg, XrdCmsPInfo &Who, int noLim)
 
 // We can't do this now, so forcibly queue the request
 //
-   if (Who.rovec) Queue(Arg, Who, fnPos, 1);
+   if (Who.rovec.any()) Queue(Arg, Who, fnPos, 1);
    return 0;
 }
 

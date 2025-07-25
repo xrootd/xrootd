@@ -767,7 +767,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
             {DEBUG(Link->Name() <<" adding path: " <<tp);
              if (!(tp = thePaths.GetToken())
              ||  !(pp = thePaths.GetToken())) break;
-             if (!(newmask = AddPath(myNode, tp, pp)))
+             if (!(newmask = AddPath(myNode, tp, pp)).any())
                 return Login_Failed("invalid exported path");
              servset |= newmask;
              addedp= 1;
@@ -877,8 +877,8 @@ SMask_t XrdCmsProtocol::AddPath(XrdCmsNode *nP,
 
 // Set node options
 //
-   nP->isRW = (pinfo.rwvec ? XrdCmsNode::allowsRW : 0) 
-            | (pinfo.ssvec ? XrdCmsNode::allowsSS : 0);
+   nP->isRW = (pinfo.rwvec.any() ? XrdCmsNode::allowsRW : 0) 
+            | (pinfo.ssvec.any() ? XrdCmsNode::allowsSS : 0);
 
 // Add the path to the known path list
 //
@@ -1152,7 +1152,7 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
 // While destructive operations should only go to r/w servers
 //
    if (Data.Request.rrCode != kYR_prepdel)
-      {if (!(amask = pinfo.rwvec))
+      {if (!(amask = pinfo.rwvec).any())
           {Say.Emsg(epname, Router.getName(Data.Request.rrCode),
                     "aborted; no r/w servers handling", Data.Path);
            return;
