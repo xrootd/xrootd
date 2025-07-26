@@ -63,6 +63,7 @@ add_subdirectory( XrdSecztn )
 add_subdirectory( XrdXml )
 
 add_subdirectory( XrdCl )
+add_subdirectory( XrdClCurl )
 add_subdirectory( XrdClHttp )
 add_subdirectory( XrdEc )
 
