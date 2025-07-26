@@ -32,6 +32,14 @@ endif()
 add_subdirectory(krb5)
 add_subdirectory(tls)
 
+if( BUILD_SCITOKENS )
+  # The XrdClCurl integration tests all rely on
+  # generated scitokens for authorization and cannot
+  # run without the integration enabled.
+  add_subdirectory( XrdClCurlCommon )
+  add_subdirectory( XrdClCurl )
+endif()
+
 add_subdirectory( XrdOssTests )
 add_subdirectory( XRootD )
 add_subdirectory( cluster )
