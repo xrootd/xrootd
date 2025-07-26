@@ -55,6 +55,13 @@ endif()
 
 if( ENABLE_HTTP )
   set( BUILD_HTTP TRUE )
+
+  if(FORCE_ENABLED)
+    find_package(CURL 7.9.6 REQUIRED)
+  else()
+    find_package(CURL 7.9.6)
+  endif()
+
 endif()
 
 if( ENABLE_XRDEC )
