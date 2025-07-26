@@ -29,8 +29,14 @@ if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
 
-add_subdirectory( XrdClCurlCommon )
-add_subdirectory( XrdClCurl )
+if( BUILD_SCITOKENS )
+  # The XrdClCurl integration tests all rely on
+  # generated scitokens for authorization and cannot
+  # run without the integration enabled.
+  add_subdirectory( XrdClCurlCommon )
+  add_subdirectory( XrdClCurl )
+endif()
+
 add_subdirectory( XrdOssTests )
 add_subdirectory( XRootD )
 add_subdirectory( cluster )
