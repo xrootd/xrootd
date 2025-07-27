@@ -26,8 +26,8 @@ endif()
 set_target_properties( XrdClS3Obj PROPERTIES POSITION_INDEPENDENT_CODE ON )
 
 if (ENABLE_TESTS)
-  add_library(XrdClS3Testing SHARED "$<TARGET_OBJECTS:XrdClCurlObj>")
-  target_link_libraries(XrdClS3Testing XrdClCurlObj)
+  add_library(XrdClS3Testing SHARED "$<TARGET_OBJECTS:XrdClS3Obj>")
+  target_link_libraries(XrdClS3Testing XrdClS3Obj)
   target_include_directories(XrdClS3Testing PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 endif()
 
