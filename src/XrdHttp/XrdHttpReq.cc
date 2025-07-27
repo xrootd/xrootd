@@ -1137,7 +1137,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           l = resourceplusopaque.length() + 1;
           xrdreq.open.dlen = htonl(l);
           xrdreq.open.mode = 0;
-          xrdreq.open.options = htons(kXR_retstat | kXR_open_read);
+          xrdreq.open.options = htons(kXR_retstat | kXR_open_read | ((readRangeHandler.getMaxRanges() <= 1) ? kXR_seqio : 0));
 
           if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
             prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);

@@ -143,6 +143,17 @@ public:
   const Error&  getError() const;
 
   /**
+   * Return the maximum number of expected ranges for the request.
+   * Used to determine whether a vector range request may be used at open time.
+   * At that time, `isSingleRange()` cannot be invoked because it internally
+   * resolves the correct ranges which requires the file size to be set (which
+   * only occurs after file-open).
+   * The use case is to determine whether we should set the sequential I/O flag
+   * at open time.
+   */
+  size_t getMaxRanges() const;
+
+  /**
    * Indicates no valid Range header was given and thus the implication is that
    * whole file is required. A range or ranges may be given that cover the whole
    * file but that situation is not detected.
