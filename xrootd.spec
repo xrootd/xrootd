@@ -84,8 +84,10 @@ BuildRequires:	coreutils
 BuildRequires:	curl
 BuildRequires:	davix
 BuildRequires:	gtest-devel
+BuildRequires:  /usr/bin/hostname
 BuildRequires:	openssl
 BuildRequires:	procps-ng
+BuildRequires:  /usr/bin/sqlite3
 %endif
 
 %if %{with xrdec}
