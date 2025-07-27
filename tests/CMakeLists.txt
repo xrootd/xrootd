@@ -38,6 +38,7 @@ if( BUILD_SCITOKENS )
   # run without the integration enabled.
   add_subdirectory( XrdClCurlCommon )
   add_subdirectory( XrdClCurl )
+  add_subdirectory( XrdClS3 )
 endif()
 
 add_subdirectory( XrdOssTests )
