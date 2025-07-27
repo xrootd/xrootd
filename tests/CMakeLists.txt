@@ -34,6 +34,7 @@ add_subdirectory(tls)
 
 add_subdirectory( XrdClCurlCommon )
 add_subdirectory( XrdClCurl )
+add_subdirectory( XrdClS3 )
 
 add_subdirectory( XrdOssTests )
 add_subdirectory( XRootD )
