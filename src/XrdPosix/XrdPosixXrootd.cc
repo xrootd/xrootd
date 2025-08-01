@@ -363,6 +363,27 @@ int XrdPosixXrootd::endPoint(int FD, char *Buff, int Blen)
 }
 
 /******************************************************************************/
+/*                                 F c n t l                                  */
+/******************************************************************************/
+
+int     XrdPosixXrootd::Fcntl(int fildes, XrdPosixXrootd::Fcop,
+                                          const std::string& args,
+                                                std::string& resp)
+{
+   XrdPosixFile *fp;
+
+// Find the file object
+//
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
+
+// At the moment we support nothing
+//
+   resp = "Function not supported.";
+   errno = ENOTSUP;
+   return -1;
+}   
+  
+/******************************************************************************/
 /*                                 F s t a t                                  */
 /******************************************************************************/
 
