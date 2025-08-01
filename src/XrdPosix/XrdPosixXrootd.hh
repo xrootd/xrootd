@@ -97,6 +97,26 @@ static int     Closedir(DIR *dirp);
 
 static int     endPoint(int FD, char *Buff, int Blen);
 
+
+//-----------------------------------------------------------------------------
+//! Fcntl() conforms to POSIX.1-2001 fcntl() only in terms of API. The actual
+//!         function that are supported are as follows: TBD
+//!
+//! @param  op     One of the operation codes in the enum class.
+//!                FInfo   - Get file information as requested by args.
+//! @param  args - Arguments specific to the specified the op parameter.
+//! @param  resp - Response or error message specific to the op parameter.
+//!
+//! @return >= 0 - Success. The actual value is dependent on the op parameter.
+//! @return < 0  - Failure. The resp may contain a message and errno set to
+//!                an error code. If resp = '', convert errno to message text.  
+//-----------------------------------------------------------------------------
+
+enum class Fcop { QFInfo };
+
+static int Fcntl(int fildes, Fcop op, const std::string& args,
+                                            std::string& resp);
+
 //-----------------------------------------------------------------------------
 //! Fstat() conforms to POSIX.1-2001 fstat()
 //-----------------------------------------------------------------------------
