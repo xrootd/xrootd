@@ -471,7 +471,8 @@ enum XOpenRequestOption {
 
 enum XOpenRequestOption2 {
    kXR_dup      = 0x0001, //     1
-   kXR_samefs   = 0x0002  //     2
+   kXR_samefs   = 0x0002, //     2
+   kXR_directio = 0x0004  //     4
 };
   
 struct ClientOpenRequest {
@@ -620,6 +621,8 @@ enum XQueryType {
    kXR_Qckscan= 6,
    kXR_Qconfig= 7,
    kXR_Qvisa  = 8,
+   kXR_QFinfo = 9,
+   kXR_QFSinfo=10,
    kXR_Qopaque=16,
    kXR_Qopaquf=32,
    kXR_Qopaqug=64
