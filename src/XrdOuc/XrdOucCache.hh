@@ -32,6 +32,7 @@
 
 #include <cerrno>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "XrdOuc/XrdOucCacheStats.hh"
@@ -123,6 +124,23 @@ public:
 //------------------------------------------------------------------------------
 
 virtual bool Detach(XrdOucCacheIOCD &iocd) = 0;
+
+//------------------------------------------------------------------------------
+//! Issue a special file control operation (synchronous).
+//!
+//! @param  opc    The operation code (one of the enums).
+//! @param  args   The argument as required by opc.
+//! @param  resp   Where the response is to be placed.
+//!
+//! @return 0 upon success or -errno upon failure.
+//------------------------------------------------------------------------------
+
+enum class Fcop { QFinfo = 0 };
+
+virtual int  Fcntl(Fcop opc, const std::string& args, std::string& resp)
+                  {resp = "Function not supported";
+                   return -ENOTSUP;
+                  }
 
 //------------------------------------------------------------------------------
 //! Obtain size of the file.
