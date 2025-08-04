@@ -40,7 +40,7 @@ done
 # This script assumes that ${host} exports an empty / as read/write.
 # It also assumes that any authentication required is already setup.
 
-set -xe
+set -e
 
 ${XRDCP} --version
 
@@ -190,6 +190,36 @@ for host in "${!hosts[@]}"; do
        done
 done
 
+# Renaming operation on meta manager fail with 501
+# Not sure why this is the expected behaviour
+# https://github.com/xrootd/xrootd/blob/8ac19b1d2b74521acff9ed0200052a2e373092cc/src/XrdHttp/XrdHttpReq.cc#L1746-L1752
+
+declare -A srcs=(
+    [metaman]=501
+    [man1]=201
+    [srv1]=201
+)
+
+# Upload files
+for src in "${!srcs[@]}"; do
+    curl -s -S -L -v -T "${LCLDATADIR}/srv1.ref" \
+        "${hosts_http[$src]}/${RMTDATADIR}/old_file_$src"
+done
+
+# Perform MOVE and check response
+for src in "${!srcs[@]}"; do
+    expected_code="${srcs[$src]}"
+    response_code=$(curl -s -v -S -L -o /dev/null -w "%{http_code}" -X MOVE \
+        -H "Destination: ${hosts_http[$src]}/${RMTDATADIR}/new_file_$src" \
+        "${hosts_http[$src]}/${RMTDATADIR}/old_file_$src")
+
+    if [[ "$response_code" != "$expected_code" ]]; then
+        echo "Assertion failed for '$src': expected $expected_code, got $response_code"
+        exit 1
+    else
+        echo "Success: '$src' returned $response_code as expected."
+    fi
+done
 
 for host in "${!hosts[@]}"; do
        ${XRDFS} ${HOST_METAMAN} rm ${RMTDATADIR}/${host}.ref &
@@ -202,7 +232,19 @@ for host in "${!hosts[@]}"; do
                count=$((count + 1))
        done
 done
+wait
 
+# Additional cleanup for move operation files
+for src in "${!srcs[@]}"; do
+    if [[ "$src" == "man1" || "$src" == "srv1" ]]; then
+        ${XRDFS} "${HOST_METAMAN}" rm "${RMTDATADIR}/new_file_${src}" &
+    else
+        ${XRDFS} "${HOST_METAMAN}" rm "${RMTDATADIR}/old_file_${src}" &
+    fi
+done
+
+# Remove local file once after the loop
+rm -f "${LCLDATADIR}/srv1.ref" &
 wait
 
 ${XRDFS} ${HOST_METAMAN} rmdir ${RMTDATADIR}
