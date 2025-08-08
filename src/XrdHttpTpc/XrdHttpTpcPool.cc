@@ -18,8 +18,8 @@ decltype(TPCRequestManager::m_pool_map) TPCRequestManager::m_pool_map;
 decltype(TPCRequestManager::m_init_once) TPCRequestManager::m_init_once;
 decltype(TPCRequestManager::m_mutex) TPCRequestManager::m_mutex;
 decltype(TPCRequestManager::m_idle_timeout) TPCRequestManager::m_idle_timeout = std::chrono::minutes(1);
-unsigned TPCRequestManager::m_max_pending_ops = 20;
-unsigned TPCRequestManager::m_max_workers = 20;
+unsigned TPCRequestManager::m_max_pending_ops = 20;  // default max_pending_transfers_per_queue
+unsigned TPCRequestManager::m_max_workers = 50;      // default mac_active_transfers_per_queue
 
 TPCRequestManager::TPCQueue::TPCWorker::TPCWorker(const std::string &label, int scitag, TPCQueue &queue)
     : m_label(label),
