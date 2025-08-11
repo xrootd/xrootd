@@ -119,6 +119,24 @@ void State::SetupHeaders(XrdHttpExtReq &req) {
         }
     }
 
+    if(m_is_transfer_state && !m_push && !req.mReprDigest.empty()) {
+      size_t reprDigestSize = req.mReprDigest.size();
+      std::stringstream ss;
+      ss << "Want-Repr-Digest: ";
+      size_t cpt = 1;
+      for (const auto &kv: req.mReprDigest) {
+        // We put the same weight for the digest names as we do not have any way, according to the specs,
+        // to give priority to a digest name in particular
+        ss << kv.first << '=' << 5;
+        if(cpt < reprDigestSize) {
+          ss << ',';
+        }
+        cpt++;
+      }
+      list = curl_slist_append(list, ss.str().c_str());
+      m_headers_copy.emplace_back(ss.str());
+    }
+
     if (m_is_transfer_state && m_push && m_push_length > 0) {
         // On libcurl 8.5.0 - 8.9.1, we've observed bugs causing failures whenever
         // `Expect: 100-continue` is not used.  Older versions of libcurl unconditionally

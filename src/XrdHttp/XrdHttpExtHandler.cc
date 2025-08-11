@@ -116,7 +116,7 @@ verb(req->requestverb), headers(req->allheaders) {
   // Get the packet marking handle and the client scitag from the XrdHttp layer
   pmark = prot->pmarkHandle;
   mSciTag = req->mScitag;
-
+  mReprDigest = req->mReprDigest;
   tpcForwardCreds = prot->tpcForwardCreds;
 
   length = req->length;
