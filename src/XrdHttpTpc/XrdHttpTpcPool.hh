@@ -39,11 +39,11 @@ class TPCRequestManager final {
    public:
     class TPCRequest {
        public:
-        TPCRequest(const std::string &ident, const int scitag, CURL *handle) : m_ident(ident), m_scitag(scitag), m_curl(handle) {}
+        TPCRequest(const std::string &label, const int scitag, CURL *handle) : m_label(label), m_scitag(scitag), m_curl(handle) {}
 
         int WaitFor(std::chrono::steady_clock::duration);
         CURL *GetHandle() const;
-        std::string GetIdentifier() const;
+        std::string GetLabel() const;
         int GetScitag() const;
         std::string GetRemoteConnDesc();
         void SetActive();
@@ -51,6 +51,7 @@ class TPCRequestManager final {
         bool IsActive() const;
         void Cancel();
         void UpdateRemoteConnDesc();
+        static std::string GenerateIdentifier(const std::string& label, const char *vorg, const int scitag);
 
        private:
         std::atomic<bool> m_active{false};
@@ -58,7 +59,9 @@ class TPCRequestManager final {
         std::string m_conn_list;
         std::mutex m_conn_mutex;
         std::atomic<off_t> m_progress_offset{0};
-        std::string m_ident;
+        // Label assigned to the request. Determines which queue it will be placed into.
+        // A queue with matching identifier is created if it does not already exists.
+        std::string m_label;
         int m_scitag;
         CURL *m_curl;
         std::condition_variable m_cv;
@@ -79,7 +82,7 @@ class TPCRequestManager final {
         class TPCWorker;
 
        public:
-        TPCQueue(const std::string &ident, TPCRequestManager &parent) : m_label(ident), m_parent(parent) {}
+        TPCQueue(const std::string &identifier, TPCRequestManager &parent) : m_identifier(identifier), m_parent(parent) {}
 
         bool Produce(TPCRequest &handler);
         TPCRequest *TryConsume();
@@ -109,16 +112,17 @@ class TPCRequestManager final {
             bool RunCurl(CURLM *multi_handle, TPCRequest &request);
 
             bool m_idle{false};
+            // Label for this worker. Always set to the m_identifier of the queue it serves.
             const std::string m_label;
             TPCQueue &m_queue;
-            int m_scitag;
             XrdNetPMark *m_pmark_handle;
             XrdHttpTpc::PMarkManager m_pmark_manager;
         };
 
         static const long CONNECT_TIMEOUT = 60;
         bool m_done{false};
-        const std::string m_label;
+        // Unique identifier for this queue, in the format: "tpc_<vorg>_<scitag>".
+        const std::string m_identifier;
         std::vector<std::unique_ptr<TPCWorker>> m_workers;
         std::deque<TPCRequest *> m_ops;
         std::mutex m_mutex;
@@ -128,9 +132,7 @@ class TPCRequestManager final {
     void Done(const std::string &ident);
 
     static std::shared_mutex m_mutex;
-
     XrdSysError &m_log;  // Log object for the request manager
-
     static std::chrono::steady_clock::duration m_idle_timeout;
     static std::unordered_map<std::string, std::shared_ptr<TPCQueue>> m_pool_map;
     static unsigned m_max_pending_ops;

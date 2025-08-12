@@ -24,8 +24,6 @@ unsigned TPCRequestManager::m_max_workers = 50;      // default mac_active_trans
 TPCRequestManager::TPCQueue::TPCWorker::TPCWorker(const std::string &label, int scitag, TPCQueue &queue)
     : m_label(label),
       m_queue(queue),
-      m_scitag(scitag),  // use this to generate the queue identifier: queues
-                         // will be based on the scitag
       m_pmark_handle((XrdNetPMark *)queue.m_parent.m_xrdEnv.GetPtr("XrdNetPMark*")),
       m_pmark_manager(m_pmark_handle, scitag, TPC::TpcType::Pull) {}
 
@@ -113,7 +111,7 @@ bool TPCRequestManager::TPCQueue::TPCWorker::RunCurl(CURLM *multi_handle, TPCReq
 }
 
 void TPCRequestManager::TPCQueue::TPCWorker::Run() {
-    m_queue.m_parent.m_log.Log(LogMask::Info, "TPCWorker", "Worker for", m_queue.m_label.c_str(), "starting");
+    m_queue.m_parent.m_log.Log(LogMask::Info, "TPCWorker", "Worker for", m_queue.m_identifier.c_str(), "starting");
 
     // Create the multi-handle and add in the current transfer to it.
     CURLM *multi_handle = curl_multi_init();
@@ -130,7 +128,7 @@ void TPCRequestManager::TPCQueue::TPCWorker::Run() {
         if (!request) {
             request = m_queue.ConsumeUntil(m_idle_timeout, this);
             if (!request) {
-                m_queue.m_parent.m_log.Log(LogMask::Info, "TPCWorker", "Worker for", m_queue.m_label.c_str(), "exiting");
+                m_queue.m_parent.m_log.Log(LogMask::Info, "TPCWorker", "Worker for", m_queue.m_identifier.c_str(), "exiting");
                 break;
             }
         }
@@ -228,7 +226,7 @@ void TPCRequestManager::TPCQueue::Done(TPCWorker *worker) {
     if (m_workers.empty()) {
         m_done = true;
         lock.unlock();
-        m_parent.Done(m_label);
+        m_parent.Done(m_identifier);
     }
 }
 
@@ -273,7 +271,7 @@ bool TPCRequestManager::TPCQueue::Produce(TPCRequest &handler) {
     }
 
     if (m_workers.size() < m_max_workers) {
-        auto worker = std::make_unique<TPCRequestManager::TPCQueue::TPCWorker>(handler.GetIdentifier(), handler.GetScitag(), *this);
+        auto worker = std::make_unique<TPCRequestManager::TPCQueue::TPCWorker>(handler.GetLabel(), handler.GetScitag(), *this);
         std::thread t(TPCRequestManager::TPCQueue::TPCWorker::RunStatic, worker.get());
         t.detach();
         m_workers.push_back(std::move(worker));
@@ -325,9 +323,19 @@ int TPCRequestManager::TPCRequest::GetScitag() const { return m_scitag; }
 
 bool TPCRequestManager::TPCRequest::IsActive() const { return m_active.load(std::memory_order_relaxed); }
 
-std::string TPCRequestManager::TPCRequest::GetIdentifier() const {
+std::string TPCRequestManager::TPCRequest::GetLabel() const { return m_label; }
+
+std::string TPCRequestManager::TPCRequest::GenerateIdentifier(const std::string& label, const char *vorg, const int scitag) {
     std::stringstream ss;
-    ss << m_ident << "_" << m_scitag;
+    ss << label;  // always present
+
+    if (vorg && *vorg) {
+        ss << "_" << vorg;
+    }
+
+    if (scitag != -1) {
+        ss << "_" << scitag;
+    }
     return ss.str();
 }
 
@@ -401,7 +409,7 @@ bool TPCRequestManager::Produce(TPCRequestManager::TPCRequest &handler) {
     while (true) {
         m_mutex.lock_shared();
         std::lock_guard<std::shared_mutex> guard{m_mutex, std::adopt_lock};
-        auto iter = m_pool_map.find(handler.GetIdentifier());
+        auto iter = m_pool_map.find(handler.GetLabel());
         if (iter != m_pool_map.end()) {
             if (!iter->second->IsDone()) {
                 queue = iter->second;
@@ -416,12 +424,12 @@ bool TPCRequestManager::Produce(TPCRequestManager::TPCRequest &handler) {
         std::string queue_name = "";
         {
             std::lock_guard<std::shared_mutex> guard(m_mutex);
-            auto iter = m_pool_map.find(handler.GetIdentifier());
+            auto iter = m_pool_map.find(handler.GetLabel());
             if (iter == m_pool_map.end()) {
-                queue = std::make_shared<TPCQueue>(handler.GetIdentifier(), *this);
-                m_pool_map.insert(iter, {handler.GetIdentifier(), queue});
+                queue = std::make_shared<TPCQueue>(handler.GetLabel(), *this);
+                m_pool_map.insert(iter, {handler.GetLabel(), queue});
                 created_queue = true;
-                queue_name = handler.GetIdentifier();
+                queue_name = handler.GetLabel();
             } else {
                 queue = iter->second;
             }
