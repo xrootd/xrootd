@@ -35,7 +35,7 @@ add_compile_options(
   -Wall
   -Wextra
   $<$<NOT:$<BOOL:${APPLE}>>:-Wdeprecated>
-  -Werror=null-dereference
+  -Wnull-dereference
   -Wno-unused-parameter
   -Wno-vla
 )
