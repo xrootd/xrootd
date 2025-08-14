@@ -48,7 +48,7 @@ public:
 //! Split a string
 //------------------------------------------------------------------------
 template<class Container>
-static void splitString( Container &result,  const std::string &input, const std::string &delimiter ) {
+static void splitString( Container &result,  std::string_view input, const std::string &delimiter ) {
     size_t start = 0;
     size_t end = 0;
     size_t length = 0;
@@ -62,7 +62,7 @@ static void splitString( Container &result,  const std::string &input, const std
             length = input.length() - start;
 
         if (length)
-            result.push_back(input.substr(start, length));
+            result.emplace_back(input.substr(start, length));
 
         start = end + delimiter.size();
     } while (end != std::string::npos);

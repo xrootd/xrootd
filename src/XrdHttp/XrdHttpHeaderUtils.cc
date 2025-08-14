@@ -22,20 +22,21 @@
 #include "XrdHttpHeaderUtils.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdHttpUtils.hh"
 
 #include <vector>
 #include <algorithm>
 
 
-void XrdHttpHeaderUtils::parseReprDigest(const std::string &header, std::map<std::string, std::string> &output) {
+void XrdHttpHeaderUtils::parseReprDigest(const std::string &value, std::map<std::string, std::string> &output) {
   // Expected format per entry: <cksumType>=:<digestValue>:
   std::vector<std::string> digestNameValuePairs;
-  XrdOucTUtils::splitString(digestNameValuePairs, header, ",");
+  XrdOucTUtils::splitString(digestNameValuePairs, value, ",");
 
   for (const auto &digestNameValue : digestNameValuePairs) {
     std::string_view digestNameValueSV {digestNameValue};
     auto equalPos = digestNameValueSV.find('=');
-    if (equalPos == std::string::npos || equalPos >= digestNameValueSV.size() - 1)
+    if (equalPos == std::string_view::npos || equalPos >= digestNameValueSV.size() - 1)
       continue;
 
     std::string_view cksumTypeSV = digestNameValueSV.substr(0, equalPos);
@@ -51,9 +52,53 @@ void XrdHttpHeaderUtils::parseReprDigest(const std::string &header, std::map<std
     if (beginCksumPos == 0 && endCksumPos > beginCksumPos + 1 && endCksumPos < cksumValueInSV.size()) {
       std::string_view cksumValue = cksumValueInSV.substr(beginCksumPos + 1, endCksumPos - beginCksumPos - 1);
       XrdOucUtils::trim(cksumValue);
-      if (!cksumValue.empty())
-        output[std::string(cksumTypeSV)] = cksumValue;
+      if (!cksumValue.empty()) {
+        //What we get as checksum value is a base64-encoded hexadecimal bytes
+        //Let's decode that.
+        std::string chksumDecoded;
+        base64DecodeHex(std::string(cksumValue), chksumDecoded);
+        std::string cksumTypeLC {cksumTypeSV};
+        std::transform(cksumTypeLC.begin(), cksumTypeLC.end(), cksumTypeLC.begin(), ::tolower);
+        output[cksumTypeLC] = chksumDecoded;
+      }
     }
     // Malformed entries are silently ignored
+  }
+}
+
+void XrdHttpHeaderUtils::parseWantReprDigest(const std::string & value, std::map<std::string, uint8_t> &output) {
+  size_t pos = 0;
+  std::string_view value_sv {value};
+  while(pos <= value_sv.size()) {
+    // find comma
+    size_t comma = value.find(',',pos);
+    // extract item, no comma means the item is the full string
+    std::string_view item = (comma == std::string_view::npos) ? value_sv.substr(pos) : value_sv.substr(pos, comma - pos);
+    // move current cursor to 'comma + 1' or after the string end
+    pos = (comma == std::string_view::npos) ? value.size() + 1 : comma + 1;
+    // trim the item
+    XrdOucUtils::trim(item);
+    if(item.empty()) continue;
+
+    size_t eq = item.find('=');
+    // If no '=' sign, we discard this entry as it is malformed
+    if(eq == std::string_view::npos) continue;
+    // We found the equal sign on the item
+    std::string_view digestName {item.substr(0, eq)};
+    XrdOucUtils::trim(digestName);
+    std::string_view preference {item.substr(eq+1)};
+    XrdOucUtils::trim(preference);
+
+    std::string key_lower {digestName};
+    std::transform(key_lower.begin(),key_lower.end(),key_lower.begin(),::tolower);
+
+    try {
+      uint8_t preference_us = XrdOucUtils::touint8_t(preference);
+      // Max allowed value for Repr-Digest is 10
+      preference_us = std::min(preference_us,(uint8_t)10);
+      output[key_lower] = preference_us;
+    } catch (...) {
+      // discard invalid values
+    }
   }
 }

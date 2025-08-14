@@ -183,10 +183,12 @@ int XrdHttpReq::parseLine(char *line, int len) {
       destination.assign(val, line+len-val);
       trim(destination);
     } else if (!strcasecmp(key, "want-digest")) {
-      m_req_digest.assign(val, line + len - val);
-      trim(m_req_digest);
+      // Discard Want-Repr-Digest in favor of Want-Digest
+      m_want_repr_digest.clear();
+      m_want_digest.assign(val, line + len - val);
+      trim(m_want_digest);
       //Transform the user requests' want-digest to lowercase
-      std::transform(m_req_digest.begin(),m_req_digest.end(),m_req_digest.begin(),::tolower);
+      std::transform(m_want_digest.begin(), m_want_digest.end(), m_want_digest.begin(), ::tolower);
     } else if (!strcasecmp(key, "depth")) {
       depth = -1;
       if (strcmp(val, "infinity"))
@@ -212,7 +214,12 @@ int XrdHttpReq::parseLine(char *line, int len) {
       m_origin = val;
       trim(m_origin);
     } else if (!strcasecmp(key,"repr-digest")) {
-      XrdHttpHeaderUtils::parseReprDigest(val, mReprDigest);
+      XrdHttpHeaderUtils::parseReprDigest(val, m_repr_digest);
+    } else if (!strcasecmp(key,"want-repr-digest")) {
+      if(m_want_digest.empty()) {
+        // If Want-Digest was set, don't parse want-repr-digest
+        XrdHttpHeaderUtils::parseWantReprDigest(val, m_want_repr_digest);
+      }
     } else {
       // Some headers need to be translated into "local" cgi info.
       auto it = std::find_if(prot->hdr2cgimap.begin(), prot->hdr2cgimap.end(),[key](const auto & item) {
@@ -839,6 +846,35 @@ void XrdHttpReq::generateWebdavErrMsg() {
 
 }
 
+int XrdHttpReq::prepareChecksumQuery(XrdHttpChecksumHandler::XrdHttpChecksumRawPtr &outCksum,
+                                     XrdOucString &outResourceDigestOpaque) {
+  const char *opaque = strchr(resourceplusopaque.c_str(), '?');
+
+  outResourceDigestOpaque = resourceplusopaque;
+
+  if(m_want_digest.size()) {
+    // According to rfc9530 "Integrity preference fields are only a hint. The receiver of the
+    // field can ignore it and send an Integrity field using any algorithm
+    // or omit the field entirely.
+    // However, in the case a client requests both Want-Digest AND Want-Repr-Digest,
+    // we will return a 'Digest' header in response to the Want-Digest request in order to keep backward compatibility.
+    outCksum = prot->cksumHandler.getChecksumToRunWantDigest(m_want_digest);
+  } else {
+    // Want-Repr-Digest has been passed alone, deduce the checksum to run from that header
+    outCksum = prot->cksumHandler.getChecksumToRunWantReprDigest(m_want_repr_digest);
+  }
+  if(!outCksum) {
+    // No HTTP IANA checksums have been configured by the server admin, return a "METHOD_NOT_ALLOWED" error
+    prot->SendSimpleResp(405, NULL, NULL, (char *) "No HTTP-IANA compatible checksums have been configured.", 0, false);
+    return -1;
+  }
+  outResourceDigestOpaque += !opaque ? "?" : "&";
+  outResourceDigestOpaque += "cks.type=";
+  outResourceDigestOpaque += outCksum->getXRootDConfigDigestName().c_str();
+
+  return 0;
+}
+
 int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
@@ -925,23 +961,10 @@ int XrdHttpReq::ProcessHTTPReq() {
         }
         return 0;
       } else {
-        const char *opaque = strchr(resourceplusopaque.c_str(), '?');
         // Note that doChksum requires that the memory stays alive until the callback is invoked.
-        m_resource_with_digest = resourceplusopaque;
-
-        m_req_cksum = prot->cksumHandler.getChecksumToRun(m_req_digest);
-        if(!m_req_cksum) {
-            // No HTTP IANA checksums have been configured by the server admin, return a "METHOD_NOT_ALLOWED" error
-            // We should not send body in response to HEAD request
-            prot->SendSimpleResp(HTTP_METHOD_NOT_ALLOWED, NULL, NULL, NULL, 0, false);
-            return -1;
-        }
-        if (!opaque) {
-          m_resource_with_digest += "?cks.type=";
-          m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
-        } else {
-          m_resource_with_digest += "&cks.type=";
-          m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
+        int prepareCksum = prepareChecksumQuery(m_req_cksum, m_resource_with_digest);
+        if(prepareCksum < 0) {
+          return -1;
         }
         if (prot->doChksum(m_resource_with_digest) < 0) {
           // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
@@ -1048,26 +1071,14 @@ int XrdHttpReq::ProcessHTTPReq() {
           return 0;
         }
         case 1: // Checksum request
-          if (!(fileflags & kXR_isDir) && !m_req_digest.empty()) {
-            // In this case, the Want-Digest header was set.
-            bool has_opaque = strchr(resourceplusopaque.c_str(), '?');
-            // Note that doChksum requires that the memory stays alive until the callback is invoked.
-            m_req_cksum = prot->cksumHandler.getChecksumToRun(m_req_digest);
-            if(!m_req_cksum) {
-                // No HTTP IANA checksums have been configured by the server admin, return a "METHOD_NOT_ALLOWED" error
-                prot->SendSimpleResp(HTTP_METHOD_NOT_ALLOWED, NULL, NULL, (char *) "No HTTP-IANA compatible checksums have been configured.", 0, false);
-                return -1;
-            }
-            m_resource_with_digest = resourceplusopaque;
-            if (has_opaque) {
-              m_resource_with_digest += "&cks.type=";
-              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
-            } else {
-              m_resource_with_digest += "?cks.type=";
-              m_resource_with_digest += m_req_cksum->getXRootDConfigDigestName().c_str();
+          if (!(fileflags & kXR_isDir) && (!m_want_digest.empty() || !m_want_repr_digest.empty())) {
+            // In this case, the Want-Digest or then Want-Repr-Digest header was set.
+            int prepareCksum = prepareChecksumQuery(m_req_cksum, m_resource_with_digest);
+            if(prepareCksum < 0) {
+              return -1;
             }
             if (prot->doChksum(m_resource_with_digest) < 0) {
-              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
+              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest or Want-Repr-Digest header.", 0, false);
               return -1;
             }
             return 0;
@@ -1701,28 +1712,37 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
                << reinterpret_cast<char *>(iovP[0].iov_base) << "=" 
                << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
 
-    bool convert_to_base64 = m_req_cksum->needsBase64Padding();
-    char *digest_value = reinterpret_cast<char *>(iovP[iovN-1].iov_base);
+    std::string cksumType {reinterpret_cast<char *>(iovP[0].iov_base),iovP[0].iov_len};
+    // Remove '\0' from the actual size of the cksumValue which is at the end of iovP[iovN-1].iov_base
+    size_t cksumValueLen = iovP[iovN-1].iov_len - 1;
+    std::string cksumValue {reinterpret_cast<char *>(iovP[iovN-1].iov_base), cksumValueLen};
+    std::string digest_value = cksumValue;
+
+    // We convert the byte representation of the checksum to base64 if the checksum needs to be base64 encoded (md5 for example)
+    // or if the Want-Repr-Digest header was used
+    bool convert_to_base64 = m_req_cksum->needsBase64Padding() || !m_want_repr_digest.empty();
     if (convert_to_base64) {
-      size_t digest_length = strlen(digest_value);
-      unsigned char *digest_binary_value = (unsigned char *)malloc(digest_length);
-      if (!Fromhexdigest(reinterpret_cast<unsigned char *>(digest_value), digest_length, digest_binary_value)) {
+      std::vector<uint8_t> digest_binary_value;
+      if (!Fromhexdigest(cksumValue,digest_binary_value)) {
         prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to convert checksum hexdigest to base64.", 0, false);
-        free(digest_binary_value);
         return -1;
       }
-      char *digest_base64_value = (char *)malloc(digest_length + 1);
-      // Binary length is precisely half the size of the hex-encoded digest_value; hence, divide length by 2.
-      Tobase64(digest_binary_value, digest_length/2, digest_base64_value);
-      free(digest_binary_value);
-      digest_value = digest_base64_value;
+      Tobase64(digest_binary_value,digest_value);
     }
 
-    digest_header = "Digest: ";
-    digest_header += m_req_cksum->getHttpName();
-    digest_header += "=";
-    digest_header += digest_value;
-    if (convert_to_base64) {free(digest_value);}
+    if(m_want_repr_digest.empty()) {
+      digest_header = "Digest: ";
+      digest_header += m_req_cksum->getHttpName();
+      digest_header += "=";
+      digest_header += digest_value;
+    } else {
+      digest_header = "Repr-Digest: ";
+      digest_header += m_req_cksum->getHttpName();
+      digest_header += "=:";
+      digest_header += digest_value;
+      digest_header += ":";
+    }
+
     return 0;
   } else {
     prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpErrorBody.c_str(), httpErrorBody.length(), false);
@@ -2075,7 +2095,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   &fileflags,
                   &filemodtime);
 
-          if (m_req_digest.size()) {
+          if (m_want_digest.size() || m_want_repr_digest.size()) {
             return 0;
           } else {
             if (fileflags & kXR_cachersp) {
@@ -2746,11 +2766,10 @@ void XrdHttpReq::reset() {
   allheaders.clear();
 
   // Reset the state of the request's digest request.
-  m_req_digest.clear();
+  m_want_digest.clear();
   m_digest_header.clear();
   m_req_cksum = nullptr;
 
-  m_resource_with_digest = "";
   m_user_agent = "";
   m_origin = "";
 
@@ -2804,7 +2823,8 @@ void XrdHttpReq::reset() {
   httpErrorCode = "";
   httpErrorBody = "";
 
-  mReprDigest.clear();
+  m_repr_digest.clear();
+  m_want_repr_digest.clear();
 }
 
 void XrdHttpReq::getfhandle() {

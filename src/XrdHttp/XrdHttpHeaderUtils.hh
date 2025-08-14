@@ -25,10 +25,28 @@
 
 #include <map>
 #include <string>
+#include <cstdint>
 
 class XrdHttpHeaderUtils {
 public:
-  static void parseReprDigest(const std::string & header, std::map<std::string,std::string> & output);
+
+  /**
+   * Parses the 'Repr-Digest' header value received from the client
+   * Syntax: "Repr-Digest: adler=:base64EncodedValue:, crc32=:base64EncodedValue:
+   * @param value contains the value of the header Repr-Digest
+   * @param output the map containing the digests and their associated base64 encoded values
+   */
+  static void parseReprDigest(const std::string & value, std::map<std::string,std::string> & output);
+
+  /**
+   * Parses 'Want-Repr-Digest' header value received from the client
+   * Syntax: "Want-Repr-Digest: adler=1, crc32=2, sha-256=9
+   * The values are integers representing the preference, comprised between 0 and 9.
+   *
+   * @param value contains the value of the header Want-Repr-Digest
+   * @param output the map containing the lower-cased digest name and the associated preference
+   */
+  static void parseWantReprDigest(const std::string & value, std::map<std::string, uint8_t> & output);
 };
 
 

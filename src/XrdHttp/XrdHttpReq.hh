@@ -49,6 +49,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <cstdint>
 
 //#include <libxml/parser.h>
 //#include <libxml/tree.h>
@@ -188,20 +189,14 @@ private:
 
   // Set the age header from the file modification time
   void addAgeHeader(std::string & headers);
-  /**
-   * Extract a comma separated list of checksums+metadata into a vector
-   * @param checksumList the list like "0:sha1, 1:adler32, 2:md5"
-   * @param extractedChecksum the vector with the elements {0:sha,1:adler32,2:md5}
-   */
-  static void extractChecksumFromList(const std::string & checksumList, std::vector<std::string> & extractedChecksum);
 
   /**
-   * Determine the XRootD-compliant checksum algorithm from the user digest string
-   * @param userDigest the string containing the digest names. e.g: adler32, md5;q=0.4, md5
-   * @param xrootdChecksums the vector that will contain the corresponding xrootd-compliant names
-   * These xrootd-compliant names are located in the static XrdOucString convert_digest_name(const std::string &rfc_name_multiple) function
+   * Convenient function to prepare the checksum query to the bridge
+   * @param outCksum the checksum that will be requested
+   * @param outResourceDigestOpaque the URL that will contain the resource and the digest type to request to the bridge as an opaque
+   * @return 0 if successful, -1 if not
    */
-  static void determineXRootDChecksumFromUserDigest(const std::string & userDigest, std::vector<std::string> & xrootdChecksums);
+  int prepareChecksumQuery(XrdHttpChecksumHandler::XrdHttpChecksumRawPtr & outCksum, XrdOucString & outResourceDigestOpaque);
 
 public:
   XrdHttpReq(XrdHttpProtocol *protinstance, const XrdHttpReadRangeHandler::Configuration &rcfg) :
@@ -292,7 +287,7 @@ public:
   std::string destination;
 
   /// The requested digest type
-  std::string m_req_digest;
+  std::string m_want_digest;
 
   /// The checksum that was ran for this request
   XrdHttpChecksumHandler::XrdHttpChecksumRawPtr m_req_cksum = nullptr;
@@ -356,8 +351,11 @@ public:
 
 
   /// Repr-Digest map where the key is the digest name and the value is the base64 encoded digest value
-  std::map<std::string,std::string> mReprDigest;
+  std::map<std::string,std::string> m_repr_digest;
 
+  /// Want-Repr-Digest map where the key is the digest name and the value is
+  /// the preference (between 0 and 9)
+  std::map<std::string,uint8_t> m_want_repr_digest;
 
 
   /// Crunch an http request.

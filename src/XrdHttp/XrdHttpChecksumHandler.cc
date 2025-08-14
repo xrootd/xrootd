@@ -37,6 +37,9 @@ void XrdHttpChecksumHandlerImpl::initializeCksumsMaps() {
     addChecksumToMaps(std::make_unique<XrdHttpChecksum>("cksum","UNIXcksum",false));
     addChecksumToMaps(std::make_unique<XrdHttpChecksum>("crc32","crc32",false));
     addChecksumToMaps(std::make_unique<XrdHttpChecksum>("crc32c","crc32c",false));
+    // According to https://www.iana.org/assignments/http-digest-hash-alg/http-digest-hash-alg.xhtml, adler32 is now adler...
+    // We add it to ensure it works and keep retrocompatibility
+    XROOTD_DIGEST_NAME_TO_CKSUMS["adler"] = std::make_unique<XrdHttpChecksum>("adler32","adler",false);
 }
 
 void XrdHttpChecksumHandlerImpl::addChecksumToMaps(XrdHttpChecksumHandlerImpl::XrdHttpChecksumPtr && checksum) {
@@ -46,9 +49,9 @@ void XrdHttpChecksumHandlerImpl::addChecksumToMaps(XrdHttpChecksumHandlerImpl::X
     XROOTD_DIGEST_NAME_TO_CKSUMS[checksum->getXRootDConfigDigestName()] = std::move(checksum);
 }
 
-XrdHttpChecksumHandlerImpl::XrdHttpChecksumRawPtr XrdHttpChecksumHandlerImpl::getChecksumToRun(const std::string &userDigestIn) const {
+XrdHttpChecksumHandlerImpl::XrdHttpChecksumRawPtr XrdHttpChecksumHandlerImpl::getChecksumToRunWantDigest(const std::string &wantDigest) const {
     if(!mConfiguredChecksums.empty()) {
-        std::vector<std::string> userDigests = getUserDigests(userDigestIn);
+        std::vector<std::string> userDigests = getUserDigests(wantDigest);
         //Loop over the user digests and find the corresponding checksum
         for(auto userDigest: userDigests) {
             auto httpCksum = std::find_if(mConfiguredChecksums.begin(), mConfiguredChecksums.end(),[userDigest](const XrdHttpChecksumRawPtr & cksum){
@@ -62,6 +65,26 @@ XrdHttpChecksumHandlerImpl::XrdHttpChecksumRawPtr XrdHttpChecksumHandlerImpl::ge
     }
     //If there are no configured checksums, return nullptr
     return nullptr;
+}
+
+XrdHttpChecksumHandlerImpl::XrdHttpChecksumRawPtr XrdHttpChecksumHandlerImpl::getChecksumToRunWantReprDigest(const std::map<std::string,uint8_t> & wantReprDigest) const {
+  if(!mConfiguredChecksums.empty()) {
+    uint8_t bestPref = 0;
+    XrdHttpChecksumHandlerImpl::XrdHttpChecksumRawPtr retCksum = mConfiguredChecksums.front();
+    for(const auto & [digestName, preference]: wantReprDigest) {
+      if(preference > bestPref) {
+        const auto cksumItor = std::find_if(mConfiguredChecksums.begin(), mConfiguredChecksums.end(),[dn = digestName](const XrdHttpChecksumRawPtr & cksum){
+          return dn == cksum->getHttpNameLowerCase();
+        });
+        if(cksumItor != mConfiguredChecksums.end()) {
+          bestPref = preference;
+          retCksum = *cksumItor;
+        }
+      }
+    }
+    return retCksum;
+  }
+  return nullptr;
 }
 
 const std::vector<std::string> &XrdHttpChecksumHandlerImpl::getNonIANAConfiguredCksums() const {
@@ -88,6 +111,13 @@ void XrdHttpChecksumHandlerImpl::initializeXRootDConfiguredCksums(const char *cs
         auto checksumItor = XROOTD_DIGEST_NAME_TO_CKSUMS.find(csName);
         if(checksumItor != XROOTD_DIGEST_NAME_TO_CKSUMS.end()) {
             mConfiguredChecksums.push_back(checksumItor->second.get());
+            if(checksumItor->first == "adler32") {
+              // adler32 is configured, this "if" test is ran for each configured checksum, but this is at server start up, no need
+              // to optimize this code...
+              // According to https://www.iana.org/assignments/http-digest-hash-alg/http-digest-hash-alg.xhtml, adler32 is now adler...
+              // We add it to ensure it works and keep retrocompatibility
+              mConfiguredChecksums.push_back(XROOTD_DIGEST_NAME_TO_CKSUMS["adler"].get());
+            }
         } else {
             mNonIANAConfiguredChecksums.push_back(csName);
         }

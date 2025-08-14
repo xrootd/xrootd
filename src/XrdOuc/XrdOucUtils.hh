@@ -35,6 +35,7 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <cstdint>
 
 class XrdSysError;
 class XrdOucString;
@@ -140,6 +141,8 @@ static int getModificationTime(const char * path, time_t & modificationTime);
 static void trim(std::string & str);
 
 static void trim(std::string_view & sv);
+
+static uint8_t touint8_t(const std::string_view sv);
 
     XrdOucUtils() {}
     ~XrdOucUtils() {}

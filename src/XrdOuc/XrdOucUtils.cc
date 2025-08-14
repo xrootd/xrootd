@@ -35,6 +35,7 @@
 #include <vector>
 #include <unordered_set>
 #include <algorithm>
+#include <charconv>
 
 #include <regex.h>
 
@@ -1504,6 +1505,21 @@ void XrdOucUtils::trim(std::string_view & sv) {
 
   sv = sv.substr(start, end - start);
 }
+
+uint8_t XrdOucUtils::touint8_t(const std::string_view sv) {
+  unsigned int temp; // wider type for parsing
+  auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), temp);
+
+  if (ec == std::errc::invalid_argument) {
+    throw std::invalid_argument("Invalid number format");
+  }
+  if (ec == std::errc::result_out_of_range || temp > std::numeric_limits<uint8_t>::max()) {
+    throw std::out_of_range("Value out of range for unsigned short");
+  }
+
+  return static_cast<unsigned short>(temp);
+}
+
 /**
  * Returns a boolean indicating whether 'c' is a valid token character or not.
  * See https://datatracker.ietf.org/doc/html/rfc6750#section-2.1 for details.
