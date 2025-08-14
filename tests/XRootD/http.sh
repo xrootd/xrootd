@@ -127,11 +127,17 @@ function test_http() {
   expectedTransferStatus='X-Transfer-Status: 200: OK'
   receivedTransferStatus=$(grep -i 'X-Transfer-Status' "$outputFilePath")
   assert_eq "$expectedTransferStatus" "$receivedTransferStatus" "GET request with trailers test failed (transfer status)"
+
+  alphabetadler32="$(xrdadler32 $alphabetFilePath | cut -d' ' -f1)"
+  alphabetcrc32c="$(xrdcrc32c -s $alphabetFilePath)"
+  alphabetmd5sumb64='mRykpCtRV62NckS3pmYroQ=='
+  alphabetadlerb64='jwQKXQ=='
+
   # HEAD request
   curl -v -I -H 'Want-Digest: adler32' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
   cat "$outputFilePath"
   grep '200 OK' "$outputFilePath" || error "HEAD request test failed: Failed to perform HEAD request on ${HOST}/$alphabetFilePath"
-  expectedDigest="Digest: adler32="$(xrdadler32 "$alphabetFilePath" | cut -d' ' -f1)
+  expectedDigest="Digest: adler32=$alphabetadler32"
   receivedDigest=$(grep -i "Digest" "$outputFilePath")
   assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (adler32)"
   expectedContentLength="Content-Length: $(wc -c < "$alphabetFilePath" | sed 's/^ *//')"
@@ -140,18 +146,75 @@ function test_http() {
   receivedContentLength=$(grep -i 'Content-Length' "$outputFilePath")
   assert_eq "$expectedContentLength" "$receivedContentLength" "HEAD request test failed (Content-Length)"
 
+  # According to https://www.iana.org/assignments/http-digest-hash-alg/http-digest-hash-alg.xhtml, adler32 is now adler...
+  # We test it it to ensure it works, adler32 should still be supported though
+  curl -v -I -H 'Want-Digest: adler' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedDigest="Digest: adler=$alphabetadler32"
+  receivedDigest=$(grep -i "Digest" "$outputFilePath")
+  assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (adler)"
+
   xrdcrc32c -s "$alphabetFilePath"
   curl -v -I -H 'Want-Digest: crc32c' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
   cat "$outputFilePath"
-  expectedDigest="Digest: crc32c=ee24f29e"
+  expectedDigest="Digest: crc32c=$alphabetcrc32c"
   receivedDigest=$(grep "Digest" "$outputFilePath")
   assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (crc32c)"
+  # Test with md5 checksum to test the base64 encoding of the md5 byte-representation
+  cat /home/ccaffy/CLionProjects/xrootd/tests/XRootD/http.sh
+  curl -v -I -H 'Want-Digest: md5' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedDigest="Digest: md5=$alphabetmd5sumb64"
+  receivedDigest=$(grep "Digest" "$outputFilePath")
+  assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (md5)"
   curl -v -I -H 'Want-Digest: NotSupported, adler32, crc32c' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
   cat "$outputFilePath"
-  expectedDigest="Digest: adler32="$(xrdadler32 "$alphabetFilePath" | cut -d' ' -f1)
+  expectedDigest="Digest: adler32=$alphabetadler32"
   receivedDigest=$(grep -i "Digest" "$outputFilePath")
   assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (digest not supported)"
+
+  ## General Want-Repr-Digest usage
+  curl -v -I -H 'Want-Repr-Digest: adler=1' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedDigest="Repr-Digest: adler=:$alphabetadlerb64:"
+  receivedDigest=$(grep -i "Repr-Digest" "$outputFilePath")
+  assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (Want-Repr-Digest)"
+
+  ## Want-Repr-Digest with multiple checksum choice should pick the most preferred one
+  curl -v -I -H 'Want-Repr-Digest: adler=1,md5=5' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedDigest="Repr-Digest: md5=:$alphabetmd5sumb64:"
+  receivedDigest=$(grep -i "Repr-Digest" "$outputFilePath")
+  assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (Want-Repr-Digest multiple digests requested)"
+
+  ## Want-Digest should take over Want-Repr-Digest
+  curl -v -I -H 'Want-Digest: adler32' -H 'Want-Repr-Digest: md5=1' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedDigest="Digest: adler32=$alphabetadler32"
+  receivedDigest=$(grep -i "Digest" "$outputFilePath")
+  assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (Want-Digest prior to Want-Repr-Digest)"
+
+  ## Malformed Want-Repr-Digest is ignored
+  curl -v -I -H 'Want-Repr-Digest: adler32' "${HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  receivedDigest=$(grep -c "Digest" "$outputFilePath")
+  assert_eq 0 "$receivedDigest" "HEAD request test failed (Malformed Want-Repr-Digest)"
+
 	wait
+
+  ## GET with Want-Repr-Digest
+	curl -s -v --raw -H 'Want-Repr-Digest: adler=1' "${HOST}/$alphabetFilePath" 2>&1 | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedDigest="< Repr-Digest: adler=:$alphabetadlerb64:"
+  receivedDigest=$(grep -i "< Repr-Digest" "$outputFilePath")
+  assert_eq "$expectedDigest" "$receivedDigest" "GET with Want-Repr-Digest failed"
+
+  ## GET with Want-Digest and Want-Repr-Digest, Want Digest should be prior
+  curl -s -v --raw -H 'Want-Digest: adler32' -H 'Want-Repr-Digest: md5=1' "${HOST}/$alphabetFilePath" 2>&1 | tr -d '\r' > "$outputFilePath"
+  cat "$outputFilePath"
+  expectedDigest="< Digest: adler32=$alphabetadler32"
+  receivedDigest=$(grep -i "< Digest" "$outputFilePath")
+  assert_eq "$expectedDigest" "$receivedDigest" "GET with Want-Digest and Want-Repr-Digest failed"
 
   ## Generated HTML has appropriate trailing slashes for directories
   HTTP_CODE=$(curl --output "$outputFilePath" -v -L --write-out '%{http_code}' "${HOST}/${TMPDIR}")
