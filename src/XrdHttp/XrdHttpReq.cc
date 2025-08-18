@@ -57,6 +57,7 @@
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
+#include "XrdHttp/XrdHttpHeaderUtils.hh"
 
 #include "XrdHttpUtils.hh"
 
@@ -206,6 +207,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcasecmp(key, "user-agent")) {
       m_user_agent = val;
       trim(m_user_agent);
+    } else if (!strcasecmp(key,"origin")) {
+      m_origin = val;
+      trim(m_origin);
     } else {
       // Some headers need to be translated into "local" cgi info.
       auto it = std::find_if(prot->hdr2cgimap.begin(), prot->hdr2cgimap.end(),[key](const auto & item) {
@@ -2844,6 +2848,7 @@ void XrdHttpReq::reset() {
 
   m_resource_with_digest = "";
   m_user_agent = "";
+  m_origin = "";
 
   headerok = false;
   keepalive = true;
