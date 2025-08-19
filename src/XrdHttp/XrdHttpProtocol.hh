@@ -33,11 +33,6 @@
  * 
  */
 
-
-#include <cstdlib>
-#include <unistd.h>
-#include <sys/types.h>
-
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -47,16 +42,20 @@
 #include "Xrd/XrdProtocol.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdHttpChecksumHandler.hh"
+#include "XrdHttpMon.hh"
 #include "XrdHttpReadRangeHandler.hh"
 #include "XrdNet/XrdNetPMark.hh"
 #include "XrdHttpCors/XrdHttpCors.hh"
+#include "XrdHttpReq.hh"
 
+#include <chrono>
+#include <cstdlib>
 #include <openssl/ssl.h>
-
+#include <sys/types.h>
+#include <unistd.h>
 #include <unordered_map>
 #include <vector>
 
-#include "XrdHttpReq.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -71,6 +70,7 @@ class XrdOucTokenizer;
 class XrdOucTrace;
 class XrdBuffer;
 class XrdLink;
+class XrdHttpMon;
 class XrdXrootdProtocol;
 class XrdHttpSecXtractor;
 class XrdHttpExtHandler;
@@ -461,6 +461,9 @@ protected:
 
   /// Packet marking handler pointer (assigned from the environment during the Config() call)
   static XrdNetPMark * pmarkHandle;
+
+  // Http monitoring gstream handle
+  static XrdHttpMon *httpMon;
 
   /// If set to true, the HTTP TPC transfers will forward the credentials to redirected hosts
   static bool tpcForwardCreds;

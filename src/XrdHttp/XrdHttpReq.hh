@@ -38,24 +38,16 @@
 #ifndef XRDHTTPREQ_HH
 #define	XRDHTTPREQ_HH
 
-
-#include "XrdOuc/XrdOucString.hh"
-
 #include "XProtocol/XProtocol.hh"
-#include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdHttpChecksumHandler.hh"
 #include "XrdHttpReadRangeHandler.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdXrootd/XrdXrootdBridge.hh"
 
-#include <vector>
-#include <string>
+#include <chrono>
 #include <map>
-#include <cstdint>
-
-//#include <libxml/parser.h>
-//#include <libxml/tree.h>
-
-
-
+#include <string>
+#include <vector>
 
 struct DirListInfo {
   std::string path;
@@ -92,7 +84,8 @@ public:
     rtPROPFIND,
     rtMKCOL,
     rtMOVE,
-    rtPOST
+    rtPOST,
+    rtCount 
   };
 
 private:

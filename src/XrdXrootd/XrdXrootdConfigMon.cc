@@ -106,7 +106,7 @@ bool XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
    XrdXrootdGStream *gs;
    static const int numgs=sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
    char vbuff[64];
-   bool aOK, gXrd[numgs] = {false, false, false, false, true, false, true};
+   bool aOK, gXrd[numgs] = {false, false, true, false, true, false, true};
 
 // For each enabled monitoring provider, allocate a g-stream and put
 // its address in our environment.
@@ -353,6 +353,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                    if (!strcmp("ccm",  val)) MP->monMode[i] |=  XROOTD_MON_CCM;
               else if (!strcmp("files",val)) MP->monMode[i] |=  XROOTD_MON_FILE;
               else if (!strcmp("fstat",val)) MP->monMode[i] |=  XROOTD_MON_FSTA;
+              else if (!strcmp("http", val)) MP->monMode[i] |=  XROOTD_MON_HTTP;
               else if (!strcmp("info", val)) MP->monMode[i] |=  XROOTD_MON_INFO;
               else if (!strcmp("io",   val)) MP->monMode[i] |=  XROOTD_MON_IO;
               else if (!strcmp("iov",  val)) MP->monMode[i] |= (XROOTD_MON_IO
@@ -462,6 +463,7 @@ char *XrdXrootdProtocol::xmondest(const char *what, char *val)
 
          all                applies options to all gstreams.
          ccm                gstream: cache context management
+         http               gstream: HTTP requests
          pfc                gstream: proxy file cache
          tcpmon             gstream: tcp connection monitoring
          throttle           gstream: monitors I/O activity via the throttle plugin
@@ -486,7 +488,7 @@ int XrdXrootdProtocol::xmongs(XrdOucStream &Config)
    int numopts = sizeof(gsopts)/sizeof(struct gsOpts);
 
    int numgs = sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
-   int selAll = XROOTD_MON_CCM | XROOTD_MON_PFC | XROOTD_MON_TCPMO
+   int selAll = XROOTD_MON_CCM | XROOTD_MON_HTTP | XROOTD_MON_PFC | XROOTD_MON_TCPMO
               | XROOTD_MON_THROT | XROOTD_MON_TPC;
    int i, selMon = 0, opt = -1, hdr = -1, fmt = -1, flushVal = -1;
    long long maxlVal = -1;
