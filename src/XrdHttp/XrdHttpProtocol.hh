@@ -33,11 +33,6 @@
  * 
  */
 
-
-#include <cstdlib>
-#include <unistd.h>
-#include <sys/types.h>
-
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -50,13 +45,16 @@
 #include "XrdHttpReadRangeHandler.hh"
 #include "XrdNet/XrdNetPMark.hh"
 #include "XrdHttpCors/XrdHttpCors.hh"
+#include "XrdHttpReq.hh"
 
+#include <chrono>
+#include <cstdlib>
 #include <openssl/ssl.h>
-
+#include <sys/types.h>
+#include <unistd.h>
 #include <unordered_map>
 #include <vector>
 
-#include "XrdHttpReq.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -71,6 +69,7 @@ class XrdOucTokenizer;
 class XrdOucTrace;
 class XrdBuffer;
 class XrdLink;
+class XrdHttpMon;
 class XrdXrootdProtocol;
 class XrdHttpSecXtractor;
 class XrdHttpExtHandler;

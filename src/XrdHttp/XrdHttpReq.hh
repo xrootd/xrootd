@@ -38,24 +38,16 @@
 #ifndef XRDHTTPREQ_HH
 #define	XRDHTTPREQ_HH
 
-
-#include "XrdOuc/XrdOucString.hh"
-
 #include "XProtocol/XProtocol.hh"
-#include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdHttpChecksumHandler.hh"
 #include "XrdHttpReadRangeHandler.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdXrootd/XrdXrootdBridge.hh"
 
-#include <vector>
-#include <string>
+#include <chrono>
 #include <map>
-#include <cstdint>
-
-//#include <libxml/parser.h>
-//#include <libxml/tree.h>
-
-
-
+#include <string>
+#include <vector>
 
 struct DirListInfo {
   std::string path;
@@ -78,8 +70,9 @@ public:
   // processing the request
 
   /// These are the HTTP/DAV requests that we support
-
-  enum ReqType: int {
+  // Any changes here should also reflect in XrdHttpMon::verbCountersSchema to capture statistics of requests by verb
+  // The count and order or verbs listed should be consistent with the monitoring counters
+  enum ReqType : int {
     rtUnset = -1,
     rtUnknown = 0,
     rtMalformed,
@@ -92,7 +85,9 @@ public:
     rtPROPFIND,
     rtMKCOL,
     rtMOVE,
-    rtPOST
+    rtPOST,
+    rtCOPY,
+    rtCount
   };
 
 private:
