@@ -9,6 +9,7 @@ add_library(XrdHttpUtils SHARED
   XrdHttpChecksum.cc         XrdHttpChecksum.hh
   XrdHttpChecksumHandler.cc  XrdHttpChecksumHandler.hh
   XrdHttpExtHandler.cc       XrdHttpExtHandler.hh
+  XrdHttpMon.cc              XrdHttpMon.hh
   XrdHttpProtocol.cc         XrdHttpProtocol.hh
   XrdHttpReadRangeHandler.cc XrdHttpReadRangeHandler.hh
   XrdHttpReq.cc              XrdHttpReq.hh
