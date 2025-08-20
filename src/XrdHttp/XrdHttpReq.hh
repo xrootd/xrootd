@@ -193,6 +193,11 @@ private:
 
   // Set the age header from the file modification time
   void addAgeHeader(std::string & headers);
+
+  // Set the ETag header containing union of stat.st_ino and stat.st_dev
+  // See XrdXrootdProtocol::StatGen() for the full definition of etag value.
+  void addETagHeader(std::string & headers);
+
   /**
    * Extract a comma separated list of checksums+metadata into a vector
    * @param checksumList the list like "0:sha1, 1:adler32, 2:md5"
@@ -339,6 +344,7 @@ public:
   bool final; //!< true -> final result
 
   // The latest stat info got from the xrd layer
+  long long etagval;
   long long filesize;
   long fileflags;
   long filemodtime;
