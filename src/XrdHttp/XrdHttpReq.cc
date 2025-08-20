@@ -2811,7 +2811,7 @@ void XrdHttpReq::addAgeHeader(std::string &headers) {
 }
 
 void XrdHttpReq::addETagHeader(std::string &headers) {
-  headers += std::string("Etag: ") + std::to_string(etagval);
+  headers += std::string("Etag: \"") + std::to_string(etagval) + "\"";
 }
 
 void XrdHttpReq::reset() {
