@@ -2088,9 +2088,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           TRACEI(REQ, "Stat for HEAD " << resource.c_str()
                       << " stat=" << (char *) iovP[0].iov_base);
 
-          long dummyl;
-          sscanf((const char *) iovP[0].iov_base, "%ld %lld %ld %ld",
-                  &dummyl,
+          sscanf((const char *) iovP[0].iov_base, "%lld %lld %ld %ld",
+                  &etagval,
                   &filesize,
                   &fileflags,
                   &filemodtime);
@@ -2102,6 +2101,10 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               addAgeHeader(response_headers);
               response_headers += "\r\n";
             }
+
+            addETagHeader(response_headers);
+            response_headers += "\r\n";
+
             response_headers += "Accept-Ranges: bytes";
             prot->SendSimpleResp(200, NULL, response_headers.c_str(), NULL, filesize, keepalive);
             return keepalive ? 1 : -1;
@@ -2733,6 +2736,10 @@ XrdHttpReq::sendFooterError(const std::string &extra_text) {
 void XrdHttpReq::addAgeHeader(std::string &headers) {
   long object_age = time(NULL) - filemodtime;
   headers += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
+}
+
+void XrdHttpReq::addETagHeader(std::string &headers) {
+  headers += std::string("Etag: \"") + std::to_string(etagval) + "\"";
 }
 
 void XrdHttpReq::reset() {
