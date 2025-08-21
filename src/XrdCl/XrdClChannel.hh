@@ -74,7 +74,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       const URL &GetURL() const
       {
-        return pUrl;
+        return *pUrl;
       }
 
       //------------------------------------------------------------------------
@@ -158,7 +158,7 @@ namespace XrdCl
 
     private:
 
-      URL                    pUrl;
+      std::shared_ptr<URL>   pUrl;
       Poller                *pPoller;
       TransportHandler      *pTransport;
       TaskManager           *pTaskManager;
