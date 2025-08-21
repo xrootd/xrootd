@@ -503,6 +503,7 @@ int XrdXrootdProtocol::Process2()
           case kXR_query:    if (!Request.header.dlen) return do_Qfh();
                              break;
           case kXR_chkpoint: return do_ChkPnt();
+          case kXR_clone:    return do_Clone();
           default:           break;
          }
 

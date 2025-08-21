@@ -261,6 +261,15 @@ namespace XrdCl
         return protver >= kXR_PROTXATTVERSION;
       }
 
+      inline static bool HasClone( const XrdCl::URL &url )
+      {
+        if( url.IsLocalFile() ) return true;
+        int protver = 0;
+        auto st = GetProtocolVersion( url, protver );
+        if( !st.IsOK() ) return false;
+        return protver >= kXR_PROTCLONEVERSION;
+      }
+
       //------------------------------------------------------------------------
       //! Check if given server supports pgread/pgwrite
       //! @param url : URL pointing to the server
