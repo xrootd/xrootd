@@ -93,7 +93,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  Stream::Stream( const URL *url, const URL &prefer ):
+  Stream::Stream( std::shared_ptr<URL> url, const URL &prefer ):
     pUrl( url ),
     pPrefer( prefer ),
     pTransport( 0 ),
@@ -107,6 +107,10 @@ namespace XrdCl
     pConnectionInitTime( 0 ),
     pAddressType( Utils::IPAll ),
     pSessionId( 0 ),
+    pTTLDiscJob( nullptr ),
+    pSubsWaitingClose( 0 ),
+    pDiscCV( 0 ),
+    pDiscAllCnt( 0 ),
     pBytesSent( 0 ),
     pBytesReceived( 0 )
   {
@@ -362,6 +366,18 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::Disconnect( bool /*force*/ )
   {
+    //--------------------------------------------------------------------------
+    // See comment about deadlocks in ForceError() method. We don't expect
+    // to be called from a callback thread.
+    //--------------------------------------------------------------------------
+    XrdSysCondVarHelper discLock( pDiscCV );
+    while ( pDiscAllCnt )
+    {
+      pDiscCV.Wait();
+    }
+    ++pDiscAllCnt;
+    discLock.UnLock();
+
     XrdSysMutexHelper scopedLock( pMutex );
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
@@ -369,6 +385,12 @@ namespace XrdCl
       (*it)->socket->Close();
       (*it)->status = Socket::Disconnected;
     }
+    pSubsWaitingClose = 0;
+
+    scopedLock.UnLock();
+    discLock.Lock( &pDiscCV );
+    --pDiscAllCnt;
+    pDiscCV.Signal();
   }
 
   //----------------------------------------------------------------------------
@@ -623,6 +645,38 @@ namespace XrdCl
   void Stream::OnConnect( uint16_t subStream )
   {
     XrdSysMutexHelper scopedLock( pMutex );
+    if( subStream == 0 )
+    {
+      int nsubconn = 0;
+      if( pSubStreams.size() > 1 )
+      {
+        for( size_t i = 1; i < pSubStreams.size(); ++i )
+          if( pSubStreams[i]->status != Socket::Disconnected ) nsubconn++;
+      }
+      if( nsubconn )
+      {
+        pSubsWaitingClose = nsubconn;
+        pSubStreams[0]->socket->DisableUplink();
+        return;
+      }
+      else
+        pSubStreams[0]->socket->EnableUplink();
+    }
+    else
+    {
+      if( pSubsWaitingClose > 0 )
+      {
+        pSubStreams[subStream]->socket->Close();
+        pSubStreams[subStream]->status = Socket::Disconnected;
+        if( --pSubsWaitingClose == 0 )
+        {
+          scopedLock.UnLock();
+          OnConnect( 0 );
+        }
+        return;
+      }
+    }
+
     pSubStreams[subStream]->status = Socket::Connected;
 
     std::string ipstack( pSubStreams[0]->socket->GetIpStack() );
@@ -669,7 +723,11 @@ namespace XrdCl
           if( !st.IsOK() )
           {
             pSubStreams[0]->outQueue->GrabItems( *pSubStreams[i]->outQueue );
-            pSubStreams[i]->socket->Close();
+            // mark as disconnected. We don't try to actively Close here as
+            // we're in a poller callback thread and the i'th substream here
+            // may be hadled by a different poller callback thread, raising
+            // the possibility of deadlock.
+            pSubStreams[i]->status = Socket::Disconnected;
           }
           else
           {
@@ -743,7 +801,19 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( subStream > 0 )
     {
+      const Socket::SocketStatus oldstate = pSubStreams[subStream]->status;
       pSubStreams[subStream]->status = Socket::Disconnected;
+
+      if( pSubsWaitingClose > 0 && oldstate != Socket::Disconnected )
+      {
+        if( --pSubsWaitingClose == 0 )
+        {
+          scopedLock.UnLock();
+          OnConnect( 0 );
+        }
+        return;
+      }
+
       pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
       if( pSubStreams[0]->status == Socket::Connected )
       {
@@ -827,8 +897,21 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnError( uint16_t subStream, XRootDStatus status )
   {
+    //--------------------------------------------------------------------------
+    // See comment about deadlocks in ForceError() method. We expect to be
+    // called form a callback thread. However we take care to only potentially
+    // disconnect the socket for our own subStream. We require no ongoing
+    // disconnect of all substreams and ensure that remains true throughout
+    // our execution by releasing discLock only after acquiring pMutex.
+    //--------------------------------------------------------------------------
+
+    XrdSysCondVarHelper discLock( pDiscCV );
+    if( pDiscAllCnt ) return;
+
     XrdSysMutexHelper scopedLock( pMutex );
+    discLock.UnLock();
     Log *log = DefaultEnv::GetLog();
+    const Socket::SocketStatus oldstate = pSubStreams[subStream]->status;
     pSubStreams[subStream]->socket->Close();
     pSubStreams[subStream]->status = Socket::Disconnected;
 
@@ -866,20 +949,46 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( subStream > 0 )
     {
-      if( pSubStreams[subStream]->outQueue->IsEmpty() )
+      if( pSubsWaitingClose > 0 && oldstate != Socket::Disconnected )
+      {
+        if( --pSubsWaitingClose == 0 )
+        {
+          scopedLock.UnLock();
+          OnConnect( 0 );
+        }
         return;
+      }
 
       if( pSubStreams[0]->status != Socket::Disconnected )
       {
-        pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
-        if( pSubStreams[0]->status == Socket::Connected )
+        pSubStreams[subStream]->socket->SetAddress( pSubStreams[0]->socket->GetAddress() );
+        XRootDStatus st = pSubStreams[subStream]->socket->Connect( pConnectionWindow );
+        if( !st.IsOK() )
         {
-          XRootDStatus st = pSubStreams[0]->socket->EnableUplink();
-          if( !st.IsOK() )
-            OnFatalError( 0, st, scopedLock );
+          pSubStreams[subStream]->socket->Close();
+          if( pSubStreams[subStream]->outQueue->IsEmpty() )
+            return;
+          pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
+          if( pSubStreams[0]->status == Socket::Connected )
+          {
+            XRootDStatus st = pSubStreams[0]->socket->EnableUplink();
+            if( !st.IsOK() )
+              OnFatalError( 0, st, scopedLock );
+            return;
+          }
+          if( pSubStreams[0]->status == Socket::Connecting )
+            return;
+        }
+        else
+        {
+          pSubStreams[subStream]->status = Socket::Connecting;
           return;
         }
+        OnFatalError( subStream, status, scopedLock );
+        return;
       }
+      if( pSubStreams[subStream]->outQueue->IsEmpty() )
+        return;
       OnFatalError( subStream, status, scopedLock );
       return;
     }
@@ -932,6 +1041,30 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void Stream::ForceError( XRootDStatus status, bool hush )
   {
+    //----------------------------------------------------------------------
+    // We can be called in two ways: first is by by a non-poller thread,
+    // with errOperationInterrupted as error as part of ForceDisconnect. In
+    // which case the Stream will be destoryed shortly after we return. The
+    // second way is call by a poller thread with another type of error.
+    // Further, when we call socket handler Close() for a socket handled a
+    // callback running we wait for that to complete (unless it is
+    // ourselves). This raises the possibility of a deadlock. We avoid this
+    // by returning quickly if we detect we're in a callback thread and
+    // there's already a disconnect affecting multiple streams in progress.
+    //----------------------------------------------------------------------
+    XrdSysCondVarHelper discLock( pDiscCV );
+    if( pDiscAllCnt &&
+      !( status.IsError() && status.code == errOperationInterrupted ) )
+    {
+      return;
+    }
+    while( pDiscAllCnt )
+    {
+      pDiscCV.Wait();
+    }
+    ++pDiscAllCnt;
+    discLock.UnLock();
+
     XrdSysMutexHelper scopedLock( pMutex );
     Log    *log = DefaultEnv::GetLog();
     for( size_t substream = 0; substream < pSubStreams.size(); ++substream )
@@ -970,6 +1103,7 @@ namespace XrdCl
     }
 
     pConnectionCount = 0;
+    pSubsWaitingClose = 0;
 
     //------------------------------------------------------------------------
     // We're done here, unlock the stream mutex to avoid deadlocks and
@@ -988,6 +1122,10 @@ namespace XrdCl
 
     pIncomingQueue->ReportStreamEvent( MsgHandler::Broken, status );
     pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
+
+    discLock.Lock( &pDiscCV );
+    --pDiscAllCnt;
+    pDiscCV.Signal();
   }
 
   //----------------------------------------------------------------------------
@@ -1053,7 +1191,22 @@ namespace XrdCl
     // We only take the main stream into account
     //--------------------------------------------------------------------------
     if( substream != 0 )
+    {
+      if( pSubsWaitingClose )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        if( !pSubsWaitingClose ) return true;
+        if( pSubStreams[substream]->status == Socket::Disconnected ) return true;
+        pSubStreams[substream]->socket->Close();
+        pSubStreams[substream]->status = Socket::Disconnected;
+        if( --pSubsWaitingClose == 0 )
+        {
+          scopedLock.UnLock();
+          OnConnect( 0 );
+        }
+      }
       return true;
+    }
 
     //--------------------------------------------------------------------------
     // Check if there is no outgoing messages and if the stream TTL is elapesed.
@@ -1084,18 +1237,21 @@ namespace XrdCl
       {
         log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, disconnecting...",
                     pStreamName.c_str() );
-        scopedLock.UnLock();
         //----------------------------------------------------------------------
         // Important note!
         //
-        // This destroys the Stream object itself, the underlined
+        // This job destroys the Stream object itself, the underlying
         // AsyncSocketHandler object (that called this method) and the Channel
         // object that aggregates this Stream.
         //
         // Additionally &(*pUrl) is used by ForceDisconnect to check if we are
         // in a Channel that was previously collapsed in a redirect.
         //----------------------------------------------------------------------
-        DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
+        if( !pTTLDiscJob )
+        {
+          pTTLDiscJob = new ForceDisconnectJob( pUrl );
+          pJobManager->QueueJob( pTTLDiscJob );
+        }
         return false;
       }
     }
