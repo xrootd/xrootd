@@ -536,7 +536,7 @@ bool File::Open(XrdOucCacheIO* inputIO)
       cache()->WriteFileSizeXAttr(m_info_file->getFD(), m_file_size);
 
       // access and write cache-control attributes
-      XrdCl::QueryCode::Code queryCode = XrdCl::QueryCode::Head;
+      XrdCl::QueryCode::Code queryCode = XrdCl::QueryCode::FInfo;
       XrdCl::Buffer queryArgs(5);
       std::string qs = std::to_string(queryCode);
       queryArgs.FromString(qs);
@@ -559,7 +559,7 @@ bool File::Open(XrdOucCacheIO* inputIO)
       else if (resFctl != kXR_Unsupported)
       {
          // Query XrdCl::QueryCode::Head is optional, print error only if informatin is supported
-         TRACE(Error, "GetFile() XrdCl::File::Fcntl query XrdCl::QueryCode::Head failed " << inputIO->Path());
+         TRACE(Error, "GetFile() XrdCl::File::Fcntl query XrdCl::QueryCode::FInfo failed " << inputIO->Path());
       }
 
       TRACEF(Debug, tpfx << "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << m_cfi.GetNBlocks());

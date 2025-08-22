@@ -60,7 +60,8 @@ namespace XrdCl
       Space          = kXR_Qspace,     //!< Query logical space stats
       Stats          = kXR_QStats,     //!< Query server stats
       Visa           = kXR_Qvisa,      //!< Query file visa attributes
-      Head           = kXR_Qhead,      //!< Query http header response
+      FInfo          = kXR_QFinfo,      //!< Implementation Dependent
+      FSInfo         = kXR_QFSinfo,     //!< Implementation Dependent
       XAttr          = kXR_Qxattr      //!< Query file extended attributes
     };
   };
