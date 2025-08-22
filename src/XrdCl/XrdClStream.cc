@@ -93,7 +93,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  Stream::Stream( const URL *url, const URL &prefer ):
+  Stream::Stream( std::shared_ptr<URL> url, const URL &prefer ):
     pUrl( url ),
     pPrefer( prefer ),
     pTransport( 0 ),
@@ -107,6 +107,8 @@ namespace XrdCl
     pConnectionInitTime( 0 ),
     pAddressType( Utils::IPAll ),
     pSessionId( 0 ),
+    pTTLDiscJob( nullptr ),
+    pDisconnectingAll( false ),
     pBytesSent( 0 ),
     pBytesReceived( 0 )
   {
@@ -362,6 +364,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::Disconnect( bool /*force*/ )
   {
+    XrdSysMutexHelper discLock( pDiscMutex );
+    if ( pDisconnectingAll )
+      return;
+    pDisconnectingAll = true;
+    discLock.UnLock();
+
     XrdSysMutexHelper scopedLock( pMutex );
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
@@ -369,6 +377,10 @@ namespace XrdCl
       (*it)->socket->Close();
       (*it)->status = Socket::Disconnected;
     }
+
+    scopedLock.UnLock();
+    discLock.Lock( &pDiscMutex );
+    pDisconnectingAll = false;
   }
 
   //----------------------------------------------------------------------------
@@ -827,7 +839,21 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnError( uint16_t subStream, XRootDStatus status )
   {
+    XrdSysMutexHelper discLock( pDiscMutex );
+    if ( pDisconnectingAll )
+      return;
+    //--------------------------------------------------------------------------
+    // if we release discLock a concern is that ForceError may start closing
+    // sockets, attempt to close our substream's socket and block until we
+    // complete, while we wait for pMutex. So we hold discLock until after
+    // acquiring pMutex at which point it is safe to release. We don't keep the
+    // lock longer as there are several execution paths through OnFatalError
+    // (called below) and it is better to reduce the number of locks held for
+    // reasonnig about this in the future.
+    //--------------------------------------------------------------------------
+
     XrdSysMutexHelper scopedLock( pMutex );
+    discLock.UnLock();
     Log *log = DefaultEnv::GetLog();
     pSubStreams[subStream]->socket->Close();
     pSubStreams[subStream]->status = Socket::Disconnected;
@@ -932,6 +958,12 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void Stream::ForceError( XRootDStatus status, bool hush )
   {
+    XrdSysMutexHelper discLock( pDiscMutex );
+    if ( pDisconnectingAll )
+      return;
+    pDisconnectingAll = true;
+    discLock.UnLock();
+
     XrdSysMutexHelper scopedLock( pMutex );
     Log    *log = DefaultEnv::GetLog();
     for( size_t substream = 0; substream < pSubStreams.size(); ++substream )
@@ -988,6 +1020,9 @@ namespace XrdCl
 
     pIncomingQueue->ReportStreamEvent( MsgHandler::Broken, status );
     pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
+
+    discLock.Lock( &pDiscMutex );
+    pDisconnectingAll = false;
   }
 
   //----------------------------------------------------------------------------
@@ -1084,18 +1119,21 @@ namespace XrdCl
       {
         log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, disconnecting...",
                     pStreamName.c_str() );
-        scopedLock.UnLock();
         //----------------------------------------------------------------------
         // Important note!
         //
-        // This destroys the Stream object itself, the underlined
+        // This job destroys the Stream object itself, the underlying
         // AsyncSocketHandler object (that called this method) and the Channel
         // object that aggregates this Stream.
         //
         // Additionally &(*pUrl) is used by ForceDisconnect to check if we are
         // in a Channel that was previously collapsed in a redirect.
         //----------------------------------------------------------------------
-        DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
+        if ( !pTTLDiscJob )
+        {
+          pTTLDiscJob = new ForceDisconnectJob( pUrl );
+          pJobManager->QueueJob( pTTLDiscJob );
+        }
         return false;
       }
     }
