@@ -982,11 +982,6 @@ int XrdHttpReq::ProcessHTTPReq() {
         << header2cgistrObf.c_str() << "'");
 
     }
-    // We assume that anything appended to the CGI str should also
-    // apply to the destination in case of a MOVE.
-    if (strchr(destination.c_str(), '?')) destination.append("&");
-    else destination.append("?");
-    destination.append(hdr2cgistrEncoded.c_str());
 
     m_appended_hdr2cgistr = true;
     }
@@ -1726,6 +1721,15 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtMOVE:
     {
+      // Incase of a move cgi parameters present in the CGI str
+      // are appended to the destination in case of a MOVE.
+      if (resourceplusopaque != "") {
+        int pos = resourceplusopaque.find("?");
+        if (pos != STR_NPOS) {
+          destination.append((destination.find("?") == std::string::npos) ? "?" : "&");
+          destination.append(resourceplusopaque.c_str() + pos + 1);
+        }
+      }
 
       // --------- MOVE
       memset(&xrdreq, 0, sizeof (ClientRequest));
