@@ -157,9 +157,9 @@ export BEARER_TOKEN
 testfile="${LCLDATADIR}/randomfile.ref"
 ${OPENSSL} rand -out "$testfile" $((1024 * (RANDOM + 1)))
 
-# The rename on redirection gets a permission denied error due to missing authz cgi parameter with the destination field
+# The copy of cgi parameters to destination ensure that the move suceeds
 src_hosts=(metaman man1 srv1)
-src_codes=(501 403 201)
+src_codes=(501 201 201)
 
 for ((i = 0; i < ${#src_hosts[@]}; i++)); do
     src="${src_hosts[i]}"
