@@ -110,6 +110,8 @@ XrdOucGatherConf::~XrdOucGatherConf()
         }
 
    if (gcP->gBuff)     free(gcP->gBuff);
+
+   delete gcP;
 }
 
 /******************************************************************************/
