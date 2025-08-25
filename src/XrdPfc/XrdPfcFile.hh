@@ -208,7 +208,7 @@ public:
    // Constructor, destructor, Open() and Close() are private.
 
    //! Static constructor that also does Open. Returns null ptr if Open fails.
-   static File* FileOpen(const std::string &path, long long offset, long long fileSize);
+   static File* FileOpen(const std::string &path, long long offset, long long fileSize, XrdOucCacheIO*);
 
    //! Handle removal of a block from Cache's write queue.
    void BlockRemovedFromWriteQ(Block*);
@@ -301,7 +301,7 @@ private:
    void Close();
 
    //! Open file handle for data file and info file on local disk.
-   bool Open();
+   bool Open(XrdOucCacheIO* inputOrigin);
 
    static const char *m_traceID;
 
