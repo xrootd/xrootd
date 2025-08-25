@@ -387,10 +387,9 @@ int XrdPosixFile::Fstat(struct stat &buf)
    return 0;
 }
 
-int XrdPosixFile::Fcntl(const XrdCl::Buffer &arg, XrdCl::Buffer *&response)
+int XrdPosixFile::Fcntl(XrdCl::QueryCode::Code queryCode, const XrdCl::Buffer &arg, XrdCl::Buffer *&response)
 {
-   // AMT: temporary solution to handle unsuported operations in XrdPfc::File::Open()
-   XrdCl::XRootDStatus status = clFile.Fcntl(arg, response);
+   XrdCl::XRootDStatus status = clFile.Fcntl(queryCode, arg, response);
    return status.IsOK() ? 0 : status.errNo;
 }
   

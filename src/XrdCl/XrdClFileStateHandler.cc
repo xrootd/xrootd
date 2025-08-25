@@ -1858,6 +1858,52 @@ namespace XrdCl
     return SendOrQueue( self, *self->pDataServer, msg, stHandler, params );
   }
 
+
+  //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Fcntl( std::shared_ptr<FileStateHandler> &self,
+                                        QueryCode::Code                    queryCode,
+                                        const Buffer                      &arg,
+                                        ResponseHandler                   *handler,
+                                        time_t                             timeout )
+  {
+    XrdSysMutexHelper scopedLock( self->pMutex );
+
+    if( self->pFileState == Error ) return self->pStatus;
+
+    if( self->pFileState != Opened && self->pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[%p@%s] Sending a fcntl command for handle %#x to %s",
+                self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientQueryRequest *req;
+    MessageUtils::CreateRequest( msg, req, arg.GetSize() );
+
+    req->requestid = kXR_query;
+    req->infotype  = queryCode;
+    req->dlen      = arg.GetSize();
+    memcpy( req->fhandle, self->pFileHandle, 4 );
+
+    msg->Append( arg.GetBuffer(), arg.GetSize(), sizeof(ClientQueryRequest) );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( self, handler, msg, params );
+
+    return SendOrQueue( self, *self->pDataServer, msg, stHandler, params );
+  }
+
   //----------------------------------------------------------------------------
   // Performs a custom operation on an open file, server implementation
   // dependent - async

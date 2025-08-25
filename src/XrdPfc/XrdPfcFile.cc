@@ -536,12 +536,15 @@ bool File::Open(XrdOucCacheIO* inputIO)
       cache()->WriteFileSizeXAttr(m_info_file->getFD(), m_file_size);
 
       // access and write cache-control attributes
-      XrdCl::QueryCode::Code queryCode = XrdCl::QueryCode::FInfo;
       XrdCl::Buffer queryArgs(5);
-      std::string qs = std::to_string(queryCode);
-      queryArgs.FromString(qs);
+      queryArgs.Append("head", 5);
+
+      // example of optional json arguments:
+      // std::string ss = json.to_string();
+      // queryArgs.Append(ss.c_str(), ss.length() + 1); // include \0
+
       XrdCl::Buffer *responseFctl = nullptr;
-      int resFctl = inputIO->Fcntl(queryArgs, responseFctl);
+      int resFctl = inputIO->Fcntl(XrdCl::QueryCode::FInfo, queryArgs, responseFctl);
       if (resFctl == 0)
       {
          std::string cc_str = responseFctl->ToString();
