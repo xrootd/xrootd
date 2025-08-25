@@ -621,7 +621,7 @@ namespace XrdCl
   // Performs a custom operation on an open file, server implementation
   // dependent - sync
   //----------------------------------------------------------------------------
-  XRootDStatus File::Fcntl( QueryCode::Code             queryCode,
+  XRootDStatus File::Fcntl( QueryCode::Code   queryCode,
                             const Buffer     &arg,
                             Buffer          *&response,
                             time_t            timeout )
@@ -638,7 +638,7 @@ namespace XrdCl
   // Performs a custom operation on an open file, server implementation
   // dependent - async
   //----------------------------------------------------------------------------
-  XRootDStatus File::Fcntl(  QueryCode::Code  queryCode,
+  XRootDStatus File::Fcntl( QueryCode::Code  queryCode,
                             const Buffer    &arg,
                             ResponseHandler *handler,
                             time_t           timeout )

@@ -60,7 +60,7 @@ namespace XrdCl
       Space          = kXR_Qspace,     //!< Query logical space stats
       Stats          = kXR_QStats,     //!< Query server stats
       Visa           = kXR_Qvisa,      //!< Query file visa attributes
-      XAttr          = kXR_Qxattr,      //!< Query file extended attributes
+      XAttr          = kXR_Qxattr,     //!< Query file extended attributes
       FInfo          = kXR_QFinfo,     //!< Query op-dependant file information on FD
       FSInfo         = kXR_QFSinfo     //!< Query op-dependant file information on FS path
     };

@@ -171,12 +171,22 @@ virtual int  Fstat(struct stat &sbuff) {(void)sbuff; return 1;}
 //! Perform an fcntl() operation (defaults to passthrough).
 //!
 //! @param  queryCode query id
-//!  @param args      additional query command and parameters in the string format
+//! @param  args      additional query command and parameters in the string format
 //!
 //! @return <0 - fstat failed, value is -errno.
 //!         =0 - fstat succeeded, sbuff holds stat information.
 //!         >0 - fstat could not be done, forward operation to next level.
 //------------------------------------------------------------------------------
+// DEVEL COMMENT:
+// This is a place holder++. It currently allows XCache to call XrdCl::Fcntl on an
+// opened file through the POSIX IO object (POsixFile) or its prep-IO (deferred open).
+// This is why we use XrdCl argument syntax.
+// Now, there will be another Fcntl call or similar ... whatever will bring QFinfo into
+// the POSIX layer and then called on the xcache's cache-IO object.
+// IIRC, Ofs::fctl() can sneak back response through SfsFile's error object XrdOucErrInfo.
+//
+// So, we might have another one like that with server-side like signature.
+
 virtual int Fcntl(XrdCl::QueryCode::Code queryCode, const XrdCl::Buffer& args, XrdCl::Buffer*& res) { return -1; }
 
 //-----------------------------------------------------------------------------

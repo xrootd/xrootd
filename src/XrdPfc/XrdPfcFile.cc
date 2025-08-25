@@ -138,7 +138,7 @@ void File::Close()
 
 //------------------------------------------------------------------------------
 
-File* File::FileOpen(const std::string &path, long long offset, long long fileSize, XrdOucCacheIO* inputIO)
+File* File::FileOpen(const std::string &path, long long offset, long long fileSize, XrdOucCacheIO *inputIO)
 {
    File *file = new File(path, offset, fileSize);
    if ( ! file->Open(inputIO))
@@ -423,7 +423,7 @@ void File::RemoveIO(IO *io)
 
 //------------------------------------------------------------------------------
 
-bool File::Open(XrdOucCacheIO* inputIO)
+bool File::Open(XrdOucCacheIO *inputIO)
 {
    // Sets errno accordingly.
 
