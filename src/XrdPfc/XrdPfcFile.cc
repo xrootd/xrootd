@@ -1409,7 +1409,8 @@ void File::ProcessBlockResponse(Block *b, int res)
    {
       IO     *io = b->get_io();
       IoSet_i mi = m_io_set.find(io);
-      if (mi != m_io_set.end())
+      bool found_io = mi != m_io_set.end();
+      if (found_io)
       {
          --io->m_active_prefetches;
 
@@ -1428,20 +1429,22 @@ void File::ProcessBlockResponse(Block *b, int res)
                }
             }
          }
-
-         // If failed with no subscribers -- delete the block and exit.
-         if (b->m_refcnt == 0 && (res < 0 || m_in_shutdown))
-         {
-            free_block(b);
-            m_state_cond.UnLock();
-            return;
-         }
-         m_prefetch_bytes += b->get_size();
       }
       else
       {
          TRACEF(Error, tpfx << "io " << b->get_io() << " not found in IoSet.");
       }
+
+      // If nothing is subscribed to this block -- or if the originating I/O object
+      // is gone -- and the block read failed or the file is in shutdown, then we
+      // do not want to re-issue the read later.  Immediately free and return.
+      if ((b->m_refcnt == 0 || !found_io) && (res < 0 || m_in_shutdown))
+      {
+         free_block(b);
+         m_state_cond.UnLock();
+         return;
+      }
+      m_prefetch_bytes += b->get_size();
    }
 
    if (res == b->get_size())
