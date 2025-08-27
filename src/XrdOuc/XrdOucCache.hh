@@ -540,6 +540,23 @@ virtual
 XrdOucCacheIO *Attach(XrdOucCacheIO *ioP, int opts=0) = 0;
 
 //------------------------------------------------------------------------------
+//! Issue a special file control operation (synchronous).
+//!
+//! @param  opc    The operation code (one of the enums).
+//! @param  args   The argument as required by opc.
+//! @param  resp   Where the response is to be placed.
+//!
+//! @return 0 upon success or -errno upon failure.
+//------------------------------------------------------------------------------
+
+enum class Fcop { QFSinfo = 0 };
+
+virtual int  Fcntl(Fcop opc, const std::string& args, std::string& resp)
+                  {resp = "Function not supported";
+                   return -ENOTSUP;
+                  }
+
+//------------------------------------------------------------------------------
 //! Get the path to a file that is complete in the local cache. By default, the
 //! file must be complete in the cache (i.e. no blocks are missing). This can
 //! be overridden. Thes path can be used to access the file on the local node.

@@ -85,7 +85,8 @@
 //
 #define SFS_FCTL_GETFD    1 // Return file descriptor if possible
 #define SFS_FCTL_STATV    2 // Return visa information
-#define SFS_FCTL_SPEC1    3 // Return implementation defined information
+#define SFS_FCTL_SPEC1    3 // Return implementation defined information V1
+#define SFS_FCTL_QFINFO   4 // Return implementation defined file info
 
 #define SFS_SFIO_FDVAL 0x80000000 // Use SendData() method GETFD response value
 
@@ -98,6 +99,7 @@
 #define SFS_FSCTL_STATLS  3 // Return LS data
 #define SFS_FSCTL_STATXA  4 // Return XA data
 #define SFS_FSCTL_STATCC  5 // Return Cluster Config status
+#define SFS_FSCTL_PLUGFS  7 // Perform filesystem oriented operation
 #define SFS_FSCTL_PLUGIN  8 // Return Implementation Dependent Data
 #define SFS_FSCTL_PLUGIO 16 // Return Implementation Dependent Data
 #define SFS_FSCTL_PLUGXC 32 // Perform cache oriented operation
@@ -158,9 +160,9 @@ enum XrdSfsFileExistence
 
 class XrdOucTList;
 
-struct XrdSfsFSctl //!< SFS_FSCTL_PLUGIN/PLUGIO/PLUGXC parms
+struct XrdSfsFSctl //!< SFS_FSCTL_PLUGIN/PLUGIO/PLUGXC/PLUGFS parms
 {
- const char            *Arg1;      //!< PLUGINO, PLUGION, PLUGXC
+ const char            *Arg1;      //!< PLUGFS, PLUGIN, PLUGIO, PLUGXC
        int              Arg1Len;   //!< Length
        int              Arg2Len;   //!< Length  or -count of args in extension
  union{
@@ -475,7 +477,8 @@ virtual int            fctl(const int               cmd,
 //! Execute a special operation on the file (version 2)
 //!
 //! @param  cmd    - The operation to be performed:
-//!                  SFS_FCTL_SPEC1    Perform implementation defined action
+//!                  SFS_FCTL_SPEC1    Perform implementation defined action V1
+//!                  SFS_FCTL_SPEC2    Perform implementation defined action V2
 //! @param  alen   - Length of data pointed to by args.
 //! @param  args   - Data sent with request, zero if alen is zero.
 //! @param  client - Client's identify (see common description).
@@ -1037,11 +1040,14 @@ virtual int            FAttr(      XrdSfsFACtl      *faReq,
 //! Perform a filesystem control operation (version 2)
 //!
 //! @param  cmd    - The operation to be performed:
+//!                  SFS_FSCTL_PLUGFS  Return Implementation Dependent Data FS
 //!                  SFS_FSCTL_PLUGIN  Return Implementation Dependent Data v1
 //!                  SFS_FSCTL_PLUGIO  Return Implementation Dependent Data v2
+//!                  SFS_FSCTL_PLUGXC  Return Implementation Dependent Cache
 //! @param  args   - Arguments specific to cmd.
+//!                  SFS_FSCTL_PLUGFS  Unscreened argument string.
 //!                  SFS_FSCTL_PLUGIN  path and opaque information.
-//!                  SFS_FSCTL_PLUGIO  Unscreened argument string.
+//!                  SFS_FSCTL_PLUGXC  Unscreened argument string.
 //! @param  eInfo  - The object where error info or results are to be returned.
 //! @param  client - Client's identify (see common description).
 //!

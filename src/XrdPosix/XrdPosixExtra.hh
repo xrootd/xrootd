@@ -33,6 +33,7 @@
 /******************************************************************************/
 
 #include <cstdint>
+#include <string>
 #include <unistd.h>
 #include <vector>
 #include <sys/types.h>
@@ -46,6 +47,24 @@ class XrdPosixCallBackIO;
 class XrdPosixExtra
 {
 public:
+
+//-----------------------------------------------------------------------------
+//! Perform file oriented control operation (i.e. a query).
+//!
+//! @param  fildes  - File descriptor
+//! @param  opc     - The requested operation
+//! @param  args    - The arguments
+//! @param  resp    - Where the result is to be placed.
+//!
+//! @return >= 0    - Success, resp holds the response data.
+//! @return  < 0      errno hold reason for failure.
+//-----------------------------------------------------------------------------
+
+static const int QFinfo  = 0; // Must have valid fildes
+static const int QFSinfo = 1; // The fildes must be < 0
+
+static int      Fctl(int fildes, int opc, const std::string& args,
+                                                std::string& resp);
 
 //-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.

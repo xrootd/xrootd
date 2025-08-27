@@ -405,6 +405,7 @@ uint16_t        DFType() {return dfType;}
 //!                                Response: Pointer to XrdOucChkPnt object.
 //!                  Fctl_utimes - Set atime and mtime (no response).
 //!                                Argument: struct timeval tv[2]
+//!                  Fctl_QFinfo - Return special file information.
 //! @param  alen   - Length of data pointed to by args.
 //! @param  args   - Data sent with request, zero if alen is zero.
 //! @param  resp   - Where the response is to be set. The caller must call
@@ -415,6 +416,7 @@ uint16_t        DFType() {return dfType;}
 
 static const int Fctl_ckpObj = 0;
 static const int Fctl_utimes = 1;
+static const int Fctl_QFinfo = 2;
 
 virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 
@@ -506,6 +508,7 @@ short       rsvd;    // Reserved
 // Commands that can be passed to FSctl
 //
 #define XRDOSS_FSCTLFA 0x0001
+#define XRDOSS_FSCTLFS 0x0002
   
 /******************************************************************************/
 /*                          C l a s s   X r d O s s                           */
@@ -605,6 +608,7 @@ virtual uint64_t  Features();
 //!
 //! @param  cmd    - The operation to be performed:
 //!                  XRDOSS_FSCTLFA - Perform proxy file attribute operation
+//!                  XRDOSS_FSCTLFS - Perform proxy file system    operation
 //! @param  alen   - Length of data pointed to by args.
 //! @param  args   - Data sent with request, zero if alen is zero.
 //! @param  resp   - Where the response is to be set, if any.
