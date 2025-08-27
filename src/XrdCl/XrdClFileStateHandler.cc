@@ -1858,11 +1858,13 @@ namespace XrdCl
     return SendOrQueue( self, *self->pDataServer, msg, stHandler, params );
   }
 
+
   //----------------------------------------------------------------------------
   // Performs a custom operation on an open file, server implementation
   // dependent - async
   //----------------------------------------------------------------------------
   XRootDStatus FileStateHandler::Fcntl( std::shared_ptr<FileStateHandler> &self,
+                                        QueryCode::Code                    queryCode,
                                         const Buffer                      &arg,
                                         ResponseHandler                   *handler,
                                         time_t                             timeout )
@@ -1884,10 +1886,10 @@ namespace XrdCl
     MessageUtils::CreateRequest( msg, req, arg.GetSize() );
 
     req->requestid = kXR_query;
-    req->infotype  = kXR_Qopaqug;
+    req->infotype  = queryCode;
     req->dlen      = arg.GetSize();
     memcpy( req->fhandle, self->pFileHandle, 4 );
-    msg->Append( arg.GetBuffer(), arg.GetSize(), 24 );
+    msg->Append( arg.GetBuffer(), arg.GetSize(), sizeof(ClientQueryRequest) );
 
     MessageSendParams params;
     params.timeout         = timeout;
