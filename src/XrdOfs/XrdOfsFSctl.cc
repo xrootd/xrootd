@@ -267,7 +267,8 @@ int XrdOfs::FSctl(const int            cmd,
 {
    EPNAME("FSctl");
 
-// If this is the cache-specfic we need to do a lot more work. Otherwise this
+// This may be a cache-specfic operation, a forwardable operation, or one
+// destined to a FSctl plugin. We hande each case here.
 // is a simple case of wheter we have a plug-in for this or not.
 //
    if (cmd == SFS_FSCTL_PLUGXC)
@@ -278,8 +279,24 @@ int XrdOfs::FSctl(const int            cmd,
               }
            return FSctl_PC->FSctl(cmd, args, eInfo, client);
           }
-      }
-      else if (FSctl_PI) return FSctl_PI->FSctl(cmd, args, eInfo, client);
+      } else if (cmd == SFS_FSCTL_PLUGFS)
+                {char* resp = 0;
+                 int rc, n = XRDOSS_FSCTLFS;
+                 rc = XrdOfsOss->FSctl(n, args.Arg1Len, args.Arg1, &resp);
+                 if (rc >= 0)
+                    {rc = SFS_OK;
+                     if (resp)
+                        {if ((n = strlen(resp)))
+                            {eInfo.setErrInfo(n, resp);
+                             rc = SFS_DATA;
+                            }
+                         delete[] resp;
+                        }
+                     return rc;
+                    }
+                 return XrdOfsFS->Emsg("FSctl", eInfo, rc, "FSctl", "");
+                }
+        else if (FSctl_PI) return FSctl_PI->FSctl(cmd, args, eInfo, client);
 
 // Operation is not supported
 //
