@@ -32,12 +32,58 @@
 
 #include <cerrno>
 
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixExtra.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
+namespace XrdPosixGlobals
+{
+extern XrdOucCache *theCache;
+}
 
+using namespace XrdPosixGlobals;
+
+/******************************************************************************/
+/*                                  F c t l                                   */
+/******************************************************************************/
+  
+int XrdPosixExtra::Fctl(int fildes, int opc, const std::string& args,
+                                                   std::string& resp)
+{
+   XrdPosixFile *fp;
+
+// Execute the request (this handles simple cases)
+//
+   switch(opc)
+         {case QFinfo:
+               if (!(fp = XrdPosixObject::File(fildes)))
+                  {resp = "Invalid file descriptor.";
+                   return -1;
+                  }
+               return fp->XCio->Fcntl(XrdOucCacheIO::Fcop::QFinfo, args, resp);
+          case QFSinfo:
+               if (fildes >= 0) {errno = EINVAL; return -1;}
+               if (XrdPosixGlobals::theCache)
+                  {auto cmd = XrdOucCache::Fcop::QFSinfo;
+                   return XrdPosixGlobals::theCache->Fcntl(cmd, args, resp);
+                  }
+                [[fallthrough]];
+          default:
+               errno = ENOTSUP;   
+               break;
+         }
+
+// Determine the problem
+//
+   if (errno == ENOTSUP) resp = "Operation not supported.";
+   return -1;
+}
 
 /******************************************************************************/
 /*                                p g R e a d                                 */
@@ -66,7 +112,6 @@ ssize_t XrdPosixExtra::pgRead (int   fildes, void*    buffer,
 //
    if (rdlen > (size_t)0x7fffffff)
       {fp->UnLock();
-       
        errno = EOVERFLOW;
        if (!cbp) return -1;
        cbp->Complete(-1);

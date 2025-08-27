@@ -43,6 +43,9 @@ bool        Detach(XrdOucCacheIOCD &cdP) {(void)cdP; return true;}
 
 void        Disable();
 
+int         Fcntl(Fcop opc, const std::string& args, std::string& resp)
+                 {return (Init() ? fileP->Fcntl(opc, args, resp) : openRC);}
+
 long long   FSize() {return (Init() ? fileP->FSize() : openRC);}
 
 int         Fstat(struct stat &buf)
