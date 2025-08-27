@@ -463,6 +463,7 @@ namespace XrdCl
       //! Performs a custom operation on an open file, server implementation
       //! dependent - async
       //!
+      //! @param queryCode query code
       //! @param arg       query argument
       //! @param handler   handler to be notified when the response arrives,
       //!                  the response parameter will hold a Buffer object
@@ -472,6 +473,7 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       static XRootDStatus Fcntl( std::shared_ptr<FileStateHandler> &self,
+                                 QueryCode::Code                    queryCode,
                                  const Buffer                      &arg,
                                  ResponseHandler                   *handler,
                                  time_t                             timeout = 0 );
