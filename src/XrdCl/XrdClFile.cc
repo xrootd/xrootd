@@ -614,7 +614,39 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Fcntl( arg, handler, timeout );
 
-    return FileStateHandler::Fcntl( pImpl->pStateHandler, arg, handler, timeout );
+    return FileStateHandler::Fcntl( pImpl->pStateHandler, QueryCode::Code::OpaqueQ, arg, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Fcntl( QueryCode::Code   queryCode,
+                            const Buffer     &arg,
+                            Buffer          *&response,
+                            time_t            timeout )
+  {
+    SyncResponseHandler handler;
+    XRootDStatus st = Fcntl(queryCode, arg, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Fcntl( QueryCode::Code  queryCode,
+                            const Buffer    &arg,
+                            ResponseHandler *handler,
+                            time_t           timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->Fcntl( queryCode, arg, handler, timeout );
+
+    return FileStateHandler::Fcntl(pImpl->pStateHandler, queryCode, arg, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
