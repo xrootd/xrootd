@@ -600,6 +600,42 @@ namespace XrdCl
                           time_t            timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
+
+      //------------------------------------------------------------------------
+      //! Performs a custom operation on an open file, server implementation
+      //! dependent - async
+      //!
+      //! @param queryCode query code
+      //! @param arg       query argument
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successful
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Fcntl( QueryCode::Code  queryCode,
+                          const Buffer    &arg,
+                          ResponseHandler *handler,
+                          time_t           timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Performs a custom operation on an open file, server implementation
+      //! dependent - sync
+      //!
+      //! @param queryCode query code
+      //! @param arg       query argument
+      //! @param response  the response (to be deleted by the user)
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Fcntl( QueryCode::Code   queryCode,
+                          const Buffer     &arg,
+                          Buffer          *&response,
+                          time_t            timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
       //------------------------------------------------------------------------
       //! Get access token to a file - async
       //!
