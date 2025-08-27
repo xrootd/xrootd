@@ -33,6 +33,7 @@
   
 #include <unistd.h>
 #include <cerrno>
+#include <string>
 #include <fcntl.h>
 #include <signal.h>
 #include <cstdint>
@@ -310,6 +311,29 @@ void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
       {schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
        XrdPosixConfig::EnvInfo(*envP);
       }
+}
+  
+/******************************************************************************/
+/*                                 F S c t l                                  */
+/******************************************************************************/
+
+int XrdPssSys::FSctl(int cmd, int alen, const char *args, char **resp)
+{
+
+// Get correct argument to use
+//
+   switch(cmd)
+         {case XRDOSS_FSCTLFS: cmd = XrdPosixExtra::QFSinfo;
+               break;
+          default:
+               *resp = 0;
+               return -ENOTSUP;
+               break;
+         }
+
+// Execute this request
+//
+   return Xctl(-1, cmd, alen, args, resp);
 }
   
 /******************************************************************************/
@@ -1262,6 +1286,35 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
         }
      return (ssize_t)retval;
 }
+  
+/******************************************************************************/
+/*                                  F c t l                                   */
+/******************************************************************************/
+
+int XrdPssFile::Fctl(int cmd, int alen, const char *args, char **resp)
+{
+
+// Made sure the file is open
+//
+    if (fd < 0) return -XRDOSS_E8004;
+
+// Get correct argument to use
+//
+   switch(cmd)
+         {case XrdOssDF::Fctl_QFinfo: cmd = XrdPosixExtra::QFinfo;
+               break;
+          default:
+               *resp = 0;
+               return -ENOTSUP;
+               break;
+         }
+
+// Execute this request
+//
+   int rc = XrdPssSys::Xctl(fd, cmd, alen, args, resp);
+   if (rc < 0) lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+   return rc;
+}
 
 /******************************************************************************/
 /*                                 f s t a t                                  */
@@ -1559,4 +1612,30 @@ int XrdPssSys::P2URL(char *pbuff, int pblen, XrdPssUrlInfo &uInfo, bool doN2N)
 // All done
 //
    return 0;
+}
+  
+/******************************************************************************/
+/*                                  X c t l                                   */
+/******************************************************************************/
+
+int XrdPssSys::Xctl(int fd, int psxOp, int alen, const char *args, char **resp)
+{
+
+// Convert arguments to a string. They miight not be null terminated
+//
+   std::string theArgs(args, alen);
+   std::string theResp;
+
+// Invoke the file control
+//
+   if (XrdPosixExtra::Fctl(fd, psxOp, theArgs, theResp) < 0) return -errno;
+
+// Convert the response
+//
+   if (resp)
+      {int n = theResp.size() + 1;
+       *resp = new char[n];
+       strcpy(*resp, theResp.c_str());
+      }
+    return XrdOssOK;
 }
