@@ -2172,7 +2172,13 @@ int XrdXrootdProtocol::do_Qfh()
 // Perform the appropriate query
 //
    switch(qopt)
-         {case kXR_Qopaqug: qType = "Qopaqug";
+         {case kXR_QFinfo:  qType = "QFinfo";
+                            fArg = (Request.query.dlen ? argp->buff : 0);
+                            rc = fp->XrdSfsp->fctl(SFS_FCTL_QFINFO,
+                                                   Request.query.dlen, fArg,
+                                                   CRED);
+                            break;
+          case kXR_Qopaqug: qType = "Qopaqug";
                             fArg = (Request.query.dlen ? argp->buff : 0);
                             rc = fp->XrdSfsp->fctl(SFS_FCTL_SPEC1,
                                                    Request.query.dlen, fArg,
@@ -2212,11 +2218,16 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
 
 // Process unstructured as well as structured (path/opaque) requests
 //
-   if (qopt == kXR_Qopaque)
+   if (qopt == kXR_Qopaque || qopt == kXR_QFSinfo)
       {myData.Arg1 = argp->buff; myData.Arg1Len = dlen;
        myData.Arg2 = 0;          myData.Arg2Len = 0;
-       fsctl_cmd = SFS_FSCTL_PLUGIO;
-       Act = " qopaque '"; AData = "...";
+       if (qopt == kXR_Qopaque)
+          {fsctl_cmd = SFS_FSCTL_PLUGIO;
+           Act = " qopaque '"; AData = "...";
+          } else {
+           fsctl_cmd = SFS_FSCTL_PLUGFS;
+           Act = " qfsinfo '"; AData = "...";
+          }
       } else {
        // Check for static routing (this falls under stat)
        //
@@ -2302,8 +2313,11 @@ int XrdXrootdProtocol::do_Query()
           case kXR_Qconfig: return do_Qconf();
           case kXR_Qspace:  return do_Qspace();
           case kXR_Qxattr:  return do_Qxattr();
+          case kXR_QFSinfo:
           case kXR_Qopaque:
           case kXR_Qopaquf: return do_Qopaque(qopt);
+//        case kXR_Qvisa:
+          case kXR_QFinfo:
           case kXR_Qopaqug: return do_Qfh();
           case kXR_QPrep:   return do_Prepare(true);
           default:          break;
