@@ -26,7 +26,6 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /*                                                                            */
 /* The copyright holder's institutional names and contributor's names may not */
-/* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
@@ -94,6 +93,16 @@ virtual ~XrdOucCacheIOCD() {}
 };
   
 /******************************************************************************/
+/*                         X r d O u c C a c h e O p                          */
+/******************************************************************************/
+
+struct XrdOucCacheOp
+      {enum Code {QFinfo  = 0,  // Requires a file   target
+                  QFSinfo = 1   // Requires a global target
+                 };
+      };
+  
+/******************************************************************************/
 /*                   C l a s s   X r d O u c C a c h e I O                    */
 /******************************************************************************/
 
@@ -135,9 +144,8 @@ virtual bool Detach(XrdOucCacheIOCD &iocd) = 0;
 //! @return 0 upon success or -errno upon failure.
 //------------------------------------------------------------------------------
 
-enum class Fcop { QFinfo = 0 };
-
-virtual int  Fcntl(Fcop opc, const std::string& args, std::string& resp)
+virtual int  Fcntl(XrdOucCacheOp::Code opc, const std::string& args,
+                                                  std::string& resp)
                   {resp = "Function not supported";
                    return -ENOTSUP;
                   }
@@ -549,9 +557,8 @@ XrdOucCacheIO *Attach(XrdOucCacheIO *ioP, int opts=0) = 0;
 //! @return 0 upon success or -errno upon failure.
 //------------------------------------------------------------------------------
 
-enum class Fcop { QFSinfo = 0 };
-
-virtual int  Fcntl(Fcop opc, const std::string& args, std::string& resp)
+virtual int  Fcntl(XrdOucCacheOp::Code opc, const std::string& args,
+                                                  std::string& resp)
                   {resp = "Function not supported";
                    return -ENOTSUP;
                   }

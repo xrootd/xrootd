@@ -53,24 +53,24 @@ using namespace XrdPosixGlobals;
 /*                                  F c t l                                   */
 /******************************************************************************/
   
-int XrdPosixExtra::Fctl(int fildes, int opc, const std::string& args,
-                                                   std::string& resp)
+int XrdPosixExtra::Fctl(int fildes, XrdOucCacheOp::Code opc,
+                        const std::string& args, std::string& resp)
 {
    XrdPosixFile *fp;
 
 // Execute the request (this handles simple cases)
 //
    switch(opc)
-         {case QFinfo:
+         {case XrdOucCacheOp::Code::QFinfo:
                if (!(fp = XrdPosixObject::File(fildes)))
                   {resp = "Invalid file descriptor.";
                    return -1;
                   }
-               return fp->XCio->Fcntl(XrdOucCacheIO::Fcop::QFinfo, args, resp);
-          case QFSinfo:
+               return fp->XCio->Fcntl(XrdOucCacheOp::Code::QFinfo, args, resp);
+          case XrdOucCacheOp::Code::QFSinfo:
                if (fildes >= 0) {errno = EINVAL; return -1;}
                if (XrdPosixGlobals::theCache)
-                  {auto cmd = XrdOucCache::Fcop::QFSinfo;
+                  {auto cmd = XrdOucCacheOp::Code::QFSinfo;
                    return XrdPosixGlobals::theCache->Fcntl(cmd, args, resp);
                   }
                 [[fallthrough]];
