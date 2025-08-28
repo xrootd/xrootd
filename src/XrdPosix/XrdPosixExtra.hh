@@ -38,6 +38,8 @@
 #include <vector>
 #include <sys/types.h>
 
+#include "XrdOuc/XrdOucCache.hh"
+
 class XrdPosixCallBackIO;
 
 //-----------------------------------------------------------------------------
@@ -60,11 +62,8 @@ public:
 //! @return  < 0      errno hold reason for failure.
 //-----------------------------------------------------------------------------
 
-static const int QFinfo  = 0; // Must have valid fildes
-static const int QFSinfo = 1; // The fildes must be < 0
-
-static int      Fctl(int fildes, int opc, const std::string& args,
-                                                std::string& resp);
+static int      Fctl(int fildes, XrdOucCacheOp::Code opc,
+                     const std::string& args, std::string& resp);
 
 //-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.
