@@ -332,9 +332,52 @@ bool XrdPosixFile::Close(XrdCl::XRootDStatus &Status)
 /*                                 F c n t l                                  */
 /******************************************************************************/
 
-int XrdPosixFile::Fcntl(Fcop opc, const std::string& args, std::string& resp)
+int XrdPosixFile::Fcntl(XrdOucCacheOp::Code opc, const std::string& args,
+                                                       std::string& resp)
 {
-   return -ENOTSUP;
+   XrdCl::QueryCode::Code qCode; 
+ 
+// Make sure we support the operation code
+//
+   switch(opc)
+         {case XrdOucCacheOp::Code::QFinfo:
+                       qCode = XrdCl::QueryCode::Code::FInfo;
+                       break;
+          default:     resp = "Unsupported operation code.";
+                       return -ENOTSUP;
+         }
+
+// Convert argument to a client buffer
+//
+   uint32_t sz = args.size();
+   if (sz && args[0]) sz++;
+   XrdCl::Buffer theArgs(sz);
+   if (sz) theArgs.Append(args.c_str(), sz);
+
+// We only support the sync version of this, we may need to change that later
+//
+   XrdCl::Buffer* theResp = 0;
+   XrdCl::XRootDStatus Status;
+   Ref();
+   Status = clFile.Fcntl(qCode, theArgs, theResp);
+   unRef();
+
+// Check status, upon error we set errno and return -1
+//
+   if (!Status.IsOK())
+      {if (theResp) delete theResp;
+       return XrdPosixMap::Result(Status,ecMsg,true);
+      }
+
+// Construct the response.
+//
+   if (!theResp || !(sz = theResp->GetSize())) resp = "";
+      else resp.assign(theResp->GetBuffer(), sz);
+
+// All done
+//
+   if (theResp) delete theResp;
+   return 0;
 }
   
 /******************************************************************************/
