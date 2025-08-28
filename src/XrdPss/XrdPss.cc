@@ -319,11 +319,12 @@ void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
 
 int XrdPssSys::FSctl(int cmd, int alen, const char *args, char **resp)
 {
+   XrdOucCacheOp::Code opc;
 
 // Get correct argument to use
 //
    switch(cmd)
-         {case XRDOSS_FSCTLFS: cmd = XrdPosixExtra::QFSinfo;
+         {case XRDOSS_FSCTLFS: opc = XrdOucCacheOp::Code::QFSinfo;
                break;
           default:
                *resp = 0;
@@ -333,7 +334,7 @@ int XrdPssSys::FSctl(int cmd, int alen, const char *args, char **resp)
 
 // Execute this request
 //
-   return Xctl(-1, cmd, alen, args, resp);
+   return Xctl(-1, opc, alen, args, resp);
 }
   
 /******************************************************************************/
@@ -1293,6 +1294,7 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
 
 int XrdPssFile::Fctl(int cmd, int alen, const char *args, char **resp)
 {
+   XrdOucCacheOp::Code opc;
 
 // Made sure the file is open
 //
@@ -1301,7 +1303,7 @@ int XrdPssFile::Fctl(int cmd, int alen, const char *args, char **resp)
 // Get correct argument to use
 //
    switch(cmd)
-         {case XrdOssDF::Fctl_QFinfo: cmd = XrdPosixExtra::QFinfo;
+         {case XrdOssDF::Fctl_QFinfo: opc = XrdOucCacheOp::Code::QFinfo;
                break;
           default:
                *resp = 0;
@@ -1311,7 +1313,7 @@ int XrdPssFile::Fctl(int cmd, int alen, const char *args, char **resp)
 
 // Execute this request
 //
-   int rc = XrdPssSys::Xctl(fd, cmd, alen, args, resp);
+   int rc = XrdPssSys::Xctl(fd, opc, alen, args, resp);
    if (rc < 0) lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
    return rc;
 }
@@ -1618,7 +1620,8 @@ int XrdPssSys::P2URL(char *pbuff, int pblen, XrdPssUrlInfo &uInfo, bool doN2N)
 /*                                  X c t l                                   */
 /******************************************************************************/
 
-int XrdPssSys::Xctl(int fd, int psxOp, int alen, const char *args, char **resp)
+int XrdPssSys::Xctl(int fd, XrdOucCacheOp::Code psxOp, int alen,
+                    const char *args, char **resp)
 {
 
 // Convert arguments to a string. They miight not be null terminated

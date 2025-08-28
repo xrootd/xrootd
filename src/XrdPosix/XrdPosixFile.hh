@@ -89,8 +89,8 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        void          DetachDone() override {unRef();}
 
-       int           Fcntl(Fcop opc, const std::string& args,
-                                           std::string& resp) override;
+       int           Fcntl(XrdOucCacheOp::Code opc,
+                           const std::string& args, std::string& resp) override;
 
        bool          Finalize(XrdCl::XRootDStatus *Status);
 
