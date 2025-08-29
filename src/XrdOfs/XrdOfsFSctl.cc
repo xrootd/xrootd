@@ -274,7 +274,7 @@ int XrdOfs::FSctl(const int            cmd,
    if (cmd == SFS_FSCTL_PLUGXC)
       {if (FSctl_PC)
           {if (args.Arg2Len == -2)
-              {XrdOucEnv pc_Env(args.ArgP[1] ? args.ArgP[1] : 0, 0, client);
+              {XrdOucEnv pc_Env(args.ArgP[1], 0, client);
                AUTHORIZE(client,&pc_Env,AOP_Read,"FSctl",args.ArgP[0],eInfo);
               }
            return FSctl_PC->FSctl(cmd, args, eInfo, client);
@@ -282,7 +282,15 @@ int XrdOfs::FSctl(const int            cmd,
       } else if (cmd == SFS_FSCTL_PLUGFS)
                 {char* resp = 0;
                  int rc, n = XRDOSS_FSCTLFS;
-                 rc = XrdOfsOss->FSctl(n, args.Arg1Len, args.Arg1, &resp);
+                 XrdOucEnv ps_Env(args.Arg2, 0, client);
+                 AUTHORIZE(client,&ps_Env,AOP_Stat,"FSctl",args.Arg1,eInfo);
+                 if (args.Arg2 && *args.Arg2 && args.Arg2Len > 0)
+                    {std::string url(args.Arg1);
+                     url += '?'; url += args.Arg2;
+                     rc = XrdOfsOss->FSctl(n, url.size(), url.c_str(), &resp);
+                    } else {
+                     rc = XrdOfsOss->FSctl(n, args.Arg1Len, args.Arg1, &resp);
+                    }
                  if (rc >= 0)
                     {rc = SFS_OK;
                      if (resp)
