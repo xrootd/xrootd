@@ -7,7 +7,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdGStream.hh"
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <stdexcept>
 #include <thread>
 
