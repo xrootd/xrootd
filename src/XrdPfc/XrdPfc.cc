@@ -90,7 +90,7 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
 
    Cache &instance = Cache::CreateInstance(logger, env);
 
-   if (! instance.Config(config_filename, parameters))
+   if (! instance.Config(config_filename, parameters, env))
    {
       err.Say("Config Proxy file cache initialization failed.");
       return 0;
