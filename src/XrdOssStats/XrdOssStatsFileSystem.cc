@@ -43,6 +43,12 @@ FileSystem::FileSystem(XrdOss *oss, XrdSysLogger *lp, const char *configfn, XrdO
         return;
     }
 
+    // Parse the 'runmode' of the OSS, if applicable
+    auto runmode = envP->Get("oss.runmode");
+    if (runmode && runmode[0]) {
+        m_runmode = runmode;
+    }
+
     pthread_t tid;
     int rc;
     if ((rc = XrdSysThread::Run(&tid, FileSystem::AggregateBootstrap, static_cast<void *>(this), 0, "FS Stats Compute Thread"))) {
@@ -221,7 +227,7 @@ void FileSystem::AggregateStats()
     char buf[1500];
     auto len = snprintf(buf, 1500,
         "{"
-        "\"event\":\"oss_stats\"," \
+        "\"event\":\"oss_stats%s\"," \
         "\"reads\":%" PRIu64 ",\"writes\":%" PRIu64 ",\"stats\":%" PRIu64 "," \
         "\"pgreads\":%" PRIu64 ",\"pgwrites\":%" PRIu64 ",\"readvs\":%" PRIu64 "," \
         "\"readv_segs\":%" PRIu64 ",\"dirlists\":%" PRIu64 ",\"dirlist_ents\":%" PRIu64 ","
@@ -241,6 +247,7 @@ void FileSystem::AggregateStats()
         "\"slow_dirlist_t\":%.4f,\"slow_stat_t\":%.4f,\"slow_truncate_t\":%.4f,"
         "\"slow_unlink_t\":%.4f,\"slow_rename_t\":%.4f,\"slow_chmod_t\":%.4f"
         "}",
+        m_runmode.empty() ? "" : ("_" + m_runmode).c_str(),
         static_cast<uint64_t>(m_ops.m_read_ops), static_cast<uint64_t>(m_ops.m_write_ops), static_cast<uint64_t>(m_ops.m_stat_ops),
         static_cast<uint64_t>(m_ops.m_pgread_ops), static_cast<uint64_t>(m_ops.m_pgwrite_ops), static_cast<uint64_t>(m_ops.m_readv_ops),
         static_cast<uint64_t>(m_ops.m_readv_segs), static_cast<uint64_t>(m_ops.m_dirlist_ops), static_cast<uint64_t>(m_ops.m_dirlist_entries),

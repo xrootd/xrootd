@@ -75,6 +75,12 @@ private:
     // was fatal and it's better to halt startup than proceed.
     bool m_ready{false};
     std::string m_failure;
+
+    // The OSS plugin stack can have multiple "modes" (e.g., 'pfc' when running in the pfc).
+    // This member records the runtime configuration mode to disambiguate the g-stream records
+    // if multiple copies of the statistics are available.
+    std::string m_runmode;
+
     std::unique_ptr<XrdOss> m_oss;
     XrdOucEnv *m_env;
     XrdSysError m_log;
