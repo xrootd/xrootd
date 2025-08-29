@@ -47,7 +47,7 @@ install(
     ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdPfc
 )
 
-target_link_libraries(${XrdPfc} PRIVATE XrdCl XrdUtils XrdServer)
+target_link_libraries(${XrdPfc} PRIVATE XrdCl XrdUtils XrdServer XrdPosix)
 
 add_library(${XrdPfcPurgeQuota} MODULE XrdPfcPurgeQuota.cc)
 target_link_libraries(${XrdPfcPurgeQuota} PRIVATE XrdUtils)
