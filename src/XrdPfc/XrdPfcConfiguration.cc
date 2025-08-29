@@ -405,7 +405,7 @@ bool Cache::test_oss_basics_and_features()
    Purpose: To parse configuration file and configure Cache instance.
    Output:  true upon success or false upon failure.
  */
-bool Cache::Config(const char *config_filename, const char *parameters)
+bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEnv *env)
 {
    // Indicate whether or not we are a client instance
    const char *theINS = getenv("XRDINSTANCE");
@@ -414,8 +414,10 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    // Tell everyone else we are a caching proxy
    XrdOucEnv::Export("XRDPFC", 1);
 
-   XrdOucEnv myEnv;
-   XrdOucStream Config(&m_log, theINS, &myEnv, "=====> ");
+   XrdOucEnv emptyEnv;
+   XrdOucEnv *myEnv = env ? env : &emptyEnv;
+
+   XrdOucStream Config(&m_log, theINS, myEnv, "=====> ");
 
    if (! config_filename || ! *config_filename)
    {
@@ -496,7 +498,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    Config.Close();
 
    // Load OSS plugin.
-   myEnv.Put("oss.runmode", "pfc");
+   auto orig_runmode = myEnv->Get("oss.runmode");
+   myEnv->Put("oss.runmode", "pfc");
    if (m_configuration.is_cschk_cache())
    {
       char csi_conf[128];
@@ -508,7 +511,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
          return false;
       }
    }
-   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib, &myEnv))
+   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib, myEnv))
    {
       ofsCfg->Plugin(m_oss);
    }
@@ -517,6 +520,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       TRACE(Error, "Config() Unable to create an OSS object");
       return false;
    }
+   if (orig_runmode) myEnv->Put("oss.runmode", orig_runmode);
+   else myEnv->Put("oss.runmode", "");
 
    // Test if OSS is operational, determine optional features.
    aOK &= test_oss_basics_and_features();
