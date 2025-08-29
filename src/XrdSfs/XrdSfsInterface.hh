@@ -166,7 +166,7 @@ struct XrdSfsFSctl //!< SFS_FSCTL_PLUGIN/PLUGIO/PLUGXC/PLUGFS parms
        int              Arg1Len;   //!< Length
        int              Arg2Len;   //!< Length  or -count of args in extension
  union{
- const char            *Arg2;      //!< PLUGIN  opaque string
+ const char            *Arg2;      //!< PLUGFS, PLUGIN  opaque string
  const char           **ArgP;      //!< PLUGXC  argument list extension
       };
 };
