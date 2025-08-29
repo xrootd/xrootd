@@ -2218,16 +2218,11 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
 
 // Process unstructured as well as structured (path/opaque) requests
 //
-   if (qopt == kXR_Qopaque || qopt == kXR_QFSinfo)
+   if (qopt == kXR_Qopaque)
       {myData.Arg1 = argp->buff; myData.Arg1Len = dlen;
        myData.Arg2 = 0;          myData.Arg2Len = 0;
-       if (qopt == kXR_Qopaque)
-          {fsctl_cmd = SFS_FSCTL_PLUGIO;
-           Act = " qopaque '"; AData = "...";
-          } else {
-           fsctl_cmd = SFS_FSCTL_PLUGFS;
-           Act = " qfsinfo '"; AData = "...";
-          }
+       fsctl_cmd = SFS_FSCTL_PLUGIO;
+       Act = " qopaque '"; AData = "...";
       } else {
        // Check for static routing (this falls under stat)
        //
@@ -2244,9 +2239,16 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
        myData.Arg1Len = (opaque ? opaque - argp->buff - 1    : dlen);
        myData.Arg2    = opaque;
        myData.Arg2Len = (opaque ? argp->buff + dlen - opaque : 0);
-       fsctl_cmd = SFS_FSCTL_PLUGIN;
-       Act = " qopaquf '"; AData = argp->buff;
+       if (qopt == kXR_QFSinfo)
+          {fsctl_cmd = SFS_FSCTL_PLUGFS;
+           Act = " qfsinfo '";
+          } else {
+           fsctl_cmd = SFS_FSCTL_PLUGIN;
+           Act = " qopaquf '";
+          }
+       AData = argp->buff;
       }
+
 // The query is elegible for a deferred response, indicate we're ok with that
 //
    myError.setErrCB(&qpqCB, ReqID.getID());
