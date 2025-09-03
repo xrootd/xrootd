@@ -2780,6 +2780,11 @@ void XrdHttpReq::reset() {
   m_user_agent = "";
   m_origin = "";
 
+  httpStatusCode = -1;
+  initialStatusCode= -1;
+  httpErrorCode = "";
+  httpErrorBody = "";
+
   headerok = false;
   keepalive = true;
   length = 0;
