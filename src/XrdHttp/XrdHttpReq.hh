@@ -90,7 +90,12 @@ public:
 
 private:
   // HTTP response parameters to be sent back to the user
-  int httpStatusCode;
+  int httpStatusCode{-1};
+
+  // Stores the first response that was sent as part of the Response Header
+  // Used when staus code is updated after for e.g. Chunked Response + X-Transfer-Status request
+  int initialStatusCode{-1};
+
   // HTTP Error code for the response
   // e.g. 8.1, 8.3.1, etc.
   // https://twiki.cern.ch/twiki/bin/view/LCG/WebdavErrorImprovement
@@ -213,6 +218,16 @@ public:
   virtual ~XrdHttpReq();
 
   virtual void reset();
+
+  int getInitialStatusCode() { return initialStatusCode;}
+  int getHttpStatusCode() { return httpStatusCode;}
+
+  void setHttpStatusCode(int code) {
+      httpStatusCode = code;
+      if (initialStatusCode < 0 && code >= 200 ) { 
+        initialStatusCode = code;
+      }
+  }
 
   /// Parse the header
   int parseLine(char *line, int len);
