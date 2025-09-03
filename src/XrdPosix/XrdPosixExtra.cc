@@ -32,8 +32,13 @@
 
 #include <cerrno>
 
+#include "XrdCl/XrdClFileSystem.hh"
+
 #include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucECMsg.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
+
+#include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixExtra.hh"
 #include "XrdPosix/XrdPosixFile.hh"
@@ -45,6 +50,7 @@
 namespace XrdPosixGlobals
 {
 extern XrdOucCache *theCache;
+extern thread_local XrdOucECMsg ecMsg;
 }
 
 using namespace XrdPosixGlobals;
@@ -58,6 +64,8 @@ int XrdPosixExtra::Fctl(int fildes, XrdOucCacheOp::Code opc,
 {
    XrdPosixFile *fp;
 
+// Make s
+
 // Execute the request (this handles simple cases)
 //
    switch(opc)
@@ -66,23 +74,56 @@ int XrdPosixExtra::Fctl(int fildes, XrdOucCacheOp::Code opc,
                   {resp = "Invalid file descriptor.";
                    return -1;
                   }
-               return fp->XCio->Fcntl(XrdOucCacheOp::Code::QFinfo, args, resp);
-          case XrdOucCacheOp::Code::QFSinfo:
-               if (fildes >= 0) {errno = EINVAL; return -1;}
-               if (XrdPosixGlobals::theCache)
-                  {auto cmd = XrdOucCacheOp::Code::QFSinfo;
-                   return XrdPosixGlobals::theCache->Fcntl(cmd, args, resp);
-                  }
-                [[fallthrough]];
-          default:
-               errno = ENOTSUP;   
                break;
+          default:
+               resp = "File operation not supported.";
+               errno = ENOTSUP;   
+               return -1;
          }
 
-// Determine the problem
+// Execute the operation which may first hit the cache if we have one.
 //
-   if (errno == ENOTSUP) resp = "Operation not supported.";
-   return -1;
+   return fp->XCio->Fcntl(XrdOucCacheOp::Code::QFinfo, args, resp);
+}
+
+/******************************************************************************/
+/*                                 F S c t l                                  */
+/******************************************************************************/
+  
+int XrdPosixExtra::FSctl(XrdOucCacheOp::Code opc,
+                        const std::string& args, std::string& resp,
+                        bool viaCache)
+{
+   XrdCl::QueryCode::Code clOp;
+
+// Make sure we support the operation
+//
+   switch(opc)
+         {case XrdOucCacheOp::Code::QFSinfo:
+               clOp = XrdCl::QueryCode::Code::FSInfo;
+               break;
+          default:
+               resp = "Filesystem operation not supported.";
+               errno = ENOTSUP;   
+               return -1;
+         }
+
+// Use cache, if possible and allowed, to handle this operation
+//
+   if (viaCache && XrdPosixGlobals::theCache)
+      return XrdPosixGlobals::theCache->Fcntl(opc, args, resp);
+
+// We need to execute this at the endpoint described by args (i.e. a URL)
+//
+   XrdPosixAdmin admin(args.c_str(),XrdPosixGlobals::ecMsg);
+
+// Stat the file first to allow vectoring of the request to the right server
+//
+   if (!admin.Stat()) return -1;
+
+// Return the actual retult
+
+   return admin.Query(clOp, resp);
 }
 
 /******************************************************************************/

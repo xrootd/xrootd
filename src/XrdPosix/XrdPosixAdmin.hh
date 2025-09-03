@@ -30,6 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string>
+
 #include <sys/types.h>
 
 #include "XrdCl/XrdClFile.hh"
@@ -62,6 +64,8 @@ bool           isOK() {if (Url.IsValid()) return true;
 XrdCl::URL    *FanOut(int &num);
 
 int            Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz);
+
+int            Query(XrdCl::QueryCode::Code reqCode, std::string& resp);
 
 bool           Stat(mode_t *flags=0, time_t *mtime=0);
 
