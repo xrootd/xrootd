@@ -319,7 +319,9 @@ void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
 
 int XrdPssSys::FSctl(int cmd, int alen, const char *args, char **resp)
 {
+   EPNAME("FSctl");
    XrdOucCacheOp::Code opc;
+   int rc;
 
 // Get correct argument to use
 //
@@ -332,9 +334,37 @@ int XrdPssSys::FSctl(int cmd, int alen, const char *args, char **resp)
                break;
          }
 
-// Execute this request
+// Perform setup
 //
-   return Xctl(-1, opc, alen, args, resp);
+   std::string thePath(args, alen); // Gaurd against missing null byte
+   std::string theResp;
+   XrdPssUrlInfo uInfo(0, args); // CGI is already appended
+   char pbuff[PBsz];
+
+// Convert path to URL
+//
+   if ((rc = P2URL(pbuff, PBsz, uInfo, xLfn2Pfn))) return rc;
+   thePath = pbuff;
+
+// Some tracing
+//
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
+
+// Invoke the file control. Make sure it goes through the cache if it exists.
+//
+   if (XrdPosixExtra::FSctl(opc, thePath, theResp, true) < 0) return -errno;
+
+// Convert the response
+//
+   if (resp)
+      {int n = theResp.size() + 1;
+       *resp = new char[n];
+       strcpy(*resp, theResp.c_str());
+      }
+    return XrdOssOK;
 }
   
 /******************************************************************************/
@@ -1311,11 +1341,28 @@ int XrdPssFile::Fctl(int cmd, int alen, const char *args, char **resp)
                break;
          }
 
-// Execute this request
+// Convert argument to a string and prepare for  the reponse
 //
-   int rc = XrdPssSys::Xctl(fd, opc, alen, args, resp);
-   if (rc < 0) lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
-   return rc;
+   std::string theArgs(args, alen);
+   std::string theResp;
+
+// Invoke the file control
+//
+
+   if (XrdPosixExtra::Fctl(fd, opc, theArgs, theResp) < 0)
+      {int rc = -errno;
+       lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+       return rc;
+      }
+
+// Convert the response
+//
+   if (resp)
+      {int n = theResp.size() + 1;
+       *resp = new char[n];
+       strcpy(*resp, theResp.c_str());
+      }
+    return XrdOssOK;
 }
 
 /******************************************************************************/
@@ -1614,31 +1661,4 @@ int XrdPssSys::P2URL(char *pbuff, int pblen, XrdPssUrlInfo &uInfo, bool doN2N)
 // All done
 //
    return 0;
-}
-  
-/******************************************************************************/
-/*                                  X c t l                                   */
-/******************************************************************************/
-
-int XrdPssSys::Xctl(int fd, XrdOucCacheOp::Code psxOp, int alen,
-                    const char *args, char **resp)
-{
-
-// Convert arguments to a string. They miight not be null terminated
-//
-   std::string theArgs(args, alen);
-   std::string theResp;
-
-// Invoke the file control
-//
-   if (XrdPosixExtra::Fctl(fd, psxOp, theArgs, theResp) < 0) return -errno;
-
-// Convert the response
-//
-   if (resp)
-      {int n = theResp.size() + 1;
-       *resp = new char[n];
-       strcpy(*resp, theResp.c_str());
-      }
-    return XrdOssOK;
 }
