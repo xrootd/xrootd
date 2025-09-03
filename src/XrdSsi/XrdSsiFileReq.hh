@@ -65,6 +65,8 @@ static  XrdSsiFileReq *Alloc(XrdOucErrInfo  *eP, XrdSsiFileResource *rP,
                              XrdSsiFileSess *fP, const char         *sn,
                              const char     *id, unsigned int        rnum);
 
+        void           DeferredFinalize();
+
         void           Finalize();
 
         using          XrdSsiRequest::Finished;
