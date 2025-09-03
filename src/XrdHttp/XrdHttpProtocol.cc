@@ -1572,6 +1572,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
 int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive) {
   const std::string crlf = "\r\n";
   std::stringstream ss;
+  CurrentReq.setHttpStatusCode(code);
 
   if (header_to_add && (header_to_add[0] != '\0')) {
     ss << header_to_add << crlf;
@@ -1630,6 +1631,7 @@ int XrdHttpProtocol::ChunkRespFooter() {
 /// Returns 0 if OK
 
 int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen, bool keepalive) {
+  CurrentReq.setHttpStatusCode(code);
 
   long long content_length = bodylen;
   if (bodylen <= 0) {
