@@ -17,9 +17,6 @@ class IO : public XrdOucCacheIO
 public:
    IO (XrdOucCacheIO *io, Cache &cache);
 
-   //! Original data source.
-   virtual XrdOucCacheIO *Base() { return m_io; }
-
    //! Original data source URL.
    const char *Path() override { return m_io->Path(); }
 
