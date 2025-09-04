@@ -208,7 +208,7 @@ public:
    // Constructor, destructor, Open() and Close() are private.
 
    //! Static constructor that also does Open. Returns null ptr if Open fails.
-   static File* FileOpen(const std::string &path, long long offset, long long fileSize, XrdOucCacheIO* inputIO);
+   static File* FileOpen(const std::string &path, long long offset, long long fileSize, XrdOucCacheIO *inputIO);
 
    //! Handle removal of a block from Cache's write queue.
    void BlockRemovedFromWriteQ(Block*);
@@ -250,7 +250,7 @@ public:
    //----------------------------------------------------------------------
    void Sync();
 
-   void WriteBlockToDisk(Block* b);
+   void WriteBlockToDisk(Block *b);
 
    void Prefetch();
 
@@ -301,8 +301,8 @@ private:
    void Close();
 
    //! Open file handle for data file and info file on local disk.
-   bool Open(XrdOucCacheIO* inputIO);
-   void parse_pfc_url_args(XrdOucCacheIO* inputIO, long long &pfc_blocksize, int &pfc_prefetch) const;
+   bool Open(XrdOucCacheIO *inputIO);
+   void parse_pfc_url_args(XrdOucCacheIO *inputIO, long long &pfc_blocksize, int &pfc_prefetch) const;
 
    static const char *m_traceID;
 
