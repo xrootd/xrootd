@@ -77,6 +77,9 @@ static int      Fctl(int fildes, XrdOucCacheOp::Code opc,
 //! @param  viaCache- False -> Bypass calling any cache using URL in args.
 //!                   True  -> Use Cache object API if cache enabled.
 //!                            Otherwise, assume viaCache is false;
+//! @param  viaRedir- False -> Send request directly to endpoint.
+//!                   True  -> If endpoint is a redirector, send request
+//!                            to the redirected endpoint (i.e. via redirect)
 //!
 //! @return >= 0    - Success, resp holds the response data.
 //! @return  < 0      errno hold reason for failure.
@@ -84,7 +87,7 @@ static int      Fctl(int fildes, XrdOucCacheOp::Code opc,
 
 static int      FSctl(XrdOucCacheOp::Code opc,
                       const std::string& args, std::string& resp,
-                      bool viaCache=false);
+                      bool viaCache=false, bool viaRedir=false);
 
 //-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.

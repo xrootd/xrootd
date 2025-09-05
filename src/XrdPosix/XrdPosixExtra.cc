@@ -92,7 +92,7 @@ int XrdPosixExtra::Fctl(int fildes, XrdOucCacheOp::Code opc,
   
 int XrdPosixExtra::FSctl(XrdOucCacheOp::Code opc,
                         const std::string& args, std::string& resp,
-                        bool viaCache)
+                        bool viaCache, bool viaRedir)
 {
    XrdCl::QueryCode::Code clOp;
 
@@ -118,8 +118,10 @@ int XrdPosixExtra::FSctl(XrdOucCacheOp::Code opc,
    XrdPosixAdmin admin(args.c_str(),XrdPosixGlobals::ecMsg);
 
 // Stat the file first to allow vectoring of the request to the right server
+// but do so only if caller wishes to use a redirect as opposed to sending
+// the request to the actual redirector.
 //
-   if (!admin.Stat()) return -1;
+   if (viaRedir && !admin.Stat()) return -1;
 
 // Return the actual retult
 
