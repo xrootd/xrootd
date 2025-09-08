@@ -45,7 +45,6 @@
 #include <vector>
 #include <memory>
 #include <sstream>
-#include <optional>
 #include <cstdint>
 
 #ifndef XRDHTTPUTILS_HH

@@ -160,7 +160,8 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
 
 // See XrdHttpTpcUtils::prepareOpenURL() documentation
 std::string TPCHandler::prepareURL(XrdHttpExtReq &req) {
-  return XrdHttpTpcUtils::prepareOpenURL(req.resource, req.headers,hdr2cgimap);
+  XrdHttpTpcUtils::PrepareOpenURLParams parms {req.resource, req.headers, hdr2cgimap,req.mReprDigest};
+  return XrdHttpTpcUtils::prepareOpenURL(parms);
 }
 
 /******************************************************************************/

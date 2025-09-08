@@ -51,7 +51,6 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
-#include <optional>
 
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdOuc/XrdOucString.hh"
