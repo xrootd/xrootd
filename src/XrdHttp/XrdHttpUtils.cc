@@ -50,7 +50,6 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
-#include <optional>
 
 #include "XProtocol/XPtypes.hh"
 #include "XrdSec/XrdSecEntity.hh"
