@@ -211,13 +211,12 @@ int XrdNetMsg::Send(const struct iovec iov[], int iovcnt,
 
 // Create the message via the msghdr
 //
-   struct msghdr mHdr = {(void*)specDest.SockAddr(), specDest.SockSize(),
-                          const_cast<struct iovec*>(iov),
-#if defined(__APPLE__) || defined(__FreeBSD__)
-                                              iovcnt, 0,0,0};// MacOS it's int
-#else
-                                      (size_t)iovcnt, 0,0,0};// O/W a size_t
-#endif
+   struct msghdr mHdr{};
+
+   mHdr.msg_name = (void*)specDest.SockAddr();
+   mHdr.msg_namelen = specDest.SockSize();
+   mHdr.msg_iov = const_cast<struct iovec*>(iov);
+   mHdr.msg_iovlen = iovcnt;
 
 // Handle timeout if need be  
 //
