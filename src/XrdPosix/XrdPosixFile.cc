@@ -386,6 +386,13 @@ int XrdPosixFile::Fstat(struct stat &buf)
    buf.st_mode   = myMode;
    return 0;
 }
+
+int XrdPosixFile::Fcntl(const XrdCl::Buffer &arg, XrdCl::Buffer *&response)
+{
+   // AMT: temporary solution to handle unsuported operations in XrdPfc::File::Open()
+   XrdCl::XRootDStatus status = clFile.Fcntl(arg, response);
+   return status.IsOK() ? 0 : status.errNo;
+}
   
 /******************************************************************************/
 /*                        H a n d l e R e s p o n s e                         */
