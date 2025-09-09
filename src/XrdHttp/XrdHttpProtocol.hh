@@ -297,8 +297,9 @@ private:
   //  API.
   int StartChunkedResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);
 
-  /// Send a (potentially partial) body in a chunked response; invoking with NULL body
-  //  indicates that this is the last chunk in the response.
+  /// Send a (potentially partial) body in a chunked response;
+  //  invoking with NULL body indicates that this is the last chunk in the response.
+  //  invoking with bodylen=-1 indicates that this is a trailer
   int ChunkResp(const char *body, long long bodylen);
 
   /// Send the beginning of a chunked response but not the body; useful when the size
