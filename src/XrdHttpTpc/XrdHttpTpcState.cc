@@ -13,6 +13,8 @@
 #include "XrdHttpTpcState.hh"
 #include "XrdHttpTpcStream.hh"
 
+#include "XrdHttp/XrdHttpHeaderUtils.hh"
+
 using namespace TPC;
 
 
@@ -54,6 +56,7 @@ void State::Move(State &other)
     other.m_curl = NULL;
     other.m_headers = NULL;
     other.m_stream = NULL;
+    other.m_repr_digests = m_repr_digests;
 }
 
 
@@ -103,17 +106,15 @@ bool State::InstallHandlers(CURL *curl) {
  */
 void State::SetupHeaders(XrdHttpExtReq &req) {
     struct curl_slist *list = NULL;
-    for (std::map<std::string, std::string>::const_iterator hdr_iter = req.headers.begin();
-         hdr_iter != req.headers.end();
-         hdr_iter++) {
-        if (!strcasecmp(hdr_iter->first.c_str(),"copy-header")) {
-            list = curl_slist_append(list, hdr_iter->second.c_str());
-            m_headers_copy.emplace_back(hdr_iter->second);
+    for (const auto & [header,value]: req.headers) {
+        if (!strncasecmp(header.c_str(),"copy-header", 11)) {
+            list = curl_slist_append(list, value.c_str());
+            m_headers_copy.emplace_back(value);
         }
         // Note: len("TransferHeader") == 14
-        if (!strncasecmp(hdr_iter->first.c_str(),"transferheader",14)) {
+        if (!strncasecmp(header.c_str(),"transferheader",14)) {
             std::stringstream ss;
-            ss << hdr_iter->first.substr(14) << ": " << hdr_iter->second;
+            ss << header.substr(14) << ": " << value;
             list = curl_slist_append(list, ss.str().c_str());
             m_headers_copy.emplace_back(ss.str());
         }
@@ -153,10 +154,45 @@ void State::SetupHeaders(XrdHttpExtReq &req) {
         }
     }
 
-    if (list != NULL) {
+    if (list != nullptr) {
         curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
         m_headers = list;
     }
+}
+
+void State::SetupHeadersForHEAD(XrdHttpExtReq &req) {
+  struct curl_slist *list = NULL;
+  for (const auto & [header,value]: req.headers) {
+    if (!strncasecmp(header.c_str(),"copy-header", 11)) {
+      list = curl_slist_append(list, value.c_str());
+    }
+    // Note: len("TransferHeader") == 14
+    if (!strncasecmp(header.c_str(),"transferheader",14)) {
+      std::stringstream ss;
+      ss << header.substr(14) << ": " << value;
+      list = curl_slist_append(list, ss.str().c_str());
+    }
+  }
+  if(!req.mReprDigest.empty()) {
+    size_t reprDigestSize = req.mReprDigest.size();
+    std::stringstream ss;
+    ss << "Want-Repr-Digest: ";
+    size_t cpt = 1;
+    for (const auto &kv: req.mReprDigest) {
+      // We put the same weight for the digest names as we do not have any way, according to the specs,
+      // to give priority to a digest name in particular
+      ss << kv.first << '=' << 5;
+      if(cpt < reprDigestSize) {
+        ss << ',';
+      }
+      cpt++;
+    }
+    list = curl_slist_append(list, ss.str().c_str());
+  }
+
+  if (list != nullptr) {
+    curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
+  }
 }
 
 void State::ResetAfterRequest() {
@@ -166,6 +202,7 @@ void State::ResetAfterRequest() {
     m_push_length = -1;
     m_recv_all_headers = false;
     m_recv_status_line = false;
+    m_repr_digests.clear();
 }
 
 size_t State::HeaderCB(char *buffer, size_t size, size_t nitems, void *userdata)
@@ -213,6 +250,9 @@ int State::Header(const std::string &header) {
                     //printf("Content-length header unparseable\n");
                     return 0;
                 }
+            }
+            if(header_name == "repr-digest") {
+              XrdHttpHeaderUtils::parseReprDigest(header_value,m_repr_digests);
             }
         } else {
             // Non-empty header that isn't the status line, but no ':' present --

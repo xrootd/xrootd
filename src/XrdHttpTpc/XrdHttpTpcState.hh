@@ -39,6 +39,8 @@ public:
     /**
      * Don't use that constructor if you want to do some transfers.
      * @param curl the curl handle
+     * @param tpcForwardCreds set to true if the credentials needs to be forwarded for this request, false otherwise
+     * @param push set to true if this HEAD request is for a push transfer, false otherwise
      */
     State(CURL * curl, bool tpcForwardCreds):
       m_push(true),
@@ -87,11 +89,15 @@ public:
 
     void SetupHeaders(XrdHttpExtReq &req);
 
+    void SetupHeadersForHEAD(XrdHttpExtReq & req);
+
     off_t BytesTransferred() const {return m_offset;}
 
     void SetContentLength(const off_t content_length) { m_content_length = content_length; }
 
     off_t GetContentLength() const {return m_content_length;}
+
+    const std::map<std::string, std::string> & GetReprDigest() const { return m_repr_digests; }
 
     int GetErrorCode() const {return m_error_code;}
 
@@ -181,6 +187,7 @@ private:
     std::string m_error_buf;  // Any error associated with a response.
     bool m_is_transfer_state; // If set to true, this state will be used to perform some transfers
     bool tpcForwardCreds = false; // if set to true, the redirection will send user credentials to the redirection host
+    std::map<std::string, std::string> m_repr_digests; // Repr-Digest values received from the passive server (PULL)
 };
 
 };

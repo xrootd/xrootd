@@ -164,6 +164,30 @@ std::string TPCHandler::prepareURL(XrdHttpExtReq &req) {
   return XrdHttpTpcUtils::prepareOpenURL(parms);
 }
 
+bool TPCHandler::mismatchReprDigest(const std::map<std::string, std::string> & passiveSrvReprDigest, XrdHttpExtReq &req,
+                                    TPCLogRecord &rec) {
+    if(passiveSrvReprDigest.size()) {
+        for (const auto & [digestName, digestValue]: passiveSrvReprDigest) {
+            auto clientDigestMatch = req.mReprDigest.find(digestName);
+            if (clientDigestMatch != req.mReprDigest.end()) {
+                // We found a checksum type match between the client-provided one and the source server-provided one
+                if (clientDigestMatch->second != digestValue) {
+                    // The checksum value does not match, return an error to the client 412 PRECONDITION_FAILED
+                    std::stringstream errMsg;
+                    errMsg << "Mismatch between client-provided and remote server checksums:"
+                           << " client = (" << clientDigestMatch->first << "=" <<  clientDigestMatch->second << ")"
+                           << " server = (" << digestName << "=" << digestValue << ")";
+                    logTransferEvent(LogMask::Error, rec, "REPRDIGEST_VERIFY_FAIL", errMsg.str());
+                    rec.status=412;
+                    req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(errMsg, rec, CURLcode::CURLE_OK).c_str(), 0);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 /******************************************************************************/
 /*           e n c o d e _ x r o o t d _ o p a q u e _ t o _ u r i            */
 /******************************************************************************/
@@ -418,8 +442,8 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
 /**
  * Determine size at remote end.
  */
-int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
-                                  bool &success, TPCLogRecord &rec, bool shouldReturnErrorToClient) {
+int TPCHandler::PerformHEADRequest(CURL *curl, XrdHttpExtReq &req, State &state,
+                                   bool &success, TPCLogRecord &rec, bool shouldReturnErrorToClient) {
     success = false;
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
     // Set a custom timeout of 60 seconds (= CONNECT_TIMEOUT for convenience) for the HEAD request
@@ -433,46 +457,54 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
     if (res == CURLE_HTTP_RETURNED_ERROR) {
         std::stringstream ss;
-        ss << "Remote server failed request while fetching remote size";
+        ss << "Remote server failed request while fetching file information (HEAD)";
         std::stringstream ss2;
         ss2 << ss.str() << ": " << curl_easy_strerror(res);
         rec.status = 500;
-        logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss2.str());
+        logTransferEvent(LogMask::Error, rec, "HEAD_FAIL", ss2.str());
         return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec, res).c_str(), 0) : -1;
     } else if (state.GetStatusCode() >= 400) {
         std::stringstream ss;
-        ss << "Remote side " << req.clienthost << " failed with status code " << state.GetStatusCode() << " while fetching remote size";
+        ss << "Remote side " << req.clienthost << " failed with status code " << state.GetStatusCode() << " while fetching remote file information (HEAD)";
         rec.status = 500;
-        logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
+        logTransferEvent(LogMask::Error, rec, "HEAD_FAIL", ss.str());
         return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0) : -1;
     } else if (res) {
         std::stringstream ss;
-        ss << "Internal transfer failure while fetching remote size";
+        ss << "Internal transfer failure while fetching remote file information (HEAD)";
         std::stringstream ss2;
         ss2 << ss.str() << " - HTTP library failed: " << curl_easy_strerror(res);
         rec.status = 500;
-        logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss2.str());
+        logTransferEvent(LogMask::Error, rec, "HEAD_FAIL", ss2.str());
         return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec, res).c_str(), 0) : -1;
     }
     std::stringstream ss;
-    ss << "Successfully determined remote size for pull request: "
-       << state.GetContentLength();
-    logTransferEvent(LogMask::Debug, rec, "SIZE_SUCCESS", ss.str());
+    ss << "Successfully determined remote file information for pull request: "
+       << "size=" << state.GetContentLength();
+    if(state.GetReprDigest().size()) {
+      unsigned int cksumIndex = 1;
+      for(const auto & [cksumType,cksumValue]: state.GetReprDigest()) {
+        ss << " chksum" << cksumIndex << "=(" << cksumType << "," << cksumValue << ")";
+        cksumIndex++;
+      }
+    }
+    logTransferEvent(LogMask::Debug, rec, "HEAD_SUCCESS", ss.str());
     success = true;
     return 0;
 }
 
-int TPCHandler::GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t &contentLength, bool & success, TPCLogRecord &rec) {
+int TPCHandler::GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t &contentLength, std::map<std::string,std::string> & reprDigest, bool & success, TPCLogRecord &rec) {
     State state(curl,req.tpcForwardCreds);
     //Don't forget to copy the headers of the client's request before doing the HEAD call. Otherwise, if there is a need for authentication,
     //it will fail
-    state.SetupHeaders(req);
+    state.SetupHeadersForHEAD(req);
     int result;
-    //In case we cannot get the content length, we return the error to the client
-    if ((result = DetermineXferSize(curl, req, state, success, rec)) || !success) {
+    //In case we cannot get the file HEAD request, we return the error to the client
+    if ((result = PerformHEADRequest(curl, req, state, success, rec)) || !success) {
         return result;
     }
     contentLength = state.GetContentLength();
+    reprDigest = state.GetReprDigest();
     return result;
 }
   
@@ -966,16 +998,21 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     {
         //Get the content-length of the source file and pass it to the OSS layer
         //during the open
-        bool success;
-        GetContentLengthTPCPull(curl, req, sourceFileContentLength, success, rec);
+        bool success = false;
+        bool mismatchDigests = false;
+        std::map<std::string,std::string> sourceFileReprDigest;
+        GetRemoteFileInfoTPCPull(curl, req, sourceFileContentLength, sourceFileReprDigest, success, rec);
         if(success) {
             //In the case we cannot get the information from the source server (offline or other error)
-            //we just don't add the size information to the opaque of the local file to open
+            //we just don't add the file information to the opaque of the local file to open
             full_url += "&oss.asize=" + std::to_string(sourceFileContentLength);
-        } else {
-          // In the case the GetContentLength is not successful, an error will be returned to the client
-          // just exit here so we don't open the file!
-          return 0;
+            mismatchDigests = mismatchReprDigest(sourceFileReprDigest,req,rec);
+        }
+        if(!success || mismatchDigests) {
+            // We could not get remote file information, or the checksum provided by the client
+            // does not match the source file one, we already sent the error to the client so we
+            // just exit here
+            return 0;
         }
     }
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY,
