@@ -878,6 +878,7 @@ int XrdHttpReq::prepareChecksumQuery(XrdHttpChecksumHandler::XrdHttpChecksumRawP
 int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
+  if (startTime == std::chrono::steady_clock::time_point::min()) startTime = std::chrono::steady_clock::now();
 
   // State variable for tracking the query parameter search
   // - 0: Indicates we've not yet searched the URL for '?'
@@ -2796,22 +2797,18 @@ void XrdHttpReq::reset() {
   iovN = 0;
   iovL = 0;
 
-
   if (opaque) delete(opaque);
   opaque = 0;
 
   fopened = false;
-
   final = false;
-
   mScitag = -1;
-
-  httpStatusCode = -1;
-  httpErrorCode = "";
-  httpErrorBody = "";
 
   m_repr_digest.clear();
   m_want_repr_digest.clear();
+
+  monState = XrdHttpReq::MonitState::NEW;
+  startTime = std::chrono::steady_clock::time_point::min();
 }
 
 void XrdHttpReq::getfhandle() {
