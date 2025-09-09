@@ -116,6 +116,8 @@ std::string XrdHttpMon::GetOperationString(XrdHttpReq::ReqType op) {
             return "PROPFIND";
         case XrdHttpReq::ReqType::rtPUT:
             return "PUT";
+        case XrdHttpReq::ReqType::rtCOPY:
+            return "COPY";
         case XrdHttpReq::ReqType::rtMalformed:
             return "Malformed";
         default:
