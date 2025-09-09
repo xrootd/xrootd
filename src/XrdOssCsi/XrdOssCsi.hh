@@ -80,7 +80,7 @@ virtual int     Close(long long *retsz=0) /* override */;
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) /* override */;
 
 virtual off_t   getMmap(void **addr) /* override */ { if (addr) *addr = 0; return 0; }
-virtual int     getFD() /* override */ { return -1; }
+virtual int     getFD() /* override */ { return successor_->getFD(); }
 
 virtual void    Flush() /* override */;
 virtual int     Fstat(struct stat *) /* override */;
@@ -187,7 +187,14 @@ virtual int       Init(XrdSysLogger *lp, const char *cfn) /* override */ { retur
 virtual int       Init(XrdSysLogger *lp, const char *cfn, XrdOucEnv *envP) /* override */ { return Init(lp, cfn, 0, envP); }
         int       Init(XrdSysLogger *, const char *, const char *, XrdOucEnv *);
 
-virtual uint64_t  Features() /* override */ { return (successor_->Features() | XRDOSS_HASFSCS | XRDOSS_HASPGRW); }
+virtual uint64_t  Features() /* override */
+                  {
+                    // make sure filesystem checksum, pgread/pgwrite and
+                    // no-sendfile() flags are set.
+                    uint64_t feats = XRDOSS_HASFSCS | XRDOSS_HASPGRW | XRDOSS_HASNOSF;
+                    feats |= successor_->Features();
+                    return feats;
+                  }
 
 virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *eP=0) /* override */;
 virtual int       Rename(const char *oldname, const char *newname,
