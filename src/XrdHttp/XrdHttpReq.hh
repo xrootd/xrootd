@@ -43,6 +43,7 @@
 #include "XrdHttpReadRangeHandler.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
+#include "XrdHttpMonState.hh"
 
 #include <chrono>
 #include <map>
@@ -364,6 +365,7 @@ public:
 
   std::string m_origin;
 
+  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::time_point::min();
 
   /// Repr-Digest map where the key is the digest name and the value is the base64 encoded digest value
   std::map<std::string,std::string> m_repr_digest;
@@ -372,6 +374,7 @@ public:
   /// the preference (between 0 and 9)
   std::map<std::string,uint8_t> m_want_repr_digest;
 
+  XrdHttpMonState monState;
 
   /// Crunch an http request.
   /// Return values:

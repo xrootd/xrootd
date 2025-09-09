@@ -399,6 +399,10 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
   TRACEI(DEBUG, " Process. lp:"<<(void *)lp<<" reqstate: "<<CurrentReq.reqstate);
 
+  if (CurrentReq.startTime == std::chrono::steady_clock::time_point::min()) {
+    CurrentReq.startTime = std::chrono::steady_clock::now();
+  }
+
   if (!myBuff || !myBuff->buff || !myBuff->bsize) {
     TRACE(ALL, " Process. No buffer available. Internal error.");
     return -1;
@@ -1490,7 +1494,7 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
 
 int XrdHttpProtocol::SendData(const char *body, int bodylen) {
 
-  int r;
+  int r{1};
 
   if (body && bodylen) {
     TRACE(REQ, "Sending " << bodylen << " bytes");
@@ -1498,16 +1502,18 @@ int XrdHttpProtocol::SendData(const char *body, int bodylen) {
       r = SSL_write(ssl, body, bodylen);
       if (r <= 0) {
         ERR_print_errors(sslbio_err);
-        return -1;
+        CurrentReq.monState = XrdHttpMonState::ERR_NET;
       }
-
     } else {
       r = Link->Send(body, bodylen);
-      if (r <= 0) return -1;
+      if (r <= 0) {
+        CurrentReq.monState = XrdHttpMonState::ERR_NET;
+      }
     }
   }
 
-  return 0;
+
+  return r <= 0 ? -1 : 0;
 }
 
 /******************************************************************************/
@@ -1573,6 +1579,7 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
   const std::string crlf = "\r\n";
   std::stringstream ss;
   CurrentReq.setHttpStatusCode(code);
+  XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
 
   if (header_to_add && (header_to_add[0] != '\0')) {
     ss << header_to_add << crlf;
@@ -1580,7 +1587,10 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
 
   ss << "Transfer-Encoding: chunked";
   TRACEI(RSP, "Starting chunked response");
-  return StartSimpleResp(code, desc, ss.str().c_str(), bodylen, keepalive);
+
+  int r = StartSimpleResp(code, desc, ss.str().c_str(), bodylen, keepalive);
+  if (r < 0) XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+  return r;
 }
 
 /******************************************************************************/
@@ -1590,15 +1600,30 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
 int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
   long long content_length = (bodylen <= 0) ? (body ? strlen(body) : 0) : bodylen;
   long long header_len = (bodylen < 0) ? 0 : content_length;
+  int code = CurrentReq.getInitialStatusCode();
+  if (code < 200) code = CurrentReq.getHttpStatusCode();
 
   if (ChunkRespHeader(header_len)) {
+    XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
     return -1;
   }
 
-  if (body && SendData(body, content_length))
+  if (body && SendData(body, content_length)){
+    XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
     return -1;
+  }
 
-  return ChunkRespFooter();
+  int r = ChunkRespFooter();
+
+  if (content_length == 0 || bodylen == -1) { //final chunk
+    // If for some reason we encounter issues with both network and the filesystem
+    // we report it as a network error
+    if (CurrentReq.xrdresp == kXR_error && CurrentReq.monState == XrdHttpMonState::ACTIVE)
+      CurrentReq.monState = XrdHttpMonState::ERR_PROT;
+    XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+  }
+
+  return r;
 }
 
 /******************************************************************************/
@@ -1634,23 +1659,27 @@ int XrdHttpProtocol::ChunkRespFooter() {
 /// Returns 0 if OK
 
 int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *header_to_add, const char *body, long long bodylen, bool keepalive) {
+
+  int r{0};
   CurrentReq.setHttpStatusCode(code);
+  XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
 
   long long content_length = bodylen;
   if (bodylen <= 0) {
     content_length = body ? strlen(body) : 0;
   }
 
-  if (StartSimpleResp(code, desc, header_to_add, content_length, keepalive) < 0)
+  if (StartSimpleResp(code, desc, header_to_add, content_length, keepalive) < 0) {
+    XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
     return -1;
+  }
 
-  //
+
   // Send the data
-  //
-  if (body)
-    return SendData(body, content_length);
+  if (body) r = SendData(body, content_length);
 
-  return 0;
+  XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+  return r;
 }
 
 /******************************************************************************/
