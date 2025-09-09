@@ -214,6 +214,8 @@ namespace XrdCl
     while( !pPollerPool.empty() )
     {
       XrdSys::IOEvents::Poller *poller = pPollerPool.back();
+      if( *pNext == poller )
+        pNext = pPollerPool.begin();
       pPollerPool.pop_back();
 
       if( !poller ) continue;
@@ -286,6 +288,12 @@ namespace XrdCl
     // Create the socket helper
     //--------------------------------------------------------------------------
     XrdSys::IOEvents::Poller* poller = RegisterAndGetPoller( socket );
+
+    if( !poller )
+    {
+      log->Error( PollerMsg, "No poller available, can not add socket" );
+      return false;
+    }
 
     PollerHelper *helper = new PollerHelper();
     helper->callBack = new ::SocketCallBack( socket, handler );
