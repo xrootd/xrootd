@@ -343,12 +343,12 @@ int XrdHttpReq::parseFirstLine(char *line, int len) {
       request = rtDELETE;
     } else if (!strcmp(key, "PROPFIND")) {
       request = rtPROPFIND;
-
     } else if (!strcmp(key, "MKCOL")) {
       request = rtMKCOL;
-
     } else if (!strcmp(key, "MOVE")) {
       request = rtMOVE;
+    } else if (!strcmp(key, "COPY")) {
+      request = rtCOPY;
     } else {
       request = rtUnknown;
     }
