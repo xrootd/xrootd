@@ -160,6 +160,8 @@ private:
   /// Send some generic data to the client
   int SendData(const char *body, int bodylen);
 
+  void Record();
+
   /// Deallocate resources, in order to reutilize an object of this class
   void Cleanup();
 

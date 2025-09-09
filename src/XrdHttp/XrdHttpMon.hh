@@ -1,9 +1,9 @@
+#include "XrdHttpReq.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
+
 #include <array>
 #include <chrono>
 #include <string>
-
-#include "XrdHttpReq.hh"
-#include "XrdSys/XrdSysRAtomic.hh"
 
 class XrdXrootdGStream;
 class XrdSysLogger;
@@ -39,9 +39,13 @@ class XrdHttpMon {
     };
 
     // Per (operation, status code) statistics
-    struct HttpInfo {
-        RAtomic_uint64_t count{0};
-        RAtomic_uint64_t error{0};
+    struct HttpInfo { // All fields are cumulative; a reset to 0 usually means a server restart and the monitoring
+                      // endpoint shall simply add the values from there on
+      RAtomic_uint64_t count{0};         // total http requests
+      RAtomic_uint64_t error_network{0}; // errors with the connection
+      RAtomic_uint64_t error_xrootd{0};  // errors returned by the protocol/bridge layer
+      RAtomic_uint64_t success{0};       // success in responding back with a http response code
+      RAtomic_uint64_t duration_us{0};   // sum of operation duration in microseconds
     };
 
     // Global stats table
@@ -53,8 +57,10 @@ class XrdHttpMon {
 
     static bool IsInitialized();
 
-    static void RecordError(XrdHttpReq::ReqType op, StatusCodes sc);
+    static void RecordErrProt(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration);
+    static void RecordErrNet(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration);
     static void RecordCount(XrdHttpReq::ReqType op, StatusCodes sc);
+    static void RecordSuccess(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration);
 
     static StatusCodes ToStatusCode(int code);
 
