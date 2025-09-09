@@ -3,6 +3,7 @@
 /usr/lib/*/libXrdCmsRedirectLocal-5.so
 /usr/lib/*/libXrdFileCache-5.so
 /usr/lib/*/libXrdHttp-5.so
+/usr/lib/*/libXrdHttpCors-5.so
 /usr/lib/*/libXrdHttpTPC-5.so
 /usr/lib/*/libXrdMacaroons-5.so
 /usr/lib/*/libXrdN2No2p-5.so
