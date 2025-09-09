@@ -2413,7 +2413,7 @@ int XrdXrootdProtocol::do_Read()
                else {if (!(pP = VerifyStream(retc, pathID, false))) return retc;
                      if (pP->linkAioReq >= as_maxperlnk) pP = 0;
                     }
-            if (pP && (aioP = XrdXrootdNormAio::Alloc(pP,pP->Response,IO.File)))
+            if (pP && (aioP = XrdXrootdNormAio::Alloc(pP,Response,IO.File)))
                {if (!IO.File->aioFob) IO.File->aioFob = new XrdXrootdAioFob;
                 aioP->Read(IO.Offset, IO.IOLen);
                 return 0;
