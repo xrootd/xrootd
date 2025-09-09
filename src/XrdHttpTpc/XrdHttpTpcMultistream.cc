@@ -258,7 +258,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     std::vector<ManagedCurlHandle> &curl_handles, TPCLogRecord &rec)
 {
     bool success;
-    // The content-length was set thanks to the call to GetContentLengthTPCPull() before calling this function
+    // The content-length was set thanks to the call to GetRemoteFileInfoTPCPull() before calling this function
     off_t content_size = state.GetContentLength();
     off_t current_offset = 0;
 
