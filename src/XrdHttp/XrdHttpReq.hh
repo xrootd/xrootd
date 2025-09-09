@@ -85,6 +85,7 @@ public:
     rtMKCOL,
     rtMOVE,
     rtPOST,
+    rtCOPY,
     rtCount 
   };
 
