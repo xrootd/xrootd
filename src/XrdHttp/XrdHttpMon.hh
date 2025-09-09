@@ -39,7 +39,10 @@ class XrdHttpMon {
     // Per (operation, status code) statistics
     struct HttpInfo {
         RAtomic_uint64_t count{0};
-        RAtomic_uint64_t error{0};
+        RAtomic_uint64_t error_network{0};
+        RAtomic_uint64_t error_xrootd{0};
+        RAtomic_uint64_t success{0}; // success in responding back with a http response code
+        RAtomic_uint64_t duration{0}; // sum of operation duration in microseconds
     };
 
     // Global stats table
@@ -47,10 +50,12 @@ class XrdHttpMon {
 
     XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream);
 
-    static void* Start(void* args);
+    static void* Start(void* instance);
 
-    static void RecordError(XrdHttpReq::ReqType op, StatusCodes sc);
+    static void RecordErrProt(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration);
+    static void RecordErrNet(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration);
     static void RecordCount(XrdHttpReq::ReqType op, StatusCodes sc);
+    static void RecordSuccess(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration);
 
     static StatusCodes ToStatusCode(int code);
 
