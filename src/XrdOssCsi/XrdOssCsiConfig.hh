@@ -45,14 +45,16 @@ public:
    TagPath() : prefix_("/.xrdt"), suffix_(".xrdt") { calcPrefixElements(); }
    ~TagPath() { }
 
-   //
-   // path may be absolute or last element from a directory listing
+   // path may be full path (relative or absolute) or if we're using empty prefix_
+   // the path can also be a single name entry, found during a directory listing
+   // will also match the prefix_ directory
    bool isTagFile(const char *path)
    {
       if (!path || !*path) return false;
       std::string s(path);
       simplePath(s);
-      // if prefix_ set, the test is to match if "path" is equal to or a subpath of perfix_
+      // if prefix_ set, the test is to match if "path" is equal to or starts with prefix_
+      // we do not require matching suffix_, this will also match the prefix_ directory
       if (!prefix_.empty())
       {
          if (s.find(prefix_) == 0)
@@ -83,23 +85,28 @@ public:
 
    bool hasPrefix() { return !prefix_.empty(); }
 
-   // 
-   // to convert an absolute data directory to corresponding tag directory
+   //
+   // to convert a data directory to corresponding tag directory
    std::string makeBaseDirname(const char *path)
    {
-      if (!path || *path != '/' || prefix_.empty()) return std::string();
+      if (!path || !*path || prefix_.empty()) return std::string();
+
       std::string p(path);
-      simplePath(p);
-      if (p.length()>1) return prefix_ + p;
-      return prefix_;
+      bool wasabs = false;
+      simplePath(p,&wasabs);
+      std::string ret = (wasabs) ? prefix_ : prefix_.substr(1);
+      if (p.length()>1) ret += p;
+      return ret;
    }
 
    //
-   // test if absolute path is the directory containing the
-   // base directory of the tags
+   // test if path is the directory containing the
+   // base directory of the tags: only expected to
+   // be called if prefix_ is not empty.
    bool matchPrefixDir(const char *path)
    {
-      if (!path || *path != '/' || prefix_.empty()) return false;
+      if (!path || !*path || prefix_.empty()) return false;
+
       std::string p(path);
       simplePath(p);
       if (prefixstart_ == p) return true;
@@ -107,20 +114,25 @@ public:
    }
 
    // the name (not path) of directory containing the tags
+   // only called if prefix_ not empty and matchPrefixDir is true
    std::string getPrefixName()
    {
       return prefixend_;
    }
 
-   // take datafile name at absolute path and convert it to filename of tagfile
+   // take datafile name at path and convert it to filename of tagfile
    std::string makeTagFilename(const char *path)
    {
-      if (!path || *path != '/') return std::string();
+      if (!path || !*path) return std::string();
       std::string p(path);
-      simplePath(p);
-      return prefix_ + p + suffix_;
+      bool wasabs = false;
+      simplePath(p,&wasabs);
+      if (wasabs) return prefix_ + p + suffix_;
+      return prefix_.substr(1) + p + suffix_;
    }
 
+   // user specified prefix; empty or otherwise always has a leading '/'
+   // is the location of a directory under which all tag files are stored
    std::string prefix_;
 
 private:
@@ -136,7 +148,13 @@ private:
       prefixend_ = prefix_.substr(idx+1,std::string::npos);
    }
 
-   void simplePath(std::string &str)
+   // remove double slashes, trailing slashes and ensure a leading
+   // slash.
+   //
+   // The input/output 'str' parameter is the path to be modified.
+   // The output 'ls' parameter, if non-null, is set to indicate if
+   // the input path had a leading slash.
+   void simplePath(std::string &str, bool *ls=nullptr)
    {
       // replace double slashes with single
       size_t i=0;
@@ -151,11 +169,19 @@ private:
       {
          str.erase( str.end()-1 );
       }
+
+      if (ls) *ls=(str.length() ? true : false);
+
+      if (str.length() && str[0] != '/')
+      {
+         str = "/" + str;
+         if (ls) *ls = false;
+      }
    }
 
    std::string prefixstart_;
    std::string prefixend_;
-   std::string suffix_;
+   const std::string suffix_;
 };
 
 class XrdOssCsiConfig
