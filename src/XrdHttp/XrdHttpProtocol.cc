@@ -1589,8 +1589,11 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
   
 int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
   long long content_length = (bodylen <= 0) ? (body ? strlen(body) : 0) : bodylen;
-  if (ChunkRespHeader(content_length))
+  long long header_len = (bodylen < 0) ? 0 : content_length;
+
+  if (ChunkRespHeader(header_len)) {
     return -1;
+  }
 
   if (body && SendData(body, content_length))
     return -1;
