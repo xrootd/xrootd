@@ -368,9 +368,16 @@ public:
 
   std::string m_origin;
 
+  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::time_point::min();
 
-
-
+  enum MonitState {
+    NEW,       // Uninitialised state
+    ACTIVE,    // First Call to Process Request
+    ERR_NET,   // Network Error
+    ERR_PROT,  // Filesystem/XRootD error that did not result in a valid HTTP response
+               // We see this only during a chunked response
+    DONE       // Final state 
+  } monState;
 
   /// Crunch an http request.
   /// Return values:

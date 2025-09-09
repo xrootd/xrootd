@@ -23,7 +23,7 @@ void XrdHttpMon::Report() {
 void* XrdHttpMon::Start(void* instance) {
     XrdHttpMon* mon = static_cast<XrdHttpMon*>(instance);
     while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
         mon->Report();
     }
 }
@@ -33,14 +33,30 @@ void XrdHttpMon::RecordCount(XrdHttpReq::ReqType op, StatusCodes sc) {
 
     auto& info = statsInfo[op][sc];
     info.count++;
-    // info.duration.fetch_add(latency.count(), std::memory_order_relaxed);
 }
 
-void XrdHttpMon::RecordError(XrdHttpReq::ReqType op, StatusCodes sc) {
+void XrdHttpMon::RecordSuccess(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
     if (op >= XrdHttpReq::ReqType::rtCount || sc >= StatusCodes::sc_Count) return;
 
     auto& info = statsInfo[op][sc];
-    info.error++;
+    info.success++;
+    info.duration_us += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+}
+
+void XrdHttpMon::RecordErrProt(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
+    if (op >= XrdHttpReq::ReqType::rtCount || sc >= StatusCodes::sc_Count) return;
+
+    auto& info = statsInfo[op][sc];
+    info.error_xrootd++;
+    info.duration_us += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+}
+
+void XrdHttpMon::RecordErrNet(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
+    if (op >= XrdHttpReq::ReqType::rtCount || sc >= StatusCodes::sc_Count) return;
+
+    auto& info = statsInfo[op][sc];
+    info.error_network++;
+    info.duration_us += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 }
 
 //  This creates a json with the following format:
@@ -56,10 +72,13 @@ std::string XrdHttpMon::GetMonitoringJson() {
             auto& info = statsInfo[op][sc];
 
             uint64_t total_count = info.count;
-            uint64_t error_count = info.error;
-            // auto duration = info.duration.exchange(0, std::memory_order_relaxed);
-
             if (total_count == 0) continue;
+
+            uint64_t error_count_network = info.error_network;
+            uint64_t error_count_xrootd = info.error_xrootd;
+            uint64_t success_count = info.success;
+            double duration_us = std::chrono::duration<double>(std::chrono::microseconds(static_cast<uint64_t>(info.duration_us))).count();
+
             std::string key = "HTTP_" + opName + "_" + GetStatusCodeString(static_cast<StatusCodes>(sc));
 
             if (!first) oss << ",";
@@ -67,12 +86,10 @@ std::string XrdHttpMon::GetMonitoringJson() {
 
             oss << "\"" << key << "\":{";
             oss << "\"count\":" << total_count << ",";
-            oss << "\"errors\":" << error_count;
-            // double durationSec = 0.0;
-            // if (duration > 0) {
-            //     durationSec = std::chrono::duration<double>(std::chrono::system_clock::duration(duration)).count();
-            // }
-            // oss << "\"duration\":" << durationSec;
+            oss << "\"errors_network\":" << error_count_network << ",";
+            oss << "\"errors_xrootd\":" << error_count_xrootd << ",";
+            oss << "\"success\":" << success_count << ",";
+            oss << "\"duration_seconds\":" << duration_us;
             oss << "}";
         }
     }

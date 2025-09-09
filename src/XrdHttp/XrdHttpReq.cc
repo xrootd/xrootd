@@ -940,6 +940,7 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
 int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
+  if (startTime == std::chrono::steady_clock::time_point::min()) startTime = std::chrono::steady_clock::now();
 
   // State variable for tracking the query parameter search
   // - 0: Indicates we've not yet searched the URL for '?'
@@ -2879,6 +2880,10 @@ void XrdHttpReq::reset() {
   final = false;
 
   mScitag = -1;
+
+  monState = XrdHttpReq::MonitState::NEW;
+
+  startTime = std::chrono::steady_clock::time_point::min();
 }
 
 void XrdHttpReq::getfhandle() {
