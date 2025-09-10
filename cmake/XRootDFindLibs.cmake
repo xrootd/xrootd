@@ -5,6 +5,10 @@ find_package( ZLIB REQUIRED)
 
 find_package( libuuid REQUIRED )
 
+# On AlmaLinux 8, special linking rules are required to use std::filesystem;
+# this creates a special target, std::filesystem, that targets can add as a dep
+find_package( Filesystem REQUIRED )
+
 if( ENABLE_READLINE )
   if( FORCE_ENABLED )
     find_package( Readline REQUIRED )
@@ -55,6 +59,13 @@ endif()
 
 if( ENABLE_HTTP )
   set( BUILD_HTTP TRUE )
+
+  if(FORCE_ENABLED)
+    find_package(CURL 7.9.6 REQUIRED)
+  else()
+    find_package(CURL 7.9.6)
+  endif()
+
 endif()
 
 if( ENABLE_XRDEC )
