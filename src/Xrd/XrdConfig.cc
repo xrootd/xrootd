@@ -2455,7 +2455,7 @@ int XrdConfig::xtls(XrdSysError *eDest, XrdOucStream &Config)
 
     if (!(val = Config.GetWord())) return 0;
 
-    if (*val == '/')
+    if (*val == '/' || !strncmp(val, "pkcs11:", 7))
        {tlsKey = strdup(val);
         if (!(val = Config.GetWord())) return 0;
        }

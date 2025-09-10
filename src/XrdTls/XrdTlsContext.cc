@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
+#include <openssl/engine.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/opensslv.h>
@@ -509,7 +510,7 @@ bool VerPaths(const char *cert, const char *pkey,
 // If a private key is present than make sure it's a file and only the
 // owner has access to it.
 //
-   if (pkey && (emsg = XrdOucUtils::ValPath(pkey, pkey_mode, false)))
+   if (pkey && pkey[0] == '/' && (emsg = XrdOucUtils::ValPath(pkey, pkey_mode, false)))
       {eMsg  = "Unable to use key file ";
        eMsg += pkey; eMsg += "; "; eMsg += emsg;
        return false;
@@ -763,7 +764,27 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Load the private key
 //
-   if (SSL_CTX_use_PrivateKey_file(pImpl->ctx, key, SSL_FILETYPE_PEM) != 1 )
+   if (key[0] == 'p') {
+
+      ENGINE *e = ENGINE_by_id("pkcs11");
+      if (e) {
+         if(!ENGINE_init(e)) {
+            ENGINE_free(e);
+            FATAL_SSL("Unable to initialize pkcs11 engine");
+         }
+      } else {
+         FATAL_SSL("Unable to create pkcs11 engine");
+      }
+      auto priv_key = ENGINE_load_private_key(e, key, nullptr, nullptr);
+
+      if (!priv_key) {
+         FATAL_SSL("Failed to load private key through engine");
+      }
+      if (SSL_CTX_use_PrivateKey(pImpl->ctx, priv_key) != 1)
+         FATAL_SSL("Failed to have SSL context use private key");
+      EVP_PKEY_free(priv_key);
+
+   } else if (SSL_CTX_use_PrivateKey_file(pImpl->ctx, key, SSL_FILETYPE_PEM) != 1 )
       FATAL_SSL("Unable to create TLS context; invalid private key.");
 
 // Make sure the key and certificate file match.
