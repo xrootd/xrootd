@@ -727,7 +727,7 @@ void XrdScheduler::hireWorker(int dotrace)
       {XrdLog->Emsg("Scheduler", retc, "create worker thread");
        SchedMutex.Lock();
        num_Workers--;
-       num_TCreate--;
+       num_TDestroy++;
        max_Workers = num_Workers;
        min_Workers = (max_Workers/10 ? max_Workers/10 : 1);
        stk_Workers = max_Workers/4*3;
