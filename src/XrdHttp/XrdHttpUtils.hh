@@ -48,6 +48,78 @@
 #ifndef XRDHTTPUTILS_HH
 #define	XRDHTTPUTILS_HH
 
+typedef int HttpStatus;
+
+static const HttpStatus HTTP_CONTINUE                        = 100;
+static const HttpStatus HTTP_SWITCHING_PROTOCOLS             = 101;
+static const HttpStatus HTTP_PROCESSING                      = 102;
+static const HttpStatus HTTP_EARLY_HINTS                     = 103;
+
+// 2xx Success
+static const HttpStatus HTTP_OK                              = 200;
+static const HttpStatus HTTP_CREATED                         = 201;
+static const HttpStatus HTTP_ACCEPTED                        = 202;
+static const HttpStatus HTTP_NON_AUTHORITATIVE_INFORMATION   = 203;
+static const HttpStatus HTTP_NO_CONTENT                      = 204;
+static const HttpStatus HTTP_RESET_CONTENT                   = 205;
+static const HttpStatus HTTP_PARTIAL_CONTENT                 = 206;
+static const HttpStatus HTTP_MULTI_STATUS                    = 207;
+static const HttpStatus HTTP_ALREADY_REPORTED                = 208;
+static const HttpStatus HTTP_IM_USED                         = 226;
+
+// 3xx Redirection
+static const HttpStatus HTTP_MULTIPLE_CHOICES                = 300;
+static const HttpStatus HTTP_MOVED_PERMANENTLY               = 301;
+static const HttpStatus HTTP_FOUND                           = 302;
+static const HttpStatus HTTP_SEE_OTHER                       = 303;
+static const HttpStatus HTTP_NOT_MODIFIED                    = 304;
+static const HttpStatus HTTP_USE_PROXY                       = 305;
+static const HttpStatus HTTP_TEMPORARY_REDIRECT              = 307;
+static const HttpStatus HTTP_PERMANENT_REDIRECT              = 308;
+
+// 4xx Client Errors
+static const HttpStatus HTTP_BAD_REQUEST                     = 400;
+static const HttpStatus HTTP_UNAUTHORIZED                    = 401;
+static const HttpStatus HTTP_PAYMENT_REQUIRED                = 402;
+static const HttpStatus HTTP_FORBIDDEN                       = 403;
+static const HttpStatus HTTP_NOT_FOUND                       = 404;
+static const HttpStatus HTTP_METHOD_NOT_ALLOWED              = 405;
+static const HttpStatus HTTP_NOT_ACCEPTABLE                  = 406;
+static const HttpStatus HTTP_PROXY_AUTHENTICATION_REQUIRED   = 407;
+static const HttpStatus HTTP_REQUEST_TIMEOUT                 = 408;
+static const HttpStatus HTTP_CONFLICT                        = 409;
+static const HttpStatus HTTP_GONE                            = 410;
+static const HttpStatus HTTP_LENGTH_REQUIRED                 = 411;
+static const HttpStatus HTTP_PRECONDITION_FAILED             = 412;
+static const HttpStatus HTTP_PAYLOAD_TOO_LARGE               = 413;
+static const HttpStatus HTTP_URI_TOO_LONG                    = 414;
+static const HttpStatus HTTP_UNSUPPORTED_MEDIA_TYPE          = 415;
+static const HttpStatus HTTP_RANGE_NOT_SATISFIABLE           = 416;
+static const HttpStatus HTTP_EXPECTATION_FAILED              = 417;
+static const HttpStatus HTTP_IM_A_TEAPOT                     = 418; // RFC 2324
+static const HttpStatus HTTP_MISDIRECTED_REQUEST             = 421;
+static const HttpStatus HTTP_UNPROCESSABLE_ENTITY            = 422;
+static const HttpStatus HTTP_LOCKED                          = 423;
+static const HttpStatus HTTP_FAILED_DEPENDENCY               = 424;
+static const HttpStatus HTTP_TOO_EARLY                       = 425;
+static const HttpStatus HTTP_UPGRADE_REQUIRED                = 426;
+static const HttpStatus HTTP_PRECONDITION_REQUIRED           = 428;
+static const HttpStatus HTTP_TOO_MANY_REQUESTS               = 429;
+static const HttpStatus HTTP_REQUEST_HEADER_FIELDS_TOO_LARGE = 431;
+static const HttpStatus HTTP_UNAVAILABLE_FOR_LEGAL_REASONS   = 451;
+
+// 5xx Server Errors
+static const HttpStatus HTTP_INTERNAL_SERVER_ERROR           = 500;
+static const HttpStatus HTTP_NOT_IMPLEMENTED                 = 501;
+static const HttpStatus HTTP_BAD_GATEWAY                     = 502;
+static const HttpStatus HTTP_SERVICE_UNAVAILABLE             = 503;
+static const HttpStatus HTTP_GATEWAY_TIMEOUT                 = 504;
+static const HttpStatus HTTP_HTTP_VERSION_NOT_SUPPORTED      = 505;
+static const HttpStatus HTTP_VARIANT_ALSO_NEGOTIATES         = 506;
+static const HttpStatus HTTP_INSUFFICIENT_STORAGE            = 507;
+static const HttpStatus HTTP_LOOP_DETECTED                   = 508;
+static const HttpStatus HTTP_NOT_EXTENDED                    = 510;
+static const HttpStatus HTTP_NETWORK_AUTHENTICATION_REQUIRED = 511;
 
 // GetHost from URL
 // Parse an URL and extract the host name and port
@@ -167,12 +239,16 @@ inline std::string encode_opaque(const std::string & opaque) {
   return output.str();
 }
 
+
 // Escape a string and return a new one
 char *escapeXML(const char *str);
+
+int mapErrNoToHttp(int err);
+
+std::string httpStatusToString(HttpStatus status);
 
 typedef std::vector<XrdOucIOVec2> XrdHttpIOList;
 
 
- 
-#endif	/* XRDHTTPUTILS_HH */
 
+#endif	/* XRDHTTPUTILS_HH */

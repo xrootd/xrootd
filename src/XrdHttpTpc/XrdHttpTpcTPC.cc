@@ -11,6 +11,7 @@
 #include "XrdXrootd/XrdXrootdTpcMon.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdHttpTpc/XrdHttpTpcUtils.hh"
+#include "XrdHttp/XrdHttpUtils.hh"
 
 #include <curl/curl.h>
 
@@ -22,7 +23,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <thread>
-#include <iostream> // Delete later!!!
 
 #include "XrdHttpTpcState.hh"
 #include "XrdHttpTpcStream.hh"
@@ -837,9 +837,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         const char *msg = fh->error.getErrText(code);
         if (msg == NULL) ss << "Failed to open local resource";
         else ss << msg;
-        rec.status = 400;
-        if (code == EACCES) rec.status = 401;
-        else if (code == EEXIST) rec.status = 412;
+        rec.status = mapErrNoToHttp(code);
         logTransferEvent(LogMask::Error, rec, "OPEN_FAIL", msg);
         int resp_result = req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
         fh->close();
@@ -991,9 +989,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         const char *msg = fh->error.getErrText(code);
         if ((msg == NULL) || (*msg == '\0')) ss << "Failed to open local resource";
         else ss << msg;
-        rec.status = 400;
-        if (code == EACCES) rec.status = 401;
-        else if (code == EEXIST) rec.status = 412;
+        rec.status = mapErrNoToHttp(code);
         logTransferEvent(LogMask::Error, rec, "OPEN_FAIL", ss.str());
         int resp_result = req.SendSimpleResp(rec.status, NULL, NULL,
                                              generateClientErr(ss, rec).c_str(), 0);
