@@ -28,6 +28,8 @@
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 
+#include "XrdCl/XrdClURL.hh"
+
 #include "XrdPfcFile.hh"
 #include "XrdPfcDecision.hh"
 
@@ -121,6 +123,9 @@ struct Configuration
 
    long long m_onlyIfCachedMinSize;     //!< minumum size of downloaded file, used by only-if-cached CGI option
    double    m_onlyIfCachedMinFrac;     //!< minimum fraction of downloaded file, used by only-if-cached CGI option
+
+   bool      m_httpcc;                  //!< enable http cache control
+   bool      m_qfsredir;                //!< redirect file system query to the origin
 };
 
 //------------------------------------------------------------------------------
@@ -189,8 +194,8 @@ public:
    void WriteCacheControlXAttr(int cinfo_fd, const char* path, const std::string& cc);
    void WriteFileSizeXAttr(int cinfo_fd, long long file_size);
    long long DetermineFullFileSize(const std::string &cinfo_fname);
-   int GetCacheControlXAttr(const std::string &cinfo_fname, std::string& res);
-   int GetCacheControlXAttr(int fd, std::string& res);
+   int GetCacheControlXAttr(const std::string &cinfo_fname, std::string& res) const;
+   int GetCacheControlXAttr(int fd, std::string& res) const;
 
 
    //--------------------------------------------------------------------
@@ -284,7 +289,7 @@ public:
    void FileSyncDone(File*, bool high_debug);
 
    XrdSysError* GetLog()   { return &m_log;  }
-   XrdSysTrace* GetTrace() { return m_trace; }
+   XrdSysTrace* GetTrace() const { return m_trace; }
 
    ResourceMonitor& RefResMon() { return *m_res_mon; }
    XrdXrootdGStream* GetGStream() { return m_gstream; }
@@ -360,6 +365,8 @@ private:
    void dec_ref_cnt(File*, bool high_debug);
 
    void schedule_file_sync(File*, bool ref_cnt_already_set, bool high_debug);
+
+   bool is_http_cache_valid(const std::string& fname, const std::string& iname, XrdCl::URL& url);
 
    // prefetching
    typedef std::vector<File*>  PrefetchList;
