@@ -47,6 +47,7 @@ public:
 private:
     std::string mXRootDConfigDigestName;
     std::string mHTTPName;
+    std::string mHttpLowerCaseName;
     bool mNeedsBase64Padding;
 };
 
