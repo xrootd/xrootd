@@ -60,7 +60,9 @@ Configuration::Configuration() :
    m_cs_Chk(CSChk_Net),
    m_cs_ChkTLS(false),
    m_onlyIfCachedMinSize(1024*1024),
-   m_onlyIfCachedMinFrac(1.0)
+   m_onlyIfCachedMinFrac(1.0),
+   m_httpcc(false),
+   m_qfsredir(true)
 {}
 
 
@@ -761,6 +763,15 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
          loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.user %s\n", m_configuration.m_username.c_str());
       }
 
+      if (m_configuration.m_httpcc)
+      {
+         loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.httpcc on\n");
+      }
+      if (m_configuration.m_qfsredir)
+      {
+         loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.qfsredir on\n");
+      }
+
       m_log.Say(buff);
 
       m_env->Put("XRDPFC.SEGSIZE", std::to_string(m_configuration.m_bufferSize).c_str());
@@ -1186,6 +1197,31 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          {
             m_log.Emsg("Config", "Error: onlyifcached stanza contains unknown directive", p);
          }
+      }
+   }
+   else if ( part == "httpcc" )
+   {
+      const char* val = cwg.GetWord();
+      if (!strcmp(val, "on")) {
+         m_configuration.m_httpcc = true;
+      }
+      else if (strcmp(val, "off")) {
+          m_log.Emsg("Config", "Error: httpcc pramater can only have values [off|on]", val);
+      }
+   }
+   else if ( part == "qfsredir" )
+   {
+      const char* val = cwg.GetWord();
+      if (!strcmp(val, "on")) {
+         m_configuration.m_qfsredir = true;
+      }
+      else if (!strcmp(val, "off")) {
+         m_configuration.m_qfsredir = false;
+      }
+      else
+      {
+          m_log.Emsg("Config", "Error: qfsredir pramater can only have values [off|on]", val);
+          return false;
       }
    }
    else
