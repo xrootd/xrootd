@@ -986,7 +986,7 @@ long long Cache::DetermineFullFileSize(const std::string &cinfo_fname)
 // Get cache control attributes from the corresponding cinfo-file name.
 // Returns -error on failure.
 //------------------------------------------------------------------------------
-int Cache::GetCacheControlXAttr(const std::string &cinfo_fname, std::string& ival)
+int Cache::GetCacheControlXAttr(const std::string &cinfo_fname, std::string& ival) const
 {
    if (m_metaXattr) {
 
@@ -1009,7 +1009,7 @@ int Cache::GetCacheControlXAttr(const std::string &cinfo_fname, std::string& iva
 // Get cache control attributes from the corresponding cinfo-file name.
 // Returns -error on failure.
 //------------------------------------------------------------------------------
-int Cache::GetCacheControlXAttr(int fd, std::string& ival)
+int Cache::GetCacheControlXAttr(int fd, std::string& ival) const
 {
    if (m_metaXattr) {
       char cc[512];
@@ -1165,68 +1165,15 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    struct stat sbuff;
    if (m_oss->Stat(i_name.c_str(), &sbuff) == XrdOssOK)
    {
+
+      if (m_configuration.m_httpcc && !is_http_cache_valid(f_name, i_name, url))
+      {
+         TRACE(Info, "Http cache not valid " << f_name);
+         UnlinkFile(f_name, false);
+         return 0;
+      }
+
       TRACE(Dump, "Prepare defer open " << f_name);
-
-      std::string icc;
-      if (GetCacheControlXAttr(i_name, icc) > 0) {
-         using namespace nlohmann;
-         json cc_json = json::parse(icc);
-
-         bool mustRevalidate = cc_json.contains("revalidate") && (cc_json["revalidate"] == true);
-         bool hasExpired = false;
-         if (cc_json.contains("expire"))
-         {
-            time_t current_time;
-            current_time = time(NULL);
-            if (current_time > cc_json["expire"])
-               hasExpired = true;
-         }
-
-         bool ccIsValid = true;
-
-         if (cc_json.contains("ETag") && (mustRevalidate || hasExpired)) {
-            // Compare cinfo xattr etag and the etag from file system query response
-            // Note: query returns only etag value, not a json string
-            // Add XrdCl:URL parameter as additional XrdOucCacheOp::Code::QFSinfo sub-command
-            url.SetParam("code", "head");
-            std::string response;
-            std::string fsctlarg = url.GetURL(); // GetPath() + param_string;
-            int st = XrdPosixExtra::FSctl(XrdOucCacheOp::Code::QFSinfo, fsctlarg, response, false); 
-            
-            if (st >= 0) // posix style return value convention
-            {
-               // client response keeps the \0 at the end of the string
-               std::string etag = response.substr(0, response.find('\0'));
-               std::string jval = cc_json["ETag"].get<std::string>();
-               ccIsValid = (etag == jval);
-
-               TRACE(Info, "Prepare " << f_name << ", ETag valid res: " << ccIsValid);
-
-               // update expiration time if Etag is valid
-               if (cc_json.contains("max-age"))
-               {
-                  time_t ma = cc_json["max-age"];
-                  cc_json["expire"] = ma + time(NULL);
-                  char pfn[4096];
-                  m_oss->Lfn2Pfn(i_name.c_str(), pfn, 4096);
-                  WriteCacheControlXAttr(-1, pfn, cc_json.dump());
-               }
-            }
-            else
-            {
-               // Message has a status because we are in the block condition for cache-control xattr
-               TRACE(Error, "Prepare() XrdCl::FileSystem::Query failed " << f_name.c_str());
-               ccIsValid = false;
-            }
-         }
-
-         if (!ccIsValid)
-         {
-            // invalidate cinfo on ETag mismatch
-            UnlinkFile(f_name, false);
-         }
-      } // end checking cache control xattr in cinfo file
-
       return 1;
    }
    else
@@ -1377,4 +1324,70 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
    }
 
    return std::min(f_ret, i_ret);
+}
+
+//---------------------------------------------------------------------
+//! Test validity of http cache.
+//! Compare FS query results with cinfo xattr.
+//! Return false when cache is not valid.
+//---------------------------------------------------------------------
+bool Cache::is_http_cache_valid(const std::string& f_name,const std::string& i_name, XrdCl::URL& url)
+{
+   std::string icc;
+
+   // return true if nothing is written in cinfo extended file attributes
+   if (GetCacheControlXAttr(i_name, icc) <= 0)
+      return true;
+
+   bool ccIsValid = true;
+   using namespace nlohmann;
+   json cc_json = json::parse(icc);
+
+   bool mustRevalidate = cc_json.contains("revalidate") && (cc_json["revalidate"] == true);
+   bool hasExpired = false;
+   if (cc_json.contains("expire"))
+   {
+      time_t current_time;
+      current_time = time(NULL);
+      if (current_time > cc_json["expire"])
+         hasExpired = true;
+   }
+
+   if (cc_json.contains("ETag") && (mustRevalidate || hasExpired))
+   {
+      // Compare cinfo etag and the etag from file system query response
+      // Add XrdCl:URL parameter as additional XrdOucCacheOp::Code::QFSinfo sub-command
+      url.SetParam("code", "head");
+      std::string response;
+      std::string fsctlarg = url.GetURL();
+      int st = XrdPosixExtra::FSctl(XrdOucCacheOp::Code::QFSinfo, fsctlarg, response, false, m_configuration.m_qfsredir);
+
+      if (st >= 0)
+      {
+         // client response keeps the \0 at the end of the string
+         std::string etag = response.substr(0, response.find('\0'));
+         std::string jval = cc_json["ETag"].get<std::string>();
+         ccIsValid = (etag == jval);
+
+         TRACE(Info, "Prepare " << i_name << ", ETag valid res: " << ccIsValid);
+
+         // update expiration time if Etag is valid
+         if (cc_json.contains("max-age"))
+         {
+            time_t ma = cc_json["max-age"];
+            cc_json["expire"] = ma + time(NULL);
+            char pfn[4096];
+            m_oss->Lfn2Pfn(i_name.c_str(), pfn, 4096);
+            WriteCacheControlXAttr(-1, pfn, cc_json.dump());
+         }
+      }
+      else
+      {
+         // Message has a status because we are in the block condition for cache-control xattr
+         TRACE(Error, "Prepare() XrdCl::FileSystem::Query failed " << f_name.c_str());
+         ccIsValid = false;
+      }
+   }
+
+   return ccIsValid;
 }
