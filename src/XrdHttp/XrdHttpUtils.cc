@@ -497,6 +497,81 @@ char *escapeXML(const char *str) {
   return r;
 }
 
+int mapXrdErrToHttp(XErrorCode xrdError) {
+
+  switch (xrdError) {
+    case kXR_NotAuthorized:
+    case kXR_fsReadOnly:
+      return HTTP_FORBIDDEN;
+
+    case kXR_AuthFailed:
+      return HTTP_UNAUTHORIZED;
+
+    case kXR_ArgInvalid:
+    case kXR_ArgMissing:
+    case kXR_ArgTooLong:
+    case kXR_BadPayload:
+    case kXR_AttrNotFound:
+      return HTTP_BAD_REQUEST;
+
+    case kXR_InvalidRequest:
+    case kXR_Unsupported:
+      return HTTP_METHOD_NOT_ALLOWED;
+
+    case kXR_NotFound:
+      return HTTP_NOT_FOUND;
+
+    case kXR_ItExists:
+    case kXR_Conflict:
+      return HTTP_CONFLICT;
+
+    case kXR_FileLocked:
+      return HTTP_LOCKED;
+
+    case kXR_FileNotOpen:
+      return HTTP_PRECONDITION_FAILED;
+
+    case kXR_NotFile:
+    case kXR_isDirectory:
+    case kXR_ChkSumErr:
+      return HTTP_UNPROCESSABLE_ENTITY;
+
+    case kXR_NoMemory:
+    case kXR_NoSpace:
+    case kXR_overQuota:
+      return HTTP_INSUFFICIENT_STORAGE;
+
+    case kXR_Overloaded:
+    case kXR_noReplicas:
+      return HTTP_SERVICE_UNAVAILABLE;
+
+    case kXR_TooManyErrs:
+      return HTTP_TOO_MANY_REQUESTS;
+
+    case kXR_noserver:
+      return HTTP_BAD_GATEWAY;
+
+
+    case kXR_ReqTimedOut:
+    case kXR_TimerExpired:
+      return HTTP_GATEWAY_TIMEOUT;
+
+    case kXR_Cancelled:
+      return HTTP_REQUEST_TIMEOUT;
+
+    case kXR_inProgress:
+      return HTTP_ACCEPTED;
+
+    // case kXR_ServerError:
+    // case kXR_FSError:
+    // case kXR_Impossible:
+    //   return HTTP_INTERNAL_SERVER_ERROR;
+
+    default:
+      return HTTP_INTERNAL_SERVER_ERROR;
+  }
+}
+
 int mapErrNoToHttp(int errNo) {
 
   switch (errNo) {
