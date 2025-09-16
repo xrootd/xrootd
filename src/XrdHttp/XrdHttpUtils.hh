@@ -36,6 +36,7 @@
  */
 
 #include "XProtocol/XPtypes.hh"
+#include "XProtocol/XProtocol.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
@@ -241,6 +242,8 @@ inline std::string encode_opaque(const std::string & opaque) {
 
 // Escape a string and return a new one
 char *escapeXML(const char *str);
+
+int mapXrdErrToHttp(XErrorCode xrdError);
 
 int mapErrNoToHttp(int err);
 
