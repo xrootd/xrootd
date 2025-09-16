@@ -196,12 +196,18 @@ namespace XrdCl
                                                          ntohl( pgrdreq->rlen ) ) );
         }
 
+        //----------------------------------------------------------------------
+        // Pass the reader our pUrl, not *url. The latter is a reference, likely
+        // from FileStateHandler such as *pDataServer. Accessing that throughout
+        // our lifetime may lead to concurrent access. In the case of read-
+        // recovery the FileStateHandler may entirely reallocate the url object.
+        //----------------------------------------------------------------------
         if( ntohs( hdr->requestid ) == kXR_readv )
-          pBodyReader.reset( new AsyncVectorReader( *url, *pRequest ) );
+          pBodyReader.reset( new AsyncVectorReader( pUrl, *pRequest ) );
         else if( ntohs( hdr->requestid ) == kXR_read )
-          pBodyReader.reset( new AsyncRawReader( *url, *pRequest ) );
+          pBodyReader.reset( new AsyncRawReader( pUrl, *pRequest ) );
         else
-          pBodyReader.reset( new AsyncDiscardReader( *url, *pRequest ) );
+          pBodyReader.reset( new AsyncDiscardReader( pUrl, *pRequest ) );
       }
 
       //------------------------------------------------------------------------
