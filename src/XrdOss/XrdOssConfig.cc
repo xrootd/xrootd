@@ -274,7 +274,28 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
            if (setfd)
               {if (setrlimit(RLIMIT_NOFILE, &rlim))
                   Eroute.Emsg("Config", errno, "set fd limit");
-                  else FDLimit = rlim.rlim_cur;
+                  else
+                     {
+#ifdef __APPLE__
+//
+// As of macOS Sequoia 15.6, setrlimit above will be successful but the limit on the
+// file descriptor table size may still be lower than RLIMIT_NOFILE.  Calls to
+// `fcntl(fd, F_DUPFD, arg)` as is done in `XrdSysFD_Dup1` will fail if the provided
+// `arg` is greater than `getdtablesize()` per the online man pages.  After testing,
+// it seems the two limits exist independently.
+//
+// One can verify this by (a) testing `getrlimit()` again to see the larger limit and
+// then doing a `XrdSysFD_Dup1` that's below `rlim.rlim_cur` and above `getdtablesize()`;
+// it will fail with "Invalid Argument".
+//
+// On Linux, the man pages note that `getdtablesize()` is implemented via the equivalent
+// `getrlimit` call; hence, there's no need for this extra check.
+//
+                      FDLimit = static_cast<rlim_t>(getdtablesize()) < rlim.rlim_cur ? getdtablesize() : rlim.rlim_cur;
+#else
+                      FDLimit = rlim.rlim_cur;
+#endif
+                     }
               } else {FDFence = static_cast<int>(rlim.rlim_cur)>>1;
                       FDLimit = rlim.rlim_cur;
                      }
