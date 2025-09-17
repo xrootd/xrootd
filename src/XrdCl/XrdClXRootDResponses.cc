@@ -375,6 +375,12 @@ namespace XrdCl
     // we care about 3 last digits
     size_t size = pImpl->pMode.size();
 
+    // to have meaningful pMode we need to have parsed
+    // the extended format. In that case pMode should be
+    // at least 4 digits, but we also check the size.
+    if( !ExtendedFormat() || size < 3 )
+      return "---------";
+
     uint8_t oct = pImpl->pMode[size - 3] - '0';
     OctToString( oct, ret );
 
