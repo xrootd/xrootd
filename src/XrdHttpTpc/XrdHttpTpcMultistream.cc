@@ -472,6 +472,10 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         if (!handles[0]->Finalize()) {
             std::stringstream ss2;
             ss2 << "Failed to finalize and close file handle.";
+            std::string handleErrMsg = handles[0]->GetErrorMessage();
+            if(handleErrMsg.size()) {
+              ss2 << " " << handleErrMsg;
+            }
             ss << generateClientErr(ss2, rec);
             logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR",
                 ss2.str());
