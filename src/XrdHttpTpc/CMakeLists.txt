@@ -4,12 +4,6 @@ if(NOT ENABLE_HTTP)
   return()
 endif()
 
-if(FORCE_ENABLED)
-  find_package(CURL 7.9.6 REQUIRED)
-else()
-  find_package(CURL 7.9.6)
-endif()
-
 if(CURL_FOUND)
   set(BUILD_TPC TRUE CACHE INTERNAL "")
 else()
