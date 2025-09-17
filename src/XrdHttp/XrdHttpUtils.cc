@@ -509,9 +509,10 @@ int mapErrNoToHttp(int errNo) {
 
     case EACCES:
     case EROFS:
+    case EPERM:
       return HTTP_FORBIDDEN;
 
-    case EPERM:
+    case EAUTH:
       return HTTP_UNAUTHORIZED;
 
     case ENOENT:
