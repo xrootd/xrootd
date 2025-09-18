@@ -84,6 +84,11 @@ ssize_t XrdPosixExtra::pgRead (int   fildes, void*    buffer,
 //
    if (!cbp)
       {bytes = fp->XCio->pgRead((char *)buffer, offs, (int)iosz, csvec, fOpts);
+       if (bytes < 0)
+          {fp->ecMsg.SetErrno(-bytes);
+           fp->UnLock();
+           return -1;
+          }
        fp->UnLock();
        return (ssize_t)bytes;
       }
@@ -152,6 +157,11 @@ ssize_t XrdPosixExtra::pgWrite(int   fildes, void*    buffer,
 //
    if (!cbp)
       {bytes = fp->XCio->pgWrite((char *)buffer, offs, (int)iosz, csvec);
+       if (bytes < 0)
+          {fp->ecMsg.SetErrno(-bytes);
+           fp->UnLock();
+           return -1;
+          }
        fp->UpdtSize(offs + iosz);
        fp->UnLock();
        return (ssize_t)bytes;
