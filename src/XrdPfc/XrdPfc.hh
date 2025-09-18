@@ -208,10 +208,11 @@ public:
    //!
    //! @param config_filename    path to configuration file
    //! @param parameters         optional parameters to be passed
+   //! @param env                optional environment to use for configuration
    //!
    //! @return parse status
    //---------------------------------------------------------------------
-   bool Config(const char *config_filename, const char *parameters);
+   bool Config(const char *config_filename, const char *parameters, XrdOucEnv *env);
 
    //---------------------------------------------------------------------
    //! Singleton creation.
