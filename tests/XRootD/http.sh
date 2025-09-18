@@ -244,6 +244,12 @@ function test_http() {
     fi
   }
 
+  # Test writing to a readonly file system
+  #should be 403
+  readOnlyFilePath="/readonly/file";
+  run_and_assert_http_and_error_code 500 "" "" \
+    --upload-file "$alphabetFilePath" "${HOST}/$readOnlyFilePath"
+
   # Overwrite a directory with a file - File / Directory conflict
   run_and_assert_http_and_error_code 409 "8.1" \
     --upload-file "$alphabetFilePath" "${HOST}/$TMPDIR"
