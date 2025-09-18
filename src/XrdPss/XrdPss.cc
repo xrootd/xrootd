@@ -33,6 +33,7 @@
   
 #include <unistd.h>
 #include <cerrno>
+#include <string>
 #include <fcntl.h>
 #include <signal.h>
 #include <cstdint>
@@ -310,6 +311,60 @@ void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
       {schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
        XrdPosixConfig::EnvInfo(*envP);
       }
+}
+  
+/******************************************************************************/
+/*                                 F S c t l                                  */
+/******************************************************************************/
+
+int XrdPssSys::FSctl(int cmd, int alen, const char *args, char **resp)
+{
+   EPNAME("FSctl");
+   XrdOucCacheOp::Code opc;
+   int rc;
+
+// Get correct argument to use
+//
+   switch(cmd)
+         {case XRDOSS_FSCTLFS: opc = XrdOucCacheOp::Code::QFSinfo;
+               break;
+          default:
+               *resp = 0;
+               return -ENOTSUP;
+               break;
+         }
+
+// Perform setup
+//
+   std::string thePath(args, alen); // Gaurd against missing null byte
+   std::string theResp;
+   XrdPssUrlInfo uInfo(0, args); // CGI is already appended
+   char pbuff[PBsz];
+
+// Convert path to URL
+//
+   if ((rc = P2URL(pbuff, PBsz, uInfo, xLfn2Pfn))) return rc;
+   thePath = pbuff;
+
+// Some tracing
+//
+  if(DEBUGON) {
+    auto urlObf = obfuscateAuth(pbuff);
+    DEBUG(uInfo.Tident(),"url="<<urlObf);
+  }
+
+// Invoke the file control. Make sure it goes through the cache if it exists.
+//
+   if (XrdPosixExtra::FSctl(opc, thePath, theResp, true) < 0) return -errno;
+
+// Convert the response
+//
+   if (resp)
+      {int n = theResp.size() + 1;
+       *resp = new char[n];
+       strcpy(*resp, theResp.c_str());
+      }
+    return XrdOssOK;
 }
   
 /******************************************************************************/
@@ -1261,6 +1316,53 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
          return (ssize_t)rc;
         }
      return (ssize_t)retval;
+}
+  
+/******************************************************************************/
+/*                                  F c t l                                   */
+/******************************************************************************/
+
+int XrdPssFile::Fctl(int cmd, int alen, const char *args, char **resp)
+{
+   XrdOucCacheOp::Code opc;
+
+// Made sure the file is open
+//
+    if (fd < 0) return -XRDOSS_E8004;
+
+// Get correct argument to use
+//
+   switch(cmd)
+         {case XrdOssDF::Fctl_QFinfo: opc = XrdOucCacheOp::Code::QFinfo;
+               break;
+          default:
+               *resp = 0;
+               return -ENOTSUP;
+               break;
+         }
+
+// Convert argument to a string and prepare for  the reponse
+//
+   std::string theArgs(args, alen);
+   std::string theResp;
+
+// Invoke the file control
+//
+
+   if (XrdPosixExtra::Fctl(fd, opc, theArgs, theResp) < 0)
+      {int rc = -errno;
+       lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
+       return rc;
+      }
+
+// Convert the response
+//
+   if (resp)
+      {int n = theResp.size() + 1;
+       *resp = new char[n];
+       strcpy(*resp, theResp.c_str());
+      }
+    return XrdOssOK;
 }
 
 /******************************************************************************/

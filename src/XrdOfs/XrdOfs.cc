@@ -1089,9 +1089,30 @@ int            XrdOfsFile::fctl(const int               cmd,
 int XrdOfsFile::fctl(const int cmd, int alen, const char *args,
                      const XrdSecEntity *client)
 {                             // 12345678901234
+   EPNAME("fctl");
    static const char *fctlArg = "ofs.tpc cancel";
    static const int   fctlAsz = 15;
 
+// For QFINFO we simply pass it to the Oss layer
+//
+   if (cmd == SFS_FCTL_QFINFO)
+      {char* resp = 0;;
+       int rc = oh->Select().Fctl(XrdOssDF::Fctl_QFinfo, alen, args, &resp); 
+       if (rc < 0)
+          {if (resp) delete[] resp;
+           return XrdOfsFS->Emsg(epname,error,rc,"fctl",oh,false,false);
+          }
+       if (resp)
+          {if ((rc = strlen(resp)))
+              {error.setErrInfo(rc, resp);
+               delete[] resp;
+               return SFS_DATA;
+              }
+           delete[] resp;
+          }
+       return SFS_OK;
+      }
+       
 // See if the is a tpc cancellation (the only thing we support here)
 //
    if (cmd != SFS_FCTL_SPEC1 || !args || alen < fctlAsz || strcmp(fctlArg,args))

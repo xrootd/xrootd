@@ -239,6 +239,18 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! @see XrdCl::File::Fcntl
+      //------------------------------------------------------------------------
+      virtual XRootDStatus Fcntl( QueryCode::Code  queryCode,
+                                  const Buffer    &arg,
+                                  ResponseHandler *handler,
+                                  time_t           timeout )
+      {
+        (void)arg; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
       //! @see XrdCl::File::Visa
       //------------------------------------------------------------------------
       virtual XRootDStatus Visa( ResponseHandler *handler,

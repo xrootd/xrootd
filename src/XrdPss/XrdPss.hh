@@ -36,6 +36,7 @@
 #include <string>
 #include <vector>
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucECMsg.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
@@ -93,6 +94,7 @@ virtual int     Close(long long *retsz=0) override;
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) override;
 
 int     Fchmod(mode_t mode) override {return XrdOssOK;}
+int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 int     Fstat(struct stat *) override;
 int     Fsync() override;
 int     Fsync(XrdSfsAio *aiop) override;
@@ -174,6 +176,7 @@ virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0) override;
 void      EnvInfo(XrdOucEnv *envP) override;
 uint64_t  Features() override {return myFeatures;}
+int       FSctl(int cmd, int alen, const char *args, char **resp=0) override;
 bool      getErrMsg(std::string& eText) override;
 int       Init(XrdSysLogger *, const char *) override {return -ENOTSUP;}
 int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP) override;
