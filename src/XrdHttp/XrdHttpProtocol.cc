@@ -1614,26 +1614,6 @@ int XrdHttpProtocol::SendData(const char *body, int bodylen) {
 int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
                                      const char *header_to_add,
                                      long long bodylen, bool keepalive) {
-  static const std::unordered_map<int, std::string> statusTexts = {
-      {100, "Continue"},
-      {200, "OK"},
-      {201, "Created"},
-      {206, "Partial Content"},
-      {302, "Redirect"},
-      {307, "Temporary Redirect"},
-      {400, "Bad Request"},
-      {401, "Unauthorized"},
-      {403, "Forbidden"},
-      {404, "Not Found"},
-      {405, "Method Not Allowed"},
-      {409, "Conflict"},
-      {416, "Range Not Satisfiable"},
-      {423, "Locked"},
-      {500, "Internal Server Error"},
-      {502, "Bad Gateway"},
-      {504, "Gateway Timeout"},
-      {507, "Insufficient Storage"}};
-
   std::stringstream ss;
   const std::string crlf = "\r\n";
 
@@ -1642,12 +1622,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
   if (desc) {
     ss << desc;
   } else {
-    auto it = statusTexts.find(code);
-    if (it != statusTexts.end()) {
-      ss << it->second;
-    } else {
-      ss << "Unknown";
-    }
+    ss << httpStatusToString(code);
   }
   ss << crlf;
 
