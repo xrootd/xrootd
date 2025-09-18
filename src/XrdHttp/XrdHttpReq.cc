@@ -2899,6 +2899,11 @@ void XrdHttpReq::reset() {
   final = false;
 
   mScitag = -1;
+
+  httpStatusCode = -1;
+  httpErrorCode = "";
+  httpErrorBody = "";
+
 }
 
 void XrdHttpReq::getfhandle() {
