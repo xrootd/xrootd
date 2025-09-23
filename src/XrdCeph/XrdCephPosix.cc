@@ -852,29 +852,27 @@ int ceph_posix_close(int fd) {
                fr->asyncRdCompletionCount, fr->asyncRdStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
                fr->longestAsyncWriteTime, fr->longestCallbackInvocation, (lastAsyncAge));
 
-    if (fr->writingData) {
-      if (g_calcStreamedAdler32) {
+    if (fr->writingData && g_calcStreamedAdler32) {
 
-	unsigned long adlerULong;
-	memcpy((&adlerULong), fr->cksCalcadler32->Final(), 4);
-	const char* adler32Cks = formatAdler32(adlerULong);
+	    unsigned long adlerULong;
+	    memcpy((&adlerULong), fr->cksCalcadler32->Final(), 4);
+	    const char* adler32Cks = formatAdler32(adlerULong);
 
-  	logwrapper((char*)"ceph_close: fd: %d, Adler32 streamed checksum = %s", fd, adler32Cks);
+  	  logwrapper((char*)"ceph_close: fd: %d, Adler32 streamed checksum = %s", fd, adler32Cks);
 
-        if (g_logStreamedAdler32) {
-	  const char *path = strdup((fr->pool + ":" + fr->name).c_str());
-          fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "streamed", "adler32", adler32Cks);
-          fflush(g_cksLogFile);
-        }
-
-        if (g_storeStreamedAdler32) {
-          int rc = setXrdCksAttr(fd, "adler32", adler32Cks); 
-          if (rc != 0) {
-            logwrapper((char*)"ceph_close: Can't set attribute XrdCks.adler32 for checksum");
-          }
-        }
-        delete fr->cksCalcadler32;
+      if (g_logStreamedAdler32) {
+	    const char *path = strdup((fr->pool + ":" + fr->name).c_str());
+        fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "streamed", "adler32", adler32Cks);
+        fflush(g_cksLogFile);
       }
+
+      if (g_storeStreamedAdler32) {
+        int rc = setXrdCksAttr(fd, "adler32", adler32Cks); 
+        if (rc != 0) {
+          logwrapper((char*)"ceph_close: Can't set attribute XrdCks.adler32 for checksum");
+         }
+      }
+      delete fr->cksCalcadler32;
     }
 
     deleteFileRef(fd, *fr);
@@ -968,12 +966,10 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     XrdSysMutexHelper lock(fr->statsMutex);
     fr->wrcount++;
     fr->bytesWritten+=count;
-    if (offset + count) fr->maxOffsetWritten = std::max(uint64_t(offset + count - 1), fr->maxOffsetWritten);
-
-    if (g_calcStreamedAdler32) {
+    if (g_calcStreamedAdler32 && (fr->maxOffsetWritten == offset + count - 1)) {
       fr->cksCalcadler32->Update((const char*)buf, count);
     }
-
+    if (offset + count) fr->maxOffsetWritten = std::max(offset + count - 1, fr->maxOffsetWritten);
     return count;
   } else {
     return -EBADF;
@@ -1048,9 +1044,10 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
     fr->asyncWrStartCount++;
     ::gettimeofday(&fr->lastAsyncSubmission, nullptr);
     fr->bytesAsyncWritePending+=count;
-    if (g_calcStreamedAdler32) {
-      fr->cksCalcadler32->Update((const char*)buf, count);
-    }
+    // disable streamed checksums for aio writes as it's too risky
+    //if (g_calcStreamedAdler32) {
+    //  fr->cksCalcadler32->Update((const char*)buf, count);
+    // }
     return rc;
   } else {
     return -EBADF;
