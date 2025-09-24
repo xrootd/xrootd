@@ -1685,6 +1685,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
         {"locate",   RD_locate},
         {"mkdir",    RD_mkdir},
         {"mv",       RD_mv},
+        {"openw",    RD_openw},
         {"prepare",  RD_prepare},
         {"prepstage",RD_prepstg},
         {"rm",       RD_rm},
