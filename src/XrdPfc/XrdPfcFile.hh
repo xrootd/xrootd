@@ -208,7 +208,7 @@ public:
    // Constructor, destructor, Open() and Close() are private.
 
    //! Static constructor that also does Open. Returns null ptr if Open fails.
-   static File* FileOpen(const std::string &path, long long offset, long long fileSize);
+   static File* FileOpen(const std::string &path, long long offset, long long fileSize, XrdOucCacheIO* inputIO);
 
    //! Handle removal of a block from Cache's write queue.
    void BlockRemovedFromWriteQ(Block*);
@@ -261,8 +261,8 @@ public:
 
    const std::string& GetLocalPath() const { return m_filename; }
 
-   XrdSysError* GetLog();
-   XrdSysTrace* GetTrace();
+   XrdSysError* GetLog() const;
+   XrdSysTrace* GetTrace() const;
 
    long long GetFileSize() const { return m_file_size; }
 
@@ -301,7 +301,8 @@ private:
    void Close();
 
    //! Open file handle for data file and info file on local disk.
-   bool Open();
+   bool Open(XrdOucCacheIO* inputIO);
+   void parse_pfc_url_args(XrdOucCacheIO* inputIO, long long &pfc_blocksize, int &pfc_prefetch) const;
 
    static const char *m_traceID;
 
@@ -364,6 +365,7 @@ private:
    enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
 
    PrefetchState_e m_prefetch_state;
+   int             m_prefetch_max_blocks_in_flight;
 
    long long m_prefetch_bytes;
    int   m_prefetch_read_cnt;
