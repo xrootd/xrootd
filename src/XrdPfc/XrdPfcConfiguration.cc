@@ -64,7 +64,7 @@ Configuration::Configuration() :
 {}
 
 
-bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name)
+bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name) const
 {
    char errStr[1024];
    snprintf(errStr, 1024, "ConfigParameters() Error parsing parameter %s", name);
@@ -97,6 +97,30 @@ bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalS
      m_log.Emsg(errStr, "");
      return false;
    }
+
+   return true;
+}
+
+bool Cache::blocksize_str2value(const char *from, const char *str,
+                                long long &val, long long min, long long max) const
+{
+   if (XrdOuca2x::a2sz(m_log, "Error parsing block-size", str, &val, min, max))
+      return false;
+
+   if (val & 0xFFF) {
+      val &= ~0x0FFF;
+      val +=  0x1000;
+      m_log.Emsg(from, "blocksize must be a multiple of 4 kB. Rounded up.");
+   }
+
+   return true;
+}
+
+bool Cache::prefetch_str2value(const char *from, const char *str,
+                               int &val, int min, int max) const
+{
+   if (XrdOuca2x::a2i(m_log, "Error parsing prefetch block count", str, &val, min, max))
+      return false;
 
    return true;
 }
@@ -443,6 +467,8 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
 
    TmpConfiguration tmpc;
 
+   Configuration &CFG = m_configuration;
+
    // Adjust default parameters for client/serverless caching
    if (m_isClient)
    {
@@ -630,7 +656,6 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
 
    if (aOK)
    {
-      int  loff = 0;
 //                         000    001            010
       const char *csc[] = {"off", "cache nonet", "nocache net notls",
 //                         011
@@ -639,16 +664,28 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
                            "off", "cache nonet", "nocache net tls",
 //                         111
                            "cache net tls"};
-      char buff[8192], uvk[32];
+      char uvk[32];
       if (m_configuration.m_cs_UVKeep < 0)
          strcpy(uvk, "lru");
       else
          sprintf(uvk, "%lld", (long long) m_configuration.m_cs_UVKeep);
-      float rg = (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
+      float ram_gb = (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
+
+      char urlcgi_blks[64] = "ignore", urlcgi_npref[32] = "ignore";
+      if (CFG.m_cgi_blocksize_allowed)
+         snprintf(urlcgi_blks, sizeof(urlcgi_blks), "%lldk %lldk",
+                  CFG.m_cgi_min_bufferSize >> 10, CFG.m_cgi_max_bufferSize >> 10);
+      if (CFG.m_cgi_prefetch_allowed)
+         snprintf(urlcgi_npref, sizeof(urlcgi_npref), "%d %d",
+                  CFG.m_cgi_min_prefetch_max_blocks, CFG.m_cgi_max_prefetch_max_blocks);
+
+      char buff[8192];
+      int  loff = 0;
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
                       "       pfc.cschk %s uvkeep %s\n"
-                      "       pfc.blocksize %lld\n"
+                      "       pfc.blocksize %lldk\n"
                       "       pfc.prefetch %d\n"
+                      "       pfc.urlcgi blocksize %s prefetch %s\n"
                       "       pfc.ram %.fg\n"
                       "       pfc.writequeue %d %d\n"
                       "       # Total available disk: %lld\n"
@@ -661,9 +698,10 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
                       "       pfc.onlyIfCachedMinFrac %.2f\n",
                       config_filename,
                       csc[int(m_configuration.m_cs_Chk)], uvk,
-                      m_configuration.m_bufferSize,
+                      m_configuration.m_bufferSize >> 10,
                       m_configuration.m_prefetch_max_blocks,
-                      rg,
+                      urlcgi_blks, urlcgi_npref,
+                      ram_gb,
                       m_configuration.m_wqueue_blocks, m_configuration.m_wqueue_threads,
                       sP.Total,
                       m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM,
@@ -713,8 +751,8 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
    }
 
    // Derived settings
-   m_prefetch_enabled   = m_configuration.m_prefetch_max_blocks > 0;
-   Info::s_maxNumAccess = m_configuration.m_accHistorySize;
+   m_prefetch_enabled   = CFG.m_prefetch_max_blocks > 0 || CFG.m_cgi_max_prefetch_max_blocks > 0;
+   Info::s_maxNumAccess = CFG.m_accHistorySize;
 
    m_gstream = (XrdXrootdGStream*) m_env->GetPtr("pfc.gStream*");
 
@@ -766,7 +804,8 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
 
    ConfWordGetter cwg(config);
 
-   XrdSysError err(0, "");
+   Configuration &CFG = m_configuration;
+
    if ( part == "user" )
    {
       m_configuration.m_username = cwg.GetWord();
@@ -933,18 +972,9 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
    else if ( part == "blocksize" )
    {
-      long long minBSize =   4 * 1024;
-      long long maxBSize = 512 * 1024 * 1024;
-      if (XrdOuca2x::a2sz(m_log, "Error reading block-size", cwg.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
-      {
+      if ( ! blocksize_str2value("Config", cwg.GetWord(), CFG.m_bufferSize,
+                                 CFG.s_min_bufferSize, CFG.s_max_bufferSize))
          return false;
-      }
-      if (m_configuration.m_bufferSize & 0xFFF)
-      {
-         m_configuration.m_bufferSize &= ~0x0FFF;
-         m_configuration.m_bufferSize +=  0x1000;
-         m_log.Emsg("Config", "pfc.blocksize must be a multiple of 4 kB. Rounded up.");
-      }
    }
    else if ( part == "prefetch" || part == "nramprefetch" )
    {
@@ -953,11 +983,66 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          m_log.Emsg("Config", "pfc.nramprefetch is deprecated, please use pfc.prefetch instead. Replacing the directive internally.");
       }
 
-      if (XrdOuca2x::a2i(m_log, "Error setting prefetch block count", cwg.GetWord(), &m_configuration.m_prefetch_max_blocks, 0, 128))
-      {
+      if ( ! prefetch_str2value("Config", cwg.GetWord(), CFG.m_prefetch_max_blocks,
+                                0, CFG.s_max_prefetch_max_blocks))
          return false;
-      }
-
+   }
+   else if ( part == "urlcgi" )
+   {
+      //  pfc.urlcgi [blocksize {ignore | min max}] [prefetch {ignore | min max}]
+      const char *p = 0;
+      while ((p = cwg.GetWord()) && cwg.HasLast())
+      {
+         if (strcmp(p, "blocksize") == 0)
+         {
+            std::string bmin = cwg.GetWord();
+            if (bmin == "ignore")
+               continue;
+            std::string bmax = cwg.GetWord();
+            if ( ! cwg.HasLast()) {
+               m_log.Emsg("Config", "Error: pfc.urlcgi blocksize parameter requires two arguments.");
+               return false;
+            }
+            if ( ! blocksize_str2value("Config::urlcgi", bmin.c_str(), CFG.m_cgi_min_bufferSize,
+                                       CFG.s_min_bufferSize, CFG.s_max_bufferSize))
+               return false;
+            if ( ! blocksize_str2value("Config::urlcgi", bmax.c_str(), CFG.m_cgi_max_bufferSize,
+                                       CFG.s_min_bufferSize, CFG.s_max_bufferSize))
+               return false;
+            if (CFG.m_cgi_min_bufferSize > CFG.m_cgi_max_bufferSize) {
+               m_log.Emsg("Config", "Error: pfc.urlcgi blocksize second argument must be larger or equal to the first one.");
+               return false;
+            }
+            CFG.m_cgi_blocksize_allowed = true;
+         }
+         else if (strcmp(p, "prefetch") == 0)
+         {
+            std::string bmin = cwg.GetWord();
+            if (bmin == "ignore")
+               continue;
+            std::string bmax = cwg.GetWord();
+            if ( ! cwg.HasLast()) {
+               m_log.Emsg("Config", "Error: pfc.urlcgi blocksize parameter requires two arguments.");
+               return false;
+            }
+            if ( ! prefetch_str2value("Config::urlcgi", bmin.c_str(), CFG.m_cgi_min_prefetch_max_blocks,
+                                       0, CFG.s_max_prefetch_max_blocks))
+               return false;
+            if ( ! prefetch_str2value("Config::urlcgi", bmax.c_str(), CFG.m_cgi_max_prefetch_max_blocks,
+                                      0, CFG.s_max_prefetch_max_blocks))
+               return false;
+            if (CFG.m_cgi_min_prefetch_max_blocks > CFG.m_cgi_max_prefetch_max_blocks) {
+               m_log.Emsg("Config", "Error: pfc.urlcgi prefetch second argument must be larger or equal to the first one.");
+               return false;
+            }
+            CFG.m_cgi_prefetch_allowed = true;
+         }
+         else
+         {
+            m_log.Emsg("Config", "Error: urlcgi stanza contains unknown directive '", p, "'");
+            return false;
+         }
+      } // while get next pfc.urlcgi word
    }
    else if ( part == "nramread" )
    {

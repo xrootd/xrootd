@@ -107,7 +107,7 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
          XrdSysThread::Run(&tid, ProcessWriteTaskThread, 0, 0, "XrdPfc WriteTasks ");
       }
 
-      if (instance.RefConfiguration().m_prefetch_max_blocks > 0)
+      if (instance.is_prefetch_enabled())
       {
          XrdSysThread::Run(&tid, PrefetchThread, 0, 0, "XrdPfc Prefetch ");
       }
@@ -444,7 +444,7 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
 
    if (filesize >= 0)
    {
-      file = File::FileOpen(path, off, filesize);
+      file = File::FileOpen(path, off, filesize, io->GetInput());
    }
 
    {

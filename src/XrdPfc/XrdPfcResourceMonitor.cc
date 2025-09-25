@@ -378,7 +378,7 @@ void ResourceMonitor::heart_beat()
       if (next_event > start)
       {
          unsigned int t_sleep = next_event - start;
-         TRACE(Debug, tpfx << "sleeping for " << t_sleep << " seconds until the next beat.");
+         TRACE(Dump, tpfx << "sleeping for " << t_sleep << " seconds until the next beat.");
          sleep(t_sleep);
       }
 
@@ -398,7 +398,7 @@ void ResourceMonitor::heart_beat()
       // Always process the queues.
       int n_processed = process_queues();
       next_queue_proc_time = queue_swap_time + s_queue_proc_interval;
-      TRACE(Debug, tpfx << "process_queues -- n_records=" << n_processed);
+      TRACE(Dump, tpfx << "process_queues -- n_records=" << n_processed);
 
       // Always update basic info on m_fs_state (space, usage, file_usage).
       update_vs_and_file_usage_info();
