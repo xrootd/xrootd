@@ -53,7 +53,9 @@ enum Access_Operation  {AOP_Any         = 0,  //!< Special for getting privs
                         AOP_Update      = 12, //!< open() r/w or append
                         AOP_Excl_Create = 13, //!< open() with O_EXCL|O_CREAT
                         AOP_Excl_Insert = 14, //!< mv() where destination doesn't exist.
-                        AOP_LastOp      = 14  //   For limits testing
+                        AOP_Stage       = 15, //!< stage and or read data, plus related operations
+                        AOP_Poll        = 16, //!< stage polling operations
+                        AOP_LastOp      = 16  //   For limits testing
                        };
 
 /******************************************************************************/

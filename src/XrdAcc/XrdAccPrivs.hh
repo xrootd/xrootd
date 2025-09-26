@@ -36,7 +36,7 @@
   
 // Recognized privileges
 //
-enum XrdAccPrivs {XrdAccPriv_All    = 0x07f,
+enum XrdAccPrivs {XrdAccPriv_All    = 0x1ff,
                   XrdAccPriv_Chmod  = 0x063,  // Insert + Open r/w + Delete
                   XrdAccPriv_Chown  = 0x063,  // Insert + Open r/w + Delete
                   XrdAccPriv_Create = 0x062,  // Insert + Open r/w
@@ -50,6 +50,8 @@ enum XrdAccPrivs {XrdAccPriv_All    = 0x07f,
                   XrdAccPriv_Readdir= 0x020,
                   XrdAccPriv_Write  = 0x040,
                   XrdAccPriv_Update = 0x060,
+                  XrdAccPriv_Stage  = 0x180,  // Stage + Poll
+                  XrdAccPriv_Poll   = 0x100,  // Poll
                   XrdAccPriv_None   = 0x000
                  };
   
