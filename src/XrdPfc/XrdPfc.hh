@@ -67,7 +67,7 @@ struct Configuration
    bool are_file_usage_limits_set()    const { return m_fileUsageMax > 0; }
    bool is_age_based_purge_in_effect() const { return m_purgeColdFilesAge > 0 ; }
    bool is_uvkeep_purge_in_effect()    const { return m_cs_UVKeep >= 0; }
-   bool is_dir_stat_reporting_on()     const { return m_dirStatsMaxDepth >= 0 || ! m_dirStatsDirs.empty() || ! m_dirStatsDirGlobs.empty(); }
+   bool is_dir_stat_reporting_on()     const { return m_dirStatsStoreDepth >= 0 || ! m_dirStatsDirs.empty() || ! m_dirStatsDirGlobs.empty(); }
    bool is_purge_plugin_set_up()       const { return false; }
 
    CkSumCheck_e get_cs_Chk() const { return (CkSumCheck_e) m_cs_Chk; }
@@ -102,8 +102,7 @@ struct Configuration
    std::set<std::string> m_dirStatsDirs;     //!< directories for which stat reporting was requested
    std::set<std::string> m_dirStatsDirGlobs; //!< directory globs for which stat reporting was requested
    int       m_dirStatsInterval;        //!< time between resource monitor statistics dump in seconds
-   int       m_dirStatsMaxDepth;        //!< maximum depth for statistics write out
-   int       m_dirStatsStoreDepth;      //!< depth to which statistics should be collected
+   int       m_dirStatsStoreDepth;      //!< maximum depth for statistics write out
 
    long long m_bufferSize;              //!< cache block size, default 128 kB
    long long m_RamAbsAvailable;         //!< available from configuration
