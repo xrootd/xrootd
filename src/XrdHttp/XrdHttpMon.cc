@@ -1,11 +1,10 @@
 #include "XrdHttpMon.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdXrootd/XrdXrootdGStream.hh"
 
 #include <iostream>
 #include <sstream>
 #include <thread>
-
-#include "XrdSys/XrdSysError.hh"
-#include "XrdXrootd/XrdXrootdGStream.hh"
 
 XrdSysError eDest(0, "HttpMon");
 
@@ -15,12 +14,15 @@ typedef std::array<std::array<XrdHttpMon::HttpInfo, XrdHttpMon::StatusCodes::sc_
 StatsMatrix XrdHttpMon::statsInfo{};
 XrdXrootdGStream* XrdHttpMon::gStream = nullptr;
 XrdSysLogger* XrdHttpMon::logger = nullptr;
+std::chrono::seconds XrdHttpMon::flushPeriod{0};
+
 bool XrdHttpMon::Initialize(XrdSysLogger *logP, XrdXrootdGStream *gStreamP) {
     if (!gStreamP || !logP) {
         return false;
     }
     gStream = gStreamP;
     logger = logP;
+    flushPeriod = std::chrono::seconds(gStream->GetAutoFlush());
     eDest.logger(logP);
     return true;
 }
@@ -38,7 +40,7 @@ void XrdHttpMon::Report() {
 
 void* XrdHttpMon::Start(void*) {
     while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(flushPeriod);
         Report();
     }
 }
