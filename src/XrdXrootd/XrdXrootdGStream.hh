@@ -136,6 +136,19 @@ char     *Reserve(int dlen);
 int       SetAutoFlush(int afsec);
 
 //-----------------------------------------------------------------------------
+//! Get the current autoflush time interval.
+//!
+//! This method returns the number of seconds between automatic flushes as
+//! currently configured. If autoflush is disabled, the returned value is zero
+//! or negative (as set previously).
+//!
+//! @return  The current auto-flush setting in seconds (zero or negative if
+//!          autoflush is disabled).
+//-----------------------------------------------------------------------------
+
+int       GetAutoFlush();
+
+//-----------------------------------------------------------------------------
 //! Get the amount of buffer space remaining.
 //!
 //! @return The maximum number of bytes that can be inserted at time of call.
