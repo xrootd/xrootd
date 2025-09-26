@@ -50,6 +50,8 @@ class XrdHttpMon {
     // Global stats table
     static std::array<std::array<HttpInfo, StatusCodes::sc_Count>, XrdHttpReq::ReqType::rtCount> statsInfo;
 
+    std::chrono::seconds flushPeriod;
+
     XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream);
 
     static void* Start(void* instance);
