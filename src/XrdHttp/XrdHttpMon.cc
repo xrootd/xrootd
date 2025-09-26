@@ -1,17 +1,22 @@
 #include "XrdHttpMon.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdXrootd/XrdXrootdGStream.hh"
 
 #include <iostream>
 #include <sstream>
 #include <thread>
 
-#include "XrdSys/XrdSysError.hh"
-#include "XrdXrootd/XrdXrootdGStream.hh"
-
 XrdSysError eDest(0, "HttpMon");
 
-std::array<std::array<XrdHttpMon::HttpInfo, XrdHttpMon::StatusCodes::sc_Count>, XrdHttpReq::ReqType::rtCount> XrdHttpMon::statsInfo{};
+typedef std::array<std::array<XrdHttpMon::HttpInfo, XrdHttpMon::StatusCodes::sc_Count>, XrdHttpReq::ReqType::rtCount>
+    StatsMatrix;
 
-XrdHttpMon::XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream) : gStream(gStream) { eDest.logger(logP); }
+StatsMatrix XrdHttpMon::statsInfo{};
+
+XrdHttpMon::XrdHttpMon(XrdSysLogger *logP, XrdXrootdGStream *gStream)
+    : flushPeriod(std::chrono::seconds(gStream->GetAutoFlush())), gStream(gStream)  {
+  eDest.logger(logP);
+}
 
 void XrdHttpMon::Report() {
     std::string json = GetMonitoringJson();
@@ -23,7 +28,7 @@ void XrdHttpMon::Report() {
 void* XrdHttpMon::Start(void* instance) {
     XrdHttpMon* mon = static_cast<XrdHttpMon*>(instance);
     while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(mon->flushPeriod);
         mon->Report();
     }
 }
