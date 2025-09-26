@@ -76,6 +76,7 @@ class XrdHttpMon {
 
     static XrdXrootdGStream* gStream;
     static XrdSysLogger* logger;
+    static std::chrono::seconds flushPeriod;
 
     static void Report();
 };
