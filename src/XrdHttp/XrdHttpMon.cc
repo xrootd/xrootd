@@ -11,7 +11,10 @@ XrdSysError eDest(0, "HttpMon");
 
 std::array<std::array<XrdHttpMon::HttpInfo, XrdHttpMon::StatusCodes::sc_Count>, XrdHttpReq::ReqType::rtCount> XrdHttpMon::statsInfo{};
 
-XrdHttpMon::XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream) : gStream(gStream) { eDest.logger(logP); }
+XrdHttpMon::XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream) : gStream(gStream) {
+    eDest.logger(logP);
+    flushPeriod = std::chrono::seconds(gStream->GetAutoFlush());
+}
 
 void XrdHttpMon::Report() {
     std::string json = GetMonitoringJson();
@@ -23,7 +26,7 @@ void XrdHttpMon::Report() {
 void* XrdHttpMon::Start(void* instance) {
     XrdHttpMon* mon = static_cast<XrdHttpMon*>(instance);
     while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(mon->flushPeriod);
         mon->Report();
     }
 }
