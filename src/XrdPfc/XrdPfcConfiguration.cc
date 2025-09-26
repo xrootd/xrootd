@@ -45,9 +45,8 @@ Configuration::Configuration() :
    m_purgeColdFilesAge(-1),
    m_purgeAgeBasedPeriod(10),
    m_accHistorySize(20),
-   m_dirStatsInterval(1500),
-   m_dirStatsMaxDepth(-1),
-   m_dirStatsStoreDepth(0),
+   m_dirStatsInterval(900),
+   m_dirStatsStoreDepth(1),
    m_bufferSize(128*1024),
    m_RamAbsAvailable(0),
    m_RamKeepStdBlocks(0),
@@ -718,8 +717,8 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
       if (m_configuration.is_dir_stat_reporting_on())
       {
          loff += snprintf(buff + loff, sizeof(buff) - loff,
-                          "       pfc.dirstats interval %d maxdepth %d ((internal: store_depth %d, size_of_dirlist %d, size_of_globlist %d))\n",
-                          m_configuration.m_dirStatsInterval, m_configuration.m_dirStatsMaxDepth, m_configuration.m_dirStatsStoreDepth,
+                          "       pfc.dirstats interval %d maxdepth %d (internal: size_of_dirlist %d, size_of_globlist %d)\n",
+                          m_configuration.m_dirStatsInterval, m_configuration.m_dirStatsStoreDepth,
                           (int) m_configuration.m_dirStatsDirs.size(), (int) m_configuration.m_dirStatsDirGlobs.size());
          loff += snprintf(buff + loff, sizeof(buff) - loff, "           dirlist:\n");
          for (std::set<std::string>::iterator i = m_configuration.m_dirStatsDirs.begin(); i != m_configuration.m_dirStatsDirs.end(); ++i)
@@ -881,36 +880,42 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       {
          if (strcmp(p, "interval") == 0)
          {
-            if (XrdOuca2x::a2i(m_log, "Error getting dirstsat interval", cwg.GetWord(), &m_configuration.m_dirStatsInterval, 0, 7 * 24 * 3600))
+            int validIntervals[] = {60, 120, 300, 600, 900, 1200, 1800, 3600};
+            int size = sizeof(validIntervals) / sizeof(int);
+
+            if (XrdOuca2x::a2tm(m_log, "Error getting dirstsat interval", cwg.GetWord(),
+                &m_configuration.m_dirStatsInterval, validIntervals[0], validIntervals[size - 1]))
             {
                return false;
             }
-            int validIntervals[] = {60, 300, 600, 900, 1800, 3600};
-            int size = sizeof(validIntervals) / sizeof(int);
-            bool match = false;
-            std::string vvl;
+            bool match = false, round_down = false;
             for (int i = 0; i < size; i++) {
               if (validIntervals[i] == m_configuration.m_dirStatsInterval) {
                  match = true;
                  break;
               }
-              vvl += std::to_string(validIntervals[i]);
-              if ((i+1) != size) vvl += ", ";
+              if (i > 0 && m_configuration.m_dirStatsInterval < validIntervals[i]) {
+                 m_configuration.m_dirStatsInterval = validIntervals[i - 1];
+                 round_down = true;
+                 break;
+              }
             }
-
-            if (!match) {
-                m_log.Emsg("Config", "Error: Dirstat interval is not valid. Possible interval values are ", vvl.c_str());
-                return false;
+            if ( ! match && ! round_down) {
+                m_log.Emsg("Config", "Error: dirstat interval parsing failed.");
+               return false;
+            }
+            if (round_down) {
+                m_log.Emsg("Config", "Info: dirstat interval was rounded down to the nearest valid value.");
             }
 
          }
          else if (strcmp(p, "maxdepth") == 0)
          {
-            if (XrdOuca2x::a2i(m_log, "Error getting maxdepth value", cwg.GetWord(), &m_configuration.m_dirStatsMaxDepth, 0, 16))
+            if (XrdOuca2x::a2i(m_log, "Error getting maxdepth value", cwg.GetWord(),
+                               &m_configuration.m_dirStatsStoreDepth, 0, 16))
             {
                return false;
             }
-            m_configuration.m_dirStatsStoreDepth = std::max(m_configuration.m_dirStatsStoreDepth, m_configuration.m_dirStatsMaxDepth);
          }
          else if (strcmp(p, "dir") == 0)
          {
