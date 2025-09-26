@@ -303,7 +303,9 @@ int XrdAccAccess::Audit(const int              accok,
                                     "stat",            // 11
                                     "update",          // 12
                                     "excl_create",     // 13
-                                    "excl_insert"      // 14
+                                    "excl_insert",     // 14
+                                    "stage",           // 15
+                                    "poll"             // 16
                              };
    const char *opname = (oper > AOP_LastOp ? "???" : Opername[oper]);
    std::string username;

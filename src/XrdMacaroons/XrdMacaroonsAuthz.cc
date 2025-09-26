@@ -104,6 +104,12 @@ static XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
         case AOP_Update:
             new_privs |= static_cast<int>(XrdAccPriv_Update);
             break;
+        case AOP_Stage:
+            new_privs |= static_cast<int>(XrdAccPriv_Stage);
+            break;
+        case AOP_Poll:
+            new_privs |= static_cast<int>(XrdAccPriv_Poll);
+            break;
     };
     return static_cast<XrdAccPrivs>(new_privs);
 }
@@ -379,6 +385,10 @@ AuthzCheck::AuthzCheck(const char *req_path, const Access_Operation req_oper, ss
         break;
     case AOP_Stat:
         m_desired_activity = "READ_METADATA";
+        break;
+    case AOP_Stage:
+    case AOP_Poll:
+        break;
     };
 }
 
