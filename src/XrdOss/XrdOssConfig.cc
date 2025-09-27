@@ -80,6 +80,41 @@ extern XrdSysTrace  OssTrace;
 XrdOucPListAnchor  *XrdOssRPList;
 
 /******************************************************************************/
+/*                        X r d O s s E r r n o M a p                           */
+/******************************************************************************/
+
+static const int XrdOssErrnoMap[] =
+      {XRDOSS_N8001,
+       XRDOSS_N8002,
+       XRDOSS_N8003,
+       XRDOSS_N8004,
+       XRDOSS_N8005,
+       XRDOSS_N8006,
+       XRDOSS_N8007,
+       XRDOSS_N8008,
+       XRDOSS_N8009,
+       XRDOSS_N8010,
+       XRDOSS_N8011,
+       XRDOSS_N8012,
+       XRDOSS_N8013,
+       XRDOSS_N8014,
+       XRDOSS_N8015,
+       XRDOSS_N8016,
+       XRDOSS_N8017,
+       XRDOSS_N8018,
+       XRDOSS_N8019,
+       XRDOSS_N8020,
+       XRDOSS_N8021,
+       XRDOSS_N8022,
+       XRDOSS_N8023,
+       XRDOSS_N8024,
+       XRDOSS_N8025,
+       XRDOSS_N8026,
+       XRDOSS_N8027,
+       XRDOSS_N8028
+};
+
+/******************************************************************************/
 /*                            E r r o r   T e x t                             */
 /******************************************************************************/
   
@@ -239,6 +274,9 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 */
    XrdSysError_Table *ETab = new XrdSysError_Table(XRDOSS_EBASE, XRDOSS_ELAST,
                                                    XrdOssErrorText);
+   XrdSysError_Table_Errno *ETabErrno = new XrdSysError_Table_Errno(XRDOSS_EBASE,
+                                                   XRDOSS_ELAST, XrdOssErrnoMap);
+
    static const int maxFD = 1048576;
    struct rlimit rlim;
    char *val;
@@ -250,6 +288,7 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 //
    Eroute.Say("++++++ Storage system initialization started.");
    Eroute.addTable(ETab);
+   Eroute.addTable(ETabErrno);
    if (getenv("XRDDEBUG")) OssTrace.What = TRACE_ALL;
 
 // Preset all variables with common defaults
