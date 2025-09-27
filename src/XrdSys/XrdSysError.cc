@@ -95,7 +95,7 @@ const char *XrdSysError::ec2text(int ecode)
 
 int XrdSysError::ec2errno(int ecode)
 {
-    int xcode;
+    int xcode = 0;
     XrdSysError_Table_Errno *etp = etab_errno;
 
     int sign = (ecode < 0 ? -1 : 1);
@@ -104,7 +104,9 @@ int XrdSysError::ec2errno(int ecode)
     while ((etp != 0) && !(xcode = etp->Lookup(absE)))
         etp = etp->next;
 
-    return xcode ? xcode * sign : absE * sign;
+    // if errcode is mapped return
+    // otherwise return the original err code
+    return xcode ? xcode * sign : ecode;
 }
 
 /******************************************************************************/
