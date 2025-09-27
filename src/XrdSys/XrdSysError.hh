@@ -38,6 +38,34 @@
 #include <cstring>
 #endif
 
+
+/******************************************************************************/
+/*                  X r d S y s E r r o r _ T a b l e _ E r r n o             */
+/******************************************************************************/
+
+class XrdSysError_Table_Errno
+{
+public:
+friend class XrdSysError;
+
+int Lookup(int mnum) 
+          {return (mnum < base_msgnum || mnum > last_msgnum
+                            ? 0 : translations[mnum - base_msgnum]);
+          }
+       XrdSysError_Table_Errno(int base, int last, const int* codes)
+                        : next(0),
+                          base_msgnum(base),
+                          last_msgnum(last),
+                          translations(codes) {}
+      ~XrdSysError_Table_Errno() {}
+
+private:
+XrdSysError_Table_Errno *next;     // -> Next table or 0;
+int               base_msgnum;     // Starting message number
+int               last_msgnum;     // Ending   message number
+const int*        translations;    // Array of linux error code mappings
+};
+
 /******************************************************************************/
 /*                      o o u c _ E r r o r _ T a b l e                       */
 /******************************************************************************/
@@ -59,7 +87,7 @@ char  *Lookup(int mnum)
       ~XrdSysError_Table() {}
 
 private:
-XrdSysError_Table *next;            // -> Next table or 0;
+XrdSysError_Table *next;           // -> Next table or 0;
 int               base_msgnum;     // Starting message number
 int               last_msgnum;     // Ending   message number
 const char      **msg_text;        // Array of message text
@@ -105,14 +133,20 @@ public:
 //
 static void addTable(XrdSysError_Table *etp) {etp->next = etab; etab = etp;}
 
+static void addTable(XrdSysError_Table_Errno *etp) {etp->next = etab_errno; etab_errno = etp;}
+
 // baseFD() returns the original FD associated with this object.
 //
 int baseFD();
 
-// ec2text tyranslates an error code to the correspodning error text or returns
+// ec2text translates an error code to the correspodning error text or returns
 // null if matching text cannot be found.
 //
 static const char *ec2text(int ecode);
+
+// ec2errno maps a extended error code to a linux error code as defined by
+// the translation table provided
+int ec2errno(int ecode);
 
 // Emsg() produces a message of various forms. The message is written to the 
 // constructor specified file descriptor. See variations below.
@@ -171,6 +205,7 @@ void TEnd();
 private:
 
 static XrdSysError_Table *etab;
+static XrdSysError_Table_Errno *etab_errno;
 const char               *epfx;
 int                       epfxlen;
 int                       msgMask;

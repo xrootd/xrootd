@@ -2621,6 +2621,9 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
    buffer = einfo.getMsgBuff(buflen);
    std::string eText;
 
+   // Translate ecode to corresponding errno
+   int rcode = OfsEroute.ec2errno(ecode);
+
 // Check for extended information
 //
     if (xtra)
@@ -2628,14 +2631,14 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
              {case '?': xtra = 0;
                         if (XrdOfsFS->tryXERT && XrdOfsOss->getErrMsg(eText))
                            {if (eText.find("Unable") != std::string::npos)
-                               {einfo.setErrInfo(ecode, eText.c_str());
+                               {einfo.setErrInfo(rcode, eText.c_str());
                                 msgDone = true;
                                } else xtra = eText.c_str();
                            }
                         break;
               case '+': xtra++;
                         break;
-              default:  einfo.setErrInfo(ecode, xtra);
+              default:  einfo.setErrInfo(rcode, xtra);
                         msgDone = true;
                         break;
              }
@@ -2644,7 +2647,7 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 //
    if (!msgDone)
       {XrdOucERoute::Format(buffer, buflen, ecode, op, target, xtra);
-       einfo.setErrCode(ecode);
+       einfo.setErrCode(rcode);
       }
 
 // Print it out

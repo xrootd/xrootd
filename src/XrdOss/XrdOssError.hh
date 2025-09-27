@@ -62,7 +62,36 @@
 #define XRDOSS_E8028 8028
 
 #define XRDOSS_ELAST 8028
-  
+
+#define XRDOSS_N8001 EBUSY   // directory object in use
+#define XRDOSS_N8002 EBADF   // directory object not open
+#define XRDOSS_N8003 EBUSY   // file object in use
+#define XRDOSS_N8004 EBADF   // file object not open
+#define XRDOSS_N8005 EROFS   // file path marked read-only
+#define XRDOSS_N8006 EPERM   // dynamic staging not allowed
+#define XRDOSS_N8007 EFBIG   // max allowed file size exceeded
+#define XRDOSS_N8008 ENOSYS  // large file support not enabled
+#define XRDOSS_N8009 EIO     // dynamic staging failed
+#define XRDOSS_N8010 EINVAL  // invalid staging priority
+#define XRDOSS_N8011 EXDEV   // new path violates old path options
+#define XRDOSS_N8012 EIO     // invalid response from mss
+#define XRDOSS_N8013 E2BIG   // mss command too long
+#define XRDOSS_N8014 EBUSY   // lock object in use
+#define XRDOSS_N8015 EAGAIN  // unable to lock file
+#define XRDOSS_N8016 EIO     // 8016
+#define XRDOSS_N8017 EPERM   // unlocking an unlocked object
+#define XRDOSS_N8018 EINVAL  // invalid suggested allocation size
+#define XRDOSS_N8019 ENOENT  // requested space does not exist
+#define XRDOSS_N8020 ENOSPC  // not enough free space
+#define XRDOSS_N8021 ENOTSUP // server-side decompression disabled
+#define XRDOSS_N8022 EROFS   // compressed files may not be updated
+#define XRDOSS_N8023 EIO     // no response from remote storage service
+#define XRDOSS_N8024 EIO     // invalid response from remote storage service
+#define XRDOSS_N8025 EAGAIN  // unable to queue stage request
+#define XRDOSS_N8026 EACCES  // file creation prohibited
+#define XRDOSS_N8027 EINVAL  // path is not relative
+#define XRDOSS_N8028 EFAULT  // dynamic cast failed
+
 #define XRDOSS_T8001 "directory object in use (internal error)"
 #define XRDOSS_T8002 "directory object not open (internal error)"
 #define XRDOSS_T8003 "file object in use (internal error)"
