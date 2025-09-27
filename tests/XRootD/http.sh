@@ -280,9 +280,9 @@ function test_http() {
   assert davix-put "$bigFilePath" "${HOST}/$bigFilePath"
 
   # Test writing to a readonly file system
-  #should be 403
+  # Writing to a read-only file should return 403 Forbidden
   readOnlyFilePath="/readonly/file";
-  run_and_assert_http_and_error_code 500 "" \
+  run_and_assert_http_and_error_code 403 "" \
     --upload-file "$alphabetFilePath" "${HOST}/$readOnlyFilePath"
 
   # Overwrite a directory with a file - File / Directory conflict
@@ -326,5 +326,8 @@ function test_http() {
   unreadableFilePath="$bigFilePath"
   run_and_assert_http_and_error_code 200 500 \
     "${HOST}/$unreadableFilePath" --with-trailer
+
+  run_and_assert_http_and_error_code 200 "" \
+    --header "Want-Digest: crc32c" -I "${HOST}/$alphabetFilePath"
 
 }
