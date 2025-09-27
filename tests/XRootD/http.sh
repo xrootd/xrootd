@@ -272,4 +272,9 @@ function test_http() {
 
   run_and_assert_http_and_error_code 200 "" \
     --header "Want-Digest: crc32c" -I "${HOST}/$alphabetFilePath"
+
+  # Test readonly file system error
+  readOnlyFilePath="/readonly/file";
+  run_and_assert_http_and_error_code 403 "" \
+    --upload-file "$alphabetFilePath" "${HOST}/$readOnlyFilePath"
 }
