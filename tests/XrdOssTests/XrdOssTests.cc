@@ -24,21 +24,34 @@ class File final : public XrdOssWrapDF {
         auto const pos = path_str.find_last_of('/');
         const auto leaf = path_str.substr(pos + 1);
 
-        m_fail = leaf == "fail_read.txt";
-
-        if (leaf == "no_space.txt") errorCode = ENOSPC;
-        else if (leaf == "out_of_space_quota.txt") errorCode = EDQUOT;
+        if (leaf == "no_space.txt") {
+            errorCode = ENOSPC;
+            m_write_fail_with_offset = true;
+        } else if (leaf == "fail_read.txt") {
+            errorCode = EIO;
+            m_read_fail_with_offset = true;
+        } else if (leaf == "out_of_space_quota.txt") {
+            errorCode = EDQUOT;
+            m_write_fail_with_offset = true;
+        } else if (leaf == "file_does_not_exist") {
+            return -ENOENT;
+        } else if (leaf == "unreadable_file") {
+            errorCode = EBADF;
+            m_read_fail = true;
+        }
         return wrapDF.Open(path, Oflag, Mode, env);
     }
 
     ssize_t Read(void *buffer, off_t offset, size_t size) override {
-        if (m_fail && offset > 0) return -EIO;
+        if (m_read_fail_with_offset && offset > 0) return -errorCode;
+        if (errorCode > 0 && m_read_fail) return -errorCode;
 
         return wrapDF.Read(buffer, offset, size);
     }
 
     ssize_t Write(const void *buffer, off_t offset, size_t size) override {
-        if (errorCode >= 0) return -errorCode;
+        if (m_write_fail_with_offset && offset > 0) return -errorCode;
+        if (errorCode >= 0 && m_write_fail) return -errorCode;
 
         return wrapDF.Write(buffer, offset, size);
     }
@@ -46,8 +59,11 @@ class File final : public XrdOssWrapDF {
     int getFD() override {return -1;}
 
   private:
-    bool m_fail{false};
-    int errorCode{-1};
+    bool m_read_fail{false}; //fail on initial read 
+    bool m_read_fail_with_offset{false}; //fail for subsequent read chunks
+    bool m_write_fail{false}; // fail on initial write 
+    bool m_write_fail_with_offset{false}; //fail for subsequent write chunks
+    int errorCode{-1}; //error code to return on failure
     std::unique_ptr<XrdOssDF> m_wrapped;
 };
 
