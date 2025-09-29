@@ -115,7 +115,7 @@ test -r "${SCRIPT}" || error "test script not found"
 source  "${SCRIPT}" || error "failed to source ${SCRIPT}"
 
 function printlogs() {
-	tail -n "${MAXLINES:-20}" "${NAME}"/*.log 1>&2
+	tail -n "${MAXLINES:-50}" "${NAME}"/*.log 1>&2
 }
 
 function setup() {
