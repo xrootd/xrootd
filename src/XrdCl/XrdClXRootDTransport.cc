@@ -123,13 +123,12 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Constructor
     //--------------------------------------------------------------------------
-    XRootDStreamInfo(): status( Disconnected ), pathId( 0 ), serverFlags( 0 )
+    XRootDStreamInfo(): status( Disconnected ), pathId( 0 )
     {
     }
 
     StreamStatus status;
     uint8_t      pathId;
-    uint32_t     serverFlags;
   };
 
   //----------------------------------------------------------------------------
@@ -2029,35 +2028,17 @@ namespace XrdCl
       return XRootDStatus( stFatal, errHandShakeFailed, 0, "Invalid hand shake response." );
     }
 
-    const uint32_t pv = ntohl(hs->protover);
-    const uint32_t sf = ntohl(hs->msgval) == kXR_DataServer ?
-                        kXR_isServer:
-                        kXR_isManager;
+    info->protocolVersion = ntohl(hs->protover);
+    info->serverFlags     = ntohl(hs->msgval) == kXR_DataServer ?
+                            kXR_isServer:
+                            kXR_isManager;
 
-    if ( hsData->subStreamId == 0 )
-    {
-      info->protocolVersion = pv;
-      info->serverFlags     = sf;
-
-      log->Debug( XRootDTransportMsg,
-                  "[%s] Got the server hand shake response (%s, protocol "
-                  "version %x)",
-                  hsData->streamName.c_str(),
-                  ServerFlagsToStr( info->serverFlags ).c_str(),
-                  info->protocolVersion );
-    }
-    else
-    {
-      XRootDStreamInfo &sInfo = info->stream[hsData->subStreamId];
-      sInfo.serverFlags       = sf;
-
-      log->Debug( XRootDTransportMsg,
-                  "[%s] Got the server hand shake response on substream %d "
-                  "(%s, protocol version %x)",
-                  hsData->streamName.c_str(), hsData->subStreamId,
-                  ServerFlagsToStr( sInfo.serverFlags ).c_str(),
-                  pv );
-    }
+    log->Debug( XRootDTransportMsg,
+                "[%s] Got the server hand shake response (%s, protocol "
+                "version %x)",
+                hsData->streamName.c_str(),
+                ServerFlagsToStr( info->serverFlags ).c_str(),
+                info->protocolVersion );
 
     return XRootDStatus( stOK, suContinue );
   }
@@ -2083,14 +2064,6 @@ namespace XrdCl
                                       hsData->streamName.c_str() );
 
       return XRootDStatus( stFatal, errHandShakeFailed, 0, "kXR_protocol request failed" );
-    }
-
-    if ( hsData->subStreamId > 0 )
-    {
-      XRootDStreamInfo &sInfo = info->stream[hsData->subStreamId];
-      if( rsp->body.protocol.pval >= 0x297 )
-        sInfo.serverFlags = rsp->body.protocol.flags;
-      return XRootDStatus( stOK, suContinue );
     }
 
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
