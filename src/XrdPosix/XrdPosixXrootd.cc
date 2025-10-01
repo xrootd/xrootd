@@ -1507,18 +1507,20 @@ int XrdPosixXrootd::QueryChksum(const char *path,  time_t &Mtime,
 int XrdPosixXrootd::QueryError(std::string& emsg, int fd, bool reset)
 {
    XrdOucECMsg* ecmP;
+   XrdPosixFile* fp = 0;
 
 // If global wanted then use that one otherwise find the object specific one
 //
    if (fd < 0) ecmP = &XrdPosixGlobals::ecMsg;
-       else {XrdPosixFile *fp;
-             if (!(fp = XrdPosixObject::File(fd))) return -1;
+       else {if (!(fp = XrdPosixObject::File(fd))) return -1;
              ecmP = fp->getECMsg();
             }
 
 // Return the message information
 //
-   return ecmP->Get(emsg, reset);
+   const int rc = ecmP->Get(emsg, reset);
+   if (fp) fp->UnLock();
+   return rc;
 }
   
 /******************************************************************************/
