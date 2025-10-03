@@ -224,5 +224,7 @@ int                          wBLen;
 char                        *wBuff;
 const char                  *pName;
 time_t                       cTime;
+XrdSysMutex                  waitMtx;
+XrdSysMutexHelper            waitHelper;
 };
 #endif

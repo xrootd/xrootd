@@ -120,6 +120,11 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
 {
    int rc;
 
+// we take and release the mutex to ensure that the process or redrive loop
+// has detected the issue of the waitresp before we process this response.
+//
+   { XrdSysMutexHelper lk(waitMtx); }
+
 // Refresh the request structure
 //
    memcpy(&Request, &(tP->Pend.Request), sizeof(Request));
@@ -140,11 +145,15 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
 
 // Handle end based on current state
 //
-   if (rc >= 0 && !runWait)
+   if (rc < 0) return rc;
+
+   if (!runWait)
       {if (runDone) runStatus.store(0, std::memory_order_release);
        if (reInvoke) Sched->Schedule((XrdJob *)&respJob);
            else Link->Enable();
       }
+   else
+      waitHelper.UnLock();
 
 // All done
 //
@@ -171,6 +180,11 @@ bool XrdXrootdTransit::Disc()
 //
    sprintf(buff, "%s disconnection", pName);
    XrdXrootdProtocol::Recycle(Link, time(0)-cTime, buff);
+
+// Make sure the wait/wait-resp lock is unlocked
+//
+   runWait = 0;
+   waitHelper.UnLock();
 
 // Now just free up our object.
 //
@@ -242,6 +256,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    respObj   = respP;
    pName     = protP;
    mySID     = getSID();
+   waitHelper.UnLock();
 
 // Bind the protocol to the link
 //
@@ -366,9 +381,12 @@ do{rc = realProt->Process((reInvoke ? 0 : lp));
           else {runDone = false;
                 rc = (Resume ? XrdXrootdProtocol::Process(lp) : Process2());
                 if (rc >= 0)
-                   {if (runWait) rc = -EINPROGRESS;
+                   {if (runDone) runStatus.store(0, std::memory_order_release);
+                    if (runWait)
+                       {waitHelper.UnLock();
+                        return -EINPROGRESS;
+                       }
                     if (!runDone) return rc;
-                    runStatus.store(0, std::memory_order_release);
                    }
                }
       } else reInvoke = false;
@@ -419,6 +437,11 @@ void XrdXrootdTransit::Recycle(XrdLink *lp, int consec, const char *reason)
 //
    XrdXrootdTransPend::Clear(this);
 
+// Make sure the wait/wait-resp lock is unlocked
+//
+   runWait = 0;
+   waitHelper.UnLock();
+
 // Now just free up our object.
 //
    TranStack.Push(&TranLink);
@@ -435,6 +458,11 @@ void XrdXrootdTransit::Redrive()
    static struct iovec ioV[] = {{(char *)&eCode,sizeof(eCode)},
                                 {(char *)&eText,sizeof(eText)}};
    int rc;
+
+// we take and release the mutex to ensure that the process or redrive loop
+// has detected the issue of the wait before we go on with the request.
+//
+   { XrdSysMutexHelper lk(waitMtx); }
 
 // Do some tracing
 //
@@ -457,24 +485,35 @@ void XrdXrootdTransit::Redrive()
 // so all we need to do is honor it here.
 //
    if (!runALen || RunCopy(runArgs, runALen)) {
-      do{rc = Process2();
+      do{runDone = false;
+         rc = Process2();
          TRACEP(REQ, "Bridge redrive Process2 rc="<<rc
                      <<" runError="<<runError<<" runWait="<<runWait);
-        if (rc == 0 && !runWait && !runError) {
-          rc = realProt->Process(NULL);
-          TRACEP(REQ, "Bridge redrive callback rc="<<rc
-                      <<" runStatus="<<runStatus.load(std::memory_order_acquire));
-        }
-      } while((rc == 0) && !runError && !runWait);
+        if (rc < 0) break;
+        if (runDone) runStatus.store(0, std::memory_order_release);
+        if (runWait || !runDone || !reInvoke) break;
+        rc = realProt->Process(NULL);
+        TRACEP(REQ, "Bridge redrive callback rc="<<rc
+                    <<" runStatus="<<runStatus.load(std::memory_order_acquire));
+        if (rc < 0 || !runStatus.load(std::memory_order_acquire))
+           {reInvoke = false;
+            break;
+           }
+        reInvoke = (rc == 0);
+        if (runError) rc = Fatal(rc);
+      } while((rc >= 0) && !runError && !runWait);
    }
       else rc = Send(kXR_error, ioV, 2, 0);
 
 // Defer the request if need be
 //
-   if (rc >= 0 && runWait) return;
+   if (rc >= 0 && runWait)
+      {waitHelper.UnLock();
+       return;
+      }
    runWTot = 0;
 
-// Indicate we are no longer active
+// Make sure that we indicate that we are no longer active
 //
    runStatus.store(0, std::memory_order_release);
 
@@ -773,10 +812,22 @@ int XrdXrootdTransit::Wait(XrdXrootd::Bridge::Context &rInfo,
 //
    if (runWCall && !(respObj->Wait(rInfo, runWait, eMsg))) return -1;
 
-// All done, schedule the wait
+// Make sure redrive can not yet reset runWait until process or redrive loops
+// have detected it.
 //
+   waitHelper.Lock(&waitMtx);
+
    TRACEP(REQ, "Bridge delaying request " <<runWait <<" sec (" <<eMsg <<")");
+
+// Schedule the wait
+//
    Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
+
+// The process, redrive & recycle rely on a non-zero or positive runWait to
+// indicate wait is scheduled, so make sure that is true.
+//
+   if (runWait <= 0) runWait = 1;
+
    return 0;
 }
 
@@ -811,5 +862,10 @@ int XrdXrootdTransit::WaitResp(XrdXrootd::Bridge::Context &rInfo,
 // Effect a wait
 //
    runWait = -1;
+
+// Make sure AttnCont() can not yet reset runWait until process or redrive
+// loops have detected it.
+//
+   waitHelper.Lock(&waitMtx);
    return 0;
 }
