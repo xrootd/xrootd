@@ -253,11 +253,21 @@ XrdOfsHandle *XrdOfsHandle::Free = 0;
 /******************************************************************************/
 /*                    c l a s s   X r d O f s H a n d l e                     */
 /******************************************************************************/
+
+/******************************************************************************/
+/*        public                A c t i v a t e                               */
+/******************************************************************************/
+void XrdOfsHandle::Activate(XrdOssDF *ssP)
+{
+   ssi = ssP;
+   FinishOpenWithLock(0);
+}
+
 /******************************************************************************/
 /* static public                A l l o c   # 1                               */
 /******************************************************************************/
   
-int XrdOfsHandle::Alloc(const char *thePath, int Opts, XrdOfsHandle **Handle)
+int XrdOfsHandle::Alloc(const char *thePath, int Opts, XrdOfsHandle **Handle, bool &isOpening, bool &sharedOpen, int &openRC)
 {
    XrdOfsHandle *hP;
    XrdOfsHanTab *theTable = (Opts & opRW ? &rwTable : &roTable);
@@ -271,18 +281,49 @@ int XrdOfsHandle::Alloc(const char *thePath, int Opts, XrdOfsHandle **Handle)
 // that a long running operation is occuring. Return the handle to its former
 // state and return a delay. Otherwise, return the handle.
 //
+   sharedOpen = false;
+   isOpening = false;
    myMutex.Lock();
    if ((hP = theTable->Find(theKey)))
+      // There is an existing handle for this path; use that.
       {hP->Path.Links++; myMutex.UnLock();
-       if (hP->WaitLock()) {*Handle = hP; return 0;}
+       std::unique_lock lock(hP->hMutex);
+       *Handle = hP;
+       if (!hP->isOpening())
+          {//OfsEroute.Emsg("Alloc", "File handle open is not pending");
+           return 0;
+          }
+
+       // Let the opening thread know that we are waiting
+       sharedOpen = true;
+       XrdOfsHandleOpenWaiter waiter;
+       waiter.openRC = &openRC;
+       if (hP->FirstWaiter) waiter.NextWaiter = hP->FirstWaiter;
+       hP->FirstWaiter = &waiter;
+
+       // Wait on the signal that the opening thread is finished.
+       if (hP->m_open_cond.wait_until(lock, std::chrono::steady_clock::now() + std::chrono::milliseconds(LockTries*LockWait),
+                                  [&hP](){return !hP->isOpening();}))
+          {hP->FirstWaiter = nullptr; // Clear the first waiter
+           //OfsEroute.Emsg("Alloc", "Signaled that open returned with value", std::to_string(openRC).c_str());
+           return 0;
+          }
+
+       // Handle is still opening, so we return a delay
+       lock.unlock();
        myMutex.Lock(); hP->Path.Links--; myMutex.UnLock();
        return nolokDelay;
       }
 
-// Get a new handle
+// If we are here, then there is no existing handle for this path; we need to
+// allocate a new handle and tell the caller it is responsible for opening it.
 //
+   //OfsEroute.Emsg("Alloc", "Creating a new file handle");
    if (!(retc = Alloc(theKey, Opts, Handle))) theTable->Add(*Handle);
    OfsStats.Add(OfsStats.Data.numHandles);
+   isOpening = true;
+   (*Handle)->FirstWaiter = nullptr;
+   (*Handle)->setOpening(true);
 
 // All done
 //
@@ -326,10 +367,8 @@ int XrdOfsHandle::Alloc(XrdOfsHanKey theKey, int Opts, XrdOfsHandle **Handle)
    if (hP)
       {hP->Path         = theKey;
        hP->Path.Links   = 1;
-       hP->isChanged    = 0;                       // File changed
-       hP->isCompressed = 0;                       // Compression
-       hP->isPending    = 0;                       // Pending output
-       hP->isRW         = (Opts & opPC);           // File mode
+       hP->setPOSC((Opts & opPC) == opPC);         // Indicate file is POSC
+       hP->setRW(Opts & opRW);                     // Indicate file is R/W
        hP->ssi          = ossDF;                   // No storage system yet
        hP->Posc         = 0;                       // No creator
        hP->Lock();                                 // Wait is not possible
@@ -337,6 +376,31 @@ int XrdOfsHandle::Alloc(XrdOfsHanKey theKey, int Opts, XrdOfsHandle **Handle)
        return 0;
       }
    return nomemDelay;                              // Delay client
+}
+
+/******************************************************************************/
+/* public                       F i n i s h O p e n                           */
+/******************************************************************************/
+void XrdOfsHandle::FinishOpen(int retc)
+{
+   std::unique_lock lock(hMutex);
+   FinishOpenWithLock(retc);
+}
+
+/******************************************************************************/
+/* public                       F i n i s h O p e n                           */
+/******************************************************************************/
+void XrdOfsHandle::FinishOpenWithLock(int retc)
+{
+   setOpening(false);
+   auto waiter = FirstWaiter;
+   while (waiter)
+      {// Notify the waiting thread that the open is done
+       if (waiter->openRC) *(waiter->openRC) = retc;
+       waiter = waiter->NextWaiter;
+      }
+
+   m_open_cond.notify_all(); // Notify all waiting threads that we are done
 }
   
 /******************************************************************************/
@@ -469,7 +533,7 @@ int XrdOfsHandle::Retire(int &retc, long long *retsz, char *buff, int blen)
    if (Path.Links == 1)
       {if (buff) strlcpy(buff, Path.Val, blen);
        numLeft = 0; OfsStats.Dec(OfsStats.Data.numHandles);
-       if ( (isRW ? rwTable.Remove(this) : roTable.Remove(this)) )
+       if ( (isRW() ? rwTable.Remove(this) : roTable.Remove(this)) )
          {if (Posc) {Posc->Recycle(); Posc = 0;}
           if (Path.Val) {free((void *)Path.Val); Path.Val = (char *)"";}
           Path.Len = 0; mySSI = ssi; ssi = ossDF;
@@ -589,12 +653,11 @@ void XrdOfsHandle::Suppress(int rrc, int wrc)
 /* public                       W a i t L o c k                               */
 /******************************************************************************/
   
-int XrdOfsHandle::WaitLock(void)
+bool XrdOfsHandle::WaitLock()
 {
 // Try to obtain a lock within the retry parameters
 //
-   if (hMutex.TimedLock(LockTries*LockWait)) return 1;
-   return 0;
+   return hMutex.try_lock_for(std::chrono::milliseconds(LockTries*LockWait));
 }
 
 /******************************************************************************/
