@@ -48,7 +48,7 @@ public:
        void Start(XrdSysSemaphore *syncp, int &rc);
 
             XrdPollE(struct epoll_event *ptab, int numfd, int pfd, int wfd)
-                    : WaitFdSem(0)
+                    : WaitFdSem(0), WaitFdSem2(0)
                       {PollTab = ptab; PollMax = numfd; PollDfd = pfd;
                        WaitFd = wfd;
                       }
@@ -79,5 +79,6 @@ struct epoll_event *PollTab;
        int          PollMax;
        int          WaitFd;
 XrdSysSemaphore     WaitFdSem;
+XrdSysSemaphore     WaitFdSem2;
 };
 #endif
