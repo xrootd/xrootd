@@ -163,7 +163,8 @@ void          SetWait(int wtime, bool notify=false)
                                    respJob(this, &XrdXrootdTransit::Proceed,
                                            "Transit proceed"),
                                    waitJob(this, &XrdXrootdTransit::Redrive,
-                                           "Transit redrive")
+                                           "Transit redrive"),
+                                   waitCnd(0)
                                  {}
 virtual      ~XrdXrootdTransit() {}
 
@@ -224,5 +225,8 @@ int                          wBLen;
 char                        *wBuff;
 const char                  *pName;
 time_t                       cTime;
+// condition variable protecting waitPend and indirectly runWait
+XrdSysCondVar                waitCnd;
+bool                         waitPend;
 };
 #endif
