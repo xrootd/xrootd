@@ -24,23 +24,23 @@
 
 #include <sstream>
 
-std::string XrdHttpTpcUtils::prepareOpenURL(const std::string & reqResource, std::map<std::string,std::string> & reqHeaders, const std::map<std::string,std::string> & hdr2cgimap) {
-  auto iter = XrdOucTUtils::caseInsensitiveFind(reqHeaders,"xrd-http-query");
+std::string XrdHttpTpcUtils::prepareOpenURL(PrepareOpenURLParams & params) {
+  auto iter = XrdOucTUtils::caseInsensitiveFind(params.reqHeaders,"xrd-http-query");
   std::stringstream opaque;
 
   // https://github.com/xrootd/xrootd/issues/2427 we tell the oss layer that this transfer is a HTTP TPC one
   opaque << "?" << TPC::TPCHandler::OSS_TASK_OPAQUE;
 
-  if (iter != reqHeaders.end() && !iter->second.empty()) {
+  if (iter != params.reqHeaders.end() && !iter->second.empty()) {
     std::string token;
     std::istringstream requestStream(iter->second);
-    auto has_authz_header = XrdOucTUtils::caseInsensitiveFind(reqHeaders,"authorization") != reqHeaders.end();
+    auto has_authz_header = XrdOucTUtils::caseInsensitiveFind(params.reqHeaders,"authorization") != params.reqHeaders.end();
     while (std::getline(requestStream, token, '&')) {
       if (token.empty()) {
         continue;
       } else if (!strncmp(token.c_str(), "authz=", 6)) {
         if (!has_authz_header) {
-          reqHeaders["Authorization"] = token.substr(6);
+          params.reqHeaders["Authorization"] = token.substr(6);
           has_authz_header = true;
         }
       } else {
@@ -50,14 +50,22 @@ std::string XrdHttpTpcUtils::prepareOpenURL(const std::string & reqResource, std
   }
 
   // Append CGI coming from the tpc.header2cgi parameter
-  for(auto & hdr2cgi : hdr2cgimap) {
-    auto it = std::find_if(reqHeaders.begin(),reqHeaders.end(),[&hdr2cgi](const auto & elt){
+  for(auto & hdr2cgi : params.hdr2cgimap) {
+    auto it = std::find_if(params.reqHeaders.begin(),params.reqHeaders.end(),[&hdr2cgi](const auto & elt){
       return !strcasecmp(elt.first.c_str(),hdr2cgi.first.c_str());
     });
-    if(it != reqHeaders.end()) {
+    if(it != params.reqHeaders.end()) {
       opaque << "&" << hdr2cgi.second << "=" << it->second;
     }
   }
 
-  return reqResource + opaque.str();
+  // Append CGI coming from repr-digest header
+  if(!params.reprDigest.empty()) {
+    // We take the first alphabetically ordered Repr-Digest
+    const auto & [digestName,digestValue] = *params.reprDigest.begin();
+    opaque << "&cks.type=" << digestName << "&cks.value=" << digestValue;
+  }
+
+
+  return params.reqResource + opaque.str();
 }

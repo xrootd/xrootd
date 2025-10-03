@@ -32,6 +32,19 @@ namespace TPC {
 
 class XrdHttpTpcUtils {
 public:
+  struct PrepareOpenURLParams {
+    PrepareOpenURLParams(const std::string & reqResourceParm,
+                         std::map<std::string,std::string> & reqHeadersParm,
+                         const std::map<std::string,std::string> & hdr2cgimapParm,
+                         const std::map<std::string,std::string> & reprDigestParm):
+      reqResource(reqResourceParm),reqHeaders(reqHeadersParm),hdr2cgimap(hdr2cgimapParm),reprDigest(reprDigestParm){}
+
+    const std::string & reqResource;
+    std::map<std::string,std::string> & reqHeaders;
+    const std::map<std::string,std::string> & hdr2cgimap;
+    const std::map<std::string,std::string> & reprDigest;
+  };
+
   /**
    * Prepares the file XRootD open URL from the request resource, the xrd-http-query header of the HTTP request and the hdr2cgi map passed in parameter
    *
@@ -50,7 +63,7 @@ public:
    * @param hdr2cgimap the map containing header keys --> XRootD cgi mapping
    * @return the XRootD open URL that will contain at least one opaque parameter (oss.task)
    */
-  static std::string prepareOpenURL(const std::string & reqResource, std::map<std::string,std::string> & reqHeaders, const std::map<std::string,std::string> & hdr2cgimap);
+  static std::string prepareOpenURL(PrepareOpenURLParams & params);
 };
 
 

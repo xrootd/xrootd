@@ -28,6 +28,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <cstdint>
 
 /**
  * Implementation class of the XrdHttpChecksumHandler
@@ -42,7 +43,8 @@ public:
     XrdHttpChecksumHandlerImpl() = default;
 
     void configure(const char * csList);
-    XrdHttpChecksumRawPtr getChecksumToRun(const std::string & userDigest) const;
+    XrdHttpChecksumRawPtr getChecksumToRunWantDigest(const std::string & wantDigest) const;
+    XrdHttpChecksumRawPtr getChecksumToRunWantReprDigest(const std::map<std::string,uint8_t> & wantReprDigest) const;
     const std::vector<std::string> & getNonIANAConfiguredCksums() const;
     /**
      * For testing purposes
@@ -95,13 +97,23 @@ public:
     void configure(const char * csList) { pImpl.configure(csList); }
     /**
      * Returns the checksum to run from the user "Want-Digest" provided string
-     * @param userDigest the digest string under the format "sha-512,sha-256;q=0.8,sha;q=0.6,md5;q=0.4,adler32;q=0.2"
+     * @param wantDigest the digest string under the format "sha-512,sha-256;q=0.8,sha;q=0.6,md5;q=0.4,adler32;q=0.2"
      * @return the checksum to run depending on the userDigest provided string
      * The logic behind it is simple: returns the first userDigest provided that matches the one configured.
      * If none is matched, the first algorithm configured on the server side will be returned.
      * If no HTTP-IANA compatible checksum algorithm has been configured or NO checksum algorithm have been configured, nullptr will be returned.
      */
-    XrdHttpChecksumRawPtr getChecksumToRun(const std::string & userDigest) const { return pImpl.getChecksumToRun(userDigest); }
+    XrdHttpChecksumRawPtr getChecksumToRunWantDigest(const std::string & wantDigest) const { return pImpl.getChecksumToRunWantDigest(wantDigest); }
+
+    /**
+     * Returns the checksum to run from the user "Want-Repr-Digest" header provided values (already parsed in a map <digestName, preference>)
+     * @param wantReprDigest the map containing the user want-repr-digest values
+     * @return the checksum to run depending on the map in parameter.
+     * If the map contains checksums that are not configured on the server, it will return the first configured checksum on the server.
+     * If multiple configured checksums are configured and multiple checksums are requested, it will return the one with the highest preference.
+     * If same preference, the checksum returned will be the first one of the alphabetically ordered configured checksum
+     */
+    XrdHttpChecksumRawPtr getChecksumToRunWantReprDigest(const std::map<std::string,uint8_t> & wantReprDigest) const { return pImpl.getChecksumToRunWantReprDigest(wantReprDigest); }
 
     /**
      * Returns the checksums that are incompatible with HTTP --> the ones that
