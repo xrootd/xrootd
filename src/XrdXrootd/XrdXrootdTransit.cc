@@ -120,6 +120,15 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
 {
    int rc;
 
+// we ensure waitPend has been cleared. This is to allow the process or
+// redrive loops to have taken the correct action before we zero the
+// runWait value.
+//
+   {
+     XrdSysCondVarHelper clk(waitCnd);
+     while(waitPend) waitCnd.Wait();
+   }
+
 // Refresh the request structure
 //
    memcpy(&Request, &(tP->Pend.Request), sizeof(Request));
@@ -130,7 +139,8 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
 //
    if (rcode==kXR_wait
    &&  (!ioN || XRD_GETNUM(ioV[0].iov_base) == 0))
-      {Sched->Schedule((XrdJob *)&waitJob);
+      {// we don't set waitPend as the job can start straight away
+       Sched->Schedule((XrdJob *)&waitJob);
        return 0;
       }
 
@@ -140,10 +150,17 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
 
 // Handle end based on current state
 //
-   if (rc >= 0 && !runWait)
+   if (rc < 0) return rc;
+
+   if (!runWait)
       {if (runDone) runStatus.store(0, std::memory_order_release);
        if (reInvoke) Sched->Schedule((XrdJob *)&respJob);
            else Link->Enable();
+      }
+   else
+      {XrdSysCondVarHelper clk(waitCnd);
+       waitPend = false;
+       waitCnd.Broadcast();
       }
 
 // All done
@@ -171,6 +188,15 @@ bool XrdXrootdTransit::Disc()
 //
    sprintf(buff, "%s disconnection", pName);
    XrdXrootdProtocol::Recycle(Link, time(0)-cTime, buff);
+
+// Make sure that any pending wait jobs can exit
+//
+   {
+     XrdSysCondVarHelper clk(waitCnd);
+     waitPend = false;
+     runWait = 0;
+     waitCnd.Broadcast();
+   }
 
 // Now just free up our object.
 //
@@ -237,6 +263,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    runWCall  = false;
    runDone   = false;
    reInvoke  = false;
+   waitPend  = false;
    wBuff     = 0;
    wBLen     = 0;
    respObj   = respP;
@@ -366,9 +393,14 @@ do{rc = realProt->Process((reInvoke ? 0 : lp));
           else {runDone = false;
                 rc = (Resume ? XrdXrootdProtocol::Process(lp) : Process2());
                 if (rc >= 0)
-                   {if (runWait) rc = -EINPROGRESS;
+                   {if (runDone) runStatus.store(0, std::memory_order_release);
+                    if (runWait)
+                       {XrdSysCondVarHelper clk(waitCnd);
+                        waitPend = false;
+                        waitCnd.Broadcast();
+                        return -EINPROGRESS;
+                       }
                     if (!runDone) return rc;
-                    runStatus.store(0, std::memory_order_release);
                    }
                }
       } else reInvoke = false;
@@ -419,6 +451,15 @@ void XrdXrootdTransit::Recycle(XrdLink *lp, int consec, const char *reason)
 //
    XrdXrootdTransPend::Clear(this);
 
+// Make sure that any pending wait jobs can exit
+//
+   {
+     XrdSysCondVarHelper clk(waitCnd);
+     waitPend = false;
+     runWait = 0;
+     waitCnd.Broadcast();
+   }
+
 // Now just free up our object.
 //
    TranStack.Push(&TranLink);
@@ -435,6 +476,15 @@ void XrdXrootdTransit::Redrive()
    static struct iovec ioV[] = {{(char *)&eCode,sizeof(eCode)},
                                 {(char *)&eText,sizeof(eText)}};
    int rc;
+
+// we ensure waitPend has been cleared. This is to allow the process or
+// redrive loops to have taken the correct action before we zero the
+// runWait value.
+//
+   {
+     XrdSysCondVarHelper clk(waitCnd);
+     while(waitPend) waitCnd.Wait();
+   }
 
 // Do some tracing
 //
@@ -457,21 +507,34 @@ void XrdXrootdTransit::Redrive()
 // so all we need to do is honor it here.
 //
    if (!runALen || RunCopy(runArgs, runALen)) {
-      do{rc = Process2();
+      do{runDone = false;
+         rc = Process2();
          TRACEP(REQ, "Bridge redrive Process2 rc="<<rc
                      <<" runError="<<runError<<" runWait="<<runWait);
-        if (rc == 0 && !runWait && !runError) {
-          rc = realProt->Process(NULL);
-          TRACEP(REQ, "Bridge redrive callback rc="<<rc
-                      <<" runStatus="<<runStatus.load(std::memory_order_acquire));
-        }
-      } while((rc == 0) && !runError && !runWait);
+        if (rc < 0) break;
+        if (runDone) runStatus.store(0, std::memory_order_release);
+        if (runWait || !runDone || !reInvoke) break;
+        rc = realProt->Process(NULL);
+        TRACEP(REQ, "Bridge redrive callback rc="<<rc
+                    <<" runStatus="<<runStatus.load(std::memory_order_acquire));
+        if (rc < 0 || !runStatus.load(std::memory_order_acquire))
+           {reInvoke = false;
+            break;
+           }
+        reInvoke = (rc == 0);
+        if (runError) rc = Fatal(rc);
+      } while((rc >= 0) && !runError && !runWait);
    }
       else rc = Send(kXR_error, ioV, 2, 0);
 
 // Defer the request if need be
 //
-   if (rc >= 0 && runWait) return;
+   if (rc >= 0 && runWait)
+      {XrdSysCondVarHelper clk(waitCnd);
+       waitPend = false;
+       waitCnd.Broadcast();
+       return;
+      }
    runWTot = 0;
 
 // Indicate we are no longer active
@@ -773,10 +836,22 @@ int XrdXrootdTransit::Wait(XrdXrootd::Bridge::Context &rInfo,
 //
    if (runWCall && !(respObj->Wait(rInfo, runWait, eMsg))) return -1;
 
+// The process, redrive & recycle rely on a non-zero or positive
+// runWait to indicate wait is scheduled, so make sure that is true.
+//
+   if (runWait <= 0) runWait = 1;
+
+   TRACEP(REQ, "Bridge delaying request " <<runWait <<" sec (" <<eMsg <<")");
+
+// Delay processing (and thus clearing runWait) until the process or redrive
+// loops can detect that we are waiting
+//
+   waitPend = true;
+
 // All done, schedule the wait
 //
-   TRACEP(REQ, "Bridge delaying request " <<runWait <<" sec (" <<eMsg <<")");
    Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
+
    return 0;
 }
 
@@ -811,5 +886,11 @@ int XrdXrootdTransit::WaitResp(XrdXrootd::Bridge::Context &rInfo,
 // Effect a wait
 //
    runWait = -1;
+
+// Delay processing (and thus clearing runWait) until the process or redrive
+// loops can detect that we are waiting
+//
+   waitPend = true;
+
    return 0;
 }
