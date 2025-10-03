@@ -232,6 +232,7 @@ void XrdPollE::HandleWaitFd(const unsigned int events)
       }
 
    for (ic=0;ic<cnt;++ic) WaitFdSem.Post();
+   for (ic=0;ic<cnt;++ic) WaitFdSem2.Wait();
 }
 
 /******************************************************************************/
@@ -371,6 +372,7 @@ void XrdPollE::Wait4Poller()
       }
 
    WaitFdSem.Wait();
+   WaitFdSem2.Post();
 }
 
 /******************************************************************************/
