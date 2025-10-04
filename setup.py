@@ -36,7 +36,7 @@ def get_version():
 
     if version is None:
         from datetime import date
-        version = '5.8-rc' + date.today().strftime("%Y%m%d")
+        version = '5.9-rc' + date.today().strftime("%Y%m%d")
 
     if version.startswith('v'):
         version = version[1:]

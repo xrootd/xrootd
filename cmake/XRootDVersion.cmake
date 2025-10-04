@@ -52,7 +52,7 @@ else()
   message(WARNING "Failed to determine XRootD version, using a timestamp as fallback."
     "You can override this by setting -DXRootD_VERSION_STRING=x.y.z during configuration.")
   set(XRootD_VERSION_MAJOR 5)
-  set(XRootD_VERSION_MINOR 8)
+  set(XRootD_VERSION_MINOR 9)
   set(XRootD_VERSION_PATCH 0)
   set(XRootD_VERSION_TWEAK 0)
   set(XRootD_VERSION_NUMBER 1000000)

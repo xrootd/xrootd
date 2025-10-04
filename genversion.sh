@@ -31,7 +31,7 @@ elif [[ -r "${VF}" ]] && grep -vq "Format:" "${VF}"; then
 elif git -C "${SRC}" describe --match 'v*' >/dev/null 2>&1; then
 	VERSION="$(git -C "${SRC}" describe --match 'v*' | sed -e 's/-g/+git/')"
 else
-	VERSION="v5.8-rc$(date +%Y%m%d)"
+	VERSION="v5.9-rc$(date +%Y%m%d)"
 fi
 
 while [[ $# -gt 0 ]]; do
