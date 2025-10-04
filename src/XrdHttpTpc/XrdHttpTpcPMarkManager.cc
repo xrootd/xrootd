@@ -32,7 +32,11 @@ PMarkManager::SocketInfo::SocketInfo(int fd, const struct sockaddr * sockP) {
   client.addrInfo = static_cast<XrdNetAddrInfo*>(&netAddr);
 }
 
-PMarkManager::PMarkManager(XrdHttpExtReq & req, TPC::TpcType tpcType) : mPmark(req.pmark), mReq(req), mTransferWillStart(false), mTpcType(tpcType) {}
+PMarkManager::PMarkManager(XrdHttpExtReq &req, TPC::TpcType tpcType)
+    : mPmark(req.pmark), mSciTag(req.mSciTag), mResource(req.resource.c_str()), mTransferWillStart(false), mTpcType(tpcType) {}
+
+PMarkManager::PMarkManager(XrdNetPMark *pmark, int sciTag, const TPC::TpcType tpcType)
+    : mPmark(pmark), mSciTag(sciTag), mResource(NULL), mTransferWillStart(false), mTpcType(tpcType) {}
 
 void PMarkManager::addFd(int fd, const struct sockaddr * sockP) {
   if(isEnabled() && mTransferWillStart) {
@@ -56,7 +60,7 @@ bool PMarkManager::connect(int fd, const struct sockaddr *sockP, size_t sockPLen
 }
 
 bool PMarkManager::isEnabled() const {
-  return mPmark && (mReq.mSciTag >= 0);
+  return mPmark && (mSciTag >= 0);
 }
 
 void PMarkManager::startTransfer() {
@@ -71,7 +75,7 @@ void PMarkManager::beginPMarks() {
   if(mPmarkHandles.empty()) {
     // Create the first pmark handle
     std::stringstream ss;
-    ss << "scitag.flow=" << mReq.mSciTag
+    ss << "scitag.flow=" << mSciTag
     // One has to consider that this server is the client side of a normal HTTP PUT/GET. But unlike normal HTTP PUT and GET requests where clients
     // do not emit a firefly, this server WILL emit a firefly.
     //
@@ -85,7 +89,7 @@ void PMarkManager::beginPMarks() {
     // that I do on behalf of the remote server... Hence why if the tpc transfer is Push, the pmark.appname will be equal to http-get.
     << "&" << "pmark.appname=" << ((mTpcType == TPC::TpcType::Pull) ? "http-put" : "http-get");
     SocketInfo & sockInfo = mSocketInfos.front();
-    auto pmark = mPmark->Begin(sockInfo.client, mReq.resource.c_str(), ss.str().c_str(), "http-tpc");
+    auto pmark = mPmark->Begin(sockInfo.client, mResource, ss.str().c_str(), "http-tpc");
     if(!pmark) {
       return;
     }
