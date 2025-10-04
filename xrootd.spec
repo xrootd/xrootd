@@ -16,11 +16,11 @@ License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AN
 URL:		https://xrootd.org
 
 %if !%{with git}
-Version:	5.8.4
+Version:	5.9.0
 Source0:	https://xrootd.web.cern.ch/download/v%{version}/%{name}-%{version}.tar.gz
 %else
 %define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
-%define src_version %(sed -e "s/%%(describe)/v5.8-rc%(date +%%Y%%m%%d)/" <<< "%git_version")
+%define src_version %(sed -e "s/%%(describe)/v5.9-rc%(date +%%Y%%m%%d)/" <<< "%git_version")
 %define rpm_version %(sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./' <<< "%src_version")
 Version:	%rpm_version
 Source0:	%{name}.tar.gz
@@ -703,6 +703,9 @@ fi
 %endif
 
 %changelog
+
+* Sat Oct 04 2025 Guilherme Amadio <amadio@cern.ch> - 1:5.9.0-1
+- XRootD 5.9.0
 
 * Thu Jul 10 2025 Guilherme Amadio <amadio@cern.ch> - 1:5.8.4-1
 - XRootD 5.8.4
