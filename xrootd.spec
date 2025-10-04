@@ -843,4 +843,4 @@ fi
 * Mon Apr 11 2011 Lukasz Janyst <ljanyst@cern.ch> 3.0.3-1
 - the first RPM release - version 3.0.3
 - the detailed release notes are available at:
-  http://xrootd.org/download/ReleaseNotes.html
+  https://xrootd.org/download/ReleaseNotes.html

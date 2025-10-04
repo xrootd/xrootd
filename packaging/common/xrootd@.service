@@ -1,7 +1,7 @@
 [Unit]
 Description=XRootD xrootd daemon instance %I
 Documentation=man:xrootd(8)
-Documentation=http://xrootd.org/docs.html
+Documentation=https://xrootd.org/docs.html
 Requires=network-online.target
 After=network-online.target
 

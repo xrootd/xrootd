@@ -13,7 +13,7 @@ There are two options to report a security vulnerability in XRootD:
 
  - Directly on GitHub, at https://github.com/xrootd/xrootd/security
  - Via email, to the responsible people listed in our website at
-   http://xrootd.org/contact.html
+   https://xrootd.org/contact.html
 
 Please include in your report a description of the vulnerability, along
 with the details expected for regular bug reports, such as the affected
