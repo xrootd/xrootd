@@ -987,6 +987,7 @@ struct ServerResponseBody_ChkPoint { // Only for kXR_ckpQMax
 /******************************************************************************/
 
 enum XErrorCode {
+   kXR_ErrCodeBase =       3000,
    kXR_ArgInvalid =        3000,
    kXR_ArgMissing,      // 3001
    kXR_ArgTooLong,      // 3002

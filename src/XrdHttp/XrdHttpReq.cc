@@ -837,63 +837,18 @@ void XrdHttpReq::generateWebdavErrMsg() {
     return;
   }
 
-  // default error
+  // Start from default mapping
   httpStatusCode = mapXrdErrToHttp(xrderrcode);
 
-  switch (request) {
-    case XrdHttpReq::rtUnset:
-    case XrdHttpReq::rtMalformed:
-    case XrdHttpReq::rtUnknown:{
-      httpStatusCode = 400;
-      break;
-    }
-
-    case XrdHttpReq::rtPUT: {
-      if (xrdOperation == kXR_open) {
-        if (xrderrcode == kXR_isDirectory) {
-          httpStatusCode = 409;
-          httpErrorCode = "8.1";
-        } else if (xrderrcode == kXR_NoSpace) {
-          httpStatusCode = 507;
-          httpErrorCode = "8.3.1";
-        } else if (xrderrcode == kXR_overQuota) {
-          httpStatusCode = 507;
-          httpErrorCode = "8.3.2";
-        } else if (xrderrcode == kXR_NotAuthorized) {
-          httpStatusCode = 403;
-          httpErrorCode = "9.3";
-        }
-      } else if (xrdOperation == kXR_write) {
-        if (xrderrcode == kXR_NoSpace) {
-          httpStatusCode = 507;
-          httpErrorCode = "8.4.1";
-        } else if (xrderrcode == kXR_overQuota) {
-          httpStatusCode = 507;
-          httpErrorCode = "8.4.2";
-        }
-      }
-      break;
-    }
-    case XrdHttpReq::rtGET: {
-      if (xrdOperation == kXR_open) {
-        if (xrderrcode == kXR_NotFound) {
-          httpStatusCode = 404;
-          httpErrorCode = "3.1";
-        }
-      }
-      break;
-    }
-    default:
-      httpStatusCode = mapXrdErrToHttp(xrderrcode);
-  }
-
-  // Remove the if at the end of project completion
-  // Till then status text defaults to as set by mapXrdResponseToHttpStatus
-  if (httpErrorCode != "") {
+  // Override from table if present
+  if (const auto *entry = prot->lookupWebdavError(request, xrdOperation, xrderrcode)) {
+    httpStatusCode = entry->httpStatus;
+    httpErrorCode = entry->httpErrorCode;
     httpErrorBody = "ERROR: " + httpErrorCode + ": " + etext + "\n";
-  } else {
-    httpErrorBody = etext;  // old format
+    return;
   }
+
+  httpErrorBody = etext; // fallback to old format
 }
 
 int XrdHttpReq::ProcessHTTPReq() {

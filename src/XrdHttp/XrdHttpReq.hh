@@ -91,7 +91,8 @@ public:
     rtPROPFIND,
     rtMKCOL,
     rtMOVE,
-    rtPOST
+    rtPOST,
+    rtCount
   };
 
 private:
