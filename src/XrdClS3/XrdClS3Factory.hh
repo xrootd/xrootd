@@ -50,10 +50,10 @@ public:
     static bool GenerateHttpUrl(const std::string &s3_url, std::string &https_url, std::string *obj_result, std::string &err_msg);
 
     // Convenience function to extract the hostname from a URL.
-    static std::string_view ExtractHostname(const std::string_view &url);
+    static std::string_view ExtractHostname(const std::string_view url);
 
     // Convenience function to trim the leading and trailing whitespace from a string.
-    static std::string_view TrimView(const std::string_view &str);
+    static std::string_view TrimView(const std::string_view str);
 
 
     // Generate a V4 signature for the given HTTP URL, returning the

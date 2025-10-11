@@ -1,6 +1,16 @@
 
 set(XrdClS3 "XrdClS3-${PLUGIN_VERSION}")
 
+if( FORCE_ENABLED )
+  find_package( CURL 7.9.6 REQUIRED )
+else()
+  find_package( CURL 7.9.6 )
+endif()
+
+if( NOT CURL_FOUND )
+  return()
+endif()
+
 add_library( XrdClS3Obj OBJECT
   XrdClS3DownloadHandler.cc XrdClS3DownloadHandler.hh
   XrdClS3Factory.cc         XrdClS3Factory.hh

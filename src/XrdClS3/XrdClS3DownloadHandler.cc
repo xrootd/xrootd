@@ -19,6 +19,8 @@
 #include "XrdClS3DownloadHandler.hh"
 #include "XrdClS3Filesystem.hh"
 
+#include <XrdCl/XrdClConstants.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClFile.hh>
 
 #include <charconv>
@@ -30,7 +32,14 @@ namespace {
 class S3DownloadHandler : public XrdCl::ResponseHandler {
 public:
     S3DownloadHandler(std::unique_ptr<XrdCl::File> file, XrdCl::ResponseHandler *handler, Filesystem::timeout_t timeout)
-        : m_expiry(time(NULL) + (timeout ? timeout : 30)), m_file(std::move(file)), m_handler(handler), m_buffer(new XrdCl::Buffer(kReadSize)) {}
+        : m_expiry(time(NULL) + timeout), m_file(std::move(file)), m_handler(handler), m_buffer(new XrdCl::Buffer(kReadSize))
+    {
+        if (timeout == 0) {
+            auto val = XrdCl::DefaultRequestTimeout;
+            XrdCl::DefaultEnv::GetEnv()->GetInt( "RequestTimeout", val );
+            m_expiry += val;
+        }
+    }
 
     virtual ~S3DownloadHandler() noexcept = default;
 
@@ -54,36 +63,37 @@ private:
 
     class ReadHandler : public XrdCl::ResponseHandler {
     public:
-        ReadHandler(S3DownloadHandler *parent) : m_parent(parent) {}
+        ReadHandler(std::unique_ptr<S3DownloadHandler> parent) : m_parent(std::move(parent)) {}
         virtual ~ReadHandler() noexcept = default;
 
         virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) override;
     private:
-        S3DownloadHandler *m_parent; // Pointer to the parent handler to access its members
+        std::unique_ptr<S3DownloadHandler> m_parent; // Pointer to the parent handler to access its members
     };
 
     class CloseHandler : public XrdCl::ResponseHandler {
     public:
-        CloseHandler(S3DownloadHandler *parent, XrdCl::XRootDStatus *status) : m_parent(parent), m_read_status(status) {}
+        CloseHandler(std::unique_ptr<S3DownloadHandler> parent, std::unique_ptr<XrdCl::XRootDStatus> status) : m_parent(std::move(parent)), m_read_status(std::move(status)) {}
         virtual ~CloseHandler() noexcept = default;
 
         virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) override;
 
     private:
-        S3DownloadHandler *m_parent; // Pointer to the parent handler to access its members
-        XrdCl::XRootDStatus *m_read_status; // Status from the read operation; if nullptr, the read was successful
+        std::unique_ptr<S3DownloadHandler> m_parent; // Pointer to the parent handler to access its members
+        std::unique_ptr<XrdCl::XRootDStatus> m_read_status; // Status from the read operation; if nullptr, the read was successful
     };
 };
 
 void
-S3DownloadHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response)
+S3DownloadHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *response_raw)
 {
     std::unique_ptr<S3DownloadHandler> self(this);
+    std::unique_ptr<XrdCl::XRootDStatus> status(status_raw);
+    std::unique_ptr<XrdCl::AnyObject> response(response_raw);
 
     // If the open failed, we pass the status up the chain.
     if (!status || !status->IsOK()) {
-        if (m_handler) m_handler->HandleResponse(status, response);
-        else {delete response; delete status; }
+        if (m_handler) m_handler->HandleResponse(status.release(), response.release());
         return;
     }
     auto [timeout, ok] = GetTimeout();
@@ -92,33 +102,31 @@ S3DownloadHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject 
         if (m_handler) {
             m_handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOperationExpired, 0, "Download operation timed out"), nullptr);
         }
-        delete response;
-        delete status;
         return;
     }
 
     // Open succeeded, so we can now read the file.
-    auto st = m_file->Read(0, S3DownloadHandler::kReadSize, m_buffer->GetBufferAtCursor(), new ReadHandler(this), timeout);
+    auto st = m_file->Read(0, S3DownloadHandler::kReadSize, m_buffer->GetBufferAtCursor(), new ReadHandler(std::move(self)), timeout);
     if (!st.IsOK()) {
         // If the read request failed, we close the file and return the error.
-        CloseHandler *closeHandler = new CloseHandler(self.release(), new XrdCl::XRootDStatus(st));
-        auto close_st = m_file->Close(closeHandler, timeout);
-        if (!close_st.IsOK()) {
+        std::unique_ptr<CloseHandler> closeHandler(new CloseHandler(std::move(self), std::unique_ptr<XrdCl::XRootDStatus>(new XrdCl::XRootDStatus(st))));
+        auto close_st = m_file->Close(closeHandler.get(), timeout);
+        if (close_st.IsOK()) {
+            closeHandler.release(); // The close handler now owns itself
+        } else {
             if (m_handler) {
                 m_handler->HandleResponse(new XrdCl::XRootDStatus(close_st), nullptr);
             }
-            delete this; // Clean up the handler
         }
         return;
     }
-    self.release();
-    delete response;
-    delete status;
 }
 
 void
-S3DownloadHandler::ReadHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
+S3DownloadHandler::ReadHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *response_raw) {
     std::unique_ptr<ReadHandler> self(this);
+    std::unique_ptr<XrdCl::XRootDStatus> status(status_raw);
+    std::unique_ptr<XrdCl::AnyObject> response(response_raw);
 
     auto [timeout, ok] = m_parent->GetTimeout();
     if (!ok) {
@@ -126,36 +134,33 @@ S3DownloadHandler::ReadHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdC
         if (m_parent->m_handler) {
             m_parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOperationExpired, 0, "Download operation timed out"), nullptr);
         }
-        delete response;
-        delete status;
         return;
     }
 
     if (!status || !status->IsOK()) {
-        CloseHandler *closeHandler = new CloseHandler(m_parent, status);
-        auto st = m_parent->m_file->Close(closeHandler, timeout);
-        if (!st.IsOK()) {
-            if (m_parent->m_handler) {
-                m_parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
-            }
-            delete m_parent;
+        auto parent = m_parent.get();
+        std::unique_ptr<CloseHandler> closeHandler(new CloseHandler(std::move(m_parent), std::move(status)));
+        auto st = parent->m_file->Close(closeHandler.get(), timeout);
+        if (st.IsOK()) {
+            closeHandler.release();
+        } else if (parent->m_handler) {
+            parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
         }
         return;
     }
-    delete status;
 
     XrdCl::ChunkInfo *chunkInfo = nullptr;
     response->Get(chunkInfo);
     if (!chunkInfo) {
-        delete response;
         // If we didn't get a chunk, we can close the file and return.
-        CloseHandler *closeHandler = new CloseHandler(m_parent, new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInternal, 0, "No chunk info received"));
-        auto st = m_parent->m_file->Close(closeHandler, timeout);
-        if (!st.IsOK()) {
-            if (m_parent->m_handler) {
-                m_parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
-            }
-            delete m_parent;
+        auto parent = m_parent.get();
+        std::unique_ptr<CloseHandler> closeHandler(new CloseHandler(std::move(m_parent),
+            std::unique_ptr<XrdCl::XRootDStatus>(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInternal, 0, "No chunk info received"))));
+        auto st = parent->m_file->Close(closeHandler.get(), timeout);
+        if (st.IsOK()) {
+            closeHandler.release();
+        } else if (parent->m_handler) {
+            parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
         }
         return;
     }
@@ -164,15 +169,14 @@ S3DownloadHandler::ReadHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdC
     // we can close the file and return.
     if (chunkInfo->GetLength() == 0) {
         m_parent->m_buffer->ReAllocate(m_parent->m_buffer->GetCursor());
-        CloseHandler *closeHandler = new CloseHandler(m_parent, nullptr);
-        auto st = m_parent->m_file->Close(closeHandler, timeout);
-        if (!st.IsOK()) {
-            if (m_parent->m_handler) {
-                m_parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
-            }
-            delete m_parent;
+        auto parent = m_parent.get();
+        std::unique_ptr<CloseHandler> closeHandler(new CloseHandler(std::move(m_parent), nullptr));
+        auto st = parent->m_file->Close(closeHandler.get(), timeout);
+        if (st.IsOK()) {
+            closeHandler.release();
+        } else if (parent->m_handler) {
+            parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
         }
-        delete response;
         return;
     }
 
@@ -180,56 +184,46 @@ S3DownloadHandler::ReadHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdC
     m_parent->m_buffer->AdvanceCursor(chunkInfo->GetLength());
     m_parent->m_buffer->ReAllocate(m_parent->m_buffer->GetCursor() + S3DownloadHandler::kReadSize);
     auto st = m_parent->m_file->Read(m_parent->m_buffer->GetCursor(), kReadSize, m_parent->m_buffer->GetBufferAtCursor(), self.release(), timeout);
-    delete response;
     if (!st.IsOK()) {
         // If the read request failed, close or delete the parent handler.
-        CloseHandler *closeHandler = new CloseHandler(m_parent, nullptr);
-        auto close_st = m_parent->m_file->Close(closeHandler, timeout);
-        if (!close_st.IsOK()) {
-            if (m_parent->m_handler) {
-                m_parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(close_st), nullptr);
-            }
-            delete m_parent;
+        auto parent = m_parent.get();
+        std::unique_ptr<CloseHandler> closeHandler(new CloseHandler(std::move(m_parent), nullptr));
+        auto close_st = parent->m_file->Close(closeHandler.get(), timeout);
+        if (close_st.IsOK()) {
+            closeHandler.release();
+        } else if (parent->m_handler) {
+            parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(close_st), nullptr);
         }
     }
 }
 
 void
-S3DownloadHandler::CloseHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
+S3DownloadHandler::CloseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *response_raw) {
     std::unique_ptr<CloseHandler> self(this);
-    std::unique_ptr<S3DownloadHandler> parent(m_parent);
+    std::unique_ptr<XrdCl::XRootDStatus> status(status_raw);
+    std::unique_ptr<XrdCl::AnyObject> response(response_raw);
 
     // If there was a read error, then we report that to the handler and ignore the close status.
     if (m_read_status) {
-        delete response;
-        delete status;
         // If we had a read status, we pass it up the chain.
         if (m_parent->m_handler) {
-            m_parent->m_handler->HandleResponse(m_read_status, nullptr);
-        } else {
-            delete m_read_status;
+            m_parent->m_handler->HandleResponse(m_read_status.release(), nullptr);
         }
         return;
     }
 
     if (!status || !status->IsOK()) {
-        delete response;
         if (m_parent->m_handler) {
-            m_parent->m_handler->HandleResponse(status, nullptr);
-        } else {
-            delete status;
+            m_parent->m_handler->HandleResponse(status.release(), nullptr);
         }
         return;
     }
 
     // If the close was successful, we can pass the buffer to the handler.
-    delete response;
-    response = new XrdCl::AnyObject();
+    response.reset(new XrdCl::AnyObject());
     response->Set(m_parent->m_buffer.release(), true); // Take ownership of the buffer
     if (m_parent->m_handler) {
-        m_parent->m_handler->HandleResponse(status, response);
-    } else {
-        delete response;
+        m_parent->m_handler->HandleResponse(status.release(), response.release());
     }
 }
 
