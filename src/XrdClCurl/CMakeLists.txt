@@ -1,6 +1,16 @@
 
 set(XrdClCurl "XrdClCurl-${PLUGIN_VERSION}")
 
+if( FORCE_ENABLED )
+  find_package( CURL 7.9.6 REQUIRED )
+else()
+  find_package( CURL 7.9.6 )
+endif()
+
+if( NOT CURL_FOUND )
+  return()
+endif()
+
 add_library( XrdClCurlObj OBJECT
   XrdClCurlFactory.cc        XrdClCurlFactory.hh
   XrdClCurlFile.cc           XrdClCurlFile.hh
@@ -24,6 +34,9 @@ add_library( XrdClCurlObj OBJECT
   XrdClCurlWorker.hh
 )
 
+# Note the object library's dependencys are listed as `PUBLIC`; this allows
+# the subsequent targets (XrdClCurl) to have the correct linkage without repeating
+# the dependency.
 target_link_libraries( XrdClCurlObj PUBLIC
   CURL::libcurl
   OpenSSL::Crypto
@@ -31,7 +44,6 @@ target_link_libraries( XrdClCurlObj PUBLIC
   XrdXml
   XrdCl
   XrdUtils
-  XrdServer
 )
 if ( TINYXML_FOUND )
   target_include_directories( XrdClCurlObj PUBLIC ${TINYXML_INCLUDE_DIR} )
@@ -40,12 +52,6 @@ else()
 endif()
 
 set_target_properties( XrdClCurlObj PROPERTIES POSITION_INDEPENDENT_CODE ON )
-
-if (ENABLE_TESTS)
-  add_library(XrdClCurlTesting SHARED "$<TARGET_OBJECTS:XrdClCurlObj>")
-  target_link_libraries(XrdClCurlTesting XrdClCurlObj)
-  target_include_directories(XrdClCurlTesting PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-endif()
 
 add_library( ${XrdClCurl} MODULE "$<TARGET_OBJECTS:XrdClCurlObj>")
 target_link_libraries( ${XrdClCurl} XrdClCurlObj)
@@ -60,10 +66,13 @@ configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/configs/xrdcl-curl-plugin.conf ${CMA
 
 install(TARGETS ${XrdClCurl} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-install(
-  FILES ${CMAKE_CURRENT_BINARY_DIR}/configs/xrdcl-curl-plugin.conf
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/xrootd/client.plugins.d/
-)
+# We plan to only enable this by default for the XRootD 6.x series
+if ( XRootD_VERSION_MAJOR GREATER 5 )
+  install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/configs/xrdcl-curl-plugin.conf
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/xrootd/client.plugins.d/
+  )
+endif()
 
 install(
   FILES

@@ -2,11 +2,6 @@
 
 TEST_NAME=$1
 
-VALGRIND=0
-if [ "$2" = "valgrind" ]; then
-  VALGRIND=1
-fi
-
 if [ -z "$BINARY_DIR" ]; then
   echo "\$BINARY_DIR environment variable is not set; cannot run test"
   exit 1
@@ -384,12 +379,6 @@ cat > "$RUNDIR/cache_token" << EOF
 EOF
 
 XROOTD_BIN="$XROOTD_BINDIR/xrootd"
-if [ "$VALGRIND" -eq 1 ]; then
-  # Note we escape the quotes here -- when the contents of the
-  # variable are written to the generated shell script, we want the
-  # non-valgrind case to result in an empty string in the file
-  VALGRIND_BIN=\"$(command -v valgrind)\"
-fi
 
 BINDIR="$RUNDIR/bin"
 mkdir -p -- "$BINDIR"
@@ -404,7 +393,7 @@ export XRD_LOGLEVEL=Debug
 export ASAN_OPTIONS=detect_odr_violation=0
 export LD_LIBRARY_PATH="${XROOTD_LIBDIR}:$LD_LIBRARY_PATH"
 set -x
-exec $VALGRIND_BIN "$XROOTD_BIN" "\$@"
+exec "$XROOTD_BIN" "\$@"
 EOF
 chmod +x "$BINDIR/xrootd"
 export PATH="$BINDIR:$PATH"

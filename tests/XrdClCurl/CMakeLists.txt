@@ -3,6 +3,14 @@ if( NOT BUILD_TESTS )
   return()
 endif()
 
+# The final shared library has its symbols stripped; we need the symbols available
+# to allow unit tests to access them.  Rather than build the objects twice, we
+# create an internal object library and just link twice -- once stripping the symbols,
+# once without.
+add_library(XrdClCurlTesting SHARED "$<TARGET_OBJECTS:XrdClCurlObj>")
+target_link_libraries(XrdClCurlTesting XrdClCurlObj)
+target_include_directories(XrdClCurlTesting PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 include( GoogleTest )
 
 find_program( OPENSSL_BIN openssl REQUIRED )

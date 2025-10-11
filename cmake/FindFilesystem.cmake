@@ -10,7 +10,6 @@
 
 include(CheckSourceCompiles)
 
-set( CMAKE_REQUIRED_INCLUDES "${XRootD_INCLUDE_DIR}" )
 set( SAMPLE_FILESYSTEM "#include <cstdlib>
         #include <filesystem>
 
@@ -26,7 +25,8 @@ set( _found FALSE )
 if( CXX_FILESYSTEM_NO_LINK_NEEDED )
   set( _found TRUE )
 else()
-  # Add the libstdc++ flag
+  # Add the libstdc++ flag; while this is a GCC-specific library name,
+  # all supported versions of clang do not take this branch.
   set( CMAKE_REQUIRED_LIBRARIES "-lstdc++fs" )
   CHECK_SOURCE_COMPILES( CXX "${SAMPLE_FILESYSTEM}" CXX_FILESYSTEM_STDCPPFS_NEEDED )
   set( _found TRUE )

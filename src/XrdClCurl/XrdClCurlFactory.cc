@@ -208,16 +208,11 @@ void
 Factory::Monitor()
 {
     // This function is run in a separate thread to monitor the XrdClCurl statistics.
-    // It periodically logs the statistics to the log file (and to the g-stream monitoring
-    // if available).
-
-    XrdXrootdGStream *gstream = nullptr;
-#if XrdMajorVNUM(x) > 5
-    auto env = XrdCl::DefaultEnv::GetEnv();
-    void *gstream_void = nullptr;
-    env->GetPtr("pfc.gStream*", gstream_void);
-    gstream = gstream_void;
-#endif
+    // It periodically saves the statistics to the stats file.
+    // Note: this previously had support for sending the statistics through the gstream.
+    // However, this was removed because gstream currently requires linking against XrdServer
+    // which is not available in the client; some further rearranging of headers and linkages
+    // is necessary.
 
     while (true) {
         {
@@ -242,9 +237,6 @@ Factory::Monitor()
             "\"queues\": " + HandlerQueue::GetMonitoringJson() +
             " }";
         m_log->Info(kLogXrdClCurl, "Client monitoring statistics: %s", monitoring.c_str());
-        if (gstream) {
-            gstream->Insert(monitoring.data(), monitoring.size() + 1);
-        }
         if (!m_stats_location.empty())
         {
             auto stats_tmp = m_stats_location + ".XXXXXX";

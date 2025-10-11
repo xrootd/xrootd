@@ -29,12 +29,12 @@ constexpr size_t g_max_checksum_length = 32;
 
 // Checksum types known to this cache
 enum class ChecksumType {
-    kCRC32C = 0,
-    kMD5 = 1,
-    kSHA1 = 2,
-    kSHA256 = 3,
-    kUnknown = 4,
-    kAll = 4
+    kCRC32C,
+    kMD5,
+    kSHA1,
+    kSHA256,
+    kAll,     // Short-hand for setting all checksums at once.
+    kUnknown, // Indicates an unset value; `kUnknown - 1` is used in for-loops to iterate through all checksums.
 };
 
 inline const std::string GetTypeString(ChecksumType ctype) {
@@ -47,6 +47,7 @@ inline const std::string GetTypeString(ChecksumType ctype) {
             return "sha1";
         case ChecksumType::kSHA256:
             return "sha256";
+        case ChecksumType::kAll: // fallthrough
         case ChecksumType::kUnknown:
             return "unknown";
     }
@@ -63,6 +64,7 @@ inline size_t GetChecksumLength(ChecksumType ctype) {
             return 20;
         case ChecksumType::kSHA256:
             return 32;
+        case ChecksumType::kAll: // fallthrough
         case ChecksumType::kUnknown:
             return 0;
     }
@@ -82,50 +84,6 @@ inline ChecksumType GetTypeFromString(const std::string &str) {
     return ChecksumType::kUnknown;
 }
 
-class ChecksumTypeBitmask {
-public:
-    void Set(ChecksumType ctype) {
-        m_mask |= 1 << static_cast<int>(ctype);
-    }
-    void Clear(ChecksumType ctype) {
-        m_mask &= ~(1 << static_cast<int>(ctype));
-    }
-    bool Test(ChecksumType ctype) const {
-        return m_mask & (1 << static_cast<int>(ctype));
-    }
-    bool TestAny() const {
-        return m_mask != 0;
-    }
-    void SetAll() {
-        m_mask = (1 << static_cast<int>(ChecksumType::kAll)) - 1;
-    }
-    void ClearAll() {
-        m_mask = 0;
-    }
-    unsigned Count() const {
-        unsigned count = 0;
-        for (int idx=0; idx < static_cast<int>(ChecksumType::kAll); ++idx) {
-            if (m_mask & (1 << idx)) {
-                ++count;
-            }
-        }
-        return count;
-    }
-    unsigned Get() const {
-        return m_mask;
-    }
-    ChecksumType GetFirst() const {
-        for (int idx=0; idx < static_cast<int>(ChecksumType::kAll); ++idx) {
-            if (m_mask & (1 << idx)) {
-                return static_cast<ChecksumType>(idx);
-            }
-        }
-        return ChecksumType::kUnknown;
-    }
-private:
-    char m_mask{0}; 
-};
-
 // A single checksum type / value pair
 // Value is stored as raw bytes in memory.
 struct ChecksumEntry {
@@ -140,18 +98,42 @@ struct ChecksumEntry {
 // is set to ctype for a given ctype in the ChecksumType enum.
 class ChecksumInfo {
 public:
+
+    // Check to see if a checksum's value is set
+    //
+    // Always returns false if kAll or kUnknown are requested.
     bool IsSet(ChecksumType ctype) const {
+        if ((ctype == ChecksumType::kUnknown) || (ctype == ChecksumType::kAll)) return false;
         return checksums[static_cast<size_t>(ctype)].type != ChecksumType::kUnknown;
     }
+
+    // Get the checksum value for a given checksum type
+    //
+    // If an invalid value is requested (kAll, kUnknown), then the return value is
+    // undefined (as opposed to throwing an exception).
+    //
+    // If the checksum value is not set (IsSet returns false), then the return value
+    // is undefined.
     const std::array<unsigned char, g_max_checksum_length> &Get(ChecksumType ctype) const {
+        if ((ctype == ChecksumType::kUnknown) || (ctype == ChecksumType::kAll))
+            ctype = ChecksumType::kCRC32C;
         return checksums[static_cast<size_t>(ctype)].value;
     }
-    void Set(ChecksumType ctype, const std::array<unsigned char, g_max_checksum_length> &value) {
+
+    // Set the value of the checksum for a known type.
+    //
+    // Returns true if the checksum type is valid, false otherwise (kAll, kUnknown).
+    bool Set(ChecksumType ctype, const std::array<unsigned char, g_max_checksum_length> &value) {
+        if ((ctype == ChecksumType::kUnknown) || (ctype == ChecksumType::kAll)) return false;
         checksums[static_cast<size_t>(ctype)] = ChecksumEntry{ctype, value};
+        return true;
     }
 
+    // Returns a tuple of the type and value of the first set checksum in the object.
+    //
+    // If no value is set, then the returned type will be kUnknown.
     std::tuple<ChecksumType, std::array<unsigned char, g_max_checksum_length>, bool> GetFirst() const {
-        for (int idx=0; idx < static_cast<int>(ChecksumType::kUnknown); ++idx) {
+        for (int idx=0; idx < static_cast<int>(ChecksumType::kAll); ++idx) {
             if (checksums[idx].type != ChecksumType::kUnknown) {
                 return std::make_tuple(static_cast<ChecksumType>(idx), checksums[idx].value, true);
             }
@@ -160,7 +142,7 @@ public:
     }
 
 private:
-    std::array<ChecksumEntry, static_cast<int>(ChecksumType::kUnknown)> checksums;
+    std::array<ChecksumEntry, static_cast<int>(ChecksumType::kAll)> checksums;
 };
 
 }
