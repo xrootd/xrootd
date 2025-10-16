@@ -68,6 +68,8 @@ char     *Reserve(int dlen);
 
 int       SetAutoFlush(int afsec);
 
+int       GetAutoFlush();
+
 int       Space();
 
 //-----------------------------------------------------------------------------

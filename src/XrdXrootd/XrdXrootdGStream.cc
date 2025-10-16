@@ -77,6 +77,16 @@ int       XrdXrootdGStream::SetAutoFlush(int afsec)
                            }
 
 /******************************************************************************/
+/*                          G e t A u t o F l u s h                           */
+/******************************************************************************/
+  
+int       XrdXrootdGStream::GetAutoFlush()
+                           {
+                            return gStream.GetAutoFlush();
+                            // HELP: if I understand correctly the default it 10 mins (600 sec) - shall we use a smaller one perhaps - 60 seconds as default?
+                           }
+
+/******************************************************************************/
 /*                                 S p a c e                                  */
 /******************************************************************************/
 

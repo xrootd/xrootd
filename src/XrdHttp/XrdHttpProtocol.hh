@@ -34,6 +34,7 @@
  */
 
 
+#include <chrono>
 #include <cstdlib>
 #include <unistd.h>
 #include <sys/types.h>
@@ -47,6 +48,7 @@
 #include "Xrd/XrdProtocol.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdHttpChecksumHandler.hh"
+#include "XrdHttpMon.hh"
 #include "XrdHttpReadRangeHandler.hh"
 #include "XrdNet/XrdNetPMark.hh"
 #include "XrdHttpCors/XrdHttpCors.hh"
@@ -71,6 +73,7 @@ class XrdOucTokenizer;
 class XrdOucTrace;
 class XrdBuffer;
 class XrdLink;
+class XrdHttpMon;
 class XrdXrootdProtocol;
 class XrdHttpSecXtractor;
 class XrdHttpExtHandler;
@@ -159,6 +162,8 @@ private:
 
   /// Send some generic data to the client
   int SendData(const char *body, int bodylen);
+
+  void Record();
 
   /// Deallocate resources, in order to reutilize an object of this class
   void Cleanup();
@@ -297,8 +302,9 @@ private:
   //  API.
   int StartChunkedResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);
 
-  /// Send a (potentially partial) body in a chunked response; invoking with NULL body
-  //  indicates that this is the last chunk in the response.
+  /// Send a (potentially partial) body in a chunked response;
+  //  invoking with NULL body indicates that this is the last chunk in the response.
+  //  invoking with bodylen=-1 indicates that this is a trailer
   int ChunkResp(const char *body, long long bodylen);
 
   /// Send the beginning of a chunked response but not the body; useful when the size
@@ -461,6 +467,9 @@ protected:
 
   /// Packet marking handler pointer (assigned from the environment during the Config() call)
   static XrdNetPMark * pmarkHandle;
+
+  // Http monitoring gstream handle
+  static XrdHttpMon *httpMon;
 
   /// If set to true, the HTTP TPC transfers will forward the credentials to redirected hosts
   static bool tpcForwardCreds;
