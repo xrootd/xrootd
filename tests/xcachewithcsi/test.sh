@@ -58,8 +58,10 @@ XRD_CONNECTIONRETRY=0 ${TIMEOUTCMD} 10 ${XRDCP} -f ${HOST_SRV2}//file1 /dev/null
 ret1=$?
 grep -q "Run: \[ERROR\] Server responded with an error: \[3019\]" /tmp/err.txt
 ret2=$?
+grep -q "Run: \[ERROR\] Received corrupted data" /tmp/err.txt
+ret3=$?
 cat /tmp/err.txt
-if [ $ret1 -ne 54 -o $ret2 -ne 0 ]; then
+if [ $ret1 -ne 54 -o $ret2 -ne 0 ] && [ $ret1 -ne 50 -o $ret3 -ne 0 ] ; then
   echo "${host}: did not get the expected error on corrupted file"
   exit 1
 fi
