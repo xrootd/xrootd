@@ -105,10 +105,10 @@ private:
                       int openMode, const XrdSecEntity &sec,
                       const std::string &authz);
 
-    int DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
-                          bool &success, TPCLogRecord &, bool shouldReturnErrorToClient = true);
+    int PerformHEADRequest(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
+                           bool &success, TPCLogRecord &rec, bool shouldReturnErrorToClient = true);
 
-    int GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t & contentLength, bool & success, TPCLogRecord &rec);
+    int GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t & contentLength, std::map<std::string,std::string> & reprDigest, bool & success, TPCLogRecord &rec);
 
     // Send a 'performance marker' back to the TPC client, informing it of our
     // progress.  The TPC client will use this information to determine whether
@@ -145,6 +145,19 @@ private:
     std::string generateClientErr(std::stringstream &err_ss, const TPCLogRecord &rec, CURLcode cCode = CURLcode::CURLE_OK);
 
     std::string prepareURL(XrdHttpExtReq &req);
+
+    /**
+     * Returns true if
+     *   - there is a match between the client-provided checksum type AND value and the passive-server returned checksum type AND value
+     * Returns false if
+     *   - the client-provided digest type is not found in the passive-server provided digest type or
+     *   - the client-provided digest value associated to the type  matches the one returned by the passive-server
+     * @param passiveSrvReprDigest the passive-server provided Repr-Digest
+     * @param req the request allowing to get the client-provided Repr-Digest and return an error message to it in case of mismatch
+     * @param rec the logging object for logging in case of mismatch
+     * @return true or false depending on the above
+     */
+    bool mismatchReprDigest(const std::map<std::string,std::string> & passiveSrvReprDigest, XrdHttpExtReq & req, TPCLogRecord &rec);
 
     static int m_marker_period;
     static size_t m_block_size;
