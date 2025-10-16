@@ -153,6 +153,8 @@ Configuration::xmaxwait(XrdOucStream &Config)
     long long max_wait = -1;
     if (XrdOuca2x::a2sz(m_log, "max waiting time value", val, &max_wait, 1)) return 1;
 
+    m_max_wait = max_wait;
+
     return 0;
 }
 
