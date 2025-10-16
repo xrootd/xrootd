@@ -16,7 +16,7 @@ add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=6
 define_default( LIBRARY_PATH_PREFIX "lib" )
 
 #-------------------------------------------------------------------------------
-# Enable c++14
+# Enable c++17
 #-------------------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Standard")
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
