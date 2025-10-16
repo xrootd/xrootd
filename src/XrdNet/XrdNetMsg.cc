@@ -86,7 +86,7 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest, bool *aOK, bool refr)
 
 // Save the relevant information
 //
-   dfltDest = strdup(myPeer.InetName ? myPeer.InetName : "Unknow!");
+   dfltDest = strdup(myPeer.InetName ? myPeer.InetName : "Unknown!");
    FD       = myPeer.fd;
    destOK   = true;
 
