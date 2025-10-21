@@ -102,23 +102,13 @@ namespace XrdCl
                            ResponseHandler   *handler,
                            uint16_t           timeout )
   {
+    if( (flags & OpenFlags::Dup) || (flags & OpenFlags::Samefs) )
+      return XRootDStatus( stError, errInvalidArgs, 0,
+             "Dup or Samefs options require a file template to be specified" );
     //--------------------------------------------------------------------------
     // Check if we need to install and run a plug-in for this URL
     //--------------------------------------------------------------------------
-    if( pEnablePlugIns && !pPlugIn )
-    {
-      Log *log = DefaultEnv::GetLog();
-      PlugInFactory *fact = DefaultEnv::GetPlugInManager()->GetFactory( url );
-      if( fact )
-      {
-        pPlugIn = fact->CreateFile( url );
-        if( !pPlugIn )
-        {
-          log->Error( FileMsg, "Plug-in factory failed to produce a plug-in "
-                      "for %s, continuing without one", url.c_str() );
-        }
-      }
-    }
+    CreatePlugin( url );
 
     //--------------------------------------------------------------------------
     // Open the file
@@ -127,6 +117,34 @@ namespace XrdCl
       return pPlugIn->Open( url, flags, mode, handler, timeout );
 
     return FileStateHandler::Open( pImpl->pStateHandler, url, flags, mode, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Open the file pointed to by the given URL - async
+  // Alows one to specify template file. Required if using Dup or Samefs flags.
+  //----------------------------------------------------------------------------
+  XRootDStatus File::OpenUsingTemplate( const File        &rfile,
+                                        const std::string &url,
+                                        OpenFlags::Flags   flags,
+                                        Access::Mode       mode,
+                                        ResponseHandler   *handler,
+                                        uint16_t           timeout )
+  {
+    //--------------------------------------------------------------------------
+    // Check if we need to install and run a plug-in for this URL
+    //--------------------------------------------------------------------------
+    CreatePlugin( url );
+
+    //--------------------------------------------------------------------------
+    // Open the file
+    //--------------------------------------------------------------------------
+    if( pPlugIn )
+      return pPlugIn->OpenUsingTemplate( rfile.GetFileTemplate().get(), url,
+                            flags, mode, handler, timeout );
+
+    return FileStateHandler::OpenUsingTemplate( pImpl->pStateHandler,
+                                   rfile.GetFileTemplate().get(), url, flags,
+                                   mode, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -139,6 +157,24 @@ namespace XrdCl
   {
     SyncResponseHandler handler;
     XRootDStatus st = Open( url, flags, mode, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForStatus( &handler );
+  }
+
+  //----------------------------------------------------------------------------
+  // Open the file pointed to by the given URL - sync
+  // Alows one to specify template file. Required if using Dup or Samefs flags.
+  //----------------------------------------------------------------------------
+  XRootDStatus File::OpenUsingTemplate( const File        &rfile,
+                                        const std::string &url,
+                                        OpenFlags::Flags   flags,
+                                        Access::Mode       mode,
+                                        uint16_t           timeout )
+  {
+    SyncResponseHandler handler;
+    XRootDStatus st = OpenUsingTemplate( rfile, url, flags, mode, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -882,4 +918,61 @@ namespace XrdCl
 
     return pImpl->pStateHandler->GetProperty( name, value );
   }
+
+  //----------------------------------------------------------------------------
+  // Private method: gets the exported file template for use by open or clone
+  //----------------------------------------------------------------------------
+  std::unique_ptr<ExportedFileTemplate> File::GetFileTemplate() const
+  {
+    if( pPlugIn )
+      return pPlugIn->ExportTemplate();
+
+    return pImpl->pStateHandler->ExportTemplate( pImpl->pStateHandler );
+  }
+
+  //----------------------------------------------------------------------------
+  // Clone ranges from one or more files
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Clone( const CloneLocations &locs, ResponseHandler *handler, uint16_t timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->Clone( locs, handler, timeout );
+
+    return pImpl->pStateHandler->Clone( pImpl->pStateHandler, locs, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Clone ranges from one or more files
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Clone( const CloneLocations &locs, uint16_t timeout )
+  {
+    SyncResponseHandler handler;
+    XRootDStatus st = Clone( locs, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForStatus( &handler );
+  }
+
+  //--------------------------------------------------------------------------
+  // Private method: create a suitable plugin instance if configured
+  //--------------------------------------------------------------------------
+  void File::CreatePlugin( const std::string &url )
+  {
+    if( pEnablePlugIns && !pPlugIn )
+    {
+      Log *log = DefaultEnv::GetLog();
+      PlugInFactory *fact = DefaultEnv::GetPlugInManager()->GetFactory( url );
+      if( fact )
+      {
+        pPlugIn = fact->CreateFile( url );
+        if( !pPlugIn )
+        {
+          log->Error( FileMsg, "Plug-in factory failed to produce a plug-in "
+                      "for %s, continuing without one", url.c_str() );
+        }
+      }
+    }
+  }
+
 }
