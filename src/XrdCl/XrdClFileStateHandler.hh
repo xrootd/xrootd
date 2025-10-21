@@ -55,6 +55,7 @@ namespace XrdCl
 {
   class Message;
   class EcHandler;
+  class FileStateHandler;
 
   //----------------------------------------------------------------------------
   //! PgRead flags
@@ -72,6 +73,21 @@ namespace XrdCl
       };
   };
   XRDOUC_ENUM_OPERATORS( PgReadFlags::Flags )
+
+  //----------------------------------------------------------------------------
+  //! Object passed between one file and a second with enough information to
+  //! allow cloning on the first into the second
+  //----------------------------------------------------------------------------
+  class FileStateHandlerTemplate : public ExportedFileTemplate
+  {
+   public:
+      FileStateHandlerTemplate(std::shared_ptr<FileStateHandler> fhp) :
+          pTemplateFileWp(fhp) { }
+
+      ~FileStateHandlerTemplate() { }
+
+      std::weak_ptr<FileStateHandler> pTemplateFileWp;
+  };
 
   //----------------------------------------------------------------------------
   //! Handle the stateful operations
@@ -128,10 +144,33 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static XRootDStatus Open( std::shared_ptr<FileStateHandler> &self,
                                 const std::string                 &url,
-                                uint16_t                           flags,
+                                OpenFlags::Flags                   flags,
                                 uint16_t                           mode,
                                 ResponseHandler                   *handler,
                                 time_t                             timeout  = 0 );
+
+      //------------------------------------------------------------------------
+      //! Open the file pointed to by the given URL
+      //! Alows one to specify template file. Required if using Dup or Samefs
+      //! flags.
+      //!
+      //! @param url     url of the file to be opened
+      //! @param templ   Template of file to colocate with or duplicate
+      //! @param flags   OpenFlags::Flags
+      //! @param mode    Access::Mode for new files, 0 otherwise
+      //! @param handler handler to be notified about the status of the operation
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      static XRootDStatus OpenUsingTemplate(
+                              std::shared_ptr<FileStateHandler> &self,
+                              ExportedFileTemplate              *templ,
+                              const std::string                 &url,
+                              OpenFlags::Flags                   flags,
+                              uint16_t                           mode,
+                              ResponseHandler                   *handler,
+                              time_t                             timeout  = 0 );
 
       //------------------------------------------------------------------------
       //! Close the file object
@@ -611,6 +650,20 @@ namespace XrdCl
                                      time_t                             timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Clone ranges of files into the current file
+      //!
+      //! @param handler : handler to be notified when the response arrives.
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      static XRootDStatus Clone(std::shared_ptr<FileStateHandler>      &self,
+                                const CloneLocations                   &locs,
+                                ResponseHandler                        *handler,
+                                time_t                                  timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Process the results of the opening operation
       //------------------------------------------------------------------------
       void OnOpen( const XRootDStatus *status,
@@ -713,6 +766,26 @@ namespace XrdCl
       static XRootDStatus TryOtherServer( std::shared_ptr<FileStateHandler> &self,
                                           time_t                             timeout );
 
+      //------------------------------------------------------------------------
+      //! Provides an object that carries the infromation required by another
+      //! FileStateHandler to clone the file.
+      //------------------------------------------------------------------------
+      static std::unique_ptr<ExportedFileTemplate> ExportTemplate(
+                                 std::shared_ptr<FileStateHandler> &self )
+      {
+        return std::make_unique<FileStateHandlerTemplate>(self);
+      }
+
+      //------------------------------------------------------------------------
+      //! Checks if we need to set a file template
+      //------------------------------------------------------------------------
+      bool NeedFileTempl() const
+      {
+        if( (pOpenFlags & OpenFlags::Dup) || (pOpenFlags & OpenFlags::Samefs) )
+          return true;
+        return false;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Helper for queuing messages
@@ -804,6 +877,24 @@ namespace XrdCl
       void FailQueuedMessages( XRootDStatus status );
 
       //------------------------------------------------------------------------
+      //! Helper to fill in filehandle template related options during open
+      //------------------------------------------------------------------------
+      static XRootDStatus FillFhTempl( std::shared_ptr<FileStateHandler> &self,
+                                       const URL                         &url,
+                                       Message                           *msg,
+                                       URL                               &sendUrl );
+
+      //------------------------------------------------------------------------
+      //! Private method implementing most of open
+      //------------------------------------------------------------------------
+      static XRootDStatus OpenImpl( std::shared_ptr<FileStateHandler> &self,
+                                const std::string                 &url,
+                                OpenFlags::Flags                   flags,
+                                uint16_t                           mode,
+                                ResponseHandler                   *handler,
+                                time_t                             timeout  = 0 );
+
+      //------------------------------------------------------------------------
       //! Re-send queued messages
       //------------------------------------------------------------------------
       void ReSendQueuedMessages();
@@ -867,7 +958,7 @@ namespace XrdCl
       URL                    *pWrtRecoveryRedir;
       uint8_t                *pFileHandle;
       uint16_t                pOpenMode;
-      uint16_t                pOpenFlags;
+      OpenFlags::Flags        pOpenFlags;
       RequestList             pToBeRecovered;
       std::set<Message*>      pInTheFly;
       uint64_t                pSessionId;
@@ -902,6 +993,11 @@ namespace XrdCl
       // Responsible for Writing/Reading erasure-coded files
       //------------------------------------------------------------------------
       FilePlugIn           *&pPlugin;
+
+      //------------------------------------------------------------------------
+      // Used to select use of file template, with optional duplication on open
+      //------------------------------------------------------------------------
+      std::weak_ptr<FileStateHandler> pTemplateFileWp;
   };
 }
 

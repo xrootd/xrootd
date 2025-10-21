@@ -1160,6 +1160,7 @@ namespace XrdCl
       case kXR_open:
         req->open.mode    = htons( req->open.mode );
         req->open.options = htons( req->open.options );
+        req->open.optiont = htons( req->open.optiont );
         break;
 
       //------------------------------------------------------------------------
@@ -1195,6 +1196,20 @@ namespace XrdCl
         {
           dataChunk[i].rlen   = htonl( dataChunk[i].rlen );
           dataChunk[i].offset = htonll( dataChunk[i].offset );
+        }
+        break;
+      }
+
+      case kXR_clone:
+      {
+        uint32_t numChunks  = (req->clone.dlen)/sizeof(XrdProto::clone_list);
+         XrdProto::clone_list *dataChunk =
+         (XrdProto::clone_list*)( msg + sizeof( ClientRequestHdr ) );
+        for( size_t i = 0; i < numChunks; ++i )
+        {
+          dataChunk[i].srcOffs = htonll( dataChunk[i].srcOffs );
+          dataChunk[i].srcLen  = htonll( dataChunk[i].srcLen );
+          dataChunk[i].dstOffs = htonll( dataChunk[i].dstOffs );
         }
         break;
       }
@@ -2995,7 +3010,7 @@ namespace XrdCl
         o << std::setbase(10);
         o << "flags: ";
         if( sreq->options == 0 )
-          o << "none";
+          o << "none ";
         else
         {
           if( sreq->options & kXR_compress )
@@ -3035,7 +3050,44 @@ namespace XrdCl
           if( sreq->options & kXR_retstat )
             o << "kXR_retstat ";
         }
+        o << "flagt: ";
+        if( sreq->optiont == 0 )
+          o << "none ";
+        else
+        {
+          if( sreq->optiont & kXR_dup )
+            o << "kXR_dup ";
+          if( sreq->options & kXR_samefs )
+            o << "kXR_samefs ";
+        }
+        o << "fhtemplt: " << FileHandleToStr( sreq->fhtemplt );
         o << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_clone
+      //------------------------------------------------------------------------
+      case kXR_clone:
+      {
+        ClientCloneRequest *sreq = (ClientCloneRequest *)msg;
+        XrdProto::clone_list *dataChunk = (XrdProto::clone_list*)(msg + 24 );
+        o << "kXR_clone ( ";
+        o << "handle: " << FileHandleToStr( sreq->fhandle );
+        o << std::setbase(10);
+        o << " list [ ";
+        for( size_t i = 0; i < req->dlen/sizeof(XrdProto::clone_list); ++i )
+        {
+          o << "(src_handle: ";
+          o << FileHandleToStr( dataChunk[i].srcFH );
+          o << ", ";
+          o << std::setbase(10);
+          o << "src_offset: " << dataChunk[i].srcOffs;
+          o << ", src_length: " << dataChunk[i].srcLen;
+          o << ", dst_offset: " << dataChunk[i].dstOffs << "); ";
+        }
+
+        o << " ] )";
         break;
       }
 
