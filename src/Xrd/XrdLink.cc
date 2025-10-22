@@ -178,7 +178,8 @@ void XrdLink::DoIt() {} // This is overridden by the implementation
   
 void XrdLink::Enable()
 {
-   if (linkXQ.PollInfo.Poller) linkXQ.PollInfo.Poller->Enable(linkXQ.PollInfo);
+   if (linkXQ.PollInfo.Poller)
+      if (!linkXQ.PollInfo.Poller->Enable(linkXQ.PollInfo)) Close();
 }
 
 /******************************************************************************/
