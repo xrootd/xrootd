@@ -196,9 +196,13 @@ void XrdPollE::Exclude(XrdPollInfo &pInfo)
    remFD(pInfo, 0);
 
 // Wait to make sure the poll thread has completed handling the last set of
-// events which may have included this Link. The handing includes examining the
+// events which may have included our Link. The handing includes examining the
 // Link's PollInfo before deciding if to schedule the Link. After we return,
-// the PollInfo may be reset and the Link could be subsequently reused.
+// the PollInfo may be reset and the Link could be subsequently reused so we
+// must make sure that the there are no more events.
+// This is a separate issue from ensuring that if this Link is Scheduled it
+// has completed processing. In the usual flow this is ensured by calling
+// Close -> Detach -> Exclude from within the Link's schedule task.
 //
    Wait4Poller();
 }
@@ -232,6 +236,7 @@ void XrdPollE::HandleWaitFd(const unsigned int events)
       }
 
    for (ic=0;ic<cnt;++ic) WaitFdSem.Post();
+   for (ic=0;ic<cnt;++ic) WaitFdSem2.Wait();
 }
 
 /******************************************************************************/
@@ -362,15 +367,21 @@ void XrdPollE::Start(XrdSysSemaphore *syncsem, int &retcode)
 
 void XrdPollE::Wait4Poller()
 {
-// Makes the caller wait for the polling thread to complete an event processing
-// loop.
+// Triggers the polling thread to complete at least one event processing loop
+// and we wait for this.
 //
    if (eventfd_write(WaitFd, 1) < 0)
       {Log.Emsg("Poll", errno, "write to the wait-poller descriptor");
        return;
       }
 
+// First semaphore ensures we wait for polling thread to have processed a batch
+// of waitfd event and thus be outside of epoll_wait.
+// Second semaphore ensures polling thread waits for all waits in its batch
+// of waitfd events to have been completed.
+//
    WaitFdSem.Wait();
+   WaitFdSem2.Post();
 }
 
 /******************************************************************************/
