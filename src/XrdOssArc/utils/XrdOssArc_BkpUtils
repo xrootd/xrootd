@@ -17,8 +17,14 @@ from shutil import rmtree
 from urllib.parse import urlparse
 
 from rucio.client.didclient import DIDClient
-from rucio.client.metaclient import MetaClient
 from rucio.client.replicaclient import ReplicaClient
+
+# Rucio changed the naming conventions for the metadata client with no
+# indication of which release it occured in. So, we do if/then/else load.
+try:
+   from rucio.client.metaclient import MetaClient as MetaConventionClient
+except:
+   from rucio.client.metaconventionsclient import MetaConventionClient
 
 from rucio.common.exception import RucioException
 
@@ -79,14 +85,14 @@ def get_MaxItems():
 #******************************************************************************
 
 def AddKey(keys):
-   metaclient = MetaClient()
+   metaclient = MetaConventionClient()
 
    # Get all current keys
    #
    try:
       allkeys = metaclient.list_keys()
    except Exception as e:
-         Emsg(8, 'Unable to list keys: {}'.format(key, e))
+         Emsg(8, 'Unable to list keys: {}'.format(keys, e))
 
    # Add all missing keys
    #
@@ -833,8 +839,9 @@ def Main(argv):
    if cmd == "list":   return LS_Bkup(argv[1:])
 
    if cmd == "qkey":
-      kVec = argv[1].split(',')
-      return Qry_Key(kVec, argv[2:])
+      aVec = argv[2:]
+      aVec.insert(0, argv[1].split(','))
+      return Qry_Key(aVec)
 
    if cmd == "set":    return Set_Backup(argv[1:])
 
