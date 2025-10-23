@@ -38,6 +38,12 @@ namespace XrdCl
 {
   struct FileImpl;
   class  FilePlugIn;
+  struct CloneLocations;
+
+  class ExportedFileTemplate {
+  public:
+    virtual ~ExportedFileTemplate() {}
+  };
 
   //----------------------------------------------------------------------------
   //! A file
@@ -45,6 +51,7 @@ namespace XrdCl
   class File
   {
     public:
+    friend struct CloneLocations; // for GetFileTemplate
 
       enum VirtRedirect
       {
@@ -86,6 +93,28 @@ namespace XrdCl
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
+      //! Open the file pointed to by the given URL - async
+      //! Alows one to specify template file. Required if using Dup or Samefs
+      //! flags.
+      //!
+      //! @param rfile   File object of the reference file
+      //! @param url     url of the file to be opened
+      //! @param flags   OpenFlags::Flags
+      //! @param mode    Access::Mode for new files, 0 otherwise
+      //! @param handler handler to be notified about the status of the operation
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus OpenUsingTemplate( const File        &rfile,
+                                      const std::string &url,
+                                      OpenFlags::Flags   flags,
+                                      Access::Mode       mode,
+                                      ResponseHandler   *handler,
+                                      uint16_t           timeout  = 0 )
+                                      XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
       //! Open the file pointed to by the given URL - sync
       //!
       //! @param url     url of the file to be opened
@@ -99,6 +128,52 @@ namespace XrdCl
                          OpenFlags::Flags   flags,
                          Access::Mode       mode    = Access::None,
                          uint16_t           timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Open the file pointed to by the given URL - sync
+      //! Alows one to specify template file. Required if using Dup or Samefs
+      //! flags.
+      //!
+      //! @param rfile   File object of the reference file
+      //! @param url     url of the file to be opened
+      //! @param flags   OpenFlags::Flags
+      //! @param mode    Access::Mode for new files, 0 otherwise
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus OpenUsingTemplate( const File        &rfile,
+                                      const std::string &url,
+                                      OpenFlags::Flags   flags,
+                                      Access::Mode       mode    = Access::None,
+                                      uint16_t           timeout = 0 )
+                                      XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Clone files and ranges specified into the current file - async
+      //!
+      //! @param locs    files, source ranges and dest offsets to be cloned
+      //! @param handler handler to be notified about the status of the operation
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Clone( const CloneLocations &locs,
+                          ResponseHandler      *handler,
+                          uint16_t              timeout = 0 )
+                         XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Clone files and ranges specified into the current file - sync
+      //!
+      //! @param locs    files, source ranges and dest offsets to be cloned
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Clone( const CloneLocations &locs,
+                          uint16_t              timeout = 0 )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -844,10 +919,54 @@ namespace XrdCl
                               ResponseHandler    *handler,
                               uint16_t            timeout = 0 );
 
+      //------------------------------------------------------------------------
+      //! CreatePlugin
+      //!
+      //! Helper method, obtains a plugin suitable for the given url
+      //------------------------------------------------------------------------
+      void CreatePlugin( const std::string &url );
+
+      std::unique_ptr<ExportedFileTemplate> GetFileTemplate() const;
+
       FileImpl   *pImpl;
       FilePlugIn *pPlugIn;
       bool        pEnablePlugIns;
   };
+
+  struct CloneLocation
+  {
+    std::unique_ptr<ExportedFileTemplate> file;
+    off_t srcOffs;
+    off_t srcLen;
+    off_t dstOffs;
+  };
+
+  struct CloneLocations
+  {
+    //--------------------------------------------------------------------------
+    //! Adds a clone location to the CloneLocations object
+    //!
+    //! @param file    : a file object to use as the source
+    //!                  it should be already open for reading and remain so until
+    //!                  after the Clone() call
+    //! @param dstOffs : offset to start clone range in the destination file
+    //! @param srcOffs : offset to start fetching clone range in the source
+    //! @param srcLen  : length of range to clone
+    //!
+    //--------------------------------------------------------------------------
+    void Add(const File &file, off_t dstOffs, off_t srcOffs, off_t srcLen)
+    {
+      CloneLocation loc;
+      loc.srcOffs = srcOffs;
+      loc.dstOffs = dstOffs;
+      loc.srcLen = srcLen;
+      loc.file = file.GetFileTemplate();
+      locations.emplace_back(std::move(loc));
+    }
+
+    std::vector<CloneLocation> locations;
+  };
+
 }
 
 #endif // __XRD_CL_FILE_HH__
