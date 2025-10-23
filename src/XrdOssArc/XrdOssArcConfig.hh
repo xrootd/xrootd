@@ -87,6 +87,7 @@ char*       srcData;       // Root path to where srcrse data is mounted
 char*       stagePath;     // Path to directory where zip members are extracted
 char*       stopPath;      // Path where the stop file should be written
 char*       tapePath;      // The full path of the tape disk buffer
+int         tapePathLEN;   // Length of the above
 char*       utilsPath;     // Default path to utils
 
 // Miscellaneous

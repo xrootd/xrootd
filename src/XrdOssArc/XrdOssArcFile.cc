@@ -165,7 +165,7 @@ int XrdOssArcFile::Open(const char *path,int Oflag,mode_t Mode,XrdOucEnv &env)
 //
    char arcPath[MAXPATHLEN];
    if ((rc = dsInfo.ArcPath(arcPath, sizeof(arcPath), true))) return -rc;
-   if ((rc = XrdOssArcStage::Stage(arcPath)))
+   if ((rc = XrdOssArcStage::Stage(arcPath, arcPath+Config.tapePathLEN)))
       {if (rc == EINPROGRESS) return Config.wtpStage;
        return -rc;
       }

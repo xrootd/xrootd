@@ -83,6 +83,11 @@ XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
            {didType = isARC;
             path += Config.arcvPathLEN;
            }
+   else if (!strncmp(Config.arcvPathLFN, path, Config.arcvPathLEN-1)
+        &&   strlen(path) < (size_t)Config.arcvPathLEN)
+           {didType = isARC;
+            path += Config.arcvPathLEN-1;
+           }
    else if (!strncmp(Config.bkupPathLFN, path, Config.bkupPathLEN))
            {didType = isBKP;
             path += Config.bkupPathLEN;
@@ -98,7 +103,7 @@ XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
 
 // Prepare for full construction (note: we know we have an env pointer)
 //
-   const char* theFN;
+   const char* theFN = 0;
    bool fl2arc = false;
    bool fscpDS = false;
 
@@ -106,9 +111,20 @@ XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
 //
    if (isW) {rc = EROFS; return;}
 
-// Make sure we have an env file name to work with if so required
+// Make sure we have an env file name to work with. This must come from the CGI
+// if /backup and from either the CGI path for /archive. We support optional
+// path specification to allow recursive copies of all dataset archive files.
+// Noe that we ignore the CGI if specified via the path.
 //
-   if (!(theFN = env->Get("ossarc.fn")))
+   if (didType == isARC && isArcFile(path))
+      {const char* fn = rindex(path, '/');
+       if (fn && fn != path)
+          {theFN = fn + 1;
+           dsName.erase(dsName.find_last_of("/"));
+          }
+      }
+
+   if (!theFN && !(theFN = env->Get("ossarc.fn")))
       {if (optfn) rc = 0;
           else {rc = EINVAL;
                 ecMsg.Msg("Compose","CGI ossarc.fn=<target_fname> not specified");
@@ -267,10 +283,10 @@ int XrdOssArcCompose::getDSN(const char *path)
 
 // The dataset name must not end with the arc file suffix
 //
-   if (isArcFile(colon+1))
-      {ecMsg.Msg("Compose", "Dataset name cannot refer to an archive");
-       return EINVAL;
-      }
+// if (isArcFile(colon+1))
+//    {ecMsg.Msg("Compose", "Dataset name cannot refer to an archive");
+//     return EINVAL;
+//    }
 
 // Assign the dataset name
 //
