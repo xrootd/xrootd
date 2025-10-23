@@ -47,7 +47,7 @@ enum MssRC {isBad = -1, isFalse = 0, isTrue = 1};
 
 static MssRC  isOnline(const char* path);
 
-static   int  Stage(const char* path);
+static   int  Stage(const char* path, const char* mssPath);
 
          XrdOssArcStage(const char* aPath) : XrdJob("Arc Staging"),
                         arcvPath(aPath) {}

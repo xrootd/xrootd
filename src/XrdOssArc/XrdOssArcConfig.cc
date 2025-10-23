@@ -136,6 +136,7 @@ XrdOssArcConfig::XrdOssArcConfig()
    srcData     = strdup("");
    stagePath   = strdup("/tmp/stage");
    tapePath    = strdup("/TapeBuffer");
+   tapePathLEN = strlen(tapePath);
    utilsPath   = strdup("/usr/local/etc");
 
    stopMon     = 0;
@@ -320,6 +321,7 @@ bool  XrdOssArcConfig::Configure(const char* cfn,  const char* parms,
 // Verify that the tape buffer is usable
 //
    if (!Usable(tapePath, "tape buffer path", false)) NoGo = true;
+   tapePathLEN = strlen(tapePath);
 
 // Initialize the tape buffer resourse monitor
 //
@@ -556,30 +558,6 @@ int XrdOssArcConfig::GenLocalPath(const char* dsn, char* buff, int bSZ)
    if ((rc = ossP->Lfn2Pfn(dsn, buff, bSZ)))
       {Elog.Emsg("Archive", rc, "generate local path for", dsn);
        return rc;
-      }
-   return 0;
-}
-
-/******************************************************************************/
-/*                           G e n T a p e P a t h                            */
-/******************************************************************************/
-
-// Typical Path: <tapePath>/<dsn>
-
-int XrdOssArcConfig::GenTapePath(const char* dsn, char* buff, int bSZ,
-                                 bool addafn)
-{
-   int n;
-
-// Generate the tape path
-//
-   if (addafn) n = snprintf(buff, bSZ, "%s/%s/%s", tapePath, dsn, arFName);
-      else     n = snprintf(buff, bSZ, "%s/%s",    tapePath, dsn);
-   if (n >= bSZ)
-      {const char* eTxt = (addafn ? "generate tape archive file path for"
-                                  : "generate tape directory path for");
-       Elog.Emsg("Archive", ENAMETOOLONG, eTxt, dsn);
-       return ENAMETOOLONG;
       }
    return 0;
 }

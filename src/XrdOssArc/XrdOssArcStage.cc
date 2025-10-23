@@ -90,24 +90,20 @@ using namespace XrdOssArcGlobals;
 void XrdOssArcStage::DoIt()
 {
    TraceInfo("Bring_Online",0);
-   char  pBuff[MAXPATHLEN];
    const char* nxtPath;
    time_t seTime;
-   int   fd, rc;
+   int   fd;
 
-// Generate the path to the tape buffer as that's where it will be placed
-// and open it to force it to be stage online.
+// The arcvPath is the path of the file in the locally mounted tape buffer.
+// Simply open it to force it to be staged online.
 //
-do{rc = Config.GenTapePath(arcvPath, pBuff, sizeof(pBuff));
-   if (rc) StageError(rc, "prepare file for staging", arcvPath);
-      else {DEBUG("Staging "<<pBuff);
-            seTime = time(0);
-            if ((fd = XrdSysFD_Open(pBuff, O_RDONLY)) < 0)
-               StageError(errno, "open/stage file", pBuff);
-               else {close(fd);
-                     seTime = time(0) - seTime;
-                     DEBUG(pBuff<<" staged in "<<seTime<<" second(s)");
-                    }
+do{DEBUG("Staging "<<arcvPath);
+   seTime = time(0);
+   if ((fd = XrdSysFD_Open(arcvPath, O_RDONLY)) < 0)
+      StageError(errno, "open/stage file", arcvPath);
+      else {close(fd);
+            seTime = time(0) - seTime;
+            DEBUG(arcvPath<<" staged in "<<seTime<<" second(s)");
            }
 
 // Check if there is something pending that we can do now
@@ -187,7 +183,7 @@ void XrdOssArcStage::Reset(const char* path)
 /*                                 S t a g e                                  */
 /******************************************************************************/
 
-int XrdOssArcStage::Stage(const char *path)
+int XrdOssArcStage::Stage(const char *path, const char* mssPath)
 {
    TraceInfo("Stage",0);
    ActInfo aInfo(path);
@@ -210,7 +206,7 @@ int XrdOssArcStage::Stage(const char *path)
 
 // Make sure the path exists and is actually online
 //
-   MssRC mssRC = isOnline(path);
+   MssRC mssRC = isOnline(mssPath);
    switch(mssRC)
          {case isFalse: break;
           case isTrue:  return 0;      break;
