@@ -6,11 +6,14 @@
 #include "XrdVersion.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
 
 #include <curl/curl.h>
 
 #include "XrdHttpTpcState.hh"
 #include "XrdHttpTpcStream.hh"
+
+#include "XrdHttp/XrdHttpHeaderUtils.hh"
 
 using namespace TPC;
 
@@ -53,6 +56,7 @@ void State::Move(State &other)
     other.m_curl = NULL;
     other.m_headers = NULL;
     other.m_stream = NULL;
+    other.m_repr_digests = m_repr_digests;
 }
 
 
@@ -65,6 +69,8 @@ bool State::InstallHandlers(CURL *curl) {
             curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
             curl_easy_setopt(curl, CURLOPT_READFUNCTION, &State::ReadCB);
             curl_easy_setopt(curl, CURLOPT_READDATA, this);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &State::PushRespCB);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
             struct stat buf;
             if (SFS_OK == m_stream->Stat(&buf)) {
                 m_push_length = buf.st_size;
@@ -100,20 +106,36 @@ bool State::InstallHandlers(CURL *curl) {
  */
 void State::SetupHeaders(XrdHttpExtReq &req) {
     struct curl_slist *list = NULL;
-    for (std::map<std::string, std::string>::const_iterator hdr_iter = req.headers.begin();
-         hdr_iter != req.headers.end();
-         hdr_iter++) {
-        if (!strcasecmp(hdr_iter->first.c_str(),"copy-header")) {
-            list = curl_slist_append(list, hdr_iter->second.c_str());
-            m_headers_copy.emplace_back(hdr_iter->second);
+    for (const auto & [header,value]: req.headers) {
+        if (!strncasecmp(header.c_str(),"copy-header", 11)) {
+            list = curl_slist_append(list, value.c_str());
+            m_headers_copy.emplace_back(value);
         }
         // Note: len("TransferHeader") == 14
-        if (!strncasecmp(hdr_iter->first.c_str(),"transferheader",14)) {
+        if (!strncasecmp(header.c_str(),"transferheader",14)) {
             std::stringstream ss;
-            ss << hdr_iter->first.substr(14) << ": " << hdr_iter->second;
+            ss << header.substr(14) << ": " << value;
             list = curl_slist_append(list, ss.str().c_str());
             m_headers_copy.emplace_back(ss.str());
         }
+    }
+
+    if(m_is_transfer_state && !m_push && !req.mReprDigest.empty()) {
+      size_t reprDigestSize = req.mReprDigest.size();
+      std::stringstream ss;
+      ss << "Want-Repr-Digest: ";
+      size_t cpt = 1;
+      for (const auto &kv: req.mReprDigest) {
+        // We put the same weight for the digest names as we do not have any way, according to the specs,
+        // to give priority to a digest name in particular
+        ss << kv.first << '=' << 5;
+        if(cpt < reprDigestSize) {
+          ss << ',';
+        }
+        cpt++;
+      }
+      list = curl_slist_append(list, ss.str().c_str());
+      m_headers_copy.emplace_back(ss.str());
     }
 
     if (m_is_transfer_state && m_push && m_push_length > 0) {
@@ -124,12 +146,53 @@ void State::SetupHeaders(XrdHttpExtReq &req) {
         // See: https://github.com/xrootd/xrootd/issues/2470
         // See: https://github.com/curl/curl/issues/17004
         list = curl_slist_append(list, "Expect: 100-continue");
+        // Add Repr-Digest header to PUT request (PUSH)
+        auto reprDigest = XrdOucTUtils::caseInsensitiveFind(req.headers,"repr-digest");
+        if(reprDigest != req.headers.end()) {
+          std::string reprDigestHeader {"Repr-Digest: " + reprDigest->second};
+          curl_slist_append(list,reprDigestHeader.c_str());
+        }
     }
 
-    if (list != NULL) {
+    if (list != nullptr) {
         curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
         m_headers = list;
     }
+}
+
+void State::SetupHeadersForHEAD(XrdHttpExtReq &req) {
+  struct curl_slist *list = NULL;
+  for (const auto & [header,value]: req.headers) {
+    if (!strncasecmp(header.c_str(),"copy-header", 11)) {
+      list = curl_slist_append(list, value.c_str());
+    }
+    // Note: len("TransferHeader") == 14
+    if (!strncasecmp(header.c_str(),"transferheader",14)) {
+      std::stringstream ss;
+      ss << header.substr(14) << ": " << value;
+      list = curl_slist_append(list, ss.str().c_str());
+    }
+  }
+  if(!req.mReprDigest.empty()) {
+    size_t reprDigestSize = req.mReprDigest.size();
+    std::stringstream ss;
+    ss << "Want-Repr-Digest: ";
+    size_t cpt = 1;
+    for (const auto &kv: req.mReprDigest) {
+      // We put the same weight for the digest names as we do not have any way, according to the specs,
+      // to give priority to a digest name in particular
+      ss << kv.first << '=' << 5;
+      if(cpt < reprDigestSize) {
+        ss << ',';
+      }
+      cpt++;
+    }
+    list = curl_slist_append(list, ss.str().c_str());
+  }
+
+  if (list != nullptr) {
+    curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
+  }
 }
 
 void State::ResetAfterRequest() {
@@ -139,6 +202,7 @@ void State::ResetAfterRequest() {
     m_push_length = -1;
     m_recv_all_headers = false;
     m_recv_status_line = false;
+    m_repr_digests.clear();
 }
 
 size_t State::HeaderCB(char *buffer, size_t size, size_t nitems, void *userdata)
@@ -187,6 +251,9 @@ int State::Header(const std::string &header) {
                     return 0;
                 }
             }
+            if(header_name == "repr-digest") {
+              XrdHttpHeaderUtils::parseReprDigest(header_value,m_repr_digests);
+            }
         } else {
             // Non-empty header that isn't the status line, but no ':' present --
             // malformed request?
@@ -212,6 +279,29 @@ size_t State::WriteCB(void *buffer, size_t size, size_t nitems, void *userdata) 
             return size*nitems;
     }  // Status indicates failure.
     return obj->Write(static_cast<char*>(buffer), size*nitems);
+}
+
+/**
+ * This callback is used to give users the error message returns by the passive server of
+ * the TPC PUSH
+ * It is a write callback! --> the error message is written to the buffer
+ */
+size_t State::PushRespCB(void *buffer, size_t size, size_t nitems, void *userdata) {
+  State *obj = static_cast<State*>(userdata);
+  // Note: The obj's status code is set by the HeaderCB once there's a reply from the passive server
+  if (obj->GetStatusCode() < 0) {
+    return 0;
+  }  // malformed request - got body before headers.
+  if (obj->GetStatusCode() >= 400) {
+    obj->m_error_buf += std::string(static_cast<char*>(buffer),
+                                    std::min(static_cast<size_t>(1024), size*nitems));
+    // Record error messages until we hit a KB; at that point, fail out.
+    if (obj->m_error_buf.size() >= 1024)
+      return 0;
+    else
+      return size*nitems;
+  }
+  return size*nitems;
 }
 
 ssize_t State::Write(char *buffer, size_t size) {
