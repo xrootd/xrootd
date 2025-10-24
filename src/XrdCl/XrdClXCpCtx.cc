@@ -37,7 +37,7 @@ XCpCtx::XCpCtx( const std::vector<std::string> &urls, uint64_t blockSize, uint8_
       pUrls( std::deque<std::string>( urls.begin(), urls.end() ) ), pBlockSize( blockSize ),
       pParallelSrc( parallelSrc ), pChunkSize( chunkSize ), pParallelChunks( parallelChunks ),
       pOffset( 0 ), pFileSize( -1 ), pFileSizeCV( 0 ), pDataReceived( 0 ), pDone( false ),
-      pDoneCV( 0 ), pRefCount( 1 )
+      pDoneCV( 0 ), pRefCount( 1 ), pDeleteCV( 0 ), pDelete( false )
 {
   SetFileSize( fileSize );
 }
@@ -69,6 +69,8 @@ XCpSrc* XCpCtx::WeakestLink( XCpSrc *exclude )
   XCpSrc *ret = 0;
 
   std::list<XCpSrc*>::iterator itr;
+  XrdSysMutexHelper lck( pMtx );
+
   for( itr = pSources.begin() ; itr != pSources.end() ; ++itr )
   {
     XCpSrc *src = *itr;
@@ -81,7 +83,8 @@ XCpSrc* XCpCtx::WeakestLink( XCpSrc *exclude )
     }
   }
 
-  return ret;
+  if( !ret ) return ret;
+  return ret->Self();
 }
 
 void XCpCtx::PutChunk( PageInfo* chunk )
@@ -103,10 +106,10 @@ std::pair<uint64_t, uint64_t> XCpCtx::GetBlock()
 
 void XCpCtx::SetFileSize( int64_t size )
 {
-  XrdSysMutexHelper lck( pMtx );
+  XrdSysCondVarHelper lckcv( pFileSizeCV );
+  XrdSysMutexHelper lckmtx( pMtx );
   if( pFileSize < 0 && size >= 0 )
   {
-    XrdSysCondVarHelper lck( pFileSizeCV );
     pFileSize = size;
     pFileSizeCV.Broadcast();
 
@@ -124,10 +127,23 @@ XRootDStatus XCpCtx::Initialize()
   {
     XCpSrc *src = new XCpSrc( pChunkSize, pParallelChunks, pFileSize, this );
     pSources.push_back( src );
-    src->Start();
   }
 
-  if( pSources.empty() )
+  auto scpy = pSources;
+  bool ok   = false;
+  for(auto src: scpy) {
+    if( src->Start() )
+    {
+      // src destructor will remove src from pSources
+      src->Delete();
+    }
+    else
+    {
+      ok = true;
+    }
+  }
+
+  if( !ok )
   {
     Log *log = DefaultEnv::GetLog();
     log->Error( UtilityMsg, "Failed to initialize (failed to create new threads)" );
@@ -189,6 +205,8 @@ size_t XCpCtx::GetRunning()
   // count active sources
   size_t nbRunning = 0;
   std::list<XCpSrc*>::iterator itr;
+  XrdSysMutexHelper lck( pMtx );
+
   for( itr = pSources.begin() ; itr != pSources.end() ; ++ itr)
     if( (*itr)->IsRunning() )
       ++nbRunning;
