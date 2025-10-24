@@ -29,6 +29,8 @@
 #include "XrdCl/XrdClSyncQueue.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <atomic>
+
 namespace XrdCl
 {
 
@@ -55,7 +57,7 @@ class XCpSrc
     /**
      * Creates new thread with XCpSrc::Run as the start routine.
      */
-    void Start();
+    int Start();
 
     /**
      * Stops the thread.
@@ -311,7 +313,7 @@ class XCpSrc
     /**
      * Total number of data transferred from this source.
      */
-    uint64_t                      pDataTransfered;
+    std::atomic<uint64_t>         pDataTransfered;
 
     /**
      * A map of ongoing transfers (the offset is the key,
@@ -348,7 +350,7 @@ class XCpSrc
      * false means the source has been stopped,
      * or failed.
      */
-    bool                          pRunning;
+    std::atomic<bool>             pRunning;
 
     /**
      * The time when we started / restarted  chunks

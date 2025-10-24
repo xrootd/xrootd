@@ -308,12 +308,18 @@ namespace XrdCl
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
-          // update number of pending operations
-          size_t pending = pending_cnt.fetch_sub( 1, std::memory_order_relaxed ) - 1;
-          // although we might have the minimum to succeed we wait for the rest
-          if( status.IsOK() ) return ( pending == 0 );
-          size_t nb = failed_cnt.fetch_add( 1, std::memory_order_relaxed );
+          if( status.IsOK() )
+          {
+            // ok status: update pending_cnt and return, indicating if all are done
+            return pending_cnt.fetch_sub( 1, std::memory_order_acq_rel ) == 1;
+          }
+          // there's a failure: delay decrementing pending_cnt until we've
+          // updated failed_cnt (and posibly recorded the error), otherwise
+          // a succeeding result could return true before we've saved the error
+          const size_t nb = failed_cnt.fetch_add( 1, std::memory_order_relaxed );
           if( nb == failed_threshold ) res = status; // we dropped below the threshold
+          // update number of pending operations
+          const size_t pending = pending_cnt.fetch_sub( 1, std::memory_order_acq_rel ) - 1;
           // if we still have to wait for pending operations return false,
           // otherwise all is done, return true
           return ( pending == 0 );
