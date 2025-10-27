@@ -518,11 +518,11 @@ int mapErrNoToHttp(int errNo) {
       return HTTP_NOT_FOUND;
 
     case EEXIST:
+    case EISDIR:
+    case ENOTDIR:
     case ENOTEMPTY:
       return HTTP_CONFLICT;
 
-    case ENOTDIR:
-    case EISDIR:
     case EXDEV:
       return HTTP_UNPROCESSABLE_ENTITY;
 
