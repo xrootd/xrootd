@@ -544,7 +544,6 @@ int mapErrNoToHttp(int errNo) {
     case EFAULT:
     case ENXIO:
     case ESPIPE:
-    case ENODEV:
     case EOVERFLOW:
       return HTTP_BAD_REQUEST;
 
