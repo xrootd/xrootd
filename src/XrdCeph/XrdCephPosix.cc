@@ -67,7 +67,8 @@ char *ts_rfc3339() {
     return strdup(timeString);
 }
 
-constexpr char hex2ascii(char nibble)   { return (0<= nibble && nibble<=9) ? nibble+'0' : nibble-10+'a'; }
+//no need to check if nibble is <0 due to type limits
+constexpr char hex2ascii(char nibble)   { return (nibble<=9) ? nibble+'0' : nibble-10+'a'; }
 constexpr char hiNibble(uint8_t hexbyte) { return (hexbyte & 0xf0) >> 4; }
 constexpr char loNibble(uint8_t hexbyte) { return (hexbyte & 0x0f); }
 
