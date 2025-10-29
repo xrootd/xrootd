@@ -262,7 +262,7 @@ bool XrdNetRegistry::Resolve(const char *hSpec, std::string *eText)
 bool XrdNetRegistry::SetAlias(const char *hAlias, const char *hName,
                               std::string *eText)
 {
-   regEntry    *reP;
+   regEntry    *reP = nullptr;
    const char  *eWhy = 0;
 
 // Verify that the source does not exist and the target does

@@ -165,7 +165,7 @@ namespace XrdEc
       // Find a server where we can append the next data chunk
       //-----------------------------------------------------------------------
       XrdCl::Ctx<XrdCl::ZipArchive> zip;
-      size_t srvid;
+      size_t srvid = 0;
       if( !servers->dequeue( srvid ) )
       {
         XrdCl::XRootDStatus err( XrdCl::stError, XrdCl::errNoMoreReplicas,

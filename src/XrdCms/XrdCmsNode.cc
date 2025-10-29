@@ -1902,7 +1902,7 @@ void XrdCmsNode::setHash(XrdCmsSelect &Sel, int acount)
 //
    if (acount > 0)
       {char *spos = (*Sel.Path.Val == '/' ? Sel.Path.Val+1 : Sel.Path.Val);
-       char *slash;
+       char *slash = nullptr;
        while(acount)
             {if (!(slash = index(spos, '/'))) return;
              acount--; spos = slash+1;

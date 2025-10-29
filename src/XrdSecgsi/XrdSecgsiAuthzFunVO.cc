@@ -143,7 +143,7 @@ int XrdSecgsiAuthzFun(XrdSecEntity &entity)
    static XrdSysMutex Mutex;
    const char *vtxt = "", *etxt = 0;
    char vbuff[(g_maxvolen+1)*2];
-   int i, n;
+   int n = 0;
 
 // We must have a vo, it must be shorter than 255 bytes, and it must be in our
 // vo list of we have one
@@ -182,7 +182,7 @@ int XrdSecgsiAuthzFun(XrdSecEntity &entity)
                 {char *cP = vbuff;
                  strncpy(vbuff, vtxt+4, g_maxvolen); vbuff[n] = 0;
                  while(*cP) {if (*cP == ' ') *cP = '_'; cP++;}
-                 for (i = n-1; i >= 0; i--) {if (*cP == '_') *cP = 0;}
+                 for (int i = n-1; i >= 0; i--) {if (*cP == '_') *cP = 0;}
                  if (*vbuff)
                     {if (entity.name) free(entity.name);
                      entity.name = strdup(vbuff);
