@@ -2611,7 +2611,7 @@ int XrdXrootdProtocol::do_ReadV()
 
 // We limit the total size of the read to be 2GB for convenience
 //
-   if (totSZ > 0x7fffffffLL)
+   if (totSZ > 0x80000000LL)
       return Response.Send(kXR_NoMemory, "Total readv transfer is too large");
 
 // Calculate the transfer unit which will be the smaller of the maximum
