@@ -7,7 +7,7 @@ on:
   push:
     paths:
       - .github/workflows/ABI.yml
-      - src/
+      - 'src/**'
     branches-ignore:
       - skip-ci
     tags-ignore:

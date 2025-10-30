@@ -7,13 +7,6 @@ on:
   push:
     branches:
       - macos
-    paths-ignore:
-      - .gitignore
-      - .gitlab-ci.yml
-      - .mailmap
-      - '**.md'
-      - 'docs/**'
-      - 'docker/**'
     tags-ignore:
   workflow_dispatch:
 

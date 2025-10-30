@@ -10,8 +10,8 @@ on:
       - coverage
     paths:
       - .github/workflows/COV.yml
-      - src
-      - tests
+      - 'src/**'
+      - 'tests/**'
     tags-ignore:
   pull_request:
   workflow_dispatch:
