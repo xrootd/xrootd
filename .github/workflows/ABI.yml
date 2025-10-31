@@ -47,6 +47,12 @@ jobs:
     - name: Install XRootD build dependencies
       run: mk-build-deps --install --remove -s sudo debian/control <<< yes
 
+    - name: Configure XRootD (Head Reference)
+      run: cmake -S . -B build/new -DCMAKE_INSTALL_PREFIX=install/new
+
+    - name: Build and Install XRootD (Head Reference)
+      run: cmake --build build/new --parallel --target install
+
     - name: Checkout Base Reference of XRootD to Compare ABI
       run: git checkout -f ${GITHUB_BASE_REF:-$(git rev-list --tags --max-count=1)}
 
@@ -55,15 +61,6 @@ jobs:
 
     - name: Build and Install XRootD (Base Reference)
       run: cmake --build build/old --parallel --target install
-
-    - name: Checkout Head Reference of XRootD to Compare ABI
-      run: git checkout -f ${GITHUB_HEAD_REF:-${GITHUB_SHA}}
-
-    - name: Configure XRootD (Head Reference)
-      run: cmake -S . -B build/new -DCMAKE_INSTALL_PREFIX=install/new
-
-    - name: Build and Install XRootD (Head Reference)
-      run: cmake --build build/new --parallel --target install
 
     - name: Check ABI Compatibility between Base and Head References
       run: |
