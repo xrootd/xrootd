@@ -34,6 +34,10 @@ teardown() {
         fi
     done
 
+    for srv in "${servernames[@]}"; do
+        rm -rf "${DATAFOLDER}/${srv}"
+    done
+
     echo "teardown complete."
 }
 
