@@ -43,6 +43,7 @@ jobs:
       uses: actions/checkout@v5
       with:
         fetch-depth: 0
+        # Test to show that the CI is broken for PRs
 
     - name: Install XRootD build dependencies
       run: mk-build-deps --install --remove -s sudo debian/control <<< yes
