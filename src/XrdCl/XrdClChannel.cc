@@ -87,7 +87,7 @@ namespace XrdCl
                     TaskManager      *taskManager,
                     JobManager       *jobManager,
                     const URL        &prefurl ):
-    pUrl( std::make_shared<URL>( url.GetHostId() ) ),
+    pUrl( url.GetHostId() ),
     pPoller( poller ),
     pTransport( transport ),
     pTaskManager( taskManager ),
@@ -104,13 +104,13 @@ namespace XrdCl
     log->Debug( PostMasterMsg, "Creating new channel to: %s",
                                 url.GetChannelId().c_str() );
 
-    pUrl->SetParams( url.GetParams() );
-    pUrl->SetProtocol( url.GetProtocol() );
+    pUrl.SetParams( url.GetParams() );
+    pUrl.SetProtocol( url.GetProtocol() );
 
     //--------------------------------------------------------------------------
     // Create the stream
     //--------------------------------------------------------------------------
-    pStream = new Stream( pUrl, prefurl );
+    pStream = new Stream( &pUrl, prefurl );
     pStream->SetTransport( transport );
     pStream->SetPoller( poller );
     pStream->SetIncomingQueue( &pIncoming );
@@ -122,7 +122,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Register the task generating timeout events
     //--------------------------------------------------------------------------
-    pTickGenerator = new TickGeneratorTask( this, pUrl->GetChannelId() );
+    pTickGenerator = new TickGeneratorTask( this, pUrl.GetChannelId() );
     pTaskManager->RegisterTask( pTickGenerator, ::time(0)+timeoutResolution );
   }
 
