@@ -1003,14 +1003,18 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 
   pmarkHandle = (XrdNetPMark* ) myEnv->GetPtr("XrdNetPMark*");
 
-  XrdXrootdGStream *gs = nullptr;
-  if ((gs = (XrdXrootdGStream *)myEnv->GetPtr("http.gStream*")) != nullptr) {
-      httpMon = new XrdHttpMon(eDest.logger(), gs);
-      pthread_t tid;
-      int rc;
-      if ((rc = XrdSysThread::Run(&tid, XrdHttpMon::Start, httpMon, 0, "Http Stats thread"))) {
-          eDest.Emsg("httpMon", rc, "create stats thread");
-          return rc;
+  XrdXrootdGStream *gs = (XrdXrootdGStream *)myEnv->GetPtr("http.gStream*");
+  XrdMonRoll *mrollP = (XrdMonRoll *)myEnv->GetPtr("XrdMonRoll*");
+
+  if (gs || mrollP) {
+      httpMon = new XrdHttpMon(eDest.logger(), gs, mrollP);
+      if (gs) {
+          pthread_t tid;
+          int rc = XrdSysThread::Run(&tid, XrdHttpMon::Start, httpMon, 0, "Http Stats thread");
+          if (rc) {
+              eDest.Emsg("httpMon", rc, "create stats thread");
+              return rc;
+          }
       }
   }
 
@@ -1602,6 +1606,8 @@ void XrdHttpProtocol::Record() {
   int code = CurrentReq.getInitialStatusCode();
   if (code < 200) return;
   auto duration = std::chrono::steady_clock::now() - CurrentReq.startTime;
+
+  httpMon->verbCounters[CurrentReq.request]++;
 
   switch (CurrentReq.monState) {
     case XrdHttpReq::MonitState::NEW:
