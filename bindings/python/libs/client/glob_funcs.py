@@ -24,6 +24,7 @@
 from __future__ import absolute_import, division, print_function
 
 from XRootD.client.filesystem import FileSystem
+from XRootD.client.flags import DirListFlags, StatInfoFlags
 
 import glob as gl
 import os
@@ -98,7 +99,7 @@ def iglob(pathname, raise_error=False):
 
     # Else try xrootd instead
     for path in xrootd_iglob(pathname_clean, url_params, raise_error=raise_error):
-        yield path
+        yield path + url_params
 
 
 def xrootd_iglob(pathname, url_params, raise_error):
@@ -107,10 +108,10 @@ def xrootd_iglob(pathname, url_params, raise_error):
     Provides a python generator over files that match the wild-card expression.
     """
     # Split the pathname into a directory and basename
-    dirs, basename = os.path.split(pathname)
+    dirs, basename = os.path.split(pathname.rstrip("/"))
 
     if gl.has_magic(dirs):
-        dirs = list(xrootd_iglob(dirs, url_params, raise_error))
+        dirs = list(xrootd_iglob(dirs + "/", url_params, raise_error))
     else:
         dirs = [dirs]
 
@@ -121,8 +122,9 @@ def xrootd_iglob(pathname, url_params, raise_error):
         if not query:
             raise RuntimeError("Cannot prepare xrootd query")
 
-        # Include URL parameters in the dirlist call for authentication
-        status, dirlist = query.dirlist(path + "/" + url_params)
+        # Use STAT flag to get file type information
+        flags = DirListFlags.STAT if pathname.endswith("/") else 0
+        status, dirlist = query.dirlist(path + "/" + url_params, flags)
         if status.error:
             if not raise_error:
                 continue
@@ -134,8 +136,11 @@ def xrootd_iglob(pathname, url_params, raise_error):
                 continue
             if not fnmatch.fnmatchcase(filename, basename):
                 continue
-            # Append URL parameters to the final path
-            yield os.path.join(dirname, filename) + url_params
+            if pathname.endswith("/"):
+                if entry.statinfo.flags & StatInfoFlags.IS_DIR:
+                    yield os.path.join(dirname, filename) + "/"
+            else:
+                yield os.path.join(dirname, filename)
 
 
 def glob(pathname, raise_error=False):
