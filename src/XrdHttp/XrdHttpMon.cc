@@ -13,9 +13,39 @@ typedef std::array<std::array<XrdHttpMon::HttpInfo, XrdHttpMon::StatusCodes::sc_
 
 StatsMatrix XrdHttpMon::statsInfo{};
 
-XrdHttpMon::XrdHttpMon(XrdSysLogger *logP, XrdXrootdGStream *gStream)
-    : flushPeriod(std::chrono::seconds(gStream->GetAutoFlush())), gStream(gStream)  {
-  eDest.logger(logP);
+RAtomic_uint XrdHttpMon::verbCounters[XrdHttpReq::ReqType::rtCount] = {0};
+
+// NOTE: Keep this mapping aligned to the XrdHttpReq enum
+XrdMonRoll::setMember XrdHttpMon::verbCountersSchema[] = {
+    {"Unknown",   verbCounters[0]},
+    {"Malformed", verbCounters[1]},
+    {"GET",       verbCounters[2]},
+    {"HEAD",      verbCounters[3]},
+    {"PUT",       verbCounters[4]},
+    {"OPTIONS",   verbCounters[5]},
+    {"PATCH",     verbCounters[6]},
+    {"DELETE",    verbCounters[7]},
+    {"PROPFIND",  verbCounters[8]},
+    {"MKCOL",     verbCounters[9]},
+    {"MOVE",      verbCounters[10]},
+    {"POST",      verbCounters[11]},
+    {"COPY",      verbCounters[12]},
+    {0,           XrdMonRoll::EOV}
+};
+
+
+XrdHttpMon::XrdHttpMon(XrdSysLogger *logP, XrdXrootdGStream *gStream, XrdMonRoll *mrollP)
+    : gStream(gStream), mrollP(mrollP) {
+
+    eDest.logger(logP);
+    if (gStream) {
+        flushPeriod = std::chrono::seconds(gStream->GetAutoFlush());
+    }
+    if (mrollP) {
+        mrollP->Register(XrdMonRoll::AddOn, "httpReqStats", verbCountersSchema);
+    } else {
+        eDest.Say("XrdMonRoll Not Configured");
+    }
 }
 
 void XrdHttpMon::Report() {
