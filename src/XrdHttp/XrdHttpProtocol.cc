@@ -911,17 +911,18 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 
   pmarkHandle = (XrdNetPMark* ) myEnv->GetPtr("XrdNetPMark*");
 
-  XrdXrootdGStream *gs = nullptr;
-  if ((gs = (XrdXrootdGStream *)myEnv->GetPtr("http.gStream*")) != nullptr) {
-      if (!XrdHttpMon::Initialize(eDest.logger(), gs)) {
-          eDest.Emsg("httpMon", "failed to initialize monitoring");
-          return -1;
-      }
-      pthread_t tid;
-      int rc;
-      if ((rc = XrdSysThread::Run(&tid, XrdHttpMon::Start, nullptr, 0, "Http Stats thread"))) {
-          eDest.Emsg("httpMon", rc, "create stats thread");
-          return rc;
+  XrdXrootdGStream *gs = (XrdXrootdGStream *)myEnv->GetPtr("http.gStream*");
+  XrdMonRoll *mrollP = (XrdMonRoll *)myEnv->GetPtr("XrdMonRoll*");
+
+  if (gs || mrollP) {
+      XrdHttpMon::Initialize(eDest.logger(), gs, mrollP);
+      if (gs) {
+          pthread_t tid;
+          int rc = XrdSysThread::Run(&tid, XrdHttpMon::Start, nullptr, 0, "Http Stats thread");
+          if (rc) {
+              eDest.Emsg("httpMon", rc, "create stats thread");
+              return rc;
+          }
       }
   }
 
@@ -1579,7 +1580,7 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
   const std::string crlf = "\r\n";
   std::stringstream ss;
   CurrentReq.setHttpStatusCode(code);
-  XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+  XrdHttpMon::Record(CurrentReq, code);
 
   if (header_to_add && (header_to_add[0] != '\0')) {
     ss << header_to_add << crlf;
@@ -1589,7 +1590,7 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
   TRACEI(RSP, "Starting chunked response");
 
   int r = StartSimpleResp(code, desc, ss.str().c_str(), bodylen, keepalive);
-  if (r < 0) XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+  if (r < 0) XrdHttpMon::Record(CurrentReq, code);
   return r;
 }
 
@@ -1604,12 +1605,12 @@ int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
   if (code < 200) code = CurrentReq.getHttpStatusCode();
 
   if (ChunkRespHeader(header_len)) {
-    XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+    XrdHttpMon::Record(CurrentReq, code);
     return -1;
   }
 
   if (body && SendData(body, content_length)){
-    XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+    XrdHttpMon::Record(CurrentReq, code);
     return -1;
   }
 
@@ -1620,7 +1621,7 @@ int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
     // we report it as a network error
     if (CurrentReq.xrdresp == kXR_error && CurrentReq.monState == XrdHttpMonState::ACTIVE)
       CurrentReq.monState = XrdHttpMonState::ERR_PROT;
-    XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+    XrdHttpMon::Record(CurrentReq, code);
   }
 
   return r;
@@ -1662,7 +1663,7 @@ int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *head
 
   int r{0};
   CurrentReq.setHttpStatusCode(code);
-  XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+  XrdHttpMon::Record(CurrentReq, code);
 
   long long content_length = bodylen;
   if (bodylen <= 0) {
@@ -1670,7 +1671,7 @@ int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *head
   }
 
   if (StartSimpleResp(code, desc, header_to_add, content_length, keepalive) < 0) {
-    XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+    XrdHttpMon::Record(CurrentReq, code);
     return -1;
   }
 
@@ -1678,7 +1679,7 @@ int XrdHttpProtocol::SendSimpleResp(int code, const char *desc, const char *head
   // Send the data
   if (body) r = SendData(body, content_length);
 
-  XrdHttpMon::Record(CurrentReq, CurrentReq.monState, code);
+  XrdHttpMon::Record(CurrentReq, code);
   return r;
 }
 
