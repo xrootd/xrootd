@@ -45,6 +45,29 @@ def split_url(url):
     return domain, path
 
 
+def extract_url_params(pathname):
+    """
+    Extract URL parameters from a pathname, distinguishing them from glob patterns.
+
+    URL parameters are identified as the rightmost '?' followed by key=value pairs.
+    Returns (pathname_without_params, url_params_string)
+    """
+    # Look for '?' followed by something that looks like URL parameters (contains '=')
+    # We search from the right to avoid catching glob '?' wildcards
+    idx = pathname.rfind('?')
+    if idx == -1:
+        return pathname, ''
+
+    # Check if what follows looks like URL parameters (contains '=')
+    potential_params = pathname[idx+1:]
+    if '=' in potential_params:
+        # This looks like URL parameters, not a glob pattern
+        return pathname[:idx], pathname[idx:]
+
+    # It's just a glob wildcard, not URL parameters
+    return pathname, ''
+
+
 def iglob(pathname, raise_error=False):
     """
     Generates paths based on a wild-carded path, potentially via xrootd.
@@ -61,21 +84,24 @@ def iglob(pathname, raise_error=False):
     Yields:
       (str): A single path that matches the wild-carded string
     """
+    # Extract URL parameters before processing
+    pathname_clean, url_params = extract_url_params(pathname)
+
     # Let normal python glob try first
-    generator = gl.iglob(pathname)
+    generator = gl.iglob(pathname_clean)
     path = next(generator, None)
     if path is not None:
-        yield path
+        yield path + url_params
         for path in generator:
-            yield path
+            yield path + url_params
         return
 
     # Else try xrootd instead
-    for path in xrootd_iglob(pathname, raise_error=raise_error):
+    for path in xrootd_iglob(pathname_clean, url_params, raise_error=raise_error):
         yield path
 
 
-def xrootd_iglob(pathname, raise_error):
+def xrootd_iglob(pathname, url_params, raise_error):
     """Handles the actual interaction with xrootd
 
     Provides a python generator over files that match the wild-card expression.
@@ -84,7 +110,7 @@ def xrootd_iglob(pathname, raise_error):
     dirs, basename = os.path.split(pathname)
 
     if gl.has_magic(dirs):
-        dirs = list(xrootd_iglob(dirs, raise_error))
+        dirs = list(xrootd_iglob(dirs, url_params, raise_error))
     else:
         dirs = [dirs]
 
@@ -95,7 +121,8 @@ def xrootd_iglob(pathname, raise_error):
         if not query:
             raise RuntimeError("Cannot prepare xrootd query")
 
-        status, dirlist = query.dirlist(path)
+        # Include URL parameters in the dirlist call for authentication
+        status, dirlist = query.dirlist(path + "/" + url_params)
         if status.error:
             if not raise_error:
                 continue
@@ -107,7 +134,8 @@ def xrootd_iglob(pathname, raise_error):
                 continue
             if not fnmatch.fnmatchcase(filename, basename):
                 continue
-            yield os.path.join(dirname, filename)
+            # Append URL parameters to the final path
+            yield os.path.join(dirname, filename) + url_params
 
 
 def glob(pathname, raise_error=False):
