@@ -131,6 +131,8 @@ std::string XrdHttpMon::GetStatusCodeString(StatusCodes sc) {
             return "200";
         case sc_201:
             return "201";
+        case sc_202:
+            return "202";
         case sc_206:
             return "206";
         case sc_207:
@@ -176,6 +178,8 @@ XrdHttpMon::StatusCodes XrdHttpMon::ToStatusCode(int code) {
             return sc_200;
         case 201:
             return sc_201;
+        case 202:
+            return sc_202;
         case 206:
             return sc_206;
         case 207:
