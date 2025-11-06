@@ -111,7 +111,7 @@ def xrootd_iglob(pathname, url_params, raise_error):
     dirs, basename = os.path.split(pathname.rstrip("/"))
 
     if gl.has_magic(dirs):
-        dirs = list(xrootd_iglob(dirs + "/", url_params, raise_error))
+        dirs = xrootd_iglob(dirs + "/", url_params, raise_error)
     else:
         dirs = [dirs]
 
