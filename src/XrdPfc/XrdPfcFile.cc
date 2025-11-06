@@ -31,11 +31,12 @@
 
 #include "XrdCl/XrdClURL.hh"
 
+#include <cassert>
 #include <cstdio>
 #include <sstream>
-#include <fcntl.h>
-#include <cassert>
+#include <unordered_map>
 
+#include <fcntl.h>
 
 using namespace XrdPfc;
 
