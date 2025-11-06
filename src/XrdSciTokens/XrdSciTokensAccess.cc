@@ -130,6 +130,12 @@ XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
         case AOP_Update:
             new_privs |= static_cast<int>(XrdAccPriv_Update);
             break;
+        case AOP_Stage:
+            new_privs |= static_cast<int>(XrdAccPriv_Stage);
+            break;
+        case AOP_Poll:
+            new_privs |= static_cast<int>(XrdAccPriv_Poll);
+            break;
     };
     return static_cast<XrdAccPrivs>(new_privs);
 }
@@ -151,6 +157,8 @@ const std::string OpToName(Access_Operation op) {
         case AOP_Rename: return "mv";
         case AOP_Stat: return "stat";
         case AOP_Update: return "update";
+        case AOP_Stage: return "stage";
+        case AOP_Poll: return "poll";
     };
     return "unknown";
 }
@@ -965,6 +973,11 @@ private:
                     xrd_rules.emplace_back(AOP_Chmod, path);
                     xrd_rules.emplace_back(AOP_Stat, path);
                     xrd_rules.emplace_back(AOP_Delete, path);
+                } else if (!strcmp(acl_authz, "storage.stage")) {
+                    xrd_rules.emplace_back(AOP_Stage, path);
+                    xrd_rules.emplace_back(AOP_Poll, path);
+                } else if (!strcmp(acl_authz, "storage.poll")) {
+                    xrd_rules.emplace_back(AOP_Poll, path);
                 } else if (!strcmp(acl_authz, "write")) {
                     paths_write_seen.insert(path);
                 }
