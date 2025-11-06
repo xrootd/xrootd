@@ -1607,26 +1607,28 @@ void XrdHttpProtocol::Record() {
   if (code < 200) return;
   auto duration = std::chrono::steady_clock::now() - CurrentReq.startTime;
 
-  httpMon->verbCounters[CurrentReq.request]++;
-
   switch (CurrentReq.monState) {
     case XrdHttpReq::MonitState::NEW:
       httpMon->RecordCount(CurrentReq.request, XrdHttpMon::ToStatusCode(code));
+      httpMon->verbCounters[CurrentReq.request]++;
       CurrentReq.monState = XrdHttpReq::MonitState::ACTIVE;
       return;
 
     case XrdHttpReq::MonitState::ACTIVE:
       httpMon->RecordSuccess(CurrentReq.request, XrdHttpMon::ToStatusCode(code), duration);
+      httpMon->statusCounters[XrdHttpMon::ToStatusCode(code)]++;
       CurrentReq.monState = XrdHttpReq::MonitState::DONE;
       return;
 
     case XrdHttpReq::MonitState::ERR_NET:
       httpMon->RecordErrNet(CurrentReq.request, XrdHttpMon::ToStatusCode(code), duration);
+      httpMon->statusCounters[XrdHttpMon::ToStatusCode(code)]++;
       CurrentReq.monState = XrdHttpReq::MonitState::DONE;
       return;
 
     case XrdHttpReq::MonitState::ERR_PROT:
       httpMon->RecordErrProt(CurrentReq.request, XrdHttpMon::ToStatusCode(code), duration);
+      httpMon->statusCounters[XrdHttpMon::ToStatusCode(code)]++;
       CurrentReq.monState = XrdHttpReq::MonitState::DONE;
       return;
     
