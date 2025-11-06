@@ -574,7 +574,7 @@ void FileTest::VectorReadTest()
   // remote vread2
   info = 0;
   EXPECT_XRDST_OK( f.VectorRead( chunkList2, buffer2, info ) );
-  EXPECT_EQ( info->GetSize(), 10*256000 );
+  EXPECT_EQ( info->GetSize(), 2560000u );
   delete info;
 
   // readv with max size (i.e. 1024 elements x (2*MB-16) bytes per element)
@@ -611,7 +611,7 @@ void FileTest::VectorReadTest()
   // local vread2
   info = 0;
   EXPECT_XRDST_OK( f.VectorRead( chunkList2, buffer2Comp, info ) );
-  EXPECT_EQ( info->GetSize(), 10*256000 );
+  EXPECT_EQ( info->GetSize(), 2560000u );
   delete info;
 
   // checksum comparison again

@@ -333,7 +333,7 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
    chunks.push_back( ChunkInfo( 10, 5, new char[5] ) );
    EXPECT_XRDST_OK( file.VectorRead( chunks, NULL, info ) );
    EXPECT_XRDST_OK( file.Close() );
-   EXPECT_EQ( info->GetSize(), 10 );
+   EXPECT_EQ( info->GetSize(), 10u );
    EXPECT_EQ( 0, memcmp( "Gener",
                                     info->GetChunks()[0].buffer,
                                     info->GetChunks()[0].length ) );
@@ -356,7 +356,7 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
    EXPECT_XRDST_OK( file.Open( targetURL, flags, mode ) );
    EXPECT_XRDST_OK( file.VectorRead( chunks, buffer, info ) );
    EXPECT_XRDST_OK( file.Close() );
-   EXPECT_EQ( info->GetSize(), 10 );
+   EXPECT_EQ( info->GetSize(), 10u );
    EXPECT_EQ( 0, memcmp( "GenertFile",
                                     info->GetChunks()[0].buffer,
                                     info->GetChunks()[0].length ) );
@@ -409,7 +409,7 @@ TEST_F(LocalFileHandlerTest, VectorWriteTest)
    EXPECT_EQ( 0, memcmp( buffer, "AAAAABBBBB", 10 ) );
 
    EXPECT_XRDST_OK( file.Close() );
-   EXPECT_EQ( info->GetSize(), 10 );
+   EXPECT_EQ( info->GetSize(), 10u );
 
    delete[] (char*)chunks[0].buffer;
    delete[] (char*)chunks[1].buffer;
@@ -451,7 +451,7 @@ TEST_F(LocalFileHandlerTest, WriteVTest)
   uint32_t bytesRead = 0;
   buffer.resize( 17 );
   EXPECT_XRDST_OK( file.Read( 0, 17, buffer.data(), bytesRead ) );
-  EXPECT_EQ( buffer.size(), 17 );
+  EXPECT_EQ( buffer.size(), 17u );
   std::string expected = "GenericWriteVTest";
   EXPECT_EQ( std::string( buffer.data(), buffer.size() ), expected );
   EXPECT_XRDST_OK( file.Close() );
@@ -506,7 +506,7 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   std::vector<XAttr> resp;
   EXPECT_XRDST_OK( f.GetXAttr( names, resp ) );
 
-  ASSERT_EQ( resp.size(), 2 );
+  ASSERT_EQ( resp.size(), 2u );
 
   EXPECT_XRDST_OK( resp[0].status );
   EXPECT_XRDST_OK( resp[1].status );
@@ -525,7 +525,7 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   names.push_back( "description" );
   st_resp.clear();
   EXPECT_XRDST_OK( f.DelXAttr( names, st_resp ) );
-  EXPECT_EQ( st_resp.size(), 1 );
+  EXPECT_EQ( st_resp.size(), 1u );
   EXPECT_XRDST_OK( st_resp[0].status );
 
   //----------------------------------------------------------------------------
@@ -533,7 +533,7 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   //----------------------------------------------------------------------------
   resp.clear();
   EXPECT_XRDST_OK( f.ListXAttr( resp ) );
-  EXPECT_EQ( resp.size(), 2 );
+  EXPECT_EQ( resp.size(), 2u );
   vid = resp[0].name == "version" ? 0 : 1;
   int cid = vid == 0 ? 1 : 0;
   EXPECT_EQ( resp[vid].name, std::string("version") );
