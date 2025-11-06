@@ -18,6 +18,7 @@ class XrdHttpMon {
         sc_100,
         sc_200,
         sc_201,
+        sc_202,
         sc_206,
         sc_207,
         sc_302,
