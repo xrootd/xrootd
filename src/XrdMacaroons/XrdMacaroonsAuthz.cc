@@ -509,13 +509,35 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
     {
         m_log.Log(LogMask::Debug, "AuthzCheck", "path request verified for", m_path.c_str());
     }
-    // READ_METADATA permission for /foo/bar automatically implies permission
-    // to READ_METADATA for /foo.
-    else if (m_oper == AOP_Stat)
+
+    /*
+    READ_METADATA (i.e AOP_Stat) permission for /foo/bar automatically implies permission
+    to READ_METADATA for /foo.
+    Similarly, MKDIR for a parent path is implied.
+   
+    The following logic is intended:
+    Given the the macaroon path, i.e pred_str == /data/subdir/myfile
+    Allowed examples:
+    m_path = "/data/subdir/"  or "/data/subdir"
+    m_path = "/data"          or "/data/"
+
+    Not allowed examples
+    m_path = "/data/sub"      or "/data/sub/"
+    m_path = "/"              // root not allowed
+    */
+
+    else if (m_oper == AOP_Stat || m_oper == AOP_Mkdir)
     {
         result = strncmp(m_path.c_str(), pred_str.c_str(), m_path.size());
-        if (!result) {m_log.Log(LogMask::Debug, "AuthzCheck", "READ_METADATA path request verified for", m_path.c_str());}
-        else {m_log.Log(LogMask::Debug, "AuthzCheck", "READ_METADATA path request NOT allowed", m_path.c_str());}
+        const char *opName = (m_oper == AOP_Stat) ? "READ_METADATA" : "MKDIR";
+
+        if (!result && m_path.size() < pred_str.size() && m_path.back() != '/')
+        {
+            result = (pred_str[m_path.size()] != '/');
+        }
+        m_log.Log(LogMask::Debug, "AuthzCheck",
+                  (std::string(opName) + (result ? " Path request NOT allowed for" : " Path request verified for")).c_str(),
+                  m_path.c_str());
     }
     else
     {
