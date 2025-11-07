@@ -123,12 +123,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Constructor
     //--------------------------------------------------------------------------
-    XRootDStreamInfo(): status( Disconnected ), pathId( 0 )
+    XRootDStreamInfo(): status( Disconnected ), pathId( 0 ),
+                        serverFlags( 0 )
     {
     }
 
     StreamStatus status;
     uint8_t      pathId;
+    uint32_t     serverFlags;
   };
 
   //----------------------------------------------------------------------------
@@ -1569,8 +1571,6 @@ namespace XrdCl
 
     XrdSysMutexHelper scopedLock( info->mutex );
 
-    CleanUpProtection( info );
-
     if( !info->stream.empty() )
     {
       XRootDStreamInfo &sInfo = info->stream[subStreamId];
@@ -1579,6 +1579,7 @@ namespace XrdCl
 
     if( subStreamId == 0 )
     {
+      CleanUpProtection( info );
       info->sidManager->ReleaseAllTimedOut();
       info->sentOpens.clear();
       info->sentCloses.clear();
@@ -1858,14 +1859,14 @@ namespace XrdCl
     if( notlsok )
       return info->encrypted;
 
+    XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
+
     // Did the server instructed us to switch to TLS right away?
-    if( info->serverFlags & kXR_gotoTLS )
+    if( sInfo.serverFlags & kXR_gotoTLS )
     {
-      info->encrypted = true;
+      if( handShakeData->subStreamId == 0 ) info->encrypted = true;
       return true ;
     }
-
-    XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
 
     //--------------------------------------------------------------------------
     // The control stream (sub-stream 0)  might need to switch to TLS before
@@ -1912,7 +1913,6 @@ namespace XrdCl
       if( ( sInfo.status == XRootDStreamInfo::BindSent ) &&
           ( info->serverFlags & kXR_tlsData ) )
       {
-        info->encrypted = true;
         return true;
       }
     }
@@ -2043,16 +2043,23 @@ namespace XrdCl
       return XRootDStatus( stFatal, errHandShakeFailed, 0, "Invalid hand shake response." );
     }
 
-    info->protocolVersion = ntohl(hs->protover);
-    info->serverFlags     = ntohl(hs->msgval) == kXR_DataServer ?
-                            kXR_isServer:
-                            kXR_isManager;
+    XRootDStreamInfo &sInfo = info->stream[hsData->subStreamId];
+    const uint32_t pv = ntohl(hs->protover);
+    sInfo.serverFlags = ntohl(hs->msgval) == kXR_DataServer ?
+                        kXR_isServer:
+                        kXR_isManager;
+
+    if( hsData->subStreamId == 0 )
+    {
+      info->protocolVersion = pv;
+      info->serverFlags     = sInfo.serverFlags;
+    }
 
     log->Debug( XRootDTransportMsg,
                 "[%s] Got the server hand shake response (%s, protocol "
                 "version %x)",
                 hsData->streamName.c_str(),
-                ServerFlagsToStr( info->serverFlags ).c_str(),
+                ServerFlagsToStr( sInfo.serverFlags ).c_str(),
                 info->protocolVersion );
 
     return XRootDStatus( stOK, suContinue );
@@ -2080,6 +2087,15 @@ namespace XrdCl
 
       return XRootDStatus( stFatal, errHandShakeFailed, 0, "kXR_protocol request failed" );
     }
+
+    XRootDStreamInfo &sInfo = info->stream[hsData->subStreamId];
+    if( rsp->body.protocol.pval >= 0x297 )
+      sInfo.serverFlags = rsp->body.protocol.flags;
+
+    if(  hsData->subStreamId > 0 )
+      return XRootDStatus( stOK, suContinue );
+
+    info->serverFlags = sInfo.serverFlags;
 
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
     int notlsok = DefaultNoTlsOK;
