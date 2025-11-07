@@ -44,6 +44,19 @@ namespace XrdCl
 
   //----------------------------------------------------------------------------
   //! A communication channel between the client and the server
+  //!
+  //! Notes on ownership. The Channel is owned via shared_ptr usually held
+  //! by at least PostMaster. Channels replaced during a RedirectCollapse
+  //! may no longer be held by PostMaster. Channel has a weak_ptr to its
+  //! shared_ptr (pSelf). Channel owns a Stream, which also holds a weak_ptr
+  //! for its owning Channel. The Stream owns a number of
+  //! AsyncSocketHandler (one for each substream). After Connect() the
+  //! SocketHandler will hold a shared_ptr for Channel until the
+  //! SocketHandler is Closed. Thus lifetime of Channel ends when PostMaster
+  //! gives up holding the Channel and all AsyncSocketHandler Close connections.
+  //! PostMaster also maintains a set of non-owning Channel* for live Channel
+  //! objects, for PostMaster::Finalize() to use to issue Finalize() on any
+  //! live Channels.
   //----------------------------------------------------------------------------
   class Channel
   {
@@ -131,6 +144,13 @@ namespace XrdCl
       Status ForceDisconnect( bool hush );
 
       //------------------------------------------------------------------------
+      //! Force disconnect of all streams. This was triggered internally, e.g.
+      //! by one of our Streams.
+      //------------------------------------------------------------------------
+      Status ForceDisconnect( std::shared_ptr<Channel> self,
+                              const uint64_t sess );
+
+      //------------------------------------------------------------------------
       //! Force reconnect
       //------------------------------------------------------------------------
       Status ForceReconnect();
@@ -156,18 +176,31 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void DecFileInstCnt();
 
+      //------------------------------------------------------------------------
+      //! Gives us access to the shared pointer that the postmaster holds for us
+      //------------------------------------------------------------------------
+      void SetSelf( std::shared_ptr<Channel> &self );
+
+      //------------------------------------------------------------------------
+      //! Used by the PostMaster to indicate the Channel should release all
+      //! resources. It should be assumed that the jobmanager has already been
+      //! stopped & finalized and the poller and taskmanager have been stopped.
+      //------------------------------------------------------------------------
+      void Finalize();
+
     private:
 
       URL                    pUrl;
       Poller                *pPoller;
       TransportHandler      *pTransport;
       TaskManager           *pTaskManager;
-      Stream                *pStream;
+      std::unique_ptr<Stream> pStream;
       XrdSysMutex            pMutex;
       AnyObject              pChannelData;
       InQueue                pIncoming;
       TickGeneratorTask     *pTickGenerator;
       JobManager            *pJobManager;
+      std::weak_ptr<Channel> pSelf;
   };
 }
 

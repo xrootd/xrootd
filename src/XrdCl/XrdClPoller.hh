@@ -122,9 +122,19 @@ namespace XrdCl
                               SocketHandler *handler ) = 0;
 
       //------------------------------------------------------------------------
-      //! Remove the socket
+      //! Remove the socket. Depending on the implementation this may block
+      //! until the socket's poller event dispatch loop can finish dispatching
+      //! all its currently queued events, which can include sockets for any
+      //! channel. ShutdownEvents() may be used to have no more callbacks on
+      //! the given socket, with fewer blocking conditions.
       //------------------------------------------------------------------------
       virtual bool RemoveSocket( Socket *socket ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Disables further callbacks to the socket's event handler. If callback
+      //! is currently running wait for it, unless it is the current thread.
+      //------------------------------------------------------------------------
+      virtual void ShutdownEvents( Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Notify the handler about read events

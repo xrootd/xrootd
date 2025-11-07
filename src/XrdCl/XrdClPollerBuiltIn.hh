@@ -83,6 +83,12 @@ namespace XrdCl
       virtual bool RemoveSocket( Socket *socket );
 
       //------------------------------------------------------------------------
+      //! Disables further callbacks to the socket's event handler. If callback
+      //! is currently running wait for it, unless it is the current thread.
+      //------------------------------------------------------------------------
+      virtual void ShutdownEvents( Socket *socket );
+
+      //------------------------------------------------------------------------
       //! Notify the handler about read events
       //!
       //! @param socket  the socket

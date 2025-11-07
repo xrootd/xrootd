@@ -44,7 +44,7 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
-      //! Constructor
+      //! Constructors
       //------------------------------------------------------------------------
       AsyncSocketHandler( const URL        &url,
                           Poller           *poller,
@@ -52,6 +52,14 @@ namespace XrdCl
                           AnyObject        *channelData,
                           uint16_t          subStreamNum,
                           Stream           *strm );
+
+      AsyncSocketHandler( const AsyncSocketHandler &other ):
+        AsyncSocketHandler( other.pUrl, other.pPoller, other.pTransport,
+                            other.pChannelData, other.pSubStreamNum,
+                            other.pStream )
+      {
+        pLastActivity = other.pLastActivity;
+      }
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -80,7 +88,16 @@ namespace XrdCl
       XRootDStatus Connect( time_t timeout );
 
       //------------------------------------------------------------------------
-      //! Close the connection
+      //! Disable further event callbacks and performs close action on the
+      //! transport. Will block until any currently running callback for this
+      //! socket completes, unless called from within the callback itself.
+      //------------------------------------------------------------------------
+      XRootDStatus PreClose();
+
+      //------------------------------------------------------------------------
+      //! Close the connection. Can block until the poller can remove the
+      //! socket, which may require waiting for dispatch of all queued events to
+      //! all other sockets the poller thread is serving.
       //------------------------------------------------------------------------
       XRootDStatus Close();
 
@@ -284,11 +301,14 @@ namespace XrdCl
       URL                            pUrl;
       bool                           pTlsHandShakeOngoing;
       XRootDStatus                   pReqConnResetError;
+      bool                           pDoTransportDisc;
 
       std::unique_ptr<AsyncHSWriter>  hswriter;
       std::unique_ptr<AsyncMsgReader> rspreader;
       std::unique_ptr<AsyncHSReader>  hsreader;
       std::unique_ptr<AsyncMsgWriter> reqwriter;
+
+      std::shared_ptr<Channel>       pOpenChannel;
   };
 }
 
