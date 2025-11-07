@@ -51,7 +51,8 @@ namespace XrdCl
     pHSWaitStarted( 0 ),
     pHSWaitSeconds( 0 ),
     pUrl( url ),
-    pTlsHandShakeOngoing( false )
+    pTlsHandShakeOngoing( false ),
+    pDoTransportDisc( false )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -159,6 +160,9 @@ namespace XrdCl
 
     pSocket->SetStatus( Socket::Connecting );
 
+    pOpenChannel = pStream->GetChannel();
+    pDoTransportDisc = true;
+
     //--------------------------------------------------------------------------
     // We should get the ready to write event once we're really connected
     // so we need to listen to it
@@ -167,6 +171,8 @@ namespace XrdCl
     {
       XRootDStatus st( stFatal, errPollerError );
       pSocket->Close();
+      pDoTransportDisc = false;
+      pOpenChannel.reset();
       return st;
     }
 
@@ -175,7 +181,30 @@ namespace XrdCl
       XRootDStatus st( stFatal, errPollerError );
       pPoller->RemoveSocket( pSocket );
       pSocket->Close();
+      pDoTransportDisc = false;
+      pOpenChannel.reset();
       return st;
+    }
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // PreClose performs as many close actions as possible with fewer blocking
+  // conditions.
+  //----------------------------------------------------------------------------
+  XRootDStatus AsyncSocketHandler::PreClose()
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( AsyncSockMsg, "[%s] PreClosing the socket", pStreamName.c_str() );
+
+    pPoller->ShutdownEvents( pSocket );
+
+    if( pDoTransportDisc )
+    {
+      pTransport->Disconnect( *pChannelData,
+                              pSubStreamNum );
+      pDoTransportDisc = false;
     }
 
     return XRootDStatus();
@@ -189,11 +218,21 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Debug( AsyncSockMsg, "[%s] Closing the socket", pStreamName.c_str() );
 
-    pTransport->Disconnect( *pChannelData,
-                            pSubStreamNum );
-
     pPoller->RemoveSocket( pSocket );
+
+    if( pDoTransportDisc )
+    {
+      pTransport->Disconnect( *pChannelData,
+                              pSubStreamNum );
+      pDoTransportDisc = false;
+    }
+
     pSocket->Close();
+    //--------------------------------------------------------------------------
+    // Releases a reference count on Channel. May possibly cause it to be
+    // destroyed, which will in turn destory pStream and thus us.
+    //--------------------------------------------------------------------------
+    pOpenChannel.reset();
     return XRootDStatus();
   }
 
@@ -788,7 +827,7 @@ namespace XrdCl
     // We need to force a socket error so this is handled in a similar way as
     // a stream t/o and all requests are retried
     //--------------------------------------------------------------------------
-    pStream->ForceError( XRootDStatus( stError, errSocketError ) );
+    pStream->ForceError( XRootDStatus( stError, errSocketError ), false, 0 );
   }
 
   //----------------------------------------------------------------------------

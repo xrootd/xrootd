@@ -33,6 +33,8 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <unordered_set>
+
 namespace XrdCl
 {
   struct ConnErrJob : public Job
@@ -74,17 +76,41 @@ namespace XrdCl
       delete pJobManager;
     }
 
-    typedef std::map<std::string, Channel*> ChannelMap;
-    typedef std::map<const URL*, Channel*>  CollapsedMap;
+    //--------------------------------------------------------------------------
+    //! Used to maintain a non-owning set of live Channels. Used by Finalize.
+    //--------------------------------------------------------------------------
+    void addFinalize(Channel *ch)
+    {
+      XrdSysMutexHelper lck( pFinalizeSetMutex );
+      pFinalizeSet.insert( ch );
+    }
+
+    //--------------------------------------------------------------------------
+    //! Get a channel for url, creating one if needed.
+    //--------------------------------------------------------------------------
+    std::shared_ptr<Channel> GetChannel( const URL &url );
+
+    //--------------------------------------------------------------------------
+    //! Used to maintain a non-owning set of live Channels. Used by Finalize.
+    //--------------------------------------------------------------------------
+    void removeFinalize(Channel *ch)
+    {
+      XrdSysMutexHelper lck( pFinalizeSetMutex );
+      pFinalizeSet.erase( ch );
+    }
+
+    typedef std::map<std::string, std::shared_ptr<Channel> > ChannelMap;
 
     Poller               *pPoller;
     TaskManager          *pTaskManager;
     ChannelMap            pChannelMap;
-    CollapsedMap          pCollapsedMap;
+    std::unordered_set<Channel*> pFinalizeSet;
 
-    // lock MapMutex if accessing maps while holding pDisconnectLock Read
-    // if MapMutex is required, acquire after pDisconnetLock.
+    // Mutex protecting access of pChannelMap
     XrdSysMutex           pChannelMapMutex;
+
+    // Mutex protecting access of pFinalizeSet
+    XrdSysMutex           pFinalizeSetMutex;
 
     bool                  pInitialized;
     bool                  pRunning;
@@ -93,11 +119,6 @@ namespace XrdCl
     XrdSysMutex           pMtx;
     std::unique_ptr<Job>  pOnConnJob;
     std::function<void( const URL&, const XRootDStatus& )> pOnConnErrCB;
-
-    // take DisconnectLock: Read while using Channel* from map.
-    //                      Write if destroying Channel
-    // if MapMutex is required, acquire DisconnectLock first.
-    XrdSysRWLock          pDisconnectLock; 
   };
 
   //----------------------------------------------------------------------------
@@ -154,10 +175,14 @@ namespace XrdCl
 
     pImpl->pInitialized = false;
     pImpl->pJobManager->Finalize();
-    PostMasterImpl::ChannelMap::iterator it;
 
-    for( it = pImpl->pChannelMap.begin(); it != pImpl->pChannelMap.end(); ++it )
-      delete it->second;
+    //--------------------------------------------------------------------------
+    // Finalize may cause some of the channels to remove themselves from the
+    // finalize set. So make a copy. Should be no concurrency as poller and
+    // jobmanager are stopped, so no lock.
+    //--------------------------------------------------------------------------
+    auto finSet = pImpl->pFinalizeSet;
+    for( auto ch: finSet ) ch->Finalize();
 
     pImpl->pChannelMap.clear();
     return pImpl->pPoller->Finalize();
@@ -226,8 +251,7 @@ namespace XrdCl
                                  bool          stateful,
                                  time_t        expires )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
+    auto channel = pImpl->GetChannel( url );
 
     if( !channel )
       return XRootDStatus( stError, errNotSupported );
@@ -253,10 +277,9 @@ namespace XrdCl
                                      uint16_t   query,
                                      AnyObject &result )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = 0;
+    std::shared_ptr<Channel> channel;
     {
-      XrdSysMutexHelper scopedLock2( pImpl->pChannelMapMutex );
+      XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
       PostMasterImpl::ChannelMap::iterator it =
           pImpl->pChannelMap.find( url.GetChannelId() );
       if( it == pImpl->pChannelMap.end() )
@@ -276,8 +299,7 @@ namespace XrdCl
   Status PostMaster::RegisterEventHandler( const URL           &url,
                                            ChannelEventHandler *handler )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
+    auto channel = pImpl->GetChannel( url );
 
     if( !channel )
       return Status( stError, errNotSupported );
@@ -292,8 +314,7 @@ namespace XrdCl
   Status PostMaster::RemoveEventHandler( const URL           &url,
                                        ChannelEventHandler *handler )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
+    auto channel = pImpl->GetChannel( url );
 
     if( !channel )
       return Status( stError, errNotSupported );
@@ -331,46 +352,58 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status PostMaster::ForceDisconnect( const URL &url, bool hush )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock, false );
+    std::shared_ptr<Channel> channel;
     {
-      //--------------------------------------------------------------------
-      // See if this is called by channel replaced by collapse, reaching TTL
-      //--------------------------------------------------------------------
-      PostMasterImpl::CollapsedMap::iterator it =
-          pImpl->pCollapsedMap.find( &url );
-      if( it != pImpl->pCollapsedMap.end() )
-      {
-        Channel *passive = it->second;
-        passive->ForceDisconnect( hush );
-        delete passive;
-        pImpl->pCollapsedMap.erase( it );
-        return Status();
-      }
+      XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
+      PostMasterImpl::ChannelMap::iterator it =
+          pImpl->pChannelMap.find( url.GetChannelId() );
+
+      if( it == pImpl->pChannelMap.end() )
+        return Status( stError, errInvalidOp );
+      channel = it->second;
+      pImpl->pChannelMap.erase( it );
     }
 
-    PostMasterImpl::ChannelMap::iterator it =
-        pImpl->pChannelMap.find( url.GetChannelId() );
+    channel->ForceDisconnect( hush );
+    return Status();
+  }
 
-    if( it == pImpl->pChannelMap.end() )
-      return Status( stError, errInvalidOp );
+  //------------------------------------------------------------------------
+  // Shut down a channel. This version is used by the channel itself.
+  //------------------------------------------------------------------------
+  Status PostMaster::ForceDisconnect( std::shared_ptr<Channel> channel,
+                                      const uint64_t sess )
+  {
+    if( !channel )
+      return Status( stError, errNotSupported );
 
-    it->second->ForceDisconnect( hush );
-    delete it->second;
-    pImpl->pChannelMap.erase( it );
+    {
+      XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
+      PostMasterImpl::ChannelMap::iterator it =
+          pImpl->pChannelMap.find( channel->GetURL().GetChannelId() );
 
+      if( it != pImpl->pChannelMap.end() && it->second == channel )
+        pImpl->pChannelMap.erase( it );
+    }
+
+    channel->ForceDisconnect( channel, sess );
     return Status();
   }
 
   Status PostMaster::ForceReconnect( const URL &url )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock, false );
-    PostMasterImpl::ChannelMap::iterator it =
-        pImpl->pChannelMap.find( url.GetChannelId() );
+    std::shared_ptr<Channel> channel;
+    {
+      XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
+      PostMasterImpl::ChannelMap::iterator it =
+          pImpl->pChannelMap.find( url.GetChannelId() );
 
-    if( it == pImpl->pChannelMap.end() )
-      return Status( stError, errInvalidOp );
+      if( it == pImpl->pChannelMap.end() )
+        return Status( stError, errInvalidOp );
+      channel = it->second;
+    }
 
-    it->second->ForceReconnect();
+    channel->ForceReconnect();
     return Status();
   }
 
@@ -379,8 +412,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   uint16_t PostMaster::NbConnectedStrm( const URL &url )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
+    auto channel = pImpl->GetChannel( url );
     if( !channel ) return 0;
     return channel->NbConnectedStrm();
   }
@@ -391,8 +423,7 @@ namespace XrdCl
   void PostMaster::SetOnDataConnectHandler( const URL            &url,
                                             std::shared_ptr<Job>  onConnJob )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
+    auto channel = pImpl->GetChannel( url );
     if( !channel ) return;
     channel->SetOnDataConnectHandler( onConnJob );
   }
@@ -446,26 +477,38 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void PostMaster::CollapseRedirect( const URL &alias, const URL &url )
   {
-    XrdSysRWLockHelper scopedDiscLock( pImpl->pDisconnectLock );
-    XrdSysMutexHelper scopedMapLock( pImpl->pChannelMapMutex );
-
+    XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
     //--------------------------------------------------------------------------
     // Get the passive channel
     //--------------------------------------------------------------------------
+    std::shared_ptr<Channel> passive;
     PostMasterImpl::ChannelMap::iterator it =
         pImpl->pChannelMap.find( alias.GetChannelId() );
-    Channel *passive = 0;
     if( it != pImpl->pChannelMap.end() )
       passive = it->second;
+
     //--------------------------------------------------------------------------
     // If the channel does not exist there's nothing to do
     //--------------------------------------------------------------------------
-    else return;
+    if( !passive ) return;
 
     //--------------------------------------------------------------------------
-    // Check if this URL is eligible for collapsing
+    // Check if this URL is eligible for collapsing. To avoid depencencies
+    // we don't call CanCollapse while holding the channel map mutex. So we
+    // reverify the content of the map afterwards.
     //--------------------------------------------------------------------------
+    scopedLock.UnLock();
     if( !passive->CanCollapse( url ) ) return;
+
+    scopedLock.Lock( &pImpl->pChannelMapMutex );
+    it = pImpl->pChannelMap.find( alias.GetChannelId() );
+    if( it == pImpl->pChannelMap.end() || it->second != passive )
+    {
+      // something changed. Retry.
+      scopedLock.UnLock();
+      CollapseRedirect( alias, url );
+      return;
+    }
 
     //--------------------------------------------------------------------------
     // Create the active channel
@@ -485,11 +528,13 @@ namespace XrdCl
     log->Info( PostMasterMsg, "Label channel %s with alias %s.",
                url.GetHostId().c_str(), alias.GetHostId().c_str() );
 
-    Channel *active = new Channel( alias, pImpl->pPoller, trHandler,
-                                   pImpl->pTaskManager, pImpl->pJobManager, url );
-    pImpl->pChannelMap[alias.GetChannelId()] = active;
-    pImpl->pCollapsedMap[&passive->GetURL()] = passive;
+    std::shared_ptr<Channel> active(new Channel{ alias,
+      pImpl->pPoller, trHandler, pImpl->pTaskManager, pImpl->pJobManager, url },
+      [this](Channel *ch) { this->pImpl->removeFinalize( ch ); delete ch; });
+    pImpl->addFinalize( active.get() );
+    active->SetSelf( active );
 
+    pImpl->pChannelMap[alias.GetChannelId()] = active;
     //--------------------------------------------------------------------------
     // The passive channel will be deallocated by TTL
     //--------------------------------------------------------------------------
@@ -500,8 +545,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void PostMaster::DecFileInstCnt( const URL &url )
   {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
+    auto channel = pImpl->GetChannel( url );
 
     if( !channel ) return;
 
@@ -519,13 +563,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Get the channel
   //----------------------------------------------------------------------------
-  Channel *PostMaster::GetChannel( const URL &url )
+  std::shared_ptr<Channel> PostMasterImpl::GetChannel( const URL &url )
   {
-    XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
-    Channel *channel = 0;
-    PostMasterImpl::ChannelMap::iterator it = pImpl->pChannelMap.find( url.GetChannelId() );
+    XrdSysMutexHelper scopedLock( pChannelMapMutex );
+    std::shared_ptr<Channel> channel;
+    PostMasterImpl::ChannelMap::iterator it = pChannelMap.find( url.GetChannelId() );
 
-    if( it == pImpl->pChannelMap.end() )
+    if( it == pChannelMap.end() )
     {
       TransportManager *trManager = DefaultEnv::GetTransportManager();
       TransportHandler *trHandler = trManager->GetHandler( url.GetProtocol() );
@@ -538,9 +582,14 @@ namespace XrdCl
         return 0;
       }
 
-      channel = new Channel( url, pImpl->pPoller, trHandler, pImpl->pTaskManager,
-                             pImpl->pJobManager );
-      pImpl->pChannelMap[url.GetChannelId()] = channel;
+      std::shared_ptr<Channel> newchan(new Channel{ url, pPoller,
+        trHandler, pTaskManager, pJobManager },
+        [this](Channel *ch) { this->removeFinalize( ch ); delete ch; });
+      addFinalize( newchan.get() );
+      channel = newchan;
+      channel->SetSelf( channel );
+
+      pChannelMap[url.GetChannelId()] = channel;
     }
     else
       channel = it->second;

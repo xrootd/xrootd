@@ -158,6 +158,12 @@ namespace XrdCl
       Status ForceDisconnect( const URL &url, bool hush );
 
       //------------------------------------------------------------------------
+      //! Shut down a channel. This version is used by the channel itself.
+      //------------------------------------------------------------------------
+      Status ForceDisconnect( std::shared_ptr<Channel> channel,
+                              const uint64_t sess );
+
+      //------------------------------------------------------------------------
       //! Reconnect the channel
       //------------------------------------------------------------------------
       Status ForceReconnect( const URL &url );
@@ -209,8 +215,6 @@ namespace XrdCl
       bool IsRunning();
 
     private:
-      Channel *GetChannel( const URL &url );
-
       std::unique_ptr<PostMasterImpl> pImpl;
   };
 }
