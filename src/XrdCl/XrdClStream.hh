@@ -37,6 +37,8 @@
 #include <functional>
 #include <memory>
 
+#include <assert.h>
+
 namespace XrdCl
 {
   class  Message;
@@ -44,6 +46,122 @@ namespace XrdCl
   class  TransportHandler;
   class  TaskManager;
   struct SubStreamData;
+
+  //----------------------------------------------------------------------------
+  //! StreamMutex
+  //!
+  //! Mutex for the main Stream mutex. In the usual case acts as a recursive
+  //! mutex. But supports an awareness of subStream number. In case
+  //! an AsyncSocketHandler needs to be Close() any Poller callback must
+  //! for the handler must complete. (Unless the close is executed within the
+  //! callback thread). Thus this mutex allows aborting an acquisition attempt
+  //! when the lock has been declared to be within a subStream callback and
+  //! when Mutex is notified of an intent to Close that subStream.
+  //----------------------------------------------------------------------------
+  class StreamMutex
+  {
+    public:
+      StreamMutex(): mcv(0), hasfn(false) { }
+      ~StreamMutex()
+      {
+        assert( mlist.empty() );
+        assert( mclosing.empty() );
+        assert( mthmap.empty() );
+        assert( hasfn == false );
+      }
+
+      //------------------------------------------------------------------------
+      //! AddClosing. Notified that subStream will be closed.
+      //------------------------------------------------------------------------
+      void AddClosing( uint16_t subStream );
+
+      //------------------------------------------------------------------------
+      //! RemoveClosing. Notified that subStream close has completed.
+      //------------------------------------------------------------------------
+      void RemoveClosing( uint16_t subStream );
+
+      //------------------------------------------------------------------------
+      //! Lock. Regular, non-subStream aware recursive lock.
+      //------------------------------------------------------------------------
+      void Lock();
+
+      //------------------------------------------------------------------------
+      //! Lock. subStream number aware with the potential to abort.
+      //------------------------------------------------------------------------
+      void Lock( uint16_t subStream, bool &isclosing );
+
+      //------------------------------------------------------------------------
+      //! Lock. Locks or otherwise returns immedately, while the Mutex will
+      //! abort all waiting subStream acquisitions and execute supplied func
+      //! when lock is released. Lock will be atomically acquired at last
+      //! release. Only one func may be registered at a time.
+      //------------------------------------------------------------------------
+      void Lock( const std::function<void()> &func, bool &isclosing );
+
+      //------------------------------------------------------------------------
+      //! UnLock.
+      //------------------------------------------------------------------------
+      void UnLock();
+
+      struct MtxInfo
+      {
+        MtxInfo(): cnt( 0 ) { }
+        MtxInfo( const std::function<void()> &func ): cnt( 0 ), fn( func ) { }
+        ~MtxInfo() { }
+
+        size_t cnt;
+        std::function<void()> fn;
+      };
+
+      XrdSysCondVar mcv;
+      std::list<MtxInfo> mlist;
+      std::map<uint16_t, size_t> mclosing;
+      std::map<pthread_t, std::list<MtxInfo>::iterator> mthmap;
+      bool hasfn;
+      std::list<MtxInfo>::iterator fnlistit;
+  };
+
+  //----------------------------------------------------------------------------
+  //! StreamMutexHelper
+  //!
+  //! A scoped lock for StreamMutex.
+  //----------------------------------------------------------------------------
+  class StreamMutexHelper
+  {
+    public:
+      StreamMutexHelper( StreamMutex &sm ): mtx( &sm )
+      {
+        mtx->Lock();
+      }
+
+      StreamMutexHelper( StreamMutex &sm, uint16_t idx,
+                         bool &isclosing ): mtx( &sm )
+      {
+        mtx->Lock( idx, isclosing );
+        if( isclosing ) mtx = nullptr;
+      }
+
+      StreamMutexHelper( StreamMutex &sm, const std::function<void()> &func,
+                         bool &isclosing ): mtx( &sm )
+      {
+        mtx->Lock( func, isclosing );
+        if( isclosing ) mtx = nullptr;
+      }
+
+      ~StreamMutexHelper()
+      {
+        UnLock();
+      }
+
+      void UnLock()
+      {
+        if( !mtx ) return;
+        mtx->UnLock();
+        mtx = nullptr;
+      }
+
+      StreamMutex *mtx;
+  };
 
   //----------------------------------------------------------------------------
   //! Stream
@@ -110,6 +228,14 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Sets a weak_ptr of our owning Channel.
+      //------------------------------------------------------------------------
+      void SetChannel( std::weak_ptr<Channel> &channel )
+      {
+        pChannel = channel;
+      }
+
+      //------------------------------------------------------------------------
       //! Set the channel data
       //------------------------------------------------------------------------
       void SetChannelData( AnyObject *channelData )
@@ -141,9 +267,10 @@ namespace XrdCl
       XRootDStatus EnableLink( PathID &path );
 
       //------------------------------------------------------------------------
-      //! Disconnect the stream
+      //! Used at finalize time, disconnects the stream. Assumes poller and
+      //! jobmanager are not running.
       //------------------------------------------------------------------------
-      void Disconnect( bool force = false );
+      void Finalize();
 
       //------------------------------------------------------------------------
       //! Handle a clock event generated either by socket timeout, or by
@@ -215,7 +342,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Force error
       //------------------------------------------------------------------------
-      void ForceError( XRootDStatus status, bool hush=false );
+      void ForceError( XRootDStatus status, const bool hush,
+                       const uint64_t sess );
 
       //------------------------------------------------------------------------
       //! On read timeout
@@ -262,7 +390,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetOnDataConnectHandler( std::shared_ptr<Job> &onConnJob )
       {
-        XrdSysMutexHelper scopedLock( pMutex );
+        StreamMutexHelper scopedLock( pMutex );
         pOnDataConnJob = onConnJob;
       }
 
@@ -276,6 +404,17 @@ namespace XrdCl
       //! Query the stream
       //------------------------------------------------------------------------
       Status Query( uint16_t   query, AnyObject &result );
+
+      //------------------------------------------------------------------------
+      //! Gets a shared_ptr of our owning Channel. Used to by our
+      //! AsyncSocketHandlers to obtain a ref count, and internally to ensure
+      //! Channel (and thus ourselves) remains alive during error-event
+      //! handlers that close sockets.
+      //------------------------------------------------------------------------
+      std::shared_ptr<Channel> GetChannel()
+      {
+        return pChannel.lock();
+      }
 
     private:
 
@@ -327,7 +466,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void OnFatalError( uint16_t           subStream,
                          XRootDStatus       status,
-                         XrdSysMutexHelper &lock );
+                         StreamMutexHelper &lock );
 
       //------------------------------------------------------------------------
       //! Inform the monitoring about disconnection
@@ -338,6 +477,12 @@ namespace XrdCl
       //! Send close after an open request timed out
       //------------------------------------------------------------------------
       XRootDStatus RequestClose( Message  &resp );
+
+      //------------------------------------------------------------------------
+      //! Marks subStream as disconnected and closes the connection.
+      //------------------------------------------------------------------------
+      void SockHandlerClose( uint16_t subStream );
+
 
       typedef std::vector<SubStreamData*> SubStreamList;
 
@@ -351,7 +496,7 @@ namespace XrdCl
       Poller                        *pPoller;
       TaskManager                   *pTaskManager;
       JobManager                    *pJobManager;
-      XrdSysRecMutex                 pMutex;
+      StreamMutex                    pMutex;
       InQueue                       *pIncomingQueue;
       AnyObject                     *pChannelData;
       uint32_t                       pLastStreamError;
@@ -384,6 +529,11 @@ namespace XrdCl
       // Track last assigned Id across all Streams, to ensure unique sessionId
       //------------------------------------------------------------------------
       static RAtomic_uint64_t        sSessCntGen;
+
+      //------------------------------------------------------------------------
+      // Non owning copy of the shared_ptr PostMaster creates for our Channel
+      //------------------------------------------------------------------------
+      std::weak_ptr<Channel>         pChannel;
   };
 }
 
