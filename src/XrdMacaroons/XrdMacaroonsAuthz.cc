@@ -505,8 +505,12 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
         return 1;
     }
 
-    int result = strncmp(pred_str.c_str(), m_path.c_str(), pred_str.size());
-    if (!result)
+    // Allow operations under subdirectories and not substrings 
+    // For e.g. pred_str = "/data/sudir/mydir"
+    // Allows m_path = /data/subdir/mydir/newdir
+    // But rejects, m_path = /data/subdir/mydirmycoolname/newdir
+    int is_subdir = is_subdirectory(pred_str, m_path);
+    if (is_subdir)
     {
         m_log.Log(LogMask::Debug, "AuthzCheck", "path request verified for", m_path.c_str());
     }
@@ -514,13 +518,12 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
     // READ_METADATA (i.e AOP_Stat) permission for /foo/bar automatically implies permission
     // to READ_METADATA for /foo.
     // Similarly, MKDIR Pemissions for a parent path is implied.
-
     else if (m_oper == AOP_Stat || m_oper == AOP_Mkdir)
     {
-        result = !is_subdirectory(m_path, pred_str);
+        is_subdir = is_subdirectory(m_path, pred_str);
         const char *opName = (m_oper == AOP_Stat) ? "READ_METADATA" : "MKDIR";
         m_log.Log(LogMask::Debug, "AuthzCheck",
-                  (std::string(opName) + (result ? " Path request NOT allowed for" : " Path request verified for")).c_str(),
+                  (std::string(opName) + (is_subdir? " Path request verified for" : " Path request NOT allowed for")).c_str(),
                   m_path.c_str());
     }
     else
@@ -528,7 +531,7 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
         m_log.Log(LogMask::Debug, "AuthzCheck", "path request NOT allowed", m_path.c_str());
     }
 
-    return result;
+    return !is_subdir;
 }
 
 
