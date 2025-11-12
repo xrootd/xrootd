@@ -82,7 +82,7 @@ cleanup() {
     src=${hosts_abbrev[${src_idx}]}
     dst=${hosts_abbrev[${dst_idx}]}
     rm "${LCLDATADIR}/${src}_empty.dat" || :
-    rm "${LCLDATADIR}/${dst}_empty.ref" || :
+    rm "${LCLDATADIR}/${src}_empty.ref" || :
     ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}_empty.ref" || :
     for mode in "_http_pull" "_http_push" ""; do
         rm "${LCLDATADIR}/${src}_to_${dst}_empty.dat${mode}" || :
@@ -381,7 +381,6 @@ verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}
 download_file "${remote_file_http}_push" "${local_file_http}_push" "http"
 verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
 verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_to_${dst}_empty.dat_http_push" "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}_empty.ref_http_push"
-
 
 cleanup
 
