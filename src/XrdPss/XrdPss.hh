@@ -33,6 +33,7 @@
 #include <cerrno>
 #include <unistd.h>
 #include <sys/types.h>
+#include <string>
 #include <vector>
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucECMsg.hh"
@@ -49,25 +50,28 @@
 class XrdPssDir : public XrdOssDF
 {
 public:
-int     Close(long long *retsz=0);
-int     Opendir(const char *, XrdOucEnv &);
-int     Readdir(char *buff, int blen);
+int     Close(long long *retsz=0) override;
+bool    getErrMsg(std::string& eText) override;
+int     Opendir(const char *, XrdOucEnv &) override;
+int     Readdir(char *buff, int blen) override;
 
 // Store the `buf` pointer in the directory object.  Future calls to `Readdir`
 // will, as a side-effect, fill in the corresponding `stat` information in
 // the memory referred to from the pointer.
 //
 // Returns -errno on failure; otherwise, returns 0 and stashes away the pointer.
-int     StatRet(struct stat *buf);
+int     StatRet(struct stat *buf) override;
 
         // Constructor and destructor
         XrdPssDir(const char *tid)
                  : XrdOssDF(tid, XrdOssDF::DF_isDir|XrdOssDF::DF_isProxy),
-                   myDir(0) {}
+                   myDir(0), lastEtrc(0) {}
 
        ~XrdPssDir() {if (myDir) Close();}
 private:
          DIR       *myDir;
+    std::string    lastEtext;
+         int       lastEtrc;
 };
   
 /******************************************************************************/
@@ -85,32 +89,33 @@ public:
 // The following two are virtual functions to allow for upcasting derivations
 // of this implementation
 //
-virtual int     Close(long long *retsz=0);
-virtual int     Open(const char *, int, mode_t, XrdOucEnv &);
+virtual int     Close(long long *retsz=0) override;
+virtual int     Open(const char *, int, mode_t, XrdOucEnv &) override;
 
-int     Fchmod(mode_t mode) {return XrdOssOK;}
-int     Fstat(struct stat *);
-int     Fsync();
-int     Fsync(XrdSfsAio *aiop);
-int     Ftruncate(unsigned long long);
+int     Fchmod(mode_t mode) override {return XrdOssOK;}
+int     Fstat(struct stat *) override;
+int     Fsync() override;
+int     Fsync(XrdSfsAio *aiop) override;
+int     Ftruncate(unsigned long long) override;
+bool    getErrMsg(std::string& eText) override;
 ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
-                uint32_t* csvec, uint64_t opts);
-int     pgRead (XrdSfsAio* aioparm, uint64_t opts);
+                uint32_t* csvec, uint64_t opts) override;
+int     pgRead (XrdSfsAio* aioparm, uint64_t opts) override;
 ssize_t pgWrite(void* buffer, off_t offset, size_t wrlen,
-                uint32_t* csvec, uint64_t opts);
-int     pgWrite(XrdSfsAio* aioparm, uint64_t opts);
-ssize_t Read(               off_t, size_t);
-ssize_t Read(       void *, off_t, size_t);
-int     Read(XrdSfsAio *aiop);
-ssize_t ReadV(XrdOucIOVec *readV, int n);
-ssize_t ReadRaw(    void *, off_t, size_t);
-ssize_t Write(const void *, off_t, size_t);
-int     Write(XrdSfsAio *aiop);
+                uint32_t* csvec, uint64_t opts) override;
+int     pgWrite(XrdSfsAio* aioparm, uint64_t opts) override;
+ssize_t Read(               off_t, size_t) override;
+ssize_t Read(       void *, off_t, size_t) override;
+int     Read(XrdSfsAio *aiop) override;
+ssize_t ReadV(XrdOucIOVec *readV, int n) override;
+ssize_t ReadRaw(    void *, off_t, size_t) override;
+ssize_t Write(const void *, off_t, size_t) override;
+int     Write(XrdSfsAio *aiop) override;
  
          // Constructor and destructor
          XrdPssFile(const char *tid)
                    : XrdOssDF(tid, XrdOssDF::DF_isFile|XrdOssDF::DF_isProxy),
-                     rpInfo(0), tpcPath(0), entity(0) {}
+                     rpInfo(0), tpcPath(0), entity(0), lastEtrc(0) {}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();
                        if (rpInfo) delete(rpInfo);
@@ -133,6 +138,8 @@ struct tprInfo
 
       char         *tpcPath;
 const XrdSecEntity *entity;
+std::string         lastEtext;
+int                 lastEtrc;
 };
 
 /******************************************************************************/
@@ -167,6 +174,7 @@ virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0) override;
 void      EnvInfo(XrdOucEnv *envP) override;
 uint64_t  Features() override {return myFeatures;}
+bool      getErrMsg(std::string& eText) override;
 int       Init(XrdSysLogger *, const char *) override {return -ENOTSUP;}
 int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP) override;
 int       Lfn2Pfn(const char *Path, char *buff, int blen) override;

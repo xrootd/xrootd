@@ -826,8 +826,8 @@ void XrdHttpReq::sendWebdavErrorMessage(
     XResponseType xrdresp, XErrorCode xrderrcode, XrdHttpReq::ReqType httpVerb,
     XRequestTypes xrdOperation, std::string etext, const char *desc,
     const char *header_to_add, bool keepalive) {
-  int code{0};
-  std::string errCode{"Unknown"};
+  int code{500};
+  std::string errCode{""};
   std::string statusText;
 
   switch (httpVerb) {
@@ -845,6 +845,9 @@ void XrdHttpReq::sendWebdavErrorMessage(
         } else if (xrderrcode == kXR_NotAuthorized) {
           code = 403;
           errCode = "9.3";
+        } else if (xrderrcode == kXR_fsReadOnly) {
+          code = 403;
+          errCode = "8.3.2";
         }
       } else if (xrdOperation == kXR_write) {
         if (xrderrcode == kXR_NoSpace) {

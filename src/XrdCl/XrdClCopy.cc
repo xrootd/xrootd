@@ -58,8 +58,8 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     //! Begin job
     //--------------------------------------------------------------------------
-    virtual void BeginJob( uint16_t          jobNum,
-                           uint16_t          jobTotal,
+    virtual void BeginJob( uint32_t          jobNum,
+                           uint32_t          jobTotal,
                            const XrdCl::URL *source,
                            const XrdCl::URL *destination )
     {
@@ -85,11 +85,11 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     //! End job
     //--------------------------------------------------------------------------
-    virtual void EndJob( uint16_t jobNum, const XrdCl::PropertyList *results )
+    virtual void EndJob( uint32_t jobNum, const XrdCl::PropertyList *results )
     {
       XrdSysMutexHelper scopedLock( pMutex );
 
-      std::map<uint16_t, JobData>::iterator it = pOngoingJobs.find( jobNum );
+      std::map<uint32_t, JobData>::iterator it = pOngoingJobs.find( jobNum );
       if( it == pOngoingJobs.end() )
         return;
 
@@ -189,13 +189,13 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     std::string GetSummaryBar( time_t now )
     {
-      std::map<uint16_t, JobData>::iterator it;
+      std::map<uint32_t, JobData>::iterator it;
       std::ostringstream o;
 
       for( it = pOngoingJobs.begin(); it != pOngoingJobs.end(); ++it )
       {
         JobData  &d      = it->second;
-        uint16_t  jobNum = it->first;
+        uint32_t  jobNum = it->first;
 
         uint64_t speed = 0;
         if( now-d.started )
@@ -218,7 +218,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     //! Job progress
     //--------------------------------------------------------------------------
-    virtual void JobProgress( uint16_t jobNum,
+    virtual void JobProgress( uint32_t jobNum,
                               uint64_t bytesProcessed,
                               uint64_t bytesTotal )
     {
@@ -231,7 +231,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
           return;
         pPrevious = now;
 
-        std::map<uint16_t, JobData>::iterator it = pOngoingJobs.find( jobNum );
+        std::map<uint32_t, JobData>::iterator it = pOngoingJobs.find( jobNum );
         if( it == pOngoingJobs.end() )
           return;
 
@@ -300,7 +300,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     bool                        pPrintSourceCheckSum;
     bool                        pPrintTargetCheckSum;
     bool                        pPrintAdditionalCheckSum;
-    std::map<uint16_t, JobData> pOngoingJobs;
+    std::map<uint32_t, JobData> pOngoingJobs;
     XrdSysRecMutex              pMutex;
 };
 
@@ -944,9 +944,9 @@ int main( int argc, char **argv )
     else
     {
       std::vector<XrdCl::PropertyList*>::iterator it;
-      uint16_t i = 1;
-      uint16_t jobsRun = 0;
-      uint16_t errors  = 0;
+      uint32_t i = 1;
+      uint32_t jobsRun = 0;
+      uint32_t errors  = 0;
       for( it = resultVect.begin(); it != resultVect.end(); ++it, ++i )
       {
         if( !(*it)->HasProperty( "status" ) )
