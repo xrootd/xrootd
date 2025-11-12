@@ -26,16 +26,17 @@
 XrdHttpChecksum::XrdHttpChecksum(const std::string & xrootConfigDigestName, const std::string & httpName, bool needsBase64Padding):
         mXRootDConfigDigestName(xrootConfigDigestName),
         mHTTPName(httpName),
-        mNeedsBase64Padding(needsBase64Padding){}
+        mNeedsBase64Padding(needsBase64Padding) {
+  mHttpLowerCaseName.resize(mHTTPName.size());
+  std::transform(mHTTPName.begin(),mHTTPName.end(),mHttpLowerCaseName.begin(),::tolower);
+}
 
 std::string XrdHttpChecksum::getHttpName() const {
     return mHTTPName;
 }
 
 std::string XrdHttpChecksum::getHttpNameLowerCase() const {
-    std::string ret = getHttpName();
-    std::transform(ret.begin(),ret.end(),ret.begin(),::tolower);
-    return ret;
+    return mHttpLowerCaseName;
 }
 
 std::string XrdHttpChecksum::getXRootDConfigDigestName() const {
