@@ -69,7 +69,7 @@ struct Configuration
    bool are_file_usage_limits_set()    const { return m_fileUsageMax > 0; }
    bool is_age_based_purge_in_effect() const { return m_purgeColdFilesAge > 0 ; }
    bool is_uvkeep_purge_in_effect()    const { return m_cs_UVKeep >= 0; }
-   bool is_dir_stat_reporting_on()     const { return m_dirStatsMaxDepth >= 0 || ! m_dirStatsDirs.empty() || ! m_dirStatsDirGlobs.empty(); }
+   bool is_dir_stat_reporting_on()     const { return m_dirStatsStoreDepth >= 0 || ! m_dirStatsDirs.empty() || ! m_dirStatsDirGlobs.empty(); }
    bool is_purge_plugin_set_up()       const { return false; }
 
    CkSumCheck_e get_cs_Chk() const { return (CkSumCheck_e) m_cs_Chk; }
@@ -104,15 +104,21 @@ struct Configuration
    std::set<std::string> m_dirStatsDirs;     //!< directories for which stat reporting was requested
    std::set<std::string> m_dirStatsDirGlobs; //!< directory globs for which stat reporting was requested
    int       m_dirStatsInterval;        //!< time between resource monitor statistics dump in seconds
-   int       m_dirStatsMaxDepth;        //!< maximum depth for statistics write out
-   int       m_dirStatsStoreDepth;      //!< depth to which statistics should be collected
+   int       m_dirStatsStoreDepth;      //!< maximum depth for statistics write out
 
-   long long m_bufferSize;              //!< prefetch buffer size, default 1MB
+   long long m_bufferSize;              //!< cache block size, default 128 kB
    long long m_RamAbsAvailable;         //!< available from configuration
    int       m_RamKeepStdBlocks;        //!< number of standard-sized blocks kept after release
    int       m_wqueue_blocks;           //!< maximum number of blocks written per write-queue loop
    int       m_wqueue_threads;          //!< number of threads writing blocks to disk
-   int       m_prefetch_max_blocks;     //!< maximum number of blocks to prefetch per file
+   int       m_prefetch_max_blocks;     //!< default maximum number of blocks to prefetch per file
+
+   long long m_cgi_min_bufferSize = 0;          //!< min buffer size allowed in pfc.blocksize
+   long long m_cgi_max_bufferSize = 0;          //!< max buffer size allowed in pfc.blocksize
+   int       m_cgi_min_prefetch_max_blocks = 0; //!< min prefetch block count allowed in pfc.prefetch
+   int       m_cgi_max_prefetch_max_blocks = 0; //!< max prefetch block count allowed in pfc.prefetch
+   bool      m_cgi_blocksize_allowed = false;   //!< allow cgi setting of blocksize
+   bool      m_cgi_prefetch_allowed  = false;   //!< allow cgi setting of prefetch
 
    long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
    long long m_flushCnt;                //!< nuber of unsynced blcoks on disk before flush is called
@@ -126,6 +132,10 @@ struct Configuration
 
    bool      m_httpcc;                  //!< enable http cache control
    bool      m_qfsredir;                //!< redirect file system query to the origin
+   static constexpr long long s_min_bufferSize = 4 * 1024;
+   static constexpr long long s_max_bufferSize = 512 * 1024 * 1024;
+
+   static constexpr int s_max_prefetch_max_blocks = 4096;
 };
 
 //------------------------------------------------------------------------------
@@ -217,10 +227,11 @@ public:
    //!
    //! @param config_filename    path to configuration file
    //! @param parameters         optional parameters to be passed
+   //! @param env                optional environment to use for configuration
    //!
    //! @return parse status
    //---------------------------------------------------------------------
-   bool Config(const char *config_filename, const char *parameters);
+   bool Config(const char *config_filename, const char *parameters, XrdOucEnv *env);
 
    //---------------------------------------------------------------------
    //! Singleton creation.
@@ -288,7 +299,7 @@ public:
 
    void FileSyncDone(File*, bool high_debug);
 
-   XrdSysError* GetLog()   { return &m_log;  }
+   XrdSysError* GetLog()   const { return &m_log;  }
    XrdSysTrace* GetTrace() const { return m_trace; }
 
    ResourceMonitor& RefResMon() { return *m_res_mon; }
@@ -297,6 +308,11 @@ public:
    void ExecuteCommandUrl(const std::string& command_url);
 
    static XrdScheduler *schedP;
+
+   bool blocksize_str2value(const char *from, const char *str, long long &val, long long min, long long max) const;
+   bool prefetch_str2value(const char *from, const char *str, int &val, int min, int max) const;
+
+   bool is_prefetch_enabled() const { return m_prefetch_enabled; }
 
 private:
    bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
@@ -307,12 +323,12 @@ private:
    bool xtrace(XrdOucStream &);
    bool test_oss_basics_and_features();
 
-   bool cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name);
+   bool cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name) const;
 
    static Cache     *m_instance;        //!< this object
 
    XrdOucEnv        *m_env;             //!< environment passed in at creation
-   XrdSysError       m_log;             //!< XrdPfc namespace logger
+   mutable XrdSysError m_log;           //!< XrdPfc namespace logger
    XrdSysTrace      *m_trace;
    const char       *m_traceID;
 

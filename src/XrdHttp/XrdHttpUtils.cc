@@ -45,15 +45,14 @@
 #include <openssl/buffer.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+# include "sys/param.h"
 
 #include <pthread.h>
 #include <memory>
 #include <vector>
 #include <algorithm>
 
-#include "XProtocol/XPtypes.hh"
 #include "XrdSec/XrdSecEntity.hh"
-# include "sys/param.h"
 #include "XrdOuc/XrdOucString.hh"
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -497,26 +496,34 @@ char *escapeXML(const char *str) {
   return r;
 }
 
+int mapXrdErrToHttp(XErrorCode xrdError) {
+
+  int errNo = XProtocol::toErrno(xrdError);
+  return mapErrNoToHttp(errNo);
+
+}
+
 int mapErrNoToHttp(int errNo) {
 
   switch (errNo) {
 
     case EACCES:
     case EROFS:
+    case EPERM:
       return HTTP_FORBIDDEN;
 
-    case EPERM:
+    case EAUTH:
       return HTTP_UNAUTHORIZED;
 
     case ENOENT:
       return HTTP_NOT_FOUND;
 
     case EEXIST:
+    case EISDIR:
+    case ENOTDIR:
     case ENOTEMPTY:
       return HTTP_CONFLICT;
 
-    case ENOTDIR:
-    case EISDIR:
     case EXDEV:
       return HTTP_UNPROCESSABLE_ENTITY;
 
@@ -538,7 +545,6 @@ int mapErrNoToHttp(int errNo) {
     case EFAULT:
     case ENXIO:
     case ESPIPE:
-    case ENODEV:
     case EOVERFLOW:
       return HTTP_BAD_REQUEST;
 

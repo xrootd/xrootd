@@ -162,14 +162,9 @@ private:
 
   // Parse a resource string, typically a filename, setting the resource field and the opaque data
   void parseResource(char *url);
-  // Map an XRootD error code to an appropriate HTTP status code and message
-  void mapXrdErrorToHttpStatus();
 
   // Set Webdav Error messages
-  void sendWebdavErrorMessage(XResponseType xrdresp, XErrorCode xrderrcode,
-                              ReqType httpVerb, XRequestTypes xrdOperation,
-                              std::string etext, const char *desc,
-                              const char *header_to_add, bool keepalive);
+  void generateWebdavErrMsg();
 
   // Sanitize the resource from http[s]://[host]/ questionable prefix
   void sanitizeResourcePfx();

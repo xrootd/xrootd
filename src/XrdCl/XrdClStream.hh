@@ -65,7 +65,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Stream( std::shared_ptr<URL> url, const URL &prefer = URL() );
+      Stream( const URL *url, const URL &prefer = URL() );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -156,7 +156,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       const URL *GetURL() const
       {
-        return pUrl.get();
+        return pUrl;
       }
 
       //------------------------------------------------------------------------
@@ -300,23 +300,6 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // Job handling force disconnect
-      //------------------------------------------------------------------------
-      class ForceDisconnectJob: public Job
-      {
-        public:
-          ForceDisconnectJob( std::shared_ptr<URL> url ) : pUrl( url ) {}
-          virtual ~ForceDisconnectJob() {}
-          virtual void Run( void* )
-          {
-            DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
-            delete this;
-          }
-        private:
-          std::shared_ptr<URL> pUrl;
-      };
-
-      //------------------------------------------------------------------------
       // Job handling the incoming messages
       //------------------------------------------------------------------------
       class HandleIncMsgJob: public Job
@@ -355,7 +338,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Data members
       //------------------------------------------------------------------------
-      std::shared_ptr<URL>           pUrl;
+      const URL                     *pUrl;
       const URL                      pPrefer;
       std::string                    pStreamName;
       TransportHandler              *pTransport;
@@ -377,21 +360,6 @@ namespace XrdCl
       Utils::AddressType             pAddressType;
       ChannelHandlerList             pChannelEvHandlers;
       uint64_t                       pSessionId;
-      ForceDisconnectJob            *pTTLDiscJob;
-      std::atomic<int>               pSubsWaitingClose;
-
-      //------------------------------------------------------------------------
-      // When disconnecting other sub-streams from within a poller callback
-      // we call IOEvents::Channel::Delete, potentially on channels with an
-      // active callback in a different thread. The poller will require that
-      // callback to finish before Delete returns. However those theads may
-      // block waiting on us to complete, either for our poller to be idle or
-      // due to one of our mutexes. Detect that situation by noting when all
-      // sub-streams are about to be closed. Protected by mutex below. In case
-      // bother are needed, lock order should be pDiscMtuex, pMutex.
-      //------------------------------------------------------------------------
-      XrdSysCondVar                  pDiscCV;
-      int                            pDiscAllCnt;
 
       //------------------------------------------------------------------------
       // Monitoring info

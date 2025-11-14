@@ -113,7 +113,7 @@ XrdOucFileInfo *XrdXmlMetaLink::Convert(const char *fname, int blen)
    CleanUp onReturn;
    XrdOucFileInfo *fP;
    const char *gLFN;
-   char *colon, gHdr[272];
+   char *colon = nullptr, gHdr[272];
    bool chkG;
 
 // If we are converting a buffer, then generate the file

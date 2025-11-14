@@ -6,6 +6,52 @@ Release Notes
 =============
 
 -------------
+Version 5.9.0
+-------------
+
++ **New Features**
+  **[Server]** Implement udprefresh option for the xrd.network directive (#1873)
+  **[Server]** New redirect intercept plugin for SENSE
+  **[XrdCors]** Add CORS plugin to XrdHttp (#2541, #2552)
+  **[XrdHttp]** Make HTTP's maximum open delay configurable via http.maxdelay option (#2532)
+  **[XrdNet]** XRootD monitoring information now follows DNS changes (#1873)
+  **[XrdPfc]** Implement URL CGI parameters for setting block-size and max number of blocks for prefetching on per file basis (#2606)
+  **[XrdTls]** Allow disabling of X.509 client auth (#2269)
+
++ **Major bug fixes**
+  **[XrdCl]** Avoid poller callbacks blocking each other (#2578, #2582)
+  **[XrdCl]** Fix URL object lifetime issue causing XCache crash (#2587, #2599)
+  **[XrdSsi]** Fix XrdSsi server crash due to use after free (#2479, #2481, #2523)
+  **[XrdSys]** Fix a race condition in IOEvents that might cause segfault
+  **[XrdCl]** Fix xrdcp crash when running with record plugin enabled (#2579)
+  **[XrdPfc]** Fix deadlock when opening/closing many files concurrently (#2561, #2563)
+
++ **Minor bug fixes**
+  **[Server]** Make sure tread create counter increases monotonically (#2597)
+  **[XrdCl]** PollerBuiltIn, proection against adding socket during shutdown
+  **[XrdHttp]** Do a clean TLS shutdown for HTTPS (#2565)
+  **[XrdHttp]** Fix file renaming with token authentication after redirection (#2550, #2570)
+  **[XrdHttpTpc]** Improve mapping of error codes to HTTP status in TPC transfers (#2591)
+  **[XrdOssCsi]** Handle pathnames not starting with slash and allow access to FD (#2581, #2594)
+  **[XrdOss]** Workaround Mac OS X pecularity with RLIMIT_NOFILE (#2577)
+  **[XrdOuc]** Fix memory leak in XrdOucGatherConf (#2583)
+  **[XrdPfc]** Return error code for set cache evict if the file does not exist (#2608)
+  **[XrdPosix]** Add a missed file object unlock
+  **[XrdPosix]** Set errno for errors from pgRead and pgWrite
+  **[XrdXrootd]** Fix multi-stream copy with xrdcp through XCache (#2592, #2593)
+
++ **Miscellaneous**
+  **[CMake]** Downgrade -Werror=null-dereference back to just a warning (#2571)
+  **[Tests]** Add an xcache test, using OssCsi to flag corruption
+  **[Tests]** Extend test suite with more tests with token based authentication
+  **[XrdHttp]** Set the sequential I/O flag for simple HTTP requests
+  **[XrdOssStats]** Add documentation for the OSS statistics plugin
+  **[XrdPfc]** Cleanup processing and storage of pfc.dirstats configuration parameters
+  **[XrdPfc]** Pass full environment into the OSS library loader
+  **[XrdThrottle]** Modify XrdThrottle to be an OSS plugin (#2521)
+  **[XrdThrottle]** Re-engineered concurrency limits (#2521)
+
+-------------
 Version 5.8.4
 -------------
 

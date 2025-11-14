@@ -158,8 +158,8 @@ TEST(UtilsTest, TaskManagerTest)
   taskMan.UnregisterTask( tsk2 );
   ::sleep( 1 );
 
-  EXPECT_EQ( runs1.size(), 1 );
-  EXPECT_EQ( runs2.size(), 3 );
+  EXPECT_EQ( runs1.size(), 1u );
+  EXPECT_EQ( runs2.size(), 3u );
   EXPECT_TRUE( taskMan.Stop() );
 }
 
@@ -185,10 +185,10 @@ TEST(UtilsTest, SIDManagerTest)
   EXPECT_XRDST_OK( manager->AllocateSID( sid5 ) );
 
   EXPECT_TRUE( (sid1[0] != sid2[0]) || (sid1[1] != sid2[1]) );
-  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 0 );
+  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 0u );
   manager->TimeOutSID( sid4 );
   manager->TimeOutSID( sid5 );
-  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 2 );
+  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 2u );
   EXPECT_FALSE( manager->IsTimedOut( sid3 ) );
   EXPECT_FALSE( manager->IsTimedOut( sid1 ) );
   EXPECT_TRUE( manager->IsTimedOut( sid4 ) );
@@ -196,7 +196,7 @@ TEST(UtilsTest, SIDManagerTest)
   manager->ReleaseTimedOut( sid5 );
   EXPECT_FALSE( manager->IsTimedOut( sid5 ) );
   manager->ReleaseAllTimedOut();
-  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 0 );
+  EXPECT_EQ( manager->NumberOfTimedOutSIDs(), 0u );
 }
 
 //------------------------------------------------------------------------------

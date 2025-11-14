@@ -880,7 +880,7 @@ TEST(WorkflowTest, XAttrWorkflowTest)
                       [&]( XRootDStatus &status, std::vector<XAttr> &rsp )
                         {
                           EXPECT_XRDST_OK( status );
-                          EXPECT_EQ( rsp.size(), 1 );
+                          EXPECT_EQ( rsp.size(), 1u );
                           EXPECT_EQ( rsp[0].name, xattr_name );
                           EXPECT_EQ( rsp[0].value, xattr_value );
                         }

@@ -19,9 +19,11 @@
 #include "XrdPfcDecision.hh"
 #include "XrdSys/XrdSysError.hh"
 
-#include <vector>
-#include <fcntl.h>
+#include <cerrno>
 #include <cstdio>
+#include <vector>
+
+#include <fcntl.h>
 #include <fnmatch.h>
 
 class BlacklistDecision : public XrdPfc::Decision

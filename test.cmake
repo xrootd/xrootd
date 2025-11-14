@@ -40,7 +40,9 @@ if(NOT DEFINED CTEST_CONFIGURATION_TYPE)
   if(DEFINED ENV{CMAKE_BUILD_TYPE})
     set(CTEST_CONFIGURATION_TYPE $ENV{CMAKE_BUILD_TYPE})
   else()
-    set(CTEST_CONFIGURATION_TYPE RelWithDebInfo)
+    set(CTEST_CONFIGURATION_TYPE Debug)
+    set(CMAKE_C_FLAGS "-Og -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS "-Og -fno-omit-frame-pointer")
   endif()
 endif()
 
@@ -270,9 +272,10 @@ if(DEFINED CTEST_COVERAGE_COMMAND)
     execute_process(COMMAND
       ${GCOVR} --gcov-executable ${CTEST_COVERAGE_COMMAND}
         -r ${CTEST_SOURCE_DIRECTORY} ${CTEST_BINARY_DIRECTORY}
+        --gcov-ignore-parse-errors negative_hits.warn
         --html-details ${CTEST_BINARY_DIRECTORY}/coverage/ ERROR_VARIABLE ERROR)
     if(ERROR)
-      message(SEND_ERROR "Failed to generate coverage report")
+      message(SEND_ERROR "Failed to generate coverage report:\n${ERROR}")
     endif()
   endif()
   ctest_coverage()

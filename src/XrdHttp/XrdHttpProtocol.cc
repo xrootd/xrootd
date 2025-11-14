@@ -1614,26 +1614,6 @@ int XrdHttpProtocol::SendData(const char *body, int bodylen) {
 int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
                                      const char *header_to_add,
                                      long long bodylen, bool keepalive) {
-  static const std::unordered_map<int, std::string> statusTexts = {
-      {100, "Continue"},
-      {200, "OK"},
-      {201, "Created"},
-      {206, "Partial Content"},
-      {302, "Redirect"},
-      {307, "Temporary Redirect"},
-      {400, "Bad Request"},
-      {401, "Unauthorized"},
-      {403, "Forbidden"},
-      {404, "Not Found"},
-      {405, "Method Not Allowed"},
-      {409, "Conflict"},
-      {416, "Range Not Satisfiable"},
-      {423, "Locked"},
-      {500, "Internal Server Error"},
-      {502, "Bad Gateway"},
-      {504, "Gateway Timeout"},
-      {507, "Insufficient Storage"}};
-
   std::stringstream ss;
   const std::string crlf = "\r\n";
 
@@ -1642,12 +1622,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
   if (desc) {
     ss << desc;
   } else {
-    auto it = statusTexts.find(code);
-    if (it != statusTexts.end()) {
-      ss << it->second;
-    } else {
-      ss << "Unknown";
-    }
+    ss << httpStatusToString(code);
   }
   ss << crlf;
 
@@ -1963,23 +1938,26 @@ void XrdHttpProtocol::Cleanup() {
 
   if (ssl) {
     // Shutdown the SSL/TLS connection
-    // https://www.openssl.org/docs/man1.0.2/man3/SSL_shutdown.html
-    // We don't need a bidirectional shutdown as
-    // when we are here, the connection will not be re-used.
-    // In the case SSL_shutdown returns 0,
-    // "the output of SSL_get_error(3) may be misleading, as an erroneous SSL_ERROR_SYSCALL may be flagged even though no error occurred."
-    // we will then just flush the thread's queue.
-    // In the case an error really happened, we print the error that happened
+    // This triggers a bidirectional shutdown of the connection; the bidirectional
+    // shutdown is useful to ensure that the client receives the server response;
+    // a one-sided shutdown can result in the server sending a TCP reset packet, zapping
+    // the contents of the TCP socket buffer on the client side.  The HTTP 1.1 RFC has a
+    // description of why this is important:
+    //   https://datatracker.ietf.org/doc/html/rfc9112#name-tls-connection-closure
+    // Once we get the clean SSL shutdown message back from the client, we know that
+    // the client has received the response and we can safely close the connection.
     int ret = SSL_shutdown(ssl);
     if (ret != 1) {
         if(ret == 0) {
-            // Clean this thread's error queue for the old openssl versions
-            #if OPENSSL_VERSION_NUMBER < 0x10100000L
-                ERR_remove_thread_state(nullptr);
-            #endif
+            // ret == 0, the unidirectional shutdown was successful; wait for the acknowledgement.
+            ret = SSL_shutdown(ssl);
+            if (ret != 1) {
+                TRACE(ALL, "SSL server failed to receive the SSL shutdown message from the client");
+                ERR_print_errors(sslbio_err);
+            }
         } else {
             //ret < 0, an error really happened.
-            TRACE(ALL, " SSL_shutdown failed");
+            TRACE(ALL, "SSL server failed to send the shutdown message to the client");
             ERR_print_errors(sslbio_err);
         }
     }

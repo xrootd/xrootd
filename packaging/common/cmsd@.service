@@ -1,7 +1,7 @@
 [Unit]
 Description=XRootD cmsd daemon instance %I
 Documentation=man:cmsd(8)
-Documentation=http://xrootd.org/docs.html
+Documentation=https://xrootd.org/docs.html
 Requires=network-online.target
 After=network-online.target
 
@@ -18,7 +18,7 @@ ExecStart=/usr/bin/cmsd -l /var/log/xrootd/cmsd.log -c /etc/xrootd/xrootd-%i.cfg
 User=xrootd
 Group=xrootd
 Type=simple
-Restart=on-abort
+Restart=on-abnormal
 RestartSec=10
 KillMode=control-group
 LimitNOFILE=65536

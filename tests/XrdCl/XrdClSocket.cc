@@ -268,7 +268,7 @@ TEST(SocketTest, TransferTest)
 
   sc = sock.WriteRaw( &packets, 1, 60, bytesTransmitted );
   EXPECT_EQ( sc.status, stOK );
-  EXPECT_EQ( bytesTransmitted, 1 );
+  EXPECT_EQ( bytesTransmitted, 1u );
 
   for( int i = 0; i < packets; ++i )
   {
@@ -277,7 +277,7 @@ TEST(SocketTest, TransferTest)
 
     sc = sock.WriteRaw( (char *)&packetSize, 2, 60, bytesTransmitted );
     EXPECT_EQ( sc.status, stOK );
-    EXPECT_EQ( bytesTransmitted, 2 );
+    EXPECT_EQ( bytesTransmitted, 2u );
     sc = sock.WriteRaw( buffer, packetSize, 60, bytesTransmitted );
     EXPECT_EQ( sc.status, stOK );
     EXPECT_EQ( bytesTransmitted, packetSize );

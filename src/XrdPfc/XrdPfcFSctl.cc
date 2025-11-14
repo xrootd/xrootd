@@ -113,8 +113,11 @@ int XrdPfcFSctl::FSctl(const int               cmd,
        ec = myCache.UnlinkFile(path, *xeq != 'f');
        switch(ec)
              {case       0: if (hProc) hProc->Hide(path.c_str());
-                            [[fallthrough]];
-              case -ENOENT: rc = SFS_OK;
+                            rc = SFS_OK;
+                            break;
+              case -ENOENT: ec = ENOENT;
+                            rc = SFS_ERROR;
+                            msg = "file does not exist";
                             break;
               case  -EBUSY: ec = ENOTTY;
                             rc = SFS_ERROR;

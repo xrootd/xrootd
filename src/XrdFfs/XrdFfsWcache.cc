@@ -114,9 +114,9 @@ void XrdFfsWcache_init(int basefd, int maxfd)
     else
     {
         char *savptr;
-        int nbdat = atoi(strtok_r(getenv("XRDCL_EC"), ",", &savptr));
+        ssize_t nbdat = atoi(strtok_r(getenv("XRDCL_EC"), ",", &savptr));
         strtok_r(NULL, ",", &savptr);
-        int chsz = atoi(strtok_r(NULL, ",", &savptr));
+        ssize_t chsz = atoi(strtok_r(NULL, ",", &savptr));
         XrdFfsRcacheBufsize = nbdat * chsz; 
     }
     if (getenv("XROOTDFS_WCACHESZ"))

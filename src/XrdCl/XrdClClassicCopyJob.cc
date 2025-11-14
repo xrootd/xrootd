@@ -824,13 +824,14 @@ namespace
 
           char *buffer = new char[chunkSize];
           ChunkHandler *ch = new ChunkHandler();
-          ch->status = pUsePgRead
+          auto st = pUsePgRead
                      ? reader->PgRead( pCurrentOffset, chunkSize, buffer, ch )
                      : reader->Read( pCurrentOffset, chunkSize, buffer, ch );
           pChunks.push( ch );
           pCurrentOffset += chunkSize;
-          if( !ch->status.IsOK() )
+          if( !st.IsOK() )
           {
+            ch->status = st;
             ch->sem->Post();
             break;
           }

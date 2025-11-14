@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="https://xrootd.github.io/images/xrootd-logo.png"/>
+  <img src="https://xrootd.org/images/xrootd-logo.png"/>
 </p>
 
 ## XRootD: eXtended ROOT Daemon
 
-The [XRootD](http://xrootd.org) project provides a high-performance,
+The [XRootD](https://xrootd.org) project provides a high-performance,
 fault-tolerant, and secure solution for handling massive amounts of data
 distributed across multiple storage resources, such as disk servers, tape
 libraries, and remote sites. It enables efficient data access and movement in a
@@ -28,7 +28,7 @@ systems like [ceph](https://ceph.io).
 ## Documentation
 
 General documentation such as configuration reference guides, and user manuals
-can be found on the XRootD website at http://xrootd.org/docs.html.
+can be found on the XRootD website at https://xrootd.org/docs.html.
 
 ## Supported Operating Systems
 
@@ -69,8 +69,8 @@ apt install xrootd-client xrootd-server python3-xrootd
 If you would like to use our official repositories for XRootD packages instead,
 please follow the instructions on our website at one of the links below:
 
-- RPM repositories: http://xrootd.org/dload.html#official-rpm-repositories
-- DEB repositories: http://xrootd.org/dload.html#official-deb-repositories
+- RPM repositories: https://xrootd.org/dload.html#official-rpm-repositories
+- DEB repositories: https://xrootd.org/dload.html#official-deb-repositories
 
 On macOS, XRootD is available via Homebrew
 ```sh
@@ -100,7 +100,7 @@ You can open a new ticket by clicking [here](https://github.com/xrootd/xrootd/is
 
 For general questions about XRootD, please send a message to our user mailing
 list at xrootd-l@slac.stanford.edu or open a new [discussion](https://github.com/xrootd/xrootd/discussions)
-on GitHub. Please check XRootD's contact page at http://xrootd.org/contact.html
+on GitHub. Please check XRootD's contact page at https://xrootd.org/contact.html
 for further information.
 
 ## Contributing

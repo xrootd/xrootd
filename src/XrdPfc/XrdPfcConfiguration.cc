@@ -45,9 +45,8 @@ Configuration::Configuration() :
    m_purgeColdFilesAge(-1),
    m_purgeAgeBasedPeriod(10),
    m_accHistorySize(20),
-   m_dirStatsInterval(1500),
-   m_dirStatsMaxDepth(-1),
-   m_dirStatsStoreDepth(0),
+   m_dirStatsInterval(900),
+   m_dirStatsStoreDepth(1),
    m_bufferSize(128*1024),
    m_RamAbsAvailable(0),
    m_RamKeepStdBlocks(0),
@@ -66,7 +65,7 @@ Configuration::Configuration() :
 {}
 
 
-bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name)
+bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name) const
 {
    char errStr[1024];
    snprintf(errStr, 1024, "ConfigParameters() Error parsing parameter %s", name);
@@ -99,6 +98,30 @@ bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalS
      m_log.Emsg(errStr, "");
      return false;
    }
+
+   return true;
+}
+
+bool Cache::blocksize_str2value(const char *from, const char *str,
+                                long long &val, long long min, long long max) const
+{
+   if (XrdOuca2x::a2sz(m_log, "Error parsing block-size", str, &val, min, max))
+      return false;
+
+   if (val & 0xFFF) {
+      val &= ~0x0FFF;
+      val +=  0x1000;
+      m_log.Emsg(from, "blocksize must be a multiple of 4 kB. Rounded up.");
+   }
+
+   return true;
+}
+
+bool Cache::prefetch_str2value(const char *from, const char *str,
+                               int &val, int min, int max) const
+{
+   if (XrdOuca2x::a2i(m_log, "Error parsing prefetch block count", str, &val, min, max))
+      return false;
 
    return true;
 }
@@ -407,7 +430,7 @@ bool Cache::test_oss_basics_and_features()
    Purpose: To parse configuration file and configure Cache instance.
    Output:  true upon success or false upon failure.
  */
-bool Cache::Config(const char *config_filename, const char *parameters)
+bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEnv *env)
 {
    // Indicate whether or not we are a client instance
    const char *theINS = getenv("XRDINSTANCE");
@@ -416,8 +439,10 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    // Tell everyone else we are a caching proxy
    XrdOucEnv::Export("XRDPFC", 1);
 
-   XrdOucEnv myEnv;
-   XrdOucStream Config(&m_log, theINS, &myEnv, "=====> ");
+   XrdOucEnv emptyEnv;
+   XrdOucEnv *myEnv = env ? env : &emptyEnv;
+
+   XrdOucStream Config(&m_log, theINS, myEnv, "=====> ");
 
    if (! config_filename || ! *config_filename)
    {
@@ -442,6 +467,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    if (! ofsCfg) return false;
 
    TmpConfiguration tmpc;
+
+   Configuration &CFG = m_configuration;
 
    // Adjust default parameters for client/serverless caching
    if (m_isClient)
@@ -498,7 +525,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    Config.Close();
 
    // Load OSS plugin.
-   myEnv.Put("oss.runmode", "pfc");
+   auto orig_runmode = myEnv->Get("oss.runmode");
+   myEnv->Put("oss.runmode", "pfc");
    if (m_configuration.is_cschk_cache())
    {
       char csi_conf[128];
@@ -510,7 +538,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
          return false;
       }
    }
-   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib, &myEnv))
+   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib, myEnv))
    {
       ofsCfg->Plugin(m_oss);
    }
@@ -519,6 +547,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       TRACE(Error, "Config() Unable to create an OSS object");
       return false;
    }
+   if (orig_runmode) myEnv->Put("oss.runmode", orig_runmode);
+   else myEnv->Put("oss.runmode", "");
 
    // Test if OSS is operational, determine optional features.
    aOK &= test_oss_basics_and_features();
@@ -627,7 +657,6 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    if (aOK)
    {
-      int  loff = 0;
 //                         000    001            010
       const char *csc[] = {"off", "cache nonet", "nocache net notls",
 //                         011
@@ -636,16 +665,28 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                            "off", "cache nonet", "nocache net tls",
 //                         111
                            "cache net tls"};
-      char buff[8192], uvk[32];
+      char uvk[32];
       if (m_configuration.m_cs_UVKeep < 0)
          strcpy(uvk, "lru");
       else
          sprintf(uvk, "%lld", (long long) m_configuration.m_cs_UVKeep);
-      float rg = (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
+      float ram_gb = (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
+
+      char urlcgi_blks[64] = "ignore", urlcgi_npref[32] = "ignore";
+      if (CFG.m_cgi_blocksize_allowed)
+         snprintf(urlcgi_blks, sizeof(urlcgi_blks), "%lldk %lldk",
+                  CFG.m_cgi_min_bufferSize >> 10, CFG.m_cgi_max_bufferSize >> 10);
+      if (CFG.m_cgi_prefetch_allowed)
+         snprintf(urlcgi_npref, sizeof(urlcgi_npref), "%d %d",
+                  CFG.m_cgi_min_prefetch_max_blocks, CFG.m_cgi_max_prefetch_max_blocks);
+
+      char buff[8192];
+      int  loff = 0;
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
                       "       pfc.cschk %s uvkeep %s\n"
-                      "       pfc.blocksize %lld\n"
+                      "       pfc.blocksize %lldk\n"
                       "       pfc.prefetch %d\n"
+                      "       pfc.urlcgi blocksize %s prefetch %s\n"
                       "       pfc.ram %.fg\n"
                       "       pfc.writequeue %d %d\n"
                       "       # Total available disk: %lld\n"
@@ -658,9 +699,10 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       "       pfc.onlyIfCachedMinFrac %.2f\n",
                       config_filename,
                       csc[int(m_configuration.m_cs_Chk)], uvk,
-                      m_configuration.m_bufferSize,
+                      m_configuration.m_bufferSize >> 10,
                       m_configuration.m_prefetch_max_blocks,
-                      rg,
+                      urlcgi_blks, urlcgi_npref,
+                      ram_gb,
                       m_configuration.m_wqueue_blocks, m_configuration.m_wqueue_threads,
                       sP.Total,
                       m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM,
@@ -677,8 +719,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       if (m_configuration.is_dir_stat_reporting_on())
       {
          loff += snprintf(buff + loff, sizeof(buff) - loff,
-                          "       pfc.dirstats interval %d maxdepth %d ((internal: store_depth %d, size_of_dirlist %d, size_of_globlist %d))\n",
-                          m_configuration.m_dirStatsInterval, m_configuration.m_dirStatsMaxDepth, m_configuration.m_dirStatsStoreDepth,
+                          "       pfc.dirstats interval %d maxdepth %d (internal: size_of_dirlist %d, size_of_globlist %d)\n",
+                          m_configuration.m_dirStatsInterval, m_configuration.m_dirStatsStoreDepth,
                           (int) m_configuration.m_dirStatsDirs.size(), (int) m_configuration.m_dirStatsDirGlobs.size());
          loff += snprintf(buff + loff, sizeof(buff) - loff, "           dirlist:\n");
          for (std::set<std::string>::iterator i = m_configuration.m_dirStatsDirs.begin(); i != m_configuration.m_dirStatsDirs.end(); ++i)
@@ -719,8 +761,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    }
 
    // Derived settings
-   m_prefetch_enabled   = m_configuration.m_prefetch_max_blocks > 0;
-   Info::s_maxNumAccess = m_configuration.m_accHistorySize;
+   m_prefetch_enabled   = CFG.m_prefetch_max_blocks > 0 || CFG.m_cgi_max_prefetch_max_blocks > 0;
+   Info::s_maxNumAccess = CFG.m_accHistorySize;
 
    m_gstream = (XrdXrootdGStream*) m_env->GetPtr("pfc.gStream*");
 
@@ -772,7 +814,8 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
 
    ConfWordGetter cwg(config);
 
-   XrdSysError err(0, "");
+   Configuration &CFG = m_configuration;
+
    if ( part == "user" )
    {
       m_configuration.m_username = cwg.GetWord();
@@ -848,36 +891,42 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       {
          if (strcmp(p, "interval") == 0)
          {
-            if (XrdOuca2x::a2i(m_log, "Error getting dirstsat interval", cwg.GetWord(), &m_configuration.m_dirStatsInterval, 0, 7 * 24 * 3600))
+            int validIntervals[] = {60, 120, 300, 600, 900, 1200, 1800, 3600};
+            int size = sizeof(validIntervals) / sizeof(int);
+
+            if (XrdOuca2x::a2tm(m_log, "Error getting dirstsat interval", cwg.GetWord(),
+                &m_configuration.m_dirStatsInterval, validIntervals[0], validIntervals[size - 1]))
             {
                return false;
             }
-            int validIntervals[] = {60, 300, 600, 900, 1800, 3600};
-            int size = sizeof(validIntervals) / sizeof(int);
-            bool match = false;
-            std::string vvl;
+            bool match = false, round_down = false;
             for (int i = 0; i < size; i++) {
               if (validIntervals[i] == m_configuration.m_dirStatsInterval) {
                  match = true;
                  break;
               }
-              vvl += std::to_string(validIntervals[i]);
-              if ((i+1) != size) vvl += ", ";
+              if (i > 0 && m_configuration.m_dirStatsInterval < validIntervals[i]) {
+                 m_configuration.m_dirStatsInterval = validIntervals[i - 1];
+                 round_down = true;
+                 break;
+              }
             }
-
-            if (!match) {
-                m_log.Emsg("Config", "Error: Dirstat interval is not valid. Possible interval values are ", vvl.c_str());
-                return false;
+            if ( ! match && ! round_down) {
+                m_log.Emsg("Config", "Error: dirstat interval parsing failed.");
+               return false;
+            }
+            if (round_down) {
+                m_log.Emsg("Config", "Info: dirstat interval was rounded down to the nearest valid value.");
             }
 
          }
          else if (strcmp(p, "maxdepth") == 0)
          {
-            if (XrdOuca2x::a2i(m_log, "Error getting maxdepth value", cwg.GetWord(), &m_configuration.m_dirStatsMaxDepth, 0, 16))
+            if (XrdOuca2x::a2i(m_log, "Error getting maxdepth value", cwg.GetWord(),
+                               &m_configuration.m_dirStatsStoreDepth, 0, 16))
             {
                return false;
             }
-            m_configuration.m_dirStatsStoreDepth = std::max(m_configuration.m_dirStatsStoreDepth, m_configuration.m_dirStatsMaxDepth);
          }
          else if (strcmp(p, "dir") == 0)
          {
@@ -939,18 +988,9 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
    else if ( part == "blocksize" )
    {
-      long long minBSize =   4 * 1024;
-      long long maxBSize = 512 * 1024 * 1024;
-      if (XrdOuca2x::a2sz(m_log, "Error reading block-size", cwg.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
-      {
+      if ( ! blocksize_str2value("Config", cwg.GetWord(), CFG.m_bufferSize,
+                                 CFG.s_min_bufferSize, CFG.s_max_bufferSize))
          return false;
-      }
-      if (m_configuration.m_bufferSize & 0xFFF)
-      {
-         m_configuration.m_bufferSize &= ~0x0FFF;
-         m_configuration.m_bufferSize +=  0x1000;
-         m_log.Emsg("Config", "pfc.blocksize must be a multiple of 4 kB. Rounded up.");
-      }
    }
    else if ( part == "prefetch" || part == "nramprefetch" )
    {
@@ -959,11 +999,66 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          m_log.Emsg("Config", "pfc.nramprefetch is deprecated, please use pfc.prefetch instead. Replacing the directive internally.");
       }
 
-      if (XrdOuca2x::a2i(m_log, "Error setting prefetch block count", cwg.GetWord(), &m_configuration.m_prefetch_max_blocks, 0, 128))
-      {
+      if ( ! prefetch_str2value("Config", cwg.GetWord(), CFG.m_prefetch_max_blocks,
+                                0, CFG.s_max_prefetch_max_blocks))
          return false;
-      }
-
+   }
+   else if ( part == "urlcgi" )
+   {
+      //  pfc.urlcgi [blocksize {ignore | min max}] [prefetch {ignore | min max}]
+      const char *p = 0;
+      while ((p = cwg.GetWord()) && cwg.HasLast())
+      {
+         if (strcmp(p, "blocksize") == 0)
+         {
+            std::string bmin = cwg.GetWord();
+            if (bmin == "ignore")
+               continue;
+            std::string bmax = cwg.GetWord();
+            if ( ! cwg.HasLast()) {
+               m_log.Emsg("Config", "Error: pfc.urlcgi blocksize parameter requires two arguments.");
+               return false;
+            }
+            if ( ! blocksize_str2value("Config::urlcgi", bmin.c_str(), CFG.m_cgi_min_bufferSize,
+                                       CFG.s_min_bufferSize, CFG.s_max_bufferSize))
+               return false;
+            if ( ! blocksize_str2value("Config::urlcgi", bmax.c_str(), CFG.m_cgi_max_bufferSize,
+                                       CFG.s_min_bufferSize, CFG.s_max_bufferSize))
+               return false;
+            if (CFG.m_cgi_min_bufferSize > CFG.m_cgi_max_bufferSize) {
+               m_log.Emsg("Config", "Error: pfc.urlcgi blocksize second argument must be larger or equal to the first one.");
+               return false;
+            }
+            CFG.m_cgi_blocksize_allowed = true;
+         }
+         else if (strcmp(p, "prefetch") == 0)
+         {
+            std::string bmin = cwg.GetWord();
+            if (bmin == "ignore")
+               continue;
+            std::string bmax = cwg.GetWord();
+            if ( ! cwg.HasLast()) {
+               m_log.Emsg("Config", "Error: pfc.urlcgi blocksize parameter requires two arguments.");
+               return false;
+            }
+            if ( ! prefetch_str2value("Config::urlcgi", bmin.c_str(), CFG.m_cgi_min_prefetch_max_blocks,
+                                       0, CFG.s_max_prefetch_max_blocks))
+               return false;
+            if ( ! prefetch_str2value("Config::urlcgi", bmax.c_str(), CFG.m_cgi_max_prefetch_max_blocks,
+                                      0, CFG.s_max_prefetch_max_blocks))
+               return false;
+            if (CFG.m_cgi_min_prefetch_max_blocks > CFG.m_cgi_max_prefetch_max_blocks) {
+               m_log.Emsg("Config", "Error: pfc.urlcgi prefetch second argument must be larger or equal to the first one.");
+               return false;
+            }
+            CFG.m_cgi_prefetch_allowed = true;
+         }
+         else
+         {
+            m_log.Emsg("Config", "Error: urlcgi stanza contains unknown directive '", p, "'");
+            return false;
+         }
+      } // while get next pfc.urlcgi word
    }
    else if ( part == "nramread" )
    {

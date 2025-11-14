@@ -64,7 +64,7 @@ XrdSfsGetFileSystem_Internal(XrdSfsFileSystem *native_fs,
    if (envP && envP->GetInt("XrdOssThrottle") == 1) {
       XrdSysError eDest(lp, "XrdOssThrottle");
       eDest.Emsg("Config", "XrdOssThrottle is loaded; not stacking XrdThrottle on OFS.  "
-         "This is a warning for backward compatability; this configuration may generate an "
+         "This is a warning for backward compatibility; this configuration may generate an "
          "error in the future.");
       return native_fs;
    }

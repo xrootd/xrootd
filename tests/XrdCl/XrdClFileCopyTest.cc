@@ -197,7 +197,7 @@ void FileCopyTest::UploadTestFunc()
   OpenFlags::Flags flags = OpenFlags::PrefName | OpenFlags::Refresh;
   EXPECT_XRDST_OK( fs.DeepLocate( remoteFile, flags, locations ) );
   ASSERT_TRUE( locations );
-  EXPECT_NE( locations->GetSize(), 0 );
+  EXPECT_NE( locations->GetSize(), 0u );
   FileSystem fs1( locations->Begin()->GetAddress() );
   delete locations;
 
@@ -546,7 +546,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::vector<xattr_t> attrs; attrs.push_back( xattr_t( "foo", "bar" ) );
   std::vector<XAttrStatus> result;
   EXPECT_XRDST_OK( lf.SetXAttr( attrs, result ) );
-  EXPECT_EQ( result.size(), 1 );
+  EXPECT_EQ( result.size(), 1u );
   EXPECT_XRDST_OK( result.front().status );
   EXPECT_XRDST_OK( lf.Close() );
 
@@ -564,7 +564,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // now test if the xattrs were preserved
   std::vector<XAttr> xattrs;
   EXPECT_XRDST_OK( fs.ListXAttr( targetPath, xattrs ) );
-  EXPECT_EQ( xattrs.size(), 1 );
+  EXPECT_EQ( xattrs.size(), 1u );
   XAttr &xattr = xattrs.front();
   EXPECT_XRDST_OK( xattr.status );
   EXPECT_EQ( xattr.name, "foo" );

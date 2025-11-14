@@ -33,13 +33,13 @@
 static inline bool is_subdirectory(const std::string& dir,
                                    const std::string& subdir)
 {
-    if (subdir.size() < dir.size())
+    if (subdir.size() < dir.size() || dir.empty())
       return false;
 
     if (subdir.compare(0, dir.size(), dir, 0, dir.size()) != 0)
       return false;
 
-    return dir.size() == subdir.size() || subdir[dir.size()] == '/' || dir == "/";
+    return dir.size() == subdir.size() || subdir[dir.size()] == '/' || dir.back() == '/';
 }
 
 /**

@@ -94,7 +94,7 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
 
    Cache &instance = Cache::CreateInstance(logger, env);
 
-   if (! instance.Config(config_filename, parameters))
+   if (! instance.Config(config_filename, parameters, env))
    {
       err.Say("Config Proxy file cache initialization failed.");
       return 0;
@@ -111,7 +111,7 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
          XrdSysThread::Run(&tid, ProcessWriteTaskThread, 0, 0, "XrdPfc WriteTasks ");
       }
 
-      if (instance.RefConfiguration().m_prefetch_max_blocks > 0)
+      if (instance.is_prefetch_enabled())
       {
          XrdSysThread::Run(&tid, PrefetchThread, 0, 0, "XrdPfc Prefetch ");
       }

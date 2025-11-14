@@ -8,7 +8,7 @@ Produces output similar to the following::
 
 For more information about XRootD query codes and arguments, see
 `the relevant section in the protocol reference
-<http://xrootd.slac.stanford.edu/doc/prod/XRdv299.htm#_Toc337053385>`_.
+<http://xrootd.web.cern.ch/doc/prod/XRdv299.htm#_Toc337053385>`_.
 """
 from XRootD import client
 from XRootD.client.flags import QueryCode

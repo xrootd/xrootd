@@ -198,17 +198,18 @@ XrdBwmHandle *XrdBwmHandle::Alloc(const char *theUsr,  const char *thePath,
   
 XrdBwmHandle *XrdBwmHandle::Alloc(XrdBwmHandle *old_hP)
 {
-   static const int minAlloc = 4096/sizeof(XrdBwmHandle);
    static XrdSysMutex aMutex;
-   XrdBwmHandle *hP;
+   constexpr int minAlloc = 4096/sizeof(XrdBwmHandle);
+   XrdBwmHandle *hP = nullptr;
 
 // No handle currently in the table. Get a new one off the free list or
 // return one to the free list.
 //
    aMutex.Lock();
    if (old_hP) {old_hP->Next = Free; Free = old_hP; hP = 0;}
-     else {if (!Free && (hP = new XrdBwmHandle[minAlloc]))
-              {int i = minAlloc; while(i--) {hP->Next = Free; Free = hP; hP++;}}
+     else {if (!Free)
+              if ((hP = new XrdBwmHandle[minAlloc]()))
+                 {int i = minAlloc; while(i--) {hP->Next = Free; Free = hP; hP++;}}
            if ((hP = Free)) Free = hP->Next;
           }
    aMutex.UnLock();

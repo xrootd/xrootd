@@ -6,16 +6,13 @@ permissions:
 on:
   push:
     branches:
-      - devel
       - master
-    paths-ignore:
-      - .gitignore
-      - .gitlab-ci.yml
-      - .mailmap
-      - '**.md'
-      - 'docs/**'
-      - 'docker/**'
-    tags:
+      - coverage
+    paths:
+      - .github/workflows/COV.yml
+      - 'src/**'
+      - 'tests/**'
+    tags-ignore:
   pull_request:
   workflow_dispatch:
 
@@ -29,19 +26,19 @@ defaults:
 
 env:
   CDASH: ${{ vars.CDASH }}
+  CTEST_OUTPUT_ON_FAILURE: true
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
   coverage:
     name: Coverage Report
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Install dependencies
       run: |
-        sudo ln -sf /usr/share/zoneinfo/UTC /etc/localtime
         sudo apt update -q
-        sudo apt install -y build-essential devscripts equivs gcovr git
+        sudo apt install -y devscripts equivs git
 
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -52,7 +49,7 @@ jobs:
       run: mk-build-deps --install --remove -s sudo debian/control <<< yes
 
     - name: Build and Test with CTest
-      run: ctest -V --output-on-failure -C Debug -DCOVERAGE=1 --output-junit junit.xml -S test.cmake
+      run: ctest -C Debug -DCOVERAGE=1 --output-junit junit.xml -V -S test.cmake
 
     - if: ${{ vars.CODECOV == 'true' }}
       name: Upload test results to Codecov

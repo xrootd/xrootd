@@ -21,7 +21,7 @@ TEST(XrdHttpTests, checksumHandlerTests) {
         XrdHttpChecksumHandlerImpl handler;
         handler.configure("0:sha512,1:crc32");
         auto configuredChecksum = handler.getConfiguredChecksums();
-        ASSERT_EQ(2, configuredChecksum.size());
+        ASSERT_EQ(2u, configuredChecksum.size());
         ASSERT_EQ("sha512", configuredChecksum[0]->getXRootDConfigDigestName());
         ASSERT_EQ("crc32", configuredChecksum[1]->getXRootDConfigDigestName());
     }
@@ -30,9 +30,9 @@ TEST(XrdHttpTests, checksumHandlerTests) {
         handler.configure("0:sha512,1:crc32,2:does_not_exist");
         auto configuredChecksum = handler.getConfiguredChecksums();
         auto incompatibleChecksums = handler.getNonIANAConfiguredCksums();
-        ASSERT_EQ(1,incompatibleChecksums.size());
+        ASSERT_EQ(1u,incompatibleChecksums.size());
         ASSERT_EQ("does_not_exist",incompatibleChecksums[0]);
-        ASSERT_EQ(2,configuredChecksum.size());
+        ASSERT_EQ(2u,configuredChecksum.size());
     }
 }
 
@@ -187,12 +187,12 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerTwoRangesOfSizeEqualToMaxChunkSize) {
     h.SetFilesize(filesize);
     const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(2, cl.size());
+    ASSERT_EQ(2u, cl.size());
     ASSERT_EQ(0, cl[0].offset);
     ASSERT_EQ(4, cl[0].size);
     ASSERT_EQ(4, cl[1].offset);
     ASSERT_EQ(4, cl[1].size);
-    ASSERT_EQ(2, ul.size());
+    ASSERT_EQ(2u, ul.size());
 }
 
 TEST(XrdHttpTests, xrdHttpReadRangeHandlerOneRangeSizeLessThanMaxChunkSize) {
@@ -211,10 +211,10 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerOneRangeSizeLessThanMaxChunkSize) {
   h.SetFilesize(filesize);
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
   const XrdHttpIOList &cl = h.NextReadList();
-  ASSERT_EQ(1, cl.size());
+  ASSERT_EQ(1u, cl.size());
   ASSERT_EQ(0, cl[0].offset);
   ASSERT_EQ(4, cl[0].size);
-  ASSERT_EQ(1, ul.size());
+  ASSERT_EQ(1u, ul.size());
 }
 
 TEST(XrdHttpTests, xrdHttpReadRangeHandlerOneRangeSizeGreaterThanMaxChunkSize) {
@@ -234,10 +234,10 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerOneRangeSizeGreaterThanMaxChunkSize) {
   {
     const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(1, cl.size());
+    ASSERT_EQ(1u, cl.size());
     ASSERT_EQ(0, cl[0].offset);
     ASSERT_EQ(8, cl[0].size);
-    ASSERT_EQ(1, ul.size());
+    ASSERT_EQ(1u, ul.size());
   }
   ss.str("");
   ss << "bytes=0-0," << rangeBegin << "-" << rangeEnd;
@@ -248,7 +248,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerOneRangeSizeGreaterThanMaxChunkSize) {
   {
     const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(4, cl.size());
+    ASSERT_EQ(4u, cl.size());
     ASSERT_EQ(0, cl[0].offset);
     ASSERT_EQ(1, cl[0].size);
     ASSERT_EQ(0, cl[1].offset);
@@ -257,7 +257,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerOneRangeSizeGreaterThanMaxChunkSize) {
     ASSERT_EQ(3, cl[2].size);
     ASSERT_EQ(6, cl[3].offset);
     ASSERT_EQ(2, cl[3].size);
-    ASSERT_EQ(2, ul.size());
+    ASSERT_EQ(2u, ul.size());
   }
 }
 
@@ -278,15 +278,15 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerRange0ToEnd) {
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
   {
     const XrdHttpIOList &cl1 = h.NextReadList();
-    ASSERT_EQ(1, ul.size());
-    ASSERT_EQ(1, cl1.size());
+    ASSERT_EQ(1u, ul.size());
+    ASSERT_EQ(1u, cl1.size());
     ASSERT_EQ(0, cl1[0].offset);
     ASSERT_EQ(100, cl1[0].size);
     ASSERT_EQ(0, h.NotifyReadResult(100, nullptr, start, finish));
   }
   {
     const XrdHttpIOList &cl2 = h.NextReadList();
-    ASSERT_EQ(1, cl2.size());
+    ASSERT_EQ(1u, cl2.size());
     ASSERT_EQ(100, cl2[0].offset);
     ASSERT_EQ(100, cl2[0].size);
   }
@@ -309,15 +309,15 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerRange5FromEnd) {
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
   {
     const XrdHttpIOList &cl1 = h.NextReadList();
-    ASSERT_EQ(1, ul.size());
-    ASSERT_EQ(1, cl1.size());
+    ASSERT_EQ(1u, ul.size());
+    ASSERT_EQ(1u, cl1.size());
     ASSERT_EQ(195, cl1[0].offset);
     ASSERT_EQ(5, cl1[0].size);
     ASSERT_EQ(0, h.NotifyReadResult(5, nullptr, start, finish));
   }
   {
     const XrdHttpIOList &cl2 = h.NextReadList();
-    ASSERT_EQ(0, cl2.size());
+    ASSERT_EQ(0u, cl2.size());
     const XrdHttpReadRangeHandler::Error &error = h.getError();
     ASSERT_EQ(false, static_cast<bool>(error));
   }
@@ -339,8 +339,8 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerRange0To0) {
   h.SetFilesize(filesize);
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
   const XrdHttpIOList &cl = h.NextReadList();
-  ASSERT_EQ(1, cl.size());
-  ASSERT_EQ(1, ul.size());
+  ASSERT_EQ(1u, cl.size());
+  ASSERT_EQ(1u, ul.size());
   ASSERT_EQ(0, ul[0].start);
   ASSERT_EQ(0, ul[0].end);
   ASSERT_EQ(0, cl[0].offset);
@@ -363,10 +363,10 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerEndByteGreaterThanFileSize) {
   h.SetFilesize(filesize);
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
   const XrdHttpIOList &cl = h.NextReadList();
-  ASSERT_EQ(1, cl.size());
+  ASSERT_EQ(1u, cl.size());
   ASSERT_EQ(0, cl[0].offset);
   ASSERT_EQ(2, cl[0].size);
-  ASSERT_EQ(1, ul.size());
+  ASSERT_EQ(1u, ul.size());
   ASSERT_EQ(0, ul[0].start);
   ASSERT_EQ(1, ul[0].end);
 }
@@ -387,8 +387,8 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerRangeBeginGreaterThanFileSize) {
   h.SetFilesize(filesize);
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
   const XrdHttpIOList &cl = h.NextReadList();
-  ASSERT_EQ(0, ul.size());
-  ASSERT_EQ(0, cl.size());
+  ASSERT_EQ(0u, ul.size());
+  ASSERT_EQ(0u, cl.size());
   const XrdHttpReadRangeHandler::Error &error = h.getError();
   ASSERT_EQ(true, static_cast<bool>(error));
   ASSERT_EQ(416, error.httpRetCode);
@@ -412,10 +412,10 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerTwoRangesOneOutsideFileExtent) {
   h.SetFilesize(filesize);
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
   const XrdHttpIOList &cl = h.NextReadList();
-  ASSERT_EQ(1, ul.size());
+  ASSERT_EQ(1u, ul.size());
   ASSERT_EQ(4, ul[0].start);
   ASSERT_EQ(6, ul[0].end);
-  ASSERT_EQ(1, cl.size());
+  ASSERT_EQ(1u, cl.size());
   ASSERT_EQ(4, cl[0].offset);
   ASSERT_EQ(3, cl[0].size);
 }
@@ -436,12 +436,12 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksSingleRange) {
   h.ParseContentRange(rs.c_str());
   h.SetFilesize(filesize);
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
-  ASSERT_EQ(1, ul.size());
+  ASSERT_EQ(1u, ul.size());
   ASSERT_EQ(0, ul[0].start);
   ASSERT_EQ(15, ul[0].end);
   {
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(1, cl.size());
+    ASSERT_EQ(1u, cl.size());
     ASSERT_EQ(0, cl[0].offset);
     ASSERT_EQ(5, cl[0].size);
     ASSERT_EQ(0, h.NotifyReadResult(5, nullptr, start, finish));
@@ -450,7 +450,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksSingleRange) {
   }
   {
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(1, cl.size());
+    ASSERT_EQ(1u, cl.size());
     ASSERT_EQ(5, cl[0].offset);
     ASSERT_EQ(5, cl[0].size);
     ASSERT_EQ(0, h.NotifyReadResult(5, nullptr, start, finish));
@@ -459,7 +459,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksSingleRange) {
   }
   {
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(1, cl.size());
+    ASSERT_EQ(1u, cl.size());
     ASSERT_EQ(10, cl[0].offset);
     ASSERT_EQ(5, cl[0].size);
     ASSERT_EQ(0, h.NotifyReadResult(5, nullptr, start, finish));
@@ -468,7 +468,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksSingleRange) {
   }
   {
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(1, cl.size());
+    ASSERT_EQ(1u, cl.size());
     ASSERT_EQ(15, cl[0].offset);
     ASSERT_EQ(1, cl[0].size);
     ASSERT_EQ(0, h.NotifyReadResult(1, nullptr, start, finish));
@@ -477,7 +477,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksSingleRange) {
   }
   {
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(0, cl.size());
+    ASSERT_EQ(0u, cl.size());
     const XrdHttpReadRangeHandler::Error &error = h.getError();
     ASSERT_EQ(false, static_cast<bool>(error));
   }
@@ -502,7 +502,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
   h.ParseContentRange(rs.c_str());
   h.SetFilesize(filesize);
   const XrdHttpReadRangeHandler::UserRangeList &ul = h.ListResolvedRanges();
-  ASSERT_EQ(2, ul.size());
+  ASSERT_EQ(2u, ul.size());
   ASSERT_EQ(0, ul[0].start);
   ASSERT_EQ(1, ul[0].end);
   ASSERT_EQ(5, ul[1].start);
@@ -510,7 +510,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
   {
     // we get 0-1, 5-7
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(2, cl.size());
+    ASSERT_EQ(2u, cl.size());
     ASSERT_EQ(0, cl[0].offset);
     ASSERT_EQ(2, cl[0].size);
     ASSERT_EQ(5, cl[1].offset);
@@ -529,7 +529,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
   {
     // we get 8-12
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(1, cl.size());
+    ASSERT_EQ(1u, cl.size());
     ASSERT_EQ(8, cl[0].offset);
     ASSERT_EQ(5, cl[0].size);
     ASSERT_EQ(0, h.NotifyReadResult(5, &ur, start, finish));
@@ -541,7 +541,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
   {
     // we get 13-17
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(1, cl.size());
+    ASSERT_EQ(1u, cl.size());
     ASSERT_EQ(13, cl[0].offset);
     ASSERT_EQ(5, cl[0].size);
     ASSERT_EQ(0, h.NotifyReadResult(5, &ur, start, finish));
@@ -553,7 +553,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
   {
     // we get 18-20, 21-21
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(2, cl.size());
+    ASSERT_EQ(2u, cl.size());
     ASSERT_EQ(18, cl[0].offset);
     ASSERT_EQ(3, cl[0].size);
     ASSERT_EQ(21, cl[1].offset);
@@ -571,7 +571,7 @@ TEST(XrdHttpTests, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
   }
   {
     const XrdHttpIOList &cl = h.NextReadList();
-    ASSERT_EQ(0, cl.size());
+    ASSERT_EQ(0u, cl.size());
     const XrdHttpReadRangeHandler::Error &error = h.getError();
     ASSERT_EQ(false, static_cast<bool>(error));
   }
