@@ -50,6 +50,8 @@ static int   argList(char *args, char **argV, int argC);
 
 static char *bin2hex(char *inbuff, int dlen, char *buff, int blen, bool sep=true);
 
+static int hex2bin(const char *hex, char *bin, int size);
+
 static bool  endsWith(const char *text, const char *ending, int endlen);
 
 static char *eText(int rc, char *eBuff, int eBlen);
