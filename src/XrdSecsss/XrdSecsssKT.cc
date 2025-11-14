@@ -575,32 +575,8 @@ void XrdSecsssKT::keyB2X(ktEnt *theKT, char *buff)
   
 void XrdSecsssKT::keyX2B(ktEnt *theKT, char *xKey)
 {
-//                              0   1   2   3   4   5   6   7
-   static const char xtab[] = {10, 10, 11, 12, 13, 14, 15, 15};
-   int n = strlen(xKey);
-   char *kp, kByte;
-
-// Make sure we don't overflow
-//
-   n = (n%2 ? (n+1)/2 : n/2);
-   if (n > ktEnt::maxKLen) n = ktEnt::maxKLen;
-   kp = theKT->Data.Val;
-   theKT->Data.Val[n-1] = 0;
-
-// Now convert (we need this to be just consistent not necessarily correct)
-//
-   while(*xKey)
-        {if (*xKey <= '9') kByte  = (*xKey & 0x0f) << 4;
-            else kByte = xtab[*xKey & 0x07] << 4;
-         xKey++;
-         if (*xKey <= '9') kByte |= (*xKey & 0x0f);
-            else kByte |= xtab[*xKey & 0x07];
-         *kp++ = kByte; xKey++;
-        }
-
-// Return data via the structure
-//
-   theKT->Data.Len = n;
+   int len = XrdOucUtils::hex2bin(xKey, theKT->Data.Val, sizeof(theKT->Data.Val));
+   theKT->Data.Len = len > 0 ? len : 0;
 }
 
 /******************************************************************************/
@@ -652,8 +628,11 @@ while((tp = kTab.GetToken()) && !Prob)
                  Have |= ktDesc[i].What; What = ktDesc[i].Name;
                  if (ktDesc[i].Ctl)
                     {if ((int)strlen(tp) > ktDesc[i].Ctl) Prob=" is too long";
-                        else if (Tag == 'k') keyX2B(&ktNew, tp);
-                                else strcpy(Dest, tp);
+                        else if (Tag == 'k') {
+                               keyX2B(&ktNew, tp);
+                               if (ktNew.Data.Len == 0)
+                                 Prob=" has invalid value";
+                             } else strcpy(Dest, tp);
                     } else {
                      nVal = strtoll(tp, &ep, 10);
                      if (ep && *ep) Prob = " has invalid value";
