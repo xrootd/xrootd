@@ -182,6 +182,8 @@ RedundancyProvider::CodingTable& RedundancyProvider::getCodingTable( const std::
     uint8_t n = static_cast<uint8_t>(pattern.size() & 0xff);
     for (uint8_t i = 0; i < n; i++) {
       if (pattern[i]) {
+        if (nerrs == objcfg.nbparity)
+          throw IOError( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError, errno, "More errors than parity blocks" ) );
         err_indx_list[nerrs++] = i;
         if (i < objcfg.nbdata) { nsrcerrs++; }
       }
