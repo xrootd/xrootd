@@ -33,9 +33,12 @@
 /******************************************************************************/
 
 #include <cstdint>
+#include <string>
 #include <unistd.h>
 #include <vector>
 #include <sys/types.h>
+
+#include "XrdOuc/XrdOucCache.hh"
 
 class XrdPosixCallBackIO;
 
@@ -46,6 +49,45 @@ class XrdPosixCallBackIO;
 class XrdPosixExtra
 {
 public:
+
+//-----------------------------------------------------------------------------
+//! Perform file oriented control operation (i.e. a query).
+//!
+//! @param  fildes  - Posix file descriptor of associated file.
+//! @param  opc     - The requested operation (e.g. QFinfo).
+//! @param  args    - The arguments (this is not necessarily a URL)
+//! @param  resp    - Where the result is to be placed.
+//!
+//! @return >= 0    - Success, resp holds the response data.
+//! @return  < 0      errno hold reason for failure.
+//!
+//! @note This call is routed via the cache if file is cache enabled using
+//!       the associated CacheIO object returned by the cache attach call..
+//-----------------------------------------------------------------------------
+
+static int      Fctl(int fildes, XrdOucCacheOp::Code opc,
+                     const std::string& args, std::string& resp);
+
+//-----------------------------------------------------------------------------
+//! Perform file system oriented control operation (i.e. a query).
+//!
+//! @param  opc     - The requested operation (e.g. QFSinfo).
+//! @param  args    - The arguments (this should be a URL).
+//! @param  resp    - Where the result is to be placed.
+//! @param  viaCache- False -> Bypass calling any cache using URL in args.
+//!                   True  -> Use Cache object API if cache enabled.
+//!                            Otherwise, assume viaCache is false;
+//! @param  viaRedir- False -> Send request directly to endpoint.
+//!                   True  -> If endpoint is a redirector, send request
+//!                            to the redirected endpoint (i.e. via redirect)
+//!
+//! @return >= 0    - Success, resp holds the response data.
+//! @return  < 0      errno hold reason for failure.
+//-----------------------------------------------------------------------------
+
+static int      FSctl(XrdOucCacheOp::Code opc,
+                      const std::string& args, std::string& resp,
+                      bool viaCache=false, bool viaRedir=false);
 
 //-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.

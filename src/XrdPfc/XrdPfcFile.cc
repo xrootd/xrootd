@@ -27,7 +27,10 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucJson.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+
+#include "XrdCl/XrdClFileStateHandler.hh"
 
 #include "XrdCl/XrdClURL.hh"
 
@@ -543,6 +546,31 @@ bool File::Open(XrdOucCacheIO* inputIO)
       m_cfi.Write(m_info_file, ifn.c_str());
       m_info_file->Fsync();
       cache()->WriteFileSizeXAttr(m_info_file->getFD(), m_file_size);
+
+
+      if (cache()->RefConfiguration().m_httpcc)
+      {
+         std::string  responseFctl;
+         int resFctl = inputIO->Fcntl(XrdOucCacheOp::Code::QFinfo, "head", responseFctl);
+         if (resFctl == 0)
+         {
+            std::string cc_str = responseFctl;
+            nlohmann::json cc_json =  nlohmann::json::parse(cc_str);
+            if (cc_json.contains("max-age"))
+            {
+               time_t ma = cc_json["max-age"];
+               ma += time(NULL);
+               cc_json["expire"] = ma;
+               cc_str = cc_json.dump();
+            }
+            TRACE(Error, "GetFile() XrdCl::File::Fcntl value " << cc_str);
+            cache()->WriteCacheControlXAttr(m_info_file->getFD(), nullptr, cc_str);
+         }
+         else if (resFctl != kXR_Unsupported)
+         {
+            TRACE(Error, "GetFile() XrdCl::File::Fcntl query XrdCl::QueryCode::FInfo failed " << inputIO->Path());
+         }
+      }
       TRACEF(Debug, tpfx << "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << m_cfi.GetNBlocks()
                          << " block size = " << pfc_blocksize);
    }

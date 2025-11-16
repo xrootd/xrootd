@@ -278,6 +278,15 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Set a single param
+      //------------------------------------------------------------------------
+      void SetParam( const std::string &name, const std::string &value )
+      {
+        pParams[name] = value;
+        ComputeURL();
+      }
+
+      //------------------------------------------------------------------------
       //! Parse a string and fill the URL fields
       //------------------------------------------------------------------------
       bool FromString( const std::string &url );

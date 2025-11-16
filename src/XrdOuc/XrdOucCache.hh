@@ -26,12 +26,12 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /*                                                                            */
 /* The copyright holder's institutional names and contributor's names may not */
-/* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
 #include <cerrno>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "XrdOuc/XrdOucCacheStats.hh"
@@ -93,6 +93,16 @@ virtual ~XrdOucCacheIOCD() {}
 };
   
 /******************************************************************************/
+/*                         X r d O u c C a c h e O p                          */
+/******************************************************************************/
+
+struct XrdOucCacheOp
+      {enum Code {QFinfo  = 0,  // Requires a file   target
+                  QFSinfo = 1   // Requires a global target
+                 };
+      };
+  
+/******************************************************************************/
 /*                   C l a s s   X r d O u c C a c h e I O                    */
 /******************************************************************************/
 
@@ -123,6 +133,22 @@ public:
 //------------------------------------------------------------------------------
 
 virtual bool Detach(XrdOucCacheIOCD &iocd) = 0;
+
+//------------------------------------------------------------------------------
+//! Issue a special file control operation (synchronous).
+//!
+//! @param  opc    The operation code (one of the enums).
+//! @param  args   The argument as required by opc.
+//! @param  resp   Where the response is to be placed.
+//!
+//! @return 0 upon success or -errno upon failure.
+//------------------------------------------------------------------------------
+
+virtual int  Fcntl(XrdOucCacheOp::Code opc, const std::string& args,
+                                                  std::string& resp)
+                  {resp = "Function not supported";
+                   return -ENOTSUP;
+                  }
 
 //------------------------------------------------------------------------------
 //! Obtain size of the file.
@@ -520,6 +546,22 @@ static const int optWIN = 0x0024; //!< File is new -> optRW use write-in cache
 
 virtual
 XrdOucCacheIO *Attach(XrdOucCacheIO *ioP, int opts=0) = 0;
+
+//------------------------------------------------------------------------------
+//! Issue a special file control operation (synchronous).
+//!
+//! @param  opc    The operation code (one of the enums).
+//! @param  args   The argument as required by opc.
+//! @param  resp   Where the response is to be placed.
+//!
+//! @return 0 upon success or -errno upon failure.
+//------------------------------------------------------------------------------
+
+virtual int  Fcntl(XrdOucCacheOp::Code opc, const std::string& args,
+                                                  std::string& resp)
+                  {resp = "Function not supported";
+                   return -ENOTSUP;
+                  }
 
 //------------------------------------------------------------------------------
 //! Get the path to a file that is complete in the local cache. By default, the

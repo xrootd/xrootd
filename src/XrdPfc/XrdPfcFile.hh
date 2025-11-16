@@ -250,7 +250,7 @@ public:
    //----------------------------------------------------------------------
    void Sync();
 
-   void WriteBlockToDisk(Block* b);
+   void WriteBlockToDisk(Block *b);
 
    void Prefetch();
 

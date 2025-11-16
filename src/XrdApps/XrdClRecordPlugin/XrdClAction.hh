@@ -43,7 +43,7 @@ struct Action
   //                  (to be used as an ID)
   // @param timeout : operation timeout (common for every operation)
   //--------------------------------------------------------------------------
-  Action(void* file, uint16_t timeout)
+  Action(void* file, time_t timeout)
   : id(reinterpret_cast<uint64_t>(file))
   , timeout(timeout)
   , start(std::chrono::system_clock::now())  // register the action start time
@@ -128,7 +128,7 @@ struct Action
   virtual void Serialize(AnyObject* response) {}
 
   uint64_t                              id;         //> File object ID
-  uint16_t                              timeout;    //> operation timeout
+  time_t                                timeout;    //> operation timeout
   std::chrono::system_clock::time_point start;      //> start time
   XRootDStatus                          status;     //> operation status
   std::string                           serialrsp;  //> serialized response
@@ -141,7 +141,7 @@ struct Action
 struct OpenAction : public Action
 {
   OpenAction(
-    void* file, const std::string& url, OpenFlags::Flags flags, Access::Mode mode, uint16_t timeout)
+    void* file, const std::string& url, OpenFlags::Flags flags, Access::Mode mode, time_t timeout)
   : Action(file, timeout)
   , url(url)
   , flags(flags)
@@ -170,7 +170,7 @@ struct OpenAction : public Action
 //----------------------------------------------------------------------------
 struct CloseAction : public Action
 {
-  CloseAction(void* file, uint16_t timeout)
+  CloseAction(void* file, time_t timeout)
   : Action(file, timeout)
   {
   }
@@ -185,7 +185,7 @@ struct CloseAction : public Action
 //----------------------------------------------------------------------------
 struct StatAction : public Action
 {
-  StatAction(void* file, bool force, uint16_t timeout)
+  StatAction(void* file, bool force, time_t timeout)
   : Action(file, timeout)
   , force(force)
   {
@@ -224,7 +224,7 @@ struct StatAction : public Action
 //----------------------------------------------------------------------------
 struct ReadAction : public Action
 {
-  ReadAction(void* file, uint64_t offset, uint32_t size, uint16_t timeout)
+  ReadAction(void* file, uint64_t offset, uint32_t size, time_t timeout)
   : Action(file, timeout)
   , offset(offset)
   , size(size)
@@ -250,7 +250,7 @@ struct ReadAction : public Action
 
 struct PgReadAction : public Action
 {
-  PgReadAction(void* file, uint64_t offset, uint32_t size, uint16_t timeout)
+  PgReadAction(void* file, uint64_t offset, uint32_t size, time_t timeout)
   : Action(file, timeout)
   , offset(offset)
   , size(size)
@@ -282,7 +282,7 @@ struct PgReadAction : public Action
 //----------------------------------------------------------------------------
 struct WriteAction : public Action
 {
-  WriteAction(void* file, uint64_t offset, uint32_t size, uint16_t timeout)
+  WriteAction(void* file, uint64_t offset, uint32_t size, time_t timeout)
   : Action(file, timeout)
   , offset(offset)
   , size(size)
@@ -299,7 +299,7 @@ struct WriteAction : public Action
 
 struct PgWriteAction : public Action
 {
-  PgWriteAction(void* file, uint64_t offset, uint32_t size, uint16_t timeout)
+  PgWriteAction(void* file, uint64_t offset, uint32_t size, time_t timeout)
   : Action(file, timeout)
   , offset(offset)
   , size(size)
@@ -324,7 +324,7 @@ struct PgWriteAction : public Action
 //----------------------------------------------------------------------------
 struct SyncAction : public Action
 {
-  SyncAction(void* file, uint16_t timeout)
+  SyncAction(void* file, time_t timeout)
   : Action(file, timeout)
   {
   }
@@ -339,7 +339,7 @@ struct SyncAction : public Action
 //----------------------------------------------------------------------------
 struct TruncateAction : public Action
 {
-  TruncateAction(void* file, uint64_t size, uint16_t timeout)
+  TruncateAction(void* file, uint64_t size, time_t timeout)
   : Action(file, timeout)
   , size(size)
   {
@@ -357,7 +357,7 @@ struct TruncateAction : public Action
 //----------------------------------------------------------------------------
 struct VectorReadAction : public Action
 {
-  VectorReadAction(void* file, const ChunkList& chunks, uint16_t timeout)
+  VectorReadAction(void* file, const ChunkList& chunks, time_t timeout)
   : Action(file, timeout)
   , req(chunks)
   {
@@ -400,7 +400,7 @@ struct VectorReadAction : public Action
 //----------------------------------------------------------------------------
 struct VectorWriteAction : public Action
 {
-  VectorWriteAction(void* file, const ChunkList& chunks, uint16_t timeout)
+  VectorWriteAction(void* file, const ChunkList& chunks, time_t timeout)
   : Action(file, timeout)
   , req(chunks)
   {
@@ -427,7 +427,7 @@ struct VectorWriteAction : public Action
 //----------------------------------------------------------------------------
 struct FcntlAction : Action
 {
-  FcntlAction(void* file, const Buffer& arg, uint16_t timeout)
+  FcntlAction(void* file, const Buffer& arg, time_t timeout)
   : Action(file, timeout)
   , req(arg.GetSize())
   {
