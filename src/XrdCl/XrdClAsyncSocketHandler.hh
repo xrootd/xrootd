@@ -288,6 +288,8 @@ namespace XrdCl
       std::unique_ptr<AsyncMsgReader> rspreader;
       std::unique_ptr<AsyncHSReader>  hsreader;
       std::unique_ptr<AsyncMsgWriter> reqwriter;
+
+      std::shared_ptr<Channel>       pOpenChannel;
   };
 }
 
