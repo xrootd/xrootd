@@ -50,6 +50,9 @@ class XrdHttpMon {
     // Global stats table
     static std::array<std::array<HttpInfo, StatusCodes::sc_Count>, XrdHttpReq::ReqType::rtCount> statsInfo;
 
+    // Conditional that determines if monitoring should be used;
+    static bool enabled;
+
     std::chrono::seconds flushPeriod;
 
     XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream);

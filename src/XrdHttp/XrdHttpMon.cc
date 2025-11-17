@@ -26,6 +26,7 @@ void XrdHttpMon::Report() {
 }
 
 void* XrdHttpMon::Start(void* instance) {
+    XrdHttpMon::enabled = true;
     XrdHttpMon* mon = static_cast<XrdHttpMon*>(instance);
     while (true) {
         std::this_thread::sleep_for(mon->flushPeriod);
