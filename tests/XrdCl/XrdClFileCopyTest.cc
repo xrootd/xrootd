@@ -447,8 +447,11 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Clear();
     properties.Set( "source",    sourceURL   );
     properties.Set( "target",    targetURL   );
-    properties.Set( "xrate",     1024 * 1024 ); //< limit the transfer rate to 1MB/s (the file is 1GB big so the transfer will take 1024 seconds)
-    properties.Set( "cpTimeout", 5          ); //< timeout the job after 10 seconds (now the file are smaller so we have to decrease it to 5 sec)
+    // Limit the transfer rate to 1MB/s for the 1GB file, to force it to take longer
+    properties.Set( "xrate",     1024 * 1024 );
+    // Apply a copy timeout of 1 second and check that it then fails with operation expired
+    properties.Set( "cpTimeout", 2           );
+    properties.Set( "TimeoutResolution", 1    );
     EXPECT_XRDST_OK( process15.AddJob( properties, &results ) );
     EXPECT_XRDST_OK( process15.Prepare() );
     EXPECT_XRDST_NOTOK( process15.Run(0), XrdCl::errOperationExpired );
@@ -478,7 +481,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     results.Clear();
     properties.Clear();
     properties.Set( "xrate",     1024 * 1024 * 32 ); //< limit the transfer rate to 32MB/s
-    properties.Set( "cpTimeout", 20               ); //< timeout the job after 20 seconds
+    properties.Set( "cpTimeout", 5                ); //< timeout the job after 10 seconds
+    properties.Set( "TimeoutResolution", 1         );
     properties.Set( "source",    sourceURL        );
     properties.Set( "target",    targetURL        );
     env->PutInt( "CpRetry", 1 );
@@ -630,7 +634,9 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   results.Clear();
   properties.Set( "source",      "root://localhost:9997//test" ); // was 9999, this change allows for
   properties.Set( "target",      targetURL );                     // parallel testing
-  properties.Set( "initTimeout", 10 );
+  properties.Set( "initTimeout", 1 );
+  properties.Set( "cpTimeout", 5   );
+  properties.Set( "TimeoutResolution", 1    );
   properties.Set( "thirdParty",  "only"    );
   EXPECT_XRDST_OK( process3.AddJob( properties, &results ) );
   EXPECT_XRDST_OK( process3.Prepare() );
@@ -643,7 +649,9 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   results.Clear();
   properties.Set( "source",      sourceURL );
   properties.Set( "target",      "root://localhost:9997//test" ); // was 9999, this change allows for
-  properties.Set( "initTimeout", 10 );                            // parallel testing
+  properties.Set( "initTimeout", 1 );                             // parallel testing
+  properties.Set( "cpTimeout", 5   );
+  properties.Set( "TimeoutResolution", 1    );
   properties.Set( "thirdParty",  "only"    );
   EXPECT_XRDST_OK( process4.AddJob( properties, &results ) );
   EXPECT_XRDST_OK( process4.Prepare() );
