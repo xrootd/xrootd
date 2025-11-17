@@ -109,6 +109,6 @@ namespace XrdEc
     std::mutex mutex;
   };
 
-};
+}
 
 #endif	/* ERASURECODING_HH */
