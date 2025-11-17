@@ -6,6 +6,36 @@ Release Notes
 =============
 
 -------------
+Version 5.9.1
+-------------
+
++ **Major bug fixes**
+  **[XrdCl]** Revert fix for #2578 which caused deadlocks in XCache (#2629, #2633)
+  **[XrdEc]** Fix stack smashing detected by ASAN
+  **[XrdSecsss]** Fix buffer overrun when decoding bad sss keys
+
++ **Minor bug fixes**
+  **[XrdCl]** Avoid possibly losing error message during copy (#2615)
+  **[XrdCl]** Fix concurrency bug causing AtLeast policy to miss errors
+  **[XrdMacaroons]** Ensure that subdirectory creation permission is implied (#2611, #2638)
+  **[XrdMacaroons]** Match by subdirectory instead of substring for permission verification
+  **[XrdOuc]** Correct is_subdirectory check for directories ending with a trailing /
+  **[XrdPfc]** Add missing includes and put C++ headers before C headers
+  **[XrdThrottle]** Fix ignored configuration variable (#2616)
+  **[XrdXrootd]** Fix readv requests of exactly 2GB max allowed limit (#2614)
+
++ **Miscellaneous**
+  **[CI]** Add ABI compatibility check to GitHub Actions
+  **[CI]** Move coverage build to latest Ubuntu in GitHub Actions
+  **[CI]** Update macOS runner images after deprecation of macOS 13
+  **[Misc]** Fix -Wmaybe-uninitialized compiler warnings
+  **[Misc]** Fix spelling errors found by lintian (#2617)
+  **[RPM]** Revert back to sysusers.d config file, needed in Fedora 43 (#2433)
+  **[Systemd]** Restart services on abnormal exit (#2641)
+  **[XrdHttp]** Further improvements to WebDAV error message handling (#2261, #2598)
+  **[XrdThrottle]** Update README to Markdown and cover existing config
+
+-------------
 Version 5.9.0
 -------------
 
