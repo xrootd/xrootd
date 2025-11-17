@@ -70,8 +70,9 @@ public:
   // processing the request
 
   /// These are the HTTP/DAV requests that we support
-
-  enum ReqType: int {
+  // Any changes here should also reflect in XrdHttpMon::verbCountersSchema to capture statistics of requests by verb
+  // The count and order or verbs listed should be consistent with the monitoring counters
+  enum ReqType : int {
     rtUnset = -1,
     rtUnknown = 0,
     rtMalformed,
@@ -86,7 +87,7 @@ public:
     rtMOVE,
     rtPOST,
     rtCOPY,
-    rtCount 
+    rtCount
   };
 
 private:

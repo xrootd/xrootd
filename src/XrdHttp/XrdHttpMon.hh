@@ -1,3 +1,4 @@
+#include "Xrd/XrdMonRoll.hh"
 #include "XrdHttpReq.hh"
 #include "XrdSys/XrdSysRAtomic.hh"
 
@@ -17,6 +18,7 @@ class XrdHttpMon {
         sc_100,
         sc_200,
         sc_201,
+        sc_202,
         sc_206,
         sc_207,
         sc_302,
@@ -49,13 +51,18 @@ class XrdHttpMon {
 
     // Global stats table
     static std::array<std::array<HttpInfo, StatusCodes::sc_Count>, XrdHttpReq::ReqType::rtCount> statsInfo;
-
     // Conditional that determines if monitoring should be used;
     static bool enabled;
 
+    static RAtomic_uint verbCounters[XrdHttpReq::ReqType::rtCount];
+    static XrdMonRoll::setMember verbCountersSchema[XrdHttpReq::ReqType::rtCount + 1];
+
+    static RAtomic_uint statusCounters[StatusCodes::sc_Count];
+    static XrdMonRoll::setMember statusCountersSchema[StatusCodes::sc_Count + 1];
+
     std::chrono::seconds flushPeriod;
 
-    XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream);
+    XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream, XrdMonRoll *mrollP);
 
     static void* Start(void* instance);
 
@@ -75,6 +82,7 @@ class XrdHttpMon {
     ~XrdHttpMon() {};
 
     XrdXrootdGStream* gStream;
+    XrdMonRoll* mrollP;
 
     void Report();
 };
