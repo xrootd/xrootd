@@ -1599,6 +1599,9 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
 // so we record both the request count and its completion before returning.
 // The only exception is 100-Continue, which is an interim response and must not be recorded as final.
 void XrdHttpProtocol::Record() {
+  // Early return if monitoring is not enabled (httpMon is null when monitoring is disabled)
+  if (!httpMon) return;
+
   int code = CurrentReq.getInitialStatusCode();
   if (code < 200) return;
   auto duration = std::chrono::steady_clock::now() - CurrentReq.startTime;
