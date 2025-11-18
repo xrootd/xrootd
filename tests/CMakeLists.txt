@@ -29,6 +29,8 @@ if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
 
+add_subdirectory(tls)
+
 add_subdirectory( XrdOssTests )
 add_subdirectory( XRootD )
 add_subdirectory( cluster )

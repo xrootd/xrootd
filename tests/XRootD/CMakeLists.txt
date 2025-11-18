@@ -1,5 +1,5 @@
 
-list(APPEND XROOTD_CONFIGS noauth host unix sss cache posix diglib)
+list(APPEND XROOTD_CONFIGS noauth gsi host unix sss cache posix diglib)
 
 if(ENABLE_FUSE_TESTS)
   list(APPEND XROOTD_CONFIGS fuse)
@@ -20,6 +20,8 @@ endif()
 # The cache test requires the XRootD::host fixture to be running to
 # act as an origin
 list(APPEND cache_FIXTURES XRootD::host)
+
+list(APPEND gsi_FIXTURES TLS)
 
 foreach(CONFIG ${XROOTD_CONFIGS})
   add_test(NAME XRootD::${CONFIG}::setup
