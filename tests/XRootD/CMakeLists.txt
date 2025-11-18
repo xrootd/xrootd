@@ -28,6 +28,7 @@ foreach(CONFIG ${XROOTD_CONFIGS})
   set_tests_properties(XRootD::${CONFIG}::setup
     PROPERTIES
       FIXTURES_SETUP XRootD::${CONFIG}
+      FIXTURES_REQUIRED "${${CONFIG}_FIXTURES}"
       ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
   )
 
