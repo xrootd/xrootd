@@ -84,6 +84,8 @@ BuildRequires:	coreutils
 BuildRequires:	curl
 BuildRequires:	davix
 BuildRequires:	gtest-devel
+BuildRequires:	krb5-server
+BuildRequires:	krb5-workstation
 BuildRequires:	openssl
 BuildRequires:	procps-ng
 %endif
