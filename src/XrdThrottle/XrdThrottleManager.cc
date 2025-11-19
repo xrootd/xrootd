@@ -114,6 +114,11 @@ XrdThrottleManager::Init()
 
 std::tuple<std::string, uint16_t>
 XrdThrottleManager::GetUserInfo(const XrdSecEntity *client) {
+    // client can be null, if so, return nobody
+    if (!client) {
+        return std::make_tuple("nobody", GetUid("nobody"));
+    }
+
     // Try various potential "names" associated with the request, from the most
     // specific to most generic.
     std::string user;
