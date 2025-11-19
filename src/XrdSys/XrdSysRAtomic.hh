@@ -141,6 +141,8 @@ T   exchange(T v, std::memory_order mo=std::memory_order_relaxed) noexcept
 T   exchange(T v, std::memory_order mo=std::memory_order_relaxed) volatile noexcept
       {return  _m.exchange(v, mo);}
 
+T   load() {return _m.load(std::memory_order_relaxed);}
+
     RAtomic() {}
 
     RAtomic(T v) : _m(v) {}
@@ -303,6 +305,8 @@ bool exchange(bool v, std::memory_order mo=std::memory_order_relaxed) noexcept
 
 bool exchange(bool v, std::memory_order mo=std::memory_order_relaxed) volatile noexcept
               {return _m.exchange(v, mo);}
+
+bool load() {return _m.load(std::memory_order_relaxed);}
 
      RAtomic() {}
 
