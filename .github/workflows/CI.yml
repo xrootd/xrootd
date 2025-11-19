@@ -54,7 +54,9 @@ jobs:
           gtest-dev \
           isa-l-dev \
           json-c-dev \
+          krb5 \
           krb5-dev \
+          krb5-server \
           libxml2-dev \
           linux-headers \
           make \

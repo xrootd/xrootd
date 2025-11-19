@@ -38,6 +38,10 @@ Build-Depends:
  libradosstriper-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
  libisal-dev [!i386 !hppa !hurd-i386 !powerpc !x32],
  coreutils,
+ krb5-admin-server,
+ krb5-kdc,
+ krb5-pkinit,
+ krb5-user,
  openssl,
  procps
 Build-Depends-Indep:
