@@ -37,7 +37,11 @@
 #include <signal.h>
 #include <strings.h>
 #include <cstdio>
+#if defined(__linux__)
+#include <linux/fs.h>
+#endif
 #include <sys/file.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -54,6 +58,7 @@
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssTrace.hh"
+#include "XrdOuc/XrdOucCloneSeg.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
@@ -252,6 +257,81 @@ int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
     if (strlen(oldp) >= MAXPATHLEN) return -ENAMETOOLONG;
     strcpy(newp, oldp);
     return 0;
+}
+
+/******************************************************************************/
+/*                                  C l o n e                                 */
+/******************************************************************************/
+/*
+  Function: Clone contents of a file from another file.
+
+  Input:    srcFile     - clone contents of this file.
+
+  Output:   Returns XrdOssOK upon success and -errno or -osserr upon failure.
+*/
+
+int XrdOssFile::Clone(XrdOssDF& srcFile)
+{
+#if defined(FICLONE)
+  if (!canClone)
+    return -EPERM;
+
+  if (!isW || fd<0)
+     return -EBADF;
+  if (srcFile.getFD() < 0)
+     return -EBADF;
+
+  if (ioctl(fd, FICLONE, srcFile.getFD())==-1)
+    return -errno;
+
+  return XrdOssOK;
+#else
+  return -ENOTSUP;
+#endif
+}
+
+int XrdOssFile::Clone(XrdOucCloneSeg cVec[], int n)
+{
+#if defined(FICLONERANGE)
+  if (!canClone)
+    return -EPERM;
+
+  if (n < 0)
+     return -EINVAL;
+
+  if (!isW || fd<0)
+     return -EBADF;
+
+  if (n == 0)
+    return XrdOssOK;
+
+   int i, j=0;
+  do{
+   XrdOssDF *sdf = cVec[j].src.ossFile;
+   int sFd = sdf->getFD();
+   cVec[j].src.unxFD = sFd;
+
+   for (i = j+1; i < n && cVec[i].src.ossFile == sdf; i++)
+       {cVec[i].src.unxFD = sFd;}
+
+   for(int k=j;k<i;k++) 
+      {struct file_clone_range fr;
+       fr.src_fd = cVec[k].src.unxFD;
+       fr.src_offset = cVec[k].srcOffs;
+       fr.src_length = cVec[k].srcLen;
+       fr.dest_offset = cVec[k].dstOffs;
+       int rc = ioctl(fd, FICLONERANGE, &fr);
+       if (rc < 0)
+          {return -errno;}
+      }
+
+   j = i;
+  } while(j<n);
+
+  return XrdOssOK;
+#else
+  return -ENOTSUP;
+#endif
 }
 
 /******************************************************************************/
@@ -765,11 +845,12 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
       {do {retc = fstat(fd, &buf);} while(retc && errno == EINTR);
        if (!retc && !(buf.st_mode & S_IFREG))
           {close(fd); fd = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
+       cacheP = XrdOssCache::Find(local_path);
        if ((Oflag & O_ACCMODE) != O_RDONLY)
-          {FSize = buf.st_size; cacheP = XrdOssCache::Find(local_path);}
+          {FSize = buf.st_size; isW = true;}
           else {if (buf.st_mode & XRDSFS_POSCPEND && fd >= 0)
                    {close(fd); fd=-ETXTBSY;}
-                FSize = -1; cacheP = 0;
+                FSize = -1; isW = false;
                }
       } else if (fd == -EEXIST)
                 {do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
@@ -794,6 +875,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
        if (mopts) mmFile = XrdOssMio::Map(local_path, fd, mopts);
       } else mmFile = 0;
 
+   canClone = !(popts & XRDEXP_NOFICL);
 // Return the result of this open
 //
    return (fd < 0 ? fd : XrdOssOK);
@@ -813,11 +895,11 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 int XrdOssFile::Close(long long *retsz)
 {
     if (fd < 0) return -XRDOSS_E8004;
-    if (retsz || cacheP)
+    if (retsz || (isW && cacheP))
        {struct stat buf;
         int retc;
         do {retc = fstat(fd, &buf);} while(retc && errno == EINTR);
-        if (cacheP && FSize != buf.st_size)
+        if (isW && FSize != buf.st_size)
            XrdOssCache::Adjust(cacheP, buf.st_size - FSize);
         if (retsz) *retsz = buf.st_size;
        }
@@ -826,7 +908,7 @@ int XrdOssFile::Close(long long *retsz)
 #ifdef XRDOSSCX
     if (cxobj) {delete cxobj; cxobj = 0;}
 #endif
-    fd = -1; FSize = -1; cacheP = 0;
+    fd = -1; FSize = -1; cacheP = 0; isW = false;
     return XrdOssOK;
 }
 
@@ -1212,6 +1294,16 @@ int XrdOssFile::Ftruncate(unsigned long long flen) {
 //
     return (ftruncate(fd, newlen) ?  -errno : XrdOssOK);
     }
+
+
+/******************************************************************************/
+/*                    g e t P l a c e m e n t I n f o                         */
+/******************************************************************************/
+std::string XrdOssFile::getPlacementInfo() const
+{
+    if (!cacheP) return "";
+    return cacheP->group + std::string(":") + cacheP->path;
+}
 
 /******************************************************************************/
 /*                     P R I V A T E    S E C T I O N                         */
