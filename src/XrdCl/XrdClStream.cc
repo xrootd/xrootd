@@ -333,6 +333,7 @@ namespace XrdCl
     if( st.IsOK() )
     {
       pTransport->MultiplexSubStream( msg, *pChannelData, &path );
+      handler->OnWaitingToSend( msg );
       pSubStreams[path.up]->outQueue->PushBack( msg, handler,
                                                 expires, stateful );
     }
@@ -1245,6 +1246,7 @@ namespace XrdCl
         pSubStreams[subStream]->outQueue->PushFront( h.msg, h.handler, h.expires,
                                                      h.stateful );
         pIncomingQueue->RemoveMessageHandler(h.handler);
+        h.handler->OnWaitingToSend( h.msg );
       }
       else
       {
