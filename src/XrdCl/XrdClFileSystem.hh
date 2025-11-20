@@ -56,11 +56,14 @@ namespace XrdCl
       Checksum       = kXR_Qcksum,     //!< Query file checksum
       Opaque         = kXR_Qopaque,    //!< Implementation dependent
       OpaqueFile     = kXR_Qopaquf,    //!< Implementation dependent
+      OpaqueQ        = kXR_Qopaqug,    //!< Implementation dependent
       Prepare        = kXR_QPrep,      //!< Query prepare status
       Space          = kXR_Qspace,     //!< Query logical space stats
       Stats          = kXR_QStats,     //!< Query server stats
       Visa           = kXR_Qvisa,      //!< Query file visa attributes
-      XAttr          = kXR_Qxattr      //!< Query file extended attributes
+      XAttr          = kXR_Qxattr,     //!< Query file extended attributes
+      FInfo          = kXR_QFinfo,     //!< Query op-dependant file information on FD
+      FSInfo         = kXR_QFSinfo     //!< Query op-dependant file information on FS path
     };
   };
 
@@ -235,7 +238,7 @@ namespace XrdCl
       XRootDStatus Locate( const std::string &path,
                            OpenFlags::Flags   flags,
                            ResponseHandler   *handler,
-                           uint16_t           timeout = 0 )
+                           time_t             timeout = 0 )
                            XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -251,7 +254,7 @@ namespace XrdCl
       XRootDStatus Locate( const std::string  &path,
                            OpenFlags::Flags    flags,
                            LocationInfo      *&response,
-                           uint16_t            timeout  = 0 )
+                           time_t              timeout  = 0 )
                            XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -269,7 +272,7 @@ namespace XrdCl
       XRootDStatus DeepLocate( const std::string &path,
                                OpenFlags::Flags   flags,
                                ResponseHandler   *handler,
-                               uint16_t           timeout = 0 )
+                               time_t             timeout = 0 )
                                XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -285,7 +288,7 @@ namespace XrdCl
       XRootDStatus DeepLocate( const std::string  &path,
                                OpenFlags::Flags   flags,
                                LocationInfo      *&response,
-                               uint16_t            timeout  = 0 )
+                               time_t              timeout  = 0 )
                                XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -301,7 +304,7 @@ namespace XrdCl
       XRootDStatus Mv( const std::string &source,
                        const std::string &dest,
                        ResponseHandler   *handler,
-                       uint16_t           timeout = 0 )
+                       time_t             timeout = 0 )
                        XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -315,7 +318,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Mv( const std::string &source,
                        const std::string &dest,
-                       uint16_t           timeout = 0 )
+                       time_t             timeout = 0 )
                        XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -333,7 +336,7 @@ namespace XrdCl
       XRootDStatus Query( QueryCode::Code  queryCode,
                           const Buffer    &arg,
                           ResponseHandler *handler,
-                          uint16_t         timeout = 0 )
+                          time_t           timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -349,7 +352,7 @@ namespace XrdCl
       XRootDStatus Query( QueryCode::Code   queryCode,
                           const Buffer     &arg,
                           Buffer          *&response,
-                          uint16_t          timeout = 0 )
+                          time_t            timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -365,7 +368,7 @@ namespace XrdCl
       XRootDStatus Truncate( const std::string &path,
                              uint64_t           size,
                              ResponseHandler   *handler,
-                             uint16_t           timeout = 0 )
+                             time_t             timeout = 0 )
                              XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -379,7 +382,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Truncate( const std::string &path,
                              uint64_t           size,
-                             uint16_t           timeout = 0 )
+                             time_t             timeout = 0 )
                              XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -393,7 +396,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Rm( const std::string &path,
                        ResponseHandler   *handler,
-                       uint16_t           timeout = 0 )
+                       time_t             timeout = 0 )
                        XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -405,7 +408,7 @@ namespace XrdCl
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Rm( const std::string &path,
-                       uint16_t           timeout = 0 )
+                       time_t             timeout = 0 )
                        XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -423,7 +426,7 @@ namespace XrdCl
                           MkDirFlags::Flags  flags,
                           Access::Mode       mode,
                           ResponseHandler   *handler,
-                          uint16_t           timeout = 0 )
+                          time_t             timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -439,7 +442,7 @@ namespace XrdCl
       XRootDStatus MkDir( const std::string &path,
                           MkDirFlags::Flags  flags,
                           Access::Mode       mode,
-                          uint16_t           timeout = 0 )
+                          time_t             timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -453,7 +456,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RmDir( const std::string &path,
                           ResponseHandler   *handler,
-                          uint16_t           timeout = 0 )
+                          time_t             timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -465,7 +468,7 @@ namespace XrdCl
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus RmDir( const std::string &path,
-                          uint16_t           timeout = 0 )
+                          time_t             timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -481,7 +484,7 @@ namespace XrdCl
       XRootDStatus ChMod( const std::string &path,
                           Access::Mode       mode,
                           ResponseHandler   *handler,
-                          uint16_t           timeout = 0 )
+                          time_t             timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -495,7 +498,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus ChMod( const std::string &path,
                           Access::Mode       mode,
-                          uint16_t           timeout = 0 )
+                          time_t             timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -507,7 +510,7 @@ namespace XrdCl
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Ping( ResponseHandler *handler,
-                         uint16_t         timeout = 0 )
+                         time_t           timeout = 0 )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -517,7 +520,7 @@ namespace XrdCl
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Ping( uint16_t timeout = 0 ) XRD_WARN_UNUSED_RESULT;
+      XRootDStatus Ping( time_t timeout = 0 ) XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Obtain status information for a path - async
@@ -532,7 +535,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Stat( const std::string &path,
                          ResponseHandler   *handler,
-                         uint16_t           timeout = 0 )
+                         time_t             timeout = 0 )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -547,7 +550,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Stat( const std::string  &path,
                          StatInfo          *&response,
-                         uint16_t            timeout = 0 )
+                         time_t              timeout = 0 )
                          XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -563,7 +566,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus StatVFS( const std::string &path,
                             ResponseHandler   *handler,
-                            uint16_t           timeout = 0 )
+                            time_t             timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -577,7 +580,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus StatVFS( const std::string  &path,
                             StatInfoVFS       *&response,
-                            uint16_t            timeout = 0 )
+                            time_t              timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -591,7 +594,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Protocol( ResponseHandler *handler,
-                             uint16_t         timeout = 0 )
+                             time_t           timeout = 0 )
                              XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -603,7 +606,7 @@ namespace XrdCl
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Protocol( ProtocolInfo *&response,
-                             uint16_t       timeout = 0 )
+                             time_t         timeout = 0 )
                              XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -621,7 +624,7 @@ namespace XrdCl
       XRootDStatus DirList( const std::string   &path,
                             DirListFlags::Flags  flags,
                             ResponseHandler     *handler,
-                            uint16_t             timeout = 0 )
+                            time_t               timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -637,7 +640,7 @@ namespace XrdCl
       XRootDStatus DirList( const std::string    &path,
                             DirListFlags::Flags   flags,
                             DirectoryList       *&response,
-                            uint16_t              timeout = 0 )
+                            time_t                timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -653,7 +656,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus SendCache( const std::string &info,
                               ResponseHandler   *handler,
-                              uint16_t           timeout = 0 )
+                              time_t             timeout = 0 )
                               XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -667,7 +670,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus SendCache( const std::string  &info,
                               Buffer            *&response,
-                              uint16_t            timeout = 0 )
+                              time_t              timeout = 0 )
                               XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -683,7 +686,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus SendInfo( const std::string &info,
                              ResponseHandler   *handler,
-                             uint16_t           timeout = 0 )
+                             time_t             timeout = 0 )
                              XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -697,7 +700,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus SendInfo( const std::string  &info,
                              Buffer            *&response,
-                             uint16_t            timeout = 0 )
+                             time_t              timeout = 0 )
                              XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -717,7 +720,7 @@ namespace XrdCl
                             PrepareFlags::Flags             flags,
                             uint8_t                         priority,
                             ResponseHandler                *handler,
-                            uint16_t                        timeout = 0 )
+                            time_t                          timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -735,7 +738,7 @@ namespace XrdCl
                             PrepareFlags::Flags              flags,
                             uint8_t                          priority,
                             Buffer                         *&response,
-                            uint16_t                         timeout = 0 )
+                            time_t                           timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -753,7 +756,7 @@ namespace XrdCl
       XRootDStatus SetXAttr( const std::string           &path,
                              const std::vector<xattr_t>  &attrs,
                              ResponseHandler             *handler,
-                             uint16_t                     timeout = 0 );
+                             time_t                       timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Set extended attributes - sync
@@ -768,7 +771,7 @@ namespace XrdCl
       XRootDStatus SetXAttr( const std::string           &path,
                              const std::vector<xattr_t>  &attrs,
                              std::vector<XAttrStatus>    &result,
-                             uint16_t                     timeout = 0 );
+                             time_t                       timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Get extended attributes - async
@@ -785,7 +788,7 @@ namespace XrdCl
       XRootDStatus GetXAttr( const std::string               &path,
                              const std::vector<std::string>  &attrs,
                              ResponseHandler                 *handler,
-                             uint16_t                         timeout = 0 );
+                             time_t                           timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Get extended attributes - sync
@@ -800,7 +803,7 @@ namespace XrdCl
       XRootDStatus GetXAttr( const std::string               &path,
                              const std::vector<std::string>  &attrs,
                              std::vector<XAttr>              &result,
-                             uint16_t                         timeout = 0 );
+                             time_t                           timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Delete extended attributes - async
@@ -817,7 +820,7 @@ namespace XrdCl
       XRootDStatus DelXAttr( const std::string               &path,
                              const std::vector<std::string>  &attrs,
                              ResponseHandler                 *handler,
-                             uint16_t                         timeout = 0 );
+                             time_t                           timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Delete extended attributes - sync
@@ -832,7 +835,7 @@ namespace XrdCl
       XRootDStatus DelXAttr( const std::string               &path,
                              const std::vector<std::string>  &attrs,
                              std::vector<XAttrStatus>        &result,
-                             uint16_t                         timeout = 0 );
+                             time_t                           timeout = 0 );
 
       //------------------------------------------------------------------------
       //! List extended attributes - async
@@ -847,7 +850,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus ListXAttr( const std::string         &path,
                               ResponseHandler           *handler,
-                              uint16_t                   timeout = 0 );
+                              time_t                     timeout = 0 );
 
       //------------------------------------------------------------------------
       //! List extended attributes - sync
@@ -860,7 +863,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus ListXAttr( const std::string    &path,
                               std::vector<XAttr>   &result,
-                              uint16_t              timeout = 0 );
+                              time_t                timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Set filesystem property
@@ -902,7 +905,7 @@ namespace XrdCl
       XRootDStatus SendSet( const char        *prefix,
                             const std::string &info,
                             ResponseHandler   *handler,
-                            uint16_t           timeout = 0 )
+                            time_t             timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
@@ -920,7 +923,7 @@ namespace XrdCl
                                  const std::string    &path,
                                  const std::vector<T> &attrs,
                                  ResponseHandler      *handler,
-                                 uint16_t              timeout = 0 );
+                                 time_t                timeout = 0 );
 
       FileSystemImpl   *pImpl;   //< pointer to implementation (TODO: once we can break ABI we can use a shared pointer here, and then we can drop the FileSystemData in source file)
       FileSystemPlugIn *pPlugIn; //< file system plug-in

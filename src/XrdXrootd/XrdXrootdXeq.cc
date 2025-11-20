@@ -2172,7 +2172,13 @@ int XrdXrootdProtocol::do_Qfh()
 // Perform the appropriate query
 //
    switch(qopt)
-         {case kXR_Qopaqug: qType = "Qopaqug";
+         {case kXR_QFinfo:  qType = "QFinfo";
+                            fArg = (Request.query.dlen ? argp->buff : 0);
+                            rc = fp->XrdSfsp->fctl(SFS_FCTL_QFINFO,
+                                                   Request.query.dlen, fArg,
+                                                   CRED);
+                            break;
+          case kXR_Qopaqug: qType = "Qopaqug";
                             fArg = (Request.query.dlen ? argp->buff : 0);
                             rc = fp->XrdSfsp->fctl(SFS_FCTL_SPEC1,
                                                    Request.query.dlen, fArg,
@@ -2233,9 +2239,16 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
        myData.Arg1Len = (opaque ? opaque - argp->buff - 1    : dlen);
        myData.Arg2    = opaque;
        myData.Arg2Len = (opaque ? argp->buff + dlen - opaque : 0);
-       fsctl_cmd = SFS_FSCTL_PLUGIN;
-       Act = " qopaquf '"; AData = argp->buff;
+       if (qopt == kXR_QFSinfo)
+          {fsctl_cmd = SFS_FSCTL_PLUGFS;
+           Act = " qfsinfo '";
+          } else {
+           fsctl_cmd = SFS_FSCTL_PLUGIN;
+           Act = " qopaquf '";
+          }
+       AData = argp->buff;
       }
+
 // The query is elegible for a deferred response, indicate we're ok with that
 //
    myError.setErrCB(&qpqCB, ReqID.getID());
@@ -2302,8 +2315,11 @@ int XrdXrootdProtocol::do_Query()
           case kXR_Qconfig: return do_Qconf();
           case kXR_Qspace:  return do_Qspace();
           case kXR_Qxattr:  return do_Qxattr();
+          case kXR_QFSinfo:
           case kXR_Qopaque:
           case kXR_Qopaquf: return do_Qopaque(qopt);
+//        case kXR_Qvisa:
+          case kXR_QFinfo:
           case kXR_Qopaqug: return do_Qfh();
           case kXR_QPrep:   return do_Prepare(true);
           default:          break;

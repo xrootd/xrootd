@@ -64,7 +64,7 @@ HttpFileSystemPlugIn::~HttpFileSystemPlugIn() noexcept {
 XRootDStatus HttpFileSystemPlugIn::Mv(const std::string &source,
                                       const std::string &dest,
                                       ResponseHandler *handler,
-                                      uint16_t timeout) {
+                                      time_t timeout) {
   //const auto full_source_path = url_.GetLocation() + source;
   //const auto full_dest_path = url_.GetLocation() + dest;
   const auto full_source_path = url_.GetProtocol() + "://"
@@ -77,8 +77,9 @@ XRootDStatus HttpFileSystemPlugIn::Mv(const std::string &source,
                             + dest;
 
   logger_->Debug(kLogXrdClHttp,
-                 "HttpFileSystemPlugIn::Mv - src = %s, dest = %s, timeout = %d",
-                 full_source_path.c_str(), full_dest_path.c_str(), timeout);
+                 "HttpFileSystemPlugIn::Mv - src = %s, dest = %s, timeout = %lld",
+                 full_source_path.c_str(), full_dest_path.c_str(),
+                 (long long)timeout);
 
   auto status =
       Posix::Rename(*davix_client_, full_source_path, full_dest_path, timeout);
@@ -95,13 +96,13 @@ XRootDStatus HttpFileSystemPlugIn::Mv(const std::string &source,
 
 XRootDStatus HttpFileSystemPlugIn::Rm(const std::string &path,
                                       ResponseHandler *handler,
-                                      uint16_t timeout) {
+                                      time_t timeout) {
   auto url = url_;
   url.SetPath(path);
 
   logger_->Debug(kLogXrdClHttp,
-                 "HttpFileSystemPlugIn::Rm - path = %s, timeout = %d",
-                 url.GetObfuscatedURL().c_str(), timeout);
+                 "HttpFileSystemPlugIn::Rm - path = %s, timeout = %lld",
+                 url.GetObfuscatedURL().c_str(), (long long)timeout);
 
   auto status = Posix::Unlink(*davix_client_, url.GetURL(), timeout);
 
@@ -119,14 +120,14 @@ XRootDStatus HttpFileSystemPlugIn::MkDir(const std::string &path,
                                          MkDirFlags::Flags flags,
                                          Access::Mode mode,
                                          ResponseHandler *handler,
-                                         uint16_t timeout) {
+                                         time_t timeout) {
   auto url = url_;
   url.SetPath(path);
 
   logger_->Debug(
       kLogXrdClHttp,
-      "HttpFileSystemPlugIn::MkDir - path = %s, flags = %d, timeout = %d",
-      url.GetObfuscatedURL().c_str(), flags, timeout);
+      "HttpFileSystemPlugIn::MkDir - path = %s, flags = %d, timeout = %lld",
+      url.GetObfuscatedURL().c_str(), flags, (long long)timeout);
 
   auto status = Posix::MkDir(*davix_client_, url.GetURL(), flags, mode, timeout);
   if (status.IsError()) {
@@ -141,13 +142,13 @@ XRootDStatus HttpFileSystemPlugIn::MkDir(const std::string &path,
 
 XRootDStatus HttpFileSystemPlugIn::RmDir(const std::string &path,
                                          ResponseHandler *handler,
-                                         uint16_t timeout) {
+                                         time_t timeout) {
   auto url = url_;
   url.SetPath(path);
 
   logger_->Debug(kLogXrdClHttp,
-                 "HttpFileSystemPlugIn::RmDir - path = %s, timeout = %d",
-                 url.GetObfuscatedURL().c_str(), timeout);
+                 "HttpFileSystemPlugIn::RmDir - path = %s, timeout = %lld",
+                 url.GetObfuscatedURL().c_str(), (long long)timeout);
 
   auto status = Posix::RmDir(*davix_client_, url.GetURL(), timeout);
   if (status.IsError()) {
@@ -162,15 +163,15 @@ XRootDStatus HttpFileSystemPlugIn::RmDir(const std::string &path,
 XRootDStatus HttpFileSystemPlugIn::DirList(const std::string &path,
                                            DirListFlags::Flags flags,
                                            ResponseHandler *handler,
-                                           uint16_t timeout) {
+                                           time_t timeout) {
   auto url = url_;
   url.SetPath(path);
   const auto full_path = url.GetLocation();
 
   logger_->Debug(
       kLogXrdClHttp,
-      "HttpFileSystemPlugIn::DirList - path = %s, flags = %d, timeout = %d",
-      full_path.c_str(), flags, timeout);
+      "HttpFileSystemPlugIn::DirList - path = %s, flags = %d, timeout = %lld",
+      full_path.c_str(), flags, (long long)timeout);
 
   const bool details = flags & DirListFlags::Stat;
   const bool recursive = flags & DirListFlags::Recursive;
@@ -193,15 +194,15 @@ XRootDStatus HttpFileSystemPlugIn::DirList(const std::string &path,
 
 XRootDStatus HttpFileSystemPlugIn::Stat(const std::string &path,
                                         ResponseHandler *handler,
-                                        uint16_t timeout) {
+                                        time_t timeout) {
   //const auto full_path = url_.GetLocation() + path;
   const auto full_path = url_.GetProtocol() + "://" +
                          url_.GetHostName() + ":" +
                          std::to_string(url_.GetPort()) + "/" + path;
 
   logger_->Debug(kLogXrdClHttp,
-                 "HttpFileSystemPlugIn::Stat - path = %s, timeout = %d",
-                 full_path.c_str(), timeout);
+                 "HttpFileSystemPlugIn::Stat - path = %s, timeout = %lld",
+                 full_path.c_str(), (long long)timeout);
 
   auto stat_info = new StatInfo();
   //XRootDStatus status;

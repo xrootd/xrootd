@@ -46,8 +46,8 @@ namespace
     XrdSys::IOEvents::CallBack *callBack;
     bool                        readEnabled;
     bool                        writeEnabled;
-    uint16_t                    readTimeout;
-    uint16_t                    writeTimeout;
+    time_t                      readTimeout;
+    time_t                      writeTimeout;
   };
 
   //----------------------------------------------------------------------------
@@ -361,7 +361,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PollerBuiltIn::EnableReadNotification( Socket  *socket,
                                               bool     notify,
-                                              uint16_t timeout )
+                                              time_t   timeout )
   {
     using namespace XrdSys::IOEvents;
     Log *log = DefaultEnv::GetLog();
@@ -396,8 +396,8 @@ namespace XrdCl
         return true;
       helper->readTimeout = timeout;
 
-      log->Dump( PollerMsg, "%s Enable read notifications, timeout: %d",
-                            socket->GetName().c_str(), timeout );
+      log->Dump( PollerMsg, "%s Enable read notifications, timeout: %lld",
+                            socket->GetName().c_str(), (long long)timeout );
 
       if( poller )
       {
@@ -446,7 +446,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PollerBuiltIn::EnableWriteNotification( Socket  *socket,
                                                bool     notify,
-                                               uint16_t timeout )
+                                               time_t   timeout )
   {
     using namespace XrdSys::IOEvents;
     Log *log = DefaultEnv::GetLog();
@@ -482,8 +482,8 @@ namespace XrdCl
 
       helper->writeTimeout = timeout;
 
-      log->Dump( PollerMsg, "%s Enable write notifications, timeout: %d",
-                            socket->GetName().c_str(), timeout );
+      log->Dump( PollerMsg, "%s Enable write notifications, timeout: %lld",
+                            socket->GetName().c_str(), (long long)timeout );
 
       if( poller )
       {

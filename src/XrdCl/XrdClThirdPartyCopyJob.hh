@@ -33,7 +33,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ThirdPartyCopyJob( uint16_t      jobId,
+      ThirdPartyCopyJob( uint32_t      jobId,
                          PropertyList *jobProperties,
                          PropertyList *jobResults );
 
@@ -81,7 +81,7 @@ namespace XrdCl
       std::string checkSumType;
       std::string checkSumPreset;
       uint64_t    sourceSize;
-      uint16_t    initTimeout;
+      time_t      initTimeout;
       bool        force;
       bool        coerce;
       bool        delegate;

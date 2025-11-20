@@ -132,6 +132,38 @@ int XrdPosixAdmin::Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz)
 }
   
 /******************************************************************************/
+
+int XrdPosixAdmin::Query(XrdCl::QueryCode::Code reqCode, std::string& resp)
+{
+  XrdCl::Buffer reqBuff, *rspBuff = 0;
+
+// Make sure we are OK
+//
+  if (!isOK()) return -1;
+
+// Get argument
+//
+   reqBuff.FromString(Url.GetPathWithParams());
+
+// Issue the query
+//
+   if (!XrdPosixMap::Result(Xrd.Query(reqCode, reqBuff, rspBuff),ecMsg))
+      {uint32_t rspSz = rspBuff->GetSize();
+       char *rspData = rspBuff->GetBuffer();
+       if (rspData && rspSz)
+          {std::string tmp(rspData, (size_t)rspSz);
+           delete rspBuff;
+           resp = std::move(tmp);
+           return static_cast<int>(rspSz + 1);
+          } else ecMsg.SetErrno(EFAULT,0,"Invalid return results");
+      }
+
+// Return error
+//
+   delete rspBuff;
+   return -1;
+}
+/******************************************************************************/
 /*                                  S t a t                                   */
 /******************************************************************************/
   
