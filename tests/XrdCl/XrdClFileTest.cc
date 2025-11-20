@@ -584,6 +584,16 @@ void FileTest::VectorReadTest()
   constexpr size_t ior_max = 2*1024*1024 - 16;
   char *buffer3 = static_cast<char*>(malloc(0x80000000ul)); /* 2 GB */
 
+  // The requested memory allocation size above (0x80000000) is larger
+  // than the maximum allowed memory allocation size on a 32 bit Linux
+  // system (0x7FFFFFFF). On these systems the allocation will fail
+  // and a NULL pointer will be returned, resulting in a segmentation
+  // fault when the test code tries to writ to the allocated memory.
+  //
+  // Skip the test in such cases instead.
+
+  if (buffer3) {
+
   for(size_t i = 0; i < iov_max; ++i)
     chunkList3.emplace_back(i*ior_max, ior_max);
 
@@ -607,6 +617,8 @@ void FileTest::VectorReadTest()
 
   free(buffer3);
   delete info;
+
+  }
 
   // local vread2
   info = 0;
