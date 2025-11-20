@@ -139,6 +139,7 @@ namespace XrdCl
     pTlsHandShakeOngoing = false;
     pHSWaitStarted = 0;
     pHSWaitSeconds = 0;
+    pReqConnResetError = XRootDStatus();
 
     //--------------------------------------------------------------------------
     // Initiate async connection to the address
@@ -223,6 +224,16 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !EventRead( type ) )
       return;
+
+    //--------------------------------------------------------------------------
+    // If there's a previosuly noted ECONNRESET error from write we give the
+    // fault now. This gave us the chance to process a read event.
+    //--------------------------------------------------------------------------
+    if( !pReqConnResetError.IsOK() )
+    {
+      OnFault( pReqConnResetError );
+      return;
+    }
 
     if( !EventWrite( type ) )
       return;
@@ -427,6 +438,20 @@ namespace XrdCl
     // Let's do the writing ...
     //--------------------------------------------------------------------------
     XRootDStatus st = reqwriter->Write();
+
+    //--------------------------------------------------------------------------
+    // In the case of ECONNRESET perhaps the server sent us something.
+    // To give a chance to read it in the next event poll we pass this as a
+    // retry, but return the error after the next event.
+    //--------------------------------------------------------------------------
+    if( st.code == errSocketError && st.errNo == ECONNRESET )
+    {
+      if( (DisableUplink()).IsOK() )
+      {
+        pReqConnResetError = st;
+        st = XRootDStatus( stOK, suRetry );
+      }
+    }
     if( !st.IsOK() )
     {
       //------------------------------------------------------------------------
