@@ -300,6 +300,12 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // Used under error conditions to move handlers from the out & in queue
+      // helpers back to main out queue for the subStream or the in queue.
+      //------------------------------------------------------------------------
+      void Reinsert( uint16_t subStream );
+
+      //------------------------------------------------------------------------
       // Job handling the incoming messages
       //------------------------------------------------------------------------
       class HandleIncMsgJob: public Job

@@ -208,4 +208,18 @@ namespace XrdCl
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Indicates if the handler is in the queue but without timeout.
+  // This indicates the associated message is still being sent.
+  //----------------------------------------------------------------------------
+  bool InQueue::HasUnsetTimeout( MsgHandler *handler )
+  {
+    uint16_t handlerSid = handler->GetSid();
+    XrdSysMutexHelper scopedLock( pMutex );
+    HandlerMap::iterator it = pHandlers.find( handlerSid );
+    if( it == pHandlers.end() ) return false;
+    if( it->second.second == 0 ) return true;
+    return false;
+  }
+
 }
