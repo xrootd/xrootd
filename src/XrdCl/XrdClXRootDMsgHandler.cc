@@ -948,6 +948,15 @@ namespace XrdCl
       return;
     }
 
+    if( sst & kRetryAtSrv )
+    {
+      log->Dump( XRootDMsg, "[%s] Got late notification that outgoing message %s was "
+                 "sent, already want to retry at different server.",
+                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
+       HandleError( RetryAtServer( pRetryAtUrl, pRetryAtEntryType ) );
+       return;
+    }
+
     if( sst & kSawResp )
     {
       log->Dump( XRootDMsg, "[%s] Got late notification that message %s has "
@@ -2145,9 +2154,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RetryAtServer( const URL &url, RedirectEntry::Type entryType )
   {
-    // prepare to possibly be requeued in the out-queue for a different channel,
-    // so reset sendingstate.
-    pSendingState = 0;
+    if( &pRetryAtUrl != &url ) pRetryAtUrl = url;
+    pRetryAtEntryType = entryType;
+    const int sst = pSendingState.fetch_or( kRetryAtSrv );
+
+    //--------------------------------------------------------------------------
+    // wait for any delayed send notification now. The handler may be requeued
+    // during this function.
+    //--------------------------------------------------------------------------
+    if( ( sst & kSawReadySend ) && !( sst & kSendDone ) ) return Status();
+    pSendingState &= ~kRetryAtSrv;
 
     pResponse.reset();
     Log *log = DefaultEnv::GetLog();
