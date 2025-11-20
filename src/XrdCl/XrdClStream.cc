@@ -838,26 +838,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Reinsert the stuff that we have failed to sent
     //--------------------------------------------------------------------------
-    if( pSubStreams[subStream]->outMsgHelper.msg )
-    {
-      OutQueue::MsgHelper &h = pSubStreams[subStream]->outMsgHelper;
-      pSubStreams[subStream]->outQueue->PushFront( h.msg, h.handler, h.expires,
-                                                   h.stateful );
-      pIncomingQueue->RemoveMessageHandler(h.handler);
-      pSubStreams[subStream]->outMsgHelper.Reset();
-    }
-
-    //--------------------------------------------------------------------------
-    // Reinsert the receiving handler and reset any partially read partial
-    //--------------------------------------------------------------------------
-    if( pSubStreams[subStream]->inMsgHelper.handler )
-    {
-      InMessageHelper &h = pSubStreams[subStream]->inMsgHelper;
-      pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
-      XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( h.handler );
-      if( xrdHandler ) xrdHandler->PartialReceived();
-      h.Reset();
-    }
+    Reinsert( subStream );
 
     //--------------------------------------------------------------------------
     // We are dealing with an error of a peripheral stream. If we don't have
@@ -947,26 +928,7 @@ namespace XrdCl
       //--------------------------------------------------------------------
       // Reinsert the stuff that we have failed to sent
       //--------------------------------------------------------------------
-      if( pSubStreams[substream]->outMsgHelper.msg )
-      {
-        OutQueue::MsgHelper &h = pSubStreams[substream]->outMsgHelper;
-        pSubStreams[substream]->outQueue->PushFront( h.msg, h.handler, h.expires,
-                                                     h.stateful );
-        pIncomingQueue->RemoveMessageHandler(h.handler);
-        pSubStreams[substream]->outMsgHelper.Reset();
-      }
-
-      //--------------------------------------------------------------------
-      // Reinsert the receiving handler and reset any partially read partial
-      //--------------------------------------------------------------------
-      if( pSubStreams[substream]->inMsgHelper.handler )
-      {
-        InMessageHelper &h = pSubStreams[substream]->inMsgHelper;
-        pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
-        XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( h.handler );
-        if( xrdHandler ) xrdHandler->PartialReceived();
-        h.Reset();
-      }
+      Reinsert( substream );
     }
 
     pConnectionCount = 0;
@@ -1266,4 +1228,43 @@ namespace XrdCl
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Used under error conditions to move handlers from the out & in queue
+  // helpers back to main out queue for the subStream or the in queue.
+  //----------------------------------------------------------------------------
+  void Stream::Reinsert( uint16_t subStream )
+  {
+    //--------------------------------------------------------------------------
+    // Out MsgHelper
+    //--------------------------------------------------------------------------
+    if( pSubStreams[subStream]->outMsgHelper.msg )
+    {
+      OutQueue::MsgHelper &h = pSubStreams[subStream]->outMsgHelper;
+      if( pIncomingQueue->HasUnsetTimeout( h.handler ) )
+      {
+        pSubStreams[subStream]->outQueue->PushFront( h.msg, h.handler, h.expires,
+                                                     h.stateful );
+        pIncomingQueue->RemoveMessageHandler(h.handler);
+      }
+      else
+      {
+        // Since the handler has been removed from the in-queue or had its
+        // timeout assigned it must have been sent.
+        h.handler->OnStatusReady( h.msg, XRootDStatus() );
+      }
+      pSubStreams[subStream]->outMsgHelper.Reset();
+    }
+
+    //--------------------------------------------------------------------------
+    // In MsgHelper. Reset any partially read partial.
+    //--------------------------------------------------------------------------
+    if( pSubStreams[subStream]->inMsgHelper.handler )
+    {
+      InMessageHelper &h = pSubStreams[subStream]->inMsgHelper;
+      pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
+      XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( h.handler );
+      if( xrdHandler ) xrdHandler->PartialReceived();
+      h.Reset();
+    }
+  }
 }

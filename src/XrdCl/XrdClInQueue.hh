@@ -93,6 +93,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void ReportTimeout( time_t now = 0 );
 
+      //------------------------------------------------------------------------
+      // Indicates if the handler is in the queue but without timeout.
+      // This indicates the associated message is still being sent.
+      //------------------------------------------------------------------------
+      bool HasUnsetTimeout( MsgHandler *handler );
+
     private:
 
       //------------------------------------------------------------------------

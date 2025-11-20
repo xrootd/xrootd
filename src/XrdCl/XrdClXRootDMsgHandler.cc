@@ -925,9 +925,11 @@ namespace XrdCl
 
     const int sst = pSendingState.fetch_or( kSendDone );
 
-    // if we have already seen a response we can not be in the out-queue
-    // anymore, so we should be getting notified of a successful send.
-    // But if not, log and do our best to recover.
+    // ignore if we're already in this state
+    if( status.IsOK() && ( sst & kSendDone ) ) return;
+
+    // if we have already seen a response we should be getting notified
+    // of a successful send. But if not, log and do our best to recover.
     if( !status.IsOK() && ( ( sst & kFinalResp ) || ( sst & kSawResp ) ) )
     {
       log->Error( XRootDMsg, "[%s] Unexpected error for message %s. Trying to "
