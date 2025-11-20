@@ -283,6 +283,7 @@ namespace XrdCl
       time_t                         pHSWaitSeconds;
       URL                            pUrl;
       bool                           pTlsHandShakeOngoing;
+      XRootDStatus                   pReqConnResetError;
 
       std::unique_ptr<AsyncHSWriter>  hswriter;
       std::unique_ptr<AsyncMsgReader> rspreader;
