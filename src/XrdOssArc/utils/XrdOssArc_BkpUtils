@@ -201,7 +201,7 @@ def arcSymlink(lfn2pfn, dsnDir, subDir=""):
       except Exception as e:
           Emsg(errno.ENOENT, "Unable to chdir to {}: {}".format(dsnDir, e))
 
-   # now create all the symlinks using the lfn pointing to the pfn
+   # Now create all the symlinks using the lfn pointing to the pfn.
    #
    for fnMap in lfn2pfn:
       lfn  = fnMap[0]
@@ -446,6 +446,30 @@ def Set_Key(theScope, dsname, key, kval):
       return 0
   
 #******************************************************************************
+#*                               S e t T e s t                                *
+#******************************************************************************
+
+def SetTest(lfn2pfn, scope, dsn):
+
+   # For each pfn we check that it exists and is actually a file. If either
+   # is not we issue a message and fail the setup.
+   #
+   aOK = True
+   for fnMap in lfn2pfn:
+      lfn  = fnMap[0]
+      pfn  = fnMap[1]
+      if not os.path.exists(pfn) or not os.path.isfile(pfn):
+         Emsg(0, "DID {}:{}/{} target {} does not exist or is not a file!".
+                 format(scope, dsn, lfn, pfn))
+         aOK = False;
+
+   # Check the final state
+   #
+   if not aOK:
+      Emsg(32,"WARNING! Dataset {}:{} is incomplete and connot be backed up!".
+              format(scope, dsn))
+  
+#******************************************************************************
 #*                                 S e t u p                                  *
 #******************************************************************************
  
@@ -552,6 +576,11 @@ def Setup(argv):
       doSkip = False
 
    if Debug: Emsg(0, 'XRDOSSARC_SIZE = {}'.format(x))
+
+   # Verify that all of the files that make up this dataset are actually
+   # accessible files. SetTest() fails the backup if that is not true.
+   #
+   SetTest(lfn2pfn, theScope, theDSN)
 
    # If split archives allowed, perform the split as requested
    #
