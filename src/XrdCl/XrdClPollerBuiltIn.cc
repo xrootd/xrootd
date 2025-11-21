@@ -56,8 +56,16 @@ namespace
   class SocketCallBack: public XrdSys::IOEvents::CallBack
   {
     public:
+      enum CallBackFlags
+      {
+        kRunningCallBack = 1,
+        kIdSet           = 2,
+        kWantDisable     = 4,
+        kDisabled        = 8
+      };
+
       SocketCallBack( XrdCl::Socket *sock, XrdCl::SocketHandler *sh ):
-        pSocket( sock ), pHandler( sh ) {}
+        pSocket( sock ), pHandler( sh ), pFlags( 0 ), pCnd( 0 ) {}
       virtual ~SocketCallBack() {};
 
       virtual bool Event( XrdSys::IOEvents::Channel *chP,
@@ -80,12 +88,55 @@ namespace
                                 SocketHandler::EventTypeToString( ev ).c_str() );
         }
 
+        int flags = pFlags.fetch_or( kRunningCallBack );
+        if( !( flags & kIdSet ) )
+        {
+          XrdSysCondVarHelper lck( pCnd );
+          pSelfId = XrdSysThread::ID();
+          pFlags |= kIdSet;
+        }
+        if( flags & kWantDisable )
+        {
+          XrdSysCondVarHelper lck( pCnd );
+          pFlags &= kRunningCallBack;
+          pFlags |= kDisabled;
+          pCnd.Broadcast();
+          return false;
+        }
+
         pHandler->Event( ev, pSocket );
+
+        flags = pFlags.fetch_and( ~kRunningCallBack );
+        if( flags & kWantDisable )
+        {
+          XrdSysCondVarHelper lck( pCnd );
+          pFlags |= kDisabled;
+          pCnd.Broadcast();
+          return false;
+        }
         return true;
       }
+
+      //------------------------------------------------------------------------
+      // Want to disable further callbacks. If callback is currently running
+      // in a different thread from our caller, wait until callback finishes.
+      //------------------------------------------------------------------------
+      void DisableCallBack()
+      {
+        const int flags = pFlags.fetch_or( kWantDisable );
+        if( !(flags & kIdSet) ) return;
+        if( !(flags & kRunningCallBack) ) return;
+        XrdSysCondVarHelper lck( pCnd );
+        if( XrdSysThread::Same( XrdSysThread::ID(), pSelfId ) ) return;
+        while( !(pFlags.load() & kDisabled) ) pCnd.Wait();
+      }
+
     private:
       XrdCl::Socket        *pSocket;
       XrdCl::SocketHandler *pHandler;
+      std::atomic<int>      pFlags;
+      XrdSysCondVar         pCnd;
+      pthread_t             pSelfId;
   };
 }
 
@@ -308,6 +359,28 @@ namespace XrdCl
     handler->Initialize( this );
     pSocketMap[socket] = helper;
     return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // This disables further callbacks to the socket's handler from the poller
+  // thread. Will wait until any current callback completes (unless our caller
+  // is the same thread). We do not yet remove the socket from the poller.
+  // Removal may still block until the relevant poller thread can run.
+  //----------------------------------------------------------------------------
+  void PollerBuiltIn::ShutdownEvents( Socket *socket )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    SocketMap::iterator it = pSocketMap.find( socket );
+    if( it == pSocketMap.end() )
+      return;
+
+    PollerHelper *helper = (PollerHelper*)it->second;
+    if( !helper ) return;
+    XrdSys::IOEvents::CallBack *cb = helper->callBack;
+    if( !cb ) return;
+    SocketCallBack *scb = dynamic_cast<SocketCallBack*>( cb );
+    if( !scb ) return;
+    scb->DisableCallBack();
   }
 
   //------------------------------------------------------------------------
