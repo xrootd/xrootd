@@ -56,7 +56,7 @@
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
-  
+
 namespace XrdOssArcGlobals
 {
 XrdOssArc*      ArcSS  = 0;
@@ -66,7 +66,7 @@ XrdOss*         ossP   = 0;
 XrdScheduler*   schedP = 0;
 
 XrdOssArcConfig Config;
-  
+
 XrdSysError     Elog(0, "OssArc_");
 
 XrdSysTrace     ArcTrace("OssArc");
@@ -80,7 +80,7 @@ using namespace XrdOssArcGlobals;
 /******************************************************************************/
 /*               X r d O s s A d d S t o r a g e S y s t e m 2                */
 /******************************************************************************/
-  
+
 // This function is called by the OFS layer to retrieve the Storage System
 // object that wraps the previously loaded storage system object. The object
 // returned is a storage system wrapper providing archive functionality.
@@ -106,7 +106,7 @@ XrdOss *XrdOssAddStorageSystem2(XrdOss       *curr_oss,
 
 // Initialize it
 //
-   if (ArcSS->Init(config_fn, parms, envP) != XrdOssOK)
+   if (ArcSS->InitArc(config_fn, parms, envP) != XrdOssOK)
       {delete ArcSS;
        return NULL;
       }
@@ -139,7 +139,7 @@ int XrdOssArc::Chmod(const char *path, mode_t mode, XrdOucEnv *envP)
 /******************************************************************************/
 /*                                C r e a t e                                 */
 /******************************************************************************/
-  
+
 int XrdOssArc::Create(const char* tid, const char* path, mode_t mode,
                       XrdOucEnv& env, int opts)
 {
@@ -155,16 +155,16 @@ int XrdOssArc::Create(const char* tid, const char* path, mode_t mode,
 //
    return wrapPI.Create(tid, path, mode, env, opts);
 }
-  
+
 /******************************************************************************/
 /*                              F e a t u r e s                               */
 /******************************************************************************/
 
 uint64_t XrdOssArc::Features()
 {
-   return XRDOSS_HASXERT | wrapPI.Features(); 
+   return XRDOSS_HASXERT | wrapPI.Features();
 }
-  
+
 /******************************************************************************/
 /*                                 F S c t l                                  */
 /******************************************************************************/
@@ -175,7 +175,7 @@ int XrdOssArc:: FSctl(int cmd, int alen, const char *args, char **resp)
 //
    return wrapPI.FSctl(cmd, alen, args, resp);
 }
-  
+
 /******************************************************************************/
 /*                             g e t E r r M s g                              */
 /******************************************************************************/
@@ -192,9 +192,9 @@ bool XrdOssArc::getErrMsg(std::string& eText)
 }
 
 /******************************************************************************/
-/*                                  I n i t                                   */
+/*                               I n i t A r c                                */
 /******************************************************************************/
-  
+
 /*
   Function: Initialize staging subsystem
 
@@ -202,7 +202,7 @@ bool XrdOssArc::getErrMsg(std::string& eText)
 
   Output:   Returns zero upon success otherwise (-errno).
 */
-int XrdOssArc::Init(const char* configfn, const char* parms, XrdOucEnv* envP)
+int XrdOssArc::InitArc(const char* configfn, const char* parms, XrdOucEnv* envP)
 {
    const char *ending = "completed.";
    int retc = EINVAL;
@@ -231,7 +231,7 @@ int XrdOssArc::Init(const char* configfn, const char* parms, XrdOucEnv* envP)
 //
    return retc;
 }
-  
+
 /******************************************************************************/
 /*                            L f n 2 P f n   v 1                             */
 /******************************************************************************/
@@ -248,7 +248,7 @@ int XrdOssArc::Lfn2Pfn(const char *Path, char *buff, int blen)
       }
    return rc;
 }
-  
+
 /******************************************************************************/
 /*                            L f n 2 P f n   v 2                             */
 /******************************************************************************/
@@ -399,7 +399,7 @@ int XrdOssArc::Truncate(const char *path, unsigned long long size,
 /******************************************************************************/
 /*                                U n l i n k                                 */
 /******************************************************************************/
-  
+
 int XrdOssArc::Unlink(const char* path, int Opts, XrdOucEnv* envP)
 {
 
