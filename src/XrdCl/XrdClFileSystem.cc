@@ -1144,11 +1144,15 @@ namespace XrdCl
 
     Message             *msg;
     ClientLocateRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32            dlen;
+    auto st            = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_locate;
     req->options   = flags;
-    req->dlen      = fPath.length();
+    req->dlen      = dlen;
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1218,10 +1222,15 @@ namespace XrdCl
 
     Message         *msg;
     ClientMvRequest *req;
-    MessageUtils::CreateRequest( msg, req, fSource.length() + fDest.length()+1 );
+    kXR_int32        dlen;
+    auto st        = MessageUtils::SetDLen( dlen,
+                       fSource.length() + fDest.length()+1 );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_mv;
-    req->dlen      = fSource.length() + fDest.length()+1;
+    req->dlen      = dlen;
     req->arg1len   = fSource.length();
     msg->Append( fSource.c_str(), fSource.length(), 24 );
     *msg->GetBuffer(24 + fSource.length()) = ' ';
@@ -1262,11 +1271,15 @@ namespace XrdCl
 
     Message            *msg;
     ClientQueryRequest *req;
-    MessageUtils::CreateRequest( msg, req, arg.GetSize() );
+    kXR_int32           dlen;
+    auto st           = MessageUtils::SetDLen( dlen, arg.GetSize() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_query;
     req->infotype  = queryCode;
-    req->dlen      = arg.GetSize();
+    req->dlen      = dlen;
     msg->Append( arg.GetBuffer(), arg.GetSize(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1306,11 +1319,15 @@ namespace XrdCl
 
     Message               *msg;
     ClientTruncateRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32              dlen;
+    auto st              = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_truncate;
     req->offset    = size;
-    req->dlen      = fPath.length();
+    req->dlen      = dlen;
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1351,10 +1368,14 @@ namespace XrdCl
 
     Message         *msg;
     ClientRmRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32        dlen;
+    auto st        = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_rm;
-    req->dlen      = fPath.length();
+    req->dlen      = dlen;
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1393,12 +1414,16 @@ namespace XrdCl
 
     Message            *msg;
     ClientMkdirRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32           dlen;
+    auto st           = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid  = kXR_mkdir;
     req->options[0] = flags;
     req->mode       = mode;
-    req->dlen       = fPath.length();
+    req->dlen       = dlen;
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1437,10 +1462,14 @@ namespace XrdCl
 
     Message            *msg;
     ClientRmdirRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32           dlen;
+    auto st           = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid  = kXR_rmdir;
-    req->dlen       = fPath.length();
+    req->dlen       = dlen;
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1478,11 +1507,15 @@ namespace XrdCl
 
     Message            *msg;
     ClientChmodRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32           dlen;
+    auto st           = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid  = kXR_chmod;
     req->mode       = mode;
-    req->dlen       = fPath.length();
+    req->dlen       = dlen;
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1557,11 +1590,15 @@ namespace XrdCl
 
     Message           *msg;
     ClientStatRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32          dlen;
+    auto st          = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid  = kXR_stat;
     req->options    = 0;
-    req->dlen       = fPath.length();
+    req->dlen       = dlen;
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1599,11 +1636,15 @@ namespace XrdCl
 
     Message           *msg;
     ClientStatRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32          dlen;
+    auto st          = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid  = kXR_stat;
     req->options    = kXR_vfs;
-    req->dlen       = fPath.length();
+    req->dlen       = dlen;
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -1688,12 +1729,16 @@ namespace XrdCl
       return st;
     }
 
-    Message           *msg;
+    Message              *msg;
     ClientDirlistRequest *req;
-    MessageUtils::CreateRequest( msg, req, fPath.length() );
+    kXR_int32             dlen;
+    auto st             = MessageUtils::SetDLen( dlen, fPath.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid  = kXR_dirlist;
-    req->dlen       = fPath.length();
+    req->dlen       = dlen;
 
     if( ( flags & DirListFlags::Stat ) || ( flags & DirListFlags::Recursive ) )
       req->options[0] = kXR_dstat;
@@ -1958,11 +2003,15 @@ namespace XrdCl
 
     Message          *msg;
     ClientSetRequest *req;
-    size_t      prefixLen = strlen( prefix );
-    MessageUtils::CreateRequest( msg, req, info.length()+prefixLen );
+    size_t            prefixLen = strlen( prefix );
+    kXR_int32         dlen;
+    auto st         = MessageUtils::SetDLen( dlen, info.length()+prefixLen );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid  = kXR_set;
-    req->dlen       = info.length()+prefixLen;
+    req->dlen       = dlen;
     msg->Append( prefix, prefixLen, 24 );
     msg->Append( info.c_str(), info.length(), 24+prefixLen );
     MessageSendParams params; params.timeout = timeout;
@@ -1995,13 +2044,17 @@ namespace XrdCl
 
     Message              *msg;
     ClientPrepareRequest *req;
-    MessageUtils::CreateRequest( msg, req, list.length() );
+    kXR_int32             dlen;
+    auto st             = MessageUtils::SetDLen( dlen, list.length() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid  = kXR_prepare;
     req->options    = 0xff & flags;
     req->optionX    = 0xffff & ( flags >> 8 );
     req->prty       = priority;
-    req->dlen       = list.length();
+    req->dlen       = dlen;
 
     msg->Append( list.c_str(), list.length(), 24 );
 

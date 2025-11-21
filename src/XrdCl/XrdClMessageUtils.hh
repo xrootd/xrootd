@@ -295,8 +295,8 @@ namespace XrdCl
           return st;
 
         // update body size in the header
-        hdr->dlen  = path.size() + 1;
-        hdr->dlen += xattrvec.size();
+        auto xst = SetDLen( hdr->dlen, path.size() + 1 + xattrvec.size() );
+        if( !xst.IsOK() ) return Status( xst.status, xst.code );
 
         // append the body
         size_t offset = sizeof( ClientRequestHdr );
@@ -306,6 +306,16 @@ namespace XrdCl
 
         return Status();
       }
+
+      //------------------------------------------------------------------------
+      //! Sets the dlen field in requests. Checks if the supplied size will
+      //! fit into the acceptable range for dlen.
+      //!
+      //! @param dlen   :  the dlen field to be filled
+      //! @param sz     :  the size requested
+      //------------------------------------------------------------------------
+      static XRootDStatus SetDLen( kXR_int32 &dlen, size_t sz );
+
   };
 }
 

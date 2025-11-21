@@ -486,4 +486,14 @@ namespace XrdCl
 
     return Status();
   }
+
+  //------------------------------------------------------------------------
+  // Sets the dlen field in requests.
+  //------------------------------------------------------------------------
+  XRootDStatus MessageUtils::SetDLen( kXR_int32 &dlen, size_t sz )
+  {
+    if( sz > 0x7fffffff ) return XRootDStatus( stError, errInvalidArgs );
+    dlen = static_cast<kXR_int32>( sz );
+    return XRootDStatus();
+  }
 }
