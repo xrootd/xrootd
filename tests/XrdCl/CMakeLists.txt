@@ -43,6 +43,7 @@ set(SERIAL_TESTS_FILES
   XrdClFileCopyTest.cc
   XrdClFileSystemTest.cc
   XrdClOperationsWorkflowTest.cc
+  XrdClTTLManyStreams.cc
 )
 
 # create a separate executable target for each "problematic" test suite
