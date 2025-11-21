@@ -7,13 +7,10 @@ on:
   push:
     branches-ignore:
       - master
-    paths-ignore:
-      - .gitignore
-      - .gitlab-ci.yml
-      - .mailmap
-      - '**.md'
-      - 'docs/**'
-      - 'docker/**'
+    paths:
+      - .github/workflows/CI.yml
+      - 'src/**'
+      - 'tests/**'
     tags-ignore:
   pull_request:
   workflow_dispatch:
@@ -57,7 +54,9 @@ jobs:
           gtest-dev \
           isa-l-dev \
           json-c-dev \
+          krb5 \
           krb5-dev \
+          krb5-server \
           libxml2-dev \
           linux-headers \
           make \

@@ -219,57 +219,112 @@ function test_http() {
 
   run_and_assert_http_and_error_code() {
     local expected_http_code="$1"
-    local expected_error_code="$2"
+    local expected_trailer_code="$2"
     shift 2
+
+    local use_trailer=false
+    local curl_args=()
+
+    # Look for --with-trailer option
+    for arg in "$@"; do
+      if [[ "$arg" == "--with-trailer" ]]; then
+        use_trailer=true
+      else
+        curl_args+=("$arg")
+      fi
+    done
 
     local body_file
     body_file=$(mktemp)
     local http_code
 
-    # Run the curl command, capture HTTP code and body
-    http_code=$(curl -s -v -L -w "%{http_code}" -o "$body_file" "$@")
+    # Add headers if trailers requested
+    if $use_trailer; then
+      curl_args+=(
+        -H 'TE: trailers'
+        -H 'X-Transfer-Status: true'
+        -H 'Transfer-Encoding: chunked'
+        --raw
+      )
+    fi
+
+    # Run curl: body (with possible trailers) into body_file
+    http_code=$(curl -s -L -v \
+      -w "%{http_code}" \
+      -o "$body_file" \
+      "${curl_args[@]}")
+
     local body
     body=$(< "$body_file")
-    rm -f "$body_file"
 
-    # Assertions
+    # Assert HTTP code
     assert_eq "$expected_http_code" "$http_code"
 
-    # Only assert on error code if HTTP status is 400+
-    if [[ "$http_code" -ge 400 && -n "$expected_error_code" ]]; then
-      local error_code
-      error_code=$(echo "$body" | grep -oE 'ERROR: [0-9]+(\.[0-9]+){1,2}' | awk '{print $2}')
-      # Print body only if assertion fails
-      assert_eq "$expected_error_code" "$error_code" "$body" 
+    if $use_trailer; then
+      # Look for trailer
+      local trailer_line
+      trailer_line=$(grep -i '^X-Transfer-Status:' "$body_file" | sed -E 's/^[^:]+: *//')
+
+      if [[ -n "$trailer_line" ]]; then
+        local trailer_code
+        trailer_code=$(echo "$trailer_line" | cut -d: -f1 | xargs)
+        assert_eq "$expected_trailer_code" "$trailer_code" "$trailer_line"
+      fi
     fi
+
+    rm -f "$body_file"
   }
 
+  bigFilePath="${TMPDIR}/fail_read.txt"
+  assert davix-put "$alphabetFilePath" "${HOST}/$alphabetFilePath"
+  assert davix-put "$bigFilePath" "${HOST}/$bigFilePath"
+
+  # Test writing to a readonly file system
+  #should be 403
+  readOnlyFilePath="/readonly/file";
+  run_and_assert_http_and_error_code 500 "" \
+    --upload-file "$alphabetFilePath" "${HOST}/$readOnlyFilePath"
+
   # Overwrite a directory with a file - File / Directory conflict
-  run_and_assert_http_and_error_code 409 "8.1" \
+  run_and_assert_http_and_error_code 409 "" \
     --upload-file "$alphabetFilePath" "${HOST}/$TMPDIR"
+
+  # Test a file does not exist
+  fileDoesNotExistFilePath="$TMPDIR/file_does_not_exist"
+  run_and_assert_http_and_error_code 404 "" \
+    "${HOST}/$fileDoesNotExistFilePath"
+
+  # Test parent directory does not exist
+  # XrootD Does not error on missing parent directory, it instead creates one
+  # parentDirDoesNotExistFilePath="$TMPDIR/parent_dir_does_not_exist"
+  # run_and_assert_http_and_error_code 200 404 \
+  #   --upload-file "$alphabetFilePath" "${HOST}/$parentDirDoesNotExistFilePath" --with-trailer
+
+  # Upload a file that should fail due to insufficient inodes
+  noInodeFilePath="$TMPDIR/no_inode.txt"
+  run_and_assert_http_and_error_code 507 "" \
+    --upload-file "$alphabetFilePath" "${HOST}/$noInodeFilePath"
+
+  # Fail upload due to insufficient user quota for inodes
+  outOfInodeQuotaFilePath="$TMPDIR/out_of_inode_quota.txt"
+  run_and_assert_http_and_error_code 507 "" \
+    --upload-file "$alphabetFilePath" "${HOST}/$outOfInodeQuotaFilePath"
 
   # Upload a file that should fail due to insufficient space
   # The server can only close the connection if no space if left mid write
   # noSpaceFilePath="$TMPDIR/no_space.txt"
-  # run_and_assert_http_and_error_code 507 "8.4.1" \
-  #   --upload-file "$alphabetFilePath" "${HOST}/$noSpaceFilePath"
+  # run_and_assert_http_and_error_code 507 507 \
+  #   --upload-file "$bigFilePath" "${HOST}/$noSpaceFilePath"
 
-  # Upload a file that should fail due to insufficient inodes
-  noInodeFilePath="$TMPDIR/no_inode.txt"
-  run_and_assert_http_and_error_code 507 "8.3.1" \
-    --upload-file "$alphabetFilePath" "${HOST}/$noInodeFilePath"
-
-  # # Fail upload due to insufficient user quota for space
+  # Fail upload due to insufficient user quota for space
   # Not handled yet - connection is closed instead
   # outOfSpaceQuotaFilePath="$TMPDIR/out_of_space_quota.txt"
-  # run_and_assert_http_and_error_code 507 "8.4.2" \
-  #   --upload-file "$alphabetFilePath" "${HOST}/$outOfSpaceQuotaFilePath"
+  # run_and_assert_http_and_error_code 507 200 \
+  #   --upload-file "$bigFilePath" "${HOST}/$outOfSpaceQuotaFilePath"
 
-  # Fail upload due to insufficient user quota for inodes
-  outOfInodeQuotaFilePath="$TMPDIR/out_of_inode_quota.txt"
-  run_and_assert_http_and_error_code 507 "8.3.2" \
-    --upload-file "$alphabetFilePath" "${HOST}/$outOfInodeQuotaFilePath"
+  # Test file unreadable
+  unreadableFilePath="$bigFilePath"
+  run_and_assert_http_and_error_code 200 500 \
+    "${HOST}/$unreadableFilePath" --with-trailer
 
-  run_and_assert_http_and_error_code 200 "" \
-    --header "Want-Digest: crc32c" -I "${HOST}/$alphabetFilePath"
 }

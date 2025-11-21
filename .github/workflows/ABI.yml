@@ -1,0 +1,100 @@
+name: ABI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    paths:
+      - .github/workflows/ABI.yml
+      - 'src/**'
+    branches-ignore:
+      - skip-ci
+    tags-ignore:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CFLAGS: -Og -gdwarf-4
+  CXXFLAGS: -Og -gdwarf-4
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  abi-compatibility-check:
+    name: ABI Compatibility Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt update -q
+        sudo apt install -y devscripts equivs git
+        sudo apt install -y abi-dumper abi-compliance-checker w3m
+
+    - name: Clone repository
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Install XRootD build dependencies
+      run: mk-build-deps --install --remove -s sudo debian/control <<< yes
+
+    - name: Configure XRootD (Head Reference)
+      run: cmake -S . -B build/new -DCMAKE_INSTALL_PREFIX=install/new
+
+    - name: Build and Install XRootD (Head Reference)
+      run: cmake --build build/new --parallel --target install
+
+    - name: Checkout Base Reference of XRootD to Compare ABI
+      run: git checkout -f ${GITHUB_BASE_REF:-$(git rev-list --tags --max-count=1)}
+
+    - name: Configure XRootD (Base Reference)
+      run: cmake -S . -B build/old -DCMAKE_INSTALL_PREFIX=install/old
+
+    - name: Build and Install XRootD (Base Reference)
+      run: cmake --build build/old --parallel --target install
+
+    - name: Check ABI Compatibility between Base and Head References
+      run: |
+        for LIB in $(find install/old -name '*.so' -exec basename {} \;); do
+          OLDLIB=$(find install/old -name ${LIB})
+          NEWLIB=$(find install/new -name ${LIB})
+
+          # Skip libraries that do not have an SONAME (i.e. plugins)
+          readelf -d ${OLDLIB} | grep -q SONAME || continue
+
+          abi-dumper ${OLDLIB} -o ${LIB/.so/.old.dump} \
+            -vnum old -public-headers install/old/include
+
+          abi-dumper ${NEWLIB} -o ${LIB/.so/.new.dump} \
+            -vnum new -public-headers install/new/include
+
+          abi-compliance-checker -extended -l ${LIB} \
+            -report-path abi-report/${LIB/.so/.html} \
+            -old ${LIB/.so/.old.dump} -new ${LIB/.so/.new.dump}
+        done
+
+    - name: Display ABI Reports on Failure
+      if: ${{ failure() }}
+      run: |
+        for REPORT in abi-report/*.html; do
+          echo "::group::${REPORT/.html}"
+          w3m -dump ${REPORT}
+          echo "::endgroup::"
+        done
+
+    - name: Upload Artifacts on Failure
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: abi-report
+        path: abi-report
+        retention-days: 7

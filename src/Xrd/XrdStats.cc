@@ -32,7 +32,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
-  
+
 #include "XrdVersion.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdJob.hh"
@@ -56,7 +56,7 @@
 /******************************************************************************/
 /*               L o c a l   C l a s s   X r d S t a t s J o b                */
 /******************************************************************************/
-  
+
 class XrdStatsJob : XrdJob
 {
 public:
@@ -79,7 +79,7 @@ int           iVal;
 /******************************************************************************/
 /*                           C o n s t r c u t o r                            */
 /******************************************************************************/
-  
+
 XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                    const char *hname, int port,
                    const char *iname, const char *pname, const char *site)
@@ -90,7 +90,7 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                       "site=\"%s\">";
                Hend = "</statistics>";
                Htln = strlen(Hend);
-   
+
    const char *jead =
           "{\"statistics\":{\"tod\":%%ld,\"ver\":\"" XrdVERSION "\",\"src\":\"%s:%d\","
                       "\"tos\":%ld,\"pgm\":\"%s\",\"ins\":\"%s\",\"pid\":%d,"
@@ -123,7 +123,7 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
 
    theMon = new XrdMonitor;
 }
- 
+
 /******************************************************************************/
 /*                                E x p o r t                                 */
 /******************************************************************************/
@@ -133,11 +133,11 @@ void XrdStats::Export(XrdOucEnv& theEnv)
    XrdMonRoll* monRoll = new XrdMonRoll(*theMon);
    theEnv.PutPtr("XrdMonRoll*", monRoll);
 }
-  
+
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
-  
+
 void XrdStats::Init(char **Dest, int iVal, int xOpts, int jOpts)
 {
 
@@ -158,11 +158,11 @@ void XrdStats::Init(char **Dest, int iVal, int xOpts, int jOpts)
    if (netDest[0]) new XrdStatsJob(XrdSched, this, iVal);
    return;
 }
-  
+
 /******************************************************************************/
 /*                                R e p o r t                                 */
 /******************************************************************************/
-  
+
 void XrdStats::Report()
 {
    char udpBuff[64*1024];
@@ -175,18 +175,21 @@ void XrdStats::Report()
       else theOpts = xmlOpts & ~XRD_STATS_SYNC;
 
 // Now get the statistics in xml format. Note that there is only one buufer
-// so we lock this code path to protect it.
+// so we lock this code path to protect it. Skip this if no specific reports
+// in the xml category are requested.
 //
-   statsMutex.Lock();
-   if ((Data = GenStats(Dlen, theOpts)))
-      {netDest[0]->Send(Data, Dlen);
-       if (netDest[1]) netDest[1]->Send(Data, Dlen);
+   if (theOpts)
+      {statsMutex.Lock();
+       if ((Data = GenStats(Dlen, theOpts)))
+          {netDest[0]->Send(Data, Dlen);
+           if (netDest[1]) netDest[1]->Send(Data, Dlen);
+          }
+       statsMutex.UnLock();
       }
-   statsMutex.UnLock();
 
 // Check if we have additional data registered via addons and plugins that
 // we need in JSON format. These are sent as separate udp packets.
-// 
+//
    theOpts = XrdMonitor::F_JSON;
    if (jsonOpts & XRD_STATS_ADON) theOpts |= XrdMonitor::X_ADON;
    if (jsonOpts & XRD_STATS_PLUG) theOpts |= XrdMonitor::X_PLUG;
@@ -195,7 +198,7 @@ void XrdStats::Report()
 // Format the header and setup for sending packets
 //
    int   hL = sprintf(udpBuff, Jead, time(0));
-   int   bL = sizeof(udpBuff) - hL - Jtln - 8; 
+   int   bL = sizeof(udpBuff) - hL - Jtln - 8;
    char* bP = udpBuff + hL;
 
 // Get each item and send it off
@@ -223,7 +226,7 @@ void XrdStats::Stats(XrdStats::CallBack *cbP, int xOpts, int jOpts)
    const char *info;
    int sz, opts;
 
-// Note that currently we do not support json for client requests, so we 
+// Note that currently we do not support json for client requests, so we
 // ignore the jOpts as they should never be set.
 //
    opts = xOpts;
@@ -248,7 +251,7 @@ void XrdStats::Stats(XrdStats::CallBack *cbP, int xOpts, int jOpts)
 /******************************************************************************/
 /*                              G e n S t a t s                               */
 /******************************************************************************/
-  
+
 const char *XrdStats::GenStats(int &rsz, int opts) // statsMutex must be locked!
 {
    static const char *sgen = "<stats id=\"sgen\">"
@@ -353,14 +356,14 @@ void XrdStats::GenStats(std::vector<struct iovec>& ioVec, int opts)
 //
    if (opts & XRD_STATS_JSON)
       {int Jlen = sprintf(sBuff, Jead, time(0));
-       sdSZ = sbFree = sizeof(sBuff) - Jlen - 64;  // Generous extra for tail 
+       sdSZ = sbFree = sizeof(sBuff) - Jlen - 64;  // Generous extra for tail
        sbP = sBuff + Jlen;
        sTail = Jend;
        sTLen = Jtln;
        fOpts = XrdMonitor::F_JSON;
       } else {
        int Hlen = sprintf(sBuff, Head, time(0));
-       sdSZ = sbFree = sizeof(sBuff) - Hlen - 64;  // Generous extra for tail 
+       sdSZ = sbFree = sizeof(sBuff) - Hlen - 64;  // Generous extra for tail
        sbP = sBuff + Hlen;
        sTail = Hend;
        sTLen = Htln;
@@ -391,7 +394,7 @@ void XrdStats::GenStats(std::vector<struct iovec>& ioVec, int opts)
 /******************************************************************************/
 /*                             I n f o S t a t s                              */
 /******************************************************************************/
-  
+
 int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"info\"><host>%s</host>"
@@ -405,11 +408,11 @@ int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 //
    return snprintf(bfr, bln, statfmt, myHost, myPort, myName);
 }
- 
+
 /******************************************************************************/
 /*                             P r o c S t a t s                              */
 /******************************************************************************/
-  
+
 int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"proc\">"

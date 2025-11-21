@@ -1,10 +1,4 @@
-# WITH_SOABI was introduced in CMake 3.17
-# https://cmake.org/cmake/help/latest/module/FindPython.html#commands
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.17)
-  set(SOABI WITH_SOABI)
-endif()
-
-Python_add_library(client MODULE ${SOABI}
+Python_add_library(client MODULE WITH_SOABI
   # headers
   AsyncResponseHandler.hh
   ChunkIterator.hh

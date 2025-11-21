@@ -7,6 +7,7 @@
 #include "macaroons.h"
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSec/XrdSecEntityAttr.hh"
 
@@ -504,25 +505,33 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
         return 1;
     }
 
-    int result = strncmp(pred_str.c_str(), m_path.c_str(), pred_str.size());
-    if (!result)
+    // Allow operations under subdirectories and not substrings 
+    // For e.g. pred_str = "/data/sudir/mydir"
+    // Allows m_path = /data/subdir/mydir/newdir
+    // But rejects, m_path = /data/subdir/mydirmycoolname/newdir
+    int is_subdir = is_subdirectory(pred_str, m_path);
+    if (is_subdir)
     {
         m_log.Log(LogMask::Debug, "AuthzCheck", "path request verified for", m_path.c_str());
     }
-    // READ_METADATA permission for /foo/bar automatically implies permission
+
+    // READ_METADATA (i.e AOP_Stat) permission for /foo/bar automatically implies permission
     // to READ_METADATA for /foo.
-    else if (m_oper == AOP_Stat)
+    // Similarly, MKDIR Pemissions for a parent path is implied.
+    else if (m_oper == AOP_Stat || m_oper == AOP_Mkdir)
     {
-        result = strncmp(m_path.c_str(), pred_str.c_str(), m_path.size());
-        if (!result) {m_log.Log(LogMask::Debug, "AuthzCheck", "READ_METADATA path request verified for", m_path.c_str());}
-        else {m_log.Log(LogMask::Debug, "AuthzCheck", "READ_METADATA path request NOT allowed", m_path.c_str());}
+        is_subdir = is_subdirectory(m_path, pred_str);
+        const char *opName = (m_oper == AOP_Stat) ? "READ_METADATA" : "MKDIR";
+        m_log.Log(LogMask::Debug, "AuthzCheck",
+                  (std::string(opName) + (is_subdir? " Path request verified for" : " Path request NOT allowed for")).c_str(),
+                  m_path.c_str());
     }
     else
     {
         m_log.Log(LogMask::Debug, "AuthzCheck", "path request NOT allowed", m_path.c_str());
     }
 
-    return result;
+    return !is_subdir;
 }
 
 

@@ -265,7 +265,7 @@ void *TestThreadFunc( void *arg )
     if (!resp)
       throw std::runtime_error("server response is NULL");
     EXPECT_EQ( resp->hdr.status, kXR_ok );
-    EXPECT_EQ( msg.GetSize(), 8 );
+    EXPECT_EQ( msg.GetSize(), 8u );
   }
 
   return nullptr;
@@ -338,7 +338,7 @@ TEST_F(PostMasterTest, FunctionalTest)
   ServerResponse *resp = (ServerResponse *)m2.GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
-  EXPECT_EQ( m2.GetSize(), 8 );
+  EXPECT_EQ( m2.GetSize(), 8u );
 
   //----------------------------------------------------------------------------
   // Send out some stuff to a location where nothing listens
@@ -403,7 +403,7 @@ TEST_F(PostMasterTest, FunctionalTest)
   resp = (ServerResponse *)m2.GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
-  EXPECT_EQ( m2.GetSize(), 8 );
+  EXPECT_EQ( m2.GetSize(), 8u );
 
   //----------------------------------------------------------------------------
   // Sleep 10 secs waiting for iddle connection to be closed and see
@@ -419,7 +419,7 @@ TEST_F(PostMasterTest, FunctionalTest)
   resp = (ServerResponse *)m2.GetBuffer();
   ASSERT_TRUE( resp );
   EXPECT_EQ( resp->hdr.status, kXR_ok );
-  EXPECT_EQ( m2.GetSize(), 8 );
+  EXPECT_EQ( m2.GetSize(), 8u );
 
   m1.Free();
   m2.Free();

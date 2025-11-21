@@ -42,7 +42,7 @@
 //-----------------------------------------------------------------------------
 // Forward declaration needed for friendship
 //-----------------------------------------------------------------------------
-namespace XrdEc{ class StrmWriter; class Reader; template<bool> class OpenOnlyImpl; };
+namespace XrdEc{ class StrmWriter; class Reader; template<bool> class OpenOnlyImpl; }
 class MicroTest;
 class XrdEcTests;
 

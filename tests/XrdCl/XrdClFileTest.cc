@@ -522,7 +522,7 @@ void FileTest::VectorReadTest()
   std::string filePath = dataPath + "/a048e67f-4397-4bb8-85eb-8d7e40d90763.dat";
   std::string fileUrl = address + "/";
   fileUrl += filePath;
-  localDataPath += "/srv1" + filePath;
+  localDataPath += "/srv1";
   localDataPath = realpath(localDataPath.c_str(), NULL);
 
   //----------------------------------------------------------------------------
@@ -550,7 +550,7 @@ void FileTest::VectorReadTest()
   // Open the file
   //----------------------------------------------------------------------------
   EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Read ) );
-  EXPECT_XRDST_OK( fLocal.Open( localDataPath, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( fLocal.Open( localDataPath + filePath, OpenFlags::Read ) );
 
   // remote file vread1
   VectorReadInfo *info = 0;
@@ -561,6 +561,7 @@ void FileTest::VectorReadTest()
   // local file vread1
   info = 0;
   EXPECT_XRDST_OK( fLocal.VectorRead( chunkList1, buffer1Comp, info ) );
+  EXPECT_XRDST_OK( fLocal.Close() );
   EXPECT_EQ( info->GetSize(), 10*MB );
   delete info;
 
@@ -573,13 +574,56 @@ void FileTest::VectorReadTest()
   // remote vread2
   info = 0;
   EXPECT_XRDST_OK( f.VectorRead( chunkList2, buffer2, info ) );
-  EXPECT_EQ( info->GetSize(), 10*256000 );
+  EXPECT_EQ( info->GetSize(), 2560000u );
   delete info;
+
+  // readv with max size (i.e. 1024 elements x (2*MB-16) bytes per element)
+  info = nullptr;
+  ChunkList chunkList3;
+  constexpr size_t iov_max = 1024;
+  constexpr size_t ior_max = 2*1024*1024 - 16;
+  char *buffer3 = static_cast<char*>(malloc(0x80000000ul)); /* 2 GB */
+
+  // The requested memory allocation size above (0x80000000) is larger
+  // than the maximum allowed memory allocation size on a 32 bit Linux
+  // system (0x7FFFFFFF). On these systems the allocation will fail
+  // and a NULL pointer will be returned, resulting in a segmentation
+  // fault when the test code tries to writ to the allocated memory.
+  //
+  // Skip the test in such cases instead.
+
+  if (buffer3) {
+
+  for(size_t i = 0; i < iov_max; ++i)
+    chunkList3.emplace_back(i*ior_max, ior_max);
+
+  std::string file2GBlocal = localDataPath + dataPath + "/2GB.dat";
+  ASSERT_XRDST_OK(fLocal.Open(file2GBlocal, OpenFlags::Read));
+  ASSERT_XRDST_OK(fLocal.VectorRead(chunkList3, buffer3, info));
+  ASSERT_XRDST_OK(fLocal.Close());
+
+  ASSERT_EQ(info->GetSize(), iov_max*ior_max);
+  crc = XrdClTests::Utils::ComputeCRC32(buffer3, iov_max*ior_max);
+  bzero(buffer3, 0x80000000ul); /* reset buffer to zero */
+
+  File f2GB;
+  std::string file2GBUrl = address + "/" + dataPath + "/2GB.dat";
+  ASSERT_XRDST_OK(f2GB.Open(file2GBUrl, OpenFlags::Read));
+  ASSERT_XRDST_OK(f2GB.VectorRead(chunkList3, buffer3, info));
+  ASSERT_XRDST_OK(f2GB.Close());
+
+  ASSERT_EQ(info->GetSize(), iov_max*ior_max);
+  EXPECT_EQ(XrdClTests::Utils::ComputeCRC32(buffer3, iov_max*ior_max), crc);
+
+  free(buffer3);
+  delete info;
+
+  }
 
   // local vread2
   info = 0;
   EXPECT_XRDST_OK( f.VectorRead( chunkList2, buffer2Comp, info ) );
-  EXPECT_EQ( info->GetSize(), 10*256000 );
+  EXPECT_EQ( info->GetSize(), 2560000u );
   delete info;
 
   // checksum comparison again
@@ -589,7 +633,6 @@ void FileTest::VectorReadTest()
 
   // cleanup
   EXPECT_XRDST_OK( f.Close() );
-  EXPECT_XRDST_OK( fLocal.Close() );
   delete [] buffer1;
   delete [] buffer2;
   delete [] buffer1Comp;

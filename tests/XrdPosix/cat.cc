@@ -1,5 +1,10 @@
 #undef NDEBUG
 
+/* Clang's _FORTIFY_SOURCE breaks XrdPosixPreload */
+#if defined(__clang__) && defined(_FORTIFY_SOURCE)
+#undef _FORTIFY_SOURCE
+#endif
+
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>

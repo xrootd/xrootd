@@ -7,13 +7,6 @@ on:
   push:
     branches:
       - macos
-    paths-ignore:
-      - .gitignore
-      - .gitlab-ci.yml
-      - .mailmap
-      - '**.md'
-      - 'docs/**'
-      - 'docker/**'
     tags-ignore:
   workflow_dispatch:
 
@@ -34,7 +27,7 @@ jobs:
   macos:
     strategy:
       matrix:
-        version: [ 13, 14, 15 ]
+        version: [ "14", "15", "26" ]
       fail-fast: false
 
     name: macOS

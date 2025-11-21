@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16...3.31 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.18...4.1 FATAL_ERROR)
 
 # Check for in-source builds
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)

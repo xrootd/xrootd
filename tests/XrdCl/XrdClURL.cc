@@ -104,7 +104,7 @@ TEST(URLTest, RemoteURLs)
   EXPECT_STREQ(complex_url.GetPassword().c_str(), "fxG}+u;B");
   EXPECT_STREQ(complex_url.GetHostName().c_str(), "lxfsra02a08.cern.ch");
   EXPECT_STREQ(complex_url.GetPath().c_str(), "/eos/dev/SMWZd3pdExample_NTUP_SMWZ.526666._000073.root.1");
-  EXPECT_EQ(complex_url.GetParams().size(), 5);
+  EXPECT_EQ(complex_url.GetParams().size(), 5u);
 
   auto params = complex_url.GetParams();
 

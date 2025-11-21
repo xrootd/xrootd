@@ -431,7 +431,7 @@ int XrdRmcReal::ioAdd(XrdOucCacheIO *KeyVal, int &iNum)
   
 int XrdRmcReal::ioDel(XrdOucCacheIO *KeyVal, int &iNum)
 {
-   int cnt, hip, phip, hent = ioEnt(KeyVal);
+   int cnt = 0, hip = 0, phip = 0, hent = ioEnt(KeyVal);
 
 // Look up the entry.
 //

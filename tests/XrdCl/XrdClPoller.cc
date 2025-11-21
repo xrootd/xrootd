@@ -106,6 +106,16 @@ class SocketHandler: public XrdCl::SocketHandler
                         XrdCl::Socket *socket )
     {
       //------------------------------------------------------------------------
+      // don't handle any events until we have been told we're clear to do so:
+      // during handling we may remove socket from poller, but caller would
+      // like to check socket was initially in the poller.
+      //------------------------------------------------------------------------
+      {
+        XrdSysCondVarHelper cvh( EnableEventsCV );
+        while( !enableEvents ) EnableEventsCV.Wait();
+      }
+
+      //------------------------------------------------------------------------
       // Read event
       //------------------------------------------------------------------------
       if( type & ReadyToRead )
@@ -157,6 +167,10 @@ class SocketHandler: public XrdCl::SocketHandler
                             uint32_t           size )
     {
       //------------------------------------------------------------------------
+      // We may be called concurrently as ParallelEvtLoop defaults > 1
+      //------------------------------------------------------------------------
+      XrdSysMutexHelper lck( TransferMapMtx );
+      //------------------------------------------------------------------------
       // Check if we have an entry in the map
       //------------------------------------------------------------------------
       std::pair<Server::TransferMap::iterator, bool> res;
@@ -182,15 +196,31 @@ class SocketHandler: public XrdCl::SocketHandler
     std::pair<uint64_t, uint32_t> GetReceivedStats(
                                       const std::string sockName ) const
     {
+      //------------------------------------------------------------------------
+      // We won't lock TransferMapMutex, no concurrency is expected here
+      //------------------------------------------------------------------------
       Server::TransferMap::const_iterator it = pMap.find( sockName );
       if( it == pMap.end() )
         return std::make_pair( 0, 0 );
       return it->second;
     }
 
+    //--------------------------------------------------------------------------
+    //! Allow us to process events
+    //--------------------------------------------------------------------------
+    void EnableEvents()
+    {
+      XrdSysCondVarHelper cvh( EnableEventsCV );
+      enableEvents = true;
+      EnableEventsCV.Broadcast();
+    }
+
   private:
+    XrdSysMutex TransferMapMtx;
     Server::TransferMap  pMap;
     XrdCl::Poller   *pPoller;
+    XrdSysCondVar EnableEventsCV{0};
+    bool enableEvents{false};
 };
 
 
@@ -234,6 +264,12 @@ TEST(PollerTest, FunctionTest)
     EXPECT_TRUE( poller->EnableReadNotification( &s[i], true, 60 ) );
     EXPECT_TRUE( poller->IsRegistered( &s[i] ) );
   }
+
+  //----------------------------------------------------------------------------
+  // The handler waits before starting any event processing so the above
+  // checks could be made, so now let it go.
+  //----------------------------------------------------------------------------
+  handler->EnableEvents();
 
   //----------------------------------------------------------------------------
   // Cleanup

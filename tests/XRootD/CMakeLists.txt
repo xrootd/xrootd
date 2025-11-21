@@ -1,5 +1,5 @@
 
-list(APPEND XROOTD_CONFIGS noauth host unix sss cache posix diglib)
+list(APPEND XROOTD_CONFIGS noauth gsi host unix sss cache posix diglib)
 
 if(ENABLE_FUSE_TESTS)
   list(APPEND XROOTD_CONFIGS fuse)
@@ -7,6 +7,11 @@ endif()
 
 if(ENABLE_HTTP_TESTS)
   list(APPEND XROOTD_CONFIGS http)
+endif()
+
+if(BUILD_KRB5 AND NOT APPLE)
+  list(APPEND XROOTD_CONFIGS krb5)
+  list(APPEND krb5_FIXTURES Kerberos)
 endif()
 
 # Note: HAVE_SCITOKEN_CONFIG_SET_STR is required to override the CA file
@@ -21,6 +26,8 @@ endif()
 # act as an origin
 list(APPEND cache_FIXTURES XRootD::host)
 
+list(APPEND gsi_FIXTURES TLS)
+
 foreach(CONFIG ${XROOTD_CONFIGS})
   add_test(NAME XRootD::${CONFIG}::setup
     COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/test.sh ${CONFIG} setup")
@@ -28,6 +35,7 @@ foreach(CONFIG ${XROOTD_CONFIGS})
   set_tests_properties(XRootD::${CONFIG}::setup
     PROPERTIES
       FIXTURES_SETUP XRootD::${CONFIG}
+      FIXTURES_REQUIRED "${${CONFIG}_FIXTURES}"
       ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
   )
 

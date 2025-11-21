@@ -82,6 +82,9 @@ generate(){
               mkdir -p ${DATAFOLDER}/${i}/data
        done
 
+       # create large file for reading in one request with max size readv
+       ${OPENSSL} rand -out "${DATAFOLDER}/srv1/data/2GB.dat" $((2**31 - 1))
+
        for i in ${datanodes[@]}; do
               mkdir -p ${DATAFOLDER}/${i}/data/bigdir
               cd ${DATAFOLDER}/${i}/data/bigdir

@@ -43,14 +43,38 @@ RAtomic_uint XrdMonRoll::EOV = {0};
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdMonRoll::XrdMonRoll(XrdMonitor& xMon) : xrdMon(xMon)
+XrdMonRoll::XrdMonRoll(XrdMonitor& xMon) : XrdMon(xMon)
 {   memset(rsvd, 0, sizeof(rsvd));}
-  
+
 /******************************************************************************/
 /*                              R e g i s t e r                               */
 /******************************************************************************/
-  
+
+bool XrdMonRoll::Register(rollType setType, const char* setName,
+                          std::vector<XrdMonRoll::Item>& iVec)
+{
+   return XrdMon.Register(setType, setName, iVec.data(), iVec.size());
+}
+
+/******************************************************************************/
 bool XrdMonRoll::Register(rollType  setType, const char* setName,
                           setMember setVec[])
-{   return xrdMon.Register(setType, setName, setVec);}
+{
+   int numE = 0;
 
+// Convert this setMember list to an Item list as using setMember is deprecated.
+//
+   std::vector<Item>* iVec = new std::vector<Item>();
+
+   for(int i = 0; &setVec[i].varValu != &EOV; i++)
+      {XrdMonRoll::Item theItem(setVec[i].varName, setVec[i].varValu);
+       iVec->push_back(theItem);
+       numE++;
+      }
+
+// Now register the converted list
+//
+   if (XrdMon.Register(setType, setName, iVec->data(), numE)) return true;
+   delete iVec;
+   return false;
+}

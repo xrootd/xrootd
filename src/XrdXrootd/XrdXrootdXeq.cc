@@ -2611,14 +2611,14 @@ int XrdXrootdProtocol::do_ReadV()
 
 // We limit the total size of the read to be 2GB for convenience
 //
-   if (totSZ > 0x7fffffffLL)
+   if (totSZ > 0x80000000LL)
       return Response.Send(kXR_NoMemory, "Total readv transfer is too large");
 
 // Calculate the transfer unit which will be the smaller of the maximum
 // transfer unit and the actual amount we need to transfer.
 //
-   if ((Quantum = static_cast<int>(totSZ)) > maxTransz) Quantum = maxTransz;
-   
+   Quantum = totSZ < maxTransz ? totSZ : maxTransz;
+
 // Now obtain the right size buffer
 //
    if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize)

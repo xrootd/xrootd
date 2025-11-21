@@ -178,6 +178,51 @@ char *XrdOucUtils::bin2hex(char *inbuff, int dlen, char *buff, int blen,
 }
 
 /******************************************************************************/
+/*                               h e x 2 b i n                                */
+/******************************************************************************/
+
+int XrdOucUtils::hex2bin(const char *hex, char *bin, int size)
+{
+  int len = 0, lo = -1, hi = -1;
+
+  while (int c = *hex++) {
+    if (c == ' ' || c == '\n')
+      break;
+
+    switch (c) {
+      case '0' ... '9':
+        c -= '0';
+        break;
+      case 'a' ... 'f':
+        c -= 'a' - 10;
+        break;
+      case 'A' ... 'F':
+        c -= 'A' - 10;
+        break;
+      default:
+        return -EINVAL;
+    }
+
+    if (hi == -1)
+      hi = c;
+    else
+      lo = c;
+
+    if (lo == -1)
+      continue;
+
+    if (len >= size)
+      return -EOVERFLOW;
+
+    bin[len++] = (hi << 4) | lo;
+    hi = lo = -1;
+  }
+  if (hi >= 0 || lo >= 0 || len == 0)
+    return -EINVAL;
+  return len;
+}
+
+/******************************************************************************/
 /*                              e n d s W i t h                               */
 /******************************************************************************/
   

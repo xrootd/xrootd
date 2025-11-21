@@ -266,3 +266,47 @@ TEST(XrdOucUtilsTests, caseInsensitiveFind) {
     ASSERT_EQ("empty", XrdOucTUtils::caseInsensitiveFind(map, "")->second);
   }
 }
+
+TEST(XrdOucUtilsTests, hex2bin)
+{
+  struct testcase {
+    const char *input;
+    const char *output;
+    int result;
+  };
+
+  constexpr struct testcase testcases[] = {
+    /* good inputs */
+    { "01", "\x01", 1 },
+    { "ff", "\xff", 1 },
+    { "FF", "\xFF", 1 },
+    { "0123456789", "\x01\x23\x45\x67\x89", 5 },
+    { "aabbccddee", "\xaa\xbb\xcc\xdd\xee", 5 },
+    { "ff000000ff", "\xff\x00\x00\x00\xff", 5 },
+    { "0a1b2c  3d4e", "\x0a\x1b\x2c", 3 }, // stop at a space
+    { "aabbcc\nddee", "\xaa\xbb\xcc", 3 }, // stop at newline
+    { "0123456789abcdef", "\x01\x23\x45\x67\x89\xab\xcd\xef", 8 }, // max size
+    { "0123456789ABCDEF", "\x01\x23\x45\x67\x89\xab\xcd\xef", 8 }, // uppercase
+    /* bad inputs */
+    {  "" , "", -EINVAL }, // empty input
+    { "XX", "", -EINVAL }, // X not allowed
+    { "0X", "", -EINVAL }, // X not allowed, but in second place
+    { "FX", "", -EINVAL }, // X in second place, with first place >10
+    { "aa:bb:cc", "", -EINVAL }, // illegal characters
+    { "123456789", "", -EINVAL }, // odd number of characters
+    { "0123456789abcdefAB", "", -EOVERFLOW } // input one byte too long
+  };
+
+  for (auto& t : testcases) {
+    char output[8] = "";
+    int len = XrdOucUtils::hex2bin(t.input, output, sizeof(output));
+
+    ASSERT_EQ(t.result, len) << t.input;
+
+    if (len > 0) {
+      for (int i = 0; i < len; i++) {
+        ASSERT_EQ(t.output[i], output[i]) << t.input;
+      }
+    }
+  }
+}
