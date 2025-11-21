@@ -256,6 +256,6 @@ virtual          ~XrdOssArc() {}
 
 // This is used to initialize the object from an extern "C" function.
 //
-int               Init(const char*, const char *parms, XrdOucEnv* envP);
+int               InitArc(const char*, const char *parms, XrdOucEnv* envP);
 };
 #endif

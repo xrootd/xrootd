@@ -48,7 +48,7 @@
 /******************************************************************************/
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
-  
+
 namespace XrdOssArcGlobals
 {
 extern XrdOssArcConfig Config;
@@ -58,14 +58,14 @@ extern thread_local XrdOucECMsg ecMsg;
 using namespace XrdOssArcGlobals;
 
 /******************************************************************************/
-  
+
 int   XrdOssArcCompose::minLenDSN = 4;
 int   XrdOssArcCompose::minLenFN  = 4;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
+
 XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
                                    int& rc, bool isW, bool optfn)
 {
@@ -145,7 +145,7 @@ XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
           }
        arName = theFN;
       } else fl2arc = true;
-       
+
 
 // Pick apart the filename if this is a backup reference or an indirect
 // archive reference as we will need the scope and file.
@@ -192,15 +192,15 @@ XrdOssArcCompose::XrdOssArcCompose(const char *path, XrdOucEnv *env,
 int XrdOssArcCompose::ArcMember(char* buff, int blen)
 {
    if (snprintf(buff, blen, "%s:%s", flScope.c_str(), flName.c_str()) >= blen)
-      {std::string fn = flScope + ":" + flName; 
+      {std::string fn = flScope + ":" + flName;
        Elog.Emsg("Compose", ENAMETOOLONG, "generate archive member name "
-                            "in dataset", dsName.c_str());                         
+                            "in dataset", dsName.c_str());
        ecMsg.Msg("Compose", "Archive member name", fn.c_str(), "is too long");
        return ENAMETOOLONG;
       }
     return 0;
 }
-  
+
 /******************************************************************************/
 /*                               A r c P a t h                                */
 /******************************************************************************/
@@ -216,11 +216,11 @@ int XrdOssArcCompose::ArcPath(char* buff, int blen, bool addafn)
       else n = snprintf(buff, blen, "%s/%s/%s", Config.tapePath,
                                     dsScope.c_str(), dsName.c_str());
 
-// Verify that we did not truncate the path    
+// Verify that we did not truncate the path
 //
    if (n >= blen)
-      {std::string dsn = dsScope + ":" + dsName; 
-       Elog.Emsg("Compose", ENAMETOOLONG, "generate archive path for dataset",                         
+      {std::string dsn = dsScope + ":" + dsName;
+       Elog.Emsg("Compose", ENAMETOOLONG, "generate archive path for dataset",
                                           dsn.c_str());
        return ENAMETOOLONG;
       }
@@ -229,7 +229,7 @@ int XrdOssArcCompose::ArcPath(char* buff, int blen, bool addafn)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                               D S N 2 D i r                                */
 /******************************************************************************/
@@ -243,7 +243,7 @@ std::string XrdOssArcCompose::DSN2Dir(const char* dsn)
 
    return retdir;
 }
-  
+
 /******************************************************************************/
 /*                               D i r 2 D S N                                */
 /******************************************************************************/
@@ -257,11 +257,11 @@ std::string XrdOssArcCompose::Dir2DSN(const char* dir)
 
    return retdsn;
 }
-  
+
 /******************************************************************************/
 /* Private:                       g e t D S N                                 */
 /******************************************************************************/
-  
+
 int XrdOssArcCompose::getDSN(const char *path)
 {
 
@@ -293,11 +293,11 @@ int XrdOssArcCompose::getDSN(const char *path)
    dsName = colon+1;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                             i s A r c F i l e                              */
 /******************************************************************************/
-  
+
 bool XrdOssArcCompose::isArcFile(const char *path)
 {
    int n = strlen(path);
@@ -310,11 +310,11 @@ bool XrdOssArcCompose::isArcFile(const char *path)
 //
    return !strcmp(Config.arfSfx, path+n-Config.arfSfxLen);
 }
-  
+
 /******************************************************************************/
 /*                             i s A r c P a t h                              */
 /******************************************************************************/
-  
+
 bool XrdOssArcCompose::isArcPath(const char *path)
 {
    return  !strncmp(Config.arcvPathLFN, path, Config.arcvPathLEN);
@@ -323,16 +323,16 @@ bool XrdOssArcCompose::isArcPath(const char *path)
 /******************************************************************************/
 /*                             i s B k p P a t h                              */
 /******************************************************************************/
-  
+
 bool XrdOssArcCompose::isBkpPath(const char *path)
 {
    return  !strncmp(Config.bkupPathLFN, path, Config.bkupPathLEN);
 }
-  
+
 /******************************************************************************/
 /*                                i s M i n e                                 */
 /******************************************************************************/
-  
+
 bool XrdOssArcCompose::isMine(const char *path)
 {
    return  !strncmp(Config.arcvPathLFN, path, Config.arcvPathLEN) ||
@@ -342,7 +342,7 @@ bool XrdOssArcCompose::isMine(const char *path)
 /******************************************************************************/
 /* Private:                   S e t a r N a m e                              */
 /******************************************************************************/
-  
+
 int XrdOssArcCompose::SetarName()
 {
   TraceInfo("SetarName", 0);
@@ -351,7 +351,7 @@ int XrdOssArcCompose::SetarName()
 // which archive file contains a particular dataset file. So, construct
 // the argument list to ask.
 //
-   std::string fName = flScope + (std::string)":" + flName; 
+   std::string fName = flScope + (std::string)":" + flName;
    const char* argV[] = {"which", Config.arFName, fName.c_str(),
                          dsScope.c_str(), dsName.c_str()};
    int argC = sizeof(argV)/sizeof(char*);
@@ -399,7 +399,7 @@ int XrdOssArcCompose::SetarName()
 /******************************************************************************/
 /*                                  S t a t                                   */
 /******************************************************************************/
-  
+
 int XrdOssArcCompose::Stat(const char* Scope, const char* Name,
                            struct stat* Stat)
 {
@@ -409,7 +409,7 @@ int XrdOssArcCompose::Stat(const char* Scope, const char* Name,
 //
    const char* argV[] = {"stat", "cgi", Scope, Name};
    int argC = sizeof(argV)/sizeof(char*);
-   int rc, rc2;
+   int rc, rc2 = 0;
 
 // Do some tracing
 //
@@ -444,7 +444,7 @@ int XrdOssArcCompose::Stat(const char* Scope, const char* Name,
 /******************************************************************************/
 /* Private:                   S t a t D e c o d e                             */
 /******************************************************************************/
-  
+
 int XrdOssArcCompose::StatDecode(struct stat& Stat, const char* resp)
 {
    TraceInfo("StatDecode", 0);
@@ -452,7 +452,7 @@ int XrdOssArcCompose::StatDecode(struct stat& Stat, const char* resp)
    char* infoP;
    long long val;
    int n;
-   
+
    memset(&Stat, 0, sizeof(struct stat));
 
    if (StatGet("uid", env, val)) Stat.st_uid = int(val);
@@ -492,7 +492,7 @@ int XrdOssArcCompose::StatDecode(struct stat& Stat, const char* resp)
 /******************************************************************************/
 /* Private:                     S t a t G e t                                */
 /******************************************************************************/
-  
+
 bool XrdOssArcCompose::StatGet(const char* var, XrdOucEnv& env, long long& val)
 {
    TraceInfo("StatGet", 0);
