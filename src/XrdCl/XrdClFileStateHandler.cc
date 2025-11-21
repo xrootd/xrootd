@@ -843,12 +843,22 @@ namespace XrdCl
     Message           *msg;
     ClientOpenRequest *req;
     std::string        path = self->pFileUrl->GetPathWithFilteredParams();
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    kXR_int32          dlen;
+    auto st          = MessageUtils::SetDLen( dlen, path.length() );
+    if ( !st.IsOK() )
+    {
+      delete openHandler;
+      self->pStatus    = st;
+      self->pFileState = Closed;
+      return st;
+    }
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_open;
     req->mode      = mode;
     req->options   = flags | kXR_async | kXR_retstat;
-    req->dlen      = path.length();
+    req->dlen      = dlen;
     msg->Append( path.c_str(), path.length(), 24 );
 
     XRootDTransport::SetDescription( msg );
@@ -856,7 +866,7 @@ namespace XrdCl
     params.followRedirects = self->pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
 
-    XRootDStatus st = self->IssueRequest( *self->pFileUrl, msg, openHandler, params );
+    st = self->IssueRequest( *self->pFileUrl, msg, openHandler, params );
 
     if( !st.IsOK() )
     {
@@ -1190,7 +1200,12 @@ namespace XrdCl
 
     req->requestid  = kXR_write;
     req->offset     = offset;
-    req->dlen       = size;
+    auto st         = MessageUtils::SetDLen( req->dlen, size );
+    if( !st.IsOK() )
+    {
+      delete msg;
+      return st;
+    }
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
     ChunkList *list   = new ChunkList();
@@ -1490,7 +1505,13 @@ namespace XrdCl
 
     req->requestid  = kXR_pgwrite;
     req->offset     = offset;
-    req->dlen       = size + cksums.size() * sizeof( uint32_t );
+    auto st         = MessageUtils::SetDLen( req->dlen,
+                        size + cksums.size() * sizeof( uint32_t ) );
+    if( !st.IsOK() )
+    {
+      delete msg;
+      return st;
+    }
     req->reqflags   = flags;
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
@@ -1619,10 +1640,15 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     Message            *msg;
     ClientReadVRequest *req;
-    MessageUtils::CreateRequest( msg, req, sizeof(readahead_list)*chunks.size() );
+    kXR_int32          dlen;
+    auto st          = MessageUtils::SetDLen( dlen,
+                         sizeof(readahead_list)*chunks.size() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_readv;
-    req->dlen      = sizeof(readahead_list)*chunks.size();
+    req->dlen      = dlen;
 
     ChunkList *list   = new ChunkList();
     char      *cursor = (char*)buffer;
@@ -1695,7 +1721,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
 
     // the size of write vector
-    uint32_t payloadSize = sizeof(XrdProto::write_list) * chunks.size();
+    kXR_int32 payloadSize;
+    auto st = MessageUtils::SetDLen( payloadSize,
+                sizeof(XrdProto::write_list) * chunks.size() );
+    if( !st.IsOK() ) return st;
 
     //--------------------------------------------------------------------------
     // Build the message
@@ -1705,7 +1734,7 @@ namespace XrdCl
     MessageUtils::CreateRequest( msg, req, payloadSize );
 
     req->requestid = kXR_writev;
-    req->dlen      = sizeof(XrdProto::write_list) * chunks.size();
+    req->dlen      = payloadSize;
 
     ChunkList *list   = new ChunkList();
 
@@ -1772,7 +1801,7 @@ namespace XrdCl
 
     ChunkList *list   = new ChunkList();
 
-    uint32_t size = 0;
+    size_t size = 0;
     for( int i = 0; i < iovcnt; ++i )
     {
       if( iov[i].iov_len == 0 ) continue;
@@ -1783,7 +1812,13 @@ namespace XrdCl
 
     req->requestid  = kXR_write;
     req->offset     = offset;
-    req->dlen       = size;
+    auto st         = MessageUtils::SetDLen( req->dlen, size );
+    if( !st.IsOK() )
+    {
+      delete list;
+      delete msg;
+      return st;
+    }
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
     MessageSendParams params;
@@ -1881,11 +1916,16 @@ namespace XrdCl
 
     Message            *msg;
     ClientQueryRequest *req;
-    MessageUtils::CreateRequest( msg, req, arg.GetSize() );
+    kXR_int32           dlen;
+    auto st           = MessageUtils::SetDLen( dlen, arg.GetSize() );
+    if( !st.IsOK() ) return st;
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_query;
     req->infotype  = kXR_Qopaqug;
-    req->dlen      = arg.GetSize();
+    req->dlen      = dlen;
+
     memcpy( req->fhandle, self->pFileHandle, 4 );
     msg->Append( arg.GetBuffer(), arg.GetSize(), 24 );
 
@@ -2136,7 +2176,12 @@ namespace XrdCl
     ClientWriteRequest *wrtreq = (ClientWriteRequest*)msg->GetBuffer( sizeof(ClientChkPointRequest) );
     wrtreq->requestid = kXR_write;
     wrtreq->offset    = offset;
-    wrtreq->dlen      = size;
+    auto st           = MessageUtils::SetDLen( wrtreq->dlen, size );
+    if( !st.IsOK() )
+    {
+      delete msg;
+      return st;
+    }
     memcpy( wrtreq->fhandle, self->pFileHandle, 4 );
 
     ChunkList *list   = new ChunkList();
@@ -2196,7 +2241,7 @@ namespace XrdCl
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
     ChunkList *list   = new ChunkList();
-    uint32_t size = 0;
+    size_t size = 0;
     for( int i = 0; i < iovcnt; ++i )
     {
       if( iov[i].iov_len == 0 ) continue;
@@ -2208,7 +2253,13 @@ namespace XrdCl
     ClientWriteRequest *wrtreq = (ClientWriteRequest*)msg->GetBuffer( sizeof(ClientChkPointRequest) );
     wrtreq->requestid = kXR_write;
     wrtreq->offset    = offset;
-    wrtreq->dlen      = size;
+    auto st           = MessageUtils::SetDLen( wrtreq->dlen, size );
+    if( !st.IsOK() )
+    {
+      delete list;
+      delete msg;
+      return st;
+    }
     memcpy( wrtreq->fhandle, self->pFileHandle, 4 );
 
     MessageSendParams params;
@@ -3031,12 +3082,21 @@ namespace XrdCl
       u.SetPath( self->pFileUrl->GetPath() );
 
     std::string path = u.GetPathWithFilteredParams();
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    kXR_int32          dlen;
+    auto st          = MessageUtils::SetDLen( dlen, path.length() );
+    if( !st.IsOK() )
+    {
+      self->pStatus    = st;
+      self->pFileState = Closed;
+      return st;
+    }
+
+    MessageUtils::CreateRequest( msg, req, dlen );
 
     req->requestid = kXR_open;
     req->mode      = self->pOpenMode;
     req->options   = self->pOpenFlags;
-    req->dlen      = path.length();
+    req->dlen      = dlen;
     msg->Append( path.c_str(), path.length(), 24 );
 
     // create a new reopen handler
@@ -3050,7 +3110,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Issue the open request
     //--------------------------------------------------------------------------
-    XRootDStatus st = self->IssueRequest( url, msg, openHandler, params );
+    st = self->IssueRequest( url, msg, openHandler, params );
 
     // if there was a problem destroy the open handler
     if( !st.IsOK() )
@@ -3267,7 +3327,12 @@ namespace XrdCl
 
     req->requestid  = kXR_write;
     req->offset     = offset;
-    req->dlen       = length;
+    auto st         = MessageUtils::SetDLen( req->dlen, length );
+    if( !st.IsOK() )
+    {
+      delete msg;
+      return st;
+    }
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
     MessageSendParams params;
