@@ -29,6 +29,7 @@
 #include "PyXRootDURL.hh"
 #include "PyXRootDFinalize.hh"
 #include "PyXRootDEnv.hh"
+#include "PyXRootDAdler32.hh"
 
 namespace PyXRootD
 {
@@ -53,6 +54,7 @@ namespace PyXRootD
       { "EnvGetDefault_cpp",    EnvGetDefault_cpp,    METH_VARARGS, "Get default values from XrdCl environment" },
       { "SetLogLevel_cpp",      SetLogLevel_cpp,      METH_VARARGS, "Set XrdCl log level" },
       { "SetLogMask_cpp",       SetLogMask_cpp,       METH_VARARGS, "Set XrdCl log mask" },
+      { "setXAttrAdler32_cpp",  setXAttrAdler32_cpp,  METH_VARARGS, "Set adler32 checksum extended attribute (path, checksum)." },
       { NULL, NULL, 0, NULL }
     };
 
