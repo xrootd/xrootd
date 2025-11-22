@@ -37,8 +37,30 @@ T   operator=(T v) volatile noexcept
     operator T() noexcept
       {return _m.load(std::memory_order_relaxed);}
 
+    operator T() const noexcept
+      {return _m.load(std::memory_order_relaxed);}
+
     operator T() volatile noexcept
       {return _m.load(std::memory_order_relaxed);}
+
+    operator T() const volatile noexcept
+      {return _m.load(std::memory_order_relaxed);}
+
+    // Assignment operators
+
+    RAtomic& operator=(const RAtomic& other) noexcept {
+        if (this != &other) {
+            _m.store(other._m.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        }
+        return *this;
+    }
+
+    RAtomic& operator=(const RAtomic& other) volatile noexcept {
+        if (this != &other) {
+            _m.store(other._m.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        }
+        return *this;
+    }
 
 // Post-increment/decrement (i.e. x++)
 //

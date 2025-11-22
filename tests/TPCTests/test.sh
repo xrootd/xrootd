@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-set -Eexo pipefail
-
-# Skip on macOS due to missing 'declare -A' support
-
 # Check for required commands
 : "${ADLER32:=$(command -v xrdadler32)}"
 : "${CRC32C:=$(command -v xrdcrc32c)}"
@@ -28,12 +24,12 @@ check_commands() {
 }
 
 function error() {
-	echo "error: $*" >&2; exit 1;
+    echo "error: $*" >&2; exit 1;
 }
 
 # shellcheck disable=SC2317
 function assert() {
-	echo "$@"; "$@" || error "command \"$*\" failed";
+    echo "$@"; "$@" || error "command \"$*\" failed";
 }
 
 # $1 is expected_value $2 is received value $3 is the error message
@@ -43,7 +39,7 @@ function assert_eq() {
 
 # shellcheck disable=SC2317
 function assert_failure() {
-	echo "$@"; "$@" && error "command \"$*\" did not fail";
+    echo "$@"; "$@" && error "command \"$*\" did not fail";
 }
 
 check_commands "${ADLER32}" "${CRC32C}" "${XRDCP}" "${XRDFS}" "${OPENSSL}" "${CURL}"
@@ -65,12 +61,12 @@ declare -a hosts_abbrev=(
 )
 
 setup_scitokens() {
-	if ! ${XRDSCITOKENS_CREATE_TOKEN} "${XRDSCITOKENS_ISSUER_DIR}"/issuer_pub_1.pem "${XRDSCITOKENS_ISSUER_DIR}"/issuer_key_1.pem test_1 \
-		"https://localhost:7095/issuer/one" "storage.modify:/ storage.create:/ storage.read:/" 1800 > "${PWD}/generated_tokens/token"; then
-		echo "Failed to create token"
-		exit 1
-	fi
-	chmod 0600 "$PWD/generated_tokens/token"
+    if ! ${XRDSCITOKENS_CREATE_TOKEN} "${XRDSCITOKENS_ISSUER_DIR}"/issuer_pub_1.pem "${XRDSCITOKENS_ISSUER_DIR}"/issuer_key_1.pem test_1 \
+        "https://localhost:7095/issuer/one" "storage.modify:/ storage.create:/ storage.read:/" 1800 > "${PWD}/generated_tokens/token"; then
+        echo "Failed to create token"
+        exit 1
+    fi
+    chmod 0600 "$PWD/generated_tokens/token"
 }
 
 # Cleanup function
@@ -82,7 +78,7 @@ cleanup() {
     src=${hosts_abbrev[${src_idx}]}
     dst=${hosts_abbrev[${dst_idx}]}
     rm "${LCLDATADIR}/${src}_empty.dat" || :
-    rm "${LCLDATADIR}/${dst}_empty.ref" || :
+    rm "${LCLDATADIR}/${src}_empty.ref" || :
     ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}_empty.ref" || :
     for mode in "_http_pull" "_http_push" ""; do
         rm "${LCLDATADIR}/${src}_to_${dst}_empty.dat${mode}" || :
@@ -116,7 +112,6 @@ cleanup() {
 trap "cleanup" ERR
 
 
-
 # Set up directories
 RMTDATADIR="/srvdata/tpc"
 LCLDATADIR="${PWD}/localdata/tpc"
@@ -132,7 +127,11 @@ export BEARER_TOKEN
 
 generate_file() {
     local local_file=$1
-    ${OPENSSL} rand -out "${local_file}" $((1024 * (RANDOM + 1)))
+    local min_size=$2
+    if [[ -z "${min_size}" ]]; then
+        min_size=0
+    fi
+    ${OPENSSL} rand -out "${local_file}" $(((1024 * (RANDOM + 1)) + min_size ))
 }
 
 generate_empty_file() {
@@ -144,17 +143,32 @@ upload_file() {
     local local_file=$1
     local remote_file=$2
     local protocol=$3
+    local scitag_flow=$4
     local http_code
 
     if [[ -z "${protocol}" || "${protocol}" == "root" ]]; then
+        if [[ -n "${scitag_flow}" ]]; then
+            remote_file="${remote_file}?scitag.flow=${scitag_flow}"
+        fi
         ${XRDCP} "${local_file}" "${remote_file}"
     elif [[ "${protocol}" == "http" ]]; then
-        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -v -o /dev/null -w "%{http_code}" \
+        remote_file="${remote_file/root:\/\//https:\/\/}"
+        if [[ -n "${scitag_flow}" ]]; then
+        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${BEARER_TOKEN}" \
+            -H "Transfer-Encoding: chunked" \
+            -H "Scitag: ${scitag_flow}" \
+            --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+            --data-binary "@${local_file}" "${remote_file}" \
+            2>&1 1>&3 | cat >&2)
+        else
+        http_code=$(exec 3>&1; ${CURL} -X PUT -L -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${BEARER_TOKEN}" \
             -H "Transfer-Encoding: chunked" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             --data-binary "@${local_file}" "${remote_file}" \
             2>&1 1>&3 | cat >&2)
+        fi
 
         echo "$http_code"
     else
@@ -187,33 +201,52 @@ perform_http_tpc() {
     local token_src=$4
     local token_dst=$5
     local file_suffix=$6
+    local scitag_flow=$7
 
     if [[ -z "${file_suffix}" ]]; then
         file_suffix=""
     fi
 
+    if [[ -z "${scitag_flow}" ]]; then
+        scitag_flow=66
+    fi
+
     local src_file_http="${hosts_http[$src_idx]}/${RMTDATADIR}/${src}${file_suffix}.ref"
     local dst_file_http="${hosts_http[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}${file_suffix}.ref_http"
     local http_code
+    local result_line
+    local body_file
+    body_file=$(mktemp)
 
     if [[ "$mode" == "push" ]]; then
         dst_file_http="${dst_file_http}_push"
-        http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
+        http_code=$(${CURL} -X COPY -L -s -o "$body_file" -w "%{http_code}" \
             -H "Destination: ${dst_file_http}" \
             -H "Authorization: Bearer ${token_dst}" \
             -H "TransferHeaderAuthorization: Bearer ${token_src}" \
+            -H "Scitag: ${scitag_flow}" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             "${src_file_http}")
     elif [[ "$mode" == "pull" ]]; then
         dst_file_http="${dst_file_http}_pull"
-        http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
+        http_code=$(${CURL} -X COPY -L -s -o "$body_file" -w "%{http_code}" \
             -H "Source: ${src_file_http}" \
             -H "Authorization: Bearer ${token_src}" \
             -H "TransferHeaderAuthorization: Bearer ${token_dst}" \
+            -H "Scitag: ${scitag_flow}" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
             "${dst_file_http}")
     else
         echo "ERROR: Unsupported mode: $mode" >&2
+        rm -f "$body_file"
+        return 1
+    fi
+
+    result_line=$(tail -n1 "$body_file")
+    rm -f "$body_file"
+
+    if [[ "$result_line" != "success: Created" ]]; then
+        echo "Transfer failed: from src $src_file_http to $dst_file_http with mode $mode and http_code $http_code result line: $result_line" >&2
         return 1
     fi
 
@@ -229,7 +262,7 @@ download_file() {
     if [[ -z "${protocol}" || "${protocol}" == "root" ]]; then
         ${XRDCP} "${src}" "${dest}"
     elif [[ "${protocol}" == "http" ]]; then
-        ${CURL} -X GET -L -s -v -o "${dest}" \
+        ${CURL} -X GET -L -s -o "${dest}" \
             -H "Authorization: Bearer ${BEARER_TOKEN}" \
             -H "Transfer-Encoding: chunked" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
@@ -270,13 +303,15 @@ verify_checksum() {
     fi
 }
 
+# shellcheck disable=SC1091
+source "${CURRENT_SOURCE_DIR}/test_tpc_cancellations.sh"
 
 # Generate, upload, download, and verify checksums for each host
 for host_idx in {0..1}; do
     host=${hosts_abbrev[$host_idx]}
     generate_file "${LCLDATADIR}/${host}.ref"
 done
- 
+
 for host_idx in {0..1}; do
     host=${hosts_abbrev[$host_idx]}
     local_file="${LCLDATADIR}/${host}.ref"
