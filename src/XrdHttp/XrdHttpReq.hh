@@ -38,23 +38,16 @@
 #ifndef XRDHTTPREQ_HH
 #define	XRDHTTPREQ_HH
 
-
-#include "XrdOuc/XrdOucString.hh"
-
 #include "XProtocol/XProtocol.hh"
-#include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdHttpChecksumHandler.hh"
 #include "XrdHttpReadRangeHandler.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdXrootd/XrdXrootdBridge.hh"
 
-#include <vector>
-#include <string>
+#include <chrono>
 #include <map>
-
-//#include <libxml/parser.h>
-//#include <libxml/tree.h>
-
-
-
+#include <string>
+#include <vector>
 
 struct DirListInfo {
   std::string path;
@@ -91,12 +84,19 @@ public:
     rtPROPFIND,
     rtMKCOL,
     rtMOVE,
-    rtPOST
+    rtPOST,
+    rtCOPY,
+    rtCount 
   };
 
 private:
   // HTTP response parameters to be sent back to the user
-  int httpStatusCode;
+  int httpStatusCode{-1};
+
+  // Stores the first response that was sent as part of the Response Header
+  // Used when staus code is updated after for e.g. Chunked Response + X-Transfer-Status request
+  int initialStatusCode{-1};
+
   // HTTP Error code for the response
   // e.g. 8.1, 8.3.1, etc.
   // https://twiki.cern.ch/twiki/bin/view/LCG/WebdavErrorImprovement
@@ -221,6 +221,16 @@ public:
   virtual ~XrdHttpReq();
 
   virtual void reset();
+
+  int getInitialStatusCode() { return initialStatusCode;}
+  int getHttpStatusCode() { return httpStatusCode;}
+
+  void setHttpStatusCode(int code) {
+      httpStatusCode = code;
+      if (initialStatusCode < 0 && code >= 200 ) { 
+        initialStatusCode = code;
+      }
+  }
 
   /// Parse the header
   int parseLine(char *line, int len);
@@ -354,9 +364,16 @@ public:
 
   std::string m_origin;
 
+  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::time_point::min();
 
-
-
+  enum MonitState {
+    NEW,       // Uninitialised state
+    ACTIVE,    // First Call to Process Request
+    ERR_NET,   // Network Error
+    ERR_PROT,  // Filesystem/XRootD error that did not result in a valid HTTP response
+               // We see this only during a chunked response
+    DONE       // Final state 
+  } monState;
 
   /// Crunch an http request.
   /// Return values:
