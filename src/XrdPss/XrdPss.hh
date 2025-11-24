@@ -94,7 +94,7 @@ virtual int     Close(long long *retsz=0) override;
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) override;
 
 int     Fchmod(mode_t mode) override {return XrdOssOK;}
-int     Fctl(int cmd, int alen, const char *args, char **resp=0);
+int     Fctl(int cmd, int alen, const char *args, char **resp=0) override;
 int     Fstat(struct stat *) override;
 int     Fsync() override;
 int     Fsync(XrdSfsAio *aiop) override;
