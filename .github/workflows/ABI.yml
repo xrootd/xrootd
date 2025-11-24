@@ -54,7 +54,7 @@ jobs:
       run: cmake --build build/new --parallel --target install
 
     - name: Checkout Base Reference of XRootD to Compare ABI
-      run: git checkout -f ${GITHUB_BASE_REF:-$(git rev-list --tags --max-count=1)}
+      run: git checkout -f ${GITHUB_BASE_REF:-$(git rev-list --max-count=1 origin/master)}
 
     - name: Configure XRootD (Base Reference)
       run: cmake -S . -B build/old -DCMAKE_INSTALL_PREFIX=install/old
