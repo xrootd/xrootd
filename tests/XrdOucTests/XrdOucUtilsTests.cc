@@ -99,13 +99,16 @@ static const std::string plain_urls[] = {
 
 static const std::string authz_strings[] = {
   "authz=REDACTED",
+  "access_token=REDACTED",
   " authz=REDACTED ",
   " 'authz=REDACTED' ",
   " \"authz=REDACTED\" ",
   "authz=REDACTED&scitag.flow=144&test=abcd",
+  "access_token=REDACTED&scitag.flow=144&test=abcd",
   "scitag.flow=144&authz=REDACTED&test=abcd",
   "scitag.flow=144&test=abcd&authz=REDACTED",
   "authz=REDACTED&test=test2&authz=REDACTED",
+  "authz=REDACTED&test=test2&access_token=REDACTED",
   "authz=REDACTED&test=test2&authz=REDACTED&authz=REDACTED&test=test2&authz=REDACTED",
   "/path/test.txt?scitag.flow=44&authz=REDACTED done close.",
   "/path/test.txt?authz=REDACTED&scitag.flow=44 done close.",
