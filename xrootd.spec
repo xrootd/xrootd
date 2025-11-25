@@ -52,6 +52,7 @@ BuildRequires:	python3-pip
 BuildRequires:	python3-setuptools
 BuildRequires:	python3-wheel
 BuildRequires:	json-c-devel
+BuildRequires:	json-devel
 BuildRequires:	libmacaroons-devel
 BuildRequires:	libuuid-devel
 BuildRequires:	voms-devel

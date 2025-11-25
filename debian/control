@@ -27,6 +27,7 @@ Build-Depends:
  python3-wheel,
  libjson-c-dev,
  libmacaroons-dev,
+ nlohmann-json3-dev,
  uuid-dev,
  uuid-runtime,
  voms-dev,

@@ -1,3 +1,10 @@
+find_package(nlohmann_json 3.10.2 QUIET)
+
+if(nlohmann_json_FOUND)
+  target_link_libraries(XrdUtils PUBLIC nlohmann_json::nlohmann_json)
+  target_compile_definitions(XrdUtils PUBLIC USE_SYSTEM_NLOHMANN_JSON)
+endif()
+
 target_sources(XrdUtils
   PRIVATE
     XrdOuca2x.cc         XrdOuca2x.hh
