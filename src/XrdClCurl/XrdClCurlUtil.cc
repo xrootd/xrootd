@@ -1007,6 +1007,7 @@ CurlWorker::OpRecord(XrdClCurl::CurlOperation &op, OpKind kind)
     switch (kind) {
     case OpKind::ConncallTimeout:
         op_stats.m_conncall_timeout.fetch_add(1, std::memory_order_relaxed);
+        break;
     case OpKind::ClientTimeout:
         op_stats.m_client_timeout.fetch_add(1, std::memory_order_relaxed);
         break;
