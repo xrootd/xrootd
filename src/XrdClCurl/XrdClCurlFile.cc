@@ -385,7 +385,7 @@ File::Open(const std::string      &url,
     }
 
 
-    m_logger->Debug(kLogXrdClCurl, "Opening %s (with timeout %d)", m_url.c_str(), timeout);
+    m_logger->Debug(kLogXrdClCurl, "Opening %s (with timeout %lld)", m_url.c_str(), (long long) timeout);
 
     // This response handler sets the m_is_opened flag to true if the open callback is successfully invoked.
     handler = new OpenResponseHandler(&m_is_opened, handler);
