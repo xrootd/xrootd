@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Parse lifetime if provided, otherwise use default
-    int lifetime = 60;
+    int lifetime = 180;
     if (argc == 7) {
         try {
             lifetime = std::stoi(argv[6]);
