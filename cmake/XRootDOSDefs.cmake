@@ -12,7 +12,7 @@ if(NOT GENERATOR_IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
   endif()
 endif()
 
-add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
+add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DHAVE_XRDCL_IFACE6)
 define_default( LIBRARY_PATH_PREFIX "lib" )
 
 #-------------------------------------------------------------------------------
