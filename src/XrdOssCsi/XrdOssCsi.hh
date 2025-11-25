@@ -60,8 +60,8 @@ public:
                 XrdOssCsiDir(XrdOss *parent, const char *tid, XrdOssCsiConfig &cf) : XrdOssDFHandler(parent->newDir(tid)), config_(cf) { }
 virtual        ~XrdOssCsiDir() { }
 
-virtual int     Opendir(const char *path, XrdOucEnv &env) /* override */;
-virtual int     Readdir(char *buff, int blen) /* override */;
+virtual int     Opendir(const char *path, XrdOucEnv &env) override;
+virtual int     Readdir(char *buff, int blen) override;
 
 private:
    XrdOssCsiConfig &config_;
@@ -76,32 +76,32 @@ friend class XrdOssCsiFileAio;
 friend class XrdOssCsiFileAioJob;
 public:
 
-virtual int     Close(long long *retsz=0) /* override */;
-virtual int     Open(const char *, int, mode_t, XrdOucEnv &) /* override */;
+virtual int     Close(long long *retsz=0) override;
+virtual int     Open(const char *, int, mode_t, XrdOucEnv &) override;
 
-virtual off_t   getMmap(void **addr) /* override */ { if (addr) *addr = 0; return 0; }
-virtual int     getFD() /* override */ { return successor_->getFD(); }
+virtual off_t   getMmap(void **addr) override { if (addr) *addr = 0; return 0; }
+virtual int     getFD() override { return successor_->getFD(); }
 
-virtual void    Flush() /* override */;
-virtual int     Fstat(struct stat *) /* override */;
-virtual int     Fsync() /* override */;
-virtual int     Fsync(XrdSfsAio *) /* override */;
-virtual int     Ftruncate(unsigned long long) /* override */;
+virtual void    Flush() override;
+virtual int     Fstat(struct stat *) override;
+virtual int     Fsync() override;
+virtual int     Fsync(XrdSfsAio *) override;
+virtual int     Ftruncate(unsigned long long) override;
 
-virtual ssize_t Read(off_t, size_t) /* override */;
-virtual ssize_t Read(void *, off_t, size_t) /* override */;
-virtual int     Read(XrdSfsAio *) /* override */;
-virtual ssize_t ReadRaw(void *, off_t, size_t) /* override */;
-virtual ssize_t ReadV(XrdOucIOVec *readV, int n) /* override */;
+virtual ssize_t Read(off_t, size_t) override;
+virtual ssize_t Read(void *, off_t, size_t) override;
+virtual int     Read(XrdSfsAio *) override;
+virtual ssize_t ReadRaw(void *, off_t, size_t) override;
+virtual ssize_t ReadV(XrdOucIOVec *readV, int n) override;
 
-virtual ssize_t Write(const void *, off_t, size_t) /* override */;
-virtual int     Write(XrdSfsAio *) /* override */;
-virtual ssize_t WriteV(XrdOucIOVec *writeV, int n) /* override */;
+virtual ssize_t Write(const void *, off_t, size_t) override;
+virtual int     Write(XrdSfsAio *) override;
+virtual ssize_t WriteV(XrdOucIOVec *writeV, int n) override;
 
-virtual ssize_t pgRead (void*, off_t, size_t, uint32_t*, uint64_t) /* override */;
-virtual int     pgRead (XrdSfsAio*, uint64_t) /* override */;
-virtual ssize_t pgWrite(void*, off_t, size_t, uint32_t*, uint64_t) /* override */;
-virtual int     pgWrite(XrdSfsAio*, uint64_t) /* override */;
+virtual ssize_t pgRead (void*, off_t, size_t, uint32_t*, uint64_t) override;
+virtual int     pgRead (XrdSfsAio*, uint64_t) override;
+virtual ssize_t pgWrite(void*, off_t, size_t, uint32_t*, uint64_t) override;
+virtual int     pgWrite(XrdSfsAio*, uint64_t) override;
 
                 XrdOssCsiFile(XrdOss *parent, const char *tid, XrdOssCsiConfig &cf) :
                     XrdOssDFHandler(parent->newFile(tid)), parentOss_(parent), tident(tid), config_(cf),
@@ -180,40 +180,41 @@ private:
 class XrdOssCsi : public XrdOssHandler
 {
 public:
-virtual XrdOssDF *newDir(const char *tident) /* override */;
-virtual XrdOssDF *newFile(const char *tident) /* override */;
+virtual XrdOssDF *newDir(const char *tident) override;
+virtual XrdOssDF *newFile(const char *tident) override;
 
-virtual int       Init(XrdSysLogger *lp, const char *cfn) /* override */ { return Init(lp, cfn, 0, 0); }
-virtual int       Init(XrdSysLogger *lp, const char *cfn, XrdOucEnv *envP) /* override */ { return Init(lp, cfn, 0, envP); }
+virtual int       Init(XrdSysLogger *lp, const char *cfn) override { return Init(lp, cfn, 0, 0); }
+virtual int       Init(XrdSysLogger *lp, const char *cfn, XrdOucEnv *envP) override { return Init(lp, cfn, 0, envP); }
         int       Init(XrdSysLogger *, const char *, const char *, XrdOucEnv *);
 
-virtual uint64_t  Features() /* override */
+virtual uint64_t  Features() override
                   {
                     // make sure filesystem checksum, pgread/pgwrite and
-                    // no-sendfile() flags are set.
-                    uint64_t feats = XRDOSS_HASFSCS | XRDOSS_HASPGRW | XRDOSS_HASNOSF;
-                    feats |= successor_->Features();
-                    return feats;
+                    // no-sendfile() flags are set and cloning support unset.
+                    uint64_t feat = successor_->Features();
+                    feat &= ~(XRDOSS_HASFICL);
+                    feat |= XRDOSS_HASFSCS | XRDOSS_HASPGRW | XRDOSS_HASNOSF;
+                    return feat;
                   }
 
-virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *eP=0) /* override */;
+virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *eP=0) override;
 virtual int       Rename(const char *oldname, const char *newname,
-                      XrdOucEnv  *old_env=0, XrdOucEnv  *new_env=0) /* override */;
+                      XrdOucEnv  *old_env=0, XrdOucEnv  *new_env=0) override;
 virtual int       Truncate(const char *path, unsigned long long size,
-                        XrdOucEnv *envP=0) /* override */;
+                        XrdOucEnv *envP=0) override;
 virtual int       Reloc(const char *tident, const char *path,
-                     const char *cgName, const char *anchor=0) /* override */;
-virtual int       Mkdir(const char *path, mode_t mode, int mkpath=0, XrdOucEnv *envP=0) /* override */;
+                     const char *cgName, const char *anchor=0) override;
+virtual int       Mkdir(const char *path, mode_t mode, int mkpath=0, XrdOucEnv *envP=0) override;
 virtual int       Create(const char *tident, const char *path, mode_t access_mode,
-                      XrdOucEnv &env, int Opts=0) /* override */;
-virtual int       Chmod(const char *path, mode_t mode, XrdOucEnv *envP=0) /* override */;
-virtual int       Remdir(const char *path, int Opts=0, XrdOucEnv *eP=0) /* override */;
+                      XrdOucEnv &env, int Opts=0) override;
+virtual int       Chmod(const char *path, mode_t mode, XrdOucEnv *envP=0) override;
+virtual int       Remdir(const char *path, int Opts=0, XrdOucEnv *eP=0) override;
 virtual int       Stat(const char *path, struct stat *buff, int opts=0,
-                    XrdOucEnv  *EnvP=0) /* override */;
-virtual int       StatPF(const char *path, struct stat *buff, int opts) /* override */;
-virtual int       StatPF(const char *path, struct stat *buff) /* override */ { return StatPF(path, buff, 0);}
+                    XrdOucEnv  *EnvP=0) override;
+virtual int       StatPF(const char *path, struct stat *buff, int opts) override;
+virtual int       StatPF(const char *path, struct stat *buff) override { return StatPF(path, buff, 0);}
 virtual int       StatXA(const char *path, char *buff, int &blen,
-                         XrdOucEnv *envP=0) /* override */;
+                         XrdOucEnv *envP=0) override;
 
                 XrdOssCsi(XrdOss *successor) : XrdOssHandler(successor) { }
 virtual        ~XrdOssCsi() { }
