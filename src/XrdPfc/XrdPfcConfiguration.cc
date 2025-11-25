@@ -641,21 +641,6 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
       }
    }
 
-   // set the write mode
-   if ( ! tmpc.m_writemodeRaw.empty())
-   {
-      if (tmpc.m_writemodeRaw == "writethrough")
-      {
-         m_configuration.m_write_through = true;
-      }
-      else if (tmpc.m_writemodeRaw != "off")
-      {
-         m_log.Emsg("ConfigParameters()", "Unknown value for pfc.writemode (valid values are `writethrough` or `off`): %s",
-                    tmpc.m_writemodeRaw.c_str());
-         return false;
-      }
-   }
-
    // get number of available RAM blocks after process configuration
    if (m_configuration.m_RamAbsAvailable == 0)
    {
@@ -750,7 +735,8 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
       {
          loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
       }
-      loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.writemode %s\n", m_configuration.m_write_through ? "writethrough" : "off");
+
+      loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.writethrough %s\n", m_configuration.m_write_through ? "on" : "off");
 
       if (m_configuration.m_username.empty())
       {
@@ -1138,12 +1124,22 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          }
       }
    }
-   else if ( part == "writemode" )
+   else if ( part == "writethrough" )
    {
-      tmpc.m_writemodeRaw = cwg.GetWord();
-      if ( ! cwg.HasLast())
+      const char *val = cwg.GetWord();
+      if (!val || !cwg.HasLast())
       {
-          m_log.Emsg("Config", "Error: pfc.writemode requires a parameter.");
+          m_log.Emsg("Config", "Error: pfc.writethrough requires a parameter.");
+          return false;
+      }
+
+      if (strncmp(val, "on", 2) == 0) {
+          m_configuration.m_write_through = true;
+      } else if (strncmp(val, "off", 3) == 0) {
+          m_configuration.m_write_through = false;
+      } else {
+          m_log.Emsg("ConfigParameters()",
+                     "Unknown value for pfc.writethrough:", val, "(valid values are 'on' or 'off')");
           return false;
       }
    }

@@ -150,7 +150,6 @@ struct TmpConfiguration
    std::string m_fileUsageNominal;
    std::string m_fileUsageMax;
    std::string m_flushRaw;
-   std::string m_writemodeRaw;
 
    TmpConfiguration() :
       m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95"),
