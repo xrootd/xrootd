@@ -342,7 +342,8 @@ void XrdSys::IOEvents::Channel::Delete()
            chMutex.UnLock();
            cbDone.Wait();
           }
-      }
+      } else chMutex.UnLock();
+
 // It is now safe to release the storage
 //
    IF_TRACE(Delete,chFD,"chan="<< std::hex<<(void *)this<< std::dec);
