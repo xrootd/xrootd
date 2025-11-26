@@ -70,6 +70,7 @@ Configuration::Configure(const std::string &config_file)
         TS_Xeq("throttle.loadshed", xloadshed);
         TS_Xeq("throttle.max_wait_time", xmaxwait);
         TS_Xeq("throttle.trace", xtrace);
+        TS_Xeq("throttle.userconfig", xuserconfig);
         if (NoGo)
         {
             m_log.Emsg("Config", "Throttle configuration failed.");
@@ -349,5 +350,30 @@ int Configuration::xtrace(XrdOucStream &Config)
       val = Config.GetWord();
    }
    m_trace_levels = trval;
+   return 0;
+}
+
+/******************************************************************************/
+/*                          x u s e r c o n f i g                            */
+/******************************************************************************/
+
+/* Function: xuserconfig
+
+   Purpose:  Parse the directive: throttle.userconfig <filepath>
+
+             <filepath>   path to the per-user configuration file in INI format
+
+  Output: 0 upon success or !0 upon failure.
+*/
+int Configuration::xuserconfig(XrdOucStream &Config)
+{
+   auto val = Config.GetWord();
+   if (!val || val[0] == '\0')
+      {
+         m_log.Emsg("Config", "User config file path not specified!  Example usage: throttle.userconfig /etc/xrootd/throttle-users.conf"); return 1;
+      }
+
+   m_user_config_file = val;
+   m_log.Emsg("Config Info: using user config file at '", val, "'.");
    return 0;
 }

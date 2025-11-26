@@ -34,6 +34,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -85,6 +86,17 @@ void        SetMaxOpen(unsigned long max_open) {m_max_open = max_open;}
 void        SetMaxConns(unsigned long max_conns) {m_max_conns = max_conns;}
 
 void        SetMaxWait(unsigned long max_wait) {m_max_wait_time = std::chrono::seconds(max_wait);}
+
+// Load per-user limits from configuration file
+// Returns 0 on success, non-zero on failure
+int         LoadUserLimits(const std::string &config_file);
+
+// Reload per-user limits (for runtime reloading)
+int         ReloadUserLimits();
+
+// Get per-user connection limit for a given username
+// Returns 0 if no per-user limit is set (use global), otherwise returns the limit
+unsigned long GetUserMaxConn(const std::string &username);
 
 void        SetMonitor(XrdXrootdGStream *gstream) {m_gstream = gstream;}
 
@@ -246,6 +258,15 @@ std::unordered_map<std::string, unsigned long> m_file_counters;
 std::unordered_map<std::string, unsigned long> m_conn_counters;
 std::unordered_map<std::string, std::unique_ptr<std::unordered_map<pid_t, unsigned long>>> m_active_conns;
 std::mutex m_file_mutex;
+
+// Per-user connection limits
+struct UserLimit {
+    unsigned long max_conn{0};  // 0 means no limit (use global)
+    bool is_wildcard{false};    // true if this is a wildcard pattern
+};
+std::unordered_map<std::string, UserLimit> m_user_limits;
+std::shared_mutex m_user_limits_mutex;
+std::string m_user_config_file;
 
 // Track the ongoing I/O operations.  We have several linked lists (hashed on the
 // CPU ID) of I/O operations that are in progress.  This way, we can periodically sum
