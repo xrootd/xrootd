@@ -123,6 +123,51 @@ can limit the total open files per user:
 throttle.max_open_files LIMIT
 ```
 
+Per-User Connection Limits
+---------------------------
+
+The plugin supports per-user connection limits in addition to the global limit.
+This allows administrators to set different connection limits for individual users
+or groups of users.
+
+To enable per-user limits, specify a configuration file:
+
+```
+throttle.userconfig /etc/xrootd/throttle-users.conf
+```
+
+The per-user configuration file uses an INI-style format with sections for each
+user or user pattern:
+
+```
+[default]
+name = *
+maxconn = 200
+
+[user1]
+name = user1
+maxconn = 25
+
+[user2]
+name = user2
+maxconn = 50
+
+[wildcarduser]
+name = wildcarduser*
+maxconn = 10
+```
+
+- The `[default]` section with `name = *` applies to all users who don't match any specific rule
+- Each section must have a `name` parameter specifying the user or pattern
+- The `maxconn` parameter sets the maximum number of active connections
+- Wildcard patterns are supported in the `name` field (e.g., `name = user*` matches `user1`, `user2`, etc.)
+- Special pattern `name = *` acts as a catch-all for all users
+- Matching priority: exact user match > wildcard pattern match (longest prefix) > `*` catch-all > global limit
+
+**Note:** Per-user limits are checked in addition to global limits. If a global limit
+is set and a user's per-user limit is higher than the global limit, the global limit
+takes precedence.
+
 Log Configuration
 -----------------
 
