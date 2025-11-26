@@ -13,4 +13,9 @@ add_library(${XrdThrottle} MODULE
 
 target_link_libraries(${XrdThrottle} PRIVATE XrdServer XrdUtils)
 
+target_include_directories(${XrdThrottle}
+  PRIVATE
+    ../XrdSciTokens/vendor/inih
+)
+
 install(TARGETS ${XrdThrottle} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

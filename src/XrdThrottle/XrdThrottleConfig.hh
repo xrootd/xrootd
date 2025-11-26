@@ -96,6 +96,10 @@ public:
     // If not set, the default is 0.
     int GetTraceLevels() const { return m_trace_levels; }
 
+    // Get the per-user configuration file path.
+    // If not set, the default is empty.
+    const std::string &GetUserConfigFile() const { return m_user_config_file; }
+
 private:
     int xloadshed(XrdOucStream &Config);
     int xmaxopen(XrdOucStream &Config);
@@ -103,6 +107,7 @@ private:
     int xmaxwait(XrdOucStream &Config);
     int xthrottle(XrdOucStream &Config);
     int xtrace(XrdOucStream &Config);
+    int xuserconfig(XrdOucStream &Config);
 
     XrdOucEnv *m_env{nullptr};
     std::string m_fslib{"libXrdOfs.so"};
@@ -118,6 +123,7 @@ private:
     long long m_throttle_iops_rate{-1};
     long long m_throttle_recompute_interval_ms{1000};
     int m_trace_levels{0};
+    std::string m_user_config_file;
 };
 
 } // namespace XrdThrottle
