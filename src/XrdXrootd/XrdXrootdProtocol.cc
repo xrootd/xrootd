@@ -697,7 +697,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 //
    if (lp && Status == XRD_BOUNDPATH)
       {streamMutex.Lock();
-       isDead = isNOP = true;
+       isNOP = true;
        if (isActive)
           {if (isLinkWT)
               {streamMutex.UnLock();
@@ -712,6 +712,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
                streamMutex.UnLock();
               }
           } else streamMutex.UnLock();
+       boundRecycle->Post();
        if (lp) return;  // Async close
       }
 
@@ -1051,15 +1052,20 @@ void XrdXrootdProtocol::Cleanup()
 // there is any queued activity on subordinate streams. A subordinate
 // can either be closed from the session stream or asynchronously only if
 // it is active. Which means they could be running while we are running.
-// So, we first call close() which should trigger a recycle quiesce. Upon
-// return we can actually recycle the object.
+// So, we first call RequestClose. If this returns true it will inhibit the
+// asynchronous close and we call close(). Otherwise the asynchronous close
+// already hapened. Either way we wait for the boundRecycle semaphore to
+// confirm the first pass through Recycle (via close) and then we trigger
+// the actual recycle of the object.
 //
    if (Status != XRD_BOUNDPATH)
       {streamMutex.Lock();
        for (i = 1; i < maxStreams; i++)
            if (Stream[i])
               {Stream[i]->Stream[0] = 0;
-               if (!Stream[i]->isDead) Stream[i]->Link->Close();
+               const bool doCl = Stream[i]->RequestClose();
+               if (doCl) Stream[i]->Link->Close();
+               Stream[i]->boundRecycle->Wait();
                Stream[i]->Recycle(0, 0, 0);
                Stream[i] = 0;
               }
@@ -1118,6 +1124,10 @@ void XrdXrootdProtocol::Cleanup()
 // Release the pagewrite control object
 //
    if (pgwCtl) delete pgwCtl;
+
+// Release the recycle semaphore for bound connections
+//
+   if (boundRecycle) { delete boundRecycle; boundRecycle = 0; }
 }
   
 /******************************************************************************/
@@ -1496,10 +1506,12 @@ void XrdXrootdProtocol::Reset()
    Protect            = 0;
    mySID              = 0;
    CapVer             = 0;
+   CloseRequested     = false;
    clientPV           = 0;
    clientRN           = 0;
    pmDone             = false;
    reTry              = 0;
+   boundRecycle       = 0;
    endNote            = 0;
    PathID             = 0;
    newPio             = false;
@@ -1510,7 +1522,7 @@ void XrdXrootdProtocol::Reset()
    isTLS              = false;  // Made true when link converted to TLS
    linkAioReq         = 0;
    pioFree = pioFirst = pioLast = 0;
-   isActive = isLinkWT= isNOP = isDead = false;
+   isActive = isLinkWT= isNOP = false;
    sigNeed = sigHere = sigRead = false;
    sigWarn = true;
    rdType             = 0;
@@ -1519,4 +1531,26 @@ void XrdXrootdProtocol::Reset()
    memset((char *)&gdCtl,  0, sizeof(gdCtl));
    PrepareCount       = 0;
    if (AppName) {free(AppName); AppName = 0;}
+}
+
+/******************************************************************************/
+/*                          C l o s e R e q u e s t C b                       */
+/******************************************************************************/
+
+bool XrdXrootdProtocol::CloseRequestCb(void *cbarg)
+{
+   XrdXrootdProtocol *pp = (XrdXrootdProtocol*)cbarg;
+   return pp->RequestClose();
+}
+
+/******************************************************************************/
+/*                       D o C l o s e R e q u e s t e d                      */
+/******************************************************************************/
+
+bool XrdXrootdProtocol::RequestClose()
+{
+   XrdSysMutexHelper lk(unbindMutex);
+   if (CloseRequested) return false;
+   CloseRequested = true;
+   return true;
 }

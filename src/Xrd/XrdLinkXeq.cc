@@ -126,6 +126,7 @@ void XrdLinkXeq::Reset()
    KeepFD   = false;
    Protocol = 0;
    ProtoAlt = 0;
+   CloseRequestCb = 0;
 
    LinkInfo.Reset();
    PollInfo.Zorch();
@@ -309,9 +310,18 @@ void XrdLinkXeq::DoIt()
 // Either re-enable the link and cycle back waiting for a new request, leave
 // disabled, or terminate the connection.
 //
+   bool doCl = false;
    if (rc >= 0)
-      {if (PollInfo.Poller && !PollInfo.Poller->Enable(PollInfo)) Close();}
-      else if (rc != -EINPROGRESS) Close();
+      {if (PollInfo.Poller && !PollInfo.Poller->Enable(PollInfo)) doCl = true;}
+      else if (rc != -EINPROGRESS) doCl = true;
+
+   if (doCl)
+      {if (CloseRequestCb)
+         {const bool res = CloseRequestCb(CloseRequestCbArg);
+          if (!res) return;
+         }
+       Close();
+      }
 }
 
 /******************************************************************************/
@@ -1450,4 +1460,18 @@ bool XrdLinkXeq::TLS_Write(const char *Buff, int Blen)
 const char *XrdLinkXeq::verTLS()
 {
    return tlsIO.Version();
+}
+
+/******************************************************************************/
+/*                R e g i s t e r C l o s e R e q u e s t C b                 */
+/******************************************************************************/
+
+bool XrdLinkXeq::RegisterCloseRequestCb(XrdProtocol *pp, bool (*cb)(void*),
+                                        void* cbarg)
+{
+   if (pp != Protocol) return false;
+
+   CloseRequestCb = cb;
+   CloseRequestCbArg = cbarg;
+   return true;
 }

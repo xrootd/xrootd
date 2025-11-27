@@ -184,6 +184,15 @@ static void     SyncAll();
 static void     Unhook(int fd);
 
 //-----------------------------------------------------------------------------
+//! Regitsers an optional callback to be called if the Link determines it
+//! should Close. In case the callback returns false the Link will not Close
+//! itself, the Link should be Closed by an external call to Close.
+//-----------------------------------------------------------------------------
+
+static bool     RegisterCloseRequestCb(XrdLink *lp, XrdProtocol *pp,
+                                       bool (*cb)(void*), void* cbarg);
+
+//-----------------------------------------------------------------------------
 //! Link destruction control constants
 //-----------------------------------------------------------------------------
 

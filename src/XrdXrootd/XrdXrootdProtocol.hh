@@ -390,6 +390,9 @@ static unsigned int getSID();
        void  MonAuth();
        int   SetSF(kXR_char *fhandle, bool seton=false);
 
+       static bool  CloseRequestCb(void *cbarg);
+       bool         RequestClose();
+
 static XrdXrootdXPath        RPList;    // Redirected paths
 static XrdXrootdXPath        RQList;    // Redirected paths for ENOENT
 static XrdXrootdXPath        XPList;    // Exported   paths
@@ -521,6 +524,7 @@ char                       reserved[3];
 short                      rdType;
 char                       Status;
 unsigned char              CapVer;
+bool                       CloseRequested;
 
 // Authentication area
 //
@@ -599,13 +603,13 @@ static int                 hcMax;
 XrdSysMutex                unbindMutex;   // If locked always before streamMutex
 XrdSysMutex                streamMutex;
 XrdSysSemaphore           *reTry;
+XrdSysSemaphore           *boundRecycle;
 XrdSysCondVar2            *endNote;
 XrdXrootdProtocol         *Stream[maxStreams];
 unsigned int               mySID;
 bool                       isActive;
 bool                       isLinkWT;
 bool                       isNOP;
-bool                       isDead;
 
 static const int           maxPio = 4;
 XrdXrootdPio              *pioFirst;
