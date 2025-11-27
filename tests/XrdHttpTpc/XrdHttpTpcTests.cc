@@ -12,10 +12,11 @@ class XrdHttpTpcTests : public Test {};
 
 TEST(XrdHttpTpcTests, prepareOpenURLTest) {
   std::string resource = "/eos/test/file.txt";
+  std::map<std::string,std::string> empty {};
   {
     // Nothing to set in the openURL
     std::map<std::string, std::string> headers {{"Test","Test"}};
-    XrdHttpTpcUtils::PrepareOpenURLParams params{resource,headers, {},{}};
+    XrdHttpTpcUtils::PrepareOpenURLParams params{resource,headers, empty,empty};
     auto openURL = XrdHttpTpcUtils::prepareOpenURL(params);
 
     ASSERT_EQ(resource + "?" + TPC::TPCHandler::OSS_TASK_OPAQUE.data(),openURL);
@@ -26,7 +27,7 @@ TEST(XrdHttpTpcTests, prepareOpenURLTest) {
     // Then the authorization header should have been set and no "authz" should be found in the opaque of
     // the open URL
     std::map<std::string, std::string> headers {{"xrd-http-query","authz=test&scitag.flow=144"}};
-    XrdHttpTpcUtils::PrepareOpenURLParams params{resource,headers, {},{}};
+    XrdHttpTpcUtils::PrepareOpenURLParams params{resource,headers, empty,empty};
     auto openURL = XrdHttpTpcUtils::prepareOpenURL(params);
 
     ASSERT_NE(resource,openURL);
@@ -41,7 +42,7 @@ TEST(XrdHttpTpcTests, prepareOpenURLTest) {
     // If authz= was put in the opaque of the resource (and therefore put in the xrd-http-query header),
     // and if the the authorization header is provided, we should not override the provided authorization header
     std::map<std::string, std::string> headers {{"xrd-http-query","authz=test&scitag.flow=144"},{"Authorization","abcd"}};
-    XrdHttpTpcUtils::PrepareOpenURLParams params{resource,headers, {},{}};
+    XrdHttpTpcUtils::PrepareOpenURLParams params{resource,headers, empty,empty};
     auto openURL = XrdHttpTpcUtils::prepareOpenURL(params);
 
     ASSERT_NE(resource,openURL);
