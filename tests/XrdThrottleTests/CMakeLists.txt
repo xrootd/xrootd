@@ -13,7 +13,7 @@ target_link_libraries(XrdThrottleTestLib
 target_include_directories(XrdThrottleTestLib
   PUBLIC
     ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_SOURCE_DIR}/src/XrdSciTokens/vendor/inih
+    ${CMAKE_SOURCE_DIR}/vendor/inih
 )
 
 # Create the test executable
