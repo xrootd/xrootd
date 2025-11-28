@@ -441,6 +441,11 @@ namespace XrdCl
         pSendingState |= kSawReadySend;
       }
 
+      void OnWaitingToSend( [[maybe_unused]] Message *msg ) override
+      {
+        pSendingState = 0;
+      }
+
     private:
 
       // bit flags used with pSendingState
@@ -448,6 +453,7 @@ namespace XrdCl
       static constexpr int kSawResp      = 0x0002;
       static constexpr int kFinalResp    = 0x0004;
       static constexpr int kSawReadySend = 0x0008;
+      static constexpr int kRetryAtSrv   = 0x0010;
 
       //------------------------------------------------------------------------
       //! Recover error
@@ -687,6 +693,13 @@ namespace XrdCl
       // Count of consecutive `errTlsSslError` errors
       //------------------------------------------------------------------------
       size_t                                 pSslErrCnt;
+
+      //------------------------------------------------------------------------
+      // Used in case we need to delay retry sending while awaiting the initial
+      // message sent confirmation.
+      //------------------------------------------------------------------------
+      URL                                    pRetryAtUrl;
+      RedirectEntry::Type                    pRetryAtEntryType;
   };
 }
 

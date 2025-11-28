@@ -925,9 +925,11 @@ namespace XrdCl
 
     const int sst = pSendingState.fetch_or( kSendDone );
 
-    // if we have already seen a response we can not be in the out-queue
-    // anymore, so we should be getting notified of a successful send.
-    // But if not, log and do our best to recover.
+    // ignore if we're already in this state
+    if( status.IsOK() && ( sst & kSendDone ) ) return;
+
+    // if we have already seen a response we should be getting notified
+    // of a successful send. But if not, log and do our best to recover.
     if( !status.IsOK() && ( ( sst & kFinalResp ) || ( sst & kSawResp ) ) )
     {
       log->Error( XRootDMsg, "[%s] Unexpected error for message %s. Trying to "
@@ -944,6 +946,15 @@ namespace XrdCl
                  pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
       HandleRspOrQueue();
       return;
+    }
+
+    if( sst & kRetryAtSrv )
+    {
+      log->Dump( XRootDMsg, "[%s] Got late notification that outgoing message %s was "
+                 "sent, already want to retry at different server.",
+                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
+       HandleError( RetryAtServer( pRetryAtUrl, pRetryAtEntryType ) );
+       return;
     }
 
     if( sst & kSawResp )
@@ -2143,9 +2154,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RetryAtServer( const URL &url, RedirectEntry::Type entryType )
   {
-    // prepare to possibly be requeued in the out-queue for a different channel,
-    // so reset sendingstate.
-    pSendingState = 0;
+    if( &pRetryAtUrl != &url ) pRetryAtUrl = url;
+    pRetryAtEntryType = entryType;
+    const int sst = pSendingState.fetch_or( kRetryAtSrv );
+
+    //--------------------------------------------------------------------------
+    // wait for any delayed send notification now. The handler may be requeued
+    // during this function.
+    //--------------------------------------------------------------------------
+    if( ( sst & kSawReadySend ) && !( sst & kSendDone ) ) return Status();
+    pSendingState &= ~kRetryAtSrv;
 
     pResponse.reset();
     Log *log = DefaultEnv::GetLog();

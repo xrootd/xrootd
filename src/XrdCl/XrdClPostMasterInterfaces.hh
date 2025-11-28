@@ -177,6 +177,14 @@ namespace XrdCl
       };
 
       //------------------------------------------------------------------------
+      //! Called to indicate the message is waiting to be sent.
+      //------------------------------------------------------------------------
+      virtual void OnWaitingToSend( Message *msg )
+      {
+        (void)msg;
+      };
+
+      //------------------------------------------------------------------------
       //! Determines whether the handler wants to write some data directly
       //! to the socket after the message (or message header) has been sent,
       //! WriteMessageBody will be called

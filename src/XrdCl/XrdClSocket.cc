@@ -746,7 +746,7 @@ namespace XrdCl
     // if the server shut down the socket declare a socket error (it
     // will trigger a re-connect)
     if( status == 0 )
-      return XRootDStatus( stError, errSocketError, errno );
+      return XRootDStatus( stError, errSocketError );
 
     if( status < 0 )
       return ClassifyErrno( errno );
@@ -767,7 +767,7 @@ namespace XrdCl
     // if the server shut down the socket declare a socket error (it
     // will trigger a re-connect)
     if( status == 0 )
-      return XRootDStatus( stError, errSocketError, errno );
+      return XRootDStatus( stError, errSocketError );
 
     if( status < 0 )
       return ClassifyErrno( errno );
