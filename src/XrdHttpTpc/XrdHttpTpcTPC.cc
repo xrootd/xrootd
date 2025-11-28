@@ -85,74 +85,6 @@ void CurlDeleter::operator()(CURL *curl)
     if (curl) curl_easy_cleanup(curl);
 }
 
-/******************************************************************************/
-/*           s o c k o p t _ s e t c l o e x e c _ c a l l b a c k            */
-/******************************************************************************/
-  
-/**
- * The callback that will be called by libcurl when the socket has been created
- * https://curl.se/libcurl/c/CURLOPT_SOCKOPTFUNCTION.html
- *
- * Note: that this callback has been replaced by the opensocket_callback as it
- *       was needed for monitoring to report what IP protocol was being used.
- *       It has been kept in case we will need this callback in the future.
- */
-int TPCHandler::sockopt_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
-  TPCLogRecord * rec = (TPCLogRecord *)clientp;
-  if (purpose == CURLSOCKTYPE_IPCXN && rec && rec->pmarkManager.isEnabled()) {
-      // We will not reach this callback if the corresponding socket could not have been connected
-      // the socket is already connected only if the packet marking is enabled
-      return CURL_SOCKOPT_ALREADY_CONNECTED;
-  }
-  return CURL_SOCKOPT_OK;
-}
-
-/******************************************************************************/
-/*                   o p e n s o c k e t _ c a l l b a c k                    */
-/******************************************************************************/
-  
-  
-/**
- * The callback that will be called by libcurl when the socket is about to be
- * opened so we can capture the protocol that will be used.
- */
-int TPCHandler::opensocket_callback(void *clientp,
-                                    curlsocktype purpose,
-                                    struct curl_sockaddr *aInfo)
-{
-  //Return a socket file descriptor (note the clo_exec flag will be set).
-  int fd = XrdSysFD_Socket(aInfo->family, aInfo->socktype, aInfo->protocol);
-  // See what kind of address will be used to connect
-  //
-  if(fd < 0) {
-    return CURL_SOCKET_BAD;
-  }
-  TPCLogRecord * rec = (TPCLogRecord *)clientp;
-  if (purpose == CURLSOCKTYPE_IPCXN && clientp)
-  {XrdNetAddr thePeer(&(aInfo->addr));
-    rec->isIPv6 =  (thePeer.isIPType(XrdNetAddrInfo::IPv6)
-                    && !thePeer.isMapped());
-    std::stringstream connectErrMsg;
-
-    if(!rec->pmarkManager.connect(fd, &(aInfo->addr), aInfo->addrlen, CONNECT_TIMEOUT, connectErrMsg)) {
-      rec->m_log->Emsg(rec->log_prefix.c_str(),"Unable to connect socket:", connectErrMsg.str().c_str());
-      return CURL_SOCKET_BAD;
-    }
-  }
-
-  return fd;
-}
-
-int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
-  TPCLogRecord * rec = (TPCLogRecord *)clientp;
-
-  // Destroy the PMark handle associated to the file descriptor before closing it.
-  // Otherwise, we would lose the socket usage information if the socket is closed before
-  // the PMark handle is closed.
-  rec->pmarkManager.endPmark(fd);
-
-  return close(fd);
-}
 
 /******************************************************************************/
 /*                            p r e p a r e U R L                             */
@@ -316,7 +248,8 @@ TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
         m_timeout(60),
         m_first_timeout(120),
         m_log(log->logger(), "TPC_"),
-        m_sfs(NULL)
+        m_sfs(NULL),
+        m_request_manager(*myEnv, *log)
 {
     if (!Configure(config, myEnv)) {
         throw std::runtime_error("Failed to configure the HTTP third-party-copy handler.");
@@ -507,11 +440,30 @@ int TPCHandler::GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_
     reprDigest = state.GetReprDigest();
     return result;
 }
-  
+
 /******************************************************************************/
 /*            T P C H a n d l e r : : S e n d P e r f M a r k e r             */
 /******************************************************************************/
-  
+
+int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state, std::string desc) {
+    std::stringstream ss;
+    const std::string crlf = "\n";
+    ss << "Perf Marker" << crlf;
+    ss << "Timestamp: " << time(NULL) << crlf;
+    ss << "Stripe Index: 0" << crlf;
+    ss << "Stripe Bytes Transferred: " << state.BytesTransferred() << crlf;
+    ss << "Total Stripe Count: 1" << crlf;
+    if (!desc.empty()) ss << "RemoteConnections: " << desc << crlf;
+    ss << "End" << crlf;
+    rec.bytes_transferred = state.BytesTransferred();
+    logTransferEvent(LogMask::Debug, rec, "PERF_MARKER");
+    return req.ChunkResp(ss.str().c_str(), 0);
+}
+
+/******************************************************************************/
+/*            T P C H a n d l e r : : S e n d P e r f M a r k e r             */
+/******************************************************************************/
+
 int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state) {
     std::stringstream ss;
     const std::string crlf = "\n";
@@ -583,170 +535,69 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vecto
 /******************************************************************************/
 /*        T P C H a n d l e r : : R u n C u r l W i t h U p d a t e s         */
 /******************************************************************************/
-  
-int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
-    TPCLogRecord &rec)
-{
-    // Create the multi-handle and add in the current transfer to it.
-    CURLM *multi_handle = curl_multi_init();
-    if (!multi_handle) {
-        rec.status = 500;
-        logTransferEvent(LogMask::Error, rec, "CURL_INIT_FAIL",
-            "Failed to initialize a libcurl multi-handle");
-        std::stringstream ss;
-        ss << "Failed to initialize internal server memory";
-        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+
+int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state, TPCLogRecord &rec) {
+
+    std::string request_label = TPCRequestManager::TPCRequest::GenerateIdentifier("tpc", req.GetSecEntity().vorg, req.mSciTag);
+    TPCRequestManager::TPCRequest request(request_label, req.mSciTag, curl);
+
+    if (!m_request_manager.Produce(request)) {
+        int retval = req.StartChunkedResp(429, "Too Many Requests",
+                                          "Unable to accept HTTP-TPC requests "
+                                          "because server is too busy.  Try again later");
+        if (retval) {
+            logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL", "Failed to send the initial response to the TPC client");
+            return retval;
+        }
+        return -1;
     }
 
-    //curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 128*1024);
-
-    CURLMcode mres;
-    mres = curl_multi_add_handle(multi_handle, curl);
-    if (mres) {
-        rec.status = 500;
-        std::stringstream ss;
-        ss << "Failed to add transfer to libcurl multi-handle: HTTP library failure=" << curl_multi_strerror(mres);
-        logTransferEvent(LogMask::Error, rec, "CURL_INIT_FAIL", ss.str());
-        curl_multi_cleanup(multi_handle);
-        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
-    }
-
-    // Start response to client prior to the first call to curl_multi_perform
+    // curl_multi_perform is independently called in the worker thread
+    // we can however initiate a cancel here
     int retval = req.StartChunkedResp(201, "Created", "Content-Type: text/plain");
     if (retval) {
-        curl_multi_cleanup(multi_handle);
+        request.Cancel();
         logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
             "Failed to send the initial response to the TPC client");
-        return retval;
     } else {
         logTransferEvent(LogMask::Debug, rec, "RESPONSE_START",
             "Initial transfer response sent to the TPC client");
     }
 
-    // Transfer loop: use curl to actually run the transfer, but periodically
-    // interrupt things to send back performance updates to the client.
-    int running_handles = 1;
-    time_t last_marker = 0;
     // Track how long it's been since the last time we recorded more bytes being transferred.
     off_t last_advance_bytes = 0;
     time_t last_advance_time = time(NULL);
     time_t transfer_start = last_advance_time;
     CURLcode res = static_cast<CURLcode>(-1);
-    do {
-        time_t now = time(NULL);
-        time_t next_marker = last_marker + m_marker_period;
-        if (now >= next_marker) {
-            off_t bytes_xfer = state.BytesTransferred();
-            if (bytes_xfer > last_advance_bytes) {
-                last_advance_bytes = bytes_xfer;
-                last_advance_time = now;
-            }
-            if (SendPerfMarker(req, rec, state)) {
-                curl_multi_remove_handle(multi_handle, curl);
-                curl_multi_cleanup(multi_handle);
-                logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL",
-                    "Failed to send a perf marker to the TPC client");
-                return -1;
-            }
-            int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
-            if (now > last_advance_time + timeout) {
-                const char *log_prefix = rec.log_prefix.c_str();
-                bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
 
-                state.SetErrorCode(10);
-                std::stringstream ss;
-                ss << "Transfer failed because no bytes have been "
-                   << (tpc_pull ? "received from the source (pull mode) in "
-                                : "transmitted to the destination (push mode) in ") << timeout << " seconds.";
-                state.SetErrorMessage(ss.str());
-                curl_multi_remove_handle(multi_handle, curl);
-                curl_multi_cleanup(multi_handle);
-                break;
-            }
-            last_marker = now;
+    // The transfer will start after this point, notify the packet marking
+    // manager
+
+    while ((res = (CURLcode)request.WaitFor(std::chrono::seconds(m_marker_period))) < 0) {
+        auto now = time(NULL);
+        std::string conn_desc = request.GetRemoteConnDesc();
+        off_t bytes_xfer = state.BytesTransferred();
+        if (bytes_xfer > last_advance_bytes) {
+            last_advance_bytes = bytes_xfer;
+            last_advance_time = now;
         }
-        // The transfer will start after this point, notify the packet marking manager
-        rec.pmarkManager.startTransfer();
-        mres = curl_multi_perform(multi_handle, &running_handles);
-        if (mres == CURLM_CALL_MULTI_PERFORM) {
-            // curl_multi_perform should be called again immediately.  On newer
-            // versions of curl, this is no longer used.
-            continue;
-        } else if (mres != CURLM_OK) {
-            break;
-        } else if (running_handles == 0) {
-            break;
+        if (SendPerfMarker(req, rec, state, conn_desc)) {
+            request.Cancel();
+            logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL", "Failed to send a perf marker to the TPC client");
         }
-
-        rec.pmarkManager.beginPMarks();
-        //printf("There are %d running handles\n", running_handles);
-
-        // Harvest any messages, looking for CURLMSG_DONE.
-        CURLMsg *msg;
-        do {
-            int msgq = 0;
-            msg = curl_multi_info_read(multi_handle, &msgq);
-            if (msg && (msg->msg == CURLMSG_DONE)) {
-                CURL *easy_handle = msg->easy_handle;
-                res = msg->data.result;
-                curl_multi_remove_handle(multi_handle, easy_handle);
-            }
-        } while (msg);
-
-        int64_t max_sleep_time = next_marker - time(NULL);
-        if (max_sleep_time <= 0) {
-            continue;
+        int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
+        if (now > last_advance_time + timeout) {
+            const char *log_prefix = rec.log_prefix.c_str();
+            bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
+            request.Cancel();
+            state.SetErrorCode(10);
+            std::stringstream ss;
+            ss << "Transfer failed because no bytes have been "
+               << (tpc_pull ? "received from the source (pull mode) in " : "transmitted to the destination (push mode) in ") << timeout
+               << " seconds.";
+            state.SetErrorMessage(ss.str());
         }
-        int fd_count;
-        mres = curl_multi_wait(multi_handle, NULL, 0, max_sleep_time*1000, &fd_count);
-        if (mres != CURLM_OK) {
-            break;
-        }
-    } while (running_handles);
-
-    if (mres != CURLM_OK) {
-        std::stringstream ss;
-        ss << "Internal libcurl multi-handle error: HTTP library failure=" << curl_multi_strerror(mres);
-        logTransferEvent(LogMask::Error, rec, "TRANSFER_CURL_ERROR", ss.str());
-
-        curl_multi_remove_handle(multi_handle, curl);
-        curl_multi_cleanup(multi_handle);
-
-        if ((retval = req.ChunkResp(generateClientErr(ss, rec).c_str(), 0))) {
-            logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
-                "Failed to send error message to the TPC client");
-            return retval;
-        }
-        return req.ChunkResp(NULL, 0);
     }
-
-    // Harvest any messages, looking for CURLMSG_DONE.
-    CURLMsg *msg;
-    do {
-        int msgq = 0;
-        msg = curl_multi_info_read(multi_handle, &msgq);
-        if (msg && (msg->msg == CURLMSG_DONE)) {
-            CURL *easy_handle = msg->easy_handle;
-            res = msg->data.result;
-            curl_multi_remove_handle(multi_handle, easy_handle);
-        }
-    } while (msg);
-
-    if (!state.GetErrorCode() && res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
-        curl_multi_remove_handle(multi_handle, curl);
-        curl_multi_cleanup(multi_handle);
-        std::stringstream ss;
-        ss << "Internal state error in libcurl";
-        logTransferEvent(LogMask::Error, rec, "TRANSFER_CURL_ERROR", ss.str());
-
-        if ((retval = req.ChunkResp(generateClientErr(ss, rec).c_str(), 0))) {
-            logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
-                "Failed to send error message to the TPC client");
-            return retval;
-        }
-        return req.ChunkResp(NULL, 0);
-    }
-    curl_multi_cleanup(multi_handle);
 
     state.Flush();
 
@@ -829,13 +680,6 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
-//  curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_setcloexec_callback);
-
-    curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
-    curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
-    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
-    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
-    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT);
     auto query_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"xrd-http-fullresource");
     std::string redirect_resource = req.resource;
@@ -944,13 +788,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
-//  curl_easy_setopt(curl,CURLOPT_SOCKOPTFUNCTION,sockopt_setcloexec_callback);
-    curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
-    curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
-    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
     curl_easy_setopt(curl, CURLOPT_SOCKOPTDATA , &rec);
-    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
-    curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT);
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
     if (!fh.get()) {

@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 
+#include "XrdSys/XrdSysRAtomic.hh"
+
 // Forward dec'ls
 class XrdSfsFile;
 class XrdHttpExtReq;
@@ -173,7 +175,7 @@ private:
     bool m_push;  // whether we are transferring in "push-mode"
     bool m_recv_status_line;  // whether we have received a status line in the response from the remote host.
     bool m_recv_all_headers;  // true if we have seen the end of headers.
-    off_t m_offset;  // number of bytes we have received.
+    XrdSys::RAtomic<off_t> m_offset;  // number of bytes we have received.
     off_t m_start_offset;  // offset where we started in the file.
     int m_status_code;  // status code from HTTP response.
     int m_error_code; // error code from underlying stream operations.

@@ -11,6 +11,7 @@
 
 #include "XrdTls/XrdTlsTempCA.hh"
 #include "XrdHttpTpcPMarkManager.hh"
+#include "XrdHttpTpcPool.hh"
 
 #include <curl/curl.h>
 
@@ -55,12 +56,6 @@ public:
     static constexpr std::string_view OSS_TASK_OPAQUE = "oss.task=httptpc";
 private:
 
-    static int sockopt_callback(void * clientp, curl_socket_t curlfd, curlsocktype purpose);
-    static int opensocket_callback(void *clientp,
-                                   curlsocktype purpose,
-                                   struct curl_sockaddr *address);
-
-    static int closesocket_callback(void *clientp, curl_socket_t fd);
 
     struct TPCLogRecord {
 
@@ -117,6 +112,7 @@ private:
     int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state);
     int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vector<State*> &state,
         off_t bytes_transferred);
+    int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state, std::string desc);
 
     // Perform the libcurl transfer, periodically sending back chunked updates.
     int RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
@@ -175,6 +171,7 @@ private:
     XrdSysError m_log;
     XrdSfsFileSystem *m_sfs;
     std::shared_ptr<XrdTlsTempCA> m_ca_file;
+    TPCRequestManager m_request_manager; // Manager of the request & worker pools for executing TPC transfers
 
     // 16 blocks in flight at 16 MB each, meaning that there will be up to 256MB
     // in flight; this is equal to the bandwidth delay product of a 200ms transcontinental
