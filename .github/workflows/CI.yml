@@ -52,7 +52,6 @@ jobs:
           g++ \
           git \
           gtest-dev \
-          isa-l-dev \
           json-c-dev \
           krb5 \
           krb5-dev \

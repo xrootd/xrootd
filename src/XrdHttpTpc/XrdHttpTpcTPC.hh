@@ -181,8 +181,6 @@ private:
     // connection at 10Gbps.
     static const int m_pipelining_multiplier = 16;
 
-    bool usingEC; // indicate if XrdEC is used
-
     // Time to connect the curl socket to the remote server uses the linux's default value
     // of 60 seconds
     static const long CONNECT_TIMEOUT = 60;

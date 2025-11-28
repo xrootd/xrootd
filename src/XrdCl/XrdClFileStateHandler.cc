@@ -40,10 +40,6 @@
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClUtils.hh"
 
-#ifdef WITH_XRDEC
-#include "XrdCl/XrdClEcHandler.hh"
-#endif
-
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -421,23 +417,7 @@ namespace
         OpenInfo *openInfo = 0;
         if( status->IsOK() )
           response->Get( openInfo );
-#ifdef WITH_XRDEC
-        else
-          //--------------------------------------------------------------------
-          // Handle EC redirect
-          //--------------------------------------------------------------------
-          if( status->code == errRedirect )
-          {
-            std::string ecurl = status->GetErrorMessage();
-            EcHandler *ecHandler = GetEcHandler( hostList->front().url, ecurl );
-            if( ecHandler )
-            {
-              pStateHandler->pPlugin = ecHandler; // set the plugin for the File object
-              ecHandler->Open( pStateHandler->pOpenFlags, pUserHandler, 0/*TODO figure out right value for the timeout*/ );
-              return;
-            }
-          }
-#endif
+
         //----------------------------------------------------------------------
         // Notify the state handler and the client and say bye bye
         //----------------------------------------------------------------------

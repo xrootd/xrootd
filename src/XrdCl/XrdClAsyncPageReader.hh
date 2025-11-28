@@ -340,6 +340,6 @@ class AsyncPageReader
     static const int PageWithDigest = XrdSys::PageSize + sizeof( uint32_t );
 };
 
-} /* namespace XrdEc */
+} /* namespace XrdCl */
 
 #endif /* SRC_XRDCL_XRDCLASYNCPAGEREADER_HH_ */

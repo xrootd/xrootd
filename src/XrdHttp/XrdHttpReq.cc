@@ -1276,10 +1276,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         l = resourceplusopaque.length() + 1;
         xrdreq.open.dlen = htonl(l);
         xrdreq.open.mode = htons(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
-        if (! XrdHttpProtocol::usingEC) 
-          xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_delete);
-        else
-          xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_new);
+        xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_delete);
 
         if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
           prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, keepalive);

@@ -222,11 +222,6 @@ namespace XrdCl
                                             bool              zip = false );
 
       //------------------------------------------------------------------------
-      //! Check if this client can support given EC redirect
-      //------------------------------------------------------------------------
-      static bool CheckEC( const Message *req, const URL &url );
-
-      //------------------------------------------------------------------------
       //! Get protocol version of the given server
       //! @param url     : URL pointing to the server
       //! @param protver : protocol version (output parameter)

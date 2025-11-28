@@ -429,11 +429,6 @@ static int  Open(const char *path, int oflag, mode_t mode,
                  XrdPosixCallBack *cbP, XrdPosixInfo *infoP);
 static bool OpenCache(XrdPosixFile &file, XrdPosixInfo &Info);
 
-// functions that will be used when XrdEC is invoked
-static int  EcRename(const char*, const char*, XrdPosixAdmin&);
-static int  EcStat(const char*, struct stat*, XrdPosixAdmin&);
-static int  EcUnlink(const char*, XrdPosixAdmin&);
-
 static int  baseFD;
 static int  initDone;
 };

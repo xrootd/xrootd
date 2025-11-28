@@ -11,7 +11,6 @@ RUN apk add \
 	g++ \
 	git \
 	gtest-dev \
-	isa-l-dev \
 	json-c-dev \
 	krb5-dev \
 	libxml2-dev \

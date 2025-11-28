@@ -87,7 +87,6 @@ extern bool                       oidsOK;
 extern bool                       p2lSRC;
 extern bool                       p2lSGI;
 extern bool                       autoPGRD;
-extern bool                       usingEC;
 };
   
 /******************************************************************************/
@@ -178,11 +177,6 @@ void XrdPosixConfig::EnvInfo(XrdOucEnv &theEnv)
 // method as it picks it up during init time. We leave the code for historical
 // reasons but we really should have gotten rid of EnvInfo()!
 // if (XrdPosixGlobals::myCache2) XrdPosixGlobals::myCache2->EnvInfo(theEnv);
-
-// Test if XRDCL_EC is set. That env var. is set at XrdCl::PlugInManager::LoadFactory
-// in XrdClPlugInManager.cc, which is called (by XrdOssGetSS while loading 
-// libXrdPss.so) before this function. 
-   XrdPosixGlobals::usingEC = getenv("XRDCL_EC")? true : false;
 }
 
 /******************************************************************************/
