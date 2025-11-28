@@ -64,7 +64,6 @@ add_subdirectory( XrdXml )
 
 add_subdirectory( XrdCl )
 add_subdirectory( XrdClHttp )
-add_subdirectory( XrdEc )
 
 if( NOT XRDCL_ONLY )
   add_library(XrdServer SHARED)

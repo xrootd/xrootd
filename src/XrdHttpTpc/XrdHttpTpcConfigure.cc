@@ -22,9 +22,6 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
 
     m_log.setMsgMask(LogMask::Warning | LogMask::Error);
 
-    // test if XrdEC is used
-    usingEC = getenv("XRDCL_EC")? true : false;
-
     std::string authLib;
     std::string authLibParms;
     int cfgFD = open(configfn, O_RDONLY, 0);
