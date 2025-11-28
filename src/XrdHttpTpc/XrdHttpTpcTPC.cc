@@ -968,7 +968,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
     auto overwrite_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"overwrite");
     if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
-        if (! usingEC) mode = SFS_O_TRUNC;
+      mode = SFS_O_TRUNC;
     }
     int streams = 1;
     {

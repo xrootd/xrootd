@@ -638,8 +638,6 @@ namespace XrdCl
           if( ~uint32_t( rsp->body.redirect.port ) & kXR_ecRedir )
           {
             std::string url( rsp->body.redirect.host, rsp->hdr.dlen-4 );
-            if( Utils::CheckEC( pRequest, url ) )
-              pRedirectAsAnswer = true;
           }
         }
 
