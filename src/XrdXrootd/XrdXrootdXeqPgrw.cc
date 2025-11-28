@@ -167,7 +167,7 @@ int XrdXrootdProtocol::do_PgRead()
    &&  linkAioReq < as_maxperlnk && srvrAioOps < as_maxpersrv
    &&  !(IO.Flags & XrdProto::kXR_pgRetry))
         {XrdXrootdProtocol *pP;
-         XrdXrootdPgrwAio  *aioP;
+         XrdXrootdPgrwAio  *aioP=0;
          int rc;
 
          if (!pathID) pP = this;
@@ -175,7 +175,18 @@ int XrdXrootdProtocol::do_PgRead()
                   if (pP->linkAioReq >= as_maxperlnk) pP = 0;
                  }
 
-         if (pP && (aioP = XrdXrootdPgrwAio::Alloc(pP, Response, IO.File)))
+         if (pP)
+            {// Use of TmpRsp here is to avoid modying pP. It is built
+             // to contain the correct streamid for this request and the
+             // right Link for the pathID. It's used by Alloc to call
+             // XrdXrootdAioTask::Init which in turn makes a copy of TmpRsp
+             // to its own response object and also keeps the Link pointer.
+             XrdXrootdResponse TmpRsp;
+             TmpRsp = Response;
+             TmpRsp.Set(pP->Link);
+             aioP = XrdXrootdPgrwAio::Alloc(pP, TmpRsp, IO.File);
+            }
+         if (aioP)
             {if (!IO.File->aioFob) IO.File->aioFob = new XrdXrootdAioFob;
              aioP->Read(IO.Offset, IO.IOLen);
              return 0;
