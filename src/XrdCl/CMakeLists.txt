@@ -82,21 +82,6 @@ target_link_libraries(XrdCl
     ${CMAKE_DL_LIBS}
 )
 
-if(BUILD_XRDEC)
-  target_sources(XrdCl
-    PRIVATE
-      ../XrdEc/XrdEcRedundancyProvider.cc
-      ../XrdEc/XrdEcUtilities.cc
-      ../XrdEc/XrdEcStrmWriter.cc
-      ../XrdEc/XrdEcReader.cc
-      XrdClEcHandler.cc
-  )
-
-  target_compile_definitions(XrdCl PRIVATE WITH_XRDEC)
-  target_include_directories(XrdCl PRIVATE ${ISAL_INCLUDE_DIRS})
-  target_link_libraries(XrdCl PRIVATE ${ISAL_LIBRARIES})
-endif()
-
 set_target_properties(XrdCl
   PROPERTIES VERSION 3.0.0 SOVERSION 3)
 

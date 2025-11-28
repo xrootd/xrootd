@@ -48,53 +48,23 @@ Build project
    0 Compiler warnings
 Test project xrootd/build
       Start  1: XrdCl::URLTest.LocalURLs
- 1/23 Test  #1: XrdCl::URLTest.LocalURLs .....................   Passed    0.01 sec
+ 1/8  Test  #1: XrdCl::URLTest.LocalURLs .....................   Passed    0.01 sec
       Start  2: XrdCl::URLTest.RemoteURLs
- 2/23 Test  #2: XrdCl::URLTest.RemoteURLs ....................   Passed    0.12 sec
+ 2/8  Test  #2: XrdCl::URLTest.RemoteURLs ....................   Passed    0.12 sec
       Start  3: XrdCl::URLTest.InvalidURLs
- 3/23 Test  #3: XrdCl::URLTest.InvalidURLs ...................   Passed    0.01 sec
+ 3/8  Test  #3: XrdCl::URLTest.InvalidURLs ...................   Passed    0.01 sec
       Start  4: XrdHttpTests.checksumHandlerTests
- 4/23 Test  #4: XrdHttpTests.checksumHandlerTests ............   Passed    0.01 sec
+ 4/8  Test  #4: XrdHttpTests.checksumHandlerTests ............   Passed    0.01 sec
       Start  5: XrdHttpTests.checksumHandlerSelectionTest
- 5/23 Test  #5: XrdHttpTests.checksumHandlerSelectionTest ....   Passed    0.01 sec
+ 5/8  Test  #5: XrdHttpTests.checksumHandlerSelectionTest ....   Passed    0.01 sec
       Start  6: XrdCl::Poller
- 6/23 Test  #6: XrdCl::Poller ................................   Passed    5.01 sec
+ 6/8  Test  #6: XrdCl::Poller ................................   Passed    5.01 sec
       Start  7: XrdCl::Socket
- 7/23 Test  #7: XrdCl::Socket ................................   Passed    0.02 sec
+ 7/8  Test  #7: XrdCl::Socket ................................   Passed    0.02 sec
       Start  8: XrdCl::Utils
- 8/23 Test  #8: XrdCl::Utils .................................   Passed    8.01 sec
-      Start  9: XrdEc::AlignedWriteTest
- 9/23 Test  #9: XrdEc::AlignedWriteTest ......................   Passed    0.06 sec
-      Start 10: XrdEc::SmallWriteTest
-10/23 Test #10: XrdEc::SmallWriteTest ........................   Passed    0.06 sec
-      Start 11: XrdEc::BigWriteTest
-11/23 Test #11: XrdEc::BigWriteTest ..........................   Passed    0.05 sec
-      Start 12: XrdEc::VectorReadTest
-12/23 Test #12: XrdEc::VectorReadTest ........................   Passed    0.06 sec
-      Start 13: XrdEc::IllegalVectorReadTest
-13/23 Test #13: XrdEc::IllegalVectorReadTest .................   Passed    0.06 sec
-      Start 14: XrdEc::AlignedWrite1MissingTest
-14/23 Test #14: XrdEc::AlignedWrite1MissingTest ..............   Passed    0.06 sec
-      Start 15: XrdEc::AlignedWrite2MissingTest
-15/23 Test #15: XrdEc::AlignedWrite2MissingTest ..............   Passed    0.05 sec
-      Start 16: XrdEc::AlignedWriteTestIsalCrcNoMt
-16/23 Test #16: XrdEc::AlignedWriteTestIsalCrcNoMt ...........   Passed    0.06 sec
-      Start 17: XrdEc::SmallWriteTestIsalCrcNoMt
-17/23 Test #17: XrdEc::SmallWriteTestIsalCrcNoMt .............   Passed    0.06 sec
-      Start 18: XrdEc::BigWriteTestIsalCrcNoMt
-18/23 Test #18: XrdEc::BigWriteTestIsalCrcNoMt ...............   Passed    0.06 sec
-      Start 19: XrdEc::AlignedWrite1MissingTestIsalCrcNoMt
-19/23 Test #19: XrdEc::AlignedWrite1MissingTestIsalCrcNoMt ...   Passed    0.06 sec
-      Start 20: XrdEc::AlignedWrite2MissingTestIsalCrcNoMt
-20/23 Test #20: XrdEc::AlignedWrite2MissingTestIsalCrcNoMt ...   Passed    0.06 sec
-      Start 21: XRootD::start
-21/23 Test #21: XRootD::start ................................   Passed    0.01 sec
-      Start 23: XRootD::smoke-test
-22/23 Test #23: XRootD::smoke-test ...........................   Passed    1.63 sec
-      Start 22: XRootD::stop
-23/23 Test #22: XRootD::stop .................................   Passed    1.00 sec
+ 8/8  Test  #8: XrdCl::Utils .................................   Passed    8.01 sec
 
-100% tests passed, 0 tests failed out of 23
+100% tests passed, 0 tests failed out of 8
 
 Total Test time (real) =  16.55 sec
 ```

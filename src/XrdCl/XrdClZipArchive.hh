@@ -42,9 +42,6 @@
 //-----------------------------------------------------------------------------
 // Forward declaration needed for friendship
 //-----------------------------------------------------------------------------
-namespace XrdEc{ class StrmWriter; class Reader; template<bool> class OpenOnlyImpl; }
-class MicroTest;
-class XrdEcTests;
 
 namespace XrdCl
 {
@@ -59,13 +56,6 @@ namespace XrdCl
   //---------------------------------------------------------------------------
   class ZipArchive
   {
-    friend class XrdEc::StrmWriter;
-    friend class XrdEc::Reader;
-    template<bool>
-    friend class XrdEc::OpenOnlyImpl;
-    friend class ::MicroTest;
-    friend class ::XrdEcTests;
-
     template<typename RSP>
     friend XRootDStatus ReadFromImpl( ZipArchive&, const std::string&, uint64_t, uint32_t, void*, ResponseHandler*, time_t );
 
