@@ -167,7 +167,7 @@ int XrdXrootdProtocol::do_PgRead()
    &&  linkAioReq < as_maxperlnk && srvrAioOps < as_maxpersrv
    &&  !(IO.Flags & XrdProto::kXR_pgRetry))
         {XrdXrootdProtocol *pP;
-         XrdXrootdPgrwAio  *aioP;
+         XrdXrootdPgrwAio  *aioP=0;
          int rc;
 
          if (!pathID) pP = this;
@@ -175,7 +175,13 @@ int XrdXrootdProtocol::do_PgRead()
                   if (pP->linkAioReq >= as_maxperlnk) pP = 0;
                  }
 
-         if (pP && (aioP = XrdXrootdPgrwAio::Alloc(pP, Response, IO.File)))
+         if (pP)
+            {XrdXrootdResponse TmpRsp;
+             TmpRsp = Response;
+             TmpRsp.Set(pP->Link);
+             aioP = XrdXrootdPgrwAio::Alloc(pP, TmpRsp, IO.File);
+            }
+         if (aioP)
             {if (!IO.File->aioFob) IO.File->aioFob = new XrdXrootdAioFob;
              aioP->Read(IO.Offset, IO.IOLen);
              return 0;
