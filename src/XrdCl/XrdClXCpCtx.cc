@@ -65,6 +65,7 @@ bool XCpCtx::GetNextUrl( std::string & url )
 
 XCpSrc* XCpCtx::WeakestLink( XCpSrc *exclude )
 {
+  XrdSysMutexHelper lck( pMtx );
   uint64_t transferRate = -1; // set transferRate to max uint64 value
   XCpSrc *ret = 0;
 
