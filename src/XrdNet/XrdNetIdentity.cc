@@ -41,59 +41,67 @@
 /*        O n e   T i m e   S t a t i c   I n i t i a l i z a t i o n         */
 /******************************************************************************/
 
-namespace
-{
-char *getMyFQN(const char *&myDom, bool &myFQN, const char *&myErr)
-{
-   XrdNetAddr theAddr;
-   XrdOucTList *ifList, *ifNow;
-   const char *dnsName, *domP;
-   char *theName[2] = {0}, *theDom[2] = {0}, *theIPA[2] = {0}, hName[1025];
-   int hnLen;
+// Note that we are gauranteed that this will be fully initialzed prior
+// to any method called that uses these values irrespective of static
+// initialization order, even though statically initialized.
 
-// Make sure domain is set to something that is valid
+static char DNS_FQN[256];       // Fully qualified hostname
+static const char *DNS_Domain;  // Starts with leading dot, points into DNS_FQN!
+static const char *DNS_Error;   // Error indicator for debugging only
+
+static bool getMyFQN()
+{
+// Initialize name, domain, and error to empty strings
 //
-   myDom = "";
+   memset(DNS_FQN, '\0', sizeof(DNS_FQN));
+   DNS_Domain = DNS_FQN;
+   DNS_Error = nullptr;
 
 // The identity can be specified via an envar. In this case, it short circuits
 // all the subsequent code.
 //
+   const char *dnsName = nullptr;
    if ((dnsName = getenv("XRDNET_IDENTITY")))
-      {if (XrdNetAddrInfo::isHostName(dnsName)
-       &&  !(myDom = index(dnsName, '.'))) myDom = "";
-       myFQN = false;
-       char* tmp = strdup(dnsName);
-       XrdOucUtils::toLower(tmp);
-       return tmp;
+      {strlcpy(DNS_FQN, dnsName, sizeof(DNS_FQN));
+       XrdOucUtils::toLower(DNS_FQN);
+       if (XrdNetAddrInfo::isHostName(DNS_FQN) && !(DNS_Domain = index(DNS_FQN, '.')))
+         DNS_Domain = "";
+       return false;
       }
-   myFQN = true;
 
 // Obtain the host name, this is mandatory.
 //
-   if (gethostname(hName, sizeof(hName)))
-      {myErr = XrdSysE2T(errno); myDom = 0; return 0;}
-   hnLen = strlen(hName);
-   XrdOucUtils::toLower(hName);
+   if (gethostname(DNS_FQN, sizeof(DNS_FQN)))
+      {DNS_Error = XrdSysE2T(errno); DNS_Domain = ""; return false;}
+
+   int hnLen = strlen(DNS_FQN);
+   XrdOucUtils::toLower(DNS_FQN);
 
 // First step it to get all IP addresses configured on this machine
 //
-   if (!XrdNetIF::GetIF(&ifList, &myErr))
-      {myDom = ""; return strdup(hName);}
+   XrdOucTList *ifList = nullptr;
+   if (!XrdNetIF::GetIF(&ifList, &DNS_Error))
+      {DNS_Domain = ""; return true;}
 
 // Run through the interfaces and try to get the hostname associated with
 // this machine. Note that we may have public and private addresses and
 // they may have different hostname attached. We only accept the hostname
 // that matches what is returned by gethostname().
 //
+   XrdNetAddr theAddr;
+   const char *domP = nullptr;
+   char *theIPA[2]  = { nullptr, nullptr };
+   char *theName[2] = { nullptr, nullptr };
+   XrdOucTList *ifNow = nullptr;
+
    while((ifNow = ifList))
         {int i = (ifNow->sval[1] ? 1 : 0); // Private | public
 
          if (i >= 0 && theName[i] == 0 && !theAddr.Set(ifNow->text, 0)
-         &&  (dnsName = theAddr.Name(0,&myErr)) && (domP = index(dnsName,'.')))
+         &&  (dnsName = theAddr.Name(0,&DNS_Error)) && (domP = index(dnsName,'.')))
             {int n = domP - dnsName;
-             if (n == hnLen && !strncmp(hName, dnsName, n))
+             if (n == hnLen && !strncmp(DNS_FQN, dnsName, n))
                 {theName[i] = strdup(dnsName);
-                 theDom[i]  = theName[i] + n;
                 } else {
                  if (theIPA[i]) free(theIPA[i]);
                  theIPA[i] = strdup(ifNow->text);
@@ -105,36 +113,34 @@ char *getMyFQN(const char *&myDom, bool &myFQN, const char *&myErr)
 
 // Fix up error pointer
 //
-  if (myErr == 0) myErr = "no error";
+  if (DNS_Error == 0) DNS_Error = "no error";
 
 // We prefer the public name should we have it
 //
    if (theName[0])
-      {if (theName[1]) free(theName[1]);
-       myDom = theDom[0];
-       return theName[0];
+      {strlcpy(DNS_FQN, theName[0], sizeof(DNS_FQN));
+       goto done;
       }
-  
+
 // Use the private name should we have it
 //
    if (theName[1])
-      {myDom = theDom[1];
-       return theName[1];
+      {strlcpy(DNS_FQN, theName[1], sizeof(DNS_FQN));
+       goto done;
       }
 
 // Concote a name using old-style DNS resolution. This may not work if DNS
 // namespaces are being used (e.g. k8s environments) or if the hostname is not
 // resolvable. We will catch that here and move on.
 //
-   if ((myErr = theAddr.Set(hName,0))) dnsName = 0;
-      else dnsName = theAddr.Name(0, &myErr);
+   if ((DNS_Error = theAddr.Set(DNS_FQN,0))) dnsName = nullptr;
+      else dnsName = theAddr.Name(0, &DNS_Error);
 
 // Check if this worked
 //
    if (dnsName)
-      {theName[0] = strdup(dnsName);
-       if (!(myDom = index(theName[0], '.'))) myDom = "";
-       return theName[0];
+      {strlcpy(DNS_FQN, dnsName, sizeof(DNS_FQN));
+       goto done;
       }
 
 // Prefrentially return the hostname as an address as the value of gethostname()
@@ -143,32 +149,34 @@ char *getMyFQN(const char *&myDom, bool &myFQN, const char *&myErr)
 // address first. Note that we prefrentially return the IPv6 address here.
 //
    if (theIPA[0])
-      {if (theIPA[1]) free(theIPA[1]);
-       return theIPA[0];
+      {strlcpy(DNS_FQN, theIPA[0], sizeof(DNS_FQN));
+       goto done;
       }
-   if (theIPA[1]) return theIPA[1];
-   
+
+   if (theIPA[1])
+      {strlcpy(DNS_FQN, theIPA[1], sizeof(DNS_FQN));
+       goto done;
+      }
+
 // Fallback to using the simple unqualified hostname, this still may be OK but
 // this is likely to fail in certain situations where DNS is screwed up.
 //
-   theName[0] = strdup(hName);
-   myDom = theName[0] + hnLen;
-   return theName[0];
-}
-}
-  
-/******************************************************************************/
-/*                        S t a t i c   M e m b e r s                         */
-/******************************************************************************/
+   DNS_Domain = "";
+   return true;
 
-// Note that we are gauranteed that this will be fully initialzed prior
-// to any method called that uses these values irrespective of static
-// initialization order, even though statically initialized.
-  
-const char *XrdNetIdentity::DNS_Domain;
-const char *XrdNetIdentity::DNS_Error;
-      char *XrdNetIdentity::DNS_FQN = getMyFQN(DNS_Domain, FQN_DNS, DNS_Error);
-      bool  XrdNetIdentity::FQN_DNS;
+done:
+   free(theName[0]);
+   free(theName[1]);
+   free(theIPA[0]);
+   free(theIPA[1]);
+
+   if (!(DNS_Domain = index(DNS_FQN, '.')))
+     DNS_Domain = "";
+   return true;
+}
+
+// True if the FQN is configured for this host
+static bool FQN_DNS = getMyFQN();
 
 /******************************************************************************/
 /*                                D o m a i n                                 */
@@ -196,8 +204,7 @@ const char *XrdNetIdentity::FQN(const char **eText)
   
 void XrdNetIdentity::SetFQN(const char *fqn)
 {
-   if (DNS_FQN) free(DNS_FQN);
-   DNS_FQN = strdup(fqn);
+   strlcpy(DNS_FQN, fqn, sizeof(DNS_FQN));
    if (!(DNS_Domain = index(DNS_FQN, '.'))) DNS_Domain = "";
    FQN_DNS = false;
 }

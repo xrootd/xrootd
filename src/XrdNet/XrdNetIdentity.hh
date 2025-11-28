@@ -41,12 +41,5 @@ static void        SetFQN(const char* fqn);
 
                    XrdNetIdentity() {}
                   ~XrdNetIdentity() {}
-
-private:
-
-static       char *DNS_FQN;
-static const char *DNS_Domain; // Starts with leading dot!
-static const char *DNS_Error;  // Error indicator for debugging only
-static bool        FQN_DNS;    // The FQN is the configured FQN of this host
 };
 #endif
