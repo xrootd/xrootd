@@ -301,8 +301,8 @@ done
 for src_idx in {0..1}; do
     for dst_idx in {0..1}; do
        perform_tpc "${src_idx}" "${dst_idx}"
-       assert_eq "201" "$(perform_http_tpc "$src_idx" "$dst_idx" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN")" "HTTP TPC pull failed"
-       assert_eq "201" "$(perform_http_tpc "$src_idx" "$dst_idx" "push" "$BEARER_TOKEN" "$BEARER_TOKEN")" "HTTP TPC push failed"
+       assert_eq "202" "$(perform_http_tpc "$src_idx" "$dst_idx" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN")" "HTTP TPC pull failed"
+       assert_eq "202" "$(perform_http_tpc "$src_idx" "$dst_idx" "push" "$BEARER_TOKEN" "$BEARER_TOKEN")" "HTTP TPC push failed"
     done
 done
 
@@ -363,8 +363,8 @@ verify_checksum "crc32c" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_
 verify_checksum "adler32" "${LCLDATADIR}/${src}_empty.ref" "${LCLDATADIR}/${src}_empty.dat" "${hosts[$src_idx]}" "${RMTDATADIR}/${src}_empty.ref"
 
 perform_tpc "${src_idx}" "${dst_idx}" "_empty"
-assert_eq "201" "$(perform_http_tpc "$src_idx" "$dst_idx" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC pull failed"
-assert_eq "201" "$(perform_http_tpc "$src_idx" "$dst_idx" "push" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC push failed"
+assert_eq "202" "$(perform_http_tpc "$src_idx" "$dst_idx" "pull" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC pull failed"
+assert_eq "202" "$(perform_http_tpc "$src_idx" "$dst_idx" "push" "$BEARER_TOKEN" "$BEARER_TOKEN" "_empty")" "HTTP TPC push failed"
 
 remote_file="${hosts_http[$dst_idx]}/${RMTDATADIR}/${src}_to_${dst}_empty.ref"
 local_file="${LCLDATADIR}/${src}_to_${dst}_empty.dat"
