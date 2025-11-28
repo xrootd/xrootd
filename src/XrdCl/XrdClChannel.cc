@@ -110,7 +110,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Create the stream
     //--------------------------------------------------------------------------
-    pStream = new Stream( &pUrl, prefurl );
+    pStream = std::make_unique<Stream>( &pUrl, prefurl );
     pStream->SetTransport( transport );
     pStream->SetPoller( poller );
     pStream->SetIncomingQueue( &pIncoming );
@@ -132,7 +132,7 @@ namespace XrdCl
   Channel::~Channel()
   {
     pTickGenerator->Invalidate();
-    delete pStream;
+    pStream.reset();
     pTransport->FinalizeChannel( pChannelData );
   }
 
@@ -157,6 +157,14 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Finalize stream
+  //----------------------------------------------------------------------------
+  void Channel::Finalize()
+  {
+    pStream->Finalize();
+  }
+
+  //----------------------------------------------------------------------------
   // Force disconnect of all streams
   //----------------------------------------------------------------------------
   Status Channel::ForceDisconnect()
@@ -170,9 +178,23 @@ namespace XrdCl
   Status Channel::ForceDisconnect( bool hush )
   {
     //--------------------------------------------------------------------------
-    // Disconnect and recreate the streams
+    // Disconnect the stream and all substreams
     //--------------------------------------------------------------------------
-    pStream->ForceError( Status( stError, errOperationInterrupted ), hush );
+    pStream->ForceError( Status( stError, errOperationInterrupted ), hush, 0);
+
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Force disconnect of all streams. Internal version.
+  //----------------------------------------------------------------------------
+  Status Channel::ForceDisconnect( std::shared_ptr<Channel> self,
+                                   const uint64_t sess )
+  {
+    //--------------------------------------------------------------------------
+    // Disconnect the stream and all substreams
+    //--------------------------------------------------------------------------
+    pStream->ForceError( Status( stError, errOperationInterrupted ), false, sess );
 
     return Status();
   }
@@ -242,5 +264,11 @@ namespace XrdCl
   void Channel::RemoveEventHandler( ChannelEventHandler *handler )
   {
     pStream->RemoveEventHandler( handler );
+  }
+
+  void Channel::SetSelf( std::shared_ptr<Channel> &self )
+  {
+    pSelf = self;
+    if( pStream ) pStream->SetChannel( pSelf );
   }
 }
