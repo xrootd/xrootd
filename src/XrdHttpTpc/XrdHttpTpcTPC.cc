@@ -612,7 +612,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     }
 
     // Start response to client prior to the first call to curl_multi_perform
-    int retval = req.StartChunkedResp(201, "Created", "Content-Type: text/plain");
+    int retval = req.StartChunkedResp(202, NULL, "Content-Type: text/plain");
     if (retval) {
         curl_multi_cleanup(multi_handle);
         logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",

@@ -283,7 +283,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     curl_multi_setopt(multi_handle, CURLMOPT_MAX_HOST_CONNECTIONS, streams);
 
     // Start response to client prior to the first call to curl_multi_perform
-    int retval = req.StartChunkedResp(201, "Created", "Content-Type: text/plain");
+    int retval = req.StartChunkedResp(202, NULL, "Content-Type: text/plain");
     if (retval) {
         logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
             "Failed to send the initial response to the TPC client");
