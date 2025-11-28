@@ -329,7 +329,9 @@ int XrdXrootdProtocol::do_Bind()
    free(cp);
    CapVer = pp->CapVer;
    Status = XRD_BOUNDPATH;
+   boundRecycle = new XrdSysSemaphore(0);
    clientPV = pp->clientPV;
+   XrdLinkCtl::RegisterCloseRequestCb(Link, this, &CloseRequestCb, (void*)this);
 
 // Check if we need to enable packet marking for this stream
 //

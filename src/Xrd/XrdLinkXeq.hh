@@ -138,6 +138,9 @@ int           TLS_Send(const sfVec *sfP, int sfN);
 
 const char   *verTLS();
 
+bool          RegisterCloseRequestCb(XrdProtocol *pp, bool (*cb)(void*),
+                                     void* cbarg);
+
               XrdLinkXeq();
              ~XrdLinkXeq() {}  // Is never deleted!
 
@@ -182,6 +185,8 @@ static XrdSysMutex  statsMutex;
 //
 XrdProtocol   *Protocol;             // -> Protocol tied to the link
 XrdProtocol   *ProtoAlt;             // -> Alternate/stacked protocol
+bool          (*CloseRequestCb)(void*);
+void          *CloseRequestCbArg;
 
 // TLS section
 //

@@ -399,3 +399,15 @@ void XrdLinkCtl::Unhook(int fd)
    if (fd == LTLast) while(LTLast && !(LinkBat[LTLast])) LTLast--;
    LTMutex.UnLock();
 }
+
+/******************************************************************************/
+/*              R e g i s t e r C l o s e R e q u e s t C b                   */
+/******************************************************************************/
+
+bool XrdLinkCtl::RegisterCloseRequestCb(XrdLink *lp, XrdProtocol *pp,
+                                        bool (*cb)(void*), void* cbarg)
+{
+   if (!lp) return false;
+   XrdLinkXeq *xlp = (XrdLinkXeq*)lp;
+   return xlp->RegisterCloseRequestCb(pp, cb, cbarg);
+}
