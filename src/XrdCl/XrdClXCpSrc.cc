@@ -117,19 +117,17 @@ XCpSrc::XCpSrc( uint32_t chunkSize, uint8_t parallel, int64_t fileSize, XCpCtx *
 XCpSrc::~XCpSrc()
 {
   pCtx->RemoveSrc( this );
-  pCtx->Delete();
+  // we release ctx, it is always Delete() by its creator
+  // not by us.
+  pCtx->Release();
 }
 
-void XCpSrc::Start()
+int XCpSrc::Start()
 {
   pRunning = true;
   int rc = pthread_create( &pThread, 0, Run, this );
-  if( rc )
-  {
-    pRunning = false;
-    pCtx->RemoveSrc( this );
-    pCtx->Delete();
-  }
+  if( rc ) pRunning = false;
+  return rc;
 }
 
 void* XCpSrc::Run( void* arg )
@@ -466,7 +464,19 @@ void XCpSrc::Steal( XCpSrc *src )
 {
   if( !src ) return;
 
-  XrdSysMutexHelper lck1( pMtx ), lck2( src->pMtx );
+  // use the address of the mutex to form an
+  // order for acquiring the locks.
+  XrdSysMutexHelper lck1, lck2;
+  if ( std::less{}(&pMtx, &src->pMtx) )
+  {
+    lck2.Lock( &src->pMtx );
+    lck1.Lock( &pMtx );
+  }
+  else
+  {
+    lck1.Lock( &pMtx );
+    lck2.Lock( &src->pMtx );
+  }
 
   Log *log = DefaultEnv::GetLog();
   std::string myHost = URL( pUrl ).GetHostName(), srcHost = URL( src->pUrl ).GetHostName();
@@ -572,8 +582,10 @@ XRootDStatus XCpSrc::GetWork()
     return XRootDStatus();
   }
 
+  // WeakestLink() increases ref count on wLink, so decrease after
   XCpSrc *wLink = pCtx->WeakestLink( this );
   Steal( wLink );
+  if( wLink ) wLink->Delete();
 
   // if we managed to steal something declare success
   if( pCurrentOffset < pBlkEnd || !pRecovered.empty() ) return XRootDStatus();

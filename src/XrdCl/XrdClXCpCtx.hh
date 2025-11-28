@@ -56,16 +56,44 @@ class XCpCtx
     XCpCtx( const std::vector<std::string> &urls, uint64_t blockSize, uint8_t parallelSrc, uint64_t chunkSize, uint64_t parallelChunks, int64_t fileSize );
 
     /**
-     * Deletes the instance if the reference counter reached 0.
+     * Decrements the reference count and then waits for it to reach
+     * zero, then deletes the instance. Should only be called once.
      */
     void Delete()
+    {
+      XrdSysMutexHelper lckmtx( pMtx );
+      --pRefCount;
+      if( !pRefCount )
+      {
+        lckmtx.UnLock();
+        delete this;
+        return;
+      }
+      lckmtx.UnLock();
+
+      XrdSysCondVarHelper lckcv( pDoneCV );
+      pDone = true;
+      pDoneCV.Broadcast();
+      lckcv.UnLock();
+
+      lckcv.Lock( &pDeleteCV );
+      while( !pDelete ) pDeleteCV.Wait();
+      lckcv.UnLock();
+      delete this;
+    }
+
+    /**
+     * Decrements the reference count and signal when we reach 0
+     */
+    void Release()
     {
       XrdSysMutexHelper lck( pMtx );
       --pRefCount;
       if( !pRefCount )
       {
-        lck.UnLock();
-        delete this;
+        XrdSysCondVarHelper lckcv( pDeleteCV );
+        pDelete = true;
+        pDeleteCV.Broadcast();
       }
     }
 
@@ -257,6 +285,7 @@ class XCpCtx
     /**
      * File Size conditional variable.
      * (notifies waiters if the file size has been set)
+     * If both required, lock order is pFileSizeCV then pMtx.
      */
     XrdSysCondVar              pFileSizeCV;
 
@@ -298,6 +327,18 @@ class XCpCtx
      * Reference counter
      */
     size_t                     pRefCount;
+
+    /**
+     * A condition variable, signals Delete() in case we had to block
+     * the deleter until all sources had finished.
+     * If both required, lock order is pMtx and then pDeleteCV.
+     */
+    XrdSysCondVar              pDeleteCV;
+
+    /**
+     * Predicate for pDeleteCV
+     */
+    bool                       pDelete;
 };
 
 } /* namespace XrdCl */
