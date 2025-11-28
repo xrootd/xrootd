@@ -5,7 +5,6 @@
 %bcond_with    git
 
 %bcond_without tests
-%bcond_without xrdec
 
 Name:		xrootd
 Epoch:		1
@@ -89,10 +88,6 @@ BuildRequires:	krb5-workstation
 BuildRequires:	openssl
 BuildRequires:	procps-ng
 BuildRequires:	sqlite
-%endif
-
-%if %{with xrdec}
-BuildRequires:	isa-l-devel
 %endif
 
 Requires:	%{name}-client%{?_isa} = %{epoch}:%{version}-%{release}
@@ -330,7 +325,6 @@ export CXX=clang++
     -DENABLE_VOMS:BOOL=TRUE \
     -DENABLE_XRDCL:BOOL=TRUE \
     -DENABLE_XRDCLHTTP:BOOL=TRUE \
-    -DENABLE_XRDEC:BOOL=%{with xrdec} \
     -DENABLE_XRDCLHTTP:BOOL=TRUE \
     -DXRDCL_ONLY:BOOL=FALSE \
     -DXRDCL_LIB_ONLY:BOOL=FALSE \
@@ -580,9 +574,6 @@ fi
 
 %files client-libs
 %{_libdir}/libXrdCl.so.*
-%if %{with xrdec}
-%{_libdir}/libXrdEc.so.*
-%endif
 %{_libdir}/libXrdFfs.so.*
 %{_libdir}/libXrdPosix.so.*
 %{_libdir}/libXrdPosixPreload.so.*
@@ -606,9 +597,6 @@ fi
 %{_includedir}/%{name}/XrdClCurl
 %{_includedir}/%{name}/XrdPosix
 %{_libdir}/libXrdCl.so
-%if %{with xrdec}
-%{_libdir}/libXrdEc.so
-%endif
 %{_libdir}/libXrdFfs.so
 %{_libdir}/libXrdPosix.so
 
