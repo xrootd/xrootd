@@ -2432,13 +2432,24 @@ int XrdXrootdProtocol::do_Read()
         &&  IO.Offset+IO.IOLen <= IO.File->Stats.fSize+as_seghalf
         &&  linkAioReq < as_maxperlnk && srvrAioOps < as_maxpersrv)
            {XrdXrootdProtocol *pP;
-            XrdXrootdNormAio  *aioP;
+            XrdXrootdNormAio  *aioP=0;
 
             if (!pathID) pP = this;
                else {if (!(pP = VerifyStream(retc, pathID, false))) return retc;
                      if (pP->linkAioReq >= as_maxperlnk) pP = 0;
                     }
-            if (pP && (aioP = XrdXrootdNormAio::Alloc(pP,Response,IO.File)))
+            if (pP)
+               {// Use of TmpRsp here is to avoid modying pP. It is built
+                // to contain the correct streamid for this request and the
+                // right Link for the pathID. It's used by Alloc to call
+                // XrdXrootdAioTask::Init which in turn makes a copy of TmpRsp
+                // to its own response object and also keeps the Link pointer.
+                XrdXrootdResponse TmpRsp;
+                TmpRsp = Response;
+                TmpRsp.Set(pP->Link);
+                aioP = XrdXrootdNormAio::Alloc(pP,TmpRsp,IO.File);
+               }
+            if (aioP)
                {if (!IO.File->aioFob) IO.File->aioFob = new XrdXrootdAioFob;
                 aioP->Read(IO.Offset, IO.IOLen);
                 return 0;
