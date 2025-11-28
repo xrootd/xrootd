@@ -93,7 +93,8 @@ class AsyncPageReader
         }
         break;
       }
-      choff = bufoff;
+      choff   = bufoff;
+      dgindex = rspoff/XrdSys::PageSize - chunks[0].offset/XrdSys::PageSize;
     }
 
     //--------------------------------------------------------------------------
