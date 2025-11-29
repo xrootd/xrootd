@@ -5,3 +5,5 @@ docker/xrootd.tar.gz
 # Python build artifacts
 dist/
 *.egg-info
+.vscode
+

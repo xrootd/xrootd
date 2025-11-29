@@ -11,6 +11,7 @@ Python_add_library(client MODULE WITH_SOABI
   PyXRootDFileSystem.hh
   PyXRootDFinalize.hh
   PyXRootDURL.hh
+  PyXRootDAdler32.hh
   Utils.hh
   # sources
   PyXRootDCopyProcess.cc
@@ -19,6 +20,7 @@ Python_add_library(client MODULE WITH_SOABI
   PyXRootDFileSystem.cc
   PyXRootDModule.cc
   PyXRootDURL.cc
+  PyXRootDAdler32.cc
   Utils.cc
 )
 
