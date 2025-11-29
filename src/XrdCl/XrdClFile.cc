@@ -74,6 +74,15 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  File::File(const std::string &url, bool enablePlugIns): pPlugIn(0), pEnablePlugIns(enablePlugIns)
+  {
+    InitPlugin(url);
+    pImpl = new FileImpl(pPlugIn);
+  }
+
+  //----------------------------------------------------------------------------
   // Destructor
   //----------------------------------------------------------------------------
   File::~File()
@@ -93,6 +102,23 @@ namespace XrdCl
     delete pPlugIn;
   }
 
+  void File::InitPlugin(const std::string &url) {
+
+    if (pEnablePlugIns && !pPlugIn) {
+      Log *log = DefaultEnv::GetLog();
+      PlugInFactory *fact = DefaultEnv::GetPlugInManager()->GetFactory(url);
+      if (fact) {
+        pPlugIn = fact->CreateFile(url);
+        if (!pPlugIn) {
+          log->Error(FileMsg,
+                     "Plug-in factory failed to produce a plug-in "
+                     "for %s, continuing without one",
+                     url.c_str());
+        }
+      }
+    }
+  }
+
   //----------------------------------------------------------------------------
   // Open the file pointed to by the given URL - async
   //----------------------------------------------------------------------------
@@ -102,23 +128,8 @@ namespace XrdCl
                            ResponseHandler   *handler,
                            time_t             timeout )
   {
-    //--------------------------------------------------------------------------
     // Check if we need to install and run a plug-in for this URL
-    //--------------------------------------------------------------------------
-    if( pEnablePlugIns && !pPlugIn )
-    {
-      Log *log = DefaultEnv::GetLog();
-      PlugInFactory *fact = DefaultEnv::GetPlugInManager()->GetFactory( url );
-      if( fact )
-      {
-        pPlugIn = fact->CreateFile( url );
-        if( !pPlugIn )
-        {
-          log->Error( FileMsg, "Plug-in factory failed to produce a plug-in "
-                      "for %s, continuing without one", url.c_str() );
-        }
-      }
-    }
+    InitPlugin(url);
 
     //--------------------------------------------------------------------------
     // Open the file

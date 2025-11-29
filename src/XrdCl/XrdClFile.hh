@@ -54,13 +54,24 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Constructor
+      //! @param enablePlugIns enable the plug-in mechanism for the object
       //------------------------------------------------------------------------
       File( bool enablePlugIns = true );
 
       //------------------------------------------------------------------------
       //! Constructor
+      //! @param virtRedirect
+      //! @param enablePlugIns
       //------------------------------------------------------------------------
       File( VirtRedirect virtRedirect, bool enablePlugIns = true );
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //!
+      //! @param url URL for the file to initialise the plugin for
+      //! @param enablePlugIns enable the plug-in mechanism for the object
+      //------------------------------------------------------------------------
+      File( const std::string &url, bool enablePlugIns = true );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -830,6 +841,14 @@ namespace XrdCl
 
       template <bool HasHndl>
       friend class ChkptWrtVImpl;
+
+      //------------------------------------------------------------------------
+      //! Helper to Initialise Plugin
+      //!
+      //! @param url     url of the file to intialise the plugin for
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      void InitPlugin( const std::string &url);
 
       //------------------------------------------------------------------------
       //! Create a checkpoint - async
