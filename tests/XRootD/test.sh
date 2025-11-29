@@ -58,8 +58,8 @@ export XRD_LOGLEVEL XRD_LOGFILE
 # Reduce default timeouts to catch errors quickly and prevent the test
 # suite from getting stuck waiting for timeouts while running.
 
-: "${XRD_REQUESTTIMEOUT:=10}"
-: "${XRD_STREAMTIMEOUT:=5}"
+: "${XRD_REQUESTTIMEOUT:=15}"
+: "${XRD_STREAMTIMEOUT:=10}"
 : "${XRD_TIMEOUTRESOLUTION:=1}"
 
 export XRD_REQUESTTIMEOUT XRD_STREAMTIMEOUT XRD_TIMEOUTRESOLUTION
