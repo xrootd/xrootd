@@ -13,6 +13,9 @@ typedef std::array<std::array<XrdHttpMon::HttpInfo, XrdHttpMon::StatusCodes::sc_
 
 StatsMatrix XrdHttpMon::statsInfo{};
 
+bool XrdHttpMon::hasGStream = false;
+bool XrdHttpMon::hasMonRoll = false;
+
 RAtomic_uint XrdHttpMon::verbCounters[XrdHttpReq::ReqType::rtCount] = {0};
 RAtomic_uint XrdHttpMon::statusCounters[XrdHttpMon::StatusCodes::sc_Count] = {0};
 
@@ -65,14 +68,15 @@ XrdHttpMon::XrdHttpMon(XrdSysLogger *logP, XrdXrootdGStream *gStream, XrdMonRoll
     : gStream(gStream), mrollP(mrollP) {
 
     eDest.logger(logP);
-    if (gStream) {
+    if (gStream != nullptr){
+        hasGStream = true;
         flushPeriod = std::chrono::seconds(gStream->GetAutoFlush());
     }
-    if (mrollP) {
+
+    if (mrollP != nullptr) {
+        hasMonRoll = true;
         mrollP->Register(XrdMonRoll::AddOn, "httpReqStats", verbCountersSchema);
         mrollP->Register(XrdMonRoll::AddOn, "httpStatusCodeStats", statusCountersSchema);
-    } else {
-        eDest.Say("XrdMonRoll Not Configured");
     }
 }
 

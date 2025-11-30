@@ -1608,33 +1608,39 @@ void XrdHttpProtocol::Record() {
 
   int code = CurrentReq.getInitialStatusCode();
   if (code < 200) return;
-  auto duration = std::chrono::steady_clock::now() - CurrentReq.startTime;
+
+  XrdHttpMon::StatusCodes statusCode = XrdHttpMon::ToStatusCode(code);
+
+  std::chrono::steady_clock::duration duration{};
+  if (XrdHttpMon::hasGStream) {
+    duration = std::chrono::steady_clock::now() - CurrentReq.startTime;
+  }
 
   switch (CurrentReq.monState) {
     case XrdHttpReq::MonitState::NEW:
-      httpMon->RecordCount(CurrentReq.request, XrdHttpMon::ToStatusCode(code));
-      httpMon->verbCounters[CurrentReq.request]++;
+      XrdHttpMon::RecordGStreamCount(CurrentReq.request, statusCode);
+      XrdHttpMon::RecordMonRollVerb(CurrentReq.request);
       CurrentReq.monState = XrdHttpReq::MonitState::ACTIVE;
       return;
 
     case XrdHttpReq::MonitState::ACTIVE:
-      httpMon->RecordSuccess(CurrentReq.request, XrdHttpMon::ToStatusCode(code), duration);
-      httpMon->statusCounters[XrdHttpMon::ToStatusCode(code)]++;
+      XrdHttpMon::RecordGStreamSuccess(CurrentReq.request, statusCode, duration);
+      XrdHttpMon::RecordMonRollStatus(statusCode);
       CurrentReq.monState = XrdHttpReq::MonitState::DONE;
       return;
 
     case XrdHttpReq::MonitState::ERR_NET:
-      httpMon->RecordErrNet(CurrentReq.request, XrdHttpMon::ToStatusCode(code), duration);
-      httpMon->statusCounters[XrdHttpMon::ToStatusCode(code)]++;
+      XrdHttpMon::RecordGStreamErrNet(CurrentReq.request, statusCode, duration);
+      XrdHttpMon::RecordMonRollStatus(statusCode);
       CurrentReq.monState = XrdHttpReq::MonitState::DONE;
       return;
 
     case XrdHttpReq::MonitState::ERR_PROT:
-      httpMon->RecordErrProt(CurrentReq.request, XrdHttpMon::ToStatusCode(code), duration);
-      httpMon->statusCounters[XrdHttpMon::ToStatusCode(code)]++;
+      XrdHttpMon::RecordGStreamErrProt(CurrentReq.request, statusCode, duration);
+      XrdHttpMon::RecordMonRollStatus(statusCode);
       CurrentReq.monState = XrdHttpReq::MonitState::DONE;
       return;
-    
+
     case XrdHttpReq::MonitState::DONE:
       eDest.Emsg("Record", "ERROR: Record called after state was set to DONE");
       return;
