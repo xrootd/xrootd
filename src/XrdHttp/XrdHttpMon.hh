@@ -1,3 +1,4 @@
+#include "Xrd/XrdMonRoll.hh"
 #include "XrdHttpReq.hh"
 #include "XrdSys/XrdSysRAtomic.hh"
 
@@ -51,9 +52,19 @@ class XrdHttpMon {
     // Global stats table
     static std::array<std::array<HttpInfo, StatusCodes::sc_Count>, XrdHttpReq::ReqType::rtCount> statsInfo;
 
+    // Flags to track which monitoring types are enabled
+    static bool hasGStream;  // True if gStream monitoring is enabled (needs detailed metrics)
+    static bool hasMonRoll;  // True if MonRoll summary monitoring is enabled (needs simple counters)
+
+    static RAtomic_uint verbCounters[XrdHttpReq::ReqType::rtCount];
+    static XrdMonRoll::setMember verbCountersSchema[XrdHttpReq::ReqType::rtCount + 1];
+
+    static RAtomic_uint statusCounters[StatusCodes::sc_Count];
+    static XrdMonRoll::setMember statusCountersSchema[StatusCodes::sc_Count + 1];
+
     std::chrono::seconds flushPeriod;
 
-    XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream);
+    XrdHttpMon(XrdSysLogger* logP, XrdXrootdGStream* gStream, XrdMonRoll *mrollP);
 
     static void* Start(void* instance);
 
@@ -61,6 +72,28 @@ class XrdHttpMon {
     static void RecordErrNet(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration);
     static void RecordCount(XrdHttpReq::ReqType op, StatusCodes sc);
     static void RecordSuccess(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration);
+
+    // Helper functions for conditional monitoring updates
+    // These are simple functions that the compiler will hopefully inline
+    static inline void RecordGStreamCount(XrdHttpReq::ReqType op, StatusCodes sc) {
+        if (hasGStream) RecordCount(op, sc);
+    }
+    static inline void RecordGStreamSuccess(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
+        if (hasGStream) RecordSuccess(op, sc, duration);
+    }
+    static inline void RecordGStreamErrNet(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
+        if (hasGStream) RecordErrNet(op, sc, duration);
+    }
+    static inline void RecordGStreamErrProt(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
+        if (hasGStream) RecordErrProt(op, sc, duration);
+    }
+    static inline void RecordMonRollVerb(XrdHttpReq::ReqType op) {
+        if (hasMonRoll) verbCounters[op]++;
+        
+    }
+    static inline void RecordMonRollStatus(StatusCodes sc) {
+        if (hasMonRoll) statusCounters[sc]++;
+    }
 
     static StatusCodes ToStatusCode(int code);
 
@@ -73,6 +106,7 @@ class XrdHttpMon {
     ~XrdHttpMon() {};
 
     XrdXrootdGStream* gStream;
+    XrdMonRoll* mrollP;
 
     void Report();
 };
