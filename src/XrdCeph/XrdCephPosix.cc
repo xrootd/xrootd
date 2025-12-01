@@ -58,13 +58,13 @@
 
 #include <XrdCks/XrdCksAssist.hh>
 
-char *ts_rfc3339() {
 
+std::string ts_rfc3339() {
     std::time_t now = std::time({});
-    char timeString[std::size("yyyy-mm-dd hh:mm:ss")];
-    std::strftime(std::data(timeString), std::size(timeString),
-                  "%F %TZ", std::gmtime(&now));
-    return strdup(timeString);
+    std::string timeString(32, '\0'); 
+    std::strftime(timeString.data(), timeString.size(), "%F %TZ", std::gmtime(&now));
+    //timeString.resize(std::strlen(timeString.c_str())); // Trim nulls
+    return timeString;
 }
 
 //no need to check if nibble is <0 due to type limits
@@ -72,9 +72,9 @@ constexpr char hex2ascii(char nibble)   { return (nibble<=9) ? nibble+'0' : nibb
 constexpr char hiNibble(uint8_t hexbyte) { return (hexbyte & 0xf0) >> 4; }
 constexpr char loNibble(uint8_t hexbyte) { return (hexbyte & 0x0f); }
 
-constexpr char *hexbytes2ascii(const char bytes[], const unsigned int length){
+std::string hexbytes2ascii(const char bytes[], const unsigned int length){
 
-  char asciiVal[9] {};
+  std::string asciiVal(9,'\0');
   for (unsigned int i = 0, j = 0; i < length; i++) {
 
      const uint8_t hexbyte = bytes[i];
@@ -82,7 +82,7 @@ constexpr char *hexbytes2ascii(const char bytes[], const unsigned int length){
      asciiVal[j++] = hex2ascii(loNibble(hexbyte));
 
   }
-  return strdup(asciiVal);
+  return asciiVal;
 }
 
 using namespace std;
@@ -156,11 +156,9 @@ std::map<unsigned int, unsigned long long> g_idxCntr;
 
 //IJJ: Actions for Adler32 checksum
 
-extern bool g_calcStreamedAdler32;
+
 bool g_calcStreamedAdler32 = false;
-extern bool g_logStreamedAdler32;
 bool g_logStreamedAdler32 = false;
-extern bool g_storeStreamedAdler32; 
 bool g_storeStreamedAdler32 = false;
 
 FILE *g_cksLogFile;
@@ -819,14 +817,14 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 }
 
 
-const char* formatAdler32(unsigned long adler32) {
+std::string formatAdler32(unsigned long adler32) {
 
 #ifndef Xrd_Big_Endian
   adler32 = htonl(adler32);
 #endif
-  char adler32Cks[8+1];
-  sprintf(adler32Cks, "%08lx", adler32);
-  return (const char*)strdup(adler32Cks);
+  std::string adler32Cks(9,'\0');
+  sprintf(adler32Cks.data(), "%08lx", adler32);
+  return adler32Cks;
 }
 
 int ceph_posix_close(int fd) {
@@ -857,18 +855,18 @@ int ceph_posix_close(int fd) {
 
 	    unsigned long adlerULong;
 	    memcpy((&adlerULong), fr->cksCalcadler32->Final(), 4);
-	    const char* adler32Cks = formatAdler32(adlerULong);
+	    std::string adler32Cks = formatAdler32(adlerULong);
 
-  	  logwrapper((char*)"ceph_close: fd: %d, Adler32 streamed checksum = %s", fd, adler32Cks);
+  	  logwrapper((char*)"ceph_close: fd: %d, Adler32 streamed checksum = %s", fd, adler32Cks.c_str());
 
       if (g_logStreamedAdler32) {
-	    const char *path = strdup((fr->pool + ":" + fr->name).c_str());
-        fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "streamed", "adler32", adler32Cks);
+	      const char *path = (fr->pool + ":" + fr->name).c_str();
+        fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339().c_str(), path, "streamed", "adler32", adler32Cks.c_str());
         fflush(g_cksLogFile);
       }
 
       if (g_storeStreamedAdler32) {
-        int rc = setXrdCksAttr(fd, "adler32", adler32Cks); 
+        int rc = setXrdCksAttr(fd, "adler32", adler32Cks.c_str()); 
         if (rc != 0) {
           logwrapper((char*)"ceph_close: Can't set attribute XrdCks.adler32 for checksum");
          }
@@ -1470,9 +1468,9 @@ ssize_t ceph_posix_setxattr(XrdOucEnv* env, const char* path,
 //
 // We know that streamed checksums use ceph_posix_fsetxattr below, so this must be a readback checksum
 //
-      auto cksAscii = (const char*)hexbytes2ascii(cks->Value, cks->Length);
-      logwrapper((char*)"readback checksum = %s", cksAscii);
-      fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339(), path, "readback", "adler32", cksAscii);
+      std::string cksAscii = hexbytes2ascii(cks->Value, cks->Length);
+      logwrapper((char*)"readback checksum = %s", cksAscii.c_str());
+      fprintf(g_cksLogFile, "%s,%s,%s,%s,%s\n", ts_rfc3339().c_str(), path, "readback", "adler32", cksAscii.c_str());
       fflush(g_cksLogFile);
 
   }

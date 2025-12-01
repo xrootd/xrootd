@@ -29,7 +29,7 @@
 #include "XrdCeph/XrdCephXAttr.hh"
 
 #include "XrdCks/XrdCksData.hh"
-#include <string.h>
+#include <cstring>
 
 XrdSysError XrdCephXattrEroute(0);
 XrdOucTrace XrdCephXattrTrace(&XrdCephXattrEroute);

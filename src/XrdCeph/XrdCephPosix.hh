@@ -39,7 +39,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
-#include <XrdCks/XrdCksCalcadler32.hh>
+#include "XrdCks/XrdCksCalcadler32.hh"
 
 // simple logging for XrdCeph buffering code
 #define XRDCEPHLOGLEVEL 1

@@ -408,21 +408,17 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
            }
 
          }
-       }// "ceph.streamed-cks-adler32"
-
+  
        if (!strcmp(var, "ceph.streamed-cks-logfile") ) {
          var = Config.GetWord();
-	 if (var) { 
+	     if (var) { 
            g_cksLogFileName = strdup(var);
          } else {
-           const char *defLogFileName = "/tmp/checksums.log"; // To-DO: Move defLogFileName so it can also be used as fallback 
-	                                                      //  when attempt to open specified log file below fails
-           Eroute.Emsg("Config", "Missing value for ceph.streamed-cks-logfile in config file, setting to default = ", defLogFileName);
-	   g_cksLogFileName = strdup(defLogFileName);
- 	   return 1;
+           Eroute.Emsg("Config", "Missing value for ceph.streamed-cks-logfile in config file");
+ 	         return 1;
          }
        }// "ceph.streamed-cks-logfile"
-
+     }// "ceph.streamed-cks-adler32"
      } // while
 
      // Now check if any errors occurred during file i/o
