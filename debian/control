@@ -14,7 +14,6 @@ Build-Depends:
  libfuse-dev [linux-any kfreebsd-any],
  libkrb5-dev,
  libcurl4-openssl-dev,
- libtinyxml-dev,
  libxml2-dev,
  libzip-dev,
  ncurses-dev,
