@@ -84,7 +84,6 @@ const char   *XrdCpConfig::opLetters = ":C:d:D:EfFhHI:NpPrRsS:t:T:vVX:y:z:ZA";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
-      {OPT_TYPE "allow-http",     0, 0, XrdCpConfig::OpAllowHttp},
       {OPT_TYPE "cksum",          1, 0, XrdCpConfig::OpCksum},
       {OPT_TYPE "coerce",         0, 0, XrdCpConfig::OpCoerce},
       {OPT_TYPE "continue",       0, 0, XrdCpConfig::OpContinue},
@@ -319,8 +318,6 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpParallel:      OpSpec |= DoParallel;
                                 if (!a2i(optarg, &Parallel, 1, 128)) Usage(22);
                                 break;
-          case OpAllowHttp:     OpSpec |= DoAllowHttp;
-                                break;
           case OpXAttr :        OpSpec |= DoXAttr;
                                 break;
           case OpZipMtlnCksum : OpSpec |= DoZipMtlnCksum;
@@ -375,11 +372,6 @@ do{while(optind < Argc && Legacy(optind)) {}
      dstFile = new XrdCpFile(parmVal[--parmCnt], rc);
      if (rc) FMSG("Invalid url, '" <<dstFile->Path <<"'.", 22);
 
-// Allow HTTP if XRDCP_ALLOW_HTTP is set
-   if (getenv("XRDCP_ALLOW_HTTP")) {
-       OpSpec |= DoAllowHttp;
-   }
-
 // Do a protocol check
 //
      if (dstFile->Protocol != XrdCpFile::isFile
@@ -387,8 +379,8 @@ do{while(optind < Argc && Legacy(optind)) {}
      &&  dstFile->Protocol != XrdCpFile::isXroot
      &&  dstFile->Protocol != XrdCpFile::isPelican
      &&  dstFile->Protocol != XrdCpFile::isS3
-     &&  (!Want(DoAllowHttp) && ((dstFile->Protocol == XrdCpFile::isHttp) ||
-                                 (dstFile->Protocol == XrdCpFile::isHttps))))
+     &&  dstFile->Protocol != XrdCpFile::isHttp
+     &&  dstFile->Protocol == XrdCpFile::isHttps)
         {FMSG(dstFile->ProtName <<"file protocol is not supported.", 22)}
 
 // Resolve this file if it is a local file
@@ -905,10 +897,10 @@ void XrdCpConfig::ProcFile(const char *fname)
             }
     else if (!((pFile->Protocol == XrdCpFile::isXroot) ||
                (pFile->Protocol == XrdCpFile::isXroots) ||
+               (pFile->Protocol == XrdCpFile::isHttp) ||
+               (pFile->Protocol == XrdCpFile::isHttps) ||
                (pFile->Protocol == XrdCpFile::isPelican) ||
-               (pFile->Protocol == XrdCpFile::isS3) ||
-               (Want(DoAllowHttp) && ((pFile->Protocol == XrdCpFile::isHttp) ||
-                                      (pFile->Protocol == XrdCpFile::isHttps)))))
+               (pFile->Protocol == XrdCpFile::isS3)))
                {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
     else if (OpSpec & DoRecurse && !(Opts & optRmtRec))
             {FMSG("Recursive copy from a remote host is not supported.",22)}
@@ -933,7 +925,7 @@ void XrdCpConfig::Usage(int rc)
    "Usage:   xrdcp [<options>] <src> <dest>\n";
 
    static const char *Options= "\n"
-   "Options: [--allow-http] [--cksum <args>] [--coerce] [--continue]\n"
+   "Options: [--cksum <args>] [--coerce] [--continue]\n"
    "         [--debug <lvl>] [--dynamic-src] [--force] [--help]\n"
    "         [--infiles <fn>] [--license] [--nopbar] [--notlsok]\n"
    "         [--parallel <n>] [--posc] [--proxy <host>:<port>]\n"
@@ -955,8 +947,6 @@ void XrdCpConfig::Usage(int rc)
 
    static const char *Detail = "\n"
    "Note: using a dash (-) for <src> uses stdin and for <dest> stdout\n\n"
-   "-A | --allow-http             allow HTTP as source or destination protocol. Requires\n"
-   "                              the XrdClHttp client plugin\n"
    "-C | --cksum <args>           verifies the checksum at the destination as provided\n"
    "                              by the source server or locally computed. The args are\n"
    "                                      <ckstype>[:{<value>|print|source}]\n"
