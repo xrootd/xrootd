@@ -114,7 +114,8 @@ const char *reqNames[kXR_REQFENCE-kXR_auth] =
               "sync",        "stat",        "set",         "write",
               "fattr",       "prepare",     "statx",       "endsess",
               "bind",        "readv",       "pgwrite",     "locate",
-              "truncate",    "sigver",      "pgread",      "writev"
+              "truncate",    "sigver",      "pgread",      "writev",
+              "clone"
              };
 
 // Following value is used to determine if the error or request code is
@@ -136,7 +137,8 @@ const char *XProtocol::errName(kXR_int32 errCode)
 
 // Validate the request code
 //
-   if (errCode < kXR_ArgInvalid || errCode >= kXR_ERRFENCE)
+   if (errCode < kXR_ArgInvalid || errCode >= kXR_ERRFENCE
+       || !errNames[errCode - kXR_ArgInvalid])
       return "!undefined error";
 
 // Return the proper table
@@ -156,7 +158,9 @@ const char *XProtocol::reqName(kXR_unt16 reqCode)
 
 // Validate the request code
 //
-   if (reqCode < kXR_auth || reqCode >= kXR_REQFENCE) return "!unknown";
+   if (reqCode < kXR_auth || reqCode >= kXR_REQFENCE
+       || !reqNames[reqCode - kXR_auth])
+      return "!unknown";
 
 // Return the proper table
 //
