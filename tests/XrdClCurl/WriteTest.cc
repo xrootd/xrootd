@@ -77,8 +77,8 @@ TEST_F(CurlWriteFixture, PutTimeoutTest)
     auto rv = fh.Open(url, XrdCl::OpenFlags::Write, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
     ASSERT_TRUE(rv.IsOK()) << "Failed to open " << name << " for write: " << rv.ToString();
 
-    fh.SetProperty("XrdClCurlMaintenancePeriod", "1");
-    fh.SetProperty("XrdClCurlStallTimeout", "100ms");
+    fh.SetProperty("XrdClCurlMaintenancePeriod", "2");
+    fh.SetProperty("XrdClCurlStallTimeout", "500ms");
 
     uint32_t sizeToWrite = 10'000;
     std::string writeBuffer(sizeToWrite, 'a');
