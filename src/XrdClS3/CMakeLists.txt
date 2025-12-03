@@ -44,10 +44,9 @@ endif()
 add_library( ${XrdClS3} MODULE "$<TARGET_OBJECTS:XrdClS3Obj>")
 target_link_libraries( ${XrdClS3} XrdClS3Obj)
 
-if ( NOT APPLE )
-  set_target_properties( ${XrdClS3} PROPERTIES
-    LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/configs/export-lib-symbols"
-  )
+if(NOT APPLE)
+  target_link_options(${XrdClS3} PRIVATE
+    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/configs/export-lib-symbols")
 endif()
 
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/configs/xrdcl-s3-plugin.conf ${CMAKE_CURRENT_BINARY_DIR}/configs/xrdcl-s3-plugin.conf)
