@@ -1,13 +1,13 @@
 
 set(XrdClCurl "XrdClCurl-${PLUGIN_VERSION}")
 
-if( FORCE_ENABLED )
-  find_package( CURL 7.9.6 REQUIRED )
+if(FORCE_ENABLED)
+  find_package(CURL REQUIRED)
 else()
-  find_package( CURL 7.9.6 )
+  find_package(CURL)
 endif()
 
-if( NOT CURL_FOUND )
+if(NOT CURL_FOUND)
   return()
 endif()
 
