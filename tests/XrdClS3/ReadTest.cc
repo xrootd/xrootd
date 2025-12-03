@@ -78,7 +78,7 @@ TEST_F(S3ReadFixture, OneShotTest)
     ASSERT_NO_FATAL_FAILURE(WritePattern(url, chunk_ctr * 100'000, 'a', chunk_ctr * 10'000));
 
     std::unique_ptr<SyncResponseHandler> srh(new SyncResponseHandler());
-    auto st = XrdClS3::DownloadUrl(url, GetReadTokenCallout(), srh.get(), XrdClS3::Filesystem::timeout_t{10});
+    auto st = XrdClS3::DownloadUrl(url, GetReadTokenCallout(), srh.get(), time_t{10});
     ASSERT_TRUE(st.IsOK());
 
     srh->Wait();

@@ -48,58 +48,52 @@ public:
         m_default_put_handler(new PutDefaultHandler(*this))
     {}
 
-#if HAVE_XRDCL_IFACE6
-    using timeout_t = time_t;
-#else
-    using timeout_t = uint16_t;
-#endif
-
     virtual ~File() noexcept;
 
     virtual XrdCl::XRootDStatus Open(const std::string      &url,
                                     XrdCl::OpenFlags::Flags flags,
                                     XrdCl::Access::Mode     mode,
                                     XrdCl::ResponseHandler *handler,
-                                    timeout_t               timeout) override;
+                                    time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus Close(XrdCl::ResponseHandler *handler,
-                                    timeout_t                timeout) override;
+                                    time_t                   timeout) override;
 
     virtual XrdCl::XRootDStatus Stat(bool                    force,
                                     XrdCl::ResponseHandler *handler,
-                                    timeout_t               timeout) override;
+                                    time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus Fcntl(const XrdCl::Buffer    &arg,
                                     XrdCl::ResponseHandler *handler,
-                                    timeout_t               timeout) override;
+                                    time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus Read(uint64_t                offset,
                                     uint32_t                size,
                                     void                   *buffer,
                                     XrdCl::ResponseHandler *handler,
-                                    timeout_t               timeout) override;
+                                    time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus PgRead(uint64_t                offset,
                                     uint32_t                size,
                                     void                   *buffer,
                                     XrdCl::ResponseHandler *handler,
-                                    timeout_t               timeout) override;
+                                    time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus VectorRead(const XrdCl::ChunkList &chunks,
                                         void                   *buffer,
                                         XrdCl::ResponseHandler *handler,
-                                        timeout_t               timeout ) override;
+                                        time_t                  timeout ) override;
 
     virtual XrdCl::XRootDStatus Write(uint64_t            offset,
                                 uint32_t                size,
                                 const void             *buffer,
                                 XrdCl::ResponseHandler *handler,
-                                timeout_t               timeout) override;
+                                time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus Write(uint64_t             offset,
                                 XrdCl::Buffer          &&buffer,
                                 XrdCl::ResponseHandler  *handler,
-                                timeout_t                timeout) override;
+                                time_t                   timeout) override;
 
     virtual bool IsOpen() const override;
 
@@ -152,7 +146,7 @@ private:
     // Returns tuple (status, ok); if `ok` is set to true, then the operation
     // was attempted.  Otherwise, the operation was skipped and `status` should
     // be ignored.
-    std::tuple<XrdCl::XRootDStatus, bool> ReadPrefetch(uint64_t offset, uint64_t size, void *buffer, XrdCl::ResponseHandler *handler, timeout_t timeout, bool isPgRead);
+    std::tuple<XrdCl::XRootDStatus, bool> ReadPrefetch(uint64_t offset, uint64_t size, void *buffer, XrdCl::ResponseHandler *handler, time_t timeout, bool isPgRead);
 
     // The "*Response" variant of the callback response objects defined in DirectorCacheResponse.hh
     // are opt-in; if the caller isn't expecting them, then they will leak memory.  This
@@ -304,7 +298,7 @@ private:
         // continued an ongoing prefetch operation but it failed to submit it.
         PrefetchResponseHandler(File &parent,
             off_t offset, size_t size, std::atomic<off_t> *prefetch_offset, char *buffer, XrdCl::ResponseHandler *handler,
-            std::unique_lock<std::mutex> *lock, timeout_t timeout);
+            std::unique_lock<std::mutex> *lock, time_t timeout);
 
         virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response);
 
@@ -337,7 +331,7 @@ private:
 
 
         // The desired timeout for the operation.
-        timeout_t m_timeout{0};
+        time_t m_timeout{0};
     };
 
     // Last prefetch handler on the stack.

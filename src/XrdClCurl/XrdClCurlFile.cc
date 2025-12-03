@@ -302,7 +302,7 @@ File::Open(const std::string      &url,
            XrdCl::OpenFlags::Flags flags,
            XrdCl::Access::Mode     mode,
            XrdCl::ResponseHandler *handler,
-           timeout_t               timeout)
+           time_t                  timeout)
 {
     if (m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "URL %s already open", url.c_str());
@@ -408,7 +408,7 @@ File::Open(const std::string      &url,
 
 XrdCl::XRootDStatus
 File::Close(XrdCl::ResponseHandler *handler,
-                        timeout_t timeout)
+                        time_t timeout)
 {
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "Cannot close.  URL isn't open");
@@ -476,7 +476,7 @@ File::Close(XrdCl::ResponseHandler *handler,
 XrdCl::XRootDStatus
 File::Stat(bool                    /*force*/,
            XrdCl::ResponseHandler *handler,
-           timeout_t               timeout)
+           time_t                  timeout)
 {
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "Cannot stat.  URL isn't open");
@@ -512,7 +512,7 @@ File::Stat(bool                    /*force*/,
 
 XrdCl::XRootDStatus
 File::Fcntl(const XrdCl::Buffer &arg, XrdCl::ResponseHandler *handler,
-           timeout_t               timeout)
+           time_t                  timeout)
 {
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "Cannot run fcntl.  URL isn't open");
@@ -611,7 +611,7 @@ File::Read(uint64_t                offset,
            uint32_t                size,
            void                   *buffer,
            XrdCl::ResponseHandler *handler,
-           timeout_t               timeout)
+           time_t                  timeout)
 {
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "Cannot read.  URL isn't open");
@@ -661,7 +661,7 @@ File::Read(uint64_t                offset,
 }
 
 std::tuple<XrdCl::XRootDStatus, bool>
-File::ReadPrefetch(uint64_t offset, uint64_t size, void *buffer, XrdCl::ResponseHandler *handler, timeout_t timeout, bool isPgRead)
+File::ReadPrefetch(uint64_t offset, uint64_t size, void *buffer, XrdCl::ResponseHandler *handler, time_t timeout, bool isPgRead)
 {
     // Check if prefetching is enabled; if not, return early.
     auto prefetch_enabled = m_default_prefetch_handler->m_prefetch_enabled.load(std::memory_order_relaxed);
@@ -773,7 +773,7 @@ XrdCl::XRootDStatus
 File::VectorRead(const XrdCl::ChunkList &chunks,
                  void                   *buffer,
                  XrdCl::ResponseHandler *handler,
-                 timeout_t               timeout )
+                 time_t                  timeout )
 {
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "Cannot do vector read: URL isn't open");
@@ -817,7 +817,7 @@ File::Write(uint64_t                offset,
             uint32_t                size,
             const void             *buffer,
             XrdCl::ResponseHandler *handler,
-            timeout_t               timeout)
+            time_t                  timeout)
 {
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "Cannot write: URL isn't open");
@@ -877,7 +877,7 @@ XrdCl::XRootDStatus
 File::Write(uint64_t                offset,
             XrdCl::Buffer         &&buffer,
             XrdCl::ResponseHandler *handler,
-            timeout_t               timeout)
+            time_t                  timeout)
 {
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "Cannot write: URL isn't open");
@@ -935,7 +935,7 @@ File::PgRead(uint64_t                offset,
              uint32_t                size,
              void                   *buffer,
              XrdCl::ResponseHandler *handler,
-             timeout_t               timeout)
+             time_t                  timeout)
 {
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClCurl, "Cannot pgread.  URL isn't open");
@@ -1133,7 +1133,7 @@ File::CalculateCurrentURL(const std::string &value) const {
 
 File::PrefetchResponseHandler::PrefetchResponseHandler(
     File &parent, off_t offset, size_t size, std::atomic<off_t> *prefetch_offset, char *buffer,
-    XrdCl::ResponseHandler *handler, std::unique_lock<std::mutex> *lock, timeout_t timeout
+    XrdCl::ResponseHandler *handler, std::unique_lock<std::mutex> *lock, time_t timeout
 )
     : m_parent(parent),
     m_handler(handler),

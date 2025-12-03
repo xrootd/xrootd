@@ -47,12 +47,6 @@ class HandlerQueue;
 
 class Filesystem final : public XrdCl::FileSystemPlugIn {
 public:
-#if HAVE_XRDCL_IFACE6
-    using timeout_t = time_t;
-#else
-    using timeout_t = uint16_t;
-#endif
-
     Filesystem(const std::string &, std::shared_ptr<HandlerQueue> queue, XrdCl::Log *log);
 
     virtual ~Filesystem() noexcept;
@@ -60,7 +54,7 @@ public:
     XrdCl::XRootDStatus DirList(const std::string          &path,
                                 XrdCl::DirListFlags::Flags  flags,
                                 XrdCl::ResponseHandler     *handler,
-                                timeout_t                   timeout) override;
+                                time_t                      timeout) override;
 
     virtual bool GetProperty(const std::string &name,
         std::string &value) const override;
@@ -68,33 +62,33 @@ public:
     virtual XrdCl::XRootDStatus Locate(const std::string        &path,
                                        XrdCl::OpenFlags::Flags   flags,
                                        XrdCl::ResponseHandler   *handler,
-                                       timeout_t                 timeout) override;
+                                       time_t                    timeout) override;
 
     virtual XrdCl::XRootDStatus MkDir(const std::string        &path,
                                       XrdCl::MkDirFlags::Flags  flags,
                                       XrdCl::Access::Mode       mode,
                                       XrdCl::ResponseHandler   *handler,
-                                      timeout_t                 timeout) override;
+                                      time_t                    timeout) override;
 
     virtual XrdCl::XRootDStatus Rm(const std::string      &path,
                                    XrdCl::ResponseHandler *handler,
-                                   timeout_t               timeout) override;
+                                   time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus RmDir(const std::string      &path,
                                       XrdCl::ResponseHandler *handler,
-                                      timeout_t               timeout) override;
+                                      time_t                  timeout) override;
 
     virtual bool SetProperty(const std::string &name,
                              const std::string &value) override;
 
     virtual XrdCl::XRootDStatus Stat(const std::string      &path,
                                      XrdCl::ResponseHandler *handler,
-                                     timeout_t               timeout) override;
+                                     time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus Query(XrdCl::QueryCode::Code  queryCode,
                                       const XrdCl::Buffer     &arg,
                                       XrdCl::ResponseHandler  *handler,
-                                      timeout_t                timeout) override;
+                                      time_t                   timeout) override;
 
 private:
     // Return a function pointer to the connection callout

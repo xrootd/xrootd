@@ -38,7 +38,7 @@ TEST_F(CurlVectorFixture, Test)
     XrdCl::File fh;
 
     url += "?authz=" + GetReadToken();
-    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<XrdClCurl::File::timeout_t>(10));
+    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<time_t>(10));
     ASSERT_TRUE(rv.IsOK());
         
     std::vector<char> a; a.resize(2);
@@ -51,7 +51,7 @@ TEST_F(CurlVectorFixture, Test)
     chunks.emplace_back(4, 2, c.data());
 
     XrdCl::VectorReadInfo *vrInfo{nullptr};
-    rv = fh.VectorRead(chunks, nullptr, vrInfo, static_cast<XrdClCurl::File::timeout_t>(10));
+    rv = fh.VectorRead(chunks, nullptr, vrInfo, static_cast<time_t>(10));
     ASSERT_TRUE(rv.IsOK());
     ASSERT_NE(vrInfo, nullptr);
     std::unique_ptr<XrdCl::VectorReadInfo> vrInfoPtr(vrInfo);

@@ -27,7 +27,7 @@
 
 namespace XrdClS3 {
 
-XrdCl::XRootDStatus DownloadUrl(const std::string &url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, Filesystem::timeout_t timeout);
+XrdCl::XRootDStatus DownloadUrl(const std::string &url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout);
 
 } // namespace XrdClS3
 #endif // XRDCLS3_S3DOWNLOADHANDLER_HH

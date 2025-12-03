@@ -66,7 +66,7 @@ std::string JoinUrl(const std::string & base, const std::string & path) {
 
 class StatHandler : public XrdCl::ResponseHandler {
 public:
-    StatHandler(const std::string &path, const std::string &s3_url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, Filesystem::timeout_t timeout, XrdCl::Log &log) :
+    StatHandler(const std::string &path, const std::string &s3_url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout, XrdCl::Log &log) :
         m_timeout(timeout),
         m_handler(handler),
         m_header_callout(header_callout),
@@ -78,7 +78,7 @@ public:
     virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) override;
 
 private:
-    Filesystem::timeout_t m_timeout;
+    time_t m_timeout;
     XrdCl::ResponseHandler *m_handler{nullptr};
     XrdClCurl::HeaderCallout *m_header_callout{nullptr};
     std::string m_path;
@@ -137,7 +137,7 @@ private:
 // Handle the creation of a zero-sized file that indicates a "directory"
 class MkdirHandler : public XrdCl::ResponseHandler {
 public:
-    MkdirHandler(XrdCl::File *file, XrdCl::ResponseHandler *handler, Filesystem::timeout_t timeout) :
+    MkdirHandler(XrdCl::File *file, XrdCl::ResponseHandler *handler, time_t timeout) :
         m_expiry(time(NULL) + (timeout ? timeout : 30)),
         m_file(file),
         m_handler(handler)
@@ -253,7 +253,7 @@ DirListResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::A
 
 	auto elem = doc.RootElement();
 	if (strcmp(elem->Value(), "ListBucketResult")) {
-        m_handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidResponse, 0, 
+        m_handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidResponse, 0,
             "S3 ListBucket response is not rooted with ListBucketResult element"), nullptr);
 		return;
 	}
@@ -470,7 +470,7 @@ XrdCl::XRootDStatus
 Filesystem::DirList(const std::string          &path,
                     XrdCl::DirListFlags::Flags  flags,
                     XrdCl::ResponseHandler     *handler,
-                    timeout_t                   timeout)
+                    time_t                      timeout)
 {
     std::string https_url, err_msg;
     const auto s3_url = JoinUrl(m_url.GetURL(), path);
@@ -554,7 +554,7 @@ XrdCl::XRootDStatus
 Filesystem::Locate(const std::string        &path,
                    XrdCl::OpenFlags::Flags   flags,
                    XrdCl::ResponseHandler   *handler,
-                   timeout_t                 timeout)
+                   time_t                    timeout)
 {
     auto cleaned_path = Factory::CleanObjectName(path);
     auto [st, fs] = GetFSHandle(cleaned_path);
@@ -569,7 +569,7 @@ Filesystem::MkDir(const std::string        &input_path,
                   XrdCl::MkDirFlags::Flags  flags,
                   XrdCl::Access::Mode       mode,
                   XrdCl::ResponseHandler   *handler,
-                  timeout_t                 timeout)
+                  time_t                    timeout)
 {
     auto sentinel = Factory::GetMkdirSentinel();
     if (sentinel.empty()) {
@@ -592,7 +592,7 @@ Filesystem::MkDir(const std::string        &input_path,
     }
 
     XrdCl::File *http_file(new XrdCl::File());
-    auto status = http_file->Open(https_url, XrdCl::OpenFlags::Compress, XrdCl::Access::None, nullptr, Filesystem::timeout_t(0));
+    auto status = http_file->Open(https_url, XrdCl::OpenFlags::Compress, XrdCl::Access::None, nullptr, time_t(0));
     if (!status.IsOK()) {
         delete http_file;
         return status;
@@ -616,7 +616,7 @@ XrdCl::XRootDStatus
 Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
                   const XrdCl::Buffer     &arg,
                   XrdCl::ResponseHandler  *handler,
-                  timeout_t                timeout)
+                  time_t                   timeout)
 {
     if (queryCode != XrdCl::QueryCode::Checksum && queryCode != XrdCl::QueryCode::XAttr) {
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errNotImplemented);
@@ -635,7 +635,7 @@ Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
 XrdCl::XRootDStatus
 Filesystem::Rm(const std::string      &path,
                XrdCl::ResponseHandler *handler,
-               timeout_t               timeout)
+               time_t                  timeout)
 {
     auto cleaned_path = Factory::CleanObjectName(path);
     auto [st, fs] = GetFSHandle(cleaned_path);
@@ -648,7 +648,7 @@ Filesystem::Rm(const std::string      &path,
 XrdCl::XRootDStatus
 Filesystem::RmDir(const std::string      &input_path,
                   XrdCl::ResponseHandler *handler,
-                  timeout_t               timeout)
+                  time_t                  timeout)
 {
     auto sentinel = Factory::GetMkdirSentinel();
     if (sentinel.empty()) {
@@ -678,7 +678,7 @@ Filesystem::SetProperty(const std::string &name,
 XrdCl::XRootDStatus
 Filesystem::Stat(const std::string      &path,
                  XrdCl::ResponseHandler *handler,
-                 timeout_t               timeout)
+                 time_t                  timeout)
 {
     auto cleaned_path = Factory::CleanObjectName(path);
     auto [st, fs] = GetFSHandle(cleaned_path);

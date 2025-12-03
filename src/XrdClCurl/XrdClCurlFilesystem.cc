@@ -45,7 +45,7 @@ XrdCl::XRootDStatus
 Filesystem::DirList(const std::string          &path,
                     XrdCl::DirListFlags::Flags  flags,
                     XrdCl::ResponseHandler     *handler,
-                    timeout_t                   timeout )
+                    time_t                      timeout )
 {
     auto ts = XrdClCurl::Factory::GetHeaderTimeoutWithDefault(timeout);
 
@@ -113,7 +113,7 @@ XrdCl::XRootDStatus
 Filesystem::Locate( const std::string        &path,
                     XrdCl::OpenFlags::Flags   flags,
                     XrdCl::ResponseHandler   *handler,
-                    timeout_t                 timeout )
+                    time_t                    timeout )
 {
     if (!handler) return XrdCl::XRootDStatus();
 
@@ -131,7 +131,7 @@ XrdCl::XRootDStatus Filesystem::MkDir(const std::string        &path,
                                       XrdCl::MkDirFlags::Flags  flags,
                                       XrdCl::Access::Mode       mode,
                                       XrdCl::ResponseHandler   *handler,
-                                      timeout_t                 timeout)
+                                      time_t                    timeout)
 {
     auto ts = XrdClCurl::Factory::GetHeaderTimeoutWithDefault(timeout);
 
@@ -157,7 +157,7 @@ XrdCl::XRootDStatus Filesystem::MkDir(const std::string        &path,
 XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
     const XrdCl::Buffer     &arg,
     XrdCl::ResponseHandler  *handler,
-    timeout_t                timeout)
+    time_t                   timeout)
 {
     auto ts = XrdClCurl::Factory::GetHeaderTimeoutWithDefault(timeout);
 
@@ -228,7 +228,7 @@ XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
 XrdCl::XRootDStatus
 Filesystem::Rm(const std::string      &path,
                XrdCl::ResponseHandler *handler,
-               timeout_t               timeout)
+               time_t                  timeout)
 {
     auto ts = XrdClCurl::Factory::GetHeaderTimeoutWithDefault(timeout);
 
@@ -254,7 +254,7 @@ Filesystem::Rm(const std::string      &path,
 XrdCl::XRootDStatus
 Filesystem::RmDir(const std::string      &path,
                   XrdCl::ResponseHandler *handler,
-                  timeout_t               timeout)
+                  time_t                  timeout)
 {
     return Rm(path, handler, timeout);
 }
@@ -284,7 +284,7 @@ Filesystem::SetProperty(const std::string &name,
 XrdCl::XRootDStatus
 Filesystem::Stat(const std::string      &path,
                  XrdCl::ResponseHandler *handler,
-                 timeout_t               timeout)
+                 time_t                  timeout)
 {
     auto ts = XrdClCurl::Factory::GetHeaderTimeoutWithDefault(timeout);
 
