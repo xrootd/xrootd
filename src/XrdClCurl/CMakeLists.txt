@@ -45,11 +45,6 @@ target_link_libraries( XrdClCurlObj PUBLIC
   XrdCl
   XrdUtils
 )
-if ( TINYXML_FOUND )
-  target_include_directories( XrdClCurlObj PUBLIC ${TINYXML_INCLUDE_DIR} )
-else()
-  target_include_directories( XrdClCurlObj PUBLIC ../XrdXml/tinyxml )
-endif()
 
 set_target_properties( XrdClCurlObj PROPERTIES POSITION_INDEPENDENT_CODE ON )
 
