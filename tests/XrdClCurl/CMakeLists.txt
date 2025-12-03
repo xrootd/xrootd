@@ -7,9 +7,8 @@ endif()
 # to allow unit tests to access them.  Rather than build the objects twice, we
 # create an internal object library and just link twice -- once stripping the symbols,
 # once without.
-add_library(XrdClCurlTesting SHARED "$<TARGET_OBJECTS:XrdClCurlObj>")
-target_link_libraries(XrdClCurlTesting XrdClCurlObj)
-target_include_directories(XrdClCurlTesting PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+add_library(XrdClCurlTesting SHARED)
+target_link_libraries(XrdClCurlTesting PRIVATE XrdClCurlObj)
 
 include( GoogleTest )
 
