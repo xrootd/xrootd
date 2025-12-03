@@ -37,16 +37,10 @@ class File final : public XrdCl::FilePlugIn {
 public:
     File(XrdCl::Log *log);
 
-#if HAVE_XRDCL_IFACE6
-    using timeout_t = time_t;
-#else
-    using timeout_t = uint16_t;
-#endif
-
     virtual ~File() noexcept;
 
     virtual XrdCl::XRootDStatus Close(XrdCl::ResponseHandler *handler,
-                                     timeout_t                timeout) override;
+                                     time_t                   timeout) override;
 
     virtual bool GetProperty( const std::string &name,
                             std::string &value ) const override;
@@ -57,42 +51,42 @@ public:
                                      XrdCl::OpenFlags::Flags flags,
                                      XrdCl::Access::Mode     mode,
                                      XrdCl::ResponseHandler *handler,
-                                     timeout_t               timeout) override;
+                                     time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus PgRead(uint64_t                offset,
                                        uint32_t                size,
                                        void                   *buffer,
                                        XrdCl::ResponseHandler *handler,
-                                       timeout_t               timeout) override;
+                                       time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus Read(uint64_t                offset,
                                      uint32_t                size,
                                      void                   *buffer,
                                      XrdCl::ResponseHandler *handler,
-                                     timeout_t               timeout) override;
+                                     time_t                  timeout) override;
 
     virtual bool SetProperty( const std::string &name,
                             const std::string &value ) override;
 
     virtual XrdCl::XRootDStatus Stat(bool                    force,
                                      XrdCl::ResponseHandler *handler,
-                                     timeout_t               timeout) override;
+                                     time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus VectorRead(const XrdCl::ChunkList &chunks,
                                            void                   *buffer,
                                            XrdCl::ResponseHandler *handler,
-                                           timeout_t               timeout ) override;
+                                           time_t                  timeout ) override;
 
     virtual XrdCl::XRootDStatus Write(uint64_t            offset,
                                   uint32_t                size,
                                   const void             *buffer,
                                   XrdCl::ResponseHandler *handler,
-                                  timeout_t               timeout) override;
+                                  time_t                  timeout) override;
 
     virtual XrdCl::XRootDStatus Write(uint64_t             offset,
                                   XrdCl::Buffer          &&buffer,
                                   XrdCl::ResponseHandler  *handler,
-                                  timeout_t                timeout) override;
+                                  time_t                   timeout) override;
 
 private:
     bool m_is_opened{false};

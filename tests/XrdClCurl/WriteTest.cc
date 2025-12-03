@@ -74,7 +74,7 @@ TEST_F(CurlWriteFixture, PutTimeoutTest)
     XrdCl::File fh;
     auto name = GetOriginURL() + "/test/write_timeout";
     auto url = name + "?authz=" + GetWriteToken();
-    auto rv = fh.Open(url, XrdCl::OpenFlags::Write, XrdCl::Access::Mode(0755), static_cast<XrdClCurl::File::timeout_t>(0));
+    auto rv = fh.Open(url, XrdCl::OpenFlags::Write, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
     ASSERT_TRUE(rv.IsOK()) << "Failed to open " << name << " for write: " << rv.ToString();
 
     fh.SetProperty("XrdClCurlMaintenancePeriod", "1");
@@ -83,13 +83,13 @@ TEST_F(CurlWriteFixture, PutTimeoutTest)
     uint32_t sizeToWrite = 10'000;
     std::string writeBuffer(sizeToWrite, 'a');
     uint64_t offset = 0;
-    rv = fh.Write(offset, sizeToWrite, writeBuffer.data(), static_cast<XrdClCurl::File::timeout_t>(10));
+    rv = fh.Write(offset, sizeToWrite, writeBuffer.data(), static_cast<time_t>(10));
     ASSERT_TRUE(rv.IsOK()) << "Failed to write " << name << ": " << rv.ToString();
     offset += sizeToWrite;
 
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    rv = fh.Write(offset, sizeToWrite, writeBuffer.data(), static_cast<XrdClCurl::File::timeout_t>(10));
+    rv = fh.Write(offset, sizeToWrite, writeBuffer.data(), static_cast<time_t>(10));
     ASSERT_FALSE(rv.IsOK()) << "Succeeded writing to a file that should have timed out " << name << ": " << rv.ToString();
     fprintf(stderr, "Write failed with error message: %s\n", rv.ToStr().c_str());
 

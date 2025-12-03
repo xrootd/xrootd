@@ -81,10 +81,10 @@ CurlChecksumFixture::WriteString(const std::string &name, const std::string &con
     XrdCl::File fh;
 
     auto url = name + "?authz=" + GetWriteToken();
-    auto rv = fh.Open(url, XrdCl::OpenFlags::Write, XrdCl::Access::Mode(0755), static_cast<XrdClCurl::File::timeout_t>(0));
+    auto rv = fh.Open(url, XrdCl::OpenFlags::Write, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
     ASSERT_TRUE(rv.IsOK()) << "Failed to open " << name << " for write: " << rv.ToString();
 
-    rv = fh.Write(0, contents.size(), contents.data(), static_cast<XrdClCurl::File::timeout_t>(0));
+    rv = fh.Write(0, contents.size(), contents.data(), static_cast<time_t>(0));
     ASSERT_TRUE(rv.IsOK()) << "Failed to write " << name << ": " << rv.ToString();
 
     rv = fh.Close();
@@ -99,13 +99,13 @@ CurlChecksumFixture::VerifyString(const std::string &name, const std::string &co
     XrdCl::File fh;
 
     auto url = name + "?authz=" + GetReadToken();
-    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<XrdClCurl::File::timeout_t>(0));
+    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
     ASSERT_TRUE(rv.IsOK()) << "Failed to open " << name << " for read: " << rv.ToString();
 
     uint32_t bytesRead;
     std::string result;
     result.resize(contents.size());
-    rv = fh.Read(0, contents.size(), result.data(), bytesRead, static_cast<XrdClCurl::File::timeout_t>(0));
+    rv = fh.Read(0, contents.size(), result.data(), bytesRead, static_cast<time_t>(0));
     ASSERT_TRUE(rv.IsOK()) << "Failed to read " << name << ": " << rv.ToString();
     ASSERT_EQ(contents.size(), bytesRead);
 

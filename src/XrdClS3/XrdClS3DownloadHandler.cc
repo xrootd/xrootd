@@ -33,7 +33,7 @@ namespace {
 
 class S3DownloadHandler : public XrdCl::ResponseHandler {
 public:
-    S3DownloadHandler(std::unique_ptr<XrdCl::File> file, XrdCl::ResponseHandler *handler, Filesystem::timeout_t timeout)
+    S3DownloadHandler(std::unique_ptr<XrdCl::File> file, XrdCl::ResponseHandler *handler, time_t timeout)
         : m_expiry(time(NULL) + timeout), m_file(std::move(file)), m_handler(handler), m_buffer(new XrdCl::Buffer(kReadSize))
     {
         if (timeout == 0) {
@@ -54,7 +54,7 @@ private:
     std::unique_ptr<XrdCl::Buffer> m_buffer; // Buffer to hold the data read from the file
     static constexpr size_t kReadSize = 32 * 1024; // Size of each read operation (32 KB)
 
-    std::pair<Filesystem::timeout_t, bool> GetTimeout() const {
+    std::pair<time_t, bool> GetTimeout() const {
         // Calculate the timeout based on the current time and the expiry time
         time_t now = time(NULL);
         if (now >= m_expiry) {
@@ -232,13 +232,13 @@ S3DownloadHandler::CloseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw,
 } // namespace
 
 XrdCl::XRootDStatus
-XrdClS3::DownloadUrl(const std::string &url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, Filesystem::timeout_t timeout)
+XrdClS3::DownloadUrl(const std::string &url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout)
 {
     std::unique_ptr<XrdCl::File> http_file(new XrdCl::File());
     // Hack - we need to set a few properties on the file object before the open occurs.
     // However, the "real" (plugin) file object is not created until the open call.
     // This forces the plugin object to be created, so we can set the properties and Open later.
-    auto status = http_file->Open(url, XrdCl::OpenFlags::Compress, XrdCl::Access::None, nullptr, Filesystem::timeout_t(0));
+    auto status = http_file->Open(url, XrdCl::OpenFlags::Compress, XrdCl::Access::None, nullptr, time_t(0));
     if (!status.IsOK()) {
         return status;
     }

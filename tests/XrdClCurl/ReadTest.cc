@@ -56,7 +56,7 @@ TEST_F(CurlReadFixture, PrefetchTimeoutTest)
 
     XrdCl::File fh;
     url += "?authz=" + GetReadToken();
-    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<XrdClCurl::File::timeout_t>(0));
+    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
     ASSERT_TRUE(rv.IsOK());
     fh.SetProperty("XrdClCurlMaintenancePeriod", "1");
     fh.SetProperty("XrdClCurlStallTimeout", "500ms");
@@ -74,7 +74,7 @@ TEST_F(CurlReadFixture, PrefetchTimeoutTest)
     while (sizeToRead) {
         readBuffers.emplace_back(sizeToRead, curChunkByte - 1);
         handlers.emplace_back(new SyncResponseHandler());
-        auto rv = fh.Read(offset, sizeToRead, readBuffers.back().data(), handlers.back().get(), static_cast<XrdClCurl::File::timeout_t>(0));
+        auto rv = fh.Read(offset, sizeToRead, readBuffers.back().data(), handlers.back().get(), static_cast<time_t>(0));
         ASSERT_TRUE(rv.IsOK());
 
         expectedSize -= sizeToRead;
@@ -151,7 +151,7 @@ TEST_F(CurlReadFixture, ConcurrentTest)
 
     XrdCl::File fh;
     url += "?authz=" + GetReadToken();
-    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<XrdClCurl::File::timeout_t>(0));
+    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
     ASSERT_TRUE(rv.IsOK());
 
     // Submit multiple reads, one after another.
@@ -167,7 +167,7 @@ TEST_F(CurlReadFixture, ConcurrentTest)
     while (sizeToRead) {
         readBuffers.emplace_back(sizeToRead, curChunkByte - 1);
         handlers.emplace_back(new SyncResponseHandler());
-        auto rv = fh.Read(offset, sizeToRead, readBuffers.back().data(), handlers.back().get(), static_cast<XrdClCurl::File::timeout_t>(0));
+        auto rv = fh.Read(offset, sizeToRead, readBuffers.back().data(), handlers.back().get(), static_cast<time_t>(0));
         ASSERT_TRUE(rv.IsOK());
 
         expectedSize -= sizeToRead;
