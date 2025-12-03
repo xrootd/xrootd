@@ -39,6 +39,7 @@ gtest_discover_tests(xrdcl-cluster-tests TEST_PREFIX XrdCl::
 # tests to be run in serial, otherwise they are problematic
 set(SERIAL_TESTS_FILES
   XrdClFileTest.cc
+  XrdClFileClone.cc
   XrdClFileCopyTest.cc
   XrdClFileSystemTest.cc
   XrdClOperationsWorkflowTest.cc
