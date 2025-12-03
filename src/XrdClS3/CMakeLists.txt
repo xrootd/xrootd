@@ -43,11 +43,4 @@ if(NOT APPLE)
     "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/configs/export-lib-symbols")
 endif()
 
-configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/configs/xrdcl-s3-plugin.conf ${CMAKE_CURRENT_BINARY_DIR}/configs/xrdcl-s3-plugin.conf)
-
 install(TARGETS ${XrdClS3} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
-install(
-  FILES ${CMAKE_CURRENT_BINARY_DIR}/configs/xrdcl-s3-plugin.conf
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/xrootd/client.plugins.d/
-)
