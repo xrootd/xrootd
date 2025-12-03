@@ -1,5 +1,5 @@
-
-if( NOT BUILD_TESTS )
+# XrdClCurl tests depend on scitokens fixture for authentication
+if(NOT BUILD_SCITOKENS)
   return()
 endif()
 
