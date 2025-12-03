@@ -194,15 +194,10 @@ fi
 export XRD_PLUGINCONFDIR="$RUNDIR/client.plugins.d"
 mkdir -p "$XRD_PLUGINCONFDIR"
 
-PLUGIN_SUFFIX=so
-if [ "$(uname)" = Darwin ]; then
-  PLUGIN_SUFFIX=dylib
-fi
-
 cat > "$XRD_PLUGINCONFDIR/curl-plugin.conf" <<EOF
 
 url = https://*
-lib = $BINARY_DIR/lib/libXrdClCurlTesting.$PLUGIN_SUFFIX
+lib = libXrdClCurl.so
 enable = true
 
 EOF
