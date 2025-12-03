@@ -172,7 +172,7 @@ mkdir -p "$RUNDIR/issuer"
 cat > "$RUNDIR/issuer/sql" << EOF
 BEGIN TRANSACTION;
 CREATE TABLE keycache (issuer text UNIQUE PRIMARY KEY NOT NULL,keys text NOT NULL);
-INSERT INTO keycache VALUES('https://localhost:8443','{"expires":$(($(date '+%s') + 3600)),"jwks":$(cat "$XROOTD_EXPORTDIR/.well-known/issuer.jwks"),"next_update":$(($(date '+%s') + 3600))}');
+INSERT INTO keycache VALUES('https://localhost:9443','{"expires":$(($(date '+%s') + 3600)),"jwks":$(cat "$XROOTD_EXPORTDIR/.well-known/issuer.jwks"),"next_update":$(($(date '+%s') + 3600))}');
 COMMIT;
 EOF
 
@@ -219,8 +219,8 @@ mkdir -p "$XROOTD_CONFIGDIR"
 export ORIGIN_CONFIG="$XROOTD_CONFIGDIR/xrootd-origin.conf"
 cat > "$ORIGIN_CONFIG" <<EOF
 
-xrd.port 8443
-xrd.protocol http:8443 libXrdHttp.so
+xrd.port 9443
+xrd.protocol http:9443 libXrdHttp.so
 
 xrd.tls $CA_DIR/tls.crt $CA_DIR/tls.key
 xrd.tlsca certfile $CA_DIR/tlsca.pem
@@ -312,7 +312,7 @@ pfc.diskusage 0.90 0.95 purgeinterval 300s
 
 xrootd.fslib ++ throttle
 
-pss.origin https://localhost:8443
+pss.origin https://localhost:9443
 oss.localroot $XROOTD_CACHEDIR/namespace
 pfc.spaces data meta
 oss.space data $XROOTD_CACHEDIR/data
@@ -341,10 +341,10 @@ EOF
 cat > "$RUNDIR/scitokens.cfg" << EOF
 
 [Global]
-audience = https://localhost:8443
+audience = https://localhost:9443
 
 [Issuer Localhost]
-issuer = https://localhost:8443
+issuer = https://localhost:9443
 base_path = /test
 
 EOF
@@ -464,7 +464,7 @@ echo "Cache started at port $CACHE_PORT"
 
 if ! "$BINARY_DIR/bin/xrdscitokens-create-token" \
     issuer_public.pem issuer_private.pem test_key \
-    https://localhost:8443 storage.read:/ 600 > "$RUNDIR/token"; then
+    https://localhost:9443 storage.read:/ 600 > "$RUNDIR/token"; then
   echo "Failed to generate read token"
   exit 1
 fi
@@ -472,7 +472,7 @@ echo "Sample read token available at $RUNDIR/token"
 
 if ! "$BINARY_DIR/bin/xrdscitokens-create-token" \
     issuer_public.pem issuer_private.pem test_key \
-    https://localhost:8443 storage.modify:/ 600 > "$RUNDIR/write.token"; then
+    https://localhost:9443 storage.modify:/ 600 > "$RUNDIR/write.token"; then
   echo "Failed to generate write token"
   exit 1
 fi

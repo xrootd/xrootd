@@ -99,11 +99,11 @@ TEST(Factory, ExtractHostname) {
     hostname = Factory::ExtractHostname(url);
     ASSERT_EQ(hostname, "localhost");
 
-    url = "https://user:foo@s3.amazonaws.com:8443/";
+    url = "https://user:foo@s3.amazonaws.com:9443/";
     hostname = Factory::ExtractHostname(url);
     ASSERT_EQ(hostname, "s3.amazonaws.com");
 
-    url = "https://user:foo@s3.amazonaws.com:8443/foo/bar";
+    url = "https://user:foo@s3.amazonaws.com:9443/foo/bar";
     hostname = Factory::ExtractHostname(url);
     ASSERT_EQ(hostname, "s3.amazonaws.com");
 

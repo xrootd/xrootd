@@ -249,7 +249,7 @@ export XDG_CACHE_HOME
 cat > "$RUNDIR/issuer/sql" << EOF
 BEGIN TRANSACTION;
 CREATE TABLE keycache (issuer text UNIQUE PRIMARY KEY NOT NULL,keys text NOT NULL);
-INSERT INTO keycache VALUES('https://localhost:8443','{"expires":$(($(date '+%s') + 3600)),"jwks":$(cat "$RUNDIR/issuer/issuer.jwks"),"next_update":$(($(date '+%s') + 3600))}');
+INSERT INTO keycache VALUES('https://localhost:9443','{"expires":$(($(date '+%s') + 3600)),"jwks":$(cat "$RUNDIR/issuer/issuer.jwks"),"next_update":$(($(date '+%s') + 3600))}');
 COMMIT;
 EOF
 
@@ -265,7 +265,7 @@ fi
 
 if ! "$BINARY_DIR/bin/xrdscitokens-create-token" \
     "$RUNDIR/issuer/issuer_public.pem" "$RUNDIR/issuer/issuer_private.pem" test_key \
-    https://localhost:8443 storage.read:/ 600 > "$RUNDIR/token"; then
+    https://localhost:9443 storage.read:/ 600 > "$RUNDIR/token"; then
   echo "Failed to generate read token"
   exit 1
 fi
@@ -273,7 +273,7 @@ echo "Sample read token available at $RUNDIR/token"
   
 if ! "$BINARY_DIR/bin/xrdscitokens-create-token" \
     "$RUNDIR/issuer/issuer_public.pem" "$RUNDIR/issuer/issuer_private.pem" test_key \
-    https://localhost:8443 storage.modify:/ 600 > "$RUNDIR/write.token"; then
+    https://localhost:9443 storage.modify:/ 600 > "$RUNDIR/write.token"; then
   echo "Failed to generate write token"
   exit 1 
 fi
@@ -380,10 +380,10 @@ EOF
 cat > "$XROOTD_CONFIGDIR/scitokens.cfg" << EOF
 
 [Global] 
-audience = https://localhost:8443
+audience = https://localhost:9443
 
 [Issuer Localhost]
-issuer = https://localhost:8443
+issuer = https://localhost:9443
 base_path = /test-bucket
 
 EOF
