@@ -39,14 +39,14 @@ gtest_add_tests( TARGET xrdcl-test TEST_LIST CurlClOnlyTests )
 set_tests_properties( ${CurlClOnlyTests}
   PROPERTIES
     FIXTURES_REQUIRED XrdClCurl::curl
-    ENVIRONMENT "LSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/leaksanitizer-suppress.txt;ENV_FILE=${CMAKE_BINARY_DIR}/tests/curl/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/curl/client.plugins.d;LD_LIBRARY_PATH=${XRootD_LIB_DIR}:$ENV{LD_LIBRARY_PATH}"
+    ENVIRONMENT "ENV_FILE=${CMAKE_BINARY_DIR}/tests/curl/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/curl/client.plugins.d"
 )
 
 gtest_add_tests( TARGET xrdcl-curl-test TEST_LIST CurlTests )
 set_tests_properties( ${CurlTests}
   PROPERTIES
     FIXTURES_REQUIRED XrdClCurl::curl
-    ENVIRONMENT "LSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/leaksanitizer-suppress.txt;ENV_FILE=${CMAKE_BINARY_DIR}/tests/curl/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/curl/client.plugins.d;LD_LIBRARY_PATH=${XRootD_LIB_DIR}:$ENV{LD_LIBRARY_PATH}"
+    ENVIRONMENT "ENV_FILE=${CMAKE_BINARY_DIR}/tests/curl/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/curl/client.plugins.d"
 )
 
 ######################################
@@ -58,7 +58,7 @@ add_test(NAME XrdClCurl::curl::setup
 set_tests_properties( XrdClCurl::curl::setup
   PROPERTIES
     FIXTURES_SETUP XrdClCurl::curl
-    ENVIRONMENT "OPENSSL_BIN=${OPENSSL_BIN};BINARY_DIR=${CMAKE_BINARY_DIR};SOURCE_DIR=${CMAKE_SOURCE_DIR};XROOTD_BINDIR=${CMAKE_CURRENT_BINARY_DIR}/../../bin;XROOTD_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/../../lib"
+    ENVIRONMENT "OPENSSL_BIN=${OPENSSL_BIN};BINARY_DIR=${CMAKE_BINARY_DIR};SOURCE_DIR=${CMAKE_SOURCE_DIR}"
 )
 
 add_test( NAME XrdClCurl::curl::teardown
@@ -80,6 +80,6 @@ list( APPEND CURL_TEST_LOGS ${CMAKE_CURRENT_BINARY_DIR}/tests/curl/client.log )
 set_tests_properties( XrdClCurl::curl::test
   PROPERTIES
     FIXTURES_REQUIRED XrdClCurl::curl
-    ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR};XROOTD_BINDIR=${CMAKE_CURRENT_BINARY_DIR}/../../bin;XROOTD_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/../../lib"
+    ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
     ATTACHED_FILES_ON_FAIL "${CURL_TEST_LOGS}"
 )
