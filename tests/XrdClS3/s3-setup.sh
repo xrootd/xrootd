@@ -287,15 +287,10 @@ echo "Sample write token available at $RUNDIR/write.token"
 export XRD_PLUGINCONFDIR="$RUNDIR/client.plugins.d"
 mkdir -p "$XRD_PLUGINCONFDIR"
   
-PLUGIN_SUFFIX=so
-if [ "$(uname)" = Darwin ]; then
-  PLUGIN_SUFFIX=dylib
-fi 
-  
 cat > "$XRD_PLUGINCONFDIR/curl-plugin.conf" <<EOF
 
 url = https://*
-lib = $BINARY_DIR/lib/libXrdClCurlTesting.$PLUGIN_SUFFIX
+lib = libXrdClCurl.so
 enable = true
 
 EOF
@@ -303,7 +298,7 @@ EOF
 cat > "$XRD_PLUGINCONFDIR/s3-plugin.conf" <<EOF
 
 url = s3://*
-lib = $BINARY_DIR/lib/libXrdClS3Testing.$PLUGIN_SUFFIX
+lib = libXrdClS3.so
 enable = true
 
 EOF
