@@ -1,6 +1,3 @@
-
-set(XrdClS3 "XrdClS3-${PLUGIN_VERSION}")
-
 if(FORCE_ENABLED)
   find_package(CURL REQUIRED)
 else()
@@ -11,32 +8,29 @@ if(NOT CURL_FOUND)
   return()
 endif()
 
-add_library( XrdClS3Obj OBJECT
+add_library(XrdClS3Obj OBJECT
   XrdClS3DownloadHandler.cc XrdClS3DownloadHandler.hh
   XrdClS3Factory.cc         XrdClS3Factory.hh
   XrdClS3File.cc            XrdClS3File.hh
   XrdClS3Filesystem.cc      XrdClS3Filesystem.hh
 )
 
-target_link_libraries( XrdClS3Obj PUBLIC
-  CURL::libcurl
-  OpenSSL::Crypto
-  Threads::Threads
-  XrdXml
-  XrdCl
-  XrdUtils
+target_link_libraries(XrdClS3Obj
+  PRIVATE
+    XrdCl
+    XrdUtils
+    XrdXml
+    CURL::libcurl
+    OpenSSL::Crypto
+    Threads::Threads
 )
 
-set_target_properties( XrdClS3Obj PROPERTIES POSITION_INDEPENDENT_CODE ON )
+set_target_properties(XrdClS3Obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if (ENABLE_TESTS)
-  add_library(XrdClS3Testing SHARED "$<TARGET_OBJECTS:XrdClS3Obj>")
-  target_link_libraries(XrdClS3Testing XrdClS3Obj)
-  target_include_directories(XrdClS3Testing PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-endif()
+set(XrdClS3 "XrdClS3-${PLUGIN_VERSION}")
 
-add_library( ${XrdClS3} MODULE "$<TARGET_OBJECTS:XrdClS3Obj>")
-target_link_libraries( ${XrdClS3} XrdClS3Obj)
+add_library(${XrdClS3} MODULE)
+target_link_libraries(${XrdClS3} PRIVATE XrdClS3Obj)
 
 if(NOT APPLE)
   target_link_options(${XrdClS3} PRIVATE
