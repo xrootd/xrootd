@@ -89,7 +89,7 @@ BuildRequires:	krb5-workstation
 BuildRequires:  /usr/bin/hostname
 BuildRequires:	openssl
 BuildRequires:	procps-ng
-BuildRequires:  /usr/bin/sqlite3
+BuildRequires:	sqlite
 %endif
 
 %if %{with xrdec}
