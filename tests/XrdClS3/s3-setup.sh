@@ -128,9 +128,11 @@ if [ "$?" -ne 0 ]; then
   exit 1
 fi
 
+HOST="${HOSTNAME:-localhost}"
+
 # Create the host certificate request
 openssl genrsa -out "$MINIO_CERTSDIR/private.key" 4096 >> "$BINARY_DIR/tests/$TEST_NAME/server.log"
-openssl req -new -key "$MINIO_CERTSDIR/private.key" -config "$MINIO_CERTSDIR/tlsca.ini" -out "$MINIO_CERTSDIR/public.csr" -outform PEM -subj "/CN=$(hostname)" 0<&- >> "$BINARY_DIR/tests/$TEST_NAME/server.log"
+openssl req -new -key "$MINIO_CERTSDIR/private.key" -config "$MINIO_CERTSDIR/tlsca.ini" -out "$MINIO_CERTSDIR/public.csr" -outform PEM -subj "/CN=${HOST}" 0<&- >> "$BINARY_DIR/tests/$TEST_NAME/server.log"
 if [ "$?" -ne 0 ]; then
   echo "Failed to generate host certificate request"
   exit 1
@@ -156,7 +158,7 @@ printf "%s" "$MINIO_USER" > "$RUNDIR/access_key"
 printf "%s" "$MINIO_PASSWORD" > "$RUNDIR/secret_key"
 
 # Launch minio
-"$MINIO_BIN" --certs-dir "$MINIO_CERTSDIR" server --address "$(hostname):0" "$MINIO_DATADIR" 0<&- >"$BINARY_DIR/tests/$TEST_NAME/server.log" 2>&1 &
+"$MINIO_BIN" --certs-dir "$MINIO_CERTSDIR" server --address "${HOST}:0" "$MINIO_DATADIR" 0<&- >"$BINARY_DIR/tests/$TEST_NAME/server.log" 2>&1 &
 MINIO_PID=$!
 echo "minio daemon PID: $MINIO_PID"
 sleep 1
@@ -175,7 +177,7 @@ while [ -z "$MINIO_URL" ]; do
   fi
 done
 MINIO_PORT=$MINIO_URL
-MINIO_URL=https://$(hostname):$MINIO_URL
+MINIO_URL=https://${HOST}:$MINIO_URL
 echo "Minio API server started on $MINIO_URL"
 
 cat > "$BINARY_DIR/tests/$TEST_NAME/setup.sh" <<EOF
@@ -357,13 +359,13 @@ oss.local_root /
 
 pss.setopt DebugLevel 4
 ofs.osslib libXrdPss.so
-pss.origin s3://$(hostname):$MINIO_PORT
+pss.origin s3://${HOST}:$MINIO_PORT
 
 #s3.begin
 #s3.path_name /test
 #s3.bucket_name $BUCKET_NAME
 #s3.service_url $MINIO_URL
-#s3.service_name $(hostname)
+#s3.service_name ${HOST}
 #s3.url_style path
 #s3.region us-east-1
 #s3.access_key_file $XROOTD_CONFIGDIR/access_key
@@ -422,7 +424,7 @@ while [ -z "$XROOTD_URL" ]; do
     exit 1
   fi
 done
-XROOTD_URL="https://$(hostname):$XROOTD_URL/"
+XROOTD_URL="https://${HOST}:$XROOTD_URL/"
 echo "xrootd started at $XROOTD_URL"
 
 cat >> "$BINARY_DIR/tests/$TEST_NAME/setup.sh" <<EOF
