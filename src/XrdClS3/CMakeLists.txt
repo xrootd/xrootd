@@ -27,12 +27,6 @@ target_link_libraries( XrdClS3Obj PUBLIC
   XrdUtils
 )
 
-if(TINYXML_FOUND)
-  target_include_directories( XrdClS3Obj PRIVATE ${TINYXML_INCLUDE_DIR} )
-else()
-  target_include_directories( XrdClS3Obj PRIVATE ../XrdXml/tinyxml )
-endif()
-
 set_target_properties( XrdClS3Obj PROPERTIES POSITION_INDEPENDENT_CODE ON )
 
 if (ENABLE_TESTS)
