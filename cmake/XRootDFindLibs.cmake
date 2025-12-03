@@ -5,10 +5,6 @@ find_package( ZLIB REQUIRED)
 
 find_package( libuuid REQUIRED )
 
-# On AlmaLinux 8, special linking rules are required to use std::filesystem;
-# this creates a special target, std::filesystem, that targets can add as a dep
-find_package( Filesystem REQUIRED )
-
 if( ENABLE_READLINE )
   if( FORCE_ENABLED )
     find_package( Readline REQUIRED )

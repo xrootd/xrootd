@@ -17,7 +17,12 @@ add_executable( xrdcl-s3-unittest
 
 target_link_libraries( xrdcl-s3-test XrdClS3Testing XrdClCurlTransferTest GTest::gtest_main )
 
-target_link_libraries( xrdcl-s3-unittest XrdClS3Testing GTest::gtest_main std::filesystem )
+target_link_libraries( xrdcl-s3-unittest XrdClS3Testing GTest::gtest_main )
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+  AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
+  target_link_libraries(xrdcl-s3-unittest stdc++fs)
+endif()
 
 gtest_add_tests( TARGET xrdcl-s3-test TEST_LIST S3Tests )
 set_tests_properties( ${S3Tests}
