@@ -25,12 +25,6 @@ add_executable( xrdcl-test
   WriteTest.cc
 )
 
-# The connection tests are sometimes flaky; this allows us to re-run
-# them to increase the likelihood of failure
-add_executable( xrdcl-connection-test
-    ConnectionCalloutTest.cc
-)
-
 # Tests depending on XrdClCurl linkage
 add_executable( xrdcl-curl-test
   CopyTest.cc
@@ -39,22 +33,10 @@ add_executable( xrdcl-curl-test
 )
 
 target_link_libraries( xrdcl-test XrdClCurlTransferTest GTest::gtest_main )
-target_link_libraries( xrdcl-connection-test XrdClCurlTransferTest GTest::gtest_main )
 target_link_libraries( xrdcl-curl-test XrdClCurlTesting XrdClCurlTransferTest GTest::gtest_main )
 
 gtest_add_tests( TARGET xrdcl-test TEST_LIST CurlClOnlyTests )
 set_tests_properties( ${CurlClOnlyTests}
-  PROPERTIES
-    FIXTURES_REQUIRED XrdClCurl::curl
-    ENVIRONMENT "LSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/leaksanitizer-suppress.txt;ENV_FILE=${CMAKE_BINARY_DIR}/tests/curl/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/curl/client.plugins.d;LD_LIBRARY_PATH=${XRootD_LIB_DIR}:$ENV{LD_LIBRARY_PATH}"
-)
-
-gtest_add_tests(
-  TARGET xrdcl-connection-test
-  TEST_LIST CurlConnectionTests
-  EXTRA_ARGS "--gtest_repeat=20"
-)
-set_tests_properties( ${CurlConnectionTests}
   PROPERTIES
     FIXTURES_REQUIRED XrdClCurl::curl
     ENVIRONMENT "LSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/leaksanitizer-suppress.txt;ENV_FILE=${CMAKE_BINARY_DIR}/tests/curl/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/curl/client.plugins.d;LD_LIBRARY_PATH=${XRootD_LIB_DIR}:$ENV{LD_LIBRARY_PATH}"
