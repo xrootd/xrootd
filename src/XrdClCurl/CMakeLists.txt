@@ -1,6 +1,3 @@
-
-set(XrdClCurl "XrdClCurl-${PLUGIN_VERSION}")
-
 if(FORCE_ENABLED)
   find_package(CURL REQUIRED)
 else()
@@ -11,7 +8,7 @@ if(NOT CURL_FOUND)
   return()
 endif()
 
-add_library( XrdClCurlObj OBJECT
+add_library(XrdClCurlObj OBJECT
   XrdClCurlFactory.cc        XrdClCurlFactory.hh
   XrdClCurlFile.cc           XrdClCurlFile.hh
   XrdClCurlFilesystem.cc     XrdClCurlFilesystem.hh
@@ -34,22 +31,22 @@ add_library( XrdClCurlObj OBJECT
   XrdClCurlWorker.hh
 )
 
-# Note the object library's dependencys are listed as `PUBLIC`; this allows
-# the subsequent targets (XrdClCurl) to have the correct linkage without repeating
-# the dependency.
-target_link_libraries( XrdClCurlObj PUBLIC
-  CURL::libcurl
-  OpenSSL::Crypto
-  Threads::Threads
-  XrdXml
-  XrdCl
-  XrdUtils
+target_link_libraries(XrdClCurlObj
+  PRIVATE
+    XrdCl
+    XrdUtils
+    XrdXml
+    CURL::libcurl
+    OpenSSL::Crypto
+    Threads::Threads
 )
 
-set_target_properties( XrdClCurlObj PROPERTIES POSITION_INDEPENDENT_CODE ON )
+set_target_properties(XrdClCurlObj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_library( ${XrdClCurl} MODULE "$<TARGET_OBJECTS:XrdClCurlObj>")
-target_link_libraries( ${XrdClCurl} XrdClCurlObj)
+set(XrdClCurl "XrdClCurl-${PLUGIN_VERSION}")
+
+add_library(${XrdClCurl} MODULE)
+target_link_libraries(${XrdClCurl} PRIVATE XrdClCurlObj)
 
 if(NOT APPLE)
   target_link_options(${XrdClCurl} PRIVATE
