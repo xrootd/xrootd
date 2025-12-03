@@ -5,9 +5,9 @@ if(NOT ENABLE_HTTP)
 endif()
 
 if(FORCE_ENABLED)
-  find_package(CURL 7.9.6 REQUIRED)
+  find_package(CURL REQUIRED)
 else()
-  find_package(CURL 7.9.6)
+  find_package(CURL)
 endif()
 
 if(CURL_FOUND)
