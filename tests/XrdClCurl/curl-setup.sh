@@ -19,16 +19,6 @@ if [ ! -d "$SOURCE_DIR" ]; then
   exit 1
 fi
 
-if [ -z "$XROOTD_BINDIR" ]; then
-  echo "\$XROOTD_BINDIR environment variable is not set; cannot run test"
-  exit 1
-fi
-
-if [ -z "$XROOTD_LIBDIR" ]; then
-  echo "\$XROOTD_LIBDIR environment variable is not set; cannot run test"
-  exit 1
-fi
-
 #######################################
 # Create X509 certificates for server #
 #######################################
@@ -373,7 +363,7 @@ cat > "$RUNDIR/cache_token" << EOF
 
 EOF
 
-XROOTD_BIN="$XROOTD_BINDIR/xrootd"
+XROOTD_BIN="$BINARY_DIR/bin/xrootd"
 
 BINDIR="$RUNDIR/bin"
 mkdir -p -- "$BINDIR"
@@ -383,10 +373,6 @@ export XRD_CURLSLOWRATEBYTESSEC=1024
 export XRD_CURLSTALLTIMEOUT=2
 export XRD_CURLCERTFILE=$CA_DIR/tlsca.pem
 export XRD_LOGLEVEL=Debug
-# ODR violations are disabled as XRootD currently has some, preventing
-# it from starting up.  See: https://github.com/xrootd/xrootd/issues/2471
-export ASAN_OPTIONS=detect_odr_violation=0
-export LD_LIBRARY_PATH="${XROOTD_LIBDIR}:$LD_LIBRARY_PATH"
 set -x
 exec "$XROOTD_BIN" "\$@"
 EOF

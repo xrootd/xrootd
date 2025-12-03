@@ -31,7 +31,7 @@ if [ -z "$MC_BIN" ]; then
   exit 1
 fi
 
-XROOTD_BIN="$XROOTD_BINDIR/xrootd"
+XROOTD_BIN="$BINARY_DIR/bin/xrootd"
 echo "XROOTD_BIN=$XROOTD_BIN"
 if [ -z "XROOTD_BIN" ]; then
   echo "xrootd binary not found; cannot run unit test"
@@ -392,8 +392,6 @@ export XRDCLS3_ACCESSKEYLOCATION="$RUNDIR/access_key"
 export XRDCLS3_SECRETKEYLOCATION="$RUNDIR/secret_key"
 export XRDCLS3_URLSTYLE=path
 export X509_CERT_FILE=$MINIO_CERTSDIR/CAs/tlsca.pem
-export ASAN_OPTIONS=detect_odr_violation=0
-export LD_LIBRARY_PATH="${XROOTD_LIBDIR}:$LD_LIBRARY_PATH"
 "$XROOTD_BIN" -c "$XROOTD_CONFIG" -l "$BINARY_DIR/tests/$TEST_NAME/server.log" 0<&- 2>>"$BINARY_DIR/tests/$TEST_NAME/server.log" >>"$BINARY_DIR/tests/$TEST_NAME/server.log" &
 XROOTD_PID=$!
 echo "xrootd daemon PID: $XROOTD_PID"

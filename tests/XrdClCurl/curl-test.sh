@@ -29,7 +29,7 @@ if [ -z "$CURL_BIN" ]; then
   exit 1
 fi
 
-XRDFS_BIN="$XROOTD_BINDIR/xrdfs"
+XRDFS_BIN="$BINARY_DIR/bin/xrdfs"
 if [ -z "$XRDFS_BIN" ]; then
   echo "$XRDFS_BIN is not present; cannot run test"
   exit 1
@@ -186,9 +186,6 @@ chmod 0600 "$BEARER_TOKEN_FILE"
 # Unset any env var that might have leaked from the caller - forces use of $BEARER_TOKEN_FILE
 unset BEARER_TOKEN
 
-export LD_LIBRARY_PATH="${XROOTD_LIBDIR}:$LD_LIBRARY_PATH"
-# xrdfs fails LeakSanitizer; disable it temporarily
-export ASAN_OPTIONS=detect_leaks=0
 if ! "$XRDFS_BIN" "$CACHE_ROOT_URL" ls -l /test-public/subdir > "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out"; then
   echo "Failed to list directory via root:// protocol"
   exit 1
