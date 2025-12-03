@@ -34,15 +34,10 @@ add_executable( xrdcl-curl-test
 target_link_libraries( xrdcl-test XrdClCurlTransferTest GTest::gtest_main )
 target_link_libraries( xrdcl-curl-test XrdClCurlTesting XrdClCurlTransferTest GTest::gtest_main )
 
-gtest_add_tests( TARGET xrdcl-test TEST_LIST CurlClOnlyTests )
-set_tests_properties( ${CurlClOnlyTests}
-  PROPERTIES
-    FIXTURES_REQUIRED XrdClCurl::curl
-    ENVIRONMENT "ENV_FILE=${CMAKE_BINARY_DIR}/tests/curl/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/curl/client.plugins.d"
-)
+gtest_add_tests(TARGET xrdcl-test TEST_LIST CurlClOnlyTests)
+gtest_add_tests(TARGET xrdcl-curl-test TEST_LIST CurlTests)
 
-gtest_add_tests( TARGET xrdcl-curl-test TEST_LIST CurlTests )
-set_tests_properties( ${CurlTests}
+set_tests_properties(${CurlTests} ${CurlClOnlyTests}
   PROPERTIES
     FIXTURES_REQUIRED XrdClCurl::curl
     ENVIRONMENT "ENV_FILE=${CMAKE_BINARY_DIR}/tests/curl/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/curl/client.plugins.d"
