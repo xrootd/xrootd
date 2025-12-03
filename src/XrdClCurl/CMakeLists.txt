@@ -56,10 +56,9 @@ set_target_properties( XrdClCurlObj PROPERTIES POSITION_INDEPENDENT_CODE ON )
 add_library( ${XrdClCurl} MODULE "$<TARGET_OBJECTS:XrdClCurlObj>")
 target_link_libraries( ${XrdClCurl} XrdClCurlObj)
 
-if ( NOT APPLE )
-  set_target_properties( ${XrdClCurl} PROPERTIES
-    LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/configs/export-lib-symbols"
-  )
+if(NOT APPLE)
+  target_link_options(${XrdClCurl} PRIVATE
+    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/configs/export-lib-symbols")
 endif()
 
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/configs/xrdcl-curl-plugin.conf ${CMAKE_CURRENT_BINARY_DIR}/configs/xrdcl-curl-plugin.conf)
