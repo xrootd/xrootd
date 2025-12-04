@@ -23,6 +23,8 @@
 #ifndef XROOTD_XRDOUCPRIVATEUTILS_HH
 #define XROOTD_XRDOUCPRIVATEUTILS_HH
 
+#include "XrdOuc/XrdOucString.hh"
+
 #include <regex>
 #include <string>
 #include <vector>
@@ -50,5 +52,13 @@ static inline bool is_subdirectory(const std::string& dir,
  * @param input the string to obfuscate
  */
 std::string obfuscateAuth(const std::string & input);
+
+/**
+ * These functions strip away authz= cgi elements from a URL.
+ *
+ * @param input the string to sanitize
+ */
+void stripAuth(std::string& url);
+void stripAuth(XrdOucString& url);
 
 #endif //XROOTD_XRDOUCPRIVATEUTILS_HH

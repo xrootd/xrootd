@@ -1,5 +1,6 @@
 #undef NDEBUG
 
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
@@ -211,6 +212,62 @@ TEST(XrdOucUtilsTests, RedactToken_AuthzCGI_ValidToken)
 
         /* Assert that we get back the original string after redaction */
         ASSERT_EQ(str, obfuscated_str);
+      }
+    }
+  }
+}
+
+TEST(XrdOucUtilsTests, StripToken_AuthzCGI)
+{
+  size_t pos = 0;
+  for (std::string authz : authz_strings) {
+    for (std::string prefix : token_prefixes) {
+      for (std::string token : tokens) {
+        std::string str = authz;
+
+        pos = 0;
+        /* Replace all "REDACTED" strings with a token value in the test string */
+        while ((pos = str.find(redacted, pos)) != std::string::npos)
+          str = str.replace(pos, redacted.size(), prefix + token);
+
+        /* Check also with XrdOucString */
+        XrdOucString ostr = str.c_str();
+
+        /* Erase all "authz=REDACTED" from input strings */
+        while ((pos = authz.find("authz=REDACTED")) != std::string::npos)
+          authz.erase(pos, 14 /* strlen("authz=REDACTED") */);
+
+        /* Remove ?& in case authz was the first element */
+        if ((pos = authz.find("?&")) != std::string::npos)
+          authz.erase(pos + 1, 1);
+
+        stripAuth(str);
+
+        /* Assert that we do not find "authz=" in the output */
+        ASSERT_TRUE(str.find("authz=") == std::string::npos)
+          << "str = '" << str << "'" << std::endl;
+
+        /* Assert that we do not find the token value in the output */
+        ASSERT_TRUE(str.find(token) == std::string::npos)
+          << "\ntoken = '" << token << "'\n str = '" << str << "'" << std::endl;
+
+        /* Assert that we get the expected string after stripping */
+        ASSERT_EQ(str, authz)
+          << "\nref = '" << authz << "'\nstr = '" << str << "'" << std::endl;
+
+        stripAuth(ostr);
+
+        /* Assert that we do not find "authz=" in the output */
+        ASSERT_TRUE(ostr.find("authz=") == STR_NPOS)
+          << "str = '" << ostr << "'" << std::endl;
+
+        /* Assert that we do not find the token value in the output */
+        ASSERT_TRUE(ostr.find(token.c_str()) == STR_NPOS)
+          << "str = '" << ostr << "'" << std::endl;
+
+        /* Assert that we get the expected string after stripping */
+        ASSERT_STREQ(ostr.c_str(), authz.c_str())
+          << "\nref = '" << authz << "'\nstr = '" << ostr << "'" << std::endl;
       }
     }
   }
