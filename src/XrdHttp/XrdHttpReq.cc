@@ -632,8 +632,9 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   } else
     appendOpaque(redirdest, 0, 0, 0);
 
+  stripAuth(redirdest); /* appendOpaque() may have added an authz token */
   
-  TRACE(REQ, " XrdHttpReq::Redir Redirecting to " << obfuscateAuth(redirdest.c_str()).c_str());
+  TRACE(REQ, " XrdHttpReq::Redir Redirecting to " << redirdest.c_str());
 
   if (request != rtGET)
     prot->SendSimpleResp(307, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
