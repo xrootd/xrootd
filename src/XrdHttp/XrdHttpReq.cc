@@ -343,12 +343,12 @@ int XrdHttpReq::parseFirstLine(char *line, int len) {
       request = rtDELETE;
     } else if (!strcmp(key, "PROPFIND")) {
       request = rtPROPFIND;
-
     } else if (!strcmp(key, "MKCOL")) {
       request = rtMKCOL;
-
     } else if (!strcmp(key, "MOVE")) {
       request = rtMOVE;
+    } else if (!strcmp(key, "COPY")) {
+      request = rtCOPY;
     } else {
       request = rtUnknown;
     }
@@ -878,6 +878,7 @@ int XrdHttpReq::prepareChecksumQuery(XrdHttpChecksumHandler::XrdHttpChecksumRawP
 int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
+  if (startTime == std::chrono::steady_clock::time_point::min()) startTime = std::chrono::steady_clock::now();
 
   // State variable for tracking the query parameter search
   // - 0: Indicates we've not yet searched the URL for '?'
@@ -2232,19 +2233,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             }
               
             if (m_transfer_encoding_chunked && m_trailer_headers) {
-              if (prot->ChunkRespHeader(0))
-                return -1;
+              std::string trailer = "X-Transfer-Status: " + std::to_string(httpStatusCode) + ": " + httpErrorBody + "\r\n";
 
-              const std::string crlf = "\r\n";
-              std::stringstream ss;
-              ss << "X-Transfer-Status: " << httpStatusCode << ": " << httpErrorBody << crlf;
-
-              const auto header = ss.str();
-              if (prot->SendData(header.c_str(), header.size()))
-                return -1;
-
-              if (prot->ChunkRespFooter())
-                return -1;
+              if (prot->ChunkResp(trailer.c_str(), -1)) return -1;
             }
 
               if (rrerror) return -1;
@@ -2686,19 +2677,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
   return 0;
 }
 
-int
-XrdHttpReq::sendFooterError(const std::string &extra_text) {
+int XrdHttpReq::sendFooterError(const std::string &extra_text) {
   if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
-    // A trailer header is appropriate in this case; this is signified by
-    // a chunk with size zero, then the trailer, then a crlf.
-    //
-    // We only send the status trailer when explicitly requested; otherwise a
-    // "normal" HTTP client might simply see a short response and think it's a
-    // success
-
-    if (prot->ChunkRespHeader(0))
-      return -1;
-
     std::stringstream ss;
 
     ss << httpStatusCode;
@@ -2706,30 +2686,26 @@ XrdHttpReq::sendFooterError(const std::string &extra_text) {
       std::string_view statusView(httpErrorBody);
       // Remove trailing newline; this is not valid in a trailer value
       // and causes incorrect framing of the response, confusing clients.
-      if (statusView[statusView.size() - 1] == '\n') {
+      if (!statusView.empty() && statusView.back() == '\n') {
         ss << ": " << statusView.substr(0, statusView.size() - 1);
       } else {
         ss << ": " << httpErrorBody;
       }
     }
 
-    if (!extra_text.empty())
-      ss << ": " << extra_text;
+    if (!extra_text.empty()) ss << ": " << extra_text;
     TRACEI(REQ, ss.str());
     ss << "\r\n";
 
-    const auto header = "X-Transfer-Status: " + ss.str();
-    if (prot->SendData(header.c_str(), header.size()))
-      return -1;
+    const std::string trailer = "X-Transfer-Status: " + ss.str();
 
-    if (prot->ChunkRespFooter())
-      return -1;
+    // delegate everything to ChunkResp (bodylen==-1 means trailers)
+    if (prot->ChunkResp(trailer.c_str(), -1)) return -1;
 
     return keepalive ? 1 : -1;
   } else {
     TRACEI(REQ, "Failure during response: " << httpStatusCode << ": " << httpErrorBody << (extra_text.empty() ? "" : (": " + extra_text)));
     return -1;
-
   }
 }
 
@@ -2780,6 +2756,11 @@ void XrdHttpReq::reset() {
   m_user_agent = "";
   m_origin = "";
 
+  httpStatusCode = -1;
+  initialStatusCode= -1;
+  httpErrorCode = "";
+  httpErrorBody = "";
+
   headerok = false;
   keepalive = true;
   length = 0;
@@ -2816,22 +2797,18 @@ void XrdHttpReq::reset() {
   iovN = 0;
   iovL = 0;
 
-
   if (opaque) delete(opaque);
   opaque = 0;
 
   fopened = false;
-
   final = false;
-
   mScitag = -1;
-
-  httpStatusCode = -1;
-  httpErrorCode = "";
-  httpErrorBody = "";
 
   m_repr_digest.clear();
   m_want_repr_digest.clear();
+
+  monState = XrdHttpReq::MonitState::NEW;
+  startTime = std::chrono::steady_clock::time_point::min();
 }
 
 void XrdHttpReq::getfhandle() {
