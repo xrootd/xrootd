@@ -385,12 +385,12 @@ make -C bindings/python/docs html SPHINXBUILD=sphinx-build-3
 
 # Service unit files
 mkdir -p %{buildroot}%{_unitdir}
-install -m 644 packaging/common/xrootd@.service %{buildroot}%{_unitdir}
-install -m 644 packaging/common/xrootd@.socket %{buildroot}%{_unitdir}
-install -m 644 packaging/common/xrdhttp@.socket %{buildroot}%{_unitdir}
-install -m 644 packaging/common/cmsd@.service %{buildroot}%{_unitdir}
-install -m 644 packaging/common/frm_xfrd@.service %{buildroot}%{_unitdir}
-install -m 644 packaging/common/frm_purged@.service %{buildroot}%{_unitdir}
+install -m 644 systemd/xrootd@.service %{buildroot}%{_unitdir}
+install -m 644 systemd/xrootd@.socket %{buildroot}%{_unitdir}
+install -m 644 systemd/xrdhttp@.socket %{buildroot}%{_unitdir}
+install -m 644 systemd/cmsd@.service %{buildroot}%{_unitdir}
+install -m 644 systemd/frm_xfrd@.service %{buildroot}%{_unitdir}
+install -m 644 systemd/frm_purged@.service %{buildroot}%{_unitdir}
 mkdir -p %{buildroot}%{_tmpfilesdir}
 install -m 644 packaging/rhel/xrootd.tmpfiles %{buildroot}%{_tmpfilesdir}/%{name}.conf
 

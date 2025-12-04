@@ -90,12 +90,12 @@ override_dh_auto_install:
 
 	# Service unit files
 	mkdir -p debian/tmp/lib/systemd/system
-	install -m 644 packaging/common/xrootd@.service debian/tmp/lib/systemd/system
-	install -m 644 packaging/common/xrootd@.socket debian/tmp/lib/systemd/system
-	install -m 644 packaging/common/xrdhttp@.socket debian/tmp/lib/systemd/system
-	install -m 644 packaging/common/cmsd@.service debian/tmp/lib/systemd/system
-	install -m 644 packaging/common/frm_xfrd@.service debian/tmp/lib/systemd/system
-	install -m 644 packaging/common/frm_purged@.service debian/tmp/lib/systemd/system
+	install -m 644 systemd/xrootd@.service debian/tmp/lib/systemd/system
+	install -m 644 systemd/xrootd@.socket debian/tmp/lib/systemd/system
+	install -m 644 systemd/xrdhttp@.socket debian/tmp/lib/systemd/system
+	install -m 644 systemd/cmsd@.service debian/tmp/lib/systemd/system
+	install -m 644 systemd/frm_xfrd@.service debian/tmp/lib/systemd/system
+	install -m 644 systemd/frm_purged@.service debian/tmp/lib/systemd/system
 	mkdir -p debian/tmp/usr/lib/tmpfiles.d
 	install -m 644 packaging/rhel/xrootd.tmpfiles debian/tmp/usr/lib/tmpfiles.d/xrootd.conf
 
