@@ -11,6 +11,8 @@
 #include "XrdXrootd/XrdXrootdGStream.hh"
 
 #define XRD_TRACE m_trace->
+
+#include "INIReader.h"
 #include "XrdThrottle/XrdThrottleTrace.hh"
 
 #include <algorithm>
@@ -80,6 +82,17 @@ XrdThrottleManager::FromConfig(XrdThrottle::Configuration &config)
     {
        // Loadshed specified, so set it.
        SetLoadShed(loadshed_host, loadshed_port, loadshed_freq);
+    }
+
+    // Load per-user configuration if specified
+    auto user_config_file = config.GetUserConfigFile();
+    if (!user_config_file.empty())
+    {
+       m_user_config_file = user_config_file;
+       if (LoadUserLimits(user_config_file) != 0)
+       {
+          m_log->Emsg("ThrottleManager", "Failed to load per-user configuration file", user_config_file.c_str());
+       }
     }
 }
 
@@ -178,7 +191,11 @@ XrdThrottleManager::StealShares(int uid, int &reqsize, int &reqops)
 bool
 XrdThrottleManager::OpenFile(const std::string &entity, std::string &error_message)
 {
-    if (m_max_open == 0 && m_max_conns == 0) return true;
+    // Get per-user connection limit (0 means use global)
+    unsigned long user_max_conn = GetUserMaxConn(entity);
+    unsigned long effective_max_conn = user_max_conn < m_max_conns ? user_max_conn : m_max_conns;
+
+    if (m_max_open == 0 && effective_max_conn == 0) return true;
 
     const std::lock_guard<std::mutex> lock(m_file_mutex);
     auto iter = m_file_counters.find(entity);
@@ -200,18 +217,21 @@ XrdThrottleManager::OpenFile(const std::string &entity, std::string &error_messa
         }
     }
 
-    if (m_max_conns) {
+    if (effective_max_conn > 0) {
         auto pid = XrdSysThread::Num();
         auto conn_iter = m_active_conns.find(entity);
         auto conn_count_iter = m_conn_counters.find(entity);
-        if ((conn_count_iter != m_conn_counters.end()) && (conn_count_iter->second == m_max_conns) &&
+        if ((conn_count_iter != m_conn_counters.end()) && (conn_count_iter->second == effective_max_conn) &&
             (conn_iter == m_active_conns.end() || ((*(conn_iter->second))[pid] == 0)))
         {
             // note: we are rolling back the increment in open files
             if (m_max_open) iter->second--;
             std::stringstream ss;
-            ss << "User " << entity << " has hit the limit of " << m_max_conns <<
+            ss << "User " << entity << " has hit the limit of " << effective_max_conn <<
                 " open connections";
+            if (user_max_conn > 0) {
+                ss << " (per-user limit)";
+            }
             TRACE(CONNS, ss.str());
             error_message = ss.str();
             return false;
@@ -239,7 +259,7 @@ XrdThrottleManager::OpenFile(const std::string &entity, std::string &error_messa
                 cur_open_conns = conn_count_iter->second;
            }
         }
-        TRACE(CONNS, "User " << entity << " has " << cur_open_conns << " open connections");
+        TRACE(CONNS, "User " << entity << " has " << cur_open_conns << " open connections (limit: " << effective_max_conn << ")");
     }
     if (m_max_open) TRACE(FILES, "User " << entity << " has " << cur_open_files << " open files");
     return true;
@@ -840,4 +860,151 @@ XrdThrottleManager::Waiter::Wait()
         return false;
     }
     return true;
+}
+
+/*
+ * Load per-user limits from an INI-style configuration file.
+ * Format:
+ * [default]
+ * name = *
+ * maxconn = 200
+ *
+ * [user1]
+ * name = user1
+ * maxconn = 25
+ *
+ * [wildcarduser]
+ * name = wildcarduser*
+ * maxconn = 10
+ */
+int
+XrdThrottleManager::LoadUserLimits(const std::string &config_file)
+{
+    INIReader reader(config_file);
+    if (reader.ParseError() < 0)
+    {
+        m_log->Emsg("ThrottleManager", errno, "Unable to open per-user configuration file", config_file.c_str());
+        return 1;
+    }
+    else if (reader.ParseError() > 0)
+    {
+        std::stringstream ss;
+        ss << "Parse error on line " << reader.ParseError() << " of file " << config_file;
+        m_log->Emsg("ThrottleManager", ss.str().c_str());
+        return 1;
+    }
+
+    std::unordered_map<std::string, UserLimit> new_limits;
+
+    // Process all sections
+    for (const auto &section : reader.Sections())
+    {
+        // Get the name parameter (required for all sections)
+        std::string name = reader.Get(section, "name", "");
+        if (name.empty())
+        {
+            m_log->Say("ThrottleManager", "Section", section.c_str(), "missing 'name' parameter; skipping");
+            continue;
+        }
+
+        long max_conn = reader.GetInteger(section, "maxconn", 0);
+        if (max_conn <= 0)
+        {
+            m_log->Say("ThrottleManager", "Section", section.c_str(), "has invalid or missing 'maxconn' parameter; skipping");
+            continue;
+        }
+
+        UserLimit limit;
+        limit.max_conn = static_cast<unsigned long>(max_conn);
+        // Check if name contains wildcard (including '*' for default/catch-all)
+        limit.is_wildcard = (name.find('*') != std::string::npos);
+        new_limits[name] = limit;
+    }
+
+    // Atomically replace the limits map
+    size_t num_entries = new_limits.size();
+    {
+        std::unique_lock<std::shared_mutex> lock(m_user_limits_mutex);
+        m_user_limits = std::move(new_limits);
+    }
+
+    m_log->Say("ThrottleManager", "Loaded", std::to_string(num_entries).c_str(), "per-user limit entries from", config_file.c_str());
+    return 0;
+}
+
+/*
+ * Reload per-user limits from the configured file.
+ */
+int
+XrdThrottleManager::ReloadUserLimits()
+{
+    if (m_user_config_file.empty())
+    {
+        m_log->Emsg("ThrottleManager", "No per-user configuration file specified");
+        return 1;
+    }
+    return LoadUserLimits(m_user_config_file);
+}
+
+/*
+ * Get the per-user connection limit for a given username.
+ * Returns 0 if no per-user limit is set (use global), otherwise returns the limit.
+ * Supports wildcard matching (e.g., "user*" matches "user1", "user2", etc.)
+ * Special case: "*" matches all users (default/catch-all)
+ * Priority: exact match > wildcard match (longest prefix) > "*" > global
+ */
+unsigned long
+XrdThrottleManager::GetUserMaxConn(const std::string &username)
+{
+    std::shared_lock lock(m_user_limits_mutex);
+
+    // First, try exact match
+    auto exact_iter = m_user_limits.find(username);
+    if (exact_iter != m_user_limits.end() && !exact_iter->second.is_wildcard)
+    {
+        return exact_iter->second.max_conn;
+    }
+
+    // Then, try wildcard matches (prefer longest matching prefix)
+    unsigned long best_match = 0;
+    size_t best_prefix_len = 0;
+    unsigned long catch_all_match = 0;
+
+    for (const auto &entry : m_user_limits)
+    {
+        if (!entry.second.is_wildcard) continue;
+
+        const std::string &pattern = entry.first;
+
+        // Special case: "*" is a catch-all pattern - store it but don't use it yet
+        if (pattern == "*")
+        {
+            catch_all_match = entry.second.max_conn;
+            continue;
+        }
+
+        size_t wildcard_pos = pattern.find('*');
+        if (wildcard_pos == std::string::npos) continue;
+
+        // Extract prefix before wildcard
+        std::string prefix = pattern.substr(0, wildcard_pos);
+        if (username.length() >= prefix.length() &&
+            username.substr(0, prefix.length()) == prefix)
+        {
+            // Prefer longer prefix matches
+            if (prefix.length() > best_prefix_len)
+            {
+                best_prefix_len = prefix.length();
+                best_match = entry.second.max_conn;
+            }
+        }
+    }
+
+    // If we found a specific wildcard match, use it
+    if (best_match > 0) return best_match;
+
+    // If no specific wildcard match, use catch-all if available
+    // return 0 if not
+    return catch_all_match;
+
 }
