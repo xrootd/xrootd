@@ -101,11 +101,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct OpenInfo
       {
-        OpenInfo(): file(0), fSize(0), oFlags(0) {}
+        OpenInfo(): file(0), fSize(0), oFlags(0), oFlags2(0) {}
         const URL   *file;        //!< File in question
         std::string  dataServer;  //!< Actual fata server
         uint64_t     fSize;       //!< File size in bytes
         uint16_t     oFlags;      //!< OpenFlags
+        uint16_t     oFlags2;     //!< OpenFlags upper 16 bits
       };
 
       //------------------------------------------------------------------------

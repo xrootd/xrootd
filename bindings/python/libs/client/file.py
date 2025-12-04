@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (c) 2012-2014 by European Organization for Nuclear Research (CERN)
+# Copyright (c) 2012-2025 by European Organization for Nuclear Research (CERN)
 # Author: Justin Salmon <jsalmon@cern.ch>
 #-------------------------------------------------------------------------------
 # This file is part of the XRootD software suite.
@@ -68,6 +68,29 @@ class File(object):
       return XRootDStatus(self.__file.open(url, flags, mode, timeout, callback))
 
     status, response = self.__file.open(url, flags, mode, timeout)
+    return XRootDStatus(status), None
+
+  def openusingtemplate(self, src_file, url, flags=0, mode=0, timeout=0, callback=None):
+    """Open the file pointed to by the given URL.
+     Alows one to specify template file. Required if using DUP or SAMEFS flags.
+
+    :param src_file: file object referring to already-open template file
+    :type  src_file: XRootD.client.File
+    :param   url: url of the file to be opened
+    :type    url: string
+    :param flags: An `ORed` combination of :mod:`XRootD.client.flags.OpenFlags`
+                  where the default is `OpenFlags.NONE`
+    :param  mode: access mode for new files, an `ORed` combination of
+                 :mod:`XRootD.client.flags.AccessMode` where the default is
+                 `AccessMode.NONE`
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                 object and None
+    """
+    if callback:
+      callback = CallbackWrapper(callback, None)
+      return XRootDStatus(self.__file.openusingtemplate(src_file.__file, url, flags, mode, timeout, callback))
+
+    status, response = self.__file.openusingtemplate(src_file.__file, url, flags, mode, timeout)
     return XRootDStatus(status), None
 
   def close(self, timeout=0, callback=None):
@@ -351,3 +374,28 @@ class File(object):
     status, response = self.__file.list_xattr(timeout)
     return XRootDStatus(status), response
 
+  def clone(self, locs, timeout=0, callback=None):
+    """Duplicate ranges from other files into this file by using range based cloning.
+    :param locs: list of dictionaries. Each dictionary should contain keys
+                 'src_file', 'src_offset', 'src_length', 'dest_offset'. The 'src_file'
+                 should be the XRootD.client.File object of the source, with other values being
+                 the source offset, length and destination offset of ranges to duplicate.
+    :type  locs: list
+
+    :returns:     if a callback was supplied, returns an
+                  :mod:`XRootD.client.responses.XRootDStatus` object,
+                  if a callback is not supplied returns a tuple containing the
+                  XRootDStatus and None
+    """
+    locsp = []
+    for d in locs:
+      dp = d.copy()
+      dp['src_file'] = dp['src_file'].__file
+      locsp.append(dp)
+
+    if callback:
+      callback = CallbackWrapper(callback, None)
+      return XRootDStatus(self.__file.clone(locsp, timeout, callback))
+
+    status, response = self.__file.clone(locsp, timeout)
+    return XRootDStatus(status), response
