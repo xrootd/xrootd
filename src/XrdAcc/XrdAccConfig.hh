@@ -81,7 +81,7 @@ XrdAccGroups  GroupMaster;
 int           AuthRT;
 
               XrdAccConfig();
-             ~XrdAccConfig() {}    // Configuration is never destroyed!
+             ~XrdAccConfig() { free(dbpath); }
 
 private:
 

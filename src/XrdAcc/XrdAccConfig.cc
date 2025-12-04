@@ -105,11 +105,20 @@ XrdAccConfig::XrdAccConfig()
 
 // Initialize path value and databse pointer to nil
 //
-   dbpath        = strdup("/opt/xrd/etc/Authfile");
    Database      = 0;
    Authorization = 0;
    spChar        = 0;
    uriPath       = false;
+
+   const char *dbpath_defaults[] = {
+    "/opt/xrd/etc/Authfile",
+    "/etc/xrootd/authdb"
+   };
+
+   dbpath = nullptr;
+   for (const char *path : dbpath_defaults)
+     if (access(path, R_OK) == 0)
+       dbpath = strdup(path);
 
 // Establish other defaults
 //
