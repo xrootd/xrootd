@@ -91,7 +91,7 @@ upload_file_to_host() {
     http_url=$(get_http_url_for_host "$host")
 
     echo -e "\nUploading '$file_path' to '${http_url}/$RMTDATADIR/$remote_name'"
-    if ! ${CURL} -L -s -H "Authorization: Bearer ${BEARER_TOKEN}" \
+    if ! ${CURL} --location-trusted -v -L -s -H "Authorization: Bearer ${BEARER_TOKEN}" \
         "${http_url}/$RMTDATADIR/$remote_name" -T "$file_path"; then
         echo "Upload to $host failed!"
         exit 1
@@ -118,7 +118,7 @@ perform_rename() {
     tmp_stderr=$(mktemp /tmp/rename_curl_stderr_XXXX)
 
     local http_code
-    http_code=$(${CURL} -s -S -L -X MOVE -o "$tmp_body" -w "%{http_code}" -v \
+    http_code=$(${CURL} --location-trusted -v -s -S -L -X MOVE -o "$tmp_body" -w "%{http_code}" -v \
         -H "Authorization: Bearer ${BEARER_TOKEN}" \
         -H "Destination: $dst_url" \
         "$src_url" 2>"$tmp_stderr")
