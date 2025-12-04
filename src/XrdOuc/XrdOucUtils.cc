@@ -1688,4 +1688,39 @@ std::string XrdOucUtils::UrlDecode(const std::string &input)
   return out;
 }
 
+/**
+ * This function strips away authz= cgi elements from a URL.
+ *
+ * @param input the string to obfuscate
+ * @return the string with token values obfuscated
+ */
+
+void stripAuth(std::string& url)
+{
+  size_t spos, epos;
+  while ((spos = url.find("authz=")) != std::string::npos) {
+    epos = spos;
+    while (epos < url.size() && is_token_character(url[epos]))
+      ++epos;
+    url.erase(spos, epos - spos);
+  }
+  /* if authz was the first element, remove extra & */
+  if ((spos = url.find("?&")) != std::string::npos)
+    url.erase(spos + 1, 1);
+}
+
+void stripAuth(XrdOucString& url)
+{
+  int spos, epos;
+  while ((spos = url.find("authz=")) != STR_NPOS) {
+    epos = spos;
+    while (epos < url.length() && is_token_character(url[epos]))
+      ++epos;
+    url.erase(spos, epos - spos);
+  }
+  /* if authz was the first element, remove extra & */
+  if ((spos = url.find("?&")) != STR_NPOS)
+    url.erase(spos + 1, 1);
+}
+
 #endif
