@@ -26,14 +26,6 @@ else
 FUSE = OFF
 endif
 
-ifneq ($(filter $(DEB_HOST_ARCH),i386 hppa hurd-i386 powerpc x32),)
-EC = OFF
-N = -Nlibxrdec1t64
-else
-EC = ON
-N =
-endif
-
 export LC_ALL=C
 export DH_VERBOSE=1
 export PYBUILD_NAME=xrootd
@@ -42,7 +34,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all optimize=-lto
 BUILD_DOC = $(if $(filter xrootd-doc,$(shell dh_listpackages)),TRUE,FALSE)
 
 %:
-	dh $@ --with python3 --buildsystem cmake $(N)
+	dh $@ --with python3 --buildsystem cmake
 
 override_dh_auto_configure:
 	dh_auto_configure --           \
@@ -57,7 +49,6 @@ override_dh_auto_configure:
 	    -DENABLE_SCITOKENS:BOOL=ON \
 	    -DENABLE_VOMS:BOOL=ON      \
 	    -DENABLE_XRDCLHTTP:BOOL=ON \
-	    -DENABLE_XRDEC:BOOL=$(EC)  \
 	    -DENABLE_TESTS:BOOL=ON     \
 	    -DINSTALL_PYTHON_BINDINGS:BOOL=OFF
 
@@ -70,7 +61,6 @@ override_dh_auto_install:
 	python3 -m pip install --target debian/tmp/usr/lib/python3/dist-packages \
 		--no-deps --no-build-isolation --disable-pip-version-check --verbose \
 		--ignore-installed --use-pep517 obj-$(DEB_HOST_MULTIARCH)/bindings/python
-	ln -sf libxrootd-private-dev.install.ec-$(EC) debian/libxrootd-private-dev.install
 
 	rm -f debian/tmp/usr/bin/xrdshmap
 	rm -f debian/tmp/usr/lib/*/libXrd*Test*
