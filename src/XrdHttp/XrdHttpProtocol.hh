@@ -213,6 +213,7 @@ private:
   static int xsslcipherfilter(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
   static int xlistdeny(XrdOucStream &Config);
+  static int xlisting(XrdOucStream &Config);
   static int xlistredir(XrdOucStream &Config);
   static int xselfhttps2http(XrdOucStream &Config);
   static int xembeddedstatic(XrdOucStream &Config);
