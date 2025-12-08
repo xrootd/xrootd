@@ -1105,7 +1105,8 @@ int XrdHttpReq::ProcessHTTPReq() {
         case 3: // List directory
           if (fileflags & kXR_isDir) {
             if (prot->listdeny) {
-              prot->SendSimpleResp(503, NULL, NULL, (char *) "Listings are disabled.", 0, false);
+              // Return 403 as the administrator forbid the directory listing
+              prot->SendSimpleResp(403, NULL, NULL, (char *) "Listings are disabled.", 0, false);
               return -1;
             }
 
