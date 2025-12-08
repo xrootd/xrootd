@@ -1087,6 +1087,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("staticpreload", xstaticpreload);
       else if TS_Xeq("staticheader", xstaticheader);
       else if TS_Xeq("listingdeny", xlistdeny);
+      else if TS_Xeq("listing", xlisting);
       else if TS_Xeq("header2cgi", xheader2cgi);
       else if TS_Xeq("httpsmode", xhttpsmode);
       else if TS_Xeq("tlsreuse", xtlsreuse);
@@ -2399,6 +2400,42 @@ int XrdHttpProtocol::xlistdeny(XrdOucStream & Config) {
   // Record the value
   //
   listdeny = (!strcasecmp(val, "true") || !strcasecmp(val, "yes") || !strcmp(val, "1"));
+
+
+  return 0;
+}
+
+/******************************************************************************/
+/*                                 x l i s t i n g                            */
+/******************************************************************************/
+
+/* Function: xlisting
+
+   Purpose:  To parse the directive: listing <allow/deny>
+
+             <val>    makes this redirector deny listings with an error
+
+   Output: 0 upon success or !0 upon failure.
+ */
+int XrdHttpProtocol::xlisting(XrdOucStream & Config) {
+  char *val;
+
+  // Get the configuration
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "listing flag not specified");
+    return 1;
+  }
+
+  int denyCmp = strncasecmp(val,"deny",4);
+  if (denyCmp && strncasecmp(val,"allow",5)) {
+    eDest.Emsg("Config", "http.listing option only accepts \"allow\" or \"deny\"");
+    return 1;
+  }
+
+  // Record the value
+  listdeny = !denyCmp;
 
 
   return 0;
