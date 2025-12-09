@@ -1783,9 +1783,8 @@ bool TiXmlPrinter::VisitEnter( const TiXmlElement& element, const TiXmlAttribute
 	else 
 	{
 		buffer += ">";
-		if (    element.FirstChild()->ToText()
-			  && element.LastChild() == element.FirstChild()
-			  && element.FirstChild()->ToText()->CDATA() == false )
+		auto text = element.FirstChild()->ToText();
+		if (text != nullptr && element.LastChild() == element.FirstChild() && text->CDATA() == false)
 		{
 			simpleTextPrint = true;
 			// no DoLineBreak()!

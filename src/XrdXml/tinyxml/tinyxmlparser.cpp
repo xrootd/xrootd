@@ -774,10 +774,9 @@ const char* TiXmlDocument::Parse( const char* p, TiXmlParsingData* prevData, TiX
 			 && node->ToDeclaration() )
 		{
 			TiXmlDeclaration* dec = node->ToDeclaration();
-			const char* enc = dec->Encoding();
-			assert( enc );
+			const char* enc = dec ? dec->Encoding() : nullptr;
 
-			if ( *enc == 0 )
+			if ( !enc || *enc == 0 )
 				encoding = TIXML_ENCODING_UTF8;
 			else if ( StringEqual( enc, "UTF-8", true, TIXML_ENCODING_UNKNOWN ) )
 				encoding = TIXML_ENCODING_UTF8;
