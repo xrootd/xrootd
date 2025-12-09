@@ -40,6 +40,12 @@ add_compile_options(
   -Wno-vla
 )
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  add_compile_options(
+    -Wno-array-bounds
+  )
+endif()
+
 # Disable some warnings currently triggered with Clang
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
