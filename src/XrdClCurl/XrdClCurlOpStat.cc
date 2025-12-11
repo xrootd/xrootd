@@ -125,12 +125,12 @@ CurlStatOp::ParseProp(TiXmlElement *prop) {
         return {-1, false};
     }
     for (auto child = prop->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
-        if (!strcmp(child->Value(), "D:getcontentlength") || !strcmp(child->Value(), "lp1:getcontentlength")) {
+        if (!strcasecmp(child->Value(), "D:getcontentlength") || !strcasecmp(child->Value(), "lp1:getcontentlength")) {
             auto len = child->GetText();
             if (len) {
                 m_length = std::stoll(len);
             }
-        } else if (!strcmp(child->Value(), "D:resourcetype") || !strcmp(child->Value(), "lp1:resourcetype")) {
+        } else if (!strcasecmp(child->Value(), "D:resourcetype") || !strcasecmp(child->Value(), "lp1:resourcetype")) {
             m_is_dir = child->FirstChildElement("D:collection") != nullptr;
         }
     }
@@ -155,13 +155,13 @@ CurlStatOp::GetStatInfo() {
     }
 
     auto elem = doc.RootElement();
-    if (strcmp(elem->Value(), "D:multistatus")) {
+    if (strcasecmp(elem->Value(), "D:multistatus")) {
         m_logger->Error(kLogXrdClCurl, "Unexpected XML response: %s", m_response.substr(0, 1024).c_str());
         return {-1, false};
     }
     auto found_response = false;
     for (auto response = elem->FirstChildElement(); response != nullptr; response = response->NextSiblingElement()) {
-        if (!strcmp(response->Value(), "D:response")) {
+        if (!strcasecmp(response->Value(), "D:response")) {
             found_response = true;
             elem = response;
             break;
@@ -172,11 +172,11 @@ CurlStatOp::GetStatInfo() {
         return {-1, false};
     }
     for (auto child = elem->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
-		if (strcmp(child->Value(), "D:propstat")) {
+		if (strcasecmp(child->Value(), "D:propstat")) {
             continue;
         }
         for (auto prop = child->FirstChildElement(); prop != nullptr; prop = prop->NextSiblingElement()) {
-            if (!strcmp(prop->Value(), "D:prop")) {
+            if (!strcasecmp(prop->Value(), "D:prop")) {
                 return ParseProp(prop);
             }
         }
