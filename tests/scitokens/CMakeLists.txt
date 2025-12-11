@@ -1,3 +1,6 @@
+if(NOT BUILD_SCITOKENS)
+  return()
+endif()
 
 add_executable(xrdscitokens-create-jwks XrdScitokensCreateJwks.cc)
 target_link_libraries(xrdscitokens-create-jwks PRIVATE OpenSSL::Crypto)

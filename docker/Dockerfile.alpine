@@ -26,7 +26,6 @@ RUN apk add \
 	python3-dev \
 	readline-dev \
 	sudo \
-	tinyxml-dev \
 	util-linux-dev \
 	uuidgen \
 	zlib-dev

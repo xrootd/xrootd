@@ -22,10 +22,10 @@ together with the extra dependencies required to enable them.
 | VOMS                  | voms-devel                               |
 | Testing               | gtest-devel                              |
 
-Other optional dependencies: tinyxml-devel, libxml2-devel. These have bundled
-copies which are used if not found in the system. In the following sections, we
-show how to install all available dependencies in most of the supported operating
-systems.
+Other optional dependencies: libxml2-devel. If not available, only the XML
+reader based on tinyxml will be available to parse metalink files. In the
+following sections, we show how to install all available dependencies in
+most of the supported operating systems.
 
 #### RPM-based distributions: Alma, CentOS Stream, Fedora, Rocky, RedHat
 
@@ -63,7 +63,6 @@ dnf install \
     readline-devel \
     scitokens-cpp-devel \
     systemd-devel \
-    tinyxml-devel \
     voms-devel \
     yasm \
     zlib-devel
@@ -91,7 +90,6 @@ apt install \
     libscitokens-dev \
     libssl-dev \
     libsystemd-dev \
-    libtinyxml-dev \
     libxml2-dev \
     make \
     pkg-config \

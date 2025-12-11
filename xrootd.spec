@@ -37,7 +37,6 @@ BuildRequires:	pkgconfig
 BuildRequires:	fuse-devel
 BuildRequires:	krb5-devel
 BuildRequires:	libcurl-devel
-BuildRequires:	tinyxml-devel
 BuildRequires:	libxml2-devel
 BuildRequires:	libzip-devel
 BuildRequires:	ncurses-devel
@@ -89,6 +88,7 @@ BuildRequires:	krb5-server
 BuildRequires:	krb5-workstation
 BuildRequires:	openssl
 BuildRequires:	procps-ng
+BuildRequires:	sqlite
 %endif
 
 %if %{with xrdec}
@@ -591,6 +591,8 @@ fi
 %{_libdir}/libXrdSsiLib.so.*
 %{_libdir}/libXrdSsiShMap.so.*
 # Plugins
+%{_libdir}/libXrdClCurl-5.so
+%{_libdir}/libXrdClS3-5.so
 %{_libdir}/libXrdClProxyPlugin-5.so
 %{_libdir}/libXrdClRecorder-5.so
 %dir %{_sysconfdir}/%{name}
@@ -601,6 +603,7 @@ fi
 
 %files client-devel
 %{_includedir}/%{name}/XrdCl
+%{_includedir}/%{name}/XrdClCurl
 %{_includedir}/%{name}/XrdPosix
 %{_libdir}/libXrdCl.so
 %if %{with xrdec}

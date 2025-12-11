@@ -14,7 +14,7 @@ xrdcp - copy files
 [\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR] [\fB--verbose\fR]
 [\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 [\fB--dynamic-src\fR] [\fB--infiles\fR \fIfn\fR]
-[\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR] [\fB--xattr\fR]
+[\fB--parallel\fR \fIn\fR] [\fB--xattr\fR]
 [\fB--notlsok\fR] [\fB--tlsnodata\fR] [\fB--tlsmetalink\fR]
 [\fB--zip-mtln-cksum\fR] [\fB--rm-bad-cksum\fR] [\fB--continue\fR]
 [\fB--xrate-threshold\fR] [\fB--retry-policy\fR]
@@ -176,11 +176,6 @@ specifies the file that contains a list of input files
 \fB--parallel\fR \fIn\fR
 .RS 5
 number of copy jobs to be run simultaneously
-
-.RE
-\fB--allow-http\fR
-.RS 5
-allow HTTP as source or destination protocol. Requires the XrdClHttp client plugin
 
 .RE
 \fB--xattr\fR

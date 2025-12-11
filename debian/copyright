@@ -203,7 +203,6 @@ License: Expat
 Files: src/XrdXml/tinyxml/*
 Copyright:
  2000-2006 Lee Thomason (www.grinninglizard.com)
-Comment: Not used in debian build, libtinyxml-dev used instead.
 License: zlib/libpng
 
 Files: debian/*
