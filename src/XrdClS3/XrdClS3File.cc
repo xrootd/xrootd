@@ -159,7 +159,7 @@ File::GetFileHandle(const std::string &s3_url) {
 
     std::stringstream ss;
     ss << std::hex << reinterpret_cast<long long>(&m_header_callout);
-    if (!wrapped_file->SetProperty("XrdClCurlHeaderCallout", ss.str())) {
+    if (!wrapped_file->SetProperty("XrdClHttpHeaderCallout", ss.str())) {
         return std::make_tuple(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, "Failed to setup header callout"), "", nullptr);
     }
     m_wrapped_file.reset(wrapped_file.release());
@@ -253,10 +253,10 @@ File::Write(uint64_t             offset,
     return m_wrapped_file->Write(offset, std::move(buffer), handler, timeout);
 }
 
-std::shared_ptr<XrdClCurl::HeaderCallout::HeaderList>
+std::shared_ptr<XrdClHttp::HeaderCallout::HeaderList>
 File::S3HeaderCallout::GetHeaders(const std::string &verb,
                                   const std::string &url,
-                                  const XrdClCurl::HeaderCallout::HeaderList &headers)
+                                  const XrdClHttp::HeaderCallout::HeaderList &headers)
 {
     std::string auth_token, err_msg;
     std::shared_ptr<HeaderList> header_list(new HeaderList(headers));

@@ -1,5 +1,5 @@
 /usr/include/xrootd/XrdCl
-/usr/include/xrootd/XrdClCurl
+/usr/include/xrootd/XrdClHttp
 /usr/include/xrootd/XrdPosix
 /usr/lib/*/libXrdCl.so
 /usr/lib/*/libXrdFfs.so
