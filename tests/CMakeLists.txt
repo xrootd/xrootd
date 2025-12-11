@@ -29,8 +29,8 @@ add_subdirectory(krb5)
 add_subdirectory(scitokens)
 add_subdirectory(tls)
 
-add_subdirectory(XrdClCurlCommon)
-add_subdirectory(XrdClCurl)
+add_subdirectory(XrdClHttpCommon)
+add_subdirectory(XrdClHttp)
 add_subdirectory(XrdClS3)
 
 add_subdirectory( XrdOssTests )

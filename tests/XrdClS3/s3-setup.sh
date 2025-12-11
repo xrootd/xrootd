@@ -290,7 +290,7 @@ mkdir -p "$XRD_PLUGINCONFDIR"
 cat > "$XRD_PLUGINCONFDIR/curl-plugin.conf" <<EOF
 
 url = https://*
-lib = libXrdClCurl.so
+lib = libXrdClHttp.so
 enable = true
 
 EOF

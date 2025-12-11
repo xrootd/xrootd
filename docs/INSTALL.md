@@ -10,8 +10,7 @@ together with the extra dependencies required to enable them.
 | Feature               | Dependencies                             |
 |:----------------------|:-----------------------------------------|
 | FUSE support          | fuse-devel                               |
-| HTTP support (client) | davix-devel                              |
-| HTTP support (server) | libcurl-devel                            |
+| HTTP support          | libcurl-devel                            |
 | Erasure coding        | isa-l-devel                              |
 | Kerberos5             | krb5-devel                               |
 | Macaroons             | json-c-devel libmacaroons-devel          |
@@ -43,7 +42,6 @@ already enabled by default, like `PowerTools` or `crb`.
 dnf install \
     cmake \
     curl-devel \
-    davix-devel \
     diffutils \
     file \
     fuse-devel \
@@ -77,7 +75,6 @@ disabled if their dependencies are not available to be installed via apt.
 ```sh
 apt install \
     cmake \
-    davix-dev \
     g++ \
     libcurl4-openssl-dev \
     libfuse-dev \
@@ -109,7 +106,6 @@ install dependencies as well when building XRootD from source:
 brew install \
     cmake \
     curl \
-    davix \
     gcc \
     googletest \
     isa-l \
@@ -162,7 +158,6 @@ the build:
 | `ENABLE_READLINE`  |  TRUE   | Enable readline support in the commandline utilities
 | `ENABLE_SCITOKENS` |  TRUE   | Enable SciTokens plugin (server only)
 | `ENABLE_VOMS`      |  TRUE   | Enable VOMS plug-in
-| `ENABLE_XRDCLHTTP` |  TRUE   | Enable xrdcl-http plugin
 | `ENABLE_XRDCL`     |  TRUE   | Enable XRootD client
 | `ENABLE_CEPH`      |  FALSE  | Enable Ceph plugin (XrdCeph)
 | `ENABLE_XRDEC`     |  FALSE  | Enable support for erasure coding (DEPRECATED)

@@ -48,7 +48,6 @@ override_dh_auto_configure:
 	    -DENABLE_READLINE:BOOL=ON  \
 	    -DENABLE_SCITOKENS:BOOL=ON \
 	    -DENABLE_VOMS:BOOL=ON      \
-	    -DENABLE_XRDCLHTTP:BOOL=ON \
 	    -DENABLE_XRDEC:BOOL=OFF    \
 	    -DENABLE_TESTS:BOOL=ON     \
 	    -DINSTALL_PYTHON_BINDINGS:BOOL=OFF
@@ -98,19 +97,17 @@ override_dh_auto_install:
 	    debian/tmp/etc/xrootd/xrootd-filecache-clustered.cfg
 	install -m 644 -p config/xrootd-filecache-standalone.cfg \
 	    debian/tmp/etc/xrootd/xrootd-filecache-standalone.cfg
-	sed 's!/usr/lib64/!!' config/xrootd-http.cfg > \
-	    debian/tmp/etc/xrootd/xrootd-http.cfg
 
 	# Client config
 	mkdir -p debian/tmp/etc/xrootd/client.plugins.d
 	install -m 644 -p config/client.conf \
 	    debian/tmp/etc/xrootd/client.conf
-	sed 's!/usr/lib/!!' config/client-plugin.conf.example > \
-	    debian/tmp/etc/xrootd/client.plugins.d/client-plugin.conf.example
-	sed -e 's!/usr/lib64/!!' -e 's!-5!!' config/recorder.conf > \
+	install -m 644 -p config/client.plugins.d/recorder.conf \
 	    debian/tmp/etc/xrootd/client.plugins.d/recorder.conf
-	sed 's!/usr/lib64/!!' config/http.client.conf.example > \
-	    debian/tmp/etc/xrootd/client.plugins.d/xrdcl-http-plugin.conf
+	install -m 644 -p config/client.plugins.d/http.conf \
+	    debian/tmp/etc/xrootd/client.plugins.d/http.conf
+	install -m 644 -p config/client.plugins.d/s3.conf \
+	    debian/tmp/etc/xrootd/client.plugins.d/s3.conf
 
 	chmod 644 debian/tmp/usr/share/xrootd/utils/XrdCmsNotify.pm
 	sed 's!/usr/bin/env perl!/usr/bin/perl!' -i \

@@ -21,7 +21,7 @@
 #ifndef XRDCLS3_S3FILE_HH
 #define XRDCLS3_S3FILE_HH
 
-#include "../XrdClCurl/XrdClCurlHeaderCallout.hh"
+#include "../XrdClHttp/XrdClHttpHeaderCallout.hh"
 
 #include <XrdCl/XrdClFile.hh>
 
@@ -105,7 +105,7 @@ private:
     std::tuple<XrdCl::XRootDStatus, std::string, XrdCl::File*> GetFileHandle(const std::string &url);
 
     // Class for setting up the required HTTP headers for S3 requests
-    class S3HeaderCallout : public XrdClCurl::HeaderCallout {
+    class S3HeaderCallout : public XrdClHttp::HeaderCallout {
     public:
         S3HeaderCallout(File &fs) : m_parent(fs)
         {}

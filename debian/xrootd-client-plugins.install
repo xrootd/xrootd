@@ -1,5 +1,7 @@
+/usr/lib/*/libXrdClHttp-5.so
 /usr/lib/*/libXrdClProxyPlugin-5.so
 /usr/lib/*/libXrdClRecorder-5.so
-/etc/xrootd/client.conf
-/etc/xrootd/client.plugins.d/client-plugin.conf.example
+/usr/lib/*/libXrdClS3-5.so
+/etc/xrootd/client.plugins.d/http.conf
 /etc/xrootd/client.plugins.d/recorder.conf
+/etc/xrootd/client.plugins.d/s3.conf

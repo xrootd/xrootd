@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 function setup_http() {
-	require_commands davix-{get,put,mkdir,rm} openssl curl
+	require_commands openssl curl
 	openssl rand -base64 -out macaroons-secret 64
 }
 
@@ -18,12 +18,12 @@ function test_http() {
 	# create local temporary directory
 	TMPDIR=$(mktemp -d "${PWD}/${NAME}/test-XXXXXX")
 
+	# from now on, we use HTTP
+	export HOST="http://localhost:${XRD_PORT}"
+
 	# create remote temporary directory
 	# this will get cleaned up by CMake upon fixture tear down
 	assert xrdfs "${HOST}" mkdir -p "${TMPDIR}"
-
-	# from now on, we use HTTP
-	export HOST="http://localhost:${XRD_PORT}"
 
 	# create local files with random contents using OpenSSL
 
@@ -33,23 +33,23 @@ function test_http() {
 		assert openssl rand -base64 -out "${TMPDIR}/${i}.ref" $((1024 * (RANDOM + 1)))
 	done
 
-	# upload local files to the server in parallel with davix-put
+	# upload local files to the server in parallel with xrdcp
 
 	for i in $FILES; do
-		assert davix-put "${TMPDIR}/${i}.ref" "${HOST}/${TMPDIR}/${i}.ref"
+		assert xrdcp "${TMPDIR}/${i}.ref" "${HOST}/${TMPDIR}/${i}.ref"
 	done
 	printf "%1048576s" " " | sed 's/ /blah/g' > "${TMPDIR}/fail_read.txt"
-	assert davix-put "${TMPDIR}/fail_read.txt" "${HOST}/${TMPDIR}/fail_read.txt"
-	assert davix-put "${TMPDIR}/${i}.ref" "${HOST}/${TMPDIR}/testlistings/01.ref"
+	assert xrdcp "${TMPDIR}/fail_read.txt" "${HOST}/${TMPDIR}/fail_read.txt"
+	assert xrdcp "${TMPDIR}/${i}.ref" "${HOST}/${TMPDIR}/testlistings/01.ref"
 
 	# list uploaded files, then download them to check for corruption
 
-	assert davix-ls "${HOST}/${TMPDIR}"
+	assert xrdfs "${HOST}" ls "/${TMPDIR}"
 
-	# download files back with davix-get
+	# download files back with xrdcp
 
 	for i in $FILES; do
-		assert davix-get "${HOST}/${TMPDIR}/${i}.ref" "${TMPDIR}/${i}.dat"
+		assert xrdcp "${HOST}/${TMPDIR}/${i}.ref" "${TMPDIR}/${i}.dat"
 	done
 
 	# check that all checksums for downloaded files match
@@ -72,10 +72,10 @@ function test_http() {
 		fi
 	done
 
-	assert davix-ls "${HOST}/"
+	assert xrdfs "${HOST}" ls /
 
 	for i in $FILES; do
-	       assert davix-rm "${HOST}/${TMPDIR}/${i}.ref"
+	       assert xrdfs "${HOST}" rm "/${TMPDIR}/${i}.ref"
 	done
 
   # GET range-request
@@ -339,8 +339,8 @@ function test_http() {
   }
 
   bigFilePath="${TMPDIR}/fail_read.txt"
-  assert davix-put "$alphabetFilePath" "${HOST}/$alphabetFilePath"
-  assert davix-put "$bigFilePath" "${HOST}/$bigFilePath"
+  assert xrdcp "$alphabetFilePath" "${HOST}/$alphabetFilePath"
+  assert xrdcp "$bigFilePath" "${HOST}/$bigFilePath"
 
   # Test writing to a readonly file system
   # Writing to a read-only file should return 403 Forbidden

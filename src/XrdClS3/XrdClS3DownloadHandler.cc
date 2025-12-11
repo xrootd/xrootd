@@ -232,7 +232,7 @@ S3DownloadHandler::CloseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw,
 } // namespace
 
 XrdCl::XRootDStatus
-XrdClS3::DownloadUrl(const std::string &url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout)
+XrdClS3::DownloadUrl(const std::string &url, XrdClHttp::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout)
 {
     std::unique_ptr<XrdCl::File> http_file(new XrdCl::File());
     // Hack - we need to set a few properties on the file object before the open occurs.
@@ -251,10 +251,10 @@ XrdClS3::DownloadUrl(const std::string &url, XrdClCurl::HeaderCallout *header_ca
         std::to_chars_result result = std::to_chars(callout_buf, callout_buf + buf_size - 1, callout_loc, 16);
         if (result.ec == std::errc{}) {
             std::string callout_str(callout_buf, result.ptr - callout_buf);
-            http_file->SetProperty("XrdClCurlHeaderCallout", callout_str);
+            http_file->SetProperty("XrdClHttpHeaderCallout", callout_str);
         }
     }
-    http_file->SetProperty("XrdClCurlFullDownload", "true");
+    http_file->SetProperty("XrdClHttpFullDownload", "true");
 
     auto http_file_raw = http_file.get();
     S3DownloadHandler *downloadHandler = new S3DownloadHandler(std::move(http_file), handler, timeout);
