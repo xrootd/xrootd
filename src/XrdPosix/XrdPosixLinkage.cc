@@ -177,6 +177,10 @@ XrdPosixLinkage Xunix;
                          {       Xunix.Load_Error("seekdir"); abort();}
       Retv_Stat        Xrd_U_Stat(Args_Stat)
                          {return (Retv_Stat)Xunix.Load_Error("stat");}
+#if defined(__linux__)
+      Retv_Statx        Xrd_U_Statx(Args_Statx)
+                         {return (Retv_Statx)Xunix.Load_Error("statx");}
+#endif
       Retv_Stat64      Xrd_U_Stat64(Args_Stat64)
                          {return (Retv_Stat64)Xunix.Load_Error("stat");}
       Retv_Statfs      Xrd_U_Statfs(Args_Statfs)
@@ -264,6 +268,9 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Seekdir)
   LOOKUP_UNIX(Stat)
   LOOKUP_UNIX(Stat64)
+#if defined(__linux__)
+  LOOKUP_UNIX(Statx)
+#endif
   LOOKUP_UNIX(Statfs)
   LOOKUP_UNIX(Statfs64)
   LOOKUP_UNIX(Statvfs)

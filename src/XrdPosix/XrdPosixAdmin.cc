@@ -37,6 +37,11 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdPosix/XrdPosixAdmin.hh"
+
+#if defined(__linux__)
+#include <sys/sysmacros.h>
+#endif
+
 #include "XrdPosix/XrdPosixMap.hh"
   
 /******************************************************************************/
@@ -246,3 +251,88 @@ bool XrdPosixAdmin::Stat(struct stat &Stat)
    delete sInfo;
    return true;
 }
+
+#if defined(__linux__)
+bool XrdPosixAdmin::Statx(mode_t *flags, time_t *mtime)
+{
+  XrdCl::XRootDStatus xStatus;
+  XrdCl::StatxInfo    *sInfo = 0;
+
+  // Make sure admin is ok
+  //
+  if (!isOK()) return false;
+
+  // Issue the stat and verify that all went well
+  //
+  xStatus = Xrd.Statx(Url.GetPathWithParams(), sInfo);
+  if (!xStatus.IsOK())
+  {XrdPosixMap::Result(xStatus,ecMsg);
+    delete sInfo;
+    return false;
+  }
+
+  // Return wanted data
+  //
+  if (flags) *flags = XrdPosixMap::Flags2Mode(0, sInfo->GetFlags());
+  if (mtime) *mtime = static_cast<time_t>(sInfo->GetModTime());
+
+  // Delete our status information and return final result
+  //
+  delete sInfo;
+  return true;
+}
+
+bool XrdPosixAdmin::Statx(struct statx &Stat)
+{
+  XrdCl::XRootDStatus xStatus;
+  XrdCl::StatxInfo    *sInfo = 0;
+
+  // Make sure admin is ok
+  //
+  if (!isOK()) return false;
+
+  // Issue the stat and verify that all went well
+  //
+  xStatus = Xrd.Statx(Url.GetPathWithParams(), sInfo);
+  if (!xStatus.IsOK())
+  {XrdPosixMap::Result(xStatus,ecMsg);
+    delete sInfo;
+    return false;
+  }
+
+  // Return the data
+  //
+  Stat.stx_size   = static_cast<size_t>(sInfo->GetSize());
+  Stat.stx_blocks = Stat.stx_size/512 + Stat.stx_size%512;
+  Stat.stx_ino    = static_cast<ino_t>(strtoll(sInfo->GetId().c_str(), 0, 10));
+#if defined(__mips__) && _MIPS_SIM == _ABIO32
+  // Work around inconsistent type definitions on MIPS
+  // The st_rdev field in struct stat (which is 32 bits) is not type
+  // dev_t (which is 64 bits)
+  dev_t tmp_rdev = Stat.st_rdev;
+  Stat.st_mode   = XrdPosixMap::Flags2Mode(&tmp_rdev, sInfo->GetFlags());
+  Stat.st_rdev = tmp_rdev;
+#else
+  dev_t device = makedev(Stat.stx_rdev_major,Stat.stx_rdev_minor);
+  Stat.stx_mode   = XrdPosixMap::Flags2Mode(&device, sInfo->GetFlags());
+#endif
+  Stat.stx_mtime.tv_sec  = static_cast<time_t>(sInfo->GetModTime());
+
+  if (sInfo->ExtendedFormat())
+  {Stat.stx_ctime.tv_sec = static_cast<time_t>(sInfo->GetChangeTime());
+    Stat.stx_atime.tv_sec = static_cast<time_t>(sInfo->GetAccessTime());
+    Stat.stx_btime.tv_sec = static_cast<time_t>(sInfo->GetBirthTime());
+    Stat.stx_mask |= STATX_BTIME;
+  } else {
+    Stat.stx_ctime.tv_sec = Stat.stx_mtime.tv_sec;
+    Stat.stx_atime.tv_sec = time(0);
+    Stat.stx_btime.tv_sec = time(0);
+  }
+
+  // Delete our status information and return final result
+  //
+  delete sInfo;
+  return true;
+}
+
+#endif

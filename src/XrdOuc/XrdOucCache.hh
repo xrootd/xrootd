@@ -680,6 +680,10 @@ virtual int   Rmdir(const char* dirp) {(void)dirp; return 0;}
 virtual int  Stat(const char *url, struct stat &sbuff)
                  {(void)url; (void)sbuff; return 1;}
 
+#if defined(__linux__)
+  virtual int Statx(const char *url, struct statx &sbuff) {(void)url; (void)sbuff; return 1;}
+#endif
+
 //------------------------------------------------------------------------------
 //! Truncate a file in the cache to a specified size.
 //!

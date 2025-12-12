@@ -163,6 +163,16 @@ virtual void    Flush() {}
 virtual int     Fstat(struct stat *buf) {return -EISDIR;}
 
 //-----------------------------------------------------------------------------
+//! Return statx information for this file.
+//!
+//! @param  buf    - Pointer to the structure where info it to be returned.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+#if defined(__linux__)
+virtual int     Fstatx(struct statx * buf) {return -EISDIR;}
+#endif
+//-----------------------------------------------------------------------------
 //! Synchronize associated file with media (synchronous).
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
@@ -762,6 +772,24 @@ virtual int       Rename(const char *oPath, const char *nPath,
 
 virtual int       Stat(const char *path, struct stat *buff,
                        int opts=0, XrdOucEnv *envP=0)=0;
+
+  //-----------------------------------------------------------------------------
+  //! Return state information on a file or directory.
+  //!
+  //! @param  path   - Pointer to the path in question.
+  //! @param  buff   - Pointer to the structure where info it to be returned.
+  //! @param  opts   - Options:
+  //!                  XRDOSS_preop    - this is a stat prior to open.
+  //!                  XRDOSS_resonly  - only look for resident files.
+  //!                  XRDOSS_updtatm  - update file access time.
+  //! @param  envP   - Pointer to environmental information.
+  //!
+  //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+  //-----------------------------------------------------------------------------
+#if defined(__linux__)
+virtual int       Statx(const char *path, struct statx *buff,
+                       int opts=0, XrdOucEnv *envP=0)=0;
+#endif
 
 //-----------------------------------------------------------------------------
 //! Return statistics.

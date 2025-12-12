@@ -38,6 +38,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#if defined(__linux__)
+#include <sys/sysmacros.h>
+#endif
+
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClPostMaster.hh"
@@ -50,6 +54,7 @@
 
 #include "XrdPosix/XrdPosixCache.hh"
 #include "XrdPosix/XrdPosixConfig.hh"
+
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixInfo.hh"
 #include "XrdPosix/XrdPosixMap.hh"
@@ -357,6 +362,35 @@ void XrdPosixConfig::initStat(struct stat *buf)
    buf->st_uid    = myUID;
    buf->st_gid    = myGID;
 }
+
+#if defined(__linux__)
+void XrdPosixConfig::initStatx(struct statx *buf)
+{
+   static int initStat = 0;
+   static dev_t st_rdev;
+   static dev_t st_dev;
+   static uid_t myUID = getuid();
+   static gid_t myGID = getgid();
+
+   // Initialize the xdev fields. This cannot be done in the constructor because
+   // we may not yet have resolved the C-library symbols.
+   //
+   if (!initStat) {initStat = 1; initXdev(st_dev, st_rdev);}
+   memset(buf, 0, sizeof(struct stat));
+
+   // Preset common fields
+   //
+
+   buf->stx_blksize= 64*1024;
+   buf->stx_dev_major  = major(st_dev);
+   buf->stx_dev_minor  = minor(st_dev);
+   buf->stx_rdev_major = major(st_rdev);
+   buf->stx_rdev_minor = minor(st_rdev);
+   buf->stx_nlink  = 1;
+   buf->stx_uid    = myUID;
+   buf->stx_gid    = myGID;
+}
+#endif
   
 /******************************************************************************/
 /*                              i n i t X d e v                               */

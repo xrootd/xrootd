@@ -187,7 +187,9 @@ public:
         int            sync(XrdSfsAio *aiop);
 
         int            stat(struct stat *buf);
-
+#if defined(__linux__)
+        int            statx(struct statx * buf);
+#endif
         int            truncate(XrdSfsFileOffset   fileOffset);
 
         int            getCXinfo(char cxtype[4], int &cxrsz);
@@ -341,7 +343,19 @@ const   char          *getVersion();
                                   XrdOucErrInfo    &out_error,
                             const XrdSecEntity     *client,
                             const char             *opaque = 0);
+#if defined(__linux__)
+        int            statx(const char             *Name,
+                                  struct statx      *buf,
+                                  XrdOucErrInfo    &out_error,
+                            const XrdSecEntity     *client,
+                            const char             *opaque = 0);
 
+        int            statx(const char             *Name,
+                                mode_t           &mode,
+                                XrdOucErrInfo    &out_error,
+                          const XrdSecEntity     *client,
+                          const char             *opaque = 0);
+#endif
         int            truncate(const char             *Name,
                                       XrdSfsFileOffset fileOffset,
                                       XrdOucErrInfo    &out_error,

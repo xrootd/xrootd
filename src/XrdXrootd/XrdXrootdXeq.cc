@@ -3137,41 +3137,62 @@ int XrdXrootdProtocol::do_Stat()
 /******************************************************************************/
 /*                              d o _ S t a t x                               */
 /******************************************************************************/
-  
+
+#if defined(__linux__)
 int XrdXrootdProtocol::do_Statx()
 {
-   static XrdXrootdCallBack statxCB("xstat", XROOTD_MON_STAT);
+   static XrdXrootdCallBack statCB("statx", XROOTD_MON_STAT);
+   bool doDig;
    int rc;
-   char *path, *opaque, *respinfo = argp->buff;
-   mode_t mode;
-   XrdOucErrInfo myError(Link->ID,&statxCB,ReqID.getID(),Monitor.Did,clientPV);
-   XrdOucTokenizer pathlist(argp->buff);
+   char *opaque, xxBuff[1024];
+   struct statx buf;
+   XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
+
+// Update misc stats count
+//
+   SI->Bump(SI->miscCnt);
+
+// The stat request may refer to an open file handle. So, screen this out.
+//
+   if (!argp || !Request.header.dlen)
+      {XrdXrootdFile *fp;
+       XrdXrootdFHandle fh(Request.stat.fhandle);
+       if (!FTab || !(fp = FTab->Get(fh.handle)))
+          return Response.Send(kXR_FileNotOpen,
+                              "statx does not refer to an open file");
+       rc = fp->XrdSfsp->statx(&buf);
+       TRACEP(FS, "fh=" <<fh.handle <<" statx rc=" <<rc);
+       if (SFS_OK == rc) return Response.Send(xxBuff,
+                                StatxGen(buf,xxBuff,sizeof(xxBuff)));
+       return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+      }
+
+// Check if we are handling a dig type path
+//
+   doDig = (digFS && SFS_LCLROOT(argp->buff));
 
 // Check for static routing
 //
-   STATIC_REDIRECT(RD_stat);
+   if (!doDig) {STATIC_REDIRECT(RD_stat);}
 
-// Cycle through all of the paths in the list
+// Prescreen the path
 //
-   while((path = pathlist.GetLine()))
-        {if (rpCheck(path, &opaque)) return rpEmsg("Stating", path);
-         if (!Squash(path))          return vpEmsg("Stating", path);
-         rc = osFS->stat(path, mode, myError, CRED, opaque);
-         TRACEP(FS, "rc=" <<rc <<" stat " <<path);
-         if (rc != SFS_OK)
-            return fsError(rc, XROOTD_MON_STAT, myError, path, opaque);
-            else {if (mode == (mode_t)-1)    *respinfo = (char)kXR_offline;
-                     else if (S_ISDIR(mode)) *respinfo = (char)kXR_isDir;
-                             else            *respinfo = (char)kXR_file;
-                 }
-         respinfo++;
-        }
+   if (rpCheck(argp->buff, &opaque)) return rpEmsg("Stating", argp->buff);
+   if (!doDig && !Squash(argp->buff))return vpEmsg("Stating", argp->buff);
 
-// Return result
+// Preform the actual function, we may been to add back the opaque info
 //
-   return Response.Send(argp->buff, respinfo-argp->buff);
+
+
+   if (doDig) rc = digFS->statx(argp->buff, &buf, myError, CRED, opaque);
+       else    rc =  osFS->statx(argp->buff, &buf, myError, CRED, opaque);
+    TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
+    if (rc == SFS_OK) return Response.Send(xxBuff,
+                             StatxGen(buf,xxBuff,sizeof(xxBuff)));
+
+   return fsError(rc, (doDig ? 0 : XROOTD_MON_STAT),myError,argp->buff,opaque);
 }
-
+#endif
 /******************************************************************************/
 /*                               d o _ S y n c                                */
 /******************************************************************************/

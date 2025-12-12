@@ -140,6 +140,9 @@ public:
         int            sync(XrdSfsAio *aiop) {return SFS_OK;}
 
         int            stat(struct stat *buf);
+#if defined(__linux__)
+        int            statx(struct statx *buf) {return SFS_OK;}
+#endif
 
         int            truncate(XrdSfsFileOffset   fileOffset) {return SFS_OK;}
 
@@ -243,7 +246,24 @@ const   char          *getVersion();
                         if (!rc) mode = bfr.st_mode;
                         return rc;
                        }
+#if defined(__linux__)
+      int            statx(const char             *Name,
+                                 struct statx      *buf,
+                                 XrdOucErrInfo    &out_error,
+                           const XrdSecClientName *client = 0,
+                           const char             *opaque = 0);
 
+      int            statx(const char             *Name,
+                                mode_t           &mode,
+                                XrdOucErrInfo    &out_error,
+                          const XrdSecClientName *client = 0,
+                          const char             *opaque = 0)
+                      {struct statx bfr;
+                       int rc = statx(Name, &bfr, out_error, client);
+                       if (!rc) mode = bfr.stx_mode;
+                       return rc;
+                      }
+#endif
         int            truncate(const char             *Name,
                                       XrdSfsFileOffset fileOffset,
                                       XrdOucErrInfo    &out_error,

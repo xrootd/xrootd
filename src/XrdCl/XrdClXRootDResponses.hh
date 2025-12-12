@@ -409,6 +409,11 @@ namespace XrdCl
   struct StatInfoImpl;
 
   //----------------------------------------------------------------------------
+  //! Statx info
+  //----------------------------------------------------------------------------
+  struct StatxInfoImpl;
+
+  //----------------------------------------------------------------------------
   //! Object stat info
   //----------------------------------------------------------------------------
   class StatInfo
@@ -539,7 +544,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Parse server response and fill up the object
       //------------------------------------------------------------------------
-      bool ParseServerResponse( const char *data );
+      virtual bool ParseServerResponse( const char *data );
 
       //------------------------------------------------------------------------
       //! Has extended stat information
@@ -551,7 +556,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       bool HasChecksum() const;
 
-    private:
+    protected:
+
+      explicit StatInfo(std::unique_ptr<StatInfoImpl> impl);
 
       static inline std::string TimeToString( uint64_t time )
       {
@@ -578,9 +585,29 @@ namespace XrdCl
         else str.push_back( '-' );
       }
 
+  protected:
       std::unique_ptr<StatInfoImpl> pImpl;
   };
 
+  class StatxInfo : public StatInfo {
+  public:
+    StatxInfo();
+    StatxInfo(const StatxInfo & other);
+    virtual ~StatxInfo();
+    //------------------------------------------------------------------------
+    //! Get birth time (in seconds since epoch)
+    //------------------------------------------------------------------------
+    uint64_t GetBirthTime() const;
+
+    //------------------------------------------------------------------------
+    //! Get birth time
+    //------------------------------------------------------------------------
+    std::string GetBirthTimeAsString() const;
+
+    bool ParseServerResponse( const char *data ) override;
+  private:
+    StatxInfoImpl *pStatxImpl;
+  };
   //----------------------------------------------------------------------------
   //! VFS stat info
   //----------------------------------------------------------------------------

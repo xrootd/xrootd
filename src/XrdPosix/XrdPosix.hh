@@ -116,4 +116,7 @@
 
 #define writev(a,b,c)    XrdPosix_Writev(a,b,c)
 
+#if defined(__linux__)
+#define statx(a,b,c,d,e) XrdPosix_Statx(a,b,c,d,e)
+#endif
 #endif

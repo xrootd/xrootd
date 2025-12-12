@@ -79,6 +79,16 @@ public:
     return pFile->Stat(force, handler, timeout);
   }
 
+  //----------------------------------------------------------------------------
+  //! Statx
+  //----------------------------------------------------------------------------
+  virtual XRootDStatus Statx(bool             force,
+                            ResponseHandler* handler,
+                            time_t           timeout) override
+  {
+    return pFile->Statx(force, handler, timeout);
+  }
+
 
   //----------------------------------------------------------------------------
   //! Read

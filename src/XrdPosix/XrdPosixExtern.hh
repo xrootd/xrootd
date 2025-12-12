@@ -172,6 +172,10 @@ extern void       XrdPosix_Seekdir(DIR *dirp, long loc);
 
 extern int        XrdPosix_Stat(const char *path, struct stat *buf);
 
+#if defined(__linux__)
+extern int        XrdPosix_Statx(int dirfd, const char *path, int flags, unsigned int mask, struct statx * statxbuf);
+#endif
+
 #if !defined(__solaris__)
 extern int        XrdPosix_Statfs(const char *path, struct statfs *buf);
 #endif

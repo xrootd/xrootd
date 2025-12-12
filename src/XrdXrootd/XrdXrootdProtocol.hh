@@ -294,7 +294,9 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Set_Cache(XrdOucTokenizer &setargs);
        int   do_Set_Mon(XrdOucTokenizer &setargs);
        int   do_Stat();
+#if defined(__linux__)
        int   do_Statx();
+#endif
        int   do_Sync();
        int   do_Truncate();
        int   do_Write();
@@ -342,6 +344,9 @@ static bool  ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv);
 static bool  ConfigRedirPI(const char*, XrdOucEnv&, const char*, const char*);
 static int   Squash(char *);
        int   StatGen(struct stat &buf, char *xxBuff, int xxLen, bool xa=false);
+#if defined(__linux__)
+       int   StatxGen(struct statx &buf, char *xxBuff, int xxLen, bool xa=false);
+#endif
 static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
