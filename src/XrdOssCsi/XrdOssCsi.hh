@@ -190,10 +190,11 @@ virtual int       Init(XrdSysLogger *lp, const char *cfn, XrdOucEnv *envP) /* ov
 virtual uint64_t  Features() /* override */
                   {
                     // make sure filesystem checksum, pgread/pgwrite and
-                    // no-sendfile() flags are set.
-                    uint64_t feats = XRDOSS_HASFSCS | XRDOSS_HASPGRW | XRDOSS_HASNOSF;
-                    feats |= successor_->Features();
-                    return feats;
+                    // no-sendfile() flags are set and cloning support unset.
+                    uint64_t feat = successor_->Features();
+                    feat &= ~(XRDOSS_HASFICL);
+                    feat |= XRDOSS_HASFSCS | XRDOSS_HASPGRW | XRDOSS_HASNOSF;
+                    return feat;
                   }
 
 virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *eP=0) /* override */;
