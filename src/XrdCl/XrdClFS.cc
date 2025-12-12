@@ -1962,7 +1962,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -l stat every entry and print long listing\n"                 );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
-  printf( "     -D show duplicate entries"                                    );
+  printf( "     -D show duplicate entries\n"                                  );
   printf( "     -Z if a ZIP archive list its content\n"                       );
   printf( "     -C checksum every entry\n\n"                                  );
 
