@@ -27,7 +27,7 @@ add_library(${XrdVoms} MODULE
   XrdVomsgsi.cc
 )
 
-target_link_libraries(${XrdVoms} PRIVATE XrdCrypto ${VOMS_LIBRARIES})
+target_link_libraries(${XrdVoms} PRIVATE XrdUtils ${VOMS_LIBRARIES} OpenSSL::SSL)
 target_include_directories(${XrdVoms} PRIVATE ${VOMS_INCLUDE_DIR})
 
 install(TARGETS ${XrdVoms} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
