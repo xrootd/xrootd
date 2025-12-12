@@ -28,6 +28,9 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdCeph/XrdCephXAttr.hh"
 
+#include "XrdCks/XrdCksData.hh"
+#include <cstring>
+
 XrdSysError XrdCephXattrEroute(0);
 XrdOucTrace XrdCephXattrTrace(&XrdCephXattrEroute);
 
@@ -49,6 +52,7 @@ extern "C"
       XrdCephXattrEroute.Say("CephXattr loading failed with exception. Check the syntax of parameters : ", parms);
       return 0;
     }
+
     return new XrdCephXAttr();
   }
 }
@@ -99,16 +103,19 @@ int XrdCephXAttr::List(AList **aPL, const char *Path, int fd, int getSz) {
 
 int XrdCephXAttr::Set(const char *Aname, const void *Aval, int Avsz,
                       const char *Path,  int fd,  int isNew) {
+  int rc = 0;
+
   if (fd >= 0) {
-    return ceph_posix_fsetxattr(fd, Aname, Aval, Avsz, 0);
+    rc = ceph_posix_fsetxattr(fd, Aname, Aval, Avsz, 0);
   } else {
     try {
-      return ceph_posix_setxattr(0, Path, Aname, Aval, Avsz, 0);
+      rc = ceph_posix_setxattr(0, Path, Aname, Aval, Avsz, 0);
     } catch (std::exception &e) {
       XrdCephXattrEroute.Say("Set : invalid syntax in file parameters", Path);
-      return -EINVAL;
+      rc = -EINVAL;
     }
   }
+  return rc;
 }
 
 XrdVERSIONINFO(XrdSysGetXAttrObject, XrdCephXAttr);
