@@ -90,6 +90,209 @@ namespace XrdCl
     Socket::SocketStatus  status;
   };
 
+
+  //----------------------------------------------------------------------------
+  // Notify the mutex a close (which may block waiting for the Poller) is
+  // about to happen for one of the subStreams.
+  //----------------------------------------------------------------------------
+  void StreamMutex::AddClosing( uint16_t subStream )
+  {
+    XrdSysCondVarHelper lck( mcv );
+    mclosing[subStream]++;
+    mcv.Broadcast();
+  }
+
+  //----------------------------------------------------------------------------
+  // Notify the mutex a close has completed.
+  //----------------------------------------------------------------------------
+  void StreamMutex::RemoveClosing( uint16_t subStream )
+  {
+    XrdSysCondVarHelper lck( mcv );
+    mclosing[subStream]--;
+    if( mclosing[subStream]==0 ) mclosing.erase( subStream );
+    mcv.Broadcast();
+  }
+
+  //----------------------------------------------------------------------------
+  // Lock
+  //----------------------------------------------------------------------------
+  void StreamMutex::Lock()
+  {
+    XrdSysCondVarHelper lck( mcv );
+    if( mlist.empty() )
+    {
+      mlist.emplace_front();
+      ++mlist.front().cnt;
+      mthmap[XrdSysThread::ID()] = mlist.begin();
+      return;
+    }
+    while( 1 )
+    {
+      auto mit = mthmap.find( XrdSysThread::ID() );
+      if( mit == mthmap.end() )
+      {
+        mlist.emplace_back();
+        bool ins;
+        std::tie( mit, ins ) = mthmap.insert(
+          std::make_pair( XrdSysThread::ID(), std::prev( mlist.end() ) ) );
+      }
+      if( mit->second == mlist.begin() )
+      {
+        ++mlist.front().cnt;
+        return;
+      }
+      mcv.Wait();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Lock, notifying the mutex we're acquiring the mute from with a callback
+  // from the given subStream. We may fail to acquiring by setting isclosing.
+  //----------------------------------------------------------------------------
+  void StreamMutex::Lock( uint16_t subStream, bool &isclosing )
+  {
+    isclosing = false;
+    XrdSysCondVarHelper lck( mcv );
+    if( mlist.empty() ) {
+      mlist.emplace_front();
+      ++mlist.front().cnt;
+      mthmap[XrdSysThread::ID()] = mlist.begin();
+      return;
+    }
+    while( 1 )
+    {
+      auto mit = mthmap.find( XrdSysThread::ID() );
+      if( mit == mthmap.end() )
+      {
+        mlist.emplace_back();
+        bool ins;
+        std::tie( mit, ins ) = mthmap.insert(
+          std::make_pair( XrdSysThread::ID(), std::prev( mlist.end() ) ) );
+      }
+      if( mit->second == mlist.begin() )
+      {
+        ++mlist.front().cnt;
+        return;
+      }
+      if( hasfn || mclosing.count( subStream ) )
+      {
+        isclosing = true;
+        mlist.erase( mit->second );
+        mthmap.erase( mit );
+        return;
+      }
+      mcv.Wait();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Lock, notifying the mutex that any thread waiting for a lock from within a
+  // Poller callback should abort. We either acquire the mutex immediately or
+  // indicate that we could not, by setting isclosing. In that case the supplied
+  // func will be exectued by the last thread to release the lock.
+  // Only one func may be registered at a time. Others will not be called.
+  //----------------------------------------------------------------------------
+  void StreamMutex::Lock( const std::function<void()> &func, bool &isclosing )
+  {
+    isclosing = false;
+    XrdSysCondVarHelper lck( mcv );
+    if( mlist.empty() )
+    {
+      mlist.emplace_front( func );
+      ++mlist.front().cnt;
+      auto lit = mlist.begin();
+      mthmap[XrdSysThread::ID()] = lit;
+      fnlistit = lit;
+      hasfn = true;
+      return;
+    }
+    while( 1 )
+    {
+      auto mit = mthmap.find( XrdSysThread::ID() );
+      if( mit == mthmap.end() )
+      {
+        if( hasfn )
+        {
+          isclosing = true;
+          return;
+        }
+        mlist.emplace_back( func );
+        hasfn = true;
+        fnlistit = std::prev( mlist.end() );
+        mcv.Broadcast();
+        isclosing = true;
+        return;
+      }
+      if( mit->second == mlist.begin() )
+      {
+        ++mlist.front().cnt;
+        return;
+      }
+      mcv.Wait();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // UnLock
+  //----------------------------------------------------------------------------
+  void StreamMutex::UnLock()
+  {
+    // keep any fn callback until return in case it holds a ref count
+    std::function<void()> keepfn;
+
+    XrdSysCondVarHelper lck( mcv );
+    auto mit = mthmap.find( XrdSysThread::ID() );
+    if( mit == mthmap.end() ) return;
+
+    // we must have held the lock
+    assert( mit->second == mlist.begin() );
+
+    const size_t cnt = --mlist.front().cnt;
+    if( cnt ) return;
+
+    if( hasfn && fnlistit == mit->second )
+    {
+      hasfn = false;
+      std::swap( keepfn, mlist.front().fn );
+    }
+
+    mlist.erase( mit->second );
+    mthmap.erase( mit );
+
+    // next up should have zero count
+    assert( mlist.empty() || mlist.front().cnt == 0 );
+
+    if( hasfn && fnlistit == mlist.begin() )
+    {
+      auto &lfn = mlist.front().fn;
+      ++mlist.front().cnt;
+      mthmap[XrdSysThread::ID()] = mlist.begin();
+      lck.UnLock();
+      lfn();
+      UnLock();
+      return;
+    }
+    mcv.Broadcast();
+  }
+
+  //------------------------------------------------------------------------
+  // Job to handle disposing of socket outside of a poller callback
+  //------------------------------------------------------------------------
+  class SocketDestroyJob: public Job
+  {
+    public:
+      SocketDestroyJob( AsyncSocketHandler *socket ) :
+                 pSock( socket ) { }
+      virtual ~SocketDestroyJob() {}
+      virtual void Run( void* )
+      {
+        delete pSock;
+        delete this;
+      }
+    private:
+      AsyncSocketHandler *pSock;
+  };
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
@@ -152,7 +355,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Stream::~Stream()
   {
-    Disconnect( true );
+    // Used to disconnect substreams here, but since we are refernce counted
+    // and connected substream hold a count, if we're here they're closed.
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( PostMasterMsg, "[%s] Destroying stream",
@@ -186,7 +390,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus Stream::EnableLink( PathID &path )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    StreamMutexHelper scopedLock( pMutex );
 
     //--------------------------------------------------------------------------
     // We are in the process of connecting the main stream, so we do nothing
@@ -299,7 +503,7 @@ namespace XrdCl
                              bool          stateful,
                              time_t        expires )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    StreamMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
@@ -347,7 +551,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::ForceConnect()
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    StreamMutexHelper scopedLock( pMutex );
     if( pSubStreams[0]->status == Socket::Connecting )
     {
       pSubStreams[0]->status = Socket::Disconnected;
@@ -361,15 +565,17 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Disconnect the stream
   //----------------------------------------------------------------------------
-  void Stream::Disconnect( bool /*force*/ )
+  void Stream::Finalize()
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    auto channel = GetChannel();
+    StreamMutexHelper scopedLock( pMutex );
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
     {
       (*it)->socket->Close();
       (*it)->status = Socket::Disconnected;
     }
+    pSessionId = 0;
   }
 
   //----------------------------------------------------------------------------
@@ -380,12 +586,12 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Check for timed-out requests and incoming handlers
     //--------------------------------------------------------------------------
-    pMutex.Lock();
+    StreamMutexHelper scopedLock( pMutex );
     OutQueue q;
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       q.GrabExpired( *(*it)->outQueue, now );
-    pMutex.UnLock();
+    scopedLock.UnLock();
 
     q.Report( XRootDStatus( stError, errOperationExpired ) );
     pIncomingQueue->ReportTimeout( now );
@@ -545,7 +751,9 @@ namespace XrdCl
   std::pair<Message *, MsgHandler *>
     Stream::OnReadyToWrite( uint16_t subStream )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    bool closing;
+    StreamMutexHelper scopedLock( pMutex, subStream, closing );
+    if( closing ) return std::make_pair( (Message *)0, (MsgHandler *)0 );
     Log *log = DefaultEnv::GetLog();
     if( pSubStreams[subStream]->outQueue->IsEmpty() )
     {
@@ -585,7 +793,9 @@ namespace XrdCl
 
   void Stream::DisableIfEmpty( uint16_t subStream )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    bool closing;
+    StreamMutexHelper scopedLock( pMutex, subStream, closing );
+    if( closing ) return;
     Log *log = DefaultEnv::GetLog();
 
     if( pSubStreams[subStream]->outQueue->IsEmpty() )
@@ -623,7 +833,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnConnect( uint16_t subStream )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    auto channel = GetChannel();
+    bool closing;
+    StreamMutexHelper scopedLock( pMutex, subStream, closing );
+    if( closing ) return;
     pSubStreams[subStream]->status = Socket::Connected;
 
     std::string ipstack( pSubStreams[0]->socket->GetIpStack() );
@@ -665,12 +878,17 @@ namespace XrdCl
                     pStreamName.c_str(), pSubStreams.size() - 1 );
         for( size_t i = 1; i < pSubStreams.size(); ++i )
         {
+          if( pSubStreams[i]->status != Socket::Disconnected )
+          {
+            pSubStreams[0]->outQueue->GrabItems( *pSubStreams[i]->outQueue );
+            SockHandlerClose( i );
+          }
           pSubStreams[i]->socket->SetAddress( pSubStreams[0]->socket->GetAddress() );
           XRootDStatus st = pSubStreams[i]->socket->Connect( pConnectionWindow );
           if( !st.IsOK() )
           {
             pSubStreams[0]->outQueue->GrabItems( *pSubStreams[i]->outQueue );
-            pSubStreams[i]->socket->Close();
+            SockHandlerClose( i );
           }
           else
           {
@@ -728,9 +946,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnConnectError( uint16_t subStream, XRootDStatus status )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    auto channel = GetChannel();
+    bool closing;
+    StreamMutexHelper scopedLock( pMutex, subStream, closing );
+    if( closing ) return;
     Log *log = DefaultEnv::GetLog();
-    pSubStreams[subStream]->socket->Close();
+    SockHandlerClose( subStream );
     time_t now = ::time(0);
 
     //--------------------------------------------------------------------------
@@ -744,7 +965,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( subStream > 0 )
     {
-      pSubStreams[subStream]->status = Socket::Disconnected;
       pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
       if( pSubStreams[0]->status == Socket::Connected )
       {
@@ -785,6 +1005,8 @@ namespace XrdCl
 
       if( !st.IsOK() )
         OnFatalError( subStream, st, scopedLock );
+      else
+        pSubStreams[0]->status = Socket::Connecting;
 
       return;
     }
@@ -798,6 +1020,7 @@ namespace XrdCl
       log->Info( PostMasterMsg, "[%s] Attempting reconnection in %lld seconds.",
                  pStreamName.c_str(), (long long) (pConnectionWindow - elapsed) );
 
+      pSubStreams[0]->status = Socket::Connecting;
       Task *task = new ::StreamConnectorTask( *pUrl, pStreamName );
       pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
       return;
@@ -828,10 +1051,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnError( uint16_t subStream, XRootDStatus status )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    auto channel = GetChannel();
+    bool closing;
+    StreamMutexHelper scopedLock( pMutex, subStream, closing );
+    if( closing ) return;
     Log *log = DefaultEnv::GetLog();
-    pSubStreams[subStream]->socket->Close();
-    pSubStreams[subStream]->status = Socket::Disconnected;
+    SockHandlerClose( subStream );
 
     log->Debug( PostMasterMsg, "[%s] Recovering error for stream #%d: %s.",
                 pStreamName.c_str(), subStream, status.ToString().c_str() );
@@ -874,6 +1099,7 @@ namespace XrdCl
     if( subStream == 0 )
     {
       MonitorDisconnection( status );
+      pSessionId = 0;
 
       SubStreamList::iterator it;
       size_t outstanding = 0;
@@ -912,15 +1138,23 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Force error
   //------------------------------------------------------------------------
-  void Stream::ForceError( XRootDStatus status, bool hush )
+  void Stream::ForceError( XRootDStatus status, const bool hush, const uint64_t sess )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    auto channel = GetChannel();
+    bool closing;
+    StreamMutexHelper scopedLock( pMutex,
+      [this, channel, status, hush, sess]()
+      {
+        this->ForceError(status, hush, sess);
+      }, closing );
+    if( closing ) return;
+    if( sess && sess != pSessionId ) return;
+
     Log    *log = DefaultEnv::GetLog();
     for( size_t substream = 0; substream < pSubStreams.size(); ++substream )
     {
       if( pSubStreams[substream]->status != Socket::Connected ) continue;
-      pSubStreams[substream]->socket->Close();
-      pSubStreams[substream]->status = Socket::Disconnected;
+      SockHandlerClose( substream );
 
       if( !hush )
         log->Debug( PostMasterMsg, "[%s] Forcing error on disconnect: %s.",
@@ -933,6 +1167,7 @@ namespace XrdCl
     }
 
     pConnectionCount = 0;
+    pSessionId = 0;
 
     //------------------------------------------------------------------------
     // We're done here, unlock the stream mutex to avoid deadlocks and
@@ -958,10 +1193,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnFatalError( uint16_t           subStream,
                              XRootDStatus       status,
-                             XrdSysMutexHelper &lock )
+                             StreamMutexHelper &lock )
   {
     Log    *log = DefaultEnv::GetLog();
-    pSubStreams[subStream]->status = Socket::Disconnected;
+    SockHandlerClose( subStream );
     log->Error( PostMasterMsg, "[%s] Unable to recover: %s.",
                 pStreamName.c_str(), status.ToString().c_str() );
 
@@ -1028,7 +1263,9 @@ namespace XrdCl
     SubStreamList::iterator it;
     time_t                  now = time(0);
 
-    XrdSysMutexHelper scopedLock( pMutex );
+    bool closing;
+    StreamMutexHelper scopedLock( pMutex, substream, closing );
+    if( closing ) return false;
     uint32_t outgoingMessages = 0;
     time_t   lastActivity     = 0;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
@@ -1047,6 +1284,7 @@ namespace XrdCl
       {
         log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, disconnecting...",
                     pStreamName.c_str() );
+        const uint64_t sess = pSessionId;
         scopedLock.UnLock();
         //----------------------------------------------------------------------
         // Important note!
@@ -1054,11 +1292,8 @@ namespace XrdCl
         // This destroys the Stream object itself, the underlined
         // AsyncSocketHandler object (that called this method) and the Channel
         // object that aggregates this Stream.
-        //
-        // Additionally &(*pUrl) is used by ForceDisconnect to check if we are
-        // in a Channel that was previously collapsed in a redirect.
         //----------------------------------------------------------------------
-        DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
+        DefaultEnv::GetPostMaster()->ForceDisconnect( GetChannel(), sess );
         return false;
       }
     }
@@ -1268,5 +1503,22 @@ namespace XrdCl
       if( xrdHandler ) xrdHandler->PartialReceived();
       h.Reset();
     }
+  }
+
+  //----------------------------------------------------------------------------
+  // Marks subStream as disconnected and closes the sockethandler.
+  // pMutex should be locked throughout.
+  //----------------------------------------------------------------------------
+  void Stream::SockHandlerClose( uint16_t subStream )
+  {
+    SubStreamData *sd = pSubStreams[subStream];
+    sd->status = Socket::Disconnected;
+    pMutex.AddClosing(subStream);
+    sd->socket->PreClose();
+    AsyncSocketHandler *s = new AsyncSocketHandler( *sd->socket );
+    Job *job = new SocketDestroyJob( sd->socket );
+    pJobManager->QueueJob( job );
+    sd->socket = s;
+    pMutex.RemoveClosing(subStream);
   }
 }
