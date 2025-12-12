@@ -310,7 +310,71 @@ int XrdOssSys::MSS_Stat(const char *path, struct stat *buff)
     delete sfd;
     return 0;
 }
+#if defined(__linux__)
+int XrdOssSys::MSS_Statx(const char *path, struct statx *buff) {
+   const char *epname = "MSS_Stat";
+   char ftype, mtype[10], *resp;
+   int retc, xt_nlink;
+   long xt_uid, xt_gid, atime, ctime, mtime, xt_blksize, xt_blocks;
+   long long xt_size;
+   XrdOucStream *sfd;
 
+   // Make sure the path is not too long.
+   //
+   if (strlen(path) > MAXPATHLEN)
+   {OssEroute.Emsg(epname, "mss path too long - ", path);
+      return -ENAMETOOLONG;
+   }
+
+   // Issue the command. This may be an immediate exists a or full statx.
+   //
+   if (!buff) return MSS_Xeq(0, ENOENT, (isMSSC ? "statx" : "exists"), path);
+   if ((retc = MSS_Xeq(&sfd, ENOENT, "statx", path))) return retc;
+
+   // Read in the results.
+   //
+   if ( !(resp = sfd ->GetLine()))
+      return OssEroute.Emsg(epname,-XRDOSS_E8012,"process ",path);
+
+
+   // Extract data from the response.
+   //
+   sscanf(resp, "%c %9s %d %ld %ld %ld %ld %ld %lld %ld %ld", &ftype, mtype,
+          &xt_nlink, &xt_uid, &xt_gid, &atime, &ctime, &mtime,
+          &xt_size, &xt_blksize, &xt_blocks);
+
+   /*
+   //TODO STATX - implement the statx buffer setting from the response
+   // Set the stat buffer, appropriately.
+   //
+   memset( (char *)buff, 0, sizeof(struct stat) );
+   buff->st_nlink = static_cast<nlink_t>(xt_nlink);
+   buff->st_uid   = static_cast<uid_t>(xt_uid);
+   buff->st_gid   = static_cast<gid_t>(xt_gid);
+   buff->st_atime = static_cast<time_t>(atime);
+   buff->st_ctime = static_cast<time_t>(ctime);
+   buff->st_mtime = static_cast<time_t>(mtime);
+   buff->st_size  = static_cast<off_t>(xt_size);
+   buff->st_blksize=static_cast<long>(xt_blksize);
+#ifdef __APPLE__
+   buff->st_blocks =                      xt_blocks;
+#else
+   buff->st_blocks =static_cast<blkcnt_t>(xt_blocks);
+#endif
+
+   if (ftype == 'd') buff->st_mode |=  S_IFDIR;
+   else if (ftype == 'l') buff->st_mode |= S_IFLNK;
+   else buff->st_mode |= S_IFREG;
+
+   buff->st_mode |= tranmode(&mtype[0]) << 6;
+   buff->st_mode |= tranmode(&mtype[3]) << 3;
+   buff->st_mode |= tranmode(&mtype[6]);
+   */
+
+   delete sfd;
+   return 0;
+}
+#endif
 int XrdOssSys::tranmode(char *mode) {
     int mbits = 0;
     if (mode[0] == 'r') mbits |= S_IROTH;

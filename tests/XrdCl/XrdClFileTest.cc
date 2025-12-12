@@ -54,6 +54,9 @@ class FileTest: public ::testing::Test
     void VectorWriteTest();
     void VirtualRedirectorTest();
     void XAttrTest();
+#if defined(__linux__)
+    void StatxTest();
+#endif
 };
 
 //------------------------------------------------------------------------------
@@ -100,6 +103,13 @@ TEST_F(FileTest, XAttrTest)
 {
   XAttrTest();
 }
+
+#if defined(__linux__)
+TEST_F(FileTest, StatxTest)
+{
+  StatxTest();
+}
+#endif
 
 TEST_F(FileTest, PlugInTest)
 {
@@ -960,3 +970,59 @@ void FileTest::XAttrTest()
 
   EXPECT_XRDST_OK( file.Close() );
 }
+
+#if defined(__linux__)
+void FileTest::StatxTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+
+  std::string address;
+  std::string dataPath;
+  std::string localDataPath;
+
+  EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
+  EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
+  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
+
+  URL url( address );
+  EXPECT_TRUE( url.IsValid() );
+
+  std::string filePath = dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
+  std::string fileUrl = address + "/";
+  fileUrl += filePath;
+  localDataPath = realpath(localDataPath.c_str(), NULL);
+  // using the file protocol to access local files, so that we can use XRootD's own functions
+  std::string localFileUrl = "file://localhost" + localDataPath + "/srv1" + filePath;
+  std::string localFilePath = localDataPath + "/srv1" + filePath;
+
+  File f, fLocal;
+  StatxInfo *statxInfo;
+
+  //----------------------------------------------------------------------------
+  // Open the file
+  //----------------------------------------------------------------------------
+  EXPECT_XRDST_OK( f.Open( fileUrl, OpenFlags::Read ) );
+  EXPECT_XRDST_OK( fLocal.Open( localFileUrl, OpenFlags::Read ) );
+
+  EXPECT_XRDST_OK( f.Statx( false, statxInfo ) );
+  ASSERT_TRUE( statxInfo );
+
+  struct statx localStatxBuf;
+
+  int rc = statx(AT_FDCWD,localFilePath.c_str(), AT_STATX_SYNC_AS_STAT,STATX_BASIC_STATS | STATX_BTIME, &localStatxBuf);
+  EXPECT_EQ( rc, 0 );
+  uint64_t fileSize = localStatxBuf.stx_size;
+  EXPECT_EQ( statxInfo->GetSize(), fileSize );
+  EXPECT_EQ(statxInfo->GetBirthTime(),localStatxBuf.stx_btime.tv_sec);
+  EXPECT_TRUE( statxInfo->TestFlags( StatxInfo::IsReadable ) );
+
+  delete statxInfo;
+  statxInfo = NULL;
+}
+#endif

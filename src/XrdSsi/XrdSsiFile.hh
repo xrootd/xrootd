@@ -84,6 +84,9 @@ public:
         void             setXio(XrdSfsXio *xP);
                         
         int              stat(struct stat *buf);
+#if defined(__linux__)
+        int              statx(struct statx *buf);
+#endif
                         
         int              sync();
                         

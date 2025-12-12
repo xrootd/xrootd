@@ -1711,6 +1711,25 @@ int XrdOfsFile::stat(struct stat     *buf)         // Out
    return SFS_OK;
 }
 
+#if defined(__linux__)
+int XrdOfsFile::statx(struct statx *buf) {
+   int retc;
+   EPNAME("fstatx");
+
+   // Perform any required tracing
+   //
+   FTRACE(stat, "");
+
+   // Perform the function
+   //
+   if ((retc = oh->Select().Fstatx(buf)) < 0)
+      return XrdOfsFS->Emsg(epname,error,retc,"get statx for",oh);
+
+
+   return SFS_OK;
+}
+#endif
+
 /******************************************************************************/
 /*                                  s y n c                                   */
 /******************************************************************************/
@@ -2543,6 +2562,99 @@ int XrdOfs::stat(const char             *path,        // In
    return SFS_OK;
 }
 
+/******************************************************************************/
+/*                                  s t a t                                   */
+/******************************************************************************/
+#if defined(__linux__)
+int XrdOfs::statx(const char             *path,        // In
+                       struct statx      *buf,         // Out
+                       XrdOucErrInfo    &einfo,       // Out
+                 const XrdSecEntity     *client,      // In
+                 const char             *info)        // In
+/*
+  Function: Return file status information
+
+  Input:    path      - The path for which status is wanted
+            buf       - The stat structure to hold the results
+            einfo     - Error information structure, if an error occurs.
+            client    - Authentication credentials, if any.
+            info      - opaque information to be used as seen fit.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+   EPNAME("statx");
+   int retc;
+   const char *tident = einfo.getErrUser();
+   XrdOucEnv stat_Env(info,0,client);
+   XTRACE(stat, path, "");
+
+// Apply security, as needed
+//
+   AUTHORIZE(client,&stat_Env,AOP_Stat,"locate",path,einfo);
+
+// Find out where we should stat this file
+//
+   if (Finder && Finder->isRemote()
+   &&  (retc = Finder->Locate(einfo, path, SFS_O_RDONLY|SFS_O_STAT, &stat_Env)))
+      return fsError(einfo, retc);
+
+// Now try to find the file or directory
+//
+   if ((retc = XrdOfsOss->Statx(path, buf, 0, &stat_Env)))
+      return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path, "?");
+   return SFS_OK;
+}
+
+/******************************************************************************/
+
+int XrdOfs::statx(const char             *path,        // In
+                       mode_t           &mode,        // Out
+                       XrdOucErrInfo    &einfo,       // Out
+                 const XrdSecEntity     *client,      // In
+                 const char             *info)        // In
+/*
+  Function: Return file status information (resident files only)
+
+  Input:    path      - The path for which status is wanted
+            mode      - The stat mode entry (faked -- do not trust it)
+            einfo     - Error information structure, if an error occurs.
+            client    - Authentication credentials, if any.
+            info      - opaque information to be used as seen fit.
+
+  Output:   Always returns SFS_ERROR if a delay needs to be imposed. Otherwise,
+            SFS_OK is returned and mode is appropriately, if inaccurately, set.
+            If file residency cannot be determined, mode is set to -1.
+*/
+{
+   EPNAME("stat");
+   struct stat buf;
+   int retc;
+   const char *tident = einfo.getErrUser();
+   XrdOucEnv stat_Env(info,0,client);
+   XTRACE(stat, path, "");
+
+// Apply security, as needed
+//
+   AUTHORIZE(client,&stat_Env,AOP_Stat,"locate",path,einfo);
+   mode = (mode_t)-1;
+
+// Find out where we should stat this file
+//
+   if (Finder && Finder->isRemote()
+   &&  (retc = Finder->Locate(einfo,path,SFS_O_NOWAIT|SFS_O_RDONLY|SFS_O_STAT,
+                              &stat_Env)))
+      return fsError(einfo, retc);
+
+// Now try to find the file or directory
+//
+   if (!(retc = XrdOfsOss->Stat(path, &buf, XRDOSS_resonly, &stat_Env)))
+       mode=buf.st_mode;
+      else if ((-ENOMSG) != retc)
+              return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path, "?");
+   return SFS_OK;
+}
+#endif
 /******************************************************************************/
 /*                              t r u n c a t e                               */
 /******************************************************************************/

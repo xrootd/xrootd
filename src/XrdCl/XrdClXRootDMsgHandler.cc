@@ -1465,6 +1465,37 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // kXR_statx
+      //------------------------------------------------------------------------
+      case kXR_statx:
+      {
+        AnyObject *obj = new AnyObject();
+
+        StatxInfo *data = new StatxInfo();
+
+        char *nullBuffer = new char[length+1];
+        nullBuffer[length] = 0;
+        memcpy( nullBuffer, buffer, length );
+
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as StatxInfo: "
+                   "%s", pUrl.GetHostId().c_str(),
+                   pRequest->GetObfuscatedDescription().c_str(), nullBuffer );
+
+        if( data->ParseServerResponse( nullBuffer ) == false )
+        {
+          delete obj;
+          delete data;
+          delete [] nullBuffer;
+          return Status( stError, errInvalidResponse );
+        }
+        delete [] nullBuffer;
+        obj->Set( data );
+
+        response = obj;
+        return Status();
+      }
+
+      //------------------------------------------------------------------------
       // kXR_protocol
       //------------------------------------------------------------------------
       case kXR_protocol:

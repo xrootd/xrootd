@@ -50,6 +50,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPList.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 /******************************************************************************/
 /*                                 s t a t                                    */
@@ -125,6 +126,66 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts,
    if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
    return XrdOssOK;
 }
+
+#if defined(__linux__)
+int XrdOssSys::Statx(const char *path, struct statx *buff, int opts,
+                    XrdOucEnv  *EnvP) {
+   const int ro_Mode = ~(S_IWUSR | S_IWGRP | S_IWOTH);
+   char actual_path[MAXPATHLEN+1], *local_path, *remote_path;
+   unsigned long long popts;
+   int retc;
+
+   // Construct the processing options for this path
+   //
+   popts = PathOpts(path);
+
+   // Generate local path
+   //
+   if (lcl_N2N && STT_DoN2N)
+      if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path))))
+         return retc;
+      else local_path = actual_path;
+   else local_path = (char *)path;
+
+   // Stat the file in the local filesystem first. If there. make sure the mode
+   // bits correspond to our reality and update access time if so requested.
+   //
+   retc = statx(0,local_path,AT_STATX_SYNC_AS_STAT,STATX_BASIC_STATS | STATX_BTIME, buff);
+   if (!retc)
+   {if (popts & XRDEXP_NOTRW) buff->stx_mode &= ro_Mode;
+      if (opts & XRDOSS_updtatm && (buff->stx_mode & S_IFMT) == S_IFREG)
+      {struct utimbuf times;
+         times.actime  = time(0);
+         times.modtime = XrdOucUtils::to_timespec(buff->stx_mtime).tv_sec;
+         utime(local_path, &times);
+      }
+      return XrdOssOK;
+   } else if (errno != ENOENT) return (errno ? -errno : -ENOMSG);
+
+
+   // The file may be offline in a mass storage system, check if this is possible
+   //
+   if (!IsRemote(path) || opts & XRDOSS_resonly
+   ||  (EnvP && EnvP->Get("oss.lcl"))) return -errno;
+   if (!RSSCmd) return (popts & XRDEXP_NOCHECK ? -ENOENT : -ENOMSG);
+
+   // Generate remote path
+   //
+   if (rmt_N2N)
+      if ((retc = rmt_N2N->lfn2rfn(path, actual_path, sizeof(actual_path))))
+         return retc;
+      else remote_path = actual_path;
+      else remote_path = (char *)path;
+
+
+   // Now stat the file in the remote system (it doesn't exist locally)
+   //
+   if ((retc = MSS_Statx(remote_path, buff))) return retc;
+   if (popts & XRDEXP_NOTRW) buff->stx_mode &= ro_Mode;
+
+   return XrdOssOK;
+}
+#endif
 
 /******************************************************************************/
 /*                                S t a t F S                                 */

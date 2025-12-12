@@ -1585,6 +1585,44 @@ namespace XrdCl
     return MessageUtils::WaitForResponse( &handler, response );
   }
 
+  XRootDStatus FileSystem::Statx( const std::string &path,
+                       ResponseHandler   *handler,
+                       time_t             timeout) {
+
+    if( pPlugIn )
+      return pPlugIn->Statx( path, handler, timeout );
+
+    if( pImpl->fsdata->pUrl->IsLocalFile() )
+      return LocalFS::Instance().Stat( path, handler, timeout );
+
+    std::string fPath = FilterXrdClCgi( path );
+
+    Message           *msg;
+    ClientStatRequest *req;
+    MessageUtils::CreateRequest( msg, req, fPath.length() );
+
+    req->requestid  = kXR_statx;
+    req->options    = 0;
+    req->dlen       = fPath.length();
+    msg->Append( fPath.c_str(), fPath.length(), 24 );
+    MessageSendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
+  }
+
+  XRootDStatus FileSystem::Statx( const std::string  &path,
+                         StatxInfo          *&response,
+                         time_t              timeout) {
+    SyncResponseHandler handler;
+    Status st = Statx( path, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
   //----------------------------------------------------------------------------
   // Obtain status information for a path - async
   //----------------------------------------------------------------------------

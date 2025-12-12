@@ -649,6 +649,7 @@ namespace XrdCl
   FileStateHandler::FileStateHandler( FilePlugIn *& plugin ):
     pFileState( Closed ),
     pStatInfo( 0 ),
+    pStatxInfo( 0 ),
     pFileUrl( 0 ),
     pDataServer( 0 ),
     pLoadBalancer( 0 ),
@@ -682,6 +683,7 @@ namespace XrdCl
   FileStateHandler::FileStateHandler( bool useVirtRedirector, FilePlugIn *& plugin ):
     pFileState( Closed ),
     pStatInfo( 0 ),
+    pStatxInfo( 0 ),
     pFileUrl( 0 ),
     pDataServer( 0 ),
     pLoadBalancer( 0 ),
@@ -1044,6 +1046,63 @@ namespace XrdCl
     MessageUtils::CreateRequest( msg, req );
 
     req->requestid = kXR_stat;
+    memcpy( req->fhandle, self->pFileHandle, 4 );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( self, handler, msg, params );
+
+    return SendOrQueue( self, *self->pDataServer, msg, stHandler, params );
+  }
+
+  //----------------------------------------------------------------------------
+  // Stat the file
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Statx( std::shared_ptr<FileStateHandler> &self,
+                                       bool                               force,
+                                       ResponseHandler                   *handler,
+                                       time_t                             timeout )
+  {
+    XrdSysMutexHelper scopedLock( self->pMutex );
+
+    if( self->pFileState == Error ) return self->pStatus;
+
+    if( self->pFileState != Opened && self->pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    //--------------------------------------------------------------------------
+    // Return the cached info
+    //--------------------------------------------------------------------------
+    if( !force && self->pStatxInfo )
+    {
+      AnyObject *obj = new AnyObject();
+      obj->Set( new StatxInfo( *self->pStatxInfo ) );
+      if (handler)
+        handler->HandleResponseWithHosts( new XRootDStatus(), obj, new HostList() );
+      return XRootDStatus();
+    }
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[%p@%s] Sending a statx command for handle %#x to %s",
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Issue a new stat request
+    // stating a file handle doesn't work (fixed in 3.2.0) so we need to
+    // stat the pat
+    //--------------------------------------------------------------------------
+    Message           *msg;
+    ClientStatRequest *req;
+    std::string        path = self->pFileUrl->GetPath();
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_statx;
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
     MessageSendParams params;
@@ -2689,6 +2748,18 @@ namespace XrdCl
         response->Get( info );
         delete self->pStatInfo;
         self->pStatInfo = new StatInfo( *info );
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // Cache the statx response
+      //------------------------------------------------------------------------
+      case kXR_statx:
+      {
+        StatxInfo *info = 0;
+        response->Get( info );
+        delete self->pStatxInfo;
+        self->pStatxInfo = new StatxInfo( *info );
         break;
       }
 

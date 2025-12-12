@@ -57,6 +57,9 @@ public:
                 // File oriented methods
         int     Fchmod(mode_t mode)                          {return  wRC;  }
         int     Fstat(struct stat *)                         {return  rRC;  }
+#if defined(__linux__)
+        int     Fstatx(struct statx *)                       {return  rRC;  }
+#endif
         int     Fsync()                                      {return  wRC;  }
         int     Fsync(XrdSfsAio *aiop)                       {return  wRC;  }
         int     Ftruncate(unsigned long long)                {return  wRC;  }

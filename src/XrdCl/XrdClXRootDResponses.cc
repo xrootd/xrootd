@@ -128,10 +128,16 @@ namespace XrdCl
       {
       }
 
+      virtual ~StatInfoImpl(){}
+
+      virtual std::unique_ptr<StatInfoImpl> Clone() const {
+        return std::make_unique<StatInfoImpl>(*this);
+      }
+
       //------------------------------------------------------------------------
       // Parse the stat info returned by the server
       //------------------------------------------------------------------------
-      bool ParseServerResponse( const char *data )
+      virtual bool ParseServerResponse( const char *data )
       {
         if( !data || strlen( data ) == 0 )
           return false;
@@ -220,13 +226,144 @@ namespace XrdCl
       std::string pCksum;
   };
 
-  //----------------------------------------------------------------------------
-  // StatInfo constructor
-  //----------------------------------------------------------------------------
-  StatInfo::StatInfo() : pImpl( new StatInfoImpl() )
+  struct StatxInfoImpl : public StatInfoImpl {
+
+    StatxInfoImpl(): StatInfoImpl(), pBirthTime(0){}
+
+    StatxInfoImpl(const StatxInfoImpl & other) : StatInfoImpl(other), pBirthTime(other.pBirthTime){
+
+    }
+
+    virtual ~StatxInfoImpl(){}
+
+    std::unique_ptr<StatInfoImpl> Clone() const override {
+      return std::make_unique<StatxInfoImpl>(*this);
+    }
+
+    bool ParseServerResponse(const char *data) override {
+      if( !data || strlen( data ) == 0 )
+        return false;
+
+      std::vector<std::string> chunks;
+      Utils::splitString( chunks, data, " " );
+
+      if( chunks.size() < 4 )
+        return false;
+
+      pId = chunks[0];
+
+      char *result;
+      pSize = ::strtoll( chunks[1].c_str(), &result, 0 );
+      if( *result != 0 )
+      {
+        pSize = 0;
+        return false;
+      }
+
+      pFlags = ::strtol( chunks[2].c_str(), &result, 0 );
+      if( *result != 0 )
+      {
+        pFlags = 0;
+        return false;
+      }
+
+      pModifyTime = ::strtoll( chunks[3].c_str(), &result, 0 );
+      if( *result != 0 )
+      {
+        pModifyTime = 0;
+        return false;
+      }
+
+      if( chunks.size() >= 10 )
+      {
+        pChangeTime = ::strtoll( chunks[4].c_str(), &result, 0 );
+        if( *result != 0 )
+        {
+          pChangeTime = 0;
+          return false;
+        }
+
+        pAccessTime = ::strtoll( chunks[5].c_str(), &result, 0 );
+        if( *result != 0 )
+        {
+          pAccessTime = 0;
+          return false;
+        }
+
+        pBirthTime = ::strtoll(chunks[6].c_str(), &result, 0);
+        if( *result != 0 )
+        {
+          pBirthTime = 0;
+          return false;
+        }
+
+        // we are expecting at least 4 characters, e.g.: 0644
+        if( chunks[7].size() < 4 ) return false;
+        pMode  = chunks[7];
+
+        pOwner = chunks[8];
+        pGroup = chunks[9];
+
+        pExtended = true;
+      }
+
+      // after the extended stat information, we might have the checksum
+      if( chunks.size() >= 11 )
+      {
+        if( ( chunks[10] == "[" ) && ( chunks[12] == "]" ) )
+        {
+          pHasCksum = true;
+          pCksum     = chunks[11];
+        }
+      }
+
+      return true;
+    }
+
+    uint64_t pBirthTime;
+  };
+
+  StatxInfo::StatxInfo() : StatInfo(std::make_unique<StatxInfoImpl>()),pStatxImpl(static_cast<StatxInfoImpl *>(pImpl.get()))
+  {}
+
+  //------------------------------------------------------------------------
+  // Copy constructor
+  //------------------------------------------------------------------------
+  StatxInfo::StatxInfo( const StatxInfo &info ) : StatInfo(info), pStatxImpl(static_cast<StatxInfoImpl*>(pImpl.get()))
   {
   }
 
+  //------------------------------------------------------------------------
+  // Destructor (it can be only defined after StatxInfoImpl is defined!!!)
+  //------------------------------------------------------------------------
+  StatxInfo::~StatxInfo() = default;
+
+  //------------------------------------------------------------------------
+  //! Get birth time (in seconds since epoch)
+  //------------------------------------------------------------------------
+  uint64_t StatxInfo::GetBirthTime() const {
+    return pStatxImpl->pBirthTime;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get birth time
+  //------------------------------------------------------------------------
+  std::string StatxInfo::GetBirthTimeAsString() const {
+    return TimeToString( pStatxImpl->pBirthTime );
+  }
+
+  bool StatxInfo::ParseServerResponse(const char *data) {
+    return pStatxImpl->ParseServerResponse( data );
+  }
+
+  //----------------------------------------------------------------------------
+  // StatInfo constructor
+  //----------------------------------------------------------------------------
+  StatInfo::StatInfo() : pImpl( std::make_unique<StatInfoImpl>() )
+  {
+  }
+
+  StatInfo::StatInfo(std::unique_ptr<StatInfoImpl> impl) : pImpl(std::move(impl)) {}
   //------------------------------------------------------------------------
   // Constructor
   //------------------------------------------------------------------------
@@ -243,7 +380,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Copy constructor
   //------------------------------------------------------------------------
-  StatInfo::StatInfo( const StatInfo &info ) : pImpl( new StatInfoImpl( *info.pImpl) )
+  StatInfo::StatInfo( const StatInfo &other ) : pImpl( other.pImpl->Clone() )
   {
   }
 

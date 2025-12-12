@@ -90,6 +90,14 @@ namespace XrdCl
         return XRootDStatus( stError, errNotImplemented );
       }
 
+      virtual XRootDStatus Statx( bool             force,
+                                 ResponseHandler *handler,
+                                 time_t           timeout )
+      {
+        (void)force; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
       //------------------------------------------------------------------------
       //! @see XrdCl::File::Read
       //------------------------------------------------------------------------
@@ -465,6 +473,17 @@ namespace XrdCl
         (void)path; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
+
+    //------------------------------------------------------------------------
+    //! @see XrdCl::FileSystem::Statx
+    //------------------------------------------------------------------------
+    virtual XRootDStatus Statx( const std::string &path,
+                               ResponseHandler   *handler,
+                               time_t             timeout )
+    {
+      (void)path; (void)handler; (void)timeout;
+      return XRootDStatus( stError, errNotImplemented );
+    }
 
       //------------------------------------------------------------------------
       //! @see XrdCl::FileSystem::StatVFS

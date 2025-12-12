@@ -258,6 +258,33 @@ namespace XrdCl
     return MessageUtils::WaitForResponse( &handler, response );
   }
 
+  //----------------------------------------------------------------------------
+  // Obtain status information for this file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Statx( bool             force,
+                           ResponseHandler *handler,
+                           time_t           timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->Statx( force, handler, timeout );
+
+    return FileStateHandler::Statx( pImpl->pStateHandler, force, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Obtain status information for this file - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Statx( bool       force,
+                           StatxInfo *&response,
+                           time_t     timeout )
+  {
+    SyncResponseHandler handler;
+    XRootDStatus st = Statx( force, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
 
   //----------------------------------------------------------------------------
   // Read a data chunk at a given offset - sync

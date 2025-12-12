@@ -750,6 +750,10 @@ virtual XrdSfsXferSize writev(XrdOucIOVec      *writeV,
 
 virtual int            stat(struct stat *buf) = 0;
 
+#if defined(__linux__)
+virtual int            statx(struct statx *buf) = 0;
+#endif
+
 //-----------------------------------------------------------------------------
 //! Make sure all outstanding data is actually written to the file (sync).
 //!
@@ -1301,7 +1305,46 @@ virtual int            stat(const char               *path,
                                   XrdOucErrInfo      &eInfo,
                             const XrdSecEntity       *client = 0,
                             const char               *opaque = 0) = 0;
+#if defined(__linux__)
+//-----------------------------------------------------------------------------
+//! Return x information on a file or directory.
+//!
+//! @param  Name   - Pointer to the path in question.
+//! @param  buf    - Pointer to the structure where info it to be returned.
+//! @param  eInfo  - The object where error info is to be returned.
+//! @param  client - Client's identify (see common description).
+//! @param  opaque - path's CGI information (see common description).
+//!
+//! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
+//!         When SFS_OK is returned, buf must contain stat information.
+//-----------------------------------------------------------------------------
 
+virtual int            statx(const char               *Name,
+                             struct statx        *buf,
+                             XrdOucErrInfo      &eInfo,
+                             const XrdSecEntity       *client = 0,
+                             const char               *opaque = 0) = 0;
+
+//-----------------------------------------------------------------------------
+//! Return mode information on a file or directory.
+//!
+//! @param  path   - Pointer to the path in question.
+//! @param  mode   - Where full mode information is to be returned.
+//! @param  eInfo  - The object where error info is to be returned.
+//! @param  client - Client's identify (see common description).
+//! @param  opaque - path's CGI information (see common description).
+//!
+//! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
+//!         When SFS_OK is returned, mode must contain mode information. If
+//!         the mode is -1 then it is taken as an offline file.
+//-----------------------------------------------------------------------------
+
+virtual int            statx(const char               *path,
+                                  mode_t             &mode,
+                                  XrdOucErrInfo      &eInfo,
+                                  const XrdSecEntity       *client = 0,
+                                  const char               *opaque = 0) = 0;
+#endif
 //-----------------------------------------------------------------------------
 //! Truncate a file.
 //!

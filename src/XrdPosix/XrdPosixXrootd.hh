@@ -323,6 +323,9 @@ static void    Seekdir(DIR *dirp, long loc);
 
 static int     Stat(const char *path, struct stat *buf);
 
+#if defined(__linux__)
+static int     Statx(const char * path, struct statx* buf);
+#endif
 //-----------------------------------------------------------------------------
 //! Statfs() generally conforms to the platform-specific definition of statfs().
 //! There is no specific POSIX specification for this call.
@@ -432,6 +435,9 @@ static bool OpenCache(XrdPosixFile &file, XrdPosixInfo &Info);
 // functions that will be used when XrdEC is invoked
 static int  EcRename(const char*, const char*, XrdPosixAdmin&);
 static int  EcStat(const char*, struct stat*, XrdPosixAdmin&);
+#if defined(__linux__)
+static int  EcStatx(const char*, struct statx*, XrdPosixAdmin&);
+#endif
 static int  EcUnlink(const char*, XrdPosixAdmin&);
 
 static int  baseFD;

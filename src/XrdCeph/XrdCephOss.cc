@@ -519,7 +519,12 @@ int XrdCephOss::Stat(const char* path,
 
 }
 
-
+#if defined(__linux__)
+int XrdCephOss::Statx(const char *path, struct statx *buff, int opts, XrdOucEnv *envP) {
+  XrdCephEroute.Say(__FUNCTION__, " statx not supported, path = ", path);
+  return -ENOTSUP;
+}
+#endif
 
 int XrdCephOss::StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP) {
 

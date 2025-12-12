@@ -1221,8 +1221,48 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 //
    if (cacheChk) buf->st_atime = 0;
    return 0;
-}        
+}
 
+#if defined(__linux__)
+int XrdPosixXrootd::Statx(const char *path, struct statx *buf) {
+   XrdPosixAdmin admin(path,XrdPosixGlobals::ecMsg);
+   bool cacheChk = false;
+
+   // Make sure the admin is OK
+   //
+   if (!admin.isOK()) return -1;
+
+   // Initialize the stat buffer
+   //
+   XrdPosixConfig::initStatx(buf);
+
+   // Check if we can get the stat informatation from the cache
+   //
+   if (! XrdPosixGlobals::usingEC && XrdPosixGlobals::theCache)
+   {LfnPath statX("statx", path, false);
+      if (!statX.path) return -1;
+      int rc = XrdPosixGlobals::theCache->Statx(statX.path, *buf);
+      if (!rc) return 0;
+      if (rc < 0) {errno = -rc; return -1;} // does the cache set this???
+      cacheChk = true;
+   }
+
+   // Issue the stat and verify that all went well
+   //
+
+   if (XrdPosixGlobals::usingEC)
+      return EcStatx(path, buf, admin);
+
+   if (!admin.Statx(*buf)) return -1;
+
+   // If we are here and the cache was checked then the file was not in the cache.
+   // We informally tell the caller this is the case by setting atime to zero.
+   // Normally, atime will never be zero in any other case.
+   //
+   if (cacheChk) buf->stx_atime.tv_sec = 0;
+   return 0;
+}
+#endif
 /******************************************************************************/
 /*                                S t a t f s                                 */
 /******************************************************************************/
@@ -1758,7 +1798,16 @@ int XrdPosixXrootd::EcStat(const char *path, struct stat *buf,
    }
    return 0;
 }
-   
+
+#if defined(__linux__)
+int XrdPosixXrootd::EcStatx(const char *path, struct statx *buf,
+                           XrdPosixAdmin &admin) {
+   //TODO STATX, implement this
+   errno = ENOTSUP;
+   return -1;
+}
+#endif
+
 /******************************************************************************/
 /*                                E c U n l i n k                             */
 /******************************************************************************/
