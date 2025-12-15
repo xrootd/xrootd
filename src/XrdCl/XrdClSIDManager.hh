@@ -136,14 +136,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! @return : instance of SIDMgrPool
       //------------------------------------------------------------------------
-      static SIDMgrPool& Instance()
-      {
-        //----------------------------------------------------------------------
-        // We could also use a nifty counter but this is simpler and will do!
-        //----------------------------------------------------------------------
-        static SIDMgrPool *instance = new SIDMgrPool();
-        return *instance;
-      }
+      static SIDMgrPool& Instance();
 
       //------------------------------------------------------------------------
       //! Destructor

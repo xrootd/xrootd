@@ -22,6 +22,14 @@
 
 namespace XrdCl
 {
+  SIDMgrPool& SIDMgrPool::Instance()
+  {
+    //----------------------------------------------------------------------
+    // We could also use a nifty counter but this is simpler and will do!
+    //----------------------------------------------------------------------
+    static SIDMgrPool *instance = new SIDMgrPool();
+    return *instance;
+  }
   //----------------------------------------------------------------------------
   // Allocate a SID
   //---------------------------------------------------------------------------
