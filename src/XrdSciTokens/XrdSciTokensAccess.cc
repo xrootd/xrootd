@@ -689,9 +689,8 @@ public:
         SciToken scitoken;
         char *err_msg;
         if (!strncmp(token, "Bearer%20", 9)) token += 9;
-        pthread_rwlock_rdlock(&m_config_lock);
-        auto retval = scitoken_deserialize(token, &scitoken, &m_valid_issuers_array[0], &err_msg);
-        pthread_rwlock_unlock(&m_config_lock);
+        auto valid_issuers_array = m_valid_issuers_array; // hold ref to issuers array shared_ptr
+        auto retval = scitoken_deserialize(token, &scitoken, valid_issuers_array.get()->data(), &err_msg);
         if (retval) {
             // This originally looked like a JWT so log the failure.
             m_log.Log(LogMask::Warning, "Validate", "Failed to deserialize SciToken:", err_msg);
@@ -790,9 +789,8 @@ private:
 
         char *err_msg;
         SciToken token = nullptr;
-        pthread_rwlock_rdlock(&m_config_lock);
-        auto retval = scitoken_deserialize(authz.c_str(), &token, &m_valid_issuers_array[0], &err_msg);
-        pthread_rwlock_unlock(&m_config_lock);
+        auto valid_issuers_array = m_valid_issuers_array; // hold ref to issuers array shared_ptr
+        auto retval = scitoken_deserialize(authz.c_str(), &token, valid_issuers_array.get()->data(), &err_msg);
         if (retval) {
             // This originally looked like a JWT so log the failure.
             m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to deserialize SciToken:", err_msg);
@@ -1326,12 +1324,14 @@ private:
             m_audiences_array[idx] = nullptr;
 
             m_issuers = std::move(issuers);
-            m_valid_issuers_array.resize(m_issuers.size() + 1);
+            std::shared_ptr<std::vector<const char*>> valid_issuers_array = std::make_shared<std::vector<const char*>>();
+            valid_issuers_array->resize(m_issuers.size() + 1);
             idx = 0;
             for (const auto &issuer : m_issuers) {
-                m_valid_issuers_array[idx++] = issuer.first.c_str();
+                (*valid_issuers_array)[idx++] = issuer.first.c_str();
             }
-            m_valid_issuers_array[idx] = nullptr;
+            (*valid_issuers_array)[idx] = nullptr;
+            m_valid_issuers_array = valid_issuers_array;
         } catch (...) {
             pthread_rwlock_unlock(&m_config_lock);
             return false;
@@ -1365,7 +1365,7 @@ private:
     std::map<std::string, std::shared_ptr<XrdAccRules>> m_map;
     XrdAccAuthorize* m_chain;
     const std::string m_parms;
-    std::vector<const char*> m_valid_issuers_array;
+    std::shared_ptr<std::vector<const char*>> m_valid_issuers_array;
     std::unordered_map<std::string, IssuerConfig> m_issuers;
     uint64_t m_next_clean{0};
     XrdSysError m_log;
