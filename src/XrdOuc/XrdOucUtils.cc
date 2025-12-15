@@ -50,6 +50,7 @@
 #include <sys/types.h>
 #endif
 #include <map>
+#include <iomanip>
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -455,6 +456,46 @@ int XrdOucUtils::fmtBytes(long long val, char *buff, int bsz)
 // Format it
 //
    return snprintf(buff, bsz, "%lld.%d%c", val, resid, sName);
+}
+
+std::string XrdOucUtils::genHumanSize(size_t size, uint64_t base) {
+   static const char* units[] = {"", "K", "M", "G", "T", "P", "E"};
+   const int maxUnit = 6;
+
+   double value = static_cast<double>(size);
+   int unitIndex = 0;
+
+   while (value >= static_cast<double>(base) && unitIndex < maxUnit) {
+      value /= static_cast<double>(base);
+      ++unitIndex;
+   }
+
+   auto ceil_to = [](double x, int decimals) {
+      if (x == 0.0) return 0.0; // avoid creating a -0 in the output
+      const double p = std::pow(10.0, decimals);
+      // small epsilon to avoid 1.0 becoming 1.1 due to floating noise
+      return std::ceil(x * p - 1e-12) / p;
+   };
+
+   auto decimals_for = [](double x, int u) {
+      return (u > 0 && x < 10.0) ? 1 : 0;   // e.g: 1.0G for exact powers
+   };
+
+   int prec = decimals_for(value, unitIndex);
+   double shown = ceil_to(value, prec);
+
+   // If rounding pushed us to the next unit (e.g. 1024.0K), promote
+   if (shown >= static_cast<double>(base) && unitIndex < maxUnit) {
+      shown /= static_cast<double>(base);
+      ++unitIndex;
+
+      prec = decimals_for(shown, unitIndex);
+      shown = ceil_to(shown, prec);
+   }
+
+   std::ostringstream out;
+   out << std::fixed << std::setprecision(prec) << shown << units[unitIndex];
+   return out.str();
 }
 
 /******************************************************************************/
