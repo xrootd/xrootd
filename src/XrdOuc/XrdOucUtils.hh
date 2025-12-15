@@ -65,6 +65,15 @@ static bool  findPgm(const char *pgm, XrdOucString& path);
  
 static int   fmtBytes(long long val, char *buff, int bsz);
 
+/**
+ * Generates Human-readable size string (1.1K, 1.0M, ...)
+ * @param size the size of the file
+ * @param base either 1024 or 1000
+ * @return the human-readable size string of the size passed in parameter
+ * depending on the base
+ */
+static std::string genHumanSize(size_t size, uint64_t base);
+
 static char *genPath(const char *path, const char *inst, const char *psfx=0);
 
 static int   genPath(char *buff, int blen, const char *path, const char *psfx=0);

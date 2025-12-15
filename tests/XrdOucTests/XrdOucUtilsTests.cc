@@ -310,3 +310,22 @@ TEST(XrdOucUtilsTests, hex2bin)
     }
   }
 }
+
+static const std::map<uint64_t,std::string> size_to_human = {
+  {0,"0"},
+  {1,"1"},
+  {1023,"1023"},
+  {1024,"1.0K"},
+  {1073741845,"1.1G"},
+  {1573741845,"1.5G"},
+  {10ULL*1024ULL,"10K"},
+  {11ULL * 1024ULL * 1024ULL + 1ULL,"12M"},
+  {1088576,"1.1M"}
+};
+
+
+TEST(XrdOucUtilsTests, genHumanSizeTest) {
+  for (const auto & sizeToHuman: size_to_human) {
+    ASSERT_EQ(sizeToHuman.second,XrdOucUtils::genHumanSize(sizeToHuman.first,1024));
+  }
+}

@@ -281,8 +281,17 @@ uint32_t nbDigits( uint64_t nb )
   return uint32_t( log10( double(nb) ) + 1);
 }
 
+std::string getSizeStr(uint64_t size, bool human, uint64_t base) {
+  std::ostringstream oss;
+  if (!human) {
+    oss << size;
+  } else {
+    oss << XrdOucUtils::genHumanSize(size,base);
+  }
+  return oss.str();
+}
 
-void PrintDirListStatInfo( StatInfo *info, bool hascks = false, uint32_t ownerwidth = 0, uint32_t groupwidth = 0, uint32_t sizewidth = 0 )
+void PrintDirListStatInfo( StatInfo *info, bool hascks = false, uint32_t ownerwidth = 0, uint32_t groupwidth = 0, uint32_t sizewidth = 0, bool human = false, uint64_t base = 1000 )
 {
   if( info->ExtendedFormat() )
   {
@@ -294,7 +303,7 @@ void PrintDirListStatInfo( StatInfo *info, bool hascks = false, uint32_t ownerwi
 
     std::cout << " " << std::setw( ownerwidth ) << info->GetOwner();
     std::cout << " " << std::setw( groupwidth ) << info->GetGroup();
-    std::cout << " " << std::setw( sizewidth ) << info->GetSize();
+    std::cout << " " << std::setw( sizewidth ) << getSizeStr(info->GetSize(),human, base);
     if( hascks && info->HasChecksum() )
       std::cout << " " << std::setw( sizewidth ) << info->GetChecksum();
     std::cout << " " << info->GetModTimeAsString() << " ";
@@ -324,9 +333,12 @@ void PrintDirListStatInfo( StatInfo *info, bool hascks = false, uint32_t ownerwi
     std::cout << " " << info->GetModTimeAsString();
 
     uint64_t size = info->GetSize();
-    int width = nbDigits( size ) + 2;
-    if( width < 12 ) width = 12;
-    std::cout << std::setw( width ) << info->GetSize() << " ";
+    std::string displaySize = getSizeStr(size,human,base);
+    int width = displaySize.size() + 2;
+    if (width < 12) {
+      width = 12;
+    }
+    std::cout << std::setw( width ) << displaySize << " ";
   }
 }
 
@@ -345,6 +357,8 @@ XRootDStatus DoLS( FileSystem                      *fs,
   bool        stats    = false;
   bool        showUrls = false;
   bool        hascks   = false;
+  bool        human    = false;
+  uint64_t base        = 1024;
   std::string path;
   DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
@@ -383,6 +397,10 @@ XRootDStatus DoLS( FileSystem                      *fs,
       hascks = true;
       stats  = true;
       flags |= DirListFlags::Cksm;
+    }
+    else if ( args [i] == "-h" )
+    {
+      human = true;
     }
     else
       path = args[i];
@@ -423,7 +441,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
       !( flags & DirListFlags::Zip ) )
   {
     if( stats )
-      PrintDirListStatInfo( info );
+      PrintDirListStatInfo( info, false, 0, 0, 0, human, base );
 
     if( showUrls )
     {
@@ -460,12 +478,21 @@ XRootDStatus DoLS( FileSystem                      *fs,
   for( it = list->Begin(); it != list->End() && stats; ++it )
   {
     StatInfo *info = (*it)->GetStatInfo();
+
+    std::string size = getSizeStr(info->GetSize(),human,base);
+    uint32_t sizeWidthComp;
+    if (human) {
+      sizeWidthComp = size.size();
+    } else {
+      sizeWidthComp = nbDigits( info->GetSize());
+    }
+
     if( ownerwidth < info->GetOwner().size() )
       ownerwidth = info->GetOwner().size();
     if( groupwidth < info->GetGroup().size() )
       groupwidth = info->GetGroup().size();
-    if( sizewidth < nbDigits( info->GetSize() ) )
-      sizewidth = nbDigits( info->GetSize() );
+    if( sizewidth < sizeWidthComp  )
+      sizewidth = sizeWidthComp;
     if( ckswidth < info->GetChecksum().size() )
       ckswidth = info->GetChecksum().size();
   }
@@ -481,7 +508,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
       if( !info )
         std::cout << "---- 0000-00-00 00:00:00            ? ";
       else
-        PrintDirListStatInfo( info, hascks, ownerwidth, groupwidth, sizewidth );
+        PrintDirListStatInfo( info, hascks, ownerwidth, groupwidth, sizewidth, human, base );
     }
     if( showUrls )
       std::cout << "root://" << (*it)->GetHostAddress() << "/";
