@@ -50,7 +50,7 @@ add_library(${LIB_XRD_CEPH} MODULE
 )
 
 target_link_libraries(${LIB_XRD_CEPH}
-  PRIVATE ${XROOTD_LIBRARIES} XrdCephPosix)
+  PRIVATE XrdCephPosix XrdUtils XrdServer ${RADOS_LIBS})
 
 set(LIB_XRD_CEPH_XATTR XrdCephXattr-${PLUGIN_VERSION})
 
@@ -58,7 +58,7 @@ add_library(${LIB_XRD_CEPH_XATTR} MODULE
   XrdCephXAttr.cc XrdCephXAttr.hh)
 
 target_link_libraries(${LIB_XRD_CEPH_XATTR}
-  PRIVATE ${XROOTD_LIBRARIES} XrdCephPosix)
+  PRIVATE XrdCephPosix XrdUtils)
 
 install(TARGETS XrdCephPosix ${LIB_XRD_CEPH} ${LIB_XRD_CEPH_XATTR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
