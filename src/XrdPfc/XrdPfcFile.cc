@@ -509,7 +509,9 @@ bool File::Open(XrdOucCacheIO *inputIO)
          TRACEF(Warning, tpfx << "Basic sanity checks on data file failed, resetting info file, truncating data file.");
          m_cfi.ResetAllAccessStats();
          m_data_file->Ftruncate(0);
-         Cache::ResMon().register_file_purge(m_filename, data_stat.st_blocks);
+         // data-file might not have existed at entry -- data_stat is then undefined
+         if (data_existed)
+            Cache::ResMon().register_file_purge(m_filename, data_stat.st_blocks);
       }
    }
 
@@ -522,6 +524,7 @@ bool File::Open(XrdOucCacheIO *inputIO)
          initialize_info_file = true;
          m_cfi.ResetAllAccessStats();
          m_data_file->Ftruncate(0);
+         // data-file is known to exist due to checks in the previous if block
          Cache::ResMon().register_file_purge(m_filename, data_stat.st_blocks);
       } else {
          // TODO: If the file is complete, we don't need to reset net cksums.
