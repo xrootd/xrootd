@@ -599,8 +599,8 @@ virtual void      Connect(XrdOucEnv &env);
 //! @param  mode   - The new file mode setting.
 //! @param  env    - Reference to environmental information.
 //! @param  opts   - Create options:
-//!                  XRDOSS_coloc  - Colocate file using the placement
-//!                                  information in env "oss.coloc"
+//!                  XRDOSS_coloc  - Colocate file using the URL encoded
+//!                                  path in env "oss.coloc"
 //!                  XRDOSS_mkpath - create dir path if it does not exist.
 //!                  XRDOSS_new    - the file must not already exist.
 //!                  oflags<<8     - open flags shifted 8 bits to the left/
