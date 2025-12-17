@@ -149,10 +149,12 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
    bool forcecg = false;
    if (Opts & XRDOSS_coloc)
       {if (crInfo.pOpts & XRDEXP_NOFICL) return -EPERM;
-       const char *coloc = env.Get("oss.coloc");
-       char  coloc_local[MAXPATHLEN+1];
+       const char *colocenv = env.Get("oss.coloc");
+       std::string coloc(colocenv ? colocenv : "");
+       coloc = XrdOucUtils::UrlDecode(coloc);
+       char coloc_local[MAXPATHLEN+1];
        coloc_local[0] = '\0';
-       if (coloc && (retc = GenLocalPath(coloc, coloc_local))) return retc;
+       if ((retc = GenLocalPath(coloc.c_str(), coloc_local))) return retc;
        XrdOssCache_FS *cp = XrdOssCache::Find(coloc_local);
        std::string gpath;
        if (cp) gpath = cp->group + std::string(":") + cp->path;

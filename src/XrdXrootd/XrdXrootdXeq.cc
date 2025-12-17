@@ -1647,7 +1647,7 @@ int XrdXrootdProtocol::do_Open()
    std::string oinfo(opaque ? opaque : "");
    if ((openopts & SFS_O_CREATAT) == SFS_O_CREATAT)
       {std::string coloc = sameFS->XrdSfsp->FName();
-       coloc = "oss.coloc=" + coloc;
+       coloc = "oss.coloc=" + XrdOucUtils::UrlEncode(coloc);
        oinfo += (!oinfo.empty() ? "&" : "") + coloc;
       }
 
