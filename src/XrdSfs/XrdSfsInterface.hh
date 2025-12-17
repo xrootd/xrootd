@@ -408,8 +408,8 @@ public:
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
 //!
 //! @note When SFS_O_CREATAT is specified, the CGI should contain an element
-//!       oss.coloc=<path> where <path> determines the filesystem in which
-//!       the new file should be created.
+//!       oss.coloc=<path> where <path> is URL encoded and determines the
+//!       filesystem in which the new file should be created.
 //-----------------------------------------------------------------------------
 
 virtual int            open(const char                *fileName,
