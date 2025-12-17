@@ -12,7 +12,6 @@ together with the extra dependencies required to enable them.
 | FUSE support          | fuse-devel                               |
 | HTTP support (client) | davix-devel                              |
 | HTTP support (server) | libcurl-devel                            |
-| Erasure coding        | isa-l-devel                              |
 | Kerberos5             | krb5-devel                               |
 | Macaroons             | json-c-devel libmacaroons-devel          |
 | Python bindings       | python3-devel python3-setuptools         |
@@ -29,15 +28,12 @@ most of the supported operating systems.
 
 #### RPM-based distributions: Alma, CentOS Stream, Fedora, Rocky, RedHat
 
-On RedHat Enterprise Linux and derivatives, all dependencies are available,
-except for Intel's [isa-l](https://github.com/intel/isa-l) library. You may
-build and install isa-l from source, but alternatively, you can simple install
-isa-l dependencies (i.e. `autoconf`, `automake`, `libtool`, and `yasm`) and let
-the bundled isa-l be built along XRootD. On Fedora, it's not necessary to
-install the `epel-release` package, but on most others it is required, as some
-dependencies are only available in [EPEL](https://docs.fedoraproject.org/en-US/epel/).
-It may also be necessary to enable other repositories manually if they are not
-already enabled by default, like `PowerTools` or `crb`.
+On RedHat Enterprise Linux and derivatives, all dependencies are available. On
+Fedora, it's not necessary to install the `epel-release` package, but on most
+others it is required, as some dependencies are only available in
+[EPEL](https://docs.fedoraproject.org/en-US/epel/). It may also be necessary to
+enable other repositories manually if they are not already enabled by default,
+like `PowerTools` or `crb`.
 
 ```sh
 dnf install \
@@ -112,7 +108,6 @@ brew install \
     davix \
     gcc \
     googletest \
-    isa-l \
     krb5 \
     libxml2 \
     libxcrypt \
@@ -165,7 +160,6 @@ the build:
 | `ENABLE_XRDCLHTTP` |  TRUE   | Enable xrdcl-http plugin
 | `ENABLE_XRDCL`     |  TRUE   | Enable XRootD client
 | `ENABLE_CEPH`      |  FALSE  | Enable Ceph plugin (XrdCeph)
-| `ENABLE_XRDEC`     |  FALSE  | Enable support for erasure coding
 | `ENABLE_ASAN`      |  FALSE  | Build with adress sanitizer enabled
 | `ENABLE_TSAN`      |  FALSE  | Build with thread sanitizer enabled
 | `ENABLE_TESTS`     |  FALSE  | Enable unit tests

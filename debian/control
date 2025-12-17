@@ -201,19 +201,6 @@ Recommends:
 Description: Client library for xrootd
  This package contains the xrootd client library.
 
-Package: libxrdec1t64
-Provides: ${t64:Provides}
-Replaces: libxrdec1
-Breaks: libxrdec1 (<< ${source:Version})
-Architecture: any
-Multi-Arch: same
-Section: libs
-Depends:
- ${shlibs:Depends},
- ${misc:Depends}
-Description: Erasure code library for xrootd
- This package contains the xrootd erasure code library.
-
 Package: libxrdffs3t64
 Provides: ${t64:Provides}
 Replaces: libxrdffs3
@@ -359,7 +346,6 @@ Architecture: any
 Multi-Arch: same
 Section: libdevel
 Depends:
- libxrdec1t64 (= ${binary:Version}) [!i386 !hppa !hurd-i386 !powerpc !x32],
  libxrdssilib2t64 (= ${binary:Version}),
  libxrdssishmap2t64 (= ${binary:Version}),
  libxrootd-dev (= ${binary:Version}),
