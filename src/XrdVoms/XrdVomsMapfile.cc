@@ -42,6 +42,10 @@
 #include <fcntl.h>
 #include <poll.h>
 
+#if defined(__APPLE__) || defined(__NetBSD__)
+#define st_ctim st_ctimespec
+#endif
+
 bool XrdVomsMapfile::tried_configure = false;
 std::unique_ptr<XrdVomsMapfile> XrdVomsMapfile::mapper;
 
