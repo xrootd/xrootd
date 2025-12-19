@@ -8,6 +8,7 @@ target_sources(XrdUtils
                          XrdOucCacheStats.hh
     XrdOucCallBack.cc    XrdOucCallBack.hh
                          XrdOucChkPnt.hh
+                         XrdOucCloneSeg.hh
     XrdOucCRC.cc         XrdOucCRC.hh
     XrdOucCRC32C.cc      XrdOucCRC32C.hh
     XrdOucECMsg.cc       XrdOucECMsg.hh

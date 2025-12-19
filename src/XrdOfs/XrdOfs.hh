@@ -35,6 +35,7 @@
   
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
+#include "XrdOuc/XrdOucCloneSeg.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdCms/XrdCmsClient.hh"
@@ -123,6 +124,10 @@ public:
 
         int            checkpoint(XrdSfsFile::cpAct act,
                                   struct iov *range=0, int n=0);
+
+        int            Clone(XrdSfsFile& srcFile);
+
+        int            Clone(const std::vector<XrdOucCloneSeg> &cVec);
 
         int            close();
 

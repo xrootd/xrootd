@@ -39,10 +39,12 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <cstring>
+#include <vector>
 
 #include "XrdOss/XrdOssVS.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
+struct XrdOucCloneSeg;
 class XrdOucEnv;
 class XrdSysLogger;
 class XrdSfsAio;
@@ -111,6 +113,29 @@ virtual int     StatRet(struct stat *buff) {return -ENOTSUP;}
 /******************************************************************************/
 /*                 F i l e   O r i e n t e d   M e t h o d s                  */
 /******************************************************************************/
+
+//-----------------------------------------------------------------------------
+//! Clone contents of a file from another file.
+//!
+//! @param  srcFile - Reference to the file to used to clone contents of this
+//!                   file.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Clone(XrdOssDF& srcFile) {return -ENOTSUP;}
+
+//-----------------------------------------------------------------------------
+//! Clone contents of a file from one or more oher files.
+//!
+//! @param  cVec  - A vector of struct XrdOucCloneSeg describing the action.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Clone(const std::vector<XrdOucCloneSeg> &cVec)
+                    {return -ENOTSUP;}
+
 //-----------------------------------------------------------------------------
 //! Change file mode settings.
 //!
@@ -488,6 +513,7 @@ short       rsvd;    // Reserved
 #define XRDOSS_mkpath  0x01
 #define XRDOSS_new     0x02
 #define XRDOSS_Online  0x04
+#define XRDOSS_coloc   0x08
 #define XRDOSS_isPFN   0x10
 #define XRDOSS_isMIG   0x20
 #define XRDOSS_setnoxa 0x40
@@ -502,6 +528,7 @@ short       rsvd;    // Reserved
 #define XRDOSS_HASNAIO 0x0000000000000020ULL
 #define XRDOSS_HASRPXY 0x0000000000000040ULL
 #define XRDOSS_HASXERT 0x0000000000000080ULL
+#define XRDOSS_HASFICL 0x0000000000000100ULL
 
 // Options that can be passed to Stat()
 //
@@ -572,6 +599,8 @@ virtual void      Connect(XrdOucEnv &env);
 //! @param  mode   - The new file mode setting.
 //! @param  env    - Reference to environmental information.
 //! @param  opts   - Create options:
+//!                  XRDOSS_coloc  - Colocate file using the URL encoded
+//!                                  path in env "oss.coloc"
 //!                  XRDOSS_mkpath - create dir path if it does not exist.
 //!                  XRDOSS_new    - the file must not already exist.
 //!                  oflags<<8     - open flags shifted 8 bits to the left/

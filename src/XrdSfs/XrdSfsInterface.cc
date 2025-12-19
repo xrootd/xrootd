@@ -31,6 +31,7 @@
 #include <cstdio>
 #include <arpa/inet.h>
 
+#include "XrdOuc/XrdOucCloneSeg.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
@@ -73,6 +74,24 @@ int XrdSfsFile::checkpoint(cpAct act, struct iov *range, int n)
    return SFS_ERROR;
 }
 
+/******************************************************************************/
+/*                                 C l o n e                                  */
+/******************************************************************************/
+
+int XrdSfsFile::Clone(XrdSfsFile& srcFile)
+{
+   (void)srcFile;
+   error.setErrInfo(ENOTSUP, "Not supported.");
+   return SFS_ERROR;
+}
+
+int XrdSfsFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
+{
+   (void)cVec;
+   error.setErrInfo(ENOTSUP, "Not supported.");
+   return SFS_ERROR;
+}
+  
 /******************************************************************************/
 /*                                  f c t l                                   */
 /******************************************************************************/

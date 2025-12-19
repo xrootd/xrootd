@@ -1620,4 +1620,72 @@ std::string obfuscateAuth(const std::string& input)
   return redacted.append(text + offset);
 }
 
+static bool is_rfc3986_unreserved(unsigned char c)
+{
+  return std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~';
+}
+
+/**
+ * This function takes a string and returns the URL encoded string
+ * (rfc3986).
+ *
+ * @param input the string to be encoded
+ * @return the string URL encoded
+ */
+std::string XrdOucUtils::UrlEncode(const std::string &input)
+{
+  static const char hex[] = "0123456789ABCDEF";
+
+  std::string out;
+  out.reserve(input.size() * 3);
+
+  for (unsigned char c: input) {
+    if (is_rfc3986_unreserved(c)) {
+      out.push_back(c);
+    } else {
+      out.push_back('%');
+      out.push_back(hex[c >> 4]);
+      out.push_back(hex[c & 0x0f]);
+    }
+  }
+  return out;
+}
+
+static int from_hex(char c)
+{
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  return -1;
+}
+
+/**
+ * This function takes a string and returns the URL decoded string
+ * (rfc3986), also decoding + as ' ' (common in HTML form encoding).
+ *
+ * @param input the URL encoded string
+ * @return the string URL decoded
+ */
+std::string XrdOucUtils::UrlDecode(const std::string &input)
+{
+  std::string out;
+  out.reserve(input.size());
+
+  for (size_t i = 0; i < input.size(); ++i) {
+    if (input[i] == '%' && i + 2 < input.size() &&
+        std::isxdigit(input[i + 1]) &&
+        std::isxdigit(input[i + 2])) {
+      const int hi = from_hex(input[i + 1]);
+      const int lo = from_hex(input[i + 2]);
+      out.push_back(static_cast<char>((hi << 4) | lo));
+      i += 2;
+    } else if (input[i] == '+') {
+      out.push_back(' ');
+    } else {
+      out.push_back(input[i]);
+    }
+  }
+  return out;
+}
+
 #endif
