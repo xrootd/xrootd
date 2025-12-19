@@ -1342,8 +1342,13 @@ private:
 
     void Check(uint64_t now)
     {
+        // Check if cleaning is required and bail out if unneeded
         if (now <= m_next_clean) {return;}
+
+        // Cleaning may be needed. Get the mutex, recheck, and reset the timer
         std::lock_guard<std::mutex> guard(m_mutex);
+        if (now <= m_next_clean) {return;}
+        m_next_clean = monotonic_time() + m_expiry_secs;
 
         for (auto iter = m_map.begin(); iter != m_map.end(); ) {
             if (iter->second->expired()) {
@@ -1353,8 +1358,6 @@ private:
             }
         }
         Reconfig();
-
-        m_next_clean = monotonic_time() + m_expiry_secs;
     }
 
     bool m_config_lock_initialized{false};
