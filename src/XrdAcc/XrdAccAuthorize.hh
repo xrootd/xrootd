@@ -35,7 +35,7 @@
 /******************************************************************************/
 /*                      A c c e s s _ O p e r a t i o n                       */
 /******************************************************************************/
-  
+
 //! The following are supported operations
 
 enum Access_Operation  {AOP_Any         = 0,  //!< Special for getting privs
@@ -61,7 +61,9 @@ enum Access_Operation  {AOP_Any         = 0,  //!< Special for getting privs
 /******************************************************************************/
 /*                       X r d A c c A u t h o r i z e                        */
 /******************************************************************************/
-  
+
+#include <string>
+
 class XrdOucEnv;
 class XrdSecEntity;
 class XrdSysLogger;
@@ -91,6 +93,33 @@ virtual XrdAccPrivs Access(const XrdSecEntity    *Entity,
                            const char            *path,
                            const Access_Operation oper,
                                  XrdOucEnv       *Env=0) = 0;
+
+//------------------------------------------------------------------------------
+//! Check whether or not the client is permitted specified access to a path
+//! Version 2. This version supports the return of additional error information.
+//!
+//! @param     Entity    -> Authentication information
+//! @param     path      -> The logical path which is the target of oper
+//! @param     oper      -> The operation being attempted (see the enum above).
+//!                         If the oper is AOP_Any, then the actual privileges
+//!                         are returned and the caller may make subsequent
+//!                         tests using Test().
+//! @param     eInfo     -> Reference to a string to allow for return of
+//!                         extended error infomation to be returned to caller.
+//! @param     Env       -> Environmental information at the time of the
+//!                         operation as supplied by the path CGI string.
+//!                         This is optional and the pointer may be zero.
+//!
+//! @return    Permit: a non-zero value (access is permitted)
+//!            Deny:   zero             (access is denied)
+//------------------------------------------------------------------------------
+
+virtual XrdAccPrivs Access(const XrdSecEntity    *Entity,
+                           const char            *path,
+                           const Access_Operation oper,
+                                 std::string     &eInfo,
+                                 XrdOucEnv       *Env=0)
+                    {return Access(Entity, path, oper, Env);}
 
 //------------------------------------------------------------------------------
 //! Route an audit message to the appropriate audit exit routine. See
@@ -141,11 +170,11 @@ virtual int         Test(const XrdAccPrivs priv,
 
 virtual                  ~XrdAccAuthorize() {}
 };
-  
+
 /******************************************************************************/
 /*                 X r d A c c A u t h o r i z e O b j e c t                  */
 /******************************************************************************/
-  
+
 //------------------------------------------------------------------------------
 //! Obtain an authorization object.
 //!
@@ -158,7 +187,7 @@ virtual                  ~XrdAccAuthorize() {}
 //!
 //! @param lp   -> XrdSysLogger to be tied to an XrdSysError object for messages
 //! @param cfn  -> The name of the configuration file
-//! @param parm -> Parameters specified on the authlib directive. If none it 
+//! @param parm -> Parameters specified on the authlib directive. If none it
 //!                is zero.
 //! @param envP -> Pointer to environment only available for version 2.
 //!
@@ -189,7 +218,7 @@ typedef XrdAccAuthorize *(*XrdAccAuthorizeObject2_t)(XrdSysLogger *lp,
                                                        const char   *parm,
                                                        XrdOucEnv    *envP) {...}
 */
-  
+
 //------------------------------------------------------------------------------
 //! Add an authorization object as a wrapper to the existing object.
 //!
@@ -201,7 +230,7 @@ typedef XrdAccAuthorize *(*XrdAccAuthorizeObject2_t)(XrdSysLogger *lp,
 //!
 //! @param lp   -> XrdSysLogger to be tied to an XrdSysError object for messages
 //! @param cfn  -> The name of the configuration file
-//! @param parm -> Parameters specified on the authlib directive. If none it 
+//! @param parm -> Parameters specified on the authlib directive. If none it
 //!                is zero.
 //! @param envP -> Environmental information and may be nil.
 //! @param accP -> to the existing authorization object.
@@ -223,7 +252,7 @@ typedef XrdAccAuthorize *(*XrdAccAuthorizeObjAdd_t)(XrdSysLogger *lp,
                                                       XrdOucEnv    *envP,
                                                    XrdAccAuthorize *accP) {...}
 */
-  
+
 //------------------------------------------------------------------------------
 //! Specify the compilation version.
 //!
