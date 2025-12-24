@@ -20,6 +20,11 @@ add_library(XrdHttpUtils SHARED
   XrdHttpHeaderUtils.cc      XrdHttpHeaderUtils.hh
 )
 
+target_sources(XrdHttpUtils PRIVATE
+  XrdHttpMon.hh
+  XrdHttpMon.cc
+)
+
 set_target_properties(XrdHttpUtils
   PROPERTIES VERSION 2.0.0 SOVERSION 2)
 
