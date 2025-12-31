@@ -79,7 +79,6 @@ Files:
  src/XrdCeph/*
  src/XrdCks/XrdCksCalczcrc32.cc
  src/XrdCl/*
- src/XrdEc/*
  src/XrdHttp/*
  src/XrdOssCsi/*
  src/XrdOuc/XrdOucCompiler.hh
@@ -94,8 +93,6 @@ Files:
  tests/XrdCephTests/*
  tests/XrdCl/*
  tests/XrdClTests/*
- tests/XrdEc/*
- tests/XrdEcTests/*
  utils/xrootd-config
 Copyright:
  2011-2024 European Organization for Nuclear Research (CERN)

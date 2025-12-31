@@ -109,7 +109,6 @@ XrdHttpCors * XrdHttpProtocol::xrdcors = nullptr;
 int XrdHttpProtocol::exthandlercnt = 0;
 std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
 
-bool XrdHttpProtocol::usingEC = false;
 bool XrdHttpProtocol::hasCache= false;
 
 XrdScheduler *XrdHttpProtocol::Sched = 0; // System scheduler
@@ -1117,9 +1116,6 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 // Some headers must always be converted to CGI key=value pairs
 //
    hdr2cgimap["Cache-Control"] = "cache-control";
-
-// Test if XrdEC is loaded
-   if (getenv("XRDCL_EC")) usingEC = true;
 
 // Pre-compute the static headers
 //
