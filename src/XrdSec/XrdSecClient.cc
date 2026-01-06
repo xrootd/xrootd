@@ -96,12 +96,20 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
    const char *noperr = "XrdSec: No authentication protocols are available.";
 
    XrdSecProtocol *protp;
+   std::stringstream ss;
 
 // Perform any required debugging
 //
-   DEBUG("protocol request for host " <<hostname <<" token='"
+   std::string pstr(parms.size > 0 ? parms.buffer : "", parms.size);
+   ss << "protocol request for host " <<hostname <<" token='"
          <<(parms.size > 0 ? std::setw(parms.size) : std::setw(1))
-         <<(parms.size > 0 ? parms.buffer : "") <<"'");
+         << pstr <<"'";
+
+   DEBUG(ss.str());
+
+   XrdSecGetProtLogCallback *lcb = 0;
+   if (einfo) lcb = (XrdSecGetProtLogCallback*)einfo->getErrCB();
+   if (lcb) lcb->logfn(XrdSecGetProtLogCallback::LogLevel::INFO, ss.str());
 
 // Check if the server wants no security.
 //
@@ -112,6 +120,7 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
    if (!(protp = PManager.Get(hostname, endPoint, parms, einfo)))
       {if (einfo) einfo->setErrInfo(ENOPROTOOPT, noperr);
          else std::cerr <<noperr <<std::endl;
+       if (lcb) lcb->logfn(XrdSecGetProtLogCallback::LogLevel::INFO, noperr);
       }
 
 // All done

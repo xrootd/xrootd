@@ -36,7 +36,10 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <functional>
+#include <string>
 
+#include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecEntity.hh"
 
 /******************************************************************************/
@@ -484,6 +487,44 @@ typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *hostname,
                                            XrdNetAddrInfo &endPoint,
                                            XrdSecParameters &sectoken,
                                            XrdOucErrInfo *einfo);
+
+//------------------------------------------------------------------------------
+// XrdSecGetProtLogCallback may be set as a callback in the XrdOucErrInfo object
+// supplied to XrdSecGetProtocol. The supplied logfn will be called to log
+// messages during the attempt to return an appropreate XrdSecProtocol.
+//------------------------------------------------------------------------------
+class XrdSecGetProtLogCallback : public XrdOucEICB
+{
+public:
+
+  enum class LogLevel {
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR
+  };
+
+virtual void        Done(int           &Result,   //I/O: Function result
+                         XrdOucErrInfo *eInfo,    // In: Error Info
+                         const char    *Path=0) { }
+
+virtual int         Same(unsigned long long arg1, unsigned long long arg2)
+                         { return 0; }
+
+//------------------------------------------------------------------------------
+//! Constructor
+//!
+//! @fn a std::function to be repeatedly called with informational log messages
+//------------------------------------------------------------------------------
+
+   XrdSecGetProtLogCallback(const std::function<
+                              void(LogLevel, const std::string &)> &fn):
+     logfn(fn) {}
+
+  ~XrdSecGetProtLogCallback() {}
+
+   std::function<void(LogLevel, const std::string &)> logfn;
+};
 
 /*! Example:
 
