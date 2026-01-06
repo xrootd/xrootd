@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <string>
+#include <sstream>
 #include <cstring>
 #include <strings.h>
 #include <sys/stat.h>
@@ -159,6 +160,10 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
    XrdOucErrInfo  *erp;
    char *wp;
    int i;
+   std::stringstream ss;
+
+   XrdSecGetProtLogCallback *lcb = 0;
+   if (eri) lcb = (XrdSecGetProtLogCallback*)eri->getErrCB();
 
 // We support passing the list of protocols via Url parameter unless this is
 // a proxy server as the url should be merely passed hrough. If the proxy is
@@ -225,8 +230,11 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
          if (!wantProt || strstr(compProt, pcomp))
             {XrdSysMutexHelper pmHelper(pmMutex);
              if ((pl = Lookup(pname)) || (pl = ldPO(erp, 'c', pname)))
-                {DEBUG("Using " <<pname <<" protocol, args='"
-                       <<(pargs ? pargs : "") <<"'");
+                {ss.str("");
+                 ss << "Using " <<pname <<" protocol, args='"
+                       <<(pargs ? pargs : "") <<"'";
+                 DEBUG(ss.str());
+                 if (lcb) lcb->logfn(XrdSecGetProtLogCallback::LogLevel::DEBUG,ss.str());
                  if ((pp = pl->ep('c', hname, endPoint, pargs, erp)))
                     {if (nscan) {i = nscan - secbuff;
                                  secparm.buffer += i; secparm.size -= i;
@@ -236,7 +244,18 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
                     }
                 }
              if (erp->getErrInfo() != ENOENT) std::cerr <<erp->getErrText() <<std::endl;
-            } else {DEBUG("Skipping " <<pname <<" only want " <<wantProt);}
+             if (lcb)
+                {ss.str("");
+                ss << "Failure of protocol " << pname
+                   << " error=" << erp->getErrInfo()
+                   << " msg=" << erp->getErrText();
+                lcb->logfn(XrdSecGetProtLogCallback::LogLevel::INFO, ss.str());
+                }
+            } else {ss.str("");
+                    ss << "Skipping " <<pname <<" only want " <<wantProt;
+                    DEBUG(ss.str());
+                    if (lcb) lcb->logfn(XrdSecGetProtLogCallback::LogLevel::DEBUG,ss.str());
+                   }
          if (!nscan) break;
          *nscan = '&'; bp = nscan;
          }

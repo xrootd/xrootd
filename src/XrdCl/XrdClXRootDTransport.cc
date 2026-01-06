@@ -2678,6 +2678,34 @@ namespace XrdCl
       return XRootDStatus( stFatal, errAuthFailed, 0, "Could not load authentication handler." );
 
     //--------------------------------------------------------------------------
+    // Set up a callback the security layer can use to send us log messages
+    //--------------------------------------------------------------------------
+    XrdSecGetProtLogCallback lcb(
+        [log,hsData]( XrdSecGetProtLogCallback::LogLevel llevel,
+                      const std::string &msg )
+        {
+          switch( llevel )
+          {
+            case XrdSecGetProtLogCallback::LogLevel::DEBUG:
+              log->Debug( XRootDTransportMsg, "[%s] Processing ptoken: %s",
+                          hsData->streamName.c_str(), msg.c_str() );
+              break;
+            case XrdSecGetProtLogCallback::LogLevel::INFO:
+              log->Info( XRootDTransportMsg, "[%s] Processing ptoken: %s",
+                         hsData->streamName.c_str(), msg.c_str() );
+              break;
+            case XrdSecGetProtLogCallback::LogLevel::WARN:
+              log->Warning( XRootDTransportMsg, "[%s] Processing ptoken: %s",
+                            hsData->streamName.c_str(), msg.c_str() );
+              break;
+          case XrdSecGetProtLogCallback::LogLevel::ERROR:
+              log->Error( XRootDTransportMsg, "[%s] Processing ptoken: %s",
+                          hsData->streamName.c_str(), msg.c_str() );
+              break;
+        } } );
+    ei.setErrCB( &lcb );
+
+    //--------------------------------------------------------------------------
     // Retrieve secuid and secgid, if available. These will override the fsuid
     // and fsgid of the current thread reading the credentials to prevent
     // security holes in case this process is running with elevated permissions.
