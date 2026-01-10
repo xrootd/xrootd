@@ -305,6 +305,20 @@ CurlOperation::Redirect(std::string &target)
         Fail(XrdCl::errErrorResponse, kXR_ServerError, "Server returned redirect without updated location");
         return RedirectAction::Fail;
     }
+    if (location.size() && location[0] == '/') { // hostname not included in the location - redirect to self.
+        std::string_view orig_url(m_url);
+        auto scheme_loc = orig_url.find("://");
+        if (scheme_loc == std::string_view::npos) {
+            Fail(XrdCl::errErrorResponse, kXR_ServerError, "Server returned a location with unknown hostname");
+            return RedirectAction::Fail;
+        }
+        auto path_loc = orig_url.find('/', scheme_loc + 3);
+        if (path_loc == std::string_view::npos) {
+            location = m_url + location;
+        } else {
+            location = std::string(orig_url.substr(0, path_loc)) + location;
+        }
+    }
     m_logger->Debug(kLogXrdClCurl, "Request for %s redirected to %s", m_url.c_str(), location.c_str());
     target = location;
     curl_easy_setopt(m_curl.get(), CURLOPT_URL, location.c_str());

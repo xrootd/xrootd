@@ -80,6 +80,9 @@ bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
         if (!strcasecmp(child->Value(), "D:resourcetype") || !strcasecmp(child->Value(), "lp1:resourcetype")) {
             auto collection = child->FirstChildElement("D:collection");
             entry.m_isdir = collection != nullptr;
+            if (entry.m_isdir && entry.m_size < 0) {
+                entry.m_size = 0;
+            }
         } else if (!strcasecmp(child->Value(), "D:getcontentlength") || !strcasecmp(child->Value(), "lp1:getcontentlength")) {
             auto size = child->GetText();
             if (size == nullptr) {
@@ -131,8 +134,12 @@ CurlListdirOp::ParseResponse(TiXmlElement *response)
                 return {entry, false};
             }
             // NOTE: This is not particularly robust; it assumes that the server is only returning
-            // a depth of exactly one and is not using a trailing slash to indicate a directory.
+            // a depth of exactly one.
             std::string_view href_str(href);
+            auto first_non_slash = href_str.find_last_not_of('/');
+            if (first_non_slash != std::string_view::npos) {
+                href_str = href_str.substr(0, first_non_slash + 1);
+            }
             auto last_slash = href_str.find_last_of('/');
             if (last_slash != std::string_view::npos) {
                 entry.m_name = href_str.substr(last_slash + 1);
