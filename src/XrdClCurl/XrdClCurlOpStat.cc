@@ -38,6 +38,7 @@ CurlStatOp::OptionsDone()
     auto verbs = instance.Get(target.empty() ? m_url : target);
     if (verbs.IsSet(VerbsCache::HttpVerb::kPROPFIND)) {
         curl_easy_setopt(m_curl.get(), CURLOPT_CUSTOMREQUEST, "PROPFIND");
+        m_headers_list.emplace_back("Depth", "0");
         curl_easy_setopt(m_curl.get(), CURLOPT_NOBODY, 0L);
         m_is_propfind = true;
     } else {
@@ -63,6 +64,7 @@ CurlStatOp::Redirect(std::string &target)
 
     if (verbs.IsSet(VerbsCache::HttpVerb::kPROPFIND)) {
         curl_easy_setopt(m_curl.get(), CURLOPT_CUSTOMREQUEST, "PROPFIND");
+        m_headers_list.emplace_back("Depth", "0");
         curl_easy_setopt(m_curl.get(), CURLOPT_NOBODY, 0L);
         m_is_propfind = true;
     } else {
@@ -83,6 +85,7 @@ CurlStatOp::Setup(CURL *curl, CurlWorker &worker)
     auto verbs = instance.Get(m_url);
     if (verbs.IsSet(VerbsCache::HttpVerb::kPROPFIND)) {
         curl_easy_setopt(m_curl.get(), CURLOPT_CUSTOMREQUEST, "PROPFIND");
+        m_headers_list.emplace_back("Depth", "0");
         curl_easy_setopt(m_curl.get(), CURLOPT_NOBODY, 0L);
         m_is_propfind = true;
     } else {
@@ -133,6 +136,10 @@ CurlStatOp::ParseProp(TiXmlElement *prop) {
         } else if (!strcasecmp(child->Value(), "D:resourcetype") || !strcasecmp(child->Value(), "lp1:resourcetype")) {
             m_is_dir = child->FirstChildElement("D:collection") != nullptr;
         }
+    }
+    if (m_length < 0 && m_is_dir) {
+        // Don't require length for directories; fake it as zero
+        m_length = 0;
     }
     return {m_length, m_is_dir};
 }
