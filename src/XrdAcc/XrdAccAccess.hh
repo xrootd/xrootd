@@ -135,6 +135,8 @@ friend class XrdAccConfig;
                          const Access_Operation oper,
                                XrdOucEnv       *Env=0);
 
+      using XrdAccAuthorize::Access;
+
       int         Audit(const int              accok,
                         const XrdSecEntity    *Entity,
                         const char            *path,
