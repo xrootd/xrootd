@@ -447,8 +447,11 @@ char *unquote(char *str) {
   int i, j = 0;
 
   for (i = 0; i < l; i++) {
-
     if (str[i] == '%') {
+      if (i + 3 >= l) {
+        r[j] = '\0';
+        return r;
+      }
       char savec = str[i + 3];
       str[i + 3] = '\0';
 
