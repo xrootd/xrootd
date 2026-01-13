@@ -448,7 +448,7 @@ char *unquote(char *str) {
 
   for (i = 0; i < l; i++) {
     if (str[i] == '%') {
-      if (i + 3 >= l) {
+      if (i + 3 > l) {
         r[j] = '\0';
         return r;
       }
