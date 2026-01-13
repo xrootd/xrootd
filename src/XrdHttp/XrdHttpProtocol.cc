@@ -1632,7 +1632,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
   else
     ss << "Connection: Close" << crlf;
 
-  ss << "Server: XrootD/" << XrdVSTRING << crlf;
+  ss << "Server: XRootD" << crlf;
 
   const auto iter = m_staticheaders.find(CurrentReq.requestverb);
   if (iter != m_staticheaders.end()) {
