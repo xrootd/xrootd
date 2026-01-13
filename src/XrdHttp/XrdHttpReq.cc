@@ -1657,7 +1657,8 @@ int XrdHttpReq::ProcessHTTPReq() {
       }
 
       char buf2[256];
-      strcpy(buf2, host.c_str());
+      strncpy(buf2, host.c_str(), sizeof(buf2) - 1);
+      buf2[sizeof(buf2) - 1] = '\0';
       char *pos = strchr(buf2, ':');
       if (pos) *pos = '\0';
      
