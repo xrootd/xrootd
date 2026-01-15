@@ -44,23 +44,23 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysPlugin.hh"
-  
+
 /******************************************************************************/
 /*                   E x t e r n a l   R e f e r e n c e s                    */
 /******************************************************************************/
-  
+
 extern unsigned long XrdOucHashVal2(const char *KeyVal, int KeyLen);
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
 /******************************************************************************/
-  
+
 extern XrdAccConfig XrdAccConfiguration;
 
 /******************************************************************************/
 /*       Autorization Object Creation via XrdAccDefaultAuthorizeObject        */
 /******************************************************************************/
-  
+
 XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp,
                                               const char *cfn,
                                               const char *parm,
@@ -86,11 +86,11 @@ XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp,
 //
    return (XrdAccAuthorize *)XrdAccConfiguration.Authorization;
 }
-  
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
+
 XrdAccAccess::XrdAccAccess(XrdSysError *erp)
 {
 // Get the audit option that we should use
@@ -101,7 +101,7 @@ XrdAccAccess::XrdAccAccess(XrdSysError *erp)
 /******************************************************************************/
 /*                                A c c e s s                                 */
 /******************************************************************************/
-  
+
 XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
                                  const char            *path,
                                  const Access_Operation oper,
@@ -119,7 +119,7 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 // Obtain an authorization entity (it will be released upon return).
 //
    XrdAccEntityInit accEntity(Entity, aeP);
-   if (!aeP) return Access(caps, Entity, path, oper);
+   if (!aeP) return Access2(caps, Entity, path, oper);
 
 // Setup the id (we don't need a lock for that)
 //
@@ -154,7 +154,7 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
                 {if (xlP->Applies(eInfo))
                     {xlP->caps->Privs(caps, path, plen, phash);
                      Access_Context.UnLock(xs_Shared);
-                     return Access(caps, Entity, path, oper);
+                     return Access2(caps, Entity, path, oper);
                     }
                 }
            xlP = xlP->next;
@@ -246,16 +246,16 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 
 // Return the privileges as needed
 //
-   return Access(caps, Entity, path, oper);
+   return Access2(caps, Entity, path, oper);
 }
 
 /******************************************************************************/
 
-XrdAccPrivs XrdAccAccess::Access(      XrdAccPrivCaps  &caps,
-                                 const XrdSecEntity    *Entity,
-                                 const char            *path,
-                                 const Access_Operation oper
-                                )
+XrdAccPrivs XrdAccAccess::Access2(      XrdAccPrivCaps  &caps,
+                                  const XrdSecEntity    *Entity,
+                                  const char            *path,
+                                  const Access_Operation oper
+                                 )
 {
    XrdAccPrivs myprivs;
    XrdAccAudit_Options audits = (XrdAccAudit_Options)Auditor->Auditing();
@@ -276,11 +276,11 @@ XrdAccPrivs XrdAccAccess::Access(      XrdAccPrivCaps  &caps,
 //
    return (XrdAccPrivs)Audit(accok, Entity, path, oper);
 }
-  
+
 /******************************************************************************/
 /*                                 A u d i t                                  */
 /******************************************************************************/
-  
+
 int XrdAccAccess::Audit(const int              accok,
                         const XrdSecEntity    *Entity,
                         const char            *path,
@@ -345,7 +345,7 @@ const char *XrdAccAccess::Resolve(const XrdSecEntity *Entity)
       return  Entity->addrInfo->Name("?");
    return Entity->host;
 }
-  
+
 /******************************************************************************/
 /*                              S w a p T a b s                               */
 /******************************************************************************/
@@ -444,7 +444,7 @@ int XrdAccAccess::Test(const XrdAccPrivs priv,const Access_Operation oper)
 /******************************************************************************/
 /*              X r d A c c A c c e s s _ I D : : A p p l i e s               */
 /******************************************************************************/
-  
+
 bool XrdAccAccess_ID::Applies(const XrdAccEntityInfo &Entity)
 {
 

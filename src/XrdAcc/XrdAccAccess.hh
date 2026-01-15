@@ -81,7 +81,7 @@ struct XrdAccAccess_ID
                                  if (caps) delete caps;
                                 }
        };
-  
+
 struct XrdAccAccess_Tables
        {XrdOucHash<XrdAccCapability> *G_Hash;  // Groups
         XrdOucHash<XrdAccCapability> *H_Hash;  // Hosts
@@ -123,7 +123,7 @@ struct XrdAccAccess_Tables
 /******************************************************************************/
 
 class xrdOucError;
-  
+
 class XrdAccAccess : public XrdAccAuthorize
 {
 public:
@@ -134,8 +134,6 @@ friend class XrdAccConfig;
                          const char            *path,
                          const Access_Operation oper,
                                XrdOucEnv       *Env=0);
-
-      using XrdAccAuthorize::Access;
 
       int         Audit(const int              accok,
                         const XrdSecEntity    *Entity,
@@ -159,10 +157,10 @@ void              SwapTabs(struct XrdAccAccess_Tables &newtab);
 
 private:
 
-XrdAccPrivs Access(      XrdAccPrivCaps  &caps,
-                   const XrdSecEntity    *Entity,
-                   const char            *path,
-                   const Access_Operation oper);
+XrdAccPrivs Access2(      XrdAccPrivCaps  &caps,
+                    const XrdSecEntity    *Entity,
+                    const char            *path,
+                    const Access_Operation oper);
 
 struct XrdAccAccess_Tables Atab;
 bool   hostRefX; // True if we need to resolve hostname for exclusive rules
