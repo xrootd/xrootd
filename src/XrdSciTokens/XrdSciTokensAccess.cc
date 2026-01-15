@@ -521,7 +521,7 @@ public:
         uint64_t now = monotonic_time();
         Check(now);
         {
-            std::lock_guard<std::mutex> guard(m_mutex);
+            std::lock_guard<std::mutex> guard(m_map_mutex);
             const auto iter = m_map.find(authz);
             if (iter != m_map.end() && !iter->second->expired()) {
                 access_rules = iter->second;
@@ -552,7 +552,7 @@ public:
                 m_log.Log(LogMask::Warning, "Access", "Error generating ACLs for authorization", exc.what());
                 return OnMissing(Entity, path, oper, env);
             }
-            std::lock_guard<std::mutex> guard(m_mutex);
+            std::lock_guard<std::mutex> guard(m_map_mutex);
             m_map[authz] = access_rules;
         } else if (m_log.getMsgMask() & LogMask::Debug) {
             m_log.Log(LogMask::Debug, "Access", "Cached token", access_rules->str().c_str());
@@ -1363,14 +1363,22 @@ private:
 
     void Check(uint64_t now)
     {
-        if (now <= m_next_clean) {return;}
-        std::lock_guard<std::mutex> guard(m_mutex);
+        // Bail out if another thread is already checking
+        std::unique_lock<std::mutex> lock(m_check_mutex, std::try_to_lock);
+        if (!lock.owns_lock()) {return;}
 
-        for (auto iter = m_map.begin(); iter != m_map.end(); ) {
-            if (iter->second->expired()) {
-                iter = m_map.erase(iter);
-            } else {
-                ++iter;
+        // Check if cleaning is required
+        if (now <= m_next_clean) {return;}
+
+        // Clean expired m_map entries
+        {
+            std::lock_guard<std::mutex> guard(m_map_mutex);
+            for (auto iter = m_map.begin(); iter != m_map.end(); ) {
+                if (iter->second->expired()) {
+                    iter = m_map.erase(iter);
+                } else {
+                    ++iter;
+                }
             }
         }
         Reconfig();
@@ -1379,11 +1387,12 @@ private:
     }
 
     bool m_config_lock_initialized{false};
-    std::mutex m_mutex;
     pthread_rwlock_t m_config_lock;
     std::vector<std::string> m_audiences;
     std::vector<const char *> m_audiences_array;
     std::map<std::string, std::shared_ptr<XrdAccRules>> m_map;
+    std::mutex m_check_mutex;
+    std::mutex m_map_mutex;
     XrdAccAuthorize* m_chain;
     const std::string m_parms;
     std::vector<const char*> m_valid_issuers_array;
