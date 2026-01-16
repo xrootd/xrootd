@@ -68,7 +68,7 @@ add_executable(xrdcl-s3-unittest
   UrlParseTest.cc
 )
 
-target_link_libraries(xrdcl-s3-test XrdClS3Obj XrdClCurlTransferTest GTest::gtest_main)
+target_link_libraries(xrdcl-s3-test XrdClS3Obj XrdClHttpTransferTest GTest::gtest_main)
 target_link_libraries(xrdcl-s3-unittest XrdClS3Obj GTest::gtest_main)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"

@@ -21,7 +21,7 @@
 #ifndef XRDCLS3_S3FILESYSTEM_HH
 #define XRDCLS3_S3FILESYSTEM_HH
 
-#include "../XrdClCurl/XrdClCurlHeaderCallout.hh"
+#include "../XrdClHttp/XrdClHttpHeaderCallout.hh"
 
 #include <XrdCl/XrdClPlugInInterface.hh>
 
@@ -109,7 +109,7 @@ private:
     mutable std::unordered_map<std::string, XrdCl::FileSystem*> m_handles;
 
     // Class for setting up the required HTTP headers for S3 requests
-    class S3HeaderCallout : public XrdClCurl::HeaderCallout {
+    class S3HeaderCallout : public XrdClHttp::HeaderCallout {
     public:
         S3HeaderCallout(Filesystem &fs) : m_parent(fs)
         {}

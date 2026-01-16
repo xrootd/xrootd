@@ -66,7 +66,7 @@ std::string JoinUrl(const std::string & base, const std::string & path) {
 
 class StatHandler : public XrdCl::ResponseHandler {
 public:
-    StatHandler(const std::string &path, const std::string &s3_url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout, XrdCl::Log &log) :
+    StatHandler(const std::string &path, const std::string &s3_url, XrdClHttp::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout, XrdCl::Log &log) :
         m_timeout(timeout),
         m_handler(handler),
         m_header_callout(header_callout),
@@ -80,7 +80,7 @@ public:
 private:
     time_t m_timeout;
     XrdCl::ResponseHandler *m_handler{nullptr};
-    XrdClCurl::HeaderCallout *m_header_callout{nullptr};
+    XrdClHttp::HeaderCallout *m_header_callout{nullptr};
     std::string m_path;
     std::string m_s3_url;
     XrdCl::Log &m_logger;
@@ -105,7 +105,7 @@ private:
 // Response handler for the S3 directory listing GET operation.
 class DirListResponseHandler : public XrdCl::ResponseHandler {
 public:
-    DirListResponseHandler(bool existence_check, const std::string &url, XrdClCurl::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t expiry, XrdCl::Log &log) :
+    DirListResponseHandler(bool existence_check, const std::string &url, XrdClHttp::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t expiry, XrdCl::Log &log) :
         m_existence_check(existence_check),
         m_expiry(expiry),
         m_header_callout(header_callout),
@@ -124,7 +124,7 @@ private:
     bool m_existence_check;
 
     time_t m_expiry; // Expiration time for the directory listing request
-    XrdClCurl::HeaderCallout *m_header_callout{nullptr}; // Header callout for S3 signing
+    XrdClHttp::HeaderCallout *m_header_callout{nullptr}; // Header callout for S3 signing
     std::string m_url; // The URL of the S3 directory listing
     std::string m_host; // The host address of the S3 endpoint
 
@@ -527,7 +527,7 @@ Filesystem::GetFSHandle(const std::string &path) {
     auto fs = new XrdCl::FileSystem(url);
     std::stringstream ss;
     ss << std::hex << reinterpret_cast<long long>(&m_header_callout);
-    if (!fs->SetProperty("XrdClCurlHeaderCallout", ss.str())) {
+    if (!fs->SetProperty("XrdClHttpHeaderCallout", ss.str())) {
         delete fs;
         return std::make_pair(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, "Failed to setup header callout"), nullptr);
     }
@@ -604,7 +604,7 @@ Filesystem::MkDir(const std::string        &input_path,
     std::to_chars_result result = std::to_chars(callout_buf, callout_buf + buf_size - 1, callout_loc, 16);
     if (result.ec == std::errc{}) {
         std::string callout_str(callout_buf, result.ptr - callout_buf);
-        http_file->SetProperty("XrdClCurlHeaderCallout", callout_str);
+        http_file->SetProperty("XrdClHttpHeaderCallout", callout_str);
     }
 
     MkdirHandler *mkdirHandler = new MkdirHandler(http_file, handler, timeout);
@@ -688,10 +688,10 @@ Filesystem::Stat(const std::string      &path,
     return fs->Stat(cleaned_path, new StatHandler(cleaned_path, m_url.GetURL(), &m_header_callout, handler, timeout, *m_logger), timeout);
 }
 
-std::shared_ptr<XrdClCurl::HeaderCallout::HeaderList>
+std::shared_ptr<XrdClHttp::HeaderCallout::HeaderList>
 Filesystem::S3HeaderCallout::GetHeaders(const std::string &verb,
                                         const std::string &url,
-                                        const XrdClCurl::HeaderCallout::HeaderList &headers)
+                                        const XrdClHttp::HeaderCallout::HeaderList &headers)
 {
     std::string auth_token, err_msg;
     std::shared_ptr<HeaderList> header_list(new HeaderList(headers));

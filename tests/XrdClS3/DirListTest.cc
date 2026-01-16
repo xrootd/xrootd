@@ -18,7 +18,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "../XrdClCurlCommon/TransferTest.hh"
+#include "../XrdClHttpCommon/TransferTest.hh"
 
 #include <XrdCl/XrdClFileSystem.hh>
 

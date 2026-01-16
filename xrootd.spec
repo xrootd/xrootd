@@ -56,7 +56,6 @@ BuildRequires:	libmacaroons-devel
 BuildRequires:	libuuid-devel
 BuildRequires:	voms-devel
 BuildRequires:	scitokens-cpp-devel
-BuildRequires:	davix-devel
 BuildRequires:  libxcrypt-devel
 
 %if %{with asan}
@@ -82,7 +81,6 @@ BuildRequires:	python3-sphinx
 BuildRequires:	attr
 BuildRequires:	coreutils
 BuildRequires:	curl
-BuildRequires:	davix
 BuildRequires:	gtest-devel
 BuildRequires:	krb5-server
 BuildRequires:	krb5-workstation
@@ -263,16 +261,6 @@ SciToken passed during a transfer. Configured appropriately, this
 allows the XRootD server admin to delegate authorization decisions for
 a subset of the namespace to an external issuer.
 
-%package -n xrdcl-http
-Summary:	HTTP client plugin for XRootD
-Group:		System Environment/Libraries
-Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description -n xrdcl-http
-xrdcl-http is an XRootD client plugin which allows XRootD to interact
-with HTTP repositories.
-
 %if %{with ceph}
 %package ceph
 Summary:	XRootD plugin for interfacing with the Ceph storage platform
@@ -329,9 +317,7 @@ export CXX=clang++
     -DENABLE_TESTS:BOOL=%{with tests} \
     -DENABLE_VOMS:BOOL=TRUE \
     -DENABLE_XRDCL:BOOL=TRUE \
-    -DENABLE_XRDCLHTTP:BOOL=TRUE \
     -DENABLE_XRDEC:BOOL=%{with xrdec} \
-    -DENABLE_XRDCLHTTP:BOOL=TRUE \
     -DXRDCL_ONLY:BOOL=FALSE \
     -DXRDCL_LIB_ONLY:BOOL=FALSE \
     -DENABLE_PYTHON:BOOL=TRUE \
@@ -418,8 +404,6 @@ sed 's!/usr/lib/!!' packaging/common/client-plugin.conf.example > \
 	%{buildroot}%{_sysconfdir}/%{name}/client.plugins.d/client-plugin.conf.example
 sed -e 's!/usr/lib64/!!' -e 's!-5!!' packaging/common/recorder.conf > \
 	%{buildroot}%{_sysconfdir}/%{name}/client.plugins.d/recorder.conf
-sed 's!/usr/lib64/!!' packaging/common/http.client.conf.example > \
-	%{buildroot}%{_sysconfdir}/%{name}/client.plugins.d/xrdcl-http-plugin.conf
 
 chmod 644 %{buildroot}%{_datadir}/%{name}/utils/XrdCmsNotify.pm
 
@@ -591,7 +575,7 @@ fi
 %{_libdir}/libXrdSsiLib.so.*
 %{_libdir}/libXrdSsiShMap.so.*
 # Plugins
-%{_libdir}/libXrdClCurl-5.so
+%{_libdir}/libXrdClHttp-5.so
 %{_libdir}/libXrdClS3-5.so
 %{_libdir}/libXrdClProxyPlugin-5.so
 %{_libdir}/libXrdClRecorder-5.so
@@ -603,7 +587,7 @@ fi
 
 %files client-devel
 %{_includedir}/%{name}/XrdCl
-%{_includedir}/%{name}/XrdClCurl
+%{_includedir}/%{name}/XrdClHttp
 %{_includedir}/%{name}/XrdPosix
 %{_libdir}/libXrdCl.so
 %if %{with xrdec}
@@ -690,9 +674,6 @@ fi
 %{_libdir}/libXrdAccSciTokens-5.so
 %doc src/XrdSciTokens/README.md
 
-%files -n xrdcl-http
-%{_libdir}/libXrdClHttp-5.so
-%config(noreplace) %{_sysconfdir}/%{name}/client.plugins.d/xrdcl-http-plugin.conf
 
 %if %{with ceph}
 %files ceph

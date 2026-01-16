@@ -109,8 +109,6 @@ override_dh_auto_install:
 	    debian/tmp/etc/xrootd/xrootd-filecache-clustered.cfg
 	install -m 644 -p packaging/common/xrootd-filecache-standalone.cfg \
 	    debian/tmp/etc/xrootd/xrootd-filecache-standalone.cfg
-	sed 's!/usr/lib64/!!' packaging/common/xrootd-http.cfg > \
-	    debian/tmp/etc/xrootd/xrootd-http.cfg
 
 	# Client config
 	mkdir -p debian/tmp/etc/xrootd/client.plugins.d
@@ -120,8 +118,6 @@ override_dh_auto_install:
 	    debian/tmp/etc/xrootd/client.plugins.d/client-plugin.conf.example
 	sed -e 's!/usr/lib64/!!' -e 's!-5!!' packaging/common/recorder.conf > \
 	    debian/tmp/etc/xrootd/client.plugins.d/recorder.conf
-	sed 's!/usr/lib64/!!' packaging/common/http.client.conf.example > \
-	    debian/tmp/etc/xrootd/client.plugins.d/xrdcl-http-plugin.conf
 
 	chmod 644 debian/tmp/usr/share/xrootd/utils/XrdCmsNotify.pm
 	sed 's!/usr/bin/env perl!/usr/bin/perl!' -i \

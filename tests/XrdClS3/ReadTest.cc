@@ -18,7 +18,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "../XrdClCurlCommon/TransferTest.hh"
+#include "../XrdClHttpCommon/TransferTest.hh"
 #include "XrdClS3/XrdClS3DownloadHandler.hh"
 #include "XrdClS3/XrdClS3Filesystem.hh"
 
@@ -33,12 +33,12 @@ public:
     }
 
 protected:
-    XrdClCurl::HeaderCallout *GetReadTokenCallout() {
+    XrdClHttp::HeaderCallout *GetReadTokenCallout() {
         return &m_read_callout;
     }
 
 private:
-    class ReadAuthzCallout : public XrdClCurl::HeaderCallout {
+    class ReadAuthzCallout : public XrdClHttp::HeaderCallout {
         public:
             ReadAuthzCallout(const S3ReadFixture &parent) :
                 m_parent(parent)

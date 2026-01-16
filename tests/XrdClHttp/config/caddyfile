@@ -1,4 +1,0 @@
-localhost:8080
-upload / {
-    to "<<CADDY_UPLOAD_DIR>>"
-}
