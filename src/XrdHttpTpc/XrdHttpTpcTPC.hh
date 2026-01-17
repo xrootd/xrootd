@@ -108,7 +108,7 @@ private:
     int PerformHEADRequest(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                            bool &success, TPCLogRecord &rec, bool shouldReturnErrorToClient = true);
 
-    int GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t & contentLength, std::map<std::string,std::string> & reprDigest, bool & success, TPCLogRecord &rec, bool shouldReturnErrorToClient);
+    int GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t & contentLength, std::map<std::string,std::string> & reprDigest, bool & success, TPCLogRecord &rec);
 
     // Send a 'performance marker' back to the TPC client, informing it of our
     // progress.  The TPC client will use this information to determine whether

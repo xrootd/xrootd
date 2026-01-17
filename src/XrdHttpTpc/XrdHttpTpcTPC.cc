@@ -493,14 +493,14 @@ int TPCHandler::PerformHEADRequest(CURL *curl, XrdHttpExtReq &req, State &state,
     return 0;
 }
 
-int TPCHandler::GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t &contentLength, std::map<std::string,std::string> & reprDigest, bool & success, TPCLogRecord &rec, bool shouldReturnErrorToClient) {
+int TPCHandler::GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t &contentLength, std::map<std::string,std::string> & reprDigest, bool & success, TPCLogRecord &rec) {
     State state(curl,req.tpcForwardCreds);
     //Don't forget to copy the headers of the client's request before doing the HEAD call. Otherwise, if there is a need for authentication,
     //it will fail
     state.SetupHeadersForHEAD(req);
     int result;
     //In case we cannot get the file HEAD request, we return the error to the client
-    if ((result = PerformHEADRequest(curl, req, state, success, rec, shouldReturnErrorToClient)) || !success) {
+    if ((result = PerformHEADRequest(curl, req, state, success, rec)) || !success) {
         return result;
     }
     contentLength = state.GetContentLength();
@@ -995,27 +995,24 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
     ConfigureCurlCA(curl);
     uint64_t sourceFileContentLength = 0;
-    bool hasRemoteFileInfo = false;
     {
         //Get the content-length of the source file and pass it to the OSS layer
-        //during the open, but single-stream download is possible without known ContentLength
-        //if there is no expected digest supplied by the client
-        bool shouldReturnErrorToClient = (streams > 1) || !req.mReprDigest.empty();
+        //during the open
+        bool success = false;
         bool mismatchDigests = false;
         std::map<std::string,std::string> sourceFileReprDigest;
-        GetRemoteFileInfoTPCPull(curl, req, sourceFileContentLength, sourceFileReprDigest, hasRemoteFileInfo, rec, shouldReturnErrorToClient);
-        if(hasRemoteFileInfo) {
+        GetRemoteFileInfoTPCPull(curl, req, sourceFileContentLength, sourceFileReprDigest, success, rec);
+        if(success) {
             //In the case we cannot get the information from the source server (offline or other error)
             //we just don't add the file information to the opaque of the local file to open
             full_url += "&oss.asize=" + std::to_string(sourceFileContentLength);
             mismatchDigests = mismatchReprDigest(sourceFileReprDigest,req,rec);
         }
-        if(!hasRemoteFileInfo || mismatchDigests) {
+        if(!success || mismatchDigests) {
             // We could not get remote file information, or the checksum provided by the client
             // does not match the source file one, we already sent the error to the client so we
             // just exit here
-            if(shouldReturnErrorToClient)
-                return 0;
+            return 0;
         }
     }
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY,
@@ -1040,8 +1037,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
     State state(0, stream, curl, false, req.tpcForwardCreds);
     state.SetupHeaders(req);
-    if (hasRemoteFileInfo)
-        state.SetContentLength(sourceFileContentLength);
+    state.SetContentLength(sourceFileContentLength);
 
     if (streams > 1) {
         return RunCurlWithStreams(req, state, streams, rec);
