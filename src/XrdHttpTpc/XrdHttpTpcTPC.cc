@@ -500,8 +500,11 @@ int TPCHandler::GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_
     state.SetupHeadersForHEAD(req);
     int result;
     //In case we cannot get the file HEAD request, we return the error to the client
-    if ((result = PerformHEADRequest(curl, req, state, success, rec)) || !success) {
-        return result;
+    //Except for single-stream download with no expected digest
+    //which is possible without known ContentLength
+    bool shouldReturnErrorToClient = (rec.streams > 1) || !req.mReprDigest.empty();
+    if ((result = PerformHEADRequest(curl, req, state, success, rec, shouldReturnErrorToClient)) || !success) {
+        return shouldReturnErrorToClient ? result : 0;
     }
     contentLength = state.GetContentLength();
     reprDigest = state.GetReprDigest();
@@ -1001,14 +1004,14 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         bool success = false;
         bool mismatchDigests = false;
         std::map<std::string,std::string> sourceFileReprDigest;
-        GetRemoteFileInfoTPCPull(curl, req, sourceFileContentLength, sourceFileReprDigest, success, rec);
+        int fileinfo_result = GetRemoteFileInfoTPCPull(curl, req, sourceFileContentLength, sourceFileReprDigest, success, rec);
         if(success) {
             //In the case we cannot get the information from the source server (offline or other error)
             //we just don't add the file information to the opaque of the local file to open
             full_url += "&oss.asize=" + std::to_string(sourceFileContentLength);
             mismatchDigests = mismatchReprDigest(sourceFileReprDigest,req,rec);
         }
-        if(!success || mismatchDigests) {
+        if((!success || mismatchDigests) && fileinfo_result) {
             // We could not get remote file information, or the checksum provided by the client
             // does not match the source file one, we already sent the error to the client so we
             // just exit here
