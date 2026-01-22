@@ -393,7 +393,7 @@ install -m 644 systemd/frm_xfrd@.service %{buildroot}%{_unitdir}
 install -m 644 systemd/frm_purged@.service %{buildroot}%{_unitdir}
 
 mkdir -p %{buildroot}%{_sysusersdir}
-install -m 644 packaging/rhel/%{name}-sysusers.conf %{buildroot}%{_sysusersdir}/%{name}.conf
+install -m 644 systemd/%{name}-sysusers.conf %{buildroot}%{_sysusersdir}/%{name}.conf
 
 # Server config
 mkdir -p %{buildroot}%{_sysconfdir}/%{name}
