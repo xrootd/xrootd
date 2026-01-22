@@ -99,26 +99,26 @@ override_dh_auto_install:
 
 	# Server config
 	mkdir -p debian/tmp/etc/xrootd
-	install -m 644 -p packaging/common/xrootd-clustered.cfg \
+	install -m 644 -p config/xrootd-clustered.cfg \
 	    debian/tmp/etc/xrootd/xrootd-clustered.cfg
-	install -m 644 -p packaging/common/xrootd-standalone.cfg \
+	install -m 644 -p config/xrootd-standalone.cfg \
 	    debian/tmp/etc/xrootd/xrootd-standalone.cfg
-	install -m 644 -p packaging/common/xrootd-filecache-clustered.cfg \
+	install -m 644 -p config/xrootd-filecache-clustered.cfg \
 	    debian/tmp/etc/xrootd/xrootd-filecache-clustered.cfg
-	install -m 644 -p packaging/common/xrootd-filecache-standalone.cfg \
+	install -m 644 -p config/xrootd-filecache-standalone.cfg \
 	    debian/tmp/etc/xrootd/xrootd-filecache-standalone.cfg
-	sed 's!/usr/lib64/!!' packaging/common/xrootd-http.cfg > \
+	sed 's!/usr/lib64/!!' config/xrootd-http.cfg > \
 	    debian/tmp/etc/xrootd/xrootd-http.cfg
 
 	# Client config
 	mkdir -p debian/tmp/etc/xrootd/client.plugins.d
-	install -m 644 -p packaging/common/client.conf \
+	install -m 644 -p config/client.conf \
 	    debian/tmp/etc/xrootd/client.conf
-	sed 's!/usr/lib/!!' packaging/common/client-plugin.conf.example > \
+	sed 's!/usr/lib/!!' config/client-plugin.conf.example > \
 	    debian/tmp/etc/xrootd/client.plugins.d/client-plugin.conf.example
-	sed -e 's!/usr/lib64/!!' -e 's!-5!!' packaging/common/recorder.conf > \
+	sed -e 's!/usr/lib64/!!' -e 's!-5!!' config/recorder.conf > \
 	    debian/tmp/etc/xrootd/client.plugins.d/recorder.conf
-	sed 's!/usr/lib64/!!' packaging/common/http.client.conf.example > \
+	sed 's!/usr/lib64/!!' config/http.client.conf.example > \
 	    debian/tmp/etc/xrootd/client.plugins.d/xrdcl-http-plugin.conf
 
 	chmod 644 debian/tmp/usr/share/xrootd/utils/XrdCmsNotify.pm
@@ -136,5 +136,5 @@ override_dh_auto_install:
 	mkdir -p debian/tmp/var/spool/xrootd
 
 	mkdir -p debian/tmp/etc/logrotate.d
-	install -m 644 -p packaging/common/xrootd.logrotate \
+	install -m 644 -p config/xrootd.logrotate \
 	    debian/tmp/etc/logrotate.d/xrootd

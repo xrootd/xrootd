@@ -340,7 +340,7 @@ export CXX=clang++
 
 %cmake3_build
 
-make -C packaging/common -f /usr/share/selinux/devel/Makefile
+make -C config -f /usr/share/selinux/devel/Makefile
 
 %if %{with docs}
 doxygen Doxyfile
@@ -397,26 +397,26 @@ install -m 644 systemd/%{name}-sysusers.conf %{buildroot}%{_sysusersdir}/%{name}
 
 # Server config
 mkdir -p %{buildroot}%{_sysconfdir}/%{name}
-install -m 644 -p packaging/common/%{name}-clustered.cfg \
+install -m 644 -p config/%{name}-clustered.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-clustered.cfg
-install -m 644 -p packaging/common/%{name}-standalone.cfg \
+install -m 644 -p config/%{name}-standalone.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-standalone.cfg
-install -m 644 -p packaging/common/%{name}-filecache-clustered.cfg \
+install -m 644 -p config/%{name}-filecache-clustered.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-filecache-clustered.cfg
-install -m 644 -p packaging/common/%{name}-filecache-standalone.cfg \
+install -m 644 -p config/%{name}-filecache-standalone.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-filecache-standalone.cfg
-sed 's!/usr/lib64/!!' packaging/common/%{name}-http.cfg > \
+sed 's!/usr/lib64/!!' config/%{name}-http.cfg > \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-http.cfg
 
 # Client config
 mkdir -p %{buildroot}%{_sysconfdir}/%{name}/client.plugins.d
-install -m 644 -p packaging/common/client.conf \
+install -m 644 -p config/client.conf \
 	%{buildroot}%{_sysconfdir}/%{name}/client.conf
-sed 's!/usr/lib/!!' packaging/common/client-plugin.conf.example > \
+sed 's!/usr/lib/!!' config/client-plugin.conf.example > \
 	%{buildroot}%{_sysconfdir}/%{name}/client.plugins.d/client-plugin.conf.example
-sed -e 's!/usr/lib64/!!' -e 's!-5!!' packaging/common/recorder.conf > \
+sed -e 's!/usr/lib64/!!' -e 's!-5!!' config/recorder.conf > \
 	%{buildroot}%{_sysconfdir}/%{name}/client.plugins.d/recorder.conf
-sed 's!/usr/lib64/!!' packaging/common/http.client.conf.example > \
+sed 's!/usr/lib64/!!' config/http.client.conf.example > \
 	%{buildroot}%{_sysconfdir}/%{name}/client.plugins.d/xrdcl-http-plugin.conf
 
 chmod 644 %{buildroot}%{_datadir}/%{name}/utils/XrdCmsNotify.pm
@@ -434,11 +434,11 @@ mkdir -p %{buildroot}%{_localstatedir}/log/%{name}
 mkdir -p %{buildroot}%{_localstatedir}/spool/%{name}
 
 mkdir -p %{buildroot}%{_sysconfdir}/logrotate.d
-install -m 644 -p packaging/common/%{name}.logrotate \
+install -m 644 -p config/%{name}.logrotate \
 	%{buildroot}%{_sysconfdir}/logrotate.d/%{name}
 
 mkdir -p %{buildroot}%{_datadir}/selinux/packages/%{name}
-install -m 644 -p packaging/common/%{name}.pp \
+install -m 644 -p config/%{name}.pp \
 	%{buildroot}%{_datadir}/selinux/packages/%{name}
 
 %if %{with docs}
