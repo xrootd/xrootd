@@ -69,7 +69,7 @@ override_dh_auto_install:
 	dh_auto_install
 	python3 -m pip install --target debian/tmp/usr/lib/python3/dist-packages \
 		--no-deps --no-build-isolation --disable-pip-version-check --verbose \
-		--ignore-installed --use-pep517 obj-$(DEB_HOST_MULTIARCH)/bindings/python
+		--ignore-installed --use-pep517 obj-$(DEB_HOST_MULTIARCH)/python
 	ln -sf libxrootd-private-dev.install.ec-$(EC) debian/libxrootd-private-dev.install
 
 	rm -f debian/tmp/usr/bin/xrdshmap
@@ -85,8 +85,8 @@ override_dh_auto_install:
 	[ "$(BUILD_DOC)" = "FALSE" ] || ( \
 	LD_LIBRARY_PATH=$${LD_LIBRARY_PATH}:$(CURDIR)/debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH) \
 	PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=$(CURDIR)/debian/tmp/usr/lib/python3/dist-packages \
-	make -C bindings/python/docs html && \
-	mv bindings/python/docs/build/html bindings/python/docs/build/python )
+	make -C python/docs html && \
+	mv python/docs/build/html python/docs/build/python )
 
 	# Service unit files
 	mkdir -p debian/tmp/lib/systemd/system

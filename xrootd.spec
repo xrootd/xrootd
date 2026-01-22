@@ -374,13 +374,13 @@ rm -f %{buildroot}%{python3_sitearch}/xrootd-*.*-info/RECORD
 
 %{__python3} -m pip install \
 	--no-deps --ignore-installed --disable-pip-version-check --verbose \
-	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/bindings/python
+	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/python
 
 %if %{with docs}
 LD_LIBRARY_PATH=%{buildroot}%{_libdir} \
 PYTHONPATH=%{buildroot}%{python3_sitearch} \
 PYTHONDONTWRITEBYTECODE=1 \
-make -C bindings/python/docs html SPHINXBUILD=sphinx-build-3
+make -C python/docs html SPHINXBUILD=sphinx-build-3
 %endif
 
 # Service unit files
@@ -445,7 +445,7 @@ install -m 644 -p config/%{name}.pp \
 	mkdir -p %{buildroot}%{_pkgdocdir}
 	cp -pr doxydoc/html %{buildroot}%{_pkgdocdir}
 
-	cp -pr bindings/python/docs/build/html %{buildroot}%{_pkgdocdir}/python
+	cp -pr python/docs/build/html %{buildroot}%{_pkgdocdir}/python
 	rm %{buildroot}%{_pkgdocdir}/python/.buildinfo
 %endif
 

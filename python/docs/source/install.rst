@@ -13,9 +13,9 @@ parts, even if the newer Python bindings should be usable with older versions of
 XRootD 5.x. Suppose that XRootD is installed already into ``/usr``. Then, one can
 build and install the Python bindings as shown below::
 
-  xrootd $ cd bindings/python
+  xrootd $ cd python
   python $ python3 -m pip install --target install/ .
-  Processing xrootd/bindings/python
+  Processing xrootd/python
     Installing build dependencies ... done
     Getting requirements to build wheel ... done
     Installing backend dependencies ... done
@@ -83,7 +83,7 @@ If you would like to install it for your own user, then use
 If XRootD is not already installed into the system, then you will want to
 install both the client libraries and the Python bindings together using ``pip``.
 This is possible by using the ``setup.py`` at the top level of the project, rather
-than the one in the ``bindings/python`` subdirectory::
+than the one in the ``python`` subdirectory::
 
   xrootd $ python3 -m pip install --target install/ .
   Processing xrootd

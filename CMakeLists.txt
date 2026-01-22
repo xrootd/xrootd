@@ -51,7 +51,7 @@ include_directories(BEFORE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
 include(CTest)
 
 add_subdirectory(src)
-add_subdirectory(bindings)
+add_subdirectory(python)
 add_subdirectory(tests)
 
 add_subdirectory(docs)

@@ -8,13 +8,13 @@ on:
     paths:
       - setup.py
       - pyproject.toml
-      - 'bindings/**'
+      - 'python/**'
     tags-ignore:
   pull_request:
     paths:
       - setup.py
       - pyproject.toml
-      - 'bindings/**'
+      - 'python/**'
   workflow_dispatch:
 
 concurrency:

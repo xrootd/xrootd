@@ -276,7 +276,7 @@ jobs:
       run: |
         sudo python3 -m pip install \
           --target /usr/lib/python3/dist-packages \
-          --use-pep517 --verbose build/bindings/python
+          --use-pep517 --verbose build/python
 
     - name: Run post-install tests
       run: |
