@@ -1,28 +1,62 @@
 [Unit]
-Description=XRootD xrootd daemon instance %I
+Description=XRootD server daemon (%I)
 Documentation=man:xrootd(8)
 Documentation=https://xrootd.org/docs.html
-Requires=network-online.target
-After=network-online.target
+After=network-online.target local-fs.target remote-fs.target time-sync.target
+Wants=network-online.target local-fs.target remote-fs.target time-sync.target
 
 [Service]
-PrivateDevices=true
-ProtectHostname=true
-ProtectClock=true
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectKernelLogs=true
-ProtectControlGroups=true
-RestrictRealtime=true
-ExecStart=/usr/bin/xrootd -l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-%i.cfg -k fifo -s /run/xrootd/xrootd-%i.pid -n %i
+Type=simple
 User=xrootd
 Group=xrootd
-Type=simple
+Environment="TZ=:/etc/localtime"
+EnvironmentFile=-/etc/default/xrootd
+EnvironmentFile=-/etc/sysconfig/xrootd
+EnvironmentFile=-/etc/xrootd/environment
+EnvironmentFile=-/etc/xrootd/%i/environment
+ExecStart=/usr/bin/xrootd -k fifo     \
+	-a /run/xrootd -w /run/xrootd \
+	-c /etc/xrootd/xrootd-%i.cfg  \
+	-l /var/log/xrootd/xrootd.log \
+	-s /run/xrootd/%i/xrootd.pid -n %i
+KillMode=control-group
+LimitNOFILE=524288
+PIDFile=/run/xrootd/%i/xrootd.pid
 Restart=on-abnormal
 RestartSec=10
-KillMode=control-group
-LimitNOFILE=65536
-WorkingDirectory=/var/spool/xrootd
+CacheDirectory=xrootd
+CacheDirectoryMode=0700
+ConfigurationDirectory=xrootd
+ConfigurationDirectoryMode=0755
+LogsDirectory=xrootd
+LogsDirectoryMode=0750
+RuntimeDirectory=xrootd
+RuntimeDirectoryMode=0700
+StateDirectory=xrootd
+StateDirectoryMode=0700
+UMask=0027
+
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+LockPersonality=true
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProtectSystem=full
+RemoveIPC=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
 
 [Install]
-RequiredBy=multi-user.target
+WantedBy=multi-user.target
