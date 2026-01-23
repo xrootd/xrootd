@@ -19,7 +19,9 @@ include( XrdHeaders )
 add_library(XrdUtils SHARED)
 
 set_target_properties(XrdUtils
-  PROPERTIES BUILD_RPATH $ORIGIN VERSION 3.0.0 SOVERSION 3
+  PROPERTIES BUILD_RPATH $ORIGIN
+  SOVERSION ${XRootD_VERSION_MAJOR}
+  VERSION ${XRootD_LIBVERSION}
 )
 
 target_link_libraries(XrdUtils
@@ -71,7 +73,9 @@ if( NOT XRDCL_ONLY )
   add_library(XrdServer SHARED)
 
   set_target_properties(XrdServer
-    PROPERTIES VERSION 3.0.0 SOVERSION 3
+    PROPERTIES
+      SOVERSION ${XRootD_VERSION_MAJOR}
+      VERSION ${XRootD_LIBVERSION}
   )
 
   target_link_libraries(XrdServer

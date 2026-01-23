@@ -21,7 +21,11 @@ add_library(
 )
 
 target_link_libraries(XrdPosix PRIVATE XrdCl XrdUtils ${CMAKE_THREAD_LIBS_INIT})
-set_target_properties(XrdPosix PROPERTIES VERSION 3.0.0 SOVERSION 3)
+set_target_properties(XrdPosix
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 add_library(XrdPosixPreload SHARED
   XrdPosix.cc           XrdPosix.hh
@@ -33,7 +37,11 @@ add_library(XrdPosixPreload SHARED
 )
 
 target_link_libraries(XrdPosixPreload PRIVATE XrdPosix ${CMAKE_DL_LIBS})
-set_target_properties(XrdPosixPreload PROPERTIES VERSION 2.0.0 SOVERSION 2)
+set_target_properties(XrdPosixPreload
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 install(
   TARGETS

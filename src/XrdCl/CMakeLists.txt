@@ -98,7 +98,10 @@ if(BUILD_XRDEC)
 endif()
 
 set_target_properties(XrdCl
-  PROPERTIES VERSION 3.0.0 SOVERSION 3)
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 install(
   FILES

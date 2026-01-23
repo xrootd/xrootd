@@ -29,7 +29,10 @@ target_include_directories(XrdCephPosix
   PUBLIC ${RADOS_INCLUDE_DIR} $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
 set_target_properties(XrdCephPosix
-  PROPERTIES VERSION 0.0.1 SOVERSION 0)
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 set(LIB_XRD_CEPH XrdCeph-${PLUGIN_VERSION})
 

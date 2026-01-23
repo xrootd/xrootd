@@ -7,7 +7,10 @@ add_library(XrdAppUtils SHARED
 target_link_libraries(XrdAppUtils PRIVATE XrdUtils)
 
 set_target_properties(XrdAppUtils
-  PROPERTIES VERSION 2.0.0 SOVERSION 2)
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 set(XrdClProxyPlugin XrdClProxyPlugin-${PLUGIN_VERSION})
 

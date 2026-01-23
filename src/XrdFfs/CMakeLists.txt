@@ -8,7 +8,10 @@ add_library(XrdFfs SHARED
 )
 
 set_target_properties(XrdFfs
-  PROPERTIES VERSION 3.0.0 SOVERSION 3)
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 target_link_libraries(XrdFfs
   PRIVATE

@@ -31,7 +31,11 @@ add_library(XrdSsiLib SHARED
 )
 
 target_link_libraries(XrdSsiLib PRIVATE XrdCl XrdUtils)
-set_target_properties(XrdSsiLib PROPERTIES VERSION 2.0.0 SOVERSION 2)
+set_target_properties(XrdSsiLib
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 add_library(XrdSsiShMap SHARED
   XrdSsiShMam.cc   XrdSsiShMam.hh
@@ -40,7 +44,11 @@ add_library(XrdSsiShMap SHARED
 )
 
 target_link_libraries(XrdSsiShMap PRIVATE XrdUtils ZLIB::ZLIB)
-set_target_properties(XrdSsiShMap PROPERTIES VERSION 2.0.0 SOVERSION 2)
+set_target_properties(XrdSsiShMap
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 add_library(${XrdSsi} MODULE
   XrdSsiDir.cc       XrdSsiDir.hh

@@ -23,7 +23,10 @@ add_library(XrdHttpUtils SHARED
 )
 
 set_target_properties(XrdHttpUtils
-  PROPERTIES VERSION 2.0.0 SOVERSION 2)
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 target_link_libraries(XrdHttpUtils
   PRIVATE

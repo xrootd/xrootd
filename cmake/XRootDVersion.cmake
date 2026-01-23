@@ -67,8 +67,17 @@ endif()
 string(REGEX MATCH "[0-9]+[.]*[0-9]*[.]*[0-9]*[.]*[0-9]*(-rc)?[0-9].*"
   XRootD_VERSION ${XRootD_VERSION_STRING})
 
+string(REGEX MATCH "[0-9]+[.]*[0-9]*[.]*[0-9]"
+  XRootD_LIBVERSION ${XRootD_VERSION_STRING})
+
 set(PLUGIN_VERSION ${XRootD_VERSION_MAJOR} CACHE STRING "XRootD Plugin Version")
 
+set(PROJECT_VERSION "${XRootD_VERSION}")
+set(PROJECT_VERSION_MAJOR "${XRootD_VERSION_MAJOR}")
+set(PROJECT_VERSION_MINOR "${XRootD_VERSION_MINOR}")
+set(PROJECT_VERSION_PATCH "${XRootD_VERSION_PATCH}")
+
+message(DEBUG "XRootD_VERSION        = '${XRootD_VERSION}'")
 message(DEBUG "XRootD_VERSION_STRING = '${XRootD_VERSION_STRING}'")
 message(DEBUG "XRootD_VERSION_NUMBER = '${XRootD_VERSION_NUMBER}'")
 message(DEBUG "XRootD_VERSION_MAJOR  = '${XRootD_VERSION_MAJOR}'")
@@ -76,4 +85,3 @@ message(DEBUG "XRootD_VERSION_MINOR  = '${XRootD_VERSION_MINOR}'")
 message(DEBUG "XRootD_VERSION_PATCH  = '${XRootD_VERSION_PATCH}'")
 message(DEBUG "XRootD_VERSION_TWEAK  = '${XRootD_VERSION_TWEAK}'")
 message(DEBUG "XRootD_VERSION_SUFFIX = '${XRootD_VERSION_SUFFIX}'")
-message(DEBUG "XRootD_VERSION        = '${XRootD_VERSION}'")

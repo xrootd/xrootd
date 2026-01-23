@@ -6,7 +6,11 @@ add_library(XrdXml SHARED
   XrdXmlReader.cc    XrdXmlReader.hh
 )
 
-set_target_properties(XrdXml PROPERTIES VERSION 3.0.0 SOVERSION 3)
+set_target_properties(XrdXml
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 target_link_libraries(XrdXml
   PUBLIC

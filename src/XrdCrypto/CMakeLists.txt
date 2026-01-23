@@ -23,7 +23,11 @@ add_library(XrdCryptoLite SHARED
 )
 
 target_link_libraries(XrdCryptoLite PRIVATE XrdUtils OpenSSL::Crypto)
-set_target_properties(XrdCryptoLite PROPERTIES VERSION 2.0.0 SOVERSION 2)
+set_target_properties(XrdCryptoLite
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 add_library(XrdCrypto SHARED
   XrdCryptoBasic.cc         XrdCryptoBasic.hh
@@ -34,7 +38,11 @@ add_library(XrdCrypto SHARED
 )
 
 target_link_libraries(XrdCrypto PRIVATE XrdUtils ${CMAKE_DL_LIBS})
-set_target_properties(XrdCrypto PROPERTIES VERSION 2.0.0 SOVERSION 2)
+set_target_properties(XrdCrypto
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 set(XrdCryptossl XrdCryptossl-${PLUGIN_VERSION})
 

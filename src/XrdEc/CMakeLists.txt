@@ -17,7 +17,10 @@ target_link_libraries(XrdEc PRIVATE XrdCl XrdUtils ${ISAL_LIBRARIES})
 target_include_directories(XrdEc PRIVATE ${ISAL_INCLUDE_DIRS})
 
 set_target_properties(XrdEc
-  PROPERTIES VERSION 1.0.0 SOVERSION 1)
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
 
 install(
   FILES
