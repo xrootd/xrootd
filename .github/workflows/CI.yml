@@ -5,12 +5,6 @@ permissions:
 
 on:
   push:
-    branches-ignore:
-      - master
-    paths:
-      - .github/workflows/CI.yml
-      - 'src/**'
-      - 'tests/**'
     tags-ignore:
   pull_request:
   workflow_dispatch:
@@ -52,7 +46,6 @@ jobs:
           g++ \
           git \
           gtest-dev \
-          isa-l-dev \
           json-c-dev \
           krb5 \
           krb5-dev \
@@ -166,7 +159,7 @@ jobs:
         tests/post-install.sh
         tests/check-headers.sh
 
-  alma10beta:
+  alma10:
     name: Alma 10
     runs-on: ubuntu-latest
     container: almalinux:10
@@ -285,7 +278,7 @@ jobs:
 
   macos:
     name: macOS
-    runs-on: macos-15
+    runs-on: macos-26
 
     env:
       CC: clang
@@ -306,7 +299,7 @@ jobs:
         fetch-depth: 0
 
     - name: Build and Test with CTest
-      run: ctest -VV --repeat until-pass:3 -S test.cmake
+      run: ctest -VV -S test.cmake
 
     - name: Install with CMake
       run: sudo cmake --install build
