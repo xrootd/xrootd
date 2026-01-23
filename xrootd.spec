@@ -3,9 +3,9 @@
 %bcond_with    clang
 %bcond_with    docs
 %bcond_with    git
+%bcond_with    xrdec
 
 %bcond_without tests
-%bcond_without xrdec
 
 Name:		xrootd
 Epoch:		1

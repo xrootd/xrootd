@@ -16,7 +16,7 @@ option( XRDCL_ONLY       "Build only the client and necessary dependencies"     
 option( XRDCL_LIB_ONLY   "Build only the client libraries and necessary dependencies"     FALSE )
 option( PYPI_BUILD       "The project is being built for PyPI release"                    FALSE )
 option( ENABLE_VOMS      "Enable VOMS plug-in if possible."                               TRUE )
-option( ENABLE_XRDEC     "Enable erasure coding component."                               TRUE )
+option( ENABLE_XRDEC     "Enable erasure coding component (deprecated)."                  FALSE )
 option( ENABLE_ASAN      "Enable adress sanitizer."                                       FALSE )
 option( ENABLE_TSAN      "Enable thread sanitizer."                                       FALSE )
 option( ENABLE_XRDCLHTTP "Enable xrdcl-http plugin."                                      TRUE )

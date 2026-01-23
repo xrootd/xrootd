@@ -165,7 +165,7 @@ the build:
 | `ENABLE_XRDCLHTTP` |  TRUE   | Enable xrdcl-http plugin
 | `ENABLE_XRDCL`     |  TRUE   | Enable XRootD client
 | `ENABLE_CEPH`      |  FALSE  | Enable Ceph plugin (XrdCeph)
-| `ENABLE_XRDEC`     |  FALSE  | Enable support for erasure coding
+| `ENABLE_XRDEC`     |  FALSE  | Enable support for erasure coding (DEPRECATED)
 | `ENABLE_ASAN`      |  FALSE  | Build with adress sanitizer enabled
 | `ENABLE_TSAN`      |  FALSE  | Build with thread sanitizer enabled
 | `ENABLE_TESTS`     |  FALSE  | Enable unit tests
