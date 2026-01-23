@@ -391,8 +391,6 @@ install -m 644 systemd/xrdhttp@.socket %{buildroot}%{_unitdir}
 install -m 644 systemd/cmsd@.service %{buildroot}%{_unitdir}
 install -m 644 systemd/frm_xfrd@.service %{buildroot}%{_unitdir}
 install -m 644 systemd/frm_purged@.service %{buildroot}%{_unitdir}
-mkdir -p %{buildroot}%{_tmpfilesdir}
-install -m 644 packaging/rhel/xrootd.tmpfiles %{buildroot}%{_tmpfilesdir}/%{name}.conf
 
 mkdir -p %{buildroot}%{_sysusersdir}
 install -m 644 packaging/rhel/%{name}-sysusers.conf %{buildroot}%{_sysusersdir}/%{name}.conf
@@ -461,7 +459,6 @@ install -m 644 -p packaging/common/%{name}.pp \
 %sysusers_create_compat %(tar -z -x -f %{SOURCE0} --no-anchored xrootd-sysusers.conf -O > /tmp/xrootd-sysusers.conf && echo /tmp/xrootd-sysusers.conf)
 
 %post server
-%tmpfiles_create %{_tmpfilesdir}/%{name}.conf
 
 if [ $1 -eq 1 ] ; then
 	systemctl daemon-reload >/dev/null 2>&1 || :
@@ -525,7 +522,6 @@ fi
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/utils
 %{_unitdir}/*
-%{_tmpfilesdir}/%{name}.conf
 %{_sysusersdir}/%{name}.conf
 %config(noreplace) %{_sysconfdir}/logrotate.d/%{name}
 %dir %{_sysconfdir}/%{name}/config.d

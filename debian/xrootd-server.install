@@ -23,7 +23,6 @@
 /usr/share/man/man8/xrootd.8
 /usr/share/xrootd/utils
 /lib/systemd/system/*
-/usr/lib/tmpfiles.d/xrootd.conf
 /etc/logrotate.d/xrootd
 /etc/xrootd/config.d
 /etc/xrootd/*.cfg

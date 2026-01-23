@@ -96,8 +96,6 @@ override_dh_auto_install:
 	install -m 644 systemd/cmsd@.service debian/tmp/lib/systemd/system
 	install -m 644 systemd/frm_xfrd@.service debian/tmp/lib/systemd/system
 	install -m 644 systemd/frm_purged@.service debian/tmp/lib/systemd/system
-	mkdir -p debian/tmp/usr/lib/tmpfiles.d
-	install -m 644 packaging/rhel/xrootd.tmpfiles debian/tmp/usr/lib/tmpfiles.d/xrootd.conf
 
 	# Server config
 	mkdir -p debian/tmp/etc/xrootd
