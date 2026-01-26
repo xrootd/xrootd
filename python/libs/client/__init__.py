@@ -11,5 +11,7 @@ from .env import EnvPutInt as EnvPutInt
 from .env import EnvGetInt as EnvGetInt
 from ._version import __version__ as __version__
 from .env import EnvGetDefault as EnvGetDefault
+from .env import SetLogLevel as SetLogLevel
+from .env import SetLogMask as SetLogMask
 
 import XRootD.client.finalize

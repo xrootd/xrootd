@@ -138,6 +138,31 @@ namespace PyXRootD
     return Py_BuildValue( "s", verstr.c_str() );
   }
 
+  //----------------------------------------------------------------------------
+  //! Sets the XRootD client log level to the given value.
+  //----------------------------------------------------------------------------
+  PyObject* SetLogLevel_cpp(PyObject *self, PyObject *args)
+  {
+    char *value = nullptr;
+
+    if(PyArg_ParseTuple(args, "s", &value))
+      XrdCl::DefaultEnv::SetLogLevel(value);
+
+    Py_RETURN_NONE;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Sets the XRootD client log mask of the given level to the given value.
+  //----------------------------------------------------------------------------
+  PyObject* SetLogMask_cpp(PyObject *self, PyObject *args)
+  {
+    char *level = nullptr, *value = nullptr;
+
+    if(PyArg_ParseTuple(args, "ss", &level, &value))
+      XrdCl::DefaultEnv::SetLogMask(level, value);
+
+    Py_RETURN_NONE;
+  }
 }
 
 #endif /* PYENV_HH_ */

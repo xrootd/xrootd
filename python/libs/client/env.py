@@ -56,3 +56,11 @@ def EnvGetDefault( key ):
          If key does not exist in the environment returns None.
      """
      return client.EnvGetDefault_cpp( key )
+
+def SetLogLevel( value ):
+     """ Set the client log level. """
+     return client.SetLogLevel_cpp( value )
+
+def SetLogMask( level, value ):
+     """ Set the log mask for a given client log level. """
+     return client.SetLogMask_cpp( level, value )

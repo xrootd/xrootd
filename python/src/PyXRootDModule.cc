@@ -51,6 +51,8 @@ namespace PyXRootD
       { "EnvGetInt_cpp",        EnvGetInt_cpp,        METH_VARARGS, "Gets an int from XrdCl environment." },
       { "XrdVersion_cpp",       XrdVersion_cpp,       METH_VARARGS, "Get the XRootD client version." },
       { "EnvGetDefault_cpp",    EnvGetDefault_cpp,    METH_VARARGS, "Get default values from XrdCl environment" },
+      { "SetLogLevel_cpp",      SetLogLevel_cpp,      METH_VARARGS, "Set XrdCl log level" },
+      { "SetLogMask_cpp",       SetLogMask_cpp,       METH_VARARGS, "Set XrdCl log mask" },
       { NULL, NULL, 0, NULL }
     };
 
