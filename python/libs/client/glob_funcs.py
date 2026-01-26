@@ -69,7 +69,7 @@ def extract_url_params(pathname):
     return pathname, ''
 
 
-def iglob(pathname, raise_error=False):
+def iglob(pathname, raise_error=True):
     """
     Generates paths based on a wild-carded path, potentially via xrootd.
 
@@ -143,7 +143,7 @@ def xrootd_iglob(pathname, url_params, raise_error):
                 yield os.path.join(dirname, filename)
 
 
-def glob(pathname, raise_error=False):
+def glob(pathname, raise_error=True):
     """
     Creates a list of paths that match pathname.
 
