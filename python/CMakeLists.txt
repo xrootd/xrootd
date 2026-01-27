@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18...4.1 FATAL_ERROR)
 
 project(PyXRootD LANGUAGES CXX)
 
-find_package(Python REQUIRED COMPONENTS Development.Module)
+find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR OR PYPI_BUILD)
   add_subdirectory(src)
