@@ -24,12 +24,12 @@ def tmptree(tmpdir):
 
 def test_glob_local(tmptree):
     normal_glob_result = norm_glob.glob(str(tmptree / "not-there"))
-    assert glob.glob(str(tmptree / "not-there")) == normal_glob_result
-    assert len(glob.glob(str(tmptree / "not-there"))) == 0
-    assert len(glob.glob(str(tmptree / "not-there*"))) == 0
-    assert len(glob.glob(str(tmptree / "sub*"))) == 2
-    assert len(glob.glob(str(tmptree / "subdir1" / "*txt"))) == 3
-    assert len(glob.glob(str(tmptree / "subdir*" / "*txt"))) == 3
+    assert glob.glob(str(tmptree / "not-there"), raise_error=False) == normal_glob_result
+    assert len(glob.glob(str(tmptree / "not-there"), raise_error=False)) == 0
+    assert len(glob.glob(str(tmptree / "not-there*"), raise_error=False)) == 0
+    assert len(glob.glob(str(tmptree / "sub*"), raise_error=False)) == 2
+    assert len(glob.glob(str(tmptree / "subdir1" / "*txt"), raise_error=False)) == 3
+    assert len(glob.glob(str(tmptree / "subdir*" / "*txt"), raise_error=False)) == 3
 
     with pytest.raises(RuntimeError) as excinfo:
         glob.glob(str(tmptree / "not-there"), raise_error=True)
