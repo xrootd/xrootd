@@ -18,8 +18,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <tuple>
-
-#include "fcntl.h"
+#include <cstdlib>
 
 #include "INIReader.h"
 #include "picojson.h"
@@ -1054,6 +1053,28 @@ private:
                 scitoken_config_set_str("tls.ca_file", params->cafile.c_str(), nullptr);
 #else
                 m_log.Log(LogMask::Warning, "Config", "tls.ca_file is set but the platform's libscitokens.so does not support setting config parameters");
+#endif
+            }
+        }
+
+        // set cache file location
+        if (const char* xdg_cache_home = getenv("XDG_CACHE_HOME")) {
+            m_log.Log(LogMask::Info, "Config", "Scitokens cache file location env var is set to : ", xdg_cache_home);
+        } else {
+            // construct xdg_cache_home to be <adminpath>/.cache
+            const char* adminpath_env = getenv("XRDADMINPATH");
+            if (!adminpath_env || !*adminpath_env) {
+                m_log.Log(LogMask::Warning, "Config", "XRDADMINPATH is not defined; leaving cache location unset");
+            } else {
+                std::string adminpath = adminpath_env;
+                while (adminpath.size() > 1 && adminpath.back() == '/') adminpath.pop_back();
+                std::string xdg_cache_home_str = adminpath + "/.cache";
+                m_log.Log(LogMask::Info, "Config", "Scitokens cache file location env var is not set; using : ", xdg_cache_home_str.c_str());
+
+#ifdef HAVE_SCITOKEN_CONFIG_SET_STR
+                scitoken_config_set_str("keycache.cache_home", xdg_cache_home_str.c_str(), nullptr);
+#else
+                setenv("XDG_CACHE_HOME", xdg_cache_home_str.c_str(), 1);
 #endif
             }
         }
