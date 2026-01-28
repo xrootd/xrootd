@@ -55,21 +55,26 @@ Factory::GetHeaderTimeoutWithDefault(time_t oper_timeout)
 
 bool Factory::m_initialized = false;
 std::shared_ptr<XrdClHttp::HandlerQueue> Factory::m_queue;
-std::vector<std::unique_ptr<XrdClHttp::CurlWorker>> Factory::m_workers;
 XrdCl::Log *Factory::m_log = nullptr;
 std::once_flag Factory::m_init_once;
 std::string Factory::m_stats_location;
 std::chrono::system_clock::time_point Factory::m_start{};
 
 std::mutex Factory::m_shutdown_lock;
+std::thread Factory::m_monitor_tid;
 std::condition_variable Factory::m_shutdown_requested_cv;
 bool Factory::m_shutdown_requested = false;
-std::condition_variable Factory::m_shutdown_complete_cv;
-bool Factory::m_shutdown_complete = true; // Starts in "true" state as the thread hasn't started
+
+// shutdown trigger, must be last of the static members
+Factory::shutdown_s Factory::m_shutdowns;
 
 void
 Factory::Initialize()
 {
+    std::unique_lock lock(m_shutdown_lock);
+    if (m_shutdown_requested) {
+      return;
+    }
     std::call_once(m_init_once, [&] {
         m_log = XrdCl::DefaultEnv::GetLog();
         if (!m_log) {
@@ -190,17 +195,14 @@ Factory::Initialize()
 
         // Startup curl workers after we've set the configs to avoid race conditions
         for (unsigned idx=0; idx<m_poll_threads; idx++) {
-            m_workers.emplace_back(new XrdClHttp::CurlWorker(m_queue, cache, m_log));
-            std::thread t(XrdClHttp::CurlWorker::RunStatic, m_workers.back().get());
-            t.detach();
+            auto wk = std::make_unique<XrdClHttp::CurlWorker>(m_queue, cache, m_log);
+            auto wkp = wk.get();
+            std::thread t(XrdClHttp::CurlWorker::RunStatic, wkp);
+            wkp->Start(std::move(wk), std::move(t));
         }
 
-        {
-            std::unique_lock lock(m_shutdown_lock);
-            m_shutdown_complete = false;
-        }
         std::thread t([this]{Monitor();});
-        t.detach();
+        m_monitor_tid = std::move(t);
 
         m_initialized = true;
     });
@@ -263,9 +265,6 @@ Factory::Monitor()
             }
         }
     }
-    std::unique_lock lock(m_shutdown_lock);
-    m_shutdown_complete = true;
-    m_shutdown_complete_cv.notify_one();
 }
 
 namespace {
@@ -321,11 +320,14 @@ Factory::SetupX509() {
 void
 Factory::Shutdown()
 {
-    std::unique_lock lock(m_shutdown_lock);
-    m_shutdown_requested = true;
-    m_shutdown_requested_cv.notify_one();
-
-    m_shutdown_complete_cv.wait(lock, []{return m_shutdown_complete;});
+    {
+        std::unique_lock lock(m_shutdown_lock);
+        m_shutdown_requested = true;
+        m_shutdown_requested_cv.notify_one();
+    }
+    if (m_monitor_tid.joinable()) {
+      m_monitor_tid.join();
+    }
 }
 
 void
