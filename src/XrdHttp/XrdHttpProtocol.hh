@@ -33,11 +33,6 @@
  * 
  */
 
-
-#include <cstdlib>
-#include <unistd.h>
-#include <sys/types.h>
-
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -50,13 +45,16 @@
 #include "XrdHttpReadRangeHandler.hh"
 #include "XrdNet/XrdNetPMark.hh"
 #include "XrdHttpCors/XrdHttpCors.hh"
+#include "XrdHttpReq.hh"
 
+#include <chrono>
+#include <cstdlib>
 #include <openssl/ssl.h>
-
+#include <sys/types.h>
+#include <unistd.h>
 #include <unordered_map>
 #include <vector>
 
-#include "XrdHttpReq.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -71,6 +69,7 @@ class XrdOucTokenizer;
 class XrdOucTrace;
 class XrdBuffer;
 class XrdLink;
+class XrdHttpMon;
 class XrdXrootdProtocol;
 class XrdHttpSecXtractor;
 class XrdHttpExtHandler;
@@ -159,6 +158,8 @@ private:
 
   /// Send some generic data to the client
   int SendData(const char *body, int bodylen);
+
+  void Record();
 
   /// Deallocate resources, in order to reutilize an object of this class
   void Cleanup();
@@ -298,8 +299,9 @@ private:
   //  API.
   int StartChunkedResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);
 
-  /// Send a (potentially partial) body in a chunked response; invoking with NULL body
-  //  indicates that this is the last chunk in the response.
+  /// Send a (potentially partial) body in a chunked response;
+  //  invoking with NULL body indicates that this is the last chunk in the response.
+  //  invoking with bodylen=-1 indicates that this is a trailer
   int ChunkResp(const char *body, long long bodylen);
 
   /// Send the beginning of a chunked response but not the body; useful when the size
