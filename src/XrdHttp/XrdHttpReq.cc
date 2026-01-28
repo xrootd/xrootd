@@ -632,7 +632,9 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   } else
     appendOpaque(redirdest, 0, 0, 0);
 
-  stripAuth(redirdest); /* appendOpaque() may have added an authz token */
+  if (!prot->strp_cgi_params.empty()) {
+    stripCgi(redirdest, prot->strp_cgi_params); /* appendOpaque() may have added credentials */
+  }
   
   TRACE(REQ, " XrdHttpReq::Redir Redirecting to " << redirdest.c_str());
 
