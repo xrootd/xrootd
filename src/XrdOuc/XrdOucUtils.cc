@@ -1689,38 +1689,44 @@ std::string XrdOucUtils::UrlDecode(const std::string &input)
 }
 
 /**
- * This function strips away authz= cgi elements from a URL.
+ * Strip selected CGI elements (e.g. "authz=...") from a string/URL.
  *
- * @param input the string to obfuscate
- * @return the string with token values obfuscated
+ * @param url the string/URL to sanitize
+ * @param cgiKeys CGI parameter names to remove (without the trailing '=')
  */
 
-void stripAuth(std::string& url)
+void stripCgi(std::string& url, const std::unordered_set<std::string> &cgiKeys)
 {
-  size_t spos, epos;
-  while ((spos = url.find("authz=")) != std::string::npos) {
-    epos = spos;
-    while (epos < url.size() && is_token_character(url[epos]))
-      ++epos;
-    url.erase(spos, epos - spos);
+  for (const auto &key : cgiKeys) {
+    if (key.empty())
+      continue;
+
+    const std::string needle = key + "=";
+    size_t spos = 0, epos = 0;
+
+    while ((spos = url.find(needle, spos)) != std::string::npos) {
+      epos = spos;
+      while (epos < url.size() && is_token_character(url[epos]))
+        ++epos;
+      url.erase(spos, epos - spos);
+    }
   }
-  /* if authz was the first element, remove extra & */
+
+  // If a stripped CGI was the first element, remove the extra &
+  size_t spos = 0;
   if ((spos = url.find("?&")) != std::string::npos)
     url.erase(spos + 1, 1);
+
+  // If stripping removed the only query parameter, remove the dangling ?
+  if (!url.empty() && url.back() == '?')
+    url.pop_back();
 }
 
-void stripAuth(XrdOucString& url)
+void stripCgi(XrdOucString& url, const std::unordered_set<std::string> &cgiKeys)
 {
-  int spos, epos;
-  while ((spos = url.find("authz=")) != STR_NPOS) {
-    epos = spos;
-    while (epos < url.length() && is_token_character(url[epos]))
-      ++epos;
-    url.erase(spos, epos - spos);
-  }
-  /* if authz was the first element, remove extra & */
-  if ((spos = url.find("?&")) != STR_NPOS)
-    url.erase(spos + 1, 1);
+  std::string tmp = url.c_str();
+  stripCgi(tmp, cgiKeys);
+  url = tmp.c_str();
 }
 
 #endif

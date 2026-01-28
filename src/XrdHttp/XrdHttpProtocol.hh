@@ -53,6 +53,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 
@@ -427,6 +428,9 @@ protected:
   
   /// If client is HTTPS, self-redirect with HTTP+token
   static bool selfhttps2http;
+
+  /// CGI parameters (names) to strip from redirect URLs
+  static std::unordered_set<std::string> strp_cgi_params;
   
   /// If true, use the embedded css and icons
   static bool embeddedstatic;

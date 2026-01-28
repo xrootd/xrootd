@@ -94,6 +94,7 @@ XrdOucHash<XrdHttpProtocol::StaticPreloadInfo> *XrdHttpProtocol::staticpreload =
 kXR_int32 XrdHttpProtocol::myRole = kXR_isManager;
 bool XrdHttpProtocol::selfhttps2http = false;
 bool XrdHttpProtocol::isdesthttps = false;
+std::unordered_set<std::string> XrdHttpProtocol::strp_cgi_params;
 char *XrdHttpProtocol::sslcafile = 0;
 char *XrdHttpProtocol::secretkey = 0;
 
@@ -1762,6 +1763,7 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 int XrdHttpProtocol::parseHeader2CGI(XrdOucStream &Config, XrdSysError & err,std::map<std::string, std::string> &header2cgi) {
   char *val, keybuf[1024], parmbuf[1024];
   char *parm;
+  bool strip_on_redirect = false;
 
   // Get the header key
   val = Config.GetWord();
@@ -1801,9 +1803,18 @@ int XrdHttpProtocol::parseHeader2CGI(XrdOucStream &Config, XrdSysError & err,std
       pp--;
     }
 
+    // Check for optional strip-on-redirect parameter
+    char *nextWord = Config.GetWord();
+    if (nextWord && nextWord[0] && !strcasecmp(nextWord, "strip-on-redirect")) {
+      strip_on_redirect = true;
+    }
+
     // Add this mapping to the map that will be used
     try {
       header2cgi[keybuf] = parmbuf;
+      if (strip_on_redirect) {
+        strp_cgi_params.insert(parmbuf);
+      }
     } catch ( ... ) {
       err.Emsg("Config", "Can't insert new header2cgi rule. key: '", keybuf, "'");
       return 1;

@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <unordered_set>
 
 #include <gtest/gtest.h>
 
@@ -117,6 +118,8 @@ static const std::string authz_strings[] = {
   "240919 08:11:07 20995 unknown.3:33@[::1] Pss_Stat: url=pelican://p0@F4HP7QL65F.local:" /* no comma! */
   "61631//first/namespace/token_gen/test1171569942?&authz=REDACTED&pelican.timeout=9.5s"
 };
+
+static const std::unordered_set<std::string> strip_authz_cgi_keys = {"authz"};
 
 static const std::string authz_headers[] = {
   "authorization:REDACTED",
@@ -241,7 +244,11 @@ TEST(XrdOucUtilsTests, StripToken_AuthzCGI)
         if ((pos = authz.find("?&")) != std::string::npos)
           authz.erase(pos + 1, 1);
 
-        stripAuth(str);
+        /* If authz was the only query parameter, avoid leaving a dangling '?' */
+        if (!authz.empty() && authz.back() == '?')
+          authz.pop_back();
+
+        stripCgi(str, strip_authz_cgi_keys);
 
         /* Assert that we do not find "authz=" in the output */
         ASSERT_TRUE(str.find("authz=") == std::string::npos)
@@ -255,7 +262,7 @@ TEST(XrdOucUtilsTests, StripToken_AuthzCGI)
         ASSERT_EQ(str, authz)
           << "\nref = '" << authz << "'\nstr = '" << str << "'" << std::endl;
 
-        stripAuth(ostr);
+        stripCgi(ostr, strip_authz_cgi_keys);
 
         /* Assert that we do not find "authz=" in the output */
         ASSERT_TRUE(ostr.find("authz=") == STR_NPOS)
