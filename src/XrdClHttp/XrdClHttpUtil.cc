@@ -56,7 +56,7 @@ using namespace XrdClHttp;
 
 thread_local std::vector<CURL*> HandlerQueue::m_handles;
 std::atomic<unsigned> CurlWorker::m_maintenance_period = 5;
-std::vector<CurlWorker*> CurlWorker::m_workers;
+std::vector<std::unique_ptr<XrdClHttp::CurlWorker>> CurlWorker::m_workers;
 std::mutex CurlWorker::m_workers_mutex;
 
 // Performance statistics for the worker
@@ -73,6 +73,9 @@ std::mutex CurlWorker::m_worker_stats_mutex;
 std::atomic<uint64_t> HandlerQueue::m_ops_consumed = 0; // Count of operations consumed from the queue.
 std::atomic<uint64_t> HandlerQueue::m_ops_produced = 0; // Count of operations added to the queue.
 std::atomic<uint64_t> HandlerQueue::m_ops_rejected = 0; // Count of operations rejected by the queue.
+
+// shutdown trigger, must be last of the static members
+CurlWorker::shutdown_s CurlWorker::m_shutdowns;
 
 struct WaitingForBroker {
     CURL *curl{nullptr};
@@ -1029,12 +1032,24 @@ CurlWorker::OpRecord(XrdClHttp::CurlOperation &op, OpKind kind)
 }
 
 void
-CurlWorker::RunStatic(CurlWorker *myself)
+CurlWorker::Start(std::unique_ptr<XrdClHttp::CurlWorker> self, std::thread tid)
 {
     {
         std::unique_lock lock(m_workers_mutex);
-        m_workers.push_back(myself);
-        myself->m_shutdown_complete = false;
+        m_workers.emplace_back(std::move(self));
+        m_self_tid = std::move(tid);
+    }
+    std::unique_lock lock(m_start_lock);
+    m_start_complete = true;
+    m_start_complete_cv.notify_one();
+}
+
+void
+CurlWorker::RunStatic(CurlWorker *myself)
+{
+    {
+        std::unique_lock lock(myself->m_start_lock);
+        myself->m_start_complete_cv.wait(lock, [&]{return myself->m_start_complete;});
     }
     try {
         myself->Run();
@@ -1042,7 +1057,7 @@ CurlWorker::RunStatic(CurlWorker *myself)
         myself->m_logger->Warning(kLogXrdClHttp, "Curl worker got an exception");
         {
             std::unique_lock lock(m_workers_mutex);
-            auto iter = std::remove_if(m_workers.begin(), m_workers.end(), [&](CurlWorker *worker){return worker == myself;});
+            auto iter = std::remove_if(m_workers.begin(), m_workers.end(), [&](std::unique_ptr<XrdClHttp::CurlWorker> &worker){return worker.get() == myself;});
             m_workers.erase(iter);
         }
     }
@@ -1050,16 +1065,10 @@ CurlWorker::RunStatic(CurlWorker *myself)
 
 void
 CurlWorker::Run() {
-    // Create a copy of the shared_ptr here.  Otherwise, when the main thread's destructors
-    // run, there won't be any other live references to the shared_ptr, triggering cleanup
-    // of the condition variable.  Because we purposely don't shutdown the worker threads,
-    // those threads may be waiting on the condition variable; destroying a condition variable
-    // while a thread is waiting on it is undefined behavior.
-    auto queue_ref = m_queue;
     int max_pending = 50;
     XrdCl::DefaultEnv::GetEnv()->GetInt("HttpMaxPendingOps", max_pending);
     m_continue_queue.reset(new HandlerQueue(max_pending));
-    auto &queue = *queue_ref.get();
+    auto &queue = *m_queue.get();
     m_logger->Debug(kLogXrdClHttp, "Started a curl worker");
 
     CURLM *multi_handle = curl_multi_init();
@@ -1693,11 +1702,6 @@ CurlWorker::Run() {
 
     m_queue->ReleaseHandles();
     curl_multi_cleanup(multi_handle);
-    {
-        std::unique_lock lock(m_shutdown_lock);
-        m_shutdown_complete = true;
-        m_shutdown_complete_cv.notify_all();
-    }
 }
 
 void
@@ -1711,8 +1715,8 @@ CurlWorker::Shutdown()
     close(m_shutdown_pipe_w);
     m_shutdown_pipe_w = -1;
 
-    std::unique_lock lock(m_shutdown_lock);
-    m_shutdown_complete_cv.wait(lock, [&]{return m_shutdown_complete;});
+    // wait for worker thread to exit
+    m_self_tid.join();
 
     {
         std::unique_lock lk(m_worker_stats_mutex);
@@ -1726,7 +1730,7 @@ void
 CurlWorker::ShutdownAll()
 {
     std::unique_lock lock(m_workers_mutex);
-    for (auto worker : m_workers) {
+    for (auto &worker : m_workers) {
         worker->Shutdown();
     }
 }

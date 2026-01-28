@@ -28,6 +28,7 @@
 #include <mutex>
 #include <string>
 #include <time.h>
+#include <thread>
 #include <vector>
 
 namespace XrdCl {
@@ -64,13 +65,13 @@ private:
     // Monitoring loop for XrdClHttp statistics
     void Monitor();
 
-    // Invoked by libc when the library is shutting down or is unloaded from the process.
-    static void Shutdown() __attribute__((destructor));
+    // Invoked by the destructor of a static member, to know when the
+    // the library is shutting down or is unloaded from the process.
+    static void Shutdown();
 
     static bool m_initialized;
     static std::shared_ptr<XrdClHttp::HandlerQueue> m_queue;
     static XrdCl::Log *m_log;
-    static std::vector<std::unique_ptr<XrdClHttp::CurlWorker>> m_workers;
     const static unsigned m_poll_threads{8};
     static std::once_flag m_init_once;
     // Location for the client to dump its runtime statistics.
@@ -81,14 +82,16 @@ private:
 
     // Mutex for managing the shutdown of the background thread
     static std::mutex m_shutdown_lock;
+    // The background thread
+    static std::thread m_monitor_tid;
     // Condition variable managing the requested shutdown of the background thread.
     static std::condition_variable m_shutdown_requested_cv;
     // Flag indicating that a shutdown was requested.
     static bool m_shutdown_requested;
-    // Condition variable for the background thread to indicate it has completed.
-    static std::condition_variable m_shutdown_complete_cv;
-    // Flag indicating that the shutdown has completed.
-    static bool m_shutdown_complete;
+    // shutdown trigger
+    static struct shutdown_s {
+      ~shutdown_s() { Shutdown(); }
+    } m_shutdowns;
 };
 
 }
