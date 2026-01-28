@@ -140,11 +140,7 @@ bool XrdCryptosslFactory::SupportedCipher(const char *t)
 bool XrdCryptosslFactory::HasPaddingSupport()
 {
    // Returns true if cipher padding is supported
-#if defined(HAVE_DH_PADDED) || defined(HAVE_DH_PADDED_FUNC)
    return true;
-#else
-   return false;
-#endif
 }
 
 //______________________________________________________________________________

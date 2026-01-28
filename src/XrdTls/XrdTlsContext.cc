@@ -309,14 +309,6 @@ bool Setup_Flusher(XrdTlsContextImpl *pImpl, int flushT)
 // Versions >- 1.1 Do not need any callbacks as all threading functions are
 //                 internally defined to use native MT functions.
   
-#if OPENSSL_VERSION_NUMBER < 0x10100000L && defined(OPENSSL_THREADS)
-namespace
-{
-#define XRDTLS_SET_CALLBACKS 1
-#ifdef __solaris__
-extern "C" {
-#endif
-
 template<bool is32>
 struct tlsmix;
 
@@ -368,13 +360,6 @@ void sslTLS_lock(int mode, int n, const char *file, int line)
    if (mode & CRYPTO_LOCK) MutexVector[n].Lock();
       else                 MutexVector[n].UnLock();
 }
-#ifdef __solaris__
-}
-#endif
-}   // namespace
-#else
-#undef XRDTLS_SET_CALLBACKS
-#endif
 
 /******************************************************************************/
 /*                F i l e   L o c a l   D e f i n i t i o n s                 */
@@ -382,12 +367,8 @@ void sslTLS_lock(int mode, int n, const char *file, int line)
   
 namespace
 {
-// The following is the default cipher list. Note that for OpenSSL v1.0.2+ we
-// use the recommended cipher list from Mozilla. Otherwise, we use the dumber
-// less secure ciphers as older versions of openssl have issues with them. See
-// ssl-config.mozilla.org/#config=intermediate&openssl=1.0.2k&guideline=5.4
-//
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+// The following is the default TLS cipher list. We use the recommended list from Mozilla:
+// https://ssl-config.mozilla.org/#server=apache&config=intermediate&openssl=1.1.0
 const char *sslCiphers = "ECDHE-ECDSA-AES128-GCM-SHA256:"
                          "ECDHE-RSA-AES128-GCM-SHA256:"
                          "ECDHE-ECDSA-AES256-GCM-SHA384:"
@@ -396,9 +377,6 @@ const char *sslCiphers = "ECDHE-ECDSA-AES128-GCM-SHA256:"
                          "ECDHE-RSA-CHACHA20-POLY1305:"
                          "DHE-RSA-AES128-GCM-SHA256:"
                          "DHE-RSA-AES256-GCM-SHA384";
-#else
-const char *sslCiphers = "ALL:!LOW:!EXP:!MD5:!MD2";
-#endif
 
 XrdSysMutex            dbgMutex, tlsMutex;
 XrdSys::RAtomic<bool>  initDbgDone{ false };
@@ -428,19 +406,6 @@ void InitTLS() // This is strictly a one-time call!
    ERR_load_BIO_strings();
 #endif
    ERR_load_crypto_strings();
-
-// Set callbacks if we need to do this
-//
-#ifdef XRDTLS_SET_CALLBACKS
-
-   int n =  CRYPTO_num_locks();
-   if (n > 0)
-      {MutexVector = new XrdSysMutex[n];
-       CRYPTO_set_locking_callback(sslTLS_lock);
-      }
-   CRYPTO_set_id_callback(sslTLS_id_callback);
-
-#endif
 }
 
 /******************************************************************************/
@@ -465,11 +430,7 @@ void Fatal(std::string *eMsg, const char *msg, bool sslmsg=false)
 
 const char *GetTlsMethod(const SSL_METHOD *&meth)
 {
-#if OPENSSL_VERSION_NUMBER > 0x1010000fL /* v1.1.0 */
   meth = TLS_method();
-#else
-  meth = SSLv23_method();
-#endif
   if (meth == 0) return "No negotiable TLS method available.";
   return 0;
 }
@@ -599,11 +560,9 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                             | SSL_OP_NO_SSLv2
                             | SSL_OP_NO_SSLv3
                             | SSL_OP_NO_COMPRESSION
+                            | SSL_OP_NO_RENEGOTIATION
 #ifdef SSL_OP_IGNORE_UNEXPECTED_EOF
                             | SSL_OP_IGNORE_UNEXPECTED_EOF
-#endif
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
-                            | SSL_OP_NO_RENEGOTIATION
 #endif
                             ;
 
@@ -895,8 +854,6 @@ bool XrdTlsContext::isOK()
 
 void *XrdTlsContext::Session()
 {
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-
    EPNAME("Session");
    SSL *ssl;
 
@@ -965,14 +922,6 @@ void *XrdTlsContext::Session()
    pImpl->crlMutex.UnLock();
    delete ctxold;
    return ssl;
-
-#else
-// If we did not compile crl refresh code, we can simply return the OpenSSL
-// session using our context. Otherwise, we need to see if we have a refreshed
-// context and if so, carry forward the X509_store to our original context.
-//
-   return SSL_new(pImpl->ctx);
-#endif
 }
   
 /******************************************************************************/
@@ -1065,8 +1014,6 @@ void XrdTlsContext::SetDefaultCiphers(const char *ciphers)
 
 bool XrdTlsContext::SetCrlRefresh(int refsec)
 {
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-
    pthread_t tid;
    int       rc;
 
@@ -1103,16 +1050,6 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 // All done
 //
    return true;
-
-#else
-// We use features present on OpenSSL 1.02 and above to implement crl refresh.
-// Older version are too difficult to deal with. Issue a message if this
-// feature is being enabled on an old version.
-//
-   XrdTls::Emsg("CrlRefresh:", "Refreshing CRLs only supported in "
-                "OpenSSL version >= 1.02; CRL refresh disabled!", false);
-   return false;
-#endif
 }
   
 /******************************************************************************/

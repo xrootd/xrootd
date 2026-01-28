@@ -43,10 +43,8 @@
 #include "XrdVomsTrace.hh"
 #include "XrdVomsMapfile.hh"
 
-#ifdef HAVE_XRDCRYPTO
 #include "XrdCrypto/XrdCryptoX509.hh"
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
-#endif
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
@@ -103,11 +101,7 @@ XrdVomsFun::XrdVomsFun(XrdSysError &erp)
                  : gGrpWhich(gUseAll), gDebug(0), gDest(erp),
                    gLogger(erp.logger())
 {
-#ifdef HAVE_XRDCRYPTO
                 gCertFmt = gCertRaw;     //  certfmt:raw|pem|x509 [raw]
-#else
-                gCertFmt = gCertPEM;     //  certfmt:pem|x509 [pem]
-#endif
 };
 
 /******************************************************************************/
@@ -204,7 +198,6 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
    strcpy(ent.prox, "xrdvoms");
    
    if (gCertFmt == gCertRaw) {
-#ifdef HAVE_XRDCRYPTO
       //
       // RAW format
       //
@@ -233,13 +226,6 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
          }
          xxp = c->Next();
       }
-#else
-      //
-      // Do not have support for RAW format
-      //
-      PRINT("ERROR: compiled without support for RAW format! Re-run with 'certfmt=pem'");
-      return -1;
-#endif
    } else if (gCertFmt == gCertPEM) {
       //
       // PEM format
@@ -502,15 +488,7 @@ int XrdVomsFun::VOMSInit(const char *cfg)
       // Certificate format
       if (fmt.length() > 0) {
          if (fmt == "raw") {
-#ifdef HAVE_XRDCRYPTO
             gCertFmt = gCertRaw;
-#else
-            //
-            // Do not have support for RAW format
-            //
-            PRINT("VomsFun: support for RAW format not available: forcing PEM");
-            gCertFmt = gCertPEM;
-#endif
          } else if (fmt == "pem") {
             gCertFmt = gCertPEM;
          } else if (fmt == "x509") {

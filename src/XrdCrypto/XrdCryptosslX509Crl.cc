@@ -47,13 +47,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#define X509_REVOKED_get0_revocationDate(x) (x)->revocationDate
-#define X509_REVOKED_get0_serialNumber(x) (x)->serialNumber
-#define X509_CRL_get0_lastUpdate X509_CRL_get_lastUpdate
-#define X509_CRL_get0_nextUpdate X509_CRL_get_nextUpdate
-#endif
-
 //_____________________________________________________________________________
 XrdCryptosslX509Crl::XrdCryptosslX509Crl(const char *cf, int opt)
                  : XrdCryptoX509Crl()
@@ -402,22 +395,14 @@ int XrdCryptosslX509Crl::LoadCache()
    }
 
    // Parse CRL
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
    STACK_OF(X509_REVOKED *) rsk = X509_CRL_get_REVOKED(crl);
-#else /* OPENSSL */
-   STACK_OF(X509_REVOKED *) *rsk = X509_CRL_get_REVOKED(crl);
-#endif /* OPENSSL */
    if (!rsk) {
       DEBUG("could not get stack of revoked instances");
       return -1;
    }
 
    // Number of revocations
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
    nrevoked = sk_X509_REVOKED_num(rsk);
-#else /* OPENSSL */
-   nrevoked = sk_num(rsk);
-#endif /* OPENSSL */
    DEBUG(nrevoked << "certificates have been revoked");
    if (nrevoked <= 0) {
       DEBUG("no valid certificate has been revoked - nothing to do");
@@ -428,11 +413,7 @@ int XrdCryptosslX509Crl::LoadCache()
    char *tagser = 0;
    int i = 0;
    for (; i < nrevoked; i++ ){
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
       X509_REVOKED *rev = sk_X509_REVOKED_value(rsk,i);
-#else /* OPENSSL */
-      X509_REVOKED *rev = (X509_REVOKED *)sk_value(rsk,i);
-#endif /* OPENSSL */
       if (rev) {
          BIGNUM *bn = BN_new();
          ASN1_INTEGER_to_BN(X509_REVOKED_get0_serialNumber(rev), bn);
@@ -524,7 +505,6 @@ const char *XrdCryptosslX509Crl::IssuerHash(int alg)
    // (for v>=1.0.0) when alg = 1
    EPNAME("X509::IssuerHash");
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(__APPLE__))
    if (alg == 1) {
       // md5 based
       if (issueroldhash.length() <= 0) {
@@ -541,9 +521,6 @@ const char *XrdCryptosslX509Crl::IssuerHash(int alg)
       // return what we have
       return (issueroldhash.length() > 0) ? issueroldhash.c_str() : (const char *)0;
    }
-#else
-   if (alg == 1) { }
-#endif
 
    // If we do not have it already, try extraction
    if (issuerhash.length() <= 0) {

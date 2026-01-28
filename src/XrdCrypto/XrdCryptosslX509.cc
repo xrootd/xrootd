@@ -535,7 +535,6 @@ const char *XrdCryptosslX509::IssuerHash(int alg)
    // (for v>=1.0.0) when alg = 1
    EPNAME("X509::IssuerHash");
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(__APPLE__))
    if (alg == 1) {
       // md5 based
       if (issueroldhash.length() <= 0) {
@@ -552,9 +551,6 @@ const char *XrdCryptosslX509::IssuerHash(int alg)
       // return what we have
       return (issueroldhash.length() > 0) ? issueroldhash.c_str() : (const char *)0;
    }
-#else
-   if (alg == 1) { }
-#endif
 
    // If we do not have it already, try extraction
    if (issuerhash.length() <= 0) {
@@ -582,7 +578,6 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
    // (for v>=1.0.0) when alg = 1
    EPNAME("X509::SubjectHash");
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(__APPLE__))
    if (alg == 1) {
       // md5 based
       if (subjectoldhash.length() <= 0) {
@@ -599,9 +594,6 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
       // return what we have
       return (subjectoldhash.length() > 0) ? subjectoldhash.c_str() : (const char *)0;
    }
-#else
-   if (alg == 1) { }
-#endif
 
    // If we do not have it already, try extraction
    if (subjecthash.length() <= 0) {
@@ -842,7 +834,7 @@ int XrdCryptosslX509::DumpExtensions(bool dumpunknown)
       PRINT(i << ": found extension '"<<s<<"', critical: " << crit);
       // Dump its content
       rc = 0;
-      XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) X509_EXTENSION_get_data(xpiext)->data;
+      const unsigned char *pp = (const unsigned char *) X509_EXTENSION_get_data(xpiext)->data;
       long length = X509_EXTENSION_get_data(xpiext)->length;
       int ret = FillUnknownExt(&pp, length, dumpunknown);
       PRINT("ret: " << ret);
@@ -853,12 +845,12 @@ int XrdCryptosslX509::DumpExtensions(bool dumpunknown)
 }
 
 //____________________________________________________________________________
-int XrdCryptosslX509::FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length, bool dump)
+int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool dump)
 {
    // Do the actual filling of the bio; can be called recursevely
    EPNAME("FillUnknownExt");
 
-   XRDGSI_CONST unsigned char *p,*ep,*tot,*op,*opp;
+   const unsigned char *p,*ep,*tot,*op,*opp;
    long len;
    int tag, xclass, ret = 0;
    int nl,hl,j,r;
@@ -1156,11 +1148,7 @@ bool XrdCryptosslX509::MatchesSAN(const char *fqdn, bool &hasSAN)
       int san_fqdn_len = ASN1_STRING_length(cstr);
       if (san_fqdn_len > 255)
          continue;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
       memcpy(san_fqdn, ASN1_STRING_get0_data(cstr), san_fqdn_len);
-#else
-      memcpy(san_fqdn, ASN1_STRING_data(cstr), san_fqdn_len);
-#endif
       san_fqdn[san_fqdn_len] = '\0';
       if (strlen(san_fqdn) != static_cast<size_t>(san_fqdn_len)) // Avoid embedded null's.
          continue;

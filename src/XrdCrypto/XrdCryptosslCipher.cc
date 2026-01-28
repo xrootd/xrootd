@@ -73,99 +73,6 @@ Kyo8PGKIAORrAgEF
 //
 // ---------------------------------------------------------------------------//
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static DH *EVP_PKEY_get0_DH(EVP_PKEY *pkey)
-{
-    if (pkey->type != EVP_PKEY_DH) {
-        return NULL;
-    }
-    return pkey->pkey.dh;
-}
-
-static void DH_get0_pqg(const DH *dh,
-                        const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
-{
-    if (p != NULL)
-        *p = dh->p;
-    if (q != NULL)
-        *q = dh->q;
-    if (g != NULL)
-        *g = dh->g;
-}
-
-static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
-{
-    /* If the fields p and g in d are NULL, the corresponding input
-     * parameters MUST be non-NULL.  q may remain NULL.
-     */
-    if ((dh->p == NULL && p == NULL) || (dh->g == NULL && g == NULL))
-        return 0;
-    if (p != NULL) {
-        BN_free(dh->p);
-        dh->p = p;
-    }
-    if (q != NULL) {
-        BN_free(dh->q);
-        dh->q = q;
-    }
-    if (g != NULL) {
-        BN_free(dh->g);
-        dh->g = g;
-    }
-    if (q != NULL) {
-        dh->length = BN_num_bits(q);
-    }
-    return 1;
-}
-
-static void DH_get0_key(const DH *dh,
-                        const BIGNUM **pub_key, const BIGNUM **priv_key)
-{
-    if (pub_key != NULL)
-        *pub_key = dh->pub_key;
-    if (priv_key != NULL)
-        *priv_key = dh->priv_key;
-}
-
-static int DH_set0_key(DH *dh, BIGNUM *pub_key, BIGNUM *priv_key)
-{
-    /* If the field pub_key in dh is NULL, the corresponding input
-     * parameters MUST be non-NULL.  The priv_key field may
-     * be left NULL.
-     */
-    if (dh->pub_key == NULL && pub_key == NULL)
-        return 0;
-    if (pub_key != NULL) {
-        BN_free(dh->pub_key);
-        dh->pub_key = pub_key;
-    }
-    if (priv_key != NULL) {
-        BN_free(dh->priv_key);
-        dh->priv_key = priv_key;
-    }
-    return 1;
-}
-
-static int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
-{
-    /* If the field pub_key in d is NULL, the corresponding input
-     * parameters MUST be non-NULL.  The priv_key field may
-     * be left NULL.
-     */
-    if (d->pub_key == NULL && pub_key == NULL)
-        return 0;
-    if (pub_key != NULL) {
-        BN_free(d->pub_key);
-        d->pub_key = pub_key;
-    }
-    if (priv_key != NULL) {
-        BN_free(d->priv_key);
-        d->priv_key = priv_key;
-    }
-    return 1;
-}
-#endif
-
 static EVP_PKEY *getFixedDHParams() {
     static EVP_PKEY *dhparms = [] {
         EVP_PKEY *dhParam = 0;
@@ -194,20 +101,9 @@ static int XrdCheckDH (EVP_PKEY *pkey) {
    if (skipcheck) return 1;
 
    int rc;
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-   DH *dh = EVP_PKEY_get0_DH(pkey);
-   if (dh) {
-      DH_check(dh, &rc);
-      rc = (rc == 0 ? 1 : 0);
-   }
-   else {
-      rc = -2;
-   }
-#else
    EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
    rc = EVP_PKEY_param_check(ckctx);
    EVP_PKEY_CTX_free(ckctx);
-#endif
    return rc;
 }
 
@@ -666,24 +562,12 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
                         // Derive shared secret
                         pkctx = EVP_PKEY_CTX_new(fDH, 0);
                         EVP_PKEY_derive_init(pkctx);
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
                         EVP_PKEY_CTX_set_dh_pad(pkctx, padded);
-#endif
                         EVP_PKEY_derive_set_peer(pkctx, peer);
                         EVP_PKEY_derive(pkctx, (unsigned char *)ktmp, &ltmp);
                         EVP_PKEY_CTX_free(pkctx);
                         EVP_PKEY_free(peer);
                         if (ltmp > 0) {
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-                           if (padded) {
-                              int pad = EVP_PKEY_size(fDH) - ltmp;
-                              if (pad > 0) {
-                                 memmove(ktmp + pad, ktmp, ltmp);
-                                 memset(ktmp, 0, pad);
-                                 ltmp += pad;
-                              }
-                           }
-#endif
                            valid = 1;
                         }
                      }
@@ -913,24 +797,12 @@ bool XrdCryptosslCipher::Finalize(bool padded,
             // Derive shared secret
             pkctx = EVP_PKEY_CTX_new(fDH, 0);
             EVP_PKEY_derive_init(pkctx);
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
             EVP_PKEY_CTX_set_dh_pad(pkctx, padded);
-#endif
             EVP_PKEY_derive_set_peer(pkctx, peer);
             EVP_PKEY_derive(pkctx, (unsigned char *)ktmp, &ltmp);
             EVP_PKEY_CTX_free(pkctx);
             EVP_PKEY_free(peer);
             if (ltmp > 0) {
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-               if (padded) {
-                  int pad = EVP_PKEY_size(fDH) - ltmp;
-                  if (pad > 0) {
-                     memmove(ktmp + pad, ktmp, ltmp);
-                     memset(ktmp, 0, pad);
-                     ltmp += pad;
-                  }
-               }
-#endif
                valid = 1;
             }
          }

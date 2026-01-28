@@ -616,12 +616,7 @@ int XrdTlsSocket::Pending(bool any)
 
     if (pImpl->isSerial) mHelper.Lock(&(pImpl->sslMutex));
 
-   if (!any) return SSL_pending(pImpl->ssl);
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-   return SSL_pending(pImpl->ssl) != 0;
-#else
-   return SSL_has_pending(pImpl->ssl);
-#endif
+    return any ? SSL_has_pending(pImpl->ssl) : SSL_pending(pImpl->ssl);
 }
 
 /******************************************************************************/

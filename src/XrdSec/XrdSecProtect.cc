@@ -54,21 +54,6 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
   
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static EVP_MD_CTX* EVP_MD_CTX_new() {
-  EVP_MD_CTX *ctx = (EVP_MD_CTX *)OPENSSL_malloc(sizeof(EVP_MD_CTX));
-  if (ctx) EVP_MD_CTX_init(ctx);
-  return ctx;
-}
-
-static void EVP_MD_CTX_free(EVP_MD_CTX *ctx) {
-  if (ctx) {
-    EVP_MD_CTX_cleanup(ctx);
-    OPENSSL_free(ctx);
-  }
-}
-#endif
-
 /******************************************************************************/
 /*                      S t r u c t   X r d S e c R e q                       */
 /******************************************************************************/

@@ -163,11 +163,7 @@ bool XrdCryptosslX509VerifyChain(XrdCryptoX509Chain *chain, int &errcode)
    }
 
    // Make sure all the certificates have been inserted
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
    if (sk_X509_num(stk) != chain->Size() - 1)
-#else /* OPENSSL */
-   if (sk_num(stk) != chain->Size() - 1)
-#endif /* OPENSSL */
       return 0;
 
    // Create a store ctx ...
@@ -422,11 +418,7 @@ int XrdCryptosslX509ParseStack(XrdTlsPeerCerts* pc, XrdCryptoX509Chain *chain)
          // refcount; the XrdCryptoX509 object assumes it owns
          // the X509* but also does not increment the refcount.
          // Hence, we increment manually.
-#if OPENSSL_VERSION_NUMBER < 0x010100000L
-         CRYPTO_add(&(cert->references), 1, CRYPTO_LOCK_X509);
-#else
          X509_up_ref(cert);
-#endif
          chain->PushBack(c);
       } else {
          X509_free(cert);

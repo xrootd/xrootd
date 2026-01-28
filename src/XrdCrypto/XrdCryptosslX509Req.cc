@@ -182,7 +182,6 @@ const char *XrdCryptosslX509Req::SubjectHash(int alg)
    // (for v>=1.0.0) when alg = 1
    EPNAME("X509::SubjectHash");
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(__APPLE__))
    if (alg == 1) {
       // md5 based
       if (subjectoldhash.length() <= 0) {
@@ -199,9 +198,6 @@ const char *XrdCryptosslX509Req::SubjectHash(int alg)
       // return what we have
       return (subjectoldhash.length() > 0) ? subjectoldhash.c_str() : (const char *)0;
    }
-#else
-   if (alg == 1) { }
-#endif
 
    // If we do not have it already, try extraction
    if (subjecthash.length() <= 0) {
@@ -243,11 +239,7 @@ XrdCryptoX509Reqdata XrdCryptosslX509Req::GetExtension(const char *oid)
    // Are there any extension?
    STACK_OF(X509_EXTENSION) *esk = X509_REQ_get_extensions(creq);
    //
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
    int numext = sk_X509_EXTENSION_num(esk);
-#else /* OPENSSL */
-   int numext = sk_num(esk);
-#endif /* OPENSSL */
    if (numext <= 0) {
       DEBUG("certificate has got no extensions");
       return ext;
@@ -263,11 +255,7 @@ XrdCryptoX509Reqdata XrdCryptosslX509Req::GetExtension(const char *oid)
    int i = 0;
    X509_EXTENSION *wext = 0;
    for (i = 0; i< numext; i++) {
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
       wext = sk_X509_EXTENSION_value(esk, i);
-#else /* OPENSSL */
-      wext = (X509_EXTENSION *)sk_value(esk, i);
-#endif /* OPENSSL */
       if (usenid) {
          int enid = OBJ_obj2nid(X509_EXTENSION_get_object(wext));
          if (enid == nid)

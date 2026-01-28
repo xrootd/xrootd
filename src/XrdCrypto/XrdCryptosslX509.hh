@@ -40,12 +40,6 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#if OPENSSL_VERSION_NUMBER >= 0x0090800f
-#  define XRDGSI_CONST const
-#else
-#  define XRDGSI_CONST
-#endif
-
 // ---------------------------------------------------------------------------//
 //
 // OpenSSL X509 implementation
@@ -122,7 +116,7 @@ private:
    XrdCryptoRSA *pki;       // PKI of the certificate
    int          pxytype;    // Type of proxy (RFC, gsi 3, legacy gsi 2)
 
-   int          FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length, bool dump = 0);
+   int          FillUnknownExt(const unsigned char **pp, long length, bool dump = 0);
    int          Asn1PrintInfo(int tag, int xclass, int constructed, int indent);
    void         CertType();
 

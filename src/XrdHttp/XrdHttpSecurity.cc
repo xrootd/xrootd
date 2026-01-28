@@ -54,14 +54,12 @@ using namespace XrdHttpProtoInfo;
 /******************************************************************************/
 
 bool XrdHttpProtocol::InitSecurity() {
-#ifdef HAVE_XRDCRYPTO
   // Borrow the initialization of XrdCryptossl, in order to share the
   // OpenSSL threading bits
   if (!(myCryptoFactory = XrdCryptoFactory::GetCryptoFactory("ssl"))) {
     eDest.Say("Error instantiating crypto factory ssl", "");
     return false;
   }
-#endif
 
 // If GRID map file was specified, load the plugin for it
 //

@@ -28,10 +28,7 @@ if( SYSTEMD_FOUND )
   add_definitions( -DHAVE_SYSTEMD )
 endif()
 
-find_package( OpenSSL 1.0.2 REQUIRED )
-add_definitions( -DHAVE_DH_PADDED )
-add_definitions( -DHAVE_XRDCRYPTO )
-add_definitions( -DHAVE_SSL )
+find_package( OpenSSL 1.1.1 REQUIRED )
 
 if( ENABLE_KRB5 )
   if( FORCE_ENABLED )

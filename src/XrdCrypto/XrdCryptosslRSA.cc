@@ -46,40 +46,11 @@
 #include <openssl/core_names.h>
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
-{
-    if (pkey->type != EVP_PKEY_RSA) {
-        return NULL;
-    }
-    return pkey->pkey.rsa;
-}
-
-static void RSA_get0_key(const RSA *r,
-                         const BIGNUM **n, const BIGNUM **e, const BIGNUM **d)
-{
-    if (n != NULL)
-        *n = r->n;
-    if (e != NULL)
-        *e = r->e;
-    if (d != NULL)
-        *d = r->d;
-}
-#endif
-
 static int XrdCheckRSA (EVP_PKEY *pkey) {
    int rc;
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-   RSA *rsa = EVP_PKEY_get0_RSA(pkey);
-   if (rsa)
-      rc = RSA_check_key(rsa);
-   else
-      rc = -2;
-#else
    EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
    rc = EVP_PKEY_check(ckctx);
    EVP_PKEY_CTX_free(ckctx);
-#endif
    return rc;
 }
 

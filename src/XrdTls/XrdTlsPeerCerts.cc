@@ -29,30 +29,7 @@
 
 #include "XrdTls/XrdTlsPeerCerts.hh"
 
-/******************************************************************************/
-/*         L o c a l   C o m p a t a b i l i t y   F u n c t i o n s          */
-/******************************************************************************/
-  
-// Version of OpenSSL < 1.1 do not have X509_up_ref() so we need to implement
-// it using basic functions which only appear in 1.0.x. What a hack!
-//
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#include <openssl/crypto.h>
-namespace
-{
-int X509_up_ref(X509 *cert)
-{
-#ifdef CRYPTO_add
-   if (cert && (CRYPTO_add(&(cert->references), 1, CRYPTO_LOCK_X509)) > 1)
-      return 1;
-#endif
-
-   return 0;
-}
-}
-#else
 #include <openssl/x509.h>
-#endif
 
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */

@@ -160,39 +160,6 @@ XrdObjectQ<XrdHttpProtocol>
 XrdHttpProtocol::ProtStack("ProtStack",
         "xrootd protocol anchor");
 
-
-/******************************************************************************/
-/*               U g l y  O p e n S S L   w o r k a r o u n d s               */
-/******************************************************************************/
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-void *BIO_get_data(BIO *bio) {
-  return bio->ptr;
-}
-void BIO_set_data(BIO *bio, void *ptr) {
-  bio->ptr = ptr;
-}
-#if OPENSSL_VERSION_NUMBER < 0x1000105fL
-int BIO_get_flags(BIO *bio) {
-  return bio->flags;
-}
-#endif
-void BIO_set_flags(BIO *bio, int flags) {
-  bio->flags = flags;
-}
-int BIO_get_init(BIO *bio) {
-  return bio->init;
-}
-void BIO_set_init(BIO *bio, int init) {
-  bio->init = init;
-}
-void BIO_set_shutdown(BIO *bio, int shut) {
-  bio->shutdown = shut;
-}
-int BIO_get_shutdown(BIO *bio) {
-  return bio->shutdown;
-}
-    
-#endif
 /******************************************************************************/
 /*               X r d H T T P P r o t o c o l   C l a s s                    */
 /******************************************************************************/
@@ -327,29 +294,6 @@ char *XrdHttpProtocol::GetClientIPStr() {
 }
 
 // Various routines for handling XrdLink as BIO objects within OpenSSL.
-#if OPENSSL_VERSION_NUMBER < 0x1000105fL
-int BIO_XrdLink_write(BIO *bio, const char *data, size_t datal, size_t *written)
-{
-  if (!data || !bio) {
-    *written = 0;
-    return 0;
-  }
-  
-  XrdLink *lp=static_cast<XrdLink *>(BIO_get_data(bio));
-  
-  errno = 0;
-  int ret = lp->Send(data, datal);
-  BIO_clear_retry_flags(bio);
-  if (ret <= 0) {
-    *written = 0;
-    if ((errno == EINTR) || (errno == EINPROGRESS) || (errno == EAGAIN) || (errno == EWOULDBLOCK))
-      BIO_set_retry_write(bio);
-    return ret;
-  }
-  *written = ret;
-  return 1;
-}
-#else
 int BIO_XrdLink_write(BIO *bio, const char *data, int datal)
 {
   if (!data || !bio) {
@@ -367,31 +311,7 @@ int BIO_XrdLink_write(BIO *bio, const char *data, int datal)
   }
   return ret;
 }
-#endif
 
-
-#if OPENSSL_VERSION_NUMBER < 0x1000105fL
-static int BIO_XrdLink_read(BIO *bio, char *data, size_t datal, size_t *read)
-{
-  if (!data || !bio) {
-    *read = 0;
-    return 0;
-  }
-
-  errno = 0;
-  
-  XrdLink *lp = static_cast<XrdLink *>(BIO_get_data(bio));  
-  int ret = lp->Recv(data, datal);
-  BIO_clear_retry_flags(bio);
-  if (ret <= 0) {
-    *read = 0;
-    if ((errno == EINTR) || (errno == EINPROGRESS) || (errno == EAGAIN) || (errno == EWOULDBLOCK))
-      BIO_set_retry_read(bio);
-    return ret;
-  }
-  *read = ret;
-}
-#else
 static int BIO_XrdLink_read(BIO *bio, char *data, int datal)
 {
   if (!data || !bio) {
@@ -409,27 +329,14 @@ static int BIO_XrdLink_read(BIO *bio, char *data, int datal)
   }
   return ret;
 }
-#endif
-
 
 static int BIO_XrdLink_create(BIO *bio)
 {
-    
-    
   BIO_set_init(bio, 0);
-  //BIO_set_next(bio, 0);
   BIO_set_data(bio, NULL);
   BIO_set_flags(bio, 0);
-  
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-
-  bio->num = 0;
-
-#endif
-  
   return 1;
 }
-
 
 static int BIO_XrdLink_destroy(BIO *bio)
 {
@@ -443,7 +350,6 @@ static int BIO_XrdLink_destroy(BIO *bio)
   }
   return 1;
 }
-
 
 static long BIO_XrdLink_ctrl(BIO *bio, int cmd, long num, void * ptr)
 {
@@ -466,7 +372,6 @@ static long BIO_XrdLink_ctrl(BIO *bio, int cmd, long num, void * ptr)
   return ret;
 }
 
-
 BIO *XrdHttpProtocol::CreateBIO(XrdLink *lp)
 {
   if (m_bio_method == NULL)
@@ -479,7 +384,6 @@ BIO *XrdHttpProtocol::CreateBIO(XrdLink *lp)
   BIO_set_init(ret, 1);
   return ret;
 }
-
 
 /******************************************************************************/
 /*                               P r o c e s s                                */
@@ -1018,21 +922,6 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 
   // Initialize our custom BIO type.
   if (!m_bio_type) {
-
-    #if OPENSSL_VERSION_NUMBER < 0x10100000L
-      m_bio_type = (26|0x0400|0x0100);
-      m_bio_method = static_cast<BIO_METHOD*>(OPENSSL_malloc(sizeof(BIO_METHOD)));
- 
-      if (m_bio_method) {
-        memset(m_bio_method, '\0', sizeof(BIO_METHOD));
-        m_bio_method->type = m_bio_type;
-        m_bio_method->bwrite = BIO_XrdLink_write;
-        m_bio_method->bread = BIO_XrdLink_read;
-        m_bio_method->create = BIO_XrdLink_create;
-        m_bio_method->destroy = BIO_XrdLink_destroy;
-        m_bio_method->ctrl = BIO_XrdLink_ctrl;
-      }
-    #else
       // OpenSSL 1.1 has an internal counter for generating unique types.
       // We'll switch to that when widely available.
       m_bio_type = BIO_get_new_index();
@@ -1045,8 +934,6 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
         BIO_meth_set_destroy(m_bio_method, BIO_XrdLink_destroy);
         BIO_meth_set_ctrl(m_bio_method, BIO_XrdLink_ctrl);
       }
-      
-    #endif
   }
 
   // If we have a tls context record whether it configured for verification

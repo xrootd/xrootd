@@ -55,22 +55,6 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdOuc/XrdOucString.hh"
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static HMAC_CTX* HMAC_CTX_new() {
-  HMAC_CTX *ctx = (HMAC_CTX *)OPENSSL_malloc(sizeof(HMAC_CTX));
-  if (ctx) HMAC_CTX_init(ctx);
-  return ctx;
-}
-
-static void HMAC_CTX_free(HMAC_CTX *ctx) {
-  if (ctx) {
-    HMAC_CTX_cleanup(ctx);
-    OPENSSL_free(ctx);
-  }
-}
-#endif
-
-
 // GetHost from URL
 // Parse an URL and extract the host name and port
 // Return 0 if OK
