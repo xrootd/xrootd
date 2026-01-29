@@ -11,6 +11,7 @@ list(APPEND XRDENV "XRDSCITOKENS_ISSUER_DIR=${CMAKE_BINARY_DIR}/tests/issuer")
 list(APPEND XRDENV "X509_CERT_FILE=${CMAKE_BINARY_DIR}/tests/issuer/tlsca.pem")
 list(APPEND XRDENV "BINARY_DIR=${CMAKE_BINARY_DIR}")
 list(APPEND XRDENV "XDG_CACHE_HOME=${CMAKE_CURRENT_BINARY_DIR}/.cache")
+list(APPEND XRDENV "XRD_PLUGINCONFDIR=${CMAKE_SOURCE_DIR}/config/client.plugins.d")
 
 foreach(config common metaman man1 man2 srv1 srv2 srv3 srv4)
   configure_file(${config}.cfg ${config}.cfg @ONLY)

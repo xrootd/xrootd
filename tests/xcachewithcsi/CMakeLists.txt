@@ -1,6 +1,7 @@
 list(APPEND XRDENV "XRDCP=$<TARGET_FILE:xrdcp>")
 list(APPEND XRDENV "XRDFS=$<TARGET_FILE:xrdfs>")
 list(APPEND XRDENV "XROOTD=$<TARGET_FILE:xrootd>")
+list(APPEND XRDENV "XRD_PLUGINCONFDIR=${CMAKE_SOURCE_DIR}/config/client.plugins.d")
 
 foreach(config common srv-forxcache srv-pfc)
   configure_file(${config}.cfg ${config}.cfg @ONLY)

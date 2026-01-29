@@ -4,6 +4,7 @@ list(APPEND XRDENV "CRC32C=$<TARGET_FILE:xrdcrc32c>")
 list(APPEND XRDENV "ADLER32=$<TARGET_FILE:xrdadler32>")
 list(APPEND XRDENV "XROOTD=$<TARGET_FILE:xrootd>")
 list(APPEND XRDENV "CMSD=$<TARGET_FILE:cmsd>")
+list(APPEND XRDENV "XRD_PLUGINCONFDIR=${CMAKE_SOURCE_DIR}/config/client.plugins.d")
 
 foreach(config common metaman man1 man2 srv1 srv2 srv3 srv4)
   configure_file(${config}.cfg ${config}.cfg @ONLY)
