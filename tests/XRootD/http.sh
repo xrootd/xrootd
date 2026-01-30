@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 
+export XRD_PLUGINCONFDIR="${BINARY_DIR}/config"
+
 function setup_http() {
 	require_commands openssl curl
 	openssl rand -base64 -out macaroons-secret 64
+	mkdir -p "${XRD_PLUGINCONFDIR}"
+	cat >| "${XRD_PLUGINCONFDIR}/http.conf" <<-EOF
+	url = http://*;https://*
+	lib = libXrdClHttp.so
+	enable = true
+	EOF
 }
 
 function teardown_http() {
+	rm "${XRD_PLUGINCONFDIR}/http.conf"
+	rmdir "${XRD_PLUGINCONFDIR}"
 	rm macaroons-secret
 }
 
