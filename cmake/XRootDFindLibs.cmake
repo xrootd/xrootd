@@ -106,7 +106,7 @@ if( ENABLE_TESTS )
     #  set(ENABLE_FUSE_TESTS TRUE CACHE BOOL "Enable FUSE tests")
     #endif()
 
-    if( BUILD_HTTP AND BUILD_XRDCLHTTP )
+    if( BUILD_HTTP )
       set(ENABLE_HTTP_TESTS TRUE CACHE BOOL "Enable HTTP tests")
     endif()
   endif()
