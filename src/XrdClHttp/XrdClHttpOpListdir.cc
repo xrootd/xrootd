@@ -99,10 +99,10 @@ bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
                 return false;
             }
             struct tm tm;
-            if (strptime(lastmod, "%a, %d %b %Y %H:%M:%S %Z", &tm) == nullptr) {
+            if (strptime(lastmod, "%a, %d %b %Y %H:%M:%S", &tm) == nullptr) {
                 return false;
             }
-            entry.m_lastmodified = mktime(&tm);
+            entry.m_lastmodified = timegm(&tm);
         } else if (strcasecmp(child->Value(), "D:href") == 0) {
             auto href = child->GetText();
             if (href == nullptr) {
