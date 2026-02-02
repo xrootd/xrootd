@@ -83,6 +83,7 @@ char *XrdHttpProtocol::sslcert = 0;
 char *XrdHttpProtocol::sslkey = 0;
 char *XrdHttpProtocol::sslcadir = 0;
 int XrdHttpProtocol::crlRefIntervalSec = XrdTlsContext::DEFAULT_CRL_REF_INT_SEC;
+bool XrdHttpProtocol::allowMissingCRL = false;
 char *XrdHttpProtocol::sslcipherfilter = 0;
 char *XrdHttpProtocol::listredir = 0;
 bool XrdHttpProtocol::listdeny = false;
@@ -1136,6 +1137,10 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
        if (!httpsspec && what1) eDest.Say("Config Using ", what1);
        if (!httpsspec && what2) eDest.Say("Config Using ", what2);
        if (!httpsspec && what3) eDest.Say("Config Using ", what3);
+
+       if (cP->opts & XrdTlsContext::crlAM) {
+          allowMissingCRL = true;
+       }
       }
 
 // If a gridmap or secxtractor is present then we must be able to verify certs
@@ -1834,6 +1839,10 @@ bool XrdHttpProtocol::InitTLS() {
    std::string eMsg;
    uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF |
                    XrdTlsContext::artON | XrdTlsContext::rfCRL;
+
+  if (allowMissingCRL) {
+    opts |= XrdTlsContext::crlAM;
+  }
 
 // Create a new TLS context
 //
@@ -3171,6 +3180,8 @@ int XrdHttpProtocol::LoadExtHandler(std::vector<extHInfo> &hiVec,
   if (sslcafile) myEnv.Put("http.cafile", sslcafile);
   if (sslcert)  myEnv.Put("http.cert",  sslcert);
   if (sslkey)   myEnv.Put("http.key"  , sslkey);
+  // Add the allowMissingCRL configuration to the environment
+  myEnv.PutInt("http.allowmissingcrl",allowMissingCRL ? 1 : 0);
 
   // Load all of the specified external handlers.
   //

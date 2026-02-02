@@ -406,6 +406,9 @@ protected:
   /// CRL thread refresh interval
   static int crlRefIntervalSec;
 
+  // Allows missing CRL for CA verification
+  static bool allowMissingCRL;
+
   /// Gridmap file location. The same used by XrdSecGsi
   static char *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
   static bool isRequiredGridmap; // If true treat gridmap errors as fatal

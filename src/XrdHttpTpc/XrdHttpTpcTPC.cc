@@ -38,6 +38,7 @@ int TPCHandler::m_marker_period = 5;
 size_t TPCHandler::m_block_size = 16*1024*1024;
 size_t TPCHandler::m_small_block_size = 1*1024*1024;
 XrdSysMutex TPCHandler::m_monid_mutex;
+bool TPCHandler::allowMissingCRL = false;
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, HttpTPC);
 
@@ -155,6 +156,36 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
 }
 
 /******************************************************************************/
+/*           s s l _ c t x _ c a l l b a c k                                  */
+/******************************************************************************/
+
+/**
+ * The callback that will be called by libcurl just before the initialization of an SSL connection
+ * after having processed all other SSL related options to give a last chance to an application to
+ * modify the behavior of the SSL initialization.
+ * https://curl.se/libcurl/c/CURLOPT_SSL_CTX_FUNCTION.html
+ */
+int TPCHandler::ssl_ctx_callback(CURL *curl, void *ssl_ctx, void *clientp) {
+    //TPCLogRecord * rec = (TPCLogRecord *)clientp;
+    SSL_CTX* ctx = static_cast<SSL_CTX*>(ssl_ctx);
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
+    return CURL_SOCKOPT_OK;
+}
+
+int TPCHandler::verify_callback(int preverify_ok, X509_STORE_CTX* ctx) {
+    if (preverify_ok == 1) return 1;
+
+    int err = X509_STORE_CTX_get_error(ctx);
+
+    if (err == X509_V_ERR_UNABLE_TO_GET_CRL) {
+        X509_STORE_CTX_set_error(ctx, X509_V_OK);
+        return 1;
+    }
+
+    return 0;
+}
+
+/******************************************************************************/
 /*                            p r e p a r e U R L                             */
 /******************************************************************************/
 
@@ -240,6 +271,10 @@ TPCHandler::ConfigureCurlCA(CURL *curl)
         std::ifstream in(crl_filename, std::ifstream::ate | std::ifstream::binary);
         if(in.tellg() > 0 && m_ca_file->atLeastOneValidCRLFound()){
             curl_easy_setopt(curl, CURLOPT_CRLFILE, crl_filename.c_str());
+            if (allowMissingCRL) {
+                // No need to set the callback if there is no need to do it
+                curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, ssl_ctx_callback);
+            }
         } else {
             std::ostringstream oss;
             oss << "No valid CRL file has been found in the file " << crl_filename << ". Disabling CRL checking.";
