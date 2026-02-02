@@ -252,9 +252,13 @@ static const uint64_t rfCRL = 0x0000004000000000; //!< Turn on the CRL refresh t
 static const uint64_t crlON = 0x0000008000000000; //!< Enables crl checking
 static const uint64_t crlFC = 0x000000C000000000; //!< Full crl chain checking
 static const uint64_t crlRF = 0x00000000ffff0000; //!< Mask to isolate crl refresh in min
+static const uint64_t crlAM = 0x0000001000000000; //!< Allow CA validation when CRL is missing (CRL soft-fail)
 static const int      crlRS = 16;                 //!< Bits to shift   vdept
 static const uint64_t artON = 0x0000002000000000; //!< Auto retry Handshake
 static const uint64_t clcOF = 0x0000010000000000; //!< Disable client certificate request
+
+
+static int ctxIndex;
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,
