@@ -211,7 +211,7 @@ xrd.tls $CA_DIR/tls.crt $CA_DIR/tls.key
 xrd.tlsca certfile $CA_DIR/tlsca.pem
 sec.protbind * none
 
-http.header2cgi Authorization authz
+http.header2cgi Authorization authz strip-on-redirect
 
 ofs.osslib ++ libXrdOssStats.so
 all.adminpath $XROOTD_RUNDIR/origin
@@ -263,7 +263,7 @@ xrd.tls $CA_DIR/tls.crt $CA_DIR/tls.key
 xrd.tlsca certfile $CA_DIR/tlsca.pem
 sec.protbind * none
 
-http.header2cgi Authorization authz
+http.header2cgi Authorization authz strip-on-redirect
 
 ofs.osslib libXrdPss.so
 ofs.ckslib * libXrdPss.so
@@ -273,7 +273,7 @@ ofs.osslib ++ libXrdOssStats.so
 all.adminpath $XROOTD_RUNDIR/cache
 all.pidpath $XROOTD_RUNDIR/cache
 
-http.header2cgi Authorization authz
+http.header2cgi Authorization authz strip-on-redirect
 
 xrootd.seclib libXrdSec.so
 sec.protocol ztn

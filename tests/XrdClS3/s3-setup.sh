@@ -345,7 +345,7 @@ ofs.authlib ++ libXrdAccSciTokens.so config=$XROOTD_CONFIGDIR/scitokens.cfg
 acc.authdb $XROOTD_CONFIGDIR/authdb
 
 xrd.protocol XrdHttp:any libXrdHttp.so
-http.header2cgi Authorization authz
+http.header2cgi Authorization authz strip-on-redirect
 
 xrd.tlsca certfile $MINIO_CERTSDIR/CAs/tlsca.pem
 xrd.tls $MINIO_CERTSDIR/public.crt $MINIO_CERTSDIR/private.key
