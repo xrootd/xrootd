@@ -2532,12 +2532,16 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
       }
    tlsNoVer = false;
 
-
    do {if (!strcmp(val, "proxies") || !strcmp("noproxies", val))
           {if (*val == 'n') tlsOpts |=  XrdTlsContext::nopxy;
               else          tlsOpts &= ~XrdTlsContext::nopxy;
            continue;
           }
+
+         if (!strcmp(val,"allowmissingcrl")) {
+            tlsOpts |= XrdTlsContext::crlAM;
+            continue;
+         }
 
        if (strlen(val) >= (int)sizeof(kword))
           {eDest->Emsg("Config", "Invalid tlsca parameter -", val);
@@ -2590,8 +2594,7 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
                {if (XrdOuca2x::a2i(*eDest,"tlsca verdepth",val,&vd,1,255))
                    return 1;
                 tlsOpts = TLS_SET_VDEPTH(tlsOpts,vd);
-               }
-       else {eDest->Emsg("Config", "invalid tlsca option -",kword); return 1;}
+               } else {eDest->Emsg("Config", "invalid tlsca option -",kword); return 1;}
 
        } while((val = Config.GetWord()));
 
