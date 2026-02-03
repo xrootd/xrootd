@@ -128,9 +128,14 @@ namespace
         return XrdCl::XRootDStatus();
       }
 
+      // used to fetch a timeout count in 2 situations: to pass to XrdCl methods
+      // and preserve remaining timeout at end of CanDo(). Zero has special
+      // meaning in both these contexts, so if we had an initial timeout we
+      // return a current timeout of at least 1.
       operator time_t()
       {
-        return timeLeft;
+        if( !hasInitTimeout ) return timeLeft;
+        return timeLeft ? timeLeft : 1;
       }
 
     private:
