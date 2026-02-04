@@ -238,36 +238,6 @@ namespace XrdCl
                          time_t     timeout = 0 )
                          XRD_WARN_UNUSED_RESULT;
 
-      //------------------------------------------------------------------------
-      //! Obtain status information for this file - async
-      //!
-      //! @param force   do not use the cached information, force re-stating
-      //! @param handler handler to be notified when the response arrives,
-      //!                the response parameter will hold a StatInfo object
-      //!                if the procedure is successful
-      //! @param timeout timeout value, if 0 the environment default will
-      //!                be used
-      //! @return        status of the operation
-      //------------------------------------------------------------------------
-      XRootDStatus Statx( bool             force,
-                         ResponseHandler *handler,
-                         time_t           timeout = 0 )
-                         XRD_WARN_UNUSED_RESULT;
-
-      //------------------------------------------------------------------------
-      //! Obtain status information for this file - sync
-      //!
-      //! @param force   do not use the cached information, force re-stating
-      //! @param response the response (to be deleted by the user)
-      //! @param timeout  timeout value, if 0 the environment default will
-      //!                 be used
-      //! @return         status of the operation
-      //------------------------------------------------------------------------
-      XRootDStatus Statx( bool       force,
-                         StatxInfo *&response,
-                         time_t     timeout = 0 )
-                         XRD_WARN_UNUSED_RESULT;
-
 
       //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - async

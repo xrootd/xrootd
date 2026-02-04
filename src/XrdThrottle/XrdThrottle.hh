@@ -105,10 +105,6 @@ public:
    virtual int
    stat(struct stat *buf) override;
 
-#if defined(__linux__)
-   virtual int
-   statx(struct statx * buf) override;
-#endif
    virtual int
    truncate(XrdSfsFileOffset   fileOffset) override;
 
@@ -251,22 +247,6 @@ public:
               XrdOucErrInfo    &out_error,
         const XrdSecEntity     *client,
         const char             *opaque = 0) override;
-
-#if defined(__linux__)
-   virtual int
-   statx(const char             *Name,
-                 struct statx      *buf,
-                 XrdOucErrInfo    &out_error,
-         const XrdSecEntity     *client,
-         const char             *opaque = 0) override;
-
-   virtual int
-   statx(const char             *Name,
-               mode_t           &mode,
-               XrdOucErrInfo    &out_error,
-         const XrdSecEntity     *client,
-         const char             *opaque = 0) override;
-#endif
 
    virtual int
    truncate(const char             *Name,

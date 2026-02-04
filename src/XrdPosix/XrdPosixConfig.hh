@@ -54,10 +54,6 @@ static void    EnvInfo(XrdOucEnv &theEnv);
 
 static void    initStat(struct stat *buf);
 
-#if defined(__linux__)
-static void    initStatx(struct statx *buf);
-#endif
-
 static bool    SetConfig(XrdOucPsx &parms);
 
 static bool    OpenFC(const char *path, int oflag, mode_t mode,

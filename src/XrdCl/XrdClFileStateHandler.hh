@@ -201,22 +201,6 @@ namespace XrdCl
                                 time_t                             timeout = 0 );
 
 
-    //------------------------------------------------------------------------
-    //! Obtain status information for this file - async
-    //!
-    //! @param force   do not use the cached information, force re-stating
-    //! @param handler handler to be notified when the response arrives,
-    //!                the response parameter will hold a StatInfo object
-    //!                if the procedure is successful
-    //! @param timeout timeout value, if 0 the environment default will
-    //!                be used
-    //! @return        status of the operation
-    //------------------------------------------------------------------------
-    static XRootDStatus Statx( std::shared_ptr<FileStateHandler> &self,
-                              bool                               force,
-                              ResponseHandler                   *handler,
-                              time_t                             timeout = 0 );
-
       //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - sync
       //!
@@ -967,7 +951,6 @@ namespace XrdCl
       FileStatus              pFileState;
       XRootDStatus            pStatus;
       StatInfo               *pStatInfo;
-      StatxInfo              *pStatxInfo;
       URL                    *pFileUrl;
       URL                    *pDataServer;
       URL                    *pLoadBalancer;

@@ -556,39 +556,6 @@ namespace XrdCl
                          time_t              timeout = 0 )
                          XRD_WARN_UNUSED_RESULT;
 
-
-      //------------------------------------------------------------------------
-      //! Obtain status (statx) information for a path - async
-      //!
-      //! @param path    file/directory path
-      //! @param handler handler to be notified when the response arrives,
-      //!                the response parameter will hold a StatInfo object
-      //!                if the procedure is successful
-      //! @param timeout timeout value, if 0 the environment default will
-      //!                be used
-      //! @return        status of the operation
-      //------------------------------------------------------------------------
-      XRootDStatus Statx( const std::string &path,
-                         ResponseHandler   *handler,
-                         time_t             timeout = 0 )
-                         XRD_WARN_UNUSED_RESULT;
-
-
-      //------------------------------------------------------------------------
-      //! Obtain status (statx) information for a path - sync
-      //!
-      //! @param path     file/directory path
-      //! @param response the response (to be deleted by the user only if the
-      //!                 procedure is successful)
-      //! @param timeout  timeout value, if 0 the environment default will
-      //!                 be used
-      //! @return         status of the operation
-      //------------------------------------------------------------------------
-      XRootDStatus Statx( const std::string  &path,
-                         StatxInfo          *&response,
-                         time_t              timeout = 0 )
-                         XRD_WARN_UNUSED_RESULT;
-
       //------------------------------------------------------------------------
       //! Obtain status information for a Virtual File System - async
       //!

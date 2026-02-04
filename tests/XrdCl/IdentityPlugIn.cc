@@ -97,18 +97,6 @@ namespace
         return pFile->Stat( force, handler, timeout );
       }
 
-      //------------------------------------------------------------------------
-      // Statx
-      //------------------------------------------------------------------------
-      virtual XRootDStatus Statx( bool             force,
-                                 ResponseHandler *handler,
-                                 time_t           timeout )
-      {
-        XrdCl::Log *log = TestEnv::GetLog();
-        log->Debug( 1, "Calling IdentityFile::Statx" );
-        return pFile->Statx( force, handler, timeout );
-      }
-
 
       //------------------------------------------------------------------------
       // Read
@@ -384,18 +372,6 @@ namespace
         log->Debug( 1, "Calling IdentityFileSystem::Stat" );
         return pFileSystem->Stat( path, handler, timeout );
       }
-
-      //------------------------------------------------------------------------
-      // Statx
-      //------------------------------------------------------------------------
-      virtual XRootDStatus Statx( const std::string &path,
-                                 ResponseHandler   *handler,
-                                 time_t             timeout )
-        {
-          XrdCl::Log *log = TestEnv::GetLog();
-          log->Debug( 1, "Calling IdentityFileSystem::Statx" );
-          return pFileSystem->Statx( path, handler, timeout );
-        }
 
       //------------------------------------------------------------------------
       // StatVFS

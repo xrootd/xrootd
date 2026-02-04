@@ -679,30 +679,6 @@ int File::Fstat(struct stat &sbuff)
    return 0;
 }
 
-#if defined(__linux__)
-int File::Fstatx(struct statx &sbuff) {
-   // Stat on an open file.
-   // Corrects size to actual full size of the file.
-   // Sets atime to 0 if the file is only partially downloaded, in accordance
-   // with pfc.onlyifcached settings.
-   // Called from IO::Fstat() and Cache::Stat() when the file is active.
-   // Returns 0 on success, -errno on error.
-
-   int res;
-
-   if ((res = m_data_file->Fstatx(&sbuff))) return res;
-
-   sbuff.stx_size = m_file_size;
-
-   bool is_cached = cache()->DecideIfConsideredCached(m_file_size, sbuff.stx_blocks * 512ll);
-   if ( ! is_cached) {
-      sbuff.stx_atime.tv_sec = 0;
-      sbuff.stx_atime.tv_nsec = 0;
-   }
-   return 0;
-}
-#endif
-
 //==============================================================================
 // Read and helpers
 //==============================================================================

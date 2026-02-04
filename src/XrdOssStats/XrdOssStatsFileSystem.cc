@@ -163,15 +163,6 @@ int       FileSystem::Stat(const char *path, struct stat *buff,
     return wrapPI.Stat(path, buff, opts, env);
 }
 
-#if defined(__linux__)
-int       FileSystem::Statx(const char *path, struct statx *buff,
-                    int opts, XrdOucEnv *env)
-{
-    OpTimer op(m_ops.m_stat_ops, m_slow_ops.m_stat_ops, m_times.m_stat, m_slow_times.m_stat, m_slow_duration);
-    return wrapPI.Statx(path, buff, opts, env);
-}
-#endif
-
 int       FileSystem::StatFS(const char *path, char *buff, int &blen,
                         XrdOucEnv  *env)
 {

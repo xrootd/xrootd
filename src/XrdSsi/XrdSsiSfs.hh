@@ -123,19 +123,7 @@ const   char          *getVersion();
                                   XrdOucErrInfo    &eInfo,
                             const XrdSecEntity     *client,
                             const char             *opaque = 0);
-#if defined(__linux__)
-        int            statx(const char             *Name,
-                             struct statx      *buf,
-                             XrdOucErrInfo    &eInfo,
-                             const XrdSecEntity     *client,
-                             const char             *opaque = 0);
 
-        int            statx(const char             *Name,
-                             mode_t           &mode,
-                             XrdOucErrInfo    &eInfo,
-                             const XrdSecEntity     *client,
-                             const char             *opaque = 0);
-#endif
         int            truncate(const char             *Name,
                                       XrdSfsFileOffset fileOffset,
                                       XrdOucErrInfo    &eInfo,

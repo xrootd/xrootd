@@ -193,10 +193,6 @@ public:
    // virtual function of XrdOucCache.
    virtual int  Stat(const char *url, struct stat &sbuff);
 
-#if defined(__linux__)
-   // virtual function of XrdOucCache.
-   virtual int  Statx(const char *url, struct statx &sbuff);
-#endif
    // virtual function of XrdOucCache.
    virtual int  Unlink(const char *url);
 

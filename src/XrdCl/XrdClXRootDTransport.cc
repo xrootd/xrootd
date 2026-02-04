@@ -3149,37 +3149,6 @@ namespace XrdCl
         break;
       }
 
-        //------------------------------------------------------------------------
-        // kXR_stat
-        //------------------------------------------------------------------------
-      case kXR_statx:
-      {
-        ClientStatRequest *sreq = (ClientStatRequest *)msg;
-        o << "kXR_stat (";
-        if( sreq->dlen )
-        {
-          char *fn = GetDataAsString( msg );;
-          o << "path: " << fn << ", ";
-          delete [] fn;
-        }
-        else
-        {
-          o << "handle: " << FileHandleToStr( sreq->fhandle );
-          o << ", ";
-        }
-        o << "flags: ";
-        if( sreq->options == 0 )
-          o << "none";
-        else
-        {
-          if( sreq->options & kXR_vfs )
-            o << "kXR_vfs";
-        }
-        o << ")";
-        break;
-      }
-
-
       //------------------------------------------------------------------------
       // kXR_read
       //------------------------------------------------------------------------

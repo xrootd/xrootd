@@ -188,9 +188,6 @@ int       Remdir(const char *, int Opts=0, XrdOucEnv *eP=0) override;
 int       Rename(const char *, const char *,
                  XrdOucEnv *eP1=0, XrdOucEnv *eP2=0) override;
 int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0) override;
-#if defined(__linux__)
-int       Statx(const char *path, struct statx *buff, int Opts, XrdOucEnv *eP) override;
-#endif
 int       Stats(char *bp, int bl) override;
 int       Truncate(const char *, unsigned long long, XrdOucEnv *eP=0) override;
 int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0) override;

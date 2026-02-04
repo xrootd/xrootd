@@ -930,29 +930,7 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
           : Xroot.Stat(myPath, buf));
 }
 }
-
-/******************************************************************************/
-/*                         X r d P o s i x _ S t a t x                        */
-/******************************************************************************/
-#if defined(__linux__)
-extern "C"
-{
-   int XrdPosix_Statx(int dirfd, const char *path, int flags, unsigned int mask, struct statx * statxbuf)
-   {
-      char *myPath, buff[2048];
-
-      // Make sure a path was passed
-      //
-      if (!path) {errno = EFAULT; return -1;}
-
-      // Return the results of an open of a Unix file
-      //
-      myPath = XrootPath.URL(path, buff, sizeof(buff));
-      return (!myPath ? Xunix.Statx(dirfd,path,flags,mask,statxbuf)
-             : Xroot.Statx(myPath,statxbuf));
-   }
-}
-#endif
+  
 /******************************************************************************/
 /*                       X r d P o s i x _ S t a t f s                        */
 /******************************************************************************/

@@ -112,10 +112,6 @@ virtual int       Rename(const char *oldname, const char *newname,
                       XrdOucEnv  *old_env=0, XrdOucEnv  *new_env=0) /* override */ { return successor_->Rename(oldname, newname, old_env, new_env); }
 virtual int       Stat(const char *path, struct stat *buff, int opts=0,
                     XrdOucEnv  *EnvP=0) /* override */ { return successor_->Stat(path, buff, opts, EnvP); }
-#if defined(__linux__)
-virtual int       Statx(const char *path, struct statx *buff, int opts=0,
-                      XrdOucEnv  *EnvP=0) /* override */ { return successor_->Statx(path, buff, opts, EnvP); }
-#endif
 
 virtual int       Stats(char *bp, int bl) /* override */ { return successor_->Stats(bp, bl); }
 

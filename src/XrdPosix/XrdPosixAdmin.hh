@@ -71,12 +71,6 @@ bool           Stat(mode_t *flags=0, time_t *mtime=0);
 
 bool           Stat(struct stat &Stat);
 
-#if defined(__linux__)
-  bool Statx(mode_t *flags = 0, time_t *mtime=0);
-
-  bool Statx(struct statx &Stat);
-#endif
-
       XrdPosixAdmin(const char *path, XrdOucECMsg &ecm)
                       : Url((std::string)path), Xrd(Url), ecMsg(ecm) {}
      ~XrdPosixAdmin() {}

@@ -30,7 +30,6 @@
 #include <map>
 #include <set>
 #include <string>
-#include <sys/stat.h>
 
 class XrdJob;
 struct XrdOucIOVec;
@@ -282,10 +281,6 @@ public:
    const Stats&       RefStats()             const { return m_stats; }
 
    int Fstat(struct stat &sbuff);
-
-#if defined(__linux__)
-   int Fstatx(struct statx &sbuff);
-#endif
 
    // These three methods are called under Cache's m_active lock
    int get_ref_cnt() { return   m_ref_cnt; }

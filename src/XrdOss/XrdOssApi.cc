@@ -1232,11 +1232,7 @@ int XrdOssFile::Fstat(struct stat *buff)
 {
     return (fstat(fd, buff) ? -errno : XrdOssOK);
 }
-#if defined(__linux__)
-int XrdOssFile::Fstatx(struct statx * buff) {
-   return (statx(fd, "", AT_EMPTY_PATH, STATX_ALL, buff) ? -errno : XrdOssOK);
-}
-#endif
+
 /******************************************************************************/
 /*                               F s y n c                                    */
 /******************************************************************************/

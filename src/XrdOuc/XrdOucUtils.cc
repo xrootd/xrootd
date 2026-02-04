@@ -1688,13 +1688,4 @@ std::string XrdOucUtils::UrlDecode(const std::string &input)
   return out;
 }
 
-#if defined(__linux__)
-timespec XrdOucUtils::to_timespec(const statx_timestamp& t) {
-   return timespec{
-      .tv_sec  = t.tv_sec,
-      .tv_nsec = static_cast<long>(t.tv_nsec)
-  };
-}
-#endif
-
 #endif

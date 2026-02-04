@@ -402,18 +402,6 @@ int XrdSsiFile::stat(struct stat     *buf)         // Out
    return SFS_OK;
 }
 
-#if defined(__linux__)
-
-int XrdSsiFile::statx(struct statx *buf) {
-   if (fsFile) return fsFile->statx(buf);
-
-   // Otherwise there is no stat information
-   //
-   memset(buf, 0 , sizeof(struct stat));
-   return SFS_OK;
-}
-
-#endif
 /******************************************************************************/
 /*                                  s y n c                                   */
 /******************************************************************************/

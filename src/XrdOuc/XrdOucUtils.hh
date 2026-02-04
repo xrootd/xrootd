@@ -156,9 +156,7 @@ static uint8_t touint8_t(const std::string_view sv);
 static std::string UrlEncode(const std::string &input);
 
 static std::string UrlDecode(const std::string &input);
-#if defined(__linux__)
-static timespec to_timespec(const statx_timestamp& t);
-#endif
+
     XrdOucUtils() {}
     ~XrdOucUtils() {}
 

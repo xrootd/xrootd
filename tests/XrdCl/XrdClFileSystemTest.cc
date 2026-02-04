@@ -16,7 +16,6 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include <fcntl.h>
 #include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClFile.hh>
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -44,7 +43,6 @@ class FileSystemTest: public ::testing::Test
     void ChmodTest();
     void PingTest();
     void StatTest();
-    void StatxTest();
     void StatVFSTest();
     void ProtocolTest();
     void DeepLocateTest();
@@ -96,12 +94,7 @@ TEST_F(FileSystemTest, StatTest)
 {
   StatTest();
 }
-#if defined(__linux__)
-TEST_F(FileSystemTest, StatxTest)
-{
-  StatxTest();
-}
-#endif
+
 TEST_F(FileSystemTest, StatVFSTest)
 {
   StatVFSTest();
@@ -431,52 +424,6 @@ void FileSystemTest::StatTest()
   delete response;
 }
 
-#if defined(__linux__)
-void FileSystemTest::StatxTest() {
-
-  using namespace XrdCl;
-
-  Env *testEnv = TestEnv::GetEnv();
-
-  std::string address;
-  std::string remoteFile;
-  std::string localDataPath;
-
-  EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
-  EXPECT_TRUE( testEnv->GetString( "RemoteFile",    remoteFile ) );
-  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
-
-  std::string localFilePath = localDataPath + "/srv1" + remoteFile;
-
-
-  struct statx localStatBuf;
-  int rc = statx(AT_FDCWD,localFilePath.c_str(), AT_STATX_SYNC_AS_STAT,STATX_BASIC_STATS | STATX_BTIME, &localStatBuf);
-  EXPECT_EQ( rc, 0 );
-  uint64_t fileSize = localStatBuf.stx_size;
-  uint64_t birthTime = localStatBuf.stx_btime.tv_sec;
-  uint64_t aTime = localStatBuf.stx_atime.tv_sec;
-  uint64_t mTime = localStatBuf.stx_mtime.tv_sec;
-  uint64_t cTime = localStatBuf.stx_ctime.tv_sec;
-
-  URL url( address );
-  EXPECT_TRUE( url.IsValid() );
-
-  FileSystem fs( url );
-  StatxInfo *response = 0;
-  EXPECT_XRDST_OK( fs.Statx( remoteFile, response ) );
-  ASSERT_TRUE( response );
-  EXPECT_EQ( response->GetSize(), fileSize );
-  EXPECT_TRUE( response->TestFlags( StatInfo::IsReadable ) );
-  EXPECT_TRUE( response->TestFlags( StatInfo::IsWritable ) );
-  EXPECT_FALSE( response->TestFlags( StatInfo::IsDir ) );
-  EXPECT_EQ(birthTime, response->GetBirthTime());
-  EXPECT_EQ(aTime, response->GetAccessTime());
-  EXPECT_EQ(mTime, response->GetModTime());
-  EXPECT_EQ(cTime, response->GetChangeTime());
-  delete response;
-}
-
-#endif
 //------------------------------------------------------------------------------
 // Stat VFS test
 //------------------------------------------------------------------------------

@@ -47,10 +47,6 @@ public:
                          XrdOucEnv  *oEnvP=0, XrdOucEnv *nEnvP=0) override;
     int       Stat(const char *path, struct stat *buff,
                        int opts=0, XrdOucEnv *env=0) override;
-#if defined(__linux__)
-    int       Statx(const char *path, struct statx *buff,
-                     int opts=0, XrdOucEnv *env=0) override;
-#endif
     int       StatFS(const char *path, char *buff, int &blen,
                          XrdOucEnv  *env=0) override;
     int       StatLS(XrdOucEnv &env, const char *path,

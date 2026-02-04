@@ -595,29 +595,6 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 }
 
 /******************************************************************************/
-/*                                 s t a t                                    */
-/******************************************************************************/
-
-/*
-  Function: Determine if file 'path' actually exists.
-
-  Input:    path        - Is the fully qualified name of the file to be tested.
-            buff        - pointer to a 'stat' structure to hold the attributes
-                          of the file.
-            Opts        - stat() options.
-            envP        - Environmental information.
-
-  Output:   Returns XrdOssOK upon success and -errno upon failure.
-
-  Notes:    The XRDOSS_resonly flag in Opts is not supported.
-*/
-#if defined(__linux__)
-int XrdPssSys::Statx(const char *path, struct statx *buff, int Opts, XrdOucEnv *eP) {
-   // TODO STATX
-   return -ENOSYS;
-}
-#endif
-/******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
