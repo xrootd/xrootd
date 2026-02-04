@@ -1244,62 +1244,6 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
    return 0;
 }
 
-#if defined(__linux__)
-int Cache::Statx(const char *curl, struct statx &sbuff) {
-   const char *tpfx = "Stat ";
-
-   XrdCl::URL url(curl);
-   std::string f_name = url.GetPath();
-
-   File *file = nullptr;
-   {
-      XrdSysCondVarHelper lock(&m_active_cond);
-      auto it = m_active.find(f_name);
-      if (it != m_active.end()) {
-         file = it->second;
-         // If `file` is nullptr, the file-open is in progress; instead
-         // of waiting for the file-open to finish, simply treat it as if
-         // the file-open doesn't exist.
-         if (file) {
-            inc_ref_cnt(file, false, false);
-         }
-      }
-   }
-   if (file) {
-      int res = file->Fstatx(sbuff);
-      dec_ref_cnt(file, false);
-      TRACE(Debug, tpfx << "from active file " << curl << " -> " << res);
-      return res;
-   }
-
-   int res = m_oss->Statx(f_name.c_str(), &sbuff);
-   if (res != XrdOssOK) {
-      TRACE(Debug, tpfx << curl << " -> " << res);
-      return 1; // res; -- for only-if-cached
-   }
-   if (S_ISDIR(sbuff.stx_mode))
-   {
-      TRACE(Debug, tpfx << curl << " -> EISDIR");
-      return -EISDIR;
-   }
-
-   long long file_size = DetermineFullFileSize(f_name + Info::s_infoExtension);
-   if (file_size < 0) {
-      TRACE(Debug, tpfx << curl << " -> " << file_size);
-      return 1; // (int) file_size; -- for only-if-cached
-   }
-   sbuff.stx_size = file_size;
-   bool is_cached = DecideIfConsideredCached(file_size, sbuff.stx_blocks * 512ll);
-   if ( ! is_cached) {
-      sbuff.stx_atime.tv_sec = 0;
-      sbuff.stx_atime.tv_nsec = 0;
-   }
-
-   TRACE(Debug, tpfx << "from disk " << curl << " -> " << res);
-
-   return 0;
-}
-#endif
 //______________________________________________________________________________
 // virtual method of XrdOucCache.
 //!

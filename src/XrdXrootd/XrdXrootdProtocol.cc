@@ -59,10 +59,6 @@
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
-#if defined(__linux__)
-#include <sys/sysmacros.h>
-#endif
-
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
@@ -503,14 +499,6 @@ int XrdXrootdProtocol::Process2()
                                  return do_Stat();
                                 }
                              break;
-          case kXR_statx:
-#if defined(__linux__)
-            if (!Request.header.dlen) {
-              ReqID.setID(Request.header.streamid);
-              return do_Statx();
-            }
-#endif
-            break;
           case kXR_truncate: ReqID.setID(Request.header.streamid);
                              if (!Request.header.dlen) return do_Truncate();
                              break;
@@ -610,9 +598,7 @@ int XrdXrootdProtocol::Process2()
           case kXR_rmdir:     return do_Rmdir();
           case kXR_set:       return do_Set();
           case kXR_stat:      return do_Stat();
-#if defined(__linux__)
           case kXR_statx:     return do_Statx();
-#endif
           case kXR_truncate:  return do_Truncate();
           default:            break;
          }
@@ -863,115 +849,6 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
    *nullP = ' ';
    return xxBuff - origP;
 }
-
-#if defined(__linux__)
-int XrdXrootdProtocol::StatxGen(struct statx &buf, char *xxBuff, int xxLen,
-                               bool xtnd) {
-  const mode_t isReadable = (S_IRUSR | S_IRGRP | S_IROTH);
-  const mode_t isWritable = (S_IWUSR | S_IWGRP | S_IWOTH);
-  const mode_t isExecable = (S_IXUSR | S_IXGRP | S_IXOTH);
-  uid_t theuid;
-  gid_t thegid;
-  union {long long uuid; struct {int hi; int lo;} id;} Dev;
-  long long fsz;
-  int m, n, flags = 0;
-
-  // Get the right uid/gid
-  //
-  theuid = (Client && Client->uid ? Client->uid : myUID);
-  thegid = (Client && Client->gid ? Client->gid : myGID);
-
-
-  Dev.id.lo = buf.stx_ino;
-  dev_t device = makedev(buf.stx_dev_major,buf.stx_dev_minor);
-  Dev.id.hi = device;
-
-
-  // Compute correct setting of the readable flag
-  //
-  if (buf.stx_mode & isReadable
-  &&((buf.stx_mode & S_IRUSR && theuid == buf.stx_uid)
-  || (buf.stx_mode & S_IRGRP && thegid == buf.stx_gid)
-  ||  buf.stx_mode & S_IROTH)) flags |= kXR_readable;
-
-  // Compute correct setting of the writable flag
-  //
-  if (buf.stx_mode & isWritable
-  &&((buf.stx_mode & S_IWUSR && theuid == buf.stx_uid)
-  || (buf.stx_mode & S_IWGRP && thegid == buf.stx_gid)
-  ||  buf.stx_mode & S_IWOTH)) flags |= kXR_writable;
-
-  // Compute correct setting of the execable flag
-  //
-  if (buf.stx_mode & isExecable
-  &&((buf.stx_mode & S_IXUSR && theuid == buf.stx_uid)
-  || (buf.stx_mode & S_IXGRP && thegid == buf.stx_gid)
-  ||  buf.stx_mode & S_IXOTH)) flags |= kXR_xset;
-
-  // Compute the other flag settings
-  //
-  if (!Dev.uuid)                         flags |= kXR_offline;
-  if (S_ISDIR(buf.stx_mode))              flags |= kXR_isDir;
-  else if (!S_ISREG(buf.stx_mode))             flags |= kXR_other;
-  else{if (buf.stx_mode & XRDSFS_POSCPEND)     flags |= kXR_poscpend;
-    if ((device & XRDSFS_RDVMASK) == 0)
-    {if (device & XRDSFS_OFFLINE)  flags |= kXR_offline;
-      if (device & XRDSFS_HASBKUP)  flags |= kXR_bkpexist;
-    }
-  }
-  if ((fsFeatures & XrdSfs::hasCACH) != 0 && buf.stx_atime.tv_sec != 0)
-    flags |= kXR_cachersp;
-
-  fsz = static_cast<long long>(buf.stx_size);
-
-
-  // Format the default response: <devid> <size> <flags> <mtime>
-  //
-  m = snprintf(xxBuff, xxLen, "%lld %lld %d %lld",
-               Dev.uuid, fsz, flags, (long long) buf.stx_mtime.tv_sec);
-
-  // Format extended response: <ctime> <atime> <btime> <mode>
-  //
-  char *origP = xxBuff;
-  char *nullP = xxBuff + m++;
-  xxBuff += m; xxLen -= m;
-  n = snprintf(xxBuff, xxLen, "%lld %lld %lld %04o ",
-               (long long) buf.stx_ctime.tv_sec, (long long) buf.stx_atime.tv_sec,
-               (long long) buf.stx_btime.tv_sec,
-               buf.stx_mode&07777);
-  if (n >= xxLen) return m;
-  xxBuff += n; xxLen -= n;
-
-  // Tack on owner
-  //
-  if (buf.stx_uid == myUID)
-  {if (myUNLen >= xxLen) return m;
-    strcpy(xxBuff, myUName);
-    n = myUNLen;
-  } else {
-    if (!(n = XrdOucUtils::UidName(buf.stx_uid,xxBuff,xxLen,keepT))) return m;
-  }
-  xxBuff += n;
-  *xxBuff++ = ' ';
-  xxLen -= (n+1);
-
-  // Tack on group
-  //
-  if (buf.stx_gid == myGID)
-  {if (myGNLen >= xxLen) return m;
-    strcpy(xxBuff, myGName);
-    n = myGNLen;
-  } else {
-    if (!(n = XrdOucUtils::GidName(buf.stx_gid,xxBuff,xxLen,keepT))) return m;
-  }
-  xxBuff += n+1;
-
-  // All done, return full response
-  //
-  *nullP = ' ';
-  return xxBuff - origP;
-}
-#endif
 
 /******************************************************************************/
 /*                                 S t a t s                                  */

@@ -693,16 +693,6 @@ int        stat64(         const char *path, struct stat64 *buf)
 }
 }
 
-#if defined(__linux__)
-extern "C"
-{
-   int statx(int dirfd, const char *path, int flags, unsigned int mask, struct statx * statxbuf) {
-      static int Init = Xunix.Init(&Init);
-
-      return XrdPosix_Statx(dirfd,path,flags,mask,statxbuf);
-   }
-}
-#endif
 /******************************************************************************/
 /*                                s t a t f s                                 */
 /******************************************************************************/

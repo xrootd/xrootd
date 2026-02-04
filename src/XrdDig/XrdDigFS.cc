@@ -806,33 +806,6 @@ int XrdDigFS::stat(const char              *path,        // In
 }
 
 /******************************************************************************/
-/*                                  s t a t                                   */
-/******************************************************************************/
-#if defined(__linux__)
-int XrdDigFS::statx(const char              *path,        // In
-                         struct statx       *buf,         // Out
-                         XrdOucErrInfo     &error,       // Out
-                   const XrdSecClientName  *client,      // In
-                   const char              *info)        // In
-/*
-  Function: Get info on 'path'.
-
-  Input:    path        - Is the fully qualified name of the file to be tested.
-            buf         - The statx structiure to hold the results
-            error       - Error information object holding the details.
-            client      - Authentication credentials, if any.
-            info        - Opaque information, if any.
-
-  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
-*/
-{
-   // We don't support this
-   //
-   error.setErrInfo(ENOTSUP, "statx operation not supported");
-   return SFS_ERROR;
-}
-#endif
-/******************************************************************************/
 /*                              V a l i d a t e                               */
 /******************************************************************************/
   

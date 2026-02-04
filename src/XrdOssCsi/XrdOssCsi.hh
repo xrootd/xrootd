@@ -211,10 +211,6 @@ virtual int       Chmod(const char *path, mode_t mode, XrdOucEnv *envP=0) /* ove
 virtual int       Remdir(const char *path, int Opts=0, XrdOucEnv *eP=0) /* override */;
 virtual int       Stat(const char *path, struct stat *buff, int opts=0,
                     XrdOucEnv  *EnvP=0) /* override */;
-#if defined(__linux__)
-virtual int       Statx(const char *path, struct statx *buff, int opts=0,
-                       XrdOucEnv  *EnvP=0) /* override */;
-#endif
 virtual int       StatPF(const char *path, struct stat *buff, int opts) /* override */;
 virtual int       StatPF(const char *path, struct stat *buff) /* override */ { return StatPF(path, buff, 0);}
 virtual int       StatXA(const char *path, char *buff, int &blen,

@@ -220,14 +220,6 @@ File::stat(struct stat *buf)
    return m_sfs->stat(buf);
 }
 
-#if defined(__linux__)
-int
-File::statx(struct statx *buf)
-{
-   return m_sfs->statx(buf);
-}
-#endif
-
 int
 File::truncate(XrdSfsFileOffset   fileOffset)
 {

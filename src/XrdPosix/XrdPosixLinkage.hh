@@ -56,15 +56,15 @@
 #define Symb_Access UNIX_PFX "access"
 #define Retv_Access int
 #define Args_Access const char *path, int amode
-
+  
 #define Symb_Acl UNIX_PFX "acl"
 #define Retv_Acl int
 #define Args_Acl const char *, int, int, void *
-
+  
 #define Symb_Chdir UNIX_PFX "chdir"
 #define Retv_Chdir int
 #define Args_Chdir const char *path
-
+  
 #define Symb_Close UNIX_PFX "close"
 #define Retv_Close int
 #define Args_Close int
@@ -363,11 +363,6 @@
 #define Symb_Stat UNIX_PFX "__xstat"
 #define Retv_Stat int
 #define Args_Stat int, const char *, struct stat *
-
-#define Symb_Statx UNIX_PFX "statx"
-#define Retv_Statx int
-#define Args_Statx int, const char *, int , unsigned int , struct statx *
-
 #else
 #define Symb_Stat UNIX_PFX "stat"
 #define Retv_Stat int
@@ -451,7 +446,7 @@
 /******************************************************************************/
 /*            C a l l   O u t   V e c t o r   D e f i n i t i o n             */
 /******************************************************************************/
-
+  
 class XrdPosixLinkage
 {public:
       int              Init(int *X=0) {if (!Done) Done = Resolve(); return 0;}
@@ -509,9 +504,6 @@ class XrdPosixLinkage
       Retv_Seekdir     (*Seekdir)(Args_Seekdir);
       Retv_Stat        (*Stat)(Args_Stat);
       Retv_Stat64      (*Stat64)(Args_Stat64);
-#if defined(__linux__)
-      Retv_Statx       (*Statx)(Args_Statx);
-#endif
       Retv_Statfs      (*Statfs)(Args_Statfs);
       Retv_Statfs64    (*Statfs64)(Args_Statfs64);
       Retv_Statvfs     (*Statvfs)(Args_Statvfs);

@@ -711,24 +711,6 @@ virtual int       Stat(const char *path, struct stat *buff,
                       {return wrapPI.Stat(path, buff, opts, envP);}
 
 //-----------------------------------------------------------------------------
-//! Return statx information on a file or directory.
-//!
-//! @param  path   - Pointer to the path in question.
-//! @param  buff   - Pointer to the structure where info it to be returned.
-//! @param  opts   - Options:
-//!                  XRDOSS_preop    - this is a stat prior to open.
-//!                  XRDOSS_resonly  - only look for resident files.
-//!                  XRDOSS_updtatm  - update file access time.
-//! @param  envP   - Pointer to environmental information.
-//!
-//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
-//-----------------------------------------------------------------------------
-#if defined(__linux__)
-virtual int       Statx(const char *path, struct statx *buff,
-                       int opts=0, XrdOucEnv *envP=0)
-                      {return wrapPI.Statx(path, buff, opts, envP);}
-#endif
-//-----------------------------------------------------------------------------
 //! Return statistics.
 //!
 //! @param  buff   - Pointer to the buffer to hold statistics.

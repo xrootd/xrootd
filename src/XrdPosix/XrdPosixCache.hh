@@ -98,21 +98,6 @@ int           Rename(const char* oldPath, const char* newPath);
 
 int           Stat(const char *path, struct stat &sbuff);
 
-
-//-----------------------------------------------------------------------------
-//! Rename a file or directory in the cache.
-//!
-//! @param  path    -> filepath of existing directory or file. This is the
-//!                    actual path in the cache (see CachePath()).
-//! @param  sbuff   Reference to the stat structure to hold the information.
-//!
-//! @return =0      The sbuff hold the information.
-//! @return !0      The file or direcory does not exist in the cache.
-//-----------------------------------------------------------------------------
-#if defined(__linux__)
-  int           Statx(const char *path, struct statx &sbuff);
-#endif
-
 //-----------------------------------------------------------------------------
 //! Rename a file or directory in the cache.
 //!

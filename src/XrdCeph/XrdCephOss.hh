@@ -66,9 +66,6 @@ public:
   virtual int     Remdir(const char *, int Opts=0, XrdOucEnv *eP=0);
   virtual int     Rename(const char *, const char *, XrdOucEnv *eP1=0, XrdOucEnv *eP2=0);
   virtual int     Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0);
-#if defined(__linux__)
-  virtual int     Statx(const char *path, struct statx *buff, int opts=0, XrdOucEnv *envP=0);
-#endif
   virtual int     StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP=0);
   virtual int     StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);  
   virtual int     StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0);

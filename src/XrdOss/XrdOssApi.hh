@@ -104,9 +104,6 @@ int     Fchmod(mode_t mode);
 int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 void    Flush();
 int     Fstat(struct stat *);
-#if defined(__linux__)
-int     Fstatx(struct statx *);
-#endif
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
@@ -194,9 +191,6 @@ virtual
 int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t, unsigned long long );
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *Env=0);
-#if defined(__linux__)
-int       Statx(const char *, struct statx *, int opts=0, XrdOucEnv *Env=0);
-#endif
 int       StatFS(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
 int       StatFS(const char *path, unsigned long long &Opt,
                  long long &fSize, long long &fSpace);
@@ -223,9 +217,6 @@ int       MSS_Readdir(void *fd, char *buff, int blen);
 int       MSS_Remdir(const char *, const char *) {return -ENOTSUP;}
 int       MSS_Rename(const char *, const char *);
 int       MSS_Stat(const char *, struct stat *buff=0);
-#if defined(__linux__)
-int       MSS_Statx(const char *, struct statx *buff=0);
-#endif
 int       MSS_Unlink(const char *);
 
 static const int MaxArgs = 15;

@@ -194,27 +194,7 @@ FileSystem::stat(const char             *Name,
 {
    return m_sfs_ptr->stat(Name, mode, out_error, client, opaque);
 }
-#if defined(__linux__)
-int
-FileSystem::statx(const char             *Name,
-                       struct statx      *buf,
-                       XrdOucErrInfo    &out_error,
-                 const XrdSecEntity     *client,
-                 const char             *opaque)
-{
-   return m_sfs_ptr->statx(Name, buf, out_error, client, opaque);
-}
 
-int
-FileSystem::statx(const char             *Name,
-                       mode_t           &mode,
-                       XrdOucErrInfo    &out_error,
-                 const XrdSecEntity     *client,
-                 const char             *opaque)
-{
-   return m_sfs_ptr->statx(Name, mode, out_error, client, opaque);
-}
-#endif
 int
 FileSystem::truncate(const char             *Name,
                            XrdSfsFileOffset fileOffset,

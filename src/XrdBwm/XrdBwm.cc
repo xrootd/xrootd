@@ -929,37 +929,6 @@ int XrdBwm::stat(const char             *path,        // In
 }
 
 /******************************************************************************/
-/*                                  s t a t x                                 */
-/******************************************************************************/
-#if defined(__linux__)
-int XrdBwm::statx(const char             *path,        // In
-                       struct statx      *buf,         // Out
-                       XrdOucErrInfo    &einfo,       // Out
-                 const XrdSecEntity     *client,      // In
-                 const char             *info)        // In
-
-{
-// Return an error
-//
-   return XrdBwmFS.Emsg("stat", einfo, ENOTSUP, "locate", path);
-}
-
-/******************************************************************************/
-
-int XrdBwm::statx(const char             *path,        // In
-                       mode_t           &mode,        // Out
-                       XrdOucErrInfo    &einfo,       // Out
-                 const XrdSecEntity     *client,      // In
-                 const char             *info)        // In
-
-{
-// Return an error
-//
-   return XrdBwmFS.Emsg("stat", einfo, ENOTSUP, "locate", path);
-}
-#endif
-
-/******************************************************************************/
 /*                              t r u n c a t e                               */
 /******************************************************************************/
 

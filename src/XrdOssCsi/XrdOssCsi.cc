@@ -415,15 +415,6 @@ int XrdOssCsi::Stat(const char *path, struct stat *buff, int opts,
    return successor_->Stat(path, buff, opts, EnvP);
 }
 
-#if defined(__linux__)
-int XrdOssCsi::Statx(const char *path, struct statx *buff, int opts,
-                    XrdOucEnv  *EnvP)
-{
-   if (config_.tagParam_.isTagFile(path)) return -ENOENT;
-   return successor_->Statx(path, buff, opts, EnvP);
-}
-#endif
-
 int XrdOssCsi::StatPF(const char *path, struct stat *buff, int opts)
 {
    if (config_.tagParam_.isTagFile(path)) return -ENOENT;

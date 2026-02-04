@@ -90,16 +90,6 @@ int XrdPosixCache::Stat(const char *path, struct stat &sbuff)
                        {return theCache->Stat(path, sbuff);}
 
 /******************************************************************************/
-/*                                  S t a t                                   */
-/******************************************************************************/
-
-#if defined(__linux__)
-int XrdPosixCache::Statx(const char *path, struct statx &sbuff)
-                       {return theCache->Statx(path, sbuff);}
-#endif
-
-
-/******************************************************************************/
 /*                            S t a t i s t i c s                             */
 /******************************************************************************/
 

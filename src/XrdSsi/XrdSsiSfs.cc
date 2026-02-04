@@ -499,42 +499,6 @@ int XrdSsiSfs::stat(const char             *path,        // In
 }
 
 /******************************************************************************/
-/*                                  s t a t x                                 */
-/******************************************************************************/
-#if defined(__linux__)
-int XrdSsiSfs::statx(const char             *path,        // In
-                          struct statx      *buf,         // Out
-                          XrdOucErrInfo    &einfo,       // Out
-                    const XrdSecEntity     *client,      // In
-                    const char             *info)        // In
-{
-   // Reroute this request if we can
-   //
-   if (fsChk)
-   {if (FSPath.Find(path))
-      return theFS->statx(path, buf, einfo, client, info);
-   } else einfo.setErrInfo(ENOTSUP, "statx is not supported.");
-   return SFS_ERROR;
-}
-
-/******************************************************************************/
-
-int XrdSsiSfs::statx(const char             *path,        // In
-                          mode_t           &mode,        // Out
-                          XrdOucErrInfo    &einfo,       // Out
-                    const XrdSecEntity     *client,      // In
-                    const char             *info)        // In
-{
-   // Reroute this request if we can
-   //
-   if (fsChk)
-   {if (FSPath.Find(path))
-      return theFS->statx(path, mode, einfo, client, info);
-   } else einfo.setErrInfo(ENOTSUP, "statx is not supported.");
-   return SFS_ERROR;
-}
-#endif
-/******************************************************************************/
 /*                              t r u n c a t e                               */
 /******************************************************************************/
 
