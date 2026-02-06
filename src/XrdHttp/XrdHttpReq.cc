@@ -948,7 +948,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     case XrdHttpReq::rtUnknown:
     case XrdHttpReq::rtMalformed: {
       generateWebdavErrMsg();
-      prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpErrorBody.c_str(), httpErrorBody.length(), false);
+      prot->SendSimpleResp(400, NULL, NULL, httpErrorBody.c_str(), httpErrorBody.length(), false);
       reset();
       return -1;
     }
