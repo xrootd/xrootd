@@ -120,6 +120,11 @@ void XrdHttpMon::Record(XrdHttpReq &req, int code)
     StatusCodes statusCode = ToStatusCode(code);
     XrdHttpMonState st = req.monState;
 
+    if (req.request >= XrdHttpReq::ReqType::rtCount || req.request < 0) {
+        eDest.Emsg("Record", "ERROR: Record called with invalid request type");
+        return;
+    }
+
     switch (st) {
         case XrdHttpMonState::NEW:
             RecordGStreamCount(req.request, statusCode);
@@ -152,31 +157,23 @@ void XrdHttpMon::Record(XrdHttpReq &req, int code)
 }
 
 void XrdHttpMon::RecordCount(XrdHttpReq::ReqType op, StatusCodes sc) {
-    if (op >= XrdHttpReq::ReqType::rtCount || sc >= StatusCodes::sc_Count) return;
-
     auto& info = statsInfo[op][sc];
     info.count++;
 }
 
 void XrdHttpMon::RecordSuccess(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
-    if (op >= XrdHttpReq::ReqType::rtCount || sc >= StatusCodes::sc_Count) return;
-
     auto& info = statsInfo[op][sc];
     info.success++;
     info.duration_us += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 }
 
 void XrdHttpMon::RecordErrProt(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
-    if (op >= XrdHttpReq::ReqType::rtCount || sc >= StatusCodes::sc_Count) return;
-
     auto& info = statsInfo[op][sc];
     info.error_xrootd++;
     info.duration_us += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 }
 
 void XrdHttpMon::RecordErrNet(XrdHttpReq::ReqType op, StatusCodes sc, std::chrono::steady_clock::duration duration) {
-    if (op >= XrdHttpReq::ReqType::rtCount || sc >= StatusCodes::sc_Count) return;
-
     auto& info = statsInfo[op][sc];
     info.error_network++;
     info.duration_us += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
