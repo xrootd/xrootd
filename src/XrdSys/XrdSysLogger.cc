@@ -161,8 +161,11 @@ XrdSysLogger::XrdSysLogger(int ErrFD, int dorotate)
 // Establish message routing
 //
    if (ErrFD != STDERR_FILENO) baseFD = ErrFD;
-      else {baseFD = XrdSysFD_Dup(ErrFD);
-            Bind(logFN, 1);
+      else {baseFD = ErrFD;
+            if (logFN)
+               {baseFD = XrdSysFD_Dup(ErrFD);
+                Bind(logFN, 1);
+               }
            }
 }
   
