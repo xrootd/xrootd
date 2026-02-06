@@ -737,7 +737,11 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 //
    if (cP->chStat != Channel::isCBMode)
       {if (cP->chStat == Channel::isDead)
-          ((XrdSysSemaphore *)cP->chCBA)->Post();
+          {XrdSysSemaphore *theSem = (XrdSysSemaphore *)cP->chCBA;
+           // channel will be destroyed shortly after post, unlock mutex before
+           cbkMHelp.UnLock();
+           theSem->Post();
+          }
        return true;
       }
    cP->chStat = Channel::isClear;

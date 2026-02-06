@@ -290,9 +290,9 @@ void XrdSys::IOEvents::PollKQ::Exclude(XrdSys::IOEvents::Channel *cP,
 // may have been closed prior to this call (though this shouldn't happen).
 //
    if (kqStatus & rFilterX)
-      {EV_SET(&chlist[i], theFD, EVFILT_READ,  EV_DELETE,  0, 0, cP);}
+      {EV_SET(&chlist[i], theFD, EVFILT_READ,  EV_DELETE,  0, 0, cP); ++i;}
    if (kqStatus & wFilterX)
-      {EV_SET(&chlist[i], theFD, EVFILT_WRITE, EV_DELETE,  0, 0, cP);}
+      {EV_SET(&chlist[i], theFD, EVFILT_WRITE, EV_DELETE,  0, 0, cP); ++i;}
 
 // Remove this channel from the poll set. We ignore errors as the descriptor
 // may have been closed prior to this call (though this shouldn't happen).
