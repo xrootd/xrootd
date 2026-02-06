@@ -945,6 +945,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
   switch (request) {
     case XrdHttpReq::rtUnset:
+      return -1;
     case XrdHttpReq::rtUnknown:
     case XrdHttpReq::rtMalformed: {
       generateWebdavErrMsg();
