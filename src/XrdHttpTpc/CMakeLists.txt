@@ -34,6 +34,8 @@ target_link_libraries(${XrdHttpTPC}
     XrdUtils
     XrdHttpUtils
     CURL::libcurl
+    OpenSSL::SSL
+    OpenSSL::Crypto
     ${CMAKE_THREAD_LIBS_INIT}
     ${CMAKE_DL_LIBS}
 )

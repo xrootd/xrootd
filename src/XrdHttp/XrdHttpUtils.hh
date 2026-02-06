@@ -34,6 +34,8 @@
  * 
  * 
  */
+#ifndef XRDHTTPUTILS_HH
+#define	XRDHTTPUTILS_HH
 
 #include "XProtocol/XPtypes.hh"
 #include "XProtocol/XProtocol.hh"
@@ -46,9 +48,6 @@
 #include <memory>
 #include <sstream>
 #include <cstdint>
-
-#ifndef XRDHTTPUTILS_HH
-#define	XRDHTTPUTILS_HH
 
 enum : int {
   HTTP_CONTINUE                        = 100,

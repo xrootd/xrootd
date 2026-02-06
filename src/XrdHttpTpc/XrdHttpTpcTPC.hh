@@ -1,4 +1,5 @@
-
+#ifndef XRD_HTTP_TPC_TPC_HH
+#define XRD_HTTP_TPC_TPC_HH
 #include <memory>
 #include <string>
 #include <vector>
@@ -13,6 +14,7 @@
 #include "XrdHttpTpcPMarkManager.hh"
 
 #include <curl/curl.h>
+#include <openssl/ssl.h>
 
 class XrdOucErrInfo;
 class XrdOucStream;
@@ -61,6 +63,8 @@ private:
                                    struct curl_sockaddr *address);
 
     static int closesocket_callback(void *clientp, curl_socket_t fd);
+    static int ssl_ctx_callback(CURL *curl, void *ssl_ctx, void *clientp);
+    static int verify_callback(int preverify_ok, X509_STORE_CTX* ctx);
 
     struct TPCLogRecord {
 
@@ -183,6 +187,8 @@ private:
 
     bool usingEC; // indicate if XrdEC is used
 
+    static bool allowMissingCRL;
+
     // Time to connect the curl socket to the remote server uses the linux's default value
     // of 60 seconds
     static const long CONNECT_TIMEOUT = 60;
@@ -191,3 +197,4 @@ private:
     std::map<std::string,std::string> hdr2cgimap;
 };
 }
+#endif
