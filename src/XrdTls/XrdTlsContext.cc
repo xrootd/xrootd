@@ -502,70 +502,44 @@ bool VerPaths(const char *cert, const char *pkey,
 extern "C"
 {
 /**
- * OpenSSL peer certificate verify callback
- * that would be call only if the LogVF TlsContextOption has been passed
- * It logs what failed to be verified during the peer's certificate verification
+ *
+ * OpenSSL peer-certificate verify callback
  */
-int LogVerifFailedCB(int aOK, X509_STORE_CTX *x509P)
-{
-   if (!aOK)
-      {X509 *cert = X509_STORE_CTX_get_current_cert(x509P);
-       int depth  = X509_STORE_CTX_get_error_depth(x509P);
-       int err    = X509_STORE_CTX_get_error(x509P);
-       char name[512], info[1024];
+int verifyPeerCB(int aOK, X509_STORE_CTX *x509P) {
+      if (!aOK) {
+         SSL *ssl = (SSL*)X509_STORE_CTX_get_ex_data(x509P, SSL_get_ex_data_X509_STORE_CTX_idx());
+         SSL_CTX *sslCtx = SSL_get_SSL_CTX(ssl);
+         XrdTlsContext *self = (XrdTlsContext*)SSL_CTX_get_ex_data(sslCtx, XrdTlsContext::ctxIndex);
+         bool LogVF = (self->GetParams()->opts & XrdTlsContext::logVF) != 0;
+         bool crlAllowMissingCA = (self->GetParams()->opts & XrdTlsContext::crlAM) != 0;
+         if (crlAllowMissingCA) {
+            int err = X509_STORE_CTX_get_error(x509P);
+            if (err == X509_V_ERR_UNABLE_TO_GET_CRL) {
+               X509_STORE_CTX_set_error(x509P, X509_V_OK);
+               return 1;
+            }
+         }
+         if (LogVF) {
+            X509 *cert = X509_STORE_CTX_get_current_cert(x509P);
+            int depth  = X509_STORE_CTX_get_error_depth(x509P);
+            int err    = X509_STORE_CTX_get_error(x509P);
+            char name[512], info[1024];
 
-       X509_NAME_oneline(X509_get_subject_name(cert), name, sizeof(name));
-       snprintf(info,sizeof(info),"Cert verification failed for DN=%s",name);
-       XrdTls::Emsg("CertVerify:", info, false);
+            X509_NAME_oneline(X509_get_subject_name(cert), name, sizeof(name));
+            snprintf(info,sizeof(info),"Cert verification failed for DN=%s",name);
+            XrdTls::Emsg("CertVerify:", info, false);
 
-       X509_NAME_oneline(X509_get_issuer_name(cert), name, sizeof(name));
-       snprintf(info,sizeof(info),"Failing cert issuer=%s", name);
-       XrdTls::Emsg("CertVerify:", info, false);
+            X509_NAME_oneline(X509_get_issuer_name(cert), name, sizeof(name));
+            snprintf(info,sizeof(info),"Failing cert issuer=%s", name);
+            XrdTls::Emsg("CertVerify:", info, false);
 
-       snprintf(info, sizeof(info), "Error %d at depth %d [%s]", err, depth,
-                                    X509_verify_cert_error_string(err));
-       XrdTls::Emsg("CertVerify:", info, true);
+            snprintf(info, sizeof(info), "Error %d at depth %d [%s]", err, depth,
+                                         X509_verify_cert_error_string(err));
+            XrdTls::Emsg("CertVerify:", info, true);
+         }
       }
-
-   return aOK;
-}
-
-/**
- * OpenSSL peer certificate verify callback
- * that would be call if the allowmissingcrl option
- * has been passed to xrd.tlsca
- */
-int AllowMissingCRL(int aOK, X509_STORE_CTX *x509P)
-{
-   if (!aOK) {
-      int err = X509_STORE_CTX_get_error(x509P);
-      if (err == X509_V_ERR_UNABLE_TO_GET_CRL) {
-         X509_STORE_CTX_set_error(x509P, X509_V_OK);
-         return 1;
-      }
+      return aOK;
    }
-   return aOK;
-}
-
-/**
- * OpenSSL peer certificate verify callback, checks the error
- * and if unable to get the CRL, will return 1
- * If other error, then delegate the execution to the logging callback
- */
-int LogFailed_AllowMissingCRLCB(int aOK, X509_STORE_CTX *x509P)
-{
-   return LogVerifFailedCB(AllowMissingCRL(aOK, x509P), x509P);
-}
-
-/**
-* OpenSSL peer certificate verify callback, checks the error
-* and if unable to get the CRL, will return 1. Otherwise, return the error
-* to OpenSSL
-*/
-int AllowMissingCRL_NoLogCB(int aOK, X509_STORE_CTX *x509P)
-{
-   return AllowMissingCRL(aOK, x509P);
-}
 }
   
 } // Anonymous namespace end
@@ -579,7 +553,9 @@ int AllowMissingCRL_NoLogCB(int aOK, X509_STORE_CTX *x509P)
 #define FATAL(msg) {Fatal(eMsg, msg); KILL_CTX(pImpl->ctx); return;}
 
 #define FATAL_SSL(msg) {Fatal(eMsg, msg, true); KILL_CTX(pImpl->ctx); return;}
-  
+
+int XrdTlsContext::ctxIndex = SSL_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                              const char *caDir, const char *caFile,
                              uint64_t opts, std::string *eMsg)
@@ -691,6 +667,9 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    if (pImpl->ctx == 0) FATAL_SSL("Unable to allocate TLS context!");
 
+   //Add the XrdTlsContext object as extra information for OpenSSL callback re-use
+   SSL_CTX_set_ex_data(pImpl->ctx, ctxIndex, this);
+
 // Always prohibit SSLv2 & SSLv3 as these are not secure.
 //
    SSL_CTX_set_options(pImpl->ctx, sslOpts);
@@ -717,11 +696,10 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
       bool LogVF = (opts & logVF) != 0;
       bool crlAllowMissingCA = (opts & crlAM) != 0;
 
-      if (crlAllowMissingCA) {
-         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER,
-                            LogVF ? LogFailed_AllowMissingCRLCB : AllowMissingCRL_NoLogCB);
+      if (crlAllowMissingCA || LogVF) {
+         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, verifyPeerCB);
       } else {
-         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? LogVerifFailedCB : 0));
+         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, 0);
       }
 
       unsigned long xFlags = (opts & nopxy ? 0 : X509_V_FLAG_ALLOW_PROXY_CERTS);
@@ -951,6 +929,11 @@ void *XrdTlsContext::Session()
    //the reference counter of it. There is therefore no risk of double free...
    SSL_CTX_free(pImpl->ctx);
    pImpl->ctx = ctxnew->pImpl->ctx;
+
+   //Update ex_data to point to this (the surviving owner), not the
+   //cloned context which is about to be deleted.
+   SSL_CTX_set_ex_data(pImpl->ctx, ctxIndex, this);
+
    //In the destructor of XrdTlsContextImpl, SSL_CTX_Free() is
    //called if ctx is != 0. As this new ctx is used by the session
    //we just created, we don't want that to happen. We therefore set it to 0.
@@ -1133,12 +1116,10 @@ void XrdTlsContext::SetTlsClientAuth(bool setting) {
        bool LogVF = (pImpl->Parm.opts & logVF) != 0;
        bool crlAllowMissingCA = (pImpl->Parm.opts & crlAM) != 0;
 
-          if (crlAllowMissingCA) {
-             SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER,
-                                LogVF ? LogFailed_AllowMissingCRLCB : AllowMissingCRL_NoLogCB);
-          } else {
-             SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? LogVerifFailedCB : 0));
-          }
+       if (LogVF || crlAllowMissingCA)
+          SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, verifyPeerCB);
+       else
+          SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, 0);
        } else
        {pImpl->Parm.opts |= clcOF;
         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_NONE, 0);

@@ -257,6 +257,8 @@ static const int      crlRS = 16;                 //!< Bits to shift   vdept
 static const uint64_t artON = 0x0000002000000000; //!< Auto retry Handshake
 static const uint64_t clcOF = 0x0000010000000000; //!< Disable client certificate request
 
+
+  static int ctxIndex;
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,
                      uint64_t opts=0, std::string *eMsg=0);
