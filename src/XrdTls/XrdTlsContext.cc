@@ -501,7 +501,12 @@ bool VerPaths(const char *cert, const char *pkey,
 
 extern "C"
 {
-int VerCB(int aOK, X509_STORE_CTX *x509P)
+/**
+ * OpenSSL peer certificate verify callback
+ * that would be call only if the LogVF TlsContextOption has been passed
+ * It logs what failed to be verified during the peer's certificate verification
+ */
+int LogVerifFailedCB(int aOK, X509_STORE_CTX *x509P)
 {
    if (!aOK)
       {X509 *cert = X509_STORE_CTX_get_current_cert(x509P);
@@ -523,6 +528,43 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
       }
 
    return aOK;
+}
+
+/**
+ * OpenSSL peer certificate verify callback
+ * that would be call if the allowmissingcrl option
+ * has been passed to xrd.tlsca
+ */
+int AllowMissingCRL(int aOK, X509_STORE_CTX *x509P)
+{
+   if (!aOK) {
+      int err = X509_STORE_CTX_get_error(x509P);
+      if (err == X509_V_ERR_UNABLE_TO_GET_CRL) {
+         X509_STORE_CTX_set_error(x509P, X509_V_OK);
+         return 1;
+      }
+   }
+   return aOK;
+}
+
+/**
+ * OpenSSL peer certificate verify callback, checks the error
+ * and if unable to get the CRL, will return 1
+ * If other error, then delegate the execution to the logging callback
+ */
+int LogFailed_AllowMissingCRLCB(int aOK, X509_STORE_CTX *x509P)
+{
+   return LogVerifFailedCB(AllowMissingCRL(aOK, x509P), x509P);
+}
+
+/**
+* OpenSSL peer certificate verify callback, checks the error
+* and if unable to get the CRL, will return 1. Otherwise, return the error
+* to OpenSSL
+*/
+int AllowMissingCRL_NoLogCB(int aOK, X509_STORE_CTX *x509P)
+{
+   return AllowMissingCRL(aOK, x509P);
 }
 }
   
@@ -673,7 +715,14 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
       SSL_CTX_set_verify_depth(pImpl->ctx, (vDepth ? vDepth : 9));
 
       bool LogVF = (opts & logVF) != 0;
-      SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
+      bool crlAllowMissingCA = (opts & crlAM) != 0;
+
+      if (crlAllowMissingCA) {
+         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER,
+                            LogVF ? LogFailed_AllowMissingCRLCB : AllowMissingCRL_NoLogCB);
+      } else {
+         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? LogVerifFailedCB : 0));
+      }
 
       unsigned long xFlags = (opts & nopxy ? 0 : X509_V_FLAG_ALLOW_PROXY_CERTS);
       if (opts & crlON)
@@ -1079,10 +1128,17 @@ bool XrdTlsContext::newHostCertificateDetected() {
 }
 
 void XrdTlsContext::SetTlsClientAuth(bool setting) {
-    bool LogVF = (pImpl->Parm.opts & logVF) != 0;
     if (setting)
        {pImpl->Parm.opts &= ~clcOF;
-        SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
+       bool LogVF = (pImpl->Parm.opts & logVF) != 0;
+       bool crlAllowMissingCA = (pImpl->Parm.opts & crlAM) != 0;
+
+          if (crlAllowMissingCA) {
+             SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER,
+                                LogVF ? LogFailed_AllowMissingCRLCB : AllowMissingCRL_NoLogCB);
+          } else {
+             SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? LogVerifFailedCB : 0));
+          }
        } else
        {pImpl->Parm.opts |= clcOF;
         SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_NONE, 0);
