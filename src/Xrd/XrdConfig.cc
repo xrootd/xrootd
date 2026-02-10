@@ -2533,8 +2533,6 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
 
          if (!strcmp(val,"allowmissingcrl")) {
             tlsOpts |= XrdTlsContext::crlAM;
-            // Export this configuration for use in external plugins
-            XrdOucEnv::Export("XRD_AMCRL", 1);
             continue;
          }
 
