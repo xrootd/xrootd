@@ -1827,6 +1827,10 @@ bool XrdHttpProtocol::InitTLS() {
    uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF |
                    XrdTlsContext::artON | XrdTlsContext::rfCRL;
 
+  if (allowMissingCRL) {
+    opts |= XrdTlsContext::crlAM;
+  }
+
 // Create a new TLS context
 //
    if (sslverifydepth > 255) sslverifydepth = 255;
