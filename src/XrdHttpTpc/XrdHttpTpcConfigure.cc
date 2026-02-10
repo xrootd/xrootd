@@ -24,7 +24,8 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
 
     // test if XrdEC is used
     usingEC = getenv("XRDCL_EC")? true : false;
-
+    // Test if the CRL checking is enabled
+    allowMissingCRL = (bool) myEnv->GetInt("http.allowmissingcrl");
     std::string authLib;
     std::string authLibParms;
     int cfgFD = open(configfn, O_RDONLY, 0);
