@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 from .glob_funcs import glob, iglob
 from .filesystem import FileSystem as FileSystem
 from .file import File as File
+from pyxrootd.client import setXAttrAdler32_cpp as setXAttrAdler32
 from .url import URL as URL
 from .copyprocess import CopyProcess as CopyProcess
 from .env import EnvPutString as EnvPutString
