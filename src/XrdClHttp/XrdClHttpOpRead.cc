@@ -63,12 +63,21 @@ CurlReadOp::Continue(std::shared_ptr<CurlOperation> op, XrdCl::ResponseHandler *
         }
     }
 
-    try {
-        m_continue_queue->Produce(op);
-    } catch (...) {
-        Fail(XrdCl::errInternal, ENOMEM, "Failed to continue the curl operation");
-        return false;
+    // This handles the case where the transfer finished but its last WriteCallback
+    // produced more data than the client buffer could hold, the excess being stored
+    // in the prefetch buffer
+    // we just need to deliver the response without re-queuing to the continue queue
+    if (op->IsDone()) {
+        DeliverResponse();
+    } else {
+        try {
+            m_continue_queue->Produce(op);
+        } catch (...) {
+            Fail(XrdCl::errInternal, ENOMEM, "Failed to continue the curl operation");
+            return false;
+        }
     }
+
     return true;
 }
 
@@ -144,13 +153,9 @@ CurlReadOp::Fail(uint16_t errCode, uint32_t errNum, const std::string &msg)
 }
 
 void
-CurlReadOp::Pause()
+CurlReadOp::DeliverResponse()
 {
-    SetPaused(true);
-    if (m_handler == nullptr) {
-        m_logger->Warning(kLogXrdClHttp, "Get operation paused with no callback handler");
-        return;
-    }
+    if (m_handler == nullptr) {return;}
     auto handle = m_handler;
     auto status = new XrdCl::XRootDStatus();
 
@@ -165,9 +170,20 @@ CurlReadOp::Pause()
 
     m_handler = nullptr;
     // Note: As soon as this is invoked, another thread may continue and start to manipulate
-    // the CurlPutOp object.  To avoid race conditions, all reads/writes to member data must
+    // the CurlReadOp object.  To avoid race conditions, all reads/writes to member data must
     // be done *before* the callback is invoked.
     handle->HandleResponse(status, obj);
+}
+
+void
+CurlReadOp::Pause()
+{
+    SetPaused(true);
+    if (m_handler == nullptr) {
+        m_logger->Warning(kLogXrdClHttp, "Get operation paused with no callback handler");
+        return;
+    }
+    DeliverResponse();
 }
 
 void

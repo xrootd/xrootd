@@ -629,6 +629,9 @@ public:
 
 
 private:
+    // Deliver the current buffer to the response handler and reset internal buffer state.
+    void DeliverResponse();
+
     static size_t WriteCallback(char *buffer, size_t size, size_t nitems, void *this_ptr);
     size_t Write(char *buffer, size_t size);
 
