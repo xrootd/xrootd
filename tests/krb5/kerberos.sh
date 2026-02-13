@@ -7,6 +7,8 @@ export KRB5_CONFIG="${PWD}/krb5.conf"
 export KRB5_KDC_PROFILE="${PWD}/kdc.conf"
 
 function setup() {
+	rm -f "${KRB5CCNAME}" krb5.keytab kdc/{db*,*.{log,pem,srl}}
+
 	pushd kdc >/dev/null || exit 1
 
 	# Create certificates for KDC PKINIT preauthentication mechanism
@@ -60,17 +62,14 @@ function setup() {
 
 function teardown() {
 	export PIDFILE=krb5kdc.pid
-	test -s "${PIDFILE}" || return
-	PID="$(ps -o pid= "$(cat "${PIDFILE}")" || true)"
-	if test -n "${PID}"; then
-		kill -s TERM "${PID}"
-		rm "${PIDFILE}"
+	if test -s "${PIDFILE}"; then
+		PID="$(ps -o pid= "$(cat "${PIDFILE}")" || true)"
+		if test -n "${PID}"; then
+			kill -s TERM "${PID}"
+			rm "${PIDFILE}"
+		fi
 	fi
-
-	for LOGFILE in kdc/*.log; do
-		cat "${LOGFILE}"
-	done
-
+	tail -n "${MAXLINES:-50}" kdc/*.log
 	rm -f "${KRB5CCNAME}" krb5.keytab kdc/{db*,*.{log,pem,srl}}
 }
 
