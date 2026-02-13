@@ -33,7 +33,7 @@
    2) The config file,
    3) The /etc/services file for service corresponding to the program name.
 */
-  
+
 #include <unistd.h>
 #include <cctype>
 #include <fcntl.h>
@@ -132,7 +132,7 @@ extern int udpRefr;
 
 extern XrdNetRefresh* NetRefresh;
 };
-  
+
 /******************************************************************************/
 /*                    F i l e   L o c a l   O b j e c t s                     */
 /******************************************************************************/
@@ -146,11 +146,11 @@ bool SSLmsgs = true;
 void TlsError(const char *tid, const char *msg, bool sslmsg)
              {if (!sslmsg || SSLmsgs) XrdGlobal::Log.Emsg("TLS", tid, msg);}
 };
-  
+
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
-  
+
        const char       *XrdConfig::TraceID = "Config";
 
 /******************************************************************************/
@@ -241,11 +241,11 @@ XrdOucPinKing<XrdTcpMonPin> KingPin;
 
 XrdOucEnv theEnv;
 };
-  
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
+
 XrdConfig::XrdConfig()
 {
 
@@ -318,11 +318,11 @@ XrdConfig::XrdConfig()
    // to potentially set a more restrictive limit than the current one.
    Sched.setNproc(true);
 }
-  
+
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
-  
+
 int XrdConfig::Configure(int argc, char **argv)
 {
 /*
@@ -409,7 +409,7 @@ int XrdConfig::Configure(int argc, char **argv)
 // options that take arguments because getopt permutes the arguments.
 //
    opterr = 0;
-   if (argc > 1 && '-' == *argv[1]) 
+   if (argc > 1 && '-' == *argv[1])
       while ((c = getopt(urArgc,argv,":a:A:bc:dhHI:k:l:L:n:N:p:P:R:s:S:vw:W:z"))
              && ((unsigned char)c != 0xff))
      { switch(c)
@@ -682,7 +682,7 @@ int XrdConfig::Configure(int argc, char **argv)
        NoGo = ConfigProc();
       }
    if (clPort >= 0) PortTCP = clPort;
-   if (ProtInfo.DebugON) 
+   if (ProtInfo.DebugON)
       {XrdTrace.What = TRACE_ALL;
        XrdSysThread::setDebug(&Log);
       }
@@ -852,7 +852,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
 /******************************************************************************/
 /*                               A S o c k e t                                */
 /******************************************************************************/
-  
+
 int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 {
    struct sockaddr_un unixvar;
@@ -895,7 +895,7 @@ int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 /******************************************************************************/
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/
-  
+
 int XrdConfig::ConfigProc()
 {
   char *var;
@@ -968,11 +968,11 @@ XrdInet *XrdConfig::getNet(int port, bool isTLS)
    delete newNet;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 g e t U G                                  */
 /******************************************************************************/
-  
+
 int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
 {
    struct passwd *pp;
@@ -991,7 +991,7 @@ int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
 
 // Make sure it is valid and acceptable
 //
-   if (!pp) 
+   if (!pp)
       {Log.Emsg("Config", errno, "retrieve -R user password entry");
        return 0;
       }
@@ -1006,7 +1006,7 @@ int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
 /******************************************************************************/
 /*                              M a n i f e s t                               */
 /******************************************************************************/
-  
+
 void XrdConfig::Manifest(const char *pidfn)
 {
    const char *Slash;
@@ -1098,7 +1098,7 @@ void XrdConfig::Manifest(const char *pidfn)
 /******************************************************************************/
 /*                               P i d F i l e                                */
 /******************************************************************************/
-  
+
 bool XrdConfig::PidFile(const char *clpFN, bool optbg)
 {
    int rc, xfd;
@@ -1138,7 +1138,7 @@ bool XrdConfig::PidFile(const char *clpFN, bool optbg)
 /******************************************************************************/
 /*                                s e t C F G                                 */
 /******************************************************************************/
-  
+
 void XrdConfig::setCFG(bool start)
 {
 
@@ -1195,7 +1195,7 @@ void XrdConfig::setCFG(bool start)
 /******************************************************************************/
 /*                                s e t F D L                                 */
 /******************************************************************************/
-  
+
 int XrdConfig::setFDL()
 {
    struct rlimit rlim;
@@ -1270,7 +1270,7 @@ int XrdConfig::setFDL()
 /******************************************************************************/
 /*                                 S e t u p                                  */
 /******************************************************************************/
-  
+
 int XrdConfig::Setup(char *dfltp, char *libProt)
 {
    XrdConfigProt *cp;
@@ -1313,7 +1313,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 
 // Determine the default port number (only for xrootd) if not specified.
 //
-   if (PortTCP < 0)  
+   if (PortTCP < 0)
       {if ((PortTCP = XrdNetUtils::ServPort(dfltp))) PortUDP = PortTCP;
           else PortTCP = -1;
       }
@@ -1402,7 +1402,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 
 // Now check if we have to setup automatic reporting
 //
-   if (repDest[0] != 0 && (repOpts[0] || repOpts[1])) 
+   if (repDest[0] != 0 && (repOpts[0] || repOpts[1]))
       ProtInfo.Stats->Init(repDest, repInt, repOpts[0], repOpts[1]);
 
 // All done
@@ -1450,7 +1450,7 @@ int XrdConfig::SetupAPath()
 //
    return ASocket(AdminPath, "admin", (mode_t)AdminMode);
 }
-  
+
 /******************************************************************************/
 /*                              S e t u p T L S                               */
 /******************************************************************************/
@@ -1467,6 +1467,13 @@ bool XrdConfig::SetupTLS()
                        "a certdir or certfile!");
        return false;
       }
+
+// Export the CAdir and CAfile values if they have not been exported
+//
+   if (caDir  && !getenv("X509_CERT_DIR"))
+      XrdOucEnv::Export("X509_CERT_DIR",   caDir);
+   if (caFile && !getenv("X509_CERT_FILE"))
+      XrdOucEnv::Export("X509_CERT_FILE", caFile);
 
 // Set the message callback before doing anything else
 //
@@ -1497,11 +1504,11 @@ bool XrdConfig::SetupTLS()
    XrdGlobal::tlsCtx = &xrdTLS;
    return true;
 }
-  
+
 /******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
-  
+
 void XrdConfig::Usage(int rc)
 {
   extern const char *XrdLicense;
@@ -1564,7 +1571,7 @@ int XrdConfig::xapath(XrdSysError *eDest, XrdOucStream &Config)
    AdminMode = ProtInfo.AdmMode = mode;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x a l l o w                                 */
 /******************************************************************************/
@@ -1711,7 +1718,7 @@ int XrdConfig::xmaxfd(XrdSysError *eDest, XrdOucStream &Config)
     char *val;
 
     if ((val = Config.GetWord()))
-       {if (!strcmp(val, "strict")) 
+       {if (!strcmp(val, "strict"))
            {isStrict = true;
             val = Config.GetWord();
            } else isStrict = false;
@@ -1912,7 +1919,7 @@ int XrdConfig::xnkap(XrdSysError *eDest, char *val)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 x p i d f                                  */
 /******************************************************************************/
@@ -1942,7 +1949,7 @@ int XrdConfig::xpidf(XrdSysError *eDest, XrdOucStream &Config)
    PidPath = strdup(val);
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 x p o r t                                  */
 /******************************************************************************/
@@ -1983,7 +1990,7 @@ int XrdConfig::xport(XrdSysError *eDest, XrdOucStream &Config)
     return 0;
 }
 
-  
+
 /******************************************************************************/
 /*                                 x p r o t                                  */
 /******************************************************************************/
@@ -2086,7 +2093,7 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
 /******************************************************************************/
 /*                                  x r e p                                   */
 /******************************************************************************/
-  
+
 /* Function: xrep
 
    Purpose:  To parse the directive: report <dest1>[,<dest2>]
@@ -2126,7 +2133,7 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
    int i, neg, numopts = sizeof(rpopts)/sizeof(struct repopts);
    char  *val, *cp;
    int  isJSON = 0;
-  
+
    if (!(val = Config.GetWord()))
       {eDest->Emsg("Config", "report parameters not specified"); return 1;}
 
@@ -2419,7 +2426,7 @@ int XrdConfig::xtcpmon(XrdSysError *eDest, XrdOucStream &Config)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x t l s                                   */
 /******************************************************************************/
@@ -2476,7 +2483,7 @@ do {     if (!strcmp(val,   "detail")) SSLmsgs = true;
 
     return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x t l s c a                                 */
 /******************************************************************************/
@@ -2590,7 +2597,7 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
 
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x t l s c i                                 */
 /******************************************************************************/
@@ -2621,7 +2628,7 @@ int XrdConfig::xtlsci(XrdSysError *eDest, XrdOucStream &Config)
    XrdTlsContext::SetDefaultCiphers(ciphers);
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x t m o                                   */
 /******************************************************************************/
@@ -2693,7 +2700,7 @@ int XrdConfig::xtmo(XrdSysError *eDest, XrdOucStream &Config)
    XrdLinkCtl::setKWT(V_read, V_kill);
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
