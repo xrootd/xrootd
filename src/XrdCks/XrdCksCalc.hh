@@ -35,7 +35,7 @@
     object is created by the XrdCksCalcInit() function defined at the end of
     this file.
 */
-  
+
 class XrdCksCalc
 {
 public:
@@ -53,6 +53,56 @@ public:
 
 virtual char *Calc(const char *Buff, int BLen)
                   {Init(); Update(Buff, BLen); return Final();}
+
+//------------------------------------------------------------------------------
+//! Indicate whether or not checksums are combinable for this checksum.
+//!
+//! @return True if checksums are combinable, false otherwise.
+//!
+//! @note The default is false as combinable checksums are possible for only
+//!       a few checksum algorithms (e.g. adler and crc). Even then, combining
+//!       checksums is an optimization not a neccisity.
+//------------------------------------------------------------------------------
+
+virtual bool Combinable() {return false;}
+
+//------------------------------------------------------------------------------
+//! Combine current checksum with a checksum computed for an adjacent block.
+//!
+//! @param    Cksum  -> Pointer to the binary checksum of the same algorithm.
+//! @param    DLen   -> Length of the data used to compute the checksum.
+//!
+//! @return   Pointer to the new checksum after combining. This checksum
+//!           becomes the current checksum. If a nil pointer is returned,
+//!           this algorithm does not support checksum combining.
+//!
+//! @note      Warning! The supplied checkums *must* have been computed for
+//!            an adjacent block of data for the current checksum otherwise
+//!            the combined checksum will be invalid.
+//------------------------------------------------------------------------------
+
+virtual
+const char* Combine(const char *Cksum, int DLen) {return 0;};
+
+//------------------------------------------------------------------------------
+//! Combine a checksum with a checksum computed for an adjacent block.
+//!
+//! @param    Cksum1 -> Pointer to a binary checksum.
+//! @param    Cksum2 -> Pointer to a binary checksum of the same type.
+//! @param    DLen   -> Length of the data used to compute the checksum.
+//!
+//! @return   Pointer to the new checksum after combining. The current
+//!           checksum is not modified. If a nil pointer is returned,
+//!           this algorithm does not support checksum combining.
+//!
+//! @note      Warning! The Cksum2 *must* have been computed for the adjacent
+//!            block of data relative to the computation of Cksum1 otherwise
+//!            the combined checksum will be invalid.
+//------------------------------------------------------------------------------
+
+virtual
+const char* Combine(const char* Cksum1, const char* Cksum2, int DLen)
+                   {return 0;};
 
 //------------------------------------------------------------------------------
 //! Get the current binary checksum value (defaults to final). However, the
@@ -132,7 +182,7 @@ virtual      ~XrdCksCalc() {}
 /******************************************************************************/
 /*               C h e c k s u m   O b j e c t   C r e a t o r                */
 /******************************************************************************/
-  
+
 //------------------------------------------------------------------------------
 //! Obtain an instance of the checksum calculation object.
 //!
