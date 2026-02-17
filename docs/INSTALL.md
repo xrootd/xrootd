@@ -106,16 +106,15 @@ install dependencies as well when building XRootD from source:
 brew install \
     cmake \
     curl \
-    gcc \
     googletest \
-    isa-l \
     krb5 \
     libxml2 \
     libxcrypt \
+    libzip \
     make \
-    openssl@1.1 \
-    pkg-config \
-    python@3.11 \
+    openssl@3 \
+    pkgconf \
+    python@3.14 \
     readline \
     zlib \
 ```
