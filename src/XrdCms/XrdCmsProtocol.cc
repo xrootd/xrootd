@@ -27,7 +27,7 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
-  
+
 #include <unistd.h>
 #include <cctype>
 #include <cerrno>
@@ -72,7 +72,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdCms;
-  
+
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
@@ -93,7 +93,7 @@ extern XrdOucEnv        theEnv;
 /*                       P r o t o c o l   L o a d e r                        */
 /*                        X r d g e t P r o t o c o l                         */
 /******************************************************************************/
-  
+
 // This protocol can live in a shared library. It can also be statically linked
 // to provide a default protocol (which, for cms protocol we do). The interface
 // below is used by Xrd to obtain a copy of the protocol object that can be
@@ -136,7 +136,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 /*           P r o t o c o l   P o r t   D e t e r m i n a t i o n            */
 /*                    X r d g e t P r o t o c o l P o r t                     */
 /******************************************************************************/
-  
+
 // Because the dcm port numbers are determined dynamically based on the role the
 // dcm plays, we need to process the configration file and return the right
 // port number if it differs from the one provided by the protocol driver. Only
@@ -169,9 +169,9 @@ int XrdgetProtocolPort(const char *pname, char *parms,
 
 // The only parameter we accept is the name of an alternate config file
 //
-   if (parms) 
+   if (parms)
       {while(*parms == ' ') parms++;
-       if (*parms) 
+       if (*parms)
           {char *pp = parms;
            while(*parms != ' ' && *parms) parms++;
            cfn = pp;
@@ -198,7 +198,7 @@ int XrdgetProtocolPort(const char *pname, char *parms,
 /******************************************************************************/
 /*                               E x e c u t e                                */
 /******************************************************************************/
-  
+
 int XrdCmsProtocol::Execute(XrdCmsRRData &Arg)
 {
    EPNAME("Execute");
@@ -259,7 +259,7 @@ int               dlen;
 /******************************************************************************/
 /*                                P a n d e r                                 */
 /******************************************************************************/
-  
+
 // Pander() handles all outgoing connections to a manager/supervisor
 
 void XrdCmsProtocol::Pander(const char *manager, int mport)
@@ -386,7 +386,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
       Mode = Role
            | (CmsState.Suspended ? int(CmsLoginData::kYR_suspend) : 0)
            | (CmsState.NoStaging ? int(CmsLoginData::kYR_nostage) : 0);
-       if (fails >= 6 && manp == manager) 
+       if (fails >= 6 && manp == manager)
           {fails = 0; Mode |=    CmsLoginData::kYR_trying;}
 
        // Login this node with the correct state
@@ -455,11 +455,11 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 //
    Recycle(0, 0, 0);
 }
-  
+
 /******************************************************************************/
 /*                               P r o c e s s                                */
 /******************************************************************************/
-  
+
 // Process is called only when we get a new connection. We only return when
 // the connection drops. At that point we immediately mark he node as offline
 // to prohibit its selection in the future (it may have already been selected).
@@ -538,14 +538,14 @@ void XrdCmsProtocol::Recycle(XrdLink *lp, int consec, const char *reason)
    if (isLoggedIn)
       if (reason) Say.Emsg("Protocol", lp->ID, "logged out;",   reason);
          else     Say.Emsg("Protocol", lp->ID, "logged out.");
-      else     
+      else
       if (reason) Say.Emsg("Protocol", lp->ID, "login failed;", reason);
 }
-  
+
 /******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
-  
+
 int XrdCmsProtocol::Stats(char *buff, int blen, int do_sync)
 {
 
@@ -657,7 +657,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 
 // Handle Redirectors here (minimal stuff to do)
 //
-   if (Data.Mode & CmsLoginData::kYR_director) 
+   if (Data.Mode & CmsLoginData::kYR_director)
       {Link->setID("redirector", Data.HoldTime);
        return Admit_Redirector(wasSuspended);
       }
@@ -776,7 +776,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 
 // Check if we have any special paths. If none, then add the default path.
 //
-   if (!addedp) 
+   if (!addedp)
       {XrdCmsPInfo pinfo;
        ConfigCheck(0);
        pinfo.rovec = myNode->Mask();
@@ -815,15 +815,15 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 //
    return &rspVOps;
 }
-  
+
 /******************************************************************************/
 /*                      A d m i t _ R e d i r e c t o r                       */
 /******************************************************************************/
-  
+
 XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 {
    EPNAME("Admit_Redirector");
-   static CmsStatusRequest newState 
+   static CmsStatusRequest newState
                    = {{0, kYR_status, CmsStatusRequest::kYR_Resume, 0}};
 
 // Indicate what role I have
@@ -858,7 +858,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 /******************************************************************************/
 /*                               A d d P a t h                                */
 /******************************************************************************/
-  
+
 SMask_t XrdCmsProtocol::AddPath(XrdCmsNode *nP,
                                 const char *pType, const char *Path)
 {
@@ -877,7 +877,7 @@ SMask_t XrdCmsProtocol::AddPath(XrdCmsNode *nP,
 
 // Set node options
 //
-   nP->isRW = (pinfo.rwvec ? XrdCmsNode::allowsRW : 0) 
+   nP->isRW = (pinfo.rwvec ? XrdCmsNode::allowsRW : 0)
             | (pinfo.ssvec ? XrdCmsNode::allowsSS : 0);
 
 // Add the path to the known path list
@@ -915,7 +915,7 @@ XrdCmsProtocol *XrdCmsProtocol::Alloc(const char *theRole, XrdCmsManager *uMan,
 /******************************************************************************/
 /*                           C o n f i g C h e c k                            */
 /******************************************************************************/
-  
+
 void XrdCmsProtocol::ConfigCheck(unsigned char *theConfig)
 {
   unsigned int ConfigID;
@@ -945,7 +945,7 @@ void XrdCmsProtocol::ConfigCheck(unsigned char *theConfig)
 //    timeouts are to be handled.
 // 2) The maximum amount to wait for data to arrive.
 // 3) The number of successive timeouts we can have before we give up.
-  
+
 const char *XrdCmsProtocol::Dispatch(Bearing cDir, int maxWait, int maxTries)
 {
    EPNAME("Dispatch");
@@ -1037,7 +1037,10 @@ do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
 // synchrnous requests are allowed to return status changes (e.g., redirect)
 //
    if (Data->Routing & XrdCmsRouting::isSync)
-      {if ((rc = Execute(*Data)) && rc == -ECONNABORTED) return "disconnected";}
+      {if ((rc = Execute(*Data)) && rc == -ECONNABORTED)
+          return "disconnected";
+       Data->Ident = 0; // Execute() undefines Ident so zero for reuse
+      }
       else if ((jp = XrdCmsJob::Alloc(this, Data)))
               {Ref(1);
                Sched->Schedule((XrdJob *)jp);
@@ -1054,7 +1057,7 @@ do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
 /******************************************************************************/
 /*                                  D o I t                                   */
 /******************************************************************************/
-  
+
 // Determine how we should proceed here
 //
 void XrdCmsProtocol::DoIt()
@@ -1084,11 +1087,11 @@ void XrdCmsProtocol::Init(const char *iRole, XrdCmsManager *uMan,
    refWait   = 0;
    isNBSQ    = false;
 }
-  
+
 /******************************************************************************/
 /*                          L o g i n _ F a i l e d                           */
 /******************************************************************************/
-  
+
 XrdCmsRouting *XrdCmsProtocol::Login_Failed(const char *reason)
 {
    Link->setEtext(reason);
@@ -1098,7 +1101,7 @@ XrdCmsRouting *XrdCmsProtocol::Login_Failed(const char *reason)
 /******************************************************************************/
 /* Private:                          R e f                                    */
 /******************************************************************************/
-  
+
 void XrdCmsProtocol::Ref(int rcnt)
 {
 // Update the reference counter
@@ -1139,7 +1142,7 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
 // We do not support 2way re-issued messages
 //
    Data.Request.streamid = 0;
-  
+
 // Find all the nodes that might be able to do somthing on this path
 //
    if (!Cache.Paths.Find(Data.Path, pinfo)
@@ -1172,11 +1175,11 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
        Cluster.Broadcast(amask, ioB, 2, sizeof(Data.Request)+Data.Dlen);
       }
 }
-  
+
 /******************************************************************************/
 /*                           R e p l y _ D e l a y                            */
 /******************************************************************************/
-  
+
 void XrdCmsProtocol::Reply_Delay(XrdCmsRRData &Data, kXR_unt32 theDelay)
 {
      EPNAME("Reply_Delay");
@@ -1195,7 +1198,7 @@ void XrdCmsProtocol::Reply_Delay(XrdCmsRRData &Data, kXR_unt32 theDelay)
 /******************************************************************************/
 /*                           R e p l y _ E r r o r                            */
 /******************************************************************************/
-  
+
 void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etext)
 {
      EPNAME("Reply_Error");
@@ -1218,7 +1221,7 @@ void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etex
 /******************************************************************************/
 /* Private:                     S e n d P i n g                               */
 /******************************************************************************/
-  
+
 bool XrdCmsProtocol::SendPing()
 {
    static CmsPingRequest Ping = {{0, kYR_ping,  0, 0}};
@@ -1234,11 +1237,11 @@ bool XrdCmsProtocol::SendPing()
    if (Link->Send((char *)&Ping, sizeof(Ping)) < 0) return false;
    return true;
 }
-  
+
 /******************************************************************************/
 /* Private:                         S y n c                                   */
 /******************************************************************************/
-  
+
 void XrdCmsProtocol::Sync()
 {
    EPNAME("Sync");
