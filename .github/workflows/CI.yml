@@ -291,7 +291,7 @@ jobs:
       run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
 
     - name: Install dependencies with Homebrew
-      run: brew install googletest python-setuptools
+      run: brew install googletest libzip python-setuptools
 
     - name: Clone repository
       uses: actions/checkout@v4
