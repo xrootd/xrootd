@@ -2494,13 +2494,18 @@ do {     if (!strcmp(val,   "detail")) SSLmsgs = true;
 
              parms: {certdir | certfile} <path>
 
-             opts:  [crlcheck {all | external | last}] [log {failure | off}]
+             opts:  allow-missing-crl
+
+                    [crlcheck {all | external | last}] [log {failure | off}]
 
                     [[no]proxies] [refresh t[m|h|s]] [verdepth <n>]
 
              noverify client's cert need not be verified.
              <path>   is the the certificate path or file to be used.
                       Both a file and a directory path can be specified.
+             allow-missing-crl
+                      Ignores possible missing certificates crls which are
+                      presumed to be empty.
              crlcheck Controls internal crl checks:
                       all       applies crls to the full chain
                       external leaves crl checking to an external plug-in
@@ -2538,7 +2543,7 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
            continue;
           }
 
-         if (!strcmp(val,"allowmissingcrl")) {
+         if (!strcmp(val,"allow-missing-crl")) {
             tlsOpts |= XrdTlsContext::crlAM;
             continue;
          }
