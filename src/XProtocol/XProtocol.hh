@@ -798,7 +798,7 @@ enum XStatRequestOption {
 };
 
 enum XStatRequestWants  {
-   kXR_Want_btime  = 1
+   kXR_Want_btime  = 0x00000001
 };
 
 struct ClientStatRequest {
@@ -806,7 +806,7 @@ struct ClientStatRequest {
    kXR_unt16 requestid;
    kXR_char  options;    // See XStatRequestOption
    kXR_char  reserved[7];
-   kXR_unt32 Wants;      // Works like stx_mask to ask for extra attributes
+   kXR_unt32 wants;      // Works like stx_mask to ask for extra attributes
    kXR_char  fhandle[4];
    kXR_int32 dlen;
 };
