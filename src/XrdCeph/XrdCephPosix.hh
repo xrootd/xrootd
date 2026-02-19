@@ -39,6 +39,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
+#include "XrdCks/XrdCksCalcadler32.hh"
 
 // simple logging for XrdCeph buffering code
 #define XRDCEPHLOGLEVEL 1
@@ -107,6 +108,7 @@ struct CephFile {
   unsigned int nbStripes;
   unsigned long long stripeUnit;
   unsigned long long objectSize;
+
 };
 
 struct CephFileRef : CephFile {
@@ -127,6 +129,8 @@ struct CephFileRef : CephFile {
   ::timeval lastAsyncSubmission;
   double longestAsyncWriteTime;
   double longestCallbackInvocation;
+  bool writingData;
+  XrdCksCalcadler32 *cksCalcadler32;
 };
 
 #endif // __XRD_CEPH_POSIX__
