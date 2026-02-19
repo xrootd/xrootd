@@ -172,13 +172,14 @@ function test_http() {
   expectedDigest="Digest: crc32c=$alphabetcrc32c"
   receivedDigest=$(grep "Digest" "$outputFilePath")
   assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (crc32c)"
+  
   # Test with md5 checksum to test the base64 encoding of the md5 byte-representation
-  cat /home/ccaffy/CLionProjects/xrootd/tests/XRootD/http.sh
   curl -v -I -H 'Want-Digest: md5' "${HTTP_HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
   cat "$outputFilePath"
   expectedDigest="Digest: md5=$alphabetmd5sumb64"
   receivedDigest=$(grep "Digest" "$outputFilePath")
   assert_eq "$expectedDigest" "$receivedDigest" "HEAD request test failed (md5)"
+
   curl -v -I -H 'Want-Digest: NotSupported, adler32, crc32c' "${HTTP_HOST}/$alphabetFilePath" | tr -d '\r' > "$outputFilePath"
   cat "$outputFilePath"
   expectedDigest="Digest: adler32=$alphabetadler32"
@@ -251,10 +252,12 @@ function test_http() {
   receivedHeader=$(grep -i 'Foo: Bar' "$outputFilePath")
   assert_eq "1" "$(echo "$receivedHeader" | wc -l | sed 's/^ *//')" "Incorrect number of 'Foo' header values"
   assert_eq "$expectedHeader" "$receivedHeader" "GET is missing statically-defined 'Foo: Bar' header"
+  
   expectedHeader='< Foo: Baz'
   receivedHeader=$(grep -i 'Foo: Baz' "$outputFilePath")
   assert_eq "1" "$(echo "$receivedHeader" | wc -l | sed 's/^ *//')" "Incorrect number of 'Foo' header values"
   assert_eq "$expectedHeader" "$receivedHeader" "GET is missing statically-defined 'Foo: Baz' header"
+  
   expectedHeader='< Test: 1'
   receivedHeader=$(grep -i 'Test:' "$outputFilePath")
   assert_eq "1" "$(echo "$receivedHeader" | wc -l | sed 's/^ *//')" "Incorrect number of 'Test' header values"
@@ -270,6 +273,7 @@ function test_http() {
   ## Download fails on a read failure
   # Default HTTP request: TCP socket abruptly closes
   assert_failure curl -v --raw "${HTTP_HOST}/${TMPDIR}/fail_read.txt" --output /dev/null --write-out '%{http_code} %{size_download}' > "$outputFilePath"
+  
   # Note: 'tail -n 1' done here as the assert_failure adds lines to the output
   HTTP_CODE=$(tail -n 1 "$outputFilePath" | awk '{print $1;}')
   DOWNLOAD_SIZE=$(tail -n 1 "$outputFilePath" | awk '{print $2;}')
