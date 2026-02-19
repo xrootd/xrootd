@@ -120,8 +120,6 @@ namespace XrdCl
                  "that it was sent, assuming it was sent ok.",
                  pUrl.GetHostId().c_str(),
                  pRequest->GetObfuscatedDescription().c_str() );
-
-      pMsgInFly = true;
     }
 
     //--------------------------------------------------------------------------
@@ -461,7 +459,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // we have an response for the message so it's not in fly anymore
     //--------------------------------------------------------------------------
-    pMsgInFly = false;
+    pSendingState.fetch_or( kInFlyDone );
 
     //--------------------------------------------------------------------------
     // Reset the aggregated wait (used to omit wait response in case of Metalink
@@ -923,6 +921,16 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
+    if( status.IsOK() )
+    {
+      log->Dump( XRootDMsg, "[%s] Got notification that outgoing message %s "
+                 "was sent successfully.", pUrl.GetHostId().c_str(),
+                 message->GetObfuscatedDescription().c_str() );
+    }
+
+    // After setting kSendDone processing of this object may continue in
+    // another thread. Unless we're in an error condition our object may
+    // be modified or even destroyed after this point.
     const int sst = pSendingState.fetch_or( kSendDone );
 
     // ignore if we're already in this state
@@ -941,27 +949,24 @@ namespace XrdCl
 
     if( sst & kFinalResp )
     {
-      log->Dump( XRootDMsg, "[%s] Got late notification that outgoing message %s was "
-                 "sent, already have final response, queuing handler callback.",
-                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
+      // late notification and we already have final response for user,
+      // need to queue handler callback.
       HandleRspOrQueue();
       return;
     }
 
     if( sst & kRetryAtSrv )
     {
-      log->Dump( XRootDMsg, "[%s] Got late notification that outgoing message %s was "
-                 "sent, already want to retry at different server.",
-                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
+       // late notification and we already received a response and know
+       // we need to retry at differnt server.
        HandleError( RetryAtServer( pRetryAtUrl, pRetryAtEntryType ) );
        return;
     }
 
     if( sst & kSawResp )
     {
-      log->Dump( XRootDMsg, "[%s] Got late notification that message %s has "
-                 "been successfully sent.",
-                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
+      // late notification, response processing may be happening in another
+      // thread.
       return;
     }
 
@@ -970,10 +975,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( status.IsOK() )
     {
-      log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
-                 pUrl.GetHostId().c_str(), message->GetObfuscatedDescription().c_str() );
-
-      pMsgInFly = true;
+      // this is the expcted order, we got the notificaiton but no response
+      // received yet. However another thread is liable to be processing
+      // one or sending a final response and deleting us at any point now.
       return;
     }
 
@@ -1231,7 +1235,7 @@ namespace XrdCl
     if( pSidMgr && finalrsp )
     {
       ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
-      if( status->IsOK() || !pMsgInFly ||
+      if( status->IsOK() || !IsInFly() ||
           !( status->code == errOperationExpired || status->code == errOperationInterrupted ) )
         pSidMgr->ReleaseSID( req->header.streamid );
     }
@@ -2042,7 +2046,7 @@ namespace XrdCl
     if( status.IsOK() )
       return;
 
-    if( pSidMgr && pMsgInFly && ( 
+    if( pSidMgr && IsInFly() && ( 
         status.code == errOperationExpired ||
         status.code == errOperationInterrupted ) )
     {
