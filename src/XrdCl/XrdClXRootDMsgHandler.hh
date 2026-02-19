@@ -167,7 +167,6 @@ namespace XrdCl
 
         pAggregatedWaitTime( 0 ),
 
-        pMsgInFly( false ),
         pSendingState( 0 ),
 
         pTimeoutFence( false ),
@@ -454,6 +453,7 @@ namespace XrdCl
       static constexpr int kFinalResp    = 0x0004;
       static constexpr int kSawReadySend = 0x0008;
       static constexpr int kRetryAtSrv   = 0x0010;
+      static constexpr int kInFlyDone    = 0x0020;
 
       //------------------------------------------------------------------------
       //! Recover error
@@ -619,6 +619,17 @@ namespace XrdCl
         return pgcnt;
       }
 
+      //------------------------------------------------------------------------
+      // Used to track whether we need to relase or timeout SID
+      //------------------------------------------------------------------------
+      inline bool IsInFly() const
+      {
+        const int sst = pSendingState;
+        if ( ( sst & ( kSawResp|kSendDone ) ) && !( sst & kInFlyDone ) )
+          return true;
+        return false;
+      }
+
       Message                               *pRequest;
       std::shared_ptr<Message>               pResponse; //< the ownership is shared with MsgReader
       std::vector<std::shared_ptr<Message>>  pPartialResps; //< the ownership is shared with MsgReader
@@ -665,7 +676,6 @@ namespace XrdCl
       std::unique_ptr<RedirectEntry>         pRdirEntry;
       RedirectTraceBack                      pRedirectTraceBack;
 
-      bool                                   pMsgInFly;
       std::atomic<int>                       pSendingState;
 
       //------------------------------------------------------------------------
