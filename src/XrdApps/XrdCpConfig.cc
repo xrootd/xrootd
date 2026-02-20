@@ -377,10 +377,11 @@ do{while(optind < Argc && Legacy(optind)) {}
      if (dstFile->Protocol != XrdCpFile::isFile
      &&  dstFile->Protocol != XrdCpFile::isStdIO
      &&  dstFile->Protocol != XrdCpFile::isXroot
+     &&  dstFile->Protocol != XrdCpFile::isXroots
      &&  dstFile->Protocol != XrdCpFile::isPelican
      &&  dstFile->Protocol != XrdCpFile::isS3
      &&  dstFile->Protocol != XrdCpFile::isHttp
-     &&  dstFile->Protocol == XrdCpFile::isHttps)
+     &&  dstFile->Protocol != XrdCpFile::isHttps)
         {FMSG(dstFile->ProtName <<"file protocol is not supported.", 22)}
 
 // Resolve this file if it is a local file
