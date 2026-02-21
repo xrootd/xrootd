@@ -1201,9 +1201,46 @@ ssize_t XrdPssFile::pgWrite(void     *buffer,
 
 ssize_t XrdPssFile::Read(off_t offset, size_t blen)
 {
+     ssize_t retval;
+
      if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
-     return 0;  // We haven't implemented this yet!
+     // Implementation notes:
+     // - This implementation requires a buffer to read into even though
+     //   the data is not used.  I considered just providing a `nullptr` for
+     //   a buffer but the XrdCl implementation requires a buffer to read into
+     //   from the network socket -- so it'd just be pushing around _where_ the
+     //   allocation occurs (and we'd have to audit all the callsites - if not
+     //   here, then multiple locations would need careful auditing).
+     // - Given the presence of XrdCl plugins, I'm reluctant to assume all handle the
+     //   nullptr of a buffer correctly; it seems ill-advised to start handing
+     //   nullptrs to plugins where we've exclusively given non-nullptr buffers before.
+     // - Limit buffer size to 2MB chunks to avoid large memory allocations.
+     //   2MB is chosen here as that's the threshold where most allocators
+     //   switch from using the heap to using mmap() a new buffer area.
+     // - I considered reusing a buffer pool to avoid the allocator but the
+     //   typical tools (thread-local storage, buffer pools) all add a lot
+     //   of complexity or memory overhead for what malloc likely does a decent
+     //   job of already.  If the client gets a buffer pool manager, this can
+     //   be revisited.
+     //
+     // So, after going through several alternate implementation, it seems
+     // simplest to just allocate a temporary buffer here, especially since
+     // this is likely not a high-frequency operation in typical workloads.
+     const size_t maxChunkSize = 2 * 1024 * 1024;
+     std::unique_ptr<char[]> buffer(new char[std::min(blen, maxChunkSize)]);
+
+     size_t totalRead = 0;
+     while (totalRead < blen) {
+         size_t chunkSize = std::min(blen - totalRead, maxChunkSize);
+         retval = XrdPosixXrootd::Pread(fd, buffer.get(), chunkSize, offset + totalRead);
+         if (retval < 0) return (ssize_t)-errno;
+         if (retval == 0) break; // EOF
+         totalRead += retval;
+         if ((size_t)retval < chunkSize) break; // Short read
+     }
+
+     return totalRead;
 }
 
 
