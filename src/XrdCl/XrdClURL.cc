@@ -100,12 +100,12 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // If the protocol is HTTP or HTTPS, change the default port number
+    // If the protocol is HTTP(S) or DAV(S), change the default port number
     //--------------------------------------------------------------------------
-    if (pProtocol == "http") {
+    if (pProtocol == "http" || pProtocol == "dav") {
       pPort = 80;
     }
-    if (pProtocol == "https") {
+    if (pProtocol == "https" || pProtocol == "davs") {
       pPort = 443;
     }
 

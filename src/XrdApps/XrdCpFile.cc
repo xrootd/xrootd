@@ -56,9 +56,11 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
                            {"root://",   7, isXroot},
                            {"roots://",  8, isXroots},
                            {"http://",   7, isHttp},
+                           {"https://",  8, isHttps},
+                           {"dav://",    6, isHttp},
+                           {"davs://",   7, isHttps},
                            {"pelican://", 10,  isPelican},
-                           {"s3://",     5, isS3},
-                           {"https://",  8, isHttps}
+                           {"s3://",     5, isS3}
                           };
    static int pTnum = sizeof(pTab)/sizeof(struct proto);
    const char *Slash;

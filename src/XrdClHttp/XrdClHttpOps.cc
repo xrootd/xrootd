@@ -124,7 +124,7 @@ std::pair<std::string, int> ParseHostPort(const std::string &location) {
     auto pos = location.find("://");
     std::string authority = (pos == std::string::npos) ? location : location.substr(pos + 3);
     std::string schema = (pos == std::string::npos) ? "" : location.substr(0, pos);
-    int std_port = (schema == "https") ? 443 : 80;
+    int std_port = (schema == "https" || schema == "davs") ? 443 : 80;
     auto at_pos = authority.find('@');
     std::string hostport = (at_pos == std::string::npos) ? authority : authority.substr(at_pos + 1);
     pos = hostport.find('/');
@@ -142,6 +142,16 @@ std::pair<std::string, int> ParseHostPort(const std::string &location) {
         port = std_port;
     }
     return {hostport.substr(0, pos), port};
+}
+
+std::string DavToHttp(const std::string &url) {
+    if (url.compare(0, 6, "dav://") == 0) {
+        return "http://" + url.substr(6);
+    }
+    if (url.compare(0, 7, "davs://") == 0) {
+        return "https://" + url.substr(7);
+    }
+    return url;
 }
 
 } // namespace
@@ -169,7 +179,7 @@ CurlOperation::CurlOperation(XrdCl::ResponseHandler *handler, const std::string 
     m_start_op(m_last_reset),
     m_header_start(m_last_reset),
     m_conn_callout(callout),
-    m_url(url),
+    m_url(DavToHttp(url)),
     m_handler(handler),
     m_curl(nullptr, &curl_easy_cleanup),
     m_logger(logger)
