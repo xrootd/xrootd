@@ -16,8 +16,9 @@ default:
     - VERSION=$(./genversion.sh --sanitize)
     - dch --create --package xrootd -v ${VERSION} -M 'XRootD automated build.'
     - mk-build-deps --install --remove debian/control <<< y
+    - rm -f ../*.d*eb
     - debuild --no-tgz-check --no-sign -b
-    - apt install -y ../*.d*eb
+    - apt install -y ../*.deb
     - mkdir -p DEB/${ID}/${VERSION_CODENAME}
     - mv ../*.deb DEB/${ID}/${VERSION_CODENAME}
     - tests/post-install.sh
