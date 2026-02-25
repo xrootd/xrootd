@@ -1354,10 +1354,15 @@ File::PutResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl:
     }
 }
 
-XrdCl::Status
+XrdCl::XRootDStatus
 File::PutResponseHandler::QueueWrite(std::variant<std::pair<const void *, size_t>, XrdCl::Buffer> buffer, XrdCl::ResponseHandler *handler)
 {
     if (m_op->HasFailed()) {
+        auto sc = m_op->GetStatusCode();
+        if (HTTPStatusIsError(sc)){
+            auto httpErr = HTTPStatusConvert(sc);
+            return XrdCl::XRootDStatus(XrdCl::stError, httpErr.first, httpErr.second, m_op->GetStatusMessage());
+        }
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp, 0, "Cannot continue writing to open file after error");
     }
     std::lock_guard<std::mutex> lg(m_mutex);
@@ -1381,7 +1386,7 @@ File::PutResponseHandler::QueueWrite(std::variant<std::pair<const void *, size_t
     } else {
         m_pending_writes.emplace_back(std::move(buffer), handler);
     }
-    return XrdCl::Status{};
+    return XrdCl::XRootDStatus{};
 }
 
 // Start the next pending write operation.

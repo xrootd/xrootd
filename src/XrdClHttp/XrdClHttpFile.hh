@@ -214,7 +214,7 @@ private:
 
         virtual void HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *response_raw) override;
 
-        XrdCl::Status QueueWrite(std::variant<std::pair<const void *, size_t>, XrdCl::Buffer> buffer, XrdCl::ResponseHandler *handler);
+        XrdCl::XRootDStatus QueueWrite(std::variant<std::pair<const void *, size_t>, XrdCl::Buffer> buffer, XrdCl::ResponseHandler *handler);
 
         void SetOp(std::shared_ptr<XrdClHttp::CurlPutOp> op) {m_op = op;}
 
