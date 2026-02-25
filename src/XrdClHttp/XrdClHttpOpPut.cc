@@ -47,16 +47,15 @@ CurlPutOp::CurlPutOp(XrdCl::ResponseHandler *handler, std::shared_ptr<XrdCl::Res
 void
 CurlPutOp::Fail(uint16_t errCode, uint32_t errNum, const std::string &msg)
 {
-    std::string custom_msg = msg;
     SetDone(true);
     if (m_handler == nullptr && m_default_handler == nullptr) {return;}
-    if (!custom_msg.empty()) {
+    if (!msg.empty()) {
         m_logger->Debug(kLogXrdClHttp, "PUT operation at offset %llu failed with message: %s", static_cast<long long unsigned>(m_offset), msg.c_str());
-        custom_msg += " (write operation at offset " + std::to_string(static_cast<long long unsigned>(m_offset)) + ")";
     } else {
         m_logger->Debug(kLogXrdClHttp, "PUT operation at offset %llu failed with status code %d", static_cast<long long unsigned>(m_offset), errNum);
     }
-    auto status = new XrdCl::XRootDStatus(XrdCl::stError, errCode, errNum, custom_msg);
+
+    auto status = new XrdCl::XRootDStatus(XrdCl::stError, errCode, errNum, msg);
     auto handle = m_handler;
     m_handler = nullptr;
     if (handle) handle->HandleResponse(status, nullptr);
