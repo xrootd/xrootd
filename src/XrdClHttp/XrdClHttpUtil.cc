@@ -105,7 +105,6 @@ bool XrdClHttp::HTTPStatusIsError(unsigned status) {
 }
 
 std::pair<uint16_t, uint32_t> XrdClHttp::HTTPStatusConvert(unsigned status) {
-    //std::cout << "HTTPStatusConvert: " << status << "\n";
     switch (status) {
         case 400: // Bad Request
             return std::make_pair(XrdCl::errErrorResponse, kXR_InvalidRequest);
