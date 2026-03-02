@@ -1616,64 +1616,48 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtMOVE:
     {
-      // Incase of a move cgi parameters present in the CGI str
-      // are appended to the destination in case of a MOVE.
-      if (resourceplusopaque != "") {
-        int pos = resourceplusopaque.find("?");
-        if (pos != STR_NPOS) {
-          destination.append((destination.find("?") == std::string::npos) ? "?" : "&");
-          destination.append(resourceplusopaque.c_str() + pos + 1);
-        }
-      }
+      // Skip the protocol part of destination URL
+      size_t skip = destination.find("://");
+      skip = (skip == std::string::npos) ? 0 : skip + 3;
 
-      // --------- MOVE
-      memset(&xrdreq, 0, sizeof (ClientRequest));
-      xrdreq.mv.requestid = htons(kXR_mv);
-
-      std::string s = resourceplusopaque.c_str();
-      s += " ";
-
-      char buf[256];
-      char *ppath;
-      int port = 0;
-      if (parseURL((char *) destination.c_str(), buf, port, &ppath)) {
-        prot->SendSimpleResp(501, NULL, NULL, (char *) "Cannot parse destination url.", 0, false);
-        return -1;
-      }
-
-      char buf2[256];
-      strncpy(buf2, host.c_str(), sizeof(buf2) - 1);
-      buf2[sizeof(buf2) - 1] = '\0';
-      char *pos = strchr(buf2, ':');
-      if (pos) *pos = '\0';
-     
-      // If we are a redirector we enforce that the host field is equal to
-      // whatever was written in the destination url
-      //
-      // If we are a data server instead we cannot enforce anything, we will
-      // just ignore the host part of the destination
-      if ((prot->myRole == kXR_isManager) && strcmp(buf, buf2)) {
+      // If we have a manager role, enforce source and destination are on the same host
+      if (prot->myRole == kXR_isManager && destination.compare(skip, host.size(), host) != 0) {
         prot->SendSimpleResp(501, NULL, NULL, (char *) "Only in-place renaming is supported for MOVE.", 0, false);
         return -1;
       }
 
+      // If needed, append opaque info from source onto destination
+      int pos = resourceplusopaque.find("?");
+      if (pos != STR_NPOS) {
+        destination.append((destination.find("?") == std::string::npos) ? "?" : "&");
+        destination.append(resourceplusopaque.c_str() + pos + 1);
+      }
 
+      size_t path_pos = destination.find('/', skip + 1);
 
+      if (path_pos == std::string::npos) {
+        prot->SendSimpleResp(400, NULL, NULL, (char *) "Cannot determine destination path", 0, false);
+        return -1;
+      }
 
-      s += ppath;
+      // Construct args to kXR_mv request (i.e. <src> + " " + <dst>)
+      std::string mv_args = std::string(resourceplusopaque.c_str()) + " " + destination.substr(path_pos);
 
-      l = s.length() + 1;
-      xrdreq.mv.dlen = htonl(l);
+      l = mv_args.length() + 1;
+
+      // Prepare and run kXR_mv request
+      memset(&xrdreq, 0, sizeof (ClientRequest));
+      xrdreq.mv.requestid = htons(kXR_mv);
       xrdreq.mv.arg1len = htons(resourceplusopaque.length());
+      xrdreq.mv.dlen = htonl(l);
       
-      if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
-        prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
+      if (!prot->Bridge->Run((char *) &xrdreq, (char *) mv_args.c_str(), l)) {
+        prot->SendSimpleResp(500, NULL, NULL, (char *) "Could not run request.", 0, false);
         return -1;
       }
 
       // We don't want to be invoked again after this request is finished
       return 1;
-
     }
     default:
     {
