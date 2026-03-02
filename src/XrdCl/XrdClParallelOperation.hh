@@ -196,6 +196,8 @@ namespace XrdCl
       {
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          std::unique_lock<std::mutex> lck(resMtx);
+
           // keep the status in case this is the final result
           res = status;
           if( status.IsOK() ) return false;
@@ -205,9 +207,11 @@ namespace XrdCl
 
         XRootDStatus Result()
         {
+          std::unique_lock<std::mutex> lck(resMtx);
           return res;
         }
 
+        std::mutex   resMtx;
         XRootDStatus res;
       };
 
@@ -225,25 +229,29 @@ namespace XrdCl
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          std::unique_lock<std::mutex> lck(resMtx);
+
           // keep the status in case this is the final result
           res = status;
           // decrement the counter
-          size_t nb = cnt.fetch_sub( 1, std::memory_order_relaxed );
+          --cnt;
           // we require just one operation to be successful
           if( status.IsOK() ) return true;
           // lets see if this is the last one?
-          if( nb == 1 ) return true;
+          if( cnt == 0 ) return true;
           // we still have a chance there will be one that is successful
           return false;
         }
 
         XRootDStatus Result()
         {
+          std::unique_lock<std::mutex> lck(resMtx);
           return res;
         }
 
         private:
-          std::atomic<size_t> cnt;
+          std::mutex          resMtx;
+          size_t              cnt;
           XRootDStatus        res;
       };
 
@@ -262,30 +270,34 @@ namespace XrdCl
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          std::unique_lock<std::mutex> resMtx;
+
           // keep the status in case this is the final result
           res = status;
           if( status.IsOK() )
           {
-            size_t s = succeeded.fetch_add( 1, std::memory_order_relaxed );
-            if( s + 1 == threshold ) return true; // we reached the threshold
+            ++succeeded;
+            if( succeeded == threshold ) return true; // we reached the threshold
             // we are not yet there
             return false;
           }
-          size_t f = failed.fetch_add( 1, std::memory_order_relaxed );
+          ++failed;
           // did we drop below the threshold
-          if( f == size - threshold ) return true;
+          if( failed > size - threshold ) return true;
           // we still have a chance there will be enough of successful operations
           return false;
         }
 
         XRootDStatus Result()
         {
+          std::unique_lock<std::mutex> lck(resMtx);
           return res;
         }
 
         private:
-          std::atomic<size_t> failed;
-          std::atomic<size_t> succeeded;
+          std::mutex          resMtx;
+          size_t              failed;
+          size_t              succeeded;
           const size_t        threshold;
           const size_t        size;
           XRootDStatus        res;
@@ -313,24 +325,30 @@ namespace XrdCl
         //----------------------------------------------------------------------
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          std::unique_lock<std::mutex> lck(resMtx);
+
           if (!status.IsOK()) {
-            if (failed_cnt.fetch_add(1, std::memory_order_relaxed) == failed_threshold) {
+            ++failed_cnt;
+            if (failed_cnt > failed_threshold) {
               res = status;
               return true;
             }
           }
 
-          return pending_cnt.fetch_sub(1, std::memory_order_relaxed) == 1;
+          --pending_cnt;
+          return pending_cnt == 0;
         }
 
         XRootDStatus Result()
         {
+          std::unique_lock<std::mutex> lck(resMtx);
           return res;
         }
 
         private:
-          std::atomic<size_t> pending_cnt;
-          std::atomic<size_t> failed_cnt;
+          std::mutex          resMtx;
+          size_t              pending_cnt;
+          size_t              failed_cnt;
           const size_t        failed_threshold;
           XRootDStatus        res;
       };
