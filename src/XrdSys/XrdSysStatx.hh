@@ -113,6 +113,7 @@ inline void XrdSysStatxHelpers::Stat2Statx(const struct stat & st, XrdSysStatx &
   stx.stx_rdev_major = major(st.st_rdev);
   stx.stx_rdev_minor = minor(st.st_rdev);
 #else
+  // In that case, stx.statx and st are identical definition. See XrdSysStatx.hh
   stx.stx_mask = STATX_BASIC_STATS;
   stx.statx    = st;
 #endif
@@ -121,20 +122,42 @@ inline void XrdSysStatxHelpers::Stat2Statx(const struct stat & st, XrdSysStatx &
 inline void XrdSysStatxHelpers::Statx2Stat(const XrdSysStatx & stx, struct stat & st) {
 #ifdef HAVE_STATX
   memset(&st, 0, sizeof(st));
-  st.st_blksize = stx.stx_blksize;
-  st.st_nlink   = stx.stx_nlink;
-  st.st_uid     = stx.stx_uid;
-  st.st_gid     = stx.stx_gid;
-  st.st_mode    = stx.stx_mode;
-  st.st_ino     = stx.stx_ino;
-  st.st_size    = stx.stx_size;
-  st.st_blocks  = stx.stx_blocks;
-  StatxT2StatT(stx.stx_atime, st.st_atim);
-  StatxT2StatT(stx.stx_mtime, st.st_mtim);
-  StatxT2StatT(stx.stx_ctime, st.st_ctim);
-  st.st_dev  = makedev(stx.stx_dev_major, stx.stx_dev_minor);
-  st.st_rdev = makedev(stx.stx_rdev_major, stx.stx_rdev_minor);
+
+  /**
+   * We test every flag from the mask of statx. The rationale is that all statx flags may be supported
+   * for current Linux versions that we have, but in the future, this may not be the case. Then this code will be adapted to
+   * when the time comes.
+   */
+
+  if (stx.stx_mask & STATX_NLINK)
+    st.st_nlink   = stx.stx_nlink;
+  if (stx.stx_mask & STATX_UID)
+    st.st_uid     = stx.stx_uid;
+  if (stx.stx_mask & STATX_GID)
+    st.st_gid     = stx.stx_gid;
+  if (stx.stx_mask & STATX_MODE)
+    st.st_mode    = stx.stx_mode;
+  if (stx.stx_mask & STATX_INO)
+    st.st_ino     = stx.stx_ino;
+  if (stx.stx_mask & STATX_SIZE)
+    st.st_size    = stx.stx_size;
+  if (stx.stx_mask & STATX_BLOCKS)
+    st.st_blocks  = stx.stx_blocks;
+  if (stx.stx_mask & STATX_ATIME)
+    StatxT2StatT(stx.stx_atime, st.st_atim);
+  if (stx.stx_mask & STATX_MTIME)
+    StatxT2StatT(stx.stx_mtime, st.st_mtim);
+  if (stx.stx_mask & STATX_CTIME)
+    StatxT2StatT(stx.stx_ctime, st.st_ctim);
+  if (stx.stx_mask & STATX_BASIC_STATS) {
+    // There is no mask for those three attributes, so let's use the STATX_BASIC_STATS one
+    st.st_dev  = makedev(stx.stx_dev_major, stx.stx_dev_minor);
+    st.st_rdev = makedev(stx.stx_rdev_major, stx.stx_rdev_minor);
+    st.st_blksize = stx.stx_blksize;
+  }
+
 #else
+  // In that case, stx.statx and st are identical definition. See XrdSysStatx.hh
   st = stx.statx;
 #endif
 }

@@ -91,6 +91,10 @@ TEST_F(XrdSysStatxTests, Statx2StatTimestamps) {
   stx.stx_ctime.tv_sec  = 3000000;
   stx.stx_ctime.tv_nsec = 333;
 
+  stx.stx_mask |= STATX_ATIME;
+  stx.stx_mask |= STATX_MTIME;
+  stx.stx_mask |= STATX_CTIME;
+
   struct stat st;
   XrdSysStatxHelpers::Statx2Stat(stx, st);
 
@@ -110,6 +114,7 @@ TEST_F(XrdSysStatxTests, Statx2StatDeviceNumbers) {
   stx.stx_dev_minor  = 1;
   stx.stx_rdev_major = 253;
   stx.stx_rdev_minor = 0;
+  stx.stx_mask |= STATX_BASIC_STATS;
 
   struct stat st;
   XrdSysStatxHelpers::Statx2Stat(stx, st);
