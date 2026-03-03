@@ -205,6 +205,18 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! @see XrdCl::File::PreRead
+      //------------------------------------------------------------------------
+      virtual XRootDStatus PreRead( const TractList &tracts,
+                                    ResponseHandler *handler,
+                                    time_t           timeout )
+      {
+        (void)tracts; (void)handler; (void)timeout;
+        return XRootDStatus();
+      }
+
+
+      //------------------------------------------------------------------------
       //! @see XrdCl::File::VectorRead
       //------------------------------------------------------------------------
       virtual XRootDStatus VectorRead( const ChunkList &chunks,

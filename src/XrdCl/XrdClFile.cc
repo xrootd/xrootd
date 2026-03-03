@@ -522,6 +522,31 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Preread scattered data tracts in one operation - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::PreRead( const TractList &tracts,
+                              ResponseHandler *handler,
+                              time_t           timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->PreRead( tracts, handler, timeout );
+
+//** return FileStateHandler::PreRead( pImpl->pStateHandler, tracts, handler, timeout );
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Preread scattered data tracts in one operation - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::PreRead( const TractList  &tracts,
+                              time_t            timeout )
+  {
+    SyncResponseHandler handler;
+    return PreRead( tracts, &handler, timeout );
+  }
+
+
+  //----------------------------------------------------------------------------
   // Read scattered data chunks in one operation - async
   //----------------------------------------------------------------------------
   XRootDStatus File::VectorRead( const ChunkList &chunks,

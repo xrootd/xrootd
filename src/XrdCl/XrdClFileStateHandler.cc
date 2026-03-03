@@ -1059,6 +1059,73 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Preread scattered data tracts in one operation - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::PreRead( std::shared_ptr<FileStateHandler> &self,
+                                          const TractList                   &tracts,
+                                          ResponseHandler                   *handler,
+                                          time_t                             timeout )
+  {
+    //--------------------------------------------------------------------------
+    // Sanity check
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( self->pMutex );
+
+    if( self->pFileState == Error ) return self->pStatus;
+
+    if( self->pFileState != Opened && self->pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[%p@%s] Sending an read+preread command for handle %#x to %s",
+                (void*)self.get(), self->pFileUrl->GetObfuscatedURL().c_str(),
+                *((uint32_t*)self->pFileHandle), self->pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Build the message
+    //--------------------------------------------------------------------------
+    Message            *msg;
+    ClientReadRequest  *req;
+    MessageUtils::CreateRequest( msg, req, sizeof(readahead_list)*tracts.size() + 8 );
+
+    req->requestid = kXR_read;
+    req->offset    = 0;
+    req->rlen      = 0;
+    memcpy( req->fhandle, self->pFileHandle, 4 );
+    req->dlen      = sizeof(readahead_list)*tracts.size() + 8;
+
+    static char dummyBuff[8];
+    ChunkList *list   = new ChunkList();
+    list->push_back( ChunkInfo( 0, 0,  dummyBuff ) );
+
+    //--------------------------------------------------------------------------
+    // Copy the tract info
+    //--------------------------------------------------------------------------
+    readahead_list *dataTract = (readahead_list*)msg->GetBuffer( 24 + 8 );
+    for( size_t i = 0; i < tracts.size(); ++i )
+    {
+      dataTract[i].rlen   = tracts[i].length;
+      dataTract[i].offset = tracts[i].offset;
+      memcpy( dataTract[i].fhandle, req->fhandle, 4 );
+    }
+
+    //--------------------------------------------------------------------------
+    // Send the message
+    //--------------------------------------------------------------------------
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( self, handler, msg, params );
+
+    return SendOrQueue( self, *self->pDataServer, msg, stHandler, params );
+  }
+
+  //----------------------------------------------------------------------------
   // Read a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
   XRootDStatus FileStateHandler::Read( std::shared_ptr<FileStateHandler> &self,

@@ -200,6 +200,21 @@ namespace XrdCl
                                 ResponseHandler                   *handler,
                                 time_t                             timeout = 0 );
 
+      //------------------------------------------------------------------------
+      //! Preread data tracts at given offsets - async
+      //!
+      //! @param tracts  A vector of offset/lengths of data tracts to preread.
+      //! @param handler handler to be notified when the response arrives.
+      //!                Since no data is transmitted, there is no response
+      //!                parameter.
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      static XRootDStatus PreRead( std::shared_ptr<FileStateHandler> &self,
+                                   const TractList                   &tracts,
+                                   ResponseHandler                   *handler,
+                                   time_t                             timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - sync
