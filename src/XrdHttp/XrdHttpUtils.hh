@@ -122,11 +122,6 @@ enum : int {
   HTTP_NETWORK_AUTHENTICATION_REQUIRED = 511,
 };
 
-// GetHost from URL
-// Parse an URL and extract the host name and port
-// Return 0 if OK
-int parseURL(char *url, char *host, int &port, char **path);
-
 // Simple itoa function
 std::string itos(long i);
 
