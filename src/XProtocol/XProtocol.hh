@@ -267,7 +267,8 @@ struct ClientCloseRequest {
 enum XDirlistRequestOption {
    kXR_online = 1,
    kXR_dstat  = 2,
-   kXR_dcksm  = 4    // dcksm implies dstat irrespective of dstat setting
+   kXR_dcksm  = 4,   // dcksm implies dstat irrespective of dstat setting
+   kXR_dstatx = 8    // Return extended information, if available
 };
 
 struct ClientDirlistRequest {
