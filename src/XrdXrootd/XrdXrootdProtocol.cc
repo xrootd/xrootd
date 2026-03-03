@@ -744,7 +744,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 /*                               S t a t G e n                                */
 /******************************************************************************/
   
-int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
+int XrdXrootdProtocol::StatGen(XrdSysStatx &statxBuf, char *xxBuff, int xxLen,
                                bool xtnd)
 {
    const mode_t isReadable = (S_IRUSR | S_IRGRP | S_IROTH);
@@ -755,6 +755,9 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
    union {long long uuid; struct {int hi; int lo;} id;} Dev;
    long long fsz;
    int m, n, flags = 0;
+   struct stat buf;
+  // This stat buf will be used to fill the standard stat fields
+   XrdSysStatxHelpers::Statx2Stat(statxBuf,buf);
 
 // Get the right uid/gid
 //
@@ -843,6 +846,24 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
        if (!(n = XrdOucUtils::GidName(buf.st_gid,xxBuff,xxLen,keepT))) return m;
       }
    xxBuff += n+1;
+   xxLen -= (n+1);
+
+#ifdef HAVE_STATX
+  if (Request.stat.wants & kXR_Want_btime) {
+    if (statxBuf.stx_mask & STATX_BTIME) {
+      // \0 is automatically placed by snprintf()
+      n = snprintf(xxBuff, xxLen, " \nbtime_s=%lld&btime_n=%lld",
+                   (long long)statxBuf.stx_btime.tv_sec,
+                   (long long)statxBuf.stx_btime.tv_nsec);
+      if (n >= xxLen) return m;
+      xxBuff += n;
+      xxLen -= n;
+    }
+  }
+#endif
+
+
+
 
 // All done, return full response
 //
