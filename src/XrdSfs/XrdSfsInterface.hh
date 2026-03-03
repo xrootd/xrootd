@@ -768,6 +768,24 @@ virtual XrdSfsXferSize writev(XrdOucIOVec      *writeV,
 virtual int            stat(struct stat *buf) = 0;
 
 //-----------------------------------------------------------------------------
+//! Return state information on the file.
+//!
+//! @param  buf    - Pointer to the structure where info it to be returned.
+//! @param mask    - The statx mask indicating which fields are required
+//!
+//! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, or SFS_STALL. When SFS_OK
+//!         is returned, buf must hold stat information.
+//-----------------------------------------------------------------------------
+virtual int            stat(XrdSysStatx *buf, unsigned int mask = STATX_ALL) {
+  struct stat statbuf;
+  int retc = stat(&statbuf);
+  if (retc == SFS_OK) {
+     XrdSysStatxHelpers::Stat2Statx(statbuf,*buf);
+  }
+  return retc;
+}
+
+//-----------------------------------------------------------------------------
 //! Make sure all outstanding data is actually written to the file (sync).
 //!
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
