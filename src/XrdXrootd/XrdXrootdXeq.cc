@@ -866,7 +866,8 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                                           argp->buff, opaque);
                    }
                 strcpy(buff, dname); buff += dlen; *buff = '\n'; buff++; cnt++;
-                dlen = StatGen(Stat, buff, sizeof(XB.epad));
+               //TODO: statx call above?
+                dlen = StatGen(Statx, buff, sizeof(XB.epad));
                 bleft -= dlen; buff += (dlen-1);
                 if (algT)
                    {int ec = osFS->chksum(XrdSfsFileSystem::csGet, algT,
@@ -1486,6 +1487,7 @@ int XrdXrootdProtocol::do_Open()
    XrdSfsFile *fp;
    XrdXrootdFile *xp, *sameFS = 0;
    struct stat statbuf;
+   XrdSysStatx statxBuf;
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
    struct iovec IOResp[3];  // Note that IOResp[0] is completed by Response
@@ -1734,7 +1736,10 @@ int XrdXrootdProtocol::do_Open()
 // If client wants a stat in open, return the stat information
 //
    if (retStat)
-      {retStat = StatGen(statbuf, ebuff, sizeof(ebuff));
+      {
+       XrdSysStatxHelpers::Stat2Statx(statbuf,statxBuf);
+      //TODO: statx call above?
+       retStat = StatGen(statxBuf, ebuff, sizeof(ebuff));
        IOResp[1].iov_base = (char *)&myResp; IOResp[1].iov_len = sizeof(myResp);
        IOResp[2].iov_base =         ebuff;   IOResp[2].iov_len = retStat;
        resplen = sizeof(myResp) + retStat;
@@ -3090,6 +3095,7 @@ int XrdXrootdProtocol::do_Stat()
    int rc;
    char *opaque, xxBuff[1024];
    struct stat buf;
+   XrdSysStatx statxBuf;
    XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
 
 // Update misc stats count
@@ -3110,8 +3116,12 @@ int XrdXrootdProtocol::do_Stat()
                               "stat does not refer to an open file");
        rc = fp->XrdSfsp->stat(&buf);
        TRACEP(FS, "fh=" <<fh.handle <<" stat rc=" <<rc);
-       if (SFS_OK == rc) return Response.Send(xxBuff,
-                                StatGen(buf,xxBuff,sizeof(xxBuff)));
+       if (SFS_OK == rc) {
+          //TODO statx call above?
+          XrdSysStatxHelpers::Stat2Statx(buf,statxBuf);
+          return Response.Send(xxBuff,
+                StatGen(statxBuf,xxBuff,sizeof(xxBuff)));
+       }
        return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
       }
 
@@ -3143,8 +3153,12 @@ int XrdXrootdProtocol::do_Stat()
        if (doDig) rc = digFS->stat(argp->buff, &buf, myError, CRED, opaque);
           else    rc =  osFS->stat(argp->buff, &buf, myError, CRED, opaque);
        TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
-       if (rc == SFS_OK) return Response.Send(xxBuff,
-                                StatGen(buf,xxBuff,sizeof(xxBuff)));
+       if (rc == SFS_OK) {
+          XrdSysStatxHelpers::Stat2Statx(buf,statxBuf);
+          //TODO: statx call above?
+          return Response.Send(xxBuff,
+                StatGen(statxBuf,xxBuff,sizeof(xxBuff)));
+       }
       }
    return fsError(rc, (doDig ? 0 : XROOTD_MON_STAT),myError,argp->buff,opaque);
 }
