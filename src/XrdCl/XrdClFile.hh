@@ -517,6 +517,44 @@ namespace XrdCl
                              XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
+      //! Preread scattered data tracts in one operation - async
+      //!
+      //! @param tracts    list of the tracts to preread, no data is returned.
+      //!                  The file object must describe an open file.
+      //!                  The default maximum tract size is
+      //!                  2097136 bytes and the default maximum number
+      //!                  of tracts per request is \024. The server
+      //!                  may be queried using FileSystem::Query for the
+      //!                  actual settings.
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PreRead( const TractList &tracts,
+                            ResponseHandler *handler,
+                            time_t           timeout = 0 )
+                            XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Preread scattered data tracts in one operation - sync
+      //!
+      //! @param tracts    list of the tracts to preread, no data is returned.
+      //!                  The file object must describe an open file.
+      //!                  The default maximum tract size is
+      //!                  2097136 bytes and the default maximum number
+      //!                  of tracts per request is 1024. The server
+      //!                  may be queried using FileSystem::Query for the
+      //!                  actual settings.
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PreRead( const TractList  &tracts,
+                            time_t            timeout = 0 )
+                            XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
       //! Read scattered data chunks in one operation - async
       //!
       //! @param chunks    list of the chunks to be read and buffers to put
