@@ -105,6 +105,18 @@ static int Statxfn(int dirFd,const char *path,int flags, unsigned int mask, XrdS
    return retc;
 }
 
+static int Statxfd(int fd, unsigned int mask, XrdSysStatx * statxbuf) {
+#ifdef HAVE_STATX
+   return statx(fd,"",AT_EMPTY_PATH,mask,statxbuf);
+#endif
+   struct stat statbuf;
+   int retc = Statfd(fd,&statbuf);
+   if (!retc) {
+      XrdSysStatxHelpers::Stat2Statx(statbuf,*statxbuf);
+   }
+   return retc;
+}
+
 static int Truncate(const char *fn, off_t flen) {return truncate(fn, flen);}
 };
   
@@ -582,6 +594,19 @@ int XrdSfsNativeFile::stat(struct stat     *buf)         // Out
 
 // All went well
 //
+   return SFS_OK;
+}
+
+int XrdSfsNativeFile::stat(XrdSysStatx * buf,unsigned int mask) {
+   static const char *epname = "stat";
+
+   // Execute the function
+   //
+   if (XrdSfsUFS::Statxfd(oh, mask, buf))
+      return XrdSfsNative::Emsg(epname, error, errno, "state", fname);
+
+   // All went well
+   //
    return SFS_OK;
 }
 

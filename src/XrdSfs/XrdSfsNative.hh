@@ -130,6 +130,8 @@ public:
 
         int            stat(struct stat *buf);
 
+        int            stat(XrdSysStatx *buf, unsigned int mask);
+
         int            truncate(XrdSfsFileOffset   fileOffset);
 
         int            getCXinfo(char cxtype[4], int &cxrsz) {return cxrsz = 0;}
