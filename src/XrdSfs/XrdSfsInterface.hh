@@ -44,6 +44,7 @@
 #include "XrdSfs/XrdSfsGPFile.hh"
 
 #include "XrdSys/XrdSysPageSize.hh"
+#include "XrdSys/XrdSysStatx.hh"
 
 /******************************************************************************/
 /*                            O p e n   M o d e s                             */
@@ -311,6 +312,22 @@ virtual const char *FName() = 0;
 //-----------------------------------------------------------------------------
 
 virtual int         autoStat(struct stat *buf);
+
+//-----------------------------------------------------------------------------
+//! Set the statx() buffer where statx information is to be placed
+//! corresponding to the directory entry returned by nextEntry().
+//!
+//! @param  buf    - Pointer to the XrdSysStatx buffer to be filled.
+//! @param  mask   - The statx mask indicating which fields are requested.
+//!
+//! @return If supported, SFS_OK should be returned. If not supported, then
+//!         SFS_ERROR should be returned with error.code set to ENOTSUP.
+//!
+//! @note: When autoStat() is in effect, directory entries that have been
+//!        deleted from the target directory are quietly skipped.
+//-----------------------------------------------------------------------------
+
+virtual int         autoStat(XrdSysStatx *buf, unsigned int mask = STATX_ALL);
 
 //-----------------------------------------------------------------------------
 //! Constructor (user and MonID are the ones passed to newDir()!). This
