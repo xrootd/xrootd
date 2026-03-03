@@ -228,6 +228,13 @@ const   char          *getVersion();
                         return rc;
                        }
 
+      int            stat(const char              *path,
+                           XrdSysStatx       *buf,
+                           XrdOucErrInfo     &error,
+                     unsigned int            mask,
+                     const XrdSecClientName  *client,
+                     const char              *info);
+
         int            truncate(const char             *Name,
                                       XrdSfsFileOffset fileOffset,
                                       XrdOucErrInfo    &out_error,
