@@ -1300,6 +1300,34 @@ virtual int            stat(const char               *Name,
                             const char               *opaque = 0) = 0;
 
 //-----------------------------------------------------------------------------
+//! Return statx information on a file or directory.
+//!
+//! @param  Name   - Pointer to the path in question.
+//! @param  buf    - Pointer to the structure where info it to be returned.
+//! @param  eInfo  - The object where error info is to be returned.
+//! @param  mask   - The fields in which the client is interested in
+//! @param  client - Client's identify (see common description).
+//! @param  opaque - path's CGI information (see common description).
+//!
+//! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
+//!         When SFS_OK is returned, buf must contain stat information.
+//-----------------------------------------------------------------------------
+virtual int             stat(const char               *Name,
+                                   XrdSysStatx        *buf,
+                                   XrdOucErrInfo      &eInfo,
+                             unsigned int             mask = STATX_ALL,
+                             const XrdSecEntity       *client = 0,
+                             const char               *opaque = 0) {
+  (void)mask;
+  struct stat statbuf;
+  int retc = stat(Name,&statbuf,eInfo,client,opaque);
+  if (retc == SFS_OK) {
+    XrdSysStatxHelpers::Stat2Statx(statbuf,*buf);
+  }
+  return retc;
+}
+
+//-----------------------------------------------------------------------------
 //! Return mode information on a file or directory.
 //!
 //! @param  path   - Pointer to the path in question.
