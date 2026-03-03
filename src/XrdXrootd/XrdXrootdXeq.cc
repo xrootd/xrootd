@@ -787,6 +787,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 {
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    struct stat Stat;
+   XrdSysStatx Statx;
    char *buff, *dLoc, *algT = 0;
    const char *csData, *dname;
    int bleft, rc = 0, dlen, cnt = 0, statSz = 160;
@@ -809,7 +810,20 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 
 // We always return stat information, see if we can use autostat
 //
-   manStat = (dp->autoStat(&Stat) != SFS_OK);
+   if (Request.dirlist.options[0] & kXR_dstatx) {
+      // A statx call will be attempted
+      int retc = dp->autoStat(&Statx);
+      if (retc == SFS_ERROR && dp->error.getErrInfo() == ENOTSUP) {
+         //Statx call is not supported, we will do a "stat" autoStat call
+         manStat = (dp->autoStat(&Stat) != SFS_OK);
+      } else {
+         // If the statx call got an error, we set the manStat to true
+         manStat = (retc != SFS_OK);
+      }
+   } else {
+      // No statx, perform a "stat" auto stat
+      manStat = (dp->autoStat(&Stat) != SFS_OK);
+   }
 
 // Construct the path to the directory as we will be asking for stat calls
 // if the interface does not support autostat or returning checksums.
@@ -826,6 +840,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 // client to issue individual stat requests in that case.
 //
    memset(&Stat, 0, sizeof(Stat));
+   memset(&Statx,0,sizeof(Statx));
    strcpy(XB.ebuff, ".\n0 0 0 0\n");
    buff = XB.ebuff+10; bleft = sizeof(XB.ebuff)-10;
 
@@ -843,7 +858,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                {if ((bleft -= (dlen+1)) < 0 || bleft < statSz) break;
                 if (dLoc) strcpy(dLoc, dname);
                 if (manStat)
-                   {rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
+                   {rc = osFS->stat(pbuff, &Statx, myError,STATX_ALL, CRED, opaque);
                     if (rc == SFS_ERROR && myError.getErrInfo() == ENOENT)
                        {dname = 0; continue;}
                     if (rc != SFS_OK)
