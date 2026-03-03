@@ -55,51 +55,6 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdOuc/XrdOucString.hh"
 
-// GetHost from URL
-// Parse an URL and extract the host name and port
-// Return 0 if OK
-int parseURL(char *url, char *host, int &port, char **path) {
-  // http://x.y.z.w:p/path
-
-  *path = 0;
-
-  // look for the second slash
-  char *p = strstr(url, "//");
-  if (!p) return -1;
-
-
-  p += 2;
-
-  // look for the end of the host:port
-  char *p2 = strchr(p, '/');
-  if (!p2) return -1;
-
-  *path = p2;
-
-  char buf[256];
-  int l = std::min((int)(p2 - p), (int)sizeof (buf) - 1);
-  strncpy(buf, p, l);
-  buf[l] = '\0';
-
-  // Now look for :
-  p = strchr(buf, ':');
-  if (p) {
-    int l = std::min((int)(p - buf), (int)sizeof (buf) - 1);
-    strncpy(host, buf, l);
-    host[l] = '\0';
-
-    port = atoi(p + 1);
-  } else {
-    port = 0;
-
-
-    strcpy(host, buf);
-  }
-
-  return 0;
-}
-
-
 // Encode an array of bytes to base64
 
 void Tobase64(const unsigned char *input, int length, char *out) {
