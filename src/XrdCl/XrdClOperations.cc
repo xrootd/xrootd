@@ -180,7 +180,7 @@ namespace XrdCl
   void PipelineHandler::HandleResponse( XRootDStatus *status,
       AnyObject *response )
   {
-    HandleResponseImpl( status, response );
+    HandleResponseImpl( status, response, new HostList() );
   }
 
   //----------------------------------------------------------------------------
