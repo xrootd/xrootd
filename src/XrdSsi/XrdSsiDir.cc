@@ -157,15 +157,6 @@ int XrdSsiDir::autoStat(struct stat *buf)
    return XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
 }
 
-int XrdSsiDir::autoStat(XrdSysStatx *buf, unsigned int mask) {
-   struct stat statbuf;
-   int retc = autoStat(&statbuf);
-   if (retc == SFS_OK) {
-      XrdSysStatxHelpers::Stat2Statx(statbuf,*buf);
-   }
-   return retc;
-}
-
 /******************************************************************************/
 /*                                 F N a m e                                  */
 /******************************************************************************/
