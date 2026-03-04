@@ -327,7 +327,7 @@ virtual int         autoStat(struct stat *buf);
 //!        deleted from the target directory are quietly skipped.
 //-----------------------------------------------------------------------------
 
-virtual int         autoStat(XrdSysStatx *buf, unsigned int mask = STATX_ALL);
+virtual int         autoStat(XrdSysStatx *buf, unsigned int mask);
 
 //-----------------------------------------------------------------------------
 //! Constructor (user and MonID are the ones passed to newDir()!). This
@@ -776,7 +776,7 @@ virtual int            stat(struct stat *buf) = 0;
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, or SFS_STALL. When SFS_OK
 //!         is returned, buf must hold stat information.
 //-----------------------------------------------------------------------------
-virtual int            stat(XrdSysStatx *buf, unsigned int mask = STATX_ALL) {
+virtual int            stat(XrdSysStatx *buf, unsigned int mask) {
   struct stat statbuf;
   int retc = stat(&statbuf);
   if (retc == SFS_OK) {
@@ -1333,7 +1333,7 @@ virtual int            stat(const char               *Name,
 virtual int             stat(const char               *Name,
                                    XrdSysStatx        *buf,
                                    XrdOucErrInfo      &eInfo,
-                             unsigned int             mask = STATX_ALL,
+                             unsigned int             mask,
                              const XrdSecEntity       *client = 0,
                              const char               *opaque = 0) {
   (void)mask;
