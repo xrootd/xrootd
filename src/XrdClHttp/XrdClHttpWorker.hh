@@ -153,9 +153,10 @@ private:
     static std::mutex m_worker_stats_mutex;
 
     // shutdown trigger
-    static struct shutdown_s {
-      ~shutdown_s() { ShutdownAll(); }
-    } m_shutdowns;
+    static struct initcontrol {
+      initcontrol();
+      ~initcontrol();
+    } m_initcontrol;
 };
 
 }

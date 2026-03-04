@@ -74,8 +74,8 @@ std::atomic<uint64_t> HandlerQueue::m_ops_consumed = 0; // Count of operations c
 std::atomic<uint64_t> HandlerQueue::m_ops_produced = 0; // Count of operations added to the queue.
 std::atomic<uint64_t> HandlerQueue::m_ops_rejected = 0; // Count of operations rejected by the queue.
 
-// shutdown trigger, must be last of the static members
-CurlWorker::shutdown_s CurlWorker::m_shutdowns;
+// shutdown + init trigger, must be last of the static members
+CurlWorker::initcontrol CurlWorker::m_initcontrol;
 
 struct WaitingForBroker {
     CURL *curl{nullptr};
@@ -1732,4 +1732,15 @@ CurlWorker::ShutdownAll()
     for (auto &worker : m_workers) {
         worker->Shutdown();
     }
+}
+
+CurlWorker::initcontrol::initcontrol()
+{
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+}
+
+CurlWorker::initcontrol::~initcontrol()
+{
+    ShutdownAll();
+    curl_global_cleanup();
 }
