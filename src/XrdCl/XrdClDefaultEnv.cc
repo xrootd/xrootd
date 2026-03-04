@@ -29,7 +29,6 @@
 #include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdCl/XrdClOptimizers.hh"
 #include "XrdOuc/XrdOucPreload.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysUtils.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
@@ -44,6 +43,9 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define ACQLOAD(x) (x).load( std::memory_order_acquire )
+#define RELSTORE(x, y) (x).store( (y), std::memory_order_release )
 
 XrdVERSIONINFO( XrdCl, client );
 
@@ -237,18 +239,22 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Statics
   //----------------------------------------------------------------------------
-  XrdSysMutex        DefaultEnv::sInitMutex;
-  Env               *DefaultEnv::sEnv                = 0;
-  PostMaster        *DefaultEnv::sPostMaster         = 0;
-  Log               *DefaultEnv::sLog                = 0;
-  ForkHandler       *DefaultEnv::sForkHandler        = 0;
-  FileTimer         *DefaultEnv::sFileTimer          = 0;
-  Monitor           *DefaultEnv::sMonitor            = 0;
-  XrdOucPinLoader   *DefaultEnv::sMonitorLibHandle   = 0;
-  bool               DefaultEnv::sMonitorInitialized = false;
-  CheckSumManager   *DefaultEnv::sCheckSumManager    = 0;
-  TransportManager  *DefaultEnv::sTransportManager   = 0;
-  PlugInManager     *DefaultEnv::sPlugInManager      = 0;
+  XrdSys::RAtomic<XrdSysMutex*>       DefaultEnv::sInitMutex          = 0;
+  XrdSys::RAtomic<Env*>               DefaultEnv::sEnv                = 0;
+  std::atomic<PostMaster*>            DefaultEnv::sPostMaster         = 0;
+  XrdSys::RAtomic<Log*>               DefaultEnv::sLog                = 0;
+  XrdSys::RAtomic<ForkHandler*>       DefaultEnv::sForkHandler        = 0;
+  XrdSys::RAtomic<FileTimer*>         DefaultEnv::sFileTimer          = 0;
+  std::atomic<Monitor*>               DefaultEnv::sMonitor            = 0;
+  XrdOucPinLoader                    *DefaultEnv::sMonitorLibHandle   = 0;
+  std::atomic<bool>                   DefaultEnv::sMonitorInitialized = false;
+  std::atomic<CheckSumManager*>       DefaultEnv::sCheckSumManager    = 0;
+  std::atomic<TransportManager*>      DefaultEnv::sTransportManager   = 0;
+  XrdSys::RAtomic<PlugInManager*>     DefaultEnv::sPlugInManager      = 0;
+  //----------------------------------------------------------------------------
+  // sInitStatus: 1 : Finalize has been called
+  //----------------------------------------------------------------------------
+  uint64_t                            DefaultEnv::sInitStatus         = 0;
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -452,17 +458,25 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   PostMaster *DefaultEnv::GetPostMaster()
   {
-    PostMaster* postMaster = AtomicGet(sPostMaster);
+    PostMaster* postMaster = ACQLOAD( sPostMaster );
 
     if( unlikely( !postMaster ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
-      postMaster = AtomicGet(sPostMaster);
+      postMaster = ACQLOAD( sPostMaster );
 
       if( postMaster )
         return postMaster;
 
       postMaster = new PostMaster();
+
+      if( sInitStatus )
+      {
+        // we're exiting, but our callers won't handle a nullptr
+        // so return a valid but uninitialised postmaster.
+        // This will be a leak on exit. TODO improve.
+        return postMaster;
+      }
 
       if( !postMaster->Initialize() )
       {
@@ -481,7 +495,7 @@ namespace XrdCl
 
       sForkHandler->RegisterPostMaster( postMaster );
       postMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
-      AtomicCAS(sPostMaster, sPostMaster, postMaster);
+      RELSTORE( sPostMaster, postMaster );
     }
 
     return postMaster;
@@ -566,17 +580,23 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Monitor *DefaultEnv::GetMonitor()
   {
-    if( unlikely( !sMonitorInitialized ) )
+    if( unlikely( !ACQLOAD( sMonitorInitialized ) ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
-      if( !sMonitorInitialized )
+
+      if( !ACQLOAD( sMonitorInitialized ) )
       {
+        // shutting down, don't try to load, return nullptr. Callers
+        // are prepared for this.
+        if( sInitStatus )
+          return nullptr;
+
         //----------------------------------------------------------------------
         // Check the environment settings
         //----------------------------------------------------------------------
         Env *env = GetEnv();
         Log *log = GetLog();
-        sMonitorInitialized = true;
+        RELSTORE( sMonitorInitialized, true );
         std::string monitorLib = DefaultClientMonitor;
         env->GetString( "ClientMonitor", monitorLib );
         if( monitorLib.empty() )
@@ -617,9 +637,9 @@ namespace XrdCl
         // Instantiating the monitor object
         //----------------------------------------------------------------------
         const char *param = monitorParam.empty() ? 0 : monitorParam.c_str();
-        sMonitor = (*loader)( XrdSysUtils::ExecName(), param );
+        Monitor *newm = (*loader)( XrdSysUtils::ExecName(), param );
 
-        if( !sMonitor )
+        if( !newm )
         {
           log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
                       errBuffer );
@@ -628,12 +648,13 @@ namespace XrdCl
           delete sMonitorLibHandle; sMonitorLibHandle = 0;
           return 0;
         }
+        RELSTORE( sMonitor, newm );
         log->Debug( UtilityMsg, "Successfully initialized monitoring from: %s",
                     monitorLib.c_str() );
         delete [] errBuffer;
       }
     }
-    return sMonitor;
+    return ACQLOAD( sMonitor );
   }
 
   //----------------------------------------------------------------------------
@@ -641,13 +662,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   CheckSumManager *DefaultEnv::GetCheckSumManager()
   {
-    if( unlikely( !sCheckSumManager ) )
+    if( unlikely( !ACQLOAD( sCheckSumManager ) ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
-      if( !sCheckSumManager )
-        sCheckSumManager = new CheckSumManager();
+      if( !ACQLOAD( sCheckSumManager ) )
+        RELSTORE( sCheckSumManager, new CheckSumManager() );
     }
-    return sCheckSumManager;
+    return ACQLOAD( sCheckSumManager );
   }
 
   //----------------------------------------------------------------------------
@@ -655,13 +676,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   TransportManager *DefaultEnv::GetTransportManager()
   {
-    if( unlikely( !sTransportManager ) )
+    if( unlikely( !ACQLOAD( sTransportManager ) ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
-      if( !sTransportManager )
-        sTransportManager = new TransportManager();
+      if( !ACQLOAD( sTransportManager ) )
+        RELSTORE( sTransportManager, new TransportManager() );
     }
-    return sTransportManager;
+    return ACQLOAD( sTransportManager );
   }
 
   //----------------------------------------------------------------------------
@@ -685,6 +706,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void DefaultEnv::Initialize()
   {
+    sInitMutex     = new XrdSysMutex();
     sLog           = new Log();
     SetUpLog();
 
@@ -732,22 +754,54 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void DefaultEnv::Finalize()
   {
-    if( sPostMaster )
+    //--------------------------------------------------------------------------
+    // During Finalize() we have a couple of problems. Lifetime of static
+    // members and possibility of being called by threads still running:
+    // Finalize is called when the last compilation unit that included
+    // DefaultEnv.hh is having its static data destroyed. Our own compilation
+    // unit may not be the last, so our own static data may have been destroyed,
+    // but we require they all have trivial destructors.
+    // Concerning late calls; when we do PostMaster Stop() it will wait for
+    // task + jobmanager threads, but potentially some other thread may still
+    // call our Get() methods or could already hold a pointer to one of
+    // our objects that we are about to destroy. TODO improve.
+    //--------------------------------------------------------------------------
+
+    PostMaster *postMaster = nullptr;
     {
-      sPostMaster->Stop();
-      sPostMaster->Finalize();
-      delete sPostMaster;
-      sPostMaster = 0;
+      // primary goal here is to stop late calls to Get() methods fully
+      // re-initialising an object. Due to existing usage most of our
+      // Get() methods can not safely indicate that we're shutting down.
+      // Nor are the returned pointers referenced counted. e.g. once
+      // sInitStatus is set and the default postmaster cleared,
+      // GetPostMaster() still has to return a PostMaster* but does not
+      // reinitislise it.
+      XrdSysMutexHelper scopedLock( sInitMutex );
+      sInitStatus |= 1;
+      postMaster = ACQLOAD( sPostMaster );
     }
 
-    delete sTransportManager;
-    sTransportManager = 0;
+    if( postMaster )
+    {
+      // must not hold the sInitMutex lock during Stop() because it waits for
+      // task + jobmanager threads to finish, which may need to acquire it
+      // (or use the Log).
+      postMaster->Stop();
+      postMaster->Finalize();
+      RELSTORE( sPostMaster, nullptr );
+      delete postMaster;
+    }
 
-    delete sCheckSumManager;
-    sCheckSumManager = 0;
+    XrdSysMutexHelper scopedLock( sInitMutex );
 
-    delete sMonitor;
-    sMonitor = 0;
+    delete ACQLOAD( sTransportManager );
+    RELSTORE( sTransportManager, nullptr );
+
+    delete ACQLOAD( sCheckSumManager );
+    RELSTORE( sCheckSumManager, nullptr );
+
+    delete ACQLOAD( sMonitor );
+    RELSTORE( sMonitor, nullptr );
 
     if( sMonitorLibHandle )
       sMonitorLibHandle->Unload();
@@ -769,6 +823,9 @@ namespace XrdCl
 
     delete sLog;
     sLog = 0;
+
+    scopedLock.UnLock();
+    // TODO we leak the sInitMutex object
   }
 
   //----------------------------------------------------------------------------
@@ -872,21 +929,33 @@ int EnvInitializer::counter = 0;
 
 //------------------------------------------------------------------------------
 // The constructor will be invoked in every translation unit
-// that includes XrdClDefaultEnv.hh, but the DefaultEnv will
-// be initialized only in the first one
+// that includes XrdClDefaultEnv.hh, we keep a count. The initialization isn't
+// done here but is triggered by the 'trig' object constructor, which is
+// ordered to ensure the DefaultEnv static members have been constructed. In
+// general the constructors might not be trivial.
 //------------------------------------------------------------------------------
 EnvInitializer::EnvInitializer ()
 {
-  if( counter++ == 0 ) XrdCl::DefaultEnv::Initialize();
+  ++counter;
 }
 
 //------------------------------------------------------------------------------
-// The destructor will be invoked in every translation unit
-// that includes XrdClDefaultEnv.hh, but the DefaultEnv will
-// be finalized only once in the last one
+// The destructor will be invoked in every translation unit that includes
+// XrdClDefaultEnv.hh, but the DefaultEnv will be finalized only once in the
+// last one. It is assumed the DefaultEnv static members we rely on have
+// trivial destructors, as we don't guarentee that finalization happens before
+// those destructors have run.
 //------------------------------------------------------------------------------
 EnvInitializer::~EnvInitializer ()
 {
   if( --counter == 0 ) XrdCl::DefaultEnv::Finalize();
 }
 
+EnvInitializer::trigger::trigger() { XrdCl::DefaultEnv::Initialize(); }
+EnvInitializer::trigger::~trigger() { }
+
+//------------------------------------------------------------------------------
+// The 'trig' static member has to be ordered after all the other DefaultEnv
+// members to ensure correct ordering of construction then initialization.
+//------------------------------------------------------------------------------
+EnvInitializer::trigger EnvInitializer::trig;
