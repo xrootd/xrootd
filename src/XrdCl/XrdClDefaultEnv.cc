@@ -29,7 +29,6 @@
 #include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdCl/XrdClOptimizers.hh"
 #include "XrdOuc/XrdOucPreload.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysUtils.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
@@ -237,18 +236,22 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Statics
   //----------------------------------------------------------------------------
-  XrdSysMutex        DefaultEnv::sInitMutex;
-  Env               *DefaultEnv::sEnv                = 0;
-  PostMaster        *DefaultEnv::sPostMaster         = 0;
-  Log               *DefaultEnv::sLog                = 0;
-  ForkHandler       *DefaultEnv::sForkHandler        = 0;
-  FileTimer         *DefaultEnv::sFileTimer          = 0;
-  Monitor           *DefaultEnv::sMonitor            = 0;
-  XrdOucPinLoader   *DefaultEnv::sMonitorLibHandle   = 0;
-  bool               DefaultEnv::sMonitorInitialized = false;
-  CheckSumManager   *DefaultEnv::sCheckSumManager    = 0;
-  TransportManager  *DefaultEnv::sTransportManager   = 0;
-  PlugInManager     *DefaultEnv::sPlugInManager      = 0;
+  std::atomic<XrdSysMutex*>       DefaultEnv::sInitMutex          = 0;
+  std::atomic<Env*>               DefaultEnv::sEnv                = 0;
+  std::atomic<PostMaster*>        DefaultEnv::sPostMaster         = 0;
+  std::atomic<Log*>               DefaultEnv::sLog                = 0;
+  std::atomic<ForkHandler*>       DefaultEnv::sForkHandler        = 0;
+  std::atomic<FileTimer*>         DefaultEnv::sFileTimer          = 0;
+  std::atomic<Monitor*>           DefaultEnv::sMonitor            = 0;
+  std::atomic<XrdOucPinLoader*>   DefaultEnv::sMonitorLibHandle   = 0;
+  std::atomic<bool>               DefaultEnv::sMonitorInitialized = false;
+  std::atomic<CheckSumManager*>   DefaultEnv::sCheckSumManager    = 0;
+  std::atomic<TransportManager*>  DefaultEnv::sTransportManager   = 0;
+  std::atomic<PlugInManager*>     DefaultEnv::sPlugInManager      = 0;
+  //----------------------------------------------------------------------------
+  // sInitStatus: 1 == Finalize has been called
+  //----------------------------------------------------------------------------
+  std::atomic<uint64_t>           DefaultEnv::sInitStatus         = 0;
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -452,17 +455,26 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   PostMaster *DefaultEnv::GetPostMaster()
   {
-    PostMaster* postMaster = AtomicGet(sPostMaster);
+    PostMaster* postMaster = sPostMaster;
 
     if( unlikely( !postMaster ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
-      postMaster = AtomicGet(sPostMaster);
+      postMaster = sPostMaster;
 
       if( postMaster )
         return postMaster;
 
       postMaster = new PostMaster();
+
+      if( sInitStatus )
+      {
+        // we're exiting, but our callers won't handle a nullptr
+        // so return a valid but uninitialised postmaster.
+        // This will be a leak on exit. TODO improve.
+        sPostMaster = postMaster;
+        return postMaster;
+      }
 
       if( !postMaster->Initialize() )
       {
@@ -479,9 +491,9 @@ namespace XrdCl
         return 0;
       }
 
-      sForkHandler->RegisterPostMaster( postMaster );
+      sForkHandler.load()->RegisterPostMaster( postMaster );
       postMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
-      AtomicCAS(sPostMaster, sPostMaster, postMaster);
+      sPostMaster = postMaster;
     }
 
     return postMaster;
@@ -569,8 +581,17 @@ namespace XrdCl
     if( unlikely( !sMonitorInitialized ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
+
       if( !sMonitorInitialized )
       {
+        // shutting down, don't try to load, return nullptr. Callers
+        // are prepared for this.
+        if( sInitStatus )
+        {
+          sMonitorInitialized = true;
+          return sMonitor;
+        }
+
         //----------------------------------------------------------------------
         // Check the environment settings
         //----------------------------------------------------------------------
@@ -602,13 +623,13 @@ namespace XrdCl
 
         typedef XrdCl::Monitor *(*MonLoader)(const char *, const char *);
         MonLoader loader;
-        loader = (MonLoader)sMonitorLibHandle->Resolve( "XrdClGetMonitor", -1 );
+        loader = (MonLoader)sMonitorLibHandle.load()->Resolve( "XrdClGetMonitor", -1 );
         if( !loader )
         {
           log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
                       errBuffer );
           delete [] errBuffer;
-          sMonitorLibHandle->Unload();
+          sMonitorLibHandle.load()->Unload();
           delete sMonitorLibHandle; sMonitorLibHandle = 0;
           return 0;
         }
@@ -624,7 +645,7 @@ namespace XrdCl
           log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
                       errBuffer );
           delete [] errBuffer;
-          sMonitorLibHandle->Unload();
+          sMonitorLibHandle.load()->Unload();
           delete sMonitorLibHandle; sMonitorLibHandle = 0;
           return 0;
         }
@@ -677,7 +698,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   PlugInFactory *DefaultEnv::GetPlugInFactory( const std::string url )
   {
-    return  sPlugInManager->GetFactory( url );
+    return  sPlugInManager.load()->GetFactory( url );
   }
 
   //----------------------------------------------------------------------------
@@ -685,6 +706,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void DefaultEnv::Initialize()
   {
+    sInitMutex     = new XrdSysMutex();
     sLog           = new Log();
     SetUpLog();
 
@@ -693,8 +715,8 @@ namespace XrdCl
     sFileTimer     = new FileTimer();
     sPlugInManager = new PlugInManager();
 
-    sPlugInManager->ProcessEnvironmentSettings();
-    sForkHandler->RegisterFileTimer( sFileTimer );
+    sPlugInManager.load()->ProcessEnvironmentSettings();
+    sForkHandler.load()->RegisterFileTimer( sFileTimer );
 
     //--------------------------------------------------------------------------
     // MacOSX library loading is completely moronic. We cannot dlopen a library
@@ -718,10 +740,10 @@ namespace XrdCl
 
     for( int i = 0; libs[i]; ++i )
     {
-      sLog->Debug( UtilityMsg, "Attempting to pre-load: %s", libs[i] );
+      sLog.load()->Debug( UtilityMsg, "Attempting to pre-load: %s", libs[i] );
       bool ok = XrdOucPreload( libs[i], errBuff, 1024 );
       if( !ok )
-        sLog->Error( UtilityMsg, "Unable to pre-load %s: %s", libs[i], errBuff );
+        sLog.load()->Error( UtilityMsg, "Unable to pre-load %s: %s", libs[i], errBuff );
     }
     delete [] errBuff;
 #endif
@@ -732,12 +754,40 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void DefaultEnv::Finalize()
   {
-    if( sPostMaster )
+    // Generally during Finalize() we have a problem that there may be threads
+    // still executing, potentially calling our Get() methods, while exit
+    // may be far enough along that our static members have already been
+    // destroyed. PostMaster Stop() will wait for task + jobmanager threads,
+    // but potentially some other thread still could hold a pointer to one of
+    // our objects that we are about to destroy.
+    // TODO improve.
+
+    sInitStatus = 1;
+    PostMaster *postMaster = nullptr;
+
     {
-      sPostMaster->Stop();
-      sPostMaster->Finalize();
-      delete sPostMaster;
-      sPostMaster = 0;
+      // locking ensures that if sPostMaster is nullptr then if it is changed
+      // later GetPostMaster() must have seen sInitStatus indicating finalize
+      // and provided an uninitialised postmaster.
+      XrdSysMutexHelper scopedLock( sInitMutex );
+      postMaster = sPostMaster;
+    }
+
+    if( postMaster )
+    {
+      const bool wasRunning = postMaster->IsRunning();
+      // must not hold the sInitMutex lock during Stop() because it waits for
+      // task + jobmanager threads to finish, which may need to acquire it
+      // (or use the Log).
+      postMaster->Stop();
+      postMaster->Finalize();
+      // if the postmaster is was not running we assume that it was an
+      // uninitialised one that GetPostMaster created during shutdown, leave it.
+      if( wasRunning )
+      {
+        sPostMaster = nullptr;
+        delete postMaster;
+      }
     }
 
     delete sTransportManager;
@@ -750,7 +800,7 @@ namespace XrdCl
     sMonitor = 0;
 
     if( sMonitorLibHandle )
-      sMonitorLibHandle->Unload();
+      sMonitorLibHandle.load()->Unload();
 
     delete sMonitorLibHandle;
     sMonitorLibHandle = 0;
@@ -769,6 +819,8 @@ namespace XrdCl
 
     delete sLog;
     sLog = 0;
+
+    // TODO we leak the sInitMutex
   }
 
   //----------------------------------------------------------------------------
