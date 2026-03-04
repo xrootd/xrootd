@@ -15,33 +15,6 @@ function setup_scitokens() {
 	export XDG_CACHE_HOME
 	mkdir -p "$XDG_CACHE_HOME/scitokens"
 
-	# Create a read-only token
-	OUTPUTDIR=$PWD/scitokens
-	pushd ../issuer || exit 1
-	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
-		"https://localhost:7095/issuer/one" storage.read:/ > "$OUTPUTDIR/token"; then
-		echo "Failed to create token"
-		exit 1
-	fi
-	chmod 0600 "$OUTPUTDIR/token"
-
-	# Create a create-only token
-	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
-		"https://localhost:7095/issuer/one" storage.create:/subdir > "$OUTPUTDIR/token_create"; then
-		echo "Failed to create 'storage.create' token"
-		exit 1
-	fi
-	chmod 0600 "$OUTPUTDIR/token_create"
-
-	# Create a modify token
-	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
-		"https://localhost:7095/issuer/one" storage.modify:/subdir_modify > "$OUTPUTDIR/token_modify"; then
-		echo "Failed to create 'storage.modify' token"
-		exit 1
-	fi
-	chmod 0600 "$OUTPUTDIR/token_modify"
-
-	popd || exit 1
 }
 
 function execute_curl() {
@@ -99,6 +72,34 @@ function test_scitokens() {
 
 	# create local temporary directory
 	TMPDIR=$(mktemp -d "${NAME}/test-XXXXXX")
+
+	# Create a read-only token
+	OUTPUTDIR=$PWD/scitokens
+	pushd ../issuer || exit 1
+	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
+		"https://localhost:7095/issuer/one" storage.read:/ > "$OUTPUTDIR/token"; then
+		echo "Failed to create token"
+		exit 1
+	fi
+	chmod 0600 "$OUTPUTDIR/token"
+
+	# Create a create-only token
+	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
+		"https://localhost:7095/issuer/one" storage.create:/subdir > "$OUTPUTDIR/token_create"; then
+		echo "Failed to create 'storage.create' token"
+		exit 1
+	fi
+	chmod 0600 "$OUTPUTDIR/token_create"
+
+	# Create a modify token
+	if ! xrdscitokens-create-token issuer_pub_1.pem issuer_key_1.pem test_1 \
+		"https://localhost:7095/issuer/one" storage.modify:/subdir_modify > "$OUTPUTDIR/token_modify"; then
+		echo "Failed to create 'storage.modify' token"
+		exit 1
+	fi
+	chmod 0600 "$OUTPUTDIR/token_modify"
+
+	popd || exit 1
 
 	# Perform tests over the root protocol using ZTN
 	unset BEARER_TOKEN_FILE
