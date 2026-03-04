@@ -812,7 +812,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 //
    if (Request.dirlist.options[0] & kXR_dstatx) {
       // A statx call will be attempted
-      int retc = dp->autoStat(&Statx);
+      int retc = dp->autoStat(&Statx,STATX_ALL);
       if (retc == SFS_ERROR && dp->error.getErrInfo() == ENOTSUP) {
          //Statx call is not supported, we will do a "stat" autoStat call
          manStat = (dp->autoStat(&Stat) != SFS_OK);
