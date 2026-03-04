@@ -237,8 +237,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Callback function implementation;
       //------------------------------------------------------------------------
-      void HandleResponseImpl( XRootDStatus *status, AnyObject *response,
-          HostList *hostList = nullptr );
+      void HandleResponseImpl( XRootDStatus *status, AnyObject *response, HostList *hostList );
 
       inline void dealloc( XRootDStatus *status, AnyObject *response,
           HostList *hostList )
