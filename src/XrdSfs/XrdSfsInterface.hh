@@ -777,12 +777,17 @@ virtual int            stat(struct stat *buf) = 0;
 //!         is returned, buf must hold stat information.
 //-----------------------------------------------------------------------------
 virtual int            stat(XrdSysStatx *buf, unsigned int mask) {
+  (void)mask;
+#ifdef HAVE_STATX
   struct stat statbuf;
   int retc = stat(&statbuf);
   if (retc == SFS_OK) {
      XrdSysStatxHelpers::Stat2Statx(statbuf,*buf);
   }
   return retc;
+#else
+  return stat(buf);
+#endif
 }
 
 //-----------------------------------------------------------------------------

@@ -779,6 +779,7 @@ virtual int       Stat(const char *path, struct stat *buff,
   //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
   //-----------------------------------------------------------------------------
 virtual int       Stat(const char *path, XrdSysStatx *buff, unsigned int mask, int opts=0, XrdOucEnv *envP=0) {
+#ifdef HAVE_STATX
   (void) mask;
   struct stat statbuf;
   int retc = Stat(path,&statbuf,opts,envP);
@@ -786,6 +787,9 @@ virtual int       Stat(const char *path, XrdSysStatx *buff, unsigned int mask, i
     XrdSysStatxHelpers::Stat2Statx(statbuf,*buff);
   }
   return retc;
+#else
+  return Stat(path,buff,opts,envP);
+#endif
 }
 
 //-----------------------------------------------------------------------------

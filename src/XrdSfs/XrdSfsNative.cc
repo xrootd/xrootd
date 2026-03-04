@@ -96,25 +96,17 @@ static int Statfn(const char *fn, struct stat *buf) {return stat(fn, buf);}
 static int Statxfn(int dirFd,const char *path,int flags, unsigned int mask, XrdSysStatx * statxbuf) {
 #ifdef HAVE_STATX
    return statx(dirFd,path,flags,mask,statxbuf);
+#else
+   return Statfn(path,statxbuf);
 #endif
-   struct stat statbuf;
-   int retc = Statfn(path,&statbuf);
-   if (!retc) {
-      XrdSysStatxHelpers::Stat2Statx(statbuf,*statxbuf);
-   }
-   return retc;
 }
 
 static int Statxfd(int fd, unsigned int mask, XrdSysStatx * statxbuf) {
 #ifdef HAVE_STATX
    return statx(fd,"",AT_EMPTY_PATH,mask,statxbuf);
+#else
+   return statfd(fd,statxbuf);
 #endif
-   struct stat statbuf;
-   int retc = Statfd(fd,&statbuf);
-   if (!retc) {
-      XrdSysStatxHelpers::Stat2Statx(statbuf,*statxbuf);
-   }
-   return retc;
 }
 
 static int Truncate(const char *fn, off_t flen) {return truncate(fn, flen);}
