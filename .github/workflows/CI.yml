@@ -200,13 +200,21 @@ jobs:
     runs-on: ubuntu-latest
     container: fedora
 
+    strategy:
+      matrix:
+        compiler: [ 'gcc', 'clang' ]
+        config: [ 'Debug', 'Release' ]
+      fail-fast: false
+
     env:
-      CMAKE_GENERATOR: Ninja
+      CC: ${{ matrix.compiler }}
       CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+      CMAKE_BUILD_TYPE: ${{ matrix.config }}
+      CMAKE_GENERATOR: Ninja
 
     steps:
     - name: Install dependencies
-      run: dnf install -y dnf-plugins-core git ninja-build rpmdevtools
+      run: dnf install -y dnf-plugins-core git ninja-build rpmdevtools ${{ matrix.compiler }}
 
     - name: Clone repository
       uses: actions/checkout@v4
@@ -220,7 +228,7 @@ jobs:
       run: dnf builddep -y --define 'with_ceph 1' xrootd.spec
 
     - name: Build and Test with CTest
-      run: sudo -E -u runner ctest -VV -S test.cmake
+      run: sudo -E -u runner env CC=${CC} CXX=${CC/g*/g++} ctest -VV -S test.cmake
 
     - name: Install with CMake
       run: cmake --install build
@@ -237,13 +245,16 @@ jobs:
       matrix:
         os: [ '24.04', '24.04-arm' ]
         compiler: [ 'gcc', 'clang' ]
+        config: [ 'Debug', 'Release' ]
+      fail-fast: false
 
     runs-on: ubuntu-${{ matrix.os }}
 
     env:
       CC: ${{ matrix.compiler }}
-      DEBIAN_FRONTEND: noninteractive
+      CMAKE_BUILD_TYPE: ${{ matrix.config }}
       CMAKE_ARGS: '-DINSTALL_PYTHON_BINDINGS=0;-DCMAKE_INSTALL_PREFIX=/usr'
+      DEBIAN_FRONTEND: noninteractive
 
     steps:
     - name: Install development tools
