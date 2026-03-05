@@ -101,7 +101,6 @@ using namespace XrdFrm;
 
 // The following is needed to resolve symbols for objects included from xrootd
 //
-       XrdOucTrace       *XrdXrootdTrace;
        XrdSysError        XrdLog(0, "");
        XrdOucTrace        XrdTrace(&Say);
 
@@ -136,10 +135,6 @@ int main(int argc, char *argv[])
    Say.logger(&Logger);
    XrdLog.logger(&Logger);
    if (!Config.Configure(argc, argv, &mainConfig)) exit(4);
-
-// Fill out the dummy symbol to avoid crashes
-//
-   XrdXrootdTrace = new XrdOucTrace(&Say);
 
 // All done, simply exit based on our persona
 //
