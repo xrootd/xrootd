@@ -43,6 +43,7 @@
 
 #include "XrdOss/XrdOssVS.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
+#include "XrdSys/XrdSysStatx.hh"
 
 struct XrdOucCloneSeg;
 class XrdOucEnv;
@@ -762,6 +763,34 @@ virtual int       Rename(const char *oPath, const char *nPath,
 
 virtual int       Stat(const char *path, struct stat *buff,
                        int opts=0, XrdOucEnv *envP=0)=0;
+
+  //-----------------------------------------------------------------------------
+  //! Return state information on a file or directory.
+  //!
+  //! @param  path   - Pointer to the path in question.
+  //! @param  buff   - Pointer to the structure where info it to be returned.
+  //! @param  mask   - The statx mask indicating which fields are requested.
+  //! @param  opts   - Options:
+  //!                  XRDOSS_preop    - this is a stat prior to open.
+  //!                  XRDOSS_resonly  - only look for resident files.
+  //!                  XRDOSS_updtatm  - update file access time.
+  //! @param  envP   - Pointer to environmental information.
+  //!
+  //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+  //-----------------------------------------------------------------------------
+virtual int       Stat(const char *path, XrdSysStatx *buff, unsigned int mask, int opts=0, XrdOucEnv *envP=0) {
+#ifdef HAVE_STATX
+  (void) mask;
+  struct stat statbuf;
+  int retc = Stat(path,&statbuf,opts,envP);
+  if (!retc) {
+    XrdSysStatxHelpers::Stat2Statx(statbuf,*buff);
+  }
+  return retc;
+#else
+  return Stat(path,buff,opts,envP);
+#endif
+}
 
 //-----------------------------------------------------------------------------
 //! Return statistics.

@@ -50,7 +50,6 @@ inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 const   char       *FName();
 
         int         autoStat(struct stat *buf);
-
                     XrdSsiDir(const char *user, int MonID)
                           : XrdSfsDirectory(user, MonID), dirP(0),
                             tident(user ? user : ""), myEInfo(user, MonID) {}

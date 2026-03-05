@@ -93,6 +93,22 @@ static int Statfd(int fd, struct stat *buf) {return  fstat(fd, buf);}
 
 static int Statfn(const char *fn, struct stat *buf) {return stat(fn, buf);}
 
+static int Statxfn(int dirFd,const char *path,int flags, unsigned int mask, XrdSysStatx * statxbuf) {
+#ifdef HAVE_STATX
+   return statx(dirFd,path,flags,mask,statxbuf);
+#else
+   return Statfn(path,statxbuf);
+#endif
+}
+
+static int Statxfd(int fd, unsigned int mask, XrdSysStatx * statxbuf) {
+#ifdef HAVE_STATX
+   return statx(fd,"",AT_EMPTY_PATH,mask,statxbuf);
+#else
+   return statfd(fd,statxbuf);
+#endif
+}
+
 static int Truncate(const char *fn, off_t flen) {return truncate(fn, flen);}
 };
   
@@ -573,6 +589,19 @@ int XrdSfsNativeFile::stat(struct stat     *buf)         // Out
    return SFS_OK;
 }
 
+int XrdSfsNativeFile::stat(XrdSysStatx * buf,unsigned int mask) {
+   static const char *epname = "stat";
+
+   // Execute the function
+   //
+   if (XrdSfsUFS::Statxfd(oh, mask, buf))
+      return XrdSfsNative::Emsg(epname, error, errno, "state", fname);
+
+   // All went well
+   //
+   return SFS_OK;
+}
+
 /******************************************************************************/
 /*                                  s y n c                                   */
 /******************************************************************************/
@@ -968,6 +997,41 @@ int XrdSfsNative::stat(const char              *path,        // In
 
 // All went well
 //
+   return SFS_OK;
+}
+
+/******************************************************************************/
+/*                                  s t a t                                   */
+/******************************************************************************/
+
+int XrdSfsNative::stat(const char              *path,        // In
+                             XrdSysStatx       *buf,         // Out
+                             XrdOucErrInfo     &error,       // Out
+                       unsigned int            mask,         // In
+                       const XrdSecClientName  *client,      // In
+                       const char              *info)        // In
+/*
+  Function: Get info on 'path'.
+
+  Input:    path        - Is the fully qualified name of the file to be tested.
+            buf         - The stat structiure to hold the results
+            error       - Error information object holding the details.
+            mask        - The fields in which the client is interested in
+            client      - Authentication credentials, if any.
+            info        - Opaque information, if any.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+   static const char *epname = "statx";
+
+   // Execute the function
+   //
+   if (XrdSfsUFS::Statxfn(0,path,AT_FDCWD,mask, buf))
+      return XrdSfsNative::Emsg(epname, error, errno, "state", path);
+
+   // All went well
+   //
    return SFS_OK;
 }
 

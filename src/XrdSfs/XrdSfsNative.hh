@@ -130,6 +130,8 @@ public:
 
         int            stat(struct stat *buf);
 
+        int            stat(XrdSysStatx *buf, unsigned int mask);
+
         int            truncate(XrdSfsFileOffset   fileOffset);
 
         int            getCXinfo(char cxtype[4], int &cxrsz) {return cxrsz = 0;}
@@ -227,6 +229,13 @@ const   char          *getVersion();
                         if (!rc) mode = bfr.st_mode;
                         return rc;
                        }
+
+      int            stat(const char              *path,
+                           XrdSysStatx       *buf,
+                           XrdOucErrInfo     &error,
+                     unsigned int            mask,
+                     const XrdSecClientName  *client,
+                     const char              *info);
 
         int            truncate(const char             *Name,
                                       XrdSfsFileOffset fileOffset,

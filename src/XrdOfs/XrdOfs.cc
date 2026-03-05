@@ -444,6 +444,15 @@ int XrdOfsDirectory::autoStat(struct stat *buf)
     if ((retc = dp->StatRet(buf))) return retc;
     return SFS_OK;
 }
+
+int XrdOfsDirectory::autoStat(XrdSysStatx * buf, unsigned int mask) {
+   struct stat tmpBuf;
+   int retc = autoStat(&tmpBuf);
+   if (retc == SFS_OK) {
+      XrdSysStatxHelpers::Stat2Statx(tmpBuf,*buf);
+   }
+   return retc;
+}
   
 /******************************************************************************/
 /*                                                                            */
