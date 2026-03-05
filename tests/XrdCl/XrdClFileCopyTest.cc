@@ -550,7 +550,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::vector<xattr_t> attrs; attrs.push_back( xattr_t( "foo", "bar" ) );
   std::vector<XAttrStatus> result;
   EXPECT_XRDST_OK( lf.SetXAttr( attrs, result ) );
-  EXPECT_EQ( result.size(), 1u );
+  ASSERT_EQ( result.size(), 1u );
   EXPECT_XRDST_OK( result.front().status );
   EXPECT_XRDST_OK( lf.Close() );
 
@@ -568,7 +568,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // now test if the xattrs were preserved
   std::vector<XAttr> xattrs;
   EXPECT_XRDST_OK( fs.ListXAttr( targetPath, xattrs ) );
-  EXPECT_EQ( xattrs.size(), 1u );
+  ASSERT_EQ( xattrs.size(), 1u );
   XAttr &xattr = xattrs.front();
   EXPECT_XRDST_OK( xattr.status );
   EXPECT_EQ( xattr.name, "foo" );
