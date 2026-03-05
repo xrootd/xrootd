@@ -110,9 +110,9 @@ TEST_F(FileClone, FileCloneTest)
   EXPECT_XRDST_OK( fs.Locate( "/" + dataPath + "/clonesrc2.dat", XrdCl::OpenFlags::Read, l2, 0) );
   EXPECT_XRDST_OK( fs.Locate( "/" + dataPath + "/clonesrc3.dat", XrdCl::OpenFlags::Read, l3, 0) );
 
-  EXPECT_TRUE( l1 && l1->GetSize() );
-  EXPECT_TRUE( l2 && l2->GetSize() );
-  EXPECT_TRUE( l3 && l3->GetSize() );
+  ASSERT_TRUE( l1 && l1->GetSize() );
+  ASSERT_TRUE( l2 && l2->GetSize() );
+  ASSERT_TRUE( l3 && l3->GetSize() );
 
   std::string loc = l1->At(0).GetAddress();
   EXPECT_TRUE(l2->At(0).GetAddress() == loc);

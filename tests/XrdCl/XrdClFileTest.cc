@@ -203,7 +203,7 @@ void FileTest::ReadTest()
   char *buffer2Comp = new char[10*MB];
   uint32_t bytesRead1 = 0, bytesRead2 = 0;
   File f, fLocal;
-  StatInfo *statInfo;
+  StatInfo *statInfo = nullptr;
 
   //----------------------------------------------------------------------------
   // Open the file
@@ -215,7 +215,7 @@ void FileTest::ReadTest()
   // Stat1
   //----------------------------------------------------------------------------
   EXPECT_XRDST_OK( f.Stat( false, statInfo ) );
-  ASSERT_TRUE( statInfo );
+  ASSERT_FALSE( statInfo == nullptr );
 
   struct stat localStatBuf;
 
@@ -234,7 +234,7 @@ void FileTest::ReadTest()
   // Stat2
   //----------------------------------------------------------------------------
   EXPECT_XRDST_OK( f.Stat( true, statInfo ) );
-  ASSERT_TRUE( statInfo );
+  ASSERT_FALSE( statInfo == nullptr );
   EXPECT_EQ( statInfo->GetSize(), fileSize );
   EXPECT_TRUE( statInfo->TestFlags( StatInfo::IsReadable ) );
   delete statInfo;
@@ -379,7 +379,7 @@ void FileTest::WriteTest()
   StatInfo *statInfo = 0;
   EXPECT_XRDST_OK( f2.Open( fileUrl, OpenFlags::Read ) );
   EXPECT_XRDST_OK( f2.Stat( false, statInfo ) );
-  ASSERT_TRUE( statInfo );
+  ASSERT_FALSE( statInfo == nullptr );
   EXPECT_EQ( statInfo->GetSize(), 8*MB );
   EXPECT_XRDST_OK( f2.Read( 0, 4*MB, buffer3, bytesRead1 ) );
   EXPECT_XRDST_OK( f2.Read( 4*MB, 4*MB, buffer4, bytesRead2 ) );
@@ -400,7 +400,7 @@ void FileTest::WriteTest()
   FileSystem fs( url );
   StatInfo *response = 0;
   EXPECT_XRDST_OK( fs.Stat( filePath, response ) );
-  ASSERT_TRUE( response );
+  ASSERT_FALSE( response == nullptr );
   EXPECT_EQ( response->GetSize(), 20*MB );
   EXPECT_XRDST_OK( fs.Rm( filePath ) );
   sync();
@@ -555,6 +555,7 @@ void FileTest::VectorReadTest()
   // remote file vread1
   VectorReadInfo *info = 0;
   EXPECT_XRDST_OK( f.VectorRead( chunkList1, buffer1, info ) );
+  ASSERT_FALSE(info == nullptr);
   EXPECT_EQ( info->GetSize(), 10*MB );
   delete info;
 
@@ -562,6 +563,7 @@ void FileTest::VectorReadTest()
   info = 0;
   EXPECT_XRDST_OK( fLocal.VectorRead( chunkList1, buffer1Comp, info ) );
   EXPECT_XRDST_OK( fLocal.Close() );
+  ASSERT_FALSE(info == nullptr);
   EXPECT_EQ( info->GetSize(), 10*MB );
   delete info;
 
@@ -574,6 +576,7 @@ void FileTest::VectorReadTest()
   // remote vread2
   info = 0;
   EXPECT_XRDST_OK( f.VectorRead( chunkList2, buffer2, info ) );
+  ASSERT_FALSE(info == nullptr);
   EXPECT_EQ( info->GetSize(), 2560000u );
   delete info;
 
@@ -735,6 +738,7 @@ void FileTest::VectorWriteTest()
   char *buffer1 = new char[totalSize];
   VectorReadInfo *info1 = 0;
   EXPECT_XRDST_OK( f.VectorRead( chunks, buffer1, info1 ) );
+  ASSERT_FALSE( info1 == nullptr );
 
   //----------------------------------------------------------------------------
   // Then do the VectorWrite
@@ -747,6 +751,7 @@ void FileTest::VectorWriteTest()
   char *buffer2 = new char[totalSize];
   VectorReadInfo *info2 = 0;
   EXPECT_XRDST_OK( f.VectorRead( chunks, buffer2, info2 ) );
+  ASSERT_FALSE( info2 == nullptr );
 
   EXPECT_EQ( info2->GetSize(), totalSize );
   uint32_t crc32 = XrdClTests::Utils::ComputeCRC32( buffer2, totalSize );
