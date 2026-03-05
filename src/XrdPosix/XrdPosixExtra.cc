@@ -46,7 +46,7 @@
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-  
+
 namespace XrdPosixGlobals
 {
 extern XrdOucCache *theCache;
@@ -58,7 +58,7 @@ using namespace XrdPosixGlobals;
 /******************************************************************************/
 /*                                  F c t l                                   */
 /******************************************************************************/
-  
+
 int XrdPosixExtra::Fctl(int fildes, XrdOucCacheOp::Code opc,
                         const std::string& args, std::string& resp)
 {
@@ -77,7 +77,7 @@ int XrdPosixExtra::Fctl(int fildes, XrdOucCacheOp::Code opc,
                break;
           default:
                resp = "File operation not supported.";
-               errno = ENOTSUP;   
+               errno = ENOTSUP;
                return -1;
          }
 
@@ -89,7 +89,7 @@ int XrdPosixExtra::Fctl(int fildes, XrdOucCacheOp::Code opc,
 /******************************************************************************/
 /*                                 F S c t l                                  */
 /******************************************************************************/
-  
+
 int XrdPosixExtra::FSctl(XrdOucCacheOp::Code opc,
                         const std::string& args, std::string& resp,
                         bool viaCache, bool viaRedir)
@@ -104,7 +104,7 @@ int XrdPosixExtra::FSctl(XrdOucCacheOp::Code opc,
                break;
           default:
                resp = "Filesystem operation not supported.";
-               errno = ENOTSUP;   
+               errno = ENOTSUP;
                return -1;
          }
 
@@ -131,7 +131,7 @@ int XrdPosixExtra::FSctl(XrdOucCacheOp::Code opc,
 /******************************************************************************/
 /*                                p g R e a d                                 */
 /******************************************************************************/
-  
+
 ssize_t XrdPosixExtra::pgRead (int   fildes, void*    buffer,
                                off_t offset, size_t   rdlen,
                                std::vector<uint32_t>& csvec,
@@ -195,7 +195,7 @@ ssize_t XrdPosixExtra::pgRead (int   fildes, void*    buffer,
 /******************************************************************************/
 /*                               p g W r i t e                                */
 /******************************************************************************/
-  
+
 ssize_t XrdPosixExtra::pgWrite(int   fildes, void*    buffer,
                                off_t offset, size_t   wrlen,
                                std::vector<uint32_t>& csvec,
@@ -263,5 +263,28 @@ ssize_t XrdPosixExtra::pgWrite(int   fildes, void*    buffer,
 // Issue the write
 //
    fp->XCio->pgWrite(*cbp, (char *)buffer, offs, (int)iosz, csvec);
+   return 0;
+}
+
+/******************************************************************************/
+/*                               P r e R e a d                                */
+/******************************************************************************/
+
+int XrdPosixExtra::PreRead(int fildes, const std::vector<TractInfo> &tracts,
+                           XrdPosixCallBackIO *cbp)
+{
+   XrdPosixFile *fp;
+
+// Find the file object
+//
+   if (!(fp = XrdPosixObject::File(fildes)))
+      {if (!cbp) return -1;
+       cbp->Complete(-1);
+       return 0;
+      }
+
+// We need to implement this so for now we just pretend this worked
+//
+   if (cbp) cbp->Complete(0);
    return 0;
 }

@@ -136,6 +136,37 @@ static ssize_t pgWrite(int fildes, void* buffer, off_t offset, size_t wrlen,
                        std::vector<uint32_t> &csvec, uint64_t opts=0,
                        XrdPosixCallBackIO *cbp=0);
 
+
+//------------------------------------------------------------------------
+//! Preread scattered data tracts in one operation
+//!
+//! @param  fildes  - File descriptor
+//! @param tracts   - list of the tracts to preread, no data is returned.
+//!                   The file descriptor must refer to an open file.
+//!                   The default maximum tract size is 2097136 bytes and
+//!                   the default maximum number per request is 1024.
+//!                   Be aware the the server may support a different
+//!                   combination and may be queried for its defaults.
+//! @param  cbp     - When supplied, return is made via callback.
+//!
+//! @return >= 0       Sync: The number of bytes written upon success.
+//!                   Async: Always returns 0.
+//! @return  < 0      errno hold reason for failure.
+//------------------------------------------------------------------------
+
+      struct TractInfo
+            {off_t  offset; // Offset at which to pre-read
+             int    prlen;  // Length to pre-read must be < 2 GB
+             int    resvd;  // Reserved for future use
+
+                      TractInfo(off_t ofs, int prl, int rsv=0)
+                               : offset(ofs), prlen(prl), resvd(rsv) {}
+             virtual ~TractInfo() {}
+            };
+
+static int     PreRead(int fildes, const std::vector<TractInfo> &tracts,
+                       XrdPosixCallBackIO *cbp=0);
+
                XrdPosixExtra() {}
               ~XrdPosixExtra() {}
 
