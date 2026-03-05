@@ -50,7 +50,8 @@ class File final : public XrdOssWrapDF {
     }
 
     ssize_t Write(const void *buffer, off_t offset, size_t size) override {
-        if (m_write_fail_with_offset && offset > 0) return -errorCode;
+
+        if (m_write_fail_with_offset && offset > 8000000) return -errorCode;
         if (errorCode >= 0 && m_write_fail) return -errorCode;
 
         return wrapDF.Write(buffer, offset, size);

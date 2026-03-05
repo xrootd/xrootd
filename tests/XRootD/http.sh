@@ -409,6 +409,32 @@ function test_http() {
   run_and_assert_http_and_error_code 200 "" \
     --header "Want-Digest: crc32c" -I "${HTTP_HOST}/$alphabetFilePath"
 
+  # Test requests with new xrdcl client
+
+  # The intention below is to test for hangs / crashes hence we do not 
+  # care about the exact error codes returned
+
+  xrdclTestFilePath="$TMPDIR/xrdcl_test"
+
+  # The file needs to be big enough to generate read/write in multiple chunks
+  # i.e it should be largr than 8MB
+
+  dd if=/dev/urandom bs=1M count=50 of="$xrdclTestFilePath"
+
+  # PUT failure
+  outOfSpaceQuotaFilePath="$TMPDIR/out_of_space_quota.txt"
+  xrdcp "$xrdclTestFilePath" "${HTTP_HOST}/$outOfSpaceQuotaFilePath"
+
+  # PUT sucess
+  successfulUploadFilePath="$TMPDIR/successful_upload.txt"
+  xrdcp "$xrdclTestFilePath" "${HTTP_HOST}/$successfulUploadFilePath"
+
+  # GET failure
+  xrdcp "${HTTP_HOST}/$unreadableFilePath" "${TMPDIR}/unreadableFilePath"
+
+  # GET success
+  xrdcp "${HTTP_HOST}/$alphabetFilePath" "${TMPDIR}/downloaded_alphabet.txt"
+
   # Uncomment sleep to test monitoring packets - to keep the server running beyond monitoring flush intervals
   # For HTTP Summary monitoring in another terminal use: socat -u udp-recv:9999 -
   # For HTTP GStream monitoring use: socat -u udp-recv:8888 -

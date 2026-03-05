@@ -1312,13 +1312,43 @@ File::PutResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl:
     // Note: if the handler owns the file object (as in the case of Pelican's writeback
     // response handler), then the callback may cause the file to be deleted - and hence
     // this instance of PutResponseHandler to be deleted.  However, if m_active is true,
-    // the destructor will wait until it's set to false; that cannot occur until ProcessQueue
-    // is invoked.
+    // the destructor will wait until it's set to false; that cannot occur until we clear
+    // m_active (in ProcessQueue or in the cleanup path for pending writes).
     //
-    // Hence, we must ensure that ProcessQueue is called before the callback handler, which
-    // may either set m_active to false or generate work in separate threads, allowing the
-    // work to proceed and avoiding a deadlocked thread.
-    auto current_handler = m_active_handler;
+    // Hence, we must ensure that we clear m_active and run any queue logic before invoking
+    // callback handlers, which may delete this object or generate work in other threads.
+
+    XrdCl::ResponseHandler *current_handler = nullptr;
+    if (!status->IsOK()) {
+        // Fail remaining (pending) handlers with the same error
+        // Any writes attempts by the client after failure are set
+        // are prompty declined
+        std::vector<XrdCl::ResponseHandler *> pending_handlers;
+        {
+            std::lock_guard<std::mutex> lg(m_mutex);
+            current_handler = m_active_handler;
+            for (auto &[_, h] : m_pending_writes) {
+                if (h) pending_handlers.push_back(h);
+            }
+
+            m_pending_writes.clear();
+            m_active = false;
+            m_active_handler = nullptr;
+            m_cv.notify_all();
+        }
+
+        XrdCl::XRootDStatus status_copy(*status);
+        if (current_handler) {
+            current_handler->HandleResponse(status.release(), response.release());
+        }
+
+        for (auto *h : pending_handlers) {
+            h->HandleResponse(new XrdCl::XRootDStatus(status_copy), nullptr);
+        }
+        return;
+    }
+
+    current_handler = m_active_handler;
     if (ProcessQueue() && current_handler) {
         current_handler->HandleResponse(status.release(), response.release());
     }
