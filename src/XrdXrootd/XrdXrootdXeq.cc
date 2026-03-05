@@ -1474,7 +1474,7 @@ int XrdXrootdProtocol::do_Open()
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
    struct iovec IOResp[3];  // Note that IOResp[0] is completed by Response
-   bool retStat = false;
+   int retStat = 0;
 
 // Keep Statistics
 //
@@ -1535,7 +1535,7 @@ int XrdXrootdProtocol::do_Open()
    if (opts & kXR_refresh)            {*op++ = 's'; openopts |= SFS_O_RESET;
                                        SI->Bump(SI->Refresh);
                                       }
-   if (opts & kXR_retstat)            {*op++ = 't'; retStat = true;}
+   if (opts & kXR_retstat)            {*op++ = 't'; retStat = 1;}
    if (opts & kXR_posc)               {*op++ = 'p'; openopts |= SFS_O_POSC;}
    if (opts & kXR_seqio)              {*op++ = 'S'; openopts |= SFS_O_SEQIO;}
    if (optt & kXR_samefs || optt & kXR_dup)
