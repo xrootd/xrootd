@@ -502,7 +502,8 @@ enum XOpenRequestOption {
 enum XOpenRequestOption2 {// Set in optiont
    kXR_dup      = 0x0001, //     1
    kXR_samefs   = 0x0002, //     2
-   kXR_directio = 0x0004  //     4
+   kXR_retstatx = 0x0004, //     4   // open: return extended stat -> retstat
+   kXR_directio = 0x0008  //     8
 };
 
 struct ClientOpenRequest {
