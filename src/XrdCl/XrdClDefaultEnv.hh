@@ -19,6 +19,7 @@
 #ifndef __XRD_CL_DEFAULT_ENV_HH__
 #define __XRD_CL_DEFAULT_ENV_HH__
 
+#include <atomic>
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClEnv.hh"
 #include "XrdVersion.hh"
@@ -173,18 +174,19 @@ namespace XrdCl
 
       static void SetUpLog();
 
-      static XrdSysMutex        sInitMutex;
-      static Env               *sEnv;
-      static PostMaster        *sPostMaster;
-      static Log               *sLog;
-      static ForkHandler       *sForkHandler;
-      static FileTimer         *sFileTimer;
-      static Monitor           *sMonitor;
-      static XrdOucPinLoader   *sMonitorLibHandle;
-      static bool               sMonitorInitialized;
-      static CheckSumManager   *sCheckSumManager;
-      static TransportManager  *sTransportManager;
-      static PlugInManager     *sPlugInManager;
+      static std::atomic<XrdSysMutex*>      sInitMutex;
+      static std::atomic<Env*>              sEnv;
+      static std::atomic<PostMaster*>       sPostMaster;
+      static std::atomic<Log*>              sLog;
+      static std::atomic<ForkHandler*>      sForkHandler;
+      static std::atomic<FileTimer*>        sFileTimer;
+      static std::atomic<Monitor*>          sMonitor;
+      static std::atomic<XrdOucPinLoader*>  sMonitorLibHandle;
+      static std::atomic<bool>              sMonitorInitialized;
+      static std::atomic<CheckSumManager*>  sCheckSumManager;
+      static std::atomic<TransportManager*> sTransportManager;
+      static std::atomic<PlugInManager*>    sPlugInManager;
+      static std::atomic<uint64_t>          sInitStatus;
   };
 
 }
