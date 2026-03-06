@@ -50,7 +50,9 @@ class File final : public XrdOssWrapDF {
     }
 
     ssize_t Write(const void *buffer, off_t offset, size_t size) override {
-        if (m_write_fail_with_offset && offset > 0) return -errorCode;
+        // having a larger offset before failure to increase the chances to detect midwrite failures
+        // the size of 2MB is an arbitrary but reasonable default
+        if (m_write_fail_with_offset && offset > 2 * 1048576) return -errorCode;
         if (errorCode >= 0 && m_write_fail) return -errorCode;
 
         return wrapDF.Write(buffer, offset, size);
