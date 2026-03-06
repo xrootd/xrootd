@@ -29,8 +29,8 @@ function test_http() {
 	echo "server: XRootD $(xrdfs "${DAV_HOST}" query config version 2>&1)"
 	echo
 
-	# create local temporary directory
-	TMPDIR=$(mktemp -d "${PWD}/${NAME}/test-XXXXXX")
+	# create local temporary directory under LOCAL_DIR so common teardown removes it
+	TMPDIR=$(mktemp -d "${LOCAL_DIR}/test-XXXXXX")
 
 
 	# create remote temporary directory
@@ -333,9 +333,6 @@ function test_http() {
       -o "$body_file" \
       "${curl_args[@]}")
 
-    local body
-    body=$(< "$body_file")
-
     # Assert HTTP code
     assert_eq "$expected_http_code" "$http_code"
 
@@ -348,25 +345,33 @@ function test_http() {
         local trailer_code
         trailer_code=$(echo "$trailer_line" | cut -d: -f1 | xargs)
         assert_eq "$expected_trailer_code" "$trailer_code" "$trailer_line"
+      else
+        error "Expected X-Transfer-Status trailer not found in curl verbose output."
       fi
     fi
 
     rm -f "$body_file"
   }
 
-  bigFilePath="${TMPDIR}/fail_read.txt"
-  assert xrdcp "$alphabetFilePath" "${HTTP_HOST}/$alphabetFilePath"
-  assert xrdcp "$bigFilePath" "${HTTP_HOST}/$bigFilePath"
+  unreadableTextFilePath="${TMPDIR}/fail_read.txt"
+
+  # to trigger failures mid write a file must be bigger than 2MB
+  # this is hardcoded in XrdOssTests 
+  smallFilePath="${TMPDIR}/file5mb.txt"
+
+  dd if=/dev/urandom bs=1M count=5 of="$smallFilePath"
+
+  assert xrdcp "$smallFilePath" "${HTTP_HOST}/$smallFilePath"
 
   # Test writing to a readonly file system
   # Writing to a read-only file should return 403 Forbidden
   readOnlyFilePath="/readonly/file";
   run_and_assert_http_and_error_code 403 "" \
-    --upload-file "$alphabetFilePath" "${HTTP_HOST}/$readOnlyFilePath"
+    --upload-file "$smallFilePath" "${HTTP_HOST}/$readOnlyFilePath"
 
   # Overwrite a directory with a file - File / Directory conflict
   run_and_assert_http_and_error_code 409 "" \
-    --upload-file "$alphabetFilePath" "${HTTP_HOST}/$TMPDIR"
+    --upload-file "$smallFilePath" "${HTTP_HOST}/$TMPDIR"
 
   # Test a file does not exist
   fileDoesNotExistFilePath="$TMPDIR/file_does_not_exist"
@@ -377,17 +382,17 @@ function test_http() {
   # XrootD Does not error on missing parent directory, it instead creates one
   # parentDirDoesNotExistFilePath="$TMPDIR/parent_dir_does_not_exist"
   # run_and_assert_http_and_error_code 200 404 \
-  #   --upload-file "$alphabetFilePath" "${HTTP_HOST}/$parentDirDoesNotExistFilePath" --with-trailer
+  #   --upload-file "$smallFilePath" "${HTTP_HOST}/$parentDirDoesNotExistFilePath" --with-trailer
 
   # Upload a file that should fail due to insufficient inodes
   noInodeFilePath="$TMPDIR/no_inode.txt"
   run_and_assert_http_and_error_code 507 "" \
-    --upload-file "$alphabetFilePath" "${HTTP_HOST}/$noInodeFilePath"
+    --upload-file "$smallFilePath" "${HTTP_HOST}/$noInodeFilePath"
 
   # Fail upload due to insufficient user quota for inodes
   outOfInodeQuotaFilePath="$TMPDIR/out_of_inode_quota.txt"
   run_and_assert_http_and_error_code 507 "" \
-    --upload-file "$alphabetFilePath" "${HTTP_HOST}/$outOfInodeQuotaFilePath"
+    --upload-file "$smallFilePath" "${HTTP_HOST}/$outOfInodeQuotaFilePath"
 
   # Upload a file that should fail due to insufficient space
   # The server can only close the connection if no space if left mid write
@@ -402,16 +407,15 @@ function test_http() {
   #   --upload-file "$bigFilePath" "${HTTP_HOST}/$outOfSpaceQuotaFilePath"
 
   # Test file unreadable
-  unreadableFilePath="$bigFilePath"
   run_and_assert_http_and_error_code 200 500 \
-    "${HTTP_HOST}/$unreadableFilePath" --with-trailer
+    "${HTTP_HOST}/$unreadableTextFilePath" --with-trailer
 
   run_and_assert_http_and_error_code 200 "" \
-    --header "Want-Digest: crc32c" -I "${HTTP_HOST}/$alphabetFilePath"
+    --header "Want-Digest: crc32c" -I "${HTTP_HOST}/$smallFilePath"
 
   # Test requests with new xrdcl client
 
-  # The intention below is to test for hangs / crashes hence we do not 
+  # The intention below is to test for hangs / crashes hence we do not
   # care about the exact error codes returned
 
   xrdclTestFilePath="$TMPDIR/xrdcl_test"
@@ -430,10 +434,10 @@ function test_http() {
   xrdcp "$xrdclTestFilePath" "${HTTP_HOST}/$successfulUploadFilePath"
 
   # GET failure
-  xrdcp "${HTTP_HOST}/$unreadableFilePath" "${TMPDIR}/unreadableFilePath"
+  xrdcp "${HTTP_HOST}/$unreadableTextFilePath" "${TMPDIR}/get_fail.txt"
 
   # GET success
-  xrdcp "${HTTP_HOST}/$alphabetFilePath" "${TMPDIR}/downloaded_alphabet.txt"
+  xrdcp "${HTTP_HOST}/$smallFilePath" "${TMPDIR}/get_success.txt"
 
   # Uncomment sleep to test monitoring packets - to keep the server running beyond monitoring flush intervals
   # For HTTP Summary monitoring in another terminal use: socat -u udp-recv:9999 -
