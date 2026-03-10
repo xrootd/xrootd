@@ -1645,8 +1645,11 @@ CurlWorker::Run() {
                         }
                     } else {
                         auto xrdCode = CurlCodeConvert(res);
-                        m_logger->Debug(kLogXrdClHttp, "Curl generated an error: %s (%d)", curl_easy_strerror(res), res);
-                        op->Fail(xrdCode.first, xrdCode.second, curl_easy_strerror(res));
+                        const auto curl_err = op->GetCurlErrorMessage();
+                        const char *curl_easy_err = curl_easy_strerror(res);
+                        const std::string fail_err = !curl_err.empty() ? curl_err : curl_easy_err;
+                        m_logger->Debug(kLogXrdClHttp, "Curl generated an error: %s (%d)", fail_err.c_str(), res);
+                        op->Fail(xrdCode.first, xrdCode.second, fail_err);
                         OpRecord(*op, OpKind::Error);
                         CurlOptionsOp *options_op = nullptr;
                         if ((options_op = dynamic_cast<CurlOptionsOp*>(op.get())) != nullptr) {
