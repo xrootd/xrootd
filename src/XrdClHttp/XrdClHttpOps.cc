@@ -531,7 +531,9 @@ CurlOperation::Setup(CURL *curl, CurlWorker &worker)
     m_last_header_reset = m_last_reset = m_start_op = m_header_start = m_header_lastop = std::chrono::steady_clock::now();
 
     m_curl.reset(curl);
+    m_curl_error_buffer[0] = '\0';
     curl_easy_setopt(m_curl.get(), CURLOPT_URL, m_url.c_str());
+    curl_easy_setopt(m_curl.get(), CURLOPT_ERRORBUFFER, m_curl_error_buffer);
     curl_easy_setopt(m_curl.get(), CURLOPT_HEADERFUNCTION, CurlStatOp::HeaderCallback);
     curl_easy_setopt(m_curl.get(), CURLOPT_HEADERDATA, this);
     curl_easy_setopt(m_curl.get(), CURLOPT_WRITEFUNCTION, NullCallback);

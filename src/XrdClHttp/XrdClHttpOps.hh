@@ -248,6 +248,13 @@ public:
     // These numbers are reset to zero each time the `StatisticsReset` function is called.
     std::tuple<uint64_t, std::chrono::steady_clock::duration, std::chrono::steady_clock::duration, std::chrono::steady_clock::duration> StatisticsReset();
 
+
+    std::string GetCurlErrorMessage() const {
+        if (m_curl_error_buffer[0] != '\0')
+            return m_curl_error_buffer;
+        return "";
+    }
+
     // Sets the stall timeout for the operation in seconds.
     static void SetStallTimeout(int stall_interval)
     {
@@ -363,6 +370,9 @@ private:
 
     // The exponential moving average of the transfer rate
     double m_ema_rate{-1.0};
+
+    // Detailed error message populated by libcurl via CURLOPT_ERRORBUFFER.
+    char m_curl_error_buffer[CURL_ERROR_SIZE]{};
 
     // Object representing the state of the callout for a connected socket.
     std::unique_ptr<ConnectionCallout> m_callout;

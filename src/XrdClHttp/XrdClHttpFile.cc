@@ -1361,7 +1361,11 @@ File::PutResponseHandler::QueueWrite(std::variant<std::pair<const void *, size_t
         auto sc = m_op->GetStatusCode();
         if (HTTPStatusIsError(sc)){
             auto httpErr = HTTPStatusConvert(sc);
-            return XrdCl::XRootDStatus(XrdCl::stError, httpErr.first, httpErr.second, m_op->GetStatusMessage());
+            auto err_msg = m_op->GetCurlErrorMessage();
+            if (err_msg.empty()) {
+                err_msg = m_op->GetStatusMessage();
+            }
+            return XrdCl::XRootDStatus(XrdCl::stError, httpErr.first, httpErr.second, err_msg);
         }
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp, 0, "Cannot continue writing to open file after error");
     }
