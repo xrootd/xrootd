@@ -88,6 +88,7 @@ XrdSsiMutex     *MutexP() {return &sessMutex;}
                                 int             uent,
                                 bool            hold=false)
                                : sessMutex(XrdSsiMutex::Recursive),
+                                 taskMutex(XrdSsiMutex::Recursive),
                                  resKey(0), sessName(0), sessNode(0)
                                  {InitSession(servP, sName, uent, hold, true);}
 
@@ -101,6 +102,7 @@ void             RelTask(XrdSsiTaskReal *tP);
 void             Shutdown(XrdCl::XRootDStatus &epStatus, bool onClose);
 
 XrdSsiMutex      sessMutex;
+XrdSsiMutex      taskMutex; // Shared by all tasks for this session
 XrdSsiServReal  *myService;
 XrdSsiTaskReal  *attBase;
 XrdSsiTaskReal  *freeTask;

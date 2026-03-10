@@ -35,7 +35,7 @@
 #include <string>
 #include <sys/types.h>
 #include <netinet/in.h>
-  
+
 #include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiRRAgent.hh"
@@ -59,7 +59,7 @@ using namespace XrdSsi;
 
 #define SINGLETON(dlvar, theitem)\
                theitem ->dlvar .next == theitem
-  
+
 #define INSERT(dlvar, curitem, newitem) \
                newitem ->dlvar .next = curitem; \
                newitem ->dlvar .prev = curitem ->dlvar .prev; \
@@ -77,7 +77,7 @@ using namespace XrdSsi;
 /******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */
 /******************************************************************************/
-  
+
 namespace
 {
    std::string dsProperty("DataServer");
@@ -89,7 +89,7 @@ namespace
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-  
+
 namespace XrdSsi
 {
 extern XrdScheduler *schedP;
@@ -120,7 +120,7 @@ private:
 XrdSsiSessReal *sessP;
 };
 }
-  
+
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
@@ -139,7 +139,7 @@ XrdSsiSessReal::~XrdSsiSessReal()
 /******************************************************************************/
 /*                           I n i t S e s s i o n                            */
 /******************************************************************************/
-  
+
 void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName,
                                  int uent, bool hold, bool newSID)
 {
@@ -177,7 +177,7 @@ void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName,
 /******************************************************************************/
 
 // Must be called with sessMutex locked!
-  
+
 XrdSsiTaskReal *XrdSsiSessReal::NewTask(XrdSsiRequest *reqP)
 {
    EPNAME("NewTask");
@@ -213,7 +213,7 @@ XrdSsiTaskReal *XrdSsiSessReal::NewTask(XrdSsiRequest *reqP)
 // We will be using the session mutex for serialization. Afterwards, bind the
 // task to the request and return the task pointer.
 //
-   XrdSsiRRAgent::SetMutex(reqP, &sessMutex);
+   XrdSsiRRAgent::SetMutex(reqP, &taskMutex);
    tP->BindRequest(*reqP);
    return tP;
 }
@@ -262,7 +262,7 @@ bool XrdSsiSessReal::Provision(XrdSsiRequest *reqP, const char *epURL)
 /******************************************************************************/
 /* Private:                      R e l T a s k                                */
 /******************************************************************************/
-  
+
 void XrdSsiSessReal::RelTask(XrdSsiTaskReal *tP) // sessMutex locked!
 {
    EPNAME("RelTask");
@@ -306,13 +306,13 @@ bool XrdSsiSessReal::Run(XrdSsiRequest *reqP)
    if (!inOpen && tP && !tP->SendRequest(sessNode)) noReuse = true;
    return true;
 }
-  
+
 /******************************************************************************/
 /* Private:                     S h u t d o w n                               */
 /******************************************************************************/
 
 // Called with sessMutex locked and return with it unlocked
-  
+
 void XrdSsiSessReal::Shutdown(XrdCl::XRootDStatus &epStatus, bool onClose)
 {
    XrdSsiTaskReal *tP, *ntP = freeTask;
@@ -340,11 +340,11 @@ void XrdSsiSessReal::Shutdown(XrdCl::XRootDStatus &epStatus, bool onClose)
        myService->Recycle(this, !noReuse);
       }
 }
-  
+
 /******************************************************************************/
 /*                          T a s k F i n i s h e d                           */
 /******************************************************************************/
-  
+
 void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
 {
    EPNAME("TaskFin");
@@ -383,7 +383,7 @@ void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
 /******************************************************************************/
 /*                                U n H o l d                                 */
 /******************************************************************************/
-  
+
 void XrdSsiSessReal::UnHold(bool cleanup)
 {
    XrdSsiMutexMon sessMon(sessMutex);
@@ -404,7 +404,7 @@ void XrdSsiSessReal::UnHold(bool cleanup)
 
 // Called with sessMutex locked and returns with it unlocked
 // Returns false if a shutdown occurred (i.e. session object no longer valid)
-  
+
 bool XrdSsiSessReal::Unprovision() // Called with sessMutex locked!
 {
    EPNAME("Unprovision");
@@ -429,7 +429,7 @@ bool XrdSsiSessReal::Unprovision() // Called with sessMutex locked!
 /******************************************************************************/
 /*                              X e q E v e n t                               */
 /******************************************************************************/
-  
+
 int  XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
                               XrdCl::AnyObject   **respP)
 {
