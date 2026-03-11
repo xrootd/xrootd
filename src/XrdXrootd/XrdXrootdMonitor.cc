@@ -337,7 +337,7 @@ void XrdXrootdMonitor::User::Report(int eCode, int aCode)
 {
    char buff[1024];
 
-   snprintf(buff, sizeof(buff), "&Uc=%d&Ec=%d&Ac=%d", ntohl(Did), eCode, aCode);
+   snprintf(buff, sizeof(buff), "&Uc=%u&Ec=%d&Ac=%d", ntohl(Did), eCode, aCode);
 
    XrdXrootdMonitor::Map(XROOTD_MON_MAPUEAC,*this,buff);
 }
@@ -352,7 +352,7 @@ bool XrdXrootdMonitor::User::Report(WhatInfo infoT, const char *info)
 //
    if (infoT != TokenInfo) return false;
 
-   snprintf(buff, sizeof(buff), "&Uc=%d%s%s", ntohl(Did),
+   snprintf(buff, sizeof(buff), "&Uc=%u%s%s", ntohl(Did),
                                 (*info == '&' ? "" : "&"), info);
 
    XrdXrootdMonitor::Map(XROOTD_MON_MAPTOKN,*this,buff);
