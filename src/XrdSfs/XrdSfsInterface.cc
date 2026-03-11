@@ -54,7 +54,7 @@ int XrdSfsDirectory::autoStat(struct stat *buf)
 int XrdSfsDirectory::autoStat(XrdSysStatx *buf, unsigned int mask)
 {
    (void)buf; (void)mask;
-   error.setErrInfo(ENOTSUP, "Not implemented.");
+   error.setErrInfo(ENOTSUP, "Not supported.");
    return SFS_ERROR;
 }
 
