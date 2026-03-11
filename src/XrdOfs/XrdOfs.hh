@@ -78,8 +78,6 @@ const   char       *FName() {return (const char *)fname;}
 
         int         autoStat(struct stat *buf);
 
-        int         autoStat(XrdSysStatx * buf, unsigned int mask);
-
                     XrdOfsDirectory(XrdOucErrInfo &eInfo, const char *user)
                           : XrdSfsDirectory(eInfo), tident(user ? user : ""),
                             fname(0), dp(0), atEOF(0) {}
