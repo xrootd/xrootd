@@ -36,7 +36,7 @@
 
 #ifdef __linux__
 #include <sys/sysmacros.h>
-typedef struct statx XrdSysStatx;
+using XrdSysStatx = struct statx;
 #define HAVE_STATX
 #else
 struct XrdSysStatx
