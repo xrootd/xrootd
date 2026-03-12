@@ -780,15 +780,15 @@ virtual int       Stat(const char *path, struct stat *buff,
   //-----------------------------------------------------------------------------
 virtual int       Stat(const char *path, XrdSysStatx *buff, unsigned int mask, int opts=0, XrdOucEnv *envP=0) {
 #ifdef HAVE_STATX
-  (void) mask;
   struct stat statbuf;
+  (void) mask;
   int retc = Stat(path,&statbuf,opts,envP);
   if (!retc) {
     XrdSysStatxHelpers::Stat2Statx(statbuf,*buff);
   }
   return retc;
 #else
-  return Stat(path,buff,opts,envP);
+  return Stat(path, &buff->statx, opts, envP);
 #endif
 }
 

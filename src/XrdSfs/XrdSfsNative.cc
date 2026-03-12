@@ -97,7 +97,7 @@ static int Statxfn(int dirFd,const char *path,int flags, unsigned int mask, XrdS
 #ifdef HAVE_STATX
    return statx(dirFd,path,flags,mask,statxbuf);
 #else
-   return Statfn(path,statxbuf);
+   return Statfn(path,&statxbuf->statx);
 #endif
 }
 
@@ -105,7 +105,7 @@ static int Statxfd(int fd, unsigned int mask, XrdSysStatx * statxbuf) {
 #ifdef HAVE_STATX
    return statx(fd,"",AT_EMPTY_PATH,mask,statxbuf);
 #else
-   return statfd(fd,statxbuf);
+   return Statfd(fd,&statxbuf->statx);
 #endif
 }
 
@@ -590,16 +590,18 @@ int XrdSfsNativeFile::stat(struct stat     *buf)         // Out
 }
 
 int XrdSfsNativeFile::stat(XrdSysStatx * buf,unsigned int mask) {
-   static const char *epname = "stat";
-
+#ifdef HAVE_STATX
    // Execute the function
    //
+   static const char *epname = "stat";
    if (XrdSfsUFS::Statxfd(oh, mask, buf))
       return XrdSfsNative::Emsg(epname, error, errno, "state", fname);
-
    // All went well
    //
    return SFS_OK;
+#else
+   return stat(&buf->statx);
+#endif
 }
 
 /******************************************************************************/

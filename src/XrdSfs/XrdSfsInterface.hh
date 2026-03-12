@@ -786,7 +786,7 @@ virtual int            stat(XrdSysStatx *buf, unsigned int mask) {
   }
   return retc;
 #else
-  return stat(buf);
+  return stat(&buf->statx);
 #endif
 }
 
