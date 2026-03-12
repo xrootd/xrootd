@@ -3133,7 +3133,11 @@ int XrdXrootdProtocol::do_Stat()
    int rc;
    char *opaque, xxBuff[1024];
    struct stat buf;
+   XrdSysStatx statxBuff;
    XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
+
+   bool statxRequired = (Request.stat.wants & kXR_Want_btime);
+   unsigned int statxMask = STATX_BASIC_STATS | STATX_BTIME;
 
 // Update misc stats count
 //
@@ -3151,11 +3155,26 @@ int XrdXrootdProtocol::do_Stat()
        if (!FTab || !(fp = FTab->Get(fh.handle)))
           return Response.Send(kXR_FileNotOpen,
                               "stat does not refer to an open file");
-       rc = fp->XrdSfsp->stat(&buf);
-       TRACEP(FS, "fh=" <<fh.handle <<" stat rc=" <<rc);
-       if (SFS_OK == rc) return Response.Send(xxBuff,
-                                StatGen(buf,xxBuff,sizeof(xxBuff)));
-       return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+       if (!statxRequired) {
+          rc = fp->XrdSfsp->stat(&buf);
+          TRACEP(FS, "fh=" <<fh.handle <<" stat rc=" <<rc);
+          if (SFS_OK == rc) return Response.Send(xxBuff,
+                                     StatGen(buf,xxBuff,sizeof(xxBuff)));
+          return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+       } else {
+          rc = fp->XrdSfsp->stat(&statxBuff,statxMask);
+          TRACEP(FS, "fh=" <<fh.handle <<" statx rc=" <<rc);
+          if (SFS_OK == rc) {
+             struct stat statB;
+             XrdSysStatxHelpers::Statx2Stat(statxBuff,statB);
+             int dlen = StatGen(statB,xxBuff,sizeof(xxBuff));
+             int sxLen = StatxGen(statxBuff, xxBuff+(dlen-1),
+                                  sizeof(xxBuff)-(dlen-1));
+             if (sxLen > 0) dlen += (sxLen - 1);
+             return Response.Send(xxBuff, dlen);
+          }
+          return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+       }
       }
 
 // Check if we are handling a dig type path
@@ -3182,6 +3201,18 @@ int XrdXrootdProtocol::do_Stat()
        rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
        TRACEP(FS, "rc=" <<rc <<" statfs " <<argp->buff);
        if (rc == SFS_OK) Response.Send("");
+      } else if (statxRequired) {
+       if (doDig) rc = digFS->stat(argp->buff, &statxBuff, myError, statxMask, CRED, opaque);
+          else    rc =  osFS->stat(argp->buff, &statxBuff, myError, statxMask, CRED, opaque);
+       TRACEP(FS, "rc=" <<rc <<" statx " <<argp->buff);
+       if (rc == SFS_OK)
+          {XrdSysStatxHelpers::Statx2Stat(statxBuff, buf);
+           int dlen = StatGen(buf, xxBuff, sizeof(xxBuff));
+           int sxLen = StatxGen(statxBuff, xxBuff+(dlen-1),
+                                sizeof(xxBuff)-(dlen-1));
+           if (sxLen > 0) dlen += (sxLen - 1);
+           return Response.Send(xxBuff, dlen);
+          }
       } else {
        if (doDig) rc = digFS->stat(argp->buff, &buf, myError, CRED, opaque);
           else    rc =  osFS->stat(argp->buff, &buf, myError, CRED, opaque);
