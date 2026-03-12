@@ -485,12 +485,15 @@ CurlOperation::TransferStalled(uint64_t xfer, const std::chrono::steady_clock::t
         m_last_xfer_count = xfer;
         m_last_xfer = now;
     }
-    if (elapsed > m_stall_interval) {
+
+    // If progress is made in this callback do not classify as stalled
+    if (elapsed > m_stall_interval && xfer_diff == 0) {
         if (m_error == OpError::ErrNone) m_error = IsPaused() ? OpError::ErrTransferClientStall : OpError::ErrTransferStall;
         return true;
     }
+
+    // Curl updated us with new timing but the byte count hasn't changed; no need to update the EMA.
     if (xfer_diff == 0) {
-        // Curl updated us with new timing but the byte count hasn't changed; no need to update the EMA.
         return false;
     }
 
@@ -509,7 +512,7 @@ CurlOperation::TransferStalled(uint64_t xfer, const std::chrono::steady_clock::t
     auto recent_rate = static_cast<double>(xfer_diff) / elapsed_seconds;
     auto alpha = 1.0 - exp(-elapsed_seconds / std::chrono::duration<double>(m_stall_interval).count());
     m_ema_rate = (1.0 - alpha) * m_ema_rate + alpha * recent_rate;
-    if (recent_rate < static_cast<double>(m_minimum_rate)) {
+    if (m_ema_rate < static_cast<double>(m_minimum_rate)) {
         if (m_error == OpError::ErrNone) m_error = OpError::ErrTransferSlow;
         return true;
     }
