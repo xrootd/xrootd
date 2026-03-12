@@ -52,6 +52,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucName2Name.hh
   XrdOuc/XrdOucPinPath.hh
   XrdOuc/XrdOucPinObject.hh
+  XrdOuc/XrdOucRange.hh
   XrdOuc/XrdOucRash.hh
   XrdOuc/XrdOucRash.icc
   XrdOuc/XrdOucSFVec.hh
