@@ -270,21 +270,28 @@ ssize_t XrdPosixExtra::pgWrite(int   fildes, void*    buffer,
 /*                               P r e R e a d                                */
 /******************************************************************************/
 
-int XrdPosixExtra::PreRead(int fildes, const std::vector<TractInfo> &tracts,
-                           XrdPosixCallBackIO *cbp)
+int XrdPosixExtra::PreRead(int fildes, off_t offs, int size)
 {
    XrdPosixFile *fp;
 
 // Find the file object
 //
-   if (!(fp = XrdPosixObject::File(fildes)))
-      {if (!cbp) return -1;
-       cbp->Complete(-1);
-       return 0;
-      }
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
+
+// We need to implement this
+//
+   return 0;
+}
+
+int XrdPosixExtra::PreRead(int fildes, XrdOucRangeList& rlist)
+{
+   XrdPosixFile *fp;
+
+// Find the file object
+//
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // We need to implement this so for now we just pretend this worked
 //
-   if (cbp) cbp->Complete(0);
    return 0;
 }

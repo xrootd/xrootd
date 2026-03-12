@@ -46,11 +46,11 @@ void XrdOss::Connect(XrdOucEnv &env) {(void)env;}
 /******************************************************************************/
 
 void XrdOss::Disc(XrdOucEnv &env) {(void)env;}
-  
+
 /******************************************************************************/
 /*                               E n v I n f o                                */
 /******************************************************************************/
-  
+
 void XrdOss::EnvInfo(XrdOucEnv *envP) {(void)envP;}
 
 /******************************************************************************/
@@ -62,7 +62,7 @@ uint64_t XrdOss::Features() {return 0;}
 /******************************************************************************/
 /*                                 F S c t l                                  */
 /******************************************************************************/
-  
+
 int XrdOss::FSctl(int cmd, int alen, const char *args, char **resp)
 {
    (void)cmd; (void)alen; (void)args; (void)resp;
@@ -79,13 +79,13 @@ int XrdOss::Reloc(const char *tident, const char *path,
    (void)tident; (void)path; (void)cgName; (void)anchor;
    return -ENOTSUP;
 }
-  
+
 /******************************************************************************/
 /*                                S t a t F S                                 */
 /******************************************************************************/
-  
+
 int XrdOss::StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP)
-{ 
+{
    (void)path; (void)buff; (void)blen; (void)eP;
    return -ENOTSUP;
 }
@@ -93,9 +93,9 @@ int XrdOss::StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP)
 /******************************************************************************/
 /*                                S t a t L S                                 */
 /******************************************************************************/
-  
+
 int XrdOss::StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
-{ 
+{
    (void)env; (void)cgrp; (void)buff; (void)blen;
    return -ENOTSUP;
 }
@@ -103,7 +103,7 @@ int XrdOss::StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
 /******************************************************************************/
 /*                                S t a t P F                                 */
 /******************************************************************************/
-  
+
 int XrdOss::StatPF(const char *path, struct stat *buff, int opts)
 {
    (void)path; (void)buff;
@@ -113,7 +113,7 @@ int XrdOss::StatPF(const char *path, struct stat *buff, int opts)
 /******************************************************************************/
 /*                                S t a t V S                                 */
 /******************************************************************************/
-  
+
 int XrdOss::StatVS(XrdOssVSInfo *sP, const char *sname, int updt)
 {
    (void)sP; (void)sname; (void)updt;
@@ -123,7 +123,7 @@ int XrdOss::StatVS(XrdOssVSInfo *sP, const char *sname, int updt)
 /******************************************************************************/
 /*                                S t a t X A                                 */
 /******************************************************************************/
-  
+
 int XrdOss::StatXA(const char *path, char *buff, int &blen, XrdOucEnv *eP)
 {
    (void)path; (void)buff; (void)blen; (void)eP;
@@ -133,7 +133,7 @@ int XrdOss::StatXA(const char *path, char *buff, int &blen, XrdOucEnv *eP)
 /******************************************************************************/
 /*                                S t a t X P                                 */
 /******************************************************************************/
-  
+
 int XrdOss::StatXP(const char *path, unsigned long long &attr, XrdOucEnv *eP)
 {
    (void)path; (void)attr; (void)eP;
@@ -146,7 +146,7 @@ int XrdOss::StatXP(const char *path, unsigned long long &attr, XrdOucEnv *eP)
 /******************************************************************************/
 /*                                  F c t l                                   */
 /******************************************************************************/
-  
+
 int XrdOssDF::Fctl(int cmd, int alen, const char *args, char **resp)
 {
    (void)cmd; (void)alen; (void)args; (void)resp;
@@ -171,7 +171,7 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
 
 // Calculate checksums if so wanted
 //
-   if (bytes > 0 && csvec) 
+   if (bytes > 0 && csvec)
       XrdOucPgrwUtils::csCalc((const char *)buffer, offset, bytes, csvec);
 
 // All done
@@ -180,7 +180,7 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
 }
 
 /******************************************************************************/
-  
+
 int XrdOssDF::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 {
    aioparm->Result = this->pgRead((void *)aioparm->sfsAio.aio_buf,
@@ -218,7 +218,7 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
 }
 
 /******************************************************************************/
-  
+
 int XrdOssDF::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 {
    aioparm->Result = this->pgWrite((void *)aioparm->sfsAio.aio_buf,
@@ -230,9 +230,25 @@ int XrdOssDF::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 }
 
 /******************************************************************************/
+/*                                  r e a d                                   */
+/******************************************************************************/
+
+ssize_t XrdOssDF::Read(XrdOucRangeList& rlist)
+{
+   ssize_t rc, retval = 0;
+
+   for (auto it = rlist.begin(); it != rlist.end(); it++)
+       {rc = Read(it->offset, it->size);
+        if (rc < 0) return rc;
+        retval |= rc;
+       }
+   return retval;
+}
+
+/******************************************************************************/
 /*                                 R e a d V                                  */
 /******************************************************************************/
-  
+
 ssize_t XrdOssDF::ReadV(XrdOucIOVec *readV,
                         int          n)
 {
@@ -253,7 +269,7 @@ ssize_t XrdOssDF::ReadV(XrdOucIOVec *readV,
 /******************************************************************************/
 /*                                W r i t e V                                 */
 /******************************************************************************/
-  
+
 ssize_t XrdOssDF::WriteV(XrdOucIOVec *writeV,
                          int          n)
 {
