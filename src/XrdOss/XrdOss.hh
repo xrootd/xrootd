@@ -299,7 +299,7 @@ virtual int     pgWrite(XrdSfsAio* aioparm, uint64_t opts);
 
 //-----------------------------------------------------------------------------
 //! Preread file blocks into the file system cache.
-//!         \
+//!
 //! @param  offset  - The offset where the read is to start.
 //! @param  size    - The number of bytes to pre-read.
 //!
