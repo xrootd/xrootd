@@ -81,6 +81,18 @@ public:
    * @param stx_T the converted statx timestamp
    */
   static void StatT2StatxT(const struct timespec & sta_T, statx_timestamp & stx_T);
+
+  /**
+   * Returns the size of the XrdSysStatx buf passed in parameter
+   * @param buf - the buffer from which we return the size
+   */
+  static size_t GetSize(const XrdSysStatx & buf) {
+#ifdef HAVE_STATX
+    return buf.stx_size;
+#else
+    return buf.statx.st_size;
+#endif
+  }
 };
 
 inline void XrdSysStatxHelpers::StatxT2StatT(const statx_timestamp & stx_T, struct timespec & sta_T) {

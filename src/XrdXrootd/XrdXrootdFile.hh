@@ -36,6 +36,7 @@
 #include "XProtocol/XPtypes.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdFileStats.hh"
+#include "XrdSys/XrdSysStatx.hh"
 
 /******************************************************************************/
 /*                       X r d X r o o t d F i l e H P                        */
@@ -128,7 +129,7 @@ static void Init(XrdXrootdFileLock *lp, XrdSysError *erP, bool sfok);
        void Serialize();
 
            XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
-                         char mode='r', bool async=false, struct stat *sP=0);
+                         char mode='r', bool async=false, XrdSysStatx *sP=0);
           ~XrdXrootdFile();
 
 private:

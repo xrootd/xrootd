@@ -1516,7 +1516,7 @@ int XrdXrootdProtocol::do_Open()
    char *fn = argp->buff, opt[24], *op=opt;
    XrdSfsFile *fp;
    XrdXrootdFile *xp, *sameFS = 0;
-   struct stat statbuf;
+   XrdSysStatx statbuf;
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
    struct iovec IOResp[3];  // Note that IOResp[0] is completed by Response
@@ -1769,19 +1769,26 @@ int XrdXrootdProtocol::do_Open()
 
 // If client wants a stat in open, return the stat information
 //
-   if (retStat)
-      {retStat = StatGen(statbuf, ebuff, sizeof(ebuff));
+   if (retStat) {
+       struct stat buf;
+       XrdSysStatxHelpers::Statx2Stat(statbuf,buf);
+       retStat = StatGen(buf, ebuff, sizeof(ebuff));
+       if (optt & kXR_retstatx) {
+          int sxLen = StatxGen(statbuf, ebuff+(retStat-1),
+                                sizeof(ebuff)-(retStat-1));
+          if (sxLen > 0) retStat += (sxLen - 1);
+       }
        IOResp[1].iov_base = (char *)&myResp; IOResp[1].iov_len = sizeof(myResp);
        IOResp[2].iov_base =         ebuff;   IOResp[2].iov_len = retStat;
        resplen = sizeof(myResp) + retStat;
-      }
+   }
 
 // If we are monitoring, send off a path to dictionary mapping (must try 1st!)
 //
    if (Monitor.Files())
       {xp->Stats.FileID = Monitor.MapPath(fn);
        if (!(xp->Stats.monLvl)) xp->Stats.monLvl = XrdXrootdFileStats::monOn;
-       Monitor.Agent->Open(xp->Stats.FileID, statbuf.st_size);
+       Monitor.Agent->Open(xp->Stats.FileID, XrdSysStatxHelpers::GetSize(statbuf));
       }
 
 // Since file monitoring is deprecated, a dictid may not have been assigned.

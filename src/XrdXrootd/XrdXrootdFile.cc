@@ -81,14 +81,14 @@ static const unsigned long  heldMask = ~1UL;
 /******************************************************************************/
   
 XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
-                             char mode, bool async, struct stat *sP)
+                             char mode, bool async, XrdSysStatx *sP)
                             : XrdSfsp(fp), mmAddr(0), FileKey(strdup(path)),
                               FileMode(mode), AsyncMode(async),
                               aioFob(0), pgwFob(0), fhProc(0),
                               ID(id), refCount(0), syncWait(0)
 {
     static XrdSysMutex seqMutex;
-    struct stat buf;
+    XrdSysStatx buf;
     off_t mmSize;
 
 // Initialize statistical counters
@@ -116,8 +116,8 @@ XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
 //
    if (sP || !isMMapped)
       {if (!sP) sP = &buf;
-       fp->stat(sP);
-       if (!isMMapped) Stats.fSize = static_cast<long long>(sP->st_size);
+       fp->stat(sP,STATX_ALL);
+       if (!isMMapped) Stats.fSize = static_cast<long long>(XrdSysStatxHelpers::GetSize(*sP));
       }
 }
   
