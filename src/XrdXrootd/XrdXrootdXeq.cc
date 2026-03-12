@@ -791,7 +791,6 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
    char *buff, *dLoc, *algT = 0;
    const char *csData, *dname;
    int bleft, rc = 0, dlen, cnt = 0, statSz = 160;
-   bool manStat;
    struct {char ebuff[8192]; char epad[512];} XB;
 
 // Preprocess checksum request. If we don't support checksums or if the
@@ -808,27 +807,37 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
        statSz += XrdCksData::NameSize + (XrdCksData::ValuSize*2) + 8;
       }
 
-// We always return stat information, see if we can use autostat
+// We always return stat information, see if we can use autostat. The stat mode
+// determines whether autostat provides data or we need manual per-entry calls,
+// and whether we emit statx (extended) information in addition to regular stat.
 //
+   enum StatMode { Auto, AutoStatx, ManualStat, ManualStatx };
+   StatMode statMode = Auto;
+
+#ifdef HAVE_STATX
    if (Request.dirlist.options[0] & kXR_dstatx) {
-      // A statx call will be attempted
-      int retc = dp->autoStat(&Statx,STATX_ALL);
-      if (retc == SFS_ERROR) {
-         //Fallback to regular autoStat
-         manStat = (dp->autoStat(&Stat) != SFS_OK);
-      } else {
-         // If the statx call got an error, we set the manStat to true
-         manStat = (retc != SFS_OK);
+      int retc = dp->autoStat(&Statx, STATX_ALL);
+      if (retc != SFS_OK)
+      {
+         if (dp->autoStat(&Stat) != SFS_OK)
+           statMode = ManualStatx;
       }
-   } else {
-      // No statx, perform a "stat" auto stat
-      manStat = (dp->autoStat(&Stat) != SFS_OK);
+      else statMode = AutoStatx;
    }
+   else
+#endif
+   {
+      if (dp->autoStat(&Stat) != SFS_OK)
+         statMode = ManualStat;
+   }
+
+   bool needsManualStat = (statMode == ManualStat || statMode == ManualStatx);
+   bool emitStatx       = (statMode == AutoStatx  || statMode == ManualStatx);
 
 // Construct the path to the directory as we will be asking for stat calls
 // if the interface does not support autostat or returning checksums.
 //
-   if (manStat || algT)
+   if (needsManualStat || algT)
       {strcpy(pbuff, argp->buff);
        dlen = strlen(pbuff);
        if (pbuff[dlen-1] != '/') {pbuff[dlen] = '/'; dlen++;}
@@ -840,7 +849,6 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 // client to issue individual stat requests in that case.
 //
    memset(&Stat, 0, sizeof(Stat));
-   memset(&Statx,0,sizeof(Statx));
    strcpy(XB.ebuff, ".\n0 0 0 0\n");
    buff = XB.ebuff+10; bleft = sizeof(XB.ebuff)-10;
 
@@ -857,15 +865,34 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
             if (dlen > 2 || dname[0] != '.' || (dlen == 2 && dname[1] != '.'))
                {if ((bleft -= (dlen+1)) < 0 || bleft < statSz) break;
                 if (dLoc) strcpy(dLoc, dname);
-                if (manStat)
-                   {rc = osFS->stat(pbuff, &Statx, myError,STATX_ALL, CRED, opaque);
+                if (statMode == ManualStatx) {
+                    memset(&Statx,0,sizeof(Statx));
+                    rc = osFS->stat(pbuff, &Statx, myError,STATX_ALL, CRED, opaque);
                     if (rc == SFS_ERROR && myError.getErrInfo() == ENOENT)
                        {dname = 0; continue;}
                     if (rc != SFS_OK)
                        return fsError(rc, XROOTD_MON_STAT, myError,
                                           argp->buff, opaque);
-                   }
+                } else if (statMode == ManualStat) {
+                    memset(&Stat,0,sizeof(Stat));
+                    rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
+                    if (rc == SFS_ERROR && myError.getErrInfo() == ENOENT)
+                       {dname = 0; continue;}
+                    if (rc != SFS_OK)
+                       return fsError(rc, XROOTD_MON_STAT, myError,
+                                          argp->buff, opaque);
+                }
                 strcpy(buff, dname); buff += dlen; *buff = '\n'; buff++; cnt++;
+               // StatGen and StatxGen return the byte count including the
+               // \0 terminator (or 0 if nothing was written). Advancing by
+               // (dlen-1) leaves buff on the \0, which the next writer
+               // overwrites (checksum, StatxGen, or the trailing '\n').
+               // Counting the \0 in bleft implicitly budgets for the
+               // overwriting byte, so the trailing '\n' does not need a
+               // separate bleft adjustment.
+               //
+                if (emitStatx)
+                   XrdSysStatxHelpers::Statx2Stat(Statx,Stat);
                 dlen = StatGen(Stat, buff, sizeof(XB.epad));
                 bleft -= dlen; buff += (dlen-1);
                 if (algT)
@@ -877,6 +904,10 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                     int n = snprintf(buff,sizeof(XB.epad)," [ %s:%s ]",
                                      algT, csData);
                     buff += n; bleft -= n;
+                   }
+                if (emitStatx)
+                   {dlen = StatxGen(Statx,buff,sizeof(XB.epad));
+                    bleft -= dlen; buff += (dlen ? dlen-1 : 0);
                    }
                 *buff = '\n'; buff++;
                }
