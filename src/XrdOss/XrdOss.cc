@@ -69,6 +69,20 @@ int XrdOss::FSctl(int cmd, int alen, const char *args, char **resp)
    return -ENOTSUP;
 }
 
+int XrdOss::Stat(const char *path, XrdSysStatx *buff, unsigned int mask, int opts, XrdOucEnv *envP) {
+#ifdef HAVE_STATX
+   struct stat statbuf;
+   (void) mask;
+   int retc = Stat(path,&statbuf,opts,envP);
+   if (!retc) {
+      XrdSysStatxHelpers::Stat2Statx(statbuf,*buff);
+   }
+   return retc;
+#else
+   return Stat(path, &buff->statx, opts, envP);
+#endif
+}
+
 /******************************************************************************/
 /*                                 R e l o c                                  */
 /******************************************************************************/

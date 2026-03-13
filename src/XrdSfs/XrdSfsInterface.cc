@@ -248,6 +248,20 @@ XrdSfsXferSize XrdSfsFile::writev(XrdOucIOVec      *writeV,
    return totbytes;
 }
 
+int XrdSfsFile::stat(XrdSysStatx *buf, unsigned int mask) {
+   (void)mask;
+#ifdef HAVE_STATX
+   struct stat statbuf;
+   int retc = stat(&statbuf);
+   if (retc == SFS_OK) {
+      XrdSysStatxHelpers::Stat2Statx(statbuf,*buf);
+   }
+   return retc;
+#else
+   return stat(&buf->statx);
+#endif
+}
+
 /******************************************************************************/
 /*      X r d S f s F i l e S y s t e m   M e t h o d   D e f a u l t s       */
 /******************************************************************************/

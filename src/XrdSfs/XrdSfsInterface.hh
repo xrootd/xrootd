@@ -776,19 +776,7 @@ virtual int            stat(struct stat *buf) = 0;
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, or SFS_STALL. When SFS_OK
 //!         is returned, buf must hold stat information.
 //-----------------------------------------------------------------------------
-virtual int            stat(XrdSysStatx *buf, unsigned int mask) {
-  (void)mask;
-#ifdef HAVE_STATX
-  struct stat statbuf;
-  int retc = stat(&statbuf);
-  if (retc == SFS_OK) {
-     XrdSysStatxHelpers::Stat2Statx(statbuf,*buf);
-  }
-  return retc;
-#else
-  return stat(&buf->statx);
-#endif
-}
+virtual int            stat(XrdSysStatx *buf, unsigned int mask);
 
 //-----------------------------------------------------------------------------
 //! Make sure all outstanding data is actually written to the file (sync).
