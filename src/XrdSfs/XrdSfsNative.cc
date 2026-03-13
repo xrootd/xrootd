@@ -93,9 +93,9 @@ static int Statfd(int fd, struct stat *buf) {return  fstat(fd, buf);}
 
 static int Statfn(const char *fn, struct stat *buf) {return stat(fn, buf);}
 
-static int Statxfn(int dirFd,const char *path,int flags, unsigned int mask, XrdSysStatx * statxbuf) {
+static int Statxfn(const char *path, unsigned int mask, XrdSysStatx * statxbuf) {
 #ifdef HAVE_STATX
-   return statx(dirFd,path,flags,mask,statxbuf);
+   return statx(0,path,0,mask,statxbuf);
 #else
    return Statfn(path,&statxbuf->statx);
 #endif
@@ -1029,7 +1029,7 @@ int XrdSfsNative::stat(const char              *path,        // In
 
    // Execute the function
    //
-   if (XrdSfsUFS::Statxfn(0,path,AT_FDCWD,mask, buf))
+   if (XrdSfsUFS::Statxfn(path,mask, buf))
       return XrdSfsNative::Emsg(epname, error, errno, "state", path);
 
    // All went well
