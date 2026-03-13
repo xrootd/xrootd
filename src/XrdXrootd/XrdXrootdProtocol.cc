@@ -857,7 +857,7 @@ int XrdXrootdProtocol::StatxGen(XrdSysStatx &buf, char *xxBuff, int xxLen) {
   int n = 0;
 #ifdef HAVE_STATX
   if (buf.stx_mask & STATX_BTIME) {
-    n = snprintf(xxBuff, xxLen, " \nbtime_s=%lld&btime_n=%lld",
+    n = snprintf(xxBuff, xxLen, "\nbtime_s=%lld&btime_n=%lld",
                  (long long)buf.stx_btime.tv_sec,
                  (long long)buf.stx_btime.tv_nsec);
     if (n >= xxLen) return 0;
