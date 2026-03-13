@@ -20,8 +20,11 @@
 #define __XRD_CL_DEFAULT_ENV_HH__
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdCl/XrdClEnv.hh"
 #include "XrdVersion.hh"
+
+#include <atomic>
 
 class XrdOucPinLoader;
 struct EnvInitializer;
@@ -173,18 +176,29 @@ namespace XrdCl
 
       static void SetUpLog();
 
-      static XrdSysMutex        sInitMutex;
-      static Env               *sEnv;
-      static PostMaster        *sPostMaster;
-      static Log               *sLog;
-      static ForkHandler       *sForkHandler;
-      static FileTimer         *sFileTimer;
-      static Monitor           *sMonitor;
-      static XrdOucPinLoader   *sMonitorLibHandle;
-      static bool               sMonitorInitialized;
-      static CheckSumManager   *sCheckSumManager;
-      static TransportManager  *sTransportManager;
-      static PlugInManager     *sPlugInManager;
+      //------------------------------------------------------------------------
+      //! Static data members used by Initialize and Finalize.
+      //! These should have trivial destructor (because Finalize may be called
+      //! after these are destroyed). RAtomics imply ordering
+      //! memory_order_relaxed and are set in Initialize and cleared in
+      //! Finalize. The std::atomic are accessed with acquire/release ordering
+      //! and are initalized the first time the relevant Get.. method is
+      //! called. Non-atomic types are accessed only while holding sInitMutex.
+      //------------------------------------------------------------------------
+
+      static XrdSys::RAtomic<XrdSysMutex*>      sInitMutex;
+      static XrdSys::RAtomic<Env*>              sEnv;
+      static std::atomic<PostMaster*>           sPostMaster;
+      static XrdSys::RAtomic<Log*>              sLog;
+      static XrdSys::RAtomic<ForkHandler*>      sForkHandler;
+      static XrdSys::RAtomic<FileTimer*>        sFileTimer;
+      static std::atomic<Monitor*>              sMonitor;
+      static XrdOucPinLoader                   *sMonitorLibHandle;
+      static std::atomic<bool>                  sMonitorInitialized;
+      static std::atomic<CheckSumManager*>      sCheckSumManager;
+      static std::atomic<TransportManager*>     sTransportManager;
+      static XrdSys::RAtomic<PlugInManager*>    sPlugInManager;
+      static uint64_t                           sInitStatus;
   };
 
 }
@@ -194,6 +208,11 @@ static struct EnvInitializer
     EnvInitializer();
     ~EnvInitializer();
     static int counter;
+    static struct trigger
+    {
+      trigger();
+      ~trigger();
+    } trig;
 } initializer;
 
 
