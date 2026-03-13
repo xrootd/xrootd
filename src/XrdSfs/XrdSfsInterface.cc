@@ -50,7 +50,14 @@ int XrdSfsDirectory::autoStat(struct stat *buf)
    error.setErrInfo(ENOTSUP, "Not supported.");
    return SFS_ERROR;
 }
-  
+
+int XrdSfsDirectory::autoStat(XrdSysStatx *buf, unsigned int mask)
+{
+   (void)buf; (void)mask;
+   error.setErrInfo(ENOTSUP, "Not supported.");
+   return SFS_ERROR;
+}
+
 /******************************************************************************/
 /*            X r d S f s F i l e   M e t h o d   D e f a u l t s             */
 /******************************************************************************/
@@ -239,6 +246,20 @@ XrdSfsXferSize XrdSfsFile::writev(XrdOucIOVec      *writeV,
         totbytes += wrsz;
        }
    return totbytes;
+}
+
+int XrdSfsFile::stat(XrdSysStatx *buf, unsigned int mask) {
+   (void)mask;
+#ifdef HAVE_STATX
+   struct stat statbuf;
+   int retc = stat(&statbuf);
+   if (retc == SFS_OK) {
+      XrdSysStatxHelpers::Stat2Statx(statbuf,*buf);
+   }
+   return retc;
+#else
+   return stat(&buf->statx);
+#endif
 }
 
 /******************************************************************************/

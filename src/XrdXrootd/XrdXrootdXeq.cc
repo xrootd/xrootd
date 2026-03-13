@@ -787,10 +787,10 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 {
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    struct stat Stat;
+   XrdSysStatx Statx;
    char *buff, *dLoc, *algT = 0;
    const char *csData, *dname;
    int bleft, rc = 0, dlen, cnt = 0, statSz = 160;
-   bool manStat;
    struct {char ebuff[8192]; char epad[512];} XB;
 
 // Preprocess checksum request. If we don't support checksums or if the
@@ -807,14 +807,37 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
        statSz += XrdCksData::NameSize + (XrdCksData::ValuSize*2) + 8;
       }
 
-// We always return stat information, see if we can use autostat
+// We always return stat information, see if we can use autostat. The stat mode
+// determines whether autostat provides data or we need manual per-entry calls,
+// and whether we emit statx (extended) information in addition to regular stat.
 //
-   manStat = (dp->autoStat(&Stat) != SFS_OK);
+   enum StatMode { Auto, AutoStatx, ManualStat, ManualStatx };
+   StatMode statMode = Auto;
+
+#ifdef HAVE_STATX
+   if (Request.dirlist.options[0] & kXR_dstatx) {
+      int retc = dp->autoStat(&Statx, STATX_ALL);
+      if (retc != SFS_OK)
+      {
+         if (dp->autoStat(&Stat) != SFS_OK)
+           statMode = ManualStatx;
+      }
+      else statMode = AutoStatx;
+   }
+   else
+#endif
+   {
+      if (dp->autoStat(&Stat) != SFS_OK)
+         statMode = ManualStat;
+   }
+
+   bool needsManualStat = (statMode == ManualStat || statMode == ManualStatx);
+   bool emitStatx       = (statMode == AutoStatx  || statMode == ManualStatx);
 
 // Construct the path to the directory as we will be asking for stat calls
 // if the interface does not support autostat or returning checksums.
 //
-   if (manStat || algT)
+   if (needsManualStat || algT)
       {strcpy(pbuff, argp->buff);
        dlen = strlen(pbuff);
        if (pbuff[dlen-1] != '/') {pbuff[dlen] = '/'; dlen++;}
@@ -842,15 +865,34 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
             if (dlen > 2 || dname[0] != '.' || (dlen == 2 && dname[1] != '.'))
                {if ((bleft -= (dlen+1)) < 0 || bleft < statSz) break;
                 if (dLoc) strcpy(dLoc, dname);
-                if (manStat)
-                   {rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
+                if (statMode == ManualStatx) {
+                    memset(&Statx,0,sizeof(Statx));
+                    rc = osFS->stat(pbuff, &Statx, myError,STATX_ALL, CRED, opaque);
                     if (rc == SFS_ERROR && myError.getErrInfo() == ENOENT)
                        {dname = 0; continue;}
                     if (rc != SFS_OK)
                        return fsError(rc, XROOTD_MON_STAT, myError,
                                           argp->buff, opaque);
-                   }
+                } else if (statMode == ManualStat) {
+                    memset(&Stat,0,sizeof(Stat));
+                    rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
+                    if (rc == SFS_ERROR && myError.getErrInfo() == ENOENT)
+                       {dname = 0; continue;}
+                    if (rc != SFS_OK)
+                       return fsError(rc, XROOTD_MON_STAT, myError,
+                                          argp->buff, opaque);
+                }
                 strcpy(buff, dname); buff += dlen; *buff = '\n'; buff++; cnt++;
+               // StatGen and StatxGen return the byte count including the
+               // \0 terminator (or 0 if nothing was written). Advancing by
+               // (dlen-1) leaves buff on the \0, which the next writer
+               // overwrites (checksum, StatxGen, or the trailing '\n').
+               // Counting the \0 in bleft implicitly budgets for the
+               // overwriting byte, so the trailing '\n' does not need a
+               // separate bleft adjustment.
+               //
+                if (emitStatx)
+                   XrdSysStatxHelpers::Statx2Stat(Statx,Stat);
                 dlen = StatGen(Stat, buff, sizeof(XB.epad));
                 bleft -= dlen; buff += (dlen-1);
                 if (algT)
@@ -862,6 +904,10 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                     int n = snprintf(buff,sizeof(XB.epad)," [ %s:%s ]",
                                      algT, csData);
                     buff += n; bleft -= n;
+                   }
+                if (emitStatx)
+                   {dlen = StatxGen(Statx,buff,sizeof(XB.epad));
+                    bleft -= dlen; buff += (dlen ? dlen-1 : 0);
                    }
                 *buff = '\n'; buff++;
                }
@@ -1470,7 +1516,7 @@ int XrdXrootdProtocol::do_Open()
    char *fn = argp->buff, opt[24], *op=opt;
    XrdSfsFile *fp;
    XrdXrootdFile *xp, *sameFS = 0;
-   struct stat statbuf;
+   XrdSysStatx statbuf;
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
    struct iovec IOResp[3];  // Note that IOResp[0] is completed by Response
@@ -1723,19 +1769,26 @@ int XrdXrootdProtocol::do_Open()
 
 // If client wants a stat in open, return the stat information
 //
-   if (retStat)
-      {retStat = StatGen(statbuf, ebuff, sizeof(ebuff));
+   if (retStat) {
+       struct stat buf;
+       XrdSysStatxHelpers::Statx2Stat(statbuf,buf);
+       retStat = StatGen(buf, ebuff, sizeof(ebuff));
+       if (optt & kXR_retstatx) {
+          int sxLen = StatxGen(statbuf, ebuff+(retStat-1),
+                                sizeof(ebuff)-(retStat-1));
+          if (sxLen > 0) retStat += (sxLen - 1);
+       }
        IOResp[1].iov_base = (char *)&myResp; IOResp[1].iov_len = sizeof(myResp);
        IOResp[2].iov_base =         ebuff;   IOResp[2].iov_len = retStat;
        resplen = sizeof(myResp) + retStat;
-      }
+   }
 
 // If we are monitoring, send off a path to dictionary mapping (must try 1st!)
 //
    if (Monitor.Files())
       {xp->Stats.FileID = Monitor.MapPath(fn);
        if (!(xp->Stats.monLvl)) xp->Stats.monLvl = XrdXrootdFileStats::monOn;
-       Monitor.Agent->Open(xp->Stats.FileID, statbuf.st_size);
+       Monitor.Agent->Open(xp->Stats.FileID, XrdSysStatxHelpers::GetSize(statbuf));
       }
 
 // Since file monitoring is deprecated, a dictid may not have been assigned.
@@ -3080,7 +3133,11 @@ int XrdXrootdProtocol::do_Stat()
    int rc;
    char *opaque, xxBuff[1024];
    struct stat buf;
+   XrdSysStatx statxBuff;
    XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
+
+   bool statxRequired = (Request.stat.wants & kXR_Want_btime);
+   unsigned int statxMask = STATX_BASIC_STATS | STATX_BTIME;
 
 // Update misc stats count
 //
@@ -3098,11 +3155,26 @@ int XrdXrootdProtocol::do_Stat()
        if (!FTab || !(fp = FTab->Get(fh.handle)))
           return Response.Send(kXR_FileNotOpen,
                               "stat does not refer to an open file");
-       rc = fp->XrdSfsp->stat(&buf);
-       TRACEP(FS, "fh=" <<fh.handle <<" stat rc=" <<rc);
-       if (SFS_OK == rc) return Response.Send(xxBuff,
-                                StatGen(buf,xxBuff,sizeof(xxBuff)));
-       return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+       if (!statxRequired) {
+          rc = fp->XrdSfsp->stat(&buf);
+          TRACEP(FS, "fh=" <<fh.handle <<" stat rc=" <<rc);
+          if (SFS_OK == rc) return Response.Send(xxBuff,
+                                     StatGen(buf,xxBuff,sizeof(xxBuff)));
+          return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+       } else {
+          rc = fp->XrdSfsp->stat(&statxBuff,statxMask);
+          TRACEP(FS, "fh=" <<fh.handle <<" statx rc=" <<rc);
+          if (SFS_OK == rc) {
+             struct stat statB;
+             XrdSysStatxHelpers::Statx2Stat(statxBuff,statB);
+             int dlen = StatGen(statB,xxBuff,sizeof(xxBuff));
+             int sxLen = StatxGen(statxBuff, xxBuff+(dlen-1),
+                                  sizeof(xxBuff)-(dlen-1));
+             if (sxLen > 0) dlen += (sxLen - 1);
+             return Response.Send(xxBuff, dlen);
+          }
+          return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+       }
       }
 
 // Check if we are handling a dig type path
@@ -3129,6 +3201,18 @@ int XrdXrootdProtocol::do_Stat()
        rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
        TRACEP(FS, "rc=" <<rc <<" statfs " <<argp->buff);
        if (rc == SFS_OK) Response.Send("");
+      } else if (statxRequired) {
+       if (doDig) rc = digFS->stat(argp->buff, &statxBuff, myError, statxMask, CRED, opaque);
+          else    rc =  osFS->stat(argp->buff, &statxBuff, myError, statxMask, CRED, opaque);
+       TRACEP(FS, "rc=" <<rc <<" statx " <<argp->buff);
+       if (rc == SFS_OK)
+          {XrdSysStatxHelpers::Statx2Stat(statxBuff, buf);
+           int dlen = StatGen(buf, xxBuff, sizeof(xxBuff));
+           int sxLen = StatxGen(statxBuff, xxBuff+(dlen-1),
+                                sizeof(xxBuff)-(dlen-1));
+           if (sxLen > 0) dlen += (sxLen - 1);
+           return Response.Send(xxBuff, dlen);
+          }
       } else {
        if (doDig) rc = digFS->stat(argp->buff, &buf, myError, CRED, opaque);
           else    rc =  osFS->stat(argp->buff, &buf, myError, CRED, opaque);

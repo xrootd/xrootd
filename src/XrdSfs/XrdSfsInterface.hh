@@ -44,6 +44,7 @@
 #include "XrdSfs/XrdSfsGPFile.hh"
 
 #include "XrdSys/XrdSysPageSize.hh"
+#include "XrdSys/XrdSysStatx.hh"
 
 /******************************************************************************/
 /*                            O p e n   M o d e s                             */
@@ -311,6 +312,22 @@ virtual const char *FName() = 0;
 //-----------------------------------------------------------------------------
 
 virtual int         autoStat(struct stat *buf);
+
+//-----------------------------------------------------------------------------
+//! Set the statx() buffer where statx information is to be placed
+//! corresponding to the directory entry returned by nextEntry().
+//!
+//! @param  buf    - Pointer to the XrdSysStatx buffer to be filled.
+//! @param  mask   - The statx mask indicating which fields are requested.
+//!
+//! @return If supported, SFS_OK should be returned. If not supported, then
+//!         SFS_ERROR should be returned with error.code set to ENOTSUP.
+//!
+//! @note: When autoStat() is in effect, directory entries that have been
+//!        deleted from the target directory are quietly skipped.
+//-----------------------------------------------------------------------------
+
+virtual int         autoStat(XrdSysStatx *buf, unsigned int mask);
 
 //-----------------------------------------------------------------------------
 //! Constructor (user and MonID are the ones passed to newDir()!). This
@@ -749,6 +766,17 @@ virtual XrdSfsXferSize writev(XrdOucIOVec      *writeV,
 //-----------------------------------------------------------------------------
 
 virtual int            stat(struct stat *buf) = 0;
+
+//-----------------------------------------------------------------------------
+//! Return state information on the file.
+//!
+//! @param  buf    - Pointer to the structure where info it to be returned.
+//! @param mask    - The statx mask indicating which fields are required
+//!
+//! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, or SFS_STALL. When SFS_OK
+//!         is returned, buf must hold stat information.
+//-----------------------------------------------------------------------------
+virtual int            stat(XrdSysStatx *buf, unsigned int mask);
 
 //-----------------------------------------------------------------------------
 //! Make sure all outstanding data is actually written to the file (sync).
@@ -1281,6 +1309,34 @@ virtual int            stat(const char               *Name,
                                   XrdOucErrInfo      &eInfo,
                             const XrdSecEntity       *client = 0,
                             const char               *opaque = 0) = 0;
+
+//-----------------------------------------------------------------------------
+//! Return statx information on a file or directory.
+//!
+//! @param  Name   - Pointer to the path in question.
+//! @param  buf    - Pointer to the structure where info it to be returned.
+//! @param  eInfo  - The object where error info is to be returned.
+//! @param  mask   - The fields in which the client is interested in
+//! @param  client - Client's identify (see common description).
+//! @param  opaque - path's CGI information (see common description).
+//!
+//! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
+//!         When SFS_OK is returned, buf must contain stat information.
+//-----------------------------------------------------------------------------
+virtual int             stat(const char               *Name,
+                                   XrdSysStatx        *buf,
+                                   XrdOucErrInfo      &eInfo,
+                             unsigned int             mask,
+                             const XrdSecEntity       *client = 0,
+                             const char               *opaque = 0) {
+  (void)mask;
+  struct stat statbuf;
+  int retc = stat(Name,&statbuf,eInfo,client,opaque);
+  if (retc == SFS_OK) {
+    XrdSysStatxHelpers::Stat2Statx(statbuf,*buf);
+  }
+  return retc;
+}
 
 //-----------------------------------------------------------------------------
 //! Return mode information on a file or directory.

@@ -47,6 +47,7 @@
 #include "XrdXrootd/XrdXrootdReqID.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XProtocol/XProtocol.hh"
+#include "XrdSys/XrdSysStatx.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -342,6 +343,7 @@ static bool  ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv);
 static bool  ConfigRedirPI(const char*, XrdOucEnv&, const char*, const char*);
 static int   Squash(char *);
        int   StatGen(struct stat &buf, char *xxBuff, int xxLen, bool xa=false);
+       int   StatxGen(XrdSysStatx & buf, char *xxBuff, int xxLen);
 static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);

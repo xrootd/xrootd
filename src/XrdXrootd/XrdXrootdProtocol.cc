@@ -850,6 +850,23 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
    return xxBuff - origP;
 }
 
+// Returns the byte count including the \0 terminator (same convention as
+// StatGen), or 0 if nothing was written.
+//
+int XrdXrootdProtocol::StatxGen(XrdSysStatx &buf, char *xxBuff, int xxLen) {
+  int n = 0;
+#ifdef HAVE_STATX
+  if (buf.stx_mask & STATX_BTIME) {
+    n = snprintf(xxBuff, xxLen, "\nbtime_s=%lld&btime_n=%lld",
+                 (long long)buf.stx_btime.tv_sec,
+                 (long long)buf.stx_btime.tv_nsec);
+    if (n >= xxLen) return 0;
+    n++;  // include the \0 terminator in the count
+  }
+#endif
+  return n;
+}
+
 /******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
