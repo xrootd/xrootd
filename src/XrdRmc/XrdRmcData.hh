@@ -42,6 +42,7 @@
 class XrdRmcData : public XrdOucCacheIO
 {
 public:
+using XrdOucCacheIO::Preread;
 
 bool           Detach(XrdOucCacheIOCD &iocd);
 

@@ -4,7 +4,7 @@
 /*                                                                            */
 /*                    X r d S f s I n t e r f a c e . h h                     */
 /*                                                                            */
-/* (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2026 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -39,7 +39,8 @@
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
-#include "XrdOuc/XrdOucSFVec.hh"
+#include "XrdOuc/XrdOucRange.hh"
+//#include "XrdOuc/XrdOucSFVec.hh"
 
 #include "XrdSfs/XrdSfsGPFile.hh"
 
@@ -135,7 +136,7 @@ typedef int           XrdSfsFileOpenMode;
 typedef int           XrdSfsMode;
 typedef int           XrdSfsXferSize;
 
-enum XrdSfsFileExistence 
+enum XrdSfsFileExistence
 {
      XrdSfsFileExistNo,
      XrdSfsFileExistIsFile,
@@ -245,7 +246,7 @@ struct XrdSfsFACtl;
 //! The XrdSfsDirectory object is returned by XrdSfsFileSystem::newFile() when
 //! the caller wants to be able to perform directory oriented operations.
 //------------------------------------------------------------------------------
-  
+
 class XrdSfsDirectory
 {
 public:
@@ -371,7 +372,7 @@ XrdOucErrInfo* lclEI;
 class XrdSfsAio;
 class XrdSfsDio;
 class XrdSfsXio;
-  
+
 class XrdSfsFile
 {
 public:
@@ -629,17 +630,28 @@ virtual XrdSfsXferSize pgWrite(XrdSfsFileOffset   offset,
 virtual int            pgWrite(XrdSfsAio *aioparm, uint64_t opts=0);
 
 //-----------------------------------------------------------------------------
-//! Preread file blocks into the file system cache.
+//! Preread a file block into the file system cache.
 //!
 //! @param  offset  - The offset where the read is to start.
 //! @param  size    - The number of bytes to pre-read.
 //!
-//! @return >= 0      The number of bytes that will be pre-read.
+//! @return >= 0      When 0, the request was ignored; otherwise, it has been accepted.
 //! @return SFS_ERROR File could not be preread, error holds the reason.
 //-----------------------------------------------------------------------------
 
 virtual XrdSfsXferSize read(XrdSfsFileOffset   offset,
                             XrdSfsXferSize     size) = 0;
+
+//-----------------------------------------------------------------------------
+//! Preread a list of file blocks into the file system cache.
+//!
+//! @param  rlist   - A list of byte ranges to pre-read.
+//!
+//! @return >= 0      When 0, the request was ignored; otherwise, it has been accepted.
+//! @return SFS_ERROR File could not be preread, error holds the reason.
+//-----------------------------------------------------------------------------
+
+virtual XrdSfsXferSize read(XrdOucRangeList& rlist);
 
 //-----------------------------------------------------------------------------
 //! Read file bytes into a buffer.
@@ -847,7 +859,7 @@ XrdSfsFileOffset pgwrEOF;
 /******************************************************************************/
 /*                      X r d S f s F i l e S y s t e m                       */
 /******************************************************************************/
-  
+
 //-----------------------------------------------------------------------------
 //! Common parameters: Many of the methods have certain common parameters.
 //! These are documented here to avoid lengthy duplicate descriptions.
