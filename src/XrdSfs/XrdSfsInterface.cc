@@ -50,14 +50,14 @@ int XrdSfsDirectory::autoStat(struct stat *buf)
    error.setErrInfo(ENOTSUP, "Not supported.");
    return SFS_ERROR;
 }
-  
+
 /******************************************************************************/
 /*            X r d S f s F i l e   M e t h o d   D e f a u l t s             */
 /******************************************************************************/
 /******************************************************************************/
 /*                            c h e c k p o i n t                             */
 /******************************************************************************/
-  
+
 int XrdSfsFile::checkpoint(cpAct act, struct iov *range, int n)
 {
 // Provide reasonable answers
@@ -91,11 +91,11 @@ int XrdSfsFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
    error.setErrInfo(ENOTSUP, "Not supported.");
    return SFS_ERROR;
 }
-  
+
 /******************************************************************************/
 /*                                  f c t l                                   */
 /******************************************************************************/
-  
+
 int XrdSfsFile::fctl(const int           cmd,
                            int           alen,
                      const char         *args,
@@ -108,7 +108,7 @@ int XrdSfsFile::fctl(const int           cmd,
 /******************************************************************************/
 /*                                p g R e a d                                 */
 /******************************************************************************/
-  
+
 XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
                                   char              *buffer,
                                   XrdSfsXferSize     rdlen,
@@ -131,7 +131,7 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
 }
 
 /******************************************************************************/
-  
+
 XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 {
    aioparm->Result = this->pgRead((XrdSfsFileOffset)aioparm->sfsAio.aio_offset,
@@ -145,7 +145,7 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 /******************************************************************************/
 /*                               p g W r i t e                                */
 /******************************************************************************/
-  
+
 XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
                                    char              *buffer,
                                    XrdSfsXferSize     wrlen,
@@ -174,7 +174,7 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
 }
 
 /******************************************************************************/
-  
+
 XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 {
    aioparm->Result = this->pgWrite((XrdSfsFileOffset)aioparm->sfsAio.aio_offset,
@@ -186,9 +186,20 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 }
 
 /******************************************************************************/
+/*                                  r e a d                                   */
+/******************************************************************************/
+
+XrdSfsXferSize XrdSfsFile::read(XrdOucRangeList& rlist)
+{
+   for (auto it = rlist.begin(); it != rlist.end(); it++)
+       if (read(it->offset, it->size) == SFS_ERROR) return SFS_ERROR;
+   return 1;
+}
+
+/******************************************************************************/
 /*                                 r e a d v                                  */
 /******************************************************************************/
-  
+
 XrdSfsXferSize XrdSfsFile::readv(XrdOucIOVec      *readV,
                                  int               rdvCnt)
 {
@@ -210,7 +221,7 @@ XrdSfsXferSize XrdSfsFile::readv(XrdOucIOVec      *readV,
 /******************************************************************************/
 /*                              S e n d D a t a                               */
 /******************************************************************************/
-  
+
 int XrdSfsFile::SendData(XrdSfsDio         *sfDio,
                          XrdSfsFileOffset   offset,
                          XrdSfsXferSize     size)
@@ -222,7 +233,7 @@ int XrdSfsFile::SendData(XrdSfsDio         *sfDio,
 /******************************************************************************/
 /*                                w r i t e v                                 */
 /******************************************************************************/
-  
+
 XrdSfsXferSize XrdSfsFile::writev(XrdOucIOVec      *writeV,
                                   int               wdvCnt)
 {
@@ -247,17 +258,17 @@ XrdSfsXferSize XrdSfsFile::writev(XrdOucIOVec      *writeV,
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
+
 XrdSfsFileSystem::XrdSfsFileSystem()
 {
    FeatureSet = XrdSfs::hasPGRW;
    if (getChkPSize() > 0) FeatureSet |= XrdSfs::hasCHKP;
 }
-  
+
 /******************************************************************************/
 /*                                c h k s u m                                 */
 /******************************************************************************/
-  
+
 int XrdSfsFileSystem::chksum(      csFunc            Func,
                              const char             *csName,
                              const char             *path,
@@ -271,11 +282,11 @@ int XrdSfsFileSystem::chksum(      csFunc            Func,
   eInfo.setErrInfo(ENOTSUP, "Not supported.");
   return SFS_ERROR;
 }
-  
+
 /******************************************************************************/
 /*                                 F A t t r                                  */
 /******************************************************************************/
-  
+
 int XrdSfsFileSystem::FAttr(      XrdSfsFACtl      *faReq,
                                   XrdOucErrInfo    &eInfo,
                             const XrdSecEntity     *client)
@@ -285,11 +296,11 @@ int XrdSfsFileSystem::FAttr(      XrdSfsFACtl      *faReq,
    eInfo.setErrInfo(ENOTSUP, "Not supported.");
    return SFS_ERROR;
 }
-  
+
 /******************************************************************************/
 /*                                 F S c t l                                  */
 /******************************************************************************/
-  
+
 int XrdSfsFileSystem::FSctl(const int               cmd,
                                   XrdSfsFSctl      &args,
                                   XrdOucErrInfo    &eInfo,
@@ -303,7 +314,7 @@ int XrdSfsFileSystem::FSctl(const int               cmd,
 /******************************************************************************/
 /*                                g p F i l e                                 */
 /******************************************************************************/
-  
+
 int XrdSfsFileSystem::gpFile(      gpfFunc          &gpAct,
                                    XrdSfsGPFile     &gpReq,
                                    XrdOucErrInfo    &eInfo,

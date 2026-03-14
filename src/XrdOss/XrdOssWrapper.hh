@@ -48,7 +48,7 @@
 //! This class wraps the object that handles directory as well as file
 //! oriented requests. It is used by the derived class to wrap the object
 //! obtained by calling newDir() or newFile() in class XrdOss.
-  
+
 class XrdOssWrapDF : public XrdOssDF
 {
 public:
@@ -246,7 +246,7 @@ virtual ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
 //-----------------------------------------------------------------------------
 
 virtual int     pgRead (XrdSfsAio* aioparm, uint64_t opts)
-                       {return wrapDF.pgRead(aioparm, opts);}
+                                              {return wrapDF.pgRead(aioparm, opts);}
 
 //-----------------------------------------------------------------------------
 //! Write file pages into a file with corresponding checksums.
@@ -295,6 +295,18 @@ virtual int     pgWrite(XrdSfsAio* aioparm, uint64_t opts)
 
 virtual ssize_t Read(off_t offset, size_t size)
                     {return wrapDF.Read(offset, size);}
+
+//-----------------------------------------------------------------------------
+//! Preread a list of file blocks into the file system cache.
+//!
+//! @param  rlist   - A list of byte ranges to pre-read.
+//!
+//! @return >= 0      When 0, the request was ignored; otherwise, it has been accepted.
+//! @return < 0       Failed with -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t Read(XrdOucRangeList& rlist)
+                    {return wrapDF.Read(rlist);}
 
 //-----------------------------------------------------------------------------
 //! Read file bytes into a buffer.
@@ -416,7 +428,7 @@ uint16_t        DFType() {return wrapDF.DFType();}
 //!                                Response: Pointer to XrdOucChkPnt object.
 //!                  Fctl_utimes - Set atime and mtime (no response).
 //!                                Argument: struct timeval tv[2]
-//!                  Fctl_setFD  - Set file descriptor for unopened file. 
+//!                  Fctl_setFD  - Set file descriptor for unopened file.
 //!                                Argument: pointer to int file descriptor
 //! @param  alen   - Length of data pointed to by args.
 //! @param  alen   - Length of data pointed to by args.
@@ -431,7 +443,7 @@ virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0)
                     {return wrapDF.Fctl(cmd, alen, args, resp);}
 
 //-----------------------------------------------------------------------------
-//! Obtain detailed error message text for the immediately preceeding 
+//! Obtain detailed error message text for the immediately preceeding
 //! directory or file error (see also XrdOssWrapper::getErrMsg()).
 //!
 //! @param  eText  - Where the message text is to be returned.
@@ -479,11 +491,11 @@ protected:
 
 XrdOssDF   &wrapDF;  // Object being wrapped
 };
-  
+
 /******************************************************************************/
 /*                   C l a s s   X r d O s s W r a p p e r                    */
 /******************************************************************************/
-  
+
 class XrdOssWrapper : public XrdOss
 {
 public:

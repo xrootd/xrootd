@@ -43,6 +43,7 @@
 
 #include "XrdOss/XrdOssVS.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
+#include "XrdOuc/XrdOucRange.hh"
 
 struct XrdOucCloneSeg;
 class XrdOucEnv;
@@ -61,7 +62,7 @@ class XrdSfsAio;
 //! oriented requests. It is instantiated for each file/dir to be opened.
 //! The object is obtained by calling newDir() or newFile() in class XrdOss.
 //! This allows flexibility on how to structure an oss plugin.
-  
+
 class XrdOssDF
 {
 public:
@@ -302,10 +303,22 @@ virtual int     pgWrite(XrdSfsAio* aioparm, uint64_t opts);
 //! @param  offset  - The offset where the read is to start.
 //! @param  size    - The number of bytes to pre-read.
 //!
-//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//! @return >= 0      When 0, the request was ignored; otherwise, it has been accepted.
+//! @return < 0       Failed with -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
 virtual ssize_t Read(off_t offset, size_t size) {return (ssize_t)-EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Preread a list of file blocks into the file system cache.
+//!
+//! @param  rlist   - A list of byte ranges to pre-read.
+//!
+//! @return >= 0      When 0, the request was ignored; otherwise, it has been accepted.
+//! @return < 0       Failed with -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t Read(XrdOucRangeList& rlist);
 
 //-----------------------------------------------------------------------------
 //! Read file bytes into a buffer.
@@ -431,7 +444,7 @@ uint16_t        DFType() {return dfType;}
 //!                                Response: Pointer to XrdOucChkPnt object.
 //!                  Fctl_utimes - Set atime and mtime (no response).
 //!                                Argument: struct timeval tv[2]
-//!                  Fctl_setFD  - Set file descriptor for unopened file. 
+//!                  Fctl_setFD  - Set file descriptor for unopened file.
 //!                                Argument: pointer to int file descriptor
 //!                  Fctl_QFinfo - Return special file information.
 //! @param  alen   - Length of data pointed to by args.
@@ -450,7 +463,7 @@ static const int Fctl_QFinfo = 3;
 virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 
 //-----------------------------------------------------------------------------
-//! Obtain detailed error message text for the immediately preceeding 
+//! Obtain detailed error message text for the immediately preceeding
 //! directory or file error (see also XrdOss::getErrMsg()).
 //!
 //! @param  eText  - Where the message text is to be returned.
@@ -540,11 +553,11 @@ short       rsvd;    // Reserved
 //
 #define XRDOSS_FSCTLFA 0x0001
 #define XRDOSS_FSCTLFS 0x0002
-  
+
 /******************************************************************************/
 /*                          C l a s s   X r d O s s                           */
 /******************************************************************************/
-  
+
 class XrdOss
 {
 public:

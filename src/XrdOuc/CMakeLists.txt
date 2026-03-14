@@ -39,6 +39,7 @@ target_sources(XrdUtils
     XrdOucProg.cc        XrdOucProg.hh
     XrdOucPsx.cc         XrdOucPsx.hh
     XrdOucPup.cc         XrdOucPup.hh
+                         XrdOucRange.hh
     XrdOucReqID.cc       XrdOucReqID.hh
     XrdOucSHA3.cc        XrdOucSHA3.hh
     XrdOucSid.cc         XrdOucSid.hh
