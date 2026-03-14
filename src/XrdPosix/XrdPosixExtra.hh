@@ -136,8 +136,39 @@ static ssize_t pgWrite(int fildes, void* buffer, off_t offset, size_t wrlen,
                        std::vector<uint32_t> &csvec, uint64_t opts=0,
                        XrdPosixCallBackIO *cbp=0);
 
+
+//------------------------------------------------------------------------
+//! Preread a range of bytes.
+//!
+//! @param fildes   - File descriptor
+//!                   The file descriptor must refer to an open file.
+//! @param offs     - The offset at which to start the preread.
+//! @param size     - The numbert of bytes to preread.
+//!
+//! @return    0      Request accepted.
+//! @return  < 0      Request rejected, errno hold reason for failure.
+//------------------------------------------------------------------------
+
+static int     PreRead(int fildes, off_t offs, int size);
+
+//------------------------------------------------------------------------
+//! Preread a list of byte ranges in one operation
+//!
+//! @param fildes   - File descriptor
+//!                   The file descriptor must refer to an open file.
+//! @param rlist    - list of the byte ranges to preread.
+//!                   The default maximum size is 2097136 bytes and
+//!                   the default maximum number of request is 1024.
+//!                   Be aware the the server may support a different
+//!                   combination and may be queried for its defaults.
+//!
+//! @return    0      Request accepted.
+//! @return  < 0      Request rejected, errno hold reason for failure.
+//------------------------------------------------------------------------
+
+static int     PreRead(int fildes, XrdOucRangeList& rlist);
+
                XrdPosixExtra() {}
               ~XrdPosixExtra() {}
-
 };
 #endif
