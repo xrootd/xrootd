@@ -40,7 +40,6 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdOuc/XrdOucRange.hh"
-//#include "XrdOuc/XrdOucSFVec.hh"
 
 #include "XrdSfs/XrdSfsGPFile.hh"
 
