@@ -740,7 +740,9 @@ void XrdSsiTaskReal::XeqEvFin()
 //
    if (tStat == isDead)
       {if (sessP != &voidSession)
-          {if (mhPend || defer) {DEBUG("Defering TaskFinished.");}
+          {if (mhPend || defer) {DEBUG("Defering TaskFinished.");
+                                 sessP->UnLock();
+                                }
               else {DEBUG("Calling TaskFinished");
                     sessP->UnLock();
                     sessP->TaskFinished(this);
