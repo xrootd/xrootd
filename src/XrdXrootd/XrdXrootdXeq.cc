@@ -4460,7 +4460,8 @@ int XrdXrootdProtocol::rpCheck(char *fn, char **opaque)
 
    while ((cp = index(fn, '/')))
          {fn = cp+1;
-          if (fn[0] == '.' && fn[1] == '.' && fn[2] == '/') return 1;
+          if (fn[0] == '.' && fn[1] == '.' && (fn[2] == '/' || fn[2] == '\0'))
+             return 1;
          }
    return 0;
 }
