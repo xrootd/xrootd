@@ -109,7 +109,7 @@ extern int optind, optopt;
 
 namespace
 {
-bool listMan = true, listSrv = true, doVerify = false, doHush = false;
+bool listMan = true, listSrv = true, doVerify = false, doHush = false, doJson  = false;
 
 clMap    *clLost = 0;
 
@@ -423,6 +423,79 @@ void PrintMap(clMap *clmP, int lvl)
 };
 
 /******************************************************************************/
+/*                            P r i n t J s o n                               */
+/******************************************************************************/
+
+namespace
+{
+void PrintJsonSrv(clMap *clnow)
+{
+   const char *st;
+
+   printf("{\"name\":\"%s\"", clnow->name);
+   if (*clnow->state)
+      {st = clnow->state; while (*st == ' ') st++;
+       printf(",\"state\":\"%s\"", st);
+      }
+   if (clnow->hasfile != ' ')
+      printf(",\"hasFile\":%s", clnow->hasfile == '>' ? "true" : "false");
+   if (clnow->verfile != ' ' && clnow->verfile != '?')
+      printf(",\"verified\":%s", clnow->verfile == '+' ? "true" : "false");
+   putchar('}');
+}
+
+void PrintJson(clMap *clmP)
+{
+   clMap *clnow;
+   const char *st;
+
+   printf("{\"name\":\"%s\",\"type\":\"manager\"", clmP->name);
+
+   if (*clmP->state)
+      {st = clmP->state; while (*st == ' ') st++;
+       printf(",\"state\":\"%s\"", st);
+      }
+   if (clmP->hasfile != ' ')
+      printf(",\"hasFile\":%s", clmP->hasfile == '>' ? "true" : "false");
+   if (clmP->verfile != ' ' && clmP->verfile != '?')
+      printf(",\"verified\":%s", clmP->verfile == '+' ? "true" : "false");
+
+   if (clmP->nextSrv && listSrv)
+      {printf(",\"servers\":[");
+       clnow = clmP->nextSrv;
+       while(clnow)
+            {PrintJsonSrv(clnow);
+             clnow = clnow->nextSrv;
+             if (clnow) putchar(',');
+            }
+       putchar(']');
+      }
+
+   if (clmP->nextMan && listMan)
+      {printf(",\"managers\":[");
+       clnow = clmP->nextMan;
+       while(clnow)
+            {if (clnow->valid && clnow->nextLvl)
+                PrintJson(clnow->nextLvl);
+             else
+                {printf("{\"name\":\"%s\",\"type\":\"manager\"", clnow->name);
+                 if (*clnow->state)
+                    {st = clnow->state; while (*st == ' ') st++;
+                     printf(",\"state\":\"%s\"", st);
+                    }
+                 putchar('}');
+                }
+             clnow = clnow->nextMan;
+             if (clnow) putchar(',');
+            }
+       putchar(']');
+      }
+
+   putchar('}');
+}
+};
+
+/******************************************************************************/
 /*                                S e t E n v                                 */
 /******************************************************************************/
 
@@ -452,9 +525,11 @@ void Usage(const char *emsg)
 {
    if (emsg) EMSG(emsg);
    std::cerr <<"Usage: xrdmapc [<opt>] <host>:<port> [<path>]\n"
-        <<"<opt>: [--help] [--list {all|m|s}] [--quiet] [--refresh] [--verify]" <<std::endl;
+        <<"<opt>: [--help] [--format {text|json}] [--list {all|m|s}] [--quiet] [--refresh] [--verify]" <<std::endl;
    if (!emsg)
       {std::cerr <<
+"--format  | -f 'text' prints human-readable output (default), 'json' prints\n"
+"               a JSON representation of the cluster topology.\n"
 "--list    | -l 'all' lists managers and servers (default), 'm' lists only\n"
 "               managers and 's' lists only servers.\n"
 "--quiet   | -q does not print error messages to std::cerr; errors appear inline.\n"
@@ -474,9 +549,10 @@ void Usage(const char *emsg)
   
 int main(int argc, char *argv[])
 {
-   const char   *opLetters = ":hl:rv";
+   const char   *opLetters = ":f:hl:rv";
    struct option opVec[] =         // For getopt_long()
      {
+      {OPT_TYPE "format",    1, 0, (int)'f'},
       {OPT_TYPE "help",      0, 0, (int)'h'},
       {OPT_TYPE "list",      1, 0, (int)'l'},
       {OPT_TYPE "quiet",     0, 0, (int)'q'},
@@ -499,7 +575,13 @@ int main(int argc, char *argv[])
    optind = 1;
    while((opC = getopt_long(argc, argv, opLetters, opVec, &i)) != (char)-1)
         switch(opC)
-              {case 'h': Usage(0);
+              {case 'f':      if (!strcmp("json",optarg))
+                                 doJson = true;
+                         else if (!strcmp("text",optarg))
+                                 doJson = false;
+                         else Usage("Invalid format argument.");
+                         break;
+               case 'h': Usage(0);
                          break;
                case 'l':      if (!strcmp("all",optarg))
                                  {listMan = true;  listSrv = true;}
@@ -565,10 +647,16 @@ int main(int argc, char *argv[])
        eMsg = (doVerify ? "0*rv* " : "0*r** ");
       } else eMsg = "0**** ";
 
-// Print the first line
+// Print the output in the selected format
 //
-   std::cout <<eMsg <<baseNode->name <<baseNode->state <<std::endl;
-   PrintMap(baseNode, 1);
+   if (doJson)
+      {PrintJson(baseNode);
+       putchar('\n');
+      }
+   else
+      {std::cout <<eMsg <<baseNode->name <<baseNode->state <<std::endl;
+       PrintMap(baseNode, 1);
+      }
 
 // Check if we have any phantom nodes
 //
