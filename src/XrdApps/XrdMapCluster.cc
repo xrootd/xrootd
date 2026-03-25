@@ -475,8 +475,10 @@ void PrintJson(clMap *clmP)
       {printf(",\"managers\":[");
        clnow = clmP->nextMan;
        while(clnow)
-            {if (clnow->valid && clnow->nextLvl)
-                PrintJson(clnow->nextLvl);
+            {if (clnow->nextLvl)
+                {if (*clnow->state) clnow->nextLvl->state = clnow->state;
+                 PrintJson(clnow->nextLvl);
+                }
              else
                 {printf("{\"name\":\"%s\",\"type\":\"manager\"", clnow->name);
                  if (*clnow->state)
@@ -575,8 +577,10 @@ int main(int argc, char *argv[])
    optind = 1;
    while((opC = getopt_long(argc, argv, opLetters, opVec, &i)) != (char)-1)
         switch(opC)
+      // We implicity silence the errors for the json output since we store
+      // the error state for the site in the state field of the json output
               {case 'f':      if (!strcmp("json",optarg))
-                                 doJson = true;
+                                 {doJson = true; doHush = true;}
                          else if (!strcmp("text",optarg))
                                  doJson = false;
                          else Usage("Invalid format argument.");
