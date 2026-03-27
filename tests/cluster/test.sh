@@ -11,6 +11,7 @@ fi
 : ${CRC32C:=$(command -v xrdcrc32c)}
 : ${XRDCP:=$(command -v xrdcp)}
 : ${XRDFS:=$(command -v xrdfs)}
+: ${XRDMAPC:=$(command -v xrdmapc)}
 : ${OPENSSL:=$(command -v openssl)}
 : ${CURL:=$(command -v curl)}
 : ${HOST_METAMAN:=root://localhost:10940}
@@ -30,7 +31,7 @@ fi
 : ${HOST_HTTP_SRV4:=${HOST_SRV4/root/http}}
 
 # checking for command presence
-for PROG in ${ADLER32} ${CRC32C} ${XRDCP} ${XRDFS} ${OPENSSL} ${CURL}; do
+for PROG in ${ADLER32} ${CRC32C} ${XRDCP} ${XRDFS} ${XRDMAPC} ${OPENSSL} ${CURL}; do
        if [[ ! -x "${PROG}" ]]; then
                echo 1>&2 "$(basename $0): error: '${PROG}': command not found"
                exit 1
@@ -87,6 +88,22 @@ hosts_http["srv2"]="${HOST_HTTP_SRV2}"
 hosts_http["srv3"]="${HOST_HTTP_SRV3}"
 hosts_http["srv4"]="${HOST_HTTP_SRV4}"
 
+assert_xrdmapc_json() {
+       expected_json='{"name":"localhost:10940","type":"manager","managers":[{"name":"localhost:10941","type":"manager","servers":[{"name":"localhost:10943"},{"name":"localhost:10944"}]},{"name":"localhost:10942","type":"manager","servers":[{"name":"localhost:10945"},{"name":"localhost:10946"}]}]}'
+       actual_json="$(${XRDMAPC} --format json localhost:10940)"
+
+       if [[ "${actual_json}" != "${expected_json}" ]]; then
+               echo 1>&2 "$(basename $0): error: xrdmapc JSON output does not match expected topology"
+               echo "Expected: ${expected_json}"
+               echo "Actual:   ${actual_json}"
+               exit 1
+       fi
+
+       # Print cluster topology in string format
+       ${XRDMAPC} localhost:10940
+
+}
+
 cleanup() {
        echo "Error occurred. Cleaning up..."
        for host in "${!hosts[@]}"; do
@@ -95,6 +112,8 @@ cleanup() {
        done
 }
 trap "cleanup; exit 1" ABRT
+
+assert_xrdmapc_json
 
 # create local files with random contents using OpenSSL
 
