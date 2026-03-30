@@ -534,6 +534,7 @@ fi
 %{_libdir}/libXrdSecgsiAUTHZVO-5.so
 %{_libdir}/libXrdSecgsiGMAPDN-5.so
 %{_libdir}/libXrdSeckrb5-5.so
+%{_libdir}/libXrdSecoidc-5.so
 %{_libdir}/libXrdSecpwd-5.so
 %{_libdir}/libXrdSecsss-5.so
 %{_libdir}/libXrdSecunix-5.so
