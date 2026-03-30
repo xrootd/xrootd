@@ -1,0 +1,484 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  xrdsso create [tokenfile] [CERN|CERNOIDC|GOOGLE] [--provider CERN|CERNOIDC|GOOGLE] [--flow device|pkce] [--client-id ID] [--client-secret SECRET] [--scope SCOPE] [--auth-ep URL] [--device-ep URL] [--token-ep URL]
+  xrdsso show   [tokenfile]
+
+Defaults:
+  provider  : CERN
+  CERN:
+    client-id : public-client
+    device-ep : https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device
+    token-ep  : https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token
+  CERNOIDC:
+    client-id : public-client
+    flow      : device
+    scope     : openid profile email
+    device-ep : https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device
+    token-ep  : https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token
+    stored token : id_token (required; command fails if missing)
+  GOOGLE:
+    flow      : device (default)
+    auth-ep   : https://accounts.google.com/o/oauth2/v2/auth
+    device-ep : https://oauth2.googleapis.com/device/code
+    token-ep  : https://oauth2.googleapis.com/token
+    scope     : openid email profile
+    client-id : must be provided (e.g. --client-id <google-oauth-client-id>)
+    client-secret : required for many Google OAuth client types
+  tokenfile : ${XDG_RUNTIME_DIR}/bt_u<uid> (fallback: /tmp/bt_u<uid>)
+EOF
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "error: missing required command '$1'" >&2
+    exit 1
+  }
+}
+
+default_tokenfile() {
+  local uid runtime
+  uid="$(id -u)"
+  runtime="${XDG_RUNTIME_DIR:-}"
+  if [[ -n "${runtime}" ]]; then
+    printf '%s/bt_u%s\n' "${runtime}" "${uid}"
+  else
+    printf '/tmp/bt_u%s\n' "${uid}"
+  fi
+}
+
+b64url_no_pad() {
+  tr -d '\n' | tr '+/' '-_' | tr -d '='
+}
+
+pick_free_port() {
+  python3 - <<'PY'
+import socket
+s = socket.socket()
+s.bind(("127.0.0.1", 0))
+print(s.getsockname()[1])
+s.close()
+PY
+}
+
+create_token() {
+  local tokenfile provider
+  tokenfile="$(default_tokenfile)"
+  provider="CERN"
+
+  # Optional positional args:
+  #   1) tokenfile
+  #   2) provider (CERN|CERNOIDC|GOOGLE)
+  if (($# > 0)) && [[ "${1:-}" != --* ]]; then
+    local p1="${1^^}"
+    if [[ "${p1}" == "CERN" || "${p1}" == "CERNOIDC" || "${p1}" == "GOOGLE" ]]; then
+      provider="${p1}"
+      shift
+    else
+      tokenfile="$1"
+      shift
+      if (($# > 0)) && [[ "${1:-}" != --* ]]; then
+        local p2="${1^^}"
+        if [[ "${p2}" == "CERN" || "${p2}" == "CERNOIDC" || "${p2}" == "GOOGLE" ]]; then
+          provider="${p2}"
+          shift
+        fi
+      fi
+    fi
+  fi
+
+  local client_id=""
+  local client_secret=""
+  local flow=""
+  local scope=""
+  local auth_ep=""
+  local device_ep=""
+  local token_ep=""
+
+  case "${provider}" in
+    CERN)
+      client_id="public-client"
+      flow="device"
+      device_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device"
+      token_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token"
+      ;;
+    CERNOIDC)
+      client_id="public-client"
+      flow="device"
+      scope="openid profile email"
+      device_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device"
+      token_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token"
+      ;;
+    GOOGLE)
+      flow="device"
+      auth_ep="https://accounts.google.com/o/oauth2/v2/auth"
+      device_ep="https://oauth2.googleapis.com/device/code"
+      token_ep="https://oauth2.googleapis.com/token"
+      scope="openid email profile"
+      ;;
+    *)
+      echo "error: unsupported provider '${provider}' (expected CERN, CERNOIDC, or GOOGLE)" >&2
+      exit 1
+      ;;
+  esac
+
+  while (($#)); do
+    case "$1" in
+      --provider)
+        provider="${2^^}"
+        shift 2
+        case "${provider}" in
+          CERN)
+            client_id="public-client"
+            flow="device"
+            auth_ep=""
+            scope=""
+            device_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device"
+            token_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token"
+            ;;
+          CERNOIDC)
+            client_id="public-client"
+            flow="device"
+            auth_ep=""
+            scope="openid profile email"
+            device_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device"
+            token_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token"
+            ;;
+          GOOGLE)
+            client_id=""
+            flow="device"
+            auth_ep="https://accounts.google.com/o/oauth2/v2/auth"
+            device_ep="https://oauth2.googleapis.com/device/code"
+            token_ep="https://oauth2.googleapis.com/token"
+            scope="openid email profile"
+            ;;
+          *)
+            echo "error: unsupported provider '${provider}' (expected CERN, CERNOIDC, or GOOGLE)" >&2
+            exit 1
+            ;;
+        esac
+        ;;
+      --flow)
+        flow="${2,,}"; shift 2 ;;
+      --client-id)
+        client_id="${2:-}"; shift 2 ;;
+      --client-secret)
+        client_secret="${2:-}"; shift 2 ;;
+      --scope)
+        scope="${2:-}"; shift 2 ;;
+      --auth-ep)
+        auth_ep="${2:-}"; shift 2 ;;
+      --device-ep)
+        device_ep="${2:-}"; shift 2 ;;
+      --token-ep)
+        token_ep="${2:-}"; shift 2 ;;
+      *)
+        echo "error: unknown option '$1'" >&2
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
+  need_cmd curl
+  need_cmd jq
+
+  if [[ "${provider}" == "GOOGLE" ]]; then
+    if [[ -z "${client_id}" ]]; then
+      client_id="${GOOGLE_OAUTH_CLIENT_ID:-${OIDC_CLIENT_ID:-}}"
+    fi
+    if [[ -z "${client_secret}" ]]; then
+      client_secret="${GOOGLE_OAUTH_CLIENT_SECRET:-${OIDC_CLIENT_SECRET:-}}"
+    fi
+    if [[ -z "${client_id}" ]]; then
+      echo "error: GOOGLE provider requires --client-id (or GOOGLE_OAUTH_CLIENT_ID)" >&2
+      exit 1
+    fi
+  fi
+  if [[ ("${provider}" == "CERN" || "${provider}" == "CERNOIDC") && "${flow}" != "device" ]]; then
+    echo "error: ${provider} provider currently supports only --flow device" >&2
+    exit 1
+  fi
+
+  local token_resp access_token id_token chosen_token expires_in err
+  if [[ "${provider}" == "GOOGLE" && "${flow}" == "pkce" ]]; then
+    need_cmd openssl
+    need_cmd python3
+    if [[ -z "${auth_ep}" ]]; then
+      echo "error: GOOGLE pkce flow requires --auth-ep" >&2
+      exit 1
+    fi
+
+    local code_verifier code_challenge state port redirect_uri auth_url
+    code_verifier="$(openssl rand -base64 96 | b64url_no_pad | cut -c1-96)"
+    code_challenge="$(printf '%s' "${code_verifier}" | openssl dgst -binary -sha256 | openssl base64 -A | b64url_no_pad)"
+    state="$(openssl rand -hex 16)"
+    port="$(pick_free_port)"
+    redirect_uri="http://127.0.0.1:${port}/callback"
+
+    auth_url="$(python3 - "${auth_ep}" "${client_id}" "${redirect_uri}" "${scope}" "${code_challenge}" "${state}" <<'PY'
+import sys, urllib.parse
+base, client_id, redirect_uri, scope, challenge, state = sys.argv[1:]
+q = {
+  "client_id": client_id,
+  "redirect_uri": redirect_uri,
+  "response_type": "code",
+  "scope": scope,
+  "code_challenge": challenge,
+  "code_challenge_method": "S256",
+  "state": state,
+  "access_type": "offline",
+  "prompt": "consent",
+}
+print(base + "?" + urllib.parse.urlencode(q))
+PY
+)"
+
+    local cb_out cb_err
+    cb_out="$(mktemp)"
+    cb_err="$(mktemp)"
+    python3 - "${port}" "${state}" >"${cb_out}" 2>"${cb_err}" <<'PY' &
+import sys, urllib.parse, signal
+from http.server import HTTPServer, BaseHTTPRequestHandler
+port = int(sys.argv[1]); expected_state = sys.argv[2]
+signal.alarm(300)
+result = {"code":"", "error":""}
+class H(BaseHTTPRequestHandler):
+  def do_GET(self):
+    q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+    state = q.get("state", [""])[0]
+    code = q.get("code", [""])[0]
+    err = q.get("error", [""])[0]
+    if err:
+      result["error"] = "oauth_error:" + err
+    elif expected_state and state != expected_state:
+      result["error"] = "state_mismatch"
+    elif not code:
+      result["error"] = "missing_code"
+    else:
+      result["code"] = code
+    self.send_response(200); self.send_header("Content-Type", "text/plain; charset=utf-8"); self.end_headers()
+    self.wfile.write(b"Authentication completed. You can close this tab.\n")
+  def log_message(self, *args): pass
+srv = HTTPServer(("127.0.0.1", port), H)
+srv.handle_request()
+print(result["code"])
+if result["error"]:
+  print(result["error"], file=sys.stderr)
+PY
+    local cb_pid=$!
+
+    echo "Open this URL in your browser and sign in:"
+    echo "${auth_url}"
+    if command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "${auth_url}" >/dev/null 2>&1 || true
+    elif command -v open >/dev/null 2>&1; then
+      open "${auth_url}" >/dev/null 2>&1 || true
+    fi
+    wait "${cb_pid}" || true
+    local auth_code
+    auth_code="$(tr -d '\r\n' < "${cb_out}")"
+    if [[ -z "${auth_code}" ]]; then
+      echo "Token request failed:" >&2
+      if [[ -s "${cb_err}" ]]; then
+        cat "${cb_err}" >&2
+      else
+        echo "did not receive OAuth callback code" >&2
+      fi
+      rm -f "${cb_out}" "${cb_err}"
+      exit 1
+    fi
+    rm -f "${cb_out}" "${cb_err}"
+
+    local -a token_req=(
+      curl -sS
+      -H 'Content-Type: application/x-www-form-urlencoded'
+      --data-urlencode 'grant_type=authorization_code'
+      --data-urlencode "code=${auth_code}"
+      --data-urlencode "client_id=${client_id}"
+      --data-urlencode "redirect_uri=${redirect_uri}"
+      --data-urlencode "code_verifier=${code_verifier}"
+    )
+    if [[ -n "${client_secret}" ]]; then
+      token_req+=(--data-urlencode "client_secret=${client_secret}")
+    fi
+    token_req+=("${token_ep}")
+    token_resp="$("${token_req[@]}")"
+  else
+    local resp
+    local -a device_req=(
+      curl -sS
+      -H 'Content-Type: application/x-www-form-urlencoded'
+      --data-urlencode "client_id=${client_id}"
+    )
+    if [[ -n "${scope}" ]]; then
+      device_req+=(--data-urlencode "scope=${scope}")
+    fi
+    device_req+=("${device_ep}")
+    resp="$("${device_req[@]}")"
+
+    local device_code verify_url verify_base_url user_code interval
+    device_code=$(printf '%s' "${resp}" | jq -r '.device_code // empty')
+    verify_url=$(printf '%s' "${resp}" | jq -r '.verification_uri_complete // empty')
+    verify_base_url=$(printf '%s' "${resp}" | jq -r '.verification_uri // .verification_url // empty')
+    user_code=$(printf '%s' "${resp}" | jq -r '.user_code // empty')
+    interval=$(printf '%s' "${resp}" | jq -r '.interval // 5')
+
+    if [[ -z "${verify_url}" && -n "${verify_base_url}" ]]; then
+      if [[ -n "${user_code}" ]]; then
+        if [[ "${verify_base_url}" == *\?* ]]; then
+          verify_url="${verify_base_url}&user_code=${user_code}"
+        else
+          verify_url="${verify_base_url}?user_code=${user_code}"
+        fi
+      else
+        verify_url="${verify_base_url}"
+      fi
+    fi
+
+    if [[ -z "${device_code}" || -z "${verify_url}" ]]; then
+      echo "error: failed to obtain device code" >&2
+      printf '%s\n' "${resp}" >&2
+      exit 1
+    fi
+
+    echo "Open this URL in your browser and sign in:"
+    echo "${verify_url}"
+    if [[ -n "${user_code}" ]]; then
+      echo "If prompted, enter device code: ${user_code}"
+    fi
+
+    while :; do
+      local -a token_req=(
+        curl -sS
+        -H 'Content-Type: application/x-www-form-urlencoded'
+        --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:device_code'
+        --data-urlencode "device_code=${device_code}"
+        --data-urlencode "client_id=${client_id}"
+      )
+      if [[ -n "${client_secret}" ]]; then
+        token_req+=(--data-urlencode "client_secret=${client_secret}")
+      fi
+      token_req+=("${token_ep}")
+      token_resp="$("${token_req[@]}")"
+
+      access_token=$(printf '%s' "${token_resp}" | jq -r '.access_token // empty')
+      id_token=$(printf '%s' "${token_resp}" | jq -r '.id_token // empty')
+      err=$(printf '%s' "${token_resp}" | jq -r '.error // empty')
+      expires_in=$(printf '%s' "${token_resp}" | jq -r '.expires_in // empty')
+      if [[ "${provider}" == "CERNOIDC" ]]; then
+        chosen_token="${id_token}"
+      else
+        chosen_token="${access_token}"
+        if [[ "${provider}" == "GOOGLE" && -n "${id_token}" ]]; then
+          chosen_token="${id_token}"
+        fi
+      fi
+      if [[ -n "${chosen_token}" ]]; then
+        break
+      fi
+      if [[ "${err}" == "authorization_pending" ]]; then
+        sleep "${interval}"
+        continue
+      fi
+      if [[ "${err}" == "slow_down" ]]; then
+        interval=$((interval + 5))
+        sleep "${interval}"
+        continue
+      fi
+      echo "Token request failed:" >&2
+      printf '%s\n' "${token_resp}" >&2
+      exit 1
+    done
+  fi
+
+  access_token=$(printf '%s' "${token_resp}" | jq -r '.access_token // empty')
+  id_token=$(printf '%s' "${token_resp}" | jq -r '.id_token // empty')
+  err=$(printf '%s' "${token_resp}" | jq -r '.error // empty')
+  expires_in=$(printf '%s' "${token_resp}" | jq -r '.expires_in // empty')
+  if [[ "${provider}" == "CERNOIDC" ]]; then
+    chosen_token="${id_token}"
+  else
+    chosen_token="${access_token}"
+    if [[ "${provider}" == "GOOGLE" && -n "${id_token}" ]]; then
+      chosen_token="${id_token}"
+    fi
+  fi
+
+  if [[ -z "${chosen_token}" ]]; then
+    if [[ "${provider}" == "CERNOIDC" ]]; then
+      echo "Token request failed: CERNOIDC requires id_token in token response" >&2
+    else
+      echo "Token request failed:" >&2
+    fi
+    printf '%s\n' "${token_resp}" >&2
+    exit 1
+  fi
+
+  local prev_umask
+  prev_umask="$(umask)"
+  umask 077
+  printf '%s\n' "${chosen_token}" > "${tokenfile}"
+  umask "${prev_umask}"
+  chmod 600 "${tokenfile}"
+  echo "Token saved to ${tokenfile}"
+  if [[ "${provider}" == "GOOGLE" ]]; then
+    if [[ -n "${id_token}" ]]; then
+      echo "Stored token type: id_token (JWT)"
+    else
+      echo "Stored token type: access_token (non-JWT possible)"
+    fi
+  fi
+  if [[ "${provider}" == "CERNOIDC" ]]; then
+    echo "Stored token type: id_token (JWT)"
+  fi
+  if [[ -n "${expires_in}" ]]; then
+    echo "Access token lifetime (expires_in): ${expires_in}s"
+  fi
+}
+
+show_token() {
+  local tokenfile
+  if (($# > 0)) && [[ "${1:-}" != --* ]]; then
+    tokenfile="$1"
+  else
+    tokenfile="$(default_tokenfile)"
+  fi
+  need_cmd python3
+  python3 "$(dirname "$0")/xrdsso_show.py" "${tokenfile}"
+}
+
+main() {
+  if (($# < 1)); then
+    usage
+    exit 1
+  fi
+
+  local cmd="$1"
+  shift
+
+  case "${cmd}" in
+    CERN|CERNOIDC|GOOGLE)
+      create_token "${cmd}" "$@" ;;
+    create) create_token "$@" ;;
+    show)
+      if (($# > 1)); then
+        echo "error: too many arguments for 'show'" >&2
+        usage
+        exit 1
+      fi
+      show_token "$@"
+      ;;
+    -h|--help|help) usage ;;
+    *)
+      echo "error: unknown command '${cmd}'" >&2
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

@@ -166,6 +166,7 @@ In this case, the structure is a bit different than before::
   |   |-- libXrdSecgsiAUTHZVO-5.so
   |   |-- libXrdSecgsiGMAPDN-5.so
   |   |-- libXrdSeckrb5-5.so
+  |   |-- libXrdSecoidc-5.so
   |   |-- libXrdSecpwd-5.so
   |   |-- libXrdSecsss-5.so
   |   |-- libXrdSecunix-5.so
