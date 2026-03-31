@@ -4,7 +4,8 @@ add_executable(xrdcl-unit-tests
   XrdClPoller.cc
   XrdClSocket.cc
   XrdClUtilsTest.cc
-  )
+  XrdSecSSH.cc
+)
 
 target_link_libraries(xrdcl-unit-tests
   XrdTestUtils GTest::GTest GTest::Main)
