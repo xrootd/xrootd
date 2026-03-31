@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <openssl/core_names.h>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -99,8 +98,9 @@ KeyMaterial MakeKeyAndJWKS()
 
   BIGNUM *n = nullptr;
   BIGNUM *e = nullptr;
-  if (EVP_PKEY_get_bn_param(km.pkey, OSSL_PKEY_PARAM_RSA_N, &n) != 1 ||
-      EVP_PKEY_get_bn_param(km.pkey, OSSL_PKEY_PARAM_RSA_E, &e) != 1) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (EVP_PKEY_get_bn_param(km.pkey, "n", &n) != 1 ||
+      EVP_PKEY_get_bn_param(km.pkey, "e", &e) != 1) {
     ADD_FAILURE() << "failed to extract RSA n/e";
     if (n) BN_free(n);
     if (e) BN_free(e);
@@ -108,6 +108,36 @@ KeyMaterial MakeKeyAndJWKS()
     km.pkey = nullptr;
     return km;
   }
+#else
+  RSA *rsa = EVP_PKEY_get1_RSA(km.pkey);
+  if (!rsa) {
+    ADD_FAILURE() << "failed to extract RSA key";
+    EVP_PKEY_free(km.pkey);
+    km.pkey = nullptr;
+    return km;
+  }
+  const BIGNUM *nRef = nullptr;
+  const BIGNUM *eRef = nullptr;
+  RSA_get0_key(rsa, &nRef, &eRef, nullptr);
+  if (!nRef || !eRef) {
+    ADD_FAILURE() << "failed to extract RSA n/e";
+    RSA_free(rsa);
+    EVP_PKEY_free(km.pkey);
+    km.pkey = nullptr;
+    return km;
+  }
+  n = BN_dup(nRef);
+  e = BN_dup(eRef);
+  RSA_free(rsa);
+  if (!n || !e) {
+    ADD_FAILURE() << "failed to duplicate RSA n/e";
+    if (n) BN_free(n);
+    if (e) BN_free(e);
+    EVP_PKEY_free(km.pkey);
+    km.pkey = nullptr;
+    return km;
+  }
+#endif
   std::string n64 = BigNumToBase64URL(n);
   std::string e64 = BigNumToBase64URL(e);
   km.jwks = "{\"keys\":[{\"kty\":\"RSA\",\"kid\":\"k1\",\"n\":\"" + n64 +

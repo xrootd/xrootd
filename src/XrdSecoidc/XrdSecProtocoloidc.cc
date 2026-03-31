@@ -33,7 +33,6 @@
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#include <openssl/core_names.h>
 #include <openssl/param_build.h>
 #include <openssl/params.h>
 #endif
@@ -733,8 +732,8 @@ EVP_PKEY *makeRSAPublicKey(const std::string &modulus,
                    exponent.size(), 0);
    bld = OSSL_PARAM_BLD_new();
    if (!bnN || !bnE || !bld) goto done;
-   if (OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, bnN) <= 0
-   ||  OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, bnE) <= 0)
+   if (OSSL_PARAM_BLD_push_BN(bld, "n", bnN) <= 0
+   ||  OSSL_PARAM_BLD_push_BN(bld, "e", bnE) <= 0)
       goto done;
    params = OSSL_PARAM_BLD_to_param(bld);
    if (!params) goto done;
