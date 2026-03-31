@@ -30,10 +30,13 @@
 
 #include <curl/curl.h>
 #include <openssl/bn.h>
-#include <openssl/core_names.h>
 #include <openssl/evp.h>
+#include <openssl/rsa.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
 #include <openssl/param_build.h>
 #include <openssl/params.h>
+#endif
 
 #include <fcntl.h>
 #include <sys/param.h>
@@ -716,6 +719,7 @@ bool verifyRS256(EVP_PKEY *pkey, const std::string &signedData,
 EVP_PKEY *makeRSAPublicKey(const std::string &modulus,
                            const std::string &exponent)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
    BIGNUM *bnN = 0;
    BIGNUM *bnE = 0;
    OSSL_PARAM_BLD *bld = 0;
@@ -745,6 +749,41 @@ done:
    OSSL_PARAM_BLD_free(bld);
    EVP_PKEY_CTX_free(ctx);
    return pkey;
+#else
+   BIGNUM *bnN = 0;
+   BIGNUM *bnE = 0;
+   RSA *rsa = 0;
+   EVP_PKEY *pkey = 0;
+
+   bnN = BN_bin2bn(reinterpret_cast<const unsigned char *>(modulus.data()),
+                   modulus.size(), 0);
+   bnE = BN_bin2bn(reinterpret_cast<const unsigned char *>(exponent.data()),
+                   exponent.size(), 0);
+   if (!bnN || !bnE) goto done;
+
+   rsa = RSA_new();
+   if (!rsa) goto done;
+   if (RSA_set0_key(rsa, bnN, bnE, 0) != 1) goto done;
+   // Ownership transferred to rsa by RSA_set0_key().
+   bnN = 0;
+   bnE = 0;
+
+   pkey = EVP_PKEY_new();
+   if (!pkey) goto done;
+   if (EVP_PKEY_assign_RSA(pkey, rsa) != 1)
+      {EVP_PKEY_free(pkey);
+       pkey = 0;
+       goto done;
+      }
+   // Ownership transferred to pkey by EVP_PKEY_assign_RSA().
+   rsa = 0;
+
+done:
+   BN_free(bnN);
+   BN_free(bnE);
+   RSA_free(rsa);
+   return pkey;
+#endif
 }
 
 bool loadJWKS(const std::string &json, std::map<std::string, EVP_PKEY *> &keys,
