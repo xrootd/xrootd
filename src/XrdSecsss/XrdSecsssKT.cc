@@ -351,14 +351,18 @@ int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
    if (retc) return (retc < 0 ? -retc : retc);
    if (Slash) *Slash = '/';
 
-// Construct temporary filename
+// Construct temporary filename with random suffix to resist symlink races.
+// O_EXCL ensures the open fails if the path already exists.
 //
-   sprintf(buff, ".%d", static_cast<int>(getpid()));
+   {struct timeval tv; gettimeofday(&tv, nullptr);
+    sprintf(buff, ".%08x", static_cast<unsigned>(tv.tv_usec)
+                         ^ static_cast<unsigned>(getpid()));
+   }
    strcat(tmpFN, buff);
 
 // Open the file for output
 //
-   if ((ktFD = open(tmpFN, O_WRONLY|O_CREAT|O_TRUNC, theMode)) < 0)
+   if ((ktFD = open(tmpFN, O_WRONLY|O_CREAT|O_EXCL, theMode)) < 0)
       return errno;
 
 // Write all of the keytable
