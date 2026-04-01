@@ -40,6 +40,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <atomic>
 #include <vector>
 
 #ifndef __FreeBSD__
@@ -112,8 +113,8 @@ inline uint64_t monotonic_time() {
 /*                    G l o b a l   S t a t i c   D a t a                     */
 /******************************************************************************/
   
-int expiry = 1;
-bool tokenlib = true;
+std::atomic<int>  expiry{1};
+std::atomic<bool> tokenlib{true};
 }
 
 /******************************************************************************/
@@ -156,7 +157,7 @@ bool getLinkage(XrdOucErrInfo *erp, const char *piName)
   
 namespace
 {
-int MaxTokSize = 4096;
+std::atomic<int> MaxTokSize{4096};
 
 // Option flags
 //
@@ -204,7 +205,7 @@ public:
         XrdSecProtocolztn(const char *hname, XrdNetAddrInfo &endPoint,
                           XrdSciTokensHelper *sthp)
                          : XrdSecProtocol("ztn"), sthP(sthp), tokName(""),
-                           maxTSize(MaxTokSize), cont(false),
+                           maxTSize(MaxTokSize.load()), cont(false),
                            rtGet(false), verJWT(false)
                          {Entity.host = strdup(hname);
                           Entity.name = strdup("anon");
@@ -718,7 +719,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
    if (!parms || !(*parms))
       {char buff[256];
        if (!getLinkage(erp, accPlugin.c_str())) return 0;
-       snprintf(buff, sizeof(buff), "TLS:%" PRIu64 ":%d:", opts, MaxTokSize);
+       snprintf(buff, sizeof(buff), "TLS:%" PRIu64 ":%d:", opts, MaxTokSize.load());
        return strdup(buff);
       }
 
@@ -742,13 +743,14 @@ char  *XrdSecProtocolztnInit(const char     mode,
                      {Fatal(erp, "-maxsz argument missing", EINVAL);
                       return 0;
                      }
-                  MaxTokSize = strtol(val, &endP, 10);
+                  int maxTokSize = strtol(val, &endP, 10);
                   if (*endP == 'k' || *endP == 'K')
-                     {MaxTokSize *= 1024; endP++;}
-                  if (MaxTokSize <= 0 || MaxTokSize > 524288 || *endP)
+                     {maxTokSize *= 1024; endP++;}
+                  if (maxTokSize <= 0 || maxTokSize > 524288 || *endP)
                      {Fatal(erp, "-maxsz argument is invalid", EINVAL);
                       return 0;
                      }
+                  MaxTokSize.store(maxTokSize);
                  }
          else if (!strcmp(val, "-expiry"))
                  {if (!(val = cfg.GetToken()))
@@ -772,7 +774,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
                      {accPlugin = val;
                      }
                      else
-                     {tokenlib = false;
+                     {tokenlib.store(false);
                      }
                  }
 
@@ -787,12 +789,12 @@ char  *XrdSecProtocolztnInit(const char     mode,
 // get the validation object pointer. This will be filled in later but we
 // want to know that it's actually present.
 //
-   if (tokenlib && !getLinkage(erp, accPlugin.c_str())) return 0;
+   if (tokenlib.load() && !getLinkage(erp, accPlugin.c_str())) return 0;
 
 // Assemble the parameter line and return it
 //
    char buff[256];
-   snprintf(buff, sizeof(buff), "TLS:%" PRIu64 ":%d:", opts, MaxTokSize);
+   snprintf(buff, sizeof(buff), "TLS:%" PRIu64 ":%d:", opts, MaxTokSize.load());
    return strdup(buff);
 }
 }
@@ -830,7 +832,7 @@ XrdSecProtocol *XrdSecProtocolztnObject(const char              mode,
       }
 
    XrdSciTokensHelper *sthP= nullptr;
-   if (tokenlib)
+   if (tokenlib.load())
       {
 // In server mode we need to make sure the token plugin was actually
 // loaded and initialized as we need a pointer to the helper.
