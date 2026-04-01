@@ -1,5 +1,6 @@
 #ifndef __XRDPOSIXEXTERN_H__
 #define __XRDPOSIXEXTERN_H__
+#include "XrdSys/XrdSysStatx.hh"
 /******************************************************************************/
 /*                                                                            */
 /*                     X r d P o s i x E x t e r n . h h                      */
@@ -177,6 +178,9 @@ extern int        XrdPosix_Statfs(const char *path, struct statfs *buf);
 #endif
 
 extern int        XrdPosix_Statvfs(const char *path, struct statvfs *buf);
+
+extern int        XrdPosix_Statx(int dirfd, const char *path, int flags,
+                                 unsigned int mask, XrdSysStatx *stx);
 
 extern ssize_t    XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
 

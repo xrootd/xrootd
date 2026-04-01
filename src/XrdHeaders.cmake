@@ -92,6 +92,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysTimer.hh
   XrdSys/XrdSysXAttr.hh
   XrdSys/XrdSysXSLock.hh
+  XrdSys/XrdSysStatx.hh
   XrdXml/XrdXmlReader.hh
   XrdXrootd/XrdXrootdRedirPI.hh
   XrdXrootd/XrdXrootdMonData.hh

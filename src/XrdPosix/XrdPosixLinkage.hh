@@ -42,6 +42,7 @@
 #include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysStatx.hh"
 
 /******************************************************************************/
 /*                Posix Symbols vs Return Valus and Arguments                 */
@@ -413,6 +414,10 @@
 #define Args_Statvfs64 const char *, struct statvfs64 *
 #endif
 
+#define Symb_Statx   UNIX_PFX "statx"
+#define Retv_Statx   int
+#define Args_Statx   int, const char *, int, unsigned int, XrdSysStatx *
+
 #define Symb_Telldir UNIX_PFX "telldir"
 #define Retv_Telldir long
 #define Args_Telldir DIR *
@@ -508,6 +513,7 @@ class XrdPosixLinkage
       Retv_Statfs64    (*Statfs64)(Args_Statfs64);
       Retv_Statvfs     (*Statvfs)(Args_Statvfs);
       Retv_Statvfs64   (*Statvfs64)(Args_Statvfs64);
+      Retv_Statx       (*Statx)(Args_Statx);
       Retv_Telldir     (*Telldir)(Args_Telldir);
       Retv_Truncate    (*Truncate)(Args_Truncate);
       Retv_Truncate64  (*Truncate64)(Args_Truncate64);

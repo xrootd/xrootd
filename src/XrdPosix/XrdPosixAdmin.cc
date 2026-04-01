@@ -234,12 +234,19 @@ bool XrdPosixAdmin::Stat(struct stat &Stat)
    Stat.st_mtime  = static_cast<time_t>(sInfo->GetModTime());
 
    if (sInfo->ExtendedFormat())
-      {Stat.st_ctime = static_cast<time_t>(sInfo->GetChangeTime());
-       Stat.st_atime = static_cast<time_t>(sInfo->GetAccessTime());
-      } else {
-       Stat.st_ctime = Stat.st_mtime;
-       Stat.st_atime = time(0);
-      }
+   {
+     // Flags2Mode only maps the simplified protocol flags to owner permission
+     // bits (S_IRUSR, S_IWUSR, S_IXUSR). The extended stat response carries
+     // the full POSIX permission mode as an octal string (e.g. "0644").
+     // Replace the permission bits while preserving the file type (S_IFMT).
+     mode_t realPerms = strtol(sInfo->GetModeAsString().c_str(), nullptr, 8);
+     Stat.st_mode = (Stat.st_mode & S_IFMT) | (realPerms & 07777);
+     Stat.st_ctime = static_cast<time_t>(sInfo->GetChangeTime());
+     Stat.st_atime = static_cast<time_t>(sInfo->GetAccessTime());
+   } else {
+     Stat.st_ctime = Stat.st_mtime;
+     Stat.st_atime = time(0);
+   }
 
 // Delete our status information and return final result
 //

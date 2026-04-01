@@ -724,6 +724,21 @@ int        statvfs64(         const char *path, struct statvfs64 *buf)
 }
 
 /******************************************************************************/
+/*                                 s t a t x                                  */
+/******************************************************************************/
+#ifdef HAVE_STATX
+extern "C"
+{
+int statx(int dirfd, const char *path, int flags,
+          unsigned int mask, struct statx *stx)
+{
+   static int Init = Xunix.Init(&Init);
+
+   return XrdPosix_Statx(dirfd, path, flags, mask, stx);
+}
+}
+
+/******************************************************************************/
 /*                               t e l l d i r                                */
 /******************************************************************************/
   
@@ -792,3 +807,5 @@ ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)
    return XrdPosix_Writev(fildes, iov, iovcnt);
 }
 }
+#endif
+

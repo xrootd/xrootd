@@ -42,6 +42,7 @@
 #include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
+#include "XrdSys/XrdSysStatx.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -928,6 +929,21 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
           ? Xunix.Stat64(           path, (struct stat64 *)buf)
 #endif
           : Xroot.Stat(myPath, buf));
+}
+}
+
+extern "C"
+{
+
+int XrdPosix_Statx(int dirfd, const char *path, int flags,
+                   unsigned int mask, XrdSysStatx *stx)
+{
+  struct stat buf;
+  int ret = XrdPosix_Stat(path,&buf);
+   if (!ret) {
+      XrdSysStatxHelpers::Stat2Statx(buf,*stx);
+   }
+   return ret;
 }
 }
   

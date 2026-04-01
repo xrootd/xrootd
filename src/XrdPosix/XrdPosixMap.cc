@@ -95,14 +95,26 @@ int XrdPosixMap::Entry2Buf(const XrdCl::DirectoryList::ListEntry &dirEnt, struct
 
    memset(&buf, '\0', sizeof(buf));
    buf.st_mode   = Flags2Mode(nullptr, statInfo->GetFlags());
-   // Since the UID/GID isn't known by the client, when these are translated by
-   // XrdXrootdProtocol::StatGen back to xroot protocol flags, they will get zero'd
-   // out if only the user access mode is set (e.g., S_IRUSR).  Therefor, upgrade the
-   // access mode in the mapping to "other" as well (e.g., S_ROTH).  This way, the
-   // computed mode is the same for both the origin and the cache
-   if (buf.st_mode & S_IRUSR) buf.st_mode |= S_IROTH;
-   if (buf.st_mode & S_IWUSR) buf.st_mode |= S_IWOTH;
-   if (buf.st_mode & S_IXUSR) buf.st_mode |= S_IXOTH;
+   if (statInfo->ExtendedFormat())
+      {// Flags2Mode only maps the simplified protocol flags to owner permission
+       // bits (S_IRUSR, S_IWUSR, S_IXUSR). The extended stat response carries
+       // the full POSIX permission mode as an octal string (e.g. "0644").
+       // Replace the permission bits while preserving the file type (S_IFMT).
+       mode_t realPerms = strtol(statInfo->GetModeAsString().c_str(), nullptr, 8);
+       buf.st_mode = (buf.st_mode & S_IFMT) | (realPerms & 07777);
+       buf.st_ctime = static_cast<time_t>(statInfo->GetChangeTime());
+       buf.st_atime = static_cast<time_t>(statInfo->GetAccessTime());
+      }
+   else
+      {// Since the UID/GID isn't known by the client, when these are translated by
+       // XrdXrootdProtocol::StatGen back to xroot protocol flags, they will get zero'd
+       // out if only the user access mode is set (e.g., S_IRUSR).  Therefor, upgrade the
+       // access mode in the mapping to "other" as well (e.g., S_ROTH).  This way, the
+       // computed mode is the same for both the origin and the cache
+       if (buf.st_mode & S_IRUSR) buf.st_mode |= S_IROTH;
+       if (buf.st_mode & S_IWUSR) buf.st_mode |= S_IWOTH;
+       if (buf.st_mode & S_IXUSR) buf.st_mode |= S_IXOTH;
+      }
    buf.st_mtime  = static_cast<time_t>(statInfo->GetModTime());
    buf.st_ctime  = buf.st_mtime;
    buf.st_size   = static_cast<size_t>(statInfo->GetSize());
@@ -110,11 +122,6 @@ int XrdPosixMap::Entry2Buf(const XrdCl::DirectoryList::ListEntry &dirEnt, struct
    buf.st_blocks = buf.st_size/512 + buf.st_size%512;
    // If the device is zero'd out, then the listing later is translated to being offline
    buf.st_dev    = 1;
-
-   if (statInfo->ExtendedFormat())
-      {buf.st_ctime = static_cast<time_t>(statInfo->GetChangeTime());
-       buf.st_atime = static_cast<time_t>(statInfo->GetAccessTime());
-      }
 
    return 0;
 }
