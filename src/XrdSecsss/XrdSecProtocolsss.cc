@@ -174,7 +174,8 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    Persona             myID(&decKey);
 
    char *idP = 0, *dP = 0, *eodP = 0, *theIP = 0, *theHost = 0, *atKey = 0, eType = '\0';
-   int idNum = 0, idTLen, idSz, dLen;
+   int idNum = 0, idTLen, idSz, dLen, attrCount = 0;
+   static const int maxAttrCount = 64;
    bool badAttr = false;
 
 // Make sure we have atleast the header plus the data header
@@ -255,6 +256,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
                                                 atKey         = idP; break;
                 case XrdSecsssRR_Data::theAVal:
                      if (!atKey) badAttr = true;
+                     else if (++attrCount > maxAttrCount) badAttr = true;
                         else {Entity.eaAPI->Add(std::string(atKey),
                                          std::string(idP), true);
                               atKey = 0;
