@@ -129,8 +129,7 @@ int XrdSecsssEnt::RR_Data(char *&dP, const char *hostIP, int dataOpts)
 
 // Add in the hostIP if specified and hostname if available
 //
-   n = strlen(hostIP) + 4;
-   if (hostIP) totLen += n;
+   if (hostIP) { n = strlen(hostIP) + 4; totLen += n; }
    totLen += myHostNLen;
 
 // Allocate a buffer
