@@ -324,7 +324,7 @@ void XrdSecsssKT::Refresh()
           {myMutex.Lock(); ktOld = ktList; ktList = ktNew; myMutex.UnLock();
           } else ktOld = ktNew;
        while(ktOld) {ktNext = ktOld->Next; delete ktOld; ktOld = ktNext;}
-       if ((retc == eInfo.getErrInfo()) == 0) return;
+       if ((retc = eInfo.getErrInfo()) == 0) return;
       } else retc = errno;
 
 // Refresh failed
