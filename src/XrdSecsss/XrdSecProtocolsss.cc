@@ -187,9 +187,17 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    if (cred->size > maxLen)
       return Fatal(einfo, "Auth", EINVAL, "Credentials too big.");
 
-// Allocate the buffer from the stack
+// Allocate the decryption buffer on the heap. The RAII guard zeroes and
+// frees it on scope exit so key material does not persist on the stack.
 //
-   rrData = (XrdSecsssRR_Data *)alloca(cred->size);
+   struct ScrubBuf {
+       char *ptr; int sz;
+       ScrubBuf(int n) : ptr(static_cast<char*>(malloc(n))), sz(n) {}
+       ~ScrubBuf() { if (ptr) { memset(ptr, 0, sz); free(ptr); } }
+   } rrDataBuf(cred->size);
+   if (!rrDataBuf.ptr)
+      return Fatal(einfo, "Authenticate", ENOMEM, "Insufficient memory for credentials.");
+   rrData = (XrdSecsssRR_Data *)rrDataBuf.ptr;
 
 // Decode the credentials
 //
@@ -342,6 +350,8 @@ if (!(decKey.Data.Opts & XrdSecsssKT::ktEnt::noIPCK))
 //
    if (idBuff) free(idBuff);
    idBuff = idP = (char *)malloc(idTLen);
+   if (!idBuff)
+      return Fatal(einfo, "Authenticate", ENOMEM, "Insufficient memory for entity data.");
    Entity.host         = urName;
    Entity.name         = setID(myID.name, &idP);
    Entity.vorg         = setID(myID.vorg, &idP);
