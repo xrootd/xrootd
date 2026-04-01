@@ -102,10 +102,17 @@ namespace XrdCl
       if (st.IsOK())
       {
         std::string resp = queryResp->ToString();
-        int b = resp.find("oss.free=", 0);
-        int e = resp.find("&", b);
+        std::string::size_type b = resp.find("oss.free=");
+        if (b == std::string::npos)
+        {
+          if (queryResp) delete queryResp;
+          continue;
+        }
+        b += 9;
+        std::string::size_type e = resp.find("&", b);
+        if (e == std::string::npos) e = resp.size();
         uint64_t s = 0;
-        std::stringstream sstream0( resp.substr(b+9, e-(b+9)) );
+        std::stringstream sstream0( resp.substr(b, e - b) );
         sstream0 >> s;
         if (queryResp) delete queryResp;
         return s;

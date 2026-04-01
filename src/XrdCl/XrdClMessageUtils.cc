@@ -271,9 +271,15 @@ namespace XrdCl
         size_t length = req->header.dlen;
         if( req->header.requestid == kXR_mv )
         {
+          bool foundSep = false;
           for( int i = 0; i < req->header.dlen; ++i, ++path, --length )
             if( *path == ' ' )
+            {
+              foundSep = true;
               break;
+            }
+          if( !foundSep || length == 0 )
+            return;
           ++path;
           --length;
         }
@@ -305,9 +311,15 @@ namespace XrdCl
         path = msg->GetBuffer( 24 );
         if( req->header.requestid == kXR_mv )
         {
+          bool foundSep = false;
           for( int i = 0; i < req->header.dlen; ++i, ++path )
             if( *path == ' ' )
+            {
+              foundSep = true;
               break;
+            }
+          if( !foundSep )
+            return;
           ++path;
         }
         memcpy( path, newPathWitParams.c_str(), newPathWitParams.size() );
