@@ -257,6 +257,8 @@ std::vector<std::string> IdentityClaims = {
    "preferred_username", "upn", "username", "name", "sub"
 };
 
+void freeKeys(std::map<std::string, EVP_PKEY *> &keys);
+
 struct IssuerPolicy {
    std::string issuer;
    std::vector<std::string> audiences;
@@ -267,11 +269,23 @@ struct IssuerPolicy {
    std::mutex keysMtx;
    std::map<std::string, EVP_PKEY *> jwksKeys;
    time_t lastJwksLoad = 0;
+
+   ~IssuerPolicy()
+      {
+       std::lock_guard<std::mutex> lock(keysMtx);
+       freeKeys(jwksKeys);
+      }
 };
 
 std::vector<std::shared_ptr<IssuerPolicy>> IssuerPolicies;
 std::unordered_map<std::string, std::shared_ptr<IssuerPolicy>> IssuerPolicyByIssuer;
 std::unordered_map<std::string, std::string> EmailIdentityMap;
+std::mutex ConfigMtx;
+std::string OIDCConfigPath = "/etc/xrootd/oidc.cfg";
+bool OIDCConfigWatch = false;
+bool OIDCConfigStatValid = false;
+ino_t OIDCConfigIno = 0;
+time_t OIDCConfigMTime = 0;
 
 XrdSysLogger OIDCLogger;
 XrdSysError  OIDCLog(0, "secoidc_");
@@ -583,6 +597,259 @@ bool loadOIDCIniAsArgs(const char *path, std::string &opts, bool &found, std::st
        if (toLowerCopy(trimCopy(key)) == "issuer") inIssuer = true;
       }
    return true;
+}
+
+bool refreshJWKSForPolicy(std::shared_ptr<IssuerPolicy> policy, bool force,
+                          std::string &emsg);
+
+bool captureConfigStat(const char *path, ino_t &inoOut, time_t &mtimeOut, std::string &emsg)
+{
+   struct stat st;
+   if (stat(path, &st) != 0)
+      {emsg = std::string("unable to stat ") + path + ": " + strerror(errno);
+       return false;
+      }
+   if (!S_ISREG(st.st_mode))
+      {emsg = std::string(path) + ": config path must be a regular file";
+       return false;
+      }
+   uid_t euid = geteuid();
+   if (st.st_uid != euid)
+      {emsg = std::string(path) + ": config file owner uid "
+            + std::to_string(static_cast<unsigned long long>(st.st_uid))
+            + " does not match process euid "
+            + std::to_string(static_cast<unsigned long long>(euid));
+       return false;
+      }
+   if (st.st_mode & (S_IWGRP | S_IWOTH))
+      {emsg = std::string(path) + ": config file must not be writable by group/other";
+       return false;
+      }
+   inoOut = st.st_ino;
+   mtimeOut = st.st_mtime;
+   return true;
+}
+
+bool splitCSV(const std::string &val, std::vector<std::string> &out)
+{
+   out.clear();
+   size_t pos = 0;
+   while (pos <= val.size())
+      {
+       size_t comma = val.find(',', pos);
+       std::string one = trimCopy(val.substr(pos, comma == std::string::npos ? std::string::npos
+                                                                              : comma - pos));
+       if (!one.empty()) out.push_back(one);
+       if (comma == std::string::npos) break;
+       pos = comma + 1;
+      }
+   return true;
+}
+
+bool parseReloadableIniSections(const char *path,
+                                std::vector<std::shared_ptr<IssuerPolicy>> &outPolicies,
+                                std::unordered_map<std::string, std::shared_ptr<IssuerPolicy>> &outByIssuer,
+                                std::unordered_map<std::string, std::string> &outEmailMap,
+                                std::string &emsg)
+{
+   outPolicies.clear();
+   outByIssuer.clear();
+   outEmailMap.clear();
+
+   std::ifstream in(path);
+   if (!in.is_open())
+      {emsg = std::string("unable to open ") + path + ": " + strerror(errno);
+       return false;
+      }
+
+   bool inIssuer = false;
+   bool inEmailMap = false;
+   std::shared_ptr<IssuerPolicy> curPolicy;
+   std::string line;
+   int lineNo = 0;
+   while (std::getline(in, line))
+      {
+       ++lineNo;
+       std::string t = trimCopy(line);
+       if (t.empty() || t[0] == '#' || t[0] == ';') continue;
+
+       if (t.front() == '[' && t.back() == ']')
+          {
+           inIssuer = false;
+           inEmailMap = false;
+           curPolicy.reset();
+           std::string sec = trimCopy(t.substr(1, t.size() - 2));
+           if (toLowerCopy(sec) == "global") continue;
+           if (toLowerCopy(sec) == "email-map")
+              {inEmailMap = true; continue;}
+           if (startsWithIssuerSection(sec))
+              {
+               std::string iss = trimCopy(sec.substr(6));
+               if (!iss.empty())
+                  iss = trimCopy(stripQuotes(iss));
+               if (iss.empty()) {inIssuer = true; continue;}
+               auto it = outByIssuer.find(iss);
+               if (it != outByIssuer.end()) curPolicy = it->second;
+               else
+                  {
+                   curPolicy = std::make_shared<IssuerPolicy>();
+                   curPolicy->issuer = iss;
+                   outPolicies.push_back(curPolicy);
+                   outByIssuer[iss] = curPolicy;
+                  }
+               inIssuer = true;
+               continue;
+              }
+           emsg = std::string(path) + ":" + std::to_string(lineNo)
+                + ": unsupported section '" + sec + "'";
+           return false;
+          }
+
+       size_t eq = t.find('=');
+       std::string key = toLowerCopy(trimCopy(eq == std::string::npos ? t : t.substr(0, eq)));
+       std::string val = trimCopy(stripQuotes(eq == std::string::npos ? "true" : t.substr(eq + 1)));
+
+       if (inEmailMap)
+          {
+           if (eq == std::string::npos)
+              {emsg = std::string(path) + ":" + std::to_string(lineNo)
+                    + ": email-map entry must be key=value";
+               return false;
+              }
+           std::string email = normalizeEmailKey(stripQuotes(t.substr(0, eq)));
+           std::string uname = trimCopy(stripQuotes(t.substr(eq + 1)));
+           if (email.empty() || uname.empty())
+              {emsg = std::string(path) + ":" + std::to_string(lineNo)
+                    + ": invalid email-map entry";
+               return false;
+              }
+           outEmailMap[email] = uname;
+           continue;
+          }
+
+       if (!inIssuer) continue; // reloadable sections only
+
+       if (key == "issuer")
+          {
+           if (val.empty())
+              {emsg = std::string(path) + ":" + std::to_string(lineNo) + ": issuer value is empty";
+               return false;
+              }
+           auto it = outByIssuer.find(val);
+           if (it != outByIssuer.end()) curPolicy = it->second;
+           else
+              {
+               curPolicy = std::make_shared<IssuerPolicy>();
+               curPolicy->issuer = val;
+               outPolicies.push_back(curPolicy);
+               outByIssuer[val] = curPolicy;
+              }
+           continue;
+          }
+       if (!curPolicy)
+          {
+           emsg = std::string(path) + ":" + std::to_string(lineNo)
+                + ": issuer-scoped key requires issuer to be set";
+           return false;
+          }
+       if (key == "audience")
+          {
+           std::vector<std::string> items;
+           splitCSV(val, items);
+           for (const auto &one : items) curPolicy->audiences.push_back(one);
+           continue;
+          }
+       if (key == "oidc-config-url")
+          {curPolicy->oidcConfigURL = val; continue;}
+       if (key == "jwks-url")
+          {curPolicy->jwksURL = val; continue;}
+       if (key == "forced-identity-claim")
+          {curPolicy->forcedIdentityClaim = val; continue;}
+       // Ignore unsupported/global keys in reload mode by design.
+      }
+
+   return true;
+}
+
+bool validateAndWarmReloadableConfig(std::vector<std::shared_ptr<IssuerPolicy>> &policies,
+                                     std::string &emsg)
+{
+   if (policies.empty())
+      {emsg = "At least one issuer must be configured in reloadable config";
+       return false;
+      }
+   for (auto &policy : policies)
+      {
+       if (policy->oidcConfigURL.empty() && !policy->issuer.empty())
+          policy->oidcConfigURL = joinURL(policy->issuer, "/.well-known/openid-configuration");
+       if (policy->oidcConfigURL.empty() && policy->jwksURL.empty())
+          {emsg = "issuer '" + policy->issuer + "' requires oidc-config-url or jwks-url";
+           return false;
+          }
+       if ((!policy->oidcConfigURL.empty() && !hasPrefix(policy->oidcConfigURL.c_str(), "https://"))
+       ||  (!policy->jwksURL.empty() && !hasPrefix(policy->jwksURL.c_str(), "https://")))
+          {emsg = "issuer '" + policy->issuer + "' has non-https OIDC/JWKS URL";
+           return false;
+          }
+       if (!refreshJWKSForPolicy(policy, true, emsg))
+          {emsg = "issuer '" + policy->issuer + "': " + emsg;
+           return false;
+          }
+      }
+   return true;
+}
+
+void clearTokenCache()
+{
+   std::lock_guard<std::mutex> lock(TokenCacheMtx);
+   TokenCache.clear();
+}
+
+void maybeReloadOIDCFileConfig()
+{
+   std::string cfgPath;
+   {
+      std::lock_guard<std::mutex> lock(ConfigMtx);
+      if (!OIDCConfigWatch || OIDCConfigPath.empty()) return;
+      cfgPath = OIDCConfigPath;
+   }
+   ino_t ino = 0;
+   time_t mtime = 0;
+   std::string emsg;
+   if (!captureConfigStat(cfgPath.c_str(), ino, mtime, emsg))
+      {
+       OIDCLog.Emsg("Auth", "oidc", ("config stat failed: " + emsg).c_str());
+       return;
+      }
+
+   {
+      std::lock_guard<std::mutex> lock(ConfigMtx);
+      if (OIDCConfigStatValid && ino == OIDCConfigIno && mtime == OIDCConfigMTime) return;
+   }
+
+   std::vector<std::shared_ptr<IssuerPolicy>> newPolicies;
+   std::unordered_map<std::string, std::shared_ptr<IssuerPolicy>> newByIssuer;
+   std::unordered_map<std::string, std::string> newEmailMap;
+   if (!parseReloadableIniSections(cfgPath.c_str(), newPolicies, newByIssuer, newEmailMap, emsg))
+      {
+       OIDCLog.Emsg("Auth", "oidc", ("config reload parse failed: " + emsg).c_str());
+       return;
+      }
+   if (!validateAndWarmReloadableConfig(newPolicies, emsg))
+      {
+       OIDCLog.Emsg("Auth", "oidc", ("config reload validation failed: " + emsg).c_str());
+       return;
+      }
+
+   std::lock_guard<std::mutex> lock(ConfigMtx);
+   IssuerPolicies.swap(newPolicies);
+   IssuerPolicyByIssuer.swap(newByIssuer);
+   EmailIdentityMap.swap(newEmailMap);
+   OIDCConfigIno = ino;
+   OIDCConfigMTime = mtime;
+   OIDCConfigStatValid = true;
+   clearTokenCache();
+   OIDCLog.Emsg("Auth", "oidc", ("config reloaded from " + cfgPath).c_str());
 }
 
 // Maximum bytes we will buffer from any single HTTP response (4 MiB).
@@ -1108,6 +1375,7 @@ bool parseAndValidateJWT(const char *rawTok, std::string &payloadJSON,
                          std::string &emsg,
                          std::string *identityMethod = nullptr)
 {
+   maybeReloadOIDCFileConfig();
    payloadJSON.clear();
    headerJSON.clear();
    identity.clear();
@@ -1139,12 +1407,16 @@ bool parseAndValidateJWT(const char *rawTok, std::string &payloadJSON,
    std::string tokIss;
    if (!getStringClaim(payloadJSON, "iss", tokIss))
       {emsg = "token issuer missing"; return false;}
-   auto pIt = IssuerPolicyByIssuer.find(tokIss);
-   if (pIt == IssuerPolicyByIssuer.end())
-      {emsg = "token issuer not configured";
-       return false;
-      }
-   std::shared_ptr<IssuerPolicy> policy = pIt->second;
+   std::shared_ptr<IssuerPolicy> policy;
+   {
+      std::lock_guard<std::mutex> lock(ConfigMtx);
+      auto pIt = IssuerPolicyByIssuer.find(tokIss);
+      if (pIt == IssuerPolicyByIssuer.end())
+         {emsg = "token issuer not configured";
+          return false;
+         }
+      policy = pIt->second;
+   }
 
    if (!audienceMatches(policy, payloadJSON))
       {emsg = "token audience mismatch"; return false;}
@@ -1219,12 +1491,17 @@ bool parseAndValidateJWT(const char *rawTok, std::string &payloadJSON,
           {
            std::string rawEmail = identity;
            std::string emailKey = normalizeEmailKey(rawEmail);
-           auto mIt = EmailIdentityMap.find(emailKey);
-           if (mIt == EmailIdentityMap.end() || mIt->second.empty())
+           std::string mappedUser;
+           {
+              std::lock_guard<std::mutex> lock(ConfigMtx);
+              auto mIt = EmailIdentityMap.find(emailKey);
+              if (mIt != EmailIdentityMap.end()) mappedUser = mIt->second;
+           }
+           if (mappedUser.empty())
               {emsg = "token email is not mapped to a username";
                return false;
               }
-           identity = mIt->second;
+           identity = mappedUser;
            if (identityMethod)
               *identityMethod = "email-map:" + rawEmail;
           }
@@ -1662,31 +1939,71 @@ char *XrdSecProtocoloidcInit(const char mode, const char *parms, XrdOucErrInfo *
    if (mode == 'c') return &nilstr;
    OIDCLog.logger(&OIDCLogger);
 
-   clearIssuerPolicies();
-   EmailIdentityMap.clear();
+   {
+      std::lock_guard<std::mutex> lock(ConfigMtx);
+      clearIssuerPolicies();
+      EmailIdentityMap.clear();
+   }
    JwksCacheFile.clear();
    JwksCacheTTL = 0;
    std::shared_ptr<IssuerPolicy> curPolicy;
    std::string fileBackedParms;
+   std::string inlineParms;
+   std::string selectedCfgPath = "/etc/xrootd/oidc.cfg";
+   bool requestedCfgOverride = false;
+   bool loadedCfgFile = false;
+   OIDCConfigWatch = false;
+   OIDCConfigStatValid = false;
 
-   if (!parms || !*parms)
+   if (parms && *parms)
+      {
+       XrdOucString pbuf(parms);
+       XrdOucTokenizer t(const_cast<char *>(pbuf.c_str()));
+       t.GetLine();
+       char *tok = 0;
+       while ((tok = t.GetToken()))
+            {
+             if (!strcmp(tok, "-config-file"))
+                {
+                 char *path = t.GetToken();
+                 if (!path || !*path)
+                    {Fatal(erp, "-config-file argument missing", EINVAL);
+                     return 0;
+                    }
+                 selectedCfgPath = path;
+                 requestedCfgOverride = true;
+                 continue;
+                }
+             if (!inlineParms.empty()) inlineParms.push_back(' ');
+             inlineParms += tok;
+            }
+      }
+
+   if (!parms || !*parms || requestedCfgOverride)
       {
        bool cfgFound = false;
        std::string cfgErr;
-       static const char *kOIDCCfgPath = "/etc/xrootd/oidc.cfg";
-       if (!loadOIDCIniAsArgs(kOIDCCfgPath, fileBackedParms, cfgFound, cfgErr))
+       if (!loadOIDCIniAsArgs(selectedCfgPath.c_str(), fileBackedParms, cfgFound, cfgErr))
           {Fatal(erp, cfgErr.c_str(), EINVAL);
            return 0;
           }
        if (!cfgFound)
           {std::string e = std::string("Missing required OIDC config file: ")
-                         + kOIDCCfgPath;
+                         + selectedCfgPath;
            Fatal(erp, e.c_str(), ENOENT);
            return 0;
           }
-       if (cfgFound && !fileBackedParms.empty())
-          parms = fileBackedParms.c_str();
+       loadedCfgFile = true;
       }
+
+   std::string effectiveParms;
+   if (!fileBackedParms.empty()) effectiveParms += fileBackedParms;
+   if (!inlineParms.empty())
+      {
+       if (!effectiveParms.empty()) effectiveParms.push_back(' ');
+       effectiveParms += inlineParms;
+      }
+   if (!effectiveParms.empty()) parms = effectiveParms.c_str();
 
    if (parms && *parms)
       {XrdOucString cfgParms(parms);
@@ -1717,6 +2034,13 @@ char *XrdSecProtocoloidcInit(const char mode, const char *parms, XrdOucErrInfo *
                       else {Fatal(erp, "-expiry argument invalid", EINVAL);
                             return 0;
                            }
+                     }
+               else if (!strcmp(val, "-config-file"))
+                     {if (!(val = cfg.GetToken()))
+                        {Fatal(erp, "-config-file argument missing", EINVAL);
+                         return 0;
+                        }
+                      // Already consumed in pre-scan; ignore if present here.
                      }
                else if (!strcmp(val, "-issuer"))
                      {if (!(val = cfg.GetToken()))
@@ -1902,6 +2226,23 @@ char *XrdSecProtocoloidcInit(const char mode, const char *parms, XrdOucErrInfo *
            Fatal(erp, e.c_str(), EINVAL);
            return 0;
           }
+      }
+
+   if (loadedCfgFile)
+      {
+       ino_t ino = 0;
+       time_t mtime = 0;
+       std::string stErr;
+       if (!captureConfigStat(selectedCfgPath.c_str(), ino, mtime, stErr))
+          {
+           Fatal(erp, stErr.c_str(), EINVAL);
+           return 0;
+          }
+       OIDCConfigPath = selectedCfgPath;
+       OIDCConfigIno = ino;
+       OIDCConfigMTime = mtime;
+       OIDCConfigStatValid = true;
+       OIDCConfigWatch = true;
       }
 
    char buff[256];

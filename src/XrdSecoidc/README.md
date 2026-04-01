@@ -61,6 +61,9 @@ When a token file is used (`*_TOKEN_FILE`, `XDG_RUNTIME_DIR/bt_u<uid>`,
   set `0` to disable caching)
 - `-token-cache-noexp-ttl <seconds>`: cache TTL for tokens that do not include
   `exp` when `-expiry optional|ignore` (default 60)
+- `-config-file <path>`: load INI config from this path (instead of default
+  `/etc/xrootd/oidc.cfg`); supports runtime reload of `[issuer ...]` and
+  `[email-map]` sections on inode/mtime changes
 
 If no inline parameters are supplied on `sec.protocol oidc`, the plugin
 automatically tries to load `/etc/xrootd/oidc.cfg` (INI-style) and maps keys to
@@ -192,6 +195,20 @@ LD_LIBRARY_PATH=/usr/local/lib64 \
 
 When `sec.protocol oidc` has no trailing parameters, this file is required and
 loaded at plugin init time. If the file is missing, initialization fails.
+
+You can override this path with:
+
+```conf
+sec.protocol oidc -config-file /path/to/oidc.cfg
+```
+
+When file-backed config is used (default path or `-config-file`), the plugin
+checks inode/mtime changes at authentication time and reloads only:
+
+- `[issuer "..."]` blocks (issuer/audience/OIDC+JWKS URLs/forced-identity-claim)
+- `[email-map]`
+
+`[global]` keys are intentionally **not** reloaded and remain fixed from startup.
 
 ```ini
 [global]
