@@ -614,7 +614,7 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
 
 // Check if this is our protocol
 //
-   if (strcmp(tResp->hdr.id, "ztn"))
+   if (memcmp(tResp->hdr.id, "ztn", 3) || tResp->hdr.id[3] != '\0')
       {char msg[256];
        snprintf(msg, sizeof(msg),
                 "Authentication protocol id mismatch ('ztn' != '%.4s').",
@@ -679,7 +679,9 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
        if ((Entity.creds = (char *)malloc(Entity.credslen+1)))
          strcpy(Entity.creds, tResp->tkn);
        else
-         Fatal(erp, "'ztn' bad alloc", ENOMEM, false);
+         {Fatal(erp, "'ztn' bad alloc", ENOMEM, false);
+          return -1;
+         }
        if (!Entity.name) Entity.name = strdup("anon");
        return 0;
       }
