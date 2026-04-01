@@ -12,6 +12,7 @@
 #define __STDC_FORMAT_MACROS 1
 
 #include <arpa/inet.h>
+#include <atomic>
 #include <cctype>
 #include <cerrno>
 #include <cinttypes>
@@ -38,6 +39,7 @@
 
 #include <openssl/evp.h>
 #include <openssl/bn.h>
+#include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
@@ -84,6 +86,7 @@ int FatalS(XrdOucErrInfo *erp, const char *eMsg, int rc, bool hdr=true)
 static const uint8_t kProtoVersion = 0;
 static const int kDefaultMaxCredSize = 8192;
 static const int kDefaultNonceTTL = 30;
+static const size_t kMaxPendingChallenges = 10000;
 
 bool hasPrefix(const char *s, const char *pfx)
 {
@@ -455,15 +458,15 @@ bool PrincipalAsUser = false;
 bool PrincipalMapStatValid = false;
 ino_t PrincipalMapIno = 0;
 time_t PrincipalMapMTime = 0;
-int MaxCredSize = kDefaultMaxCredSize;
-int NonceTTL = kDefaultNonceTTL;
-bool DebugSSH = false;
+std::atomic<int> MaxCredSize{kDefaultMaxCredSize};
+std::atomic<int> NonceTTL{kDefaultNonceTTL};
+std::atomic<bool> DebugSSH{false};
 XrdSysLogger SSHLogger;
 XrdSysError SSHLog(0, "secssh_");
 
 void debugLog(const char *where, const std::string &msg)
 {
-   if (!DebugSSH) return;
+   if (!DebugSSH.load(std::memory_order_relaxed)) return;
    SSHLog.Emsg(where, "ssh", msg.c_str());
 }
 
@@ -673,6 +676,7 @@ void addDefaultClientKeyCandidates(std::vector<std::string> &out)
 {
    out.clear();
    const char *home = getenv("HOME");
+   std::string homeBuf;
    if ((!home || !*home))
       {
          long bufSz = sysconf(_SC_GETPW_R_SIZE_MAX);
@@ -681,7 +685,8 @@ void addDefaultClientKeyCandidates(std::vector<std::string> &out)
          struct passwd pw;
          struct passwd *res = 0;
          if (getpwuid_r(geteuid(), &pw, buf.data(), buf.size(), &res) == 0
-         &&  res && res->pw_dir && *res->pw_dir) home = res->pw_dir;
+         &&  res && res->pw_dir && *res->pw_dir)
+            {homeBuf = res->pw_dir; home = homeBuf.c_str();}
       }
    if (!home || !*home) return;
    std::string h(home);
@@ -799,7 +804,7 @@ bool checkSecureFile(const char *path, std::string &emsg)
 {
    struct stat st;
    if (stat(path, &st) != 0)
-      {emsg = std::string("unable to stat file: ") + path + " (" + strerror(errno) + ")";
+      {emsg = std::string("unable to stat file: ") + path + " (" + XrdSysE2T(errno) + ")";
        return false;
       }
    if (!S_ISREG(st.st_mode))
@@ -918,6 +923,10 @@ bool loadTrustedKeyFile(const std::string &path,
        k.sshBlob = blob;
        k.rawPub = rawPub;
        k.pkey = pk;
+       {auto dup = outMap.find(fp);
+        if (dup != outMap.end() && dup->second.pkey)
+           EVP_PKEY_free(dup->second.pkey);
+       }
        outMap[fp] = k;
        debugLog("Init", std::string("accepted ")
                         + (requireUser ? "user key" : "ca key")
@@ -1038,6 +1047,10 @@ bool validateUserCert(const std::string &certBlob,
       {emsg = "Malformed SSH certificate body";
        return false;
       }
+   if (!criticalOpts.empty())
+      {emsg = "SSH certificate contains unsupported critical options";
+       return false;
+      }
    size_t sigFieldStart = at;
    std::string sigOuter;
    if (!readBlob(certBlob, at, sigOuter) || at != certBlob.size())
@@ -1050,11 +1063,16 @@ bool validateUserCert(const std::string &certBlob,
       }
 
    time_t now = time(0);
-   if (validAfter && static_cast<uint64_t>(now) < validAfter)
+   if (now < 0)
+      {emsg = "System clock error (time before epoch)";
+       return false;
+      }
+   uint64_t nowU = static_cast<uint64_t>(now);
+   if (validAfter && nowU < validAfter)
       {emsg = "SSH certificate is not yet valid";
        return false;
       }
-   if (validBefore && validBefore != static_cast<uint64_t>(-1) && static_cast<uint64_t>(now) > validBefore)
+   if (validBefore && validBefore != static_cast<uint64_t>(-1) && nowU > validBefore)
       {emsg = "SSH certificate expired";
        return false;
       }
@@ -1362,6 +1380,7 @@ bool XrdSecProtocolssh::loadClientKeyFromFile(const char *kPath, XrdOucErrInfo *
       {FatalC(erp, "Unable to open private key file.", errno ? errno : EINVAL);
        return false;
       }
+   ERR_clear_error();
    EVP_PKEY *k = PEM_read_bio_PrivateKey(bio, 0, 0, 0);
    BIO_free(bio);
    if (!k)
@@ -1681,47 +1700,59 @@ int XrdSecProtocolssh::Authenticate(XrdSecCredentials *cred, XrdSecParameters **
                   return FatalS(erp, "Unable to fingerprint SSH key blob.", EINVAL, false);
             }
 
-         std::lock_guard<std::mutex> lock(Gm);
-         if (isCert)
+         {
+            std::lock_guard<std::mutex> lock(Gm);
             {
-               std::string emsg;
-               if (!ensurePrincipalMapFresh(emsg))
+               time_t gcNow = time(0);
+               for (auto it = PendingByTid.begin(); it != PendingByTid.end(); )
                   {
-                     debugLog("Auth", std::string("reject ") + emsg);
-                     return FatalS(erp, emsg.c_str(), EAUTH, false);
-                  }
-               if (!validateUserCert(blob, reqUser, mappedUser, verifyAlg, verifyBlob, fp, emsg))
-                  {
-                     debugLog("Auth", std::string("reject ") + emsg);
-                     return FatalS(erp, emsg.c_str(), EAUTH, false);
+                     if (it->second.expiresAt < gcNow)
+                        it = PendingByTid.erase(it);
+                     else
+                        ++it;
                   }
             }
-         else
-            {
-               auto it = TrustedByFP.find(fp);
-               if (it == TrustedByFP.end())
-                  {
-                     std::string m = "SSH public key not trusted (fp=" + fp + ")";
-                     debugLog("Auth", std::string("reject ") + m);
-                     return FatalS(erp, m.c_str(), EAUTH, false);
-                  }
-               mappedUser = it->second.user;
-               verifyBlob = it->second.sshBlob.empty() ? blob : it->second.sshBlob;
-               verifyAlg = it->second.alg;
-               if (verifyAlg.empty())
-                  {
-                     if (!getSshBlobAlg(verifyBlob, verifyAlg))
-                        return FatalS(erp, "Unable to determine SSH key algorithm.", EAUTH, false);
-                  }
-               if (!reqUser.empty() && reqUser != mappedUser)
-                  {
-                     std::string m = "SSH username/key mapping mismatch"
-                                     " (requested='" + reqUser
-                                   + "', mapped='" + mappedUser + "')";
-                     debugLog("Auth", std::string("reject ") + m);
-                     return FatalS(erp, m.c_str(), EAUTH, false);
-                  }
-            }
+            if (isCert)
+               {
+                  std::string emsg;
+                  if (!ensurePrincipalMapFresh(emsg))
+                     {
+                        debugLog("Auth", std::string("reject ") + emsg);
+                        return FatalS(erp, emsg.c_str(), EAUTH, false);
+                     }
+                  if (!validateUserCert(blob, reqUser, mappedUser, verifyAlg, verifyBlob, fp, emsg))
+                     {
+                        debugLog("Auth", std::string("reject ") + emsg);
+                        return FatalS(erp, emsg.c_str(), EAUTH, false);
+                     }
+               }
+            else
+               {
+                  auto it = TrustedByFP.find(fp);
+                  if (it == TrustedByFP.end())
+                     {
+                        std::string m = "SSH public key not trusted (fp=" + fp + ")";
+                        debugLog("Auth", std::string("reject ") + m);
+                        return FatalS(erp, m.c_str(), EAUTH, false);
+                     }
+                  mappedUser = it->second.user;
+                  verifyBlob = it->second.sshBlob.empty() ? blob : it->second.sshBlob;
+                  verifyAlg = it->second.alg;
+                  if (verifyAlg.empty())
+                     {
+                        if (!getSshBlobAlg(verifyBlob, verifyAlg))
+                           return FatalS(erp, "Unable to determine SSH key algorithm.", EAUTH, false);
+                     }
+                  if (!reqUser.empty() && reqUser != mappedUser)
+                     {
+                        std::string m = "SSH username/key mapping mismatch"
+                                        " (requested='" + reqUser
+                                      + "', mapped='" + mappedUser + "')";
+                        debugLog("Auth", std::string("reject ") + m);
+                        return FatalS(erp, m.c_str(), EAUTH, false);
+                     }
+               }
+         }
          debugLog("Auth", std::string("init")
                         + " tident='" + (Entity.tident ? Entity.tident : "") + "'"
                         + " req_user='" + reqUser + "'"
@@ -1744,8 +1775,14 @@ int XrdSecProtocolssh::Authenticate(XrdSecCredentials *cred, XrdSecParameters **
          pc.user = mappedUser;
          pc.verifyAlg = verifyAlg;
          pc.verifyBlob = verifyBlob;
-         pc.expiresAt = time(0) + NonceTTL;
-         PendingByTid[Entity.tident] = pc;
+         pc.expiresAt = time(0) + NonceTTL.load(std::memory_order_relaxed);
+
+         {
+            std::lock_guard<std::mutex> lock(Gm);
+            if (PendingByTid.size() >= kMaxPendingChallenges)
+               return FatalS(erp, "Too many pending SSH challenges.", EBUSY, false);
+            PendingByTid[Entity.tident] = pc;
+         }
 
          std::string out;
          WireHdr ch;
@@ -1820,13 +1857,13 @@ char *XrdSecProtocolsshInit(const char mode, const char *parms, XrdOucErrInfo *e
    uint64_t opts = XrdSecProtocolssh::sshVersion;
    SSHLog.logger(&SSHLogger);
    const char *dbg = getenv("XrdSecDEBUG");
-   if (dbg && *dbg && strcmp(dbg, "0") != 0) DebugSSH = true;
+   if (dbg && *dbg && strcmp(dbg, "0") != 0) DebugSSH.store(true, std::memory_order_relaxed);
    if (mode == 'c') return &nilstr;
 
    if (parms && *parms)
       {
-         XrdOucString cfgParms(parms);
-         XrdOucTokenizer cfg(const_cast<char *>(cfgParms.c_str()));
+         std::vector<char> cfgBuf(parms, parms + strlen(parms) + 1);
+         XrdOucTokenizer cfg(cfgBuf.data());
          cfg.GetLine();
          char *val = 0, *endP = 0;
          while ((val = cfg.GetToken()))
@@ -1835,9 +1872,10 @@ char *XrdSecProtocolsshInit(const char mode, const char *parms, XrdOucErrInfo *e
                      {
                         if (!(val = cfg.GetToken()))
                            {FatalC(erp, "-maxsz argument missing", EINVAL); return 0;}
-                        MaxCredSize = strtol(val, &endP, 10);
-                        if (MaxCredSize <= 0 || MaxCredSize > 524288 || *endP)
+                        int msz = strtol(val, &endP, 10);
+                        if (msz <= 0 || msz > 524288 || *endP)
                            {FatalC(erp, "-maxsz argument invalid", EINVAL); return 0;}
+                        MaxCredSize.store(msz, std::memory_order_relaxed);
                      }
                   else if (!strcmp(val, "-keys-file"))
                      {
@@ -1869,13 +1907,14 @@ char *XrdSecProtocolsshInit(const char mode, const char *parms, XrdOucErrInfo *e
                      {
                         if (!(val = cfg.GetToken()))
                            {FatalC(erp, "-nonce-ttl argument missing", EINVAL); return 0;}
-                        NonceTTL = strtol(val, &endP, 10);
-                        if (NonceTTL <= 0 || NonceTTL > 600 || *endP)
+                        int ttl = strtol(val, &endP, 10);
+                        if (ttl <= 0 || ttl > 600 || *endP)
                            {FatalC(erp, "-nonce-ttl argument invalid", EINVAL); return 0;}
+                        NonceTTL.store(ttl, std::memory_order_relaxed);
                      }
                   else if (!strcmp(val, "-debug"))
                      {
-                        DebugSSH = true;
+                        DebugSSH.store(true, std::memory_order_relaxed);
                      }
                   else {XrdOucString eTxt("Invalid parameter - "); eTxt += val;
                         FatalC(erp, eTxt.c_str(), EINVAL); return 0;
@@ -1916,7 +1955,7 @@ char *XrdSecProtocolsshInit(const char mode, const char *parms, XrdOucErrInfo *e
    }
 
    char buff[256];
-   snprintf(buff, sizeof(buff), "TLS:%" PRIu64 ":%d:", opts, MaxCredSize);
+   snprintf(buff, sizeof(buff), "TLS:%" PRIu64 ":%d:", opts, MaxCredSize.load(std::memory_order_relaxed));
    return strdup(buff);
 }
 }
