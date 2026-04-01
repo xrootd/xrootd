@@ -462,23 +462,35 @@ XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
 //
    isbad = true;
 
-// Get the size of the file
+// Open the token file and inspect metadata from the open file descriptor.
+// This avoids TOCTOU races between stat/open/read.
 //
-   if (stat(path, &Stat))
+   int open_flags = O_RDONLY;
+#ifdef O_NOFOLLOW
+   open_flags |= O_NOFOLLOW;
+#endif
+   if ((tokFD = open(path, open_flags)) < 0)
       {if (errno != ENOENT) return readFail(erp, path, errno);
        isbad = false;
        return 0;
       }
+   if (fstat(tokFD, &Stat))
+      {int rc = errno;
+       close(tokFD);
+       return readFail(erp, path, rc);
+      }
 
-// Make sure token is not too big
+// Make sure token is not too big and inaccessible by group/other.
 //
-   if (Stat.st_size > maxTSize) return readFail(erp, path, EMSGSIZE);
+   if (Stat.st_size > maxTSize)
+      {close(tokFD);
+       return readFail(erp, path, EMSGSIZE);
+      }
+   if (Stat.st_mode & (S_IRWXG | S_IRWXO))
+      {close(tokFD);
+       return readFail(erp, path, EPERM);
+      }
    buff = (char *)alloca(Stat.st_size+1);
-
-// Open the token file
-//
-   if ((tokFD = open(path, O_RDONLY)) < 0)
-      return readFail(erp, path, errno);
 
 // Read in the token
 //
@@ -499,10 +511,6 @@ XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
       {isbad = false;
        return 0;
       }
-
-// Make sure the file is not accessible to anyone but the owner
-//
-   if (Stat.st_mode & (S_IRWXG | S_IRWXO)) return readFail(erp, path, EPERM);
 
 // Return response
 //
