@@ -96,20 +96,6 @@ XrdSecCredentials *Fatal(XrdOucErrInfo *erp, const char *eMsg, int rc,
 }
 
 /******************************************************************************/
-/*                        m o n o t o n i c _ t i m e                         */
-/******************************************************************************/
-  
-inline uint64_t monotonic_time() {
-  struct timespec tp;
-#ifdef CLOCK_MONOTONIC_COARSE
-  clock_gettime(CLOCK_MONOTONIC_COARSE, &tp);
-#else
-  clock_gettime(CLOCK_MONOTONIC, &tp);
-#endif
-  return tp.tv_sec + (tp.tv_nsec >= 500000000);
-}
-
-/******************************************************************************/
 /*                    G l o b a l   S t a t i c   D a t a                     */
 /******************************************************************************/
   
