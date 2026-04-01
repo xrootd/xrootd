@@ -55,7 +55,7 @@ using namespace XrdSsi;
 /******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */
 /******************************************************************************/
-  
+
 namespace
 {
 const char *statName[] = {"isPend",  "isWrite", "isSync",
@@ -71,18 +71,18 @@ char        zedData = 0;
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-  
+
 namespace XrdSsi
 {
 extern XrdSysError   Log;
 extern XrdScheduler *schedP;
 extern XrdSsiScale   sidScale;
 }
-  
+
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
-  
+
 namespace
 {
 class AlertMsg : public XrdSsiRespInfoMsg
@@ -174,7 +174,7 @@ void XrdSsiTaskReal::Detach(bool force)
 
 // Note that if we are called then Finished() must have been called while we
 // were still in the open phase.
-  
+
 void XrdSsiTaskReal::Finished(XrdSsiRequest        &rqstR,
                               const XrdSsiRespInfo &rInfo, bool cancel)
 {
@@ -200,7 +200,7 @@ void XrdSsiTaskReal::Finished(XrdSsiRequest        &rqstR,
 /******************************************************************************/
 /* Private:                      G e t R e s p                                */
 /******************************************************************************/
-  
+
 XrdSsiTaskReal::respType XrdSsiTaskReal::GetResp(XrdCl::AnyObject **respP,
                                                  char *&dbuff, int &dbL)
 {
@@ -338,7 +338,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 /******************************************************************************/
 /* Private:                      R e s p E r r                                */
 /******************************************************************************/
-  
+
 // Called with session mutex locked and returns with it unlocked!
 
 bool XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status)
@@ -366,9 +366,9 @@ bool XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status)
 /******************************************************************************/
 /*                            S c h e d E r r o r                             */
 /******************************************************************************/
-  
+
 // Called with sessMutex locked!
-  
+
 void XrdSsiTaskReal::SchedError(XrdSsiErrInfo *eInfo)
 {
 // Copy the error information if so supplied.
@@ -424,13 +424,13 @@ void XrdSsiTaskReal::SendError() // Called with defer > 0!
        sessP->TaskFinished(this);
       }
 }
-  
+
 /******************************************************************************/
 /*                           S e n d R e q u e s t                            */
 /******************************************************************************/
-  
+
 // Called with sessMutex locked!
-  
+
 bool XrdSsiTaskReal::SendRequest(const char *node)
 {
    XrdCl::XRootDStatus Status;
@@ -504,7 +504,7 @@ bool XrdSsiTaskReal::SendRequest(const char *node)
 /******************************************************************************/
 /*                               S e t B u f f                                */
 /******************************************************************************/
-  
+
 int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef,
                             char *buff, int blen, bool &last)
 {
@@ -545,7 +545,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef,
 }
 
 /******************************************************************************/
-  
+
 bool XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen)
 {
    EPNAME("TaskSetBuff");
@@ -600,7 +600,7 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen)
 /******************************************************************************/
 /*                              X e q E v e n t                               */
 /******************************************************************************/
-  
+
 int  XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
                               XrdCl::AnyObject   **respP)
 {
@@ -710,7 +710,7 @@ int  XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
    if (ibRead < dataRlen) {tStat = isDone; dataRlen = ibRead;}
    dBuff = dataBuff;
    last = tStat == isDone;
-   sessP->UnLock();
+   monMtx.UnLock();
    DEBUG("Calling ProcessResponseData; len="<<ibRead<<" last="<<last);
    rqstP->ProcessResponseData(XrdSsiRRAgent::ErrInfoRef(rqstP),
                               dBuff, ibRead, last);
@@ -723,7 +723,7 @@ int  XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
 /******************************************************************************/
 /*                              X e q E v F i n                               */
 /******************************************************************************/
-  
+
 void XrdSsiTaskReal::XeqEvFin()
 {
    EPNAME("TaskXeqEvFin");
@@ -740,7 +740,9 @@ void XrdSsiTaskReal::XeqEvFin()
 //
    if (tStat == isDead)
       {if (sessP != &voidSession)
-          {if (mhPend || defer) {DEBUG("Defering TaskFinished.");}
+          {if (mhPend || defer) {DEBUG("Defering TaskFinished.");
+                                 sessP->UnLock();
+                                }
               else {DEBUG("Calling TaskFinished");
                     sessP->UnLock();
                     sessP->TaskFinished(this);
