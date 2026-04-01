@@ -658,20 +658,21 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
    long long   eTime;
    bool validated = false;
    if (Entity.name) {free(Entity.name); Entity.name = 0;}
-   if (tokenlib && sthP->Validate(tResp->tkn, msgRC, (expiry ? &eTime : 0), &Entity))
-      {if (expiry)
-          {if (eTime < 0 && expiry > 0)
+   int expiryMode = expiry.load();
+   if (tokenlib.load() && sthP->Validate(tResp->tkn, msgRC, (expiryMode ? &eTime : 0), &Entity))
+      {if (expiryMode)
+          {if (eTime < 0 && expiryMode > 0)
               {Fatal(erp, "'ztn' token expiry missing", EINVAL, false);
                return -1;
               }
-           if ((monotonic_time() - eTime) <= 0)
+           if ((eTime >= 0) && (time(nullptr) >= eTime))
               {Fatal(erp, "'ztn' token expired", EINVAL, false);
                return -1;
               }
 	  }
        validated = true;
       }
-   if (!tokenlib || validated)
+   if (!tokenlib.load() || validated)
       {
        Entity.credslen = strlen(tResp->tkn);
        if (Entity.creds)
@@ -767,9 +768,9 @@ char  *XrdSecProtocolztnInit(const char     mode,
                      {Fatal(erp, "-expiry argument missing", EINVAL);
                       return 0;
                      }
-                       if (strcmp(val, "ignore"))   expiry =  0;
-                  else if (strcmp(val, "optional")) expiry = -1;
-                  else if (strcmp(val, "required")) expiry =  1;
+                       if (!strcmp(val, "ignore"))   expiry.store(0);
+                  else if (!strcmp(val, "optional")) expiry.store(-1);
+                  else if (!strcmp(val, "required")) expiry.store(1);
                   else {Fatal(erp, "-expiry argument invalid", EINVAL);
                         return 0;
                        }
