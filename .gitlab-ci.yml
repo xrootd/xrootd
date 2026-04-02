@@ -42,22 +42,6 @@ default:
     paths: [ RPMS ]
     expire_in: 1 day
 
-Debian 11:
-  image: debian:11
-  <<: *deb_build
-
-Debian 12:
-  image: debian:12
-  <<: *deb_build
-
-Ubuntu 22.04:
-  image: ubuntu:22.04
-  <<: *deb_build
-
-Ubuntu 24.04:
-  image: ubuntu:24.04
-  <<: *deb_build
-
 AlmaLinux 8:
   image: almalinux:8
   before_script:
@@ -80,10 +64,26 @@ AlmaLinux 10:
     - dnf config-manager --set-enabled crb
   <<: *rpm_build_dnf
 
-Fedora 41:
-  image: fedora:41
-  <<: *rpm_build_dnf
-
 Fedora 42:
   image: fedora:42
   <<: *rpm_build_dnf
+
+Fedora 43:
+  image: fedora:43
+  <<: *rpm_build_dnf
+
+Debian 12:
+  image: debian:12
+  <<: *deb_build
+
+Debian 13:
+  image: debian:13
+  <<: *deb_build
+
+Ubuntu 22.04:
+  image: ubuntu:22.04
+  <<: *deb_build
+
+Ubuntu 24.04:
+  image: ubuntu:24.04
+  <<: *deb_build
