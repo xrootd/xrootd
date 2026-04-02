@@ -612,8 +612,8 @@ public:
             if (new_secentity.grps) {
                 memcpy(new_secentity.grps, groups_str.c_str(), groups_str.size());
                 new_secentity.grps[groups_str.size()] = '\0';
+                group_success = true;
             }
-            group_success = true;
         }
 
         std::string username;
@@ -727,8 +727,12 @@ public:
         //
         if (Entity)
            {char *value = nullptr;
-            if (!scitoken_get_claim_string(scitoken, "sub", &value, &err_msg))
+            if (!scitoken_get_claim_string(scitoken, "sub", &value, &err_msg)) {
                Entity->name = strdup(value);
+               free(value);
+            } else {
+               free(err_msg);
+            }
            }
 
         // Return the expiration time of this token if so wanted.
