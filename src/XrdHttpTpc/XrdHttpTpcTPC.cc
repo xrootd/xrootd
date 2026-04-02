@@ -1005,29 +1005,37 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     // start the TPC, for the resolution of the given TPC instead of
     // using any of the IPs available.
     if (m_fixed_route){
-        XrdNetAddr *nP;
+        XrdNetAddr *nP = nullptr;
         int numIP = 0;
         char buff[1024];
-        char * ip;
 
         // Get the hostname used to contact the server from the http header
         auto host_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"host");
         std::string host_used;
         if (host_header != req.headers.end()) {
-            host_used = host_header->second;
+            host_used = ExtractHostForResolution(host_header->second);
         }
 
-        // Get the IP addresses associated with the above hostname
-        XrdNetUtils::GetAddrs(host_used.c_str(), &nP, numIP, XrdNetUtils::prefAuto, 0);
-        int ip_size = nP[0].Format(buff, 1024, XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort);
-        ip = (char *)malloc(ip_size-1);
-
-	// Substring to get only the address, remove brackets and garbage
-        memcpy(ip, buff+1, ip_size-2);
-        ip[ip_size-2]='\0';
-        logTransferEvent(LogMask::Info, rec, "LOCAL IP", ip);
-
-        curl_easy_setopt(curl, CURLOPT_INTERFACE, ip);
+        // Get the IP addresses associated with the above hostname.
+        if (!host_used.empty()) {
+            const char *addr_err = XrdNetUtils::GetAddrs(host_used.c_str(), &nP, numIP, XrdNetUtils::prefAuto, 0);
+            if (!addr_err && nP && numIP > 0) {
+                int ip_size = nP[0].Format(buff, sizeof(buff), XrdNetAddrInfo::fmtAddr, XrdNetAddrInfo::noPort);
+                if (ip_size > 2 && ip_size <= static_cast<int>(sizeof(buff))) {
+                    std::string ip(buff);
+                    if (ip.size() >= 2 && ip.front() == '[' && ip.back() == ']') {
+                        ip = ip.substr(1, ip.size() - 2);
+                    }
+                    if (!ip.empty()) {
+                        logTransferEvent(LogMask::Info, rec, "LOCAL IP", ip);
+                        curl_easy_setopt(curl, CURLOPT_INTERFACE, ip.c_str());
+                    }
+                }
+            } else if (addr_err) {
+                logTransferEvent(LogMask::Warning, rec, "LOCAL_IP_RESOLVE_FAIL", addr_err);
+            }
+        }
+        delete [] nP;
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
