@@ -1,8 +1,11 @@
 
 #include <stdexcept>
 #include <sstream>
+#include <memory>
 
 #include <ctime>
+#include <cctype>
+#include <cstring>
 
 #include "macaroons.h"
 
@@ -186,7 +189,7 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
 
         // If there's no request-specific token, check for a ZTN session token
     if (!authz && Entity && !strcmp("ztn", Entity->prot) && Entity->creds &&
-        Entity->credslen && Entity->creds[Entity->credslen] == '\0')
+        Entity->credslen > 0 && std::memchr(Entity->creds, '\0', Entity->credslen))
     {
         authz = Entity->creds;
     }
@@ -196,9 +199,11 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     }
 
     macaroon_returncode mac_err = MACAROON_SUCCESS;
-    struct macaroon* macaroon = macaroon_deserialize(
+    std::unique_ptr<struct macaroon, decltype(&macaroon_destroy)> macaroon(
+        macaroon_deserialize(
         authz,
-        &mac_err);
+        &mac_err),
+        &macaroon_destroy);
     if (!macaroon)
     {
         // Do not log - might be other token type!
@@ -233,17 +238,16 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
 
     const unsigned char *macaroon_loc;
     size_t location_sz;
-    macaroon_location(macaroon, &macaroon_loc, &location_sz);
-    if (strncmp(reinterpret_cast<const char *>(macaroon_loc), m_location.c_str(), location_sz))
+    macaroon_location(macaroon.get(), &macaroon_loc, &location_sz);
+    std::string token_location(reinterpret_cast<const char *>(macaroon_loc), location_sz);
+    if (token_location != m_location)
     {
-        std::string location_str(reinterpret_cast<const char *>(macaroon_loc), location_sz);
-        m_log.Emsg("Access", "Macaroon is for incorrect location", location_str.c_str());
+        m_log.Emsg("Access", "Macaroon is for incorrect location", token_location.c_str());
         macaroon_verifier_destroy(verifier);
-        macaroon_destroy(macaroon);
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
     }
 
-    if (macaroon_verify(verifier, macaroon,
+    if (macaroon_verify(verifier, macaroon.get(),
                          reinterpret_cast<const unsigned char *>(m_secret.c_str()),
                          m_secret.size(),
                          NULL, 0, // discharge macaroons
@@ -258,11 +262,10 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
 
     const unsigned char *macaroon_id;
     size_t id_sz;
-    macaroon_identifier(macaroon, &macaroon_id, &id_sz);
+    macaroon_identifier(macaroon.get(), &macaroon_id, &id_sz);
 
     std::string macaroon_id_str(reinterpret_cast<const char *>(macaroon_id), id_sz);
     m_log.Log(LogMask::Info, "Access", "Macaroon verification successful; ID", macaroon_id_str.c_str());
-    macaroon_destroy(macaroon);
 
     // Copy the name, if present into the macaroon, into the credential object.
     if (Entity && check_helper.GetSecName().size()) {
@@ -317,10 +320,10 @@ bool Authz::Validate(const char   *token,
     const unsigned char *macaroon_loc;
     size_t location_sz;
     macaroon_location(macaroon.get(), &macaroon_loc, &location_sz);
-    if (strncmp(reinterpret_cast<const char *>(macaroon_loc), m_location.c_str(), location_sz))
+    std::string token_location(reinterpret_cast<const char *>(macaroon_loc), location_sz);
+    if (token_location != m_location)
     {
-        emsg = "Macaroon contains incorrect location: " +
-            std::string(reinterpret_cast<const char *>(macaroon_loc), location_sz);
+        emsg = "Macaroon contains incorrect location: " + token_location;
         m_log.Log(LogMask::Warning, "Validate", emsg.c_str(), ("all.sitename is " + m_location).c_str());
         return false;
     }
