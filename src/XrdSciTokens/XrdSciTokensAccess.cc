@@ -740,6 +740,7 @@ public:
         if (expT && scitoken_get_expiration(scitoken, expT, &err_msg)) {
             emsg = err_msg;
             free(err_msg);
+            scitoken_destroy(scitoken);
             return false;
         }
 
@@ -868,6 +869,11 @@ private:
             return false;
         }
         enforcer_destroy(enf);
+        // Ensure acls are freed on all paths below via RAII wrapper.
+        struct AclGuard {
+            Acl *ptr;
+            ~AclGuard() { if (ptr) enforcer_acl_free(ptr); }
+        } acl_guard{acls};
 
         pthread_rwlock_rdlock(&m_config_lock);
         auto iter = m_issuers.find(token_issuer);
@@ -1034,6 +1040,7 @@ private:
         username = std::move(tmp_username);
         issuer = std::move(token_issuer);
         groups = std::move(groups_parsed);
+        scitoken_destroy(token);
 
         return true;
     }
