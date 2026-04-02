@@ -1047,7 +1047,10 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     curl_easy_setopt(curl, CURLOPT_CLOSESOCKETFUNCTION, closesocket_callback);
     curl_easy_setopt(curl, CURLOPT_CLOSESOCKETDATA, &rec);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT);
-    std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
+    AtomicBeg(m_monid_mutex);
+    uint64_t file_monid = AtomicInc(m_monid);
+    AtomicEnd(m_monid_mutex);
+    std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, file_monid));
     if (!fh.get()) {
         std::stringstream ss;
         ss << "Failed to initialize internal transfer file handle";
