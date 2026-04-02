@@ -684,12 +684,16 @@ public:
         typedef std::vector<ValidIssuer> Issuers;
         */
         Issuers issuers;
-        for (auto it: m_issuers) {
-            ValidIssuer issuer_info;
-            issuer_info.issuer_name = it.first;
-            issuer_info.issuer_url = it.second.m_url;
-            issuers.push_back(issuer_info);
+        pthread_rwlock_rdlock(&m_config_lock);
+        try {
+            for (const auto &it: m_issuers) {
+                issuers.push_back({it.first, it.second.m_url});
+            }
+        } catch (...) {
+            pthread_rwlock_unlock(&m_config_lock);
+            throw;
         }
+        pthread_rwlock_unlock(&m_config_lock);
         return issuers;
 
     }
@@ -1203,7 +1207,7 @@ private:
     bool Reconfig()
     {
         errno = 0;
-        m_cfg_file = "/etc/xrootd/scitokens.cfg";
+        std::string new_cfg_file = "/etc/xrootd/scitokens.cfg";
         if (!m_parms.empty()) {
             size_t pos = 0;
             std::vector<std::string> arg_list;
@@ -1222,12 +1226,12 @@ private:
                     m_log.Log(LogMask::Error, "Reconfig", "Ignoring unknown configuration argument:", arg.c_str());
                     continue;
                 }
-                m_cfg_file = std::string(arg.c_str() + 7);
+                new_cfg_file = std::string(arg.c_str() + 7);
             }
         }
-        m_log.Log(LogMask::Info, "Reconfig", "Parsing configuration file:", m_cfg_file.c_str());
+        m_log.Log(LogMask::Info, "Reconfig", "Parsing configuration file:", new_cfg_file.c_str());
 
-        OverrideINIReader reader(m_cfg_file);
+        OverrideINIReader reader(new_cfg_file);
         if (reader.ParseError() < 0) {
             std::stringstream ss;
             ss << "Error opening config file (" << m_cfg_file << "): " << strerror(errno);
@@ -1241,6 +1245,7 @@ private:
         }
         std::vector<std::string> audiences;
         std::unordered_map<std::string, IssuerConfig> issuers;
+        AuthzBehavior new_authz_behavior = m_authz_behavior;
         for (const auto &section : reader.Sections()) {
             std::string section_lower;
             std::transform(section.begin(), section.end(), std::back_inserter(section_lower),
@@ -1282,11 +1287,11 @@ private:
                 }
                 auto onmissing = reader.Get(section, "onmissing", "");
                 if (onmissing == "passthrough") {
-                    m_authz_behavior = AuthzBehavior::PASSTHROUGH;
+                    new_authz_behavior = AuthzBehavior::PASSTHROUGH;
                 } else if (onmissing == "allow") {
-                    m_authz_behavior = AuthzBehavior::ALLOW;
+                    new_authz_behavior = AuthzBehavior::ALLOW;
                 } else if (onmissing == "deny") {
-                    m_authz_behavior = AuthzBehavior::DENY;
+                    new_authz_behavior = AuthzBehavior::DENY;
                 } else if (!onmissing.empty()) {
                     m_log.Log(LogMask::Error, "Reconfig", "Unknown value for onmissing key:", onmissing.c_str());
                     return false;
@@ -1376,6 +1381,8 @@ private:
 
         pthread_rwlock_wrlock(&m_config_lock);
         try {
+            m_authz_behavior = new_authz_behavior;
+            m_cfg_file = std::move(new_cfg_file);
             m_audiences = std::move(audiences);
             size_t idx = 0;
             m_audiences_array.resize(m_audiences.size() + 1);
