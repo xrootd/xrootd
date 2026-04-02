@@ -915,11 +915,17 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
    XrdOucTokenizer inParms(parmbuff);
    int options = XrdSecNOIPCHK;
    static bool serverinitialized = false;
+   bool alreadyInitialized = false;
 
 // For client-side one-time initialization, we only need to set debug flag and
 // initialize the kerberos context and cache location.
 //
-   if ((mode == 'c') || (serverinitialized))
+   if (mode != 'c')
+      {XrdSysMutexHelper scopedLock(initMutex);
+       alreadyInitialized = serverinitialized;
+       if (!serverinitialized) serverinitialized = true;
+      }
+   if ((mode == 'c') || alreadyInitialized)
       {
        int opts = 0;
        if (getenv("XrdSecDEBUG")) opts |= XrdSecDEBUG;
@@ -927,10 +933,6 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
        XrdSecProtocolkrb5::setClientOpts(opts);
        return (XrdSecProtocolkrb5::Init(erp) ? (char *)0 : (char *)"");
       }
-
-   if (!serverinitialized) {
-     serverinitialized = true;
-   }
 
 // Duplicate the parms
 //
