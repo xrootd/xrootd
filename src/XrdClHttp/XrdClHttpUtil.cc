@@ -390,19 +390,27 @@ bool HeaderParser::Parse(const std::string &header_line)
             return false;
         }
         auto first_pos = incl_range.substr(0, found);
+        long long first_byte;
         try {
-            m_response_offset = std::stoll(first_pos);
+            first_byte = std::stoll(first_pos);
         } catch (...) {
            return false;
         }
+        if (first_byte < 0) {
+            return false;
+        }
+        m_response_offset = static_cast<uint64_t>(first_byte);
         auto last_pos = incl_range.substr(found + 1);
-        size_t last_byte;
+        long long last_byte;
         try {
            last_byte = std::stoll(last_pos);
         } catch (...) {
            return false;
         }
-        m_content_length = last_byte - m_response_offset + 1;
+        if (last_byte < first_byte) {
+            return false;
+        }
+        m_content_length = last_byte - first_byte + 1;
     }
     else if (header_name == "Location") {
         m_location = header_value;
