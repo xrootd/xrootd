@@ -800,7 +800,7 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
         if (ln != 5) {
            // Adjust the space
            int lm = strlen(ccfile) - (int)(puid + 5 - &ccfile[0]); 
-           memmove(puid+ln, pusr+5, lm);
+           memmove(puid+ln, puid+5, lm);
         }
         // Copy the name
         memcpy(puid, cuid, ln);
