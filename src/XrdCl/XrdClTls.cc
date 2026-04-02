@@ -27,6 +27,7 @@
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include <climits>
 #include <mutex>
 #include <string>
 #include <stdexcept>
@@ -121,7 +122,6 @@ namespace XrdCl
 
     if (cadir && (msg = XrdOucUtils::ValPath(cadir, camode, true))) {
       log->Error(XrdCl::TlsMsg, "Failed to initialize TLS context: CA directory %s", msg);
-      env->PutInt("NoTlsOK", 1);
       return false;
     }
 
@@ -131,7 +131,6 @@ namespace XrdCl
     if (!tlsContext || !tlsContext->isOK()) {
       tlsContext.reset(nullptr);
       log->Error(XrdCl::TlsMsg, "Failed to initialize TLS context: %s", emsg.c_str());
-      env->PutInt("NoTlsOK", 1);
       return false;
     }
 
@@ -165,6 +164,13 @@ namespace XrdCl
     const char *verhost = 0;
     if( thehost != "localhost" && thehost != "127.0.0.1" && thehost != "[::1]" )
       verhost = thehost.c_str();
+    else
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Warning( TlsMsg,
+                    "TLS hostname verification skipped for loopback: %s",
+                    thehost.c_str() );
+    }
     XrdTls::RC error = pTls->Connect( verhost, &errmsg );
     XRootDStatus status = ToStatus( error );
     if( !status.IsOK() )
@@ -285,6 +291,9 @@ namespace XrdCl
       auto st = Read( static_cast<char*>( iov[i].iov_base ),
                       iov[i].iov_len, btsread );
       if( !st.IsOK() ) return st;
+      if( btsread > 0 && bytesRead > INT_MAX - btsread )
+        return XRootDStatus( stError, errInternal, 0,
+                             "TLS ReadV: total bytes read overflow" );
       bytesRead += btsread;
       if( st.code == suRetry ) return st;
     }
