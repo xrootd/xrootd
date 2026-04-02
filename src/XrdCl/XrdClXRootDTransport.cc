@@ -2289,26 +2289,27 @@ namespace XrdCl
     int timeZone = XrdSysTimer::TimeZone();
     char *hostName = XrdNetUtils::MyHostName();
     std::string countryCode = Utils::FQDNToCC( hostName );
-    char *cgiBuffer = new char[1024 + info->logintoken.size()];
+    size_t cgiBufSize = 1024 + info->logintoken.size();
+    char *cgiBuffer = new char[cgiBufSize];
     std::string appName;
     std::string monInfo;
     env->GetString( "AppName", appName );
     env->GetString( "MonInfo", monInfo );
     if( info->logintoken.empty() )
     {
-      snprintf( cgiBuffer, 1024,
+      snprintf( cgiBuffer, cgiBufSize,
                 "xrd.cc=%s&xrd.tz=%d&xrd.appname=%s&xrd.info=%s&"
                 "xrd.hostname=%s&xrd.rn=%s", countryCode.c_str(), timeZone,
                 appName.c_str(), monInfo.c_str(), hostName, XrdVERSION );
     }
     else
     {
-      snprintf( cgiBuffer, 1024,
+      snprintf( cgiBuffer, cgiBufSize,
                 "xrd.cc=%s&xrd.tz=%d&xrd.appname=%s&xrd.info=%s&"
                 "xrd.hostname=%s&xrd.rn=%s&%s", countryCode.c_str(), timeZone,
                 appName.c_str(), monInfo.c_str(), hostName, XrdVERSION, info->logintoken.c_str() );
     }
-    uint16_t cgiLen = strlen( cgiBuffer );
+    size_t cgiLen = strlen( cgiBuffer );
     free( hostName );
 
     //--------------------------------------------------------------------------
