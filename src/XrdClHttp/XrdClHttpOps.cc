@@ -131,17 +131,57 @@ std::pair<std::string, int> ParseHostPort(const std::string &location) {
     if (pos != std::string::npos) {
         hostport = hostport.substr(0, pos);
     }
-    pos = hostport.find(':');
-    if (pos == std::string::npos) {
+    if (hostport.empty()) {
+        return {"", -1};
+    }
+    if (hostport[0] == '[') {
+        auto close = hostport.find(']');
+        if (close == std::string::npos || close == 1) {
+            return {"", -1};
+        }
+        auto host = hostport.substr(1, close - 1);
+        if (close + 1 == hostport.size()) {
+            return {host, std_port};
+        }
+        if (hostport[close + 1] != ':') {
+            return {"", -1};
+        }
+        int port = -1;
+        try {
+            port = std::stoi(hostport.substr(close + 2));
+        } catch (...) {
+            return {"", -1};
+        }
+        if (port < 1 || port > 65535) {
+            return {"", -1};
+        }
+        return {host, port};
+    }
+
+    auto first_colon = hostport.find(':');
+    if (first_colon == std::string::npos) {
         return {hostport, std_port};
     }
-    int port = std_port;
-    try {
-        port = std::stoi(hostport.substr(pos + 1));
-    } catch (...) {
-        port = std_port;
+    auto last_colon = hostport.rfind(':');
+    if (first_colon != last_colon) {
+        // Unbracketed IPv6 literal; treat as host-only and use default port.
+        return {hostport, std_port};
     }
-    return {hostport.substr(0, pos), port};
+
+    auto host = hostport.substr(0, first_colon);
+    if (host.empty()) {
+        return {"", -1};
+    }
+    int port = -1;
+    try {
+        port = std::stoi(hostport.substr(first_colon + 1));
+    } catch (...) {
+        return {"", -1};
+    }
+    if (port < 1 || port > 65535) {
+        return {"", -1};
+    }
+    return {host, port};
 }
 
 std::string DavToHttp(const std::string &url) {
