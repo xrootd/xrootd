@@ -81,6 +81,9 @@ namespace XrdCl
       filesize = cdfh->extra->compressedSize;
     uint16_t descsize = cdfh->HasDataDescriptor() ?
                         DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
+    if( nextRecordOffset < filesize + descsize )
+      return XRootDStatus( stError, errDataError, 0,
+                           "Corrupted ZIP: file offset underflow in central directory" );
     uint64_t fileoff  = nextRecordOffset - filesize - descsize;
     uint64_t offset   = fileoff + relativeOffset;
     uint64_t uncompressedSize = cdfh->uncompressedSize;
@@ -171,6 +174,9 @@ namespace XrdCl
     {
       if( size )
       {
+        if( offset > me.archsize || size > me.archsize - offset )
+          return XRootDStatus( stError, errDataError, 0,
+                               "ZIP read beyond archive buffer bounds" );
         memcpy( usrbuff, me.buffer.get() + offset, size );
         log->Dump( ZipMsg, "[%p] Serving read from local cache.", (void*)&me );
       }
