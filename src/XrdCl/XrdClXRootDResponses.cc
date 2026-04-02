@@ -771,7 +771,7 @@ namespace XrdCl
         std::unique_ptr<XRootDStatus> stptr( status );
         std::unique_ptr<AnyObject> rspptr( response );
         // if there is no response provide a null reference placeholder
-        static AnyObject nullref;
+        AnyObject nullref;
         if( response == nullptr )
           response = &nullref;
         // call the user completion handler
