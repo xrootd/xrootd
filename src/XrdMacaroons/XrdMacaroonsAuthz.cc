@@ -135,6 +135,17 @@ int validate_verify_empty(void *emsg_ptr,
     return 1;
 }
 
+bool IsSafeRequestName(const std::string &name)
+{
+    if (name.empty() || name[0] == '-') return false;
+    for (unsigned char c : name)
+    {
+        if (!isalnum(c) && c != '_' && c != '.' && c != '@' && c != '-')
+            return false;
+    }
+    return true;
+}
+
 }
 
 
@@ -558,6 +569,12 @@ AuthzCheck::verify_name(const unsigned char * pred, size_t pred_sz)
 
     // Make a copy of the name for the XrdSecEntity; this will be used later.
     m_sec_name = pred_str.substr(5);
+    if (!IsSafeRequestName(m_sec_name))
+    {
+        m_emsg = "Rejected unsafe request.name caveat value";
+        m_log.Log(LogMask::Warning, "AuthzCheck", m_emsg.c_str());
+        return 1;
+    }
 
     return 0;
 }
