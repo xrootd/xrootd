@@ -46,7 +46,7 @@ jobs:
         apt install -y build-essential devscripts git
 
     - name: Clone repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -96,7 +96,7 @@ jobs:
         apt install -y build-essential devscripts equivs git
 
     - name: Clone repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
