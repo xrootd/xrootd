@@ -84,6 +84,10 @@ extern "C" {
 
 typedef  krb5_error_code krb_rc;
 
+namespace {
+XrdSysMutex initMutex;
+}
+
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l k r b 5   C l a s s               */
 /******************************************************************************/
@@ -106,7 +110,11 @@ static  int                Init(XrdOucErrInfo *einfo, char *KP=0, char *kfn=0);
 
 static  void               setOpts(int opts) {options = opts;}
 static  void               setClientOpts(int opts) {client_options = opts;}
-static  void               setParms(char *param) {Parms = param;}
+static  void               setParms(char *param)
+                                    {XrdSysMutexHelper scopedLock(initMutex);
+                                     if (Parms) free(Parms);
+                                     Parms = param;
+                                    }
 static  void               setExpFile(char *expfile)
                                      {if (expfile)
                                          {int lt = strlen(expfile);
@@ -201,7 +209,6 @@ char                XrdSecProtocolkrb5::ExpFile[XrdSecMAXPATHLEN] = "/tmp/krb5cc
   
 void XrdSecProtocolkrb5::Delete()
 {
-     if (Parms)      {free(Parms); Parms = 0;}
      if (Creds)       krb5_free_creds(krb_context, Creds);
      if (Ticket)      krb5_free_ticket(krb_context, Ticket);
      if (AuthContext) krb5_auth_con_free(krb_context, AuthContext);
