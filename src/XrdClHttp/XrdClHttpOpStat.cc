@@ -131,7 +131,11 @@ CurlStatOp::ParseProp(TiXmlElement *prop) {
         if (!strcasecmp(child->Value(), "D:getcontentlength") || !strcasecmp(child->Value(), "lp1:getcontentlength")) {
             auto len = child->GetText();
             if (len) {
-                m_length = std::stoll(len);
+                try {
+                    m_length = std::stoll(len);
+                } catch (...) {
+                    return {-1, false};
+                }
             }
         } else if (!strcasecmp(child->Value(), "D:resourcetype") || !strcasecmp(child->Value(), "lp1:resourcetype")) {
             m_is_dir = child->FirstChildElement("D:collection") != nullptr;
@@ -162,6 +166,10 @@ CurlStatOp::GetStatInfo() {
     }
 
     auto elem = doc.RootElement();
+    if (!elem) {
+        m_logger->Error(kLogXrdClHttp, "XML response had no root element");
+        return {-1, false};
+    }
     if (strcasecmp(elem->Value(), "D:multistatus")) {
         m_logger->Error(kLogXrdClHttp, "Unexpected XML response: %s", m_response.substr(0, 1024).c_str());
         return {-1, false};

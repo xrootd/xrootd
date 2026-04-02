@@ -90,7 +90,9 @@ bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
             }
             try {
                 entry.m_size = std::stoll(size);
-            } catch (std::invalid_argument &e) {
+            } catch (std::invalid_argument &) {
+                return false;
+            } catch (std::out_of_range &) {
                 return false;
             }
         } else if (!strcasecmp(child->Value(), "D:getlastmodified") || !strcasecmp(child->Value(), "lp1:getlastmodified")) {
@@ -181,6 +183,11 @@ CurlListdirOp::Success()
     }
 
     auto elem = doc.RootElement();
+    if (!elem) {
+        m_logger->Error(kLogXrdClHttp, "XML response had no root element");
+        Fail(XrdCl::errErrorResponse, kXR_FSError, "Server responded to directory listing with invalid XML");
+        return;
+    }
     if (strcasecmp(elem->Value(), "D:multistatus")) {
         m_logger->Error(kLogXrdClHttp, "Unexpected XML response: %s", m_response.substr(0, 1024).c_str());
         Fail(XrdCl::errErrorResponse, kXR_FSError, "Server responded to directory listing unexpected XML root");
