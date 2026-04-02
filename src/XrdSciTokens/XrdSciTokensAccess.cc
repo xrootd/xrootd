@@ -827,10 +827,17 @@ private:
             return false;
         }
         if (expiry > 0) {
-            expiry = std::max(static_cast<int64_t>(monotonic_time() - expiry),
-                static_cast<int64_t>(60));
+            const auto now_wall = static_cast<long long>(std::time(nullptr));
+            const auto remaining = expiry - now_wall;
+            if (remaining <= 0) {
+                m_log.Log(LogMask::Warning, "GenerateAcls", "Token already expired.");
+                scitoken_destroy(token);
+                return false;
+            }
+            expiry = std::min(static_cast<int64_t>(remaining),
+                              static_cast<int64_t>(m_expiry_secs));
         } else {
-            expiry = 60;
+            expiry = m_expiry_secs;
         }
 
         char *value = nullptr;
