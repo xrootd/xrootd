@@ -123,7 +123,8 @@ ssize_t determine_validity(const std::string& input)
 
 Handler::~Handler()
 {
-    delete m_chain;
+    // The chain authz plugin is owned by the XRootD framework.
+    // Do not delete it here.
 }
 
 
