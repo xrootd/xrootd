@@ -1894,18 +1894,26 @@ namespace XrdCl
 
     ChunkList *list   = new ChunkList();
 
-    uint32_t size = 0;
+    uint64_t totalSize = 0;
     for( int i = 0; i < iovcnt; ++i )
     {
       if( iov[i].iov_len == 0 ) continue;
-      size += iov[i].iov_len;
+      totalSize += iov[i].iov_len;
       list->push_back( ChunkInfo( 0, iov[i].iov_len,
                        (char*)iov[i].iov_base ) );
     }
 
+    if( totalSize > static_cast<uint64_t>( INT32_MAX ) )
+    {
+      delete list;
+      delete msg;
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "WriteV: total data size exceeds protocol limit" );
+    }
+
     req->requestid  = kXR_write;
     req->offset     = offset;
-    req->dlen       = size;
+    req->dlen       = static_cast<uint32_t>( totalSize );
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
     MessageSendParams params;
@@ -1949,13 +1957,22 @@ namespace XrdCl
     MessageUtils::CreateRequest( msg, req );
 
     // calculate the total read size
-    size_t size = std::accumulate( iov, iov + iovcnt, 0, []( size_t acc, iovec &rhs )
-                                                         {
-                                                           return acc + rhs.iov_len;
-                                                         } );
+    size_t size = std::accumulate( iov, iov + iovcnt, size_t(0),
+                                   []( size_t acc, iovec &rhs )
+                                   {
+                                     return acc + rhs.iov_len;
+                                   } );
+
+    if( size > static_cast<size_t>( INT32_MAX ) )
+    {
+      delete msg;
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "ReadV: total read size exceeds protocol limit" );
+    }
+
     req->requestid  = kXR_read;
     req->offset     = offset;
-    req->rlen       = size;
+    req->rlen       = static_cast<int32_t>( size );
     msg->SetVirtReqID( kXR_virtReadv );
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
@@ -2320,19 +2337,27 @@ namespace XrdCl
     memcpy( req->fhandle, self->pFileHandle, 4 );
 
     ChunkList *list   = new ChunkList();
-    uint32_t size = 0;
+    uint64_t totalSize = 0;
     for( int i = 0; i < iovcnt; ++i )
     {
       if( iov[i].iov_len == 0 ) continue;
-      size += iov[i].iov_len;
+      totalSize += iov[i].iov_len;
       list->push_back( ChunkInfo( 0, iov[i].iov_len,
                        (char*)iov[i].iov_base ) );
+    }
+
+    if( totalSize > static_cast<uint64_t>( INT32_MAX ) )
+    {
+      delete list;
+      delete msg;
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "ChkptWrtV: total data size exceeds protocol limit" );
     }
 
     ClientWriteRequest *wrtreq = (ClientWriteRequest*)msg->GetBuffer( sizeof(ClientChkPointRequest) );
     wrtreq->requestid = kXR_write;
     wrtreq->offset    = offset;
-    wrtreq->dlen      = size;
+    wrtreq->dlen      = static_cast<uint32_t>( totalSize );
     memcpy( wrtreq->fhandle, self->pFileHandle, 4 );
 
     MessageSendParams params;
