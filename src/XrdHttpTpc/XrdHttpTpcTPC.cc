@@ -19,6 +19,7 @@
 #include <fcntl.h>
 
 #include <algorithm>
+#include <cctype>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -305,6 +306,47 @@ static std::string PrepareURL(const std::string &input) {
     return input;
 }
 
+namespace {
+
+bool HasHeaderDelimiterChars(const std::string &value) {
+    return value.find('\r') != std::string::npos || value.find('\n') != std::string::npos;
+}
+
+bool IsSafeRedirectComponent(const std::string &value) {
+    if (value.empty() || HasHeaderDelimiterChars(value)) {
+        return false;
+    }
+    for (char c : value) {
+        if (std::iscntrl(static_cast<unsigned char>(c))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::string ExtractHostForResolution(const std::string &host_header) {
+    if (host_header.empty()) {
+        return std::string();
+    }
+    if (host_header[0] == '[') {
+        const std::string::size_type close = host_header.find(']');
+        if (close == std::string::npos || close <= 1) {
+            return std::string();
+        }
+        return host_header.substr(1, close - 1);
+    }
+    const std::string::size_type colon = host_header.find(':');
+    if (colon == std::string::npos) {
+        return host_header;
+    }
+    if (colon == 0) {
+        return std::string();
+    }
+    return host_header.substr(0, colon);
+}
+
+}
+
 /******************************************************************************/
 /*                T P C H a n d l e r : : P r o c e s s R e q                 */
 /******************************************************************************/
@@ -415,6 +457,16 @@ int TPCHandler::RedirectTransfer(CURL *curl, const std::string &redirect_resourc
 
     if (pos != std::string::npos) {
       opaque = rdr_info.substr(pos + 1);
+    }
+
+    if ((port < 1) || (port > 65535) || !IsSafeRedirectComponent(host)
+        || !IsSafeRedirectComponent(redirect_resource)
+        || (!opaque.empty() && HasHeaderDelimiterChars(opaque))) {
+        rec.status = 500;
+        std::stringstream ss;
+        ss << "Internal error: unsafe redirect metadata from filesystem";
+        logTransferEvent(LogMask::Error, rec, "REDIRECT_INTERNAL_ERROR", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
 
     std::stringstream ss;
