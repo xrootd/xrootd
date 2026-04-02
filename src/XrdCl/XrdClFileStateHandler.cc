@@ -2898,6 +2898,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void FileStateHandler::AfterForkChild()
   {
+    XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
 
     if( pFileState == Closed || pFileState == Error )

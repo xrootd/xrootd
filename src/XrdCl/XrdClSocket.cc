@@ -505,6 +505,9 @@ namespace XrdCl
     //----------------------------------------------------------------------
     // Try to write down the current message
     //----------------------------------------------------------------------
+    if( msg.GetCursor() > msg.GetSize() )
+      return XRootDStatus( stError, errInternal, 0,
+                           "Send: message cursor past end of buffer" );
     size_t btsleft = msg.GetSize() - msg.GetCursor();
     if( !btsleft ) return XRootDStatus();
 
