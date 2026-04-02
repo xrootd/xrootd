@@ -19,6 +19,8 @@
 #include <unordered_map>
 #include <tuple>
 #include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include "INIReader.h"
 #include "picojson.h"
@@ -183,6 +185,19 @@ std::string AccessRuleStr(const AccessRulesRaw &rules) {
     return ss.str();
 }
 
+// Returns true iff every character in the string is a valid POSIX username
+// character: [A-Za-z0-9._@-], with a non-empty length and no leading '-'.
+// This prevents attacker-controlled JWT claim values from being forwarded as
+// OS usernames containing path separators, shell metacharacters, or null bytes.
+bool IsSafeUsername(const std::string &name) {
+    if (name.empty() || name[0] == '-') return false;
+    for (unsigned char c : name) {
+        if (!isalnum(c) && c != '_' && c != '.' && c != '@' && c != '-')
+            return false;
+    }
+    return true;
+}
+
 bool MakeCanonical(const std::string &path, std::string &result)
 {
     if (path.empty() || path[0] != '/') {return false;}
@@ -257,10 +272,17 @@ struct MapRule
 
         if (!m_username.empty() && username != m_username) {return "";}
 
-        if (!m_path_prefix.empty() &&
-            strncmp(req_path.c_str(), m_path_prefix.c_str(), m_path_prefix.size()))
-        {
-            return "";
+        if (!m_path_prefix.empty()) {
+            if (req_path.compare(0, m_path_prefix.size(), m_path_prefix)) {
+                return "";
+            }
+            // Path prefixes must match on full path components, not partial names.
+            if (req_path.size() > m_path_prefix.size() &&
+                m_path_prefix.back() != '/' &&
+                req_path[m_path_prefix.size()] != '/')
+            {
+                return "";
+            }
         }
 
         if (!m_group.empty()) {
@@ -509,7 +531,7 @@ public:
             // If there's no request-specific token, then see if the ZTN authorization
             // has provided us with a session token.
         if (!authz && Entity && !strcmp("ztn", Entity->prot) && Entity->creds &&
-            Entity->credslen && Entity->creds[Entity->credslen] == '\0')
+            Entity->credslen > 0 && std::memchr(Entity->creds, '\0', Entity->credslen))
         {
             authz = Entity->creds;
         }
@@ -887,6 +909,11 @@ private:
             }
             tmp_username = std::string(value);
             free(value);
+            if (!IsSafeUsername(tmp_username)) {
+                m_log.Log(LogMask::Warning, "GenerateAcls", "Token username claim contains unsafe characters; rejecting:", tmp_username.c_str());
+                scitoken_destroy(token);
+                return false;
+            }
         } else if (!config.m_map_subject) {
             tmp_username = config.m_default_user;
         }
