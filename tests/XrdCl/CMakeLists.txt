@@ -7,7 +7,7 @@ add_executable(xrdcl-unit-tests
   )
 
 target_link_libraries(xrdcl-unit-tests
-  XrdTestUtils GTest::GTest GTest::Main)
+  XrdTestUtils GTest::gtest GTest::gtest_main)
 
 gtest_discover_tests(xrdcl-unit-tests TEST_PREFIX XrdCl:: 
   PROPERTIES DISCOVERY_TIMEOUT 10)
@@ -31,7 +31,7 @@ add_executable(xrdcl-cluster-tests
   )
 
 target_link_libraries(xrdcl-cluster-tests
-  XrdTestUtils GTest::GTest GTest::Main)
+  XrdTestUtils GTest::gtest GTest::gtest_main)
 
 gtest_discover_tests(xrdcl-cluster-tests TEST_PREFIX XrdCl::
   PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster DISCOVERY_TIMEOUT 10)
@@ -51,7 +51,7 @@ foreach(i ${SERIAL_TESTS_FILES})
   add_executable(${i}-tests ${i} IdentityPlugIn.cc)
 
   target_link_libraries(${i}-tests
-    XrdTestUtils GTest::GTest GTest::Main)
+    XrdTestUtils GTest::gtest GTest::gtest_main)
 
   gtest_discover_tests(${i}-tests TEST_PREFIX XrdCl::
     PROPERTIES DEPENDS XRootD_Cluster FIXTURES_REQUIRED XRootD_Cluster RUN_SERIAL 1 DISCOVERY_TIMEOUT 10)

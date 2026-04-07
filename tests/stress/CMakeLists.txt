@@ -14,7 +14,7 @@ add_executable( xrdhttp-stress-tests
 )
 
 target_link_libraries( xrdhttp-stress-tests
-  GTest::GTest GTest::Main CURL::libcurl
+  GTest::gtest GTest::gtest_main CURL::libcurl
 )
 
 gtest_discover_tests(xrdhttp-stress-tests TEST_PREFIX XrdHttp::

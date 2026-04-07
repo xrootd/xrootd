@@ -24,8 +24,8 @@ target_link_libraries(xrdthrottle-unit-tests
     XrdThrottleTestLib
     XrdUtils
     XrdServer
-    GTest::GTest
-    GTest::Main
+    GTest::gtest
+    GTest::gtest_main
 )
 
 target_include_directories(xrdthrottle-unit-tests

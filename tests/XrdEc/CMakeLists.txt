@@ -5,7 +5,7 @@ endif()
 add_executable(xrdec-unit-tests XrdEcTests.cc)
 
 target_link_libraries(xrdec-unit-tests
-  XrdEc XrdTestUtils GTest::GTest GTest::Main ${ISAL_LIBRARIES})
+  XrdEc XrdTestUtils GTest::gtest GTest::gtest_main ${ISAL_LIBRARIES})
 
 target_include_directories(xrdec-unit-tests PRIVATE ${ISAL_INCLUDE_DIRS})
 

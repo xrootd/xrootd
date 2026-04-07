@@ -11,7 +11,7 @@ target_link_libraries(XrdHttpTpcUtils
 
 target_link_libraries(xrdhttptpc-unit-tests
         XrdHttpTpcUtils
-        GTest::GTest
-        GTest::Main)
+        GTest::gtest
+        GTest::gtest_main)
 
 gtest_discover_tests(xrdhttptpc-unit-tests PROPERTIES DISCOVERY_TIMEOUT 10)
