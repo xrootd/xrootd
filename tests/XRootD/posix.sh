@@ -39,4 +39,19 @@ function test_posix() {
 	export XROOTD_VMP="${HOST#root://}:/xrootd/=/"
 
 	assert xrdposix-cat /xrootd/remote.txt
+
+	# Check that statx (which is Linux-only) works with local paths and URLs
+
+	if [[ $(uname) == "Linux" ]]; then
+		assert xrdposix-statx .
+		assert xrdposix-statx "${HOST}"/
+		assert xrdposix-statx "${LOCAL_DIR}"/local.txt
+		assert xrdposix-statx "${REMOTE_DIR}"/remote.txt
+		assert xrdposix-statx "${HOST}"/remote.txt
+
+		assert_failure xrdposix-statx /this/does/not/exist.txt
+		assert_failure xrdposix-statx "${HOST}"/this/does/not/exist.txt
+
+		assert xrdposix-statx /xrootd/remote.txt
+	fi
 }
