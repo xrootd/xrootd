@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/uio.h>
@@ -934,16 +935,27 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
 
 extern "C"
 {
-
 int XrdPosix_Statx(int dirfd, const char *path, int flags,
                    unsigned int mask, XrdSysStatx *stx)
 {
-  struct stat buf;
-  int ret = XrdPosix_Stat(path,&buf);
-   if (!ret) {
-      XrdSysStatxHelpers::Stat2Statx(buf,*stx);
-   }
-   return ret;
+  if (path && *path) {
+    char buff[2048];
+    if (char *myPath = XrootPath.URL(path, buff, sizeof(buff))) {
+      struct stat st{};
+
+      if (int ret = XrdPosix_Stat(myPath, &st))
+        return ret;
+
+      XrdSysStatxHelpers::Stat2Statx(st, *stx);
+      return 0;
+    }
+  }
+#ifdef SYS_statx
+  return syscall(SYS_statx, dirfd, path, flags, mask, stx);
+#else
+  errno = ENOSYS;
+  return -1;
+#endif
 }
 }
   
