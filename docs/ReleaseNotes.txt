@@ -6,6 +6,51 @@ Release Notes
 =============
 
 -------------
+Version 5.9.2
+-------------
+
++ **Major bug fixes**
+  **[cmsd]** Clear ident field when reusing a request object to avoid segv
+  **[Server]** Correct relative path check when directory is implied
+  **[XrdCl]** Fix a possible deadlock in extreme copy (#2619, #2622)
+  **[XrdCl]** Fix crashes observed with Clang in Release builds
+  **[XrdCl]** Fix segfault in XCpCtx::WeakestLink() (#2659)
+  **[XrdHttp]** Fix a null byte buffer overflow when parsing %-encoded strings (#2690)
+  **[XrdHttp]** Fix a null byte overflow in parseURL in HttpUtils (#2689)
+  **[XrdHttp]** Fix buffer overflow issues when parsing HTTP request lines (#2691)
+  **[XrdHttp]** Prevent a buffer overflow when handling a large Host header (#2692)
+  **[XrdThrottle]** Fix null pointer dereference in ThrottleManager
+  **[XrdXrootd]** Use correct format specifier when printing out monitoring report (#2741)
+
++ **Minor bug fixes**
+  **[Bridge]** Fix Bridge re-drive being invoked after protocol is Reset (#2602, #2613)
+  **[Monitoring]** Do not emit XML header if only JSON is to be emitted
+  **[Python]** Fix XRootD glob to preserve URL parameters for authentication (#2634)
+  **[XrdCl]** Correct digest index when receiving pgread response out of order
+  **[XrdCl]** Fix help message display in xrdfs help
+  **[XrdCl]** Make sure outgoing message still valid on retry (#2646)
+  **[XrdCl]** Set errno on zero return from read/readv
+  **[XrdNet]** Use a pre-allocated buffer to store host/domain names (#2452)
+  **[XrdPfc]** Fix uninitialized value passing into resource-monitor purge queue (#2679)
+  **[XrdSys]** Fix FDs leaked in constructors when logging to stderr (#2715)
+  **[XrdSys]** Make sure a mutex is unlocked before destruction
+  **[XrdVoms]** provide compatibility for timespec on macOS/NetBSD (#2680)
+  **[Xrd]** More support for external closing of Link (#2226, #2653)
+  **[Xrd]** Wait for threads that issue eventfd (#2602, #2623)
+  **[XrdXrootd]** Make sure aio multipath response uses right path and streamId (#2658)
+
++ **Miscellaneous**
+  **[CI]** Fix GitLab CI builds when build directory is reused
+  **[CI]** Use auditwheel to repair XRootD Python binary wheels (#2495)
+  **[CMake]** Link XrdVoms plugin with XrdUtils and OpenSSL
+  **[Tests]** Add initial tests with Kerberos authentication (#2643)
+  **[Tests]** Add initial tests with X509 certificate authentication (#2644)
+  **[XrdCeph]** Link modules against XrdUtils/XrdServer as needed
+  **[XrdHttp]** Avoid copying strings when handling MOVE requests (#2726)
+  **[Xrd]** Set X509_CERT_DIR and X509_CERT_FILE if not already set
+  **[XrdSys]** PollKQ (for macOS) remove active poll filters during Exclude
+
+-------------
 Version 5.9.1
 -------------
 
