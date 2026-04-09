@@ -6,6 +6,86 @@ Release Notes
 =============
 
 -------------
+Version 6.0.0
+-------------
+
++ **New Features**
+  **[Plugins]** Implement a Rucio aware Tape Remote Storage Element for backups
+  **[Python]** Add SetLogLevel/SetLogMask to client interface (#1713)
+  **[Python]** Add fSetXattrAdler32 interface to set local file checksum (#2650)
+  **[Server,XrdCl]** Add support for pre-read (#2727, #2743)
+  **[Server]** Allow fcntl to be forwarded to the origin
+  **[Server]** Implement extended error messages for proxy servers (#613)
+  **[Server]** Provide support of kXR_QFinfo and kXR_QFSinfo subcodes of kXR_query
+  **[Systemd]** Update XRootD systemd unit files
+  **[XProtocol]** Add kXR_QFinfo, kXR_QFSinfo, and kXR_directio option flags
+  **[XrdAcc,XrdSciTokens]** Add support for WLCG staging tokens (#2627)
+  **[XrdAcc]** Allow authorization plugin to supply additional error info
+  **[XrdApps, XrdCl, XrdEc, Python]** Use time_t for times and timeouts (#2236, #2237)
+  **[XrdCl]** Add constructor to initialise plugin without opening the file (#2512)
+  **[XrdCl]** Add fcntl interface to propagate query code parameter (#2588)
+  **[XrdCl]** Add file cloning support (ficlone, reflink) (#1795, #2569)
+  **[XrdCl]** Add new XrdClHttp and XrdClS3 client plugins based on curl (#2514, #2567)
+  **[XrdCl]** Add support for pointers to XrdCl::Env (#2522)
+  **[XrdCl]** Add virtual destructors to XrdClXRootDResponse classes to allow deleting object from a base class pointer (#2511)
+  **[XrdCl]** Added -h option to xrdfs for human-readable size listing (#2612)
+  **[XrdCl]** Remove old XrdClHttp plugin based on Davix (#2685)
+  **[XrdEc]** Deprecate support for erasure coding (XrdEc)
+  **[XrdHttpTPC]** Add cks.type and cks.value opaque to file open
+  **[XrdHttpTPC]** Allow missing CRL checking if configured via xrd.tlsca (#2681, #2713)
+  **[XrdHttpTPC]** Implement data integrity checks based on Repr-Digest headers (#2531, #2595)
+  **[XrdHttp]** Add new option to allow or deny directory listing (#2671)
+  **[XrdHttp]** HTTP access and error reporting in g-stream monitoring (#2352, #2604)
+  **[XrdHttp]** Implement summary monitoring for HTTP (#2637, #2712)
+  **[XrdHttp]** Provide ETag value in HEAD request (#2642)
+  **[XrdOfs]** Propagate error information returned by authorization plugins
+  **[XrdOss]** Allow setting a file descriptor for an unopen file
+  **[XrdPfc]** Add fcntl interface for cache oriented operations
+  **[XrdPfc]** Add pfc.writethrough option to enable write-through mode for cache (#2472)
+  **[XrdPfc]** Introduce pfc.httpcc and pfc.qfsredir options (#2642)
+  **[XrdPosix]** Add fcntl interface (#2642)
+  **[XrdPosix]** Add method to re-export pointers into the client environment
+  **[XrdPosix]** Add support for statx syscall (#2725)
+  **[XrdThrottle]** Implement per-user connection limits and configuration loading (#2621, #2654)
+  **[XrdXrootd]** Allow static redirection of write operations (#2473)
+  **[xrdmapc]** Add JSON output format (#2752)
+
++ **Bugfixes**
+  **[CMake]** Fix underlinking in XrdCeph/XrdVoms plugins
+  **[Python]** Ensure that we find matching Python interpreter and modules
+  **[XrdCl, Python]** Use uint32_t for job ids and number of copy jobs (#2235)
+  **[XrdCl]** Better protection during handling of redirection (#2648)
+  **[XrdCl]** Fix EMA use for slow transfer classification (#2742)
+  **[XrdCl]** Fix ODR violation in XrdClSIDManager
+  **[XrdCl]** Fix generic errors sent on some types of failures (#2738)
+  **[XrdCl]** Fix potential deadlock in extreme copy (#2619)
+  **[XrdCl]** Make sure outgoing message still valid on retry (#2646)
+  **[XrdCl]** Rework Channel ownership and socket closing (#2578)
+  **[XrdCrypto]** Fix ODR violation by removing sources already in XrdUtils (#2471)
+  **[XrdFrm]** Fix ODR violations due to clash of local/global symbols (#2728)
+  **[XrdHttpTpc]** Use HTTP 202 Accepted instead of HTTP 201 Created as initial response to a TPC copy (#2625, #2656)
+  **[XrdHttp]** Return 403 instead of 503 when directory listing is denied
+  **[XrdOss]** Map internal XrdOss error codes to Errno before returning (#2526, #2605)
+  **[XrdSciTokens]** Refactor Check() cleanup to prevent runs from stacking up (#2677)
+  **[XrdSciTokens]** Set XDG_CACHE_HOME if not set (#2667, #2699)
+  **[XrdSecgsi]** Fix behavior of vomsat and vomsfun relative to documentation (#1817)
+  **[XrdSsi]** Eliminate deadlocks under high frequency request cancellation (#2750)
+
++ **Miscellaneous**
+  **[CI]** Add sanitizer builds to GitHub Actions
+  **[CMake]** Always use internal version of tinyxml (#2672)
+  **[CMake]** Move baseline required C++ standard to C++20
+  **[CMake]** Update CMake minimum requirement and supported versions
+  **[Misc]** Drop support for OpenSSL 1.0.x, require OpenSSL 1.1.1 or later
+  **[Python]** Toggle default of raise_error in glob/iglob to true (#2636)
+  **[XrdAcc]** Add /etc/xrootd/authdb as default path for authdb file (#2687)
+  **[XrdApps]** Drop option --allow-http from xrdcp
+  **[XrdHttp]** Fix typo and omit version info in Server: response header (#2688)
+  **[XrdOuc]** Update XrdOucJson.hh to nlohmann_json 3.12.0
+  **[XrdOuc]** Use nlohmann_json from the system when possible
+  **[XrdXrootd]** Define oss.coloc as URL encoded and provide encode/decode util
+
+-------------
 Version 5.9.2
 -------------
 
