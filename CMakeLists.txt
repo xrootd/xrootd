@@ -51,7 +51,9 @@ include_directories(BEFORE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
 include(CTest)
 
 add_subdirectory(src)
-add_subdirectory(python)
+if(ENABLE_PYTHON)
+  add_subdirectory(python)
+endif()
 add_subdirectory(tests)
 
 add_subdirectory(docs)
