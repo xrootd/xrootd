@@ -109,7 +109,7 @@ XrdSysTrace      OfsTrace("ofs");
 /******************************************************************************/
 /*               S t a t i s t i c a l   D a t a   O b j e c t                */
 /******************************************************************************/
-  
+
 XrdOfsStats      OfsStats;
 
 /******************************************************************************/
@@ -140,11 +140,11 @@ bool VerPgw(const char *buf, ssize_t off, size_t len, const uint32_t* csv,
    return true;
 }
 }
-  
+
 /******************************************************************************/
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
-  
+
 XrdOfsHandle     *XrdOfs::dummyHandle;
 
 int               XrdOfs::MaxDelay = 60;
@@ -153,13 +153,13 @@ int               XrdOfs::OSSDelay = 30;
 /******************************************************************************/
 /*                    F i l e   S y s t e m   O b j e c t                     */
 /******************************************************************************/
-  
+
 extern XrdOfs* XrdOfsFS;
 
 /******************************************************************************/
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */
 /******************************************************************************/
-  
+
 XrdOss *XrdOfsOss;
 
 /******************************************************************************/
@@ -206,9 +206,12 @@ XrdOfs::XrdOfs() : dMask{0000,0775}, fMask{0000,0775}, // Legacy
 
 // Set checksum pointers
 //
+   CksRTCalc = 0;
+   CksRTName = 0;
    Cks       = 0;
    CksPfn    = true;
    CksRdr    = true;
+   CksRTCgi  = 0;
 
 // Prepare handling
 //
@@ -367,7 +370,7 @@ const char *XrdOfsDirectory::nextEntry()
 /******************************************************************************/
 /*                                 c l o s e                                  */
 /******************************************************************************/
-  
+
 int XrdOfsDirectory::close()
 /*
   Function: Close the directory object.
@@ -444,7 +447,7 @@ int XrdOfsDirectory::autoStat(struct stat *buf)
     if ((retc = dp->StatRet(buf))) return retc;
     return SFS_OK;
 }
-  
+
 /******************************************************************************/
 /*                                                                            */
 /*                F i l e   O b j e c t   I n t e r f a c e s                 */
@@ -469,7 +472,7 @@ int XrdOfsFile::open(const char          *path,      // In
                const XrdSecEntity        *client,    // In
                const char                *info)      // In
 /*
-  Function: Open the file `path' in the mode indicated by `open_mode'.  
+  Function: Open the file `path' in the mode indicated by `open_mode'.
 
   Input:    path      - The fully qualified name of the file to open.
             open_mode - One of the following flag values:
@@ -503,17 +506,19 @@ int XrdOfsFile::open(const char          *path,      // In
          {const char   *Path;
           XrdOfsHandle *hP;
           XrdOssDF     *fP;
+          XrdCksCalc   *cP;
           int           poscNum;
 
-          int           OK() {hP = 0; fP = 0; poscNum = 0; return SFS_OK;}
+          int           OK() {hP=0; fP=0; cP=0; poscNum=0; return SFS_OK;}
 
                         OpenHelper(const char *path)
-                       : Path(path), hP(0), fP(0), poscNum(0) {}
+                       : Path(path), hP(0), fP(0), cP(0), poscNum(0) {}
 
                        ~OpenHelper()
                        {int retc;
                         if (hP) hP->Retire(retc);
                         if (fP) delete fP;
+                        if (cP) cP->Recycle();
                         if (poscNum > 0) XrdOfsFS->poscQ->Del(Path, poscNum, 1);
                        }
          } oP(path);
@@ -553,6 +558,15 @@ int XrdOfsFile::open(const char          *path,      // In
           } else {
            open_flag  |= O_RDWR     | O_CREAT  | O_TRUNC;
            find_flag  |= SFS_O_RDWR | SFS_O_TRUNC;
+          }
+       if (ofsFS-WantCksRT() && open_mode & (SFS_O_WRONLY | SFS_O_RDWR))
+          {const char* cipher = 0;
+           if ((retc = XrdOfsFS->SetupCksRT(&op.cP, Open_Env, cipher)))
+              {char eBuff[80];
+               snprintf(eBuff, sizeof(eBuff), "setup real-time %s checksum",
+                        (cipher ? cipher : "unknown"));
+               return XrdOfsFS->Emsg(epname, error, retc, eNuff, path);
+              }
           }
       }
    else
@@ -664,7 +678,7 @@ int XrdOfsFile::open(const char          *path,      // In
           } else {
             if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Added(path, isPosc);
             open_flag  = O_RDWR|O_TRUNC;
-            if (XrdOfsFS->evsObject 
+            if (XrdOfsFS->evsObject
             &&  XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Create))
                {XrdOfsEvsInfo evInfo(tident,path,info,&Open_Env,Mode);
                 XrdOfsFS->evsObject->Notify(XrdOfsEvs::Create, evInfo);
@@ -728,7 +742,7 @@ int XrdOfsFile::open(const char          *path,      // In
        XrdOfsFS->ocMutex.Lock(); oh = oP.hP; XrdOfsFS->ocMutex.UnLock();
        FTRACE(open, "attach use=" <<oh->Usage());
        if (oP.poscNum > 0) XrdOfsFS->poscQ->Commit(path, oP.poscNum);
-       oP.hP->UnLock(); 
+       oP.hP->UnLock();
        OfsStats.sdMutex.Lock();
        isRW ? OfsStats.Data.numOpenW++ : OfsStats.Data.numOpenR++;
        if (oP.poscNum > 0) OfsStats.Data.numOpenP++;
@@ -748,6 +762,12 @@ int XrdOfsFile::open(const char          *path,      // In
       {if (myTPC) open_flag |= O_NOFOLLOW;
        if (error.getUCap() & XrdOucEI::uUrlOK &&
            error.getUCap() & XrdOucEI::uLclF) open_flag |= O_DIRECT;
+
+// If we are doing real-time checksums, wrap the Oss file with a Cks file
+//
+   If (oP.cP)
+      {oP.fP = new XrdCksFile(tident, oh->Name(), op.fP, op.cP);
+       op.cP = 0;
       }
 
 // Open the file
@@ -845,13 +865,13 @@ int XrdOfsFile::Clone(XrdSfsFile& srcFile)
 
    if (rc < 0)
       {char etxt[4096];
-       snprintf(etxt,sizeof(etxt),"%s from %s",oh->Name(),ofsFile.oh->Name()); 
+       snprintf(etxt,sizeof(etxt),"%s from %s",oh->Name(),ofsFile.oh->Name());
        return XrdOfsFS->Emsg(epname, error, rc, "clone", etxt);
       }
 
    return SFS_OK;
 }
-  
+
 /******************************************************************************/
 
 int XrdOfsFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
@@ -1066,7 +1086,7 @@ int XrdOfsFile::checkpoint(XrdSfsFile::cpAct act, struct iov *range, int n)
    FTRACE(chkpnt, ckpName);
    return SFS_OK;
 }
-  
+
 /******************************************************************************/
 /* Private:                    C r e a t e C K P                              */
 /******************************************************************************/
@@ -1106,11 +1126,11 @@ int            XrdOfsFile::CreateCKP()
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  f c t l                                   */
 /******************************************************************************/
-  
+
 int            XrdOfsFile::fctl(const int               cmd,
                                 const char             *args,
                                       XrdOucErrInfo    &out_error)
@@ -1144,7 +1164,7 @@ int XrdOfsFile::fctl(const int cmd, int alen, const char *args,
 //
    if (cmd == SFS_FCTL_QFINFO)
       {char* resp = 0;;
-       int rc = oh->Select().Fctl(XrdOssDF::Fctl_QFinfo, alen, args, &resp); 
+       int rc = oh->Select().Fctl(XrdOssDF::Fctl_QFinfo, alen, args, &resp);
        if (rc < 0)
           {if (resp) delete[] resp;
            return XrdOfsFS->Emsg(epname,error,rc,"fctl",oh,false,false);
@@ -1159,7 +1179,7 @@ int XrdOfsFile::fctl(const int cmd, int alen, const char *args,
           }
        return SFS_OK;
       }
-       
+
 // See if the is a tpc cancellation (the only thing we support here)
 //
    if (cmd != SFS_FCTL_SPEC1 || !args || alen < fctlAsz || strcmp(fctlArg,args))
@@ -1182,7 +1202,7 @@ int XrdOfsFile::fctl(const int cmd, int alen, const char *args,
 /******************************************************************************/
 /*                                p g R e a d                                 */
 /******************************************************************************/
-  
+
 XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsFileOffset   offset,
                                   char              *buffer,
                                   XrdSfsXferSize     rdlen,
@@ -1278,7 +1298,7 @@ XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 /******************************************************************************/
 /*                               p g W r i t e                                */
 /******************************************************************************/
-  
+
 XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsFileOffset   offset,
                                    char              *buffer,
                                    XrdSfsXferSize     wrlen,
@@ -1432,7 +1452,7 @@ int            XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 //
    return retc;
 }
-  
+
 /******************************************************************************/
 /*                                  r e a d                                   */
 /******************************************************************************/
@@ -1509,11 +1529,11 @@ XrdSfsXferSize XrdOfsFile::readv(XrdOucIOVec     *readV,     // In
    return nbytes;
 
 }
-  
+
 /******************************************************************************/
 /*                              r e a d   A I O                               */
 /******************************************************************************/
-  
+
 /*
   Function: Read `blen' bytes at `offset' into 'buff' and return the actual
             number of bytes read using asynchronous I/O, if possible.
@@ -1616,7 +1636,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 /******************************************************************************/
 /*                             w r i t e   A I O                              */
 /******************************************************************************/
-  
+
 // For now, this reverts to synchronous I/O
 //
 int XrdOfsFile::write(XrdSfsAio *aiop)
@@ -1682,7 +1702,7 @@ int XrdOfsFile::getMmap(void **Addr, off_t &Size)         // Out
 
    return SFS_OK;
 }
-  
+
 /******************************************************************************/
 /*                                  s t a t                                   */
 /******************************************************************************/
@@ -1762,7 +1782,7 @@ int XrdOfsFile::sync()  // In
 /******************************************************************************/
 /*                              s y n c   A I O                               */
 /******************************************************************************/
-  
+
 // For now, reverts to synchronous case. This must also be the case for POSC!
 //
 int XrdOfsFile::sync(XrdSfsAio *aiop)
@@ -1787,7 +1807,7 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
   Notes:    If 'flen' is smaller than the current size of the file, the file
             is made smaller and the data past 'flen' is discarded. If 'flen'
             is larger than the current size of the file, a hole is created
-            (i.e., the file is logically extended by filling the extra bytes 
+            (i.e., the file is logically extended by filling the extra bytes
             with zeroes).
 */
 {
@@ -1822,7 +1842,7 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 /******************************************************************************/
 /*                             g e t C X i n f o                              */
 /******************************************************************************/
-  
+
 int XrdOfsFile::getCXinfo(char cxtype[4], int &cxrsz)
 /*
   Function: Set the length of the file object to 'flen' bytes.
@@ -1848,7 +1868,7 @@ int XrdOfsFile::getCXinfo(char cxtype[4], int &cxrsz)
 /******************************************************************************/
 /* protected                  G e n F W E v e n t                             */
 /******************************************************************************/
-  
+
 void XrdOfsFile::GenFWEvent()
 {
    int first_write;
@@ -1937,7 +1957,7 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 
 // If we are a menager then we need to redirect the client to where the file is
 //
-   if (CksRdr && Finder && Finder->isRemote() 
+   if (CksRdr && Finder && Finder->isRemote()
    &&  (rc = Finder->Locate(einfo, Path, SFS_O_RDONLY, &cksEnv)))
       return fsError(einfo, rc);
 
@@ -1981,7 +2001,7 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 //
    return Emsg(epname, einfo, rc, "checksum", Path, "?");
 }
-  
+
 /******************************************************************************/
 /*                                 c h m o d                                  */
 /******************************************************************************/
@@ -2066,7 +2086,7 @@ void XrdOfs::Connect(const XrdSecEntity *client)
 /******************************************************************************/
 /*                                  D i s c                                   */
 /******************************************************************************/
-  
+
 void XrdOfs::Disc(const XrdSecEntity *client)
 {
    XrdOucEnv myEnv(0, 0, client);
@@ -2116,7 +2136,7 @@ int XrdOfs::exists(const char                *path,        // In
 
 // Find out where we should stat this file
 //
-   if (Finder && Finder->isRemote() 
+   if (Finder && Finder->isRemote()
    &&  (retc = Finder->Locate(einfo, path, SFS_O_RDONLY, &stat_Env)))
       return fsError(einfo, retc);
 
@@ -2161,7 +2181,7 @@ int XrdOfs::getStats(char *buff, int blen)
 //
    return n;
 }
-  
+
 /******************************************************************************/
 /*                                 m k d i r                                  */
 /******************************************************************************/
@@ -2236,7 +2256,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 
     return SFS_OK;
 }
-  
+
 /******************************************************************************/
 /*                               p r e p a r e                                */
 /******************************************************************************/
@@ -2278,7 +2298,7 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
       return fsError(out_error, retc);
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                r e m o v e                                 */
 /******************************************************************************/
@@ -2727,11 +2747,35 @@ int XrdOfs::EmsgType(int ecode)  // The error code
 //
    return SFS_ERROR;
 }
-  
+
+/******************************************************************************/
+/*                            S e t u p C k s R T                             */
+/******************************************************************************/
+
+int XrdOfs::SetupCksRT(XrdCksCalc&* cP, XrdOucEnv& Env,const char*& cT)
+{
+   const char* cipher;
+
+// Check if the cipher can come from the environment
+//
+   if (CksRTCgi && (cT = Env.Get("cks.rt")))
+      return (!(cP = Cks->Object(cT)) || !XrdCksFile::Viable(cP)) ? -ENOTSUP:0);
+
+// Set of auto real-time is enabled
+//
+   if (CksRtCalc)
+      {cP - CksRTCalc->New();
+       cT = CksRTName;
+      }
+
+// All done
+//
+   return 0;
+}
+
 /******************************************************************************/
 /*                     P R I V A T E    S E C T I O N                         */
 /******************************************************************************/
-
 /******************************************************************************/
 /*                                 F n a m e                                  */
 /******************************************************************************/
@@ -2747,7 +2791,7 @@ const char *XrdOfs::Fname(const char *path)
 /******************************************************************************/
 /*                               F o r w a r d                                */
 /******************************************************************************/
-  
+
 int XrdOfs::Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                     const char *arg1, const char *arg2,
                     XrdOucEnv  *Env1, XrdOucEnv  *Env2)
@@ -2773,7 +2817,7 @@ int XrdOfs::Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
 /******************************************************************************/
 /*                               f s E r r o r                                */
 /******************************************************************************/
-  
+
 int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
 {
 
@@ -2789,7 +2833,7 @@ int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
 /******************************************************************************/
 /*                              R e f o r m a t                               */
 /******************************************************************************/
-  
+
 int XrdOfs::Reformat(XrdOucErrInfo &myError)
 {
    static const char *fmt = "oss.cgroup=all&oss.space=%llu&oss.free=%llu"
@@ -2822,7 +2866,7 @@ int XrdOfs::Reformat(XrdOucErrInfo &myError)
 // Reformat the result
 //
    blen = snprintf(bP,blen,fmt,totSpace,totFree,maxFree,(totSpace-totFree));
-                                 
+
    myError.setErrCode(blen);
    return SFS_DATA;
 }
@@ -2830,7 +2874,7 @@ int XrdOfs::Reformat(XrdOucErrInfo &myError)
 /******************************************************************************/
 /*                                 S p l i t                                  */
 /******************************************************************************/
-  
+
 const char * XrdOfs::Split(const char *Args, const char **Opq,
                                  char *Path, int Plen)
 {
@@ -2847,7 +2891,7 @@ const char * XrdOfs::Split(const char *Args, const char **Opq,
 /******************************************************************************/
 /*                                 S t a l l                                  */
 /******************************************************************************/
-  
+
 int XrdOfs::Stall(XrdOucErrInfo   &einfo, // Error text & code
                   int              stime, // Seconds to stall
                   const char      *path)  // The path to stall on
@@ -2883,7 +2927,7 @@ int XrdOfs::Stall(XrdOucErrInfo   &einfo, // Error text & code
 /******************************************************************************/
 /*                             U n p e r s i s t                              */
 /******************************************************************************/
-  
+
 void XrdOfs::Unpersist(XrdOfsHandle *oh, int xcev)
 {
    EPNAME("Unpersist");
@@ -2922,7 +2966,7 @@ void XrdOfs::Unpersist(XrdOfsHandle *oh, int xcev)
        else if ((retc = XrdOfsOss->Unlink(oh->Name())))
                OfsEroute.Emsg(epname, retc, "unpersist", oh->Name());
 }
-  
+
 /******************************************************************************/
 /*                              W a i t T i m e                               */
 /******************************************************************************/
