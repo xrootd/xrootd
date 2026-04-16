@@ -31,6 +31,7 @@
 /******************************************************************************/
 
 #include <cstdint>
+#include <map>
 
 #include "XrdOss/XrdOssWrapper.hh"
 
@@ -72,7 +73,8 @@ int     Ftruncate(unsigned long long flen) override;
 // @param ep - Pointer to the environment.
 //-----------------------------------------------------------------------------
 
-void    Init(XrdSysLogger* lp, XrdCks* cp, XrdOucEnv* ep);
+static
+void    Init(XrdSysLogger* lp, XrdOss* ossP, XrdCks* cp, XrdOucEnv* ep);
 
 //-----------------------------------------------------------------------------
 //! Open a file.
@@ -176,10 +178,10 @@ virtual        ~XrdCksFile();
 
 private:
 
-const char* RTC_CB32(void* inBuff, off_t inoff, int inLen);
+const char* RTC_CB32(const void* inBuff, off_t inoff, int inLen);
 const char* RTC_EB32(char* eBuff, int eBLen);
 
-const char* (XrdCksFile::*ProcessRTC)(void*, off_t, int);
+const char* (XrdCksFile::*ProcessRTC)(const void*, off_t, int);
 const char* (XrdCksFile::*ProcessRTE)(char*, int);
 
 const char* tident;
@@ -200,7 +202,7 @@ struct      inSeg
            ~inSeg() {}
            };
 
-std:map<off_t, inSeg> segMap;
+std::map<off_t, inSeg> segMap;
 
 bool        Dirty;
 };
