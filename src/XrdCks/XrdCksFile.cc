@@ -27,7 +27,7 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
-
+#include <netinet/in.h>
 #include <sys/param.h>
 
 #include "XrdCks/XrdCks.hh"
@@ -141,7 +141,7 @@ int XrdCksFile::Close(long long *retsz)
 
          // Fill out the checksum information
          //
-         memset(&cksData, 0, sizeof(cksData));
+         memset((void*)&cksData, 0, sizeof(cksData));
          cksData.Set(calcP->Type(csSize));
          cksData.Length = csSize;
          memcpy(cksData.Value, calcP->Final(), csSize);
