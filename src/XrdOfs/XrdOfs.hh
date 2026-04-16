@@ -360,7 +360,7 @@ virtual int            Configure(XrdSysError &, XrdOucEnv *);
 
         int            SetupCksRT(XrdCksCalc*&, XrdOucEnv&, const char*&);
 
-        bool           WantCksRT() {return (CksRTCgi || CksRTCalc !=- 0);}
+        bool           WantCksRT() {return (CksRTCgi || CksRTCalc != 0);}
 
                        XrdOfs();
 virtual               ~XrdOfs() {}  // Too complicate to delete :-)
@@ -515,7 +515,7 @@ int   remove(const char type, const char *path, XrdOucErrInfo &out_error,
 
 // Function used during Configuration
 //
-int           ConfigCksRT(XrdOucEnv *EnvInfo);
+int           ConfigCksRT(XrdSysError &Eroute, XrdOucEnv *EnvInfo);
 int           ConfigDispFwd(char *buff, struct fwdOpt &Fwd);
 int           ConfigPosc(XrdSysError &Eroute);
 int           ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo);

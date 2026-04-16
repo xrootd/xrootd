@@ -46,8 +46,10 @@
 #include "XProtocol/XProtocol.hh"
 
 #include "XrdCks/XrdCks.hh"
+#include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksConfig.hh"
 #include "XrdCks/XrdCksData.hh"
+#include "XrdCks/XrdCksFile.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetIF.hh"
@@ -559,13 +561,13 @@ int XrdOfsFile::open(const char          *path,      // In
            open_flag  |= O_RDWR     | O_CREAT  | O_TRUNC;
            find_flag  |= SFS_O_RDWR | SFS_O_TRUNC;
           }
-       if (ofsFS-WantCksRT() && open_mode & (SFS_O_WRONLY | SFS_O_RDWR))
+       if (XrdOfsFS->WantCksRT() && open_mode & (SFS_O_WRONLY | SFS_O_RDWR))
           {const char* cipher = 0;
-           if ((retc = XrdOfsFS->SetupCksRT(&op.cP, Open_Env, cipher)))
+           if ((retc = XrdOfsFS->SetupCksRT(oP.cP, Open_Env, cipher)))
               {char eBuff[80];
                snprintf(eBuff, sizeof(eBuff), "setup real-time %s checksum",
                         (cipher ? cipher : "unknown"));
-               return XrdOfsFS->Emsg(epname, error, retc, eNuff, path);
+               return XrdOfsFS->Emsg(epname, error, retc, eBuff, path);
               }
           }
       }
@@ -762,12 +764,14 @@ int XrdOfsFile::open(const char          *path,      // In
       {if (myTPC) open_flag |= O_NOFOLLOW;
        if (error.getUCap() & XrdOucEI::uUrlOK &&
            error.getUCap() & XrdOucEI::uLclF) open_flag |= O_DIRECT;
+      }
 
 // If we are doing real-time checksums, wrap the Oss file with a Cks file
 //
-   If (oP.cP)
-      {oP.fP = new XrdCksFile(tident, oh->Name(), op.fP, op.cP);
-       op.cP = 0;
+   if (oP.cP)
+      {XrdCksFile* cfP = new XrdCksFile(tident, oh->Name(), oP.fP, oP.cP);
+       oP.fP = static_cast<XrdOssDF*>(cfP);
+       oP.cP = 0;
       }
 
 // Open the file
@@ -2752,19 +2756,17 @@ int XrdOfs::EmsgType(int ecode)  // The error code
 /*                            S e t u p C k s R T                             */
 /******************************************************************************/
 
-int XrdOfs::SetupCksRT(XrdCksCalc&* cP, XrdOucEnv& Env,const char*& cT)
+int XrdOfs::SetupCksRT(XrdCksCalc*& cP, XrdOucEnv& Env,const char*& cT)
 {
-   const char* cipher;
-
 // Check if the cipher can come from the environment
 //
    if (CksRTCgi && (cT = Env.Get("cks.rt")))
-      return (!(cP = Cks->Object(cT)) || !XrdCksFile::Viable(cP)) ? -ENOTSUP:0);
+      return (!(cP = Cks->Object(cT)) || !XrdCksFile::Viable(cP) ? -ENOTSUP:0);
 
 // Set of auto real-time is enabled
 //
-   if (CksRtCalc)
-      {cP - CksRTCalc->New();
+   if (CksRTCalc)
+      {cP = CksRTCalc->New();
        cT = CksRTName;
       }
 

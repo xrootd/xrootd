@@ -28,10 +28,14 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <sys/param.h>
+
 #include "XrdCks/XrdCks.hh"
+#include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksData.hh"
 #include "XrdCks/XrdCksFile.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
@@ -42,6 +46,7 @@
 namespace
 {
 XrdSysError eLog(0, "cksrt_");
+XrdOss*     ossFS;
 XrdCks*     cksP = 0;
 }
 
@@ -51,9 +56,10 @@ XrdCks*     cksP = 0;
 
 XrdCksFile::XrdCksFile(const char* tid, const char* path,
                        XrdOssDF*   df,  XrdCksCalc* cP)
-                      : tident(tid), fPath(path), XrdOssWrapDF(*df),
-                        ossDF(df) calcP(cP), altcP(0), nextOff(0)
-
+                      : XrdOssWrapDF(*df),
+                        tident(tid), fPath(path), ossDF(df),
+                        calcP(cP), altcP(0), nextOff(0)
+{
 // Obtain information about the chacksum we are to use. It should have been
 // pre-screened for viability, but we check it again just to make sure and
 // to setup the proper execution path.
@@ -64,8 +70,8 @@ XrdCksFile::XrdCksFile(const char* tid, const char* path,
 
    if (cP->Combinable())
       {if (sz == (int)sizeof(uint32_t))
-          {ProcessRTC = &RTC_CB32;
-           ProcessRTE = &RTE_CB32;
+          {ProcessRTC = &XrdCksFile::RTC_CB32;
+           ProcessRTE = &XrdCksFile::RTC_EB32;
            altcP = calcP->New();
           }
           else Dirty = true;
@@ -104,7 +110,7 @@ XrdCksFile::~XrdCksFile()
 
   Output:   Returns XrdOssOK upon success and -1 upon failure.
 */
-int XrdOssFile::Close(long long *retsz)
+int XrdCksFile::Close(long long *retsz)
 {
    char pFN[MAXPATHLEN+8];
    XrdCksData cksData;
@@ -113,7 +119,7 @@ int XrdOssFile::Close(long long *retsz)
 
 // Get the incomming file's pfn as we will needit
 //
-   char* pfnP = ossDF->Lfn2Pfn(fPath, pFN, sizeof(pFN), rc);
+   const char* pfnP = ossFS->Lfn2Pfn(fPath, pFN, sizeof(pFN), rc);
    if (pfnP == 0)
       {eLog.Emsg("cls", rc, "determine pfn for real-time checksum");
        Dirty = true;
@@ -123,7 +129,7 @@ int XrdOssFile::Close(long long *retsz)
 //
    while(!Dirty) // This is not a loop but avoids deeply next if's.
         {char  eBuff[256];
-         const char* eTxt = ProcessRTE(eBuff, sizeof(eBuff));
+         const char* eTxt = (this->*ProcessRTE)(eBuff, sizeof(eBuff));
          Dirty = true;
 
          // Verify that checksum was fully calculated
@@ -148,7 +154,7 @@ int XrdOssFile::Close(long long *retsz)
          cksData.fmTime = static_cast<long long>(Stat.st_mtime);
          cksData.csTime = static_cast<int>(time(0) - Stat.st_mtime);
 
-         if ((rc = Cks->Set(pfnP, cksData, 1)))
+         if ((rc = cksP->Set(pfnP, cksData, 1)))
             eLog.Emsg("cls", rc, "set real-time checksum");
             else Dirty = false;
 
@@ -176,7 +182,7 @@ int XrdOssFile::Close(long long *retsz)
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
-int XrdOssFile::Ftruncate(unsigned long long flen)
+int XrdCksFile::Ftruncate(unsigned long long flen)
 {
 
 // Execute the truncate
@@ -211,11 +217,15 @@ int XrdOssFile::Ftruncate(unsigned long long flen)
 /*                                  I n i t                                   */
 /******************************************************************************/
 
-void XrdCksFile::Init(XrdSysLogger* lp, XrdCks* cp, XrdOucEnv* ep)
+void XrdCksFile::Init(XrdSysLogger* lp, XrdOss* ossP, XrdCks* cp, XrdOucEnv* ep)
 {
 // Setup the error message handler
 //
    eLog.logger(lp);
+
+// Record the underlying filesystem
+//
+   ossFS = ossP;
 
 // Record the checksum manager
 //
@@ -226,7 +236,7 @@ void XrdCksFile::Init(XrdSysLogger* lp, XrdCks* cp, XrdOucEnv* ep)
 /*                                  O p e n                                   */
 /******************************************************************************/
 
-int XrdCksFille::Open(const char* path, int Oflag, mode_t Mode, XrdOucEnv& env)
+int XrdCksFile::Open(const char* path, int Oflag, mode_t Mode, XrdOucEnv& env)
 {
 // Make sure we have a clean setup. If not return an error.
 //
@@ -252,11 +262,11 @@ int XrdCksFille::Open(const char* path, int Oflag, mode_t Mode, XrdOucEnv& env)
 /*                               p g W r i t e                                */
 /******************************************************************************/
 
-ssize_t XrdOssDF::pgWrite(void*     buffer,
-                          off_t     offset,
-                          size_t    wrlen,
-                          uint32_t* csvec,
-                          uint64_t  opts)
+ssize_t XrdCksFile::pgWrite(void*     buffer,
+                            off_t     offset,
+                            size_t    wrlen,
+                            uint32_t* csvec,
+                            uint64_t  opts)
 {
    const char* eText;
 
@@ -271,10 +281,9 @@ ssize_t XrdOssDF::pgWrite(void*     buffer,
           {eLog.Emsg("pgwr", retval, "continue real-time checksum for",fPath);
            Dirty = true;
           } else {
-           if ((eText = ProcessRTC(buffer, offset, wrlen)))
-              {eLog("pgwr", "Unable to continue real-time checksum for",
-                            fPath, eText);
-               Dirty = true;
+           if ((eText = (this->*ProcessRTC)(buffer, offset, wrlen)))
+              {eLog.Emsg("pgwr","unable to continue real-time checksum for",
+                                 fPath, eText);
               }
           }
       }
@@ -286,19 +295,20 @@ ssize_t XrdOssDF::pgWrite(void*     buffer,
 
 /******************************************************************************/
 
-int XrdOssDF::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
+int XrdCksFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
 {
    const char* eText;
 
 // It is too complicated to do the async I/O before doing the checksum
 //
    if (!Dirty)
-      {if ((eText = ProcessRTC((void *)aioparm->sfsAio.aio_buf,
-                               (off_t) aioparm->sfsAio.aio_offset,
-                               (size_t)aioparm->sfsAio.aio_nbytes);
-          {eLog("aiopw", "Unable to continue real-time checksum for",
-                         fPath, eText);
+      {if ((eText = (this->*ProcessRTC)((void *)aioparm->sfsAio.aio_buf,
+                                        (off_t) aioparm->sfsAio.aio_offset,
+                                        (size_t)aioparm->sfsAio.aio_nbytes)))
+          {eLog.Emsg("aiopw", "Unable to continue real-time checksum for",
+                               fPath, eText);
            Dirty = true;
+          }
       }
 
 // Now do the I/O
@@ -314,7 +324,7 @@ bool XrdCksFile::Viable(XrdCksCalc* cP)
 {
 // Currently we only support combinable checksums
 //
-   if (!(cP->Combinable()) return false;
+   if (!(cP->Combinable())) return false;
 
 // Of the combinable ones, we only support the ones that have 32 bits.
 //
@@ -342,7 +352,7 @@ bool XrdCksFile::Viable(XrdCksCalc* cP)
   Output:   Returns the number of bytes written upon success and -errno o/w.
 */
 
-ssize_t XrdOssFile::Write(const void* buff, off_t offset, size_t blen)
+ssize_t XrdCksFile::Write(const void* buff, off_t offset, size_t blen)
 {
    const char* eText;
 
@@ -354,12 +364,12 @@ ssize_t XrdOssFile::Write(const void* buff, off_t offset, size_t blen)
 //
    if (!Dirty)
       {if (retval < 0)
-          {eLog("wr", retval, "continue streaming checksum for", fPath);
+          {eLog.Emsg("wr", retval, "continue streaming checksum for", fPath);
            Dirty = true;
           } else {
-           if ((eText = ProcessRTC(buffer, offset, wrlen)))
-              {eLog("wr", "Unable to continue real-time checksum for",
-                          fPath, eText);
+           if ((eText = (this->*ProcessRTC)(buff, offset, blen)))
+              {eLog.Emsg("wr", "Unable to continue real-time checksum for",
+                               fPath, eText);
                Dirty = true;
               }
           }
@@ -372,19 +382,20 @@ ssize_t XrdOssFile::Write(const void* buff, off_t offset, size_t blen)
 
 /******************************************************************************/
 
-int XrdOssDF::Write(XrdSfsAio* aioparm)
+int XrdCksFile::Write(XrdSfsAio* aioparm)
 {
    const char* eText;
 
 // It is too complicated to do the async I/O before doing the checksum
 //
    if (!Dirty)
-      {if ((eText = ProcessRTC((void *)aioparm->sfsAio.aio_buf,
-                               (off_t) aioparm->sfsAio.aio_offset,
-                               (size_t)aioparm->sfsAio.aio_nbytes);
-          {eLog("aiopw", "Unable to continue real-time checksum for",
-                         fPath, eText);
+      {if ((eText = (this->*ProcessRTC)((void *)aioparm->sfsAio.aio_buf,
+                                        (off_t) aioparm->sfsAio.aio_offset,
+                                        (size_t)aioparm->sfsAio.aio_nbytes)))
+          {eLog.Emsg("aiopw", "Unable to continue real-time checksum for",
+                               fPath, eText);
            Dirty = true;
+          }
       }
 
 // Now do the I/O
@@ -396,14 +407,14 @@ int XrdOssDF::Write(XrdSfsAio* aioparm)
 /*                                W r i t e V                                 */
 /******************************************************************************/
 
-ssize_t XrdOssDF::WriteV(XrdOucIOVec* writeV, int n)
+ssize_t XrdCksFile::WriteV(XrdOucIOVec* writeV, int n)
 {
 
 // We do not support streaming checksums when WriteV is used
 //
    if (!Dirty)
-      {eLog("wrv", "Unable to continue streaming checksum for",
-                   fPath, "; WriteV() unsupported.");
+      {eLog.Emsg("wrv", "Unable to continue streaming checksum for",
+                         fPath, "; WriteV() conflict.");
        Dirty = true;
       }
 
@@ -421,26 +432,26 @@ ssize_t XrdOssDF::WriteV(XrdOucIOVec* writeV, int n)
 
 // This method handles combinable checkums that are 32 bits in length
 //
-const char* XrdCksFile::RTC_CB32(void* inBuff, off_t inoff, int inLen)
+const char* XrdCksFile::RTC_CB32(const void* inBuff, off_t inOff, int inLen)
 {
 
 // Check where the incomming segment is adjacent to current segment
 //
    if (inOff == nextOff)
-      {calcP->Update(inBuff, inLen);
+      {calcP->Update((const char*)inBuff, inLen);
        nextOff = inOff + inLen;
        auto it = segMap.begin();
        while(it != segMap.end() && nextOff == it->second.segBeg)
             {// Combine or update base checksum
-             calcP->Combine((const char*)it->second.segCks, it->second.segLen);
-             nextOff = it->second.segBeg + it->second.segLen);
+             calcP->Combine((const char*)&(it->second.segCks),it->second.segLen);
+             nextOff = it->second.segBeg + it->second.segLen;
              it = segMap.erase(it);
             }
 
        // Verify that we end in a proper state
        //
        if (it != segMap.end() && nextOff > it->second.segBeg)
-          return "; I/O segments overlap"
+          return "; I/O segments overlap";
 
        return 0;
       }
@@ -451,7 +462,7 @@ const char* XrdCksFile::RTC_CB32(void* inBuff, off_t inoff, int inLen)
 
 // Compute checksum for the incomming block
 //
-   char* newCS = altcP->Calc(inBuff, inLen);
+   char* newCS = altcP->Calc((const char*)inBuff, inLen);
    uint32_t theCS;
 #ifndef Xrd_Big_Endian
    uint32_t tmp;
@@ -468,7 +479,7 @@ const char* XrdCksFile::RTC_CB32(void* inBuff, off_t inoff, int inLen)
 // Insert this element into the map
 //
    auto it = segMap.insert(std::pair(inOff, newSeg));
-   if (it->second == false)
+   if (it.second == false)
       return "; duplicate write";
 
 // All done
@@ -477,20 +488,20 @@ const char* XrdCksFile::RTC_CB32(void* inBuff, off_t inoff, int inLen)
 }
 
 /******************************************************************************/
-/*                              R T E _ C B 3 2                               */
+/*                              R T C _ E B 3 2                               */
 /******************************************************************************/
 
 // This method handles combinable checkums that are 32 bits in length
 //
-const char* XrdCksFile::RTE_CB32(char* eBuff, int eBLen)
+const char* XrdCksFile::RTC_EB32(char* eBuff, int eBLen)
 {
 
 // Verify that all data has been written for this checksum
 //
    if (segMap.size())
-      {char eBuff[1024];
+      {auto it = segMap.begin();
        snprintf(eBuff, eBLen, "; %lld bytes missing at offset %lld",
-                (long long)(segMap[0].segBeg - nextOff),
+                (long long)(it->second.segBeg - nextOff),
                 (long long)nextOff);
        return eBuff;
       }

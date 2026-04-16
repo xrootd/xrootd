@@ -44,6 +44,7 @@
 #include "XProtocol/XProtocol.hh"
 
 #include "XrdCks/XrdCks.hh"
+#include "XrdCks/XrdCksFile.hh"
 
 #include "XrdNet/XrdNetUtils.hh"
 
@@ -395,7 +396,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Configure realtime checksums if need be
 //
-   if (CksRTCgi || CksRTName) NoGo |= ConfigCksRT();
+   if (CksRTCgi || CksRTName) NoGo |= ConfigCksRT(Eroute, EnvInfo);
 
 // Setup statistical monitoring
 //
@@ -502,15 +503,15 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
 /*                           C o n f i g C k s R T                            */
 /******************************************************************************/
 
-int XrdOfs::ConfigCksRT(XrdOucEnv* envP)
+int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
 {
    const char *why = 0;
 
 // Check if the directive is applicable to us
 //
-   if (OssIsProxy) "not applicable to proxies";
-      else if (Options & isManager) "not applicable to managers";
-              else if(!Cks) "checksums not configured";
+   if (OssIsProxy) why = "not applicable to proxies";
+      else if (Options & isManager) why = "not applicable to managers";
+              else if(!Cks) why = "checksums not configured";
    if (why)
       {Eroute.Say("Config warning: Ignoring cksrt directive ", why);
        if (CksRTName) {free(CksRTName); CksRTName = 0;}
@@ -528,6 +529,7 @@ int XrdOfs::ConfigCksRT(XrdOucEnv* envP)
                       " checksum not configured!");
            return 1;
           }
+      }
    if (!XrdCksFile::Viable(CksRTCalc))
       {Eroute.Say("Config failure: cksrt auto ", CksRTName,
                   " checksum not supported for real-time use!");
@@ -536,7 +538,7 @@ int XrdOfs::ConfigCksRT(XrdOucEnv* envP)
 
 // Success
 //
-   XrdCksFile::Init(Eroute.logger(), Cks, envP);
+   XrdCksFile::Init(Eroute.logger(), XrdOfsOss, Cks, envP);
    return 0;
 }
 
@@ -933,7 +935,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
 int XrdOfs::xcksrt(XrdOucStream &Config, XrdSysError &Eroute)
 {
    char *val;
-   bool spec = false;
+   bool cgi = false, spec = false;
 
 // Initialize the defaults
 //
@@ -945,7 +947,7 @@ int XrdOfs::xcksrt(XrdOucStream &Config, XrdSysError &Eroute)
    while ((val = Config.GetWord()) && *val)
          {spec = true;
           if (!strcmp(val, "auto"))
-             {if (!(val = Config.GetWord()) || *val == '\0'))
+             {if (!(val = Config.GetWord()) || *val == '\0')
                  {Eroute.Emsg("Config", "cksrt auto cipher not specified.");
                   return 1;
                  }
