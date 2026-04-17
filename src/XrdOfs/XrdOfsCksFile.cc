@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                         X r d C k s F i l e . c c                          */
+/*                      X r d O f s C k s F i l e . c c                       */
 /*                                                                            */
 /* (c) 2026 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -33,32 +33,33 @@
 #include "XrdCks/XrdCks.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksData.hh"
-#include "XrdCks/XrdCksFile.hh"
+#include "XrdOfs/XrdOfsCksFile.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysLogger.hh"
 
 /******************************************************************************/
 /*                        s t a t i c   o b j e c t s                         */
 /******************************************************************************/
 
+extern XrdSysError  OfsEroute;
+extern XrdOss*      XrdOfsOss;
+
 namespace
 {
-XrdSysError eLog(0, "cksrt_");
-XrdOss*     ossFS;
-XrdCks*     cksP = 0;
+       XrdSysError& eLog = OfsEroute;
+       XrdCks*      cksP = 0;
 }
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdCksFile::XrdCksFile(const char* tid, const char* path,
-                       XrdOssDF*   df,  XrdCksCalc* cP)
-                      : XrdOssWrapDF(*df),
-                        tident(tid), fPath(path), ossDF(df),
-                        calcP(cP), altcP(0), nextOff(0)
+XrdOfsCksFile::XrdOfsCksFile(const char* tid, const char* path,
+                             XrdOssDF*   df,  XrdCksCalc* cP)
+                            : XrdOssWrapDF(*df),
+                              tident(tid), fPath(path), ossDF(df),
+                              calcP(cP), altcP(0), nextOff(0)
 {
 // Obtain information about the chacksum we are to use. It should have been
 // pre-screened for viability, but we check it again just to make sure and
@@ -70,8 +71,8 @@ XrdCksFile::XrdCksFile(const char* tid, const char* path,
 
    if (cP->Combinable())
       {if (sz == (int)sizeof(uint32_t))
-          {ProcessRTC = &XrdCksFile::RTC_CB32;
-           ProcessRTE = &XrdCksFile::RTC_EB32;
+          {ProcessRTC = &XrdOfsCksFile::RTC_CB32;
+           ProcessRTE = &XrdOfsCksFile::RTC_EB32;
            altcP = calcP->New();
           }
           else Dirty = true;
@@ -84,7 +85,7 @@ XrdCksFile::XrdCksFile(const char* tid, const char* path,
    if (Dirty)
       {char eBuff[128];
        snprintf(eBuff, sizeof(eBuff), "'%s' used for", cksName);
-       eLog.Emsg("obj", "Unsupported real-time checksum", eBuff, path);
+       eLog.Emsg("ckscon", "Unsupported real-time checksum", eBuff, path);
       }
 }
 
@@ -92,7 +93,7 @@ XrdCksFile::XrdCksFile(const char* tid, const char* path,
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
 
-XrdCksFile::~XrdCksFile()
+XrdOfsCksFile::~XrdOfsCksFile()
 {
    if (ossDF) delete ossDF;
    if (calcP) calcP->Recycle();
@@ -110,7 +111,7 @@ XrdCksFile::~XrdCksFile()
 
   Output:   Returns XrdOssOK upon success and -1 upon failure.
 */
-int XrdCksFile::Close(long long *retsz)
+int XrdOfsCksFile::Close(long long *retsz)
 {
    char pFN[MAXPATHLEN+8];
    XrdCksData cksData;
@@ -119,9 +120,9 @@ int XrdCksFile::Close(long long *retsz)
 
 // Get the incomming file's pfn as we will needit
 //
-   const char* pfnP = ossFS->Lfn2Pfn(fPath, pFN, sizeof(pFN), rc);
+   const char* pfnP = XrdOfsOss->Lfn2Pfn(fPath, pFN, sizeof(pFN), rc);
    if (pfnP == 0)
-      {eLog.Emsg("cls", rc, "determine pfn for real-time checksum");
+      {eLog.Emsg("ckscls", rc, "determine pfn for real-time checksum");
        Dirty = true;
       }
 
@@ -135,7 +136,7 @@ int XrdCksFile::Close(long long *retsz)
          // Verify that checksum was fully calculated
          //
          if (eTxt)
-            {eLog.Emsg("cls", "Unable to get final real-time checksum", eTxt);
+            {eLog.Emsg("ckcls", "Unable to get final real-time checksum", eTxt);
              break;
             }
 
@@ -147,7 +148,7 @@ int XrdCksFile::Close(long long *retsz)
          memcpy(cksData.Value, calcP->Final(), csSize);
 
          if ((rc = ossDF->Fstat(&Stat)))
-            {eLog.Emsg("cls", rc, "get mtime for real-time checksum");
+            {eLog.Emsg("clscls", rc, "get mtime for real-time checksum");
              break;
             }
 
@@ -155,7 +156,7 @@ int XrdCksFile::Close(long long *retsz)
          cksData.csTime = static_cast<int>(time(0) - Stat.st_mtime);
 
          if ((rc = cksP->Set(pfnP, cksData, 1)))
-            eLog.Emsg("cls", rc, "set real-time checksum");
+            eLog.Emsg("ckscls", rc, "set real-time checksum");
             else Dirty = false;
 
          break;
@@ -164,7 +165,7 @@ int XrdCksFile::Close(long long *retsz)
 // Check if all went well and issue message if not
 //
    if (Dirty)
-      eLog.Emsg("cls", cksName, "real-time checksum was not set for", fPath);
+      eLog.Emsg("ckscls", cksName, "real-time checksum was not set for", fPath);
 
 // Issue close to the underlying object
 //
@@ -182,7 +183,7 @@ int XrdCksFile::Close(long long *retsz)
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
-int XrdCksFile::Ftruncate(unsigned long long flen)
+int XrdOfsCksFile::Ftruncate(unsigned long long flen)
 {
 
 // Execute the truncate
@@ -193,11 +194,11 @@ int XrdCksFile::Ftruncate(unsigned long long flen)
 //
    if (!Dirty)
       {if (rc < 0)
-          {eLog.Emsg("trunc", rc, "continue real-time checksum for", fPath);
+          {eLog.Emsg("ckstrunc", rc, "continue real-time checksum for", fPath);
            Dirty = true;
           } else {
            if (flen)
-              {eLog.Emsg("trunc", "Unable to continue real-time checksum for",
+              {eLog.Emsg("ckstrunc","Unable to continue real-time checksum for",
                          fPath, "; truncate arg not 0.");
                Dirty = true;
               } else {
@@ -217,16 +218,8 @@ int XrdCksFile::Ftruncate(unsigned long long flen)
 /*                                  I n i t                                   */
 /******************************************************************************/
 
-void XrdCksFile::Init(XrdSysLogger* lp, XrdOss* ossP, XrdCks* cp, XrdOucEnv* ep)
+void XrdOfsCksFile::Init(XrdCks* cp, XrdOucEnv* ep)
 {
-// Setup the error message handler
-//
-   eLog.logger(lp);
-
-// Record the underlying filesystem
-//
-   ossFS = ossP;
-
 // Record the checksum manager
 //
    cksP = cp;
@@ -236,7 +229,8 @@ void XrdCksFile::Init(XrdSysLogger* lp, XrdOss* ossP, XrdCks* cp, XrdOucEnv* ep)
 /*                                  O p e n                                   */
 /******************************************************************************/
 
-int XrdCksFile::Open(const char* path, int Oflag, mode_t Mode, XrdOucEnv& env)
+int XrdOfsCksFile::Open(const char* path, int Oflag, mode_t Mode,
+                        XrdOucEnv& env)
 {
 // Make sure we have a clean setup. If not return an error.
 //
@@ -262,11 +256,11 @@ int XrdCksFile::Open(const char* path, int Oflag, mode_t Mode, XrdOucEnv& env)
 /*                               p g W r i t e                                */
 /******************************************************************************/
 
-ssize_t XrdCksFile::pgWrite(void*     buffer,
-                            off_t     offset,
-                            size_t    wrlen,
-                            uint32_t* csvec,
-                            uint64_t  opts)
+ssize_t XrdOfsCksFile::pgWrite(void*     buffer,
+                               off_t     offset,
+                               size_t    wrlen,
+                               uint32_t* csvec,
+                               uint64_t  opts)
 {
    const char* eText;
 
@@ -278,11 +272,11 @@ ssize_t XrdCksFile::pgWrite(void*     buffer,
 //
    if (!Dirty)
       {if (retval < 0)
-          {eLog.Emsg("pgwr", retval, "continue real-time checksum for",fPath);
+          {eLog.Emsg("ckspgw", retval, "continue real-time checksum for",fPath);
            Dirty = true;
           } else {
            if ((eText = (this->*ProcessRTC)(buffer, offset, wrlen)))
-              {eLog.Emsg("pgwr","unable to continue real-time checksum for",
+              {eLog.Emsg("ckspgw","unable to continue real-time checksum for",
                                  fPath, eText);
               }
           }
@@ -295,7 +289,7 @@ ssize_t XrdCksFile::pgWrite(void*     buffer,
 
 /******************************************************************************/
 
-int XrdCksFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
+int XrdOfsCksFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
 {
    const char* eText;
 
@@ -305,7 +299,7 @@ int XrdCksFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
       {if ((eText = (this->*ProcessRTC)((void *)aioparm->sfsAio.aio_buf,
                                         (off_t) aioparm->sfsAio.aio_offset,
                                         (size_t)aioparm->sfsAio.aio_nbytes)))
-          {eLog.Emsg("aiopw", "Unable to continue real-time checksum for",
+          {eLog.Emsg("cksaiopw", "Unable to continue real-time checksum for",
                                fPath, eText);
            Dirty = true;
           }
@@ -320,7 +314,7 @@ int XrdCksFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
 /* Static:                        V i a b l e                                 */
 /******************************************************************************/
 
-bool XrdCksFile::Viable(XrdCksCalc* cP)
+bool XrdOfsCksFile::Viable(XrdCksCalc* cP)
 {
 // Currently we only support combinable checksums
 //
@@ -352,7 +346,7 @@ bool XrdCksFile::Viable(XrdCksCalc* cP)
   Output:   Returns the number of bytes written upon success and -errno o/w.
 */
 
-ssize_t XrdCksFile::Write(const void* buff, off_t offset, size_t blen)
+ssize_t XrdOfsCksFile::Write(const void* buff, off_t offset, size_t blen)
 {
    const char* eText;
 
@@ -364,11 +358,11 @@ ssize_t XrdCksFile::Write(const void* buff, off_t offset, size_t blen)
 //
    if (!Dirty)
       {if (retval < 0)
-          {eLog.Emsg("wr", retval, "continue streaming checksum for", fPath);
+          {eLog.Emsg("cksw", retval, "continue streaming checksum for", fPath);
            Dirty = true;
           } else {
            if ((eText = (this->*ProcessRTC)(buff, offset, blen)))
-              {eLog.Emsg("wr", "Unable to continue real-time checksum for",
+              {eLog.Emsg("cksw", "Unable to continue real-time checksum for",
                                fPath, eText);
                Dirty = true;
               }
@@ -382,7 +376,7 @@ ssize_t XrdCksFile::Write(const void* buff, off_t offset, size_t blen)
 
 /******************************************************************************/
 
-int XrdCksFile::Write(XrdSfsAio* aioparm)
+int XrdOfsCksFile::Write(XrdSfsAio* aioparm)
 {
    const char* eText;
 
@@ -392,7 +386,7 @@ int XrdCksFile::Write(XrdSfsAio* aioparm)
       {if ((eText = (this->*ProcessRTC)((void *)aioparm->sfsAio.aio_buf,
                                         (off_t) aioparm->sfsAio.aio_offset,
                                         (size_t)aioparm->sfsAio.aio_nbytes)))
-          {eLog.Emsg("aiopw", "Unable to continue real-time checksum for",
+          {eLog.Emsg("cksaiopw", "Unable to continue real-time checksum for",
                                fPath, eText);
            Dirty = true;
           }
@@ -407,13 +401,13 @@ int XrdCksFile::Write(XrdSfsAio* aioparm)
 /*                                W r i t e V                                 */
 /******************************************************************************/
 
-ssize_t XrdCksFile::WriteV(XrdOucIOVec* writeV, int n)
+ssize_t XrdOfsCksFile::WriteV(XrdOucIOVec* writeV, int n)
 {
 
 // We do not support streaming checksums when WriteV is used
 //
    if (!Dirty)
-      {eLog.Emsg("wrv", "Unable to continue streaming checksum for",
+      {eLog.Emsg("ckswv", "Unable to continue streaming checksum for",
                          fPath, "; WriteV() conflict.");
        Dirty = true;
       }
@@ -432,7 +426,7 @@ ssize_t XrdCksFile::WriteV(XrdOucIOVec* writeV, int n)
 
 // This method handles combinable checkums that are 32 bits in length
 //
-const char* XrdCksFile::RTC_CB32(const void* inBuff, off_t inOff, int inLen)
+const char* XrdOfsCksFile::RTC_CB32(const void* inBuff, off_t inOff, int inLen)
 {
 
 // Check where the incomming segment is adjacent to current segment
@@ -493,7 +487,7 @@ const char* XrdCksFile::RTC_CB32(const void* inBuff, off_t inOff, int inLen)
 
 // This method handles combinable checkums that are 32 bits in length
 //
-const char* XrdCksFile::RTC_EB32(char* eBuff, int eBLen)
+const char* XrdOfsCksFile::RTC_EB32(char* eBuff, int eBLen)
 {
 
 // Verify that all data has been written for this checksum

@@ -49,7 +49,6 @@
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksConfig.hh"
 #include "XrdCks/XrdCksData.hh"
-#include "XrdCks/XrdCksFile.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetIF.hh"
@@ -57,6 +56,7 @@
 
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsChkPnt.hh"
+#include "XrdOfs/XrdOfsCksFile.hh"
 #include "XrdOfs/XrdOfsConfigCP.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
@@ -769,7 +769,7 @@ int XrdOfsFile::open(const char          *path,      // In
 // If we are doing real-time checksums, wrap the Oss file with a Cks file
 //
    if (oP.cP)
-      {XrdCksFile* cfP = new XrdCksFile(tident, oh->Name(), oP.fP, oP.cP);
+      {XrdOfsCksFile* cfP = new XrdOfsCksFile(tident,oh->Name(),oP.fP,oP.cP);
        oP.fP = static_cast<XrdOssDF*>(cfP);
        oP.cP = 0;
       }
@@ -2761,7 +2761,7 @@ int XrdOfs::SetupCksRT(XrdCksCalc*& cP, XrdOucEnv& Env,const char*& cT)
 // Check if the cipher can come from the environment
 //
    if (CksRTCgi && (cT = Env.Get("cks.rt")))
-      return (!(cP = Cks->Object(cT)) || !XrdCksFile::Viable(cP) ? -ENOTSUP:0);
+      return (!(cP==Cks->Object(cT)) || !XrdOfsCksFile::Viable(cP) ? -ENOTSUP:0);
 
 // Set of auto real-time is enabled
 //

@@ -5,7 +5,6 @@ target_sources(XrdUtils
     XrdCksCalccrc32C.cc  XrdCksCalccrc32C.hh
     XrdCksCalcmd5.cc     XrdCksCalcmd5.hh
     XrdCksConfig.cc      XrdCksConfig.hh
-    XrdCksFile.cc        XrdCksFile.hh
     XrdCksLoader.cc      XrdCksLoader.hh
     XrdCksManager.cc     XrdCksManager.hh
     XrdCksManOss.cc      XrdCksManOss.hh

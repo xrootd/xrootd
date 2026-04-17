@@ -6,6 +6,7 @@ target_sources(XrdServer
   PRIVATE
     XrdOfs.cc          XrdOfs.hh
     XrdOfsChkPnt.cc    XrdOfsChkPnt.hh
+    XrdOfsCksFile.cc   XrdOfsCksFile.hh
     XrdOfsConfig.cc
     XrdOfsConfigCP.cc  XrdOfsConfigCP.hh
     XrdOfsConfigPI.cc  XrdOfsConfigPI.hh

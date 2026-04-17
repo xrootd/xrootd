@@ -44,13 +44,13 @@
 #include "XProtocol/XProtocol.hh"
 
 #include "XrdCks/XrdCks.hh"
-#include "XrdCks/XrdCksFile.hh"
 
 #include "XrdNet/XrdNetUtils.hh"
 
 #include "XrdSfs/XrdSfsFlags.hh"
 
 #include "XrdOfs/XrdOfs.hh"
+#include "XrdOfs/XrdOfsCksFile.hh"
 #include "XrdOfs/XrdOfsConfigCP.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
@@ -530,7 +530,7 @@ int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
            return 1;
           }
       }
-   if (!XrdCksFile::Viable(CksRTCalc))
+   if (!XrdOfsCksFile::Viable(CksRTCalc))
       {Eroute.Say("Config failure: cksrt auto ", CksRTName,
                   " checksum not supported for real-time use!");
        return 1;
@@ -538,7 +538,7 @@ int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
 
 // Success
 //
-   XrdCksFile::Init(Eroute.logger(), XrdOfsOss, Cks, envP);
+   XrdOfsCksFile::Init(Cks, envP);
    return 0;
 }
 
