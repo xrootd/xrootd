@@ -1,8 +1,8 @@
-#ifndef _XRDCKSFILE_H
-#define _XRDCKSFILE_H
+#ifndef _XRDOFSCKSFILE_H
+#define _XRDOFSCKSFILE_H
 /******************************************************************************/
 /*                                                                            */
-/*                         X r d C k s F i l e . h h                          */
+/*                      X r d O f s C k s F i l e . h h                       */
 /*                                                                            */
 /* (c) 2026 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -41,7 +41,7 @@ class  XrdOucEnv;
 class  XrdSfsAio;
 class  XrdSysLogger;
 
-class XrdCksFile : public XrdOssWrapDF
+class XrdOfsCksFile : public XrdOssWrapDF
 {
 public:
 
@@ -68,13 +68,12 @@ int     Ftruncate(unsigned long long flen) override;
 //-----------------------------------------------------------------------------
 // Perform one time initialization
 //
-// @param lp - Pointer to logger object.
 // @param cp - Pointer to checksum manager.
 // @param ep - Pointer to the environment.
 //-----------------------------------------------------------------------------
 
 static
-void    Init(XrdSysLogger* lp, XrdOss* ossP, XrdCks* cp, XrdOucEnv* ep);
+void    Init(XrdCks* cp, XrdOucEnv* ep);
 
 //-----------------------------------------------------------------------------
 //! Open a file.
@@ -171,18 +170,18 @@ int     Write(XrdSfsAio* aiop) override;
 
 ssize_t WriteV(XrdOucIOVec *writeV, int wrvcnt) override;
 
-                XrdCksFile(const char* tid, const char* path,
-                           XrdOssDF*   df,  XrdCksCalc* cP);
+         XrdOfsCksFile(const char* tid, const char* path,
+                       XrdOssDF*   df,  XrdCksCalc* cP);
 
-virtual        ~XrdCksFile();
+virtual ~XrdOfsCksFile();
 
 private:
 
 const char* RTC_CB32(const void* inBuff, off_t inoff, int inLen);
 const char* RTC_EB32(char* eBuff, int eBLen);
 
-const char* (XrdCksFile::*ProcessRTC)(const void*, off_t, int);
-const char* (XrdCksFile::*ProcessRTE)(char*, int);
+const char* (XrdOfsCksFile::*ProcessRTC)(const void*, off_t, int);
+const char* (XrdOfsCksFile::*ProcessRTE)(char*, int);
 
 const char* tident;
 const char* fPath;          // Valid throughout object lifetime
