@@ -35,7 +35,7 @@
 #include <cstring>
 #include <fcntl.h>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #include <sys/sysmacros.h>
 using XrdSysStatx = struct statx;
 #define HAVE_STATX

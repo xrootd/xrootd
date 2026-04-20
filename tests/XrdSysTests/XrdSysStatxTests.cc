@@ -27,7 +27,7 @@ TEST_F(XrdSysStatxTests, Stat2StatxBasicFields) {
 
   EXPECT_EQ(stx.stx_mask, (uint32_t)STATX_BASIC_STATS);
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
   EXPECT_EQ(stx.stx_mode,    (uint16_t)(S_IFREG | 0755));
   EXPECT_EQ(stx.stx_nlink,   (uint32_t)3);
   EXPECT_EQ(stx.stx_uid,     (uint32_t)1000);
