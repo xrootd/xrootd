@@ -2,6 +2,12 @@
 
 set -e
 
+# Add /usr/sbin to PATH so that kerberos binaries (kdb5_util, krb5kdc
+# and kadmin.local) are found when the test is run by a user without
+# it.
+
+export PATH="${PATH}:/usr/sbin"
+
 export KRB5CCNAME="${PWD}/krb5cc"
 export KRB5_CONFIG="${PWD}/krb5.conf"
 export KRB5_KDC_PROFILE="${PWD}/kdc.conf"
