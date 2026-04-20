@@ -557,7 +557,7 @@ File::Fcntl(const XrdCl::Buffer &arg, XrdCl::ResponseHandler *handler,
                 }
             }
             XrdCl::Buffer *respBuff = new XrdCl::Buffer();
-            m_logger->Debug(kLogXrdClHttp, "Fcntl conent %s", xatt.dump().c_str());
+            m_logger->Debug(kLogXrdClHttp, "Fcntl content %s", xatt.dump().c_str());
             respBuff->FromString(xatt.dump());
             obj->Set(respBuff);
         }
