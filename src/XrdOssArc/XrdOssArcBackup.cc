@@ -47,6 +47,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
