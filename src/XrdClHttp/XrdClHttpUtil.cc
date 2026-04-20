@@ -86,16 +86,18 @@ struct WaitingForBroker {
 namespace {
 
 pid_t getthreadid() {
-#ifdef __APPLE__
+#if   defined(__APPLE__)
     uint64_t pth_threadid;
     pthread_threadid_np(pthread_self(), &pth_threadid);
     return pth_threadid;
-#else
+#elif defined(__linux__)
     // NOTE: glibc 2.30 finally provides a gettid() wrapper; however,
     // we currently support RHEL 8, which is based on glibc 2.28.  Until
     // we drop that platform, it's easier to do the syscall directly on Linux
     // instead of additional ifdef calls.
     return syscall(SYS_gettid);
+#else
+   return getpid();
 #endif
 }
 
