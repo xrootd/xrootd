@@ -61,6 +61,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
