@@ -392,7 +392,7 @@ install -m 644 -p config/%{name}-filecache-clustered.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-filecache-clustered.cfg
 install -m 644 -p config/%{name}-filecache-standalone.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-filecache-standalone.cfg
-sed 's!/usr/lib64/!!' config/%{name}-http.cfg > \
+install -m 644 -p config/%{name}-http.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-http.cfg
 
 # Client config
