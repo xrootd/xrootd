@@ -41,7 +41,7 @@
                    * Copyright (C) 1995-1998 Mark Adler
    Below are the zlib license terms for this implementation.
 */
-  
+
 /* zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.1.4, March 11th, 2002
 
@@ -82,7 +82,44 @@ class XrdCksCalcadler32 : public XrdCksCalc
 {
 public:
 
-char *Final()
+bool  Combinable() override {return true;}
+
+const char* Combine(const char *Cksum, int DLen) override
+            {uint32_t adler2 = getCS(Cksum);
+             uint32_t s1_1 = unSum1;
+             uint32_t s2_1 = unSum2;
+             uint32_t s1_2 = adler2 & 0xffff;
+             uint32_t s2_2 = (adler2 >> 16) & 0xffff;
+
+             // The modulo reduction is necessary to prevent
+             // overflow before final result
+             uint32_t rem = static_cast<unsigned int>(DLen) % AdlerBase;
+
+             unSum1 = (s1_1 + s1_2 + AdlerBase - 1) % AdlerBase;
+             unSum2 = (s2_1 + s2_2 * rem + (rem - 1) * s1_1 + s2_2) % AdlerBase;
+             return Final();
+            }
+
+const char* Combine(const char* Cksum1, const char* Cksum2, int DLen) override
+            {uint32_t adler1 = getCS(Cksum1);
+             uint32_t s1_1 = adler1 & 0xffff;
+             uint32_t s2_1 = (adler1 >> 16) & 0xffff;
+             uint32_t adler2 = getCS(Cksum2);
+             uint32_t s1_2 = adler2 & 0xffff;
+             uint32_t s2_2 = (adler2 >> 16) & 0xffff;
+
+             uint32_t rem = DLen % AdlerBase; // Prevent overflow
+
+             uint32_t s1 = (s1_1 + s1_2 + AdlerBase - 1) % AdlerBase;
+             uint32_t s2 = (s2_1 + s2_2*rem + (rem-1)*s1_1 + s2_2) % AdlerBase;
+             AdlerValue = (s2 << 16) | s1;
+#ifndef Xrd_Big_Endian
+             AdlerValue = htonl(AdlerValue);
+#endif
+             return (const char *)&AdlerValue;
+            }
+
+char *Final() override
             {AdlerValue = (unSum2 << 16) | unSum1;
 #ifndef Xrd_Big_Endian
              AdlerValue = htonl(AdlerValue);
@@ -90,11 +127,11 @@ char *Final()
              return (char *)&AdlerValue;
             }
 
-void        Init() {unSum1 = AdlerStart; unSum2 = 0;}
+void        Init() override {unSum1 = AdlerStart; unSum2 = 0;}
 
-XrdCksCalc *New() {return (XrdCksCalc *)new XrdCksCalcadler32;}
+XrdCksCalc *New() override {return (XrdCksCalc *)new XrdCksCalcadler32;}
 
-void        Update(const char *Buff, int BLen)
+void        Update(const char *Buff, int BLen) override
                   {int k;
                    unsigned char *buff = (unsigned char *)Buff;
                    while(BLen > 0)
@@ -106,21 +143,31 @@ void        Update(const char *Buff, int BLen)
                         }
                   }
 
-const char *Type(int &csSize) {csSize = sizeof(AdlerValue); return "adler32";}
+const char *Type(int &csSize) override
+                {csSize = sizeof(AdlerValue); return "adler32";}
 
             XrdCksCalcadler32() {Init();}
 virtual    ~XrdCksCalcadler32() {}
 
 private:
 
-static const unsigned int AdlerBase  = 0xFFF1;
-static const unsigned int AdlerStart = 0x0001;
-static const          int AdlerNMax  = 5552;
+uint32_t getCS(const char* csVal)
+              {uint32_t aVal;
+               memcpy(&aVal, csVal, sizeof(aVal));
+#ifndef Xrd_Big_Endian
+               aVal = ntohl(aVal);
+#endif
+               return aVal;
+              }
+
+static const uint32_t AdlerBase  = 0xFFF1;
+static const uint32_t AdlerStart = 0x0001;
+static const int      AdlerNMax  = 5552;
 
 /* NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1 */
 
-             unsigned int AdlerValue;
-             unsigned int unSum1;
-             unsigned int unSum2;
+             uint32_t AdlerValue;
+             uint32_t unSum1;
+             uint32_t unSum2;
 };
 #endif
