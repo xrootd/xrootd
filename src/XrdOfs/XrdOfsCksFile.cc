@@ -72,7 +72,7 @@ XrdOfsCksFile::XrdOfsCksFile(const char* tid, const char* path,
    if (cP->Combinable())
       {if (sz == (int)sizeof(uint32_t))
           {ProcessRTC = &XrdOfsCksFile::RTC_CB32;
-           ProcessRTE = &XrdOfsCksFile::RTC_EB32;
+           ProcessRTE = &XrdOfsCksFile::RTE_CB32;
            altcP = calcP->New();
           }
           else Dirty = true;
@@ -128,6 +128,7 @@ int XrdOfsCksFile::Close(long long *retsz)
 
 // Process checksum if it is valid
 //
+   cksMtx.Lock();
    while(!Dirty) // This is not a loop but avoids deeply next if's.
         {char  eBuff[256];
          const char* eTxt = (this->*ProcessRTE)(eBuff, sizeof(eBuff));
@@ -170,6 +171,7 @@ int XrdOfsCksFile::Close(long long *retsz)
 // Issue close to the underlying object
 //
    Dirty = true; // Prevent re-entry processing
+   cksMtx.UnLock();
    return wrapDF.Close(retsz);
 }
 
@@ -428,6 +430,7 @@ ssize_t XrdOfsCksFile::WriteV(XrdOucIOVec* writeV, int n)
 //
 const char* XrdOfsCksFile::RTC_CB32(const void* inBuff, off_t inOff, int inLen)
 {
+   XrdSysMutexHelper mHelp(cksMtx);
 
 // Check where the incomming segment is adjacent to current segment
 //
@@ -482,12 +485,12 @@ const char* XrdOfsCksFile::RTC_CB32(const void* inBuff, off_t inOff, int inLen)
 }
 
 /******************************************************************************/
-/*                              R T C _ E B 3 2                               */
+/*                              R T E _ C B 3 2                               */
 /******************************************************************************/
 
 // This method handles combinable checkums that are 32 bits in length
 //
-const char* XrdOfsCksFile::RTC_EB32(char* eBuff, int eBLen)
+const char* XrdOfsCksFile::RTE_CB32(char* eBuff, int eBLen)
 {
 
 // Verify that all data has been written for this checksum

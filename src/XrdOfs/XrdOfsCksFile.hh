@@ -34,6 +34,7 @@
 #include <map>
 
 #include "XrdOss/XrdOssWrapper.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class  XrdCks;
 class  XrdCksCalc;
@@ -178,11 +179,12 @@ virtual ~XrdOfsCksFile();
 private:
 
 const char* RTC_CB32(const void* inBuff, off_t inoff, int inLen);
-const char* RTC_EB32(char* eBuff, int eBLen);
+const char* RTE_CB32(char* eBuff, int eBLen);
 
 const char* (XrdOfsCksFile::*ProcessRTC)(const void*, off_t, int);
 const char* (XrdOfsCksFile::*ProcessRTE)(char*, int);
 
+XrdSysMutex cksMtx;
 const char* tident;
 const char* fPath;          // Valid throughout object lifetime
 XrdOssDF*   ossDF;          // Underlying dir/file object
