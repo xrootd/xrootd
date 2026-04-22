@@ -43,7 +43,6 @@
 /******************************************************************************/
 
 extern XrdSysError  OfsEroute;
-extern XrdOss*      XrdOfsOss;
 
 namespace
 {
@@ -58,7 +57,7 @@ namespace
 XrdOfsCksFile::XrdOfsCksFile(const char* tid, const char* path,
                              XrdOssDF*   df,  XrdCksCalc* cP)
                             : XrdOssWrapDF(*df),
-                              tident(tid), fPath(path), ossDF(df),
+                              tident(tid), fPath(strdup(path)), ossDF(df),
                               calcP(cP), altcP(0), nextOff(0)
 {
 // Obtain information about the chacksum we are to use. It should have been
@@ -95,9 +94,21 @@ XrdOfsCksFile::XrdOfsCksFile(const char* tid, const char* path,
 
 XrdOfsCksFile::~XrdOfsCksFile()
 {
+// Issue message if the close was never issued
+//
+   if (!Dirty)
+      {char eBuff[256];
+       snprintf(eBuff, sizeof(eBuff), "File not closed; "
+                "%s real-time checksum was not set for", cksName);
+       eLog.Emsg("cksdst", eBuff, fPath);
+      }
+
+// Cleanup
+//
    if (ossDF) delete ossDF;
    if (calcP) calcP->Recycle();
    if (altcP) altcP->Recycle();
+   if (fPath) free(fPath);
 }
 
 /******************************************************************************/
@@ -113,18 +124,9 @@ XrdOfsCksFile::~XrdOfsCksFile()
 */
 int XrdOfsCksFile::Close(long long *retsz)
 {
-   char pFN[MAXPATHLEN+8];
    XrdCksData cksData;
    struct stat Stat;
    int csSize, rc;;
-
-// Get the incomming file's pfn as we will needit
-//
-   const char* pfnP = XrdOfsOss->Lfn2Pfn(fPath, pFN, sizeof(pFN), rc);
-   if (pfnP == 0)
-      {eLog.Emsg("ckscls", rc, "determine pfn for real-time checksum");
-       Dirty = true;
-      }
 
 // Process checksum if it is valid
 //
@@ -132,12 +134,12 @@ int XrdOfsCksFile::Close(long long *retsz)
    while(!Dirty) // This is not a loop but avoids deeply next if's.
         {char  eBuff[256];
          const char* eTxt = (this->*ProcessRTE)(eBuff, sizeof(eBuff));
-         Dirty = true;
 
          // Verify that checksum was fully calculated
          //
          if (eTxt)
-            {eLog.Emsg("ckcls", "Unable to get final real-time checksum", eTxt);
+            {eLog.Emsg("ckcls", "Unable to get final real-time checksum for",
+                                fPath, eTxt);
              break;
             }
 
@@ -149,24 +151,18 @@ int XrdOfsCksFile::Close(long long *retsz)
          memcpy(cksData.Value, calcP->Final(), csSize);
 
          if ((rc = ossDF->Fstat(&Stat)))
-            {eLog.Emsg("clscls", rc, "get mtime for real-time checksum");
+            {eLog.Emsg("clscls", rc, "get real-time checksum mtime for", fPath);
              break;
             }
 
          cksData.fmTime = static_cast<long long>(Stat.st_mtime);
          cksData.csTime = static_cast<int>(time(0) - Stat.st_mtime);
 
-         if ((rc = cksP->Set(pfnP, cksData, 1)))
-            eLog.Emsg("ckscls", rc, "set real-time checksum");
-            else Dirty = false;
+         if ((rc = cksP->Set(fPath, cksData, 1)))
+            eLog.Emsg("ckscls", rc, "set real-time checksum for", fPath);
 
          break;
         }
-
-// Check if all went well and issue message if not
-//
-   if (Dirty)
-      eLog.Emsg("ckscls", cksName, "real-time checksum was not set for", fPath);
 
 // Issue close to the underlying object
 //
