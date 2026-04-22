@@ -561,7 +561,7 @@ int XrdOfsFile::open(const char          *path,      // In
            open_flag  |= O_RDWR     | O_CREAT  | O_TRUNC;
            find_flag  |= SFS_O_RDWR | SFS_O_TRUNC;
           }
-       if (XrdOfsFS->WantCksRT() && open_mode & (SFS_O_WRONLY | SFS_O_RDWR))
+       if (XrdOfsFS->WantCksRT())
           {const char* cipher = 0;
            if ((retc = XrdOfsFS->SetupCksRT(oP.cP, Open_Env, cipher)))
               {char eBuff[80];
