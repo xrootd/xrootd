@@ -136,7 +136,7 @@ XrdPosixLinkage Xunix;
       Retv_Lstat       Xrd_U_Lstat(Args_Lstat)
                          {return (Retv_Lstat)Xunix.Load_Error("lstat");}
       Retv_Lstat64     Xrd_U_Lstat64(Args_Lstat64)
-                         {return (Retv_Lstat64)Xunix.Load_Error("lstat");}
+                         {return (Retv_Lstat64)Xunix.Load_Error("lstat64");}
       Retv_Mkdir       Xrd_U_Mkdir(Args_Mkdir)
                          {return (Retv_Mkdir)Xunix.Load_Error("mkdir");}
       Retv_Open        Xrd_U_Open(Args_Open)
