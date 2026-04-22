@@ -186,7 +186,7 @@ const char* (XrdOfsCksFile::*ProcessRTE)(char*, int);
 
 XrdSysMutex cksMtx;
 const char* tident;
-const char* fPath;          // Valid throughout object lifetime
+      char* fPath;          // Valid throughout object lifetime
 XrdOssDF*   ossDF;          // Underlying dir/file object
 XrdCksCalc* calcP;
 const char* cksName;
