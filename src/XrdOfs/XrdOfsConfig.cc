@@ -446,7 +446,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
      Eroute.Say(buff);
 
      if (CksRTCgi || CksRTName)
-        {snprintf(buff, sizeof(buff), "       ofs.cksrt auto %s %scgi\n",
+        {snprintf(buff, sizeof(buff), "       ofs.cksrt      auto %s %scgi",
                   (CksRTName ? CksRTName : "none"), (CksRTCgi ? "" : "no"));
          Eroute.Say(buff);
         }
