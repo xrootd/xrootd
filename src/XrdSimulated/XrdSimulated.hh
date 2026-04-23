@@ -1,9 +1,18 @@
 #ifndef __XRD_SIMULATED_HH__
 #define __XRD_SIMULATED_HH__
 
+#include "XrdSimulatedEntry.hh"
+
 #include <XrdOss/XrdOss.hh>
 
+#include <unordered_map>
+#include <mutex>
+
 class XrdSimulated : public XrdOss {
+private:
+    std::unordered_map<std::string, XrdSimulatedEntry> entries;
+    std::mutex mutex;
+
 public:
     XrdSimulated() = default;
     virtual ~XrdSimulated() = default;
