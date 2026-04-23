@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <cinttypes>
+#include <zlib.h>
 
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -86,33 +87,17 @@ bool  Combinable() override {return true;}
 
 const char* Combine(const char *Cksum, int DLen) override
             {uint32_t adler2 = getCS(Cksum);
-             uint32_t s1_1 = unSum1;
-             uint32_t s2_1 = unSum2;
-             uint32_t s1_2 = adler2 & 0xffff;
-             uint32_t s2_2 = (adler2 >> 16) & 0xffff;
-
-             // The modulo reduction is necessary to prevent
-             // overflow before final result
-             uint32_t rem = static_cast<unsigned int>(DLen) % AdlerBase;
-
-             unSum1 = (s1_1 + s1_2 + AdlerBase - 1) % AdlerBase;
-             unSum2 = (s2_1 + s2_2 * rem + (rem - 1) * s1_1 + s2_2) % AdlerBase;
+             uint32_t adler1 = (unSum2 << 16) | unSum1;
+             uLong newcs = adler32_combine(adler1, adler2, DLen);
+             unSum1 = newcs & 0xffff;
+             unSum2 = (newcs >> 16) & 0xffff;
              return Final();
             }
 
 const char* Combine(const char* Cksum1, const char* Cksum2, int DLen) override
             {uint32_t adler1 = getCS(Cksum1);
-             uint32_t s1_1 = adler1 & 0xffff;
-             uint32_t s2_1 = (adler1 >> 16) & 0xffff;
              uint32_t adler2 = getCS(Cksum2);
-             uint32_t s1_2 = adler2 & 0xffff;
-             uint32_t s2_2 = (adler2 >> 16) & 0xffff;
-
-             uint32_t rem = DLen % AdlerBase; // Prevent overflow
-
-             uint32_t s1 = (s1_1 + s1_2 + AdlerBase - 1) % AdlerBase;
-             uint32_t s2 = (s2_1 + s2_2*rem + (rem-1)*s1_1 + s2_2) % AdlerBase;
-             AdlerValue = (s2 << 16) | s1;
+             AdlerValue = (uint32_t)adler32_combine(adler1, adler2, DLen);
 #ifndef Xrd_Big_Endian
              AdlerValue = htonl(AdlerValue);
 #endif
