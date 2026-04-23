@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # This script no longer generates XrdVersion.hh, but just
 # prints the version using the same strategy as in the module
@@ -8,7 +8,7 @@
 # not expanded by git, git describe is used. If a bad version is
 # set for any reason, a fallback version is used based on a date.
 
-function usage()
+usage()
 {
 	cat 1>&2 <<-EOF
 		Usage:
@@ -24,9 +24,9 @@ function usage()
 SRC="$(dirname "$0")"
 VF="${SRC}/VERSION"
 
-if [[ -n "${XRDVERSION}" ]]; then
+if [ -n "${XRDVERSION}" ]; then
 	VERSION="${XRDVERSION}";
-elif [[ -r "${VF}" ]] && grep -vq "Format:" "${VF}"; then
+elif [ -r "${VF}" ] && grep -vq "Format:" "${VF}"; then
 	VERSION="$(sed -e 's/-g/+git/' "${VF}")"
 elif git -C "${SRC}" describe --match 'v*' >/dev/null 2>&1; then
 	VERSION="$(git -C "${SRC}" describe --match 'v*' | sed -e 's/-g/+git/')"
@@ -34,7 +34,7 @@ else
 	VERSION="v5.9-rc$(date +%Y%m%d)"
 fi
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
 	case $1 in
 	--help)
 		usage
@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
 
 	--version)
 		shift
-		if [[ $# == 0 ]]; then
+		if [ $# -eq 0 ]; then
 			echo "error: --version parameter needs an argument" 1>&2
 		fi
 		VERSION=$1
@@ -66,8 +66,8 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-if [[ -v SANITIZE ]]; then
-	VERSION=$(sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./' <<< "${VERSION}")
+if [ -n "${SANITIZE}" ]; then
+	VERSION=$(printf "%s\n" "${VERSION}" | sed -e 's/v//; s/-rc/~rc/; s/-g/+git/; s/-/.post/; s/-/./')
 fi
 
 printf "%s" "${VERSION}"
