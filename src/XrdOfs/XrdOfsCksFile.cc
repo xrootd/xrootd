@@ -54,11 +54,11 @@ namespace
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdOfsCksFile::XrdOfsCksFile(const char* tid, const char* path,
-                             XrdOssDF*   df,  XrdCksCalc* cP)
+XrdOfsCksFile::XrdOfsCksFile(const char* tid, const char* path, XrdOssDF* df,
+                             XrdCksCalc*  cP, bool& delF)
                             : XrdOssWrapDF(*df),
                               tident(tid), fPath(strdup(path)), ossDF(df),
-                              calcP(cP), altcP(0), nextOff(0)
+                              calcP(cP), altcP(0), viaDel(delF), nextOff(0)
 {
 // Obtain information about the chacksum we are to use. It should have been
 // pre-screened for viability, but we check it again just to make sure and
@@ -94,15 +94,6 @@ XrdOfsCksFile::XrdOfsCksFile(const char* tid, const char* path,
 
 XrdOfsCksFile::~XrdOfsCksFile()
 {
-// Issue message if the close was never issued
-//
-   if (!Dirty)
-      {char eBuff[256];
-       snprintf(eBuff, sizeof(eBuff), "File not closed; "
-                "%s real-time checksum was not set for", cksName);
-       eLog.Emsg("cksdst", eBuff, fPath);
-      }
-
 // Cleanup
 //
    if (ossDF) delete ossDF;
@@ -133,11 +124,20 @@ int XrdOfsCksFile::Close(long long *retsz)
    cksMtx.Lock();
    while(!Dirty) // This is not a loop but avoids deeply next if's.
         {char  eBuff[256];
-         const char* eTxt = (this->*ProcessRTE)(eBuff, sizeof(eBuff));
+         const char* eTxt;
+
+         // If we are here vecause of a delete, skip setting checksum
+         //
+         if (viaDel)
+            {snprintf(eBuff, sizeof(eBuff), "File not properly closed; "
+                      "%s real-time checksum was not set for", cksName);
+             eLog.Emsg("ckscls", eBuff, fPath);
+             break;
+            }
 
          // Verify that checksum was fully calculated
          //
-         if (eTxt)
+         if ((eTxt = (this->*ProcessRTE)(eBuff, sizeof(eBuff))))
             {eLog.Emsg("ckcls", "Unable to get final real-time checksum for",
                                 fPath, eTxt);
              break;
@@ -455,15 +455,8 @@ const char* XrdOfsCksFile::RTC_CB32(const void* inBuff, off_t inOff, int inLen)
 
 // Compute checksum for the incomming block
 //
-   char* newCS = altcP->Calc((const char*)inBuff, inLen);
    uint32_t theCS;
-#ifndef Xrd_Big_Endian
-   uint32_t tmp;
-   memcpy(&tmp, newCS, sizeof(tmp));
-   theCS = ntohl(tmp);
-#else
-   memcpy(theCS, newCS, sizeof(theCS);
-#endif
+   memcpy(&theCS, altcP->Calc((const char*)inBuff, inLen), sizeof(theCS));
 
 // Create new segment and try inserting it into the map
 //

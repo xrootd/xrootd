@@ -462,7 +462,7 @@ int XrdOfsDirectory::autoStat(struct stat *buf)
 XrdOfsFile::XrdOfsFile(XrdOucErrInfo &eInfo, const char *user)
                       : XrdSfsFile(eInfo), tident(user ? user : ""),
                         oh(XrdOfs::dummyHandle), myTPC(0), myCKP(0),
-                        dorawio(0), viaDel(0), ckpBad(false) {}
+                        dorawio(0), viaDel(false), ckpBad(false) {}
 
 /******************************************************************************/
 /*                                  o p e n                                   */
@@ -769,7 +769,7 @@ int XrdOfsFile::open(const char          *path,      // In
 // If we are doing real-time checksums, wrap the Oss file with a Cks file
 //
    if (oP.cP)
-      {XrdOfsCksFile* cfP = new XrdOfsCksFile(tident, path, oP.fP, oP.cP);
+      {XrdOfsCksFile* cfP = new XrdOfsCksFile(tident,path,oP.fP,oP.cP,viaDel);
        oP.fP = static_cast<XrdOssDF*>(cfP);
        oP.cP = 0;
       }
