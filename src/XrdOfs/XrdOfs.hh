@@ -194,7 +194,7 @@ public:
 
                        XrdOfsFile(XrdOucErrInfo &eInfo, const char *user);
 
-                      ~XrdOfsFile() {viaDel = 1; if (oh) close();}
+                      ~XrdOfsFile() {viaDel = true; if (oh) close();}
 
 protected:
 
@@ -203,7 +203,7 @@ XrdOfsHandle  *oh;
 XrdOfsTPC     *myTPC;
 XrdOucChkPnt  *myCKP;
 int            dorawio;
-char           viaDel;
+bool           viaDel;
 bool           ckpBad;
 
 private:

@@ -171,8 +171,8 @@ int     Write(XrdSfsAio* aiop) override;
 
 ssize_t WriteV(XrdOucIOVec *writeV, int wrvcnt) override;
 
-         XrdOfsCksFile(const char* tid, const char* path,
-                       XrdOssDF*   df,  XrdCksCalc* cP);
+         XrdOfsCksFile(const char* tid, const char* path, XrdOssDF* df,
+                       XrdCksCalc*  cP, bool& delFlag);
 
 virtual ~XrdOfsCksFile();
 
@@ -191,6 +191,7 @@ XrdOssDF*   ossDF;          // Underlying dir/file object
 XrdCksCalc* calcP;
 const char* cksName;
 XrdCksCalc* altcP;
+bool&       viaDel;
 off_t       nextOff;
 
 struct      inSeg
