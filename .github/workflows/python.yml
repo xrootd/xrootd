@@ -9,6 +9,7 @@ on:
       - setup.py
       - pyproject.toml
       - 'bindings/**'
+      - .github/workflows/python.yml
     tags-ignore:
   pull_request:
     paths:
@@ -16,16 +17,52 @@ on:
       - pyproject.toml
       - 'bindings/**'
   workflow_dispatch:
+  release:
+    types:
+      - published
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.14"
+
+    - name: Install Python build dependencies
+      run: python -m pip install build
+
+    - name: Build source distribution tarball
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        ./genversion.sh >| VERSION
+        python -m build --sdist
+
+    - name: Upload source distribution
+      uses: actions/upload-artifact@v7
+      with:
+        name: python-sdist
+        path: dist/*.tar.gz
+        retention-days: 14
+
   manylinux:
     name: Python ${{ matrix.version }} (Linux, ${{ matrix.platform.arch }})
     runs-on: ${{ matrix.platform.runs_on }}
     container: ${{ matrix.platform.container }}
+    needs: [ sdist ]
 
     strategy:
       fail-fast: false
@@ -47,20 +84,13 @@ jobs:
     - name: Install dependencies
       run: dnf install -y git krb5-devel libuuid-devel openssl-devel
 
-    - name: Clone repository
-      uses: actions/checkout@v6
+    - name: Download source distribution
+      uses: actions/download-artifact@v7
       with:
-        fetch-depth: 0
-        fetch-tags: true
-
-    - name: Build source distribution tarball
-      run: |
-        git config --global --add safe.directory "$GITHUB_WORKSPACE"
-        ./genversion.sh >| VERSION
-        ${PYTHON} -m build --sdist
+        name: python-sdist
 
     - name: Build binary wheel
-      run: ${PYTHON} -m pip wheel --use-pep517 --verbose dist/*.tar.gz
+      run: ${PYTHON} -m pip wheel --use-pep517 --verbose *.tar.gz
 
     - name: Fixup binary wheel
       run: auditwheel repair *.whl
@@ -87,6 +117,7 @@ jobs:
   macos:
     name: Python ${{ matrix.version }} (macOS, ${{ matrix.platform.arch }})
     runs-on: ${{ matrix.platform.runs_on }}
+    needs: [ sdist ]
 
     strategy:
       fail-fast: false
@@ -110,31 +141,24 @@ jobs:
       _PYTHON_HOST_PLATFORM: ${{ matrix.platform.host_platform }}
 
     steps:
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        fetch-tags: true
-
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.version }}
 
     - name: Install dependencies with Homebrew
-      run: brew install nlohmann-json openssl@3
+      run: brew install nlohmann-json
 
     - name: Install Python build dependencies
       run: python -m pip install build delocate
 
-    - name: Build source distribution tarball
-      run: |
-        git config --global --add safe.directory "$GITHUB_WORKSPACE"
-        ./genversion.sh >| VERSION
-        python -m build --sdist
+    - name: Download source distribution
+      uses: actions/download-artifact@v7
+      with:
+        name: python-sdist
 
     - name: Build binary wheel
-      run: python -m pip wheel --use-pep517 --verbose dist/*.tar.gz
+      run: python -m pip wheel --use-pep517 --verbose *.tar.gz
 
     - name: Fixup binary wheel
       run: delocate-wheel -w wheelhouse -v *.whl
@@ -157,3 +181,25 @@ jobs:
         name: python-${{ matrix.version }}-macos-${{ matrix.platform.arch }}
         path: wheelhouse
         retention-days: 14
+
+  pypi:
+    if: ${{ github.event_name == 'release' && github.repository_owner == 'xrootd' }}
+    name: Publish to PyPI
+    needs: [ macos, manylinux ]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v7
+      with:
+        path: dist
+        pattern: python-*
+        merge-multiple: true
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
