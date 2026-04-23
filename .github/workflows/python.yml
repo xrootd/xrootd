@@ -23,15 +23,24 @@ concurrency:
 
 jobs:
   manylinux:
-    name: Python
-    runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux_2_28_x86_64
+    name: Python ${{ matrix.version }} (Linux, ${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runs_on }}
+    container: ${{ matrix.platform.container }}
 
     strategy:
+      fail-fast: false
       matrix:
-        version: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        version: [ "3.9", "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        platform:
+          - arch: arm64
+            runs_on: ubuntu-24.04-arm
+            container: quay.io/pypa/manylinux_2_28_aarch64
+          - arch: x86_64
+            runs_on: ubuntu-24.04
+            container: quay.io/pypa/manylinux_2_28_x86_64
 
     env:
+      CMAKE_ARGS: -DCMAKE_BUILD_TYPE=Release
       PYTHON: python${{ matrix.version }}
 
     steps:
@@ -39,14 +48,15 @@ jobs:
       run: dnf install -y git krb5-devel libuuid-devel openssl-devel
 
     - name: Clone repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
+        fetch-tags: true
 
     - name: Build source distribution tarball
       run: |
         git config --global --add safe.directory "$GITHUB_WORKSPACE"
-        ./genversion.sh --sanitize >| VERSION
+        ./genversion.sh >| VERSION
         ${PYTHON} -m build --sdist
 
     - name: Build binary wheel
@@ -68,8 +78,8 @@ jobs:
         ${PYTHON} -c 'from XRootD import client; print(client.FileSystem("root://localhost"))'
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
-        name: python-${{ matrix.version }}
+        name: python-${{ matrix.version }}-linux-${{ matrix.platform.arch }}
         path: wheelhouse
         retention-days: 14
