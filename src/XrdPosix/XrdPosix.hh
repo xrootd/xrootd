@@ -61,6 +61,8 @@
 
 #define fstat(a,b)       XrdPosix_Fstat(a,b)
 
+#define fstatat(a,b,c,d) XrdPosix_Fstatat(a,b,c,d)
+
 #define fsync(a)         XrdPosix_Fsync(a)
 
 #define ftell(a)         XrdPosix_Ftell(a)
@@ -74,6 +76,8 @@
 #define mkdir(a,b)       XrdPosix_Mkdir(a,b)
 
 #define open             XrdPosix_Open
+
+#define openat           XrdPosix_Openat
 
 #define opendir(a)       XrdPosix_Opendir(a)
 

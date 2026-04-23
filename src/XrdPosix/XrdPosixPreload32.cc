@@ -239,27 +239,27 @@ int fseeko(FILE *stream, off_t offset, int whence)
 /*                                 f s t a t                                  */
 /******************************************************************************/
 
-#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
-#if defined __linux__ && __GNUC__ && __GNUC__ >= 2
-int  __fxstat(int ver, int fildes, struct stat *buf)
+#if defined(__linux__) && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
+  int     __fxstat(int ver, int fildes, struct stat *buf)
 #elif defined(__solaris__) && defined(__i386)
-int   _fxstat(int ver, int fildes, struct stat *buf)
+    int   _fxstat(int ver, int fildes, struct stat *buf)
 #else
-int     fstat(         int fildes, struct stat *buf)
+  int     fstat(           int fildes, struct stat *buf)
 #endif
 {
-   static int Init = Xunix.Init(&Init);
+  static int Init = Xunix.Init(&Init);
 
-#if defined(__linux__) and defined(_STAT_VER)
-   if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(ver, fildes, buf);
-#else
-   if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(     fildes, buf);
+#if defined(__linux__) && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
+  if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(ver, fildes, buf);
+#endif
+#ifdef __APPLE__
+  if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(     fildes, buf);
 #endif
 
 #if defined(__LP64__) || defined(_LP64)
-   return    XrdPosix_Fstat(fildes,                 buf  );
+  return    XrdPosix_Fstat(fildes,                 buf  );
 #else
    int rc;
    struct stat64 buf64;
@@ -268,8 +268,26 @@ int     fstat(         int fildes, struct stat *buf)
 #endif
 }
 }
+
+/******************************************************************************/
+/*                                 f s t a t a t                              */
+/******************************************************************************/
+
+extern "C"
+{
+  int fstatat(int dirfd, const char* path, struct stat *buf, int flags){
+    static int Init = Xunix.Init(&Init);
+#if defined(__LP64__) || defined(_LP64)
+    return XrdPosix_Fstatat (dirfd, path, buf, flags);
+#else
+   int rc;
+   struct stat64 buf64;
+   if ((rc = XrdPosix_Fstatat(dirfd, path, (struct stat *)&buf64, flags))) return rc;
+   return XrdPosix_CopyStat(buf, buf64);
 #endif
 
+}
+}
 
 /******************************************************************************/
 /*                                f t e l l o                                 */
@@ -326,7 +344,7 @@ off_t   lseek(int fildes, off_t offset, int whence)
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
-#if defined __GNUC__ && __GNUC__ >= 2 && defined(__linux__)
+#if defined __GNUC__ && defined(_STAT_VER) &&  __GNUC__ >= 2 && defined(__linux__)
 int     __lxstat(int ver, const char *path, struct stat *buf)
 #elif defined(__solaris__) && defined(__i386)
 int      _lxstat(int ver, const char *path, struct stat *buf)
@@ -336,15 +354,17 @@ int        lstat(         const char *path, struct stat *buf)
 {
    static int Init = Xunix.Init(&Init);
 
-   if (!XrdPosix_isMyPath(path))
 #if defined(__linux__) and defined(_STAT_VER)
-      return Xunix.Lstat(ver, path, buf);
-#else
-      return Xunix.Lstat(     path, buf);
+   if (!XrdPosix_isMyPath(path))
+     return Xunix.Lstat(ver, path, buf);
+#endif
+#ifdef __APPLE__
+   if (!XrdPosix_isMyPath(path))
+     return Xunix.Lstat(     path, buf);
 #endif
 
 #if defined(__LP64__) || defined(_LP64)
-   return    XrdPosix_Lstat(path,                 buf  );
+   return    XrdPosix_Lstat(path, buf  );
 #else
    struct stat64 buf64;
    int rc;
@@ -480,7 +500,7 @@ ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
-#if defined __GNUC__ && __GNUC__ >= 2
+#if defined __linux__ && defined(_STAT_VER) && defined __GNUC__ && __GNUC__ >= 2
 int     __xstat(int ver, const char *path, struct stat *buf)
 #elif defined(__solaris__) && defined(__i386)
 int      _xstat(int ver, const char *path, struct stat *buf)
@@ -489,16 +509,17 @@ int        stat(         const char *path, struct stat *buf)
 #endif
 {
    static int Init = Xunix.Init(&Init);
-
-   //   if (!XrdPosix_isMyPath(path))
-   //#ifdef __linux__
-   //      return Xunix.Stat(ver, path, buf);
-   //#else
-   //      return Xunix.Stat(     path, buf);
-   //#endif
+#if defined( __linux__) && defined(_STAT_VER)
+   if (!XrdPosix_isMyPath(path))
+     return Xunix.Stat(ver, path, buf);
+#endif
+#ifdef __APPLE__
+   if (!XrdPosix_isMyPath(path))
+     return Xunix.Stat(     path, buf);
+#endif
 
 #if defined(__LP64__) || defined(_LP64)
-   return    XrdPosix_Stat(path,                 buf  );
+   return    XrdPosix_Stat(path, buf);
 #else
    struct stat64 buf64;
    int rc;

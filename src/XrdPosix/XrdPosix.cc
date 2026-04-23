@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/uio.h>
@@ -112,26 +113,32 @@ static inline void fseteof(FILE *fp)
 /******************************************************************************/
 static ssize_t XrdResolveLink(const char *path, char *resolved){
   char unref[2049], filename[2049];
+  char * result;
   // Make sure a path was passed
   //
   if (!path) {errno = EFAULT; return -1;}
-
-  strncpy(filename, path, 2048);
-  strncpy(unref, path, 2048);
-  // if it is a link, follow it until the end
-  int i = 0;
-  bzero(unref, 2049);
-  int lsize = readlink(filename, unref, 2048);
-  while (lsize > 0 && i<10){
-    strncpy(filename, unref, 2049);
-    // ensure zero termination
+  result = realpath(path, NULL);
+  if (result == NULL){
+    strncpy(filename, path, 2048);
+    strncpy(unref, path, 2048);
+    // if it is a link, follow it until the end
+    int i = 0;
     bzero(unref, 2049);
-    lsize = readlink(filename, unref, 2048);
-    i++;
-  }
-  if (i == 10){
-    errno = ELOOP;
-    return(-1);
+    int lsize = readlink(filename, unref, 2048);
+    while (lsize > 0 && i<10){
+      strncpy(filename, unref, 2049);
+      // ensure zero termination
+      bzero(unref, 2049);
+      lsize = readlink(filename, unref, 2048);
+      i++;
+    }
+    if (i == 10){
+      errno = ELOOP;
+      return(-1);
+    }
+  } else {
+    strncpy(filename, result, 2048);
+    free(result);
   }
   strncpy(resolved, filename, 2049);
   return(strlen(filename));
@@ -193,10 +200,10 @@ int XrdPosix_Chdir(const char *path)
 {
   int rc;
   char unref[2049];
-  
+
   ssize_t res=XrdResolveLink(path, unref);
   if (res < 0) return res;
-  
+
   // Set the working directory if the actual chdir succeeded
   //
   if (!(rc = Xunix.Chdir(path))) XrootPath.CWD(unref);
@@ -457,32 +464,76 @@ int XrdPosix_Fseeko(FILE *stream, long long offset, int whence)
 
 extern "C"
 {
-int XrdPosix_Fstat(int fildes, struct stat *buf)
-{
-
-// Return result of the close
-//
-   return (Xroot.myFD(fildes)
-          ? Xroot.Fstat(fildes, buf)
-#if defined(__linux__) and defined(_STAT_VER)
-          : Xunix.Fstat64(_STAT_VER, fildes, (struct stat64 *)buf));
+  int XrdPosix_Fstat(int fildes, struct stat *buf)
+  {
+    if (Xroot.myFD(fildes)){
+      return(Xroot.Fstat(fildes, buf));
+    } else {
+#ifdef SYS_fstat
+      return syscall(SYS_fstat, fildes, buf);
 #else
-          : Xunix.Fstat64(           fildes, (struct stat64 *)buf));
+      errno = ENOSYS;
+      return -1;
+#endif
+    }
+  }
+#if defined(__linux__) && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
+  int XrdPosix_FstatV(int ver, int fildes, struct stat *buf)
+  {
+    if (Xroot.myFD(fildes)){
+      return(Xroot.Fstat(fildes, buf));
+    } else {
+#ifdef SYS_fstat
+      return syscall(SYS_fstat, fildes, buf);
+#else
+      errno = ENOSYS;
+      return -1;
+#endif
+    }
+  }
 #endif
 }
 
-#ifdef __linux__
-int XrdPosix_FstatV(int ver, int fildes, struct stat *buf)
+/******************************************************************************/
+/*                        X r d P o s i x _ F s t a t a t                     */
+/******************************************************************************/
+
+extern "C"
 {
-   return (Xroot.myFD(fildes)
-          ? Xroot.Fstat(fildes, buf)
-#ifdef _STAT_VER
-          : Xunix.Fstat64(ver, fildes, (struct stat64 *)buf));
+  int XrdPosix_Fstatat(int dirfd, const char *path, struct stat *buf, int flags)
+{
+  if (path && *path) {
+    char buff[2048];
+    char unref[2049];
+
+    if (!(flags & AT_SYMLINK_NOFOLLOW)){
+      // We need to follow until path is no longer a link
+      ssize_t res=XrdResolveLink(path, unref);
+      if (res < 0) return res;
+      // links are pointing to file unref now which is not a link
+    } else {
+      if (!path) {errno = EFAULT; return -1;}
+      strncpy(unref, path, 2048);
+    }
+    if (char *myPath = XrootPath.URL(unref, buff, sizeof(buff))) {
+      int ret = Xroot.Stat(myPath,  (struct stat *)buf);
+      return (ret);
+    } else {
+      // not a root file
+#ifdef SYS_newfstatat
+      return syscall(SYS_newfstatat, dirfd, path, buf, flags);
 #else
-          : Xunix.Fstat64(     fildes, (struct stat64 *)buf));
+#ifdef SYS_fstatat
+      return syscall(SYS_fstatat, dirfd, path, buf, flags);
+#else
+      errno = ENOSYS;
+      return -1;
 #endif
+#endif
+    }
+  }
+  return -1;
 }
-#endif
 }
 
 /******************************************************************************/
@@ -641,21 +692,25 @@ extern "C"
 {
 int XrdPosix_Lstat(const char *path, struct stat *buf)
 {
-   char *myPath, buff[2048];
+  char *myPath, buff[2048];
 
 // Make sure a path was passed
 //
-   if (!path) {errno = EFAULT; return -1;}
+  if (!path) {errno = EFAULT; return -1;}
 
 // Return the results of an open of a Unix file
 //
-   return (!(myPath = XrootPath.URL(path, buff, sizeof(buff)))
-#if defined(__linux__) and defined(_STAT_VER)
-          ? Xunix.Lstat64(_STAT_VER, path, (struct stat64 *)buf)
+  myPath = XrootPath.URL(path, buff, sizeof(buff));
+  if (myPath){
+    return Xroot.Stat(myPath, buf);
+  } else {
+#ifdef SYS_lstat
+    return syscall(SYS_lstat, path, buf);
 #else
-          ? Xunix.Lstat64(           path, (struct stat64 *)buf)
+    errno = ENOSYS;
+    return -1;
 #endif
-          : Xroot.Stat(myPath, buf));
+  }
 }
 }
 
@@ -696,7 +751,6 @@ int XrdPosix_Open(const char *path, int oflag, ...)
    char unref[2049];
    va_list ap;
    int mode;
-
    ssize_t res=XrdResolveLink(path, unref);
    if (res < 0) return res;
    // Return the results of an open of a Unix file
@@ -708,7 +762,7 @@ int XrdPosix_Open(const char *path, int oflag, ...)
        va_end(ap);
        return Xunix.Open64(unref, oflag, (mode_t)mode);
      }
-   
+
    // Return the results of an open of an xrootd file
    //
    if (!(oflag & O_CREAT)) return Xroot.Open(myPath, oflag);
@@ -716,6 +770,46 @@ int XrdPosix_Open(const char *path, int oflag, ...)
    mode = va_arg(ap, int);
    va_end(ap);
    return Xroot.Open(myPath, oflag, (mode_t)mode);
+}
+}
+
+/******************************************************************************/
+/*                         X r d P o s i x _ O p e n a t                          */
+/******************************************************************************/
+
+extern "C"
+{
+int XrdPosix_Openat(int dirfd, const char *path, int flag, ...)
+{
+  char *myPath, buff[2048];
+  char unref[2049];
+  va_list ap;
+  int mode;
+  ssize_t res=XrdResolveLink(path, unref);
+  if (res < 0) return res;
+
+  if (!(myPath = XrootPath.URL(unref, buff, sizeof(buff)))){
+    mode_t mode = 0;
+    if (flag & (O_CREAT)) {
+      va_start(ap, flag);
+      mode = va_arg(ap, int);
+      va_end(ap);
+    }
+#ifdef SYS_openat
+    return (syscall(SYS_openat, dirfd, path, flag, (mode_t)mode));
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
+  } else {
+    // Return the results of an open of an xrootd file
+    //
+    if (!(flag & O_CREAT)) return Xroot.Open(myPath, flag);
+    va_start(ap, flag);
+    mode = va_arg(ap, int);
+    va_end(ap);
+    return Xroot.Open(myPath, flag, (mode_t)mode);
+  }
 }
 }
 
@@ -756,10 +850,10 @@ long XrdPosix_Pathconf(const char *path, int name)
 {
   char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
-   if (res < 0) return res;
+  ssize_t res=XrdResolveLink(path, unref);
+  if (res < 0) return res;
 
-   return (XrootPath.URL(unref, 0, 0) ? Xunix.Pathconf("/tmp", name)
+  return (XrootPath.URL(unref, 0, 0) ? Xunix.Pathconf("/tmp", name)
 	                              : Xunix.Pathconf(unref,   name));
 }
 }
@@ -984,7 +1078,7 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
    } else {
      // not a root file
 #ifdef SYS_stat
-     return syscall(SYS_stat, unref, buf);
+     return syscall(SYS_stat, path, buf);
 #else
      errno = ENOSYS;
      return -1;
@@ -1006,39 +1100,27 @@ int XrdPosix_Statx(int dirfd, const char *path, int flags,
       // We need to follow until path is no longer a link
       ssize_t res=XrdResolveLink(path, unref);
       if (res < 0) return res;
-      if (char *myPath = XrootPath.URL(unref, buff, sizeof(buff))) {
-	struct stat st{};
-	if (int ret = XrdPosix_Stat(myPath, &st))
-	  return ret;
-	XrdSysStatxHelpers::Stat2Statx(st, *stx);
-	return 0;
-      } else {
-#ifdef SYS_statx
-	int ret = syscall(SYS_statx, dirfd, unref, flags, mask, stx);
-	return ret;
-#else
-	errno = ENOSYS;
-	return -1;
-#endif
-      }
+    } else {
+      if (!path) {errno = EFAULT; return -1;}
+      strncpy(unref, path, 2048);
     }
-    else
-      {
-	if (char *myPath = XrootPath.URL(path, buff, sizeof(buff))) {
-	  struct stat st{};
-	  if (int ret = XrdPosix_Stat(myPath, &st))
-	    return ret;
-	  XrdSysStatxHelpers::Stat2Statx(st, *stx);
-	  return 0;
-	}
-      }
-  }
+    if (char *myPath = XrootPath.URL(unref, buff, sizeof(buff))) {
+      struct stat st{};
+      if (int ret = XrdPosix_Stat(myPath, &st))
+	return ret;
+      XrdSysStatxHelpers::Stat2Statx(st, *stx);
+      return 0;
+    } else {
 #ifdef SYS_statx
-  return syscall(SYS_statx, dirfd, path, flags, mask, stx);
+      int ret = syscall(SYS_statx, dirfd, path, flags, mask, stx);
+      return ret;
 #else
-  errno = ENOSYS;
-  return -1;
+      errno = ENOSYS;
+      return -1;
 #endif
+    }
+  }
+  return -1;
 }
 }
 
