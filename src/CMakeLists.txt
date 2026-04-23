@@ -3,8 +3,12 @@
 # (this is especially important for plugins)
 #-------------------------------------------------------------------------------
 if( PYPI_BUILD )
-  set( CMAKE_INSTALL_RPATH "$ORIGIN" )
-  set( CMAKE_INSTALL_RPATH_USE_LINK_PATH true )
+  if( APPLE )
+    set(CMAKE_INSTALL_NAME_DIR "@rpath")
+  else()
+    set(CMAKE_INSTALL_RPATH "$ORIGIN")
+  endif()
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH true)
 endif()
 
 #-------------------------------------------------------------------------------
