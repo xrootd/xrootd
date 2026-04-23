@@ -83,3 +83,77 @@ jobs:
         name: python-${{ matrix.version }}-linux-${{ matrix.platform.arch }}
         path: wheelhouse
         retention-days: 14
+
+  macos:
+    name: Python ${{ matrix.version }} (macOS, ${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runs_on }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [ "3.9", "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        platform:
+          - arch: arm64
+            runs_on: macos-15
+            host_platform: macosx-15.0-arm64
+            openssl_prefix: /opt/homebrew/opt/openssl@3
+          - arch: x86_64
+            runs_on: macos-15-intel
+            host_platform: macosx-15.0-x86_64
+            openssl_prefix: /usr/local/opt/openssl@3
+
+    env:
+      CMAKE_ARGS: -DPython_FIND_UNVERSIONED_NAMES=FIRST -DCMAKE_BUILD_TYPE=Release
+      CMAKE_PREFIX_PATH: ${{ matrix.platform.openssl_prefix }}
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      MACOSX_DEPLOYMENT_TARGET: "15.0"
+      _PYTHON_HOST_PLATFORM: ${{ matrix.platform.host_platform }}
+
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.version }}
+
+    - name: Install dependencies with Homebrew
+      run: brew install nlohmann-json openssl@3
+
+    - name: Install Python build dependencies
+      run: python -m pip install build delocate
+
+    - name: Build source distribution tarball
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        ./genversion.sh >| VERSION
+        python -m build --sdist
+
+    - name: Build binary wheel
+      run: python -m pip wheel --use-pep517 --verbose dist/*.tar.gz
+
+    - name: Fixup binary wheel
+      run: delocate-wheel -w wheelhouse -v *.whl
+
+    - name: Install binary wheel
+      run: python -m pip install wheelhouse/*.whl
+
+    - name: Run post-installation tests
+      run: |
+        command -v python && python --version
+        python -m pip show xrootd
+        python -c 'import XRootD; print(XRootD)'
+        python -c 'import pyxrootd; print(pyxrootd)'
+        python -c 'from XRootD import client; help(client)'
+        python -c 'from XRootD import client; print(client.FileSystem("root://localhost"))'
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: python-${{ matrix.version }}-macos-${{ matrix.platform.arch }}
+        path: wheelhouse
+        retention-days: 14
