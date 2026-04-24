@@ -9,23 +9,23 @@ namespace XrdGlobal
 int XrdSimulatedDir::Opendir(const char *path, XrdOucEnv &env)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return -ENOTSUP;
 }
 
 int XrdSimulatedDir::Readdir(char *buff, int blen)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return -ENOTSUP;
 }
 
 int XrdSimulatedDir::StatRet(struct stat *buff)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return -ENOTSUP;
 }
 
 int XrdSimulatedDir::Close(long long *retsz)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return -ENOTSUP;
 }

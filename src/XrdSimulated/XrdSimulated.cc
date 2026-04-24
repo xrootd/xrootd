@@ -76,13 +76,13 @@ int XrdSimulated::Init(XrdSysLogger *lp, const char *cfn)
 int XrdSimulated::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv  *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return XrdOssOK;
+    return -ENOTSUP;
 }
 
 int XrdSimulated::Remdir(const char *path, int Opts, XrdOucEnv *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return XrdOssOK;
+    return -ENOTSUP;
 }
 
 int XrdSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
