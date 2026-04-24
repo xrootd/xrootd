@@ -26,7 +26,7 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
- 
+
 #include <unistd.h>
 #include <cctype>
 #include <fcntl.h>
@@ -86,7 +86,7 @@
 /******************************************************************************/
 /*         P r o t o c o l   C o m m a n d   L i n e   O p t i o n s          */
 /******************************************************************************/
-  
+
 /* This is the XRootd server. The syntax is:
 
    xrootd [options]
@@ -146,7 +146,7 @@ extern XrdBuffManager       *BPool;
 extern XrdScheduler         *Sched;
 extern XrdXrootdStats       *SI;
 }
-  
+
 /******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */
 /******************************************************************************/
@@ -156,8 +156,8 @@ namespace
 char                    *digParm  = 0;
 char                    *FSLib[2] = {0,0};
 std::vector<std::string> FSLPath;    // fslib
-std::vector<std::string> RDLPath;    // redirlib 
-std::vector<std::string> RDLParm;    // redirlib 
+std::vector<std::string> RDLPath;    // redirlib
+std::vector<std::string> RDLParm;    // redirlib
 char                    *gpfLib  = 0;// Normally zero for default
 char                    *gpfParm = 0;
 char                    *SecLib;
@@ -167,11 +167,11 @@ int                      asyncFlags = 0;
 static const int asDebug   = 0x01;
 static const int asNoCache = 0x02;
 }
-  
+
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
-  
+
 int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 {
 /*
@@ -367,7 +367,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
       {for (int i = 0; i < (int)RDLPath.size(); i++)
            {const char* parm = (RDLParm[i].length() ? RDLParm[i].c_str() : 0);
             if (!ConfigRedirPI(RDLPath[i].c_str(),xrootdEnv,pi->ConfigFN,parm))
-               return 0;
+             return 0;
+             if (pi->theEnv) pi->theEnv->PutPtr("XrdXrootdRedirPI*", RedirPI);
            }
       }
 
@@ -430,7 +431,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
       {isRedir = *rdf;
        myRole = kXR_isManager; myRolf = kXR_LBalServer;
        if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
-      } 
+      }
    if (fsFeatures & XrdSfs::hasPRXY) myRole |= kXR_attrProxy;
    if (fsFeatures & XrdSfs::hasCACH) myRole |= kXR_attrCache;
    myRole |= tlsFlags;
@@ -555,7 +556,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 /******************************************************************************/
 /*                                C o n f i g                                 */
 /******************************************************************************/
-  
+
 #define TS_Xeq(x,m) (!strcmp(x,var)) GoNo = m(Config)
 #define TS_Zeq(x,m) (!strcmp(x,var)) GoNo = m(&eDest, Config)
 
@@ -683,7 +684,7 @@ int  XrdXrootdProtocol::CheckTLS(const char *tlsProt)
 //
    return 1;
 }
-  
+
 /******************************************************************************/
 /*                              C o n f i g F S                               */
 /******************************************************************************/
@@ -748,7 +749,7 @@ bool XrdXrootdProtocol::ConfigFS(const char *path, XrdOucEnv &xEnv,
    osFS->EnvInfo(&xEnv);
    return true;
 }
-  
+
 /******************************************************************************/
 /*                         C o n f i g R e d i r P I                          */
 /******************************************************************************/
@@ -763,7 +764,7 @@ bool XrdXrootdProtocol::ConfigRedirPI(const char *path, XrdOucEnv &xEnv,
    RedirPI = XrdXrootdloadRedirLib(&eDest, RedirPI, path, parms, cfn, &xEnv);
    return RedirPI != 0;
 }
-  
+
 /******************************************************************************/
 /*                        C o n f i g S e c u r i t y                         */
 /******************************************************************************/
@@ -828,7 +829,7 @@ int XrdXrootdProtocol::ConfigSecurity(XrdOucEnv &xEnv, const char *cfn)
    if (tlsProt) return CheckTLS(tlsProt);
    return 1;
 }
-  
+
 /******************************************************************************/
 /*                                x a s y n c                                 */
 /******************************************************************************/
@@ -978,7 +979,7 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 /******************************************************************************/
 /*                                  x b i f                                   */
 /******************************************************************************/
-  
+
 /* Function: xbif
 
    Purpose:  To parse the directive: bindif <trg>
@@ -1135,7 +1136,7 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
       else   JobCKS = 0;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x d i g                                   */
 /******************************************************************************/
@@ -1175,7 +1176,7 @@ int XrdXrootdProtocol::xdig(XrdOucStream &Config)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x e x p                                   */
 /******************************************************************************/
@@ -1245,7 +1246,7 @@ int XrdXrootdProtocol::xexpdo(char *path, int popt)
       XPList.Insert(path, popt);
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x f s l                                   */
 /******************************************************************************/
@@ -1352,7 +1353,7 @@ int XrdXrootdProtocol::xfsL(XrdOucStream &Config, char *val, int lix)
 /******************************************************************************/
 /*                                  x f s o                                   */
 /******************************************************************************/
-  
+
 /* Function: xfso
 
    Purpose:  To parse the directive: fsoverload [options]
@@ -1466,7 +1467,7 @@ int XrdXrootdProtocol::xgpf(XrdOucStream &Config)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x l o g                                   */
 /******************************************************************************/
@@ -1556,7 +1557,7 @@ int XrdXrootdProtocol::xprep(XrdOucStream &Config)
 // Set the values
 //
    if (scrub || keep) XrdXrootdPrepare::setParms(scrub, keep);
-   if (ldir) 
+   if (ldir)
        if ((rc = XrdOucUtils::genPath(buff, sizeof(buff), ldir, myInst)) < 0
        ||  (rc = XrdOucUtils::makePath(buff, XrdOucUtils::pathMode)) < 0
        ||  (rc = XrdXrootdPrepare::setParms(buff)) < 0)
@@ -1565,7 +1566,7 @@ int XrdXrootdProtocol::xprep(XrdOucStream &Config)
           }
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x r d l                                   */
 /******************************************************************************/
@@ -1628,7 +1629,7 @@ int XrdXrootdProtocol::xrdl(XrdOucStream &Config)
 /******************************************************************************/
 /*                               x r d r o p t                                */
 /******************************************************************************/
-  
+
 char* XrdXrootdProtocol::xrdlopt(XrdOucStream &Config, char* val)
 {
     int num;
@@ -1651,7 +1652,7 @@ do{if (!strcmp(val, "+iphold"))
 /******************************************************************************/
 /*                                  x r e d                                   */
 /******************************************************************************/
-  
+
 /* Function: xred
 
    Purpose:  To parse the directive: redirect <host>:<port>[%<prvhost>:<port>]
@@ -1951,7 +1952,7 @@ int XrdXrootdProtocol::xsecl(XrdOucStream &Config)
 /******************************************************************************/
 /*                                  x t l s                                   */
 /******************************************************************************/
-  
+
 /* Function: xtls
 
 topPurpose:  To parse the directive: tls [capable] <reqs>
@@ -2042,7 +2043,7 @@ int XrdXrootdProtocol::xtls(XrdOucStream &Config)
 //
    return (CheckTLS(0) ? 0 : 1);
 }
-  
+
 /******************************************************************************/
 /*                                 x t l s r                                  */
 /******************************************************************************/
@@ -2104,7 +2105,7 @@ int XrdXrootdProtocol::xtlsr(XrdOucStream &Config)
    eDest.Emsg("config", "Invalid tlsreuse option -", val);
    return 1;
 }
-  
+
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
