@@ -366,9 +366,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!RDLPath.empty())
       {for (int i = 0; i < (int)RDLPath.size(); i++)
            {const char* parm = (RDLParm[i].length() ? RDLParm[i].c_str() : 0);
-            if (!ConfigRedirPI(RDLPath[i].c_str(),xrootdEnv,pi->ConfigFN,parm))
-             return 0;
-             if (pi->theEnv) pi->theEnv->PutPtr("XrdXrootdRedirPI*", RedirPI);
+             if (!ConfigRedirPI(RDLPath[i].c_str(),xrootdEnv,pi->ConfigFN,parm))
+               return 0;
+             if (pi->theEnv)
+               pi->theEnv->PutPtr("XrdXrootdRedirPI*", RedirPI);
            }
       }
 
