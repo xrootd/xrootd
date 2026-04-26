@@ -8,6 +8,7 @@ target_link_libraries(XrdThrottleTestLib
   PRIVATE
     XrdUtils
     XrdServer
+    ${ATOMIC_LIBRARY}
 )
 
 target_include_directories(XrdThrottleTestLib
