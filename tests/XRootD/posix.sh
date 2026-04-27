@@ -34,6 +34,13 @@ function test_posix() {
 
 	assert_failure xrdposix-cat "${HOST}"/does/not/exist.txt
 
+	# Check XrdPosix with link to remote
+	ln -sf "${HOST}"/remote.txt local-to-remote.txt
+	assert xrdposix-cat local-to-remote.txt
+
+	ln -sf  "${HOST}"/does/not/exist local-to-stale.txt
+	assert_failure xrdposix-cat local-to-stale.txt
+
 	# Use XrdPosix via virtual mount point
 
 	export XROOTD_VMP="${HOST#root://}:/xrootd/=/"
@@ -53,5 +60,14 @@ function test_posix() {
 		assert_failure xrdposix-statx "${HOST}"/this/does/not/exist.txt
 
 		assert xrdposix-statx /xrootd/remote.txt
+
+		# test links
+		assert xrdposix-statx local-to-remote.txt
+		assert xrdposix-statx local-to-stale.txt
+		assert_failure xrdposix-statx -L local-to-stale.txt
+		assert xrdposix-statx -L local-to-remote.txt
 	fi
+	# cleanup
+	rm -f local-to-remote.txt
+	rm -f local-to-stale.txt
 }
