@@ -446,8 +446,8 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
      Eroute.Say(buff);
 
      if (CksRTCgi || CksRTName)
-        {snprintf(buff, sizeof(buff), "       ofs.cksrt      auto %s %scgi",
-                  (CksRTName ? CksRTName : "none"), (CksRTCgi ? "" : "no"));
+        {snprintf(buff, sizeof(buff), "       ofs.cksrt      auto %s%s",
+                  (CksRTName ? CksRTName:"none"),(CksRTCgi ? " chkcgi":""));
          Eroute.Say(buff);
         }
 
@@ -911,7 +911,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
 
 /* Function: xcksrt
 
-   Purpose:  To parse the directive: cksrt [auto <cipher>] [[no]cgi]
+   Purpose:  To parse the directive: cksrt [auto <cipher>] [chkcgi]
 
              auto    Specifies that realtime checksums be automatically
                      computed using the specified cipher. If cgi is allowed
@@ -919,12 +919,10 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
                      'auto none' or 'auto off', disables automatic real-time
                      checksums, this is the default.
 
-             cgi     A realtime checksum can be request using the cgi element
-                     "cks.rt=<cipher>" on the open request URL, where <cipher>
+             chkcgi  A realtime checksum can be request using the cgi element
+                     "cks.type=<cipher>" on the open request URL, where <cipher>
                      is the desired checksum cipher to use. If the cipher is
                      not supported for realtime use the open() call fails.
-
-             nocgi   Ignores any cgi specification for rt checksums, default.
 
   Output: 0 upon success or !0 upon failure.
 
@@ -956,8 +954,7 @@ int XrdOfs::xcksrt(XrdOucStream &Config, XrdSysError &Eroute)
                  CksRTName = strdup(val);
               continue;
              }
-          if (!strcmp(val, "cgi"))   {cgi = true;  continue;}
-          if (!strcmp(val, "nocgi")) {cgi = false; continue;}
+          if (!strcmp(val, "chkcgi"))   {cgi = true;  continue;}
           Eroute.Emsg("Config", "Inavlid cksrt parameter -", val);
           return 1;
          }
