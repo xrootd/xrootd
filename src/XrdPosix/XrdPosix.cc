@@ -477,7 +477,6 @@ extern "C"
 #endif
     }
   }
-#if defined(__linux__) && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
   int XrdPosix_FstatV(int ver, int fildes, struct stat *buf)
   {
     if (Xroot.myFD(fildes)){
@@ -491,7 +490,6 @@ extern "C"
 #endif
     }
   }
-#endif
 }
 
 /******************************************************************************/
