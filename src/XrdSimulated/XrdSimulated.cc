@@ -126,7 +126,7 @@ int XrdSimulated::Truncate(const char *path, unsigned long long fsize, XrdOucEnv
     if (!file_lock.owns_lock())
         return -EBUSY;
 
-    entries[path].size = 0;
+    entries[path].size = fsize;
     
     return XrdOssOK;
 }
