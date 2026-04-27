@@ -40,15 +40,7 @@ XrdOssDF *XrdSimulated::newFile(const char *tident)
 int XrdSimulated::Chmod(const char * path, mode_t mode, XrdOucEnv *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
-    std::scoped_lock lock(mutex);
-
-    if (!entries.contains(path))
-        return -ENOENT;
-
-    
-    
-    return XrdOssOK;
+    return -ENOTSUP;
 }
 
 int XrdSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env, int opts)
@@ -60,9 +52,7 @@ int XrdSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucE
     if ((opts & XRDOSS_new) && entries.contains(path))
         return -EEXIST;
 
-    XrdSimulatedEntry entry {};
-
-    entries[path] = std::move(entry);
+    entries[path] = std::move(XrdSimulatedEntry{});
 
     return XrdOssOK;
 }
@@ -70,7 +60,7 @@ int XrdSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucE
 int XrdSimulated::Init(XrdSysLogger *lp, const char *cfn)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return XrdOssOK;
 }
 
 int XrdSimulated::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv  *envP)
@@ -117,6 +107,8 @@ int XrdSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv 
     if (!entries.contains(path))
         return -ENOENT;
 
+    buff->st_size = entries[path].size;
+
     return XrdOssOK;
 }
 
@@ -134,7 +126,7 @@ int XrdSimulated::Truncate(const char *path, unsigned long long fsize, XrdOucEnv
     if (!file_lock.owns_lock())
         return -EBUSY;
 
-    
+    entries[path].size = 0;
     
     return XrdOssOK;
 }
