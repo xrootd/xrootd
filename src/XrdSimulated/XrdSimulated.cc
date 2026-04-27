@@ -140,10 +140,13 @@ int XrdSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
     if (!entries.contains(path))
         return -ENOENT;
 
-    std::unique_lock<std::shared_mutex> file_lock(*entries[path].mutex, std::try_to_lock);
+    // scope necessary to unlock the mutex before it's freed
+    {
+        std::unique_lock<std::shared_mutex> file_lock(*entries[path].mutex, std::try_to_lock);
 
-    if (!file_lock.owns_lock())
-        return -EBUSY;
+        if (!file_lock.owns_lock())
+            return -EBUSY;
+    }
 
     entries.erase(path);
 
