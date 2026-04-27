@@ -2760,7 +2760,7 @@ int XrdOfs::SetupCksRT(XrdCksCalc*& cP, XrdOucEnv& Env,const char*& cT)
 {
 // Check if the cipher can come from the environment
 //
-   if (CksRTCgi && (cT = Env.Get("cks.rt")))
+   if (CksRTCgi && (cT = Env.Get("cks.type")))
       return (!(cP=Cks->Object(cT)) || !XrdOfsCksFile::Viable(cP) ? -ENOTSUP:0);
 
 // Set of auto real-time is enabled
