@@ -125,15 +125,16 @@ ssize_t pgWrite(void* buffer, off_t offset, size_t wrlen,
 int     pgWrite(XrdSfsAio* aioparm, uint64_t opts) override;
 
 //-----------------------------------------------------------------------------
-// Indicate if a checksum object can be used in real-time.
+// Set the reread buffer size
 //
-// @param  cP  - pointer to checksum object.
-//
-// @return True if object can be used by this object, false otherwise.
+// @param sz - The desired size of the buffer.
 //-----------------------------------------------------------------------------
 
 static
-bool    Viable(XrdCksCalc* cP);
+void    setRDSZ(int sz) {sz = ((sz/65536) + (sz%65536 != 0)) * 65536;
+                         if (sz > 2*1024*1024) ioBlen = 2*1024*1024;
+                            else ioBlen = sz;
+                        }
 
 //-----------------------------------------------------------------------------
 //! Write file bytes from a buffer.
@@ -179,10 +180,10 @@ virtual ~XrdOfsCksFile();
 private:
 
 const char* RTC_CB32(const void* inBuff, off_t inoff, int inLen);
-const char* RTE_CB32(char* eBuff, int eBLen);
+const char* RTC_NCXX(const void* inBuff, off_t inoff, int inLen);
+const char* RTC_Updt(off_t inoff, int inLen);
 
 const char* (XrdOfsCksFile::*ProcessRTC)(const void*, off_t, int);
-const char* (XrdOfsCksFile::*ProcessRTE)(char*, int);
 
 XrdSysMutex cksMtx;
 const char* tident;
@@ -193,6 +194,9 @@ const char* cksName;
 XrdCksCalc* altcP;
 bool&       viaDel;
 off_t       nextOff;
+void*       ioBuff;
+static
+inline int  ioBlen = 1024*1024; // 1 MB default buffer size when needed
 
 struct      inSeg
            {off_t       segBeg;
