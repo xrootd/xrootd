@@ -27,6 +27,8 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
+
+#include <stdlib.h>
 #include <netinet/in.h>
 #include <sys/param.h>
 
@@ -58,33 +60,36 @@ XrdOfsCksFile::XrdOfsCksFile(const char* tid, const char* path, XrdOssDF* df,
                              XrdCksCalc*  cP, bool& delF)
                             : XrdOssWrapDF(*df),
                               tident(tid), fPath(strdup(path)), ossDF(df),
-                              calcP(cP), altcP(0), viaDel(delF), nextOff(0)
+                              calcP(cP), altcP(0), viaDel(delF), nextOff(0),
+                              ioBuff(0)
 {
 // Obtain information about the chacksum we are to use. It should have been
 // pre-screened for viability, but we check it again just to make sure and
 // to setup the proper execution path.
 //
-   int sz;
+   int rc, sz;
+   char eBuff[128];
+
+// Set the name and get the size of the checksum
+//
    cksName = cP->Type(sz);
    Dirty = false;
 
-   if (cP->Combinable())
-      {if (sz == (int)sizeof(uint32_t))
-          {ProcessRTC = &XrdOfsCksFile::RTC_CB32;
-           ProcessRTE = &XrdOfsCksFile::RTE_CB32;
-           altcP = calcP->New();
-          }
-          else Dirty = true;
-      } else {
-       Dirty = true;
-      }
 
-// If we did not succeed, issue error message. The subsequent open will fail
+// Determine how we will compute the real-time checksum. It will either be
+// either combinable via a re-read computation.
 //
-   if (Dirty)
-      {char eBuff[128];
-       snprintf(eBuff, sizeof(eBuff), "'%s' used for", cksName);
-       eLog.Emsg("ckscon", "Unsupported real-time checksum", eBuff, path);
+   if (cP->Combinable() && (sz == (int)sizeof(uint32_t)))
+      {ProcessRTC = &XrdOfsCksFile::RTC_CB32;
+       altcP = calcP->New();
+      } else {
+       ProcessRTC = &XrdOfsCksFile::RTC_NCXX;
+       if ((rc = posix_memalign(&ioBuff, 4096, ioBlen)))
+          {snprintf(eBuff, sizeof(eBuff),
+                    "get buffer for real-time %s checksum for", cksName);
+           eLog.Emsg("ckscon", rc, eBuff, path);
+           Dirty = true;
+          }
       }
 }
 
@@ -96,10 +101,11 @@ XrdOfsCksFile::~XrdOfsCksFile()
 {
 // Cleanup
 //
-   if (ossDF) delete ossDF;
-   if (calcP) calcP->Recycle();
-   if (altcP) altcP->Recycle();
-   if (fPath) free(fPath);
+   if (ossDF)   delete ossDF;
+   if (calcP)   calcP->Recycle();
+   if (altcP)   altcP->Recycle();
+   if (fPath)   free(fPath);
+   if (ioBuff)  free(ioBuff);
 }
 
 /******************************************************************************/
@@ -124,22 +130,28 @@ int XrdOfsCksFile::Close(long long *retsz)
    cksMtx.Lock();
    while(!Dirty) // This is not a loop but avoids deeply next if's.
         {char  eBuff[256];
-         const char* eTxt;
 
          // If we are here vecause of a delete, skip setting checksum
          //
          if (viaDel)
             {snprintf(eBuff, sizeof(eBuff), "File not properly closed; "
-                      "%s real-time checksum was not set for", cksName);
+                      "real-time %s checksum was not set for", cksName);
              eLog.Emsg("ckscls", eBuff, fPath);
              break;
             }
 
          // Verify that checksum was fully calculated
          //
-         if ((eTxt = (this->*ProcessRTE)(eBuff, sizeof(eBuff))))
-            {eLog.Emsg("ckcls", "Unable to get final real-time checksum for",
-                                fPath, eTxt);
+
+         // Verify that all data has been written for this checksum
+         //
+         if (segMap.size())
+            {auto it = segMap.begin();
+             snprintf(eBuff, sizeof(eBuff),
+                             "%lld bytes missing at offset %lld; real-time %s",
+                             (long long)(it->second.segBeg - nextOff),
+                             (long long)nextOff, cksName);
+             eLog.Emsg("ckcls", eBuff, "checksum was not set for", fPath);
              break;
             }
 
@@ -309,27 +321,6 @@ int XrdOfsCksFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
 }
 
 /******************************************************************************/
-/* Static:                        V i a b l e                                 */
-/******************************************************************************/
-
-bool XrdOfsCksFile::Viable(XrdCksCalc* cP)
-{
-// Currently we only support combinable checksums
-//
-   if (!(cP->Combinable())) return false;
-
-// Of the combinable ones, we only support the ones that have 32 bits.
-//
-   int sz;
-   cP->Type(sz);
-   if (sz != (int)sizeof(uint32_t)) return false;
-
-// We can use this checkum
-//
-   return true;
-}
-
-/******************************************************************************/
 /*                                 w r i t e                                  */
 /******************************************************************************/
 
@@ -474,25 +465,74 @@ const char* XrdOfsCksFile::RTC_CB32(const void* inBuff, off_t inOff, int inLen)
 }
 
 /******************************************************************************/
-/*                              R T E _ C B 3 2                               */
+/*                              R T C _ N C X X                               */
 /******************************************************************************/
 
-// This method handles combinable checkums that are 32 bits in length
+// This method handles noncombinable checkums of any legth.
 //
-const char* XrdOfsCksFile::RTE_CB32(char* eBuff, int eBLen)
+const char* XrdOfsCksFile::RTC_NCXX(const void* inBuff, off_t inOff, int inLen)
 {
+   XrdSysMutexHelper mHelp(cksMtx);
 
-// Verify that all data has been written for this checksum
+// Check where the incomming segment is adjacent to current segment
 //
-   if (segMap.size())
-      {auto it = segMap.begin();
-       snprintf(eBuff, eBLen, "; %lld bytes missing at offset %lld",
-                (long long)(it->second.segBeg - nextOff),
-                (long long)nextOff);
-       return eBuff;
+   if (inOff == nextOff)
+      {const char* eText;
+       calcP->Update((const char*)inBuff, inLen);
+       nextOff = inOff + inLen;
+       auto it = segMap.begin();
+       while(it != segMap.end() && nextOff == it->second.segBeg)
+            {// Update base checksum for subsequent blocks
+             if ((eText = RTC_Updt(it->second.segBeg, it->second.segLen)))
+                return eText;
+             nextOff = it->second.segBeg + it->second.segLen;
+             it = segMap.erase(it);
+            }
+
+       // Verify that we end in a proper state
+       //
+       if (it != segMap.end() && nextOff > it->second.segBeg)
+          return "; I/O segments overlap";
+
+       return 0;
       }
 
-// We are good to go
+// Verify that incomming segment is past the expectected segment
 //
+   if (inOff < nextOff) return "; ovewrite of previous data";
+
+// Create new segment and try inserting it into the map
+//
+   inSeg newSeg(inOff, inLen, 0);
+
+// Insert this element into the map
+//
+   auto it = segMap.insert(std::pair(inOff, newSeg));
+   if (it.second == false)
+      return "; duplicate write";
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+/*                              R T C _ U p d t                               */
+/******************************************************************************/
+
+const char* XrdOfsCksFile::RTC_Updt(off_t inOff, int inLen)
+{
+   ssize_t ioLen, retval;
+
+   while(inLen)
+        {ioLen = (inLen > ioBlen ? ioBlen : inLen);
+         if ((retval = ossDF->Read(ioBuff, inOff, ioLen)) != ioLen)
+            {if (retval >= 0) retval = -ENODATA;
+             return eLog.ec2text(retval);
+            }
+         calcP->Update((const char*)ioBuff, ioLen);
+         inOff += ioLen;
+         inLen -= ioLen;
+        }
    return 0;
 }

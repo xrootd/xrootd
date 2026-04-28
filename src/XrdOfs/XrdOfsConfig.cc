@@ -34,9 +34,11 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <cstdlib>
+#include <string>
 #include <strings.h>
 #include <cstdio>
 #include <netinet/in.h>
+#include <vector>
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -67,6 +69,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSys/XrdSysError.hh"
@@ -106,6 +109,8 @@ extern XrdOfsTPCConfig  Cfg;
 namespace
 {
 int SetMode(const char *path, mode_t mode) {return chmod(path, mode);}
+
+std::vector<std::string> csList; // Configured checksums
 }
 
 /******************************************************************************/
@@ -506,12 +511,14 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
 int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
 {
    const char *why = 0;
+   const char *csSpec = 0;
 
 // Check if the directive is applicable to us
 //
    if (OssIsProxy) why = "not applicable to proxies";
       else if (Options & isManager) why = "not applicable to managers";
-              else if(!Cks) why = "checksums not configured";
+              else if (!Cks || !(csSpec = envP->Get("csList")))
+                      why = "checksums not configured";
    if (why)
       {Eroute.Say("Config warning: Ignoring cksrt directive ", why);
        if (CksRTName) {free(CksRTName); CksRTName = 0;}
@@ -519,21 +526,27 @@ int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
        return 0;
       }
 
+// Construct the list of supported checksums
+//
+   XrdOucTUtils::splitString(csList, csSpec, " ");
+   if (csList.size() == 0)
+      {Eroute.Say("Config failure: Unable to determine configured cheksums!");
+       return 1;
+      }
+
 // Configure the automatic checksum if applicable
 //
    if (CksRTName)
-      {if (!strcmp(CksRTName, "default"))CksRTCalc = Cks->Object(0);
-          else CksRTCalc = Cks->Object(CksRTName);
-       if (!CksRTCalc)
+      {if (!strcmp(CksRTName, "default"))
+          {free(CksRTName);
+           CksRTName = strdup(csList[0].c_str());
+          }
+
+       if (!(CksRTCalc = Cks->Object(CksRTName)))
           {Eroute.Say("Config failure: cksrt auto ", CksRTName,
-                      " checksum not configured!");
+                      " checksum either non-native or not configured!");
            return 1;
           }
-      }
-   if (!XrdOfsCksFile::Viable(CksRTCalc))
-      {Eroute.Say("Config failure: cksrt auto ", CksRTName,
-                  " checksum not supported for real-time use!");
-       return 1;
       }
 
 // Success
@@ -906,6 +919,23 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
 }
 
 /******************************************************************************/
+/*                              V a l i d C S T                               */
+/******************************************************************************/
+
+bool XrdOfs::ValidCST(const char* cst)
+{
+   std::string csWant(cst);
+
+// Check if checksum type is in the list of valid ones. The list is short.
+//
+   if (csList.size())
+      {for (const auto& name : csList)
+           {if (name == csWant) return true;}
+      }
+   return false;
+}
+
+/******************************************************************************/
 /*                                x c k s r t                                 */
 /******************************************************************************/
 
@@ -917,12 +947,15 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
                      computed using the specified cipher. If cgi is allowed
                      and specified, the cipher in the cgi is used. Specifying
                      'auto none' or 'auto off', disables automatic real-time
-                     checksums, this is the default.
+                     checksums, this is the default. Specifying 'auto default'
+                     uses the default checksum speciied by the xrootd.chksum
+                     directive.
 
              chkcgi  A realtime checksum can be request using the cgi element
                      "cks.type=<cipher>" on the open request URL, where <cipher>
                      is the desired checksum cipher to use. If the cipher is
-                     not supported for realtime use the open() call fails.
+                     not supported for use the open() call fails. Note that
+                     it must have been allowed by the xrootd.chksum directive.
 
   Output: 0 upon success or !0 upon failure.
 
@@ -955,6 +988,7 @@ int XrdOfs::xcksrt(XrdOucStream &Config, XrdSysError &Eroute)
               continue;
              }
           if (!strcmp(val, "chkcgi"))   {cgi = true;  continue;}
+
           Eroute.Emsg("Config", "Inavlid cksrt parameter -", val);
           return 1;
          }
@@ -969,8 +1003,6 @@ int XrdOfs::xcksrt(XrdOucStream &Config, XrdSysError &Eroute)
    if (cgi) CksRTCgi = cgi;
    return 0;
 }
-
-
 
 /******************************************************************************/
 /*                                 x c r d s                                  */
@@ -1003,6 +1035,11 @@ int XrdOfs::xcrds(XrdOucStream &Config, XrdSysError &Eroute)
 //
    if (XrdOuca2x::a2sz(Eroute, "cksrdsz size", val, &rdsz, 1, maxRds)) return 1;
    ofsConfig->SetCksRdSz(static_cast<int>(rdsz));
+
+// This value is also used for real-time checksum rereads. However, while
+// minimum is 64K the maximum is set to 2MB. Also in 64K units.
+//
+   XrdOfsCksFile::setRDSZ(rdsz);
    return 0;
 }
 

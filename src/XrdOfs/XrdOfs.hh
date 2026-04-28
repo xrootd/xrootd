@@ -448,6 +448,7 @@ static  int   fsError(XrdOucErrInfo &myError, int rc);
 const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
         int   Stall(XrdOucErrInfo  &, int, const char *);
         void  Unpersist(XrdOfsHandle *hP, int xcev=1);
+        bool  ValidCST(const char* cst);
         char *WaitTime(int, char *, int);
 
 /******************************************************************************/

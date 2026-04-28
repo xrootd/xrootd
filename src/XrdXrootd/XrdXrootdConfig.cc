@@ -702,6 +702,20 @@ bool XrdXrootdProtocol::ConfigFS(XrdOucEnv &xEnv, const char *cfn)
    const char *fsLoc;
    int n;
 
+// The filesystem may need access to the list of valid checksums. We construct
+// here and place it in the local env.
+//
+   if (JobCKT) {
+       XrdOucString csList(1024);
+       XrdOucTList *tP = JobCKTLST;
+       do {
+           if (csList.length()) csList += ' ';
+           csList.append(tP->text);
+           tP = tP->next;
+       } while (tP);
+       if (csList.length()) xEnv.Put("csList", csList.c_str());
+   }
+
 // Get the filesystem to be used
 //
    if (FSLib[0])
