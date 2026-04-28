@@ -34,7 +34,7 @@ XrdOssDF *XrdSimulated::newFile(const char *tident)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    return new XrdSimulatedFile;
+    return new XrdSimulatedFile(this);
 }
 
 int XrdSimulated::Chmod(const char * path, mode_t mode, XrdOucEnv *envP)

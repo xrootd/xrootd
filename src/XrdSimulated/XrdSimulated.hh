@@ -9,6 +9,8 @@
 #include <mutex>
 
 class XrdSimulated : public XrdOss {
+    friend class XrdSimulatedFile;
+
 private:
     std::unordered_map<std::string, XrdSimulatedEntry> entries;
     std::mutex mutex;
