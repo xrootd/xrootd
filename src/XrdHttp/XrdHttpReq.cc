@@ -2822,7 +2822,8 @@ void XrdHttpReq::getReadResponse(XrdHttpIOList &received) {
 
       for (p = (char *) iovP[i].iov_base; p < (char *) iovP[i].iov_base + iovP[i].iov_len;) {
         l = (readahead_list *) p;
-        len = ntohl(l->rlen);
+        memcpy(&len, &l->rlen, sizeof(kXR_int32));
+        len = ntohl(len);
 
         received.emplace_back(p+sizeof(readahead_list), -1, len);
 
