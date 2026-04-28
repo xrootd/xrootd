@@ -131,7 +131,6 @@ ssize_t XrdSimulatedFile::Read(void *buffer, off_t offset, size_t size)
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
     std::size_t read = std::min(size, entry->size - offset);
-
     std::memset(buffer, '0', read);
 
     XrdGlobal::Log.Say(std::to_string(read).c_str());
@@ -143,7 +142,13 @@ int XrdSimulatedFile::Read(XrdSfsAio *aiop)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    return 0;
+    std::size_t read = std::min(aiop->sfsAio.aio_nbytes, entry->size - aiop->sfsAio.aio_offset);
+    std::memset(const_cast<void *>(aiop->sfsAio.aio_buf), '1', read);
+
+    aiop->Result = read;
+    aiop->doneRead();
+
+    return XrdOssOK;
 }
 
 ssize_t XrdSimulatedFile::ReadRaw(void *buffer, off_t offset, size_t size)
