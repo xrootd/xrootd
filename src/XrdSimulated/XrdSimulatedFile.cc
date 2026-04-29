@@ -123,7 +123,7 @@ int XrdSimulatedFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
 ssize_t XrdSimulatedFile::Read(off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return XrdOssOK;
 }
 
 ssize_t XrdSimulatedFile::Read(void *buffer, off_t offset, size_t size)
