@@ -71,7 +71,7 @@ XrdPosixLinkage Xunix;
 
       Retv_Access      Xrd_U_Access(Args_Access)
                          {return (Retv_Access)Xunix.Load_Error("access");}
-#if !defined(__APPLE__) and !defined(__linux__)
+#if !defined(__APPLE__) && !defined(__linux__)
       Retv_Acl         Xrd_U_Acl(Args_Acl)
                          {return (Retv_Acl)Xunix.Load_Error("acl");}
 #endif
@@ -107,6 +107,10 @@ XrdPosixLinkage Xunix;
                          {return (Retv_Fstat)Xunix.Load_Error("fstat");}
       Retv_Fstat64     Xrd_U_Fstat64(Args_Fstat64)
                          {return (Retv_Fstat64)Xunix.Load_Error("fstat64");}
+      Retv_Fstatat     Xrd_U_Fstatat(Args_Fstatat)
+                         {return (Retv_Fstatat)Xunix.Load_Error("fstatat");}
+      Retv_Fstatat64   Xrd_U_Fstatat64(Args_Fstatat64)
+                         {return (Retv_Fstatat64)Xunix.Load_Error("fstatat64");}
       Retv_Fsync       Xrd_U_Fsync(Args_Fsync)
                          {return (Retv_Fsync)Xunix.Load_Error("fsync");}
       Retv_Ftell       Xrd_U_Ftell(Args_Ftell)
@@ -136,13 +140,17 @@ XrdPosixLinkage Xunix;
       Retv_Lstat       Xrd_U_Lstat(Args_Lstat)
                          {return (Retv_Lstat)Xunix.Load_Error("lstat");}
       Retv_Lstat64     Xrd_U_Lstat64(Args_Lstat64)
-                         {return (Retv_Lstat64)Xunix.Load_Error("lstat");}
+                         {return (Retv_Lstat64)Xunix.Load_Error("lstat64");}
       Retv_Mkdir       Xrd_U_Mkdir(Args_Mkdir)
                          {return (Retv_Mkdir)Xunix.Load_Error("mkdir");}
       Retv_Open        Xrd_U_Open(Args_Open)
                          {return (Retv_Open)Xunix.Load_Error("open");}
+      Retv_Openat      Xrd_U_Openat(Args_Openat)
+                         {return (Retv_Openat)Xunix.Load_Error("openat");}
+      Retv_Openat64    Xrd_U_Openat64(Args_Openat64)
+                         {return (Retv_Openat64)Xunix.Load_Error("openat64");}
       Retv_Open64      Xrd_U_Open64(Args_Open64)
-                         {return (Retv_Open64)Xunix.Load_Error("open");}
+                         {return (Retv_Open64)Xunix.Load_Error("open64");}
       Retv_Opendir     Xrd_U_Opendir(Args_Opendir)
                          {Xunix.Load_Error("opendir"); return (Retv_Opendir)0;}
       Retv_Pathconf    Xrd_U_Pathconf(Args_Pathconf)
@@ -222,7 +230,7 @@ XrdPosixLinkage Xunix;
 int XrdPosixLinkage::Resolve()
 {
   LOOKUP_UNIX(Access)
-#if !defined(__APPLE__) and !defined(__linux__)
+#if !defined(__APPLE__) && !defined(__linux__)
   LOOKUP_UNIX(Acl)
 #endif
   LOOKUP_UNIX(Chdir)
@@ -240,6 +248,13 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Fseeko)
   LOOKUP_UNIX(Fseeko64)
   LOOKUP_UNIX(Fstat)
+#ifdef HAVE_Fstatat
+  LOOKUP_UNIX(Fstatat)
+  LOOKUP_UNIX(Fstatat64)
+#else
+  Fstatat = Xrd_U_Fstatat;
+  Fstatat64 = Xrd_U_Fstatat64;
+#endif
   LOOKUP_UNIX(Fstat64)
   LOOKUP_UNIX(Fsync)
   LOOKUP_UNIX(Ftell)
@@ -260,6 +275,13 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Fsync)
   LOOKUP_UNIX(Mkdir)
   LOOKUP_UNIX(Open)
+#ifdef HAVE_Openat
+  LOOKUP_UNIX(Openat)
+  LOOKUP_UNIX(Openat64)
+#else
+  Openat = Xrd_U_Openat;
+  Openat64 = Xrd_U_Openat64;
+#endif
   LOOKUP_UNIX(Open64)
   LOOKUP_UNIX(Opendir)
   LOOKUP_UNIX(Pathconf)

@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
-  
+
 // The following defines substitute our names for the common system names. We
 // would have liked to use wrappers but each platform uses a different mechanism
 // to accomplish this. So, redefinition is the most portable way of doing this.
@@ -61,6 +61,8 @@
 
 #define fstat(a,b)       XrdPosix_Fstat(a,b)
 
+#define fstatat(a,b,c,d) XrdPosix_Fstatat(a,b,c,d)
+
 #define fsync(a)         XrdPosix_Fsync(a)
 
 #define ftell(a)         XrdPosix_Ftell(a)
@@ -75,12 +77,14 @@
 
 #define open             XrdPosix_Open
 
+#define openat           XrdPosix_Openat
+
 #define opendir(a)       XrdPosix_Opendir(a)
-  
+
 #define pread(a,b,c,d)   XrdPosix_Pread(a,b,c,d)
 
 #define read(a,b,c)      XrdPosix_Read(a,b,c)
-  
+
 #define readv(a,b,c)     XrdPosix_Readv(a,b,c)
 
 #define readdir(a)       XrdPosix_Readdir(a)
@@ -100,6 +104,10 @@
 
 #define stat(a,b)        XrdPosix_Stat(a,b)
 
+#define lstat(a,b)        XrdPosix_Stat(a,b)
+
+#define fstat(a,b)        XrdPosix_Stat(a,b)
+
 #define statfs(a,b)      XrdPosix_Statfs(a,b)
 
 #define statvfs(a,b)     XrdPosix_Statvfs(a,b)
@@ -118,4 +126,11 @@
 
 #define statx(d,p,f,m,b)  XrdPosix_Statx(d,p,f,m,b)
 
+#define getxattr(a,b,c,d) XrdPosix_Getxattr(a,b,c,d)
+
+#define lgetxattr(a,b,c,d) XrdPosix_Lgetxattr(a,b,c,d)
+
+#define fgetxattr(a,b,c,d) XrdPosix_Fgetxattr(a,b,c,d)
+
+#define statvfs(a, b) XrdPosixStatvfs(a, b)
 #endif

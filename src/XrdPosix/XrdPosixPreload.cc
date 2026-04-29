@@ -64,20 +64,24 @@
 #undef statfs64
 #undef statvfs64
 #undef truncate64
+#undef fstat64
+#undef stat64
+#undef fstatat64
+#undef lstat64
 #endif
- 
+
 /******************************************************************************/
 /*                   G l o b a l   D e c l a r a t i o n s                    */
 /******************************************************************************/
-  
+
 extern XrdPosixLinkage Xunix;
 
 namespace {bool isLite = (getenv("XRD_POSIX_PRELOAD_LITE") != 0);}
-  
+
 /******************************************************************************/
 /*                                a c c e s s                                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int access(const char *path, int amode)
@@ -103,7 +107,7 @@ int acl(const char *path, int cmd, int nentries, void *aclbufp)
    return XrdPosix_Acl(path, cmd, nentries, aclbufp);
 }
 }
-  
+
 /******************************************************************************/
 /*                                 c h d i r                                  */
 /******************************************************************************/
@@ -135,7 +139,7 @@ int     close(int fildes)
 /******************************************************************************/
 /*                              c l o s e d i r                               */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     closedir(DIR *dirp)
@@ -149,7 +153,7 @@ int     closedir(DIR *dirp)
 /******************************************************************************/
 /*                                 c r e a t                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     creat64(const char *path, mode_t mode)
@@ -159,7 +163,7 @@ int     creat64(const char *path, mode_t mode)
    return XrdPosix_Creat(path, mode);
 }
 }
-  
+
 /******************************************************************************/
 /*                                f c l o s e                                 */
 /******************************************************************************/
@@ -177,7 +181,7 @@ int fclose(FILE *stream)
 /******************************************************************************/
 /*                               f c n t l 6 4                                */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     fcntl64(int fd, int cmd, ...)
@@ -212,7 +216,7 @@ int     fdatasync(int fildes)
 /******************************************************************************/
 /*                                f f l u s h                                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int    fflush(FILE *stream)
@@ -222,11 +226,11 @@ int    fflush(FILE *stream)
    return XrdPosix_Fflush(stream);
 }
 }
-  
+
 /******************************************************************************/
 /*                                 f o p e n                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 FILE  *fopen64(const char *path, const char *mode)
@@ -240,7 +244,7 @@ FILE  *fopen64(const char *path, const char *mode)
 /******************************************************************************/
 /*                                 f r e a d                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 size_t fread(void *ptr, size_t size, size_t nitems, FILE *stream)
@@ -250,7 +254,7 @@ size_t fread(void *ptr, size_t size, size_t nitems, FILE *stream)
    return XrdPosix_Fread(ptr, size, nitems, stream);
 }
 }
-  
+
 /******************************************************************************/
 /*                                 f s e e k                                  */
 /******************************************************************************/
@@ -264,7 +268,7 @@ int fseek(FILE *stream, long offset, int whence)
    return XrdPosix_Fseek(stream, offset, whence);
 }
 }
-  
+
 /******************************************************************************/
 /*                                f s e e k o                                 */
 /******************************************************************************/
@@ -278,33 +282,44 @@ int fseeko64(FILE *stream, off64_t offset, int whence)
    return XrdPosix_Fseeko(stream, offset, whence);
 }
 }
-  
+
 /******************************************************************************/
 /*                                 f s t a t                                  */
 /******************************************************************************/
 
 extern "C"
 {
-#if defined(__linux__) and defined(_STAT_VER) and __GNUC__ and __GNUC__ >= 2
-int  __fxstat64(int ver, int fildes, struct stat64 *buf)
+#if defined(__linux__) && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
+  int     __fxstat64( int ver, int fildes, struct stat64 *buf)
 #else
-int     fstat64(         int fildes, struct stat64 *buf)
+  int     fstat64( int fildes, struct stat64 *buf)
 #endif
 {
-   static int Init = Xunix.Init(&Init);
-
-#if defined(__linux__) and defined(_STAT_VER)
-   return XrdPosix_FstatV(ver, fildes, (struct stat *)buf);
+    static int Init = Xunix.Init(&Init);
+#if defined(__linux__) && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
+    return XrdPosix_FstatV ( ver, fildes,  (struct stat *)buf);
 #else
-   return XrdPosix_Fstat (     fildes, (struct stat *)buf);
+    return XrdPosix_Fstat (       fildes,  (struct stat *)buf);
 #endif
 }
+}
+
+/******************************************************************************/
+/*                                 f s t a t a t                              */
+/******************************************************************************/
+
+extern "C"
+{
+  int fstatat64(int dirfd, const char* path, struct stat64 *buf, int flags){
+    static int Init = Xunix.Init(&Init);
+    return XrdPosix_Fstatat (dirfd, path, (struct stat *)buf, flags);
+  }
 }
 
 /******************************************************************************/
 /*                                 f s y n c                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     fsync(int fildes)
@@ -314,7 +329,7 @@ int     fsync(int fildes)
    return XrdPosix_Fsync(fildes);
 }
 }
-  
+
 /******************************************************************************/
 /*                                 f t e l l                                  */
 /******************************************************************************/
@@ -328,7 +343,7 @@ long    ftell(FILE *stream)
    return XrdPosix_Ftell(stream);
 }
 }
-  
+
 /******************************************************************************/
 /*                                f t e l l o                                 */
 /******************************************************************************/
@@ -342,11 +357,11 @@ off64_t ftello64(FILE *stream)
    return XrdPosix_Ftello(stream);
 }
 }
-  
+
 /******************************************************************************/
 /*                             f t r u n c a t e                              */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int ftruncate64(int fildes, off_t offset)
@@ -356,11 +371,11 @@ int ftruncate64(int fildes, off_t offset)
    return XrdPosix_Ftruncate(fildes, offset);
 }
 }
-  
+
 /******************************************************************************/
 /*                                f w r i t e                                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 size_t fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream)
@@ -370,11 +385,11 @@ size_t fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream)
    return XrdPosix_Fwrite(ptr, size, nitems, stream);
 }
 }
-  
+
 /******************************************************************************/
 /*                             f g e t x a t t r                              */
 /******************************************************************************/
-  
+
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
@@ -390,7 +405,7 @@ ssize_t fgetxattr (int fd, const char *name, void *value, size_t size)
 /******************************************************************************/
 /*                              g e t x a t t r                               */
 /******************************************************************************/
-  
+
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
@@ -402,11 +417,11 @@ ssize_t getxattr (const char *path, const char *name, void *value, size_t size)
 }
 }
 #endif
-  
+
 /******************************************************************************/
 /*                             l g e t x a t t r                              */
 /******************************************************************************/
-  
+
 #if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
@@ -422,7 +437,7 @@ ssize_t lgetxattr (const char *path, const char *name, void *value, size_t size)
 /******************************************************************************/
 /*                                 l s e e k                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 off64_t lseek64(int fildes, off64_t offset, int whence)
@@ -436,7 +451,7 @@ off64_t lseek64(int fildes, off64_t offset, int whence)
 /******************************************************************************/
 /*                                l l s e e k                                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 #if defined(__linux__) || defined(__APPLE__)
@@ -457,14 +472,13 @@ offset_t   llseek(int fildes, offset_t offset, int whence)
 
 extern "C"
 {
-#if defined __linux__ && __GNUC__ && __GNUC__ >= 2
+#if defined __linux__ && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
 int     __lxstat64(int ver, const char *path, struct stat64 *buf)
 #else
 int        lstat64(         const char *path, struct stat64 *buf)
 #endif
 {
    static int Init = Xunix.Init(&Init);
-
    return XrdPosix_Lstat(path, (struct stat *)buf);
 }
 }
@@ -472,7 +486,7 @@ int        lstat64(         const char *path, struct stat64 *buf)
 /******************************************************************************/
 /*                                 m k d i r                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     mkdir(const char *path, mode_t mode)
@@ -503,9 +517,28 @@ int     open64(const char *path, int oflag, ...)
 }
 
 /******************************************************************************/
+/*                                  o p e n a t                               */
+/******************************************************************************/
+
+extern "C"
+{
+  int openat(int dirfd, const char *path, int flag, ...)
+{
+   static int Init = Xunix.Init(&Init);
+   va_list ap;
+   int mode;
+
+   va_start(ap, flag);
+   mode = va_arg(ap, int);
+   va_end(ap);
+   return XrdPosix_Openat(dirfd, path, flag, mode);
+}
+}
+
+/******************************************************************************/
 /*                               o p e n d i r                                */
 /******************************************************************************/
-  
+
 extern "C"
 {
 DIR*    opendir(const char *path)
@@ -515,7 +548,7 @@ DIR*    opendir(const char *path)
    return (isLite ? Xunix.Opendir(path) : XrdPosix_Opendir(path));
 }
 }
-  
+
 /******************************************************************************/
 /*                              p a t h c o n f                               */
 /******************************************************************************/
@@ -535,7 +568,7 @@ long pathconf(const char *path, int name)
 /******************************************************************************/
 /*                                 p r e a d                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 ssize_t pread64(int fildes, void *buf, size_t nbyte, off_t offset)
@@ -549,7 +582,7 @@ ssize_t pread64(int fildes, void *buf, size_t nbyte, off_t offset)
 /******************************************************************************/
 /*                                p w r i t e                                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 ssize_t pwrite64(int fildes, const void *buf, size_t nbyte, off_t offset)
@@ -563,7 +596,7 @@ ssize_t pwrite64(int fildes, const void *buf, size_t nbyte, off_t offset)
 /******************************************************************************/
 /*                                  r e a d                                   */
 /******************************************************************************/
-  
+
 extern "C"
 {
 ssize_t read(int fildes, void *buf, size_t nbyte)
@@ -573,11 +606,11 @@ ssize_t read(int fildes, void *buf, size_t nbyte)
    return XrdPosix_Read(fildes, buf, nbyte);
 }
 }
-  
+
 /******************************************************************************/
 /*                                 r e a d v                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 ssize_t readv(int fildes, const struct iovec *iov, int iovcnt)
@@ -605,7 +638,7 @@ struct dirent64* readdir64(DIR *dirp)
 /******************************************************************************/
 /*                             r e a d d i r _ r                              */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
@@ -620,7 +653,7 @@ int     readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
 /******************************************************************************/
 /*                                r e n a m e                                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     rename(const char *oldpath, const char *newpath)
@@ -650,7 +683,7 @@ void    rewinddir(DIR *dirp)
 /******************************************************************************/
 /*                                 r m d i r                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     rmdir(const char *path)
@@ -664,7 +697,7 @@ int     rmdir(const char *path)
 /******************************************************************************/
 /*                               s e e k d i r                                */
 /******************************************************************************/
-  
+
 extern "C"
 {
 void    seekdir(DIR *dirp, long loc)
@@ -681,7 +714,7 @@ void    seekdir(DIR *dirp, long loc)
 
 extern "C"
 {
-#if defined __linux__ && __GNUC__ && __GNUC__ >= 2
+#if defined __linux__ && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
 int     __xstat64(int ver, const char *path, struct stat64 *buf)
 #else
 int        stat64(         const char *path, struct stat64 *buf)
@@ -741,7 +774,7 @@ int statx(int dirfd, const char *path, int flags,
 /******************************************************************************/
 /*                               t e l l d i r                                */
 /******************************************************************************/
-  
+
 extern "C"
 {
 long    telldir(DIR *dirp)
@@ -751,11 +784,11 @@ long    telldir(DIR *dirp)
    return (isLite ? Xunix.Telldir(dirp) : XrdPosix_Telldir(dirp));
 }
 }
-  
+
 /******************************************************************************/
 /*                              t r u n c a t e                               */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int truncate64(const char *path, off_t offset)
@@ -769,7 +802,7 @@ int truncate64(const char *path, off_t offset)
 /******************************************************************************/
 /*                                u n l i n k                                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     unlink(const char *path)
@@ -783,7 +816,7 @@ int     unlink(const char *path)
 /******************************************************************************/
 /*                                 w r i t e                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 ssize_t write(int fildes, const void *buf, size_t nbyte)
@@ -797,7 +830,7 @@ ssize_t write(int fildes, const void *buf, size_t nbyte)
 /******************************************************************************/
 /*                                w r i t e v                                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)
@@ -808,4 +841,3 @@ ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)
 }
 }
 #endif
-

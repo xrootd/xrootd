@@ -76,22 +76,22 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
- 
+
 /******************************************************************************/
 /*                   G l o b a l   D e c l a r a t i o n s                    */
 /******************************************************************************/
-  
+
 extern XrdPosixLinkage Xunix;
 
 namespace {bool isLite = (getenv("XRD_POSIX_PRELOAD_LITE") != 0);}
- 
+
 /******************************************************************************/
 /*               6 4 - t o 3 2   B i t   C o n v e r s i o n s                */
 /******************************************************************************/
 /******************************************************************************/
 /*                   X r d P o s i x _ C o p y D i r e n t                    */
 /******************************************************************************/
-  
+
 // Macos is a curious beast. It is not an LP64 platform but offsets are
 // defined as 64 bits anyway. So, the dirent structure is 64-bit conformable
 // making CopyDirent() superfluous. In Solaris x86 there are no 32 bit interfaces.
@@ -130,7 +130,7 @@ int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 /******************************************************************************/
 /*                     X r d P o s i x _ C o p y S t a t                      */
 /******************************************************************************/
-  
+
 // Macos is a curious beast. It is not an LP64 platform but stat sizes are
 // defined as 64 bits anyway. So, the stat structure is 64-bit conformable
 // making CopyStat() seemingly superfluous. However, starting in Darwin 10.5
@@ -170,7 +170,7 @@ int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 /******************************************************************************/
 /*                                 c r e a t                                  */
 /******************************************************************************/
-  
+
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
@@ -186,7 +186,7 @@ int     creat(const char *path, mode_t mode)
 /******************************************************************************/
 /*                                 f c n t l                                  */
 /******************************************************************************/
-  
+
 extern "C"
 {
 int     fcntl(int fd, int cmd, ...)
@@ -202,7 +202,7 @@ int     fcntl(int fd, int cmd, ...)
    return Xunix.Fcntl(fd, cmd, theArg);
 }
 }
-  
+
 /******************************************************************************/
 /*                                 f o p e n                                  */
 /******************************************************************************/
@@ -218,7 +218,7 @@ FILE  *fopen(const char *path, const char *mode)
 }
 */
 
-  
+
 /******************************************************************************/
 /*                                f s e e k o                                 */
 /******************************************************************************/
@@ -239,27 +239,27 @@ int fseeko(FILE *stream, off_t offset, int whence)
 /*                                 f s t a t                                  */
 /******************************************************************************/
 
-#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
-#if defined __linux__ && __GNUC__ && __GNUC__ >= 2
-int  __fxstat(int ver, int fildes, struct stat *buf)
+#if defined(__linux__) && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
+  int     __fxstat(int ver, int fildes, struct stat *buf)
 #elif defined(__solaris__) && defined(__i386)
-int   _fxstat(int ver, int fildes, struct stat *buf)
+    int   _fxstat(int ver, int fildes, struct stat *buf)
 #else
-int     fstat(         int fildes, struct stat *buf)
+  int     fstat(           int fildes, struct stat *buf)
 #endif
 {
-   static int Init = Xunix.Init(&Init);
+  static int Init = Xunix.Init(&Init);
 
-#if defined(__linux__) and defined(_STAT_VER)
-   if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(ver, fildes, buf);
-#else
-   if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(     fildes, buf);
+#if defined(__linux__) && defined(_STAT_VER) && __GNUC__ && __GNUC__ >= 2
+  if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(ver, fildes, buf);
+#endif
+#ifdef __APPLE__
+  if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(     fildes, buf);
 #endif
 
 #if defined(__LP64__) || defined(_LP64)
-   return    XrdPosix_Fstat(fildes,                 buf  );
+  return    XrdPosix_Fstat(fildes,                 buf  );
 #else
    int rc;
    struct stat64 buf64;
@@ -268,9 +268,27 @@ int     fstat(         int fildes, struct stat *buf)
 #endif
 }
 }
+
+/******************************************************************************/
+/*                                 f s t a t a t                              */
+/******************************************************************************/
+
+extern "C"
+{
+  int fstatat(int dirfd, const char* path, struct stat *buf, int flags){
+    static int Init = Xunix.Init(&Init);
+#if defined(__LP64__) || defined(_LP64)
+    return XrdPosix_Fstatat (dirfd, path, buf, flags);
+#else
+   int rc;
+   struct stat64 buf64;
+   if ((rc = XrdPosix_Fstatat(dirfd, path, (struct stat *)&buf64, flags))) return rc;
+   return XrdPosix_CopyStat(buf, buf64);
 #endif
 
-  
+}
+}
+
 /******************************************************************************/
 /*                                f t e l l o                                 */
 /******************************************************************************/
@@ -290,7 +308,7 @@ off_t ftello(FILE *stream)
 /******************************************************************************/
 /*                             f t r u n c a t e                              */
 /******************************************************************************/
-  
+
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
@@ -306,7 +324,7 @@ int ftruncate(int fildes, off_t offset)
 /******************************************************************************/
 /*                                 l s e e k                                  */
 /******************************************************************************/
-  
+
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
@@ -326,7 +344,7 @@ off_t   lseek(int fildes, off_t offset, int whence)
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
-#if defined __GNUC__ && __GNUC__ >= 2 && defined(__linux__)
+#if defined __GNUC__ && defined(_STAT_VER) &&  __GNUC__ >= 2 && defined(__linux__)
 int     __lxstat(int ver, const char *path, struct stat *buf)
 #elif defined(__solaris__) && defined(__i386)
 int      _lxstat(int ver, const char *path, struct stat *buf)
@@ -336,15 +354,17 @@ int        lstat(         const char *path, struct stat *buf)
 {
    static int Init = Xunix.Init(&Init);
 
-   if (!XrdPosix_isMyPath(path))
 #if defined(__linux__) and defined(_STAT_VER)
-      return Xunix.Lstat(ver, path, buf);
-#else
-      return Xunix.Lstat(     path, buf);
+   if (!XrdPosix_isMyPath(path))
+     return Xunix.Lstat(ver, path, buf);
+#endif
+#ifdef __APPLE__
+   if (!XrdPosix_isMyPath(path))
+     return Xunix.Lstat(     path, buf);
 #endif
 
 #if defined(__LP64__) || defined(_LP64)
-   return    XrdPosix_Lstat(path,                 buf  );
+   return    XrdPosix_Lstat(path, buf  );
 #else
    struct stat64 buf64;
    int rc;
@@ -359,7 +379,7 @@ int        lstat(         const char *path, struct stat *buf)
 /******************************************************************************/
 /*                                  o p e n                                   */
 /******************************************************************************/
-  
+
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
@@ -380,7 +400,7 @@ int     open(const char *path, int oflag, ...)
 /******************************************************************************/
 /*                                 p r e a d                                  */
 /******************************************************************************/
-  
+
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
@@ -424,7 +444,7 @@ struct dirent* readdir(DIR *dirp)
 /******************************************************************************/
 /*                             r e a d d i r _ r                              */
 /******************************************************************************/
-  
+
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
@@ -460,7 +480,7 @@ int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 /******************************************************************************/
 /*                                p w r i t e                                 */
 /******************************************************************************/
-  
+
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
@@ -480,7 +500,7 @@ ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
-#if defined __GNUC__ && __GNUC__ >= 2
+#if defined __linux__ && defined(_STAT_VER) && defined __GNUC__ && __GNUC__ >= 2
 int     __xstat(int ver, const char *path, struct stat *buf)
 #elif defined(__solaris__) && defined(__i386)
 int      _xstat(int ver, const char *path, struct stat *buf)
@@ -489,16 +509,17 @@ int        stat(         const char *path, struct stat *buf)
 #endif
 {
    static int Init = Xunix.Init(&Init);
-
+#if defined( __linux__) && defined(_STAT_VER)
    if (!XrdPosix_isMyPath(path))
-#ifdef __linux__
-      return Xunix.Stat(ver, path, buf);
-#else
-      return Xunix.Stat(     path, buf);
+     return Xunix.Stat(ver, path, buf);
+#endif
+#ifdef __APPLE__
+   if (!XrdPosix_isMyPath(path))
+     return Xunix.Stat(     path, buf);
 #endif
 
 #if defined(__LP64__) || defined(_LP64)
-   return    XrdPosix_Stat(path,                 buf  );
+   return    XrdPosix_Stat(path, buf);
 #else
    struct stat64 buf64;
    int rc;
@@ -571,7 +592,7 @@ int        statvfs(         const char *path, struct statvfs *buf)
 /******************************************************************************/
 /*                              t r u n c a t e                               */
 /******************************************************************************/
-  
+
 #if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
