@@ -133,8 +133,6 @@ ssize_t XrdSimulatedFile::Read(void *buffer, off_t offset, size_t size)
     std::size_t read = std::min(size, entry->size - offset);
     std::memset(buffer, '0', read);
 
-    XrdGlobal::Log.Say(std::to_string(read).c_str());
-
     return read;
 }
 
