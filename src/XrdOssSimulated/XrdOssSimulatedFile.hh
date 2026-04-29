@@ -1,23 +1,23 @@
-#ifndef __XRD_SIMULATED_FILE_HH__
-#define __XRD_SIMULATED_FILE_HH__
+#ifndef __XRD_OSS_SIMULATED_FILE_HH__
+#define __XRD_OSS_SIMULATED_FILE_HH__
 
-#include "XrdSimulated.hh"
+#include "XrdOssSimulated.hh"
 
 #include <XrdOss/XrdOss.hh>
 
 #include <shared_mutex>
 #include <variant>
 
-class XrdSimulatedFile : public XrdOssDF {
+class XrdOssSimulatedFile : public XrdOssDF {
 private:
-    XrdSimulated *oss;
-    XrdSimulatedEntry *entry;
+    XrdOssSimulated *oss;
+    XrdOssSimulatedEntry *entry;
 
     std::variant<std::unique_lock<std::shared_mutex>, std::shared_lock<std::shared_mutex>> file_lock;
 
 public:
-    XrdSimulatedFile(XrdSimulated *oss) : oss(oss) {}
-    virtual ~XrdSimulatedFile() = default;
+    XrdOssSimulatedFile(XrdOssSimulated *oss) : oss(oss) {}
+    virtual ~XrdOssSimulatedFile() = default;
 
     virtual int     StatRet(struct stat *buff) override;
     virtual int     Clone(XrdOssDF& srcFile) override;

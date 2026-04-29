@@ -1,23 +1,23 @@
-#ifndef __XRD_SIMULATED_HH__
-#define __XRD_SIMULATED_HH__
+#ifndef __XRD_OSS_SIMULATED_HH__
+#define __XRD_OSS_SIMULATED_HH__
 
-#include "XrdSimulatedEntry.hh"
+#include "XrdOssSimulatedEntry.hh"
 
 #include <XrdOss/XrdOss.hh>
 
 #include <unordered_map>
 #include <mutex>
 
-class XrdSimulated : public XrdOss {
-    friend class XrdSimulatedFile;
+class XrdOssSimulated : public XrdOss {
+    friend class XrdOssSimulatedFile;
 
 private:
-    std::unordered_map<std::string, XrdSimulatedEntry> entries;
+    std::unordered_map<std::string, XrdOssSimulatedEntry> entries;
     std::mutex mutex;
 
 public:
-    XrdSimulated() = default;
-    virtual ~XrdSimulated() = default;
+    XrdOssSimulated() = default;
+    virtual ~XrdOssSimulated() = default;
 
     virtual XrdOssDF *newDir(const char *tident) override;
     virtual XrdOssDF *newFile(const char *tident) override;

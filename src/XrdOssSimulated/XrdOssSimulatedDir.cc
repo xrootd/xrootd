@@ -1,4 +1,4 @@
-#include "XrdSimulatedDir.hh"
+#include "XrdOssSimulatedDir.hh"
 #include "XrdSys/XrdSysError.hh"
 
 namespace XrdGlobal
@@ -6,25 +6,25 @@ namespace XrdGlobal
     extern XrdSysError Log;
 }
 
-int XrdSimulatedDir::Opendir(const char *path, XrdOucEnv &env)
+int XrdOssSimulatedDir::Opendir(const char *path, XrdOucEnv &env)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
-int XrdSimulatedDir::Readdir(char *buff, int blen)
+int XrdOssSimulatedDir::Readdir(char *buff, int blen)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
-int XrdSimulatedDir::StatRet(struct stat *buff)
+int XrdOssSimulatedDir::StatRet(struct stat *buff)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
-int XrdSimulatedDir::Close(long long *retsz)
+int XrdOssSimulatedDir::Close(long long *retsz)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;

@@ -1,6 +1,6 @@
-#include "XrdSimulated.hh"
-#include "XrdSimulatedDir.hh"
-#include "XrdSimulatedFile.hh"
+#include "XrdOssSimulated.hh"
+#include "XrdOssSimulatedDir.hh"
+#include "XrdOssSimulatedFile.hh"
 #include "XrdVersion.hh"
 
 #include "XrdSys/XrdSysError.hh"
@@ -13,37 +13,37 @@ namespace XrdGlobal
     extern XrdSysError Log;
 }
 
-XrdVERSIONINFO(XrdOssGetStorageSystem, XrdSimulated);
+XrdVERSIONINFO(XrdOssGetStorageSystem, XrdOssSimulated);
 
 extern "C"
 {
     XrdOss *XrdOssGetStorageSystem(XrdOss* native_oss, XrdSysLogger* lp, const char* config_fn, const char* parms)
     {
-        return new XrdSimulated;
+        return new XrdOssSimulated;
     }
 }
 
-XrdOssDF *XrdSimulated::newDir(const char *tident)
+XrdOssDF *XrdOssSimulated::newDir(const char *tident)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     
-    return new XrdSimulatedDir;
+    return new XrdOssSimulatedDir;
 }
 
-XrdOssDF *XrdSimulated::newFile(const char *tident)
+XrdOssDF *XrdOssSimulated::newFile(const char *tident)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    return new XrdSimulatedFile(this);
+    return new XrdOssSimulatedFile(this);
 }
 
-int XrdSimulated::Chmod(const char * path, mode_t mode, XrdOucEnv *envP)
+int XrdOssSimulated::Chmod(const char * path, mode_t mode, XrdOucEnv *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
-int XrdSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env, int opts)
+int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env, int opts)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -52,30 +52,30 @@ int XrdSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucE
     if ((opts & XRDOSS_new) && entries.contains(path))
         return -EEXIST;
 
-    entries[path] = std::move(XrdSimulatedEntry{});
+    entries[path] = std::move(XrdOssSimulatedEntry{});
 
     return XrdOssOK;
 }
 
-int XrdSimulated::Init(XrdSysLogger *lp, const char *cfn)
+int XrdOssSimulated::Init(XrdSysLogger *lp, const char *cfn)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return XrdOssOK;
 }
 
-int XrdSimulated::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv  *envP)
+int XrdOssSimulated::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv  *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
-int XrdSimulated::Remdir(const char *path, int Opts, XrdOucEnv *envP)
+int XrdOssSimulated::Remdir(const char *path, int Opts, XrdOucEnv *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
-int XrdSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
+int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -98,7 +98,7 @@ int XrdSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP
     return XrdOssOK;
 }
 
-int XrdSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv *envP)
+int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -112,7 +112,7 @@ int XrdSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv 
     return XrdOssOK;
 }
 
-int XrdSimulated::Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP)
+int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -131,7 +131,7 @@ int XrdSimulated::Truncate(const char *path, unsigned long long fsize, XrdOucEnv
     return XrdOssOK;
 }
 
-int XrdSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
+int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 

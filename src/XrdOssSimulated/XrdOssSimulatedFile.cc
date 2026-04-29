@@ -1,4 +1,4 @@
-#include "XrdSimulatedFile.hh"
+#include "XrdOssSimulatedFile.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysXAttr.hh"
@@ -15,31 +15,31 @@ namespace XrdGlobal
     extern XrdSysError Log;
 }
 
-int XrdSimulatedFile::StatRet(struct stat *buff)
+int XrdOssSimulatedFile::StatRet(struct stat *buff)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
 }
 
-int XrdSimulatedFile::Clone(XrdOssDF& srcFile)
+int XrdOssSimulatedFile::Clone(XrdOssDF& srcFile)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
 }
 
-int XrdSimulatedFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
+int XrdOssSimulatedFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
 }
 
-int XrdSimulatedFile::Fchmod(mode_t mode)
+int XrdOssSimulatedFile::Fchmod(mode_t mode)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
-int XrdSimulatedFile::Fstat(struct stat *buf)
+int XrdOssSimulatedFile::Fstat(struct stat *buf)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -48,33 +48,33 @@ int XrdSimulatedFile::Fstat(struct stat *buf)
     return XrdOssOK;
 }
 
-int XrdSimulatedFile::Fsync()
+int XrdOssSimulatedFile::Fsync()
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return XrdOssOK;
 }
 
-int XrdSimulatedFile::Fsync(XrdSfsAio *aiop)
+int XrdOssSimulatedFile::Fsync(XrdSfsAio *aiop)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return XrdOssOK;
 }
 
-int XrdSimulatedFile::Ftruncate(unsigned long long flen)
+int XrdOssSimulatedFile::Ftruncate(unsigned long long flen)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     entry->size = flen;
     return XrdOssOK;
 }
 
-off_t XrdSimulatedFile::getMmap(void **addr)
+off_t XrdOssSimulatedFile::getMmap(void **addr)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     *addr = 0; 
     return 0;
 }
 
-int XrdSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env)
+int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -96,37 +96,37 @@ int XrdSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &
     return XrdOssOK;
 }
 
-ssize_t XrdSimulatedFile::pgRead (void* buffer, off_t offset, size_t rdlen, uint32_t* csvec, uint64_t opts)
+ssize_t XrdOssSimulatedFile::pgRead (void* buffer, off_t offset, size_t rdlen, uint32_t* csvec, uint64_t opts)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
 }
 
-int XrdSimulatedFile::pgRead (XrdSfsAio* aioparm, uint64_t opts)
+int XrdOssSimulatedFile::pgRead (XrdSfsAio* aioparm, uint64_t opts)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
 }
 
-ssize_t XrdSimulatedFile::pgWrite(void* buffer, off_t offset, size_t wrlen, uint32_t* csvec, uint64_t opts)
+ssize_t XrdOssSimulatedFile::pgWrite(void* buffer, off_t offset, size_t wrlen, uint32_t* csvec, uint64_t opts)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
 }
 
-int XrdSimulatedFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
+int XrdOssSimulatedFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
 }
 
-ssize_t XrdSimulatedFile::Read(off_t offset, size_t size)
+ssize_t XrdOssSimulatedFile::Read(off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return XrdOssOK;
 }
 
-ssize_t XrdSimulatedFile::Read(void *buffer, off_t offset, size_t size)
+ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -136,7 +136,7 @@ ssize_t XrdSimulatedFile::Read(void *buffer, off_t offset, size_t size)
     return read;
 }
 
-int XrdSimulatedFile::Read(XrdSfsAio *aiop)
+int XrdOssSimulatedFile::Read(XrdSfsAio *aiop)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -149,13 +149,13 @@ int XrdSimulatedFile::Read(XrdSfsAio *aiop)
     return XrdOssOK;
 }
 
-ssize_t XrdSimulatedFile::ReadRaw(void *buffer, off_t offset, size_t size)
+ssize_t XrdOssSimulatedFile::ReadRaw(void *buffer, off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
 }
 
-ssize_t XrdSimulatedFile::Write(const void *buffer, off_t offset, size_t size)
+ssize_t XrdOssSimulatedFile::Write(const void *buffer, off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -164,7 +164,7 @@ ssize_t XrdSimulatedFile::Write(const void *buffer, off_t offset, size_t size)
     return size;
 }
 
-int XrdSimulatedFile::Write(XrdSfsAio *aiop)
+int XrdOssSimulatedFile::Write(XrdSfsAio *aiop)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
@@ -175,7 +175,7 @@ int XrdSimulatedFile::Write(XrdSfsAio *aiop)
     return XrdOssOK;
 }
 
-int XrdSimulatedFile::Close(long long *retsz)
+int XrdOssSimulatedFile::Close(long long *retsz)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 

@@ -5,11 +5,11 @@
 
 #include <XrdSys/XrdSysXAttr.hh>
 
-class XrdSimulatedXAttr : public XrdSysXAttr
+class XrdOssSimulatedXAttr : public XrdSysXAttr
 {
 public:
-    XrdSimulatedXAttr() = default;
-    virtual ~XrdSimulatedXAttr() = default;
+    XrdOssSimulatedXAttr() = default;
+    virtual ~XrdOssSimulatedXAttr() = default;
 
     virtual int  Del(const char *Aname, const char *Path, int fd=-1) override;
     virtual void Free(AList *aPL) override;
