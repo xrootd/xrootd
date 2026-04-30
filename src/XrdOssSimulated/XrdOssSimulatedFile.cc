@@ -78,7 +78,7 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::scoped_lock lock(oss->mutex);
+    std::lock_guard lock(oss->mutex);
 
     if (!oss->entries.contains(path))
         return -ENOENT;

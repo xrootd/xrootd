@@ -47,7 +47,7 @@ int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdO
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::scoped_lock lock(mutex);
+    std::lock_guard lock(mutex);
 
     if ((opts & XRDOSS_new) && entries.contains(path))
         return -EEXIST;
@@ -79,7 +79,7 @@ int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oE
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::scoped_lock lock(mutex);
+    std::lock_guard lock(mutex);
 
     if (!entries.contains(oPath))
         return -ENOENT;
@@ -102,7 +102,7 @@ int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucE
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::scoped_lock lock(mutex);
+    std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
         return -ENOENT;
@@ -116,7 +116,7 @@ int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOuc
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::scoped_lock lock(mutex);
+    std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
         return -ENOENT;
@@ -135,7 +135,7 @@ int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::scoped_lock lock(mutex);
+    std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
         return -ENOENT;
