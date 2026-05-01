@@ -1,0 +1,18 @@
+{
+	"name": "Debian",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+  	"mounts": [
+		"source=${localEnv:HOME}/.ssh,target=/home/xrootd/.ssh,type=bind,consistency=cached"
+	],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools-extension-pack",
+				"ms-vscode.cmake-tools",
+				"ms-python.python"
+			]
+		}
+	}
+}

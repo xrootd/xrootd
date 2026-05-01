@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug existing binary",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/xrootd",
+            "args": [
+                "-c",
+                "${workspaceFolder}/tests/XRootD/simulated.cfg",
+                "-n",
+                "simulated"
+            ],
+            "stopAtEntry": false,
+            "cwd": "/tmp",
+            "environment": [
+                {
+                    "name": "SOURCE_DIR",
+                    "value": "${workspaceFolder}/tests/XRootD"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb"
+        }
+    ]
+}
