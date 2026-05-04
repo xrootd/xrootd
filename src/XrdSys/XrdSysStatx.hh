@@ -31,8 +31,8 @@
 #define XROOTD_XRDSYSSTATX_HH
 
 #include <sys/stat.h>
-#include <cstdint>
-#include <cstring>
+#include <stdint.h>
+#include <string.h>
 #include <fcntl.h>
 
 #if defined(__linux__) || defined(__GNU__)
