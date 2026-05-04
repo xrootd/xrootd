@@ -23,6 +23,7 @@ public:
     virtual XrdOssDF *newFile(const char *tident) override;
     virtual int       Chmod(const char * path, mode_t mode, XrdOucEnv *envP=0) override;
     virtual int       Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env, int opts=0) override;
+    virtual uint64_t  Features() override;
     virtual int       Init(XrdSysLogger *lp, const char *cfn) override;
     virtual int       Mkdir(const char *path, mode_t mode, int mkpath=0, XrdOucEnv  *envP=0) override;
     virtual int       Remdir(const char *path, int Opts=0, XrdOucEnv *envP=0) override;

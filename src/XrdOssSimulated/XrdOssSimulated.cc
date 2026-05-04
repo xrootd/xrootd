@@ -54,6 +54,12 @@ int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdO
     return XrdOssOK;
 }
 
+uint64_t XrdOssSimulated::Features()
+{
+    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
+    return XRDOSS_HASNAIO | XRDOSS_HASFICL;
+}
+
 int XrdOssSimulated::Init(XrdSysLogger *lp, const char *cfn)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
