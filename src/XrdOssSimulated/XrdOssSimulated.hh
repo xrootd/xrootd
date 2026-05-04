@@ -5,14 +5,15 @@
 
 #include <XrdOss/XrdOss.hh>
 
-#include <unordered_map>
+#include <memory>
 #include <mutex>
+#include <unordered_map>
 
 class XrdOssSimulated : public XrdOss {
     friend class XrdOssSimulatedFile;
 
 private:
-    std::unordered_map<std::string, XrdOssSimulatedEntry> entries;
+    std::unordered_map<std::string, std::shared_ptr<XrdOssSimulatedEntry>> entries;
     std::mutex mutex;
 
 public:

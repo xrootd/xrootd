@@ -76,7 +76,7 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
     if (!oss->entries.contains(path))
         return -ENOENT;
 
-    entry = &oss->entries[path];
+    entry = oss->entries[path];
 
     if (entry->open_return_code != XrdOssOK)
         return -entry->open_return_code;

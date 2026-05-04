@@ -5,10 +5,12 @@
 
 #include <XrdOss/XrdOss.hh>
 
+#include <memory>
+
 class XrdOssSimulatedFile : public XrdOssDF {
 private:
-    XrdOssSimulated *oss;
-    XrdOssSimulatedEntry *entry;
+    XrdOssSimulated* const oss;
+    std::shared_ptr<XrdOssSimulatedEntry> entry;
 
 public:
     XrdOssSimulatedFile(XrdOssSimulated *oss) : oss(oss) {}

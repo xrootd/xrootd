@@ -49,7 +49,7 @@ int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdO
     if ((opts & XRDOSS_new) && entries.contains(path))
         return -EEXIST;
 
-    entries[path] = std::move(XrdOssSimulatedEntry{});
+    entries[path] = std::make_shared<XrdOssSimulatedEntry>();
 
     return XrdOssOK;
 }
@@ -105,7 +105,7 @@ int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucE
     if (!entries.contains(path))
         return -ENOENT;
 
-    buff->st_size = entries[path].size;
+    buff->st_size = entries[path]->size;
 
     return XrdOssOK;
 }
@@ -119,7 +119,7 @@ int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOuc
     if (!entries.contains(path))
         return -ENOENT;
 
-    entries[path].size = fsize;
+    entries[path]->size = fsize;
     
     return XrdOssOK;
 }
