@@ -5,15 +5,10 @@
 
 #include <XrdOss/XrdOss.hh>
 
-#include <shared_mutex>
-#include <variant>
-
 class XrdOssSimulatedFile : public XrdOssDF {
 private:
     XrdOssSimulated *oss;
     XrdOssSimulatedEntry *entry;
-
-    std::variant<std::unique_lock<std::shared_mutex>, std::shared_lock<std::shared_mutex>> file_lock;
 
 public:
     XrdOssSimulatedFile(XrdOssSimulated *oss) : oss(oss) {}

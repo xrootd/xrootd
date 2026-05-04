@@ -88,14 +88,6 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
     if (entry->open_return_code != XrdOssOK)
         return -entry->open_return_code;
 
-    if ((Oflag & O_ACCMODE) == O_RDONLY)
-        file_lock = std::shared_lock<std::shared_mutex>(*this->entry->mutex, std::try_to_lock);
-    else
-        file_lock = std::unique_lock<std::shared_mutex>(*this->entry->mutex, std::try_to_lock);
-
-    if (!std::visit([](auto &l) { return l.owns_lock(); }, file_lock))
-        return -EBUSY;
-
     return XrdOssOK;
 }
 
@@ -173,7 +165,7 @@ int XrdOssSimulatedFile::Write(XrdSfsAio *aiop)
 
     entry->size += aiop->sfsAio.aio_nbytes;
     aiop->Result = aiop->sfsAio.aio_nbytes;
-    aiop->doneWrite();
+   aiop->doneWrite();
 
     return XrdOssOK;
 }
@@ -181,11 +173,6 @@ int XrdOssSimulatedFile::Write(XrdSfsAio *aiop)
 int XrdOssSimulatedFile::Close(long long *retsz)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
-    std::visit([](auto &l) {
-        if (l.owns_lock())
-            l.unlock();
-    }, file_lock);
 
     return XrdOssOK;
 }

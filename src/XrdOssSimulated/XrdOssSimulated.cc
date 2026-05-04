@@ -5,9 +5,6 @@
 
 #include "XrdSys/XrdSysError.hh"
 
-#include <mutex>
-#include <shared_mutex>
-
 namespace XrdGlobal
 {
     extern XrdSysError Log;
@@ -87,11 +84,6 @@ int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oE
     if (entries.contains(nPath))
         return -EEXIST;
 
-    std::unique_lock<std::shared_mutex> file_lock(*entries[oPath].mutex, std::try_to_lock);
-
-    if (!file_lock.owns_lock())
-        return -EBUSY;
-
     entries[nPath] = std::move(entries[oPath]);
     entries.erase(oPath);
 
@@ -121,11 +113,6 @@ int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOuc
     if (!entries.contains(path))
         return -ENOENT;
 
-    std::unique_lock<std::shared_mutex> file_lock(*entries[path].mutex, std::try_to_lock);
-
-    if (!file_lock.owns_lock())
-        return -EBUSY;
-
     entries[path].size = fsize;
     
     return XrdOssOK;
@@ -139,14 +126,6 @@ int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 
     if (!entries.contains(path))
         return -ENOENT;
-
-    // scope necessary to unlock the mutex before it's freed
-    {
-        std::unique_lock<std::shared_mutex> file_lock(*entries[path].mutex, std::try_to_lock);
-
-        if (!file_lock.owns_lock())
-            return -EBUSY;
-    }
 
     entries.erase(path);
 

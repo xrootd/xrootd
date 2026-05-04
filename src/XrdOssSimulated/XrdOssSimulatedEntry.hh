@@ -10,7 +10,6 @@ struct XrdOssSimulatedEntry
 {
     int open_return_code{XrdOssOK};
     std::size_t size{};
-    std::unique_ptr<std::shared_mutex> mutex = std::make_unique<std::shared_mutex>();
 };
 
 #endif
