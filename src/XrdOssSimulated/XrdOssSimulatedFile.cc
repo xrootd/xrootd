@@ -135,10 +135,7 @@ int XrdOssSimulatedFile::Read(XrdSfsAio *aiop)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::size_t read = std::min(aiop->sfsAio.aio_nbytes, entry->size - aiop->sfsAio.aio_offset);
-    std::memset(const_cast<void *>(aiop->sfsAio.aio_buf), '1', read);
-
-    aiop->Result = read;
+    aiop->Result = Read(const_cast<void *>(aiop->sfsAio.aio_buf), aiop->sfsAio.aio_offset, aiop->sfsAio.aio_nbytes);
     aiop->doneRead();
 
     return XrdOssOK;
@@ -155,7 +152,6 @@ ssize_t XrdOssSimulatedFile::Write(const void *buffer, off_t offset, size_t size
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
     entry->size += size;
-
     return size;
 }
 
@@ -163,8 +159,7 @@ int XrdOssSimulatedFile::Write(XrdSfsAio *aiop)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    entry->size += aiop->sfsAio.aio_nbytes;
-    aiop->Result = aiop->sfsAio.aio_nbytes;
+   aiop->Result = Write(const_cast<const void *>(aiop->sfsAio.aio_buf), aiop->sfsAio.aio_offset, aiop->sfsAio.aio_nbytes);
    aiop->doneWrite();
 
     return XrdOssOK;
