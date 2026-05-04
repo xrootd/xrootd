@@ -7,13 +7,12 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <unordered_map>
 
 class XrdOssSimulated : public XrdOss {
-    friend class XrdOssSimulatedFile;
-
 private:
-    std::unordered_map<std::string, std::shared_ptr<XrdOssSimulatedEntry>> entries;
+    std::unordered_map<std::string, XrdOssSimulatedEntryPtr> entries;
     std::mutex mutex;
 
 public:
@@ -32,6 +31,8 @@ public:
     virtual int       Stat(const char *path, struct stat *buff, int opts=0, XrdOucEnv *envP=0) override;
     virtual int       Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP=0) override;
     virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *envP=0) override;
+
+    std::optional<XrdOssSimulatedEntryPtr> getEntry(const char *path);
 };
 
 #endif

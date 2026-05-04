@@ -12,4 +12,6 @@ struct XrdOssSimulatedEntry
     std::size_t size{};
 };
 
+using XrdOssSimulatedEntryPtr = std::shared_ptr<XrdOssSimulatedEntry>;
+
 #endif

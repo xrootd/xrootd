@@ -137,3 +137,13 @@ int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 
     return XrdOssOK;
 }
+
+std::optional<XrdOssSimulatedEntryPtr> XrdOssSimulated::getEntry(const char *path)
+{
+    std::lock_guard lock(mutex);
+
+    if (!entries.contains(path))
+        return {};
+
+    return entries[path];    
+}

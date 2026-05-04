@@ -71,12 +71,11 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::lock_guard lock(oss->mutex);
-
-    if (!oss->entries.contains(path))
+    auto opt = oss->getEntry(path);
+    if (!opt.has_value())
         return -ENOENT;
 
-    entry = oss->entries[path];
+    entry = opt.value();
 
     if (entry->open_return_code != XrdOssOK)
         return -entry->open_return_code;
