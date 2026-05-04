@@ -85,6 +85,9 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
 
     entry = &oss->entries[path];
 
+    if (entry->open_return_code != XrdOssOK)
+        return -entry->open_return_code;
+
     if ((Oflag & O_ACCMODE) == O_RDONLY)
         file_lock = std::shared_lock<std::shared_mutex>(*this->entry->mutex, std::try_to_lock);
     else
