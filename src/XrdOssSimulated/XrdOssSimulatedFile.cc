@@ -71,7 +71,7 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    auto opt = oss->getEntry(path);
+    auto opt = oss.getEntry(path);
     if (!opt.has_value())
         return -ENOENT;
 

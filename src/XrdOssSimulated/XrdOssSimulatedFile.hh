@@ -9,11 +9,11 @@
 
 class XrdOssSimulatedFile : public XrdOssDF {
 private:
-    XrdOssSimulated* const oss;
+    XrdOssSimulated &oss;
     std::shared_ptr<XrdOssSimulatedEntry> entry;
 
 public:
-    XrdOssSimulatedFile(XrdOssSimulated *oss) : oss(oss) {}
+    XrdOssSimulatedFile(XrdOssSimulated &oss) : oss(oss) {}
     virtual ~XrdOssSimulatedFile() = default;
 
     virtual int     StatRet(struct stat *buff) override;
