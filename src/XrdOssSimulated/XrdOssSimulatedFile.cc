@@ -1,5 +1,6 @@
 #include "XrdOssSimulatedFile.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysXAttr.hh"
 #include "XrdSys/XrdSysFAttr.hh"
 
@@ -53,6 +54,12 @@ int XrdOssSimulatedFile::Fsync()
     return XrdOssOK;
 }
 
+int XrdOssSimulatedFile::Fsync(XrdSfsAio *aiop)
+{
+    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
+    return -ENOTSUP;
+}
+
 int XrdOssSimulatedFile::Ftruncate(unsigned long long flen)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
@@ -89,10 +96,22 @@ ssize_t XrdOssSimulatedFile::pgRead (void* buffer, off_t offset, size_t rdlen, u
     return 0;
 }
 
+int XrdOssSimulatedFile::pgRead (XrdSfsAio* aioparm, uint64_t opts)
+{
+    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
+    return -ENOTSUP;
+}
+
 ssize_t XrdOssSimulatedFile::pgWrite(void* buffer, off_t offset, size_t wrlen, uint32_t* csvec, uint64_t opts)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return 0;
+}
+
+int XrdOssSimulatedFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
+{
+    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
+    return -ENOTSUP;
 }
 
 ssize_t XrdOssSimulatedFile::Read(off_t offset, size_t size)
@@ -111,6 +130,12 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
     return read;
 }
 
+int XrdOssSimulatedFile::Read(XrdSfsAio *aiop)
+{
+    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
+    return -ENOTSUP;
+}
+
 ssize_t XrdOssSimulatedFile::ReadRaw(void *buffer, off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
@@ -123,6 +148,12 @@ ssize_t XrdOssSimulatedFile::Write(const void *buffer, off_t offset, size_t size
 
     entry->size += size;
     return size;
+}
+
+int XrdOssSimulatedFile::Write(XrdSfsAio *aiop)
+{
+    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
+    return -ENOTSUP;
 }
 
 int XrdOssSimulatedFile::Close(long long *retsz)
