@@ -10,7 +10,7 @@
 class XrdOssSimulatedFile : public XrdOssDF {
 private:
     XrdOssSimulated &oss;
-    std::shared_ptr<XrdOssSimulatedEntry> entry;
+    XrdOssSimulatedEntryPtr entry;
     std::vector<decltype(XrdOssSimulatedEntry::pattern)::value_type> read_cache;
 
 public:

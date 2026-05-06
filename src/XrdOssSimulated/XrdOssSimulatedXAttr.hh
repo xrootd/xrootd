@@ -10,7 +10,7 @@
 class XrdOssSimulatedXAttr : public XrdSysXAttr
 {
 private:
-    XrdOssSimulated *oss = nullptr;
+    XrdOssSimulated *oss{nullptr};
 
 public:
     XrdOssSimulatedXAttr() = default;

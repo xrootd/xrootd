@@ -4,7 +4,6 @@
 #include "XrdOss/XrdOss.hh"
 
 #include <memory>
-#include <shared_mutex>
 
 struct XrdOssSimulatedEntry
 {
