@@ -106,8 +106,6 @@
 
 #define lstat(a,b)        XrdPosix_Stat(a,b)
 
-#define fstat(a,b)        XrdPosix_Stat(a,b)
-
 #define statfs(a,b)      XrdPosix_Statfs(a,b)
 
 #define statvfs(a,b)     XrdPosix_Statvfs(a,b)
@@ -132,5 +130,4 @@
 
 #define fgetxattr(a,b,c,d) XrdPosix_Fgetxattr(a,b,c,d)
 
-#define statvfs(a, b) XrdPosixStatvfs(a, b)
 #endif
