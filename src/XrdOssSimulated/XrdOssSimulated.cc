@@ -1,9 +1,12 @@
 #include "XrdOssSimulated.hh"
 #include "XrdOssSimulatedDir.hh"
 #include "XrdOssSimulatedFile.hh"
+#include "XrdOssSimulatedXAttr.hh"
 #include "XrdVersion.hh"
 
 #include "XrdSys/XrdSysError.hh"
+
+#include "XrdSys/XrdSysFAttr.hh"
 
 namespace XrdGlobal
 {
@@ -50,6 +53,10 @@ int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdO
         return -EEXIST;
 
     entries[path] = std::make_shared<XrdOssSimulatedEntry>();
+
+    XrdOssSimulatedXAttr *xattr = static_cast<XrdOssSimulatedXAttr*>(XrdSysFAttr::Xat);
+    if (xattr != nullptr)
+        xattr->setOss(*this);
 
     return XrdOssOK;
 }

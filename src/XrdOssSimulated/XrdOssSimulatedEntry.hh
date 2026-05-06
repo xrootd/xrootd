@@ -9,6 +9,7 @@
 struct XrdOssSimulatedEntry
 {
     int open_return_code{XrdOssOK};
+    std::string pattern{};
     std::size_t size{};
 };
 

@@ -8,7 +8,7 @@
 
 #include <algorithm>
 #include <mutex>
-#include <shared_mutex>
+#include <span>
 
 namespace XrdGlobal
 {
@@ -125,7 +125,23 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
     std::size_t read = std::min(size, entry->size - offset);
-    std::memset(buffer, '0', read);
+
+    std::span output(static_cast<char *>(buffer), read);
+
+    if (entry->pattern.size() == 1)
+        std::fill(output.begin(), output.end(), entry->pattern.front());
+
+    if (entry->pattern.size() > 1)
+    {
+        if (offset == 0)
+        {
+            read_cache.resize(((size / entry->pattern.size()) + 1) * entry->pattern.size());
+            for (std::size_t i = 0; i < read_cache.size(); i++)
+                read_cache[i] = entry->pattern[i % entry->pattern.size()];
+        }
+
+        std::copy_n(read_cache.begin() + (offset % entry->pattern.size()), read, output.begin());
+    }
 
     return read;
 }

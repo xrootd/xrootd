@@ -11,6 +11,7 @@ class XrdOssSimulatedFile : public XrdOssDF {
 private:
     XrdOssSimulated &oss;
     std::shared_ptr<XrdOssSimulatedEntry> entry;
+    std::vector<decltype(XrdOssSimulatedEntry::pattern)::value_type> read_cache;
 
 public:
     XrdOssSimulatedFile(XrdOssSimulated &oss) : oss(oss) {}
