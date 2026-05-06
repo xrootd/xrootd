@@ -5,6 +5,7 @@
 if( PYPI_BUILD )
   if( APPLE )
     set(CMAKE_INSTALL_NAME_DIR "@rpath")
+    set(CMAKE_INSTALL_RPATH "@loader_path")
   else()
     set(CMAKE_INSTALL_RPATH "$ORIGIN")
   endif()
