@@ -136,8 +136,9 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
         if (offset == 0)
         {
             read_cache.resize(((size / entry->pattern.size()) + 1) * entry->pattern.size());
-            for (std::size_t i = 0; i < read_cache.size(); i++)
-                read_cache[i] = entry->pattern[i % entry->pattern.size()];
+            std::generate(read_cache.begin(), read_cache.end(), [i = 0, this] () mutable {
+                return entry->pattern[i++ % entry->pattern.size()]; 
+            });
         }
 
         std::copy_n(read_cache.begin() + (offset % entry->pattern.size()), read, output.begin());
