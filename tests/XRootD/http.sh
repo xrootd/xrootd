@@ -279,6 +279,10 @@ function test_http() {
   assert davix-put "$alphabetFilePath" "${HOST}/$alphabetFilePath"
   assert davix-put "$bigFilePath" "${HOST}/$bigFilePath"
 
+  # Check that we return an error upon receiving an invalid xrdhttptk
+  run_and_assert_http_and_error_code 400 "" \
+    "${HOST}/foo?xrdhttptk=badtoken&xrdhttptime=$(date +%s)"
+
   # Test writing to a readonly file system
   #should be 403
   readOnlyFilePath="/readonly/file";
