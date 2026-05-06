@@ -34,7 +34,7 @@ jobs:
 
     strategy:
       matrix:
-        version: [ 11, 12 ]
+        version: [ 12, 13 ]
 
     runs-on: ubuntu-latest
     container: debian:${{ matrix.version }}
@@ -84,7 +84,7 @@ jobs:
 
     strategy:
       matrix:
-        version: [ "22.04", "24.04" ]
+        version: [ "24.04", "26.04" ]
 
     runs-on: ubuntu-latest
     container: ubuntu:${{ matrix.version }}
