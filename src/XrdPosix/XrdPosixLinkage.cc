@@ -248,13 +248,6 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Fseeko)
   LOOKUP_UNIX(Fseeko64)
   LOOKUP_UNIX(Fstat)
-#ifdef HAVE_Fstatat
-  LOOKUP_UNIX(Fstatat)
-  LOOKUP_UNIX(Fstatat64)
-#else
-  Fstatat = Xrd_U_Fstatat;
-  Fstatat64 = Xrd_U_Fstatat64;
-#endif
   LOOKUP_UNIX(Fstat64)
   LOOKUP_UNIX(Fsync)
   LOOKUP_UNIX(Ftell)
@@ -275,13 +268,6 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Fsync)
   LOOKUP_UNIX(Mkdir)
   LOOKUP_UNIX(Open)
-#ifdef HAVE_Openat
-  LOOKUP_UNIX(Openat)
-  LOOKUP_UNIX(Openat64)
-#else
-  Openat = Xrd_U_Openat;
-  Openat64 = Xrd_U_Openat64;
-#endif
   LOOKUP_UNIX(Open64)
   LOOKUP_UNIX(Opendir)
   LOOKUP_UNIX(Pathconf)
