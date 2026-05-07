@@ -3,6 +3,8 @@
 
 #include "XrdSys/XrdSysError.hh"
 
+#include <algorithm>
+#include <span>
 #include <string_view>
 
 using namespace std::literals;
@@ -46,8 +48,7 @@ int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const cha
 
     auto entry = opt.value();
 
-    auto name = std::string_view(Aname);
-
+    std::string_view name{Aname};
     std::string value{};
 
     if (name == "U.code"sv)
@@ -60,10 +61,12 @@ int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const cha
     if (value.empty())
         return -EINVAL;
 
-    int written = std::min(static_cast<int>(value.size()), Avsz);
-    std::memcpy(Aval, value.c_str(), written);
+    std::span output(static_cast<char *>(Aval), Avsz);
 
-    return written;
+    int num_bytes = std::min(output.size(), value.size());
+    std::copy_n(value.begin(), num_bytes, output.begin());
+
+    return num_bytes;
 }
 
 int XrdOssSimulatedXAttr::List(AList **aPL, const char *Path, int fd, int getSz)
@@ -85,8 +88,8 @@ int XrdOssSimulatedXAttr::Set(const char *Aname, const void *Aval, int Avsz, con
 
     auto entry = opt.value();
 
-    auto name = std::string_view(Aname);
-    auto value = std::string(static_cast<const char *>(Aval), Avsz);
+    std::string_view name{Aname};
+    std::string value(static_cast<const char *>(Aval), Avsz);
 
     if (name == "U.code"sv)
         entry->open_return_code = std::stoi(value);

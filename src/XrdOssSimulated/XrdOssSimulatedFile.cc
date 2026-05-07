@@ -124,12 +124,12 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    std::size_t read = std::min(size, entry->size - offset);
+    std::span output(static_cast<char *>(buffer), size);
 
-    std::span output(static_cast<char *>(buffer), read);
+    std::size_t num_bytes = std::min(output.size(), entry->size - offset);
 
     if (entry->pattern.size() == 1)
-        std::fill(output.begin(), output.end(), entry->pattern.front());
+        std::fill_n(output.begin(), num_bytes, entry->pattern.front());
 
     if (entry->pattern.size() > 1)
     {
@@ -141,10 +141,10 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
             });
         }
 
-        std::copy_n(read_cache.begin() + (offset % entry->pattern.size()), read, output.begin());
+        std::copy_n(read_cache.begin() + (offset % entry->pattern.size()), num_bytes, output.begin());
     }
 
-    return read;
+    return num_bytes;
 }
 
 int XrdOssSimulatedFile::Read(XrdSfsAio *aiop)
