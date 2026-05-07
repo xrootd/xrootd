@@ -133,7 +133,7 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
 
     if (entry->pattern.size() > 1)
     {
-        if (offset == 0)
+        if (read_cache.empty())
         {
             read_cache.resize(((size / entry->pattern.size()) + 1) * entry->pattern.size());
             std::generate(read_cache.begin(), read_cache.end(), [i = 0, this] () mutable {
