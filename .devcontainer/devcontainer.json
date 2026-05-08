@@ -1,7 +1,7 @@
 {
 	"name": "Debian",
 	"build": {
-		"dockerfile": "Dockerfile.alma9"
+		"dockerfile": "Dockerfile.debian13"
 	},
   	"mounts": [
 		"source=${localEnv:HOME}/.ssh,target=/home/xrootd/.ssh,type=bind,consistency=cached"
