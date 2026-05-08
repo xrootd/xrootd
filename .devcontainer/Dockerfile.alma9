@@ -1,0 +1,14 @@
+FROM almalinux:9
+
+# Install tools necessary for RPM development
+RUN dnf install -y dnf-plugins-core epel-release rpmdevtools sudo git wget \
+ && dnf config-manager --set-enabled crb
+
+RUN wget https://raw.githubusercontent.com/xrootd/xrootd/refs/heads/master/xrootd.spec
+RUN dnf builddep -y xrootd.spec
+
+RUN useradd -m -s /bin/bash xrootd
+RUN echo 'export PATH="$PATH:/workspaces/xrootd/build/bin"' >> /home/xrootd/.bashrc
+
+USER xrootd
+WORKDIR /home/xrootd
