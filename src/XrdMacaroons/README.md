@@ -1,62 +1,117 @@
+# XRootD support for Macaroons
 
-Macaroon support for Xrootd
-===========================
+This plugin adds support for macaroons over HTTP in XRootD.
 
-This plugin adds support for macaroon-style authorizations in XRootD, particularly
-for the XrdHttp protocol implementation.
+## Introduction
 
-Configuration
-=============
+Macaroons are a type of cryptographic authorization token designed to provide
+flexible, decentralized access control. They were introduced by
+[Google researchers](https://research.google/pubs/pub41892/) as an alternative
+to traditional bearer tokens and OAuth-style access tokens, with a focus on
+delegation and attenuation of privileges.
 
-To enable, you need to add three lines to the configuration file:
+Unlike opaque tokens, macaroons embed structured *caveats* that restrict what
+the token can do. These restrictions can be added by different parties without
+needing to contact a central authority, making them especially useful in
+distributed systems. Caveats are always monotonic: they can only reduce
+permissions, never increase them.
+
+### Caveats
+
+Caveats take the form `KEY:VALUE`. In XRootD, the following caveats are
+supported:
+
+- `name`: this is the identity of the user that obtained the initial macaroon
+- `path`: a path restriction such that the macaroon only allows access within it
+- `activity`: pre-defined set of allowed activities for the given macaroon
+- `before`: defines the date/time when the macaroon expires and becomes invalid
+
+XRootD supports the following activity types: `READ_METADATA`, `UPDATE_METADATA`,
+`LIST`, `DOWNLOAD`, `UPLOAD`, `MANAGE`, and `DELETE`. Below are the operations
+that each of the activities allow:
+
+- `READ_METADATA`: `stat`
+- `UPDATE_METADATA`: `chmod`, `chown`
+- `LIST`: `readdir`
+- `DOWNLOAD`: `read`
+- `UPLOAD`: `rename`, `create`, `insert`
+- `MANAGE`: `insert`, `lock`, `mkdir`, `update`, `create`, `overwrite`
+- `DELETE`: `rm`, `rmdir`
+
+### Requesting a macaroon with limited permissions
+
+In order to request a macaroon with restricted ability relative to what
+the user requesting it can obtain, a list of activities can be passed in
+in the `POST` request, like in the example below:
+
+```json
+{
+    "caveats": [
+        "activity:DOWNLOAD,LIST"
+    ],
+    "validity": "PT1H"
+}
+```
+
+Unsupported caveats are rejected by the server. A macaroon can be used to
+request another macaroon which is further limited in its privileges.
+
+## Obtaining and using a macaroon
+
+To obtain a macaroon, the user can use `curl` or other tool to issue a `POST`
+request, like so:
 
 ```
+curl -X POST -d '{ "validity": "PT1M" }' https://example.org/path/to/file
+```
+
+The above will result in a JSON response object containing the macaroon and in
+how many seconds it expires (60 seconds, as requested in the `validity` above):
+
+```json
+{
+  "macaroon":"MDAwZmxvY<...>A6amTbHX7qisDoeEI-P3uQrJfFBCZHPIANixFhgO682wo",
+  "expires_in":60
+}
+```
+
+Then, to use the macaroon, use the value of the `macaroon` element in the JSON
+object as your bearer token, like so:
+
+```
+export MACAROON="MDAwZmxvY<...>A6amTbHX7qisDoeEI-P3uQrJfFBCZHPIANixFhgO682wo"
+curl --header "Authorization: Bearer $MACAROON" https://example.org/path/to/file
+```
+
+## Configuration
+
+In order to enable support for macaroons in your XRootD server/cluster, the
+following lines are required:
+
+```
+all.sitename <sitename>
 ofs.authlib libXrdMacaroons.so
 http.exthandler xrdmacaroons libXrdMacaroons.so
 macaroons.secretkey /etc/xrootd/macaroon-secret
-all.sitename Example_Site
 ```
 
-You will need to change `all.sitename` accordingly.  The secret key is a symmetric
-key necessary to verify macaroons; the same key must be deployed to all XRootD
-servers in your cluster.
+where `<sitename>` is the name of your site (it must be set to use macaroons).
+The site name is used to set the macaroon's standard `location` field.
 
-The secret key must be base64-encoded.  The most straightforward way to generate
-this is the following:
+The `macaroons.secretkey` is what is used by the server as symmetric key to sign
+the macaroons it emits, so make sure it's not too short. The macaroons library
+defines a suggested secret length of 32 bytes, but we recommend using at least
+64 bytes for your secret keys used with XRootD. You can use any string for this.
+However, the recommended best practice is to generate a random key with openssl,
+as shown below:
 
 ```
 openssl rand -base64 -out /etc/xrootd/macaroon-secret 64
 ```
 
-Usage
-=====
+## References
 
-To generate a macaroon for personal use, you can run:
-
-```
-macaroon-init https://host.example.com//path/to/directory/ --validity 60 --activity DOWNLOAD,UPLOAD
-```
-
-(the `macaroon-init` CLI can be found as part of the `x509-scitokens-issuer-client` package).  This
-will generate a macaroon with 60 minutes of validity that has upload and download access to the path
-specified at `/path/to/directory`, provided that your X509 identity has that access.
-
-The output will look like the following:
-
-```
-Querying https://host.example.com//path/to/directory/ for new token.
-Validity: PT60M, activities: DOWNLOAD,UPLOAD,READ_METADATA.
-Successfully generated a new token:
-{
-  "macaroon":"MDAxY2xvY2F0aW9uIFQyX1VTX05lYnJhc2thCjAwMzRpZGVudGlmaWVyIGMzODU3MjQ3LThjYzItNGI0YS04ZDUwLWNiZDYzN2U2MzJhMQowMDUyY2lkIGFjdGl2aXR5OlJFQURfTUVUQURBVEEsVVBMT0FELERPV05MT0FELERFTEVURSxNQU5BR0UsVVBEQVRFX01FVEFEQVRBLExJU1QKMDAyZmNpZCBhY3Rpdml0eTpET1dOTE9BRCxVUExPQUQsUkVBRF9NRVRBREFUQQowMDM2Y2lkIHBhdGg6L2hvbWUvY3NlNDk2L2Jib2NrZWxtL3RtcC94cm9vdGRfZXhwb3J0LwowMDI0Y2lkIGJlZm9yZToyMDE4LTA2LTE1VDE4OjE5OjI5WgowMDJmc2lnbmF0dXJlIFXI_x3v8Tq1jYcP-2WUvPV-BIewn5MHRODVu8UszyYkCg"
-}
-```
-
-The contents of the `macaroon` key is your new security token.  Anyone you share it with will be able to read and write from the same path.
-You can use this token as a bearer token for HTTPS authorization.  For example, it can authorize the following transfer:
-
-```
-curl -v
-     -H 'Authorization: Bearer MDAxY2xvY2F0aW9uIFQyX1VTX05lYnJhc2thCjAwMzRpZGVudGlmaWVyIGMzODU3MjQ3LThjYzItNGI0YS04ZDUwLWNiZDYzN2U2MzJhMQowMDUyY2lkIGFjdGl2aXR5OlJFQURfTUVUQURBVEEsVVBMT0FELERPV05MT0FELERFTEVURSxNQU5BR0UsVVBEQVRFX01FVEFEQVRBLExJU1QKMDAyZmNpZCBhY3Rpdml0eTpET1dOTE9BRCxVUExPQUQsUkVBRF9NRVRBREFUQQowMDM2Y2lkIHBhdGg6L2hvbWUvY3NlNDk2L2Jib2NrZWxtL3RtcC94cm9vdGRfZXhwb3J0LwowMDI0Y2lkIGJlZm9yZToyMDE4LTA2LTE1VDE4OjE5OjI5WgowMDJmc2lnbmF0dXJlIFXI_x3v8Tq1jYcP-2WUvPV-BIewn5MHRODVu8UszyYkCg' \
-     https://host.example.com//path/to/directory/hello_world
-```
+- [Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud](http://research.google.com/pubs/pub41892.html)
+- [Macaroons at the NDSS Symposium 2014](https://www.ndss-symposium.org/ndss2014/ndss-2014-programme/macaroons-cookies-contextual-caveats-decentralized-authorization-cloud/)
+- [Mozilla Macaroon Tech Talk](https://air.mozilla.org/macaroons-cookies-with-contextual-caveats-for-decentralized-authorization-in-the-cloud/)
+- [libmacaroons](https://github.com/rescrv/libmacaroons)
