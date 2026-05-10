@@ -51,8 +51,16 @@ int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const cha
     std::string_view name{Aname};
     std::string value{};
 
-    if (name == "U.code"sv)
+    if (name == "U.open_return_code"sv)
         value = std::to_string(entry->open_return_code);
+    else if (name == "U.read_return_code"sv)
+        value = std::to_string(entry->read_return_code);
+    else if (name == "U.read_return_position"sv)
+        value = std::to_string(entry->read_return_position);
+    else if (name == "U.write_return_code"sv)
+        value = std::to_string(entry->write_return_code);
+    else if (name == "U.write_return_position"sv)
+        value = std::to_string(entry->write_return_position);
     else if (name == "U.pattern"sv)
         value = entry->pattern;
     else
@@ -91,12 +99,27 @@ int XrdOssSimulatedXAttr::Set(const char *Aname, const void *Aval, int Avsz, con
     std::string_view name{Aname};
     std::string value(static_cast<const char *>(Aval), Avsz);
 
-    if (name == "U.code"sv)
-        entry->open_return_code = std::stoi(value);
-    else if (name == "U.pattern"sv)
-        entry->pattern = value;
-    else
+    try
+    {
+        if (name == "U.open_return_code"sv)
+            entry->open_return_code = std::stoi(value);
+        else if (name == "U.read_return_code"sv)
+            entry->read_return_code = std::stoi(value);
+        else if (name == "U.read_return_position"sv)
+            entry->read_return_position = std::stoll(value);
+        else if (name == "U.write_return_code"sv)
+            entry->write_return_code = std::stoi(value);
+        else if (name == "U.write_return_position"sv)
+            entry->write_return_position = std::stoll(value);
+        else if (name == "U.pattern"sv)
+            entry->pattern = value;
+        else
+            return -EINVAL;
+    }
+    catch(std::out_of_range &)
+    {
         return -EINVAL;
+    }
 
     return 0;
 }
