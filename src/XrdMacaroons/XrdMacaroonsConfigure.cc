@@ -152,7 +152,7 @@ bool Handler::xmaxduration(XrdOucStream &config_obj, XrdSysError *log, ssize_t &
     log->Emsg("Config", "macaroons.maxduration requires a value");
     return false;
   }
-  char *endptr = NULL;
+  char *endptr = nullptr;
   long int max_duration_parsed = strtoll(val, &endptr, 10);
   if (endptr == val)
   {
@@ -192,7 +192,7 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
 
   FILE *fp = fopen(val, "rb");
 
-  if (fp == NULL) {
+  if (fp == nullptr) {
     log->Emsg("Config", errno, "open shared secret key file", val);
     return false;
   }

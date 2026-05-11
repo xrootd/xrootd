@@ -32,7 +32,7 @@ char *unquote(const char *str) {
       char savec[3];
       if (l <= i + 3) {
         free(r);
-        return NULL;
+        return nullptr;
       }
       savec[0] = str[i + 1];
       savec[1] = str[i + 2];
@@ -190,7 +190,7 @@ Handler::GenerateActivities(const XrdHttpExtReq & req, const std::string &resour
 {
     std::string result = "activity:READ_METADATA";
     // TODO - generate environment object that includes the Authorization header.
-    XrdAccPrivs privs = m_chain ? m_chain->Access(&req.GetSecEntity(), resource.c_str(), AOP_Any, NULL) : XrdAccPriv_None;
+    XrdAccPrivs privs = m_chain ? m_chain->Access(&req.GetSecEntity(), resource.c_str(), AOP_Any, nullptr) : XrdAccPriv_None;
     if ((privs & XrdAccPriv_Create) == XrdAccPriv_Create) {result += ",UPLOAD";}
     if (privs & XrdAccPriv_Read) {result += ",DOWNLOAD";}
     if (privs & XrdAccPriv_Delete) {result += ",DELETE";}
@@ -214,30 +214,30 @@ Handler::MatchesPath(const char *verb, const char *path)
 int Handler::ProcessOAuthConfig(XrdHttpExtReq &req) {
     if (req.verb != "GET")
     {
-        return req.SendSimpleResp(405, NULL, NULL, "Only GET is valid for oauth config.", 0);
+        return req.SendSimpleResp(405, nullptr, nullptr, "Only GET is valid for oauth config.", 0);
     }
     auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"host");
     if (header == req.headers.end())
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Host header is required.", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Host header is required.", 0);
     }
 
     json_object *response_obj = json_object_new_object();
     if (!response_obj)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Unable to create new JSON response object.", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Unable to create new JSON response object.", 0);
     }
     std::string token_endpoint = "https://" + header->second + "/.oauth2/token";
     json_object *endpoint_obj =
         json_object_new_string_len(token_endpoint.c_str(), token_endpoint.size());
     if (!endpoint_obj)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON macaroon string.", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Unable to create a new JSON macaroon string.", 0);
     }
     json_object_object_add(response_obj, "token_endpoint", endpoint_obj);
 
     const char *response_result = json_object_to_json_string_ext(response_obj, JSON_C_TO_STRING_PRETTY);
-    int retval = req.SendSimpleResp(200, NULL, NULL, response_result, 0);
+    int retval = req.SendSimpleResp(200, nullptr, nullptr, response_result, 0);
     json_object_put(response_obj);
     return retval;
 }
@@ -247,22 +247,22 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
 {
     if (req.verb != "POST")
     {
-        return req.SendSimpleResp(405, NULL, NULL, "Only POST is valid for token request.", 0);
+        return req.SendSimpleResp(405, nullptr, nullptr, "Only POST is valid for token request.", 0);
     }
     auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"content-type");
     if (header == req.headers.end())
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Type missing; not a valid macaroon request?", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Content-Type missing; not a valid macaroon request?", 0);
     }
     if (header->second != "application/x-www-form-urlencoded")
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
     }
     char *request_data_raw;
     // Note: this does not null-terminate the buffer contents.
     if (req.BuffgetData(req.length, &request_data_raw, true) != req.length)
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Missing or invalid body of request.", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Missing or invalid body of request.", 0);
     }
     std::string request_data(request_data_raw, req.length);
     bool found_grant_type = false;
@@ -275,7 +275,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
         std::string::size_type eq = token.find("=");
         if (eq == std::string::npos)
         {
-            return req.SendSimpleResp(400, NULL, NULL, "Invalid format for form-encoding", 0);
+            return req.SendSimpleResp(400, nullptr, nullptr, "Invalid format for form-encoding", 0);
         }
         std::string key = token.substr(0, eq);
         std::string value = token.substr(eq + 1);
@@ -285,20 +285,20 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
             found_grant_type = true;
             if (value != "client_credentials")
             {
-                return req.SendSimpleResp(400, NULL, NULL, "Invalid grant type specified.", 0);
+                return req.SendSimpleResp(400, nullptr, nullptr, "Invalid grant type specified.", 0);
             }
         }
         else if (key == "expire_in")
         {
-            if ((validity = std::strtoll(value.c_str(), NULL, 10)) <= 0)
-                return req.SendSimpleResp(400, NULL, NULL, "Expiration request has invalid value.", 0);
+            if ((validity = std::strtoll(value.c_str(), nullptr, 10)) <= 0)
+                return req.SendSimpleResp(400, nullptr, nullptr, "Expiration request has invalid value.", 0);
         }
         else if (key == "scope")
         {
             char *value_raw = unquote(value.c_str());
-            if (value_raw == NULL)
+            if (value_raw == nullptr)
             {
-                return req.SendSimpleResp(400, NULL, NULL, "Unable to unquote scope.", 0);
+                return req.SendSimpleResp(400, nullptr, nullptr, "Unable to unquote scope.", 0);
             }
             scope = value_raw;
             free(value_raw);
@@ -306,11 +306,11 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
     }
     if (!found_grant_type)
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Grant type not specified.", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Grant type not specified.", 0);
     }
     if (scope.empty())
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Scope was not specified.", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Scope was not specified.", 0);
     }
     std::istringstream token_stream_scope(scope);
     std::string path;
@@ -320,7 +320,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
         std::string::size_type col = token.find(":");
         if (col == std::string::npos)
         {
-            return req.SendSimpleResp(400, NULL, NULL, "Invalid format for requested scope", 0);
+            return req.SendSimpleResp(400, nullptr, nullptr, "Invalid format for requested scope", 0);
         }
         std::string key = token.substr(0, col);
         std::string value = token.substr(col + 1);
@@ -338,7 +338,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
                << path;
             m_log->Emsg("MacaroonRequest", ss.str().c_str()); // Mask::Error
             }
-            return req.SendSimpleResp(500, NULL, NULL, "Server only supports all scopes having the same path", 0);
+            return req.SendSimpleResp(500, nullptr, nullptr, "Server only supports all scopes having the same path", 0);
         }
         other_caveats.push_back(key);
     }
@@ -374,32 +374,32 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
 
     auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"content-type");
     if (header == req.headers.end() || header->second != "application/macaroon-request")
-        return req.SendSimpleResp(415, NULL, "accept: application/macaroon-request",
+        return req.SendSimpleResp(415, nullptr, "accept: application/macaroon-request",
             "Content-Type must be 'application/macaroon-request' to request a macaroon", false);
 
     header = XrdOucTUtils::caseInsensitiveFind(req.headers,"content-length");
     if (header == req.headers.end())
-        return req.SendSimpleResp(411, NULL, NULL, "Content-Length missing; not a valid POST", false);
+        return req.SendSimpleResp(411, nullptr, nullptr, "Content-Length missing; not a valid POST", false);
 
-    ssize_t blen = std::strtoll(header->second.c_str(), NULL, 10);
+    ssize_t blen = std::strtoll(header->second.c_str(), nullptr, 10);
 
     if (blen <= 0)
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Length has invalid value.", false);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Content-Length has invalid value.", false);
 
     if (blen > 4096)
-        return req.SendSimpleResp(413, NULL, NULL, "Macaroon request too large (must be <4kB)", false);
+        return req.SendSimpleResp(413, nullptr, nullptr, "Macaroon request too large (must be <4kB)", false);
 
     // request_data is not necessarily null-terminated; hence, we use the more advanced _ex variant
     // of the tokener to avoid making a copy of the character buffer.
     char *request_data;
     if (req.BuffgetData(blen, &request_data, true) != blen)
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Missing or invalid body of request.", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Missing or invalid body of request.", 0);
     }
     json_tokener *tokener = json_tokener_new();
     if (!tokener)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error when allocating token parser.", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error when allocating token parser.", 0);
     }
     json_object *macaroon_req = json_tokener_parse_ex(tokener, request_data, blen);
     enum json_tokener_error err = json_tokener_get_error(tokener);
@@ -407,26 +407,26 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     if (err != json_tokener_success)
     {
         if (macaroon_req) json_object_put(macaroon_req);
-        return req.SendSimpleResp(400, NULL, NULL, "Invalid JSON serialization of macaroon request.", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Invalid JSON serialization of macaroon request.", 0);
     }
     json_object *validity_obj;
     if (!json_object_object_get_ex(macaroon_req, "validity", &validity_obj))
     {
         json_object_put(macaroon_req);
-        return req.SendSimpleResp(400, NULL, NULL, "JSON request does not include a `validity`", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "JSON request does not include a `validity`", 0);
     }
     const char *validity_cstr = json_object_get_string(validity_obj);
     if (!validity_cstr)
     {
         json_object_put(macaroon_req);
-        return req.SendSimpleResp(400, NULL, NULL, "validity key cannot be cast to a string", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "validity key cannot be cast to a string", 0);
     }
     std::string validity_str(validity_cstr);
     ssize_t validity = determine_validity(validity_str);
     if (validity <= 0)
     {
         json_object_put(macaroon_req);
-        return req.SendSimpleResp(400, NULL, NULL, "Invalid ISO 8601 duration for validity key", 0);
+        return req.SendSimpleResp(400, nullptr, nullptr, "Invalid ISO 8601 duration for validity key", 0);
     }
     json_object *caveats_obj;
     std::vector<std::string> other_caveats;
@@ -446,18 +446,18 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
 
                     if (!caveat_item_str) {
                         json_object_put(macaroon_req);
-                        return req.SendSimpleResp(400, NULL, NULL, "Malformed or invalid caveat", 0);
+                        return req.SendSimpleResp(400, nullptr, nullptr, "Malformed or invalid caveat", 0);
                     }
 
                     if (is_reserved_caveat(caveat_item_str)) {
                       json_object_put(macaroon_req);
-                      return req.SendSimpleResp(400, NULL, NULL,
+                      return req.SendSimpleResp(400, nullptr, nullptr,
                           "Cannot accept caveat with reserved key (name, path, before)\n", 0);
                     }
 
                     if (!is_supported_caveat(caveat_item_str)) {
                       json_object_put(macaroon_req);
-                      return req.SendSimpleResp(400, NULL, NULL,
+                      return req.SendSimpleResp(400, nullptr, nullptr,
                           "Cannot accept caveat of unsupported type (supported types: activity)\n", 0);
                     }
 
@@ -487,7 +487,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     char utc_time_buf[21];
     if (!strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&now)))
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error constructing UTC time", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error constructing UTC time", 0);
     }
     std::string utc_time_str(utc_time_buf);
     std::stringstream ss;
@@ -512,7 +512,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
                                            reinterpret_cast<const unsigned char*>(macaroon_id.c_str()),
                                            macaroon_id.size(), &mac_err);
     if (!mac) {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error constructing the macaroon", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error constructing the macaroon", 0);
     }
 
     // Embed the SecEntity name, if present.
@@ -532,7 +532,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     }
     if (!mac_with_name)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding 'name' caveat to macaroon", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error adding 'name' caveat to macaroon", 0);
     }
 
     struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac_with_name,
@@ -542,7 +542,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     macaroon_destroy(mac_with_name);
     if (!mac_with_activities)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding 'activity' caveat to macaroon", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error adding 'activity' caveat to macaroon", 0);
     }
 
     // Note we don't call `NormalizeSlashes` here; for backward compatibility reasons, we ensure the
@@ -556,7 +556,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
                                                  &mac_err);
     macaroon_destroy(mac_with_activities);
     if (!mac_with_path) {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding 'path' caveat to macaroon", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error adding 'path' caveat to macaroon", 0);
     }
 
     struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac_with_path,
@@ -565,7 +565,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
                                         &mac_err);
     macaroon_destroy(mac_with_path);
     if (!mac_with_date) {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding date to macaroon", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error adding date to macaroon", 0);
     }
 
     size_t size_hint = macaroon_serialize_size_hint(mac_with_date);
@@ -574,31 +574,31 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     if (macaroon_serialize(mac_with_date, &macaroon_resp[0], size_hint, &mac_err))
     {
         printf("Returned macaroon_serialize code: %zu\n", size_hint);
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error serializing macaroon", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Internal error serializing macaroon", 0);
     }
     macaroon_destroy(mac_with_date);
 
     json_object *response_obj = json_object_new_object();
     if (!response_obj)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Unable to create new JSON response object.", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Unable to create new JSON response object.", 0);
     }
     json_object *macaroon_obj = json_object_new_string_len(&macaroon_resp[0], strlen(&macaroon_resp[0]));
     if (!macaroon_obj)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON macaroon string.", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Unable to create a new JSON macaroon string.", 0);
     }
     json_object_object_add(response_obj, oauth_response ? "access_token" : "macaroon", macaroon_obj);
 
     json_object *expire_in_obj = json_object_new_int64(validity);
     if (!expire_in_obj)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Unable to create a new JSON validity object.", 0);
+        return req.SendSimpleResp(500, nullptr, nullptr, "Unable to create a new JSON validity object.", 0);
     }
     json_object_object_add(response_obj, "expires_in", expire_in_obj);
 
     const char *macaroon_result = json_object_to_json_string_ext(response_obj, JSON_C_TO_STRING_PRETTY);
-    int retval = req.SendSimpleResp(200, NULL, NULL, macaroon_result, 0);
+    int retval = req.SendSimpleResp(200, nullptr, nullptr, macaroon_result, 0);
     json_object_put(response_obj);
     return retval;
 }

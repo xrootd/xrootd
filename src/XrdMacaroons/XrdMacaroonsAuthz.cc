@@ -240,7 +240,7 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     if (macaroon_verify(verifier, macaroon,
                          reinterpret_cast<const unsigned char *>(m_secret.c_str()),
                          m_secret.size(),
-                         NULL, 0, // discharge macaroons
+                         nullptr, 0, // discharge macaroons
                          &mac_err))
     {
         m_log.Log(LogMask::Debug, "Access", "Macaroon verification failed");
@@ -346,7 +346,7 @@ AuthzCheck::AuthzCheck(const char *req_path, const Access_Operation req_oper, ss
         m_log(log),
         m_path(NormalizeSlashes(req_path)),
         m_oper(req_oper),
-        m_now(time(NULL))
+        m_now(time(nullptr))
 {
     switch (m_oper)
     {
