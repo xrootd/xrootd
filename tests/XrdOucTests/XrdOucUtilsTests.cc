@@ -5,6 +5,7 @@
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 
+#include <array>
 #include <map>
 #include <string>
 #include <unordered_set>
@@ -391,5 +392,33 @@ static const std::map<uint64_t,std::string> size_to_human = {
 TEST(XrdOucUtilsTests, genHumanSizeTest) {
   for (const auto & sizeToHuman: size_to_human) {
     ASSERT_EQ(sizeToHuman.second,XrdOucUtils::genHumanSize(sizeToHuman.first,1024));
+  }
+}
+
+// Table of splitHostCgi cases: each row is { input, expected host, expected
+// cgi }.  The cgi keeps its leading '?'; it is empty when the input has no '?'
+// and the split is always made at the first '?'.
+struct splitHostCgiCase {
+  const char *input;
+  const char *expectedHost;
+  const char *expectedCgi;
+};
+
+static const std::array split_host_cgi_cases = {
+  splitHostCgiCase{ "data.example.org?tpc.key=test", "data.example.org", "?tpc.key=test" },
+  splitHostCgiCase{ "data.example.org",              "data.example.org", ""              },
+  splitHostCgiCase{ "data.example.org?",             "data.example.org", "?"             },
+  splitHostCgiCase{ "data.example.org?a?b",          "data.example.org", "?a?b"          },
+  splitHostCgiCase{ "?cgi-only",                     "",                 "?cgi-only"     },
+  splitHostCgiCase{ "",                              "",                 ""              }
+};
+
+TEST(XrdOucUtilsTests, splitHostCgi) {
+  for (const auto & t : split_host_cgi_cases) {
+    std::string host;
+    std::string cgi;
+    splitHostCgi(t.input, host, cgi);
+    ASSERT_EQ(t.expectedHost, host) << t.input;
+    ASSERT_EQ(t.expectedCgi,  cgi)  << t.input;
   }
 }

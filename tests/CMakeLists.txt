@@ -23,6 +23,8 @@ add_subdirectory(XrdHttpTpc)
 
 add_subdirectory(XrdPfcTests)
 
+add_subdirectory(XrdXrootdTests)
+
 if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
