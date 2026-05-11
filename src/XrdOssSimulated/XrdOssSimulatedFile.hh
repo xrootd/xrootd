@@ -5,8 +5,6 @@
 
 #include <XrdOss/XrdOss.hh>
 
-#include <memory>
-
 class XrdOssSimulatedFile : public XrdOssDF {
 private:
     XrdOssSimulated &oss;

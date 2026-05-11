@@ -3,8 +3,6 @@
 #include "XrdSys/XrdSysXAttr.hh"
 #include "XrdSys/XrdSysFAttr.hh"
 
-#include <fcntl.h>
-
 #include <algorithm>
 #include <mutex>
 #include <span>
