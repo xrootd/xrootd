@@ -73,6 +73,7 @@
 #include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
+#include "XrdXrootd/XrdXrootdRedirHelper.hh"
 #include "XrdXrootd/XrdXrootdRedirPI.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -361,7 +362,12 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        if (csNum) XrdOucEnv::Export("XRD_CSLIST", csList.c_str());
    }
 
-// Configure the redirect plugins
+// Configure the redirect plugins.  After loading the chain we publish the
+// final pointer in two places: the protocol environment (so external
+// plugins can fetch the raw pointer of the plugin via the
+// "XrdXrootdRedirPI*" key) and XrdXrootdRedirHelper, the in-tree adapter
+// that fsRedirPI() and the HTTP TPC handler both call to apply plugin-
+// driven routing (issue #2767).
 //
    if (!RDLPath.empty())
       {for (int i = 0; i < (int)RDLPath.size(); i++)
@@ -371,6 +377,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
              if (pi->theEnv)
                pi->theEnv->PutPtr("XrdXrootdRedirPI*", RedirPI);
            }
+       XrdXrootdRedirHelper::Init(RedirPI, &eDest, redirIPHold);
       }
 
 // Initialiaze for AIO. If we are not in debug mode and aio is enabled then we

@@ -173,6 +173,7 @@ if( NOT XRDCL_ONLY )
     XrdOfs/XrdOfsHandle.hh
     XrdOfs/XrdOfsTrace.hh
     XrdOfs/XrdOfsTPCInfo.hh
+    XrdXrootd/XrdXrootdRedirHelper.hh
     XrdSfs/XrdSfsFAttr.hh
     XrdSsi/XrdSsiAtomics.hh
     XrdSsi/XrdSsiCluster.hh
