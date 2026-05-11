@@ -8,7 +8,9 @@
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdVersion.hh"
 
+#include "XrdXrootd/XrdXrootdRedirHelper.hh"
 #include "XrdXrootd/XrdXrootdTpcMon.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdHttpTpc/XrdHttpTpcUtils.hh"
 #include "XrdHttp/XrdHttpUtils.hh"
@@ -454,21 +456,58 @@ int TPCHandler::RedirectTransfer(CURL *curl, const std::string &redirect_resourc
         return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
 
-    // Construct redirection URL taking into consideration any opaque info
-    std::string rdr_info = ptr;
-    std::string host, opaque;
-    size_t pos = rdr_info.find('?');
-    host = rdr_info.substr(0, pos);
+    // The XrdSfs layer hands back the redirect target in host[?cgi] form; the
+    // port arrived separately via getErrText() above.  Default to that target
+    // and let the redirect plugin block below override it if it rewrites it.
+    std::string finalTarget = ptr;
 
-    if (pos != std::string::npos) {
-      opaque = rdr_info.substr(pos + 1);
+    // When a redirect plugin (XrdXrootdRedirPI) is configured, run the COPY
+    // redirect target through it so the same plugin-driven routing applies
+    // as in the XRootD protocol's fsRedirPI().  The plugin may rewrite host,
+    // port, and CGI; on a fatal plugin error surface a 500 with the plugin's
+    // message rather than emit a redirect we know is wrong.  See issue #2767.
+    XrdNetAddrInfo *clientAddr = req.GetSecEntity().addrInfo;
+    if (XrdXrootdRedirHelper::IsActive() && clientAddr) {
+        // Redirect() takes the host[?cgi] target as a single string and splits
+        // it itself; the non-negative port selects its host+port form.
+        int         newPort = port;
+        std::string newTarget, errMsg;
+        auto outcome = XrdXrootdRedirHelper::Redirect(ptr, newPort, *clientAddr,
+                                                      newTarget, errMsg);
+        if (outcome == XrdXrootdRedirHelper::Outcome::Replaced) {
+            finalTarget = std::move(newTarget);
+            port        = newPort;
+            logTransferEvent(LogMask::Info, rec, "REDIRECT_PLUGIN_REWRITE",
+                             finalTarget);
+        } else if (outcome == XrdXrootdRedirHelper::Outcome::Error) {
+            rec.status = 500;
+            std::stringstream ess;
+            ess << "Redirect plugin error: " << errMsg;
+            logTransferEvent(LogMask::Error, rec, "REDIRECT_PLUGIN_ERROR",
+                             ess.str());
+            return req.SendSimpleResp(rec.status, NULL, NULL,
+                                      generateClientErr(ess, rec).c_str(), 0);
+        }
+        // Outcome::Unchanged: keep the original target.
     }
+
+    // Split the (possibly plugin-rewritten) host[?cgi] target: the host goes
+    // into the Location authority, the cgi into its query string.  splitHostCgi
+    // keeps the leading '?' on cgi; the Location builder below wants the bare
+    // opaque body, so drop that '?' here.
+    std::string host, cgi;
+    splitHostCgi(finalTarget, host, cgi);
+    std::string opaque = cgi.empty() ? std::string() : cgi.substr(1);
 
     std::stringstream ss;
     ss << "Location: http" << (m_desthttps ? "s" : "") << "://" << host << ":" << port << "/" << redirect_resource;
 
     if (!opaque.empty()) {
-      ss << "?" << encode_xrootd_opaque_to_uri(curl, opaque);
+      // redirect_resource (sourced from xrd-http-fullresource) may already
+      // carry the client's query string, so pick the separator accordingly
+      // to avoid emitting a malformed URL with two '?'.
+      char sep = (redirect_resource.find('?') == std::string::npos) ? '?' : '&';
+      ss << sep << encode_xrootd_opaque_to_uri(curl, opaque);
     }
 
     rec.status = 307;

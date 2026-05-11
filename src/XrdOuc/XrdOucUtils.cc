@@ -1729,4 +1729,12 @@ void stripCgi(XrdOucString& url, const std::unordered_set<std::string> &cgiKeys)
   url = tmp.c_str();
 }
 
+void splitHostCgi(const std::string &target, std::string &host,
+                  std::string &cgi)
+{
+  const size_t q = target.find('?');
+  if (q == std::string::npos) {host = target; cgi.clear();}
+     else {host = target.substr(0, q); cgi = target.substr(q);}
+}
+
 #endif
