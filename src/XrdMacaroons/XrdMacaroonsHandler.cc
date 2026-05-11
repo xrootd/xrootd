@@ -290,18 +290,8 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
         }
         else if (key == "expire_in")
         {
-            try
-            {
-                validity = std::stoll(value);
-            }
-            catch (...)
-            {
-                return req.SendSimpleResp(400, NULL, NULL, "Expiration request not parseable.", 0);
-            }
-            if (validity <= 0)
-            {
+            if ((validity = std::strtoll(value.c_str(), NULL, 10)) <= 0)
                 return req.SendSimpleResp(400, NULL, NULL, "Expiration request has invalid value.", 0);
-            }
         }
         else if (key == "scope")
         {
@@ -391,15 +381,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     if (header == req.headers.end())
         return req.SendSimpleResp(411, NULL, NULL, "Content-Length missing; not a valid POST", false);
 
-    ssize_t blen = -1;
-    try
-    {
-        blen = std::stoll(header->second);
-    }
-    catch (...)
-    {
-      /* do nothing, blen remains equal to -1 on exceptions, will be caught below */
-    }
+    ssize_t blen = std::strtoll(header->second.c_str(), NULL, 10);
 
     if (blen <= 0)
         return req.SendSimpleResp(400, NULL, NULL, "Content-Length has invalid value.", false);
