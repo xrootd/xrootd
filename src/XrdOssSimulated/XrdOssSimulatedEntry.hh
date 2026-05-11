@@ -16,14 +16,12 @@ struct XrdOssSimulatedEntry
     {
         int return_code{XrdOssOK};
         std::size_t return_position{};
-        unsigned int bandwidth_limiter{};
     } read;
 
     struct
     {
         int return_code{XrdOssOK};
         std::size_t return_position{};
-        unsigned int bandwidth_limiter{};
     } write;
 
     std::string pattern{};
