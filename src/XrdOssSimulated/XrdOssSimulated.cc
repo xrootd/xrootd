@@ -4,14 +4,7 @@
 #include "XrdOssSimulatedXAttr.hh"
 #include "XrdVersion.hh"
 
-#include "XrdSys/XrdSysError.hh"
-
 #include "XrdSys/XrdSysFAttr.hh"
-
-namespace XrdGlobal
-{
-    extern XrdSysError Log;
-}
 
 XrdVERSIONINFO(XrdOssGetStorageSystem, XrdOssSimulated);
 
@@ -25,28 +18,21 @@ extern "C"
 
 XrdOssDF *XrdOssSimulated::newDir(const char *tident)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    
     return new XrdOssSimulatedDir;
 }
 
 XrdOssDF *XrdOssSimulated::newFile(const char *tident)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
     return new XrdOssSimulatedFile(*this);
 }
 
 int XrdOssSimulated::Chmod(const char * path, mode_t mode, XrdOucEnv *envP)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
 int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env, int opts)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
     std::lock_guard lock(mutex);
 
     if ((opts & XRDOSS_new) && entries.contains(path))
@@ -63,32 +49,26 @@ int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdO
 
 uint64_t XrdOssSimulated::Features()
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return XRDOSS_HASNAIO | XRDOSS_HASFICL;
 }
 
 int XrdOssSimulated::Init(XrdSysLogger *lp, const char *cfn)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return XrdOssOK;
 }
 
 int XrdOssSimulated::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv  *envP)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
 int XrdOssSimulated::Remdir(const char *path, int Opts, XrdOucEnv *envP)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
     return -ENOTSUP;
 }
 
 int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
     std::lock_guard lock(mutex);
 
     if (!entries.contains(oPath))
@@ -105,8 +85,6 @@ int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oE
 
 int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv *envP)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
     std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
@@ -119,8 +97,6 @@ int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucE
 
 int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
     std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
@@ -133,8 +109,6 @@ int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOuc
 
 int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
     std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
