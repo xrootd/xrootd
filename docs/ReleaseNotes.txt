@@ -6,6 +6,35 @@ Release Notes
 =============
 
 -------------
+Version 5.9.4
+-------------
+
++ **Major bug fixes**
+  **[XrdHttp]** Construct digest according to OpenSSL's EVP_MAC documentation
+  **[XrdMacaroons]** Fix support for activity caveats
+
++ **Minor bug fixes**
+  **[DEB]** Add missing libcrypt-dev build dependency
+  **[Misc]** Fix some null pointer dereference bugs reported by clang-tidy
+  **[Python]** Use RPATH for macOS python wheels
+  **[Xrd]** Fix memory leak of Head member in XrdStats
+  **[XrdCks]** Fix clang-tidy warnings about uninitialized values
+  **[XrdHttp]** Send an error response back to the client when xrdhttptk is invalid
+  **[XrdHttpTpc]** Handle error determining IP when tpc.fixed_route is enabled
+  **[XrdMacaroons]** Improve handling of client errors
+  **[XrdMacaroons]** Fix leak of dynamic library handle on error
+  **[XrdMacaroons]** Fix leak of fd file descriptor during configuration
+  **[XrdMacaroons]** Fix memory leak of XrdSysError object
+  **[XrdSys]** Fix undefined behavior warning from clang-tidy
+  **[XrdSys]** Reset cmd.theSem before returning to avoid dangling reference
+  **[XrdXrootd]** Fix clang-tidy uninitialized variable warning in do_Read()
+
++ **Miscellaneous**
+  **[CI]** Replace Debian 11 and Ubuntu 22.04 with Debian 13 and Ubuntu 26.04
+  **[XrdMacaroons]** Remove obsolete macaroon-init script
+  **[XrdMacaroons]** Update README.md
+
+-------------
 Version 5.9.3
 -------------
 
