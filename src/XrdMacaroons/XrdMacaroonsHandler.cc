@@ -79,8 +79,12 @@ static bool is_reserved_caveat(const std::string &cv)
 {
   return cv.compare(0, 5, "name:")     == 0 ||
          cv.compare(0, 5, "path:")     == 0 ||
-         cv.compare(0, 9, "activity:") == 0 ||
          cv.compare(0, 7, "before:")   == 0;
+}
+
+static bool is_supported_caveat(const std::string &cv)
+{
+  return cv.compare(0, 9, "activity:") == 0;
 }
 
 static
@@ -461,11 +465,24 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
                 if (caveat_item)
                 {
                     const char *caveat_item_str = json_object_get_string(caveat_item);
-                    if (caveat_item_str && is_reserved_caveat(caveat_item_str)) {
+
+                    if (!caveat_item_str) {
                         json_object_put(macaroon_req);
-                        return req.SendSimpleResp(400, NULL, NULL,
-                            "Caveat uses a reserved predicate key (name:/path:/activity:/before:)", 0);
+                        return req.SendSimpleResp(400, NULL, NULL, "Malformed or invalid caveat", 0);
                     }
+
+                    if (is_reserved_caveat(caveat_item_str)) {
+                      json_object_put(macaroon_req);
+                      return req.SendSimpleResp(400, NULL, NULL,
+                          "Cannot accept caveat with reserved key (name, path, before)\n", 0);
+                    }
+
+                    if (!is_supported_caveat(caveat_item_str)) {
+                      json_object_put(macaroon_req);
+                      return req.SendSimpleResp(400, NULL, NULL,
+                          "Cannot accept caveat of unsupported type (supported types: activity)\n", 0);
+                    }
+
                     other_caveats.emplace_back(caveat_item_str);
                 }
             }
@@ -500,6 +517,13 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     std::string utc_time_caveat = ss.str();
 
     std::string activities = GenerateActivities(req, resource);
+
+    // Overwrite activities with user-provided caveat if present (last one wins)
+    for (const auto &caveat : other_caveats) {
+        if (caveat.compare(0, 9, "activity:") == 0)
+            activities = caveat;
+    }
+
     std::string macaroon_id = GenerateID(resource, req.GetSecEntity(), activities, other_caveats, utc_time_str);
     enum macaroon_returncode mac_err;
 
@@ -541,21 +565,6 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     if (!mac_with_activities)
     {
         return req.SendSimpleResp(500, NULL, NULL, "Internal error adding default activities to macaroon", 0);
-    }
-
-
-    for (const auto &caveat : other_caveats)
-    {
-        struct macaroon *mac_tmp = mac_with_activities;
-        mac_with_activities = macaroon_add_first_party_caveat(mac_tmp,
-            reinterpret_cast<const unsigned char*>(caveat.c_str()),
-            caveat.size(),
-            &mac_err);
-        macaroon_destroy(mac_tmp);
-        if (!mac_with_activities)
-        {
-            return req.SendSimpleResp(500, NULL, NULL, "Internal error adding user caveat to macaroon", 0);
-        }
     }
 
     // Note we don't call `NormalizeSlashes` here; for backward compatibility reasons, we ensure the
