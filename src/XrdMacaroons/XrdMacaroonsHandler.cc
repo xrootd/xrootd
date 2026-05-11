@@ -383,33 +383,29 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     }
 
     auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"content-type");
-    if (header == req.headers.end())
-    {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Type missing; not a valid macaroon request?", 0);
-    }
-    if (header->second != "application/macaroon-request")
-    {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
-    }
+    if (header == req.headers.end() || header->second != "application/macaroon-request")
+        return req.SendSimpleResp(415, NULL, "accept: application/macaroon-request",
+            "Content-Type must be 'application/macaroon-request' to request a macaroon", false);
+
     header = XrdOucTUtils::caseInsensitiveFind(req.headers,"content-length");
     if (header == req.headers.end())
-    {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Length missing; not a valid POST", 0);
-    }
-    ssize_t blen;
+        return req.SendSimpleResp(411, NULL, NULL, "Content-Length missing; not a valid POST", false);
+
+    ssize_t blen = -1;
     try
     {
         blen = std::stoll(header->second);
     }
     catch (...)
     {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Length not parseable.", 0);
+      /* do nothing, blen remains equal to -1 on exceptions, will be caught below */
     }
+
     if (blen <= 0)
-    {
-        return req.SendSimpleResp(400, NULL, NULL, "Content-Length has invalid value.", 0);
-    }
-    //for (const auto &header : req.headers) { printf("** Request header: %s=%s\n", header.first.c_str(), header.second.c_str()); }
+        return req.SendSimpleResp(400, NULL, NULL, "Content-Length has invalid value.", false);
+
+    if (blen > 4096)
+        return req.SendSimpleResp(413, NULL, NULL, "Macaroon request too large (must be <4kB)", false);
 
     // request_data is not necessarily null-terminated; hence, we use the more advanced _ex variant
     // of the tokener to avoid making a copy of the character buffer.
@@ -554,7 +550,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     }
     if (!mac_with_name)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding default activities to macaroon", 0);
+        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding 'name' caveat to macaroon", 0);
     }
 
     struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac_with_name,
@@ -564,7 +560,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
     macaroon_destroy(mac_with_name);
     if (!mac_with_activities)
     {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding default activities to macaroon", 0);
+        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding 'activity' caveat to macaroon", 0);
     }
 
     // Note we don't call `NormalizeSlashes` here; for backward compatibility reasons, we ensure the
@@ -578,7 +574,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
                                                  &mac_err);
     macaroon_destroy(mac_with_activities);
     if (!mac_with_path) {
-        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding path to macaroon", 0);
+        return req.SendSimpleResp(500, NULL, NULL, "Internal error adding 'path' caveat to macaroon", 0);
     }
 
     struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac_with_path,
