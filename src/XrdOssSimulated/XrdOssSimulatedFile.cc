@@ -15,22 +15,16 @@ namespace XrdGlobal
     extern XrdSysError Log;
 }
 
-int XrdOssSimulatedFile::StatRet(struct stat *buff)
-{
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
-}
-
 int XrdOssSimulatedFile::Clone(XrdOssDF& srcFile)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return -ENOTSUP;
 }
 
 int XrdOssSimulatedFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return -ENOTSUP;
 }
 
 int XrdOssSimulatedFile::Fchmod(mode_t mode)
@@ -67,13 +61,6 @@ int XrdOssSimulatedFile::Ftruncate(unsigned long long flen)
     return XrdOssOK;
 }
 
-off_t XrdOssSimulatedFile::getMmap(void **addr)
-{
-    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    *addr = 0; 
-    return 0;
-}
-
 int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
@@ -93,7 +80,7 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
 ssize_t XrdOssSimulatedFile::pgRead (void* buffer, off_t offset, size_t rdlen, uint32_t* csvec, uint64_t opts)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return -ENOTSUP;
 }
 
 int XrdOssSimulatedFile::pgRead (XrdSfsAio* aioparm, uint64_t opts)
@@ -105,7 +92,7 @@ int XrdOssSimulatedFile::pgRead (XrdSfsAio* aioparm, uint64_t opts)
 ssize_t XrdOssSimulatedFile::pgWrite(void* buffer, off_t offset, size_t wrlen, uint32_t* csvec, uint64_t opts)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return -ENOTSUP;
 }
 
 int XrdOssSimulatedFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
@@ -151,7 +138,7 @@ int XrdOssSimulatedFile::Read(XrdSfsAio *aiop)
 ssize_t XrdOssSimulatedFile::ReadRaw(void *buffer, off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-    return 0;
+    return Read(buffer, offset, size);
 }
 
 ssize_t XrdOssSimulatedFile::Write(const void *buffer, off_t offset, size_t size)
@@ -174,6 +161,5 @@ int XrdOssSimulatedFile::Write(XrdSfsAio *aiop)
 int XrdOssSimulatedFile::Close(long long *retsz)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
-
     return XrdOssOK;
 }

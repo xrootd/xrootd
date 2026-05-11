@@ -16,7 +16,6 @@ public:
     XrdOssSimulatedFile(XrdOssSimulated &oss) : oss(oss) {}
     virtual ~XrdOssSimulatedFile() = default;
 
-    virtual int     StatRet(struct stat *buff) override;
     virtual int     Clone(XrdOssDF& srcFile) override;
     virtual int     Clone(const std::vector<XrdOucCloneSeg> &cVec) override;
     virtual int     Fchmod(mode_t mode) override;
@@ -24,7 +23,6 @@ public:
     virtual int     Fsync() override;
     virtual int     Fsync(XrdSfsAio *aiop) override;
     virtual int     Ftruncate(unsigned long long flen) override;
-    virtual off_t   getMmap(void **addr) override;
     virtual int     Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env) override;
     virtual ssize_t pgRead (void* buffer, off_t offset, size_t rdlen, uint32_t* csvec, uint64_t opts) override;
     virtual int     pgRead (XrdSfsAio* aioparm, uint64_t opts) override;
