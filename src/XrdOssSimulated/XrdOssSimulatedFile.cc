@@ -111,7 +111,9 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    if (entry->read.return_code != XrdOssOK && entry->read.return_position >= static_cast<std::size_t>(offset) && entry->read.return_position <= static_cast<std::size_t>(offset + size))
+    if (entry->read.return_code != XrdOssOK && 
+        entry->read.return_position >= static_cast<std::size_t>(offset) && 
+        entry->read.return_position <= static_cast<std::size_t>(offset + size))
         return -entry->read.return_code;
 
     std::span output(static_cast<char *>(buffer), size);
@@ -145,7 +147,9 @@ ssize_t XrdOssSimulatedFile::Write(const void *buffer, off_t offset, size_t size
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    if (entry->write.return_code != XrdOssOK && entry->write.return_position >= static_cast<std::size_t>(offset) && entry->write.return_position <= static_cast<std::size_t>(offset + size))
+    if (entry->write.return_code != XrdOssOK && 
+        entry->write.return_position >= static_cast<std::size_t>(offset) && 
+        entry->write.return_position <= static_cast<std::size_t>(offset + size))
         return -entry->write.return_code;
 
     entry->size += size;
