@@ -84,8 +84,8 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
 
     entry = opt.value();
 
-    if (entry->open_return_code != XrdOssOK)
-        return -entry->open_return_code;
+    if (entry->open.return_code != XrdOssOK)
+        return -entry->open.return_code;
 
     return XrdOssOK;
 }
@@ -124,8 +124,8 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    if (entry->read_return_code != XrdOssOK && entry->read_return_position >= static_cast<std::size_t>(offset) && entry->read_return_position <= static_cast<std::size_t>(offset + size))
-        return -entry->read_return_code;
+    if (entry->read.return_code != XrdOssOK && entry->read.return_position >= static_cast<std::size_t>(offset) && entry->read.return_position <= static_cast<std::size_t>(offset + size))
+        return -entry->read.return_code;
 
     std::span output(static_cast<char *>(buffer), size);
 
@@ -158,8 +158,8 @@ ssize_t XrdOssSimulatedFile::Write(const void *buffer, off_t offset, size_t size
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
 
-    if (entry->write_return_code != XrdOssOK && entry->write_return_position >= static_cast<std::size_t>(offset) && entry->write_return_position <= static_cast<std::size_t>(offset + size))
-        return -entry->write_return_code;
+    if (entry->write.return_code != XrdOssOK && entry->write.return_position >= static_cast<std::size_t>(offset) && entry->write.return_position <= static_cast<std::size_t>(offset + size))
+        return -entry->write.return_code;
 
     entry->size += size;
     return size;
