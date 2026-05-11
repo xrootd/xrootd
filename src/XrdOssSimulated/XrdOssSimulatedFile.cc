@@ -15,6 +15,12 @@ namespace XrdGlobal
     extern XrdSysError Log;
 }
 
+int XrdOssSimulatedFile::StatRet(struct stat *buff)
+{
+    XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
+    return -ENOTDIR;
+}
+
 int XrdOssSimulatedFile::Clone(XrdOssDF& srcFile)
 {
     XrdGlobal::Log.Say(__PRETTY_FUNCTION__);
