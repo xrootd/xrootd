@@ -37,8 +37,8 @@
 
 #if defined(__linux__) || defined(__GNU__)
 #include <sys/sysmacros.h>
-using XrdSysStatx = struct statx;
-#define HAVE_STATX
+typedef struct statx XrdSysStatx;
+#define HAVE_STATX 1
 #else
 struct XrdSysStatx
 {uint32_t stx_mask;
@@ -52,6 +52,8 @@ struct XrdSysStatx
 typedef struct timespec statx_timestamp;
 
 #endif // __linux__
+
+#ifdef __cplusplus
 
 class XrdSysStatxHelpers {
 public:
@@ -174,5 +176,7 @@ inline void XrdSysStatxHelpers::Statx2Stat(const XrdSysStatx & stx, struct stat 
   st = stx.statx;
 #endif
 }
+
+#endif // __cplusplus
 
 #endif //XROOTD_XRDSYSSTATX_HH
