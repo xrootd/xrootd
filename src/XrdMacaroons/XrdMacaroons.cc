@@ -55,34 +55,32 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
                                        const char   *parms)
 {
     XrdAccAuthorize *chain_authz = nullptr;
+    XrdSysError err(log, "macaroons");
 
     if (parms && parms[0]) {
         XrdOucString parms_str(parms);
         XrdOucString chained_lib;
-        XrdSysError *err = new XrdSysError(log, "authlib");
         int from = parms_str.tokenize(chained_lib, 0, ' ');
         const char *chained_parms = nullptr;
-        err->Emsg("Config", "Will chain library", chained_lib.c_str());
+        err.Emsg("Config", "Will chain library", chained_lib.c_str());
         if (from > 0)
         {
             parms_str.erasefromstart(from);
             if (parms_str.length())
             {
-                err->Emsg("Config", "Will chain parameters", parms_str.c_str());
+                err.Emsg("Config", "Will chain parameters", parms_str.c_str());
                 chained_parms = parms_str.c_str();
             }
         }
         char resolvePath[2048];
         bool usedAltPath{true};
         if (!XrdOucPinPath(chained_lib.c_str(), usedAltPath, resolvePath, 2048)) {
-            err->Emsg("Config", "Failed to locate appropriately versioned chained auth library:", parms);
-            delete err;
+            err.Emsg("Config", "Failed to locate appropriately versioned chained auth library:", parms);
             return nullptr;
         }
         void *handle_base = dlopen(resolvePath, RTLD_LOCAL|RTLD_NOW);
         if (handle_base == nullptr) {
-            err->Emsg("Config", "Failed to base plugin ", resolvePath, dlerror());
-            delete err;
+            err.Emsg("Config", "Failed to base plugin ", resolvePath, dlerror());
             return nullptr;
         }
 
@@ -91,17 +89,15 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
              (dlsym(handle_base, "XrdAccAuthorizeObject"));
         if (!ep)
         {
-            err->Emsg("Config", "Unable to chain second authlib after macaroons", parms);
-            delete err;
+            err.Emsg("Config", "Unable to chain second authlib after macaroons", parms);
             return nullptr;
         }
 
         chain_authz = (*ep)(log, config, chained_parms);
 
         if (chain_authz == nullptr) {
-          err->Emsg("Config", "Unable to chain second authlib after macaroons "
+          err.Emsg("Config", "Unable to chain second authlib after macaroons "
                     "which returned nullptr");
-          delete err;
           return nullptr;
         }
     }
@@ -117,7 +113,6 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
     }
     catch (const std::runtime_error &e)
     {
-        XrdSysError err(log, "macaroons");
         err.Emsg("Config", "Configuration of Macaroon authorization handler failed", e.what());
         return nullptr;
     }
