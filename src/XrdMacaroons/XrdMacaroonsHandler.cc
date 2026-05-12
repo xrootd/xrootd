@@ -237,24 +237,23 @@ int Handler::ProcessOAuthConfig(XrdHttpExtReq &req) {
 int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
 {
     if (req.verb != "POST")
-    {
-        return req.SendSimpleResp(405, nullptr, nullptr, "Only POST is valid for token request.", 0);
-    }
-    auto header = XrdOucTUtils::caseInsensitiveFind(req.headers,"content-type");
-    if (header == req.headers.end())
-    {
-        return req.SendSimpleResp(400, nullptr, nullptr, "Content-Type missing; not a valid macaroon request?", 0);
-    }
-    if (header->second != "application/x-www-form-urlencoded")
-    {
-        return req.SendSimpleResp(400, nullptr, nullptr, "Content-Type must be set to `application/macaroon-request' to request a macaroon", 0);
-    }
-    char *request_data_raw;
+        return req.SendSimpleResp(405, nullptr, "allow: POST",
+            "Only POST method is allowed to request a macaroon", false);
+
+    auto header = XrdOucTUtils::caseInsensitiveFind(req.headers, "content-type");
+    if (header == req.headers.end() || header->second != "application/x-www-form-urlencoded")
+        return req.SendSimpleResp(415, nullptr, "accept: application/x-www-form-urlencoded",
+            "Content-Type must be 'application/macaroon-request' to request a macaroon", false);
+
+    if (req.length > 4096)
+        return req.SendSimpleResp(413, nullptr, nullptr, "Macaroon request too large (must be less than 4KB)", false);
+
     // Note: this does not null-terminate the buffer contents.
-    if (req.BuffgetData(req.length, &request_data_raw, true) != req.length)
-    {
+    char *request_data_raw = nullptr;
+
+    if (req.length <= 0 || req.BuffgetData(req.length, &request_data_raw, true) != req.length)
         return req.SendSimpleResp(400, nullptr, nullptr, "Missing or invalid body of request.", 0);
-    }
+
     std::string request_data(request_data_raw, req.length);
     bool found_grant_type = false;
     ssize_t validity = -1;
@@ -377,7 +376,7 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
         return req.SendSimpleResp(400, nullptr, nullptr, "Content-Length has invalid value.", false);
 
     if (blen > 4096)
-        return req.SendSimpleResp(413, nullptr, nullptr, "Macaroon request too large (must be <4kB)", false);
+        return req.SendSimpleResp(413, nullptr, nullptr, "Macaroon request too large (must be less than 4KB)", false);
 
     // request_data is not necessarily null-terminated; hence, we use the more advanced _ex variant
     // of the tokener to avoid making a copy of the character buffer.
