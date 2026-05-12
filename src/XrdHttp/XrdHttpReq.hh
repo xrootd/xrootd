@@ -49,6 +49,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <sys/types.h>
 
 struct DirListInfo {
   std::string path;
@@ -118,7 +119,7 @@ private:
   std::string m_user_agent;
 
   // Whether transfer encoding was requested.
-  bool m_transfer_encoding_chunked;
+  bool m_transfer_encoding_chunked{false};
   long long m_current_chunk_offset;
   long long m_current_chunk_size;
 
@@ -292,7 +293,8 @@ public:
   bool                      closeAfterError;
 
   bool keepalive;
-  long long length;  // Total size from client for PUT; total length of response TO client for GET.
+  ssize_t length;  // Total size from client for PUT; total length of response TO client for GET.
+  bool length_seen{false};  // Set once a Content-Length header has been accepted (RFC 7230 §3.3.3 rule 4).
   int depth;
   bool sendcontinue;
 
