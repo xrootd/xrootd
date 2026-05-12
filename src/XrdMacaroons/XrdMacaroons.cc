@@ -89,6 +89,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
              (dlsym(handle_base, "XrdAccAuthorizeObject"));
         if (!ep)
         {
+            dlclose(handle_base);
             err.Emsg("Config", "Unable to chain second authlib after macaroons", parms);
             return nullptr;
         }
@@ -96,6 +97,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
         chain_authz = (*ep)(log, config, chained_parms);
 
         if (chain_authz == nullptr) {
+          dlclose(handle_base);
           err.Emsg("Config", "Unable to chain second authlib after macaroons "
                     "which returned nullptr");
           return nullptr;
