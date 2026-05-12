@@ -1,15 +1,14 @@
-
-#include <string>
-#include <memory>
-#include <stdexcept>
-#include <vector>
-
 #include "XrdHttp/XrdHttpExtHandler.hh"
 
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+class XrdAccAuthorize;
 class XrdOucEnv;
 class XrdOucStream;
 class XrdSecEntity;
-class XrdAccAuthorize;
 
 namespace Macaroons {
 
@@ -90,4 +89,4 @@ private:
     std::string m_secret;
 };
 
-}
+} // namespace Macaroons

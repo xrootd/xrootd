@@ -1,9 +1,5 @@
-
-#include <stdexcept>
-#include <dlfcn.h>
-
-#include "XrdMacaroonsHandler.hh"
 #include "XrdMacaroonsAuthz.hh"
+#include "XrdMacaroonsHandler.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -14,6 +10,9 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdVersion.hh"
+
+#include <stdexcept>
+#include <dlfcn.h>
 
 XrdVERSIONINFO(XrdAccAuthorizeObject, XrdMacaroons);
 XrdVERSIONINFO(XrdAccAuthorizeObjAdd, XrdMacaroons);
