@@ -339,6 +339,8 @@ namespace
                                     XrdCl::AnyObject    *rdresp,
                                     XrdCl::HostList     *hostList )
       {
+        using namespace XrdCl;
+
         if( !status->IsOK() )
         {
           userHandler->HandleResponseWithHosts( status, rdresp, hostList );
@@ -346,10 +348,16 @@ namespace
           return;
         }
 
-        using namespace XrdCl;
 
-        ChunkInfo *chunk = 0;
+        ChunkInfo *chunk = nullptr;
         rdresp->Get( chunk );
+
+        if( !chunk )
+        {
+          userHandler->HandleResponseWithHosts( status, rdresp, hostList );
+          delete this;
+          return;
+        }
 
         std::vector<uint32_t> cksums;
         if( stateHandler->pIsChannelEncrypted )
