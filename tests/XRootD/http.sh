@@ -363,6 +363,10 @@ function test_http() {
 
   assert xrdcp "$smallFilePath" "${HTTP_HOST}/$smallFilePath"
 
+  # Check that we return an error upon receiving an invalid xrdhttptk
+  run_and_assert_http_and_error_code 400 "" \
+    "${HTTP_HOST}/foo?xrdhttptk=badtoken&xrdhttptime=$(date +%s)"
+
   # Test writing to a readonly file system
   # Writing to a read-only file should return 403 Forbidden
   readOnlyFilePath="/readonly/file";

@@ -411,10 +411,13 @@ do{while(optind < Argc && Legacy(optind)) {}
 
 // Check if we have any sources or too many sources
 //
-   if (!numFiles) UMSG("Source not specified.");
+   srcFile = pBase.Next;
+
+   if (!numFiles || !srcFile)
+      UMSG("Source not specified.");
+
    if (Opts & opt1Src && numFiles > 1)
       FMSG("Only a single source is allowed.", 2);
-   srcFile = pBase.Next;
 
 // Check if we have an appropriate destination
 //

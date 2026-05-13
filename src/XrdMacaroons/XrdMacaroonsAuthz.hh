@@ -1,13 +1,8 @@
-
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdSciTokens/XrdSciTokensHelper.hh"
 #include "XrdSys/XrdSysError.hh"
 
-
-class XrdSysError;
-
-namespace Macaroons
-{
+namespace Macaroons {
 
 class Authz final : public XrdAccAuthorize, public XrdSciTokensHelper
 {
@@ -59,4 +54,4 @@ private:
     int m_authz_behavior;
 };
 
-}
+} // namespace Macaroons

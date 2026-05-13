@@ -1023,29 +1023,30 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     // The above requires the server to utilize the same IP, that was used to
     // start the TPC, for the resolution of the given TPC instead of
     // using any of the IPs available.
-    if (m_fixed_route){
-        XrdNetAddr *nP;
-        int numIP = 0;
-        char buff[1024];
-        char * ip;
-
+    if (m_fixed_route) {
         // Get the hostname used to contact the server from the http header
-        auto host_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"host");
-        std::string host_used;
+        std::string host;
+        auto host_header = XrdOucTUtils::caseInsensitiveFind(req.headers, "host");
+
         if (host_header != req.headers.end()) {
-            host_used = host_header->second;
+            host = host_header->second;
         }
 
-        // Get the IP addresses associated with the above hostname
-        XrdNetUtils::GetAddrs(host_used.c_str(), &nP, numIP, XrdNetUtils::prefAuto, 0);
-        int ip_size = nP[0].Format(buff, 1024, XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort);
-        ip = (char *)malloc(ip_size-1);
+        // Get the IP addresses associated with the hostname
+        char ip[64]; // IPv6 addresses are up to 45 characters long
+        std::vector<XrdNetAddr> addresses;
+        const char *eText = XrdNetUtils::GetAddrs(host, addresses, nullptr, XrdNetUtils::prefAuto, 0);
 
-	// Substring to get only the address, remove brackets and garbage
-        memcpy(ip, buff+1, ip_size-2);
-        ip[ip_size-2]='\0';
+        if (eText || addresses.empty() ||
+          addresses.front().Format(ip, sizeof(ip), XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPortRaw) <= 0) {
+            std::stringstream ss;
+            ss << "Failed to determine host address of incoming request";
+            rec.status = 500;
+            logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
+            return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+        }
+
         logTransferEvent(LogMask::Info, rec, "LOCAL IP", ip);
-
         curl_easy_setopt(curl, CURLOPT_INTERFACE, ip);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);

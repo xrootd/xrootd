@@ -780,7 +780,8 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
                 secretkey);
 
         if (compareHash(hash, tk)) {
-          TRACEI(REQ, " Invalid tk '" << tk << "' != '" << hash << "'(calculated). Authentication failed.");
+          TRACEI(REQ, "Invalid tk '" << tk << "' != '" << hash << "' (calculated). Authentication failed.");
+          SendSimpleResp(400, nullptr, nullptr, "Authentication failed: invalid token", 0, false);
           return -1;
         }
 

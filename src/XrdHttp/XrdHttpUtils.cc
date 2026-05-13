@@ -270,16 +270,25 @@ void calcHashes(
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 
-  mac = EVP_MAC_fetch(0, "sha256", 0);
-  ctx = EVP_MAC_CTX_new(mac);
-
-  if (!ctx) {
-     return;
+  if (!(mac = EVP_MAC_fetch(nullptr, "HMAC", nullptr))) {
+    return;
   }
 
+  if (!(ctx = EVP_MAC_CTX_new(mac))) {
+    EVP_MAC_free(mac);
+    return;
+  }
 
-  EVP_MAC_init(ctx, (const unsigned char *) key, strlen(key), 0);
+  OSSL_PARAM params[2] = {
+    OSSL_PARAM_construct_utf8_string("digest", (char*)"SHA256", 0),
+    OSSL_PARAM_construct_end()
+  };
 
+  if (!EVP_MAC_init(ctx, (const unsigned char *) key, strlen(key), params)) {
+    EVP_MAC_CTX_free(ctx);
+    EVP_MAC_free(mac);
+    return;
+  }
 
   if (fn)
     EVP_MAC_update(ctx, (const unsigned char *) fn,

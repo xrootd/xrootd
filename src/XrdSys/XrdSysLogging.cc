@@ -300,7 +300,8 @@ XrdSysLogging::MsgBuff *XrdSysLogging::getMsg(char **msgTxt, bool cont)
 
 // If we got incorrectly posted, ignore this call
 //
-   if (!pendMsg) return 0;
+   if (!pendMsg)
+      return nullptr;
 
 // Check if this is a continuation. If so, skip to next message. If there is no
 // next message, clear the pendMsg pointer to indicate we stopped pulling any
@@ -308,8 +309,11 @@ XrdSysLogging::MsgBuff *XrdSysLogging::getMsg(char **msgTxt, bool cont)
 //
    if (cont)
       {if (((MsgBuff *)pendMsg)->next)
-          pendMsg = buffOrg + ((MsgBuff *)pendMsg)->next;
-          else pendMsg = 0;
+          {pendMsg = buffOrg + ((MsgBuff *)pendMsg)->next;
+          } else {
+           pendMsg = nullptr;
+           return nullptr;
+          }
       }
 
 // Return the message

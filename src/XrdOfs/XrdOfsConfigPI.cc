@@ -744,7 +744,7 @@ bool XrdOfsConfigPI::Push(TheLib what, const char *plugP, const char *parmP)
 bool XrdOfsConfigPI::RepLib(XrdOfsConfigPI::TheLib what,
                             const char *newLib, const char *newParms, bool parseParms)
 {
-   const char *parmP;
+   const char *parmP = nullptr;
    char  parms[2048];
    int  xLib = PIX(what);
 
@@ -774,7 +774,7 @@ bool XrdOfsConfigPI::RepLib(XrdOfsConfigPI::TheLib what,
 // Record the parameters
 //
    if (LP[xLib].parms) free(LP[xLib].parms);
-   LP[xLib].parms = (*parmP ? strdup(parmP) : 0);
+   LP[xLib].parms = (parmP && *parmP ? strdup(parmP) : 0);
    return true;
 }
 

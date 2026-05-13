@@ -13,6 +13,7 @@ Build-Depends:
  pkgconf,
  libfuse-dev [linux-any kfreebsd-any],
  libkrb5-dev,
+ libcrypt-dev,
  libcurl4-openssl-dev,
  libxml2-dev,
  libzip-dev,

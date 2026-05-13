@@ -89,7 +89,7 @@ void  Stats(XrdStats::CallBack *InfoBack, int xOpts, int jOpts=0);
                const char *hn, int port, const char *in, const char *pn,
                const char *sn);
 
-virtual ~XrdStats() {if (buff) free(buff);}
+virtual ~XrdStats() {if (buff) free(buff); if (Head) free(Head); }
 
 private:
 
