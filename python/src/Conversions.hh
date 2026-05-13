@@ -125,11 +125,13 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::StatInfo *info )
       {
-        return Py_BuildValue("{sNsNsNsNsN}",
+        return Py_BuildValue("{sNsNsNsNsNsNsN}",
             "id",         Py_BuildValue("s", info->GetId().c_str()),
             "size",       Py_BuildValue("k", info->GetSize()),
             "flags",      Py_BuildValue("I", info->GetFlags()),
             "modtime",    Py_BuildValue("k", info->GetModTime()),
+            "owner",      Py_BuildValue("s", info->GetOwner().c_str()),
+            "group",      Py_BuildValue("s", info->GetGroup().c_str()),
             "modtimestr", Py_BuildValue("s",
                                         info->GetModTimeAsString().c_str()));
       }

@@ -133,14 +133,19 @@ def _info_from_stat(path, stat_info):
   else:
     file_type = 'file'
 
+  owner = getattr(stat_info, 'owner', None)
+  group = getattr(stat_info, 'group', None)
+
   return {
     'name': path,
     'size': stat_info.size,
     'type': file_type,
     'mtime': stat_info.modtime,
     'mode': _mode_from_flags(stat_info.flags),
-    'uid': 0,
-    'gid': 0,
+    'uid': owner,
+    'gid': group,
+    'owner': owner,
+    'group': group,
     'nlink': 1,
     'atime': stat_info.modtime,
     'ctime': stat_info.modtime,

@@ -40,10 +40,12 @@ class FakeStatus(object):
 
 
 class FakeStatInfo(object):
-  def __init__(self, flags, size=0, modtime=0):
+  def __init__(self, flags, size=0, modtime=0, owner=None, group=None):
     self.flags = flags
     self.size = size
     self.modtime = modtime
+    self.owner = owner
+    self.group = group
 
 
 class FakeURL(object):
@@ -86,6 +88,8 @@ class FakeXRootDClient(object):
         StatInfoFlags.IS_READABLE | StatInfoFlags.IS_WRITABLE,
         size=10,
         modtime=123,
+        owner='alice',
+        group='analysis',
       ),
       '/data/subdir': FakeStatInfo(
         StatInfoFlags.IS_DIR | StatInfoFlags.IS_READABLE,
@@ -312,7 +316,8 @@ def test_fsspec_rejects_unsupported_protocol():
 def test_fsspec_info_from_stat_regular_file():
   info = _info_from_stat(
     '/store/data.root',
-    FakeStatInfo(StatInfoFlags.IS_READABLE, size=10, modtime=123),
+    FakeStatInfo(StatInfoFlags.IS_READABLE, size=10, modtime=123,
+                 owner='alice', group='analysis'),
   )
 
   assert info['name'] == '/store/data.root'
@@ -320,6 +325,10 @@ def test_fsspec_info_from_stat_regular_file():
   assert info['type'] == 'file'
   assert info['mtime'] == 123
   assert info['mode'] & 0o444
+  assert info['uid'] == 'alice'
+  assert info['gid'] == 'analysis'
+  assert info['owner'] == 'alice'
+  assert info['group'] == 'analysis'
 
 
 def test_fsspec_info_from_stat_directory():
@@ -354,6 +363,8 @@ def test_fsspec_sync_filesystem_methods(fake_xrootd_client):
 
   assert client.url.url == 'xroots://example.org:1094'
   assert fs.info('/data/file.root')['size'] == 10
+  assert fs.info('/data/file.root')['uid'] == 'alice'
+  assert fs.info('/data/file.root')['gid'] == 'analysis'
   assert fs.ls('/data', detail=False) == ['file.root', 'subdir']
   assert fs.ls('/data')[1]['type'] == 'directory'
 
