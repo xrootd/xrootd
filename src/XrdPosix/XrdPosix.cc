@@ -111,37 +111,50 @@ static inline void fseteof(FILE *fp)
 /******************************************************************************/
 /*                       X r d R e s o l v e L i n k                          */
 /******************************************************************************/
-static ssize_t XrdResolveLink(const char *path, char *resolved){
-  char unref[2049], filename[2049];
-  char * result;
+static ssize_t XrdResolveLink(const char *path, char *resolved, size_t rsize)
+{
   // Make sure a path was passed
   //
-  if (!path) {errno = EFAULT; return -1;}
-  result = realpath(path, NULL);
-  if (result == NULL){
-    strncpy(filename, path, 2048);
-    strncpy(unref, path, 2048);
+  if (!path) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  char unref[2049], filename[2049];
+  char *result = realpath(path, nullptr);
+
+  if (result) {
+    strlcpy(filename, result, sizeof(filename));
+    free(result);
+  } else {
+    bzero(filename, sizeof(filename));
+    bzero(unref, sizeof(unref));
+
+    strlcpy(filename, path, sizeof(filename));
+
     // if it is a link, follow it until the end
     int i = 0;
-    bzero(unref, 2049);
-    int lsize = readlink(filename, unref, 2048);
-    while (lsize > 0 && i<10){
-      strncpy(filename, unref, 2049);
-      // ensure zero termination
-      bzero(unref, 2049);
-      lsize = readlink(filename, unref, 2048);
-      i++;
+    errno = 0;
+    while (readlink(filename, unref, sizeof(unref)) > 0 && ++i < 10) {
+      strlcpy(filename, unref, sizeof(filename));
+      bzero(unref, sizeof(unref)); // reset unref buffer
     }
-    if (i == 10){
+    if (i == 10) {
       errno = ELOOP;
-      return(-1);
+      return -1;
     }
-  } else {
-    strncpy(filename, result, 2048);
-    free(result);
+    // succeed only if we found a file (EINVAL returned),
+    // or a link to a remote file (ENOENT returned)
+    if (errno != EINVAL && errno != ENOENT)
+      return -1;
   }
-  strncpy(resolved, filename, 2049);
-  return(strlen(filename));
+  size_t len = strlen(filename);
+  if (len > rsize) {
+    errno = ENAMETOOLONG;
+    return -1;
+  }
+  strlcpy(resolved, filename, rsize);
+  return len;
 }
 
 /******************************************************************************/
@@ -154,7 +167,7 @@ int XrdPosix_Access(const char *path, int amode)
   char *myPath, buff[2048];
   char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res > 0) {
      // Return the results of a mkdir of a Unix file system
      //
@@ -182,7 +195,7 @@ int XrdPosix_Acl(const char *path, int cmd, int nentries, void *aclbufp)
 {
   char unref[2049];
 
-  ssize_t res=XrdResolveLink(path, unref);
+  ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
   if (res < 0) return res;
   return (XrootPath.URL(unref, 0, 0)
 	  ? Xunix.Acl("/tmp", cmd,nentries,aclbufp)
@@ -201,7 +214,7 @@ int XrdPosix_Chdir(const char *path)
   int rc;
   char unref[2049];
 
-  ssize_t res=XrdResolveLink(path, unref);
+  ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
   if (res < 0) return res;
 
   // Set the working directory if the actual chdir succeeded
@@ -358,7 +371,7 @@ FILE *XrdPosix_Fopen(const char *path, const char *mode)
 
   char unref[2049];
 
-  ssize_t res=XrdResolveLink(path, unref);
+  ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
   if (res < 0) return 0;
 
 // Transfer to unix if this is not our path
@@ -506,7 +519,7 @@ extern "C"
 
     if (!(flags & AT_SYMLINK_NOFOLLOW)) {
       // We need to follow until path is no longer a link
-      ssize_t res = XrdResolveLink(path, unref);
+      ssize_t res = XrdResolveLink(path, unref, sizeof(unref));
       if (res < 0) return res;
       // links are pointing to file unref now which is not a link
     } else {
@@ -637,7 +650,7 @@ ssize_t XrdPosix_Getxattr (const char *path, const char *name, void *value, size
    char *myPath, buff[2048];
    char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return res;
    if (!(myPath = XrootPath.URL(unref, buff, sizeof(buff))))
       return Xunix.Getxattr(path, name, value, size);
@@ -658,7 +671,7 @@ ssize_t XrdPosix_Lgetxattr (const char *path, const char *name, void *value, siz
 {
   char unref[2049];
 
-  ssize_t res=XrdResolveLink(path, unref);
+  ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
   if (res < 0) return res;
 
   if (XrootPath.URL(unref, 0, 0)) {errno = ENOTSUP; return -1;}
@@ -724,7 +737,7 @@ int XrdPosix_Mkdir(const char *path, mode_t mode)
    char *myPath, buff[2048];
    char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return res;
 
 // Return the results of a mkdir of a Unix file system
@@ -750,7 +763,7 @@ int XrdPosix_Open(const char *path, int oflag, ...)
    char unref[2049];
    va_list ap;
    int mode;
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return res;
    // Return the results of an open of a Unix file
    //
@@ -784,7 +797,7 @@ int XrdPosix_Openat(int dirfd, const char *path, int flag, ...)
   char unref[2049];
   va_list ap;
   int mode;
-  ssize_t res=XrdResolveLink(path, unref);
+  ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
   if (res < 0) return res;
 
   if (!(myPath = XrootPath.URL(unref, buff, sizeof(buff)))){
@@ -823,7 +836,7 @@ DIR* XrdPosix_Opendir(const char *path)
    char *myPath, buff[2048];
    char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return NULL;
 
 // Unix opendir
@@ -849,7 +862,7 @@ long XrdPosix_Pathconf(const char *path, int name)
 {
   char unref[2049];
 
-  ssize_t res=XrdResolveLink(path, unref);
+  ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
   if (res < 0) return res;
 
   return (XrootPath.URL(unref, 0, 0) ? Xunix.Pathconf("/tmp", name)
@@ -1067,7 +1080,7 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
    char buff[2048];
    char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return res;
 
    // links are pointing to file unref now which is not a link
@@ -1097,7 +1110,7 @@ int XrdPosix_Statx(int dirfd, const char *path, int flags,
 
     if (!(flags & AT_SYMLINK_NOFOLLOW)) {
       // We need to follow until path is no longer a link
-      ssize_t res = XrdResolveLink(path, unref);
+      ssize_t res = XrdResolveLink(path, unref, sizeof(unref));
       if (res < 0) return res;
     } else {
       strncpy(unref, path, 2048);
@@ -1136,7 +1149,7 @@ int XrdPosix_Statfs(const char *path, struct statfs *buf)
 
    char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return res;
 
 // Return the results of an open of a Unix file
@@ -1158,7 +1171,7 @@ int XrdPosix_Statvfs(const char *path, struct statvfs *buf)
    char *myPath, buff[2048];
    char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return res;
 
 // Return the results of an open of a Unix file
@@ -1196,7 +1209,7 @@ int XrdPosix_Truncate(const char *path, off_t offset)
    char *myPath, buff[2048];
    char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return res;
 
 // Return the results of a truncate of a Unix file system
@@ -1221,7 +1234,7 @@ int XrdPosix_Unlink(const char *path)
    char *myPath, buff[2048];
    char unref[2049];
 
-   ssize_t res=XrdResolveLink(path, unref);
+   ssize_t res=XrdResolveLink(path, unref, sizeof(unref));
    if (res < 0) return res;
 
 // Return the result of a unlink of a Unix file
