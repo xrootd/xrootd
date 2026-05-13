@@ -177,7 +177,33 @@ int XrdHttpReq::parseLine(char *line, int len) {
       // Therefore no need for the range handler to report an error.
       readRangeHandler.ParseContentRange(val);
     } else if (!strcasecmp(key, "content-length")) {
-      length = atoll(val);
+      // Parse and validate the Content-Length value (one-or-more digits,
+      // no sign, no embedded garbage, no overflow). Anything malformed
+      // gives the server an ambiguous body length and is an HTTP request
+      // smuggling primitive — reject with HTTP 400.
+      // Reference: RFC 9112 §6.2, RFC 7230 §3.3.3 rule 4.
+      ssize_t parsed = XrdHttpHeaderUtils::parseContentLength(val);
+      if (parsed < 0) {
+        request = rtMalformed;
+        return -6;
+      }
+      if (m_transfer_encoding_chunked) {
+        // A request that already declared Transfer-Encoding: chunked and
+        // now also sends Content-Length is the classic smuggling vector
+        // (the frontend and backend may disagree on which header wins).
+        // Reference: RFC 9112 §6.1.
+        request = rtMalformed;
+        return -8;
+      }
+      if (length_seen && parsed != length) {
+        // Two Content-Length headers with different values. The body
+        // length is ambiguous; reject.
+        // Reference: RFC 7230 §3.3.3 rule 4.
+        request = rtMalformed;
+        return -7;
+      }
+      length = parsed;
+      length_seen = true;
 
     } else if (!strcasecmp(key, "destination")) {
       destination.assign(val, line+len-val);
@@ -198,8 +224,26 @@ int XrdHttpReq::parseLine(char *line, int len) {
       sendcontinue = true;
     } else if (!strcasecmp(key, "te") && strstr(val, "trailers")) {
       m_trailer_headers = true;
-    } else if (!strcasecmp(key, "transfer-encoding") && strstr(val, "chunked")) {
-      m_transfer_encoding_chunked = true; 
+    } else if (!strcasecmp(key, "transfer-encoding")) {
+      // Tokenize the Transfer-Encoding list and verify that "chunked"
+      // is present AND is the final encoding. Anything else (substring
+      // matches like "chunkedX", a non-final "chunked", or only unknown
+      // codings) is rejected so a frontend proxy cannot disagree with us
+      // about how the body is framed.
+      // Reference: RFC 9112 §6.1, RFC 7230 §3.3.1.
+      if (XrdHttpHeaderUtils::parseTransferEncoding(val) != 0) {
+        request = rtMalformed;
+        return -4;
+      }
+      if (length_seen) {
+        // Content-Length was already accepted and now Transfer-Encoding:
+        // chunked arrives. Reject (see the matching check in the
+        // Content-Length branch above).
+        // Reference: RFC 9112 §6.1.
+        request = rtMalformed;
+        return -8;
+      }
+      m_transfer_encoding_chunked = true;
     } else if (!strcasecmp(key, "x-transfer-status") && strstr(val, "true")) {
       m_transfer_encoding_chunked = true;
       m_status_trailer = true;
@@ -2756,6 +2800,7 @@ void XrdHttpReq::reset() {
   headerok = false;
   keepalive = true;
   length = 0;
+  length_seen = false;
   filesize = 0;
   depth = 0;
   sendcontinue = false;

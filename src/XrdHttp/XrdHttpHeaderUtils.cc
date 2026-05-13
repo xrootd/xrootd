@@ -26,6 +26,10 @@
 
 #include <vector>
 #include <algorithm>
+#include <cerrno>
+#include <cstdlib>
+#include <limits>
+#include <string_view>
 
 
 void XrdHttpHeaderUtils::parseReprDigest(const std::string &value, std::map<std::string, std::string> &output) {
@@ -101,4 +105,62 @@ void XrdHttpHeaderUtils::parseWantReprDigest(const std::string & value, std::map
       // discard invalid values
     }
   }
+}
+
+ssize_t XrdHttpHeaderUtils::parseContentLength(const std::string & value) {
+  std::string_view sv{value};
+  // parseLine forwards the trailing CRLF (and any preceding spaces/tabs).
+  while (!sv.empty() && (sv.back() == '\r' || sv.back() == '\n' ||
+                         sv.back() == ' '  || sv.back() == '\t')) {
+    sv.remove_suffix(1);
+  }
+  if (sv.empty()) {
+    return -1;
+  }
+  // RFC 9112 §6.2: 1*DIGIT only — no sign, no embedded whitespace.
+  for (char c : sv) {
+    if (c < '0' || c > '9') {
+      return -2;
+    }
+  }
+  std::string nullTerm{sv};
+  errno = 0;
+  long long parsed = std::strtoll(nullTerm.c_str(), nullptr, 10);
+  if (errno == ERANGE ||
+      parsed > static_cast<long long>(std::numeric_limits<ssize_t>::max())) {
+    return -3;
+  }
+  return static_cast<ssize_t>(parsed);
+}
+
+int XrdHttpHeaderUtils::parseTransferEncoding(const std::string & value) {
+  std::vector<std::string> tokens;
+  XrdOucTUtils::splitString(tokens, value, ",");
+
+  bool chunked_seen = false;
+  bool last_was_chunked = false;
+  bool any_token = false;
+
+  for (auto & tok : tokens) {
+    std::string_view sv{tok};
+    XrdOucUtils::trim(sv);
+    if (sv.empty()) continue;
+
+    // RFC 9112 §6.1: transfer-coding names are case-insensitive. Whole-token
+    // match (not strstr) so "chunkedX" or "x-chunked" no longer falsely hit.
+    std::string tlow{sv};
+    std::transform(tlow.begin(), tlow.end(), tlow.begin(), ::tolower);
+    any_token = true;
+    if (tlow == "chunked") {
+      chunked_seen = true;
+      last_was_chunked = true;
+    } else {
+      last_was_chunked = false;
+    }
+  }
+
+  if (!any_token)        return -1;
+  if (!chunked_seen)     return -2;
+  if (!last_was_chunked) return -3;
+  return 0;
 }

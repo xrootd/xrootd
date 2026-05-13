@@ -444,4 +444,100 @@ function test_http() {
   # For HTTP GStream monitoring use: socat -u udp-recv:8888 -
   # sleep 5
 
+  ##
+  ## End-to-end HTTP request-smuggling regression — one connection per
+  ## scenario.
+  ##
+  smugglingDir="${TMPDIR}/smuggling"
+  assert xrdfs "${DAV_HOST}" mkdir -p "${smugglingDir}"
+
+  # Derive raw host:port from HTTP_HOST so the test reaches the same instance
+  # the rest of the suite uses (not always localhost — e.g. a remote dev box).
+  smugglingTarget="${HTTP_HOST#*://}"
+  smugglingTarget="${smugglingTarget%%/*}"
+  smugglingHost="${smugglingTarget%:*}"
+  smugglingPort="${smugglingTarget##*:}"
+
+  # Sends $1 verbatim over a fresh TCP connection and prints the first
+  # response line (CRLF stripped). If no status line arrives we emit a
+  # distinct diagnostic for each failure mode so assertion logs are
+  # readable: bash `read -t` returns >128 on the read timer firing (server
+  # left us hanging) versus a small non-zero exit when the peer closed the
+  # socket before sending anything.
+  _smuggling_send() {
+    local payload="$1"
+    local status=""
+    local rc=0
+    exec 3<>"/dev/tcp/${smugglingHost}/${smugglingPort}"
+    printf '%s' "$payload" >&3
+    IFS= read -r -t 10 status <&3 || rc=$?
+    exec 3<&-
+    status="${status//$'\r'/}"
+    if [[ -n "${status}" ]]; then
+      printf '%s' "${status}"
+    elif (( rc > 128 )); then
+      printf '<request stalled — read timed out waiting for a status line>'
+    else
+      printf '<server closed the connection without sending a status line>'
+    fi
+  }
+
+  # Asserts the smuggled file at $1 was NOT created on the server.
+  _smuggling_assert_not_created() {
+    local path="$1"
+    local code
+    code=$(curl -s -o /dev/null --write-out '%{http_code}' \
+      "${HTTP_HOST}/${smugglingDir}/${path}")
+    assert_eq 404 "${code}" \
+      "smuggled ${path} file must not exist on the server"
+  }
+
+  # 1. Content-Length followed by Transfer-Encoding: chunked. RFC 9112 §6.1
+  #    forbids the combination; parseLine returns -8.
+  status=$(_smuggling_send "$(printf 'PUT /%s/cl_te HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\nPUT /%s/POLL_CL_TE HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\n\r\nWWWW' "${smugglingDir}" "${smugglingDir}")")
+  echo "[CL then TE:chunked] response: ${status}"
+  assert_eq "HTTP/1.1 400 Bad Request" "${status}" \
+    "CL followed by TE: chunked must be rejected with 400"
+  _smuggling_assert_not_created POLL_CL_TE
+
+  # 2. Same conflict, opposite order: TE: chunked then Content-Length.
+  status=$(_smuggling_send "$(printf 'PUT /%s/te_cl HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\nContent-Length: 0\r\n\r\nPUT /%s/POLL_TE_CL HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\n\r\nWWWW' "${smugglingDir}" "${smugglingDir}")")
+  echo "[TE:chunked then CL] response: ${status}"
+  assert_eq "HTTP/1.1 400 Bad Request" "${status}" \
+    "TE: chunked followed by CL must be rejected with 400"
+  _smuggling_assert_not_created POLL_TE_CL
+
+  # 3. Two Content-Length headers with different values. RFC 7230 §3.3.3
+  #    rule 4 says reject (body length ambiguous); parseLine returns -7.
+  status=$(_smuggling_send "$(printf 'PUT /%s/dual_cl HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\nContent-Length: 100\r\n\r\nWWWWPUT /%s/POLL_DUAL_CL HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\n\r\nWWWW' "${smugglingDir}" "${smugglingDir}")")
+  echo "[dual CL] response: ${status}"
+  assert_eq "HTTP/1.1 400 Bad Request" "${status}" \
+    "two CL headers with different values must be rejected with 400"
+  _smuggling_assert_not_created POLL_DUAL_CL
+
+  # 4. Malformed Content-Length (negative). RFC 9112 §6.2 requires 1*DIGIT;
+  #    parseLine returns -6.
+  status=$(_smuggling_send "$(printf 'PUT /%s/cl_neg HTTP/1.1\r\nHost: x\r\nContent-Length: -1\r\n\r\nPUT /%s/POLL_CL_NEG HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\n\r\nWWWW' "${smugglingDir}" "${smugglingDir}")")
+  echo "[negative CL] response: ${status}"
+  assert_eq "HTTP/1.1 400 Bad Request" "${status}" \
+    "negative Content-Length must be rejected with 400"
+  _smuggling_assert_not_created POLL_CL_NEG
+
+  # 5. Substring bypass: TE: chunkedX. The old code did strstr(val, "chunked")
+  #    and matched here, letting chunkedX masquerade as chunked. The whole-
+  #    token comparison in parseTransferEncoding returns NoChunked; parseLine
+  #    returns -5.
+  status=$(_smuggling_send "$(printf 'PUT /%s/te_subs HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunkedX\r\n\r\nPUT /%s/POLL_TE_SUBS HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\n\r\nWWWW' "${smugglingDir}" "${smugglingDir}")")
+  echo "[TE: chunkedX] response: ${status}"
+  assert_eq "HTTP/1.1 400 Bad Request" "${status}" \
+    "TE: chunkedX (substring bypass) must be rejected with 400"
+  _smuggling_assert_not_created POLL_TE_SUBS
+
+  # 6. The original CVE: TE: CHUNKED (uppercase) silently dropped by the
+  #    case-sensitive strstr. With the fix the value is correctly seen as
+  #    chunked framing; the smuggled bytes are then consumed by the chunked-
+  #    body parser, which stalls on the bogus chunk-size line. No
+  #    deterministic response line, so we only assert POLL_TE_UPPER 404.
+  _smuggling_send "$(printf 'PUT /%s/te_upper HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: CHUNKED\r\n\r\nPUT /%s/POLL_TE_UPPER HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\n\r\nWWWW' "${smugglingDir}" "${smugglingDir}")" > /dev/null
+  _smuggling_assert_not_created POLL_TE_UPPER
 }
