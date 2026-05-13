@@ -1008,6 +1008,7 @@ int XrdSys::IOEvents::Poller::SendCmd(PipeData &cmd)
        do {wlen = write(cmdFD, (char *)&cmd, sizeof(PipeData));}
           while (wlen < 0 && errno == EINTR);
        if (wlen > 0) mySem.Wait();
+       cmd.theSem = nullptr;
       } else {
        do {wlen = write(cmdFD, (char *)&cmd, sizeof(PipeData));}
           while (wlen < 0 && errno == EINTR);
