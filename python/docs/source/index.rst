@@ -29,10 +29,10 @@ API Reference
    :maxdepth: 1
 
    modules/client/filesystem
+   modules/client/fsspec
    modules/client/file
    modules/client/copyprocess
    modules/client/responses
    modules/client/flags
    modules/client/url
    modules/client/utils
-

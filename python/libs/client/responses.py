@@ -173,6 +173,8 @@ class StatInfo(Struct):
                    :mod:`XRootD.client.flags.StatInfoFlags`
   :var       size: The file size (in bytes)
   :var    modtime: Modification time (in seconds since epoch)
+  :var      owner: File owner
+  :var      group: File group
   :var modtimestr: Modification time (as readable string)
   """
   def __init__(self, info):

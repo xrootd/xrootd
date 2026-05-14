@@ -108,6 +108,17 @@ setup(name='xrootd',
         'XRootD'       : 'python/libs',
         'XRootD/client': 'python/libs/client',
       },
+      extras_require = {
+        'fsspec': ['fsspec'],
+      },
+      entry_points = {
+        'fsspec.specs': [
+          'root=XRootD.fsspec:XRootDFileSystem',
+          'xroot=XRootD.fsspec:XRootDFileSystem',
+          'roots=XRootD.fsspec:XRootDFileSystem',
+          'xroots=XRootD.fsspec:XRootDFileSystem',
+        ],
+      },
       ext_modules= [ CMakeExtension('pyxrootd') ],
       cmdclass={ 'build_ext': CMakeBuild },
       zip_safe=False,
