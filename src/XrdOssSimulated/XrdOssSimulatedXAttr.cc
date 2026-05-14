@@ -31,13 +31,13 @@ int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const cha
     if (this->oss == nullptr)
         return -ENOTSUP;
 
-    auto opt = oss->getEntry(Path);
+    const auto opt = oss->getEntry(Path);
     if (!opt.has_value())
         return -ENOENT;
 
-    auto entry = opt.value();
+    const auto entry = opt.value();
 
-    std::string_view name{Aname};
+    const std::string_view name{Aname};
     std::string value{};
 
     if (name == "U.open.return_code"sv)
@@ -58,9 +58,9 @@ int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const cha
     if (value.empty())
         return -EINVAL;
 
-    std::span output(static_cast<char *>(Aval), Avsz);
+    const std::span output(static_cast<char *>(Aval), Avsz);
 
-    int num_bytes = std::min(output.size(), value.size());
+    const int num_bytes = std::min(output.size(), value.size());
     std::copy_n(value.begin(), num_bytes, output.begin());
 
     return num_bytes;
@@ -76,14 +76,14 @@ int XrdOssSimulatedXAttr::Set(const char *Aname, const void *Aval, int Avsz, con
     if (this->oss == nullptr)
         return -ENOTSUP;
 
-    auto opt = oss->getEntry(Path);
+    const auto opt = oss->getEntry(Path);
     if (!opt.has_value())
         return -ENOENT;
 
     auto entry = opt.value();
 
-    std::string_view name{Aname};
-    std::string value(static_cast<const char *>(Aval), Avsz);
+    const std::string_view name{Aname};
+    const std::string value(static_cast<const char *>(Aval), Avsz);
 
     try
     {

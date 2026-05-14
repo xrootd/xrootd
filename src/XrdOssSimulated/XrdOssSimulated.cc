@@ -33,14 +33,14 @@ int XrdOssSimulated::Chmod(const char * path, mode_t mode, XrdOucEnv *envP)
 
 int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env, int opts)
 {
-    std::lock_guard lock(mutex);
+    const std::lock_guard lock(mutex);
 
     if ((opts & XRDOSS_new) && entries.contains(path))
         return -EEXIST;
 
     entries[path] = std::make_shared<XrdOssSimulatedEntry>();
 
-    XrdOssSimulatedXAttr *xattr = static_cast<XrdOssSimulatedXAttr*>(XrdSysFAttr::Xat);
+    XrdOssSimulatedXAttr * const xattr = static_cast<XrdOssSimulatedXAttr*>(XrdSysFAttr::Xat);
     if (xattr != nullptr)
         xattr->setOss(*this);
 
@@ -69,7 +69,7 @@ int XrdOssSimulated::Remdir(const char *path, int Opts, XrdOucEnv *envP)
 
 int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
 {
-    std::lock_guard lock(mutex);
+    const std::lock_guard lock(mutex);
 
     if (!entries.contains(oPath))
         return -ENOENT;
@@ -85,7 +85,7 @@ int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oE
 
 int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv *envP)
 {
-    std::lock_guard lock(mutex);
+    const std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
         return -ENOENT;
@@ -97,7 +97,7 @@ int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucE
 
 int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP)
 {
-    std::lock_guard lock(mutex);
+    const std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
         return -ENOENT;
@@ -109,7 +109,7 @@ int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOuc
 
 int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
-    std::lock_guard lock(mutex);
+    const std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
         return -ENOENT;
@@ -121,7 +121,7 @@ int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 
 std::optional<XrdOssSimulatedEntryPtr> XrdOssSimulated::getEntry(const char *path)
 {
-    std::lock_guard lock(mutex);
+    const std::lock_guard lock(mutex);
 
     if (!entries.contains(path))
         return {};

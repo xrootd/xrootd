@@ -51,7 +51,7 @@ int XrdOssSimulatedFile::Ftruncate(unsigned long long flen)
 
 int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env)
 {
-    auto opt = oss.getEntry(path);
+    const auto opt = oss.getEntry(path);
     if (!opt.has_value())
         return -ENOENT;
 
@@ -95,9 +95,9 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
         entry->read.return_position <= static_cast<std::size_t>(offset + size))
         return -entry->read.return_code;
 
-    std::span output(static_cast<char *>(buffer), size);
+    const std::span output(static_cast<char *>(buffer), size);
 
-    std::size_t num_bytes = std::min(output.size(), entry->size - offset);
+    const std::size_t num_bytes = std::min(output.size(), entry->size - offset);
 
     if (entry->pattern.size() == 1)
         std::fill_n(output.begin(), num_bytes, entry->pattern.front());
