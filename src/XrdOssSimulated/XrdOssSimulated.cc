@@ -35,10 +35,18 @@ int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdO
 {
     const std::lock_guard lock(mutex);
 
-    if ((opts & XRDOSS_new) && hasEntry(path))
-        return -EEXIST;
+    if (hasEntry(path))
+    {
+        if (opts & XRDOSS_new)
+            return -EEXIST;  
 
-    entries[path] = std::make_shared<XrdOssSimulatedEntry>();
+        if (isEntryBeingWritten(path))
+            return -EBUSY;
+    }
+
+    // preserve previous configuration but reset the size in case it already exists
+    entries.try_emplace(path, std::make_shared<XrdOssSimulatedEntry>());
+    entries[path]->size = 0;
 
     XrdOssSimulatedXAttr * const xattr = static_cast<XrdOssSimulatedXAttr*>(XrdSysFAttr::Xat);
     if (xattr != nullptr)
