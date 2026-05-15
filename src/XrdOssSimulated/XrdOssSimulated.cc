@@ -35,7 +35,7 @@ int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdO
 {
     const std::lock_guard lock(mutex);
 
-    if ((opts & XRDOSS_new) && entries.contains(path))
+    if ((opts & XRDOSS_new) && hasEntry(path))
         return -EEXIST;
 
     entries[path] = std::make_shared<XrdOssSimulatedEntry>();
@@ -71,10 +71,10 @@ int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oE
 {
     const std::lock_guard lock(mutex);
 
-    if (!entries.contains(oPath))
+    if (!hasEntry(oPath))
         return -ENOENT;
 
-    if (entries.contains(nPath))
+    if (hasEntry(nPath))
         return -EEXIST;
 
     entries[nPath] = std::move(entries[oPath]);
@@ -87,7 +87,7 @@ int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucE
 {
     const std::lock_guard lock(mutex);
 
-    if (!entries.contains(path))
+    if (!hasEntry(path))
         return -ENOENT;
 
     buff->st_size = entries[path]->size;
@@ -99,8 +99,11 @@ int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOuc
 {
     const std::lock_guard lock(mutex);
 
-    if (!entries.contains(path))
+    if (!hasEntry(path))
         return -ENOENT;
+
+    if (isEntryBeingWritten(path))
+        return -EBUSY;
 
     entries[path]->size = fsize;
     
@@ -111,7 +114,7 @@ int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
     const std::lock_guard lock(mutex);
 
-    if (!entries.contains(path))
+    if (!hasEntry(path))
         return -ENOENT;
 
     entries.erase(path);
@@ -119,12 +122,32 @@ int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
     return XrdOssOK;
 }
 
-std::optional<XrdOssSimulatedEntryPtr> XrdOssSimulated::getEntry(const char *path)
+std::optional<XrdOssSimulatedEntry> XrdOssSimulated::getEntryRead(const char *path)
 {
     const std::lock_guard lock(mutex);
 
-    if (!entries.contains(path))
+    if (!hasEntry(path) || isEntryBeingWritten(path))
+        return {};
+
+    return *entries[path];
+}
+
+std::optional<XrdOssSimulatedEntryPtr> XrdOssSimulated::getEntryWrite(const char *path)
+{
+    const std::lock_guard lock(mutex);
+
+    if (!hasEntry(path) || isEntryBeingWritten(path))
         return {};
 
     return entries[path];    
+}
+
+bool XrdOssSimulated::hasEntry(const char *path)
+{
+    return entries.contains(path);
+}
+
+bool XrdOssSimulated::isEntryBeingWritten(const char *path)
+{
+    return entries[path].use_count() > 1;
 }

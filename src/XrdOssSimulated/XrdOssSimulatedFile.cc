@@ -3,9 +3,17 @@
 #include "XrdSys/XrdSysXAttr.hh"
 #include "XrdSys/XrdSysFAttr.hh"
 
+#include <fcntl.h>
+
 #include <algorithm>
 #include <mutex>
 #include <span>
+
+XrdOssSimulatedFile::XrdOssSimulatedFile(XrdOssSimulated &oss) :
+    oss(oss),
+    entry(&std::get<XrdOssSimulatedEntry>(entry_storage))
+{
+}
 
 int XrdOssSimulatedFile::StatRet(struct stat *buff)
 {
@@ -51,11 +59,24 @@ int XrdOssSimulatedFile::Ftruncate(unsigned long long flen)
 
 int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env)
 {
-    const auto opt = oss.getEntry(path);
-    if (!opt.has_value())
-        return -ENOENT;
+    if ((Oflag & O_ACCMODE) == O_RDONLY)
+    {
+        const auto opt = oss.getEntryRead(path);
+        if (!opt.has_value())
+            return -ENOENT;
 
-    entry = opt.value();
+        entry_storage = opt.value();
+        entry = &std::get<XrdOssSimulatedEntry>(entry_storage);
+    }
+    else
+    {
+        const auto opt = oss.getEntryWrite(path);
+        if (!opt.has_value())
+            return -ENOENT;
+
+        entry_storage = opt.value();
+        entry = &*std::get<XrdOssSimulatedEntryPtr>(entry_storage);
+    }
 
     if (entry->open.return_code != XrdOssOK)
         return -entry->open.return_code;
@@ -138,5 +159,7 @@ int XrdOssSimulatedFile::Write(XrdSfsAio *aiop)
 
 int XrdOssSimulatedFile::Close(long long *retsz)
 {
+    if (std::holds_alternative<XrdOssSimulatedEntryPtr>(entry_storage))
+        std::get<XrdOssSimulatedEntryPtr>(entry_storage).reset();
     return XrdOssOK;
 }

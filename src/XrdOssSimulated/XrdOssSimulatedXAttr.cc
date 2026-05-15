@@ -31,9 +31,9 @@ int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const cha
     if (this->oss == nullptr)
         return -ENOTSUP;
 
-    const auto opt = oss->getEntry(Path);
+    const auto opt = oss->getEntryRead(Path);
     if (!opt.has_value())
-        return -ENOENT;
+        return -EINVAL;
 
     const auto entry = opt.value();
 
@@ -41,17 +41,17 @@ int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const cha
     std::string value{};
 
     if (name == "U.open.return_code"sv)
-        value = std::to_string(entry->open.return_code);
+        value = std::to_string(entry.open.return_code);
     else if (name == "U.read.return_code"sv)
-        value = std::to_string(entry->read.return_code);
+        value = std::to_string(entry.read.return_code);
     else if (name == "U.read.return_position"sv)
-        value = std::to_string(entry->read.return_position);
+        value = std::to_string(entry.read.return_position);
     else if (name == "U.write.return_code"sv)
-        value = std::to_string(entry->write.return_code);
+        value = std::to_string(entry.write.return_code);
     else if (name == "U.write.return_position"sv)
-        value = std::to_string(entry->write.return_position);
+        value = std::to_string(entry.write.return_position);
     else if (name == "U.pattern"sv)
-        value = entry->pattern;
+        value = entry.pattern;
     else
         return -EINVAL;
 
@@ -76,9 +76,9 @@ int XrdOssSimulatedXAttr::Set(const char *Aname, const void *Aval, int Avsz, con
     if (this->oss == nullptr)
         return -ENOTSUP;
 
-    const auto opt = oss->getEntry(Path);
+    const auto opt = oss->getEntryWrite(Path);
     if (!opt.has_value())
-        return -ENOENT;
+        return -EINVAL;
 
     auto entry = opt.value();
 

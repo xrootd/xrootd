@@ -5,13 +5,16 @@
 
 #include <XrdOss/XrdOss.hh>
 
+#include <variant>
+
 class XrdOssSimulatedFile : public XrdOssDF {
 private:
     XrdOssSimulated &oss;
-    XrdOssSimulatedEntryPtr entry;
+    std::variant<XrdOssSimulatedEntry, XrdOssSimulatedEntryPtr> entry_storage;
+    XrdOssSimulatedEntry *entry;
 
 public:
-    XrdOssSimulatedFile(XrdOssSimulated &oss) : oss(oss) {}
+    XrdOssSimulatedFile(XrdOssSimulated &oss);
     virtual ~XrdOssSimulatedFile() = default;
 
     virtual int     StatRet(struct stat *buff) override;
