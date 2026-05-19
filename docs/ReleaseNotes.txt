@@ -6,6 +6,20 @@ Release Notes
 =============
 
 -------------
+Version 6.0.2
+-------------
+
+All bugfixes and improvements from XRootD 5.9.4 are also in XRootD 6.0.2.
+
++ **Bugfixes**
+  **[XrdPosix]** Remove duplicate definitions
+  **[XrdPosix]** Disable fstatat and openat functions
+  **[XrdPosix]** Fix buffer potentially not null-terminated bug in XrdResolveLink
+
++ **Miscellaneous**
+  **[XrdHttp]** Add the resource type tag for non-collections in xml response (#2782)
+
+-------------
 Version 6.0.1
 -------------
 
