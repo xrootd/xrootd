@@ -65,4 +65,16 @@ std::string obfuscateAuth(const std::string & input);
 void stripCgi(std::string& url, const std::unordered_set<std::string> &cgiKeys);
 void stripCgi(XrdOucString& url, const std::unordered_set<std::string> &cgiKeys);
 
+/**
+ * Split a "host[?cgi]" string at its first '?'.
+ *
+ * @param target the "host[?cgi]" string to split
+ * @param host   output: the portion before the first '?', or the whole
+ *               string when @p target contains no '?'
+ * @param cgi    output: the first '?' and everything after it (so it begins
+ *               with '?'), or empty when @p target contains no '?'
+ */
+void splitHostCgi(const std::string &target, std::string &host,
+                  std::string &cgi);
+
 #endif //XROOTD_XRDOUCPRIVATEUTILS_HH

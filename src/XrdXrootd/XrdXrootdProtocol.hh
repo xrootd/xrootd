@@ -101,7 +101,6 @@ struct XrdXrootdWVInfo;
   
 namespace XrdXrootd
 {
-struct netInfo;
 
 /******************************************************************************/
 /*                            g d C a l l B a c k                             */
@@ -320,8 +319,6 @@ static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
                      const char *Path, char *Cgi);
        int   fsOvrld(char opc, const char *Path, char *Cgi);
        int   fsRedirNoEnt(const char *eMsg, char *Cgi, int popt);
-XrdXrootd::
-   netInfo*  fsRedirIP(const char *trg, int port);
        int   fsRedirPI(const char *trg, int port, int trglen);
        int   getBuff(const int isRead, int Quantum);
        char *getCksType(char *opaque, char *cspec=0, int cslen=0);

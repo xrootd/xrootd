@@ -393,3 +393,30 @@ TEST(XrdOucUtilsTests, genHumanSizeTest) {
     ASSERT_EQ(sizeToHuman.second,XrdOucUtils::genHumanSize(sizeToHuman.first,1024));
   }
 }
+
+// Table of splitHostCgi cases: each row is { input, expected host, expected
+// cgi }.  The cgi keeps its leading '?'; it is empty when the input has no '?'
+// and the split is always made at the first '?'.
+struct splitHostCgiCase {
+  const char *input;
+  const char *expectedHost;
+  const char *expectedCgi;
+};
+
+static const splitHostCgiCase split_host_cgi_cases[] = {
+  { "data.example.org?tpc.key=test", "data.example.org", "?tpc.key=test" },
+  { "data.example.org",              "data.example.org", ""              },
+  { "data.example.org?",             "data.example.org", "?"             },
+  { "data.example.org?a?b",          "data.example.org", "?a?b"          },
+  { "?cgi-only",                     "",                 "?cgi-only"     },
+  { "",                              "",                 ""              }
+};
+
+TEST(XrdOucUtilsTests, splitHostCgi) {
+  for (const auto & t : split_host_cgi_cases) {
+    std::string host, cgi;
+    splitHostCgi(t.input, host, cgi);
+    ASSERT_EQ(t.expectedHost, host) << t.input;
+    ASSERT_EQ(t.expectedCgi,  cgi)  << t.input;
+  }
+}
