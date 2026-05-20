@@ -161,7 +161,7 @@ jobs:
       run: python -m pip wheel --use-pep517 --verbose *.tar.gz
 
     - name: Fixup binary wheel
-      run: delocate-wheel -w wheelhouse -v *.whl
+      run: delocate-wheel --no-sanitize-rpaths -w wheelhouse -v *.whl
 
     - name: Install binary wheel
       run: python -m pip install wheelhouse/*.whl
