@@ -26,6 +26,8 @@
 
 using namespace XrdClHttp;
 
+std::atomic<bool> File::m_default_prefetch_enabled{true};
+
 std::atomic<uint64_t> File::m_prefetch_count = 0;
 std::atomic<uint64_t> File::m_prefetch_expired_count = 0;
 std::atomic<uint64_t> File::m_prefetch_failed_count = 0;
@@ -365,10 +367,21 @@ File::Open(const std::string      &url,
     auto ts = GetHeaderTimeout(timeout);
 
     bool full_download = m_full_download.load(std::memory_order_relaxed);
-    m_default_prefetch_handler.reset(new PrefetchDefaultHandler(*this));
-    if (full_download) {
-        m_default_prefetch_handler->m_prefetch_enabled.store(true, std::memory_order_relaxed);
+    // Determine the initial prefetch-enabled state: full download always requires
+    // prefetch; otherwise honor a per-file XrdClHttpPrefetch property if set, falling
+    // back to the global default cached at plugin load time.
+    bool prefetch_enabled = m_default_prefetch_enabled.load(std::memory_order_relaxed);
+    {
+        std::shared_lock lock(m_properties_mutex);
+        auto it = m_properties.find("XrdClHttpPrefetch");
+        if (it != m_properties.end()) {
+            prefetch_enabled = (it->second == "true" || it->second == "1");
+        }
     }
+    if (full_download) {
+        prefetch_enabled = true;
+    }
+    m_default_prefetch_handler.reset(new PrefetchDefaultHandler(*this, prefetch_enabled));
 
     if (full_download && !(flags & XrdCl::OpenFlags::Write)) {
         m_logger->Debug(kLogXrdClHttp, "Opening %s in full download mode", m_url.c_str());
@@ -1035,6 +1048,13 @@ File::SetProperty(const std::string &name,
                 prefetch_handler->m_prefetch_enabled.store(true, std::memory_order_relaxed);
             }
             m_full_download.store(true, std::memory_order_relaxed);
+        }
+    } else if (name == "XrdClHttpPrefetch") {
+        bool enabled = (value == "true" || value == "1");
+        auto prefetch_handler = m_default_prefetch_handler;
+        if (prefetch_handler) {
+            std::unique_lock lock(prefetch_handler->m_prefetch_mutex);
+            prefetch_handler->m_prefetch_enabled.store(enabled, std::memory_order_relaxed);
         }
     }
 

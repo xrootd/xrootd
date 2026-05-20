@@ -154,6 +154,17 @@ Factory::Initialize()
         }
         XrdClHttp::CurlOperation::SetStallTimeout(stall_timeout);
 
+        // Whether prefetching is enabled by default for newly-opened files.
+        // Per-file overrides are still possible via the XrdClHttpPrefetch property.
+        env->PutInt("HttpPrefetch", 1);
+        env->ImportInt("HttpPrefetch", "XRD_HTTPPREFETCH");
+        int prefetch_enabled = 1;
+        if (env->GetInt("HttpPrefetch", prefetch_enabled)) {
+            XrdClHttp::File::SetDefaultPrefetch(prefetch_enabled != 0);
+            m_log->Debug(kLogXrdClHttp, "Default prefetch behavior is %s",
+                         prefetch_enabled != 0 ? "enabled" : "disabled");
+        }
+
         // The slow transfer rate, in bytes per second, for timing out slow uploads/downloads.
         env->PutInt("HttpSlowRateBytesSec", XrdClHttp::CurlOperation::GetDefaultSlowRateBytesSec());
         env->ImportInt("HttpSlowRateBytesSec", "XRD_HTTPSLOWRATEBYTESSEC");
