@@ -6,6 +6,8 @@
 
 #include "XrdSys/XrdSysFAttr.hh"
 
+#include <mutex>
+
 XrdVERSIONINFO(XrdOssGetStorageSystem, XrdOssMirage);
 
 extern "C"
@@ -48,9 +50,12 @@ int XrdOssMirage::Create(const char *tid, const char *path, mode_t mode, XrdOucE
     entries.try_emplace(path, std::make_shared<XrdOssMirageEntry>());
     entries[path]->size = 0;
 
-    XrdOssMirageXAttr * const xattr = dynamic_cast<XrdOssMirageXAttr*>(XrdSysFAttr::Xat);
-    if (xattr != nullptr)
-        xattr->setOss(*this);
+    static std::once_flag xattr_injection_flag;
+    std::call_once(xattr_injection_flag, [this]() noexcept
+        {
+            if (XrdOssMirageXAttr * const xattr = dynamic_cast<XrdOssMirageXAttr*>(XrdSysFAttr::Xat); xattr != nullptr)
+                xattr->setOss(*this);
+        });
 
     return XrdOssOK;
 }
