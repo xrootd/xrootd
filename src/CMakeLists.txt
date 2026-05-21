@@ -86,6 +86,7 @@ if( NOT XRDCL_ONLY )
   target_link_libraries(XrdServer
     PRIVATE
     XrdUtils
+    XrdCryptoLite
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
     ${ATOMIC_LIBRARY}
