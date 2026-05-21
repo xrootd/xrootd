@@ -19,7 +19,33 @@ extern "C"
 
 int XrdOssMirageXAttr::Del(const char *Aname, const char *Path, int fd)
 {
-    return -ENOTSUP;
+    if (this->oss == nullptr)
+        return -ENOTSUP;
+
+    const auto opt = oss->getEntryWrite(Path);
+    if (!opt.has_value())
+        return -EINVAL;
+
+    auto entry = opt.value();
+
+    const std::string_view name{Aname};
+
+    if (name == "U.open.return_code"sv)
+        entry->open.return_code = {};
+    else if (name == "U.read.return_code"sv)
+        entry->read.return_code = {};
+    else if (name == "U.read.return_position"sv)
+        entry->read.return_position = {};
+    else if (name == "U.write.return_code"sv)
+        entry->write.return_code = {};
+    else if (name == "U.write.return_position"sv)
+        entry->write.return_position = {};
+    else if (name == "U.pattern"sv)
+        entry->pattern = {};
+    else
+        return -EINVAL;
+
+    return 0;
 }
 
 void XrdOssMirageXAttr::Free(AList *aPL)
