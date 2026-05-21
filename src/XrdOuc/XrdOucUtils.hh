@@ -58,11 +58,11 @@ static bool  endsWith(const char *text, const char *ending, int endlen);
 static char *eText(int rc, char *eBuff, int eBlen);
 
 static int   doIf(XrdSysError *eDest, XrdOucStream &Config,
-                  const char *what, const char *hname, 
+                  const char *what, const char *hname,
                                     const char *nname, const char *pname);
 
 static bool  findPgm(const char *pgm, XrdOucString& path);
- 
+
 static int   fmtBytes(long long val, char *buff, int bsz);
 
 /**
@@ -124,10 +124,12 @@ static bool  parseLib(XrdSysError &eDest, XrdOucStream &Config,
 
 static char *parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode);
 
+static void  Random(unsigned char* buff, unsigned int inblen);
+
 static int   ReLink(const char *path, const char *target, mode_t mode=0);
 
 static void  Sanitize(char *instr, char subc='_');
- 
+
 static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 
 static void  toLower(char *str);
