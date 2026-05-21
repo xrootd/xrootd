@@ -1,12 +1,12 @@
-#ifndef __XRD_OSS_SIMULATED_DIR_HH__
-#define __XRD_OSS_SIMULATED_DIR_HH__
+#ifndef __XRD_OSS_MIRAGE_DIR_HH__
+#define __XRD_OSS_MIRAGE_DIR_HH__
 
 #include <XrdOss/XrdOss.hh>
 
-class XrdOssSimulatedDir : public XrdOssDF {
+class XrdOssMirageDir : public XrdOssDF {
 public:
-    XrdOssSimulatedDir() = default;
-    virtual ~XrdOssSimulatedDir() = default;
+    XrdOssMirageDir() = default;
+    virtual ~XrdOssMirageDir() = default;
 
     virtual int Opendir(const char *path, XrdOucEnv &env) override;
     virtual int Readdir(char *buff, int blen) override;

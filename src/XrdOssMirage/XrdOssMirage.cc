@@ -1,37 +1,37 @@
-#include "XrdOssSimulated.hh"
-#include "XrdOssSimulatedDir.hh"
-#include "XrdOssSimulatedFile.hh"
-#include "XrdOssSimulatedXAttr.hh"
+#include "XrdOssMirage.hh"
+#include "XrdOssMirageDir.hh"
+#include "XrdOssMirageFile.hh"
+#include "XrdOssMirageXAttr.hh"
 #include "XrdVersion.hh"
 
 #include "XrdSys/XrdSysFAttr.hh"
 
-XrdVERSIONINFO(XrdOssGetStorageSystem, XrdOssSimulated);
+XrdVERSIONINFO(XrdOssGetStorageSystem, XrdOssMirage);
 
 extern "C"
 {
     XrdOss *XrdOssGetStorageSystem(XrdOss* native_oss, XrdSysLogger* lp, const char* config_fn, const char* parms)
     {
-        return new XrdOssSimulated;
+        return new XrdOssMirage;
     }
 }
 
-XrdOssDF *XrdOssSimulated::newDir(const char *tident)
+XrdOssDF *XrdOssMirage::newDir(const char *tident)
 {
-    return new XrdOssSimulatedDir;
+    return new XrdOssMirageDir;
 }
 
-XrdOssDF *XrdOssSimulated::newFile(const char *tident)
+XrdOssDF *XrdOssMirage::newFile(const char *tident)
 {
-    return new XrdOssSimulatedFile(*this);
+    return new XrdOssMirageFile(*this);
 }
 
-int XrdOssSimulated::Chmod(const char * path, mode_t mode, XrdOucEnv *envP)
+int XrdOssMirage::Chmod(const char * path, mode_t mode, XrdOucEnv *envP)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env, int opts)
+int XrdOssMirage::Create(const char *tid, const char *path, mode_t mode, XrdOucEnv &env, int opts)
 {
     const std::lock_guard lock(mutex);
 
@@ -45,37 +45,37 @@ int XrdOssSimulated::Create(const char *tid, const char *path, mode_t mode, XrdO
     }
 
     // preserve previous configuration but reset the size in case it already exists
-    entries.try_emplace(path, std::make_shared<XrdOssSimulatedEntry>());
+    entries.try_emplace(path, std::make_shared<XrdOssMirageEntry>());
     entries[path]->size = 0;
 
-    XrdOssSimulatedXAttr * const xattr = static_cast<XrdOssSimulatedXAttr*>(XrdSysFAttr::Xat);
+    XrdOssMirageXAttr * const xattr = static_cast<XrdOssMirageXAttr*>(XrdSysFAttr::Xat);
     if (xattr != nullptr)
         xattr->setOss(*this);
 
     return XrdOssOK;
 }
 
-uint64_t XrdOssSimulated::Features()
+uint64_t XrdOssMirage::Features()
 {
     return XRDOSS_HASNAIO | XRDOSS_HASFICL;
 }
 
-int XrdOssSimulated::Init(XrdSysLogger *lp, const char *cfn)
+int XrdOssMirage::Init(XrdSysLogger *lp, const char *cfn)
 {
     return XrdOssOK;
 }
 
-int XrdOssSimulated::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv  *envP)
+int XrdOssMirage::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv  *envP)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulated::Remdir(const char *path, int Opts, XrdOucEnv *envP)
+int XrdOssMirage::Remdir(const char *path, int Opts, XrdOucEnv *envP)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
+int XrdOssMirage::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP, XrdOucEnv *nEnvP)
 {
     const std::lock_guard lock(mutex);
 
@@ -91,7 +91,7 @@ int XrdOssSimulated::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oE
     return XrdOssOK;
 }
 
-int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv *envP)
+int XrdOssMirage::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv *envP)
 {
     const std::lock_guard lock(mutex);
 
@@ -103,7 +103,7 @@ int XrdOssSimulated::Stat(const char *path, struct stat *buff, int opts, XrdOucE
     return XrdOssOK;
 }
 
-int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP)
+int XrdOssMirage::Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP)
 {
     const std::lock_guard lock(mutex);
 
@@ -118,7 +118,7 @@ int XrdOssSimulated::Truncate(const char *path, unsigned long long fsize, XrdOuc
     return XrdOssOK;
 }
 
-int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
+int XrdOssMirage::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
     const std::lock_guard lock(mutex);
 
@@ -130,7 +130,7 @@ int XrdOssSimulated::Unlink(const char *path, int Opts, XrdOucEnv *envP)
     return XrdOssOK;
 }
 
-std::optional<XrdOssSimulatedEntry> XrdOssSimulated::getEntryRead(const char *path)
+std::optional<XrdOssMirageEntry> XrdOssMirage::getEntryRead(const char *path)
 {
     const std::lock_guard lock(mutex);
 
@@ -140,7 +140,7 @@ std::optional<XrdOssSimulatedEntry> XrdOssSimulated::getEntryRead(const char *pa
     return *entries[path];
 }
 
-std::optional<XrdOssSimulatedEntryPtr> XrdOssSimulated::getEntryWrite(const char *path)
+std::optional<XrdOssMirageEntryPtr> XrdOssMirage::getEntryWrite(const char *path)
 {
     const std::lock_guard lock(mutex);
 
@@ -150,12 +150,12 @@ std::optional<XrdOssSimulatedEntryPtr> XrdOssSimulated::getEntryWrite(const char
     return entries[path];    
 }
 
-bool XrdOssSimulated::hasEntry(const char *path)
+bool XrdOssMirage::hasEntry(const char *path)
 {
     return entries.contains(path);
 }
 
-bool XrdOssSimulated::isEntryBeingWritten(const char *path)
+bool XrdOssMirage::isEntryBeingWritten(const char *path)
 {
     return entries[path].use_count() > 1;
 }

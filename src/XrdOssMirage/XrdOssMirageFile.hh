@@ -1,21 +1,21 @@
-#ifndef __XRD_OSS_SIMULATED_FILE_HH__
-#define __XRD_OSS_SIMULATED_FILE_HH__
+#ifndef __XRD_OSS_MIRAGE_FILE_HH__
+#define __XRD_OSS_MIRAGE_FILE_HH__
 
-#include "XrdOssSimulated.hh"
+#include "XrdOssMirage.hh"
 
 #include <XrdOss/XrdOss.hh>
 
 #include <variant>
 
-class XrdOssSimulatedFile : public XrdOssDF {
+class XrdOssMirageFile : public XrdOssDF {
 private:
-    XrdOssSimulated &oss;
-    std::variant<XrdOssSimulatedEntry, XrdOssSimulatedEntryPtr> entry_storage;
-    XrdOssSimulatedEntry *entry;
+    XrdOssMirage &oss;
+    std::variant<XrdOssMirageEntry, XrdOssMirageEntryPtr> entry_storage;
+    XrdOssMirageEntry *entry;
 
 public:
-    XrdOssSimulatedFile(XrdOssSimulated &oss);
-    virtual ~XrdOssSimulatedFile() = default;
+    XrdOssMirageFile(XrdOssMirage &oss);
+    virtual ~XrdOssMirageFile() = default;
 
     virtual int     StatRet(struct stat *buff) override;
     virtual int     Clone(XrdOssDF& srcFile) override;

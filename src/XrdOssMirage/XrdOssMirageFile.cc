@@ -1,4 +1,4 @@
-#include "XrdOssSimulatedFile.hh"
+#include "XrdOssMirageFile.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysXAttr.hh"
 #include "XrdSys/XrdSysFAttr.hh"
@@ -9,55 +9,55 @@
 #include <mutex>
 #include <span>
 
-XrdOssSimulatedFile::XrdOssSimulatedFile(XrdOssSimulated &oss) :
+XrdOssMirageFile::XrdOssMirageFile(XrdOssMirage &oss) :
     oss(oss),
-    entry(&std::get<XrdOssSimulatedEntry>(entry_storage))
+    entry(&std::get<XrdOssMirageEntry>(entry_storage))
 {
 }
 
-int XrdOssSimulatedFile::StatRet(struct stat *buff)
+int XrdOssMirageFile::StatRet(struct stat *buff)
 {
     return -ENOTDIR;
 }
 
-int XrdOssSimulatedFile::Clone(XrdOssDF& srcFile)
+int XrdOssMirageFile::Clone(XrdOssDF& srcFile)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulatedFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
+int XrdOssMirageFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulatedFile::Fchmod(mode_t mode)
+int XrdOssMirageFile::Fchmod(mode_t mode)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulatedFile::Fstat(struct stat *buf)
+int XrdOssMirageFile::Fstat(struct stat *buf)
 {
     buf->st_size = entry->size;
     return XrdOssOK;
 }
 
-int XrdOssSimulatedFile::Fsync()
+int XrdOssMirageFile::Fsync()
 {
     return XrdOssOK;
 }
 
-int XrdOssSimulatedFile::Fsync(XrdSfsAio *aiop)
+int XrdOssMirageFile::Fsync(XrdSfsAio *aiop)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulatedFile::Ftruncate(unsigned long long flen)
+int XrdOssMirageFile::Ftruncate(unsigned long long flen)
 {
     entry->size = flen;
     return XrdOssOK;
 }
 
-int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env)
+int XrdOssMirageFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env)
 {
     if ((Oflag & O_ACCMODE) == O_RDONLY)
     {
@@ -66,7 +66,7 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
             return -ENOENT;
 
         entry_storage = opt.value();
-        entry = &std::get<XrdOssSimulatedEntry>(entry_storage);
+        entry = &std::get<XrdOssMirageEntry>(entry_storage);
     }
     else
     {
@@ -75,7 +75,7 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
             return -ENOENT;
 
         entry_storage = opt.value();
-        entry = &*std::get<XrdOssSimulatedEntryPtr>(entry_storage);
+        entry = &*std::get<XrdOssMirageEntryPtr>(entry_storage);
     }
 
     if (entry->open.return_code != XrdOssOK)
@@ -84,32 +84,32 @@ int XrdOssSimulatedFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEn
     return XrdOssOK;
 }
 
-ssize_t XrdOssSimulatedFile::pgRead (void* buffer, off_t offset, size_t rdlen, uint32_t* csvec, uint64_t opts)
+ssize_t XrdOssMirageFile::pgRead (void* buffer, off_t offset, size_t rdlen, uint32_t* csvec, uint64_t opts)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulatedFile::pgRead (XrdSfsAio* aioparm, uint64_t opts)
+int XrdOssMirageFile::pgRead (XrdSfsAio* aioparm, uint64_t opts)
 {
     return -ENOTSUP;
 }
 
-ssize_t XrdOssSimulatedFile::pgWrite(void* buffer, off_t offset, size_t wrlen, uint32_t* csvec, uint64_t opts)
+ssize_t XrdOssMirageFile::pgWrite(void* buffer, off_t offset, size_t wrlen, uint32_t* csvec, uint64_t opts)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulatedFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
+int XrdOssMirageFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
 {
     return -ENOTSUP;
 }
 
-ssize_t XrdOssSimulatedFile::Read(off_t offset, size_t size)
+ssize_t XrdOssMirageFile::Read(off_t offset, size_t size)
 {
     return XrdOssOK;
 }
 
-ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
+ssize_t XrdOssMirageFile::Read(void *buffer, off_t offset, size_t size)
 {
     if (entry->read.return_code != XrdOssOK && 
         entry->read.return_position >= static_cast<std::size_t>(offset) && 
@@ -131,17 +131,17 @@ ssize_t XrdOssSimulatedFile::Read(void *buffer, off_t offset, size_t size)
     return num_bytes;
 }
 
-int XrdOssSimulatedFile::Read(XrdSfsAio *aiop)
+int XrdOssMirageFile::Read(XrdSfsAio *aiop)
 {
     return -ENOTSUP;
 }
 
-ssize_t XrdOssSimulatedFile::ReadRaw(void *buffer, off_t offset, size_t size)
+ssize_t XrdOssMirageFile::ReadRaw(void *buffer, off_t offset, size_t size)
 {
     return Read(buffer, offset, size);
 }
 
-ssize_t XrdOssSimulatedFile::Write(const void *buffer, off_t offset, size_t size)
+ssize_t XrdOssMirageFile::Write(const void *buffer, off_t offset, size_t size)
 {
     if (entry->write.return_code != XrdOssOK && 
         entry->write.return_position >= static_cast<std::size_t>(offset) && 
@@ -152,14 +152,14 @@ ssize_t XrdOssSimulatedFile::Write(const void *buffer, off_t offset, size_t size
     return size;
 }
 
-int XrdOssSimulatedFile::Write(XrdSfsAio *aiop)
+int XrdOssMirageFile::Write(XrdSfsAio *aiop)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulatedFile::Close(long long *retsz)
+int XrdOssMirageFile::Close(long long *retsz)
 {
-    if (std::holds_alternative<XrdOssSimulatedEntryPtr>(entry_storage))
-        std::get<XrdOssSimulatedEntryPtr>(entry_storage).reset();
+    if (std::holds_alternative<XrdOssMirageEntryPtr>(entry_storage))
+        std::get<XrdOssMirageEntryPtr>(entry_storage).reset();
     return XrdOssOK;
 }

@@ -1,24 +1,24 @@
-#ifndef __XRD_OSS_SIMULATED_HH__
-#define __XRD_OSS_SIMULATED_HH__
+#ifndef __XRD_OSS_MIRAGE_HH__
+#define __XRD_OSS_MIRAGE_HH__
 
-#include "XrdOssSimulatedEntry.hh"
+#include "XrdOssMirageEntry.hh"
 
 #include <XrdOss/XrdOss.hh>
 
 #include <optional>
 #include <unordered_map>
 
-class XrdOssSimulated : public XrdOss {
+class XrdOssMirage : public XrdOss {
 private:
-    std::unordered_map<std::string, XrdOssSimulatedEntryPtr> entries;
+    std::unordered_map<std::string, XrdOssMirageEntryPtr> entries;
     std::mutex mutex;
 
     bool hasEntry(const char *path);
     bool isEntryBeingWritten(const char *path);
 
 public:
-    XrdOssSimulated() = default;
-    virtual ~XrdOssSimulated() = default;
+    XrdOssMirage() = default;
+    virtual ~XrdOssMirage() = default;
 
     virtual XrdOssDF *newDir(const char *tident) override;
     virtual XrdOssDF *newFile(const char *tident) override;
@@ -33,8 +33,8 @@ public:
     virtual int       Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP=0) override;
     virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *envP=0) override;
 
-    std::optional<XrdOssSimulatedEntry>     getEntryRead(const char *path);
-    std::optional<XrdOssSimulatedEntryPtr>  getEntryWrite(const char *path);
+    std::optional<XrdOssMirageEntry>     getEntryRead(const char *path);
+    std::optional<XrdOssMirageEntryPtr>  getEntryWrite(const char *path);
 };
 
 #endif

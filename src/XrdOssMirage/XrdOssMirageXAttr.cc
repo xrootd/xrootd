@@ -1,4 +1,4 @@
-#include "XrdOssSimulatedXAttr.hh"
+#include "XrdOssMirageXAttr.hh"
 #include "XrdVersion.hh"
 
 #include <algorithm>
@@ -7,26 +7,26 @@
 
 using namespace std::literals;
 
-XrdVERSIONINFO(XrdSysGetXAttrObject, XrdOssSimulatedXAttr);
+XrdVERSIONINFO(XrdSysGetXAttrObject, XrdOssMirageXAttr);
 
 extern "C"
 {
     XrdSysXAttr* XrdSysGetXAttrObject(XrdSysError  *errP, const char   *config_fn, const char   *parms)
     {
-        return new XrdOssSimulatedXAttr();
+        return new XrdOssMirageXAttr();
     }
 }
 
-int XrdOssSimulatedXAttr::Del(const char *Aname, const char *Path, int fd)
+int XrdOssMirageXAttr::Del(const char *Aname, const char *Path, int fd)
 {
     return -ENOTSUP;
 }
 
-void XrdOssSimulatedXAttr::Free(AList *aPL)
+void XrdOssMirageXAttr::Free(AList *aPL)
 {
 }
 
-int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *Path, int fd)
+int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *Path, int fd)
 {
     if (this->oss == nullptr)
         return -ENOTSUP;
@@ -66,12 +66,12 @@ int XrdOssSimulatedXAttr::Get(const char *Aname, void *Aval, int Avsz, const cha
     return num_bytes;
 }
 
-int XrdOssSimulatedXAttr::List(AList **aPL, const char *Path, int fd, int getSz)
+int XrdOssMirageXAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 {
     return -ENOTSUP;
 }
 
-int XrdOssSimulatedXAttr::Set(const char *Aname, const void *Aval, int Avsz, const char *Path,  int fd,  int isNew)
+int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const char *Path,  int fd,  int isNew)
 {
     if (this->oss == nullptr)
         return -ENOTSUP;
@@ -110,7 +110,7 @@ int XrdOssSimulatedXAttr::Set(const char *Aname, const void *Aval, int Avsz, con
     return 0;
 }
 
-void XrdOssSimulatedXAttr::setOss(XrdOssSimulated &oss)
+void XrdOssMirageXAttr::setOss(XrdOssMirage &oss)
 {
     if (this->oss == nullptr)
         this->oss = &oss;

@@ -8,9 +8,9 @@
             "program": "${workspaceFolder}/build/bin/xrootd",
             "args": [
                 "-c",
-                "${workspaceFolder}/tests/XRootD/simulated.cfg",
+                "${workspaceFolder}/tests/XRootD/mirage.cfg",
                 "-n",
-                "simulated"
+                "mirage"
             ],
             "stopAtEntry": false,
             "cwd": "/tmp",
