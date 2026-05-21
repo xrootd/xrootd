@@ -31,6 +31,7 @@
 #include <cstdio>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <sys/time.h>
 #include <vector>
@@ -74,6 +75,8 @@
 #include "XrdXrootd/XrdXrootdXeq.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
+#include "XrdCrypto/XrdCryptoLite_BFecb.hh"
+
 #include "XrdVersion.hh"
 
 #ifndef ENODATA
@@ -90,6 +93,12 @@
 
 extern XrdSysTrace  XrdXrootdTrace;
 
+namespace XrdXrootd
+{
+extern XrdCryptoLite_BFecb* bfEcb1;
+extern XrdCryptoLite_BFecb* bfEcb2;
+}
+
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */
 /******************************************************************************/
@@ -99,6 +108,18 @@ struct XrdXrootdSessID
                  int       Pid;
                  int       FD;
         unsigned int       Inst;
+
+        void Mask() {unsigned char buff[sizeof(int)*4];
+                     XrdXrootd::bfEcb1->Apply((unsigned char*)&Sid, buff);
+                     XrdXrootd::bfEcb2->Apply((unsigned char*)&FD,  buff+8);
+                     memcpy((void*)&Sid, (const void*)buff, sizeof(int)*4);
+                    }
+
+        void UnMask() {unsigned char buff[sizeof(int)*4];
+                       XrdXrootd::bfEcb1->Apply((unsigned char*)&Sid,buff,  false);
+                       XrdXrootd::bfEcb2->Apply((unsigned char*)&FD, buff+8,false);
+                       memcpy((void*)&Sid, (const void*)buff, sizeof(int)*4);
+                      }
 
         XrdXrootdSessID() {}
        ~XrdXrootdSessID() {}
@@ -264,6 +285,7 @@ int XrdXrootdProtocol::do_Bind()
 
 // Find the link we are to bind to
 //
+   sp->UnMask();
    if (sp->FD <= 0 || !(lp = XrdLinkCtl::fd2link(sp->FD, sp->Inst)))
       return Response.Send(kXR_NotFound, "session not found");
 
@@ -907,9 +929,11 @@ int XrdXrootdProtocol::do_Endsess()
 // Extract out the FD and Instance from the session ID
 //
    sp = (XrdXrootdSessID *)Request.endsess.sessid;
+   memcpy((void *)&sessID.Sid,  &sp->Pid,  sizeof(sessID.Sid));
    memcpy((void *)&sessID.Pid,  &sp->Pid,  sizeof(sessID.Pid));
    memcpy((void *)&sessID.FD,   &sp->FD,   sizeof(sessID.FD));
    memcpy((void *)&sessID.Inst, &sp->Inst, sizeof(sessID.Inst));
+   sessID.UnMask();
 
 // Trace this request
 //
@@ -1083,6 +1107,7 @@ int XrdXrootdProtocol::do_Login()
        sessID.Pid  = myPID;
        mySID = getSID();
        sessID.Sid  = mySID;
+       sessID.Mask();
        sendSID = 1;
        if (!clientPV)
           {        if (i >= kXR_ver004) clientPV = (int)0x0310;

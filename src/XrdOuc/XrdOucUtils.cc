@@ -36,6 +36,7 @@
 #include <unordered_set>
 #include <algorithm>
 #include <charconv>
+#include <random>
 
 #include <regex.h>
 
@@ -71,7 +72,7 @@
 /******************************************************************************/
 /*                         L o c a l   M e t h o d s                          */
 /******************************************************************************/
-  
+
 namespace
 {
 struct idInfo
@@ -158,11 +159,11 @@ for (j = 0; j < argC; j++)
    argV[j] = 0;
    return j;
 }
-  
+
 /******************************************************************************/
 /*                               b i n 2 h e x                                */
 /******************************************************************************/
-  
+
 char *XrdOucUtils::bin2hex(char *inbuff, int dlen, char *buff, int blen,
                            bool sep)
 {
@@ -227,7 +228,7 @@ int XrdOucUtils::hex2bin(const char *hex, char *bin, int size)
 /******************************************************************************/
 /*                              e n d s W i t h                               */
 /******************************************************************************/
-  
+
 bool XrdOucUtils::endsWith(const char *text, const char *ending, int endlen)
 {
    int tlen = strlen(text);
@@ -238,7 +239,7 @@ bool XrdOucUtils::endsWith(const char *text, const char *ending, int endlen)
 /******************************************************************************/
 /*                                 e T e x t                                  */
 /******************************************************************************/
-  
+
 // eText() returns the text associated with the error.
 // The text buffer pointer is returned.
 
@@ -262,18 +263,18 @@ char *XrdOucUtils::eText(int rc, char *eBuff, int eBlen)
 /******************************************************************************/
 /*                                  d o I f                                   */
 /******************************************************************************/
-  
+
 // doIf() parses "if [<hostlist>] [<conds>]"
 // conds: <cond1> | <cond2> | <cond3>
 // cond1: defined <varlist> [&& <conds>]
 // cond2: exec <pgmlist> [&& <cond3>]
 // cond3: named <namelist>
 
-// Returning 1 if true (i.e., this machine is one of the named hosts in hostlist 
-// and is running one of the programs pgmlist and named by one of the names in 
+// Returning 1 if true (i.e., this machine is one of the named hosts in hostlist
+// and is running one of the programs pgmlist and named by one of the names in
 // namelist).
 // Return -1 (negative truth) if an error occurred.
-// Otherwise, returns false (0). Some combination of hostlist, pgm, and 
+// Otherwise, returns false (0). Some combination of hostlist, pgm, and
 // namelist, must be specified.
 
 int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
@@ -430,11 +431,11 @@ bool XrdOucUtils::findPgm(const char *pgm, XrdOucString& path)
         }
    return false;
 }
-  
+
 /******************************************************************************/
 /*                              f m t B y t e s                               */
 /******************************************************************************/
-  
+
 int XrdOucUtils::fmtBytes(long long val, char *buff, int bsz)
 {
    static const long long Kval = 1024LL;
@@ -502,7 +503,7 @@ std::string XrdOucUtils::genHumanSize(size_t size, uint64_t base) {
 /*                               g e n P a t h                                */
 /******************************************************************************/
 
-char *XrdOucUtils::genPath(const char *p_path, const char *inst, 
+char *XrdOucUtils::genPath(const char *p_path, const char *inst,
                            const char *s_path)
 {
    char buff[2048];
@@ -519,7 +520,7 @@ char *XrdOucUtils::genPath(const char *p_path, const char *inst,
 }
 
 /******************************************************************************/
-  
+
 int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psfx)
 {
     int i, j;
@@ -597,7 +598,7 @@ char *XrdOucUtils::getFile(const char *path, int &rc, int maxsz, bool notempty)
 /******************************************************************************/
 /*                                g e t G I D                                 */
 /******************************************************************************/
-  
+
 bool XrdOucUtils::getGID(const char *gName, gid_t &gID)
 {
    struct group Grp, *result;
@@ -613,7 +614,7 @@ bool XrdOucUtils::getGID(const char *gName, gid_t &gID)
 /******************************************************************************/
 /*                                g e t U I D                                 */
 /******************************************************************************/
-  
+
 bool XrdOucUtils::getUID(const char *uName, uid_t &uID, gid_t *gID)
 {
    struct passwd pwd, *result;
@@ -627,11 +628,11 @@ bool XrdOucUtils::getUID(const char *uName, uid_t &uID, gid_t *gID)
 
    return true;
 }
-  
+
 /******************************************************************************/
 /*                               G i d N a m e                                */
 /******************************************************************************/
-  
+
 int XrdOucUtils::GidName(gid_t gID, char *gName, int gNsz, time_t keepT)
 {
    static const int maxgBsz = 256*1024;
@@ -680,7 +681,7 @@ int XrdOucUtils::GidName(gid_t gID, char *gName, int gNsz, time_t keepT)
 /******************************************************************************/
 /*                             G r o u p N a m e                              */
 /******************************************************************************/
-  
+
 int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
 {
    static const int maxgBsz = 256*1024;
@@ -744,7 +745,7 @@ do{dBytes /= 1024.0; suffix++;
       else snprintf(buff, bsz, "%g%c", whole, *suffix);
    return buff;
 }
-  
+
 /******************************************************************************/
 /*                                i 2 b s t r                                 */
 /******************************************************************************/
@@ -766,7 +767,7 @@ const char *XrdOucUtils::i2bstr(char *buff, int blen, int val, bool pad)
 
    return &buff[blen+1];
 }
-  
+
 /******************************************************************************/
 /*                                 I d e n t                                  */
 /******************************************************************************/
@@ -843,11 +844,11 @@ char *XrdOucUtils::Ident(long long  &mySID, char *iBuff, int iBlen,
    h2nll(theSID, mySID);
    return strdup(theSIN);
 }
-  
+
 /******************************************************************************/
 /*                              I n s t N a m e                               */
 /******************************************************************************/
-  
+
 const char *XrdOucUtils::InstName(int TranOpt)
 {
    const char *iName = getenv("XRDNAME");
@@ -864,16 +865,16 @@ const char *XrdOucUtils::InstName(int TranOpt)
    return iName;
 }
 /******************************************************************************/
-  
+
 const char *XrdOucUtils::InstName(const char *name, int Fillit)
 { return (Fillit ? name && *name                        ? name : "anon"
                  : name && strcmp(name,"anon") && *name ? name :     0);
 }
-  
+
 /******************************************************************************/
 /*                                 i s 1 o f                                  */
 /******************************************************************************/
-  
+
 int XrdOucUtils::is1of(char *val, const char **clist)
 {
    int i = 0;
@@ -885,7 +886,7 @@ int XrdOucUtils::is1of(char *val, const char **clist)
 /******************************************************************************/
 /*                                 i s F W D                                  */
 /******************************************************************************/
-  
+
 int XrdOucUtils::isFWD(const char *path, int *port, char *hBuff, int hBLen,
                        bool pTrim)
 {
@@ -920,7 +921,7 @@ int XrdOucUtils::isFWD(const char *path, int *port, char *hBuff, int hBLen,
 
    return hPend-path;
 }
-  
+
 /******************************************************************************/
 /*                                  L o g 2                                   */
 /******************************************************************************/
@@ -944,7 +945,7 @@ int XrdOucUtils::Log2(unsigned long long n)
 
   #undef SHFT
 }
-  
+
 /******************************************************************************/
 /*                                 L o g 1 0                                  */
 /******************************************************************************/
@@ -955,17 +956,17 @@ int XrdOucUtils::Log10(unsigned long long n)
 
   #define SHFT(k, m) if (n >= m) { i += k; n /= m; }
 
-  SHFT(16,10000000000000000ULL); SHFT(8,100000000ULL); 
+  SHFT(16,10000000000000000ULL); SHFT(8,100000000ULL);
   SHFT(4,10000ULL);              SHFT(2,100ULL);       SHFT(1,10ULL);
   return i;
 
   #undef SHFT
 }
-  
+
 /******************************************************************************/
 /*                              m a k e H o m e                               */
 /******************************************************************************/
-  
+
 void XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst)
 {
    char buff[2048];
@@ -983,7 +984,7 @@ void XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst)
 }
 
 /******************************************************************************/
-  
+
 bool XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst,
                                                const char *path, mode_t mode)
 {
@@ -1032,7 +1033,7 @@ bool XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst,
 /******************************************************************************/
 /*                              m a k e P a t h                               */
 /******************************************************************************/
-  
+
 int XrdOucUtils::makePath(char *path, mode_t mode, bool reset)
 {
     char *next_path = path+1;
@@ -1059,7 +1060,7 @@ int XrdOucUtils::makePath(char *path, mode_t mode, bool reset)
 //
    return 0;
 }
- 
+
 /******************************************************************************/
 /*                             m o d e 2 m a s k                              */
 /******************************************************************************/
@@ -1090,9 +1091,9 @@ bool XrdOucUtils::mode2mask(const char *mode, mode_t &mask)
            {mlet = *mode++;
             if (mlet != '-')
                {if (mlet != mok[i]) return false;
-                mval[k] |= mbit[i]; 
+                mval[k] |= mbit[i];
                }
-           } 
+           }
        } while(++k < 3 && *mode);
 
 // Combine the modes and return success
@@ -1100,11 +1101,11 @@ bool XrdOucUtils::mode2mask(const char *mode, mode_t &mask)
    mask = mval[0]<<6 | mval[1]<<3 | mval[2];
    return true;
 }
-  
+
 /******************************************************************************/
 /*                              p a r s e L i b                               */
 /******************************************************************************/
-  
+
 bool XrdOucUtils::parseLib(XrdSysError &eDest, XrdOucStream &Config,
                            const char *libName, char *&libPath, char **libParm)
 {
@@ -1154,7 +1155,7 @@ bool XrdOucUtils::parseLib(XrdSysError &eDest, XrdOucStream &Config,
 /******************************************************************************/
 /*                             p a r s e H o m e                              */
 /******************************************************************************/
-  
+
 char *XrdOucUtils::parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode)
 {
    char *pval, *val, *HomePath = 0;
@@ -1185,6 +1186,22 @@ char *XrdOucUtils::parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode
                }
       }
    return HomePath;
+}
+/******************************************************************************/
+/*                                R a n d o m                                 */
+/******************************************************************************/
+
+void XrdOucUtils::Random(unsigned char* buff, unsigned int inblen)
+{
+   std::random_device rd;
+   std::mt19937 gen(rd());
+   std::uniform_int_distribution<unsigned short> dist(0, 255); // Byte distrib
+
+   // The following is the most portable way of getting random byte values
+   //
+   std::generate(buff, buff + inblen, [&]() {
+        return static_cast<unsigned char>(dist(gen));
+        });
 }
 
 /******************************************************************************/
@@ -1236,7 +1253,7 @@ void XrdOucUtils::Sanitize(char *str, char subc)
 /******************************************************************************/
 /*                              s u b L o g f n                               */
 /******************************************************************************/
-  
+
 char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 {
    const mode_t lfm = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH;
@@ -1273,7 +1290,7 @@ void XrdOucUtils::toLower(char *str)
 //
    while(*ustr) {*ustr = tolower(*ustr); ustr++;}
 }
-  
+
 /******************************************************************************/
 /*                                 T o k e n                                  */
 /******************************************************************************/
@@ -1391,11 +1408,11 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog, int *pipeFD)
   for (myfd = 3; myfd < maxFiles; myfd++)
       if( (!pipeFD || myfd != pipeFD[1]) && myfd != logFD ) close(myfd);
 }
-  
+
 /******************************************************************************/
 /*                               U i d N a m e                                */
 /******************************************************************************/
-  
+
 int XrdOucUtils::UidName(uid_t uID, char *uName, int uNsz, time_t keepT)
 {
    struct passwd *pEnt, pStruct;
@@ -1434,7 +1451,7 @@ int XrdOucUtils::UidName(uid_t uID, char *uName, int uNsz, time_t keepT)
 /******************************************************************************/
 /*                              U s e r N a m e                               */
 /******************************************************************************/
-  
+
 int XrdOucUtils::UserName(uid_t uID, char *uName, int uNsz)
 {
    struct passwd *pEnt, pStruct;
@@ -1487,11 +1504,11 @@ const char *XrdOucUtils::ValPath(const char *path, mode_t allow, bool isdir)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                               P i d F i l e                                */
 /******************************************************************************/
-  
+
 bool XrdOucUtils::PidFile(XrdSysError &eDest, const char *path)
 {
    char buff[32];
