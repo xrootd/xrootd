@@ -48,7 +48,7 @@ int XrdOssMirage::Create(const char *tid, const char *path, mode_t mode, XrdOucE
     entries.try_emplace(path, std::make_shared<XrdOssMirageEntry>());
     entries[path]->size = 0;
 
-    XrdOssMirageXAttr * const xattr = static_cast<XrdOssMirageXAttr*>(XrdSysFAttr::Xat);
+    XrdOssMirageXAttr * const xattr = dynamic_cast<XrdOssMirageXAttr*>(XrdSysFAttr::Xat);
     if (xattr != nullptr)
         xattr->setOss(*this);
 
