@@ -81,9 +81,6 @@ int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *
     else
         return -EINVAL;
 
-    if (value.empty())
-        return -EINVAL;
-
     const std::span output(static_cast<char *>(Aval), Avsz);
 
     const int num_bytes = std::min(output.size(), value.size());
