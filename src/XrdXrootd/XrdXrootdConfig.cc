@@ -83,6 +83,8 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 
+#include "XrdCrypto/XrdCryptoLite_BFecb.hh"
+
 /******************************************************************************/
 /*         P r o t o c o l   C o m m a n d   L i n e   O p t i o n s          */
 /******************************************************************************/
@@ -145,6 +147,8 @@ namespace XrdXrootd
 extern XrdBuffManager       *BPool;
 extern XrdScheduler         *Sched;
 extern XrdXrootdStats       *SI;
+       XrdCryptoLite_BFecb*  bfEcb1;
+       XrdCryptoLite_BFecb*  bfEcb2;
 }
 
 /******************************************************************************/
@@ -535,6 +539,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                                      "not a forwarding proxy.");
           }
       }
+
+// Create the blowfish objects to be used to mask/unmask the session ID
+//
+   {struct {unsigned char key1[16]; unsigned char key2[164];} bf;
+    XrdOucUtils::Random((unsigned char*)&bf, sizeof(bf));
+    XrdXrootd::bfEcb1 = new XrdCryptoLite_BFecb(bf.key1, sizeof(bf.key1));
+    XrdXrootd::bfEcb2 = new XrdCryptoLite_BFecb(bf.key2, sizeof(bf.key2));
+   }
 
 // Add any additional features
 //
