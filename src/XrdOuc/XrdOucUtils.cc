@@ -1193,9 +1193,11 @@ char *XrdOucUtils::parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode
 
 void XrdOucUtils::Random(unsigned char* buff, unsigned int inblen)
 {
-   std::random_device rd;
-   std::mt19937 gen(rd());
-   std::uniform_int_distribution<unsigned short> dist(0, 255); // Byte distrib
+   static XrdSysMutex randMutex;
+          XrdSysMutexHelper randMHelp(randMutex);
+   static std::random_device rd;
+   static std::mt19937 gen(rd());
+   static std::uniform_int_distribution<unsigned short> dist(0, 255); // Bytes
 
    // The following is the most portable way of getting random byte values
    //

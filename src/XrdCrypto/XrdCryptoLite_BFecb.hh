@@ -56,15 +56,22 @@ public:
      ~XrdCryptoLite_BFecb();
 
 //-----------------------------------------------------------------------------
-//! Decrypt or encrypt exactly one blowfish block of 8 bytes (64 bits)
+//! Decrypt exactly one blowfish block of 8 bytes (64 bits)
+//!
+//! @param  in8     Pointer to exactly 8 bytes of data to be decrypted.
+//! @param  out8    Pointer to a 8 bytes or more buffer to hold the result.
+//-----------------------------------------------------------------------------
+
+void Decrypt(const unsigned char* in8, unsigned char* out8);
+
+//-----------------------------------------------------------------------------
+//! Encrypt exactly one blowfish block of 8 bytes (64 bits)
 //!
 //! @param  in8     Pointer to exactly 8 bytes of data to be encrypted.
 //! @param  out8    Pointer to a 8 bytes or more buffer to hold the result.
-//! @param  encrypt If true the encrypted result of in8 is placed in out8.
-//!                 Otherwise, the decrypted result of in8 is placed in out8.
 //-----------------------------------------------------------------------------
 
-void Apply(const unsigned char* in8, unsigned char* out8, bool encrypt=true);
+void Encrypt(const unsigned char* in8, unsigned char* out8);
 
 private:
 BF_KEY* bfKey;
