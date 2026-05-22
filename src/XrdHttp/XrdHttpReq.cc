@@ -552,6 +552,21 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   char buf[512];
   char hash[512];
   hash[0] = '\0';
+
+  bool invalid_host = false;
+
+  if (!hname) {
+    invalid_host = true;
+  } else {
+    for (const char *c = hname; *c; ++c)
+      if (*c == '\r' || *c == '\n')
+        invalid_host = true;
+  }
+
+  if (invalid_host) {
+    prot->SendSimpleResp(502, nullptr, nullptr, "Invalid redirect host", 0, false);
+    return keepalive;
+  }
   
   if (prot->isdesthttps)
     redirdest = "Location: https://";
