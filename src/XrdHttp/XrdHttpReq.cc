@@ -989,7 +989,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                   if (s.endswith('/'))
                     s.erasefromend(1);
 
-                  s.append(resource);
+                  s.append(encode_str(std::string(resource.c_str())).c_str());
                   appendOpaque(s, 0, 0, 0);
 
                   prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0, false);
@@ -1102,7 +1102,7 @@ int XrdHttpReq::ProcessHTTPReq() {
               if (s.endswith('/'))
                 s.erasefromend(1);
 
-              s.append(resource);
+              s.append(encode_str(std::string(resource.c_str())).c_str());
               appendOpaque(s, 0, 0, 0);
 
               prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0, false);
