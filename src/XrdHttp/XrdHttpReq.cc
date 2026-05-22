@@ -2449,7 +2449,6 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
               if (e.flags & kXR_xset) {
                 stringresp += "<lp1:executable>T</lp1:executable>\n";
-                stringresp += "<lp1:iscollection>1</lp1:iscollection>\n";
               } else {
                 stringresp += "<lp1:executable>F</lp1:executable>\n";
               }
