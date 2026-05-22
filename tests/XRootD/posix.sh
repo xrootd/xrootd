@@ -15,11 +15,11 @@ function test_posix() {
 	# Make sure all symbols are actually resolved correctly
 	MISSING_SYMBOLS=$(env XRDPOSIX_REPORT=1 xrdposix-cat /dev/null 2>&1)
 
-        if grep -q 'Unable to resolve' <<< "${MISSING_SYMBOLS}"; then
-                echo "XrdPosix cannot resolve some symbols:"
-                echo "${MISSING_SYMBOLS}"
-                exit 1
-        fi
+	if grep -q 'Unable to resolve' <<< "${MISSING_SYMBOLS}"; then
+		echo "XrdPosix cannot resolve some symbols:"
+		echo "${MISSING_SYMBOLS}"
+		exit 1
+	fi
 
 	# Check that cat with the local files still works
 
