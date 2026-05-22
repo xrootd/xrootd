@@ -1348,7 +1348,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             if (found_newline) {
               char *endptr = NULL;
               std::string line_contents(prot->myBuffStart, idx);
-              long long chunk_contents = strtol(line_contents.c_str(), &endptr, 16);
+              long long chunk_contents = strtoll(line_contents.c_str(), &endptr, 16);
                 // Chunk sizes can be followed by trailer information or CRLF
               if (*endptr != ';' && *endptr != '\r') {
                 prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
