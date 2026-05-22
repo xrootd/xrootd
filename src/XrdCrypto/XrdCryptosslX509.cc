@@ -120,6 +120,7 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
    // Read the content:
    if (!PEM_read_X509(fc, &cert, 0, 0)) {
       DEBUG("Unable to load certificate from file");
+      fclose(fc);
       return;
    } else {
       DEBUG("certificate successfully loaded");
