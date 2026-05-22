@@ -94,15 +94,22 @@
 
 extern XrdSysTrace  XrdXrootdTrace;
 
-namespace XrdXrootd
-{
-extern XrdCryptoLite_BFecb* bfEcb1;
-extern XrdCryptoLite_BFecb* bfEcb2;
-}
-
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */
 /******************************************************************************/
+
+namespace
+{
+XrdCryptoLite_BFecb* get_BFecb()
+                        {unsigned char bfKey[16];
+                         XrdOucUtils::Random(bfKey, sizeof(bfKey));
+                         return new XrdCryptoLite_BFecb(bfKey, sizeof(bfKey));
+                        }
+
+XrdCryptoLite_BFecb* bfEcb1 = get_BFecb();
+XrdCryptoLite_BFecb* bfEcb2 = get_BFecb();
+}
+
 
 struct XrdXrootdSessID
        {unsigned int       Sid;
@@ -111,14 +118,14 @@ struct XrdXrootdSessID
         unsigned int       Inst;
 
         void Mask() {unsigned char buff[sizeof(int)*4];
-                     XrdXrootd::bfEcb1->Apply((unsigned char*)&Sid, buff);
-                     XrdXrootd::bfEcb2->Apply((unsigned char*)&FD,  buff+8);
+                     bfEcb1->Encrypt((unsigned char*)&Sid, buff);
+                     bfEcb2->Encrypt((unsigned char*)&FD,  buff+8);
                      memcpy((void*)&Sid, (const void*)buff, sizeof(int)*4);
                     }
 
         void UnMask() {unsigned char buff[sizeof(int)*4];
-                       XrdXrootd::bfEcb1->Apply((unsigned char*)&Sid,buff,  false);
-                       XrdXrootd::bfEcb2->Apply((unsigned char*)&FD, buff+8,false);
+                       bfEcb1->Decrypt((unsigned char*)&Sid, buff);
+                       bfEcb2->Decrypt((unsigned char*)&FD, buff+8);
                        memcpy((void*)&Sid, (const void*)buff, sizeof(int)*4);
                       }
 
@@ -920,7 +927,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 
 int XrdXrootdProtocol::do_Endsess()
 {
-   XrdXrootdSessID *sp, sessID;
+   XrdXrootdSessID sessID;
    int rc;
 
 // Update misc stats count
@@ -929,11 +936,7 @@ int XrdXrootdProtocol::do_Endsess()
 
 // Extract out the FD and Instance from the session ID
 //
-   sp = (XrdXrootdSessID *)Request.endsess.sessid;
-   memcpy((void *)&sessID.Sid,  &sp->Pid,  sizeof(sessID.Sid));
-   memcpy((void *)&sessID.Pid,  &sp->Pid,  sizeof(sessID.Pid));
-   memcpy((void *)&sessID.FD,   &sp->FD,   sizeof(sessID.FD));
-   memcpy((void *)&sessID.Inst, &sp->Inst, sizeof(sessID.Inst));
+   memcpy((void*)&sessID, Request.endsess.sessid, sizeof(sessID));
    sessID.UnMask();
 
 // Trace this request

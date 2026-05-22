@@ -19,7 +19,7 @@ target_sources(XrdUtils PRIVATE
 
 add_library(XrdCryptoLite SHARED
   XrdCryptoLite.cc       XrdCryptoLite.hh
-  XrdCryptoLite_bfecb.cc XrdCryptoLite_bfecb.hh
+  XrdCryptoLite_BFecb.cc XrdCryptoLite_BFecb.hh
   XrdCryptoLite_bf32.cc
 )
 

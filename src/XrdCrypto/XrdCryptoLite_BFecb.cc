@@ -51,15 +51,25 @@ XrdCryptoLite_BFecb::XrdCryptoLite_BFecb(const unsigned char* key,
 XrdCryptoLite_BFecb::~XrdCryptoLite_BFecb() {delete bfKey;}
 
 /******************************************************************************/
-/*                                 A p p l y                                  */
+/*                               D e c r y p t                                */
 /******************************************************************************/
 
-void XrdCryptoLite_BFecb::Apply(const unsigned char* in8, unsigned char* out8,
-                                bool encrypt)
+void XrdCryptoLite_BFecb::Decrypt(const unsigned char* in8,
+                                        unsigned char* out8)
 {
-   int action = (encrypt ? BF_ENCRYPT : BF_DECRYPT);
-
 // Perform the action
 //
-   BF_ecb_encrypt(in8, out8, bfKey, action);
+   BF_ecb_encrypt(in8, out8, bfKey, BF_DECRYPT);
+}
+
+/******************************************************************************/
+/*                               E n c r y p t                                */
+/******************************************************************************/
+
+void XrdCryptoLite_BFecb::Encrypt(const unsigned char* in8,
+                                        unsigned char* out8)
+{
+// Perform the action
+//
+   BF_ecb_encrypt(in8, out8, bfKey, BF_ENCRYPT);
 }
