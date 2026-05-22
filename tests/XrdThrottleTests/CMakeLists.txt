@@ -14,7 +14,7 @@ target_link_libraries(XrdThrottleTestLib
 target_include_directories(XrdThrottleTestLib
   PUBLIC
     ${PROJECT_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/vendor/inih
+    ${PROJECT_SOURCE_DIR}/vendor/inih
 )
 
 # Create the test executable
@@ -32,9 +32,8 @@ target_link_libraries(xrdthrottle-unit-tests
 target_include_directories(xrdthrottle-unit-tests
   PRIVATE
     ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_SOURCE_DIR}/src/XrdSciTokens/vendor/inih
+    ${PROJECT_SOURCE_DIR}/vendor/inih
 )
 
 gtest_discover_tests(xrdthrottle-unit-tests
   PROPERTIES DISCOVERY_TIMEOUT 10)
-
