@@ -65,7 +65,7 @@ int  VOMSInit(const char *cfg);
 private:
 
 void FmtExtract(XrdOucString &out, XrdOucString in, const char *tag);
-void NameOneLine(X509_NAME *nm, XrdOucString &s);
+void NameOneLine(const X509_NAME *nm, XrdOucString &s);
 void FmtReplace(XrdSecEntity &ent);
 
 // These settings are configurable

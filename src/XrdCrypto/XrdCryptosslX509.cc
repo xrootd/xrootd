@@ -341,7 +341,11 @@ void XrdCryptosslX509::CertType()
   
    bool done = 0;
    // Check the extensions
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
    X509_EXTENSION *ext = 0;
+#else
+   const X509_EXTENSION *ext = 0;
+#endif
    int idx = -1;
 
    // For CAs we are looking for a "basicConstraints"
@@ -685,7 +689,11 @@ XrdCryptoX509data XrdCryptosslX509::GetExtension(const char *oid)
 
    // Loop to identify the one we would like
    int i = 0;
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
    X509_EXTENSION *wext = 0;
+#else
+   const X509_EXTENSION *wext = 0;
+#endif
    for (i = 0; i< numext; i++) {
       wext = X509_get_ext(cert, i);
       if (usenid) {
@@ -822,7 +830,11 @@ int XrdCryptosslX509::DumpExtensions(bool dumpunknown)
 
    rc = 1;
    // Go through the extensions
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
    X509_EXTENSION *xpiext = 0;
+#else
+   const X509_EXTENSION *xpiext = 0;
+#endif
    int npiext = X509_get_ext_count(xpi);
    PRINT("found "<<npiext<<" extensions ");
    int i = 0;
@@ -835,8 +847,8 @@ int XrdCryptosslX509::DumpExtensions(bool dumpunknown)
       PRINT(i << ": found extension '"<<s<<"', critical: " << crit);
       // Dump its content
       rc = 0;
-      const unsigned char *pp = (const unsigned char *) X509_EXTENSION_get_data(xpiext)->data;
-      long length = X509_EXTENSION_get_data(xpiext)->length;
+      const unsigned char *pp = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xpiext));
+      long length = ASN1_STRING_length(X509_EXTENSION_get_data(xpiext));
       int ret = FillUnknownExt(&pp, length, dumpunknown);
       PRINT("ret: " << ret);
    }
@@ -958,10 +970,10 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
             int i, printable = 1;
             opp = op;
             os = d2i_ASN1_OCTET_STRING(0, &opp, len + hl);
-            if (os && os->length > 0) {
-               opp = os->data;
+            if (os && ASN1_STRING_length(os) > 0) {
+               opp = ASN1_STRING_get0_data(os);
                /* testing whether the octet string is * printable */
-               for (i=0; i<os->length; i++) {
+               for (i=0; i < ASN1_STRING_length(os); i++) {
                   if (( (opp[i] < ' ') && (opp[i] != '\n') &&
                         (opp[i] != '\r') && (opp[i] != '\t')) || (opp[i] > '~')) {
                      printable = 0;
@@ -970,16 +982,16 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
                }
                if (printable) {
                   /* printable string */
-                  char *s = new char[os->length + 1];
-                  memcpy(s, opp, os->length);
-                  s[os->length] = 0;
-                  if (dump) PRINT("OBJS:" << s << " (len: "<<os->length<<")");
+                  char *s = new char[ASN1_STRING_length(os) + 1];
+                  memcpy(s, opp, ASN1_STRING_length(os));
+                  s[ASN1_STRING_length(os)] = 0;
+                  if (dump) PRINT("OBJS:" << s << " (len: " << ASN1_STRING_length(os) << ")");
                   delete [] s;
                } else {
                   /* print the normal dump */
                   if (!nl) PRINT("OBJS:");
                   BIO *mem = BIO_new(BIO_s_mem());
-                  if (BIO_dump_indent(mem, (const char *)opp, os->length, dump_indent) <= 0) {
+                  if (BIO_dump_indent(mem, (const char *)opp, ASN1_STRING_length(os), dump_indent) <= 0) {
                      if (dump) PRINT("ERROR:OBJS: problems dumping to BIO");
                      BIO_free(mem);                  
                      goto end;
@@ -1000,18 +1012,18 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
             bs = d2i_ASN1_INTEGER(0, &opp, len+hl);
             if (bs) {
                if (dump) PRINT("AINT:");
-               if (bs->type == V_ASN1_NEG_INTEGER)
+               if (ASN1_STRING_type(bs) == V_ASN1_NEG_INTEGER)
                   if (dump) PRINT("-");
                BIO *mem = BIO_new(BIO_s_mem());
-               for (i = 0; i < bs->length; i++) {
-                  if (BIO_printf(mem, "%02X", bs->data[i]) <= 0) {
+               for (i = 0; i < ASN1_STRING_length(bs); i++) {
+                  if (BIO_printf(mem, "%02X", ASN1_STRING_get0_data(bs)[i]) <= 0) {
                      if (dump) PRINT("ERROR:AINT: problems printf-ing to BIO");
                      BIO_free(mem); 
                      goto end;
                   }
                }
                if (dump) { BIO_PRINT(mem, "AINT:"); }
-               if (bs->length == 0) PRINT("00");
+               if (ASN1_STRING_length(bs) == 0) PRINT("00");
             } else {
                if (dump) PRINT("ERROR:AINT: BAD INTEGER");
             }
@@ -1024,18 +1036,18 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
             bs = d2i_ASN1_ENUMERATED(0, &opp, len+hl);
             if (bs) {
                if (dump) PRINT("AENU:");
-               if (bs->type == V_ASN1_NEG_ENUMERATED)
+               if (ASN1_STRING_type(bs) == V_ASN1_NEG_ENUMERATED)
                   if (dump) PRINT("-");
                BIO *mem = BIO_new(BIO_s_mem());
-               for (i = 0; i < bs->length; i++) {
-                  if (BIO_printf(mem, "%02X", bs->data[i]) <= 0) {
+               for (i = 0; i < ASN1_STRING_length(bs); i++) {
+                  if (BIO_printf(mem, "%02X", ASN1_STRING_get0_data(bs)[i]) <= 0) {
                      if (dump) PRINT("ERROR:AENU: problems printf-ing to BIO");
                      BIO_free(mem); 
                      goto end;
                   }
                }
                if (dump) { BIO_PRINT(mem, "AENU:"); }
-               if (bs->length == 0) PRINT("00");
+               if (ASN1_STRING_length(bs) == 0) PRINT("00");
             } else {
                if (dump) PRINT("ERROR:AENU: BAD ENUMERATED");
             }

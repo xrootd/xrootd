@@ -105,7 +105,7 @@ XrdCryptosslX509Crl::XrdCryptosslX509Crl(XrdCryptoX509 *cacert)
 
    // Bio for exporting the extension
    BIO *bext = BIO_new(BIO_s_mem());
-   ASN1_OBJECT *obj = X509_EXTENSION_get_object(crlext);
+   const ASN1_OBJECT *obj = X509_EXTENSION_get_object(crlext);
    i2a_ASN1_OBJECT(bext, obj);
    X509V3_EXT_print(bext, crlext, 0, 4);
    // data length
