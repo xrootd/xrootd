@@ -98,39 +98,36 @@ extern XrdSysTrace  XrdXrootdTrace;
 /*                      L o c a l   S t r u c t u r e s                       */
 /******************************************************************************/
 
-namespace
-{
-XrdCryptoLite_BFecb* get_BFecb()
-                        {unsigned char bfKey[16];
-                         XrdOucUtils::Random(bfKey, sizeof(bfKey));
-                         return new XrdCryptoLite_BFecb(bfKey, sizeof(bfKey));
-                        }
-
-XrdCryptoLite_BFecb* bfEcb1 = get_BFecb();
-XrdCryptoLite_BFecb* bfEcb2 = get_BFecb();
-}
-
-
 struct XrdXrootdSessID
        {unsigned int       Sid;
                  int       Pid;
                  int       FD;
         unsigned int       Inst;
 
-        void Mask() {unsigned char buff[sizeof(int)*4];
-                     bfEcb1->Encrypt((unsigned char*)&Sid, buff);
-                     bfEcb2->Encrypt((unsigned char*)&FD,  buff+8);
-                     memcpy((void*)&Sid, (const void*)buff, sizeof(int)*4);
+        void Mask() {if (bfEcb1 && bfEcb2)
+                        {unsigned char buff[sizeof(int)*4];
+                         bfEcb1->Encrypt((unsigned char*)&Sid, buff);
+                         bfEcb2->Encrypt((unsigned char*)&FD,  buff+8);
+                         memcpy((void*)&Sid, (const void*)buff, sizeof(int)*4);
+                        }
                     }
 
-        void UnMask() {unsigned char buff[sizeof(int)*4];
-                       bfEcb1->Decrypt((unsigned char*)&Sid, buff);
-                       bfEcb2->Decrypt((unsigned char*)&FD, buff+8);
-                       memcpy((void*)&Sid, (const void*)buff, sizeof(int)*4);
+        void UnMask() {if (bfEcb1 && bfEcb2)
+                          {unsigned char buff[sizeof(int)*4];
+                           bfEcb1->Decrypt((unsigned char*)&Sid, buff);
+                           bfEcb2->Decrypt((unsigned char*)&FD, buff+8);
+                           memcpy((void*)&Sid, (const void*)buff, sizeof(int)*4);
+                          }
                       }
 
         XrdXrootdSessID() {}
        ~XrdXrootdSessID() {}
+
+        private:
+        inline static
+        XrdCryptoLite_BFecb* bfEcb1 = XrdCryptoLite_BFecb::Instance();
+        inline static
+        XrdCryptoLite_BFecb* bfEcb2 = XrdCryptoLite_BFecb::Instance();
        };
 
 /******************************************************************************/
