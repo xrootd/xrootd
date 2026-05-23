@@ -74,7 +74,7 @@ int XrdCryptosslX509ParseStack(XrdTlsPeerCerts* pc, XrdCryptoX509Chain *chain);
 time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1);
 
 // Function to convert X509_NAME into a one-line human readable string
-void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s);
+void XrdCryptosslNameOneLine(const X509_NAME *nm, XrdOucString &s);
 
 //
 // X509 proxy auxilliary functions

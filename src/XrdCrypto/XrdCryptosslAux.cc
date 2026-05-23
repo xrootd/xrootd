@@ -691,13 +691,13 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    // Our result is in agreement with 'date +%s`. 
    struct tm ltm;
    char zz;
-   if ((sscanf((const char *)(tsn1->data),
+   if ((sscanf((const char *) ASN1_STRING_get0_data(tsn1),
        "%02d%02d%02d%02d%02d%02d%c", 
        &(ltm.tm_year), &(ltm.tm_mon), &(ltm.tm_mday),
        &(ltm.tm_hour), &(ltm.tm_min), &(ltm.tm_sec),
                                       &zz) != 7) || (zz != 'Z')) {
        // Try GeneralizedTime
-       if ((sscanf((const char *)(tsn1->data),
+       if ((sscanf((const char *) ASN1_STRING_get0_data(tsn1),
            "%04d%02d%02d%02d%02d%02d%c", 
            &(ltm.tm_year), &(ltm.tm_mon), &(ltm.tm_mday),
            &(ltm.tm_hour), &(ltm.tm_min), &(ltm.tm_sec),
@@ -733,7 +733,7 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
 } 
 
 //____________________________________________________________________________
-void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s)
+void XrdCryptosslNameOneLine(const X509_NAME *nm, XrdOucString &s)
 {
    // Function to convert X509_NAME into a one-line human readable string
 
@@ -754,4 +754,13 @@ void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s)
 
    // Done
    return;
+}
+
+//____________________________________________________________________________
+void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s)
+{
+   // Copy of above function with non-const first argument
+   // This function is unused -- only added to preserve old ABI
+   // Can be removed if soname changes
+   XrdCryptosslNameOneLine(const_cast<const X509_NAME *>(nm), s);
 }

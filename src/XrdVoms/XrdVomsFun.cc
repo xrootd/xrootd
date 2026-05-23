@@ -110,7 +110,7 @@ XrdVomsFun::XrdVomsFun(XrdSysError &erp)
   
 // Function to convert X509_NAME into a one-line human readable string
 //
-void XrdVomsFun::NameOneLine(X509_NAME *nm, XrdOucString &s)
+void XrdVomsFun::NameOneLine(const X509_NAME *nm, XrdOucString &s)
 {
    BIO *mbio = BIO_new(BIO_s_mem());
    X509_NAME_print_ex(mbio, nm, 0, XN_FLAG_COMPAT);

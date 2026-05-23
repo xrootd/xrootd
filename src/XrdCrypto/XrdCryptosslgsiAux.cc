@@ -165,12 +165,12 @@ bool XrdCryptosslProxyCertInfo(const void *extdata, int &pathlen, bool *haspolic
    OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(ext), 1);
 
    // Now extract the path length constraint, if any
-   unsigned char *p = X509_EXTENSION_get_data(ext)->data;
+   const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(ext));
    PROXY_CERT_INFO_EXTENSION *pci = 0;
    if (!strcmp(s, gsiProxyCertInfo_OID))
-      pci = d2i_PROXY_CERT_INFO_EXTENSION(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(ext)->length);
+      pci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
    else if (!strcmp(s, gsiProxyCertInfo_OLD_OID))
-      pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(ext)->length);
+      pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
    if (!pci) {
       return 0;
    }
@@ -208,12 +208,12 @@ void XrdCryptosslSetPathLenConstraint(void *extdata, int pathlen)
    OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(ext), 1);
 
    // Now extract the path length constraint, if any
-   unsigned char *p = X509_EXTENSION_get_data(ext)->data;
+   const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(ext));
    PROXY_CERT_INFO_EXTENSION *pci = 0;
    if (!strcmp(s, gsiProxyCertInfo_OID))
-      pci = d2i_PROXY_CERT_INFO_EXTENSION(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(ext)->length);
+      pci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
    else if (!strcmp(s, gsiProxyCertInfo_OLD_OID))
-      pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(ext)->length);
+      pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
    if (!pci)
       return;
 
@@ -419,16 +419,37 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
       return -kErrPX_SetAttribute;
    }
    // Extract data in format for extension
-   X509_EXTENSION_get_data(ext)->length = i2d_PROXY_CERT_INFO_EXTENSION(pci, 0);
-   if (!(X509_EXTENSION_get_data(ext)->data = (unsigned char *)malloc(X509_EXTENSION_get_data(ext)->length+1))) {
+   int len = i2d_PROXY_CERT_INFO_EXTENSION(pci, 0);
+   unsigned char *data = (unsigned char *) malloc(len);
+   if (!data) {
       PRINT("could not allocate data field for extension");
       return -kErrPX_NoResources;
    }
-   unsigned char *pp = X509_EXTENSION_get_data(ext)->data;
+   unsigned char *pp = data;
    if ((i2d_PROXY_CERT_INFO_EXTENSION(pci, &pp)) <= 0) {
       PRINT("problem converting data for extension");
+      free(data);
       return -kErrPX_Error;
    }
+   ASN1_OCTET_STRING *os = ASN1_OCTET_STRING_new();
+   if (!os) {
+      PRINT("could not allocate data field for extension");
+      free(data);
+      return -kErrPX_NoResources;
+   }
+   if (ASN1_OCTET_STRING_set(os, data, len) == 0) {
+      PRINT("could not allocate data field for extension");
+      ASN1_STRING_free(os);
+      free(data);
+      return -kErrPX_NoResources;
+   }
+   free(data);
+   if (X509_EXTENSION_set_data(ext, os) == 0) {
+      PRINT("could not allocate data field for extension");
+      ASN1_STRING_free(os);
+      return -kErrPX_NoResources;
+   }
+   ASN1_STRING_free(os);
    // Create a stack
    STACK_OF(X509_EXTENSION) *esk = sk_X509_EXTENSION_new_null();
    if (!esk) {
@@ -504,7 +525,11 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    }
 
    // First duplicate the extensions of the EE certificate
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
    X509_EXTENSION *xEECext = 0;
+#else
+   const X509_EXTENSION *xEECext = 0;
+#endif
    int nEECext = X509_get_ext_count(xEEC);
    DEBUG("number of extensions found in the original certificate: "<< nEECext);
    int i = 0;
@@ -756,7 +781,11 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
    }
    //
    // Get signature path depth from present proxy
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
    X509_EXTENSION *xpiext = 0;
+#else
+   const X509_EXTENSION *xpiext = 0;
+#endif
    int npiext = X509_get_ext_count(xpi);
    int i = 0;
    bool haskeyusage = 0;
@@ -772,12 +801,12 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
       // Get signature path depth from present proxy
       if (!strcmp(s, gsiProxyCertInfo_OID) ||
           !strcmp(s, gsiProxyCertInfo_OLD_OID)) {
-         unsigned char *p = X509_EXTENSION_get_data(xpiext)->data;
+         const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xpiext));
          PROXY_CERT_INFO_EXTENSION *inpci = 0;
          if (!strcmp(s, gsiProxyCertInfo_OID))
-            inpci = d2i_PROXY_CERT_INFO_EXTENSION(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(xpiext)->length);
+            inpci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xpiext)));
          else
-            inpci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(xpiext)->length);
+            inpci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xpiext)));
          if (inpci &&
              inpci->pcPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->pcPathLengthConstraint);
@@ -823,16 +852,37 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
       return -kErrPX_NoResources;
    }
    // Extract data in format for extension
-   X509_EXTENSION_get_data(ext.get())->length = i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), 0);
-   if (!(X509_EXTENSION_get_data(ext.get())->data = (unsigned char *)malloc(X509_EXTENSION_get_data(ext.get())->length+1))) {
+   int len = i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), 0);
+   unsigned char *data = (unsigned char *) malloc(len);
+   if (!data) {
       PRINT("could not allocate data field for extension");
       return -kErrPX_NoResources;
    }
-   unsigned char *pp = X509_EXTENSION_get_data(ext.get())->data;
+   unsigned char *pp = data;
    if ((i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), &pp)) <= 0) {
       PRINT("problem converting data for extension");
+      free(data);
       return -kErrPX_Error;
    }
+   ASN1_OCTET_STRING *os = ASN1_OCTET_STRING_new();
+   if (!os) {
+      PRINT("could not allocate data field for extension");
+      free(data);
+      return -kErrPX_NoResources;
+   }
+   if (ASN1_OCTET_STRING_set(os, data, len) == 0) {
+      PRINT("could not allocate data field for extension");
+      ASN1_STRING_free(os);
+      free(data);
+      return -kErrPX_NoResources;
+   }
+   free(data);
+   if (X509_EXTENSION_set_data(ext.get(), os) == 0) {
+      PRINT("could not allocate data field for extension");
+      ASN1_STRING_free(os);
+      return -kErrPX_NoResources;
+   }
+   ASN1_STRING_free(os);
    pci = nullptr;
 
    // Set extension name.
@@ -1030,7 +1080,11 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
 
    //
    // Get signature path depth from input proxy
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
    X509_EXTENSION *xpiext = 0, *xriext = 0;
+#else
+   const X509_EXTENSION *xpiext = 0, *xriext = 0;
+#endif
    int npiext = X509_get_ext_count(xpi);
    int i = 0;
    bool haskeyusage = 0;
@@ -1038,17 +1092,17 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    for (i = 0; i< npiext; i++) {
       xpiext = X509_get_ext(xpi, i);
       char s[256] = {0};
-      ASN1_OBJECT *obj = X509_EXTENSION_get_object(xpiext);
+      const ASN1_OBJECT *obj = X509_EXTENSION_get_object(xpiext);
       if (obj)
          OBJ_obj2txt(s, sizeof(s), obj, 1);
       if (!strcmp(s, gsiProxyCertInfo_OID) ||
           !strcmp(s, gsiProxyCertInfo_OLD_OID)) {
-         unsigned char *p = X509_EXTENSION_get_data(xpiext)->data;
+         const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xpiext));
          PROXY_CERT_INFO_EXTENSION *inpci = 0;
          if (!strcmp(s, gsiProxyCertInfo_OID))
-            inpci = d2i_PROXY_CERT_INFO_EXTENSION(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(xpiext)->length);
+            inpci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xpiext)));
          else
-            inpci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(xpiext)->length);
+            inpci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xpiext)));
          if (inpci &&
              inpci->pcPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->pcPathLengthConstraint);
@@ -1101,9 +1155,9 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    // Get the content
    int reqdepthlen = -1;
    if (xriext) {
-      unsigned char *p = X509_EXTENSION_get_data(xriext)->data;
+      const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xriext));
       PROXY_CERT_INFO_EXTENSION *reqpci =
-         d2i_PROXY_CERT_INFO_EXTENSION(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(xriext)->length);
+         d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xriext)));
       if (reqpci &&
           reqpci->pcPathLengthConstraint)
          reqdepthlen = ASN1_INTEGER_get(reqpci->pcPathLengthConstraint);
@@ -1140,16 +1194,37 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       return -kErrPX_NoResources;
    }
    // Extract data in format for extension
-   X509_EXTENSION_get_data(ext.get())->length = i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), 0);
-   if (!(X509_EXTENSION_get_data(ext.get())->data = (unsigned char *)malloc(X509_EXTENSION_get_data(ext.get())->length+1))) {
+   int len = i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), 0);
+   unsigned char *data = (unsigned char *) malloc(len);
+   if (!data) {
       PRINT("could not allocate data field for extension");
       return -kErrPX_NoResources;
    }
-   unsigned char *pp = X509_EXTENSION_get_data(ext.get())->data;
+   unsigned char *pp = data;
    if ((i2d_PROXY_CERT_INFO_EXTENSION(pci.get(), &pp)) <= 0) {
       PRINT("problem converting data for extension");
+      free(data);
       return -kErrPX_Error;
    }
+   ASN1_OCTET_STRING *os = ASN1_OCTET_STRING_new();
+   if (!os) {
+      PRINT("could not allocate data field for extension");
+      free(data);
+      return -kErrPX_NoResources;
+   }
+   if (ASN1_OCTET_STRING_set(os, data, len) == 0) {
+      PRINT("could not allocate data field for extension");
+      ASN1_STRING_free(os);
+      free(data);
+      return -kErrPX_NoResources;
+   }
+   free(data);
+   if (X509_EXTENSION_set_data(ext.get(), os) == 0) {
+      PRINT("could not allocate data field for extension");
+      ASN1_STRING_free(os);
+      return -kErrPX_NoResources;
+   }
+   ASN1_STRING_free(os);
    pci = nullptr;
 
    // Set extension name.
@@ -1215,7 +1290,11 @@ int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
    rc = 1;
    bool getvat = 0;
    // Go through the extensions
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
    X509_EXTENSION *xpiext = 0;
+#else
+   const X509_EXTENSION *xpiext = 0;
+#endif
    int npiext = X509_get_ext_count(xpi);
    int i = 0;
    for (i = 0; i< npiext; i++) {
@@ -1227,8 +1306,8 @@ int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
       if (strcmp(s, XRDGSI_VOMS_ACSEQ_OID)) continue;
       // This is the VOMS extension we are interested for
       rc = 0;
-      const unsigned char *pp = (const unsigned char *) X509_EXTENSION_get_data(xpiext)->data;
-      long length = X509_EXTENSION_get_data(xpiext)->length;
+      const unsigned char *pp = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xpiext));
+      long length = ASN1_STRING_length(X509_EXTENSION_get_data(xpiext));
       int ret = XrdCryptosslX509FillVOMS(&pp, length, getvat, vat);
       DEBUG("ret: " << ret << " - vat: " << vat);
    }
@@ -1316,10 +1395,10 @@ int XrdCryptosslX509FillVOMS(const unsigned char **pp,
             int i, printable = 1;
             opp = op;
             os = d2i_ASN1_OCTET_STRING(0, &opp, len + hl);
-            if (os && os->length > 0) {
-               opp = os->data;
+            if (os && ASN1_STRING_length(os) > 0) {
+               opp = ASN1_STRING_get0_data(os);
                // Testing whether the octet string is printable
-               for (i=0; i<os->length; i++) {
+               for (i=0; i < ASN1_STRING_length(os); i++) {
                   if (( (opp[i] < ' ') && (opp[i] != '\n') &&
                         (opp[i] != '\r') && (opp[i] != '\t')) || (opp[i] > '~')) {
                      printable = 0;
@@ -1333,7 +1412,7 @@ int XrdCryptosslX509FillVOMS(const unsigned char **pp,
                      vat += (const char *)opp;
                      gotvat = 1;
                   }
-                  DEBUG("OBJS:" << (const char *)opp << " (len: "<<os->length<<")");
+                  DEBUG("OBJS:" << (const char *)opp << " (len: " << ASN1_STRING_length(os) << ")");
                }
             }
             if (os) {
@@ -1385,11 +1464,19 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
    }
    TRACE(ALL,"certificate has "<<numext<<" extensions");
 
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
    X509_EXTENSION *ext = 0;
+#else
+   const X509_EXTENSION *ext = 0;
+#endif
    PROXY_CERT_INFO_EXTENSION *pci = 0;
    for (int i = 0; i < numext; i++) {
       // Get the extension
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
       X509_EXTENSION *xext = X509_get_ext(cert, i);
+#else
+      const X509_EXTENSION *xext = X509_get_ext(cert, i);
+#endif
       // We are looking for gsiProxyCertInfo_OID     ("1.3.6.1.5.5.7.1.14")
       //                 or gsiProxyCertInfo_OLD_OID ("1.3.6.1.4.1.3536.1.222")
       char s[256];
@@ -1399,8 +1486,8 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          if (ext == 0) {
             ext = xext;
             // Now get the extension
-            unsigned char *p = X509_EXTENSION_get_data(ext)->data;
-            pci = d2i_PROXY_CERT_INFO_EXTENSION(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(ext)->length);
+            const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(ext));
+            pci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
          } else {
             PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
          }
@@ -1408,8 +1495,8 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          if (ext == 0) {
             ext = xext;
             // Now get the extension
-            unsigned char *p = X509_EXTENSION_get_data(ext)->data;
-            pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, (const unsigned char **)(&p), X509_EXTENSION_get_data(ext)->length);
+            const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(ext));
+            pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
          } else {
             PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
          }
