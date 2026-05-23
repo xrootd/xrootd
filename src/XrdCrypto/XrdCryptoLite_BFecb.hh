@@ -32,13 +32,16 @@
 /* This class implements Bflowfish ecb cipher which works on a single 64-bit
    block to produce another 64-bit block. While not particularly secure it
    is useful for encrypting short messages in order to prevent spoofing but
-   not necessarily to protect data privacy. Note that this object is thread
-   safe as blowfish ECB is stateless. So, the object can be used by multiple
-   threads to perform encrypption/decryption using the supplied key.
+   not necessarily to protect data privacy. While blowfish ECB is naturally
+   thread-safe, the OPENSSL EVP implementation destroys that notion and we
+   must serialize all access to the underlying blowfish implementation to
+   make it thread-safe.
 */
 
-struct  bf_key_st;
-typedef bf_key_st BF_KEY;
+#include "XrdSys/XrdSysPthread.hh"
+
+struct  evp_cipher_ctx_st;
+typedef struct evp_cipher_ctx_st EVP_CIPHER_CTX;
 
 class XrdCryptoLite_BFecb
 {
@@ -47,11 +50,18 @@ public:
 //-----------------------------------------------------------------------------
 //! Construct an ECB encryption/decryption object.
 //!
+//! @param  aOK     Upon return must be true if all went well. It will be
+//!                 false otherwise and this object will not be safely usable.
 //! @param  key     Pointer to the encryption key which should be 128 bits.
-//! @param  keylen  The length of the key in bytes.
+//!                 When null, a random 128 bit key is generated for use.
+//! @param  keylen  The length of the key in bytes if key is specified.
+//!
+//! @note When initializing a static pointer you may wish to use the Instance()
+//!       method that automatically returns a null pointer on a failure.
 //-----------------------------------------------------------------------------
 
-      XrdCryptoLite_BFecb(const unsigned char* key, unsigned int keylen);
+      XrdCryptoLite_BFecb(bool &aOK, const unsigned char* key=0,
+                                           unsigned int   keylen=0);
 
      ~XrdCryptoLite_BFecb();
 
@@ -73,7 +83,23 @@ void Decrypt(const unsigned char* in8, unsigned char* out8);
 
 void Encrypt(const unsigned char* in8, unsigned char* out8);
 
+//-----------------------------------------------------------------------------
+//! Return an instance of an ECB encryption/decryption object upon success.
+//!
+//! @param  key     Pointer to the encryption key which should be 128 bits.
+//!                 When null, a random 128 bit key is generated for use.
+//! @param  keylen  The length of the key in bytes if key is specified.
+//!
+//! @return A pointer to the crypto object or a null pointer upon failure.
+//-----------------------------------------------------------------------------
+
+static
+XrdCryptoLite_BFecb* Instance(const unsigned char* key=0,
+                                    unsigned int   klen=0);
+
 private:
-BF_KEY* bfKey;
+EVP_CIPHER_CTX* decCTX;
+EVP_CIPHER_CTX* encCTX;
+XrdSysMutex     evpMutex;
 };
 #endif
