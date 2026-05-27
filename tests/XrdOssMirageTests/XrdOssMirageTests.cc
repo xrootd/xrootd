@@ -1,60 +1,44 @@
-#include "XrdOssMirage/XrdOssMirage.hh"
-
-#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOssMirageFixture.hh"
 
 #include <gtest/gtest.h>
 
-#include <memory>
-
-class XrdOssMirageTest : public testing::Test {
-protected:
-    void SetUp() override
-    {
-      oss.Create(nullptr, "/dummy", {}, env, XRDOSS_new);
-      oss.Truncate("/dummy", 9999);
-    }
-
-    XrdOssMirage oss;
-    XrdOucEnv env;
-};
-
-TEST_F(XrdOssMirageTest, CreateFile)
+TEST_F(XrdOssMirageFixture, CreateFile)
 {
     ASSERT_EQ(XrdOssOK, oss.Create(nullptr, "/newfile", {}, env, XRDOSS_new));
 }
 
-TEST_F(XrdOssMirageTest, CreateFileCreatesEntry)
+TEST_F(XrdOssMirageFixture, CreateFileCreatesEntry)
 {
     oss.Create(nullptr, "/newfile", {}, env, XRDOSS_new);
 
     ASSERT_TRUE(oss.getEntryRead("/newfile"));
 }
 
-TEST_F(XrdOssMirageTest, CreateFileThatAlreadyExists)
+TEST_F(XrdOssMirageFixture, CreateFileThatAlreadyExists)
 {
     ASSERT_EQ(-EEXIST, oss.Create(nullptr, "/dummy", {}, env, XRDOSS_new));
 }
 
-TEST_F(XrdOssMirageTest, CreateFileThatAlreadyExistsWithoutNew)
+TEST_F(XrdOssMirageFixture, CreateFileThatAlreadyExistsWithoutNew)
 {
     ASSERT_EQ(XrdOssOK, oss.Create(nullptr, "/dummy", {}, env));
 }
 
-TEST_F(XrdOssMirageTest, CreateFileThatIsBeingWritten)
+TEST_F(XrdOssMirageFixture, CreateFileThatIsBeingWritten)
 {
     auto entry = oss.getEntryWrite("/dummy");
 
     ASSERT_EQ(-EBUSY, oss.Create(nullptr, "/dummy", {}, env));
 }
 
-TEST_F(XrdOssMirageTest, CreateFileResetsSize)
+TEST_F(XrdOssMirageFixture, CreateFileResetsSize)
 {
     oss.Create(nullptr, "/dummy", {}, env);
 
     ASSERT_EQ(0, oss.getEntryRead("/dummy").value().size);
 }
 
-TEST_F(XrdOssMirageTest, CreateFileDoesNotResetWriteProperties)
+TEST_F(XrdOssMirageFixture, CreateFileDoesNotResetWriteProperties)
 {
     {
         auto entry = oss.getEntryWrite("/dummy").value();
@@ -69,73 +53,73 @@ TEST_F(XrdOssMirageTest, CreateFileDoesNotResetWriteProperties)
     ASSERT_EQ(1, entry.write.return_position);
 }
 
-TEST_F(XrdOssMirageTest, Rename)
+TEST_F(XrdOssMirageFixture, Rename)
 {
     ASSERT_EQ(XrdOssOK, oss.Rename("/dummy", "/dummy_renamed"));
 }
 
-TEST_F(XrdOssMirageTest, RenameMovesNewEntry)
+TEST_F(XrdOssMirageFixture, RenameMovesNewEntry)
 {
     ASSERT_EQ(XrdOssOK, oss.Rename("/dummy", "/dummy_renamed"));
     ASSERT_TRUE(oss.getEntryRead("/dummy_renamed"));
     ASSERT_EQ(9999, oss.getEntryRead("/dummy_renamed").value().size);
 }
 
-TEST_F(XrdOssMirageTest, RenameInexistentFile)
+TEST_F(XrdOssMirageFixture, RenameInexistentFile)
 {
     ASSERT_EQ(-ENOENT, oss.Rename("/inexistent", "/dummy"));
 }
 
-TEST_F(XrdOssMirageTest, RenameToAlreadyExistentFile)
+TEST_F(XrdOssMirageFixture, RenameToAlreadyExistentFile)
 {
     oss.Create(nullptr, "/dummy_from", {}, env, XRDOSS_new);
 
     ASSERT_EQ(-EEXIST, oss.Rename("/dummy_from", "/dummy"));
 }
 
-TEST_F(XrdOssMirageTest, Stat)
+TEST_F(XrdOssMirageFixture, Stat)
 {
     struct stat buff{};
     ASSERT_EQ(XrdOssOK, oss.Stat("/dummy", &buff));
     ASSERT_EQ(9999, buff.st_size);
 }
 
-TEST_F(XrdOssMirageTest, StatInexistentFile)
+TEST_F(XrdOssMirageFixture, StatInexistentFile)
 {
     ASSERT_EQ(-ENOENT, oss.Stat("/inexistent", nullptr));
 }
 
-TEST_F(XrdOssMirageTest, Truncate)
+TEST_F(XrdOssMirageFixture, Truncate)
 {
     ASSERT_EQ(XrdOssOK, oss.Truncate("/dummy", 1000));
     ASSERT_EQ(1000, oss.getEntryRead("/dummy").value().size);
 }
 
-TEST_F(XrdOssMirageTest, TruncateInexistentFile)
+TEST_F(XrdOssMirageFixture, TruncateInexistentFile)
 {
     ASSERT_EQ(-ENOENT, oss.Truncate("/inexistent", 1000));
 }
 
-TEST_F(XrdOssMirageTest, TruncateFileThatIsBeingWritten)
+TEST_F(XrdOssMirageFixture, TruncateFileThatIsBeingWritten)
 {
     auto entry = oss.getEntryWrite("/dummy");
 
     ASSERT_EQ(-EBUSY, oss.Truncate("/dummy", 1000));
 }
 
-TEST_F(XrdOssMirageTest, Unlink)
+TEST_F(XrdOssMirageFixture, Unlink)
 {
     ASSERT_EQ(XrdOssOK, oss.Unlink("/dummy"));
 }
 
-TEST_F(XrdOssMirageTest, UnlinkRemovesEntry)
+TEST_F(XrdOssMirageFixture, UnlinkRemovesEntry)
 {
     oss.Unlink("/dummy");
 
     ASSERT_FALSE(oss.getEntryRead("/dummy"));
 }
 
-TEST_F(XrdOssMirageTest, UnlinkInexistentFile)
+TEST_F(XrdOssMirageFixture, UnlinkInexistentFile)
 {
     ASSERT_EQ(-ENOENT, oss.Unlink("/inexistent"));
 }
