@@ -1,5 +1,6 @@
 add_executable(xrdossmirage-unit-tests XrdOssMirageTests.cc
         XrdOssMirageFileTests.cc
+        XrdOssMirageXAttrTests.cc
         ${PROJECT_SOURCE_DIR}/src/XrdOssMirage/XrdOssMirage.cc
         ${PROJECT_SOURCE_DIR}/src/XrdOssMirage/XrdOssMirageDir.cc
         ${PROJECT_SOURCE_DIR}/src/XrdOssMirage/XrdOssMirageFile.cc
