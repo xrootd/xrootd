@@ -135,6 +135,7 @@ jobs:
 
     env:
       CMAKE_ARGS: -DPython_FIND_UNVERSIONED_NAMES=FIRST -DCMAKE_BUILD_TYPE=Release
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
       CMAKE_PREFIX_PATH: ${{ matrix.platform.openssl_prefix }}
       HOMEBREW_NO_AUTO_UPDATE: "1"
       MACOSX_DEPLOYMENT_TARGET: "15.0"
