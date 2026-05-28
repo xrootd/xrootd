@@ -25,14 +25,14 @@ def get_cmake_args():
 
 def get_version():
     try:
-        version = open('VERSION').read().strip()
+        with open('VERSION') as f:
+            version = f.read().strip()
 
         if version.startswith('$'):
             output = check_output(['git', 'describe'])
             version = output.decode().strip()
     except:
         version = None
-        pass
 
     if version is None:
         from datetime import date

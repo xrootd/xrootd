@@ -121,6 +121,25 @@ Version 6.0.0
   **[XrdXrootd]** Define oss.coloc as URL encoded and provide encode/decode util
 
 -------------
+Version 5.9.5
+-------------
+
++ **Major bug fixes**
+  **[XrdMacaroons]** Fix double free bug when reading macaroon secret (#2797)
+
++ **Minor bug fixes**
+  **[Python]** Use with statement to ensure VERSION file is closed
+  **[XrdHttp]** Do not set iscollection property to 1 for executable files
+  **[XrdHttp]** Perform minimal host validation in XrdHttpReq::Redir()
+  **[XrdHttp]** Re-encode resource when appending opaque information
+  **[XrdHttp]** Use strtoll in XrdHttpReq::ProcessHTTPReq()
+  **[XrdHttpTpc]** Set CURLOPT_SSLVERSION to at least TLSv1.2
+
++ **Miscellaneous**
+  **[CI]** Build Python wheels in parallel
+  **[CI]** Do not let delocate-wheel remove RPATHs from macOS wheels (#2784)
+
+-------------
 Version 5.9.4
 -------------
 

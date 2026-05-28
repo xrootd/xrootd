@@ -924,6 +924,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
 #if CURL_AT_LEAST_VERSION(7, 85, 0)
     curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR,       "https,http");
@@ -1050,6 +1051,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         curl_easy_setopt(curl, CURLOPT_INTERFACE, ip);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
 #if CURL_AT_LEAST_VERSION(7, 85, 0)
     curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR,       "https,http");

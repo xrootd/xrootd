@@ -194,15 +194,15 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
 
   BIO *b64 = BIO_new(BIO_f_base64());
   if (!b64) {
-    BIO_free_all(bio);
+    BIO_free(bio);
     log->Emsg("Config", "Failed to allocate base64 filter");
     return false;
   }
 
   BIO *bio_out = BIO_new(BIO_s_mem());
   if (!bio_out) {
-    BIO_free_all(b64);
-    BIO_free_all(bio);
+    BIO_free(b64);
+    BIO_free(bio);
     log->Emsg("Config", "Failed to allocate BIO output");
     return false;
   }
@@ -224,7 +224,6 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
   if (inlen < 0) {
     BIO_free_all(bio_out);
     BIO_free_all(b64);
-    BIO_free_all(bio);
     log->Emsg("Config", errno, "read secret key.");
     return false;
   }
@@ -232,7 +231,6 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
   if (!BIO_flush(bio_out)) {
     BIO_free_all(bio_out);
     BIO_free_all(b64);
-    BIO_free_all(bio);
     log->Emsg("Config", errno, "flush secret key.");
     return false;
   }
@@ -244,7 +242,6 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
 
   BIO_free_all(bio_out);
   BIO_free_all(b64);
-  BIO_free_all(bio);
 
   if (secret.size() < 32) {
     log->Emsg("Config", "Secret key is too short; must be 32 bytes long.  Try running 'openssl rand -base64 -out", val, "64' to generate a new key");

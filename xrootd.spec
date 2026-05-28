@@ -694,6 +694,9 @@ fi
 
 %changelog
 
+* Thu May 28 2026 Guilherme Amadio <amadio@cern.ch> - 1:5.9.5-1
+- XRootD 5.9.5
+
 * Tue May 19 2026 Guilherme Amadio <amadio@cern.ch> - 1:6.0.2-1
 - XRootD 6.0.2
 
