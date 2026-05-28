@@ -337,7 +337,7 @@ export CXX=clang++
     -DINSTALL_PYTHON_BINDINGS:BOOL=FALSE \
     -DXRD_PYTHON_REQ_VERSION=%{python3_version}
 
-%cmake3_build
+%cmake_build
 
 make -C packaging/common -f /usr/share/selinux/devel/Makefile
 
@@ -352,7 +352,7 @@ doxygen Doxyfile
 
 %install
 
-%cmake3_install
+%cmake_install
 
 # Remove test binaries and libraries
 %if %{with tests}
