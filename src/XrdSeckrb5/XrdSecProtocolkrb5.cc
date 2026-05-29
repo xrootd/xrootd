@@ -948,7 +948,7 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
                if (op[7] == ':') ExpFile = op+8;
                op = inParms.GetToken();
               }
-           KPrincipal = strdup(op);
+           if (op) KPrincipal = strdup(op);
       }
 
     if (ExpFile)

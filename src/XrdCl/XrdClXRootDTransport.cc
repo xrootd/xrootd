@@ -1633,6 +1633,7 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    if( !info ) return NoAction;
     XrdSysMutexHelper scopedLock( info->mutex );
     Log *log = DefaultEnv::GetLog();
 
@@ -1748,6 +1749,7 @@ namespace XrdCl
     // only those.
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    if( !info ) return;
     XrdSysMutexHelper scopedLock( info->mutex );
     ClientRequest *req = (ClientRequest*)msg->GetBuffer();
     uint16_t reqid = ntohs( req->header.requestid );

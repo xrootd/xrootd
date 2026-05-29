@@ -116,9 +116,10 @@ int XrdXrootdPrepare::List(XrdXrootdPrepArgs &pargs, char *resp, int resplen)
    errno = 0;
    while((dp = readdir(pargs.dirP)))
      {if (!(up = (char *) index((const char *)dp->d_name, '_'))) continue;
-         if (pargs.reqlen && strncmp(dp->d_name, pargs.reqid, pargs.reqlen))
+         if (pargs.reqlen && pargs.reqid
+         &&  strncmp(dp->d_name, pargs.reqid, pargs.reqlen))
             continue;
-         if (pargs.usrlen)
+         if (pargs.usrlen && pargs.user)
             if (!up || strcmp((const char *)up+1,(const char *)pargs.user))
                continue;
          strcpy(path, (const char *)LogDir);

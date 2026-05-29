@@ -211,6 +211,7 @@ int XrdOfsCPFile::Create(const char *srcFN, struct stat &Stat)
 // Generate the path to the checkpoint file
 //
    ckpFN = genCkpPath();
+   if (!ckpFN) return -ENOMEM;
 
 // Create the checkpoint file and set its attribute
 //
@@ -221,6 +222,7 @@ int XrdOfsCPFile::Create(const char *srcFN, struct stat &Stat)
        unlink(ckpFN);
        free(ckpFN);
        ckpFN = 0;
+       return rc;
       }
 
 // Construct the header
