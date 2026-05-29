@@ -934,7 +934,7 @@ static int xrootdfs_release(const char *path, struct fuse_file_info *fi)
        unimplemented */
 
     int fd, oflag;
-    struct stat xrdfile, cnsfile;
+    struct stat xrdfile = {}, cnsfile = {};
     char rootpath[MAXROOTURLLEN];
 
     fd = (int) fi->fh;

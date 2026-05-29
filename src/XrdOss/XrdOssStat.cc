@@ -234,8 +234,8 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
 // We provide pseudo support whould be not have a cache
 //
    if (!XrdOssCache_Group::fsgroups)
-      {unsigned long long Opt;
-       long long fSpace, fSize;
+      {unsigned long long Opt = 0;
+       long long fSpace = 0, fSize = 0;
        StatFS(path, Opt, fSize, fSpace);
        if (fSpace < 0) fSpace = 0;
        blen = snprintf(buff, blen, Resp, "public", fSize, fSpace, fSpace,

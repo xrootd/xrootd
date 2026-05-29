@@ -149,7 +149,7 @@ void FsTraversal::slurp_dir_ll(XrdOssDF &dh, int dir_level, const char *path, co
    // Low-level implementation of slurp dir.
 
    char fname[256];
-   struct stat fstat;
+   struct stat fstat = {};
 
    dh.StatRet(&fstat);
 

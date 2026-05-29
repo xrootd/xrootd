@@ -242,7 +242,7 @@ int  XrdOssPath::getCname(const char *path, char *Cache,
                                 char *lbuf, int   lbsz)
 {
    struct stat lbuff;
-   char *xP, lnkbuff[MAXPATHLEN+64];
+   char *xP, lnkbuff[MAXPATHLEN+64] = {0};
    int j, lnklen = 0;
 
 // Set up local buffer or remote buffer
