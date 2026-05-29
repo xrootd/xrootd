@@ -192,7 +192,7 @@ void XrdOfsTPCProg::Run()
    const char *clID, *at;
    char *questSrc, *questLfn, *questDst;
    int rc;
-   bool isIPv4, doMon = Cfg.tpcMon != 0;
+   bool isIPv4 = false, doMon = Cfg.tpcMon != 0;
    char clBuff[592];
 
 // Run the current job and indicate it's ending status and possibly getting a

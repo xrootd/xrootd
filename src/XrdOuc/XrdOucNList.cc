@@ -54,6 +54,7 @@ XrdOucNList::XrdOucNList(const char *name, int nval)
       } else {
        namelenL = strlen(nameL);
        namelenR = -1;
+       nameR = nullptr;
       }
 }
  
@@ -130,7 +131,8 @@ void XrdOucNList_Anchor::Replace(XrdOucNList *xp)
         {if (np->namelenL == xp->namelenL
          &&  np->namelenR == xp->namelenR
          && (np->nameL && xp->nameL && !strcmp(np->nameL, xp->nameL))
-         && (np->nameR && xp->nameR && !strcmp(np->nameR, xp->nameR)))
+         && (np->namelenR < 0
+             || (np->nameR && xp->nameR && !strcmp(np->nameR, xp->nameR))))
             {np->Set(xp->flags);
              UnLock();
              delete xp;
