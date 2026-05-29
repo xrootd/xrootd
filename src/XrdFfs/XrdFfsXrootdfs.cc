@@ -451,7 +451,7 @@ static int xrootdfs_create(const char *path, mode_t mode, struct fuse_file_info 
  * returns:     0 on success, -errno on error.
  */
 {
-    int res, fd;
+    int res, fd = -1;
     if (!S_ISREG(mode))
         return -EPERM;
     if (usingEC)
