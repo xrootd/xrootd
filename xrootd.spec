@@ -560,6 +560,7 @@ fi
 
 %files devel
 %{_bindir}/xrootd-config
+%{_mandir}/man1/xrootd-config.1*
 %dir %{_includedir}/%{name}
 %{_includedir}/%{name}/XProtocol
 %{_includedir}/%{name}/Xrd
