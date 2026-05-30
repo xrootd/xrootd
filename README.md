@@ -1,3 +1,10 @@
+[![Repology](https://img.shields.io/badge/repology-xrootd-blue)](https://repology.org/project/xrootd/packages)
+[![CDash](https://img.shields.io/badge/CDash-XRootD-limegreen)](https://my.cdash.org/index.php?project=XRootD)
+[![ABI](https://github.com/xrootd/xrootd/actions/workflows/ABI.yml/badge.svg)](https://github.com/xrootd/xrootd/actions/workflows/ABI.yml)
+[![CI](https://github.com/xrootd/xrootd/actions/workflows/CI.yml/badge.svg)](https://github.com/xrootd/xrootd/actions/workflows/CI.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11900/badge)](https://www.bestpractices.dev/projects/11900)
+[![LFX Health Score](https://insights.linuxfoundation.org/api/badge/health-score?project=xrootd)](https://insights.linuxfoundation.org/project/xrootd)
+
 <p align="center">
   <img src="https://xrootd.org/images/xrootd-logo.png"/>
 </p>
