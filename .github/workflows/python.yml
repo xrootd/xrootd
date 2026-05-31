@@ -2,12 +2,13 @@ name: Python
 
 on:
   push:
+    branches:
+      - '**'
     paths:
       - setup.py
       - pyproject.toml
       - 'bindings/**'
       - .github/workflows/python.yml
-    tags-ignore:
   pull_request:
     paths:
       - setup.py
