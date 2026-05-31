@@ -1,8 +1,5 @@
 name: Python
 
-permissions:
-  contents: read
-
 on:
   push:
     paths:
@@ -29,6 +26,9 @@ jobs:
   sdist:
     name: Source distribution
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     steps:
     - name: Clone repository
