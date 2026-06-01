@@ -1,17 +1,18 @@
 name: ABI
 
-permissions:
-  contents: read
-
 on:
   push:
+    branches:
+      - '**'
     paths:
       - .github/workflows/ABI.yml
       - 'src/**'
-    branches-ignore:
-      - skip-ci
-    tags-ignore:
   pull_request:
+    branches:
+      - '**'
+    paths:
+      - .github/workflows/ABI.yml
+      - 'src/**'
   workflow_dispatch:
 
 concurrency:
@@ -31,6 +32,9 @@ jobs:
   abi-compatibility-check:
     name: ABI Compatibility Check
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     steps:
     - name: Install dependencies
@@ -58,7 +62,7 @@ jobs:
       run: cmake --build build/new --parallel --target install
 
     - name: Checkout Base Reference of XRootD to Compare ABI
-      run: git checkout -f ${GITHUB_BASE_REF:-$(git merge-base $(git rev-list --tags --max-count=1) HEAD)}
+      run: git checkout -f ${GITHUB_BASE_REF:-$(git describe --abbrev=0 --always HEAD)}
 
     - name: Configure XRootD (Base Reference)
       run: cmake -S . -B build/old -DCMAKE_INSTALL_PREFIX=install/old

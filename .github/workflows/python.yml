@@ -1,16 +1,14 @@
 name: Python
 
-permissions:
-  contents: read
-
 on:
   push:
+    branches:
+      - '**'
     paths:
       - setup.py
       - pyproject.toml
       - 'python/**'
       - .github/workflows/python.yml
-    tags-ignore:
   pull_request:
     paths:
       - setup.py
@@ -29,6 +27,9 @@ jobs:
   sdist:
     name: Source distribution
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     steps:
     - name: Clone repository

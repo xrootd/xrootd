@@ -12,7 +12,6 @@ on:
       - .github/workflows/COV.yml
       - 'src/**'
       - 'tests/**'
-    tags-ignore:
   pull_request:
   workflow_dispatch:
 
