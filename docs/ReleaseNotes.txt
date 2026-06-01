@@ -6,6 +6,23 @@ Release Notes
 =============
 
 -------------
+Version 6.0.3
+-------------
+
+All bugfixes and improvements from XRootD 5.9.5 are also in XRootD 6.0.3.
+
++ **Bugfixes**
+  **[XrdClHttp]** Fix bug preventing the configuration of threads
+  **[XrdCrypto]** Fix leak of file descriptor in XrdCryptosslX509::XrdCryptosslX509
+  **[XrdHttp]** Add the resource type tag for non-collections in xml response
+  **[XrdHttp]** Strengthen Content-Length and Transfer-Encoding header parsing
+
++ **Miscellaneous**
+  **[CI]** Move permissions down to job level in Python workflow
+  **[CI]** Update ABI compliance check build
+  **[CI]** Adjust build triggers of GitHub Action workflows
+
+-------------
 Version 6.0.2
 -------------
 
