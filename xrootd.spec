@@ -16,7 +16,7 @@ License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AN
 URL:		https://xrootd.org
 
 %if !%{with git}
-Version:	6.0.2
+Version:	6.0.3
 Source0:	https://xrootd.web.cern.ch/download/v%{version}/%{name}-%{version}.tar.gz
 %else
 %define git_version %(tar xzf %{_sourcedir}/%{name}.tar.gz -O xrootd/VERSION)
@@ -693,6 +693,9 @@ fi
 %endif
 
 %changelog
+
+* Mon Jun 01 2026 Guilherme Amadio <amadio@cern.ch> - 1:6.0.3-1
+- XRootD 6.0.3
 
 * Thu May 28 2026 Guilherme Amadio <amadio@cern.ch> - 1:5.9.5-1
 - XRootD 5.9.5
