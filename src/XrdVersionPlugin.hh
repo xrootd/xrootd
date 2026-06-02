@@ -199,6 +199,7 @@
          "libXrdSecgsiGMAPDN.so",    \
          "libXrdSecgsiVOMS.so",      \
          "libXrdSeckrb5.so",         \
+         "libXrdSecssh.so",          \
          "libXrdSecProt.so",         \
          "libXrdSecpwd.so",          \
          "libXrdSecsss.so",          \
