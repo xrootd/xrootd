@@ -27,6 +27,7 @@
 using namespace XrdClHttp;
 
 std::atomic<uint64_t> File::m_prefetch_count = 0;
+std::atomic<uint64_t> File::m_prefetch_cancelled_count = 0;
 std::atomic<uint64_t> File::m_prefetch_expired_count = 0;
 std::atomic<uint64_t> File::m_prefetch_failed_count = 0;
 std::atomic<uint64_t> File::m_prefetch_reads_hit = 0;
@@ -190,6 +191,36 @@ private:
     XrdCl::ResponseHandler *m_handler;
 };
 
+// Response handler installed by File::CancelPrefetch() when a paused prefetch op needs
+// to be woken up just to be torn down.  Holds a strong ref to the PrefetchDefaultHandler
+// (whose lifetime is independent of File) so the cancellation is delivered safely even
+// if File has been destroyed before the worker drains the continue queue.
+//
+// Holds the strong ref via shared_ptr so PrefetchDefaultHandler outlives any in-flight
+// cancellation delivery; otherwise File::~File could destroy the handler before this
+// callback fires.  The 1-byte buffer is unused once Write() short-circuits on
+// IsCancelled(), but a non-null buffer is still required by CurlReadOp::Continue().
+class CancelResponseHandler : public XrdCl::ResponseHandler {
+public:
+    explicit CancelResponseHandler(std::shared_ptr<XrdCl::ResponseHandler> dh)
+        : m_dh(std::move(dh)) {}
+
+    char *GetBuffer() { return m_buf; }
+
+    virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) override {
+        std::unique_ptr<CancelResponseHandler> self(this);
+        delete response;
+        if (m_dh) {
+            m_dh->HandleResponse(status, nullptr);
+        } else {
+            delete status;
+        }
+    }
+private:
+    std::shared_ptr<XrdCl::ResponseHandler> m_dh;
+    char m_buf[1];
+};
+
 } // anonymous namespace
 
 // Note: these values are typically overwritten by `CurlFactory::CurlFactory`;
@@ -199,7 +230,57 @@ struct timespec XrdClHttp::File::m_default_header_timeout = {9, 5};
 struct timespec XrdClHttp::File::m_fed_timeout = {5, 0};
 
 
+void
+File::CancelPrefetch() {
+    // If Open() never succeeded, the prefetch handler is null and there is nothing to do.
+    if (!m_default_prefetch_handler) return;
+    // We must observe and modify m_prefetch_op under m_prefetch_mutex, the same lock
+    // that ReadPrefetch() / PrefetchResponseHandler take, to avoid racing with a
+    // concurrent Read that may be appending to the prefetch handler chain.
+    std::shared_ptr<XrdClHttp::CurlReadOp> op;
+    bool was_paused = false;
+    {
+        std::unique_lock lock(m_default_prefetch_handler->m_prefetch_mutex);
+        if (m_prefetch_op && !m_prefetch_op->IsDone()) {
+            op = m_prefetch_op;
+            // Set the cancel flag while the lock is held: this happens-before any
+            // subsequent worker-thread read of IsCancelled() in CurlReadOp::Write(),
+            // which is the primary deterministic cancellation channel.
+            op->Cancel();
+            // Snapshot IsPaused() under the lock.  Even with m_is_paused atomic, taking
+            // the snapshot here avoids the worker concurrently transitioning the op
+            // through a pause+deliver cycle that would leave it parked indefinitely.
+            was_paused = op->IsPaused();
+        }
+        // Once we've decided to cancel, disable further prefetch decisions on this file
+        // so a racing Read() can't observe the cancel-in-progress op and try to extend it.
+        m_default_prefetch_handler->m_prefetch_enabled.store(false, std::memory_order_relaxed);
+        m_prefetch_op.reset();
+    }
+    if (!op) return;
+    if (was_paused) {
+        // The op is parked in libcurl waiting for the next Read.  Wake the worker via the
+        // continue queue so it can drain the slot promptly.  CurlReadOp::Continue calls
+        // m_continue_queue->Produce, which may briefly block — done outside the lock.
+        // CancelResponseHandler holds a shared_ptr to m_default_prefetch_handler, so the
+        // delivery is safe even if `this` File is destroyed before the worker drains it.
+        auto *ch = new CancelResponseHandler(m_default_prefetch_handler);
+        op->Continue(op, ch, ch->GetBuffer(), 1);
+    }
+    // If not paused, the worker thread will reach CurlReadOp::Write(), observe IsCancelled(),
+    // return 0 from the write callback, and tear the slot down via CURLE_WRITE_ERROR.
+}
+
 File::~File() noexcept {
+    CancelPrefetch();
+    // Detach the prefetch default handler from this File so any in-flight
+    // PrefetchResponseHandler that wakes up after destruction completes sees a
+    // null File pointer (under the lock) and skips touching File-owned memory.
+    // Must happen after CancelPrefetch (which still needs the live File) and
+    // before any other File-owned member is destroyed.
+    if (m_default_prefetch_handler) {
+        m_default_prefetch_handler->DetachFile();
+    }
     auto handler = m_put_handler.load(std::memory_order_acquire);
     if (handler) {
         // We must wait for all ongoing writes to complete; the XrdCl::File
@@ -289,6 +370,7 @@ File::GetMonitoringJson()
 {
     return "{\"prefetch\": {"
         "\"count\": " + std::to_string(m_prefetch_count) + ","
+        "\"cancelled\": " + std::to_string(m_prefetch_cancelled_count) + ","
         "\"expired\": " + std::to_string(m_prefetch_expired_count) + ","
         "\"failed\": " + std::to_string(m_prefetch_failed_count) + ","
         "\"reads_hit\": " + std::to_string(m_prefetch_reads_hit) + ","
@@ -415,6 +497,10 @@ File::Close(XrdCl::ResponseHandler *handler,
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp);
     }
     m_is_opened = false;
+
+    // Tear down any outstanding prefetch op so its worker slot is freed immediately
+    // instead of waiting up to the transfer-stall timeout (60s).
+    CancelPrefetch();
 
     std::unique_ptr<XrdCl::XRootDStatus> status(new XrdCl::XRootDStatus{});
     if (m_put_op && !m_put_op->HasFailed()) {
@@ -626,8 +712,18 @@ File::Read(uint64_t                offset,
         }
         return status;
     } else if (m_full_download.load(std::memory_order_relaxed)) {
-        std::unique_lock lock(m_default_prefetch_handler->m_prefetch_mutex);
-        if (m_prefetch_op && m_prefetch_op->IsDone() && (static_cast<off_t>(offset) == m_prefetch_offset.load(std::memory_order_acquire))) {
+        bool eof = false;
+        {
+            std::unique_lock lock(m_default_prefetch_handler->m_prefetch_mutex);
+            eof = m_prefetch_op && m_prefetch_op->IsDone() &&
+                  (static_cast<off_t>(offset) == m_prefetch_offset.load(std::memory_order_acquire));
+        }
+        // Release the lock before calling the user's handler.  The handler may close
+        // the file synchronously (e.g., XrdClS3DownloadHandler reacts to a 0-byte
+        // chunk by calling File::Close), and File::Close → CancelPrefetch re-acquires
+        // the same non-recursive mutex.  Holding the lock across the callback would
+        // deadlock the curl worker thread.
+        if (eof) {
             if (handler) {
                 auto ci = new XrdCl::ChunkInfo(offset, 0, buffer);
                 auto obj = new XrdCl::AnyObject();
@@ -995,6 +1091,16 @@ File::GetProperty(const std::string &name,
         return true;
     }
 
+    // Pseudo-property: returns the plugin-global monitoring JSON.  Useful from
+    // tests, which are linked against a separate copy of libXrdClHttp and cannot
+    // call File::GetMonitoringJson() directly — the plugin and the test SO each
+    // own their own copies of the static atomics under RTLD_LOCAL.  Routing
+    // through GetProperty crosses the plugin boundary correctly.
+    if (name == "XrdClHttpMonitoringJson") {
+        value = GetMonitoringJson();
+        return true;
+    }
+
     std::shared_lock lock(m_properties_mutex);
     if (name == "LastURL") {
         value = m_last_url;
@@ -1135,7 +1241,8 @@ File::PrefetchResponseHandler::PrefetchResponseHandler(
     File &parent, off_t offset, size_t size, std::atomic<off_t> *prefetch_offset, char *buffer,
     XrdCl::ResponseHandler *handler, std::unique_lock<std::mutex> *lock, time_t timeout
 )
-    : m_parent(parent),
+    : m_default_handler(parent.m_default_prefetch_handler),
+    m_parent(parent),
     m_handler(handler),
     m_buffer(buffer),
     m_size(size),
@@ -1173,51 +1280,76 @@ File::PrefetchResponseHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdCl
     // Ensure that we are deleted once the callback is done.
     std::unique_ptr<PrefetchResponseHandler> owner(this);
 
+    // All accesses to the parent File MUST go through m_default_handler->GetFileLocked()
+    // while holding m_default_handler->m_prefetch_mutex.  If GetFileLocked() returns
+    // nullptr, the parent File has been destroyed (or is being destroyed) and File-
+    // owned memory (m_prefetch_offset, m_last_prefetch_handler, m_prefetch_op, the
+    // counters static methods on File access by pointer) must not be touched.
+
     bool mismatched_size = false;
-    if (status) {
-        if (status->IsOK() && response) {
-            XrdCl::ChunkInfo *ci = nullptr;
-            response->Get(ci);
-            if (ci) {
-                auto missing_bytes = m_size - ci->GetLength();
-                if (missing_bytes) {
-                    mismatched_size = true;
-                    m_prefetch_offset->fetch_sub(missing_bytes, std::memory_order_relaxed);
+    bool parent_alive = false;
+    PrefetchResponseHandler *next = nullptr;
+    std::shared_ptr<XrdClHttp::CurlReadOp> next_op; // op shared_ptr copied out for the Continue() call below
+
+    {
+        std::unique_lock lock(m_default_handler->m_prefetch_mutex);
+        File *parent = m_default_handler->GetFileLocked();
+        parent_alive = (parent != nullptr);
+
+        if (status) {
+            if (status->IsOK() && response) {
+                XrdCl::ChunkInfo *ci = nullptr;
+                response->Get(ci);
+                if (ci) {
+                    auto missing_bytes = m_size - ci->GetLength();
+                    if (missing_bytes) {
+                        mismatched_size = true;
+                        // m_prefetch_offset points into the parent File; only safe to
+                        // touch while the lock is held and the parent is alive.
+                        if (parent_alive) {
+                            m_prefetch_offset->fetch_sub(missing_bytes, std::memory_order_relaxed);
+                        }
+                    }
+                    m_prefetch_bytes_used.fetch_add(ci->GetLength(), std::memory_order_relaxed);
                 }
-                m_prefetch_bytes_used.fetch_add(ci->GetLength(), std::memory_order_relaxed);
+            } else if (!status->IsOK()) {
+                m_prefetch_failed_count.fetch_add(1, std::memory_order_relaxed);
             }
-        } else if (!status->IsOK()) {
-            m_prefetch_failed_count.fetch_add(1, std::memory_order_relaxed);
+        }
+
+        next = m_next;
+        // Snapshot the prefetch op while the parent is still alive; we will use it
+        // outside the lock to continue the next handler in the chain.
+        if (parent_alive) {
+            next_op = parent->m_prefetch_op;
         }
     }
 
-    PrefetchResponseHandler *next;
-    {
-        std::unique_lock lock(m_parent.m_default_prefetch_handler->m_prefetch_mutex);
-        next = m_next;
-    }
     if (next) {
-        if (status && status->IsOK() && !mismatched_size) {
-            m_parent.m_prefetch_op->Continue(m_parent.m_prefetch_op, next, next->m_buffer, next->m_size);
+        if (parent_alive && next_op && status && status->IsOK() && !mismatched_size) {
+            next_op->Continue(next_op, next, next->m_buffer, next->m_size);
         } else {
             // On failure resubmit subsequent operations.
             // All the subsequent ops also depend on us having the expected read length (otherwise the
             // file offsets are incorrect).  If there's a mismatched read size (shorter actual bytes available
             // than what is originally requested), then that's another sign of potential issue and we disable
             // the prefetch mechanism.
-            m_parent.m_default_prefetch_handler->DisablePrefetch();
-            next->ResubmitOperation();
+            m_default_handler->DisablePrefetch();
+            next->ResubmitOperation(status);
         }
     }
 
     {
-        std::unique_lock lock(m_parent.m_default_prefetch_handler->m_prefetch_mutex);
-        if (m_parent.m_last_prefetch_handler == this) {
-            m_parent.m_last_prefetch_handler = nullptr;
-        }
-        if (!status || !status->IsOK()) {
-            m_parent.m_prefetch_op.reset();
-            m_parent.m_default_prefetch_handler->m_prefetch_enabled = false;
+        std::unique_lock lock(m_default_handler->m_prefetch_mutex);
+        File *parent = m_default_handler->GetFileLocked();
+        if (parent) {
+            if (parent->m_last_prefetch_handler == this) {
+                parent->m_last_prefetch_handler = nullptr;
+            }
+            if (!status || !status->IsOK()) {
+                parent->m_prefetch_op.reset();
+                m_default_handler->m_prefetch_enabled = false;
+            }
         }
     }
 
@@ -1226,18 +1358,46 @@ File::PrefetchResponseHandler::HandleResponse(XrdCl::XRootDStatus *status, XrdCl
 }
 
 void
-File::PrefetchResponseHandler::ResubmitOperation()
+File::PrefetchResponseHandler::ResubmitOperation(XrdCl::XRootDStatus *fallback_status)
 {
-    m_parent.m_logger->Debug(kLogXrdClHttp, "Resubmitting waiting prefetch operations as new reads due to prefetch failure");
+    m_default_handler->m_logger->Debug(kLogXrdClHttp,
+        "Resubmitting waiting prefetch operations as new reads due to prefetch failure");
     PrefetchResponseHandler *next = this;
     while (next) {
         auto cur = next;
-        auto st = next->m_parent.Read(next->m_offset, next->m_size, next->m_buffer, next->m_handler, next->m_timeout);
-        if (!st.IsOK() && next->m_handler) {
-            next->m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
+        // Try to resubmit as a direct (non-prefetch) Read.  Only safe to call if the
+        // parent File is still alive — otherwise propagate the failure status directly
+        // to the user's handler.
+        XrdCl::XRootDStatus *delivered_status = nullptr;
+        {
+            std::unique_lock lock(next->m_default_handler->m_prefetch_mutex);
+            File *parent = next->m_default_handler->GetFileLocked();
+            if (parent) {
+                lock.unlock();
+                auto st = parent->Read(next->m_offset, next->m_size, next->m_buffer,
+                                       next->m_handler, next->m_timeout);
+                if (!st.IsOK()) {
+                    delivered_status = new XrdCl::XRootDStatus(st);
+                }
+            } else if (fallback_status) {
+                // Parent gone; deliver the cancellation reason verbatim.
+                delivered_status = new XrdCl::XRootDStatus(*fallback_status);
+            } else {
+                delivered_status = new XrdCl::XRootDStatus(
+                    XrdCl::stError, XrdCl::errOperationExpired,
+                    XrdClHttp::kPrefetchCancelledOnClose,
+                    "File closed before prefetched read completed");
+            }
+        }
+        if (delivered_status) {
+            if (next->m_handler) {
+                next->m_handler->HandleResponse(delivered_status, nullptr);
+            } else {
+                delete delivered_status;
+            }
         }
         {
-            std::unique_lock lock(next->m_parent.m_default_prefetch_handler->m_prefetch_mutex);
+            std::unique_lock lock(next->m_default_handler->m_prefetch_mutex);
             next = next->m_next;
         }
         delete cur;
@@ -1249,7 +1409,10 @@ File::PrefetchDefaultHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, Xr
     std::unique_ptr<XrdCl::AnyObject> response(response_raw);
     std::unique_ptr<XrdCl::XRootDStatus> status(status_raw);
     if (status && !status->IsOK()) {
-        if ((status->code == XrdCl::errOperationExpired) && (status->GetErrorMessage().find("Transfer stalled for too long") != std::string::npos)) {
+        if (status->code == XrdCl::errOperationExpired && status->errNo == XrdClHttp::kPrefetchCancelledOnClose) {
+            m_prefetch_cancelled_count.fetch_add(1, std::memory_order_relaxed);
+            m_logger->Debug(kLogXrdClHttp, "Prefetch op for %s cancelled on file close", m_url.c_str());
+        } else if ((status->code == XrdCl::errOperationExpired) && (status->GetErrorMessage().find("Transfer stalled for too long") != std::string::npos)) {
             m_prefetch_expired_count.fetch_add(1, std::memory_order_relaxed);
             m_logger->Debug(kLogXrdClHttp, "Prefetch data for %s went unused; disabling.", m_url.c_str());
         } else {

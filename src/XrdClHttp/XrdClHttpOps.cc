@@ -398,8 +398,11 @@ NullCallback(char * /*buffer*/, size_t size, size_t nitems, void * /*this_ptr*/)
 
 void
 CurlOperation::SetPaused(bool paused) {
-    m_is_paused = paused;
-    if (m_is_paused) {
+    // Release-store so that observers of m_is_paused = true (e.g., File::Close on
+    // another thread) see a happens-before relationship with any prior worker-thread
+    // writes (m_handler = nullptr after DeliverResponse, etc.).
+    m_is_paused.store(paused, std::memory_order_release);
+    if (paused) {
         m_pause_start = std::chrono::steady_clock::now();
     } else if (m_pause_start != std::chrono::steady_clock::time_point{}) {
         m_pause_duration += std::chrono::steady_clock::now() - m_pause_start;

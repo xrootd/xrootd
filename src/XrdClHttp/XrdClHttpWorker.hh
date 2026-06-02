@@ -142,6 +142,7 @@ private:
     static std::atomic<uint64_t> m_conncall_req;
     static std::atomic<uint64_t> m_conncall_success;
     static std::atomic<uint64_t> m_conncall_timeout;
+    static std::atomic<uint64_t> m_cancelled_ops;
     static std::array<std::array<OpStats, 403>, static_cast<size_t>(XrdClHttp::CurlOperation::HttpVerb::Count)> m_ops;
     std::atomic<std::chrono::system_clock::rep> m_last_completed_cycle;
     std::atomic<std::chrono::system_clock::rep> m_oldest_op;
