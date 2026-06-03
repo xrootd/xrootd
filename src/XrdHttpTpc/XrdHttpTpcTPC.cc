@@ -1066,30 +1066,20 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     // start the TPC, for the resolution of the given TPC instead of
     // using any of the IPs available.
     if (m_fixed_route) {
-        // Get the hostname used to contact the server from the http header
-        std::string host;
-        auto host_header = XrdOucTUtils::caseInsensitiveFind(req.headers, "host");
+        char ip[64];
+        char ipType = 0;
 
-        if (host_header != req.headers.end()) {
-            host = host_header->second;
+        XrdNetAddrInfo *addrInfo = req.GetSecEntity().addrInfo;
+        int sockFD = addrInfo ? addrInfo->SockFD() : -1;
+
+        if (sockFD < 0 || XrdNetUtils::GetSokInfo(-sockFD, ip, sizeof(ip), ipType) < 0) {
+            // The socket information could not be fetched for some reason, treat this tpc.fixed_route as "best-effort" instead
+            // of failing the transfer
+            logTransferEvent(LogMask::Error, rec, "FIXED_ROUTE_ERR", "Failed to determine local address of incoming fixed route request");
+        } else {
+            logTransferEvent(LogMask::Info, rec, "LOCAL IP", ip);
+            curl_easy_setopt(curl, CURLOPT_INTERFACE, ip);
         }
-
-        // Get the IP addresses associated with the hostname
-        char ip[64]; // IPv6 addresses are up to 45 characters long
-        std::vector<XrdNetAddr> addresses;
-        const char *eText = XrdNetUtils::GetAddrs(host, addresses, nullptr, XrdNetUtils::prefAuto, 0);
-
-        if (eText || addresses.empty() ||
-          addresses.front().Format(ip, sizeof(ip), XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPortRaw) <= 0) {
-            std::stringstream ss;
-            ss << "Failed to determine host address of incoming request";
-            rec.status = 500;
-            logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
-            return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
-        }
-
-        logTransferEvent(LogMask::Info, rec, "LOCAL IP", ip);
-        curl_easy_setopt(curl, CURLOPT_INTERFACE, ip);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
