@@ -41,6 +41,7 @@ if not srcdir.startswith('$'):
         '-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}',
         '-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}',
         '-DXRootD_CLIENT_LIBRARY=${CMAKE_BINARY_DIR}/lib/libXrdCl${CMAKE_SHARED_LIBRARY_SUFFIX}',
+        '-DXRootD_UTILS_LIBRARY=${CMAKE_BINARY_DIR}/lib/libXrdUtils${CMAKE_SHARED_LIBRARY_SUFFIX}',
         '-DXRootD_INCLUDE_DIR=${CMAKE_SOURCE_DIR}/src;${CMAKE_BINARY_DIR}/src',
     ]
 else:

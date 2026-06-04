@@ -36,12 +36,18 @@ endif()
 # variables when building the module as part of a standard CMake build.
 
 if(TARGET XrdCl)
-  target_link_libraries(client PRIVATE XrdCl)
+  target_link_libraries(client PRIVATE XrdCl XrdUtils)
 else()
   find_library(XRootD_CLIENT_LIBRARY NAMES XrdCl)
 
   if(NOT XRootD_CLIENT_LIBRARY)
     message(FATAL_ERROR "Could not find XRootD client library")
+  endif()
+
+  find_library(XRootD_UTILS_LIBRARY NAMES XrdUtils)
+
+  if(NOT XRootD_UTILS_LIBRARY)
+    message(FATAL_ERROR "Could not find XRootD utils library")
   endif()
 
   find_path(XRootD_INCLUDE_DIR XrdVersion.hh PATH_SUFFIXES include/xrootd)
@@ -54,6 +60,6 @@ else()
   # extra include for it to allow building the Python bindings against
   # a pre-installed XRootD.
 
-  target_link_libraries(client PRIVATE ${XRootD_CLIENT_LIBRARY})
+  target_link_libraries(client PRIVATE ${XRootD_CLIENT_LIBRARY} ${XRootD_UTILS_LIBRARY})
   target_include_directories(client PRIVATE ${XRootD_INCLUDE_DIR} ${XRootD_INCLUDE_DIR}/private)
 endif()

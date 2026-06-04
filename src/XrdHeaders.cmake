@@ -33,6 +33,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdNet/XrdNetPMark.hh
   XrdNet/XrdNetSockAddr.hh
   XrdNet/XrdNetSocket.hh
+  XrdCks/XrdCksData.hh
   XrdOuc/XrdOucBuffer.hh
   XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCache.hh
@@ -109,7 +110,6 @@ if( NOT XRDCL_ONLY )
     XrdCks/XrdCks.hh
     XrdCks/XrdCksAssist.hh
     XrdCks/XrdCksCalc.hh
-    XrdCks/XrdCksData.hh
     XrdCks/XrdCksManager.hh
     XrdCks/XrdCksWrapper.hh
     XrdCms/XrdCmsClient.hh
@@ -139,12 +139,15 @@ endif()
 set( XROOTD_PRIVATE_HEADERS
   Xrd/XrdPoll.hh
   Xrd/XrdSendQ.hh
+  XrdCks/XrdCksXAttr.hh
   XrdNet/XrdNetPeer.hh
   XrdNet/XrdNetBuffer.hh
   XrdNet/XrdNetIF.hh
   XrdSecsss/XrdSecsssID.hh
+  XrdSys/XrdSysFAttr.hh
   XrdSys/XrdSysPriv.hh
   XrdOuc/XrdOucCRC32C.hh
+  XrdOuc/XrdOucXAttr.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucGatherConf.hh
   XrdOuc/XrdOucPList.hh
