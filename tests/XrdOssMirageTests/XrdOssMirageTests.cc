@@ -11,7 +11,7 @@ TEST_F(XrdOssMirageFixture, CreateFileCreatesEntry)
 {
     oss.Create(nullptr, "/newfile", {}, env, XRDOSS_new);
 
-    ASSERT_TRUE(oss.getEntryRead("/newfile"));
+    ASSERT_TRUE(oss.get_entry_read("/newfile"));
 }
 
 TEST_F(XrdOssMirageFixture, CreateFileThatAlreadyExists)
@@ -26,7 +26,7 @@ TEST_F(XrdOssMirageFixture, CreateFileThatAlreadyExistsWithoutNew)
 
 TEST_F(XrdOssMirageFixture, CreateFileThatIsBeingWritten)
 {
-    auto entry = oss.getEntryWrite("/dummy");
+    auto entry = oss.get_entry_write("/dummy");
 
     ASSERT_EQ(-EBUSY, oss.Create(nullptr, "/dummy", {}, env));
 }
@@ -35,20 +35,20 @@ TEST_F(XrdOssMirageFixture, CreateFileResetsSize)
 {
     oss.Create(nullptr, "/dummy", {}, env);
 
-    ASSERT_EQ(0, oss.getEntryRead("/dummy").value().size);
+    ASSERT_EQ(0, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFixture, CreateFileDoesNotResetWriteProperties)
 {
     {
-        auto entry = oss.getEntryWrite("/dummy").value();
+        auto entry = oss.get_entry_write("/dummy").value();
         entry->write.return_code     = 1;
         entry->write.return_position = 1;
     }
 
     oss.Create(nullptr, "/dummy", {}, env);
 
-    auto entry = oss.getEntryRead("/dummy").value();
+    auto entry = oss.get_entry_read("/dummy").value();
     ASSERT_EQ(1, entry.write.return_code);
     ASSERT_EQ(1, entry.write.return_position);
 }
@@ -61,8 +61,8 @@ TEST_F(XrdOssMirageFixture, Rename)
 TEST_F(XrdOssMirageFixture, RenameMovesNewEntry)
 {
     ASSERT_EQ(XrdOssOK, oss.Rename("/dummy", "/dummy_renamed"));
-    ASSERT_TRUE(oss.getEntryRead("/dummy_renamed"));
-    ASSERT_EQ(9999, oss.getEntryRead("/dummy_renamed").value().size);
+    ASSERT_TRUE(oss.get_entry_read("/dummy_renamed"));
+    ASSERT_EQ(9999, oss.get_entry_read("/dummy_renamed").value().size);
 }
 
 TEST_F(XrdOssMirageFixture, RenameInexistentFile)
@@ -92,7 +92,7 @@ TEST_F(XrdOssMirageFixture, StatInexistentFile)
 TEST_F(XrdOssMirageFixture, Truncate)
 {
     ASSERT_EQ(XrdOssOK, oss.Truncate("/dummy", 1000));
-    ASSERT_EQ(1000, oss.getEntryRead("/dummy").value().size);
+    ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFixture, TruncateInexistentFile)
@@ -102,7 +102,7 @@ TEST_F(XrdOssMirageFixture, TruncateInexistentFile)
 
 TEST_F(XrdOssMirageFixture, TruncateFileThatIsBeingWritten)
 {
-    auto entry = oss.getEntryWrite("/dummy");
+    auto entry = oss.get_entry_write("/dummy");
 
     ASSERT_EQ(-EBUSY, oss.Truncate("/dummy", 1000));
 }
@@ -116,7 +116,7 @@ TEST_F(XrdOssMirageFixture, UnlinkRemovesEntry)
 {
     oss.Unlink("/dummy");
 
-    ASSERT_FALSE(oss.getEntryRead("/dummy"));
+    ASSERT_FALSE(oss.get_entry_read("/dummy"));
 }
 
 TEST_F(XrdOssMirageFixture, UnlinkInexistentFile)

@@ -23,7 +23,7 @@ TEST_F(XrdOssMirageFileFixture, Truncate)
 
     ASSERT_EQ(XrdOssOK, file.Ftruncate(1000));
     ASSERT_EQ(XrdOssOK, file.Close());
-    ASSERT_EQ(1000, oss.getEntryRead("/dummy").value().size);
+    ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFileFixture, OpenWriteMode)
@@ -38,7 +38,7 @@ TEST_F(XrdOssMirageFileFixture, OpenWriteModeInexistentFile)
 
 TEST_F(XrdOssMirageFileFixture, OpenWriteModeFileBeingWritten)
 {
-    auto entry = oss.getEntryWrite("/dummy");
+    auto entry = oss.get_entry_write("/dummy");
     ASSERT_EQ(-ENOENT, file.Open("/dummy", O_WRONLY, {}, env));
 }
 
@@ -54,13 +54,13 @@ TEST_F(XrdOssMirageFileFixture, OpenReadModeInexistentFile)
 
 TEST_F(XrdOssMirageFileFixture, OpenReadModeFileBeingWritten)
 {
-    auto entry = oss.getEntryWrite("/dummy");
+    auto entry = oss.get_entry_write("/dummy");
     ASSERT_EQ(-ENOENT, file.Open("/dummy", O_RDONLY, {}, env));
 }
 
 TEST_F(XrdOssMirageFileFixture, OpenWithReturnCode)
 {
-    oss.getEntryWrite("/dummy").value()->open.return_code = 1111;
+    oss.get_entry_write("/dummy").value()->open.return_code = 1111;
 
     ASSERT_EQ(-1111, file.Open("/dummy", {}, {}, env));
 }
@@ -89,7 +89,7 @@ TEST_F(XrdOssMirageFileFixture, ReadWithOffsetRemainingSmallerThanSize)
 TEST_F(XrdOssMirageFileFixture, ReadWithReturnCodeAndPosition)
 {
     {
-        auto entry = oss.getEntryWrite("/dummy").value();
+        auto entry = oss.get_entry_write("/dummy").value();
         entry->read.return_code = 1111;
         entry->read.return_position = 5500;
     }
@@ -102,7 +102,7 @@ TEST_F(XrdOssMirageFileFixture, ReadWithReturnCodeAndPosition)
 
 TEST_F(XrdOssMirageFileFixture, ReadWithCharPattern)
 {
-    oss.getEntryWrite("/dummy").value()->pattern = "a";
+    oss.get_entry_write("/dummy").value()->pattern = "a";
 
     file.Open("/dummy", O_RDONLY, {}, env);
 
@@ -114,7 +114,7 @@ TEST_F(XrdOssMirageFileFixture, ReadWithCharPattern)
 
 TEST_F(XrdOssMirageFileFixture, ReadWithStringPattern)
 {
-    oss.getEntryWrite("/dummy").value()->pattern = "abc";
+    oss.get_entry_write("/dummy").value()->pattern = "abc";
 
     file.Open("/dummy", O_RDONLY, {}, env);
 
@@ -137,13 +137,13 @@ TEST_F(XrdOssMirageFileFixture, WriteUpdatesSize)
     file.Write(nullptr, 0, 1000);
     file.Close();
 
-    ASSERT_EQ(10999, oss.getEntryRead("/dummy").value().size);
+    ASSERT_EQ(10999, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFileFixture, WriteWithReturnCodeAndPosition)
 {
     {
-        auto entry = oss.getEntryWrite("/dummy").value();
+        auto entry = oss.get_entry_write("/dummy").value();
         entry->write.return_code = 1111;
         entry->write.return_position = 5500;
     }
@@ -159,5 +159,5 @@ TEST_F(XrdOssMirageFileFixture, CloseReleasesFileLock)
     file.Open("/dummy", O_WRONLY, {}, env);
 
     ASSERT_EQ(XrdOssOK, file.Close());
-    ASSERT_TRUE(oss.getEntryWrite("/dummy"));
+    ASSERT_TRUE(oss.get_entry_write("/dummy"));
 }

@@ -61,7 +61,7 @@ int XrdOssMirageFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &
 {
     if ((Oflag & O_ACCMODE) == O_RDONLY)
     {
-        const auto opt = oss.getEntryRead(path);
+        const auto opt = oss.get_entry_read(path);
         if (!opt.has_value())
             return -ENOENT;
 
@@ -70,7 +70,7 @@ int XrdOssMirageFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &
     }
     else
     {
-        const auto opt = oss.getEntryWrite(path);
+        const auto opt = oss.get_entry_write(path);
         if (!opt.has_value())
             return -ENOENT;
 

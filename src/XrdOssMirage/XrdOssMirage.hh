@@ -13,8 +13,8 @@ private:
     std::unordered_map<std::string, XrdOssMirageEntryPtr> entries;
     std::mutex mutex;
 
-    bool hasEntry(const char *path);
-    bool isEntryBeingWritten(const char *path);
+    bool has_entry(const char *path);
+    bool is_entry_being_written(const char *path);
 
 public:
     XrdOssMirage() = default;
@@ -33,8 +33,8 @@ public:
     virtual int       Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP=0) override;
     virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *envP=0) override;
 
-    std::optional<XrdOssMirageEntry>     getEntryRead(const char *path);
-    std::optional<XrdOssMirageEntryPtr>  getEntryWrite(const char *path);
+    std::optional<XrdOssMirageEntry>     get_entry_read(const char *path);
+    std::optional<XrdOssMirageEntryPtr>  get_entry_write(const char *path);
 };
 
 #endif

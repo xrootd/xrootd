@@ -22,7 +22,7 @@ int XrdOssMirageXAttr::Del(const char *Aname, const char *Path, int fd)
     if (this->oss == nullptr)
         return -ENOTSUP;
 
-    const auto opt = oss->getEntryWrite(Path);
+    const auto opt = oss->get_entry_write(Path);
     if (!opt.has_value())
         return -EINVAL;
 
@@ -57,7 +57,7 @@ int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *
     if (this->oss == nullptr)
         return -ENOTSUP;
 
-    const auto opt = oss->getEntryRead(Path);
+    const auto opt = oss->get_entry_read(Path);
     if (!opt.has_value())
         return -EINVAL;
 
@@ -99,7 +99,7 @@ int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const 
     if (this->oss == nullptr)
         return -ENOTSUP;
 
-    const auto opt = oss->getEntryWrite(Path);
+    const auto opt = oss->get_entry_write(Path);
     if (!opt.has_value())
         return -EINVAL;
 

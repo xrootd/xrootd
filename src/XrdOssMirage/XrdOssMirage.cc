@@ -37,12 +37,12 @@ int XrdOssMirage::Create(const char *tid, const char *path, mode_t mode, XrdOucE
 {
     const std::lock_guard lock(mutex);
 
-    if (hasEntry(path))
+    if (has_entry(path))
     {
         if (opts & XRDOSS_new)
             return -EEXIST;  
 
-        if (isEntryBeingWritten(path))
+        if (is_entry_being_written(path))
             return -EBUSY;
     }
 
@@ -84,10 +84,10 @@ int XrdOssMirage::Rename(const char *oPath, const char *nPath, XrdOucEnv  *oEnvP
 {
     const std::lock_guard lock(mutex);
 
-    if (!hasEntry(oPath))
+    if (!has_entry(oPath))
         return -ENOENT;
 
-    if (hasEntry(nPath))
+    if (has_entry(nPath))
         return -EEXIST;
 
     entries[nPath] = std::move(entries[oPath]);
@@ -100,7 +100,7 @@ int XrdOssMirage::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv 
 {
     const std::lock_guard lock(mutex);
 
-    if (!hasEntry(path))
+    if (!has_entry(path))
         return -ENOENT;
 
     buff->st_size = entries[path]->size;
@@ -112,10 +112,10 @@ int XrdOssMirage::Truncate(const char *path, unsigned long long fsize, XrdOucEnv
 {
     const std::lock_guard lock(mutex);
 
-    if (!hasEntry(path))
+    if (!has_entry(path))
         return -ENOENT;
 
-    if (isEntryBeingWritten(path))
+    if (is_entry_being_written(path))
         return -EBUSY;
 
     entries[path]->size = fsize;
@@ -127,7 +127,7 @@ int XrdOssMirage::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
     const std::lock_guard lock(mutex);
 
-    if (!hasEntry(path))
+    if (!has_entry(path))
         return -ENOENT;
 
     entries.erase(path);
@@ -135,32 +135,32 @@ int XrdOssMirage::Unlink(const char *path, int Opts, XrdOucEnv *envP)
     return XrdOssOK;
 }
 
-std::optional<XrdOssMirageEntry> XrdOssMirage::getEntryRead(const char *path)
+std::optional<XrdOssMirageEntry> XrdOssMirage::get_entry_read(const char *path)
 {
     const std::lock_guard lock(mutex);
 
-    if (!hasEntry(path) || isEntryBeingWritten(path))
+    if (!has_entry(path) || is_entry_being_written(path))
         return {};
 
     return *entries[path];
 }
 
-std::optional<XrdOssMirageEntryPtr> XrdOssMirage::getEntryWrite(const char *path)
+std::optional<XrdOssMirageEntryPtr> XrdOssMirage::get_entry_write(const char *path)
 {
     const std::lock_guard lock(mutex);
 
-    if (!hasEntry(path) || isEntryBeingWritten(path))
+    if (!has_entry(path) || is_entry_being_written(path))
         return {};
 
     return entries[path];    
 }
 
-bool XrdOssMirage::hasEntry(const char *path)
+bool XrdOssMirage::has_entry(const char *path)
 {
     return entries.contains(path);
 }
 
-bool XrdOssMirage::isEntryBeingWritten(const char *path)
+bool XrdOssMirage::is_entry_being_written(const char *path)
 {
     return entries[path].use_count() > 1;
 }
