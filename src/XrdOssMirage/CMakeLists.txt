@@ -6,4 +6,6 @@ add_library(${XrdOssMirage} MODULE XrdOssMirage.cc
     XrdOssMirageXAttr.cc
     )
 
+target_link_libraries(${XrdOssMirage} PRIVATE XrdUtils XrdServer)
+
 install(TARGETS ${XrdOssMirage} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
