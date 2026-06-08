@@ -12,8 +12,43 @@ export KRB5CCNAME="${PWD}/krb5cc"
 export KRB5_CONFIG="${PWD}/krb5.conf"
 export KRB5_KDC_PROFILE="${PWD}/kdc.conf"
 
+function reserve_ports() {
+	python3 - <<'PY'
+import socket
+
+sockets = []
+for _ in range(3):
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock.bind(("127.0.0.1", 0))
+	sockets.append(sock)
+
+print(*(sock.getsockname()[1] for sock in sockets))
+PY
+}
+
+function configure_ports() {
+	read -r KDC_PORT KADMIN_PORT KPASSWD_PORT <<<"$(reserve_ports)"
+
+	sed -i -E \
+		-e "s/(kdc_listen[[:space:]]*=[[:space:]]*)[0-9]+/\\1${KDC_PORT}/" \
+		-e "s/(kdc_tcp_listen[[:space:]]*=[[:space:]]*)[0-9]+/\\1${KDC_PORT}/" \
+		-e "s/(kdc[[:space:]]*=[[:space:]]*localhost:)[0-9]+/\\1${KDC_PORT}/" \
+		-e "s/(master_kdc[[:space:]]*=[[:space:]]*localhost:)[0-9]+/\\1${KDC_PORT}/" \
+		-e "s/(kpasswd_server[[:space:]]*=[[:space:]]*localhost:)[0-9]+/\\1${KPASSWD_PORT}/" \
+		-e "s/(admin_server[[:space:]]*=[[:space:]]*localhost:)[0-9]+/\\1${KADMIN_PORT}/" \
+		"${KRB5_CONFIG}"
+
+	sed -i -E \
+		-e "s/(kdc_listen[[:space:]]*=[[:space:]]*)[0-9]+/\\1${KDC_PORT}/" \
+		-e "s/(kdc_tcp_listen[[:space:]]*=[[:space:]]*)[0-9]+/\\1${KDC_PORT}/" \
+		-e "s/(kadmind_listen[[:space:]]*=[[:space:]]*)[0-9]+/\\1${KADMIN_PORT}/" \
+		-e "s/(kpasswd_listen[[:space:]]*=[[:space:]]*)[0-9]+/\\1${KPASSWD_PORT}/" \
+		"${KRB5_KDC_PROFILE}"
+}
+
 function setup() {
 	rm -f "${KRB5CCNAME}" krb5.keytab kdc/{db*,*.{log,pem,srl}}
+	configure_ports
 
 	pushd kdc >/dev/null || exit 1
 
