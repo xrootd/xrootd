@@ -17,13 +17,13 @@ function test_mirage() {
 	assert xrdcp -f "${SOURCE_DIR}"/mirage.cfg "${ORIGIN_HOST}//mirage.cfg"
 
 	# Local and remote size match
-	local_size=$(stat -c '%s' "${SOURCE_DIR}"/mirage.cfg)
-	remote_size=$(xrdcp -f "${ORIGIN_HOST}"//mirage.cfg - | wc -c)
+	local_size=$(cat "${SOURCE_DIR}"/mirage.cfg | wc -c | tr -d ' ')
+	remote_size=$(xrdcp -f "${ORIGIN_HOST}"//mirage.cfg - | wc -c | tr -d ' ')
 	assert [ "$local_size" = "$remote_size" ]
 
 	# Stat returns correct file size
-	local_size=$(stat -c '%s' "${SOURCE_DIR}"/mirage.cfg)
-	remote_size=$(xrdfs "${ORIGIN_HOST}"/ stat /mirage.cfg | grep -i size | awk '{print $2}')
+	local_size=$(cat "${SOURCE_DIR}"/mirage.cfg | wc -c | tr -d ' ')
+	remote_size=$(xrdfs "${ORIGIN_HOST}"/ stat /mirage.cfg | grep -i size | awk '{print $2}' | tr -d ' ')
 	assert [ "$local_size" = "$remote_size" ]
 
 	# Truncate file to 1000 bytes
