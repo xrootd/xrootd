@@ -109,6 +109,7 @@ jobs:
         ${PYTHON} -c 'from XRootD import client; print(client.FileSystem("root://localhost"))'
 
     - name: Upload Artifacts
+      if: ${{ github.event_name == 'release' }}
       uses: actions/upload-artifact@v7
       with:
         name: python-${{ matrix.version }}-linux-${{ matrix.platform.arch }}
@@ -178,6 +179,7 @@ jobs:
         python -c 'from XRootD import client; print(client.FileSystem("root://localhost"))'
 
     - name: Upload Artifacts
+      if: ${{ github.event_name == 'release' }}
       uses: actions/upload-artifact@v7
       with:
         name: python-${{ matrix.version }}-macos-${{ matrix.platform.arch }}
