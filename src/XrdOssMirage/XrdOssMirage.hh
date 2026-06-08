@@ -5,6 +5,7 @@
 
 #include <XrdOss/XrdOss.hh>
 
+#include <mutex>
 #include <optional>
 #include <unordered_map>
 

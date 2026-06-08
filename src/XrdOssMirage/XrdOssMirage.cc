@@ -6,15 +6,13 @@
 
 #include "XrdSys/XrdSysFAttr.hh"
 
-#include <mutex>
-
 XrdVERSIONINFO(XrdOssGetStorageSystem, XrdOssMirage);
 
 extern "C"
 {
     XrdOss *XrdOssGetStorageSystem(XrdOss* native_oss, XrdSysLogger* lp, const char* config_fn, const char* parms)
     {
-        return new XrdOssMirage;
+        return static_cast<XrdOss *>(new XrdOssMirage);
     }
 }
 

@@ -118,7 +118,7 @@ ssize_t XrdOssMirageFile::Read(void *buffer, off_t offset, size_t size)
 
     const std::span output(static_cast<char *>(buffer), size);
 
-    const std::size_t num_bytes = std::min(output.size(), entry->size - offset);
+    const std::size_t num_bytes = std::min(output.size(), static_cast<std::size_t>(entry->size - offset));
 
     if (entry->pattern.size() == 1)
         std::fill_n(output.begin(), num_bytes, entry->pattern.front());
