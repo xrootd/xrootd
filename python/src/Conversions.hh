@@ -125,13 +125,22 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::StatInfo *info )
       {
-        return Py_BuildValue("{sNsNsNsNsN}",
+        return Py_BuildValue("{sNsNsNsNsNsNsNsNsNsNsNsNsNsNsN}",
             "id",         Py_BuildValue("s", info->GetId().c_str()),
             "size",       Py_BuildValue("k", info->GetSize()),
             "flags",      Py_BuildValue("I", info->GetFlags()),
+            "mtime",      Py_BuildValue("k", info->GetModTime()),
             "modtime",    Py_BuildValue("k", info->GetModTime()),
-            "modtimestr", Py_BuildValue("s",
-                                        info->GetModTimeAsString().c_str()));
+            "modtimestr", Py_BuildValue("s", info->GetModTimeAsString().c_str()),
+            "ctime",      Py_BuildValue("k", info->GetChangeTime()),
+            "atime",      Py_BuildValue("k", info->GetAccessTime()),
+            "mode",       Py_BuildValue("s", info->GetModeAsString().c_str()),
+            "modeoctstr", Py_BuildValue("s", info->GetModeAsOctString().c_str()),
+            "owner",      Py_BuildValue("s", info->GetOwner().c_str()),
+            "group",      Py_BuildValue("s", info->GetGroup().c_str()),
+            "extended",   PyBool_FromLong(info->ExtendedFormat()),
+            "haschecksum", PyBool_FromLong(info->HasChecksum()),
+            "checksum",   Py_BuildValue("s", info->GetChecksum().c_str()));
       }
   };
 
