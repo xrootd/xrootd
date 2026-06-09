@@ -324,6 +324,28 @@ def test_stat_sync():
   assert status.ok
   f.close()
 
+def test_stat_fields():
+  f = client.File()
+  status, __ = f.open(smallfile, OpenFlags.DELETE, open_mode)
+  assert status.ok
+  status, __ = f.write(smallbuffer)
+  assert status.ok
+  status, stat_info = f.stat(force=True)
+  assert status.ok
+  assert isinstance(stat_info.mtime, int)
+  assert isinstance(stat_info.modtime, int)
+  assert isinstance(stat_info.modtimestr, str)
+  assert isinstance(stat_info.ctime, int)
+  assert isinstance(stat_info.atime, int)
+  assert isinstance(stat_info.mode, str)
+  assert isinstance(stat_info.modeoctstr, str)
+  assert isinstance(stat_info.owner, str)
+  assert isinstance(stat_info.group, str)
+  assert isinstance(stat_info.extended, bool)
+  assert isinstance(stat_info.haschecksum, bool)
+  assert isinstance(stat_info.checksum, str)
+  f.close()
+
 def test_stat_async():
   f = client.File()
   status, response = f.open(bigfile)

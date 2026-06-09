@@ -169,11 +169,21 @@ class StatInfo(Struct):
   """Status information for files and directories.
 
   :var         id: This file's unique identifier
+  :var       size: The file size (in bytes)
   :var      flags: Informational flags. An `ORed` combination of
                    :mod:`XRootD.client.flags.StatInfoFlags`
-  :var       size: The file size (in bytes)
-  :var    modtime: Modification time (in seconds since epoch)
-  :var modtimestr: Modification time (as readable string)
+  :var      mtime: Modification time (in seconds since epoch)
+  :var    modtime: Deprecated alias for ``mtime``
+  :var modtimestr: Deprecated modification time (as readable string)
+  :var      ctime: Change time (in seconds since epoch)
+  :var      atime: Access time (in seconds since epoch)
+  :var       mode: File mode
+  :var modeoctstr: File mode as a readable permissions string
+  :var      owner: File owner
+  :var      group: File group
+  :var   extended: Whether extended stat information is available
+  :var haschecksum: Whether checksum information is available
+  :var   checksum: File checksum
   """
   def __init__(self, info):
     super(StatInfo, self).__init__(info)
