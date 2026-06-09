@@ -422,8 +422,8 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
                g_logStreamedAdler32 = true;
 	       g_storeStreamedAdler32 = true;
            }
-        } 
-        if (!strcmp(var, "ceph.streamed-cks-logfile") ) {
+         } 
+	if (!strcmp(var, "ceph.streamed-cks-logfile") ) {
          var = Config.GetWord();
 	 if (var) { 
            g_cksLogFileName = strdup(var);
@@ -435,6 +435,7 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
  	   return 1;
          }
        }
+      }
      }
      // Now check if any errors occurred during file i/o
 
