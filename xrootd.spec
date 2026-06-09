@@ -87,6 +87,7 @@ BuildRequires:	krb5-server
 BuildRequires:	krb5-workstation
 BuildRequires:	openssl
 BuildRequires:	procps-ng
+BuildRequires:	python3-pytest
 BuildRequires:	sqlite
 %endif
 
