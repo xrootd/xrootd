@@ -111,6 +111,8 @@ XrdSysMutex g_init_mutex;
 //JW Counter for number of times a given cluster is resolved.
 std::map<unsigned int, unsigned long long> g_idxCntr;
 
+double g_ECcorrectionFactor;
+
 /// Accessor to next ceph pool index
 /// Note that this is not thread safe, but we do not care
 /// as we only want a rough load balancing
@@ -1508,7 +1510,7 @@ int ceph_posix_stat_pool(char const *poolName, long long *usedSpace) {
 
   } else {
  
-    *usedSpace = stat[poolName].num_kb * 1024;
+    *usedSpace = stat[poolName].num_kb * 1024 * g_ECcorrectionFactor; // num_kb is in KB, convert to bytes and apply EC correction factor;
     return XrdOssOK;
 
   }
