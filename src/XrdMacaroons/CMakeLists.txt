@@ -35,6 +35,7 @@ add_library(${XrdMacaroons} MODULE
   XrdMacaroonsAuthz.cc       XrdMacaroonsAuthz.hh
   XrdMacaroonsConfigure.cc
   XrdMacaroonsHandler.cc     XrdMacaroonsHandler.hh
+  XrdMacaroonsUtils.cc       XrdMacaroonsUtils.hh
 )
 
 target_link_libraries(${XrdMacaroons}
