@@ -8,6 +8,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -485,10 +486,27 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
 
     std::string activities = GenerateActivities(req, resource);
 
-    // Overwrite activities with user-provided caveat if present (last one wins)
+    // Intersect user-requested activities with those the authz chain permits.
+    // A caveat can only attenuate privileges, never grant new ones.
     for (const auto &caveat : other_caveats) {
-        if (caveat.compare(0, 9, "activity:") == 0)
-            activities = caveat;
+        if (caveat.compare(0, 9, "activity:") == 0) {
+            std::set<std::string> allowed;
+            { std::stringstream ss(activities.substr(9));
+              for (std::string a; std::getline(ss, a, ','); )
+                  allowed.insert(a); }
+            std::string result = "activity:";
+            bool first = true;
+            std::stringstream ss(caveat.substr(9));
+            for (std::string a; std::getline(ss, a, ','); ) {
+                if (allowed.count(a)) {
+                    if (!first) result += ',';
+                    result += a;
+                    first = false;
+                }
+            }
+            if (result.size() > 9)
+                activities = result;
+        }
     }
 
     std::string macaroon_id = GenerateID(resource, req.GetSecEntity(), activities, other_caveats, utc_time_str);
