@@ -836,6 +836,10 @@ int ceph_posix_close(int fd) {
       lastAsyncAge = 1.0 * (now.tv_sec - fr->lastAsyncSubmission.tv_sec) 
               + 0.000001 * (now.tv_usec - fr->lastAsyncSubmission.tv_usec);
     }
+    //clear checksum if this is a file has been modified
+    if (fr->bytesWritten > 0){
+      ceph_posix_fremovexattr(fd,"XrdCks.adler32");
+    }
     logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d, "
                "async write ops %d/%d, async pending write bytes %ld, "
                "async read ops %d/%d, bytes written/max offset %ld/%ld, "
