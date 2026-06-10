@@ -1,0 +1,629 @@
+#!/usr/bin/env python3
+"""Obtain and inspect OIDC bearer tokens for XRootD sec.protocol oidc."""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import json
+import os
+import secrets
+import shutil
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+from typing import Any, Optional
+
+PROVIDERS = frozenset({"CERN", "CERNOIDC", "GOOGLE", "GITHUB", "IAM", "WLCG"})
+
+
+@dataclass
+class ProviderSettings:
+    client_id: str = ""
+    client_secret: str = ""
+    flow: str = "device"
+    scope: str = ""
+    auth_ep: str = ""
+    device_ep: str = ""
+    token_ep: str = ""
+
+
+def usage() -> str:
+    return """Usage:
+  xrdtoken create [tokenfile] [CERN|CERNOIDC|GOOGLE|GITHUB|IAM|WLCG] [--provider CERN|CERNOIDC|GOOGLE|GITHUB|IAM|WLCG] [--flow device|pkce] [--issuer URL] [--client-id ID] [--client-secret SECRET] [--scope SCOPE] [--auth-ep URL] [--device-ep URL] [--token-ep URL]
+  xrdtoken show   [tokenfile]
+
+Defaults:
+  provider  : CERN
+  CERN:
+    client-id : public-client
+    device-ep : https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device
+    token-ep  : https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token
+  CERNOIDC:
+    client-id : public-client
+    flow      : device
+    scope     : openid profile email
+    device-ep : https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device
+    token-ep  : https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token
+    stored token : id_token (required; command fails if missing)
+  GOOGLE:
+    flow      : device (default)
+    auth-ep   : https://accounts.google.com/o/oauth2/v2/auth
+    device-ep : https://oauth2.googleapis.com/device/code
+    token-ep  : https://oauth2.googleapis.com/token
+    scope     : openid email profile
+    client-id : must be provided (e.g. --client-id <google-oauth-client-id>)
+    client-secret : required for many Google OAuth client types
+  GITHUB:
+    flow      : device (default)
+    auth-ep   : https://github.com/login/oauth/authorize
+    device-ep : https://github.com/login/device/code
+    token-ep  : https://github.com/login/oauth/access_token
+    scope     : read:user
+    client-id : must be provided (enable Device flow in the OAuth app settings)
+    client-secret : not required for device flow; required for --flow pkce
+    stored token : access_token (opaque GitHub OAuth token, not a JWT)
+  IAM / WLCG (aliases):
+    flow      : device
+    issuer    : https://wlcg.cloud.cnaf.infn.it/ (override with --issuer or WLCG_IAM_ISSUER)
+    device-ep : <issuer>/devicecode
+    token-ep  : <issuer>/token
+    scope     : required WLCG storage scopes (e.g. storage.read:/public storage.modify:/alice)
+    client-id : must be provided (or WLCG_IAM_CLIENT_ID / OIDC_CLIENT_ID)
+    stored token : access_token (WLCG-profile JWT for XrdSecoidc + XrdAccToken)
+  tokenfile : ${XDG_RUNTIME_DIR}/bt_u<uid> (fallback: /tmp/bt_u<uid>)"""
+
+
+def die(msg: str, code: int = 1) -> None:
+    print(f"error: {msg}", file=sys.stderr)
+    raise SystemExit(code)
+
+
+def default_tokenfile() -> Path:
+    uid = os.getuid()
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime:
+        return Path(runtime) / f"bt_u{uid}"
+    return Path(f"/tmp/bt_u{uid}")
+
+
+def iam_issuer_base(issuer: Optional[str] = None) -> str:
+    base = (
+        issuer
+        or os.environ.get("WLCG_IAM_ISSUER")
+        or os.environ.get("OIDC_ISSUER")
+        or "https://wlcg.cloud.cnaf.infn.it/"
+    )
+    return base.rstrip("/")
+
+
+def endpoints_from_issuer(issuer: str) -> tuple[str, str, str]:
+    base = iam_issuer_base(issuer)
+    return (
+        f"{base}/devicecode",
+        f"{base}/token",
+        f"{base}/authorize",
+    )
+
+
+def provider_defaults(provider: str) -> ProviderSettings:
+    provider = provider.upper()
+    if provider in {"IAM", "WLCG"}:
+        device_ep, token_ep, auth_ep = endpoints_from_issuer("")
+        return ProviderSettings(
+            client_id=os.environ.get("WLCG_IAM_CLIENT_ID")
+            or os.environ.get("OIDC_CLIENT_ID")
+            or "",
+            flow="device",
+            scope="",
+            auth_ep=auth_ep,
+            device_ep=device_ep,
+            token_ep=token_ep,
+        )
+    if provider == "CERN":
+        return ProviderSettings(
+            client_id="public-client",
+            flow="device",
+            device_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device",
+            token_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token",
+        )
+    if provider == "CERNOIDC":
+        return ProviderSettings(
+            client_id="public-client",
+            flow="device",
+            scope="openid profile email",
+            device_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth/device",
+            token_ep="https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/token",
+        )
+    if provider == "GOOGLE":
+        return ProviderSettings(
+            flow="device",
+            auth_ep="https://accounts.google.com/o/oauth2/v2/auth",
+            device_ep="https://oauth2.googleapis.com/device/code",
+            token_ep="https://oauth2.googleapis.com/token",
+            scope="openid email profile",
+        )
+    if provider == "GITHUB":
+        return ProviderSettings(
+            flow="device",
+            auth_ep="https://github.com/login/oauth/authorize",
+            device_ep="https://github.com/login/device/code",
+            token_ep="https://github.com/login/oauth/access_token",
+            scope="read:user",
+        )
+    die(f"unsupported provider '{provider}' (expected CERN, CERNOIDC, GOOGLE, GITHUB, IAM, or WLCG)")
+
+
+def parse_oauth_response(body: str) -> dict[str, Any]:
+    body = body.strip()
+    if not body:
+        return {}
+    if body.startswith("{"):
+        try:
+            return json.loads(body)
+        except json.JSONDecodeError:
+            pass
+    return dict(urllib.parse.parse_qsl(body))
+
+
+def post_form(url: str, fields: dict[str, str], *, allow_oauth_error: bool = False) -> dict[str, Any]:
+    data = urllib.parse.urlencode(fields).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method="POST",
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            body = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        if allow_oauth_error:
+            parsed = parse_oauth_response(body)
+            if parsed:
+                return parsed
+        die(f"HTTP request failed ({exc.code}): {body}")
+    except urllib.error.URLError as exc:
+        die(f"HTTP request failed: {exc.reason}")
+    parsed = parse_oauth_response(body)
+    if not parsed and body:
+        die(f"invalid OAuth response: {body}")
+    return parsed
+
+
+def b64url_no_pad(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def pick_free_port() -> int:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
+def open_browser(url: str) -> None:
+    if shutil.which("xdg-open"):
+        subprocess.run(
+            ["xdg-open", url],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    elif shutil.which("open"):
+        subprocess.run(
+            ["open", url],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+
+def chosen_token(provider: str, token_resp: dict[str, Any]) -> str:
+    access_token = token_resp.get("access_token") or ""
+    id_token = token_resp.get("id_token") or ""
+    if provider == "CERNOIDC":
+        return id_token
+    if provider in {"IAM", "WLCG"}:
+        return access_token
+    if provider == "GOOGLE" and id_token:
+        return id_token
+    return access_token
+
+
+def parse_create_positionals(argv: list[str]) -> tuple[Path, str, list[str]]:
+    tokenfile = default_tokenfile()
+    provider = "CERN"
+    rest = list(argv)
+    if rest and not rest[0].startswith("-"):
+        p1 = rest[0].upper()
+        if p1 in PROVIDERS:
+            provider = p1
+            rest = rest[1:]
+        else:
+            tokenfile = Path(rest[0])
+            rest = rest[1:]
+            if rest and not rest[0].startswith("-"):
+                p2 = rest[0].upper()
+                if p2 in PROVIDERS:
+                    provider = p2
+                    rest = rest[1:]
+    return tokenfile, provider, rest
+
+
+def parse_create_options(argv: list[str], provider: str) -> tuple[ProviderSettings, str]:
+    settings = provider_defaults(provider)
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--provider")
+    parser.add_argument("--flow")
+    parser.add_argument("--issuer")
+    parser.add_argument("--client-id")
+    parser.add_argument("--client-secret")
+    parser.add_argument("--scope")
+    parser.add_argument("--auth-ep")
+    parser.add_argument("--device-ep")
+    parser.add_argument("--token-ep")
+    args, extras = parser.parse_known_args(argv)
+    if extras:
+        die(f"unknown option '{extras[0]}'")
+
+    if args.provider:
+        settings = provider_defaults(args.provider)
+        provider = args.provider.upper()
+    if args.flow:
+        settings.flow = args.flow.lower()
+    if args.issuer:
+        device_ep, token_ep, auth_ep = endpoints_from_issuer(args.issuer)
+        settings.device_ep = device_ep
+        settings.token_ep = token_ep
+        settings.auth_ep = auth_ep
+    if args.client_id is not None:
+        settings.client_id = args.client_id
+    if args.client_secret is not None:
+        settings.client_secret = args.client_secret
+    if args.scope is not None:
+        settings.scope = args.scope
+    if args.auth_ep is not None:
+        settings.auth_ep = args.auth_ep
+    if args.device_ep is not None:
+        settings.device_ep = args.device_ep
+    if args.token_ep is not None:
+        settings.token_ep = args.token_ep
+    return settings, provider
+
+
+def device_verify_target(provider: str, resp: dict[str, Any]) -> tuple[str, str, str]:
+    device_code = resp.get("device_code") or ""
+    user_code = resp.get("user_code") or ""
+    verify_url = resp.get("verification_uri_complete") or ""
+    verify_base = resp.get("verification_uri") or resp.get("verification_url") or ""
+
+    if not verify_url and verify_base:
+        if provider == "GITHUB":
+            verify_url = verify_base
+        elif user_code:
+            sep = "&" if "?" in verify_base else "?"
+            verify_url = f"{verify_base}{sep}user_code={urllib.parse.quote(user_code)}"
+        else:
+            verify_url = verify_base
+
+    return device_code, verify_url, user_code
+
+
+def device_flow(provider: str, settings: ProviderSettings) -> dict[str, Any]:
+    fields: dict[str, str] = {"client_id": settings.client_id}
+    if settings.scope:
+        fields["scope"] = settings.scope
+    resp = post_form(settings.device_ep, fields)
+
+    device_code, verify_url, user_code = device_verify_target(provider, resp)
+    interval = int(resp.get("interval") or 5)
+
+    if not device_code or not verify_url:
+        die(f"failed to obtain device code: {json.dumps(resp)}")
+
+    print("Open this URL in your browser and sign in:")
+    print(verify_url)
+    if user_code:
+        if provider == "GITHUB":
+            print(f"Enter this code on that page: {user_code}")
+        else:
+            print(f"If prompted, enter device code: {user_code}")
+
+    while True:
+        token_fields = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            "device_code": device_code,
+            "client_id": settings.client_id,
+        }
+        if settings.client_secret:
+            token_fields["client_secret"] = settings.client_secret
+        # Token polling may return HTTP 400 with authorization_pending, etc.
+        token_resp = post_form(settings.token_ep, token_fields, allow_oauth_error=True)
+
+        token = chosen_token(provider, token_resp)
+        if token:
+            return token_resp
+
+        err = token_resp.get("error") or ""
+        if err == "authorization_pending":
+            time.sleep(interval)
+            continue
+        if err == "slow_down":
+            interval = int(token_resp.get("interval") or interval + 5)
+            time.sleep(interval)
+            continue
+        if err in {"expired_token", "token_expired"}:
+            die("device authorization expired; run create again")
+
+        print("Token request failed:", file=sys.stderr)
+        print(json.dumps(token_resp), file=sys.stderr)
+        raise SystemExit(1)
+
+
+def pkce_flow(provider: str, settings: ProviderSettings) -> dict[str, Any]:
+    if not settings.auth_ep:
+        die(f"{provider} pkce flow requires --auth-ep")
+
+    code_verifier = b64url_no_pad(secrets.token_bytes(72))[:96]
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    code_challenge = b64url_no_pad(digest)
+    state = secrets.token_hex(16)
+    port = pick_free_port()
+    redirect_uri = f"http://127.0.0.1:{port}/callback"
+
+    params = {
+        "client_id": settings.client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": settings.scope,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+        "state": state,
+    }
+    if provider == "GOOGLE":
+        params["access_type"] = "offline"
+        params["prompt"] = "consent"
+    auth_url = settings.auth_ep + "?" + urllib.parse.urlencode(params)
+
+    result: dict[str, str] = {"code": "", "error": ""}
+
+    class CallbackHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            got_state = query.get("state", [""])[0]
+            code = query.get("code", [""])[0]
+            err = query.get("error", [""])[0]
+            if err:
+                result["error"] = f"oauth_error:{err}"
+            elif state and got_state != state:
+                result["error"] = "state_mismatch"
+            elif not code:
+                result["error"] = "missing_code"
+            else:
+                result["code"] = code
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"Authentication completed. You can close this tab.\n")
+
+        def log_message(self, *_args: Any) -> None:
+            return
+
+    print("Open this URL in your browser and sign in:")
+    print(auth_url)
+    open_browser(auth_url)
+
+    server = HTTPServer(("127.0.0.1", port), CallbackHandler)
+    server.timeout = 300
+    deadline = time.time() + 300
+    while time.time() < deadline and not result["code"] and not result["error"]:
+        server.handle_request()
+
+    if result["error"]:
+        print("Token request failed:", file=sys.stderr)
+        print(result["error"], file=sys.stderr)
+        raise SystemExit(1)
+    if not result["code"]:
+        die("did not receive OAuth callback code")
+
+    token_fields = {
+        "grant_type": "authorization_code",
+        "code": result["code"],
+        "client_id": settings.client_id,
+        "redirect_uri": redirect_uri,
+        "code_verifier": code_verifier,
+    }
+    if settings.client_secret:
+        token_fields["client_secret"] = settings.client_secret
+    return post_form(settings.token_ep, token_fields)
+
+
+def save_token(tokenfile: Path, token: str) -> None:
+    tokenfile.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(tokenfile, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(token + "\n")
+    os.chmod(tokenfile, 0o600)
+
+
+def cmd_create(argv: list[str]) -> None:
+    tokenfile, provider, rest = parse_create_positionals(argv)
+    settings, provider = parse_create_options(rest, provider)
+
+    if provider == "GOOGLE":
+        if not settings.client_id:
+            settings.client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID") or os.environ.get("OIDC_CLIENT_ID") or ""
+        if not settings.client_secret:
+            settings.client_secret = (
+                os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
+                or os.environ.get("OIDC_CLIENT_SECRET")
+                or ""
+            )
+        if not settings.client_id:
+            die("GOOGLE provider requires --client-id (or GOOGLE_OAUTH_CLIENT_ID)")
+
+    if provider == "GITHUB":
+        if not settings.client_id:
+            settings.client_id = (
+                os.environ.get("GITHUB_OAUTH_CLIENT_ID")
+                or os.environ.get("OIDC_CLIENT_ID")
+                or ""
+            )
+        if not settings.client_secret:
+            settings.client_secret = (
+                os.environ.get("GITHUB_OAUTH_CLIENT_SECRET")
+                or os.environ.get("OIDC_CLIENT_SECRET")
+                or ""
+            )
+        if not settings.client_id:
+            die("GITHUB provider requires --client-id (or GITHUB_OAUTH_CLIENT_ID)")
+        if settings.flow == "pkce" and not settings.client_secret:
+            die("GITHUB pkce flow requires --client-secret (or GITHUB_OAUTH_CLIENT_SECRET)")
+
+    if provider in {"CERN", "CERNOIDC", "IAM", "WLCG"} and settings.flow != "device":
+        die(f"{provider} provider currently supports only --flow device")
+
+    if provider in {"IAM", "WLCG"}:
+        if not settings.client_id:
+            settings.client_id = (
+                os.environ.get("WLCG_IAM_CLIENT_ID")
+                or os.environ.get("OIDC_CLIENT_ID")
+                or ""
+            )
+        if not settings.client_id:
+            die("IAM/WLCG provider requires --client-id (or WLCG_IAM_CLIENT_ID)")
+        if not settings.scope:
+            die(
+                "IAM/WLCG provider requires --scope with WLCG storage scopes "
+                "(e.g. 'storage.read:/public storage.modify:/alice')"
+            )
+
+    if provider in {"GOOGLE", "GITHUB"} and settings.flow == "pkce":
+        token_resp = pkce_flow(provider, settings)
+    else:
+        token_resp = device_flow(provider, settings)
+
+    token = chosen_token(provider, token_resp)
+    if not token:
+        if provider == "CERNOIDC":
+            die("CERNOIDC requires id_token in token response")
+        print("Token request failed:", file=sys.stderr)
+        print(json.dumps(token_resp), file=sys.stderr)
+        raise SystemExit(1)
+
+    save_token(tokenfile, token)
+    print(f"Token saved to {tokenfile}")
+    if provider == "GOOGLE":
+        if token_resp.get("id_token"):
+            print("Stored token type: id_token (JWT)")
+        else:
+            print("Stored token type: access_token (non-JWT possible)")
+    if provider == "CERNOIDC":
+        print("Stored token type: id_token (JWT)")
+    if provider in {"IAM", "WLCG"}:
+        print("Stored token type: access_token (WLCG-profile JWT)")
+    if provider == "GITHUB":
+        print("Stored token type: access_token (GitHub OAuth token, not a JWT)")
+    expires_in = token_resp.get("expires_in")
+    if expires_in is not None:
+        print(f"Access token lifetime (expires_in): {expires_in}s")
+
+
+def b64url_decode(seg: str) -> bytes:
+    seg = seg.strip()
+    seg += "=" * (-len(seg) % 4)
+    return base64.urlsafe_b64decode(seg.encode("ascii"))
+
+
+def read_token(path: Path) -> str:
+    token = path.read_text(encoding="utf-8").strip()
+    if token.startswith("Bearer "):
+        token = token[7:].strip()
+    return token
+
+
+def fmt_epoch(value: Any) -> Optional[str]:
+    try:
+        ts = int(value)
+        return (
+            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+        )
+    except (TypeError, ValueError):
+        return None
+
+
+def cmd_show(argv: list[str]) -> None:
+    if len(argv) > 1:
+        die("too many arguments for 'show'")
+    tokenfile = Path(argv[0]) if argv else default_tokenfile()
+    if not tokenfile.exists():
+        die(f"token file not found: {tokenfile}")
+
+    token = read_token(tokenfile)
+    parts = token.split(".")
+    if len(parts) != 3:
+        die("token is not a JWT (expected 3 segments)")
+
+    try:
+        header = json.loads(b64url_decode(parts[0]).decode("utf-8"))
+        payload = json.loads(b64url_decode(parts[1]).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        die(f"failed to decode token: {exc}")
+
+    print("HEADER:")
+    print(json.dumps(header, indent=2, sort_keys=True))
+    print("\nPAYLOAD:")
+    print(json.dumps(payload, indent=2, sort_keys=True))
+
+    exp = payload.get("exp")
+    iat = payload.get("iat")
+    nbf = payload.get("nbf")
+    if exp is not None or iat is not None or nbf is not None:
+        print("\nTIME CLAIMS (UTC):")
+        if iat is not None:
+            print(f"  iat: {iat} ({fmt_epoch(iat)})")
+        if nbf is not None:
+            print(f"  nbf: {nbf} ({fmt_epoch(nbf)})")
+        if exp is not None:
+            print(f"  exp: {exp} ({fmt_epoch(exp)})")
+
+
+def main() -> None:
+    if len(sys.argv) < 2:
+        print(usage())
+        raise SystemExit(1)
+
+    cmd = sys.argv[1]
+    if cmd in ("-h", "--help", "help"):
+        print(usage())
+        return
+
+    if cmd.upper() in PROVIDERS:
+        cmd_create([cmd.upper()] + sys.argv[2:])
+        return
+    if cmd == "create":
+        cmd_create(sys.argv[2:])
+        return
+    if cmd == "show":
+        cmd_show(sys.argv[2:])
+        return
+
+    die(f"unknown command '{cmd}'")
+
+
+if __name__ == "__main__":
+    main()

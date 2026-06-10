@@ -540,6 +540,7 @@ fi
 %{_libdir}/libXrdSecsss-6.so
 %{_libdir}/libXrdSecunix-6.so
 %{_libdir}/libXrdSecztn-6.so
+%{_libdir}/libXrdSecoidc-6.so
 %license COPYING* LICENSE
 
 %files devel

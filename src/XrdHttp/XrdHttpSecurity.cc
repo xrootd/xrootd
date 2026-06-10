@@ -19,9 +19,21 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
+#include <cctype>
+#include <cstdio>
+#include <cstring>
+#include <map>
+#include <string>
+#include <vector>
+
+#include <openssl/evp.h>
+
 #include "XrdHttpProtocol.hh"
 #include "XrdHttpTrace.hh"
 #include "XrdHttpSecXtractor.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
+#include "XrdSec/XrdSecInterface.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
@@ -48,6 +60,81 @@ const char *TraceID = "Security";
 }
 
 using namespace XrdHttpProtoInfo;
+
+namespace
+{
+
+std::string bearerTokenKey(const char *tok, int tlen)
+{
+   unsigned char md[EVP_MAX_MD_SIZE];
+   unsigned int mdLen = 0;
+   if (!tok || tlen <= 0
+   ||  !EVP_Digest(tok, static_cast<size_t>(tlen), md, &mdLen, EVP_sha256(), nullptr))
+      return {};
+   char hex[EVP_MAX_MD_SIZE * 2 + 1];
+   for (unsigned int i = 0; i < mdLen; ++i)
+      snprintf(hex + i * 2, sizeof(hex) - i * 2, "%02x", md[i]);
+   return std::string(hex, mdLen * 2);
+}
+
+bool hasPrefix(const char *s, const char *end, const char *pfx)
+{
+   while (*pfx && s < end && *s == *pfx) {++s; ++pfx;}
+   return !*pfx;
+}
+
+const char *stripBearerToken(const char *bTok, int &sz)
+{
+   const char *sTok = bTok;
+   sz = 0;
+   if (!sTok) return nullptr;
+
+   const char *endPtr = sTok + strlen(sTok);
+   while (sTok < endPtr && isspace(static_cast<unsigned char>(*sTok))) ++sTok;
+   if (sTok >= endPtr) return nullptr;
+
+   if ((endPtr - sTok) >= 9 && hasPrefix(sTok, endPtr, "Bearer%20")) sTok += 9;
+   else if ((endPtr - sTok) >= 7 && hasPrefix(sTok, endPtr, "Bearer ")) sTok += 7;
+
+   while (sTok < endPtr && isspace(static_cast<unsigned char>(*sTok))) ++sTok;
+   if (sTok >= endPtr) return nullptr;
+
+   while (endPtr > sTok && isspace(static_cast<unsigned char>(*(endPtr - 1)))) --endPtr;
+   sz = static_cast<int>(endPtr - sTok);
+   return (sz > 0 ? sTok : nullptr);
+}
+
+void copyEntityAttrs(XrdSecEntity &dst, const XrdSecEntity &src)
+{
+   for (const auto &key : src.eaAPI->Keys())
+      {std::string val;
+       if (src.eaAPI->Get(key, val)) dst.eaAPI->Add(key, val, true);
+      }
+}
+
+bool extractBearerToken(const XrdHttpReq &req, std::string &token)
+{
+   const std::string &cgi = req.hdr2cgistr;
+   const char *key = "authz=";
+   size_t pos = cgi.find(key);
+   if (pos != std::string::npos)
+      {size_t start = pos + strlen(key);
+       size_t end = cgi.find('&', start);
+       token = (end == std::string::npos ? cgi.substr(start)
+                                         : cgi.substr(start, end - start));
+       return !token.empty();
+      }
+
+   for (const auto &hdr : req.allheaders)
+      {if (!strcasecmp(hdr.first.c_str(), "authorization"))
+          {token = hdr.second;
+           return !token.empty();
+          }
+      }
+   return false;
+}
+
+} // namespace
 
 /******************************************************************************/
 /*                          I n i t S e c u r i t y                           */
@@ -81,9 +168,123 @@ bool XrdHttpProtocol::InitSecurity() {
        secxtractor->Init(sslctx, XrdHttpTrace.What);
       }
 
+// Load the security framework when HTTP bearer OIDC is enabled.
+//
+   if (oidcHttpMode && !CIA)
+      {if (!oidcConfigFN)
+          {eDest.Say("Error: http.oidc requires a configuration file path");
+           return false;
+          }
+       if (!(CIA = XrdSecLoadSecService(&eDest, oidcConfigFN)))
+          {eDest.Say("Error loading security framework for http.oidc");
+           return false;
+          }
+      }
+
 // All done
 //
    return true;
+}
+
+/******************************************************************************/
+/*               H a n d l e O I D C A u t h e n t i c a t i o n              */
+/******************************************************************************/
+
+int
+XrdHttpProtocol::HandleOidcAuthentication()
+{
+#undef  TRACELINK
+#define TRACELINK Link
+
+  if (!oidcHttpMode || !CIA) return 0;
+
+  // Client-certificate identity is fixed for the TLS connection.
+  if (SecEntity.name && strncmp(SecEntity.prot, "oidc", 4) != 0) return 0;
+
+  std::string bearer;
+  if (!extractBearerToken(CurrentReq, bearer))
+     {if (oidcHttpMode == 2 && oidcBearerTokKey.empty())
+         {TRACEI(REQ, " OIDC bearer token required but not provided.");
+          SendSimpleResp(401, nullptr, nullptr, "Authentication required", 0, false);
+          return 1;
+         }
+      return 0;
+     }
+
+  int tlen = 0;
+  const char *tok = stripBearerToken(bearer.c_str(), tlen);
+  if (!tok || tlen <= 0)
+     {TRACEI(REQ, " OIDC bearer token malformed.");
+      SendSimpleResp(401, nullptr, nullptr, "Authentication failed", 0, false);
+      return 1;
+     }
+
+  const std::string tokKey = bearerTokenKey(tok, tlen);
+  if (tokKey.empty())
+     {TRACEI(REQ, " OIDC bearer token fingerprint failed.");
+      SendSimpleResp(500, nullptr, nullptr, "Authentication failed", 0, false);
+      return 1;
+     }
+
+  if (!oidcBearerTokKey.empty() && tokKey == oidcBearerTokKey) return 0;
+
+  const int bsz = 5 + tlen + 1;
+  std::vector<char> credBuf(static_cast<size_t>(bsz));
+  strcpy(credBuf.data(), "oidc");
+  memcpy(credBuf.data() + 5, tok, static_cast<size_t>(tlen));
+  credBuf[static_cast<size_t>(5 + tlen)] = '\0';
+
+  XrdSecCredentials cred;
+  cred.buffer = credBuf.data();
+  cred.size = bsz;
+
+  XrdOucErrInfo eMsg;
+  XrdSecProtocol *authProt = CIA->getProtocol(Link->Host(), *(Link->AddrInfo()),
+                                            &cred, eMsg);
+  if (!authProt)
+     {int ec = 0;
+      const char *et = eMsg.getErrText(ec);
+      TRACEI(REQ, " OIDC protocol unavailable: " << (et && *et ? et : "unknown"));
+      SendSimpleResp(401, nullptr, nullptr, "Authentication failed", 0, false);
+      return 1;
+     }
+
+  XrdSecParameters *parm = nullptr;
+  const int rc = authProt->Authenticate(&cred, &parm, &eMsg);
+  if (parm) delete parm;
+
+  if (rc != 0 || !CIA->PostProcess(authProt->Entity, eMsg))
+     {int ec = 0;
+      const char *et = eMsg.getErrText(ec);
+      TRACEI(REQ, " OIDC token validation failed: " << (et && *et ? et : "unknown"));
+      authProt->Delete();
+      SendSimpleResp(401, nullptr, nullptr, "Authentication failed", 0, false);
+      return 1;
+     }
+
+  if (!oidcBearerTokKey.empty() || Bridge)
+     {if (Bridge && !Bridge->Disc())
+         {TRACEI(REQ, " OIDC token changed but bridge is busy.");
+          authProt->Delete();
+          SendSimpleResp(503, nullptr, nullptr, "Authentication busy", 0, false);
+          return 1;
+         }
+      Bridge = nullptr;
+      DoingLogin = false;
+      DoneSetInfo = false;
+      if (!oidcBearerTokKey.empty())
+         TRACEI(REQ, " OIDC bearer token changed; re-authenticating.");
+     }
+
+  if (SecEntity.name) free(SecEntity.name);
+  SecEntity.name = authProt->Entity.name ? strdup(authProt->Entity.name) : nullptr;
+  strncpy(SecEntity.prot, authProt->Entity.prot, sizeof(SecEntity.prot));
+  copyEntityAttrs(SecEntity, authProt->Entity);
+  authProt->Delete();
+
+  oidcBearerTokKey = tokKey;
+  TRACEI(REQ, " OIDC authenticated as: " << SecEntity.name);
+  return 0;
 }
 
 /******************************************************************************/

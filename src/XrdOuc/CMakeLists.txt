@@ -1,3 +1,4 @@
+find_package(CURL REQUIRED)
 find_package(nlohmann_json 3.10.2 QUIET)
 
 if(nlohmann_json_FOUND)
@@ -81,3 +82,16 @@ add_library(${XrdN2No2p} MODULE XrdOucN2No2p.cc)
 target_link_libraries(${XrdN2No2p} PRIVATE XrdUtils)
 
 install(TARGETS ${XrdN2No2p} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+#-------------------------------------------------------------------------------
+# Shared OIDC JWT validation library
+#-------------------------------------------------------------------------------
+set(XrdOucOIDC XrdOucOIDC-${PLUGIN_VERSION})
+add_library(${XrdOucOIDC} SHARED XrdOucOIDC.cc)
+target_link_libraries(${XrdOucOIDC} PRIVATE XrdUtils OpenSSL::Crypto CURL::libcurl)
+set_target_properties(${XrdOucOIDC}
+  PROPERTIES
+    SOVERSION ${XRootD_VERSION_MAJOR}
+    VERSION ${XRootD_LIBVERSION}
+)
+install(TARGETS ${XrdOucOIDC} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

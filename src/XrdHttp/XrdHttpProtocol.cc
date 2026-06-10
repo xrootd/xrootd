@@ -46,6 +46,7 @@
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdHttpCors/XrdHttpCors.hh"
 
 #include <charconv>
@@ -154,6 +155,9 @@ bool xrdctxVer = false;
 }
 
 using namespace XrdHttpProtoInfo;
+
+int XrdHttpProtocol::oidcHttpMode = 0;
+const char *XrdHttpProtocol::oidcConfigFN = nullptr;
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
@@ -806,6 +810,11 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
 
 
+  // Bearer OIDC authentication over HTTPS (via sec.protocol oidc / CIA).
+  if (ishttps && ssldone && oidcHttpMode && HandleOidcAuthentication()) {
+    return -1;
+  }
+
   // Now we have everything that is needed to try the login
   // Remember that if there is an exthandler then it has the responsibility
   // for authorization in the paths that it manages
@@ -904,6 +913,7 @@ int XrdHttpProtocol::Stats(char *buff, int blen, int do_sync) {
         eDest.Say("Config http." x " overrides the xrd." y " directive.")
 
 int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
+  XrdHttpProtocol::oidcConfigFN = ConfigFN;
   XrdOucEnv cfgEnv;
   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &cfgEnv, "=====> ");
   std::vector<extHInfo> extHIVec;
@@ -1005,6 +1015,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("tlsreuse", xtlsreuse);
       else if TS_Xeq("auth", xauth);
       else if TS_Xeq("tlsclientauth", xtlsclientauth);
+      else if TS_Xeq("oidc", xoidc);
       else if TS_Xeq("maxdelay", xmaxdelay);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
@@ -1990,6 +2001,7 @@ void XrdHttpProtocol::Reset() {
   ishttps = false;
   ssldone = false;
 
+  oidcBearerTokKey.clear();
   Bridge = 0;
   ssl = 0;
   sbio = 0;
@@ -2998,6 +3010,29 @@ int XrdHttpProtocol::xtlsclientauth(XrdOucStream &Config) {
      }
 
   eDest.Emsg("config", "invalid tlsclientauth parameter -", val);
+  return 1;
+}
+
+int XrdHttpProtocol::xoidc(XrdOucStream &Config) {
+  char *val = Config.GetWord();
+  if (!val || !val[0])
+     {eDest.Emsg("Config", "http.oidc argument not specified"); return 1;}
+
+  if (!strcmp(val, "on") || !strcmp(val, "optional"))
+     {oidcHttpMode = 1;
+      return 0;
+     }
+  if (!strcmp(val, "require"))
+     {oidcHttpMode = 2;
+      return 0;
+     }
+  if (val[0] == '-')
+     {eDest.Emsg("Config", "http.oidc inline parameters are not supported;",
+                  "configure OIDC via sec.protparm oidc and sec.protocol oidc");
+      return 1;
+     }
+
+  eDest.Emsg("Config", "invalid http.oidc parameter -", val);
   return 1;
 }
 

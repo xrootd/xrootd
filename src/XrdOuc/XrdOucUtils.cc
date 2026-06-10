@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <algorithm>
 #include <cctype>
 #include <grp.h>
 #include <cstdio>
@@ -1564,6 +1565,33 @@ void XrdOucUtils::trim(std::string_view & sv) {
   while (end > start && toTrim(sv[end - 1])) --end;
 
   sv = sv.substr(start, end - start);
+}
+
+std::string XrdOucUtils::trimCopy(const std::string &str)
+{
+   size_t b = 0, e = str.size();
+   while (b < e && isspace(static_cast<unsigned char>(str[b]))) b++;
+   while (e > b && isspace(static_cast<unsigned char>(str[e - 1]))) e--;
+   return str.substr(b, e - b);
+}
+
+std::string XrdOucUtils::toLowerCopy(std::string str)
+{
+   std::transform(str.begin(), str.end(), str.begin(),
+      [](unsigned char c) {
+         return static_cast<char>(std::tolower(c));
+      });
+   return str;
+}
+
+bool XrdOucUtils::parseBool(const std::string &str, bool &out)
+{
+   std::string v = toLowerCopy(trimCopy(str));
+   if (v.empty() || v == "1" || v == "true" || v == "yes" || v == "on")
+      {out = true; return true;}
+   if (v == "0" || v == "false" || v == "no" || v == "off")
+      {out = false; return true;}
+   return false;
 }
 
 uint8_t XrdOucUtils::touint8_t(const std::string_view sv) {

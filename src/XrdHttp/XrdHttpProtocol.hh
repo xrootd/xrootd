@@ -170,6 +170,10 @@ private:
   /// @return 0 if successful, otherwise error
   int HandleAuthentication(XrdLink* lp);
 
+  /// Validate a Bearer OIDC token and populate SecEntity.
+  /// @return 0 if successful or not applicable, otherwise error
+  int HandleOidcAuthentication();
+
   /// After the SSL handshake, retrieve the VOMS info and the various stuff
   /// that is needed for autorization
   int GetVOMSData(XrdLink *lp);
@@ -229,7 +233,14 @@ private:
   static int xtlsreuse(XrdOucStream &Config);
   static int xauth(XrdOucStream &Config);
   static int xtlsclientauth(XrdOucStream &Config);
+  static int xoidc(XrdOucStream &Config);
   static int xmaxdelay(XrdOucStream &Config);
+
+  /// 0=disabled, 1=optional bearer OIDC, 2=require bearer OIDC
+  static int oidcHttpMode;
+
+  /// Config file path used to load the security framework for http.oidc.
+  static const char *oidcConfigFN;
 
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
@@ -376,7 +387,9 @@ protected:
   /// The Bridge that we use to exercise the xrootd internals
   XrdXrootd::Bridge *Bridge;
 
-  
+  /// SHA-256 fingerprint of the validated OIDC bearer token on this connection.
+  std::string oidcBearerTokKey;
+
   /// Area for coordinating request and responses to/from the bridge
   /// This also can process HTTP/DAV stuff
   XrdHttpReq CurrentReq;

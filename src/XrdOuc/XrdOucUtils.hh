@@ -153,6 +153,12 @@ static void trim(std::string & str);
 
 static void trim(std::string_view & sv);
 
+static std::string trimCopy(const std::string &str);
+
+static std::string toLowerCopy(std::string str);
+
+static bool parseBool(const std::string &str, bool &out);
+
 static uint8_t touint8_t(const std::string_view sv);
 
 static std::string UrlEncode(const std::string &input);
