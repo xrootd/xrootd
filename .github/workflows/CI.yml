@@ -102,6 +102,7 @@ jobs:
         dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
         dnf install -y epel-rpm-macros
         dnf config-manager --set-enabled powertools
+        dnf install -y gcc-toolset-10
 
     - name: Clone repository
       uses: actions/checkout@v6
@@ -115,7 +116,7 @@ jobs:
       run: dnf builddep -y xrootd.spec
 
     - name: Build and Test with CTest
-      run: sudo -E -u runner ctest -VV -S test.cmake
+      run: scl enable gcc-toolset-10 'sudo -E -u runner ctest -VV -S test.cmake'
 
     - name: Install with CMake
       run: cmake --install build
