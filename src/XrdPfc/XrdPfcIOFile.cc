@@ -78,7 +78,9 @@ int IOFile::initialStat(struct stat &sbuff)
    static const char* trace_pfx = "initialStat ";
 
    std::string fname = GetFilename();
-   if (m_cache.GetOss()->Stat(fname.c_str(), &sbuff) == XrdOssOK)
+   std::string iname = fname + Info::s_infoExtension;
+   if (m_cache.GetOss()->Stat(iname.c_str(), &sbuff) == XrdOssOK &&
+       m_cache.GetOss()->Stat(fname.c_str(), &sbuff) == XrdOssOK)
    {
       long long file_size = m_cache.DetermineFullFileSize(fname + Info::s_infoExtension);
       if (file_size >= 0)
