@@ -14,6 +14,11 @@ if(BUILD_KRB5 AND NOT APPLE)
   list(APPEND krb5_FIXTURES Kerberos)
 endif()
 
+if(BUILD_MACAROONS)
+  list(APPEND XROOTD_CONFIGS macaroons)
+  list(APPEND macaroons_FIXTURES TLS)
+endif()
+
 # Note: HAVE_SCITOKEN_CONFIG_SET_STR is required to override the CA file
 # for the scitokens library; otherwise, the test will fail with TLS errors.
 if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
