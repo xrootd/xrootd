@@ -56,11 +56,11 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertyOfAFileThatIsBeingWrittenFailsWithIN
 
 TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeFailsWithINVAL)
 {
-    ASSERT_EQ(-EINVAL, xattr.Set("U.open.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
-    ASSERT_EQ(-EINVAL, xattr.Set("U.read.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
-    ASSERT_EQ(-EINVAL, xattr.Set("U.read.return_position", "18446744073709551615", 20, "/dummy", 0, 0));
-    ASSERT_EQ(-EINVAL, xattr.Set("U.write.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
-    ASSERT_EQ(-EINVAL, xattr.Set("U.write.return_position", "18446744073709551615", 20, "/dummy", 0, 0));
+    EXPECT_EQ(-EINVAL, xattr.Set("U.open.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
+    EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
+    EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_position", "18446744073709551615", 20, "/dummy", 0, 0));
+    EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
+    EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_position", "18446744073709551615", 20, "/dummy", 0, 0));
 }
 
 TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeDoesNotChangeTheirValues)
@@ -117,18 +117,23 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsTheirChangedValues)
     xattr.Get("U.open.return_code", &value, 1, "/dummy", 0);
     EXPECT_EQ('1', value);
 
+    value = 0;
     xattr.Get("U.read.return_code", &value, 1, "/dummy", 0);
     EXPECT_EQ('2', value);
 
+    value = 0;
     xattr.Get("U.read.return_position", &value, 1, "/dummy", 0);
     EXPECT_EQ('3', value);
 
+    value = 0;
     xattr.Get("U.write.return_code", &value, 1, "/dummy", 0);
     EXPECT_EQ('4', value);
 
+    value = 0;
     xattr.Get("U.write.return_position", &value, 1, "/dummy", 0);
     EXPECT_EQ('5', value);
 
+    value = 0;
     xattr.Get("U.pattern", &value, 1, "/dummy", 0);
     EXPECT_EQ('6', value);
 }
