@@ -56,12 +56,12 @@ TEST_F(XrdOssMirageFileFixture, OpenInWriteModeShouldSucceed)
     ASSERT_EQ(XrdOssOK, file.Open("/dummy", O_WRONLY, {}, env));
 }
 
-TEST_F(XrdOssMirageFileFixture, OpenInWriteModeFileThatDoesNotExistReturnsNOENTError)
+TEST_F(XrdOssMirageFileFixture, OpenInWriteModeFileThatDoesNotExistFailsWithNOENT)
 {
     ASSERT_EQ(-ENOENT, file.Open("/inexistent", O_WRONLY, {}, env));
 }
 
-TEST_F(XrdOssMirageFileFixture, OpenInWriteModeFileThatIsBeWrittenReturnsNOENTError)
+TEST_F(XrdOssMirageFileFixture, OpenInWriteModeFileThatIsBeWrittenFailsWithNOENT)
 {
     auto entry = oss.get_entry_write("/dummy");
 
@@ -73,19 +73,19 @@ TEST_F(XrdOssMirageFileFixture, OpenInReadOnlyModeShouldSucceed)
     ASSERT_EQ(XrdOssOK, file.Open("/dummy", O_RDONLY, {}, env));
 }
 
-TEST_F(XrdOssMirageFileFixture, OpenInReadOnlyModeFileThatDoesNotExistReturnsNOENTError)
+TEST_F(XrdOssMirageFileFixture, OpenInReadOnlyModeFileThatDoesNotExistFailsWithNOENT)
 {
     ASSERT_EQ(-ENOENT, file.Open("/inexistent", O_RDONLY, {}, env));
 }
 
-TEST_F(XrdOssMirageFileFixture, OpenInReadOnlyModeFileThatIsBeingWrittenReturnsNOENTError)
+TEST_F(XrdOssMirageFileFixture, OpenInReadOnlyModeFileThatIsBeingWrittenFailsWithNOENT)
 {
     auto entry = oss.get_entry_write("/dummy");
 
     ASSERT_EQ(-ENOENT, file.Open("/dummy", O_RDONLY, {}, env));
 }
 
-TEST_F(XrdOssMirageFileFixture, OpenWithExtendedAttributeOpenReturnCodeReturnsSpecifiedErrorCode)
+TEST_F(XrdOssMirageFileFixture, OpenWithExtendedAttributeOpenReturnCodeFailsWithSpecifiedCode)
 {
     oss.get_entry_write("/dummy").value()->open.return_code = 1111;
 
@@ -113,7 +113,7 @@ TEST_F(XrdOssMirageFileFixture, ReadWithOffsetWhereRemainingIsSmallerThanBufferR
     ASSERT_EQ(499,  file.Read(nullptr, 9500, 1000));
 }
 
-TEST_F(XrdOssMirageFileFixture, ReadWithPropertyReturnCodeOnlyReturnsSpecifiedErrorCode)
+TEST_F(XrdOssMirageFileFixture, ReadWithPropertyReturnCodeOnlyFailsWithSpecifiedCode)
 {
     {
         auto entry = oss.get_entry_write("/dummy").value();
@@ -138,7 +138,7 @@ TEST_F(XrdOssMirageFileFixture, ReadWithPropertiesReturnsReadBytesNumberAtUnspec
     ASSERT_EQ(1000,  file.Read(nullptr, 0, 1000));
 }
 
-TEST_F(XrdOssMirageFileFixture, ReadWithPropertiesReturnsSpecifiedErrorCodeAtSpecifiedPosition)
+TEST_F(XrdOssMirageFileFixture, ReadWithPropertiesFailsWithSpecifiedCodeAtSpecifiedPosition)
 {
     {
         auto entry = oss.get_entry_write("/dummy").value();
@@ -191,7 +191,7 @@ TEST_F(XrdOssMirageFileFixture, WriteUpdatesItsSize)
     ASSERT_EQ(10999, oss.get_entry_read("/dummy").value().size);
 }
 
-TEST_F(XrdOssMirageFileFixture, WriteWithPropertyReturnCodeOnlyReturnsSpecifiedErrorCode)
+TEST_F(XrdOssMirageFileFixture, WriteWithPropertyReturnCodeOnlyFailsWithSpecifiedCode)
 {
     {
         auto entry = oss.get_entry_write("/dummy").value();
@@ -217,7 +217,7 @@ TEST_F(XrdOssMirageFileFixture, WriteWithPropertiesReturnsWrittenBytesNumberAtUn
 }
 
 
-TEST_F(XrdOssMirageFileFixture, WriteWithPropertiesReturnsSpecifiedErrorCodeAtSpecifiedPosition)
+TEST_F(XrdOssMirageFileFixture, WriteWithPropertiesFailsWithSpecifiedCodeAtSpecifiedPosition)
 {
     {
         auto entry = oss.get_entry_write("/dummy").value();
