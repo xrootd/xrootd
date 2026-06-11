@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug existing binary",
+            "name": "XRootD Mirage Server",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/xrootd",
@@ -20,6 +20,16 @@
                     "value": "${workspaceFolder}/tests/XRootD"
                 }
             ],
+            "externalConsole": false,
+            "MIMode": "gdb"
+        },
+        {
+            "name": "XRootD Mirage Tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/xrdossmirage-unit-tests",
+            "stopAtEntry": false,
+            "cwd": "/tmp",
             "externalConsole": false,
             "MIMode": "gdb"
         }

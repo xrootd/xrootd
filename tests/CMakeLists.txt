@@ -25,6 +25,8 @@ add_subdirectory(XrdPfcTests)
 
 add_subdirectory(XrdXrootdTests)
 
+add_subdirectory(XrdOssMirageTests)
+
 if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
