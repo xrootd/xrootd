@@ -33,13 +33,22 @@ TEST_F(XrdOssMirageFileFixture, TruncateShouldSucceed)
     ASSERT_EQ(XrdOssOK, file.Ftruncate(1000));
 }
 
-TEST_F(XrdOssMirageFileFixture, TruncateChangesItsSize)
+TEST_F(XrdOssMirageFileFixture, TruncateReducesFileSize)
 {
     file.Open("/dummy", O_WRONLY, {}, env);
     file.Ftruncate(1000);
     file.Close();
 
     ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFileFixture, TruncateIncreasesFileSize)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+    file.Ftruncate(1000000);
+    file.Close();
+
+    ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFileFixture, OpenInWriteModeShouldSucceed)

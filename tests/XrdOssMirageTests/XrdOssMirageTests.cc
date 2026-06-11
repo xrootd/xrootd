@@ -102,11 +102,18 @@ TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsShouldSucceed)
     ASSERT_EQ(XrdOssOK, oss.Truncate("/dummy", 1000));
 }
 
-TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsChangesItsSize)
+TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsReducesSize)
 {
     oss.Truncate("/dummy", 1000);
     
     ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsIncreasesSize)
+{
+    oss.Truncate("/dummy", 1000000);
+    
+    ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFixture, TruncateFileThatDoesNotExistReturnsNOENTError)
