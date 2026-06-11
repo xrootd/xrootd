@@ -7,7 +7,6 @@
 
 #include <algorithm>
 #include <mutex>
-#include <span>
 
 XrdOssMirageFile::XrdOssMirageFile(XrdOssMirage &oss) :
     oss(oss),
@@ -116,15 +115,13 @@ ssize_t XrdOssMirageFile::Read(void *buffer, off_t offset, size_t size)
         entry->read.return_position <= static_cast<std::size_t>(offset + size))
         return -entry->read.return_code;
 
-    const std::span output(static_cast<char *>(buffer), size);
-
-    const std::size_t num_bytes = std::min(output.size(), static_cast<std::size_t>(entry->size - offset));
+    const std::size_t num_bytes = std::min(size, static_cast<std::size_t>(entry->size - offset));
 
     if (entry->pattern.size() == 1)
-        std::fill_n(output.begin(), num_bytes, entry->pattern.front());
+        std::fill_n(static_cast<char *>(buffer), num_bytes, entry->pattern.front());
 
     if (entry->pattern.size() > 1)
-        std::generate(output.begin(), output.begin() + num_bytes, [i = offset % entry->pattern.size(), this] () mutable {
+        std::generate_n(static_cast<char *>(buffer), num_bytes, [i = offset % entry->pattern.size(), this] () mutable {
             return entry->pattern[i++ % entry->pattern.size()]; 
         });
 

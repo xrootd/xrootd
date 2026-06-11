@@ -155,7 +155,7 @@ std::optional<XrdOssMirageEntryPtr> XrdOssMirage::get_entry_write(const char *pa
 
 bool XrdOssMirage::has_entry(const char *path)
 {
-    return entries.contains(path);
+    return entries.find(path) != entries.end();
 }
 
 bool XrdOssMirage::is_entry_being_written(const char *path)

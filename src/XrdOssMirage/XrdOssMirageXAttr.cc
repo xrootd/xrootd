@@ -2,7 +2,6 @@
 #include "XrdVersion.hh"
 
 #include <algorithm>
-#include <span>
 #include <string_view>
 
 using namespace std::literals;
@@ -81,10 +80,8 @@ int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *
     else
         return -EINVAL;
 
-    const std::span output(static_cast<char *>(Aval), Avsz);
-
-    const int num_bytes = std::min(output.size(), value.size());
-    std::copy_n(value.begin(), num_bytes, output.begin());
+    const int num_bytes = std::min(static_cast<std::size_t>(Avsz), value.size());
+    std::copy_n(value.begin(), num_bytes, static_cast<char *>(Aval));
 
     return num_bytes;
 }
