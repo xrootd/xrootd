@@ -86,10 +86,10 @@ int IOFile::initialStat(struct stat &sbuff)
       if (file_size >= 0)
       {
          sbuff.st_size = file_size;
-         TRACEIO(Info, trace_pfx << "successfully read size " << sbuff.st_size << " from info file");
+         TRACE(Info, trace_pfx << "successfully read size " << sbuff.st_size << " from info file " << iname);
          return 0;
       }
-      TRACEIO(Error, trace_pfx << "failed reading from info file " << XrdSysE2T(-file_size));
+      TRACE(Error, trace_pfx << "failed reading from info file " << iname  << " " << XrdSysE2T(-file_size));
    }
 
    int res = GetInput()->Fstat(sbuff);
