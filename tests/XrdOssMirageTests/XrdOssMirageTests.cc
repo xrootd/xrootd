@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-TEST_F(XrdOssMirageFixture, CreateNewFileReturnsOk)
+TEST_F(XrdOssMirageFixture, CreateNewFileShouldSucceed)
 {
     ASSERT_EQ(XrdOssOK, oss.Create(nullptr, "/newfile", {}, env, XRDOSS_new));
 }
@@ -19,7 +19,7 @@ TEST_F(XrdOssMirageFixture, CreateFileThatAlreadyExistsReturnsEXISTError)
     ASSERT_EQ(-EEXIST, oss.Create(nullptr, "/dummy", {}, env, XRDOSS_new));
 }
 
-TEST_F(XrdOssMirageFixture, OverwriteFileThatAlreadyExistsReturnsOk)
+TEST_F(XrdOssMirageFixture, OverwriteFileThatAlreadyExistsShouldSucceed)
 {
     ASSERT_EQ(XrdOssOK, oss.Create(nullptr, "/dummy", {}, env));
 }
@@ -53,7 +53,7 @@ TEST_F(XrdOssMirageFixture, OverwriteFileDoesNotResetItsWriteExtendedAttributes)
     ASSERT_EQ(1, entry.write.return_position);
 }
 
-TEST_F(XrdOssMirageFixture, RenameFileThatAlreadyExistsReturnsOk)
+TEST_F(XrdOssMirageFixture, RenameFileThatAlreadyExistsShouldSucceed)
 {
     ASSERT_EQ(XrdOssOK, oss.Rename("/dummy", "/dummy_renamed"));
 }
@@ -78,7 +78,7 @@ TEST_F(XrdOssMirageFixture, RenameFileToAnotherFileThatAlreadyExistsReturnsEXIST
     ASSERT_EQ(-EEXIST, oss.Rename("/dummy_from", "/dummy"));
 }
 
-TEST_F(XrdOssMirageFixture, StatFileThatAlreadyExistsReturnsOk)
+TEST_F(XrdOssMirageFixture, StatFileThatAlreadyExistsShouldSucceed)
 {
     struct stat buff{};
     ASSERT_EQ(XrdOssOK, oss.Stat("/dummy", &buff));
@@ -97,7 +97,7 @@ TEST_F(XrdOssMirageFixture, StatFileThatDoesNotExistReturnsNOENTError)
     ASSERT_EQ(-ENOENT, oss.Stat("/inexistent", nullptr));
 }
 
-TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsReturnsOk)
+TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsShouldSucceed)
 {
     ASSERT_EQ(XrdOssOK, oss.Truncate("/dummy", 1000));
 }
@@ -121,7 +121,7 @@ TEST_F(XrdOssMirageFixture, TruncateFileThatIsBeingWrittenReturnsBUSYError)
     ASSERT_EQ(-EBUSY, oss.Truncate("/dummy", 1000));
 }
 
-TEST_F(XrdOssMirageFixture, UnlinkFileThatAlreadyExistsReturnsOk)
+TEST_F(XrdOssMirageFixture, UnlinkFileThatAlreadyExistsShouldSucceed)
 {
     ASSERT_EQ(XrdOssOK, oss.Unlink("/dummy"));
 }

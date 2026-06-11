@@ -8,7 +8,7 @@ class XrdOssMirageXAttrFixture : public XrdOssMirageFixture
 {
 };
 
-TEST_F(XrdOssMirageXAttrFixture, SetPropertiesReturnsOk)
+TEST_F(XrdOssMirageXAttrFixture, SetPropertiesShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Set("U.open.return_code", "1", 1, "/dummy", 0, 0));
     EXPECT_EQ(0, xattr.Set("U.read.return_code", "2", 1, "/dummy", 0, 0));
@@ -150,7 +150,7 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertyOfAFileThatIsBeingWrittenReturnsINVA
     ASSERT_EQ(-EINVAL, xattr.Get("U.pattern", nullptr, 0, "/dummy", 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesReturnsOk)
+TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Del("U.open.return_code", "/dummy", 0));
     EXPECT_EQ(0, xattr.Del("U.read.return_code", "/dummy", 0));

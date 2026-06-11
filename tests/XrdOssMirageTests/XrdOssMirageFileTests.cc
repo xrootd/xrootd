@@ -8,7 +8,7 @@ class XrdOssMirageFileFixture : public XrdOssMirageFixture
 {
 };
 
-TEST_F(XrdOssMirageFileFixture, StatReturnsOk)
+TEST_F(XrdOssMirageFileFixture, StatShouldSucceed)
 {
     file.Open("/dummy", {}, O_RDONLY, env);
 
@@ -26,7 +26,7 @@ TEST_F(XrdOssMirageFileFixture, StatReturnsCorrectSize)
     ASSERT_EQ(9999, buff.st_size);
 }
 
-TEST_F(XrdOssMirageFileFixture, TruncateReturnsOk)
+TEST_F(XrdOssMirageFileFixture, TruncateShouldSucceed)
 {
     file.Open("/dummy", O_WRONLY, {}, env);
 
@@ -42,7 +42,7 @@ TEST_F(XrdOssMirageFileFixture, TruncateChangesItsSize)
     ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size);
 }
 
-TEST_F(XrdOssMirageFileFixture, OpenInWriteModeReturnsOk)
+TEST_F(XrdOssMirageFileFixture, OpenInWriteModeShouldSucceed)
 {
     ASSERT_EQ(XrdOssOK, file.Open("/dummy", O_WRONLY, {}, env));
 }
@@ -59,7 +59,7 @@ TEST_F(XrdOssMirageFileFixture, OpenInWriteModeFileThatIsBeWrittenReturnsNOENTEr
     ASSERT_EQ(-ENOENT, file.Open("/dummy", O_WRONLY, {}, env));
 }
 
-TEST_F(XrdOssMirageFileFixture, OpenInReadOnlyModeReturnsOk)
+TEST_F(XrdOssMirageFileFixture, OpenInReadOnlyModeShouldSucceed)
 {
     ASSERT_EQ(XrdOssOK, file.Open("/dummy", O_RDONLY, {}, env));
 }
