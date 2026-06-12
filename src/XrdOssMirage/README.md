@@ -10,9 +10,9 @@ No data is persisted: the entire filesystem exists only in the volatile memory.
 
 ## Configuration
 
-The plugin is a runtime-only plugin that requires minimal configuration.
+The plugin is a runtime-only plugin that requires no configuration.
 
-To configure it, simply add the following line to the configuration file:
+To enable it, simply add the following line to the configuration file:
 
 ```
 ofs.osslib libXrdOssMirage.so
