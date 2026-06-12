@@ -19,16 +19,6 @@ int XrdOssMirageFile::StatRet(struct stat *buff)
     return -ENOTDIR;
 }
 
-int XrdOssMirageFile::Clone(XrdOssDF& srcFile)
-{
-    return -ENOTSUP;
-}
-
-int XrdOssMirageFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
-{
-    return -ENOTSUP;
-}
-
 int XrdOssMirageFile::Fchmod(mode_t mode)
 {
     return -ENOTSUP;

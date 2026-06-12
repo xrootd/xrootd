@@ -18,8 +18,6 @@ public:
     virtual ~XrdOssMirageFile() = default;
 
     virtual int     StatRet(struct stat *buff) override;
-    virtual int     Clone(XrdOssDF& srcFile) override;
-    virtual int     Clone(const std::vector<XrdOucCloneSeg> &cVec) override;
     virtual int     Fchmod(mode_t mode) override;
     virtual int     Fstat(struct stat *buf) override;
     virtual int     Fsync() override;
