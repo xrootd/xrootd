@@ -60,7 +60,7 @@ int XrdOssMirage::Create(const char *tid, const char *path, mode_t mode, XrdOucE
 
 uint64_t XrdOssMirage::Features()
 {
-    return XRDOSS_HASNAIO | XRDOSS_HASFICL;
+    return XRDOSS_HASNAIO;
 }
 
 int XrdOssMirage::Init(XrdSysLogger *lp, const char *cfn)
