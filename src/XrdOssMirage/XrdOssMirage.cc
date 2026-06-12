@@ -101,6 +101,7 @@ int XrdOssMirage::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv 
     if (!has_entry(path))
         return -ENOENT;
 
+    *buff = {};
     buff->st_size = entries[path]->size;
 
     return XrdOssOK;

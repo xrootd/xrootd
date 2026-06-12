@@ -26,6 +26,7 @@ int XrdOssMirageFile::Fchmod(mode_t mode)
 
 int XrdOssMirageFile::Fstat(struct stat *buf)
 {
+    *buf = {};
     buf->st_size = entry->size;
     return XrdOssOK;
 }
