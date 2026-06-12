@@ -3,7 +3,7 @@
 export XRD_PLUGINCONFDIR="${BINARY_DIR}/config"
 
 function setup_http() {
-	require_commands openssl curl
+	require_commands openssl curl python3
 	openssl rand -base64 -out macaroons-secret 64
 	mkdir -p "${XRD_PLUGINCONFDIR}"
 	cat >| "${XRD_PLUGINCONFDIR}/http.conf" <<-EOF
@@ -463,27 +463,13 @@ function test_http() {
   smugglingPort="${smugglingTarget##*:}"
 
   # Sends $1 verbatim over a fresh TCP connection and prints the first
-  # response line (CRLF stripped). If no status line arrives we emit a
-  # distinct diagnostic for each failure mode so assertion logs are
-  # readable: bash `read -t` returns >128 on the read timer firing (server
-  # left us hanging) versus a small non-zero exit when the peer closed the
-  # socket before sending anything.
+  # response line (CRLF stripped). Use Python's socket module as a raw TCP
+  # client; bash /dev/tcp can lose the response when the peer sends an error
+  # and immediately tears down the connection.
   _smuggling_send() {
     local payload="$1"
-    local status=""
-    local rc=0
-    exec 3<>"/dev/tcp/${smugglingHost}/${smugglingPort}"
-    printf '%s' "$payload" >&3
-    IFS= read -r -t 10 status <&3 || rc=$?
-    exec 3<&-
-    status="${status//$'\r'/}"
-    if [[ -n "${status}" ]]; then
-      printf '%s' "${status}"
-    elif (( rc > 128 )); then
-      printf '<request stalled — read timed out waiting for a status line>'
-    else
-      printf '<server closed the connection without sending a status line>'
-    fi
+    printf '%s' "$payload" | python3 "${SOURCE_DIR}/utils/raw_tcp_status.py" \
+      "${smugglingHost}" "${smugglingPort}"
   }
 
   # Asserts the smuggled file at $1 was NOT created on the server.
