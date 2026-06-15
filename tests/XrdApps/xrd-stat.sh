@@ -92,6 +92,64 @@ if [[ "${sum_version_out}" != "${version_out}" ]]; then
   exit 1
 fi
 
+top_help_out=$("${XRD}" --help)
+if ! grep -F -- "copy" <<< "${top_help_out}" >/dev/null; then
+  echo "xrd --help is missing 'copy'" >&2
+  exit 1
+fi
+
+for removed in \
+  "legacy-bringonline" \
+  "legacy-register" \
+  "legacy-replicas" \
+  "legacy-unregister"
+do
+  if grep -F -- "${removed}" <<< "${top_help_out}" >/dev/null; then
+    echo "xrd --help should not list removed command '${removed}'" >&2
+    exit 1
+  fi
+done
+
+set +e
+not_impl_err=$("${XRD}" cat "${file}" 2>&1 >/dev/null)
+not_impl_rc=$?
+set -e
+
+if [[ ${not_impl_rc} -ne 2 ]]; then
+  echo "xrd cat exit code was ${not_impl_rc}, expected 2" >&2
+  echo "${not_impl_err}" >&2
+  exit 1
+fi
+
+if ! grep -F -- "xrd cat: command is not implemented yet" \
+  <<< "${not_impl_err}" >/dev/null; then
+  echo "xrd cat did not print the not implemented error" >&2
+  echo "${not_impl_err}" >&2
+  exit 1
+fi
+
+copy_help_out=$("${XRD}" copy --help 2>&1)
+for expected in \
+  "Usage:   xrd copy" \
+  "--force" \
+  "--recursive" \
+  "--cksum"
+do
+  if ! grep -F -- "${expected}" <<< "${copy_help_out}" >/dev/null; then
+    echo "xrd copy --help is missing '${expected}'" >&2
+    exit 1
+  fi
+done
+
+copy_src="${tmpdir}/copy-source"
+copy_dst="${tmpdir}/copy-destination"
+printf 'copy me\n' > "${copy_src}"
+"${XRD}" copy -f "${copy_src}" "${copy_dst}"
+if [[ "$(<"${copy_dst}")" != "copy me" ]]; then
+  echo "xrd copy did not copy the local file content" >&2
+  exit 1
+fi
+
 sum_out=$("${XRD}" sum "${file}" adler32)
 if [[ "${sum_out}" != "file://${expected_file} 084b021f" ]]; then
   echo "xrd sum adler32 output did not match gfal-sum style" >&2

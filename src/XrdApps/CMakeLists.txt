@@ -48,14 +48,16 @@ if(NOT CLI11_FOUND)
   FetchContent_MakeAvailable(CLI11)
 endif()
 
-add_executable(xrd XrdCli.cc)
+add_executable(xrd XrdCli.cc ../XrdCl/XrdClCopy.cc)
 set_target_properties(xrd PROPERTIES
   CXX_STANDARD 17
   CXX_STANDARD_REQUIRED TRUE
 )
+target_compile_definitions(xrd PRIVATE XRDCP_NO_MAIN)
 target_link_libraries(xrd PRIVATE
   XrdCl
   XrdUtils
+  XrdAppUtils
   CLI11::CLI11
   ZLIB::ZLIB
 )

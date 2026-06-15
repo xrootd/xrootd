@@ -13,9 +13,10 @@ set -e
 
 : "${XRDCP:=$(command -v xrdcp)}"
 : "${XRDFS:=$(command -v xrdfs)}"
+: "${XRD:=$(command -v xrd)}"
 : "${PYTHON:=$(command -v python3 || command -v python)}"
 
-for PROG in ${XRDCP} ${XRDFS} ${PYTHON}; do
+for PROG in ${XRDCP} ${XRDFS} ${XRD} ${PYTHON}; do
 	if [[ ! -x ${PROG} ]]; then
 		echo 1>&2 "$(basename "$0"): error: '${PROG}': command not found"
 		exit 1
@@ -24,7 +25,9 @@ done
 
 V=$(xrdcp --version 2>&1)
 echo "Using ${XRDCP} (${V#v})"
+echo "Using ${XRD} ($(${XRD} --version))"
 echo "Using ${PYTHON} ($(${PYTHON} --version))"
+"${XRD}" stat /tmp >/dev/null
 ${PYTHON} -m pip show xrootd
 ${PYTHON} -c 'import XRootD; print(XRootD)'
 ${PYTHON} -c 'import pyxrootd; print(pyxrootd)'
