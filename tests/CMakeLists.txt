@@ -6,6 +6,7 @@ include(GoogleTest)
 
 add_subdirectory(common)
 
+add_subdirectory(XrdApps)
 add_subdirectory(XrdCl)
 add_subdirectory(XrdCeph)
 add_subdirectory(XrdEc)

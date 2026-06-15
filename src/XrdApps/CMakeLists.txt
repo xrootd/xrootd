@@ -54,6 +54,8 @@ set_target_properties(xrd PROPERTIES
   CXX_STANDARD_REQUIRED TRUE
 )
 target_link_libraries(xrd PRIVATE
+  XrdCl
+  XrdUtils
   CLI11::CLI11
 )
 
