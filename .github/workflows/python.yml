@@ -83,7 +83,9 @@ jobs:
 
     steps:
     - name: Install dependencies
-      run: dnf install -y git krb5-devel libuuid-devel openssl-devel
+      run: |
+        dnf install -y epel-release
+        dnf install -y cli11-devel git krb5-devel libcurl-devel libuuid-devel openssl-devel
 
     - name: Download source distribution
       uses: actions/download-artifact@v7
@@ -149,7 +151,7 @@ jobs:
         python-version: ${{ matrix.version }}
 
     - name: Install dependencies with Homebrew
-      run: brew install nlohmann-json
+      run: brew install cli11 nlohmann-json
 
     - name: Install Python build dependencies
       run: python -m pip install build delocate

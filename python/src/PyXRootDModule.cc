@@ -30,6 +30,7 @@
 #include "PyXRootDFinalize.hh"
 #include "PyXRootDEnv.hh"
 #include "PyXRootDAdler32.hh"
+#include "PyXRootDTapeRest.hh"
 
 namespace PyXRootD
 {
@@ -55,6 +56,8 @@ namespace PyXRootD
       { "SetLogLevel_cpp",      SetLogLevel_cpp,      METH_VARARGS, "Set XrdCl log level" },
       { "SetLogMask_cpp",       SetLogMask_cpp,       METH_VARARGS, "Set XrdCl log mask" },
       { "setXAttrAdler32_cpp",  setXAttrAdler32_cpp,  METH_VARARGS, "Set adler32 checksum extended attribute (path, checksum)." },
+      { "TapeRestDiscover_cpp", TapeRestDiscover_cpp, METH_VARARGS, "Discover a WLCG Tape REST API endpoint." },
+      { "TapeRestArchiveInfo_cpp", TapeRestArchiveInfo_cpp, METH_VARARGS, "Query WLCG Tape REST API archive information." },
       { NULL, NULL, 0, NULL }
     };
 

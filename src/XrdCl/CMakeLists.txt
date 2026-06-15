@@ -2,6 +2,8 @@ if(NOT ENABLE_XRDCL)
   return()
 endif()
 
+find_package(CURL REQUIRED)
+
 add_library(XrdCl SHARED
   XrdClLog.cc                    XrdClLog.hh
   XrdClUtils.cc                  XrdClUtils.hh
@@ -11,6 +13,7 @@ add_library(XrdCl SHARED
   XrdClDefaultEnv.cc             XrdClDefaultEnv.hh
   XrdClURL.cc                    XrdClURL.hh
   XrdClStatus.cc                 XrdClStatus.hh
+  XrdClTapeRest.cc               XrdClTapeRest.hh
   XrdClSocket.cc                 XrdClSocket.hh
   XrdClTls.cc                    XrdClTls.hh
                                  XrdClPoller.hh
@@ -76,6 +79,7 @@ target_link_libraries(XrdCl
     XrdUtils
     uuid::uuid
     ZLIB::ZLIB
+    CURL::libcurl
     OpenSSL::SSL
     ${CMAKE_THREAD_LIBS_INIT}
     ${EXTRA_LIBS}
@@ -116,6 +120,7 @@ install(
     XrdClFileSystemUtils.hh
     XrdClMonitor.hh
     XrdClStatus.hh
+    XrdClTapeRest.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh
     XrdClOptional.hh

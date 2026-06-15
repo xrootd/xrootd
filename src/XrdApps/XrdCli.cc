@@ -5,6 +5,7 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClTapeRest.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCks/XrdCksCalc.hh"
@@ -12,10 +13,12 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits.h>
@@ -23,6 +26,8 @@
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
+#include <thread>
+#include <vector>
 
 #include <CLI/CLI.hpp>
 #include <zlib.h>
@@ -46,6 +51,20 @@ struct SumOptions
   int timeout = -1;
 };
 
+struct ArchivePollOptions
+{
+  std::vector<std::string> urls;
+  int timeout = -1;
+  int pollingTimeout = 0;
+};
+
+enum class ArchivePollState
+{
+  Ready,
+  Queued,
+  Failed
+};
+
 std::string ToLower(std::string value)
 {
   std::transform(value.begin(), value.end(), value.begin(),
@@ -65,6 +84,16 @@ void SetEnvironment(const char *name, const std::string &value)
 bool HasScheme(const std::string &path)
 {
   return path.find("://") != std::string::npos;
+}
+
+std::string Trim(const std::string &value)
+{
+  const auto begin = std::find_if_not(value.begin(), value.end(),
+    [](unsigned char c) { return std::isspace(c); });
+  const auto end = std::find_if_not(value.rbegin(), value.rend(),
+    [](unsigned char c) { return std::isspace(c); }).base();
+  if(begin >= end) return "";
+  return std::string(begin, end);
 }
 
 std::string LocalDisplayPath(const std::string &localPath)
@@ -194,6 +223,61 @@ XrdCl::URL FileSystemURL(XrdCl::URL url)
   url.SetPath("");
   url.SetParams(XrdCl::URL::ParamsMap{});
   return url;
+}
+
+ArchivePollState ArchivePollStateFromLocality(
+  XrdCl::TapeRestLocality locality )
+{
+  if(locality == XrdCl::TapeRestLocality::Tape
+     || locality == XrdCl::TapeRestLocality::DiskAndTape)
+  {
+    return ArchivePollState::Ready;
+  }
+  if(locality == XrdCl::TapeRestLocality::Disk
+     || locality == XrdCl::TapeRestLocality::Unavailable)
+  {
+    return ArchivePollState::Queued;
+  }
+  return ArchivePollState::Failed;
+}
+
+std::string ArchivePollFailureMessage(
+  const XrdCl::TapeRestArchiveInfo &result )
+{
+  if(!result.error.empty())
+  {
+    return "[Tape REST API] " + result.error;
+  }
+
+  return "[Tape REST API] File locality reported as "
+    + XrdCl::TapeRestClient::LocalityToString(result.locality)
+    + " (path=" + result.path + ")";
+}
+
+int PrintArchivePollResults(
+  const std::vector<XrdCl::TapeRestArchiveInfo> &results)
+{
+  int terminal = 0;
+  for(const auto &result : results)
+  {
+    const auto state = ArchivePollStateFromLocality(result.locality);
+    if(state == ArchivePollState::Ready)
+    {
+      ++terminal;
+      std::cout << result.url << " READY\n";
+    }
+    else if(state == ArchivePollState::Queued)
+    {
+      std::cout << result.url << " QUEUED\n";
+    }
+    else
+    {
+      ++terminal;
+      std::cout << result.url << " => FAILED: "
+                << ArchivePollFailureMessage(result) << '\n';
+    }
+  }
+  return terminal;
 }
 
 int RunLocalStat(const std::string &originalPath, const std::string &localPath)
@@ -550,6 +634,99 @@ int RunSum(const SumOptions &options, unsigned int verbosity = 0,
   return RunLocalSum(options.path, checkSumType, options.checkSumType);
 }
 
+int LoadArchivePollUrls(const std::string &url, const std::string &fromFile,
+                        std::vector<std::string> &urls)
+{
+  if(!fromFile.empty() && !url.empty())
+  {
+    std::cerr << "xrd archivepoll: could not combine --from-file with a URL "
+              << "in the positional arguments\n";
+    return 1;
+  }
+
+  if(!fromFile.empty())
+  {
+    std::ifstream input(fromFile);
+    if(!input)
+    {
+      std::cerr << "xrd archivepoll: unable to open '" << fromFile << "'\n";
+      return 1;
+    }
+
+    std::string line;
+    while(std::getline(input, line))
+    {
+      line = Trim(line);
+      if(!line.empty()) urls.push_back(line);
+    }
+  }
+  else if(!url.empty())
+  {
+    urls.push_back(url);
+  }
+
+  if(urls.empty())
+  {
+    std::cerr << "xrd archivepoll: missing URL\n";
+    return 1;
+  }
+
+  return 0;
+}
+
+int RunArchivePoll(const ArchivePollOptions &options,
+                   unsigned int verbosity = 0,
+                   const std::string &logFile = "",
+                   const std::string &cert = "",
+                   const std::string &key = "",
+                   bool ipv4 = false,
+                   bool ipv6 = false)
+{
+  if(!logFile.empty() && !XrdCl::DefaultEnv::SetLogFile(logFile))
+  {
+    std::cerr << "xrd archivepoll: unable to open log file '" << logFile
+              << "'\n";
+    return 1;
+  }
+
+  SetVerbose(verbosity);
+  ApplyClientOptions(options.timeout, cert, key, ipv4, ipv6);
+
+  XrdCl::TapeRestOptions tapeRestOptions;
+  tapeRestOptions.timeout = options.timeout;
+  tapeRestOptions.cert = cert;
+  tapeRestOptions.key = key;
+  tapeRestOptions.verbosity = verbosity;
+  XrdCl::TapeRestClient tapeRest(tapeRestOptions);
+
+  int terminal = 0;
+  int wait = options.pollingTimeout;
+  int sleep = 1;
+
+  while(true)
+  {
+    std::vector<XrdCl::TapeRestArchiveInfo> results;
+    XrdCl::XRootDStatus status = tapeRest.ArchiveInfo(options.urls, results);
+    if(!status.IsOK())
+    {
+      std::cerr << "xrd archivepoll: " << status.GetErrorMessage() << '\n';
+      return 1;
+    }
+
+    terminal = PrintArchivePollResults(results);
+    if(terminal == static_cast<int>(options.urls.size()) || wait <= 0)
+    {
+      break;
+    }
+
+    std::cout << "Archiving ongoing, sleep " << sleep << " seconds...\n";
+    wait -= sleep;
+    std::this_thread::sleep_for(std::chrono::seconds(sleep));
+    sleep = std::min(sleep * 2, 300);
+  }
+
+  return 0;
+}
 
 }
 
@@ -676,6 +853,70 @@ int main(int argc, char **argv)
     options.timeout = sumTimeout;
     exitCode = RunSum(options, sumVerbosity, sumLogFile, sumCert,
                       sumKey, sumIPv4, sumIPv6);
+  });
+
+
+  std::string archivePollUrl;
+  int archivePollTimeout = -1;
+  unsigned int archivePollVerbosity = 0;
+  bool archivePollVersion = false;
+  bool archivePollIPv4 = false;
+  bool archivePollIPv6 = false;
+  std::string archivePollDefinition;
+  std::string archivePollCert;
+  std::string archivePollKey;
+  std::string archivePollClientInfo;
+  std::string archivePollLogFile;
+  int archivePollPollingTimeout = 0;
+  std::string archivePollFromFile;
+
+  auto *archivepoll = app.add_subcommand("archivepoll",
+    "Perform an archive polling operation on the given URL");
+  archivepoll->add_option("surl", archivePollUrl,
+    "Site URL to query for archival status");
+  archivepoll->add_flag("-V,--version", archivePollVersion,
+    "Output version information and exit");
+  archivepoll->add_flag("-v,--verbose", archivePollVerbosity,
+    "Enable verbose client logging");
+  archivepoll->add_option("-D,--definition", archivePollDefinition,
+    "Accept a GFAL parameter override");
+  archivepoll->add_option("-t,--timeout", archivePollTimeout,
+    "Maximum operation time in seconds");
+  archivepoll->add_option("-E,--cert", archivePollCert,
+    "Accept a user certificate path");
+  archivepoll->add_option("--key", archivePollKey,
+    "Accept a user private key path");
+  archivepoll->add_flag("-4", archivePollIPv4,
+    "Accept the GFAL IPv4-only flag");
+  archivepoll->add_flag("-6", archivePollIPv6,
+    "Accept the GFAL IPv6-only flag");
+  archivepoll->add_option("-C,--client-info", archivePollClientInfo,
+    "Accept custom client information");
+  archivepoll->add_option("--log-file", archivePollLogFile,
+    "Write client logs to a file");
+  archivepoll->add_option("--polling-timeout",
+    archivePollPollingTimeout, "Timeout for the polling operation");
+  archivepoll->add_option("--from-file", archivePollFromFile,
+    "Read site URLs from a file");
+  archivepoll->callback([&] {
+    if(archivePollVersion)
+    {
+      std::cout << "xrd " << XrdVERSION << '\n';
+      exitCode = 0;
+      return;
+    }
+
+    ArchivePollOptions options;
+    options.timeout = archivePollTimeout;
+    options.pollingTimeout = archivePollPollingTimeout;
+    exitCode = LoadArchivePollUrls(archivePollUrl, archivePollFromFile,
+                                   options.urls);
+    if(exitCode != 0) return;
+
+    exitCode = RunArchivePoll(options, archivePollVerbosity,
+                              archivePollLogFile, archivePollCert,
+                              archivePollKey, archivePollIPv4,
+                              archivePollIPv6);
   });
 
   CLI11_PARSE(app, argc, argv);
