@@ -57,6 +57,7 @@ target_link_libraries(xrd PRIVATE
   XrdCl
   XrdUtils
   CLI11::CLI11
+  ZLIB::ZLIB
 )
 
 install(

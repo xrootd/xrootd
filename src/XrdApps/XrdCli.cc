@@ -1,14 +1,18 @@
 /******************************************************************************//*                                                                            *//*                         X r d C l i . c c                                  *//*                                                                            *//* (c) 2026 by the XRootD Collaboration                                       *//*                                                                            *//* This file is part of the XRootD software suite.                            *//*                                                                            *//* XRootD is free software: you can redistribute it and/or modify it under    *//* the terms of the GNU Lesser General Public License as published by the     *//* Free Software Foundation, either version 3 of the License, or (at your     *//* option) any later version.                                                 *//*                                                                            *//* XRootD is distributed in the hope that it will be useful, but WITHOUT      *//* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      *//* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       *//* License for more details.                                                  *//*                                                                            *//* You should have received a copy of the GNU Lesser General Public License   *//* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  *//* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        *//*                                                                            *//******************************************************************************/
 
 #include "XrdVersion.hh"
+#include "XrdCl/XrdClBuffer.hh"
+#include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCks/XrdCksCalc.hh"
 
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -21,6 +25,7 @@
 #include <sys/stat.h>
 
 #include <CLI/CLI.hpp>
+#include <zlib.h>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -33,6 +38,20 @@ struct StatOptions
   std::string path;
   int timeout = -1;
 };
+
+struct SumOptions
+{
+  std::string path;
+  std::string checkSumType;
+  int timeout = -1;
+};
+
+std::string ToLower(std::string value)
+{
+  std::transform(value.begin(), value.end(), value.begin(),
+    [](unsigned char c) { return std::tolower(c); });
+  return value;
+}
 
 void SetEnvironment(const char *name, const std::string &value)
 {
@@ -246,6 +265,205 @@ int RunRemoteStat(const std::string &path)
   return 0;
 }
 
+std::string CheckSumQueryPath(const XrdCl::URL &url,
+                              const std::string &checkSumType)
+{
+  const auto path = url.GetPathWithParams();
+  return path + (path.find('?') == std::string::npos ? '?' : '&')
+    + "cks.type=" + checkSumType;
+}
+
+bool ParseCheckSumResponse(const std::string &response,
+                           std::string &checkSumType,
+                           std::string &checkSumValue)
+{
+  std::istringstream in(response);
+  std::string extra;
+  if(!(in >> checkSumType >> checkSumValue)) return false;
+  return !(in >> extra);
+}
+
+bool IsHexValue(const std::string &value)
+{
+  return !value.empty()
+    && std::all_of(value.begin(), value.end(), [](unsigned char c) {
+         return std::isxdigit(c);
+       });
+}
+
+std::string FormatCheckSumValue(const std::string &checkSumType,
+                                const std::string &checkSumValue)
+{
+  if(checkSumType == "crc32" && IsHexValue(checkSumValue)
+     && checkSumValue.size() <= 8)
+  {
+    return std::to_string(std::stoul(checkSumValue, nullptr, 16));
+  }
+  return checkSumValue;
+}
+
+int CalculateLocalCrc32(const std::string &localPath, uLong &checkSum)
+{
+  std::FILE *file = std::fopen(localPath.c_str(), "rb");
+  if(!file) return errno;
+
+  checkSum = crc32(0L, Z_NULL, 0);
+  char buffer[64 * 1024];
+  while(true)
+  {
+    const auto bytesRead = std::fread(buffer, 1, sizeof(buffer), file);
+    if(bytesRead > 0)
+    {
+      checkSum = crc32(checkSum,
+        reinterpret_cast<const Bytef *>(buffer), bytesRead);
+    }
+    if(bytesRead < sizeof(buffer))
+    {
+      if(std::ferror(file))
+      {
+        const int err = errno;
+        std::fclose(file);
+        return err ? err : EIO;
+      }
+      break;
+    }
+  }
+
+  std::fclose(file);
+  return 0;
+}
+
+int RunLocalSum(const std::string &localPath, const std::string &checkSumType,
+                const std::string &requestedCheckSumType)
+{
+  struct stat statBuffer;
+  if(::stat(localPath.c_str(), &statBuffer) != 0)
+  {
+    const int err = errno;
+    std::cerr << "xrd sum error: " << err << " (" << std::strerror(err)
+              << ") - errno reported by local system call "
+              << std::strerror(err) << '\n';
+    return err;
+  }
+
+  if(checkSumType == "crc32")
+  {
+    uLong crcValue = 0;
+    const int err = CalculateLocalCrc32(localPath, crcValue);
+    if(err != 0)
+    {
+      std::cerr << "xrd sum error: " << err << " (" << std::strerror(err)
+                << ") - errno reported by local system call "
+                << std::strerror(err) << '\n';
+      return err;
+    }
+    std::cout << LocalDisplayPath(localPath) << ' ' << crcValue << '\n';
+    return 0;
+  }
+
+  XrdCl::CheckSumManager *checkSumManager =
+    XrdCl::DefaultEnv::GetCheckSumManager();
+  if(!checkSumManager)
+  {
+    std::cerr << "xrd sum error: unable to initialize checksum processing\n";
+    return 13;
+  }
+
+  std::unique_ptr<XrdCksCalc> calculator(
+    checkSumManager->GetCalculator(checkSumType));
+  if(!calculator)
+  {
+    std::cerr << "xrd sum error: 38 (Function not implemented) - "
+              << "Checksum type " << requestedCheckSumType
+              << " not supported for local files\n";
+    return 38;
+  }
+
+  XrdCksData checkSum;
+  checkSum.Set(checkSumType.c_str());
+  errno = 0;
+  if(!checkSumManager->Calculate(checkSum, checkSumType, localPath))
+  {
+    if(errno != 0)
+    {
+      const int err = errno;
+      std::cerr << "xrd sum error: " << err << " (" << std::strerror(err)
+                << ") - errno reported by local system call "
+                << std::strerror(err) << '\n';
+      return err;
+    }
+    std::cerr << "xrd sum error: 38 (Function not implemented) - "
+              << "Checksum type " << requestedCheckSumType
+              << " not supported for local files\n";
+    return 38;
+  }
+
+  char checkSumBuffer[265];
+  if(checkSum.Get(checkSumBuffer, sizeof(checkSumBuffer)) == 0)
+  {
+    std::cerr << "xrd sum error: unable to format checksum\n";
+    return 13;
+  }
+
+  std::cout << LocalDisplayPath(localPath) << ' ' << checkSumBuffer << '\n';
+  return 0;
+}
+
+int RunRemoteSum(const std::string &path, const std::string &checkSumType)
+{
+  XrdCl::URL url(path);
+  if(!url.IsValid())
+  {
+    std::cerr << "xrd sum: invalid URL '" << path << "'\n";
+    return 64;
+  }
+
+  if(url.IsLocalFile())
+  {
+    return RunLocalSum(url.GetPath(), checkSumType, checkSumType);
+  }
+
+  XrdCl::FileSystem fs(FileSystemURL(url));
+  XrdCl::Buffer arg;
+  arg.FromString(CheckSumQueryPath(url, checkSumType));
+  XrdCl::Buffer *rawResponse = nullptr;
+  XrdCl::XRootDStatus status =
+    fs.Query(XrdCl::QueryCode::Checksum, arg, rawResponse);
+  std::unique_ptr<XrdCl::Buffer> response(rawResponse);
+
+  if(!status.IsOK())
+  {
+    std::cerr << "xrd sum: unable to checksum '" << path
+              << "': " << status.ToStr() << '\n';
+    return status.GetShellCode();
+  }
+
+  if(!response)
+  {
+    std::cerr << "xrd sum: invalid checksum response for '" << path << "'\n";
+    return 1;
+  }
+
+  std::string responseType;
+  std::string responseValue;
+  if(!ParseCheckSumResponse(response->ToString(), responseType, responseValue))
+  {
+    std::cerr << "xrd sum: invalid checksum response for '" << path << "'\n";
+    return 1;
+  }
+
+  if(ToLower(responseType) != checkSumType)
+  {
+    std::cerr << "xrd sum: server returned checksum type " << responseType
+              << " instead of " << checkSumType << '\n';
+    return 1;
+  }
+
+  std::cout << path << ' '
+            << FormatCheckSumValue(checkSumType, responseValue) << '\n';
+  return 0;
+}
+
 void SetVerbose(unsigned int verbosity)
 {
   if(verbosity == 0) return;
@@ -311,6 +529,25 @@ int RunStat(const StatOptions &options, unsigned int verbosity = 0,
 
   if(HasScheme(options.path)) return RunRemoteStat(options.path);
   return RunLocalStat(options.path, options.path);
+}
+
+int RunSum(const SumOptions &options, unsigned int verbosity = 0,
+           const std::string &logFile = "", const std::string &cert = "",
+           const std::string &key = "", bool ipv4 = false,
+           bool ipv6 = false)
+{
+  if(!logFile.empty() && !XrdCl::DefaultEnv::SetLogFile(logFile))
+  {
+    std::cerr << "xrd sum: unable to open log file '" << logFile << "'\n";
+    return 1;
+  }
+
+  SetVerbose(verbosity);
+  ApplyClientOptions(options.timeout, cert, key, ipv4, ipv6);
+
+  const auto checkSumType = ToLower(options.checkSumType);
+  if(HasScheme(options.path)) return RunRemoteSum(options.path, checkSumType);
+  return RunLocalSum(options.path, checkSumType, options.checkSumType);
 }
 
 
@@ -379,6 +616,66 @@ int main(int argc, char **argv)
     options.timeout = statTimeout;
     exitCode = RunStat(options, statVerbosity, statLogFile, statCert,
                        statKey, statIPv4, statIPv6);
+  });
+
+
+  std::string sumPath;
+  std::string sumCheckSumType;
+  int sumTimeout = -1;
+  unsigned int sumVerbosity = 0;
+  bool sumVersion = false;
+  bool sumIPv4 = false;
+  bool sumIPv6 = false;
+  std::string sumDefinition;
+  std::string sumCert;
+  std::string sumKey;
+  std::string sumClientInfo;
+  std::string sumLogFile;
+
+  auto *sum = app.add_subcommand("sum", "Calculate a file checksum");
+  sum->add_option("file", sumPath,
+    "File URL to use for checksum calculation");
+  sum->add_option("checksum_type", sumCheckSumType,
+    "Checksum algorithm to use");
+  sum->add_flag("-V,--version", sumVersion,
+    "Output version information and exit");
+  sum->add_flag("-v,--verbose", sumVerbosity,
+    "Enable verbose client logging");
+  sum->add_option("-D,--definition", sumDefinition,
+    "Accept a GFAL parameter override");
+  sum->add_option("-t,--timeout", sumTimeout,
+    "Maximum operation time in seconds");
+  sum->add_option("-E,--cert", sumCert,
+    "Accept a user certificate path");
+  sum->add_option("--key", sumKey,
+    "Accept a user private key path");
+  sum->add_flag("-4", sumIPv4,
+    "Accept the GFAL IPv4-only flag");
+  sum->add_flag("-6", sumIPv6,
+    "Accept the GFAL IPv6-only flag");
+  sum->add_option("-C,--client-info", sumClientInfo,
+    "Accept custom client information");
+  sum->add_option("--log-file", sumLogFile,
+    "Write XRootD client logs to a file");
+  sum->callback([&] {
+    if(sumVersion)
+    {
+      std::cout << "xrd " << XrdVERSION << '\n';
+      exitCode = 0;
+      return;
+    }
+    if(sumPath.empty() || sumCheckSumType.empty())
+    {
+      std::cerr << "xrd sum: expected one file URL and checksum type\n";
+      exitCode = 64;
+      return;
+    }
+    SumOptions options;
+    options.path = sumPath;
+    options.checkSumType = sumCheckSumType;
+    options.timeout = sumTimeout;
+    exitCode = RunSum(options, sumVerbosity, sumLogFile, sumCert,
+                      sumKey, sumIPv4, sumIPv6);
   });
 
   CLI11_PARSE(app, argc, argv);
