@@ -165,6 +165,56 @@ class ProtocolInfo(Struct):
   def __init__(self, info):
     super(ProtocolInfo, self).__init__(info)
 
+
+class ChecksumInfo(Struct):
+  """Structured checksum response.
+
+  :var algorithm: checksum algorithm name, for example ``adler32``
+  :var value:     checksum value
+  """
+
+  def __init__(self, algorithm, value=None):
+    if value is None:
+      algorithm, value = self._parse(algorithm)
+    super(ChecksumInfo, self).__init__({
+      'algorithm': algorithm,
+      'value': value,
+    })
+
+  @classmethod
+  def from_query_response(cls, response):
+    """Build a checksum object from a ``QueryCode.CHECKSUM`` response."""
+    algorithm, value = cls._parse(response)
+    return cls(algorithm, value)
+
+  @staticmethod
+  def _parse(response):
+    parts = response.strip('\n\0').split(None, 1)
+    if len(parts) != 2:
+      raise ValueError('Invalid checksum response: %r' % response)
+    return parts
+
+
+class CapabilityInfo(Struct):
+  """Summary of endpoint capability probing.
+
+  :var ping_status:     status returned by :meth:`FileSystem.ping`
+  :var protocol_status: status returned by :meth:`FileSystem.protocol`
+  :var protocol:        protocol response when available
+  :var config_status:   status returned by ``QueryCode.CONFIG`` probing
+  :var config:          config response when available
+  """
+
+  def __init__(self, ping_status, protocol_status=None, protocol=None,
+               config_status=None, config=None):
+    super(CapabilityInfo, self).__init__({
+      'ping_status': ping_status,
+      'protocol_status': protocol_status,
+      'protocol': protocol,
+      'config_status': config_status,
+      'config': config,
+    })
+
 class StatInfo(Struct):
   """Status information for files and directories.
 

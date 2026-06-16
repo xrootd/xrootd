@@ -160,6 +160,27 @@ def test_query_sync():
   assert response
   print(response)
 
+def test_checksum_sync():
+  c = client.FileSystem(SERVER_URL)
+  f = client.File()
+  status, response = f.open(smallfile, OpenFlags.DELETE)
+  assert status.ok
+  f.write(smallbuffer)
+  f.close()
+
+  status, response = c.checksum(smallfile)
+  assert status.ok
+  assert response.algorithm
+  assert response.value
+
+def test_probe_sync():
+  c = client.FileSystem(SERVER_URL)
+  status, response = c.probe()
+  assert status.ok
+  assert response.ping_status.ok
+  assert response.protocol_status.ok
+  assert response.protocol
+
 def test_query_async():
   c = client.FileSystem(SERVER_URL)
   handler = AsyncResponseHandler()
@@ -174,6 +195,13 @@ def test_query_async():
 def test_mkdir_flags():
   c = client.FileSystem(SERVER_URL)
   status, response = c.mkdir('/tmp/dir1/dir2', MkDirFlags.MAKEPATH)
+  assert status.ok
+  c.rm('/tmp/dir1/dir2')
+  c.rm('/tmp/dir1')
+
+def test_mkdir_p():
+  c = client.FileSystem(SERVER_URL)
+  status, response = c.mkdir_p('/tmp/dir1/dir2')
   assert status.ok
   c.rm('/tmp/dir1/dir2')
   c.rm('/tmp/dir1')
