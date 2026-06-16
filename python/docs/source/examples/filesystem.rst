@@ -116,3 +116,16 @@ rest of the examples::
    :start-line: 4
    :end-line: 11
 
+.. -----------------------------------------------------------------------------
+.. common workflows
+.. -----------------------------------------------------------------------------
+
+Common workflows
+----------------
+
+The following example maps common ``xrdcp`` and ``xrdfs`` workflows to Python,
+including authentication environment values, endpoint checks, copy, checksum
+lookup, rename, and delete.
+
+.. literalinclude:: ../../../examples/client_workflows.py
+   :lines: 9-
