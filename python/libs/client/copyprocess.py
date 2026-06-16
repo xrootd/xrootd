@@ -62,6 +62,12 @@ class CopyProcess(object):
   def __init__(self):
     self.__process = client.CopyProcess()
 
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    return False
+
   def parallel(self, parallel):
     """ Add a config job to the copy process in order to set the number of
         parallel copy jobs.
@@ -143,7 +149,7 @@ class CopyProcess(object):
     :type      retry: integer
     :param     cont: continue copying a file from the point where the previous copy was interrupted
     :type      cont: boolean
-    :param     rtrplc: the retry polic (force or continue)
+    :param     rtrplc: the retry policy (force or continue)
     :type      rtrplc: string
     """
     self.__process.add_job(source, target, sourcelimit, force, posc,
@@ -170,3 +176,56 @@ class CopyProcess(object):
       if 'status' in x:
         x['status'] = XRootDStatus(x['status'])
     return XRootDStatus(status), results
+
+  def copy(self, source, target, force=False, mkdir=False, timeout=0,
+           handler=None, retry=None, thirdparty='none', checksummode='none',
+           checksumtype='', checksumpreset='', posc=False, coerce=False,
+           cont=False, chunksize=None, parallelchunks=None):
+    """Run a single copy job with common high-level options.
+
+    :param source: source URL
+    :type  source: string
+    :param target: target URL
+    :type  target: string
+    :param force: overwrite the target if it exists
+    :type  force: boolean
+    :param mkdir: create parent directories for the target
+    :type  mkdir: boolean
+    :param timeout: timeout applied to copy initialization and execution
+    :type  timeout: integer
+    :param handler: optional copy progress handler. Returning ``True`` from
+                    ``handler.should_cancel(jobId)`` cancels the job.
+    :param retry: number of retries
+    :type  retry: integer
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+              object and copy job results
+    """
+    kwargs = {
+      'source': source,
+      'target': target,
+      'force': force,
+      'mkdir': mkdir,
+      'thirdparty': thirdparty,
+      'checksummode': checksummode,
+      'checksumtype': checksumtype,
+      'checksumpreset': checksumpreset,
+      'posc': posc,
+      'coerce': coerce,
+      'cont': cont,
+    }
+    if timeout:
+      kwargs['cptimeout'] = timeout
+      kwargs['inittimeout'] = timeout
+      kwargs['tpctimeout'] = timeout
+    if retry is not None:
+      kwargs['retry'] = retry
+    if chunksize is not None:
+      kwargs['chunksize'] = chunksize
+    if parallelchunks is not None:
+      kwargs['parallelchunks'] = parallelchunks
+
+    self.add_job(**kwargs)
+    status = self.prepare()
+    if not status.ok:
+      return status, []
+    return self.run(handler=handler)

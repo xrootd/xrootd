@@ -14,5 +14,6 @@ Methods
 *******
 
 .. automethod:: XRootD.client.CopyProcess.add_job
+.. automethod:: XRootD.client.CopyProcess.copy
 .. automethod:: XRootD.client.CopyProcess.prepare
 .. automethod:: XRootD.client.CopyProcess.run
