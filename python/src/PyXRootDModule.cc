@@ -48,8 +48,10 @@ namespace PyXRootD
       // Ths XRootD Env
       { "EnvPutString_cpp",     EnvPutString_cpp,     METH_VARARGS, "Puts a string into XrdCl environment." },
       { "EnvGetString_cpp",     EnvGetString_cpp,     METH_VARARGS, "Gets a string from XrdCl environment." },
+      { "EnvDelString_cpp",     EnvDelString_cpp,     METH_VARARGS, "Deletes a string from XrdCl environment." },
       { "EnvPutInt_cpp",        EnvPutInt_cpp,        METH_VARARGS, "Puts an int into XrdCl environment." },
       { "EnvGetInt_cpp",        EnvGetInt_cpp,        METH_VARARGS, "Gets an int from XrdCl environment." },
+      { "EnvDelInt_cpp",        EnvDelInt_cpp,        METH_VARARGS, "Deletes an int from XrdCl environment." },
       { "XrdVersion_cpp",       XrdVersion_cpp,       METH_VARARGS, "Get the XRootD client version." },
       { "EnvGetDefault_cpp",    EnvGetDefault_cpp,    METH_VARARGS, "Get default values from XrdCl environment" },
       { "SetLogLevel_cpp",      SetLogLevel_cpp,      METH_VARARGS, "Set XrdCl log level" },

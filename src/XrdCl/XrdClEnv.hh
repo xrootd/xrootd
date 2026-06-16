@@ -58,6 +58,14 @@ namespace XrdCl
       bool PutString( const std::string &key, const std::string &value );
 
       //------------------------------------------------------------------------
+      //! Remove the string associated with the given key
+      //!
+      //! @return false if there is a shell-imported setting for this key,
+      //!         true otherwise
+      //------------------------------------------------------------------------
+      bool DelString( const std::string &key );
+
+      //------------------------------------------------------------------------
       //! Get an int associated to the given key
       //!
       //! @return true if the value was found, false otherwise
@@ -71,6 +79,14 @@ namespace XrdCl
       //!         key, true otherwise
       //------------------------------------------------------------------------
       bool PutInt( const std::string &key, int value );
+
+      //------------------------------------------------------------------------
+      //! Remove the int associated with the given key
+      //!
+      //! @return false if there is a shell-imported setting for this key,
+      //!         true otherwise
+      //------------------------------------------------------------------------
+      bool DelInt( const std::string &key );
 
       //------------------------------------------------------------------------
       //! Get a pointer associated to the given key

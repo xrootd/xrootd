@@ -37,6 +37,13 @@ def EnvGetString( key ):
         If key does not exist in the environment returns None.
      """
      return client.EnvGetString_cpp( key )
+
+def EnvDelString( key ):
+     """Deletes the given key from the xrootd client string environment.
+        Returns False if there is a shell-imported setting for this key,
+        True otherwise.
+     """
+     return client.EnvDelString_cpp( key )
  
 def EnvPutInt( key, value ):
      """Sets the given key in the xrootd client environment to 
@@ -50,6 +57,13 @@ def EnvGetInt( key ):
         If key does not exist in the environment returns None.
      """
      return client.EnvGetInt_cpp( key )
+
+def EnvDelInt( key ):
+     """Deletes the given key from the xrootd client integer environment.
+        Returns False if there is a shell-imported setting for this key,
+        True otherwise.
+     """
+     return client.EnvDelInt_cpp( key )
 
 def EnvGetDefault( key ):
      """ Get the default value for the given key.

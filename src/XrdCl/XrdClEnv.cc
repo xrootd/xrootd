@@ -84,6 +84,32 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Delete string
+  //----------------------------------------------------------------------------
+  bool Env::DelString( const std::string &k )
+  {
+    std::string key = UnifyKey( k );
+    XrdSysRWLockHelper scopedLock( pLock, false ); // obtain write lock
+
+    StringMap::iterator it;
+    it = pStringMap.find( key );
+    if( it == pStringMap.end() )
+      return true;
+
+    Log *log = DefaultEnv::GetLog();
+    if( it->second.second )
+    {
+      log->Debug( UtilityMsg,
+                  "Env: trying to delete a shell-imported string entry: %s",
+                  key.c_str() );
+      return false;
+    }
+    log->Debug( UtilityMsg, "Env: deleting string entry: %s", key.c_str() );
+    pStringMap.erase( it );
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
   // Get int
   //----------------------------------------------------------------------------
   bool Env::GetInt( const std::string &k, int &value )
@@ -139,6 +165,32 @@ namespace XrdCl
                 key.c_str(), it->second.first, value );
 
     pIntMap[key] = std::make_pair( value, false );
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Delete int
+  //----------------------------------------------------------------------------
+  bool Env::DelInt( const std::string &k )
+  {
+    std::string key = UnifyKey( k );
+    XrdSysRWLockHelper scopedLock( pLock, false ); // obtain write lock
+
+    IntMap::iterator it;
+    it = pIntMap.find( key );
+    if( it == pIntMap.end() )
+      return true;
+
+    Log *log = DefaultEnv::GetLog();
+    if( it->second.second )
+    {
+      log->Debug( UtilityMsg,
+                  "Env: trying to delete a shell-imported integer entry: %s",
+                  key.c_str() );
+      return false;
+    }
+    log->Debug( UtilityMsg, "Env: deleting integer entry: %s", key.c_str() );
+    pIntMap.erase( it );
     return true;
   }
 

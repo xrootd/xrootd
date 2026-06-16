@@ -69,6 +69,23 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
+  //! Deletes the given key from the xrootd client string environment.
+  //! @return : false if there is a shell-imported setting for this key,
+  //! true otherwise
+  //----------------------------------------------------------------------------
+  PyObject* EnvDelString_cpp( PyObject *self, PyObject *args )
+  {
+    char *key = 0;
+    // parse arguments
+    if( !PyArg_ParseTuple( args, "s", &key ) )
+    {
+      return NULL;
+    }
+
+    return PyBool_FromLong( XrdCl::DefaultEnv::GetEnv()->DelString( key ) );
+  }
+
+  //----------------------------------------------------------------------------
    //! Sets the given key in the xrootd client environment to the given value.
    //! @return : false if there is already a shell-imported setting for this key,
    // true otherwise
@@ -104,6 +121,23 @@ namespace PyXRootD
       Py_RETURN_NONE;
 
     return Py_BuildValue( "i", value );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Deletes the given key from the xrootd client integer environment.
+  //! @return : false if there is a shell-imported setting for this key,
+  //! true otherwise
+  //----------------------------------------------------------------------------
+  PyObject* EnvDelInt_cpp( PyObject *self, PyObject *args )
+  {
+    char *key = 0;
+    // parse arguments
+    if( !PyArg_ParseTuple( args, "s", &key ) )
+    {
+      return NULL;
+    }
+
+    return PyBool_FromLong( XrdCl::DefaultEnv::GetEnv()->DelInt( key ) );
   }
 
   //----------------------------------------------------------------------------
