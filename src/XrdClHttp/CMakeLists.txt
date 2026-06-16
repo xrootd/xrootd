@@ -9,6 +9,8 @@ if(NOT CURL_FOUND)
 endif()
 
 add_library(XrdClHttpObj OBJECT
+  ../XrdCl/XrdClCurlUtil.cc
+  ../XrdCl/XrdClCurlUtil.hh
   XrdClHttpFactory.cc        XrdClHttpFactory.hh
   XrdClHttpFile.cc           XrdClHttpFile.hh
   XrdClHttpFilesystem.cc     XrdClHttpFilesystem.hh

@@ -25,6 +25,7 @@
 #include "XrdClHttpWorker.hh"
 
 #include <XProtocol/XProtocol.hh>
+#include <XrdCl/XrdClCurlUtil.hh>
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClLog.hh>
 #include <XrdCl/XrdClURL.hh>
@@ -104,139 +105,15 @@ pid_t getthreadid() {
 }
 
 bool XrdClHttp::HTTPStatusIsError(unsigned status) {
-     return (status < 100) || (status >= 400);
+     return XrdCl::CurlUtil::HTTPStatusIsError(status);
 }
 
 std::pair<uint16_t, uint32_t> XrdClHttp::HTTPStatusConvert(unsigned status) {
-    switch (status) {
-        case 400: // Bad Request
-            return std::make_pair(XrdCl::errErrorResponse, kXR_InvalidRequest);
-        case 401: // Unauthorized (needs authentication)
-            return std::make_pair(XrdCl::errErrorResponse, kXR_NotAuthorized);
-        case 402: // Payment Required
-        case 403: // Forbidden (failed authorization)
-            return std::make_pair(XrdCl::errErrorResponse, kXR_NotAuthorized);
-        case 404:
-            return std::make_pair(XrdCl::errErrorResponse, kXR_NotFound);
-        case 405: // Method not allowed
-        case 406: // Not acceptable
-            return std::make_pair(XrdCl::errErrorResponse, kXR_InvalidRequest);
-        case 407: // Proxy Authentication Required
-            return std::make_pair(XrdCl::errErrorResponse, kXR_NotAuthorized);
-        case 408: // Request timeout
-            return std::make_pair(XrdCl::errErrorResponse, kXR_ReqTimedOut);
-        case 409: // Conflict
-            return std::make_pair(XrdCl::errErrorResponse, kXR_Conflict);
-        case 410: // Gone
-            return std::make_pair(XrdCl::errErrorResponse, kXR_NotFound);
-        case 411: // Length required
-        case 412: // Precondition failed
-        case 413: // Payload too large
-        case 414: // URI too long
-        case 415: // Unsupported Media Type
-        case 416: // Range Not Satisfiable
-        case 417: // Expectation Failed
-        case 418: // I'm a teapot
-	        return std::make_pair(XrdCl::errErrorResponse, kXR_InvalidRequest);
-        case 421: // Misdirected Request
-        case 422: // Unprocessable Content
-            return std::make_pair(XrdCl::errErrorResponse, kXR_InvalidRequest);
-        case 423: // Locked
-            return std::make_pair(XrdCl::errErrorResponse, kXR_FileLocked);
-        case 424: // Failed Dependency
-        case 425: // Too Early
-        case 426: // Upgrade Required
-        case 428: // Precondition Required
-            return std::make_pair(XrdCl::errErrorResponse, kXR_InvalidRequest);
-        case 429: // Too Many Requests
-            return std::make_pair(XrdCl::errErrorResponse, kXR_Overloaded);
-        case 431: // Request Header Fields Too Large
-            return std::make_pair(XrdCl::errErrorResponse, kXR_InvalidRequest);
-        case 451: // Unavailable For Legal Reasons
-            return std::make_pair(XrdCl::errErrorResponse, kXR_Impossible);
-        case 500: // Internal Server Error
-        case 501: // Not Implemented
-        case 502: // Bad Gateway
-        case 503: // Service Unavailable
-            return std::make_pair(XrdCl::errErrorResponse, kXR_ServerError);
-        case 504: // Gateway Timeout
-            return std::make_pair(XrdCl::errErrorResponse, kXR_ReqTimedOut);
-        case 507: // Insufficient Storage
-            return std::make_pair(XrdCl::errErrorResponse, kXR_overQuota);
-        case 508: // Loop Detected
-        case 510: // Not Extended
-        case 511: // Network Authentication Required
-            return std::make_pair(XrdCl::errErrorResponse, kXR_ServerError);
-    }
-    return std::make_pair(XrdCl::errUnknown, status);
+    return XrdCl::CurlUtil::HTTPStatusConvert(status);
 }
 
 std::pair<uint16_t, uint32_t> CurlCodeConvert(CURLcode res) {
-    switch (res) {
-        case CURLE_OK:
-            return std::make_pair(XrdCl::errNone, 0);
-        case CURLE_COULDNT_RESOLVE_PROXY:
-        case CURLE_COULDNT_RESOLVE_HOST:
-            return std::make_pair(XrdCl::errInvalidAddr, 0);
-        case CURLE_LOGIN_DENIED:
-        // Commented-out cases are for platforms (RHEL7) where the error
-        // codes are undefined.
-        //case CURLE_AUTH_ERROR:
-        //case CURLE_SSL_CLIENTCERT:
-        case CURLE_REMOTE_ACCESS_DENIED:
-            return std::make_pair(XrdCl::errLoginFailed, EACCES);
-        case CURLE_SSL_CONNECT_ERROR:
-        case CURLE_SSL_ENGINE_NOTFOUND:
-        case CURLE_SSL_ENGINE_SETFAILED:
-        case CURLE_SSL_CERTPROBLEM:
-        case CURLE_SSL_CIPHER:
-        case 51: // In old curl versions, this is CURLE_PEER_FAILED_VERIFICATION; that constant was changed to be 60 / CURLE_SSL_CACERT
-        case CURLE_SSL_SHUTDOWN_FAILED:
-        case CURLE_SSL_CRL_BADFILE:
-        case CURLE_SSL_ISSUER_ERROR:
-        case CURLE_SSL_CACERT: // value is 60; merged with CURLE_PEER_FAILED_VERIFICATION
-        //case CURLE_SSL_PINNEDPUBKEYNOTMATCH:
-        //case CURLE_SSL_INVALIDCERTSTATUS:
-            return std::make_pair(XrdCl::errTlsError, 0);
-        case CURLE_SEND_ERROR:
-        case CURLE_RECV_ERROR:
-            return std::make_pair(XrdCl::errSocketError, EIO);
-        case CURLE_COULDNT_CONNECT:
-        case CURLE_GOT_NOTHING:
-            return std::make_pair(XrdCl::errConnectionError, ECONNREFUSED);
-        case CURLE_OPERATION_TIMEDOUT:
-#ifdef HAVE_XPROTOCOL_TIMEREXPIRED
-            return std::make_pair(XrdCl::errErrorResponse, XErrorCode::kXR_TimerExpired);
-#else
-            return std::make_pair(XrdCl::errOperationExpired, ESTALE);
-#endif
-        case CURLE_UNSUPPORTED_PROTOCOL:
-        case CURLE_NOT_BUILT_IN:
-            return std::make_pair(XrdCl::errNotSupported, ENOSYS);
-        case CURLE_FAILED_INIT:
-            return std::make_pair(XrdCl::errInternal, 0);
-        case CURLE_URL_MALFORMAT:
-            return std::make_pair(XrdCl::errInvalidArgs, res);
-        //case CURLE_WEIRD_SERVER_REPLY:
-        //case CURLE_HTTP2:
-        //case CURLE_HTTP2_STREAM:
-            return std::make_pair(XrdCl::errCorruptedHeader, res);
-        case CURLE_PARTIAL_FILE:
-            return std::make_pair(XrdCl::errDataError, res);
-        // These two errors indicate a failure in the callback.  That
-        // should generate their own failures, meaning this should never
-        // get use.
-        case CURLE_READ_ERROR:
-        case CURLE_WRITE_ERROR:
-            return std::make_pair(XrdCl::errInternal, res);
-        case CURLE_RANGE_ERROR:
-        case CURLE_BAD_CONTENT_ENCODING:
-            return std::make_pair(XrdCl::errNotSupported, res);
-        case CURLE_TOO_MANY_REDIRECTS:
-            return std::make_pair(XrdCl::errRedirectLimit, res);
-        default:
-            return std::make_pair(XrdCl::errUnknown, res);
-    }
+    return XrdCl::CurlUtil::CurlCodeConvert(res);
 }
 
 bool HeaderParser::Base64Decode(std::string_view input, std::array<unsigned char, 32> &output) {
@@ -629,39 +506,14 @@ std::string_view XrdClHttp::ltrim_view(const std::string_view &input_view) {
 
 CURL *
 XrdClHttp::GetHandle(bool verbose) {
-    auto result = curl_easy_init();
+    auto result = XrdCl::CurlUtil::CreateCurlHandle(
+        "xrdcl-http/" XrdVERSION, verbose, XrdCl::DefaultEnv::GetEnv());
     if (result == nullptr) {
         return result;
     }
 
-    curl_easy_setopt(result, CURLOPT_USERAGENT, "xrdcl-http/" XrdVERSION);
     curl_easy_setopt(result, CURLOPT_DEBUGFUNCTION, DumpHeader);
     curl_easy_setopt(result, CURLOPT_DEBUGDATA, XrdCl::DefaultEnv::GetLog());
-    if (verbose)
-        curl_easy_setopt(result, CURLOPT_VERBOSE, 1L);
-
-    auto env = XrdCl::DefaultEnv::GetEnv();
-    std::string ca_file;
-    if (!env->GetString("HttpCertFile", ca_file) || ca_file.empty()) {
-        char *x509_ca_file = getenv("X509_CERT_FILE");
-        if (x509_ca_file) {
-            ca_file = std::string(x509_ca_file);
-        }
-    }
-    if (!ca_file.empty()) {
-        curl_easy_setopt(result, CURLOPT_CAINFO, ca_file.c_str());
-    }
-    std::string ca_dir;
-    if (!env->GetString("HttpCertDir", ca_dir) || ca_dir.empty()) {
-        char *x509_ca_dir = getenv("X509_CERT_DIR");
-        if (x509_ca_dir) {
-            ca_dir = std::string(x509_ca_dir);
-        }
-    }
-    if (!ca_dir.empty()) {
-        curl_easy_setopt(result, CURLOPT_CAPATH, ca_dir.c_str());
-    }
-
     curl_easy_setopt(result, CURLOPT_BUFFERSIZE, 32*1024);
 
     return result;
@@ -902,15 +754,13 @@ CurlWorker::CurlWorker(std::shared_ptr<HandlerQueue> queue, VerbsCache &cache, X
     m_shutdown_pipe_r = pipeInfo[0];
     m_shutdown_pipe_w = pipeInfo[1];
 
-    // Handle setup of the X509 authentication
-    auto env = XrdCl::DefaultEnv::GetEnv();
-    env->GetString("HttpClientCertFile", m_x509_client_cert_file);
-    env->GetString("HttpClientKeyFile", m_x509_client_key_file);
+    m_x509_credentials =
+        XrdCl::CurlUtil::GetClientX509Credentials(XrdCl::DefaultEnv::GetEnv());
 }
 
-std::tuple<std::string, std::string> CurlWorker::ClientX509CertKeyFile() const
+XrdCl::CurlUtil::X509Credentials CurlWorker::ClientX509Credentials() const
 {
-    return std::make_tuple(m_x509_client_cert_file, m_x509_client_key_file);
+    return m_x509_credentials;
 }
 
 std::string

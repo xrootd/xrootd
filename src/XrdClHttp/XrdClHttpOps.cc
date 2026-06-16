@@ -23,6 +23,7 @@
 #include "XrdClHttpUtil.hh"
 #include "XrdClHttpWorker.hh"
 
+#include <XrdCl/XrdClCurlUtil.hh>
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClLog.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
@@ -332,16 +333,10 @@ CurlOperation::Redirect(std::string &target)
     m_logger->Debug(kLogXrdClHttp, "Request for %s redirected to %s", m_url.c_str(), location.c_str());
     target = location;
     curl_easy_setopt(m_curl.get(), CURLOPT_URL, location.c_str());
-    int disable_x509;
     auto env = XrdCl::DefaultEnv::GetEnv();
-    if (env->GetInt("HttpDisableX509", disable_x509) && !disable_x509) {
-        std::string cert, key;
-        env->GetString("HttpClientCertFile", cert);
-        env->GetString("HttpClientKeyFile", key);
-        if (!cert.empty())
-            curl_easy_setopt(m_curl.get(), CURLOPT_SSLCERT, cert.c_str());
-        if (!key.empty())
-            curl_easy_setopt(m_curl.get(), CURLOPT_SSLKEY, key.c_str());
+    if (XrdCl::CurlUtil::UseClientX509(env)) {
+        XrdCl::CurlUtil::ApplyClientX509Credentials(
+            m_curl.get(), XrdCl::CurlUtil::GetClientX509Credentials(env));
     }
     m_headers = HeaderParser();
 
@@ -550,18 +545,10 @@ CurlOperation::Setup(CURL *curl, CurlWorker &worker)
 
     m_parsed_url.reset(new XrdCl::URL(m_url));
     auto env = XrdCl::DefaultEnv::GetEnv();
-    int disable_x509;
-    if ((env->GetInt("HttpDisableX509", disable_x509) && !disable_x509)) {
-        auto [cert, key] = worker.ClientX509CertKeyFile();
-        if (!cert.empty()) {
-            m_logger->Debug(kLogXrdClHttp, "Using client X.509 credential found at %s", cert.c_str());
-            curl_easy_setopt(m_curl.get(), CURLOPT_SSLCERT, cert.c_str());
-            if (key.empty()) {
-                m_logger->Error(kLogXrdClHttp, "X.509 client credential specified but not the client key");
-            } else {
-                curl_easy_setopt(m_curl.get(), CURLOPT_SSLKEY, key.c_str());
-            }
-        }
+    if (XrdCl::CurlUtil::UseClientX509(env)) {
+        XrdCl::CurlUtil::ApplyClientX509Credentials(
+            m_curl.get(), worker.ClientX509Credentials(), m_logger,
+            kLogXrdClHttp, true);
     }
 
     if (m_conn_callout) {

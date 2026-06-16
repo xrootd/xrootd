@@ -27,6 +27,7 @@
 #include "XrdClHttpWorker.hh"
 
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClCurlUtil.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdXrootd/XrdXrootdGStream.hh"
@@ -267,54 +268,10 @@ Factory::Monitor()
     }
 }
 
-namespace {
-
-void SetIfEmpty(XrdCl::Env *env, XrdCl::Log &log, const std::string &optName, const std::string &envName) {
-    if (!env) return;
-
-    std::string val;
-    if (!env->GetString(optName, val) || val.empty()) {
-        env->PutString(optName, "");
-        env->ImportString(optName, envName);
-    }
-    if (env->GetString(optName, val) && !val.empty()) {
-        log.Info(kLogXrdClHttp, "Setting %s to value '%s'", optName.c_str(), val.c_str());
-    }
-}
-
-} // namespace
-
 void
 Factory::SetupX509() {
-
-    auto env = XrdCl::DefaultEnv::GetEnv();
-    SetIfEmpty(env, *m_log, "HttpCertFile", "XRD_HTTPCERTFILE");
-    SetIfEmpty(env, *m_log, "HttpCertDir", "XRD_HTTPCERTDIR");
-    SetIfEmpty(env, *m_log, "HttpClientCertFile", "XRD_HTTPCLIENTCERTFILE");
-    SetIfEmpty(env, *m_log, "HttpClientKeyFile", "XRD_HTTPCLIENTKEYFILE");
-
-    int disable_proxy = 0;
-    env->PutInt("HttpDisableX509", 0);
-    env->ImportInt("HttpDisableX509", "XRD_HTTPDISABLEX509");
-
-    std::string filename;
-    char *filename_char;
-    if (!disable_proxy && (!env->GetString("HttpClientCertFile", filename) || filename.empty())) {
-        if ((filename_char = getenv("X509_USER_PROXY"))) {
-            filename = filename_char;
-        }
-        if (filename.empty()) {
-            filename = "/tmp/x509up_u" + std::to_string(geteuid());
-        }
-        if (access(filename.c_str(), R_OK) == 0) {
-            m_log->Debug(kLogXrdClHttp, "Using X509 proxy file found at %s for TLS client credential", filename.c_str());
-            env->PutString("HttpClientCertFile", filename);
-            env->PutString("HttpClientKeyFile", filename);
-        }
-    }
-    if ((!env->GetString("HttpCertDir", filename) || filename.empty()) && (filename_char = getenv("X509_CERT_DIR"))) {
-        env->PutString("HttpCertDir", filename_char);
-    }
+    XrdCl::CurlUtil::ConfigureX509Env(
+        XrdCl::DefaultEnv::GetEnv(), *m_log, kLogXrdClHttp);
 }
 
 void
