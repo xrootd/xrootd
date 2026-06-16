@@ -42,6 +42,14 @@ class FileSystem(object):
   def __init__(self, url):
     self.__fs = client.FileSystem(url)
 
+  def __enter__(self):
+    """Return this filesystem instance for use in a ``with`` statement."""
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    """Exit a ``with`` statement without suppressing exceptions."""
+    return None
+
   @property
   def url(self):
     """The server URL object, instance of :mod:`XRootD.client.URL`"""

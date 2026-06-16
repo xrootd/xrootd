@@ -17,6 +17,8 @@ Attributes
 Methods
 *******
 
+.. automethod:: XRootD.client.FileSystem.__enter__
+.. automethod:: XRootD.client.FileSystem.__exit__
 .. automethod:: XRootD.client.FileSystem.copy
 .. automethod:: XRootD.client.FileSystem.checksum
 .. automethod:: XRootD.client.FileSystem.locate

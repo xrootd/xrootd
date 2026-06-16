@@ -218,6 +218,14 @@ def test_creation():
   c = client.FileSystem(SERVER_URL)
   assert c.url is not None
 
+def test_context_manager():
+  with client.FileSystem(SERVER_URL) as c:
+    assert c.url is not None
+
+  with pytest.raises(RuntimeError):
+    with client.FileSystem(SERVER_URL):
+      raise RuntimeError('failure')
+
 def test_deletion():
   c = client.FileSystem(SERVER_URL)
   del c
