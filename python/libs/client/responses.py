@@ -19,6 +19,80 @@ from __future__ import absolute_import, division, print_function
 
 from XRootD.client.url import URL
 
+_STATUS_ERROR_NAMES = {
+  0: 'errNone',
+  1: 'errRetry',
+  2: 'errUnknown',
+  3: 'errInvalidOp',
+  4: 'errFcntl',
+  5: 'errPoll',
+  6: 'errConfig',
+  7: 'errInternal',
+  8: 'errUnknownCommand',
+  9: 'errInvalidArgs',
+  10: 'errInProgress',
+  11: 'errUninitialized',
+  12: 'errOSError',
+  13: 'errNotSupported',
+  14: 'errDataError',
+  15: 'errNotImplemented',
+  16: 'errNoMoreReplicas',
+  17: 'errPipelineError',
+  101: 'errInvalidAddr',
+  102: 'errSocketError',
+  103: 'errSocketTimeout',
+  104: 'errSocketDisconnected',
+  105: 'errPollerError',
+  106: 'errSocketOptError',
+  107: 'errStreamDisconnect',
+  108: 'errConnectionError',
+  109: 'errInvalidSession',
+  201: 'errInvalidMessage',
+  202: 'errHandShakeFailed',
+  203: 'errLoginFailed',
+  204: 'errAuthFailed',
+  205: 'errQueryNotSupported',
+  206: 'errOperationExpired',
+  207: 'errOperationInterrupted',
+  301: 'errNoMoreFreeSIDs',
+  302: 'errInvalidRedirectURL',
+  303: 'errInvalidResponse',
+  304: 'errNotFound',
+  305: 'errCheckSumError',
+  306: 'errRedirectLimit',
+  400: 'errErrorResponse',
+  401: 'errRedirect',
+  500: 'errResponseNegative',
+}
+
+
+class XRootDError(RuntimeError):
+  """Base exception raised from unsuccessful :class:`XRootDStatus` objects."""
+
+  def __init__(self, status):
+    self.status = status
+    RuntimeError.__init__(self, str(status))
+
+
+class XRootDNotFoundError(XRootDError):
+  """The requested file or resource was not found."""
+
+
+class XRootDAuthorizationError(XRootDError):
+  """Authentication or authorization failed."""
+
+
+class XRootDTimeoutError(XRootDError):
+  """The request timed out or expired."""
+
+
+class XRootDChecksumError(XRootDError):
+  """The request failed checksum validation."""
+
+
+class XRootDOperationError(XRootDError):
+  """Generic unsuccessful XRootD operation."""
+
 class Struct(object):
   """Convert a dict into an object by adding each dict entry to __dict__"""
   def __init__(self, entries):
@@ -154,6 +228,45 @@ class XRootDStatus(Struct):
 
   def __str__(self):
     return self.message
+
+  @property
+  def error_name(self):
+    """Symbolic name for the status code, when known."""
+    return _STATUS_ERROR_NAMES.get(getattr(self, 'code', None))
+
+  def exception(self):
+    """Return a Python exception representing this status, or ``None`` if OK."""
+    if self.ok:
+      return None
+    code = getattr(self, 'code', None)
+    shellcode = getattr(self, 'shellcode', None)
+    if code == self.errNotFound or shellcode == 54:
+      return XRootDNotFoundError(self)
+    if code in (self.errAuthFailed, self.errLoginFailed):
+      return XRootDAuthorizationError(self)
+    if code in (self.errSocketTimeout, self.errOperationExpired):
+      return XRootDTimeoutError(self)
+    if code == self.errCheckSumError:
+      return XRootDChecksumError(self)
+    return XRootDOperationError(self)
+
+  def raise_on_error(self):
+    """Raise a mapped Python exception if this status is not OK."""
+    error = self.exception()
+    if error:
+      raise error
+    return self
+
+
+def raise_on_error(status):
+  """Raise a mapped Python exception if ``status`` is not OK.
+
+  :param status: :class:`XRootDStatus` or raw status dictionary
+  :returns:      the normalized :class:`XRootDStatus`
+  """
+  if not isinstance(status, XRootDStatus):
+    status = XRootDStatus(status)
+  return status.raise_on_error()
 
 class ProtocolInfo(Struct):
   """Protocol information for a server.
