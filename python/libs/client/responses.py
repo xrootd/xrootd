@@ -19,6 +19,35 @@ from __future__ import absolute_import, division, print_function
 
 from XRootD.client.url import URL
 
+
+class XRootDError(RuntimeError):
+  """Base exception raised from unsuccessful :class:`XRootDStatus` objects."""
+
+  def __init__(self, status):
+    self.status = status
+    RuntimeError.__init__(self, str(status))
+
+
+class XRootDNotFoundError(XRootDError):
+  """The requested file or resource was not found."""
+
+
+class XRootDAuthorizationError(XRootDError):
+  """Authentication or authorization failed."""
+
+
+class XRootDTimeoutError(XRootDError):
+  """The request timed out or expired."""
+
+
+class XRootDChecksumError(XRootDError):
+  """The request failed checksum validation."""
+
+
+class XRootDOperationError(XRootDError):
+  """Generic unsuccessful XRootD operation."""
+
+
 class Struct(object):
   """Convert a dict into an object by adding each dict entry to __dict__"""
   def __init__(self, entries):
@@ -86,6 +115,7 @@ class XRootDStatus(Struct):
   suRetry           = 2
   suPartial         = 3
   suAlreadyDone     = 4
+  suNotStarted      = 5
 
   #----------------------------------------------------------------------------
   # Generic errors
@@ -108,7 +138,8 @@ class XRootDStatus(Struct):
   errDataError           = 14; # data is corrupted
   errNotImplemented      = 15; # Operation is not implemented
   errNoMoreReplicas      = 16; # No more replicas to try
-  errPipelineError       = 17; # Pipeline failed and operation couldn't be executed
+  errPipelineError       = 17; # Backward-compatible spelling
+  errPipelineFailed      = 17; # Pipeline failed and operation couldn't be executed
 
   #----------------------------------------------------------------------------
   # Socket related errors
@@ -122,6 +153,7 @@ class XRootDStatus(Struct):
   errStreamDisconnect   = 107;
   errConnectionError    = 108;
   errInvalidSession     = 109;
+  errTlsError           = 110;
 
   #----------------------------------------------------------------------------
   # Post Master related errors
@@ -133,6 +165,7 @@ class XRootDStatus(Struct):
   errQueryNotSupported    = 205;
   errOperationExpired     = 206;
   errOperationInterrupted = 207;
+  errThresholdExceeded    = 208;
 
   #----------------------------------------------------------------------------
   # XRootD related errors
@@ -143,17 +176,79 @@ class XRootDStatus(Struct):
   errNotFound           = 304;
   errCheckSumError      = 305;
   errRedirectLimit      = 306;
+  errCorruptedHeader    = 307;
 
   errErrorResponse      = 400;
   errRedirect           = 401;
+  errLocalError         = 402;
 
   errResponseNegative   = 500; # Query response was negative
+
+  _ERROR_NAMES = dict(
+    (value, name) for name, value in locals().copy().items()
+    if name.startswith('err')
+  )
+
+  # XRootD protocol error numbers carried by errErrorResponse statuses.
+  _SERVER_NOT_AUTHORIZED = 3010
+  _SERVER_NOT_FOUND = 3011
+  _SERVER_CHECKSUM_ERROR = 3019
+  _SERVER_AUTH_FAILED = 3030
+  _SERVER_REQUEST_TIMED_OUT = 3034
+  _SERVER_TIMER_EXPIRED = 3035
 
   def __init__(self, status):
     super(XRootDStatus, self).__init__(status)
 
   def __str__(self):
     return self.message
+
+  @property
+  def error_name(self):
+    """Symbolic name for the status code, when known."""
+    return self._ERROR_NAMES.get(getattr(self, 'code', None))
+
+  def exception(self):
+    """Return a Python exception representing this status, or ``None`` if OK."""
+    if self.ok:
+      return None
+    code = getattr(self, 'code', None)
+    errno = getattr(self, 'errno', None)
+    server_error = code == self.errErrorResponse
+    if code == self.errNotFound or (
+        server_error and errno == self._SERVER_NOT_FOUND):
+      return XRootDNotFoundError(self)
+    if code in (self.errAuthFailed, self.errLoginFailed) or (
+        server_error and errno in (
+          self._SERVER_NOT_AUTHORIZED, self._SERVER_AUTH_FAILED)):
+      return XRootDAuthorizationError(self)
+    if code in (self.errSocketTimeout, self.errOperationExpired) or (
+        server_error and errno in (
+          self._SERVER_REQUEST_TIMED_OUT, self._SERVER_TIMER_EXPIRED)):
+      return XRootDTimeoutError(self)
+    if code == self.errCheckSumError or (
+        server_error and errno == self._SERVER_CHECKSUM_ERROR):
+      return XRootDChecksumError(self)
+    return XRootDOperationError(self)
+
+  def raise_on_error(self):
+    """Raise a mapped Python exception if this status is not OK."""
+    error = self.exception()
+    if error:
+      raise error
+    return self
+
+
+def raise_on_error(status):
+  """Raise a mapped Python exception if ``status`` is not OK.
+
+  :param status: :class:`XRootDStatus` or raw status dictionary
+  :returns:      the normalized :class:`XRootDStatus`
+  """
+  if not isinstance(status, XRootDStatus):
+    status = XRootDStatus(status)
+  return status.raise_on_error()
+
 
 class ProtocolInfo(Struct):
   """Protocol information for a server.

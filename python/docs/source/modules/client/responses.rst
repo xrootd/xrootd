@@ -8,6 +8,17 @@ requests to an `XRootD` server.
 .. module:: XRootD.client.responses
 
 .. autoclass:: XRootD.client.responses.XRootDStatus()
+   :members: error_name, exception, raise_on_error
+
+.. autofunction:: XRootD.client.responses.raise_on_error
+
+.. autoexception:: XRootD.client.responses.XRootDError
+.. autoexception:: XRootD.client.responses.XRootDNotFoundError
+.. autoexception:: XRootD.client.responses.XRootDAuthorizationError
+.. autoexception:: XRootD.client.responses.XRootDTimeoutError
+.. autoexception:: XRootD.client.responses.XRootDChecksumError
+.. autoexception:: XRootD.client.responses.XRootDOperationError
+
 .. autoclass:: XRootD.client.responses.DirectoryList()
 .. autoclass:: XRootD.client.responses.ListEntry()
 .. autoclass:: XRootD.client.responses.StatInfo()
