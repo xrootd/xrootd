@@ -29,7 +29,7 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
-  
+
 /* The following section defines the versioning rules for plugins. The rules are
    applied by 'XrdSysPlugin.cc'. The rules defined by the XrdVERSIONPLUGIN_RULE
    macro (see below) are used to initialize a data the following data structure.
@@ -243,6 +243,7 @@
         XrdVERSIONPLUGIN_Mapd(gsi-authzfun,     XrdSecgsiAuthzFun             )\
         XrdVERSIONPLUGIN_Mapd(gsi-gmapfun,      XrdSecgsiGMAPFun              )\
         XrdVERSIONPLUGIN_Mapd(gsi-vomsfun,      XrdSecgsiVOMSFun              )\
+        XrdVERSIONPLUGIN_Mapd(sec.entitylib,    SecEntityPin                  )\
         XrdVERSIONPLUGIN_Mapd(sec.protocol-gsi, XrdSecProtocolgsiObject       )\
         XrdVERSIONPLUGIN_Mapd(sec.protocol-krb5,XrdSecProtocolkrb5Object      )\
         XrdVERSIONPLUGIN_Mapd(sec.protocol-pwd, XrdSecProtocolpwdObject       )\
