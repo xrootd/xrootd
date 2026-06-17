@@ -134,6 +134,8 @@
         XrdVERSIONPLUGIN_Rule(Required,  6,  0, XrdSecProtocolsssObject       )\
         XrdVERSIONPLUGIN_Rule(DoNotChk,  6,  0, XrdSecProtocolunixInit        )\
         XrdVERSIONPLUGIN_Rule(Required,  6,  0, XrdSecProtocolunixObject      )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  6,  0, XrdSecProtocolztnInit         )\
+        XrdVERSIONPLUGIN_Rule(Required,  6,  0, XrdSecProtocolztnObject       )\
         XrdVERSIONPLUGIN_Rule(Required,  6,  0, XrdSfsGetFileSystem           )\
         XrdVERSIONPLUGIN_Rule(Required,  6,  0, XrdSfsGetFileSystem2          )\
         XrdVERSIONPLUGIN_Rule(Required,  6,  0, XrdSysAddXAttrObject          )\
@@ -200,6 +202,7 @@
          "libXrdSecpwd.so",          \
          "libXrdSecsss.so",          \
          "libXrdSecunix.so",         \
+         "libXrdSecztn.so",          \
          "libXrdSsi.so",             \
          "libXrdSsiLog.so",          \
          "libXrdThrottle.so",        \
