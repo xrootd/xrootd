@@ -2,6 +2,7 @@
 #include "XrdVersion.hh"
 
 #include <algorithm>
+#include <stdexcept>
 #include <string_view>
 
 using namespace std::literals;
