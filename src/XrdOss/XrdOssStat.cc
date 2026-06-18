@@ -82,7 +82,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts,
 // Generate local path
 //
    if (lcl_N2N && STT_DoN2N)
-      if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path)))) 
+      if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path))))
          return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
@@ -158,8 +158,7 @@ int XrdOssSys::StatFS(const char *path, char *buff, int &blen, XrdOucEnv *envP)
 //
    if (fSpace <= 0) {fSize = fSpace = 0; Util = 0;}
       else {Util = (fSize ? (fSize - fSpace)*100LL/fSize : 0);
-            fSpace = fSpace >> 20LL;
-            if ((fSpace >> 31LL)) fSpace = 0x7fffffff;
+            fSpace = fSpace >> 20LL; // Fdocumented as returning MB units
            }
 
 // Return the result
@@ -321,11 +320,11 @@ int XrdOssSys::StatPF(const char *path, struct stat *buff, int opts)
 //
    return XrdOssOK;
 }
-  
+
 /******************************************************************************/
 /*                                S t a t V S                                 */
 /******************************************************************************/
-  
+
 /*
   Function: Return space information for space name "sname".
 
@@ -385,7 +384,7 @@ int XrdOssSys::StatVS(XrdOssVSInfo *sP, const char *sname, int updt)
 /******************************************************************************/
 /*                                S t a t X A                                 */
 /******************************************************************************/
-  
+
 /*
   Function: Return extended attributes for "path".
 
@@ -416,7 +415,7 @@ int XrdOssSys::StatXA(const char *path, char *buff, int &blen, XrdOucEnv *envP)
 //
    Size = sbuff.st_size;
    Mtime = sbuff.st_mtime; Ctime = sbuff.st_ctime; Atime = sbuff.st_atime;
-   blen = snprintf(buff, blen, 
+   blen = snprintf(buff, blen,
           "oss.cgroup=%s&oss.type=%c&oss.used=%lld&oss.mt=%lld"
           "&oss.ct=%lld&oss.at=%lld&oss.u=*&oss.g=*&oss.fs=%c",
           cgbuff, fType, Size, Mtime, Ctime, Atime,
@@ -447,11 +446,11 @@ int XrdOssSys::StatXP(const char *path, unsigned long long &attr,
    attr = PathOpts(path);
    return XrdOssOK;
 }
-  
+
 /******************************************************************************/
 /*                              g e t C n a m e                               */
 /******************************************************************************/
-  
+
 int XrdOssSys::getCname(const char *path, struct stat *sbuff, char *cgbuff)
 {
    const char *thePath;
@@ -485,7 +484,7 @@ int XrdOssSys::getCname(const char *path, struct stat *sbuff, char *cgbuff)
 /******************************************************************************/
 /*                              g e t S t a t s                               */
 /******************************************************************************/
-  
+
 int XrdOssSys::getStats(char *buff, int blen)
 {
    static const char ptag1[] = "<paths>%d";
