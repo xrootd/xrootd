@@ -34,12 +34,12 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
-  
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
-XrdOucEnv::XrdOucEnv(const char *vardata, int varlen, 
+
+XrdOucEnv::XrdOucEnv(const char *vardata, int varlen,
                      const XrdSecEntity *secent)
                     : env_Hash(8,13), secEntity(secent)
 {
@@ -97,7 +97,7 @@ char *XrdOucEnv::Delimit(char *value)
 /******************************************************************************/
 /* Private:                 E n v B u i l d T i d y                           */
 /******************************************************************************/
-  
+
 #define TIDY_ENVVAR " Xrd Ouc Env "
 
 void XrdOucEnv::EnvBuildTidy()
@@ -109,7 +109,7 @@ void XrdOucEnv::EnvBuildTidy()
 // is no auth informationn, then we can short cicuit this.
 //
    if ((authInfo = strstr(global_env, "authz=")) == 0)
-      {Put(TIDY_ENVVAR, "");
+      {Put(TIDY_ENVVAR, "\n");
        return;
       }
 
@@ -134,7 +134,7 @@ void XrdOucEnv::EnvBuildTidy()
        Put(TIDY_ENVVAR, tidyStr.c_str());
       }
 }
- 
+
 /******************************************************************************/
 /*                               E n v T i d y                                */
 /******************************************************************************/
@@ -151,7 +151,7 @@ char *XrdOucEnv::EnvTidy(int &envlen)
 // Check if we have produced a tidy version. If noo build one and try again.
 //
 do{if ((tidyEnv = Get(TIDY_ENVVAR)))
-      {if (*tidyEnv == 0) break;
+      {if (*tidyEnv == '\n') break;
        envlen = strlen(tidyEnv);
        return tidyEnv;
       }
@@ -162,7 +162,7 @@ do{if ((tidyEnv = Get(TIDY_ENVVAR)))
 //
    return Env(envlen);
 }
-  
+
 /******************************************************************************/
 /*                                E x p o r t                                 */
 /******************************************************************************/
@@ -232,7 +232,7 @@ bool XrdOucEnv::Import( const char *var, long  &val )
 /*                                G e t I n t                                 */
 /******************************************************************************/
 
-long XrdOucEnv::GetInt(const char *varname) 
+long XrdOucEnv::GetInt(const char *varname)
 {
    char *cP;
 
@@ -247,7 +247,7 @@ long XrdOucEnv::GetInt(const char *varname)
 /*                                P u t I n t                                 */
 /******************************************************************************/
 
-void XrdOucEnv::PutInt(const char *varname, long value) 
+void XrdOucEnv::PutInt(const char *varname, long value)
 {
 // Convert the long into a char* and the put it into the hash table
 //
