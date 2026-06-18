@@ -10,6 +10,7 @@
 /usr/lib/*/libXrdOfsPrepGPI-6.so
 /usr/lib/*/libXrdOssArc-6.so
 /usr/lib/*/libXrdOssCsi-6.so
+/usr/lib/*/libXrdOssMirage-6.so
 /usr/lib/*/libXrdOssSIgpfsT-6.so
 /usr/lib/*/libXrdOssStats-6.so
 /usr/lib/*/libXrdPfc-6.so

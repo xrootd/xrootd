@@ -1,0 +1,146 @@
+#include "XrdOssMirageFixture.hh"
+
+#include <gtest/gtest.h>
+
+TEST_F(XrdOssMirageFixture, CreateNewFileShouldSucceed)
+{
+    ASSERT_EQ(XrdOssOK, oss.Create(nullptr, "/newfile", {}, env, XRDOSS_new));
+}
+
+TEST_F(XrdOssMirageFixture, CreateNewFileCreatesAnEntry)
+{
+    oss.Create(nullptr, "/newfile", {}, env, XRDOSS_new);
+
+    ASSERT_TRUE(oss.get_entry_read("/newfile"));
+}
+
+TEST_F(XrdOssMirageFixture, CreateFileThatAlreadyExistsFailsWithEXIST)
+{
+    ASSERT_EQ(-EEXIST, oss.Create(nullptr, "/dummy", {}, env, XRDOSS_new));
+}
+
+TEST_F(XrdOssMirageFixture, OverwriteFileThatAlreadyExistsShouldSucceed)
+{
+    ASSERT_EQ(XrdOssOK, oss.Create(nullptr, "/dummy", {}, env));
+}
+
+TEST_F(XrdOssMirageFixture, OverwriteFileThatIsBeingWrittenFailsWithBUSY)
+{
+    auto entry = oss.get_entry_write("/dummy");
+
+    ASSERT_EQ(-EBUSY, oss.Create(nullptr, "/dummy", {}, env));
+}
+
+TEST_F(XrdOssMirageFixture, OverwriteFileResetsItsSize)
+{
+    oss.Create(nullptr, "/dummy", {}, env);
+
+    ASSERT_EQ(0, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFixture, OverwriteFileDoesNotResetItsWriteExtendedAttributes)
+{
+    {
+        auto entry = oss.get_entry_write("/dummy").value();
+        entry->write.return_code     = 1;
+        entry->write.return_position = 1;
+    }
+
+    oss.Create(nullptr, "/dummy", {}, env);
+
+    auto entry = oss.get_entry_read("/dummy").value();
+    ASSERT_EQ(1, entry.write.return_code);
+    ASSERT_EQ(1, entry.write.return_position);
+}
+
+TEST_F(XrdOssMirageFixture, RenameFileThatAlreadyExistsShouldSucceed)
+{
+    ASSERT_EQ(XrdOssOK, oss.Rename("/dummy", "/dummy_renamed"));
+}
+
+TEST_F(XrdOssMirageFixture, RenameFileThatAlreadyExistsMovesEntryToAnotherFilePath)
+{
+    oss.Rename("/dummy", "/dummy_renamed");
+
+    ASSERT_TRUE(oss.get_entry_read("/dummy_renamed"));
+    ASSERT_EQ(9999, oss.get_entry_read("/dummy_renamed").value().size);
+}
+
+TEST_F(XrdOssMirageFixture, RenameFileThatDoesNotExistFailsWithNOENT)
+{
+    ASSERT_EQ(-ENOENT, oss.Rename("/inexistent", "/dummy"));
+}
+
+TEST_F(XrdOssMirageFixture, RenameFileToAnotherFileThatAlreadyExistsFailsWithEXIST)
+{
+    oss.Create(nullptr, "/dummy_from", {}, env, XRDOSS_new);
+
+    ASSERT_EQ(-EEXIST, oss.Rename("/dummy_from", "/dummy"));
+}
+
+TEST_F(XrdOssMirageFixture, StatFileThatAlreadyExistsShouldSucceed)
+{
+    struct stat buff{};
+    ASSERT_EQ(XrdOssOK, oss.Stat("/dummy", &buff));
+}
+
+TEST_F(XrdOssMirageFixture, StatFileThatAlreadyExistsReturnsCorrectSize)
+{
+    struct stat buff{};
+    oss.Stat("/dummy", &buff);
+
+    ASSERT_EQ(9999, buff.st_size);
+}
+
+TEST_F(XrdOssMirageFixture, StatFileThatDoesNotExistFailsWithNOENT)
+{
+    ASSERT_EQ(-ENOENT, oss.Stat("/inexistent", nullptr));
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsShouldSucceed)
+{
+    ASSERT_EQ(XrdOssOK, oss.Truncate("/dummy", 1000));
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsReducesSize)
+{
+    oss.Truncate("/dummy", 1000);
+    
+    ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsIncreasesSize)
+{
+    oss.Truncate("/dummy", 1000000);
+    
+    ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileThatDoesNotExistFailsWithNOENT)
+{
+    ASSERT_EQ(-ENOENT, oss.Truncate("/inexistent", 1000));
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileThatIsBeingWrittenFailsWithBUSY)
+{
+    auto entry = oss.get_entry_write("/dummy");
+
+    ASSERT_EQ(-EBUSY, oss.Truncate("/dummy", 1000));
+}
+
+TEST_F(XrdOssMirageFixture, UnlinkFileThatAlreadyExistsShouldSucceed)
+{
+    ASSERT_EQ(XrdOssOK, oss.Unlink("/dummy"));
+}
+
+TEST_F(XrdOssMirageFixture, UnlinkFileThatAlreadyExistsRemovesEntry)
+{
+    oss.Unlink("/dummy");
+
+    ASSERT_FALSE(oss.get_entry_read("/dummy"));
+}
+
+TEST_F(XrdOssMirageFixture, UnlinkFileThatDoesNotExistFailsWithNOENT)
+{
+    ASSERT_EQ(-ENOENT, oss.Unlink("/inexistent"));
+}

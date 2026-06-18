@@ -612,6 +612,7 @@ fi
 %{_libdir}/libXrdOfsPrepGPI-6.so
 %{_libdir}/libXrdOssArc-6.so
 %{_libdir}/libXrdOssCsi-6.so
+%{_libdir}/libXrdOssMirage-6.so
 %{_libdir}/libXrdOssSIgpfsT-6.so
 %{_libdir}/libXrdOssStats-6.so
 %{_libdir}/libXrdPfc-6.so
