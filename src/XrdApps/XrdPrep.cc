@@ -46,17 +46,17 @@
 #include "XrdCl/XrdClFileSystem.hh"
 
 using namespace XrdCl;
-  
+
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
 
 #define EMSG(x) std::cerr <<"xrdprep: "<<x<<std::endl
-  
+
 /******************************************************************************/
 /*                                G e t N u m                                 */
 /******************************************************************************/
-  
+
 namespace
 {
 bool GetNum(const char *emsg, const char *item, int *val, int minv, int maxv=-1)
@@ -73,7 +73,7 @@ bool GetNum(const char *emsg, const char *item, int *val, int minv, int maxv=-1)
         return false;
        }
 
-    if (*val < minv) 
+    if (*val < minv)
        {EMSG(emsg<<" may not be less than "<<minv); return false;}
     if (maxv >= 0 && *val > maxv)
        {EMSG(emsg<<" may not be greater than "<<maxv); return false;}
@@ -85,7 +85,7 @@ bool GetNum(const char *emsg, const char *item, int *val, int minv, int maxv=-1)
 /******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
-  
+
 namespace
 {
 void Usage(int rc)
@@ -97,11 +97,11 @@ std::cerr<<"\nOpts2: [-d n] [-f fn]" <<std::endl;
 exit(rc);
 }
 }
-  
+
 /******************************************************************************/
 /*                                  m a i n                                   */
 /******************************************************************************/
-  
+
 int main(int argc, char **argv)
 {
    extern char *optarg;
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 // Process the options
 //
    opterr = 0;
-   if (argc > 1 && '-' == *argv[1]) 
+   if (argc > 1 && '-' == *argv[1])
       while ((c = getopt(argc,argv,"d:Ef:p:sStw")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -259,12 +259,18 @@ int main(int argc, char **argv)
    if (!isQuery) st = Admin.Prepare(fList, Opts, uint8_t(Prty), response);
       else {Buffer qryArgs(totArgLen);
             char *bP = qryArgs.GetBuffer();
+            int   bL = totArgLen, n;
+            // Note: the buffer will always end in a null byte without \n
+            // because the bufer is precisely sized to make it impossible
+            // to end with "\n\0" because it would overflow. Hence, snprintf
+            // will drop the training "\n" and we will break out.
+            //
             for (int i = 0; i < (int)fList.size(); i++)
-                {strcpy(bP, fList[i].c_str());
-                 bP += fList[i].size();
-                 *bP++ = '\n';
+                {n = snprintf(bP, bL, "%s\n", fList[i].c_str());
+                 if (n >= bL) break;
+                 bP += n;
+                 bL -= n;
                 }
-            *(bP-1) = 0;
             st = Admin.Query(QueryCode::Prepare, qryArgs, response);
            }
 
