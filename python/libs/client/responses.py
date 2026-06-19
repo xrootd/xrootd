@@ -155,6 +155,27 @@ class XRootDStatus(Struct):
   def __str__(self):
     return self.message
 
+class TapeRestEndpoint(Struct):
+  """WLCG Tape REST API endpoint selected through discovery.
+
+  :var      uri: Base URI of the selected Tape REST API endpoint
+  :var  version: Endpoint API version
+  :var sitename: Storage site name advertised by discovery
+  """
+  def __init__(self, endpoint):
+    super(TapeRestEndpoint, self).__init__(endpoint)
+
+class TapeRestArchiveInfo(Struct):
+  """Archive locality information for a file.
+
+  :var      url: Original URL requested by the caller
+  :var     path: Storage path sent to the Tape REST API
+  :var locality: Locality reported by the Tape REST API
+  :var    error: Per-path error reported by the service, if any
+  """
+  def __init__(self, info):
+    super(TapeRestArchiveInfo, self).__init__(info)
+
 class ProtocolInfo(Struct):
   """Protocol information for a server.
 
@@ -173,6 +194,11 @@ class StatInfo(Struct):
                    :mod:`XRootD.client.flags.StatInfoFlags`
   :var       size: The file size (in bytes)
   :var    modtime: Modification time (in seconds since epoch)
+  :var      ctime: Change time (in seconds since epoch)
+  :var      atime: Access time (in seconds since epoch)
+  :var       mode: File mode as an octal string
+  :var      owner: File owner
+  :var      group: File group
   :var modtimestr: Modification time (as readable string)
   """
   def __init__(self, info):

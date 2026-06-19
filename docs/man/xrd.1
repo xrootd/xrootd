@@ -1,0 +1,182 @@
+.TH xrd 1 "@XRootD_VERSION_STRING@"
+.SH NAME
+xrd \- XRootD command-line client
+.SH SYNOPSIS
+.B xrd
+[\fIoptions\fR] \fIcommand\fR [\fIargs\fR...]
+.SH DESCRIPTION
+The
+.B xrd
+utility is a native XRootD command-line interface intended to cover the common
+file-management workflows provided by the GFAL command-line tools.
+.P
+Run
+.B xrd --help
+to list the available commands. The
+.B archivepoll ,
+.B copy ,
+.B stat ,
+and
+.B sum
+commands are implemented; the remaining commands currently expose help text while
+their file operations are filled in incrementally.
+.SH OPTIONS
+.TP
+.B \-h, \-\-help
+Show help information and exit.
+.TP
+.B \-\-version
+Show version information and exit.
+.SH COMMANDS
+.TP
+.B archivepoll
+Perform an archive polling operation on the given URL.
+.TP
+.B bringonline
+Perform a staging operation on the given URL.
+.TP
+.B cat
+Concatenate a file and print it on the standard output.
+.TP
+.B chmod
+Change file permissions.
+.TP
+.B copy
+Copy files.
+.TP
+.B evict
+Evict a file from a disk buffer.
+.TP
+.B ls
+List directory contents or file information.
+.TP
+.B mkdir
+Make directories.
+.TP
+.B rename
+Rename files or directories.
+.TP
+.B rm
+Remove files or directories.
+.TP
+.B save
+Read from standard input and write to a file.
+.TP
+.B stat
+Display extended information about a file or directory.
+.TP
+.B sum
+Calculate a file checksum.
+.TP
+.B token
+Retrieve an SE-issued token for a path.
+.TP
+.B xattr
+Show or set file attributes.
+.SH COPY OPTIONS
+.P
+.B xrd copy
+uses the existing
+.B xrdcp
+copy implementation and accepts the same options. Run
+.B xrd copy --help
+for the complete option list, or see
+.BR xrdcp (1).
+.SH STAT OPTIONS
+.TP
+.B \-h, \-\-help
+Show help information and exit.
+.TP
+.B \-V, \-\-version
+Output version information and exit.
+.TP
+.B \-v, \-\-verbose
+Enable verbose XRootD client logging. Repeating the option increases verbosity.
+.TP
+.B \-D, \-\-definition \fIDEFINITION\fR
+Accept a GFAL parameter override for command-line compatibility.
+.TP
+.B \-t, \-\-timeout \fITIMEOUT\fR
+Set the XRootD client request timeout in seconds.
+.TP
+.B \-E, \-\-cert \fICERT\fR
+Accept a user certificate path for GFAL command-line compatibility.
+.TP
+.B \-\-key \fIKEY\fR
+Accept a user private key path for GFAL command-line compatibility.
+.TP
+.B \-4
+Accept the GFAL IPv4-only flag for command-line compatibility.
+.TP
+.B \-6
+Accept the GFAL IPv6-only flag for command-line compatibility.
+.TP
+.B \-C, \-\-client-info \fIINFO\fR
+Accept custom client information for GFAL command-line compatibility.
+.TP
+.B \-\-log-file \fILOG_FILE\fR
+Write XRootD client logs to the given file.
+.SH SUM OPTIONS
+.TP
+.B \-h, \-\-help
+Show help information and exit.
+.TP
+.B \-V, \-\-version
+Output version information and exit.
+.TP
+.B \-v, \-\-verbose
+Enable verbose XRootD client logging. Repeating the option increases verbosity.
+.TP
+.B \-D, \-\-definition \fIDEFINITION\fR
+Accept a GFAL parameter override for command-line compatibility.
+.TP
+.B \-t, \-\-timeout \fITIMEOUT\fR
+Set the XRootD client request timeout in seconds.
+.TP
+.B \-E, \-\-cert \fICERT\fR
+Accept a user certificate path for GFAL command-line compatibility.
+.TP
+.B \-\-key \fIKEY\fR
+Accept a user private key path for GFAL command-line compatibility.
+.TP
+.B \-4
+Accept the GFAL IPv4-only flag for command-line compatibility.
+.TP
+.B \-6
+Accept the GFAL IPv6-only flag for command-line compatibility.
+.TP
+.B \-C, \-\-client-info \fIINFO\fR
+Accept custom client information for GFAL command-line compatibility.
+.TP
+.B \-\-log-file \fILOG_FILE\fR
+Write XRootD client logs to the given file.
+.TP
+.B file
+File URL to use for checksum calculation.
+.TP
+.B checksum_type
+Checksum algorithm to use, for example
+.B adler32 ,
+.B crc32 ,
+or
+.B md5 .
+.SH OUTPUT
+The
+.B xrd stat
+output is formatted to match
+.B gfal-stat
+for the fields XRootD can provide: file URL, size, type, mode, owner, group,
+access time, modification time, and change time.
+.P
+The
+.B xrd sum
+output is formatted to match
+.B gfal-sum :
+the file URL followed by the checksum value.
+.SH NOTES
+The command list mirrors the GFAL utility surface as a starting point for the
+native XRootD CLI. The implementation will be filled in incrementally.
+.SH SUPPORT LEVEL
+The
+.B xrd
+command is supported by the XRootD Collaboration.

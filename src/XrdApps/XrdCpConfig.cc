@@ -922,12 +922,6 @@ void XrdCpConfig::ProcFile(const char *fname)
   
 void XrdCpConfig::Usage(int rc)
 {
-   static const char *Syntax = "\n"
-   "Usage:   xrdcp [<options>] <src> [<src> [. . .]] <dest>\n";
-
-   static const char *Syntax1= "\n"
-   "Usage:   xrdcp [<options>] <src> <dest>\n";
-
    static const char *Options= "\n"
    "Options: [--cksum <args>] [--coerce] [--continue]\n"
    "         [--debug <lvl>] [--dynamic-src] [--force] [--help]\n"
@@ -1011,7 +1005,9 @@ void XrdCpConfig::Usage(int rc)
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 
-   std::cerr <<(Opts & opt1Src    ? Syntax1 : Syntax)  <<Options;
+   std::cerr <<"\nUsage:   " <<PName <<" [<options>] <src>";
+   if (!(Opts & opt1Src)) std::cerr <<" [<src> [. . .]]";
+   std::cerr <<" <dest>\n" <<Options;
    std::cerr <<(Opts & optNoStdIn ? Syntay2 : Syntax2) <<Syntax3 <<std::endl;
    if (!rc) std::cerr <<Detail <<std::endl;
    exit(rc);

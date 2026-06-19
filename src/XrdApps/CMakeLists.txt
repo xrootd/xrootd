@@ -37,8 +37,34 @@ target_link_libraries(xrdreplay
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
+find_package(CLI11 1.8.0 QUIET)
+if(NOT CLI11_FOUND)
+  include(FetchContent)
+  FetchContent_Declare(CLI11
+    URL https://github.com/CLIUtils/CLI11/archive/refs/tags/v2.4.2.tar.gz
+    URL_HASH SHA256=f2d893a65c3b1324c50d4e682c0cdc021dd0477ae2c048544f39eed6654b699a
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(CLI11)
+endif()
+
+add_executable(xrd XrdCli.cc ../XrdCl/XrdClCopy.cc)
+set_target_properties(xrd PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED TRUE
+)
+target_compile_definitions(xrd PRIVATE XRDCP_NO_MAIN)
+target_link_libraries(xrd PRIVATE
+  XrdCl
+  XrdUtils
+  XrdAppUtils
+  CLI11::CLI11
+  ZLIB::ZLIB
+)
+
 install(
   TARGETS
+    xrd
     xrdreplay
     XrdAppUtils
     ${XrdClProxyPlugin}

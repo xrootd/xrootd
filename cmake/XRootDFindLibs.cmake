@@ -30,6 +30,8 @@ endif()
 
 find_package( OpenSSL 1.1.1 REQUIRED )
 
+find_package( CURL REQUIRED )
+
 if( ENABLE_KRB5 )
   if( FORCE_ENABLED )
     find_package( Kerberos5 REQUIRED )

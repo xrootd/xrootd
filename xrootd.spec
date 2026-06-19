@@ -33,6 +33,7 @@ BuildRequires:	gcc-c++
 BuildRequires:	gdb
 BuildRequires:	which
 BuildRequires:	make
+BuildRequires:	cmake(CLI11) >= 1.8.0
 BuildRequires:	pkgconfig
 BuildRequires:	fuse-devel
 BuildRequires:	krb5-devel
@@ -641,6 +642,7 @@ fi
 %{_libdir}/libXrdSsiShMap.so
 
 %files client
+%{_bindir}/xrd
 %{_bindir}/xrdadler32
 %{_bindir}/xrdcks
 %{_bindir}/xrdcopy
@@ -652,6 +654,7 @@ fi
 %{_bindir}/xrdmapc
 %{_bindir}/xrdpinls
 %{_bindir}/xrdreplay
+%{_mandir}/man1/xrd.1*
 %{_mandir}/man1/xrdadler32.1*
 %{_mandir}/man1/xrdcopy.1*
 %{_mandir}/man1/xrdcp.1*

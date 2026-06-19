@@ -1,3 +1,4 @@
+usr/bin/xrd
 usr/bin/xrdadler32
 usr/bin/xrdcrc32c
 usr/bin/xrdcopy
@@ -5,6 +6,7 @@ usr/bin/xrdcp
 usr/bin/xrdfs
 usr/bin/xrdgsiproxy
 usr/bin/xrdmapc
+usr/share/man/man1/xrd.1*
 usr/share/man/man1/xrdadler32.1*
 usr/share/man/man1/xrdcopy.1*
 usr/share/man/man1/xrdcp.1*

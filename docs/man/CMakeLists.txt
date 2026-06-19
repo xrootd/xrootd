@@ -3,6 +3,7 @@ if( XRDCL_LIB_ONLY )
 endif()
 
 set(MAN1PAGES
+  xrd.1
   xrdcp.1
   xrdfs.1
   xrdmapc.1

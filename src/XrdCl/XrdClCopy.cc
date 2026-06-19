@@ -22,6 +22,7 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
+#include "XrdCl/XrdClCopy.hh"
 #include "XrdApps/XrdCpConfig.hh"
 #include "XrdApps/XrdCpFile.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -469,7 +470,7 @@ void CleanUpResults( std::vector<XrdCl::PropertyList *> &results )
 //--------------------------------------------------------------------------
 // Let the show begin
 //------------------------------------------------------------------------------
-int main( int argc, char **argv )
+int XrdCl::RunXrdCp( int argc, char **argv )
 {
   using namespace XrdCl;
 
@@ -971,3 +972,9 @@ int main( int argc, char **argv )
   return 0;
 }
 
+#ifndef XRDCP_NO_MAIN
+int main( int argc, char **argv )
+{
+  return XrdCl::RunXrdCp( argc, argv );
+}
+#endif

@@ -6,6 +6,7 @@ from .file import File as File
 from pyxrootd.client import setXAttrAdler32_cpp as setXAttrAdler32
 from .url import URL as URL
 from .copyprocess import CopyProcess as CopyProcess
+from .taperest import TapeRestClient as TapeRestClient
 from .env import EnvPutString as EnvPutString
 from .env import EnvGetString as EnvGetString
 from .env import EnvPutInt as EnvPutInt

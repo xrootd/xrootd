@@ -1,3 +1,4 @@
+/usr/bin/xrd
 /usr/bin/xrdadler32
 /usr/bin/xrdcks
 /usr/bin/xrdcopy
@@ -9,6 +10,7 @@
 /usr/bin/xrdmapc
 /usr/bin/xrdpinls
 /usr/bin/xrdreplay
+/usr/share/man/man1/xrd.1
 /usr/share/man/man1/xrdadler32.1
 /usr/share/man/man1/xrdcopy.1
 /usr/share/man/man1/xrdcp.1
