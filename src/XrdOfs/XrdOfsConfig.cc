@@ -34,9 +34,11 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <cstdlib>
+#include <string>
 #include <strings.h>
 #include <cstdio>
 #include <netinet/in.h>
+#include <vector>
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -50,6 +52,7 @@
 #include "XrdSfs/XrdSfsFlags.hh"
 
 #include "XrdOfs/XrdOfs.hh"
+#include "XrdOfs/XrdOfsCksFile.hh"
 #include "XrdOfs/XrdOfsConfigCP.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
@@ -66,6 +69,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSys/XrdSysError.hh"
@@ -88,7 +92,7 @@ extern XrdOfsStats OfsStats;
 extern XrdSysTrace OfsTrace;
 
 extern XrdOfs*     XrdOfsFS;
-  
+
 class  XrdOss;
 extern XrdOss     *XrdOfsOss;
 
@@ -105,6 +109,8 @@ extern XrdOfsTPCConfig  Cfg;
 namespace
 {
 int SetMode(const char *path, mode_t mode) {return chmod(path, mode);}
+
+std::vector<std::string> csList; // Configured checksums
 }
 
 /******************************************************************************/
@@ -130,13 +136,13 @@ int SetMode(const char *path, mode_t mode) {return chmod(path, mode);}
 /******************************************************************************/
 /*                            g e t V e r s i o n                             */
 /******************************************************************************/
-  
+
 const char *XrdOfs::getVersion() {return XrdVERSION;}
 
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
-  
+
 int XrdOfs::Configure(XrdSysError &Eroute) {return Configure(Eroute, 0);}
 
 int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
@@ -337,7 +343,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
    if (FSctl_PC)
       {struct XrdOfsFSctl_PI::Plugins thePI = {Authorization, Finder,
                                                XrdOfsOss, XrdOfsFS};
-       XrdOucEnv pcEnv;                                    
+       XrdOucEnv pcEnv;
        pcEnv.PutPtr("XrdOfsHandle*", dummyHandle);
        if (!FSctl_PC->Configure(ConfigFN, 0, &pcEnv, thePI))
           {Eroute.Emsg("Config", "Unable to configure cache FSctl handler.");
@@ -393,6 +399,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
           Eroute.Say("Config POSC has been disabled by the osslib plugin.");
       } else if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
 
+// Configure realtime checksums if need be
+//
+   if (CksRTCgi || CksRTName) NoGo |= ConfigCksRT(Eroute, EnvInfo);
+
 // Setup statistical monitoring
 //
    OfsStats.setRole(myRole);
@@ -414,7 +424,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 /******************************************************************************/
 
 #define setBuff(x,y) {strcpy(bp, x); bp += y;}
-  
+
 void XrdOfs::Config_Display(XrdSysError &Eroute)
 {
      const char *cloc, *pval;
@@ -439,6 +449,13 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
                (poscLog ? poscLog    : ""), OfsTrace.What);
 
      Eroute.Say(buff);
+
+     if (CksRTCgi || CksRTName)
+        {snprintf(buff, sizeof(buff), "       ofs.cksrt      auto %s%s",
+                  (CksRTName ? CksRTName:"none"),(CksRTCgi ? " chkcgi":""));
+         Eroute.Say(buff);
+        }
+
      ofsConfig->Display();
 
      if (Options & Forwarding)
@@ -488,9 +505,60 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
 /*                     p r i v a t e   f u n c t i o n s                      */
 /******************************************************************************/
 /******************************************************************************/
+/*                           C o n f i g C k s R T                            */
+/******************************************************************************/
+
+int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
+{
+   const char *why = 0;
+   const char *csSpec = 0;
+
+// Check if the directive is applicable to us
+//
+   if (OssIsProxy) why = "not applicable to proxies";
+      else if (Options & isManager) why = "not applicable to managers";
+              else if (!Cks || !(csSpec = envP->Get("csList")))
+                      why = "checksums not configured";
+   if (why)
+      {Eroute.Say("Config warning: Ignoring cksrt directive ", why);
+       if (CksRTName) {free(CksRTName); CksRTName = 0;}
+       CksRTCgi = false;
+       return 0;
+      }
+
+// Construct the list of supported checksums
+//
+   XrdOucTUtils::splitString(csList, csSpec, " ");
+   if (csList.size() == 0)
+      {Eroute.Say("Config failure: Unable to determine configured cheksums!");
+       return 1;
+      }
+
+// Configure the automatic checksum if applicable
+//
+   if (CksRTName)
+      {if (!strcmp(CksRTName, "default"))
+          {free(CksRTName);
+           CksRTName = strdup(csList[0].c_str());
+          }
+
+       if (!(CksRTCalc = Cks->Object(CksRTName)))
+          {Eroute.Say("Config failure: cksrt auto ", CksRTName,
+                      " checksum either non-native or not configured!");
+           return 1;
+          }
+      }
+
+// Success
+//
+   XrdOfsCksFile::Init(Cks, envP);
+   return 0;
+}
+
+/******************************************************************************/
 /*                         C o n f i g D i s p F w d                          */
 /******************************************************************************/
-  
+
 int XrdOfs::ConfigDispFwd(char *buff, struct fwdOpt &Fwd)
 {
    const char *cP;
@@ -520,7 +588,7 @@ int XrdOfs::ConfigDispFwd(char *buff, struct fwdOpt &Fwd)
 /******************************************************************************/
 /*                            C o n f i g P o s c                             */
 /******************************************************************************/
-  
+
 int XrdOfs::ConfigPosc(XrdSysError &Eroute)
 {
    extern XrdOfs* XrdOfsFS;
@@ -596,7 +664,7 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
 /******************************************************************************/
 /*                           C o n f i g R e d i r                            */
 /******************************************************************************/
-  
+
 int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 {
    XrdCmsClient_t CmsPI;
@@ -614,7 +682,7 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 
 // For manager roles, we simply do a standard config
 //
-   if (isRedir) 
+   if (isRedir)
       {     if (CmsPI)  Finder = CmsPI(myLogger, RMTopts, myPort, XrdOfsOss);
        else if (XrdCmsFinderRMT::VCheck(XrdVERSIONINFOVAR(XrdOfs)))
                         Finder = (XrdCmsClient *)new XrdCmsFinderRMT(myLogger,
@@ -661,12 +729,12 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                             C o n f i g T P C                              */
 /******************************************************************************/
-  
-  
+
+
 int XrdOfs::ConfigTPC(XrdSysError &Eroute, XrdOucEnv *envP)
 {
    XrdOfsTPCConfig &Cfg = XrdOfsTPCParms::Cfg;
@@ -696,7 +764,7 @@ int XrdOfs::ConfigTPC(XrdSysError &Eroute, XrdOucEnv *envP)
 }
 
 /******************************************************************************/
-  
+
 int XrdOfs::ConfigTPC(XrdSysError &Eroute)
 {
    XrdOfsTPCConfig &Cfg = XrdOfsTPCParms::Cfg;
@@ -730,7 +798,7 @@ int XrdOfs::ConfigTPC(XrdSysError &Eroute)
 char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *sfx,
                                                 const char *xPath)
 {
-  
+
    const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
    const int BMode = S_IRWXU|        S_IRGRP|S_IXGRP; // 750
    const int nswOpt= XrdOucNSWalk::retFile | XrdOucNSWalk::retLink;
@@ -794,12 +862,12 @@ char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *sfx,
 // All done
 //
    return aPath;
-}   
-  
+}
+
 /******************************************************************************/
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
-  
+
 int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
                                  XrdSysError &Eroute)
 {
@@ -810,6 +878,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Bit("authorize",     Options, Authorize);
     TS_XPI("authlib",       theAutLib);
     TS_XPI("ckslib",        theCksLib);
+    TS_Xeq("cksrt",         xcksrt);
     TS_Xeq("cksrdsz",       xcrds);
     TS_XPI("cmslib",        theCmsLib);
     TS_Xeq("crmode",        xcrm);
@@ -850,9 +919,95 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
 }
 
 /******************************************************************************/
+/*                              V a l i d C S T                               */
+/******************************************************************************/
+
+bool XrdOfs::ValidCST(const char* cst)
+{
+   std::string csWant(cst);
+
+// Check if checksum type is in the list of valid ones. The list is short.
+//
+   if (csList.size())
+      {for (const auto& name : csList)
+           {if (name == csWant) return true;}
+      }
+   return false;
+}
+
+/******************************************************************************/
+/*                                x c k s r t                                 */
+/******************************************************************************/
+
+/* Function: xcksrt
+
+   Purpose:  To parse the directive: cksrt [auto <cipher>] [chkcgi]
+
+             auto    Specifies that realtime checksums be automatically
+                     computed using the specified cipher. If cgi is allowed
+                     and specified, the cipher in the cgi is used. Specifying
+                     'auto none' or 'auto off', disables automatic real-time
+                     checksums, this is the default. Specifying 'auto default'
+                     uses the default checksum speciied by the xrootd.chksum
+                     directive.
+
+             chkcgi  A realtime checksum can be request using the cgi element
+                     "cks.type=<cipher>" on the open request URL, where <cipher>
+                     is the desired checksum cipher to use. If the cipher is
+                     not supported for use the open() call fails. Note that
+                     it must have been allowed by the xrootd.chksum directive.
+
+  Output: 0 upon success or !0 upon failure.
+
+  Notes: Checksums must have been configured for this directive to take
+         effect.
+*/
+
+int XrdOfs::xcksrt(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   char *val;
+   bool cgi = false, spec = false;
+
+// Initialize the defaults
+//
+   CksRTCgi = false;
+   if (CksRTName) {free(CksRTName); CksRTName = 0;}
+
+// Process the options
+//
+   while ((val = Config.GetWord()) && *val)
+         {spec = true;
+          if (!strcmp(val, "auto"))
+             {if (!(val = Config.GetWord()) || *val == '\0')
+                 {Eroute.Emsg("Config", "cksrt auto cipher not specified.");
+                  return 1;
+                 }
+              if (CksRTName) {free(CksRTName); CksRTName = 0;}
+              if (strcmp(val, "none") && strcmp(val, "off"))
+                 CksRTName = strdup(val);
+              continue;
+             }
+          if (!strcmp(val, "chkcgi"))   {cgi = true;  continue;}
+
+          Eroute.Emsg("Config", "Inavlid cksrt parameter -", val);
+          return 1;
+         }
+
+// Verify that we encountered some kind of parameter
+//
+   if (!spec)
+      {Eroute.Emsg("Config", "No cksrt parameters specified!"); return 1;}
+
+// Finish up
+//
+   if (cgi) CksRTCgi = cgi;
+   return 0;
+}
+
+/******************************************************************************/
 /*                                 x c r d s                                  */
 /******************************************************************************/
-  
+
 /* Function: xcrds
 
    Purpose:  To parse the directive: cksrdsz <size>
@@ -880,13 +1035,18 @@ int XrdOfs::xcrds(XrdOucStream &Config, XrdSysError &Eroute)
 //
    if (XrdOuca2x::a2sz(Eroute, "cksrdsz size", val, &rdsz, 1, maxRds)) return 1;
    ofsConfig->SetCksRdSz(static_cast<int>(rdsz));
+
+// This value is also used for real-time checksum rereads. However, while
+// minimum is 64K the maximum is set to 2MB. Also in 64K units.
+//
+   XrdOfsCksFile::setRDSZ(rdsz);
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x c r m                                   */
 /******************************************************************************/
-  
+
 /* Function: xcrm
 
    Purpose:  To parse the directive: crmode [dirs <mspec>] [files <mspec>]
@@ -897,7 +1057,7 @@ int XrdOfs::xcrds(XrdOucStream &Config, XrdSysError &Eroute)
 
              legacy  uses dirs 0000:0775 and files 0000:0775
 
-             raw     Allows actual specification of mode bits without enforcing 
+             raw     Allows actual specification of mode bits without enforcing
                      default requirements. The resulting modes may not be 0.
                      Otherwise, the specified values are made consistent with
                      the default mode settings.
@@ -1014,11 +1174,11 @@ do{if (!strcmp("dirs", val)) {isDirs = true; mtype = "dirs mode";}
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 x d i r l                                  */
 /******************************************************************************/
-  
+
 /* Function: xdirl
 
    Purpose:  To parse the directive: dirlist {local | remote}
@@ -1048,11 +1208,11 @@ int XrdOfs::xdirl(XrdOucStream &Config, XrdSysError &Eroute)
 
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x e x p                                   */
 /******************************************************************************/
-  
+
 /* Function: xexp
 
    Purpose:  To prescan the all.export and oss.defaults directives to determine
@@ -1094,11 +1254,11 @@ int XrdOfs::xexp(XrdOucStream &Config, XrdSysError &Eroute, bool isExport)
                 }
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                              x f o r w a r d                               */
 /******************************************************************************/
-  
+
 /* Function: xforward
 
    Purpose:  To parse the directive: forward [<handling>] <metaops>
@@ -1176,12 +1336,12 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
           val = Config.GetWord();
          }
 
-    if (fwspec & OfsFWDCHMOD) 
+    if (fwspec & OfsFWDCHMOD)
        {fwdCHMOD.Cmd = (fwval&OfsFWDCHMOD ? (is2way ? "+chmod" :"chmod")  : 0);
         if (fwdCHMOD.Host) free(fwdCHMOD.Host);
         fwdCHMOD.Host = strdup(rHost); fwdCHMOD.Port = rPort;
        }
-    if (fwspec&OfsFWDMKDIR) 
+    if (fwspec&OfsFWDMKDIR)
        {fwdMKDIR.Cmd = (fwval&OfsFWDMKDIR ? (is2way ? "+mkdir" :"mkdir")  : 0);
         if (fwdMKDIR.Host) free(fwdMKDIR.Host);
         fwdMKDIR.Host = strdup(rHost); fwdMKDIR.Port = rPort;
@@ -1189,22 +1349,22 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
         if (fwdMKPATH.Host) free(fwdMKPATH.Host);
         fwdMKPATH.Host = strdup(rHost); fwdMKPATH.Port = rPort;
        }
-    if (fwspec&OfsFWDMV)    
+    if (fwspec&OfsFWDMV)
        {fwdMV   .Cmd = (fwval&OfsFWDMV    ? (is2way ? "+mv"    :"mv")     : 0);
         if (fwdMV.Host) free(fwdMV.Host);
         fwdMV.Host = strdup(rHost); fwdMV.Port = rPort;
        }
-    if (fwspec&OfsFWDRM)    
+    if (fwspec&OfsFWDRM)
        {fwdRM   .Cmd = (fwval&OfsFWDRM    ? (is2way ? "+rm"    :"rm")     : 0);
         if (fwdRM.Host) free(fwdRM.Host);
         fwdRM.Host = strdup(rHost); fwdRM.Port = rPort;
        }
-    if (fwspec&OfsFWDRMDIR) 
+    if (fwspec&OfsFWDRMDIR)
        {fwdRMDIR.Cmd = (fwval&OfsFWDRMDIR ? (is2way ? "+rmdir" :"rmdir")  : 0);
         if (fwdRMDIR.Host) free(fwdRMDIR.Host);
         fwdRMDIR.Host = strdup(rHost); fwdRMDIR.Port = rPort;
        }
-    if (fwspec&OfsFWDTRUNC) 
+    if (fwspec&OfsFWDTRUNC)
        {fwdTRUNC.Cmd = (fwval&OfsFWDTRUNC ? (is2way ? "+trunc" :"trunc")  : 0);
         if (fwdTRUNC.Host) free(fwdTRUNC.Host);
         fwdTRUNC.Host = strdup(rHost); fwdTRUNC.Port = rPort;
@@ -1215,7 +1375,7 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
    Options |= Forwarding;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 x m a x d                                  */
 /******************************************************************************/
@@ -1313,7 +1473,7 @@ int XrdOfs::xnmsg(XrdOucStream &Config, XrdSysError &Eroute)
    Config.SetEnv(myEnv);
    return XrdOfsEvs::Parse(Eroute, noval, buff);
 }
-  
+
 /******************************************************************************/
 /*                                  x n o t                                   */
 /* Based on code developed by Derek Feichtinger, CERN.                        */
@@ -1321,7 +1481,7 @@ int XrdOfs::xnmsg(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xnot
 
-   Purpose:  Parse directive: notify <events> [msgs <min> [<max>]] 
+   Purpose:  Parse directive: notify <events> [msgs <min> [<max>]]
                                      {|<prog> | ><path>}
 
    Args:     <events> - one or more of: all chmod closer closew close mkdir mv
@@ -1416,7 +1576,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 /******************************************************************************/
 /*                                 x p e r s                                  */
 /******************************************************************************/
-  
+
 /* Function: xpers
 
    Purpose:  To parse the directive: persist [auto | manual | off]
@@ -1600,7 +1760,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 /******************************************************************************/
 /*                                  x t p c                                   */
 /******************************************************************************/
-  
+
 /* Function: xtpc
 
    Purpose:  To parse the directive: tpc [cksum <type>] [ttl <dflt> [<max>]]
@@ -1816,7 +1976,7 @@ int XrdOfs::xtpcal(XrdOucStream &Config, XrdSysError &Eroute)
                     tpopts[2].opval, tpopts[3].opval);
    return 1;
 }
-  
+
 /******************************************************************************/
 /*                                 x t p c r                                  */
 /******************************************************************************/
@@ -1906,7 +2066,7 @@ do{if (tpcRdrHost[k]) {free(tpcRdrHost[k]); tpcRdrHost[k] = 0;}
    Options |= RdrTPC;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
@@ -1977,7 +2137,7 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x a t r                                   */
 /******************************************************************************/
@@ -2049,11 +2209,11 @@ int XrdOfs::xatr(XrdOucStream &Config, XrdSysError &Eroute)
    usxMaxVsz = maxV;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                               t h e R o l e                                */
 /******************************************************************************/
-  
+
 const char *XrdOfs::theRole(int opts)
 {
           if (opts & isPeer)    return "peer";

@@ -32,7 +32,7 @@
 #include <cstring>
 #include <dirent.h>
 #include <sys/types.h>
-  
+
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
 #include "XrdOuc/XrdOucCloneSeg.hh"
@@ -59,7 +59,7 @@ struct XrdVersionInfo;
 /******************************************************************************/
 /*                       X r d O f s D i r e c t o r y                        */
 /******************************************************************************/
-  
+
 class XrdOfsDirectory : public XrdSfsDirectory
 {
 public:
@@ -111,7 +111,7 @@ XrdOucErrInfo  myEInfo; // Accessible only by reference error
 
 class XrdOfsTPC;
 class XrdOucChkPnt;
-  
+
 class XrdOfsFile : public XrdSfsFile
 {
 public:
@@ -194,7 +194,7 @@ public:
 
                        XrdOfsFile(XrdOucErrInfo &eInfo, const char *user);
 
-                      ~XrdOfsFile() {viaDel = 1; if (oh) close();}
+                      ~XrdOfsFile() {viaDel = true; if (oh) close();}
 
 protected:
 
@@ -203,7 +203,7 @@ XrdOfsHandle  *oh;
 XrdOfsTPC     *myTPC;
 XrdOucChkPnt  *myCKP;
 int            dorawio;
-char           viaDel;
+bool           viaDel;
 bool           ckpBad;
 
 private:
@@ -231,12 +231,13 @@ XrdOucErrInfo  myEInfo; // Accessible only by reference error
 
 class XrdAccAuthorize;
 class XrdCks;
+class XrdCksCalc;
 class XrdCmsClient;
 class XrdOfsConfigPI;
 class XrdOfsFSctl_PI;
 class XrdOfsPoscq;
 struct XrdSfsFACtl;
-  
+
 class XrdOfs : public XrdSfsFileSystem
 {
 friend class XrdOfsDirectory;
@@ -357,13 +358,17 @@ virtual int            Configure(XrdSysError &, XrdOucEnv *);
 
         void           Config_Display(XrdSysError &);
 
+        int            SetupCksRT(XrdCksCalc*&, XrdOucEnv&, const char*&);
+
+        bool           WantCksRT() {return (CksRTCgi || CksRTCalc != 0);}
+
                        XrdOfs();
 virtual               ~XrdOfs() {}  // Too complicate to delete :-)
 
 /******************************************************************************/
 /*                  C o n f i g u r a t i o n   V a l u e s                   */
 /******************************************************************************/
-  
+
 // Configuration values for this filesystem
 //
 enum {Authorize = 0x0001,    // Authorization wanted
@@ -443,6 +448,7 @@ static  int   fsError(XrdOucErrInfo &myError, int rc);
 const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
         int   Stall(XrdOucErrInfo  &, int, const char *);
         void  Unpersist(XrdOfsHandle *hP, int xcev=1);
+        bool  ValidCST(const char* cst);
         char *WaitTime(int, char *, int);
 
 /******************************************************************************/
@@ -450,7 +456,7 @@ const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
 /******************************************************************************/
 
 private:
-  
+
 char             *myRole;
 XrdOfsFSctl_PI   *FSctl_PC;       //    ->FSctl plugin (cache specific)
 XrdOfsFSctl_PI   *FSctl_PI;       //    ->FSctl plugin
@@ -470,6 +476,8 @@ char              ossRW;          // The oss r/w capability
 XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
 XrdOfsPrepare    *prepHandler;    // Plugin   prepare
 XrdCks           *Cks;            // Checksum manager
+XrdCksCalc       *CksRTCalc;      // Automatic realtime checksum calculator
+char             *CksRTName;      // Automatic realtime checksum cipher
 bool              CksPfn;         // Checksum needs a pfn
 bool              CksRdr;         // Checksum may be redirected (i.e. not local)
 bool              prepAuth;       // Prepare requires authorization
@@ -488,6 +496,7 @@ bool              DirRdr;         // Opendir() can be redirected.
 bool              reProxy;        // Reproxying required for TPC
 bool              OssHasPGrw;     // True: oss implements full rgRead/Write
 bool              tryXERT;        // Try using extended error text from OSS
+bool              CksRTCgi;       // True -> allow CGI spec
 
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */
@@ -507,6 +516,7 @@ int   remove(const char type, const char *path, XrdOucErrInfo &out_error,
 
 // Function used during Configuration
 //
+int           ConfigCksRT(XrdSysError &Eroute, XrdOucEnv *EnvInfo);
 int           ConfigDispFwd(char *buff, struct fwdOpt &Fwd);
 int           ConfigPosc(XrdSysError &Eroute);
 int           ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo);
@@ -522,6 +532,7 @@ int           FSctl(XrdOfsFile &file, int cmd, int alen, const char *args,
                     const XrdSecEntity *client);
 int           Reformat(XrdOucErrInfo &);
 const char   *theRole(int opts);
+int           xcksrt(XrdOucStream &, XrdSysError &);
 int           xcrds(XrdOucStream &, XrdSysError &);
 int           xcrm(XrdOucStream &, XrdSysError &);
 int           xdirl(XrdOucStream &, XrdSysError &);

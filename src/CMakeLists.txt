@@ -32,6 +32,7 @@ set_target_properties(XrdUtils
 target_link_libraries(XrdUtils
   PRIVATE
     OpenSSL::SSL
+    ZLIB::ZLIB
     ${CMAKE_THREAD_LIBS_INIT}
     ${CMAKE_DL_LIBS}
     ${SOCKET_LIBRARY}
