@@ -6,6 +6,33 @@ Release Notes
 =============
 
 -------------
+Version 6.1.0
+-------------
+
+All bugfixes and improvements from XRootD 5.9.6 are also in XRootD 6.1.0.
+
++ **New Features**
+  **[Python]** Add functions to delete variables from client environment (#2829)
+  **[Python]** Expose complete stat info in Python bindings (#2823)
+  **[Server]** Add support for streaming real-time checksums (#2806)
+  **[XrdCrypto/XrdTls/XrdVoms]** Add support for OpenSSL 4.0 (#2802)
+  **[XrdOssMirage]** New server-side plugin that simulates the existence of files (#2818)
+  **[XrdHttpTPC]** Enable redirect plugin for SENSE in HTTP TPC (#2767, #2788)
+
++ **Bugfixes**
+  **[Plugins]** Add versioning rules for sec.protocol ztn
+  **[Python]** Fix standalone build against an installed XRootD (#2816)
+  **[Server]** Do not clamp free space to 8 PB in kXR_stat+vfs (#2753)
+  **[Server]** Encrypt sessionid to prevent spoofing (#2798)
+  **[Server]** Fix cmsd failures with lengthy tokens via HTTP (#2814)
+  **[XrdApps]** Add missing sec.entitylib entry for xrdpinls reporting
+  **[XrdHttpTPC]** Fetch IP from socket instead of using DNS resolution (#2811, #2812)
+  **[Tests]** Fix header smuggling regression test for header parsing (#2826)
+
++ **Miscellaneous**
+  **[Python]** Add client workflow examples (#2833)
+
+-------------
 Version 6.0.3
 -------------
 
