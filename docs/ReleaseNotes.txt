@@ -6,6 +6,21 @@ Release Notes
 =============
 
 -------------
+Version 5.9.6
+-------------
+
++ **Major bug fixes**
+  **[XrdMacaroons]** Deny macaroons requests which fail caveats or HMAC checks
+  **[XrdMacaroons]** Intersect user-requested activities with allowed activities
+
++ **Minor bug fixes**
+  **[Tests]** Fix sporadic failures in Kerberos test fixture setup (#2822)
+
++ **Miscellaneous**
+  **[CI]** Adjust GitHub Actions build triggers and permissions to improve security
+  **[Tests]** Add tests for authentication with macaroons over HTTP (#2746)
+
+-------------
 Version 5.9.5
 -------------
 
