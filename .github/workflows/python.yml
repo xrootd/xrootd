@@ -65,6 +65,9 @@ jobs:
     container: ${{ matrix.platform.container }}
     needs: [ sdist ]
 
+    permissions:
+      contents: none
+
     strategy:
       fail-fast: false
       matrix:
@@ -119,6 +122,9 @@ jobs:
     name: Python ${{ matrix.version }} (macOS, ${{ matrix.platform.arch }})
     runs-on: ${{ matrix.platform.runs_on }}
     needs: [ sdist ]
+
+    permissions:
+      contents: none
 
     strategy:
       fail-fast: false

@@ -83,6 +83,7 @@ BuildRequires:	attr
 BuildRequires:	coreutils
 BuildRequires:	curl
 BuildRequires:	gtest-devel
+BuildRequires:	jq
 BuildRequires:	krb5-server
 BuildRequires:	krb5-workstation
 BuildRequires:	openssl
@@ -694,6 +695,9 @@ fi
 %endif
 
 %changelog
+
+* Fri Jun 19 2026 Guilherme Amadio <amadio@cern.ch> - 1:5.9.6-1
+- XRootD 5.9.6
 
 * Mon Jun 01 2026 Guilherme Amadio <amadio@cern.ch> - 1:6.0.3-1
 - XRootD 6.0.3

@@ -11,6 +11,7 @@ export PATH="${PATH}:/usr/sbin"
 export KRB5CCNAME="${PWD}/krb5cc"
 export KRB5_CONFIG="${PWD}/krb5.conf"
 export KRB5_KDC_PROFILE="${PWD}/kdc.conf"
+export KRB5_DB_NAME="${PWD}/kdc/db"
 
 function setup() {
 	rm -f "${KRB5CCNAME}" krb5.keytab kdc/{db*,*.{log,pem,srl}}
@@ -42,16 +43,16 @@ function setup() {
 	popd >/dev/null || exit 1
 
 	# Create the KDC database
-	kdb5_util create -s -r XROOTD.ORG -P xrootd
+	kdb5_util -r XROOTD.ORG -d "${KRB5_DB_NAME}" -P xrootd create -s
 
 	# Start the KDC daemons
-	krb5kdc -P "${PWD}"/krb5kdc.pid
+	krb5kdc -r XROOTD.ORG -d "${KRB5_DB_NAME}" -P "${PWD}"/krb5kdc.pid
 
 	# Not really needed, since we use kadmin.local
 	# kadmind -P ${PWD}/kadmind.pid
 
 	# Add principals for the server and client to KDC database
-	kadmin.local -r XROOTD.ORG <<-EOF
+	kadmin.local -r XROOTD.ORG -d "${KRB5_DB_NAME}" <<-EOF
 	add_principal -randkey -kvno 1 host/localhost@XROOTD.ORG
 	ktadd -k krb5.keytab host/localhost
 	add_principal xrootd@XROOTD.ORG
@@ -60,7 +61,7 @@ function setup() {
 	EOF
 
 	# Display KDC database entries
-	kdb5_util tabdump -o - keyinfo
+	kdb5_util -r XROOTD.ORG -d "${KRB5_DB_NAME}" tabdump -o - keyinfo
 
 	# Display contents of server keytab
 	klist -kte krb5.keytab
