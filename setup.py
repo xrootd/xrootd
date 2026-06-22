@@ -103,6 +103,9 @@ setup(name='xrootd',
       long_description=open('README.md').read(),
       long_description_content_type='text/markdown',
       packages = ['XRootD', 'XRootD.client', 'pyxrootd'],
+      package_data = {
+        'XRootD.client': ['py.typed'],
+      },
       package_dir = {
         'pyxrootd'     : 'python/src',
         'XRootD'       : 'python/libs',
