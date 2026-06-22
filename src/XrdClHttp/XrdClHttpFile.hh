@@ -136,6 +136,12 @@ public:
     // Get the federation metadata timeout
     static struct timespec GetFederationMetadataTimeout() {return m_fed_timeout;}
 
+    // Set the default prefetch-enabled behavior for newly-opened files.
+    static void SetDefaultPrefetch(bool enabled) {m_default_prefetch_enabled.store(enabled, std::memory_order_relaxed);}
+
+    // Get the default prefetch-enabled behavior for newly-opened files.
+    static bool GetDefaultPrefetch() {return m_default_prefetch_enabled.load(std::memory_order_relaxed);}
+
     // Get the global monitoring statistics data
     static std::string GetMonitoringJson();
 
@@ -351,7 +357,8 @@ private:
     // prefetching.
     class PrefetchDefaultHandler : public XrdCl::ResponseHandler {
     public:
-        PrefetchDefaultHandler(File &file) : m_logger(file.m_logger), m_url(file.m_url) {}
+        PrefetchDefaultHandler(File &file, bool enabled)
+            : m_logger(file.m_logger), m_url(file.m_url), m_prefetch_enabled(enabled) {}
 
         virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response);
 
@@ -387,7 +394,7 @@ private:
         // If set to "true", then you must re-read the value with
         // m_prefetch_mutex held to ensure is actually true and not
         // a spurious reading.
-        mutable std::atomic<bool> m_prefetch_enabled{true};
+        mutable std::atomic<bool> m_prefetch_enabled;
     };
 
     // "Default" handler for prefetching
@@ -416,6 +423,10 @@ private:
     };
 
     HeaderCallout m_default_header_callout{*this};
+
+    // Default prefetch-enabled setting for newly-opened files; populated from the
+    // HttpPrefetch environment variable at plugin load time.
+    static std::atomic<bool> m_default_prefetch_enabled;
 
     static std::atomic<uint64_t> m_prefetch_count; // Count of prefetch operations that have been initiated.
     static std::atomic<uint64_t> m_prefetch_expired_count; // Count of prefetch operations that have expired due to unused data.
