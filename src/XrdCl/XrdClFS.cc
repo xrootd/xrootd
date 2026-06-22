@@ -202,11 +202,9 @@ XRootDStatus DoCache( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[2] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid cache path." );
-    return XRootDStatus( stError, errInvalidArgs, 0, "Invalid cache path." );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[2], "cache" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Create the command 
@@ -260,11 +258,9 @@ XRootDStatus DoCD( FileSystem                      *fs,
   env->PutInt( "NoCWD", 0 );
 
   std::string newPath;
-  if( !BuildPath( newPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( newPath, env, args[1], "cd" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Check if the path exist and is not a directory
@@ -432,11 +428,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
     env->GetString( "CWD", newPath );
   else
   {
-    if( !BuildPath( newPath, env, path ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid arguments. Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( newPath, env, path, "ls" );
+    if( !pathSt.IsOK() )
+      return pathSt;
   }
 
   //----------------------------------------------------------------------------
@@ -576,7 +570,7 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
   }
 
   std::string newPath;
-  XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
+  XRootDStatus pathSt = BuildPath( newPath, env, path, "mkdir" );
   if( !pathSt.IsOK() )
     return pathSt;
 
@@ -615,7 +609,7 @@ XRootDStatus DoRmDir( FileSystem                      *query,
   }
 
   std::string fullPath;
-  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Removing" );
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "rmdir" );
   if( !pathSt.IsOK() )
     return pathSt;
 
@@ -654,18 +648,14 @@ XRootDStatus DoMv( FileSystem                      *fs,
   }
 
   std::string fullPath1;
-  if( !BuildPath( fullPath1, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid source path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath1, env, args[1], "mv" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   std::string fullPath2;
-  if( !BuildPath( fullPath2, env, args[2] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid destination path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  pathSt = BuildPath( fullPath2, env, args[2], "mv" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   if( is_subdirectory(fullPath1, fullPath2) )
     return XRootDStatus( stError, errInvalidArgs, 0,
@@ -723,11 +713,9 @@ XRootDStatus DoRm( FileSystem                      *fs,
   for( size_t i = 1; i < argc; ++i )
   {
     std::string fullPath;
-    if( !BuildPath( fullPath, env, args[i] ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path: %s", fullPath.c_str() );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( fullPath, env, args[i], "rm" );
+    if( !pathSt.IsOK() )
+      return pathSt;
     rms.emplace_back( Rm( fs, fullPath ) >>
                       [log, fullPath, print]( XRootDStatus &st )
                       {
@@ -777,11 +765,9 @@ XRootDStatus DoTruncate( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "truncate" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   char *result;
   uint64_t size = ::strtoll( args[2].c_str(), &result, 0 );
@@ -826,11 +812,9 @@ XRootDStatus DoChMod( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "chmod" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   Access::Mode mode = Access::None;
   XRootDStatus st = ConvertMode( mode, args[2] );
@@ -912,11 +896,9 @@ XRootDStatus DoLocate( FileSystem                      *fs,
     fullPath = path;
   else
   {
-    if( !BuildPath( fullPath, env, path ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( fullPath, env, path, "locate" );
+    if( !pathSt.IsOK() )
+      return pathSt;
   }
 
   //----------------------------------------------------------------------------
@@ -1097,11 +1079,9 @@ XRootDStatus DoStat( FileSystem                      *fs,
   for( auto &path : paths )
   {
     std::string fullPath;
-    if( !BuildPath( fullPath, env, path ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( fullPath, env, path, "stat" );
+    if( !pathSt.IsOK() )
+      return pathSt;
     std::future<XrdCl::StatInfo> ftr;
     stats.emplace_back( XrdCl::Stat( fs, fullPath ) >> ftr );
     results.emplace_back( std::move( ftr ), std::move( fullPath ) );
@@ -1207,11 +1187,9 @@ XRootDStatus DoStatVFS( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "statvfs" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -1307,11 +1285,9 @@ XRootDStatus DoQuery( FileSystem                      *fs,
     for( size_t i = 3; i < args.size(); ++i )
     {
       std::string path = args[i];
-      if( !BuildPath( path, env, path ).IsOK() )
-      {
-        log->Error( AppMsg, "Invalid path." );
-        return XRootDStatus( stError, errInvalidArgs );
-      }
+      XRootDStatus pathSt = BuildPath( path, env, path, "prepare" );
+      if( !pathSt.IsOK() )
+        return pathSt;
       // we use new line character as delimiter
       strArg += '\n';
       strArg += path;
@@ -1324,11 +1300,9 @@ XRootDStatus DoQuery( FileSystem                      *fs,
         qCode == QueryCode::Checksum       ||
         qCode == QueryCode::XAttr )
     {
-      if( !BuildPath( strArg, env, args[2] ).IsOK() )
-      {
-        log->Error( AppMsg, "Invalid path." );
-        return XRootDStatus( stError, errInvalidArgs );
-      }
+      XRootDStatus pathSt = BuildPath( strArg, env, args[2], "query" );
+      if( !pathSt.IsOK() )
+        return pathSt;
     }
   }
 
@@ -1571,11 +1545,9 @@ XRootDStatus DoCat( FileSystem                      *fs,
   for( auto &remote : remotes )
   {
     std::string remoteFile;
-    if( !BuildPath( remoteFile, env, remote ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( remoteFile, env, remote, "cat" );
+    if( !pathSt.IsOK() )
+      return pathSt;
 
     remoteUrls.emplace_back( server );
     remoteUrls.back().SetPath( remoteFile );
@@ -1686,11 +1658,9 @@ XRootDStatus DoTail( FileSystem                      *fs,
   }
 
   std::string remoteFile;
-  if( !BuildPath( remoteFile, env, remote ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( remoteFile, env, remote, "tail" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   URL remoteUrl( server );
   remoteUrl.SetPath( remoteFile );
@@ -1833,11 +1803,9 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
   }
 
   std::string path;
-  if( !BuildPath( path, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( path, env, args[1], "xattr" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Issue the xattr operation
