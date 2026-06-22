@@ -225,6 +225,15 @@ size_t
 CurlReadOp::Write(char *buffer, size_t length)
 {
     //m_logger->Debug(kLogXrdClHttp, "Received a write of size %ld with offset %lld; total received is %ld; remaining is %ld", static_cast<long>(length), static_cast<long long>(m_op.first), static_cast<long>(length + m_written), static_cast<long>(m_op.second - length - m_written));
+    // If the file was closed mid-transfer, abort the transfer from here instead of buffering
+    // more data.  Returning 0 yields CURLE_WRITE_ERROR, which the worker thread's
+    // CURLE_ABORTED_BY_CALLBACK/CURLE_WRITE_ERROR branch routes through the IsCancelled()
+    // cleanup path.  This closes the TOCTOU window in File::Close() between Cancel() and
+    // IsPaused(): even if Close() observed the op as not-yet-paused, the next Write()
+    // callback aborts cleanly.
+    if (IsCancelled()) {
+        return 0;
+    }
     if (m_headers.IsMultipartByterange()) {
         return FailCallback(kXR_ServerError, "Server responded with a multipart byterange which is not supported");
     }

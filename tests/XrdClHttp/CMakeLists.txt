@@ -26,6 +26,7 @@ add_executable(xrdcl-test
 
 # Tests depending on XrdClHttp linkage
 add_executable(xrdcl-http-test
+  CloseDuringPrefetchTest.cc
   CopyTest.cc
   ParseTimeoutTest.cc
   VectorReadTest.cc
