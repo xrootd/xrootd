@@ -21,6 +21,7 @@
 #ifndef XRDCLHTTPWORKER_HH
 #define XRDCLHTTPWORKER_HH
 
+#include "XrdCl/XrdClCurlUtil.hh"
 #include "XrdClHttpOps.hh"
 
 #include <array>
@@ -61,7 +62,7 @@ public:
     void Start(std::unique_ptr<XrdClHttp::CurlWorker> self, std::thread tid);
 
     // Returns the configured X509 client certificate and key file name
-    std::tuple<std::string, std::string> ClientX509CertKeyFile() const;
+    XrdCl::CurlUtil::X509Credentials ClientX509Credentials() const;
 
     // Change the period (in seconds) for queue maintenance.
     //
@@ -96,8 +97,7 @@ private:
 
     std::unordered_map<CURL*, std::pair<std::shared_ptr<CurlOperation>, std::chrono::system_clock::time_point>> m_op_map;
     XrdCl::Log* m_logger;
-    std::string m_x509_client_cert_file;
-    std::string m_x509_client_key_file;
+    XrdCl::CurlUtil::X509Credentials m_x509_credentials;
 
     const static unsigned m_max_ops{20};
     static std::atomic<unsigned> m_maintenance_period;
