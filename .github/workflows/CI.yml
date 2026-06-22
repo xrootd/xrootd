@@ -63,6 +63,7 @@ jobs:
           py3-setuptools \
           py3-wheel \
           python3-dev \
+          pytest \
           readline-dev \
           sudo \
           util-linux-dev \
@@ -262,7 +263,7 @@ jobs:
     - name: Install development tools
       run: |
         sudo apt update -qq
-        sudo apt install -y build-essential devscripts equivs git
+        sudo apt install -y build-essential devscripts equivs git python3-pytest
 
     - name: Clone repository
       uses: actions/checkout@v6
@@ -304,7 +305,7 @@ jobs:
       run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
 
     - name: Install dependencies with Homebrew
-      run: brew install googletest libzip nlohmann-json python-setuptools
+      run: brew install googletest libzip nlohmann-json pytest python-setuptools
 
     - name: Clone repository
       uses: actions/checkout@v6
