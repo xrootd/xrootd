@@ -39,3 +39,9 @@ Methods
 .. automethod:: XRootD.client.File.is_open
 .. automethod:: XRootD.client.File.set_property
 .. automethod:: XRootD.client.File.get_property
+.. automethod:: XRootD.client.File.set_xattr
+.. automethod:: XRootD.client.File.get_xattr
+.. automethod:: XRootD.client.File.del_xattr
+.. automethod:: XRootD.client.File.list_xattr
+.. automethod:: XRootD.client.File.xattrs
+.. automethod:: XRootD.client.File.xattr

@@ -36,3 +36,9 @@ Methods
 .. automethod:: XRootD.client.FileSystem.prepare
 .. automethod:: XRootD.client.FileSystem.set_property
 .. automethod:: XRootD.client.FileSystem.get_property
+.. automethod:: XRootD.client.FileSystem.set_xattr
+.. automethod:: XRootD.client.FileSystem.get_xattr
+.. automethod:: XRootD.client.FileSystem.del_xattr
+.. automethod:: XRootD.client.FileSystem.list_xattr
+.. automethod:: XRootD.client.FileSystem.xattrs
+.. automethod:: XRootD.client.FileSystem.xattr

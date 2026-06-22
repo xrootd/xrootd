@@ -26,6 +26,7 @@ from __future__ import absolute_import, division, print_function
 from pyxrootd import client
 from XRootD.client.responses import XRootDStatus, StatInfo, VectorReadInfo
 from XRootD.client.utils import CallbackWrapper
+from XRootD.client.utils import _xattr_mapping, _xattr_value
 
 class File(object):
   """Interact with an ``xrootd`` server to perform file-based operations such
@@ -373,6 +374,58 @@ class File(object):
 
     status, response = self.__file.list_xattr(timeout)
     return XRootDStatus(status), response
+
+  def xattrs(self, timeout=0, callback=None):
+    """Get all extended file attributes as a mapping.
+
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                  object and dict mapping xattr names to values
+    """
+    if callback:
+      def handle_xattrs(status, response, hostlist):
+        if status.ok:
+          item_status, response = _xattr_mapping(response)
+          if item_status:
+            status, response = item_status, None
+        else:
+          response = None
+        callback(status, response, hostlist)
+      return self.list_xattr(timeout, handle_xattrs)
+
+    status, response = self.list_xattr(timeout)
+    if not status.ok:
+      return status, None
+    item_status, response = _xattr_mapping(response)
+    if item_status:
+      return item_status, None
+    return status, response
+
+  def xattr(self, attr, timeout=0, callback=None):
+    """Get one extended file attribute value.
+
+    :param attr:  extended attribute name
+    :type  attr:  string
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                  object and the attribute value
+    """
+    if callback:
+      def handle_xattr(status, response, hostlist):
+        if status.ok:
+          item_status, response = _xattr_value(response)
+          if item_status:
+            status, response = item_status, None
+        else:
+          response = None
+        callback(status, response, hostlist)
+      return self.get_xattr([attr], timeout, handle_xattr)
+
+    status, response = self.get_xattr([attr], timeout)
+    if not status.ok:
+      return status, None
+    item_status, response = _xattr_value(response)
+    if item_status:
+      return item_status, None
+    return status, response
 
   def clone(self, locs, timeout=0, callback=None):
     """Duplicate ranges from other files into this file by using range based cloning.

@@ -20,6 +20,30 @@ from __future__ import absolute_import, division, print_function
 from threading import Lock
 from XRootD.client.responses import XRootDStatus, HostList
 
+def _coerce_status(status):
+  if isinstance(status, XRootDStatus):
+    return status
+  return XRootDStatus(status)
+
+def _xattr_mapping(response):
+  attrs = {}
+
+  for name, value, status in response or []:
+    status = _coerce_status(status)
+    if not status.ok:
+      return status, None
+    attrs[name] = value
+
+  return None, attrs
+
+def _xattr_value(response):
+  status, attrs = _xattr_mapping(response)
+  if status:
+    return status, None
+  for value in attrs.values():
+    return None, value
+  return None, None
+
 class CallbackWrapper(object):
   def __init__(self, callback, responsetype):
     if not hasattr(callback, '__call__'):
