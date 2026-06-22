@@ -63,7 +63,15 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
   Log *log = DefaultEnv::GetLog();
 
   if( path.empty() )
-    return XRootDStatus( stError, errInvalidArgs );
+  {
+    std::string msg;
+    if( op )
+      msg = std::string( op ) + " requires a path.";
+    else
+      msg = "path is required.";
+    log->Error( AppMsg, "%s", msg.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, msg );
+  }
 
   int noCwd = 0;
   env->GetInt( "NoCWD", noCwd );
@@ -108,7 +116,15 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
     if( *it == ".." )
     {
       if( it == pathComponents.begin() )
-        return XRootDStatus( stError, errInvalidArgs );
+      {
+        std::string msg;
+        if( op )
+          msg = std::string( op ) + " path '" + path + "' escapes above root.";
+        else
+          msg = "path '" + path + "' escapes above root.";
+        log->Error( AppMsg, "%s", msg.c_str() );
+        return XRootDStatus( stError, errInvalidArgs, 0, msg );
+      }
       std::list<std::string>::iterator it1 = it;
       --it1;
       it = pathComponents.erase( it1 );
