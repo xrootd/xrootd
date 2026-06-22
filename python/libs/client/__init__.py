@@ -16,5 +16,12 @@ from ._version import __version__ as __version__
 from .env import EnvGetDefault as EnvGetDefault
 from .env import SetLogLevel as SetLogLevel
 from .env import SetLogMask as SetLogMask
+from .responses import XRootDError as XRootDError
+from .responses import XRootDNotFoundError as XRootDNotFoundError
+from .responses import XRootDAuthorizationError as XRootDAuthorizationError
+from .responses import XRootDTimeoutError as XRootDTimeoutError
+from .responses import XRootDChecksumError as XRootDChecksumError
+from .responses import XRootDOperationError as XRootDOperationError
+from .responses import raise_on_error as raise_on_error
 
 import XRootD.client.finalize
