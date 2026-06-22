@@ -25,6 +25,26 @@ def test_copy_smallfile():
   assert size1 == size2
   f.close()
 
+def test_copyprocess_context_manager():
+  f = client.File()
+  s, r = f.open(smallfile, OpenFlags.DELETE)
+  assert s.ok
+  f.write(smallbuffer)
+  size1 = f.stat(force=True)[1].size
+  f.close()
+
+  with client.CopyProcess() as c:
+    s, __ = c.copy(source=smallfile, target=smallcopy, force=True,
+                   mkdir=True, timeout=10)
+  assert s.ok
+
+  f = client.File()
+  s, r = f.open(smallcopy, OpenFlags.READ)
+  size2 = f.stat()[1].size
+
+  assert size1 == size2
+  f.close()
+
 def test_create_bigfile():
   f = client.File()
   s, r = f.open(bigfile, OpenFlags.DELETE)

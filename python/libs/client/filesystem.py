@@ -28,6 +28,7 @@ from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
 from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
 from XRootD.client.utils import CallbackWrapper
 from XRootD.client.flags import AccessMode
+from XRootD.client.copyprocess import CopyProcess
 
 class FileSystem(object):
   """Interact with an ``xrootd`` server to perform filesystem-based operations
@@ -46,7 +47,11 @@ class FileSystem(object):
     """The server URL object, instance of :mod:`XRootD.client.URL`"""
     return self.__fs.url
 
-  def copy(self, source, target, force=False):
+  def copy(self, source, target, force=False, mkdir=False, timeout=0,
+           handler=None, retry=None, thirdparty='none', checksummode='none',
+           checksumtype='', checksumpreset='', posc=False, coerce=False,
+           cont=False, chunksize=None, parallelchunks=None,
+           return_results=False):
     """Copy a file.
 
     .. note:: This method is less configurable than using
@@ -62,11 +67,49 @@ class FileSystem(object):
     :type  target: string
     :param  force: overwrite target if it exists
     :type   force: boolean
+    :param  mkdir: create parent directories for the target
+    :type   mkdir: boolean
+    :param timeout: copy timeout in seconds
+    :type  timeout: integer
+    :param handler: optional copy progress handler
+    :param retry: number of copy retries
+    :type  retry: integer
+    :param thirdparty: third-party-copy mode
+    :type  thirdparty: string
+    :param checksummode: checksum mode for the copy
+    :type  checksummode: string
+    :param checksumtype: checksum type for the copy
+    :type  checksumtype: string
+    :param checksumpreset: preset checksum value
+    :type  checksumpreset: string
+    :param return_results: return copy job results instead of ``None``
+    :type  return_results: boolean
     :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
-                   object and None
+                   object and None, or copy results if ``return_results`` is set
     """
-    result = self.__fs.copy(source=source, target=target, force=force)[0]
-    return XRootDStatus(result), None
+    advanced = mkdir or timeout or handler or retry is not None or \
+               thirdparty != 'none' or checksummode != 'none' or \
+               checksumtype or checksumpreset or posc or coerce or cont or \
+               chunksize is not None or parallelchunks is not None or \
+               return_results
+
+    if not advanced:
+      result = self.__fs.copy(source=source, target=target, force=force)[0]
+      return XRootDStatus(result), None
+
+    with CopyProcess() as copy_process:
+      status, results = copy_process.copy(source=source, target=target,
+                                          force=force, mkdir=mkdir,
+                                          timeout=timeout, handler=handler,
+                                          retry=retry,
+                                          thirdparty=thirdparty,
+                                          checksummode=checksummode,
+                                          checksumtype=checksumtype,
+                                          checksumpreset=checksumpreset,
+                                          posc=posc, coerce=coerce, cont=cont,
+                                          chunksize=chunksize,
+                                          parallelchunks=parallelchunks)
+    return status, results if return_results else None
 
   def locate(self, path, flags, timeout=0, callback=None):
     """Locate a file.
