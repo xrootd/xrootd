@@ -22,30 +22,33 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClFileSystemUtils.hh"
-#include "XrdCl/XrdClFSExecutor.hh"
-#include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XProtocol/XProtocol.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClFSExecutor.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFileSystemOperations.hh"
+#include "XrdCl/XrdClFileSystemUtils.hh"
+#include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClParallelOperation.hh"
+#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
-#include <cstdlib>
-#include <cstdio>
-#include <iostream>
-#include <iomanip>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
 
 #ifdef HAVE_READLINE
-#include <readline/readline.h>
 #include <readline/history.h>
+#include <readline/readline.h>
 #endif
 
 using namespace XrdCl;
@@ -54,18 +57,31 @@ using namespace XrdCl;
 // Build a path
 //------------------------------------------------------------------------------
 XRootDStatus BuildPath( std::string &newPath, Env *env,
-                        const std::string &path )
+                        const std::string &path,
+                        const char *op = nullptr )
 {
+  Log *log = DefaultEnv::GetLog();
+
   if( path.empty() )
     return XRootDStatus( stError, errInvalidArgs );
 
   int noCwd = 0;
   env->GetInt( "NoCWD", noCwd );
 
-  if( path[0] == '/' || noCwd )
+  if( path[0] == '/' )
   {
     newPath = path;
     return XRootDStatus();
+  }
+  else if( noCwd )
+  {
+    std::string msg;
+    if( op )
+      msg = std::string( op ) + " relative path '" + path + "' is disallowed.";
+    else
+      msg = "relative path '" + path + "' is disallowed.";
+    log->Error( AppMsg, "%s", msg.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, msg );
   }
 
   std::string cwd = "/";
@@ -560,11 +576,9 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
   }
 
   std::string newPath;
-  if( !BuildPath( newPath, env, path ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -601,11 +615,9 @@ XRootDStatus DoRmDir( FileSystem                      *query,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Removing" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Run the query
