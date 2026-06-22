@@ -239,7 +239,10 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
         m_log.Log(LogMask::Debug, "Access", "Macaroon verification failed");
         macaroon_verifier_destroy(verifier);
         macaroon_destroy(macaroon);
-        return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
+        // This token is from our server (location matched) but caveats or HMAC
+        // failed.  Falling through to the chain would let a path-restricted
+        // macaroon bypass its own restrictions.  Deny unconditionally.
+        return XrdAccPriv_None;
     }
     macaroon_verifier_destroy(verifier);
 

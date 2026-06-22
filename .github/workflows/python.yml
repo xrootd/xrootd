@@ -1,16 +1,14 @@
 name: Python
 
-permissions:
-  contents: read
-
 on:
   push:
+    branches:
+      - '**'
     paths:
       - setup.py
       - pyproject.toml
       - 'bindings/**'
       - .github/workflows/python.yml
-    tags-ignore:
   pull_request:
     paths:
       - setup.py
@@ -29,6 +27,9 @@ jobs:
   sdist:
     name: Source distribution
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     steps:
     - name: Clone repository
@@ -63,6 +64,9 @@ jobs:
     runs-on: ${{ matrix.platform.runs_on }}
     container: ${{ matrix.platform.container }}
     needs: [ sdist ]
+
+    permissions:
+      contents: none
 
     strategy:
       fail-fast: false
@@ -118,6 +122,9 @@ jobs:
     name: Python ${{ matrix.version }} (macOS, ${{ matrix.platform.arch }})
     runs-on: ${{ matrix.platform.runs_on }}
     needs: [ sdist ]
+
+    permissions:
+      contents: none
 
     strategy:
       fail-fast: false
