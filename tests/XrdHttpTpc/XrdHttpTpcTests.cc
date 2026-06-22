@@ -2,8 +2,11 @@
 
 #include "XrdHttpTpc/XrdHttpTpcUtils.hh"
 #include "XrdHttpTpc/XrdHttpTpcTPC.hh"
+
 #include <exception>
 #include <gtest/gtest.h>
+
+#include <map>
 #include <string>
 
 using namespace testing;
