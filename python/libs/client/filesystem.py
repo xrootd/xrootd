@@ -26,8 +26,9 @@ from __future__ import absolute_import, division, print_function
 from pyxrootd import client
 from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
 from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
+from XRootD.client.responses import ChecksumInfo, CapabilityInfo
 from XRootD.client.utils import CallbackWrapper
-from XRootD.client.flags import AccessMode
+from XRootD.client.flags import AccessMode, MkDirFlags, QueryCode
 
 class FileSystem(object):
   """Interact with an ``xrootd`` server to perform filesystem-based operations
@@ -40,6 +41,14 @@ class FileSystem(object):
 
   def __init__(self, url):
     self.__fs = client.FileSystem(url)
+
+  def __enter__(self):
+    """Return this filesystem instance for use in a ``with`` statement."""
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    """Exit a ``with`` statement without suppressing exceptions."""
+    return None
 
   @property
   def url(self):
@@ -141,6 +150,23 @@ class FileSystem(object):
     status, response = self.__fs.query(querycode, arg, timeout)
     return XRootDStatus(status), response
 
+  def checksum(self, path, timeout=0, callback=None):
+    """Obtain a structured checksum for a path.
+
+    :param path: path to the file
+    :type  path: string
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                 object and :mod:`XRootD.client.responses.ChecksumInfo` object
+    """
+    if callback:
+      callback = CallbackWrapper(callback, ChecksumInfo)
+      return XRootDStatus(self.__fs.query(QueryCode.CHECKSUM, path, timeout,
+                                          callback))
+
+    status, response = self.__fs.query(QueryCode.CHECKSUM, path, timeout)
+    if response: response = ChecksumInfo(response)
+    return XRootDStatus(status), response
+
   def truncate(self, path, size, timeout=0, callback=None):
     """Truncate a file.
 
@@ -196,6 +222,14 @@ class FileSystem(object):
 
     status, response = self.__fs.mkdir(path, flags, mode, timeout)
     return XRootDStatus(status), None
+
+  def mkdir_p(self, path, mode=0, timeout=0, callback=None):
+    """Create a directory and any missing parent directories.
+
+    This is a convenience wrapper around :meth:`mkdir` using
+    :data:`XRootD.client.flags.MkDirFlags.MAKEPATH`.
+    """
+    return self.mkdir(path, MkDirFlags.MAKEPATH, mode, timeout, callback)
 
   def rmdir(self, path, timeout=0, callback=None):
     """Remove a directory.
@@ -286,6 +320,29 @@ class FileSystem(object):
     status, response = self.__fs.protocol(timeout)
     if response: response = ProtocolInfo(response)
     return XRootDStatus(status), response
+
+  def probe(self, config_arg=None, timeout=10):
+    """Probe basic endpoint capabilities.
+
+    :param config_arg: optional argument for ``QueryCode.CONFIG``. If omitted,
+                       the filesystem host id is used.
+    :type  config_arg: string
+    :returns: tuple containing the ping status and a
+              :mod:`XRootD.client.responses.CapabilityInfo` object
+    """
+    ping_status, _ = self.ping(timeout=timeout)
+    protocol_status, protocol = self.protocol(timeout=timeout)
+
+    if config_arg is None:
+      config_arg = self.__fs.url.hostid
+
+    config_status, config = self.query(QueryCode.CONFIG, config_arg,
+                                       timeout=timeout)
+    return ping_status, CapabilityInfo(ping_status=ping_status,
+                                       protocol_status=protocol_status,
+                                       protocol=protocol,
+                                       config_status=config_status,
+                                       config=config)
 
   def dirlist(self, path, flags=0, timeout=0, callback=None):
     """List entries of a directory.

@@ -17,7 +17,10 @@ Attributes
 Methods
 *******
 
+.. automethod:: XRootD.client.FileSystem.__enter__
+.. automethod:: XRootD.client.FileSystem.__exit__
 .. automethod:: XRootD.client.FileSystem.copy
+.. automethod:: XRootD.client.FileSystem.checksum
 .. automethod:: XRootD.client.FileSystem.locate
 .. automethod:: XRootD.client.FileSystem.deeplocate
 .. automethod:: XRootD.client.FileSystem.mv
@@ -25,12 +28,14 @@ Methods
 .. automethod:: XRootD.client.FileSystem.truncate
 .. automethod:: XRootD.client.FileSystem.rm
 .. automethod:: XRootD.client.FileSystem.mkdir
+.. automethod:: XRootD.client.FileSystem.mkdir_p
 .. automethod:: XRootD.client.FileSystem.rmdir
 .. automethod:: XRootD.client.FileSystem.chmod
 .. automethod:: XRootD.client.FileSystem.ping
 .. automethod:: XRootD.client.FileSystem.stat
 .. automethod:: XRootD.client.FileSystem.statvfs
 .. automethod:: XRootD.client.FileSystem.protocol
+.. automethod:: XRootD.client.FileSystem.probe
 .. automethod:: XRootD.client.FileSystem.dirlist
 .. automethod:: XRootD.client.FileSystem.sendinfo
 .. automethod:: XRootD.client.FileSystem.prepare

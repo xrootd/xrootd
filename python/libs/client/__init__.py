@@ -16,5 +16,7 @@ from ._version import __version__ as __version__
 from .env import EnvGetDefault as EnvGetDefault
 from .env import SetLogLevel as SetLogLevel
 from .env import SetLogMask as SetLogMask
+from .responses import ChecksumInfo as ChecksumInfo
+from .responses import CapabilityInfo as CapabilityInfo
 
 import XRootD.client.finalize
