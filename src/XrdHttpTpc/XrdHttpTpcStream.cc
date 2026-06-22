@@ -10,12 +10,6 @@ using namespace TPC;
 
 Stream::~Stream()
 {
-    for (std::vector<Entry*>::iterator buffer_iter = m_buffers.begin();
-        buffer_iter != m_buffers.end();
-        buffer_iter++) {
-        delete *buffer_iter;
-        *buffer_iter = NULL;
-    }
     m_fh->close();
 }
 
@@ -29,12 +23,10 @@ Stream::Finalize()
     }
     m_open_for_write = false;
 
-    for (std::vector<Entry*>::iterator buffer_iter = m_buffers.begin();
-        buffer_iter != m_buffers.end();
-        buffer_iter++) {
-        delete *buffer_iter;
-        *buffer_iter = NULL;
-    }
+    // If there are outstanding buffers to reorder, finalization failed; the
+    // check has to happen before the buffers are released.
+    bool all_buffers_returned = m_avail_count == m_buffers.size();
+    m_buffers.clear();
 
     if (m_fh->close() == SFS_ERROR) {
         std::stringstream ss;
@@ -45,8 +37,7 @@ Stream::Finalize()
         return false;
     }
 
-    // If there are outstanding buffers to reorder, finalization failed
-    return m_avail_count == m_buffers.size();
+    return all_buffers_returned;
 }
 
 
@@ -72,7 +63,7 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
         return SFS_ERROR;
     }
     size_t bytes_accepted = 0;
-    int retval = size;
+    ssize_t retval = size;
     if (offset < m_offset) {
         if (!m_error_buf.size()) {m_error_buf = "Logic error: writing to a prior offset";}
         return SFS_ERROR;
@@ -94,50 +85,24 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
             return retval;
         }
     }
-    // Even if we already accepted the current data, always
-    // iterate through available buffers and try to write as
-    // much out to disk as possible.
-    Entry *avail_entry;
-    bool buffer_was_written;
-    size_t avail_count = 0;
+    // Even if we already accepted the current data, always iterate through the
+    // buffers and try to write as much out to disk as possible.
+    //
+    // Accepting data can complete a buffer, and flushing a buffer advances
+    // m_offset, which can in turn let another buffer accept more data or become
+    // writable.  Alternate between the two until neither makes progress.  When
+    // size == 0 we force a flush even if things are not MB-aligned.
+    ssize_t buffers_flushed;
     do {
-        avail_count = 0;
-        avail_entry = NULL;
-        buffer_was_written = false;
-        for (std::vector<Entry*>::iterator entry_iter = m_buffers.begin();
-             entry_iter != m_buffers.end();
-             entry_iter++) {
-            // Always try to dump from memory; when size == 0, then we are
-            // going to force a flush even if things are not MB-aligned.
-            int retval2 = (*entry_iter)->Write(*this, size == 0);
-            if (retval2 == SFS_ERROR) {
-                if (!m_error_buf.size()) {m_error_buf = "Unknown filesystem write failure.";}
-                return retval2;
-            }
-            buffer_was_written |= retval2 > 0;
-            if ((*entry_iter)->Available()) { // Empty buffer
-                if (!avail_entry) {avail_entry = *entry_iter;}
-                avail_count ++;
-            }
-            else if (bytes_accepted != size && size) {
-                size_t new_accept = (*entry_iter)->Accept(offset + bytes_accepted, buf + bytes_accepted, size - bytes_accepted);
-                    // Partial accept; buffer should be writable which means we should free it up
-                    // for next iteration
-                if (new_accept && new_accept != size - bytes_accepted) {
-                    int retval3 = (*entry_iter)->Write(*this, false);
-                    if (retval3 == SFS_ERROR) {
-                        if (!m_error_buf.size()) {m_error_buf = "Unknown filesystem write failure.";}
-                        return SFS_ERROR;
-                    }
-                    buffer_was_written = true;
-                }
-                bytes_accepted += new_accept;
-            }
-        }
-    } while ((avail_count != m_buffers.size()) && buffer_was_written);
-    m_avail_count = avail_count;
+        bytes_accepted += AcceptIntoBuffers(offset + bytes_accepted,
+                                            buf + bytes_accepted,
+                                            size - bytes_accepted);
+        buffers_flushed = FlushBuffers(size == 0);
+        if (buffers_flushed == SFS_ERROR) {return SFS_ERROR;}
+    } while ((buffers_flushed > 0) && (bytes_accepted != size));
 
-    if (bytes_accepted != size && size) {  // No place for this data in allocated buffers
+    if (bytes_accepted != size && size) {  // No place for this data in the buffers currently in use
+        Entry *avail_entry = FirstAvailableBuffer();
         if (!avail_entry) {  // No available buffers to allocate; logic error, should not happen.
             DumpBuffers();
             m_error_buf = "No empty buffers available to place unordered data.";
@@ -147,19 +112,77 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
             m_error_buf = "Empty re-ordering buffer was unable to to accept data; internal logic error.";
             return SFS_ERROR;
         }
-        m_avail_count --;
+        // The buffer we just filled may already be complete and contiguous with
+        // m_offset; flush it now instead of waiting for a later callback to
+        // notice, as every curl handle may be idle by then.
+        if (FlushBuffers(false) == SFS_ERROR) {return SFS_ERROR;}
     }
 
     // If we have low buffer occupancy, then release memory.
     if ((m_buffers.size() > 2) && (m_avail_count * 2 > m_buffers.size())) {
-        for (std::vector<Entry*>::iterator entry_iter = m_buffers.begin();
-             entry_iter != m_buffers.end();
-             entry_iter++) {
-            (*entry_iter)->ShrinkIfUnused();
+        for (auto &entry : m_buffers) {
+            entry->ShrinkIfUnused();
         }
     }
 
     return retval;
+}
+
+
+size_t
+Stream::AcceptIntoBuffers(off_t offset, const char *buf, size_t size)
+{
+    size_t bytes_accepted = 0;
+    if (!size) {return 0;}
+    for (auto &entry : m_buffers) {
+        // Empty buffers are deliberately skipped here: they are only handed out
+        // as a last resort by Write() so that buffer occupancy keeps tracking
+        // the number of transfers in flight.
+        if (entry->Available()) {continue;}
+        bytes_accepted += entry->Accept(offset + bytes_accepted,
+                                        buf + bytes_accepted,
+                                        size - bytes_accepted);
+        if (bytes_accepted == size) {break;}
+    }
+    return bytes_accepted;
+}
+
+
+ssize_t
+Stream::FlushBuffers(bool force)
+{
+    ssize_t buffers_flushed = 0;
+    bool buffer_was_written;
+    do {
+        size_t avail_count = 0;
+        buffer_was_written = false;
+        for (auto &entry : m_buffers) {
+            ssize_t retval = entry->Write(*this, force);
+            if (retval == SFS_ERROR) {
+                if (!m_error_buf.size()) {m_error_buf = "Unknown filesystem write failure.";}
+                return SFS_ERROR;
+            }
+            if (retval > 0) {
+                buffer_was_written = true;
+                buffers_flushed ++;
+            }
+            if (entry->Available()) {avail_count ++;}
+        }
+        m_avail_count = avail_count;
+        // Writing a buffer advances m_offset, which may have made a buffer we
+        // already walked past contiguous with the stream; go around again.
+    } while (buffer_was_written && (m_avail_count != m_buffers.size()));
+    return buffers_flushed;
+}
+
+
+Stream::Entry *
+Stream::FirstAvailableBuffer()
+{
+    for (auto &entry : m_buffers) {
+        if (entry->Available()) {return entry.get();}
+    }
+    return nullptr;
 }
 
 
@@ -191,12 +214,10 @@ Stream::DumpBuffers() const
         m_log.Emsg("Stream::DumpBuffers", ss.str().c_str());
     }
     size_t idx = 0;
-    for (std::vector<Entry*>::const_iterator entry_iter = m_buffers.begin();
-         entry_iter!= m_buffers.end();
-         entry_iter++) {
+    for (const auto &entry : m_buffers) {
         std::stringstream ss;
-        ss << "Buffer " << idx << ": Offset=" << (*entry_iter)->GetOffset() << ", Size="
-           << (*entry_iter)->GetSize() << ", Capacity=" << (*entry_iter)->GetCapacity();
+        ss << "Buffer " << idx << ": Offset=" << entry->GetOffset() << ", Size="
+           << entry->GetSize() << ", Capacity=" << entry->GetCapacity();
         m_log.Emsg("Stream::DumpBuffers", ss.str().c_str());
         idx ++;
     }

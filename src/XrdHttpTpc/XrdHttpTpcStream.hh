@@ -31,7 +31,7 @@ public:
     {
         m_buffers.reserve(max_blocks);
         for (size_t idx=0; idx < max_blocks; idx++) {
-            m_buffers.push_back(new Entry(buffer_size));
+            m_buffers.push_back(std::make_unique<Entry>(buffer_size));
         }
         m_open_for_write = true;
     }
@@ -81,7 +81,11 @@ private:
 
         bool Available() const {return m_offset == -1;}
 
-        int Write(Stream &stream, bool force) {
+        // Writes the contents of this buffer out to the stream, returning the
+        // number of bytes written (0 if the buffer is not eligible for a write
+        // yet) or SFS_ERROR.  On success the buffer is emptied and becomes
+        // available again.
+        ssize_t Write(Stream &stream, bool force) {
             if (Available() || !CanWrite(stream)) {return 0;}
             // Only full buffer writes are accepted unless the stream forces a flush
             // (i.e., we are at EOF) because the multistream code uses buffer occupancy
@@ -131,15 +135,7 @@ private:
 
         void ShrinkIfUnused() {
            if (!Available()) {return;}
-#if __cplusplus > 199711L
            m_buffer.shrink_to_fit();
-#endif
-        }
-
-        void Move(Entry &other) {
-            m_buffer.swap(other.m_buffer);
-            m_offset = other.m_offset;
-            m_size = other.m_size;
         }
 
         off_t GetOffset() const {return m_offset;}
@@ -162,11 +158,31 @@ private:
 
     ssize_t WriteImpl(off_t offset, const char *buffer, size_t size);
 
+    // Copies as much of [buffer, buffer+size) as possible into the buffers that
+    // are already holding data and can be extended contiguously.  This is pure
+    // bookkeeping: it never touches the underlying filesystem.
+    //
+    // Returns the number of bytes consumed.
+    size_t AcceptIntoBuffers(off_t offset, const char *buffer, size_t size);
+
+    // Writes out every buffer that is contiguous with m_offset, repeating until
+    // no further progress is made: flushing one buffer advances m_offset, which
+    // can in turn make another buffer writable.  Only completely full buffers
+    // are written unless force is set (see Entry::Write).
+    //
+    // This is the only place where m_avail_count is computed.
+    //
+    // Returns the number of buffers written out, or SFS_ERROR.
+    ssize_t FlushBuffers(bool force);
+
+    // Returns the first empty buffer, or nullptr if all of them hold data.
+    Entry *FirstAvailableBuffer();
+
     bool m_open_for_write;
     size_t m_avail_count;
     std::unique_ptr<XrdSfsFile> m_fh;
     off_t m_offset;
-    std::vector<Entry*> m_buffers;
+    std::vector<std::unique_ptr<Entry>> m_buffers;
     XrdSysError &m_log;
     std::string m_error_buf;
 };
