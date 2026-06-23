@@ -42,6 +42,7 @@
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
+#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdNet/XrdNetMsg.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -132,6 +133,13 @@ void XrdStats::Export(XrdOucEnv& theEnv)
 {
    XrdMonRoll* monRoll = new XrdMonRoll(*theMon);
    theEnv.PutPtr("XrdMonRoll*", monRoll);
+
+// Bridge the summary counter sets registered via XrdMonRoll into the Prometheus
+// /metrics endpoint. The collector reads the live registry at scrape time.
+//
+   XrdMonitor* mon = theMon;
+   XrdMetricsRegistry::Default().AddCollector(
+            [mon](std::string& out) {mon->FormProm(out);});
 }
 
 /******************************************************************************/

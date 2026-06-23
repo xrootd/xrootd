@@ -53,6 +53,7 @@ add_subdirectory( XrdNet )
 add_subdirectory( XrdSut )
 add_subdirectory( XrdSys )
 add_subdirectory( XrdOuc )
+add_subdirectory( XrdMetrics )
 add_subdirectory( XrdTls )
 add_subdirectory( XrdRmc )
 
@@ -119,6 +120,7 @@ if( NOT XRDCL_ONLY )
 
   add_subdirectory( XrdHttp )
   add_subdirectory( XrdHttpTpc )
+  add_subdirectory( XrdHttpPrometheus )
 
   add_subdirectory( XrdMacaroons )
   add_subdirectory( XrdVoms )

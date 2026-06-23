@@ -47,6 +47,14 @@ int      Format(char* buff, int bsize, int& item, int opts=0);
 
 int      Format(char* buff, int bsize, const char* setName, int opts=0);
 
+//! Render all registered counter sets in the Prometheus text exposition
+//! format, flattening nested objects/arrays into metric name segments. Used to
+//! bridge XrdMonRoll-registered plugin counters into the /metrics endpoint.
+//!
+//! @param out    string the exposition text is appended to.
+//! @param prefix metric-name prefix applied to every series (e.g. "xrootd_").
+void     FormProm(std::string& out, const char* prefix = "xrootd_");
+
 bool     Register(XrdMonRoll::rollType  setType, const char* setName,
                   XrdMonRoll::Item itemVec[], int itemCnt);
 
