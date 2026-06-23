@@ -23,6 +23,7 @@
 
 #include <XrdCl/XrdClPlugInInterface.hh>
 
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <shared_mutex>
@@ -49,7 +50,11 @@ public:
     //
     // If "obj_result" is not nullptr, then it will be set to the object/key and the resulting HTTPS URL
     // will not include the key name.
-    static bool GenerateHttpUrl(const std::string &s3_url, std::string &https_url, std::string *obj_result, std::string &err_msg);
+    static bool GenerateHttpUrl(const std::string &s3_url,
+                                std::string &https_url,
+                                std::string *obj_result,
+                                std::string &err_msg,
+                                uint16_t *err_code = nullptr);
 
     // Convenience function to extract the hostname from a URL.
     static std::string_view ExtractHostname(const std::string_view url);

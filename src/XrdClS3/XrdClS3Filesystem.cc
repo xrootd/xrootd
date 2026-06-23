@@ -173,8 +173,9 @@ StatHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *r
     std::string https_url, err_msg;
     const auto s3_url = JoinUrl(m_s3_url, m_path);
     std::string obj;
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
-        if (m_handler) return m_handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg), nullptr);
+    uint16_t err_code = 0;
+    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg, &err_code)) {
+        if (m_handler) return m_handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, err_code, 0, err_msg), nullptr);
         else return;
     }
     obj = obj.substr(0, obj.find('?'));
@@ -475,8 +476,9 @@ Filesystem::DirList(const std::string          &path,
     std::string https_url, err_msg;
     const auto s3_url = JoinUrl(m_url.GetURL(), path);
     std::string obj;
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+    uint16_t err_code = 0;
+    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg, &err_code)) {
+        return XrdCl::XRootDStatus(XrdCl::stError, err_code, 0, err_msg);
     }
     obj = obj.substr(0, obj.find('?'));
     auto query_loc = https_url.find('?');
@@ -500,8 +502,9 @@ std::pair<XrdCl::XRootDStatus, XrdCl::FileSystem*>
 Filesystem::GetFSHandle(const std::string &path) {
     const auto s3_url = JoinUrl(m_url.GetURL(), path);
     std::string https_url, err_msg;
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg)) {
-        return std::make_pair(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg), nullptr);
+    uint16_t err_code = 0;
+    if (!Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg, &err_code)) {
+        return std::make_pair(XrdCl::XRootDStatus(XrdCl::stError, err_code, 0, err_msg), nullptr);
     }
     auto loc = https_url.find('/', 8); // strlen("https://") -> 8
     if (loc == std::string::npos) {
@@ -587,8 +590,9 @@ Filesystem::MkDir(const std::string        &input_path,
     // Try creating a zero-sized sentinel.
     std::string https_url, err_msg;
     const auto s3_url = JoinUrl(m_url.GetURL(), path);
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg)) {
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+    uint16_t err_code = 0;
+    if (!Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg, &err_code)) {
+        return XrdCl::XRootDStatus(XrdCl::stError, err_code, 0, err_msg);
     }
 
     XrdCl::File *http_file(new XrdCl::File());

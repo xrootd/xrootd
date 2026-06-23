@@ -21,6 +21,8 @@
 #include "gtest/gtest.h"
 #include "XrdClS3/XrdClS3Factory.hh"
 
+#include <XrdCl/XrdClStatus.hh>
+
 #include <filesystem>
 #include <map>
 
@@ -311,4 +313,22 @@ TEST(Factory, PluginConfigUrlStyle) {
     ASSERT_EQ(https_url, "https://bucket-name.us-east-1.s3.amazonaws.com/path/to/object");
 
     delete factory;
+}
+
+TEST(Factory, InvalidUrlStyleError) {
+    Factory::SetUrlStyle("fooo");
+    Factory::SetEndpoint("s3.amazonaws.com");
+    Factory::SetRegion("us-east-1");
+
+    std::string https_url;
+    std::string err_msg;
+    uint16_t err_code = 0;
+    ASSERT_FALSE(Factory::GenerateHttpUrl("s3://bucket/key", https_url, nullptr, err_msg, &err_code));
+    ASSERT_EQ(err_msg, "Invalid S3 URL style 'fooo'; expected 'path' or 'virtual'");
+    ASSERT_EQ(err_code, XrdCl::errConfig);
+
+    auto st = XrdCl::XRootDStatus(XrdCl::stError, err_code, 0, err_msg);
+    ASSERT_EQ(st.code, XrdCl::errConfig);
+    ASSERT_EQ(st.ToStr(),
+              "[ERROR] Configuration error: Invalid S3 URL style 'fooo'; expected 'path' or 'virtual'");
 }
