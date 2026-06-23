@@ -28,9 +28,11 @@
 /******************************************************************************/
  
 #include <cstdio>
-  
+
 #include "Xrd/XrdStats.hh"
+#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
  
@@ -72,6 +74,76 @@ AuthBad  = 0;     // Stats: Number of authentication failures
 aokSCnt  = 0;     // Stats: Number of signature successes
 badSCnt  = 0;     // Stats: Number of signature failures
 ignSCnt  = 0;     // Stats: Number of signature ignored
+
+RegisterMetrics();
+}
+
+/******************************************************************************/
+/*                       R e g i s t e r M e t r i c s                        */
+/******************************************************************************/
+
+void XrdXrootdStats::RegisterMetrics()
+{
+   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+
+// Each lambda reads the live counter atomically so the value is consistent
+// with the concurrent AtomicInc/AtomicAdd updates done on the hot path. The
+// counters themselves are the single source of truth; this only adds a view.
+//
+#define OPS(label, fld) \
+   reg.AddRefCounter("xrootd_ops_total", "xrootd protocol operations", \
+        {{"op", label}}, [this]{return (unsigned long long)AtomicGet(fld);})
+
+   OPS("open",    openCnt);
+   OPS("read",    readCnt);
+   OPS("preread", prerCnt);
+   OPS("readv",   rvecCnt);
+   OPS("write",   writeCnt);
+   OPS("writev",  wvecCnt);
+   OPS("sync",    syncCnt);
+   OPS("getfile", getfCnt);
+   OPS("putfile", putfCnt);
+   OPS("refresh", Refresh);
+   OPS("misc",    miscCnt);
+#undef OPS
+
+#define LGN(label, fld) \
+   reg.AddRefCounter("xrootd_logins_total", "xrootd login outcomes", \
+        {{"result", label}}, [this]{return (unsigned long long)AtomicGet(fld);})
+
+   LGN("attempt",  LoginAT);
+   LGN("auth",     LoginAU);
+   LGN("noauth",   LoginUA);
+   LGN("authfail", AuthBad);
+#undef LGN
+
+#define SIG(label, fld) \
+   reg.AddRefCounter("xrootd_signatures_total", "xrootd request signature checks",\
+        {{"result", label}}, [this]{return (unsigned long long)AtomicGet(fld);})
+
+   SIG("ok",      aokSCnt);
+   SIG("bad",     badSCnt);
+   SIG("ignored", ignSCnt);
+#undef SIG
+
+#define CTR(name, help, fld) \
+   reg.AddRefCounter(name, help, {}, \
+        [this]{return (unsigned long long)AtomicGet(fld);})
+
+   CTR("xrootd_requests_total",        "xrootd protocol requests",     Count);
+   CTR("xrootd_readv_segments_total",  "readv segments read",          rsegCnt);
+   CTR("xrootd_writev_segments_total", "writev segments written",      wsegCnt);
+   CTR("xrootd_async_ops_total",       "asynchronous i/o operations",  AsyncNum);
+   CTR("xrootd_async_rejected_total",  "rejected asynchronous i/o ops", AsyncRej);
+   CTR("xrootd_errors_total",          "errors returned to clients",   errorCnt);
+   CTR("xrootd_redirects_total",       "client redirects issued",      redirCnt);
+   CTR("xrootd_stalls_total",          "client stalls (delays) issued", stallCnt);
+#undef CTR
+
+// High-water mark of concurrent async i/o operations is a gauge, not a counter.
+//
+   reg.AddRefGauge("xrootd_async_max", "peak concurrent asynchronous i/o ops",
+                   {}, [this]{return (double)AtomicGet(AsyncMax);});
 }
 
 /******************************************************************************/

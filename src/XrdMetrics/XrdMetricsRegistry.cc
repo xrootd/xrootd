@@ -89,6 +89,34 @@ void makeLabels(const XrdMetricsLabels& labels,
    fmt += '}';
 }
 
+// Series whose value lives outside the registry and is read on each scrape.
+//
+class RefCounter : public XrdMetricInstr
+{
+public:
+   void Serialize(std::string& out, const std::string& name,
+                  const std::string& labels) const override
+       {out += name; out += labels; out += ' ';
+        out += std::to_string(fn()); out += '\n';
+       }
+   explicit RefCounter(XrdMetricsU64Reader r) : fn(std::move(r)) {}
+private:
+   XrdMetricsU64Reader fn;
+};
+
+class RefGauge : public XrdMetricInstr
+{
+public:
+   void Serialize(std::string& out, const std::string& name,
+                  const std::string& labels) const override
+       {out += name; out += labels; out += ' ';
+        out += fmtDouble(fn()); out += '\n';
+       }
+   explicit RefGauge(XrdMetricsDblReader r) : fn(std::move(r)) {}
+private:
+   XrdMetricsDblReader fn;
+};
+
 const char* typeName(XrdMetricType t)
 {
    switch(t)
@@ -255,6 +283,40 @@ void XrdMetricsRegistry::AddCollector(XrdMetricsCollector c)
 {
    std::lock_guard<std::mutex> guard(regMtx);
    collectors.push_back(std::move(c));
+}
+
+void XrdMetricsRegistry::AddRef(const std::string& name, const std::string& help,
+                               XrdMetricType type, const XrdMetricsLabels& labels,
+                               std::unique_ptr<XrdMetricInstr> inst)
+{
+   std::string key, fmt;
+   makeLabels(labels, key, fmt);
+
+   std::lock_guard<std::mutex> guard(regMtx);
+
+   auto& fam = family[name];
+   if (fam.series.empty()) {fam.type = type; fam.help = help;}
+
+   if (fam.series.find(key) != fam.series.end()) return;  // idempotent
+   fam.series[key] = Series{fmt, std::move(inst)};
+}
+
+void XrdMetricsRegistry::AddRefCounter(const std::string& name,
+                                       const std::string& help,
+                                       const XrdMetricsLabels& labels,
+                                       XrdMetricsU64Reader reader)
+{
+   AddRef(name, help, XrdMetricType::Counter, labels,
+          std::unique_ptr<XrdMetricInstr>(new RefCounter(std::move(reader))));
+}
+
+void XrdMetricsRegistry::AddRefGauge(const std::string& name,
+                                     const std::string& help,
+                                     const XrdMetricsLabels& labels,
+                                     XrdMetricsDblReader reader)
+{
+   AddRef(name, help, XrdMetricType::Gauge, labels,
+          std::unique_ptr<XrdMetricInstr>(new RefGauge(std::move(reader))));
 }
 
 int XrdMetricsRegistry::Scrape(std::string& out)

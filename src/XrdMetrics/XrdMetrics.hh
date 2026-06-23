@@ -56,6 +56,12 @@ using XrdMetricsLabels = std::vector<std::pair<std::string, std::string>>;
 //! the registry. Must be thread-safe with respect to concurrent scrapes.
 using XrdMetricsCollector = std::function<void(std::string&)>;
 
+//! Readers for externally-backed series: the registry calls them at scrape
+//! time to obtain the current value of a counter (kept elsewhere as the single
+//! source of truth, e.g. an existing protocol counter read atomically).
+using XrdMetricsU64Reader = std::function<unsigned long long()>;
+using XrdMetricsDblReader = std::function<double()>;
+
 enum class XrdMetricType {Counter, Gauge, Histogram};
 
 /******************************************************************************/
@@ -192,6 +198,17 @@ XrdMetricsHistogram& Histogram(const std::string& name, const std::string& help,
                                const std::vector<double>& bounds,
                                const XrdMetricsLabels& labels = {});
 
+//! Add a counter series whose value is read from an external source at scrape
+//! time, rather than stored in the registry. Use this to surface counters that
+//! are owned and updated elsewhere (the existing source of truth) as typed
+//! Prometheus series. Idempotent for a given name+labels.
+void AddRefCounter(const std::string& name, const std::string& help,
+                   const XrdMetricsLabels& labels, XrdMetricsU64Reader reader);
+
+//! Like AddRefCounter but for a gauge (value may go up or down).
+void AddRefGauge(const std::string& name, const std::string& help,
+                 const XrdMetricsLabels& labels, XrdMetricsDblReader reader);
+
 //! Register a collector invoked on every scrape after the registry's own
 //! metrics have been rendered. Collectors are run in registration order.
 void AddCollector(XrdMetricsCollector c);
@@ -222,6 +239,10 @@ struct Family
 XrdMetricInstr* GetOrAdd(const std::string& name, const std::string& help,
                          XrdMetricType type, const XrdMetricsLabels& labels,
                          const std::vector<double>* bounds);
+
+void            AddRef(const std::string& name, const std::string& help,
+                       XrdMetricType type, const XrdMetricsLabels& labels,
+                       std::unique_ptr<XrdMetricInstr> inst);
 
 std::mutex                       regMtx;
 std::map<std::string, Family>    family;       // keyed by metric name

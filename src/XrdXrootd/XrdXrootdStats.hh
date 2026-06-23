@@ -74,6 +74,12 @@ int              Stats(char *buff, int blen, int do_sync=0);
 
 int              Stats(XrdXrootdResponse &resp, const char *opts);
 
+//! Register these counters with the process-wide XrdMetrics registry as typed,
+//! labelled Prometheus series. The counters remain the single source of truth;
+//! the registry reads them atomically at scrape time and the XML report above
+//! is unchanged.
+void             RegisterMetrics();
+
                  XrdXrootdStats(XrdStats *sp);
                 ~XrdXrootdStats() {}
 private:

@@ -15,3 +15,14 @@ target_link_libraries(xrdxrootd-redir-helper-tests
 
 gtest_discover_tests(xrdxrootd-redir-helper-tests
     PROPERTIES DISCOVERY_TIMEOUT 10)
+
+add_executable(xrdxrootd-stats-tests XrdXrootdStatsTests.cc)
+
+target_link_libraries(xrdxrootd-stats-tests
+    XrdServer
+    XrdUtils
+    GTest::gtest
+    GTest::gtest_main)
+
+gtest_discover_tests(xrdxrootd-stats-tests
+    PROPERTIES DISCOVERY_TIMEOUT 10)

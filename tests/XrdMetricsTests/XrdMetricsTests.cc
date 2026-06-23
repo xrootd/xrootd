@@ -118,6 +118,51 @@ TEST(XrdMetrics, ConcurrentIncrements)
   EXPECT_EQ(c.value(), (uint64_t)nthreads * niter);
 }
 
+TEST(XrdMetrics, RefSeriesReadExternalStateAtScrape)
+{
+  XrdMetricsRegistry reg;
+  long long opens = 0;
+  int peak = 0;
+
+  reg.AddRefCounter("xrootd_ops_total", "ops", {{"op", "open"}},
+                    [&] { return (unsigned long long)opens; });
+  reg.AddRefGauge("xrootd_async_max", "peak", {},
+                  [&] { return (double)peak; });
+
+  opens = 7;
+  peak = 3;
+
+  std::string out;
+  reg.Scrape(out);
+  EXPECT_EQ(out,
+            "# HELP xrootd_async_max peak\n"
+            "# TYPE xrootd_async_max gauge\n"
+            "xrootd_async_max 3\n"
+            "# HELP xrootd_ops_total ops\n"
+            "# TYPE xrootd_ops_total counter\n"
+            "xrootd_ops_total{op=\"open\"} 7\n");
+
+  // A later scrape reflects the updated external value.
+  opens = 9;
+  reg.Scrape(out);
+  EXPECT_NE(out.find("xrootd_ops_total{op=\"open\"} 9\n"), std::string::npos);
+}
+
+TEST(XrdMetrics, RefSeriesShareFamilyWithOneTypeLine)
+{
+  XrdMetricsRegistry reg;
+  unsigned long long a = 1, b = 2;
+  reg.AddRefCounter("xrootd_ops_total", "ops", {{"op", "read"}}, [&] { return a; });
+  reg.AddRefCounter("xrootd_ops_total", "ops", {{"op", "write"}}, [&] { return b; });
+
+  std::string out;
+  reg.Scrape(out);
+  // Exactly one TYPE line for the shared family.
+  size_t first = out.find("# TYPE xrootd_ops_total");
+  ASSERT_NE(first, std::string::npos);
+  EXPECT_EQ(out.find("# TYPE xrootd_ops_total", first + 1), std::string::npos);
+}
+
 TEST(XrdMetrics, DefaultRegistryIsShared)
 {
   EXPECT_EQ(&XrdMetricsRegistry::Default(), &XrdMetricsRegistry::Default());
