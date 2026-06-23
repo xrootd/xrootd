@@ -23,10 +23,10 @@
 
 #include <XrdCl/XrdClPlugInInterface.hh>
 
+#include <map>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
-#include <string_view>
 
 namespace XrdCl {
     class Log;
@@ -98,6 +98,9 @@ public:
         m_bucket_auth_map.clear();
     }
 
+    // Store the plug-in configuration map from client.plugins.d.
+    static void SetPluginConfig(const std::map<std::string, std::string> &config);
+
 private:
 
     // Iterate through the client configuration and determine the S3
@@ -116,6 +119,7 @@ private:
     static std::string m_service;
     static std::string m_region;
     static std::string m_url_style;
+    static std::map<std::string, std::string> m_plugin_config;
 
     // S3 doesn't have the concept of "directories"; if a given name
     // (some/path) has an object containing it as a prefix
