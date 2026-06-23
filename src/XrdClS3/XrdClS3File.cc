@@ -134,9 +134,10 @@ File::GetFileHandle(const std::string &s3_url) {
         }
     }
 
-    std::string https_url, err_msg;
-    if (!Factory::GenerateHttpUrl(s3_noslash_url.empty() ? s3_url : s3_noslash_url, https_url, nullptr, err_msg)) {
-        return std::make_tuple(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg), "", nullptr);
+    std::string https_url;
+    auto st = Factory::GenerateHttpUrl(s3_noslash_url.empty() ? s3_url : s3_noslash_url, https_url, nullptr);
+    if (!st.IsOK()) {
+        return std::make_tuple(st, "", nullptr);
     }
     auto loc = https_url.find('/', 8); // strlen("https://") -> 8
     if (loc == std::string::npos) {
