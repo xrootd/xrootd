@@ -27,6 +27,7 @@
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClEnv.hh>
 #include <XrdCl/XrdClLog.hh>
+#include <XrdCl/XrdClXRootDResponses.hh>
 
 #include <algorithm>
 #include <fcntl.h>
@@ -403,11 +404,14 @@ Factory::InitS3Config()
     }
 }
 
-bool
-Factory::GenerateHttpUrl(const std::string &s3_url, std::string &https_url, std::string *obj_result, std::string &err_msg) {
+XrdCl::XRootDStatus
+Factory::GenerateHttpUrl(const std::string &s3_url,
+                         std::string &https_url,
+                         std::string *obj_result)
+{
     if (s3_url.substr(0, 5) != "s3://") {
-        err_msg = "Provided URL does not start with s3://";
-        return false;
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0,
+                                   "Provided URL does not start with s3://");
     }
     auto loc = s3_url.find('/', 5);
     auto bucket = s3_url.substr(5, loc - 5);
@@ -424,8 +428,8 @@ Factory::GenerateHttpUrl(const std::string &s3_url, std::string &https_url, std:
         auto old_loc = loc + 1;
         loc = s3_url.find('/', loc + 1);
         if (loc == std::string::npos) {
-            err_msg = "Provided S3 URL does not contain a bucket in path";
-            return false;
+            return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0,
+                                       "Provided S3 URL does not contain a bucket in path");
         }
         bucket = s3_url.substr(old_loc, loc - old_loc);
     } else {
@@ -459,17 +463,17 @@ Factory::GenerateHttpUrl(const std::string &s3_url, std::string &https_url, std:
     }
     if (m_url_style == "virtual" || m_url_style.empty()) {
         https_url = "https://" + bucket + "." + m_region + "." + endpoint + (obj_result ? "" : ("/" + obj));
-        return true;
+        return XrdCl::XRootDStatus();
     } else if (m_url_style == "path") {
         if (!m_region.empty()) {
             https_url = "https://" + m_region + "." + endpoint + "/" + bucket + (obj_result ? "" : ("/" + obj));
         } else {
             https_url = "https://" + endpoint + "/" + bucket + (obj_result ? "" : ("/" + obj));
         }
-        return true;
+        return XrdCl::XRootDStatus();
     } else {
-        err_msg = "Server configuration has invalid setting for URL style";
-        return false;
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errConfig, 0,
+                                   "Invalid S3 URL style '" + m_url_style + "'; expected 'path' or 'virtual'");
     }
 }
 
