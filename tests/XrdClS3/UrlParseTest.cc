@@ -22,10 +22,13 @@
 #include "XrdClS3/XrdClS3Factory.hh"
 
 #include <filesystem>
+#include <map>
 
 #include <fcntl.h>
 
 using namespace XrdClS3;
+
+extern "C" void *XrdClGetPlugIn(const void *arg);
 
 class FactoryFixture : public testing::Test {
 public:
@@ -286,4 +289,26 @@ TEST(Factory, CleanObjectName) {
     ASSERT_EQ(Factory::CleanObjectName("test.txt?foo=bar&authz=foo&foo=bar"), "test.txt?foo=bar&foo=bar");
     ASSERT_EQ(Factory::CleanObjectName("test.txt?&foo=bar&authz=foo&foo=bar"), "test.txt?foo=bar&foo=bar");
     ASSERT_EQ(Factory::CleanObjectName("test.txt?&foo=bar&oss.asize&authz=foo&foo=bar"), "test.txt?foo=bar&oss.asize&foo=bar");
+}
+
+TEST(Factory, PluginConfigUrlStyle) {
+    std::map<std::string, std::string> config{
+        {"url", "s3://*"},
+        {"lib", "libXrdClS3.so"},
+        {"enable", "true"},
+        {"xrdcls3urlstyle", "virtual"},
+        {"xrdcls3endpoint", "s3.amazonaws.com"},
+        {"xrdcls3region", "us-east-1"},
+    };
+
+    auto factory = static_cast<Factory *>(XrdClGetPlugIn(&config));
+    ASSERT_NE(factory, nullptr);
+
+    std::string https_url;
+    std::string err_msg;
+    ASSERT_TRUE(Factory::GenerateHttpUrl("s3://bucket-name/path/to/object", https_url, nullptr, err_msg));
+    ASSERT_TRUE(err_msg.empty());
+    ASSERT_EQ(https_url, "https://bucket-name.us-east-1.s3.amazonaws.com/path/to/object");
+
+    delete factory;
 }

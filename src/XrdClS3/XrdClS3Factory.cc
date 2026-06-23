@@ -25,8 +25,10 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClEnv.hh>
 #include <XrdCl/XrdClLog.hh>
 
+#include <algorithm>
 #include <fcntl.h>
 
 XrdVERSIONINFO(XrdClGetPlugIn, XrdClGetPlugIn)
@@ -41,6 +43,7 @@ std::string Factory::m_endpoint = "";
 std::string Factory::m_service = "s3";
 std::string Factory::m_region = "";
 std::string Factory::m_url_style = "path";
+std::map<std::string, std::string> Factory::m_plugin_config;
 std::string Factory::m_mkdir_sentinel;
 Factory::Credentials Factory::m_default_creds;
 std::unordered_map<std::string, Factory::Credentials> Factory::m_bucket_location_map;
@@ -180,19 +183,6 @@ Factory::CreateFileSystem(const std::string & url) {
 }
 
 namespace {
-
-void SetDefault(XrdCl::Env *env, const std::string &optName, const std::string &envName, std::string &location, const std::string &def) {
-    std::string val;
-    if (!env->GetString(optName, val) || val.empty()) {
-        env->PutString(optName, "");
-        env->ImportString(optName, envName);
-    }
-    if (env->GetString(optName, val) && !val.empty()) {
-        location = val;
-    } else {
-        location = def;
-    }
-}
 
 // Trim the left side of a string_view for space
 std::string_view ltrim_view(const std::string_view input_view) {
@@ -350,17 +340,23 @@ Factory::ExtractHostname(const std::string_view url) {
 }
 
 void
+Factory::SetPluginConfig(const std::map<std::string, std::string> &config)
+{
+    m_plugin_config = config;
+}
+
+void
 Factory::InitS3Config()
 {
     auto env = XrdCl::DefaultEnv::GetEnv();
-    SetDefault(env, "XrdClS3MkdirSentinel", "XRDCLS3_MKDIRSENTINEL", m_mkdir_sentinel, ".xrdcls3.dirsentinel");
-    SetDefault(env, "XrdClS3Endpoint", "XRDCLS3_ENDPOINT", m_endpoint, "");
-    SetDefault(env, "XrdClS3UrlStyle", "XRDCLS3_URLSTYLE", m_url_style, "path");
-    SetDefault(env, "XrdClS3Region", "XRDCLS3_REGION", m_region, "");
+    env->ResolveString("XrdClS3MkdirSentinel", "XRDCLS3_MKDIRSENTINEL", &m_plugin_config, m_mkdir_sentinel, ".xrdcls3.dirsentinel");
+    env->ResolveString("XrdClS3Endpoint", "XRDCLS3_ENDPOINT", &m_plugin_config, m_endpoint, "");
+    env->ResolveString("XrdClS3UrlStyle", "XRDCLS3_URLSTYLE", &m_plugin_config, m_url_style, "path");
+    env->ResolveString("XrdClS3Region", "XRDCLS3_REGION", &m_plugin_config, m_region, "");
     std::string access_key;
-    SetDefault(env, "XrdClS3AccessKeyLocation", "XRDCLS3_ACCESSKEYLOCATION", access_key, "");
+    env->ResolveString("XrdClS3AccessKeyLocation", "XRDCLS3_ACCESSKEYLOCATION", &m_plugin_config, access_key, "");
     std::string secret_key;
-    SetDefault(env, "XrdClS3SecretKeyLocation", "XRDCLS3_SECRETKEYLOCATION", secret_key, "");
+    env->ResolveString("XrdClS3SecretKeyLocation", "XRDCLS3_SECRETKEYLOCATION", &m_plugin_config, secret_key, "");
     if (!access_key.empty() && !secret_key.empty()) {
         m_default_creds = {access_key, secret_key};
     } else if (access_key.empty() && secret_key.empty()) {
@@ -373,7 +369,7 @@ Factory::InitS3Config()
 
     // Parse the per-bucket configuration of credentials.
     std::string bucket_configs;
-    SetDefault(env, "XrdClS3BucketConfigs", "XRDCLS3_BUCKETCONFIGS", bucket_configs, "");
+    env->ResolveString("XrdClS3BucketConfigs", "XRDCLS3_BUCKETCONFIGS", &m_plugin_config, bucket_configs, "");
     if (!bucket_configs.empty()) {
         std::stringstream ss(bucket_configs);
         std::string config_name;
@@ -381,17 +377,17 @@ Factory::InitS3Config()
             auto name = TrimView(config_name);
             auto bucket_name_key = std::string("XrdClS3") + std::string(name) + "BucketName";
             std::string bucket_name_val;
-            if (!env->GetString(bucket_name_key, bucket_name_val) || bucket_name_val.empty()) {
+            if (!env->ResolveString(bucket_name_key, "", &m_plugin_config, bucket_name_val, "") || bucket_name_val.empty()) {
                 m_log->Warning(kLogXrdClS3, "Per-bucket config includes entry '%s' but XrdClS3%sBucketName is not set", std::string(name).c_str(), std::string(name).c_str());
                 continue;
             }
             auto access_key_location_key = std::string("XrdClS3") + std::string(name) + "AccessKeyLocation";
             std::string access_key_location_val;
-            auto has_access_key = env->GetString(access_key_location_key, access_key_location_val) && !access_key_location_val.empty();
+            auto has_access_key = env->ResolveString(access_key_location_key, "", &m_plugin_config, access_key_location_val, "") && !access_key_location_val.empty();
 
             auto secret_key_location_key = std::string("XrdClS3") + std::string(name) + "SecretKeyLocation";
             std::string secret_key_location_val;
-            auto has_secret_key = env->GetString(secret_key_location_key, secret_key_location_val) && !secret_key_location_val.empty();
+            auto has_secret_key = env->ResolveString(secret_key_location_key, "", &m_plugin_config, secret_key_location_val, "") && !secret_key_location_val.empty();
 
             if (has_access_key && has_secret_key) {
                 m_bucket_location_map[bucket_name_val] = {access_key_location_val, secret_key_location_val};
@@ -851,8 +847,12 @@ Factory::TrimView(const std::string_view input_view) {
 
 extern "C"
 {
-    void *XrdClGetPlugIn(const void*)
+    void *XrdClGetPlugIn(const void *arg)
     {
+        if (arg) {
+            auto config = static_cast<const std::map<std::string, std::string> *>(arg);
+            Factory::SetPluginConfig(*config);
+        }
         return static_cast<void*>(new Factory());
     }
 }

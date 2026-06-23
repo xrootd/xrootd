@@ -139,6 +139,32 @@ namespace XrdCl
       bool GetDefaultStringValue( const std::string &key, std::string &value );
 
       //------------------------------------------------------------------------
+      //! Normalize a configuration key for case-insensitive lookup.
+      //! The key is lowercased and a leading "xrd_" prefix is removed.
+      //------------------------------------------------------------------------
+      static std::string UnifyKey( std::string key );
+
+      //------------------------------------------------------------------------
+      //! Look up a value in a plug-in configuration map.
+      //------------------------------------------------------------------------
+      static std::string GetPluginConfigValue(
+          const std::map<std::string, std::string> &pluginConfig,
+          const std::string                         &key );
+
+      //------------------------------------------------------------------------
+      //! Resolve a string setting using shell environment, then plug-in
+      //! configuration, then @a defaultValue.
+      //!
+      //! @return true if the value came from the shell or plug-in config,
+      //!         false if @a defaultValue was used
+      //------------------------------------------------------------------------
+      bool ResolveString( const std::string                         &key,
+                          const std::string                         &shellKey,
+                          const std::map<std::string, std::string> *pluginConfig,
+                          std::string                               &value,
+                          const std::string                         &defaultValue = "" );
+
+      //------------------------------------------------------------------------
       // Lock the environment for writing
       //------------------------------------------------------------------------
       void WriteLock()
@@ -174,27 +200,6 @@ namespace XrdCl
       }
 
     private:
-
-      //------------------------------------------------------------------------
-      // Unify the key, make sure it is not case sensitive and strip it of
-      // the XRD_ prefix if necessary
-      //------------------------------------------------------------------------
-      inline std::string UnifyKey( std::string key )
-      {
-        //----------------------------------------------------------------------
-        // Make the key lower case
-        //----------------------------------------------------------------------
-        std::transform( key.begin(), key.end(), key.begin(), ::tolower );
-
-        //----------------------------------------------------------------------
-        // Strip the `xrd_` prefix if necessary
-        //----------------------------------------------------------------------
-        static const char prefix[] = "xrd_";
-        if( key.compare( 0, sizeof( prefix ) - 1, prefix ) == 0 )
-          key = key.substr( sizeof( prefix ) - 1 );
-
-        return key;
-      }
 
       std::string GetEnv( const std::string &key );
       typedef std::map<std::string, std::pair<std::string, bool> > StringMap;
