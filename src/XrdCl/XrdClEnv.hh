@@ -139,6 +139,76 @@ namespace XrdCl
       bool GetDefaultStringValue( const std::string &key, std::string &value );
 
       //------------------------------------------------------------------------
+      //! Normalize a configuration key for case-insensitive lookup.
+      //! The key is lowercased and a leading "xrd_" prefix is removed.
+      //! @param key : configuration key to normalize
+      //! @return    : normalized key suitable for map lookup
+      //------------------------------------------------------------------------
+      static std::string UnifyKey( std::string key );
+
+      //------------------------------------------------------------------------
+      //! Look up a value in a plug-in configuration map.
+      //! Keys are matched case-insensitively after applying UnifyKey().
+      //! @param pluginConfig : settings from a client.plugins.d entry
+      //! @param key          : configuration key to look up
+      //! @return             : value associated with @a key, or an empty
+      //!                       string if no matching entry exists
+      //------------------------------------------------------------------------
+      static std::string GetPluginConfigValue(
+          const std::map<std::string, std::string> &pluginConfig,
+          const std::string                         &key );
+
+      //------------------------------------------------------------------------
+      //! Resolve a string setting using shell environment, then plug-in
+      //! configuration, then @a defaultValue.
+      //!
+      //! The resolved value is stored in the environment under @a key.
+      //! @param key          : environment key to store the resolved value
+      //!                       under
+      //! @param shellKey     : shell environment variable to import from;
+      //!                       may be empty to skip shell lookup
+      //! @param pluginConfig : optional map of plug-in settings from
+      //!                       client.plugins.d; may be null
+      //! @param value        : output parameter, receives the resolved
+      //!                       value
+      //! @param defaultValue : fallback value when neither the shell nor
+      //!                       plug-in configuration provides a setting
+      //! @return             : true if @a value came from the shell or
+      //!                       plug-in configuration, false if
+      //!                       @a defaultValue was used
+      //------------------------------------------------------------------------
+      bool ResolveString( const std::string                         &key,
+                          const std::string                         &shellKey,
+                          const std::map<std::string, std::string> *pluginConfig,
+                          std::string                               &value,
+                          const std::string                         &defaultValue = "" );
+
+      //------------------------------------------------------------------------
+      //! Resolve an integer setting using shell environment, then plug-in
+      //! configuration, then @a defaultValue.
+      //!
+      //! The resolved value is stored in the environment under @a key.
+      //! @param key          : environment key to store the resolved value
+      //!                       under
+      //! @param shellKey     : shell environment variable to import from;
+      //!                       may be empty to skip shell lookup
+      //! @param pluginConfig : optional map of plug-in settings from
+      //!                       client.plugins.d; may be null
+      //! @param value        : output parameter, receives the resolved
+      //!                       value
+      //! @param defaultValue : fallback value when neither the shell nor
+      //!                       plug-in configuration provides a setting
+      //! @return             : true if @a value came from the shell or
+      //!                       plug-in configuration, false if
+      //!                       @a defaultValue was used
+      //------------------------------------------------------------------------
+      bool ResolveInt( const std::string                         &key,
+                       const std::string                         &shellKey,
+                       const std::map<std::string, std::string> *pluginConfig,
+                       int                                       &value,
+                       int                                        defaultValue = 0 );
+
+      //------------------------------------------------------------------------
       // Lock the environment for writing
       //------------------------------------------------------------------------
       void WriteLock()
@@ -174,27 +244,6 @@ namespace XrdCl
       }
 
     private:
-
-      //------------------------------------------------------------------------
-      // Unify the key, make sure it is not case sensitive and strip it of
-      // the XRD_ prefix if necessary
-      //------------------------------------------------------------------------
-      inline std::string UnifyKey( std::string key )
-      {
-        //----------------------------------------------------------------------
-        // Make the key lower case
-        //----------------------------------------------------------------------
-        std::transform( key.begin(), key.end(), key.begin(), ::tolower );
-
-        //----------------------------------------------------------------------
-        // Strip the `xrd_` prefix if necessary
-        //----------------------------------------------------------------------
-        static const char prefix[] = "xrd_";
-        if( key.compare( 0, sizeof( prefix ) - 1, prefix ) == 0 )
-          key = key.substr( sizeof( prefix ) - 1 );
-
-        return key;
-      }
 
       std::string GetEnv( const std::string &key );
       typedef std::map<std::string, std::pair<std::string, bool> > StringMap;
