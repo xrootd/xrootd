@@ -431,10 +431,13 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
 ## C. Activity types already received but not surfaced
 
 - **`f`-stream `isXfr`** (in-flight transfer snapshots, enabled by `xfr <n>`):
-  currently counted only. Could drive `*_active_transfers` and live-throughput
-  gauges (periodic byte deltas per open file).
-- **`f`-stream `isDisc`** (session end): currently counted only. Could emit a
-  session-summary document (login→disconnect, total bytes).
+  **DONE** (counted; drives the `xrootd_collector_active_transfers{server}`
+  gauge derived from the open-file table). Per-file live-throughput deltas are
+  still TODO (would need to avoid double-counting the close totals).
+- **`f`-stream `isDisc`** (session end): **DONE** — emits a `session_end`
+  document with the resolved user and increments
+  `xrootd_collector_sessions_total{server}`. A login→disconnect byte total
+  would require tracking per-session bytes (TODO).
 - **`t`-stream `REDHOST` (0xf0)**: skipped; a per-client redirect marker that
   could complement the `r` stream.
 - **`t`-stream `readu`**: decoded as `readv`; could be split out.
@@ -451,7 +454,7 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
 
 1. ~~`=` MAPIDNT server identity + `T`/`U` token/VO maps~~ **(DONE)**.
 2. ~~g-stream structured parsing + metrics for `oss`, `pfc`, `tpc`~~ **(DONE)**.
-3. `f`-stream `isXfr`/`isDisc` → active-transfer gauges and session docs.
+3. ~~`f`-stream `isXfr`/`isDisc` → active-transfer gauges and session docs~~ **(DONE)**.
 4. `pseq` loss detection and dictionary eviction (robustness).
 5. Remaining g-stream providers (throttle/tcpmon/ccm/http) and `x`/`p` (FRM).
 

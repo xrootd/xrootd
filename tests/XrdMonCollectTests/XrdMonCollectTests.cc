@@ -363,6 +363,48 @@ TEST_F(Transfer, TokenAndActivityEnrichTransfer)
   EXPECT_EQ(s.mapUeac, 1u);
 }
 
+TEST(XrdMonCollect, SessionDiscAndActiveGauge)
+{
+  XrdMetricsRegistry reg;
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
+                   false, false, false, false, &reg);
+
+  // 'u' user map: dictid 7 -> bob.
+  { W body; body.u32(7);
+    std::string info = "xroot/bob.1:2@cli.example.org\n";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('u', kStod, pl);
+    dec.Process("h:1", (const char*)pkt.data(), pkt.size()); }
+
+  // f-packet: an open (file 100) then a disconnect for user 7.
+  { W body; body.u32(100); body.u64(123456); body.u32(7);
+    std::string lfn = "/store/f.root"; body.raw(lfn); body.u8(0);
+    auto payload = todRec(kOpenT, 42);
+    auto r = rec(1 /*isOpen*/, 0x03 /*hasLFN|hasRW*/, body.b);
+    payload.insert(payload.end(), r.begin(), r.end());
+    W disc; disc.u32(7);                       // userID in the Hdr union
+    auto dr = rec(4 /*isDisc*/, 0, disc.b);
+    payload.insert(payload.end(), dr.begin(), dr.end());
+    auto pkt = packet('f', kStod, payload);
+    dec.Process("h:1", (const char*)pkt.data(), pkt.size()); }
+
+  ASSERT_EQ(docs.size(), 1u);                  // the session_end document
+  json j = json::parse(docs[0]);
+  EXPECT_EQ(j["type"], "session_end");
+  EXPECT_EQ(j["user"], "bob");
+  EXPECT_EQ(j["client_host"], "cli.example.org");
+  EXPECT_EQ(dec.GetStats().discs, 1u);
+
+  std::string out; reg.Scrape(out);
+  EXPECT_NE(out.find("xrootd_collector_sessions_total{server=\"h:1\"} 1"),
+            std::string::npos) << out;
+  // One file opened, none closed -> active gauge is 1.
+  EXPECT_NE(out.find("xrootd_collector_active_transfers{server=\"h:1\"} 1"),
+            std::string::npos) << out;
+}
+
 TEST(XrdMonCollect, ServerIdentDecoded)
 {
   std::vector<std::string> docs;

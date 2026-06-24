@@ -310,6 +310,8 @@ int main(int argc, char* argv[])
             "transfer documents produced", {}, [&]{return s.docs;});
        reg->AddRefCounter("xrootd_collector_orphan_closes_total",
             "closes with no matching open", {}, [&]{return s.orphanCls;});
+       reg->AddRefCounter("xrootd_collector_disconnects_total",
+            "f-stream session disconnect records", {}, [&]{return s.discs;});
        reg->AddRefCounter("xrootd_collector_trace_records_total",
             "t-stream records decoded", {}, [&]{return s.traces;});
        reg->AddRefCounter("xrootd_collector_gstream_records_total",
@@ -374,13 +376,15 @@ int main(int argc, char* argv[])
        fprintf(stderr,
          "xrdmoncollect: packets=%llu malformed=%llu records=%llu "
          "mapUser=%llu mapTokn=%llu mapUeac=%llu mapIdnt=%llu "
-         "opens=%llu closes=%llu docs=%llu orphanCloses=%llu "
+         "opens=%llu closes=%llu xfrs=%llu discs=%llu docs=%llu "
+         "orphanCloses=%llu "
          "traces=%llu gevents=%llu redirs=%llu unknown=%llu\n",
          (unsigned long long)s.packets, (unsigned long long)s.malformed,
          (unsigned long long)s.records, (unsigned long long)s.mapUser,
          (unsigned long long)s.mapTokn, (unsigned long long)s.mapUeac,
          (unsigned long long)s.mapIdnt,
          (unsigned long long)s.opens, (unsigned long long)s.closes,
+         (unsigned long long)s.xfrs, (unsigned long long)s.discs,
          (unsigned long long)s.docs, (unsigned long long)s.orphanCls,
          (unsigned long long)s.traces, (unsigned long long)s.gevents,
          (unsigned long long)s.redirs, (unsigned long long)s.unknown);

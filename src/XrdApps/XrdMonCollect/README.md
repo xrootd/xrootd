@@ -39,8 +39,12 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
 
 ### Streams
 
-By default only the per-transfer documents from the `f` (file-stats) stream are
-produced. Two opt-in streams add finer-grained events:
+By default the `f` (file-stats) stream produces a per-transfer document on each
+file close, a `session_end` document on each client disconnect (`isDisc`
+record, with the resolved user), and maintains the
+`xrootd_collector_active_transfers{server}` gauge (open files in progress, from
+the `isXfr` snapshots and open/close records). Two opt-in streams add
+finer-grained events:
 
 - `--traces` turns each `t` (I/O trace) record into a document: `read`/`write`
   (with offset, length and the resolved `lfn`), `open`, `close`, `disconnect`,
@@ -145,6 +149,8 @@ xrootd_collector_transfers_total{server="..."}
 xrootd_collector_read_bytes_total{server="..."}
 xrootd_collector_write_bytes_total{server="..."}
 xrootd_collector_vo_transfers_total{server="...",vo="..."}
+xrootd_collector_sessions_total{server="..."}
+xrootd_collector_active_transfers{server="..."}   (gauge)
 xrootd_collector_transfer_size_bytes        (histogram)
 xrootd_collector_transfer_duration_seconds  (histogram)
 xrootd_collector_packets_total              (and other decoder statistics)

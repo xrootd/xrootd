@@ -64,6 +64,8 @@ struct Stats
    uint64_t mapUeac   = 0;   // 'U' user experiment/activity records
    uint64_t opens     = 0;   // 'f' open records
    uint64_t closes    = 0;   // 'f' close records
+   uint64_t xfrs      = 0;   // 'f' in-flight transfer snapshot records
+   uint64_t discs     = 0;   // 'f' session disconnect records
    uint64_t docs      = 0;   // transfer documents emitted
    uint64_t orphanCls = 0;   // closes with no matching open
    uint64_t traces    = 0;   // 't' stream records decoded
@@ -175,6 +177,8 @@ void     DecodeFStream(const std::string& src, int32_t stod, Server& srv,
 void     EmitClose(const std::string& src, int32_t stod, Server& srv,
                    uint32_t fileID, unsigned char recFlag,
                    const unsigned char* rec, int recSize, int32_t tWin);
+void     EmitDisc(const std::string& src, int32_t stod, Server& srv,
+                  uint32_t userID, int32_t tWin);
 void     DecodeTStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int len);
 void     DecodeGStream(const std::string& src, int32_t stod,

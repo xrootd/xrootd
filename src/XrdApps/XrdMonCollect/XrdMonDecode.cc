@@ -358,12 +358,64 @@ void XrdMonDecode::DecodeFStream(const std::string& src, int32_t stod,
                      }
                      break;
 
-                default:  // isXfr (in-flight) and isDisc (session end): counted
-                     break;               // but not yet turned into documents
+                case XrdXrootdMonFileHdr::isXfr:
+                     // In-flight snapshot (interval byte totals for an open
+                     // file). Counted; drives the active-transfer gauge below.
+                     stats.xfrs++;
+                     break;
+
+                case XrdXrootdMonFileHdr::isDisc:
+                     {stats.discs++;
+                      uint32_t userID = rd32(rec + 4);
+                      EmitDisc(src, stod, srv, userID, tWin);
+                     }
+                     break;
+
+                default:
+                     break;
                }
 
          off += recSize;
         }
+
+// Reflect the current number of open files (transfers in progress) for this
+// server as a gauge. Computed from the open-file table, so it tracks the opens
+// and closes processed in this packet.
+//
+   if (metrics)
+      metrics->Gauge("xrootd_collector_active_transfers",
+                     "files currently open (transfers in progress)",
+                     {{"server", src}}).set((double)srv.files.size());
+}
+
+/******************************************************************************/
+/*                             E m i t D i s c                                */
+/******************************************************************************/
+
+void XrdMonDecode::EmitDisc(const std::string& src, int32_t stod, Server& srv,
+                            uint32_t userID, int32_t tWin)
+{
+   json j;
+   j["type"]         = "session_end";
+   j["server"]       = src;
+   j["server_start"] = stod;
+   j["server_id"]    = srv.sID;
+   if (tWin > 0) j["@timestamp"] = isoTime(tWin);
+   if (!srv.ident.site.empty()) j["site"] = srv.ident.site;
+
+   auto uit = srv.users.find(userID);
+   if (uit != srv.users.end())
+      {j["user"]        = uit->second.user;
+       j["protocol"]    = uit->second.prot;
+       j["client_host"] = uit->second.host;
+       j["user_raw"]    = uit->second.raw;
+      }
+
+   if (metrics)
+      metrics->Counter("xrootd_collector_sessions_total",
+                       "client sessions ended", {{"server", src}}).inc();
+
+   if (doc) doc(j.dump());
 }
 
 /******************************************************************************/
