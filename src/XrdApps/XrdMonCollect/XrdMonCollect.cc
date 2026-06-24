@@ -66,6 +66,8 @@ void usage(const char* prog)
      "  --os-insecure    skip TLS certificate verification\n"
      "  --flush-count <n> flush after N documents (default: 500)\n"
      "  --flush-secs <n>  flush after N seconds (default: 5)\n"
+     "  --traces         emit a document per t-stream I/O record (high volume)\n"
+     "  --gstream        emit a document per g-stream (plugin) record\n"
      "  --dump           also emit one JSON object per decoded record\n"
      "  -v               print decoder statistics on exit\n", prog);
 }
@@ -131,6 +133,8 @@ int main(int argc, char* argv[])
    std::string bulkIdx;
    bool        dump    = false;
    bool        verbose = false;
+   bool        traces  = false;
+   bool        gstream = false;
    std::string osUrl, osUser, osPass;
    std::string osIndex = "xrootd-transfers";
    bool        osInsecure = false;
@@ -152,6 +156,8 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--os-insecure")) osInsecure = true;
         else if (!strcmp(a, "--flush-count") && i+1 < argc) flushCount = (size_t)atol(argv[++i]);
         else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
+        else if (!strcmp(a, "--traces")) traces = true;
+        else if (!strcmp(a, "--gstream")) gstream = true;
         else if (!strcmp(a, "--dump")) dump = true;
         else if (!strcmp(a, "-v")) verbose = true;
         else if (!strcmp(a, "-h") || !strcmp(a, "--help")) {usage(argv[0]); return 0;}
@@ -235,7 +241,7 @@ int main(int argc, char* argv[])
    XrdMonDecode::RawSink rawSink;
    if (dump) rawSink = [&](const std::string& r){fprintf(out, "%s\n", r.c_str());};
 
-   XrdMonDecode decoder(docSink, rawSink, dump);
+   XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream);
 
 // Receive loop
 //
@@ -285,11 +291,12 @@ int main(int argc, char* argv[])
        fprintf(stderr,
          "xrdmoncollect: packets=%llu malformed=%llu records=%llu "
          "mapUser=%llu opens=%llu closes=%llu docs=%llu orphanCloses=%llu "
-         "unknown=%llu\n",
+         "traces=%llu gevents=%llu unknown=%llu\n",
          (unsigned long long)s.packets, (unsigned long long)s.malformed,
          (unsigned long long)s.records, (unsigned long long)s.mapUser,
          (unsigned long long)s.opens, (unsigned long long)s.closes,
          (unsigned long long)s.docs, (unsigned long long)s.orphanCls,
+         (unsigned long long)s.traces, (unsigned long long)s.gevents,
          (unsigned long long)s.unknown);
       }
 

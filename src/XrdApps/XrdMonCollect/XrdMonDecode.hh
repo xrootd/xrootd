@@ -61,6 +61,8 @@ struct Stats
    uint64_t closes    = 0;   // 'f' close records
    uint64_t docs      = 0;   // transfer documents emitted
    uint64_t orphanCls = 0;   // closes with no matching open
+   uint64_t traces    = 0;   // 't' stream records decoded
+   uint64_t gevents   = 0;   // 'g' stream records decoded
    uint64_t unknown   = 0;   // packets with an unhandled code
 };
 
@@ -72,10 +74,15 @@ bool Process(const std::string& src, const char* buff, int blen);
 
 const Stats& GetStats() const {return stats;}
 
+//! @param emitTraces   emit a document per 't'-stream record (I/O, open,
+//!                     close, disconnect) — high volume, off by default.
+//! @param emitGstream  emit a document per 'g'-stream (plugin) record.
          XrdMonDecode(DocSink docSink, RawSink rawSink = nullptr,
-                      bool emitRaw = false)
+                      bool emitRaw = false, bool emitTraces = false,
+                      bool emitGstream = false)
                      : doc(std::move(docSink)), raw(std::move(rawSink)),
-                       dumpRaw(emitRaw) {}
+                       dumpRaw(emitRaw), traces(emitTraces),
+                       gstream(emitGstream) {}
         ~XrdMonDecode() {}
 
 private:
@@ -105,8 +112,9 @@ struct OpenFile
 //
 struct Server
 {
-   std::unordered_map<uint32_t, UserInfo> users;
-   std::unordered_map<uint32_t, OpenFile> files;
+   std::unordered_map<uint32_t, UserInfo>    users;
+   std::unordered_map<uint32_t, OpenFile>    files;
+   std::unordered_map<uint32_t, std::string> paths;  // 'd' dictid -> lfn
    int64_t sID = 0;
 };
 
@@ -118,11 +126,17 @@ void     DecodeFStream(const std::string& src, int32_t stod, Server& srv,
 void     EmitClose(const std::string& src, int32_t stod, Server& srv,
                    uint32_t fileID, unsigned char recFlag,
                    const unsigned char* rec, int recSize, int32_t tWin);
+void     DecodeTStream(const std::string& src, int32_t stod, Server& srv,
+                       const unsigned char* p, int len);
+void     DecodeGStream(const std::string& src, int32_t stod,
+                       const unsigned char* p, int plen);
 
 std::unordered_map<std::string, Server> servers;
 DocSink  doc;
 RawSink  raw;
 bool     dumpRaw;
+bool     traces;
+bool     gstream;
 Stats    stats;
 };
 #endif

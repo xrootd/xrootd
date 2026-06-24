@@ -175,7 +175,83 @@ TEST(XrdMonCollect, ShortPacketIsMalformed)
 TEST(XrdMonCollect, UnknownStreamCounted)
 {
   XrdMonDecode dec([](const std::string&){});
-  auto pkt = packet('t', kStod, std::vector<unsigned char>(16, 0));
+  // 'x' (MAPXFER) is not handled -> counted as unknown.
+  auto pkt = packet('x', kStod, std::vector<unsigned char>(16, 0));
   EXPECT_TRUE(dec.Process("1.2.3.4:5", (const char*)pkt.data(), pkt.size()));
   EXPECT_EQ(dec.GetStats().unknown, 1u);
+}
+
+namespace
+{
+// 16-byte XrdXrootdMonTrace record from arg0(8)/arg1(4)/arg2(4).
+std::vector<unsigned char> trace(const std::vector<unsigned char>& a0,
+                                 uint32_t a1, uint32_t a2)
+{
+   W w; w.raw(a0); w.u32(a1); w.u32(a2);
+   return w.b;  // a0 must already be 8 bytes
+}
+std::vector<unsigned char> u64v(uint64_t v) {W w; w.u64(v); return w.b;}
+}
+
+TEST(XrdMonCollect, TStreamRecordsDecoded)
+{
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); },
+                   nullptr, false, /*traces=*/true);
+
+  // 'd' path map: dictid 50 -> /path/f.root
+  {
+    W body; body.u32(50);
+    std::string info = "alice.1:2@host\n/path/f.root";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('d', kStod, pl);
+    dec.Process("h:1", (const char*)pkt.data(), pkt.size());
+  }
+
+  // 't' packet: window, a read I/O on file 50, and a close on file 50.
+  W payload;
+  { std::vector<unsigned char> a0(8, 0); a0[0] = 0xe0;     // WINDOW
+    payload.raw(trace(a0, 0, 1700000000)); }
+  { auto a0 = u64v(4096);                                  // read offset 4096
+    payload.raw(trace(a0, 1024, 50)); }                    // len 1024, file 50
+  { std::vector<unsigned char> a0(8, 0); a0[0] = 0xc0;     // CLOSE
+    a0[1] = 0; a0[2] = 0;                                   // shifts
+    a0[4]=0; a0[5]=0; a0[6]=0x08; a0[7]=0x00;              // rVal = 2048
+    payload.raw(trace(a0, 0, 50)); }
+  auto pkt = packet('t', kStod, payload.b);
+  dec.Process("h:1", (const char*)pkt.data(), pkt.size());
+
+  EXPECT_EQ(dec.GetStats().traces, 3u);
+  ASSERT_EQ(docs.size(), 2u);   // window emits nothing; read + close do
+  json rd = json::parse(docs[0]);
+  EXPECT_EQ(rd["type"], "read");
+  EXPECT_EQ(rd["offset"], 4096);
+  EXPECT_EQ(rd["length"], 1024);
+  EXPECT_EQ(rd["lfn"], "/path/f.root");
+  json cl = json::parse(docs[1]);
+  EXPECT_EQ(cl["type"], "close");
+  EXPECT_EQ(cl["read_bytes"], 2048);
+}
+
+TEST(XrdMonCollect, GStreamForwarded)
+{
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); },
+                   nullptr, false, false, /*gstream=*/true);
+
+  W payload;
+  payload.u32(1700000000);                 // tBeg
+  payload.u32(1700000060);                 // tEnd
+  payload.u64(((uint64_t)'O' << 56) | 7);  // sID, provider 'O' = oss
+  payload.raw(std::string("{\"event\":\"oss_stats\",\"reads\":5}"));
+  auto pkt = packet('g', kStod, payload.b);
+  dec.Process("h:1", (const char*)pkt.data(), pkt.size());
+
+  ASSERT_EQ(docs.size(), 1u);
+  json j = json::parse(docs[0]);
+  EXPECT_EQ(j["type"], "gstream");
+  EXPECT_EQ(j["provider"], "oss");
+  EXPECT_EQ(j["data"]["reads"], 5);
+  EXPECT_EQ(dec.GetStats().gevents, 1u);
 }

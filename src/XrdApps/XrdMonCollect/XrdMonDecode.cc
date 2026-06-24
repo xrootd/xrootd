@@ -114,6 +114,14 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
                DecodeFStream(src, stod, srv, p + 8, plen - 8);
                break;
 
+          case XROOTD_MON_MAPTRCE:
+               DecodeTStream(src, stod, srv, p + 8, plen - 8);
+               break;
+
+          case XROOTD_MON_MAPGSTA:
+               DecodeGStream(src, stod, p, plen);
+               break;
+
           default:
                stats.unknown++;
                if (dumpRaw && raw)
@@ -160,7 +168,13 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
        if (at != std::string::npos) u.host = first.substr(at + 1);
        srv.users[dictid] = std::move(u);
       }
-      else if (code == XROOTD_MON_MAPPATH) stats.mapPath++;
+      else if (code == XROOTD_MON_MAPPATH)
+              {stats.mapPath++;
+               // info is "<who>\n<lfn>"; keep the lfn for 't'-stream lookups.
+               auto nl = text.find('\n');
+               srv.paths[dictid] = (nl == std::string::npos) ? text
+                                                             : text.substr(nl + 1);
+              }
       else                                 stats.mapInfo++;
 
    if (dumpRaw && raw)
@@ -319,4 +333,151 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 
    stats.docs++;
    if (doc) doc(j.dump());
+}
+
+/******************************************************************************/
+/*                        D e c o d e T S t r e a m                           */
+/******************************************************************************/
+
+void XrdMonDecode::DecodeTStream(const std::string& src, int32_t stod,
+                                 Server& srv, const unsigned char* p, int len)
+{
+   int32_t tWin = 0;
+
+// The "t" stream is an array of fixed 16-byte XrdXrootdMonTrace records. The
+// first byte discriminates the record; values with the high bit clear are I/O
+// (read/write) entries, the rest are markers (open/close/disc/window/...).
+//
+   for (int off = 0; off + 16 <= len; off += 16)
+       {const unsigned char* a0 = p + off;       // arg0 (8)
+        const unsigned char* a1 = p + off + 8;   // arg1 (4)
+        const unsigned char* a2 = p + off + 12;  // arg2 (4)
+        unsigned char disc = a0[0];
+
+        stats.traces++;
+
+        if (disc == XROOTD_MON_WINDOW) {tWin = ri32(a2); continue;}
+
+        if (!traces) continue;   // only counting unless trace emission is on
+
+        json j;
+        j["server"]     = src;
+        j["server_start"] = stod;
+        if (tWin > 0) j["@timestamp"] = isoTime(tWin);
+
+        auto lfnOf = [&](uint32_t id)
+            {auto it = srv.paths.find(id);
+             if (it != srv.paths.end()) j["lfn"] = it->second;
+             j["file"] = id;
+            };
+
+        if ((disc & 0x80) == 0)            // read/write I/O entry
+           {int64_t  offset = ri64(a0);
+            int32_t  length = ri32(a1);
+            j["type"]   = length < 0 ? "write" : "read";
+            j["offset"] = offset;
+            j["length"] = length < 0 ? -(int64_t)length : (int64_t)length;
+            lfnOf(rd32(a2));
+           }
+        else switch(disc)
+           {case XROOTD_MON_OPEN:
+                 {unsigned char b[8]; std::memcpy(b, a0, 8); b[0] = 0;
+                  j["type"] = "open"; j["file_size"] = (int64_t)rd64(b);
+                  lfnOf(rd32(a2));
+                 }
+                 break;
+            case XROOTD_MON_CLOSE:
+                 {uint64_t rB = (uint64_t)rd32(a0 + 4) << a0[1];
+                  uint64_t wB = (uint64_t)rd32(a1)     << a0[2];
+                  j["type"] = "close"; j["read_bytes"] = rB;
+                  j["write_bytes"] = wB; lfnOf(rd32(a2));
+                 }
+                 break;
+            case XROOTD_MON_DISC:
+                 {j["type"] = "disconnect";
+                  j["duration_s"] = ri32(a1);
+                  uint32_t uid = rd32(a2);
+                  auto it = srv.users.find(uid);
+                  if (it != srv.users.end())
+                     {j["user"] = it->second.user;
+                      j["client_host"] = it->second.host;
+                     }
+                 }
+                 break;
+            case XROOTD_MON_READV:
+            case XROOTD_MON_READU:
+                 j["type"] = "readv"; lfnOf(rd32(a2));
+                 break;
+            case XROOTD_MON_APPID:
+                 {char b[13]; std::memcpy(b, a0 + 4, 12); b[12] = 0;
+                  j["type"] = "appid"; j["appinfo"] = b;
+                 }
+                 break;
+            default: continue;   // REDHOST and anything else: skip
+           }
+
+        if (doc) doc(j.dump());
+       }
+}
+
+/******************************************************************************/
+/*                        D e c o d e G S t r e a m                           */
+/******************************************************************************/
+
+namespace
+{
+const char* gsProvider(unsigned char t)
+{
+   switch(t)
+         {case XROOTD_MON_GSCCM: return "ccm";
+          case XROOTD_MON_GSPFC: return "pfc";
+          case XROOTD_MON_GSTCP: return "tcp";
+          case XROOTD_MON_GSTPC: return "tpc";
+          case XROOTD_MON_GSTHR: return "throttle";
+          case XROOTD_MON_GSOSS: return "oss";
+          case XROOTD_MON_GSHTP: return "http";
+          default:               return "unknown";
+         }
+}
+}
+
+void XrdMonDecode::DecodeGStream(const std::string& src, int32_t stod,
+                                 const unsigned char* p, int plen)
+{
+// XrdXrootdMonGS: header(8) + tBeg(4) + tEnd(4) + sID(8); the provider type is
+// the top byte of sID. The remainder is newline-separated plugin records
+// (JSON or CGI), produced by the oss/pfc/throttle/tpc/http g-streams.
+//
+   if (plen < 24) {stats.malformed++; return;}
+   int32_t  tBeg = ri32(p + 8);
+   int32_t  tEnd = ri32(p + 12);
+   uint64_t sID  = rd64(p + 16);
+   const char* provider = gsProvider((unsigned char)(sID >> 56));
+
+   const char* body = (const char*)(p + 24);
+   int blen = plen - 24;
+
+   int start = 0;
+   for (int i = 0; i <= blen; i++)
+       {if (i == blen || body[i] == '\n')
+           {int n = i - start;
+            if (n > 0)
+               {stats.gevents++;
+                if (gstream)
+                   {std::string line(body + start, n);
+                    json j;
+                    j["type"]     = "gstream";
+                    j["provider"] = provider;
+                    j["server"]   = src;
+                    j["server_start"] = stod;
+                    j["@timestamp"]   = isoTime(tEnd ? tEnd : tBeg);
+                    json payload = json::parse(line, nullptr, false);
+                    if (payload.is_discarded()) j["data"] = line;
+                       else j["data"] = payload;
+                    if (doc) doc(j.dump());
+                   }
+               }
+            start = i + 1;
+           }
+       }
 }

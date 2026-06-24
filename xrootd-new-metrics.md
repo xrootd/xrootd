@@ -295,13 +295,20 @@ xrootd_monitor_packets_lost_total{stream="f"}         ...
 Steps 1–3 deliver the core value (searchable per-transfer records); 4–6 are
 independent add-ons.
 
-> **Status: steps 1–3 implemented** as the `xrdmoncollect` binary under
+> **Status: steps 1–4 and 6 implemented** as the `xrdmoncollect` binary under
 > `src/XrdApps/XrdMonCollect/` (decoder/correlator in `XrdMonDecode`, UDP loop
-> and NDJSON / OpenSearch `_bulk` sink in `XrdMonCollect.cc`), with unit tests
-> in `tests/XrdMonCollectTests/` and a `README.md`. Verified end-to-end against
-> a live server: a throttled `xrdcp` produced a correct per-transfer document
-> (lfn, user, byte/op counts, duration). Steps 4 (direct OpenSearch HTTP bulk
-> sink), 5 (Prometheus aggregate sink), and 6 (`t`/`g` streams) remain.
+> and sinks in `XrdMonCollect.cc`, OpenSearch `_bulk` HTTP sink in
+> `XrdMonOpenSearch.cc`), with unit tests in `tests/XrdMonCollectTests/` and a
+> `README.md`. Verified end-to-end against a live server and a mock OpenSearch
+> endpoint:
+> - **f-stream** → per-transfer documents (lfn, user, byte/op counts, duration);
+> - **OpenSearch sink** (`--os-url`, libcurl, batched `_bulk` with retry);
+> - **t-stream** (`--traces`) → read/write/open/close/disconnect documents with
+>   file names resolved from the `d` path dictionary;
+> - **g-stream** (`--gstream`) → plugin (oss/pfc/throttle/tpc/http) records
+>   forwarded with their JSON payload.
+>
+> Step 5 (a Prometheus aggregate sink in the collector) remains.
 >
 > **Important server-config finding:** the `f`-stream emits the per-file
 > `isClose` record (hence a transfer document) only when the **`xfr`** option is

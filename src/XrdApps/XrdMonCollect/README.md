@@ -29,9 +29,26 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --os-insecure    skip TLS certificate verification
   --flush-count <n> flush after N documents (default: 500)
   --flush-secs <n>  flush after N seconds (default: 5)
+  --traces         emit a document per t-stream I/O record (high volume)
+  --gstream        emit a document per g-stream (plugin) record
   --dump           also emit one JSON object per decoded record (debugging)
   -v               print decoder statistics on exit (SIGINT/SIGTERM)
 ```
+
+### Streams
+
+By default only the per-transfer documents from the `f` (file-stats) stream are
+produced. Two opt-in streams add finer-grained events:
+
+- `--traces` turns each `t` (I/O trace) record into a document: `read`/`write`
+  (with offset, length and the resolved `lfn`), `open`, `close`, `disconnect`,
+  and `appid`. This is **high volume** (one record per I/O) — enable only when
+  the detail is needed. Requires `io` in the server's monitor `dest` list and
+  the path dictionary (`d` stream) to resolve file names.
+- `--gstream` forwards each `g` (plugin) record — from the `oss`, `pfc`,
+  `throttle`, `tpc`, `http` g-streams — as a document tagged with its provider,
+  embedding the plugin's JSON payload. Requires `xrootd.mongstream` on the
+  server.
 
 The direct OpenSearch sink (`--os-url`) is available when the binary is built
 with libcurl (the build links `CURL::libcurl` if found). Documents are batched
