@@ -29,14 +29,19 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include <string>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
+#ifdef XRDMON_HAVE_CURL
+#include "XrdApps/XrdMonCollect/XrdMonOpenSearch.hh"
+#endif
 
 namespace
 {
@@ -47,13 +52,22 @@ void usage(const char* prog)
 {
    fprintf(stderr,
      "Usage: %s -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]\n"
-     "          [--dump] [-v]\n\n"
-     "  -p <port>       UDP port to listen on (required)\n"
-     "  -b <bindaddr>   IPv4 address to bind (default: all interfaces)\n"
-     "  -o <file>       append output to <file> (default: stdout)\n"
-     "  --bulk <index>  emit OpenSearch _bulk format for the given index\n"
-     "  --dump          also emit one JSON object per decoded record\n"
-     "  -v              print decoder statistics on exit\n", prog);
+     "          [--os-url <url> [--os-index <name>] [--os-user <u>]\n"
+     "           [--os-pass <p>] [--os-insecure]]\n"
+     "          [--flush-count <n>] [--flush-secs <n>] [--dump] [-v]\n\n"
+     "  -p <port>        UDP port to listen on (required)\n"
+     "  -b <bindaddr>    address to bind (default: all interfaces, dual-stack)\n"
+     "  -o <file>        append output to <file> (default: stdout unless --os-url)\n"
+     "  --bulk <index>   write OpenSearch _bulk format to the file/stdout sink\n"
+     "  --os-url <url>   POST documents to an OpenSearch cluster's _bulk API\n"
+     "  --os-index <n>   index/data-stream name (default: xrootd-transfers)\n"
+     "  --os-user <u>    basic-auth user\n"
+     "  --os-pass <p>    basic-auth password\n"
+     "  --os-insecure    skip TLS certificate verification\n"
+     "  --flush-count <n> flush after N documents (default: 500)\n"
+     "  --flush-secs <n>  flush after N seconds (default: 5)\n"
+     "  --dump           also emit one JSON object per decoded record\n"
+     "  -v               print decoder statistics on exit\n", prog);
 }
 
 // Create and bind a UDP socket. With no bind address, an IPv6 dual-stack
@@ -117,6 +131,11 @@ int main(int argc, char* argv[])
    std::string bulkIdx;
    bool        dump    = false;
    bool        verbose = false;
+   std::string osUrl, osUser, osPass;
+   std::string osIndex = "xrootd-transfers";
+   bool        osInsecure = false;
+   size_t      flushCount = 500;
+   long        flushSecs  = 5;
 
 // Parse arguments
 //
@@ -126,6 +145,13 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "-b") && i+1 < argc) bindStr = argv[++i];
         else if (!strcmp(a, "-o") && i+1 < argc) outFile = argv[++i];
         else if (!strcmp(a, "--bulk") && i+1 < argc) bulkIdx = argv[++i];
+        else if (!strcmp(a, "--os-url") && i+1 < argc) osUrl = argv[++i];
+        else if (!strcmp(a, "--os-index") && i+1 < argc) osIndex = argv[++i];
+        else if (!strcmp(a, "--os-user") && i+1 < argc) osUser = argv[++i];
+        else if (!strcmp(a, "--os-pass") && i+1 < argc) osPass = argv[++i];
+        else if (!strcmp(a, "--os-insecure")) osInsecure = true;
+        else if (!strcmp(a, "--flush-count") && i+1 < argc) flushCount = (size_t)atol(argv[++i]);
+        else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
         else if (!strcmp(a, "--dump")) dump = true;
         else if (!strcmp(a, "-v")) verbose = true;
         else if (!strcmp(a, "-h") || !strcmp(a, "--help")) {usage(argv[0]); return 0;}
@@ -137,9 +163,31 @@ int main(int argc, char* argv[])
       {fprintf(stderr, "%s: a valid -p <port> is required\n", argv[0]);
        usage(argv[0]); return 2;}
 
-// Open the output sink
+// Set up the OpenSearch sink if requested.
 //
-   FILE* out = stdout;
+   bool osEnabled = false;
+#ifdef XRDMON_HAVE_CURL
+   XrdMonOpenSearch* os = nullptr;
+#endif
+   if (!osUrl.empty())
+      {
+#ifdef XRDMON_HAVE_CURL
+       os = new XrdMonOpenSearch(osUrl, osIndex, osUser, osPass, osInsecure);
+       std::string e;
+       if (!os->Init(e))
+          {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}
+       osEnabled = true;
+#else
+       fprintf(stderr, "%s: --os-url requires building with libcurl\n", argv[0]);
+       return 2;
+#endif
+      }
+
+// The file/stdout sink is used unless OpenSearch is the only sink. -o always
+// enables a file in addition to OpenSearch.
+//
+   bool  fileSink = outFile || !osEnabled;
+   FILE* out      = stdout;
    if (outFile && !(out = fopen(outFile, "a")))
       {fprintf(stderr, "%s: cannot open '%s': %s\n", argv[0], outFile,
                strerror(errno)); return 4;}
@@ -149,14 +197,39 @@ int main(int argc, char* argv[])
    int fd = openUDP(port, bindStr);
    if (fd < 0) return 4;
 
-// Wire up the sinks. With --bulk each document is preceded by an index action
-// line, producing a stream directly postable to the OpenSearch _bulk API.
+// Batch state for the OpenSearch sink and a flush helper.
+//
+   std::string batch;
+   size_t      batchCount = 0;
+   time_t      lastFlush  = time(0);
+   auto flush = [&]()
+      {
+#ifdef XRDMON_HAVE_CURL
+       if (osEnabled && batchCount > 0)
+          {std::string e;
+           if (!os->Bulk(batch, e))
+              fprintf(stderr, "xrdmoncollect: bulk post failed: %s\n", e.c_str());
+              else if (!e.empty())
+                 fprintf(stderr, "xrdmoncollect: %s\n", e.c_str());
+           batch.clear(); batchCount = 0;
+          }
+#endif
+       lastFlush = time(0);
+      };
+
+// Wire up the sinks. With --bulk the file sink is written in OpenSearch _bulk
+// format; the OpenSearch sink batches documents and posts them via _bulk.
 //
    XrdMonDecode::DocSink docSink =
       [&](const std::string& d)
-         {if (bulkIdx.empty()) fprintf(out, "%s\n", d.c_str());
-             else fprintf(out, "{\"index\":{\"_index\":\"%s\"}}\n%s\n",
-                          bulkIdx.c_str(), d.c_str());
+         {if (fileSink)
+             {if (bulkIdx.empty()) fprintf(out, "%s\n", d.c_str());
+                 else fprintf(out, "{\"index\":{\"_index\":\"%s\"}}\n%s\n",
+                              bulkIdx.c_str(), d.c_str());
+             }
+#ifdef XRDMON_HAVE_CURL
+          if (osEnabled) {os->Add(batch, d); batchCount++;}
+#endif
          };
 
    XrdMonDecode::RawSink rawSink;
@@ -177,17 +250,35 @@ int main(int argc, char* argv[])
    sigaction(SIGINT,  &sa, nullptr);
    sigaction(SIGTERM, &sa, nullptr);
 
+// A 1s receive timeout lets the loop wake to honor the time-based flush even
+// when no packets are arriving.
+//
+   struct timeval tv; tv.tv_sec = 1; tv.tv_usec = 0;
+   setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
    char buff[64*1024];
    while(!stopFlag)
         {sockaddr_storage from;
          socklen_t fromLen = sizeof(from);
          ssize_t n = recvfrom(fd, buff, sizeof(buff), 0,
                               (sockaddr*)&from, &fromLen);
-         if (n < 0) {if (errno == EINTR) continue; perror("recvfrom"); break;}
+         if (n < 0)
+            {if (errno == EINTR) continue;
+             if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {if (batchCount > 0 && time(0)-lastFlush >= flushSecs) flush();
+                 continue;
+                }
+             perror("recvfrom"); break;
+            }
 
          decoder.Process(senderName((sockaddr*)&from, fromLen), buff, (int)n);
-         fflush(out);
+         if (fileSink) fflush(out);
+
+         if (batchCount >= flushCount
+         || (batchCount > 0 && time(0)-lastFlush >= flushSecs)) flush();
         }
+
+   flush();  // send anything still batched
 
    if (verbose)
       {const XrdMonDecode::Stats& s = decoder.GetStats();
@@ -204,5 +295,8 @@ int main(int argc, char* argv[])
 
    if (out != stdout) fclose(out);
    close(fd);
+#ifdef XRDMON_HAVE_CURL
+   delete os;
+#endif
    return 0;
 }

@@ -62,8 +62,17 @@ if(NOT XRDCL_ONLY)
     ${SOCKET_LIBRARY}
   )
 
-  add_executable(xrdmoncollect XrdMonCollect/XrdMonCollect.cc)
-  target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils)
+  find_package(CURL)
+  if(CURL_FOUND)
+    add_executable(xrdmoncollect
+      XrdMonCollect/XrdMonCollect.cc
+      XrdMonCollect/XrdMonOpenSearch.cc)
+    target_compile_definitions(xrdmoncollect PRIVATE XRDMON_HAVE_CURL)
+    target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils CURL::libcurl)
+  else()
+    add_executable(xrdmoncollect XrdMonCollect/XrdMonCollect.cc)
+    target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils)
+  endif()
 
   add_executable(wait41 XrdWait41.cc)
   target_link_libraries(wait41

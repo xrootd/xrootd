@@ -13,23 +13,43 @@ addition. See `xrootd-new-metrics.md`, Phase 5.
 ## Usage
 
 ```
-xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>] [--dump] [-v]
+xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
+              [--os-url <url> [--os-index <name>] [--os-user <u>]
+               [--os-pass <p>] [--os-insecure]]
+              [--flush-count <n>] [--flush-secs <n>] [--dump] [-v]
 
-  -p <port>       UDP port to listen on (required)
-  -b <bindaddr>   address to bind (default: all interfaces, dual-stack IPv4+IPv6)
-  -o <file>       append output to <file> (default: stdout)
-  --bulk <index>  emit OpenSearch _bulk format for the given index
-  --dump          also emit one JSON object per decoded record (debugging)
-  -v              print decoder statistics on exit (SIGINT/SIGTERM)
+  -p <port>        UDP port to listen on (required)
+  -b <bindaddr>    address to bind (default: all interfaces, dual-stack)
+  -o <file>        append output to <file> (default: stdout unless --os-url)
+  --bulk <index>   write OpenSearch _bulk format to the file/stdout sink
+  --os-url <url>   POST documents to an OpenSearch cluster's _bulk API
+  --os-index <n>   index/data-stream name (default: xrootd-transfers)
+  --os-user <u>    basic-auth user
+  --os-pass <p>    basic-auth password
+  --os-insecure    skip TLS certificate verification
+  --flush-count <n> flush after N documents (default: 500)
+  --flush-secs <n>  flush after N seconds (default: 5)
+  --dump           also emit one JSON object per decoded record (debugging)
+  -v               print decoder statistics on exit (SIGINT/SIGTERM)
 ```
 
-### Example
+The direct OpenSearch sink (`--os-url`) is available when the binary is built
+with libcurl (the build links `CURL::libcurl` if found). Documents are batched
+and posted via the `_bulk` API; transient failures (network, HTTP 429/5xx) are
+retried with exponential backoff. Without libcurl, ship the file/`--bulk` output
+with an external agent (Filebeat) or `curl`.
+
+### Examples
 
 ```sh
 # Collect to a file as NDJSON
 xrdmoncollect -p 9930 -o /var/log/xrootd/transfers.ndjson -v
 
-# Produce an OpenSearch bulk stream and ship it
+# Post directly to OpenSearch
+xrdmoncollect -p 9930 --os-url https://opensearch:9200 \
+              --os-index xrootd-transfers --os-user admin --os-pass secret
+
+# Produce an OpenSearch bulk file and ship it manually
 xrdmoncollect -p 9930 --bulk xrootd-transfers -o /tmp/bulk.ndjson
 curl -s -H 'Content-Type: application/x-ndjson' \
      -XPOST https://opensearch:9200/_bulk --data-binary @/tmp/bulk.ndjson
