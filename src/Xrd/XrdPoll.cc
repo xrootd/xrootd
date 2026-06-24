@@ -31,6 +31,7 @@
 #include <cstdio>
 #include <cstdlib>
   
+#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -355,6 +356,32 @@ int XrdPoll::Stats(char *buff, int blen, int do_sync)
 // Format and return
 //
    return snprintf(buff, blen, statfmt, numatt, numen, numev, numint);
+}
+
+/******************************************************************************/
+/*                       R e g i s t e r M e t r i c s                        */
+/******************************************************************************/
+
+void XrdPoll::RegisterMetrics()
+{
+   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+
+   reg.AddRefGauge("xrootd_poll_attached", "file descriptors attached to pollers",
+       {}, []{int t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
+                          if (Pollers[i]) t += Pollers[i]->numAttached;
+              return (double)t;});
+   reg.AddRefGauge("xrootd_poll_enabled", "poll enable count", {},
+       []{int t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
+                       if (Pollers[i]) t += Pollers[i]->numEnabled;
+          return (double)t;});
+   reg.AddRefCounter("xrootd_poll_events_total", "poll events dispatched", {},
+       []{unsigned long long t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
+                       if (Pollers[i]) t += (unsigned)Pollers[i]->numEvents;
+          return t;});
+   reg.AddRefCounter("xrootd_poll_interrupts_total", "poll interrupts", {},
+       []{unsigned long long t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
+                       if (Pollers[i]) t += (unsigned)Pollers[i]->numInterrupts;
+          return t;});
 }
   
 /******************************************************************************/

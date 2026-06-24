@@ -51,6 +51,7 @@
 
 #endif
 
+#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
@@ -1096,7 +1097,39 @@ int XrdLinkXeq::Stats(char *buff, int blen, bool do_sync)
    AtomicEnd(statsMutex);
    return i;
 }
-  
+
+/******************************************************************************/
+/*                       R e g i s t e r M e t r i c s                        */
+/******************************************************************************/
+
+void XrdLinkXeq::RegisterMetrics()
+{
+   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+
+   reg.AddRefGauge("xrootd_link_connections", "current open connections", {},
+                   []{return (double)AtomicGet(LinkCount);});
+   reg.AddRefGauge("xrootd_link_connections_max", "peak concurrent connections",
+                   {}, []{return (double)AtomicGet(LinkCountMax);});
+   reg.AddRefCounter("xrootd_link_connections_total", "connections accepted", {},
+                   []{return (unsigned long long)AtomicGet(LinkCountTot);});
+   reg.AddRefCounter("xrootd_link_bytes_total", "bytes transferred over links",
+                   {{"dir","in"}},
+                   []{return (unsigned long long)AtomicGet(LinkBytesIn);});
+   reg.AddRefCounter("xrootd_link_bytes_total", "bytes transferred over links",
+                   {{"dir","out"}},
+                   []{return (unsigned long long)AtomicGet(LinkBytesOut);});
+   reg.AddRefCounter("xrootd_link_connect_seconds_total",
+                   "accumulated connection time", {},
+                   []{return (unsigned long long)AtomicGet(LinkConTime);});
+   reg.AddRefCounter("xrootd_link_timeouts_total", "link timeouts", {},
+                   []{return (unsigned long long)AtomicGet(LinkTimeOuts);});
+   reg.AddRefCounter("xrootd_link_stalls_total", "link stalls", {},
+                   []{return (unsigned long long)AtomicGet(LinkStalls);});
+   reg.AddRefCounter("xrootd_link_sendfile_interrupts_total",
+                   "sendfile interrupts", {},
+                   []{return (unsigned long long)AtomicGet(LinkSfIntr);});
+}
+
 /******************************************************************************/
 /*                             s y n c S t a t s                              */
 /******************************************************************************/

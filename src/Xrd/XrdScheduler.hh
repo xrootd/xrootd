@@ -72,6 +72,8 @@ void          Start();
 
 int           Stats(char *buff, int blen, int do_sync=0);
 
+void          RegisterMetrics();
+
 void          TimeSched();
 
 void          setNproc(const bool limlower);

@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <sys/types.h>
 
+#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -338,4 +339,22 @@ int XrdBuffManager::Stats(char *buff, int blen, int do_sync)
    nlen = snprintf(buff,blen,statfmt,totreq,totalo,totbuf,totadj,xlStats);
    if (do_sync) Reshaper.UnLock();
    return nlen;
+}
+
+/******************************************************************************/
+/*                       R e g i s t e r M e t r i c s                        */
+/******************************************************************************/
+
+void XrdBuffManager::RegisterMetrics()
+{
+   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+
+   reg.AddRefCounter("xrootd_buff_requests_total", "buffer requests", {},
+                   [this]{return (unsigned long long)totreq;});
+   reg.AddRefGauge("xrootd_buff_memory_bytes", "memory allocated to buffers", {},
+                   [this]{return (double)totalo;});
+   reg.AddRefGauge("xrootd_buff_buffers", "buffers allocated", {},
+                   [this]{return (double)totbuf;});
+   reg.AddRefCounter("xrootd_buff_adjustments_total", "buffer pool reshapes", {},
+                   [this]{return (unsigned long long)totadj;});
 }

@@ -310,6 +310,17 @@ void XrdMetricsRegistry::AddRefCounter(const std::string& name,
           std::unique_ptr<XrdMetricInstr>(new RefCounter(std::move(reader))));
 }
 
+void XrdMetricsRegistry::AddRefCounterF(const std::string& name,
+                                        const std::string& help,
+                                        const XrdMetricsLabels& labels,
+                                        XrdMetricsDblReader reader)
+{
+   // A RefGauge just renders fn() as a number; the counter semantics come from
+   // the family TYPE recorded here.
+   AddRef(name, help, XrdMetricType::Counter, labels,
+          std::unique_ptr<XrdMetricInstr>(new RefGauge(std::move(reader))));
+}
+
 void XrdMetricsRegistry::AddRefGauge(const std::string& name,
                                      const std::string& help,
                                      const XrdMetricsLabels& labels,

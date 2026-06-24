@@ -118,6 +118,8 @@ bool          setTLS(bool enable, XrdTlsContext *ctx=0);
 
 static int    Stats(char *buff, int blen, bool do_sync=false);
 
+static void   RegisterMetrics();
+
        void   syncStats(int *ctime=0);
 
 int           TLS_Peek(char *Buff, int Blen, int timeout);

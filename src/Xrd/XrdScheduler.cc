@@ -41,6 +41,7 @@
 
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdOuc/XrdOucTrace.hh"    // For ABI compatibility only!
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -662,6 +663,34 @@ int XrdScheduler::Stats(char *buff, int blen, int do_sync)
    return snprintf(buff, blen, statfmt, cnt_Jobs, cnt_JobsinQ, xam_QLength,
                    cnt_Workers, cnt_idl, cnt_TCreate, cnt_TDestroy,
                    cnt_Limited);
+}
+
+/******************************************************************************/
+/*                       R e g i s t e r M e t r i c s                        */
+/******************************************************************************/
+
+void XrdScheduler::RegisterMetrics()
+{
+   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+
+   reg.AddRefCounter("xrootd_sched_jobs_total", "jobs scheduled", {},
+                   [this]{return (unsigned long long)num_Jobs;});
+   reg.AddRefGauge("xrootd_sched_jobs_in_queue", "jobs waiting in the queue", {},
+                   [this]{return (double)num_JobsinQ;});
+   reg.AddRefGauge("xrootd_sched_queue_length_max", "longest queue length seen",
+                   {}, [this]{return (double)max_QLength;});
+   reg.AddRefGauge("xrootd_sched_threads", "worker threads", {},
+                   [this]{return (double)num_Workers;});
+   reg.AddRefGauge("xrootd_sched_threads_idle", "idle worker threads", {},
+                   [this]{return (double)idl_Workers;});
+   reg.AddRefCounter("xrootd_sched_threads_created_total", "worker threads created",
+                   {}, [this]{return (unsigned long long)num_TCreate;});
+   reg.AddRefCounter("xrootd_sched_threads_destroyed_total",
+                   "worker threads destroyed", {},
+                   [this]{return (unsigned long long)num_TDestroy;});
+   reg.AddRefCounter("xrootd_sched_thread_limit_hits_total",
+                   "times the worker-thread maximum was reached", {},
+                   [this]{return (unsigned long long)num_Limited;});
 }
 
 /******************************************************************************/

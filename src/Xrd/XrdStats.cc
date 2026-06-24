@@ -123,6 +123,42 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
    myPort = port;
 
    theMon = new XrdMonitor;
+
+   RegisterMetrics();
+}
+
+/******************************************************************************/
+/*                       R e g i s t e r M e t r i c s                        */
+/******************************************************************************/
+
+void XrdStats::RegisterMetrics()
+{
+   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+
+// Server identity as a Prometheus "info" metric (value is always 1).
+//
+   reg.Gauge("xrootd_server_info", "server identity",
+             {{"host",     myHost ? myHost : ""},
+              {"port",     std::to_string(myPort)},
+              {"instance", myName ? myName : ""}}).set(1);
+
+// Process CPU time, read live from getrusage at scrape time.
+//
+   reg.AddRefCounterF("xrootd_process_cpu_seconds_total",
+        "process CPU time in seconds", {{"mode","user"}},
+        []{struct rusage r; if (getrusage(RUSAGE_SELF,&r)) return 0.0;
+           return (double)r.ru_utime.tv_sec + (double)r.ru_utime.tv_usec/1e6;});
+   reg.AddRefCounterF("xrootd_process_cpu_seconds_total",
+        "process CPU time in seconds", {{"mode","system"}},
+        []{struct rusage r; if (getrusage(RUSAGE_SELF,&r)) return 0.0;
+           return (double)r.ru_stime.tv_sec + (double)r.ru_stime.tv_usec/1e6;});
+
+// Subsystem counters (link, poll, scheduler, buffer manager).
+//
+   XrdLink::RegisterMetrics();
+   XrdPoll::RegisterMetrics();
+   if (XrdSched) XrdSched->RegisterMetrics();
+   if (BuffPool) BuffPool->RegisterMetrics();
 }
 
 /******************************************************************************/

@@ -77,6 +77,10 @@ virtual void  Start(XrdSysSemaphore *syncp, int &rc) = 0;
 //
 static  int   Stats(char *buff, int blen, int do_sync=0);
 
+// RegisterMetrics() registers poll statistics with the XrdMetrics registry
+//
+static  void  RegisterMetrics();
+
 // Identification of the thread handling this object
 //
            int         PID;       // Poller ID

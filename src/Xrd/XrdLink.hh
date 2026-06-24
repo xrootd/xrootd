@@ -499,6 +499,12 @@ void            Shutdown(bool getLock);
 static int      Stats(char *buff, int blen, bool do_sync=0);
 
 //-----------------------------------------------------------------------------
+//! Register link statistics with the XrdMetrics registry (Prometheus).
+//-----------------------------------------------------------------------------
+
+static void     RegisterMetrics();
+
+//-----------------------------------------------------------------------------
 //! Add all local statistics to the global counters.
 //!
 //! @param  ctime   if not nil, return the total connect time in seconds.

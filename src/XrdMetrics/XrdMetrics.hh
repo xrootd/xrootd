@@ -205,6 +205,11 @@ XrdMetricsHistogram& Histogram(const std::string& name, const std::string& help,
 void AddRefCounter(const std::string& name, const std::string& help,
                    const XrdMetricsLabels& labels, XrdMetricsU64Reader reader);
 
+//! Like AddRefCounter but the external value is a (monotonic) floating-point
+//! counter, e.g. CPU seconds. Rendered with TYPE counter.
+void AddRefCounterF(const std::string& name, const std::string& help,
+                    const XrdMetricsLabels& labels, XrdMetricsDblReader reader);
+
 //! Like AddRefCounter but for a gauge (value may go up or down).
 void AddRefGauge(const std::string& name, const std::string& help,
                  const XrdMetricsLabels& labels, XrdMetricsDblReader reader);

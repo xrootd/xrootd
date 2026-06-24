@@ -505,6 +505,8 @@ void XrdLink::Shutdown(bool getLock) {linkXQ.Shutdown(getLock);}
 
 int XrdLink::Stats(char *buff, int blen, bool do_sync)
                   {return XrdLinkXeq::Stats(buff, blen, do_sync);}
+
+void XrdLink::RegisterMetrics() {XrdLinkXeq::RegisterMetrics();}
   
 /******************************************************************************/
 /*                             s y n c S t a t s                              */
