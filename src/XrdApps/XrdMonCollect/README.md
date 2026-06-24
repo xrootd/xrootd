@@ -29,6 +29,7 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --os-insecure    skip TLS certificate verification
   --flush-count <n> flush after N documents (default: 500)
   --flush-secs <n>  flush after N seconds (default: 5)
+  --metrics-port <p> serve aggregated metrics over HTTP on port <p>
   --traces         emit a document per t-stream I/O record (high volume)
   --gstream        emit a document per g-stream (plugin) record
   --dump           also emit one JSON object per decoded record (debugging)
@@ -106,6 +107,25 @@ One object per file close, for example:
 
 `open_seen` is `false` (and path/user are absent) for a close whose open record
 was lost or predates the collector — the byte totals are still reported.
+
+## Aggregated metrics (Prometheus)
+
+With `--metrics-port <p>` the collector also runs a small HTTP exporter that
+serves Prometheus metrics aggregated from the decoded transfers. Unlike the
+per-transfer documents (which belong in a document store), these are bounded
+in cardinality — labelled only by the reporting `server` — and suitable for a
+time-series database:
+
+```
+xrootd_collector_transfers_total{server="..."}
+xrootd_collector_read_bytes_total{server="..."}
+xrootd_collector_write_bytes_total{server="..."}
+xrootd_collector_transfer_size_bytes        (histogram)
+xrootd_collector_transfer_duration_seconds  (histogram)
+xrootd_collector_packets_total              (and other decoder statistics)
+```
+
+Point a Prometheus scrape job at `http://<collector-host>:<p>/metrics`.
 
 ## Notes and limitations
 

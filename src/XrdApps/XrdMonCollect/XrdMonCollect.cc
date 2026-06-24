@@ -36,9 +36,12 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <string>
+#include <thread>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
+#include "XrdMetrics/XrdMetrics.hh"
 #ifdef XRDMON_HAVE_CURL
 #include "XrdApps/XrdMonCollect/XrdMonOpenSearch.hh"
 #endif
@@ -66,6 +69,7 @@ void usage(const char* prog)
      "  --os-insecure    skip TLS certificate verification\n"
      "  --flush-count <n> flush after N documents (default: 500)\n"
      "  --flush-secs <n>  flush after N seconds (default: 5)\n"
+     "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
      "  --traces         emit a document per t-stream I/O record (high volume)\n"
      "  --gstream        emit a document per g-stream (plugin) record\n"
      "  --dump           also emit one JSON object per decoded record\n"
@@ -110,6 +114,46 @@ int openUDP(int port, const char* bindStr)
    return fd;
 }
 
+// A minimal HTTP exporter: serves the metrics registry to any GET request on
+// the given TCP port. Prometheus scrapes /metrics; we answer every path.
+//
+void serveMetrics(int port, std::atomic<bool>& stop)
+{
+   int ls = socket(AF_INET, SOCK_STREAM, 0);
+   if (ls < 0) {perror("metrics socket"); return;}
+   int one = 1;
+   setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+
+   sockaddr_in a; memset(&a, 0, sizeof(a));
+   a.sin_family = AF_INET; a.sin_addr.s_addr = INADDR_ANY;
+   a.sin_port = htons((uint16_t)port);
+   if (bind(ls, (sockaddr*)&a, sizeof(a)) < 0 || listen(ls, 8) < 0)
+      {perror("metrics bind/listen"); close(ls); return;}
+
+   timeval tv; tv.tv_sec = 1; tv.tv_usec = 0;        // wake to check stop
+   setsockopt(ls, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+   while(!stop)
+        {int c = accept(ls, nullptr, nullptr);
+         if (c < 0)
+            {if (errno==EAGAIN || errno==EWOULDBLOCK || errno==EINTR) continue;
+             break;
+            }
+         char req[2048];
+         recv(c, req, sizeof(req), 0);              // read & ignore the request
+
+         std::string body;
+         XrdMetricsRegistry::Default().Scrape(body);
+         std::string resp = "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/plain; version=0.0.4; charset=utf-8\r\n"
+            "Content-Length: " + std::to_string(body.size()) + "\r\n"
+            "Connection: close\r\n\r\n" + body;
+         send(c, resp.data(), resp.size(), MSG_NOSIGNAL);
+         close(c);
+        }
+   close(ls);
+}
+
 // Numeric host:port string for a datagram sender (no DNS lookup).
 //
 std::string senderName(const sockaddr* sa, socklen_t sl)
@@ -135,6 +179,7 @@ int main(int argc, char* argv[])
    bool        verbose = false;
    bool        traces  = false;
    bool        gstream = false;
+   int         metricsPort = 0;
    std::string osUrl, osUser, osPass;
    std::string osIndex = "xrootd-transfers";
    bool        osInsecure = false;
@@ -156,6 +201,7 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--os-insecure")) osInsecure = true;
         else if (!strcmp(a, "--flush-count") && i+1 < argc) flushCount = (size_t)atol(argv[++i]);
         else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
+        else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
         else if (!strcmp(a, "--traces")) traces = true;
         else if (!strcmp(a, "--gstream")) gstream = true;
         else if (!strcmp(a, "--dump")) dump = true;
@@ -241,7 +287,32 @@ int main(int argc, char* argv[])
    XrdMonDecode::RawSink rawSink;
    if (dump) rawSink = [&](const std::string& r){fprintf(out, "%s\n", r.c_str());};
 
-   XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream);
+// When a metrics port is given, aggregate transfers into the registry and
+// serve it over HTTP. The decoder-level statistics are exposed too.
+//
+   XrdMetricsRegistry* reg = metricsPort > 0 ? &XrdMetricsRegistry::Default()
+                                             : nullptr;
+
+   XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, reg);
+
+   std::atomic<bool> exporterStop{false};
+   std::thread       exporter;
+   if (reg)
+      {auto& s = decoder.GetStats();
+       reg->AddRefCounter("xrootd_collector_packets_total",
+            "monitor packets received", {}, [&]{return s.packets;});
+       reg->AddRefCounter("xrootd_collector_malformed_total",
+            "malformed packets", {}, [&]{return s.malformed;});
+       reg->AddRefCounter("xrootd_collector_documents_total",
+            "transfer documents produced", {}, [&]{return s.docs;});
+       reg->AddRefCounter("xrootd_collector_orphan_closes_total",
+            "closes with no matching open", {}, [&]{return s.orphanCls;});
+       reg->AddRefCounter("xrootd_collector_trace_records_total",
+            "t-stream records decoded", {}, [&]{return s.traces;});
+       reg->AddRefCounter("xrootd_collector_gstream_records_total",
+            "g-stream records decoded", {}, [&]{return s.gevents;});
+       exporter = std::thread(serveMetrics, metricsPort, std::ref(exporterStop));
+      }
 
 // Receive loop
 //
@@ -285,6 +356,8 @@ int main(int argc, char* argv[])
         }
 
    flush();  // send anything still batched
+
+   if (exporter.joinable()) {exporterStop = true; exporter.join();}
 
    if (verbose)
       {const XrdMonDecode::Stats& s = decoder.GetStats();

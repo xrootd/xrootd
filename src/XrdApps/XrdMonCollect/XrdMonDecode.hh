@@ -26,6 +26,8 @@
 #include <string>
 #include <unordered_map>
 
+class XrdMetricsRegistry;
+
 //-----------------------------------------------------------------------------
 //! XrdMonDecode decodes XRootD detailed-monitoring UDP packets
 //! (xrootd.monitor) and correlates the "f" (file-stats) stream against the
@@ -77,12 +79,15 @@ const Stats& GetStats() const {return stats;}
 //! @param emitTraces   emit a document per 't'-stream record (I/O, open,
 //!                     close, disconnect) — high volume, off by default.
 //! @param emitGstream  emit a document per 'g'-stream (plugin) record.
+//! @param reg  optional metrics registry; when set, completed transfers are
+//!             aggregated into bounded-cardinality Prometheus series.
          XrdMonDecode(DocSink docSink, RawSink rawSink = nullptr,
                       bool emitRaw = false, bool emitTraces = false,
-                      bool emitGstream = false)
+                      bool emitGstream = false,
+                      XrdMetricsRegistry* reg = nullptr)
                      : doc(std::move(docSink)), raw(std::move(rawSink)),
                        dumpRaw(emitRaw), traces(emitTraces),
-                       gstream(emitGstream) {}
+                       gstream(emitGstream), metrics(reg) {}
         ~XrdMonDecode() {}
 
 private:
@@ -137,6 +142,7 @@ RawSink  raw;
 bool     dumpRaw;
 bool     traces;
 bool     gstream;
+XrdMetricsRegistry* metrics;
 Stats    stats;
 };
 #endif

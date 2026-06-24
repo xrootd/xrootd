@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
+#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdOuc/XrdOucJson.hh"
 
 #include <gtest/gtest.h>
@@ -232,6 +233,47 @@ TEST(XrdMonCollect, TStreamRecordsDecoded)
   json cl = json::parse(docs[1]);
   EXPECT_EQ(cl["type"], "close");
   EXPECT_EQ(cl["read_bytes"], 2048);
+}
+
+TEST_F(Transfer, AggregatesIntoMetricsRegistry)
+{
+  // Re-run the open/close/user sequence through a decoder bound to a registry.
+  XrdMetricsRegistry reg;
+  std::string sink;
+  XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
+                 false, false, false, &reg);
+
+  { W body; body.u32(7);
+    std::string info = "xroot/alice.1:2@wn.example.org\n";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('u', kStod, pl);
+    d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  { W body; body.u32(100); body.u64(123456); body.u32(7);
+    std::string lfn = "/store/data/file.root"; body.raw(lfn); body.u8(0);
+    auto payload = todRec(kOpenT, 42);
+    auto r = rec(1, 0x03, body.b);
+    payload.insert(payload.end(), r.begin(), r.end());
+    auto pkt = packet('f', kStod, payload);
+    d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  { W body; body.u32(100); body.u64(10485760); body.u64(0); body.u64(0);
+    body.u32(320); body.u32(0); body.u32(0); body.u16(0); body.u16(0);
+    body.u64(0); body.u32(4096); body.u32(1048576);
+    body.u32(0); body.u32(0); body.u32(0); body.u32(0);
+    auto payload = todRec(kCloseT, 42);
+    auto r = rec(0, 0x02, body.b);
+    payload.insert(payload.end(), r.begin(), r.end());
+    auto pkt = packet('f', kStod, payload);
+    d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+
+  std::string out;
+  reg.Scrape(out);
+  EXPECT_NE(out.find("xrootd_collector_transfers_total{server=\"10.0.0.1:9930\"} 1"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_collector_read_bytes_total{server=\"10.0.0.1:9930\"} 10485760"),
+            std::string::npos);
+  EXPECT_NE(out.find("# TYPE xrootd_collector_transfer_duration_seconds histogram"),
+            std::string::npos);
 }
 
 TEST(XrdMonCollect, GStreamForwarded)

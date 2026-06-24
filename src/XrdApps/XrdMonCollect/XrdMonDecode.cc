@@ -23,6 +23,7 @@
 #include <ctime>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
+#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdOuc/XrdOucJson.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 
@@ -266,6 +267,8 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    int64_t rvBytes = ri64(rec + 16);
    int64_t wrBytes = ri64(rec + 24);
 
+   int durSecs = -1;
+
    json j;
    j["type"]         = "transfer";
    j["@timestamp"]   = isoTime(tWin);
@@ -289,7 +292,8 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        j["file_size"]  = of.fsz;
        j["read_write"] = of.rw;
        j["open_time"]  = isoTime(of.tOpen);
-       if (of.tOpen > 0 && tWin > 0) j["duration_s"] = tWin - of.tOpen;
+       if (of.tOpen > 0 && tWin > 0) {durSecs = tWin - of.tOpen;
+                                      j["duration_s"] = durSecs;}
 
        auto uit = srv.users.find(of.user);
        if (uit != srv.users.end())
@@ -329,6 +333,28 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
            j["rsegs_sumsq"] = rdbl(s + 16);
            j["write_sumsq"] = rdbl(s + 24);
           }
+      }
+
+// Aggregate into bounded-cardinality Prometheus series (label only by the
+// reporting server). Per-transfer detail stays in the document sink; here we
+// keep just totals and distributions suitable for time-series storage.
+//
+   if (metrics)
+      {XrdMetricsLabels sl = {{"server", src}};
+       metrics->Counter("xrootd_collector_transfers_total",
+                        "completed transfers seen", sl).inc();
+       metrics->Counter("xrootd_collector_read_bytes_total",
+                        "bytes read (read+readv)", sl).inc(rdBytes + rvBytes);
+       metrics->Counter("xrootd_collector_write_bytes_total",
+                        "bytes written", sl).inc(wrBytes);
+       metrics->Histogram("xrootd_collector_transfer_size_bytes",
+                        "bytes moved per transfer",
+                        {1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e11})
+               .observe((double)(rdBytes + rvBytes + wrBytes));
+       if (durSecs >= 0)
+          metrics->Histogram("xrootd_collector_transfer_duration_seconds",
+                        "transfer wall-clock duration",
+                        {1,5,15,60,300,1800,7200}).observe(durSecs);
       }
 
    stats.docs++;
