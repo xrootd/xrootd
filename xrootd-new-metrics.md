@@ -403,12 +403,23 @@ useful for OpenSearch. The work here is **per-provider structured parsing and
 aggregation into bounded Prometheus metrics**. Provider type is the top byte of
 `sID` (see `gsProvider()`); each has its own record schema:
 
+> **Item 2 DONE for oss/pfc/tpc.** `gsAggregate()` parses these three providers
+> into bounded metrics (independently of `--gstream` doc emission): `oss`
+> running-total op counts → counter deltas (`xrootd_collector_oss_ops_total`,
+> `..._slow_ops_total`, label `op`); `pfc` per-`file_close` byte counts
+> (`xrootd_collector_pfc_files_total`, `..._bytes_total{source}`); `tpc`
+> per-copy (`xrootd_collector_tpc_total{type,result}`, `..._bytes_total{type}`,
+> `..._size_bytes` histogram). The delta tracker (`gsPrev`) skips the first
+> snapshot as a baseline and treats a decrease as a counter reset. Unit-tested
+> (`GStreamOssMetricsDelta`, `GStreamPfcAndTpcMetrics`). throttle/tcpmon/ccm/
+> http remain forwarded-only (see below).
+
 | provider | byte | content | candidate metrics |
 |----------|------|---------|-------------------|
-| `oss` | `O` | OSS plugin op counts/timings (read/write/stat/open + "slow" variants) — already Prometheus-shaped (see `XrdOssStats`) | per-op rate + slow-op rate + latency |
-| `pfc` | `C` | proxy file cache: bytes from cache/disk/origin, hits/misses, prefetch | cache hit ratio, origin vs cache bytes |
+| `oss` | `O` | OSS plugin op counts/timings (read/write/stat/open + "slow" variants) — already Prometheus-shaped (see `XrdOssStats`) | **DONE**: per-op + slow-op counters (timings still TODO) |
+| `pfc` | `C` | proxy file cache: bytes from cache/disk/origin, hits/misses, prefetch | **DONE**: file closes + bytes by source |
 | `ccm` | `M` | cache context mgmt: file admit/purge decisions | admit/purge rates, residency |
-| `tpc` | `P` | third-party copy: push/pull, src/dst, bytes, status, duration | tpc throughput, success/fail, in-flight |
+| `tpc` | `P` | third-party copy: push/pull, src/dst, bytes, status, duration | **DONE**: copies by type/result, bytes, size histogram |
 | `throttle` | `R` | throttle plugin: I/O rates, wait times, limited ops | throttled-bytes, wait-seconds |
 | `tcpmon` | `T` | TCP connection stats: RTT, retransmits, bytes, congestion window | per-conn RTT/retransmit histograms |
 | `http` | `H` | HTTP request processing activity | request rate by method/status (overlaps the http_plugin summary metrics) |
@@ -439,7 +450,7 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
 ## E. Suggested implementation order (next session)
 
 1. ~~`=` MAPIDNT server identity + `T`/`U` token/VO maps~~ **(DONE)**.
-2. g-stream structured parsing + metrics for `oss`, `pfc`, `tpc`.
+2. ~~g-stream structured parsing + metrics for `oss`, `pfc`, `tpc`~~ **(DONE)**.
 3. `f`-stream `isXfr`/`isDisc` → active-transfer gauges and session docs.
 4. `pseq` loss detection and dictionary eviction (robustness).
 5. Remaining g-stream providers (throttle/tcpmon/ccm/http) and `x`/`p` (FRM).

@@ -411,3 +411,66 @@ TEST(XrdMonCollect, GStreamForwarded)
   EXPECT_EQ(j["data"]["reads"], 5);
   EXPECT_EQ(dec.GetStats().gevents, 1u);
 }
+
+namespace
+{
+// A 'g' (g-stream) packet for one provider carrying a single JSON record.
+std::vector<unsigned char> gPacket(char prov, const std::string& jsonRec)
+{
+   W payload;
+   payload.u32(1700000000);                  // tBeg
+   payload.u32(1700000060);                  // tEnd
+   payload.u64(((uint64_t)(unsigned char)prov << 56) | 7);  // sID + provider
+   payload.raw(jsonRec);
+   return packet('g', kStod, payload.b);
+}
+}
+
+TEST(XrdMonCollect, GStreamOssMetricsDelta)
+{
+  XrdMetricsRegistry reg;
+  XrdMonDecode dec([](const std::string&){}, nullptr,
+                   false, false, false, false, &reg);
+
+  // First snapshot establishes the baseline (no counter movement).
+  auto p1 = gPacket('O', "{\"event\":\"oss_stats\",\"reads\":100,\"writes\":10,"
+                         "\"slow_reads\":4}");
+  dec.Process("h:1", (const char*)p1.data(), p1.size());
+  // Second snapshot: +50 reads, +5 writes, +1 slow_read.
+  auto p2 = gPacket('O', "{\"event\":\"oss_stats\",\"reads\":150,\"writes\":15,"
+                         "\"slow_reads\":5}");
+  dec.Process("h:1", (const char*)p2.data(), p2.size());
+
+  std::string out; reg.Scrape(out);
+  EXPECT_NE(out.find("xrootd_collector_oss_ops_total{op=\"read\",server=\"h:1\"} 50"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_oss_ops_total{op=\"write\",server=\"h:1\"} 5"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_oss_slow_ops_total{op=\"read\",server=\"h:1\"} 1"),
+            std::string::npos) << out;
+}
+
+TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
+{
+  XrdMetricsRegistry reg;
+  XrdMonDecode dec([](const std::string&){}, nullptr,
+                   false, false, false, false, &reg);
+
+  auto pfc = gPacket('C', "{\"event\":\"file_close\",\"b_hit\":2048,"
+                          "\"b_miss\":1024,\"b_prefetch\":512}");
+  dec.Process("h:1", (const char*)pfc.data(), pfc.size());
+
+  auto tpc = gPacket('P', "{\"TPC\":\"xroot\",\"Xeq\":{\"RC\":0,\"Type\":\"pull\"},"
+                          "\"Size\":1048576}");
+  dec.Process("h:1", (const char*)tpc.data(), tpc.size());
+
+  std::string out; reg.Scrape(out);
+  EXPECT_NE(out.find("xrootd_collector_pfc_files_total{server=\"h:1\"} 1"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_pfc_bytes_total{server=\"h:1\",source=\"hit\"} 2048"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_tpc_total{result=\"ok\",server=\"h:1\",type=\"pull\"} 1"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_tpc_bytes_total{server=\"h:1\",type=\"pull\"} 1048576"),
+            std::string::npos) << out;
+}

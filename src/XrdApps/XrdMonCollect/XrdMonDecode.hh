@@ -183,6 +183,10 @@ void     DecodeRStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int plen);
 
 std::unordered_map<std::string, Server> servers;
+// Previous cumulative values for g-stream providers that report running
+// totals (oss), so they can be turned into Prometheus counter deltas. Keyed
+// by "<server>|<provider>|<metric>".
+std::unordered_map<std::string, uint64_t> gsPrev;
 DocSink  doc;
 RawSink  raw;
 bool     dumpRaw;

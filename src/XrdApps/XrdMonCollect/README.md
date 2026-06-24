@@ -50,7 +50,9 @@ produced. Two opt-in streams add finer-grained events:
 - `--gstream` forwards each `g` (plugin) record — from the `oss`, `pfc`,
   `throttle`, `tpc`, `http` g-streams — as a document tagged with its provider,
   embedding the plugin's JSON payload. Requires `xrootd.mongstream` on the
-  server.
+  server. Independently of document emission, when `--metrics-port` is set the
+  `oss`, `pfc` and `tpc` providers are also parsed into aggregate metrics (see
+  below); the `oss` running totals are converted to counter deltas.
 - `--redirects` turns each `r` (redirect) record into a document: operation,
   remote/local kind, target host/port, path, and the redirected user. Emitted
   mainly by redirectors/managers; requires `redir` in the monitor `dest` list.
@@ -146,6 +148,18 @@ xrootd_collector_vo_transfers_total{server="...",vo="..."}
 xrootd_collector_transfer_size_bytes        (histogram)
 xrootd_collector_transfer_duration_seconds  (histogram)
 xrootd_collector_packets_total              (and other decoder statistics)
+```
+
+From the `g` (plugin) streams (when `--gstream` data is flowing):
+
+```
+xrootd_collector_oss_ops_total{server="...",op="..."}
+xrootd_collector_oss_slow_ops_total{server="...",op="..."}
+xrootd_collector_pfc_files_total{server="..."}
+xrootd_collector_pfc_bytes_total{server="...",source="hit|miss|bypass|disk|prefetch"}
+xrootd_collector_tpc_total{server="...",type="push|pull",result="ok|error"}
+xrootd_collector_tpc_bytes_total{server="...",type="push|pull"}
+xrootd_collector_tpc_size_bytes             (histogram)
 ```
 
 Point a Prometheus scrape job at `http://<collector-host>:<p>/metrics`.

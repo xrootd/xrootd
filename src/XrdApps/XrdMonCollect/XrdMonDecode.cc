@@ -606,6 +606,110 @@ const char* gsProvider(unsigned char t)
           default:               return "unknown";
          }
 }
+
+// Read an unsigned integer field from a g-stream JSON payload (0 if absent).
+//
+uint64_t jU(const json& j, const char* key)
+{
+   auto it = j.find(key);
+   if (it == j.end() || !it->is_number()) return 0;
+   if (it->is_number_unsigned()) return it->get<uint64_t>();
+   long long v = it->get<long long>();
+   return v < 0 ? 0 : (uint64_t)v;
+}
+
+// Aggregate one parsed g-stream record into bounded-cardinality Prometheus
+// series. `prev` retains the last cumulative value for providers (oss) that
+// report running totals, so they become counter deltas.
+//
+void gsAggregate(XrdMetricsRegistry* M,
+                 std::unordered_map<std::string, uint64_t>& prev,
+                 unsigned char provByte, const std::string& src, const json& j)
+{
+   XrdMetricsLabels srv = {{"server", src}};
+
+// Turn a running total into a counter increment (skip the first observation,
+// which only establishes the baseline; treat a decrease as a counter reset).
+//
+   auto delta = [&](const char* name, const char* help, XrdMetricsLabels lbl,
+                    const std::string& key, uint64_t cur)
+      {auto it = prev.find(key);
+       bool first = (it == prev.end());
+       uint64_t pv = first ? 0 : it->second;
+       prev[key] = cur;
+       if (first) return;
+       uint64_t d = cur >= pv ? cur - pv : cur;
+       if (d) M->Counter(name, help, lbl).inc(d);
+      };
+
+   switch(provByte)
+         {case XROOTD_MON_GSOSS:   // cumulative op counters
+               {static const std::pair<const char*,const char*> ops[] =
+                   {{"read","reads"},{"write","writes"},{"stat","stats"},
+                    {"pgread","pgreads"},{"pgwrite","pgwrites"},{"readv","readvs"},
+                    {"dirlist","dirlists"},{"truncate","truncates"},
+                    {"unlink","unlinks"},{"chmod","chmods"},{"open","opens"},
+                    {"rename","renames"}};
+                for (auto& op : ops)
+                    {XrdMetricsLabels l = {{"server", src}, {"op", op.first}};
+                     std::string base = src + "|oss|" + op.first;
+                     delta("xrootd_collector_oss_ops_total",
+                           "OSS plugin operations", l, base, jU(j, op.second));
+                     std::string slowKey = std::string("slow_") + op.second;
+                     delta("xrootd_collector_oss_slow_ops_total",
+                           "OSS plugin slow operations", l, base + "|slow",
+                           jU(j, slowKey.c_str()));
+                    }
+               }
+               break;
+
+          case XROOTD_MON_GSPFC:   // per file_close event
+               {auto ev = j.find("event");
+                if (ev == j.end() || *ev != "file_close") break;
+                M->Counter("xrootd_collector_pfc_files_total",
+                           "proxy-cache file closes", srv).inc();
+                auto pfcBytes = [&](const char* source, const char* field)
+                   {uint64_t v = jU(j, field);
+                    if (v) M->Counter("xrootd_collector_pfc_bytes_total",
+                                "proxy-cache bytes by source",
+                                {{"server", src}, {"source", source}}).inc(v);
+                   };
+                pfcBytes("hit",      "b_hit");
+                pfcBytes("miss",     "b_miss");
+                pfcBytes("bypass",   "b_bypass");
+                pfcBytes("disk",     "b_todisk");
+                pfcBytes("prefetch", "b_prefetch");
+               }
+               break;
+
+          case XROOTD_MON_GSTPC:   // per completed third-party copy
+               {std::string type = "unknown";
+                int rc = 0;
+                auto xq = j.find("Xeq");
+                if (xq != j.end() && xq->is_object())
+                   {auto t = xq->find("Type");
+                    if (t != xq->end() && t->is_string()) type = t->get<std::string>();
+                    auto rcit = xq->find("RC");
+                    if (rcit != xq->end() && rcit->is_number())
+                       rc = rcit->get<int>();
+                   }
+                uint64_t size = jU(j, "Size");
+                M->Counter("xrootd_collector_tpc_total", "third-party copies",
+                           {{"server", src}, {"type", type},
+                            {"result", rc == 0 ? "ok" : "error"}}).inc();
+                if (size)
+                   M->Counter("xrootd_collector_tpc_bytes_total",
+                              "third-party copy bytes",
+                              {{"server", src}, {"type", type}}).inc(size);
+                M->Histogram("xrootd_collector_tpc_size_bytes",
+                             "third-party copy size",
+                             {1e6,1e7,1e8,1e9,1e10,1e11}).observe((double)size);
+               }
+               break;
+
+          default: break;         // ccm/tcp/throttle/http: forwarded, not yet aggregated
+         }
+}
 }
 
 void XrdMonDecode::DecodeGStream(const std::string& src, int32_t stod,
@@ -619,7 +723,8 @@ void XrdMonDecode::DecodeGStream(const std::string& src, int32_t stod,
    int32_t  tBeg = ri32(p + 8);
    int32_t  tEnd = ri32(p + 12);
    uint64_t sID  = rd64(p + 16);
-   const char* provider = gsProvider((unsigned char)(sID >> 56));
+   unsigned char provByte = (unsigned char)(sID >> 56);
+   const char* provider = gsProvider(provByte);
 
    const char* body = (const char*)(p + 24);
    int blen = plen - 24;
@@ -630,18 +735,26 @@ void XrdMonDecode::DecodeGStream(const std::string& src, int32_t stod,
            {int n = i - start;
             if (n > 0)
                {stats.gevents++;
-                if (gstream)
+                if (gstream || metrics)
                    {std::string line(body + start, n);
-                    json j;
-                    j["type"]     = "gstream";
-                    j["provider"] = provider;
-                    j["server"]   = src;
-                    j["server_start"] = stod;
-                    j["@timestamp"]   = isoTime(tEnd ? tEnd : tBeg);
                     json payload = json::parse(line, nullptr, false);
-                    if (payload.is_discarded()) j["data"] = line;
-                       else j["data"] = payload;
-                    if (doc) doc(j.dump());
+
+                    // (a) aggregate known providers into bounded metrics.
+                    if (metrics && !payload.is_discarded())
+                       gsAggregate(metrics, gsPrev, provByte, src, payload);
+
+                    // (b) forward the record (structured payload) as a document.
+                    if (gstream && doc)
+                       {json j;
+                        j["type"]     = "gstream";
+                        j["provider"] = provider;
+                        j["server"]   = src;
+                        j["server_start"] = stod;
+                        j["@timestamp"]   = isoTime(tEnd ? tEnd : tBeg);
+                        if (payload.is_discarded()) j["data"] = line;
+                           else j["data"] = payload;
+                        doc(j.dump());
+                       }
                    }
                }
             start = i + 1;
