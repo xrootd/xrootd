@@ -33,8 +33,20 @@
 #include "XrdMetrics/XrdMetrics.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdXrootd/XrdXrootdFileStats.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
+
+/******************************************************************************/
+/*           F i l e   I / O   b y t e   t o t a l s   ( g l o b a l )        */
+/******************************************************************************/
+
+// Process-wide file I/O byte counters, updated by XrdXrootdFileStats on every
+// read/write regardless of the per-file monitoring level (see the header).
+//
+RAtomic_llong XrdXrootdFileStats::totRdBytes{0};
+RAtomic_llong XrdXrootdFileStats::totRvBytes{0};
+RAtomic_llong XrdXrootdFileStats::totWrBytes{0};
  
 /******************************************************************************/
 /*                           C o n s t r c u t o r                            */
@@ -139,6 +151,16 @@ void XrdXrootdStats::RegisterMetrics()
    CTR("xrootd_redirects_total",       "client redirects issued",      redirCnt);
    CTR("xrootd_stalls_total",          "client stalls (delays) issued", stallCnt);
 #undef CTR
+
+// File I/O byte totals (counted on every read/write across all files). pgread
+// folds into read, pgwrite/writev into write.
+//
+   reg.AddRefCounter("xrootd_bytes_total", "file I/O bytes", {{"op","read"}},
+        []{return (unsigned long long)XrdXrootdFileStats::totRdBytes.load();});
+   reg.AddRefCounter("xrootd_bytes_total", "file I/O bytes", {{"op","readv"}},
+        []{return (unsigned long long)XrdXrootdFileStats::totRvBytes.load();});
+   reg.AddRefCounter("xrootd_bytes_total", "file I/O bytes", {{"op","write"}},
+        []{return (unsigned long long)XrdXrootdFileStats::totWrBytes.load();});
 
 // High-water mark of concurrent async i/o operations is a gauge, not a counter.
 //
