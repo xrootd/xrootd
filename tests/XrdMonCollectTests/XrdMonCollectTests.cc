@@ -328,6 +328,68 @@ TEST(XrdMonCollect, RedirectStreamDecoded)
   EXPECT_EQ(j["user"], "bob");
 }
 
+TEST_F(Transfer, TokenAndActivityEnrichTransfer)
+{
+  feedUserMap();
+  // 'T' token map: keyed by the same user dictid (7) as the 'u' map.
+  { W body; body.u32(7);
+    std::string info = "&Uc=7&s=https://issuer/sub42&n=alice"
+                       "&o=atlas&r=production&g=/atlas/prod";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('T', kStod, pl);
+    dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  // 'U' user experiment/activity map (SciTags), same dictid.
+  { W body; body.u32(7);
+    std::string info = "&Uc=7&Ec=42&Ac=7";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('U', kStod, pl);
+    dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["token_subject"], "https://issuer/sub42");
+  EXPECT_EQ(j["vo"], "atlas");
+  EXPECT_EQ(j["role"], "production");
+  EXPECT_EQ(j["groups"], "/atlas/prod");
+  EXPECT_EQ(j["experiment_id"], 42);
+  EXPECT_EQ(j["activity_id"], 7);
+
+  const XrdMonDecode::Stats& s = dec.GetStats();
+  EXPECT_EQ(s.mapTokn, 1u);
+  EXPECT_EQ(s.mapUeac, 1u);
+}
+
+TEST(XrdMonCollect, ServerIdentDecoded)
+{
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); });
+
+  std::string info = "=/xrootd.4321:99@srv.example.org"
+                     "\n&site=T1_DE_KIT&port=1094&inst=manager&pgm=xrootd&ver=v6.1.0";
+  W body; body.u32(0);   // dictid is 0 for '='
+  std::vector<unsigned char> pl = body.b;
+  pl.insert(pl.end(), info.begin(), info.end());
+  auto pkt = packet('=', kStod, pl);
+  dec.Process("srv:9930", (const char*)pkt.data(), pkt.size());
+  // A second identical ident must not produce a duplicate document.
+  dec.Process("srv:9930", (const char*)pkt.data(), pkt.size());
+
+  ASSERT_EQ(docs.size(), 1u);
+  json j = json::parse(docs[0]);
+  EXPECT_EQ(j["type"], "server_ident");
+  EXPECT_EQ(j["site"], "T1_DE_KIT");
+  EXPECT_EQ(j["host"], "srv.example.org");
+  EXPECT_EQ(j["instance"], "manager");
+  EXPECT_EQ(j["program"], "xrootd");
+  EXPECT_EQ(j["version"], "v6.1.0");
+  EXPECT_EQ(j["port"], 1094);
+  EXPECT_EQ(dec.GetStats().mapIdnt, 2u);
+}
+
 TEST(XrdMonCollect, GStreamForwarded)
 {
   std::vector<std::string> docs;

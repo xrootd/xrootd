@@ -59,6 +59,9 @@ struct Stats
    uint64_t mapUser   = 0;   // 'u' dictionary records
    uint64_t mapPath   = 0;   // 'd' dictionary records
    uint64_t mapInfo   = 0;   // 'i' dictionary records
+   uint64_t mapIdnt   = 0;   // '=' server-identification records
+   uint64_t mapTokn   = 0;   // 'T' token dictionary records
+   uint64_t mapUeac   = 0;   // 'U' user experiment/activity records
    uint64_t opens     = 0;   // 'f' open records
    uint64_t closes    = 0;   // 'f' close records
    uint64_t docs      = 0;   // transfer documents emitted
@@ -104,6 +107,38 @@ struct UserInfo
    std::string host;
 };
 
+// Token identity from a 'T' (MAPTOKN) record, keyed by the user dictid.
+//
+struct TokenInfo
+{
+   std::string subject;   // s= token subject (sub claim)
+   std::string username;  // n= mapped local user
+   std::string vo;        // o= organisation / VO
+   std::string role;      // r= role
+   std::string groups;    // g= groups
+};
+
+// User experiment/activity from a 'U' (MAPUEAC) record (SciTags packet-marking
+// flow labels), keyed by the user dictid.
+//
+struct UserActivity
+{
+   int experiment = 0;    // Ec= experiment id
+   int activity   = 0;    // Ac= activity id
+};
+
+// Server self-identification from a '=' (MAPIDNT) record.
+//
+struct ServerIdent
+{
+   std::string site;
+   std::string host;
+   std::string inst;
+   std::string pgm;
+   std::string ver;
+   std::string user;      // login user.pid of the reporting daemon
+};
+
 // An open file awaiting its close, from the 'f' stream open record.
 //
 struct OpenFile
@@ -123,12 +158,18 @@ struct Server
    std::unordered_map<uint32_t, OpenFile>    files;
    std::unordered_map<uint32_t, std::string> paths;  // 'd' dictid -> lfn
    std::unordered_map<std::string, std::string> infos; // 'i' descriptor -> appinfo
+   std::unordered_map<uint32_t, TokenInfo>    tokens;  // 'T' user dictid -> token
+   std::unordered_map<uint32_t, UserActivity> activity;// 'U' user dictid -> scitag
+   ServerIdent ident;        // '=' server self-identification
+   std::string identRaw;     // last emitted identity (to de-duplicate docs)
    int64_t sID = 0;
 };
 
 Server&  ServerFor(const std::string& src, int32_t stod);
 void     DecodeMap(unsigned char code, Server& srv,
                    uint32_t dictid, const char* info, int ilen);
+void     DecodeIdent(const std::string& src, int32_t stod, Server& srv,
+                     const char* info, int ilen);
 void     DecodeFStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int len);
 void     EmitClose(const std::string& src, int32_t stod, Server& srv,

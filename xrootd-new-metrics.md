@@ -363,8 +363,17 @@ independent add-ons.
 
 `xrdmoncollect` currently decodes `u` (user), `d` (path), `i` (appinfo, joined
 to transfers), `f` (file stats → transfer docs + metrics), `t` (I/O traces),
-`g` (plugin streams, forwarded as opaque JSON), and `r` (redirects). This phase
-maps out what is left and how to add it.
+`g` (plugin streams, forwarded as opaque JSON), `r` (redirects), and — as of
+Phase 6 item 1 — `=` (server identity), `T` (token), and `U` (user experiment/
+activity). This phase maps out what is left and how to add it.
+
+> **Item 1 DONE.** `=` (`MAPIDNT`) → a `server_ident` document (site/host/
+> instance/program/version/port) plus `site`/`server_inst` enrichment on every
+> transfer; `T` (`MAPTOKN`) → `token_subject`/`vo`/`role`/`groups` joined by user
+> dictid, plus `xrootd_collector_vo_transfers_total{server,vo}`; `U` (`MAPUEAC`)
+> → SciTags `experiment_id`/`activity_id`. All keyed by the user dictid (same as
+> `u`), reusing `DecodeMap`. Unit-tested (`TokenAndActivityEnrichTransfer`,
+> `ServerIdentDecoded`). Remaining items below are unchanged.
 
 ## A. Top-level packet codes still unhandled
 
@@ -374,9 +383,9 @@ alongside the existing `DecodeMap`.
 
 | code | name | content / route | value | effort |
 |------|------|-----------------|-------|--------|
-| `=` | `MAPIDNT` | server self-identification: site, host, port, instance, pgm (the `<...>` summary header). Not a `dictid` map — a one-off identity string. | server metadata enrichment (a `server_info`-style document/labels) | low |
-| `T` | `MAPTOKN` | token dictionary (`dictid → token info`: subject, issuer, VO from SciTokens/JWT). Routed as USER (`Map()`), so it is an `XrdXrootdMonMap`. | identity enrichment — attach token subject/issuer/VO to transfers | low |
-| `U` | `MAPUEAC` | user experiment/activity (VO, role, activity/app). Also a USER-routed map. | VO/activity enrichment of transfers (bounded label for metrics) | low |
+| `=` | `MAPIDNT` | server self-identification: site, host, port, instance, pgm. Not a `dictid` map — a one-off identity string. | server metadata enrichment | **DONE** |
+| `T` | `MAPTOKN` | token dictionary (`dictid → token info`: subject, VO, role, groups from SciTokens/JWT). Routed as USER (`Map()`), so it is an `XrdXrootdMonMap`. | identity enrichment — attach token subject/VO to transfers | **DONE** |
+| `U` | `MAPUEAC` | user experiment/activity: SciTags packet-marking experiment (`Ec`) and activity (`Ac`) flow labels. Also a USER-routed map. | VO/activity enrichment of transfers | **DONE** |
 | `x` | `MAPXFER` | FRM transfer/migration record (stage-in/out). Format is FRM-specific — needs investigation in `XrdFrm`/`XrdXrootdMonFile` xfr path. | stage/migration visibility | medium |
 | `p` | `MAPPURG` | FRM/cache purge record. FRM-specific format. | purge/eviction visibility | medium |
 | `m` | `MAPMIGR` | **internal use only** — skip. | — | — |
@@ -429,8 +438,7 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
 
 ## E. Suggested implementation order (next session)
 
-1. `=` MAPIDNT server identity + `T`/`U` token/VO maps (all low effort, reuse
-   `DecodeMap` + descriptor join). Add identity/VO enrichment to transfers.
+1. ~~`=` MAPIDNT server identity + `T`/`U` token/VO maps~~ **(DONE)**.
 2. g-stream structured parsing + metrics for `oss`, `pfc`, `tpc`.
 3. `f`-stream `isXfr`/`isDisc` → active-transfer gauges and session docs.
 4. `pseq` loss detection and dictionary eviction (robustness).

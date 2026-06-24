@@ -60,6 +60,19 @@ they resolve identities and paths for the other streams, and the appinfo (`i`)
 is joined to each transfer document by session descriptor (adds an `appinfo`
 field when the client set one).
 
+The `=` (server identity), `T` (token) and `U` (user experiment/activity)
+records are also always consumed:
+
+- `=` (`MAPIDNT`) yields a one-off `server_ident` document per server
+  incarnation (site, host, instance, program, version, port) and tags every
+  transfer document with `site`/`server_inst`. Re-sent identically each
+  `ident` interval; the collector emits the document only when it changes.
+- `T` (`MAPTOKN`) carries the token identity (subject, VO, role, groups). Keyed
+  by the user dictid, it joins onto each transfer as `token_subject`/`vo`/
+  `role`/`groups`, and drives `xrootd_collector_vo_transfers_total{server,vo}`.
+- `U` (`MAPUEAC`) carries the SciTags packet-marking flow labels (experiment
+  and activity ids), joined onto transfers as `experiment_id`/`activity_id`.
+
 The direct OpenSearch sink (`--os-url`) is available when the binary is built
 with libcurl (the build links `CURL::libcurl` if found). Documents are batched
 and posted via the `_bulk` API; transient failures (network, HTTP 429/5xx) are
@@ -129,6 +142,7 @@ time-series database:
 xrootd_collector_transfers_total{server="..."}
 xrootd_collector_read_bytes_total{server="..."}
 xrootd_collector_write_bytes_total{server="..."}
+xrootd_collector_vo_transfers_total{server="...",vo="..."}
 xrootd_collector_transfer_size_bytes        (histogram)
 xrootd_collector_transfer_duration_seconds  (histogram)
 xrootd_collector_packets_total              (and other decoder statistics)

@@ -19,6 +19,7 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /******************************************************************************/
 
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 
@@ -50,6 +51,23 @@ inline int64_t  ri64(const unsigned char* p) {return (int64_t) rd64(p);}
 
 inline double   rdbl(const unsigned char* p)
    {uint64_t u = rd64(p); double d; std::memcpy(&d, &u, sizeof(d)); return d;}
+
+// Extract the value of an `&key=value` (or leading `key=value`) field from a
+// CGI-style string; returns empty if the key is absent.
+//
+std::string cgiVal(const std::string& s, const char* key)
+{
+   std::string k(key);
+   std::size_t start;
+   std::string amp = "&" + k + "=";
+   auto pos = s.find(amp);
+   if (pos != std::string::npos) start = pos + amp.size();
+   else if (s.compare(0, k.size() + 1, k + "=") == 0) start = k.size() + 1;
+   else return "";
+   auto end = s.find('&', start);
+   return s.substr(start, end == std::string::npos ? std::string::npos
+                                                   : end - start);
+}
 
 // Format a Unix time as an ISO-8601 UTC string. Zero/negative => empty.
 //
@@ -104,11 +122,19 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
          {case XROOTD_MON_MAPUSER:
           case XROOTD_MON_MAPPATH:
           case XROOTD_MON_MAPINFO:
+          case XROOTD_MON_MAPTOKN:
+          case XROOTD_MON_MAPUEAC:
                // XrdXrootdMonMap: header(8) + dictid(4) + info[]
                if (plen < 12) {stats.malformed++; return false;}
                {uint32_t dictid = rd32(p + 8);
                 DecodeMap(code, srv, dictid, (const char*)(p + 12), plen - 12);
                }
+               break;
+
+          case XROOTD_MON_MAPIDNT:
+               // Server self-identification: header(8) + dictid(4, =0) + info[]
+               if (plen < 12) {stats.malformed++; return false;}
+               DecodeIdent(src, stod, srv, (const char*)(p + 12), plen - 12);
                break;
 
           case XROOTD_MON_MAPFSTA:
@@ -180,12 +206,35 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
                srv.paths[dictid] = (nl == std::string::npos) ? text
                                                              : text.substr(nl + 1);
               }
-      else    {stats.mapInfo++;
+      else if (code == XROOTD_MON_MAPINFO)
+              {stats.mapInfo++;
                // 'i' (appinfo): "<descriptor>\n<appinfo>". The descriptor matches
                // the 'u' user descriptor, so key by it to enrich transfers.
                auto nl = text.find('\n');
                if (nl != std::string::npos)
                   srv.infos[text.substr(0, nl)] = text.substr(nl + 1);
+              }
+      else if (code == XROOTD_MON_MAPTOKN)
+              {stats.mapTokn++;
+               // 'T' (token): CGI "&Uc=<dictid>&s=&n=&o=&r=&g=", keyed by the
+               // same user dictid as the 'u' map so it joins onto transfers.
+               TokenInfo t;
+               t.subject  = cgiVal(text, "s");
+               t.username = cgiVal(text, "n");
+               t.vo       = cgiVal(text, "o");
+               t.role     = cgiVal(text, "r");
+               t.groups   = cgiVal(text, "g");
+               srv.tokens[dictid] = std::move(t);
+              }
+      else    {stats.mapUeac++;
+               // 'U' (user experiment/activity): CGI "&Uc=<dictid>&Ec=&Ac=",
+               // the SciTags experiment/activity flow labels.
+               UserActivity a;
+               std::string ec = cgiVal(text, "Ec");
+               std::string ac = cgiVal(text, "Ac");
+               if (!ec.empty()) a.experiment = atoi(ec.c_str());
+               if (!ac.empty()) a.activity   = atoi(ac.c_str());
+               srv.activity[dictid] = a;
               }
 
    if (dumpRaw && raw)
@@ -193,6 +242,61 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
                  {"dictid", dictid}, {"info", first}};
        raw(j.dump());
       }
+}
+
+/******************************************************************************/
+/*                          D e c o d e I d e n t                             */
+/******************************************************************************/
+
+void XrdMonDecode::DecodeIdent(const std::string& src, int32_t stod,
+                               Server& srv, const char* info, int ilen)
+{
+   stats.records++;
+   stats.mapIdnt++;
+
+// The identity record is "=/<user>.<pid>:<sid>@<host>\n&site=&port=&inst=&pgm=
+// &ver=". The first line carries the login user and host, the second a CGI tail.
+//
+   std::string text(info, ilen > 0 ? ilen : 0);
+   std::string first = text.substr(0, text.find('\n'));
+
+   ServerIdent& id = srv.ident;
+   auto slash = first.find('/');
+   auto at    = first.rfind('@');
+   if (slash != std::string::npos)
+      {auto end = (at != std::string::npos) ? at : first.size();
+       if (end > slash + 1) id.user = first.substr(slash + 1, end - slash - 1);
+      }
+   if (at != std::string::npos) id.host = first.substr(at + 1);
+
+   id.site = cgiVal(text, "site");
+   id.inst = cgiVal(text, "inst");
+   id.pgm  = cgiVal(text, "pgm");
+   id.ver  = cgiVal(text, "ver");
+
+   if (dumpRaw && raw)
+      {json j = {{"code", "="}, {"info", first}};
+       raw(j.dump());
+      }
+
+// Emit a server-identity document, but only when the content changes (the
+// server re-sends this every monitor "ident" interval, default hourly).
+//
+   if (text == srv.identRaw) return;
+   srv.identRaw = text;
+
+   json j;
+   j["type"]         = "server_ident";
+   j["server"]       = src;
+   j["server_start"] = stod;
+   if (!id.site.empty()) j["site"]      = id.site;
+   if (!id.host.empty()) j["host"]      = id.host;
+   if (!id.inst.empty()) j["instance"]  = id.inst;
+   if (!id.pgm.empty())  j["program"]   = id.pgm;
+   if (!id.ver.empty())  j["version"]   = id.ver;
+   std::string port = cgiVal(text, "port");
+   if (!port.empty())    j["port"]      = atoi(port.c_str());
+   if (doc) doc(j.dump());
 }
 
 /******************************************************************************/
@@ -278,6 +382,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    int64_t wrBytes = ri64(rec + 24);
 
    int durSecs = -1;
+   std::string vo;
 
    json j;
    j["type"]         = "transfer";
@@ -285,6 +390,8 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    j["server"]       = src;
    j["server_start"] = stod;
    j["server_id"]    = srv.sID;
+   if (!srv.ident.site.empty()) j["site"]          = srv.ident.site;
+   if (!srv.ident.inst.empty()) j["server_inst"]   = srv.ident.inst;
    j["close_time"]   = isoTime(tWin);
    j["forced"]       = (recFlag & XrdXrootdMonFileHdr::forced) != 0;
    j["read_bytes"]   = rdBytes;
@@ -314,6 +421,23 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
            // Enrich with the application info ('i' stream), joined by descriptor.
            auto iit = srv.infos.find(uit->second.raw);
            if (iit != srv.infos.end()) j["appinfo"] = iit->second;
+          }
+
+       // Token identity ('T' stream) and experiment/activity ('U' stream) are
+       // keyed by the same user dictid as the 'u' map.
+       auto tit = srv.tokens.find(of.user);
+       if (tit != srv.tokens.end())
+          {const TokenInfo& t = tit->second;
+           vo = t.vo;
+           if (!t.subject.empty()) j["token_subject"] = t.subject;
+           if (!t.vo.empty())      j["vo"]            = t.vo;
+           if (!t.role.empty())    j["role"]          = t.role;
+           if (!t.groups.empty())  j["groups"]        = t.groups;
+          }
+       auto ait = srv.activity.find(of.user);
+       if (ait != srv.activity.end())
+          {if (ait->second.experiment) j["experiment_id"] = ait->second.experiment;
+           if (ait->second.activity)   j["activity_id"]   = ait->second.activity;
           }
        srv.files.erase(fit);
       }
@@ -360,6 +484,10 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
                         "bytes read (read+readv)", sl).inc(rdBytes + rvBytes);
        metrics->Counter("xrootd_collector_write_bytes_total",
                         "bytes written", sl).inc(wrBytes);
+       if (!vo.empty())
+          metrics->Counter("xrootd_collector_vo_transfers_total",
+                        "completed transfers per VO",
+                        {{"server", src}, {"vo", vo}}).inc();
        metrics->Histogram("xrootd_collector_transfer_size_bytes",
                         "bytes moved per transfer",
                         {1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e11})
