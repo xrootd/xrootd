@@ -325,6 +325,8 @@ int main(int argc, char* argv[])
             "g-stream records decoded", {}, [&]{return s.gevents;});
        reg->AddRefCounter("xrootd_collector_redirect_records_total",
             "r-stream redirect records decoded", {}, [&]{return s.redirs;});
+       reg->AddRefCounter("xrootd_collector_frm_records_total",
+            "x/p FRM stage/purge records decoded", {}, [&]{return s.frmEvents;});
        reg->AddRefCounter("xrootd_collector_token_records_total",
             "T-stream token records decoded", {}, [&]{return s.mapTokn;});
        reg->AddRefCounter("xrootd_collector_ident_records_total",
@@ -385,7 +387,7 @@ int main(int argc, char* argv[])
          "mapUser=%llu mapTokn=%llu mapUeac=%llu mapIdnt=%llu "
          "opens=%llu closes=%llu xfrs=%llu discs=%llu docs=%llu "
          "orphanCloses=%llu lost=%llu evicted=%llu "
-         "traces=%llu gevents=%llu redirs=%llu unknown=%llu\n",
+         "traces=%llu gevents=%llu redirs=%llu frm=%llu unknown=%llu\n",
          (unsigned long long)s.packets, (unsigned long long)s.malformed,
          (unsigned long long)s.records, (unsigned long long)s.mapUser,
          (unsigned long long)s.mapTokn, (unsigned long long)s.mapUeac,
@@ -395,7 +397,8 @@ int main(int argc, char* argv[])
          (unsigned long long)s.docs, (unsigned long long)s.orphanCls,
          (unsigned long long)s.lost, (unsigned long long)s.evicted,
          (unsigned long long)s.traces, (unsigned long long)s.gevents,
-         (unsigned long long)s.redirs, (unsigned long long)s.unknown);
+         (unsigned long long)s.redirs, (unsigned long long)s.frmEvents,
+         (unsigned long long)s.unknown);
       }
 
    if (out != stdout) fclose(out);

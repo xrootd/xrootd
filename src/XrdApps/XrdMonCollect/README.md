@@ -56,8 +56,15 @@ finer-grained events:
   `throttle`, `tpc`, `http` g-streams — as a document tagged with its provider,
   embedding the plugin's JSON payload. Requires `xrootd.mongstream` on the
   server. Independently of document emission, when `--metrics-port` is set the
-  `oss`, `pfc` and `tpc` providers are also parsed into aggregate metrics (see
-  below); the `oss` running totals are converted to counter deltas.
+  `oss`, `pfc`, `tpc`, `throttle` and `http` providers are also parsed into
+  aggregate metrics (see below); the cumulative providers (`oss`, `throttle`
+  `io_total`, `http` counts) are converted to counter deltas. `ccm` and
+  `tcpmon` are forwarded only.
+- The `x` (FRM stage/migrate) and `p` (FRM purge) records are always decoded
+  into an `frm` document (operation, user, lfn, and — for purge — the file
+  size) and counted in `xrootd_collector_frm_total{server,op}` /
+  `xrootd_collector_frm_purge_bytes_total`. Emitted by a File Residency
+  Manager.
 - `--redirects` turns each `r` (redirect) record into a document: operation,
   remote/local kind, target host/port, path, and the redirected user. Emitted
   mainly by redirectors/managers; requires `redir` in the monitor `dest` list.
@@ -167,6 +174,16 @@ xrootd_collector_pfc_bytes_total{server="...",source="hit|miss|bypass|disk|prefe
 xrootd_collector_tpc_total{server="...",type="push|pull",result="ok|error"}
 xrootd_collector_tpc_bytes_total{server="...",type="push|pull"}
 xrootd_collector_tpc_size_bytes             (histogram)
+xrootd_collector_throttle_io_total{server="..."}
+xrootd_collector_throttle_io_active{server="..."}   (gauge)
+xrootd_collector_http_requests_total{server="...",method="...",status="..."}
+```
+
+From the `x`/`p` (FRM) streams:
+
+```
+xrootd_collector_frm_total{server="...",op="transfer|purge"}
+xrootd_collector_frm_purge_bytes_total{server="..."}
 ```
 
 Point a Prometheus scrape job at `http://<collector-host>:<p>/metrics`.

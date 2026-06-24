@@ -386,8 +386,8 @@ alongside the existing `DecodeMap`.
 | `=` | `MAPIDNT` | server self-identification: site, host, port, instance, pgm. Not a `dictid` map — a one-off identity string. | server metadata enrichment | **DONE** |
 | `T` | `MAPTOKN` | token dictionary (`dictid → token info`: subject, VO, role, groups from SciTokens/JWT). Routed as USER (`Map()`), so it is an `XrdXrootdMonMap`. | identity enrichment — attach token subject/VO to transfers | **DONE** |
 | `U` | `MAPUEAC` | user experiment/activity: SciTags packet-marking experiment (`Ec`) and activity (`Ac`) flow labels. Also a USER-routed map. | VO/activity enrichment of transfers | **DONE** |
-| `x` | `MAPXFER` | FRM transfer/migration record (stage-in/out). Format is FRM-specific — needs investigation in `XrdFrm`/`XrdXrootdMonFile` xfr path. | stage/migration visibility | medium |
-| `p` | `MAPPURG` | FRM/cache purge record. FRM-specific format. | purge/eviction visibility | medium |
+| `x` | `MAPXFER` | FRM stage/migrate record — an `XrdXrootdMonMap` (dictid 0) with info `"<who>\n<path>"` (the wire `x` code covers both stage and migrate). | stage/migration visibility | **DONE** |
+| `p` | `MAPPURG` | FRM purge record — same map layout with a `"\n&tod=&sz=&at=&ct=&mt=&fn="` CGI tail carrying the purged file size. | purge/eviction visibility | **DONE** |
 | `m` | `MAPMIGR` | **internal use only** — skip. | — | — |
 | `s` | `MAPSTAG` | **internal use only** — skip. | — | — |
 
@@ -418,11 +418,11 @@ aggregation into bounded Prometheus metrics**. Provider type is the top byte of
 |----------|------|---------|-------------------|
 | `oss` | `O` | OSS plugin op counts/timings (read/write/stat/open + "slow" variants) — already Prometheus-shaped (see `XrdOssStats`) | **DONE**: per-op + slow-op counters (timings still TODO) |
 | `pfc` | `C` | proxy file cache: bytes from cache/disk/origin, hits/misses, prefetch | **DONE**: file closes + bytes by source |
-| `ccm` | `M` | cache context mgmt: file admit/purge decisions | admit/purge rates, residency |
+| `ccm` | `M` | cache context mgmt: file admit/purge decisions | admit/purge rates, residency (forwarded-only) |
 | `tpc` | `P` | third-party copy: push/pull, src/dst, bytes, status, duration | **DONE**: copies by type/result, bytes, size histogram |
-| `throttle` | `R` | throttle plugin: I/O rates, wait times, limited ops | throttled-bytes, wait-seconds |
-| `tcpmon` | `T` | TCP connection stats: RTT, retransmits, bytes, congestion window | per-conn RTT/retransmit histograms |
-| `http` | `H` | HTTP request processing activity | request rate by method/status (overlaps the http_plugin summary metrics) |
+| `throttle` | `R` | throttle plugin: I/O rates, wait times, limited ops | **DONE**: io_total counter + io_active gauge (io_wait TODO) |
+| `tcpmon` | `T` | TCP connection stats: RTT, retransmits, bytes, congestion window | per-conn RTT/retransmit histograms (forwarded-only; plugin-defined schema) |
+| `http` | `H` | HTTP request processing activity | **DONE**: requests by method/status (delta of cumulative counts) |
 
 Recommended order by payoff: **oss, pfc, tpc** first (storage/cache/copy
 throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
@@ -462,7 +462,10 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
 2. ~~g-stream structured parsing + metrics for `oss`, `pfc`, `tpc`~~ **(DONE)**.
 3. ~~`f`-stream `isXfr`/`isDisc` → active-transfer gauges and session docs~~ **(DONE)**.
 4. ~~`pseq` loss detection and dictionary eviction (robustness)~~ **(DONE)**.
-5. Remaining g-stream providers (throttle/tcpmon/ccm/http) and `x`/`p` (FRM).
+5. ~~Remaining g-stream providers (throttle/http) and `x`/`p` (FRM)~~ **(DONE)**.
+   `ccm` and `tcpmon` remain forwarded-only (no fixed in-tree JSON schema:
+   `tcpmon` records are produced by a `XrdTcpMonPin` plugin, `ccm` by the pfc
+   cache-context manager); structured parsing waits on a concrete schema.
 
 Each step is independently testable with hand-built packets (the established
 `tests/XrdMonCollectTests/` pattern) and, where a live source exists, against a

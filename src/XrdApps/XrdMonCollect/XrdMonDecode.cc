@@ -155,6 +155,14 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
                DecodeIdent(src, stod, srv, (const char*)(p + 12), plen - 12);
                break;
 
+          case XROOTD_MON_MAPXFER:
+          case XROOTD_MON_MAPPURG:
+               // FRM stage/migrate ('x') and purge ('p'): map record with
+               // dictid 0 and info "<who>\n<path>[\n&cgi]".
+               if (plen < 12) {stats.malformed++; return false;}
+               DecodeFrm(src, stod, code, (const char*)(p + 12), plen - 12);
+               break;
+
           case XROOTD_MON_MAPFSTA:
                DecodeFStream(src, stod, srv, p + 8, plen - 8);
                break;
@@ -344,6 +352,66 @@ void XrdMonDecode::DecodeIdent(const std::string& src, int32_t stod,
    if (!id.ver.empty())  j["version"]   = id.ver;
    std::string port = cgiVal(text, "port");
    if (!port.empty())    j["port"]      = atoi(port.c_str());
+   if (doc) doc(j.dump());
+}
+
+/******************************************************************************/
+/*                            D e c o d e F r m                               */
+/******************************************************************************/
+
+void XrdMonDecode::DecodeFrm(const std::string& src, int32_t stod,
+                             unsigned char code, const char* info, int ilen)
+{
+   stats.records++;
+   stats.frmEvents++;
+
+// info is "<who>\n<path>[\n&tod=&sz=&at=&ct=&mt=&fn=]" (the CGI tail is present
+// for purge records). 'x' carries stage and migrate, 'p' carries purge.
+//
+   std::string text(info, ilen > 0 ? ilen : 0);
+   auto nl1  = text.find('\n');
+   std::string who  = text.substr(0, nl1);
+   std::string rest = (nl1 == std::string::npos) ? "" : text.substr(nl1 + 1);
+   auto nl2  = rest.find('\n');
+   std::string path = rest.substr(0, nl2);
+   std::string cgi  = (nl2 == std::string::npos) ? "" : rest.substr(nl2 + 1);
+
+   const char* op = (code == XROOTD_MON_MAPPURG) ? "purge" : "transfer";
+
+   json j;
+   j["type"]         = "frm";
+   j["operation"]    = op;
+   j["server"]       = src;
+   j["server_start"] = stod;
+   if (!path.empty()) j["lfn"] = path;
+
+// who is "<prot>/<user>.<pid>:<sid>@<host>".
+//
+   auto slash = who.find('/');
+   auto at    = who.rfind('@');
+   if (slash != std::string::npos)
+      {j["protocol"] = who.substr(0, slash);
+       std::string r = who.substr(slash + 1);
+       j["user"] = r.substr(0, r.find('.'));
+      }
+   if (at != std::string::npos) j["client_host"] = who.substr(at + 1);
+
+   int64_t sz = -1;
+   if (!cgi.empty())
+      {std::string s = cgiVal(cgi, "sz");
+       if (!s.empty()) {sz = atoll(s.c_str()); j["size"] = sz;}
+       std::string tod = cgiVal(cgi, "tod");
+       if (!tod.empty()) j["@timestamp"] = isoTime((int32_t)atoll(tod.c_str()));
+      }
+
+   if (metrics)
+      {metrics->Counter("xrootd_collector_frm_total", "FRM stage/purge events",
+                        {{"server", src}, {"op", op}}).inc();
+       if (code == XROOTD_MON_MAPPURG && sz > 0)
+          metrics->Counter("xrootd_collector_frm_purge_bytes_total",
+                        "bytes purged by FRM", {{"server", src}}).inc(sz);
+      }
+
    if (doc) doc(j.dump());
 }
 
@@ -807,7 +875,40 @@ void gsAggregate(XrdMetricsRegistry* M,
                }
                break;
 
-          default: break;         // ccm/tcp/throttle/http: forwarded, not yet aggregated
+          case XROOTD_MON_GSTHR:   // throttle plugin
+               {auto ev = j.find("event");
+                if (ev == j.end() || *ev != "throttle_update") break;
+                delta("xrootd_collector_throttle_io_total",
+                      "throttle plugin I/O operations", srv,
+                      src + "|thr|io_total", jU(j, "io_total"));
+                auto ia = j.find("io_active");
+                if (ia != j.end() && ia->is_number())
+                   M->Gauge("xrootd_collector_throttle_io_active",
+                            "throttle plugin in-flight I/O", srv)
+                    .set(ia->get<double>());
+               }
+               break;
+
+          case XROOTD_MON_GSHTP:   // HTTP request activity (cumulative per op/status)
+               {for (auto it = j.begin(); it != j.end(); ++it)
+                    {const std::string& key = it.key();
+                     if (key.compare(0, 5, "HTTP_") != 0 || !it->is_object())
+                        continue;
+                     auto us = key.find('_', 5);
+                     std::string method = key.substr(5, us == std::string::npos
+                                                        ? std::string::npos : us - 5);
+                     std::string status = us == std::string::npos ? ""
+                                                                  : key.substr(us + 1);
+                     XrdMetricsLabels l = {{"server", src}, {"method", method},
+                                           {"status", status}};
+                     delta("xrootd_collector_http_requests_total",
+                           "HTTP requests by method and status", l,
+                           src + "|http|" + key, jU(*it, "count"));
+                    }
+               }
+               break;
+
+          default: break;         // ccm/tcp: forwarded, not yet aggregated
          }
 }
 }

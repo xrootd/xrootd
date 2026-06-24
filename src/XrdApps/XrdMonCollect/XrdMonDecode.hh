@@ -72,6 +72,7 @@ struct Stats
    uint64_t traces    = 0;   // 't' stream records decoded
    uint64_t gevents   = 0;   // 'g' stream records decoded
    uint64_t redirs    = 0;   // 'r' stream redirect records decoded
+   uint64_t frmEvents = 0;   // 'x'/'p' FRM stage/migrate/purge records
    uint64_t lost      = 0;   // estimated lost packets (pseq gaps)
    uint64_t evicted   = 0;   // dictionary/open-file entries evicted (cap)
    uint64_t unknown   = 0;   // packets with an unhandled code
@@ -182,6 +183,8 @@ void     DecodeMap(unsigned char code, Server& srv,
                    uint32_t dictid, const char* info, int ilen);
 void     DecodeIdent(const std::string& src, int32_t stod, Server& srv,
                      const char* info, int ilen);
+void     DecodeFrm(const std::string& src, int32_t stod, unsigned char code,
+                   const char* info, int ilen);
 void     DecodeFStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int len);
 void     EmitClose(const std::string& src, int32_t stod, Server& srv,

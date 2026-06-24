@@ -176,8 +176,8 @@ TEST(XrdMonCollect, ShortPacketIsMalformed)
 TEST(XrdMonCollect, UnknownStreamCounted)
 {
   XrdMonDecode dec([](const std::string&){});
-  // 'x' (MAPXFER) is not handled -> counted as unknown.
-  auto pkt = packet('x', kStod, std::vector<unsigned char>(16, 0));
+  // 'Z' is not a defined monitor code -> counted as unknown.
+  auto pkt = packet('Z', kStod, std::vector<unsigned char>(16, 0));
   EXPECT_TRUE(dec.Process("1.2.3.4:5", (const char*)pkt.data(), pkt.size()));
   EXPECT_EQ(dec.GetStats().unknown, 1u);
 }
@@ -407,6 +407,42 @@ TEST(XrdMonCollect, DictionaryEviction)
   EXPECT_GT(dec.GetStats().evicted, 0u);
 }
 
+TEST(XrdMonCollect, FrmStageAndPurge)
+{
+  XrdMetricsRegistry reg;
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
+                   false, false, false, false, &reg);
+
+  auto frm = [&](char code, const std::string& info)
+     {W body; body.u32(0);                // dictid is 0 for x/p
+      std::vector<unsigned char> pl = body.b;
+      pl.insert(pl.end(), info.begin(), info.end());
+      auto pkt = packet(code, kStod, pl);
+      dec.Process("h:1", (const char*)pkt.data(), pkt.size());};
+
+  frm('x', "xroot/alice.1:2@wn.example.org\n/store/data/f.root");
+  frm('p', "xroot/alice.1:2@wn.example.org\n/store/data/f.root"
+           "\n&tod=1700000000&sz=1048576&at=1&ct=2&mt=3&fn=l");
+
+  ASSERT_EQ(docs.size(), 2u);
+  json x = json::parse(docs[0]);
+  EXPECT_EQ(x["type"], "frm");
+  EXPECT_EQ(x["operation"], "transfer");
+  EXPECT_EQ(x["user"], "alice");
+  EXPECT_EQ(x["lfn"], "/store/data/f.root");
+  json p = json::parse(docs[1]);
+  EXPECT_EQ(p["operation"], "purge");
+  EXPECT_EQ(p["size"], 1048576);
+  EXPECT_EQ(dec.GetStats().frmEvents, 2u);
+
+  std::string out; reg.Scrape(out);
+  EXPECT_NE(out.find("xrootd_collector_frm_total{op=\"purge\",server=\"h:1\"} 1"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_frm_purge_bytes_total{server=\"h:1\"} 1048576"),
+            std::string::npos) << out;
+}
+
 TEST(XrdMonCollect, SessionDiscAndActiveGauge)
 {
   XrdMetricsRegistry reg;
@@ -558,5 +594,34 @@ TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
   EXPECT_NE(out.find("xrootd_collector_tpc_total{result=\"ok\",server=\"h:1\",type=\"pull\"} 1"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_tpc_bytes_total{server=\"h:1\",type=\"pull\"} 1048576"),
+            std::string::npos) << out;
+}
+
+TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
+{
+  XrdMetricsRegistry reg;
+  XrdMonDecode dec([](const std::string&){}, nullptr,
+                   false, false, false, false, &reg);
+
+  // throttle: baseline then +30 io_total, io_active gauge = 4.
+  auto t1 = gPacket('R', "{\"event\":\"throttle_update\",\"io_wait\":1.5,"
+                         "\"io_active\":2,\"io_total\":100}");
+  dec.Process("h:1", (const char*)t1.data(), t1.size());
+  auto t2 = gPacket('R', "{\"event\":\"throttle_update\",\"io_wait\":2.0,"
+                         "\"io_active\":4,\"io_total\":130}");
+  dec.Process("h:1", (const char*)t2.data(), t2.size());
+
+  // http: baseline then +5 GET/200.
+  auto h1 = gPacket('H', "{\"HTTP_GET_200\":{\"count\":10,\"success\":10}}");
+  dec.Process("h:1", (const char*)h1.data(), h1.size());
+  auto h2 = gPacket('H', "{\"HTTP_GET_200\":{\"count\":15,\"success\":15}}");
+  dec.Process("h:1", (const char*)h2.data(), h2.size());
+
+  std::string out; reg.Scrape(out);
+  EXPECT_NE(out.find("xrootd_collector_throttle_io_total{server=\"h:1\"} 30"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_throttle_io_active{server=\"h:1\"} 4"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_http_requests_total{method=\"GET\",server=\"h:1\",status=\"200\"} 5"),
             std::string::npos) << out;
 }
