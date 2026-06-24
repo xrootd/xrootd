@@ -234,15 +234,7 @@ S3DownloadHandler::CloseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw,
 XrdCl::XRootDStatus
 XrdClS3::DownloadUrl(const std::string &url, XrdClHttp::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout)
 {
-    std::unique_ptr<XrdCl::File> http_file(new XrdCl::File());
-    // Hack - we need to set a few properties on the file object before the open occurs.
-    // However, the "real" (plugin) file object is not created until the open call.
-    // This forces the plugin object to be created, so we can set the properties and Open later.
-    auto status = http_file->Open(url, XrdCl::OpenFlags::Compress, XrdCl::Access::None, nullptr, time_t(0));
-    if (!status.IsOK()) {
-        return status;
-    }
-
+    std::unique_ptr<XrdCl::File> http_file(new XrdCl::File(url));
 
     if (header_callout) {
         auto callout_loc = reinterpret_cast<long long>(header_callout);
