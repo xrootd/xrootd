@@ -21,6 +21,7 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /******************************************************************************/
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -71,6 +72,8 @@ struct Stats
    uint64_t traces    = 0;   // 't' stream records decoded
    uint64_t gevents   = 0;   // 'g' stream records decoded
    uint64_t redirs    = 0;   // 'r' stream redirect records decoded
+   uint64_t lost      = 0;   // estimated lost packets (pseq gaps)
+   uint64_t evicted   = 0;   // dictionary/open-file entries evicted (cap)
    uint64_t unknown   = 0;   // packets with an unhandled code
 };
 
@@ -81,6 +84,12 @@ struct Stats
 bool Process(const std::string& src, const char* buff, int blen);
 
 const Stats& GetStats() const {return stats;}
+
+//! Cap each per-server dictionary and the open-file table at `n` entries
+//! (0 = unbounded). Bounds memory on long-lived busy servers; eviction is
+//! approximate (hash order), so a dropped entry merely yields a document
+//! missing that field, or an orphan close.
+void SetMaxEntries(std::size_t n) {maxEntries = n;}
 
 //! @param emitTraces   emit a document per 't'-stream record (I/O, open,
 //!                     close, disconnect) — high volume, off by default.
@@ -165,6 +174,7 @@ struct Server
    ServerIdent ident;        // '=' server self-identification
    std::string identRaw;     // last emitted identity (to de-duplicate docs)
    int64_t sID = 0;
+   int     lastPseq = -1;    // last packet sequence (header pseq) for loss det.
 };
 
 Server&  ServerFor(const std::string& src, int32_t stod);
@@ -185,6 +195,7 @@ void     DecodeGStream(const std::string& src, int32_t stod,
                        const unsigned char* p, int plen);
 void     DecodeRStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int plen);
+void     Evict(Server& srv);
 
 std::unordered_map<std::string, Server> servers;
 // Previous cumulative values for g-stream providers that report running
@@ -198,6 +209,7 @@ bool     traces;
 bool     gstream;
 bool     redirects;
 XrdMetricsRegistry* metrics;
+std::size_t maxEntries = 0;
 Stats    stats;
 };
 #endif

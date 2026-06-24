@@ -444,10 +444,16 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
 
 ## D. Cross-cutting collector work (still TODO)
 
-- **Dictionary/open-file eviction.** State maps (`users`/`paths`/`infos`/`files`)
-  are unbounded; add TTL/LRU + caps keyed by server incarnation `(stod, src)`.
-- **Loss detection.** Use the header `pseq` per `(stod, src, code)` to count
-  gaps → `xrootd_collector_packets_lost_total{stream=...}`.
+- **Dictionary/open-file eviction.** **DONE** — each per-server map
+  (`users`/`paths`/`infos`/`tokens`/`activity`/`files`) is capped at
+  `--max-entries` (default 1M), evicting in hash order back to ~90% when
+  exceeded; count reported as `xrootd_collector_evicted_total`. TTL-based
+  eviction (vs. the current size cap) is a possible refinement.
+- **Loss detection.** **DONE** — the server stamps every datagram to one
+  destination with a single header `pseq` (not per stream: it is a shared
+  `seq1++` in `XrdXrootdMonitor::Send`), so loss is estimated per `(stod, src)`
+  from forward gaps → `xrootd_collector_packets_lost_total{server}` (small
+  backward steps are treated as reordering, not loss).
 - **VO/identity enrichment** from `T`/`U`/DN parsing, as a bounded metric label.
 
 ## E. Suggested implementation order (next session)
@@ -455,7 +461,7 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
 1. ~~`=` MAPIDNT server identity + `T`/`U` token/VO maps~~ **(DONE)**.
 2. ~~g-stream structured parsing + metrics for `oss`, `pfc`, `tpc`~~ **(DONE)**.
 3. ~~`f`-stream `isXfr`/`isDisc` → active-transfer gauges and session docs~~ **(DONE)**.
-4. `pseq` loss detection and dictionary eviction (robustness).
+4. ~~`pseq` loss detection and dictionary eviction (robustness)~~ **(DONE)**.
 5. Remaining g-stream providers (throttle/tcpmon/ccm/http) and `x`/`p` (FRM).
 
 Each step is independently testable with hand-built packets (the established

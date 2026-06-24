@@ -118,6 +118,24 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
 
    Server& srv = ServerFor(src, stod);
 
+// Packet-loss estimate. The server stamps every datagram to one destination
+// with a single sequence counter (header pseq, wrapping at 256), regardless of
+// stream. A forward gap means lost packets; a small backward step is reordering
+// (UDP) and is ignored.
+//
+   unsigned char pseq = p[1];
+   if (srv.lastPseq >= 0)
+      {int gap = ((int)pseq - ((srv.lastPseq + 1) & 0xff)) & 0xff;
+       if (gap > 0 && gap < 128)
+          {stats.lost += gap;
+           if (metrics)
+              metrics->Counter("xrootd_collector_packets_lost_total",
+                   "estimated lost packets (pseq gaps)",
+                   {{"server", src}}).inc(gap);
+          }
+      }
+   srv.lastPseq = pseq;
+
    switch(code)
          {case XROOTD_MON_MAPUSER:
           case XROOTD_MON_MAPPATH:
@@ -164,7 +182,37 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
                break;
          }
 
+   if (maxEntries) Evict(srv);
    return true;
+}
+
+/******************************************************************************/
+/*                               E v i c t                                    */
+/******************************************************************************/
+
+namespace
+{
+// Cap an associative container at `cap` entries, dropping back to ~90% in hash
+// order when exceeded. Returns the number of entries removed.
+//
+template<class M>
+std::size_t capMap(M& m, std::size_t cap)
+{
+   if (cap == 0 || m.size() <= cap) return 0;
+   std::size_t target = cap - cap/10, removed = 0;
+   while (m.size() > target && !m.empty()) {m.erase(m.begin()); removed++;}
+   return removed;
+}
+}
+
+void XrdMonDecode::Evict(Server& srv)
+{
+   stats.evicted += capMap(srv.users,    maxEntries);
+   stats.evicted += capMap(srv.paths,    maxEntries);
+   stats.evicted += capMap(srv.infos,    maxEntries);
+   stats.evicted += capMap(srv.tokens,   maxEntries);
+   stats.evicted += capMap(srv.activity, maxEntries);
+   stats.evicted += capMap(srv.files,    maxEntries);
 }
 
 /******************************************************************************/

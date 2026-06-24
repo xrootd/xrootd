@@ -363,6 +363,50 @@ TEST_F(Transfer, TokenAndActivityEnrichTransfer)
   EXPECT_EQ(s.mapUeac, 1u);
 }
 
+namespace
+{
+// A minimal valid 'u' map packet (dictid + descriptor) with a chosen pseq.
+std::vector<unsigned char> userPkt(uint32_t dictid, uint8_t pseq)
+{
+   W body; body.u32(dictid);
+   std::string info = "xroot/u.1:2@h\n";
+   std::vector<unsigned char> pl = body.b;
+   pl.insert(pl.end(), info.begin(), info.end());
+   auto pkt = packet('u', kStod, pl);
+   pkt[1] = pseq;        // header pseq is the second byte
+   return pkt;
+}
+}
+
+TEST(XrdMonCollect, PacketLossDetected)
+{
+  XrdMetricsRegistry reg;
+  XrdMonDecode dec([](const std::string&){}, nullptr,
+                   false, false, false, false, &reg);
+
+  for (uint8_t seq : {0, 1, 3, 4})   // 2 is missing -> one lost packet
+     {auto p = userPkt(seq, seq);
+      dec.Process("h:1", (const char*)p.data(), p.size());}
+
+  EXPECT_EQ(dec.GetStats().lost, 1u);
+  std::string out; reg.Scrape(out);
+  EXPECT_NE(out.find("xrootd_collector_packets_lost_total{server=\"h:1\"} 1"),
+            std::string::npos) << out;
+}
+
+TEST(XrdMonCollect, DictionaryEviction)
+{
+  XrdMonDecode dec([](const std::string&){});
+  dec.SetMaxEntries(10);
+
+  // Feed 100 distinct user dictids; the cap keeps the table bounded.
+  for (uint32_t id = 1; id <= 100; id++)
+     {auto p = userPkt(id, (uint8_t)id);
+      dec.Process("h:1", (const char*)p.data(), p.size());}
+
+  EXPECT_GT(dec.GetStats().evicted, 0u);
+}
+
 TEST(XrdMonCollect, SessionDiscAndActiveGauge)
 {
   XrdMetricsRegistry reg;

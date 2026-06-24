@@ -70,6 +70,7 @@ void usage(const char* prog)
      "  --flush-count <n> flush after N documents (default: 500)\n"
      "  --flush-secs <n>  flush after N seconds (default: 5)\n"
      "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
+     "  --max-entries <n> cap per-server dict/open-file entries (0=unbounded)\n"
      "  --traces         emit a document per t-stream I/O record (high volume)\n"
      "  --gstream        emit a document per g-stream (plugin) record\n"
      "  --redirects      emit a document per r-stream redirect record\n"
@@ -182,6 +183,7 @@ int main(int argc, char* argv[])
    bool        gstream = false;
    bool        redirects = false;
    int         metricsPort = 0;
+   size_t      maxEntries = 1000000;
    std::string osUrl, osUser, osPass;
    std::string osIndex = "xrootd-transfers";
    bool        osInsecure = false;
@@ -204,6 +206,7 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--flush-count") && i+1 < argc) flushCount = (size_t)atol(argv[++i]);
         else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
         else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
+        else if (!strcmp(a, "--max-entries") && i+1 < argc) maxEntries = (size_t)atol(argv[++i]);
         else if (!strcmp(a, "--traces")) traces = true;
         else if (!strcmp(a, "--gstream")) gstream = true;
         else if (!strcmp(a, "--redirects")) redirects = true;
@@ -297,6 +300,7 @@ int main(int argc, char* argv[])
                                              : nullptr;
 
    XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, reg);
+   decoder.SetMaxEntries(maxEntries);
 
    std::atomic<bool> exporterStop{false};
    std::thread       exporter;
@@ -306,6 +310,9 @@ int main(int argc, char* argv[])
             "monitor packets received", {}, [&]{return s.packets;});
        reg->AddRefCounter("xrootd_collector_malformed_total",
             "malformed packets", {}, [&]{return s.malformed;});
+       reg->AddRefCounter("xrootd_collector_evicted_total",
+            "dictionary/open-file entries evicted by the cap", {},
+            [&]{return s.evicted;});
        reg->AddRefCounter("xrootd_collector_documents_total",
             "transfer documents produced", {}, [&]{return s.docs;});
        reg->AddRefCounter("xrootd_collector_orphan_closes_total",
@@ -377,7 +384,7 @@ int main(int argc, char* argv[])
          "xrdmoncollect: packets=%llu malformed=%llu records=%llu "
          "mapUser=%llu mapTokn=%llu mapUeac=%llu mapIdnt=%llu "
          "opens=%llu closes=%llu xfrs=%llu discs=%llu docs=%llu "
-         "orphanCloses=%llu "
+         "orphanCloses=%llu lost=%llu evicted=%llu "
          "traces=%llu gevents=%llu redirs=%llu unknown=%llu\n",
          (unsigned long long)s.packets, (unsigned long long)s.malformed,
          (unsigned long long)s.records, (unsigned long long)s.mapUser,
@@ -386,6 +393,7 @@ int main(int argc, char* argv[])
          (unsigned long long)s.opens, (unsigned long long)s.closes,
          (unsigned long long)s.xfrs, (unsigned long long)s.discs,
          (unsigned long long)s.docs, (unsigned long long)s.orphanCls,
+         (unsigned long long)s.lost, (unsigned long long)s.evicted,
          (unsigned long long)s.traces, (unsigned long long)s.gevents,
          (unsigned long long)s.redirs, (unsigned long long)s.unknown);
       }

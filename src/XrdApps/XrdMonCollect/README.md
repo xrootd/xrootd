@@ -30,6 +30,7 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --flush-count <n> flush after N documents (default: 500)
   --flush-secs <n>  flush after N seconds (default: 5)
   --metrics-port <p> serve aggregated metrics over HTTP on port <p>
+  --max-entries <n>  cap per-server dict/open-file entries (0=unbounded)
   --traces         emit a document per t-stream I/O record (high volume)
   --gstream        emit a document per g-stream (plugin) record
   --redirects      emit a document per r-stream redirect record
@@ -172,13 +173,18 @@ Point a Prometheus scrape job at `http://<collector-host>:<p>/metrics`.
 
 ## Notes and limitations
 
-- Correlation state (the user/path dictionaries and the open-file table) is kept
-  per server incarnation, keyed by sender address plus the server start time.
-  It is in-memory and currently unbounded; long sessions on a busy server will
-  grow it. TTL/LRU eviction is a planned refinement.
+- Correlation state (the user/path/token dictionaries and the open-file table)
+  is kept per server incarnation, keyed by sender address plus the server start
+  time. Each map is capped at `--max-entries` (default 1,000,000; 0 = unbounded)
+  to bound memory on long-lived busy servers; eviction is approximate (hash
+  order), so a dropped entry merely yields a document missing that field or an
+  orphan close. The count is reported as `xrootd_collector_evicted_total`.
 - UDP is lossy: a lost open record yields an orphan close; a lost dictionary
-  record yields a document without identity/path. The `-v` statistics report
-  these.
+  record yields a document without identity/path. The server stamps every
+  datagram to one destination with a single sequence number (header `pseq`), so
+  the collector estimates loss from forward gaps in it —
+  `xrootd_collector_packets_lost_total{server}` and the `-v` `lost=` count.
+  (Reordering, a small backward step, is not counted as loss.)
 - Only the `f` stream is correlated today. The `t` (per-I/O trace) and `g`
   (plugin) streams are decoded enough to be counted; turning them into
   documents/metrics is future work.
