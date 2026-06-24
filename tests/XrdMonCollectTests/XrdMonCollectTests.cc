@@ -241,7 +241,7 @@ TEST_F(Transfer, AggregatesIntoMetricsRegistry)
   XrdMetricsRegistry reg;
   std::string sink;
   XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
-                 false, false, false, &reg);
+                 false, false, false, false, &reg);
 
   { W body; body.u32(7);
     std::string info = "xroot/alice.1:2@wn.example.org\n";
@@ -274,6 +274,58 @@ TEST_F(Transfer, AggregatesIntoMetricsRegistry)
             std::string::npos);
   EXPECT_NE(out.find("# TYPE xrootd_collector_transfer_duration_seconds histogram"),
             std::string::npos);
+}
+
+TEST_F(Transfer, AppInfoEnrichesTransfer)
+{
+  feedUserMap();
+  // 'i' (appinfo) map: same descriptor as the user, plus an appinfo body.
+  { W body; body.u32(9);
+    std::string info = "xroot/alice.123:4@wn.example.org\ntest-app-v1";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('i', kStod, pl);
+    dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["appinfo"], "test-app-v1");
+}
+
+TEST(XrdMonCollect, RedirectStreamDecoded)
+{
+  std::string out;
+  XrdMonDecode dec([&](const std::string& d){ out = d; }, nullptr,
+                   false, false, false, /*redirects=*/true);
+
+  { W body; body.u32(7);
+    std::string info = "xroot/bob.1:2@cli.example.org\n";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('u', kStod, pl);
+    dec.Process("mgr:9930", (const char*)pkt.data(), pkt.size()); }
+
+  // r-stream: sID block (REDSID marker + 7 bytes), one redirect record, then
+  // the "<host>:<path>" string occupying 4 (Dent) further 8-byte slots.
+  W body;
+  body.u8(0xf0); for (int i = 0; i < 7; i++) body.u8(0);
+  body.u8(0x85); body.u8(4); body.u16(1094); body.u32(7);  // open-read, port, uid
+  std::string hp = "host.example:/store/data/f.root";       // 31 chars + NUL = 32
+  body.raw(hp); body.u8(0);
+  auto pkt = packet('r', kStod, body.b);
+  dec.Process("mgr:9930", (const char*)pkt.data(), pkt.size());
+
+  EXPECT_EQ(dec.GetStats().redirs, 1u);
+  json j = json::parse(out);
+  EXPECT_EQ(j["type"], "redirect");
+  EXPECT_EQ(j["operation"], "open-read");
+  EXPECT_EQ(j["redirect_kind"], "remote");
+  EXPECT_EQ(j["target_host"], "host.example");
+  EXPECT_EQ(j["target_port"], 1094);
+  EXPECT_EQ(j["path"], "/store/data/f.root");
+  EXPECT_EQ(j["user"], "bob");
 }
 
 TEST(XrdMonCollect, GStreamForwarded)

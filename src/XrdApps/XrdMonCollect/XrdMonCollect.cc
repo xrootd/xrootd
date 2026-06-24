@@ -72,6 +72,7 @@ void usage(const char* prog)
      "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
      "  --traces         emit a document per t-stream I/O record (high volume)\n"
      "  --gstream        emit a document per g-stream (plugin) record\n"
+     "  --redirects      emit a document per r-stream redirect record\n"
      "  --dump           also emit one JSON object per decoded record\n"
      "  -v               print decoder statistics on exit\n", prog);
 }
@@ -179,6 +180,7 @@ int main(int argc, char* argv[])
    bool        verbose = false;
    bool        traces  = false;
    bool        gstream = false;
+   bool        redirects = false;
    int         metricsPort = 0;
    std::string osUrl, osUser, osPass;
    std::string osIndex = "xrootd-transfers";
@@ -204,6 +206,7 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
         else if (!strcmp(a, "--traces")) traces = true;
         else if (!strcmp(a, "--gstream")) gstream = true;
+        else if (!strcmp(a, "--redirects")) redirects = true;
         else if (!strcmp(a, "--dump")) dump = true;
         else if (!strcmp(a, "-v")) verbose = true;
         else if (!strcmp(a, "-h") || !strcmp(a, "--help")) {usage(argv[0]); return 0;}
@@ -293,7 +296,7 @@ int main(int argc, char* argv[])
    XrdMetricsRegistry* reg = metricsPort > 0 ? &XrdMetricsRegistry::Default()
                                              : nullptr;
 
-   XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, reg);
+   XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, reg);
 
    std::atomic<bool> exporterStop{false};
    std::thread       exporter;
@@ -311,6 +314,8 @@ int main(int argc, char* argv[])
             "t-stream records decoded", {}, [&]{return s.traces;});
        reg->AddRefCounter("xrootd_collector_gstream_records_total",
             "g-stream records decoded", {}, [&]{return s.gevents;});
+       reg->AddRefCounter("xrootd_collector_redirect_records_total",
+            "r-stream redirect records decoded", {}, [&]{return s.redirs;});
        exporter = std::thread(serveMetrics, metricsPort, std::ref(exporterStop));
       }
 
@@ -364,13 +369,13 @@ int main(int argc, char* argv[])
        fprintf(stderr,
          "xrdmoncollect: packets=%llu malformed=%llu records=%llu "
          "mapUser=%llu opens=%llu closes=%llu docs=%llu orphanCloses=%llu "
-         "traces=%llu gevents=%llu unknown=%llu\n",
+         "traces=%llu gevents=%llu redirs=%llu unknown=%llu\n",
          (unsigned long long)s.packets, (unsigned long long)s.malformed,
          (unsigned long long)s.records, (unsigned long long)s.mapUser,
          (unsigned long long)s.opens, (unsigned long long)s.closes,
          (unsigned long long)s.docs, (unsigned long long)s.orphanCls,
          (unsigned long long)s.traces, (unsigned long long)s.gevents,
-         (unsigned long long)s.unknown);
+         (unsigned long long)s.redirs, (unsigned long long)s.unknown);
       }
 
    if (out != stdout) fclose(out);

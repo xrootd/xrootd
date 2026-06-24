@@ -123,6 +123,10 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
                DecodeGStream(src, stod, p, plen);
                break;
 
+          case XROOTD_MON_MAPREDR:
+               DecodeRStream(src, stod, srv, p, plen);
+               break;
+
           default:
                stats.unknown++;
                if (dumpRaw && raw)
@@ -176,7 +180,13 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
                srv.paths[dictid] = (nl == std::string::npos) ? text
                                                              : text.substr(nl + 1);
               }
-      else                                 stats.mapInfo++;
+      else    {stats.mapInfo++;
+               // 'i' (appinfo): "<descriptor>\n<appinfo>". The descriptor matches
+               // the 'u' user descriptor, so key by it to enrich transfers.
+               auto nl = text.find('\n');
+               if (nl != std::string::npos)
+                  srv.infos[text.substr(0, nl)] = text.substr(nl + 1);
+              }
 
    if (dumpRaw && raw)
       {json j = {{"code", std::string(1, (char)code)},
@@ -301,6 +311,9 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
            j["protocol"]    = uit->second.prot;
            j["client_host"] = uit->second.host;
            j["user_raw"]    = uit->second.raw;
+           // Enrich with the application info ('i' stream), joined by descriptor.
+           auto iit = srv.infos.find(uit->second.raw);
+           if (iit != srv.infos.end()) j["appinfo"] = iit->second;
           }
        srv.files.erase(fit);
       }
@@ -506,4 +519,97 @@ void XrdMonDecode::DecodeGStream(const std::string& src, int32_t stod,
             start = i + 1;
            }
        }
+}
+
+/******************************************************************************/
+/*                        D e c o d e R S t r e a m                           */
+/******************************************************************************/
+
+namespace
+{
+// Operation that triggered a redirect (low nibble of the record Type byte).
+//
+const char* redirOp(unsigned char op)
+{
+   switch(op)
+         {case XROOTD_MON_CHMOD:   return "chmod";
+          case XROOTD_MON_LOCATE:  return "locate";
+          case XROOTD_MON_OPENDIR: return "opendir";
+          case XROOTD_MON_OPENC:   return "open";
+          case XROOTD_MON_OPENR:   return "open-read";
+          case XROOTD_MON_OPENW:   return "open-write";
+          case XROOTD_MON_MKDIR:   return "mkdir";
+          case XROOTD_MON_MV:      return "mv";
+          case XROOTD_MON_PREP:    return "prepare";
+          case XROOTD_MON_QUERY:   return "query";
+          case XROOTD_MON_RM:      return "rm";
+          case XROOTD_MON_RMDIR:   return "rmdir";
+          case XROOTD_MON_STAT:    return "stat";
+          case XROOTD_MON_TRUNC:   return "truncate";
+          default:                 return "unknown";
+         }
+}
+}
+
+void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
+                                 Server& srv, const unsigned char* p, int plen)
+{
+// XrdXrootdMonBurr: header(8) + sID block(8, first byte = REDSID) + an array of
+// 8-byte XrdXrootdMonRedir records. A redirect record is followed by a variable
+// "<host>:<path>" string occupying its Dent (slot) count of further records.
+//
+   const int RSZ = 8;
+   if (plen < 16) {stats.malformed++; return;}
+
+   int32_t tWin = 0;
+   int off = 16;                              // past header + sID block
+   while(off + RSZ <= plen)
+        {const unsigned char* rec = p + off;
+         unsigned char type = rec[0];
+         stats.records++;
+
+         if (type == XROOTD_MON_REDTIME)       // timing mark: arg1 = time
+            {tWin = ri32(rec + 4); off += RSZ; continue;}
+
+         if (!(type & 0x80))                   // not a redirect entry; skip one
+            {off += RSZ; continue;}
+
+         unsigned slots = rec[1];              // Dent: following string slots
+         int      port  = rd16(rec + 2);
+         uint32_t did   = rd32(rec + 4);       // user/session dictid
+
+         // The "<host>:<path>" string spans the next `slots` records.
+         const char* sp = (const char*)(p + off + RSZ);
+         int savail = plen - (off + RSZ);
+         int slen = (int)slots * RSZ; if (slen > savail) slen = savail;
+         std::string hp(sp, slen > 0 ? strnlen(sp, slen) : 0);
+
+         stats.redirs++;
+         if (redirects)
+            {json j;
+             j["type"]          = "redirect";
+             j["server"]        = src;
+             j["server_start"]  = stod;
+             if (tWin > 0) j["@timestamp"] = isoTime(tWin);
+             j["operation"]     = redirOp(type & 0x0f);
+             j["redirect_kind"] = (type & 0xf0) == XROOTD_MON_REDLOCAL
+                                ? "local" : "remote";
+             j["target_port"]   = port;
+             auto colon = hp.find(':');
+             if (colon != std::string::npos)
+                {if (colon > 0) j["target_host"] = hp.substr(0, colon);
+                 j["path"] = hp.substr(colon + 1);
+                }
+                else if (!hp.empty()) j["target_host"] = hp;
+
+             auto uit = srv.users.find(did);
+             if (uit != srv.users.end())
+                {j["user"]        = uit->second.user;
+                 j["client_host"] = uit->second.host;
+                }
+             if (doc) doc(j.dump());
+            }
+
+         off += RSZ * (1 + slots);
+        }
 }

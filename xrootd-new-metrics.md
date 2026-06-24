@@ -308,7 +308,9 @@ independent add-ons.
 > - **g-stream** (`--gstream`) → plugin (oss/pfc/throttle/tpc/http) records
 >   forwarded with their JSON payload.
 >
-> Step 5 (a Prometheus aggregate sink in the collector) remains.
+> Step 5 (Prometheus aggregate sink) is also implemented (`--metrics-port`),
+> as are the `i` (appinfo, joined to transfers) and `r` (redirect, `--redirects`)
+> streams. The remaining streams are mapped out in **Phase 6** below.
 >
 > **Important server-config finding:** the `f`-stream emits the per-file
 > `isClose` record (hence a transfer document) only when the **`xfr`** option is
@@ -354,3 +356,87 @@ independent add-ons.
   collector vs. downstream ingest pipelines.
 - **Deployment** — one collector per site vs. per host; HA/duplication strategy
   given UDP's at-most-once delivery.
+
+---
+
+# Phase 6 — Remaining monitoring streams & activity types (next session)
+
+`xrdmoncollect` currently decodes `u` (user), `d` (path), `i` (appinfo, joined
+to transfers), `f` (file stats → transfer docs + metrics), `t` (I/O traces),
+`g` (plugin streams, forwarded as opaque JSON), and `r` (redirects). This phase
+maps out what is left and how to add it.
+
+## A. Top-level packet codes still unhandled
+
+All are defined in `src/XrdXrootd/XrdXrootdMonData.hh`; map-type records reuse
+the `XrdXrootdMonMap` layout (`header + dictid + info`) and are trivial to add
+alongside the existing `DecodeMap`.
+
+| code | name | content / route | value | effort |
+|------|------|-----------------|-------|--------|
+| `=` | `MAPIDNT` | server self-identification: site, host, port, instance, pgm (the `<...>` summary header). Not a `dictid` map — a one-off identity string. | server metadata enrichment (a `server_info`-style document/labels) | low |
+| `T` | `MAPTOKN` | token dictionary (`dictid → token info`: subject, issuer, VO from SciTokens/JWT). Routed as USER (`Map()`), so it is an `XrdXrootdMonMap`. | identity enrichment — attach token subject/issuer/VO to transfers | low |
+| `U` | `MAPUEAC` | user experiment/activity (VO, role, activity/app). Also a USER-routed map. | VO/activity enrichment of transfers (bounded label for metrics) | low |
+| `x` | `MAPXFER` | FRM transfer/migration record (stage-in/out). Format is FRM-specific — needs investigation in `XrdFrm`/`XrdXrootdMonFile` xfr path. | stage/migration visibility | medium |
+| `p` | `MAPPURG` | FRM/cache purge record. FRM-specific format. | purge/eviction visibility | medium |
+| `m` | `MAPMIGR` | **internal use only** — skip. | — | — |
+| `s` | `MAPSTAG` | **internal use only** — skip. | — | — |
+
+`T` and `U` are the high-value quick wins: they are `XrdXrootdMonMap`s keyed by
+the same session descriptor as `u`/`i`, so they slot straight into `DecodeMap`
+and the descriptor-join already used for appinfo (store `dictid → {subject, vo,
+…}` and enrich `EmitClose`).
+
+## B. g-stream provider schemas (currently opaque)
+
+The `g` stream is forwarded verbatim (provider tag + JSON payload) — already
+useful for OpenSearch. The work here is **per-provider structured parsing and
+aggregation into bounded Prometheus metrics**. Provider type is the top byte of
+`sID` (see `gsProvider()`); each has its own record schema:
+
+| provider | byte | content | candidate metrics |
+|----------|------|---------|-------------------|
+| `oss` | `O` | OSS plugin op counts/timings (read/write/stat/open + "slow" variants) — already Prometheus-shaped (see `XrdOssStats`) | per-op rate + slow-op rate + latency |
+| `pfc` | `C` | proxy file cache: bytes from cache/disk/origin, hits/misses, prefetch | cache hit ratio, origin vs cache bytes |
+| `ccm` | `M` | cache context mgmt: file admit/purge decisions | admit/purge rates, residency |
+| `tpc` | `P` | third-party copy: push/pull, src/dst, bytes, status, duration | tpc throughput, success/fail, in-flight |
+| `throttle` | `R` | throttle plugin: I/O rates, wait times, limited ops | throttled-bytes, wait-seconds |
+| `tcpmon` | `T` | TCP connection stats: RTT, retransmits, bytes, congestion window | per-conn RTT/retransmit histograms |
+| `http` | `H` | HTTP request processing activity | request rate by method/status (overlaps the http_plugin summary metrics) |
+
+Recommended order by payoff: **oss, pfc, tpc** first (storage/cache/copy
+throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
+(a) a structured document and (b) aggregate counters/histograms.
+
+## C. Activity types already received but not surfaced
+
+- **`f`-stream `isXfr`** (in-flight transfer snapshots, enabled by `xfr <n>`):
+  currently counted only. Could drive `*_active_transfers` and live-throughput
+  gauges (periodic byte deltas per open file).
+- **`f`-stream `isDisc`** (session end): currently counted only. Could emit a
+  session-summary document (login→disconnect, total bytes).
+- **`t`-stream `REDHOST` (0xf0)**: skipped; a per-client redirect marker that
+  could complement the `r` stream.
+- **`t`-stream `readu`**: decoded as `readv`; could be split out.
+
+## D. Cross-cutting collector work (still TODO)
+
+- **Dictionary/open-file eviction.** State maps (`users`/`paths`/`infos`/`files`)
+  are unbounded; add TTL/LRU + caps keyed by server incarnation `(stod, src)`.
+- **Loss detection.** Use the header `pseq` per `(stod, src, code)` to count
+  gaps → `xrootd_collector_packets_lost_total{stream=...}`.
+- **VO/identity enrichment** from `T`/`U`/DN parsing, as a bounded metric label.
+
+## E. Suggested implementation order (next session)
+
+1. `=` MAPIDNT server identity + `T`/`U` token/VO maps (all low effort, reuse
+   `DecodeMap` + descriptor join). Add identity/VO enrichment to transfers.
+2. g-stream structured parsing + metrics for `oss`, `pfc`, `tpc`.
+3. `f`-stream `isXfr`/`isDisc` → active-transfer gauges and session docs.
+4. `pseq` loss detection and dictionary eviction (robustness).
+5. Remaining g-stream providers (throttle/tcpmon/ccm/http) and `x`/`p` (FRM).
+
+Each step is independently testable with hand-built packets (the established
+`tests/XrdMonCollectTests/` pattern) and, where a live source exists, against a
+configured server (a redirector for `r`, a proxy cache for `pfc`, a TPC for
+`tpc`, etc.).

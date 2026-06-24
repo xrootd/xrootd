@@ -32,6 +32,7 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --metrics-port <p> serve aggregated metrics over HTTP on port <p>
   --traces         emit a document per t-stream I/O record (high volume)
   --gstream        emit a document per g-stream (plugin) record
+  --redirects      emit a document per r-stream redirect record
   --dump           also emit one JSON object per decoded record (debugging)
   -v               print decoder statistics on exit (SIGINT/SIGTERM)
 ```
@@ -50,6 +51,14 @@ produced. Two opt-in streams add finer-grained events:
   `throttle`, `tpc`, `http` g-streams — as a document tagged with its provider,
   embedding the plugin's JSON payload. Requires `xrootd.mongstream` on the
   server.
+- `--redirects` turns each `r` (redirect) record into a document: operation,
+  remote/local kind, target host/port, path, and the redirected user. Emitted
+  mainly by redirectors/managers; requires `redir` in the monitor `dest` list.
+
+The `u` (user), `d` (path) and `i` (appinfo) dictionaries are always consumed:
+they resolve identities and paths for the other streams, and the appinfo (`i`)
+is joined to each transfer document by session descriptor (adds an `appinfo`
+field when the client set one).
 
 The direct OpenSearch sink (`--os-url`) is available when the binary is built
 with libcurl (the build links `CURL::libcurl` if found). Documents are batched

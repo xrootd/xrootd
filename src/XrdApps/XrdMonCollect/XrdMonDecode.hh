@@ -65,6 +65,7 @@ struct Stats
    uint64_t orphanCls = 0;   // closes with no matching open
    uint64_t traces    = 0;   // 't' stream records decoded
    uint64_t gevents   = 0;   // 'g' stream records decoded
+   uint64_t redirs    = 0;   // 'r' stream redirect records decoded
    uint64_t unknown   = 0;   // packets with an unhandled code
 };
 
@@ -83,11 +84,12 @@ const Stats& GetStats() const {return stats;}
 //!             aggregated into bounded-cardinality Prometheus series.
          XrdMonDecode(DocSink docSink, RawSink rawSink = nullptr,
                       bool emitRaw = false, bool emitTraces = false,
-                      bool emitGstream = false,
+                      bool emitGstream = false, bool emitRedirects = false,
                       XrdMetricsRegistry* reg = nullptr)
                      : doc(std::move(docSink)), raw(std::move(rawSink)),
                        dumpRaw(emitRaw), traces(emitTraces),
-                       gstream(emitGstream), metrics(reg) {}
+                       gstream(emitGstream), redirects(emitRedirects),
+                       metrics(reg) {}
         ~XrdMonDecode() {}
 
 private:
@@ -120,6 +122,7 @@ struct Server
    std::unordered_map<uint32_t, UserInfo>    users;
    std::unordered_map<uint32_t, OpenFile>    files;
    std::unordered_map<uint32_t, std::string> paths;  // 'd' dictid -> lfn
+   std::unordered_map<std::string, std::string> infos; // 'i' descriptor -> appinfo
    int64_t sID = 0;
 };
 
@@ -135,6 +138,8 @@ void     DecodeTStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int len);
 void     DecodeGStream(const std::string& src, int32_t stod,
                        const unsigned char* p, int plen);
+void     DecodeRStream(const std::string& src, int32_t stod, Server& srv,
+                       const unsigned char* p, int plen);
 
 std::unordered_map<std::string, Server> servers;
 DocSink  doc;
@@ -142,6 +147,7 @@ RawSink  raw;
 bool     dumpRaw;
 bool     traces;
 bool     gstream;
+bool     redirects;
 XrdMetricsRegistry* metrics;
 Stats    stats;
 };
