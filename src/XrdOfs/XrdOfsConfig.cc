@@ -530,7 +530,7 @@ int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
 //
    XrdOucTUtils::splitString(csList, csSpec, " ");
    if (csList.size() == 0)
-      {Eroute.Say("Config failure: Unable to determine configured cheksums!");
+      {Eroute.Say("Config failure: Unable to determine configured checksums!");
        return 1;
       }
 
