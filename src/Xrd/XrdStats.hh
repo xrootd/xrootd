@@ -123,6 +123,7 @@ bool        autoSync = false;
 
 const char *myHost;
 const char *myName;
+const char *mySite;
 int         myPort;
 };
 #endif

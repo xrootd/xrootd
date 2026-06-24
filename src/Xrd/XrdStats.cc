@@ -120,6 +120,7 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
 
    myHost = hname;
    myName = iname;
+   mySite = site;
    myPort = port;
 
    theMon = new XrdMonitor;
@@ -140,7 +141,8 @@ void XrdStats::RegisterMetrics()
    reg.Gauge("xrootd_server_info", "server identity",
              {{"host",     myHost ? myHost : ""},
               {"port",     std::to_string(myPort)},
-              {"instance", myName ? myName : ""}}).set(1);
+              {"instance", myName ? myName : ""},
+              {"site",     mySite ? mySite : ""}}).set(1);
 
 // Process CPU time, read live from getrusage at scrape time.
 //
