@@ -33,10 +33,11 @@ formats unchanged so current collectors keep working.
    existing `xrd.report` XML/JSON output preserved byte-for-byte as a *view*
    over the same instruments.
 
-Deferred to later work (documented but not implemented in this phase):
+Deferred to later work:
 - UDP / Pushgateway-style push of the Prometheus format.
 - An external collector that decodes the binary `u`/`d`/`t`/`f` event streams,
-  correlates them, and emits aggregated per-file-close events.
+  correlates them, and emits per-transfer records — specified as
+  **Phase 5** below.
 
 ## Design overview
 
@@ -114,3 +115,235 @@ example:
 # TYPE xrootd_ops_read_bytes_total counter
 xrootd_ops_read_bytes_total{instance="srv1"} 12345
 ```
+
+---
+
+# Phase 5 — Detailed Event-Stream Collector (next phase)
+
+Phases 1–4 cover **summary** monitoring: aggregate counters, scraped from the
+server. This phase tackles the **detailed event streams** produced by
+`xrootd.monitor` (and the plugin `g`-streams from `xrootd.mongstream`). These
+describe individual logins, file opens/closes, and I/O operations — one record
+per event, pushed as binary UDP packets. They are the data needed to answer
+"who read which file, how much, for how long," which aggregate metrics cannot.
+
+The work is a standalone C++ program (working name **`xrdmoncollect`**) that
+listens on a UDP socket, decodes and correlates the packets, and writes the
+result to one or more sinks.
+
+## Why a separate binary, and why two output targets
+
+The event streams are **event-shaped and high-cardinality** (per user, per file,
+per transfer). That distinction drives the whole design:
+
+- **Prometheus is the wrong store for the raw events.** It is built for
+  bounded-cardinality time series; per-file / per-user labels would explode the
+  cardinality. Prometheus should receive only **aggregates** the collector
+  computes (e.g. total bytes read/written, transfer-size and duration
+  histograms, active-transfer gauges), broken down by *bounded* dimensions
+  only (server, vo/project, read-vs-write, maybe access protocol).
+- **OpenSearch (or any document/log store) is the right store for the detail.**
+  One JSON document per completed transfer — full identity, path, byte counts,
+  op counts, duration — is exactly its sweet spot, and high cardinality is fine.
+
+So the collector is a **decode → correlate → fan-out** pipeline with pluggable
+sinks: a document sink (OpenSearch bulk API, or NDJSON to file/stdout) and a
+metrics sink (its own `/metrics` endpoint and/or remote-write). The server is
+left untouched; the collector can run anywhere the UDP packets are routed, and
+multiple servers can report to one collector.
+
+> **Prior art.** The OSG/WLCG community runs collectors for this data (e.g. the
+> Go `xrootd-monitoring-shoveler` and GLED). Writing a native C++ collector in
+> this tree lets us **reuse the on-the-wire struct definitions directly** from
+> `XrdXrootdMonData.hh`, so the decoder cannot drift from the producer, and lets
+> us share `XrdNet` (sockets) and the project's bundled `nlohmann_json`.
+
+## Input: the monitoring wire format
+
+All definitions live in `src/XrdXrootd/XrdXrootdMonData.hh`; **all multi-byte
+fields are network byte order** and variable-length records must be walked by
+their length field, never `sizeof`. Every packet starts with an 8-byte
+`XrdXrootdMonHeader { code, pseq, plen, stod }`:
+
+- `code` — stream/record type (see below).
+- `pseq` — per-stream packet sequence number (wraps at 256) for loss detection.
+- `plen` — total packet length.
+- `stod` — server start time; `(stod, server-id)` identifies one server
+  *incarnation* and must key all collector state (a server restart resets dicts).
+
+Packet/record types we consume:
+
+| code | name | content |
+|------|------|---------|
+| `u`  | `MAPUSER` | user-identity dictionary: dictid → `prot/user.pid:sfd@host` (+auth) |
+| `d`  | `MAPPATH` | path dictionary: dictid → LFN |
+| `i`  | `MAPINFO` | appinfo dictionary |
+| `=`  | `MAPIDNT` | server identification |
+| `f`  | `MAPFSTA` | **file-stats stream**: per-open/close/xfr records with byte & op counts |
+| `t`  | `MAPTRCE` | trace stream: individual read/write/readv/open/close events |
+| `r`  | `MAPREDR` | redirect stream |
+| `g`  | `MAPGSTA` | plugin `g`-stream payloads (oss/pfc/throttle/tpc/http), already CGI/JSON |
+
+### Start with the `f` stream, not the `t` stream
+
+The **`f` (fstat) stream already does per-file aggregation in the server**: each
+file close emits a `XrdXrootdMonFileCLS` record carrying transfer byte totals
+(`XrdXrootdMonStatXFR`), and optionally op counts (`XrdXrootdMonStatOPS`) and
+sum-of-squares (`XrdXrootdMonStatSSQ`) when `fstat … ops ssq` is configured. So
+a per-transfer document — the headline OpenSearch use case — is essentially
+*one `f`-stream close record joined to two dictionaries*. The `t` stream, by
+contrast, requires reassembling many individual I/O events into a session and is
+only needed for fine-grained offset/latency analysis. **Implement `f` first.**
+
+The join keys for a close event:
+- `XrdXrootdMonFileCLS.Hdr.fileID` → the `d`/`MAPPATH` dictid → LFN.
+- the matching open record's `XrdXrootdMonFileLFN.user` → the `u`/`MAPUSER`
+  dictid → identity. (Requires retaining open records until the close arrives.)
+
+## Correlation model and state
+
+The collector is necessarily **stateful**:
+
+1. **Dictionary tables** — per `(stod, srcServer)`, maps `dictid → identity` and
+   `dictid → path`. Populated by `u`/`d`/`i` packets, referenced by `f`/`t`
+   records. Needs TTL/LRU eviction (dictids are recycled) and a cap.
+2. **Open-file table** — `f`-stream open records held until their close, to
+   recover the LFN/user and compute wall-clock duration (`close.tEnd −
+   open.tBeg`, bracketed by the `XrdXrootdMonFileTOD` time records).
+3. **Loss / reordering tolerance** — UDP is lossy; use `pseq` gaps to count loss
+   per stream, tolerate out-of-order arrival, and emit a partial document (or
+   drop with a counter) when a referenced dictid or open record is missing.
+
+This state is bounded and evictable; it is *not* a database. Long-term storage
+is the sink's job.
+
+## Architecture
+
+```
+        UDP :9930
+            │  recvfrom (XrdNet)
+            ▼
+   ┌──────────────────┐   decode (XrdXrootdMonData.hh structs, ntoh*)
+   │   packet decoder │──────────────┐
+   └──────────────────┘              ▼
+            │ u/d/i            ┌─────────────┐  f close (+ open join)
+            ▼                  │ correlator  │───────────────┐
+   ┌──────────────────┐        │  (stateful) │               ▼
+   │ dictionary tables│◀──────▶│             │      ┌──────────────────┐
+   └──────────────────┘        └─────────────┘      │  transfer event  │
+                                      │              │   (JSON doc)     │
+                                      │ aggregate    └──────────────────┘
+                                      ▼                       │
+                              ┌──────────────┐    ┌───────────┴─────────┐
+                              │ metrics sink │    │  document sink      │
+                              │ (/metrics)   │    │ OpenSearch bulk /   │
+                              └──────────────┘    │ NDJSON file/stdout  │
+                                                  └─────────────────────┘
+```
+
+The metrics sink can reuse the **`XrdMetrics`** registry and the Prometheus text
+serializer built in Phases 1–4, so the collector exposes its own `/metrics`
+with the same code path.
+
+## Output schemas (illustrative)
+
+**Per-transfer document (OpenSearch / NDJSON)** — one per file close:
+
+```json
+{
+  "@timestamp": "2026-06-23T16:50:32Z",
+  "server": "srv1.example.org:1094", "server_inc": 1750000000,
+  "user": "alice", "protocol": "xroot", "client_host": "wn42.example.org",
+  "vo": "atlas", "appinfo": "...",
+  "lfn": "/store/data/file.root",
+  "open": "2026-06-23T16:49:10Z", "close": "2026-06-23T16:50:32Z",
+  "duration_s": 82.0,
+  "read_bytes": 10485760, "readv_bytes": 0, "write_bytes": 0,
+  "read_ops": 320, "readv_ops": 0, "write_ops": 0,
+  "read_min": 4096, "read_max": 1048576
+}
+```
+
+**Aggregated metrics (Prometheus)** — bounded labels only:
+
+```
+xrootd_transfer_bytes_total{server="srv1",op="read"}  ...
+xrootd_transfers_total{server="srv1",op="read"}       ...
+xrootd_transfer_size_bytes_bucket{op="read",le="..."} ...
+xrootd_active_transfers{server="srv1"}                ...
+xrootd_monitor_packets_total{stream="f"}              ...
+xrootd_monitor_packets_lost_total{stream="f"}         ...
+```
+
+## Incremental implementation plan
+
+1. **Raw decoder / `--dump`.** UDP listener that decodes every packet and prints
+   it as one JSON object per record to stdout — no correlation. Immediately
+   useful for debugging a live `xrootd.monitor` feed and validating struct
+   parsing. Establishes the byte-order/length-walking helpers.
+2. **Dictionary resolution.** Maintain the `u`/`d`/`i` tables; resolve dictids in
+   the dumped `f`/`t` records to real identities and paths.
+3. **`f`-stream correlation → transfer documents.** Join open↔close, compute
+   durations, emit the per-transfer JSON. Add the NDJSON file/stdout sink.
+4. **Document sink: OpenSearch.** Batch documents to the `_bulk` API (with
+   backpressure, retry, and a configurable index/data-stream name).
+5. **Metrics sink.** Aggregate transfers into `XrdMetrics` instruments; expose a
+   `/metrics` endpoint (reuse the Phase 1 serializer) and/or remote-write.
+6. **`t`-stream and `g`-stream.** Add per-I/O trace correlation for fine-grained
+   analysis, and forward/translate the plugin `g`-stream JSON payloads.
+
+Steps 1–3 deliver the core value (searchable per-transfer records); 4–6 are
+independent add-ons.
+
+> **Status: steps 1–3 implemented** as the `xrdmoncollect` binary under
+> `src/XrdApps/XrdMonCollect/` (decoder/correlator in `XrdMonDecode`, UDP loop
+> and NDJSON / OpenSearch `_bulk` sink in `XrdMonCollect.cc`), with unit tests
+> in `tests/XrdMonCollectTests/` and a `README.md`. Verified end-to-end against
+> a live server: a throttled `xrdcp` produced a correct per-transfer document
+> (lfn, user, byte/op counts, duration). Steps 4 (direct OpenSearch HTTP bulk
+> sink), 5 (Prometheus aggregate sink), and 6 (`t`/`g` streams) remain.
+>
+> **Important server-config finding:** the `f`-stream emits the per-file
+> `isClose` record (hence a transfer document) only when the **`xfr`** option is
+> present in the `fstat` directive — without it the server registers opens but
+> never reports closes (`XrdXrootdMonFile::Open` assigns the monitor entry only
+> when I/O stats are kept). The collector is also dual-stack: it binds IPv4+IPv6
+> so it receives packets when the server resolves the destination to `::1`.
+
+## Build, placement, and configuration
+
+- **Placement.** A new app under `src/XrdApps/` (alongside `XrdMpxStats.cc`),
+  producing the `xrdmoncollect` binary. Reuse `XrdNet` for the socket,
+  `XrdSys` utilities, the in-tree monitoring structs, and bundled
+  `nlohmann_json`; link `XrdUtils` (which now includes `XrdMetrics`).
+- **Configuration.** Simple CLI/flags (or a small config file): listen
+  `host:port`, sink selection and endpoints, dictionary cache size/TTL, output
+  index name, log level. Point a server at it with:
+
+  ```
+  xrootd.monitor all flush 30s ident 5m fstat 60s lfn ops ssq xfr 1 \
+                 dest fstat info user io redir <collector-host>:9930
+  ```
+  (`xfr` is required for close records — see the status note above.)
+
+## Testing
+
+- **Unit tests** decode fixed byte buffers (captured or hand-built) for each
+  record type and assert the parsed fields — guards against wire-format drift.
+- **Replay** captured `.pcap`/raw UDP dumps through the collector for regression
+  testing of correlation and output.
+- **Integration**: run a real `xrootd` with `xrootd.monitor … dest … :9930`,
+  drive `xrdcp` traffic, and assert that a transfer document and the expected
+  metric deltas appear.
+
+## Open questions / decisions for this phase
+
+- **Primary sink priority** — OpenSearch document store first (richest payoff),
+  with the Prometheus aggregate sink as a follow-on? (Recommended.)
+- **OpenSearch shape** — plain index vs. data stream; index naming/rotation;
+  whether to ship via the collector directly or via an intermediate
+  (e.g. message queue) for buffering at scale.
+- **Identity enrichment** — how much to derive (VO/project, DN parsing) in the
+  collector vs. downstream ingest pipelines.
+- **Deployment** — one collector per site vs. per host; HA/duplication strategy
+  given UDP's at-most-once delivery.

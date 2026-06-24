@@ -2,6 +2,7 @@ add_library(XrdAppUtils SHARED
   XrdCpConfig.cc  XrdCpConfig.hh
   XrdCpFile.cc    XrdCpFile.hh
   XrdMpxXml.cc    XrdMpxXml.hh
+  XrdMonCollect/XrdMonDecode.cc  XrdMonCollect/XrdMonDecode.hh
 )
 
 target_link_libraries(XrdAppUtils PRIVATE XrdUtils)
@@ -61,6 +62,9 @@ if(NOT XRDCL_ONLY)
     ${SOCKET_LIBRARY}
   )
 
+  add_executable(xrdmoncollect XrdMonCollect/XrdMonCollect.cc)
+  target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils)
+
   add_executable(wait41 XrdWait41.cc)
   target_link_libraries(wait41
     XrdUtils
@@ -111,6 +115,7 @@ if(NOT XRDCL_ONLY)
       xrdcks
       xrdcrc32c
       xrdmapc
+      xrdmoncollect
       xrdpinls
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
