@@ -94,7 +94,7 @@ std::vector<char> XrdCksAttrData(const char *cstype,
    if (!LowerCase(cstype, csName, sizeof(csName)))
       {errno = ENAMETOOLONG; return cksError;}
 
-// For cheksums we know, verify that the legnth of the input string
+// For checksums we know, verify that the legnth of the input string
 // corresponds to the checksum type.
 //
    n = strlen(csval);
