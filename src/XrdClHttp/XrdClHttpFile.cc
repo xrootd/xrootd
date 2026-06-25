@@ -309,26 +309,6 @@ File::Open(const std::string      &url,
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp);
     }
 
-    // Note: workaround for a design flaw of the XrdCl API.
-    //
-    // Any properties we set on the file *prior* to opening it are sent to the
-    // XrdCl base implementation, not the plugin object.  Hence, they are effectively
-    // ignored because the later `GetProperty` accesses a different object.  We want
-    // the SetProperty calls to take effect because they are needed for successfully
-    // `Open`ing the file.  There's no way to "setup the plugin", "set properties", and
-    // then "open file" because the first and third operations are part of the same API
-    // call.  We thus allow the caller to trigger the plugin loading by doing a special
-    // `Open` call (flags set to Compress, access mode None) that is a no-op.
-    //
-    // Contrast the XrdCl::File plugin loading style with XrdCl::Filesystem; the latter
-    // gets a target URL on construction, before any operations are done, allowing
-    // the `SetProperty` to work.
-    if ((flags == XrdCl::OpenFlags::Compress) && (mode == XrdCl::Access::None) &&
-        (handler == nullptr) && (timeout == 0))
-    {
-        return XrdCl::XRootDStatus();
-    }
-
     m_open_flags = flags;
 
     m_header_timeout.tv_nsec = m_default_header_timeout.tv_nsec;
