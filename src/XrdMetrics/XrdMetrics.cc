@@ -173,6 +173,11 @@ XrdMetricsHistogram::XrdMetricsHistogram(std::vector<double> bounds)
                     : bound(std::move(bounds)), bcount(bound.size()+1)
 {
    std::sort(bound.begin(), bound.end());
+
+// RAtomic's default constructor leaves the wrapped std::atomic uninitialized
+// (pre-C++20), so the vector elements must be explicitly zeroed before use.
+//
+   for (auto& b : bcount) b = 0;
 }
 
 void XrdMetricsHistogram::observe(double v)

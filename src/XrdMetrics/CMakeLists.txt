@@ -1,4 +1,4 @@
 target_sources(XrdUtils
   PRIVATE
-    XrdMetricsRegistry.cc  XrdMetrics.hh
+    XrdMetrics.cc  XrdMetrics.hh
 )
