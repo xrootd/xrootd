@@ -33,7 +33,7 @@ class XrdSysError;
 
 //-----------------------------------------------------------------------------
 //! XrdHttpPrometheus: an HTTP external handler that exposes the process-wide
-//! XrdMetricsRegistry in the Prometheus text exposition format. It answers
+//! XrdMetrics registry in the Prometheus text exposition format. It answers
 //! GET requests on a configurable path (default /metrics).
 //-----------------------------------------------------------------------------
 
