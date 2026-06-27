@@ -471,3 +471,95 @@ Each step is independently testable with hand-built packets (the established
 `tests/XrdMonCollectTests/` pattern) and, where a live source exists, against a
 configured server (a redirector for `r`, a proxy cache for `pfc`, a TPC for
 `tpc`, etc.).
+
+---
+
+# Second iteration — next-generation `XrdMetrics` registry
+
+The phase-1 `XrdMetrics` prototype (a flat `XrdMetricsRegistry` that formats
+labels per lookup and hard-codes the Prometheus text output) proved the concept
+but did not scale to "large metric count, frequent scrape." A design review
+(captured in `xrootd-metric-system.md`) settled a cleaner, faster,
+format-agnostic architecture. This iteration implements that architecture as a
+new, self-contained system under `src/XrdMetrics/`, namespace **`XrdMetrics`**,
+compiled into `XrdUtils`.
+
+It is **built alongside** the prototype, not in place of it: the flat
+`XrdMetricsRegistry` is still consumed by the server wiring (`XrdXrootdStats`,
+`Xrd/*`, `XrdHttpPrometheus`) and by `xrdmoncollect`, so it stays (deprecated)
+until those are migrated onto the new system in a later step. The legacy
+`XrdStats`/`XrdMonitor` XML/JSON path is untouched.
+
+## Architecture (Registry → MetricGroup → Family → series)
+
+Naming context flows **down at registration time**; iteration flows **down at
+scrape time**. Labels are stored in three tiers by mutation profile:
+
+- **Variable label names** — fixed per family, stored once (`LabelSchema`).
+- **Const labels** — registry-global (e.g. an instance name) plus per-family;
+  immutable.
+- **Variable label values** — the only per-series differentiator and the child
+  cache key (`LabelValues` + FNV-1a hash).
+
+Because everything feeding a series' label rendering is immutable once the
+series exists, each series builds its Prometheus text prefix
+(`name{const…,var…} ` with a trailing space) **once**, in `SeriesLabels`. A
+scrape is then, per series, a `memcpy` of the cached prefix plus one typed
+number append plus a newline. The mutate hot path (`++`, `+=`, `=`) is a
+lock-free relaxed atomic; the only lock on the update path is a per-family
+`shared_mutex` taken the first time a label combination is seen (callers cache
+the returned handle and hit it lock-free thereafter). Scraping snapshots
+pointers under a brief read lock and serializes outside it, so it never blocks
+producers.
+
+Serialization goes through an **`ISerializer` visitor** with typed `series()`
+overloads (`uint64_t`/`int64_t`/`double`), so a counter's value is never coerced
+through `double`, and a new output format is a new subclass — never a change to
+families or instruments. `MetricKind` carries the counter-vs-gauge distinction
+structurally (for a future OTel `Sum` vs `Gauge`).
+
+## Files
+
+| File | Role |
+|------|------|
+| `XrdMetricsValue.hh` / `XrdMetricsSerialize.cc` | `appendValue` for u64/i64/double; the double path uses `std::to_chars` when the build probe `HAVE_FLOAT_TO_CHARS` is set (libstdc++ ≥ GCC 11) and a locale-guarded `snprintf("%.17g")` otherwise (AlmaLinux 8 / GCC 8). Integers always use integer `to_chars` (GCC 8+), and non-finite values render as `+Inf`/`-Inf`/`NaN`. |
+| `XrdMetricsLabels.hh` | `LabelSchema`, `LabelContext`, `LabelValues`+hash, `SeriesLabels` (cached `prometheusPrefix()` + structured `forEachLabel()`), `joinName`, name/label validators. |
+| `XrdMetricsInstrument.hh` | `MetricKind`; `Counter` (uint64, increment-only, monotonic by type); `Gauge<int64_t/double>` (set/`+=`/`-=`/`++`/`--`; integral `fetch_add`, double CAS loop for GCC 8); `IntGauge`/`FloatGauge`. Atomics explicitly value-initialized (pre-C++20 UB guard). |
+| `XrdMetricsSerializer.hh` | `ISerializer` seam + `PrometheusTextSerializer` (writes into a caller-owned reusable buffer). |
+| `XrdMetricsFamily.hh` | `IFamily`; `LabeledFamily<Child>` two-tier child cache with a cardinality cap (over-cap label sets fold into one overflow series). |
+| `XrdMetricsRegistry.hh` | `Registry` (prefix + frozen global labels + groups) and `MetricGroup` (subsystem factories `counter`/`intGauge`/`floatGauge` resolving `prefix_subsystem_name` once); process-wide `XrdMetrics::Default()`. |
+
+A CMake probe in `cmake/XRootDSystemCheck.cmake` (`check_cxx_source_compiles`
+calling `std::to_chars(double)`) defines `HAVE_FLOAT_TO_CHARS`, so the split
+lands on the distro boundary (Alma 9/GCC 11 → `to_chars`, Alma 8/GCC 8 →
+`snprintf`) without devtoolset and with no new ABI surface.
+
+## Scope this iteration
+
+- **Instruments:** Counter + Gauge only. Histograms/summaries are deferred until
+  the architecture settles, but the `ISerializer` seam (`MetricKind` + typed
+  overloads) is built to extend to them without rework.
+- **Serializers:** Prometheus text only, behind the abstract seam so OTel JSON
+  and the existing XRootD XML/JSON can be added later as sibling subclasses.
+- **Not touched yet:** server-counter migration, `xrdmoncollect`, and the
+  client — all later steps.
+
+## Tests
+
+`tests/XrdMetricsTests/XrdMetricsRegistryTests.cc` (added to the existing
+`xrdmetrics-unit-tests` target) covers value formatting (integers, doubles,
+non-finite tokens), counter/gauge operators, the double CAS path, label prefix
+order/escaping and the structured `forEachLabel`, name validation, the
+first-seen-then-cached family handle, the cardinality cap, group/registry
+composition and the `Default()` singleton, exact Prometheus output, buffer
+reuse, and concurrent increments. The phase-1 prototype tests remain and still
+pass (a latent uninitialized-`std::atomic` bug in the prototype's histogram
+buckets — the exact pitfall the design review flagged — was fixed in passing so
+the suite is green on GCC 14 / C++17).
+
+## Next steps (later iterations)
+
+1. Create equivalent server metrics in the new system (rather than bridging the
+   old `XrdStats`/`XrdMonRoll` counters), then point `/metrics` at it.
+2. Add histogram/summary instruments and the OTel JSON serializer.
+3. Migrate `xrdmoncollect`'s aggregate sink and add client-side metrics.
