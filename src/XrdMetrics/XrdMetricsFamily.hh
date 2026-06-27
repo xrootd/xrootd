@@ -223,5 +223,90 @@ MetricKind          kind_;
 LabelContext        ctx_;       // owns the labels every Series points into
 std::vector<Series> series_;
 };
+
+/******************************************************************************/
+/*                      H i s t o g r a m F a m i l y                        */
+/******************************************************************************/
+
+//! A family of cumulative histograms sharing one set of bucket bounds, keyed by
+//! variable label values. Mirrors LabeledFamily's two-tier child cache but its
+//! children take the bounds at construction and serialize as _bucket/_sum/_count.
+
+class HistogramFamily : public IFamily
+{
+public:
+HistogramFamily(std::string fullName, LabelContext ctx, std::vector<double> bounds,
+                std::string help, std::size_t maxKids = 0)
+               : name_(std::move(fullName)), help_(std::move(help)),
+                 ctx_(std::move(ctx)), bounds_(std::move(bounds)), maxKids_(maxKids) {}
+
+Histogram& withLabelValues(std::vector<std::string> vals)
+{
+   LabelValues key{std::move(vals)};
+   key.v.resize(ctx_.schema.size());
+
+   {std::shared_lock<std::shared_mutex> rd(mutex_);
+    auto it = children_.find(key);
+    if (it != children_.end()) return *it->second;
+   }
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   auto it = children_.find(key);
+   if (it != children_.end()) return *it->second;
+   if (maxKids_ && children_.size() >= maxKids_) return overflow();
+
+   auto child = std::unique_ptr<Histogram>(
+                   new Histogram(SeriesLabels(ctx_, name_, key), bounds_));
+   Histogram& ref = *child;
+   children_.emplace(std::move(key), std::move(child));
+   return ref;
+}
+
+Histogram& noLabels() { return withLabelValues({}); }
+
+const std::string& name() const noexcept { return name_; }
+
+void serialize(ISerializer& s) const override
+{
+   s.beginFamily(name_, MetricKind::Histogram, help_);
+   for (const Histogram* h : snapshot())
+       {std::vector<std::uint64_t> cum = h->cumulative();
+        s.histogram(name_, h->labels(),
+                    HistogramData{h->bounds(), cum, h->value_sum()});
+       }
+   s.endFamily();
+}
+
+private:
+std::vector<const Histogram*> snapshot() const
+{
+   std::shared_lock<std::shared_mutex> rd(mutex_);
+   std::vector<const Histogram*> out;
+   out.reserve(children_.size() + (overflow_ ? 1 : 0));
+   for (auto& kv : children_) out.push_back(kv.second.get());
+   if (overflow_) out.push_back(overflow_.get());
+   return out;
+}
+
+Histogram& overflow()
+{
+   if (!overflow_)
+      {LabelValues key;
+       key.v.assign(ctx_.schema.size(), "__over_cardinality_limit__");
+       overflow_ = std::unique_ptr<Histogram>(
+                      new Histogram(SeriesLabels(ctx_, name_, key), bounds_));
+      }
+   return *overflow_;
+}
+
+std::string         name_;
+std::string         help_;
+LabelContext        ctx_;
+std::vector<double> bounds_;
+std::size_t         maxKids_;
+
+mutable std::shared_mutex mutex_;
+std::unordered_map<LabelValues, std::unique_ptr<Histogram>, LabelValuesHash> children_;
+std::unique_ptr<Histogram> overflow_;
+};
 }
 #endif

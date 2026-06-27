@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "XrdMetrics/XrdMetricsInstrument.hh"   // MetricKind
 #include "XrdMetrics/XrdMetricsLabels.hh"        // SeriesLabels
@@ -37,6 +38,16 @@
 
 namespace XrdMetrics
 {
+//! A histogram series' scrape-time snapshot. bounds are the upper bounds;
+//! cumulative has bounds.size()+1 entries (the last is the +Inf bucket and
+//! equals the total observation count).
+struct HistogramData
+{
+const std::vector<double>&        bounds;
+const std::vector<std::uint64_t>& cumulative;
+double                            sum;
+};
+
 /******************************************************************************/
 /*                          I S e r i a l i z e r                            */
 /******************************************************************************/
@@ -54,6 +65,10 @@ virtual void endFamily() {}
 virtual void series(const SeriesLabels& labels, std::uint64_t value) = 0;
 virtual void series(const SeriesLabels& labels, std::int64_t  value) = 0;
 virtual void series(const SeriesLabels& labels, double        value) = 0;
+
+//! A histogram series (emits _bucket/_sum/_count in the text format).
+virtual void histogram(const std::string& fullName, const SeriesLabels& labels,
+                       const HistogramData& data) = 0;
 };
 
 /******************************************************************************/
@@ -77,6 +92,9 @@ void beginFamily(const std::string& name, MetricKind kind,
 void series(const SeriesLabels& labels, std::uint64_t value) override;
 void series(const SeriesLabels& labels, std::int64_t  value) override;
 void series(const SeriesLabels& labels, double        value) override;
+
+void histogram(const std::string& fullName, const SeriesLabels& labels,
+               const HistogramData& data) override;
 
 private:
 template <class T> void emit(const SeriesLabels& labels, T value);

@@ -221,7 +221,11 @@ void PrometheusTextSerializer::beginFamily(const std::string& name,
    out_ += "# TYPE ";
    out_ += name;
    out_.push_back(' ');
-   out_ += (kind == MetricKind::Counter ? "counter" : "gauge");
+   switch (kind)
+         {case MetricKind::Counter:   out_ += "counter";   break;
+          case MetricKind::Histogram: out_ += "histogram"; break;
+          default:                    out_ += "gauge";     break;
+         }
    out_.push_back('\n');
 }
 
@@ -246,6 +250,36 @@ void PrometheusTextSerializer::series(const SeriesLabels& l, std::int64_t v)
 void PrometheusTextSerializer::series(const SeriesLabels& l, double v)
 {
    emit(l, v);
+}
+
+void PrometheusTextSerializer::histogram(const std::string& fullName,
+                                         const SeriesLabels& l,
+                                         const HistogramData& d)
+{
+// The cached prefix is "fullName{labels} " (or "fullName " with no labels);
+// strip the name and trailing space to get the "{labels}" portion (or empty),
+// then splice in the le label for the per-bucket lines.
+//
+   const std::string& pfx = l.prometheusPrefix();
+   std::string lbls(pfx, fullName.size(), pfx.size() - fullName.size() - 1);
+
+   auto bucket = [&](const std::string& le, std::uint64_t cum)
+                {out_ += fullName; out_ += "_bucket";
+                 if (lbls.empty()) {out_ += "{le=\""; out_ += le; out_ += "\"}";}
+                 else {out_.append(lbls, 0, lbls.size() - 1);
+                       out_ += ",le=\""; out_ += le; out_ += "\"}";}
+                 out_.push_back(' '); appendValue(out_, cum); out_.push_back('\n');
+                };
+
+   std::string le;
+   for (std::size_t i = 0; i < d.bounds.size(); ++i)
+       {le.clear(); appendValue(le, d.bounds[i]); bucket(le, d.cumulative[i]);}
+   bucket("+Inf", d.cumulative.back());
+
+   out_ += fullName; out_ += "_sum"; out_ += lbls;
+   out_.push_back(' '); appendValue(out_, d.sum); out_.push_back('\n');
+   out_ += fullName; out_ += "_count"; out_ += lbls;
+   out_.push_back(' '); appendValue(out_, d.cumulative.back()); out_.push_back('\n');
 }
 
 /******************************************************************************/

@@ -214,6 +214,45 @@ TEST(XrdMetricsFamily, CardinalityCapFoldsToOverflow)
 }
 
 /******************************************************************************/
+/*                           H i s t o g r a m                               */
+/******************************************************************************/
+
+TEST(XrdMetricsHistogram, BucketsCumulativeAndLabels)
+{
+  Registry reg("xrootd");
+  auto& h = reg.group("io").histogram("size_bytes", {1, 2, 5}, {}, {},
+                                      "io sizes");
+  h.noLabels().observe(0.5);
+  h.noLabels().observe(1.5);
+  h.noLabels().observe(3);
+  h.noLabels().observe(10);
+
+  const std::string out = scrape(reg);
+  EXPECT_NE(out.find("# TYPE xrootd_io_size_bytes histogram\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_size_bytes_bucket{le=\"1\"} 1\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_size_bytes_bucket{le=\"2\"} 2\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_size_bytes_bucket{le=\"5\"} 3\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_size_bytes_bucket{le=\"+Inf\"} 4\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_size_bytes_sum 15\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_size_bytes_count 4\n"), std::string::npos);
+}
+
+TEST(XrdMetricsHistogram, LabeledBucketsCarryLe)
+{
+  Registry reg("xrootd");
+  reg.group("io").histogram("d", {1}, {"op"}, {}, "h")
+                 .withLabelValues({"read"}).observe(0.5);
+
+  const std::string out = scrape(reg);
+  EXPECT_NE(out.find("xrootd_io_d_bucket{op=\"read\",le=\"1\"} 1\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_d_bucket{op=\"read\",le=\"+Inf\"} 1\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_d_sum{op=\"read\"} 0.5\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_d_count{op=\"read\"} 1\n"), std::string::npos);
+}
+
+/******************************************************************************/
 /*                            O b s e r v e d                                */
 /******************************************************************************/
 

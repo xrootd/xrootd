@@ -85,6 +85,13 @@ LabeledFamily<FloatGauge>& floatGauge(const std::string& name,
                                   std::vector<ConstLabel> constLabels = {},
                                   std::string help = {}, std::size_t maxKids = 0);
 
+//! Create a histogram family with fixed bucket upper bounds (the implicit +Inf
+//! bucket is added automatically). Observe values via withLabelValues(...).
+HistogramFamily& histogram(const std::string& name, std::vector<double> bounds,
+                           std::vector<std::string> varLabels = {},
+                           std::vector<ConstLabel> constLabels = {},
+                           std::string help = {}, std::size_t maxKids = 0);
+
 //! Register a read-only metric family whose series values are produced by
 //! reader functions at scrape time. Use these to surface values owned and
 //! updated by another subsystem (the source of truth stays there) as typed
@@ -278,6 +285,37 @@ MetricGroup::floatGauge(const std::string& name, std::vector<std::string> varLab
 {
    return add<FloatGauge>(name, std::move(varLabels), std::move(constLabels),
                           std::move(help), maxKids);
+}
+
+inline HistogramFamily&
+MetricGroup::histogram(const std::string& name, std::vector<double> bounds,
+                       std::vector<std::string> varLabels,
+                       std::vector<ConstLabel> constLabels, std::string help,
+                       std::size_t maxKids)
+{
+   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+
+   if (!validMetricName(full))
+      throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
+   for (auto& ln : varLabels)
+       if (!validLabelName(ln))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
+   for (auto& cl : constLabels)
+       if (!validLabelName(cl.first))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + cl.first + "'");
+
+   LabelContext ctx;
+   ctx.global      = &reg_.globalLabels();
+   ctx.constLabels = std::move(constLabels);
+   ctx.schema      = LabelSchema(std::move(varLabels));
+
+   auto fam = std::unique_ptr<HistogramFamily>(
+                 new HistogramFamily(std::move(full), std::move(ctx),
+                                     std::move(bounds), std::move(help), maxKids));
+   auto& ref = *fam;
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   families_.push_back(std::move(fam));
+   return ref;
 }
 
 template <class T>

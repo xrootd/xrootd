@@ -21,10 +21,13 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /******************************************************************************/
 
+#include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "XrdMetrics/XrdMetricsLabels.hh"
 
@@ -43,8 +46,8 @@
 namespace XrdMetrics
 {
 //! Instrument kind. Richer than a text token: an OTel serializer maps Counter
-//! to a monotonic Sum and Gauge to a Gauge. Histogram/Summary will extend this.
-enum class MetricKind { Counter, Gauge };
+//! to a monotonic Sum and Gauge to a Gauge. Summary may extend this further.
+enum class MetricKind { Counter, Gauge, Histogram };
 
 /******************************************************************************/
 /*                          S e r i e s B a s e                              */
@@ -148,5 +151,62 @@ std::atomic<T> val_{T{}};             // explicit init: pre-C++20 default is UB
 
 using IntGauge   = Gauge<std::int64_t>;
 using FloatGauge = Gauge<double>;
+
+/******************************************************************************/
+/*                           H i s t o g r a m                               */
+/******************************************************************************/
+
+//! A cumulative histogram with fixed bucket upper bounds. observe(v) is the
+//! lock-free hot path; the cumulative per-bucket counts, total count and sum
+//! are computed at scrape time.
+
+class Histogram : public SeriesBase
+{
+public:
+Histogram(SeriesLabels lbl, std::vector<double> bounds)
+         : SeriesBase(std::move(lbl)), bounds_(std::move(bounds)),
+           buckets_(bounds_.size() + 1)         // one extra for the +Inf bucket
+{
+   std::sort(bounds_.begin(), bounds_.end());
+   for (auto& b : buckets_) b.store(0, std::memory_order_relaxed);  // pre-C++20 UB guard
+}
+         Histogram(const Histogram&) = delete;
+Histogram& operator=(const Histogram&) = delete;
+
+void observe(double v) noexcept
+{
+   std::size_t i = bounds_.size();                       // default: +Inf bucket
+   for (std::size_t k = 0; k < bounds_.size(); ++k)
+       if (v <= bounds_[k]) {i = k; break;}
+   buckets_[i].fetch_add(1, std::memory_order_relaxed);
+   count_.fetch_add(1, std::memory_order_relaxed);
+   double cur = sum_.load(std::memory_order_relaxed);
+   while (!sum_.compare_exchange_weak(cur, cur + v, std::memory_order_relaxed)) {}
+}
+
+//! Bucket upper bounds (ascending); the implicit +Inf bucket is not included.
+const std::vector<double>& bounds() const noexcept { return bounds_; }
+
+//! Cumulative counts, size bounds().size()+1; the last element is the +Inf
+//! bucket and equals the total observation count.
+std::vector<std::uint64_t> cumulative() const
+{
+   std::vector<std::uint64_t> c(buckets_.size());
+   std::uint64_t run = 0;
+   for (std::size_t i = 0; i < buckets_.size(); ++i)
+       {run += buckets_[i].load(std::memory_order_relaxed); c[i] = run;}
+   return c;
+}
+
+double value_sum() const noexcept { return sum_.load(std::memory_order_relaxed); }
+
+static constexpr MetricKind kind() noexcept { return MetricKind::Histogram; }
+
+private:
+std::vector<double>                     bounds_;
+std::vector<std::atomic<std::uint64_t>> buckets_;
+std::atomic<std::uint64_t>              count_{0};
+std::atomic<double>                     sum_{0.0};
+};
 }
 #endif
