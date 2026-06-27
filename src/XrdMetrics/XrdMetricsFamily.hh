@@ -165,12 +165,16 @@ std::unique_ptr<Child> overflow_;
 /*                       O b s e r v e d F a m i l y                         */
 /******************************************************************************/
 
-//! A read-only metric whose single value is produced by a reader function read
-//! at scrape time, rather than stored as an atomic. Use it to expose a value
-//! that some other subsystem owns and updates (e.g. a scheduler thread count or
-//! a getrusage figure) without making the metric the source of truth. The
-//! reader must be cheap and thread-safe; it runs while the registry is being
-//! serialized.
+//! A read-only metric family whose series values are produced by reader
+//! functions called at scrape time, rather than stored as atomics. Use it to
+//! expose values that some other subsystem owns and updates (e.g. a scheduler
+//! thread count, a getrusage figure, or an existing protocol counter) without
+//! making the metric the source of truth. Readers must be cheap and
+//! thread-safe; they run while the registry is being serialized.
+//!
+//! A family may hold several series distinguished by their variable label
+//! values (in schema order); add them with add(). For an unlabelled metric,
+//! add a single series with empty values.
 //!
 //! @tparam T  the value type (uint64_t, int64_t or double) selecting the
 //!            ISerializer::series overload, hence the exposition numeric type.
@@ -180,30 +184,44 @@ class ObservedFamily : public IFamily
 {
 public:
 ObservedFamily(std::string fullName, MetricKind kind, std::string help,
-               LabelContext ctx, std::function<T()> reader)
+               LabelContext ctx)
               : name_(std::move(fullName)), help_(std::move(help)), kind_(kind),
-                ctx_(std::move(ctx)), labels_(ctx_, name_, LabelValues{}),
-                reader_(std::move(reader)) {}
+                ctx_(std::move(ctx)) {}
 
-         ObservedFamily(const ObservedFamily&) = delete;  // labels_ points at ctx_
+         ObservedFamily(const ObservedFamily&) = delete;  // series_ point at ctx_
 ObservedFamily& operator=(const ObservedFamily&) = delete;
+
+//! Add a series. values are the variable label values in schema order; reader
+//! produces the value at scrape time. Returns *this for chaining.
+ObservedFamily& add(std::vector<std::string> values, std::function<T()> reader)
+{
+   LabelValues v{std::move(values)};
+   v.v.resize(ctx_.schema.size());     // normalize to the schema arity
+   series_.push_back(Series{SeriesLabels(ctx_, name_, std::move(v)),
+                            std::move(reader)});
+   return *this;
+}
 
 void serialize(ISerializer& s) const override
 {
    s.beginFamily(name_, kind_, help_);
-   s.series(labels_, reader_());
+   for (const Series& sr : series_) s.series(sr.labels, sr.reader());
    s.endFamily();
 }
 
 const std::string& name() const noexcept { return name_; }
 
 private:
-std::string        name_;
-std::string        help_;
-MetricKind         kind_;
-LabelContext       ctx_;     // owns the labels labels_ points into
-SeriesLabels       labels_;
-std::function<T()> reader_;
+struct Series
+      {SeriesLabels       labels;
+       std::function<T()> reader;
+      };
+
+std::string         name_;
+std::string         help_;
+MetricKind          kind_;
+LabelContext        ctx_;       // owns the labels every Series points into
+std::vector<Series> series_;
 };
 }
 #endif

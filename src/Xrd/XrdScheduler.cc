@@ -41,7 +41,6 @@
 
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdOuc/XrdOucTrace.hh"    // For ABI compatibility only!
 #include "XrdSys/XrdSysError.hh"
@@ -771,14 +770,14 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
    m_Limited  = &mg.counter("thread_limit_hits_total", {}, {},
                             "times the worker-thread maximum was reached").noLabels();
 
-   mg.observeIntGauge("threads",
-                      [this]{return (int64_t)num_Workers;}, {}, "worker threads");
-   mg.observeIntGauge("threads_idle",
-                      [this]{return (int64_t)idl_Workers;}, {}, "idle worker threads");
-   mg.observeIntGauge("jobs_in_queue",
-                      [this]{return (int64_t)num_JobsinQ;}, {}, "jobs waiting in the queue");
-   mg.observeIntGauge("queue_length_max",
-                      [this]{return (int64_t)max_QLength;}, {}, "longest queue length seen");
+   mg.observeIntGauge("threads", {}, {}, "worker threads")
+     .add({}, [this]{return (int64_t)num_Workers;});
+   mg.observeIntGauge("threads_idle", {}, {}, "idle worker threads")
+     .add({}, [this]{return (int64_t)idl_Workers;});
+   mg.observeIntGauge("jobs_in_queue", {}, {}, "jobs waiting in the queue")
+     .add({}, [this]{return (int64_t)num_JobsinQ;});
+   mg.observeIntGauge("queue_length_max", {}, {}, "longest queue length seen")
+     .add({}, [this]{return (int64_t)max_QLength;});
 }
 
 /******************************************************************************/

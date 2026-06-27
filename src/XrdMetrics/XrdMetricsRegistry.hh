@@ -85,18 +85,28 @@ LabeledFamily<FloatGauge>& floatGauge(const std::string& name,
                                   std::vector<ConstLabel> constLabels = {},
                                   std::string help = {}, std::size_t maxKids = 0);
 
-//! Register a read-only metric whose value is produced by a reader function at
-//! scrape time. Use these to surface a value owned and updated by another
-//! subsystem (the source of truth stays there) as a typed series. The reader
-//! must be cheap and thread-safe; it runs during serialization.
-void observeCounter(const std::string& name, std::function<std::uint64_t()> reader,
+//! Register a read-only metric family whose series values are produced by
+//! reader functions at scrape time. Use these to surface values owned and
+//! updated by another subsystem (the source of truth stays there) as typed
+//! series; add the series with ObservedFamily::add(). varLabels are the
+//! variable label names; readers must be cheap and thread-safe.
+ObservedFamily<std::uint64_t>& observeCounter(const std::string& name,
+                    std::vector<std::string> varLabels = {},
                     std::vector<ConstLabel> constLabels = {}, std::string help = {});
 
-void observeIntGauge(const std::string& name, std::function<std::int64_t()> reader,
-                     std::vector<ConstLabel> constLabels = {}, std::string help = {});
+//! Like observeCounter but the value is a (monotonic) floating-point counter,
+//! e.g. CPU seconds. Rendered with TYPE counter.
+ObservedFamily<double>& observeCounterF(const std::string& name,
+                    std::vector<std::string> varLabels = {},
+                    std::vector<ConstLabel> constLabels = {}, std::string help = {});
 
-void observeGauge(const std::string& name, std::function<double()> reader,
-                  std::vector<ConstLabel> constLabels = {}, std::string help = {});
+ObservedFamily<std::int64_t>& observeIntGauge(const std::string& name,
+                    std::vector<std::string> varLabels = {},
+                    std::vector<ConstLabel> constLabels = {}, std::string help = {});
+
+ObservedFamily<double>& observeGauge(const std::string& name,
+                    std::vector<std::string> varLabels = {},
+                    std::vector<ConstLabel> constLabels = {}, std::string help = {});
 
 const std::string& subsystem() const noexcept { return subsystem_; }
 
@@ -119,9 +129,9 @@ LabeledFamily<Child>& add(const std::string& name,
                           std::string help, std::size_t maxKids);
 
 template <class T>
-void addObserved(const std::string& name, MetricKind kind,
-                 std::function<T()> reader,
-                 std::vector<ConstLabel> constLabels, std::string help);
+ObservedFamily<T>& addObserved(const std::string& name, MetricKind kind,
+                               std::vector<std::string> varNames,
+                               std::vector<ConstLabel> constLabels, std::string help);
 
 Registry&   reg_;
 std::string subsystem_;
@@ -250,14 +260,18 @@ MetricGroup::floatGauge(const std::string& name, std::vector<std::string> varLab
 }
 
 template <class T>
-void MetricGroup::addObserved(const std::string& name, MetricKind kind,
-                              std::function<T()> reader,
-                              std::vector<ConstLabel> constLabels, std::string help)
+ObservedFamily<T>& MetricGroup::addObserved(const std::string& name, MetricKind kind,
+                                            std::vector<std::string> varNames,
+                                            std::vector<ConstLabel> constLabels,
+                                            std::string help)
 {
    std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
 
    if (!validMetricName(full))
       throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
+   for (auto& ln : varNames)
+       if (!validLabelName(ln))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
    for (auto& cl : constLabels)
        if (!validLabelName(cl.first))
           throw std::invalid_argument("XrdMetrics: invalid label name '" + cl.first + "'");
@@ -265,39 +279,47 @@ void MetricGroup::addObserved(const std::string& name, MetricKind kind,
    LabelContext ctx;
    ctx.global      = &reg_.globalLabels();
    ctx.constLabels = std::move(constLabels);
-   ctx.schema      = LabelSchema();        // observed metrics are single-series
+   ctx.schema      = LabelSchema(std::move(varNames));
 
    auto fam = std::unique_ptr<ObservedFamily<T>>(
                  new ObservedFamily<T>(std::move(full), kind, std::move(help),
-                                       std::move(ctx), std::move(reader)));
+                                       std::move(ctx)));
+   auto& ref = *fam;
    std::unique_lock<std::shared_mutex> wr(mutex_);
    families_.push_back(std::move(fam));
+   return ref;
 }
 
-inline void
-MetricGroup::observeCounter(const std::string& name,
-                            std::function<std::uint64_t()> reader,
+inline ObservedFamily<std::uint64_t>&
+MetricGroup::observeCounter(const std::string& name, std::vector<std::string> varLabels,
                             std::vector<ConstLabel> constLabels, std::string help)
 {
-   addObserved<std::uint64_t>(name, MetricKind::Counter, std::move(reader),
+   return addObserved<std::uint64_t>(name, MetricKind::Counter, std::move(varLabels),
+                                     std::move(constLabels), std::move(help));
+}
+
+inline ObservedFamily<double>&
+MetricGroup::observeCounterF(const std::string& name, std::vector<std::string> varLabels,
+                             std::vector<ConstLabel> constLabels, std::string help)
+{
+   return addObserved<double>(name, MetricKind::Counter, std::move(varLabels),
                               std::move(constLabels), std::move(help));
 }
 
-inline void
-MetricGroup::observeIntGauge(const std::string& name,
-                             std::function<std::int64_t()> reader,
+inline ObservedFamily<std::int64_t>&
+MetricGroup::observeIntGauge(const std::string& name, std::vector<std::string> varLabels,
                              std::vector<ConstLabel> constLabels, std::string help)
 {
-   addObserved<std::int64_t>(name, MetricKind::Gauge, std::move(reader),
-                             std::move(constLabels), std::move(help));
+   return addObserved<std::int64_t>(name, MetricKind::Gauge, std::move(varLabels),
+                                    std::move(constLabels), std::move(help));
 }
 
-inline void
-MetricGroup::observeGauge(const std::string& name, std::function<double()> reader,
+inline ObservedFamily<double>&
+MetricGroup::observeGauge(const std::string& name, std::vector<std::string> varLabels,
                           std::vector<ConstLabel> constLabels, std::string help)
 {
-   addObserved<double>(name, MetricKind::Gauge, std::move(reader),
-                       std::move(constLabels), std::move(help));
+   return addObserved<double>(name, MetricKind::Gauge, std::move(varLabels),
+                              std::move(constLabels), std::move(help));
 }
 
 /******************************************************************************/

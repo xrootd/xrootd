@@ -221,9 +221,8 @@ TEST(XrdMetricsObserved, ReadsSourceAtScrapeTime)
 {
   Registry reg("xrootd");
   long long threads = 4;
-  reg.group("sched").observeIntGauge("threads",
-                                     [&]{ return (int64_t)threads; }, {},
-                                     "worker threads");
+  reg.group("sched").observeIntGauge("threads", {}, {}, "worker threads")
+                    .add({}, [&]{ return (int64_t)threads; });
 
   EXPECT_NE(scrape(reg).find("xrootd_sched_threads 4\n"), std::string::npos);
 
@@ -235,15 +234,32 @@ TEST(XrdMetricsObserved, CounterKindAndConstLabels)
 {
   Registry reg("xrootd", {{"instance", "h1"}});
   unsigned long long hits = 7;
-  reg.group("cache").observeCounter("evictions_total",
-                                    [&]{ return hits; }, {{"tier", "ram"}},
-                                    "evictions");
+  reg.group("cache").observeCounter("evictions_total", {}, {{"tier", "ram"}},
+                                    "evictions")
+                    .add({}, [&]{ return hits; });
 
   const std::string out = scrape(reg);
   EXPECT_NE(out.find("# TYPE xrootd_cache_evictions_total counter\n"),
             std::string::npos);
   EXPECT_NE(out.find("xrootd_cache_evictions_total{instance=\"h1\",tier=\"ram\"} 7\n"),
             std::string::npos);
+}
+
+TEST(XrdMetricsObserved, MultiSeriesUnderOneFamily)
+{
+  Registry reg("xrootd");
+  unsigned long long open = 3, read = 5;
+  reg.group("ops").observeCounter("total", {"op"}, {}, "operations")
+                  .add({"open"}, [&]{ return open; })
+                  .add({"read"}, [&]{ return read; });
+
+  const std::string out = scrape(reg);
+  // One TYPE line for the family, one series per label value.
+  size_t first = out.find("# TYPE xrootd_ops_total");
+  ASSERT_NE(first, std::string::npos);
+  EXPECT_EQ(out.find("# TYPE xrootd_ops_total", first + 1), std::string::npos);
+  EXPECT_NE(out.find("xrootd_ops_total{op=\"open\"} 3\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_ops_total{op=\"read\"} 5\n"), std::string::npos);
 }
 
 /******************************************************************************/
