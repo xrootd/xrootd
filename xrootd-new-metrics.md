@@ -534,32 +534,54 @@ calling `std::to_chars(double)`) defines `HAVE_FLOAT_TO_CHARS`, so the split
 lands on the distro boundary (Alma 9/GCC 11 → `to_chars`, Alma 8/GCC 8 →
 `snprintf`) without devtoolset and with no new ABI surface.
 
-## Scope this iteration
+## Instruments and serializers
 
-- **Instruments:** Counter + Gauge only. Histograms/summaries are deferred until
-  the architecture settles, but the `ISerializer` seam (`MetricKind` + typed
-  overloads) is built to extend to them without rework.
-- **Serializers:** Prometheus text only, behind the abstract seam so OTel JSON
-  and the existing XRootD XML/JSON can be added later as sibling subclasses.
-- **Not touched yet:** server-counter migration, `xrdmoncollect`, and the
-  client — all later steps.
+- **Instruments:** Counter, Gauge (int64/double), Histogram, plus read-only
+  **observed** metrics whose value comes from a `std::function` reader at scrape
+  time (the typed, first-class replacement for the prototype's
+  `AddRefCounter`/`AddRefGauge`). Summary is the remaining instrument.
+- **Population patterns:** counters are *reversed* (the metric owns the atomic;
+  the legacy emitter reads it via `value()`); live control-flow state stays
+  owned by its subsystem and is *observed* read-only. Callers that build
+  labelled metrics on the fly use the get-or-create `counterSeries` /
+  `gaugeSeries` / `histogramSeries` helpers (family deduplicated by name).
+- **Serializers:** Prometheus text only, behind the abstract `ISerializer` seam
+  (`MetricKind` + typed `series`/`histogram`) so OTel JSON and the existing
+  XRootD XML/JSON can be added later as sibling subclasses. A Prometheus-text
+  collector escape hatch (`Registry::addTextCollector`) bridges the legacy
+  `XrdMonRoll` plugin counter sets.
+
+## Migration status
+
+The phase-1 prototype (`XrdMetricsRegistry`) has been **removed**: every
+consumer now uses the new system —
+
+- **Server summary metrics** — process/CPU and server identity, link, poll,
+  buffer-pool, and the xrootd protocol op/login/signature/byte counters
+  (`XrdStats`, `XrdLink`, `XrdPoll`, `XrdBuffer`, `XrdXrootdStats`); the
+  scheduler is fully migrated (counters reversed, live gauges observed).
+- **`/metrics` endpoint** (`XrdHttpPrometheus`) serves only the new registry.
+- **`xrdmoncollect`** aggregate sink uses the new registry (its own empty-prefix
+  `Registry`).
+
+The legacy `XrdStats`/`XrdMonitor` XML/JSON summary output is untouched.
 
 ## Tests
 
-`tests/XrdMetricsTests/XrdMetricsRegistryTests.cc` (added to the existing
-`xrdmetrics-unit-tests` target) covers value formatting (integers, doubles,
-non-finite tokens), counter/gauge operators, the double CAS path, label prefix
-order/escaping and the structured `forEachLabel`, name validation, the
-first-seen-then-cached family handle, the cardinality cap, group/registry
-composition and the `Default()` singleton, exact Prometheus output, buffer
-reuse, and concurrent increments. The phase-1 prototype tests remain and still
-pass (a latent uninitialized-`std::atomic` bug in the prototype's histogram
-buckets — the exact pitfall the design review flagged — was fixed in passing so
-the suite is green on GCC 14 / C++17).
+`tests/XrdMetricsTests/XrdMetricsRegistryTests.cc` covers value formatting,
+counter/gauge operators and the double CAS path, label prefix order/escaping and
+the structured `forEachLabel`, name validation, the cached family handle, the
+cardinality cap, histograms (buckets/sum/count, labelled `le`), observed metrics
+(single- and multi-series), the dynamic `*Series` get-or-create with family
+dedup and type-mismatch errors, group/registry composition, `Default()`, exact
+Prometheus output, buffer reuse, and concurrent increments. Server-side and
+collector behaviour is exercised by `XrdSchedulerStatsTests`,
+`XrdXrootdStatsTests` (legacy XML byte-stability) and the `XrdMonCollectTests`
+suite, plus the server integration tests.
 
 ## Next steps (later iterations)
 
-1. Create equivalent server metrics in the new system (rather than bridging the
-   old `XrdStats`/`XrdMonRoll` counters), then point `/metrics` at it.
-2. Add histogram/summary instruments and the OTel JSON serializer.
-3. Migrate `xrdmoncollect`'s aggregate sink and add client-side metrics.
+1. Add the OTel JSON serializer (and optionally fold the legacy XML/JSON
+   emitters onto the `ISerializer` seam).
+2. Add a Summary instrument if needed.
+3. Add client-side metrics for batch jobs.
