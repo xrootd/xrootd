@@ -302,6 +302,43 @@ TEST(XrdMetricsObserved, MultiSeriesUnderOneFamily)
 }
 
 /******************************************************************************/
+/*              D y n a m i c   s e r i e s   (* S e r i e s )               */
+/******************************************************************************/
+
+TEST(XrdMetricsDynamic, GetOrCreateDedupsFamily)
+{
+  Registry reg("");   // empty prefix: names pass through verbatim
+  auto& g = reg.group("");
+
+  ++g.counterSeries("xrootd_collector_frm_total", "frm", {{"server","s1"},{"op","stage"}});
+  g.counterSeries("xrootd_collector_frm_total", "frm", {{"server","s1"},{"op","stage"}}) += 2;
+  ++g.counterSeries("xrootd_collector_frm_total", "frm", {{"server","s1"},{"op","purge"}});
+  g.gaugeSeries("xrootd_collector_active", "active", {{"server","s1"}}) = 4;
+  g.histogramSeries("xrootd_collector_sz", "sizes", {10,100}, {{"op","read"}}).observe(50);
+
+  const std::string out = scrape(reg);
+  // One TYPE line for the deduped counter family.
+  size_t first = out.find("# TYPE xrootd_collector_frm_total");
+  ASSERT_NE(first, std::string::npos);
+  EXPECT_EQ(out.find("# TYPE xrootd_collector_frm_total", first + 1), std::string::npos);
+  EXPECT_NE(out.find("xrootd_collector_frm_total{server=\"s1\",op=\"stage\"} 3\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_collector_frm_total{server=\"s1\",op=\"purge\"} 1\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_collector_active{server=\"s1\"} 4\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_collector_sz_bucket{op=\"read\",le=\"100\"} 1\n"),
+            std::string::npos);
+}
+
+TEST(XrdMetricsDynamic, TypeMismatchThrows)
+{
+  Registry reg("");
+  auto& g = reg.group("");
+  ++g.counterSeries("m", "h");
+  EXPECT_THROW(g.gaugeSeries("m", "h"), std::invalid_argument);
+}
+
+/******************************************************************************/
 /*                    R e g i s t r y   /   G r o u p                        */
 /******************************************************************************/
 

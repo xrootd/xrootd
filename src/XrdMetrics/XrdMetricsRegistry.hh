@@ -115,6 +115,20 @@ ObservedFamily<double>& observeGauge(const std::string& name,
                     std::vector<std::string> varLabels = {},
                     std::vector<ConstLabel> constLabels = {}, std::string help = {});
 
+//! Dynamic get-or-create-series convenience: one call returns the series for a
+//! metric name plus label values, creating the family (deduplicated by name) on
+//! first use. The label NAMES must be consistent across calls for a given
+//! metric name. Intended for callers that build labelled metrics on the fly
+//! (e.g. a monitoring collector), trading a per-call map lookup for that
+//! convenience; prefer the cached-handle factories on hot server paths.
+Counter&    counterSeries(const std::string& name, const std::string& help,
+                          std::vector<ConstLabel> labels = {});
+FloatGauge& gaugeSeries(const std::string& name, const std::string& help,
+                        std::vector<ConstLabel> labels = {});
+Histogram&  histogramSeries(const std::string& name, const std::string& help,
+                            std::vector<double> bounds,
+                            std::vector<ConstLabel> labels = {});
+
 const std::string& subsystem() const noexcept { return subsystem_; }
 
 void serialize(ISerializer& s) const
@@ -140,11 +154,21 @@ ObservedFamily<T>& addObserved(const std::string& name, MetricKind kind,
                                std::vector<std::string> varNames,
                                std::vector<ConstLabel> constLabels, std::string help);
 
+template <class Child>
+LabeledFamily<Child>& getOrAddLabeled(const std::string& full,
+                          const std::vector<std::string>& names,
+                          const std::string& help);
+
+HistogramFamily& getOrAddHistogram(const std::string& full,
+                          const std::vector<std::string>& names,
+                          std::vector<double> bounds, const std::string& help);
+
 Registry&   reg_;
 std::string subsystem_;
 
 mutable std::shared_mutex mutex_;
 std::vector<std::unique_ptr<IFamily>> families_;
+std::unordered_map<std::string, IFamily*> byName_;   // dedup index for *Series
 };
 
 /******************************************************************************/
@@ -379,6 +403,113 @@ MetricGroup::observeGauge(const std::string& name, std::vector<std::string> varL
 {
    return addObserved<double>(name, MetricKind::Gauge, std::move(varLabels),
                               std::move(constLabels), std::move(help));
+}
+
+/******************************************************************************/
+/*        D y n a m i c   g e t - o r - c r e a t e   s e r i e s            */
+/******************************************************************************/
+
+template <class Child>
+LabeledFamily<Child>& MetricGroup::getOrAddLabeled(const std::string& full,
+                          const std::vector<std::string>& names,
+                          const std::string& help)
+{
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   auto it = byName_.find(full);
+   if (it != byName_.end())
+      {auto* fam = dynamic_cast<LabeledFamily<Child>*>(it->second);
+       if (!fam) throw std::invalid_argument(
+                    "XrdMetrics: metric '" + full + "' redefined with a different type");
+       return *fam;
+      }
+   if (!validMetricName(full))
+      throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
+   for (auto& ln : names)
+       if (!validLabelName(ln))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
+
+   LabelContext ctx;
+   ctx.global = &reg_.globalLabels();
+   ctx.schema = LabelSchema(names);
+   auto fam = std::unique_ptr<LabeledFamily<Child>>(
+                 new LabeledFamily<Child>(full, std::move(ctx), help));
+   auto& ref = *fam;
+   byName_.emplace(full, fam.get());
+   families_.push_back(std::move(fam));
+   return ref;
+}
+
+inline HistogramFamily& MetricGroup::getOrAddHistogram(const std::string& full,
+                          const std::vector<std::string>& names,
+                          std::vector<double> bounds, const std::string& help)
+{
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   auto it = byName_.find(full);
+   if (it != byName_.end())
+      {auto* fam = dynamic_cast<HistogramFamily*>(it->second);
+       if (!fam) throw std::invalid_argument(
+                    "XrdMetrics: metric '" + full + "' redefined with a different type");
+       return *fam;
+      }
+   if (!validMetricName(full))
+      throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
+   for (auto& ln : names)
+       if (!validLabelName(ln))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
+
+   LabelContext ctx;
+   ctx.global = &reg_.globalLabels();
+   ctx.schema = LabelSchema(names);
+   auto fam = std::unique_ptr<HistogramFamily>(
+                 new HistogramFamily(full, std::move(ctx), std::move(bounds), help));
+   auto& ref = *fam;
+   byName_.emplace(full, fam.get());
+   families_.push_back(std::move(fam));
+   return ref;
+}
+
+namespace detail
+{
+inline void splitLabels(const std::vector<ConstLabel>& labels,
+                        std::vector<std::string>& names,
+                        std::vector<std::string>& values)
+{
+   names.reserve(labels.size());
+   values.reserve(labels.size());
+   for (auto& kv : labels) {names.push_back(kv.first); values.push_back(kv.second);}
+}
+}
+
+inline Counter&
+MetricGroup::counterSeries(const std::string& name, const std::string& help,
+                           std::vector<ConstLabel> labels)
+{
+   std::vector<std::string> names, values;
+   detail::splitLabels(labels, names, values);
+   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   return getOrAddLabeled<Counter>(full, names, help).withLabelValues(std::move(values));
+}
+
+inline FloatGauge&
+MetricGroup::gaugeSeries(const std::string& name, const std::string& help,
+                         std::vector<ConstLabel> labels)
+{
+   std::vector<std::string> names, values;
+   detail::splitLabels(labels, names, values);
+   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   return getOrAddLabeled<FloatGauge>(full, names, help).withLabelValues(std::move(values));
+}
+
+inline Histogram&
+MetricGroup::histogramSeries(const std::string& name, const std::string& help,
+                             std::vector<double> bounds,
+                             std::vector<ConstLabel> labels)
+{
+   std::vector<std::string> names, values;
+   detail::splitLabels(labels, names, values);
+   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   return getOrAddHistogram(full, names, std::move(bounds), help)
+             .withLabelValues(std::move(values));
 }
 
 /******************************************************************************/
