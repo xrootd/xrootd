@@ -51,7 +51,7 @@
 
 #endif
 
-#include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
@@ -1104,30 +1104,25 @@ int XrdLinkXeq::Stats(char *buff, int blen, bool do_sync)
 
 void XrdLinkXeq::RegisterMetrics()
 {
-   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("link");
 
-   reg.AddRefGauge("xrootd_link_connections", "current open connections", {},
-                   []{return (double)AtomicGet(LinkCount);});
-   reg.AddRefGauge("xrootd_link_connections_max", "peak concurrent connections",
-                   {}, []{return (double)AtomicGet(LinkCountMax);});
-   reg.AddRefCounter("xrootd_link_connections_total", "connections accepted", {},
-                   []{return (unsigned long long)AtomicGet(LinkCountTot);});
-   reg.AddRefCounter("xrootd_link_bytes_total", "bytes transferred over links",
-                   {{"dir","in"}},
-                   []{return (unsigned long long)AtomicGet(LinkBytesIn);});
-   reg.AddRefCounter("xrootd_link_bytes_total", "bytes transferred over links",
-                   {{"dir","out"}},
-                   []{return (unsigned long long)AtomicGet(LinkBytesOut);});
-   reg.AddRefCounter("xrootd_link_connect_seconds_total",
-                   "accumulated connection time", {},
-                   []{return (unsigned long long)AtomicGet(LinkConTime);});
-   reg.AddRefCounter("xrootd_link_timeouts_total", "link timeouts", {},
-                   []{return (unsigned long long)AtomicGet(LinkTimeOuts);});
-   reg.AddRefCounter("xrootd_link_stalls_total", "link stalls", {},
-                   []{return (unsigned long long)AtomicGet(LinkStalls);});
-   reg.AddRefCounter("xrootd_link_sendfile_interrupts_total",
-                   "sendfile interrupts", {},
-                   []{return (unsigned long long)AtomicGet(LinkSfIntr);});
+   g.observeIntGauge("connections", {}, {}, "current open connections")
+    .add({}, []{return (int64_t)AtomicGet(LinkCount);});
+   g.observeIntGauge("connections_max", {}, {}, "peak concurrent connections")
+    .add({}, []{return (int64_t)AtomicGet(LinkCountMax);});
+   g.observeCounter("connections_total", {}, {}, "connections accepted")
+    .add({}, []{return (uint64_t)AtomicGet(LinkCountTot);});
+   g.observeCounter("bytes_total", {"dir"}, {}, "bytes transferred over links")
+    .add({"in"},  []{return (uint64_t)AtomicGet(LinkBytesIn);})
+    .add({"out"}, []{return (uint64_t)AtomicGet(LinkBytesOut);});
+   g.observeCounter("connect_seconds_total", {}, {}, "accumulated connection time")
+    .add({}, []{return (uint64_t)AtomicGet(LinkConTime);});
+   g.observeCounter("timeouts_total", {}, {}, "link timeouts")
+    .add({}, []{return (uint64_t)AtomicGet(LinkTimeOuts);});
+   g.observeCounter("stalls_total", {}, {}, "link stalls")
+    .add({}, []{return (uint64_t)AtomicGet(LinkStalls);});
+   g.observeCounter("sendfile_interrupts_total", {}, {}, "sendfile interrupts")
+    .add({}, []{return (uint64_t)AtomicGet(LinkSfIntr);});
 }
 
 /******************************************************************************/

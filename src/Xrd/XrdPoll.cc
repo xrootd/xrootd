@@ -31,7 +31,7 @@
 #include <cstdio>
 #include <cstdlib>
   
-#include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -364,24 +364,24 @@ int XrdPoll::Stats(char *buff, int blen, int do_sync)
 
 void XrdPoll::RegisterMetrics()
 {
-   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("poll");
 
-   reg.AddRefGauge("xrootd_poll_attached", "file descriptors attached to pollers",
-       {}, []{int t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
-                          if (Pollers[i]) t += Pollers[i]->numAttached;
-              return (double)t;});
-   reg.AddRefGauge("xrootd_poll_enabled", "poll enable count", {},
-       []{int t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
-                       if (Pollers[i]) t += Pollers[i]->numEnabled;
-          return (double)t;});
-   reg.AddRefCounter("xrootd_poll_events_total", "poll events dispatched", {},
-       []{unsigned long long t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
-                       if (Pollers[i]) t += (unsigned)Pollers[i]->numEvents;
-          return t;});
-   reg.AddRefCounter("xrootd_poll_interrupts_total", "poll interrupts", {},
-       []{unsigned long long t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
-                       if (Pollers[i]) t += (unsigned)Pollers[i]->numInterrupts;
-          return t;});
+   g.observeIntGauge("attached", {}, {}, "file descriptors attached to pollers")
+    .add({}, []{int64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
+                                 if (Pollers[i]) t += Pollers[i]->numAttached;
+               return t;});
+   g.observeIntGauge("enabled", {}, {}, "poll enable count")
+    .add({}, []{int64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
+                                 if (Pollers[i]) t += Pollers[i]->numEnabled;
+               return t;});
+   g.observeCounter("events_total", {}, {}, "poll events dispatched")
+    .add({}, []{uint64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
+                                  if (Pollers[i]) t += (unsigned)Pollers[i]->numEvents;
+               return t;});
+   g.observeCounter("interrupts_total", {}, {}, "poll interrupts")
+    .add({}, []{uint64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
+                                  if (Pollers[i]) t += (unsigned)Pollers[i]->numInterrupts;
+               return t;});
 }
   
 /******************************************************************************/

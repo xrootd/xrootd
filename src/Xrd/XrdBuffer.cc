@@ -33,7 +33,7 @@
 #include <cstdlib>
 #include <sys/types.h>
 
-#include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -347,14 +347,14 @@ int XrdBuffManager::Stats(char *buff, int blen, int do_sync)
 
 void XrdBuffManager::RegisterMetrics()
 {
-   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
+   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("buff");
 
-   reg.AddRefCounter("xrootd_buff_requests_total", "buffer requests", {},
-                   [this]{return (unsigned long long)totreq;});
-   reg.AddRefGauge("xrootd_buff_memory_bytes", "memory allocated to buffers", {},
-                   [this]{return (double)totalo;});
-   reg.AddRefGauge("xrootd_buff_buffers", "buffers allocated", {},
-                   [this]{return (double)totbuf;});
-   reg.AddRefCounter("xrootd_buff_adjustments_total", "buffer pool reshapes", {},
-                   [this]{return (unsigned long long)totadj;});
+   g.observeCounter("requests_total", {}, {}, "buffer requests")
+    .add({}, [this]{return (uint64_t)totreq;});
+   g.observeIntGauge("memory_bytes", {}, {}, "memory allocated to buffers")
+    .add({}, [this]{return (int64_t)totalo;});
+   g.observeIntGauge("buffers", {}, {}, "buffers allocated")
+    .add({}, [this]{return (int64_t)totbuf;});
+   g.observeCounter("adjustments_total", {}, {}, "buffer pool reshapes")
+    .add({}, [this]{return (uint64_t)totadj;});
 }

@@ -42,7 +42,7 @@
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
-#include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdNet/XrdNetMsg.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -134,26 +134,26 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
 
 void XrdStats::RegisterMetrics()
 {
-   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
-
-// Server identity as a Prometheus "info" metric (value is always 1).
+// Server identity as a Prometheus "info" metric (value is always 1). It keeps
+// its flat name, so it lives in the registry's empty subsystem group.
 //
-   reg.Gauge("xrootd_server_info", "server identity",
+   XrdMetrics::Default().group("").intGauge("server_info", {},
              {{"host",     myHost ? myHost : ""},
               {"port",     std::to_string(myPort)},
               {"instance", myName ? myName : ""},
-              {"site",     mySite ? mySite : ""}}).set(1);
+              {"site",     mySite ? mySite : ""}}, "server identity").noLabels() = 1;
 
 // Process CPU time, read live from getrusage at scrape time.
 //
-   reg.AddRefCounterF("xrootd_process_cpu_seconds_total",
-        "process CPU time in seconds", {{"mode","user"}},
-        []{struct rusage r; if (getrusage(RUSAGE_SELF,&r)) return 0.0;
-           return (double)r.ru_utime.tv_sec + (double)r.ru_utime.tv_usec/1e6;});
-   reg.AddRefCounterF("xrootd_process_cpu_seconds_total",
-        "process CPU time in seconds", {{"mode","system"}},
-        []{struct rusage r; if (getrusage(RUSAGE_SELF,&r)) return 0.0;
-           return (double)r.ru_stime.tv_sec + (double)r.ru_stime.tv_usec/1e6;});
+   XrdMetrics::Default().group("process")
+        .observeCounterF("cpu_seconds_total", {"mode"}, {},
+                         "process CPU time in seconds")
+        .add({"user"},
+             []{struct rusage r; if (getrusage(RUSAGE_SELF,&r)) return 0.0;
+                return (double)r.ru_utime.tv_sec + (double)r.ru_utime.tv_usec/1e6;})
+        .add({"system"},
+             []{struct rusage r; if (getrusage(RUSAGE_SELF,&r)) return 0.0;
+                return (double)r.ru_stime.tv_sec + (double)r.ru_stime.tv_usec/1e6;});
 
 // Subsystem counters (link, poll, scheduler, buffer manager).
 //
@@ -175,7 +175,7 @@ void XrdStats::Export(XrdOucEnv& theEnv)
 // /metrics endpoint. The collector reads the live registry at scrape time.
 //
    XrdMonitor* mon = theMon;
-   XrdMetricsRegistry::Default().AddCollector(
+   XrdMetrics::Default().addTextCollector(
             [mon](std::string& out) {mon->FormProm(out);});
 }
 

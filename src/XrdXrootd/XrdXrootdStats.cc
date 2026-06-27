@@ -30,7 +30,7 @@
 #include <cstdio>
 
 #include "Xrd/XrdStats.hh"
-#include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdXrootd/XrdXrootdFileStats.hh"
@@ -96,16 +96,17 @@ RegisterMetrics();
 
 void XrdXrootdStats::RegisterMetrics()
 {
-   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
-
-// Each lambda reads the live counter atomically so the value is consistent
-// with the concurrent AtomicInc/AtomicAdd updates done on the hot path. The
-// counters themselves are the single source of truth; this only adds a view.
+// The xrootd protocol counters keep their existing flat names, so they live in
+// the registry's empty subsystem group (prefix only). Each reader reads the
+// live counter atomically so the value is consistent with the concurrent
+// AtomicInc/AtomicAdd updates on the hot path; the counters themselves remain
+// the source of truth and these only observe them.
 //
-#define OPS(label, fld) \
-   reg.AddRefCounter("xrootd_ops_total", "xrootd protocol operations", \
-        {{"op", label}}, [this]{return (unsigned long long)AtomicGet(fld);})
+   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("");
 
+   auto& ops = g.observeCounter("ops_total", {"op"}, {},
+                                "xrootd protocol operations");
+#define OPS(label, fld) ops.add({label}, [this]{return (uint64_t)AtomicGet(fld);})
    OPS("open",    openCnt);
    OPS("read",    readCnt);
    OPS("preread", prerCnt);
@@ -119,53 +120,48 @@ void XrdXrootdStats::RegisterMetrics()
    OPS("misc",    miscCnt);
 #undef OPS
 
-#define LGN(label, fld) \
-   reg.AddRefCounter("xrootd_logins_total", "xrootd login outcomes", \
-        {{"result", label}}, [this]{return (unsigned long long)AtomicGet(fld);})
-
+   auto& lgn = g.observeCounter("logins_total", {"result"}, {},
+                                "xrootd login outcomes");
+#define LGN(label, fld) lgn.add({label}, [this]{return (uint64_t)AtomicGet(fld);})
    LGN("attempt",  LoginAT);
    LGN("auth",     LoginAU);
    LGN("noauth",   LoginUA);
    LGN("authfail", AuthBad);
 #undef LGN
 
-#define SIG(label, fld) \
-   reg.AddRefCounter("xrootd_signatures_total", "xrootd request signature checks",\
-        {{"result", label}}, [this]{return (unsigned long long)AtomicGet(fld);})
-
+   auto& sig = g.observeCounter("signatures_total", {"result"}, {},
+                                "xrootd request signature checks");
+#define SIG(label, fld) sig.add({label}, [this]{return (uint64_t)AtomicGet(fld);})
    SIG("ok",      aokSCnt);
    SIG("bad",     badSCnt);
    SIG("ignored", ignSCnt);
 #undef SIG
 
 #define CTR(name, help, fld) \
-   reg.AddRefCounter(name, help, {}, \
-        [this]{return (unsigned long long)AtomicGet(fld);})
-
-   CTR("xrootd_requests_total",        "xrootd protocol requests",     Count);
-   CTR("xrootd_readv_segments_total",  "readv segments read",          rsegCnt);
-   CTR("xrootd_writev_segments_total", "writev segments written",      wsegCnt);
-   CTR("xrootd_async_ops_total",       "asynchronous i/o operations",  AsyncNum);
-   CTR("xrootd_async_rejected_total",  "rejected asynchronous i/o ops", AsyncRej);
-   CTR("xrootd_errors_total",          "errors returned to clients",   errorCnt);
-   CTR("xrootd_redirects_total",       "client redirects issued",      redirCnt);
-   CTR("xrootd_stalls_total",          "client stalls (delays) issued", stallCnt);
+   g.observeCounter(name, {}, {}, help) \
+    .add({}, [this]{return (uint64_t)AtomicGet(fld);})
+   CTR("requests_total",        "xrootd protocol requests",      Count);
+   CTR("readv_segments_total",  "readv segments read",           rsegCnt);
+   CTR("writev_segments_total", "writev segments written",       wsegCnt);
+   CTR("async_ops_total",       "asynchronous i/o operations",   AsyncNum);
+   CTR("async_rejected_total",  "rejected asynchronous i/o ops", AsyncRej);
+   CTR("errors_total",          "errors returned to clients",    errorCnt);
+   CTR("redirects_total",       "client redirects issued",       redirCnt);
+   CTR("stalls_total",          "client stalls (delays) issued", stallCnt);
 #undef CTR
 
 // File I/O byte totals (counted on every read/write across all files). pgread
 // folds into read, pgwrite/writev into write.
 //
-   reg.AddRefCounter("xrootd_bytes_total", "file I/O bytes", {{"op","read"}},
-        []{return (unsigned long long)XrdXrootdFileStats::totRdBytes.load();});
-   reg.AddRefCounter("xrootd_bytes_total", "file I/O bytes", {{"op","readv"}},
-        []{return (unsigned long long)XrdXrootdFileStats::totRvBytes.load();});
-   reg.AddRefCounter("xrootd_bytes_total", "file I/O bytes", {{"op","write"}},
-        []{return (unsigned long long)XrdXrootdFileStats::totWrBytes.load();});
+   g.observeCounter("bytes_total", {"op"}, {}, "file I/O bytes")
+    .add({"read"},  []{return (uint64_t)XrdXrootdFileStats::totRdBytes.load();})
+    .add({"readv"}, []{return (uint64_t)XrdXrootdFileStats::totRvBytes.load();})
+    .add({"write"}, []{return (uint64_t)XrdXrootdFileStats::totWrBytes.load();});
 
 // High-water mark of concurrent async i/o operations is a gauge, not a counter.
 //
-   reg.AddRefGauge("xrootd_async_max", "peak concurrent asynchronous i/o ops",
-                   {}, [this]{return (double)AtomicGet(AsyncMax);});
+   g.observeIntGauge("async_max", {}, {}, "peak concurrent asynchronous i/o ops")
+    .add({}, [this]{return (int64_t)AtomicGet(AsyncMax);});
 }
 
 /******************************************************************************/

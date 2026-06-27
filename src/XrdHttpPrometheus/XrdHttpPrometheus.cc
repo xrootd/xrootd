@@ -28,7 +28,6 @@
 #endif
 
 #include "XrdHttpPrometheus/XrdHttpPrometheus.hh"
-#include "XrdMetrics/XrdMetrics.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdOuc/XrdOucGatherConf.hh"
@@ -64,8 +63,8 @@ XrdHttpPrometheus::XrdHttpPrometheus(XrdSysError *eDest, const char *confg,
 // Register a liveness gauge so the endpoint always returns at least one series,
 // even before any other subsystem has registered metrics.
 //
-   XrdMetricsRegistry::Default().Gauge("xrootd_metrics_endpoint_up",
-            "1 if the Prometheus metrics endpoint is configured").set(1);
+   XrdMetrics::Default().group("metrics").intGauge("endpoint_up", {}, {},
+            "1 if the Prometheus metrics endpoint is configured").noLabels() = 1;
 
    if (m_log) m_log->Say("Config Prometheus metrics endpoint at ", m_path.c_str());
 
@@ -151,9 +150,9 @@ void XrdHttpPrometheus::PushLoop()
          if (m_stop) break;
 
          std::string body;
-         XrdMetricsRegistry::Default().Scrape(body);
          XrdMetrics::PrometheusTextSerializer ser(body);
          XrdMetrics::Default().serialize(ser);
+         XrdMetrics::Default().runTextCollectors(body);
 
          curl_easy_reset(curl);
          curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -193,13 +192,19 @@ int XrdHttpPrometheus::ProcessReq(XrdHttpExtReq &req)
       return req.SendSimpleResp(405, nullptr, nullptr,
                                 "Only GET is supported for metrics.", 0);
 
-   XrdMetricsRegistry::Default().Counter("xrootd_metrics_scrapes_total",
-            "Number of times the metrics endpoint has been scraped").inc();
+// Cache the scrape counter handle once (creating a family per request would
+// register a duplicate each time); the static init is thread-safe.
+//
+   static XrdMetrics::Counter& scrapes = XrdMetrics::Default().group("metrics")
+            .counter("scrapes_total", {}, {},
+                     "Number of times the metrics endpoint has been scraped")
+            .noLabels();
+   ++scrapes;
 
    std::string body;
-   XrdMetricsRegistry::Default().Scrape(body);
    XrdMetrics::PrometheusTextSerializer ser(body);
    XrdMetrics::Default().serialize(ser);
+   XrdMetrics::Default().runTextCollectors(body);
 
    return req.SendSimpleResp(200, nullptr, ctype, body.c_str(),
                              (long long)body.size());
