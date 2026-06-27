@@ -29,6 +29,8 @@
 
 #include "XrdHttpPrometheus/XrdHttpPrometheus.hh"
 #include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdOuc/XrdOucGatherConf.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdVersion.hh"
@@ -150,6 +152,8 @@ void XrdHttpPrometheus::PushLoop()
 
          std::string body;
          XrdMetricsRegistry::Default().Scrape(body);
+         XrdMetrics::PrometheusTextSerializer ser(body);
+         XrdMetrics::Default().serialize(ser);
 
          curl_easy_reset(curl);
          curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -194,6 +198,8 @@ int XrdHttpPrometheus::ProcessReq(XrdHttpExtReq &req)
 
    std::string body;
    XrdMetricsRegistry::Default().Scrape(body);
+   XrdMetrics::PrometheusTextSerializer ser(body);
+   XrdMetrics::Default().serialize(ser);
 
    return req.SendSimpleResp(200, nullptr, ctype, body.c_str(),
                              (long long)body.size());
