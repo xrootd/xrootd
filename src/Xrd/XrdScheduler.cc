@@ -42,6 +42,7 @@
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdOuc/XrdOucTrace.hh"    // For ABI compatibility only!
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -347,7 +348,7 @@ void XrdScheduler::Run()
                if (num_Layoffs > 0)
                   {num_Layoffs--;
                    if (waiting)
-                      {num_TDestroy++; num_Workers--;
+                      {++*m_TDestroy; num_Workers--;
                        TRACE(SCHED, "terminating thread; workers=" <<num_Workers);
                        SchedMutex.UnLock();
                        return;
@@ -391,7 +392,7 @@ void XrdScheduler::Schedule(XrdJob *jp)
 
 // Calculate statistics
 //
-   num_Jobs++;
+   ++*m_Jobs;
    num_JobsinQ++;
    if (num_JobsinQ > max_QLength) max_QLength = num_JobsinQ;
 
@@ -422,7 +423,7 @@ void XrdScheduler::Schedule(int numjobs, XrdJob *jfirst, XrdJob *jlast)
 
 // Calculate statistics
 //
-   num_Jobs    += numjobs;
+   *m_Jobs     += numjobs;
    num_JobsinQ += numjobs;
    if (num_JobsinQ > max_QLength) max_QLength = num_JobsinQ;
 
@@ -650,11 +651,11 @@ int XrdScheduler::Stats(char *buff, int blen, int do_sync)
 //
    if (do_sync) SchedMutex.Lock();
    cnt_Workers = num_Workers;
-   cnt_Jobs    = num_Jobs;
+   cnt_Jobs    = (int)m_Jobs->value();
    cnt_JobsinQ = num_JobsinQ;
    xam_QLength = max_QLength;
-   cnt_TCreate = num_TCreate;
-   cnt_TDestroy= num_TDestroy;
+   cnt_TCreate = (int)m_TCreate->value();
+   cnt_TDestroy= (int)m_TDestroy->value();
    cnt_Limited = num_Limited;
    if (do_sync) SchedMutex.UnLock();
 
@@ -673,8 +674,10 @@ void XrdScheduler::RegisterMetrics()
 {
    XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
 
-   reg.AddRefCounter("xrootd_sched_jobs_total", "jobs scheduled", {},
-                   [this]{return (unsigned long long)num_Jobs;});
+// jobs_total, threads_created_total and threads_destroyed_total now live in the
+// new XrdMetrics registry as their source of truth (see Init), so they are no
+// longer bridged here. The remaining gauges still read the live scheduler ints.
+//
    reg.AddRefGauge("xrootd_sched_jobs_in_queue", "jobs waiting in the queue", {},
                    [this]{return (double)num_JobsinQ;});
    reg.AddRefGauge("xrootd_sched_queue_length_max", "longest queue length seen",
@@ -683,11 +686,6 @@ void XrdScheduler::RegisterMetrics()
                    [this]{return (double)num_Workers;});
    reg.AddRefGauge("xrootd_sched_threads_idle", "idle worker threads", {},
                    [this]{return (double)idl_Workers;});
-   reg.AddRefCounter("xrootd_sched_threads_created_total", "worker threads created",
-                   {}, [this]{return (unsigned long long)num_TCreate;});
-   reg.AddRefCounter("xrootd_sched_threads_destroyed_total",
-                   "worker threads destroyed", {},
-                   [this]{return (unsigned long long)num_TDestroy;});
    reg.AddRefCounter("xrootd_sched_thread_limit_hits_total",
                    "times the worker-thread maximum was reached", {},
                    [this]{return (unsigned long long)num_Limited;});
@@ -742,7 +740,7 @@ void XrdScheduler::hireWorker(int dotrace)
        return;
       }
    num_Workers++;
-   num_TCreate++;
+   ++*m_TCreate;
    SchedMutex.UnLock();
 
 // Start a new thread. We do this without the schedMutex to avoid hang-ups. If
@@ -756,7 +754,7 @@ void XrdScheduler::hireWorker(int dotrace)
       {XrdLog->Emsg("Scheduler", retc, "create worker thread");
        SchedMutex.Lock();
        num_Workers--;
-       num_TDestroy++;
+       ++*m_TDestroy;
        max_Workers = num_Workers;
        min_Workers = (max_Workers/10 ? max_Workers/10 : 1);
        stk_Workers = max_Workers/4*3;
@@ -777,14 +775,22 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
    num_JobsinQ =  0;
    stk_Workers =  maxw - (maxw/4*3);
    idl_Workers =  0;
-   num_Jobs    =  0;
    max_QLength =  0;
-   num_TCreate =  0;
-   num_TDestroy=  0;
    num_Layoffs =  0;
    num_Limited =  0;
    firstPID    =  0;
    WorkFirst = WorkLast = TimerQueue = 0;
+
+// Bind the thread/job tally counters in the process-wide metrics registry.
+// These instruments are the source of truth and start at zero.
+//
+   XrdMetrics::MetricGroup& mg = XrdMetrics::Default().group("sched");
+   m_Jobs     = &mg.counter("jobs_total", {}, {},
+                            "jobs scheduled").noLabels();
+   m_TCreate  = &mg.counter("threads_created_total", {}, {},
+                            "worker threads created").noLabels();
+   m_TDestroy = &mg.counter("threads_destroyed_total", {}, {},
+                            "worker threads destroyed").noLabels();
 }
 
 /******************************************************************************/

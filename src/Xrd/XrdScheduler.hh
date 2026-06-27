@@ -40,6 +40,8 @@ class XrdSchedulerPID;
 class XrdSysError;
 class XrdSysTrace;
 
+namespace XrdMetrics { class Counter; }
+
 #define MAX_SCHED_PROCS 30000
 #define DFL_SCHED_PROCS  8192
 
@@ -80,9 +82,11 @@ void          setNproc(const bool limlower);
 
 // Statistical information
 //
-int        num_TCreate; // Number of threads created
-int        num_TDestroy;// Number of threads destroyed
-int        num_Jobs;    // Number of jobs scheduled
+// These three counters live in the process-wide XrdMetrics registry (the new
+// source of truth); the XML report and the legacy summary read them via value().
+XrdMetrics::Counter *m_TCreate;  // Number of threads created
+XrdMetrics::Counter *m_TDestroy; // Number of threads destroyed
+XrdMetrics::Counter *m_Jobs;     // Number of jobs scheduled
 int        max_QLength; // Longest queue length we had
 int        num_Limited; // Number of times max was reached
 
