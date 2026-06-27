@@ -22,6 +22,7 @@
 /******************************************************************************/
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -158,6 +159,51 @@ std::size_t  maxKids_;
 mutable std::shared_mutex mutex_;
 std::unordered_map<LabelValues, std::unique_ptr<Child>, LabelValuesHash> children_;
 std::unique_ptr<Child> overflow_;
+};
+
+/******************************************************************************/
+/*                       O b s e r v e d F a m i l y                         */
+/******************************************************************************/
+
+//! A read-only metric whose single value is produced by a reader function read
+//! at scrape time, rather than stored as an atomic. Use it to expose a value
+//! that some other subsystem owns and updates (e.g. a scheduler thread count or
+//! a getrusage figure) without making the metric the source of truth. The
+//! reader must be cheap and thread-safe; it runs while the registry is being
+//! serialized.
+//!
+//! @tparam T  the value type (uint64_t, int64_t or double) selecting the
+//!            ISerializer::series overload, hence the exposition numeric type.
+
+template <class T>
+class ObservedFamily : public IFamily
+{
+public:
+ObservedFamily(std::string fullName, MetricKind kind, std::string help,
+               LabelContext ctx, std::function<T()> reader)
+              : name_(std::move(fullName)), help_(std::move(help)), kind_(kind),
+                ctx_(std::move(ctx)), labels_(ctx_, name_, LabelValues{}),
+                reader_(std::move(reader)) {}
+
+         ObservedFamily(const ObservedFamily&) = delete;  // labels_ points at ctx_
+ObservedFamily& operator=(const ObservedFamily&) = delete;
+
+void serialize(ISerializer& s) const override
+{
+   s.beginFamily(name_, kind_, help_);
+   s.series(labels_, reader_());
+   s.endFamily();
+}
+
+const std::string& name() const noexcept { return name_; }
+
+private:
+std::string        name_;
+std::string        help_;
+MetricKind         kind_;
+LabelContext       ctx_;     // owns the labels labels_ points into
+SeriesLabels       labels_;
+std::function<T()> reader_;
 };
 }
 #endif

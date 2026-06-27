@@ -214,6 +214,39 @@ TEST(XrdMetricsFamily, CardinalityCapFoldsToOverflow)
 }
 
 /******************************************************************************/
+/*                            O b s e r v e d                                */
+/******************************************************************************/
+
+TEST(XrdMetricsObserved, ReadsSourceAtScrapeTime)
+{
+  Registry reg("xrootd");
+  long long threads = 4;
+  reg.group("sched").observeIntGauge("threads",
+                                     [&]{ return (int64_t)threads; }, {},
+                                     "worker threads");
+
+  EXPECT_NE(scrape(reg).find("xrootd_sched_threads 4\n"), std::string::npos);
+
+  threads = 9;   // the source changed; a later scrape reflects it
+  EXPECT_NE(scrape(reg).find("xrootd_sched_threads 9\n"), std::string::npos);
+}
+
+TEST(XrdMetricsObserved, CounterKindAndConstLabels)
+{
+  Registry reg("xrootd", {{"instance", "h1"}});
+  unsigned long long hits = 7;
+  reg.group("cache").observeCounter("evictions_total",
+                                    [&]{ return hits; }, {{"tier", "ram"}},
+                                    "evictions");
+
+  const std::string out = scrape(reg);
+  EXPECT_NE(out.find("# TYPE xrootd_cache_evictions_total counter\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_cache_evictions_total{instance=\"h1\",tier=\"ram\"} 7\n"),
+            std::string::npos);
+}
+
+/******************************************************************************/
 /*                    R e g i s t r y   /   G r o u p                        */
 /******************************************************************************/
 
