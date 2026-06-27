@@ -185,3 +185,19 @@ endif()
 if (NOT HAVE_CXX_ATOMICS_WITHOUT_LIB AND NOT HAVE_CXX_ATOMICS_WITH_LIB)
   message(FATAL_ERROR "Compiler must support std::atomic!")
 endif()
+
+#-------------------------------------------------------------------------------
+# Check for floating-point std::to_chars (libstdc++ >= GCC 11, libc++ varies).
+# Integer std::to_chars exists since GCC 8, so __cpp_lib_to_chars cannot tell
+# the two apart; probe the float overload directly. XrdMetrics uses it for fast,
+# locale-independent double formatting and falls back to snprintf otherwise.
+#-------------------------------------------------------------------------------
+check_cxx_source_compiles("
+#include <charconv>
+int main() {
+   char buf[32];
+   auto r = std::to_chars(buf, buf + sizeof(buf), 1.0);
+   return r.ec == std::errc{} ? 0 : 1;
+}
+" HAVE_FLOAT_TO_CHARS )
+compiler_define_if_found( HAVE_FLOAT_TO_CHARS HAVE_FLOAT_TO_CHARS )
