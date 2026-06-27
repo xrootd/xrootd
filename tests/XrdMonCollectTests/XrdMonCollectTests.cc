@@ -9,7 +9,8 @@
 #include <vector>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
-#include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdOuc/XrdOucJson.hh"
 
 #include <gtest/gtest.h>
@@ -238,10 +239,10 @@ TEST(XrdMonCollect, TStreamRecordsDecoded)
 TEST_F(Transfer, AggregatesIntoMetricsRegistry)
 {
   // Re-run the open/close/user sequence through a decoder bound to a registry.
-  XrdMetricsRegistry reg;
+  XrdMetrics::Registry reg("");
   std::string sink;
   XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
-                 false, false, false, false, &reg);
+                 false, false, false, false, &reg.group(""));
 
   { W body; body.u32(7);
     std::string info = "xroot/alice.1:2@wn.example.org\n";
@@ -267,7 +268,7 @@ TEST_F(Transfer, AggregatesIntoMetricsRegistry)
     d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
 
   std::string out;
-  reg.Scrape(out);
+  XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_transfers_total{server=\"10.0.0.1:9930\"} 1"),
             std::string::npos);
   EXPECT_NE(out.find("xrootd_collector_read_bytes_total{server=\"10.0.0.1:9930\"} 10485760"),
@@ -380,16 +381,16 @@ std::vector<unsigned char> userPkt(uint32_t dictid, uint8_t pseq)
 
 TEST(XrdMonCollect, PacketLossDetected)
 {
-  XrdMetricsRegistry reg;
+  XrdMetrics::Registry reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg);
+                   false, false, false, false, &reg.group(""));
 
   for (uint8_t seq : {0, 1, 3, 4})   // 2 is missing -> one lost packet
      {auto p = userPkt(seq, seq);
       dec.Process("h:1", (const char*)p.data(), p.size());}
 
   EXPECT_EQ(dec.GetStats().lost, 1u);
-  std::string out; reg.Scrape(out);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_packets_lost_total{server=\"h:1\"} 1"),
             std::string::npos) << out;
 }
@@ -409,10 +410,10 @@ TEST(XrdMonCollect, DictionaryEviction)
 
 TEST(XrdMonCollect, FrmStageAndPurge)
 {
-  XrdMetricsRegistry reg;
+  XrdMetrics::Registry reg("");
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
-                   false, false, false, false, &reg);
+                   false, false, false, false, &reg.group(""));
 
   auto frm = [&](char code, const std::string& info)
      {W body; body.u32(0);                // dictid is 0 for x/p
@@ -436,8 +437,8 @@ TEST(XrdMonCollect, FrmStageAndPurge)
   EXPECT_EQ(p["size"], 1048576);
   EXPECT_EQ(dec.GetStats().frmEvents, 2u);
 
-  std::string out; reg.Scrape(out);
-  EXPECT_NE(out.find("xrootd_collector_frm_total{op=\"purge\",server=\"h:1\"} 1"),
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  EXPECT_NE(out.find("xrootd_collector_frm_total{server=\"h:1\",op=\"purge\"} 1"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_frm_purge_bytes_total{server=\"h:1\"} 1048576"),
             std::string::npos) << out;
@@ -445,10 +446,10 @@ TEST(XrdMonCollect, FrmStageAndPurge)
 
 TEST(XrdMonCollect, SessionDiscAndActiveGauge)
 {
-  XrdMetricsRegistry reg;
+  XrdMetrics::Registry reg("");
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
-                   false, false, false, false, &reg);
+                   false, false, false, false, &reg.group(""));
 
   // 'u' user map: dictid 7 -> bob.
   { W body; body.u32(7);
@@ -477,7 +478,7 @@ TEST(XrdMonCollect, SessionDiscAndActiveGauge)
   EXPECT_EQ(j["client_host"], "cli.example.org");
   EXPECT_EQ(dec.GetStats().discs, 1u);
 
-  std::string out; reg.Scrape(out);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_sessions_total{server=\"h:1\"} 1"),
             std::string::npos) << out;
   // One file opened, none closed -> active gauge is 1.
@@ -550,9 +551,9 @@ std::vector<unsigned char> gPacket(char prov, const std::string& jsonRec)
 
 TEST(XrdMonCollect, GStreamOssMetricsDelta)
 {
-  XrdMetricsRegistry reg;
+  XrdMetrics::Registry reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg);
+                   false, false, false, false, &reg.group(""));
 
   // First snapshot establishes the baseline (no counter movement).
   auto p1 = gPacket('O', "{\"event\":\"oss_stats\",\"reads\":100,\"writes\":10,"
@@ -563,20 +564,20 @@ TEST(XrdMonCollect, GStreamOssMetricsDelta)
                          "\"slow_reads\":5}");
   dec.Process("h:1", (const char*)p2.data(), p2.size());
 
-  std::string out; reg.Scrape(out);
-  EXPECT_NE(out.find("xrootd_collector_oss_ops_total{op=\"read\",server=\"h:1\"} 50"),
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  EXPECT_NE(out.find("xrootd_collector_oss_ops_total{server=\"h:1\",op=\"read\"} 50"),
             std::string::npos) << out;
-  EXPECT_NE(out.find("xrootd_collector_oss_ops_total{op=\"write\",server=\"h:1\"} 5"),
+  EXPECT_NE(out.find("xrootd_collector_oss_ops_total{server=\"h:1\",op=\"write\"} 5"),
             std::string::npos) << out;
-  EXPECT_NE(out.find("xrootd_collector_oss_slow_ops_total{op=\"read\",server=\"h:1\"} 1"),
+  EXPECT_NE(out.find("xrootd_collector_oss_slow_ops_total{server=\"h:1\",op=\"read\"} 1"),
             std::string::npos) << out;
 }
 
 TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
 {
-  XrdMetricsRegistry reg;
+  XrdMetrics::Registry reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg);
+                   false, false, false, false, &reg.group(""));
 
   auto pfc = gPacket('C', "{\"event\":\"file_close\",\"b_hit\":2048,"
                           "\"b_miss\":1024,\"b_prefetch\":512}");
@@ -586,12 +587,12 @@ TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
                           "\"Size\":1048576}");
   dec.Process("h:1", (const char*)tpc.data(), tpc.size());
 
-  std::string out; reg.Scrape(out);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_pfc_files_total{server=\"h:1\"} 1"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_pfc_bytes_total{server=\"h:1\",source=\"hit\"} 2048"),
             std::string::npos) << out;
-  EXPECT_NE(out.find("xrootd_collector_tpc_total{result=\"ok\",server=\"h:1\",type=\"pull\"} 1"),
+  EXPECT_NE(out.find("xrootd_collector_tpc_total{server=\"h:1\",type=\"pull\",result=\"ok\"} 1"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_tpc_bytes_total{server=\"h:1\",type=\"pull\"} 1048576"),
             std::string::npos) << out;
@@ -599,9 +600,9 @@ TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
 
 TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
 {
-  XrdMetricsRegistry reg;
+  XrdMetrics::Registry reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg);
+                   false, false, false, false, &reg.group(""));
 
   // throttle: baseline then +30 io_total, io_active gauge = 4.
   auto t1 = gPacket('R', "{\"event\":\"throttle_update\",\"io_wait\":1.5,"
@@ -617,11 +618,11 @@ TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
   auto h2 = gPacket('H', "{\"HTTP_GET_200\":{\"count\":15,\"success\":15}}");
   dec.Process("h:1", (const char*)h2.data(), h2.size());
 
-  std::string out; reg.Scrape(out);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_throttle_io_total{server=\"h:1\"} 30"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_throttle_io_active{server=\"h:1\"} 4"),
             std::string::npos) << out;
-  EXPECT_NE(out.find("xrootd_collector_http_requests_total{method=\"GET\",server=\"h:1\",status=\"200\"} 5"),
+  EXPECT_NE(out.find("xrootd_collector_http_requests_total{server=\"h:1\",method=\"GET\",status=\"200\"} 5"),
             std::string::npos) << out;
 }

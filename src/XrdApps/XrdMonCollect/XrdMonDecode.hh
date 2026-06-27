@@ -27,7 +27,7 @@
 #include <string>
 #include <unordered_map>
 
-class XrdMetricsRegistry;
+namespace XrdMetrics { class MetricGroup; }
 
 //-----------------------------------------------------------------------------
 //! XrdMonDecode decodes XRootD detailed-monitoring UDP packets
@@ -100,7 +100,7 @@ void SetMaxEntries(std::size_t n) {maxEntries = n;}
          XrdMonDecode(DocSink docSink, RawSink rawSink = nullptr,
                       bool emitRaw = false, bool emitTraces = false,
                       bool emitGstream = false, bool emitRedirects = false,
-                      XrdMetricsRegistry* reg = nullptr)
+                      XrdMetrics::MetricGroup* reg = nullptr)
                      : doc(std::move(docSink)), raw(std::move(rawSink)),
                        dumpRaw(emitRaw), traces(emitTraces),
                        gstream(emitGstream), redirects(emitRedirects),
@@ -211,7 +211,7 @@ bool     dumpRaw;
 bool     traces;
 bool     gstream;
 bool     redirects;
-XrdMetricsRegistry* metrics;
+XrdMetrics::MetricGroup* metrics;
 std::size_t maxEntries = 0;
 Stats    stats;
 };

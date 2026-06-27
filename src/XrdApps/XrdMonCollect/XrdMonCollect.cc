@@ -41,7 +41,8 @@
 #include <thread>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
-#include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdMetrics/XrdMetricsSerializer.hh"
 #ifdef XRDMON_HAVE_CURL
 #include "XrdApps/XrdMonCollect/XrdMonOpenSearch.hh"
 #endif
@@ -119,6 +120,15 @@ int openUDP(int port, const char* bindStr)
 // A minimal HTTP exporter: serves the metrics registry to any GET request on
 // the given TCP port. Prometheus scrapes /metrics; we answer every path.
 //
+// The collector's own metrics registry. Its prefix is empty so the explicit
+// xrootd_collector_* metric names pass through unchanged.
+//
+static XrdMetrics::Registry& collectorRegistry()
+{
+   static XrdMetrics::Registry reg("");
+   return reg;
+}
+
 void serveMetrics(int port, std::atomic<bool>& stop)
 {
    int ls = socket(AF_INET, SOCK_STREAM, 0);
@@ -145,7 +155,9 @@ void serveMetrics(int port, std::atomic<bool>& stop)
          recv(c, req, sizeof(req), 0);              // read & ignore the request
 
          std::string body;
-         XrdMetricsRegistry::Default().Scrape(body);
+         XrdMetrics::PrometheusTextSerializer ser(body);
+         collectorRegistry().serialize(ser);
+         collectorRegistry().runTextCollectors(body);
          std::string resp = "HTTP/1.1 200 OK\r\n"
             "Content-Type: text/plain; version=0.0.4; charset=utf-8\r\n"
             "Content-Length: " + std::to_string(body.size()) + "\r\n"
@@ -296,8 +308,8 @@ int main(int argc, char* argv[])
 // When a metrics port is given, aggregate transfers into the registry and
 // serve it over HTTP. The decoder-level statistics are exposed too.
 //
-   XrdMetricsRegistry* reg = metricsPort > 0 ? &XrdMetricsRegistry::Default()
-                                             : nullptr;
+   XrdMetrics::MetricGroup* reg =
+            metricsPort > 0 ? &collectorRegistry().group("") : nullptr;
 
    XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, reg);
    decoder.SetMaxEntries(maxEntries);
@@ -306,32 +318,28 @@ int main(int argc, char* argv[])
    std::thread       exporter;
    if (reg)
       {auto& s = decoder.GetStats();
-       reg->AddRefCounter("xrootd_collector_packets_total",
-            "monitor packets received", {}, [&]{return s.packets;});
-       reg->AddRefCounter("xrootd_collector_malformed_total",
-            "malformed packets", {}, [&]{return s.malformed;});
-       reg->AddRefCounter("xrootd_collector_evicted_total",
-            "dictionary/open-file entries evicted by the cap", {},
-            [&]{return s.evicted;});
-       reg->AddRefCounter("xrootd_collector_documents_total",
-            "transfer documents produced", {}, [&]{return s.docs;});
-       reg->AddRefCounter("xrootd_collector_orphan_closes_total",
-            "closes with no matching open", {}, [&]{return s.orphanCls;});
-       reg->AddRefCounter("xrootd_collector_disconnects_total",
-            "f-stream session disconnect records", {}, [&]{return s.discs;});
-       reg->AddRefCounter("xrootd_collector_trace_records_total",
-            "t-stream records decoded", {}, [&]{return s.traces;});
-       reg->AddRefCounter("xrootd_collector_gstream_records_total",
-            "g-stream records decoded", {}, [&]{return s.gevents;});
-       reg->AddRefCounter("xrootd_collector_redirect_records_total",
-            "r-stream redirect records decoded", {}, [&]{return s.redirs;});
-       reg->AddRefCounter("xrootd_collector_frm_records_total",
-            "x/p FRM stage/purge records decoded", {}, [&]{return s.frmEvents;});
-       reg->AddRefCounter("xrootd_collector_token_records_total",
-            "T-stream token records decoded", {}, [&]{return s.mapTokn;});
-       reg->AddRefCounter("xrootd_collector_ident_records_total",
-            "=-stream server-identity records decoded", {},
-            [&]{return s.mapIdnt;});
+#define OBS(name, help, fld) \
+       reg->observeCounter(name, {}, {}, help).add({}, [&]{return (uint64_t)s.fld;})
+       OBS("xrootd_collector_packets_total",   "monitor packets received", packets);
+       OBS("xrootd_collector_malformed_total", "malformed packets", malformed);
+       OBS("xrootd_collector_evicted_total",
+           "dictionary/open-file entries evicted by the cap", evicted);
+       OBS("xrootd_collector_documents_total", "transfer documents produced", docs);
+       OBS("xrootd_collector_orphan_closes_total",
+           "closes with no matching open", orphanCls);
+       OBS("xrootd_collector_disconnects_total",
+           "f-stream session disconnect records", discs);
+       OBS("xrootd_collector_trace_records_total", "t-stream records decoded", traces);
+       OBS("xrootd_collector_gstream_records_total", "g-stream records decoded", gevents);
+       OBS("xrootd_collector_redirect_records_total",
+           "r-stream redirect records decoded", redirs);
+       OBS("xrootd_collector_frm_records_total",
+           "x/p FRM stage/purge records decoded", frmEvents);
+       OBS("xrootd_collector_token_records_total",
+           "T-stream token records decoded", mapTokn);
+       OBS("xrootd_collector_ident_records_total",
+           "=-stream server-identity records decoded", mapIdnt);
+#undef OBS
        exporter = std::thread(serveMetrics, metricsPort, std::ref(exporterStop));
       }
 

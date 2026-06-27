@@ -24,7 +24,7 @@
 #include <ctime>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
-#include "XrdMetrics/XrdMetrics.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdOuc/XrdOucJson.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 
@@ -129,9 +129,9 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
        if (gap > 0 && gap < 128)
           {stats.lost += gap;
            if (metrics)
-              metrics->Counter("xrootd_collector_packets_lost_total",
+              metrics->counterSeries("xrootd_collector_packets_lost_total",
                    "estimated lost packets (pseq gaps)",
-                   {{"server", src}}).inc(gap);
+                   {{"server", src}}) += gap;
           }
       }
    srv.lastPseq = pseq;
@@ -405,11 +405,11 @@ void XrdMonDecode::DecodeFrm(const std::string& src, int32_t stod,
       }
 
    if (metrics)
-      {metrics->Counter("xrootd_collector_frm_total", "FRM stage/purge events",
-                        {{"server", src}, {"op", op}}).inc();
+      {metrics->counterSeries("xrootd_collector_frm_total", "FRM stage/purge events",
+                        {{"server", src}, {"op", op}}) += 1;
        if (code == XROOTD_MON_MAPPURG && sz > 0)
-          metrics->Counter("xrootd_collector_frm_purge_bytes_total",
-                        "bytes purged by FRM", {{"server", src}}).inc(sz);
+          metrics->counterSeries("xrootd_collector_frm_purge_bytes_total",
+                        "bytes purged by FRM", {{"server", src}}) += sz;
       }
 
    if (doc) doc(j.dump());
@@ -499,9 +499,9 @@ void XrdMonDecode::DecodeFStream(const std::string& src, int32_t stod,
 // and closes processed in this packet.
 //
    if (metrics)
-      metrics->Gauge("xrootd_collector_active_transfers",
+      metrics->gaugeSeries("xrootd_collector_active_transfers",
                      "files currently open (transfers in progress)",
-                     {{"server", src}}).set((double)srv.files.size());
+                     {{"server", src}}) = (double)srv.files.size();
 }
 
 /******************************************************************************/
@@ -528,8 +528,8 @@ void XrdMonDecode::EmitDisc(const std::string& src, int32_t stod, Server& srv,
       }
 
    if (metrics)
-      metrics->Counter("xrootd_collector_sessions_total",
-                       "client sessions ended", {{"server", src}}).inc();
+      metrics->counterSeries("xrootd_collector_sessions_total",
+                       "client sessions ended", {{"server", src}}) += 1;
 
    if (doc) doc(j.dump());
 }
@@ -645,23 +645,23 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 // keep just totals and distributions suitable for time-series storage.
 //
    if (metrics)
-      {XrdMetricsLabels sl = {{"server", src}};
-       metrics->Counter("xrootd_collector_transfers_total",
-                        "completed transfers seen", sl).inc();
-       metrics->Counter("xrootd_collector_read_bytes_total",
-                        "bytes read (read+readv)", sl).inc(rdBytes + rvBytes);
-       metrics->Counter("xrootd_collector_write_bytes_total",
-                        "bytes written", sl).inc(wrBytes);
+      {std::vector<XrdMetrics::ConstLabel> sl = {{"server", src}};
+       metrics->counterSeries("xrootd_collector_transfers_total",
+                        "completed transfers seen", sl) += 1;
+       metrics->counterSeries("xrootd_collector_read_bytes_total",
+                        "bytes read (read+readv)", sl) += rdBytes + rvBytes;
+       metrics->counterSeries("xrootd_collector_write_bytes_total",
+                        "bytes written", sl) += wrBytes;
        if (!vo.empty())
-          metrics->Counter("xrootd_collector_vo_transfers_total",
+          metrics->counterSeries("xrootd_collector_vo_transfers_total",
                         "completed transfers per VO",
-                        {{"server", src}, {"vo", vo}}).inc();
-       metrics->Histogram("xrootd_collector_transfer_size_bytes",
+                        {{"server", src}, {"vo", vo}}) += 1;
+       metrics->histogramSeries("xrootd_collector_transfer_size_bytes",
                         "bytes moved per transfer",
                         {1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e11})
                .observe((double)(rdBytes + rvBytes + wrBytes));
        if (durSecs >= 0)
-          metrics->Histogram("xrootd_collector_transfer_duration_seconds",
+          metrics->histogramSeries("xrootd_collector_transfer_duration_seconds",
                         "transfer wall-clock duration",
                         {1,5,15,60,300,1800,7200}).observe(durSecs);
       }
@@ -790,16 +790,16 @@ uint64_t jU(const json& j, const char* key)
 // series. `prev` retains the last cumulative value for providers (oss) that
 // report running totals, so they become counter deltas.
 //
-void gsAggregate(XrdMetricsRegistry* M,
+void gsAggregate(XrdMetrics::MetricGroup* M,
                  std::unordered_map<std::string, uint64_t>& prev,
                  unsigned char provByte, const std::string& src, const json& j)
 {
-   XrdMetricsLabels srv = {{"server", src}};
+   std::vector<XrdMetrics::ConstLabel> srv = {{"server", src}};
 
 // Turn a running total into a counter increment (skip the first observation,
 // which only establishes the baseline; treat a decrease as a counter reset).
 //
-   auto delta = [&](const char* name, const char* help, XrdMetricsLabels lbl,
+   auto delta = [&](const char* name, const char* help, std::vector<XrdMetrics::ConstLabel> lbl,
                     const std::string& key, uint64_t cur)
       {auto it = prev.find(key);
        bool first = (it == prev.end());
@@ -807,7 +807,7 @@ void gsAggregate(XrdMetricsRegistry* M,
        prev[key] = cur;
        if (first) return;
        uint64_t d = cur >= pv ? cur - pv : cur;
-       if (d) M->Counter(name, help, lbl).inc(d);
+       if (d) M->counterSeries(name, help, lbl) += d;
       };
 
    switch(provByte)
@@ -819,7 +819,7 @@ void gsAggregate(XrdMetricsRegistry* M,
                     {"unlink","unlinks"},{"chmod","chmods"},{"open","opens"},
                     {"rename","renames"}};
                 for (auto& op : ops)
-                    {XrdMetricsLabels l = {{"server", src}, {"op", op.first}};
+                    {std::vector<XrdMetrics::ConstLabel> l = {{"server", src}, {"op", op.first}};
                      std::string base = src + "|oss|" + op.first;
                      delta("xrootd_collector_oss_ops_total",
                            "OSS plugin operations", l, base, jU(j, op.second));
@@ -834,13 +834,13 @@ void gsAggregate(XrdMetricsRegistry* M,
           case XROOTD_MON_GSPFC:   // per file_close event
                {auto ev = j.find("event");
                 if (ev == j.end() || *ev != "file_close") break;
-                M->Counter("xrootd_collector_pfc_files_total",
-                           "proxy-cache file closes", srv).inc();
+                M->counterSeries("xrootd_collector_pfc_files_total",
+                           "proxy-cache file closes", srv) += 1;
                 auto pfcBytes = [&](const char* source, const char* field)
                    {uint64_t v = jU(j, field);
-                    if (v) M->Counter("xrootd_collector_pfc_bytes_total",
+                    if (v) M->counterSeries("xrootd_collector_pfc_bytes_total",
                                 "proxy-cache bytes by source",
-                                {{"server", src}, {"source", source}}).inc(v);
+                                {{"server", src}, {"source", source}}) += v;
                    };
                 pfcBytes("hit",      "b_hit");
                 pfcBytes("miss",     "b_miss");
@@ -862,14 +862,14 @@ void gsAggregate(XrdMetricsRegistry* M,
                        rc = rcit->get<int>();
                    }
                 uint64_t size = jU(j, "Size");
-                M->Counter("xrootd_collector_tpc_total", "third-party copies",
+                M->counterSeries("xrootd_collector_tpc_total", "third-party copies",
                            {{"server", src}, {"type", type},
-                            {"result", rc == 0 ? "ok" : "error"}}).inc();
+                            {"result", rc == 0 ? "ok" : "error"}}) += 1;
                 if (size)
-                   M->Counter("xrootd_collector_tpc_bytes_total",
+                   M->counterSeries("xrootd_collector_tpc_bytes_total",
                               "third-party copy bytes",
-                              {{"server", src}, {"type", type}}).inc(size);
-                M->Histogram("xrootd_collector_tpc_size_bytes",
+                              {{"server", src}, {"type", type}}) += size;
+                M->histogramSeries("xrootd_collector_tpc_size_bytes",
                              "third-party copy size",
                              {1e6,1e7,1e8,1e9,1e10,1e11}).observe((double)size);
                }
@@ -883,9 +883,9 @@ void gsAggregate(XrdMetricsRegistry* M,
                       src + "|thr|io_total", jU(j, "io_total"));
                 auto ia = j.find("io_active");
                 if (ia != j.end() && ia->is_number())
-                   M->Gauge("xrootd_collector_throttle_io_active",
+                   M->gaugeSeries("xrootd_collector_throttle_io_active",
                             "throttle plugin in-flight I/O", srv)
-                    .set(ia->get<double>());
+                    = ia->get<double>();
                }
                break;
 
@@ -899,7 +899,7 @@ void gsAggregate(XrdMetricsRegistry* M,
                                                         ? std::string::npos : us - 5);
                      std::string status = us == std::string::npos ? ""
                                                                   : key.substr(us + 1);
-                     XrdMetricsLabels l = {{"server", src}, {"method", method},
+                     std::vector<XrdMetrics::ConstLabel> l = {{"server", src}, {"method", method},
                                            {"status", status}};
                      delta("xrootd_collector_http_requests_total",
                            "HTTP requests by method and status", l,
