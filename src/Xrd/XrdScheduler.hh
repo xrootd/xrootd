@@ -74,21 +74,20 @@ void          Start();
 
 int           Stats(char *buff, int blen, int do_sync=0);
 
-void          RegisterMetrics();
-
 void          TimeSched();
 
 void          setNproc(const bool limlower);
 
-// Statistical information
+// Event-tally counters live in the process-wide XrdMetrics registry as their
+// source of truth (bound in Init); the legacy <stats id="sched"> XML reads them
+// via value(). The live-state gauges below stay plain ints owned by the
+// scheduler and are exposed read-only via observed metrics (see Init).
 //
-// These three counters live in the process-wide XrdMetrics registry (the new
-// source of truth); the XML report and the legacy summary read them via value().
-XrdMetrics::Counter *m_TCreate;  // Number of threads created
-XrdMetrics::Counter *m_TDestroy; // Number of threads destroyed
-XrdMetrics::Counter *m_Jobs;     // Number of jobs scheduled
+XrdMetrics::Counter  *m_TCreate;  // Number of threads created
+XrdMetrics::Counter  *m_TDestroy; // Number of threads destroyed
+XrdMetrics::Counter  *m_Jobs;     // Number of jobs scheduled
+XrdMetrics::Counter  *m_Limited;  // Number of times the thread max was reached
 int        max_QLength; // Longest queue length we had
-int        num_Limited; // Number of times max was reached
 
 // This is the preferred constructor
 //

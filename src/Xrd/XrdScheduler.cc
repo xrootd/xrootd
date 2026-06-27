@@ -656,7 +656,7 @@ int XrdScheduler::Stats(char *buff, int blen, int do_sync)
    xam_QLength = max_QLength;
    cnt_TCreate = (int)m_TCreate->value();
    cnt_TDestroy= (int)m_TDestroy->value();
-   cnt_Limited = num_Limited;
+   cnt_Limited = (int)m_Limited->value();
    if (do_sync) SchedMutex.UnLock();
 
 // Format the stats and return them
@@ -664,31 +664,6 @@ int XrdScheduler::Stats(char *buff, int blen, int do_sync)
    return snprintf(buff, blen, statfmt, cnt_Jobs, cnt_JobsinQ, xam_QLength,
                    cnt_Workers, cnt_idl, cnt_TCreate, cnt_TDestroy,
                    cnt_Limited);
-}
-
-/******************************************************************************/
-/*                       R e g i s t e r M e t r i c s                        */
-/******************************************************************************/
-
-void XrdScheduler::RegisterMetrics()
-{
-   XrdMetricsRegistry& reg = XrdMetricsRegistry::Default();
-
-// jobs_total, threads_created_total and threads_destroyed_total now live in the
-// new XrdMetrics registry as their source of truth (see Init), so they are no
-// longer bridged here. The remaining gauges still read the live scheduler ints.
-//
-   reg.AddRefGauge("xrootd_sched_jobs_in_queue", "jobs waiting in the queue", {},
-                   [this]{return (double)num_JobsinQ;});
-   reg.AddRefGauge("xrootd_sched_queue_length_max", "longest queue length seen",
-                   {}, [this]{return (double)max_QLength;});
-   reg.AddRefGauge("xrootd_sched_threads", "worker threads", {},
-                   [this]{return (double)num_Workers;});
-   reg.AddRefGauge("xrootd_sched_threads_idle", "idle worker threads", {},
-                   [this]{return (double)idl_Workers;});
-   reg.AddRefCounter("xrootd_sched_thread_limit_hits_total",
-                   "times the worker-thread maximum was reached", {},
-                   [this]{return (unsigned long long)num_Limited;});
 }
 
 /******************************************************************************/
@@ -733,8 +708,8 @@ void XrdScheduler::hireWorker(int dotrace)
 //
    SchedMutex.Lock();
    if (num_Workers >= max_Workers)
-      {num_Limited++;
-       if ((num_Limited & 4095) == 1)
+      {++*m_Limited;
+       if ((m_Limited->value() & 4095) == 1)
            XrdLog->Emsg("Scheduler","Thread limit has been reached!");
        SchedMutex.UnLock();
        return;
@@ -777,12 +752,14 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
    idl_Workers =  0;
    max_QLength =  0;
    num_Layoffs =  0;
-   num_Limited =  0;
    firstPID    =  0;
    WorkFirst = WorkLast = TimerQueue = 0;
 
-// Bind the thread/job tally counters in the process-wide metrics registry.
-// These instruments are the source of truth and start at zero.
+// Wire the scheduler's metrics into the process-wide registry. The event-tally
+// counters are owned by the new system (the metric is the counter); the legacy
+// <stats id="sched"> XML reads them via value(). The live-state gauges stay
+// plain scheduler ints (control-flow state) and are surfaced read-only via
+// observed metrics that read the int at scrape time.
 //
    XrdMetrics::MetricGroup& mg = XrdMetrics::Default().group("sched");
    m_Jobs     = &mg.counter("jobs_total", {}, {},
@@ -791,6 +768,17 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
                             "worker threads created").noLabels();
    m_TDestroy = &mg.counter("threads_destroyed_total", {}, {},
                             "worker threads destroyed").noLabels();
+   m_Limited  = &mg.counter("thread_limit_hits_total", {}, {},
+                            "times the worker-thread maximum was reached").noLabels();
+
+   mg.observeIntGauge("threads",
+                      [this]{return (int64_t)num_Workers;}, {}, "worker threads");
+   mg.observeIntGauge("threads_idle",
+                      [this]{return (int64_t)idl_Workers;}, {}, "idle worker threads");
+   mg.observeIntGauge("jobs_in_queue",
+                      [this]{return (int64_t)num_JobsinQ;}, {}, "jobs waiting in the queue");
+   mg.observeIntGauge("queue_length_max",
+                      [this]{return (int64_t)max_QLength;}, {}, "longest queue length seen");
 }
 
 /******************************************************************************/

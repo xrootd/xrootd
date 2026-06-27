@@ -159,7 +159,6 @@ void XrdStats::RegisterMetrics()
 //
    XrdLink::RegisterMetrics();
    XrdPoll::RegisterMetrics();
-   if (XrdSched) XrdSched->RegisterMetrics();
    if (BuffPool) BuffPool->RegisterMetrics();
 }
 
