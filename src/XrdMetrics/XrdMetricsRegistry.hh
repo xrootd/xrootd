@@ -189,12 +189,33 @@ void serialize(ISerializer& s) const
    for (auto* g : snap) g->serialize(s);
 }
 
+//! Register a Prometheus-text collector, appended after the registry's own
+//! series on a text scrape (see runTextCollectors). This is an escape hatch for
+//! counters kept outside the registry (e.g. legacy plugin counter sets bridged
+//! as raw exposition text); it has no structured representation, so it only
+//! participates in Prometheus text output, not the other ISerializer formats.
+void addTextCollector(std::function<void(std::string&)> c)
+{
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   collectors_.push_back(std::move(c));
+}
+
+//! Append every text collector's output to out. Call this after serializing the
+//! registry with a PrometheusTextSerializer into the same buffer.
+void runTextCollectors(std::string& out) const
+{
+   std::vector<std::function<void(std::string&)>> snap;
+   {std::shared_lock<std::shared_mutex> rd(mutex_); snap = collectors_;}
+   for (auto& c : snap) c(out);
+}
+
 private:
 std::string             prefix_;
 std::vector<ConstLabel> globalLabels_;
 
 mutable std::shared_mutex mutex_;
 std::unordered_map<std::string, std::unique_ptr<MetricGroup>> groups_;
+std::vector<std::function<void(std::string&)>> collectors_;
 };
 
 /******************************************************************************/
