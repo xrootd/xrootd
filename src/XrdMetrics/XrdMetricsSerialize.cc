@@ -481,6 +481,57 @@ void OtelJsonSerializer::histogram(const std::string& /*fullName*/,
 }
 
 /******************************************************************************/
+/*                       M e t r i c S n a p s h o t                         */
+/******************************************************************************/
+
+void MetricSnapshot::put(const SeriesLabels& l, std::int64_t i, double d,
+                         bool isDouble)
+{
+// The cached prefix is "name{labels} " (or "name " unlabelled); the series key
+// drops the trailing space.
+//
+   const std::string& p = l.prometheusPrefix();
+   values_[std::string(p, 0, p.size() - 1)] = Value{i, d, isDouble};
+}
+
+void MetricSnapshot::series(const SeriesLabels& l, std::uint64_t v)
+{
+   put(l, static_cast<std::int64_t>(v), static_cast<double>(v), false);
+}
+
+void MetricSnapshot::series(const SeriesLabels& l, std::int64_t v)
+{
+   put(l, v, static_cast<double>(v), false);
+}
+
+void MetricSnapshot::series(const SeriesLabels& l, double v)
+{
+   put(l, static_cast<std::int64_t>(v), v, true);
+}
+
+std::int64_t MetricSnapshot::getInt(const std::string& key,
+                                    std::int64_t dflt) const
+{
+   auto it = values_.find(key);
+   if (it == values_.end()) return dflt;
+   return it->second.isDouble ? static_cast<std::int64_t>(it->second.d)
+                              : it->second.i;
+}
+
+double MetricSnapshot::getDouble(const std::string& key, double dflt) const
+{
+   auto it = values_.find(key);
+   if (it == values_.end()) return dflt;
+   return it->second.isDouble ? it->second.d
+                              : static_cast<double>(it->second.i);
+}
+
+bool MetricSnapshot::has(const std::string& key) const
+{
+   return values_.find(key) != values_.end();
+}
+
+/******************************************************************************/
 /*                              D e f a u l t                                */
 /******************************************************************************/
 

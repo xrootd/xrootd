@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "XrdMetrics/XrdMetricsInstrument.hh"   // MetricKind
@@ -160,6 +161,44 @@ std::string             ts_;                    // timeUnixNano, set in begin()
 MetricKind              kind_       = MetricKind::Counter;
 bool                    firstMetric_ = true;
 bool                    firstPoint_  = true;
+};
+
+/******************************************************************************/
+/*                       M e t r i c S n a p s h o t                         */
+/******************************************************************************/
+
+//! Collects the registry's series values into a by-name lookup, so a consumer
+//! can pull values for an output layout that does not follow the flat metric
+//! model (e.g. the legacy XrdStats <stats id=...> XML). Drive it with
+//! Registry::serialize(), then read values back by key.
+//!
+//! The key is the series identity "name{labels}" — the cached Prometheus prefix
+//! without its trailing space; an unlabelled series is keyed by its bare metric
+//! name. Histograms are skipped (the legacy formats predate them).
+
+class MetricSnapshot : public ISerializer
+{
+public:
+void series(const SeriesLabels& labels, std::uint64_t value) override;
+void series(const SeriesLabels& labels, std::int64_t  value) override;
+void series(const SeriesLabels& labels, double        value) override;
+void histogram(const std::string&, const SeriesLabels&,
+               const HistogramData&) override {}
+
+//! Look up a series value by key, returning dflt when it is absent. getInt
+//! truncates a double-typed series toward zero (the legacy fields are integers).
+std::int64_t getInt   (const std::string& key, std::int64_t dflt = 0) const;
+double       getDouble(const std::string& key, double       dflt = 0) const;
+bool         has      (const std::string& key) const;
+
+//! Number of distinct series captured.
+std::size_t  size() const noexcept { return values_.size(); }
+
+private:
+struct Value { std::int64_t i; double d; bool isDouble; };
+void put(const SeriesLabels& labels, std::int64_t i, double d, bool isDouble);
+
+std::unordered_map<std::string, Value> values_;
 };
 }
 #endif

@@ -557,3 +557,43 @@ TEST(XrdMetricsOtel, ResourceAttributesAndEscaping)
       "\"value\":{\"stringValue\":\"node-7\"}}]}"));
   EXPECT_TRUE(contains(out, "\"stringValue\":\"a\\\"b\\\\c\""));
 }
+
+/******************************************************************************/
+/*                          S n a p s h o t                                  */
+/******************************************************************************/
+
+TEST(XrdMetricsSnapshot, LooksUpValuesByName)
+{
+  Registry reg("xrootd");
+  reg.group("sched").counter("jobs_total").noLabels() += 7;
+  reg.group("sched").intGauge("threads").noLabels() = 12;
+  long long idle = 3;
+  reg.group("sched").observeIntGauge("idle").add({}, [&]{ return (int64_t)idle; });
+  reg.group("proc").floatGauge("load").noLabels() = 1.5;
+
+  MetricSnapshot snap;
+  reg.serialize(snap);
+
+  EXPECT_EQ(snap.getInt("xrootd_sched_jobs_total"), 7);
+  EXPECT_EQ(snap.getInt("xrootd_sched_threads"), 12);
+  EXPECT_EQ(snap.getInt("xrootd_sched_idle"), 3);
+  EXPECT_DOUBLE_EQ(snap.getDouble("xrootd_proc_load"), 1.5);
+  EXPECT_EQ(snap.getInt("xrootd_proc_load"), 1);          // double truncated
+  EXPECT_TRUE(snap.has("xrootd_sched_jobs_total"));
+  EXPECT_FALSE(snap.has("xrootd_sched_missing"));
+  EXPECT_EQ(snap.getInt("xrootd_sched_missing", -1), -1); // default
+}
+
+TEST(XrdMetricsSnapshot, KeysIncludeLabels)
+{
+  Registry reg("xrootd");
+  auto& f = reg.group("proc").counter("cpu_seconds_total", {"mode"});
+  f.withLabelValues({"user"})   += 4;
+  f.withLabelValues({"system"}) += 9;
+
+  MetricSnapshot snap;
+  reg.serialize(snap);
+
+  EXPECT_EQ(snap.getInt("xrootd_proc_cpu_seconds_total{mode=\"user\"}"), 4);
+  EXPECT_EQ(snap.getInt("xrootd_proc_cpu_seconds_total{mode=\"system\"}"), 9);
+}
