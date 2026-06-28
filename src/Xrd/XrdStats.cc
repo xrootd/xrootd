@@ -170,13 +170,6 @@ void XrdStats::Export(XrdOucEnv& theEnv)
 {
    XrdMonRoll* monRoll = new XrdMonRoll(*theMon);
    theEnv.PutPtr("XrdMonRoll*", monRoll);
-
-// Bridge the summary counter sets registered via XrdMonRoll into the Prometheus
-// /metrics endpoint. The collector reads the live registry at scrape time.
-//
-   XrdMonitor* mon = theMon;
-   XrdMetrics::Default().addTextCollector(
-            [mon](std::string& out) {mon->FormProm(out);});
 }
 
 /******************************************************************************/
