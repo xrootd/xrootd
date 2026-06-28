@@ -15,6 +15,7 @@ set(MAN8PAGES
     frm_xfragent.8
     frm_xfrd.8
     mpxstats.8
+    xrdmoncollect.8
     xrdpfc_print.8
     xrdpwdadmin.8
     xrdsssadmin.8

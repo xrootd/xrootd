@@ -1,0 +1,153 @@
+.TH xrdmoncollect 8 "@XRootD_VERSION_STRING@"
+.SH NAME
+xrdmoncollect - collect and correlate XRootD detailed monitoring streams
+.SH SYNOPSIS
+.nf
+
+\fBxrdmoncollect\fR \fB-p\fR \fIport\fR [\fB-b\fR \fIbindaddr\fR] [\fB-o\fR \fIfile\fR] [\fB--bulk\fR \fIindex\fR]
+              [\fB--os-url\fR \fIurl\fR [\fB--os-index\fR \fIname\fR] [\fB--os-user\fR \fIuser\fR]
+               [\fB--os-pass\fR \fIpass\fR] [\fB--os-insecure\fR] [\fB--os-datastream\fR]]
+              [\fB--forward\fR \fIhost:port\fR] [\fB--metrics-port\fR \fIport\fR]
+              [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR] [\fB--max-entries\fR \fIn\fR]
+              [\fB--traces\fR] [\fB--gstream\fR] [\fB--redirects\fR] [\fB--dump\fR] [\fB-v\fR]
+
+.fi
+.br
+.ad l
+.SH DESCRIPTION
+The \fBxrdmoncollect\fR daemon receives the binary UDP \fIdetailed monitoring\fR
+streams emitted by one or more \fBxrootd\fR servers (the \fIu\fR, \fId\fR,
+\fIi\fR, \fI=\fR, \fIf\fR, \fIt\fR, \fIg\fR, \fIr\fR, \fIT\fR, \fIU\fR, and FRM
+\fIx\fR/\fIp\fR streams configured via the \fBxrootd.monitor\fR directive) and
+correlates them into self-contained JSON documents.
+.P
+The principal output is one \fItransfer\fR document per file close, joining the
+\fIf\fR-stream close record with the user, path, application-info, token, and
+activity dictionaries into a single record carrying WLCG-aligned identity,
+location, and transfer fields. Documents use a nested, OpenSearch-friendly
+schema (for example \fBserver.name\fR, \fBclient.ip\fR, \fBuser.vo\fR,
+\fBtransfer.read_bytes\fR), and empty or zero-valued fields are omitted.
+.P
+Documents are emitted as newline-delimited JSON (NDJSON) to a file or standard
+output, posted directly to an OpenSearch cluster, and/or streamed over TCP to a
+buffering frontend. The collector can additionally serve aggregated Prometheus
+metrics over HTTP.
+.P
+Usage synopsis can be displayed by typing "\fBxrdmoncollect --help\fR".
+.SH OPTIONS
+\fB-p\fR \fIport\fR
+.RS 5
+UDP port to listen on (required).
+.RE
+\fB-b\fR \fIbindaddr\fR
+.RS 5
+Address to bind. The default binds all interfaces using an IPv6 dual-stack
+socket.
+.RE
+\fB-o\fR \fIfile\fR
+.RS 5
+Append output to \fIfile\fR. The default is standard output unless a network
+sink (\fB--os-url\fR or \fB--forward\fR) is configured.
+.RE
+\fB--bulk\fR \fIindex\fR
+.RS 5
+Write the file/stdout sink in OpenSearch \fB_bulk\fR format using \fIindex\fR.
+.RE
+\fB--os-url\fR \fIurl\fR
+.RS 5
+POST documents to an OpenSearch cluster's \fB_bulk\fR API at \fIurl\fR. Requires
+that \fBxrdmoncollect\fR was built with libcurl.
+.RE
+\fB--os-index\fR \fIname\fR
+.RS 5
+Index or data-stream name (default: \fBxrootd-transfers\fR).
+.RE
+\fB--os-user\fR \fIuser\fR, \fB--os-pass\fR \fIpass\fR
+.RS 5
+HTTP basic-auth credentials for the OpenSearch endpoint.
+.RE
+\fB--os-insecure\fR
+.RS 5
+Skip TLS certificate verification for the OpenSearch endpoint.
+.RE
+\fB--os-datastream\fR
+.RS 5
+Target is an OpenSearch data stream; use the \fBcreate\fR bulk action instead of
+\fBindex\fR.
+.RE
+\fB--forward\fR \fIhost:port\fR
+.RS 5
+Also stream each document as NDJSON over a TCP connection to \fIhost:port\fR
+(for example a Logstash, Fluentd, or Vector buffering frontend). The connection
+is re-established lazily after failures; documents produced while the consumer
+is unreachable are dropped.
+.RE
+\fB--metrics-port\fR \fIport\fR
+.RS 5
+Serve aggregated metrics in Prometheus exposition format over HTTP on
+\fIport\fR.
+.RE
+\fB--flush-count\fR \fIn\fR
+.RS 5
+Flush after \fIn\fR documents (default: 500).
+.RE
+\fB--flush-secs\fR \fIn\fR
+.RS 5
+Flush after \fIn\fR seconds (default: 5).
+.RE
+\fB--max-entries\fR \fIn\fR
+.RS 5
+Cap the number of per-server dictionary and open-file entries retained
+(0 = unbounded).
+.RE
+\fB--traces\fR
+.RS 5
+Emit a document per \fIt\fR-stream I/O record. This is high volume.
+.RE
+\fB--gstream\fR
+.RS 5
+Emit a document per \fIg\fR-stream (plugin) record.
+.RE
+\fB--redirects\fR
+.RS 5
+Emit a document per \fIr\fR-stream redirect record.
+.RE
+\fB--dump\fR
+.RS 5
+Also emit one JSON object per decoded record (raw, uncorrelated).
+.RE
+\fB-v\fR
+.RS 5
+Print decoder statistics on exit.
+.RE
+.SH SERVER CONFIGURATION
+The richness of the transfer document depends on the server's
+\fBxrootd.monitor\fR directive. File-level fields (\fBfile.lfn\fR, byte counts,
+operation counts, and squared sums) require \fBfstat\fR with \fBlfn ops ssq
+xfr\fR; identity fields such as \fBuser.auth_method\fR and the auth-derived VO
+require the \fBauth\fR option. A representative configuration is:
+.P
+.RS 5
+.nf
+xrootd.monitor all flush 30s ident 5m fstat 60s lfn ops ssq xfr 1 \\
+  auth dest fstat info user io <collector-host>:9930
+.fi
+.RE
+.P
+When \fBauth\fR is omitted, \fBuser.auth_method\fR and the auth-derived VO are
+absent, but client version, IP version, and the remaining fields still
+populate.
+.SH NOTES
+Documentation for all components associated with \fBxrdmoncollect\fR can be
+found at https://xrootd.org/docs.html
+.SH DIAGNOSTICS
+Errors yield an error message and a non-zero exit status. The program otherwise
+runs until terminated; use the kill command to stop it.
+.SH LICENSE
+LGPL
+.SH SUPPORT LEVEL
+The \fBxrdmoncollect\fR command is supported by the xrootd collaboration.
+Contact information can be found at:
+
+.ce
+https://xrootd.org/contact.html
