@@ -46,8 +46,9 @@
 namespace XrdMetrics
 {
 //! Instrument kind. Richer than a text token: an OTel serializer maps Counter
-//! to a monotonic Sum and Gauge to a Gauge. Summary may extend this further.
-enum class MetricKind { Counter, Gauge, Histogram };
+//! to a monotonic Sum, Gauge to a Gauge, Histogram to a Histogram and Summary
+//! to an OTLP Summary.
+enum class MetricKind { Counter, Gauge, Histogram, Summary };
 
 /******************************************************************************/
 /*                          S e r i e s B a s e                              */
@@ -207,6 +208,47 @@ std::vector<double>                     bounds_;
 std::vector<std::atomic<std::uint64_t>> buckets_;
 std::atomic<std::uint64_t>              count_{0};
 std::atomic<double>                     sum_{0.0};
+};
+
+/******************************************************************************/
+/*                              S u m m a r y                                */
+/******************************************************************************/
+
+//! A Prometheus Summary without quantiles: a lock-free running aggregate of the
+//! observation count and the sum of the observed values, exposed as _count and
+//! _sum (TYPE summary). observe(v) is two relaxed atomic updates; the sum uses
+//! the same portable compare-exchange loop as the double Gauge because
+//! std::atomic<double>::fetch_add is C++20.
+//!
+//! Client-side quantiles are deliberately not computed: they would force a lock
+//! on this hot path and yield non-aggregatable series. Use this for an average
+//! (sum/count) of a distribution where bucket histograms are unwanted; for
+//! server-side quantiles use a Histogram instead.
+
+class Summary : public SeriesBase
+{
+public:
+explicit Summary(SeriesLabels lbl) : SeriesBase(std::move(lbl)) {}
+         Summary(const Summary&) = delete;
+Summary& operator=(const Summary&) = delete;
+
+void observe(double v) noexcept
+{
+   count_.fetch_add(1, std::memory_order_relaxed);
+   double cur = sum_.load(std::memory_order_relaxed);
+   while (!sum_.compare_exchange_weak(cur, cur + v, std::memory_order_relaxed)) {}
+}
+
+std::uint64_t count()     const noexcept
+                          { return count_.load(std::memory_order_relaxed); }
+double        value_sum() const noexcept
+                          { return sum_.load(std::memory_order_relaxed); }
+
+static constexpr MetricKind kind() noexcept { return MetricKind::Summary; }
+
+private:
+std::atomic<std::uint64_t> count_{0};
+std::atomic<double>        sum_{0.0};
 };
 }
 #endif

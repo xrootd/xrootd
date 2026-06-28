@@ -49,6 +49,14 @@ const std::vector<std::uint64_t>& cumulative;
 double                            sum;
 };
 
+//! A summary series' scrape-time snapshot: the observation count and the sum of
+//! the observed values (no quantiles).
+struct SummaryData
+{
+double        sum;
+std::uint64_t count;
+};
+
 /******************************************************************************/
 /*                          I S e r i a l i z e r                            */
 /******************************************************************************/
@@ -76,6 +84,10 @@ virtual void series(const SeriesLabels& labels, double        value) = 0;
 //! A histogram series (emits _bucket/_sum/_count in the text format).
 virtual void histogram(const std::string& fullName, const SeriesLabels& labels,
                        const HistogramData& data) = 0;
+
+//! A summary series (emits _sum/_count in the text format).
+virtual void summary(const std::string& fullName, const SeriesLabels& labels,
+                     const SummaryData& data) = 0;
 };
 
 /******************************************************************************/
@@ -102,6 +114,9 @@ void series(const SeriesLabels& labels, double        value) override;
 
 void histogram(const std::string& fullName, const SeriesLabels& labels,
                const HistogramData& data) override;
+
+void summary(const std::string& fullName, const SeriesLabels& labels,
+             const SummaryData& data) override;
 
 private:
 template <class T> void emit(const SeriesLabels& labels, T value);
@@ -151,6 +166,9 @@ void series(const SeriesLabels& labels, double        value) override;
 void histogram(const std::string& fullName, const SeriesLabels& labels,
                const HistogramData& data) override;
 
+void summary(const std::string& fullName, const SeriesLabels& labels,
+             const SummaryData& data) override;
+
 private:
 void beginPoint(const SeriesLabels& labels);   // comma, "{", attributes array
 
@@ -174,7 +192,7 @@ bool                    firstPoint_  = true;
 //!
 //! The key is the series identity "name{labels}" — the cached Prometheus prefix
 //! without its trailing space; an unlabelled series is keyed by its bare metric
-//! name. Histograms are skipped (the legacy formats predate them).
+//! name. Histograms and summaries are skipped (the legacy formats predate them).
 
 class MetricSnapshot : public ISerializer
 {
@@ -184,6 +202,8 @@ void series(const SeriesLabels& labels, std::int64_t  value) override;
 void series(const SeriesLabels& labels, double        value) override;
 void histogram(const std::string&, const SeriesLabels&,
                const HistogramData&) override {}
+void summary(const std::string&, const SeriesLabels&,
+             const SummaryData&) override {}
 
 //! Look up a series value by key, returning dflt when it is absent. getInt
 //! truncates a double-typed series toward zero (the legacy fields are integers).

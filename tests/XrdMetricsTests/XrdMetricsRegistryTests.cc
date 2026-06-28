@@ -294,6 +294,67 @@ TEST(XrdMetricsHistogram, LabeledBucketsCarryLe)
 }
 
 /******************************************************************************/
+/*                             S u m m a r y                                 */
+/******************************************************************************/
+
+TEST(XrdMetricsSummary, SumAndCountUnlabeled)
+{
+  Registry reg("xrootd");
+  auto& s = reg.group("xrootd").summary("request_bytes", {}, {}, "request sizes");
+  s.noLabels().observe(100);
+  s.noLabels().observe(250);
+  s.noLabels().observe(50);
+
+  const std::string out = scrape(reg);
+  EXPECT_NE(out.find("# TYPE xrootd_xrootd_request_bytes summary\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_xrootd_request_bytes_sum 400\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_xrootd_request_bytes_count 3\n"), std::string::npos);
+  // A quantile-less summary emits no per-quantile series.
+  EXPECT_EQ(out.find("quantile="), std::string::npos);
+}
+
+TEST(XrdMetricsSummary, LabeledSeriesCarryLabels)
+{
+  Registry reg("xrootd");
+  reg.group("io").summary("latency_seconds", {"op"}, {}, "op latency")
+                 .withLabelValues({"read"}).observe(0.25);
+
+  const std::string out = scrape(reg);
+  EXPECT_NE(out.find("xrootd_io_latency_seconds_sum{op=\"read\"} 0.25\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_latency_seconds_count{op=\"read\"} 1\n"),
+            std::string::npos);
+}
+
+TEST(XrdMetricsSummary, CachedHandleAccumulates)
+{
+  Registry reg("xrootd");
+  auto& fam = reg.group("io").summary("bytes", {});
+  Summary& h = fam.noLabels();        // cache the handle, then reuse it
+  h.observe(10);
+  h.observe(20);
+  EXPECT_EQ(h.count(), 2u);
+  EXPECT_DOUBLE_EQ(h.value_sum(), 30.0);
+  EXPECT_EQ(&fam.noLabels(), &h);     // same series on repeat lookup
+}
+
+TEST(XrdMetricsSummary, DynamicSeriesDedupsFamily)
+{
+  Registry reg("xrootd");
+  auto& g = reg.group("io");
+  g.summarySeries("sz", "sizes", {{"dir", "in"}}).observe(5);
+  g.summarySeries("sz", "sizes", {{"dir", "out"}}).observe(9);
+
+  const std::string out = scrape(reg);
+  // One family header, two series.
+  EXPECT_EQ(out.find("# TYPE xrootd_io_sz summary\n"),
+            out.rfind("# TYPE xrootd_io_sz summary\n"));
+  EXPECT_NE(out.find("xrootd_io_sz_count{dir=\"in\"} 1\n"), std::string::npos);
+  EXPECT_NE(out.find("xrootd_io_sz_count{dir=\"out\"} 1\n"), std::string::npos);
+}
+
+/******************************************************************************/
 /*                            O b s e r v e d                                */
 /******************************************************************************/
 
@@ -540,6 +601,20 @@ TEST(XrdMetricsOtel, HistogramBucketsAreDecumulated)
       "\"count\":\"4\",\"sum\":15,"
       "\"bucketCounts\":[\"1\",\"1\",\"1\",\"1\"],"
       "\"explicitBounds\":[1,2,5],"));
+}
+
+TEST(XrdMetricsOtel, SummaryCountAndSum)
+{
+  Registry reg("xrootd");
+  auto& s = reg.group("io").summary("bytes", {}, {}, "io sizes");
+  s.noLabels().observe(100);
+  s.noLabels().observe(250);
+
+  const std::string out = scrapeOtel(reg);
+  EXPECT_TRUE(jsonBalanced(out));
+  EXPECT_TRUE(contains(out, "\"summary\":{\"dataPoints\":["));
+  EXPECT_TRUE(contains(out, "\"count\":\"2\",\"sum\":350,"));
+  EXPECT_FALSE(contains(out, "quantileValues"));
 }
 
 TEST(XrdMetricsOtel, ResourceAttributesAndEscaping)

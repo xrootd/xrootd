@@ -524,7 +524,7 @@ structurally (for a future OTel `Sum` vs `Gauge`).
 |------|------|
 | `XrdMetricsValue.hh` / `XrdMetricsSerialize.cc` | `appendValue` for u64/i64/double; the double path uses `std::to_chars` when the build probe `HAVE_FLOAT_TO_CHARS` is set (libstdc++ ≥ GCC 11) and a locale-guarded `snprintf("%.17g")` otherwise (AlmaLinux 8 / GCC 8). Integers always use integer `to_chars` (GCC 8+), and non-finite values render as `+Inf`/`-Inf`/`NaN`. |
 | `XrdMetricsLabels.hh` | `LabelSchema`, `LabelContext`, `LabelValues`+hash, `SeriesLabels` (cached `prometheusPrefix()` + structured `forEachLabel()`), `joinName`, name/label validators. |
-| `XrdMetricsInstrument.hh` | `MetricKind`; `Counter` (uint64, increment-only, monotonic by type); `Gauge<int64_t/double>` (set/`+=`/`-=`/`++`/`--`; integral `fetch_add`, double CAS loop for GCC 8); `IntGauge`/`FloatGauge`. Atomics explicitly value-initialized (pre-C++20 UB guard). |
+| `XrdMetricsInstrument.hh` | `MetricKind`; `Counter` (uint64, increment-only, monotonic by type); `Gauge<int64_t/double>` (set/`+=`/`-=`/`++`/`--`; integral `fetch_add`, double CAS loop for GCC 8); `IntGauge`/`FloatGauge`; `Histogram` (fixed bucket bounds, lock-free `observe`); `Summary` (lock-free count + sum, no quantiles). Atomics explicitly value-initialized (pre-C++20 UB guard). |
 | `XrdMetricsSerializer.hh` | `ISerializer` seam + `PrometheusTextSerializer` (writes into a caller-owned reusable buffer). |
 | `XrdMetricsFamily.hh` | `IFamily`; `LabeledFamily<Child>` two-tier child cache with a cardinality cap (over-cap label sets fold into one overflow series). |
 | `XrdMetricsRegistry.hh` | `Registry` (prefix + frozen global labels + groups) and `MetricGroup` (subsystem factories `counter`/`intGauge`/`floatGauge` resolving `prefix_subsystem_name` once); process-wide `XrdMetrics::Default()`. |
@@ -536,10 +536,15 @@ lands on the distro boundary (Alma 9/GCC 11 → `to_chars`, Alma 8/GCC 8 →
 
 ## Instruments and serializers
 
-- **Instruments:** Counter, Gauge (int64/double), Histogram, plus read-only
-  **observed** metrics whose value comes from a `std::function` reader at scrape
-  time (the typed, first-class replacement for the prototype's
-  `AddRefCounter`/`AddRefGauge`). Summary is the remaining instrument.
+- **Instruments:** Counter, Gauge (int64/double), Histogram, Summary, plus
+  read-only **observed** metrics whose value comes from a `std::function` reader
+  at scrape time (the typed, first-class replacement for the prototype's
+  `AddRefCounter`/`AddRefGauge`). The Summary is quantile-less by design: a
+  lock-free running count + sum (`observe(v)` is two relaxed atomics, the sum via
+  the same portable CAS loop as the double Gauge), rendered as `_sum`/`_count`
+  under `# TYPE … summary`. Client-side quantiles were deliberately not added —
+  they would force a lock on the hot path and yield non-aggregatable series; for
+  server-side quantiles use a Histogram.
 - **Population patterns:** counters are *reversed* (the metric owns the atomic;
   the legacy emitter reads it via `value()`); live control-flow state stays
   owned by its subsystem and is *observed* read-only. Callers that build
@@ -578,7 +583,9 @@ The legacy `XrdStats`/`XrdMonitor` XML/JSON summary output is untouched.
 `tests/XrdMetricsTests/XrdMetricsRegistryTests.cc` covers value formatting,
 counter/gauge operators and the double CAS path, label prefix order/escaping and
 the structured `forEachLabel`, name validation, the cached family handle, the
-cardinality cap, histograms (buckets/sum/count, labelled `le`), observed metrics
+cardinality cap, histograms (buckets/sum/count, labelled `le`), summaries
+(lock-free count + sum, labelled and dynamic series, no quantile series),
+observed metrics
 (single- and multi-series), the dynamic `*Series` get-or-create with family
 dedup and type-mismatch errors, group/registry composition, `Default()`, exact
 Prometheus output, buffer reuse, and concurrent increments. Server-side and
@@ -594,9 +601,10 @@ Three `ISerializer` implementations share one registry traversal:
 - `OtelJsonSerializer` — an OTLP/JSON `ExportMetricsServiceRequest`
   (resourceMetrics → scopeMetrics → metrics) ready to POST to an OTLP/HTTP
   receiver. Counter → monotonic cumulative Sum, Gauge → Gauge, Histogram →
-  cumulative Histogram with de-cumulated `bucketCounts`; 64-bit ints are JSON
-  strings, non-finite doubles use the NaN/Infinity tokens, and every point
-  carries the scrape time. Document framing uses the `begin()`/`end()` hooks
+  cumulative Histogram with de-cumulated `bucketCounts`, Summary → OTLP Summary
+  (count + sum, empty `quantileValues`); 64-bit ints are JSON strings, non-finite
+  doubles use the NaN/Infinity tokens, and every point carries the scrape time.
+  Document framing uses the `begin()`/`end()` hooks
   `Registry::serialize()` calls around the traversal (no-ops for Prometheus).
 - `MetricSnapshot` — not an output format but a by-name value collector
   (keyed by the `name{labels}` series identity) that lets a consumer pull
@@ -651,5 +659,4 @@ Remaining:
 
 ## Next steps (later iterations)
 
-1. Add a Summary instrument if needed.
-2. Add client-side metrics for batch jobs.
+1. Add client-side metrics for batch jobs.

@@ -271,6 +271,7 @@ void PrometheusTextSerializer::beginFamily(const std::string& name,
    switch (kind)
          {case MetricKind::Counter:   out_ += "counter";   break;
           case MetricKind::Histogram: out_ += "histogram"; break;
+          case MetricKind::Summary:   out_ += "summary";   break;
           default:                    out_ += "gauge";     break;
          }
    out_.push_back('\n');
@@ -327,6 +328,23 @@ void PrometheusTextSerializer::histogram(const std::string& fullName,
    out_.push_back(' '); appendValue(out_, d.sum); out_.push_back('\n');
    out_ += fullName; out_ += "_count"; out_ += lbls;
    out_.push_back(' '); appendValue(out_, d.cumulative.back()); out_.push_back('\n');
+}
+
+void PrometheusTextSerializer::summary(const std::string& fullName,
+                                       const SeriesLabels& l,
+                                       const SummaryData& d)
+{
+// A quantile-less summary is just the _sum and _count lines. The cached prefix
+// is "fullName{labels} " (or "fullName " with no labels); reuse the "{labels}"
+// portion (or empty) for both lines.
+//
+   const std::string& pfx = l.prometheusPrefix();
+   std::string lbls(pfx, fullName.size(), pfx.size() - fullName.size() - 1);
+
+   out_ += fullName; out_ += "_sum"; out_ += lbls;
+   out_.push_back(' '); appendValue(out_, d.sum); out_.push_back('\n');
+   out_ += fullName; out_ += "_count"; out_ += lbls;
+   out_.push_back(' '); appendValue(out_, d.count); out_.push_back('\n');
 }
 
 /******************************************************************************/
@@ -391,6 +409,9 @@ void OtelJsonSerializer::beginFamily(const std::string& name, MetricKind kind,
           case MetricKind::Histogram:
              out_ += ",\"histogram\":{\"aggregationTemporality\":2,"
                      "\"dataPoints\":[";
+             break;
+          case MetricKind::Summary:
+             out_ += ",\"summary\":{\"dataPoints\":[";
              break;
           default:
              out_ += ",\"gauge\":{\"dataPoints\":[";
@@ -476,6 +497,23 @@ void OtelJsonSerializer::histogram(const std::string& /*fullName*/,
         appendJsonNumber(out_, d.bounds[i]);
        }
    out_ += "],\"timeUnixNano\":\"";
+   out_ += ts_;
+   out_ += "\"}";
+}
+
+void OtelJsonSerializer::summary(const std::string& /*fullName*/,
+                                 const SeriesLabels& l, const SummaryData& d)
+{
+// An OTLP SummaryDataPoint carries count, sum and quantileValues; we emit no
+// quantiles (the array is omitted, which OTLP treats as empty).
+//
+   beginPoint(l);
+
+   out_ += ",\"count\":\"";
+   appendValue(out_, d.count);
+   out_ += "\",\"sum\":";
+   appendJsonNumber(out_, d.sum);
+   out_ += ",\"timeUnixNano\":\"";
    out_ += ts_;
    out_ += "\"}";
 }

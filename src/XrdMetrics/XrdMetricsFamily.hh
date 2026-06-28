@@ -308,5 +308,85 @@ mutable std::shared_mutex mutex_;
 std::unordered_map<LabelValues, std::unique_ptr<Histogram>, LabelValuesHash> children_;
 std::unique_ptr<Histogram> overflow_;
 };
+
+/******************************************************************************/
+/*                        S u m m a r y F a m i l y                          */
+/******************************************************************************/
+
+//! A family of summaries (count + sum, no quantiles) keyed by variable label
+//! values. Identical two-tier child cache to LabeledFamily; children serialize
+//! as _sum/_count through ISerializer::summary.
+
+class SummaryFamily : public IFamily
+{
+public:
+SummaryFamily(std::string fullName, LabelContext ctx, std::string help,
+              std::size_t maxKids = 0)
+             : name_(std::move(fullName)), help_(std::move(help)),
+               ctx_(std::move(ctx)), maxKids_(maxKids) {}
+
+Summary& withLabelValues(std::vector<std::string> vals)
+{
+   LabelValues key{std::move(vals)};
+   key.v.resize(ctx_.schema.size());
+
+   {std::shared_lock<std::shared_mutex> rd(mutex_);
+    auto it = children_.find(key);
+    if (it != children_.end()) return *it->second;
+   }
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   auto it = children_.find(key);
+   if (it != children_.end()) return *it->second;
+   if (maxKids_ && children_.size() >= maxKids_) return overflow();
+
+   auto child = std::make_unique<Summary>(SeriesLabels(ctx_, name_, key));
+   Summary& ref = *child;
+   children_.emplace(std::move(key), std::move(child));
+   return ref;
+}
+
+Summary& noLabels() { return withLabelValues({}); }
+
+const std::string& name() const noexcept { return name_; }
+
+void serialize(ISerializer& s) const override
+{
+   s.beginFamily(name_, MetricKind::Summary, help_);
+   for (const Summary* m : snapshot())
+       s.summary(name_, m->labels(),
+                 SummaryData{m->value_sum(), m->count()});
+   s.endFamily();
+}
+
+private:
+std::vector<const Summary*> snapshot() const
+{
+   std::shared_lock<std::shared_mutex> rd(mutex_);
+   std::vector<const Summary*> out;
+   out.reserve(children_.size() + (overflow_ ? 1 : 0));
+   for (auto& kv : children_) out.push_back(kv.second.get());
+   if (overflow_) out.push_back(overflow_.get());
+   return out;
+}
+
+Summary& overflow()
+{
+   if (!overflow_)
+      {LabelValues key;
+       key.v.assign(ctx_.schema.size(), "__over_cardinality_limit__");
+       overflow_ = std::make_unique<Summary>(SeriesLabels(ctx_, name_, key));
+      }
+   return *overflow_;
+}
+
+std::string  name_;
+std::string  help_;
+LabelContext ctx_;
+std::size_t  maxKids_;
+
+mutable std::shared_mutex mutex_;
+std::unordered_map<LabelValues, std::unique_ptr<Summary>, LabelValuesHash> children_;
+std::unique_ptr<Summary> overflow_;
+};
 }
 #endif

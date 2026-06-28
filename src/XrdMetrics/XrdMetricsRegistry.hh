@@ -92,6 +92,13 @@ HistogramFamily& histogram(const std::string& name, std::vector<double> bounds,
                            std::vector<ConstLabel> constLabels = {},
                            std::string help = {}, std::size_t maxKids = 0);
 
+//! Create a summary family (count + sum, no quantiles). Observe values via
+//! withLabelValues(...). Renders as _sum/_count under TYPE summary.
+SummaryFamily& summary(const std::string& name,
+                       std::vector<std::string> varLabels = {},
+                       std::vector<ConstLabel> constLabels = {},
+                       std::string help = {}, std::size_t maxKids = 0);
+
 //! Register a read-only metric family whose series values are produced by
 //! reader functions at scrape time. Use these to surface values owned and
 //! updated by another subsystem (the source of truth stays there) as typed
@@ -128,6 +135,8 @@ FloatGauge& gaugeSeries(const std::string& name, const std::string& help,
 Histogram&  histogramSeries(const std::string& name, const std::string& help,
                             std::vector<double> bounds,
                             std::vector<ConstLabel> labels = {});
+Summary&    summarySeries(const std::string& name, const std::string& help,
+                          std::vector<ConstLabel> labels = {});
 
 const std::string& subsystem() const noexcept { return subsystem_; }
 
@@ -162,6 +171,10 @@ LabeledFamily<Child>& getOrAddLabeled(const std::string& full,
 HistogramFamily& getOrAddHistogram(const std::string& full,
                           const std::vector<std::string>& names,
                           std::vector<double> bounds, const std::string& help);
+
+SummaryFamily& getOrAddSummary(const std::string& full,
+                          const std::vector<std::string>& names,
+                          const std::string& help);
 
 Registry&   reg_;
 std::string subsystem_;
@@ -344,6 +357,36 @@ MetricGroup::histogram(const std::string& name, std::vector<double> bounds,
    return ref;
 }
 
+inline SummaryFamily&
+MetricGroup::summary(const std::string& name, std::vector<std::string> varLabels,
+                     std::vector<ConstLabel> constLabels, std::string help,
+                     std::size_t maxKids)
+{
+   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+
+   if (!validMetricName(full))
+      throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
+   for (auto& ln : varLabels)
+       if (!validLabelName(ln))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
+   for (auto& cl : constLabels)
+       if (!validLabelName(cl.first))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + cl.first + "'");
+
+   LabelContext ctx;
+   ctx.global      = &reg_.globalLabels();
+   ctx.constLabels = std::move(constLabels);
+   ctx.schema      = LabelSchema(std::move(varLabels));
+
+   auto fam = std::unique_ptr<SummaryFamily>(
+                 new SummaryFamily(std::move(full), std::move(ctx),
+                                   std::move(help), maxKids));
+   auto& ref = *fam;
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   families_.push_back(std::move(fam));
+   return ref;
+}
+
 template <class T>
 ObservedFamily<T>& MetricGroup::addObserved(const std::string& name, MetricKind kind,
                                             std::vector<std::string> varNames,
@@ -470,6 +513,35 @@ inline HistogramFamily& MetricGroup::getOrAddHistogram(const std::string& full,
    return ref;
 }
 
+inline SummaryFamily& MetricGroup::getOrAddSummary(const std::string& full,
+                          const std::vector<std::string>& names,
+                          const std::string& help)
+{
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   auto it = byName_.find(full);
+   if (it != byName_.end())
+      {auto* fam = dynamic_cast<SummaryFamily*>(it->second);
+       if (!fam) throw std::invalid_argument(
+                    "XrdMetrics: metric '" + full + "' redefined with a different type");
+       return *fam;
+      }
+   if (!validMetricName(full))
+      throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
+   for (auto& ln : names)
+       if (!validLabelName(ln))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
+
+   LabelContext ctx;
+   ctx.global = &reg_.globalLabels();
+   ctx.schema = LabelSchema(names);
+   auto fam = std::unique_ptr<SummaryFamily>(
+                 new SummaryFamily(full, std::move(ctx), help));
+   auto& ref = *fam;
+   byName_.emplace(full, fam.get());
+   families_.push_back(std::move(fam));
+   return ref;
+}
+
 namespace detail
 {
 inline void splitLabels(const std::vector<ConstLabel>& labels,
@@ -512,6 +584,16 @@ MetricGroup::histogramSeries(const std::string& name, const std::string& help,
    std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
    return getOrAddHistogram(full, names, std::move(bounds), help)
              .withLabelValues(std::move(values));
+}
+
+inline Summary&
+MetricGroup::summarySeries(const std::string& name, const std::string& help,
+                           std::vector<ConstLabel> labels)
+{
+   std::vector<std::string> names, values;
+   detail::splitLabels(labels, names, values);
+   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   return getOrAddSummary(full, names, help).withLabelValues(std::move(values));
 }
 
 /******************************************************************************/
