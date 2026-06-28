@@ -22,6 +22,7 @@ target_sources(XrdUtils
                      XrdPollPoll.icc
                      XrdProtocol.hh
     XrdScheduler.cc  XrdScheduler.hh
+    XrdStatsLegacy.cc XrdStatsLegacy.hh
     XrdSendQ.cc      XrdSendQ.hh
                      XrdTrace.hh
 )

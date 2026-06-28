@@ -12,6 +12,7 @@
 #include <string>
 
 #include "Xrd/XrdScheduler.hh"
+#include "Xrd/XrdStatsLegacy.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 
@@ -75,4 +76,26 @@ TEST(XrdSchedulerStats, CountersReversedToRegistry)
             std::string::npos);
   EXPECT_NE(scrape.find("xrootd_sched_queue_length_max " + std::to_string(maxInQ) + "\n"),
             std::string::npos);
+}
+
+// The legacy <stats id="sched"> block rendered from a registry snapshot via
+// XrdStatsLegacy must be byte-for-byte identical to the scheduler's own
+// hand-written Stats() output.
+TEST(XrdSchedulerStats, LegacyXmlRenderedFromRegistry)
+{
+  XrdScheduler sched(2, 8, 780);
+
+  NoopJob jobs[3];
+  for (auto& j : jobs) sched.Schedule(&j);
+
+  char live[1024];
+  const std::string liveXml(live, sched.Stats(live, sizeof(live)));
+
+  XrdMetrics::MetricSnapshot snap;
+  XrdMetrics::Default().serialize(snap);
+
+  char regbuf[1024];
+  const std::string regXml(regbuf, XrdStatsLegacy::Sched(snap, regbuf, sizeof(regbuf)));
+
+  EXPECT_EQ(regXml, liveXml);
 }
