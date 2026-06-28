@@ -639,8 +639,13 @@ Done:
 
 Remaining:
 
-- The nested `<stats id="oss">` block (`XrdOfsOss->Stats`, another unmigrated
-  subsystem), and any other protocol/plugin stat producers.
+- The nested `<stats id="oss">` block (`XrdOfsOss->Stats`) is intentionally left
+  as-is. Unlike the other blocks it is a dynamic enumeration of disk paths and
+  space groups whose values are live filesystem queries (not internal counters),
+  with per-entry indices and string identities. Per-path/per-group gauges would
+  risk a cardinality explosion in the registry, so OSS space reporting is a
+  better fit for the `xrdmoncollect` collector later, not the in-process
+  registry. The legacy oss block keeps rendering through `XrdOssSys` directly.
 - The configuration directives that flip which counters register (and thus the
   exposed names).
 
