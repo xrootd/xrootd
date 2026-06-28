@@ -1,4 +1,5 @@
 #include "XrdHttpMon.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdXrootd/XrdXrootdGStream.hh"
 
@@ -14,77 +15,51 @@ typedef std::array<std::array<XrdHttpMon::HttpInfo, XrdHttpMon::StatusCodes::sc_
 StatsMatrix XrdHttpMon::statsInfo{};
 
 XrdXrootdGStream* XrdHttpMon::gStream = nullptr;
-XrdMonRoll* XrdHttpMon::mrollP = nullptr;
 std::chrono::seconds XrdHttpMon::flushPeriod{0};
 
 bool XrdHttpMon::hasGStream = false;
-bool XrdHttpMon::hasMonRoll = false;
 bool XrdHttpMon::isInitialized = false;
 
-RAtomic_uint64_t XrdHttpMon::verbCounters[XrdHttpReq::ReqType::rtCount] = {0};
-RAtomic_uint64_t XrdHttpMon::statusCounters[XrdHttpMon::StatusCodes::sc_Count] = {0};
+XrdMetrics::Counter* XrdHttpMon::verbMetric[XrdHttpReq::ReqType::rtCount] = {nullptr};
+XrdMetrics::Counter* XrdHttpMon::statusMetric[XrdHttpMon::StatusCodes::sc_Count] = {nullptr};
 
-// Combined schema for HTTP statistics
-// This creates a JSON structure: {"httpReqStats": {...}, "httpStatusCodeStats": {...}}
-std::vector<XrdMonRoll::Item> XrdHttpMon::statsSchema = {
-// NOTE: Keep this mapping aligned to the XrdHttpReq enum
-    XrdMonRoll::Item("request", XrdMonRoll::Item::Schema::begObject),
-        XrdMonRoll::Item("Unknown",   verbCounters[0]),
-        XrdMonRoll::Item("Malformed", verbCounters[1]),
-        XrdMonRoll::Item("GET",       verbCounters[2]),
-        XrdMonRoll::Item("HEAD",      verbCounters[3]),
-        XrdMonRoll::Item("PUT",       verbCounters[4]),
-        XrdMonRoll::Item("OPTIONS",   verbCounters[5]),
-        XrdMonRoll::Item("PATCH",     verbCounters[6]),
-        XrdMonRoll::Item("DELETE",    verbCounters[7]),
-        XrdMonRoll::Item("PROPFIND",  verbCounters[8]),
-        XrdMonRoll::Item("MKCOL",     verbCounters[9]),
-        XrdMonRoll::Item("MOVE",      verbCounters[10]),
-        XrdMonRoll::Item("POST",      verbCounters[11]),
-        XrdMonRoll::Item("COPY",      verbCounters[12]),
-    XrdMonRoll::Item("request", XrdMonRoll::Item::Schema::endObject),
+namespace {
+// Label values for the request-method and response-status counter families.
+// The order must stay aligned with XrdHttpReq::ReqType and XrdHttpMon::StatusCodes.
+const char* const verbLabels[XrdHttpReq::ReqType::rtCount] = {
+    "Unknown", "Malformed", "GET", "HEAD", "PUT", "OPTIONS", "PATCH",
+    "DELETE", "PROPFIND", "MKCOL", "MOVE", "POST", "COPY"};
 
-// NOTE: Keep this mapping strictly aligned with StatusCodes enum XrdHttpMon::StatusCode
-// The order and number of entries MUST match.
-    XrdMonRoll::Item("response", XrdMonRoll::Item::Schema::begObject),
-        XrdMonRoll::Item("100", statusCounters[sc_100]),
-        XrdMonRoll::Item("200", statusCounters[sc_200]),
-        XrdMonRoll::Item("201", statusCounters[sc_201]),
-        XrdMonRoll::Item("202", statusCounters[sc_202]),
-        XrdMonRoll::Item("206", statusCounters[sc_206]),
-        XrdMonRoll::Item("207", statusCounters[sc_207]),
-        XrdMonRoll::Item("302", statusCounters[sc_302]),
-        XrdMonRoll::Item("307", statusCounters[sc_307]),
-        XrdMonRoll::Item("400", statusCounters[sc_400]),
-        XrdMonRoll::Item("401", statusCounters[sc_401]),
-        XrdMonRoll::Item("403", statusCounters[sc_403]),
-        XrdMonRoll::Item("404", statusCounters[sc_404]),
-        XrdMonRoll::Item("405", statusCounters[sc_405]),
-        XrdMonRoll::Item("409", statusCounters[sc_409]),
-        XrdMonRoll::Item("416", statusCounters[sc_416]),
-        XrdMonRoll::Item("423", statusCounters[sc_423]),
-        XrdMonRoll::Item("500", statusCounters[sc_500]),
-        XrdMonRoll::Item("502", statusCounters[sc_502]),
-        XrdMonRoll::Item("504", statusCounters[sc_504]),
-        XrdMonRoll::Item("507", statusCounters[sc_507]),
-        XrdMonRoll::Item("OTHERS", statusCounters[sc_UNKNOWN]),
-    XrdMonRoll::Item("response", XrdMonRoll::Item::Schema::endObject)
-};
+const char* const codeLabels[XrdHttpMon::StatusCodes::sc_Count] = {
+    "100", "200", "201", "202", "206", "207", "302", "307", "400", "401",
+    "403", "404", "405", "409", "416", "423", "500", "502", "504", "507",
+    "OTHERS"};
+}
 
-void XrdHttpMon::Initialize(XrdSysLogger *logP, XrdXrootdGStream *gStream, XrdMonRoll *mrollP) {
+void XrdHttpMon::Initialize(XrdSysLogger *logP, XrdXrootdGStream *gStream) {
     eDest.logger(logP);
     XrdHttpMon::gStream = gStream;
-    XrdHttpMon::mrollP = mrollP;
 
     if (gStream != nullptr){
         hasGStream = true;
         flushPeriod = std::chrono::seconds(gStream->GetAutoFlush());
     }
 
-    if (mrollP != nullptr) {
-        hasMonRoll = true;
-        mrollP->Register(XrdMonRoll::AddOn, "http_plugin", statsSchema);
-    }
+    // Register the native HTTP request/response counters in the process-wide
+    // registry so they reach the /metrics endpoint whether or not g-stream
+    // monitoring is configured. The per-series handles are cached for the hot
+    // path in Record().
+    //
+    auto& http = XrdMetrics::Default().group("http");
+    auto& requests = http.counter("requests_total", {"method"}, {},
+                                  "HTTP requests by method");
+    for (int i = 0; i < XrdHttpReq::ReqType::rtCount; ++i)
+        verbMetric[i] = &requests.withLabelValues({verbLabels[i]});
+
+    auto& responses = http.counter("responses_total", {"code"}, {},
+                                   "HTTP responses by status code");
+    for (int i = 0; i < StatusCodes::sc_Count; ++i)
+        statusMetric[i] = &responses.withLabelValues({codeLabels[i]});
 
     isInitialized = true;
 }
@@ -128,25 +103,25 @@ void XrdHttpMon::Record(XrdHttpReq &req, int code)
     switch (st) {
         case XrdHttpMonState::NEW:
             RecordGStreamCount(req.request, statusCode);
-            RecordMonRollVerb(req.request);
+            RecordMetricVerb(req.request);
             req.monState = XrdHttpMonState::ACTIVE;
             return;
 
         case XrdHttpMonState::ACTIVE:
             RecordGStreamSuccess(req.request, statusCode, duration);
-            RecordMonRollStatus(statusCode);
+            RecordMetricStatus(statusCode);
             req.monState = XrdHttpMonState::DONE;
             return;
 
         case XrdHttpMonState::ERR_NET:
             RecordGStreamErrNet(req.request, statusCode, duration);
-            RecordMonRollStatus(statusCode);
+            RecordMetricStatus(statusCode);
             req.monState = XrdHttpMonState::DONE;
             return;
 
         case XrdHttpMonState::ERR_PROT:
             RecordGStreamErrProt(req.request, statusCode, duration);
-            RecordMonRollStatus(statusCode);
+            RecordMetricStatus(statusCode);
             req.monState = XrdHttpMonState::DONE;
             return;
 

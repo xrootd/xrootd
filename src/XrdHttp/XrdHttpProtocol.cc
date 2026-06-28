@@ -917,17 +917,17 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   pmarkHandle = (XrdNetPMark* ) myEnv->GetPtr("XrdNetPMark*");
 
   XrdXrootdGStream *gs = (XrdXrootdGStream *)myEnv->GetPtr("http.gStream*");
-  XrdMonRoll *mrollP = (XrdMonRoll *)myEnv->GetPtr("XrdMonRoll*");
 
-  if (gs || mrollP) {
-      XrdHttpMon::Initialize(eDest.logger(), gs, mrollP);
-      if (gs) {
-          pthread_t tid;
-          int rc = XrdSysThread::Run(&tid, XrdHttpMon::Start, nullptr, 0, "Http Stats thread");
-          if (rc) {
-              eDest.Emsg("httpMon", rc, "create stats thread");
-              return rc;
-          }
+  // Always initialize so the native HTTP metrics register in the process-wide
+  // registry; the g-stream reporting thread only runs when g-stream is set up.
+  //
+  XrdHttpMon::Initialize(eDest.logger(), gs);
+  if (gs) {
+      pthread_t tid;
+      int rc = XrdSysThread::Run(&tid, XrdHttpMon::Start, nullptr, 0, "Http Stats thread");
+      if (rc) {
+          eDest.Emsg("httpMon", rc, "create stats thread");
+          return rc;
       }
   }
 
