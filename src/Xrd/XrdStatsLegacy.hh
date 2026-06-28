@@ -60,5 +60,11 @@ static int Link(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
 static int Poll(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
 
 static int Sched(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
+
+//! <stats id="xrootd"> — the xrootd protocol block. With a null buffer returns
+//! the maximum block size (every field at its type's max), matching
+//! XrdXrootdStats::Stats(); the nested <stats id="ofs"> filesystem block is
+//! appended separately by the caller.
+static int Xrootd(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
 };
 #endif

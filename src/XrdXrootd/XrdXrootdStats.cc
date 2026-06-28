@@ -30,7 +30,9 @@
 #include <cstdio>
 
 #include "Xrd/XrdStats.hh"
+#include "Xrd/XrdStatsLegacy.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdXrootd/XrdXrootdFileStats.hh"
@@ -170,46 +172,22 @@ void XrdXrootdStats::RegisterMetrics()
   
 int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
 {
-   static const char statfmt[] = "<stats id=\"xrootd\"><num>%d</num>"
-   "<ops><open>%d</open><rf>%d</rf><rd>%lld</rd><pr>%lld</pr>"
-   "<rv>%lld</rv><rs>%lld</rs>"
-   "<wv>%lld</wv><ws>%lld</ws><wr>%lld</wr>"
-   "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
-   "<sig><ok>%d</ok><bad>%d</bad><ign>%d</ign></sig>"
-   "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio>"
-   "<err>%d</err><rdr>%lld</rdr><dly>%d</dly>"
-   "<lgn><num>%d</num><af>%d</af><au>%d</au><ua>%d</ua></lgn></stats>";
-//                                   1 2 3 4 5 6 7 8
-   static const long long LLMax = 0x7fffffffffffffffLL;
-   static const int       INMax = 0x7fffffff;
+   (void)do_sync;  // the registry readers are atomic; no separate sync needed
    int len;
 
-// If no buffer, caller wants the maximum size we will generate
+// If no buffer, caller wants the maximum size we will generate. The xrootd block
+// is now produced from the XrdMetrics registry by XrdStatsLegacy; the nested
+// filesystem block is still appended here.
 //
    if (!buff)
-      {char dummy[4096]; // Almost any size will do
-       len = snprintf(dummy, sizeof(dummy), statfmt,
-                      INMax, INMax, INMax, LLMax,
-                      LLMax, LLMax, LLMax, LLMax, LLMax, LLMax, INMax, INMax,
-                      INMax, INMax,
-                      INMax, INMax, INMax,
-                      LLMax, INMax, LLMax, INMax, LLMax, INMax,
-                      INMax, INMax, INMax, INMax);
+      {XrdMetrics::MetricSnapshot empty;
+       len = XrdStatsLegacy::Xrootd(empty, 0, 0);
        return len + (fsP ? fsP->getStats(0,0) : 0);
       }
 
-// Format our statistics
-//
-   statsMutex.Lock();
-   len = snprintf(buff, blen, statfmt,
-                  Count,   openCnt, Refresh, readCnt,
-                  prerCnt, rvecCnt, rsegCnt, wvecCnt, wsegCnt, writeCnt,
-                  syncCnt, getfCnt,
-                  putfCnt, miscCnt,
-                  aokSCnt, badSCnt, ignSCnt,
-                  AsyncNum, AsyncMax, AsyncRej, errorCnt, redirCnt, stallCnt,
-                  LoginAT, AuthBad, LoginAU, LoginUA);
-   statsMutex.UnLock();
+   XrdMetrics::MetricSnapshot snap;
+   XrdMetrics::Default().serialize(snap);
+   len = XrdStatsLegacy::Xrootd(snap, buff, blen);
 
 // Now include filesystem statistics and return
 //

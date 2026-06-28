@@ -170,3 +170,69 @@ int XrdStatsLegacy::Sched(const XrdMetrics::MetricSnapshot& s, char* buff, int b
        (int)s.getInt("xrootd_sched_threads_destroyed_total"),
        (int)s.getInt("xrootd_sched_thread_limit_hits_total"));
 }
+
+/******************************************************************************/
+/*                                X r o o t d                                 */
+/******************************************************************************/
+
+// Mirrors XrdXrootdStats::Stats() (the "<stats id=\"xrootd\">" portion). The
+// operation, login and signature tallies come from the labelled ops_total /
+// logins_total / signatures_total families; the rest from flat counters and the
+// async_max gauge. The labelled lookups use the cached "name{labels}" key.
+//
+int XrdStatsLegacy::Xrootd(const XrdMetrics::MetricSnapshot& s, char* buff, int blen)
+{
+   static const char statfmt[] = "<stats id=\"xrootd\"><num>%d</num>"
+   "<ops><open>%d</open><rf>%d</rf><rd>%lld</rd><pr>%lld</pr>"
+   "<rv>%lld</rv><rs>%lld</rs>"
+   "<wv>%lld</wv><ws>%lld</ws><wr>%lld</wr>"
+   "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
+   "<sig><ok>%d</ok><bad>%d</bad><ign>%d</ign></sig>"
+   "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio>"
+   "<err>%d</err><rdr>%lld</rdr><dly>%d</dly>"
+   "<lgn><num>%d</num><af>%d</af><au>%d</au><ua>%d</ua></lgn></stats>";
+
+// With no buffer the caller wants the maximum size this block can reach, which
+// (as in the original) is the format filled with each field's type maximum.
+//
+   if (!buff)
+      {static const long long LLMax = 0x7fffffffffffffffLL;
+       static const int       INMax = 0x7fffffff;
+       char dummy[4096];
+       return snprintf(dummy, sizeof(dummy), statfmt,
+                       INMax, INMax, INMax, LLMax, LLMax, LLMax, LLMax,
+                       LLMax, LLMax, LLMax, INMax, INMax, INMax, INMax,
+                       INMax, INMax, INMax,
+                       LLMax, INMax, LLMax, INMax, LLMax, INMax,
+                       INMax, INMax, INMax, INMax);
+      }
+
+   return snprintf(buff, blen, statfmt,
+       (int)      s.getInt("xrootd_requests_total"),
+       (int)      s.getInt("xrootd_ops_total{op=\"open\"}"),
+       (int)      s.getInt("xrootd_ops_total{op=\"refresh\"}"),
+       (long long)s.getInt("xrootd_ops_total{op=\"read\"}"),
+       (long long)s.getInt("xrootd_ops_total{op=\"preread\"}"),
+       (long long)s.getInt("xrootd_ops_total{op=\"readv\"}"),
+       (long long)s.getInt("xrootd_readv_segments_total"),
+       (long long)s.getInt("xrootd_ops_total{op=\"writev\"}"),
+       (long long)s.getInt("xrootd_writev_segments_total"),
+       (long long)s.getInt("xrootd_ops_total{op=\"write\"}"),
+       (int)      s.getInt("xrootd_ops_total{op=\"sync\"}"),
+       (int)      s.getInt("xrootd_ops_total{op=\"getfile\"}"),
+       (int)      s.getInt("xrootd_ops_total{op=\"putfile\"}"),
+       (int)      s.getInt("xrootd_ops_total{op=\"misc\"}"),
+       (int)      s.getInt("xrootd_signatures_total{result=\"ok\"}"),
+       (int)      s.getInt("xrootd_signatures_total{result=\"bad\"}"),
+       (int)      s.getInt("xrootd_signatures_total{result=\"ignored\"}"),
+       (long long)s.getInt("xrootd_async_ops_total"),
+       (int)      s.getInt("xrootd_async_max"),
+       (long long)s.getInt("xrootd_async_rejected_total"),
+       (int)      s.getInt("xrootd_errors_total"),
+       (long long)s.getInt("xrootd_redirects_total"),
+       (int)      s.getInt("xrootd_stalls_total"),
+       (int)      s.getInt("xrootd_logins_total{result=\"attempt\"}"),
+       (int)      s.getInt("xrootd_logins_total{result=\"authfail\"}"),
+       (int)      s.getInt("xrootd_logins_total{result=\"auth\"}"),
+       (int)      s.getInt("xrootd_logins_total{result=\"noauth\"}"));
+}

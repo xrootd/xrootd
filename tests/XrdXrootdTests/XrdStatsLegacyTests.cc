@@ -105,3 +105,59 @@ TEST(XrdStatsLegacy, BuffBlockSplicesXlStats)
       "<buffs>12</buffs><adj>3</adj>"
       "<stats id=\"buffxl\"><x>1</x></stats></stats>");
 }
+
+TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
+{
+  // Each field gets a distinct value (its position in the format) so a wrong
+  // metric-name mapping cannot be masked.
+  Registry reg("xrootd");
+  auto& g = reg.group("");                 // empty subsystem -> flat names
+  g.counter("requests_total").noLabels() += 1;
+
+  auto& ops = g.counter("ops_total", {"op"});
+  ops.withLabelValues({"open"})    += 2;
+  ops.withLabelValues({"refresh"}) += 3;
+  ops.withLabelValues({"read"})    += 4;
+  ops.withLabelValues({"preread"}) += 5;
+  ops.withLabelValues({"readv"})   += 6;
+  ops.withLabelValues({"writev"})  += 8;
+  ops.withLabelValues({"write"})   += 10;
+  ops.withLabelValues({"sync"})    += 11;
+  ops.withLabelValues({"getfile"}) += 12;
+  ops.withLabelValues({"putfile"}) += 13;
+  ops.withLabelValues({"misc"})    += 14;
+  g.counter("readv_segments_total").noLabels()  += 7;
+  g.counter("writev_segments_total").noLabels() += 9;
+
+  auto& sig = g.counter("signatures_total", {"result"});
+  sig.withLabelValues({"ok"})      += 15;
+  sig.withLabelValues({"bad"})     += 16;
+  sig.withLabelValues({"ignored"}) += 17;
+
+  g.counter("async_ops_total").noLabels()      += 18;
+  g.intGauge("async_max").noLabels()           = 19;
+  g.counter("async_rejected_total").noLabels() += 20;
+  g.counter("errors_total").noLabels()         += 21;
+  g.counter("redirects_total").noLabels()      += 22;
+  g.counter("stalls_total").noLabels()         += 23;
+
+  auto& lgn = g.counter("logins_total", {"result"});
+  lgn.withLabelValues({"attempt"})  += 24;
+  lgn.withLabelValues({"authfail"}) += 25;
+  lgn.withLabelValues({"auth"})     += 26;
+  lgn.withLabelValues({"noauth"})   += 27;
+
+  MetricSnapshot snap = snapshotOf(reg);
+  char buff[1024];
+  std::string xml(buff, XrdStatsLegacy::Xrootd(snap, buff, sizeof(buff)));
+  EXPECT_EQ(xml,
+      "<stats id=\"xrootd\"><num>1</num>"
+      "<ops><open>2</open><rf>3</rf><rd>4</rd><pr>5</pr>"
+      "<rv>6</rv><rs>7</rs>"
+      "<wv>8</wv><ws>9</ws><wr>10</wr>"
+      "<sync>11</sync><getf>12</getf><putf>13</putf><misc>14</misc></ops>"
+      "<sig><ok>15</ok><bad>16</bad><ign>17</ign></sig>"
+      "<aio><num>18</num><max>19</max><rej>20</rej></aio>"
+      "<err>21</err><rdr>22</rdr><dly>23</dly>"
+      "<lgn><num>24</num><af>25</af><au>26</au><ua>27</ua></lgn></stats>");
+}
