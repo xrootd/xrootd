@@ -563,6 +563,13 @@ consumer now uses the new system —
 - **`/metrics` endpoint** (`XrdHttpPrometheus`) serves only the new registry.
 - **`xrdmoncollect`** aggregate sink uses the new registry (its own empty-prefix
   `Registry`).
+- **HTTP plugin counters** — `XrdHttpMon` (the only `XrdMonRoll` user) now reports
+  per-method request and per-status response counts natively as
+  `xrootd_http_requests_total{method=…}` / `xrootd_http_responses_total{code=…}`
+  in `Default().group("http")`, registered unconditionally and incremented via
+  cached series handles. The phase-1 `XrdMonitor::FormProm` text bridge and its
+  `XrdStats` text-collector registration were removed with it. `XrdMonRoll` itself
+  is left untouched (no remaining users; a candidate for later removal).
 
 The legacy `XrdStats`/`XrdMonitor` XML/JSON summary output is untouched.
 
