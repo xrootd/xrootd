@@ -88,6 +88,11 @@ void        Set(int maxmem=-1, int minw=-1);
 
 int         Stats(char *buff, int blen, int do_sync=0);
 
+//! Render only the nested buffer-XL "<stats id=...>" fragment (the part the
+//! legacy buff block splices in). Exposed so the registry-driven legacy
+//! renderer can reproduce the buff block, since the XL pool is not a metric.
+int         xlStats(char *buff, int blen, int do_sync=0);
+
 void        RegisterMetrics();
 
             XrdBuffManager(int minrst=20*60);

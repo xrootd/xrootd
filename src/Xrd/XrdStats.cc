@@ -37,12 +37,15 @@
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdLinkCtl.hh"
 #include "Xrd/XrdMonitor.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
+#include "Xrd/XrdStatsLegacy.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdNet/XrdNetMsg.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -318,30 +321,42 @@ const char *XrdStats::GenStats(int &rsz, int opts) // statsMutex must be locked!
    sz = sprintf(buff, Head, static_cast<long>(time(0)));
    bl -= sz; bp += sz;
 
+// Snapshot the registry once and render the per-subsystem blocks from it: the
+// XrdMetrics registry is now the source of truth, and XrdStatsLegacy reproduces
+// the historical XML layout. do_sync still flushes the deferred per-link counts
+// before the snapshot so a synced report stays accurate.
+//
+   if (do_sync && (opts & XRD_STATS_LINK)) XrdLinkCtl::SyncAll();
+
+   XrdMetrics::MetricSnapshot snap;
+   XrdMetrics::Default().serialize(snap);
+
 // Extract out the statistics, as needed
 //
    if (opts & XRD_STATS_INFO)
-      {sz = InfoStats(bp, bl, do_sync);
+      {sz = XrdStatsLegacy::Info(myHost, myPort, myName, bp, bl);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_BUFF)
-      {sz = BuffPool->Stats(bp, bl, do_sync);
+      {char xlbuf[1024];
+       BuffPool->xlStats(xlbuf, sizeof(xlbuf), do_sync);
+       sz = XrdStatsLegacy::Buff(snap, xlbuf, bp, bl);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_LINK)
-      {sz = XrdLink::Stats(bp, bl, do_sync);
+      {sz = XrdStatsLegacy::Link(snap, bp, bl);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_POLL)
-      {sz = XrdPoll::Stats(bp, bl, do_sync);
+      {sz = XrdStatsLegacy::Poll(snap, bp, bl);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_PROC)
-      {sz = ProcStats(bp, bl, do_sync);
+      {sz = XrdStatsLegacy::Proc(bp, bl);
        bp += sz; bl -= sz;
       }
 
@@ -351,7 +366,7 @@ const char *XrdStats::GenStats(int &rsz, int opts) // statsMutex must be locked!
       }
 
    if (opts & XRD_STATS_SCHD)
-      {sz = XrdSched->Stats(bp, bl, do_sync);
+      {sz = XrdStatsLegacy::Sched(snap, bp, bl);
        bp += sz; bl -= sz;
       }
 
@@ -429,70 +444,7 @@ void XrdStats::GenStats(std::vector<struct iovec>& ioVec, int opts)
         }
 }
 
-/******************************************************************************/
-/*                             I n f o S t a t s                              */
-/******************************************************************************/
-
-int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
-{
-   static const char statfmt[] = "<stats id=\"info\"><host>%s</host>"
-                     "<port>%d</port><name>%s</name></stats>";
-
-// Check if actual length wanted
-//
-   if (!bfr) return sizeof(statfmt)+24 + strlen(myHost);
-
-// Format the statistics
-//
-   return snprintf(bfr, bln, statfmt, myHost, myPort, myName);
-}
-
-/******************************************************************************/
-/*                             P r o c S t a t s                              */
-/******************************************************************************/
-
-int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
-{
-   static const char statfmt[] = "<stats id=\"proc\">"
-          "<usr><s>%lld</s><u>%lld</u></usr>"
-          "<sys><s>%lld</s><u>%lld</u></sys>"
-          "</stats>";
-   struct rusage r_usage;
-   long long utime_sec, utime_usec, stime_sec, stime_usec;
-// long long ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock;
-// long long ru_msgsnd, ru_msgrcv, ru_nsignals;
-
-// Check if actual length wanted
-//
-   if (!bfr) return sizeof(statfmt)+16*13;
-
-// Get the statistics
-//
-   if (getrusage(RUSAGE_SELF, &r_usage)) return 0;
-
-// Convert fields to correspond to the format we are using. Commented out fields
-// are either not uniformaly reported or are incorrectly reported making them
-// useless across multiple platforms.
-//
-//
-   utime_sec   = static_cast<long long>(r_usage.ru_utime.tv_sec);
-   utime_usec  = static_cast<long long>(r_usage.ru_utime.tv_usec);
-   stime_sec   = static_cast<long long>(r_usage.ru_stime.tv_sec);
-   stime_usec  = static_cast<long long>(r_usage.ru_stime.tv_usec);
-// ru_maxrss   = static_cast<long long>(r_usage.ru_maxrss);
-// ru_majflt   = static_cast<long long>(r_usage.ru_majflt);
-// ru_nswap    = static_cast<long long>(r_usage.ru_nswap);
-// ru_inblock  = static_cast<long long>(r_usage.ru_inblock);
-// ru_oublock  = static_cast<long long>(r_usage.ru_oublock);
-// ru_msgsnd   = static_cast<long long>(r_usage.ru_msgsnd);
-// ru_msgrcv   = static_cast<long long>(r_usage.ru_msgrcv);
-// ru_nsignals = static_cast<long long>(r_usage.ru_nsignals);
-
-// Format the statistics
-//
-   return snprintf(bfr, bln, statfmt,
-          utime_sec, utime_usec, stime_sec, stime_usec
-//        ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock,
-//        ru_msgsnd, ru_msgrcv, ru_nsignals
-         );
-}
+// The <stats id="info"> and <stats id="proc"> blocks are now produced from the
+// registry snapshot by XrdStatsLegacy (info from server identity, proc from a
+// single getrusage() read), so the former InfoStats()/ProcStats() members are
+// gone; see XrdStatsLegacy::Info() and XrdStatsLegacy::Proc().

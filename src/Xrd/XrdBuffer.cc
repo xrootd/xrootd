@@ -342,6 +342,18 @@ int XrdBuffManager::Stats(char *buff, int blen, int do_sync)
 }
 
 /******************************************************************************/
+/*                              x l S t a t s                                 */
+/******************************************************************************/
+
+int XrdBuffManager::xlStats(char *buff, int blen, int do_sync)
+{
+   if (do_sync) Reshaper.Lock();
+   int nlen = xlBuff.Stats(buff, blen, do_sync);
+   if (do_sync) Reshaper.UnLock();
+   return nlen;
+}
+
+/******************************************************************************/
 /*                       R e g i s t e r M e t r i c s                        */
 /******************************************************************************/
 

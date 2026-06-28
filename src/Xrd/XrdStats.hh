@@ -95,8 +95,6 @@ private:
 
 const char *GenStats(int &rsz, int opts);
 void        GenStats(std::vector<struct iovec>& ioVec, int opts);
-int         InfoStats(char *buff, int blen, int dosync=0);
-int         ProcStats(char *buff, int blen, int dosync=0);
 void        RegisterMetrics();
 
 static long     tBoot;       // Time at boot time
