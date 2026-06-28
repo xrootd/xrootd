@@ -6,6 +6,7 @@ add_library(${XrdPss} MODULE
   XrdPssAioCB.cc    XrdPssAioCB.hh
   XrdPssCks.cc      XrdPssCks.hh
   XrdPssConfig.cc
+  XrdPssMetrics.cc  XrdPssMetrics.hh
                     XrdPssTrace.hh
   XrdPssUrlInfo.cc  XrdPssUrlInfo.hh
   XrdPssUtils.cc    XrdPssUtils.hh
