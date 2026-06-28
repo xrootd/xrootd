@@ -27,47 +27,72 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdint>
 #include <cstdio>
 
+#include "Xrd/XrdStatsLegacy.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdOfs/XrdOfsStats.hh"
+
+/******************************************************************************/
+/*                       R e g i s t e r M e t r i c s                        */
+/******************************************************************************/
+
+void XrdOfsStats::RegisterMetrics()
+{
+   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("ofs");
+
+// Current open files (by mode) and active file handles go up and down, so they
+// are gauges.
+//
+   g.observeIntGauge("files_open", {"mode"}, {}, "currently open files")
+    .add({"read"},  [this]{return (std::int64_t)Data.numOpenR;})
+    .add({"write"}, [this]{return (std::int64_t)Data.numOpenW;})
+    .add({"posc"},  [this]{return (std::int64_t)Data.numOpenP;});
+   g.observeIntGauge("handles", {}, {}, "active file handles")
+    .add({}, [this]{return (std::int64_t)Data.numHandles;});
+
+// The remaining tallies only ever increase, so they are counters.
+//
+#define CTR(name, help, fld) \
+   g.observeCounter(name, {}, {}, help) \
+    .add({}, [this]{return (std::uint64_t)(unsigned)Data.fld;})
+   CTR("unpersisted_total", "posc files not persisted", numUnpsist);
+   CTR("redirects_total",   "redirects issued",         numRedirect);
+   CTR("started_total",     "background ops started",   numStarted);
+   CTR("replies_total",     "direct data replies",      numReplies);
+   CTR("errors_total",      "errors returned",          numErrors);
+   CTR("delays_total",      "delays returned",          numDelays);
+#undef CTR
+
+   g.observeCounter("events_total", {"result"}, {}, "scheduled event outcomes")
+    .add({"ok"},    [this]{return (std::uint64_t)(unsigned)Data.numSeventOK;})
+    .add({"error"}, [this]{return (std::uint64_t)(unsigned)Data.numSeventER;});
+
+   g.observeCounter("tpc_total", {"result"}, {}, "third-party-copy outcomes")
+    .add({"granted"}, [this]{return (std::uint64_t)(unsigned)Data.numTPCgrant;})
+    .add({"denied"},  [this]{return (std::uint64_t)(unsigned)Data.numTPCdeny;})
+    .add({"error"},   [this]{return (std::uint64_t)(unsigned)Data.numTPCerrs;})
+    .add({"expired"}, [this]{return (std::uint64_t)(unsigned)Data.numTPCexpr;});
+}
 
 /******************************************************************************/
 /*                                R e p o r t                                 */
 /******************************************************************************/
-  
+
+// The <stats id="ofs"> block is now produced from the XrdMetrics registry by
+// XrdStatsLegacy; the metrics registered above observe this instance's Data.
+//
 int XrdOfsStats::Report(char *buff, int blen)
 {
-    static const char stats1[] = "<stats id=\"ofs\"><role>%s</role>"
-           "<opr>%d</opr><opw>%d</opw><opp>%d</opp><ups>%d</ups><han>%d</han>"
-           "<rdr>%d</rdr><bxq>%d</bxq><rep>%d</rep><err>%d</err><dly>%d</dly>"
-           "<sok>%d</sok><ser>%d</ser>"
-           "<tpc><grnt>%d</grnt><deny>%d</deny><err>%d</err><exp>%d</exp></tpc>"
-           "</stats>";
-    static const int  statsz = sizeof(stats1) + (12*10) + 64;
+   XrdMetrics::MetricSnapshot snap;
+   if (buff) XrdMetrics::Default().serialize(snap);
 
-    StatsData myData;
+   const int statsz = XrdStatsLegacy::Ofs(snap, myRole, nullptr, 0);
 
-// If only the size is wanted, return the size
-//
-   if (!buff) return statsz;
+   if (!buff)            return statsz;
+   if (blen  < statsz)   return 0;
 
-// Make sure buffer is large enough
-//
-   if (blen < statsz) return 0;
-
-// Get a copy of the statistics
-//
-   sdMutex.Lock();
-   myData = Data;
-   sdMutex.UnLock();
-
-// Format the buffer
-//
-   return sprintf(buff, stats1, myRole, myData.numOpenR,   myData.numOpenW,
-                    myData.numOpenP,    myData.numUnpsist, myData.numHandles,
-                    myData.numRedirect, myData.numStarted, myData.numReplies,
-                    myData.numErrors,   myData.numDelays,
-                    myData.numSeventOK, myData.numSeventER,
-                    myData.numTPCgrant, myData.numTPCdeny,
-                    myData.numTPCerrs,  myData.numTPCexpr);
+   return XrdStatsLegacy::Ofs(snap, myRole, buff, blen);
 }

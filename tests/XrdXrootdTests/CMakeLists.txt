@@ -19,7 +19,8 @@ gtest_discover_tests(xrdxrootd-redir-helper-tests
 add_executable(xrdxrootd-stats-tests
     XrdXrootdStatsTests.cc
     XrdSchedulerStatsTests.cc
-    XrdStatsLegacyTests.cc)
+    XrdStatsLegacyTests.cc
+    XrdOfsStatsTests.cc)
 
 target_link_libraries(xrdxrootd-stats-tests
     XrdServer

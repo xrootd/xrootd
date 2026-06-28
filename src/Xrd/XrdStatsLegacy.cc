@@ -236,3 +236,41 @@ int XrdStatsLegacy::Xrootd(const XrdMetrics::MetricSnapshot& s, char* buff, int 
        (int)      s.getInt("xrootd_logins_total{result=\"auth\"}"),
        (int)      s.getInt("xrootd_logins_total{result=\"noauth\"}"));
 }
+
+/******************************************************************************/
+/*                                   O f s                                    */
+/******************************************************************************/
+
+// Mirrors XrdOfsStats::Report(). The current open-file counts and active handle
+// count are gauges; the rest are counters. role is the server role string.
+//
+int XrdStatsLegacy::Ofs(const XrdMetrics::MetricSnapshot& s, const char* role,
+                        char* buff, int blen)
+{
+   static const char stats1[] = "<stats id=\"ofs\"><role>%s</role>"
+          "<opr>%d</opr><opw>%d</opw><opp>%d</opp><ups>%d</ups><han>%d</han>"
+          "<rdr>%d</rdr><bxq>%d</bxq><rep>%d</rep><err>%d</err><dly>%d</dly>"
+          "<sok>%d</sok><ser>%d</ser>"
+          "<tpc><grnt>%d</grnt><deny>%d</deny><err>%d</err><exp>%d</exp></tpc>"
+          "</stats>";
+
+   if (!buff) return sizeof(stats1) + (12*10) + 64;
+
+   return snprintf(buff, blen, stats1, role ? role : "?",
+       (int)s.getInt("xrootd_ofs_files_open{mode=\"read\"}"),
+       (int)s.getInt("xrootd_ofs_files_open{mode=\"write\"}"),
+       (int)s.getInt("xrootd_ofs_files_open{mode=\"posc\"}"),
+       (int)s.getInt("xrootd_ofs_unpersisted_total"),
+       (int)s.getInt("xrootd_ofs_handles"),
+       (int)s.getInt("xrootd_ofs_redirects_total"),
+       (int)s.getInt("xrootd_ofs_started_total"),
+       (int)s.getInt("xrootd_ofs_replies_total"),
+       (int)s.getInt("xrootd_ofs_errors_total"),
+       (int)s.getInt("xrootd_ofs_delays_total"),
+       (int)s.getInt("xrootd_ofs_events_total{result=\"ok\"}"),
+       (int)s.getInt("xrootd_ofs_events_total{result=\"error\"}"),
+       (int)s.getInt("xrootd_ofs_tpc_total{result=\"granted\"}"),
+       (int)s.getInt("xrootd_ofs_tpc_total{result=\"denied\"}"),
+       (int)s.getInt("xrootd_ofs_tpc_total{result=\"error\"}"),
+       (int)s.getInt("xrootd_ofs_tpc_total{result=\"expired\"}"));
+}

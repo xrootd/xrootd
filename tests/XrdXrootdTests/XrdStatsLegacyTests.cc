@@ -161,3 +161,39 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
       "<err>21</err><rdr>22</rdr><dly>23</dly>"
       "<lgn><num>24</num><af>25</af><au>26</au><ua>27</ua></lgn></stats>");
 }
+
+TEST(XrdStatsLegacy, OfsBlockFromRegistry)
+{
+  Registry reg("xrootd");
+  auto& g = reg.group("ofs");
+  auto& open = g.intGauge("files_open", {"mode"});
+  open.withLabelValues({"read"})  = 1;
+  open.withLabelValues({"write"}) = 2;
+  open.withLabelValues({"posc"})  = 3;
+  g.counter("unpersisted_total").noLabels() += 4;
+  g.intGauge("handles").noLabels()          = 5;
+  g.counter("redirects_total").noLabels()   += 6;
+  g.counter("started_total").noLabels()     += 7;
+  g.counter("replies_total").noLabels()     += 8;
+  g.counter("errors_total").noLabels()      += 9;
+  g.counter("delays_total").noLabels()      += 10;
+  auto& ev = g.counter("events_total", {"result"});
+  ev.withLabelValues({"ok"})    += 11;
+  ev.withLabelValues({"error"}) += 12;
+  auto& tpc = g.counter("tpc_total", {"result"});
+  tpc.withLabelValues({"granted"}) += 13;
+  tpc.withLabelValues({"denied"})  += 14;
+  tpc.withLabelValues({"error"})   += 15;
+  tpc.withLabelValues({"expired"}) += 16;
+
+  MetricSnapshot snap = snapshotOf(reg);
+  char buff[512];
+  std::string xml(buff, XrdStatsLegacy::Ofs(snap, "server", buff, sizeof(buff)));
+  EXPECT_EQ(xml,
+      "<stats id=\"ofs\"><role>server</role>"
+      "<opr>1</opr><opw>2</opw><opp>3</opp><ups>4</ups><han>5</han>"
+      "<rdr>6</rdr><bxq>7</bxq><rep>8</rep><err>9</err><dly>10</dly>"
+      "<sok>11</sok><ser>12</ser>"
+      "<tpc><grnt>13</grnt><deny>14</deny><err>15</err><exp>16</exp></tpc>"
+      "</stats>");
+}

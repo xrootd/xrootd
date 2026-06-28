@@ -65,9 +65,14 @@ inline void Dec(int &Cntr) {sdMutex.Lock(); Cntr--; sdMutex.UnLock();}
 
        int  Report(char *Buff, int Blen);
 
+//! Register the OFS metrics in the process-wide XrdMetrics registry; the
+//! readers observe this instance's Data fields. Called from the constructor.
+       void RegisterMetrics();
+
        void setRole(const char *theRole) {myRole = theRole;}
 
-            XrdOfsStats() : myRole("?") {memset(&Data, 0, sizeof(Data));}
+            XrdOfsStats() : myRole("?")
+                          {memset(&Data, 0, sizeof(Data)); RegisterMetrics();}
            ~XrdOfsStats() {}
 
 private:

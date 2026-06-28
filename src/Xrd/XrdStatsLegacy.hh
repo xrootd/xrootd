@@ -66,5 +66,11 @@ static int Sched(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
 //! XrdXrootdStats::Stats(); the nested <stats id="ofs"> filesystem block is
 //! appended separately by the caller.
 static int Xrootd(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
+
+//! <stats id="ofs"> — the OFS filesystem block. role is the server role string
+//! (not a metric); a null buffer returns the maximum block size, matching
+//! XrdOfsStats::Report().
+static int Ofs(const XrdMetrics::MetricSnapshot& snap, const char* role,
+               char* buff, int blen);
 };
 #endif
