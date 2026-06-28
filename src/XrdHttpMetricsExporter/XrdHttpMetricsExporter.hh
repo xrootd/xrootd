@@ -1,8 +1,8 @@
-#ifndef __XRDHTTPPROMETHEUS_HH__
-#define __XRDHTTPPROMETHEUS_HH__
+#ifndef __XRDHTTPMETRICSEXPORTER_HH__
+#define __XRDHTTPMETRICSEXPORTER_HH__
 /******************************************************************************/
 /*                                                                            */
-/*               X r d H t t p P r o m e t h e u s . h h                      */
+/*          X r d H t t p M e t r i c s E x p o r t e r . h h                  */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -32,12 +32,16 @@
 class XrdSysError;
 
 //-----------------------------------------------------------------------------
-//! XrdHttpPrometheus: an HTTP external handler that exposes the process-wide
-//! XrdMetrics registry in the Prometheus text exposition format. It answers
-//! GET requests on a configurable path (default /metrics).
+//! XrdHttpMetricsExporter: an HTTP external handler that exposes the
+//! process-wide XrdMetrics registry. It answers GET requests on a configurable
+//! path (default /metrics) with the Prometheus text exposition format, and can
+//! additionally push the same metrics to remote collectors in the background:
+//!   - a Prometheus Pushgateway (PUT, text exposition format), and/or
+//!   - an OTLP/HTTP receiver (POST, OpenTelemetry OTLP/JSON).
+//! Either, both, or neither pusher may be active depending on configuration.
 //-----------------------------------------------------------------------------
 
-class XrdHttpPrometheus : public XrdHttpExtHandler
+class XrdHttpMetricsExporter : public XrdHttpExtHandler
 {
 public:
 
@@ -47,24 +51,35 @@ int  ProcessReq(XrdHttpExtReq &req) override;
 
 int  Init(const char *cfgfile) override {return 0;}
 
-     XrdHttpPrometheus(XrdSysError *eDest, const char *confg, const char *parms);
-    ~XrdHttpPrometheus();
+     XrdHttpMetricsExporter(XrdSysError *eDest, const char *confg,
+                            const char *parms);
+    ~XrdHttpMetricsExporter();
 
 private:
 
 void Configure(const char *confg);
-void PushLoop();
+void PushLoop();      // Prometheus Pushgateway (text exposition format)
+void OtelLoop();      // OTLP/HTTP receiver (OpenTelemetry OTLP/JSON)
 
 XrdSysError *m_log;
 std::string  m_path;       // request path served, e.g. "/metrics"
+std::string  m_instance;   // shared instance label (default: hostname)
 
 // Optional Prometheus Pushgateway push (active when m_pushURL is set).
 //
 std::string  m_pushURL;    // base gateway URL, e.g. http://gw:9091
 std::string  m_pushJob   = "xrootd";
-std::string  m_pushInst;   // instance label (default: hostname)
 int          m_pushEvery = 30;     // seconds between pushes
-std::thread             m_pushThread;
+std::thread  m_pushThread;
+
+// Optional OTLP/HTTP push (active when m_otelURL is set).
+//
+std::string  m_otelURL;    // full OTLP/HTTP metrics URL, e.g. .../v1/metrics
+int          m_otelEvery = 30;     // seconds between pushes
+std::thread  m_otelThread;
+
+// Shared shutdown signalling for the background pushers.
+//
 std::mutex              m_pushMtx;
 std::condition_variable m_pushCV;
 std::atomic<bool>       m_stop{false};

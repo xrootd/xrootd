@@ -83,13 +83,19 @@ A new `src/XrdMetrics/` component compiled into `XrdUtils`:
 
 ### Phase 2 — `/metrics` endpoint
 
-A new `libXrdHttpPrometheus.so` plugin implementing `XrdHttpExtHandler`:
-matches `GET /metrics` and returns `registry.Scrape()` with
+A new `libXrdHttpMetricsExporter.so` plugin implementing `XrdHttpExtHandler`:
+matches `GET /metrics` and returns the Prometheus text exposition format with
 `Content-Type: text/plain; version=0.0.4`. Loaded via the existing directive:
 
 ```
-http.exthandler prometheus libXrdHttpPrometheus.so [configfile]
+http.exthandler metrics libXrdHttpMetricsExporter.so [/path]
 ```
+
+Beyond the pull endpoint, the plugin can also **push** the same registry to
+remote collectors in the background (libcurl): a Prometheus Pushgateway (PUT,
+text format) and/or an OTLP/HTTP receiver (POST, OpenTelemetry OTLP/JSON, via
+`OtelJsonSerializer`). See `src/XrdHttpMetricsExporter/README.md` for the
+`metrics.*` directives.
 
 ### Phase 3 — Bridge existing plugin counters
 
@@ -486,7 +492,7 @@ compiled into `XrdUtils`.
 
 It is **built alongside** the prototype, not in place of it: the flat
 `XrdMetricsRegistry` is still consumed by the server wiring (`XrdXrootdStats`,
-`Xrd/*`, `XrdHttpPrometheus`) and by `xrdmoncollect`, so it stays (deprecated)
+`Xrd/*`, `XrdHttpMetricsExporter`) and by `xrdmoncollect`, so it stays (deprecated)
 until those are migrated onto the new system in a later step. The legacy
 `XrdStats`/`XrdMonitor` XML/JSON path is untouched.
 
@@ -565,7 +571,8 @@ consumer now uses the new system —
   buffer-pool, and the xrootd protocol op/login/signature/byte counters
   (`XrdStats`, `XrdLink`, `XrdPoll`, `XrdBuffer`, `XrdXrootdStats`); the
   scheduler is fully migrated (counters reversed, live gauges observed).
-- **`/metrics` endpoint** (`XrdHttpPrometheus`) serves only the new registry.
+- **`/metrics` endpoint** (`XrdHttpMetricsExporter`) serves only the new registry,
+  and can additionally push it (Pushgateway text / OTLP JSON).
 - **`xrdmoncollect`** aggregate sink uses the new registry (its own empty-prefix
   `Registry`).
 - **HTTP plugin counters** — `XrdHttpMon` (the only `XrdMonRoll` user) now reports
@@ -668,3 +675,4 @@ Remaining:
    registry (see the OSS deferral above), to avoid a per-path/per-group
    cardinality explosion.
 3. **Client-side metrics** for batch jobs.
+

@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*               X r d H t t p P r o m e t h e u s . c c                      */
+/*          X r d H t t p M e t r i c s E x p o r t e r . c c                  */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -23,22 +23,26 @@
 #include <cstring>
 #include <unistd.h>
 
-#ifdef XRDPROM_HAVE_CURL
+#ifdef XRDMETRICS_HAVE_CURL
 #include <curl/curl.h>
 #endif
 
-#include "XrdHttpPrometheus/XrdHttpPrometheus.hh"
+#include "XrdHttpMetricsExporter/XrdHttpMetricsExporter.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdOuc/XrdOucGatherConf.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdVersion.hh"
 
-// Content type for the Prometheus text exposition format (version 0.0.4).
-//
 namespace
 {
-const char *ctype = "Content-Type: text/plain; version=0.0.4; charset=utf-8";
+// Content type for the Prometheus text exposition format (version 0.0.4).
+//
+const char *promType = "Content-Type: text/plain; version=0.0.4; charset=utf-8";
+
+// Content type for the OpenTelemetry OTLP/JSON encoding.
+//
+const char *otelType = "Content-Type: application/json";
 
 size_t discardCB(char*, size_t sz, size_t nm, void*) {return sz * nm;}
 }
@@ -47,41 +51,55 @@ size_t discardCB(char*, size_t sz, size_t nm, void*) {return sz * nm;}
 /*                         C o n s t r u c t o r                              */
 /******************************************************************************/
 
-XrdHttpPrometheus::XrdHttpPrometheus(XrdSysError *eDest, const char *confg,
-                                     const char *parms)
-                 : m_log(eDest), m_path("/metrics")
+XrdHttpMetricsExporter::XrdHttpMetricsExporter(XrdSysError *eDest,
+                                               const char *confg,
+                                               const char *parms)
+                      : m_log(eDest), m_path("/metrics")
 {
 // The optional plugin parameter overrides the served path. It must start with
 // a slash to be a valid request path; otherwise the default is kept.
 //
    if (parms && *parms == '/') m_path = parms;
 
-// Read prometheus.* directives from the configuration file.
+// Read metrics.* directives from the configuration file.
 //
    Configure(confg);
+
+// Resolve the shared instance name (configured value or hostname). It labels
+// both the Pushgateway series and the OTLP resource.
+//
+   if (m_instance.empty())
+      {char host[256]; host[0] = 0;
+       gethostname(host, sizeof(host)-1);
+       m_instance = host;
+      }
 
 // Register a liveness gauge so the endpoint always returns at least one series,
 // even before any other subsystem has registered metrics.
 //
    XrdMetrics::Default().group("metrics").intGauge("endpoint_up", {}, {},
-            "1 if the Prometheus metrics endpoint is configured").noLabels() = 1;
+            "1 if the metrics endpoint is configured").noLabels() = 1;
 
-   if (m_log) m_log->Say("Config Prometheus metrics endpoint at ", m_path.c_str());
+   if (m_log) m_log->Say("Config metrics endpoint at ", m_path.c_str());
 
-// Start the Pushgateway pusher if a destination was configured.
+// Start the background pushers for any configured destinations.
 //
-   if (!m_pushURL.empty())
-      {if (m_pushInst.empty())
-          {char host[256]; host[0] = 0;
-           gethostname(host, sizeof(host)-1);
-           m_pushInst = host;
+   if (!m_pushURL.empty() || !m_otelURL.empty())
+      {
+#ifdef XRDMETRICS_HAVE_CURL
+       if (!m_pushURL.empty())
+          {m_pushThread = std::thread(&XrdHttpMetricsExporter::PushLoop, this);
+           if (m_log) m_log->Say("Config metrics push (Pushgateway) to ",
+                                 m_pushURL.c_str());
           }
-#ifdef XRDPROM_HAVE_CURL
-       m_pushThread = std::thread(&XrdHttpPrometheus::PushLoop, this);
-       if (m_log) m_log->Say("Config Prometheus push to ", m_pushURL.c_str());
+       if (!m_otelURL.empty())
+          {m_otelThread = std::thread(&XrdHttpMetricsExporter::OtelLoop, this);
+           if (m_log) m_log->Say("Config metrics push (OTLP) to ",
+                                 m_otelURL.c_str());
+          }
 #else
-       if (m_log) m_log->Say("Config warning: Prometheus push requires libcurl; "
-                             "ignoring prometheus.pushurl");
+       if (m_log) m_log->Say("Config warning: metrics push requires libcurl; "
+                             "ignoring metrics.pushurl/metrics.otelurl");
 #endif
       }
 }
@@ -90,36 +108,40 @@ XrdHttpPrometheus::XrdHttpPrometheus(XrdSysError *eDest, const char *confg,
 /*                          D e s t r u c t o r                               */
 /******************************************************************************/
 
-XrdHttpPrometheus::~XrdHttpPrometheus()
+XrdHttpMetricsExporter::~XrdHttpMetricsExporter()
 {
    m_stop = true;
    m_pushCV.notify_all();
    if (m_pushThread.joinable()) m_pushThread.join();
+   if (m_otelThread.joinable()) m_otelThread.join();
 }
 
 /******************************************************************************/
 /*                            C o n f i g u r e                               */
 /******************************************************************************/
 
-void XrdHttpPrometheus::Configure(const char *confg)
+void XrdHttpMetricsExporter::Configure(const char *confg)
 {
    if (!confg) return;
 
-   XrdOucGatherConf conf("prometheus.path prometheus.pushurl "
-                         "prometheus.pushinterval prometheus.pushjob "
-                         "prometheus.pushinstance", m_log);
+   XrdOucGatherConf conf("metrics.path metrics.instance "
+                         "metrics.pushurl metrics.pushinterval metrics.pushjob "
+                         "metrics.otelurl metrics.otelinterval", m_log);
    if (conf.Gather(confg, XrdOucGatherConf::full_lines) < 0) return;
 
    char* key;
    while(conf.GetLine() && (key = conf.GetToken()))
         {char* val = conf.GetToken();
          if (!val || !*val) continue;
-              if (!strcmp(key, "prometheus.path"))         m_path     = val;
-         else if (!strcmp(key, "prometheus.pushurl"))      m_pushURL  = val;
-         else if (!strcmp(key, "prometheus.pushjob"))      m_pushJob  = val;
-         else if (!strcmp(key, "prometheus.pushinstance")) m_pushInst = val;
-         else if (!strcmp(key, "prometheus.pushinterval"))
+              if (!strcmp(key, "metrics.path"))     m_path     = val;
+         else if (!strcmp(key, "metrics.instance")) m_instance = val;
+         else if (!strcmp(key, "metrics.pushurl"))  m_pushURL  = val;
+         else if (!strcmp(key, "metrics.pushjob"))  m_pushJob  = val;
+         else if (!strcmp(key, "metrics.otelurl"))  m_otelURL  = val;
+         else if (!strcmp(key, "metrics.pushinterval"))
                  {int n = atoi(val); if (n > 0) m_pushEvery = n;}
+         else if (!strcmp(key, "metrics.otelinterval"))
+                 {int n = atoi(val); if (n > 0) m_otelEvery = n;}
         }
 }
 
@@ -127,20 +149,20 @@ void XrdHttpPrometheus::Configure(const char *confg)
 /*                             P u s h L o o p                                */
 /******************************************************************************/
 
-void XrdHttpPrometheus::PushLoop()
+void XrdHttpMetricsExporter::PushLoop()
 {
-#ifdef XRDPROM_HAVE_CURL
+#ifdef XRDMETRICS_HAVE_CURL
 // Build the per-instance gateway URL: <base>/metrics/job/<job>/instance/<inst>
 //
    std::string url = m_pushURL;
    if (!url.empty() && url.back() == '/') url.pop_back();
-   url += "/metrics/job/" + m_pushJob + "/instance/" + m_pushInst;
+   url += "/metrics/job/" + m_pushJob + "/instance/" + m_instance;
 
    curl_global_init(CURL_GLOBAL_DEFAULT);
    CURL* curl = curl_easy_init();
    if (!curl) return;
 
-   struct curl_slist* hdrs = curl_slist_append(nullptr, ctype);
+   struct curl_slist* hdrs = curl_slist_append(nullptr, promType);
 
    while(!m_stop)
         {std::unique_lock<std::mutex> lk(m_pushMtx);
@@ -165,7 +187,57 @@ void XrdHttpPrometheus::PushLoop()
 
          CURLcode rc = curl_easy_perform(curl);
          if (rc != CURLE_OK && m_log)
-            m_log->Say("Prometheus push failed: ", curl_easy_strerror(rc));
+            m_log->Say("Metrics push (Pushgateway) failed: ",
+                       curl_easy_strerror(rc));
+        }
+
+   curl_slist_free_all(hdrs);
+   curl_easy_cleanup(curl);
+#endif
+}
+
+/******************************************************************************/
+/*                             O t e l L o o p                                */
+/******************************************************************************/
+
+void XrdHttpMetricsExporter::OtelLoop()
+{
+#ifdef XRDMETRICS_HAVE_CURL
+// Carry the server identity into the OTLP Resource so each datapoint can be
+// attributed to this server instance.
+//
+   std::vector<XrdMetrics::ConstLabel> resource =
+      {{"service.name", "xrootd"}, {"service.instance.id", m_instance}};
+
+   curl_global_init(CURL_GLOBAL_DEFAULT);
+   CURL* curl = curl_easy_init();
+   if (!curl) return;
+
+   struct curl_slist* hdrs = curl_slist_append(nullptr, otelType);
+
+   while(!m_stop)
+        {std::unique_lock<std::mutex> lk(m_pushMtx);
+         m_pushCV.wait_for(lk, std::chrono::seconds(m_otelEvery),
+                           [this]{return m_stop.load();});
+         lk.unlock();
+         if (m_stop) break;
+
+         std::string body;
+         XrdMetrics::OtelJsonSerializer ser(body, "xrootd", resource);
+         XrdMetrics::Default().serialize(ser);
+
+         curl_easy_reset(curl);
+         curl_easy_setopt(curl, CURLOPT_URL, m_otelURL.c_str());
+         curl_easy_setopt(curl, CURLOPT_POST, 1L);
+         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)body.size());
+         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs);
+         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, discardCB);
+         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+
+         CURLcode rc = curl_easy_perform(curl);
+         if (rc != CURLE_OK && m_log)
+            m_log->Say("Metrics push (OTLP) failed: ", curl_easy_strerror(rc));
         }
 
    curl_slist_free_all(hdrs);
@@ -177,7 +249,7 @@ void XrdHttpPrometheus::PushLoop()
 /*                          M a t c h e s P a t h                             */
 /******************************************************************************/
 
-bool XrdHttpPrometheus::MatchesPath(const char *verb, const char *path)
+bool XrdHttpMetricsExporter::MatchesPath(const char *verb, const char *path)
 {
    return !strcmp(verb, "GET") && path && m_path == path;
 }
@@ -186,7 +258,7 @@ bool XrdHttpPrometheus::MatchesPath(const char *verb, const char *path)
 /*                           P r o c e s s R e q                              */
 /******************************************************************************/
 
-int XrdHttpPrometheus::ProcessReq(XrdHttpExtReq &req)
+int XrdHttpMetricsExporter::ProcessReq(XrdHttpExtReq &req)
 {
    if (req.verb != "GET")
       return req.SendSimpleResp(405, nullptr, nullptr,
@@ -206,7 +278,7 @@ int XrdHttpPrometheus::ProcessReq(XrdHttpExtReq &req)
    XrdMetrics::Default().serialize(ser);
    XrdMetrics::Default().runTextCollectors(body);
 
-   return req.SendSimpleResp(200, nullptr, ctype, body.c_str(),
+   return req.SendSimpleResp(200, nullptr, promType, body.c_str(),
                              (long long)body.size());
 }
 
@@ -216,7 +288,7 @@ int XrdHttpPrometheus::ProcessReq(XrdHttpExtReq &req)
 
 extern "C" XrdHttpExtHandler *XrdHttpGetExtHandler(XrdHttpExtHandlerArgs)
 {
-   return new XrdHttpPrometheus(eDest, confg, parms);
+   return new XrdHttpMetricsExporter(eDest, confg, parms);
 }
 
-XrdVERSIONINFO(XrdHttpGetExtHandler, XrdHttpPrometheus);
+XrdVERSIONINFO(XrdHttpGetExtHandler, XrdHttpMetricsExporter);
