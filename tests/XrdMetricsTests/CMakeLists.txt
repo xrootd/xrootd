@@ -1,6 +1,7 @@
 add_executable(xrdmetrics-unit-tests
   XrdMetricsRegistryTests.cc
-  XrdHttpMetricsExporterConfigTests.cc)
+  XrdMetricsConfigTests.cc
+  XrdMetricsAggregateTests.cc)
 
 target_link_libraries(xrdmetrics-unit-tests XrdUtils GTest::gtest GTest::gtest_main)
 

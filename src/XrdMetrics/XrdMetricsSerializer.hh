@@ -72,6 +72,16 @@ virtual ~ISerializer() = default;
 virtual void begin() {}
 virtual void end()   {}
 
+//! Per-registry boundary, called by serializeAll() around each registry's body
+//! so envelope formats can emit one resource block per registry (OTLP maps a
+//! registry to a resourceMetrics entry, using its global labels as resource
+//! attributes). The single-registry Registry::serialize() path does not call
+//! these; formats that need a resource still open one lazily. No-ops for the
+//! Prometheus text format, which concatenates by distinct metric-name prefix.
+virtual void beginResource(const std::string& /*scope*/,
+                           const std::vector<ConstLabel>& /*attrs*/) {}
+virtual void endResource() {}
+
 virtual void beginFamily(const std::string& /*fullName*/, MetricKind /*kind*/,
                          const std::string& /*help*/) {}
 virtual void endFamily() {}
@@ -147,6 +157,13 @@ public:
 //! @param out           buffer the JSON document is appended to.
 //! @param scope         instrumentation scope name (e.g. the registry prefix).
 //! @param resourceAttrs optional OTLP Resource attributes (e.g. an instance id).
+//! @param out           buffer the JSON document is appended to.
+//! @param scope         instrumentation scope name; also the scope/fallback for
+//!                      the single-registry path. serializeAll() overrides the
+//!                      scope per registry with the registry prefix.
+//! @param resourceAttrs base OTLP Resource attributes (e.g. service.name,
+//!                      service.instance.id) emitted on every resource block,
+//!                      ahead of any per-registry global labels.
 explicit OtelJsonSerializer(std::string& out, std::string scope = "xrootd",
                             std::vector<ConstLabel> resourceAttrs = {})
         : out_(out), scope_(std::move(scope)),
@@ -154,6 +171,10 @@ explicit OtelJsonSerializer(std::string& out, std::string scope = "xrootd",
 
 void begin() override;
 void end()   override;
+
+void beginResource(const std::string& scope,
+                   const std::vector<ConstLabel>& attrs) override;
+void endResource() override;
 
 void beginFamily(const std::string& name, MetricKind kind,
                  const std::string& help) override;
@@ -172,6 +193,12 @@ void summary(const std::string& fullName, const SeriesLabels& labels,
 private:
 void beginPoint(const SeriesLabels& labels);   // comma, "{", attributes array
 
+//! Open a resourceMetrics block (base resource_ attributes followed by @p extra)
+//! and close the current one; used by begin/beginResource/beginFamily/end to
+//! frame each registry. @p scope names the instrumentation scope.
+void openResource(const std::string& scope, const std::vector<ConstLabel>* extra);
+void closeResource();
+
 std::string&            out_;
 std::string             scope_;
 std::vector<ConstLabel> resource_;
@@ -179,6 +206,8 @@ std::string             ts_;                    // timeUnixNano, set in begin()
 MetricKind              kind_       = MetricKind::Counter;
 bool                    firstMetric_ = true;
 bool                    firstPoint_  = true;
+bool                    firstResource_ = true;   // no comma before first block
+bool                    resourceOpen_  = false;  // a resource block is open
 };
 
 /******************************************************************************/

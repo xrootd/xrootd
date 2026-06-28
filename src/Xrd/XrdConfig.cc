@@ -64,6 +64,8 @@
 #include "Xrd/XrdStats.hh"
 #include "Xrd/XrdTrace.hh"
 
+#include "XrdMetrics/XrdMetricsConfig.hh"
+
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetIF.hh"
@@ -686,6 +688,12 @@ int XrdConfig::Configure(int argc, char **argv)
       {XrdTrace.What = TRACE_ALL;
        XrdSysThread::setDebug(&Log);
       }
+
+// Load the process-wide metrics configuration now: the config file has been
+// parsed but Setup() has not yet created any metric family, so the constant
+// global labels (program/role/cluster) can still be frozen onto the registry.
+//
+   XrdMetrics::Config::Instance().Load(ConfigFN, &Log);
 
 // Setup the admin path now
 //

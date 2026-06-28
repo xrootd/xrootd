@@ -37,9 +37,20 @@ found).
   (OTLP/JSON) to the configured receiver URL. The server identity is carried in
   the OTLP Resource as `service.name=xrootd` and `service.instance.id=<instance>`.
 
-Configuration directives (read from the main configuration file):
+## Configuration
+
+The `metrics.*` directives are parsed once by the server core (early, so the
+global labels are frozen before any subsystem registers a metric) into a
+process-wide configuration that this plugin reads. They therefore apply whether
+metrics leave via the pull endpoint, the push paths, or not at all.
 
 ```
+# Registry-level (process-wide)
+metrics.enable       yes|no     # master switch (default yes)
+metrics.label        <k> <v>    # constant global label on every series (repeatable)
+metrics.subsystems   <list>     # per-subsystem enable/disable (see below)
+
+# Exporter
 metrics.path         <path>     # served request path (default /metrics)
 metrics.instance     <name>     # instance label / resource id (default hostname)
 metrics.pushurl      <url>      # Pushgateway base URL; enables Pushgateway push
@@ -49,10 +60,43 @@ metrics.otelurl      <url>      # OTLP/HTTP metrics URL; enables OTLP push
 metrics.otelinterval <seconds>  # OTLP push period (default 30)
 ```
 
+### Global labels
+
+`metrics.label k v` adds a constant label to every series (useful to identify a
+cluster beyond the site name, e.g. `metrics.label cluster prod-eu`). Two labels
+are auto-seeded and can be overridden: `program` (the daemon, `xrootd`/`cmsd`)
+and `role` (the configured `all.role`). These distinguish the daemons and roles
+without fragmenting metric names.
+
+### Subsystem enable/disable
+
+`metrics.subsystems` filters by registry group name **at serialize time** — the
+counters still update; disabled subsystems are simply omitted from output:
+
+```
+metrics.subsystems -sched          # disable the sched subsystem
+metrics.subsystems sched link       # allow-list: emit only these subsystems
+metrics.subsystems +sched -proxy    # + allow, - deny (deny wins)
+```
+
+A bare or `+`-prefixed name forms an allow-list (only those subsystems are
+emitted); a `-`-prefixed name is always denied. `metrics.enable no` turns
+everything off.
+
+### Multiple registries
+
+The exporter aggregates **every** registry in the process-wide directory into one
+scrape/push, not just the default `xrootd_*` registry. A plugin or a foreign
+owner (e.g. EOS) can keep its own `XrdMetrics::Registry` and call
+`XrdMetrics::registerRegistry()`; its series then appear alongside the others
+(distinct name prefix for Prometheus, one OTLP `resourceMetrics` block per
+registry carrying that registry's global labels).
+
 Example:
 
 ```
 http.exthandler metrics libXrdHttpMetricsExporter.so
+metrics.label         cluster prod-eu
 metrics.pushurl       http://pushgateway:9091
 metrics.pushinterval  30
 metrics.pushjob       xrootd
@@ -60,6 +104,6 @@ metrics.otelurl       http://otel-collector:4318/v1/metrics
 metrics.otelinterval  30
 ```
 
-For direct scraping, prefer the pull endpoint and add site/cluster labels via
-the Prometheus scrape job's `external_labels`. The push paths are meant for
+For direct scraping, prefer the pull endpoint; you can add per-scrape labels via
+the Prometheus job's `external_labels` too. The push paths are meant for
 environments where the server cannot be scraped directly.

@@ -29,9 +29,9 @@
 #endif
 
 #include "XrdHttpMetricsExporter/XrdHttpMetricsExporter.hh"
+#include "XrdMetrics/XrdMetricsConfig.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
-#include "XrdOuc/XrdOucGatherConf.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdVersion.hh"
 
@@ -44,6 +44,15 @@ const char *promType = "Content-Type: text/plain; version=0.0.4; charset=utf-8";
 // Content type for the OpenTelemetry OTLP/JSON encoding.
 //
 const char *otelType = "Content-Type: application/json";
+
+// The serialize-time subsystem filter: a group is emitted only when the shared
+// configuration enables it (this also honours the master switch).
+//
+XrdMetrics::Registry::GroupFilter SubsystemFilter()
+{
+   return [](const std::string &group)
+          {return XrdMetrics::Config::Instance().subsystemEnabled(group);};
+}
 }
 
 /******************************************************************************/
@@ -55,22 +64,27 @@ XrdHttpMetricsExporter::XrdHttpMetricsExporter(XrdSysError *eDest,
                                                const char *parms)
                       : m_log(eDest)
 {
-// The optional plugin parameter overrides the served path. It must start with
-// a slash to be a valid request path; otherwise the default is kept.
+// Ensure the shared configuration is loaded. The server core loads it early
+// (before any family is created); this is an idempotent fallback for when the
+// plugin is used outside that path, and a no-op once the core has loaded it.
 //
-   if (parms && *parms == '/') m_cfg.path = parms;
+   XrdMetrics::Config &cfg = XrdMetrics::Config::Instance();
+   cfg.Load(confg, eDest);
 
-// Read metrics.* directives from the configuration file.
+// The served path defaults to the configured value; the optional plugin
+// parameter overrides it but must start with a slash to be a valid request path.
 //
-   Configure(confg);
+   m_path = cfg.path;
+   if (parms && *parms == '/') m_path = parms;
 
-// Resolve the shared instance name (configured value or hostname). It labels
-// both the Pushgateway series and the OTLP resource.
+// Resolve the instance name (configured value or hostname). It labels both the
+// Pushgateway series and the OTLP resource.
 //
-   if (m_cfg.instance.empty())
+   m_instance = cfg.instance;
+   if (m_instance.empty())
       {char host[256]; host[0] = 0;
        gethostname(host, sizeof(host)-1);
-       m_cfg.instance = host;
+       m_instance = host;
       }
 
 // Register a liveness gauge so the endpoint always returns at least one series,
@@ -79,22 +93,22 @@ XrdHttpMetricsExporter::XrdHttpMetricsExporter(XrdSysError *eDest,
    XrdMetrics::Default().group("metrics").intGauge("endpoint_up", {}, {},
             "1 if the metrics endpoint is configured").noLabels() = 1;
 
-   if (m_log) m_log->Say("Config metrics endpoint at ", m_cfg.path.c_str());
+   if (m_log) m_log->Say("Config metrics endpoint at ", m_path.c_str());
 
 // Start the background pushers for any configured destinations.
 //
-   if (!m_cfg.pushURL.empty() || !m_cfg.otelURL.empty())
+   if (!cfg.pushURL.empty() || !cfg.otelURL.empty())
       {
 #ifdef XRDMETRICS_HAVE_CURL
-       if (!m_cfg.pushURL.empty())
+       if (!cfg.pushURL.empty())
           {m_pushThread = std::thread(&XrdHttpMetricsExporter::PushLoop, this);
            if (m_log) m_log->Say("Config metrics push (Pushgateway) to ",
-                                 m_cfg.pushURL.c_str());
+                                 cfg.pushURL.c_str());
           }
-       if (!m_cfg.otelURL.empty())
+       if (!cfg.otelURL.empty())
           {m_otelThread = std::thread(&XrdHttpMetricsExporter::OtelLoop, this);
            if (m_log) m_log->Say("Config metrics push (OTLP) to ",
-                                 m_cfg.otelURL.c_str());
+                                 cfg.otelURL.c_str());
           }
 #else
        if (m_log) m_log->Say("Config warning: metrics push requires libcurl; "
@@ -116,30 +130,20 @@ XrdHttpMetricsExporter::~XrdHttpMetricsExporter()
 }
 
 /******************************************************************************/
-/*                            C o n f i g u r e                               */
-/******************************************************************************/
-
-void XrdHttpMetricsExporter::Configure(const char *confg)
-{
-   if (!confg) return;
-
-   XrdOucGatherConf conf(XrdHttpMetricsExporterCfg::DirectiveList(), m_log);
-   if (conf.Gather(confg, XrdOucGatherConf::full_lines) < 0) return;
-
-   XrdHttpMetricsExporterCfg::Parse(conf, m_cfg);
-}
-
-/******************************************************************************/
 /*                             P u s h L o o p                                */
 /******************************************************************************/
 
 void XrdHttpMetricsExporter::PushLoop()
 {
 #ifdef XRDMETRICS_HAVE_CURL
+   XrdMetrics::Config &cfg = XrdMetrics::Config::Instance();
+
 // Build the per-instance gateway URL: <base>/metrics/job/<job>/instance/<inst>
 //
-   std::string url = XrdHttpMetricsExporterCfg::PushgatewayURL(
-                        m_cfg.pushURL, m_cfg.pushJob, m_cfg.instance);
+   std::string url = XrdMetrics::Config::PushgatewayURL(cfg.pushURL, cfg.pushJob,
+                                                        m_instance);
+   int every = cfg.pushEvery;
+   auto filter = SubsystemFilter();
 
    curl_global_init(CURL_GLOBAL_DEFAULT);
    CURL* curl = curl_easy_init();
@@ -147,15 +151,15 @@ void XrdHttpMetricsExporter::PushLoop()
 
    while(!m_stop)
         {std::unique_lock<std::mutex> lk(m_pushMtx);
-         m_pushCV.wait_for(lk, std::chrono::seconds(m_cfg.pushEvery),
+         m_pushCV.wait_for(lk, std::chrono::seconds(every),
                            [this]{return m_stop.load();});
          lk.unlock();
          if (m_stop) break;
 
          std::string body;
          XrdMetrics::PrometheusTextSerializer ser(body);
-         XrdMetrics::Default().serialize(ser);
-         XrdMetrics::Default().runTextCollectors(body);
+         XrdMetrics::serializeAll(ser, filter);
+         for (auto *r : XrdMetrics::registries()) r->runTextCollectors(body);
 
          CURLcode rc = XrdHttpMetricsExporterPush::Send(curl, url, promType,
                                                         true, body);
@@ -175,11 +179,17 @@ void XrdHttpMetricsExporter::PushLoop()
 void XrdHttpMetricsExporter::OtelLoop()
 {
 #ifdef XRDMETRICS_HAVE_CURL
+   XrdMetrics::Config &cfg = XrdMetrics::Config::Instance();
+
 // Carry the server identity into the OTLP Resource so each datapoint can be
-// attributed to this server instance.
+// attributed to this server instance. serializeAll() adds each registry's own
+// global labels (program/role/cluster) to its resource block on top of these.
 //
    std::vector<XrdMetrics::ConstLabel> resource =
-      {{"service.name", "xrootd"}, {"service.instance.id", m_cfg.instance}};
+      {{"service.name", "xrootd"}, {"service.instance.id", m_instance}};
+   std::string url = cfg.otelURL;
+   int every = cfg.otelEvery;
+   auto filter = SubsystemFilter();
 
    curl_global_init(CURL_GLOBAL_DEFAULT);
    CURL* curl = curl_easy_init();
@@ -187,16 +197,16 @@ void XrdHttpMetricsExporter::OtelLoop()
 
    while(!m_stop)
         {std::unique_lock<std::mutex> lk(m_pushMtx);
-         m_pushCV.wait_for(lk, std::chrono::seconds(m_cfg.otelEvery),
+         m_pushCV.wait_for(lk, std::chrono::seconds(every),
                            [this]{return m_stop.load();});
          lk.unlock();
          if (m_stop) break;
 
          std::string body;
          XrdMetrics::OtelJsonSerializer ser(body, "xrootd", resource);
-         XrdMetrics::Default().serialize(ser);
+         XrdMetrics::serializeAll(ser, filter);
 
-         CURLcode rc = XrdHttpMetricsExporterPush::Send(curl, m_cfg.otelURL,
+         CURLcode rc = XrdHttpMetricsExporterPush::Send(curl, url,
                                                         otelType, false, body);
          if (rc != CURLE_OK && m_log)
             m_log->Say("Metrics push (OTLP) failed: ", curl_easy_strerror(rc));
@@ -212,7 +222,7 @@ void XrdHttpMetricsExporter::OtelLoop()
 
 bool XrdHttpMetricsExporter::MatchesPath(const char *verb, const char *path)
 {
-   return !strcmp(verb, "GET") && path && m_cfg.path == path;
+   return !strcmp(verb, "GET") && path && m_path == path;
 }
 
 /******************************************************************************/
@@ -236,8 +246,8 @@ int XrdHttpMetricsExporter::ProcessReq(XrdHttpExtReq &req)
 
    std::string body;
    XrdMetrics::PrometheusTextSerializer ser(body);
-   XrdMetrics::Default().serialize(ser);
-   XrdMetrics::Default().runTextCollectors(body);
+   XrdMetrics::serializeAll(ser, SubsystemFilter());
+   for (auto *r : XrdMetrics::registries()) r->runTextCollectors(body);
 
    return req.SendSimpleResp(200, nullptr, promType, body.c_str(),
                              (long long)body.size());

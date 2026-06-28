@@ -361,32 +361,69 @@ void OtelJsonSerializer::begin()
    ts_.clear();
    appendValue(ts_, static_cast<std::uint64_t>(ns));
 
-   firstMetric_ = true;
+   firstResource_ = true;
+   resourceOpen_  = false;
 
-   out_ += "{\"resourceMetrics\":[{\"resource\":{";
-   if (!resource_.empty())
-      {out_ += "\"attributes\":[";
-       bool first = true;
-       for (auto& kv : resource_)
-           {if (!first) out_.push_back(',');
-            first = false;
-            appendOtelAttr(out_, kv.first, kv.second);
-           }
-       out_ += "]";
-      }
+   out_ += "{\"resourceMetrics\":[";
+}
+
+void OtelJsonSerializer::openResource(const std::string& scope,
+                                      const std::vector<ConstLabel>* extra)
+{
+   if (!firstResource_) out_.push_back(',');
+   firstResource_ = false;
+   resourceOpen_  = true;
+   firstMetric_   = true;
+
+   out_ += "{\"resource\":{";
+   bool any = false;
+   auto attr = [&](const std::string& k, const std::string& v)
+              {if (!any) out_ += "\"attributes\":[";
+               else      out_.push_back(',');
+               any = true;
+               appendOtelAttr(out_, k, v);
+              };
+   for (auto& kv : resource_)        attr(kv.first, kv.second);
+   if (extra) for (auto& kv : *extra) attr(kv.first, kv.second);
+   if (any) out_ += "]";
+
    out_ += "},\"scopeMetrics\":[{\"scope\":{\"name\":\"";
-   appendJsonEscaped(out_, scope_);
+   appendJsonEscaped(out_, scope);
    out_ += "\"},\"metrics\":[";
+}
+
+void OtelJsonSerializer::closeResource()
+{
+   out_ += "]}]}";   // metrics(arr), scope obj, scopeMetrics(arr), RM(obj)
+   resourceOpen_ = false;
+}
+
+void OtelJsonSerializer::beginResource(const std::string& scope,
+                                       const std::vector<ConstLabel>& attrs)
+{
+   if (resourceOpen_) closeResource();
+   openResource(scope, &attrs);
+}
+
+void OtelJsonSerializer::endResource()
+{
+   if (resourceOpen_) closeResource();
 }
 
 void OtelJsonSerializer::end()
 {
-   out_ += "]}]}]}";   // metrics, scopeMetrics(obj), scopeMetrics(arr), RM, RMs
+   if (resourceOpen_) closeResource();
+   out_ += "]}";   // resourceMetrics(arr), root(obj)
 }
 
 void OtelJsonSerializer::beginFamily(const std::string& name, MetricKind kind,
                                      const std::string& help)
 {
+// Single-registry path (Registry::serialize): no beginResource() was called, so
+// open the one resource block lazily using the constructor's scope/attributes.
+//
+   if (!resourceOpen_) openResource(scope_, nullptr);
+
    if (!firstMetric_) out_.push_back(',');
    firstMetric_ = false;
    kind_        = kind;
@@ -570,12 +607,81 @@ bool MetricSnapshot::has(const std::string& key) const
 }
 
 /******************************************************************************/
+/*                      R e g i s t r y   d i r e c t o r y                  */
+/******************************************************************************/
+
+namespace
+{
+// Leaked construct-on-first-use singletons: the directory and its lock must
+// outlive every Registry (including the function-local static Default() one),
+// so they are intentionally never destroyed to avoid a static-destruction-order
+// dependency when a registry unregisters itself at process exit.
+//
+std::mutex& dirMutex()
+{
+   static std::mutex* m = new std::mutex();
+   return *m;
+}
+
+std::vector<Registry*>& dir()
+{
+   static std::vector<Registry*>* d = new std::vector<Registry*>();
+   return *d;
+}
+}
+
+void registerRegistry(Registry& r)
+{
+   std::lock_guard<std::mutex> lk(dirMutex());
+   auto& d = dir();
+   for (auto* p : d) if (p == &r) return;
+   d.push_back(&r);
+}
+
+void unregisterRegistry(Registry& r)
+{
+   std::lock_guard<std::mutex> lk(dirMutex());
+   auto& d = dir();
+   for (auto it = d.begin(); it != d.end(); ++it)
+       if (*it == &r) {d.erase(it); return;}
+}
+
+std::vector<Registry*> registries()
+{
+   std::lock_guard<std::mutex> lk(dirMutex());
+   return dir();
+}
+
+Registry::~Registry()
+{
+   unregisterRegistry(*this);
+}
+
+/******************************************************************************/
+/*                          s e r i a l i z e A l l                          */
+/******************************************************************************/
+
+void serializeAll(ISerializer& s, const Registry::GroupFilter& filter)
+{
+   auto regs = registries();
+   s.begin();
+   for (auto* r : regs)
+       {s.beginResource(r->prefix(), r->globalLabels());
+        r->serializeBody(s, filter);
+        s.endResource();
+       }
+   s.end();
+}
+
+/******************************************************************************/
 /*                              D e f a u l t                                */
 /******************************************************************************/
 
 Registry& Default()
 {
    static Registry instance("xrootd");
+   static bool once = [](){registerRegistry(instance); return true;}();
+   (void)once;
    return instance;
 }
 }

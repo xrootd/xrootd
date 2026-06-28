@@ -28,7 +28,6 @@
 #include <thread>
 
 #include "XrdHttp/XrdHttpExtHandler.hh"
-#include "XrdHttpMetricsExporter/XrdHttpMetricsExporterConfig.hh"
 
 class XrdSysError;
 
@@ -58,16 +57,16 @@ int  Init(const char *cfgfile) override {return 0;}
 
 private:
 
-void Configure(const char *confg);
 void PushLoop();      // Prometheus Pushgateway (text exposition format)
 void OtelLoop();      // OTLP/HTTP receiver (OpenTelemetry OTLP/JSON)
 
 XrdSysError *m_log;
 
-// Parsed configuration (paths, push destinations, intervals). The instance
-// field is resolved to the hostname at construction when left unset.
+// Served request path (the shared config default, or the plugin parameter when
+// it overrides it) and the resolved instance label (config value or hostname).
 //
-XrdHttpMetricsExporterCfg::Config m_cfg;
+std::string m_path;
+std::string m_instance;
 
 // Background pushers (Pushgateway text / OTLP JSON), each active only when its
 // destination URL is configured.

@@ -202,6 +202,23 @@ public:
 explicit Registry(std::string prefix, std::vector<ConstLabel> globalLabels = {})
         : prefix_(std::move(prefix)), globalLabels_(std::move(globalLabels)) {}
 
+//! Drop this registry from the process-wide directory (see registerRegistry).
+//! Safe whether or not it was ever registered.
+~Registry();
+
+//! Replace the global const labels. Succeeds only while the registry is still
+//! empty (no family created yet), because the labels are baked into each
+//! series' cached text prefix at family-creation time; returns false otherwise
+//! and leaves the labels unchanged. Used by the early config load to seed
+//! cluster/program/role labels before any subsystem registers.
+bool setGlobalLabels(std::vector<ConstLabel> labels)
+{
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   if (!groups_.empty()) return false;
+   globalLabels_ = std::move(labels);
+   return true;
+}
+
 //! Obtain (creating on first use) the group for a subsystem.
 MetricGroup& group(const std::string& subsystem)
 {
@@ -221,17 +238,31 @@ MetricGroup& group(const std::string& subsystem)
 const std::string&             prefix()       const noexcept { return prefix_; }
 const std::vector<ConstLabel>& globalLabels() const noexcept { return globalLabels_; }
 
-//! Drive a serializer over every group in the registry. Groups are snapshotted
-//! under a brief read lock and serialized outside it.
-void serialize(ISerializer& s) const
+//! A predicate selecting which subsystems (groups) to emit, by group name.
+//! An empty (null) filter emits every group.
+using GroupFilter = std::function<bool(const std::string& subsystem)>;
+
+//! Drive a serializer over the registry's groups without the document framing
+//! (no begin()/end()), so several registries can be serialized into one
+//! document (see serializeAll). Groups are snapshotted under a brief read lock
+//! and serialized outside it; a group is skipped when @p filter rejects it.
+void serializeBody(ISerializer& s, const GroupFilter& filter = {}) const
 {
    std::vector<const MetricGroup*> snap;
    {std::shared_lock<std::shared_mutex> rd(mutex_);
     snap.reserve(groups_.size());
     for (auto& kv : groups_) snap.push_back(kv.second.get());
    }
+   for (auto* g : snap)
+       if (!filter || filter(g->subsystem())) g->serialize(s);
+}
+
+//! Drive a serializer over every group in the registry, with the document
+//! framing. Equivalent to begin(); serializeBody(s); end().
+void serialize(ISerializer& s) const
+{
    s.begin();
-   for (auto* g : snap) g->serialize(s);
+   serializeBody(s);
    s.end();
 }
 
@@ -602,7 +633,28 @@ MetricGroup::summarySeries(const std::string& name, const std::string& help,
 
 //! The process-wide registry shared by the server and all loaded plugins.
 //! Prefixed "xrootd"; plugins should register into this so all metrics land in
-//! the same scrape.
+//! the same scrape. Auto-joins the registry directory on first use.
 Registry& Default();
+
+/******************************************************************************/
+/*                      R e g i s t r y   d i r e c t o r y                  */
+/******************************************************************************/
+
+//! A process-wide directory of top-level registries the exporter aggregates
+//! into one scrape/push. Default() joins automatically; a foreign owner (e.g.
+//! EOS) or a plugin that keeps its own registry calls registerRegistry so its
+//! series appear alongside the xrootd_* ones. Registration is idempotent and a
+//! registry removes itself on destruction.
+void registerRegistry(Registry& r);
+void unregisterRegistry(Registry& r);
+
+//! A snapshot of the currently registered registries.
+std::vector<Registry*> registries();
+
+//! Serialize every registered registry into one document: frames once
+//! (begin()/end()) and walks each registry's body, marking a per-registry
+//! resource boundary so envelope formats (OTLP) can emit one resource block per
+//! registry. @p filter selects which subsystems (groups) to emit, by name.
+void serializeAll(ISerializer& s, const Registry::GroupFilter& filter = {});
 }
 #endif

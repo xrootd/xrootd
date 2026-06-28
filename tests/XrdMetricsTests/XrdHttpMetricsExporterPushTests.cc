@@ -23,8 +23,8 @@
 
 #include <curl/curl.h>
 
-#include "XrdHttpMetricsExporter/XrdHttpMetricsExporterConfig.hh"
 #include "XrdHttpMetricsExporter/XrdHttpMetricsExporterPush.hh"
+#include "XrdMetrics/XrdMetricsConfig.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 
@@ -185,7 +185,7 @@ TEST(MetricsExporterPush, PushgatewayPutRoundTrip)
 
    MockServer srv;
    srv.start();
-   const std::string url = XrdHttpMetricsExporterCfg::PushgatewayURL(
+   const std::string url = XrdMetrics::Config::PushgatewayURL(
       "http://127.0.0.1:" + std::to_string(srv.port), "xrootd", "node1");
 
    curl_global_init(CURL_GLOBAL_DEFAULT);
