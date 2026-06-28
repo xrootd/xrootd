@@ -84,7 +84,16 @@ extern int            devNull;
 };
 
 using namespace XrdGlobal;
-  
+
+namespace
+{
+// Native counter of connections upgraded to TLS. The metric is the source of
+// truth (there is no aggregate TLS variable elsewhere); set in RegisterMetrics
+// and bumped once per successful upgrade in setTLS.
+//
+XrdMetrics::Counter *tlsConnCtr = nullptr;
+}
+
 /******************************************************************************/
 /*                               S t a t i c s                                */
 /******************************************************************************/
@@ -1015,6 +1024,7 @@ bool XrdLinkXeq::setTLS(bool enable, XrdTlsContext *ctx)
    if (rc != XrdTls::TLS_AOK) Log.Emsg("LinkXeq", eMsg.c_str());
       else {isTLS = enable;
             Addr.SetTLS(enable);
+            if (tlsConnCtr) ++*tlsConnCtr;
             Log.Emsg("LinkXeq", ID, "connection upgraded to", verTLS());
            }
    return rc == XrdTls::TLS_AOK;
@@ -1123,6 +1133,9 @@ void XrdLinkXeq::RegisterMetrics()
     .add({}, []{return (uint64_t)AtomicGet(LinkStalls);});
    g.observeCounter("sendfile_interrupts_total", {}, {}, "sendfile interrupts")
     .add({}, []{return (uint64_t)AtomicGet(LinkSfIntr);});
+
+   tlsConnCtr = &g.counter("tls_connections_total", {}, {},
+                           "connections upgraded to TLS").noLabels();
 }
 
 /******************************************************************************/

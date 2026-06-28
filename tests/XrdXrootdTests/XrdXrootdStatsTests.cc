@@ -9,6 +9,11 @@
 //------------------------------------------------------------------------------
 
 #include "XrdXrootd/XrdXrootdStats.hh"
+#include "XProtocol/XProtocol.hh"
+#include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdMetrics/XrdMetricsSerializer.hh"
+
+#include <string>
 
 #include <gtest/gtest.h>
 
@@ -59,4 +64,29 @@ TEST(XrdXrootdStats, SummaryXmlIsByteStable)
     "<lgn><num>24</num><af>25</af><au>26</au><ua>27</ua></lgn></stats>";
 
   EXPECT_EQ(std::string(buff, len), expected);
+}
+
+// The per-operation metadata counter (admin_ops_total) is native: BumpAdminOp
+// increments the cached per-request series. async_now observes the live
+// AsyncNow. Both surface through the process-wide registry. (Constructing the
+// stats object registers them into Default(); the object is kept alive across
+// the scrape so its observe lambdas stay valid.)
+TEST(XrdXrootdStats, AdminOpsAndAsyncNowInRegistry)
+{
+  XrdXrootdStats stats(nullptr);
+
+  stats.AsyncNow = 42;
+  stats.BumpAdminOp(kXR_stat);
+  stats.BumpAdminOp(kXR_stat);
+  stats.BumpAdminOp(kXR_mkdir);
+
+  std::string out;
+  XrdMetrics::PrometheusTextSerializer ser(out);
+  XrdMetrics::Default().serialize(ser);
+
+  EXPECT_NE(out.find("xrootd_admin_ops_total{op=\"stat\"} 2\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_admin_ops_total{op=\"mkdir\"} 1\n"),
+            std::string::npos);
+  EXPECT_NE(out.find("xrootd_async_now 42\n"), std::string::npos);
 }

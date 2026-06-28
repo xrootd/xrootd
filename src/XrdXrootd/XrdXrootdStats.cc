@@ -31,6 +31,7 @@
 
 #include "Xrd/XrdStats.hh"
 #include "Xrd/XrdStatsLegacy.hh"
+#include "XProtocol/XProtocol.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -49,6 +50,19 @@
 RAtomic_llong XrdXrootdFileStats::totRdBytes{0};
 RAtomic_llong XrdXrootdFileStats::totRvBytes{0};
 RAtomic_llong XrdXrootdFileStats::totWrBytes{0};
+
+/******************************************************************************/
+/*          P e r - o p e r a t i o n   a d m i n   c o u n t e r s           */
+/******************************************************************************/
+
+namespace
+{
+// Cached per-request-id counter handles for the metadata/admin operations that
+// otherwise fold into miscCnt. Indexed by (reqid - kXR_auth); populated once in
+// RegisterMetrics, then a pointer deref on the dispatch hot path.
+//
+XrdMetrics::Counter *adminOpCtr[kXR_REQFENCE - kXR_auth] = {nullptr};
+}
  
 /******************************************************************************/
 /*                           C o n s t r c u t o r                            */
@@ -164,6 +178,37 @@ void XrdXrootdStats::RegisterMetrics()
 //
    g.observeIntGauge("async_max", {}, {}, "peak concurrent asynchronous i/o ops")
     .add({}, [this]{return (int64_t)AtomicGet(AsyncMax);});
+
+// Async i/o operations currently in flight. AsyncNow gates async scheduling on
+// the hot path, so it stays the source of truth and is only observed here.
+//
+   g.observeIntGauge("async_now", {}, {}, "asynchronous i/o operations in flight")
+    .add({}, [this]{return (int64_t)AtomicGet(AsyncNow);});
+
+// Per-operation counters for the metadata/admin requests that otherwise only
+// add to miscCnt. These are native (the series is the source of truth, bumped in
+// the dispatch path); one cached series handle per request id, labelled by the
+// request name. The existing ops_total/requests_total are left untouched.
+//
+   auto& adm = g.counter("admin_ops_total", {"op"}, {},
+                         "metadata/admin protocol operations");
+   for (int reqid : {kXR_chmod, kXR_dirlist, kXR_fattr,   kXR_locate,
+                     kXR_mkdir, kXR_mv,      kXR_query,    kXR_prepare,
+                     kXR_rm,    kXR_rmdir,   kXR_set,      kXR_stat,
+                     kXR_statx, kXR_truncate})
+       adminOpCtr[reqid - kXR_auth] =
+           &adm.withLabelValues({XProtocol::reqName((kXR_unt16)reqid)});
+}
+
+/******************************************************************************/
+/*                           B u m p A d m i n O p                            */
+/******************************************************************************/
+
+void XrdXrootdStats::BumpAdminOp(int reqid)
+{
+   unsigned int i = (unsigned int)(reqid - kXR_auth);
+   if (i < (unsigned int)(kXR_REQFENCE - kXR_auth) && adminOpCtr[i])
+      ++*adminOpCtr[i];
 }
 
 /******************************************************************************/

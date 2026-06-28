@@ -579,9 +579,10 @@ int XrdXrootdProtocol::Process2()
           default:            break;
          }
 
-// Update misc stats count
+// Update misc stats count, plus the per-operation metadata/admin counter.
 //
    SI->Bump(SI->miscCnt);
+   SI->BumpAdminOp(Request.header.requestid);
 
 // Now process whatever we have
 //

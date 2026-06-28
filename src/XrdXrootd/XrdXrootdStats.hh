@@ -80,6 +80,11 @@ int              Stats(XrdXrootdResponse &resp, const char *opts);
 //! is unchanged.
 void             RegisterMetrics();
 
+//! Increment the per-operation counter for a metadata/admin request (those that
+//! otherwise fold into miscCnt). Indexed by request id; a no-op for requests
+//! without a registered series. Cheap cached-pointer deref on the hot path.
+void             BumpAdminOp(int reqid);
+
                  XrdXrootdStats(XrdStats *sp);
                 ~XrdXrootdStats() {}
 private:
