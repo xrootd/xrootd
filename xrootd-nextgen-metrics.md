@@ -1,12 +1,12 @@
-# XRootD Native Prometheus Metrics
+# XRootD Next-Generation Cloud Native Monitoring System
 
 ## Motivation
 
-XRootD currently has three independent monitoring channels:
+XRootD has three independent monitoring channels:
 
 - **Summary monitoring** (`xrd.report`) — periodic aggregate snapshots pushed
   over UDP in XML (or JSON for plugin counters).
-- **Event monitoring** (`xrootd.monitor`) — real-time per-operation binary UDP
+- **Detailed monitoring** (`xrootd.monitor`) — real-time per-operation binary UDP
   streams (`u`/`d`/`t`/`f` packets).
 - **G-Stream** (`xrootd.mongstream`) — plugin-specific structured event streams.
 
@@ -22,8 +22,8 @@ formats unchanged so current collectors keep working.
 ## Goals
 
 1. A new **`XrdMetrics`** module providing Prometheus-style instruments
-   (counters, gauges, histograms) with labels and `HELP`/`TYPE` metadata. This
-   becomes the single source of truth for server counters.
+   (counters, gauges, histograms, and summaries) with labels and `HELP`/`TYPE` metadata.
+   This becomes the single source of truth for server counters.
 2. A pull-based **`GET /metrics`** endpoint implemented as an
    `XrdHttpExtHandler` plugin, serving the text exposition format.
 3. **Bridging** of existing plugin counters (registered today via `XrdMonRoll`)
@@ -32,12 +32,6 @@ formats unchanged so current collectors keep working.
 4. **Migration** of the core server counters onto `XrdMetrics`, with the
    existing `xrd.report` XML/JSON output preserved byte-for-byte as a *view*
    over the same instruments.
-
-Deferred to later work:
-- UDP / Pushgateway-style push of the Prometheus format.
-- An external collector that decodes the binary `u`/`d`/`t`/`f` event streams,
-  correlates them, and emits per-transfer records — specified as
-  **Phase 5** below.
 
 ## Design overview
 
@@ -110,7 +104,7 @@ process, buffers) are backed by `XrdMetrics` instruments, and the existing XML
 emitters are rewritten as views reading those instruments — keeping
 `xrd.report` output byte-identical, guarded by regression tests.
 
-## Metric naming
+#### Metric naming
 
 Metrics follow Prometheus conventions: `xrootd_` prefix, `snake_case`, `_total`
 suffix for counters, and base-unit suffixes (`_bytes`, `_seconds`). For
@@ -124,9 +118,13 @@ xrootd_ops_read_bytes_total{instance="srv1"} 12345
 
 ---
 
-# Phase 5 — Detailed Event-Stream Collector (next phase)
+### Phase 5 — xrdmoncollect — Detailed Event-Stream Collector (next phase)
 
-Phases 1–4 cover **summary** monitoring: aggregate counters, scraped from the
+- An external collector that decodes the binary `u`/`d`/`t`/`f` event streams,
+  correlates them, and emits per-transfer records — specified as
+  **Phase 5** below.
+
+Phases 1–4 covered **summary** monitoring: aggregate counters, scraped from the
 server. This phase tackles the **detailed event streams** produced by
 `xrootd.monitor` (and the plugin `g`-streams from `xrootd.mongstream`). These
 describe individual logins, file opens/closes, and I/O operations — one record
@@ -137,7 +135,7 @@ The work is a standalone C++ program (working name **`xrdmoncollect`**) that
 listens on a UDP socket, decodes and correlates the packets, and writes the
 result to one or more sinks.
 
-## Why a separate binary, and why two output targets
+#### Why a separate binary, and why two output targets
 
 The event streams are **event-shaped and high-cardinality** (per user, per file,
 per transfer). That distinction drives the whole design:
@@ -164,7 +162,7 @@ multiple servers can report to one collector.
 > `XrdXrootdMonData.hh`, so the decoder cannot drift from the producer, and lets
 > us share `XrdNet` (sockets) and the project's bundled `nlohmann_json`.
 
-## Input: the monitoring wire format
+#### Input: the monitoring wire format
 
 All definitions live in `src/XrdXrootd/XrdXrootdMonData.hh`; **all multi-byte
 fields are network byte order** and variable-length records must be walked by
@@ -190,7 +188,7 @@ Packet/record types we consume:
 | `r`  | `MAPREDR` | redirect stream |
 | `g`  | `MAPGSTA` | plugin `g`-stream payloads (oss/pfc/throttle/tpc/http), already CGI/JSON |
 
-### Start with the `f` stream, not the `t` stream
+#### Start with the `f` stream, not the `t` stream
 
 The **`f` (fstat) stream already does per-file aggregation in the server**: each
 file close emits a `XrdXrootdMonFileCLS` record carrying transfer byte totals
@@ -206,7 +204,7 @@ The join keys for a close event:
 - the matching open record's `XrdXrootdMonFileLFN.user` → the `u`/`MAPUSER`
   dictid → identity. (Requires retaining open records until the close arrives.)
 
-## Correlation model and state
+#### Correlation model and state
 
 The collector is necessarily **stateful**:
 
@@ -223,7 +221,7 @@ The collector is necessarily **stateful**:
 This state is bounded and evictable; it is *not* a database. Long-term storage
 is the sink's job.
 
-## Architecture
+#### Architecture
 
 ```
         UDP :9930
@@ -251,7 +249,7 @@ The metrics sink can reuse the **`XrdMetrics`** registry and the Prometheus text
 serializer built in Phases 1–4, so the collector exposes its own `/metrics`
 with the same code path.
 
-## Output schemas (illustrative)
+#### Output schemas (illustrative)
 
 **Per-transfer document (OpenSearch / NDJSON)** — one per file close:
 
@@ -281,7 +279,7 @@ xrootd_monitor_packets_total{stream="f"}              ...
 xrootd_monitor_packets_lost_total{stream="f"}         ...
 ```
 
-## Incremental implementation plan
+#### Incremental implementation plan
 
 1. **Raw decoder / `--dump`.** UDP listener that decodes every packet and prints
    it as one JSON object per record to stdout — no correlation. Immediately
@@ -325,7 +323,7 @@ independent add-ons.
 > when I/O stats are kept). The collector is also dual-stack: it binds IPv4+IPv6
 > so it receives packets when the server resolves the destination to `::1`.
 
-## Build, placement, and configuration
+#### Build, placement, and configuration
 
 - **Placement.** A new app under `src/XrdApps/` (alongside `XrdMpxStats.cc`),
   producing the `xrdmoncollect` binary. Reuse `XrdNet` for the socket,
@@ -341,7 +339,7 @@ independent add-ons.
   ```
   (`xfr` is required for close records — see the status note above.)
 
-## Testing
+#### Testing
 
 - **Unit tests** decode fixed byte buffers (captured or hand-built) for each
   record type and assert the parsed fields — guards against wire-format drift.
@@ -351,7 +349,7 @@ independent add-ons.
   drive `xrdcp` traffic, and assert that a transfer document and the expected
   metric deltas appear.
 
-## Open questions / decisions for this phase
+#### Open questions / decisions for this phase
 
 - **Primary sink priority** — OpenSearch document store first (richest payoff),
   with the Prometheus aggregate sink as a follow-on? (Recommended.)
@@ -365,7 +363,7 @@ independent add-ons.
 
 ---
 
-# Phase 6 — Remaining monitoring streams & activity types (next session)
+### Phase 6 — Remaining monitoring streams & activity types (next session)
 
 `xrdmoncollect` currently decodes `u` (user), `d` (path), `i` (appinfo, joined
 to transfers), `f` (file stats → transfer docs + metrics), `t` (I/O traces),
@@ -671,8 +669,11 @@ Remaining:
    counters so the old `<stats id=…>` reports render unchanged, and a new-only
    mode that registers just the native names. This is the final piece that makes
    the registry the single source of truth with config-controlled naming.
+   (**ACTUALLY ALREADY DONE**)
+
 2. **OSS space reporting** via `xrdmoncollect` rather than the in-process
    registry (see the OSS deferral above), to avoid a per-path/per-group
    cardinality explosion.
+
 3. **Client-side metrics** for batch jobs.
 
