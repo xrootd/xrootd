@@ -629,11 +629,18 @@ Done:
   emits it from there, still appending the filesystem block. The existing
   byte-stability test exercises the full round-trip unchanged.
 
+- The `<stats id="ofs">` filesystem block renders through `XrdStatsLegacy::Ofs`.
+  This was the first block needing **new metrics registered first** (group
+  `ofs`): `XrdOfsStats::RegisterMetrics` (called from its constructor) observes
+  the `Data` fields — open-file counts by mode and the handle count as gauges,
+  the rest as counters — and `XrdOfsStats::Report` now snapshots and renders
+  through them. The OSS block that `XrdOfs::getStats` appends afterward is still
+  unchanged.
+
 Remaining:
 
-- The nested `<stats id="ofs">` filesystem block (a separate, unmigrated
-  subsystem — this is where new metrics likely need to be registered first and
-  then reused for the legacy block).
+- The nested `<stats id="oss">` block (`XrdOfsOss->Stats`, another unmigrated
+  subsystem), and any other protocol/plugin stat producers.
 - The configuration directives that flip which counters register (and thus the
   exposed names).
 
