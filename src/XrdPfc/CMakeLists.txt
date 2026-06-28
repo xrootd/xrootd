@@ -24,6 +24,7 @@ add_library(${XrdPfc} MODULE
   XrdPfcIOFile.cc           XrdPfcIOFile.hh
   XrdPfcIOFileBlock.cc      XrdPfcIOFileBlock.hh
   XrdPfcInfo.cc             XrdPfcInfo.hh
+  XrdPfcMetrics.cc          XrdPfcMetrics.hh
                             XrdPfcPathParseTools.hh
   XrdPfcPurge.cc
                             XrdPfcPurgePin.hh

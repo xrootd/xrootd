@@ -83,6 +83,11 @@ A bare or `+`-prefixed name forms an allow-list (only those subsystems are
 emitted); a `-`-prefixed name is always denied. `metrics.enable no` turns
 everything off.
 
+The subsystem (group) names currently registered are: the base xrootd protocol
+(empty group, flat `xrootd_*` names) plus `process`, `link`, `poll`, `sched`,
+`buff`, `ofs`, `http` and `metrics` on a data server; `proxy` when running as a
+proxy; `cache` when running as a cache; and `cms` in the cmsd clustering daemon.
+
 ### Multiple registries
 
 The exporter aggregates **every** registry in the process-wide directory into one

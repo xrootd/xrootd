@@ -1,5 +1,6 @@
 #include "XrdPfcResourceMonitor.hh"
 #include "XrdPfc.hh"
+#include "XrdPfcMetrics.hh"
 #include "XrdPfcPathParseTools.hh"
 #include "XrdPfcFsTraversal.hh"
 #include "XrdPfcDirState.hh"
@@ -31,7 +32,8 @@ namespace
 
 ResourceMonitor::ResourceMonitor(XrdOss& oss) :
    m_fs_state(* new DataFsState),
-   m_oss(oss)
+   m_oss(oss),
+   m_metrics(new CacheMetrics())
 {}
 
 ResourceMonitor::~ResourceMonitor()
@@ -270,6 +272,8 @@ int ResourceMonitor::process_queues()
       }
 
       ds->m_here_usage.m_LastOpenTime = i.record.m_open_time;
+
+      m_metrics->FileOpened(i.record.m_existing_file);
    }
 
    for (auto &i : m_file_update_stats_q.read_queue())
@@ -283,6 +287,8 @@ int ResourceMonitor::process_queues()
 
       ds->m_here_stats.AddUp(i.record);
       m_current_usage_in_st_blocks += i.record.m_StBlocksAdded;
+
+      m_metrics->AddFileStats(i.record);
    }
 
    for (auto &i : m_file_close_q.read_queue())
@@ -295,6 +301,8 @@ int ResourceMonitor::process_queues()
       DirState *ds = at.m_dir_state;
       ds->m_here_stats.m_NFilesClosed += 1;
       ds->m_here_usage.m_LastCloseTime = i.record.m_close_time;
+
+      m_metrics->FileClosed();
 
       at.clear();
    }
@@ -311,6 +319,7 @@ int ResourceMonitor::process_queues()
       ds->m_here_stats.m_StBlocksRemoved += i.record.m_size_in_st_blocks;
       ds->m_here_stats.m_NFilesRemoved   += i.record.m_n_files;
       m_current_usage_in_st_blocks       -= i.record.m_size_in_st_blocks;
+      m_metrics->FilesRemoved(i.record.m_n_files);
    }
    for (auto &i : m_file_purge_q2.read_queue())
    {
@@ -324,6 +333,7 @@ int ResourceMonitor::process_queues()
       ds->m_here_stats.m_StBlocksRemoved += i.record.m_size_in_st_blocks;
       ds->m_here_stats.m_NFilesRemoved   += i.record.m_n_files;
       m_current_usage_in_st_blocks       -= i.record.m_size_in_st_blocks;
+      m_metrics->FilesRemoved(i.record.m_n_files);
    }
    for (auto &i : m_file_purge_q3.read_queue())
    {
@@ -336,6 +346,7 @@ int ResourceMonitor::process_queues()
       ds->m_here_stats.m_StBlocksRemoved += i.record;
       ds->m_here_stats.m_NFilesRemoved   += 1;
       m_current_usage_in_st_blocks       -= i.record;
+      m_metrics->FilesRemoved(1);
    }
 
    // Read queues / vectors are cleared at swap time.
@@ -568,6 +579,10 @@ void ResourceMonitor::update_vs_and_file_usage_info()
    }
    m_fs_state.m_meta_total = vsi.Total;
    m_fs_state.m_meta_used  = vsi.Total - vsi.Free;
+
+   m_metrics->SetSpace(m_fs_state.m_disk_total, m_fs_state.m_disk_used,
+                       m_fs_state.m_file_usage, m_fs_state.m_meta_total,
+                       m_fs_state.m_meta_used);
 }
 
 long long ResourceMonitor::get_file_usage_bytes_to_remove(const DataFsPurgeshot &ps, long long write_estimate, int tl)
