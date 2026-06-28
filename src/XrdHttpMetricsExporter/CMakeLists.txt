@@ -5,7 +5,8 @@ endif()
 set(XrdHttpMetricsExporter XrdHttpMetricsExporter-${PLUGIN_VERSION})
 
 add_library(${XrdHttpMetricsExporter} MODULE
-  XrdHttpMetricsExporter.cc XrdHttpMetricsExporter.hh)
+  XrdHttpMetricsExporter.cc XrdHttpMetricsExporter.hh
+  XrdHttpMetricsExporterConfig.hh XrdHttpMetricsExporterPush.hh)
 target_link_libraries(${XrdHttpMetricsExporter} XrdUtils XrdHttpUtils)
 
 # Optional push support (Pushgateway / OTLP) needs libcurl.

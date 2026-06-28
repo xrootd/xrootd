@@ -28,6 +28,7 @@
 #include <thread>
 
 #include "XrdHttp/XrdHttpExtHandler.hh"
+#include "XrdHttpMetricsExporter/XrdHttpMetricsExporterConfig.hh"
 
 class XrdSysError;
 
@@ -62,20 +63,16 @@ void PushLoop();      // Prometheus Pushgateway (text exposition format)
 void OtelLoop();      // OTLP/HTTP receiver (OpenTelemetry OTLP/JSON)
 
 XrdSysError *m_log;
-std::string  m_path;       // request path served, e.g. "/metrics"
-std::string  m_instance;   // shared instance label (default: hostname)
 
-// Optional Prometheus Pushgateway push (active when m_pushURL is set).
+// Parsed configuration (paths, push destinations, intervals). The instance
+// field is resolved to the hostname at construction when left unset.
 //
-std::string  m_pushURL;    // base gateway URL, e.g. http://gw:9091
-std::string  m_pushJob   = "xrootd";
-int          m_pushEvery = 30;     // seconds between pushes
+XrdHttpMetricsExporterCfg::Config m_cfg;
+
+// Background pushers (Pushgateway text / OTLP JSON), each active only when its
+// destination URL is configured.
+//
 std::thread  m_pushThread;
-
-// Optional OTLP/HTTP push (active when m_otelURL is set).
-//
-std::string  m_otelURL;    // full OTLP/HTTP metrics URL, e.g. .../v1/metrics
-int          m_otelEvery = 30;     // seconds between pushes
 std::thread  m_otelThread;
 
 // Shared shutdown signalling for the background pushers.
