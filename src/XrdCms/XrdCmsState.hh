@@ -34,6 +34,7 @@
 #include "XrdCms/XrdCmsTypes.hh"
 
 class XrdLink;
+namespace XrdMetrics {class Registry;}
 
 class XrdCmsState
 {
@@ -41,6 +42,10 @@ public:
 
 int   Suspended;
 int   NoStaging;
+
+// Register cluster-state metrics into the given XrdMetrics registry
+//
+void  RegisterMetrics(XrdMetrics::Registry &reg);
 
 void  Enable();
 

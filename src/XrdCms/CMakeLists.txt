@@ -41,6 +41,7 @@ add_executable(cmsd
   XrdCmsManList.cc     XrdCmsManList.hh
   XrdCmsManTree.cc     XrdCmsManTree.hh
   XrdCmsMeter.cc       XrdCmsMeter.hh
+  XrdCmsMetrics.cc     XrdCmsMetrics.hh
   XrdCmsNash.cc        XrdCmsNash.hh
   XrdCmsNode.cc        XrdCmsNode.hh
   XrdCmsPList.cc       XrdCmsPList.hh

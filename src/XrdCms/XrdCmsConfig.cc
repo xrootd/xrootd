@@ -56,6 +56,7 @@
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsManager.hh"
+#include "XrdCms/XrdCmsMetrics.hh"
 #include "XrdCms/XrdCmsMeter.hh"
 #include "XrdCms/XrdCmsNode.hh"
 #include "XrdCms/XrdCmsPrepare.hh"
@@ -358,6 +359,10 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 // the program/role global labels are frozen before any family is registered.
 //
    XrdMetrics::Config::Instance().Load(ConfigFN, &Say);
+
+// Register the clustering metrics now that the global labels are frozen.
+//
+   XrdCms::RegisterMetrics();
 
 // For managers, make sure that we have a well designated port.
 // For servers or supervisors, force an ephemeral port to be used.

@@ -39,10 +39,12 @@
 #include "XrdOuc/XrdOucDLlist.hh"
 #include "XrdSys/XrdSysPthread.hh"
   
+namespace XrdMetrics {class Registry;}
+
 /******************************************************************************/
 /*                         X r d C m s R R Q I n f o                          */
 /******************************************************************************/
-  
+
 class XrdCmsRRQInfo
 {
 public:
@@ -142,6 +144,10 @@ struct Info
       };
 
 void  Statistics(Info &Data) {myMutex.Lock(); Data = Stats; myMutex.UnLock();}
+
+// Register fast/slow lookup and redirect metrics into the given registry
+//
+void  RegisterMetrics(XrdMetrics::Registry &reg);
 
 void *TimeOut();
 

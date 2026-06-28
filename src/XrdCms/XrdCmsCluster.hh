@@ -48,6 +48,8 @@ class XrdCmsSelect;
 class XrdCmsSelector;
 class XrdNetAddr;
 
+namespace XrdMetrics {class Registry;}
+
 namespace XrdCms
 {
 struct CmsRRHdr;
@@ -213,6 +215,10 @@ void            Space(XrdCms::SpaceData &sData, SMask_t smask);
 //
 int             Stats(char *bfr, int bln); // Server
 int             Statt(char *bfr, int bln); // Manager
+
+// Register this node's cluster metrics into the given XrdMetrics registry
+//
+void            RegisterMetrics(XrdMetrics::Registry &reg);
 
                 XrdCmsCluster();
 virtual        ~XrdCmsCluster() {} // This object should never be deleted
