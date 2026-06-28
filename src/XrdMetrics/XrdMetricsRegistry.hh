@@ -217,7 +217,9 @@ void serialize(ISerializer& s) const
     snap.reserve(groups_.size());
     for (auto& kv : groups_) snap.push_back(kv.second.get());
    }
+   s.begin();
    for (auto* g : snap) g->serialize(s);
+   s.end();
 }
 
 //! Register a Prometheus-text collector, appended after the registry's own

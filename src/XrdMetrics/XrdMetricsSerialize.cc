@@ -20,6 +20,7 @@
 /******************************************************************************/
 
 #include <charconv>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 
@@ -73,6 +74,52 @@ bool nameFirst(char c)
 bool nameRest(char c)
 {
    return nameFirst(c) || (c >= '0' && c <= '9');
+}
+
+// Escape a string per RFC 8259 (JSON): the seven short escapes plus \u00XX for
+// the remaining control characters.
+//
+void appendJsonEscaped(std::string& out, const std::string& s)
+{
+   for (char c : s)
+       switch (c)
+             {case '"':  out += "\\\""; break;
+              case '\\': out += "\\\\"; break;
+              case '\n': out += "\\n";  break;
+              case '\r': out += "\\r";  break;
+              case '\t': out += "\\t";  break;
+              case '\b': out += "\\b";  break;
+              case '\f': out += "\\f";  break;
+              default:
+                 if (static_cast<unsigned char>(c) < 0x20)
+                    {char u[7];
+                     std::snprintf(u, sizeof(u), "\\u%04x", (unsigned)(unsigned char)c);
+                     out += u;
+                    }
+                 else out.push_back(c);
+             }
+}
+
+// Append a double as a JSON value. Finite values render as a bare JSON number;
+// the non-finite values, which JSON cannot express, use the proto3-JSON tokens
+// ("NaN"/"Infinity"/"-Infinity") that OTLP consumers accept for double fields.
+//
+void appendJsonNumber(std::string& out, double v)
+{
+   if (std::isnan(v)) {out += "\"NaN\"";                          return;}
+   if (std::isinf(v)) {out += (v < 0 ? "\"-Infinity\"" : "\"Infinity\""); return;}
+   appendValue(out, v);
+}
+
+// One OTLP KeyValue with a string value: {"key":"k","value":{"stringValue":"v"}}
+//
+void appendOtelAttr(std::string& out, const std::string& k, const std::string& v)
+{
+   out += "{\"key\":\"";
+   appendJsonEscaped(out, k);
+   out += "\",\"value\":{\"stringValue\":\"";
+   appendJsonEscaped(out, v);
+   out += "\"}}";
 }
 }
 
@@ -280,6 +327,157 @@ void PrometheusTextSerializer::histogram(const std::string& fullName,
    out_.push_back(' '); appendValue(out_, d.sum); out_.push_back('\n');
    out_ += fullName; out_ += "_count"; out_ += lbls;
    out_.push_back(' '); appendValue(out_, d.cumulative.back()); out_.push_back('\n');
+}
+
+/******************************************************************************/
+/*                   O t e l J s o n S e r i a l i z e r                     */
+/******************************************************************************/
+
+void OtelJsonSerializer::begin()
+{
+// Capture one scrape timestamp (nanoseconds since the Unix epoch) for every
+// data point in this document.
+//
+   auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+   ts_.clear();
+   appendValue(ts_, static_cast<std::uint64_t>(ns));
+
+   firstMetric_ = true;
+
+   out_ += "{\"resourceMetrics\":[{\"resource\":{";
+   if (!resource_.empty())
+      {out_ += "\"attributes\":[";
+       bool first = true;
+       for (auto& kv : resource_)
+           {if (!first) out_.push_back(',');
+            first = false;
+            appendOtelAttr(out_, kv.first, kv.second);
+           }
+       out_ += "]";
+      }
+   out_ += "},\"scopeMetrics\":[{\"scope\":{\"name\":\"";
+   appendJsonEscaped(out_, scope_);
+   out_ += "\"},\"metrics\":[";
+}
+
+void OtelJsonSerializer::end()
+{
+   out_ += "]}]}]}";   // metrics, scopeMetrics(obj), scopeMetrics(arr), RM, RMs
+}
+
+void OtelJsonSerializer::beginFamily(const std::string& name, MetricKind kind,
+                                     const std::string& help)
+{
+   if (!firstMetric_) out_.push_back(',');
+   firstMetric_ = false;
+   kind_        = kind;
+   firstPoint_  = true;
+
+   out_ += "{\"name\":\"";
+   appendJsonEscaped(out_, name);
+   out_ += "\"";
+   if (!help.empty())
+      {out_ += ",\"description\":\"";
+       appendJsonEscaped(out_, help);
+       out_ += "\"";
+      }
+
+   switch (kind)
+         {case MetricKind::Counter:
+             out_ += ",\"sum\":{\"aggregationTemporality\":2,"
+                     "\"isMonotonic\":true,\"dataPoints\":[";
+             break;
+          case MetricKind::Histogram:
+             out_ += ",\"histogram\":{\"aggregationTemporality\":2,"
+                     "\"dataPoints\":[";
+             break;
+          default:
+             out_ += ",\"gauge\":{\"dataPoints\":[";
+             break;
+         }
+}
+
+void OtelJsonSerializer::endFamily()
+{
+   out_ += "]}}";   // dataPoints array, data field object, metric object
+}
+
+void OtelJsonSerializer::beginPoint(const SeriesLabels& labels)
+{
+   if (!firstPoint_) out_.push_back(',');
+   firstPoint_ = false;
+
+   out_ += "{\"attributes\":[";
+   bool first = true;
+   labels.forEachLabel([&](const std::string& k, const std::string& v)
+                      {if (!first) out_.push_back(',');
+                       first = false;
+                       appendOtelAttr(out_, k, v);
+                      });
+   out_ += "]";
+}
+
+void OtelJsonSerializer::series(const SeriesLabels& l, std::uint64_t v)
+{
+   beginPoint(l);
+   out_ += ",\"asInt\":\"";
+   appendValue(out_, v);
+   out_ += "\",\"timeUnixNano\":\"";
+   out_ += ts_;
+   out_ += "\"}";
+}
+
+void OtelJsonSerializer::series(const SeriesLabels& l, std::int64_t v)
+{
+   beginPoint(l);
+   out_ += ",\"asInt\":\"";
+   appendValue(out_, v);
+   out_ += "\",\"timeUnixNano\":\"";
+   out_ += ts_;
+   out_ += "\"}";
+}
+
+void OtelJsonSerializer::series(const SeriesLabels& l, double v)
+{
+   beginPoint(l);
+   out_ += ",\"asDouble\":";
+   appendJsonNumber(out_, v);
+   out_ += ",\"timeUnixNano\":\"";
+   out_ += ts_;
+   out_ += "\"}";
+}
+
+void OtelJsonSerializer::histogram(const std::string& /*fullName*/,
+                                   const SeriesLabels& l, const HistogramData& d)
+{
+   beginPoint(l);
+
+   out_ += ",\"count\":\"";
+   appendValue(out_, d.cumulative.back());
+   out_ += "\",\"sum\":";
+   appendJsonNumber(out_, d.sum);
+
+// OTLP bucketCounts are per-bucket, not cumulative; de-cumulate as we go. There
+// are bounds.size()+1 of them (the trailing implicit +Inf bucket).
+//
+   out_ += ",\"bucketCounts\":[";
+   std::uint64_t prev = 0;
+   for (std::size_t i = 0; i < d.cumulative.size(); ++i)
+       {if (i) out_.push_back(',');
+        out_.push_back('"');
+        appendValue(out_, d.cumulative[i] - prev);
+        out_.push_back('"');
+        prev = d.cumulative[i];
+       }
+   out_ += "],\"explicitBounds\":[";
+   for (std::size_t i = 0; i < d.bounds.size(); ++i)
+       {if (i) out_.push_back(',');
+        appendJsonNumber(out_, d.bounds[i]);
+       }
+   out_ += "],\"timeUnixNano\":\"";
+   out_ += ts_;
+   out_ += "\"}";
 }
 
 /******************************************************************************/

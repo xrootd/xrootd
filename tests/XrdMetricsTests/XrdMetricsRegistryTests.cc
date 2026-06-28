@@ -30,6 +30,47 @@ std::string scrape(const Registry& reg)
   reg.serialize(ser);
   return out;
 }
+
+// Serialize a registry to the OTLP/JSON format and return it.
+std::string scrapeOtel(const Registry& reg, std::string scope = "xrootd",
+                       std::vector<ConstLabel> res = {})
+{
+  std::string out;
+  OtelJsonSerializer ser(out, std::move(scope), std::move(res));
+  reg.serialize(ser);
+  return out;
+}
+
+// Structural sanity check: every {}/[] is matched, ignoring those inside JSON
+// strings. Cheaper than pulling in a JSON parser for a self-contained check.
+bool jsonBalanced(const std::string& s)
+{
+  int curly = 0, square = 0;
+  bool inStr = false, esc = false;
+  for (char c : s)
+      {if (inStr)
+          {     if (esc)        esc = false;
+           else if (c == '\\')  esc = true;
+           else if (c == '"')   inStr = false;
+           continue;
+          }
+       switch (c)
+             {case '"': inStr = true;  break;
+              case '{': ++curly;       break;
+              case '}': --curly;       break;
+              case '[': ++square;      break;
+              case ']': --square;      break;
+              default: break;
+             }
+       if (curly < 0 || square < 0) return false;
+      }
+  return curly == 0 && square == 0 && !inStr;
+}
+
+bool contains(const std::string& hay, const std::string& needle)
+{
+  return hay.find(needle) != std::string::npos;
+}
 }
 
 /******************************************************************************/
@@ -420,4 +461,99 @@ TEST(XrdMetricsPrometheus, BufferIsReusableAcrossScrapes)
   out.clear();
   reg.serialize(ser);
   EXPECT_EQ(out, first);
+}
+
+/******************************************************************************/
+/*                          O T e l   J S O N                                */
+/******************************************************************************/
+
+TEST(XrdMetricsOtel, EnvelopeAndMonotonicSum)
+{
+  Registry reg("xrootd");
+  reg.group("sched").counter("jobs_total", {}, {}, "jobs scheduled")
+                    .noLabels() += 3;
+
+  const std::string out = scrapeOtel(reg);
+  EXPECT_TRUE(jsonBalanced(out));
+  EXPECT_EQ(out.rfind("{\"resourceMetrics\":[{\"resource\":{},"
+                      "\"scopeMetrics\":[{\"scope\":{\"name\":\"xrootd\"},"
+                      "\"metrics\":[", 0), 0u);                 // starts with envelope
+  EXPECT_NE(out.size(), 0u);
+  EXPECT_EQ(out.compare(out.size() - 6, 6, "]}]}]}"), 0);       // closes envelope
+  EXPECT_TRUE(contains(out, "\"name\":\"xrootd_sched_jobs_total\""));
+  EXPECT_TRUE(contains(out, "\"description\":\"jobs scheduled\""));
+  EXPECT_TRUE(contains(out, "\"sum\":{\"aggregationTemporality\":2,"
+                            "\"isMonotonic\":true,\"dataPoints\":["));
+  EXPECT_TRUE(contains(out, "\"attributes\":[],\"asInt\":\"3\","));
+  EXPECT_TRUE(contains(out, "\"timeUnixNano\":\""));
+}
+
+TEST(XrdMetricsOtel, GaugeCarriesLabelsInOrder)
+{
+  Registry reg("xrootd", {{"instance", "h1"}});
+  reg.group("net").intGauge("conns", {"proto"}, {{"role", "server"}}, "conns")
+                  .withLabelValues({"tcp"}) = 5;
+
+  const std::string out = scrapeOtel(reg);
+  EXPECT_TRUE(jsonBalanced(out));
+  EXPECT_TRUE(contains(out, "\"gauge\":{\"dataPoints\":["));
+  // forEachLabel order: global, family const, then variable.
+  EXPECT_TRUE(contains(out,
+      "\"attributes\":["
+      "{\"key\":\"instance\",\"value\":{\"stringValue\":\"h1\"}},"
+      "{\"key\":\"role\",\"value\":{\"stringValue\":\"server\"}},"
+      "{\"key\":\"proto\",\"value\":{\"stringValue\":\"tcp\"}}],"
+      "\"asInt\":\"5\","));
+}
+
+TEST(XrdMetricsOtel, FloatGaugeAndCounterUseAsDouble)
+{
+  Registry reg("xrootd");
+  reg.group("g").floatGauge("temp", {}, {}, "t").noLabels() = 1.5;
+  double cpu = 2.5;
+  reg.group("proc").observeCounterF("cpu_seconds_total", {}, {}, "cpu")
+                   .add({}, [&]{ return cpu; });
+
+  const std::string out = scrapeOtel(reg);
+  EXPECT_TRUE(jsonBalanced(out));
+  EXPECT_TRUE(contains(out, "\"gauge\":{\"dataPoints\":["
+                            "{\"attributes\":[],\"asDouble\":1.5,"));
+  EXPECT_TRUE(contains(out, "\"name\":\"xrootd_proc_cpu_seconds_total\""));
+  EXPECT_TRUE(contains(out, "\"isMonotonic\":true,\"dataPoints\":["
+                            "{\"attributes\":[],\"asDouble\":2.5,"));
+}
+
+TEST(XrdMetricsOtel, HistogramBucketsAreDecumulated)
+{
+  Registry reg("xrootd");
+  auto& h = reg.group("io").histogram("size_bytes", {1, 2, 5}, {}, {}, "io sizes");
+  h.noLabels().observe(0.5);
+  h.noLabels().observe(1.5);
+  h.noLabels().observe(3);
+  h.noLabels().observe(10);
+
+  const std::string out = scrapeOtel(reg);
+  EXPECT_TRUE(jsonBalanced(out));
+  EXPECT_TRUE(contains(out, "\"histogram\":{\"aggregationTemporality\":2,"
+                            "\"dataPoints\":["));
+  EXPECT_TRUE(contains(out,
+      "\"count\":\"4\",\"sum\":15,"
+      "\"bucketCounts\":[\"1\",\"1\",\"1\",\"1\"],"
+      "\"explicitBounds\":[1,2,5],"));
+}
+
+TEST(XrdMetricsOtel, ResourceAttributesAndEscaping)
+{
+  Registry reg("xrootd");
+  reg.group("g").intGauge("x", {"label"}, {}, "h")
+                .withLabelValues({"a\"b\\c"}) = 1;
+
+  const std::string out =
+      scrapeOtel(reg, "xrootd", {{"service.instance.id", "node-7"}});
+  EXPECT_TRUE(jsonBalanced(out));
+  EXPECT_TRUE(contains(out,
+      "\"resource\":{\"attributes\":["
+      "{\"key\":\"service.instance.id\","
+      "\"value\":{\"stringValue\":\"node-7\"}}]}"));
+  EXPECT_TRUE(contains(out, "\"stringValue\":\"a\\\"b\\\\c\""));
 }

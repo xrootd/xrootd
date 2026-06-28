@@ -57,6 +57,12 @@ class ISerializer
 public:
 virtual ~ISerializer() = default;
 
+//! Document framing, called once by Registry::serialize() around the whole
+//! traversal. Formats with an envelope (JSON, XML) open/close it here; the
+//! line-oriented Prometheus text format leaves both as no-ops.
+virtual void begin() {}
+virtual void end()   {}
+
 virtual void beginFamily(const std::string& /*fullName*/, MetricKind /*kind*/,
                          const std::string& /*help*/) {}
 virtual void endFamily() {}
@@ -100,6 +106,60 @@ private:
 template <class T> void emit(const SeriesLabels& labels, T value);
 
 std::string& out_;
+};
+
+/******************************************************************************/
+/*                   O t e l J s o n S e r i a l i z e r                     */
+/******************************************************************************/
+
+//! Emits the OpenTelemetry OTLP/JSON encoding of an ExportMetricsServiceRequest
+//! into a caller-owned string: a single resourceMetrics -> scopeMetrics ->
+//! metrics document that can be POSTed to an OTLP/HTTP receiver
+//! (Content-Type: application/json). Each family maps to one metric: a Counter
+//! becomes a monotonic cumulative Sum, a Gauge a Gauge, and a Histogram a
+//! cumulative Histogram (bucketCounts are de-cumulated as OTLP requires). Per
+//! proto3 JSON, 64-bit integers are encoded as strings. Every data point is
+//! stamped with the scrape time captured in begin().
+//!
+//! Unlike the Prometheus text format this carries an envelope, so it must be
+//! driven through Registry::serialize() (which calls begin()/end()); appending
+//! raw text collectors into the same buffer would corrupt the JSON.
+
+class OtelJsonSerializer : public ISerializer
+{
+public:
+//! @param out           buffer the JSON document is appended to.
+//! @param scope         instrumentation scope name (e.g. the registry prefix).
+//! @param resourceAttrs optional OTLP Resource attributes (e.g. an instance id).
+explicit OtelJsonSerializer(std::string& out, std::string scope = "xrootd",
+                            std::vector<ConstLabel> resourceAttrs = {})
+        : out_(out), scope_(std::move(scope)),
+          resource_(std::move(resourceAttrs)) {}
+
+void begin() override;
+void end()   override;
+
+void beginFamily(const std::string& name, MetricKind kind,
+                 const std::string& help) override;
+void endFamily() override;
+
+void series(const SeriesLabels& labels, std::uint64_t value) override;
+void series(const SeriesLabels& labels, std::int64_t  value) override;
+void series(const SeriesLabels& labels, double        value) override;
+
+void histogram(const std::string& fullName, const SeriesLabels& labels,
+               const HistogramData& data) override;
+
+private:
+void beginPoint(const SeriesLabels& labels);   // comma, "{", attributes array
+
+std::string&            out_;
+std::string             scope_;
+std::vector<ConstLabel> resource_;
+std::string             ts_;                    // timeUnixNano, set in begin()
+MetricKind              kind_       = MetricKind::Counter;
+bool                    firstMetric_ = true;
+bool                    firstPoint_  = true;
 };
 }
 #endif
