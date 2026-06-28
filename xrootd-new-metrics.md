@@ -659,4 +659,12 @@ Remaining:
 
 ## Next steps (later iterations)
 
-1. Add client-side metrics for batch jobs.
+1. **Configuration directives** that flip which counters register (and thus the
+   exposed metric names): a compat mode that keeps registering the legacy
+   counters so the old `<stats id=…>` reports render unchanged, and a new-only
+   mode that registers just the native names. This is the final piece that makes
+   the registry the single source of truth with config-controlled naming.
+2. **OSS space reporting** via `xrdmoncollect` rather than the in-process
+   registry (see the OSS deferral above), to avoid a per-path/per-group
+   cardinality explosion.
+3. **Client-side metrics** for batch jobs.
