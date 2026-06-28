@@ -27,6 +27,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "XrdOuc/XrdOucJson.hh"
+
 namespace XrdMetrics { class MetricGroup; }
 
 //-----------------------------------------------------------------------------
@@ -194,8 +196,8 @@ void     DecodeMap(unsigned char code, Server& srv,
                    uint32_t dictid, const char* info, int ilen);
 void     DecodeIdent(const std::string& src, int32_t stod, Server& srv,
                      const char* info, int ilen);
-void     DecodeFrm(const std::string& src, int32_t stod, unsigned char code,
-                   const char* info, int ilen);
+void     DecodeFrm(const std::string& src, int32_t stod, Server& srv,
+                   unsigned char code, const char* info, int ilen);
 void     DecodeFStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int len);
 void     EmitClose(const std::string& src, int32_t stod, Server& srv,
@@ -205,11 +207,22 @@ void     EmitDisc(const std::string& src, int32_t stod, Server& srv,
                   uint32_t userID, int32_t tWin);
 void     DecodeTStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int len);
-void     DecodeGStream(const std::string& src, int32_t stod,
+void     DecodeGStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int plen);
 void     DecodeRStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int plen);
 void     Evict(Server& srv);
+
+// Document-building helpers shared by every emitter so all document types use
+// one nested, OpenSearch-friendly schema (server.*, client.*, user.*, ...).
+//
+//! Fill the j["server"] object (ip/start/id/hostname/site/instance/name).
+void     fillServer(nlohmann::json& j, const std::string& src, int32_t stod,
+                    const Server& srv);
+//! Fill j["user"], j["client"], j["app"], j["activity"] from the user
+//! dictionary entry (and the token/activity streams keyed by the same dictid).
+//! Returns the resolved VO (token preferred, else auth CGI) for metric labels.
+std::string fillClient(nlohmann::json& j, const Server& srv, uint32_t userID);
 
 std::unordered_map<std::string, Server> servers;
 // Previous cumulative values for g-stream providers that report running

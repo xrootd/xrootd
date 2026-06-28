@@ -39,8 +39,10 @@ size_t writeCB(char* ptr, size_t sz, size_t nm, void* userp)
 XrdMonOpenSearch::XrdMonOpenSearch(const std::string& url,
                                    const std::string& index,
                                    const std::string& user,
-                                   const std::string& pass, bool insec)
-                : curl(nullptr), idx(index), insecure(insec), maxRetry(4)
+                                   const std::string& pass, bool insec,
+                                   bool dataStream)
+                : curl(nullptr), idx(index), insecure(insec),
+                  useCreate(dataStream), maxRetry(4)
 {
    bulkURL = url;
    if (!bulkURL.empty() && bulkURL.back() == '/') bulkURL.pop_back();
@@ -63,7 +65,9 @@ bool XrdMonOpenSearch::Init(std::string& err)
 
 void XrdMonOpenSearch::Add(std::string& batch, const std::string& jsonDoc) const
 {
-   batch += "{\"index\":{\"_index\":\"";
+   // Data streams accept only "create"; a plain index uses "index" (upsert).
+   batch += useCreate ? "{\"create\":{\"_index\":\""
+                      : "{\"index\":{\"_index\":\"";
    batch += idx;
    batch += "\"}}\n";
    batch += jsonDoc;

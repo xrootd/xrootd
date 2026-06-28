@@ -526,37 +526,47 @@ wire format and warrants its own design pass):
    terminal report (state, errno, message, redirect target) for every concluded
    operation including failures and redirects.
 
-Also not on the wire (best-effort/deferred): `is_local` (LAN/WAN — sites derive
-this manually by comparing client/server domains; a heuristic could be added in
-the collector) and a client-advertised `client.site` (only carried by free-form
-appinfo by convention).
+Also not on the wire: a client-advertised `client.site` (only carried by
+free-form appinfo by convention). `is_local` (LAN/WAN) is likewise not on the
+wire but is now derived in the collector by comparing the client and server
+domains (see the completed items below).
 
 #### Current status & next steps
 
-**Status.** Tier 1 is complete and merged: the transfer document now carries
-every WLCG field XRootD currently exposes, in the nested dotted schema, with all
-23 `XrdMonCollectTests` passing. The collector is feature-complete for the
-*successful-transfer* WLCG use case.
+**Status.** Tier 1 is complete, plus all the Tier-1-adjacent collector polish
+(items 2–5 below) is now done. The collector is feature-complete for the
+*successful-transfer* WLCG use case, with one consistent schema across every
+document type. All 29 `XrdMonCollectTests` pass.
 
-**Next steps**, roughly in priority order:
+Completed since the initial Tier 1 landing:
 
-1. **Tier 2 server-side terminal report** (the only remaining WLCG *data* gap).
-   Requires a design decision between the two approaches above (extend the
-   f-stream close vs. a dedicated operation-report stream), then a wire-format
-   change + collector decode. This is the headline ask in
-   `wlcg-xrootd-collector-requirements.md` and the largest piece of work.
-2. **Schema consistency for the other document types.** `session_end`
-   (`EmitDisc`), `frm`, `t`-stream trace, and `r`-stream redirect docs still use
-   the original flat keys (`user`, `lfn`, `client_host`, …). Migrate them to the
-   same `server.*`/`client.*`/`user.*` nested namespacing so every document type
-   shares one schema.
-3. **`is_local` LAN/WAN heuristic** in the collector (compare client vs. server
-   domain), emitted as `transfer.is_local` and as a bounded metric label.
-4. **OpenSearch sink shape** — finalise index vs. data-stream, naming/rotation,
-   and an ECS-style mapping template matching the dotted field names.
-5. **Optional output sinks** beyond OpenSearch/NDJSON (e.g. a message-queue sink
-   for buffering at scale), now that the per-close document is the stable
-   WLCG-aligned record.
+- **Schema consistency across all document types.** `session_end` (`EmitDisc`),
+  `server_ident` (`DecodeIdent`), `frm` (`DecodeFrm`), the `t`-stream traces
+  (`DecodeTStream`), `r`-stream redirects (`DecodeRStream`), and the `gstream`
+  forward doc were migrated off the original flat keys onto the same nested
+  `server.*`/`client.*`/`user.*`/`file.*` namespacing. Two shared helpers
+  (`fillServer`, `fillClient`) now build those objects so every emitter stays in
+  lock-step.
+- **`is_local` LAN/WAN heuristic.** `transfer.is_local` is set when the client
+  and the reporting server share a registered domain (omitted when either is an
+  IP literal or the server host is unknown); it also drives
+  `xrootd_collector_locality_transfers_total{server,locality}`.
+- **OpenSearch sink shape.** `--os-datastream` switches the `_bulk` action to
+  `create` for append-only data streams; a committed ECS-style composable index
+  template (`opensearch-template.json`) maps the dotted fields explicitly (IPs
+  as `ip`, byte counters as `long`, identifiers/strings as `keyword`).
+- **Additional output sink.** A dependency-free `--forward host:port` TCP NDJSON
+  sink (`XrdMonForward`) feeds buffering frontends (Logstash/Fluentd/Vector or a
+  broker bridge), with lazy reconnect and a cool-down; sinks now fan out freely
+  and stdout is only the no-sink fallback.
+
+**Next step** — the one remaining WLCG *data* gap:
+
+1. **Tier 2 server-side terminal report.** Requires a design decision between the
+   two approaches above (extend the f-stream close vs. a dedicated
+   operation-report stream), then a wire-format change + collector decode. This
+   is the headline ask in `wlcg-xrootd-collector-requirements.md` and the largest
+   piece of work — deferred as it touches the installed wire format.
 
 ---
 

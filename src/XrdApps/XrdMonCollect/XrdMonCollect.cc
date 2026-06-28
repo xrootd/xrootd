@@ -41,6 +41,7 @@
 #include <thread>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
+#include "XrdApps/XrdMonCollect/XrdMonForward.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #ifdef XRDMON_HAVE_CURL
@@ -68,6 +69,9 @@ void usage(const char* prog)
      "  --os-user <u>    basic-auth user\n"
      "  --os-pass <p>    basic-auth password\n"
      "  --os-insecure    skip TLS certificate verification\n"
+     "  --os-datastream  target is a data stream (use the \"create\" action)\n"
+     "  --forward <h:p>  also stream documents as NDJSON over TCP to host:port\n"
+     "                   (e.g. a logstash/fluentd/vector buffering frontend)\n"
      "  --flush-count <n> flush after N documents (default: 500)\n"
      "  --flush-secs <n>  flush after N seconds (default: 5)\n"
      "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
@@ -199,6 +203,8 @@ int main(int argc, char* argv[])
    std::string osUrl, osUser, osPass;
    std::string osIndex = "xrootd-transfers";
    bool        osInsecure = false;
+   bool        osDataStream = false;
+   std::string fwdHost; int fwdPort = 0;
    size_t      flushCount = 500;
    long        flushSecs  = 5;
 
@@ -215,6 +221,16 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--os-user") && i+1 < argc) osUser = argv[++i];
         else if (!strcmp(a, "--os-pass") && i+1 < argc) osPass = argv[++i];
         else if (!strcmp(a, "--os-insecure")) osInsecure = true;
+        else if (!strcmp(a, "--os-datastream")) osDataStream = true;
+        else if (!strcmp(a, "--forward") && i+1 < argc)
+                {std::string hp = argv[++i];
+                 auto c = hp.rfind(':');
+                 if (c == std::string::npos || c == 0 || c+1 >= hp.size())
+                    {fprintf(stderr, "%s: --forward needs host:port\n", argv[0]);
+                     return 2;}
+                 fwdHost = hp.substr(0, c);
+                 fwdPort = atoi(hp.c_str() + c + 1);
+                }
         else if (!strcmp(a, "--flush-count") && i+1 < argc) flushCount = (size_t)atol(argv[++i]);
         else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
         else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
@@ -242,7 +258,8 @@ int main(int argc, char* argv[])
    if (!osUrl.empty())
       {
 #ifdef XRDMON_HAVE_CURL
-       os = new XrdMonOpenSearch(osUrl, osIndex, osUser, osPass, osInsecure);
+       os = new XrdMonOpenSearch(osUrl, osIndex, osUser, osPass, osInsecure,
+                                 osDataStream);
        std::string e;
        if (!os->Init(e))
           {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}
@@ -253,14 +270,21 @@ int main(int argc, char* argv[])
 #endif
       }
 
-// The file/stdout sink is used unless OpenSearch is the only sink. -o always
-// enables a file in addition to OpenSearch.
+// The file/stdout sink is the fallback when no network sink is configured.
+// -o always enables a file in addition to any OpenSearch/forward sink.
 //
-   bool  fileSink = outFile || !osEnabled;
+   bool  fileSink = outFile || (!osEnabled && fwdPort <= 0);
    FILE* out      = stdout;
    if (outFile && !(out = fopen(outFile, "a")))
       {fprintf(stderr, "%s: cannot open '%s': %s\n", argv[0], outFile,
                strerror(errno)); return 4;}
+
+// Optional NDJSON-over-TCP forwarding sink (to a buffering frontend).
+//
+   XrdMonForward* fwd = fwdPort > 0 ? new XrdMonForward(fwdHost, fwdPort)
+                                    : nullptr;
+   size_t fwdDrops = 0;
+   time_t fwdWarn  = 0;
 
 // Create and bind the UDP socket (dual-stack by default)
 //
@@ -300,6 +324,19 @@ int main(int argc, char* argv[])
 #ifdef XRDMON_HAVE_CURL
           if (osEnabled) {os->Add(batch, d); batchCount++;}
 #endif
+          if (fwd)
+             {std::string e;
+              if (!fwd->Send(d, e))
+                 {fwdDrops++;
+                  // Rate-limit the warning to at most once every 10 seconds.
+                  time_t now = time(0);
+                  if (now - fwdWarn >= 10)
+                     {fwdWarn = now;
+                      fprintf(stderr, "xrdmoncollect: forward dropped %zu doc(s): "
+                              "%s\n", fwdDrops, e.c_str());
+                     }
+                 }
+             }
          };
 
    XrdMonDecode::RawSink rawSink;
@@ -411,6 +448,7 @@ int main(int argc, char* argv[])
 
    if (out != stdout) fclose(out);
    close(fd);
+   delete fwd;
 #ifdef XRDMON_HAVE_CURL
    delete os;
 #endif

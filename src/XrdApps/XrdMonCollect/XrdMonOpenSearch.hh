@@ -34,14 +34,16 @@ class XrdMonOpenSearch
 {
 public:
 
-//! @param url      base cluster URL, e.g. "https://localhost:9200".
-//! @param index    index or data-stream the documents are written to.
-//! @param user     basic-auth user (empty for none).
-//! @param pass     basic-auth password.
-//! @param insecure skip TLS certificate verification when true.
+//! @param url        base cluster URL, e.g. "https://localhost:9200".
+//! @param index      index or data-stream the documents are written to.
+//! @param user       basic-auth user (empty for none).
+//! @param pass       basic-auth password.
+//! @param insecure   skip TLS certificate verification when true.
+//! @param dataStream target is a data stream: use the "create" bulk action
+//!                   (data streams reject "index") and rely on @timestamp.
 XrdMonOpenSearch(const std::string& url, const std::string& index,
                  const std::string& user, const std::string& pass,
-                 bool insecure);
+                 bool insecure, bool dataStream = false);
 
 ~XrdMonOpenSearch();
 
@@ -66,6 +68,7 @@ std::string bulkURL;   // url + "/_bulk"
 std::string idx;
 std::string userpwd;   // "user:pass" or empty
 bool        insecure;
+bool        useCreate; // "create" bulk action (data stream) vs "index"
 int         maxRetry;
 };
 #endif

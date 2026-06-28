@@ -66,11 +66,14 @@ if(NOT XRDCL_ONLY)
   if(CURL_FOUND)
     add_executable(xrdmoncollect
       XrdMonCollect/XrdMonCollect.cc
+      XrdMonCollect/XrdMonForward.cc
       XrdMonCollect/XrdMonOpenSearch.cc)
     target_compile_definitions(xrdmoncollect PRIVATE XRDMON_HAVE_CURL)
     target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils CURL::libcurl)
   else()
-    add_executable(xrdmoncollect XrdMonCollect/XrdMonCollect.cc)
+    add_executable(xrdmoncollect
+      XrdMonCollect/XrdMonCollect.cc
+      XrdMonCollect/XrdMonForward.cc)
     target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils)
   endif()
 

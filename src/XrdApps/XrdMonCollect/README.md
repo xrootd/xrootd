@@ -15,18 +15,21 @@ addition. See `xrootd-new-metrics.md`, Phase 5.
 ```
 xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
               [--os-url <url> [--os-index <name>] [--os-user <u>]
-               [--os-pass <p>] [--os-insecure]]
+               [--os-pass <p>] [--os-insecure] [--os-datastream]]
+              [--forward <host:port>]
               [--flush-count <n>] [--flush-secs <n>] [--dump] [-v]
 
   -p <port>        UDP port to listen on (required)
   -b <bindaddr>    address to bind (default: all interfaces, dual-stack)
-  -o <file>        append output to <file> (default: stdout unless --os-url)
+  -o <file>        append output to <file> (default: stdout unless a network sink)
   --bulk <index>   write OpenSearch _bulk format to the file/stdout sink
   --os-url <url>   POST documents to an OpenSearch cluster's _bulk API
   --os-index <n>   index/data-stream name (default: xrootd-transfers)
   --os-user <u>    basic-auth user
   --os-pass <p>    basic-auth password
   --os-insecure    skip TLS certificate verification
+  --os-datastream  target is a data stream (use the "create" bulk action)
+  --forward <h:p>  also stream documents as NDJSON over TCP to host:port
   --flush-count <n> flush after N documents (default: 500)
   --flush-secs <n>  flush after N seconds (default: 5)
   --metrics-port <p> serve aggregated metrics over HTTP on port <p>
@@ -38,6 +41,11 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   -v               print decoder statistics on exit (SIGINT/SIGTERM)
 ```
 
+All document types — `transfer`, `session_end`, `server_ident`, `frm`,
+`redirect`, the `t`-stream traces and `gstream` — share one nested,
+OpenSearch-friendly schema (`server.*`, `client.*`, `user.*`, `file.*`,
+`transfer.*`, …; each nested object indexes as a dotted field).
+
 ### Streams
 
 By default the `f` (file-stats) stream produces a per-transfer document on each
@@ -48,10 +56,10 @@ the `isXfr` snapshots and open/close records). Two opt-in streams add
 finer-grained events:
 
 - `--traces` turns each `t` (I/O trace) record into a document: `read`/`write`
-  (with offset, length and the resolved `lfn`), `open`, `close`, `disconnect`,
-  and `appid`. This is **high volume** (one record per I/O) — enable only when
-  the detail is needed. Requires `io` in the server's monitor `dest` list and
-  the path dictionary (`d` stream) to resolve file names.
+  (with offset, length and the resolved `file.lfn`), `open`, `close`,
+  `disconnect`, and `appid`. This is **high volume** (one record per I/O) —
+  enable only when the detail is needed. Requires `io` in the server's monitor
+  `dest` list and the path dictionary (`d` stream) to resolve file names.
 - `--gstream` forwards each `g` (plugin) record — from the `oss`, `pfc`,
   `throttle`, `tpc`, `http` g-streams — as a document tagged with its provider,
   embedding the plugin's JSON payload. Requires `xrootd.mongstream` on the
@@ -61,37 +69,74 @@ finer-grained events:
   `io_total`, `http` counts) are converted to counter deltas. `ccm` and
   `tcpmon` are forwarded only.
 - The `x` (FRM stage/migrate) and `p` (FRM purge) records are always decoded
-  into an `frm` document (operation, user, lfn, and — for purge — the file
-  size) and counted in `xrootd_collector_frm_total{server,op}` /
+  into an `frm` document (operation, `user.name`, `file.lfn`, and — for purge —
+  `file.size`) and counted in `xrootd_collector_frm_total{server,op}` /
   `xrootd_collector_frm_purge_bytes_total`. Emitted by a File Residency
   Manager.
 - `--redirects` turns each `r` (redirect) record into a document: operation,
-  remote/local kind, target host/port, path, and the redirected user. Emitted
-  mainly by redirectors/managers; requires `redir` in the monitor `dest` list.
+  remote/local kind, the destination `target.host`/`target.port`, the redirected
+  `file.lfn`, and the joined `user`/`client`. Emitted mainly by
+  redirectors/managers; requires `redir` in the monitor `dest` list.
 
 The `u` (user), `d` (path) and `i` (appinfo) dictionaries are always consumed:
 they resolve identities and paths for the other streams, and the appinfo (`i`)
-is joined to each transfer document by session descriptor (adds an `appinfo`
-field when the client set one).
+is joined to each transfer document by session descriptor (adds `app.raw`
+when the client set one).
 
 The `=` (server identity), `T` (token) and `U` (user experiment/activity)
 records are also always consumed:
 
 - `=` (`MAPIDNT`) yields a one-off `server_ident` document per server
-  incarnation (site, host, instance, program, version, port) and tags every
-  transfer document with `site`/`server_inst`. Re-sent identically each
-  `ident` interval; the collector emits the document only when it changes.
+  incarnation (`server.{site,hostname,instance,program,version,port}`) and its
+  host/site/instance are joined into every transfer document's `server` object.
+  Re-sent identically each `ident` interval; the collector emits the document
+  only when it changes.
 - `T` (`MAPTOKN`) carries the token identity (subject, VO, role, groups). Keyed
-  by the user dictid, it joins onto each transfer as `token_subject`/`vo`/
-  `role`/`groups`, and drives `xrootd_collector_vo_transfers_total{server,vo}`.
+  by the user dictid, it joins onto each transfer as
+  `user.{subject,vo,role,groups}`, and drives
+  `xrootd_collector_vo_transfers_total{server,vo}`.
 - `U` (`MAPUEAC`) carries the SciTags packet-marking flow labels (experiment
-  and activity ids), joined onto transfers as `experiment_id`/`activity_id`.
+  and activity ids), joined onto transfers as `activity.{experiment_id,activity_id}`.
 
-The direct OpenSearch sink (`--os-url`) is available when the binary is built
-with libcurl (the build links `CURL::libcurl` if found). Documents are batched
-and posted via the `_bulk` API; transient failures (network, HTTP 429/5xx) are
-retried with exponential backoff. Without libcurl, ship the file/`--bulk` output
-with an external agent (Filebeat) or `curl`.
+### Sinks
+
+Documents fan out to any combination of sinks; stdout is used only as the
+fallback when no other sink is configured (`-o` always adds a file too):
+
+- **File / stdout** (`-o`, `--bulk`): NDJSON, or the OpenSearch `_bulk` framing
+  with `--bulk <index>`. Ship it with an external agent (Filebeat) or `curl`.
+- **OpenSearch** (`--os-url`): available when the binary is built with libcurl
+  (the build links `CURL::libcurl` if found). Documents are batched and posted
+  via the `_bulk` API; transient failures (network, HTTP 429/5xx) are retried
+  with exponential backoff.
+- **TCP forward** (`--forward host:port`): streams the same NDJSON over a plain
+  TCP connection to a buffering/forwarding frontend — Logstash (`tcp` input),
+  Fluentd (`in_tcp`), Vector (`socket` source), or a message-broker bridge. The
+  connection is lazily (re)established with a short cool-down; documents
+  produced while the consumer is down are dropped (durable buffering is the
+  downstream's job). Dependency-free, so it is built even without libcurl.
+
+#### Index vs data stream
+
+`--os-index` names either a rolling index or a **data stream**. A data stream is
+the recommended shape for this append-only, time-series data: pass
+`--os-datastream` so the collector uses the `_bulk` `create` action (data
+streams reject `index`) and relies on the `@timestamp` every document carries.
+
+A composable index template with an explicit, ECS-style mapping for the dotted
+field names is provided in [`opensearch-template.json`](opensearch-template.json)
+(IPs as `ip`, byte counters as `long`, identifiers as `keyword`, strings mapped
+to `keyword` by default rather than analyzed `text`). Apply it once before
+ingesting; it also creates the data stream backing the `xrootd-transfers` name:
+
+```sh
+curl -s -H 'Content-Type: application/json' \
+     -XPUT https://opensearch:9200/_index_template/xrootd-transfers \
+     --data-binary @opensearch-template.json
+```
+
+Drop the `data_stream` block from the template (and omit `--os-datastream`) to
+use a plain rolling index with an ISM rollover policy instead.
 
 ### Examples
 
@@ -99,9 +144,13 @@ with an external agent (Filebeat) or `curl`.
 # Collect to a file as NDJSON
 xrdmoncollect -p 9930 -o /var/log/xrootd/transfers.ndjson -v
 
-# Post directly to OpenSearch
+# Post directly to an OpenSearch data stream
 xrdmoncollect -p 9930 --os-url https://opensearch:9200 \
-              --os-index xrootd-transfers --os-user admin --os-pass secret
+              --os-index xrootd-transfers --os-datastream \
+              --os-user admin --os-pass secret
+
+# Forward NDJSON to a Logstash/Fluentd TCP input for buffering
+xrdmoncollect -p 9930 --forward logstash.example.org:5044
 
 # Produce an OpenSearch bulk file and ship it manually
 xrdmoncollect -p 9930 --bulk xrootd-transfers -o /tmp/bulk.ndjson
@@ -146,7 +195,7 @@ One object per file close, for example:
   "transfer": { "operation": "read", "open_seen": true,
                 "start_time": "2026-06-23T15:57:50Z",
                 "end_time": "2026-06-23T15:57:53Z", "duration_s": 3,
-                "forced_close": false,
+                "forced_close": false, "is_local": false,
                 "read_bytes": 10485760, "readv_bytes": 0, "write_bytes": 0,
                 "read_ops": 2, "readv_ops": 0, "write_ops": 0 },
   "activity": { "experiment_id": 1, "activity_id": 7 },
@@ -179,12 +228,19 @@ on the wire. Mapping (and the server config each needs):
 | activity | `user.role`, `activity.*` | `T` token / `U` SciTags |
 | start_time / end_time | `transfer.start_time` / `.end_time` | f-stream `FileTOD` window |
 | bytes | `transfer.{read,readv,write}_bytes` | `fstat … xfr` |
+| is_local (LAN/WAN) | `transfer.is_local` | derived: client vs server domain (needs `=` ident) |
+
+`transfer.is_local` is a heuristic: it is `true` when the client and the
+reporting server share a registered domain (the part after the first host
+label), `false` when they differ, and **omitted** when either side is an IP
+literal or the server host is unknown (no `=` ident yet). It also drives
+`xrootd_collector_locality_transfers_total{server,locality}`.
 
 **Not yet available** (require a server-side change — a failed transfer emits no
 close record today): `operation_state` (authoritative success/failure),
-`error_message`, and `error_category`. `is_local` (LAN/WAN) and a client-advertised
-`client.site` are likewise not carried on the wire. See the next-generation
-metrics design doc for the proposed server-side "terminal report" follow-up.
+`error_message`, and `error_category`. A client-advertised `client.site` is
+likewise not carried on the wire. See the next-generation metrics design doc for
+the proposed server-side "terminal report" follow-up.
 
 ## Aggregated metrics (Prometheus)
 
@@ -199,6 +255,7 @@ xrootd_collector_transfers_total{server="..."}
 xrootd_collector_read_bytes_total{server="..."}
 xrootd_collector_write_bytes_total{server="..."}
 xrootd_collector_vo_transfers_total{server="...",vo="..."}
+xrootd_collector_locality_transfers_total{server="...",locality="local|remote"}
 xrootd_collector_sessions_total{server="..."}
 xrootd_collector_active_transfers{server="..."}   (gauge)
 xrootd_collector_transfer_size_bytes        (histogram)

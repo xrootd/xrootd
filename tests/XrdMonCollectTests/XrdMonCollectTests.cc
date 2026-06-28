@@ -232,7 +232,7 @@ TEST(XrdMonCollect, TStreamRecordsDecoded)
   EXPECT_EQ(rd["type"], "read");
   EXPECT_EQ(rd["offset"], 4096);
   EXPECT_EQ(rd["length"], 1024);
-  EXPECT_EQ(rd["lfn"], "/path/f.root");
+  EXPECT_EQ(rd["file"]["lfn"], "/path/f.root");
   json cl = json::parse(docs[1]);
   EXPECT_EQ(cl["type"], "close");
   EXPECT_EQ(cl["read_bytes"], 2048);
@@ -325,10 +325,11 @@ TEST(XrdMonCollect, RedirectStreamDecoded)
   EXPECT_EQ(j["type"], "redirect");
   EXPECT_EQ(j["operation"], "open-read");
   EXPECT_EQ(j["redirect_kind"], "remote");
-  EXPECT_EQ(j["target_host"], "host.example");
-  EXPECT_EQ(j["target_port"], 1094);
-  EXPECT_EQ(j["path"], "/store/data/f.root");
-  EXPECT_EQ(j["user"], "bob");
+  EXPECT_EQ(j["target"]["host"], "host.example");
+  EXPECT_EQ(j["target"]["port"], 1094);
+  EXPECT_EQ(j["file"]["lfn"], "/store/data/f.root");
+  EXPECT_EQ(j["user"]["name"], "bob");
+  EXPECT_EQ(j["client"]["host"], "cli.example.org");
 }
 
 TEST_F(Transfer, TokenAndActivityEnrichTransfer)
@@ -434,6 +435,54 @@ TEST_F(Transfer, WriteOperationDerived)
   EXPECT_EQ(j["transfer"]["write_bytes"], 2097152);
 }
 
+// Feed a '=' server-ident record so srv.ident.host is populated for the
+// LAN/WAN heuristic. The fixture decoder is keyed by ("10.0.0.1:9930", kStod).
+static void feedIdent(XrdMonDecode& dec, const std::string& host)
+{
+   std::string info = "=/xrootd.1:2@" + host +
+                      "\n&site=S&port=1094&inst=mgr&pgm=xrootd&ver=v6";
+   W body; body.u32(0);
+   std::vector<unsigned char> pl = body.b;
+   pl.insert(pl.end(), info.begin(), info.end());
+   auto pkt = packet('=', kStod, pl);
+   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+}
+
+TEST_F(Transfer, IsLocalWhenSameDomain)
+{
+  feedIdent(dec, "srv.example.org");   // client is wn.example.org -> same domain
+  feedUserMap();
+  feedOpen();
+  feedClose();
+
+  json j = json::parse(lastDoc);
+  ASSERT_TRUE(j["transfer"].contains("is_local"));
+  EXPECT_EQ(j["transfer"]["is_local"], true);
+}
+
+TEST_F(Transfer, IsRemoteWhenDifferentDomain)
+{
+  feedIdent(dec, "srv.other.net");     // different registered domain -> remote
+  feedUserMap();
+  feedOpen();
+  feedClose();
+
+  json j = json::parse(lastDoc);
+  ASSERT_TRUE(j["transfer"].contains("is_local"));
+  EXPECT_EQ(j["transfer"]["is_local"], false);
+}
+
+TEST_F(Transfer, IsLocalAbsentWithoutServerHost)
+{
+  // No '=' ident -> server host unknown -> heuristic cannot decide.
+  feedUserMap();
+  feedOpen();
+  feedClose();
+
+  json j = json::parse(lastDoc);
+  EXPECT_FALSE(j["transfer"].contains("is_local"));
+}
+
 namespace
 {
 // A minimal valid 'u' map packet (dictid + descriptor) with a chosen pseq.
@@ -500,11 +549,11 @@ TEST(XrdMonCollect, FrmStageAndPurge)
   json x = json::parse(docs[0]);
   EXPECT_EQ(x["type"], "frm");
   EXPECT_EQ(x["operation"], "transfer");
-  EXPECT_EQ(x["user"], "alice");
-  EXPECT_EQ(x["lfn"], "/store/data/f.root");
+  EXPECT_EQ(x["user"]["name"], "alice");
+  EXPECT_EQ(x["file"]["lfn"], "/store/data/f.root");
   json p = json::parse(docs[1]);
   EXPECT_EQ(p["operation"], "purge");
-  EXPECT_EQ(p["size"], 1048576);
+  EXPECT_EQ(p["file"]["size"], 1048576);
   EXPECT_EQ(dec.GetStats().frmEvents, 2u);
 
   std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
@@ -544,8 +593,8 @@ TEST(XrdMonCollect, SessionDiscAndActiveGauge)
   ASSERT_EQ(docs.size(), 1u);                  // the session_end document
   json j = json::parse(docs[0]);
   EXPECT_EQ(j["type"], "session_end");
-  EXPECT_EQ(j["user"], "bob");
-  EXPECT_EQ(j["client_host"], "cli.example.org");
+  EXPECT_EQ(j["user"]["name"], "bob");
+  EXPECT_EQ(j["client"]["host"], "cli.example.org");
   EXPECT_EQ(dec.GetStats().discs, 1u);
 
   std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
@@ -574,12 +623,12 @@ TEST(XrdMonCollect, ServerIdentDecoded)
   ASSERT_EQ(docs.size(), 1u);
   json j = json::parse(docs[0]);
   EXPECT_EQ(j["type"], "server_ident");
-  EXPECT_EQ(j["site"], "T1_DE_KIT");
-  EXPECT_EQ(j["host"], "srv.example.org");
-  EXPECT_EQ(j["instance"], "manager");
-  EXPECT_EQ(j["program"], "xrootd");
-  EXPECT_EQ(j["version"], "v6.1.0");
-  EXPECT_EQ(j["port"], 1094);
+  EXPECT_EQ(j["server"]["site"], "T1_DE_KIT");
+  EXPECT_EQ(j["server"]["hostname"], "srv.example.org");
+  EXPECT_EQ(j["server"]["instance"], "manager");
+  EXPECT_EQ(j["server"]["program"], "xrootd");
+  EXPECT_EQ(j["server"]["version"], "v6.1.0");
+  EXPECT_EQ(j["server"]["port"], 1094);
   EXPECT_EQ(dec.GetStats().mapIdnt, 2u);
 }
 

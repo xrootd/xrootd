@@ -1,0 +1,127 @@
+{
+  "//": "Composable index template for xrdmoncollect transfer documents. Apply with:",
+  "//apply": "curl -XPUT $OS/_index_template/xrootd-transfers -H 'Content-Type: application/json' -d @opensearch-template.json",
+  "//datastream": "The data_stream block below makes 'xrootd-transfers' a data stream (append-only, time-series). Drop it to use a plain rolling index instead, and remove --os-datastream from xrdmoncollect.",
+  "index_patterns": ["xrootd-transfers*"],
+  "data_stream": {},
+  "priority": 200,
+  "template": {
+    "settings": {
+      "index.number_of_shards": 1,
+      "index.number_of_replicas": 1,
+      "index.codec": "best_compression"
+    },
+    "mappings": {
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": { "type": "keyword", "ignore_above": 1024 }
+          }
+        }
+      ],
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "type":       { "type": "keyword" },
+
+        "server": {
+          "properties": {
+            "ip":       { "type": "ip", "ignore_malformed": true },
+            "hostname": { "type": "keyword" },
+            "name":     { "type": "keyword" },
+            "site":     { "type": "keyword" },
+            "instance": { "type": "keyword" },
+            "id":       { "type": "long" },
+            "start":    { "type": "long" },
+            "program":  { "type": "keyword" },
+            "version":  { "type": "keyword" },
+            "port":     { "type": "integer" }
+          }
+        },
+
+        "client": {
+          "properties": {
+            "host":       { "type": "keyword" },
+            "ip":         { "type": "ip", "ignore_malformed": true },
+            "hostname":   { "type": "keyword" },
+            "version":    { "type": "keyword" },
+            "ip_version": { "type": "byte" }
+          }
+        },
+
+        "user": {
+          "properties": {
+            "name":        { "type": "keyword" },
+            "protocol":    { "type": "keyword" },
+            "raw":         { "type": "keyword", "ignore_above": 2048 },
+            "auth_method": { "type": "keyword" },
+            "vo":          { "type": "keyword" },
+            "role":        { "type": "keyword" },
+            "groups":      { "type": "keyword" },
+            "subject":     { "type": "keyword", "ignore_above": 2048 }
+          }
+        },
+
+        "file": {
+          "properties": {
+            "lfn":        { "type": "keyword", "ignore_above": 4096 },
+            "id":         { "type": "long" },
+            "size":       { "type": "long" },
+            "read_write": { "type": "boolean" }
+          }
+        },
+
+        "transfer": {
+          "properties": {
+            "operation":    { "type": "keyword" },
+            "start_time":   { "type": "date" },
+            "end_time":     { "type": "date" },
+            "duration_s":   { "type": "long" },
+            "forced_close": { "type": "boolean" },
+            "is_local":     { "type": "boolean" },
+            "open_seen":    { "type": "boolean" },
+            "read_bytes":   { "type": "long" },
+            "readv_bytes":  { "type": "long" },
+            "write_bytes":  { "type": "long" },
+            "read_ops":     { "type": "long" },
+            "readv_ops":    { "type": "long" },
+            "write_ops":    { "type": "long" },
+            "readv_segs":   { "type": "long" },
+            "read_min":     { "type": "long" },
+            "read_max":     { "type": "long" },
+            "readv_min":    { "type": "long" },
+            "readv_max":    { "type": "long" },
+            "write_min":    { "type": "long" },
+            "write_max":    { "type": "long" },
+            "read_sumsq":   { "type": "double" },
+            "readv_sumsq":  { "type": "double" },
+            "rsegs_sumsq":  { "type": "double" },
+            "write_sumsq":  { "type": "double" }
+          }
+        },
+
+        "app": {
+          "properties": {
+            "name": { "type": "keyword" },
+            "info": { "type": "keyword", "ignore_above": 2048 },
+            "raw":  { "type": "keyword", "ignore_above": 2048 }
+          }
+        },
+
+        "activity": {
+          "properties": {
+            "experiment_id": { "type": "integer" },
+            "activity_id":   { "type": "integer" }
+          }
+        },
+
+        "target": {
+          "properties": {
+            "host": { "type": "keyword" },
+            "port": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}
