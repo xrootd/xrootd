@@ -617,10 +617,25 @@ Approach (chosen with the user): a legacy-only renderer (`XrdStatsLegacy`) hard
 representation differs, e.g. proc microseconds vs the new seconds). All legacy
 -schema knowledge stays in that renderer; the XrdMetrics core stays clean.
 
-Done: the `sched` block, proven byte-identical to `XrdScheduler::Stats()`.
-Remaining: the `info`, `proc`, `buff`, `link`, `poll` and protocol blocks, then
-rewiring `XrdStats::GenStats` to snapshot the registry once and render every
-block from it, and finally the configuration directives.
+Done:
+
+- The `info`, `proc`, `buff`, `link`, `poll` and `sched` blocks render through
+  `XrdStatsLegacy`, and `XrdStats::GenStats` now snapshots the registry once and
+  produces them from it (the former `InfoStats`/`ProcStats` members are gone; a
+  `do_sync` report still flushes the deferred per-link counts first; the buff
+  block splices in the nested buffer-XL fragment via `XrdBuffManager::xlStats`).
+- The `<stats id="xrootd">` protocol block renders through
+  `XrdStatsLegacy::Xrootd`; `XrdXrootdStats::Stats` snapshots the registry and
+  emits it from there, still appending the filesystem block. The existing
+  byte-stability test exercises the full round-trip unchanged.
+
+Remaining:
+
+- The nested `<stats id="ofs">` filesystem block (a separate, unmigrated
+  subsystem — this is where new metrics likely need to be registered first and
+  then reused for the legacy block).
+- The configuration directives that flip which counters register (and thus the
+  exposed names).
 
 ## Next steps (later iterations)
 
