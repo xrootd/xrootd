@@ -40,6 +40,25 @@ class XrdStatsLegacy
 {
 public:
 
+//! <stats id="info"> — server identity; the values are strings/ports that are
+//! not numeric metrics, so they are passed in rather than read from a snapshot.
+static int Info(const char* host, int port, const char* name,
+                char* buff, int blen);
+
+//! <stats id="proc"> — process CPU usage read once from getrusage() directly,
+//! since the legacy block reports seconds/microseconds split, not the registry's
+//! cpu_seconds doubles.
+static int Proc(char* buff, int blen);
+
+//! <stats id="buff"> — xlStats is the nested buffer-XL block (produced by the
+//! caller) spliced in verbatim, matching XrdBuffManager::Stats().
+static int Buff(const XrdMetrics::MetricSnapshot& snap, const char* xlStats,
+                char* buff, int blen);
+
+static int Link(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
+
+static int Poll(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
+
 static int Sched(const XrdMetrics::MetricSnapshot& snap, char* buff, int blen);
 };
 #endif
