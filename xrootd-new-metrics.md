@@ -586,9 +586,43 @@ collector behaviour is exercised by `XrdSchedulerStatsTests`,
 `XrdXrootdStatsTests` (legacy XML byte-stability) and the `XrdMonCollectTests`
 suite, plus the server integration tests.
 
+## Serializers
+
+Three `ISerializer` implementations share one registry traversal:
+
+- `PrometheusTextSerializer` — the exposition text scraped at `/metrics`.
+- `OtelJsonSerializer` — an OTLP/JSON `ExportMetricsServiceRequest`
+  (resourceMetrics → scopeMetrics → metrics) ready to POST to an OTLP/HTTP
+  receiver. Counter → monotonic cumulative Sum, Gauge → Gauge, Histogram →
+  cumulative Histogram with de-cumulated `bucketCounts`; 64-bit ints are JSON
+  strings, non-finite doubles use the NaN/Infinity tokens, and every point
+  carries the scrape time. Document framing uses the `begin()`/`end()` hooks
+  `Registry::serialize()` calls around the traversal (no-ops for Prometheus).
+- `MetricSnapshot` — not an output format but a by-name value collector
+  (keyed by the `name{labels}` series identity) that lets a consumer pull
+  values for a layout outside the flat metric model.
+
+## Driving the legacy stats from the registry
+
+Goal: make the new registry the single source of truth and reproduce the
+pre-existing `XrdStats` `<stats id=...>` XML (and later the JSON) from it, so a
+future configuration directive can flip which counters register — changing the
+exposed names — while keeping full backward compatibility for the old reports.
+`XrdHttpMon` is the exception already fully migrated (its counters were only
+released recently and have few users).
+
+Approach (chosen with the user): a legacy-only renderer (`XrdStatsLegacy`) hard
+-codes each legacy block's element layout and pulls values from a
+`MetricSnapshot` by native metric name (reading a source directly where the
+representation differs, e.g. proc microseconds vs the new seconds). All legacy
+-schema knowledge stays in that renderer; the XrdMetrics core stays clean.
+
+Done: the `sched` block, proven byte-identical to `XrdScheduler::Stats()`.
+Remaining: the `info`, `proc`, `buff`, `link`, `poll` and protocol blocks, then
+rewiring `XrdStats::GenStats` to snapshot the registry once and render every
+block from it, and finally the configuration directives.
+
 ## Next steps (later iterations)
 
-1. Add the OTel JSON serializer (and optionally fold the legacy XML/JSON
-   emitters onto the `ISerializer` seam).
-2. Add a Summary instrument if needed.
-3. Add client-side metrics for batch jobs.
+1. Add a Summary instrument if needed.
+2. Add client-side metrics for batch jobs.
