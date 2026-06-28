@@ -81,6 +81,18 @@ std::string isoTime(int32_t t)
    strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tmv);
    return buf;
 }
+
+// Best-effort classification of a host string as an IP literal vs a hostname.
+// IPv6 if it contains ':'; IPv4 if non-empty and only digits and dots; else a
+// hostname. The server may emit either, depending on its DNS-resolution config.
+//
+bool isIPLiteral(const std::string& h)
+{
+   if (h.empty()) return false;
+   if (h.find(':') != std::string::npos) return true;   // IPv6
+   for (char c : h) if (c != '.' && (c < '0' || c > '9')) return false;
+   return true;                                          // IPv4 dotted-quad
+}
 }
 
 /******************************************************************************/
@@ -253,6 +265,18 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
            u.user = rest.substr(0, dot);
           }
        if (at != std::string::npos) u.host = first.substr(at + 1);
+       // CGI tail (after the descriptor line): login appinfo is always present
+       // (&R= &x= &y= &I=); auth info (&p= &o= &r= &g=) only with "... auth".
+       // cgiVal scans the whole string; the descriptor line carries no "&key=".
+       u.authMethod = cgiVal(text, "p");
+       u.vo         = cgiVal(text, "o");
+       u.role       = cgiVal(text, "r");
+       u.groups     = cgiVal(text, "g");
+       u.clientVer  = cgiVal(text, "R");
+       u.appName    = cgiVal(text, "x");
+       u.appInfo    = cgiVal(text, "y");
+       std::string iv = cgiVal(text, "I");
+       if (!iv.empty()) u.ipVersion = atoi(iv.c_str());
        srv.users[dictid] = std::move(u);
       }
       else if (code == XROOTD_MON_MAPPATH)
@@ -552,19 +576,34 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    int durSecs = -1;
    std::string vo;
 
+// One per-transfer document in an OpenSearch-friendly nested schema (each nested
+// object indexes as a dotted field, e.g. server.name). Empty/zero fields are
+// omitted. See README.md for the field-to-WLCG mapping.
+//
    json j;
-   j["type"]         = "transfer";
-   j["@timestamp"]   = isoTime(tWin);
-   j["server"]       = src;
-   j["server_start"] = stod;
-   j["server_id"]    = srv.sID;
-   if (!srv.ident.site.empty()) j["site"]          = srv.ident.site;
-   if (!srv.ident.inst.empty()) j["server_inst"]   = srv.ident.inst;
-   j["close_time"]   = isoTime(tWin);
-   j["forced"]       = (recFlag & XrdXrootdMonFileHdr::forced) != 0;
-   j["read_bytes"]   = rdBytes;
-   j["readv_bytes"]  = rvBytes;
-   j["write_bytes"]  = wrBytes;
+   j["type"]       = "transfer";
+   j["@timestamp"] = isoTime(tWin);
+
+   json& server = j["server"];
+   server["ip"]    = src.substr(0, src.rfind(':'));   // UDP source (strip :port)
+   server["start"] = stod;                            // incarnation key
+   server["id"]    = srv.sID;
+   if (!srv.ident.host.empty()) server["hostname"] = srv.ident.host;
+   if (!srv.ident.site.empty()) server["site"]     = srv.ident.site;
+   if (!srv.ident.inst.empty()) server["instance"] = srv.ident.inst;
+   // server.name: prefer the configured hostname, else fall back to the sender.
+   server["name"] = !srv.ident.host.empty() ? srv.ident.host
+                                            : server["ip"].get<std::string>();
+
+   json& transfer = j["transfer"];
+   transfer["end_time"]     = isoTime(tWin);
+   transfer["forced_close"] = (recFlag & XrdXrootdMonFileHdr::forced) != 0;
+   transfer["read_bytes"]   = rdBytes;
+   transfer["readv_bytes"]  = rvBytes;
+   transfer["write_bytes"]  = wrBytes;
+   // Explicit read/write categorisation (WLCG operation_type): any write bytes
+   // make it a write, otherwise it is a read.
+   transfer["operation"]    = (wrBytes > 0) ? "write" : "read";
 
 // Join the matching open record (held since the open packet) to recover the
 // path, the user, and the open time. Resolve the user dictid if we have it.
@@ -572,23 +611,44 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    auto fit = srv.files.find(fileID);
    if (fit != srv.files.end())
       {const OpenFile& of = fit->second;
-       j["open_seen"]  = true;
-       j["lfn"]        = of.lfn;
-       j["file_size"]  = of.fsz;
-       j["read_write"] = of.rw;
-       j["open_time"]  = isoTime(of.tOpen);
+       transfer["open_seen"]  = true;
+       json& file = j["file"];
+       file["lfn"]        = of.lfn;
+       file["size"]       = of.fsz;
+       file["read_write"] = of.rw;
+       transfer["start_time"] = isoTime(of.tOpen);
        if (of.tOpen > 0 && tWin > 0) {durSecs = tWin - of.tOpen;
-                                      j["duration_s"] = durSecs;}
+                                      transfer["duration_s"] = durSecs;}
 
        auto uit = srv.users.find(of.user);
        if (uit != srv.users.end())
-          {j["user"]        = uit->second.user;
-           j["protocol"]    = uit->second.prot;
-           j["client_host"] = uit->second.host;
-           j["user_raw"]    = uit->second.raw;
-           // Enrich with the application info ('i' stream), joined by descriptor.
-           auto iit = srv.infos.find(uit->second.raw);
-           if (iit != srv.infos.end()) j["appinfo"] = iit->second;
+          {const UserInfo& u = uit->second;
+           json& user   = j["user"];
+           json& client = j["client"];
+           user["name"]     = u.user;
+           user["protocol"] = u.prot;
+           user["raw"]      = u.raw;
+           if (!u.authMethod.empty()) user["auth_method"] = u.authMethod;
+           // Client endpoint: classify the descriptor host as IP vs hostname.
+           if (!u.host.empty())
+              {client["host"] = u.host;
+               if (isIPLiteral(u.host)) client["ip"]       = u.host;
+               else                     client["hostname"] = u.host;
+              }
+           if (!u.clientVer.empty()) client["version"]    = u.clientVer;
+           if (u.ipVersion)          client["ip_version"] = u.ipVersion;
+           // Application info: structured (&x=/&y=) plus the raw 'i' blob.
+           if (!u.appName.empty() || !u.appInfo.empty())
+              {json& app = j["app"];
+               if (!u.appName.empty()) app["name"] = u.appName;
+               if (!u.appInfo.empty()) app["info"] = u.appInfo;
+              }
+           auto iit = srv.infos.find(u.raw);
+           if (iit != srv.infos.end()) j["app"]["raw"] = iit->second;
+           // VO/role/groups: prefer the token ('T'); fall back to the auth CGI.
+           if (!u.vo.empty())     {vo = u.vo;        user["vo"]     = u.vo;}
+           if (!u.role.empty())   user["role"]   = u.role;
+           if (!u.groups.empty()) user["groups"] = u.groups;
           }
 
        // Token identity ('T' stream) and experiment/activity ('U' stream) are
@@ -596,35 +656,36 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        auto tit = srv.tokens.find(of.user);
        if (tit != srv.tokens.end())
           {const TokenInfo& t = tit->second;
-           vo = t.vo;
-           if (!t.subject.empty()) j["token_subject"] = t.subject;
-           if (!t.vo.empty())      j["vo"]            = t.vo;
-           if (!t.role.empty())    j["role"]          = t.role;
-           if (!t.groups.empty())  j["groups"]        = t.groups;
+           json& user = j["user"];
+           if (!t.subject.empty()) user["subject"] = t.subject;
+           if (!t.vo.empty())     {vo = t.vo;       user["vo"]     = t.vo;}
+           if (!t.role.empty())    user["role"]   = t.role;
+           if (!t.groups.empty())  user["groups"] = t.groups;
           }
        auto ait = srv.activity.find(of.user);
        if (ait != srv.activity.end())
-          {if (ait->second.experiment) j["experiment_id"] = ait->second.experiment;
-           if (ait->second.activity)   j["activity_id"]   = ait->second.activity;
+          {json& act = j["activity"];
+           if (ait->second.experiment) act["experiment_id"] = ait->second.experiment;
+           if (ait->second.activity)   act["activity_id"]   = ait->second.activity;
           }
        srv.files.erase(fit);
       }
-      else {j["open_seen"] = false; stats.orphanCls++;}
+      else {transfer["open_seen"] = false; stats.orphanCls++;}
 
 // Optional op-count detail (XrdXrootdMonStatOPS) when "ops" was configured.
 //
    if ((recFlag & XrdXrootdMonFileHdr::hasOPS) && recSize >= 8 + 24 + 48)
       {const unsigned char* o = rec + 8 + 24;
-       j["read_ops"]   = ri32(o + 0);
-       j["readv_ops"]  = ri32(o + 4);
-       j["write_ops"]  = ri32(o + 8);
-       j["readv_segs"] = ri64(o + 16);
+       transfer["read_ops"]   = ri32(o + 0);
+       transfer["readv_ops"]  = ri32(o + 4);
+       transfer["write_ops"]  = ri32(o + 8);
+       transfer["readv_segs"] = ri64(o + 16);
 
        // Request-size extremes use 0x7fffffff as the "unset" sentinel; omit
        // them rather than emit a misleading minimum.
        //
        auto minmax = [&](const char* kmn, const char* kmx, int32_t mn, int32_t mx)
-                       {if (mn != 0x7fffffff) {j[kmn] = mn; j[kmx] = mx;}};
+                       {if (mn != 0x7fffffff) {transfer[kmn] = mn; transfer[kmx] = mx;}};
        minmax("read_min",  "read_max",  ri32(o + 24), ri32(o + 28));
        minmax("readv_min", "readv_max", ri32(o + 32), ri32(o + 36));
        minmax("write_min", "write_max", ri32(o + 40), ri32(o + 44));
@@ -633,10 +694,10 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        //
        if ((recFlag & XrdXrootdMonFileHdr::hasSSQ) && recSize >= 8 + 24 + 48 + 32)
           {const unsigned char* s = o + 48;
-           j["read_sumsq"]  = rdbl(s + 0);
-           j["readv_sumsq"] = rdbl(s + 8);
-           j["rsegs_sumsq"] = rdbl(s + 16);
-           j["write_sumsq"] = rdbl(s + 24);
+           transfer["read_sumsq"]  = rdbl(s + 0);
+           transfer["readv_sumsq"] = rdbl(s + 8);
+           transfer["rsegs_sumsq"] = rdbl(s + 16);
+           transfer["write_sumsq"] = rdbl(s + 24);
           }
       }
 

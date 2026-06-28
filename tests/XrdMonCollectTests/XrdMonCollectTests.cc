@@ -135,17 +135,19 @@ TEST_F(Transfer, CorrelatesCloseWithOpenAndUser)
   json j = json::parse(lastDoc);
 
   EXPECT_EQ(j["type"], "transfer");
-  EXPECT_EQ(j["lfn"], "/store/data/file.root");
-  EXPECT_EQ(j["user"], "alice");
-  EXPECT_EQ(j["protocol"], "xroot");
-  EXPECT_EQ(j["client_host"], "wn.example.org");
-  EXPECT_EQ(j["read_bytes"], 10485760);
-  EXPECT_EQ(j["read_ops"], 320);
-  EXPECT_EQ(j["read_max"], 1048576);
-  EXPECT_EQ(j["open_seen"], true);
-  EXPECT_EQ(j["file_size"], 123456);
-  EXPECT_EQ(j["duration_s"], kCloseT - kOpenT);
-  EXPECT_EQ(j["server_id"], 42);
+  EXPECT_EQ(j["file"]["lfn"], "/store/data/file.root");
+  EXPECT_EQ(j["user"]["name"], "alice");
+  EXPECT_EQ(j["user"]["protocol"], "xroot");
+  EXPECT_EQ(j["client"]["host"], "wn.example.org");
+  EXPECT_EQ(j["client"]["hostname"], "wn.example.org");  // not an IP literal
+  EXPECT_EQ(j["transfer"]["read_bytes"], 10485760);
+  EXPECT_EQ(j["transfer"]["operation"], "read");
+  EXPECT_EQ(j["transfer"]["read_ops"], 320);
+  EXPECT_EQ(j["transfer"]["read_max"], 1048576);
+  EXPECT_EQ(j["transfer"]["open_seen"], true);
+  EXPECT_EQ(j["file"]["size"], 123456);
+  EXPECT_EQ(j["transfer"]["duration_s"], kCloseT - kOpenT);
+  EXPECT_EQ(j["server"]["id"], 42);
 
   const XrdMonDecode::Stats& s = dec.GetStats();
   EXPECT_EQ(s.docs, 1u);
@@ -160,9 +162,9 @@ TEST_F(Transfer, CloseWithoutOpenIsOrphan)
   feedClose();  // no preceding open
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["open_seen"], false);
-  EXPECT_EQ(j["read_bytes"], 10485760);
-  EXPECT_FALSE(j.contains("lfn"));
+  EXPECT_EQ(j["transfer"]["open_seen"], false);
+  EXPECT_EQ(j["transfer"]["read_bytes"], 10485760);
+  EXPECT_FALSE(j.contains("file"));
   EXPECT_EQ(dec.GetStats().orphanCls, 1u);
 }
 
@@ -292,7 +294,7 @@ TEST_F(Transfer, AppInfoEnrichesTransfer)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["appinfo"], "test-app-v1");
+  EXPECT_EQ(j["app"]["raw"], "test-app-v1");
 }
 
 TEST(XrdMonCollect, RedirectStreamDecoded)
@@ -352,16 +354,84 @@ TEST_F(Transfer, TokenAndActivityEnrichTransfer)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["token_subject"], "https://issuer/sub42");
-  EXPECT_EQ(j["vo"], "atlas");
-  EXPECT_EQ(j["role"], "production");
-  EXPECT_EQ(j["groups"], "/atlas/prod");
-  EXPECT_EQ(j["experiment_id"], 42);
-  EXPECT_EQ(j["activity_id"], 7);
+  EXPECT_EQ(j["user"]["subject"], "https://issuer/sub42");
+  EXPECT_EQ(j["user"]["vo"], "atlas");
+  EXPECT_EQ(j["user"]["role"], "production");
+  EXPECT_EQ(j["user"]["groups"], "/atlas/prod");
+  EXPECT_EQ(j["activity"]["experiment_id"], 42);
+  EXPECT_EQ(j["activity"]["activity_id"], 7);
 
   const XrdMonDecode::Stats& s = dec.GetStats();
   EXPECT_EQ(s.mapTokn, 1u);
   EXPECT_EQ(s.mapUeac, 1u);
+}
+
+// Feed a 'u' map for dictid 7 with a custom CGI tail after the descriptor.
+static void feedUserMapTail(XrdMonDecode& dec, const std::string& tail)
+{
+   W body; body.u32(7);
+   std::string info = "xroot/alice.123:4@198.51.100.7\n" + tail;
+   std::vector<unsigned char> pl = body.b;
+   pl.insert(pl.end(), info.begin(), info.end());
+   auto pkt = packet('u', kStod, pl);
+   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+}
+
+TEST_F(Transfer, AuthTailEnrichesTransfer)
+{
+  // Full auth payload (as built by MonAuth, with the login appinfo appended).
+  feedUserMapTail(dec, "&p=gsi&n=alice&h=198.51.100.7&o=atlas&r=production"
+                       "&g=/atlas&m=&R=v5.6.1&x=xrdcp&y=&I=4");
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["user"]["auth_method"], "gsi");
+  EXPECT_EQ(j["user"]["vo"], "atlas");          // auth-derived VO (no token here)
+  EXPECT_EQ(j["user"]["role"], "production");
+  EXPECT_EQ(j["client"]["version"], "v5.6.1");
+  EXPECT_EQ(j["client"]["ip_version"], 4);
+  EXPECT_EQ(j["app"]["name"], "xrdcp");
+  // The descriptor host is an IPv4 literal -> client.ip, not client.hostname.
+  EXPECT_EQ(j["client"]["ip"], "198.51.100.7");
+  EXPECT_FALSE(j["client"].contains("hostname"));
+}
+
+TEST_F(Transfer, NoAuthLoginAppinfoStillEnriches)
+{
+  // Without "... auth" the 'u' tail is only the login appinfo (no &p=/&o=).
+  feedUserMapTail(dec, "&R=v5.6.1&x=xrdcp&y=&I=6");
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["client"]["version"], "v5.6.1");
+  EXPECT_EQ(j["client"]["ip_version"], 6);
+  EXPECT_FALSE(j["user"].contains("auth_method"));  // no &p= without auth
+  EXPECT_FALSE(j["user"].contains("vo"));           // no &o= and no token
+}
+
+TEST_F(Transfer, WriteOperationDerived)
+{
+  feedUserMap();
+  feedOpen();
+  // Custom close carrying only write bytes -> operation "write".
+  W body;
+  body.u32(100);                 // fileID
+  body.u64(0);                   // Xfr.read
+  body.u64(0);                   // Xfr.readv
+  body.u64(2097152);             // Xfr.write
+  auto payload = todRec(kCloseT, 42);
+  auto r = rec(0 /*isClose*/, 0 /*no OPS*/, body.b);
+  payload.insert(payload.end(), r.begin(), r.end());
+  auto pkt = packet('f', kStod, payload);
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["transfer"]["operation"], "write");
+  EXPECT_EQ(j["transfer"]["write_bytes"], 2097152);
 }
 
 namespace

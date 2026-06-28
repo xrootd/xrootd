@@ -478,6 +478,88 @@ configured server (a redirector for `r`, a proxy cache for `pfc`, a TPC for
 
 ---
 
+### Phase 7 — WLCG transfer-report alignment
+
+`xrdmoncollect` is intended to become the sole monitoring solution for the
+detailed event streams, replacing the Go shoveler/GLED for WLCG/CMS. Their
+required per-operation report is specified in `wlcg-xrootd-collector-requirements.md`
+(modeled on the FTS events in `fts-examples.md`). The gap analysis split cleanly
+into two tiers.
+
+#### Tier 1 — collector enrichment (DONE)
+
+Everything WLCG asks for that XRootD already puts on the wire is now emitted in
+the per-close transfer document, redesigned into an **OpenSearch-friendly nested
+schema** (each nested object indexes as a dotted field: `server.name`,
+`client.ip`, `transfer.read_bytes`). The key fix: the `u` (MAPUSER) record's
+CGI tail — previously discarded — is now parsed in `DecodeMap`, recovering
+`auth_method` (`&p=`), `ip_version` (`&I=`), `client_version` (`&R=`),
+`app.name`/`info` (`&x=`/`&y=`), and a VO/role/group fallback (`&o=`/`&r=`/`&g=`,
+used when the `T` token stream is absent). Also added: server host/IP/site joined
+into the transfer doc, explicit `transfer.operation` (read/write), and
+client IP-vs-hostname classification. `auth_method` and auth-derived VO require
+`xrootd.monitor … auth`; the rest needs only the existing `fstat … lfn ops ssq
+xfr … user info` setup. See `src/XrdApps/XrdMonCollect/README.md` for the full
+field-to-WLCG mapping. Unit-tested by `Transfer.AuthTailEnrichesTransfer`,
+`Transfer.NoAuthLoginAppinfoStillEnriches`, and `Transfer.WriteOperationDerived`.
+
+#### Tier 2 — server-side terminal report (TODO, needs a wire change)
+
+Three WLCG fields are **emitted by nothing today** and cannot be supplied by the
+collector: `operation_state` (authoritative success/failure), `error_message`,
+and `error_category`. A *failed* open/transfer produces no `f`-stream close
+record at all — only successful closes are reported, and the lone state bit is
+the `forced` flag on disconnect-driven closes (retained as
+`transfer.forced_close`, **not** treated as success/failure). This is exactly the
+"single terminal message" the WLCG doc asks XRootD to add. Per the user's
+decision, `operation_state` is *omitted* from the collector output until the
+server can report it authoritatively.
+
+Two candidate server-side approaches to evaluate (each touches the installed
+wire format and warrants its own design pass):
+
+1. **Extend the f-stream close.** Emit a close-with-status record on
+   failed/aborted opens by extending `XrdXrootdMonFile` (`XrdXrootdMonFile.cc`)
+   and adding a status/errno + message field to the close layout in
+   `XrdXrootdMonData.hh`.
+2. **A dedicated operation-report stream.** A new record type carrying the full
+   terminal report (state, errno, message, redirect target) for every concluded
+   operation including failures and redirects.
+
+Also not on the wire (best-effort/deferred): `is_local` (LAN/WAN — sites derive
+this manually by comparing client/server domains; a heuristic could be added in
+the collector) and a client-advertised `client.site` (only carried by free-form
+appinfo by convention).
+
+#### Current status & next steps
+
+**Status.** Tier 1 is complete and merged: the transfer document now carries
+every WLCG field XRootD currently exposes, in the nested dotted schema, with all
+23 `XrdMonCollectTests` passing. The collector is feature-complete for the
+*successful-transfer* WLCG use case.
+
+**Next steps**, roughly in priority order:
+
+1. **Tier 2 server-side terminal report** (the only remaining WLCG *data* gap).
+   Requires a design decision between the two approaches above (extend the
+   f-stream close vs. a dedicated operation-report stream), then a wire-format
+   change + collector decode. This is the headline ask in
+   `wlcg-xrootd-collector-requirements.md` and the largest piece of work.
+2. **Schema consistency for the other document types.** `session_end`
+   (`EmitDisc`), `frm`, `t`-stream trace, and `r`-stream redirect docs still use
+   the original flat keys (`user`, `lfn`, `client_host`, …). Migrate them to the
+   same `server.*`/`client.*`/`user.*` nested namespacing so every document type
+   shares one schema.
+3. **`is_local` LAN/WAN heuristic** in the collector (compare client vs. server
+   domain), emitted as `transfer.is_local` and as a bounded metric label.
+4. **OpenSearch sink shape** — finalise index vs. data-stream, naming/rotation,
+   and an ECS-style mapping template matching the dotted field names.
+5. **Optional output sinks** beyond OpenSearch/NDJSON (e.g. a message-queue sink
+   for buffering at scale), now that the per-close document is the stable
+   WLCG-aligned record.
+
+---
+
 # Second iteration — next-generation `XrdMetrics` registry
 
 The phase-1 `XrdMetrics` prototype (a flat `XrdMetricsRegistry` that formats

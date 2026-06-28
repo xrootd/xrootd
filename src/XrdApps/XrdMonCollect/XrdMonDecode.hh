@@ -109,14 +109,25 @@ void SetMaxEntries(std::size_t n) {maxEntries = n;}
 
 private:
 
-// Identity parsed from a 'u' (MAPUSER) dictionary entry.
+// Identity parsed from a 'u' (MAPUSER) dictionary entry. The first line is the
+// "<prot>/<user>.<pid>:<sfd>@<host>" descriptor; the rest is a CGI tail carrying
+// the login appinfo (always: &R= &x= &y= &I=) and, when "xrootd.monitor ... auth"
+// is configured, the authentication info (&p= &o= &r= &g=).
 //
 struct UserInfo
 {
-   std::string raw;       // full first line of the map info
+   std::string raw;        // full first line of the map info
    std::string user;
    std::string prot;
    std::string host;
+   std::string authMethod; // &p= security protocol (gsi/krb5/sss/unix/ztn)
+   std::string vo;         // &o= VO / organisation (auth-derived; token preferred)
+   std::string role;       // &r= role
+   std::string groups;     // &g= groups
+   std::string clientVer;  // &R= client release (e.g. v5.6.1)
+   std::string appName;    // &x= xrd.appname
+   std::string appInfo;    // &y= xrd.info
+   int         ipVersion = 0; // &I= IP protocol (4 or 6); 0 = unknown
 };
 
 // Token identity from a 'T' (MAPTOKN) record, keyed by the user dictid.

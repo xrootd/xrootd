@@ -116,33 +116,75 @@ required to get close records** (and therefore transfer documents): without it
 the server registers opens but never emits the per-file `isClose` record
 (`XrdXrootdMonFile.cc` only assigns the monitor entry when I/O stats are kept).
 The `lfn` option adds the path to the open record and `ops`/`ssq` add the
-operation counts and sum-of-squares to the close record.
+operation counts and sum-of-squares to the close record. The `auth` option
+enriches the user dictionary with the authentication method and VO (see the
+field table below); without it those fields are simply absent.
 
 ```
-xrootd.monitor all flush 30 fstat 30 lfn ops ssq xfr 1 \
+xrootd.monitor all flush 30 fstat 30 lfn ops ssq xfr 1 auth \
                dest fstat info user <collector-host>:9930
 ```
 
 ## Output document
 
+The per-transfer document uses an OpenSearch-friendly nested schema: each nested
+object indexes as a dotted field (`server.name`, `client.ip`, `transfer.read_bytes`).
 One object per file close, for example:
 
 ```json
 {
   "type": "transfer",
   "@timestamp": "2026-06-23T15:57:53Z",
-  "server": "[::1]:42359", "server_id": 53605690318209, "server_start": 1782230264,
-  "user": "amadio", "protocol": "xroot", "client_host": "localhost",
-  "lfn": "/store/data/big.dat", "file_size": 10485760,
-  "open_time": "2026-06-23T15:57:50Z", "close_time": "2026-06-23T15:57:53Z",
-  "duration_s": 3,
-  "read_bytes": 10485760, "readv_bytes": 0, "write_bytes": 0,
-  "read_ops": 2, "readv_ops": 0, "write_ops": 0
+  "server": { "name": "srv.example.org", "ip": "::1", "hostname": "srv.example.org",
+              "site": "T1_DE_KIT", "instance": "manager",
+              "id": 53605690318209, "start": 1782230264 },
+  "client": { "host": "wn42.example.org", "hostname": "wn42.example.org",
+              "version": "v5.6.1", "ip_version": 4 },
+  "user":   { "name": "amadio", "protocol": "xroot", "auth_method": "gsi",
+              "vo": "atlas", "role": "production", "subject": "https://issuer/sub42" },
+  "file":   { "lfn": "/store/data/big.dat", "size": 10485760, "read_write": false },
+  "transfer": { "operation": "read", "open_seen": true,
+                "start_time": "2026-06-23T15:57:50Z",
+                "end_time": "2026-06-23T15:57:53Z", "duration_s": 3,
+                "forced_close": false,
+                "read_bytes": 10485760, "readv_bytes": 0, "write_bytes": 0,
+                "read_ops": 2, "readv_ops": 0, "write_ops": 0 },
+  "activity": { "experiment_id": 1, "activity_id": 7 },
+  "app":    { "name": "xrdcp", "raw": "..." }
 }
 ```
 
-`open_seen` is `false` (and path/user are absent) for a close whose open record
-was lost or predates the collector — the byte totals are still reported.
+`transfer.open_seen` is `false` (and the `file`/`user`/`client` objects are
+absent) for a close whose open record was lost or predates the collector — the
+`transfer` byte totals are still reported. Empty/zero fields are omitted, so a
+given document only carries what the server actually reported.
+
+### WLCG field mapping
+
+The schema covers the WLCG transfer-monitoring fields that XRootD currently puts
+on the wire. Mapping (and the server config each needs):
+
+| WLCG field | Document field | Source / requires |
+| :-- | :-- | :-- |
+| file_name | `file.lfn` | `fstat … lfn` |
+| operation_type | `transfer.operation` (`read`/`write`) | `fstat … xfr` |
+| server_name/site | `server.name` / `server.site` | `=` ident (`XRDSITE` for site) |
+| server_ip / hostname | `server.ip` / `server.hostname` | UDP source / `=` ident |
+| client_ip / hostname | `client.ip` / `client.hostname` | `u` descriptor (server DNS config) |
+| client_version | `client.version` | login appinfo (`&R=`) |
+| ip_version | `client.ip_version` | login appinfo (`&I=`) |
+| auth_method | `user.auth_method` | **`… auth`** |
+| user | `user.name` / `user.subject` | `u` / `T` token |
+| vo | `user.vo` | `T` token, else `… auth` (`&o=`) |
+| activity | `user.role`, `activity.*` | `T` token / `U` SciTags |
+| start_time / end_time | `transfer.start_time` / `.end_time` | f-stream `FileTOD` window |
+| bytes | `transfer.{read,readv,write}_bytes` | `fstat … xfr` |
+
+**Not yet available** (require a server-side change — a failed transfer emits no
+close record today): `operation_state` (authoritative success/failure),
+`error_message`, and `error_category`. `is_local` (LAN/WAN) and a client-advertised
+`client.site` are likewise not carried on the wire. See the next-generation
+metrics design doc for the proposed server-side "terminal report" follow-up.
 
 ## Aggregated metrics (Prometheus)
 
