@@ -503,40 +503,64 @@ xfr … user info` setup. See `src/XrdApps/XrdMonCollect/README.md` for the full
 field-to-WLCG mapping. Unit-tested by `Transfer.AuthTailEnrichesTransfer`,
 `Transfer.NoAuthLoginAppinfoStillEnriches`, and `Transfer.WriteOperationDerived`.
 
-#### Tier 2 — server-side terminal report (TODO, needs a wire change)
+#### Tier 2 — server-side terminal report (DONE)
 
-Three WLCG fields are **emitted by nothing today** and cannot be supplied by the
-collector: `operation_state` (authoritative success/failure), `error_message`,
-and `error_category`. A *failed* open/transfer produces no `f`-stream close
-record at all — only successful closes are reported, and the lone state bit is
-the `forced` flag on disconnect-driven closes (retained as
-`transfer.forced_close`, **not** treated as success/failure). This is exactly the
-"single terminal message" the WLCG doc asks XRootD to add. Per the user's
-decision, `operation_state` is *omitted* from the collector output until the
-server can report it authoritatively.
+Three WLCG fields were **emitted by nothing**: `operation_state` (authoritative
+success/failure), `error_message`, and `error_category`. A *failed* open/transfer
+produced no `f`-stream close record at all — only successful closes were reported.
+The server now emits a terminal report on the `f`-stream so the collector can
+fill these fields.
 
-Two candidate server-side approaches to evaluate (each touches the installed
-wire format and warrants its own design pass):
+**Approach chosen: extend the f-stream** (not a dedicated new stream). This was
+gated on *not* breaking unmodified pre-existing collectors, and verified against
+the OSG sources: the **shoveler** (`verify.go`) forwards packets without
+inspecting the code byte or record contents; the **OSG Go collector**
+(`parser/xrootd_parser.go`) walks f-stream records by `recSize` with a
+`default: seek(pos+RecSize)` for unknown record types (already exercised by
+`isXfr`); and the XRootD monitoring spec documents recSize-walking as *the*
+additive-extension mechanism. A brand-new top-level packet code, by contrast,
+hits the OSG collector's `default: return error "unknown packet type"` — so it
+would be dropped by unmodified collectors. `XrdXrootdMonData.hh` is a wire-format
+header (not an installed public API header), so this is additive, not an ABI
+break.
 
-1. **Extend the f-stream close.** Emit a close-with-status record on
-   failed/aborted opens by extending `XrdXrootdMonFile` (`XrdXrootdMonFile.cc`)
-   and adding a status/errno + message field to the close layout in
-   `XrdXrootdMonData.hh`.
-2. **A dedicated operation-report stream.** A new record type carrying the full
-   terminal report (state, errno, message, redirect target) for every concluded
-   operation including failures and redirects.
+What landed (see git history `[XrdXrootd]`/`[XrdMonCollect]`):
 
-Also not on the wire: a client-advertised `client.site` (only carried by
-free-form appinfo by convention). `is_local` (LAN/WAN) is likewise not on the
-wire but is now derived in the collector by comparing the client and server
+- **Wire** (`XrdXrootdMonData.hh`): a new `isError` (recType 5) record and a
+  `hasERR` (0x08) close flag, plus a variable-length `XrdXrootdMonStatERR`
+  {error code, `monErrCat` category, null-terminated message} and the
+  self-contained `XrdXrootdMonFileERR` (carries the lfn + user dictid inline,
+  since a failed open creates no path/open dictionary entry).
+- **Producer**: `XrdXrootdMonFile::OpenErr` emits the `isError` record from the
+  terminal-error branch of `fsError` for open opcodes (failed/denied opens);
+  `XrdXrootdFileStats::setCloseErr` + `XrdXrootdMonFile::Close` append the error
+  block with `hasERR` on a genuine close failure (e.g. a failed upload commit),
+  captured in `do_Close`. Disconnect-driven (`forced`) closes are not failures
+  unless a close error was recorded.
+- **Collector**: `EmitError` (isError) and the `hasERR` branch of `EmitClose`
+  set `transfer.operation_state` (`Successful`/`Failed`),
+  `transfer.error_category`/`error_code`/`error_message`, and a
+  `xrootd_collector_failed_operations_total{server,category}` counter. Unit-
+  tested (`Transfer.FailedOpenEmitsFailedState`, `AbortedTransferCloseHasError`,
+  `SuccessfulCloseStateIsSuccessful`) and exercised end-to-end by the
+  `XRootD::moncollect` integration test (`tests/XRootD/moncollect.{cfg,sh}`).
+
+Not covered initially: mid-transfer read/write errors (they risk false positives
+like readv-past-EOF and usually end as forced closes); redirect terminal reports
+(already on the legacy `r` stream). Also still not on the wire: a client-
+advertised `client.site` (only carried by free-form appinfo by convention).
+`is_local` (LAN/WAN) is derived in the collector by comparing client/server
 domains (see the completed items below).
 
 #### Current status & next steps
 
-**Status.** Tier 1 is complete, plus all the Tier-1-adjacent collector polish
-(items 2–5 below) is now done. The collector is feature-complete for the
-*successful-transfer* WLCG use case, with one consistent schema across every
-document type. All 29 `XrdMonCollectTests` pass.
+**Status.** Tier 1 **and** Tier 2 are complete, plus all the Tier-1-adjacent
+collector polish (items 2–5 below). The collector now reports authoritative
+success/failure (`operation_state`) with error category/code/message for failed
+opens and failed closes, with one consistent schema across every document type.
+The `XrdMonCollectTests` suite (now including the failed-open, aborted-close, and
+successful-close cases) passes, as does the `XRootD::moncollect` end-to-end
+integration test.
 
 Completed since the initial Tier 1 landing:
 
@@ -560,13 +584,17 @@ Completed since the initial Tier 1 landing:
   broker bridge), with lazy reconnect and a cool-down; sinks now fan out freely
   and stdout is only the no-sink fallback.
 
-**Next step** — the one remaining WLCG *data* gap:
+**Next steps** — possible follow-ups now that the headline WLCG data gap is
+closed:
 
-1. **Tier 2 server-side terminal report.** Requires a design decision between the
-   two approaches above (extend the f-stream close vs. a dedicated
-   operation-report stream), then a wire-format change + collector decode. This
-   is the headline ask in `wlcg-xrootd-collector-requirements.md` and the largest
-   piece of work — deferred as it touches the installed wire format.
+1. **Mid-transfer read/write error capture.** Record terminal I/O errors (not
+   just close failures) without false positives (e.g. distinguishing genuine
+   failures from readv-past-EOF), so transfers aborted during I/O also report a
+   category/message.
+2. **Redirect terminal reports.** Surface redirect outcomes as a concluded-
+   operation state (currently only on the legacy `r` stream).
+3. **Client-advertised `client.site`** on the wire (today only via free-form
+   appinfo by convention).
 
 ---
 

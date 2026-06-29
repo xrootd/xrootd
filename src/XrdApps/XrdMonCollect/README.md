@@ -217,6 +217,9 @@ on the wire. Mapping (and the server config each needs):
 | :-- | :-- | :-- |
 | file_name | `file.lfn` | `fstat … lfn` |
 | operation_type | `transfer.operation` (`read`/`write`) | `fstat … xfr` |
+| operation_state | `transfer.operation_state` (`Successful`/`Failed`) | `fstat` (terminal report) |
+| error_message | `transfer.error_message` | `fstat` (failed open/close) |
+| error_category | `transfer.error_category` + `transfer.error_code` | `fstat` (failed open/close) |
 | server_name/site | `server.name` / `server.site` | `=` ident (`XRDSITE` for site) |
 | server_ip / hostname | `server.ip` / `server.hostname` | UDP source / `=` ident |
 | client_ip / hostname | `client.ip` / `client.hostname` | `u` descriptor (server DNS config) |
@@ -236,11 +239,20 @@ label), `false` when they differ, and **omitted** when either side is an IP
 literal or the server host is unknown (no `=` ident yet). It also drives
 `xrootd_collector_locality_transfers_total{server,locality}`.
 
-**Not yet available** (require a server-side change — a failed transfer emits no
-close record today): `operation_state` (authoritative success/failure),
-`error_message`, and `error_category`. A client-advertised `client.site` is
-likewise not carried on the wire. See the next-generation metrics design doc for
-the proposed server-side "terminal report" follow-up.
+`transfer.operation_state` is the authoritative success/failure of the
+operation: a plain close reports `Successful`, while a failed open or a failed
+close reports `Failed` together with `transfer.error_category`
+(`open`/`read`/`write`/`close`/`auth`), `transfer.error_code` (the XRootD error
+code), and `transfer.error_message`. A failed open never produced any close
+record before; the server now emits a terminal `isError` f-stream record (and
+sets `hasERR` on the close for a failed close), keyed on
+`xrootd_collector_failed_operations_total{server,category}`. This requires only
+the existing `fstat` setup — no extra directive. A disconnect-driven
+(`transfer.forced_close`) close is **not** a failure unless a close error was
+actually recorded.
+
+**Still not on the wire**: a client-advertised `client.site` (only carried by
+free-form appinfo by convention).
 
 ## Aggregated metrics (Prometheus)
 
