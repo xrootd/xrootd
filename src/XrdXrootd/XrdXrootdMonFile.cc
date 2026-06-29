@@ -164,10 +164,31 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
        cRec.Ssq.write.dlong = htonll(xval.dlong);
       }
 
+// Append the error block, if any, and set hasERR
+//
+   int recSize = crecSize;
+   if (fsP->closeErr)
+      {int mLen   = strlen(fsP->closeMsg) + 1;
+       int errLen = (int)sizeof(XrdXrootdMonStatERR) - 1 + mLen;
+       recSize = (crecSize + errLen + 3) & ~0x00000003;
+       if (recSize > 32767) recSize = crecSize;  // too big; drop the error block
+       else {cRec.Hdr.recFlag |= XrdXrootdMonFileHdr::hasERR;
+             cRec.Hdr.recSize  = htons(static_cast<short>(recSize));
+            }
+      }
+
 // Get a pointer to the next slot (the buffer gets locked)
 //
-   cP = GetSlot(crecSize);
+   cP = GetSlot(recSize);
    memcpy(cP, &cRec, crecSize);
+   if (recSize > crecSize)
+      {XrdXrootdMonStatERR *e = (XrdXrootdMonStatERR *)(cP + crecSize);
+       memset(cP + crecSize, 0, recSize - crecSize);
+       e->ecode = htonl(fsP->closeErr);
+       e->ecat  = fsP->closeCat;
+       strncpy(e->emsg, fsP->closeMsg, recSize - crecSize
+                                     - ((int)sizeof(XrdXrootdMonStatERR) - 1));
+      }
    bfMutex.UnLock();
 }
 
