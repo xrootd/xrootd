@@ -180,6 +180,7 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
            else                     client["hostname"] = u.host;
            if (!u.clientVer.empty()) client["version"]    = u.clientVer;
            if (u.ipVersion)          client["ip_version"] = u.ipVersion;
+           if (!u.site.empty())      client["site"]       = u.site;
           }
        // Application info: structured (&x=/&y=) plus the raw 'i' blob.
        if (!u.appName.empty() || !u.appInfo.empty())
@@ -383,6 +384,7 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
        u.clientVer  = cgiVal(text, "R");
        u.appName    = cgiVal(text, "x");
        u.appInfo    = cgiVal(text, "y");
+       u.site       = cgiVal(text, "S");
        std::string iv = cgiVal(text, "I");
        if (!iv.empty()) u.ipVersion = atoi(iv.c_str());
        srv.users[dictid] = std::move(u);

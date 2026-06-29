@@ -131,6 +131,7 @@ struct UserInfo
    std::string clientVer;  // &R= client release (e.g. v5.6.1)
    std::string appName;    // &x= xrd.appname
    std::string appInfo;    // &y= xrd.info
+   std::string site;       // &S= client-advertised site (xrd.site)
    int         ipVersion = 0; // &I= IP protocol (4 or 6); 0 = unknown
 };
 

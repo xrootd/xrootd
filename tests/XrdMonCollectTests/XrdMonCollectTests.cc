@@ -507,6 +507,22 @@ TEST_F(Transfer, NoAuthLoginAppinfoStillEnriches)
   EXPECT_EQ(j["client"]["ip_version"], 6);
   EXPECT_FALSE(j["user"].contains("auth_method"));  // no &p= without auth
   EXPECT_FALSE(j["user"].contains("vo"));           // no &o= and no token
+  EXPECT_FALSE(j["client"].contains("site"));       // no &S= -> no client.site
+}
+
+TEST_F(Transfer, ClientSiteAdvertised)
+{
+  // A client that sets XRD_SITE/XRDSITE makes the server append &S= to the
+  // login appinfo; the collector surfaces it as client.site.
+  feedUserMapTail(dec, "&R=v5.6.1&x=xrdcp&y=&S=CERN-PROD&I=4");
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["client"]["site"], "CERN-PROD");
+  EXPECT_EQ(j["client"]["version"], "v5.6.1");  // neighbouring fields intact
+  EXPECT_EQ(j["app"]["name"], "xrdcp");
 }
 
 TEST_F(Transfer, WriteOperationDerived)
