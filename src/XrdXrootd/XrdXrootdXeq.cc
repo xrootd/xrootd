@@ -3910,7 +3910,14 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
               else  rs = Response.Send(kXR_redirect,
                                        Route[popt].Port[rdType],
                                        Route[popt].Host[rdType]);
-          } else rs = Response.Send((XErrorCode)rc, eMsg);
+          } else {
+           if (Path && Monitor.Fstat()
+           && (opC == XROOTD_MON_OPENR || opC == XROOTD_MON_OPENW
+                                       || opC == XROOTD_MON_OPENC))
+              XrdXrootdMonFile::OpenErr(Path, Monitor.Did, rc,
+                     (rc == kXR_NotAuthorized ? monErrAuth : monErrOpen), eMsg);
+           rs = Response.Send((XErrorCode)rc, eMsg);
+          }
        if (myError.extData()) myError.Reset();
        return rs;
       }

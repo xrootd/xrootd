@@ -527,3 +527,62 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
       }
    bfMutex.UnLock();
 }
+
+/******************************************************************************/
+/*                               O p e n E r r                                */
+/******************************************************************************/
+
+void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
+                               int ecode, char ecat, const char *emsg)
+{
+   static const int hdrLen = sizeof(XrdXrootdMonFileHdr);
+   static const int errFix = sizeof(XrdXrootdMonStatERR) - 1;
+   XrdXrootdMonFileHdr *h;
+   XrdXrootdMonStatERR *e;
+   char *slot, *cur;
+   int pLen, mLen, ufnLen, rLen;
+
+   if (!Path) Path = "";
+   if (!emsg) emsg = "";
+   pLen = strlen(Path) + 1;
+   mLen = strlen(emsg) + 1;
+
+// Compute the record size, aligned to 4 bytes
+//
+   ufnLen = sizeof(kXR_unt32) + pLen;
+   rLen   = hdrLen + ufnLen + errFix + mLen;
+   rLen   = (rLen + 3) & ~0x00000003;
+
+// Drop the record if it does not fit in a datagram or in recSize
+//
+   if (rLen <= 0 || rLen > 32767
+   ||  rLen > fBsz - (int)(sizeof(XrdXrootdMonHeader)+sizeof(XrdXrootdMonFileTOD)))
+      return;
+
+// Get a pointer to the next slot (the buffer gets locked)
+//
+   slot = GetSlot(rLen);
+   memset(slot, 0, rLen);
+
+// Fill out the record header
+//
+   h = (XrdXrootdMonFileHdr *)slot;
+   h->recType = XrdXrootdMonFileHdr::isError;
+   h->recFlag = XrdXrootdMonFileHdr::hasLFN;
+   h->recSize = htons(static_cast<short>(rLen));
+   h->fileID  = 0;
+
+// Fill out the user dictid (already in network order) and the lfn
+//
+   cur = slot + hdrLen;
+   memcpy(cur, &uDID, sizeof(kXR_unt32));
+   memcpy(cur + sizeof(kXR_unt32), Path, pLen);
+
+// Fill out the error block
+//
+   e = (XrdXrootdMonStatERR *)(slot + hdrLen + ufnLen);
+   e->ecode = htonl(ecode);
+   e->ecat  = ecat;
+   memcpy(e->emsg, emsg, mLen);
+   bfMutex.UnLock();
+}
