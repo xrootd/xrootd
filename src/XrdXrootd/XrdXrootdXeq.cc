@@ -1199,6 +1199,7 @@ int XrdXrootdProtocol::do_Login()
        char *tzVal = loginEnv.Get("xrd.tz");
        char *appXQ = loginEnv.Get("xrd.appname");
        char *aInfo = loginEnv.Get("xrd.info");
+       char *sName = loginEnv.Get("xrd.site");
        int   tzNum = (tzVal ? atoi(tzVal) : 0);
        if (cCode && *cCode && tzNum >= -12 && tzNum <= 14)
           {XrdNetAddrInfo::LocInfo locInfo;
@@ -1206,12 +1207,16 @@ int XrdXrootdProtocol::do_Login()
            locInfo.TimeZone = tzNum & 0xff;
            Link->setLocation(locInfo);
           }
-       if (Monitor.Ready() && (appXQ || aInfo))
-          {char apBuff[1024];
-           snprintf(apBuff, sizeof(apBuff), "&R=%s&x=%s&y=%s&I=%c",
+       if (Monitor.Ready() && (appXQ || aInfo || sName))
+          {char apBuff[1024], sBuff[64];
+           snprintf(sBuff, sizeof(sBuff), "%s", (sName ? sName : ""));
+           for (char *cP = sBuff; *cP; cP++)
+               if (!isalnum((unsigned char)*cP) && !strchr("_-:", *cP))
+                  *cP = '.';
+           snprintf(apBuff, sizeof(apBuff), "&I=%c&S=%s&R=%s&x=%s&y=%s",
+                    (clientPV & XrdOucEI::uIPv4 ? '4' : '6'), sBuff,
                     (rnumb ? rnumb : ""),
-                    (appXQ ? appXQ : ""), (aInfo ? aInfo : ""),
-                    (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
+                    (appXQ ? appXQ : ""), (aInfo ? aInfo : ""));
            Entity.moninfo = strdup(apBuff);
           }
 
@@ -4348,8 +4353,17 @@ void XrdXrootdProtocol::MonAuth()
    const char *bP = Buff;
 
    if (Client == &Entity) bP = Entity.moninfo;
-      else {snprintf(Buff,sizeof(Buff),
-                    "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s&I=%c",
+      else {const char *mInfo = (Entity.moninfo ? Entity.moninfo : "");
+            char iBuff[8] = "";
+            int hLen = 0;
+            if (!strncmp(mInfo, "&I=", 3)) hLen = 1 + strcspn(mInfo+1, "&");
+               else snprintf(iBuff, sizeof(iBuff), "&I=%c",
+                             (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
+            if (!strncmp(mInfo+hLen, "&S=", 3))
+               hLen += 1 + strcspn(mInfo+hLen+1, "&");
+            snprintf(Buff,sizeof(Buff),
+                    "%.*s%s&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s",
+                     hLen, mInfo, iBuff,
                      Client->prot,
                     (Client->name ? Client->name : ""),
                     (Client->host ? Client->host : ""),
@@ -4357,8 +4371,7 @@ void XrdXrootdProtocol::MonAuth()
                     (Client->role ? Client->role : ""),
                     (Client->grps ? Client->grps : ""),
                     (Client->moninfo ? Client->moninfo : ""),
-                    (Entity.moninfo  ? Entity.moninfo  : ""),
-                    (clientPV & XrdOucEI::uIPv4 ? '4' : '6')
+                     mInfo + hLen
                    );
             Client->secMon = &Monitor;
            }
