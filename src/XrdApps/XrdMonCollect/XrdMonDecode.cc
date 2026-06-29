@@ -1235,25 +1235,40 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
          std::string hp(sp, slen > 0 ? strnlen(sp, slen) : 0);
 
          stats.redirs++;
+         const char* kind = (type & 0xf0) == XROOTD_MON_REDLOCAL
+                          ? "local" : "remote";
+         if (metrics)
+            metrics->counterSeries("xrootd_collector_redirects_total",
+                          "client redirects issued by the server",
+                          {{"server", src}, {"kind", kind}}) += 1;
          if (redirects)
-            {json j;
-             j["type"] = "redirect";
+            {// A redirect concludes the operation from this (redirector) node's
+             // point of view, so it is reported in the same type:"transfer"
+             // concluded-operation schema as closes and errors, with
+             // operation_state "Redirected" and the destination under "redirect".
+             json j;
+             j["type"] = "transfer";
              if (tWin > 0) j["@timestamp"] = isoTime(tWin);
              fillServer(j, src, stod, srv);
-             j["operation"]     = redirOp(type & 0x0f);
-             j["redirect_kind"] = (type & 0xf0) == XROOTD_MON_REDLOCAL
-                                ? "local" : "remote";
-             // The redirect destination (where the client is being sent).
-             json& target = j["target"];
-             target["port"] = port;
+
+             json& transfer = j["transfer"];
+             transfer["operation"]       = redirOp(type & 0x0f);
+             transfer["operation_state"] = "Redirected";
+
+             json& redirect = j["redirect"];
+             redirect["kind"]        = kind;
+             redirect["target_port"] = port;
+             // hp is "<host>:<path>": the host is the redirect target, the path
+             // the lfn the client is being redirected for.
              auto colon = hp.find(':');
              if (colon != std::string::npos)
-                {if (colon > 0) target["host"] = hp.substr(0, colon);
+                {if (colon > 0) redirect["target_host"] = hp.substr(0, colon);
                  j["file"]["lfn"] = hp.substr(colon + 1);
                 }
-                else if (!hp.empty()) target["host"] = hp;
+                else if (!hp.empty()) redirect["target_host"] = hp;
 
              fillClient(j, srv, did);
+             stats.docs++;
              if (doc) doc(j.dump());
             }
 

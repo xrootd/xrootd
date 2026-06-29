@@ -417,11 +417,14 @@ TEST(XrdMonCollect, RedirectStreamDecoded)
 
   EXPECT_EQ(dec.GetStats().redirs, 1u);
   json j = json::parse(out);
-  EXPECT_EQ(j["type"], "redirect");
-  EXPECT_EQ(j["operation"], "open-read");
-  EXPECT_EQ(j["redirect_kind"], "remote");
-  EXPECT_EQ(j["target"]["host"], "host.example");
-  EXPECT_EQ(j["target"]["port"], 1094);
+  // A redirect is a concluded-operation report: type:"transfer" with
+  // operation_state "Redirected" and the destination under "redirect".
+  EXPECT_EQ(j["type"], "transfer");
+  EXPECT_EQ(j["transfer"]["operation"], "open-read");
+  EXPECT_EQ(j["transfer"]["operation_state"], "Redirected");
+  EXPECT_EQ(j["redirect"]["kind"], "remote");
+  EXPECT_EQ(j["redirect"]["target_host"], "host.example");
+  EXPECT_EQ(j["redirect"]["target_port"], 1094);
   EXPECT_EQ(j["file"]["lfn"], "/store/data/f.root");
   EXPECT_EQ(j["user"]["name"], "bob");
   EXPECT_EQ(j["client"]["host"], "cli.example.org");
