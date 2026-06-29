@@ -597,12 +597,21 @@ Completed since the initial Tier 1 landing:
   broker bridge), with lazy reconnect and a cool-down; sinks now fan out freely
   and stdout is only the no-sink fallback.
 
-**Next steps** — possible follow-ups now that the headline WLCG data gap is
-closed (failed opens, failed closes, and mid-transfer read/write errors are all
-reported):
+**Next steps.** The headline WLCG data gap is closed (failed opens, failed
+closes, and mid-transfer read/write errors are all reported), and the two
+remaining wire-level follow-ups below are now done as well. What is left is the
+larger `XrdMetrics` registry migration ("Second iteration").
 
-1. **Redirect terminal reports.** Surface redirect outcomes as a concluded-
-   operation state (currently only on the legacy `r` stream).
+**Redirect terminal reports (DONE).** Redirect (`r`-stream) records, under
+`--redirects`, are now emitted in the same `type:"transfer"` concluded-operation
+schema as closes and errors: `transfer.operation_state` is `"Redirected"`, the
+triggering `transfer.operation` is kept (e.g. `open-read`/`stat`), and the
+destination travels under a `redirect` object (`kind`, `target_host`,
+`target_port`) with the redirected `file.lfn`. A redirect concludes the
+operation from the redirector's point of view; the data server that ultimately
+serves the file emits its own `Successful`/`Failed` close. Redirects are also
+counted in `xrootd_collector_redirects_total{server,kind}` regardless of the
+flag. Covered by the `XrdMonCollect.RedirectStreamDecoded` unit test.
 
 **Client-advertised `client.site` (DONE).** A client with `XRDSITE` (or
 `XRD_SITE`, which overrides it) in its environment now advertises that site on

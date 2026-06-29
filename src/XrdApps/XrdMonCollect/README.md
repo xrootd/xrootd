@@ -73,10 +73,16 @@ finer-grained events:
   `file.size`) and counted in `xrootd_collector_frm_total{server,op}` /
   `xrootd_collector_frm_purge_bytes_total`. Emitted by a File Residency
   Manager.
-- `--redirects` turns each `r` (redirect) record into a document: operation,
-  remote/local kind, the destination `target.host`/`target.port`, the redirected
-  `file.lfn`, and the joined `user`/`client`. Emitted mainly by
-  redirectors/managers; requires `redir` in the monitor `dest` list.
+- `--redirects` turns each `r` (redirect) record into a concluded-operation
+  document: a `type:"transfer"` report with `transfer.operation_state`
+  `"Redirected"`, the triggering `transfer.operation`, the destination under
+  `redirect` (`kind`, `target_host`, `target_port`), the redirected `file.lfn`,
+  and the joined `user`/`client`. A redirect concludes the operation from the
+  redirector's point of view (the data server that ultimately serves the file
+  emits its own `Successful`/`Failed` close). Emitted mainly by
+  redirectors/managers; requires `redir` in the monitor `dest` list. Redirects
+  are also counted in `xrootd_collector_redirects_total{server,kind}`
+  regardless of this flag.
 
 The `u` (user), `d` (path) and `i` (appinfo) dictionaries are always consumed:
 they resolve identities and paths for the other streams, and the appinfo (`i`)
@@ -217,7 +223,7 @@ on the wire. Mapping (and the server config each needs):
 | :-- | :-- | :-- |
 | file_name | `file.lfn` | `fstat … lfn` |
 | operation_type | `transfer.operation` (`read`/`write`) | `fstat … xfr` |
-| operation_state | `transfer.operation_state` (`Successful`/`Failed`) | `fstat` (terminal report) |
+| operation_state | `transfer.operation_state` (`Successful`/`Failed`/`Redirected`) | `fstat` (terminal report); `Redirected` from `r` with `--redirects` |
 | error_message | `transfer.error_message` | `fstat` (failed open / I/O / close) |
 | error_category | `transfer.error_category` + `transfer.error_code` | `fstat` (failed open / I/O / close) |
 | server_name/site | `server.name` / `server.site` | `=` ident (`XRDSITE` for site) |
@@ -254,6 +260,13 @@ failure). All are keyed on
 the existing `fstat` setup — no extra directive. A disconnect-driven
 (`transfer.forced_close`) close is **not** a failure unless an error was
 actually recorded.
+
+A third terminal state, `"Redirected"`, is reported for `r`-stream redirect
+records (with `--redirects`): from the redirector's point of view the operation
+concluded by sending the client elsewhere. The redirect destination travels
+under the `redirect` object (`kind`, `target_host`, `target_port`); the data
+server that ultimately serves the file emits its own `Successful`/`Failed`
+close.
 
 `client.site` is the site the *client* advertises for itself: an XRootD client
 that has `XRDSITE` (or `XRD_SITE`, which takes precedence) set in its environment

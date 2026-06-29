@@ -36,7 +36,10 @@ failed open, a mid-transfer read/write error, or a failed close reports
 \fBtransfer.error_code\fR, and \fBtransfer.error_message\fR. Failed opens, which
 produce no close record, are reported by the server as a dedicated terminal
 record on the \fIf\fR-stream; mid-transfer and close failures travel with the
-close record itself.
+close record itself. A redirect (\fIr\fR-stream, with \fB--redirects\fR) is a
+third terminal state, \fBRedirected\fR: from the redirector's point of view the
+operation concluded by sending the client elsewhere, with the destination under
+the \fBredirect\fR object.
 .P
 Documents are emitted as newline-delimited JSON (NDJSON) to a file or standard
 output, posted directly to an OpenSearch cluster, and/or streamed over TCP to a
@@ -120,7 +123,10 @@ Emit a document per \fIg\fR-stream (plugin) record.
 .RE
 \fB--redirects\fR
 .RS 5
-Emit a document per \fIr\fR-stream redirect record.
+Emit a concluded-operation document per \fIr\fR-stream redirect record
+(\fBtransfer.operation_state\fR \fBRedirected\fR, with the destination under
+\fBredirect\fR). Emitted mainly by redirectors/managers. Redirects are counted
+in the aggregated metrics regardless of this flag.
 .RE
 \fB--dump\fR
 .RS 5
