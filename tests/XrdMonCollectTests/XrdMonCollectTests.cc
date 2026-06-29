@@ -168,6 +168,101 @@ TEST_F(Transfer, CloseWithoutOpenIsOrphan)
   EXPECT_EQ(dec.GetStats().orphanCls, 1u);
 }
 
+TEST_F(Transfer, SuccessfulCloseStateIsSuccessful)
+{
+  feedClose();  // a plain close (no error block)
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["transfer"]["operation_state"], "Successful");
+  EXPECT_FALSE(j["transfer"].contains("error_message"));
+  EXPECT_EQ(dec.GetStats().failed, 0u);
+}
+
+namespace
+{
+// XrdXrootdMonStatERR: ecode(4) + ecat(1) + rsvd(3) + null-terminated message.
+std::vector<unsigned char> errBlock(int32_t ecode, uint8_t ecat,
+                                    const std::string& msg)
+{
+   W w;
+   w.u32((uint32_t)ecode);
+   w.u8(ecat); w.u8(0); w.u8(0); w.u8(0);   // ecat + rsvd[3]
+   w.raw(msg); w.u8(0);                      // null-terminated message
+   return w.b;
+}
+}
+
+// A failed open emits a self-contained isError record (no open/close pair).
+TEST_F(Transfer, FailedOpenEmitsFailedState)
+{
+  feedUserMap();
+
+  W body;
+  body.u32(0);                              // fileID union (0 for isError)
+  body.u32(7);                              // inline user dictid
+  std::string lfn = "/store/data/missing.root";
+  body.raw(lfn); body.u8(0);                // null-terminated lfn
+  auto eb = errBlock(3011 /*kXR_NotAuthorized-ish*/, 5 /*monErrAuth*/,
+                     "permission denied");
+  body.raw(eb);
+
+  auto payload = todRec(kCloseT, 42);
+  auto r = rec(5 /*isError*/, 0x01 /*hasLFN*/, body.b);
+  payload.insert(payload.end(), r.begin(), r.end());
+  auto pkt = packet('f', kStod, payload);
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["type"], "transfer");
+  EXPECT_EQ(j["file"]["lfn"], "/store/data/missing.root");
+  EXPECT_EQ(j["user"]["name"], "alice");          // resolved from the inline dictid
+  EXPECT_EQ(j["transfer"]["operation_state"], "Failed");
+  EXPECT_EQ(j["transfer"]["error_code"], 3011);
+  EXPECT_EQ(j["transfer"]["error_category"], "auth");
+  EXPECT_EQ(j["transfer"]["error_message"], "permission denied");
+  EXPECT_EQ(dec.GetStats().failed, 1u);
+}
+
+// An aborted transfer is reported as an isClose carrying a trailing error block.
+TEST_F(Transfer, AbortedTransferCloseHasError)
+{
+  feedUserMap();
+  feedOpen();
+
+  W body;
+  body.u32(100);                            // fileID (matches the open)
+  body.u64(4096);                           // Xfr.read (partial)
+  body.u64(0);                              // Xfr.readv
+  body.u64(0);                              // Xfr.write
+  // OPS (48 bytes)
+  body.u32(2); body.u32(0); body.u32(0);    // read/readv/write ops
+  body.u16(0); body.u16(0);                 // rsMin/rsMax
+  body.u64(0);                              // rsegs
+  body.u32(0); body.u32(0);                 // rdMin/rdMax
+  body.u32(0); body.u32(0);                 // rvMin/rvMax
+  body.u32(0); body.u32(0);                 // wrMin/wrMax
+  auto eb = errBlock(3006 /*kXR_IOError-ish*/, 2 /*monErrRead*/,
+                     "read error: connection reset");
+  body.raw(eb);
+
+  auto payload = todRec(kCloseT, 42);
+  auto r = rec(0 /*isClose*/, 0x02 | 0x08 /*hasOPS|hasERR*/, body.b);
+  payload.insert(payload.end(), r.begin(), r.end());
+  auto pkt = packet('f', kStod, payload);
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["file"]["lfn"], "/store/data/file.root");  // joined to the open
+  EXPECT_EQ(j["transfer"]["read_bytes"], 4096);          // partial bytes preserved
+  EXPECT_EQ(j["transfer"]["read_ops"], 2);
+  EXPECT_EQ(j["transfer"]["operation_state"], "Failed");
+  EXPECT_EQ(j["transfer"]["error_category"], "read");
+  EXPECT_EQ(j["transfer"]["error_message"], "read error: connection reset");
+  EXPECT_EQ(dec.GetStats().failed, 1u);
+}
+
 TEST(XrdMonCollect, ShortPacketIsMalformed)
 {
   XrdMonDecode dec([](const std::string&){});

@@ -70,6 +70,8 @@ struct Stats
    uint64_t xfrs      = 0;   // 'f' in-flight transfer snapshot records
    uint64_t discs     = 0;   // 'f' session disconnect records
    uint64_t docs      = 0;   // transfer documents emitted
+   uint64_t failed    = 0;   // 'f' failed/aborted operation records (isError +
+                             // hasERR closes)
    uint64_t orphanCls = 0;   // closes with no matching open
    uint64_t traces    = 0;   // 't' stream records decoded
    uint64_t gevents   = 0;   // 'g' stream records decoded
@@ -205,6 +207,13 @@ void     EmitClose(const std::string& src, int32_t stod, Server& srv,
                    const unsigned char* rec, int recSize, int32_t tWin);
 void     EmitDisc(const std::string& src, int32_t stod, Server& srv,
                   uint32_t userID, int32_t tWin);
+void     EmitError(const std::string& src, int32_t stod, Server& srv,
+                   unsigned char recFlag, const unsigned char* rec,
+                   int recSize, int32_t tWin);
+//! Fill the terminal-error fields (operation_state/error_code/category/message)
+//! of a transfer document from a XrdXrootdMonStatERR block of `errLen` bytes.
+void     fillError(nlohmann::json& transfer, const unsigned char* err,
+                   int errLen);
 void     DecodeTStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int len);
 void     DecodeGStream(const std::string& src, int32_t stod, Server& srv,

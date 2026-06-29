@@ -70,6 +70,20 @@ std::string cgiVal(const std::string& s, const char* key)
                                                    : end - start);
 }
 
+// Name of a terminal-error category (XrdXrootdMonStatERR.ecat / monErrCat).
+//
+const char* errCatName(int c)
+{
+   switch(c)
+         {case monErrOpen:  return "open";
+          case monErrRead:  return "read";
+          case monErrWrite: return "write";
+          case monErrClose: return "close";
+          case monErrAuth:  return "auth";
+          default:          return "unknown";
+         }
+}
+
 // Format a Unix time as an ISO-8601 UTC string. Zero/negative => empty.
 //
 std::string isoTime(int32_t t)
@@ -602,6 +616,12 @@ void XrdMonDecode::DecodeFStream(const std::string& src, int32_t stod,
                      }
                      break;
 
+                case XrdXrootdMonFileHdr::isError:
+                     // Terminal report for a failed/aborted operation that never
+                     // produced an isClose (e.g. a failed open).
+                     EmitError(src, stod, srv, recFlag, rec, recSize, tWin);
+                     break;
+
                 default:
                      break;
                }
@@ -737,6 +757,30 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
           }
       }
 
+// Terminal status (WLCG operation_state). A close carrying a trailing
+// XrdXrootdMonStatERR (hasERR) reports an aborted/failed transfer; the error
+// block trails any XrdXrootdMonStatOPS/SSQ blocks. Otherwise the close is the
+// authoritative success report. Note: "forced" (disconnect-driven) is not a
+// failure on its own.
+//
+   int errOff = 8 + 24;
+   if (recFlag & XrdXrootdMonFileHdr::hasOPS)
+      {errOff += 48;
+       if (recFlag & XrdXrootdMonFileHdr::hasSSQ) errOff += 32;
+      }
+   if ((recFlag & XrdXrootdMonFileHdr::hasERR) && recSize >= errOff + 8)
+      {fillError(transfer, rec + errOff, recSize - errOff);
+       stats.failed++;
+       if (metrics)
+          metrics->counterSeries("xrootd_collector_failed_operations_total",
+                       "operations that concluded unsuccessfully",
+                       {{"server", src},
+                        {"category", transfer.value("error_category",
+                                                    std::string("unknown"))}})
+                  += 1;
+      }
+   else transfer["operation_state"] = "Successful";
+
 // Aggregate into bounded-cardinality Prometheus series (label only by the
 // reporting server). Per-transfer detail stays in the document sink; here we
 // keep just totals and distributions suitable for time-series storage.
@@ -769,6 +813,72 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
                         {1,5,15,60,300,1800,7200}).observe(durSecs);
       }
 
+   stats.docs++;
+   if (doc) doc(j.dump());
+}
+
+/******************************************************************************/
+/*                             f i l l E r r o r                              */
+/******************************************************************************/
+
+void XrdMonDecode::fillError(json& transfer, const unsigned char* err,
+                             int errLen)
+{
+// XrdXrootdMonStatERR: ecode(4) + ecat(1) + rsvd(3) + null-terminated message.
+//
+   if (errLen < 8) return;
+   transfer["operation_state"] = "Failed";
+   transfer["error_code"]      = ri32(err);
+   transfer["error_category"]  = errCatName((unsigned char)err[4]);
+   const char* m = (const char*)(err + 8);
+   std::string msg(m, strnlen(m, errLen - 8));
+   if (!msg.empty()) transfer["error_message"] = msg;
+}
+
+/******************************************************************************/
+/*                            E m i t E r r o r                               */
+/******************************************************************************/
+
+void XrdMonDecode::EmitError(const std::string& src, int32_t stod, Server& srv,
+                             unsigned char recFlag, const unsigned char* rec,
+                             int recSize, int32_t tWin)
+{
+// Self-contained terminal report for an operation that never produced an
+// isClose (e.g. a failed/denied open). Layout: Hdr(8) + ufn{user(4)+lfn} +
+// XrdXrootdMonStatERR. The lfn and user are carried inline (hasLFN) because a
+// failed open creates no path/open dictionary entry to join against.
+//
+   if (recSize < 8 + 4) {stats.malformed++; return;}
+
+   json j;
+   j["type"]       = "transfer";
+   j["@timestamp"] = isoTime(tWin);
+   fillServer(j, src, stod, srv);
+
+   json& transfer = j["transfer"];
+   transfer["end_time"] = isoTime(tWin);
+
+   std::string vo;
+   int off = 8;
+   if ((recFlag & XrdXrootdMonFileHdr::hasLFN) && recSize > 12)
+      {uint32_t user = rd32(rec + 8);
+       const char* l = (const char*)(rec + 12);
+       std::string lfn(l, strnlen(l, recSize - 12));
+       j["file"]["lfn"] = lfn;
+       off = 12 + (int)lfn.size() + 1;       // past the lfn's terminating null
+       vo = fillClient(j, srv, user);
+      }
+
+   fillError(transfer, rec + off, recSize - off);
+
+   if (metrics)
+      metrics->counterSeries("xrootd_collector_failed_operations_total",
+                   "operations that concluded unsuccessfully",
+                   {{"server", src},
+                    {"category", transfer.value("error_category",
+                                                std::string("unknown"))}}) += 1;
+
+   stats.failed++;
    stats.docs++;
    if (doc) doc(j.dump());
 }
