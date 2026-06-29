@@ -527,3 +527,68 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
       }
    bfMutex.UnLock();
 }
+
+/******************************************************************************/
+/*                               O p e n E r r                                */
+/******************************************************************************/
+
+void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
+                               int ecode, char ecat, const char *emsg)
+{
+   static const int hdrLen = sizeof(XrdXrootdMonFileHdr);
+// The fixed part of the error block excludes the emsg[1] placeholder byte.
+   static const int errFix = sizeof(XrdXrootdMonStatERR) - 1;
+   XrdXrootdMonFileHdr *h;
+   XrdXrootdMonStatERR *e;
+   char *slot, *cur;
+   int pLen, mLen, ufnLen, rLen;
+
+// A failed open never registers the file, so this record is self-contained:
+// it carries the user dictid and lfn inline plus the terminal error status.
+//
+   if (!Path) Path = "";
+   if (!emsg) emsg = "";
+   pLen = strlen(Path) + 1;          // include the terminating null
+   mLen = strlen(emsg) + 1;          // include the terminating null
+
+// Compute the (4-byte aligned) record size: header + user + lfn + error block
+//
+   ufnLen = sizeof(kXR_unt32) + pLen;
+   rLen   = hdrLen + ufnLen + errFix + mLen;
+   rLen   = (rLen + 3) & ~0x00000003;
+
+// Drop the record if it cannot fit in a single datagram with the fixed header
+// and time record. recSize is a short, so also guard against overflow.
+//
+   if (rLen <= 0 || rLen > 32767
+   ||  rLen > fBsz - (int)(sizeof(XrdXrootdMonHeader)+sizeof(XrdXrootdMonFileTOD)))
+      return;
+
+// Get a pointer to the next slot (the buffer gets locked)
+//
+   slot = GetSlot(rLen);
+   memset(slot, 0, rLen);
+
+// Fill out the record header (recType isError; lfn/user always present)
+//
+   h = (XrdXrootdMonFileHdr *)slot;
+   h->recType = XrdXrootdMonFileHdr::isError;
+   h->recFlag = XrdXrootdMonFileHdr::hasLFN;
+   h->recSize = htons(static_cast<short>(rLen));
+   h->fileID  = 0;
+
+// Fill out the inline user dictid and lfn. The dictid is already in network
+// byte order (GetDictID returns it that way), so store it as-is like Open().
+//
+   cur = slot + hdrLen;
+   memcpy(cur, &uDID, sizeof(kXR_unt32));
+   memcpy(cur + sizeof(kXR_unt32), Path, pLen);
+
+// Fill out the terminal error block (find via recSize, message is variable)
+//
+   e = (XrdXrootdMonStatERR *)(slot + hdrLen + ufnLen);
+   e->ecode = htonl(ecode);
+   e->ecat  = ecat;
+   memcpy(e->emsg, emsg, mLen);
+   bfMutex.UnLock();
+}

@@ -56,6 +56,9 @@ static bool Init();
 static void Open(XrdXrootdFileStats *fsP,
                  const char *Path, unsigned int uDID, bool isRW);
 
+static void OpenErr(const char *Path, unsigned int uDID,
+                    int ecode, char ecat, const char *emsg);
+
        XrdXrootdMonFile() : XrdJob("monitor fstat") {}
       ~XrdXrootdMonFile() {}
 

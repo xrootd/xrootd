@@ -177,13 +177,15 @@ enum  recTval {isClose = 0,   // Record for close
                isOpen,        // Record for open
                isTime,        // Record for time
                isXfr,         // Record for transfers
-               isDisc         // Record for disconnection
+               isDisc,        // Record for disconnection
+               isError        // Record for a failed/aborted operation
               };
 
 enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
                hasOPS  =0x02, // If recFlag == isClose MonStatXFR + MonStatOPS
                hasSSQ  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
                hasCSE  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
+               hasERR  =0x08, // If recFlag == isClose MonStatERR trails the rec
                hasLFN  =0x01, // If recFlag == isOpen  the lfn is present
                hasRW   =0x02, // If recFlag == isOpen  file opened r/w
                hasSID  =0x01  // if recFlag == isTime sID is present (new rec)
@@ -291,14 +293,51 @@ long long           write;    // Bytes written to file so far
 // The record always contains XrdXrootdMonStatXFR after   XrdXrootdMonFileHdr.
 // If (recFlag & hasOPS) TRUE XrdXrootdMonStatOPS follows XrdXrootdMonStatXFR
 // If (recFlag & hasSSQ) TRUE XrdXrootdMonStatSQV follows XrdXrootdMonStatOPS
+// If (recFlag & hasERR) TRUE XrdXrootdMonStatERR trails the record (after any
+// XrdXrootdMonStatOPS/SSQ blocks) to report an aborted/failed transfer. Its
+// length is variable; always use recSize to find the next record.
 // The XrdXrootdMonStatSSQ information is present only if "ssq" was specified.
 //
-struct XrdXrootdMonFileCLS    // 32 | 80 | 96 Bytes
+struct XrdXrootdMonFileCLS    // 32 | 80 | 96 Bytes (+ trailing MonStatERR)
 {
 XrdXrootdMonFileHdr Hdr;      // Always present (recSize has full length)
 XrdXrootdMonStatXFR Xfr;      // Always present
 XrdXrootdMonStatOPS Ops;      // Only   present when (recFlag & hasOPS) is True
 XrdXrootdMonStatSSQ Ssq;      // Only   present when (recFlag & hasSSQ) is True
+};
+
+// The following describes the terminal status of a failed or aborted operation.
+// It is a variable length structure: a fixed header followed by a null-
+// terminated message; always use the enclosing record's recSize to find the
+// next record. It trails an isClose record when (recFlag & hasERR) is TRUE and
+// is the body of an isError record (see XrdXrootdMonFileERR below).
+//
+enum  monErrCat {monErrOpen  = 1,  // The open  failed
+                 monErrRead  = 2,  // A  read   failed
+                 monErrWrite = 3,  // A  write  failed
+                 monErrClose = 4,  // The close failed
+                 monErrAuth  = 5   // Authentication/authorization failed
+                };
+
+struct XrdXrootdMonStatERR    // Variable length, walk via recSize
+{
+kXR_int32           ecode;    // XRootD/XProtocol error code (network order)
+char                ecat;     // One of monErrCat: the operation that failed
+char                rsvd[3];  // Reserved (zero); alignment and future use
+char                emsg[1];  // Null-terminated message, use recSize for length
+};
+
+// The following is reported when an operation fails before a file is opened
+// (e.g. a failed/denied open) so that no isOpen/isClose pair is ever produced.
+// It is self-contained: it carries the user dictid and lfn inline (the failed
+// open never created a path dictionary entry) plus the terminal error status.
+// recFlag carries hasLFN (the lfn and user are always present here).
+//
+struct XrdXrootdMonFileERR    // Variable length, walk via recSize
+{
+XrdXrootdMonFileHdr Hdr;      // recType == isError; recFlag carries hasLFN
+XrdXrootdMonFileLFN ufn;      // user dictid + lfn (variable length)
+XrdXrootdMonStatERR err;      // Terminal error status (find via recSize)
 };
 
 // The following is reported when a user ends a session.
