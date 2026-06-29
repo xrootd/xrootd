@@ -341,7 +341,8 @@ int XrdXrootdProtocol::do_PgRIO()
 
 // Determine why we ended here
 //
-   if (xframt < 0) return fsError(xframt, 0, sfsP->error, 0, 0);
+   if (xframt < 0) {monIOErr(IO.File, monErrRead);
+                    return fsError(xframt, 0, sfsP->error, 0, 0);}
 
 // Return no bytes if we were tricked into sending a partial result
 //

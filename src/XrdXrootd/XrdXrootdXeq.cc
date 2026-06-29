@@ -2672,7 +2672,9 @@ int XrdXrootdProtocol::do_ReadAll()
        if (rc == SFS_OK)
           {if (!IO.IOLen)    return 0;
            if (IO.IOLen < 0) return -1;  // Otherwise retry using read()
-          } else return fsError(rc, 0, IO.File->XrdSfsp->error, 0, 0);
+          } else {monIOErr(IO.File, monErrRead);
+                  return fsError(rc, 0, IO.File->XrdSfsp->error, 0, 0);
+                 }
       }
 
 // Make sure we have a large enough buffer
@@ -2696,6 +2698,7 @@ int XrdXrootdProtocol::do_ReadAll()
 // Determine why we ended here
 //
    if (xframt == 0) return Response.Send();
+   monIOErr(IO.File, monErrRead);
    return fsError(xframt, 0, IO.File->XrdSfsp->error, 0, 0);
 }
 
@@ -2899,6 +2902,7 @@ int XrdXrootdProtocol::do_ReadV()
           {xfrSZ = SFS_ERROR;
            IO.File->XrdSfsp->error.setErrInfo(-ENODATA,"readv past EOF");
           }
+       monIOErr(IO.File, monErrRead);
        return fsError(xfrSZ, 0, IO.File->XrdSfsp->error, 0, 0);
       }
 
@@ -3550,7 +3554,8 @@ int XrdXrootdProtocol::do_WriteNoneMsg()
       return Response.Send((XErrorCode)IO.EInfo[1],
                            IO.File->XrdSfsp->error.getErrText());
 
-   if (IO.EInfo[0]) return fsError(IO.EInfo[0], 0, IO.File->XrdSfsp->error, 0, 0);
+   if (IO.EInfo[0]) {monIOErr(IO.File, monErrWrite);
+                     return fsError(IO.EInfo[0],0,IO.File->XrdSfsp->error,0,0);}
 
    return Response.Send(kXR_FSError, IO.File->XrdSfsp->error.getErrText());
 }
@@ -3829,6 +3834,7 @@ do{if (IO.IOLen > 0)
 // If we got here then there was a write error (file pointer is valid).
 //
    if (wvInfo) {free(wvInfo); wvInfo = 0;}
+   monIOErr(IO.File, monErrWrite);
    return fsError((int)xfrSZ, 0, IO.File->XrdSfsp->error, 0, 0);
 }
 
@@ -3884,6 +3890,20 @@ void XrdXrootdProtocol::SetFD(int fildes)
 /******************************************************************************/
 /*                       U t i l i t y   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                              m o n I O E r r                               */
+/******************************************************************************/
+
+// Record a failed read or write for the f-stream close record
+//
+void XrdXrootdProtocol::monIOErr(XrdXrootdFile *fP, char eCat)
+{
+   if (!fP || !Monitor.Fstat() || fP->Stats.MonEnt == -1) return;
+   int ecode;
+   const char *emsg = fP->XrdSfsp->error.getErrText(ecode);
+   fP->Stats.setCloseErr(XProtocol::mapError(ecode), eCat, emsg);
+}
+
 /******************************************************************************/
 /*                               f s E r r o r                                */
 /******************************************************************************/
