@@ -157,7 +157,8 @@ Example:
 $ head -c 100 /dev/zero | xrdcp -f - root://localhost//remotefile
 [100B/0B][100%][==================================================][100B/s]
 $ xrdfs root://localhost/ xattr /remotefile set pattern=abcde123
-$ xrdfs root://localhost/ cat /remotefile abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcd
+$ xrdfs root://localhost/ cat /remotefile
+abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcde123abcd
 $ xrdfs root://localhost/ xattr /remotefile set pattern=1       
 $ xrdfs root://localhost/ cat /remotefile
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
