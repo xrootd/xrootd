@@ -218,8 +218,8 @@ on the wire. Mapping (and the server config each needs):
 | file_name | `file.lfn` | `fstat … lfn` |
 | operation_type | `transfer.operation` (`read`/`write`) | `fstat … xfr` |
 | operation_state | `transfer.operation_state` (`Successful`/`Failed`) | `fstat` (terminal report) |
-| error_message | `transfer.error_message` | `fstat` (failed open/close) |
-| error_category | `transfer.error_category` + `transfer.error_code` | `fstat` (failed open/close) |
+| error_message | `transfer.error_message` | `fstat` (failed open / I/O / close) |
+| error_category | `transfer.error_category` + `transfer.error_code` | `fstat` (failed open / I/O / close) |
 | server_name/site | `server.name` / `server.site` | `=` ident (`XRDSITE` for site) |
 | server_ip / hostname | `server.ip` / `server.hostname` | UDP source / `=` ident |
 | client_ip / hostname | `client.ip` / `client.hostname` | `u` descriptor (server DNS config) |
@@ -240,15 +240,18 @@ literal or the server host is unknown (no `=` ident yet). It also drives
 `xrootd_collector_locality_transfers_total{server,locality}`.
 
 `transfer.operation_state` is the authoritative success/failure of the
-operation: a plain close reports `Successful`, while a failed open or a failed
-close reports `Failed` together with `transfer.error_category`
-(`open`/`read`/`write`/`close`/`auth`), `transfer.error_code` (the XRootD error
-code), and `transfer.error_message`. A failed open never produced any close
-record before; the server now emits a terminal `isError` f-stream record (and
-sets `hasERR` on the close for a failed close), keyed on
+operation: a plain close reports `Successful`, while a failed open, a
+mid-transfer read/write error, or a failed close reports `Failed` together with
+`transfer.error_category` (`open`/`read`/`write`/`close`/`auth`),
+`transfer.error_code` (the XRootD error code), and `transfer.error_message`. A
+failed open never produced any close record before; the server now emits a
+terminal `isError` f-stream record, and sets `hasERR` on the close for a failed
+close or a terminal `read`/`readv`/`pgread`/`write`/`writev`/`pgwrite` error
+recorded during the session (the common "readv past EOF" surfaces as a `read`
+failure). All are keyed on
 `xrootd_collector_failed_operations_total{server,category}`. This requires only
 the existing `fstat` setup — no extra directive. A disconnect-driven
-(`transfer.forced_close`) close is **not** a failure unless a close error was
+(`transfer.forced_close`) close is **not** a failure unless an error was
 actually recorded.
 
 **Still not on the wire**: a client-advertised `client.site` (only carried by

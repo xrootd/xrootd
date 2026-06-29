@@ -10,7 +10,7 @@ COLLECTOR_OUT="${PWD}/${NAME}/collected.ndjson"
 COLLECTOR_PID="${PWD}/${NAME}/collector.pid"
 
 function setup_moncollect() {
-	require_commands xrdmoncollect xrdcp xrdfs
+	require_commands xrdmoncollect xrdcp xrdfs xrdreadv-eof
 
 	# Start the collector before the server so the f-stream destination has a
 	# listener. The PID file lands in ${NAME}/ so the harness teardown kills it.
@@ -68,6 +68,13 @@ function test_moncollect() {
 	assert grep -Eq '"lfn":"[^"]*does-not-exist.root"' "${COLLECTOR_OUT}"
 	assert grep -Eq '"error_message":"[^"]+"' "${COLLECTOR_OUT}"
 	assert grep -Eq '"error_category":"open"' "${COLLECTOR_OUT}"
+
+	# 3. A mid-transfer read error: a vector read past EOF fails on the server,
+	#    which records the terminal error on the file so its close reports
+	#    operation_state "Failed" with error_category "read". xrdreadv-eof opens
+	#    the existing file and issues the failing readv, then closes.
+	drive_until '"error_category":"read"' "failed-readv close document" \
+		"xrdreadv-eof '${HOST}/${TMPDIR}/ok.ref'"
 
 	echo "collector documents:"
 	cat "${COLLECTOR_OUT}"

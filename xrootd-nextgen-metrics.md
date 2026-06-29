@@ -545,12 +545,25 @@ What landed (see git history `[XrdXrootd]`/`[XrdMonCollect]`):
   `SuccessfulCloseStateIsSuccessful`) and exercised end-to-end by the
   `XRootD::moncollect` integration test (`tests/XRootD/moncollect.{cfg,sh}`).
 
-Not covered initially: mid-transfer read/write errors (they risk false positives
-like readv-past-EOF and usually end as forced closes); redirect terminal reports
-(already on the legacy `r` stream). Also still not on the wire: a client-
-advertised `client.site` (only carried by free-form appinfo by convention).
-`is_local` (LAN/WAN) is derived in the collector by comparing client/server
-domains (see the completed items below).
+**Mid-transfer read/write errors (DONE, follow-on to Tier 2).** Terminal
+failures of `read`/`readv`/`pgread`/`write`/`writev`/`pgwrite` are now captured
+too, not just failed opens and failed closes. `XrdXrootdProtocol::monIOErr`
+records the SFS error (code/category/message) on the file's `FileStats` at each
+point the I/O paths invoke `fsError` (in `XrdXrootdXeq.cc` `do_ReadAll`,
+`do_ReadV`, `do_WriteNoneMsg`, `do_WriteVec` and `XrdXrootdXeqPgrw.cc`
+`do_PgRIO`; pgwrite converges on `do_WriteNoneMsg`). The existing
+`setCloseErr` + `hasERR` close machinery then reports it — no wire-format or
+collector change was needed. Semantics: last error wins, and a subsequent
+failed close (`monErrClose`) overrides an earlier I/O error. The common
+"readv past EOF" case is reported as a `read` failure with that message, which
+is exactly the kind of reason WLCG consumers want. Exercised end-to-end by the
+`xrdreadv-eof` driver in the `XRootD::moncollect` test
+(`error_category:"read"`, e.g. `Unable to readv …; illegal seek`).
+
+Not covered: redirect terminal reports (already on the legacy `r` stream). Also
+still not on the wire: a client-advertised `client.site` (only carried by
+free-form appinfo by convention). `is_local` (LAN/WAN) is derived in the
+collector by comparing client/server domains (see the completed items below).
 
 #### Current status & next steps
 
@@ -585,15 +598,12 @@ Completed since the initial Tier 1 landing:
   and stdout is only the no-sink fallback.
 
 **Next steps** — possible follow-ups now that the headline WLCG data gap is
-closed:
+closed (failed opens, failed closes, and mid-transfer read/write errors are all
+reported):
 
-1. **Mid-transfer read/write error capture.** Record terminal I/O errors (not
-   just close failures) without false positives (e.g. distinguishing genuine
-   failures from readv-past-EOF), so transfers aborted during I/O also report a
-   category/message.
-2. **Redirect terminal reports.** Surface redirect outcomes as a concluded-
+1. **Redirect terminal reports.** Surface redirect outcomes as a concluded-
    operation state (currently only on the legacy `r` stream).
-3. **Client-advertised `client.site`** on the wire (today only via free-form
+2. **Client-advertised `client.site`** on the wire (today only via free-form
    appinfo by convention).
 
 ---

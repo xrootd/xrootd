@@ -30,10 +30,13 @@ schema (for example \fBserver.name\fR, \fBclient.ip\fR, \fBuser.vo\fR,
 .P
 A transfer document also carries the terminal status of the operation in
 \fBtransfer.operation_state\fR: a normal close reports \fBSuccessful\fR, while a
-failed open or a failed close reports \fBFailed\fR together with
-\fBtransfer.error_category\fR, \fBtransfer.error_code\fR, and
-\fBtransfer.error_message\fR. Failed opens, which produce no close record, are
-reported by the server as a dedicated terminal record on the \fIf\fR-stream.
+failed open, a mid-transfer read/write error, or a failed close reports
+\fBFailed\fR together with \fBtransfer.error_category\fR
+(\fBopen\fR, \fBread\fR, \fBwrite\fR, \fBclose\fR, or \fBauth\fR),
+\fBtransfer.error_code\fR, and \fBtransfer.error_message\fR. Failed opens, which
+produce no close record, are reported by the server as a dedicated terminal
+record on the \fIf\fR-stream; mid-transfer and close failures travel with the
+close record itself.
 .P
 Documents are emitted as newline-delimited JSON (NDJSON) to a file or standard
 output, posted directly to an OpenSearch cluster, and/or streamed over TCP to a
