@@ -2319,26 +2319,33 @@ namespace XrdCl
     int timeZone = XrdSysTimer::TimeZone();
     char *hostName = XrdNetUtils::MyHostName();
     std::string countryCode = Utils::FQDNToCC( hostName );
-    char *cgiBuffer = new char[1024 + info->logintoken.size()];
     std::string appName;
     std::string monInfo;
+    std::string clientSite;
     env->GetString( "AppName", appName );
     env->GetString( "MonInfo", monInfo );
-    if( info->logintoken.empty() )
+    env->GetString( "ClientSite", clientSite );
+
+    std::string cgi = "xrd.cc=" + countryCode +
+                      "&xrd.tz=" + std::to_string( timeZone ) +
+                      "&xrd.appname=" + appName +
+                      "&xrd.info=" + monInfo +
+                      "&xrd.hostname=" + hostName +
+                      "&xrd.rn=" XrdVERSION;
+
+    if( !clientSite.empty() )
     {
-      snprintf( cgiBuffer, 1024,
-                "xrd.cc=%s&xrd.tz=%d&xrd.appname=%s&xrd.info=%s&"
-                "xrd.hostname=%s&xrd.rn=%s", countryCode.c_str(), timeZone,
-                appName.c_str(), monInfo.c_str(), hostName, XrdVERSION );
+      clientSite.resize( std::min<size_t>( clientSite.size(), 63 ) );
+      for( char &c : clientSite )
+        if( !isalnum( (unsigned char)c ) && !strchr( "_-:", c ) )
+          c = '.';
+      cgi += "&xrd.site=" + clientSite;
     }
-    else
-    {
-      snprintf( cgiBuffer, 1024,
-                "xrd.cc=%s&xrd.tz=%d&xrd.appname=%s&xrd.info=%s&"
-                "xrd.hostname=%s&xrd.rn=%s&%s", countryCode.c_str(), timeZone,
-                appName.c_str(), monInfo.c_str(), hostName, XrdVERSION, info->logintoken.c_str() );
-    }
-    uint16_t cgiLen = strlen( cgiBuffer );
+
+    if( !info->logintoken.empty() )
+      cgi += "&" + info->logintoken;
+
+    uint32_t cgiLen = cgi.size();
     free( hostName );
 
     //--------------------------------------------------------------------------
@@ -2419,16 +2426,15 @@ namespace XrdCl
     buffer.resize( 8, 0 );
     std::copy( buffer.begin(), buffer.end(), (char*)loginReq->username );
 
-    msg->Append( cgiBuffer, cgiLen, 24 );
+    msg->Append( cgi.c_str(), cgiLen, 24 );
 
     log->Debug( XRootDTransportMsg, "[%s] Sending out kXR_login request, "
                 "username: %s, cgi: %s, dual-stack: %s, private IPv4: %s, "
                 "private IPv6: %s", hsData->streamName.c_str(),
-                loginReq->username, cgiBuffer, dualStack ? "true" : "false",
+                loginReq->username, cgi.c_str(), dualStack ? "true" : "false",
                 privateIPv4 ? "true" : "false",
                 privateIPv6 ? "true" : "false" );
 
-    delete [] cgiBuffer;
     MarshallRequest( msg );
     return msg;
   }
