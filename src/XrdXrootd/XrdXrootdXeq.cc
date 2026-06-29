@@ -1208,6 +1208,7 @@ int XrdXrootdProtocol::do_Login()
        char *tzVal = loginEnv.Get("xrd.tz");
        char *appXQ = loginEnv.Get("xrd.appname");
        char *aInfo = loginEnv.Get("xrd.info");
+       char *sName = loginEnv.Get("xrd.site");
        int   tzNum = (tzVal ? atoi(tzVal) : 0);
        if (cCode && *cCode && tzNum >= -12 && tzNum <= 14)
           {XrdNetAddrInfo::LocInfo locInfo;
@@ -1215,11 +1216,12 @@ int XrdXrootdProtocol::do_Login()
            locInfo.TimeZone = tzNum & 0xff;
            Link->setLocation(locInfo);
           }
-       if (Monitor.Ready() && (appXQ || aInfo))
+       if (Monitor.Ready() && (appXQ || aInfo || sName))
           {char apBuff[1024];
-           snprintf(apBuff, sizeof(apBuff), "&R=%s&x=%s&y=%s&I=%c",
+           snprintf(apBuff, sizeof(apBuff), "&R=%s&x=%s&y=%s&S=%s&I=%c",
                     (rnumb ? rnumb : ""),
                     (appXQ ? appXQ : ""), (aInfo ? aInfo : ""),
+                    (sName ? sName : ""),
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
            Entity.moninfo = strdup(apBuff);
           }
