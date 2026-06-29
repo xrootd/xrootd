@@ -2292,21 +2292,30 @@ namespace XrdCl
     char *cgiBuffer = new char[1024 + info->logintoken.size()];
     std::string appName;
     std::string monInfo;
+    std::string clientSite;
     env->GetString( "AppName", appName );
     env->GetString( "MonInfo", monInfo );
+    env->GetString( "ClientSite", clientSite );
+    // Advertise the client's site name (for monitoring's client.site) only when
+    // one is configured, so the login CGI stays unchanged for everyone else.
+    std::string siteCgi;
+    if( !clientSite.empty() )
+      siteCgi = "&xrd.site=" + clientSite;
     if( info->logintoken.empty() )
     {
       snprintf( cgiBuffer, 1024,
                 "xrd.cc=%s&xrd.tz=%d&xrd.appname=%s&xrd.info=%s&"
-                "xrd.hostname=%s&xrd.rn=%s", countryCode.c_str(), timeZone,
-                appName.c_str(), monInfo.c_str(), hostName, XrdVERSION );
+                "xrd.hostname=%s&xrd.rn=%s%s", countryCode.c_str(), timeZone,
+                appName.c_str(), monInfo.c_str(), hostName, XrdVERSION,
+                siteCgi.c_str() );
     }
     else
     {
       snprintf( cgiBuffer, 1024,
                 "xrd.cc=%s&xrd.tz=%d&xrd.appname=%s&xrd.info=%s&"
-                "xrd.hostname=%s&xrd.rn=%s&%s", countryCode.c_str(), timeZone,
-                appName.c_str(), monInfo.c_str(), hostName, XrdVERSION, info->logintoken.c_str() );
+                "xrd.hostname=%s&xrd.rn=%s%s&%s", countryCode.c_str(), timeZone,
+                appName.c_str(), monInfo.c_str(), hostName, XrdVERSION,
+                siteCgi.c_str(), info->logintoken.c_str() );
     }
     uint16_t cgiLen = strlen( cgiBuffer );
     free( hostName );
