@@ -701,7 +701,16 @@ int XrdXrootdProtocol::do_Close()
 // while the response is sent.
 //
    int retval = 0;
-   if (SFS_OK != rc) retval = fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+   if (SFS_OK != rc)
+      {// A genuine close failure (e.g. a failed upload commit/flush) is a
+       // terminal transfer error: record it so the f-stream close reports it.
+       if (rc == SFS_ERROR && Monitor.Fstat() && fp->Stats.MonEnt != -1)
+          {int ecode;
+           const char *emsg = fp->XrdSfsp->error.getErrText(ecode);
+           fp->Stats.setCloseErr(XProtocol::mapError(ecode), monErrClose, emsg);
+          }
+       retval = fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+      }
 
 // Delete the file from the file table. If the file object is deleted then it
 // will unlock the file In all cases, final monitoring records will be produced.
