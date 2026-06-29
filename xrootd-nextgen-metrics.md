@@ -603,8 +603,18 @@ reported):
 
 1. **Redirect terminal reports.** Surface redirect outcomes as a concluded-
    operation state (currently only on the legacy `r` stream).
-2. **Client-advertised `client.site`** on the wire (today only via free-form
-   appinfo by convention).
+
+**Client-advertised `client.site` (DONE).** A client with `XRDSITE` (or
+`XRD_SITE`, which overrides it) in its environment now advertises that site on
+the wire: XrdCl imports it into the `ClientSite` env (`XrdClDefaultEnv`) and
+appends `xrd.site=<site>` to the login CGI (`XrdClXRootDTransport::GenerateLogIn`)
+only when set, so the login string is unchanged for everyone else. The server
+(`do_Login`) folds it into the user-map appinfo as `&S=<site>` (a free key,
+ignored by older collectors), and the collector parses it (`UserInfo::site`,
+`cgiVal(text,"S")`) into `client.site` via the shared `fillClient` helper. This
+is the client analogue of `server.site` (the reporting server's `XRDSITE` from
+the `=` ident). Covered by the `Transfer.ClientSiteAdvertised` unit test and
+end-to-end in `XRootD::moncollect` (`XRD_SITE=CLIENT-TEST-SITE`).
 
 ---
 

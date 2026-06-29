@@ -54,10 +54,15 @@ function test_moncollect() {
 
 	# 1. A successful transfer: upload then download a file. The close produces
 	#    a transfer document with operation_state "Successful". Re-driven each
-	#    second until the document is observed (tolerates UDP loss).
+	#    second until the document is observed (tolerates UDP loss). XRD_SITE is
+	#    advertised by the client at login and surfaces as client.site.
+	export XRD_SITE=CLIENT-TEST-SITE
 	drive_until '"operation_state":"Successful"' "successful transfer document" \
 		"xrdcp -f '${TMPDIR}/ok.ref' '${HOST}/${TMPDIR}/ok.ref' \
 		 && xrdcp -f '${HOST}/${TMPDIR}/ok.ref' '${TMPDIR}/ok.dat'"
+
+	# The client-advertised site must travel to the collector as client.site.
+	assert grep -Eq '"site":"CLIENT-TEST-SITE"' "${COLLECTOR_OUT}"
 
 	# 2. A failed open: reading a nonexistent file fails before any close, so
 	#    the server emits a terminal isError record -> operation_state "Failed".

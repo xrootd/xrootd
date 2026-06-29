@@ -188,7 +188,7 @@ One object per file close, for example:
               "site": "T1_DE_KIT", "instance": "manager",
               "id": 53605690318209, "start": 1782230264 },
   "client": { "host": "wn42.example.org", "hostname": "wn42.example.org",
-              "version": "v5.6.1", "ip_version": 4 },
+              "version": "v5.6.1", "ip_version": 4, "site": "T2_DE_DESY" },
   "user":   { "name": "amadio", "protocol": "xroot", "auth_method": "gsi",
               "vo": "atlas", "role": "production", "subject": "https://issuer/sub42" },
   "file":   { "lfn": "/store/data/big.dat", "size": 10485760, "read_write": false },
@@ -225,6 +225,7 @@ on the wire. Mapping (and the server config each needs):
 | client_ip / hostname | `client.ip` / `client.hostname` | `u` descriptor (server DNS config) |
 | client_version | `client.version` | login appinfo (`&R=`) |
 | ip_version | `client.ip_version` | login appinfo (`&I=`) |
+| client_site | `client.site` | login appinfo (`&S=`, client `XRDSITE`/`XRD_SITE`) |
 | auth_method | `user.auth_method` | **`… auth`** |
 | user | `user.name` / `user.subject` | `u` / `T` token |
 | vo | `user.vo` | `T` token, else `… auth` (`&o=`) |
@@ -254,8 +255,12 @@ the existing `fstat` setup — no extra directive. A disconnect-driven
 (`transfer.forced_close`) close is **not** a failure unless an error was
 actually recorded.
 
-**Still not on the wire**: a client-advertised `client.site` (only carried by
-free-form appinfo by convention).
+`client.site` is the site the *client* advertises for itself: an XRootD client
+that has `XRDSITE` (or `XRD_SITE`, which takes precedence) set in its environment
+sends it in the login CGI (`xrd.site`), the server folds it into the user-map
+appinfo (`&S=`), and the collector surfaces it as `client.site`. It is absent
+when the client does not advertise one. (This is distinct from `server.site`,
+which is the *reporting server's* `XRDSITE` from the `=` ident record.)
 
 ## Aggregated metrics (Prometheus)
 

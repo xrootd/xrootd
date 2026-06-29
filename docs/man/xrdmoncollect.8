@@ -147,6 +147,12 @@ xrootd.monitor all flush 30s ident 5m fstat 60s lfn ops ssq xfr 1 \\
 When \fBauth\fR is omitted, \fBuser.auth_method\fR and the auth-derived VO are
 absent, but client version, IP version, and the remaining fields still
 populate.
+.P
+The \fBclient.site\fR field is populated when the connecting client advertises a
+site of its own: a client with \fBXRDSITE\fR (or \fBXRD_SITE\fR, which takes
+precedence) set in its environment sends it at login, and the server forwards it
+on the \fIu\fR-stream. This is independent of the reporting server's own
+\fBserver.site\fR.
 .SH NOTES
 Documentation for all components associated with \fBxrdmoncollect\fR can be
 found at https://xrootd.org/docs.html
