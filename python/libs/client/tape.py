@@ -19,6 +19,11 @@ try:
 except NameError:
   string_types = (str,)
 
+def _reject_line_breaks(value, name):
+  if '\n' in value or '\r' in value:
+    raise ValueError('%s must not contain line breaks' % name)
+
+
 class TapeClient(object):
   """Synchronous client for the WLCG Tape REST API.
 
@@ -111,6 +116,7 @@ class TapeClient(object):
 
   def stage_status(self, url, request_id):
     """Poll the status of a previously submitted Tape REST stage request."""
+    _reject_line_breaks(request_id, 'request_id')
     status, response = self._filesystem(url).query(
       QueryCode.PREPARE, request_id, self.timeout)
     if response:
@@ -126,6 +132,7 @@ class TapeClient(object):
 
   def stage_delete(self, url, request_id):
     """Delete a Tape REST stage request."""
+    _reject_line_breaks(request_id, 'request_id')
     status, _ = self._filesystem(url).query(
       QueryCode.OPAQUE, 'tape.stage_delete\n%s' % request_id, self.timeout)
     return XRootDStatus(status)
@@ -146,6 +153,8 @@ class TapeClient(object):
     urls = list(urls)
     if not urls:
       raise ValueError('urls must not be empty')
+    for url in urls:
+      _reject_line_breaks(url, 'url')
     status, results = self._filesystem(urls[0]).query(
       QueryCode.OPAQUE, 'tape.archiveinfo\n%s' % '\n'.join(urls),
       self.timeout)

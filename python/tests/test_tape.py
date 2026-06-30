@@ -121,6 +121,14 @@ def test_stage_status_uses_prepare_query():
   ]
 
 
+def test_stage_status_rejects_line_break_in_request_id():
+  client = tape.TapeClient()
+
+  with pytest.raises(ValueError):
+    client.stage_status('root://xrootd.example.org/store/file',
+                        'request-1\nother')
+
+
 def test_cancel_delete_release_and_archive_info():
   client = tape.TapeClient(timeout=11)
 
@@ -155,3 +163,16 @@ def test_cancel_delete_release_and_archive_info():
      'tape.archiveinfo\nroot://xrootd.example.org/store/file\n'
      'root://xrootd.example.org/store/missing', 11),
   ]
+
+
+def test_opaque_helpers_reject_line_breaks():
+  client = tape.TapeClient()
+
+  with pytest.raises(ValueError):
+    client.stage_delete('root://xrootd.example.org/store/file',
+                        'request-1\nother')
+
+  with pytest.raises(ValueError):
+    client.archive_info([
+      'root://xrootd.example.org/store/file\nother',
+    ])

@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClEnv.hh"
+#include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdOuc/XrdOucJson.hh"
@@ -192,14 +193,27 @@ X509Credentials GetClientX509Credentials(XrdCl::Env *env)
 void ApplyClientX509Credentials(CURL *curl,
                                 const X509Credentials &credentials)
 {
-  if(!credentials.cert.empty())
+  if(credentials.cert.empty()) return;
+
+  XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+  if(log)
   {
-    curl_easy_setopt(curl, CURLOPT_SSLCERT, credentials.cert.c_str());
+    log->Debug(XrdClHttp::kLogXrdClHttp,
+               "Using client X.509 credential found at %s",
+               credentials.cert.c_str());
   }
-  if(!credentials.key.empty())
+  curl_easy_setopt(curl, CURLOPT_SSLCERT, credentials.cert.c_str());
+
+  if(credentials.key.empty())
   {
-    curl_easy_setopt(curl, CURLOPT_SSLKEY, credentials.key.c_str());
+    if(log)
+    {
+      log->Error(XrdClHttp::kLogXrdClHttp,
+                 "X.509 client credential specified but not the client key");
+    }
+    return;
   }
+  curl_easy_setopt(curl, CURLOPT_SSLKEY, credentials.key.c_str());
 }
 
 std::string ToLower(std::string value)
@@ -243,6 +257,13 @@ std::string CollapseSlashes(const std::string &path)
     previousSlash = currentSlash;
   }
   return result.empty() ? "/" : result;
+}
+
+std::string NormalizeTapePath(const std::string &path)
+{
+  std::string result = CollapseSlashes(path);
+  if(result.front() != '/') result.insert(result.begin(), '/');
+  return result;
 }
 
 std::string JoinUrl(const std::string &base, const std::string &path)
@@ -301,7 +322,7 @@ bool UrlEndpointAndPath(const std::string &input, std::string &endpoint,
   out << protocol << "://" << url.GetHostName();
   if(useUrlPort && url.GetPort() > 0) out << ":" << url.GetPort();
   endpoint = out.str();
-  path = CollapseSlashes(url.GetPath());
+  path = NormalizeTapePath(url.GetPath());
   return true;
 }
 
@@ -447,7 +468,7 @@ bool PathFromInput(const std::string &input, std::string &path,
   }
   if(input.front() == '/')
   {
-    path = CollapseSlashes(input);
+    path = NormalizeTapePath(input);
     return true;
   }
 
@@ -567,7 +588,7 @@ XrdCl::XRootDStatus StageFileStatusFromJson(
   result = TapeStageFileStatus();
   if(json.contains("path") && json["path"].is_string())
   {
-    result.path = CollapseSlashes(json["path"].get<std::string>());
+    result.path = NormalizeTapePath(json["path"].get<std::string>());
   }
   else
   {
@@ -661,17 +682,6 @@ XrdCl::XRootDStatus EmptyResponseStatus(const HttpResponse &response,
   return XrdCl::XRootDStatus();
 }
 
-Json ArchiveInfoRequestBody(const std::vector<std::string> &paths)
-{
-  Json body;
-  body["paths"] = Json::array();
-  for(const auto &path : paths)
-  {
-    body["paths"].push_back(path);
-  }
-  return body;
-}
-
 const Json *FindArchiveInfoItem(const Json &response, const std::string &path)
 {
   if(!response.is_array()) return nullptr;
@@ -682,7 +692,7 @@ const Json *FindArchiveInfoItem(const Json &response, const std::string &path)
     {
       continue;
     }
-    if(CollapseSlashes(item["path"].get<std::string>()) == path)
+    if(NormalizeTapePath(item["path"].get<std::string>()) == path)
     {
       return &item;
     }
@@ -1051,7 +1061,7 @@ namespace
     }
 
     const std::string archiveInfoUrl = JoinUrl(endpoint.uri, "/archiveinfo");
-    const std::string requestBody = ArchiveInfoRequestBody(paths).dump();
+    const std::string requestBody = PathsRequestBody(paths).dump();
     const HttpResponse response =
       HttpRequest("POST", archiveInfoUrl, requestBody, pOptions);
 

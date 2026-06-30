@@ -40,13 +40,64 @@ using Json = nlohmann::json;
 std::vector<std::string> SplitLines(const std::string &value)
 {
     std::vector<std::string> lines;
-    std::istringstream input(value);
-    std::string line;
-    while(std::getline(input, line))
+    if(value.empty()) return lines;
+
+    std::size_t start = 0;
+    while(start <= value.size())
     {
-        if(!line.empty()) lines.push_back(line);
+        const std::size_t end = value.find('\n', start);
+        if(end == std::string::npos)
+        {
+            lines.push_back(value.substr(start));
+            break;
+        }
+        lines.push_back(value.substr(start, end - start));
+        start = end + 1;
     }
     return lines;
+}
+
+bool ContainsCarriageReturn(const std::string &value)
+{
+    return value.find('\r') != std::string::npos;
+}
+
+bool HasPrepareFlag(XrdCl::PrepareFlags::Flags flags,
+                    XrdCl::PrepareFlags::Flags flag)
+{
+    return (static_cast<int>(flags) & static_cast<int>(flag)) != 0;
+}
+
+XrdCl::XRootDStatus ValidateTapePrepareFlags(XrdCl::PrepareFlags::Flags flags)
+{
+    const int requested = static_cast<int>(flags);
+    const int supported =
+        static_cast<int>(XrdCl::PrepareFlags::Stage)
+        | static_cast<int>(XrdCl::PrepareFlags::Cancel)
+        | static_cast<int>(XrdCl::PrepareFlags::Evict);
+
+    if(requested & ~supported)
+    {
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errNotSupported,
+            0, "HTTP Tape REST prepare supports stage, cancel, and evict only");
+    }
+
+    int operations = 0;
+    if(HasPrepareFlag(flags, XrdCl::PrepareFlags::Stage)) ++operations;
+    if(HasPrepareFlag(flags, XrdCl::PrepareFlags::Cancel)) ++operations;
+    if(HasPrepareFlag(flags, XrdCl::PrepareFlags::Evict)) ++operations;
+
+    if(operations == 0)
+    {
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errNotSupported,
+            0, "HTTP Tape REST prepare supports stage, cancel, and evict only");
+    }
+    if(operations > 1)
+    {
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs,
+            0, "HTTP Tape REST prepare expects exactly one operation flag");
+    }
+    return XrdCl::XRootDStatus();
 }
 
 void SendBufferResponse(XrdCl::ResponseHandler *handler,
@@ -246,12 +297,17 @@ XrdCl::XRootDStatus Filesystem::Prepare(
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs,
             0, "missing prepare file list");
     }
+    XrdCl::XRootDStatus status = ValidateTapePrepareFlags(flags);
+    if(!status.IsOK()) return status;
+
+    // Tape REST operations use the synchronous helper path and invoke the
+    // handler before returning from this FileSystem method.
     const int tapeTimeout = TapeTimeout(timeout);
 
-    if(flags & XrdCl::PrepareFlags::Stage)
+    if(HasPrepareFlag(flags, XrdCl::PrepareFlags::Stage))
     {
         std::string requestId;
-        XrdCl::XRootDStatus status = XrdClHttp::TapeStage(
+        status = XrdClHttp::TapeStage(
             m_url.GetURL(), PrepareStageFiles(fileList),
             tapeTimeout, requestId);
         if(!status.IsOK()) return status;
@@ -259,9 +315,9 @@ XrdCl::XRootDStatus Filesystem::Prepare(
         return XrdCl::XRootDStatus();
     }
 
-    if(flags & XrdCl::PrepareFlags::Cancel)
+    if(HasPrepareFlag(flags, XrdCl::PrepareFlags::Cancel))
     {
-        XrdCl::XRootDStatus status = XrdClHttp::TapeStageCancel(
+        status = XrdClHttp::TapeStageCancel(
             m_url.GetURL(), fileList.front(), PreparePathsAfterRequestId(fileList),
             tapeTimeout);
         if(!status.IsOK()) return status;
@@ -269,9 +325,9 @@ XrdCl::XRootDStatus Filesystem::Prepare(
         return XrdCl::XRootDStatus();
     }
 
-    if(flags & XrdCl::PrepareFlags::Evict)
+    if(HasPrepareFlag(flags, XrdCl::PrepareFlags::Evict))
     {
-        XrdCl::XRootDStatus status = XrdClHttp::TapeRelease(
+        status = XrdClHttp::TapeRelease(
             m_url.GetURL(), fileList.front(), PreparePathsAfterRequestId(fileList),
             tapeTimeout);
         if(!status.IsOK()) return status;
@@ -289,16 +345,20 @@ XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
     time_t                   timeout)
 {
     auto ts = XrdClHttp::Factory::GetHeaderTimeoutWithDefault(timeout);
+    // Tape REST queries use the synchronous helper path and invoke the handler
+    // before returning from this FileSystem method.
     const int tapeTimeout = TapeTimeout(timeout);
 
     if (queryCode == XrdCl::QueryCode::Prepare)
     {
         std::string responseJson;
         std::vector<std::string> args = SplitLines(arg.ToString());
-        if(args.empty())
+        if(args.size() != 1 || args.front().empty()
+           || ContainsCarriageReturn(args.front()))
         {
             return XrdCl::XRootDStatus(XrdCl::stError,
-                XrdCl::errInvalidArgs, 0, "missing prepare request id");
+                XrdCl::errInvalidArgs, 0,
+                "prepare query expects a single request id");
         }
         XrdCl::XRootDStatus status = XrdClHttp::TapeStageStatus(
             m_url.GetURL(), args.front(), tapeTimeout, responseJson);
@@ -308,7 +368,8 @@ XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
     else if (queryCode == XrdCl::QueryCode::Opaque)
     {
         std::vector<std::string> args = SplitLines(arg.ToString());
-        if(args.empty())
+        if(args.empty() || args.front().empty()
+           || ContainsCarriageReturn(args.front()))
         {
             return XrdCl::XRootDStatus(XrdCl::stError,
                 XrdCl::errInvalidArgs, 0, "missing opaque query command");
@@ -329,6 +390,21 @@ XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
         }
         else if(args[0] == "tape.archiveinfo")
         {
+            if(args.size() < 2)
+            {
+                return XrdCl::XRootDStatus(XrdCl::stError,
+                    XrdCl::errInvalidArgs, 0,
+                    "tape.archiveinfo expects non-empty URLs");
+            }
+            for(auto it = args.begin() + 1; it != args.end(); ++it)
+            {
+                if(it->empty() || ContainsCarriageReturn(*it))
+                {
+                    return XrdCl::XRootDStatus(XrdCl::stError,
+                        XrdCl::errInvalidArgs, 0,
+                        "tape.archiveinfo expects non-empty URLs");
+                }
+            }
             std::string responseJson;
             std::vector<std::string> urls(args.begin() + 1, args.end());
             XrdCl::XRootDStatus status = XrdClHttp::TapeArchiveInfo(
@@ -338,7 +414,8 @@ XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
         }
         else if(args[0] == "tape.stage_delete")
         {
-            if(args.size() != 2)
+            if(args.size() != 2 || args[1].empty()
+               || ContainsCarriageReturn(args[1]))
             {
                 return XrdCl::XRootDStatus(XrdCl::stError,
                     XrdCl::errInvalidArgs, 0,

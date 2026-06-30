@@ -23,6 +23,8 @@
 /******************************************************************************/
 
 #include "XrdClHttp/XrdClHttpTape.hh"
+#include "XrdClHttp/XrdClHttpFilesystem.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdOuc/XrdOucJson.hh"
 
 #include <gtest/gtest.h>
@@ -220,8 +222,8 @@ class TapeHttpServer
 
       if(request.method == "POST" && request.path == "/api/v1/archiveinfo")
       {
-        return R"([{"path":"store/file","locality":"DISK_AND_TAPE"},)"
-               R"({"path":"store/missing","error":"not found"}])";
+        return R"([{"path":"/store/file","locality":"DISK_AND_TAPE"},)"
+               R"({"path":"/store/missing","error":"not found"}])";
       }
 
       status = 404;
@@ -386,14 +388,14 @@ TEST(TapeRestApi, RunsStageLifecycle)
   ASSERT_NE(stage, nullptr);
   const Json stageBody = Json::parse(stage->body);
   ASSERT_EQ(stageBody["files"].size(), 1u);
-  EXPECT_EQ(stageBody["files"][0]["path"], "store/file");
+  EXPECT_EQ(stageBody["files"][0]["path"], "/store/file");
   EXPECT_EQ(stageBody["files"][0]["diskLifetime"], "3600");
   EXPECT_EQ(stageBody["files"][0]["targetedMetadata"]["activity"], "analysis");
 
   const HttpRequest *cancel =
     FindRequest(requests, "POST", "/api/v1/stage/request-1/cancel");
   ASSERT_NE(cancel, nullptr);
-  EXPECT_EQ(Json::parse(cancel->body)["paths"][0], "store/file");
+  EXPECT_EQ(Json::parse(cancel->body)["paths"][0], "/store/file");
 
   EXPECT_NE(FindRequest(requests, "DELETE", "/api/v1/stage/request-1"),
             nullptr);
@@ -401,7 +403,7 @@ TEST(TapeRestApi, RunsStageLifecycle)
   const HttpRequest *release =
     FindRequest(requests, "POST", "/api/v1/release/request-1");
   ASSERT_NE(release, nullptr);
-  EXPECT_EQ(Json::parse(release->body)["paths"][0], "store/file");
+  EXPECT_EQ(Json::parse(release->body)["paths"][0], "/store/file");
 }
 
 TEST(TapeRestApi, QueriesArchiveInfo)
@@ -416,10 +418,10 @@ TEST(TapeRestApi, QueriesArchiveInfo)
   const Json response = Json::parse(responseJson);
   ASSERT_EQ(response.size(), 2u);
   EXPECT_EQ(response[0]["url"], server.BaseUrl() + "/store/file");
-  EXPECT_EQ(response[0]["path"], "store/file");
+  EXPECT_EQ(response[0]["path"], "/store/file");
   EXPECT_EQ(response[0]["locality"], "DISK_AND_TAPE");
   EXPECT_EQ(response[1]["url"], server.BaseUrl() + "/store/missing");
-  EXPECT_EQ(response[1]["path"], "store/missing");
+  EXPECT_EQ(response[1]["path"], "/store/missing");
   EXPECT_EQ(response[1]["error"], "not found");
 
   const std::vector<HttpRequest> requests = server.Requests();
@@ -428,8 +430,8 @@ TEST(TapeRestApi, QueriesArchiveInfo)
   ASSERT_NE(archiveInfo, nullptr);
   const Json body = Json::parse(archiveInfo->body);
   ASSERT_EQ(body["paths"].size(), 2u);
-  EXPECT_EQ(body["paths"][0], "store/file");
-  EXPECT_EQ(body["paths"][1], "store/missing");
+  EXPECT_EQ(body["paths"][0], "/store/file");
+  EXPECT_EQ(body["paths"][1], "/store/missing");
 }
 
 TEST(TapeRestApi, RejectsUnsupportedDiscoveryEndpoint)
@@ -459,4 +461,41 @@ TEST(TapeRestApi, RejectsArchiveInfoAcrossStorageEndpoints)
 
   const std::vector<HttpRequest> requests = server.Requests();
   EXPECT_EQ(FindRequest(requests, "POST", "/api/v1/archiveinfo"), nullptr);
+}
+
+TEST(TapeRestApi, RejectsAmbiguousPrepareFlags)
+{
+  XrdClHttp::Filesystem filesystem(
+    "http://127.0.0.1:1", nullptr, XrdCl::DefaultEnv::GetLog());
+
+  const auto mixed = filesystem.Prepare(
+    {"/store/file"},
+    XrdCl::PrepareFlags::Stage | XrdCl::PrepareFlags::Cancel,
+    0, nullptr, 0);
+  EXPECT_FALSE(mixed.IsOK());
+
+  const auto unsupported = filesystem.Prepare(
+    {"/store/file"},
+    XrdCl::PrepareFlags::Stage | XrdCl::PrepareFlags::WriteMode,
+    0, nullptr, 0);
+  EXPECT_FALSE(unsupported.IsOK());
+}
+
+TEST(TapeRestApi, RejectsMalformedOpaqueTapePayloads)
+{
+  XrdClHttp::Filesystem filesystem(
+    "http://127.0.0.1:1", nullptr, XrdCl::DefaultEnv::GetLog());
+
+  XrdCl::Buffer buffer;
+  buffer.FromString("request-1\nextra");
+  EXPECT_FALSE(filesystem.Query(
+    XrdCl::QueryCode::Prepare, buffer, nullptr, 0).IsOK());
+
+  buffer.FromString("tape.archiveinfo\n");
+  EXPECT_FALSE(filesystem.Query(
+    XrdCl::QueryCode::Opaque, buffer, nullptr, 0).IsOK());
+
+  buffer.FromString("tape.stage_delete\nrequest-1\nextra");
+  EXPECT_FALSE(filesystem.Query(
+    XrdCl::QueryCode::Opaque, buffer, nullptr, 0).IsOK());
 }
