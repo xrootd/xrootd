@@ -76,6 +76,7 @@ void usage(const char* prog)
      "  --flush-secs <n>  flush after N seconds (default: 5)\n"
      "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
      "  --max-entries <n> cap per-server dict/open-file entries (0=unbounded)\n"
+     "  --no-resolve     do not substitute the local FQDN for a loopback server\n"
      "  --traces         emit a document per t-stream I/O record (high volume)\n"
      "  --gstream        emit a document per g-stream (plugin) record\n"
      "  --redirects      emit a document per r-stream redirect record\n"
@@ -207,6 +208,7 @@ int main(int argc, char* argv[])
    std::string fwdHost; int fwdPort = 0;
    size_t      flushCount = 500;
    long        flushSecs  = 5;
+   bool        resolve = true;
 
 // Parse arguments
 //
@@ -235,6 +237,7 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
         else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
         else if (!strcmp(a, "--max-entries") && i+1 < argc) maxEntries = (size_t)atol(argv[++i]);
+        else if (!strcmp(a, "--no-resolve")) resolve = false;
         else if (!strcmp(a, "--traces")) traces = true;
         else if (!strcmp(a, "--gstream")) gstream = true;
         else if (!strcmp(a, "--redirects")) redirects = true;
@@ -350,6 +353,7 @@ int main(int argc, char* argv[])
 
    XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, reg);
    decoder.SetMaxEntries(maxEntries);
+   decoder.SetResolveHosts(resolve);
 
    std::atomic<bool> exporterStop{false};
    std::thread       exporter;

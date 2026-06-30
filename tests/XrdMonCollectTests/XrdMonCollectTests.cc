@@ -11,6 +11,7 @@
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucJson.hh"
 
 #include <gtest/gtest.h>
@@ -595,6 +596,67 @@ TEST_F(Transfer, IsLocalAbsentWithoutServerHost)
 
   json j = json::parse(lastDoc);
   EXPECT_FALSE(j["transfer"].contains("is_local"));
+}
+
+namespace
+{
+// Feed a u/open/close trio from a chosen UDP source so server.* reflects that
+// sender (the fixture hardwires 10.0.0.1; loopback needs ::1).
+void feedTransferFrom(XrdMonDecode& dec, const std::string& src)
+{
+  { W body; body.u32(7);
+    std::string info = "xroot/alice.123:4@wn.example.org\n";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('u', kStod, pl);
+    dec.Process(src, (const char*)pkt.data(), pkt.size()); }
+  { W body; body.u32(100); body.u64(123456); body.u32(7);
+    std::string lfn = "/store/data/file.root"; body.raw(lfn); body.u8(0);
+    auto payload = todRec(kOpenT, 42);
+    auto r = rec(1, 0x01 | 0x02, body.b);
+    payload.insert(payload.end(), r.begin(), r.end());
+    auto pkt = packet('f', kStod, payload);
+    dec.Process(src, (const char*)pkt.data(), pkt.size()); }
+  { W body; body.u32(100); body.u64(1024); body.u64(0); body.u64(0);
+    auto payload = todRec(kCloseT, 42);
+    auto r = rec(0, 0, body.b);
+    payload.insert(payload.end(), r.begin(), r.end());
+    auto pkt = packet('f', kStod, payload);
+    dec.Process(src, (const char*)pkt.data(), pkt.size()); }
+}
+}
+
+// A co-located server reports from the loopback address; the collector should
+// substitute the local FQDN rather than emit the literal "::1".
+TEST(XrdMonCollect, LoopbackServerResolvesToLocalHost)
+{
+  std::string doc;
+  XrdMonDecode dec([&](const std::string& d){ doc = d; });  // resolve on (default)
+  feedTransferFrom(dec, "::1:9930");
+
+  ASSERT_FALSE(doc.empty());
+  json j = json::parse(doc);
+  EXPECT_EQ(j["server"]["ip"], "::1");                 // numeric source preserved
+
+  const char* me = XrdNetUtils::MyHostName();
+  if (me && *me && std::string(me).find(':') == std::string::npos)
+     {EXPECT_EQ(j["server"]["hostname"], me);
+      EXPECT_EQ(j["server"]["name"], me);
+      EXPECT_NE(j["server"]["name"], "::1");
+     }
+}
+
+// With resolution disabled, the loopback source stays numeric.
+TEST(XrdMonCollect, NoResolveKeepsLoopbackNumeric)
+{
+  std::string doc;
+  XrdMonDecode dec([&](const std::string& d){ doc = d; });
+  dec.SetResolveHosts(false);
+  feedTransferFrom(dec, "::1:9930");
+
+  json j = json::parse(doc);
+  EXPECT_EQ(j["server"]["name"], "::1");
+  EXPECT_FALSE(j["server"].contains("hostname"));
 }
 
 namespace

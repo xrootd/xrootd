@@ -34,6 +34,7 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --flush-secs <n>  flush after N seconds (default: 5)
   --metrics-port <p> serve aggregated metrics over HTTP on port <p>
   --max-entries <n>  cap per-server dict/open-file entries (0=unbounded)
+  --no-resolve     do not substitute the local FQDN for a loopback server
   --traces         emit a document per t-stream I/O record (high volume)
   --gstream        emit a document per g-stream (plugin) record
   --redirects      emit a document per r-stream redirect record
@@ -232,7 +233,7 @@ on the wire. Mapping (and the server config each needs):
 | error_message | `transfer.error_message` | `fstat` (failed open / I/O / close) |
 | error_category | `transfer.error_category` + `transfer.error_code` | `fstat` (failed open / I/O / close) |
 | server_name/site | `server.name` / `server.site` | `=` ident (`XRDSITE` for site) |
-| server_ip / hostname | `server.ip` / `server.hostname` | UDP source / `=` ident |
+| server_ip / hostname | `server.ip` / `server.hostname` | UDP source / `=` ident (loopback → local FQDN) |
 | client_ip / hostname | `client.ip` / `client.hostname` | `u` descriptor (server DNS config) |
 | client_version | `client.version` | login appinfo (`&R=`) |
 | ip_version | `client.ip_version` | login appinfo (`&I=`) |
@@ -244,6 +245,16 @@ on the wire. Mapping (and the server config each needs):
 | start_time / end_time | `transfer.start_time` / `.end_time` | f-stream `FileTOD` window |
 | bytes | `transfer.{read,readv,write}_bytes` | `fstat … xfr` |
 | is_local (LAN/WAN) | `transfer.is_local` | derived: client vs server domain (needs `=` ident) |
+
+`server.hostname` precedence is: the host advertised on the `=` ident stream
+(when it is a real name, not an IP literal), else — for a server reporting from
+the loopback address (the common co-located collector + server setup, where the
+UDP source is `::1`/`127.0.0.1`) — the collector's own local FQDN, since the
+reporting server runs on the same host. `server.name` falls back to the numeric
+`server.ip` when neither is available. `--no-resolve` disables the loopback
+substitution (leaving the numeric address). A *remote* server is never
+reverse-resolved here — that hostname comes from its `=` ident, and a blocking
+reverse-DNS lookup of an arbitrary source IP would stall the UDP receive loop.
 
 `transfer.is_local` is a heuristic: it is `true` when the client and the
 reporting server share a registered domain (the part after the first host

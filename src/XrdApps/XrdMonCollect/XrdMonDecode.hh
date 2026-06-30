@@ -96,6 +96,13 @@ const Stats& GetStats() const {return stats;}
 //! missing that field, or an orphan close.
 void SetMaxEntries(std::size_t n) {maxEntries = n;}
 
+//! Enable/disable substituting the local FQDN for a loopback (co-located)
+//! server's hostname (on by default). When off, server.name falls back to the
+//! numeric source IP unless a '=' ident host is received. Remote servers are
+//! always identified from their '=' ident, never reverse-resolved here (a
+//! blocking lookup would stall the UDP receive loop).
+void SetResolveHosts(bool v) {resolveHosts = v;}
+
 //! @param emitTraces   emit a document per 't'-stream record (I/O, open,
 //!                     close, disconnect) — high volume, off by default.
 //! @param emitGstream  emit a document per 'g'-stream (plugin) record.
@@ -190,6 +197,8 @@ struct Server
    std::unordered_map<uint32_t, UserActivity> activity;// 'U' user dictid -> scitag
    ServerIdent ident;        // '=' server self-identification
    std::string identRaw;     // last emitted identity (to de-duplicate docs)
+   std::string resolvedHost; // reverse-resolved sender hostname (cached)
+   bool    resolved = false; // resolvedHost computed yet (once per incarnation)
    int64_t sID = 0;
    int     lastPseq = -1;    // last packet sequence (header pseq) for loss det.
 };
@@ -247,6 +256,7 @@ bool     gstream;
 bool     redirects;
 XrdMetrics::MetricGroup* metrics;
 std::size_t maxEntries = 0;
+bool     resolveHosts = true;
 Stats    stats;
 };
 #endif

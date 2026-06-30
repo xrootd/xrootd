@@ -113,6 +113,14 @@ Flush after \fIn\fR seconds (default: 5).
 Cap the number of per-server dictionary and open-file entries retained
 (0 = unbounded).
 .RE
+\fB--no-resolve\fR
+.RS 5
+Do not substitute the collector's local fully-qualified hostname for a server
+that reports from the loopback address (\fB::1\fR/\fB127.0.0.1\fR, the common
+co-located setup). With this flag \fBserver.name\fR keeps the numeric address
+unless a hostname arrives on the \fI=\fR ident stream. Remote servers are never
+reverse-resolved; their hostname comes from the \fI=\fR ident.
+.RE
 \fB--traces\fR
 .RS 5
 Emit a document per \fIt\fR-stream I/O record. This is high volume.

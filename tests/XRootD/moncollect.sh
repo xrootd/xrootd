@@ -154,6 +154,13 @@ function test_moncollect() {
 	# The client-advertised site must travel to the collector as client.site.
 	assert grep -Eq '"site":"CLIENT-TEST-SITE"' "${COLLECTOR_OUT}"
 
+	# The collector runs co-located with the server, so the monitor datagrams
+	# arrive from the loopback address. The server object must still carry a real
+	# hostname (the local FQDN substituted for loopback, or the '=' ident host),
+	# never the literal "::1".
+	assert grep -Eq '"server":\{[^}]*"hostname":"[^"]+"' "${COLLECTOR_OUT}"
+	assert_failure grep -Eq '"name":"::1"' "${COLLECTOR_OUT}"
+
 	# With VOMS, the proxy's fake VOMS attribute certificate must surface on the
 	# monitoring stream: gsi extracts it into XrdSecEntity.vorg, the server emits
 	# it in the MAPUSER record ("&o="), and the collector reports it as user.vo.

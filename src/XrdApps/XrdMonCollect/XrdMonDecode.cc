@@ -26,6 +26,7 @@
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucJson.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 
@@ -122,6 +123,28 @@ std::string hostDomain(const std::string& h)
    for (char& c : d) c = (char)std::tolower((unsigned char)c);
    return d;
 }
+
+// Resolve the reporting server's hostname from a loopback UDP source. When the
+// collector is co-located with the server it monitors, the datagram source is
+// the loopback address (::1 / 127.0.0.1) and there is no useful name to report
+// before the '=' ident arrives, so server.hostname showed the literal "::1".
+// Since the server runs on this same host, substitute the local FQDN.
+//
+// Only the loopback case is handled: a remote server self-identifies its host
+// on the '=' (MAPIDNT) stream, which fillServer() already prefers. A blocking
+// reverse-DNS lookup of an arbitrary remote IP is deliberately avoided here —
+// it would stall the single-threaded UDP receive loop (a non-resolving address
+// blocks for the full resolver timeout) and drop packets. Empty otherwise.
+//
+std::string resolveHost(const std::string& ip)
+{
+   if (ip != "::1" && ip != "127.0.0.1" && ip != "::ffff:127.0.0.1") return "";
+
+   const char* me = XrdNetUtils::MyHostName();
+   std::string h = me ? me : "";
+   if (h.empty() || isIPLiteral(h)) return "";
+   return h;
+}
 }
 
 /******************************************************************************/
@@ -134,7 +157,18 @@ XrdMonDecode::Server& XrdMonDecode::ServerFor(const std::string& src,
    std::string key = src;
    key += '|';
    key += std::to_string(stod);
-   return servers[key];
+   Server& srv = servers[key];
+
+// Reverse-resolve the sender's hostname once per server incarnation (cached),
+// so the per-document fillServer() stays lookup-free. A '=' ident host, when
+// present, still takes precedence in fillServer().
+//
+   if (resolveHosts && !srv.resolved)
+      {std::string ip = src.substr(0, src.rfind(':'));
+       srv.resolvedHost = resolveHost(ip);
+       srv.resolved = true;
+      }
+   return srv;
 }
 
 /******************************************************************************/
@@ -149,11 +183,21 @@ void XrdMonDecode::fillServer(json& j, const std::string& src, int32_t stod,
    server["ip"]    = ip;
    server["start"] = stod;                            // incarnation key
    if (srv.sID)                 server["id"]       = srv.sID;
-   if (!srv.ident.host.empty()) server["hostname"] = srv.ident.host;
    if (!srv.ident.site.empty()) server["site"]     = srv.ident.site;
    if (!srv.ident.inst.empty()) server["instance"] = srv.ident.inst;
-   // server.name: prefer the configured hostname, else fall back to the sender.
-   server["name"] = srv.ident.host.empty() ? ip : srv.ident.host;
+
+   // Hostname precedence: the '=' ident's advertised host (when it is a real
+   // name, not an IP literal), else the reverse-resolved sender, else none.
+   // server.name falls back to the numeric IP when no name is available.
+   //
+   std::string host;
+   if (!srv.ident.host.empty() && !isIPLiteral(srv.ident.host))
+      host = srv.ident.host;
+   else if (!srv.resolvedHost.empty())
+      host = srv.resolvedHost;
+
+   if (!host.empty()) server["hostname"] = host;
+   server["name"] = host.empty() ? ip : host;
 }
 
 /******************************************************************************/
