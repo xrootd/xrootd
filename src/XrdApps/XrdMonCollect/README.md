@@ -264,7 +264,10 @@ failure). All are keyed on
 `xrootd_collector_failed_operations_total{server,category}`. This requires only
 the existing `fstat` setup — no extra directive. A disconnect-driven
 (`transfer.forced_close`) close is **not** a failure unless an error was
-actually recorded.
+actually recorded. The `error_message` is the server's own SFS reason verbatim
+(e.g. `Unable to open …; no such file or directory` for a missing file); the
+`XRootD::moncollect` test asserts that specific reason per-document for both a
+failed open and the readv-past-EOF case.
 
 A third terminal state, `"Redirected"`, is reported for `r`-stream redirect
 records (with `--redirects`): from the redirector's point of view the operation

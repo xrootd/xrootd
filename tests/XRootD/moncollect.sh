@@ -170,10 +170,18 @@ function test_moncollect() {
 	drive_until '"operation_state":"Failed"' "failed-open document" \
 		"xrdcp '${HOST}/${TMPDIR}/does-not-exist.root' '${TMPDIR}/x.dat'"
 
-	# The failed document must name the missing file and carry an error message.
-	assert grep -Eq '"lfn":"[^"]*does-not-exist.root"' "${COLLECTOR_OUT}"
-	assert grep -Eq '"error_message":"[^"]+"' "${COLLECTOR_OUT}"
-	assert grep -Eq '"error_category":"open"' "${COLLECTOR_OUT}"
+	# The failed-open report must, on a SINGLE document, name the missing file
+	# and carry category "open" with the *specific* server-side reason (the real
+	# "no such file or directory", not merely a non-empty string) and the kXR
+	# error code (kXR_NotFound = 3011). Pin the checks to one record so they
+	# cannot pass by matching fields spread across different documents.
+	open_doc=$(grep -E '"lfn":"[^"]*does-not-exist\.root"' "${COLLECTOR_OUT}" \
+		| grep -E '"operation_state":"Failed"' | head -n1)
+	test -n "${open_doc}" || error "no failed-open transfer document found"
+	assert grep -Eq '"error_category":"open"' <<<"${open_doc}"
+	assert grep -Eq '"error_code":3011' <<<"${open_doc}"
+	assert grep -Eq '"error_message":"Unable to open[^"]*no such file or directory"' \
+		<<<"${open_doc}"
 
 	# 3. A mid-transfer read error: a vector read past EOF fails on the server,
 	#    which records the terminal error on the file so its close reports
@@ -181,6 +189,17 @@ function test_moncollect() {
 	#    the existing file and issues the failing readv, then closes.
 	drive_until '"error_category":"read"' "failed-readv close document" \
 		"xrdreadv-eof '${HOST}/${TMPDIR}/ok.ref'"
+
+	# As with the open failure, verify the specific reason on a single document:
+	# the readv-past-EOF close must report category "read" with the server's
+	# "illegal seek" reason (kXR_FSError = 3005), not just any error.
+	readv_doc=$(grep -E '"app":\{"name":"xrdreadv-eof"\}' "${COLLECTOR_OUT}" \
+		| grep -E '"operation_state":"Failed"' | head -n1)
+	test -n "${readv_doc}" || error "no failed-readv transfer document found"
+	assert grep -Eq '"error_category":"read"' <<<"${readv_doc}"
+	assert grep -Eq '"error_code":3005' <<<"${readv_doc}"
+	assert grep -Eq '"error_message":"Unable to readv[^"]*illegal seek"' \
+		<<<"${readv_doc}"
 
 	echo "collector documents:"
 	cat "${COLLECTOR_OUT}"

@@ -560,6 +560,19 @@ is exactly the kind of reason WLCG consumers want. Exercised end-to-end by the
 `xrdreadv-eof` driver in the `XRootD::moncollect` test
 (`error_category:"read"`, e.g. `Unable to readv …; illegal seek`).
 
+**Error-reason coverage (test hardening).** The `XRootD::moncollect` test now
+asserts the *specific* terminal reason on a single document for both an open
+failure (`xrdcp` of a missing file → `error_category:"open"`,
+`error_code:3011` (`kXR_NotFound`), `error_message:"Unable to open …; no such
+file or directory"`) and the mid-transfer readv failure (`error_category:"read"`,
+`error_code:3005` (`kXR_FSError`), `…illegal seek`), rather than merely checking
+for a non-empty message. The reason flows unchanged from the server SFS error
+(`XrdOfs::Emsg` → `fsError` → `XrdXrootdMonFile::OpenErr`/`setCloseErr`) through
+the collector (`fillError`), so no production change was required. (One genuine
+gap remains unexercised: failed opens that complete *asynchronously* go through
+`XrdXrootdCallBack::sendError`, which does not emit the terminal `isError`
+record; the synchronous local-disk path the test drives is unaffected.)
+
 Not covered: redirect terminal reports (already on the legacy `r` stream). Also
 still not on the wire: a client-advertised `client.site` (only carried by
 free-form appinfo by convention). `is_local` (LAN/WAN) is derived in the
