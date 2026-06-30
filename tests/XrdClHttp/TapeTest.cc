@@ -59,6 +59,43 @@ struct HttpRequest
   std::string body;
 };
 
+class UniqueFd
+{
+  public:
+    explicit UniqueFd(int fd = -1) : pFd(fd) {}
+    ~UniqueFd() { Reset(); }
+
+    UniqueFd(const UniqueFd &) = delete;
+    UniqueFd &operator=(const UniqueFd &) = delete;
+
+    UniqueFd(UniqueFd &&other) noexcept : pFd(other.Release()) {}
+
+    UniqueFd &operator=(UniqueFd &&other) noexcept
+    {
+      if(this != &other) Reset(other.Release());
+      return *this;
+    }
+
+    int Get() const { return pFd; }
+    explicit operator bool() const { return pFd >= 0; }
+
+    int Release()
+    {
+      const int fd = pFd;
+      pFd = -1;
+      return fd;
+    }
+
+    void Reset(int fd = -1)
+    {
+      if(pFd >= 0) ::close(pFd);
+      pFd = fd;
+    }
+
+  private:
+    int pFd = -1;
+};
+
 class TapeHttpServer
 {
   public:
@@ -71,11 +108,12 @@ class TapeHttpServer
     explicit TapeHttpServer(DiscoveryMode mode = DiscoveryMode::Valid)
       : pDiscoveryMode(mode)
     {
-      pListenFd = ::socket(AF_INET, SOCK_STREAM, 0);
-      if(pListenFd < 0) throw std::runtime_error("socket failed");
+      pListenFd.Reset(::socket(AF_INET, SOCK_STREAM, 0));
+      if(!pListenFd) throw std::runtime_error("socket failed");
 
       int reuse = 1;
-      ::setsockopt(pListenFd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+      ::setsockopt(pListenFd.Get(), SOL_SOCKET, SO_REUSEADDR, &reuse,
+                   sizeof(reuse));
 
       sockaddr_in address;
       std::memset(&address, 0, sizeof(address));
@@ -83,19 +121,19 @@ class TapeHttpServer
       address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
       address.sin_port = 0;
 
-      if(::bind(pListenFd, reinterpret_cast<sockaddr *>(&address),
+      if(::bind(pListenFd.Get(), reinterpret_cast<sockaddr *>(&address),
                 sizeof(address)) < 0)
       {
         throw std::runtime_error("bind failed");
       }
 
-      if(::listen(pListenFd, 16) < 0)
+      if(::listen(pListenFd.Get(), 16) < 0)
       {
         throw std::runtime_error("listen failed");
       }
 
       socklen_t length = sizeof(address);
-      if(::getsockname(pListenFd, reinterpret_cast<sockaddr *>(&address),
+      if(::getsockname(pListenFd.Get(), reinterpret_cast<sockaddr *>(&address),
                        &length) < 0)
       {
         throw std::runtime_error("getsockname failed");
@@ -289,14 +327,13 @@ class TapeHttpServer
     {
       while(!pStopped)
       {
-        const int fd = ::accept(pListenFd, nullptr, nullptr);
-        if(fd < 0)
+        UniqueFd connection(::accept(pListenFd.Get(), nullptr, nullptr));
+        if(!connection)
         {
           if(pStopped || errno == EBADF || errno == EINVAL) break;
           continue;
         }
-        HandleConnection(fd);
-        ::close(fd);
+        HandleConnection(connection.Get());
       }
     }
 
@@ -304,13 +341,13 @@ class TapeHttpServer
     {
       bool expected = false;
       if(!pStopped.compare_exchange_strong(expected, true)) return;
-      ::shutdown(pListenFd, SHUT_RDWR);
-      ::close(pListenFd);
+      if(pListenFd) ::shutdown(pListenFd.Get(), SHUT_RDWR);
+      pListenFd.Reset();
       if(pThread.joinable()) pThread.join();
     }
 
     DiscoveryMode pDiscoveryMode;
-    int pListenFd = -1;
+    UniqueFd pListenFd;
     unsigned short pPort = 0;
     std::thread pThread;
     std::atomic<bool> pStopped{false};

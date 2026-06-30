@@ -40,6 +40,7 @@
 #include <cstdlib>
 #include <exception>
 #include <fstream>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -60,6 +61,42 @@ struct X509Credentials
 {
   std::string cert;
   std::string key;
+};
+
+struct CurlDeleter
+{
+  void operator()(CURL *curl) const
+  {
+    if(curl) curl_easy_cleanup(curl);
+  }
+};
+
+using CurlHandle = std::unique_ptr<CURL, CurlDeleter>;
+
+class CurlHeaders
+{
+  public:
+    ~CurlHeaders()
+    {
+      if(pHeaders) curl_slist_free_all(pHeaders);
+    }
+
+    CurlHeaders() = default;
+    CurlHeaders(const CurlHeaders &) = delete;
+    CurlHeaders &operator=(const CurlHeaders &) = delete;
+
+    bool Append(const std::string &header)
+    {
+      curl_slist *updated = curl_slist_append(pHeaders, header.c_str());
+      if(!updated) return false;
+      pHeaders = updated;
+      return true;
+    }
+
+    curl_slist *Get() const { return pHeaders; }
+
+  private:
+    curl_slist *pHeaders = nullptr;
 };
 
 enum class TapeLocality
@@ -135,7 +172,7 @@ class TapeClient
 {
   public:
     explicit TapeClient( const TapeOptions &options = TapeOptions() );
-    ~TapeClient();
+    ~TapeClient() = default;
 
     XrdCl::XRootDStatus Discover( const std::string &url,
                                   TapeEndpoint &endpoint ) const;
@@ -357,7 +394,7 @@ HttpResponse HttpRequest(const std::string &method, const std::string &url,
 {
   HttpResponse response;
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
-  CURL *curl = XrdClHttp::GetHandle(false);
+  CurlHandle curl(XrdClHttp::GetHandle(false));
   if(!curl)
   {
     response.error = "unable to initialize curl";
@@ -367,56 +404,66 @@ HttpResponse HttpRequest(const std::string &method, const std::string &url,
   char errorBuffer[CURL_ERROR_SIZE];
   errorBuffer[0] = '\0';
 
-  struct curl_slist *headers = nullptr;
-  headers = curl_slist_append(headers, "Accept: application/json");
+  CurlHeaders headers;
+  if(!headers.Append("Accept: application/json"))
+  {
+    response.error = "unable to allocate HTTP headers";
+    return response;
+  }
 
   const std::string token = ReadBearerToken();
   if(!token.empty())
   {
     const std::string header = "Authorization: Bearer " + token;
-    headers = curl_slist_append(headers, header.c_str());
+    if(!headers.Append(header))
+    {
+      response.error = "unable to allocate HTTP headers";
+      return response;
+    }
   }
 
-  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteCallback);
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.body);
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
+  curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, errorBuffer);
+  curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, CurlWriteCallback);
+  curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &response.body);
+  curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.Get());
+  curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
 
   if(options.timeout >= 0)
   {
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, options.timeout);
+    curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, options.timeout);
   }
 
   if(UseClientX509(env))
   {
-    ApplyClientX509Credentials(curl, GetClientX509Credentials(env));
+    ApplyClientX509Credentials(curl.get(), GetClientX509Credentials(env));
   }
 
   if(method == "POST")
   {
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POST, 1L);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
+    if(!headers.Append("Content-Type: application/json"))
+    {
+      response.error = "unable to allocate HTTP headers";
+      return response;
+    }
+    curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.Get());
+    curl_easy_setopt(curl.get(), CURLOPT_POST, 1L);
+    curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, body.c_str());
+    curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDSIZE,
       static_cast<long>(body.size()));
   }
   else if(method == "DELETE")
   {
-    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+    curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "DELETE");
   }
 
-  const CURLcode result = curl_easy_perform(curl);
+  const CURLcode result = curl_easy_perform(curl.get());
   if(result != CURLE_OK)
   {
     response.error = errorBuffer[0] ? errorBuffer : curl_easy_strerror(result);
   }
 
-  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response.statusCode);
-  curl_slist_free_all(headers);
-  curl_easy_cleanup(curl);
+  curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &response.statusCode);
   return response;
 }
 
@@ -758,12 +805,8 @@ namespace
   {
   }
 
-  TapeClient::~TapeClient()
-  {
-  }
-
   XRootDStatus TapeClient::Discover( const std::string &url,
-                                         TapeEndpoint &endpoint ) const
+                                     TapeEndpoint &endpoint ) const
   {
     std::string storageEndpoint;
     std::string path;
