@@ -41,6 +41,8 @@
 #include <string>
 #include <thread>
 
+#include "INIReader.h"
+
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdApps/XrdMonCollect/XrdMonForward.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
@@ -62,6 +64,9 @@ void usage(const char* prog)
      "          [--os-url <url> [--os-index <name>] [--os-user <u>]\n"
      "           [--os-pass <p>] [--os-insecure]]\n"
      "          [--flush-count <n>] [--flush-secs <n>] [--dump] [-v]\n\n"
+     "  -c <file>        load options from an INI config file (a [xrdmoncollect]\n"
+     "                   section; default /etc/xrootd/xrdmoncollect.cfg if present;\n"
+     "                   command-line options override file values)\n"
      "  -p <port>        UDP port to listen on (required)\n"
      "  -b <bindaddr>    address to bind (default: all interfaces, dual-stack)\n"
      "  -o <file>        append output to <file> (default: stdout unless --os-url)\n"
@@ -304,6 +309,75 @@ int main(int argc, char* argv[])
    std::string scitags;
    long        scitagsRefresh = 3600;
    bool        resolve = true;
+   std::string bindStore, outStore;   // backing storage for config bind/output
+
+// Load a configuration file before parsing the command line, so command-line
+// options override file values. The path is taken from -c/--config if given,
+// otherwise the default /etc/xrootd/xrdmoncollect.cfg is loaded when present
+// (a missing default is silently ignored). Keys live in a single
+// [xrdmoncollect] section and mirror the long-option names.
+//
+   const char* cfgPath = nullptr;
+   for (int i = 1; i < argc; i++)
+       {if (!strcmp(argv[i], "-c") || !strcmp(argv[i], "--config"))
+           {if (i+1 < argc) cfgPath = argv[++i];}
+        else if (!strncmp(argv[i], "--config=", 9)) cfgPath = argv[i] + 9;
+       }
+   std::string cfgFile;
+   if (cfgPath) cfgFile = cfgPath;
+   else
+      {const char* def = "/etc/xrootd/xrdmoncollect.cfg";
+       if (access(def, R_OK) == 0) cfgFile = def;
+      }
+   if (!cfgFile.empty())
+      {INIReader cfg(cfgFile);
+       int perr = cfg.ParseError();
+       if (perr == -1)
+          {fprintf(stderr, "%s: cannot open config file '%s'\n", argv[0],
+                   cfgFile.c_str());
+           return 2;}
+       if (perr > 0)
+          {fprintf(stderr, "%s: parse error in '%s' at line %d\n", argv[0],
+                   cfgFile.c_str(), perr);
+           return 2;}
+       const char* sec = "xrdmoncollect";
+       port       = (int)cfg.GetInteger(sec, "port", port);
+       bindStore  = cfg.Get(sec, "bind", "");
+       if (!bindStore.empty()) bindStr = bindStore.c_str();
+       outStore   = cfg.Get(sec, "output", "");
+       if (!outStore.empty()) outFile = outStore.c_str();
+       bulkIdx      = cfg.Get(sec, "bulk", bulkIdx);
+       osUrl        = cfg.Get(sec, "os-url", osUrl);
+       osIndex      = cfg.Get(sec, "os-index", osIndex);
+       osUser       = cfg.Get(sec, "os-user", osUser);
+       osPass       = cfg.Get(sec, "os-pass", osPass);
+       osInsecure   = cfg.GetBoolean(sec, "os-insecure", osInsecure);
+       osDataStream = cfg.GetBoolean(sec, "os-datastream", osDataStream);
+       std::string fwd = cfg.Get(sec, "forward", "");
+       if (!fwd.empty())
+          {auto c = fwd.rfind(':');
+           if (c == std::string::npos || c == 0 || c+1 >= fwd.size())
+              {fprintf(stderr, "%s: config 'forward' needs host:port\n", argv[0]);
+               return 2;}
+           fwdHost = fwd.substr(0, c);
+           fwdPort = atoi(fwd.c_str() + c + 1);
+          }
+       flushCount  = (size_t)cfg.GetInteger(sec, "flush-count", (long)flushCount);
+       flushSecs   = cfg.GetInteger(sec, "flush-secs", flushSecs);
+       metricsPort = (int)cfg.GetInteger(sec, "metrics-port", metricsPort);
+       std::string mm = cfg.Get(sec, "max-memory", "");
+       if (!mm.empty()) maxMemory = parseSize(mm.c_str());
+       maxEntries  = (size_t)cfg.GetInteger(sec, "max-entries", (long)maxEntries);
+       serverTtl   = cfg.GetInteger(sec, "server-ttl", serverTtl);
+       scitags     = cfg.Get(sec, "scitags", scitags);
+       scitagsRefresh = cfg.GetInteger(sec, "scitags-refresh", scitagsRefresh);
+       resolve     = !cfg.GetBoolean(sec, "no-resolve", !resolve);
+       traces      = cfg.GetBoolean(sec, "traces", traces);
+       gstream     = cfg.GetBoolean(sec, "gstream", gstream);
+       redirects   = cfg.GetBoolean(sec, "redirects", redirects);
+       dump        = cfg.GetBoolean(sec, "dump", dump);
+       verbose     = cfg.GetBoolean(sec, "verbose", verbose);
+      }
 
 // Parse arguments. Short options (-p/-b/-o/-v/-h) and long options are handled
 // uniformly by getopt_long; long-only options use synthetic values above the
@@ -318,7 +392,8 @@ int main(int argc, char* argv[])
       OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
    };
    static const struct option longOpts[] =
-   {  {"bulk",            required_argument, nullptr, OPT_BULK},
+   {  {"config",          required_argument, nullptr, 'c'},
+      {"bulk",            required_argument, nullptr, OPT_BULK},
       {"os-url",          required_argument, nullptr, OPT_OS_URL},
       {"os-index",        required_argument, nullptr, OPT_OS_INDEX},
       {"os-user",         required_argument, nullptr, OPT_OS_USER},
@@ -344,9 +419,10 @@ int main(int argc, char* argv[])
    };
 
    int opt;
-   while ((opt = getopt_long(argc, argv, "p:b:o:vh", longOpts, nullptr)) != -1)
+   while ((opt = getopt_long(argc, argv, "c:p:b:o:vh", longOpts, nullptr)) != -1)
        {switch(opt)
-        {case 'p': port    = atoi(optarg); break;
+        {case 'c': break;   // config file: already loaded in the pre-scan above
+         case 'p': port    = atoi(optarg); break;
          case 'b': bindStr = optarg;       break;
          case 'o': outFile = optarg;       break;
          case 'v': verbose = true;         break;

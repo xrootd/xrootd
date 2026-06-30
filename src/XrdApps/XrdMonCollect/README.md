@@ -19,6 +19,7 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
               [--forward <host:port>]
               [--flush-count <n>] [--flush-secs <n>] [--dump] [-v]
 
+  -c <file>        load options from an INI config file (see Configuration)
   -p <port>        UDP port to listen on (required)
   -b <bindaddr>    address to bind (default: all interfaces, dual-stack)
   -o <file>        append output to <file> (default: stdout unless a network sink)
@@ -47,6 +48,26 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --redirects      emit a document per r-stream redirect record
   --dump           also emit one JSON object per decoded record (debugging)
   -v               print decoder statistics on exit (SIGINT/SIGTERM)
+```
+
+### Configuration file
+
+Options may be set in an INI configuration file instead of (or in addition to)
+the command line. The file is loaded from the path given with `-c`/`--config`,
+or automatically from `/etc/xrootd/xrdmoncollect.cfg` when that file exists (a
+missing default path is silently ignored). All keys live in a single
+`[xrdmoncollect]` section and mirror the long-option names; **command-line
+options override values from the file**. A named-but-unreadable or malformed
+file is a fatal error. See `xrdmoncollect.cfg.example` for the full key list.
+
+```ini
+[xrdmoncollect]
+port = 9930
+os-url = https://opensearch.example.org:9200
+os-index = xrootd-transfers
+forward = logstash.example.org:5044
+metrics-port = 9931
+max-memory = 256M
 ```
 
 All document types — `transfer`, `access`, `session`, `server_ident`,

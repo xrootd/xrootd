@@ -76,6 +76,8 @@ if(NOT XRDCL_ONLY)
       XrdMonCollect/XrdMonForward.cc)
     target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils Threads::Threads)
   endif()
+  # Header-only INI parser (vendor/inih) for the optional configuration file.
+  target_include_directories(xrdmoncollect PRIVATE ${CMAKE_SOURCE_DIR}/vendor/inih)
 
   add_executable(wait41 XrdWait41.cc)
   target_link_libraries(wait41

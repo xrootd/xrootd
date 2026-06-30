@@ -1,0 +1,62 @@
+# Example xrdmoncollect configuration file.
+#
+# Loaded with `xrdmoncollect -c <file>`, or automatically from
+# /etc/xrootd/xrdmoncollect.cfg when that file exists. All keys live in a single
+# [xrdmoncollect] section and mirror the long command-line option names.
+# Command-line options override values set here. Lines starting with # or ; are
+# comments.
+
+[xrdmoncollect]
+
+# UDP port to listen on (required; same as -p).
+port = 9930
+
+# Address to bind (default: all interfaces, dual-stack). Same as -b.
+# bind = 0.0.0.0
+
+# Append decoded documents to this file (default: stdout unless an OpenSearch or
+# forward sink is configured). Same as -o.
+# output = /var/log/xrootd/moncollect.ndjson
+
+# Write the file/stdout sink in OpenSearch _bulk format for this index.
+# bulk = xrootd-transfers
+
+# Post documents to an OpenSearch cluster's _bulk API.
+# os-url = https://opensearch.example.org:9200
+# os-index = xrootd-transfers
+# os-user = collector
+# os-pass = secret
+# os-insecure = false
+# os-datastream = false
+
+# Also stream documents as NDJSON over TCP to a buffering frontend (host:port).
+# forward = logstash.example.org:5044
+
+# Flush batched OpenSearch documents after N documents or N seconds.
+# flush-count = 500
+# flush-secs = 5
+
+# Serve aggregated Prometheus metrics over HTTP on this port (0 = disabled).
+# metrics-port = 9931
+
+# Bound correlation state to ~this many bytes (K/M/G/T suffix; 0 = unbounded),
+# with an optional hard entry cap and an idle-incarnation reap age in seconds.
+# max-memory = 256M
+# max-entries = 0
+# server-ttl = 86400
+
+# SciTags registry (a file path or http(s):// URL) and its refresh interval.
+# scitags = /etc/xrootd/scitags.json
+# scitags-refresh = 3600
+
+# Do not substitute the local FQDN for a loopback (co-located) server.
+# no-resolve = false
+
+# Opt-in extra document streams (high volume; off by default).
+# traces = false
+# gstream = false
+# redirects = false
+
+# Debugging: also emit one JSON object per decoded record; print stats on exit.
+# dump = false
+# verbose = false

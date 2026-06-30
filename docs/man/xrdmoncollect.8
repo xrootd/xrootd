@@ -65,6 +65,15 @@ metrics over HTTP.
 .P
 Usage synopsis can be displayed by typing "\fBxrdmoncollect --help\fR".
 .SH OPTIONS
+\fB-c\fR \fIfile\fR
+.RS 5
+Load options from an INI configuration file. Keys live in a single
+\fB[xrdmoncollect]\fR section and mirror the long-option names; command-line
+options override values from the file. When \fB-c\fR is not given, the default
+file \fI/etc/xrootd/xrdmoncollect.cfg\fR is loaded if it exists (a missing
+default is silently ignored). A named-but-unreadable or malformed file is a
+fatal error. See the \fBCONFIGURATION FILE\fR section.
+.RE
 \fB-p\fR \fIport\fR
 .RS 5
 UDP port to listen on (required).
@@ -226,6 +235,23 @@ site of its own: a client with \fBXRDSITE\fR (or \fBXRD_SITE\fR, which takes
 precedence) set in its environment sends it at login, and the server forwards it
 on the \fIu\fR-stream. This is independent of the reporting server's own
 \fBserver.site\fR.
+.SH CONFIGURATION FILE
+Options may be supplied in an INI configuration file as an alternative to the
+command line. The file is loaded from the path given with \fB-c\fR, or
+automatically from \fI/etc/xrootd/xrdmoncollect.cfg\fR when present. All keys are
+placed in a single \fB[xrdmoncollect]\fR section and use the long-option names
+(for example \fBport\fR, \fBos-url\fR, \fBforward\fR, \fBmax-memory\fR);
+command-line options override values from the file. For example:
+.P
+.RS 5
+.nf
+[xrdmoncollect]
+port = 9930
+os-url = https://opensearch.example.org:9200
+forward = logstash.example.org:5044
+max-memory = 256M
+.fi
+.RE
 .SH NOTES
 Documentation for all components associated with \fBxrdmoncollect\fR can be
 found at https://xrootd.org/docs.html
