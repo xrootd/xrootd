@@ -5,6 +5,7 @@
 //------------------------------------------------------------------------------
 
 #include <cstring>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -464,6 +465,100 @@ TEST_F(Transfer, TokenAndActivityEnrichTransfer)
   const XrdMonDecode::Stats& s = dec.GetStats();
   EXPECT_EQ(s.mapTokn, 1u);
   EXPECT_EQ(s.mapUeac, 1u);
+}
+
+namespace
+{
+// Feed a 'U' (SciTags) experiment/activity map for dictid 7.
+void feedActivity(XrdMonDecode& dec, int expId, int actId)
+{
+   W body; body.u32(7);
+   std::string info = "&Uc=7&Ec=" + std::to_string(expId) +
+                      "&Ac=" + std::to_string(actId);
+   std::vector<unsigned char> pl = body.b;
+   pl.insert(pl.end(), info.begin(), info.end());
+   auto pkt = packet('U', kStod, pl);
+   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+}
+
+// Write a SciTags registry JSON to a temp file; return its path.
+std::string writeScitags(const std::string& name, const std::string& body)
+{
+   std::string path = std::string(::testing::TempDir()) + "/" + name;
+   std::ofstream(path) << body;
+   return path;
+}
+}
+
+// With a SciTags registry loaded, the numeric experiment/activity ids are
+// additionally mapped to names, and the experiment name fills the VO when no
+// token or auth VO is present.
+TEST_F(Transfer, ScitagsRegistryMapsActivityAndVo)
+{
+  std::string reg = writeScitags("scitags-map.json",
+     R"({"experiments":[{"expId":2,"expName":"atlas","activities":[
+         {"activityId":7,"activityName":"production"},
+         {"activityId":8,"activityName":"analysis"}]}]})");
+  ASSERT_TRUE(dec.LoadScitags(reg));
+
+  feedUserMap();          // descriptor tail has no &o= -> no auth VO, no token
+  feedActivity(dec, 2, 7);
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["activity"]["experiment_id"], 2);
+  EXPECT_EQ(j["activity"]["activity_id"], 7);
+  EXPECT_EQ(j["activity"]["experiment"], "atlas");
+  EXPECT_EQ(j["activity"]["activity"], "production");
+  EXPECT_EQ(j["user"]["vo"], "atlas");          // VO fallback from the experiment
+}
+
+// A token VO must win over the SciTags experiment-name fallback.
+TEST_F(Transfer, ScitagsVoYieldsToToken)
+{
+  std::string reg = writeScitags("scitags-vo.json",
+     R"({"experiments":[{"expId":2,"expName":"atlas","activities":[]}]})");
+  ASSERT_TRUE(dec.LoadScitags(reg));
+
+  feedUserMap();
+  { W body; body.u32(7);
+    std::string info = "&Uc=7&s=sub&o=cms&r=prod";   // token carries VO "cms"
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('T', kStod, pl);
+    dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  feedActivity(dec, 2, 7);
+  feedOpen();
+  feedClose();
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["user"]["vo"], "cms");            // token VO, not the SciTags "atlas"
+  EXPECT_EQ(j["activity"]["experiment"], "atlas");
+}
+
+// Without a registry, only the numeric ids appear (no names, no VO fallback).
+TEST_F(Transfer, ScitagsNumericWithoutRegistry)
+{
+  feedUserMap();
+  feedActivity(dec, 2, 7);
+  feedOpen();
+  feedClose();
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["activity"]["experiment_id"], 2);
+  EXPECT_EQ(j["activity"]["activity_id"], 7);
+  EXPECT_FALSE(j["activity"].contains("experiment"));
+  EXPECT_FALSE(j["activity"].contains("activity"));
+  EXPECT_FALSE(j["user"].contains("vo"));
+}
+
+// A missing registry file is reported, leaving numeric ids untouched.
+TEST(XrdMonCollect, ScitagsMissingFileReturnsFalse)
+{
+  XrdMonDecode dec([](const std::string&){});
+  EXPECT_FALSE(dec.LoadScitags("/nonexistent/scitags.json"));
 }
 
 // Feed a 'u' map for dictid 7 with a custom CGI tail after the descriptor.

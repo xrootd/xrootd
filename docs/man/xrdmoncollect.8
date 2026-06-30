@@ -113,6 +113,17 @@ Flush after \fIn\fR seconds (default: 5).
 Cap the number of per-server dictionary and open-file entries retained
 (0 = unbounded).
 .RE
+\fB--scitags\fR \fIfile\fR
+.RS 5
+Load a SciTags registry (the scitags.org schema: a top-level \fBexperiments\fR
+array of \fB{expId, expName, activities:[{activityId, activityName}]}\fR). The
+numeric SciTags experiment/activity ids carried on the \fIU\fR stream are then
+additionally mapped to their names (\fBactivity.experiment\fR,
+\fBactivity.activity\fR), and the experiment name is used as a \fBuser.vo\fR
+fallback when neither a token nor the auth CGI supplied a VO. The numeric ids
+are emitted either way; a missing or unparseable file is warned about and
+otherwise ignored.
+.RE
 \fB--no-resolve\fR
 .RS 5
 Do not substitute the collector's local fully-qualified hostname for a server

@@ -667,6 +667,33 @@ build/test dependency on the voms client tools (`voms-clients-cpp` for RPM,
 No production C++ change was needed — the wire/extraction/collector path already
 existed; this closes its test-coverage gap.
 
+**Co-located server hostname (DONE).** When `xrdmoncollect` runs on the same host
+as the server it monitors, the monitor datagrams arrive from the loopback address,
+so `server.hostname`/`server.name` showed the literal `::1` until a `=` ident with
+a real host arrived (and stayed numeric if the ident host was empty or itself an IP
+literal). `ServerFor` now substitutes the collector's local FQDN
+(`XrdNetUtils::MyHostName`) for a loopback source, cached once per server
+incarnation; `fillServer` prefers a non-IP `=` ident host, else the resolved name,
+else the numeric IP. Only the loopback case is resolved — a remote server
+self-identifies on the `=` stream, and a blocking reverse-DNS lookup of an
+arbitrary source IP would stall the single-threaded UDP receive loop and drop
+packets. On by default; `--no-resolve` opts out. Unit-tested and asserted in
+`XRootD::moncollect`.
+
+**SciTags activity/VO mapping (DONE).** The one remaining WLCG data gap — a human
+*activity* tag — is closed (conditionally) without a wire change. WLCG asks for
+"Analysis/Production/…"; XRootD only carries the SciTags **numeric**
+`experiment_id`/`activity_id` (`U`/MAPUEAC). With `--scitags <file>` pointing at a
+SciTags registry (scitags.org schema: `experiments[].{expId,expName,activities[].
+{activityId,activityName}}`), the collector maps those ids to `activity.experiment`/
+`activity.activity` names and uses the experiment name as a `user.vo` fallback (only
+when neither the `T` token nor the auth `&o=` supplied a VO). The numeric ids are
+always emitted, so the field is present with or without the registry; a missing
+file is warned about and ignored. `LoadScitags` parses via the bundled
+`XrdOucJson.hh`. Unit-tested (`ScitagsRegistryMapsActivityAndVo`,
+`ScitagsVoYieldsToToken`, `ScitagsNumericWithoutRegistry`,
+`ScitagsMissingFileReturnsFalse`).
+
 ---
 
 # Second iteration — next-generation `XrdMetrics` registry

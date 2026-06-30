@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <fstream>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
@@ -253,12 +254,62 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
       }
    auto ait = srv.activity.find(userID);
    if (ait != srv.activity.end())
-      {json& act = j["activity"];
-       if (ait->second.experiment) act["experiment_id"] = ait->second.experiment;
-       if (ait->second.activity)   act["activity_id"]   = ait->second.activity;
+      {int expId = ait->second.experiment;
+       int actId = ait->second.activity;
+       json& act = j["activity"];
+       if (expId) act["experiment_id"] = expId;
+       if (actId) act["activity_id"]   = actId;
+
+       // Map the numeric SciTags ids to human names via the loaded registry.
+       // The experiment name doubles as a VO, used only as a last resort (the
+       // token and auth CGI both take precedence).
+       if (expId)
+          {auto eit = sciExp.find(expId);
+           if (eit != sciExp.end())
+              {act["experiment"] = eit->second;
+               if (vo.empty()) {vo = eit->second; j["user"]["vo"] = eit->second;}
+              }
+          }
+       if (expId && actId)
+          {auto kit = sciAct.find(((long long)expId << 32) | actId);
+           if (kit != sciAct.end()) act["activity"] = kit->second;
+          }
       }
 
    return vo;
+}
+
+/******************************************************************************/
+/*                          L o a d S c i t a g s                             */
+/******************************************************************************/
+
+bool XrdMonDecode::LoadScitags(const std::string& path)
+{
+   std::ifstream in(path);
+   if (!in) return false;
+
+   json doc;
+   try    {in >> doc;}
+   catch (const std::exception&) {return false;}
+
+   auto exps = doc.find("experiments");
+   if (exps == doc.end() || !exps->is_array()) return false;
+
+   for (const auto& e : *exps)
+      {if (!e.contains("expId")) continue;
+       int expId = e["expId"].get<int>();
+       if (e.contains("expName") && e["expName"].is_string())
+          sciExp[expId] = e["expName"].get<std::string>();
+       auto acts = e.find("activities");
+       if (acts == e.end() || !acts->is_array()) continue;
+       for (const auto& a : *acts)
+          {if (!a.contains("activityId") || !a.contains("activityName")) continue;
+           int actId = a["activityId"].get<int>();
+           sciAct[((long long)expId << 32) | actId] =
+                  a["activityName"].get<std::string>();
+          }
+      }
+   return true;
 }
 
 /******************************************************************************/

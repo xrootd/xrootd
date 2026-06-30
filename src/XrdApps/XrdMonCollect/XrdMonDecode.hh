@@ -103,6 +103,14 @@ void SetMaxEntries(std::size_t n) {maxEntries = n;}
 //! blocking lookup would stall the UDP receive loop).
 void SetResolveHosts(bool v) {resolveHosts = v;}
 
+//! Load a SciTags registry (scitags.org schema: a top-level "experiments"
+//! array of {expId, expName, activities:[{activityId, activityName}]}). When
+//! loaded, the numeric SciTags experiment/activity ids carried on the 'U'
+//! stream are additionally mapped to their names (and the experiment name is
+//! used as a VO fallback). Returns false on a missing/unparseable file (the
+//! numeric ids are still emitted). Safe to call once at start-up.
+bool LoadScitags(const std::string& path);
+
 //! @param emitTraces   emit a document per 't'-stream record (I/O, open,
 //!                     close, disconnect) — high volume, off by default.
 //! @param emitGstream  emit a document per 'g'-stream (plugin) record.
@@ -257,6 +265,13 @@ bool     redirects;
 XrdMetrics::MetricGroup* metrics;
 std::size_t maxEntries = 0;
 bool     resolveHosts = true;
+
+// SciTags registry (loaded from --scitags), mapping numeric flow-label ids to
+// human names. sciExp: expId -> expName (doubles as a VO); sciAct: the packed
+// key (expId<<32)|activityId -> activityName. Empty when no registry is loaded.
+std::unordered_map<int, std::string>       sciExp;
+std::unordered_map<long long, std::string> sciAct;
+
 Stats    stats;
 };
 #endif

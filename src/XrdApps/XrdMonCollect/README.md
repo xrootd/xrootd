@@ -34,6 +34,7 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --flush-secs <n>  flush after N seconds (default: 5)
   --metrics-port <p> serve aggregated metrics over HTTP on port <p>
   --max-entries <n>  cap per-server dict/open-file entries (0=unbounded)
+  --scitags <file> SciTags registry JSON mapping experiment/activity ids to names
   --no-resolve     do not substitute the local FQDN for a loopback server
   --traces         emit a document per t-stream I/O record (high volume)
   --gstream        emit a document per g-stream (plugin) record
@@ -104,6 +105,14 @@ records are also always consumed:
   `xrootd_collector_vo_transfers_total{server,vo}`.
 - `U` (`MAPUEAC`) carries the SciTags packet-marking flow labels (experiment
   and activity ids), joined onto transfers as `activity.{experiment_id,activity_id}`.
+  With `--scitags <file>` pointing at a SciTags registry (the scitags.org schema:
+  a top-level `"experiments"` array of `{expId, expName, activities:[{activityId,
+  activityName}]}`), those numeric ids are additionally mapped to human names —
+  `activity.experiment` and `activity.activity` — and the experiment name is used
+  as a `user.vo` fallback (only when neither the `T` token nor the auth CGI `&o=`
+  supplied a VO). The numeric ids are always emitted, so the field is present with
+  or without the registry; a missing/unparseable file is warned about at start-up
+  and otherwise ignored.
 
 ### Sinks
 
@@ -210,7 +219,8 @@ One object per file close, for example:
                 "forced_close": false, "is_local": false,
                 "read_bytes": 10485760, "readv_bytes": 0, "write_bytes": 0,
                 "read_ops": 2, "readv_ops": 0, "write_ops": 0 },
-  "activity": { "experiment_id": 1, "activity_id": 7 },
+  "activity": { "experiment_id": 1, "activity_id": 7,
+                "experiment": "cms", "activity": "production" },
   "app":    { "name": "xrdcp", "raw": "..." }
 }
 ```
@@ -240,8 +250,8 @@ on the wire. Mapping (and the server config each needs):
 | client_site | `client.site` | login appinfo (`&S=`, client `XRDSITE`/`XRD_SITE`) |
 | auth_method | `user.auth_method` | **`… auth`** |
 | user | `user.name` / `user.subject` | `u` / `T` token |
-| vo | `user.vo` | `T` token, else `… auth` (`&o=`) |
-| activity | `user.role`, `activity.*` | `T` token / `U` SciTags |
+| vo | `user.vo` | `T` token, else `… auth` (`&o=`), else SciTags experiment (`--scitags`) |
+| activity | `activity.experiment`/`activity.activity` (names), `activity.*_id` (numeric), `user.role` | `U` SciTags + `--scitags` registry; `T` token for role |
 | start_time / end_time | `transfer.start_time` / `.end_time` | f-stream `FileTOD` window |
 | bytes | `transfer.{read,readv,write}_bytes` | `fstat … xfr` |
 | is_local (LAN/WAN) | `transfer.is_local` | derived: client vs server domain (needs `=` ident) |

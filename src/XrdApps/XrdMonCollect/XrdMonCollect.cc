@@ -76,6 +76,8 @@ void usage(const char* prog)
      "  --flush-secs <n>  flush after N seconds (default: 5)\n"
      "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
      "  --max-entries <n> cap per-server dict/open-file entries (0=unbounded)\n"
+     "  --scitags <file> SciTags registry JSON mapping experiment/activity ids\n"
+     "                   to names (and a VO); numeric ids are kept either way\n"
      "  --no-resolve     do not substitute the local FQDN for a loopback server\n"
      "  --traces         emit a document per t-stream I/O record (high volume)\n"
      "  --gstream        emit a document per g-stream (plugin) record\n"
@@ -208,6 +210,7 @@ int main(int argc, char* argv[])
    std::string fwdHost; int fwdPort = 0;
    size_t      flushCount = 500;
    long        flushSecs  = 5;
+   std::string scitags;
    bool        resolve = true;
 
 // Parse arguments
@@ -237,6 +240,7 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
         else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
         else if (!strcmp(a, "--max-entries") && i+1 < argc) maxEntries = (size_t)atol(argv[++i]);
+        else if (!strcmp(a, "--scitags") && i+1 < argc) scitags = argv[++i];
         else if (!strcmp(a, "--no-resolve")) resolve = false;
         else if (!strcmp(a, "--traces")) traces = true;
         else if (!strcmp(a, "--gstream")) gstream = true;
@@ -354,6 +358,10 @@ int main(int argc, char* argv[])
    XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, reg);
    decoder.SetMaxEntries(maxEntries);
    decoder.SetResolveHosts(resolve);
+   if (!scitags.empty() && !decoder.LoadScitags(scitags))
+      fprintf(stderr, "%s: warning: could not load SciTags registry '%s';"
+                      " experiment/activity ids stay numeric\n",
+              argv[0], scitags.c_str());
 
    std::atomic<bool> exporterStop{false};
    std::thread       exporter;
