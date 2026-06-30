@@ -6,6 +6,12 @@ list(APPEND XROOTD_CONFIGS noauth gsi host unix sss cache posix diglib mirage mo
 add_executable(xrdreadv-eof readv_eof.cc)
 target_link_libraries(xrdreadv-eof PRIVATE XrdCl)
 
+# Tiny XrdCl driver that opens a file for write twice; the second open is denied
+# (kXR_FileLocked) before fp->open, exercising a failed-open report path in
+# do_Open that bypasses fsError. Used by the moncollect test.
+add_executable(xrdopen-denied open_denied.cc)
+target_link_libraries(xrdopen-denied PRIVATE XrdCl)
+
 if(ENABLE_FUSE_TESTS)
   list(APPEND XROOTD_CONFIGS fuse)
 endif()

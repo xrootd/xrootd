@@ -260,7 +260,10 @@ failed open never produced any close record before; the server now emits a
 terminal `isError` f-stream record, and sets `hasERR` on the close for a failed
 close or a terminal `read`/`readv`/`pgread`/`write`/`writev`/`pgwrite` error
 recorded during the session (the common "readv past EOF" surfaces as a `read`
-failure). All are keyed on
+failure). The `isError` record covers open failures reported synchronously
+(`fsError`), asynchronously (the deferred-open callback), and the early `do_Open`
+denials that bypass `fsError` — notably a second writer rejected with
+`kXR_FileLocked`. All are keyed on
 `xrootd_collector_failed_operations_total{server,category}`. This requires only
 the existing `fstat` setup — no extra directive. A disconnect-driven
 (`transfer.forced_close`) close is **not** a failure unless an error was

@@ -566,6 +566,12 @@ void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
    char *slot, *cur;
    int pLen, mLen, ufnLen, rLen;
 
+// Do nothing if file-stat monitoring is not active (no report buffer). This
+// makes the call safe from contexts without a protocol Monitor object, such as
+// the asynchronous open-failure callback (XrdXrootdCallBack::sendError).
+//
+   if (!repBuff) return;
+
 // A failed open never registers the file, so this record is self-contained:
 // it carries the user dictid and lfn inline plus the terminal error status.
 //

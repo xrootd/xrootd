@@ -95,7 +95,7 @@ function setup_moncollect_voms() {
 }
 
 function setup_moncollect() {
-	require_commands xrdmoncollect xrdcp xrdfs xrdreadv-eof
+	require_commands xrdmoncollect xrdcp xrdfs xrdreadv-eof xrdopen-denied
 
 	write_security_fragment
 	if [ "${MONCOLLECT_VOMS}" = 1 ]; then
@@ -200,6 +200,23 @@ function test_moncollect() {
 	assert grep -Eq '"error_code":3005' <<<"${readv_doc}"
 	assert grep -Eq '"error_message":"Unable to readv[^"]*illegal seek"' \
 		<<<"${readv_doc}"
+
+	# 4. A lock-denied open: a second writer of an already-open file is rejected
+	#    by the server's file-lock manager (kXR_FileLocked) *before* the
+	#    filesystem open, a branch of do_Open that sends the error directly and
+	#    so used to bypass the terminal-error report. xrdopen-denied opens the
+	#    existing file for write twice; the second open must surface as a failed
+	#    open with the lock reason.
+	drive_until '"error_message":"[^"]*open denied' "lock-denied open document" \
+		"xrdopen-denied '${HOST}/${TMPDIR}/ok.ref'"
+
+	locked_doc=$(grep -E '"error_message":"[^"]*open denied' "${COLLECTOR_OUT}" \
+		| head -n1)
+	test -n "${locked_doc}" || error "no lock-denied open document found"
+	assert grep -Eq '"error_category":"open"' <<<"${locked_doc}"
+	assert grep -Eq '"error_code":3003' <<<"${locked_doc}"
+	assert grep -Eq '"error_message":"[^"]*is already opened by[^"]*open denied' \
+		<<<"${locked_doc}"
 
 	echo "collector documents:"
 	cat "${COLLECTOR_OUT}"

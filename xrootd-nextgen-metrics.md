@@ -568,10 +568,22 @@ file or directory"`) and the mid-transfer readv failure (`error_category:"read"`
 `error_code:3005` (`kXR_FSError`), `…illegal seek`), rather than merely checking
 for a non-empty message. The reason flows unchanged from the server SFS error
 (`XrdOfs::Emsg` → `fsError` → `XrdXrootdMonFile::OpenErr`/`setCloseErr`) through
-the collector (`fillError`), so no production change was required. (One genuine
-gap remains unexercised: failed opens that complete *asynchronously* go through
-`XrdXrootdCallBack::sendError`, which does not emit the terminal `isError`
-record; the synchronous local-disk path the test drives is unaffected.)
+the collector (`fillError`), so the reason itself needed no production change.
+
+**Open-failure reporting gaps closed.** Some failed opens never reached the
+`fsError` path that emits the terminal `isError` record, so they were invisible
+to collectors: (1) opens denied *before* the filesystem open in `do_Open` — the
+file-lock manager's `kXR_FileLocked` (a second writer) and the out-of-memory
+branches, which call `Response.Send` directly; and (2) opens that complete
+*asynchronously*, reported through `XrdXrootdCallBack::sendError` rather than
+`fsError`. Both now emit `XrdXrootdMonFile::OpenErr` (made a no-op when fstat
+monitoring is off, via a `repBuff` guard, so it is safe to call from the
+Monitor-less callback). The `kXR_FileLocked` case is exercised end-to-end by the
+`xrdopen-denied` driver in the `XRootD::moncollect` test (`error_category:"open"`,
+`error_code:3003`, `…is already opened by 1 writer; open denied.`); the async
+branch mirrors the synchronous one and shares the same `OpenErr`/collector code
+(triggering a *deferred* open failure needs an MSS/proxy backend not present in
+the test harness).
 
 Not covered: redirect terminal reports (already on the legacy `r` stream). Also
 still not on the wire: a client-advertised `client.site` (only carried by

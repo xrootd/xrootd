@@ -41,6 +41,8 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
+#include "XrdXrootd/XrdXrootdMonData.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
@@ -311,6 +313,13 @@ void XrdXrootdCallBack::sendError(int            rc,
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
+       // Report a terminal open failure on the f-stream so collectors see the
+       // operation concluded unsuccessfully. The synchronous branch does this
+       // in XrdXrootdProtocol::fsError; a deferred open completes here instead,
+       // so mirror it (OpenErr is a no-op when fstat monitoring is off).
+       if (Path && Opcode == XROOTD_MON_OPENR)
+          XrdXrootdMonFile::OpenErr(Path, eInfo->getErrMid(), rc,
+                     (rc == kXR_NotAuthorized ? monErrAuth : monErrOpen), eMsg);
        sendResp(eInfo, kXR_error, &rc, eMsg, eInfo->getErrTextLen()+1);
        return;
       }

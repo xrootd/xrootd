@@ -1652,6 +1652,11 @@ int XrdXrootdProtocol::do_Open()
                     "%s file %s is already opened by %d %s; open denied.",
                     ('r' == usage ? "Input" : "Output"), fn, rc, who);
            eDest.Emsg("Xeq", ebuff);
+           // This denial precedes fp->open and so bypasses fsError; report the
+           // terminal open failure on the f-stream ourselves.
+           if (Monitor.Fstat())
+              XrdXrootdMonFile::OpenErr(fn, Monitor.Did, kXR_FileLocked,
+                                        monErrOpen, ebuff);
            return Response.Send(kXR_FileLocked, ebuff);
           } else oHelp.mode = usage;
       }
@@ -1666,6 +1671,9 @@ int XrdXrootdProtocol::do_Open()
    if (!fp)
       {snprintf(ebuff, sizeof(ebuff)-1,"Insufficient memory to open %s",fn);
        eDest.Emsg("Xeq", ebuff);
+       if (Monitor.Fstat())
+          XrdXrootdMonFile::OpenErr(fn, Monitor.Did, kXR_NoMemory,
+                                    monErrOpen, ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
    oHelp.fp = fp;
@@ -1710,6 +1718,9 @@ int XrdXrootdProtocol::do_Open()
    if (!xp)
       {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
+       if (Monitor.Fstat())
+          XrdXrootdMonFile::OpenErr(fn, Monitor.Did, kXR_NoMemory,
+                                    monErrOpen, ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
    oHelp.xp = xp;
