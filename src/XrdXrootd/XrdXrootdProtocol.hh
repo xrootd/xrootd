@@ -316,8 +316,8 @@ static int   Config(const char *fn);
 static bool  ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv);
 static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError,
-                     const char *Path, char *Cgi);
-       void  monIOErr(XrdXrootdFile *fP, char eCat);
+                     const char *Path, char *Cgi,
+                     XrdXrootdFile *fP=0, char ioErrCat=0);
        int   fsOvrld(char opc, const char *Path, char *Cgi);
        int   fsRedirNoEnt(const char *eMsg, char *Cgi, int popt);
        int   fsRedirPI(const char *trg, int port, int trglen);
