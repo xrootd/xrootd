@@ -108,10 +108,30 @@ Flush after \fIn\fR documents (default: 500).
 .RS 5
 Flush after \fIn\fR seconds (default: 5).
 .RE
+\fB--max-memory\fR \fIsz\fR
+.RS 5
+Bound the resident correlation state (the per-server user/path/token/activity
+dictionaries and the open-file table) to approximately \fIsz\fR bytes, accepting
+a \fBK\fR/\fBM\fR/\fBG\fR suffix (default \fB256M\fR; \fB0\fR = unbounded). When
+the budget is exceeded the \fIleast-recently-used\fR entries are evicted first,
+so a long-running transfer kept warm by its in-flight \fIf\fR-stream snapshots is
+retained while cold, stranded entries (for example an open whose close was lost
+to a dropped datagram or a crash) are dropped. This is the primary safeguard
+against unbounded growth when terminal records never arrive. The
+\fBxrootd_collector_state_bytes\fR gauge reports the current utilisation.
+.RE
 \fB--max-entries\fR \fIn\fR
 .RS 5
-Cap the number of per-server dictionary and open-file entries retained
-(0 = unbounded).
+Optional hard cap on the total number of correlation entries retained
+(\fB0\fR = off, the default). A secondary backstop to \fB--max-memory\fR;
+eviction is likewise least-recently-used.
+.RE
+\fB--server-ttl\fR \fIs\fR
+.RS 5
+Reclaim a whole server incarnation (its dictionaries and \fIg\fR-stream counter
+baselines) once it has reported nothing for more than \fIs\fR seconds, bounding
+the accumulation of dead incarnations across server restarts and rolling
+upgrades (default \fB86400\fR; \fB0\fR = never).
 .RE
 \fB--scitags\fR \fIsrc\fR
 .RS 5

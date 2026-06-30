@@ -76,7 +76,12 @@ void usage(const char* prog)
      "  --flush-count <n> flush after N documents (default: 500)\n"
      "  --flush-secs <n>  flush after N seconds (default: 5)\n"
      "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
-     "  --max-entries <n> cap per-server dict/open-file entries (0=unbounded)\n"
+     "  --max-memory <sz> bound correlation state to ~<sz> bytes, evicting the\n"
+     "                   least-recently-used entries (K/M/G suffix; default 256M;\n"
+     "                   0=unbounded)\n"
+     "  --max-entries <n> optional hard cap on correlation entries (0=off)\n"
+     "  --server-ttl <s> reclaim a server incarnation idle for >s seconds\n"
+     "                   (default 86400; 0=never)\n"
      "  --scitags <src>  SciTags registry mapping experiment/activity ids to\n"
      "                   names (and a VO); a file path or an http(s):// URL.\n"
      "                   Numeric ids are kept either way\n"
@@ -88,6 +93,28 @@ void usage(const char* prog)
      "  --redirects      emit a document per r-stream redirect record\n"
      "  --dump           also emit one JSON object per decoded record\n"
      "  -v               print decoder statistics on exit\n", prog);
+}
+
+// Parse a byte size with an optional K/M/G/T suffix (1024-based) and optional
+// trailing 'B'; a bare number is bytes. Returns 0 on a malformed value (which
+// also means "unbounded" for --max-memory). Used for --max-memory.
+//
+std::size_t parseSize(const char* s)
+{
+   char* end = nullptr;
+   double v = strtod(s, &end);
+   if (end == s || v < 0) return 0;
+   std::size_t mul = 1;
+   switch (*end)
+         {case 'k': case 'K': mul = 1ull << 10; end++; break;
+          case 'm': case 'M': mul = 1ull << 20; end++; break;
+          case 'g': case 'G': mul = 1ull << 30; end++; break;
+          case 't': case 'T': mul = 1ull << 40; end++; break;
+          default: break;
+         }
+   if (*end == 'b' || *end == 'B') end++;          // accept e.g. "256MB"
+   if (*end != '\0') return 0;
+   return (std::size_t)(v * (double)mul);
 }
 
 // Create and bind a UDP socket. With no bind address, an IPv6 dual-stack
@@ -263,7 +290,9 @@ int main(int argc, char* argv[])
    bool        gstream = false;
    bool        redirects = false;
    int         metricsPort = 0;
-   size_t      maxEntries = 1000000;
+   size_t      maxMemory  = 256ull << 20;   // ~256 MiB correlation-state budget
+   size_t      maxEntries = 0;              // optional hard entry cap (off)
+   long        serverTtl  = 86400;          // reap incarnations idle > 24h
    std::string osUrl, osUser, osPass;
    std::string osIndex = "xrootd-transfers";
    bool        osInsecure = false;
@@ -301,7 +330,9 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--flush-count") && i+1 < argc) flushCount = (size_t)atol(argv[++i]);
         else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
         else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
+        else if (!strcmp(a, "--max-memory") && i+1 < argc) maxMemory = parseSize(argv[++i]);
         else if (!strcmp(a, "--max-entries") && i+1 < argc) maxEntries = (size_t)atol(argv[++i]);
+        else if (!strcmp(a, "--server-ttl") && i+1 < argc) serverTtl = atol(argv[++i]);
         else if (!strcmp(a, "--scitags") && i+1 < argc) scitags = argv[++i];
         else if (!strcmp(a, "--scitags-refresh") && i+1 < argc) scitagsRefresh = atol(argv[++i]);
         else if (!strcmp(a, "--no-resolve")) resolve = false;
@@ -419,7 +450,9 @@ int main(int argc, char* argv[])
             metricsPort > 0 ? &collectorRegistry().group("") : nullptr;
 
    XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, reg);
+   decoder.SetMaxBytes(maxMemory);
    decoder.SetMaxEntries(maxEntries);
+   decoder.SetServerTTL(serverTtl);
    decoder.SetResolveHosts(resolve);
 #ifdef XRDMON_HAVE_CURL
    // The OpenSearch sink initializes libcurl globally; do it here too when a URL
@@ -463,7 +496,9 @@ int main(int argc, char* argv[])
        OBS("xrootd_collector_packets_total",   "monitor packets received", packets);
        OBS("xrootd_collector_malformed_total", "malformed packets", malformed);
        OBS("xrootd_collector_evicted_total",
-           "dictionary/open-file entries evicted by the cap", evicted);
+           "dictionary/open-file entries evicted by the memory budget", evicted);
+       OBS("xrootd_collector_reaped_servers_total",
+           "idle server incarnations reclaimed by the server TTL", reaped);
        OBS("xrootd_collector_documents_total", "transfer documents produced", docs);
        OBS("xrootd_collector_orphan_closes_total",
            "closes with no matching open", orphanCls);
@@ -480,6 +515,9 @@ int main(int argc, char* argv[])
        OBS("xrootd_collector_ident_records_total",
            "=-stream server-identity records decoded", mapIdnt);
 #undef OBS
+       reg->observeIntGauge("xrootd_collector_state_bytes", {}, {},
+              "approximate resident bytes of correlation state")
+          .add({}, [&]{return (int64_t)decoder.ResidentBytes();});
        exporter = std::thread(serveMetrics, metricsPort, std::ref(exporterStop));
       }
 
@@ -502,6 +540,11 @@ int main(int argc, char* argv[])
    struct timeval tv; tv.tv_sec = 1; tv.tv_usec = 0;
    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
+   time_t     lastReap  = time(0);
+   const long reapEvery = 60;   // sweep idle server incarnations once a minute
+   auto reapTick = [&](time_t now)
+      {if (now - lastReap >= reapEvery) {decoder.ReapServers(now); lastReap = now;}};
+
    char buff[64*1024];
    while(!stopFlag)
         {sockaddr_storage from;
@@ -511,7 +554,9 @@ int main(int argc, char* argv[])
          if (n < 0)
             {if (errno == EINTR) continue;
              if (errno == EAGAIN || errno == EWOULDBLOCK)
-                {if (batchCount > 0 && time(0)-lastFlush >= flushSecs) flush();
+                {time_t now = time(0);
+                 if (batchCount > 0 && now-lastFlush >= flushSecs) flush();
+                 reapTick(now);
                  continue;
                 }
              perror("recvfrom"); break;
@@ -519,6 +564,7 @@ int main(int argc, char* argv[])
 
          decoder.Process(senderName((sockaddr*)&from, fromLen), buff, (int)n);
          if (fileSink) fflush(out);
+         reapTick(time(0));
 
          if (batchCount >= flushCount
          || (batchCount > 0 && time(0)-lastFlush >= flushSecs)) flush();

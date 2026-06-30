@@ -840,6 +840,147 @@ TEST(XrdMonCollect, DictionaryEviction)
   EXPECT_GT(dec.GetStats().evicted, 0u);
 }
 
+namespace
+{
+// Minimal 'u' user map for dictid 7 on a chosen sender.
+void feedUser7(XrdMonDecode& dec, const std::string& src)
+{
+   W body; body.u32(7);
+   std::string info = "xroot/alice.1:2@wn.example.org\n";
+   std::vector<unsigned char> pl = body.b;
+   pl.insert(pl.end(), info.begin(), info.end());
+   auto pkt = packet('u', kStod, pl);
+   dec.Process(src, (const char*)pkt.data(), pkt.size());
+}
+
+// An 'f' open record for a chosen fileID/lfn (user dictid 7).
+void feedOpenId(XrdMonDecode& dec, const std::string& src, uint32_t fileID,
+                const std::string& lfn)
+{
+   W body; body.u32(fileID); body.u64(123456); body.u32(7);
+   body.raw(lfn); body.u8(0);
+   auto payload = todRec(kOpenT, 42);
+   auto r = rec(1 /*isOpen*/, 0x01 | 0x02 /*hasLFN|hasRW*/, body.b);
+   payload.insert(payload.end(), r.begin(), r.end());
+   auto pkt = packet('f', kStod, payload);
+   dec.Process(src, (const char*)pkt.data(), pkt.size());
+}
+
+// An 'f' in-flight transfer (isXfr) snapshot for a fileID; touches the open.
+void feedXfrId(XrdMonDecode& dec, const std::string& src, uint32_t fileID)
+{
+   W body; body.u32(fileID);
+   auto payload = todRec(kCloseT, 42);
+   auto r = rec(3 /*isXfr*/, 0, body.b);
+   payload.insert(payload.end(), r.begin(), r.end());
+   auto pkt = packet('f', kStod, payload);
+   dec.Process(src, (const char*)pkt.data(), pkt.size());
+}
+
+// An 'f' close record for a fileID (no OPS, minimal byte totals).
+void feedCloseId(XrdMonDecode& dec, const std::string& src, uint32_t fileID)
+{
+   W body; body.u32(fileID); body.u64(1024); body.u64(0); body.u64(0);
+   auto payload = todRec(kCloseT, 42);
+   auto r = rec(0 /*isClose*/, 0, body.b);
+   payload.insert(payload.end(), r.begin(), r.end());
+   auto pkt = packet('f', kStod, payload);
+   dec.Process(src, (const char*)pkt.data(), pkt.size());
+}
+}
+
+// A long-lived but still-active open (kept warm by its in-flight xfr snapshots)
+// must survive eviction while cold, stranded opens are dropped first.
+TEST(XrdMonCollect, WarmEntrySurvivesEviction)
+{
+  std::string doc;
+  XrdMonDecode dec([&](const std::string& d){ doc = d; });
+  dec.SetMaxBytes(2000);                         // room for ~16 open entries
+  feedUser7(dec, "h:1");
+  feedOpenId(dec, "h:1", 1, "/warm/file.root");  // the long-lived, active open
+
+  for (uint32_t id = 100; id < 200; id++)        // a flood of cold opens
+     {feedOpenId(dec, "h:1", id, "/cold/file.root");
+      feedXfrId(dec, "h:1", 1);                   // keep the warm open at the MRU
+     }
+  EXPECT_GT(dec.GetStats().evicted, 0u);         // the budget was enforced
+
+  feedCloseId(dec, "h:1", 1);                     // the warm open still joins
+  json jw = json::parse(doc);
+  EXPECT_EQ(jw["transfer"]["open_seen"], true);
+  EXPECT_EQ(jw["file"]["lfn"], "/warm/file.root");
+
+  feedCloseId(dec, "h:1", 100);                   // an early cold open was evicted
+  json jc = json::parse(doc);
+  EXPECT_EQ(jc["transfer"]["open_seen"], false);
+}
+
+// The resident state stays within the byte budget no matter how many distinct
+// opens arrive without their closes.
+TEST(XrdMonCollect, MemoryStaysUnderBudget)
+{
+  XrdMonDecode dec([](const std::string&){});
+  dec.SetMaxBytes(4000);
+  feedUser7(dec, "h:1");
+  for (uint32_t id = 1; id <= 500; id++)
+     feedOpenId(dec, "h:1", id, "/store/data/some/long/path/file.root");
+
+  EXPECT_LE(dec.ResidentBytes(), 4000u);
+  EXPECT_GT(dec.GetStats().evicted, 0u);
+}
+
+// On the normal path every open is released by its close: resident memory
+// returns to the baseline and nothing is evicted.
+TEST(XrdMonCollect, CloseReleasesMemory)
+{
+  XrdMonDecode dec([](const std::string&){});   // unbounded
+  feedUser7(dec, "h:1");
+  std::size_t base = dec.ResidentBytes();        // just the user entry
+
+  for (uint32_t id = 1; id <= 50; id++)
+     feedOpenId(dec, "h:1", id, "/store/data/file.root");
+  EXPECT_GT(dec.ResidentBytes(), base);          // opens are charged
+
+  for (uint32_t id = 1; id <= 50; id++)
+     feedCloseId(dec, "h:1", id);
+  EXPECT_EQ(dec.ResidentBytes(), base);          // each close releases its open
+  EXPECT_EQ(dec.GetStats().evicted, 0u);
+}
+
+// An incarnation idle past the server TTL is reclaimed whole; a freshly-seen
+// incarnation is left alone.
+TEST(XrdMonCollect, IdleServerReaped)
+{
+  XrdMonDecode dec([](const std::string&){});
+  dec.SetServerTTL(100);
+
+  feedTransferFrom(dec, "10.0.0.1:9930");         // server A (leaves a user entry)
+  EXPECT_GT(dec.ResidentBytes(), 0u);
+
+  dec.ReapServers(time(nullptr) + 1000);          // A is now well past its TTL
+  EXPECT_EQ(dec.GetStats().reaped, 1u);
+  EXPECT_EQ(dec.ResidentBytes(), 0u);             // A's state was reclaimed
+
+  feedTransferFrom(dec, "10.0.0.2:9930");         // server B, just seen
+  EXPECT_GT(dec.ResidentBytes(), 0u);
+  dec.ReapServers(time(nullptr));                 // B is fresh -> survives
+  EXPECT_EQ(dec.GetStats().reaped, 1u);
+  EXPECT_GT(dec.ResidentBytes(), 0u);
+}
+
+// With no budget, no count cap and no TTL, behaviour is unchanged: everything
+// is retained and nothing is evicted.
+TEST(XrdMonCollect, UnboundedKeepsEverything)
+{
+  XrdMonDecode dec([](const std::string&){});
+  for (uint32_t id = 1; id <= 200; id++)
+     {auto p = userPkt(id, (uint8_t)id);
+      dec.Process("h:1", (const char*)p.data(), p.size());}
+
+  EXPECT_EQ(dec.GetStats().evicted, 0u);
+  EXPECT_GT(dec.ResidentBytes(), 0u);
+}
+
 TEST(XrdMonCollect, FrmStageAndPurge)
 {
   XrdMetrics::Registry reg("");

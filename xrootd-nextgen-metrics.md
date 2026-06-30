@@ -448,11 +448,18 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
 
 ## D. Cross-cutting collector work (still TODO)
 
-- **Dictionary/open-file eviction.** **DONE** — each per-server map
-  (`users`/`paths`/`infos`/`tokens`/`activity`/`files`) is capped at
-  `--max-entries` (default 1M), evicting in hash order back to ~90% when
-  exceeded; count reported as `xrootd_collector_evicted_total`. TTL-based
-  eviction (vs. the current size cap) is a possible refinement.
+- **Dictionary/open-file eviction.** **DONE** — bounded by a memory budget
+  (`--max-memory`, default 256M) with **LRU** eviction over a process-wide index
+  threading through every per-server map
+  (`users`/`paths`/`infos`/`tokens`/`activity`/`files`). A long-running transfer
+  stays warm via its in-flight `f`-stream (`xfr`) snapshots and a session via its
+  closes, so it is retained while cold, stranded entries (lost close/disc,
+  crashes) are dropped first — directly addressing unbounded growth when terminal
+  records never arrive. `--max-entries` remains as an optional hard count
+  backstop; evictions reported as `xrootd_collector_evicted_total`, live
+  utilisation as the `xrootd_collector_state_bytes` gauge. Whole idle server
+  incarnations (and their `g`-stream baselines) are reclaimed past
+  `--server-ttl` (default 24h) → `xrootd_collector_reaped_servers_total`.
 - **Loss detection.** **DONE** — the server stamps every datagram to one
   destination with a single header `pseq` (not per stream: it is a shared
   `seq1++` in `XrdXrootdMonitor::Send`), so loss is estimated per `(stod, src)`

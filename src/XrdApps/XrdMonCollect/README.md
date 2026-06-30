@@ -33,7 +33,11 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --flush-count <n> flush after N documents (default: 500)
   --flush-secs <n>  flush after N seconds (default: 5)
   --metrics-port <p> serve aggregated metrics over HTTP on port <p>
-  --max-entries <n>  cap per-server dict/open-file entries (0=unbounded)
+  --max-memory <sz>  bound correlation state to ~<sz> bytes, LRU-evicting
+                     (K/M/G suffix; default 256M; 0=unbounded)
+  --max-entries <n>  optional hard cap on correlation entries (0=off)
+  --server-ttl <s>   reclaim a server incarnation idle for >s seconds
+                     (default 86400; 0=never)
   --scitags <src>  SciTags registry (file path or http(s):// URL) mapping
                    experiment/activity ids to names
   --scitags-refresh <s> re-fetch a URL registry every <s> seconds (default 3600)
@@ -363,12 +367,25 @@ Point a Prometheus scrape job at `http://<collector-host>:<p>/metrics`.
 
 ## Notes and limitations
 
-- Correlation state (the user/path/token dictionaries and the open-file table)
-  is kept per server incarnation, keyed by sender address plus the server start
-  time. Each map is capped at `--max-entries` (default 1,000,000; 0 = unbounded)
-  to bound memory on long-lived busy servers; eviction is approximate (hash
-  order), so a dropped entry merely yields a document missing that field or an
-  orphan close. The count is reported as `xrootd_collector_evicted_total`.
+- Correlation state (the user/path/token/activity dictionaries and the open-file
+  table) is kept per server incarnation, keyed by sender address plus the server
+  start time. An open is freed by its close, but a close (or a session
+  disconnect) can be lost to a dropped datagram, a client/server crash, or a
+  restart — and the server never reuses a dictid within an incarnation — so the
+  state would otherwise grow without bound. `--max-memory` (default 256M; 0 =
+  unbounded) bounds it to an approximate byte budget, evicting the
+  *least-recently-used* entries when exceeded. Recency is what protects a genuine
+  long-running transfer: each in-flight `f`-stream (`xfr`) snapshot, and each
+  reference of a session by a close, promotes the entry, so a file left open for
+  a day survives as long as there is memory while cold, stranded entries are
+  dropped first. `--max-entries` adds an optional hard entry-count backstop
+  (off by default). Evictions are counted in `xrootd_collector_evicted_total`,
+  and the live budget utilisation is the `xrootd_collector_state_bytes` gauge. A
+  dropped entry merely yields a document missing that field, or an orphan close.
+- Whole server incarnations are reclaimed once idle past `--server-ttl` (default
+  24h; 0 = never), so dead incarnations from restarts and rolling upgrades do not
+  accumulate. Reclaimed incarnations are counted in
+  `xrootd_collector_reaped_servers_total`.
 - UDP is lossy: a lost open record yields an orphan close; a lost dictionary
   record yields a document without identity/path. The server stamps every
   datagram to one destination with a single sequence number (header `pseq`), so

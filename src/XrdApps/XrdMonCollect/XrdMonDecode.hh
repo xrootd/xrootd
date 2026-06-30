@@ -23,7 +23,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #include <functional>
+#include <list>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -79,7 +81,8 @@ struct Stats
    uint64_t redirs    = 0;   // 'r' stream redirect records decoded
    uint64_t frmEvents = 0;   // 'x'/'p' FRM stage/migrate/purge records
    uint64_t lost      = 0;   // estimated lost packets (pseq gaps)
-   uint64_t evicted   = 0;   // dictionary/open-file entries evicted (cap)
+   uint64_t evicted   = 0;   // dictionary/open-file entries evicted (budget/cap)
+   uint64_t reaped    = 0;   // idle server incarnations reclaimed (server TTL)
    uint64_t unknown   = 0;   // packets with an unhandled code
 };
 
@@ -91,11 +94,32 @@ bool Process(const std::string& src, const char* buff, int blen);
 
 const Stats& GetStats() const {return stats;}
 
-//! Cap each per-server dictionary and the open-file table at `n` entries
-//! (0 = unbounded). Bounds memory on long-lived busy servers; eviction is
-//! approximate (hash order), so a dropped entry merely yields a document
+//! Approximate resident bytes of the correlation state currently held (the sum
+//! charged against the memory budget). Useful as a budget-utilisation gauge.
+std::size_t ResidentBytes() const {return lruBytes;}
+
+//! Bound the resident correlation state (per-server dictionaries plus the
+//! open-file table) to approximately `n` bytes (0 = unbounded). When exceeded,
+//! the least-recently-used entries are evicted first, so a still-active
+//! transfer kept warm by its in-flight ('f' xfr) snapshots survives even when
+//! it has been open a long time; only cold, stranded entries (e.g. an open
+//! whose close was lost) are dropped. A dropped entry merely yields a document
 //! missing that field, or an orphan close.
+void SetMaxBytes(std::size_t n) {maxBytes = n;}
+
+//! Optional hard cap on the total number of correlation entries (0 = off).
+//! A secondary backstop to the byte budget, evicting least-recently-used.
 void SetMaxEntries(std::size_t n) {maxEntries = n;}
+
+//! Reclaim a whole server incarnation (its dictionaries and g-stream counter
+//! baselines) once it has gone silent for more than `secs` seconds, bounding
+//! the accumulation of dead incarnations across restarts/upgrades. 0 disables.
+void SetServerTTL(long secs) {serverTTL = secs;}
+
+//! Drop server incarnations idle past the server TTL (see SetServerTTL). Cheap
+//! (scans only the small per-incarnation table); call it periodically, e.g.
+//! from the receive loop's idle tick. `now` is the current wall-clock time.
+void ReapServers(time_t now);
 
 //! Enable/disable substituting the local FQDN for a loopback (co-located)
 //! server's hostname (on by default). When off, server.name falls back to the
@@ -136,6 +160,29 @@ bool LoadScitagsJson(const std::string& text);
 
 private:
 
+struct Server;   // per-incarnation state; defined below
+
+// Which per-server map an LRU entry lives in, so the least-recently-used
+// victim can be erased from the right table.
+//
+enum class Dict : uint8_t {Users, Files, Paths, Infos, Tokens, Activity};
+
+// One node of the process-wide LRU index. Every evictable correlation entry
+// owns one (and stores an iterator back to it), letting eviction find the
+// coldest entry in O(1) and erase it from its map. `srv` is a pointer into the
+// `servers` table, which is reference-stable across other insert/erase/rehash;
+// a Server is only erased after all of its nodes have been removed.
+//
+struct LruNode
+{
+   Server*     srv;     // owning incarnation
+   Dict        dict;    // which of its maps holds the entry
+   uint32_t    ikey;    // numeric key (dictid/fileID); unused for Infos
+   std::string skey;    // string key (Infos only; empty otherwise)
+   std::size_t bytes;   // approximate memory charged for the entry
+};
+using LruIt = std::list<LruNode>::iterator;
+
 // Identity parsed from a 'u' (MAPUSER) dictionary entry. The first line is the
 // "<prot>/<user>.<pid>:<sfd>@<host>" descriptor; the rest is a CGI tail carrying
 // the login appinfo (always: &R= &x= &y= &I=) and, when "xrootd.monitor ... auth"
@@ -156,6 +203,7 @@ struct UserInfo
    std::string appInfo;    // &y= xrd.info
    std::string site;       // &S= client-advertised site (xrd.site)
    int         ipVersion = 0; // &I= IP protocol (4 or 6); 0 = unknown
+   LruIt       lru;        // back-reference into the LRU index
 };
 
 // Token identity from a 'T' (MAPTOKN) record, keyed by the user dictid.
@@ -167,6 +215,7 @@ struct TokenInfo
    std::string vo;        // o= organisation / VO
    std::string role;      // r= role
    std::string groups;    // g= groups
+   LruIt       lru;       // back-reference into the LRU index
 };
 
 // User experiment/activity from a 'U' (MAPUEAC) record (SciTags packet-marking
@@ -174,8 +223,17 @@ struct TokenInfo
 //
 struct UserActivity
 {
-   int experiment = 0;    // Ec= experiment id
-   int activity   = 0;    // Ac= activity id
+   int   experiment = 0;  // Ec= experiment id
+   int   activity   = 0;  // Ac= activity id
+   LruIt lru;             // back-reference into the LRU index
+};
+
+// A 'd' (MAPPATH) lfn or 'i' (MAPINFO) appinfo string plus its LRU node.
+//
+struct StringEntry
+{
+   std::string val;
+   LruIt       lru;       // back-reference into the LRU index
 };
 
 // Server self-identification from a '=' (MAPIDNT) record.
@@ -199,16 +257,17 @@ struct OpenFile
    int64_t     fsz  = 0;  // file size at open
    int32_t     tOpen = 0; // window time of the open packet
    bool        rw   = false;
+   LruIt       lru;       // back-reference into the LRU index
 };
 
 // Per server-incarnation state, keyed by sender + server start time (stod).
 //
 struct Server
 {
-   std::unordered_map<uint32_t, UserInfo>    users;
-   std::unordered_map<uint32_t, OpenFile>    files;
-   std::unordered_map<uint32_t, std::string> paths;  // 'd' dictid -> lfn
-   std::unordered_map<std::string, std::string> infos; // 'i' descriptor -> appinfo
+   std::unordered_map<uint32_t, UserInfo>     users;
+   std::unordered_map<uint32_t, OpenFile>     files;
+   std::unordered_map<uint32_t, StringEntry>  paths;  // 'd' dictid -> lfn
+   std::unordered_map<std::string, StringEntry> infos; // 'i' descriptor -> appinfo
    std::unordered_map<uint32_t, TokenInfo>    tokens;  // 'T' user dictid -> token
    std::unordered_map<uint32_t, UserActivity> activity;// 'U' user dictid -> scitag
    ServerIdent ident;        // '=' server self-identification
@@ -217,6 +276,7 @@ struct Server
    bool    resolved = false; // resolvedHost computed yet (once per incarnation)
    int64_t sID = 0;
    int     lastPseq = -1;    // last packet sequence (header pseq) for loss det.
+   time_t  lastSeen = 0;     // wall-clock of the last packet (for idle reaping)
 };
 
 Server&  ServerFor(const std::string& src, int32_t stod);
@@ -246,7 +306,46 @@ void     DecodeGStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int plen);
 void     DecodeRStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int plen);
-void     Evict(Server& srv);
+
+// LRU index management. lruPut inserts (or refreshes) a correlation entry and
+// charges its weight against the memory budget, evicting the least-recently-
+// used entries when the budget (or count cap) is exceeded. Touch promotes an
+// entry to most-recently-used; LruDrop unlinks one whose map entry is being
+// erased; EvictFront removes the current LRU victim.
+//
+template<class Map, class Key>
+void lruPut(Server* owner, Dict dict, Map& m, const Key& key, uint32_t ikey,
+            const std::string& skey, typename Map::mapped_type&& val,
+            std::size_t bytes)
+{
+   auto it = m.find(key);
+   if (it == m.end())
+      {it = m.emplace(key, std::move(val)).first;
+       it->second.lru = lru.insert(lru.end(),
+                                   LruNode{owner, dict, ikey, skey, bytes});
+       lruBytes += bytes;
+      }
+      else
+      {LruIt node = it->second.lru;          // preserve across the assignment
+       it->second = std::move(val);
+       it->second.lru = node;
+       lruBytes = lruBytes - node->bytes + bytes;
+       node->bytes = bytes;
+       Touch(node);
+      }
+   EnforceBudget();
+}
+void     Touch(LruIt node) {lru.splice(lru.end(), lru, node);}
+void     LruDrop(LruIt node) {lruBytes -= node->bytes; lru.erase(node);}
+void     EnforceBudget();
+void     EvictFront();
+// Approximate resident size of a correlation entry (struct + held strings +
+// fixed per-entry container overhead), charged against the memory budget.
+static std::size_t bytesOf(const UserInfo& u);
+static std::size_t bytesOf(const OpenFile& f);
+static std::size_t bytesOf(const TokenInfo& t);
+static std::size_t bytesOf(const UserActivity& a);
+static std::size_t bytesOf(const StringEntry& s, const std::string& key);
 
 // Document-building helpers shared by every emitter so all document types use
 // one nested, OpenSearch-friendly schema (server.*, client.*, user.*, ...).
@@ -271,7 +370,17 @@ bool     traces;
 bool     gstream;
 bool     redirects;
 XrdMetrics::MetricGroup* metrics;
-std::size_t maxEntries = 0;
+
+// Process-wide LRU index over all evictable correlation entries, bounding the
+// resident state by an approximate byte budget (maxBytes; 0 = unbounded) with
+// an optional secondary entry-count cap (maxEntries; 0 = off). serverTTL idle-
+// reaps whole incarnations. lruBytes tracks the charged total.
+//
+std::list<LruNode> lru;            // front = least-recently-used, back = MRU
+std::size_t maxBytes   = 0;        // byte budget (0 = unbounded)
+std::size_t lruBytes   = 0;        // currently charged bytes
+std::size_t maxEntries = 0;        // optional entry-count backstop (0 = off)
+long        serverTTL  = 0;        // idle-incarnation reap age, secs (0 = off)
 bool     resolveHosts = true;
 
 // Local FQDN substituted for a loopback (co-located) server, resolved at most

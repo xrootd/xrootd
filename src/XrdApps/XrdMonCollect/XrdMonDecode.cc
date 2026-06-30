@@ -173,6 +173,7 @@ XrdMonDecode::Server& XrdMonDecode::ServerFor(const std::string& src,
    key += '|';
    key += std::to_string(stod);
    Server& srv = servers[key];
+   srv.lastSeen = time(nullptr);   // for idle-incarnation reaping
 
 // Record the sender's hostname once per server incarnation (cached in the
 // Server), so the per-document fillServer() stays lookup-free. Only a loopback
@@ -227,6 +228,7 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
    auto uit = srv.users.find(userID);
    if (uit != srv.users.end())
       {const UserInfo& u = uit->second;
+       Touch(u.lru);   // a referenced session is active: keep it warm
        json& user = j["user"];
        if (!u.user.empty()) user["name"]     = u.user;
        if (!u.prot.empty()) user["protocol"] = u.prot;
@@ -249,7 +251,8 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
            if (!u.appInfo.empty()) app["info"] = u.appInfo;
           }
        auto iit = srv.infos.find(u.raw);
-       if (iit != srv.infos.end()) j["app"]["raw"] = iit->second;
+       if (iit != srv.infos.end())
+          {Touch(iit->second.lru); j["app"]["raw"] = iit->second.val;}
        // VO/role/groups: prefer the token ('T'); fall back to the auth CGI.
        if (!u.vo.empty())     {vo = u.vo;        user["vo"]     = u.vo;}
        if (!u.role.empty())   user["role"]   = u.role;
@@ -261,6 +264,7 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
    auto tit = srv.tokens.find(userID);
    if (tit != srv.tokens.end())
       {const TokenInfo& t = tit->second;
+       Touch(t.lru);
        json& user = j["user"];
        if (!t.subject.empty()) user["subject"] = t.subject;
        if (!t.vo.empty())     {vo = t.vo;       user["vo"]     = t.vo;}
@@ -269,7 +273,8 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
       }
    auto ait = srv.activity.find(userID);
    if (ait != srv.activity.end())
-      {int expId = ait->second.experiment;
+      {Touch(ait->second.lru);
+       int expId = ait->second.experiment;
        int actId = ait->second.activity;
        json& act = j["activity"];
        if (expId) act["experiment_id"] = expId;
@@ -442,37 +447,117 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
                break;
          }
 
-   if (maxEntries) Evict(srv);
+   // Insertions enforce the budget inline (lruPut), so nothing to do here.
    return true;
 }
 
 /******************************************************************************/
-/*                               E v i c t                                    */
+/*                        L R U   b o o k k e e p i n g                       */
 /******************************************************************************/
 
 namespace
 {
-// Cap an associative container at `cap` entries, dropping back to ~90% in hash
-// order when exceeded. Returns the number of entries removed.
+// Fixed per-entry overhead charged on top of held strings: an approximation of
+// the unordered_map node plus the LRU list node plus the value struct. Exact
+// allocator behaviour is unknowable here; this only needs to be a stable,
+// representative weight so the budget tracks real growth.
 //
-template<class M>
-std::size_t capMap(M& m, std::size_t cap)
-{
-   if (cap == 0 || m.size() <= cap) return 0;
-   std::size_t target = cap - cap/10, removed = 0;
-   while (m.size() > target && !m.empty()) {m.erase(m.begin()); removed++;}
-   return removed;
-}
+constexpr std::size_t kEntryOverhead = 96;
 }
 
-void XrdMonDecode::Evict(Server& srv)
+std::size_t XrdMonDecode::bytesOf(const UserInfo& u)
 {
-   stats.evicted += capMap(srv.users,    maxEntries);
-   stats.evicted += capMap(srv.paths,    maxEntries);
-   stats.evicted += capMap(srv.infos,    maxEntries);
-   stats.evicted += capMap(srv.tokens,   maxEntries);
-   stats.evicted += capMap(srv.activity, maxEntries);
-   stats.evicted += capMap(srv.files,    maxEntries);
+   return kEntryOverhead + u.raw.size() + u.user.size() + u.prot.size()
+        + u.host.size() + u.authMethod.size() + u.vo.size() + u.role.size()
+        + u.groups.size() + u.clientVer.size() + u.appName.size()
+        + u.appInfo.size() + u.site.size();
+}
+
+std::size_t XrdMonDecode::bytesOf(const OpenFile& f)
+{  return kEntryOverhead + f.lfn.size(); }
+
+std::size_t XrdMonDecode::bytesOf(const TokenInfo& t)
+{
+   return kEntryOverhead + t.subject.size() + t.username.size() + t.vo.size()
+        + t.role.size() + t.groups.size();
+}
+
+std::size_t XrdMonDecode::bytesOf(const UserActivity&)
+{  return kEntryOverhead; }
+
+std::size_t XrdMonDecode::bytesOf(const StringEntry& s, const std::string& key)
+{  return kEntryOverhead + s.val.size() + key.size(); }
+
+// Drop the current least-recently-used entry: erase it from its owning map and
+// unlink its node. The node is copied out first so its (Infos) string key
+// survives the map erase.
+//
+void XrdMonDecode::EvictFront()
+{
+   LruNode n = lru.front();
+   lruBytes -= n.bytes;
+   switch(n.dict)
+         {case Dict::Users:    n.srv->users.erase(n.ikey);    break;
+          case Dict::Files:    n.srv->files.erase(n.ikey);    break;
+          case Dict::Paths:    n.srv->paths.erase(n.ikey);    break;
+          case Dict::Infos:    n.srv->infos.erase(n.skey);    break;
+          case Dict::Tokens:   n.srv->tokens.erase(n.ikey);   break;
+          case Dict::Activity: n.srv->activity.erase(n.ikey); break;
+         }
+   lru.pop_front();
+   stats.evicted++;
+}
+
+// Evict least-recently-used entries until both the byte budget and the optional
+// entry-count cap are satisfied. The byte budget evicts down to a low-water mark
+// (15/16 of the budget) to avoid evicting on every subsequent insertion.
+//
+void XrdMonDecode::EnforceBudget()
+{
+   std::size_t low = maxBytes - maxBytes/16;
+   while (!lru.empty()
+       && ((maxBytes   && lruBytes   > low)
+        || (maxEntries && lru.size() > maxEntries)))
+        EvictFront();
+}
+
+/******************************************************************************/
+/*                          R e a p S e r v e r s                             */
+/******************************************************************************/
+
+void XrdMonDecode::ReapServers(time_t now)
+{
+   if (!serverTTL) return;
+
+   for (auto it = servers.begin(); it != servers.end(); )
+      {Server& s = it->second;
+       if (!s.lastSeen || now - s.lastSeen <= serverTTL) {++it; continue;}
+
+       // Unlink every entry's LRU node and uncharge its bytes before the maps
+       // (and the Server) are destroyed.
+       auto purge = [&](auto& m)
+          {for (auto& kv : m) {lruBytes -= kv.second.lru->bytes;
+                               lru.erase(kv.second.lru);}};
+       purge(s.users); purge(s.files); purge(s.paths);
+       purge(s.infos); purge(s.tokens); purge(s.activity);
+
+       // gsPrev is keyed by sender (not by incarnation), so only drop its
+       // counter baselines when no other live incarnation shares this sender;
+       // otherwise that live series would lose one interval re-establishing it.
+       std::string pre = it->first.substr(0, it->first.rfind('|')) + '|';
+       bool shared = false;
+       for (auto& kv : servers)
+           if (&kv.second != &s && kv.first.compare(0, pre.size(), pre) == 0)
+              {shared = true; break;}
+       if (!shared)
+          for (auto g = gsPrev.begin(); g != gsPrev.end(); )
+              {if (g->first.compare(0, pre.size(), pre) == 0) g = gsPrev.erase(g);
+                  else ++g;
+              }
+
+       it = servers.erase(it);
+       stats.reaped++;
+      }
 }
 
 /******************************************************************************/
@@ -518,14 +603,19 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
        u.site       = cgiVal(text, "S");
        std::string iv = cgiVal(text, "I");
        if (!iv.empty()) u.ipVersion = atoi(iv.c_str());
-       srv.users[dictid] = std::move(u);
+       std::size_t w = bytesOf(u);
+       lruPut(&srv, Dict::Users, srv.users, dictid, dictid, std::string(),
+              std::move(u), w);
       }
       else if (code == XROOTD_MON_MAPPATH)
               {stats.mapPath++;
                // info is "<who>\n<lfn>"; keep the lfn for 't'-stream lookups.
                auto nl = text.find('\n');
-               srv.paths[dictid] = (nl == std::string::npos) ? text
-                                                             : text.substr(nl + 1);
+               StringEntry e;
+               e.val = (nl == std::string::npos) ? text : text.substr(nl + 1);
+               std::size_t w = bytesOf(e, std::string());
+               lruPut(&srv, Dict::Paths, srv.paths, dictid, dictid, std::string(),
+                      std::move(e), w);
               }
       else if (code == XROOTD_MON_MAPINFO)
               {stats.mapInfo++;
@@ -533,7 +623,13 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
                // the 'u' user descriptor, so key by it to enrich transfers.
                auto nl = text.find('\n');
                if (nl != std::string::npos)
-                  srv.infos[text.substr(0, nl)] = text.substr(nl + 1);
+                  {std::string ikey = text.substr(0, nl);
+                   StringEntry e;
+                   e.val = text.substr(nl + 1);
+                   std::size_t w = bytesOf(e, ikey);
+                   lruPut(&srv, Dict::Infos, srv.infos, ikey, 0, ikey,
+                          std::move(e), w);
+                  }
               }
       else if (code == XROOTD_MON_MAPTOKN)
               {stats.mapTokn++;
@@ -545,7 +641,9 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
                t.vo       = cgiVal(text, "o");
                t.role     = cgiVal(text, "r");
                t.groups   = cgiVal(text, "g");
-               srv.tokens[dictid] = std::move(t);
+               std::size_t w = bytesOf(t);
+               lruPut(&srv, Dict::Tokens, srv.tokens, dictid, dictid,
+                      std::string(), std::move(t), w);
               }
       else    {stats.mapUeac++;
                // 'U' (user experiment/activity): CGI "&Uc=<dictid>&Ec=&Ac=",
@@ -555,7 +653,9 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
                std::string ac = cgiVal(text, "Ac");
                if (!ec.empty()) a.experiment = atoi(ec.c_str());
                if (!ac.empty()) a.activity   = atoi(ac.c_str());
-               srv.activity[dictid] = a;
+               std::size_t w = bytesOf(a);
+               lruPut(&srv, Dict::Activity, srv.activity, dictid, dictid,
+                      std::string(), std::move(a), w);
               }
 
    if (dumpRaw && raw)
@@ -724,7 +824,9 @@ void XrdMonDecode::DecodeFStream(const std::string& src, int32_t stod,
                           int maxL = recSize - 20;
                           of.lfn.assign(l, strnlen(l, maxL));
                          }
-                      srv.files[fileID] = std::move(of);
+                      std::size_t w = bytesOf(of);
+                      lruPut(&srv, Dict::Files, srv.files, fileID, fileID,
+                             std::string(), std::move(of), w);
                      }
                      break;
 
@@ -739,7 +841,13 @@ void XrdMonDecode::DecodeFStream(const std::string& src, int32_t stod,
                 case XrdXrootdMonFileHdr::isXfr:
                      // In-flight snapshot (interval byte totals for an open
                      // file). Counted; drives the active-transfer gauge below.
-                     stats.xfrs++;
+                     // Also keeps a still-active open warm in the LRU so a long
+                     // but live transfer is not evicted ahead of cold strays.
+                     {stats.xfrs++;
+                      uint32_t fileID = rd32(rec + 4);
+                      auto fit = srv.files.find(fileID);
+                      if (fit != srv.files.end()) Touch(fit->second.lru);
+                     }
                      break;
 
                 case XrdXrootdMonFileHdr::isDisc:
@@ -857,6 +965,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
                if (!cd.empty() && !sd.empty()) transfer["is_local"] = (cd == sd);
               }
           }
+       LruDrop(fit->second.lru);   // unlink before erasing the map entry
        srv.files.erase(fit);
       }
       else {transfer["open_seen"] = false; stats.orphanCls++;}
@@ -1047,7 +1156,8 @@ void XrdMonDecode::DecodeTStream(const std::string& src, int32_t stod,
 
         auto lfnOf = [&](uint32_t id)
             {auto it = srv.paths.find(id);
-             if (it != srv.paths.end()) j["file"]["lfn"] = it->second;
+             if (it != srv.paths.end())
+                {Touch(it->second.lru); j["file"]["lfn"] = it->second.val;}
              j["file"]["id"] = id;
             };
 
