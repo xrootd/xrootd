@@ -611,6 +611,20 @@ integration test.
 
 Completed since the initial Tier 1 landing:
 
+- **Three-stage pipeline with a durable POST.** The collector splits reception,
+  decode/serialization, and the OpenSearch POST across three threads connected by
+  bounded recycling queues (`XrdMonPipe`). The receiver (main thread) only drains
+  the socket — enlarged `SO_RCVBUF` (`--rcvbuf`) and a deep batch ring
+  (`--queue-depth`), with backpressure rather than drop — so a slow/unreachable
+  OpenSearch never costs UDP packets. The serializer owns the decoder (single
+  thread) and writes the file/forward sinks inline; the output thread does the
+  `_bulk` POST. With `--cache-dir`, a body that fails to POST is written to disk
+  (`XrdMonDiskCache`: atomic write+rename, FIFO replay, startup replay) and
+  retried when the sink recovers, so an outage costs neither packets nor
+  documents. New series: `recv_queue_batches`, `post_queue_bodies`,
+  `post_failures_total`, `cache_files`/`cache_bytes`,
+  `cache_stored_total`/`cache_replayed_total`, `dropped_bulk_total`.
+
 - **Whole-file `transfer` vs. partial `access`.** A file close is typed as a
   whole-file `transfer` (a read covering the whole file — read+readv bytes
   reaching the open-time `file.size` — or a cleanly completed write) or a partial

@@ -31,7 +31,7 @@ port = 9930
 
 # On-failure disk cache: _bulk bodies that fail to POST are written here and
 # retried oldest-first (and replayed on startup). Unset = drop on failure.
-# cache-dir = /var/spool/xrootd/moncollect
+# cache-dir = /var/lib/xrootd/moncollect
 
 # Also stream documents as NDJSON over TCP to a buffering frontend (host:port).
 # forward = logstash.example.org:5044

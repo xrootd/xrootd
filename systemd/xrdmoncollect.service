@@ -19,6 +19,11 @@ ConfigurationDirectory=xrootd
 ConfigurationDirectoryMode=0755
 LogsDirectory=xrootd
 LogsDirectoryMode=0750
+# Durable, writable area for the on-failure disk cache (created as
+# /var/lib/xrootd). To enable it, set "cache-dir = /var/lib/xrootd/moncollect"
+# in /etc/xrootd/xrdmoncollect.cfg.
+StateDirectory=xrootd
+StateDirectoryMode=0750
 UMask=0027
 
 # The default UDP port (9930) is unprivileged, so no capabilities are needed.
