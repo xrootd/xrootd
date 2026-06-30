@@ -30,6 +30,8 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --os-pass <p>    basic-auth password
   --os-insecure    skip TLS certificate verification
   --os-datastream  target is a data stream (use the "create" bulk action)
+  --cache-dir <d>  cache _bulk bodies that fail to POST under <d> and retry them
+                   (oldest-first, replayed on startup; default: off = drop)
   --forward <h:p>  also stream documents as NDJSON over TCP to host:port
   --flush-count <n> packets per receive batch / one batch -> one POST (def 500)
   --flush-secs <n>  hand off a partial batch after N seconds (default: 5)
@@ -201,14 +203,41 @@ fallback when no other sink is configured (`-o` always adds a file too):
   with `--bulk <index>`. Ship it with an external agent (Filebeat) or `curl`.
 - **OpenSearch** (`--os-url`): available when the binary is built with libcurl
   (the build links `CURL::libcurl` if found). Documents are batched and posted
-  via the `_bulk` API; transient failures (network, HTTP 429/5xx) are retried
-  with exponential backoff.
+  via the `_bulk` API on a dedicated output thread; transient failures (network,
+  HTTP 429/5xx) are retried with exponential backoff. With `--cache-dir` a body
+  that still fails is written to disk and retried later (see *Pipeline and
+  durability*).
 - **TCP forward** (`--forward host:port`): streams the same NDJSON over a plain
   TCP connection to a buffering/forwarding frontend — Logstash (`tcp` input),
   Fluentd (`in_tcp`), Vector (`socket` source), or a message-broker bridge. The
   connection is lazily (re)established with a short cool-down; documents
   produced while the consumer is down are dropped (durable buffering is the
   downstream's job). Dependency-free, so it is built even without libcurl.
+
+### Pipeline and durability
+
+The collector is a three-stage pipeline so a slow or unreachable sink never
+costs UDP packets:
+
+1. **Receiver** (main thread) does nothing but drain the socket into pooled
+   packet batches and hand them to the serializer through a bounded recycling
+   queue. The kernel receive buffer is enlarged (`--rcvbuf`, default 16M) and the
+   queue is generously sized (`--queue-depth`, default 64). To prioritise not
+   losing packets the receiver applies **backpressure** (it waits for a free
+   batch) rather than dropping; combined with the large socket buffer it
+   effectively never has to wait.
+2. **Serializer** owns the decoder, correlates each packet, writes the file and
+   forward sinks inline, and builds one OpenSearch `_bulk` body per batch
+   (`--flush-count` packets / `--flush-secs`).
+3. **Output** thread performs the (blocking) `_bulk` POST, so neither decoding
+   nor reception ever waits on OpenSearch.
+
+When `--cache-dir` is set, a body that still fails to POST after retries is
+written there (`<epoch_ms>-<seq>.ndjson`, via a `.tmp` partial + atomic rename)
+and retried oldest-first once the sink recovers; files left by a previous run are
+replayed on startup. The cache has no size limit. Without `--cache-dir`, a body
+that cannot be posted is dropped (counted in `xrootd_collector_dropped_bulk_total`).
+The `xrootd_collector_cache_files`/`_bytes` gauges show the current backlog.
 
 #### Index vs data stream
 
@@ -408,6 +437,11 @@ xrootd_collector_packets_total              (and other decoder statistics)
 xrootd_collector_recv_queue_batches         (gauge: receiver->serializer depth)
 xrootd_collector_post_queue_bodies          (gauge: bodies awaiting the POST)
 xrootd_collector_post_failures_total        (OpenSearch _bulk POST failures)
+xrootd_collector_cache_files                (gauge: cached bodies awaiting replay)
+xrootd_collector_cache_bytes                (gauge: bytes of cached bodies)
+xrootd_collector_cache_stored_total         (bodies written to the disk cache)
+xrootd_collector_cache_replayed_total       (cached bodies replayed)
+xrootd_collector_dropped_bulk_total         (bodies dropped: no/failed cache)
 ```
 
 From the `g` (plugin) streams (when `--gstream` data is flowing):

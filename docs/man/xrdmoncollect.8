@@ -7,6 +7,7 @@ xrdmoncollect - collect and correlate XRootD detailed monitoring streams
 \fBxrdmoncollect\fR \fB-p\fR \fIport\fR [\fB-b\fR \fIbindaddr\fR] [\fB-o\fR \fIfile\fR] [\fB--bulk\fR \fIindex\fR]
               [\fB--os-url\fR \fIurl\fR [\fB--os-index\fR \fIname\fR] [\fB--os-user\fR \fIuser\fR]
                [\fB--os-pass\fR \fIpass\fR] [\fB--os-insecure\fR] [\fB--os-datastream\fR]]
+              [\fB--cache-dir\fR \fIdir\fR]
               [\fB--forward\fR \fIhost:port\fR] [\fB--metrics-port\fR \fIport\fR]
               [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR]
               [\fB--rcvbuf\fR \fIsz\fR] [\fB--queue-depth\fR \fIn\fR] [\fB--max-entries\fR \fIn\fR]
@@ -116,6 +117,14 @@ Skip TLS certificate verification for the OpenSearch endpoint.
 .RS 5
 Target is an OpenSearch data stream; use the \fBcreate\fR bulk action instead of
 \fBindex\fR.
+.RE
+\fB--cache-dir\fR \fIdir\fR
+.RS 5
+Directory for the on-failure disk cache. When set, an OpenSearch \fB_bulk\fR body
+that still fails to POST after retries is written under \fIdir\fR and retried
+oldest-first once the sink recovers; files left by a previous run are replayed on
+startup. The cache has no size limit. When unset (the default), a body that
+cannot be posted is dropped (counted in \fBxrootd_collector_dropped_bulk_total\fR).
 .RE
 \fB--forward\fR \fIhost:port\fR
 .RS 5

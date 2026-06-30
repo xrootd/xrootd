@@ -46,6 +46,7 @@
 #include "INIReader.h"
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
+#include "XrdApps/XrdMonCollect/XrdMonDiskCache.hh"
 #include "XrdApps/XrdMonCollect/XrdMonForward.hh"
 #include "XrdApps/XrdMonCollect/XrdMonPipe.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
@@ -80,6 +81,8 @@ void usage(const char* prog)
      "  --os-pass <p>    basic-auth password\n"
      "  --os-insecure    skip TLS certificate verification\n"
      "  --os-datastream  target is a data stream (use the \"create\" action)\n"
+     "  --cache-dir <d>  cache _bulk bodies that fail to POST under <d> and retry\n"
+     "                   (oldest-first, replayed on startup; default: off=drop)\n"
      "  --forward <h:p>  also stream documents as NDJSON over TCP to host:port\n"
      "                   (e.g. a logstash/fluentd/vector buffering frontend)\n"
      "  --flush-count <n> packets per receive batch / one batch -> one POST\n"
@@ -317,6 +320,7 @@ int main(int argc, char* argv[])
    std::string osIndex = "xrootd-transfers";
    bool        osInsecure = false;
    bool        osDataStream = false;
+   std::string cacheDir;            // disk cache for failed POSTs (off if empty)
    std::string fwdHost; int fwdPort = 0;
    size_t      flushCount = 500;     // packets per receive batch (one batch->POST)
    long        flushSecs  = 5;       // max age of a partial receive batch
@@ -370,6 +374,7 @@ int main(int argc, char* argv[])
        osPass       = cfg.Get(sec, "os-pass", osPass);
        osInsecure   = cfg.GetBoolean(sec, "os-insecure", osInsecure);
        osDataStream = cfg.GetBoolean(sec, "os-datastream", osDataStream);
+       cacheDir     = cfg.Get(sec, "cache-dir", cacheDir);
        std::string fwd = cfg.Get(sec, "forward", "");
        if (!fwd.empty())
           {auto c = fwd.rfind(':');
@@ -407,7 +412,8 @@ int main(int argc, char* argv[])
 //
    enum
    {  OPT_BULK = 256, OPT_OS_URL, OPT_OS_INDEX, OPT_OS_USER, OPT_OS_PASS,
-      OPT_OS_INSECURE, OPT_OS_DATASTREAM, OPT_FORWARD, OPT_FLUSH_COUNT,
+      OPT_OS_INSECURE, OPT_OS_DATASTREAM, OPT_CACHE_DIR, OPT_FORWARD,
+      OPT_FLUSH_COUNT,
       OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
       OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
       OPT_SERVER_TTL, OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_NO_RESOLVE,
@@ -422,6 +428,7 @@ int main(int argc, char* argv[])
       {"os-pass",         required_argument, nullptr, OPT_OS_PASS},
       {"os-insecure",     no_argument,       nullptr, OPT_OS_INSECURE},
       {"os-datastream",   no_argument,       nullptr, OPT_OS_DATASTREAM},
+      {"cache-dir",       required_argument, nullptr, OPT_CACHE_DIR},
       {"forward",         required_argument, nullptr, OPT_FORWARD},
       {"flush-count",     required_argument, nullptr, OPT_FLUSH_COUNT},
       {"flush-secs",      required_argument, nullptr, OPT_FLUSH_SECS},
@@ -459,6 +466,7 @@ int main(int argc, char* argv[])
          case OPT_OS_PASS:       osPass       = optarg;             break;
          case OPT_OS_INSECURE:   osInsecure   = true;               break;
          case OPT_OS_DATASTREAM: osDataStream = true;               break;
+         case OPT_CACHE_DIR:     cacheDir     = optarg;             break;
          case OPT_FORWARD:
              {std::string hp = optarg;
               auto c = hp.rfind(':');
@@ -563,6 +571,18 @@ int main(int argc, char* argv[])
    const size_t            kPostQueueDepth = 16;
    XrdMonPipe<std::string> postPipe(kPostQueueDepth);
    std::atomic<uint64_t>   postFailures{0};
+   std::atomic<uint64_t>   droppedBulk{0};
+
+   // Optional on-failure disk cache (opt-in via --cache-dir). When set, a POST
+   // that fails after retries is written here and retried oldest-first (and on
+   // startup); when unset, a terminal failure drops the body.
+   XrdMonDiskCache* cache = nullptr;
+   if (osEnabled && !cacheDir.empty())
+      {cache = new XrdMonDiskCache(cacheDir);
+       std::string e;
+       if (!cache->Init(e))
+          {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}
+      }
 #endif
    // Hand the current _bulk batch to the output thread (one POST per batch).
    auto flush = [&]()
@@ -702,6 +722,23 @@ int main(int argc, char* argv[])
        reg->observeCounter("xrootd_collector_post_failures_total", {}, {},
               "OpenSearch _bulk POSTs that failed after retries")
           .add({}, [&]{return (uint64_t)postFailures.load();});
+       reg->observeCounter("xrootd_collector_dropped_bulk_total", {}, {},
+              "_bulk bodies dropped after a failed POST (no/failed disk cache)")
+          .add({}, [&]{return (uint64_t)droppedBulk.load();});
+       if (cache)
+          {reg->observeIntGauge("xrootd_collector_cache_files", {}, {},
+                  "cached _bulk bodies awaiting replay")
+              .add({}, [&]{return (int64_t)cache->Files();});
+           reg->observeIntGauge("xrootd_collector_cache_bytes", {}, {},
+                  "bytes of cached _bulk bodies on disk")
+              .add({}, [&]{return (int64_t)cache->Bytes();});
+           reg->observeCounter("xrootd_collector_cache_stored_total", {}, {},
+                  "_bulk bodies written to the disk cache")
+              .add({}, [&]{return (uint64_t)cache->Stored();});
+           reg->observeCounter("xrootd_collector_cache_replayed_total", {}, {},
+                  "cached _bulk bodies successfully replayed")
+              .add({}, [&]{return (uint64_t)cache->Replayed();});
+          }
 #endif
        exporter = std::thread(serveMetrics, metricsPort, std::ref(exporterStop));
       }
@@ -730,18 +767,61 @@ int main(int argc, char* argv[])
    std::thread output;
    if (osEnabled)
       output = std::thread([&]()
-         {std::string body;
-          while (postPipe.take(body))
+         {const int kDrainPerIter = 64;   // cap cache replays per wake-up
+
+          // POST one body; true on success. Drives both live bodies and cache
+          // replays, so a failure here counts once regardless of the source.
+          auto post = [&](const std::string& b)->bool
              {std::string e;
-              if (!os->Bulk(body, e))
-                 {postFailures++;
-                  fprintf(stderr, "xrdmoncollect: bulk post failed: %s\n",
-                          e.c_str());
-                 }
+              bool ok = os->Bulk(b, e);
+              if (!ok) {postFailures++;
+                        fprintf(stderr, "xrdmoncollect: bulk post failed: %s\n",
+                                e.c_str());}
                  else if (!e.empty())
                     fprintf(stderr, "xrdmoncollect: %s\n", e.c_str());
-              body.clear();
-              postPipe.recycle(std::move(body));
+              return ok;
+             };
+          // Replay up to kDrainPerIter cached bodies, oldest first, stopping as
+          // soon as the sink is down again (so the receiver is not starved).
+          auto drain = [&]()
+             {if (!cache) return;
+              std::string e;
+              for (int i = 0; i < kDrainPerIter; i++)
+                 {int r = cache->ReplayOldest(post, e);
+                  if (!e.empty())
+                     {fprintf(stderr, "xrdmoncollect: %s\n", e.c_str()); e.clear();}
+                  if (r != 1) break;       // 0 = empty, -1 = sink still down
+                 }
+             };
+
+          std::string body;
+          for (;;)
+             {if (postPipe.takeFor(body, 1000))
+                 {std::string e;
+                  if (cache && !cache->Empty())
+                     {// Preserve order: queue behind the backlog, then drain.
+                      if (!cache->Store(body, e))
+                         {droppedBulk++;
+                          fprintf(stderr, "xrdmoncollect: cache store failed: "
+                                  "%s\n", e.c_str());}
+                      drain();
+                     }
+                     else if (!post(body))
+                     {if (cache)
+                         {if (!cache->Store(body, e))
+                             {droppedBulk++;
+                              fprintf(stderr, "xrdmoncollect: cache store failed:"
+                                      " %s\n", e.c_str());}
+                         }
+                         else droppedBulk++;   // no cache: terminal failure drops
+                     }
+                  body.clear();
+                  postPipe.recycle(std::move(body));
+                 }
+                 else
+                 {if (postPipe.closedDrained()) break;
+                  drain();                    // idle: make progress on the backlog
+                 }
              }
          });
 #endif
@@ -849,6 +929,7 @@ int main(int argc, char* argv[])
    delete fwd;
 #ifdef XRDMON_HAVE_CURL
    delete os;
+   delete cache;
 #endif
    return 0;
 }

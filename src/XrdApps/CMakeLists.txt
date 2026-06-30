@@ -67,6 +67,7 @@ if(NOT XRDCL_ONLY)
     add_executable(xrdmoncollect
       XrdMonCollect/XrdMonCollect.cc
       XrdMonCollect/XrdMonForward.cc
+      XrdMonCollect/XrdMonDiskCache.cc
       XrdMonCollect/XrdMonOpenSearch.cc)
     target_compile_definitions(xrdmoncollect PRIVATE XRDMON_HAVE_CURL)
     target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils CURL::libcurl Threads::Threads)

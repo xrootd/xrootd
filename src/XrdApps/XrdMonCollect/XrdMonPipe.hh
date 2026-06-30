@@ -21,6 +21,7 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /******************************************************************************/
 
+#include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <deque>
@@ -77,6 +78,27 @@ public:
       if (readyQ.empty()) return false;          // closed and drained
       out = std::move(readyQ.front()); readyQ.pop_front();
       return true;
+   }
+
+   //! Consumer: like take(), but wait at most `ms` milliseconds. Returns true
+   //! with `out` set if a buffer was taken; false on timeout or once the pipe is
+   //! closed and drained (use closedDrained() to tell those apart). Lets a
+   //! consumer wake periodically to do other work (e.g. drain a backlog).
+   bool takeFor(T& out, int ms)
+   {
+      std::unique_lock<std::mutex> lk(mtx);
+      data.wait_for(lk, std::chrono::milliseconds(ms),
+                    [&]{ return closed || !readyQ.empty(); });
+      if (readyQ.empty()) return false;          // timeout, or closed & drained
+      out = std::move(readyQ.front()); readyQ.pop_front();
+      return true;
+   }
+
+   //! True once the pipe is closed and no filled buffers remain.
+   bool closedDrained()
+   {
+      std::lock_guard<std::mutex> lk(mtx);
+      return closed && readyQ.empty();
    }
 
    //! Consumer: return an emptied buffer for reuse (the caller should clear it
