@@ -64,7 +64,12 @@ std::uint64_t count;
 class ISerializer
 {
 public:
-virtual ~ISerializer() = default;
+ISerializer()                              = default;
+ISerializer(const ISerializer&)            = default;
+ISerializer(ISerializer&&)                 = default;
+ISerializer& operator=(const ISerializer&) = default;
+ISerializer& operator=(ISerializer&&)      = default;
+virtual ~ISerializer()                     = default;
 
 //! Document framing, called once by Registry::serialize() around the whole
 //! traversal. Formats with an envelope (JSON, XML) open/close it here; the
