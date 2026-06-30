@@ -52,6 +52,10 @@ port = 9930
 # Do not substitute the local FQDN for a loopback (co-located) server.
 # no-resolve = false
 
+# Correlate per-session activity and emit a session document per client
+# disconnect (off by default; adds a bounded per-session rollup).
+# sessions = false
+
 # Opt-in extra document streams (high volume; off by default).
 # traces = false
 # gstream = false

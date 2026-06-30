@@ -94,6 +94,8 @@ void usage(const char* prog)
      "  --scitags-refresh <s> re-fetch a URL registry every <s> seconds\n"
      "                   (default 3600; 0 disables; URL sources only)\n"
      "  --no-resolve     do not substitute the local FQDN for a loopback server\n"
+     "  --sessions       correlate per-session activity and emit a session\n"
+     "                   document per client disconnect (off by default)\n"
      "  --traces         emit a document per t-stream I/O record (high volume)\n"
      "  --gstream        emit a document per g-stream (plugin) record\n"
      "  --redirects      emit a document per r-stream redirect record\n"
@@ -309,6 +311,7 @@ int main(int argc, char* argv[])
    std::string scitags;
    long        scitagsRefresh = 3600;
    bool        resolve = true;
+   bool        sessions = false;      // per-session rollup + session documents
    std::string bindStore, outStore;   // backing storage for config bind/output
 
 // Load a configuration file before parsing the command line, so command-line
@@ -372,6 +375,7 @@ int main(int argc, char* argv[])
        scitags     = cfg.Get(sec, "scitags", scitags);
        scitagsRefresh = cfg.GetInteger(sec, "scitags-refresh", scitagsRefresh);
        resolve     = !cfg.GetBoolean(sec, "no-resolve", !resolve);
+       sessions    = cfg.GetBoolean(sec, "sessions", sessions);
        traces      = cfg.GetBoolean(sec, "traces", traces);
        gstream     = cfg.GetBoolean(sec, "gstream", gstream);
        redirects   = cfg.GetBoolean(sec, "redirects", redirects);
@@ -389,7 +393,7 @@ int main(int argc, char* argv[])
       OPT_OS_INSECURE, OPT_OS_DATASTREAM, OPT_FORWARD, OPT_FLUSH_COUNT,
       OPT_FLUSH_SECS, OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
       OPT_SERVER_TTL, OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_NO_RESOLVE,
-      OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
+      OPT_SESSIONS, OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
    };
    static const struct option longOpts[] =
    {  {"config",          required_argument, nullptr, 'c'},
@@ -410,6 +414,7 @@ int main(int argc, char* argv[])
       {"scitags",         required_argument, nullptr, OPT_SCITAGS},
       {"scitags-refresh", required_argument, nullptr, OPT_SCITAGS_REFRESH},
       {"no-resolve",      no_argument,       nullptr, OPT_NO_RESOLVE},
+      {"sessions",        no_argument,       nullptr, OPT_SESSIONS},
       {"traces",          no_argument,       nullptr, OPT_TRACES},
       {"gstream",         no_argument,       nullptr, OPT_GSTREAM},
       {"redirects",       no_argument,       nullptr, OPT_REDIRECTS},
@@ -453,6 +458,7 @@ int main(int argc, char* argv[])
          case OPT_SCITAGS:       scitags      = optarg;               break;
          case OPT_SCITAGS_REFRESH: scitagsRefresh = atol(optarg);     break;
          case OPT_NO_RESOLVE:    resolve      = false;               break;
+         case OPT_SESSIONS:      sessions     = true;                break;
          case OPT_TRACES:        traces       = true;                break;
          case OPT_GSTREAM:       gstream      = true;                break;
          case OPT_REDIRECTS:     redirects    = true;                break;
@@ -572,6 +578,7 @@ int main(int argc, char* argv[])
    decoder.SetMaxEntries(maxEntries);
    decoder.SetServerTTL(serverTtl);
    decoder.SetResolveHosts(resolve);
+   decoder.SetEmitSessions(sessions);
 #ifdef XRDMON_HAVE_CURL
    // The OpenSearch sink initializes libcurl globally; do it here too when a URL
    // registry is the only curl user, before the first (main-thread) fetch and

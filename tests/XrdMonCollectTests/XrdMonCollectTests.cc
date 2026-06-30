@@ -1045,33 +1045,44 @@ TEST(XrdMonCollect, MemoryStaysUnderBudget)
   EXPECT_GT(dec.GetStats().evicted, 0u);
 }
 
-// On the normal path every open is released by its close. The close also folds
-// a bounded record into the session rollup, so resident memory drops back from
-// its peak (the open-file table is freed) and stays bounded by the recent-file
-// cap; nothing is evicted.
+// On the normal path every open is released by its close: with session
+// correlation off (the default) resident memory returns to the baseline and
+// nothing is evicted.
 TEST(XrdMonCollect, CloseReleasesMemory)
 {
-  XrdMonDecode dec([](const std::string&){});   // unbounded
+  XrdMonDecode dec([](const std::string&){});   // unbounded, sessions off
   feedUser7(dec, "h:1");
   std::size_t base = dec.ResidentBytes();        // just the user entry
 
-  for (uint32_t id = 1; id <= 80; id++)           // more than the recent-file cap
+  for (uint32_t id = 1; id <= 50; id++)
      feedOpenId(dec, "h:1", id, "/store/data/file.root");
-  std::size_t peak = dec.ResidentBytes();
-  EXPECT_GT(peak, base);                          // opens are charged
+  EXPECT_GT(dec.ResidentBytes(), base);          // opens are charged
 
-  for (uint32_t id = 1; id <= 80; id++)
+  for (uint32_t id = 1; id <= 50; id++)
      feedCloseId(dec, "h:1", id);
-  EXPECT_LT(dec.ResidentBytes(), peak);           // the open-file table is freed
+  EXPECT_EQ(dec.ResidentBytes(), base);          // each close releases its open
   EXPECT_EQ(dec.GetStats().evicted, 0u);
-  std::size_t afterClose = dec.ResidentBytes();   // session rollup at its cap
+}
 
-  // A second round of opens/closes does not grow the session rollup without
-  // bound: the recent-file list is capped, so resident memory plateaus.
-  for (uint32_t id = 81; id <= 180; id++)
+// With session correlation on, closes fold a bounded record into the user's
+// rollup, so resident memory stays bounded by the recent-file cap across many
+// open/close cycles (it does not grow without limit).
+TEST(XrdMonCollect, SessionRollupStaysBounded)
+{
+  XrdMonDecode dec([](const std::string&){});   // unbounded budget
+  dec.SetEmitSessions(true);
+  feedUser7(dec, "h:1");
+
+  for (uint32_t id = 1; id <= 80; id++)          // fill past the recent-file cap
      {feedOpenId(dec, "h:1", id, "/store/data/file.root");
       feedCloseId(dec, "h:1", id);}
-  EXPECT_LE(dec.ResidentBytes(), afterClose);     // capped: no unbounded growth
+  std::size_t capped = dec.ResidentBytes();
+
+  for (uint32_t id = 81; id <= 200; id++)        // many more cycles
+     {feedOpenId(dec, "h:1", id, "/store/data/file.root");
+      feedCloseId(dec, "h:1", id);}
+  EXPECT_LE(dec.ResidentBytes(), capped);        // capped: no unbounded growth
+  EXPECT_EQ(dec.GetStats().evicted, 0u);
 }
 
 // An incarnation idle past the server TTL is reclaimed whole; a freshly-seen
@@ -1150,6 +1161,7 @@ TEST(XrdMonCollect, SessionDiscAndActiveGauge)
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
                    false, false, false, false, &reg.group(""));
+  dec.SetEmitSessions(true);
 
   // 'u' user map: dictid 7 -> bob.
   { W body; body.u32(7);
@@ -1244,6 +1256,7 @@ TEST(XrdMonCollect, SessionAggregatesFileActivity)
 {
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); });
+  dec.SetEmitSessions(true);
 
   feedUserN(dec, "h:1", 7);
   openClose(dec, "h:1", 1, 7, 1000,  1000, 0, "/a.root");   // whole read -> transfer
@@ -1277,6 +1290,7 @@ TEST(XrdMonCollect, SessionRecentFilesCapped)
 {
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); });
+  dec.SetEmitSessions(true);
 
   feedUserN(dec, "h:1", 7);
   for (uint32_t i = 1; i <= 100; i++)
@@ -1296,6 +1310,7 @@ TEST(XrdMonCollect, SessionsDoNotCrossUsers)
 {
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); });
+  dec.SetEmitSessions(true);
 
   feedUserN(dec, "h:1", 7);
   feedUserN(dec, "h:1", 8);
@@ -1309,6 +1324,29 @@ TEST(XrdMonCollect, SessionsDoNotCrossUsers)
   EXPECT_EQ(j["session"]["files"], 1);                // only user 7's one file
   ASSERT_EQ(j["session"]["recent_files"].size(), 1u);
   EXPECT_EQ(j["session"]["recent_files"][0]["lfn"], "/seven.root");
+}
+
+// Session correlation is opt-in: with it off (the default) a disconnect emits
+// no session document and no per-session rollup is accumulated, so the closes
+// release their memory just like the non-session path.
+TEST(XrdMonCollect, SessionsDisabledByDefault)
+{
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); });
+  // No SetEmitSessions(true): sessions are disabled.
+
+  feedUserN(dec, "h:1", 7);
+  std::size_t base = dec.ResidentBytes();
+  openClose(dec, "h:1", 1, 7, 1000, 1000, 0, "/a.root");
+  openClose(dec, "h:1", 2, 7, 1000, 1000, 0, "/b.root");
+  feedDisc(dec, "h:1", 7);
+
+  // Two close documents were emitted; the disconnect produced nothing.
+  EXPECT_EQ(docs.size(), 2u);
+  for (const auto& d : docs)
+     EXPECT_NE(json::parse(d)["type"], "session");
+  EXPECT_EQ(dec.GetStats().discs, 1u);             // disconnect still counted
+  EXPECT_EQ(dec.ResidentBytes(), base);            // no rollup retained
 }
 
 TEST(XrdMonCollect, ServerIdentDecoded)

@@ -337,6 +337,7 @@ void XrdMonDecode::foldSession(Server& srv, uint32_t userID,
                                const std::string& lfn, int64_t bytes,
                                bool write, bool whole, bool error, int32_t tWin)
 {
+   if (!emitSessions) return;              // session correlation disabled
    auto uit = srv.users.find(userID);
    if (uit == srv.users.end()) return;     // user dictid unknown -> nothing to do
    UserInfo& u = uit->second;
@@ -973,6 +974,8 @@ void XrdMonDecode::DecodeFStream(const std::string& src, int32_t stod,
 void XrdMonDecode::EmitDisc(const std::string& src, int32_t stod, Server& srv,
                             uint32_t userID, int32_t tWin)
 {
+   if (!emitSessions) return;             // session documents disabled
+
    json j;
    j["type"] = "session";
    if (tWin > 0) j["@timestamp"] = isoTime(tWin);

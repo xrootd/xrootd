@@ -129,6 +129,14 @@ void ReapServers(time_t now);
 //! blocking lookup would stall the UDP receive loop).
 void SetResolveHosts(bool v) {resolveHosts = v;}
 
+//! Enable per-session activity correlation (off by default). When on, each file
+//! close is folded into its user's session rollup and a `session` document
+//! (identity plus aggregated file activity) is emitted on disconnect. When off,
+//! no rollup is accumulated and no session document is produced — saving the
+//! per-session memory and the receive-thread work for deployments that only
+//! consume the per-transfer/access documents.
+void SetEmitSessions(bool v) {emitSessions = v;}
+
 //! Load a SciTags registry (scitags.org schema: a top-level "experiments"
 //! array of {expId, expName, activities:[{activityId, activityName}]}). When
 //! loaded, the numeric SciTags experiment/activity ids carried on the 'U'
@@ -420,6 +428,7 @@ std::size_t lruBytes   = 0;        // currently charged bytes
 std::size_t maxEntries = 0;        // optional entry-count backstop (0 = off)
 long        serverTTL  = 0;        // idle-incarnation reap age, secs (0 = off)
 bool     resolveHosts = true;
+bool     emitSessions = false;   // per-session rollup + session documents
 
 // Local FQDN substituted for a loopback (co-located) server, resolved at most
 // once for the whole process (MyHostName is the same regardless of which

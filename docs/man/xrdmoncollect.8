@@ -9,7 +9,7 @@ xrdmoncollect - collect and correlate XRootD detailed monitoring streams
                [\fB--os-pass\fR \fIpass\fR] [\fB--os-insecure\fR] [\fB--os-datastream\fR]]
               [\fB--forward\fR \fIhost:port\fR] [\fB--metrics-port\fR \fIport\fR]
               [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR] [\fB--max-entries\fR \fIn\fR]
-              [\fB--traces\fR] [\fB--gstream\fR] [\fB--redirects\fR] [\fB--dump\fR] [\fB-v\fR]
+              [\fB--sessions\fR] [\fB--traces\fR] [\fB--gstream\fR] [\fB--redirects\fR] [\fB--dump\fR] [\fB-v\fR]
 
 .fi
 .br
@@ -50,7 +50,9 @@ third terminal state, \fBRedirected\fR: from the redirector's point of view the
 operation concluded by sending the client elsewhere, with the destination under
 the \fBredirect\fR object.
 .P
-When a client disconnects, a \fIsession\fR document aggregates its whole session:
+With \fB--sessions\fR, a \fIsession\fR document aggregates each disconnecting
+client's whole session (off by default; when disabled no session rollup is kept
+and no session document is emitted):
 every file close that named the user is folded into a \fBsession\fR object with
 running totals (\fBfiles\fR, \fBtransfers\fR, \fBaccesses\fR, \fBread_bytes\fR,
 \fBwrite_bytes\fR, \fBerrors\fR, and start/end/duration) plus a capped
@@ -188,6 +190,12 @@ that reports from the loopback address (\fB::1\fR/\fB127.0.0.1\fR, the common
 co-located setup). With this flag \fBserver.name\fR keeps the numeric address
 unless a hostname arrives on the \fI=\fR ident stream. Remote servers are never
 reverse-resolved; their hostname comes from the \fI=\fR ident.
+.RE
+\fB--sessions\fR
+.RS 5
+Correlate per-session activity and emit a \fIsession\fR document on each client
+disconnect (off by default). When disabled, no per-session rollup is accumulated
+and no session document is produced. See the \fBDESCRIPTION\fR.
 .RE
 \fB--traces\fR
 .RS 5

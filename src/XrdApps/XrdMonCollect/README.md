@@ -43,6 +43,8 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
                    experiment/activity ids to names
   --scitags-refresh <s> re-fetch a URL registry every <s> seconds (default 3600)
   --no-resolve     do not substitute the local FQDN for a loopback server
+  --sessions       correlate per-session activity and emit a session document
+                   per client disconnect (off by default)
   --traces         emit a document per t-stream I/O record (high volume)
   --gstream        emit a document per g-stream (plugin) record
   --redirects      emit a document per r-stream redirect record
@@ -106,22 +108,24 @@ A file close is reported as one of two types that share an identical schema:
 ### Streams
 
 By default the `f` (file-stats) stream produces a per-close document on each
-file close (`transfer` or `access`, above), a `session` document on each client
-disconnect (`isDisc` record, with the resolved user), and maintains the
+file close (`transfer` or `access`, above) and maintains the
 `xrootd_collector_active_transfers{server}` gauge (open files in progress, from
-the `isXfr` snapshots and open/close records). Two opt-in streams add
+the `isXfr` snapshots and open/close records). Several opt-in streams add
 finer-grained events:
 
-The `session` document aggregates the user's whole session: every file close
-that named the user is folded into a `session` object carrying running totals
-(`files`, `transfers`, `accesses`, `read_bytes`, `write_bytes`, `errors`,
-`start_time`/`end_time`/`duration_s`) and a capped `recent_files` list (the most
-recent closed files, each with `lfn`, `type`, `operation`, `bytes`). The totals
-cover every closed file; only the `recent_files` list is bounded, so a long
-session (a batch job opening many files in a dataset) stays memory-bounded. A
-client that hits an error and disconnects therefore yields one document with as
-much of its activity as the server reported before the disconnect.
-
+- `--sessions` enables per-session activity correlation: every file close that
+  named the user is folded into a per-session rollup, and a `session` document
+  is emitted on each client disconnect (`isDisc`). The `session` object carries
+  running totals (`files`, `transfers`, `accesses`, `read_bytes`, `write_bytes`,
+  `errors`, `start_time`/`end_time`/`duration_s`) and a capped `recent_files`
+  list (the most recent closed files, each with `lfn`, `type`, `operation`,
+  `bytes`). The totals cover every closed file; only the `recent_files` list is
+  bounded, so a long session (a batch job opening many files in a dataset) stays
+  memory-bounded. A client that hits an error and disconnects therefore yields
+  one document with as much of its activity as the server reported. **Off by
+  default** — when disabled no rollup is accumulated and no `session` document is
+  produced, saving the per-session memory and receive-thread work for
+  deployments that only consume the per-transfer/access documents.
 - `--traces` turns each `t` (I/O trace) record into a document: `read`/`write`
   (with offset, length and the resolved `file.lfn`), `open`, `close`,
   `disconnect`, and `appid`. This is **high volume** (one record per I/O) —
