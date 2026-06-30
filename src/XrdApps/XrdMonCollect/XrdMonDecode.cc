@@ -133,6 +133,25 @@ bool isLoopback(const std::string& ip)
 {
    return ip == "::1" || ip == "127.0.0.1" || ip == "::ffff:127.0.0.1";
 }
+
+// Whole-file transfer vs. partial access. XRootD serves both whole-file copies
+// (the file moved in or out in its entirety) and finer-grained remote data
+// access (sparse/partial reads, random or appended writes). A close is a
+// whole-file "transfer" when:
+//   * it carries write bytes and ended cleanly — a completed write produces the
+//     whole file; a write cut short by a forced close or an error block is
+//     partial, so it is an "access"; or
+//   * it is read-only and covered the whole file, i.e. read+readv bytes reached
+//     the size captured at open (only decidable when that open size is known).
+// Everything else (short reads, reads with no known open size, aborted writes)
+// is a partial "access". Callers map true -> "transfer", false -> "access".
+//
+bool wholeFileClose(bool haveOpen, int64_t fsz, int64_t rdBytes,
+                    int64_t rvBytes, int64_t wrBytes, bool forced, bool hasErr)
+{
+   if (wrBytes > 0) return !(forced || hasErr);
+   return haveOpen && fsz > 0 && (rdBytes + rvBytes) >= fsz;
+}
 }
 
 /******************************************************************************/
@@ -917,6 +936,8 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 
    int durSecs = -1;
    std::string vo;
+   bool    haveOpen = false;   // matched the open record (so fsz is known)
+   int64_t openFsz  = 0;       // file size captured at open
 
 // One per-transfer document in an OpenSearch-friendly nested schema (each nested
 // object indexes as a dotted field, e.g. server.name). Empty/zero fields are
@@ -944,6 +965,8 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    if (fit != srv.files.end())
       {const OpenFile& of = fit->second;
        transfer["open_seen"]  = true;
+       haveOpen = true;
+       openFsz  = of.fsz;
        json& file = j["file"];
        file["lfn"]        = of.lfn;
        file["size"]       = of.fsz;
@@ -969,6 +992,17 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        srv.files.erase(fit);
       }
       else {transfer["open_seen"] = false; stats.orphanCls++;}
+
+// Whole-file transfer vs. partial access. The document schema is identical; only
+// the type string differs (see wholeFileClose). A write needs to have ended
+// cleanly to count as a whole-file producer, so this must be decided after the
+// forced/error flags are known.
+//
+   const bool forced = (recFlag & XrdXrootdMonFileHdr::forced) != 0;
+   const bool hasErr = (recFlag & XrdXrootdMonFileHdr::hasERR) != 0;
+   const bool whole  = wholeFileClose(haveOpen, openFsz, rdBytes, rvBytes,
+                                      wrBytes, forced, hasErr);
+   j["type"] = whole ? "transfer" : "access";
 
 // Optional op-count detail (XrdXrootdMonStatOPS) when "ops" was configured.
 //
@@ -1029,8 +1063,12 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 //
    if (metrics)
       {std::vector<XrdMetrics::ConstLabel> sl = {{"server", src}};
-       metrics->counterSeries("xrootd_collector_transfers_total",
-                        "completed transfers seen", sl) += 1;
+       if (whole)
+          metrics->counterSeries("xrootd_collector_transfers_total",
+                           "completed whole-file transfers seen", sl) += 1;
+          else
+          metrics->counterSeries("xrootd_collector_accesses_total",
+                           "completed partial-access closes seen", sl) += 1;
        metrics->counterSeries("xrootd_collector_read_bytes_total",
                         "bytes read (read+readv)", sl) += rdBytes + rvBytes;
        metrics->counterSeries("xrootd_collector_write_bytes_total",

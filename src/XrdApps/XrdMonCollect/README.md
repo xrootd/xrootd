@@ -49,10 +49,22 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   -v               print decoder statistics on exit (SIGINT/SIGTERM)
 ```
 
-All document types — `transfer`, `session_end`, `server_ident`, `frm`,
-`redirect`, the `t`-stream traces and `gstream` — share one nested,
+All document types — `transfer`, `access`, `session_end`, `server_ident`,
+`frm`, `redirect`, the `t`-stream traces and `gstream` — share one nested,
 OpenSearch-friendly schema (`server.*`, `client.*`, `user.*`, `file.*`,
 `transfer.*`, …; each nested object indexes as a dotted field).
+
+A file close is reported as one of two types that share an identical schema:
+
+- `transfer` — a **whole-file** copy: a read that covered the whole file
+  (`transfer.read_bytes + transfer.readv_bytes >= file.size`, the size captured
+  at open) or a write that completed cleanly (an upload producing the file).
+- `access` — finer-grained or partial data access: a short read, a read whose
+  open size is unknown (no matching open record), or a write cut short by a
+  forced (disconnect-driven) close or an error. XRootD serves both whole-file
+  copies and partial/random data access; this lets a consumer separate the two
+  without recomputing coverage. The two are counted separately in
+  `xrootd_collector_transfers_total` and `xrootd_collector_accesses_total`.
 
 ### Streams
 
@@ -329,7 +341,8 @@ in cardinality — labelled only by the reporting `server` — and suitable for 
 time-series database:
 
 ```
-xrootd_collector_transfers_total{server="..."}
+xrootd_collector_transfers_total{server="..."}   (whole-file closes)
+xrootd_collector_accesses_total{server="..."}    (partial-access closes)
 xrootd_collector_read_bytes_total{server="..."}
 xrootd_collector_write_bytes_total{server="..."}
 xrootd_collector_vo_transfers_total{server="...",vo="..."}

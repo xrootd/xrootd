@@ -609,6 +609,12 @@ integration test.
 
 Completed since the initial Tier 1 landing:
 
+- **Whole-file `transfer` vs. partial `access`.** A file close is typed as a
+  whole-file `transfer` (a read covering the whole file — read+readv bytes
+  reaching the open-time `file.size` — or a cleanly completed write) or a partial
+  `access` (short read, unknown open size, or a write cut short by a forced close
+  or an error). Both share one schema; they are counted separately in
+  `xrootd_collector_transfers_total` and `xrootd_collector_accesses_total`.
 - **Schema consistency across all document types.** `session_end` (`EmitDisc`),
   `server_ident` (`DecodeIdent`), `frm` (`DecodeFrm`), the `t`-stream traces
   (`DecodeTStream`), `r`-stream redirects (`DecodeRStream`), and the `gstream`

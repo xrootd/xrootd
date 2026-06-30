@@ -21,12 +21,21 @@ streams emitted by one or more \fBxrootd\fR servers (the \fIu\fR, \fId\fR,
 \fIx\fR/\fIp\fR streams configured via the \fBxrootd.monitor\fR directive) and
 correlates them into self-contained JSON documents.
 .P
-The principal output is one \fItransfer\fR document per file close, joining the
+The principal output is one document per file close, joining the
 \fIf\fR-stream close record with the user, path, application-info, token, and
 activity dictionaries into a single record carrying WLCG-aligned identity,
 location, and transfer fields. Documents use a nested, OpenSearch-friendly
 schema (for example \fBserver.name\fR, \fBclient.ip\fR, \fBuser.vo\fR,
 \fBtransfer.read_bytes\fR), and empty or zero-valued fields are omitted.
+.P
+Each close is typed as a whole-file \fItransfer\fR or a partial \fIaccess\fR,
+which share the same schema. A close is a \fItransfer\fR when a read covered the
+whole file (\fBtransfer.read_bytes\fR + \fBtransfer.readv_bytes\fR reaches
+\fBfile.size\fR, the size captured at open) or a write completed cleanly;
+otherwise — a short read, a read with no known open size, or a write cut short
+by a forced close or an error — it is an \fIaccess\fR. This separates whole-file
+copies from finer-grained remote data access; the two are also counted in
+\fBxrootd_collector_transfers_total\fR and \fBxrootd_collector_accesses_total\fR.
 .P
 A transfer document also carries the terminal status of the operation in
 \fBtransfer.operation_state\fR: a normal close reports \fBSuccessful\fR, while a

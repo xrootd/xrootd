@@ -685,6 +685,122 @@ TEST_F(Transfer, WriteOperationDerived)
   json j = json::parse(lastDoc);
   EXPECT_EQ(j["transfer"]["operation"], "write");
   EXPECT_EQ(j["transfer"]["write_bytes"], 2097152);
+  EXPECT_EQ(j["type"], "transfer");          // a clean write produces a whole file
+}
+
+namespace
+{
+// A close carrying chosen byte totals and recFlag, for the fixture's file 100.
+std::vector<unsigned char> closePkt(int64_t rd, int64_t rv, int64_t wr,
+                                    uint8_t flag)
+{
+   W body;
+   body.u32(100);              // fileID (matches feedOpen)
+   body.u64((uint64_t)rd);     // Xfr.read
+   body.u64((uint64_t)rv);     // Xfr.readv
+   body.u64((uint64_t)wr);     // Xfr.write
+   auto payload = todRec(kCloseT, 42);
+   auto r = rec(0 /*isClose*/, flag, body.b);
+   payload.insert(payload.end(), r.begin(), r.end());
+   return packet('f', kStod, payload);
+}
+}
+
+// A read that covered the whole file (read+readv >= size at open) is a transfer.
+TEST_F(Transfer, WholeFileReadIsTransfer)
+{
+  feedUserMap();
+  feedOpen();                                  // fsz = 123456
+  auto pkt = closePkt(123456, 0, 0, 0);        // read exactly the whole file
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["type"], "transfer");
+}
+
+// A read that touched only part of the file is finer-grained data access.
+TEST_F(Transfer, PartialReadIsAccess)
+{
+  feedUserMap();
+  feedOpen();                                  // fsz = 123456
+  auto pkt = closePkt(4096, 0, 0, 0);          // read a small slice
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["type"], "access");
+  EXPECT_EQ(j["transfer"]["operation"], "read");   // shared schema otherwise
+}
+
+// readv bytes count toward whole-file coverage just like plain reads.
+TEST_F(Transfer, WholeFileReadvIsTransfer)
+{
+  feedUserMap();
+  feedOpen();
+  auto pkt = closePkt(60000, 70000, 0, 0);     // 130000 >= 123456
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["type"], "transfer");
+}
+
+// A write cut short by a forced (disconnect-driven) close is partial access.
+TEST_F(Transfer, ForcedWriteIsAccess)
+{
+  feedUserMap();
+  feedOpen();
+  auto pkt = closePkt(0, 0, 2097152, 0x01 /*forced*/);
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["type"], "access");
+  EXPECT_EQ(j["transfer"]["operation"], "write");
+}
+
+// A close with no matching open has no known size, so it cannot be proven a
+// whole-file transfer: it is reported as access.
+TEST_F(Transfer, OrphanCloseIsAccess)
+{
+  auto pkt = closePkt(10485760, 0, 0, 0);      // no preceding open
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["type"], "access");
+  EXPECT_EQ(j["transfer"]["open_seen"], false);
+}
+
+// A partial-access close increments the accesses counter, not transfers.
+TEST_F(Transfer, AccessAggregatesIntoMetrics)
+{
+  XrdMetrics::Registry reg("");
+  std::string sink;
+  XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
+                 false, false, false, false, &reg.group(""));
+
+  { W body; body.u32(7);
+    std::string info = "xroot/alice.1:2@wn.example.org\n";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('u', kStod, pl);
+    d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  { W body; body.u32(100); body.u64(123456); body.u32(7);
+    std::string lfn = "/store/data/file.root"; body.raw(lfn); body.u8(0);
+    auto payload = todRec(kOpenT, 42);
+    auto r = rec(1, 0x03, body.b);
+    payload.insert(payload.end(), r.begin(), r.end());
+    auto pkt = packet('f', kStod, payload);
+    d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  { W body; body.u32(100); body.u64(4096); body.u64(0); body.u64(0);
+    auto payload = todRec(kCloseT, 42);
+    auto r = rec(0, 0, body.b);                // partial read -> access
+    payload.insert(payload.end(), r.begin(), r.end());
+    auto pkt = packet('f', kStod, payload);
+    d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+
+  std::string out;
+  XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  EXPECT_NE(out.find("xrootd_collector_accesses_total{server=\"10.0.0.1:9930\"} 1"),
+            std::string::npos) << out;
+  EXPECT_EQ(out.find("xrootd_collector_transfers_total"), std::string::npos) << out;
 }
 
 // Feed a '=' server-ident record so srv.ident.host is populated for the
