@@ -4,13 +4,103 @@
 # operation_state / error_message / error_category). A real xrootd server is
 # pointed at a local xrdmoncollect instance; we drive a successful transfer and
 # a failed open, then assert the collector emits the matching documents.
+#
+# When the VOMS plug-in is built (MONCOLLECT_VOMS=1, set by CMake), the session
+# is additionally driven over gsi with a proxy carrying a fake VOMS attribute
+# certificate, and we assert the VO is surfaced on the monitoring stream
+# (XrdSecEntity.vorg -> u-record "&o=" -> collector user.vo). The fake AC is
+# minted with voms-proxy-fake and signed by the test host cert, which the
+# server's voms library trusts via a generated vomsdir/.lsc file.
 
 COLLECTOR_PORT=8096
 COLLECTOR_OUT="${PWD}/${NAME}/collected.ndjson"
 COLLECTOR_PID="${PWD}/${NAME}/collector.pid"
 
+# Security fragment that moncollect.cfg continues into (see the cfg). Generated
+# at setup time so its contents can depend on whether VOMS is built. The name has
+# no underscore because XRootD's inline $var substitution stops at non-alnum.
+MONCOLLECTSEC="${MONCOLLECTSEC:-${PWD}/${NAME}/security.cfg}"
+export MONCOLLECTSEC
+
+# gsi/VOMS environment, shared by the server (inherited from the setup
+# invocation) and the client (run invocation). Set at script scope so it applies
+# to every test.sh phase, mirroring gsi.sh.
+if [ "${MONCOLLECT_VOMS}" = 1 ]; then
+	TLS_DIR="${BINARY_DIR}/tests/tls"
+	VOMS_DIR="${PWD}/${NAME}/vomsdir"
+	export XrdSecPROTOCOL=gsi
+	export X509_CERT_DIR="${TLS_DIR}"
+	export X509_VOMS_DIR="${VOMS_DIR}"
+	export X509_USER_PROXY="${PWD}/${NAME}/vproxy.crt"
+fi
+
+# Write the security fragment moncollect.cfg continues into. XRootD only allows a
+# single level of "continue", so this fragment is the leaf: with VOMS it prepends
+# the gsi + VOMS extraction directives (mirrors gsi.cfg) to a verbatim copy of
+# common.cfg; without it the fragment is just common.cfg, so the test is
+# unchanged on non-VOMS builds.
+function write_security_fragment() {
+	{
+		if [ "${MONCOLLECT_VOMS}" = 1 ]; then
+			cat <<-EOF
+			xrootd.seclib libXrdSec.so
+			sec.protparm gsi -ca:verify -certdir:${TLS_DIR}
+			sec.protparm gsi -crl:require -crldir:${TLS_DIR}
+			sec.protparm gsi -key:${TLS_DIR}/host.key
+			sec.protparm gsi -cert:${TLS_DIR}/host.pem
+			sec.protparm gsi -gridmap:${PWD}/${NAME}/gridmap
+			sec.protparm gsi -gmapopt:trymap,usedn
+			sec.protparm gsi -vomsat:extract -vomsfun:libXrdVoms.so -vomsfunparms:dbg
+			sec.protparm gsi -md:sha512:sha256 -d:1 -trustdns:false
+			sec.protocol gsi
+			sec.protbind * only gsi
+			ofs.authorize 1
+			acc.authdb ${PWD}/${NAME}/authdb
+			EOF
+		fi
+		cat "${SOURCE_DIR}/common.cfg"
+	} >| "${MONCOLLECTSEC}"
+}
+
+# Mint the fake VOMS proxy and the trust material the server uses to verify it.
+function setup_moncollect_voms() {
+	require_commands voms-proxy-fake openssl
+
+	# gsi maps the client DN to a username and authorizes it for all of /.
+	cat >| "${PWD}/${NAME}/authdb" <<-EOF
+	u client / a
+	EOF
+	cat >| "${PWD}/${NAME}/gridmap" <<-EOF
+	"/CN=client" client
+	EOF
+
+	# Trust the fake AC: it is signed by the test host cert, so the .lsc lists
+	# that cert's subject and issuer DNs in OpenSSL slash (compat) form.
+	mkdir -p "${VOMS_DIR}/dteam"
+	{
+		openssl x509 -in "${TLS_DIR}/host.pem" -noout -subject -nameopt compat | sed 's/^subject=//'
+		openssl x509 -in "${TLS_DIR}/host.pem" -noout -issuer  -nameopt compat | sed 's/^issuer=//'
+	} >| "${VOMS_DIR}/dteam/localhost.lsc"
+
+	# Create a proxy from the client cert carrying a fake VOMS AC for VO dteam.
+	voms-proxy-fake -rfc -quiet \
+		-certdir "${TLS_DIR}" \
+		-cert "${TLS_DIR}/client.crt" -key "${TLS_DIR}/client.key" \
+		-hostcert "${TLS_DIR}/host.pem" -hostkey "${TLS_DIR}/host.key" \
+		-voms dteam -uri localhost:15000 \
+		-fqan /dteam/Role=production/Capability=NULL \
+		-out "${X509_USER_PROXY}"
+	# gsi rejects proxies with loose permissions.
+	chmod 600 "${X509_USER_PROXY}"
+}
+
 function setup_moncollect() {
 	require_commands xrdmoncollect xrdcp xrdfs xrdreadv-eof
+
+	write_security_fragment
+	if [ "${MONCOLLECT_VOMS}" = 1 ]; then
+		setup_moncollect_voms
+	fi
 
 	# Start the collector before the server so the f-stream destination has a
 	# listener. The PID file lands in ${NAME}/ so the harness teardown kills it.
@@ -63,6 +153,17 @@ function test_moncollect() {
 
 	# The client-advertised site must travel to the collector as client.site.
 	assert grep -Eq '"site":"CLIENT-TEST-SITE"' "${COLLECTOR_OUT}"
+
+	# With VOMS, the proxy's fake VOMS attribute certificate must surface on the
+	# monitoring stream: gsi extracts it into XrdSecEntity.vorg, the server emits
+	# it in the MAPUSER record ("&o="), and the collector reports it as user.vo.
+	# Re-drive uploads until a transfer document carries the VO (tolerates the
+	# u-record racing the close under UDP), then check the role too.
+	if [ "${MONCOLLECT_VOMS}" = 1 ]; then
+		drive_until '"vo":"dteam"' "VO surfaced on transfer document" \
+			"xrdcp -f '${TMPDIR}/ok.ref' '${HOST}/${TMPDIR}/ok.ref'"
+		assert grep -Eq '"role":"production"' "${COLLECTOR_OUT}"
+	fi
 
 	# 2. A failed open: reading a nonexistent file fails before any close, so
 	#    the server emits a terminal isError record -> operation_state "Failed".

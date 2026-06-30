@@ -89,6 +89,8 @@ BuildRequires:	krb5-workstation
 BuildRequires:	openssl
 BuildRequires:	procps-ng
 BuildRequires:	sqlite
+# voms-proxy-fake mints the fake VOMS proxy used by the moncollect VO test.
+BuildRequires:	voms-clients-cpp
 %endif
 
 %if %{with xrdec}

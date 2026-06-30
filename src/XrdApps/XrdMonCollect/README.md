@@ -175,6 +175,11 @@ operation counts and sum-of-squares to the close record. The `auth` option
 enriches the user dictionary with the authentication method and VO (see the
 field table below); without it those fields are simply absent.
 
+The VO path (gsi → VOMS attribute certificate → `XrdSecEntity.vorg` → MAPUSER
+`&o=` → `user.vo`) is exercised end-to-end by the `XRootD::moncollect`
+integration test when the VOMS plug-in is built: it mints a fake VOMS proxy with
+`voms-proxy-fake` and asserts `user.vo` appears on the transfer document.
+
 ```
 xrootd.monitor all flush 30 fstat 30 lfn ops ssq xfr 1 auth \
                dest fstat info user <collector-host>:9930

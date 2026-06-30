@@ -40,7 +40,24 @@ list(APPEND cache_FIXTURES XRootD::host)
 
 list(APPEND gsi_FIXTURES TLS)
 
+# When the VOMS plug-in is built, the moncollect test additionally drives a gsi
+# session whose proxy carries a (fake) VOMS attribute certificate, so it can
+# assert that the VO is surfaced on the monitoring stream (user.vo). This needs
+# the TLS fixture for certificates and a flag the shell uses to enable the gsi
+# leg and mint the fake VOMS proxy (see moncollect.sh).
+if(BUILD_VOMS)
+  list(APPEND moncollect_FIXTURES TLS)
+  set(moncollect_TEST_ENV "MONCOLLECT_VOMS=1")
+endif()
+
 foreach(CONFIG ${XROOTD_CONFIGS})
+  # Base environment for every phase, plus any per-config extra (e.g. the
+  # moncollect VOMS flag set above). Kept in a list so phases stay in sync.
+  set(CONFIG_ENV "BINARY_DIR=${CMAKE_BINARY_DIR}")
+  if(DEFINED ${CONFIG}_TEST_ENV)
+    list(APPEND CONFIG_ENV "${${CONFIG}_TEST_ENV}")
+  endif()
+
   add_test(NAME XRootD::${CONFIG}::setup
     COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/test.sh ${CONFIG} setup")
 
@@ -48,7 +65,7 @@ foreach(CONFIG ${XROOTD_CONFIGS})
     PROPERTIES
       FIXTURES_SETUP XRootD::${CONFIG}
       FIXTURES_REQUIRED "${${CONFIG}_FIXTURES}"
-      ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
+      ENVIRONMENT "${CONFIG_ENV}"
   )
 
   add_test(NAME XRootD::${CONFIG}::teardown
@@ -57,7 +74,7 @@ foreach(CONFIG ${XROOTD_CONFIGS})
   set_tests_properties(XRootD::${CONFIG}::teardown
     PROPERTIES
       FIXTURES_CLEANUP XRootD::${CONFIG}
-      ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
+      ENVIRONMENT "${CONFIG_ENV}"
   )
 
   add_test(NAME XRootD::${CONFIG}::test
@@ -71,7 +88,7 @@ foreach(CONFIG ${XROOTD_CONFIGS})
   set_tests_properties(XRootD::${CONFIG}::test
     PROPERTIES
       FIXTURES_REQUIRED "${${CONFIG}_FIXTURES}"
-      ENVIRONMENT "BINARY_DIR=${CMAKE_BINARY_DIR}"
+      ENVIRONMENT "${CONFIG_ENV}"
       ATTACHED_FILES_ON_FAIL "${${CONFIG}_LOGS}"
   )
 endforeach()

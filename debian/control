@@ -45,7 +45,8 @@ Build-Depends:
  krb5-user,
  openssl,
  procps,
- sqlite3
+ sqlite3,
+ voms-clients
 Build-Depends-Indep:
  dh-sequence-sphinxdoc,
  doxygen,

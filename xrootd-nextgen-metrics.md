@@ -625,6 +625,23 @@ is the client analogue of `server.site` (the reporting server's `XRDSITE` from
 the `=` ident). Covered by the `Transfer.ClientSiteAdvertised` unit test and
 end-to-end in `XRootD::moncollect` (`XRD_SITE=CLIENT-TEST-SITE`).
 
+**VO surfacing (DONE, end-to-end).** The auth-derived VO path — gsi extracts a
+VOMS attribute certificate into `XrdSecEntity.vorg` (`XrdSecProtocolgsi` →
+`XrdVomsFun`), the server emits it in the MAPUSER record's CGI tail (`&o=`/`&r=`/
+`&g=` in `XrdXrootdProtocol::MonAuth`, gated on `xrootd.monitor … auth`), and the
+collector parses it into `user.vo`/`role`/`groups` plus
+`xrootd_collector_vo_transfers_total{server,vo}` — is now exercised end-to-end by
+the `XRootD::moncollect` test **when the VOMS plug-in is built**. Rather than
+drive a live VOMS service, the test mints a fake VOMS proxy with `voms-proxy-fake`
+(signed by the test host cert, trusted via a generated `vomsdir/<vo>/*.lsc`), runs
+the server with gsi + `-vomsat:extract -vomsfun:libXrdVoms.so`, and asserts the
+real `XrdVomsFun` extraction (`retrieval successful`) flows through to
+`"vo":"dteam"`/`"role":"production"` on the transfer document. The test adds a
+build/test dependency on the voms client tools (`voms-clients-cpp` for RPM,
+`voms-clients` for Debian); on non-VOMS builds the moncollect config is unchanged.
+No production C++ change was needed — the wire/extraction/collector path already
+existed; this closes its test-coverage gap.
+
 ---
 
 # Second iteration — next-generation `XrdMetrics` registry
