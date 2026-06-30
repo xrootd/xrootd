@@ -30,10 +30,11 @@
 //! frontend such as Logstash (tcp input), Fluentd (in_tcp), Vector (socket
 //! source), or a message-broker bridge. It is deliberately dependency-free.
 //!
-//! The connection is established lazily and re-established after a failure,
-//! with a short cool-down so a down consumer does not stall the receive loop.
-//! Documents produced while disconnected are dropped (counted by the caller);
-//! durability/buffering is the downstream's job.
+//! The connection is established lazily and re-established after a failure, with
+//! a short cool-down so a down consumer is not retried per document. The connect
+//! and send both use bounded timeouts so an unresponsive consumer cannot stall
+//! the calling (serializer) thread. Documents produced while disconnected are
+//! dropped (counted by the caller); durability/buffering is the downstream's job.
 //-----------------------------------------------------------------------------
 
 class XrdMonForward

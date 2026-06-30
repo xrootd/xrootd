@@ -21,14 +21,47 @@
 
 #include <cerrno>
 #include <cstring>
+#include <fcntl.h>
 #include <netdb.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "XrdApps/XrdMonCollect/XrdMonForward.hh"
 
-namespace {const int kRetryCooldown = 5;}   // seconds between reconnect attempts
+namespace
+{
+const int kRetryCooldown   = 5;   // seconds between reconnect attempts
+const int kConnectTimeout  = 2;   // seconds to wait for a TCP connect
+const int kSendTimeout     = 2;   // seconds a send() may block (SO_SNDTIMEO)
+
+// connect() with a bounded wait, so an unresponsive consumer cannot stall the
+// caller (the serializer thread) indefinitely. Returns a connected, blocking
+// socket with SO_SNDTIMEO set, or -1.
+int connectTimed(const addrinfo* ai)
+{
+   int s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+   if (s < 0) return -1;
+
+   int fl = fcntl(s, F_GETFL, 0);
+   fcntl(s, F_SETFL, fl | O_NONBLOCK);
+   int rc = connect(s, ai->ai_addr, ai->ai_addrlen);
+   if (rc != 0)
+      {if (errno != EINPROGRESS) {close(s); return -1;}
+       struct pollfd pfd; pfd.fd = s; pfd.events = POLLOUT; pfd.revents = 0;
+       if (poll(&pfd, 1, kConnectTimeout * 1000) <= 0) {close(s); return -1;}
+       int soerr = 0; socklen_t l = sizeof(soerr);
+       if (getsockopt(s, SOL_SOCKET, SO_ERROR, &soerr, &l) != 0 || soerr != 0)
+          {close(s); return -1;}
+      }
+   fcntl(s, F_SETFL, fl);                 // restore blocking mode
+
+   struct timeval tv; tv.tv_sec = kSendTimeout; tv.tv_usec = 0;
+   setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+   return s;
+}
+}
 
 XrdMonForward::~XrdMonForward()
 {
@@ -60,10 +93,8 @@ bool XrdMonForward::Connect(std::string& err)
 
    int s = -1;
    for (addrinfo* ai = res; ai; ai = ai->ai_next)
-       {s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-        if (s < 0) continue;
-        if (connect(s, ai->ai_addr, ai->ai_addrlen) == 0) break;
-        close(s); s = -1;
+       {s = connectTimed(ai);
+        if (s >= 0) break;
        }
    freeaddrinfo(res);
 
