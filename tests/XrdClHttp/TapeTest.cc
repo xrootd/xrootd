@@ -471,6 +471,34 @@ TEST(TapeRestApi, QueriesArchiveInfo)
   EXPECT_EQ(body["paths"][1], "/store/missing");
 }
 
+TEST(TapeRestApi, EncodesRequestIdsInUrls)
+{
+  TapeHttpServer server;
+  const std::string url = server.BaseUrl() + "/store/file";
+  const std::string requestId = "request/1?# x";
+  const std::string encodedRequestId = "request%2F1%3F%23%20x";
+
+  std::string stageStatusJson;
+  EXPECT_FALSE(XrdClHttp::TapeStageStatus(
+    url, requestId, 5, stageStatusJson).IsOK());
+  EXPECT_FALSE(XrdClHttp::TapeStageCancel(
+    url, requestId, {url}, 5).IsOK());
+  EXPECT_FALSE(XrdClHttp::TapeStageDelete(
+    url, requestId, 5).IsOK());
+  EXPECT_FALSE(XrdClHttp::TapeRelease(
+    url, requestId, {url}, 5).IsOK());
+
+  const std::vector<HttpRequest> requests = server.Requests();
+  EXPECT_NE(FindRequest(requests, "GET",
+            "/api/v1/stage/" + encodedRequestId), nullptr);
+  EXPECT_NE(FindRequest(requests, "POST",
+            "/api/v1/stage/" + encodedRequestId + "/cancel"), nullptr);
+  EXPECT_NE(FindRequest(requests, "DELETE",
+            "/api/v1/stage/" + encodedRequestId), nullptr);
+  EXPECT_NE(FindRequest(requests, "POST",
+            "/api/v1/release/" + encodedRequestId), nullptr);
+}
+
 TEST(TapeRestApi, RejectsUnsupportedDiscoveryEndpoint)
 {
   TapeHttpServer server(TapeHttpServer::DiscoveryMode::Unsupported);

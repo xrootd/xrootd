@@ -22,8 +22,8 @@
 /*                                                                            */
 /******************************************************************************/
 
-#ifndef __XRD_CL_HTTP_TAPE_HH__
-#define __XRD_CL_HTTP_TAPE_HH__
+#ifndef XRDCLHTTP_TAPE_HH
+#define XRDCLHTTP_TAPE_HH
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
@@ -39,6 +39,7 @@ namespace XrdClHttp
                                     std::string &version,
                                     std::string &sitename );
 
+  // File entries are ordered as: url, path, diskLifetime, targetedMetadata.
   XrdCl::XRootDStatus TapeStage(
     const std::string &url,
     const std::vector<std::array<std::string, 4>> &files,
@@ -71,4 +72,4 @@ namespace XrdClHttp
     std::string &responseJson );
 }
 
-#endif // __XRD_CL_HTTP_TAPE_HH__
+#endif // XRDCLHTTP_TAPE_HH

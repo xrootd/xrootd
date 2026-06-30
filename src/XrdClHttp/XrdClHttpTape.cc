@@ -63,41 +63,8 @@ struct X509Credentials
   std::string key;
 };
 
-struct CurlDeleter
-{
-  void operator()(CURL *curl) const
-  {
-    if(curl) curl_easy_cleanup(curl);
-  }
-};
-
-using CurlHandle = std::unique_ptr<CURL, CurlDeleter>;
-
-class CurlHeaders
-{
-  public:
-    ~CurlHeaders()
-    {
-      if(pHeaders) curl_slist_free_all(pHeaders);
-    }
-
-    CurlHeaders() = default;
-    CurlHeaders(const CurlHeaders &) = delete;
-    CurlHeaders &operator=(const CurlHeaders &) = delete;
-
-    bool Append(const std::string &header)
-    {
-      curl_slist *updated = curl_slist_append(pHeaders, header.c_str());
-      if(!updated) return false;
-      pHeaders = updated;
-      return true;
-    }
-
-    curl_slist *Get() const { return pHeaders; }
-
-  private:
-    curl_slist *pHeaders = nullptr;
-};
+using CurlHandle = std::unique_ptr<CURL, void (*)(CURL *)>;
+using CurlHeaders = std::unique_ptr<curl_slist, void (*)(curl_slist *)>;
 
 enum class TapeLocality
 {
@@ -172,7 +139,6 @@ class TapeClient
 {
   public:
     explicit TapeClient( const TapeOptions &options = TapeOptions() );
-    ~TapeClient() = default;
 
     XrdCl::XRootDStatus Discover( const std::string &url,
                                   TapeEndpoint &endpoint ) const;
@@ -312,6 +278,30 @@ std::string JoinUrl(const std::string &base, const std::string &path)
   return base + path;
 }
 
+bool IsUnreservedUrlChar(unsigned char c)
+{
+  return std::isalnum(c) || c == '-' || c == '.' || c == '_' || c == '~';
+}
+
+std::string PercentEncodeUrlPathSegment(const std::string &value)
+{
+  static const char hex[] = "0123456789ABCDEF";
+  std::string result;
+  result.reserve(value.size());
+  for(const unsigned char c : value)
+  {
+    if(IsUnreservedUrlChar(c))
+    {
+      result += static_cast<char>(c);
+      continue;
+    }
+    result += '%';
+    result += hex[c >> 4];
+    result += hex[c & 0x0f];
+  }
+  return result;
+}
+
 bool ParseVersion(const std::string &version, int &parsed)
 {
   std::string value = ToLower(version);
@@ -388,13 +378,25 @@ size_t CurlWriteCallback(char *data, size_t size, size_t nmemb, void *userp)
   return bytes;
 }
 
+bool AppendCurlHeader(CurlHeaders &headers, const std::string &header)
+{
+  curl_slist *updated = curl_slist_append(headers.get(), header.c_str());
+  if(!updated) return false;
+  if(updated != headers.get())
+  {
+    headers.release();
+    headers.reset(updated);
+  }
+  return true;
+}
+
 HttpResponse HttpRequest(const std::string &method, const std::string &url,
                          const std::string &body,
                          const TapeOptions &options)
 {
   HttpResponse response;
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
-  CurlHandle curl(XrdClHttp::GetHandle(false));
+  CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   if(!curl)
   {
     response.error = "unable to initialize curl";
@@ -404,8 +406,8 @@ HttpResponse HttpRequest(const std::string &method, const std::string &url,
   char errorBuffer[CURL_ERROR_SIZE];
   errorBuffer[0] = '\0';
 
-  CurlHeaders headers;
-  if(!headers.Append("Accept: application/json"))
+  CurlHeaders headers(nullptr, curl_slist_free_all);
+  if(!AppendCurlHeader(headers, "Accept: application/json"))
   {
     response.error = "unable to allocate HTTP headers";
     return response;
@@ -415,7 +417,7 @@ HttpResponse HttpRequest(const std::string &method, const std::string &url,
   if(!token.empty())
   {
     const std::string header = "Authorization: Bearer " + token;
-    if(!headers.Append(header))
+    if(!AppendCurlHeader(headers, header))
     {
       response.error = "unable to allocate HTTP headers";
       return response;
@@ -426,8 +428,9 @@ HttpResponse HttpRequest(const std::string &method, const std::string &url,
   curl_easy_setopt(curl.get(), CURLOPT_ERRORBUFFER, errorBuffer);
   curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, CurlWriteCallback);
   curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &response.body);
-  curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.Get());
+  curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.get());
   curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt(curl.get(), CURLOPT_NOSIGNAL, 1L);
 
   if(options.timeout >= 0)
   {
@@ -441,12 +444,12 @@ HttpResponse HttpRequest(const std::string &method, const std::string &url,
 
   if(method == "POST")
   {
-    if(!headers.Append("Content-Type: application/json"))
+    if(!AppendCurlHeader(headers, "Content-Type: application/json"))
     {
       response.error = "unable to allocate HTTP headers";
       return response;
     }
-    curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.Get());
+    curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.get());
     curl_easy_setopt(curl.get(), CURLOPT_POST, 1L);
     curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, body.c_str());
     curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDSIZE,
@@ -958,7 +961,10 @@ namespace
     XRootDStatus status = DiscoverEndpoint(*this, url, endpoint);
     if(!status.IsOK()) return status;
 
-    const std::string stageUrl = JoinUrl(endpoint.uri, "/stage/" + requestId);
+    const std::string encodedRequestId =
+      PercentEncodeUrlPathSegment(requestId);
+    const std::string stageUrl =
+      JoinUrl(endpoint.uri, "/stage/" + encodedRequestId);
     const HttpResponse response = HttpRequest("GET", stageUrl, "", pOptions);
 
     if(!response.error.empty())
@@ -1008,8 +1014,10 @@ namespace
     status = PathsFromInputs(inputs, paths);
     if(!status.IsOK()) return status;
 
+    const std::string encodedRequestId =
+      PercentEncodeUrlPathSegment(requestId);
     const std::string cancelUrl =
-      JoinUrl(endpoint.uri, "/stage/" + requestId + "/cancel");
+      JoinUrl(endpoint.uri, "/stage/" + encodedRequestId + "/cancel");
     const HttpResponse response = HttpRequest(
       "POST", cancelUrl, PathsRequestBody(paths).dump(), pOptions);
     return EmptyResponseStatus(response, "stage request cancellation");
@@ -1027,7 +1035,10 @@ namespace
     XRootDStatus status = DiscoverEndpoint(*this, url, endpoint);
     if(!status.IsOK()) return status;
 
-    const std::string stageUrl = JoinUrl(endpoint.uri, "/stage/" + requestId);
+    const std::string encodedRequestId =
+      PercentEncodeUrlPathSegment(requestId);
+    const std::string stageUrl =
+      JoinUrl(endpoint.uri, "/stage/" + encodedRequestId);
     const HttpResponse response = HttpRequest("DELETE", stageUrl, "", pOptions);
     return EmptyResponseStatus(response, "stage request deletion");
   }
@@ -1053,8 +1064,10 @@ namespace
     status = PathsFromInputs(inputs, paths);
     if(!status.IsOK()) return status;
 
+    const std::string encodedRequestId =
+      PercentEncodeUrlPathSegment(requestId);
     const std::string releaseUrl =
-      JoinUrl(endpoint.uri, "/release/" + requestId);
+      JoinUrl(endpoint.uri, "/release/" + encodedRequestId);
     const HttpResponse response = HttpRequest(
       "POST", releaseUrl, PathsRequestBody(paths).dump(), pOptions);
     return EmptyResponseStatus(response, "stage request release");
