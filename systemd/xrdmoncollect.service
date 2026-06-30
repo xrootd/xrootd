@@ -1,0 +1,49 @@
+[Unit]
+Description=XRootD monitoring collector daemon
+Documentation=man:xrdmoncollect(8)
+Documentation=https://xrootd.org/docs.html
+After=network-online.target local-fs.target time-sync.target
+Wants=network-online.target local-fs.target time-sync.target
+
+[Service]
+Type=simple
+User=xrootd
+Group=xrootd
+Environment="TZ=:/etc/localtime"
+EnvironmentFile=-/etc/default/xrdmoncollect
+EnvironmentFile=-/etc/sysconfig/xrdmoncollect
+ExecStart=/usr/bin/xrdmoncollect -c /etc/xrootd/xrdmoncollect.cfg
+Restart=on-failure
+RestartSec=10
+ConfigurationDirectory=xrootd
+ConfigurationDirectoryMode=0755
+LogsDirectory=xrootd
+LogsDirectoryMode=0750
+UMask=0027
+
+# The default UDP port (9930) is unprivileged, so no capabilities are needed.
+# If you configure a privileged port (<1024), add CAP_NET_BIND_SERVICE here.
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProtectSystem=full
+RemoveIPC=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

@@ -381,6 +381,7 @@ install -m 644 systemd/xrdhttp@.socket %{buildroot}%{_unitdir}
 install -m 644 systemd/cmsd@.service %{buildroot}%{_unitdir}
 install -m 644 systemd/frm_xfrd@.service %{buildroot}%{_unitdir}
 install -m 644 systemd/frm_purged@.service %{buildroot}%{_unitdir}
+install -m 644 systemd/xrdmoncollect.service %{buildroot}%{_unitdir}
 
 mkdir -p %{buildroot}%{_sysusersdir}
 install -m 644 systemd/%{name}-sysusers.conf %{buildroot}%{_sysusersdir}/%{name}.conf
@@ -397,6 +398,8 @@ install -m 644 -p config/%{name}-filecache-standalone.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-filecache-standalone.cfg
 install -m 644 -p config/%{name}-http.cfg \
 	%{buildroot}%{_sysconfdir}/%{name}/%{name}-http.cfg
+install -m 644 -p src/XrdApps/XrdMonCollect/xrdmoncollect.cfg.example \
+	%{buildroot}%{_sysconfdir}/%{name}/xrdmoncollect.cfg
 
 # Client config
 mkdir -p %{buildroot}%{_sysconfdir}/%{name}/client.plugins.d
@@ -497,6 +500,7 @@ fi
 %{_bindir}/xrdacctest
 %{_bindir}/xrdpfc_print
 %{_bindir}/xrdpwdadmin
+%{_bindir}/xrdmoncollect
 %{_bindir}/xrdsssadmin
 %{_bindir}/xrootd
 %{_mandir}/man8/cmsd.8*
@@ -505,6 +509,7 @@ fi
 %{_mandir}/man8/frm_xfragent.8*
 %{_mandir}/man8/frm_xfrd.8*
 %{_mandir}/man8/mpxstats.8*
+%{_mandir}/man8/xrdmoncollect.8*
 %{_mandir}/man8/xrdpfc_print.8*
 %{_mandir}/man8/xrdpwdadmin.8*
 %{_mandir}/man8/xrdsssadmin.8*

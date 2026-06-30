@@ -70,6 +70,22 @@ metrics-port = 9931
 max-memory = 256M
 ```
 
+### Running as a service
+
+A systemd unit, `xrdmoncollect.service`, runs the collector as the `xrootd`
+user reading `/etc/xrootd/xrdmoncollect.cfg`:
+
+```sh
+# edit /etc/xrootd/xrdmoncollect.cfg, then:
+systemctl enable --now xrdmoncollect
+journalctl -u xrdmoncollect -f
+```
+
+The unit is non-templated (one collector per host). Extra environment can be
+supplied via `/etc/default/xrdmoncollect` or `/etc/sysconfig/xrdmoncollect`. The
+default UDP port (9930) is unprivileged; for a port below 1024 add
+`CAP_NET_BIND_SERVICE` to the unit's `CapabilityBoundingSet`/`AmbientCapabilities`.
+
 All document types — `transfer`, `access`, `session`, `server_ident`,
 `frm`, `redirect`, the `t`-stream traces and `gstream` — share one nested,
 OpenSearch-friendly schema (`server.*`, `client.*`, `user.*`, `file.*`,
