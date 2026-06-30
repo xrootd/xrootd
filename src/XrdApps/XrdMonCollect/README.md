@@ -405,6 +405,9 @@ xrootd_collector_active_transfers{server="..."}   (gauge)
 xrootd_collector_transfer_size_bytes        (histogram)
 xrootd_collector_transfer_duration_seconds  (histogram)
 xrootd_collector_packets_total              (and other decoder statistics)
+xrootd_collector_recv_queue_batches         (gauge: receiver->serializer depth)
+xrootd_collector_post_queue_bodies          (gauge: bodies awaiting the POST)
+xrootd_collector_post_failures_total        (OpenSearch _bulk POST failures)
 ```
 
 From the `g` (plugin) streams (when `--gstream` data is flowing):

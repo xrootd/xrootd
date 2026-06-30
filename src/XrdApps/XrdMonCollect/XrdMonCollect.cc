@@ -556,17 +556,24 @@ int main(int argc, char* argv[])
 #ifdef XRDMON_HAVE_CURL
    std::string batch;
    size_t      batchCount = 0;
+   // Completed _bulk bodies are handed to a dedicated output thread through this
+   // bounded recycling pipe, so the (blocking) POST never holds up the serializer
+   // and hence the receiver. A small depth bounds the in-flight POST backlog; the
+   // body strings are reused round the loop.
+   const size_t            kPostQueueDepth = 16;
+   XrdMonPipe<std::string> postPipe(kPostQueueDepth);
+   std::atomic<uint64_t>   postFailures{0};
 #endif
+   // Hand the current _bulk batch to the output thread (one POST per batch).
    auto flush = [&]()
       {
 #ifdef XRDMON_HAVE_CURL
        if (osEnabled && batchCount > 0)
-          {std::string e;
-           if (!os->Bulk(batch, e))
-              fprintf(stderr, "xrdmoncollect: bulk post failed: %s\n", e.c_str());
-              else if (!e.empty())
-                 fprintf(stderr, "xrdmoncollect: %s\n", e.c_str());
-           batch.clear(); batchCount = 0;
+          {std::string body;
+           postPipe.acquire(body);     // a recycled (empty) body string
+           std::swap(body, batch);     // body <- accumulated bulk; batch <- empty
+           batchCount = 0;
+           postPipe.submit(std::move(body));
           }
 #endif
       };
@@ -688,6 +695,14 @@ int main(int argc, char* argv[])
        reg->observeIntGauge("xrootd_collector_recv_queue_batches", {}, {},
               "packet batches queued from the receiver to the serializer")
           .add({}, [&]{return (int64_t)recvPipe.readyDepth();});
+#ifdef XRDMON_HAVE_CURL
+       reg->observeIntGauge("xrootd_collector_post_queue_bodies", {}, {},
+              "serialized _bulk bodies queued for the OpenSearch POST")
+          .add({}, [&]{return (int64_t)postPipe.readyDepth();});
+       reg->observeCounter("xrootd_collector_post_failures_total", {}, {},
+              "OpenSearch _bulk POSTs that failed after retries")
+          .add({}, [&]{return (uint64_t)postFailures.load();});
+#endif
        exporter = std::thread(serveMetrics, metricsPort, std::ref(exporterStop));
       }
 
@@ -707,11 +722,35 @@ int main(int argc, char* argv[])
    struct timeval tv; tv.tv_sec = 1; tv.tv_usec = 0;
    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
+// Output thread: performs the (blocking) OpenSearch _bulk POST off the serializer
+// thread, so a slow or unreachable OpenSearch holds up neither decoding nor
+// reception. It consumes completed bodies from postPipe and recycles them.
+//
+#ifdef XRDMON_HAVE_CURL
+   std::thread output;
+   if (osEnabled)
+      output = std::thread([&]()
+         {std::string body;
+          while (postPipe.take(body))
+             {std::string e;
+              if (!os->Bulk(body, e))
+                 {postFailures++;
+                  fprintf(stderr, "xrdmoncollect: bulk post failed: %s\n",
+                          e.c_str());
+                 }
+                 else if (!e.empty())
+                    fprintf(stderr, "xrdmoncollect: %s\n", e.c_str());
+              body.clear();
+              postPipe.recycle(std::move(body));
+             }
+         });
+#endif
+
 // Serializer thread: owns the decoder exclusively (preserving its single-thread
 // contract). It drains packet batches from the receiver, decodes each packet
 // (the DocSink writes the file/forward sinks inline and appends to the
-// OpenSearch _bulk body), periodically reaps idle incarnations, and flushes one
-// _bulk POST per batch.
+// OpenSearch _bulk body), periodically reaps idle incarnations, and hands one
+// _bulk body per batch to the output thread.
 //
    std::thread serializer([&]()
       {time_t     lastReap  = time(0);
@@ -724,11 +763,14 @@ int main(int argc, char* argv[])
            time_t now = time(0);
            if (now - lastReap >= reapEvery)
               {decoder.ReapServers(now); lastReap = now;}
-           flush();                       // one _bulk POST per batch (osEnabled)
+           flush();                       // hand one _bulk body to the output thread
            b.clear();
            recvPipe.recycle(std::move(b));
           }
-       flush();                           // drain anything after the pipe closed
+       flush();                           // hand off anything after the pipe closed
+#ifdef XRDMON_HAVE_CURL
+       if (osEnabled) postPipe.close();   // let the output thread drain and exit
+#endif
       });
 
 // Receiver loop (main thread): drain the socket as fast as possible into pooled
@@ -773,7 +815,10 @@ int main(int argc, char* argv[])
 //
    if (!cur.empty()) recvPipe.submit(std::move(cur));
    recvPipe.close();
-   serializer.join();
+   serializer.join();          // drains the decode pipe, then closes postPipe
+#ifdef XRDMON_HAVE_CURL
+   if (output.joinable()) output.join();   // drains the POST pipe
+#endif
 
    if (exporter.joinable()) {exporterStop = true; exporter.join();}
    if (scitagsThread.joinable()) {scitagsStop = true; scitagsThread.join();}
