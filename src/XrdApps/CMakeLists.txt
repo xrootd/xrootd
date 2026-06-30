@@ -69,12 +69,12 @@ if(NOT XRDCL_ONLY)
       XrdMonCollect/XrdMonForward.cc
       XrdMonCollect/XrdMonOpenSearch.cc)
     target_compile_definitions(xrdmoncollect PRIVATE XRDMON_HAVE_CURL)
-    target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils CURL::libcurl)
+    target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils CURL::libcurl Threads::Threads)
   else()
     add_executable(xrdmoncollect
       XrdMonCollect/XrdMonCollect.cc
       XrdMonCollect/XrdMonForward.cc)
-    target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils)
+    target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils Threads::Threads)
   endif()
 
   add_executable(wait41 XrdWait41.cc)
