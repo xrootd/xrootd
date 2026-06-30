@@ -24,6 +24,7 @@
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <sstream>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
@@ -125,27 +126,40 @@ std::string hostDomain(const std::string& h)
    return d;
 }
 
-// Resolve the reporting server's hostname from a loopback UDP source. When the
-// collector is co-located with the server it monitors, the datagram source is
-// the loopback address (::1 / 127.0.0.1) and there is no useful name to report
-// before the '=' ident arrives, so server.hostname showed the literal "::1".
-// Since the server runs on this same host, substitute the local FQDN.
+// A loopback UDP source: the collector is co-located with the server it
+// monitors, so the datagrams arrive from the local machine.
 //
-// Only the loopback case is handled: a remote server self-identifies its host
-// on the '=' (MAPIDNT) stream, which fillServer() already prefers. A blocking
-// reverse-DNS lookup of an arbitrary remote IP is deliberately avoided here —
-// it would stall the single-threaded UDP receive loop (a non-resolving address
-// blocks for the full resolver timeout) and drop packets. Empty otherwise.
-//
-std::string resolveHost(const std::string& ip)
+bool isLoopback(const std::string& ip)
 {
-   if (ip != "::1" && ip != "127.0.0.1" && ip != "::ffff:127.0.0.1") return "";
-
-   const char* me = XrdNetUtils::MyHostName();
-   std::string h = me ? me : "";
-   if (h.empty() || isIPLiteral(h)) return "";
-   return h;
+   return ip == "::1" || ip == "127.0.0.1" || ip == "::ffff:127.0.0.1";
 }
+}
+
+/******************************************************************************/
+/*                            L o c a l H o s t                               */
+/******************************************************************************/
+
+// The local FQDN, used as the hostname of a server reporting from the loopback
+// address (where there is no useful name before the '=' ident arrives, so
+// server.hostname otherwise showed the literal "::1"). Resolved at most once
+// for the whole process: MyHostName() is the same regardless of which server
+// reports, so it is cached and reused for every loopback incarnation.
+//
+// Only the loopback case is handled this way: a remote server self-identifies
+// its host on the '=' (MAPIDNT) stream, which fillServer() already prefers. A
+// blocking reverse-DNS lookup of an arbitrary remote IP is deliberately avoided
+// — it would stall the single-threaded UDP receive loop (a non-resolving
+// address blocks for the full resolver timeout) and drop packets.
+//
+const std::string& XrdMonDecode::LocalHost()
+{
+   if (!localHostDone)
+      {localHostDone = true;
+       const char* me = XrdNetUtils::MyHostName();
+       std::string h = me ? me : "";
+       if (!h.empty() && !isIPLiteral(h)) localHost = h;
+      }
+   return localHost;
 }
 
 /******************************************************************************/
@@ -160,13 +174,14 @@ XrdMonDecode::Server& XrdMonDecode::ServerFor(const std::string& src,
    key += std::to_string(stod);
    Server& srv = servers[key];
 
-// Reverse-resolve the sender's hostname once per server incarnation (cached),
-// so the per-document fillServer() stays lookup-free. A '=' ident host, when
-// present, still takes precedence in fillServer().
+// Record the sender's hostname once per server incarnation (cached in the
+// Server), so the per-document fillServer() stays lookup-free. Only a loopback
+// sender is named here, from the process-wide local FQDN (itself resolved at
+// most once); a '=' ident host still takes precedence in fillServer().
 //
    if (resolveHosts && !srv.resolved)
       {std::string ip = src.substr(0, src.rfind(':'));
-       srv.resolvedHost = resolveHost(ip);
+       if (isLoopback(ip)) srv.resolvedHost = LocalHost();
        srv.resolved = true;
       }
    return srv;
@@ -262,18 +277,24 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
 
        // Map the numeric SciTags ids to human names via the loaded registry.
        // The experiment name doubles as a VO, used only as a last resort (the
-       // token and auth CGI both take precedence).
-       if (expId)
-          {auto eit = sciExp.find(expId);
-           if (eit != sciExp.end())
-              {act["experiment"] = eit->second;
-               if (vo.empty()) {vo = eit->second; j["user"]["vo"] = eit->second;}
-              }
+       // token and auth CGI both take precedence). The lock covers a background
+       // refresh thread swapping the registry; lookups copy out the names.
+       std::string expName, actName;
+       {std::lock_guard<std::mutex> lk(scitagsMtx);
+        if (expId)
+           {auto eit = sciExp.find(expId);
+            if (eit != sciExp.end()) expName = eit->second;
+           }
+        if (expId && actId)
+           {auto kit = sciAct.find(((long long)expId << 32) | actId);
+            if (kit != sciAct.end()) actName = kit->second;
+           }
+       }
+       if (!expName.empty())
+          {act["experiment"] = expName;
+           if (vo.empty()) {vo = expName; j["user"]["vo"] = expName;}
           }
-       if (expId && actId)
-          {auto kit = sciAct.find(((long long)expId << 32) | actId);
-           if (kit != sciAct.end()) act["activity"] = kit->second;
-          }
+       if (!actName.empty()) act["activity"] = actName;
       }
 
    return vo;
@@ -287,28 +308,43 @@ bool XrdMonDecode::LoadScitags(const std::string& path)
 {
    std::ifstream in(path);
    if (!in) return false;
+   std::ostringstream ss;
+   ss << in.rdbuf();
+   return LoadScitagsJson(ss.str());
+}
 
+bool XrdMonDecode::LoadScitagsJson(const std::string& text)
+{
    json doc;
-   try    {in >> doc;}
+   try    {doc = json::parse(text);}
    catch (const std::exception&) {return false;}
 
    auto exps = doc.find("experiments");
    if (exps == doc.end() || !exps->is_array()) return false;
 
+// Build the new tables outside the lock, then swap them in. A failed/partial
+// parse never reaches here, so the live registry is only ever replaced whole.
+//
+   std::unordered_map<int, std::string>       exp;
+   std::unordered_map<long long, std::string> act;
    for (const auto& e : *exps)
       {if (!e.contains("expId")) continue;
        int expId = e["expId"].get<int>();
        if (e.contains("expName") && e["expName"].is_string())
-          sciExp[expId] = e["expName"].get<std::string>();
+          exp[expId] = e["expName"].get<std::string>();
        auto acts = e.find("activities");
        if (acts == e.end() || !acts->is_array()) continue;
        for (const auto& a : *acts)
           {if (!a.contains("activityId") || !a.contains("activityName")) continue;
            int actId = a["activityId"].get<int>();
-           sciAct[((long long)expId << 32) | actId] =
+           act[((long long)expId << 32) | actId] =
                   a["activityName"].get<std::string>();
           }
       }
+
+   std::lock_guard<std::mutex> lk(scitagsMtx);
+   sciExp.swap(exp);
+   sciAct.swap(act);
    return true;
 }
 

@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -108,8 +109,15 @@ void SetResolveHosts(bool v) {resolveHosts = v;}
 //! loaded, the numeric SciTags experiment/activity ids carried on the 'U'
 //! stream are additionally mapped to their names (and the experiment name is
 //! used as a VO fallback). Returns false on a missing/unparseable file (the
-//! numeric ids are still emitted). Safe to call once at start-up.
+//! numeric ids are still emitted).
 bool LoadScitags(const std::string& path);
+
+//! Replace the SciTags registry from an in-memory JSON document (the same
+//! schema as LoadScitags). The swap is mutex-guarded, so a background thread
+//! can refresh the registry while the decode thread reads it. Returns false
+//! (leaving the current registry intact) on a parse error or a document with
+//! no "experiments" array.
+bool LoadScitagsJson(const std::string& text);
 
 //! @param emitTraces   emit a document per 't'-stream record (I/O, open,
 //!                     close, disconnect) — high volume, off by default.
@@ -266,9 +274,19 @@ XrdMetrics::MetricGroup* metrics;
 std::size_t maxEntries = 0;
 bool     resolveHosts = true;
 
+// Local FQDN substituted for a loopback (co-located) server, resolved at most
+// once for the whole process (MyHostName is the same regardless of which
+// server reports), then reused for every loopback incarnation.
+const std::string& LocalHost();
+std::string localHost;
+bool        localHostDone = false;
+
 // SciTags registry (loaded from --scitags), mapping numeric flow-label ids to
 // human names. sciExp: expId -> expName (doubles as a VO); sciAct: the packed
 // key (expId<<32)|activityId -> activityName. Empty when no registry is loaded.
+// Guarded by scitagsMtx so a background refresh thread can swap them in while
+// the decode thread reads them in fillClient().
+std::mutex                                 scitagsMtx;
 std::unordered_map<int, std::string>       sciExp;
 std::unordered_map<long long, std::string> sciAct;
 

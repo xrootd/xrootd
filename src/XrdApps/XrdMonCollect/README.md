@@ -34,7 +34,9 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --flush-secs <n>  flush after N seconds (default: 5)
   --metrics-port <p> serve aggregated metrics over HTTP on port <p>
   --max-entries <n>  cap per-server dict/open-file entries (0=unbounded)
-  --scitags <file> SciTags registry JSON mapping experiment/activity ids to names
+  --scitags <src>  SciTags registry (file path or http(s):// URL) mapping
+                   experiment/activity ids to names
+  --scitags-refresh <s> re-fetch a URL registry every <s> seconds (default 3600)
   --no-resolve     do not substitute the local FQDN for a loopback server
   --traces         emit a document per t-stream I/O record (high volume)
   --gstream        emit a document per g-stream (plugin) record
@@ -105,14 +107,21 @@ records are also always consumed:
   `xrootd_collector_vo_transfers_total{server,vo}`.
 - `U` (`MAPUEAC`) carries the SciTags packet-marking flow labels (experiment
   and activity ids), joined onto transfers as `activity.{experiment_id,activity_id}`.
-  With `--scitags <file>` pointing at a SciTags registry (the scitags.org schema:
+  With `--scitags <src>` pointing at a SciTags registry (the scitags.org schema:
   a top-level `"experiments"` array of `{expId, expName, activities:[{activityId,
   activityName}]}`), those numeric ids are additionally mapped to human names —
   `activity.experiment` and `activity.activity` — and the experiment name is used
   as a `user.vo` fallback (only when neither the `T` token nor the auth CGI `&o=`
   supplied a VO). The numeric ids are always emitted, so the field is present with
-  or without the registry; a missing/unparseable file is warned about at start-up
-  and otherwise ignored.
+  or without the registry; a missing/unparseable source is warned about at
+  start-up and otherwise ignored.
+
+  `<src>` is either a local file path or an `http(s)://` URL (e.g. the official
+  `https://www.scitags.org/api.json`). A URL source is re-fetched in the
+  background every `--scitags-refresh` seconds (default 3600; `0` disables) so a
+  long-running collector tracks changes in the published registry; the swap is
+  atomic with respect to the decode loop, and a failed re-fetch keeps the current
+  registry. A URL source requires that the collector was built with libcurl.
 
 ### Sinks
 

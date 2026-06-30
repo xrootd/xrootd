@@ -46,6 +46,7 @@
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #ifdef XRDMON_HAVE_CURL
 #include "XrdApps/XrdMonCollect/XrdMonOpenSearch.hh"
+#include <curl/curl.h>
 #endif
 
 namespace
@@ -76,8 +77,11 @@ void usage(const char* prog)
      "  --flush-secs <n>  flush after N seconds (default: 5)\n"
      "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
      "  --max-entries <n> cap per-server dict/open-file entries (0=unbounded)\n"
-     "  --scitags <file> SciTags registry JSON mapping experiment/activity ids\n"
-     "                   to names (and a VO); numeric ids are kept either way\n"
+     "  --scitags <src>  SciTags registry mapping experiment/activity ids to\n"
+     "                   names (and a VO); a file path or an http(s):// URL.\n"
+     "                   Numeric ids are kept either way\n"
+     "  --scitags-refresh <s> re-fetch a URL registry every <s> seconds\n"
+     "                   (default 3600; 0 disables; URL sources only)\n"
      "  --no-resolve     do not substitute the local FQDN for a loopback server\n"
      "  --traces         emit a document per t-stream I/O record (high volume)\n"
      "  --gstream        emit a document per g-stream (plugin) record\n"
@@ -188,6 +192,63 @@ std::string senderName(const sockaddr* sa, socklen_t sl)
    s += serv;
    return s;
 }
+
+// A SciTags registry source given as an http(s) URL (vs. a local file path).
+//
+bool isUrl(const std::string& s)
+{
+   return s.compare(0, 7, "http://") == 0 || s.compare(0, 8, "https://") == 0;
+}
+
+#ifdef XRDMON_HAVE_CURL
+size_t curlAppend(char* p, size_t sz, size_t n, void* ud)
+{
+   ((std::string*)ud)->append(p, sz * n);
+   return sz * n;
+}
+
+// GET a URL into body via libcurl. Returns false with a message in err.
+//
+bool httpGet(const std::string& url, std::string& body, std::string& err)
+{
+   CURL* c = curl_easy_init();
+   if (!c) {err = "curl init failed"; return false;}
+   body.clear();
+   curl_easy_setopt(c, CURLOPT_URL, url.c_str());
+   curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curlAppend);
+   curl_easy_setopt(c, CURLOPT_WRITEDATA, &body);
+   curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L);
+   curl_easy_setopt(c, CURLOPT_TIMEOUT, 30L);
+   curl_easy_setopt(c, CURLOPT_FAILONERROR, 1L);
+   CURLcode rc = curl_easy_perform(c);
+   curl_easy_cleanup(c);
+   if (rc != CURLE_OK) {err = curl_easy_strerror(rc); return false;}
+   return true;
+}
+#endif
+
+// Load the SciTags registry into the decoder from a file path or an http(s)
+// URL. Thread-safe with respect to the decode loop (LoadScitags*/fillClient
+// share a mutex), so it is also called from the periodic refresh thread.
+//
+bool loadScitags(XrdMonDecode& dec, const std::string& src, std::string& err)
+{
+   if (isUrl(src))
+      {
+#ifdef XRDMON_HAVE_CURL
+       std::string body;
+       if (!httpGet(src, body, err)) return false;
+       if (!dec.LoadScitagsJson(body))
+          {err = "fetched document is not a valid SciTags registry"; return false;}
+       return true;
+#else
+       err = "a URL SciTags registry requires building with libcurl";
+       return false;
+#endif
+      }
+   if (!dec.LoadScitags(src)) {err = "cannot read or parse the file"; return false;}
+   return true;
+}
 }
 
 int main(int argc, char* argv[])
@@ -211,6 +272,7 @@ int main(int argc, char* argv[])
    size_t      flushCount = 500;
    long        flushSecs  = 5;
    std::string scitags;
+   long        scitagsRefresh = 3600;
    bool        resolve = true;
 
 // Parse arguments
@@ -241,6 +303,7 @@ int main(int argc, char* argv[])
         else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
         else if (!strcmp(a, "--max-entries") && i+1 < argc) maxEntries = (size_t)atol(argv[++i]);
         else if (!strcmp(a, "--scitags") && i+1 < argc) scitags = argv[++i];
+        else if (!strcmp(a, "--scitags-refresh") && i+1 < argc) scitagsRefresh = atol(argv[++i]);
         else if (!strcmp(a, "--no-resolve")) resolve = false;
         else if (!strcmp(a, "--traces")) traces = true;
         else if (!strcmp(a, "--gstream")) gstream = true;
@@ -358,10 +421,38 @@ int main(int argc, char* argv[])
    XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, reg);
    decoder.SetMaxEntries(maxEntries);
    decoder.SetResolveHosts(resolve);
-   if (!scitags.empty() && !decoder.LoadScitags(scitags))
-      fprintf(stderr, "%s: warning: could not load SciTags registry '%s';"
-                      " experiment/activity ids stay numeric\n",
-              argv[0], scitags.c_str());
+#ifdef XRDMON_HAVE_CURL
+   // The OpenSearch sink initializes libcurl globally; do it here too when a URL
+   // registry is the only curl user, before the first (main-thread) fetch and
+   // the refresh thread that follows.
+   if (!scitags.empty() && isUrl(scitags) && !osEnabled)
+      curl_global_init(CURL_GLOBAL_DEFAULT);
+#endif
+   if (!scitags.empty())
+      {std::string e;
+       if (!loadScitags(decoder, scitags, e))
+          fprintf(stderr, "%s: warning: SciTags registry '%s': %s; "
+                          "experiment/activity ids stay numeric\n",
+                  argv[0], scitags.c_str(), e.c_str());
+      }
+
+// For a URL registry, refresh it in the background so a long-running collector
+// tracks changes in the published registry. The swap is mutex-guarded against
+// the decode loop; a failed re-fetch keeps the current registry.
+//
+   std::atomic<bool> scitagsStop{false};
+   std::thread       scitagsThread;
+   if (!scitags.empty() && isUrl(scitags) && scitagsRefresh > 0)
+      scitagsThread = std::thread([&]()
+         {while (!scitagsStop)
+             {for (long s = 0; s < scitagsRefresh && !scitagsStop; s++) sleep(1);
+              if (scitagsStop) break;
+              std::string e;
+              if (!loadScitags(decoder, scitags, e))
+                 fprintf(stderr, "xrdmoncollect: SciTags refresh failed: %s\n",
+                         e.c_str());
+             }
+         });
 
    std::atomic<bool> exporterStop{false};
    std::thread       exporter;
@@ -436,6 +527,7 @@ int main(int argc, char* argv[])
    flush();  // send anything still batched
 
    if (exporter.joinable()) {exporterStop = true; exporter.join();}
+   if (scitagsThread.joinable()) {scitagsStop = true; scitagsThread.join();}
 
    if (verbose)
       {const XrdMonDecode::Stats& s = decoder.GetStats();

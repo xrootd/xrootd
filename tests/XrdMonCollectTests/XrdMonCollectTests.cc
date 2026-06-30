@@ -561,6 +561,48 @@ TEST(XrdMonCollect, ScitagsMissingFileReturnsFalse)
   EXPECT_FALSE(dec.LoadScitags("/nonexistent/scitags.json"));
 }
 
+// A background refresh (LoadScitagsJson) swaps the registry whole: a later load
+// with the same ids but new names/VO is reflected on subsequent transfers.
+TEST_F(Transfer, ScitagsJsonReloadReflectsUpdate)
+{
+  ASSERT_TRUE(dec.LoadScitagsJson(
+     R"({"experiments":[{"expId":2,"expName":"atlas","activities":[
+        {"activityId":7,"activityName":"production"}]}]})"));
+  ASSERT_TRUE(dec.LoadScitagsJson(           // the published registry changed
+     R"({"experiments":[{"expId":2,"expName":"cms","activities":[
+        {"activityId":7,"activityName":"analysis"}]}]})"));
+
+  feedUserMap();
+  feedActivity(dec, 2, 7);
+  feedOpen();
+  feedClose();
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["activity"]["experiment"], "cms");
+  EXPECT_EQ(j["activity"]["activity"], "analysis");
+  EXPECT_EQ(j["user"]["vo"], "cms");
+}
+
+// A failed re-fetch (unparseable, or no "experiments" array) returns false and
+// leaves the previously loaded registry intact.
+TEST_F(Transfer, ScitagsJsonBadInputKeepsRegistry)
+{
+  ASSERT_TRUE(dec.LoadScitagsJson(
+     R"({"experiments":[{"expId":2,"expName":"atlas","activities":[
+        {"activityId":7,"activityName":"production"}]}]})"));
+  EXPECT_FALSE(dec.LoadScitagsJson("not json at all"));
+  EXPECT_FALSE(dec.LoadScitagsJson(R"({"no_experiments":true})"));
+
+  feedUserMap();
+  feedActivity(dec, 2, 7);
+  feedOpen();
+  feedClose();
+
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["activity"]["experiment"], "atlas");   // unchanged
+  EXPECT_EQ(j["user"]["vo"], "atlas");
+}
+
 // Feed a 'u' map for dictid 7 with a custom CGI tail after the descriptor.
 static void feedUserMapTail(XrdMonDecode& dec, const std::string& tail)
 {
