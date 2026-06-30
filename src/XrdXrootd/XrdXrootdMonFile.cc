@@ -563,6 +563,9 @@ void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
    char *slot, *cur;
    int pLen, mLen, ufnLen, rLen;
 
+// Do nothing if fstat monitoring is off
+//
+   if (!repBuff) return;
    if (!Path) Path = "";
    if (!emsg) emsg = "";
    pLen = strlen(Path) + 1;
