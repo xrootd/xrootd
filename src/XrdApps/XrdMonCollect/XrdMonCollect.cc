@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <getopt.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -304,47 +305,88 @@ int main(int argc, char* argv[])
    long        scitagsRefresh = 3600;
    bool        resolve = true;
 
-// Parse arguments
+// Parse arguments. Short options (-p/-b/-o/-v/-h) and long options are handled
+// uniformly by getopt_long; long-only options use synthetic values above the
+// byte range. getopt_long reports unknown options / missing arguments itself
+// (returning '?'), to which we add the usage text.
 //
-   for (int i = 1; i < argc; i++)
-       {const char* a = argv[i];
-             if (!strcmp(a, "-p") && i+1 < argc) port = atoi(argv[++i]);
-        else if (!strcmp(a, "-b") && i+1 < argc) bindStr = argv[++i];
-        else if (!strcmp(a, "-o") && i+1 < argc) outFile = argv[++i];
-        else if (!strcmp(a, "--bulk") && i+1 < argc) bulkIdx = argv[++i];
-        else if (!strcmp(a, "--os-url") && i+1 < argc) osUrl = argv[++i];
-        else if (!strcmp(a, "--os-index") && i+1 < argc) osIndex = argv[++i];
-        else if (!strcmp(a, "--os-user") && i+1 < argc) osUser = argv[++i];
-        else if (!strcmp(a, "--os-pass") && i+1 < argc) osPass = argv[++i];
-        else if (!strcmp(a, "--os-insecure")) osInsecure = true;
-        else if (!strcmp(a, "--os-datastream")) osDataStream = true;
-        else if (!strcmp(a, "--forward") && i+1 < argc)
-                {std::string hp = argv[++i];
-                 auto c = hp.rfind(':');
-                 if (c == std::string::npos || c == 0 || c+1 >= hp.size())
-                    {fprintf(stderr, "%s: --forward needs host:port\n", argv[0]);
-                     return 2;}
-                 fwdHost = hp.substr(0, c);
-                 fwdPort = atoi(hp.c_str() + c + 1);
-                }
-        else if (!strcmp(a, "--flush-count") && i+1 < argc) flushCount = (size_t)atol(argv[++i]);
-        else if (!strcmp(a, "--flush-secs") && i+1 < argc) flushSecs = atol(argv[++i]);
-        else if (!strcmp(a, "--metrics-port") && i+1 < argc) metricsPort = atoi(argv[++i]);
-        else if (!strcmp(a, "--max-memory") && i+1 < argc) maxMemory = parseSize(argv[++i]);
-        else if (!strcmp(a, "--max-entries") && i+1 < argc) maxEntries = (size_t)atol(argv[++i]);
-        else if (!strcmp(a, "--server-ttl") && i+1 < argc) serverTtl = atol(argv[++i]);
-        else if (!strcmp(a, "--scitags") && i+1 < argc) scitags = argv[++i];
-        else if (!strcmp(a, "--scitags-refresh") && i+1 < argc) scitagsRefresh = atol(argv[++i]);
-        else if (!strcmp(a, "--no-resolve")) resolve = false;
-        else if (!strcmp(a, "--traces")) traces = true;
-        else if (!strcmp(a, "--gstream")) gstream = true;
-        else if (!strcmp(a, "--redirects")) redirects = true;
-        else if (!strcmp(a, "--dump")) dump = true;
-        else if (!strcmp(a, "-v")) verbose = true;
-        else if (!strcmp(a, "-h") || !strcmp(a, "--help")) {usage(argv[0]); return 0;}
-        else {fprintf(stderr, "%s: unknown argument '%s'\n", argv[0], a);
-              usage(argv[0]); return 2;}
+   enum
+   {  OPT_BULK = 256, OPT_OS_URL, OPT_OS_INDEX, OPT_OS_USER, OPT_OS_PASS,
+      OPT_OS_INSECURE, OPT_OS_DATASTREAM, OPT_FORWARD, OPT_FLUSH_COUNT,
+      OPT_FLUSH_SECS, OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
+      OPT_SERVER_TTL, OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_NO_RESOLVE,
+      OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
+   };
+   static const struct option longOpts[] =
+   {  {"bulk",            required_argument, nullptr, OPT_BULK},
+      {"os-url",          required_argument, nullptr, OPT_OS_URL},
+      {"os-index",        required_argument, nullptr, OPT_OS_INDEX},
+      {"os-user",         required_argument, nullptr, OPT_OS_USER},
+      {"os-pass",         required_argument, nullptr, OPT_OS_PASS},
+      {"os-insecure",     no_argument,       nullptr, OPT_OS_INSECURE},
+      {"os-datastream",   no_argument,       nullptr, OPT_OS_DATASTREAM},
+      {"forward",         required_argument, nullptr, OPT_FORWARD},
+      {"flush-count",     required_argument, nullptr, OPT_FLUSH_COUNT},
+      {"flush-secs",      required_argument, nullptr, OPT_FLUSH_SECS},
+      {"metrics-port",    required_argument, nullptr, OPT_METRICS_PORT},
+      {"max-memory",      required_argument, nullptr, OPT_MAX_MEMORY},
+      {"max-entries",     required_argument, nullptr, OPT_MAX_ENTRIES},
+      {"server-ttl",      required_argument, nullptr, OPT_SERVER_TTL},
+      {"scitags",         required_argument, nullptr, OPT_SCITAGS},
+      {"scitags-refresh", required_argument, nullptr, OPT_SCITAGS_REFRESH},
+      {"no-resolve",      no_argument,       nullptr, OPT_NO_RESOLVE},
+      {"traces",          no_argument,       nullptr, OPT_TRACES},
+      {"gstream",         no_argument,       nullptr, OPT_GSTREAM},
+      {"redirects",       no_argument,       nullptr, OPT_REDIRECTS},
+      {"dump",            no_argument,       nullptr, OPT_DUMP},
+      {"help",            no_argument,       nullptr, 'h'},
+      {nullptr, 0, nullptr, 0}
+   };
+
+   int opt;
+   while ((opt = getopt_long(argc, argv, "p:b:o:vh", longOpts, nullptr)) != -1)
+       {switch(opt)
+        {case 'p': port    = atoi(optarg); break;
+         case 'b': bindStr = optarg;       break;
+         case 'o': outFile = optarg;       break;
+         case 'v': verbose = true;         break;
+         case 'h': usage(argv[0]);         return 0;
+         case OPT_BULK:          bulkIdx      = optarg;             break;
+         case OPT_OS_URL:        osUrl        = optarg;             break;
+         case OPT_OS_INDEX:      osIndex      = optarg;             break;
+         case OPT_OS_USER:       osUser       = optarg;             break;
+         case OPT_OS_PASS:       osPass       = optarg;             break;
+         case OPT_OS_INSECURE:   osInsecure   = true;               break;
+         case OPT_OS_DATASTREAM: osDataStream = true;               break;
+         case OPT_FORWARD:
+             {std::string hp = optarg;
+              auto c = hp.rfind(':');
+              if (c == std::string::npos || c == 0 || c+1 >= hp.size())
+                 {fprintf(stderr, "%s: --forward needs host:port\n", argv[0]);
+                  return 2;}
+              fwdHost = hp.substr(0, c);
+              fwdPort = atoi(hp.c_str() + c + 1);
+             }
+             break;
+         case OPT_FLUSH_COUNT:   flushCount   = (size_t)atol(optarg); break;
+         case OPT_FLUSH_SECS:    flushSecs    = atol(optarg);         break;
+         case OPT_METRICS_PORT:  metricsPort  = atoi(optarg);         break;
+         case OPT_MAX_MEMORY:    maxMemory    = parseSize(optarg);    break;
+         case OPT_MAX_ENTRIES:   maxEntries   = (size_t)atol(optarg); break;
+         case OPT_SERVER_TTL:    serverTtl    = atol(optarg);         break;
+         case OPT_SCITAGS:       scitags      = optarg;               break;
+         case OPT_SCITAGS_REFRESH: scitagsRefresh = atol(optarg);     break;
+         case OPT_NO_RESOLVE:    resolve      = false;               break;
+         case OPT_TRACES:        traces       = true;                break;
+         case OPT_GSTREAM:       gstream      = true;                break;
+         case OPT_REDIRECTS:     redirects    = true;                break;
+         case OPT_DUMP:          dump         = true;                break;
+         default: usage(argv[0]); return 2;   // '?': getopt already complained
+        }
        }
+   if (optind < argc)
+      {fprintf(stderr, "%s: unexpected argument '%s'\n", argv[0], argv[optind]);
+       usage(argv[0]); return 2;}
 
    if (port <= 0 || port > 65535)
       {fprintf(stderr, "%s: a valid -p <port> is required\n", argv[0]);
