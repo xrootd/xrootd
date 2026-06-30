@@ -280,7 +280,9 @@ std::string JoinUrl(const std::string &base, const std::string &path)
 
 bool IsUnreservedUrlChar(unsigned char c)
 {
-  return std::isalnum(c) || c == '-' || c == '.' || c == '_' || c == '~';
+  return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+    || (c >= '0' && c <= '9') || c == '-' || c == '.'
+    || c == '_' || c == '~';
 }
 
 std::string PercentEncodeUrlPathSegment(const std::string &value)
@@ -316,6 +318,15 @@ bool ParseVersion(const std::string &version, int &parsed)
   if(end == value.c_str() || *end != '\0' || number < 0) return false;
   parsed = static_cast<int>(number);
   return true;
+}
+
+bool IsHttpEndpointUri(const std::string &uri)
+{
+  XrdCl::URL url(uri);
+  if(!url.IsValid() || url.GetHostName().empty()) return false;
+
+  const std::string protocol = ToLower(url.GetProtocol());
+  return protocol == "http" || protocol == "https";
 }
 
 bool UrlEndpointAndPath(const std::string &input, std::string &endpoint,
@@ -431,6 +442,14 @@ HttpResponse HttpRequest(const std::string &method, const std::string &url,
   curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers.get());
   curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(curl.get(), CURLOPT_NOSIGNAL, 1L);
+#if CURL_AT_LEAST_VERSION(7, 85, 0)
+  curl_easy_setopt(curl.get(), CURLOPT_PROTOCOLS_STR, "https,http");
+  curl_easy_setopt(curl.get(), CURLOPT_REDIR_PROTOCOLS_STR, "https,http");
+#else
+  const long protocols = CURLPROTO_HTTP | CURLPROTO_HTTPS;
+  curl_easy_setopt(curl.get(), CURLOPT_PROTOCOLS, protocols);
+  curl_easy_setopt(curl.get(), CURLOPT_REDIR_PROTOCOLS, protocols);
+#endif
 
   if(options.timeout >= 0)
   {
@@ -875,8 +894,11 @@ namespace
       if(!ParseVersion(version, parsedVersion)) continue;
       if(parsedVersion > 1 || parsedVersion < selectedVersion) continue;
 
+      const auto uri = candidate["uri"].get<std::string>();
+      if(!IsHttpEndpointUri(uri)) continue;
+
       selectedVersion = parsedVersion;
-      selected.uri = candidate["uri"].get<std::string>();
+      selected.uri = uri;
       selected.version = version;
     }
 

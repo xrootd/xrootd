@@ -98,6 +98,21 @@ def test_stage_uses_prepare_and_returns_request_id():
   ]
 
 
+def test_stage_derives_endpoint_from_file_urls():
+  client = tape.TapeClient(timeout=7)
+  status, response = client.stage([
+    {'url': 'root://xrootd.example.org/store/file'},
+  ])
+
+  assert status.ok
+  assert response.requestId == 'request-1'
+  assert FakeFileSystem.instances[0].url == 'https://xrootd.example.org'
+  assert FakeFileSystem.instances[0].calls == [
+    ('prepare', ['root://xrootd.example.org/store/file'],
+     PrepareFlags.STAGE, 0, 7),
+  ]
+
+
 def test_stage_rejects_metadata_not_supported_by_prepare():
   client = tape.TapeClient()
 
@@ -105,6 +120,34 @@ def test_stage_rejects_metadata_not_supported_by_prepare():
     client.stage('root://xrootd.example.org/store/file', [
       {'path': '/store/file', 'diskLifetime': 'PT1H'},
     ])
+
+
+def test_stage_rejects_empty_file_entry():
+  client = tape.TapeClient()
+
+  with pytest.raises(ValueError):
+    client.stage('root://xrootd.example.org/store/file', [{}])
+
+
+def test_stage_rejects_file_entry_line_breaks():
+  client = tape.TapeClient()
+
+  with pytest.raises(ValueError):
+    client.stage('root://xrootd.example.org/store/file', [
+      {'path': '/store/file\nother'},
+    ])
+
+  with pytest.raises(ValueError):
+    client.stage('root://xrootd.example.org/store/file', [
+      'root://xrootd.example.org/store/file\nother',
+    ])
+
+
+def test_stage_requires_url_when_deriving_endpoint():
+  client = tape.TapeClient()
+
+  with pytest.raises(ValueError):
+    client.stage([{'path': '/store/file'}])
 
 
 def test_stage_status_uses_prepare_query():
@@ -171,6 +214,14 @@ def test_opaque_helpers_reject_line_breaks():
   with pytest.raises(ValueError):
     client.stage_delete('root://xrootd.example.org/store/file',
                         'request-1\nother')
+
+  with pytest.raises(ValueError):
+    client.stage_cancel('root://xrootd.example.org/store/file',
+                        'request-1\nother', ['/store/file'])
+
+  with pytest.raises(ValueError):
+    client.release('root://xrootd.example.org/store/file',
+                   'request-1\nother', ['/store/file'])
 
   with pytest.raises(ValueError):
     client.archive_info([

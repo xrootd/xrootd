@@ -50,15 +50,25 @@ class TapeClient(object):
   def _filesystem(self, url):
     return FileSystem(self._filesystem_url(url))
 
+  def _is_url(self, value):
+    parsed = urlparse(value)
+    return bool(parsed.scheme and parsed.netloc)
+
   def _normalize_stage_files(self, files):
     normalized = []
     for item in files:
       if isinstance(item, string_types):
+        _reject_line_breaks(item, 'stage file')
         normalized.append(item)
         continue
 
       url = item.get('url', '')
       path = item.get('path', '')
+      entry = path or url
+      if not entry:
+        raise ValueError('stage file entries must contain path or url')
+      _reject_line_breaks(entry, 'stage file')
+
       disk_lifetime = item.get('diskLifetime',
                                item.get('disk_lifetime', ''))
       targeted_metadata = item.get('targetedMetadata',
@@ -66,7 +76,7 @@ class TapeClient(object):
       if disk_lifetime or targeted_metadata:
         raise ValueError('diskLifetime and targetedMetadata are not supported '
                          'by XRootD prepare')
-      normalized.append(path or url)
+      normalized.append(entry)
     return normalized
 
   def _derive_url(self, files):
@@ -105,6 +115,9 @@ class TapeClient(object):
         raise ValueError('files must be provided when url is a string')
       files = list(url)
       url = self._derive_url(files)
+      if not self._is_url(url):
+        raise ValueError('url must be provided when file entries do not '
+                         'contain URLs')
     else:
       files = list(files)
     status, response = self._filesystem(url).prepare(
@@ -125,6 +138,7 @@ class TapeClient(object):
 
   def stage_cancel(self, url, request_id, paths):
     """Cancel a subset of files from a Tape REST stage request."""
+    _reject_line_breaks(request_id, 'request_id')
     status, _ = self._filesystem(url).prepare(
       [request_id] + list(paths), PrepareFlags.CANCEL,
       timeout=self.timeout)
@@ -139,6 +153,7 @@ class TapeClient(object):
 
   def release(self, url, request_id, paths):
     """Release disk-latency requirements for paths in a stage request."""
+    _reject_line_breaks(request_id, 'request_id')
     status, _ = self._filesystem(url).prepare(
       [request_id] + list(paths), PrepareFlags.EVICT,
       timeout=self.timeout)

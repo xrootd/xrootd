@@ -102,7 +102,8 @@ class TapeHttpServer
     enum class DiscoveryMode
     {
       Valid,
-      Unsupported
+      Unsupported,
+      UnsupportedScheme
     };
 
     explicit TapeHttpServer(DiscoveryMode mode = DiscoveryMode::Valid)
@@ -208,10 +209,14 @@ class TapeHttpServer
         body << R"({"uri":")" << BaseUrl()
              << R"(/api/v1","version":"v1"})";
       }
-      else
+      else if(pDiscoveryMode == DiscoveryMode::Unsupported)
       {
         body << R"({"uri":")" << BaseUrl()
              << R"(/api/v2","version":"v2"})";
+      }
+      else
+      {
+        body << R"({"uri":"ftp://example.org/api/v1","version":"v1"})";
       }
       body << "]}";
       return body.str();
@@ -475,8 +480,9 @@ TEST(TapeRestApi, EncodesRequestIdsInUrls)
 {
   TapeHttpServer server;
   const std::string url = server.BaseUrl() + "/store/file";
-  const std::string requestId = "request/1?# x";
-  const std::string encodedRequestId = "request%2F1%3F%23%20x";
+  const std::string requestId =
+    std::string("request/1?# x") + static_cast<char>(0xff);
+  const std::string encodedRequestId = "request%2F1%3F%23%20x%FF";
 
   std::string stageStatusJson;
   EXPECT_FALSE(XrdClHttp::TapeStageStatus(
@@ -502,6 +508,19 @@ TEST(TapeRestApi, EncodesRequestIdsInUrls)
 TEST(TapeRestApi, RejectsUnsupportedDiscoveryEndpoint)
 {
   TapeHttpServer server(TapeHttpServer::DiscoveryMode::Unsupported);
+
+  std::string uri;
+  std::string version;
+  std::string sitename;
+  const auto status = XrdClHttp::TapeDiscover(server.BaseUrl() + "/store/file",
+                                             5, uri, version, sitename);
+
+  EXPECT_FALSE(status.IsOK());
+}
+
+TEST(TapeRestApi, RejectsDiscoveryEndpointWithUnsupportedScheme)
+{
+  TapeHttpServer server(TapeHttpServer::DiscoveryMode::UnsupportedScheme);
 
   std::string uri;
   std::string version;
