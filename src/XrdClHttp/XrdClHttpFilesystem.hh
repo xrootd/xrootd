@@ -70,6 +70,13 @@ public:
                                       XrdCl::ResponseHandler   *handler,
                                       time_t                    timeout) override;
 
+    virtual XrdCl::XRootDStatus Prepare(
+        const std::vector<std::string> &fileList,
+        XrdCl::PrepareFlags::Flags      flags,
+        uint8_t                         priority,
+        XrdCl::ResponseHandler         *handler,
+        time_t                          timeout) override;
+
     virtual XrdCl::XRootDStatus Rm(const std::string      &path,
                                    XrdCl::ResponseHandler *handler,
                                    time_t                  timeout) override;
