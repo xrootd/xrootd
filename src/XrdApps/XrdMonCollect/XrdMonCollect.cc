@@ -38,13 +38,16 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <deque>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "INIReader.h"
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdApps/XrdMonCollect/XrdMonForward.hh"
+#include "XrdApps/XrdMonCollect/XrdMonPipe.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #ifdef XRDMON_HAVE_CURL
@@ -79,8 +82,11 @@ void usage(const char* prog)
      "  --os-datastream  target is a data stream (use the \"create\" action)\n"
      "  --forward <h:p>  also stream documents as NDJSON over TCP to host:port\n"
      "                   (e.g. a logstash/fluentd/vector buffering frontend)\n"
-     "  --flush-count <n> flush after N documents (default: 500)\n"
-     "  --flush-secs <n>  flush after N seconds (default: 5)\n"
+     "  --flush-count <n> packets per receive batch / one batch -> one POST\n"
+     "                   (default: 500)\n"
+     "  --flush-secs <n>  hand off a partial batch after N seconds (default: 5)\n"
+     "  --rcvbuf <sz>    kernel UDP receive buffer, SO_RCVBUF (K/M/G; default 16M)\n"
+     "  --queue-depth <n> receive->serialize batches in flight (default: 64)\n"
      "  --metrics-port <p> serve aggregated metrics over HTTP on port <p>\n"
      "  --max-memory <sz> bound correlation state to ~<sz> bytes, evicting the\n"
      "                   least-recently-used entries (K/M/G suffix; default 256M;\n"
@@ -228,6 +234,12 @@ std::string senderName(const sockaddr* sa, socklen_t sl)
    return s;
 }
 
+// One received datagram: the sender's numeric host:port and the raw bytes. The
+// receiver thread fills these and hands batches of them to the serializer.
+//
+struct Packet { std::string src; std::string data; };
+using  Batch  = std::deque<Packet>;
+
 // A SciTags registry source given as an http(s) URL (vs. a local file path).
 //
 bool isUrl(const std::string& s)
@@ -306,8 +318,10 @@ int main(int argc, char* argv[])
    bool        osInsecure = false;
    bool        osDataStream = false;
    std::string fwdHost; int fwdPort = 0;
-   size_t      flushCount = 500;
-   long        flushSecs  = 5;
+   size_t      flushCount = 500;     // packets per receive batch (one batch->POST)
+   long        flushSecs  = 5;       // max age of a partial receive batch
+   size_t      rcvbuf     = 16ull << 20;  // kernel UDP receive buffer (SO_RCVBUF)
+   int         queueDepth = 64;      // receive->serialize batches in flight
    std::string scitags;
    long        scitagsRefresh = 3600;
    bool        resolve = true;
@@ -367,6 +381,9 @@ int main(int argc, char* argv[])
           }
        flushCount  = (size_t)cfg.GetInteger(sec, "flush-count", (long)flushCount);
        flushSecs   = cfg.GetInteger(sec, "flush-secs", flushSecs);
+       std::string rb = cfg.Get(sec, "rcvbuf", "");
+       if (!rb.empty()) rcvbuf = parseSize(rb.c_str());
+       queueDepth  = (int)cfg.GetInteger(sec, "queue-depth", queueDepth);
        metricsPort = (int)cfg.GetInteger(sec, "metrics-port", metricsPort);
        std::string mm = cfg.Get(sec, "max-memory", "");
        if (!mm.empty()) maxMemory = parseSize(mm.c_str());
@@ -391,7 +408,8 @@ int main(int argc, char* argv[])
    enum
    {  OPT_BULK = 256, OPT_OS_URL, OPT_OS_INDEX, OPT_OS_USER, OPT_OS_PASS,
       OPT_OS_INSECURE, OPT_OS_DATASTREAM, OPT_FORWARD, OPT_FLUSH_COUNT,
-      OPT_FLUSH_SECS, OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
+      OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
+      OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
       OPT_SERVER_TTL, OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_NO_RESOLVE,
       OPT_SESSIONS, OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
    };
@@ -407,6 +425,8 @@ int main(int argc, char* argv[])
       {"forward",         required_argument, nullptr, OPT_FORWARD},
       {"flush-count",     required_argument, nullptr, OPT_FLUSH_COUNT},
       {"flush-secs",      required_argument, nullptr, OPT_FLUSH_SECS},
+      {"rcvbuf",          required_argument, nullptr, OPT_RCVBUF},
+      {"queue-depth",     required_argument, nullptr, OPT_QUEUE_DEPTH},
       {"metrics-port",    required_argument, nullptr, OPT_METRICS_PORT},
       {"max-memory",      required_argument, nullptr, OPT_MAX_MEMORY},
       {"max-entries",     required_argument, nullptr, OPT_MAX_ENTRIES},
@@ -451,6 +471,8 @@ int main(int argc, char* argv[])
              break;
          case OPT_FLUSH_COUNT:   flushCount   = (size_t)atol(optarg); break;
          case OPT_FLUSH_SECS:    flushSecs    = atol(optarg);         break;
+         case OPT_RCVBUF:        rcvbuf       = parseSize(optarg);    break;
+         case OPT_QUEUE_DEPTH:   queueDepth   = atoi(optarg);         break;
          case OPT_METRICS_PORT:  metricsPort  = atoi(optarg);         break;
          case OPT_MAX_MEMORY:    maxMemory    = parseSize(optarg);    break;
          case OPT_MAX_ENTRIES:   maxEntries   = (size_t)atol(optarg); break;
@@ -516,11 +538,25 @@ int main(int argc, char* argv[])
    int fd = openUDP(port, bindStr);
    if (fd < 0) return 4;
 
+// Enlarge the kernel UDP receive buffer so bursts (and the brief windows when
+// the receiver waits on a full pipeline) are absorbed without the kernel
+// dropping datagrams. SO_RCVBUFFORCE bypasses the rmem_max cap when privileged;
+// fall back to SO_RCVBUF otherwise. Best-effort: a failure is not fatal.
+//
+   if (rcvbuf > 0)
+      {int want = (int)rcvbuf;
+#ifdef SO_RCVBUFFORCE
+       if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &want, sizeof(want)) != 0)
+#endif
+          setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &want, sizeof(want));
+      }
+
 // Batch state for the OpenSearch sink and a flush helper.
 //
+#ifdef XRDMON_HAVE_CURL
    std::string batch;
    size_t      batchCount = 0;
-   time_t      lastFlush  = time(0);
+#endif
    auto flush = [&]()
       {
 #ifdef XRDMON_HAVE_CURL
@@ -533,7 +569,6 @@ int main(int argc, char* argv[])
            batch.clear(); batchCount = 0;
           }
 #endif
-       lastFlush = time(0);
       };
 
 // Wire up the sinks. With --bulk the file sink is written in OpenSearch _bulk
@@ -572,6 +607,13 @@ int main(int argc, char* argv[])
 //
    XrdMetrics::MetricGroup* reg =
             metricsPort > 0 ? &collectorRegistry().group("") : nullptr;
+
+// The receiver thread fills packet batches and hands them, through this bounded
+// recycling pipe, to the serializer thread that owns the decoder. A generous
+// depth plus the enlarged SO_RCVBUF means the receiver effectively never has to
+// wait (which would risk kernel-buffer drops).
+//
+   XrdMonPipe<Batch> recvPipe((size_t)(queueDepth > 0 ? queueDepth : 1));
 
    XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, reg);
    decoder.SetMaxBytes(maxMemory);
@@ -643,13 +685,16 @@ int main(int argc, char* argv[])
        reg->observeIntGauge("xrootd_collector_state_bytes", {}, {},
               "approximate resident bytes of correlation state")
           .add({}, [&]{return (int64_t)decoder.ResidentBytes();});
+       reg->observeIntGauge("xrootd_collector_recv_queue_batches", {}, {},
+              "packet batches queued from the receiver to the serializer")
+          .add({}, [&]{return (int64_t)recvPipe.readyDepth();});
        exporter = std::thread(serveMetrics, metricsPort, std::ref(exporterStop));
       }
 
-// Receive loop
-//
-// Install handlers without SA_RESTART so a signal interrupts the blocking
-// recvfrom() (returns EINTR) and the loop can notice stopFlag and exit.
+// Install signal handlers without SA_RESTART so a signal interrupts the blocking
+// recvfrom() on the receiver (main) thread; the loop then sees stopFlag, and the
+// 1s SO_RCVTIMEO below bounds shutdown latency regardless of which thread caught
+// the signal.
 //
    struct sigaction sa;
    memset(&sa, 0, sizeof(sa));
@@ -659,18 +704,43 @@ int main(int argc, char* argv[])
    sigaction(SIGINT,  &sa, nullptr);
    sigaction(SIGTERM, &sa, nullptr);
 
-// A 1s receive timeout lets the loop wake to honor the time-based flush even
-// when no packets are arriving.
-//
    struct timeval tv; tv.tv_sec = 1; tv.tv_usec = 0;
    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-   time_t     lastReap  = time(0);
-   const long reapEvery = 60;   // sweep idle server incarnations once a minute
-   auto reapTick = [&](time_t now)
-      {if (now - lastReap >= reapEvery) {decoder.ReapServers(now); lastReap = now;}};
+// Serializer thread: owns the decoder exclusively (preserving its single-thread
+// contract). It drains packet batches from the receiver, decodes each packet
+// (the DocSink writes the file/forward sinks inline and appends to the
+// OpenSearch _bulk body), periodically reaps idle incarnations, and flushes one
+// _bulk POST per batch.
+//
+   std::thread serializer([&]()
+      {time_t     lastReap  = time(0);
+       const long reapEvery = 60;   // sweep idle server incarnations once a minute
+       Batch b;
+       while (recvPipe.take(b))
+          {for (auto& p : b)
+              decoder.Process(p.src, p.data.data(), (int)p.data.size());
+           if (fileSink) fflush(out);
+           time_t now = time(0);
+           if (now - lastReap >= reapEvery)
+              {decoder.ReapServers(now); lastReap = now;}
+           flush();                       // one _bulk POST per batch (osEnabled)
+           b.clear();
+           recvPipe.recycle(std::move(b));
+          }
+       flush();                           // drain anything after the pipe closed
+      });
 
-   char buff[64*1024];
+// Receiver loop (main thread): drain the socket as fast as possible into pooled
+// batches and hand them to the serializer. It touches neither the decoder nor
+// the sinks, so a slow POST can never stall packet reception; under sustained
+// backlog it waits on the pipe (backpressure) rather than dropping, with the
+// enlarged SO_RCVBUF absorbing the gap.
+//
+   Batch   cur;
+   recvPipe.acquire(cur);
+   time_t  batchStart = time(0);
+   char    buff[64*1024];
    while(!stopFlag)
         {sockaddr_storage from;
          socklen_t fromLen = sizeof(from);
@@ -679,23 +749,31 @@ int main(int argc, char* argv[])
          if (n < 0)
             {if (errno == EINTR) continue;
              if (errno == EAGAIN || errno == EWOULDBLOCK)
-                {time_t now = time(0);
-                 if (batchCount > 0 && now-lastFlush >= flushSecs) flush();
-                 reapTick(now);
+                {if (!cur.empty() && time(0)-batchStart >= flushSecs)
+                    {recvPipe.submit(std::move(cur));
+                     if (!recvPipe.acquire(cur)) break;
+                     batchStart = time(0);
+                    }
                  continue;
                 }
              perror("recvfrom"); break;
             }
 
-         decoder.Process(senderName((sockaddr*)&from, fromLen), buff, (int)n);
-         if (fileSink) fflush(out);
-         reapTick(time(0));
-
-         if (batchCount >= flushCount
-         || (batchCount > 0 && time(0)-lastFlush >= flushSecs)) flush();
+         cur.push_back(Packet{senderName((sockaddr*)&from, fromLen),
+                              std::string(buff, (size_t)n)});
+         if (cur.size() >= flushCount || time(0)-batchStart >= flushSecs)
+            {recvPipe.submit(std::move(cur));
+             if (!recvPipe.acquire(cur)) break;
+             batchStart = time(0);
+            }
         }
 
-   flush();  // send anything still batched
+// Shutdown: hand off any partial batch, close the pipe (the serializer drains
+// the remaining batches, does a final flush, and returns), then join.
+//
+   if (!cur.empty()) recvPipe.submit(std::move(cur));
+   recvPipe.close();
+   serializer.join();
 
    if (exporter.joinable()) {exporterStop = true; exporter.join();}
    if (scitagsThread.joinable()) {scitagsStop = true; scitagsThread.join();}

@@ -32,9 +32,15 @@ port = 9930
 # Also stream documents as NDJSON over TCP to a buffering frontend (host:port).
 # forward = logstash.example.org:5044
 
-# Flush batched OpenSearch documents after N documents or N seconds.
+# Receive batching: packets per batch (one batch -> one _bulk POST) and the max
+# age of a partial batch in seconds.
 # flush-count = 500
 # flush-secs = 5
+
+# Kernel UDP receive buffer (SO_RCVBUF; K/M/G suffix) and the number of packet
+# batches in flight between the receiver and serializer threads.
+# rcvbuf = 16M
+# queue-depth = 64
 
 # Serve aggregated Prometheus metrics over HTTP on this port (0 = disabled).
 # metrics-port = 9931

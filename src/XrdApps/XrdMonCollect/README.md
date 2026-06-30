@@ -31,8 +31,10 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --os-insecure    skip TLS certificate verification
   --os-datastream  target is a data stream (use the "create" bulk action)
   --forward <h:p>  also stream documents as NDJSON over TCP to host:port
-  --flush-count <n> flush after N documents (default: 500)
-  --flush-secs <n>  flush after N seconds (default: 5)
+  --flush-count <n> packets per receive batch / one batch -> one POST (def 500)
+  --flush-secs <n>  hand off a partial batch after N seconds (default: 5)
+  --rcvbuf <sz>     kernel UDP receive buffer, SO_RCVBUF (K/M/G; default 16M)
+  --queue-depth <n> receive->serialize batches in flight (default: 64)
   --metrics-port <p> serve aggregated metrics over HTTP on port <p>
   --max-memory <sz>  bound correlation state to ~<sz> bytes, LRU-evicting
                      (K/M/G suffix; default 256M; 0=unbounded)

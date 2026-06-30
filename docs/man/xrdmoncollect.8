@@ -8,7 +8,8 @@ xrdmoncollect - collect and correlate XRootD detailed monitoring streams
               [\fB--os-url\fR \fIurl\fR [\fB--os-index\fR \fIname\fR] [\fB--os-user\fR \fIuser\fR]
                [\fB--os-pass\fR \fIpass\fR] [\fB--os-insecure\fR] [\fB--os-datastream\fR]]
               [\fB--forward\fR \fIhost:port\fR] [\fB--metrics-port\fR \fIport\fR]
-              [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR] [\fB--max-entries\fR \fIn\fR]
+              [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR]
+              [\fB--rcvbuf\fR \fIsz\fR] [\fB--queue-depth\fR \fIn\fR] [\fB--max-entries\fR \fIn\fR]
               [\fB--sessions\fR] [\fB--traces\fR] [\fB--gstream\fR] [\fB--redirects\fR] [\fB--dump\fR] [\fB-v\fR]
 
 .fi
@@ -130,11 +131,25 @@ Serve aggregated metrics in Prometheus exposition format over HTTP on
 .RE
 \fB--flush-count\fR \fIn\fR
 .RS 5
-Flush after \fIn\fR documents (default: 500).
+Number of packets the receiver buffers into one batch before handing it to the
+serializer; each batch becomes one OpenSearch \fB_bulk\fR POST (default: 500).
 .RE
 \fB--flush-secs\fR \fIn\fR
 .RS 5
-Flush after \fIn\fR seconds (default: 5).
+Hand off a partial batch after \fIn\fR seconds, bounding latency when packets
+arrive slowly (default: 5).
+.RE
+\fB--rcvbuf\fR \fIsz\fR
+.RS 5
+Kernel UDP receive buffer size (\fBSO_RCVBUF\fR; K/M/G suffix; default 16M).
+A larger buffer absorbs bursts and the brief windows when the receiver waits on
+a full pipeline, so the kernel does not drop datagrams.
+.RE
+\fB--queue-depth\fR \fIn\fR
+.RS 5
+Number of packet batches that may be in flight between the receiver and the
+serializer threads (default: 64). When the serializer falls behind, the receiver
+waits for a free batch (backpressure) rather than dropping packets.
 .RE
 \fB--max-memory\fR \fIsz\fR
 .RS 5
