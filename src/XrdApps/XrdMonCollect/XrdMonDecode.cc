@@ -152,6 +152,11 @@ bool wholeFileClose(bool haveOpen, int64_t fsz, int64_t rdBytes,
    if (wrBytes > 0) return !(forced || hasErr);
    return haveOpen && fsz > 0 && (rdBytes + rvBytes) >= fsz;
 }
+
+// Cap on the per-session recent-file list (UserInfo::sRecent). The running
+// session totals always cover every closed file; only this most-recent detail
+// list is bounded, keeping a long-lived session's memory in check.
+constexpr std::size_t kSessionFilesMax = 64;
 }
 
 /******************************************************************************/
@@ -325,6 +330,66 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
 }
 
 /******************************************************************************/
+/*                          f o l d S e s s i o n                             */
+/******************************************************************************/
+
+void XrdMonDecode::foldSession(Server& srv, uint32_t userID,
+                               const std::string& lfn, int64_t bytes,
+                               bool write, bool whole, bool error, int32_t tWin)
+{
+   auto uit = srv.users.find(userID);
+   if (uit == srv.users.end()) return;     // user dictid unknown -> nothing to do
+   UserInfo& u = uit->second;
+
+   u.sFiles++;
+   if (whole) u.sTransfers++; else u.sAccesses++;
+   if (error) u.sErrors++;
+   if (write) u.sWriteBytes += bytes; else u.sReadBytes += bytes;
+   if (u.sFirst == 0 || (tWin > 0 && tWin < u.sFirst)) u.sFirst = tWin;
+   if (tWin > u.sLast) u.sLast = tWin;
+
+   u.sRecent.push_back(UserInfo::FileSummary{lfn, bytes, write, whole});
+   if (u.sRecent.size() > kSessionFilesMax) u.sRecent.pop_front();
+
+// The rollup grew; re-charge the entry against the budget and keep it warm (an
+// active session is one whose files are still closing).
+//
+   Recharge(u.lru, bytesOf(u));
+   Touch(u.lru);
+}
+
+/******************************************************************************/
+/*                          f i l l S e s s i o n                             */
+/******************************************************************************/
+
+void XrdMonDecode::fillSession(json& j, const UserInfo& u)
+{
+   json& s = j["session"];
+   s["files"]       = u.sFiles;
+   s["transfers"]   = u.sTransfers;
+   s["accesses"]    = u.sAccesses;
+   if (u.sErrors)     s["errors"]      = u.sErrors;
+   if (u.sReadBytes)  s["read_bytes"]  = u.sReadBytes;
+   if (u.sWriteBytes) s["write_bytes"] = u.sWriteBytes;
+   if (u.sFirst > 0)  s["start_time"]  = isoTime(u.sFirst);
+   if (u.sLast  > 0)  s["end_time"]    = isoTime(u.sLast);
+   if (u.sFirst > 0 && u.sLast >= u.sFirst) s["duration_s"] = u.sLast - u.sFirst;
+
+   if (!u.sRecent.empty())
+      {json files = json::array();
+       for (const auto& f : u.sRecent)
+          {json fj;
+           fj["lfn"]   = f.lfn;
+           fj["type"]  = f.whole ? "transfer" : "access";
+           fj["operation"] = f.write ? "write" : "read";
+           fj["bytes"] = f.bytes;
+           files.push_back(std::move(fj));
+          }
+       s["recent_files"] = std::move(files);
+      }
+}
+
+/******************************************************************************/
 /*                          L o a d S c i t a g s                             */
 /******************************************************************************/
 
@@ -486,10 +551,12 @@ constexpr std::size_t kEntryOverhead = 96;
 
 std::size_t XrdMonDecode::bytesOf(const UserInfo& u)
 {
+   std::size_t recent = 0;
+   for (const auto& f : u.sRecent) recent += sizeof(f) + f.lfn.size();
    return kEntryOverhead + u.raw.size() + u.user.size() + u.prot.size()
         + u.host.size() + u.authMethod.size() + u.vo.size() + u.role.size()
         + u.groups.size() + u.clientVer.size() + u.appName.size()
-        + u.appInfo.size() + u.site.size();
+        + u.appInfo.size() + u.site.size() + recent;
 }
 
 std::size_t XrdMonDecode::bytesOf(const OpenFile& f)
@@ -907,10 +974,16 @@ void XrdMonDecode::EmitDisc(const std::string& src, int32_t stod, Server& srv,
                             uint32_t userID, int32_t tWin)
 {
    json j;
-   j["type"] = "session_end";
+   j["type"] = "session";
    if (tWin > 0) j["@timestamp"] = isoTime(tWin);
    fillServer(j, src, stod, srv);
    fillClient(j, srv, userID);
+
+// Attach the session's aggregated file activity (counters plus a capped recent-
+// file list) accumulated from every close that named this user (see foldSession).
+//
+   auto uit = srv.users.find(userID);
+   if (uit != srv.users.end()) fillSession(j, uit->second);
 
    if (metrics)
       metrics->counterSeries("xrootd_collector_sessions_total",
@@ -936,8 +1009,10 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 
    int durSecs = -1;
    std::string vo;
-   bool    haveOpen = false;   // matched the open record (so fsz is known)
-   int64_t openFsz  = 0;       // file size captured at open
+   bool     haveOpen = false;  // matched the open record (so fsz is known)
+   int64_t  openFsz  = 0;      // file size captured at open
+   uint32_t openUser = 0;      // user dictid from the open (for session rollup)
+   std::string openLfn;        // lfn from the open (for the session rollup)
 
 // One per-transfer document in an OpenSearch-friendly nested schema (each nested
 // object indexes as a dotted field, e.g. server.name). Empty/zero fields are
@@ -967,6 +1042,8 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        transfer["open_seen"]  = true;
        haveOpen = true;
        openFsz  = of.fsz;
+       openUser = of.user;
+       openLfn  = of.lfn;
        json& file = j["file"];
        file["lfn"]        = of.lfn;
        file["size"]       = of.fsz;
@@ -1003,6 +1080,15 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    const bool whole  = wholeFileClose(haveOpen, openFsz, rdBytes, rvBytes,
                                       wrBytes, forced, hasErr);
    j["type"] = whole ? "transfer" : "access";
+
+// Fold this close into its session rollup (emitted in the 'session' document at
+// disconnect). Only possible when the open was joined, which carries the user.
+//
+   if (haveOpen)
+      {const bool    write = wrBytes > 0;
+       const int64_t moved = write ? wrBytes : rdBytes + rvBytes;
+       foldSession(srv, openUser, openLfn, moved, write, whole, hasErr, tWin);
+      }
 
 // Optional op-count detail (XrdXrootdMonStatOPS) when "ops" was configured.
 //

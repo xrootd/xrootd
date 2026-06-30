@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
+#include <deque>
 #include <functional>
 #include <list>
 #include <mutex>
@@ -204,6 +205,30 @@ struct UserInfo
    std::string site;       // &S= client-advertised site (xrd.site)
    int         ipVersion = 0; // &I= IP protocol (4 or 6); 0 = unknown
    LruIt       lru;        // back-reference into the LRU index
+
+   // Session activity rollup. A session is the lifetime of one user dictid
+   // within an incarnation; each file close belonging to it is folded in here
+   // (see EmitClose), then emitted as the j["session"] object when the client
+   // disconnects (EmitDisc). The running totals always cover every closed file;
+   // the recent-file list is capped (kSessionFilesMax) so a long-lived session
+   // stays bounded.
+   //
+   struct FileSummary
+   {
+      std::string lfn;
+      int64_t     bytes = 0;     // total bytes moved (read+readv+write)
+      bool        write = false; // a write (vs a read)
+      bool        whole = false; // a whole-file transfer (vs partial access)
+   };
+   uint32_t sFiles      = 0;  // closed files folded into this session
+   uint32_t sTransfers  = 0;  // of which whole-file transfers
+   uint32_t sAccesses   = 0;  // of which partial accesses
+   uint32_t sErrors     = 0;  // closes that ended in error
+   int64_t  sReadBytes  = 0;  // read + readv bytes across the session
+   int64_t  sWriteBytes = 0;  // write bytes across the session
+   int32_t  sFirst      = 0;  // window time of the first folded close
+   int32_t  sLast       = 0;  // window time of the most recent folded close
+   std::deque<FileSummary> sRecent;  // capped most-recent file summaries
 };
 
 // Token identity from a 'T' (MAPTOKN) record, keyed by the user dictid.
@@ -337,6 +362,10 @@ void lruPut(Server* owner, Dict dict, Map& m, const Key& key, uint32_t ikey,
 }
 void     Touch(LruIt node) {lru.splice(lru.end(), lru, node);}
 void     LruDrop(LruIt node) {lruBytes -= node->bytes; lru.erase(node);}
+// Re-charge an existing entry whose held size changed (e.g. its session rollup
+// grew), keeping lruBytes and the node weight in step.
+void     Recharge(LruIt node, std::size_t bytes)
+            {lruBytes = lruBytes - node->bytes + bytes; node->bytes = bytes;}
 void     EnforceBudget();
 void     EvictFront();
 // Approximate resident size of a correlation entry (struct + held strings +
@@ -357,6 +386,15 @@ void     fillServer(nlohmann::json& j, const std::string& src, int32_t stod,
 //! dictionary entry (and the token/activity streams keyed by the same dictid).
 //! Returns the resolved VO (token preferred, else auth CGI) for metric labels.
 std::string fillClient(nlohmann::json& j, const Server& srv, uint32_t userID);
+//! Fold one finished file close into the user's session rollup (counters and a
+//! capped recent-file list), keeping the entry's LRU weight in step. No-op when
+//! the user dictid is unknown (e.g. user monitoring off or the 'u' record lost).
+void     foldSession(Server& srv, uint32_t userID, const std::string& lfn,
+                     int64_t bytes, bool write, bool whole, bool error,
+                     int32_t tWin);
+//! Fill the j["session"] object (totals plus the capped recent-file list) from
+//! a user's accumulated session rollup.
+void     fillSession(nlohmann::json& j, const UserInfo& u);
 
 std::unordered_map<std::string, Server> servers;
 // Previous cumulative values for g-stream providers that report running

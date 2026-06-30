@@ -50,6 +50,14 @@ third terminal state, \fBRedirected\fR: from the redirector's point of view the
 operation concluded by sending the client elsewhere, with the destination under
 the \fBredirect\fR object.
 .P
+When a client disconnects, a \fIsession\fR document aggregates its whole session:
+every file close that named the user is folded into a \fBsession\fR object with
+running totals (\fBfiles\fR, \fBtransfers\fR, \fBaccesses\fR, \fBread_bytes\fR,
+\fBwrite_bytes\fR, \fBerrors\fR, and start/end/duration) plus a capped
+\fBrecent_files\fR list (each with \fBlfn\fR, \fBtype\fR, \fBoperation\fR, and
+\fBbytes\fR). The totals cover every closed file; only the recent-file list is
+bounded, so a long session that opens many files stays memory-bounded.
+.P
 Documents are emitted as newline-delimited JSON (NDJSON) to a file or standard
 output, posted directly to an OpenSearch cluster, and/or streamed over TCP to a
 buffering frontend. The collector can additionally serve aggregated Prometheus

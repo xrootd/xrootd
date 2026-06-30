@@ -1045,22 +1045,33 @@ TEST(XrdMonCollect, MemoryStaysUnderBudget)
   EXPECT_GT(dec.GetStats().evicted, 0u);
 }
 
-// On the normal path every open is released by its close: resident memory
-// returns to the baseline and nothing is evicted.
+// On the normal path every open is released by its close. The close also folds
+// a bounded record into the session rollup, so resident memory drops back from
+// its peak (the open-file table is freed) and stays bounded by the recent-file
+// cap; nothing is evicted.
 TEST(XrdMonCollect, CloseReleasesMemory)
 {
   XrdMonDecode dec([](const std::string&){});   // unbounded
   feedUser7(dec, "h:1");
   std::size_t base = dec.ResidentBytes();        // just the user entry
 
-  for (uint32_t id = 1; id <= 50; id++)
+  for (uint32_t id = 1; id <= 80; id++)           // more than the recent-file cap
      feedOpenId(dec, "h:1", id, "/store/data/file.root");
-  EXPECT_GT(dec.ResidentBytes(), base);          // opens are charged
+  std::size_t peak = dec.ResidentBytes();
+  EXPECT_GT(peak, base);                          // opens are charged
 
-  for (uint32_t id = 1; id <= 50; id++)
+  for (uint32_t id = 1; id <= 80; id++)
      feedCloseId(dec, "h:1", id);
-  EXPECT_EQ(dec.ResidentBytes(), base);          // each close releases its open
+  EXPECT_LT(dec.ResidentBytes(), peak);           // the open-file table is freed
   EXPECT_EQ(dec.GetStats().evicted, 0u);
+  std::size_t afterClose = dec.ResidentBytes();   // session rollup at its cap
+
+  // A second round of opens/closes does not grow the session rollup without
+  // bound: the recent-file list is capped, so resident memory plateaus.
+  for (uint32_t id = 81; id <= 180; id++)
+     {feedOpenId(dec, "h:1", id, "/store/data/file.root");
+      feedCloseId(dec, "h:1", id);}
+  EXPECT_LE(dec.ResidentBytes(), afterClose);     // capped: no unbounded growth
 }
 
 // An incarnation idle past the server TTL is reclaimed whole; a freshly-seen
@@ -1160,11 +1171,15 @@ TEST(XrdMonCollect, SessionDiscAndActiveGauge)
     auto pkt = packet('f', kStod, payload);
     dec.Process("h:1", (const char*)pkt.data(), pkt.size()); }
 
-  ASSERT_EQ(docs.size(), 1u);                  // the session_end document
+  ASSERT_EQ(docs.size(), 1u);                  // the session document
   json j = json::parse(docs[0]);
-  EXPECT_EQ(j["type"], "session_end");
+  EXPECT_EQ(j["type"], "session");
   EXPECT_EQ(j["user"]["name"], "bob");
   EXPECT_EQ(j["client"]["host"], "cli.example.org");
+  // The file was opened but never closed, so the session rollup counts no files.
+  ASSERT_TRUE(j.contains("session"));
+  EXPECT_EQ(j["session"]["files"], 0);
+  EXPECT_FALSE(j["session"].contains("recent_files"));
   EXPECT_EQ(dec.GetStats().discs, 1u);
 
   std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
@@ -1173,6 +1188,127 @@ TEST(XrdMonCollect, SessionDiscAndActiveGauge)
   // One file opened, none closed -> active gauge is 1.
   EXPECT_NE(out.find("xrootd_collector_active_transfers{server=\"h:1\"} 1"),
             std::string::npos) << out;
+}
+
+namespace
+{
+// A 'u' user map for an arbitrary dictid.
+void feedUserN(XrdMonDecode& dec, const std::string& src, uint32_t dictid)
+{
+   W body; body.u32(dictid);
+   std::string info = "xroot/u" + std::to_string(dictid) + ".1:2@wn.example.org\n";
+   std::vector<unsigned char> pl = body.b;
+   pl.insert(pl.end(), info.begin(), info.end());
+   auto pkt = packet('u', kStod, pl);
+   dec.Process(src, (const char*)pkt.data(), pkt.size());
+}
+
+// Open then close one file (fileID/user/lfn) moving `rd` read bytes / `wr` write
+// bytes, with file size `fsz` captured at open.
+void openClose(XrdMonDecode& dec, const std::string& src, uint32_t fileID,
+               uint32_t user, int64_t fsz, int64_t rd, int64_t wr,
+               const std::string& lfn)
+{
+   { W body; body.u32(fileID); body.u64((uint64_t)fsz); body.u32(user);
+     body.raw(lfn); body.u8(0);
+     auto payload = todRec(kOpenT, 42);
+     auto r = rec(1 /*isOpen*/, 0x01 | 0x02, body.b);
+     payload.insert(payload.end(), r.begin(), r.end());
+     auto pkt = packet('f', kStod, payload);
+     dec.Process(src, (const char*)pkt.data(), pkt.size()); }
+   { W body; body.u32(fileID); body.u64((uint64_t)rd); body.u64(0);
+     body.u64((uint64_t)wr);
+     auto payload = todRec(kCloseT, 42);
+     auto r = rec(0 /*isClose*/, 0, body.b);
+     payload.insert(payload.end(), r.begin(), r.end());
+     auto pkt = packet('f', kStod, payload);
+     dec.Process(src, (const char*)pkt.data(), pkt.size()); }
+}
+
+// A session disconnect (isDisc) for a user dictid.
+void feedDisc(XrdMonDecode& dec, const std::string& src, uint32_t user)
+{
+   W disc; disc.u32(user);
+   auto payload = todRec(kCloseT, 42);
+   auto dr = rec(4 /*isDisc*/, 0, disc.b);
+   payload.insert(payload.end(), dr.begin(), dr.end());
+   auto pkt = packet('f', kStod, payload);
+   dec.Process(src, (const char*)pkt.data(), pkt.size());
+}
+}
+
+// A session's closed files are aggregated into the 'session' document at
+// disconnect: running totals plus a recent-file list. The per-file transfer/
+// access documents are still emitted independently.
+TEST(XrdMonCollect, SessionAggregatesFileActivity)
+{
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); });
+
+  feedUserN(dec, "h:1", 7);
+  openClose(dec, "h:1", 1, 7, 1000,  1000, 0, "/a.root");   // whole read -> transfer
+  openClose(dec, "h:1", 2, 7, 1000,  1000, 0, "/b.root");   // whole read -> transfer
+  openClose(dec, "h:1", 3, 7, 100000, 4096, 0, "/c.root");  // partial   -> access
+  feedDisc(dec, "h:1", 7);
+
+  // Three close documents, then the session document.
+  ASSERT_EQ(docs.size(), 4u);
+  json j = json::parse(docs.back());
+  EXPECT_EQ(j["type"], "session");
+  EXPECT_EQ(j["user"]["name"], "u7");
+  EXPECT_EQ(j["session"]["files"], 3);
+  EXPECT_EQ(j["session"]["transfers"], 2);
+  EXPECT_EQ(j["session"]["accesses"], 1);
+  EXPECT_EQ(j["session"]["read_bytes"], 1000 + 1000 + 4096);
+  EXPECT_FALSE(j["session"].contains("write_bytes"));
+  ASSERT_TRUE(j["session"].contains("recent_files"));
+  ASSERT_EQ(j["session"]["recent_files"].size(), 3u);
+  EXPECT_EQ(j["session"]["recent_files"][2]["lfn"], "/c.root");
+  EXPECT_EQ(j["session"]["recent_files"][2]["type"], "access");
+  EXPECT_EQ(j["session"]["recent_files"][0]["type"], "transfer");
+
+  // The individual close documents were still emitted (not replaced).
+  EXPECT_EQ(json::parse(docs[0])["type"], "transfer");
+  EXPECT_EQ(json::parse(docs[2])["type"], "access");
+}
+
+// The recent-file list is capped while the running totals cover every file.
+TEST(XrdMonCollect, SessionRecentFilesCapped)
+{
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); });
+
+  feedUserN(dec, "h:1", 7);
+  for (uint32_t i = 1; i <= 100; i++)
+     openClose(dec, "h:1", i, 7, 1000, 1000, 0, "/data/file.root");
+  feedDisc(dec, "h:1", 7);
+
+  json j = json::parse(docs.back());
+  EXPECT_EQ(j["type"], "session");
+  EXPECT_EQ(j["session"]["files"], 100);              // every file counted
+  EXPECT_EQ(j["session"]["transfers"], 100);
+  EXPECT_EQ(j["session"]["recent_files"].size(), 64u);// list bounded (cap)
+}
+
+// Closes are folded into the owning user's session only; two concurrent users
+// do not co-mingle their file activity.
+TEST(XrdMonCollect, SessionsDoNotCrossUsers)
+{
+  std::vector<std::string> docs;
+  XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); });
+
+  feedUserN(dec, "h:1", 7);
+  feedUserN(dec, "h:1", 8);
+  openClose(dec, "h:1", 1, 7, 1000, 1000, 0, "/seven.root");
+  openClose(dec, "h:1", 2, 8, 1000, 1000, 0, "/eight.root");
+  openClose(dec, "h:1", 3, 8, 1000, 1000, 0, "/eight2.root");
+  feedDisc(dec, "h:1", 7);
+
+  json j = json::parse(docs.back());
+  EXPECT_EQ(j["user"]["name"], "u7");
+  EXPECT_EQ(j["session"]["files"], 1);                // only user 7's one file
+  ASSERT_EQ(j["session"]["recent_files"].size(), 1u);
+  EXPECT_EQ(j["session"]["recent_files"][0]["lfn"], "/seven.root");
 }
 
 TEST(XrdMonCollect, ServerIdentDecoded)

@@ -49,7 +49,7 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   -v               print decoder statistics on exit (SIGINT/SIGTERM)
 ```
 
-All document types — `transfer`, `access`, `session_end`, `server_ident`,
+All document types — `transfer`, `access`, `session`, `server_ident`,
 `frm`, `redirect`, the `t`-stream traces and `gstream` — share one nested,
 OpenSearch-friendly schema (`server.*`, `client.*`, `user.*`, `file.*`,
 `transfer.*`, …; each nested object indexes as a dotted field).
@@ -68,12 +68,22 @@ A file close is reported as one of two types that share an identical schema:
 
 ### Streams
 
-By default the `f` (file-stats) stream produces a per-transfer document on each
-file close, a `session_end` document on each client disconnect (`isDisc`
-record, with the resolved user), and maintains the
+By default the `f` (file-stats) stream produces a per-close document on each
+file close (`transfer` or `access`, above), a `session` document on each client
+disconnect (`isDisc` record, with the resolved user), and maintains the
 `xrootd_collector_active_transfers{server}` gauge (open files in progress, from
 the `isXfr` snapshots and open/close records). Two opt-in streams add
 finer-grained events:
+
+The `session` document aggregates the user's whole session: every file close
+that named the user is folded into a `session` object carrying running totals
+(`files`, `transfers`, `accesses`, `read_bytes`, `write_bytes`, `errors`,
+`start_time`/`end_time`/`duration_s`) and a capped `recent_files` list (the most
+recent closed files, each with `lfn`, `type`, `operation`, `bytes`). The totals
+cover every closed file; only the `recent_files` list is bounded, so a long
+session (a batch job opening many files in a dataset) stays memory-bounded. A
+client that hits an error and disconnects therefore yields one document with as
+much of its activity as the server reported before the disconnect.
 
 - `--traces` turns each `t` (I/O trace) record into a document: `read`/`write`
   (with offset, length and the resolved `file.lfn`), `open`, `close`,

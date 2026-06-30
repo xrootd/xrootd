@@ -438,10 +438,11 @@ throughput), then throttle/tcpmon/ccm/http. Each provider's records would feed
   **DONE** (counted; drives the `xrootd_collector_active_transfers{server}`
   gauge derived from the open-file table). Per-file live-throughput deltas are
   still TODO (would need to avoid double-counting the close totals).
-- **`f`-stream `isDisc`** (session end): **DONE** — emits a `session_end`
-  document with the resolved user and increments
-  `xrootd_collector_sessions_total{server}`. A login→disconnect byte total
-  would require tracking per-session bytes (TODO).
+- **`f`-stream `isDisc`** (session): **DONE** — emits a `session` document with
+  the resolved user and increments `xrootd_collector_sessions_total{server}`.
+  Each file close that names the user is folded into a per-session rollup
+  (counters plus a capped recent-file list), so the `session` document carries
+  the login→disconnect byte/file totals and recent activity.
 - **`t`-stream `REDHOST` (0xf0)**: skipped; a per-client redirect marker that
   could complement the `r` stream.
 - **`t`-stream `readu`**: decoded as `readv`; could be split out.
@@ -615,7 +616,14 @@ Completed since the initial Tier 1 landing:
   `access` (short read, unknown open size, or a write cut short by a forced close
   or an error). Both share one schema; they are counted separately in
   `xrootd_collector_transfers_total` and `xrootd_collector_accesses_total`.
-- **Schema consistency across all document types.** `session_end` (`EmitDisc`),
+- **Session activity correlation.** The `session` document (`EmitDisc`,
+  renamed from `session_end`) aggregates every file close that named the user
+  into a `session` object: running totals (`files`, `transfers`, `accesses`,
+  `read_bytes`, `write_bytes`, `errors`, start/end/duration) plus a capped
+  `recent_files` list. The rollup lives on the user dictionary entry and is
+  folded in at each close (`foldSession`); the recent-file cap keeps a long
+  session bounded.
+- **Schema consistency across all document types.** `session` (`EmitDisc`),
   `server_ident` (`DecodeIdent`), `frm` (`DecodeFrm`), the `t`-stream traces
   (`DecodeTStream`), `r`-stream redirects (`DecodeRStream`), and the `gstream`
   forward doc were migrated off the original flat keys onto the same nested
