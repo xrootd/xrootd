@@ -6,6 +6,9 @@ cmake_minimum_required(VERSION 3.13)
 project(googletest-distribution)
 set(GOOGLETEST_VERSION 1.16.0)
 
+# disable compiler warnings to not influence CI
+add_compile_options(-w)
+
 if(NOT CYGWIN AND NOT MSYS AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL QNX)
   set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
