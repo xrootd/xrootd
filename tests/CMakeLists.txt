@@ -4,6 +4,8 @@ endif()
 
 include(GoogleTest)
 
+add_subdirectory(unit)
+
 add_subdirectory(common)
 
 add_subdirectory(XrdCl)
