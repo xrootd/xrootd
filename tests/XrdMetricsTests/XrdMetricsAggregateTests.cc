@@ -43,13 +43,13 @@ bool inDirectory(Collector* r)
 
 TEST(MetricsFilter, SkipsDisabledGroupPrometheus)
 {
-   Collector reg("xrootd");
-   reg.subsystem("sched").counter<std::uint64_t>("jobs_total", {}, {}, "jobs").noLabels() += 1;
-   reg.subsystem("link").counter<std::uint64_t>("total", {}, {}, "links").noLabels() += 2;
+   Collector collector("xrootd");
+   collector.subsystem("sched").counter<std::uint64_t>("jobs_total", {}, {}, "jobs").noLabels() += 1;
+   collector.subsystem("link").counter<std::uint64_t>("total", {}, {}, "links").noLabels() += 2;
 
    std::string out;
    PrometheusTextSerializer ser(out);
-   reg.serializeBody(ser, [](const std::string& g){return g != "sched";});
+   collector.serializeBody(ser, [](const std::string& g){return g != "sched";});
 
    EXPECT_TRUE(contains(out, "xrootd_link_total"));
    EXPECT_FALSE(contains(out, "xrootd_sched_jobs_total"));
@@ -58,13 +58,13 @@ TEST(MetricsFilter, SkipsDisabledGroupPrometheus)
 
 TEST(MetricsFilter, EmptyFilterEmitsEverything)
 {
-   Collector reg("xrootd");
-   reg.subsystem("sched").counter<std::uint64_t>("jobs_total", {}, {}, "jobs").noLabels() += 1;
-   reg.subsystem("link").counter<std::uint64_t>("total", {}, {}, "links").noLabels() += 2;
+   Collector collector("xrootd");
+   collector.subsystem("sched").counter<std::uint64_t>("jobs_total", {}, {}, "jobs").noLabels() += 1;
+   collector.subsystem("link").counter<std::uint64_t>("total", {}, {}, "links").noLabels() += 2;
 
    std::string out;
    PrometheusTextSerializer ser(out);
-   reg.serializeBody(ser);   // no filter
+   collector.serializeBody(ser);   // no filter
 
    EXPECT_TRUE(contains(out, "xrootd_link_total"));
    EXPECT_TRUE(contains(out, "xrootd_sched_jobs_total"));

@@ -20,19 +20,19 @@
 
 namespace
 {
-std::string scrape(XrdMetrics::Collector &reg)
+std::string scrape(XrdMetrics::Collector &collector)
 {
    std::string out;
    XrdMetrics::PrometheusTextSerializer ser(out);
-   reg.serialize(ser);
+   collector.serialize(ser);
    return out;
 }
 }
 
 TEST(XrdPfcMetrics, RegistersAndFoldsValues)
 {
-   XrdMetrics::Collector reg("xrootd");
-   XrdPfc::CacheMetrics m(reg);
+   XrdMetrics::Collector collector("xrootd");
+   XrdPfc::CacheMetrics m(collector);
 
    XrdPfc::Stats d;
    d.m_BytesHit      = 100;
@@ -50,7 +50,7 @@ TEST(XrdPfcMetrics, RegistersAndFoldsValues)
    m.SetSpace(/*disk_total*/1000, /*disk_used*/400, /*data_used*/300,
               /*meta_total*/80,   /*meta_used*/20);
 
-   const std::string out = scrape(reg);
+   const std::string out = scrape(collector);
 
 // Byte counters by origin and the standalone counters.
 //

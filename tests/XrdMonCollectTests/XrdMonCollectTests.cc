@@ -338,10 +338,10 @@ TEST(XrdMonCollect, TStreamRecordsDecoded)
 TEST_F(Transfer, AggregatesIntoMetricsRegistry)
 {
   // Re-run the open/close/user sequence through a decoder bound to a registry.
-  XrdMetrics::Collector reg("");
+  XrdMetrics::Collector collector("");
   std::string sink;
   XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
-                 false, false, false, false, &reg.subsystem(""));
+                 false, false, false, false, &collector.subsystem(""));
 
   { W body; body.u32(7);
     std::string info = "xroot/alice.1:2@wn.example.org\n";
@@ -367,7 +367,7 @@ TEST_F(Transfer, AggregatesIntoMetricsRegistry)
     d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
 
   std::string out;
-  XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_transfers_total{server=\"10.0.0.1:9930\"} 1"),
             std::string::npos);
   EXPECT_NE(out.find("xrootd_collector_read_bytes_total{server=\"10.0.0.1:9930\"} 10485760"),
@@ -495,11 +495,11 @@ std::string writeScitags(const std::string& name, const std::string& body)
 // token or auth VO is present.
 TEST_F(Transfer, ScitagsRegistryMapsActivityAndVo)
 {
-  std::string reg = writeScitags("scitags-map.json",
+  std::string collector = writeScitags("scitags-map.json",
      R"({"experiments":[{"expId":2,"expName":"atlas","activities":[
          {"activityId":7,"activityName":"production"},
          {"activityId":8,"activityName":"analysis"}]}]})");
-  ASSERT_TRUE(dec.LoadScitags(reg));
+  ASSERT_TRUE(dec.LoadScitags(collector));
 
   feedUserMap();          // descriptor tail has no &o= -> no auth VO, no token
   feedActivity(dec, 2, 7);
@@ -518,9 +518,9 @@ TEST_F(Transfer, ScitagsRegistryMapsActivityAndVo)
 // A token VO must win over the SciTags experiment-name fallback.
 TEST_F(Transfer, ScitagsVoYieldsToToken)
 {
-  std::string reg = writeScitags("scitags-vo.json",
+  std::string collector = writeScitags("scitags-vo.json",
      R"({"experiments":[{"expId":2,"expName":"atlas","activities":[]}]})");
-  ASSERT_TRUE(dec.LoadScitags(reg));
+  ASSERT_TRUE(dec.LoadScitags(collector));
 
   feedUserMap();
   { W body; body.u32(7);
@@ -771,10 +771,10 @@ TEST_F(Transfer, OrphanCloseIsAccess)
 // A partial-access close increments the accesses counter, not transfers.
 TEST_F(Transfer, AccessAggregatesIntoMetrics)
 {
-  XrdMetrics::Collector reg("");
+  XrdMetrics::Collector collector("");
   std::string sink;
   XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
-                 false, false, false, false, &reg.subsystem(""));
+                 false, false, false, false, &collector.subsystem(""));
 
   { W body; body.u32(7);
     std::string info = "xroot/alice.1:2@wn.example.org\n";
@@ -797,7 +797,7 @@ TEST_F(Transfer, AccessAggregatesIntoMetrics)
     d.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
 
   std::string out;
-  XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_accesses_total{server=\"10.0.0.1:9930\"} 1"),
             std::string::npos) << out;
   EXPECT_EQ(out.find("xrootd_collector_transfers_total"), std::string::npos) << out;
@@ -929,16 +929,16 @@ std::vector<unsigned char> userPkt(uint32_t dictid, uint8_t pseq)
 
 TEST(XrdMonCollect, PacketLossDetected)
 {
-  XrdMetrics::Collector reg("");
+  XrdMetrics::Collector collector("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg.subsystem(""));
+                   false, false, false, false, &collector.subsystem(""));
 
   for (uint8_t seq : {0, 1, 3, 4})   // 2 is missing -> one lost packet
      {auto p = userPkt(seq, seq);
       dec.Process("h:1", (const char*)p.data(), p.size());}
 
   EXPECT_EQ(dec.GetStats().lost, 1u);
-  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_packets_lost_total{server=\"h:1\"} 1"),
             std::string::npos) << out;
 }
@@ -1121,10 +1121,10 @@ TEST(XrdMonCollect, UnboundedKeepsEverything)
 
 TEST(XrdMonCollect, FrmStageAndPurge)
 {
-  XrdMetrics::Collector reg("");
+  XrdMetrics::Collector collector("");
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
-                   false, false, false, false, &reg.subsystem(""));
+                   false, false, false, false, &collector.subsystem(""));
 
   auto frm = [&](char code, const std::string& info)
      {W body; body.u32(0);                // dictid is 0 for x/p
@@ -1148,7 +1148,7 @@ TEST(XrdMonCollect, FrmStageAndPurge)
   EXPECT_EQ(p["file"]["size"], 1048576);
   EXPECT_EQ(dec.GetStats().frmEvents, 2u);
 
-  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_frm_total{server=\"h:1\",op=\"purge\"} 1"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_frm_purge_bytes_total{server=\"h:1\"} 1048576"),
@@ -1157,10 +1157,10 @@ TEST(XrdMonCollect, FrmStageAndPurge)
 
 TEST(XrdMonCollect, SessionDiscAndActiveGauge)
 {
-  XrdMetrics::Collector reg("");
+  XrdMetrics::Collector collector("");
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
-                   false, false, false, false, &reg.subsystem(""));
+                   false, false, false, false, &collector.subsystem(""));
   dec.SetEmitSessions(true);
 
   // 'u' user map: dictid 7 -> bob.
@@ -1194,7 +1194,7 @@ TEST(XrdMonCollect, SessionDiscAndActiveGauge)
   EXPECT_FALSE(j["session"].contains("recent_files"));
   EXPECT_EQ(dec.GetStats().discs, 1u);
 
-  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_sessions_total{server=\"h:1\"} 1"),
             std::string::npos) << out;
   // One file opened, none closed -> active gauge is 1.
@@ -1414,9 +1414,9 @@ std::vector<unsigned char> gPacket(char prov, const std::string& jsonRec)
 
 TEST(XrdMonCollect, GStreamOssMetricsDelta)
 {
-  XrdMetrics::Collector reg("");
+  XrdMetrics::Collector collector("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg.subsystem(""));
+                   false, false, false, false, &collector.subsystem(""));
 
   // First snapshot establishes the baseline (no counter movement).
   auto p1 = gPacket('O', "{\"event\":\"oss_stats\",\"reads\":100,\"writes\":10,"
@@ -1427,7 +1427,7 @@ TEST(XrdMonCollect, GStreamOssMetricsDelta)
                          "\"slow_reads\":5}");
   dec.Process("h:1", (const char*)p2.data(), p2.size());
 
-  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_oss_ops_total{server=\"h:1\",op=\"read\"} 50"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_oss_ops_total{server=\"h:1\",op=\"write\"} 5"),
@@ -1438,9 +1438,9 @@ TEST(XrdMonCollect, GStreamOssMetricsDelta)
 
 TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
 {
-  XrdMetrics::Collector reg("");
+  XrdMetrics::Collector collector("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg.subsystem(""));
+                   false, false, false, false, &collector.subsystem(""));
 
   auto pfc = gPacket('C', "{\"event\":\"file_close\",\"b_hit\":2048,"
                           "\"b_miss\":1024,\"b_prefetch\":512}");
@@ -1450,7 +1450,7 @@ TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
                           "\"Size\":1048576}");
   dec.Process("h:1", (const char*)tpc.data(), tpc.size());
 
-  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_pfc_files_total{server=\"h:1\"} 1"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_pfc_bytes_total{server=\"h:1\",source=\"hit\"} 2048"),
@@ -1463,9 +1463,9 @@ TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
 
 TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
 {
-  XrdMetrics::Collector reg("");
+  XrdMetrics::Collector collector("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg.subsystem(""));
+                   false, false, false, false, &collector.subsystem(""));
 
   // throttle: baseline then +30 io_total, io_active gauge = 4.
   auto t1 = gPacket('R', "{\"event\":\"throttle_update\",\"io_wait\":1.5,"
@@ -1481,7 +1481,7 @@ TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
   auto h2 = gPacket('H', "{\"HTTP_GET_200\":{\"count\":15,\"success\":15}}");
   dec.Process("h:1", (const char*)h2.data(), h2.size());
 
-  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); reg.serialize(ser);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
   EXPECT_NE(out.find("xrootd_collector_throttle_io_total{server=\"h:1\"} 30"),
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_throttle_io_active{server=\"h:1\"} 4"),
