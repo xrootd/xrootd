@@ -187,13 +187,13 @@ void XrdXrootdStats::RegisterMetrics()
 // the dispatch path); one cached series handle per request id, labelled by the
 // request name. The existing ops_total/requests_total are left untouched.
 //
-   auto& adm = subsystem.counter<std::uint64_t>("admin_ops_total", "metadata/admin protocol operations", {}, {"op"});
+   auto& adm = subsystem.counterFamily<std::uint64_t>("admin_ops_total", "metadata/admin protocol operations", {"op"});
    for (int reqid : {kXR_chmod, kXR_dirlist, kXR_fattr,   kXR_locate,
                      kXR_mkdir, kXR_mv,      kXR_query,    kXR_prepare,
                      kXR_rm,    kXR_rmdir,   kXR_set,      kXR_stat,
                      kXR_statx, kXR_truncate})
        adminOpCtr[reqid - kXR_auth] =
-           &adm.withLabelValues({XProtocol::reqName((kXR_unt16)reqid)});
+           &adm.labels({XProtocol::reqName((kXR_unt16)reqid)});
 }
 
 /******************************************************************************/

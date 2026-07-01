@@ -44,8 +44,8 @@ bool inDirectory(Collector* r)
 TEST(MetricsFilter, SkipsDisabledGroupPrometheus)
 {
    Collector collector("xrootd");
-   collector.subsystem("sched").counter<std::uint64_t>("jobs_total", "jobs").noLabels() += 1;
-   collector.subsystem("link").counter<std::uint64_t>("total", "links").noLabels() += 2;
+   collector.subsystem("sched").counter<std::uint64_t>("jobs_total", "jobs") += 1;
+   collector.subsystem("link").counter<std::uint64_t>("total", "links") += 2;
 
    std::string out;
    PrometheusTextSerializer ser(out);
@@ -59,8 +59,8 @@ TEST(MetricsFilter, SkipsDisabledGroupPrometheus)
 TEST(MetricsFilter, EmptyFilterEmitsEverything)
 {
    Collector collector("xrootd");
-   collector.subsystem("sched").counter<std::uint64_t>("jobs_total", "jobs").noLabels() += 1;
-   collector.subsystem("link").counter<std::uint64_t>("total", "links").noLabels() += 2;
+   collector.subsystem("sched").counter<std::uint64_t>("jobs_total", "jobs") += 1;
+   collector.subsystem("link").counter<std::uint64_t>("total", "links") += 2;
 
    std::string out;
    PrometheusTextSerializer ser(out);
@@ -77,10 +77,10 @@ TEST(MetricsFilter, EmptyFilterEmitsEverything)
 TEST(MetricsAggregate, OtelOneResourcePerRegistry)
 {
    Collector a("xrootd", {{"program", "xrootd"}});
-   a.subsystem("sched").counter<std::uint64_t>("jobs_total", "jobs").noLabels() += 1;
+   a.subsystem("sched").counter<std::uint64_t>("jobs_total", "jobs") += 1;
 
    Collector b("eos", {{"cluster", "prod"}});
-   b.subsystem("ns").counter<std::uint64_t>("files_total", "files").noLabels() += 5;
+   b.subsystem("ns").counter<std::uint64_t>("files_total", "files") += 5;
 
 // Drive the serializer exactly as CollectorRegistry::instance().serialize() does, but over chosen
 // registries so the result is independent of the process-wide directory.
@@ -124,9 +124,9 @@ TEST(MetricsDirectory, RegisterIsIdempotentAndUnregisters)
 TEST(MetricsDirectory, SerializeAllAggregatesRegisteredRegistries)
 {
    Collector a("alpha");
-   a.subsystem("g").counter<std::uint64_t>("c_total", "h").noLabels() += 1;
+   a.subsystem("g").counter<std::uint64_t>("c_total", "h") += 1;
    Collector b("beta");
-   b.subsystem("g").counter<std::uint64_t>("c_total", "h").noLabels() += 2;
+   b.subsystem("g").counter<std::uint64_t>("c_total", "h") += 2;
 
    CollectorRegistry::instance().add(a);
    CollectorRegistry::instance().add(b);

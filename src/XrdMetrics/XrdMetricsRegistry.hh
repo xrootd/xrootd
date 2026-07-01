@@ -67,38 +67,53 @@ public:
 Subsystem(Collector& collector, std::string subsystem)
            : collector_(collector), subsystem_(std::move(subsystem)) {}
 
-//! Create a counter family (T = uint64_t or double). help comes right after the
-//! name so the common no-label case is counter<T>("name", "help"). constLabels
-//! are fixed for every series; varLabels are the variable label names (schema);
-//! maxKids caps series cardinality (0 = unlimited). Throws std::invalid_argument
-//! on an invalid metric or label name.
+//! Create an UNLABELLED counter (T = uint64_t or double) and return the series
+//! itself, so the common case is just counter<T>("name", "help") with nothing
+//! more to call. constLabels are fixed labels. For a metric with variable labels
+//! use counterFamily() and pick a series with .labels({...}). Throws
+//! std::invalid_argument on an invalid metric or label name.
 template <class T>
-LabeledFamily<Counter<T>>& counter(const std::string& name, std::string help = {},
-                                  std::vector<ConstLabel> constLabels = {},
-                                  std::vector<std::string> varLabels = {},
-                                  std::size_t maxKids = 0);
+Counter<T>& counter(const std::string& name, std::string help = {},
+                    std::vector<ConstLabel> constLabels = {});
 
-//! Create a gauge family (T = int64_t or double).
+//! Create a labelled counter family. varLabels are the variable label names
+//! (schema); pick a series with .labels({...}). maxKids caps series cardinality
+//! (0 = unlimited); label combinations past the cap fold into one overflow series.
 template <class T>
-LabeledFamily<Gauge<T>>& gauge(const std::string& name, std::string help = {},
-                                  std::vector<ConstLabel> constLabels = {},
-                                  std::vector<std::string> varLabels = {},
-                                  std::size_t maxKids = 0);
+LabeledFamily<Counter<T>>& counterFamily(const std::string& name, std::string help,
+                    std::vector<std::string> varLabels,
+                    std::vector<ConstLabel> constLabels = {}, std::size_t maxKids = 0);
 
-//! Create a histogram family with fixed bucket upper bounds (the implicit +Inf
-//! bucket is added automatically). Observe values via withLabelValues(...).
-HistogramFamily& histogram(const std::string& name, std::vector<double> bounds,
-                           std::string help = {},
-                           std::vector<ConstLabel> constLabels = {},
-                           std::vector<std::string> varLabels = {},
-                           std::size_t maxKids = 0);
+//! Unlabelled gauge (T = int64_t or double); returns the series itself.
+template <class T>
+Gauge<T>& gauge(const std::string& name, std::string help = {},
+                std::vector<ConstLabel> constLabels = {});
 
-//! Create a summary family (count + sum, no quantiles). Observe values via
-//! withLabelValues(...). Renders as _sum/_count under TYPE summary.
-SummaryFamily& summary(const std::string& name, std::string help = {},
-                       std::vector<ConstLabel> constLabels = {},
-                       std::vector<std::string> varLabels = {},
-                       std::size_t maxKids = 0);
+//! Labelled gauge family; pick a series with .labels({...}).
+template <class T>
+LabeledFamily<Gauge<T>>& gaugeFamily(const std::string& name, std::string help,
+                    std::vector<std::string> varLabels,
+                    std::vector<ConstLabel> constLabels = {}, std::size_t maxKids = 0);
+
+//! Unlabelled histogram with fixed bucket upper bounds (the implicit +Inf bucket
+//! is added automatically); returns the series itself. Observe values on it.
+Histogram& histogram(const std::string& name, std::vector<double> bounds,
+                     std::string help = {}, std::vector<ConstLabel> constLabels = {});
+
+//! Labelled histogram family; pick a series with .labels({...}).
+HistogramFamily& histogramFamily(const std::string& name, std::vector<double> bounds,
+                     std::string help, std::vector<std::string> varLabels,
+                     std::vector<ConstLabel> constLabels = {}, std::size_t maxKids = 0);
+
+//! Unlabelled summary (count + sum, no quantiles); returns the series itself.
+//! Renders as _sum/_count under TYPE summary.
+Summary& summary(const std::string& name, std::string help = {},
+                 std::vector<ConstLabel> constLabels = {});
+
+//! Labelled summary family; pick a series with .labels({...}).
+SummaryFamily& summaryFamily(const std::string& name, std::string help,
+                     std::vector<std::string> varLabels,
+                     std::vector<ConstLabel> constLabels = {}, std::size_t maxKids = 0);
 
 //! Register a read-only metric family whose series values are produced by
 //! reader functions at scrape time. Use these to surface a value owned and
@@ -328,9 +343,9 @@ LabeledFamily<Child>& Subsystem::add(const std::string& name, std::string help,
 
 template <class T>
 LabeledFamily<Counter<T>>&
-Subsystem::counter(const std::string& name, std::string help,
-                     std::vector<ConstLabel> constLabels,
-                     std::vector<std::string> varLabels, std::size_t maxKids)
+Subsystem::counterFamily(const std::string& name, std::string help,
+                     std::vector<std::string> varLabels,
+                     std::vector<ConstLabel> constLabels, std::size_t maxKids)
 {
    static_assert(std::is_same<T, std::uint64_t>::value ||
                  std::is_same<T, double>::value,
@@ -340,10 +355,18 @@ Subsystem::counter(const std::string& name, std::string help,
 }
 
 template <class T>
+Counter<T>&
+Subsystem::counter(const std::string& name, std::string help,
+                     std::vector<ConstLabel> constLabels)
+{
+   return counterFamily<T>(name, std::move(help), {}, std::move(constLabels)).labels({});
+}
+
+template <class T>
 LabeledFamily<Gauge<T>>&
-Subsystem::gauge(const std::string& name, std::string help,
-                   std::vector<ConstLabel> constLabels,
-                   std::vector<std::string> varLabels, std::size_t maxKids)
+Subsystem::gaugeFamily(const std::string& name, std::string help,
+                   std::vector<std::string> varLabels,
+                   std::vector<ConstLabel> constLabels, std::size_t maxKids)
 {
    static_assert(std::is_same<T, std::int64_t>::value ||
                  std::is_same<T, double>::value,
@@ -352,10 +375,18 @@ Subsystem::gauge(const std::string& name, std::string help,
                         std::move(varLabels), maxKids);
 }
 
+template <class T>
+Gauge<T>&
+Subsystem::gauge(const std::string& name, std::string help,
+                   std::vector<ConstLabel> constLabels)
+{
+   return gaugeFamily<T>(name, std::move(help), {}, std::move(constLabels)).labels({});
+}
+
 inline HistogramFamily&
-Subsystem::histogram(const std::string& name, std::vector<double> bounds,
-                       std::string help, std::vector<ConstLabel> constLabels,
-                       std::vector<std::string> varLabels, std::size_t maxKids)
+Subsystem::histogramFamily(const std::string& name, std::vector<double> bounds,
+                       std::string help, std::vector<std::string> varLabels,
+                       std::vector<ConstLabel> constLabels, std::size_t maxKids)
 {
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 
@@ -382,10 +413,18 @@ Subsystem::histogram(const std::string& name, std::vector<double> bounds,
    return ref;
 }
 
+inline Histogram&
+Subsystem::histogram(const std::string& name, std::vector<double> bounds,
+                     std::string help, std::vector<ConstLabel> constLabels)
+{
+   return histogramFamily(name, std::move(bounds), std::move(help), {},
+                          std::move(constLabels), 0).labels({});
+}
+
 inline SummaryFamily&
-Subsystem::summary(const std::string& name, std::string help,
-                     std::vector<ConstLabel> constLabels,
-                     std::vector<std::string> varLabels, std::size_t maxKids)
+Subsystem::summaryFamily(const std::string& name, std::string help,
+                     std::vector<std::string> varLabels,
+                     std::vector<ConstLabel> constLabels, std::size_t maxKids)
 {
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 
@@ -410,6 +449,13 @@ Subsystem::summary(const std::string& name, std::string help,
    std::unique_lock<std::shared_mutex> wr(mutex_);
    families_.push_back(std::move(fam));
    return ref;
+}
+
+inline Summary&
+Subsystem::summary(const std::string& name, std::string help,
+                   std::vector<ConstLabel> constLabels)
+{
+   return summaryFamily(name, std::move(help), {}, std::move(constLabels), 0).labels({});
 }
 
 template <class T>
@@ -621,7 +667,7 @@ Subsystem::counterSeries(const std::string& name, const std::string& help,
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
-   return getOrAddLabeled<Counter<std::uint64_t>>(full, names, help).withLabelValues(std::move(values));
+   return getOrAddLabeled<Counter<std::uint64_t>>(full, names, help).labels(std::move(values));
 }
 
 inline Gauge<double>&
@@ -631,7 +677,7 @@ Subsystem::gaugeSeries(const std::string& name, const std::string& help,
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
-   return getOrAddLabeled<Gauge<double>>(full, names, help).withLabelValues(std::move(values));
+   return getOrAddLabeled<Gauge<double>>(full, names, help).labels(std::move(values));
 }
 
 inline Histogram&
@@ -643,7 +689,7 @@ Subsystem::histogramSeries(const std::string& name, const std::string& help,
    detail::splitLabels(labels, names, values);
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
    return getOrAddHistogram(full, names, std::move(bounds), help)
-             .withLabelValues(std::move(values));
+             .labels(std::move(values));
 }
 
 inline Summary&
@@ -653,7 +699,7 @@ Subsystem::summarySeries(const std::string& name, const std::string& help,
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
-   return getOrAddSummary(full, names, help).withLabelValues(std::move(values));
+   return getOrAddSummary(full, names, help).labels(std::move(values));
 }
 
 /******************************************************************************/

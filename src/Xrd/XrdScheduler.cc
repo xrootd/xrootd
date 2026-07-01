@@ -761,10 +761,10 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
 // observed metrics that read the int at scrape time.
 //
    XrdMetrics::Subsystem& subsystem = XrdMetrics::Default().subsystem("sched");
-   m_Jobs     = &subsystem.counter<std::uint64_t>("jobs_total", "jobs scheduled").noLabels();
-   m_TCreate  = &subsystem.counter<std::uint64_t>("threads_created_total", "worker threads created").noLabels();
-   m_TDestroy = &subsystem.counter<std::uint64_t>("threads_destroyed_total", "worker threads destroyed").noLabels();
-   m_Limited  = &subsystem.counter<std::uint64_t>("thread_limit_hits_total", "times the worker-thread maximum was reached").noLabels();
+   m_Jobs     = &subsystem.counter<std::uint64_t>("jobs_total", "jobs scheduled");
+   m_TCreate  = &subsystem.counter<std::uint64_t>("threads_created_total", "worker threads created");
+   m_TDestroy = &subsystem.counter<std::uint64_t>("threads_destroyed_total", "worker threads destroyed");
+   m_Limited  = &subsystem.counter<std::uint64_t>("thread_limit_hits_total", "times the worker-thread maximum was reached");
 
    subsystem.observeGauge<std::int64_t>("threads", "worker threads")
      .add({}, [this]{return (int64_t)num_Workers;});

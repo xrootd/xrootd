@@ -51,13 +51,13 @@ void XrdHttpMon::Initialize(XrdSysLogger *logP, XrdXrootdGStream *gStream) {
     // path in Record().
     //
     auto& http = XrdMetrics::Default().subsystem("http");
-    auto& requests = http.counter<std::uint64_t>("requests_total", "HTTP requests by method", {}, {"method"});
+    auto& requests = http.counterFamily<std::uint64_t>("requests_total", "HTTP requests by method", {"method"});
     for (int i = 0; i < XrdHttpReq::ReqType::rtCount; ++i)
-        verbMetric[i] = &requests.withLabelValues({verbLabels[i]});
+        verbMetric[i] = &requests.labels({verbLabels[i]});
 
-    auto& responses = http.counter<std::uint64_t>("responses_total", "HTTP responses by status code", {}, {"code"});
+    auto& responses = http.counterFamily<std::uint64_t>("responses_total", "HTTP responses by status code", {"code"});
     for (int i = 0; i < StatusCodes::sc_Count; ++i)
-        statusMetric[i] = &responses.withLabelValues({codeLabels[i]});
+        statusMetric[i] = &responses.labels({codeLabels[i]});
 
     isInitialized = true;
 }

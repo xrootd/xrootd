@@ -1134,7 +1134,7 @@ void XrdLinkXeq::RegisterMetrics()
    subsystem.observeCounter<std::uint64_t>("sendfile_interrupts_total", "sendfile interrupts")
     .add({}, []{return (uint64_t)AtomicGet(LinkSfIntr);});
 
-   tlsConnCtr = &subsystem.counter<std::uint64_t>("tls_connections_total", "connections upgraded to TLS").noLabels();
+   tlsConnCtr = &subsystem.counter<std::uint64_t>("tls_connections_total", "connections upgraded to TLS");
 }
 
 /******************************************************************************/

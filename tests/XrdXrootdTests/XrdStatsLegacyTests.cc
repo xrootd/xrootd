@@ -50,16 +50,16 @@ TEST(XrdStatsLegacy, LinkBlockFromRegistry)
 {
   Collector collector("xrootd");
   auto& subsystem = collector.subsystem("link");
-  subsystem.gauge<std::int64_t>("connections").noLabels()      = 3;
-  subsystem.gauge<std::int64_t>("connections_max").noLabels()  = 7;
-  subsystem.counter<std::uint64_t>("connections_total").noLabels() += 100;
-  auto& bytes = subsystem.counter<std::uint64_t>("bytes_total", {}, {}, {"dir"});
-  bytes.withLabelValues({"in"})  += 4096;
-  bytes.withLabelValues({"out"}) += 8192;
-  subsystem.counter<std::uint64_t>("connect_seconds_total").noLabels()     += 60;
-  subsystem.counter<std::uint64_t>("timeouts_total").noLabels()            += 2;
-  subsystem.counter<std::uint64_t>("stalls_total").noLabels()              += 1;
-  subsystem.counter<std::uint64_t>("sendfile_interrupts_total").noLabels() += 5;
+  subsystem.gauge<std::int64_t>("connections")      = 3;
+  subsystem.gauge<std::int64_t>("connections_max")  = 7;
+  subsystem.counter<std::uint64_t>("connections_total") += 100;
+  auto& bytes = subsystem.counterFamily<std::uint64_t>("bytes_total", {}, {"dir"});
+  bytes.labels({"in"})  += 4096;
+  bytes.labels({"out"}) += 8192;
+  subsystem.counter<std::uint64_t>("connect_seconds_total")     += 60;
+  subsystem.counter<std::uint64_t>("timeouts_total")            += 2;
+  subsystem.counter<std::uint64_t>("stalls_total")              += 1;
+  subsystem.counter<std::uint64_t>("sendfile_interrupts_total") += 5;
 
   MetricSnapshot snap = snapshotOf(collector);
   char buff[512];
@@ -74,10 +74,10 @@ TEST(XrdStatsLegacy, PollBlockFromRegistry)
 {
   Collector collector("xrootd");
   auto& subsystem = collector.subsystem("poll");
-  subsystem.gauge<std::int64_t>("attached").noLabels()        = 10;
-  subsystem.gauge<std::int64_t>("enabled").noLabels()         = 8;
-  subsystem.counter<std::uint64_t>("events_total").noLabels()     += 200;
-  subsystem.counter<std::uint64_t>("interrupts_total").noLabels() += 4;
+  subsystem.gauge<std::int64_t>("attached")        = 10;
+  subsystem.gauge<std::int64_t>("enabled")         = 8;
+  subsystem.counter<std::uint64_t>("events_total")     += 200;
+  subsystem.counter<std::uint64_t>("interrupts_total") += 4;
 
   MetricSnapshot snap = snapshotOf(collector);
   char buff[256];
@@ -91,10 +91,10 @@ TEST(XrdStatsLegacy, BuffBlockSplicesXlStats)
 {
   Collector collector("xrootd");
   auto& subsystem = collector.subsystem("buff");
-  subsystem.counter<std::uint64_t>("requests_total").noLabels()    += 50;
-  subsystem.gauge<std::int64_t>("memory_bytes").noLabels()     = 1048576;
-  subsystem.gauge<std::int64_t>("buffers").noLabels()          = 12;
-  subsystem.counter<std::uint64_t>("adjustments_total").noLabels() += 3;
+  subsystem.counter<std::uint64_t>("requests_total")    += 50;
+  subsystem.gauge<std::int64_t>("memory_bytes")     = 1048576;
+  subsystem.gauge<std::int64_t>("buffers")          = 12;
+  subsystem.counter<std::uint64_t>("adjustments_total") += 3;
 
   MetricSnapshot snap = snapshotOf(collector);
   char buff[512];
@@ -112,40 +112,40 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
   // metric-name mapping cannot be masked.
   Collector collector("xrootd");
   auto& subsystem = collector.subsystem("");                 // empty subsystem -> flat names
-  subsystem.counter<std::uint64_t>("requests_total").noLabels() += 1;
+  subsystem.counter<std::uint64_t>("requests_total") += 1;
 
-  auto& ops = subsystem.counter<std::uint64_t>("ops_total", {}, {}, {"op"});
-  ops.withLabelValues({"open"})    += 2;
-  ops.withLabelValues({"refresh"}) += 3;
-  ops.withLabelValues({"read"})    += 4;
-  ops.withLabelValues({"preread"}) += 5;
-  ops.withLabelValues({"readv"})   += 6;
-  ops.withLabelValues({"writev"})  += 8;
-  ops.withLabelValues({"write"})   += 10;
-  ops.withLabelValues({"sync"})    += 11;
-  ops.withLabelValues({"getfile"}) += 12;
-  ops.withLabelValues({"putfile"}) += 13;
-  ops.withLabelValues({"misc"})    += 14;
-  subsystem.counter<std::uint64_t>("readv_segments_total").noLabels()  += 7;
-  subsystem.counter<std::uint64_t>("writev_segments_total").noLabels() += 9;
+  auto& ops = subsystem.counterFamily<std::uint64_t>("ops_total", {}, {"op"});
+  ops.labels({"open"})    += 2;
+  ops.labels({"refresh"}) += 3;
+  ops.labels({"read"})    += 4;
+  ops.labels({"preread"}) += 5;
+  ops.labels({"readv"})   += 6;
+  ops.labels({"writev"})  += 8;
+  ops.labels({"write"})   += 10;
+  ops.labels({"sync"})    += 11;
+  ops.labels({"getfile"}) += 12;
+  ops.labels({"putfile"}) += 13;
+  ops.labels({"misc"})    += 14;
+  subsystem.counter<std::uint64_t>("readv_segments_total")  += 7;
+  subsystem.counter<std::uint64_t>("writev_segments_total") += 9;
 
-  auto& sig = subsystem.counter<std::uint64_t>("signatures_total", {}, {}, {"result"});
-  sig.withLabelValues({"ok"})      += 15;
-  sig.withLabelValues({"bad"})     += 16;
-  sig.withLabelValues({"ignored"}) += 17;
+  auto& sig = subsystem.counterFamily<std::uint64_t>("signatures_total", {}, {"result"});
+  sig.labels({"ok"})      += 15;
+  sig.labels({"bad"})     += 16;
+  sig.labels({"ignored"}) += 17;
 
-  subsystem.counter<std::uint64_t>("async_ops_total").noLabels()      += 18;
-  subsystem.gauge<std::int64_t>("async_max").noLabels()           = 19;
-  subsystem.counter<std::uint64_t>("async_rejected_total").noLabels() += 20;
-  subsystem.counter<std::uint64_t>("errors_total").noLabels()         += 21;
-  subsystem.counter<std::uint64_t>("redirects_total").noLabels()      += 22;
-  subsystem.counter<std::uint64_t>("stalls_total").noLabels()         += 23;
+  subsystem.counter<std::uint64_t>("async_ops_total")      += 18;
+  subsystem.gauge<std::int64_t>("async_max")           = 19;
+  subsystem.counter<std::uint64_t>("async_rejected_total") += 20;
+  subsystem.counter<std::uint64_t>("errors_total")         += 21;
+  subsystem.counter<std::uint64_t>("redirects_total")      += 22;
+  subsystem.counter<std::uint64_t>("stalls_total")         += 23;
 
-  auto& lgn = subsystem.counter<std::uint64_t>("logins_total", {}, {}, {"result"});
-  lgn.withLabelValues({"attempt"})  += 24;
-  lgn.withLabelValues({"authfail"}) += 25;
-  lgn.withLabelValues({"auth"})     += 26;
-  lgn.withLabelValues({"noauth"})   += 27;
+  auto& lgn = subsystem.counterFamily<std::uint64_t>("logins_total", {}, {"result"});
+  lgn.labels({"attempt"})  += 24;
+  lgn.labels({"authfail"}) += 25;
+  lgn.labels({"auth"})     += 26;
+  lgn.labels({"noauth"})   += 27;
 
   MetricSnapshot snap = snapshotOf(collector);
   char buff[1024];
@@ -166,25 +166,25 @@ TEST(XrdStatsLegacy, OfsBlockFromRegistry)
 {
   Collector collector("xrootd");
   auto& subsystem = collector.subsystem("ofs");
-  auto& open = subsystem.gauge<std::int64_t>("files_open", {}, {}, {"mode"});
-  open.withLabelValues({"read"})  = 1;
-  open.withLabelValues({"write"}) = 2;
-  open.withLabelValues({"posc"})  = 3;
-  subsystem.counter<std::uint64_t>("unpersisted_total").noLabels() += 4;
-  subsystem.gauge<std::int64_t>("handles").noLabels()          = 5;
-  subsystem.counter<std::uint64_t>("redirects_total").noLabels()   += 6;
-  subsystem.counter<std::uint64_t>("started_total").noLabels()     += 7;
-  subsystem.counter<std::uint64_t>("replies_total").noLabels()     += 8;
-  subsystem.counter<std::uint64_t>("errors_total").noLabels()      += 9;
-  subsystem.counter<std::uint64_t>("delays_total").noLabels()      += 10;
-  auto& ev = subsystem.counter<std::uint64_t>("events_total", {}, {}, {"result"});
-  ev.withLabelValues({"ok"})    += 11;
-  ev.withLabelValues({"error"}) += 12;
-  auto& tpc = subsystem.counter<std::uint64_t>("tpc_total", {}, {}, {"result"});
-  tpc.withLabelValues({"granted"}) += 13;
-  tpc.withLabelValues({"denied"})  += 14;
-  tpc.withLabelValues({"error"})   += 15;
-  tpc.withLabelValues({"expired"}) += 16;
+  auto& open = subsystem.gaugeFamily<std::int64_t>("files_open", {}, {"mode"});
+  open.labels({"read"})  = 1;
+  open.labels({"write"}) = 2;
+  open.labels({"posc"})  = 3;
+  subsystem.counter<std::uint64_t>("unpersisted_total") += 4;
+  subsystem.gauge<std::int64_t>("handles")          = 5;
+  subsystem.counter<std::uint64_t>("redirects_total")   += 6;
+  subsystem.counter<std::uint64_t>("started_total")     += 7;
+  subsystem.counter<std::uint64_t>("replies_total")     += 8;
+  subsystem.counter<std::uint64_t>("errors_total")      += 9;
+  subsystem.counter<std::uint64_t>("delays_total")      += 10;
+  auto& ev = subsystem.counterFamily<std::uint64_t>("events_total", {}, {"result"});
+  ev.labels({"ok"})    += 11;
+  ev.labels({"error"}) += 12;
+  auto& tpc = subsystem.counterFamily<std::uint64_t>("tpc_total", {}, {"result"});
+  tpc.labels({"granted"}) += 13;
+  tpc.labels({"denied"})  += 14;
+  tpc.labels({"error"})   += 15;
+  tpc.labels({"expired"}) += 16;
 
   MetricSnapshot snap = snapshotOf(collector);
   char buff[512];

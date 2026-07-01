@@ -41,7 +41,7 @@
 
 // Native, atomic instruments owned by the process-wide registry. Each family is
 // created exactly once (the factories do not deduplicate by name); multiple
-// series are pulled from the labelled families via withLabelValues. The metric
+// series are pulled from the labelled families via labels. The metric
 // names, labels and help are unchanged from the earlier observed version, so the
 // serialized output and the legacy <stats id="ofs"> block are identical.
 //
@@ -49,28 +49,28 @@ XrdOfsStats::StatsData XrdOfsStats::RegisterMetrics()
 {
    XrdMetrics::Subsystem& subsystem = XrdMetrics::Default().subsystem("ofs");
 
-   auto& filesOpen = subsystem.gauge<std::int64_t>("files_open", "currently open files", {}, {"mode"});
-   auto& events    = subsystem.counter<std::uint64_t>("events_total", "scheduled event outcomes", {}, {"result"});
-   auto& tpc       = subsystem.counter<std::uint64_t>("tpc_total", "third-party-copy outcomes", {}, {"result"});
+   auto& filesOpen = subsystem.gaugeFamily<std::int64_t>("files_open", "currently open files", {"mode"});
+   auto& events    = subsystem.counterFamily<std::uint64_t>("events_total", "scheduled event outcomes", {"result"});
+   auto& tpc       = subsystem.counterFamily<std::uint64_t>("tpc_total", "third-party-copy outcomes", {"result"});
 
    return StatsData
    {
-      filesOpen.withLabelValues({"read"}),
-      filesOpen.withLabelValues({"write"}),
-      filesOpen.withLabelValues({"posc"}),
-      subsystem.gauge<std::int64_t>("handles", "active file handles").noLabels(),
-      subsystem.counter<std::uint64_t>("unpersisted_total", "posc files not persisted").noLabels(),
-      subsystem.counter<std::uint64_t>("redirects_total", "redirects issued").noLabels(),
-      subsystem.counter<std::uint64_t>("started_total", "background ops started").noLabels(),
-      subsystem.counter<std::uint64_t>("replies_total", "direct data replies").noLabels(),
-      subsystem.counter<std::uint64_t>("errors_total", "errors returned").noLabels(),
-      subsystem.counter<std::uint64_t>("delays_total", "delays returned").noLabels(),
-      events.withLabelValues({"ok"}),
-      events.withLabelValues({"error"}),
-      tpc.withLabelValues({"granted"}),
-      tpc.withLabelValues({"denied"}),
-      tpc.withLabelValues({"error"}),
-      tpc.withLabelValues({"expired"})
+      filesOpen.labels({"read"}),
+      filesOpen.labels({"write"}),
+      filesOpen.labels({"posc"}),
+      subsystem.gauge<std::int64_t>("handles", "active file handles"),
+      subsystem.counter<std::uint64_t>("unpersisted_total", "posc files not persisted"),
+      subsystem.counter<std::uint64_t>("redirects_total", "redirects issued"),
+      subsystem.counter<std::uint64_t>("started_total", "background ops started"),
+      subsystem.counter<std::uint64_t>("replies_total", "direct data replies"),
+      subsystem.counter<std::uint64_t>("errors_total", "errors returned"),
+      subsystem.counter<std::uint64_t>("delays_total", "delays returned"),
+      events.labels({"ok"}),
+      events.labels({"error"}),
+      tpc.labels({"granted"}),
+      tpc.labels({"denied"}),
+      tpc.labels({"error"}),
+      tpc.labels({"expired"})
    };
 }
 

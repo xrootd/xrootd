@@ -85,7 +85,7 @@ LabeledFamily(std::string fullName, LabelContext ctx, std::string help,
 //! Positional lookup; vals order matches the schema. Returns a stable handle
 //! the caller should cache. This is the only locked step on the update path,
 //! amortized to once per call site.
-Child& withLabelValues(std::vector<std::string> vals)
+Child& labels(std::vector<std::string> vals)
 {
    LabelValues key{std::move(vals)};
 
@@ -111,8 +111,6 @@ Child& withLabelValues(std::vector<std::string> vals)
    return ref;
 }
 
-//! Convenience for an unlabeled metric (a family with an empty schema).
-Child& noLabels() { return withLabelValues({}); }
 
 //! The full metric name (prefix_subsystem_metric).
 const std::string& name() const noexcept { return name_; }
@@ -240,7 +238,7 @@ HistogramFamily(std::string fullName, LabelContext ctx, std::vector<double> boun
                : name_(std::move(fullName)), help_(std::move(help)),
                  ctx_(std::move(ctx)), bounds_(std::move(bounds)), maxKids_(maxKids) {}
 
-Histogram& withLabelValues(std::vector<std::string> vals)
+Histogram& labels(std::vector<std::string> vals)
 {
    LabelValues key{std::move(vals)};
    key.v.resize(ctx_.schema.size());
@@ -261,7 +259,6 @@ Histogram& withLabelValues(std::vector<std::string> vals)
    return ref;
 }
 
-Histogram& noLabels() { return withLabelValues({}); }
 
 const std::string& name() const noexcept { return name_; }
 
@@ -325,7 +322,7 @@ SummaryFamily(std::string fullName, LabelContext ctx, std::string help,
              : name_(std::move(fullName)), help_(std::move(help)),
                ctx_(std::move(ctx)), maxKids_(maxKids) {}
 
-Summary& withLabelValues(std::vector<std::string> vals)
+Summary& labels(std::vector<std::string> vals)
 {
    LabelValues key{std::move(vals)};
    key.v.resize(ctx_.schema.size());
@@ -345,7 +342,6 @@ Summary& withLabelValues(std::vector<std::string> vals)
    return ref;
 }
 
-Summary& noLabels() { return withLabelValues({}); }
 
 const std::string& name() const noexcept { return name_; }
 

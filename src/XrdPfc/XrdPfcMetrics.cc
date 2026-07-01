@@ -31,33 +31,33 @@ CacheMetrics::CacheMetrics(XrdMetrics::Collector &collector)
 
 // Bytes served, split by where the data came from.
 //
-   auto &bytes = subsystem.counter<std::uint64_t>("bytes_total", "bytes served by the cache by data origin", {}, {"origin"});
-   m_bytes_hit    = &bytes.withLabelValues({"hit"});      // from cache disk
-   m_bytes_miss   = &bytes.withLabelValues({"miss"});     // fetched and cached
-   m_bytes_bypass = &bytes.withLabelValues({"bypass"});   // direct, not cached
+   auto &bytes = subsystem.counterFamily<std::uint64_t>("bytes_total", "bytes served by the cache by data origin", {"origin"});
+   m_bytes_hit    = &bytes.labels({"hit"});      // from cache disk
+   m_bytes_miss   = &bytes.labels({"miss"});     // fetched and cached
+   m_bytes_bypass = &bytes.labels({"bypass"});   // direct, not cached
 
-   m_bytes_written = &subsystem.counter<std::uint64_t>("bytes_written_total", "bytes written to the cache disk").noLabels();
-   m_cksum_errors  = &subsystem.counter<std::uint64_t>("checksum_errors_total", "checksum errors fetching from origin").noLabels();
+   m_bytes_written = &subsystem.counter<std::uint64_t>("bytes_written_total", "bytes written to the cache disk");
+   m_cksum_errors  = &subsystem.counter<std::uint64_t>("checksum_errors_total", "checksum errors fetching from origin");
 
 // File lifecycle events.
 //
-   auto &files = subsystem.counter<std::uint64_t>("files_total", "cache file lifecycle events", {}, {"event"});
-   m_files_opened  = &files.withLabelValues({"opened"});
-   m_files_closed  = &files.withLabelValues({"closed"});
-   m_files_created = &files.withLabelValues({"created"});
-   m_files_removed = &files.withLabelValues({"removed"});
+   auto &files = subsystem.counterFamily<std::uint64_t>("files_total", "cache file lifecycle events", {"event"});
+   m_files_opened  = &files.labels({"opened"});
+   m_files_closed  = &files.labels({"closed"});
+   m_files_created = &files.labels({"created"});
+   m_files_removed = &files.labels({"removed"});
 
 // Disk and metadata space, in bytes.
 //
-   auto &disk = subsystem.gauge<std::int64_t>("disk_bytes", "cache data filesystem space", {}, {"state"});
-   m_disk_total = &disk.withLabelValues({"total"});
-   m_disk_used  = &disk.withLabelValues({"used"});
+   auto &disk = subsystem.gaugeFamily<std::int64_t>("disk_bytes", "cache data filesystem space", {"state"});
+   m_disk_total = &disk.labels({"total"});
+   m_disk_used  = &disk.labels({"used"});
 
-   m_data_used  = &subsystem.gauge<std::int64_t>("data_used_bytes", "bytes occupied by cached data files").noLabels();
+   m_data_used  = &subsystem.gauge<std::int64_t>("data_used_bytes", "bytes occupied by cached data files");
 
-   auto &meta = subsystem.gauge<std::int64_t>("meta_bytes", "cache metadata filesystem space", {}, {"state"});
-   m_meta_total = &meta.withLabelValues({"total"});
-   m_meta_used  = &meta.withLabelValues({"used"});
+   auto &meta = subsystem.gaugeFamily<std::int64_t>("meta_bytes", "cache metadata filesystem space", {"state"});
+   m_meta_total = &meta.labels({"total"});
+   m_meta_used  = &meta.labels({"used"});
 }
 
 void CacheMetrics::AddFileStats(const Stats &d)

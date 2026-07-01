@@ -144,7 +144,7 @@ void XrdStats::RegisterMetrics()
              {{"host",     myHost ? myHost : ""},
               {"port",     std::to_string(myPort)},
               {"instance", myName ? myName : ""},
-              {"site",     mySite ? mySite : ""}}).noLabels() = 1;
+              {"site",     mySite ? mySite : ""}}) = 1;
 
 // Process CPU time, read live from getrusage at scrape time.
 //
