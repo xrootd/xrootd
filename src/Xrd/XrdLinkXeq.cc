@@ -1116,25 +1116,25 @@ void XrdLinkXeq::RegisterMetrics()
 {
    XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("link");
 
-   g.observeIntGauge("connections", {}, {}, "current open connections")
+   g.observeGauge<std::int64_t>("connections", {}, {}, "current open connections")
     .add({}, []{return (int64_t)AtomicGet(LinkCount);});
-   g.observeIntGauge("connections_max", {}, {}, "peak concurrent connections")
+   g.observeGauge<std::int64_t>("connections_max", {}, {}, "peak concurrent connections")
     .add({}, []{return (int64_t)AtomicGet(LinkCountMax);});
-   g.observeCounter("connections_total", {}, {}, "connections accepted")
+   g.observeCounter<std::uint64_t>("connections_total", {}, {}, "connections accepted")
     .add({}, []{return (uint64_t)AtomicGet(LinkCountTot);});
-   g.observeCounter("bytes_total", {"dir"}, {}, "bytes transferred over links")
+   g.observeCounter<std::uint64_t>("bytes_total", {"dir"}, {}, "bytes transferred over links")
     .add({"in"},  []{return (uint64_t)AtomicGet(LinkBytesIn);})
     .add({"out"}, []{return (uint64_t)AtomicGet(LinkBytesOut);});
-   g.observeCounter("connect_seconds_total", {}, {}, "accumulated connection time")
+   g.observeCounter<std::uint64_t>("connect_seconds_total", {}, {}, "accumulated connection time")
     .add({}, []{return (uint64_t)AtomicGet(LinkConTime);});
-   g.observeCounter("timeouts_total", {}, {}, "link timeouts")
+   g.observeCounter<std::uint64_t>("timeouts_total", {}, {}, "link timeouts")
     .add({}, []{return (uint64_t)AtomicGet(LinkTimeOuts);});
-   g.observeCounter("stalls_total", {}, {}, "link stalls")
+   g.observeCounter<std::uint64_t>("stalls_total", {}, {}, "link stalls")
     .add({}, []{return (uint64_t)AtomicGet(LinkStalls);});
-   g.observeCounter("sendfile_interrupts_total", {}, {}, "sendfile interrupts")
+   g.observeCounter<std::uint64_t>("sendfile_interrupts_total", {}, {}, "sendfile interrupts")
     .add({}, []{return (uint64_t)AtomicGet(LinkSfIntr);});
 
-   tlsConnCtr = &g.counter("tls_connections_total", {}, {},
+   tlsConnCtr = &g.counter<std::uint64_t>("tls_connections_total", {}, {},
                            "connections upgraded to TLS").noLabels();
 }
 

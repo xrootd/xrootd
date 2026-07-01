@@ -59,12 +59,12 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Collector &reg)
 
 // Active data nodes currently subscribed to this manager/supervisor.
 //
-   g.observeIntGauge("nodes", {}, {}, "active data nodes in the cluster")
+   g.observeGauge<std::int64_t>("nodes", {}, {}, "active data nodes in the cluster")
     .add({}, [this]{return (std::int64_t)NodeCnt;});
 
 // Total selection attempts (monotonic).
 //
-   g.observeCounter("selections_total", {}, {},
+   g.observeCounter<std::uint64_t>("selections_total", {}, {},
                     "cluster node selection attempts")
     .add({}, [this]{return (std::uint64_t)SelTcnt.load();});
 
@@ -72,7 +72,7 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Collector &reg)
 // MonRefs() as the live sum of per-node references, so they are a running
 // snapshot (gauge), not a strictly monotonic counter.
 //
-   auto &sel = g.observeIntGauge("selections", {"mode"}, {},
+   auto &sel = g.observeGauge<std::int64_t>("selections", {"mode"}, {},
                     "successful node selections by access mode (running total)");
    sel.add({"read"},  [this]{return (std::int64_t)SelRtot.load();});
    sel.add({"write"}, [this]{return (std::int64_t)SelWtot.load();});
@@ -106,7 +106,7 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Collector &reg)
          }
       return {cache->total, cache->free};
    };
-   auto &spc = g.observeGauge("space_bytes", {"state"}, {},
+   auto &spc = g.observeGauge<double>("space_bytes", {"state"}, {},
                     "aggregate cluster disk space");
    spc.add({"total"}, [snapshot]{return snapshot().first;});
    spc.add({"free"},  [snapshot]{return snapshot().second;});
@@ -120,19 +120,19 @@ void XrdCmsState::RegisterMetrics(XrdMetrics::Collector &reg)
 {
    XrdMetrics::Subsystem &g = reg.subsystem("cms");
 
-   g.observeIntGauge("nodes_active", {}, {}, "active subscribers")
+   g.observeGauge<std::int64_t>("nodes_active", {}, {}, "active subscribers")
     .add({}, [this]{return (std::int64_t)numActive;});
-   g.observeIntGauge("nodes_staging", {}, {}, "subscribers that can stage")
+   g.observeGauge<std::int64_t>("nodes_staging", {}, {}, "subscribers that can stage")
     .add({}, [this]{return (std::int64_t)numStaging;});
-   g.observeIntGauge("nodes_min", {}, {}, "minimum subscribers needed")
+   g.observeGauge<std::int64_t>("nodes_min", {}, {}, "minimum subscribers needed")
     .add({}, [this]{return (std::int64_t)minNodeCnt;});
 
 // Suspend/stage are reported as 0/1 flags. Suspended is a bitmask of the
 // suspend sources; expose whether any suspension is in effect.
 //
-   g.observeIntGauge("suspended", {}, {}, "1 if the node is suspended")
+   g.observeGauge<std::int64_t>("suspended", {}, {}, "1 if the node is suspended")
     .add({}, [this]{return (std::int64_t)(Suspended ? 1 : 0);});
-   g.observeIntGauge("nostaging", {}, {}, "1 if staging is disabled")
+   g.observeGauge<std::int64_t>("nostaging", {}, {}, "1 if staging is disabled")
     .add({}, [this]{return (std::int64_t)(NoStaging ? 1 : 0);});
 }
 
@@ -148,20 +148,20 @@ void XrdCmsRRQ::RegisterMetrics(XrdMetrics::Collector &reg)
 // Stats is updated under myMutex; a lockless read of an aligned 64-bit field at
 // scrape time is benign and matches the observed-gauge idiom used elsewhere.
 //
-   auto &lu = g.observeCounter("lookups_total", {"speed"}, {},
+   auto &lu = g.observeCounter<std::uint64_t>("lookups_total", {"speed"}, {},
                     "file location lookups served by the response queue");
    lu.add({"fast"}, [this]{return (std::uint64_t)Stats.luFast;});
    lu.add({"slow"}, [this]{return (std::uint64_t)Stats.luSlow;});
 
-   auto &rd = g.observeCounter("redirects_total", {"speed"}, {},
+   auto &rd = g.observeCounter<std::uint64_t>("redirects_total", {"speed"}, {},
                     "client redirects served by the response queue");
    rd.add({"fast"}, [this]{return (std::uint64_t)Stats.rdFast;});
    rd.add({"slow"}, [this]{return (std::uint64_t)Stats.rdSlow;});
 
-   g.observeCounter("queued_total", {}, {},
+   g.observeCounter<std::uint64_t>("queued_total", {}, {},
                     "requests added to the response queue")
     .add({}, [this]{return (std::uint64_t)Stats.Add2Q;});
-   g.observeCounter("responses_total", {}, {},
+   g.observeCounter<std::uint64_t>("responses_total", {}, {},
                     "responses delivered to waiting requests")
     .add({}, [this]{return (std::uint64_t)Stats.Resp;});
 }

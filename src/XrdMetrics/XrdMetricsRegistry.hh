@@ -29,6 +29,7 @@
 #include <shared_mutex>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -66,21 +67,19 @@ public:
 Subsystem(Collector& reg, std::string subsystem)
            : reg_(reg), subsystem_(std::move(subsystem)) {}
 
-//! Create a counter family. varLabels are the variable label names (schema);
-//! constLabels are fixed for every series of the family. maxKids caps series
-//! cardinality (0 = unlimited). Throws std::invalid_argument on an invalid
-//! metric or label name.
-LabeledFamily<Counter<std::uint64_t>>&   counter(const std::string& name,
+//! Create a counter family (T = uint64_t or double). varLabels are the variable
+//! label names (schema); constLabels are fixed for every series of the family.
+//! maxKids caps series cardinality (0 = unlimited). Throws std::invalid_argument
+//! on an invalid metric or label name.
+template <class T>
+LabeledFamily<Counter<T>>& counter(const std::string& name,
                                   std::vector<std::string> varLabels = {},
                                   std::vector<ConstLabel> constLabels = {},
                                   std::string help = {}, std::size_t maxKids = 0);
 
-LabeledFamily<Gauge<std::int64_t>>&  intGauge(const std::string& name,
-                                  std::vector<std::string> varLabels = {},
-                                  std::vector<ConstLabel> constLabels = {},
-                                  std::string help = {}, std::size_t maxKids = 0);
-
-LabeledFamily<Gauge<double>>& floatGauge(const std::string& name,
+//! Create a gauge family (T = int64_t or double).
+template <class T>
+LabeledFamily<Gauge<T>>& gauge(const std::string& name,
                                   std::vector<std::string> varLabels = {},
                                   std::vector<ConstLabel> constLabels = {},
                                   std::string help = {}, std::size_t maxKids = 0);
@@ -104,21 +103,16 @@ SummaryFamily& summary(const std::string& name,
 //! updated by another subsystem (the source of truth stays there) as typed
 //! series; add the series with ObservedFamily::add(). varLabels are the
 //! variable label names; readers must be cheap and thread-safe.
-ObservedFamily<std::uint64_t>& observeCounter(const std::string& name,
+//! (T = uint64_t or double, a monotonic floating-point counter e.g. CPU seconds
+//! rendered with TYPE counter.)
+template <class T>
+ObservedFamily<T>& observeCounter(const std::string& name,
                     std::vector<std::string> varLabels = {},
                     std::vector<ConstLabel> constLabels = {}, std::string help = {});
 
-//! Like observeCounter but the value is a (monotonic) floating-point counter,
-//! e.g. CPU seconds. Rendered with TYPE counter.
-ObservedFamily<double>& observeCounterF(const std::string& name,
-                    std::vector<std::string> varLabels = {},
-                    std::vector<ConstLabel> constLabels = {}, std::string help = {});
-
-ObservedFamily<std::int64_t>& observeIntGauge(const std::string& name,
-                    std::vector<std::string> varLabels = {},
-                    std::vector<ConstLabel> constLabels = {}, std::string help = {});
-
-ObservedFamily<double>& observeGauge(const std::string& name,
+//! Like observeCounter but for a gauge value (T = int64_t or double).
+template <class T>
+ObservedFamily<T>& observeGauge(const std::string& name,
                     std::vector<std::string> varLabels = {},
                     std::vector<ConstLabel> constLabels = {}, std::string help = {});
 
@@ -330,31 +324,30 @@ LabeledFamily<Child>& Subsystem::add(const std::string& name,
    return ref;
 }
 
-inline LabeledFamily<Counter<std::uint64_t>>&
+template <class T>
+LabeledFamily<Counter<T>>&
 Subsystem::counter(const std::string& name, std::vector<std::string> varLabels,
                      std::vector<ConstLabel> constLabels, std::string help,
                      std::size_t maxKids)
 {
-   return add<Counter<std::uint64_t>>(name, std::move(varLabels), std::move(constLabels),
-                       std::move(help), maxKids);
-}
-
-inline LabeledFamily<Gauge<std::int64_t>>&
-Subsystem::intGauge(const std::string& name, std::vector<std::string> varLabels,
-                      std::vector<ConstLabel> constLabels, std::string help,
-                      std::size_t maxKids)
-{
-   return add<Gauge<std::int64_t>>(name, std::move(varLabels), std::move(constLabels),
-                        std::move(help), maxKids);
-}
-
-inline LabeledFamily<Gauge<double>>&
-Subsystem::floatGauge(const std::string& name, std::vector<std::string> varLabels,
-                        std::vector<ConstLabel> constLabels, std::string help,
-                        std::size_t maxKids)
-{
-   return add<Gauge<double>>(name, std::move(varLabels), std::move(constLabels),
+   static_assert(std::is_same<T, std::uint64_t>::value ||
+                 std::is_same<T, double>::value,
+                 "counter<T>: T must be uint64_t or double");
+   return add<Counter<T>>(name, std::move(varLabels), std::move(constLabels),
                           std::move(help), maxKids);
+}
+
+template <class T>
+LabeledFamily<Gauge<T>>&
+Subsystem::gauge(const std::string& name, std::vector<std::string> varLabels,
+                   std::vector<ConstLabel> constLabels, std::string help,
+                   std::size_t maxKids)
+{
+   static_assert(std::is_same<T, std::int64_t>::value ||
+                 std::is_same<T, double>::value,
+                 "gauge<T>: T must be int64_t or double");
+   return add<Gauge<T>>(name, std::move(varLabels), std::move(constLabels),
+                        std::move(help), maxKids);
 }
 
 inline HistogramFamily&
@@ -449,36 +442,28 @@ ObservedFamily<T>& Subsystem::addObserved(const std::string& name, MetricKind ki
    return ref;
 }
 
-inline ObservedFamily<std::uint64_t>&
+template <class T>
+ObservedFamily<T>&
 Subsystem::observeCounter(const std::string& name, std::vector<std::string> varLabels,
                             std::vector<ConstLabel> constLabels, std::string help)
 {
-   return addObserved<std::uint64_t>(name, MetricKind::Counter, std::move(varLabels),
-                                     std::move(constLabels), std::move(help));
+   static_assert(std::is_same<T, std::uint64_t>::value ||
+                 std::is_same<T, double>::value,
+                 "observeCounter<T>: T must be uint64_t or double");
+   return addObserved<T>(name, MetricKind::Counter, std::move(varLabels),
+                         std::move(constLabels), std::move(help));
 }
 
-inline ObservedFamily<double>&
-Subsystem::observeCounterF(const std::string& name, std::vector<std::string> varLabels,
-                             std::vector<ConstLabel> constLabels, std::string help)
-{
-   return addObserved<double>(name, MetricKind::Counter, std::move(varLabels),
-                              std::move(constLabels), std::move(help));
-}
-
-inline ObservedFamily<std::int64_t>&
-Subsystem::observeIntGauge(const std::string& name, std::vector<std::string> varLabels,
-                             std::vector<ConstLabel> constLabels, std::string help)
-{
-   return addObserved<std::int64_t>(name, MetricKind::Gauge, std::move(varLabels),
-                                    std::move(constLabels), std::move(help));
-}
-
-inline ObservedFamily<double>&
+template <class T>
+ObservedFamily<T>&
 Subsystem::observeGauge(const std::string& name, std::vector<std::string> varLabels,
                           std::vector<ConstLabel> constLabels, std::string help)
 {
-   return addObserved<double>(name, MetricKind::Gauge, std::move(varLabels),
-                              std::move(constLabels), std::move(help));
+   static_assert(std::is_same<T, std::int64_t>::value ||
+                 std::is_same<T, double>::value,
+                 "observeGauge<T>: T must be int64_t or double");
+   return addObserved<T>(name, MetricKind::Gauge, std::move(varLabels),
+                         std::move(constLabels), std::move(help));
 }
 
 /******************************************************************************/

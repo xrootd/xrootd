@@ -761,22 +761,22 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
 // observed metrics that read the int at scrape time.
 //
    XrdMetrics::Subsystem& mg = XrdMetrics::Default().subsystem("sched");
-   m_Jobs     = &mg.counter("jobs_total", {}, {},
+   m_Jobs     = &mg.counter<std::uint64_t>("jobs_total", {}, {},
                             "jobs scheduled").noLabels();
-   m_TCreate  = &mg.counter("threads_created_total", {}, {},
+   m_TCreate  = &mg.counter<std::uint64_t>("threads_created_total", {}, {},
                             "worker threads created").noLabels();
-   m_TDestroy = &mg.counter("threads_destroyed_total", {}, {},
+   m_TDestroy = &mg.counter<std::uint64_t>("threads_destroyed_total", {}, {},
                             "worker threads destroyed").noLabels();
-   m_Limited  = &mg.counter("thread_limit_hits_total", {}, {},
+   m_Limited  = &mg.counter<std::uint64_t>("thread_limit_hits_total", {}, {},
                             "times the worker-thread maximum was reached").noLabels();
 
-   mg.observeIntGauge("threads", {}, {}, "worker threads")
+   mg.observeGauge<std::int64_t>("threads", {}, {}, "worker threads")
      .add({}, [this]{return (int64_t)num_Workers;});
-   mg.observeIntGauge("threads_idle", {}, {}, "idle worker threads")
+   mg.observeGauge<std::int64_t>("threads_idle", {}, {}, "idle worker threads")
      .add({}, [this]{return (int64_t)idl_Workers;});
-   mg.observeIntGauge("jobs_in_queue", {}, {}, "jobs waiting in the queue")
+   mg.observeGauge<std::int64_t>("jobs_in_queue", {}, {}, "jobs waiting in the queue")
      .add({}, [this]{return (int64_t)num_JobsinQ;});
-   mg.observeIntGauge("queue_length_max", {}, {}, "longest queue length seen")
+   mg.observeGauge<std::int64_t>("queue_length_max", {}, {}, "longest queue length seen")
      .add({}, [this]{return (int64_t)max_QLength;});
 }
 

@@ -50,16 +50,16 @@ TEST(XrdStatsLegacy, LinkBlockFromRegistry)
 {
   Collector reg("xrootd");
   auto& g = reg.subsystem("link");
-  g.intGauge("connections").noLabels()      = 3;
-  g.intGauge("connections_max").noLabels()  = 7;
-  g.counter("connections_total").noLabels() += 100;
-  auto& bytes = g.counter("bytes_total", {"dir"});
+  g.gauge<std::int64_t>("connections").noLabels()      = 3;
+  g.gauge<std::int64_t>("connections_max").noLabels()  = 7;
+  g.counter<std::uint64_t>("connections_total").noLabels() += 100;
+  auto& bytes = g.counter<std::uint64_t>("bytes_total", {"dir"});
   bytes.withLabelValues({"in"})  += 4096;
   bytes.withLabelValues({"out"}) += 8192;
-  g.counter("connect_seconds_total").noLabels()     += 60;
-  g.counter("timeouts_total").noLabels()            += 2;
-  g.counter("stalls_total").noLabels()              += 1;
-  g.counter("sendfile_interrupts_total").noLabels() += 5;
+  g.counter<std::uint64_t>("connect_seconds_total").noLabels()     += 60;
+  g.counter<std::uint64_t>("timeouts_total").noLabels()            += 2;
+  g.counter<std::uint64_t>("stalls_total").noLabels()              += 1;
+  g.counter<std::uint64_t>("sendfile_interrupts_total").noLabels() += 5;
 
   MetricSnapshot snap = snapshotOf(reg);
   char buff[512];
@@ -74,10 +74,10 @@ TEST(XrdStatsLegacy, PollBlockFromRegistry)
 {
   Collector reg("xrootd");
   auto& g = reg.subsystem("poll");
-  g.intGauge("attached").noLabels()        = 10;
-  g.intGauge("enabled").noLabels()         = 8;
-  g.counter("events_total").noLabels()     += 200;
-  g.counter("interrupts_total").noLabels() += 4;
+  g.gauge<std::int64_t>("attached").noLabels()        = 10;
+  g.gauge<std::int64_t>("enabled").noLabels()         = 8;
+  g.counter<std::uint64_t>("events_total").noLabels()     += 200;
+  g.counter<std::uint64_t>("interrupts_total").noLabels() += 4;
 
   MetricSnapshot snap = snapshotOf(reg);
   char buff[256];
@@ -91,10 +91,10 @@ TEST(XrdStatsLegacy, BuffBlockSplicesXlStats)
 {
   Collector reg("xrootd");
   auto& g = reg.subsystem("buff");
-  g.counter("requests_total").noLabels()    += 50;
-  g.intGauge("memory_bytes").noLabels()     = 1048576;
-  g.intGauge("buffers").noLabels()          = 12;
-  g.counter("adjustments_total").noLabels() += 3;
+  g.counter<std::uint64_t>("requests_total").noLabels()    += 50;
+  g.gauge<std::int64_t>("memory_bytes").noLabels()     = 1048576;
+  g.gauge<std::int64_t>("buffers").noLabels()          = 12;
+  g.counter<std::uint64_t>("adjustments_total").noLabels() += 3;
 
   MetricSnapshot snap = snapshotOf(reg);
   char buff[512];
@@ -112,9 +112,9 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
   // metric-name mapping cannot be masked.
   Collector reg("xrootd");
   auto& g = reg.subsystem("");                 // empty subsystem -> flat names
-  g.counter("requests_total").noLabels() += 1;
+  g.counter<std::uint64_t>("requests_total").noLabels() += 1;
 
-  auto& ops = g.counter("ops_total", {"op"});
+  auto& ops = g.counter<std::uint64_t>("ops_total", {"op"});
   ops.withLabelValues({"open"})    += 2;
   ops.withLabelValues({"refresh"}) += 3;
   ops.withLabelValues({"read"})    += 4;
@@ -126,22 +126,22 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
   ops.withLabelValues({"getfile"}) += 12;
   ops.withLabelValues({"putfile"}) += 13;
   ops.withLabelValues({"misc"})    += 14;
-  g.counter("readv_segments_total").noLabels()  += 7;
-  g.counter("writev_segments_total").noLabels() += 9;
+  g.counter<std::uint64_t>("readv_segments_total").noLabels()  += 7;
+  g.counter<std::uint64_t>("writev_segments_total").noLabels() += 9;
 
-  auto& sig = g.counter("signatures_total", {"result"});
+  auto& sig = g.counter<std::uint64_t>("signatures_total", {"result"});
   sig.withLabelValues({"ok"})      += 15;
   sig.withLabelValues({"bad"})     += 16;
   sig.withLabelValues({"ignored"}) += 17;
 
-  g.counter("async_ops_total").noLabels()      += 18;
-  g.intGauge("async_max").noLabels()           = 19;
-  g.counter("async_rejected_total").noLabels() += 20;
-  g.counter("errors_total").noLabels()         += 21;
-  g.counter("redirects_total").noLabels()      += 22;
-  g.counter("stalls_total").noLabels()         += 23;
+  g.counter<std::uint64_t>("async_ops_total").noLabels()      += 18;
+  g.gauge<std::int64_t>("async_max").noLabels()           = 19;
+  g.counter<std::uint64_t>("async_rejected_total").noLabels() += 20;
+  g.counter<std::uint64_t>("errors_total").noLabels()         += 21;
+  g.counter<std::uint64_t>("redirects_total").noLabels()      += 22;
+  g.counter<std::uint64_t>("stalls_total").noLabels()         += 23;
 
-  auto& lgn = g.counter("logins_total", {"result"});
+  auto& lgn = g.counter<std::uint64_t>("logins_total", {"result"});
   lgn.withLabelValues({"attempt"})  += 24;
   lgn.withLabelValues({"authfail"}) += 25;
   lgn.withLabelValues({"auth"})     += 26;
@@ -166,21 +166,21 @@ TEST(XrdStatsLegacy, OfsBlockFromRegistry)
 {
   Collector reg("xrootd");
   auto& g = reg.subsystem("ofs");
-  auto& open = g.intGauge("files_open", {"mode"});
+  auto& open = g.gauge<std::int64_t>("files_open", {"mode"});
   open.withLabelValues({"read"})  = 1;
   open.withLabelValues({"write"}) = 2;
   open.withLabelValues({"posc"})  = 3;
-  g.counter("unpersisted_total").noLabels() += 4;
-  g.intGauge("handles").noLabels()          = 5;
-  g.counter("redirects_total").noLabels()   += 6;
-  g.counter("started_total").noLabels()     += 7;
-  g.counter("replies_total").noLabels()     += 8;
-  g.counter("errors_total").noLabels()      += 9;
-  g.counter("delays_total").noLabels()      += 10;
-  auto& ev = g.counter("events_total", {"result"});
+  g.counter<std::uint64_t>("unpersisted_total").noLabels() += 4;
+  g.gauge<std::int64_t>("handles").noLabels()          = 5;
+  g.counter<std::uint64_t>("redirects_total").noLabels()   += 6;
+  g.counter<std::uint64_t>("started_total").noLabels()     += 7;
+  g.counter<std::uint64_t>("replies_total").noLabels()     += 8;
+  g.counter<std::uint64_t>("errors_total").noLabels()      += 9;
+  g.counter<std::uint64_t>("delays_total").noLabels()      += 10;
+  auto& ev = g.counter<std::uint64_t>("events_total", {"result"});
   ev.withLabelValues({"ok"})    += 11;
   ev.withLabelValues({"error"}) += 12;
-  auto& tpc = g.counter("tpc_total", {"result"});
+  auto& tpc = g.counter<std::uint64_t>("tpc_total", {"result"});
   tpc.withLabelValues({"granted"}) += 13;
   tpc.withLabelValues({"denied"})  += 14;
   tpc.withLabelValues({"error"})   += 15;

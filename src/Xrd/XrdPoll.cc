@@ -366,19 +366,19 @@ void XrdPoll::RegisterMetrics()
 {
    XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("poll");
 
-   g.observeIntGauge("attached", {}, {}, "file descriptors attached to pollers")
+   g.observeGauge<std::int64_t>("attached", {}, {}, "file descriptors attached to pollers")
     .add({}, []{int64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
                                  if (Pollers[i]) t += Pollers[i]->numAttached;
                return t;});
-   g.observeIntGauge("enabled", {}, {}, "poll enable count")
+   g.observeGauge<std::int64_t>("enabled", {}, {}, "poll enable count")
     .add({}, []{int64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
                                  if (Pollers[i]) t += Pollers[i]->numEnabled;
                return t;});
-   g.observeCounter("events_total", {}, {}, "poll events dispatched")
+   g.observeCounter<std::uint64_t>("events_total", {}, {}, "poll events dispatched")
     .add({}, []{uint64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
                                   if (Pollers[i]) t += (unsigned)Pollers[i]->numEvents;
                return t;});
-   g.observeCounter("interrupts_total", {}, {}, "poll interrupts")
+   g.observeCounter<std::uint64_t>("interrupts_total", {}, {}, "poll interrupts")
     .add({}, []{uint64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)
                                   if (Pollers[i]) t += (unsigned)Pollers[i]->numInterrupts;
                return t;});

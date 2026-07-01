@@ -49,22 +49,22 @@ XrdOfsStats::StatsData XrdOfsStats::RegisterMetrics()
 {
    XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("ofs");
 
-   auto& filesOpen = g.intGauge("files_open", {"mode"}, {}, "currently open files");
-   auto& events    = g.counter("events_total", {"result"}, {}, "scheduled event outcomes");
-   auto& tpc       = g.counter("tpc_total", {"result"}, {}, "third-party-copy outcomes");
+   auto& filesOpen = g.gauge<std::int64_t>("files_open", {"mode"}, {}, "currently open files");
+   auto& events    = g.counter<std::uint64_t>("events_total", {"result"}, {}, "scheduled event outcomes");
+   auto& tpc       = g.counter<std::uint64_t>("tpc_total", {"result"}, {}, "third-party-copy outcomes");
 
    return StatsData
    {
       filesOpen.withLabelValues({"read"}),
       filesOpen.withLabelValues({"write"}),
       filesOpen.withLabelValues({"posc"}),
-      g.intGauge("handles", {}, {}, "active file handles").noLabels(),
-      g.counter("unpersisted_total", {}, {}, "posc files not persisted").noLabels(),
-      g.counter("redirects_total",   {}, {}, "redirects issued").noLabels(),
-      g.counter("started_total",     {}, {}, "background ops started").noLabels(),
-      g.counter("replies_total",     {}, {}, "direct data replies").noLabels(),
-      g.counter("errors_total",      {}, {}, "errors returned").noLabels(),
-      g.counter("delays_total",      {}, {}, "delays returned").noLabels(),
+      g.gauge<std::int64_t>("handles", {}, {}, "active file handles").noLabels(),
+      g.counter<std::uint64_t>("unpersisted_total", {}, {}, "posc files not persisted").noLabels(),
+      g.counter<std::uint64_t>("redirects_total",   {}, {}, "redirects issued").noLabels(),
+      g.counter<std::uint64_t>("started_total",     {}, {}, "background ops started").noLabels(),
+      g.counter<std::uint64_t>("replies_total",     {}, {}, "direct data replies").noLabels(),
+      g.counter<std::uint64_t>("errors_total",      {}, {}, "errors returned").noLabels(),
+      g.counter<std::uint64_t>("delays_total",      {}, {}, "delays returned").noLabels(),
       events.withLabelValues({"ok"}),
       events.withLabelValues({"error"}),
       tpc.withLabelValues({"granted"}),

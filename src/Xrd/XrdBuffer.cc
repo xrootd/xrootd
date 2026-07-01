@@ -361,12 +361,12 @@ void XrdBuffManager::RegisterMetrics()
 {
    XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("buff");
 
-   g.observeCounter("requests_total", {}, {}, "buffer requests")
+   g.observeCounter<std::uint64_t>("requests_total", {}, {}, "buffer requests")
     .add({}, [this]{return (uint64_t)totreq;});
-   g.observeIntGauge("memory_bytes", {}, {}, "memory allocated to buffers")
+   g.observeGauge<std::int64_t>("memory_bytes", {}, {}, "memory allocated to buffers")
     .add({}, [this]{return (int64_t)totalo;});
-   g.observeIntGauge("buffers", {}, {}, "buffers allocated")
+   g.observeGauge<std::int64_t>("buffers", {}, {}, "buffers allocated")
     .add({}, [this]{return (int64_t)totbuf;});
-   g.observeCounter("adjustments_total", {}, {}, "buffer pool reshapes")
+   g.observeCounter<std::uint64_t>("adjustments_total", {}, {}, "buffer pool reshapes")
     .add({}, [this]{return (uint64_t)totadj;});
 }

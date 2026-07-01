@@ -90,7 +90,7 @@ XrdHttpMetricsExporter::XrdHttpMetricsExporter(XrdSysError *eDest,
 // Register a liveness gauge so the endpoint always returns at least one series,
 // even before any other subsystem has registered metrics.
 //
-   XrdMetrics::Default().subsystem("metrics").intGauge("endpoint_up", {}, {},
+   XrdMetrics::Default().subsystem("metrics").gauge<std::int64_t>("endpoint_up", {}, {},
             "1 if the metrics endpoint is configured").noLabels() = 1;
 
    if (m_log) m_log->Say("Config metrics endpoint at ", m_path.c_str());
@@ -240,7 +240,7 @@ int XrdHttpMetricsExporter::ProcessReq(XrdHttpExtReq &req)
 // register a duplicate each time); the static init is thread-safe.
 //
    static XrdMetrics::Counter<std::uint64_t>& scrapes = XrdMetrics::Default().subsystem("metrics")
-            .counter("scrapes_total", {}, {},
+            .counter<std::uint64_t>("scrapes_total", {}, {},
                      "Number of times the metrics endpoint has been scraped")
             .noLabels();
    ++scrapes;

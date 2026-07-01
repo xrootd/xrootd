@@ -36,12 +36,12 @@ void XrdPssRegisterMetrics(XrdMetrics::Collector &reg)
 {
    XrdMetrics::Subsystem &g = reg.subsystem("proxy");
 
-   g.observeCounter("opens_total", {}, {}, "proxy file opens")
+   g.observeCounter<std::uint64_t>("opens_total", {}, {}, "proxy file opens")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.Opens;});
-   g.observeCounter("open_errors_total", {}, {}, "proxy file open errors")
+   g.observeCounter<std::uint64_t>("open_errors_total", {}, {}, "proxy file open errors")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.OpenErrs;});
-   g.observeCounter("closes_total", {}, {}, "proxy file closes")
+   g.observeCounter<std::uint64_t>("closes_total", {}, {}, "proxy file closes")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.Closes;});
-   g.observeCounter("close_errors_total", {}, {}, "proxy file close errors")
+   g.observeCounter<std::uint64_t>("close_errors_total", {}, {}, "proxy file close errors")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.CloseErrs;});
 }

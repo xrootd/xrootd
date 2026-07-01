@@ -140,7 +140,7 @@ void XrdStats::RegisterMetrics()
 // Server identity as a Prometheus "info" metric (value is always 1). It keeps
 // its flat name, so it lives in the registry's empty subsystem group.
 //
-   XrdMetrics::Default().subsystem("").intGauge("server_info", {},
+   XrdMetrics::Default().subsystem("").gauge<std::int64_t>("server_info", {},
              {{"host",     myHost ? myHost : ""},
               {"port",     std::to_string(myPort)},
               {"instance", myName ? myName : ""},
@@ -149,7 +149,7 @@ void XrdStats::RegisterMetrics()
 // Process CPU time, read live from getrusage at scrape time.
 //
    XrdMetrics::Default().subsystem("process")
-        .observeCounterF("cpu_seconds_total", {"mode"}, {},
+        .observeCounter<double>("cpu_seconds_total", {"mode"}, {},
                          "process CPU time in seconds")
         .add({"user"},
              []{struct rusage r; if (getrusage(RUSAGE_SELF,&r)) return 0.0;
