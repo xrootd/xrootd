@@ -56,7 +56,7 @@ class IFamily
 {
 public:
 virtual ~IFamily() = default;
-virtual void serialize(ISerializer& s) const = 0;
+virtual void serialize(Serializer& s) const = 0;
 };
 
 /******************************************************************************/
@@ -117,7 +117,7 @@ Child& noLabels() { return withLabelValues({}); }
 //! The full metric name (prefix_subsystem_metric).
 const std::string& name() const noexcept { return name_; }
 
-void serialize(ISerializer& s) const override
+void serialize(Serializer& s) const override
 {
    s.beginFamily(name_, Child::kind(), help_);
    for (const Child* c : snapshot()) s.series(c->labels(), c->value());
@@ -177,7 +177,7 @@ std::unique_ptr<Child> overflow_;
 //! add a single series with empty values.
 //!
 //! @tparam T  the value type (uint64_t, int64_t or double) selecting the
-//!            ISerializer::series overload, hence the exposition numeric type.
+//!            Serializer::series overload, hence the exposition numeric type.
 
 template <class T>
 class ObservedFamily : public IFamily
@@ -202,7 +202,7 @@ ObservedFamily& add(std::vector<std::string> values, std::function<T()> reader)
    return *this;
 }
 
-void serialize(ISerializer& s) const override
+void serialize(Serializer& s) const override
 {
    s.beginFamily(name_, kind_, help_);
    for (const Series& sr : series_) s.series(sr.labels, sr.reader());
@@ -265,7 +265,7 @@ Histogram& noLabels() { return withLabelValues({}); }
 
 const std::string& name() const noexcept { return name_; }
 
-void serialize(ISerializer& s) const override
+void serialize(Serializer& s) const override
 {
    s.beginFamily(name_, MetricKind::Histogram, help_);
    for (const Histogram* h : snapshot())
@@ -315,7 +315,7 @@ std::unique_ptr<Histogram> overflow_;
 
 //! A family of summaries (count + sum, no quantiles) keyed by variable label
 //! values. Identical two-tier child cache to LabeledFamily; children serialize
-//! as _sum/_count through ISerializer::summary.
+//! as _sum/_count through Serializer::summary.
 
 class SummaryFamily : public IFamily
 {
@@ -349,7 +349,7 @@ Summary& noLabels() { return withLabelValues({}); }
 
 const std::string& name() const noexcept { return name_; }
 
-void serialize(ISerializer& s) const override
+void serialize(Serializer& s) const override
 {
    s.beginFamily(name_, MetricKind::Summary, help_);
    for (const Summary* m : snapshot())

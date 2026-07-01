@@ -30,11 +30,11 @@
 #include "XrdMetrics/XrdMetricsLabels.hh"        // SeriesLabels
 
 //-----------------------------------------------------------------------------
-//! The serialization seam. A family is serialized by accepting an ISerializer
+//! The serialization seam. A family is serialized by accepting an Serializer
 //! and calling beginFamily, one series() per child (with the value's static
 //! type preserved so a uint64 counter is never coerced through double), then
 //! endFamily. Adding an output format (OTel JSON, XRootD XML) is a new
-//! ISerializer subclass and never a change to families or instruments.
+//! Serializer subclass and never a change to families or instruments.
 //-----------------------------------------------------------------------------
 
 namespace XrdMetrics
@@ -61,15 +61,15 @@ std::uint64_t count;
 /*                          I S e r i a l i z e r                            */
 /******************************************************************************/
 
-class ISerializer
+class Serializer
 {
 public:
-ISerializer()                              = default;
-ISerializer(const ISerializer&)            = default;
-ISerializer(ISerializer&&)                 = default;
-ISerializer& operator=(const ISerializer&) = default;
-ISerializer& operator=(ISerializer&&)      = default;
-virtual ~ISerializer()                     = default;
+Serializer()                              = default;
+Serializer(const Serializer&)            = default;
+Serializer(Serializer&&)                 = default;
+Serializer& operator=(const Serializer&) = default;
+Serializer& operator=(Serializer&&)      = default;
+virtual ~Serializer()                     = default;
 
 //! Document framing, called once by Registry::serialize() around the whole
 //! traversal. Formats with an envelope (JSON, XML) open/close it here; the
@@ -115,7 +115,7 @@ virtual void summary(const std::string& fullName, const SeriesLabels& labels,
 //! allocation-free steady state. Per series the work is a memcpy of the cached
 //! prefix plus one number append and a newline.
 
-class PrometheusTextSerializer : public ISerializer
+class PrometheusTextSerializer : public Serializer
 {
 public:
 explicit PrometheusTextSerializer(std::string& out) : out_(out) {}
@@ -156,7 +156,7 @@ std::string& out_;
 //! driven through Registry::serialize() (which calls begin()/end()); appending
 //! raw text collectors into the same buffer would corrupt the JSON.
 
-class OtelJsonSerializer : public ISerializer
+class OtelJsonSerializer : public Serializer
 {
 public:
 //! @param out           buffer the JSON document is appended to.
@@ -228,7 +228,7 @@ bool                    resourceOpen_  = false;  // a resource block is open
 //! without its trailing space; an unlabelled series is keyed by its bare metric
 //! name. Histograms and summaries are skipped (the legacy formats predate them).
 
-class MetricSnapshot : public ISerializer
+class MetricSnapshot : public Serializer
 {
 public:
 void series(const SeriesLabels& labels, std::uint64_t value) override;

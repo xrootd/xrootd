@@ -140,7 +140,7 @@ Summary&    summarySeries(const std::string& name, const std::string& help,
 
 const std::string& subsystem() const noexcept { return subsystem_; }
 
-void serialize(ISerializer& s) const
+void serialize(Serializer& s) const
 {
    std::vector<const IFamily*> snap;
    {std::shared_lock<std::shared_mutex> rd(mutex_);
@@ -246,7 +246,7 @@ using GroupFilter = std::function<bool(const std::string& subsystem)>;
 //! (no begin()/end()), so several registries can be serialized into one
 //! document (see serializeAll). Groups are snapshotted under a brief read lock
 //! and serialized outside it; a group is skipped when @p filter rejects it.
-void serializeBody(ISerializer& s, const GroupFilter& filter = {}) const
+void serializeBody(Serializer& s, const GroupFilter& filter = {}) const
 {
    std::vector<const MetricGroup*> snap;
    {std::shared_lock<std::shared_mutex> rd(mutex_);
@@ -259,7 +259,7 @@ void serializeBody(ISerializer& s, const GroupFilter& filter = {}) const
 
 //! Drive a serializer over every group in the registry, with the document
 //! framing. Equivalent to begin(); serializeBody(s); end().
-void serialize(ISerializer& s) const
+void serialize(Serializer& s) const
 {
    s.begin();
    serializeBody(s);
@@ -270,7 +270,7 @@ void serialize(ISerializer& s) const
 //! series on a text scrape (see runTextCollectors). This is an escape hatch for
 //! counters kept outside the registry (e.g. legacy plugin counter sets bridged
 //! as raw exposition text); it has no structured representation, so it only
-//! participates in Prometheus text output, not the other ISerializer formats.
+//! participates in Prometheus text output, not the other Serializer formats.
 void addTextCollector(std::function<void(std::string&)> c)
 {
    std::unique_lock<std::shared_mutex> wr(mutex_);
@@ -655,6 +655,6 @@ std::vector<Registry*> registries();
 //! (begin()/end()) and walks each registry's body, marking a per-registry
 //! resource boundary so envelope formats (OTLP) can emit one resource block per
 //! registry. @p filter selects which subsystems (groups) to emit, by name.
-void serializeAll(ISerializer& s, const Registry::GroupFilter& filter = {});
+void serializeAll(Serializer& s, const Registry::GroupFilter& filter = {});
 }
 #endif

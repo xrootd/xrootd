@@ -661,7 +661,7 @@ Registry::~Registry()
 /*                          s e r i a l i z e A l l                          */
 /******************************************************************************/
 
-void serializeAll(ISerializer& s, const Registry::GroupFilter& filter)
+void serializeAll(Serializer& s, const Registry::GroupFilter& filter)
 {
    auto regs = registries();
    s.begin();
