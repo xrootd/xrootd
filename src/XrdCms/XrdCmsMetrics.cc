@@ -59,21 +59,19 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Collector &collector)
 
 // Active data nodes currently subscribed to this manager/supervisor.
 //
-   subsystem.observeGauge<std::int64_t>("nodes", {}, {}, "active data nodes in the cluster")
+   subsystem.observeGauge<std::int64_t>("nodes", "active data nodes in the cluster")
     .add({}, [this]{return (std::int64_t)NodeCnt;});
 
 // Total selection attempts (monotonic).
 //
-   subsystem.observeCounter<std::uint64_t>("selections_total", {}, {},
-                    "cluster node selection attempts")
+   subsystem.observeCounter<std::uint64_t>("selections_total", "cluster node selection attempts")
     .add({}, [this]{return (std::uint64_t)SelTcnt.load();});
 
 // Successful selections by access mode. These are recomputed periodically by
 // MonRefs() as the live sum of per-node references, so they are a running
 // snapshot (gauge), not a strictly monotonic counter.
 //
-   auto &sel = subsystem.observeGauge<std::int64_t>("selections", {"mode"}, {},
-                    "successful node selections by access mode (running total)");
+   auto &sel = subsystem.observeGauge<std::int64_t>("selections", "successful node selections by access mode (running total)", {}, {"mode"});
    sel.add({"read"},  [this]{return (std::int64_t)SelRtot.load();});
    sel.add({"write"}, [this]{return (std::int64_t)SelWtot.load();});
 
@@ -106,8 +104,7 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Collector &collector)
          }
       return {cache->total, cache->free};
    };
-   auto &spc = subsystem.observeGauge<double>("space_bytes", {"state"}, {},
-                    "aggregate cluster disk space");
+   auto &spc = subsystem.observeGauge<double>("space_bytes", "aggregate cluster disk space", {}, {"state"});
    spc.add({"total"}, [snapshot]{return snapshot().first;});
    spc.add({"free"},  [snapshot]{return snapshot().second;});
 }
@@ -120,19 +117,19 @@ void XrdCmsState::RegisterMetrics(XrdMetrics::Collector &collector)
 {
    XrdMetrics::Subsystem &subsystem = collector.subsystem("cms");
 
-   subsystem.observeGauge<std::int64_t>("nodes_active", {}, {}, "active subscribers")
+   subsystem.observeGauge<std::int64_t>("nodes_active", "active subscribers")
     .add({}, [this]{return (std::int64_t)numActive;});
-   subsystem.observeGauge<std::int64_t>("nodes_staging", {}, {}, "subscribers that can stage")
+   subsystem.observeGauge<std::int64_t>("nodes_staging", "subscribers that can stage")
     .add({}, [this]{return (std::int64_t)numStaging;});
-   subsystem.observeGauge<std::int64_t>("nodes_min", {}, {}, "minimum subscribers needed")
+   subsystem.observeGauge<std::int64_t>("nodes_min", "minimum subscribers needed")
     .add({}, [this]{return (std::int64_t)minNodeCnt;});
 
 // Suspend/stage are reported as 0/1 flags. Suspended is a bitmask of the
 // suspend sources; expose whether any suspension is in effect.
 //
-   subsystem.observeGauge<std::int64_t>("suspended", {}, {}, "1 if the node is suspended")
+   subsystem.observeGauge<std::int64_t>("suspended", "1 if the node is suspended")
     .add({}, [this]{return (std::int64_t)(Suspended ? 1 : 0);});
-   subsystem.observeGauge<std::int64_t>("nostaging", {}, {}, "1 if staging is disabled")
+   subsystem.observeGauge<std::int64_t>("nostaging", "1 if staging is disabled")
     .add({}, [this]{return (std::int64_t)(NoStaging ? 1 : 0);});
 }
 
@@ -148,20 +145,16 @@ void XrdCmsRRQ::RegisterMetrics(XrdMetrics::Collector &collector)
 // Stats is updated under myMutex; a lockless read of an aligned 64-bit field at
 // scrape time is benign and matches the observed-gauge idiom used elsewhere.
 //
-   auto &lu = subsystem.observeCounter<std::uint64_t>("lookups_total", {"speed"}, {},
-                    "file location lookups served by the response queue");
+   auto &lu = subsystem.observeCounter<std::uint64_t>("lookups_total", "file location lookups served by the response queue", {}, {"speed"});
    lu.add({"fast"}, [this]{return (std::uint64_t)Stats.luFast;});
    lu.add({"slow"}, [this]{return (std::uint64_t)Stats.luSlow;});
 
-   auto &rd = subsystem.observeCounter<std::uint64_t>("redirects_total", {"speed"}, {},
-                    "client redirects served by the response queue");
+   auto &rd = subsystem.observeCounter<std::uint64_t>("redirects_total", "client redirects served by the response queue", {}, {"speed"});
    rd.add({"fast"}, [this]{return (std::uint64_t)Stats.rdFast;});
    rd.add({"slow"}, [this]{return (std::uint64_t)Stats.rdSlow;});
 
-   subsystem.observeCounter<std::uint64_t>("queued_total", {}, {},
-                    "requests added to the response queue")
+   subsystem.observeCounter<std::uint64_t>("queued_total", "requests added to the response queue")
     .add({}, [this]{return (std::uint64_t)Stats.Add2Q;});
-   subsystem.observeCounter<std::uint64_t>("responses_total", {}, {},
-                    "responses delivered to waiting requests")
+   subsystem.observeCounter<std::uint64_t>("responses_total", "responses delivered to waiting requests")
     .add({}, [this]{return (std::uint64_t)Stats.Resp;});
 }

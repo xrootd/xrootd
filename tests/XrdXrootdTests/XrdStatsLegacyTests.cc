@@ -53,7 +53,7 @@ TEST(XrdStatsLegacy, LinkBlockFromRegistry)
   subsystem.gauge<std::int64_t>("connections").noLabels()      = 3;
   subsystem.gauge<std::int64_t>("connections_max").noLabels()  = 7;
   subsystem.counter<std::uint64_t>("connections_total").noLabels() += 100;
-  auto& bytes = subsystem.counter<std::uint64_t>("bytes_total", {"dir"});
+  auto& bytes = subsystem.counter<std::uint64_t>("bytes_total", {}, {}, {"dir"});
   bytes.withLabelValues({"in"})  += 4096;
   bytes.withLabelValues({"out"}) += 8192;
   subsystem.counter<std::uint64_t>("connect_seconds_total").noLabels()     += 60;
@@ -114,7 +114,7 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
   auto& subsystem = collector.subsystem("");                 // empty subsystem -> flat names
   subsystem.counter<std::uint64_t>("requests_total").noLabels() += 1;
 
-  auto& ops = subsystem.counter<std::uint64_t>("ops_total", {"op"});
+  auto& ops = subsystem.counter<std::uint64_t>("ops_total", {}, {}, {"op"});
   ops.withLabelValues({"open"})    += 2;
   ops.withLabelValues({"refresh"}) += 3;
   ops.withLabelValues({"read"})    += 4;
@@ -129,7 +129,7 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
   subsystem.counter<std::uint64_t>("readv_segments_total").noLabels()  += 7;
   subsystem.counter<std::uint64_t>("writev_segments_total").noLabels() += 9;
 
-  auto& sig = subsystem.counter<std::uint64_t>("signatures_total", {"result"});
+  auto& sig = subsystem.counter<std::uint64_t>("signatures_total", {}, {}, {"result"});
   sig.withLabelValues({"ok"})      += 15;
   sig.withLabelValues({"bad"})     += 16;
   sig.withLabelValues({"ignored"}) += 17;
@@ -141,7 +141,7 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
   subsystem.counter<std::uint64_t>("redirects_total").noLabels()      += 22;
   subsystem.counter<std::uint64_t>("stalls_total").noLabels()         += 23;
 
-  auto& lgn = subsystem.counter<std::uint64_t>("logins_total", {"result"});
+  auto& lgn = subsystem.counter<std::uint64_t>("logins_total", {}, {}, {"result"});
   lgn.withLabelValues({"attempt"})  += 24;
   lgn.withLabelValues({"authfail"}) += 25;
   lgn.withLabelValues({"auth"})     += 26;
@@ -166,7 +166,7 @@ TEST(XrdStatsLegacy, OfsBlockFromRegistry)
 {
   Collector collector("xrootd");
   auto& subsystem = collector.subsystem("ofs");
-  auto& open = subsystem.gauge<std::int64_t>("files_open", {"mode"});
+  auto& open = subsystem.gauge<std::int64_t>("files_open", {}, {}, {"mode"});
   open.withLabelValues({"read"})  = 1;
   open.withLabelValues({"write"}) = 2;
   open.withLabelValues({"posc"})  = 3;
@@ -177,10 +177,10 @@ TEST(XrdStatsLegacy, OfsBlockFromRegistry)
   subsystem.counter<std::uint64_t>("replies_total").noLabels()     += 8;
   subsystem.counter<std::uint64_t>("errors_total").noLabels()      += 9;
   subsystem.counter<std::uint64_t>("delays_total").noLabels()      += 10;
-  auto& ev = subsystem.counter<std::uint64_t>("events_total", {"result"});
+  auto& ev = subsystem.counter<std::uint64_t>("events_total", {}, {}, {"result"});
   ev.withLabelValues({"ok"})    += 11;
   ev.withLabelValues({"error"}) += 12;
-  auto& tpc = subsystem.counter<std::uint64_t>("tpc_total", {"result"});
+  auto& tpc = subsystem.counter<std::uint64_t>("tpc_total", {}, {}, {"result"});
   tpc.withLabelValues({"granted"}) += 13;
   tpc.withLabelValues({"denied"})  += 14;
   tpc.withLabelValues({"error"})   += 15;

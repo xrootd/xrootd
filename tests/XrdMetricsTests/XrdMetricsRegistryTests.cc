@@ -135,7 +135,7 @@ TEST(XrdMetricsCounter, DoubleCounterAccumulatesAndRenders)
 {
   Collector collector("xrootd");
   Counter<double>& c = collector.subsystem("proc")
-                          .counter<double>("cpu_seconds_total", {}, {}, "cpu time")
+                          .counter<double>("cpu_seconds_total", "cpu time")
                           .noLabels();
   c += 1.5;
   ++c;
@@ -184,8 +184,8 @@ TEST(XrdMetricsGauge, FloatGaugeCasLoop)
 TEST(XrdMetricsLabels, PrefixOrderGlobalConstVariable)
 {
   Collector collector("xrootd", {{"instance", "h1"}});
-  auto& fam = collector.subsystem("ops").counter<std::uint64_t>("requests_total", {"verb"},
-                                        {{"proto", "xroot"}});
+  auto& fam = collector.subsystem("ops").counter<std::uint64_t>("requests_total", {},
+                                        {{"proto", "xroot"}}, {"verb"});
   Counter<std::uint64_t>& c = fam.withLabelValues({"open"});
 
   // global instance, then family const proto, then variable verb, then a space.
@@ -196,7 +196,7 @@ TEST(XrdMetricsLabels, PrefixOrderGlobalConstVariable)
 TEST(XrdMetricsLabels, PrefixBuiltOnceAndStable)
 {
   Collector collector("xrootd");
-  Counter<std::uint64_t>& c = collector.subsystem("g").counter<std::uint64_t>("c", {"k"}).withLabelValues({"v"});
+  Counter<std::uint64_t>& c = collector.subsystem("g").counter<std::uint64_t>("c", {}, {}, {"k"}).withLabelValues({"v"});
   const std::string* p1 = &c.labels().prometheusPrefix();
   ++c;
   const std::string* p2 = &c.labels().prometheusPrefix();
@@ -206,7 +206,7 @@ TEST(XrdMetricsLabels, PrefixBuiltOnceAndStable)
 TEST(XrdMetricsLabels, ValueEscaping)
 {
   Collector collector("xrootd");
-  Counter<std::uint64_t>& c = collector.subsystem("g").counter<std::uint64_t>("c", {"k"})
+  Counter<std::uint64_t>& c = collector.subsystem("g").counter<std::uint64_t>("c", {}, {}, {"k"})
                   .withLabelValues({"a\"b\\c\nd"});
   EXPECT_EQ(c.labels().prometheusPrefix(),
             "xrootd_g_c{k=\"a\\\"b\\\\c\\nd\"} ");
@@ -215,7 +215,7 @@ TEST(XrdMetricsLabels, ValueEscaping)
 TEST(XrdMetricsLabels, ForEachLabelStructuredOrder)
 {
   Collector collector("xrootd", {{"instance", "h1"}});
-  auto& fam = collector.subsystem("g").counter<std::uint64_t>("c", {"verb"}, {{"proto", "xroot"}});
+  auto& fam = collector.subsystem("g").counter<std::uint64_t>("c", {}, {{"proto", "xroot"}}, {"verb"});
   Counter<std::uint64_t>& c = fam.withLabelValues({"open"});
 
   std::vector<std::pair<std::string, std::string>> seen;
@@ -233,10 +233,10 @@ TEST(XrdMetricsLabels, InvalidNamesRejected)
   Collector collector("xrootd");
   auto& subsystem = collector.subsystem("g");
   EXPECT_THROW(subsystem.counter<std::uint64_t>("bad-name"), std::invalid_argument);
-  EXPECT_THROW(subsystem.counter<std::uint64_t>("ok", {"bad-label"}), std::invalid_argument);
+  EXPECT_THROW(subsystem.counter<std::uint64_t>("ok", {}, {}, {"bad-label"}), std::invalid_argument);
   EXPECT_THROW(subsystem.counter<std::uint64_t>("ok2", {}, {{"bad-label", "v"}}),
                std::invalid_argument);
-  EXPECT_NO_THROW(subsystem.counter<std::uint64_t>("ok3", {"good_label"}, {{"also_good", "v"}}));
+  EXPECT_NO_THROW(subsystem.counter<std::uint64_t>("ok3", {}, {{"also_good", "v"}}, {"good_label"}));
 }
 
 /******************************************************************************/
@@ -246,7 +246,7 @@ TEST(XrdMetricsLabels, InvalidNamesRejected)
 TEST(XrdMetricsFamily, SameValuesReturnSameHandle)
 {
   Collector collector("xrootd");
-  auto& fam = collector.subsystem("g").counter<std::uint64_t>("c", {"k"});
+  auto& fam = collector.subsystem("g").counter<std::uint64_t>("c", {}, {}, {"k"});
   Counter<std::uint64_t>& a = fam.withLabelValues({"x"});
   Counter<std::uint64_t>& b = fam.withLabelValues({"x"});
   EXPECT_EQ(&a, &b);
@@ -260,7 +260,7 @@ TEST(XrdMetricsFamily, SameValuesReturnSameHandle)
 TEST(XrdMetricsFamily, CardinalityCapFoldsToOverflow)
 {
   Collector collector("xrootd");
-  auto& fam = collector.subsystem("g").counter<std::uint64_t>("c", {"k"}, {}, {}, /*maxKids=*/2);
+  auto& fam = collector.subsystem("g").counter<std::uint64_t>("c", {}, {}, {"k"}, /*maxKids=*/2);
   Counter<std::uint64_t>& a = fam.withLabelValues({"1"});
   Counter<std::uint64_t>& b = fam.withLabelValues({"2"});
   Counter<std::uint64_t>& c = fam.withLabelValues({"3"});   // over the cap
@@ -280,8 +280,7 @@ TEST(XrdMetricsFamily, CardinalityCapFoldsToOverflow)
 TEST(XrdMetricsHistogram, BucketsCumulativeAndLabels)
 {
   Collector collector("xrootd");
-  auto& h = collector.subsystem("io").histogram("size_bytes", {1, 2, 5}, {}, {},
-                                      "io sizes");
+  auto& h = collector.subsystem("io").histogram("size_bytes", {1, 2, 5}, "io sizes");
   h.noLabels().observe(0.5);
   h.noLabels().observe(1.5);
   h.noLabels().observe(3);
@@ -300,7 +299,7 @@ TEST(XrdMetricsHistogram, BucketsCumulativeAndLabels)
 TEST(XrdMetricsHistogram, LabeledBucketsCarryLe)
 {
   Collector collector("xrootd");
-  collector.subsystem("io").histogram("d", {1}, {"op"}, {}, "h")
+  collector.subsystem("io").histogram("d", {1}, "h", {}, {"op"})
                  .withLabelValues({"read"}).observe(0.5);
 
   const std::string out = scrape(collector);
@@ -319,7 +318,7 @@ TEST(XrdMetricsHistogram, LabeledBucketsCarryLe)
 TEST(XrdMetricsSummary, SumAndCountUnlabeled)
 {
   Collector collector("xrootd");
-  auto& s = collector.subsystem("xrootd").summary("request_bytes", {}, {}, "request sizes");
+  auto& s = collector.subsystem("xrootd").summary("request_bytes", "request sizes");
   s.noLabels().observe(100);
   s.noLabels().observe(250);
   s.noLabels().observe(50);
@@ -336,7 +335,7 @@ TEST(XrdMetricsSummary, SumAndCountUnlabeled)
 TEST(XrdMetricsSummary, LabeledSeriesCarryLabels)
 {
   Collector collector("xrootd");
-  collector.subsystem("io").summary("latency_seconds", {"op"}, {}, "op latency")
+  collector.subsystem("io").summary("latency_seconds", "op latency", {}, {"op"})
                  .withLabelValues({"read"}).observe(0.25);
 
   const std::string out = scrape(collector);
@@ -381,7 +380,7 @@ TEST(XrdMetricsObserved, ReadsSourceAtScrapeTime)
 {
   Collector collector("xrootd");
   long long threads = 4;
-  collector.subsystem("sched").observeGauge<std::int64_t>("threads", {}, {}, "worker threads")
+  collector.subsystem("sched").observeGauge<std::int64_t>("threads", "worker threads")
                     .add({}, [&]{ return (int64_t)threads; });
 
   EXPECT_NE(scrape(collector).find("xrootd_sched_threads 4\n"), std::string::npos);
@@ -394,8 +393,8 @@ TEST(XrdMetricsObserved, CounterKindAndConstLabels)
 {
   Collector collector("xrootd", {{"instance", "h1"}});
   unsigned long long hits = 7;
-  collector.subsystem("cache").observeCounter<std::uint64_t>("evictions_total", {}, {{"tier", "ram"}},
-                                    "evictions")
+  collector.subsystem("cache").observeCounter<std::uint64_t>("evictions_total", "evictions",
+                                    {{"tier", "ram"}})
                     .add({}, [&]{ return hits; });
 
   const std::string out = scrape(collector);
@@ -409,7 +408,7 @@ TEST(XrdMetricsObserved, MultiSeriesUnderOneFamily)
 {
   Collector collector("xrootd");
   unsigned long long open = 3, read = 5;
-  collector.subsystem("ops").observeCounter<std::uint64_t>("total", {"op"}, {}, "operations")
+  collector.subsystem("ops").observeCounter<std::uint64_t>("total", "operations", {}, {"op"})
                   .add({"open"}, [&]{ return open; })
                   .add({"read"}, [&]{ return read; });
 
@@ -510,8 +509,7 @@ TEST(XrdMetricsRegistryNG, DefaultIsStableSingleton)
 TEST(XrdMetricsPrometheus, FamilyHeaderAndSeries)
 {
   Collector collector("xrootd");
-  auto& reqs = collector.subsystem("ops").counter<std::uint64_t>("requests_total", {"verb"}, {},
-                                         "Requests processed");
+  auto& reqs = collector.subsystem("ops").counter<std::uint64_t>("requests_total", "Requests processed", {}, {"verb"});
   reqs.withLabelValues({"open"}) += 3;
   reqs.withLabelValues({"read"}) += 5;
 
@@ -566,7 +564,7 @@ TEST(XrdMetricsPrometheus, BufferIsReusableAcrossScrapes)
 TEST(XrdMetricsOtel, EnvelopeAndMonotonicSum)
 {
   Collector collector("xrootd");
-  collector.subsystem("sched").counter<std::uint64_t>("jobs_total", {}, {}, "jobs scheduled")
+  collector.subsystem("sched").counter<std::uint64_t>("jobs_total", "jobs scheduled")
                     .noLabels() += 3;
 
   const std::string out = scrapeOtel(collector);
@@ -587,7 +585,7 @@ TEST(XrdMetricsOtel, EnvelopeAndMonotonicSum)
 TEST(XrdMetricsOtel, GaugeCarriesLabelsInOrder)
 {
   Collector collector("xrootd", {{"instance", "h1"}});
-  collector.subsystem("net").gauge<std::int64_t>("conns", {"proto"}, {{"role", "server"}}, "conns")
+  collector.subsystem("net").gauge<std::int64_t>("conns", "conns", {{"role", "server"}}, {"proto"})
                   .withLabelValues({"tcp"}) = 5;
 
   const std::string out = scrapeOtel(collector);
@@ -605,9 +603,9 @@ TEST(XrdMetricsOtel, GaugeCarriesLabelsInOrder)
 TEST(XrdMetricsOtel, FloatGaugeAndCounterUseAsDouble)
 {
   Collector collector("xrootd");
-  collector.subsystem("g").gauge<double>("temp", {}, {}, "t").noLabels() = 1.5;
+  collector.subsystem("g").gauge<double>("temp", "t").noLabels() = 1.5;
   double cpu = 2.5;
-  collector.subsystem("proc").observeCounter<double>("cpu_seconds_total", {}, {}, "cpu")
+  collector.subsystem("proc").observeCounter<double>("cpu_seconds_total", "cpu")
                    .add({}, [&]{ return cpu; });
 
   const std::string out = scrapeOtel(collector);
@@ -622,7 +620,7 @@ TEST(XrdMetricsOtel, FloatGaugeAndCounterUseAsDouble)
 TEST(XrdMetricsOtel, HistogramBucketsAreDecumulated)
 {
   Collector collector("xrootd");
-  auto& h = collector.subsystem("io").histogram("size_bytes", {1, 2, 5}, {}, {}, "io sizes");
+  auto& h = collector.subsystem("io").histogram("size_bytes", {1, 2, 5}, "io sizes");
   h.noLabels().observe(0.5);
   h.noLabels().observe(1.5);
   h.noLabels().observe(3);
@@ -641,7 +639,7 @@ TEST(XrdMetricsOtel, HistogramBucketsAreDecumulated)
 TEST(XrdMetricsOtel, SummaryCountAndSum)
 {
   Collector collector("xrootd");
-  auto& s = collector.subsystem("io").summary("bytes", {}, {}, "io sizes");
+  auto& s = collector.subsystem("io").summary("bytes", "io sizes");
   s.noLabels().observe(100);
   s.noLabels().observe(250);
 
@@ -655,7 +653,7 @@ TEST(XrdMetricsOtel, SummaryCountAndSum)
 TEST(XrdMetricsOtel, ResourceAttributesAndEscaping)
 {
   Collector collector("xrootd");
-  collector.subsystem("g").gauge<std::int64_t>("x", {"label"}, {}, "h")
+  collector.subsystem("g").gauge<std::int64_t>("x", "h", {}, {"label"})
                 .withLabelValues({"a\"b\\c"}) = 1;
 
   const std::string out =
@@ -697,7 +695,7 @@ TEST(XrdMetricsSnapshot, LooksUpValuesByName)
 TEST(XrdMetricsSnapshot, KeysIncludeLabels)
 {
   Collector collector("xrootd");
-  auto& f = collector.subsystem("proc").counter<std::uint64_t>("cpu_seconds_total", {"mode"});
+  auto& f = collector.subsystem("proc").counter<std::uint64_t>("cpu_seconds_total", {}, {}, {"mode"});
   f.withLabelValues({"user"})   += 4;
   f.withLabelValues({"system"}) += 9;
 

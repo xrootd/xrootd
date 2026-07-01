@@ -67,36 +67,38 @@ public:
 Subsystem(Collector& collector, std::string subsystem)
            : collector_(collector), subsystem_(std::move(subsystem)) {}
 
-//! Create a counter family (T = uint64_t or double). varLabels are the variable
-//! label names (schema); constLabels are fixed for every series of the family.
+//! Create a counter family (T = uint64_t or double). help comes right after the
+//! name so the common no-label case is counter<T>("name", "help"). constLabels
+//! are fixed for every series; varLabels are the variable label names (schema);
 //! maxKids caps series cardinality (0 = unlimited). Throws std::invalid_argument
 //! on an invalid metric or label name.
 template <class T>
-LabeledFamily<Counter<T>>& counter(const std::string& name,
-                                  std::vector<std::string> varLabels = {},
+LabeledFamily<Counter<T>>& counter(const std::string& name, std::string help = {},
                                   std::vector<ConstLabel> constLabels = {},
-                                  std::string help = {}, std::size_t maxKids = 0);
+                                  std::vector<std::string> varLabels = {},
+                                  std::size_t maxKids = 0);
 
 //! Create a gauge family (T = int64_t or double).
 template <class T>
-LabeledFamily<Gauge<T>>& gauge(const std::string& name,
-                                  std::vector<std::string> varLabels = {},
+LabeledFamily<Gauge<T>>& gauge(const std::string& name, std::string help = {},
                                   std::vector<ConstLabel> constLabels = {},
-                                  std::string help = {}, std::size_t maxKids = 0);
+                                  std::vector<std::string> varLabels = {},
+                                  std::size_t maxKids = 0);
 
 //! Create a histogram family with fixed bucket upper bounds (the implicit +Inf
 //! bucket is added automatically). Observe values via withLabelValues(...).
 HistogramFamily& histogram(const std::string& name, std::vector<double> bounds,
-                           std::vector<std::string> varLabels = {},
+                           std::string help = {},
                            std::vector<ConstLabel> constLabels = {},
-                           std::string help = {}, std::size_t maxKids = 0);
+                           std::vector<std::string> varLabels = {},
+                           std::size_t maxKids = 0);
 
 //! Create a summary family (count + sum, no quantiles). Observe values via
 //! withLabelValues(...). Renders as _sum/_count under TYPE summary.
-SummaryFamily& summary(const std::string& name,
-                       std::vector<std::string> varLabels = {},
+SummaryFamily& summary(const std::string& name, std::string help = {},
                        std::vector<ConstLabel> constLabels = {},
-                       std::string help = {}, std::size_t maxKids = 0);
+                       std::vector<std::string> varLabels = {},
+                       std::size_t maxKids = 0);
 
 //! Register a read-only metric family whose series values are produced by
 //! reader functions at scrape time. Use these to surface a value owned and
@@ -106,15 +108,15 @@ SummaryFamily& summary(const std::string& name,
 //! observeCounter: T = uint64_t or double (a monotonic counter, e.g. CPU
 //! seconds; rendered with TYPE counter).
 template <class T>
-ObservedFamily<T>& observeCounter(const std::string& name,
-                    std::vector<std::string> varLabels = {},
-                    std::vector<ConstLabel> constLabels = {}, std::string help = {});
+ObservedFamily<T>& observeCounter(const std::string& name, std::string help = {},
+                    std::vector<ConstLabel> constLabels = {},
+                    std::vector<std::string> varLabels = {});
 
 //! Like observeCounter but for a gauge value (T = int64_t or double).
 template <class T>
-ObservedFamily<T>& observeGauge(const std::string& name,
-                    std::vector<std::string> varLabels = {},
-                    std::vector<ConstLabel> constLabels = {}, std::string help = {});
+ObservedFamily<T>& observeGauge(const std::string& name, std::string help = {},
+                    std::vector<ConstLabel> constLabels = {},
+                    std::vector<std::string> varLabels = {});
 
 //! Dynamic get-or-create-series convenience: one call returns the series for a
 //! metric name plus label values, creating the family (deduplicated by name) on
@@ -147,15 +149,15 @@ void serialize(Serializer& s) const
 private:
 
 template <class Child>
-LabeledFamily<Child>& add(const std::string& name,
-                          std::vector<std::string> varNames,
+LabeledFamily<Child>& add(const std::string& name, std::string help,
                           std::vector<ConstLabel> constLabels,
-                          std::string help, std::size_t maxKids);
+                          std::vector<std::string> varNames, std::size_t maxKids);
 
 template <class T>
-ObservedFamily<T>& addObserved(const std::string& name, MetricKind kind,
-                               std::vector<std::string> varNames,
-                               std::vector<ConstLabel> constLabels, std::string help);
+ObservedFamily<T>& addObserved(MetricKind kind, const std::string& name,
+                               std::string help,
+                               std::vector<ConstLabel> constLabels,
+                               std::vector<std::string> varNames);
 
 template <class Child>
 LabeledFamily<Child>& getOrAddLabeled(const std::string& full,
@@ -294,10 +296,10 @@ std::vector<std::function<void(std::string&)>> collectors_;
 /******************************************************************************/
 
 template <class Child>
-LabeledFamily<Child>& Subsystem::add(const std::string& name,
-                                       std::vector<std::string> varNames,
+LabeledFamily<Child>& Subsystem::add(const std::string& name, std::string help,
                                        std::vector<ConstLabel> constLabels,
-                                       std::string help, std::size_t maxKids)
+                                       std::vector<std::string> varNames,
+                                       std::size_t maxKids)
 {
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 
@@ -326,35 +328,34 @@ LabeledFamily<Child>& Subsystem::add(const std::string& name,
 
 template <class T>
 LabeledFamily<Counter<T>>&
-Subsystem::counter(const std::string& name, std::vector<std::string> varLabels,
-                     std::vector<ConstLabel> constLabels, std::string help,
-                     std::size_t maxKids)
+Subsystem::counter(const std::string& name, std::string help,
+                     std::vector<ConstLabel> constLabels,
+                     std::vector<std::string> varLabels, std::size_t maxKids)
 {
    static_assert(std::is_same<T, std::uint64_t>::value ||
                  std::is_same<T, double>::value,
                  "counter<T>: T must be uint64_t or double");
-   return add<Counter<T>>(name, std::move(varLabels), std::move(constLabels),
-                          std::move(help), maxKids);
+   return add<Counter<T>>(name, std::move(help), std::move(constLabels),
+                          std::move(varLabels), maxKids);
 }
 
 template <class T>
 LabeledFamily<Gauge<T>>&
-Subsystem::gauge(const std::string& name, std::vector<std::string> varLabels,
-                   std::vector<ConstLabel> constLabels, std::string help,
-                   std::size_t maxKids)
+Subsystem::gauge(const std::string& name, std::string help,
+                   std::vector<ConstLabel> constLabels,
+                   std::vector<std::string> varLabels, std::size_t maxKids)
 {
    static_assert(std::is_same<T, std::int64_t>::value ||
                  std::is_same<T, double>::value,
                  "gauge<T>: T must be int64_t or double");
-   return add<Gauge<T>>(name, std::move(varLabels), std::move(constLabels),
-                        std::move(help), maxKids);
+   return add<Gauge<T>>(name, std::move(help), std::move(constLabels),
+                        std::move(varLabels), maxKids);
 }
 
 inline HistogramFamily&
 Subsystem::histogram(const std::string& name, std::vector<double> bounds,
-                       std::vector<std::string> varLabels,
-                       std::vector<ConstLabel> constLabels, std::string help,
-                       std::size_t maxKids)
+                       std::string help, std::vector<ConstLabel> constLabels,
+                       std::vector<std::string> varLabels, std::size_t maxKids)
 {
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 
@@ -382,9 +383,9 @@ Subsystem::histogram(const std::string& name, std::vector<double> bounds,
 }
 
 inline SummaryFamily&
-Subsystem::summary(const std::string& name, std::vector<std::string> varLabels,
-                     std::vector<ConstLabel> constLabels, std::string help,
-                     std::size_t maxKids)
+Subsystem::summary(const std::string& name, std::string help,
+                     std::vector<ConstLabel> constLabels,
+                     std::vector<std::string> varLabels, std::size_t maxKids)
 {
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 
@@ -413,36 +414,38 @@ Subsystem::summary(const std::string& name, std::vector<std::string> varLabels,
 
 template <class T>
 ObservedFamily<T>&
-Subsystem::observeCounter(const std::string& name, std::vector<std::string> varLabels,
-                            std::vector<ConstLabel> constLabels, std::string help)
+Subsystem::observeCounter(const std::string& name, std::string help,
+                            std::vector<ConstLabel> constLabels,
+                            std::vector<std::string> varLabels)
 {
    static_assert(std::is_same<T, std::uint64_t>::value ||
                  std::is_same<T, double>::value,
                  "observeCounter<T>: T must be uint64_t or double");
-   return addObserved<T>(name, MetricKind::Counter, std::move(varLabels),
-                         std::move(constLabels), std::move(help));
+   return addObserved<T>(MetricKind::Counter, name, std::move(help),
+                         std::move(constLabels), std::move(varLabels));
 }
 
 template <class T>
 ObservedFamily<T>&
-Subsystem::observeGauge(const std::string& name, std::vector<std::string> varLabels,
-                          std::vector<ConstLabel> constLabels, std::string help)
+Subsystem::observeGauge(const std::string& name, std::string help,
+                          std::vector<ConstLabel> constLabels,
+                          std::vector<std::string> varLabels)
 {
    static_assert(std::is_same<T, std::int64_t>::value ||
                  std::is_same<T, double>::value,
                  "observeGauge<T>: T must be int64_t or double");
-   return addObserved<T>(name, MetricKind::Gauge, std::move(varLabels),
-                         std::move(constLabels), std::move(help));
+   return addObserved<T>(MetricKind::Gauge, name, std::move(help),
+                         std::move(constLabels), std::move(varLabels));
 }
 
 // Shared private helper behind observeCounter/observeGauge: build a read-only
 // ObservedFamily<T> of the given kind (the value type T is validated by the
 // public wrappers above).
 template <class T>
-ObservedFamily<T>& Subsystem::addObserved(const std::string& name, MetricKind kind,
-                                            std::vector<std::string> varNames,
+ObservedFamily<T>& Subsystem::addObserved(MetricKind kind, const std::string& name,
+                                            std::string help,
                                             std::vector<ConstLabel> constLabels,
-                                            std::string help)
+                                            std::vector<std::string> varNames)
 {
    std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 

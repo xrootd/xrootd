@@ -49,22 +49,22 @@ XrdOfsStats::StatsData XrdOfsStats::RegisterMetrics()
 {
    XrdMetrics::Subsystem& subsystem = XrdMetrics::Default().subsystem("ofs");
 
-   auto& filesOpen = subsystem.gauge<std::int64_t>("files_open", {"mode"}, {}, "currently open files");
-   auto& events    = subsystem.counter<std::uint64_t>("events_total", {"result"}, {}, "scheduled event outcomes");
-   auto& tpc       = subsystem.counter<std::uint64_t>("tpc_total", {"result"}, {}, "third-party-copy outcomes");
+   auto& filesOpen = subsystem.gauge<std::int64_t>("files_open", "currently open files", {}, {"mode"});
+   auto& events    = subsystem.counter<std::uint64_t>("events_total", "scheduled event outcomes", {}, {"result"});
+   auto& tpc       = subsystem.counter<std::uint64_t>("tpc_total", "third-party-copy outcomes", {}, {"result"});
 
    return StatsData
    {
       filesOpen.withLabelValues({"read"}),
       filesOpen.withLabelValues({"write"}),
       filesOpen.withLabelValues({"posc"}),
-      subsystem.gauge<std::int64_t>("handles", {}, {}, "active file handles").noLabels(),
-      subsystem.counter<std::uint64_t>("unpersisted_total", {}, {}, "posc files not persisted").noLabels(),
-      subsystem.counter<std::uint64_t>("redirects_total",   {}, {}, "redirects issued").noLabels(),
-      subsystem.counter<std::uint64_t>("started_total",     {}, {}, "background ops started").noLabels(),
-      subsystem.counter<std::uint64_t>("replies_total",     {}, {}, "direct data replies").noLabels(),
-      subsystem.counter<std::uint64_t>("errors_total",      {}, {}, "errors returned").noLabels(),
-      subsystem.counter<std::uint64_t>("delays_total",      {}, {}, "delays returned").noLabels(),
+      subsystem.gauge<std::int64_t>("handles", "active file handles").noLabels(),
+      subsystem.counter<std::uint64_t>("unpersisted_total", "posc files not persisted").noLabels(),
+      subsystem.counter<std::uint64_t>("redirects_total", "redirects issued").noLabels(),
+      subsystem.counter<std::uint64_t>("started_total", "background ops started").noLabels(),
+      subsystem.counter<std::uint64_t>("replies_total", "direct data replies").noLabels(),
+      subsystem.counter<std::uint64_t>("errors_total", "errors returned").noLabels(),
+      subsystem.counter<std::uint64_t>("delays_total", "delays returned").noLabels(),
       events.withLabelValues({"ok"}),
       events.withLabelValues({"error"}),
       tpc.withLabelValues({"granted"}),

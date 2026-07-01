@@ -686,7 +686,7 @@ int main(int argc, char* argv[])
    if (subsystem)
       {auto& s = decoder.GetStats();
 #define OBS(name, help, fld) \
-       subsystem->observeCounter<std::uint64_t>(name, {}, {}, help).add({}, [&]{return (uint64_t)s.fld;})
+       subsystem->observeCounter<std::uint64_t>(name, help).add({}, [&]{return (uint64_t)s.fld;})
        OBS("xrootd_collector_packets_total",   "monitor packets received", packets);
        OBS("xrootd_collector_malformed_total", "malformed packets", malformed);
        OBS("xrootd_collector_evicted_total",
@@ -709,34 +709,25 @@ int main(int argc, char* argv[])
        OBS("xrootd_collector_ident_records_total",
            "=-stream server-identity records decoded", mapIdnt);
 #undef OBS
-       subsystem->observeGauge<std::int64_t>("xrootd_collector_state_bytes", {}, {},
-              "approximate resident bytes of correlation state")
+       subsystem->observeGauge<std::int64_t>("xrootd_collector_state_bytes", "approximate resident bytes of correlation state")
           .add({}, [&]{return (int64_t)decoder.ResidentBytes();});
-       subsystem->observeGauge<std::int64_t>("xrootd_collector_recv_queue_batches", {}, {},
-              "packet batches queued from the receiver to the serializer")
+       subsystem->observeGauge<std::int64_t>("xrootd_collector_recv_queue_batches", "packet batches queued from the receiver to the serializer")
           .add({}, [&]{return (int64_t)recvPipe.readyDepth();});
 #ifdef XRDMON_HAVE_CURL
-       subsystem->observeGauge<std::int64_t>("xrootd_collector_post_queue_bodies", {}, {},
-              "serialized _bulk bodies queued for the OpenSearch POST")
+       subsystem->observeGauge<std::int64_t>("xrootd_collector_post_queue_bodies", "serialized _bulk bodies queued for the OpenSearch POST")
           .add({}, [&]{return (int64_t)postPipe.readyDepth();});
-       subsystem->observeCounter<std::uint64_t>("xrootd_collector_post_failures_total", {}, {},
-              "OpenSearch _bulk POSTs that failed after retries")
+       subsystem->observeCounter<std::uint64_t>("xrootd_collector_post_failures_total", "OpenSearch _bulk POSTs that failed after retries")
           .add({}, [&]{return (uint64_t)postFailures.load();});
-       subsystem->observeCounter<std::uint64_t>("xrootd_collector_dropped_bulk_total", {}, {},
-              "_bulk bodies dropped after a failed POST (no/failed disk cache)")
+       subsystem->observeCounter<std::uint64_t>("xrootd_collector_dropped_bulk_total", "_bulk bodies dropped after a failed POST (no/failed disk cache)")
           .add({}, [&]{return (uint64_t)droppedBulk.load();});
        if (cache)
-          {subsystem->observeGauge<std::int64_t>("xrootd_collector_cache_files", {}, {},
-                  "cached _bulk bodies awaiting replay")
+          {subsystem->observeGauge<std::int64_t>("xrootd_collector_cache_files", "cached _bulk bodies awaiting replay")
               .add({}, [&]{return (int64_t)cache->Files();});
-           subsystem->observeGauge<std::int64_t>("xrootd_collector_cache_bytes", {}, {},
-                  "bytes of cached _bulk bodies on disk")
+           subsystem->observeGauge<std::int64_t>("xrootd_collector_cache_bytes", "bytes of cached _bulk bodies on disk")
               .add({}, [&]{return (int64_t)cache->Bytes();});
-           subsystem->observeCounter<std::uint64_t>("xrootd_collector_cache_stored_total", {}, {},
-                  "_bulk bodies written to the disk cache")
+           subsystem->observeCounter<std::uint64_t>("xrootd_collector_cache_stored_total", "_bulk bodies written to the disk cache")
               .add({}, [&]{return (uint64_t)cache->Stored();});
-           subsystem->observeCounter<std::uint64_t>("xrootd_collector_cache_replayed_total", {}, {},
-                  "cached _bulk bodies successfully replayed")
+           subsystem->observeCounter<std::uint64_t>("xrootd_collector_cache_replayed_total", "cached _bulk bodies successfully replayed")
               .add({}, [&]{return (uint64_t)cache->Replayed();});
           }
 #endif

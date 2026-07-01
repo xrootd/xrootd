@@ -120,8 +120,7 @@ void XrdXrootdStats::RegisterMetrics()
 //
    XrdMetrics::Subsystem& subsystem = XrdMetrics::Default().subsystem("");
 
-   auto& ops = subsystem.observeCounter<std::uint64_t>("ops_total", {"op"}, {},
-                                "xrootd protocol operations");
+   auto& ops = subsystem.observeCounter<std::uint64_t>("ops_total", "xrootd protocol operations", {}, {"op"});
 #define OPS(label, fld) ops.add({label}, [this]{return (uint64_t)AtomicGet(fld);})
    OPS("open",    openCnt);
    OPS("read",    readCnt);
@@ -136,8 +135,7 @@ void XrdXrootdStats::RegisterMetrics()
    OPS("misc",    miscCnt);
 #undef OPS
 
-   auto& lgn = subsystem.observeCounter<std::uint64_t>("logins_total", {"result"}, {},
-                                "xrootd login outcomes");
+   auto& lgn = subsystem.observeCounter<std::uint64_t>("logins_total", "xrootd login outcomes", {}, {"result"});
 #define LGN(label, fld) lgn.add({label}, [this]{return (uint64_t)AtomicGet(fld);})
    LGN("attempt",  LoginAT);
    LGN("auth",     LoginAU);
@@ -145,8 +143,7 @@ void XrdXrootdStats::RegisterMetrics()
    LGN("authfail", AuthBad);
 #undef LGN
 
-   auto& sig = subsystem.observeCounter<std::uint64_t>("signatures_total", {"result"}, {},
-                                "xrootd request signature checks");
+   auto& sig = subsystem.observeCounter<std::uint64_t>("signatures_total", "xrootd request signature checks", {}, {"result"});
 #define SIG(label, fld) sig.add({label}, [this]{return (uint64_t)AtomicGet(fld);})
    SIG("ok",      aokSCnt);
    SIG("bad",     badSCnt);
@@ -154,7 +151,7 @@ void XrdXrootdStats::RegisterMetrics()
 #undef SIG
 
 #define CTR(name, help, fld) \
-   subsystem.observeCounter<std::uint64_t>(name, {}, {}, help) \
+   subsystem.observeCounter<std::uint64_t>(name, help) \
     .add({}, [this]{return (uint64_t)AtomicGet(fld);})
    CTR("requests_total",        "xrootd protocol requests",      Count);
    CTR("readv_segments_total",  "readv segments read",           rsegCnt);
@@ -169,20 +166,20 @@ void XrdXrootdStats::RegisterMetrics()
 // File I/O byte totals (counted on every read/write across all files). pgread
 // folds into read, pgwrite/writev into write.
 //
-   subsystem.observeCounter<std::uint64_t>("bytes_total", {"op"}, {}, "file I/O bytes")
+   subsystem.observeCounter<std::uint64_t>("bytes_total", "file I/O bytes", {}, {"op"})
     .add({"read"},  []{return (uint64_t)XrdXrootdFileStats::totRdBytes.load();})
     .add({"readv"}, []{return (uint64_t)XrdXrootdFileStats::totRvBytes.load();})
     .add({"write"}, []{return (uint64_t)XrdXrootdFileStats::totWrBytes.load();});
 
 // High-water mark of concurrent async i/o operations is a gauge, not a counter.
 //
-   subsystem.observeGauge<std::int64_t>("async_max", {}, {}, "peak concurrent asynchronous i/o ops")
+   subsystem.observeGauge<std::int64_t>("async_max", "peak concurrent asynchronous i/o ops")
     .add({}, [this]{return (int64_t)AtomicGet(AsyncMax);});
 
 // Async i/o operations currently in flight. AsyncNow gates async scheduling on
 // the hot path, so it stays the source of truth and is only observed here.
 //
-   subsystem.observeGauge<std::int64_t>("async_now", {}, {}, "asynchronous i/o operations in flight")
+   subsystem.observeGauge<std::int64_t>("async_now", "asynchronous i/o operations in flight")
     .add({}, [this]{return (int64_t)AtomicGet(AsyncNow);});
 
 // Per-operation counters for the metadata/admin requests that otherwise only
@@ -190,8 +187,7 @@ void XrdXrootdStats::RegisterMetrics()
 // the dispatch path); one cached series handle per request id, labelled by the
 // request name. The existing ops_total/requests_total are left untouched.
 //
-   auto& adm = subsystem.counter<std::uint64_t>("admin_ops_total", {"op"}, {},
-                         "metadata/admin protocol operations");
+   auto& adm = subsystem.counter<std::uint64_t>("admin_ops_total", "metadata/admin protocol operations", {}, {"op"});
    for (int reqid : {kXR_chmod, kXR_dirlist, kXR_fattr,   kXR_locate,
                      kXR_mkdir, kXR_mv,      kXR_query,    kXR_prepare,
                      kXR_rm,    kXR_rmdir,   kXR_set,      kXR_stat,
