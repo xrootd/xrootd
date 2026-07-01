@@ -87,7 +87,7 @@ DirListFlags = enum(
 )
 
 PrepareFlags = enum(
-# CANCEL    = 1,
+  CANCEL    = 1,
 # NOTIFY    = 2,
 # NOERRS    = 4,
   STAGE     = 8,
