@@ -57,7 +57,7 @@ class TapeClient(object):
     return bool(parsed.scheme and parsed.netloc)
 
   def _normalize_targeted_metadata(self, targeted_metadata):
-    if not targeted_metadata:
+    if targeted_metadata is None:
       return None
     if isinstance(targeted_metadata, string_types):
       targeted_metadata = json.loads(targeted_metadata)
@@ -73,7 +73,7 @@ class TapeClient(object):
       payload['path'] = entry
     if disk_lifetime is not None:
       payload['diskLifetime'] = str(disk_lifetime)
-    if targeted_metadata:
+    if targeted_metadata is not None:
       payload['targetedMetadata'] = targeted_metadata
     return _STRUCTURED_STAGE_PREFIX + json.dumps(payload, sort_keys=True)
 
@@ -84,7 +84,7 @@ class TapeClient(object):
     for item in files:
       if isinstance(item, string_types):
         _reject_line_breaks(item, 'stage file')
-        if disk_lifetime is None and not targeted_metadata:
+        if disk_lifetime is None and targeted_metadata is None:
           normalized.append(item)
         else:
           normalized.append(self._stage_entry(
@@ -104,7 +104,7 @@ class TapeClient(object):
       entry_metadata = self._normalize_targeted_metadata(
         item.get('targetedMetadata',
                  item.get('targeted_metadata', targeted_metadata)))
-      if entry_disk_lifetime is None and not entry_metadata:
+      if entry_disk_lifetime is None and entry_metadata is None:
         normalized.append(entry)
       else:
         normalized.append(self._stage_entry(

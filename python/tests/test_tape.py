@@ -153,6 +153,24 @@ def test_stage_accepts_file_metadata():
   ]
 
 
+def test_stage_preserves_empty_targeted_metadata():
+  client = tape.TapeClient(timeout=7)
+  status, response = client.stage(
+    'root://xrootd.example.org/store/file',
+    ['root://xrootd.example.org/store/file'],
+    targeted_metadata={})
+
+  assert status.ok
+  assert response.request_id == 'request-1'
+  assert FakeFileSystem.instances[0].calls == [
+    ('prepare', [
+      'xrdclhttp.tape.stage:'
+      '{"targetedMetadata": {}, '
+      '"url": "root://xrootd.example.org/store/file"}',
+    ], PrepareFlags.STAGE, 0, 7),
+  ]
+
+
 def test_stage_rejects_invalid_targeted_metadata():
   client = tape.TapeClient()
 

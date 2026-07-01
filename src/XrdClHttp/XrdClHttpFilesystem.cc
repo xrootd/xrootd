@@ -136,10 +136,11 @@ int TapeTimeout(time_t timeout)
     return static_cast<int>(ts.tv_sec + (ts.tv_nsec > 0 ? 1 : 0));
 }
 
-std::vector<std::array<std::string, 4>>
-PrepareStageFiles(const std::vector<std::string> &fileList)
+XrdCl::XRootDStatus PrepareStageFiles(
+    const std::vector<std::string> &fileList,
+    std::vector<std::array<std::string, 4>> &files)
 {
-    std::vector<std::array<std::string, 4>> files;
+    files.clear();
     files.reserve(fileList.size());
     for(const auto &file : fileList)
     {
@@ -150,38 +151,74 @@ PrepareStageFiles(const std::vector<std::string> &fileList)
             {
                 Json json = Json::parse(
                     file.substr(kStructuredStagePrefix.size()));
-                if(json.is_object())
+                if(!json.is_object())
                 {
-                    std::array<std::string, 4> entry;
-                    if(json.contains("url") && json["url"].is_string())
-                    {
-                        entry[0] = json["url"].get<std::string>();
-                    }
-                    if(json.contains("path") && json["path"].is_string())
-                    {
-                        entry[1] = json["path"].get<std::string>();
-                    }
-                    if(json.contains("diskLifetime")
-                       && json["diskLifetime"].is_string())
-                    {
-                        entry[2] = json["diskLifetime"].get<std::string>();
-                    }
-                    if(json.contains("targetedMetadata")
-                       && json["targetedMetadata"].is_object())
-                    {
-                        entry[3] = json["targetedMetadata"].dump();
-                    }
-                    files.push_back(entry);
-                    continue;
+                    return XrdCl::XRootDStatus(XrdCl::stError,
+                        XrdCl::errInvalidArgs, 0,
+                        "structured tape stage entry must be a JSON object");
                 }
+
+                std::array<std::string, 4> entry;
+                if(json.contains("url"))
+                {
+                    if(!json["url"].is_string())
+                    {
+                        return XrdCl::XRootDStatus(XrdCl::stError,
+                            XrdCl::errInvalidArgs, 0,
+                            "structured tape stage entry url must be a string");
+                    }
+                    entry[0] = json["url"].get<std::string>();
+                }
+                if(json.contains("path"))
+                {
+                    if(!json["path"].is_string())
+                    {
+                        return XrdCl::XRootDStatus(XrdCl::stError,
+                            XrdCl::errInvalidArgs, 0,
+                            "structured tape stage entry path must be a string");
+                    }
+                    entry[1] = json["path"].get<std::string>();
+                }
+                if(entry[0].empty() && entry[1].empty())
+                {
+                    return XrdCl::XRootDStatus(XrdCl::stError,
+                        XrdCl::errInvalidArgs, 0,
+                        "structured tape stage entry requires url or path");
+                }
+                if(json.contains("diskLifetime"))
+                {
+                    if(!json["diskLifetime"].is_string())
+                    {
+                        return XrdCl::XRootDStatus(XrdCl::stError,
+                            XrdCl::errInvalidArgs, 0,
+                            "structured tape stage entry diskLifetime must be a string");
+                    }
+                    entry[2] = json["diskLifetime"].get<std::string>();
+                }
+                if(json.contains("targetedMetadata"))
+                {
+                    if(!json["targetedMetadata"].is_object())
+                    {
+                        return XrdCl::XRootDStatus(XrdCl::stError,
+                            XrdCl::errInvalidArgs, 0,
+                            "structured tape stage entry targetedMetadata must be a JSON object");
+                    }
+                    entry[3] = json["targetedMetadata"].dump();
+                }
+                files.push_back(entry);
+                continue;
             }
-            catch(...)
+            catch(const std::exception &ex)
             {
+                return XrdCl::XRootDStatus(XrdCl::stError,
+                    XrdCl::errInvalidArgs, 0,
+                    "malformed structured tape stage entry: "
+                    + std::string(ex.what()));
             }
         }
         files.push_back({file, "", "", ""});
     }
-    return files;
+    return XrdCl::XRootDStatus();
 }
 
 std::vector<std::string>
@@ -344,10 +381,13 @@ XrdCl::XRootDStatus Filesystem::Prepare(
 
     if(HasPrepareFlag(flags, XrdCl::PrepareFlags::Stage))
     {
+        std::vector<std::array<std::string, 4>> files;
+        status = PrepareStageFiles(fileList, files);
+        if(!status.IsOK()) return status;
+
         std::string requestId;
         status = XrdClHttp::TapeStage(
-            m_url.GetURL(), PrepareStageFiles(fileList),
-            tapeTimeout, requestId);
+            m_url.GetURL(), files, tapeTimeout, requestId);
         if(!status.IsOK()) return status;
         SendBufferResponse(handler, requestId);
         return XrdCl::XRootDStatus();

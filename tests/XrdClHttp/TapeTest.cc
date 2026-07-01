@@ -470,6 +470,26 @@ TEST(TapeRestApi, PrepareAcceptsStructuredStageEntries)
             "analysis");
 }
 
+TEST(TapeRestApi, RejectsMalformedStructuredStageEntries)
+{
+  TapeHttpServer server;
+  XrdClHttp::Filesystem filesystem(
+    server.BaseUrl(), nullptr, XrdCl::DefaultEnv::GetLog());
+
+  EXPECT_FALSE(filesystem.Prepare(
+    {"xrdclhttp.tape.stage:not-json"},
+    XrdCl::PrepareFlags::Stage, 0, nullptr, 5).IsOK());
+  EXPECT_FALSE(filesystem.Prepare(
+    {R"(xrdclhttp.tape.stage:{"diskLifetime":"7200"})"},
+    XrdCl::PrepareFlags::Stage, 0, nullptr, 5).IsOK());
+  EXPECT_FALSE(filesystem.Prepare(
+    {R"(xrdclhttp.tape.stage:{"path":"/store/file",)"
+     R"("targetedMetadata":["analysis"]})"},
+    XrdCl::PrepareFlags::Stage, 0, nullptr, 5).IsOK());
+
+  EXPECT_TRUE(server.Requests().empty());
+}
+
 TEST(TapeRestApi, QueriesArchiveInfo)
 {
   TapeHttpServer server;
