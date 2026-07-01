@@ -2,7 +2,7 @@
 // Unit tests for serialize-time subsystem filtering and multi-registry
 // aggregation: serializeBody() with a group filter (the exporter's per-subsystem
 // enable/disable), the OTLP one-resource-block-per-registry shape, and the
-// process-wide registry directory (register/unregister and serializeAll).
+// process-wide CollectorRegistry (add/remove and serialize).
 //------------------------------------------------------------------------------
 
 #include <algorithm>
@@ -32,7 +32,7 @@ size_t count(const std::string& hay, const std::string& needle)
 
 bool inDirectory(Collector* r)
 {
-   auto regs = registries();
+   auto regs = CollectorRegistry::instance().collectors();
    return std::find(regs.begin(), regs.end(), r) != regs.end();
 }
 }
@@ -82,7 +82,7 @@ TEST(MetricsAggregate, OtelOneResourcePerRegistry)
    Collector b("eos", {{"cluster", "prod"}});
    b.subsystem("ns").counter("files_total", {}, {}, "files").noLabels() += 5;
 
-// Drive the serializer exactly as serializeAll() does, but over chosen
+// Drive the serializer exactly as CollectorRegistry::instance().serialize() does, but over chosen
 // registries so the result is independent of the process-wide directory.
 //
    std::string out;
@@ -109,13 +109,13 @@ TEST(MetricsDirectory, RegisterIsIdempotentAndUnregisters)
 {
    {Collector r("probe");
     EXPECT_FALSE(inDirectory(&r));
-    registerRegistry(r);
-    registerRegistry(r);                       // idempotent
-    auto regs = registries();
+    CollectorRegistry::instance().add(r);
+    CollectorRegistry::instance().add(r);                       // idempotent
+    auto regs = CollectorRegistry::instance().collectors();
     EXPECT_EQ(std::count(regs.begin(), regs.end(), &r), 1);
-    unregisterRegistry(r);
+    CollectorRegistry::instance().remove(r);
     EXPECT_FALSE(inDirectory(&r));
-    registerRegistry(r);                        // re-register for dtor path
+    CollectorRegistry::instance().add(r);                        // re-register for dtor path
    }
    // r is destroyed here; its destructor must remove it from the directory.
    // (No direct handle remains; rely on no dangling pointer in later scrapes.)
@@ -128,18 +128,18 @@ TEST(MetricsDirectory, SerializeAllAggregatesRegisteredRegistries)
    Collector b("beta");
    b.subsystem("g").counter("c_total", {}, {}, "h").noLabels() += 2;
 
-   registerRegistry(a);
-   registerRegistry(b);
+   CollectorRegistry::instance().add(a);
+   CollectorRegistry::instance().add(b);
 
    std::string out;
    PrometheusTextSerializer ser(out);
-   serializeAll(ser);   // walks the directory (Default + alpha + beta)
+   CollectorRegistry::instance().serialize(ser);   // walks the directory (Default + alpha + beta)
 
    EXPECT_TRUE(contains(out, "alpha_g_c_total"));
    EXPECT_TRUE(contains(out, "beta_g_c_total"));
 
-   unregisterRegistry(a);
-   unregisterRegistry(b);
+   CollectorRegistry::instance().remove(a);
+   CollectorRegistry::instance().remove(b);
    EXPECT_FALSE(inDirectory(&a));
    EXPECT_FALSE(inDirectory(&b));
 }

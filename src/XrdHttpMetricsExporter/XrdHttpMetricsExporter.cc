@@ -158,8 +158,8 @@ void XrdHttpMetricsExporter::PushLoop()
 
          std::string body;
          XrdMetrics::PrometheusTextSerializer ser(body);
-         XrdMetrics::serializeAll(ser, filter);
-         for (auto *r : XrdMetrics::registries()) r->runTextCollectors(body);
+         XrdMetrics::CollectorRegistry::instance().serialize(ser, filter);
+         for (auto *r : XrdMetrics::CollectorRegistry::instance().collectors()) r->runTextCollectors(body);
 
          CURLcode rc = XrdHttpMetricsExporterPush::Send(curl, url, promType,
                                                         true, body);
@@ -182,8 +182,9 @@ void XrdHttpMetricsExporter::OtelLoop()
    XrdMetrics::Config &cfg = XrdMetrics::Config::Instance();
 
 // Carry the server identity into the OTLP Resource so each datapoint can be
-// attributed to this server instance. serializeAll() adds each registry's own
-// global labels (program/role/cluster) to its resource block on top of these.
+// attributed to this server instance. CollectorRegistry::serialize() adds each
+// Collector's own global labels (program/role/cluster) to its resource block
+// on top of these.
 //
    std::vector<XrdMetrics::ConstLabel> resource =
       {{"service.name", "xrootd"}, {"service.instance.id", m_instance}};
@@ -204,7 +205,7 @@ void XrdHttpMetricsExporter::OtelLoop()
 
          std::string body;
          XrdMetrics::OtelJsonSerializer ser(body, "xrootd", resource);
-         XrdMetrics::serializeAll(ser, filter);
+         XrdMetrics::CollectorRegistry::instance().serialize(ser, filter);
 
          CURLcode rc = XrdHttpMetricsExporterPush::Send(curl, url,
                                                         otelType, false, body);
@@ -246,8 +247,8 @@ int XrdHttpMetricsExporter::ProcessReq(XrdHttpExtReq &req)
 
    std::string body;
    XrdMetrics::PrometheusTextSerializer ser(body);
-   XrdMetrics::serializeAll(ser, SubsystemFilter());
-   for (auto *r : XrdMetrics::registries()) r->runTextCollectors(body);
+   XrdMetrics::CollectorRegistry::instance().serialize(ser, SubsystemFilter());
+   for (auto *r : XrdMetrics::CollectorRegistry::instance().collectors()) r->runTextCollectors(body);
 
    return req.SendSimpleResp(200, nullptr, promType, body.c_str(),
                              (long long)body.size());

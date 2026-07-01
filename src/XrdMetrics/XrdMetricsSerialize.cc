@@ -607,63 +607,52 @@ bool MetricSnapshot::has(const std::string& key) const
 }
 
 /******************************************************************************/
-/*                      R e g i s t r y   d i r e c t o r y                  */
+/*                 C o l l e c t o r   R e g i s t r y                        */
 /******************************************************************************/
 
-namespace
-{
-// Leaked construct-on-first-use singletons: the directory and its lock must
-// outlive every Collector (including the function-local static Default() one),
-// so they are intentionally never destroyed to avoid a static-destruction-order
-// dependency when a registry unregisters itself at process exit.
+// The process-wide directory is a leaked construct-on-first-use singleton: it
+// must outlive every Collector (including the function-local static Default()
+// one), so it is intentionally never destroyed to avoid a static-destruction
+// -order dependency when a Collector unregisters itself at process exit.
 //
-std::mutex& dirMutex()
+CollectorRegistry& CollectorRegistry::instance()
 {
-   static std::mutex* m = new std::mutex();
-   return *m;
+   static CollectorRegistry* r = new CollectorRegistry();
+   return *r;
 }
 
-std::vector<Collector*>& dir()
+void CollectorRegistry::add(Collector& c)
 {
-   static std::vector<Collector*>* d = new std::vector<Collector*>();
-   return *d;
-}
-}
-
-void registerRegistry(Collector& r)
-{
-   std::lock_guard<std::mutex> lk(dirMutex());
-   auto& d = dir();
-   for (auto* p : d) if (p == &r) return;
-   d.push_back(&r);
+   std::lock_guard<std::mutex> lk(mutex_);
+   for (auto* p : collectors_) if (p == &c) return;
+   collectors_.push_back(&c);
 }
 
-void unregisterRegistry(Collector& r)
+void CollectorRegistry::remove(Collector& c)
 {
-   std::lock_guard<std::mutex> lk(dirMutex());
-   auto& d = dir();
-   for (auto it = d.begin(); it != d.end(); ++it)
-       if (*it == &r) {d.erase(it); return;}
+   std::lock_guard<std::mutex> lk(mutex_);
+   for (auto it = collectors_.begin(); it != collectors_.end(); ++it)
+       if (*it == &c) {collectors_.erase(it); return;}
 }
 
-std::vector<Collector*> registries()
+std::vector<Collector*> CollectorRegistry::collectors()
 {
-   std::lock_guard<std::mutex> lk(dirMutex());
-   return dir();
+   std::lock_guard<std::mutex> lk(mutex_);
+   return collectors_;
 }
 
 Collector::~Collector()
 {
-   unregisterRegistry(*this);
+   CollectorRegistry::instance().remove(*this);
 }
 
 /******************************************************************************/
-/*                          s e r i a l i z e A l l                          */
+/*                          s e r i a l i z e                                */
 /******************************************************************************/
 
-void serializeAll(Serializer& s, const Collector::GroupFilter& filter)
+void CollectorRegistry::serialize(Serializer& s, const Collector::GroupFilter& filter)
 {
-   auto regs = registries();
+   auto regs = collectors();
    s.begin();
    for (auto* r : regs)
        {s.beginResource(r->prefix(), r->globalLabels());
@@ -680,7 +669,7 @@ void serializeAll(Serializer& s, const Collector::GroupFilter& filter)
 Collector& Default()
 {
    static Collector instance("xrootd");
-   static bool once = [](){registerRegistry(instance); return true;}();
+   static bool once = [](){CollectorRegistry::instance().add(instance); return true;}();
    (void)once;
    return instance;
 }

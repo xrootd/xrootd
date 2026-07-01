@@ -77,9 +77,9 @@ virtual ~Serializer()                     = default;
 virtual void begin() {}
 virtual void end()   {}
 
-//! Per-registry boundary, called by serializeAll() around each registry's body
-//! so envelope formats can emit one resource block per registry (OTLP maps a
-//! registry to a resourceMetrics entry, using its global labels as resource
+//! Per-Collector boundary, called by CollectorRegistry::serialize() around each
+//! Collector's body so envelope formats can emit one resource block per
+//! Collector (OTLP maps a Collector to a resourceMetrics entry, using its global labels as resource
 //! attributes). The single-registry Collector::serialize() path does not call
 //! these; formats that need a resource still open one lazily. No-ops for the
 //! Prometheus text format, which concatenates by distinct metric-name prefix.
@@ -164,8 +164,8 @@ public:
 //! @param resourceAttrs optional OTLP Resource attributes (e.g. an instance id).
 //! @param out           buffer the JSON document is appended to.
 //! @param scope         instrumentation scope name; also the scope/fallback for
-//!                      the single-registry path. serializeAll() overrides the
-//!                      scope per registry with the registry prefix.
+//!                      the single-Collector path. CollectorRegistry::serialize()
+//!                      overrides the scope per Collector with the Collector prefix.
 //! @param resourceAttrs base OTLP Resource attributes (e.g. service.name,
 //!                      service.instance.id) emitted on every resource block,
 //!                      ahead of any per-registry global labels.

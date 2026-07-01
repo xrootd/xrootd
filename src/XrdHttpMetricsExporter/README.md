@@ -90,10 +90,10 @@ proxy; `cache` when running as a cache; and `cms` in the cmsd clustering daemon.
 
 ### Multiple registries
 
-The exporter aggregates **every** registry in the process-wide directory into one
-scrape/push, not just the default `xrootd_*` registry. A plugin or a foreign
-owner (e.g. EOS) can keep its own `XrdMetrics::Collector` and call
-`XrdMetrics::registerRegistry()`; its series then appear alongside the others
+The exporter aggregates **every** Collector in the process-wide directory into one
+scrape/push, not just the default `xrootd_*` Collector. A plugin or a foreign
+owner (e.g. EOS) can keep its own `XrdMetrics::Collector` and register it with
+`XrdMetrics::CollectorRegistry::instance().add()`; its series then appear alongside the others
 (distinct name prefix for Prometheus, one OTLP `resourceMetrics` block per
 registry carrying that registry's global labels).
 

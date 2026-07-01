@@ -202,7 +202,7 @@ public:
 explicit Collector(std::string prefix, std::vector<ConstLabel> globalLabels = {})
         : prefix_(std::move(prefix)), globalLabels_(std::move(globalLabels)) {}
 
-//! Drop this registry from the process-wide directory (see registerRegistry).
+//! Drop this Collector from the process-wide directory (see CollectorRegistry).
 //! Safe whether or not it was ever registered.
 ~Collector();
 
@@ -244,7 +244,7 @@ using GroupFilter = std::function<bool(const std::string& subsystem)>;
 
 //! Drive a serializer over the registry's groups without the document framing
 //! (no begin()/end()), so several registries can be serialized into one
-//! document (see serializeAll). Groups are snapshotted under a brief read lock
+//! document (see CollectorRegistry::serialize). Groups are snapshotted under a brief read lock
 //! and serialized outside it; a group is skipped when @p filter rejects it.
 void serializeBody(Serializer& s, const GroupFilter& filter = {}) const
 {
@@ -637,24 +637,42 @@ Subsystem::summarySeries(const std::string& name, const std::string& help,
 Collector& Default();
 
 /******************************************************************************/
-/*                    C o l l e c t o r   d i r e c t o r y                   */
+/*                 C o l l e c t o r   R e g i s t r y                        */
 /******************************************************************************/
 
-//! A process-wide directory of top-level registries the exporter aggregates
-//! into one scrape/push. Default() joins automatically; a foreign owner (e.g.
-//! EOS) or a plugin that keeps its own registry calls registerRegistry so its
-//! series appear alongside the xrootd_* ones. Registration is idempotent and a
-//! registry removes itself on destruction.
-void registerRegistry(Collector& r);
-void unregisterRegistry(Collector& r);
+//! The process-wide directory of Collectors the exporter aggregates into one
+//! scrape/push. The xrootd Default() Collector joins automatically; a foreign
+//! owner (e.g. EOS) or a plugin that keeps its own Collector adds it here so
+//! its series appear alongside the xrootd_* ones. Registration is idempotent
+//! and a Collector removes itself on destruction.
+class CollectorRegistry
+{
+public:
+//! The process-wide directory. Leaked (never destroyed) so it outlives every
+//! Collector, including the static Default() one that unregisters at exit.
+static CollectorRegistry& instance();
 
-//! A snapshot of the currently registered registries.
-std::vector<Collector*> registries();
+//! Register/unregister a Collector. add() is idempotent; a Collector calls
+//! remove() from its own destructor.
+void add(Collector& c);
+void remove(Collector& c);
 
-//! Serialize every registered registry into one document: frames once
-//! (begin()/end()) and walks each registry's body, marking a per-registry
-//! resource boundary so envelope formats (OTLP) can emit one resource block per
-//! registry. @p filter selects which subsystems (groups) to emit, by name.
-void serializeAll(Serializer& s, const Collector::GroupFilter& filter = {});
+//! A snapshot of the currently registered Collectors.
+std::vector<Collector*> collectors();
+
+//! Serialize every registered Collector into one document: frames once
+//! (begin()/end()) and walks each Collector's body, marking a per-Collector
+//! resource boundary so envelope formats (OTLP) emit one resource block per
+//! Collector. @p filter selects which subsystems (groups) to emit, by name.
+void serialize(Serializer& s, const Collector::GroupFilter& filter = {});
+
+private:
+CollectorRegistry() = default;
+CollectorRegistry(const CollectorRegistry&)            = delete;
+CollectorRegistry& operator=(const CollectorRegistry&) = delete;
+
+std::mutex              mutex_;
+std::vector<Collector*> collectors_;
+};
 }
 #endif
