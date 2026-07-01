@@ -25,70 +25,71 @@
 
 using namespace XrdPfc;
 
-CacheMetrics::CacheMetrics(XrdMetrics::Collector &collector)
+// Build every instrument once and return references to them. Labelled families
+// (bytes_total, files_total, disk_bytes, meta_bytes) are created once here; the
+// per-series handles are pulled with .labels(). The order matches the Handles
+// struct's member order so the aggregate initialiser binds each reference.
+//
+CacheMetrics::Handles CacheMetrics::registerHandles(XrdMetrics::Collector &collector)
 {
    XrdMetrics::Subsystem &subsystem = collector.subsystem("cache");
 
-// Bytes served, split by where the data came from.
-//
    auto &bytes = subsystem.counterFamily<std::uint64_t>("bytes_total", "bytes served by the cache by data origin", {"origin"});
-   m_bytes_hit    = &bytes.labels({"hit"});      // from cache disk
-   m_bytes_miss   = &bytes.labels({"miss"});     // fetched and cached
-   m_bytes_bypass = &bytes.labels({"bypass"});   // direct, not cached
-
-   m_bytes_written = &subsystem.counter<std::uint64_t>("bytes_written_total", "bytes written to the cache disk");
-   m_cksum_errors  = &subsystem.counter<std::uint64_t>("checksum_errors_total", "checksum errors fetching from origin");
-
-// File lifecycle events.
-//
    auto &files = subsystem.counterFamily<std::uint64_t>("files_total", "cache file lifecycle events", {"event"});
-   m_files_opened  = &files.labels({"opened"});
-   m_files_closed  = &files.labels({"closed"});
-   m_files_created = &files.labels({"created"});
-   m_files_removed = &files.labels({"removed"});
+   auto &disk  = subsystem.gaugeFamily<std::int64_t>("disk_bytes", "cache data filesystem space", {"state"});
+   auto &meta  = subsystem.gaugeFamily<std::int64_t>("meta_bytes", "cache metadata filesystem space", {"state"});
 
-// Disk and metadata space, in bytes.
-//
-   auto &disk = subsystem.gaugeFamily<std::int64_t>("disk_bytes", "cache data filesystem space", {"state"});
-   m_disk_total = &disk.labels({"total"});
-   m_disk_used  = &disk.labels({"used"});
-
-   m_data_used  = &subsystem.gauge<std::int64_t>("data_used_bytes", "bytes occupied by cached data files");
-
-   auto &meta = subsystem.gaugeFamily<std::int64_t>("meta_bytes", "cache metadata filesystem space", {"state"});
-   m_meta_total = &meta.labels({"total"});
-   m_meta_used  = &meta.labels({"used"});
+   return Handles
+   {
+      bytes.labels({"hit"}),      // from cache disk
+      bytes.labels({"miss"}),     // fetched and cached
+      bytes.labels({"bypass"}),   // direct, not cached
+      subsystem.counter<std::uint64_t>("bytes_written_total", "bytes written to the cache disk"),
+      subsystem.counter<std::uint64_t>("checksum_errors_total", "checksum errors fetching from origin"),
+      files.labels({"opened"}),
+      files.labels({"closed"}),
+      files.labels({"created"}),
+      files.labels({"removed"}),
+      disk.labels({"total"}),
+      disk.labels({"used"}),
+      subsystem.gauge<std::int64_t>("data_used_bytes", "bytes occupied by cached data files"),
+      meta.labels({"total"}),
+      meta.labels({"used"})
+   };
 }
+
+CacheMetrics::CacheMetrics(XrdMetrics::Collector &collector)
+   : m(registerHandles(collector)) {}
 
 void CacheMetrics::AddFileStats(const Stats &d)
 {
-   if (d.m_BytesHit)      *m_bytes_hit     += (std::uint64_t)d.m_BytesHit;
-   if (d.m_BytesMissed)   *m_bytes_miss    += (std::uint64_t)d.m_BytesMissed;
-   if (d.m_BytesBypassed) *m_bytes_bypass  += (std::uint64_t)d.m_BytesBypassed;
-   if (d.m_BytesWritten)  *m_bytes_written += (std::uint64_t)d.m_BytesWritten;
-   if (d.m_NCksumErrors)  *m_cksum_errors  += (std::uint64_t)d.m_NCksumErrors;
+   if (d.m_BytesHit)      m.bytes_hit     += (std::uint64_t)d.m_BytesHit;
+   if (d.m_BytesMissed)   m.bytes_miss    += (std::uint64_t)d.m_BytesMissed;
+   if (d.m_BytesBypassed) m.bytes_bypass  += (std::uint64_t)d.m_BytesBypassed;
+   if (d.m_BytesWritten)  m.bytes_written += (std::uint64_t)d.m_BytesWritten;
+   if (d.m_NCksumErrors)  m.cksum_errors  += (std::uint64_t)d.m_NCksumErrors;
 }
 
 void CacheMetrics::FileOpened(bool existing_file)
 {
-   ++*m_files_opened;
-   if (!existing_file) ++*m_files_created;
+   ++m.files_opened;
+   if (!existing_file) ++m.files_created;
 }
 
-void CacheMetrics::FileClosed() {++*m_files_closed;}
+void CacheMetrics::FileClosed() {++m.files_closed;}
 
 void CacheMetrics::FilesRemoved(int n)
 {
-   if (n > 0) *m_files_removed += (std::uint64_t)n;
+   if (n > 0) m.files_removed += (std::uint64_t)n;
 }
 
 void CacheMetrics::SetSpace(long long disk_total, long long disk_used,
                             long long data_used, long long meta_total,
                             long long meta_used)
 {
-   *m_disk_total = (std::int64_t)disk_total;
-   *m_disk_used  = (std::int64_t)disk_used;
-   *m_data_used  = (std::int64_t)data_used;
-   *m_meta_total = (std::int64_t)meta_total;
-   *m_meta_used  = (std::int64_t)meta_used;
+   m.disk_total = (std::int64_t)disk_total;
+   m.disk_used  = (std::int64_t)disk_used;
+   m.data_used  = (std::int64_t)data_used;
+   m.meta_total = (std::int64_t)meta_total;
+   m.meta_used  = (std::int64_t)meta_used;
 }

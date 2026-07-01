@@ -62,22 +62,31 @@ void SetSpace(long long disk_total, long long disk_used, long long data_used,
               long long meta_total, long long meta_used);
 
 private:
-XrdMetrics::Counter<std::uint64_t> *m_bytes_hit;
-XrdMetrics::Counter<std::uint64_t> *m_bytes_miss;
-XrdMetrics::Counter<std::uint64_t> *m_bytes_bypass;
-XrdMetrics::Counter<std::uint64_t> *m_bytes_written;
-XrdMetrics::Counter<std::uint64_t> *m_cksum_errors;
+//! References to the owned instruments (all in the "cache" subsystem), built
+//! once at construction. Grouped so they can be reference members initialised
+//! together in the ctor init list: the labelled families are created once and
+//! their series pulled with .labels().
+struct Handles
+{
+   XrdMetrics::Counter<std::uint64_t> &bytes_hit;
+   XrdMetrics::Counter<std::uint64_t> &bytes_miss;
+   XrdMetrics::Counter<std::uint64_t> &bytes_bypass;
+   XrdMetrics::Counter<std::uint64_t> &bytes_written;
+   XrdMetrics::Counter<std::uint64_t> &cksum_errors;
+   XrdMetrics::Counter<std::uint64_t> &files_opened;
+   XrdMetrics::Counter<std::uint64_t> &files_closed;
+   XrdMetrics::Counter<std::uint64_t> &files_created;
+   XrdMetrics::Counter<std::uint64_t> &files_removed;
+   XrdMetrics::Gauge<std::int64_t>    &disk_total;
+   XrdMetrics::Gauge<std::int64_t>    &disk_used;
+   XrdMetrics::Gauge<std::int64_t>    &data_used;
+   XrdMetrics::Gauge<std::int64_t>    &meta_total;
+   XrdMetrics::Gauge<std::int64_t>    &meta_used;
+};
 
-XrdMetrics::Counter<std::uint64_t> *m_files_opened;
-XrdMetrics::Counter<std::uint64_t> *m_files_closed;
-XrdMetrics::Counter<std::uint64_t> *m_files_created;
-XrdMetrics::Counter<std::uint64_t> *m_files_removed;
+static Handles registerHandles(XrdMetrics::Collector &collector);
 
-XrdMetrics::Gauge<std::int64_t> *m_disk_total;
-XrdMetrics::Gauge<std::int64_t> *m_disk_used;
-XrdMetrics::Gauge<std::int64_t> *m_data_used;
-XrdMetrics::Gauge<std::int64_t> *m_meta_total;
-XrdMetrics::Gauge<std::int64_t> *m_meta_used;
+Handles m;
 };
 }
 #endif
