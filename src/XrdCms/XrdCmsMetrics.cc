@@ -19,7 +19,11 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /******************************************************************************/
 
+#include <chrono>
 #include <cstdint>
+#include <memory>
+#include <mutex>
+#include <utility>
 
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsMetrics.hh"
@@ -74,15 +78,38 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Collector &reg)
    sel.add({"write"}, [this]{return (std::int64_t)SelWtot.load();});
 
 // Aggregate cluster space (managers/supervisors only; zero elsewhere). Space()
-// walks the node table under a read lock, which is fine at scrape cadence.
-// DiskTotal is reported in GB and DiskFree in MB, so convert both to bytes.
+// walks the node table under a read lock. Both series (total and free) are fed
+// from a single walk via a short-lived shared cache, so a scrape reads one self-
+// consistent snapshot instead of walking the table twice; the cache is refreshed
+// at most every 500ms. DiskTotal is in GB and DiskFree in MB, so convert both to
+// bytes.
 //
+   struct SpaceCache
+   {
+      std::mutex                            mtx;
+      std::chrono::steady_clock::time_point when{};
+      double                                total = 0.0, free = 0.0;
+      bool                                  primed = false;
+   };
+   auto cache = std::make_shared<SpaceCache>();
+   auto snapshot = [this, cache]() -> std::pair<double,double>
+   {
+      std::lock_guard<std::mutex> lk(cache->mtx);
+      auto now = std::chrono::steady_clock::now();
+      if (!cache->primed ||
+          now - cache->when > std::chrono::milliseconds(500))
+         {XrdCms::SpaceData s; Space(s, ~SMask_t(0));
+          cache->total  = (double)s.Total * (1024.0*1024.0*1024.0);
+          cache->free   = (double)s.TotFr * (1024.0*1024.0);
+          cache->when   = now;
+          cache->primed = true;
+         }
+      return {cache->total, cache->free};
+   };
    auto &spc = g.observeGauge("space_bytes", {"state"}, {},
                     "aggregate cluster disk space");
-   spc.add({"total"}, [this]{XrdCms::SpaceData s; Space(s, ~SMask_t(0));
-                             return (double)s.Total * (1024.0*1024.0*1024.0);});
-   spc.add({"free"},  [this]{XrdCms::SpaceData s; Space(s, ~SMask_t(0));
-                             return (double)s.TotFr * (1024.0*1024.0);});
+   spc.add({"total"}, [snapshot]{return snapshot().first;});
+   spc.add({"free"},  [snapshot]{return snapshot().second;});
 }
 
 /******************************************************************************/
