@@ -485,6 +485,16 @@ Subsystem::observeGauge(const std::string& name, std::vector<std::string> varLab
 /*        D y n a m i c   g e t - o r - c r e a t e   s e r i e s            */
 /******************************************************************************/
 
+//! Cardinality cap for families created through the dynamic get-or-create
+//! (*Series) helpers. Those build series from label values that are often
+//! remote-controlled (e.g. a monitoring collector labelling by reporting
+//! server, request method or error category), so an unbounded family would let
+//! a buggy or hostile source grow the series count without limit. Label
+//! combinations past the cap fold into a single __over_cardinality_limit__
+//! overflow series. The cached-handle factories (counter/histogram/...) are not
+//! capped by default since their label sets are fixed in the instrumenting code.
+inline constexpr std::size_t kDynamicSeriesCap = 8192;
+
 template <class Child>
 LabeledFamily<Child>& Subsystem::getOrAddLabeled(const std::string& full,
                           const std::vector<std::string>& names,
@@ -508,7 +518,7 @@ LabeledFamily<Child>& Subsystem::getOrAddLabeled(const std::string& full,
    ctx.global = &reg_.globalLabels();
    ctx.schema = LabelSchema(names);
    auto fam = std::unique_ptr<LabeledFamily<Child>>(
-                 new LabeledFamily<Child>(full, std::move(ctx), help));
+                 new LabeledFamily<Child>(full, std::move(ctx), help, kDynamicSeriesCap));
    auto& ref = *fam;
    byName_.emplace(full, fam.get());
    families_.push_back(std::move(fam));
@@ -537,7 +547,8 @@ inline HistogramFamily& Subsystem::getOrAddHistogram(const std::string& full,
    ctx.global = &reg_.globalLabels();
    ctx.schema = LabelSchema(names);
    auto fam = std::unique_ptr<HistogramFamily>(
-                 new HistogramFamily(full, std::move(ctx), std::move(bounds), help));
+                 new HistogramFamily(full, std::move(ctx), std::move(bounds), help,
+                                     kDynamicSeriesCap));
    auto& ref = *fam;
    byName_.emplace(full, fam.get());
    families_.push_back(std::move(fam));
@@ -566,7 +577,7 @@ inline SummaryFamily& Subsystem::getOrAddSummary(const std::string& full,
    ctx.global = &reg_.globalLabels();
    ctx.schema = LabelSchema(names);
    auto fam = std::unique_ptr<SummaryFamily>(
-                 new SummaryFamily(full, std::move(ctx), help));
+                 new SummaryFamily(full, std::move(ctx), help, kDynamicSeriesCap));
    auto& ref = *fam;
    byName_.emplace(full, fam.get());
    families_.push_back(std::move(fam));

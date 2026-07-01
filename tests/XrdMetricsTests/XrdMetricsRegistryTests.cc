@@ -440,6 +440,22 @@ TEST(XrdMetricsDynamic, TypeMismatchThrows)
   EXPECT_THROW(g.gaugeSeries("m", "h"), std::invalid_argument);
 }
 
+// The *Series helpers are fed label values that are often remote-controlled, so
+// their families are capped at kDynamicSeriesCap; combinations past the cap fold
+// into a single __over_cardinality_limit__ overflow series instead of growing
+// the series count without bound.
+TEST(XrdMetricsDynamic, RemoteLabelsAreCardinalityCapped)
+{
+  Collector reg("");
+  auto& g = reg.subsystem("");
+
+  for (std::size_t i = 0; i < XrdMetrics::kDynamicSeriesCap + 100; ++i)
+      ++g.counterSeries("evil_total", "h", {{"id", std::to_string(i)}});
+
+  const std::string out = scrape(reg);
+  EXPECT_NE(out.find("__over_cardinality_limit__"), std::string::npos);
+}
+
 /******************************************************************************/
 /*                    R e g i s t r y   /   G r o u p                        */
 /******************************************************************************/
