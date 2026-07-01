@@ -51,7 +51,7 @@ class Config
 {
 public:
 
-// Registry-level settings ---------------------------------------------------
+// Collector-level settings ---------------------------------------------------
 
 bool                  enabled = true;     // master switch (metrics.enable)
 std::set<std::string> disabledSubsys;     // groups explicitly turned off

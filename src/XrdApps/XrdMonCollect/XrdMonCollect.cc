@@ -178,9 +178,9 @@ int openUDP(int port, const char* bindStr)
 // The collector's own metrics registry. Its prefix is empty so the explicit
 // xrootd_collector_* metric names pass through unchanged.
 //
-static XrdMetrics::Registry& collectorRegistry()
+static XrdMetrics::Collector& collectorRegistry()
 {
-   static XrdMetrics::Registry reg("");
+   static XrdMetrics::Collector reg("");
    return reg;
 }
 

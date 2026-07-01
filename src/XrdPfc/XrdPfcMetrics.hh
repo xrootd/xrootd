@@ -25,10 +25,10 @@
 
 namespace XrdMetrics
 {
-class Registry;
+class Collector;
 class Counter;
 template <class T> class Gauge;
-Registry& Default();
+Collector& Default();
 }
 
 namespace XrdPfc
@@ -46,7 +46,7 @@ class Stats;
 class CacheMetrics
 {
 public:
-explicit CacheMetrics(XrdMetrics::Registry &reg = XrdMetrics::Default());
+explicit CacheMetrics(XrdMetrics::Collector &reg = XrdMetrics::Default());
 
 //! Fold one per-file delta (bytes hit/missed/bypassed/written, checksum
 //! errors) into the counters.

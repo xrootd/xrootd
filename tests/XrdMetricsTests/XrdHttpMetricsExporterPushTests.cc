@@ -146,7 +146,7 @@ struct MockServer
 
 TEST(MetricsExporterPush, OtelPostRoundTrip)
 {
-   Registry reg("xrootd");
+   Collector reg("xrootd");
    reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs scheduled")
                      .noLabels() += 7;
    std::string payload;
@@ -176,7 +176,7 @@ TEST(MetricsExporterPush, OtelPostRoundTrip)
 
 TEST(MetricsExporterPush, PushgatewayPutRoundTrip)
 {
-   Registry reg("xrootd");
+   Collector reg("xrootd");
    reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs scheduled")
                      .noLabels() += 4;
    std::string payload;

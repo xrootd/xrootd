@@ -18,7 +18,7 @@ using namespace XrdMetrics;
 
 namespace
 {
-MetricSnapshot snapshotOf(Registry& reg)
+MetricSnapshot snapshotOf(Collector& reg)
 {
   MetricSnapshot snap;
   reg.serialize(snap);
@@ -48,7 +48,7 @@ TEST(XrdStatsLegacy, ProcBlockShape)
 
 TEST(XrdStatsLegacy, LinkBlockFromRegistry)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& g = reg.subsystem("link");
   g.intGauge("connections").noLabels()      = 3;
   g.intGauge("connections_max").noLabels()  = 7;
@@ -72,7 +72,7 @@ TEST(XrdStatsLegacy, LinkBlockFromRegistry)
 
 TEST(XrdStatsLegacy, PollBlockFromRegistry)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& g = reg.subsystem("poll");
   g.intGauge("attached").noLabels()        = 10;
   g.intGauge("enabled").noLabels()         = 8;
@@ -89,7 +89,7 @@ TEST(XrdStatsLegacy, PollBlockFromRegistry)
 
 TEST(XrdStatsLegacy, BuffBlockSplicesXlStats)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& g = reg.subsystem("buff");
   g.counter("requests_total").noLabels()    += 50;
   g.intGauge("memory_bytes").noLabels()     = 1048576;
@@ -110,7 +110,7 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
 {
   // Each field gets a distinct value (its position in the format) so a wrong
   // metric-name mapping cannot be masked.
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& g = reg.subsystem("");                 // empty subsystem -> flat names
   g.counter("requests_total").noLabels() += 1;
 
@@ -164,7 +164,7 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
 
 TEST(XrdStatsLegacy, OfsBlockFromRegistry)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& g = reg.subsystem("ofs");
   auto& open = g.intGauge("files_open", {"mode"});
   open.withLabelValues({"read"})  = 1;

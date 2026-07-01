@@ -30,7 +30,7 @@ size_t count(const std::string& hay, const std::string& needle)
    return n;
 }
 
-bool inDirectory(Registry* r)
+bool inDirectory(Collector* r)
 {
    auto regs = registries();
    return std::find(regs.begin(), regs.end(), r) != regs.end();
@@ -43,7 +43,7 @@ bool inDirectory(Registry* r)
 
 TEST(MetricsFilter, SkipsDisabledGroupPrometheus)
 {
-   Registry reg("xrootd");
+   Collector reg("xrootd");
    reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
    reg.subsystem("link").counter("total", {}, {}, "links").noLabels() += 2;
 
@@ -58,7 +58,7 @@ TEST(MetricsFilter, SkipsDisabledGroupPrometheus)
 
 TEST(MetricsFilter, EmptyFilterEmitsEverything)
 {
-   Registry reg("xrootd");
+   Collector reg("xrootd");
    reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
    reg.subsystem("link").counter("total", {}, {}, "links").noLabels() += 2;
 
@@ -76,10 +76,10 @@ TEST(MetricsFilter, EmptyFilterEmitsEverything)
 
 TEST(MetricsAggregate, OtelOneResourcePerRegistry)
 {
-   Registry a("xrootd", {{"program", "xrootd"}});
+   Collector a("xrootd", {{"program", "xrootd"}});
    a.subsystem("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
 
-   Registry b("eos", {{"cluster", "prod"}});
+   Collector b("eos", {{"cluster", "prod"}});
    b.subsystem("ns").counter("files_total", {}, {}, "files").noLabels() += 5;
 
 // Drive the serializer exactly as serializeAll() does, but over chosen
@@ -107,7 +107,7 @@ TEST(MetricsAggregate, OtelOneResourcePerRegistry)
 
 TEST(MetricsDirectory, RegisterIsIdempotentAndUnregisters)
 {
-   {Registry r("probe");
+   {Collector r("probe");
     EXPECT_FALSE(inDirectory(&r));
     registerRegistry(r);
     registerRegistry(r);                       // idempotent
@@ -123,9 +123,9 @@ TEST(MetricsDirectory, RegisterIsIdempotentAndUnregisters)
 
 TEST(MetricsDirectory, SerializeAllAggregatesRegisteredRegistries)
 {
-   Registry a("alpha");
+   Collector a("alpha");
    a.subsystem("g").counter("c_total", {}, {}, "h").noLabels() += 1;
-   Registry b("beta");
+   Collector b("beta");
    b.subsystem("g").counter("c_total", {}, {}, "h").noLabels() += 2;
 
    registerRegistry(a);

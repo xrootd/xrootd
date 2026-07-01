@@ -48,7 +48,7 @@ const char *otelType = "Content-Type: application/json";
 // The serialize-time subsystem filter: a group is emitted only when the shared
 // configuration enables it (this also honours the master switch).
 //
-XrdMetrics::Registry::GroupFilter SubsystemFilter()
+XrdMetrics::Collector::GroupFilter SubsystemFilter()
 {
    return [](const std::string &group)
           {return XrdMetrics::Config::Instance().subsystemEnabled(group);};

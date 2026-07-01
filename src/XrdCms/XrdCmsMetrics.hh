@@ -21,7 +21,7 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /******************************************************************************/
 
-namespace XrdMetrics {class Registry; Registry& Default();}
+namespace XrdMetrics {class Collector; Collector& Default();}
 
 namespace XrdCms
 {
@@ -33,6 +33,6 @@ namespace XrdCms
 //! of cluster size. Safe to call for any role; on a pure server the cluster
 //! tables are empty so the series simply read zero.
 //-----------------------------------------------------------------------------
-void RegisterMetrics(XrdMetrics::Registry &reg = XrdMetrics::Default());
+void RegisterMetrics(XrdMetrics::Collector &reg = XrdMetrics::Default());
 }
 #endif

@@ -21,7 +21,7 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /******************************************************************************/
 
-namespace XrdMetrics {class Registry; Registry& Default();}
+namespace XrdMetrics {class Collector; Collector& Default();}
 
 //-----------------------------------------------------------------------------
 //! Register the proxy storage metrics (group "proxy") into the given registry.
@@ -30,5 +30,5 @@ namespace XrdMetrics {class Registry; Registry& Default();}
 //! that already-centralized struct rather than duplicating its increments.
 //! Called once from XrdPssSys::Configure, i.e. only when running as a proxy.
 //-----------------------------------------------------------------------------
-void XrdPssRegisterMetrics(XrdMetrics::Registry &reg = XrdMetrics::Default());
+void XrdPssRegisterMetrics(XrdMetrics::Collector &reg = XrdMetrics::Default());
 #endif

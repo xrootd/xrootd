@@ -20,7 +20,7 @@
 
 namespace
 {
-std::string scrape(XrdMetrics::Registry &reg)
+std::string scrape(XrdMetrics::Collector &reg)
 {
    std::string out;
    XrdMetrics::PrometheusTextSerializer ser(out);
@@ -31,7 +31,7 @@ std::string scrape(XrdMetrics::Registry &reg)
 
 TEST(XrdPfcMetrics, RegistersAndFoldsValues)
 {
-   XrdMetrics::Registry reg("xrootd");
+   XrdMetrics::Collector reg("xrootd");
    XrdPfc::CacheMetrics m(reg);
 
    XrdPfc::Stats d;

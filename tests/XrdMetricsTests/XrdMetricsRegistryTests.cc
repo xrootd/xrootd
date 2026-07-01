@@ -23,7 +23,7 @@ using namespace XrdMetrics;
 namespace
 {
 // Serialize a registry to the Prometheus text format and return it.
-std::string scrape(const Registry& reg)
+std::string scrape(const Collector& reg)
 {
   std::string out;
   PrometheusTextSerializer ser(out);
@@ -32,7 +32,7 @@ std::string scrape(const Registry& reg)
 }
 
 // Serialize a registry to the OTLP/JSON format and return it.
-std::string scrapeOtel(const Registry& reg, std::string scope = "xrootd",
+std::string scrapeOtel(const Collector& reg, std::string scope = "xrootd",
                        std::vector<ConstLabel> res = {})
 {
   std::string out;
@@ -104,7 +104,7 @@ TEST(XrdMetricsValue, NonFiniteTokens)
 
 TEST(XrdMetricsCounter, IncrementOperators)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& fam = reg.subsystem("ops").counter("requests_total");
   Counter& c = fam.noLabels();
 
@@ -117,7 +117,7 @@ TEST(XrdMetricsCounter, IncrementOperators)
 
 TEST(XrdMetricsCounter, ConcurrentIncrements)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   Counter& c = reg.subsystem("ops").counter("c").noLabels();
 
   const int nthreads = 8, niter = 100000;
@@ -135,7 +135,7 @@ TEST(XrdMetricsCounter, ConcurrentIncrements)
 
 TEST(XrdMetricsGauge, IntGaugeOperators)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   IntGauge& g = reg.subsystem("sched").intGauge("threads").noLabels();
 
   g = 8;
@@ -149,7 +149,7 @@ TEST(XrdMetricsGauge, IntGaugeOperators)
 
 TEST(XrdMetricsGauge, FloatGaugeCasLoop)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   FloatGauge& g = reg.subsystem("proc").floatGauge("ratio").noLabels();
 
   g = 2.5;
@@ -164,7 +164,7 @@ TEST(XrdMetricsGauge, FloatGaugeCasLoop)
 
 TEST(XrdMetricsLabels, PrefixOrderGlobalConstVariable)
 {
-  Registry reg("xrootd", {{"instance", "h1"}});
+  Collector reg("xrootd", {{"instance", "h1"}});
   auto& fam = reg.subsystem("ops").counter("requests_total", {"verb"},
                                         {{"proto", "xroot"}});
   Counter& c = fam.withLabelValues({"open"});
@@ -176,7 +176,7 @@ TEST(XrdMetricsLabels, PrefixOrderGlobalConstVariable)
 
 TEST(XrdMetricsLabels, PrefixBuiltOnceAndStable)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   Counter& c = reg.subsystem("g").counter("c", {"k"}).withLabelValues({"v"});
   const std::string* p1 = &c.labels().prometheusPrefix();
   ++c;
@@ -186,7 +186,7 @@ TEST(XrdMetricsLabels, PrefixBuiltOnceAndStable)
 
 TEST(XrdMetricsLabels, ValueEscaping)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   Counter& c = reg.subsystem("g").counter("c", {"k"})
                   .withLabelValues({"a\"b\\c\nd"});
   EXPECT_EQ(c.labels().prometheusPrefix(),
@@ -195,7 +195,7 @@ TEST(XrdMetricsLabels, ValueEscaping)
 
 TEST(XrdMetricsLabels, ForEachLabelStructuredOrder)
 {
-  Registry reg("xrootd", {{"instance", "h1"}});
+  Collector reg("xrootd", {{"instance", "h1"}});
   auto& fam = reg.subsystem("g").counter("c", {"verb"}, {{"proto", "xroot"}});
   Counter& c = fam.withLabelValues({"open"});
 
@@ -211,7 +211,7 @@ TEST(XrdMetricsLabels, ForEachLabelStructuredOrder)
 
 TEST(XrdMetricsLabels, InvalidNamesRejected)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& grp = reg.subsystem("g");
   EXPECT_THROW(grp.counter("bad-name"), std::invalid_argument);
   EXPECT_THROW(grp.counter("ok", {"bad-label"}), std::invalid_argument);
@@ -226,7 +226,7 @@ TEST(XrdMetricsLabels, InvalidNamesRejected)
 
 TEST(XrdMetricsFamily, SameValuesReturnSameHandle)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& fam = reg.subsystem("g").counter("c", {"k"});
   Counter& a = fam.withLabelValues({"x"});
   Counter& b = fam.withLabelValues({"x"});
@@ -240,7 +240,7 @@ TEST(XrdMetricsFamily, SameValuesReturnSameHandle)
 
 TEST(XrdMetricsFamily, CardinalityCapFoldsToOverflow)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& fam = reg.subsystem("g").counter("c", {"k"}, {}, {}, /*maxKids=*/2);
   Counter& a = fam.withLabelValues({"1"});
   Counter& b = fam.withLabelValues({"2"});
@@ -260,7 +260,7 @@ TEST(XrdMetricsFamily, CardinalityCapFoldsToOverflow)
 
 TEST(XrdMetricsHistogram, BucketsCumulativeAndLabels)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& h = reg.subsystem("io").histogram("size_bytes", {1, 2, 5}, {}, {},
                                       "io sizes");
   h.noLabels().observe(0.5);
@@ -280,7 +280,7 @@ TEST(XrdMetricsHistogram, BucketsCumulativeAndLabels)
 
 TEST(XrdMetricsHistogram, LabeledBucketsCarryLe)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   reg.subsystem("io").histogram("d", {1}, {"op"}, {}, "h")
                  .withLabelValues({"read"}).observe(0.5);
 
@@ -299,7 +299,7 @@ TEST(XrdMetricsHistogram, LabeledBucketsCarryLe)
 
 TEST(XrdMetricsSummary, SumAndCountUnlabeled)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& s = reg.subsystem("xrootd").summary("request_bytes", {}, {}, "request sizes");
   s.noLabels().observe(100);
   s.noLabels().observe(250);
@@ -316,7 +316,7 @@ TEST(XrdMetricsSummary, SumAndCountUnlabeled)
 
 TEST(XrdMetricsSummary, LabeledSeriesCarryLabels)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   reg.subsystem("io").summary("latency_seconds", {"op"}, {}, "op latency")
                  .withLabelValues({"read"}).observe(0.25);
 
@@ -329,7 +329,7 @@ TEST(XrdMetricsSummary, LabeledSeriesCarryLabels)
 
 TEST(XrdMetricsSummary, CachedHandleAccumulates)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& fam = reg.subsystem("io").summary("bytes", {});
   Summary& h = fam.noLabels();        // cache the handle, then reuse it
   h.observe(10);
@@ -341,7 +341,7 @@ TEST(XrdMetricsSummary, CachedHandleAccumulates)
 
 TEST(XrdMetricsSummary, DynamicSeriesDedupsFamily)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& g = reg.subsystem("io");
   g.summarySeries("sz", "sizes", {{"dir", "in"}}).observe(5);
   g.summarySeries("sz", "sizes", {{"dir", "out"}}).observe(9);
@@ -360,7 +360,7 @@ TEST(XrdMetricsSummary, DynamicSeriesDedupsFamily)
 
 TEST(XrdMetricsObserved, ReadsSourceAtScrapeTime)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   long long threads = 4;
   reg.subsystem("sched").observeIntGauge("threads", {}, {}, "worker threads")
                     .add({}, [&]{ return (int64_t)threads; });
@@ -373,7 +373,7 @@ TEST(XrdMetricsObserved, ReadsSourceAtScrapeTime)
 
 TEST(XrdMetricsObserved, CounterKindAndConstLabels)
 {
-  Registry reg("xrootd", {{"instance", "h1"}});
+  Collector reg("xrootd", {{"instance", "h1"}});
   unsigned long long hits = 7;
   reg.subsystem("cache").observeCounter("evictions_total", {}, {{"tier", "ram"}},
                                     "evictions")
@@ -388,7 +388,7 @@ TEST(XrdMetricsObserved, CounterKindAndConstLabels)
 
 TEST(XrdMetricsObserved, MultiSeriesUnderOneFamily)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   unsigned long long open = 3, read = 5;
   reg.subsystem("ops").observeCounter("total", {"op"}, {}, "operations")
                   .add({"open"}, [&]{ return open; })
@@ -409,7 +409,7 @@ TEST(XrdMetricsObserved, MultiSeriesUnderOneFamily)
 
 TEST(XrdMetricsDynamic, GetOrCreateDedupsFamily)
 {
-  Registry reg("");   // empty prefix: names pass through verbatim
+  Collector reg("");   // empty prefix: names pass through verbatim
   auto& g = reg.subsystem("");
 
   ++g.counterSeries("xrootd_collector_frm_total", "frm", {{"server","s1"},{"op","stage"}});
@@ -434,7 +434,7 @@ TEST(XrdMetricsDynamic, GetOrCreateDedupsFamily)
 
 TEST(XrdMetricsDynamic, TypeMismatchThrows)
 {
-  Registry reg("");
+  Collector reg("");
   auto& g = reg.subsystem("");
   ++g.counterSeries("m", "h");
   EXPECT_THROW(g.gaugeSeries("m", "h"), std::invalid_argument);
@@ -446,18 +446,18 @@ TEST(XrdMetricsDynamic, TypeMismatchThrows)
 
 TEST(XrdMetricsRegistryNG, GroupIsMemoized)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   EXPECT_EQ(&reg.subsystem("ops"), &reg.subsystem("ops"));
 }
 
 TEST(XrdMetricsRegistryNG, FullNameComposition)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& fam = reg.subsystem("ops").counter("requests_total");
   EXPECT_EQ(fam.name(), "xrootd_ops_requests_total");
 
   // Empty prefix and/or subsystem are skipped in the join.
-  Registry bare("");
+  Collector bare("");
   auto& f2 = bare.subsystem("").counter("just_a_name");
   EXPECT_EQ(f2.name(), "just_a_name");
 }
@@ -474,7 +474,7 @@ TEST(XrdMetricsRegistryNG, DefaultIsStableSingleton)
 
 TEST(XrdMetricsPrometheus, FamilyHeaderAndSeries)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& reqs = reg.subsystem("ops").counter("requests_total", {"verb"}, {},
                                          "Requests processed");
   reqs.withLabelValues({"open"}) += 3;
@@ -499,7 +499,7 @@ TEST(XrdMetricsPrometheus, FamilyHeaderAndSeries)
 
 TEST(XrdMetricsPrometheus, GaugeRendersAndNoHelpWhenEmpty)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   reg.subsystem("sched").intGauge("threads").noLabels() = 8;
 
   std::string out = scrape(reg);
@@ -510,7 +510,7 @@ TEST(XrdMetricsPrometheus, GaugeRendersAndNoHelpWhenEmpty)
 
 TEST(XrdMetricsPrometheus, BufferIsReusableAcrossScrapes)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   Counter& c = reg.subsystem("g").counter("c").noLabels();
   ++c;
 
@@ -530,7 +530,7 @@ TEST(XrdMetricsPrometheus, BufferIsReusableAcrossScrapes)
 
 TEST(XrdMetricsOtel, EnvelopeAndMonotonicSum)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs scheduled")
                     .noLabels() += 3;
 
@@ -551,7 +551,7 @@ TEST(XrdMetricsOtel, EnvelopeAndMonotonicSum)
 
 TEST(XrdMetricsOtel, GaugeCarriesLabelsInOrder)
 {
-  Registry reg("xrootd", {{"instance", "h1"}});
+  Collector reg("xrootd", {{"instance", "h1"}});
   reg.subsystem("net").intGauge("conns", {"proto"}, {{"role", "server"}}, "conns")
                   .withLabelValues({"tcp"}) = 5;
 
@@ -569,7 +569,7 @@ TEST(XrdMetricsOtel, GaugeCarriesLabelsInOrder)
 
 TEST(XrdMetricsOtel, FloatGaugeAndCounterUseAsDouble)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   reg.subsystem("g").floatGauge("temp", {}, {}, "t").noLabels() = 1.5;
   double cpu = 2.5;
   reg.subsystem("proc").observeCounterF("cpu_seconds_total", {}, {}, "cpu")
@@ -586,7 +586,7 @@ TEST(XrdMetricsOtel, FloatGaugeAndCounterUseAsDouble)
 
 TEST(XrdMetricsOtel, HistogramBucketsAreDecumulated)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& h = reg.subsystem("io").histogram("size_bytes", {1, 2, 5}, {}, {}, "io sizes");
   h.noLabels().observe(0.5);
   h.noLabels().observe(1.5);
@@ -605,7 +605,7 @@ TEST(XrdMetricsOtel, HistogramBucketsAreDecumulated)
 
 TEST(XrdMetricsOtel, SummaryCountAndSum)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& s = reg.subsystem("io").summary("bytes", {}, {}, "io sizes");
   s.noLabels().observe(100);
   s.noLabels().observe(250);
@@ -619,7 +619,7 @@ TEST(XrdMetricsOtel, SummaryCountAndSum)
 
 TEST(XrdMetricsOtel, ResourceAttributesAndEscaping)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   reg.subsystem("g").intGauge("x", {"label"}, {}, "h")
                 .withLabelValues({"a\"b\\c"}) = 1;
 
@@ -639,7 +639,7 @@ TEST(XrdMetricsOtel, ResourceAttributesAndEscaping)
 
 TEST(XrdMetricsSnapshot, LooksUpValuesByName)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   reg.subsystem("sched").counter("jobs_total").noLabels() += 7;
   reg.subsystem("sched").intGauge("threads").noLabels() = 12;
   long long idle = 3;
@@ -661,7 +661,7 @@ TEST(XrdMetricsSnapshot, LooksUpValuesByName)
 
 TEST(XrdMetricsSnapshot, KeysIncludeLabels)
 {
-  Registry reg("xrootd");
+  Collector reg("xrootd");
   auto& f = reg.subsystem("proc").counter("cpu_seconds_total", {"mode"});
   f.withLabelValues({"user"})   += 4;
   f.withLabelValues({"system"}) += 9;

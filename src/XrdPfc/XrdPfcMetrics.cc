@@ -25,7 +25,7 @@
 
 using namespace XrdPfc;
 
-CacheMetrics::CacheMetrics(XrdMetrics::Registry &reg)
+CacheMetrics::CacheMetrics(XrdMetrics::Collector &reg)
 {
    XrdMetrics::Subsystem &g = reg.subsystem("cache");
 

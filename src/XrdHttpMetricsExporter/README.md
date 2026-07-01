@@ -45,7 +45,7 @@ process-wide configuration that this plugin reads. They therefore apply whether
 metrics leave via the pull endpoint, the push paths, or not at all.
 
 ```
-# Registry-level (process-wide)
+# Collector-level (process-wide)
 metrics.enable       yes|no     # master switch (default yes)
 metrics.label        <k> <v>    # constant global label on every series (repeatable)
 metrics.subsystems   <list>     # per-subsystem enable/disable (see below)
@@ -92,7 +92,7 @@ proxy; `cache` when running as a cache; and `cms` in the cmsd clustering daemon.
 
 The exporter aggregates **every** registry in the process-wide directory into one
 scrape/push, not just the default `xrootd_*` registry. A plugin or a foreign
-owner (e.g. EOS) can keep its own `XrdMetrics::Registry` and call
+owner (e.g. EOS) can keep its own `XrdMetrics::Collector` and call
 `XrdMetrics::registerRegistry()`; its series then appear alongside the others
 (distinct name prefix for Prometheus, one OTLP `resourceMetrics` block per
 registry carrying that registry's global labels).

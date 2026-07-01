@@ -37,24 +37,24 @@
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 
 //-----------------------------------------------------------------------------
-//! The three-level hierarchy: Registry owns Subsystems, a Subsystem owns
+//! The three-level hierarchy: Collector owns Subsystems, a Subsystem owns
 //! Families, a Family owns series. Naming context flows down at registration
 //! time (the registry's prefix and the group's subsystem are resolved into each
 //! family's full name once, when the family is created, and baked into the
 //! cached series prefixes); iteration flows down at scrape time.
 //!
 //! Lifetime is strictly nested and that is what keeps the back-pointers valid:
-//! Registry outlives groups outlive families outlive series. The registry's
+//! Collector outlives groups outlive families outlive series. The registry's
 //! global const labels must be frozen before the first family is created, since
 //! they are baked into the text prefixes.
 //-----------------------------------------------------------------------------
 
 namespace XrdMetrics
 {
-class Registry;   // referenced by Subsystem; defined below
+class Collector;   // referenced by Subsystem; defined below
 
 /******************************************************************************/
-/*                           M e t r i c G r o u p                           */
+/*                             S u b s y s t e m                             */
 /******************************************************************************/
 
 //! A named subsystem (e.g. "scheduler", "ops") that owns a set of families and
@@ -63,7 +63,7 @@ class Registry;   // referenced by Subsystem; defined below
 class Subsystem
 {
 public:
-Subsystem(Registry& reg, std::string subsystem)
+Subsystem(Collector& reg, std::string subsystem)
            : reg_(reg), subsystem_(std::move(subsystem)) {}
 
 //! Create a counter family. varLabels are the variable label names (schema);
@@ -176,7 +176,7 @@ SummaryFamily& getOrAddSummary(const std::string& full,
                           const std::vector<std::string>& names,
                           const std::string& help);
 
-Registry&   reg_;
+Collector&   reg_;
 std::string subsystem_;
 
 mutable std::shared_mutex mutex_;
@@ -185,12 +185,12 @@ std::unordered_map<std::string, IFamily*> byName_;   // dedup index for *Series
 };
 
 /******************************************************************************/
-/*                              R e g i s t r y                              */
+/*                             C o l l e c t o r                             */
 /******************************************************************************/
 
 //! Owns the global prefix, the frozen global const labels, and the groups.
 
-class Registry
+class Collector
 {
 public:
 
@@ -199,12 +199,12 @@ public:
 //!                     things the Prometheus server cannot know (an XRootD
 //!                     instance name); instance/job are usually set at scrape
 //!                     time. They must not be mutated once a family exists.
-explicit Registry(std::string prefix, std::vector<ConstLabel> globalLabels = {})
+explicit Collector(std::string prefix, std::vector<ConstLabel> globalLabels = {})
         : prefix_(std::move(prefix)), globalLabels_(std::move(globalLabels)) {}
 
 //! Drop this registry from the process-wide directory (see registerRegistry).
 //! Safe whether or not it was ever registered.
-~Registry();
+~Collector();
 
 //! Replace the global const labels. Succeeds only while the registry is still
 //! empty (no family created yet), because the labels are baked into each
@@ -296,7 +296,7 @@ std::vector<std::function<void(std::string&)>> collectors_;
 };
 
 /******************************************************************************/
-/*        M e t r i c G r o u p   f a c t o r i e s   ( need Registry )       */
+/*          S u b s y s t e m   f a c t o r i e s   ( need Collector )         */
 /******************************************************************************/
 
 template <class Child>
@@ -634,10 +634,10 @@ Subsystem::summarySeries(const std::string& name, const std::string& help,
 //! The process-wide registry shared by the server and all loaded plugins.
 //! Prefixed "xrootd"; plugins should register into this so all metrics land in
 //! the same scrape. Auto-joins the registry directory on first use.
-Registry& Default();
+Collector& Default();
 
 /******************************************************************************/
-/*                      R e g i s t r y   d i r e c t o r y                  */
+/*                    C o l l e c t o r   d i r e c t o r y                   */
 /******************************************************************************/
 
 //! A process-wide directory of top-level registries the exporter aggregates
@@ -645,16 +645,16 @@ Registry& Default();
 //! EOS) or a plugin that keeps its own registry calls registerRegistry so its
 //! series appear alongside the xrootd_* ones. Registration is idempotent and a
 //! registry removes itself on destruction.
-void registerRegistry(Registry& r);
-void unregisterRegistry(Registry& r);
+void registerRegistry(Collector& r);
+void unregisterRegistry(Collector& r);
 
 //! A snapshot of the currently registered registries.
-std::vector<Registry*> registries();
+std::vector<Collector*> registries();
 
 //! Serialize every registered registry into one document: frames once
 //! (begin()/end()) and walks each registry's body, marking a per-registry
 //! resource boundary so envelope formats (OTLP) can emit one resource block per
 //! registry. @p filter selects which subsystems (groups) to emit, by name.
-void serializeAll(Serializer& s, const Registry::GroupFilter& filter = {});
+void serializeAll(Serializer& s, const Collector::GroupFilter& filter = {});
 }
 #endif

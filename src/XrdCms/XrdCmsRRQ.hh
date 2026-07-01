@@ -39,7 +39,7 @@
 #include "XrdOuc/XrdOucDLlist.hh"
 #include "XrdSys/XrdSysPthread.hh"
   
-namespace XrdMetrics {class Registry;}
+namespace XrdMetrics {class Collector;}
 
 /******************************************************************************/
 /*                         X r d C m s R R Q I n f o                          */
@@ -147,7 +147,7 @@ void  Statistics(Info &Data) {myMutex.Lock(); Data = Stats; myMutex.UnLock();}
 
 // Register fast/slow lookup and redirect metrics into the given registry
 //
-void  RegisterMetrics(XrdMetrics::Registry &reg);
+void  RegisterMetrics(XrdMetrics::Collector &reg);
 
 void *TimeOut();
 

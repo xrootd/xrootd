@@ -338,7 +338,7 @@ TEST(XrdMonCollect, TStreamRecordsDecoded)
 TEST_F(Transfer, AggregatesIntoMetricsRegistry)
 {
   // Re-run the open/close/user sequence through a decoder bound to a registry.
-  XrdMetrics::Registry reg("");
+  XrdMetrics::Collector reg("");
   std::string sink;
   XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
                  false, false, false, false, &reg.subsystem(""));
@@ -771,7 +771,7 @@ TEST_F(Transfer, OrphanCloseIsAccess)
 // A partial-access close increments the accesses counter, not transfers.
 TEST_F(Transfer, AccessAggregatesIntoMetrics)
 {
-  XrdMetrics::Registry reg("");
+  XrdMetrics::Collector reg("");
   std::string sink;
   XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
                  false, false, false, false, &reg.subsystem(""));
@@ -929,7 +929,7 @@ std::vector<unsigned char> userPkt(uint32_t dictid, uint8_t pseq)
 
 TEST(XrdMonCollect, PacketLossDetected)
 {
-  XrdMetrics::Registry reg("");
+  XrdMetrics::Collector reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
                    false, false, false, false, &reg.subsystem(""));
 
@@ -1121,7 +1121,7 @@ TEST(XrdMonCollect, UnboundedKeepsEverything)
 
 TEST(XrdMonCollect, FrmStageAndPurge)
 {
-  XrdMetrics::Registry reg("");
+  XrdMetrics::Collector reg("");
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
                    false, false, false, false, &reg.subsystem(""));
@@ -1157,7 +1157,7 @@ TEST(XrdMonCollect, FrmStageAndPurge)
 
 TEST(XrdMonCollect, SessionDiscAndActiveGauge)
 {
-  XrdMetrics::Registry reg("");
+  XrdMetrics::Collector reg("");
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
                    false, false, false, false, &reg.subsystem(""));
@@ -1414,7 +1414,7 @@ std::vector<unsigned char> gPacket(char prov, const std::string& jsonRec)
 
 TEST(XrdMonCollect, GStreamOssMetricsDelta)
 {
-  XrdMetrics::Registry reg("");
+  XrdMetrics::Collector reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
                    false, false, false, false, &reg.subsystem(""));
 
@@ -1438,7 +1438,7 @@ TEST(XrdMonCollect, GStreamOssMetricsDelta)
 
 TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
 {
-  XrdMetrics::Registry reg("");
+  XrdMetrics::Collector reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
                    false, false, false, false, &reg.subsystem(""));
 
@@ -1463,7 +1463,7 @@ TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
 
 TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
 {
-  XrdMetrics::Registry reg("");
+  XrdMetrics::Collector reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
                    false, false, false, false, &reg.subsystem(""));
 

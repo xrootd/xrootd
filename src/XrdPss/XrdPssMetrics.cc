@@ -32,7 +32,7 @@
 //
 namespace XrdPosixGlobals {extern XrdPosixStats Stats;}
 
-void XrdPssRegisterMetrics(XrdMetrics::Registry &reg)
+void XrdPssRegisterMetrics(XrdMetrics::Collector &reg)
 {
    XrdMetrics::Subsystem &g = reg.subsystem("proxy");
 

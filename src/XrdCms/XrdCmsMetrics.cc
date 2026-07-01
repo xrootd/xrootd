@@ -38,7 +38,7 @@ using namespace XrdCms;
 // and the state machine, so the registry only observes them (the existing
 // variables remain the source of truth).
 //
-void XrdCms::RegisterMetrics(XrdMetrics::Registry &reg)
+void XrdCms::RegisterMetrics(XrdMetrics::Collector &reg)
 {
    Cluster.RegisterMetrics(reg);
    CmsState.RegisterMetrics(reg);
@@ -49,7 +49,7 @@ void XrdCms::RegisterMetrics(XrdMetrics::Registry &reg)
 /*            X r d C m s C l u s t e r : : R e g i s t e r M e t r i c s    */
 /******************************************************************************/
 
-void XrdCmsCluster::RegisterMetrics(XrdMetrics::Registry &reg)
+void XrdCmsCluster::RegisterMetrics(XrdMetrics::Collector &reg)
 {
    XrdMetrics::Subsystem &g = reg.subsystem("cms");
 
@@ -89,7 +89,7 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Registry &reg)
 /*              X r d C m s S t a t e : : R e g i s t e r M e t r i c s      */
 /******************************************************************************/
 
-void XrdCmsState::RegisterMetrics(XrdMetrics::Registry &reg)
+void XrdCmsState::RegisterMetrics(XrdMetrics::Collector &reg)
 {
    XrdMetrics::Subsystem &g = reg.subsystem("cms");
 
@@ -113,7 +113,7 @@ void XrdCmsState::RegisterMetrics(XrdMetrics::Registry &reg)
 /*                X r d C m s R R Q : : R e g i s t e r M e t r i c s        */
 /******************************************************************************/
 
-void XrdCmsRRQ::RegisterMetrics(XrdMetrics::Registry &reg)
+void XrdCmsRRQ::RegisterMetrics(XrdMetrics::Collector &reg)
 {
    XrdMetrics::Subsystem &g = reg.subsystem("cms");
 

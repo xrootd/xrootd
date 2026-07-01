@@ -71,7 +71,7 @@ Serializer& operator=(const Serializer&) = default;
 Serializer& operator=(Serializer&&)      = default;
 virtual ~Serializer()                     = default;
 
-//! Document framing, called once by Registry::serialize() around the whole
+//! Document framing, called once by Collector::serialize() around the whole
 //! traversal. Formats with an envelope (JSON, XML) open/close it here; the
 //! line-oriented Prometheus text format leaves both as no-ops.
 virtual void begin() {}
@@ -80,7 +80,7 @@ virtual void end()   {}
 //! Per-registry boundary, called by serializeAll() around each registry's body
 //! so envelope formats can emit one resource block per registry (OTLP maps a
 //! registry to a resourceMetrics entry, using its global labels as resource
-//! attributes). The single-registry Registry::serialize() path does not call
+//! attributes). The single-registry Collector::serialize() path does not call
 //! these; formats that need a resource still open one lazily. No-ops for the
 //! Prometheus text format, which concatenates by distinct metric-name prefix.
 virtual void beginResource(const std::string& /*scope*/,
@@ -153,7 +153,7 @@ std::string& out_;
 //! stamped with the scrape time captured in begin().
 //!
 //! Unlike the Prometheus text format this carries an envelope, so it must be
-//! driven through Registry::serialize() (which calls begin()/end()); appending
+//! driven through Collector::serialize() (which calls begin()/end()); appending
 //! raw text collectors into the same buffer would corrupt the JSON.
 
 class OtelJsonSerializer : public Serializer
@@ -222,7 +222,7 @@ bool                    resourceOpen_  = false;  // a resource block is open
 //! Collects the registry's series values into a by-name lookup, so a consumer
 //! can pull values for an output layout that does not follow the flat metric
 //! model (e.g. the legacy XrdStats <stats id=...> XML). Drive it with
-//! Registry::serialize(), then read values back by key.
+//! Collector::serialize(), then read values back by key.
 //!
 //! The key is the series identity "name{labels}" — the cached Prometheus prefix
 //! without its trailing space; an unlabelled series is keyed by its bare metric

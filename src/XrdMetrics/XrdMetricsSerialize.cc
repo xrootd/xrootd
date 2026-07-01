@@ -419,7 +419,7 @@ void OtelJsonSerializer::end()
 void OtelJsonSerializer::beginFamily(const std::string& name, MetricKind kind,
                                      const std::string& help)
 {
-// Single-registry path (Registry::serialize): no beginResource() was called, so
+// Single-registry path (Collector::serialize): no beginResource() was called, so
 // open the one resource block lazily using the constructor's scope/attributes.
 //
    if (!resourceOpen_) openResource(scope_, nullptr);
@@ -613,7 +613,7 @@ bool MetricSnapshot::has(const std::string& key) const
 namespace
 {
 // Leaked construct-on-first-use singletons: the directory and its lock must
-// outlive every Registry (including the function-local static Default() one),
+// outlive every Collector (including the function-local static Default() one),
 // so they are intentionally never destroyed to avoid a static-destruction-order
 // dependency when a registry unregisters itself at process exit.
 //
@@ -623,14 +623,14 @@ std::mutex& dirMutex()
    return *m;
 }
 
-std::vector<Registry*>& dir()
+std::vector<Collector*>& dir()
 {
-   static std::vector<Registry*>* d = new std::vector<Registry*>();
+   static std::vector<Collector*>* d = new std::vector<Collector*>();
    return *d;
 }
 }
 
-void registerRegistry(Registry& r)
+void registerRegistry(Collector& r)
 {
    std::lock_guard<std::mutex> lk(dirMutex());
    auto& d = dir();
@@ -638,7 +638,7 @@ void registerRegistry(Registry& r)
    d.push_back(&r);
 }
 
-void unregisterRegistry(Registry& r)
+void unregisterRegistry(Collector& r)
 {
    std::lock_guard<std::mutex> lk(dirMutex());
    auto& d = dir();
@@ -646,13 +646,13 @@ void unregisterRegistry(Registry& r)
        if (*it == &r) {d.erase(it); return;}
 }
 
-std::vector<Registry*> registries()
+std::vector<Collector*> registries()
 {
    std::lock_guard<std::mutex> lk(dirMutex());
    return dir();
 }
 
-Registry::~Registry()
+Collector::~Collector()
 {
    unregisterRegistry(*this);
 }
@@ -661,7 +661,7 @@ Registry::~Registry()
 /*                          s e r i a l i z e A l l                          */
 /******************************************************************************/
 
-void serializeAll(Serializer& s, const Registry::GroupFilter& filter)
+void serializeAll(Serializer& s, const Collector::GroupFilter& filter)
 {
    auto regs = registries();
    s.begin();
@@ -677,9 +677,9 @@ void serializeAll(Serializer& s, const Registry::GroupFilter& filter)
 /*                              D e f a u l t                                */
 /******************************************************************************/
 
-Registry& Default()
+Collector& Default()
 {
-   static Registry instance("xrootd");
+   static Collector instance("xrootd");
    static bool once = [](){registerRegistry(instance); return true;}();
    (void)once;
    return instance;

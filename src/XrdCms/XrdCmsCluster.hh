@@ -48,7 +48,7 @@ class XrdCmsSelect;
 class XrdCmsSelector;
 class XrdNetAddr;
 
-namespace XrdMetrics {class Registry;}
+namespace XrdMetrics {class Collector;}
 
 namespace XrdCms
 {
@@ -218,7 +218,7 @@ int             Statt(char *bfr, int bln); // Manager
 
 // Register this node's cluster metrics into the given XrdMetrics registry
 //
-void            RegisterMetrics(XrdMetrics::Registry &reg);
+void            RegisterMetrics(XrdMetrics::Collector &reg);
 
                 XrdCmsCluster();
 virtual        ~XrdCmsCluster() {} // This object should never be deleted
