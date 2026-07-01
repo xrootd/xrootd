@@ -20,8 +20,8 @@ std::chrono::seconds XrdHttpMon::flushPeriod{0};
 bool XrdHttpMon::hasGStream = false;
 bool XrdHttpMon::isInitialized = false;
 
-XrdMetrics::Counter* XrdHttpMon::verbMetric[XrdHttpReq::ReqType::rtCount] = {nullptr};
-XrdMetrics::Counter* XrdHttpMon::statusMetric[XrdHttpMon::StatusCodes::sc_Count] = {nullptr};
+XrdMetrics::Counter<std::uint64_t>* XrdHttpMon::verbMetric[XrdHttpReq::ReqType::rtCount] = {nullptr};
+XrdMetrics::Counter<std::uint64_t>* XrdHttpMon::statusMetric[XrdHttpMon::StatusCodes::sc_Count] = {nullptr};
 
 namespace {
 // Label values for the request-method and response-status counter families.

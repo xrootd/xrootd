@@ -70,17 +70,17 @@ Subsystem(Collector& reg, std::string subsystem)
 //! constLabels are fixed for every series of the family. maxKids caps series
 //! cardinality (0 = unlimited). Throws std::invalid_argument on an invalid
 //! metric or label name.
-LabeledFamily<Counter>&   counter(const std::string& name,
+LabeledFamily<Counter<std::uint64_t>>&   counter(const std::string& name,
                                   std::vector<std::string> varLabels = {},
                                   std::vector<ConstLabel> constLabels = {},
                                   std::string help = {}, std::size_t maxKids = 0);
 
-LabeledFamily<IntGauge>&  intGauge(const std::string& name,
+LabeledFamily<Gauge<std::int64_t>>&  intGauge(const std::string& name,
                                   std::vector<std::string> varLabels = {},
                                   std::vector<ConstLabel> constLabels = {},
                                   std::string help = {}, std::size_t maxKids = 0);
 
-LabeledFamily<FloatGauge>& floatGauge(const std::string& name,
+LabeledFamily<Gauge<double>>& floatGauge(const std::string& name,
                                   std::vector<std::string> varLabels = {},
                                   std::vector<ConstLabel> constLabels = {},
                                   std::string help = {}, std::size_t maxKids = 0);
@@ -128,9 +128,9 @@ ObservedFamily<double>& observeGauge(const std::string& name,
 //! metric name. Intended for callers that build labelled metrics on the fly
 //! (e.g. a monitoring collector), trading a per-call map lookup for that
 //! convenience; prefer the cached-handle factories on hot server paths.
-Counter&    counterSeries(const std::string& name, const std::string& help,
+Counter<std::uint64_t>& counterSeries(const std::string& name, const std::string& help,
                           std::vector<ConstLabel> labels = {});
-FloatGauge& gaugeSeries(const std::string& name, const std::string& help,
+Gauge<double>& gaugeSeries(const std::string& name, const std::string& help,
                         std::vector<ConstLabel> labels = {});
 Histogram&  histogramSeries(const std::string& name, const std::string& help,
                             std::vector<double> bounds,
@@ -330,30 +330,30 @@ LabeledFamily<Child>& Subsystem::add(const std::string& name,
    return ref;
 }
 
-inline LabeledFamily<Counter>&
+inline LabeledFamily<Counter<std::uint64_t>>&
 Subsystem::counter(const std::string& name, std::vector<std::string> varLabels,
                      std::vector<ConstLabel> constLabels, std::string help,
                      std::size_t maxKids)
 {
-   return add<Counter>(name, std::move(varLabels), std::move(constLabels),
+   return add<Counter<std::uint64_t>>(name, std::move(varLabels), std::move(constLabels),
                        std::move(help), maxKids);
 }
 
-inline LabeledFamily<IntGauge>&
+inline LabeledFamily<Gauge<std::int64_t>>&
 Subsystem::intGauge(const std::string& name, std::vector<std::string> varLabels,
                       std::vector<ConstLabel> constLabels, std::string help,
                       std::size_t maxKids)
 {
-   return add<IntGauge>(name, std::move(varLabels), std::move(constLabels),
+   return add<Gauge<std::int64_t>>(name, std::move(varLabels), std::move(constLabels),
                         std::move(help), maxKids);
 }
 
-inline LabeledFamily<FloatGauge>&
+inline LabeledFamily<Gauge<double>>&
 Subsystem::floatGauge(const std::string& name, std::vector<std::string> varLabels,
                         std::vector<ConstLabel> constLabels, std::string help,
                         std::size_t maxKids)
 {
-   return add<FloatGauge>(name, std::move(varLabels), std::move(constLabels),
+   return add<Gauge<double>>(name, std::move(varLabels), std::move(constLabels),
                           std::move(help), maxKids);
 }
 
@@ -623,24 +623,24 @@ inline void splitLabels(const std::vector<ConstLabel>& labels,
 }
 }
 
-inline Counter&
+inline Counter<std::uint64_t>&
 Subsystem::counterSeries(const std::string& name, const std::string& help,
                            std::vector<ConstLabel> labels)
 {
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
    std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
-   return getOrAddLabeled<Counter>(full, names, help).withLabelValues(std::move(values));
+   return getOrAddLabeled<Counter<std::uint64_t>>(full, names, help).withLabelValues(std::move(values));
 }
 
-inline FloatGauge&
+inline Gauge<double>&
 Subsystem::gaugeSeries(const std::string& name, const std::string& help,
                          std::vector<ConstLabel> labels)
 {
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
    std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
-   return getOrAddLabeled<FloatGauge>(full, names, help).withLabelValues(std::move(values));
+   return getOrAddLabeled<Gauge<double>>(full, names, help).withLabelValues(std::move(values));
 }
 
 inline Histogram&

@@ -60,8 +60,8 @@ class XrdHttpMon {
 
     // Native XrdMetrics counter handles, one per request method and per response
     // status code. Resolved once in Initialize() and incremented on the hot path.
-    static XrdMetrics::Counter* verbMetric[XrdHttpReq::ReqType::rtCount];
-    static XrdMetrics::Counter* statusMetric[StatusCodes::sc_Count];
+    static XrdMetrics::Counter<std::uint64_t>* verbMetric[XrdHttpReq::ReqType::rtCount];
+    static XrdMetrics::Counter<std::uint64_t>* statusMetric[StatusCodes::sc_Count];
 
     // Static members for monitoring configuration
     static XrdXrootdGStream* gStream;

@@ -106,19 +106,19 @@ TEST(XrdMetricsCounter, IncrementOperators)
 {
   Collector reg("xrootd");
   auto& fam = reg.subsystem("ops").counter("requests_total");
-  Counter& c = fam.noLabels();
+  Counter<std::uint64_t>& c = fam.noLabels();
 
   ++c;
   c++;
   c += 5;
   EXPECT_EQ(c.value(), 7u);
-  EXPECT_EQ(Counter::kind(), MetricKind::Counter);
+  EXPECT_EQ((Counter<std::uint64_t>::kind()), MetricKind::Counter);
 }
 
 TEST(XrdMetricsCounter, ConcurrentIncrements)
 {
   Collector reg("xrootd");
-  Counter& c = reg.subsystem("ops").counter("c").noLabels();
+  Counter<std::uint64_t>& c = reg.subsystem("ops").counter("c").noLabels();
 
   const int nthreads = 8, niter = 100000;
   std::vector<std::thread> th;
@@ -136,7 +136,7 @@ TEST(XrdMetricsCounter, ConcurrentIncrements)
 TEST(XrdMetricsGauge, IntGaugeOperators)
 {
   Collector reg("xrootd");
-  IntGauge& g = reg.subsystem("sched").intGauge("threads").noLabels();
+  Gauge<std::int64_t>& g = reg.subsystem("sched").intGauge("threads").noLabels();
 
   g = 8;
   g += 2;
@@ -144,13 +144,13 @@ TEST(XrdMetricsGauge, IntGaugeOperators)
   ++g;
   --g;
   EXPECT_EQ(g.value(), 7);
-  EXPECT_EQ(IntGauge::kind(), MetricKind::Gauge);
+  EXPECT_EQ(Gauge<std::int64_t>::kind(), MetricKind::Gauge);
 }
 
 TEST(XrdMetricsGauge, FloatGaugeCasLoop)
 {
   Collector reg("xrootd");
-  FloatGauge& g = reg.subsystem("proc").floatGauge("ratio").noLabels();
+  Gauge<double>& g = reg.subsystem("proc").floatGauge("ratio").noLabels();
 
   g = 2.5;
   g += 1.0;
@@ -167,7 +167,7 @@ TEST(XrdMetricsLabels, PrefixOrderGlobalConstVariable)
   Collector reg("xrootd", {{"instance", "h1"}});
   auto& fam = reg.subsystem("ops").counter("requests_total", {"verb"},
                                         {{"proto", "xroot"}});
-  Counter& c = fam.withLabelValues({"open"});
+  Counter<std::uint64_t>& c = fam.withLabelValues({"open"});
 
   // global instance, then family const proto, then variable verb, then a space.
   EXPECT_EQ(c.labels().prometheusPrefix(),
@@ -177,7 +177,7 @@ TEST(XrdMetricsLabels, PrefixOrderGlobalConstVariable)
 TEST(XrdMetricsLabels, PrefixBuiltOnceAndStable)
 {
   Collector reg("xrootd");
-  Counter& c = reg.subsystem("g").counter("c", {"k"}).withLabelValues({"v"});
+  Counter<std::uint64_t>& c = reg.subsystem("g").counter("c", {"k"}).withLabelValues({"v"});
   const std::string* p1 = &c.labels().prometheusPrefix();
   ++c;
   const std::string* p2 = &c.labels().prometheusPrefix();
@@ -187,7 +187,7 @@ TEST(XrdMetricsLabels, PrefixBuiltOnceAndStable)
 TEST(XrdMetricsLabels, ValueEscaping)
 {
   Collector reg("xrootd");
-  Counter& c = reg.subsystem("g").counter("c", {"k"})
+  Counter<std::uint64_t>& c = reg.subsystem("g").counter("c", {"k"})
                   .withLabelValues({"a\"b\\c\nd"});
   EXPECT_EQ(c.labels().prometheusPrefix(),
             "xrootd_g_c{k=\"a\\\"b\\\\c\\nd\"} ");
@@ -197,7 +197,7 @@ TEST(XrdMetricsLabels, ForEachLabelStructuredOrder)
 {
   Collector reg("xrootd", {{"instance", "h1"}});
   auto& fam = reg.subsystem("g").counter("c", {"verb"}, {{"proto", "xroot"}});
-  Counter& c = fam.withLabelValues({"open"});
+  Counter<std::uint64_t>& c = fam.withLabelValues({"open"});
 
   std::vector<std::pair<std::string, std::string>> seen;
   c.labels().forEachLabel([&](const std::string& k, const std::string& v)
@@ -228,13 +228,13 @@ TEST(XrdMetricsFamily, SameValuesReturnSameHandle)
 {
   Collector reg("xrootd");
   auto& fam = reg.subsystem("g").counter("c", {"k"});
-  Counter& a = fam.withLabelValues({"x"});
-  Counter& b = fam.withLabelValues({"x"});
+  Counter<std::uint64_t>& a = fam.withLabelValues({"x"});
+  Counter<std::uint64_t>& b = fam.withLabelValues({"x"});
   EXPECT_EQ(&a, &b);
   ++a;
   EXPECT_EQ(b.value(), 1u);
 
-  Counter& d = fam.withLabelValues({"y"});
+  Counter<std::uint64_t>& d = fam.withLabelValues({"y"});
   EXPECT_NE(&a, &d);
 }
 
@@ -242,10 +242,10 @@ TEST(XrdMetricsFamily, CardinalityCapFoldsToOverflow)
 {
   Collector reg("xrootd");
   auto& fam = reg.subsystem("g").counter("c", {"k"}, {}, {}, /*maxKids=*/2);
-  Counter& a = fam.withLabelValues({"1"});
-  Counter& b = fam.withLabelValues({"2"});
-  Counter& c = fam.withLabelValues({"3"});   // over the cap
-  Counter& d = fam.withLabelValues({"4"});   // over the cap
+  Counter<std::uint64_t>& a = fam.withLabelValues({"1"});
+  Counter<std::uint64_t>& b = fam.withLabelValues({"2"});
+  Counter<std::uint64_t>& c = fam.withLabelValues({"3"});   // over the cap
+  Counter<std::uint64_t>& d = fam.withLabelValues({"4"});   // over the cap
 
   EXPECT_NE(&a, &b);
   EXPECT_EQ(&c, &d);                          // both fold to one overflow series
@@ -527,7 +527,7 @@ TEST(XrdMetricsPrometheus, GaugeRendersAndNoHelpWhenEmpty)
 TEST(XrdMetricsPrometheus, BufferIsReusableAcrossScrapes)
 {
   Collector reg("xrootd");
-  Counter& c = reg.subsystem("g").counter("c").noLabels();
+  Counter<std::uint64_t>& c = reg.subsystem("g").counter("c").noLabels();
   ++c;
 
   std::string out;

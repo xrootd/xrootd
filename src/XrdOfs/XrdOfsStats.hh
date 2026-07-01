@@ -41,22 +41,22 @@ public:
 //! against a reader; open-file/handle counts that go up and down are gauges.
 struct      StatsData
 {
-XrdMetrics::IntGauge &numOpenR;    // Read
-XrdMetrics::IntGauge &numOpenW;    // Write
-XrdMetrics::IntGauge &numOpenP;    // Posc
-XrdMetrics::IntGauge &numHandles;
-XrdMetrics::Counter  &numUnpsist;  // Posc files not persisted
-XrdMetrics::Counter  &numRedirect;
-XrdMetrics::Counter  &numStarted;
-XrdMetrics::Counter  &numReplies;
-XrdMetrics::Counter  &numErrors;
-XrdMetrics::Counter  &numDelays;
-XrdMetrics::Counter  &numSeventOK;
-XrdMetrics::Counter  &numSeventER;
-XrdMetrics::Counter  &numTPCgrant;
-XrdMetrics::Counter  &numTPCdeny;
-XrdMetrics::Counter  &numTPCerrs;
-XrdMetrics::Counter  &numTPCexpr;
+XrdMetrics::Gauge<std::int64_t> &numOpenR;    // Read
+XrdMetrics::Gauge<std::int64_t> &numOpenW;    // Write
+XrdMetrics::Gauge<std::int64_t> &numOpenP;    // Posc
+XrdMetrics::Gauge<std::int64_t> &numHandles;
+XrdMetrics::Counter<std::uint64_t>  &numUnpsist;  // Posc files not persisted
+XrdMetrics::Counter<std::uint64_t>  &numRedirect;
+XrdMetrics::Counter<std::uint64_t>  &numStarted;
+XrdMetrics::Counter<std::uint64_t>  &numReplies;
+XrdMetrics::Counter<std::uint64_t>  &numErrors;
+XrdMetrics::Counter<std::uint64_t>  &numDelays;
+XrdMetrics::Counter<std::uint64_t>  &numSeventOK;
+XrdMetrics::Counter<std::uint64_t>  &numSeventER;
+XrdMetrics::Counter<std::uint64_t>  &numTPCgrant;
+XrdMetrics::Counter<std::uint64_t>  &numTPCdeny;
+XrdMetrics::Counter<std::uint64_t>  &numTPCerrs;
+XrdMetrics::Counter<std::uint64_t>  &numTPCexpr;
 }           Data;
 
        int  Report(char *Buff, int Blen);

@@ -91,7 +91,7 @@ namespace
 // truth (there is no aggregate TLS variable elsewhere); set in RegisterMetrics
 // and bumped once per successful upgrade in setTLS.
 //
-XrdMetrics::Counter *tlsConnCtr = nullptr;
+XrdMetrics::Counter<std::uint64_t> *tlsConnCtr = nullptr;
 }
 
 /******************************************************************************/

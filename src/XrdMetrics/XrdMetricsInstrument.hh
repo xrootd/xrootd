@@ -72,33 +72,50 @@ SeriesLabels labels_;
 /*                             C o u n t e r                                 */
 /******************************************************************************/
 
-//! A monotonically increasing counter. There is no operator=, no -=, and no
-//! reset: the only way to move a Counter is up, enforced by the type system
-//! (a decrement fails to compile). Counter resets at process restart are
-//! handled on the Prometheus server side via rate().
+//! A monotonically increasing counter, templated over uint64_t (the common
+//! integral case) or double (e.g. accumulated seconds). There is no operator=,
+//! no -=, and no reset: the only way to move a Counter is up, enforced by the
+//! type system (a decrement fails to compile). Counter resets at process restart
+//! are handled on the Prometheus server side via rate(). The double variant uses
+//! the same portable compare-exchange loop as Gauge<double> because
+//! std::atomic<double>::fetch_add is C++20 (libstdc++ >= GCC 10) and we still
+//! support AlmaLinux 8 / GCC 8.
 
+template <class T>
 class Counter : public SeriesBase
 {
+static_assert(std::is_same<T, std::uint64_t>::value ||
+              std::is_same<T, double>::value,
+              "Counter supports uint64_t or double only");
 public:
 explicit Counter(SeriesLabels lbl) : SeriesBase(std::move(lbl)) {}
          Counter(const Counter&) = delete;
 Counter& operator=(const Counter&) = delete;
 
-void operator++()    noexcept { val_.fetch_add(1, std::memory_order_relaxed); }
-void operator++(int) noexcept { val_.fetch_add(1, std::memory_order_relaxed); }
+void operator++()    noexcept { add(T{1}); }
+void operator++(int) noexcept { add(T{1}); }
 
-//! Note: a uint64_t parameter means "counter += -1" silently wraps to a huge
+//! Note: for the unsigned variant a negative argument silently wraps to a huge
 //! value. There is no clean compile-time guard once the type is unsigned.
-void operator+=(std::uint64_t n) noexcept
-                     { val_.fetch_add(n, std::memory_order_relaxed); }
+void operator+=(T n) noexcept { add(n); }
 
-std::uint64_t value() const noexcept
-                     { return val_.load(std::memory_order_relaxed); }
+T value() const noexcept { return val_.load(std::memory_order_relaxed); }
 
 static constexpr MetricKind kind() noexcept { return MetricKind::Counter; }
 
 private:
-std::atomic<std::uint64_t> val_{0};   // explicit init: pre-C++20 default is UB
+void add(T v) noexcept
+{
+   if constexpr (std::is_integral<T>::value)
+      {val_.fetch_add(v, std::memory_order_relaxed);}
+   else
+      {T cur = val_.load(std::memory_order_relaxed);
+       while (!val_.compare_exchange_weak(cur, cur + v,
+                  std::memory_order_relaxed, std::memory_order_relaxed)) {}
+      }
+}
+
+std::atomic<T> val_{T{}};   // explicit init: pre-C++20 default is UB
 };
 
 /******************************************************************************/
@@ -150,8 +167,6 @@ void add(T v) noexcept
 std::atomic<T> val_{T{}};             // explicit init: pre-C++20 default is UB
 };
 
-using IntGauge   = Gauge<std::int64_t>;
-using FloatGauge = Gauge<double>;
 
 /******************************************************************************/
 /*                           H i s t o g r a m                               */

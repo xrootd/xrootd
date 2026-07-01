@@ -26,7 +26,7 @@
 namespace XrdMetrics
 {
 class Collector;
-class Counter;
+template <class T> class Counter;
 template <class T> class Gauge;
 Collector& Default();
 }
@@ -62,16 +62,16 @@ void SetSpace(long long disk_total, long long disk_used, long long data_used,
               long long meta_total, long long meta_used);
 
 private:
-XrdMetrics::Counter *m_bytes_hit;
-XrdMetrics::Counter *m_bytes_miss;
-XrdMetrics::Counter *m_bytes_bypass;
-XrdMetrics::Counter *m_bytes_written;
-XrdMetrics::Counter *m_cksum_errors;
+XrdMetrics::Counter<std::uint64_t> *m_bytes_hit;
+XrdMetrics::Counter<std::uint64_t> *m_bytes_miss;
+XrdMetrics::Counter<std::uint64_t> *m_bytes_bypass;
+XrdMetrics::Counter<std::uint64_t> *m_bytes_written;
+XrdMetrics::Counter<std::uint64_t> *m_cksum_errors;
 
-XrdMetrics::Counter *m_files_opened;
-XrdMetrics::Counter *m_files_closed;
-XrdMetrics::Counter *m_files_created;
-XrdMetrics::Counter *m_files_removed;
+XrdMetrics::Counter<std::uint64_t> *m_files_opened;
+XrdMetrics::Counter<std::uint64_t> *m_files_closed;
+XrdMetrics::Counter<std::uint64_t> *m_files_created;
+XrdMetrics::Counter<std::uint64_t> *m_files_removed;
 
 XrdMetrics::Gauge<std::int64_t> *m_disk_total;
 XrdMetrics::Gauge<std::int64_t> *m_disk_used;

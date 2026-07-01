@@ -29,6 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdint>
 #include <unistd.h>
 #include <sys/types.h>
 
@@ -40,7 +41,7 @@ class XrdSchedulerPID;
 class XrdSysError;
 class XrdSysTrace;
 
-namespace XrdMetrics { class Counter; }
+namespace XrdMetrics { template <class T> class Counter; }
 
 #define MAX_SCHED_PROCS 30000
 #define DFL_SCHED_PROCS  8192
@@ -83,10 +84,10 @@ void          setNproc(const bool limlower);
 // via value(). The live-state gauges below stay plain ints owned by the
 // scheduler and are exposed read-only via observed metrics (see Init).
 //
-XrdMetrics::Counter  *m_TCreate;  // Number of threads created
-XrdMetrics::Counter  *m_TDestroy; // Number of threads destroyed
-XrdMetrics::Counter  *m_Jobs;     // Number of jobs scheduled
-XrdMetrics::Counter  *m_Limited;  // Number of times the thread max was reached
+XrdMetrics::Counter<std::uint64_t>  *m_TCreate;  // Number of threads created
+XrdMetrics::Counter<std::uint64_t>  *m_TDestroy; // Number of threads destroyed
+XrdMetrics::Counter<std::uint64_t>  *m_Jobs;     // Number of jobs scheduled
+XrdMetrics::Counter<std::uint64_t>  *m_Limited;  // Number of times the thread max was reached
 int        max_QLength; // Longest queue length we had
 
 // This is the preferred constructor

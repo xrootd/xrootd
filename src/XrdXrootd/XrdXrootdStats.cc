@@ -61,7 +61,7 @@ namespace
 // otherwise fold into miscCnt. Indexed by (reqid - kXR_auth); populated once in
 // RegisterMetrics, then a pointer deref on the dispatch hot path.
 //
-XrdMetrics::Counter *adminOpCtr[kXR_REQFENCE - kXR_auth] = {nullptr};
+XrdMetrics::Counter<std::uint64_t> *adminOpCtr[kXR_REQFENCE - kXR_auth] = {nullptr};
 }
  
 /******************************************************************************/

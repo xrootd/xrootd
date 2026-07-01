@@ -63,7 +63,7 @@ virtual void serialize(Serializer& s) const = 0;
 /*                        L a b e l e d F a m i l y                          */
 /******************************************************************************/
 
-//! @tparam Child  Counter, IntGauge or FloatGauge.
+//! @tparam Child  Counter<T> or Gauge<T>.
 
 template <class Child>
 class LabeledFamily : public IFamily

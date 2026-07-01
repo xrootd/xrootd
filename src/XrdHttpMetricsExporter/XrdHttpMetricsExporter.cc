@@ -239,7 +239,7 @@ int XrdHttpMetricsExporter::ProcessReq(XrdHttpExtReq &req)
 // Cache the scrape counter handle once (creating a family per request would
 // register a duplicate each time); the static init is thread-safe.
 //
-   static XrdMetrics::Counter& scrapes = XrdMetrics::Default().subsystem("metrics")
+   static XrdMetrics::Counter<std::uint64_t>& scrapes = XrdMetrics::Default().subsystem("metrics")
             .counter("scrapes_total", {}, {},
                      "Number of times the metrics endpoint has been scraped")
             .noLabels();
