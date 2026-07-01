@@ -160,30 +160,27 @@ constexpr std::size_t kSessionFilesMax = 64;
 }
 
 /******************************************************************************/
-/*                            L o c a l H o s t                               */
+/*                    r e s o l v e L o c a l H o s t                         */
 /******************************************************************************/
 
 // The local FQDN, used as the hostname of a server reporting from the loopback
 // address (where there is no useful name before the '=' ident arrives, so
-// server.hostname otherwise showed the literal "::1"). Resolved at most once
-// for the whole process: MyHostName() is the same regardless of which server
-// reports, so it is cached and reused for every loopback incarnation.
+// server.hostname otherwise showed the literal "::1"). Resolved once, from the
+// constructor (i.e. at startup, before the receive loop begins), and reused for
+// every loopback incarnation.
 //
-// Only the loopback case is handled this way: a remote server self-identifies
-// its host on the '=' (MAPIDNT) stream, which fillServer() already prefers. A
-// blocking reverse-DNS lookup of an arbitrary remote IP is deliberately avoided
-// — it would stall the single-threaded UDP receive loop (a non-resolving
-// address blocks for the full resolver timeout) and drop packets.
+// The resolution is done here rather than lazily on the first loopback packet so
+// the single-threaded UDP receive/serializer loop stays lookup-free by
+// construction: MyHostName() can block on a name lookup. Only the loopback case
+// is named this way — a remote server self-identifies its host on the '='
+// (MAPIDNT) stream, which fillServer() already prefers; a blocking reverse-DNS
+// lookup of an arbitrary remote IP is deliberately never done.
 //
-const std::string& XrdMonDecode::LocalHost()
+void XrdMonDecode::resolveLocalHost()
 {
-   if (!localHostDone)
-      {localHostDone = true;
-       const char* me = XrdNetUtils::MyHostName();
-       std::string h = me ? me : "";
-       if (!h.empty() && !isIPLiteral(h)) localHost = h;
-      }
-   return localHost;
+   const char* me = XrdNetUtils::MyHostName();
+   std::string h = me ? me : "";
+   if (!h.empty() && !isIPLiteral(h)) localHost = h;
 }
 
 /******************************************************************************/
@@ -206,7 +203,7 @@ XrdMonDecode::Server& XrdMonDecode::ServerFor(const std::string& src,
 //
    if (resolveHosts && !srv.resolved)
       {std::string ip = src.substr(0, src.rfind(':'));
-       if (isLoopback(ip)) srv.resolvedHost = LocalHost();
+       if (isLoopback(ip)) srv.resolvedHost = localHost;
        srv.resolved = true;
       }
    return srv;

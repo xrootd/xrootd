@@ -164,7 +164,7 @@ bool LoadScitagsJson(const std::string& text);
                      : doc(std::move(docSink)), raw(std::move(rawSink)),
                        dumpRaw(emitRaw), traces(emitTraces),
                        gstream(emitGstream), redirects(emitRedirects),
-                       metrics(reg) {}
+                       metrics(reg) {resolveLocalHost();}
         ~XrdMonDecode() {}
 
 private:
@@ -433,9 +433,8 @@ bool     emitSessions = false;   // per-session rollup + session documents
 // Local FQDN substituted for a loopback (co-located) server, resolved at most
 // once for the whole process (MyHostName is the same regardless of which
 // server reports), then reused for every loopback incarnation.
-const std::string& LocalHost();
+void        resolveLocalHost();   // resolve localHost once, at construction
 std::string localHost;
-bool        localHostDone = false;
 
 // SciTags registry (loaded from --scitags), mapping numeric flow-label ids to
 // human names. sciExp: expId -> expName (doubles as a VO); sciAct: the packed
