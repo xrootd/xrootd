@@ -155,16 +155,16 @@ bool LoadScitagsJson(const std::string& text);
 //! @param emitTraces   emit a document per 't'-stream record (I/O, open,
 //!                     close, disconnect) — high volume, off by default.
 //! @param emitGstream  emit a document per 'g'-stream (plugin) record.
-//! @param reg  optional metrics registry; when set, completed transfers are
+//! @param subsystem  optional metrics registry; when set, completed transfers are
 //!             aggregated into bounded-cardinality Prometheus series.
          XrdMonDecode(DocSink docSink, RawSink rawSink = nullptr,
                       bool emitRaw = false, bool emitTraces = false,
                       bool emitGstream = false, bool emitRedirects = false,
-                      XrdMetrics::Subsystem* reg = nullptr)
+                      XrdMetrics::Subsystem* subsystem = nullptr)
                      : doc(std::move(docSink)), raw(std::move(rawSink)),
                        dumpRaw(emitRaw), traces(emitTraces),
                        gstream(emitGstream), redirects(emitRedirects),
-                       metrics(reg) {resolveLocalHost();}
+                       metrics(subsystem) {resolveLocalHost();}
         ~XrdMonDecode() {}
 
 private:

@@ -25,26 +25,26 @@
 
 using namespace XrdPfc;
 
-CacheMetrics::CacheMetrics(XrdMetrics::Collector &reg)
+CacheMetrics::CacheMetrics(XrdMetrics::Collector &collector)
 {
-   XrdMetrics::Subsystem &g = reg.subsystem("cache");
+   XrdMetrics::Subsystem &subsystem = collector.subsystem("cache");
 
 // Bytes served, split by where the data came from.
 //
-   auto &bytes = g.counter<std::uint64_t>("bytes_total", {"origin"}, {},
+   auto &bytes = subsystem.counter<std::uint64_t>("bytes_total", {"origin"}, {},
                            "bytes served by the cache by data origin");
    m_bytes_hit    = &bytes.withLabelValues({"hit"});      // from cache disk
    m_bytes_miss   = &bytes.withLabelValues({"miss"});     // fetched and cached
    m_bytes_bypass = &bytes.withLabelValues({"bypass"});   // direct, not cached
 
-   m_bytes_written = &g.counter<std::uint64_t>("bytes_written_total", {}, {},
+   m_bytes_written = &subsystem.counter<std::uint64_t>("bytes_written_total", {}, {},
                                 "bytes written to the cache disk").noLabels();
-   m_cksum_errors  = &g.counter<std::uint64_t>("checksum_errors_total", {}, {},
+   m_cksum_errors  = &subsystem.counter<std::uint64_t>("checksum_errors_total", {}, {},
                                 "checksum errors fetching from origin").noLabels();
 
 // File lifecycle events.
 //
-   auto &files = g.counter<std::uint64_t>("files_total", {"event"}, {},
+   auto &files = subsystem.counter<std::uint64_t>("files_total", {"event"}, {},
                            "cache file lifecycle events");
    m_files_opened  = &files.withLabelValues({"opened"});
    m_files_closed  = &files.withLabelValues({"closed"});
@@ -53,15 +53,15 @@ CacheMetrics::CacheMetrics(XrdMetrics::Collector &reg)
 
 // Disk and metadata space, in bytes.
 //
-   auto &disk = g.gauge<std::int64_t>("disk_bytes", {"state"}, {},
+   auto &disk = subsystem.gauge<std::int64_t>("disk_bytes", {"state"}, {},
                            "cache data filesystem space");
    m_disk_total = &disk.withLabelValues({"total"});
    m_disk_used  = &disk.withLabelValues({"used"});
 
-   m_data_used  = &g.gauge<std::int64_t>("data_used_bytes", {}, {},
+   m_data_used  = &subsystem.gauge<std::int64_t>("data_used_bytes", {}, {},
                               "bytes occupied by cached data files").noLabels();
 
-   auto &meta = g.gauge<std::int64_t>("meta_bytes", {"state"}, {},
+   auto &meta = subsystem.gauge<std::int64_t>("meta_bytes", {"state"}, {},
                            "cache metadata filesystem space");
    m_meta_total = &meta.withLabelValues({"total"});
    m_meta_used  = &meta.withLabelValues({"used"});

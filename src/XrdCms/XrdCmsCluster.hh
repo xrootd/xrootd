@@ -218,7 +218,7 @@ int             Statt(char *bfr, int bln); // Manager
 
 // Register this node's cluster metrics into the given XrdMetrics registry
 //
-void            RegisterMetrics(XrdMetrics::Collector &reg);
+void            RegisterMetrics(XrdMetrics::Collector &collector);
 
                 XrdCmsCluster();
 virtual        ~XrdCmsCluster() {} // This object should never be deleted

@@ -33,6 +33,6 @@ namespace XrdCms
 //! of cluster size. Safe to call for any role; on a pure server the cluster
 //! tables are empty so the series simply read zero.
 //-----------------------------------------------------------------------------
-void RegisterMetrics(XrdMetrics::Collector &reg = XrdMetrics::Default());
+void RegisterMetrics(XrdMetrics::Collector &collector = XrdMetrics::Default());
 }
 #endif

@@ -45,7 +45,7 @@ int   NoStaging;
 
 // Register cluster-state metrics into the given XrdMetrics registry
 //
-void  RegisterMetrics(XrdMetrics::Collector &reg);
+void  RegisterMetrics(XrdMetrics::Collector &collector);
 
 void  Enable();
 

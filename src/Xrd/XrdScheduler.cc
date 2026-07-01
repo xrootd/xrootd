@@ -760,23 +760,23 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
 // plain scheduler ints (control-flow state) and are surfaced read-only via
 // observed metrics that read the int at scrape time.
 //
-   XrdMetrics::Subsystem& mg = XrdMetrics::Default().subsystem("sched");
-   m_Jobs     = &mg.counter<std::uint64_t>("jobs_total", {}, {},
+   XrdMetrics::Subsystem& subsystem = XrdMetrics::Default().subsystem("sched");
+   m_Jobs     = &subsystem.counter<std::uint64_t>("jobs_total", {}, {},
                             "jobs scheduled").noLabels();
-   m_TCreate  = &mg.counter<std::uint64_t>("threads_created_total", {}, {},
+   m_TCreate  = &subsystem.counter<std::uint64_t>("threads_created_total", {}, {},
                             "worker threads created").noLabels();
-   m_TDestroy = &mg.counter<std::uint64_t>("threads_destroyed_total", {}, {},
+   m_TDestroy = &subsystem.counter<std::uint64_t>("threads_destroyed_total", {}, {},
                             "worker threads destroyed").noLabels();
-   m_Limited  = &mg.counter<std::uint64_t>("thread_limit_hits_total", {}, {},
+   m_Limited  = &subsystem.counter<std::uint64_t>("thread_limit_hits_total", {}, {},
                             "times the worker-thread maximum was reached").noLabels();
 
-   mg.observeGauge<std::int64_t>("threads", {}, {}, "worker threads")
+   subsystem.observeGauge<std::int64_t>("threads", {}, {}, "worker threads")
      .add({}, [this]{return (int64_t)num_Workers;});
-   mg.observeGauge<std::int64_t>("threads_idle", {}, {}, "idle worker threads")
+   subsystem.observeGauge<std::int64_t>("threads_idle", {}, {}, "idle worker threads")
      .add({}, [this]{return (int64_t)idl_Workers;});
-   mg.observeGauge<std::int64_t>("jobs_in_queue", {}, {}, "jobs waiting in the queue")
+   subsystem.observeGauge<std::int64_t>("jobs_in_queue", {}, {}, "jobs waiting in the queue")
      .add({}, [this]{return (int64_t)num_JobsinQ;});
-   mg.observeGauge<std::int64_t>("queue_length_max", {}, {}, "longest queue length seen")
+   subsystem.observeGauge<std::int64_t>("queue_length_max", {}, {}, "longest queue length seen")
      .add({}, [this]{return (int64_t)max_QLength;});
 }
 

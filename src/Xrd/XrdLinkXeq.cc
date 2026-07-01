@@ -1114,27 +1114,27 @@ int XrdLinkXeq::Stats(char *buff, int blen, bool do_sync)
 
 void XrdLinkXeq::RegisterMetrics()
 {
-   XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("link");
+   XrdMetrics::Subsystem& subsystem = XrdMetrics::Default().subsystem("link");
 
-   g.observeGauge<std::int64_t>("connections", {}, {}, "current open connections")
+   subsystem.observeGauge<std::int64_t>("connections", {}, {}, "current open connections")
     .add({}, []{return (int64_t)AtomicGet(LinkCount);});
-   g.observeGauge<std::int64_t>("connections_max", {}, {}, "peak concurrent connections")
+   subsystem.observeGauge<std::int64_t>("connections_max", {}, {}, "peak concurrent connections")
     .add({}, []{return (int64_t)AtomicGet(LinkCountMax);});
-   g.observeCounter<std::uint64_t>("connections_total", {}, {}, "connections accepted")
+   subsystem.observeCounter<std::uint64_t>("connections_total", {}, {}, "connections accepted")
     .add({}, []{return (uint64_t)AtomicGet(LinkCountTot);});
-   g.observeCounter<std::uint64_t>("bytes_total", {"dir"}, {}, "bytes transferred over links")
+   subsystem.observeCounter<std::uint64_t>("bytes_total", {"dir"}, {}, "bytes transferred over links")
     .add({"in"},  []{return (uint64_t)AtomicGet(LinkBytesIn);})
     .add({"out"}, []{return (uint64_t)AtomicGet(LinkBytesOut);});
-   g.observeCounter<std::uint64_t>("connect_seconds_total", {}, {}, "accumulated connection time")
+   subsystem.observeCounter<std::uint64_t>("connect_seconds_total", {}, {}, "accumulated connection time")
     .add({}, []{return (uint64_t)AtomicGet(LinkConTime);});
-   g.observeCounter<std::uint64_t>("timeouts_total", {}, {}, "link timeouts")
+   subsystem.observeCounter<std::uint64_t>("timeouts_total", {}, {}, "link timeouts")
     .add({}, []{return (uint64_t)AtomicGet(LinkTimeOuts);});
-   g.observeCounter<std::uint64_t>("stalls_total", {}, {}, "link stalls")
+   subsystem.observeCounter<std::uint64_t>("stalls_total", {}, {}, "link stalls")
     .add({}, []{return (uint64_t)AtomicGet(LinkStalls);});
-   g.observeCounter<std::uint64_t>("sendfile_interrupts_total", {}, {}, "sendfile interrupts")
+   subsystem.observeCounter<std::uint64_t>("sendfile_interrupts_total", {}, {}, "sendfile interrupts")
     .add({}, []{return (uint64_t)AtomicGet(LinkSfIntr);});
 
-   tlsConnCtr = &g.counter<std::uint64_t>("tls_connections_total", {}, {},
+   tlsConnCtr = &subsystem.counter<std::uint64_t>("tls_connections_total", {}, {},
                            "connections upgraded to TLS").noLabels();
 }
 

@@ -147,7 +147,7 @@ void  Statistics(Info &Data) {myMutex.Lock(); Data = Stats; myMutex.UnLock();}
 
 // Register fast/slow lookup and redirect metrics into the given registry
 //
-void  RegisterMetrics(XrdMetrics::Collector &reg);
+void  RegisterMetrics(XrdMetrics::Collector &collector);
 
 void *TimeOut();
 

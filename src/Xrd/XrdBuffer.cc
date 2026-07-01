@@ -359,14 +359,14 @@ int XrdBuffManager::xlStats(char *buff, int blen, int do_sync)
 
 void XrdBuffManager::RegisterMetrics()
 {
-   XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("buff");
+   XrdMetrics::Subsystem& subsystem = XrdMetrics::Default().subsystem("buff");
 
-   g.observeCounter<std::uint64_t>("requests_total", {}, {}, "buffer requests")
+   subsystem.observeCounter<std::uint64_t>("requests_total", {}, {}, "buffer requests")
     .add({}, [this]{return (uint64_t)totreq;});
-   g.observeGauge<std::int64_t>("memory_bytes", {}, {}, "memory allocated to buffers")
+   subsystem.observeGauge<std::int64_t>("memory_bytes", {}, {}, "memory allocated to buffers")
     .add({}, [this]{return (int64_t)totalo;});
-   g.observeGauge<std::int64_t>("buffers", {}, {}, "buffers allocated")
+   subsystem.observeGauge<std::int64_t>("buffers", {}, {}, "buffers allocated")
     .add({}, [this]{return (int64_t)totbuf;});
-   g.observeCounter<std::uint64_t>("adjustments_total", {}, {}, "buffer pool reshapes")
+   subsystem.observeCounter<std::uint64_t>("adjustments_total", {}, {}, "buffer pool reshapes")
     .add({}, [this]{return (uint64_t)totadj;});
 }

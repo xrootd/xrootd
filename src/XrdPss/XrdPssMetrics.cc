@@ -32,16 +32,16 @@
 //
 namespace XrdPosixGlobals {extern XrdPosixStats Stats;}
 
-void XrdPssRegisterMetrics(XrdMetrics::Collector &reg)
+void XrdPssRegisterMetrics(XrdMetrics::Collector &collector)
 {
-   XrdMetrics::Subsystem &g = reg.subsystem("proxy");
+   XrdMetrics::Subsystem &subsystem = collector.subsystem("proxy");
 
-   g.observeCounter<std::uint64_t>("opens_total", {}, {}, "proxy file opens")
+   subsystem.observeCounter<std::uint64_t>("opens_total", {}, {}, "proxy file opens")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.Opens;});
-   g.observeCounter<std::uint64_t>("open_errors_total", {}, {}, "proxy file open errors")
+   subsystem.observeCounter<std::uint64_t>("open_errors_total", {}, {}, "proxy file open errors")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.OpenErrs;});
-   g.observeCounter<std::uint64_t>("closes_total", {}, {}, "proxy file closes")
+   subsystem.observeCounter<std::uint64_t>("closes_total", {}, {}, "proxy file closes")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.Closes;});
-   g.observeCounter<std::uint64_t>("close_errors_total", {}, {}, "proxy file close errors")
+   subsystem.observeCounter<std::uint64_t>("close_errors_total", {}, {}, "proxy file close errors")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.CloseErrs;});
 }
