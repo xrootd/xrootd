@@ -64,8 +64,8 @@ class Collector;   // referenced by Subsystem; defined below
 class Subsystem
 {
 public:
-Subsystem(Collector& reg, std::string subsystem)
-           : reg_(reg), subsystem_(std::move(subsystem)) {}
+Subsystem(Collector& collector, std::string subsystem)
+           : collector_(collector), subsystem_(std::move(subsystem)) {}
 
 //! Create a counter family (T = uint64_t or double). varLabels are the variable
 //! label names (schema); constLabels are fixed for every series of the family.
@@ -99,12 +99,12 @@ SummaryFamily& summary(const std::string& name,
                        std::string help = {}, std::size_t maxKids = 0);
 
 //! Register a read-only metric family whose series values are produced by
-//! reader functions at scrape time. Use these to surface values owned and
+//! reader functions at scrape time. Use these to surface a value owned and
 //! updated by another subsystem (the source of truth stays there) as typed
 //! series; add the series with ObservedFamily::add(). varLabels are the
 //! variable label names; readers must be cheap and thread-safe.
-//! (T = uint64_t or double, a monotonic floating-point counter e.g. CPU seconds
-//! rendered with TYPE counter.)
+//! observeCounter: T = uint64_t or double (a monotonic counter, e.g. CPU
+//! seconds; rendered with TYPE counter).
 template <class T>
 ObservedFamily<T>& observeCounter(const std::string& name,
                     std::vector<std::string> varLabels = {},
@@ -170,7 +170,7 @@ SummaryFamily& getOrAddSummary(const std::string& full,
                           const std::vector<std::string>& names,
                           const std::string& help);
 
-Collector&   reg_;
+Collector&   collector_;
 std::string subsystem_;
 
 mutable std::shared_mutex mutex_;
@@ -299,7 +299,7 @@ LabeledFamily<Child>& Subsystem::add(const std::string& name,
                                        std::vector<ConstLabel> constLabels,
                                        std::string help, std::size_t maxKids)
 {
-   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 
    if (!validMetricName(full))
       throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
@@ -311,7 +311,7 @@ LabeledFamily<Child>& Subsystem::add(const std::string& name,
           throw std::invalid_argument("XrdMetrics: invalid label name '" + cl.first + "'");
 
    LabelContext ctx;
-   ctx.global      = &reg_.globalLabels();
+   ctx.global      = &collector_.globalLabels();
    ctx.constLabels = std::move(constLabels);
    ctx.schema      = LabelSchema(std::move(varNames));
 
@@ -356,7 +356,7 @@ Subsystem::histogram(const std::string& name, std::vector<double> bounds,
                        std::vector<ConstLabel> constLabels, std::string help,
                        std::size_t maxKids)
 {
-   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 
    if (!validMetricName(full))
       throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
@@ -368,7 +368,7 @@ Subsystem::histogram(const std::string& name, std::vector<double> bounds,
           throw std::invalid_argument("XrdMetrics: invalid label name '" + cl.first + "'");
 
    LabelContext ctx;
-   ctx.global      = &reg_.globalLabels();
+   ctx.global      = &collector_.globalLabels();
    ctx.constLabels = std::move(constLabels);
    ctx.schema      = LabelSchema(std::move(varLabels));
 
@@ -386,7 +386,7 @@ Subsystem::summary(const std::string& name, std::vector<std::string> varLabels,
                      std::vector<ConstLabel> constLabels, std::string help,
                      std::size_t maxKids)
 {
-   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
 
    if (!validMetricName(full))
       throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
@@ -398,44 +398,13 @@ Subsystem::summary(const std::string& name, std::vector<std::string> varLabels,
           throw std::invalid_argument("XrdMetrics: invalid label name '" + cl.first + "'");
 
    LabelContext ctx;
-   ctx.global      = &reg_.globalLabels();
+   ctx.global      = &collector_.globalLabels();
    ctx.constLabels = std::move(constLabels);
    ctx.schema      = LabelSchema(std::move(varLabels));
 
    auto fam = std::unique_ptr<SummaryFamily>(
                  new SummaryFamily(std::move(full), std::move(ctx),
                                    std::move(help), maxKids));
-   auto& ref = *fam;
-   std::unique_lock<std::shared_mutex> wr(mutex_);
-   families_.push_back(std::move(fam));
-   return ref;
-}
-
-template <class T>
-ObservedFamily<T>& Subsystem::addObserved(const std::string& name, MetricKind kind,
-                                            std::vector<std::string> varNames,
-                                            std::vector<ConstLabel> constLabels,
-                                            std::string help)
-{
-   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
-
-   if (!validMetricName(full))
-      throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
-   for (auto& ln : varNames)
-       if (!validLabelName(ln))
-          throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
-   for (auto& cl : constLabels)
-       if (!validLabelName(cl.first))
-          throw std::invalid_argument("XrdMetrics: invalid label name '" + cl.first + "'");
-
-   LabelContext ctx;
-   ctx.global      = &reg_.globalLabels();
-   ctx.constLabels = std::move(constLabels);
-   ctx.schema      = LabelSchema(std::move(varNames));
-
-   auto fam = std::unique_ptr<ObservedFamily<T>>(
-                 new ObservedFamily<T>(std::move(full), kind, std::move(help),
-                                       std::move(ctx)));
    auto& ref = *fam;
    std::unique_lock<std::shared_mutex> wr(mutex_);
    families_.push_back(std::move(fam));
@@ -464,6 +433,40 @@ Subsystem::observeGauge(const std::string& name, std::vector<std::string> varLab
                  "observeGauge<T>: T must be int64_t or double");
    return addObserved<T>(name, MetricKind::Gauge, std::move(varLabels),
                          std::move(constLabels), std::move(help));
+}
+
+// Shared private helper behind observeCounter/observeGauge: build a read-only
+// ObservedFamily<T> of the given kind (the value type T is validated by the
+// public wrappers above).
+template <class T>
+ObservedFamily<T>& Subsystem::addObserved(const std::string& name, MetricKind kind,
+                                            std::vector<std::string> varNames,
+                                            std::vector<ConstLabel> constLabels,
+                                            std::string help)
+{
+   std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
+
+   if (!validMetricName(full))
+      throw std::invalid_argument("XrdMetrics: invalid metric name '" + full + "'");
+   for (auto& ln : varNames)
+       if (!validLabelName(ln))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
+   for (auto& cl : constLabels)
+       if (!validLabelName(cl.first))
+          throw std::invalid_argument("XrdMetrics: invalid label name '" + cl.first + "'");
+
+   LabelContext ctx;
+   ctx.global      = &collector_.globalLabels();
+   ctx.constLabels = std::move(constLabels);
+   ctx.schema      = LabelSchema(std::move(varNames));
+
+   auto fam = std::unique_ptr<ObservedFamily<T>>(
+                 new ObservedFamily<T>(std::move(full), kind, std::move(help),
+                                       std::move(ctx)));
+   auto& ref = *fam;
+   std::unique_lock<std::shared_mutex> wr(mutex_);
+   families_.push_back(std::move(fam));
+   return ref;
 }
 
 /******************************************************************************/
@@ -509,7 +512,7 @@ LabeledFamily<Child>& Subsystem::getOrAddLabeled(const std::string& full,
           throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
 
    LabelContext ctx;
-   ctx.global = &reg_.globalLabels();
+   ctx.global = &collector_.globalLabels();
    ctx.schema = LabelSchema(names);
    auto fam = std::unique_ptr<LabeledFamily<Child>>(
                  new LabeledFamily<Child>(full, std::move(ctx), help, kDynamicSeriesCap));
@@ -547,7 +550,7 @@ inline HistogramFamily& Subsystem::getOrAddHistogram(const std::string& full,
           throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
 
    LabelContext ctx;
-   ctx.global = &reg_.globalLabels();
+   ctx.global = &collector_.globalLabels();
    ctx.schema = LabelSchema(names);
    auto fam = std::unique_ptr<HistogramFamily>(
                  new HistogramFamily(full, std::move(ctx), std::move(bounds), help,
@@ -586,7 +589,7 @@ inline SummaryFamily& Subsystem::getOrAddSummary(const std::string& full,
           throw std::invalid_argument("XrdMetrics: invalid label name '" + ln + "'");
 
    LabelContext ctx;
-   ctx.global = &reg_.globalLabels();
+   ctx.global = &collector_.globalLabels();
    ctx.schema = LabelSchema(names);
    auto fam = std::unique_ptr<SummaryFamily>(
                  new SummaryFamily(full, std::move(ctx), help, kDynamicSeriesCap));
@@ -614,7 +617,7 @@ Subsystem::counterSeries(const std::string& name, const std::string& help,
 {
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
-   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
    return getOrAddLabeled<Counter<std::uint64_t>>(full, names, help).withLabelValues(std::move(values));
 }
 
@@ -624,7 +627,7 @@ Subsystem::gaugeSeries(const std::string& name, const std::string& help,
 {
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
-   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
    return getOrAddLabeled<Gauge<double>>(full, names, help).withLabelValues(std::move(values));
 }
 
@@ -635,7 +638,7 @@ Subsystem::histogramSeries(const std::string& name, const std::string& help,
 {
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
-   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
    return getOrAddHistogram(full, names, std::move(bounds), help)
              .withLabelValues(std::move(values));
 }
@@ -646,7 +649,7 @@ Subsystem::summarySeries(const std::string& name, const std::string& help,
 {
    std::vector<std::string> names, values;
    detail::splitLabels(labels, names, values);
-   std::string full = joinName(joinName(reg_.prefix(), subsystem_), name);
+   std::string full = joinName(joinName(collector_.prefix(), subsystem_), name);
    return getOrAddSummary(full, names, help).withLabelValues(std::move(values));
 }
 
