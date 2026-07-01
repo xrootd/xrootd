@@ -89,16 +89,16 @@ if( ENABLE_XRDOSSARC )
 endif()
 
 if( ENABLE_TESTS )
-  if( FORCE_ENABLED )
-    find_package( GTest REQUIRED )
-  else()
-    find_package( GTest )
-  endif()
-  if( GTEST_FOUND )
-    set( BUILD_TESTS TRUE )
-  else()
-    set( BUILD_TESTS FALSE )
-  endif()
+
+  include(FetchContent)
+
+  FetchContent_Declare(
+      googletest
+      SOURCE_DIR "${CMAKE_SOURCE_DIR}/vendor/googletest"
+  )
+  FetchContent_MakeAvailable(googletest)
+
+  set( BUILD_TESTS TRUE )
 
   if( ENABLE_SERVER_TESTS )
     # Enable only by hand for now
