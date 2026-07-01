@@ -120,16 +120,16 @@ const std::string& name() const noexcept { return name_; }
 void serialize(Serializer& s) const override
 {
    s.beginFamily(name_, Child::kind(), help_);
-   for (const Child* c : snapshot()) s.series(c->labels(), c->value());
+   for (const Child* c : collect()) s.series(c->labels(), c->value());
    s.endFamily();
 }
 
 private:
 
-//! Snapshot child pointers under a short read lock. Node-based unordered_map
+//! Collect child pointers under a short read lock. Node-based unordered_map
 //! keeps Child pointers stable across rehash, so serialization outside the
 //! lock is safe.
-std::vector<const Child*> snapshot() const
+std::vector<const Child*> collect() const
 {
    std::shared_lock<std::shared_mutex> rd(mutex_);
    std::vector<const Child*> out;
@@ -268,7 +268,7 @@ const std::string& name() const noexcept { return name_; }
 void serialize(Serializer& s) const override
 {
    s.beginFamily(name_, MetricKind::Histogram, help_);
-   for (const Histogram* h : snapshot())
+   for (const Histogram* h : collect())
        {std::vector<std::uint64_t> cum = h->cumulative();
         s.histogram(name_, h->labels(),
                     HistogramData{h->bounds(), cum, h->value_sum()});
@@ -277,7 +277,7 @@ void serialize(Serializer& s) const override
 }
 
 private:
-std::vector<const Histogram*> snapshot() const
+std::vector<const Histogram*> collect() const
 {
    std::shared_lock<std::shared_mutex> rd(mutex_);
    std::vector<const Histogram*> out;
@@ -352,14 +352,14 @@ const std::string& name() const noexcept { return name_; }
 void serialize(Serializer& s) const override
 {
    s.beginFamily(name_, MetricKind::Summary, help_);
-   for (const Summary* m : snapshot())
+   for (const Summary* m : collect())
        s.summary(name_, m->labels(),
                  SummaryData{m->value_sum(), m->count()});
    s.endFamily();
 }
 
 private:
-std::vector<const Summary*> snapshot() const
+std::vector<const Summary*> collect() const
 {
    std::shared_lock<std::shared_mutex> rd(mutex_);
    std::vector<const Summary*> out;
