@@ -500,8 +500,17 @@ LabeledFamily<Child>& Subsystem::getOrAddLabeled(const std::string& full,
                           const std::vector<std::string>& names,
                           const std::string& help)
 {
+   {std::shared_lock<std::shared_mutex> rd(mutex_);      // fast path: family exists
+    auto it = byName_.find(full);
+    if (it != byName_.end())
+       {auto* fam = dynamic_cast<LabeledFamily<Child>*>(it->second);
+        if (!fam) throw std::invalid_argument(
+                     "XrdMetrics: metric '" + full + "' redefined with a different type");
+        return *fam;
+       }
+   }
    std::unique_lock<std::shared_mutex> wr(mutex_);
-   auto it = byName_.find(full);
+   auto it = byName_.find(full);                         // re-check under write lock
    if (it != byName_.end())
       {auto* fam = dynamic_cast<LabeledFamily<Child>*>(it->second);
        if (!fam) throw std::invalid_argument(
@@ -529,8 +538,17 @@ inline HistogramFamily& Subsystem::getOrAddHistogram(const std::string& full,
                           const std::vector<std::string>& names,
                           std::vector<double> bounds, const std::string& help)
 {
+   {std::shared_lock<std::shared_mutex> rd(mutex_);      // fast path: family exists
+    auto it = byName_.find(full);
+    if (it != byName_.end())
+       {auto* fam = dynamic_cast<HistogramFamily*>(it->second);
+        if (!fam) throw std::invalid_argument(
+                     "XrdMetrics: metric '" + full + "' redefined with a different type");
+        return *fam;
+       }
+   }
    std::unique_lock<std::shared_mutex> wr(mutex_);
-   auto it = byName_.find(full);
+   auto it = byName_.find(full);                         // re-check under write lock
    if (it != byName_.end())
       {auto* fam = dynamic_cast<HistogramFamily*>(it->second);
        if (!fam) throw std::invalid_argument(
@@ -559,8 +577,17 @@ inline SummaryFamily& Subsystem::getOrAddSummary(const std::string& full,
                           const std::vector<std::string>& names,
                           const std::string& help)
 {
+   {std::shared_lock<std::shared_mutex> rd(mutex_);      // fast path: family exists
+    auto it = byName_.find(full);
+    if (it != byName_.end())
+       {auto* fam = dynamic_cast<SummaryFamily*>(it->second);
+        if (!fam) throw std::invalid_argument(
+                     "XrdMetrics: metric '" + full + "' redefined with a different type");
+        return *fam;
+       }
+   }
    std::unique_lock<std::shared_mutex> wr(mutex_);
-   auto it = byName_.find(full);
+   auto it = byName_.find(full);                         // re-check under write lock
    if (it != byName_.end())
       {auto* fam = dynamic_cast<SummaryFamily*>(it->second);
        if (!fam) throw std::invalid_argument(
