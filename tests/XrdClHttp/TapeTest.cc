@@ -448,6 +448,28 @@ TEST(TapeRestApi, RunsStageLifecycle)
   EXPECT_EQ(Json::parse(release->body)["paths"][0], "/store/file");
 }
 
+TEST(TapeRestApi, PrepareAcceptsStructuredStageEntries)
+{
+  TapeHttpServer server;
+  XrdClHttp::Filesystem filesystem(
+    server.BaseUrl(), nullptr, XrdCl::DefaultEnv::GetLog());
+
+  ExpectOk(filesystem.Prepare(
+    {R"(xrdclhttp.tape.stage:{"path":"/store/file","diskLifetime":"7200",)"
+     R"("targetedMetadata":{"activity":"analysis"}})"},
+    XrdCl::PrepareFlags::Stage, 0, nullptr, 5));
+
+  const std::vector<HttpRequest> requests = server.Requests();
+  const HttpRequest *stage = FindRequest(requests, "POST", "/api/v1/stage");
+  ASSERT_NE(stage, nullptr);
+  const Json stageBody = Json::parse(stage->body);
+  ASSERT_EQ(stageBody["files"].size(), 1u);
+  EXPECT_EQ(stageBody["files"][0]["path"], "/store/file");
+  EXPECT_EQ(stageBody["files"][0]["diskLifetime"], "7200");
+  EXPECT_EQ(stageBody["files"][0]["targetedMetadata"]["activity"],
+            "analysis");
+}
+
 TEST(TapeRestApi, QueriesArchiveInfo)
 {
   TapeHttpServer server;

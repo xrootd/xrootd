@@ -93,6 +93,7 @@ def test_stage_uses_prepare_and_returns_request_id():
 
   assert status.ok
   assert response.requestId == 'request-1'
+  assert response.request_id == 'request-1'
   assert FakeFileSystem.instances[0].calls == [
     ('prepare', ['/store/file'], PrepareFlags.STAGE, 0, 7),
   ]
@@ -113,12 +114,51 @@ def test_stage_derives_endpoint_from_file_urls():
   ]
 
 
-def test_stage_rejects_metadata_not_supported_by_prepare():
+def test_stage_applies_global_disk_lifetime_and_metadata():
+  client = tape.TapeClient(timeout=7)
+  status, response = client.stage(
+    'root://xrootd.example.org/store/file',
+    ['root://xrootd.example.org/store/file'],
+    disk_lifetime=3600,
+    targeted_metadata={'activity': 'analysis'})
+
+  assert status.ok
+  assert response.request_id == 'request-1'
+  assert FakeFileSystem.instances[0].calls == [
+    ('prepare', [
+      'xrdclhttp.tape.stage:'
+      '{"diskLifetime": "3600", "targetedMetadata": '
+      '{"activity": "analysis"}, '
+      '"url": "root://xrootd.example.org/store/file"}',
+    ], PrepareFlags.STAGE, 0, 7),
+  ]
+
+
+def test_stage_accepts_file_metadata():
+  client = tape.TapeClient(timeout=7)
+  status, response = client.stage(
+    'root://xrootd.example.org/store/file',
+    [{'path': '/store/file',
+      'diskLifetime': 'PT1H',
+      'targetedMetadata': {'activity': 'analysis'}}])
+
+  assert status.ok
+  assert response.request_id == 'request-1'
+  assert FakeFileSystem.instances[0].calls == [
+    ('prepare', [
+      'xrdclhttp.tape.stage:'
+      '{"diskLifetime": "PT1H", "path": "/store/file", '
+      '"targetedMetadata": {"activity": "analysis"}}',
+    ], PrepareFlags.STAGE, 0, 7),
+  ]
+
+
+def test_stage_rejects_invalid_targeted_metadata():
   client = tape.TapeClient()
 
   with pytest.raises(ValueError):
     client.stage('root://xrootd.example.org/store/file', [
-      {'path': '/store/file', 'diskLifetime': 'PT1H'},
+      {'path': '/store/file', 'targetedMetadata': ['analysis']},
     ])
 
 
@@ -159,6 +199,12 @@ def test_stage_status_uses_prepare_query():
   assert response.id == 'request-1'
   assert response.files[0].path == '/store/file'
   assert response.files[0].onDisk
+  assert response.files[0].on_disk
+  assert response.file_status('/store/file') is response.files[0]
+  assert response.file_status('root://xrootd.example.org//store/file') \
+    is response.files[0]
+  assert response.is_on_disk('/store/file')
+  assert not response.is_on_disk('/store/missing')
   assert FakeFileSystem.instances[0].calls == [
     ('query', QueryCode.PREPARE, 'request-1', 3),
   ]

@@ -17,6 +17,11 @@
 #-------------------------------------------------------------------------------
 from __future__ import absolute_import, division, print_function
 
+try:
+  from urllib.parse import urlparse
+except ImportError:
+  from urlparse import urlparse
+
 from XRootD.client.url import URL
 
 class Struct(object):
@@ -184,6 +189,10 @@ class TapeStageResponse(Struct):
   def __init__(self, response):
     super(TapeStageResponse, self).__init__(response)
 
+  @property
+  def request_id(self):
+    return self.requestId
+
 class TapeStageFileStatus(Struct):
   """Status of one file in a Tape REST stage request.
 
@@ -196,6 +205,10 @@ class TapeStageFileStatus(Struct):
   """
   def __init__(self, status):
     super(TapeStageFileStatus, self).__init__(status)
+
+  @property
+  def on_disk(self):
+    return getattr(self, 'onDisk', False)
 
 class TapeStageStatus(Struct):
   """Status of a Tape REST stage request.
@@ -211,6 +224,26 @@ class TapeStageStatus(Struct):
     status['files'] = [TapeStageFileStatus(f)
                        for f in status.get('files', [])]
     super(TapeStageStatus, self).__init__(status)
+
+  @staticmethod
+  def _normalize_path(path):
+    parsed = urlparse(path)
+    if parsed.scheme and parsed.netloc:
+      path = parsed.path or '/'
+    if path.startswith('//'):
+      path = path[1:]
+    return path
+
+  def file_status(self, path):
+    path = self._normalize_path(path)
+    for status in self.files:
+      if status.path == path:
+        return status
+    return None
+
+  def is_on_disk(self, path):
+    status = self.file_status(path)
+    return bool(status and getattr(status, 'onDisk', False))
 
 class ProtocolInfo(Struct):
   """Protocol information for a server.

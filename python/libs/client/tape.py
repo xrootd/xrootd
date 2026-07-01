@@ -19,6 +19,8 @@ try:
 except NameError:
   string_types = (str,)
 
+_STRUCTURED_STAGE_PREFIX = 'xrdclhttp.tape.stage:'
+
 def _reject_line_breaks(value, name):
   if '\n' in value or '\r' in value:
     raise ValueError('%s must not contain line breaks' % name)
@@ -54,12 +56,39 @@ class TapeClient(object):
     parsed = urlparse(value)
     return bool(parsed.scheme and parsed.netloc)
 
-  def _normalize_stage_files(self, files):
+  def _normalize_targeted_metadata(self, targeted_metadata):
+    if not targeted_metadata:
+      return None
+    if isinstance(targeted_metadata, string_types):
+      targeted_metadata = json.loads(targeted_metadata)
+    if not isinstance(targeted_metadata, dict):
+      raise ValueError('targetedMetadata must be a JSON object')
+    return targeted_metadata
+
+  def _stage_entry(self, entry, disk_lifetime=None, targeted_metadata=None):
+    payload = {}
+    if self._is_url(entry):
+      payload['url'] = entry
+    else:
+      payload['path'] = entry
+    if disk_lifetime is not None:
+      payload['diskLifetime'] = str(disk_lifetime)
+    if targeted_metadata:
+      payload['targetedMetadata'] = targeted_metadata
+    return _STRUCTURED_STAGE_PREFIX + json.dumps(payload, sort_keys=True)
+
+  def _normalize_stage_files(self, files, disk_lifetime=None,
+                             targeted_metadata=None):
     normalized = []
+    targeted_metadata = self._normalize_targeted_metadata(targeted_metadata)
     for item in files:
       if isinstance(item, string_types):
         _reject_line_breaks(item, 'stage file')
-        normalized.append(item)
+        if disk_lifetime is None and not targeted_metadata:
+          normalized.append(item)
+        else:
+          normalized.append(self._stage_entry(
+            item, disk_lifetime, targeted_metadata))
         continue
 
       url = item.get('url', '')
@@ -69,14 +98,17 @@ class TapeClient(object):
         raise ValueError('stage file entries must contain path or url')
       _reject_line_breaks(entry, 'stage file')
 
-      disk_lifetime = item.get('diskLifetime',
-                               item.get('disk_lifetime', ''))
-      targeted_metadata = item.get('targetedMetadata',
-                                   item.get('targeted_metadata', ''))
-      if disk_lifetime or targeted_metadata:
-        raise ValueError('diskLifetime and targetedMetadata are not supported '
-                         'by XRootD prepare')
-      normalized.append(entry)
+      entry_disk_lifetime = item.get('diskLifetime',
+                                     item.get('disk_lifetime',
+                                              disk_lifetime))
+      entry_metadata = self._normalize_targeted_metadata(
+        item.get('targetedMetadata',
+                 item.get('targeted_metadata', targeted_metadata)))
+      if entry_disk_lifetime is None and not entry_metadata:
+        normalized.append(entry)
+      else:
+        normalized.append(self._stage_entry(
+          entry, entry_disk_lifetime, entry_metadata))
     return normalized
 
   def _derive_url(self, files):
@@ -101,7 +133,7 @@ class TapeClient(object):
       endpoint = TapeEndpoint(endpoint)
     return XRootDStatus(status), endpoint
 
-  def stage(self, url, files=None):
+  def stage(self, url, files=None, disk_lifetime=None, targeted_metadata=None):
     """Submit a Tape REST stage request.
 
     :param url: Storage URL used for endpoint discovery, or the file list if
@@ -109,6 +141,8 @@ class TapeClient(object):
     :param files: Sequence of file URLs or dictionaries with ``url`` or
                   ``path``, optional ``diskLifetime``, and optional
                   ``targetedMetadata``
+    :param disk_lifetime: Optional disk lifetime to apply to all files
+    :param targeted_metadata: Optional targeted metadata to apply to all files
     """
     if files is None:
       if isinstance(url, string_types):
@@ -121,7 +155,8 @@ class TapeClient(object):
     else:
       files = list(files)
     status, response = self._filesystem(url).prepare(
-      self._normalize_stage_files(files), PrepareFlags.STAGE,
+      self._normalize_stage_files(files, disk_lifetime, targeted_metadata),
+      PrepareFlags.STAGE,
       timeout=self.timeout)
     if response:
       response = TapeStageResponse({'requestId': response})

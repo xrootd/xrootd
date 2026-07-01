@@ -37,6 +37,8 @@ namespace
 {
 using Json = nlohmann::json;
 
+const std::string kStructuredStagePrefix = "xrdclhttp.tape.stage:";
+
 std::vector<std::string> SplitLines(const std::string &value)
 {
     std::vector<std::string> lines;
@@ -141,6 +143,42 @@ PrepareStageFiles(const std::vector<std::string> &fileList)
     files.reserve(fileList.size());
     for(const auto &file : fileList)
     {
+        if(file.compare(0, kStructuredStagePrefix.size(),
+                        kStructuredStagePrefix) == 0)
+        {
+            try
+            {
+                Json json = Json::parse(
+                    file.substr(kStructuredStagePrefix.size()));
+                if(json.is_object())
+                {
+                    std::array<std::string, 4> entry;
+                    if(json.contains("url") && json["url"].is_string())
+                    {
+                        entry[0] = json["url"].get<std::string>();
+                    }
+                    if(json.contains("path") && json["path"].is_string())
+                    {
+                        entry[1] = json["path"].get<std::string>();
+                    }
+                    if(json.contains("diskLifetime")
+                       && json["diskLifetime"].is_string())
+                    {
+                        entry[2] = json["diskLifetime"].get<std::string>();
+                    }
+                    if(json.contains("targetedMetadata")
+                       && json["targetedMetadata"].is_object())
+                    {
+                        entry[3] = json["targetedMetadata"].dump();
+                    }
+                    files.push_back(entry);
+                    continue;
+                }
+            }
+            catch(...)
+            {
+            }
+        }
         files.push_back({file, "", "", ""});
     }
     return files;
