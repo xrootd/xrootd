@@ -282,7 +282,7 @@ int XrdOfsHandle::Alloc(const char *thePath, int Opts, XrdOfsHandle **Handle)
 // Get a new handle
 //
    if (!(retc = Alloc(theKey, Opts, Handle))) theTable->Add(*Handle);
-   OfsStats.Add(OfsStats.Data.numHandles);
+   OfsStats.Data.numHandles++;
 
 // All done
 //
@@ -468,7 +468,7 @@ int XrdOfsHandle::Retire(int &retc, long long *retsz, char *buff, int blen)
    myMutex.Lock();
    if (Path.Links == 1)
       {if (buff) strlcpy(buff, Path.Val, blen);
-       numLeft = 0; OfsStats.Dec(OfsStats.Data.numHandles);
+       numLeft = 0; OfsStats.Data.numHandles--;
        if ( (isRW ? rwTable.Remove(this) : roTable.Remove(this)) )
          {if (Posc) {Posc->Recycle(); Posc = 0;}
           if (Path.Val) {free((void *)Path.Val); Path.Val = (char *)"";}

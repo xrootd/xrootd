@@ -277,7 +277,7 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
    if (NoGo)
       {OfsEroute.Emsg("TPC", Args.eRR->getErrUser(),
                              "denied tpc access to", Args.Lfn);
-       OfsStats.Add(OfsStats.Data.numTPCdeny);
+       OfsStats.Data.numTPCdeny++;
        return Fatal(Args, "dest not authorized for tpc" ,EACCES, 1);
       }
 
@@ -307,7 +307,7 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
 
 // All done
 //
-   OfsStats.Add(OfsStats.Data.numTPCgrant);
+   OfsStats.Data.numTPCgrant++;
    *pTPC = (XrdOfsTPC *)myTPC;
    return SFS_OK;
 }
@@ -348,7 +348,7 @@ int XrdOfsTPC::Fatal(XrdOfsTPC::Facts &Args, const char *eMsg, int eCode, int no
 // Place the error message in the error object and return
 //
    Args.eRR->setErrInfo(eCode, Buff);
-   OfsStats.Add(OfsStats.Data.numTPCerrs);
+   OfsStats.Data.numTPCerrs++;
    return SFS_ERROR;
 }
   
@@ -509,7 +509,7 @@ int XrdOfsTPC::Screen(XrdOfsTPC::Facts &Args, XrdOucTList *tP, int wasEnc)
 
    if (!tP) Fatal(Args, "improper tpc authentication", EACCES);
 
-   OfsStats.Add(OfsStats.Data.numTPCdeny);
+   OfsStats.Data.numTPCdeny++;
    return 0;
 }
 

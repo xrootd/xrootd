@@ -39,42 +39,39 @@
 /*                       R e g i s t e r M e t r i c s                        */
 /******************************************************************************/
 
-void XrdOfsStats::RegisterMetrics()
+// Native, atomic instruments owned by the process-wide registry. Each family is
+// created exactly once (the factories do not deduplicate by name); multiple
+// series are pulled from the labelled families via withLabelValues. The metric
+// names, labels and help are unchanged from the earlier observed version, so the
+// serialized output and the legacy <stats id="ofs"> block are identical.
+//
+XrdOfsStats::StatsData XrdOfsStats::RegisterMetrics()
 {
    XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("ofs");
 
-// Current open files (by mode) and active file handles go up and down, so they
-// are gauges.
-//
-   g.observeIntGauge("files_open", {"mode"}, {}, "currently open files")
-    .add({"read"},  [this]{return (std::int64_t)Data.numOpenR;})
-    .add({"write"}, [this]{return (std::int64_t)Data.numOpenW;})
-    .add({"posc"},  [this]{return (std::int64_t)Data.numOpenP;});
-   g.observeIntGauge("handles", {}, {}, "active file handles")
-    .add({}, [this]{return (std::int64_t)Data.numHandles;});
+   auto& filesOpen = g.intGauge("files_open", {"mode"}, {}, "currently open files");
+   auto& events    = g.counter("events_total", {"result"}, {}, "scheduled event outcomes");
+   auto& tpc       = g.counter("tpc_total", {"result"}, {}, "third-party-copy outcomes");
 
-// The remaining tallies only ever increase, so they are counters.
-//
-#define CTR(name, help, fld) \
-   g.observeCounter(name, {}, {}, help) \
-    .add({}, [this]{return (std::uint64_t)(unsigned)Data.fld;})
-   CTR("unpersisted_total", "posc files not persisted", numUnpsist);
-   CTR("redirects_total",   "redirects issued",         numRedirect);
-   CTR("started_total",     "background ops started",   numStarted);
-   CTR("replies_total",     "direct data replies",      numReplies);
-   CTR("errors_total",      "errors returned",          numErrors);
-   CTR("delays_total",      "delays returned",          numDelays);
-#undef CTR
-
-   g.observeCounter("events_total", {"result"}, {}, "scheduled event outcomes")
-    .add({"ok"},    [this]{return (std::uint64_t)(unsigned)Data.numSeventOK;})
-    .add({"error"}, [this]{return (std::uint64_t)(unsigned)Data.numSeventER;});
-
-   g.observeCounter("tpc_total", {"result"}, {}, "third-party-copy outcomes")
-    .add({"granted"}, [this]{return (std::uint64_t)(unsigned)Data.numTPCgrant;})
-    .add({"denied"},  [this]{return (std::uint64_t)(unsigned)Data.numTPCdeny;})
-    .add({"error"},   [this]{return (std::uint64_t)(unsigned)Data.numTPCerrs;})
-    .add({"expired"}, [this]{return (std::uint64_t)(unsigned)Data.numTPCexpr;});
+   return StatsData
+   {
+      filesOpen.withLabelValues({"read"}),
+      filesOpen.withLabelValues({"write"}),
+      filesOpen.withLabelValues({"posc"}),
+      g.intGauge("handles", {}, {}, "active file handles").noLabels(),
+      g.counter("unpersisted_total", {}, {}, "posc files not persisted").noLabels(),
+      g.counter("redirects_total",   {}, {}, "redirects issued").noLabels(),
+      g.counter("started_total",     {}, {}, "background ops started").noLabels(),
+      g.counter("replies_total",     {}, {}, "direct data replies").noLabels(),
+      g.counter("errors_total",      {}, {}, "errors returned").noLabels(),
+      g.counter("delays_total",      {}, {}, "delays returned").noLabels(),
+      events.withLabelValues({"ok"}),
+      events.withLabelValues({"error"}),
+      tpc.withLabelValues({"granted"}),
+      tpc.withLabelValues({"denied"}),
+      tpc.withLabelValues({"error"}),
+      tpc.withLabelValues({"expired"})
+   };
 }
 
 /******************************************************************************/

@@ -29,53 +29,48 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <cstdlib>
-
-#include "XrdSys/XrdSysPthread.hh"
+#include "XrdMetrics/XrdMetricsInstrument.hh"
 
 class XrdOfsStats
 {
 public:
 
+//! References to the native metric instruments (owned by the process-wide
+//! XrdMetrics registry) that the OFS code updates directly. The counters are
+//! atomic, so there is no lock on the update path and no scrape-time race
+//! against a reader; open-file/handle counts that go up and down are gauges.
 struct      StatsData
 {
-int         numOpenR;   // Read
-int         numOpenW;   // Write
-int         numOpenP;   // Posc
-int         numUnpsist; // Posc
-int         numHandles;
-int         numRedirect;
-int         numStarted;
-int         numReplies;
-int         numErrors;
-int         numDelays;
-int         numSeventOK;
-int         numSeventER;
-int         numTPCgrant;
-int         numTPCdeny;
-int         numTPCerrs;
-int         numTPCexpr;
+XrdMetrics::IntGauge &numOpenR;    // Read
+XrdMetrics::IntGauge &numOpenW;    // Write
+XrdMetrics::IntGauge &numOpenP;    // Posc
+XrdMetrics::IntGauge &numHandles;
+XrdMetrics::Counter  &numUnpsist;  // Posc files not persisted
+XrdMetrics::Counter  &numRedirect;
+XrdMetrics::Counter  &numStarted;
+XrdMetrics::Counter  &numReplies;
+XrdMetrics::Counter  &numErrors;
+XrdMetrics::Counter  &numDelays;
+XrdMetrics::Counter  &numSeventOK;
+XrdMetrics::Counter  &numSeventER;
+XrdMetrics::Counter  &numTPCgrant;
+XrdMetrics::Counter  &numTPCdeny;
+XrdMetrics::Counter  &numTPCerrs;
+XrdMetrics::Counter  &numTPCexpr;
 }           Data;
-
-XrdSysMutex sdMutex;
-
-inline void Add(int &Cntr) {sdMutex.Lock(); Cntr++; sdMutex.UnLock();}
-
-inline void Dec(int &Cntr) {sdMutex.Lock(); Cntr--; sdMutex.UnLock();}
 
        int  Report(char *Buff, int Blen);
 
-//! Register the OFS metrics in the process-wide XrdMetrics registry; the
-//! readers observe this instance's Data fields. Called from the constructor.
-       void RegisterMetrics();
-
        void setRole(const char *theRole) {myRole = theRole;}
 
-            XrdOfsStats() : myRole("?")
-                          {memset(&Data, 0, sizeof(Data)); RegisterMetrics();}
+            XrdOfsStats() : Data(RegisterMetrics()), myRole("?") {}
            ~XrdOfsStats() {}
 
 private:
+
+//! Create the OFS metric families in the process-wide XrdMetrics registry and
+//! return references to the owned instruments. Called once from the ctor.
+static StatsData RegisterMetrics();
 
 const char *myRole;
 };

@@ -167,7 +167,7 @@ int XrdOfsTPCAuth::Expired(const char *Dst, int cnt)
 
 // Count stats and return
 //
-   if (cnt) OfsStats.Add(OfsStats.Data.numTPCexpr);
+   if (cnt) OfsStats.Data.numTPCexpr++;
    return 0;
 }
 
@@ -293,11 +293,7 @@ do{authMutex.Lock();
 
 // Add number of expirations to statistics
 //
-   if (numExp)
-      {OfsStats.sdMutex.Lock();
-       OfsStats.Data.numTPCexpr += numExp;
-       OfsStats.sdMutex.UnLock();
-      }
+   if (numExp) OfsStats.Data.numTPCexpr += numExp;
 
 // Wait as long as possible for a recan
 //

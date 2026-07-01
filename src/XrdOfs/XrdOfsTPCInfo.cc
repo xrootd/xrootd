@@ -100,7 +100,7 @@ int XrdOfsTPCInfo::Fail(XrdOucErrInfo *eRR, const char *eMsg, int eCode)
 // Place the error message in the error object and return
 //
    if (eRR) eRR->setErrInfo(eCode, Buff);
-   OfsStats.Add(OfsStats.Data.numTPCerrs);
+   OfsStats.Data.numTPCerrs++;
    return SFS_ERROR;
 }
 
