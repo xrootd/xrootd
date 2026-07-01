@@ -118,7 +118,7 @@ void XrdXrootdStats::RegisterMetrics()
 // AtomicInc/AtomicAdd updates on the hot path; the counters themselves remain
 // the source of truth and these only observe them.
 //
-   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("");
+   XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("");
 
    auto& ops = g.observeCounter("ops_total", {"op"}, {},
                                 "xrootd protocol operations");

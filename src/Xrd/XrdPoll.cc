@@ -364,7 +364,7 @@ int XrdPoll::Stats(char *buff, int blen, int do_sync)
 
 void XrdPoll::RegisterMetrics()
 {
-   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("poll");
+   XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("poll");
 
    g.observeIntGauge("attached", {}, {}, "file descriptors attached to pollers")
     .add({}, []{int64_t t=0; for (int i=0;i<XRD_NUMPOLLERS;i++)

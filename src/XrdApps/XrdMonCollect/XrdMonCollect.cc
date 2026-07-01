@@ -632,8 +632,8 @@ int main(int argc, char* argv[])
 // When a metrics port is given, aggregate transfers into the registry and
 // serve it over HTTP. The decoder-level statistics are exposed too.
 //
-   XrdMetrics::MetricGroup* reg =
-            metricsPort > 0 ? &collectorRegistry().group("") : nullptr;
+   XrdMetrics::Subsystem* reg =
+            metricsPort > 0 ? &collectorRegistry().subsystem("") : nullptr;
 
 // The receiver thread fills packet batches and hands them, through this bounded
 // recycling pipe, to the serializer thread that owns the decoder. A generous

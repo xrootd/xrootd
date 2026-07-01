@@ -1114,7 +1114,7 @@ int XrdLinkXeq::Stats(char *buff, int blen, bool do_sync)
 
 void XrdLinkXeq::RegisterMetrics()
 {
-   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("link");
+   XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("link");
 
    g.observeIntGauge("connections", {}, {}, "current open connections")
     .add({}, []{return (int64_t)AtomicGet(LinkCount);});

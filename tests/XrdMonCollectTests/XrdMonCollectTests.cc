@@ -341,7 +341,7 @@ TEST_F(Transfer, AggregatesIntoMetricsRegistry)
   XrdMetrics::Registry reg("");
   std::string sink;
   XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
-                 false, false, false, false, &reg.group(""));
+                 false, false, false, false, &reg.subsystem(""));
 
   { W body; body.u32(7);
     std::string info = "xroot/alice.1:2@wn.example.org\n";
@@ -774,7 +774,7 @@ TEST_F(Transfer, AccessAggregatesIntoMetrics)
   XrdMetrics::Registry reg("");
   std::string sink;
   XrdMonDecode d([&](const std::string& s){ sink = s; }, nullptr,
-                 false, false, false, false, &reg.group(""));
+                 false, false, false, false, &reg.subsystem(""));
 
   { W body; body.u32(7);
     std::string info = "xroot/alice.1:2@wn.example.org\n";
@@ -931,7 +931,7 @@ TEST(XrdMonCollect, PacketLossDetected)
 {
   XrdMetrics::Registry reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg.group(""));
+                   false, false, false, false, &reg.subsystem(""));
 
   for (uint8_t seq : {0, 1, 3, 4})   // 2 is missing -> one lost packet
      {auto p = userPkt(seq, seq);
@@ -1124,7 +1124,7 @@ TEST(XrdMonCollect, FrmStageAndPurge)
   XrdMetrics::Registry reg("");
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
-                   false, false, false, false, &reg.group(""));
+                   false, false, false, false, &reg.subsystem(""));
 
   auto frm = [&](char code, const std::string& info)
      {W body; body.u32(0);                // dictid is 0 for x/p
@@ -1160,7 +1160,7 @@ TEST(XrdMonCollect, SessionDiscAndActiveGauge)
   XrdMetrics::Registry reg("");
   std::vector<std::string> docs;
   XrdMonDecode dec([&](const std::string& d){ docs.push_back(d); }, nullptr,
-                   false, false, false, false, &reg.group(""));
+                   false, false, false, false, &reg.subsystem(""));
   dec.SetEmitSessions(true);
 
   // 'u' user map: dictid 7 -> bob.
@@ -1416,7 +1416,7 @@ TEST(XrdMonCollect, GStreamOssMetricsDelta)
 {
   XrdMetrics::Registry reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg.group(""));
+                   false, false, false, false, &reg.subsystem(""));
 
   // First snapshot establishes the baseline (no counter movement).
   auto p1 = gPacket('O', "{\"event\":\"oss_stats\",\"reads\":100,\"writes\":10,"
@@ -1440,7 +1440,7 @@ TEST(XrdMonCollect, GStreamPfcAndTpcMetrics)
 {
   XrdMetrics::Registry reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg.group(""));
+                   false, false, false, false, &reg.subsystem(""));
 
   auto pfc = gPacket('C', "{\"event\":\"file_close\",\"b_hit\":2048,"
                           "\"b_miss\":1024,\"b_prefetch\":512}");
@@ -1465,7 +1465,7 @@ TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
 {
   XrdMetrics::Registry reg("");
   XrdMonDecode dec([](const std::string&){}, nullptr,
-                   false, false, false, false, &reg.group(""));
+                   false, false, false, false, &reg.subsystem(""));
 
   // throttle: baseline then +30 io_total, io_active gauge = 4.
   auto t1 = gPacket('R', "{\"event\":\"throttle_update\",\"io_wait\":1.5,"

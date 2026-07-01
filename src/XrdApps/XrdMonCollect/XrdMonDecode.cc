@@ -1367,7 +1367,7 @@ uint64_t jU(const json& j, const char* key)
 // series. `prev` retains the last cumulative value for providers (oss) that
 // report running totals, so they become counter deltas.
 //
-void gsAggregate(XrdMetrics::MetricGroup* M,
+void gsAggregate(XrdMetrics::Subsystem* M,
                  std::unordered_map<std::string, uint64_t>& prev,
                  unsigned char provByte, const std::string& src, const json& j)
 {

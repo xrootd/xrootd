@@ -41,7 +41,7 @@
 
 void XrdOfsStats::RegisterMetrics()
 {
-   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("ofs");
+   XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("ofs");
 
 // Current open files (by mode) and active file handles go up and down, so they
 // are gauges.

@@ -147,7 +147,7 @@ struct MockServer
 TEST(MetricsExporterPush, OtelPostRoundTrip)
 {
    Registry reg("xrootd");
-   reg.group("sched").counter("jobs_total", {}, {}, "jobs scheduled")
+   reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs scheduled")
                      .noLabels() += 7;
    std::string payload;
    OtelJsonSerializer ser(payload, "xrootd");
@@ -177,7 +177,7 @@ TEST(MetricsExporterPush, OtelPostRoundTrip)
 TEST(MetricsExporterPush, PushgatewayPutRoundTrip)
 {
    Registry reg("xrootd");
-   reg.group("sched").counter("jobs_total", {}, {}, "jobs scheduled")
+   reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs scheduled")
                      .noLabels() += 4;
    std::string payload;
    PrometheusTextSerializer ser(payload);

@@ -27,7 +27,7 @@ using namespace XrdPfc;
 
 CacheMetrics::CacheMetrics(XrdMetrics::Registry &reg)
 {
-   XrdMetrics::MetricGroup &g = reg.group("cache");
+   XrdMetrics::Subsystem &g = reg.subsystem("cache");
 
 // Bytes served, split by where the data came from.
 //

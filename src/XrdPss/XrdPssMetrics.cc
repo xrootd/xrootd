@@ -34,7 +34,7 @@ namespace XrdPosixGlobals {extern XrdPosixStats Stats;}
 
 void XrdPssRegisterMetrics(XrdMetrics::Registry &reg)
 {
-   XrdMetrics::MetricGroup &g = reg.group("proxy");
+   XrdMetrics::Subsystem &g = reg.subsystem("proxy");
 
    g.observeCounter("opens_total", {}, {}, "proxy file opens")
     .add({}, []{return (std::uint64_t)XrdPosixGlobals::Stats.X.Opens;});

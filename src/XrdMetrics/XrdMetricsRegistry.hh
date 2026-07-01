@@ -37,7 +37,7 @@
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 
 //-----------------------------------------------------------------------------
-//! The three-level hierarchy: Registry owns MetricGroups, a MetricGroup owns
+//! The three-level hierarchy: Registry owns Subsystems, a Subsystem owns
 //! Families, a Family owns series. Naming context flows down at registration
 //! time (the registry's prefix and the group's subsystem are resolved into each
 //! family's full name once, when the family is created, and baked into the
@@ -51,7 +51,7 @@
 
 namespace XrdMetrics
 {
-class Registry;   // referenced by MetricGroup; defined below
+class Registry;   // referenced by Subsystem; defined below
 
 /******************************************************************************/
 /*                           M e t r i c G r o u p                           */
@@ -60,10 +60,10 @@ class Registry;   // referenced by MetricGroup; defined below
 //! A named subsystem (e.g. "scheduler", "ops") that owns a set of families and
 //! is the factory injecting the resolved full name and label context downward.
 
-class MetricGroup
+class Subsystem
 {
 public:
-MetricGroup(Registry& reg, std::string subsystem)
+Subsystem(Registry& reg, std::string subsystem)
            : reg_(reg), subsystem_(std::move(subsystem)) {}
 
 //! Create a counter family. varLabels are the variable label names (schema);
@@ -138,7 +138,7 @@ Histogram&  histogramSeries(const std::string& name, const std::string& help,
 Summary&    summarySeries(const std::string& name, const std::string& help,
                           std::vector<ConstLabel> labels = {});
 
-const std::string& subsystem() const noexcept { return subsystem_; }
+const std::string& name() const noexcept { return subsystem_; }
 
 void serialize(Serializer& s) const
 {
@@ -214,24 +214,24 @@ explicit Registry(std::string prefix, std::vector<ConstLabel> globalLabels = {})
 bool setGlobalLabels(std::vector<ConstLabel> labels)
 {
    std::unique_lock<std::shared_mutex> wr(mutex_);
-   if (!groups_.empty()) return false;
+   if (!subsystems_.empty()) return false;
    globalLabels_ = std::move(labels);
    return true;
 }
 
-//! Obtain (creating on first use) the group for a subsystem.
-MetricGroup& group(const std::string& subsystem)
+//! Obtain (creating on first use) the subsystem group by name.
+Subsystem& subsystem(const std::string& name)
 {
    {std::shared_lock<std::shared_mutex> rd(mutex_);
-    auto it = groups_.find(subsystem);
-    if (it != groups_.end()) return *it->second;
+    auto it = subsystems_.find(name);
+    if (it != subsystems_.end()) return *it->second;
    }
    std::unique_lock<std::shared_mutex> wr(mutex_);
-   auto it = groups_.find(subsystem);
-   if (it != groups_.end()) return *it->second;
-   auto g = std::unique_ptr<MetricGroup>(new MetricGroup(*this, subsystem));
+   auto it = subsystems_.find(name);
+   if (it != subsystems_.end()) return *it->second;
+   auto g = std::unique_ptr<Subsystem>(new Subsystem(*this, name));
    auto& ref = *g;
-   groups_.emplace(subsystem, std::move(g));
+   subsystems_.emplace(name, std::move(g));
    return ref;
 }
 
@@ -248,13 +248,13 @@ using GroupFilter = std::function<bool(const std::string& subsystem)>;
 //! and serialized outside it; a group is skipped when @p filter rejects it.
 void serializeBody(Serializer& s, const GroupFilter& filter = {}) const
 {
-   std::vector<const MetricGroup*> snap;
+   std::vector<const Subsystem*> snap;
    {std::shared_lock<std::shared_mutex> rd(mutex_);
-    snap.reserve(groups_.size());
-    for (auto& kv : groups_) snap.push_back(kv.second.get());
+    snap.reserve(subsystems_.size());
+    for (auto& kv : subsystems_) snap.push_back(kv.second.get());
    }
    for (auto* g : snap)
-       if (!filter || filter(g->subsystem())) g->serialize(s);
+       if (!filter || filter(g->name())) g->serialize(s);
 }
 
 //! Drive a serializer over every group in the registry, with the document
@@ -291,7 +291,7 @@ std::string             prefix_;
 std::vector<ConstLabel> globalLabels_;
 
 mutable std::shared_mutex mutex_;
-std::unordered_map<std::string, std::unique_ptr<MetricGroup>> groups_;
+std::unordered_map<std::string, std::unique_ptr<Subsystem>> subsystems_;
 std::vector<std::function<void(std::string&)>> collectors_;
 };
 
@@ -300,7 +300,7 @@ std::vector<std::function<void(std::string&)>> collectors_;
 /******************************************************************************/
 
 template <class Child>
-LabeledFamily<Child>& MetricGroup::add(const std::string& name,
+LabeledFamily<Child>& Subsystem::add(const std::string& name,
                                        std::vector<std::string> varNames,
                                        std::vector<ConstLabel> constLabels,
                                        std::string help, std::size_t maxKids)
@@ -331,7 +331,7 @@ LabeledFamily<Child>& MetricGroup::add(const std::string& name,
 }
 
 inline LabeledFamily<Counter>&
-MetricGroup::counter(const std::string& name, std::vector<std::string> varLabels,
+Subsystem::counter(const std::string& name, std::vector<std::string> varLabels,
                      std::vector<ConstLabel> constLabels, std::string help,
                      std::size_t maxKids)
 {
@@ -340,7 +340,7 @@ MetricGroup::counter(const std::string& name, std::vector<std::string> varLabels
 }
 
 inline LabeledFamily<IntGauge>&
-MetricGroup::intGauge(const std::string& name, std::vector<std::string> varLabels,
+Subsystem::intGauge(const std::string& name, std::vector<std::string> varLabels,
                       std::vector<ConstLabel> constLabels, std::string help,
                       std::size_t maxKids)
 {
@@ -349,7 +349,7 @@ MetricGroup::intGauge(const std::string& name, std::vector<std::string> varLabel
 }
 
 inline LabeledFamily<FloatGauge>&
-MetricGroup::floatGauge(const std::string& name, std::vector<std::string> varLabels,
+Subsystem::floatGauge(const std::string& name, std::vector<std::string> varLabels,
                         std::vector<ConstLabel> constLabels, std::string help,
                         std::size_t maxKids)
 {
@@ -358,7 +358,7 @@ MetricGroup::floatGauge(const std::string& name, std::vector<std::string> varLab
 }
 
 inline HistogramFamily&
-MetricGroup::histogram(const std::string& name, std::vector<double> bounds,
+Subsystem::histogram(const std::string& name, std::vector<double> bounds,
                        std::vector<std::string> varLabels,
                        std::vector<ConstLabel> constLabels, std::string help,
                        std::size_t maxKids)
@@ -389,7 +389,7 @@ MetricGroup::histogram(const std::string& name, std::vector<double> bounds,
 }
 
 inline SummaryFamily&
-MetricGroup::summary(const std::string& name, std::vector<std::string> varLabels,
+Subsystem::summary(const std::string& name, std::vector<std::string> varLabels,
                      std::vector<ConstLabel> constLabels, std::string help,
                      std::size_t maxKids)
 {
@@ -419,7 +419,7 @@ MetricGroup::summary(const std::string& name, std::vector<std::string> varLabels
 }
 
 template <class T>
-ObservedFamily<T>& MetricGroup::addObserved(const std::string& name, MetricKind kind,
+ObservedFamily<T>& Subsystem::addObserved(const std::string& name, MetricKind kind,
                                             std::vector<std::string> varNames,
                                             std::vector<ConstLabel> constLabels,
                                             std::string help)
@@ -450,7 +450,7 @@ ObservedFamily<T>& MetricGroup::addObserved(const std::string& name, MetricKind 
 }
 
 inline ObservedFamily<std::uint64_t>&
-MetricGroup::observeCounter(const std::string& name, std::vector<std::string> varLabels,
+Subsystem::observeCounter(const std::string& name, std::vector<std::string> varLabels,
                             std::vector<ConstLabel> constLabels, std::string help)
 {
    return addObserved<std::uint64_t>(name, MetricKind::Counter, std::move(varLabels),
@@ -458,7 +458,7 @@ MetricGroup::observeCounter(const std::string& name, std::vector<std::string> va
 }
 
 inline ObservedFamily<double>&
-MetricGroup::observeCounterF(const std::string& name, std::vector<std::string> varLabels,
+Subsystem::observeCounterF(const std::string& name, std::vector<std::string> varLabels,
                              std::vector<ConstLabel> constLabels, std::string help)
 {
    return addObserved<double>(name, MetricKind::Counter, std::move(varLabels),
@@ -466,7 +466,7 @@ MetricGroup::observeCounterF(const std::string& name, std::vector<std::string> v
 }
 
 inline ObservedFamily<std::int64_t>&
-MetricGroup::observeIntGauge(const std::string& name, std::vector<std::string> varLabels,
+Subsystem::observeIntGauge(const std::string& name, std::vector<std::string> varLabels,
                              std::vector<ConstLabel> constLabels, std::string help)
 {
    return addObserved<std::int64_t>(name, MetricKind::Gauge, std::move(varLabels),
@@ -474,7 +474,7 @@ MetricGroup::observeIntGauge(const std::string& name, std::vector<std::string> v
 }
 
 inline ObservedFamily<double>&
-MetricGroup::observeGauge(const std::string& name, std::vector<std::string> varLabels,
+Subsystem::observeGauge(const std::string& name, std::vector<std::string> varLabels,
                           std::vector<ConstLabel> constLabels, std::string help)
 {
    return addObserved<double>(name, MetricKind::Gauge, std::move(varLabels),
@@ -486,7 +486,7 @@ MetricGroup::observeGauge(const std::string& name, std::vector<std::string> varL
 /******************************************************************************/
 
 template <class Child>
-LabeledFamily<Child>& MetricGroup::getOrAddLabeled(const std::string& full,
+LabeledFamily<Child>& Subsystem::getOrAddLabeled(const std::string& full,
                           const std::vector<std::string>& names,
                           const std::string& help)
 {
@@ -515,7 +515,7 @@ LabeledFamily<Child>& MetricGroup::getOrAddLabeled(const std::string& full,
    return ref;
 }
 
-inline HistogramFamily& MetricGroup::getOrAddHistogram(const std::string& full,
+inline HistogramFamily& Subsystem::getOrAddHistogram(const std::string& full,
                           const std::vector<std::string>& names,
                           std::vector<double> bounds, const std::string& help)
 {
@@ -544,7 +544,7 @@ inline HistogramFamily& MetricGroup::getOrAddHistogram(const std::string& full,
    return ref;
 }
 
-inline SummaryFamily& MetricGroup::getOrAddSummary(const std::string& full,
+inline SummaryFamily& Subsystem::getOrAddSummary(const std::string& full,
                           const std::vector<std::string>& names,
                           const std::string& help)
 {
@@ -586,7 +586,7 @@ inline void splitLabels(const std::vector<ConstLabel>& labels,
 }
 
 inline Counter&
-MetricGroup::counterSeries(const std::string& name, const std::string& help,
+Subsystem::counterSeries(const std::string& name, const std::string& help,
                            std::vector<ConstLabel> labels)
 {
    std::vector<std::string> names, values;
@@ -596,7 +596,7 @@ MetricGroup::counterSeries(const std::string& name, const std::string& help,
 }
 
 inline FloatGauge&
-MetricGroup::gaugeSeries(const std::string& name, const std::string& help,
+Subsystem::gaugeSeries(const std::string& name, const std::string& help,
                          std::vector<ConstLabel> labels)
 {
    std::vector<std::string> names, values;
@@ -606,7 +606,7 @@ MetricGroup::gaugeSeries(const std::string& name, const std::string& help,
 }
 
 inline Histogram&
-MetricGroup::histogramSeries(const std::string& name, const std::string& help,
+Subsystem::histogramSeries(const std::string& name, const std::string& help,
                              std::vector<double> bounds,
                              std::vector<ConstLabel> labels)
 {
@@ -618,7 +618,7 @@ MetricGroup::histogramSeries(const std::string& name, const std::string& help,
 }
 
 inline Summary&
-MetricGroup::summarySeries(const std::string& name, const std::string& help,
+Subsystem::summarySeries(const std::string& name, const std::string& help,
                            std::vector<ConstLabel> labels)
 {
    std::vector<std::string> names, values;

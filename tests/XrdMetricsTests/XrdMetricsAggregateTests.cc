@@ -44,8 +44,8 @@ bool inDirectory(Registry* r)
 TEST(MetricsFilter, SkipsDisabledGroupPrometheus)
 {
    Registry reg("xrootd");
-   reg.group("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
-   reg.group("link").counter("total", {}, {}, "links").noLabels() += 2;
+   reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
+   reg.subsystem("link").counter("total", {}, {}, "links").noLabels() += 2;
 
    std::string out;
    PrometheusTextSerializer ser(out);
@@ -59,8 +59,8 @@ TEST(MetricsFilter, SkipsDisabledGroupPrometheus)
 TEST(MetricsFilter, EmptyFilterEmitsEverything)
 {
    Registry reg("xrootd");
-   reg.group("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
-   reg.group("link").counter("total", {}, {}, "links").noLabels() += 2;
+   reg.subsystem("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
+   reg.subsystem("link").counter("total", {}, {}, "links").noLabels() += 2;
 
    std::string out;
    PrometheusTextSerializer ser(out);
@@ -77,10 +77,10 @@ TEST(MetricsFilter, EmptyFilterEmitsEverything)
 TEST(MetricsAggregate, OtelOneResourcePerRegistry)
 {
    Registry a("xrootd", {{"program", "xrootd"}});
-   a.group("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
+   a.subsystem("sched").counter("jobs_total", {}, {}, "jobs").noLabels() += 1;
 
    Registry b("eos", {{"cluster", "prod"}});
-   b.group("ns").counter("files_total", {}, {}, "files").noLabels() += 5;
+   b.subsystem("ns").counter("files_total", {}, {}, "files").noLabels() += 5;
 
 // Drive the serializer exactly as serializeAll() does, but over chosen
 // registries so the result is independent of the process-wide directory.
@@ -124,9 +124,9 @@ TEST(MetricsDirectory, RegisterIsIdempotentAndUnregisters)
 TEST(MetricsDirectory, SerializeAllAggregatesRegisteredRegistries)
 {
    Registry a("alpha");
-   a.group("g").counter("c_total", {}, {}, "h").noLabels() += 1;
+   a.subsystem("g").counter("c_total", {}, {}, "h").noLabels() += 1;
    Registry b("beta");
-   b.group("g").counter("c_total", {}, {}, "h").noLabels() += 2;
+   b.subsystem("g").counter("c_total", {}, {}, "h").noLabels() += 2;
 
    registerRegistry(a);
    registerRegistry(b);

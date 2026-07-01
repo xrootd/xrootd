@@ -49,7 +49,7 @@ TEST(XrdStatsLegacy, ProcBlockShape)
 TEST(XrdStatsLegacy, LinkBlockFromRegistry)
 {
   Registry reg("xrootd");
-  auto& g = reg.group("link");
+  auto& g = reg.subsystem("link");
   g.intGauge("connections").noLabels()      = 3;
   g.intGauge("connections_max").noLabels()  = 7;
   g.counter("connections_total").noLabels() += 100;
@@ -73,7 +73,7 @@ TEST(XrdStatsLegacy, LinkBlockFromRegistry)
 TEST(XrdStatsLegacy, PollBlockFromRegistry)
 {
   Registry reg("xrootd");
-  auto& g = reg.group("poll");
+  auto& g = reg.subsystem("poll");
   g.intGauge("attached").noLabels()        = 10;
   g.intGauge("enabled").noLabels()         = 8;
   g.counter("events_total").noLabels()     += 200;
@@ -90,7 +90,7 @@ TEST(XrdStatsLegacy, PollBlockFromRegistry)
 TEST(XrdStatsLegacy, BuffBlockSplicesXlStats)
 {
   Registry reg("xrootd");
-  auto& g = reg.group("buff");
+  auto& g = reg.subsystem("buff");
   g.counter("requests_total").noLabels()    += 50;
   g.intGauge("memory_bytes").noLabels()     = 1048576;
   g.intGauge("buffers").noLabels()          = 12;
@@ -111,7 +111,7 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
   // Each field gets a distinct value (its position in the format) so a wrong
   // metric-name mapping cannot be masked.
   Registry reg("xrootd");
-  auto& g = reg.group("");                 // empty subsystem -> flat names
+  auto& g = reg.subsystem("");                 // empty subsystem -> flat names
   g.counter("requests_total").noLabels() += 1;
 
   auto& ops = g.counter("ops_total", {"op"});
@@ -165,7 +165,7 @@ TEST(XrdStatsLegacy, XrootdBlockFromRegistry)
 TEST(XrdStatsLegacy, OfsBlockFromRegistry)
 {
   Registry reg("xrootd");
-  auto& g = reg.group("ofs");
+  auto& g = reg.subsystem("ofs");
   auto& open = g.intGauge("files_open", {"mode"});
   open.withLabelValues({"read"})  = 1;
   open.withLabelValues({"write"}) = 2;

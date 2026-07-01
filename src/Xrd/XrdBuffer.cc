@@ -359,7 +359,7 @@ int XrdBuffManager::xlStats(char *buff, int blen, int do_sync)
 
 void XrdBuffManager::RegisterMetrics()
 {
-   XrdMetrics::MetricGroup& g = XrdMetrics::Default().group("buff");
+   XrdMetrics::Subsystem& g = XrdMetrics::Default().subsystem("buff");
 
    g.observeCounter("requests_total", {}, {}, "buffer requests")
     .add({}, [this]{return (uint64_t)totreq;});

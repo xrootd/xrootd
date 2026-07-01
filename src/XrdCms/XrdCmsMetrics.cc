@@ -51,7 +51,7 @@ void XrdCms::RegisterMetrics(XrdMetrics::Registry &reg)
 
 void XrdCmsCluster::RegisterMetrics(XrdMetrics::Registry &reg)
 {
-   XrdMetrics::MetricGroup &g = reg.group("cms");
+   XrdMetrics::Subsystem &g = reg.subsystem("cms");
 
 // Active data nodes currently subscribed to this manager/supervisor.
 //
@@ -91,7 +91,7 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Registry &reg)
 
 void XrdCmsState::RegisterMetrics(XrdMetrics::Registry &reg)
 {
-   XrdMetrics::MetricGroup &g = reg.group("cms");
+   XrdMetrics::Subsystem &g = reg.subsystem("cms");
 
    g.observeIntGauge("nodes_active", {}, {}, "active subscribers")
     .add({}, [this]{return (std::int64_t)numActive;});
@@ -115,7 +115,7 @@ void XrdCmsState::RegisterMetrics(XrdMetrics::Registry &reg)
 
 void XrdCmsRRQ::RegisterMetrics(XrdMetrics::Registry &reg)
 {
-   XrdMetrics::MetricGroup &g = reg.group("cms");
+   XrdMetrics::Subsystem &g = reg.subsystem("cms");
 
 // Fast vs slow split for lookups and redirects served by the response queue.
 // Stats is updated under myMutex; a lockless read of an aligned 64-bit field at

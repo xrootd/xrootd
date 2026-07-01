@@ -760,7 +760,7 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
 // plain scheduler ints (control-flow state) and are surfaced read-only via
 // observed metrics that read the int at scrape time.
 //
-   XrdMetrics::MetricGroup& mg = XrdMetrics::Default().group("sched");
+   XrdMetrics::Subsystem& mg = XrdMetrics::Default().subsystem("sched");
    m_Jobs     = &mg.counter("jobs_total", {}, {},
                             "jobs scheduled").noLabels();
    m_TCreate  = &mg.counter("threads_created_total", {}, {},

@@ -33,7 +33,7 @@
 
 #include "XrdOuc/XrdOucJson.hh"
 
-namespace XrdMetrics { class MetricGroup; }
+namespace XrdMetrics { class Subsystem; }
 
 //-----------------------------------------------------------------------------
 //! XrdMonDecode decodes XRootD detailed-monitoring UDP packets
@@ -160,7 +160,7 @@ bool LoadScitagsJson(const std::string& text);
          XrdMonDecode(DocSink docSink, RawSink rawSink = nullptr,
                       bool emitRaw = false, bool emitTraces = false,
                       bool emitGstream = false, bool emitRedirects = false,
-                      XrdMetrics::MetricGroup* reg = nullptr)
+                      XrdMetrics::Subsystem* reg = nullptr)
                      : doc(std::move(docSink)), raw(std::move(rawSink)),
                        dumpRaw(emitRaw), traces(emitTraces),
                        gstream(emitGstream), redirects(emitRedirects),
@@ -415,7 +415,7 @@ bool     dumpRaw;
 bool     traces;
 bool     gstream;
 bool     redirects;
-XrdMetrics::MetricGroup* metrics;
+XrdMetrics::Subsystem* metrics;
 
 // Process-wide LRU index over all evictable correlation entries, bounding the
 // resident state by an approximate byte budget (maxBytes; 0 = unbounded) with

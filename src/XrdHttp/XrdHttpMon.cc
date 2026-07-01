@@ -50,7 +50,7 @@ void XrdHttpMon::Initialize(XrdSysLogger *logP, XrdXrootdGStream *gStream) {
     // monitoring is configured. The per-series handles are cached for the hot
     // path in Record().
     //
-    auto& http = XrdMetrics::Default().group("http");
+    auto& http = XrdMetrics::Default().subsystem("http");
     auto& requests = http.counter("requests_total", {"method"}, {},
                                   "HTTP requests by method");
     for (int i = 0; i < XrdHttpReq::ReqType::rtCount; ++i)
