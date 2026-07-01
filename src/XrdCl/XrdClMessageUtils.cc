@@ -250,7 +250,8 @@ namespace XrdCl
   void MessageUtils::RewriteCGIAndPath( Message              *msg,
                                         const URL::ParamsMap &newCgi,
                                         bool                  replace,
-                                        const std::string    &newPath )
+                                        const std::string    &newPath,
+                                        std::string          *opathp )
   {
     ClientRequest  *req = (ClientRequest *)msg->GetBuffer();
     switch( req->header.requestid )
@@ -292,6 +293,8 @@ namespace XrdCl
         URL::ParamsMap currentCgi = currentPath.GetParams();
         MergeCGI( currentCgi, newCgi, replace );
         currentPath.SetParams( currentCgi );
+        if( opathp )
+          *opathp = currentPath.GetPath();
         if( !newPath.empty() )
           currentPath.SetPath( newPath );
         std::string newPathWitParams = currentPath.GetPathWithFilteredParams();

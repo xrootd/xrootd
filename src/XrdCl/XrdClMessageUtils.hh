@@ -237,11 +237,14 @@ namespace XrdCl
       //!                appended to it using a comma
       //! @param newPath will be used as the new destination path if it is
       //!                not empty
+      //! @param opathp  if not null will be filled with the initial path
+      //!                contained in the message, before it is set to newPath
       //------------------------------------------------------------------------
       static void RewriteCGIAndPath( Message              *msg,
                                      const URL::ParamsMap &newCgi,
                                      bool                  replace,
-                                     const std::string    &newPath );
+                                     const std::string    &newPath,
+                                     std::string          *opathp = nullptr );
 
       //------------------------------------------------------------------------
       //! Merge cgi2 into cgi1
