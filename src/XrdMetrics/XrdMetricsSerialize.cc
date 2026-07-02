@@ -351,6 +351,13 @@ void PrometheusTextSerializer::summary(const std::string& fullName,
 /*                   O t e l J s o n S e r i a l i z e r                     */
 /******************************************************************************/
 
+// OpenTelemetry semantic-convention schema version this serializer targets.
+// Emitted as the schemaUrl on both the ResourceMetrics and ScopeMetrics blocks
+// so consumers can resolve the semantics of every attribute key.
+//
+static constexpr const char* kOtelSchemaUrl =
+   "https://opentelemetry.io/schemas/1.26.0";
+
 void OtelJsonSerializer::begin()
 {
 // Capture one scrape timestamp (nanoseconds since the Unix epoch) for every
@@ -394,7 +401,14 @@ void OtelJsonSerializer::openResource(const std::string& scope,
 
 void OtelJsonSerializer::closeResource()
 {
-   out_ += "]}]}";   // metrics(arr), scope obj, scopeMetrics(arr), RM(obj)
+// Close: metrics(arr), ScopeMetrics.schemaUrl, scope obj, scopeMetrics(arr),
+// ResourceMetrics.schemaUrl, RM(obj).
+//
+   out_ += "],\"schemaUrl\":\"";
+   out_ += kOtelSchemaUrl;
+   out_ += "\"}],\"schemaUrl\":\"";
+   out_ += kOtelSchemaUrl;
+   out_ += "\"}";
    resourceOpen_ = false;
 }
 

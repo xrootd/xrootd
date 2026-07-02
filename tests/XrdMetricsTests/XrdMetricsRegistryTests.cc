@@ -71,6 +71,14 @@ bool contains(const std::string& hay, const std::string& needle)
 {
   return hay.find(needle) != std::string::npos;
 }
+
+std::size_t count(const std::string& hay, const std::string& needle)
+{
+  std::size_t n = 0, pos = 0;
+  while ((pos = hay.find(needle, pos)) != std::string::npos)
+        {++n; pos += needle.size();}
+  return n;
+}
 }
 
 /******************************************************************************/
@@ -572,7 +580,10 @@ TEST(XrdMetricsOtel, EnvelopeAndMonotonicSum)
                       "\"scopeMetrics\":[{\"scope\":{\"name\":\"xrootd\"},"
                       "\"metrics\":[", 0), 0u);                 // starts with envelope
   EXPECT_NE(out.size(), 0u);
-  EXPECT_EQ(out.compare(out.size() - 6, 6, "]}]}]}"), 0);       // closes envelope
+  EXPECT_EQ(out.compare(out.size() - 2, 2, "]}"), 0);          // closes envelope
+  // schemaUrl on both the ScopeMetrics and ResourceMetrics blocks.
+  EXPECT_EQ(count(out, "\"schemaUrl\":\"https://opentelemetry.io/schemas/"
+                       "1.26.0\""), 2u);
   EXPECT_TRUE(contains(out, "\"name\":\"xrootd_sched_jobs_total\""));
   EXPECT_TRUE(contains(out, "\"description\":\"jobs scheduled\""));
   EXPECT_TRUE(contains(out, "\"sum\":{\"aggregationTemporality\":2,"

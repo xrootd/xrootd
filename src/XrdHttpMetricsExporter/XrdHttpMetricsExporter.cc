@@ -185,8 +185,11 @@ void XrdHttpMetricsExporter::OtelLoop()
 // Collector's own global labels (program/role/cluster) to its resource block
 // on top of these.
 //
+   char host[256]; host[0] = 0;
+   gethostname(host, sizeof(host)-1);
    std::vector<XrdMetrics::ConstLabel> resource =
-      {{"service.name", "xrootd"}, {"service.instance.id", m_instance}};
+      {{"service.name", "xrootd"}, {"service.instance.id", m_instance},
+       {"service.version", XrdVERSION}, {"host.name", host}};
    std::string url = cfg.otelURL;
    int every = cfg.otelEvery;
    auto filter = SubsystemFilter();
