@@ -49,6 +49,7 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --no-resolve     do not substitute the local FQDN for a loopback server
   --sessions       correlate per-session activity and emit a session document
                    per client disconnect (off by default)
+  --spans          also emit OpenTelemetry span documents alongside the logs
   --traces         emit a document per t-stream I/O record (high volume)
   --gstream        emit a document per g-stream (plugin) record
   --redirects      emit a document per r-stream redirect record
@@ -141,6 +142,15 @@ finer-grained events:
   default** — when disabled no rollup is accumulated and no `session` document is
   produced, saving the per-session memory and receive-thread work for
   deployments that only consume the per-transfer/access documents.
+- `--spans` additionally emits an OpenTelemetry **span** document alongside each
+  concluded-operation log: a file-operation span per close or failed operation
+  (spanning open → close, with `status` `STATUS_CODE_OK`/`STATUS_CODE_ERROR`) and,
+  with `--sessions`, a session span (the trace root) per disconnect. Every log
+  already carries a deterministic `traceId`/`spanId` (the trace keyed by the
+  client session `src|stod|user`, the span by the file id), so the span document
+  simply re-frames the same identity with the OTLP span fields (`name`, `kind`,
+  `startTimeUnixNano`/`endTimeUnixNano`, `status`, `parentSpanId`) for a tracing
+  backend. **Off by default**; like the logs it can be high volume.
 - `--traces` turns each `t` (I/O trace) record into a document
   (`attributes["event.name"]` = `xrootd.read`/`xrootd.write` with
   `xrootd.io.offset`, `xrootd.io.length` and the resolved `file.path`,

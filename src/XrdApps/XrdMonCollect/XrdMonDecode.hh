@@ -80,6 +80,7 @@ struct Stats
    uint64_t traces    = 0;   // 't' stream records decoded
    uint64_t gevents   = 0;   // 'g' stream records decoded
    uint64_t redirs    = 0;   // 'r' stream redirect records decoded
+   uint64_t spans     = 0;   // OpenTelemetry span documents emitted (--spans)
    uint64_t frmEvents = 0;   // 'x'/'p' FRM stage/migrate/purge records
    uint64_t lost      = 0;   // estimated lost packets (pseq gaps)
    uint64_t evicted   = 0;   // dictionary/open-file entries evicted (budget/cap)
@@ -136,6 +137,14 @@ void SetResolveHosts(bool v) {resolveHosts = v;}
 //! per-session memory and the receive-thread work for deployments that only
 //! consume the per-transfer/access documents.
 void SetEmitSessions(bool v) {emitSessions = v;}
+
+//! Emit companion OpenTelemetry span documents alongside the log records (off
+//! by default): a file-operation span per close/failed operation and a session
+//! span (the trace root) per disconnect. The logs already carry the same
+//! traceId/spanId, so this is purely additive for a tracing backend; like the
+//! logs it can be high volume. Building the session span uses the per-session
+//! rollup, so it is only meaningful together with SetEmitSessions.
+void SetEmitSpans(bool v) {emitSpans = v;}
 
 //! Load a SciTags registry (scitags.org schema: a top-level "experiments"
 //! array of {expId, expName, activities:[{activityId, activityName}]}). When
@@ -403,6 +412,13 @@ void     otelResource(nlohmann::json& j, const std::string& src, int32_t stod,
 //! ERROR vs INFO severity.
 void     otelBegin(nlohmann::json& j, const char* eventName, int32_t tSecs,
                    bool error);
+//! Emit a companion OTLP span document derived from an already-built log
+//! document `src`, reusing its resource/attributes/traceId/spanId and replacing
+//! the log envelope with the span fields (name/kind/start-end/status). `tBeg`/
+//! `tEnd` are Unix seconds; `parentSpanId` links to the enclosing span (empty
+//! for a trace root). No-op unless span emission is enabled.
+void     emitSpan(const nlohmann::json& src, const char* name, int32_t tBeg,
+                  int32_t tEnd, const std::string& parentSpanId);
 //! Fill the identity attributes (user.*, client.*, wlcg.*, xrootd.*) into the
 //! event `attributes` object from the user dictionary entry (and the token and
 //! activity streams keyed by the same dictid). Returns the resolved VO (token
@@ -444,6 +460,7 @@ std::size_t maxEntries = 0;        // optional entry-count backstop (0 = off)
 long        serverTTL  = 0;        // idle-incarnation reap age, secs (0 = off)
 bool     resolveHosts = true;
 bool     emitSessions = false;   // per-session rollup + session documents
+bool     emitSpans    = false;   // companion OTLP span documents (--spans)
 
 // Local FQDN substituted for a loopback (co-located) server, resolved at most
 // once for the whole process (MyHostName is the same regardless of which

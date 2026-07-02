@@ -76,7 +76,9 @@ class Transfer : public ::testing::Test
 {
 protected:
   std::string lastDoc;
-  XrdMonDecode dec{[&](const std::string& d){ lastDoc = d; }};
+  std::vector<std::string> allDocs;
+  XrdMonDecode dec{[&](const std::string& d){ lastDoc = d;
+                                              allDocs.push_back(d); }};
 
   void feedUserMap()
   {
@@ -179,6 +181,42 @@ TEST_F(Transfer, SuccessfulCloseStateIsSuccessful)
   EXPECT_EQ(dec.GetStats().failed, 0u);
 }
 
+// With --spans, each close also emits a companion OpenTelemetry span document
+// that reuses the log's resource/attributes/trace ids and carries the span
+// fields (name/kind/start-end/status), child of the session span.
+TEST_F(Transfer, SpanStreamEmitsCorrelatedFileSpan)
+{
+  dec.SetEmitSpans(true);
+  feedUserMap();
+  feedOpen();
+  feedClose();
+
+  // Two documents: the transfer log (has severityText) and its span (has kind).
+  json log, span;
+  bool haveLog = false, haveSpan = false;
+  for (const auto& d : allDocs)
+     {json x = json::parse(d);
+      if (x.contains("kind"))         {span = x; haveSpan = true;}
+      else if (x.contains("severityText")) {log = x; haveLog = true;}
+     }
+  ASSERT_TRUE(haveLog);
+  ASSERT_TRUE(haveSpan);
+
+  EXPECT_EQ(span["kind"], "SPAN_KIND_SERVER");
+  EXPECT_EQ(span["name"], "read");
+  EXPECT_EQ(span["status"]["code"], "STATUS_CODE_OK");
+  EXPECT_TRUE(span.contains("startTimeUnixNano"));
+  EXPECT_TRUE(span.contains("endTimeUnixNano"));
+  EXPECT_TRUE(span.contains("parentSpanId"));
+  // Resource and attributes are reused verbatim from the log.
+  EXPECT_EQ(span["attributes"]["file.path"], "/store/data/file.root");
+  EXPECT_EQ(span["resource"]["service.name"], "xrootd");
+  // The span shares the log's trace/span identity, so the two correlate.
+  EXPECT_EQ(span["traceId"], log["traceId"]);
+  EXPECT_EQ(span["spanId"],  log["spanId"]);
+  EXPECT_EQ(dec.GetStats().spans, 1u);
+}
+
 namespace
 {
 // XrdXrootdMonStatERR: ecode(4) + ecat(1) + rsvd(3) + null-terminated message.
@@ -223,6 +261,36 @@ TEST_F(Transfer, FailedOpenEmitsFailedState)
   EXPECT_EQ(j["attributes"]["error.type"], "auth");
   EXPECT_EQ(j["attributes"]["error.message"], "permission denied");
   EXPECT_EQ(dec.GetStats().failed, 1u);
+}
+
+// A failed operation's companion span carries ERROR status with the message.
+TEST_F(Transfer, SpanStatusReflectsError)
+{
+  dec.SetEmitSpans(true);
+  feedUserMap();
+
+  W body;
+  body.u32(0);                              // fileID union (0 for isError)
+  body.u32(7);                              // inline user dictid
+  std::string lfn = "/store/data/missing.root";
+  body.raw(lfn); body.u8(0);
+  auto eb = errBlock(3011, 5 /*monErrAuth*/, "permission denied");
+  body.raw(eb);
+  auto payload = todRec(kCloseT, 42);
+  auto r = rec(5 /*isError*/, 0x01 /*hasLFN*/, body.b);
+  payload.insert(payload.end(), r.begin(), r.end());
+  auto pkt = packet('f', kStod, payload);
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+
+  json span;
+  bool haveSpan = false;
+  for (const auto& d : allDocs)
+     {json x = json::parse(d);
+      if (x.contains("kind")) {span = x; haveSpan = true;}
+     }
+  ASSERT_TRUE(haveSpan);
+  EXPECT_EQ(span["status"]["code"], "STATUS_CODE_ERROR");
+  EXPECT_EQ(span["status"]["message"], "permission denied");
 }
 
 // An aborted transfer is reported as an isClose carrying a trailing error block.

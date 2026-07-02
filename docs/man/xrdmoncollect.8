@@ -11,7 +11,7 @@ xrdmoncollect - collect and correlate XRootD detailed monitoring streams
               [\fB--forward\fR \fIhost:port\fR] [\fB--metrics-port\fR \fIport\fR]
               [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR]
               [\fB--rcvbuf\fR \fIsz\fR] [\fB--queue-depth\fR \fIn\fR] [\fB--max-entries\fR \fIn\fR]
-              [\fB--sessions\fR] [\fB--traces\fR] [\fB--gstream\fR] [\fB--redirects\fR] [\fB--dump\fR] [\fB-v\fR]
+              [\fB--sessions\fR] [\fB--spans\fR] [\fB--traces\fR] [\fB--gstream\fR] [\fB--redirects\fR] [\fB--dump\fR] [\fB-v\fR]
 
 .fi
 .br
@@ -230,6 +230,17 @@ reverse-resolved; their hostname comes from the \fI=\fR ident.
 Correlate per-session activity and emit a \fIsession\fR document on each client
 disconnect (off by default). When disabled, no per-session rollup is accumulated
 and no session document is produced. See the \fBDESCRIPTION\fR.
+.RE
+\fB--spans\fR
+.RS 5
+Also emit OpenTelemetry \fIspan\fR documents alongside the log records: a
+file-operation span per close or failed operation, and a session span (the trace
+root) per disconnect. The span reuses the log's \fBresource\fR, \fBattributes\fR
+and \fBtraceId\fR/\fBspanId\fR but carries the span fields (\fBname\fR, \fBkind\fR,
+\fBstartTimeUnixNano\fR/\fBendTimeUnixNano\fR, \fBstatus\fR), so a tracing backend
+reconstructs the client session (login \(-> per-file operation). Off by default;
+like the logs it can be high volume. The session span is only meaningful together
+with \fB--sessions\fR.
 .RE
 \fB--traces\fR
 .RS 5

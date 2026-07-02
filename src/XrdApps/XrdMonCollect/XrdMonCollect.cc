@@ -105,6 +105,8 @@ void usage(const char* prog)
      "  --no-resolve     do not substitute the local FQDN for a loopback server\n"
      "  --sessions       correlate per-session activity and emit a session\n"
      "                   document per client disconnect (off by default)\n"
+     "  --spans          also emit OpenTelemetry span documents (file-operation\n"
+     "                   and session spans) alongside the logs (off by default)\n"
      "  --traces         emit a document per t-stream I/O record (high volume)\n"
      "  --gstream        emit a document per g-stream (plugin) record\n"
      "  --redirects      emit a document per r-stream redirect record\n"
@@ -330,6 +332,7 @@ int main(int argc, char* argv[])
    long        scitagsRefresh = 3600;
    bool        resolve = true;
    bool        sessions = false;      // per-session rollup + session documents
+   bool        spans    = false;      // companion OTLP span documents
    std::string bindStore, outStore;   // backing storage for config bind/output
 
 // Load a configuration file before parsing the command line, so command-line
@@ -398,6 +401,7 @@ int main(int argc, char* argv[])
        scitagsRefresh = cfg.GetInteger(sec, "scitags-refresh", scitagsRefresh);
        resolve     = !cfg.GetBoolean(sec, "no-resolve", !resolve);
        sessions    = cfg.GetBoolean(sec, "sessions", sessions);
+       spans       = cfg.GetBoolean(sec, "spans", spans);
        traces      = cfg.GetBoolean(sec, "traces", traces);
        gstream     = cfg.GetBoolean(sec, "gstream", gstream);
        redirects   = cfg.GetBoolean(sec, "redirects", redirects);
@@ -417,7 +421,7 @@ int main(int argc, char* argv[])
       OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
       OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
       OPT_SERVER_TTL, OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_NO_RESOLVE,
-      OPT_SESSIONS, OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
+      OPT_SESSIONS, OPT_SPANS, OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
    };
    static const struct option longOpts[] =
    {  {"config",          required_argument, nullptr, 'c'},
@@ -442,6 +446,7 @@ int main(int argc, char* argv[])
       {"scitags-refresh", required_argument, nullptr, OPT_SCITAGS_REFRESH},
       {"no-resolve",      no_argument,       nullptr, OPT_NO_RESOLVE},
       {"sessions",        no_argument,       nullptr, OPT_SESSIONS},
+      {"spans",           no_argument,       nullptr, OPT_SPANS},
       {"traces",          no_argument,       nullptr, OPT_TRACES},
       {"gstream",         no_argument,       nullptr, OPT_GSTREAM},
       {"redirects",       no_argument,       nullptr, OPT_REDIRECTS},
@@ -489,6 +494,7 @@ int main(int argc, char* argv[])
          case OPT_SCITAGS_REFRESH: scitagsRefresh = atol(optarg);     break;
          case OPT_NO_RESOLVE:    resolve      = false;               break;
          case OPT_SESSIONS:      sessions     = true;                break;
+         case OPT_SPANS:         spans        = true;                break;
          case OPT_TRACES:        traces       = true;                break;
          case OPT_GSTREAM:       gstream      = true;                break;
          case OPT_REDIRECTS:     redirects    = true;                break;
@@ -648,6 +654,7 @@ int main(int argc, char* argv[])
    decoder.SetServerTTL(serverTtl);
    decoder.SetResolveHosts(resolve);
    decoder.SetEmitSessions(sessions);
+   decoder.SetEmitSpans(spans);
 #ifdef XRDMON_HAVE_CURL
    // The OpenSearch sink initializes libcurl globally; do it here too when a URL
    // registry is the only curl user, before the first (main-thread) fetch and
@@ -901,7 +908,8 @@ int main(int argc, char* argv[])
          "mapUser=%llu mapTokn=%llu mapUeac=%llu mapIdnt=%llu "
          "opens=%llu closes=%llu xfrs=%llu discs=%llu docs=%llu "
          "orphanCloses=%llu lost=%llu evicted=%llu "
-         "traces=%llu gevents=%llu redirs=%llu frm=%llu unknown=%llu\n",
+         "traces=%llu gevents=%llu redirs=%llu spans=%llu frm=%llu "
+         "unknown=%llu\n",
          (unsigned long long)s.packets, (unsigned long long)s.malformed,
          (unsigned long long)s.records, (unsigned long long)s.mapUser,
          (unsigned long long)s.mapTokn, (unsigned long long)s.mapUeac,
@@ -911,8 +919,8 @@ int main(int argc, char* argv[])
          (unsigned long long)s.docs, (unsigned long long)s.orphanCls,
          (unsigned long long)s.lost, (unsigned long long)s.evicted,
          (unsigned long long)s.traces, (unsigned long long)s.gevents,
-         (unsigned long long)s.redirs, (unsigned long long)s.frmEvents,
-         (unsigned long long)s.unknown);
+         (unsigned long long)s.redirs, (unsigned long long)s.spans,
+         (unsigned long long)s.frmEvents, (unsigned long long)s.unknown);
       }
 
    if (out != stdout) fclose(out);

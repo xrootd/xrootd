@@ -318,6 +318,50 @@ void XrdMonDecode::otelBegin(json& j, const char* eventName, int32_t tSecs,
 }
 
 /******************************************************************************/
+/*                             e m i t S p a n                                */
+/******************************************************************************/
+
+void XrdMonDecode::emitSpan(const json& src, const char* name, int32_t tBeg,
+                            int32_t tEnd, const std::string& parentSpanId)
+{
+   if (!emitSpans || !doc) return;
+
+// A span reuses the log record's resource, event attributes and trace/span ids,
+// but swaps the log envelope (severity/timeUnixNano) for the OTLP span fields
+// (name/kind/start-end/status), so a tracing backend gets a real span while the
+// log keeps the detail. The ids match the log's, so the two correlate.
+//
+   json sp;
+   sp["resource"] = src.at("resource");
+   if (src.contains("scope"))      sp["scope"]      = src["scope"];
+   if (src.contains("attributes")) sp["attributes"] = src["attributes"];
+   sp["traceId"] = src.value("traceId", std::string());
+   sp["spanId"]  = src.value("spanId",  std::string());
+   if (!parentSpanId.empty()) sp["parentSpanId"] = parentSpanId;
+
+   sp["name"] = name;
+   sp["kind"] = "SPAN_KIND_SERVER";
+   if (tBeg > 0)
+      {sp["startTimeUnixNano"] = unixNano(tBeg);
+       sp["@timestamp"]        = isoTime(tBeg);
+      }
+   sp["endTimeUnixNano"] = unixNano(tEnd > 0 ? tEnd : tBeg);
+
+   json status;
+   if (src.value("severityText", std::string()) == "ERROR")
+      {status["code"] = "STATUS_CODE_ERROR";
+       if (src.contains("attributes") &&
+           src["attributes"].contains("error.message"))
+          status["message"] = src["attributes"]["error.message"];
+      }
+      else status["code"] = "STATUS_CODE_OK";
+   sp["status"] = status;
+
+   stats.spans++;
+   doc(sp.dump());
+}
+
+/******************************************************************************/
 /*                         o t e l I d e n t i t y                            */
 /******************************************************************************/
 
@@ -1071,6 +1115,13 @@ void XrdMonDecode::EmitDisc(const std::string& src, int32_t stod, Server& srv,
                        "client sessions ended", {{"server", src}}) += 1;
 
    if (doc) doc(j.dump());
+
+// The session span is the trace root (no parent), spanning the folded activity
+// from the first close to this disconnect.
+//
+   int32_t sBeg = (uit != srv.users.end() && uit->second.sFirst > 0)
+                ? uit->second.sFirst : 0;
+   emitSpan(j, "session", sBeg, tWin, std::string());
 }
 
 /******************************************************************************/
@@ -1094,6 +1145,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    int64_t  openFsz  = 0;      // file size captured at open
    uint32_t openUser = 0;      // user dictid from the open (for session rollup)
    std::string openLfn;        // lfn from the open (for the session rollup)
+   int32_t  openTBeg = 0;      // open time (for the file-operation span start)
 
 // Terminal status is needed up front: it drives the log severity and the
 // whole-file-vs-access decision. "forced" (disconnect-driven) is not a failure
@@ -1130,6 +1182,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        openFsz  = of.fsz;
        openUser = of.user;
        openLfn  = of.lfn;
+       openTBeg = of.tOpen;
        setFile(a, of.lfn);
        a["file.size"] = of.fsz;
        a["xrootd.file.read_write"] = of.rw;
@@ -1272,6 +1325,13 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 
    stats.docs++;
    if (doc) doc(j.dump());
+
+// Companion span for this file operation (open -> close), child of the session
+// span. Start at the open time when known, else the close window.
+//
+   emitSpan(j, (wrBytes > 0) ? "write" : "read",
+            openTBeg > 0 ? openTBeg : tWin, tWin,
+            spanIdOf(sessKey(src, stod, openUser) + "|session"));
 }
 
 /******************************************************************************/
@@ -1343,6 +1403,12 @@ void XrdMonDecode::EmitError(const std::string& src, int32_t stod, Server& srv,
    stats.failed++;
    stats.docs++;
    if (doc) doc(j.dump());
+
+// Companion span for the failed operation (zero-duration, ERROR status), child
+// of the session span.
+//
+   emitSpan(j, cat.empty() ? "operation" : cat.c_str(), tWin, tWin,
+            spanIdOf(sess + "|session"));
 }
 
 /******************************************************************************/
@@ -1739,6 +1805,10 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
 
              stats.docs++;
              if (doc) doc(j.dump());
+
+             // Companion span for the redirect, child of the session span.
+             emitSpan(j, "redirect", tWin, tWin,
+                      spanIdOf(sess + "|session"));
             }
 
          off += RSZ * (1 + slots);
