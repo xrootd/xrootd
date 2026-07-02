@@ -631,8 +631,10 @@ int main(int argc, char* argv[])
    struct OtlpMsg {bool traces = false; std::string body;};
    XrdMonOtlpBatch       otlpBatch;
    XrdMonPipe<OtlpMsg>   otlpPipe(kPostQueueDepth);
-   std::atomic<uint64_t> otlpFailures{0};
-   std::atomic<uint64_t> otlpDropped{0};
+   // Native counters owned by the metrics registry (the source of truth, bumped
+   // on the failure path); null when no metrics port is configured.
+   XrdMetrics::Counter<std::uint64_t>* otlpFailures = nullptr;
+   XrdMetrics::Counter<std::uint64_t>* otlpDropped  = nullptr;
 
    // Optional on-failure disk cache, sharing --cache-dir with the OpenSearch
    // sink. Logs and traces get separate caches (they replay to different
@@ -816,10 +818,8 @@ int main(int argc, char* argv[])
        if (otlpEnabled)
           {subsystem->observeGauge<std::int64_t>("xrootd_collector_otlp_queue_bodies", "OTLP bodies queued for the export POST")
               .add({}, [&]{return (int64_t)otlpPipe.readyDepth();});
-           subsystem->observeCounter<std::uint64_t>("xrootd_collector_otlp_failures_total", "OTLP POSTs that failed after retries")
-              .add({}, [&]{return (uint64_t)otlpFailures.load();});
-           subsystem->observeCounter<std::uint64_t>("xrootd_collector_otlp_dropped_total", "OTLP bodies dropped after a failed POST (no/failed disk cache)")
-              .add({}, [&]{return (uint64_t)otlpDropped.load();});
+           otlpFailures = &subsystem->counter<std::uint64_t>("xrootd_collector_otlp_failures_total", "OTLP POSTs that failed after retries");
+           otlpDropped  = &subsystem->counter<std::uint64_t>("xrootd_collector_otlp_dropped_total", "OTLP bodies dropped after a failed POST (no/failed disk cache)");
           }
        if (otlpLogCache && otlpTraceCache)
           {subsystem->observeGauge<std::int64_t>("xrootd_collector_otlp_cache_files", "cached OTLP bodies awaiting replay (logs + traces)")
@@ -933,7 +933,7 @@ int main(int argc, char* argv[])
              {std::string e;
               bool ok = traces ? otlp->PostTraces(b, e) : otlp->PostLogs(b, e);
               if (!ok)
-                 {otlpFailures++;
+                 {if (otlpFailures) ++*otlpFailures;
                   time_t now = time(0);
                   if (now - otlpWarn >= 10)
                      {otlpWarn = now;
@@ -965,7 +965,7 @@ int main(int argc, char* argv[])
                   if (c && !c->Empty())
                      {// Preserve order: queue behind the backlog, then drain.
                       if (!c->Store(m.body, e))
-                         {otlpDropped++;
+                         {if (otlpDropped) ++*otlpDropped;
                           fprintf(stderr, "xrdmoncollect: OTLP cache store failed: "
                                   "%s\n", e.c_str());}
                       drain(c, m.traces);
@@ -973,11 +973,11 @@ int main(int argc, char* argv[])
                      else if (!post(m.traces, m.body))
                      {if (c)
                          {if (!c->Store(m.body, e))
-                             {otlpDropped++;
+                             {if (otlpDropped) ++*otlpDropped;
                               fprintf(stderr, "xrdmoncollect: OTLP cache store "
                                       "failed: %s\n", e.c_str());}
                          }
-                         else otlpDropped++;   // no cache: terminal failure drops
+                         else if (otlpDropped) ++*otlpDropped;   // no cache: drops
                      }
                   m.body.clear();
                   otlpPipe.recycle(std::move(m));
