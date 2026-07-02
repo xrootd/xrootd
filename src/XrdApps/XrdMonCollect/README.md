@@ -249,10 +249,12 @@ fallback when no other sink is configured (`-o` always adds a file too):
   re-encoded into the strict OTLP `resourceLogs`/`resourceSpans` envelope with
   typed `KeyValue` attributes; the log/span envelope fields (severity, times,
   trace/span ids, name/kind/status) pass through since they are already
-  OTLP-shaped. Batched per flush on a dedicated output thread with retry/backoff;
-  a body that still fails is dropped (counted), so run a collector with its own
-  queue for durability. Requires libcurl; `--otlp-insecure` skips TLS
-  verification. This is the log/trace analogue of the metrics OTLP push in
+  OTLP-shaped. Batched per flush on a dedicated output thread with retry/backoff.
+  With `--cache-dir` a body that still fails is written to disk and retried later
+  (logs and traces cache separately under `otlp-logs`/`otlp-traces` subdirectories,
+  since they replay to different endpoints); without it a terminal failure drops
+  the body (counted). Requires libcurl; `--otlp-insecure` skips TLS verification.
+  This is the log/trace analogue of the metrics OTLP push in
   `XrdHttpMetricsExporter`.
 - **TCP forward** (`--forward host:port`): streams the same NDJSON over a plain
   TCP connection to a buffering/forwarding frontend — Logstash (`tcp` input),

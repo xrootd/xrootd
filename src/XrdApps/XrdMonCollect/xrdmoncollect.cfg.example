@@ -34,8 +34,10 @@ port = 9930
 # otlp-url = http://collector.example.org:4318
 # otlp-insecure = false
 
-# On-failure disk cache: _bulk bodies that fail to POST are written here and
-# retried oldest-first (and replayed on startup). Unset = drop on failure.
+# On-failure disk cache (shared by the OpenSearch and OTLP sinks): bodies that
+# fail to POST are written here and retried oldest-first (and replayed on
+# startup). OpenSearch bulk bodies live directly under the dir; OTLP bodies under
+# otlp-logs/ and otlp-traces/. Unset = drop on failure.
 # cache-dir = /var/lib/xrootd/moncollect
 
 # Also stream documents as NDJSON over TCP to a buffering frontend (host:port).

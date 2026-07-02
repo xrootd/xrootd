@@ -22,6 +22,7 @@ COLLECTOR_PID="${PWD}/${NAME}/collector.pid"
 OTLP_PORT=8097
 OTLP_OUT="${PWD}/${NAME}/otlp.captured"
 OTLP_PID="${PWD}/${NAME}/otlp.pid"
+OTLP_CACHE="${PWD}/${NAME}/otlp-cache"
 
 # Security fragment that moncollect.cfg continues into (see the cfg). Generated
 # at setup time so its contents can depend on whether VOMS is built. The name has
@@ -118,7 +119,8 @@ function setup_moncollect() {
 		        > "${PWD}/${NAME}/otlp.log" 2>&1 < /dev/null &
 		echo $! > "${OTLP_PID}"
 		disown 2>/dev/null || true
-		OTLP_ARGS="--otlp-url http://127.0.0.1:${OTLP_PORT} --spans"
+		OTLP_ARGS="--otlp-url http://127.0.0.1:${OTLP_PORT} --spans \
+		           --cache-dir ${OTLP_CACHE}"
 		sleep 1   # let it bind before the first export
 	fi
 
@@ -198,7 +200,12 @@ function test_moncollect() {
 		done
 		assert grep -q '^/v1/traces ' "${OTLP_OUT}"
 		assert grep -q '"resourceSpans"' "${OTLP_OUT}"
-		echo "found: OTLP logs + traces export"
+		# --cache-dir gives the OTLP sink on-failure durability: the per-signal
+		# cache subdirectories are created at startup (logs and traces replay to
+		# different endpoints, so they cache separately).
+		assert test -d "${OTLP_CACHE}/otlp-logs"
+		assert test -d "${OTLP_CACHE}/otlp-traces"
+		echo "found: OTLP logs + traces export (with disk cache)"
 	fi
 
 	# With VOMS, the proxy's fake VOMS attribute certificate must surface on the

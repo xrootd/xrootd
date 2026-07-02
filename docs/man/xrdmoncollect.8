@@ -139,8 +139,9 @@ Collector, Grafana Alloy, or any OTLP/HTTP receiver): logs are POSTed to
 with \fBContent-Type: application/json\fR. The nested \fBresource\fR/\fBattributes\fR
 objects are re-encoded into the strict OTLP \fBresourceLogs\fR/\fBresourceSpans\fR
 envelope with typed \fBKeyValue\fR attributes. Batched per flush on a dedicated
-output thread with retry/backoff; a body that still fails is dropped (there is no
-disk cache on this path). Requires that \fBxrdmoncollect\fR was built with libcurl.
+output thread with retry/backoff; with \fB--cache-dir\fR a body that still fails
+is written to disk and retried later (see \fB--cache-dir\fR), otherwise it is
+dropped. Requires that \fBxrdmoncollect\fR was built with libcurl.
 .RE
 \fB--otlp-insecure\fR
 .RS 5
@@ -148,11 +149,14 @@ Skip TLS certificate verification for the OTLP endpoint.
 .RE
 \fB--cache-dir\fR \fIdir\fR
 .RS 5
-Directory for the on-failure disk cache. When set, an OpenSearch \fB_bulk\fR body
-that still fails to POST after retries is written under \fIdir\fR and retried
-oldest-first once the sink recovers; files left by a previous run are replayed on
-startup. The cache has no size limit. When unset (the default), a body that
-cannot be posted is dropped (counted in \fBxrootd_collector_dropped_bulk_total\fR).
+Directory for the on-failure disk cache, shared by the OpenSearch and OTLP sinks.
+When set, a body that still fails to POST after retries is written under \fIdir\fR
+and retried oldest-first once the sink recovers; files left by a previous run are
+replayed on startup. The OpenSearch \fB_bulk\fR bodies live directly under
+\fIdir\fR; the OTLP bodies live under the \fBotlp-logs\fR and \fBotlp-traces\fR
+subdirectories (they replay to different endpoints). The cache has no size limit.
+When unset (the default), a body that cannot be posted is dropped (counted in
+\fBxrootd_collector_dropped_bulk_total\fR / \fBxrootd_collector_otlp_dropped_total\fR).
 .RE
 \fB--forward\fR \fIhost:port\fR
 .RS 5
