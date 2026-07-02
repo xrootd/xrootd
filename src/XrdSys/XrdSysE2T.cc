@@ -42,12 +42,26 @@
 
 namespace
 {
-static const int           errSlots = 144;
-XrdSysMutex                e2sMutex;
-std::map<int, std::string> e2sMap;
-       const char*         Errno2String[errSlots] = {0};
+static const int errSlots = 144;
 
-int initErrTable()
+// All state used by XrdSysE2T() lives in this struct. It is exposed through a
+// function-local static (see errTable() below) so that it is constructed on
+// first use. XrdSysE2T() is a low-level helper that may be invoked from the
+// static initializers of other translation units (e.g. XrdNetIdentity.cc);
+// a function-local static guarantees construction before use regardless of
+// cross-TU static initialization order, avoiding the static init order fiasco.
+//
+struct ErrTable
+{
+   XrdSysMutex                e2sMutex;
+   std::map<int, std::string> e2sMap;
+   const char*                Errno2String[errSlots] = {0};
+   int                        maxErrno = 0;
+
+   ErrTable();
+};
+
+ErrTable::ErrTable()
 {
    char *eTxt, eBuff[80];
    int lastGood = 0;
@@ -88,13 +102,19 @@ int initErrTable()
            }
        }
 
-// Return the highest valid one
+// Record the highest valid one
 //
    Errno2String[0] = "no error";
-   return lastGood;
+   maxErrno = lastGood;
 }
 
-int maxErrno = initErrTable();
+// Construct-on-first-use accessor for the error table.
+//
+ErrTable& errTable()
+{
+   static ErrTable table;
+   return table;
+}
 }
 
 /******************************************************************************/
@@ -103,13 +123,14 @@ int maxErrno = initErrTable();
   
 const char *XrdSysE2T(int errcode)
 {
+   ErrTable &T = errTable();
    char eBuff[80];
 
 // Check if we can return this immediately
 //
-   if (errcode == 0) return Errno2String[0];
-   if (errcode > ERRNOBASE && errcode <= ERRNOBASE + maxErrno)
-      return Errno2String[errcode - ERRNOBASE];
+   if (errcode == 0) return T.Errno2String[0];
+   if (errcode > ERRNOBASE && errcode <= ERRNOBASE + T.maxErrno)
+      return T.Errno2String[errcode - ERRNOBASE];
 
 // If this is a negative value, then return a generic message
 //
@@ -118,16 +139,16 @@ const char *XrdSysE2T(int errcode)
 // Our errno registration wasn't sufficient, so check if it's already
 // registered and if not, register it.
 //
-   e2sMutex.Lock();
-   std::string &eTxt = e2sMap[errcode];
+   T.e2sMutex.Lock();
+   std::string &eTxt = T.e2sMap[errcode];
    if (!eTxt.size())
       {snprintf(eBuff, sizeof(eBuff), "unknown error %d", errcode);
        eTxt = std::string(eBuff);
-       e2sMap[errcode] = eTxt;
+       T.e2sMap[errcode] = eTxt;
       }
 
 // Return the result
 //
-   e2sMutex.UnLock();
+   T.e2sMutex.UnLock();
    return eTxt.c_str();
 }
