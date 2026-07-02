@@ -23,22 +23,22 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClFileStateHandler.hh"
-#include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClStatus.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClForkHandler.hh"
-#include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClMessageUtils.hh"
-#include "XrdCl/XrdClXRootDTransport.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
-#include "XrdCl/XrdClMonitor.hh"
-#include "XrdCl/XrdClFileTimer.hh"
-#include "XrdCl/XrdClResponseJob.hh"
-#include "XrdCl/XrdClJobManager.hh"
-#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClAnyObject.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClFileTimer.hh"
+#include "XrdCl/XrdClForkHandler.hh"
+#include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClMonitor.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClResponseJob.hh"
+#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 
 #ifdef WITH_XRDEC
 #include "XrdCl/XrdClEcHandler.hh"
@@ -46,18 +46,18 @@
 
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
-#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include "XrdSys/XrdSysKernelBuffer.hh"
 #include "XrdSys/XrdSysPageSize.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include <sstream>
 #include <memory>
+#include <mutex>
 #include <numeric>
+#include <sstream>
 #include <sys/time.h>
 #include <uuid/uuid.h>
-#include <mutex>
 
 namespace
 {
@@ -854,8 +854,8 @@ namespace XrdCl
 
     if( !self->pFileUrl->IsValid() )
     {
-      log->Error( FileMsg, "[%p@%s] Trying to open invalid url: %s",
-                  (void*)self.get(), self->pFileUrl->GetPath().c_str(), url.c_str() );
+      log->Error( FileMsg, "[%p] Trying to open invalid url: %s",
+                  (void*)self.get(), obfuscateAuth( url ).c_str() );
       self->pStatus    = XRootDStatus( stError, errInvalidArgs );
       self->pFileState = Closed;
       return self->pStatus;
