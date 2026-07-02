@@ -23,23 +23,20 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClCopyProcess.hh"
-#include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClClassicCopyJob.hh"
-#include "XrdCl/XrdClTPFallBackCopyJob.hh"
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClMonitor.hh"
-#include "XrdCl/XrdClCopyJob.hh"
-#include "XrdCl/XrdClUtils.hh"
-#include "XrdCl/XrdClJobManager.hh"
-#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClCopyJob.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClMonitor.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClTPFallBackCopyJob.hh"
+#include "XrdCl/XrdClUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <sys/time.h>
-
-#include <memory>
 
 namespace
 {
@@ -387,7 +384,10 @@ namespace XrdCl
       props.Get( "source", tmp );
       URL source = tmp;
       if( !source.IsValid() )
+      {
+        log->Error( UtilityMsg, "Invalid copy source URL: %s", obfuscateAuth( tmp ).c_str() );
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid source" );
+      }
 
       //--------------------------------------------------------------------------
       // Create a virtual redirector if it is a Metalink file
@@ -411,7 +411,10 @@ namespace XrdCl
       props.Get( "target", tmp );
       URL target = tmp;
       if( !target.IsValid() )
+      {
+        log->Error( UtilityMsg, "Invalid copy target URL: %s", obfuscateAuth( tmp ).c_str() );
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid target" );
+      }
 
       if( target.GetProtocol() != "stdio" )
       {
