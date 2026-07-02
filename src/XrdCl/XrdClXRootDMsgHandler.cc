@@ -1986,7 +1986,7 @@ namespace XrdCl
           surlLog = obfuscateAuth(surlLog);
         }
         log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data: %s",
-                    newUrl.GetHostId().c_str(), surl.c_str());
+                    newUrl.GetHostId().c_str(), surlLog.c_str());
         return Status(stError, errInvalidRedirectURL);
       }
     }

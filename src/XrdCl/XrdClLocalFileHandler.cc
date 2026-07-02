@@ -17,29 +17,30 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 #include "XrdCl/XrdClLocalFileHandler.hh"
+#include "XProtocol/XProtocol.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClMessageUtils.hh"
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XProtocol/XProtocol.hh"
 
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
-#include "XrdSys/XrdSysXAttr.hh"
 #include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysFD.hh"
+#include "XrdSys/XrdSysXAttr.hh"
 
-#include <string>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
-#include <fcntl.h>
+#include <aio.h>
+#include <arpa/inet.h>
 #include <cstdio>
 #include <cstdlib>
-#include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
-#include <aio.h>
+#include <unistd.h>
 
 namespace
 {
@@ -822,7 +823,11 @@ namespace XrdCl
 
     URL fileUrl( url );
     if( !fileUrl.IsValid() )
+    {
+      log->Error( FileMsg, "Trying to open invalid local file URL: %s",
+                  obfuscateAuth( url ).c_str() );
       return XRootDStatus( stError, errInvalidArgs );
+    }
 
     if( fileUrl.GetHostName() != "localhost" )
       return XRootDStatus( stError, errNotSupported );

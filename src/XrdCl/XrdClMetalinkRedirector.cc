@@ -9,15 +9,15 @@
 
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileStateHandler.hh"
-#include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClJobManager.hh"
-#include "XrdCl/XrdClUtils.hh"
-#include "XrdCl/XrdClPostMasterInterfaces.hh"
+#include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClPostMasterInterfaces.hh"
+#include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClUtils.hh"
+#include "XrdOuc/XrdOucPrivateUtils.hh"
 
 #include "XrdXml/XrdXmlMetaLink.hh"
 
@@ -419,13 +419,26 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void MetalinkRedirector::InitReplicas( XrdOucFileInfo **fileInfos )
   {
+    Log *log = DefaultEnv::GetLog();
     URL replica;
     const char *url = 0;
     while( ( url = fileInfos[0]->GetUrl() ) )
     {
       replica = URL( url );
-      if( !replica.IsValid() || replica.GetURL().size() > 4096 )
-        continue; // this is the internal limit (defined in the protocol)
+      if( !replica.IsValid() )
+      {
+        log->Debug( UtilityMsg, "Skipping invalid metalink replica URL: %s",
+                    obfuscateAuth( url ).c_str() );
+        continue;
+      }
+      if( replica.GetURL().size() > 4096 )
+      {
+        log->Debug( UtilityMsg, "Skipping metalink replica URL exceeding "
+                    "size limit: %s", obfuscateAuth( url ).c_str() );
+        log->Dump( UtilityMsg, "Replica URL length: %zu",
+                   replica.GetURL().size() );
+        continue;
+      }
       pReplicas.push_back( replica.GetURL() );
     }
   }
