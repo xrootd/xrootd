@@ -297,6 +297,16 @@ onto the default registry in time. See the lifetime rule below.
   a read lock and serialize a stable snapshot. Observed-metric readers run during a
   scrape and must be cheap and thread-safe.
 
+## Grafana dashboard
+
+`grafana-dashboard.json` (next to this README) is a ready-to-import dashboard for
+the metrics `xrootd` and `cmsd` expose on the `/metrics` endpoint. Import it in
+Grafana, pick your Prometheus data source, then use the **Job** / **Instance**
+template variables to scope the panels. It groups every native subsystem —
+protocol, OFS, HTTP, links, scheduler, buffers, process, proxy, disk cache, and
+the cmsd cluster view — into collapsible rows. (Metrics from the separate
+`xrdmoncollect` daemon have their own dashboard under `src/XrdApps/XrdMonCollect/`.)
+
 ## Where to look
 
 - Instruments: `XrdMetricsInstrument.hh` · Families: `XrdMetricsFamily.hh`
