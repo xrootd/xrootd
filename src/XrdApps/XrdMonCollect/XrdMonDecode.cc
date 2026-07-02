@@ -584,7 +584,7 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
        if (gap > 0 && gap < 128)
           {stats.lost += gap;
            if (metrics)
-              metrics->counterSeries("xrootd_collector_packets_lost_total",
+              metrics->counterSeries("packets_lost_total",
                    "estimated lost packets (pseq gaps)",
                    {{"server", src}}) += gap;
           }
@@ -969,10 +969,10 @@ void XrdMonDecode::DecodeFrm(const std::string& src, int32_t stod, Server& srv,
    if (!szS.empty()) {sz = atoll(szS.c_str()); a["file.size"] = sz;}
 
    if (metrics)
-      {metrics->counterSeries("xrootd_collector_frm_total", "FRM stage/purge events",
+      {metrics->counterSeries("frm_total", "FRM stage/purge events",
                         {{"server", src}, {"op", op}}) += 1;
        if (code == XROOTD_MON_MAPPURG && sz > 0)
-          metrics->counterSeries("xrootd_collector_frm_purge_bytes_total",
+          metrics->counterSeries("frm_purge_bytes_total",
                         "bytes purged by FRM", {{"server", src}}) += sz;
       }
 
@@ -1077,7 +1077,7 @@ void XrdMonDecode::DecodeFStream(const std::string& src, int32_t stod,
 // and closes processed in this packet.
 //
    if (metrics)
-      metrics->gaugeSeries("xrootd_collector_active_transfers",
+      metrics->gaugeSeries("active_transfers",
                      "files currently open (transfers in progress)",
                      {{"server", src}}) = (double)srv.files.size();
 }
@@ -1111,7 +1111,7 @@ void XrdMonDecode::EmitDisc(const std::string& src, int32_t stod, Server& srv,
    j["spanId"]  = spanIdOf(sess + "|session");
 
    if (metrics)
-      metrics->counterSeries("xrootd_collector_sessions_total",
+      metrics->counterSeries("sessions_total",
                        "client sessions ended", {{"server", src}}) += 1;
 
    if (doc) doc(j.dump());
@@ -1278,7 +1278,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
       {std::string cat = otelError(a, rec + errOff, recSize - errOff);
        stats.failed++;
        if (metrics)
-          metrics->counterSeries("xrootd_collector_failed_operations_total",
+          metrics->counterSeries("failed_operations_total",
                        "operations that concluded unsuccessfully",
                        {{"server", src},
                         {"category", cat.empty() ? "unknown" : cat}})
@@ -1293,32 +1293,32 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    if (metrics)
       {std::vector<XrdMetrics::ConstLabel> sl = {{"server", src}};
        if (whole)
-          metrics->counterSeries("xrootd_collector_transfers_total",
+          metrics->counterSeries("transfers_total",
                            "completed whole-file transfers seen", sl) += 1;
           else
-          metrics->counterSeries("xrootd_collector_accesses_total",
+          metrics->counterSeries("accesses_total",
                            "completed partial-access closes seen", sl) += 1;
-       metrics->counterSeries("xrootd_collector_read_bytes_total",
+       metrics->counterSeries("read_bytes_total",
                         "bytes read (read+readv)", sl) += rdBytes + rvBytes;
-       metrics->counterSeries("xrootd_collector_write_bytes_total",
+       metrics->counterSeries("write_bytes_total",
                         "bytes written", sl) += wrBytes;
        if (!vo.empty())
-          metrics->counterSeries("xrootd_collector_vo_transfers_total",
+          metrics->counterSeries("vo_transfers_total",
                         "completed transfers per VO",
                         {{"server", src}, {"vo", vo}}) += 1;
        if (a.contains("xrootd.transfer.is_local"))
-          metrics->counterSeries("xrootd_collector_locality_transfers_total",
+          metrics->counterSeries("locality_transfers_total",
                         "completed transfers by client/server locality",
                         {{"server", src}, {"locality",
                          a["xrootd.transfer.is_local"].get<bool>() ? "local"
                                                                    : "remote"}})
                   += 1;
-       metrics->histogramSeries("xrootd_collector_transfer_size_bytes",
+       metrics->histogramSeries("transfer_size_bytes",
                         "bytes moved per transfer",
                         {1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e11})
                .observe((double)(rdBytes + rvBytes + wrBytes));
        if (durSecs >= 0)
-          metrics->histogramSeries("xrootd_collector_transfer_duration_seconds",
+          metrics->histogramSeries("transfer_duration_seconds",
                         "transfer wall-clock duration",
                         {1,5,15,60,300,1800,7200}).observe(durSecs);
       }
@@ -1395,7 +1395,7 @@ void XrdMonDecode::EmitError(const std::string& src, int32_t stod, Server& srv,
    j["spanId"]  = spanIdOf(sess + "|err|" + std::to_string(tWin));
 
    if (metrics)
-      metrics->counterSeries("xrootd_collector_failed_operations_total",
+      metrics->counterSeries("failed_operations_total",
                    "operations that concluded unsuccessfully",
                    {{"server", src},
                     {"category", cat.empty() ? "unknown" : cat}}) += 1;
@@ -1561,10 +1561,10 @@ void gsAggregate(XrdMetrics::Subsystem* M,
                 for (auto& op : ops)
                     {std::vector<XrdMetrics::ConstLabel> l = {{"server", src}, {"op", op.first}};
                      std::string base = src + "|oss|" + op.first;
-                     delta("xrootd_collector_oss_ops_total",
+                     delta("oss_ops_total",
                            "OSS plugin operations", l, base, jU(j, op.second));
                      std::string slowKey = std::string("slow_") + op.second;
-                     delta("xrootd_collector_oss_slow_ops_total",
+                     delta("oss_slow_ops_total",
                            "OSS plugin slow operations", l, base + "|slow",
                            jU(j, slowKey.c_str()));
                     }
@@ -1574,11 +1574,11 @@ void gsAggregate(XrdMetrics::Subsystem* M,
           case XROOTD_MON_GSPFC:   // per file_close event
                {auto ev = j.find("event");
                 if (ev == j.end() || *ev != "file_close") break;
-                M->counterSeries("xrootd_collector_pfc_files_total",
+                M->counterSeries("pfc_files_total",
                            "proxy-cache file closes", srv) += 1;
                 auto pfcBytes = [&](const char* source, const char* field)
                    {uint64_t v = jU(j, field);
-                    if (v) M->counterSeries("xrootd_collector_pfc_bytes_total",
+                    if (v) M->counterSeries("pfc_bytes_total",
                                 "proxy-cache bytes by source",
                                 {{"server", src}, {"source", source}}) += v;
                    };
@@ -1602,14 +1602,14 @@ void gsAggregate(XrdMetrics::Subsystem* M,
                        rc = rcit->get<int>();
                    }
                 uint64_t size = jU(j, "Size");
-                M->counterSeries("xrootd_collector_tpc_total", "third-party copies",
+                M->counterSeries("tpc_total", "third-party copies",
                            {{"server", src}, {"type", type},
                             {"result", rc == 0 ? "ok" : "error"}}) += 1;
                 if (size)
-                   M->counterSeries("xrootd_collector_tpc_bytes_total",
+                   M->counterSeries("tpc_bytes_total",
                               "third-party copy bytes",
                               {{"server", src}, {"type", type}}) += size;
-                M->histogramSeries("xrootd_collector_tpc_size_bytes",
+                M->histogramSeries("tpc_size_bytes",
                              "third-party copy size",
                              {1e6,1e7,1e8,1e9,1e10,1e11}).observe((double)size);
                }
@@ -1618,12 +1618,12 @@ void gsAggregate(XrdMetrics::Subsystem* M,
           case XROOTD_MON_GSTHR:   // throttle plugin
                {auto ev = j.find("event");
                 if (ev == j.end() || *ev != "throttle_update") break;
-                delta("xrootd_collector_throttle_io_total",
+                delta("throttle_io_total",
                       "throttle plugin I/O operations", srv,
                       src + "|thr|io_total", jU(j, "io_total"));
                 auto ia = j.find("io_active");
                 if (ia != j.end() && ia->is_number())
-                   M->gaugeSeries("xrootd_collector_throttle_io_active",
+                   M->gaugeSeries("throttle_io_active",
                             "throttle plugin in-flight I/O", srv)
                     = ia->get<double>();
                }
@@ -1641,7 +1641,7 @@ void gsAggregate(XrdMetrics::Subsystem* M,
                                                                   : key.substr(us + 1);
                      std::vector<XrdMetrics::ConstLabel> l = {{"server", src}, {"method", method},
                                            {"status", status}};
-                     delta("xrootd_collector_http_requests_total",
+                     delta("http_requests_total",
                            "HTTP requests by method and status", l,
                            src + "|http|" + key, jU(*it, "count"));
                     }
@@ -1770,7 +1770,7 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
          const char* kind = (type & 0xf0) == XROOTD_MON_REDLOCAL
                           ? "local" : "remote";
          if (metrics)
-            metrics->counterSeries("xrootd_collector_redirects_total",
+            metrics->counterSeries("redirects_total",
                           "client redirects issued by the server",
                           {{"server", src}, {"kind", kind}}) += 1;
          if (redirects)

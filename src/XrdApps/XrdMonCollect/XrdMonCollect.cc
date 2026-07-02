@@ -182,12 +182,13 @@ int openUDP(int port, const char* bindStr)
 // A minimal HTTP exporter: serves the metrics registry to any GET request on
 // the given TCP port. Prometheus scrapes /metrics; we answer every path.
 //
-// The collector's own metrics registry. Its prefix is empty so the explicit
-// xrootd_collector_* metric names pass through unchanged.
+// The collector's own metrics registry. The root Collector owns the "xrootd"
+// prefix and its sole subsystem is "collector", so a bare metric name such as
+// "packets_total" is exposed as "xrootd_collector_packets_total".
 //
 static XrdMetrics::Collector& collectorRegistry()
 {
-   static XrdMetrics::Collector collector("");
+   static XrdMetrics::Collector collector("xrootd");
    return collector;
 }
 
@@ -611,8 +612,10 @@ int main(int argc, char* argv[])
    // body strings are reused round the loop.
    const size_t            kPostQueueDepth = 16;
    XrdMonPipe<std::string> postPipe(kPostQueueDepth);
-   std::atomic<uint64_t>   postFailures{0};
-   std::atomic<uint64_t>   droppedBulk{0};
+   // Native counters owned by the metrics registry (the source of truth, bumped
+   // on the failure path); null when no metrics port is configured.
+   XrdMetrics::Counter<std::uint64_t>* postFailures = nullptr;
+   XrdMetrics::Counter<std::uint64_t>* droppedBulk  = nullptr;
 
    // Optional on-failure disk cache (opt-in via --cache-dir). When set, a POST
    // that fails after retries is written here and retried oldest-first (and on
@@ -717,7 +720,7 @@ int main(int argc, char* argv[])
 // serve it over HTTP. The decoder-level statistics are exposed too.
 //
    XrdMetrics::Subsystem* subsystem =
-            metricsPort > 0 ? &collectorRegistry().subsystem("") : nullptr;
+            metricsPort > 0 ? &collectorRegistry().subsystem("collector") : nullptr;
 
 // The receiver thread fills packet batches and hands them, through this bounded
 // recycling pipe, to the serializer thread that owns the decoder. A generous
@@ -772,63 +775,61 @@ int main(int argc, char* argv[])
       {auto& s = decoder.GetStats();
 #define OBS(name, help, fld) \
        subsystem->observeCounter<std::uint64_t>(name, help).add({}, [&]{return (uint64_t)s.fld;})
-       OBS("xrootd_collector_packets_total",   "monitor packets received", packets);
-       OBS("xrootd_collector_malformed_total", "malformed packets", malformed);
-       OBS("xrootd_collector_evicted_total",
+       OBS("packets_total",   "monitor packets received", packets);
+       OBS("malformed_total", "malformed packets", malformed);
+       OBS("evicted_total",
            "dictionary/open-file entries evicted by the memory budget", evicted);
-       OBS("xrootd_collector_reaped_servers_total",
+       OBS("reaped_servers_total",
            "idle server incarnations reclaimed by the server TTL", reaped);
-       OBS("xrootd_collector_documents_total", "transfer documents produced", docs);
-       OBS("xrootd_collector_orphan_closes_total",
+       OBS("documents_total", "transfer documents produced", docs);
+       OBS("orphan_closes_total",
            "closes with no matching open", orphanCls);
-       OBS("xrootd_collector_disconnects_total",
+       OBS("disconnects_total",
            "f-stream session disconnect records", discs);
-       OBS("xrootd_collector_trace_records_total", "t-stream records decoded", traces);
-       OBS("xrootd_collector_gstream_records_total", "g-stream records decoded", gevents);
-       OBS("xrootd_collector_redirect_records_total",
+       OBS("trace_records_total", "t-stream records decoded", traces);
+       OBS("gstream_records_total", "g-stream records decoded", gevents);
+       OBS("redirect_records_total",
            "r-stream redirect records decoded", redirs);
-       OBS("xrootd_collector_frm_records_total",
+       OBS("frm_records_total",
            "x/p FRM stage/purge records decoded", frmEvents);
-       OBS("xrootd_collector_token_records_total",
+       OBS("token_records_total",
            "T-stream token records decoded", mapTokn);
-       OBS("xrootd_collector_ident_records_total",
+       OBS("ident_records_total",
            "=-stream server-identity records decoded", mapIdnt);
 #undef OBS
-       subsystem->observeGauge<std::int64_t>("xrootd_collector_state_bytes", "approximate resident bytes of correlation state")
+       subsystem->observeGauge<std::int64_t>("state_bytes", "approximate resident bytes of correlation state")
           .add({}, [&]{return (int64_t)decoder.ResidentBytes();});
-       subsystem->observeGauge<std::int64_t>("xrootd_collector_recv_queue_batches", "packet batches queued from the receiver to the serializer")
+       subsystem->observeGauge<std::int64_t>("recv_queue_batches", "packet batches queued from the receiver to the serializer")
           .add({}, [&]{return (int64_t)recvPipe.readyDepth();});
 #ifdef XRDMON_HAVE_CURL
-       subsystem->observeGauge<std::int64_t>("xrootd_collector_post_queue_bodies", "serialized _bulk bodies queued for the OpenSearch POST")
+       subsystem->observeGauge<std::int64_t>("post_queue_bodies", "serialized _bulk bodies queued for the OpenSearch POST")
           .add({}, [&]{return (int64_t)postPipe.readyDepth();});
-       subsystem->observeCounter<std::uint64_t>("xrootd_collector_post_failures_total", "OpenSearch _bulk POSTs that failed after retries")
-          .add({}, [&]{return (uint64_t)postFailures.load();});
-       subsystem->observeCounter<std::uint64_t>("xrootd_collector_dropped_bulk_total", "_bulk bodies dropped after a failed POST (no/failed disk cache)")
-          .add({}, [&]{return (uint64_t)droppedBulk.load();});
+       postFailures = &subsystem->counter<std::uint64_t>("post_failures_total", "OpenSearch _bulk POSTs that failed after retries");
+       droppedBulk  = &subsystem->counter<std::uint64_t>("dropped_bulk_total", "_bulk bodies dropped after a failed POST (no/failed disk cache)");
        if (cache)
-          {subsystem->observeGauge<std::int64_t>("xrootd_collector_cache_files", "cached _bulk bodies awaiting replay")
+          {subsystem->observeGauge<std::int64_t>("cache_files", "cached _bulk bodies awaiting replay")
               .add({}, [&]{return (int64_t)cache->Files();});
-           subsystem->observeGauge<std::int64_t>("xrootd_collector_cache_bytes", "bytes of cached _bulk bodies on disk")
+           subsystem->observeGauge<std::int64_t>("cache_bytes", "bytes of cached _bulk bodies on disk")
               .add({}, [&]{return (int64_t)cache->Bytes();});
-           subsystem->observeCounter<std::uint64_t>("xrootd_collector_cache_stored_total", "_bulk bodies written to the disk cache")
+           subsystem->observeCounter<std::uint64_t>("cache_stored_total", "_bulk bodies written to the disk cache")
               .add({}, [&]{return (uint64_t)cache->Stored();});
-           subsystem->observeCounter<std::uint64_t>("xrootd_collector_cache_replayed_total", "cached _bulk bodies successfully replayed")
+           subsystem->observeCounter<std::uint64_t>("cache_replayed_total", "cached _bulk bodies successfully replayed")
               .add({}, [&]{return (uint64_t)cache->Replayed();});
           }
        if (otlpEnabled)
-          {subsystem->observeGauge<std::int64_t>("xrootd_collector_otlp_queue_bodies", "OTLP bodies queued for the export POST")
+          {subsystem->observeGauge<std::int64_t>("otlp_queue_bodies", "OTLP bodies queued for the export POST")
               .add({}, [&]{return (int64_t)otlpPipe.readyDepth();});
-           otlpFailures = &subsystem->counter<std::uint64_t>("xrootd_collector_otlp_failures_total", "OTLP POSTs that failed after retries");
-           otlpDropped  = &subsystem->counter<std::uint64_t>("xrootd_collector_otlp_dropped_total", "OTLP bodies dropped after a failed POST (no/failed disk cache)");
+           otlpFailures = &subsystem->counter<std::uint64_t>("otlp_failures_total", "OTLP POSTs that failed after retries");
+           otlpDropped  = &subsystem->counter<std::uint64_t>("otlp_dropped_total", "OTLP bodies dropped after a failed POST (no/failed disk cache)");
           }
        if (otlpLogCache && otlpTraceCache)
-          {subsystem->observeGauge<std::int64_t>("xrootd_collector_otlp_cache_files", "cached OTLP bodies awaiting replay (logs + traces)")
+          {subsystem->observeGauge<std::int64_t>("otlp_cache_files", "cached OTLP bodies awaiting replay (logs + traces)")
               .add({}, [&]{return (int64_t)(otlpLogCache->Files() + otlpTraceCache->Files());});
-           subsystem->observeGauge<std::int64_t>("xrootd_collector_otlp_cache_bytes", "bytes of cached OTLP bodies on disk")
+           subsystem->observeGauge<std::int64_t>("otlp_cache_bytes", "bytes of cached OTLP bodies on disk")
               .add({}, [&]{return (int64_t)(otlpLogCache->Bytes() + otlpTraceCache->Bytes());});
-           subsystem->observeCounter<std::uint64_t>("xrootd_collector_otlp_cache_stored_total", "OTLP bodies written to the disk cache")
+           subsystem->observeCounter<std::uint64_t>("otlp_cache_stored_total", "OTLP bodies written to the disk cache")
               .add({}, [&]{return (uint64_t)(otlpLogCache->Stored() + otlpTraceCache->Stored());});
-           subsystem->observeCounter<std::uint64_t>("xrootd_collector_otlp_cache_replayed_total", "cached OTLP bodies successfully replayed")
+           subsystem->observeCounter<std::uint64_t>("otlp_cache_replayed_total", "cached OTLP bodies successfully replayed")
               .add({}, [&]{return (uint64_t)(otlpLogCache->Replayed() + otlpTraceCache->Replayed());});
           }
 #endif
@@ -866,7 +867,7 @@ int main(int argc, char* argv[])
           auto post = [&](const std::string& b)->bool
              {std::string e;
               bool ok = os->Bulk(b, e);
-              if (!ok) {postFailures++;
+              if (!ok) {if (postFailures) ++*postFailures;
                         fprintf(stderr, "xrdmoncollect: bulk post failed: %s\n",
                                 e.c_str());}
                  else if (!e.empty())
@@ -893,7 +894,7 @@ int main(int argc, char* argv[])
                   if (cache && !cache->Empty())
                      {// Preserve order: queue behind the backlog, then drain.
                       if (!cache->Store(body, e))
-                         {droppedBulk++;
+                         {if (droppedBulk) ++*droppedBulk;
                           fprintf(stderr, "xrdmoncollect: cache store failed: "
                                   "%s\n", e.c_str());}
                       drain();
@@ -901,11 +902,11 @@ int main(int argc, char* argv[])
                      else if (!post(body))
                      {if (cache)
                          {if (!cache->Store(body, e))
-                             {droppedBulk++;
+                             {if (droppedBulk) ++*droppedBulk;
                               fprintf(stderr, "xrdmoncollect: cache store failed:"
                                       " %s\n", e.c_str());}
                          }
-                         else droppedBulk++;   // no cache: terminal failure drops
+                         else if (droppedBulk) ++*droppedBulk;  // no cache: drops
                      }
                   body.clear();
                   postPipe.recycle(std::move(body));
