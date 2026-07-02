@@ -136,20 +136,19 @@ TEST_F(Transfer, CorrelatesCloseWithOpenAndUser)
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
 
-  EXPECT_EQ(j["type"], "transfer");
-  EXPECT_EQ(j["file"]["lfn"], "/store/data/file.root");
-  EXPECT_EQ(j["user"]["name"], "alice");
-  EXPECT_EQ(j["user"]["protocol"], "xroot");
-  EXPECT_EQ(j["client"]["host"], "wn.example.org");
-  EXPECT_EQ(j["client"]["hostname"], "wn.example.org");  // not an IP literal
-  EXPECT_EQ(j["transfer"]["read_bytes"], 10485760);
-  EXPECT_EQ(j["transfer"]["operation"], "read");
-  EXPECT_EQ(j["transfer"]["read_ops"], 320);
-  EXPECT_EQ(j["transfer"]["read_max"], 1048576);
-  EXPECT_EQ(j["transfer"]["open_seen"], true);
-  EXPECT_EQ(j["file"]["size"], 123456);
-  EXPECT_EQ(j["transfer"]["duration_s"], kCloseT - kOpenT);
-  EXPECT_EQ(j["server"]["id"], 42);
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "transfer");
+  EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");
+  EXPECT_EQ(j["attributes"]["user.name"], "alice");
+  EXPECT_EQ(j["attributes"]["xrootd.user.protocol"], "xroot");
+  EXPECT_EQ(j["attributes"]["client.address"], "wn.example.org");
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.read_bytes"], 10485760);
+  EXPECT_EQ(j["attributes"]["xrootd.operation"], "read");
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.read_ops"], 320);
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.read_max"], 1048576);
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.open_seen"], true);
+  EXPECT_EQ(j["attributes"]["file.size"], 123456);
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.duration"], kCloseT - kOpenT);
+  EXPECT_EQ(j["resource"]["xrootd.server.id"], 42);
 
   const XrdMonDecode::Stats& s = dec.GetStats();
   EXPECT_EQ(s.docs, 1u);
@@ -164,9 +163,9 @@ TEST_F(Transfer, CloseWithoutOpenIsOrphan)
   feedClose();  // no preceding open
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["transfer"]["open_seen"], false);
-  EXPECT_EQ(j["transfer"]["read_bytes"], 10485760);
-  EXPECT_FALSE(j.contains("file"));
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.open_seen"], false);
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.read_bytes"], 10485760);
+  EXPECT_FALSE(j["attributes"].contains("file.path"));
   EXPECT_EQ(dec.GetStats().orphanCls, 1u);
 }
 
@@ -175,8 +174,8 @@ TEST_F(Transfer, SuccessfulCloseStateIsSuccessful)
   feedClose();  // a plain close (no error block)
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["transfer"]["operation_state"], "Successful");
-  EXPECT_FALSE(j["transfer"].contains("error_message"));
+  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Successful");
+  EXPECT_FALSE(j["attributes"].contains("error.message"));
   EXPECT_EQ(dec.GetStats().failed, 0u);
 }
 
@@ -216,13 +215,13 @@ TEST_F(Transfer, FailedOpenEmitsFailedState)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["type"], "transfer");
-  EXPECT_EQ(j["file"]["lfn"], "/store/data/missing.root");
-  EXPECT_EQ(j["user"]["name"], "alice");          // resolved from the inline dictid
-  EXPECT_EQ(j["transfer"]["operation_state"], "Failed");
-  EXPECT_EQ(j["transfer"]["error_code"], 3011);
-  EXPECT_EQ(j["transfer"]["error_category"], "auth");
-  EXPECT_EQ(j["transfer"]["error_message"], "permission denied");
+  EXPECT_EQ(j["attributes"]["event.name"], "xrootd.transfer");
+  EXPECT_EQ(j["attributes"]["file.path"], "/store/data/missing.root");
+  EXPECT_EQ(j["attributes"]["user.name"], "alice");   // resolved from the inline dictid
+  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Failed");
+  EXPECT_EQ(j["attributes"]["xrootd.error.code"], 3011);
+  EXPECT_EQ(j["attributes"]["error.type"], "auth");
+  EXPECT_EQ(j["attributes"]["error.message"], "permission denied");
   EXPECT_EQ(dec.GetStats().failed, 1u);
 }
 
@@ -256,12 +255,12 @@ TEST_F(Transfer, AbortedTransferCloseHasError)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["file"]["lfn"], "/store/data/file.root");  // joined to the open
-  EXPECT_EQ(j["transfer"]["read_bytes"], 4096);          // partial bytes preserved
-  EXPECT_EQ(j["transfer"]["read_ops"], 2);
-  EXPECT_EQ(j["transfer"]["operation_state"], "Failed");
-  EXPECT_EQ(j["transfer"]["error_category"], "read");
-  EXPECT_EQ(j["transfer"]["error_message"], "read error: connection reset");
+  EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");  // joined to the open
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.read_bytes"], 4096);    // partial bytes preserved
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.read_ops"], 2);
+  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Failed");
+  EXPECT_EQ(j["attributes"]["error.type"], "read");
+  EXPECT_EQ(j["attributes"]["error.message"], "read error: connection reset");
   EXPECT_EQ(dec.GetStats().failed, 1u);
 }
 
@@ -326,13 +325,13 @@ TEST(XrdMonCollect, TStreamRecordsDecoded)
   EXPECT_EQ(dec.GetStats().traces, 3u);
   ASSERT_EQ(docs.size(), 2u);   // window emits nothing; read + close do
   json rd = json::parse(docs[0]);
-  EXPECT_EQ(rd["type"], "read");
-  EXPECT_EQ(rd["offset"], 4096);
-  EXPECT_EQ(rd["length"], 1024);
-  EXPECT_EQ(rd["file"]["lfn"], "/path/f.root");
+  EXPECT_EQ(rd["attributes"]["event.name"], "xrootd.read");
+  EXPECT_EQ(rd["attributes"]["xrootd.io.offset"], 4096);
+  EXPECT_EQ(rd["attributes"]["xrootd.io.length"], 1024);
+  EXPECT_EQ(rd["attributes"]["file.path"], "/path/f.root");
   json cl = json::parse(docs[1]);
-  EXPECT_EQ(cl["type"], "close");
-  EXPECT_EQ(cl["read_bytes"], 2048);
+  EXPECT_EQ(cl["attributes"]["event.name"], "xrootd.close");
+  EXPECT_EQ(cl["attributes"]["xrootd.transfer.read_bytes"], 2048);
 }
 
 TEST_F(Transfer, AggregatesIntoMetricsRegistry)
@@ -391,7 +390,7 @@ TEST_F(Transfer, AppInfoEnrichesTransfer)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["app"]["raw"], "test-app-v1");
+  EXPECT_EQ(j["attributes"]["xrootd.app.raw"], "test-app-v1");
 }
 
 TEST(XrdMonCollect, RedirectStreamDecoded)
@@ -421,15 +420,15 @@ TEST(XrdMonCollect, RedirectStreamDecoded)
   json j = json::parse(out);
   // A redirect is a concluded-operation report: type:"transfer" with
   // operation_state "Redirected" and the destination under "redirect".
-  EXPECT_EQ(j["type"], "transfer");
-  EXPECT_EQ(j["transfer"]["operation"], "open-read");
-  EXPECT_EQ(j["transfer"]["operation_state"], "Redirected");
-  EXPECT_EQ(j["redirect"]["kind"], "remote");
-  EXPECT_EQ(j["redirect"]["target_host"], "host.example");
-  EXPECT_EQ(j["redirect"]["target_port"], 1094);
-  EXPECT_EQ(j["file"]["lfn"], "/store/data/f.root");
-  EXPECT_EQ(j["user"]["name"], "bob");
-  EXPECT_EQ(j["client"]["host"], "cli.example.org");
+  EXPECT_EQ(j["attributes"]["event.name"], "xrootd.transfer");
+  EXPECT_EQ(j["attributes"]["xrootd.operation"], "open-read");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Redirected");
+  EXPECT_EQ(j["attributes"]["xrootd.redirect.kind"], "remote");
+  EXPECT_EQ(j["attributes"]["xrootd.redirect.target.address"], "host.example");
+  EXPECT_EQ(j["attributes"]["xrootd.redirect.target.port"], 1094);
+  EXPECT_EQ(j["attributes"]["file.path"], "/store/data/f.root");
+  EXPECT_EQ(j["attributes"]["user.name"], "bob");
+  EXPECT_EQ(j["attributes"]["client.address"], "cli.example.org");
 }
 
 TEST_F(Transfer, TokenAndActivityEnrichTransfer)
@@ -455,12 +454,12 @@ TEST_F(Transfer, TokenAndActivityEnrichTransfer)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["user"]["subject"], "https://issuer/sub42");
-  EXPECT_EQ(j["user"]["vo"], "atlas");
-  EXPECT_EQ(j["user"]["role"], "production");
-  EXPECT_EQ(j["user"]["groups"], "/atlas/prod");
-  EXPECT_EQ(j["activity"]["experiment_id"], 42);
-  EXPECT_EQ(j["activity"]["activity_id"], 7);
+  EXPECT_EQ(j["attributes"]["user.id"], "https://issuer/sub42");
+  EXPECT_EQ(j["attributes"]["wlcg.vo"], "atlas");
+  EXPECT_EQ(j["attributes"]["wlcg.role"], "production");
+  EXPECT_EQ(j["attributes"]["wlcg.groups"], "/atlas/prod");
+  EXPECT_EQ(j["attributes"]["xrootd.activity.experiment_id"], 42);
+  EXPECT_EQ(j["attributes"]["xrootd.activity.activity_id"], 7);
 
   const XrdMonDecode::Stats& s = dec.GetStats();
   EXPECT_EQ(s.mapTokn, 1u);
@@ -508,11 +507,11 @@ TEST_F(Transfer, ScitagsRegistryMapsActivityAndVo)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["activity"]["experiment_id"], 2);
-  EXPECT_EQ(j["activity"]["activity_id"], 7);
-  EXPECT_EQ(j["activity"]["experiment"], "atlas");
-  EXPECT_EQ(j["activity"]["activity"], "production");
-  EXPECT_EQ(j["user"]["vo"], "atlas");          // VO fallback from the experiment
+  EXPECT_EQ(j["attributes"]["xrootd.activity.experiment_id"], 2);
+  EXPECT_EQ(j["attributes"]["xrootd.activity.activity_id"], 7);
+  EXPECT_EQ(j["attributes"]["wlcg.activity.experiment"], "atlas");
+  EXPECT_EQ(j["attributes"]["wlcg.activity.activity"], "production");
+  EXPECT_EQ(j["attributes"]["wlcg.vo"], "atlas");  // VO fallback from the experiment
 }
 
 // A token VO must win over the SciTags experiment-name fallback.
@@ -534,8 +533,8 @@ TEST_F(Transfer, ScitagsVoYieldsToToken)
   feedClose();
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["user"]["vo"], "cms");            // token VO, not the SciTags "atlas"
-  EXPECT_EQ(j["activity"]["experiment"], "atlas");
+  EXPECT_EQ(j["attributes"]["wlcg.vo"], "cms");    // token VO, not the SciTags "atlas"
+  EXPECT_EQ(j["attributes"]["wlcg.activity.experiment"], "atlas");
 }
 
 // Without a registry, only the numeric ids appear (no names, no VO fallback).
@@ -547,11 +546,11 @@ TEST_F(Transfer, ScitagsNumericWithoutRegistry)
   feedClose();
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["activity"]["experiment_id"], 2);
-  EXPECT_EQ(j["activity"]["activity_id"], 7);
-  EXPECT_FALSE(j["activity"].contains("experiment"));
-  EXPECT_FALSE(j["activity"].contains("activity"));
-  EXPECT_FALSE(j["user"].contains("vo"));
+  EXPECT_EQ(j["attributes"]["xrootd.activity.experiment_id"], 2);
+  EXPECT_EQ(j["attributes"]["xrootd.activity.activity_id"], 7);
+  EXPECT_FALSE(j["attributes"].contains("wlcg.activity.experiment"));
+  EXPECT_FALSE(j["attributes"].contains("wlcg.activity.activity"));
+  EXPECT_FALSE(j["attributes"].contains("wlcg.vo"));
 }
 
 // A missing registry file is reported, leaving numeric ids untouched.
@@ -578,9 +577,9 @@ TEST_F(Transfer, ScitagsJsonReloadReflectsUpdate)
   feedClose();
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["activity"]["experiment"], "cms");
-  EXPECT_EQ(j["activity"]["activity"], "analysis");
-  EXPECT_EQ(j["user"]["vo"], "cms");
+  EXPECT_EQ(j["attributes"]["wlcg.activity.experiment"], "cms");
+  EXPECT_EQ(j["attributes"]["wlcg.activity.activity"], "analysis");
+  EXPECT_EQ(j["attributes"]["wlcg.vo"], "cms");
 }
 
 // A failed re-fetch (unparseable, or no "experiments" array) returns false and
@@ -599,8 +598,8 @@ TEST_F(Transfer, ScitagsJsonBadInputKeepsRegistry)
   feedClose();
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["activity"]["experiment"], "atlas");   // unchanged
-  EXPECT_EQ(j["user"]["vo"], "atlas");
+  EXPECT_EQ(j["attributes"]["wlcg.activity.experiment"], "atlas");   // unchanged
+  EXPECT_EQ(j["attributes"]["wlcg.vo"], "atlas");
 }
 
 // Feed a 'u' map for dictid 7 with a custom CGI tail after the descriptor.
@@ -624,15 +623,13 @@ TEST_F(Transfer, AuthTailEnrichesTransfer)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["user"]["auth_method"], "gsi");
-  EXPECT_EQ(j["user"]["vo"], "atlas");          // auth-derived VO (no token here)
-  EXPECT_EQ(j["user"]["role"], "production");
-  EXPECT_EQ(j["client"]["version"], "v5.6.1");
-  EXPECT_EQ(j["client"]["ip_version"], 4);
-  EXPECT_EQ(j["app"]["name"], "xrdcp");
-  // The descriptor host is an IPv4 literal -> client.ip, not client.hostname.
-  EXPECT_EQ(j["client"]["ip"], "198.51.100.7");
-  EXPECT_FALSE(j["client"].contains("hostname"));
+  EXPECT_EQ(j["attributes"]["xrootd.auth.method"], "gsi");
+  EXPECT_EQ(j["attributes"]["wlcg.vo"], "atlas");   // auth-derived VO (no token here)
+  EXPECT_EQ(j["attributes"]["wlcg.role"], "production");
+  EXPECT_EQ(j["attributes"]["xrootd.client.version"], "v5.6.1");
+  EXPECT_EQ(j["attributes"]["network.type"], "ipv4");
+  EXPECT_EQ(j["attributes"]["xrootd.app.name"], "xrdcp");
+  EXPECT_EQ(j["attributes"]["client.address"], "198.51.100.7");
 }
 
 TEST_F(Transfer, NoAuthLoginAppinfoStillEnriches)
@@ -644,11 +641,11 @@ TEST_F(Transfer, NoAuthLoginAppinfoStillEnriches)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["client"]["version"], "v5.6.1");
-  EXPECT_EQ(j["client"]["ip_version"], 6);
-  EXPECT_FALSE(j["user"].contains("auth_method"));  // no &p= without auth
-  EXPECT_FALSE(j["user"].contains("vo"));           // no &o= and no token
-  EXPECT_FALSE(j["client"].contains("site"));       // no &S= -> no client.site
+  EXPECT_EQ(j["attributes"]["xrootd.client.version"], "v5.6.1");
+  EXPECT_EQ(j["attributes"]["network.type"], "ipv6");
+  EXPECT_FALSE(j["attributes"].contains("xrootd.auth.method"));  // no &p= without auth
+  EXPECT_FALSE(j["attributes"].contains("wlcg.vo"));             // no &o= and no token
+  EXPECT_FALSE(j["attributes"].contains("xrootd.client.site")); // no &S= -> no client.site
 }
 
 TEST_F(Transfer, ClientSiteAdvertised)
@@ -661,9 +658,9 @@ TEST_F(Transfer, ClientSiteAdvertised)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["client"]["site"], "CERN-PROD");
-  EXPECT_EQ(j["client"]["version"], "v5.6.1");  // neighbouring fields intact
-  EXPECT_EQ(j["app"]["name"], "xrdcp");
+  EXPECT_EQ(j["attributes"]["xrootd.client.site"], "CERN-PROD");
+  EXPECT_EQ(j["attributes"]["xrootd.client.version"], "v5.6.1");  // neighbouring fields intact
+  EXPECT_EQ(j["attributes"]["xrootd.app.name"], "xrdcp");
 }
 
 TEST_F(Transfer, WriteOperationDerived)
@@ -683,9 +680,9 @@ TEST_F(Transfer, WriteOperationDerived)
   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["transfer"]["operation"], "write");
-  EXPECT_EQ(j["transfer"]["write_bytes"], 2097152);
-  EXPECT_EQ(j["type"], "transfer");          // a clean write produces a whole file
+  EXPECT_EQ(j["attributes"]["xrootd.operation"], "write");
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.write_bytes"], 2097152);
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "transfer");  // a clean write produces a whole file
 }
 
 namespace
@@ -715,7 +712,7 @@ TEST_F(Transfer, WholeFileReadIsTransfer)
   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["type"], "transfer");
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "transfer");
 }
 
 // A read that touched only part of the file is finer-grained data access.
@@ -727,8 +724,8 @@ TEST_F(Transfer, PartialReadIsAccess)
   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["type"], "access");
-  EXPECT_EQ(j["transfer"]["operation"], "read");   // shared schema otherwise
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "access");
+  EXPECT_EQ(j["attributes"]["xrootd.operation"], "read");   // shared schema otherwise
 }
 
 // readv bytes count toward whole-file coverage just like plain reads.
@@ -740,7 +737,7 @@ TEST_F(Transfer, WholeFileReadvIsTransfer)
   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["type"], "transfer");
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "transfer");
 }
 
 // A write cut short by a forced (disconnect-driven) close is partial access.
@@ -752,8 +749,8 @@ TEST_F(Transfer, ForcedWriteIsAccess)
   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["type"], "access");
-  EXPECT_EQ(j["transfer"]["operation"], "write");
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "access");
+  EXPECT_EQ(j["attributes"]["xrootd.operation"], "write");
 }
 
 // A close with no matching open has no known size, so it cannot be proven a
@@ -764,8 +761,8 @@ TEST_F(Transfer, OrphanCloseIsAccess)
   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["type"], "access");
-  EXPECT_EQ(j["transfer"]["open_seen"], false);
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "access");
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.open_seen"], false);
 }
 
 // A partial-access close increments the accesses counter, not transfers.
@@ -824,8 +821,8 @@ TEST_F(Transfer, IsLocalWhenSameDomain)
   feedClose();
 
   json j = json::parse(lastDoc);
-  ASSERT_TRUE(j["transfer"].contains("is_local"));
-  EXPECT_EQ(j["transfer"]["is_local"], true);
+  ASSERT_TRUE(j["attributes"].contains("xrootd.transfer.is_local"));
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.is_local"], true);
 }
 
 TEST_F(Transfer, IsRemoteWhenDifferentDomain)
@@ -836,8 +833,8 @@ TEST_F(Transfer, IsRemoteWhenDifferentDomain)
   feedClose();
 
   json j = json::parse(lastDoc);
-  ASSERT_TRUE(j["transfer"].contains("is_local"));
-  EXPECT_EQ(j["transfer"]["is_local"], false);
+  ASSERT_TRUE(j["attributes"].contains("xrootd.transfer.is_local"));
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.is_local"], false);
 }
 
 TEST_F(Transfer, IsLocalAbsentWithoutServerHost)
@@ -848,7 +845,7 @@ TEST_F(Transfer, IsLocalAbsentWithoutServerHost)
   feedClose();
 
   json j = json::parse(lastDoc);
-  EXPECT_FALSE(j["transfer"].contains("is_local"));
+  EXPECT_FALSE(j["attributes"].contains("xrootd.transfer.is_local"));
 }
 
 namespace
@@ -889,13 +886,13 @@ TEST(XrdMonCollect, LoopbackServerResolvesToLocalHost)
 
   ASSERT_FALSE(doc.empty());
   json j = json::parse(doc);
-  EXPECT_EQ(j["server"]["ip"], "::1");                 // numeric source preserved
+  EXPECT_TRUE(j["resource"].contains("server.address"));  // always usable
 
   const char* me = XrdNetUtils::MyHostName();
   if (me && *me && std::string(me).find(':') == std::string::npos)
-     {EXPECT_EQ(j["server"]["hostname"], me);
-      EXPECT_EQ(j["server"]["name"], me);
-      EXPECT_NE(j["server"]["name"], "::1");
+     {EXPECT_EQ(j["resource"]["host.name"], me);
+      EXPECT_EQ(j["resource"]["server.address"], me);
+      EXPECT_NE(j["resource"]["server.address"], "::1");
      }
 }
 
@@ -908,8 +905,8 @@ TEST(XrdMonCollect, NoResolveKeepsLoopbackNumeric)
   feedTransferFrom(dec, "::1:9930");
 
   json j = json::parse(doc);
-  EXPECT_EQ(j["server"]["name"], "::1");
-  EXPECT_FALSE(j["server"].contains("hostname"));
+  EXPECT_EQ(j["resource"]["server.address"], "::1");
+  EXPECT_FALSE(j["resource"].contains("host.name"));
 }
 
 namespace
@@ -1023,12 +1020,12 @@ TEST(XrdMonCollect, WarmEntrySurvivesEviction)
 
   feedCloseId(dec, "h:1", 1);                     // the warm open still joins
   json jw = json::parse(doc);
-  EXPECT_EQ(jw["transfer"]["open_seen"], true);
-  EXPECT_EQ(jw["file"]["lfn"], "/warm/file.root");
+  EXPECT_EQ(jw["attributes"]["xrootd.transfer.open_seen"], true);
+  EXPECT_EQ(jw["attributes"]["file.path"], "/warm/file.root");
 
   feedCloseId(dec, "h:1", 100);                   // an early cold open was evicted
   json jc = json::parse(doc);
-  EXPECT_EQ(jc["transfer"]["open_seen"], false);
+  EXPECT_EQ(jc["attributes"]["xrootd.transfer.open_seen"], false);
 }
 
 // The resident state stays within the byte budget no matter how many distinct
@@ -1139,13 +1136,13 @@ TEST(XrdMonCollect, FrmStageAndPurge)
 
   ASSERT_EQ(docs.size(), 2u);
   json x = json::parse(docs[0]);
-  EXPECT_EQ(x["type"], "frm");
-  EXPECT_EQ(x["operation"], "transfer");
-  EXPECT_EQ(x["user"]["name"], "alice");
-  EXPECT_EQ(x["file"]["lfn"], "/store/data/f.root");
+  EXPECT_EQ(x["attributes"]["event.name"], "xrootd.frm");
+  EXPECT_EQ(x["attributes"]["xrootd.operation"], "transfer");
+  EXPECT_EQ(x["attributes"]["user.name"], "alice");
+  EXPECT_EQ(x["attributes"]["file.path"], "/store/data/f.root");
   json p = json::parse(docs[1]);
-  EXPECT_EQ(p["operation"], "purge");
-  EXPECT_EQ(p["file"]["size"], 1048576);
+  EXPECT_EQ(p["attributes"]["xrootd.operation"], "purge");
+  EXPECT_EQ(p["attributes"]["file.size"], 1048576);
   EXPECT_EQ(dec.GetStats().frmEvents, 2u);
 
   std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
@@ -1185,13 +1182,13 @@ TEST(XrdMonCollect, SessionDiscAndActiveGauge)
 
   ASSERT_EQ(docs.size(), 1u);                  // the session document
   json j = json::parse(docs[0]);
-  EXPECT_EQ(j["type"], "session");
-  EXPECT_EQ(j["user"]["name"], "bob");
-  EXPECT_EQ(j["client"]["host"], "cli.example.org");
+  EXPECT_EQ(j["attributes"]["event.name"], "xrootd.session");
+  EXPECT_EQ(j["attributes"]["user.name"], "bob");
+  EXPECT_EQ(j["attributes"]["client.address"], "cli.example.org");
   // The file was opened but never closed, so the session rollup counts no files.
-  ASSERT_TRUE(j.contains("session"));
-  EXPECT_EQ(j["session"]["files"], 0);
-  EXPECT_FALSE(j["session"].contains("recent_files"));
+  ASSERT_TRUE(j["attributes"].contains("xrootd.session.files"));
+  EXPECT_EQ(j["attributes"]["xrootd.session.files"], 0);
+  EXPECT_FALSE(j["attributes"].contains("xrootd.session.recent_files"));
   EXPECT_EQ(dec.GetStats().discs, 1u);
 
   std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
@@ -1267,22 +1264,22 @@ TEST(XrdMonCollect, SessionAggregatesFileActivity)
   // Three close documents, then the session document.
   ASSERT_EQ(docs.size(), 4u);
   json j = json::parse(docs.back());
-  EXPECT_EQ(j["type"], "session");
-  EXPECT_EQ(j["user"]["name"], "u7");
-  EXPECT_EQ(j["session"]["files"], 3);
-  EXPECT_EQ(j["session"]["transfers"], 2);
-  EXPECT_EQ(j["session"]["accesses"], 1);
-  EXPECT_EQ(j["session"]["read_bytes"], 1000 + 1000 + 4096);
-  EXPECT_FALSE(j["session"].contains("write_bytes"));
-  ASSERT_TRUE(j["session"].contains("recent_files"));
-  ASSERT_EQ(j["session"]["recent_files"].size(), 3u);
-  EXPECT_EQ(j["session"]["recent_files"][2]["lfn"], "/c.root");
-  EXPECT_EQ(j["session"]["recent_files"][2]["type"], "access");
-  EXPECT_EQ(j["session"]["recent_files"][0]["type"], "transfer");
+  EXPECT_EQ(j["attributes"]["event.name"], "xrootd.session");
+  EXPECT_EQ(j["attributes"]["user.name"], "u7");
+  EXPECT_EQ(j["attributes"]["xrootd.session.files"], 3);
+  EXPECT_EQ(j["attributes"]["xrootd.session.transfers"], 2);
+  EXPECT_EQ(j["attributes"]["xrootd.session.accesses"], 1);
+  EXPECT_EQ(j["attributes"]["xrootd.session.read_bytes"], 1000 + 1000 + 4096);
+  EXPECT_FALSE(j["attributes"].contains("xrootd.session.write_bytes"));
+  ASSERT_TRUE(j["attributes"].contains("xrootd.session.recent_files"));
+  ASSERT_EQ(j["attributes"]["xrootd.session.recent_files"].size(), 3u);
+  EXPECT_EQ(j["attributes"]["xrootd.session.recent_files"][2]["file.path"], "/c.root");
+  EXPECT_EQ(j["attributes"]["xrootd.session.recent_files"][2]["xrootd.transfer.kind"], "access");
+  EXPECT_EQ(j["attributes"]["xrootd.session.recent_files"][0]["xrootd.transfer.kind"], "transfer");
 
   // The individual close documents were still emitted (not replaced).
-  EXPECT_EQ(json::parse(docs[0])["type"], "transfer");
-  EXPECT_EQ(json::parse(docs[2])["type"], "access");
+  EXPECT_EQ(json::parse(docs[0])["attributes"]["xrootd.transfer.kind"], "transfer");
+  EXPECT_EQ(json::parse(docs[2])["attributes"]["xrootd.transfer.kind"], "access");
 }
 
 // The recent-file list is capped while the running totals cover every file.
@@ -1298,10 +1295,10 @@ TEST(XrdMonCollect, SessionRecentFilesCapped)
   feedDisc(dec, "h:1", 7);
 
   json j = json::parse(docs.back());
-  EXPECT_EQ(j["type"], "session");
-  EXPECT_EQ(j["session"]["files"], 100);              // every file counted
-  EXPECT_EQ(j["session"]["transfers"], 100);
-  EXPECT_EQ(j["session"]["recent_files"].size(), 64u);// list bounded (cap)
+  EXPECT_EQ(j["attributes"]["event.name"], "xrootd.session");
+  EXPECT_EQ(j["attributes"]["xrootd.session.files"], 100);        // every file counted
+  EXPECT_EQ(j["attributes"]["xrootd.session.transfers"], 100);
+  EXPECT_EQ(j["attributes"]["xrootd.session.recent_files"].size(), 64u);// list bounded (cap)
 }
 
 // Closes are folded into the owning user's session only; two concurrent users
@@ -1320,10 +1317,10 @@ TEST(XrdMonCollect, SessionsDoNotCrossUsers)
   feedDisc(dec, "h:1", 7);
 
   json j = json::parse(docs.back());
-  EXPECT_EQ(j["user"]["name"], "u7");
-  EXPECT_EQ(j["session"]["files"], 1);                // only user 7's one file
-  ASSERT_EQ(j["session"]["recent_files"].size(), 1u);
-  EXPECT_EQ(j["session"]["recent_files"][0]["lfn"], "/seven.root");
+  EXPECT_EQ(j["attributes"]["user.name"], "u7");
+  EXPECT_EQ(j["attributes"]["xrootd.session.files"], 1);     // only user 7's one file
+  ASSERT_EQ(j["attributes"]["xrootd.session.recent_files"].size(), 1u);
+  EXPECT_EQ(j["attributes"]["xrootd.session.recent_files"][0]["file.path"], "/seven.root");
 }
 
 // Session correlation is opt-in: with it off (the default) a disconnect emits
@@ -1344,7 +1341,7 @@ TEST(XrdMonCollect, SessionsDisabledByDefault)
   // Two close documents were emitted; the disconnect produced nothing.
   EXPECT_EQ(docs.size(), 2u);
   for (const auto& d : docs)
-     EXPECT_NE(json::parse(d)["type"], "session");
+     EXPECT_NE(json::parse(d)["attributes"]["event.name"], "xrootd.session");
   EXPECT_EQ(dec.GetStats().discs, 1u);             // disconnect still counted
   EXPECT_EQ(dec.ResidentBytes(), base);            // no rollup retained
 }
@@ -1366,13 +1363,13 @@ TEST(XrdMonCollect, ServerIdentDecoded)
 
   ASSERT_EQ(docs.size(), 1u);
   json j = json::parse(docs[0]);
-  EXPECT_EQ(j["type"], "server_ident");
-  EXPECT_EQ(j["server"]["site"], "T1_DE_KIT");
-  EXPECT_EQ(j["server"]["hostname"], "srv.example.org");
-  EXPECT_EQ(j["server"]["instance"], "manager");
-  EXPECT_EQ(j["server"]["program"], "xrootd");
-  EXPECT_EQ(j["server"]["version"], "v6.1.0");
-  EXPECT_EQ(j["server"]["port"], 1094);
+  EXPECT_EQ(j["attributes"]["event.name"], "xrootd.server_ident");
+  EXPECT_EQ(j["resource"]["xrootd.server.site"], "T1_DE_KIT");
+  EXPECT_EQ(j["resource"]["host.name"], "srv.example.org");
+  EXPECT_EQ(j["resource"]["xrootd.server.instance"], "manager");
+  EXPECT_EQ(j["resource"]["xrootd.server.program"], "xrootd");
+  EXPECT_EQ(j["resource"]["service.version"], "v6.1.0");
+  EXPECT_EQ(j["resource"]["server.port"], 1094);
   EXPECT_EQ(dec.GetStats().mapIdnt, 2u);
 }
 
@@ -1392,9 +1389,9 @@ TEST(XrdMonCollect, GStreamForwarded)
 
   ASSERT_EQ(docs.size(), 1u);
   json j = json::parse(docs[0]);
-  EXPECT_EQ(j["type"], "gstream");
-  EXPECT_EQ(j["provider"], "oss");
-  EXPECT_EQ(j["data"]["reads"], 5);
+  EXPECT_EQ(j["attributes"]["event.name"], "xrootd.gstream");
+  EXPECT_EQ(j["attributes"]["xrootd.gstream.provider"], "oss");
+  EXPECT_EQ(j["attributes"]["xrootd.gstream.data"]["reads"], 5);
   EXPECT_EQ(dec.GetStats().gevents, 1u);
 }
 

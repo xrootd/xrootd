@@ -147,19 +147,19 @@ function test_moncollect() {
 	#    second until the document is observed (tolerates UDP loss). XRD_SITE is
 	#    advertised by the client at login and surfaces as client.site.
 	export XRD_SITE=CLIENT-TEST-SITE
-	drive_until '"operation_state":"Successful"' "successful transfer document" \
+	drive_until '"xrootd.operation.state":"Successful"' "successful transfer document" \
 		"xrdcp -f '${TMPDIR}/ok.ref' '${HOST}/${TMPDIR}/ok.ref' \
 		 && xrdcp -f '${HOST}/${TMPDIR}/ok.ref' '${TMPDIR}/ok.dat'"
 
 	# The client-advertised site must travel to the collector as client.site.
-	assert grep -Eq '"site":"CLIENT-TEST-SITE"' "${COLLECTOR_OUT}"
+	assert grep -Eq '"xrootd.client.site":"CLIENT-TEST-SITE"' "${COLLECTOR_OUT}"
 
 	# The collector runs co-located with the server, so the monitor datagrams
-	# arrive from the loopback address. The server object must still carry a real
-	# hostname (the local FQDN substituted for loopback, or the '=' ident host),
-	# never the literal "::1".
-	assert grep -Eq '"server":\{[^}]*"hostname":"[^"]+"' "${COLLECTOR_OUT}"
-	assert_failure grep -Eq '"name":"::1"' "${COLLECTOR_OUT}"
+	# arrive from the loopback address. The resource must still carry a real
+	# host.name (the local FQDN substituted for loopback, or the '=' ident host),
+	# and server.address must never be the literal "::1".
+	assert grep -Eq '"host.name":"[^"]+"' "${COLLECTOR_OUT}"
+	assert_failure grep -Eq '"server.address":"::1"' "${COLLECTOR_OUT}"
 
 	# With VOMS, the proxy's fake VOMS attribute certificate must surface on the
 	# monitoring stream: gsi extracts it into XrdSecEntity.vorg, the server emits
@@ -167,14 +167,14 @@ function test_moncollect() {
 	# Re-drive uploads until a transfer document carries the VO (tolerates the
 	# u-record racing the close under UDP), then check the role too.
 	if [ "${MONCOLLECT_VOMS}" = 1 ]; then
-		drive_until '"vo":"dteam"' "VO surfaced on transfer document" \
+		drive_until '"wlcg.vo":"dteam"' "VO surfaced on transfer document" \
 			"xrdcp -f '${TMPDIR}/ok.ref' '${HOST}/${TMPDIR}/ok.ref'"
-		assert grep -Eq '"role":"production"' "${COLLECTOR_OUT}"
+		assert grep -Eq '"wlcg.role":"production"' "${COLLECTOR_OUT}"
 	fi
 
 	# 2. A failed open: reading a nonexistent file fails before any close, so
 	#    the server emits a terminal isError record -> operation_state "Failed".
-	drive_until '"operation_state":"Failed"' "failed-open document" \
+	drive_until '"xrootd.operation.state":"Failed"' "failed-open document" \
 		"xrdcp '${HOST}/${TMPDIR}/does-not-exist.root' '${TMPDIR}/x.dat'"
 
 	# The failed-open report must, on a SINGLE document, name the missing file
@@ -182,30 +182,30 @@ function test_moncollect() {
 	# "no such file or directory", not merely a non-empty string) and the kXR
 	# error code (kXR_NotFound = 3011). Pin the checks to one record so they
 	# cannot pass by matching fields spread across different documents.
-	open_doc=$(grep -E '"lfn":"[^"]*does-not-exist\.root"' "${COLLECTOR_OUT}" \
-		| grep -E '"operation_state":"Failed"' | head -n1)
+	open_doc=$(grep -E '"file.path":"[^"]*does-not-exist\.root"' "${COLLECTOR_OUT}" \
+		| grep -E '"xrootd.operation.state":"Failed"' | head -n1)
 	test -n "${open_doc}" || error "no failed-open transfer document found"
-	assert grep -Eq '"error_category":"open"' <<<"${open_doc}"
-	assert grep -Eq '"error_code":3011' <<<"${open_doc}"
-	assert grep -Eq '"error_message":"Unable to open[^"]*no such file or directory"' \
+	assert grep -Eq '"error.type":"open"' <<<"${open_doc}"
+	assert grep -Eq '"xrootd.error.code":3011' <<<"${open_doc}"
+	assert grep -Eq '"error.message":"Unable to open[^"]*no such file or directory"' \
 		<<<"${open_doc}"
 
 	# 3. A mid-transfer read error: a vector read past EOF fails on the server,
 	#    which records the terminal error on the file so its close reports
 	#    operation_state "Failed" with error_category "read". xrdreadv-eof opens
 	#    the existing file and issues the failing readv, then closes.
-	drive_until '"error_category":"read"' "failed-readv close document" \
+	drive_until '"error.type":"read"' "failed-readv close document" \
 		"xrdreadv-eof '${HOST}/${TMPDIR}/ok.ref'"
 
 	# As with the open failure, verify the specific reason on a single document:
 	# the readv-past-EOF close must report category "read" with the server's
 	# "illegal seek" reason (kXR_FSError = 3005), not just any error.
-	readv_doc=$(grep -E '"app":\{"name":"xrdreadv-eof"\}' "${COLLECTOR_OUT}" \
-		| grep -E '"operation_state":"Failed"' | head -n1)
+	readv_doc=$(grep -E '"xrootd.app.name":"xrdreadv-eof"' "${COLLECTOR_OUT}" \
+		| grep -E '"xrootd.operation.state":"Failed"' | head -n1)
 	test -n "${readv_doc}" || error "no failed-readv transfer document found"
-	assert grep -Eq '"error_category":"read"' <<<"${readv_doc}"
-	assert grep -Eq '"error_code":3005' <<<"${readv_doc}"
-	assert grep -Eq '"error_message":"Unable to readv[^"]*illegal seek"' \
+	assert grep -Eq '"error.type":"read"' <<<"${readv_doc}"
+	assert grep -Eq '"xrootd.error.code":3005' <<<"${readv_doc}"
+	assert grep -Eq '"error.message":"Unable to readv[^"]*illegal seek"' \
 		<<<"${readv_doc}"
 
 	# 4. A lock-denied open: a second writer of an already-open file is rejected
@@ -214,15 +214,15 @@ function test_moncollect() {
 	#    so used to bypass the terminal-error report. xrdopen-denied opens the
 	#    existing file for write twice; the second open must surface as a failed
 	#    open with the lock reason.
-	drive_until '"error_message":"[^"]*open denied' "lock-denied open document" \
+	drive_until '"error.message":"[^"]*open denied' "lock-denied open document" \
 		"xrdopen-denied '${HOST}/${TMPDIR}/ok.ref'"
 
-	locked_doc=$(grep -E '"error_message":"[^"]*open denied' "${COLLECTOR_OUT}" \
+	locked_doc=$(grep -E '"error.message":"[^"]*open denied' "${COLLECTOR_OUT}" \
 		| head -n1)
 	test -n "${locked_doc}" || error "no lock-denied open document found"
-	assert grep -Eq '"error_category":"open"' <<<"${locked_doc}"
-	assert grep -Eq '"error_code":3003' <<<"${locked_doc}"
-	assert grep -Eq '"error_message":"[^"]*is already opened by[^"]*open denied' \
+	assert grep -Eq '"error.type":"open"' <<<"${locked_doc}"
+	assert grep -Eq '"xrootd.error.code":3003' <<<"${locked_doc}"
+	assert grep -Eq '"error.message":"[^"]*is already opened by[^"]*open denied' \
 		<<<"${locked_doc}"
 
 	echo "collector documents:"

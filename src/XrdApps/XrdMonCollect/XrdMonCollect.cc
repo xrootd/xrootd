@@ -278,7 +278,7 @@ bool httpGet(const std::string& url, std::string& body, std::string& err)
 #endif
 
 // Load the SciTags registry into the decoder from a file path or an http(s)
-// URL. Thread-safe with respect to the decode loop (LoadScitags*/fillClient
+// URL. Thread-safe with respect to the decode loop (LoadScitags*/otelIdentity
 // share a mutex), so it is also called from the periodic refresh thread.
 //
 bool loadScitags(XrdMonDecode& dec, const std::string& src, std::string& err)

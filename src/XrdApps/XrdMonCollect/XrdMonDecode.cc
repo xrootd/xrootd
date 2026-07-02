@@ -157,6 +157,62 @@ bool wholeFileClose(bool haveOpen, int64_t fsz, int64_t rdBytes,
 // session totals always cover every closed file; only this most-recent detail
 // list is bounded, keeping a long-lived session's memory in check.
 constexpr std::size_t kSessionFilesMax = 64;
+
+// Set the OpenTelemetry file.path (and derived file.name) attributes from an
+// LFN, skipping an empty path.
+//
+void setFile(json& a, const std::string& lfn)
+{
+   if (lfn.empty()) return;
+   a["file.path"] = lfn;
+   auto slash = lfn.rfind('/');
+   if (slash != std::string::npos && slash + 1 < lfn.size())
+      a["file.name"] = lfn.substr(slash + 1);
+}
+
+// FNV-1a hash used to synthesize deterministic OpenTelemetry trace/span ids from
+// the monitoring stream's own correlation keys (server incarnation, user dictid,
+// file id). Deterministic ids let a downstream tracing backend stitch a client
+// session (login -> per-file operation) back together with no wire change.
+//
+uint64_t fnv1a(const std::string& s, uint64_t seed)
+{
+   uint64_t h = seed;
+   for (unsigned char c : s) {h ^= c; h *= 0x100000001b3ULL;}
+   return h;
+}
+std::string hexOf(uint64_t v, int nbytes)
+{
+   static const char* d = "0123456789abcdef";
+   std::string out((std::size_t)nbytes * 2, '0');
+   for (int i = nbytes * 2 - 1; i >= 0; --i) {out[i] = d[v & 0xf]; v >>= 4;}
+   return out;
+}
+// 16-byte (32-hex) OTel traceId keying a client session; 8-byte (16-hex) spanId.
+// Two FNV streams with distinct seeds give the 128-bit trace id.
+//
+std::string traceIdOf(const std::string& key)
+{
+   return hexOf(fnv1a(key, 0xcbf29ce484222325ULL), 8)
+        + hexOf(fnv1a(key, 0x9e3779b97f4a7c15ULL), 8);
+}
+std::string spanIdOf(const std::string& key)
+{
+   return hexOf(fnv1a(key, 0xcbf29ce484222325ULL), 8);
+}
+// Session (trace) key: sender + server incarnation + user dictid.
+std::string sessKey(const std::string& src, int32_t stod, uint32_t userID)
+{
+   return src + "|" + std::to_string(stod) + "|" + std::to_string(userID);
+}
+// Unix seconds -> OTLP nanoseconds as a decimal string (OTLP encodes 64-bit
+// times as strings; a JSON number would lose the low digits). Empty for t<=0.
+//
+std::string unixNano(int64_t secs)
+{
+   if (secs <= 0) return "";
+   return std::to_string((uint64_t)secs * 1000000000ULL);
+}
 }
 
 /******************************************************************************/
@@ -173,7 +229,7 @@ constexpr std::size_t kSessionFilesMax = 64;
 // the single-threaded UDP receive/serializer loop stays lookup-free by
 // construction: MyHostName() can block on a name lookup. Only the loopback case
 // is named this way — a remote server self-identifies its host on the '='
-// (MAPIDNT) stream, which fillServer() already prefers; a blocking reverse-DNS
+// (MAPIDNT) stream, which otelResource() already prefers; a blocking reverse-DNS
 // lookup of an arbitrary remote IP is deliberately never done.
 //
 void XrdMonDecode::resolveLocalHost()
@@ -197,9 +253,9 @@ XrdMonDecode::Server& XrdMonDecode::ServerFor(const std::string& src,
    srv.lastSeen = time(nullptr);   // for idle-incarnation reaping
 
 // Record the sender's hostname once per server incarnation (cached in the
-// Server), so the per-document fillServer() stays lookup-free. Only a loopback
+// Server), so the per-document otelResource() stays lookup-free. Only a loopback
 // sender is named here, from the process-wide local FQDN (itself resolved at
-// most once); a '=' ident host still takes precedence in fillServer().
+// most once); a '=' ident host still takes precedence in otelResource().
 //
    if (resolveHosts && !srv.resolved)
       {std::string ip = src.substr(0, src.rfind(':'));
@@ -210,39 +266,63 @@ XrdMonDecode::Server& XrdMonDecode::ServerFor(const std::string& src,
 }
 
 /******************************************************************************/
-/*                           f i l l S e r v e r                              */
+/*                         o t e l R e s o u r c e                            */
 /******************************************************************************/
 
-void XrdMonDecode::fillServer(json& j, const std::string& src, int32_t stod,
-                              const Server& srv)
+void XrdMonDecode::otelResource(json& j, const std::string& src, int32_t stod,
+                                const Server& srv)
 {
-   json& server = j["server"];
+   json& r = j["resource"];
    std::string ip = src.substr(0, src.rfind(':'));   // UDP source (strip :port)
-   server["ip"]    = ip;
-   server["start"] = stod;                            // incarnation key
-   if (srv.sID)                 server["id"]       = srv.sID;
-   if (!srv.ident.site.empty()) server["site"]     = srv.ident.site;
-   if (!srv.ident.inst.empty()) server["instance"] = srv.ident.inst;
 
    // Hostname precedence: the '=' ident's advertised host (when it is a real
-   // name, not an IP literal), else the reverse-resolved sender, else none.
-   // server.name falls back to the numeric IP when no name is available.
+   // name, not an IP literal), else the reverse-resolved sender, else the
+   // numeric source IP (server.address always carries something usable).
    //
    std::string host;
    if (!srv.ident.host.empty() && !isIPLiteral(srv.ident.host))
       host = srv.ident.host;
    else if (!srv.resolvedHost.empty())
       host = srv.resolvedHost;
+   std::string name = host.empty() ? ip : host;
 
-   if (!host.empty()) server["hostname"] = host;
-   server["name"] = host.empty() ? ip : host;
+   r["service.name"]        = "xrootd";
+   r["service.instance.id"] = srv.ident.inst.empty() ? name : srv.ident.inst;
+   r["server.address"]      = name;
+   if (!host.empty())            r["host.name"]              = host;
+   if (srv.ident.port > 0)       r["server.port"]            = srv.ident.port;
+   if (!srv.ident.ver.empty())   r["service.version"]        = srv.ident.ver;
+   if (!srv.ident.site.empty())  r["xrootd.server.site"]     = srv.ident.site;
+   if (!srv.ident.inst.empty())  r["xrootd.server.instance"] = srv.ident.inst;
+   if (!srv.ident.pgm.empty())   r["xrootd.server.program"]  = srv.ident.pgm;
+   if (srv.sID)                  r["xrootd.server.id"]       = srv.sID;
+   r["xrootd.server.incarnation"] = stod;             // incarnation key
 }
 
 /******************************************************************************/
-/*                           f i l l C l i e n t                              */
+/*                            o t e l B e g i n                               */
 /******************************************************************************/
 
-std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID)
+void XrdMonDecode::otelBegin(json& j, const char* eventName, int32_t tSecs,
+                             bool error)
+{
+   j["scope"]["name"] = "xrdmoncollect";
+   if (tSecs > 0)
+      {j["@timestamp"]   = isoTime(tSecs);
+       j["timeUnixNano"] = unixNano(tSecs);
+      }
+   j["observedTimeUnixNano"] = unixNano((int64_t)time(nullptr));
+   j["severityNumber"] = error ? 17 : 9;               // OTel SeverityNumber
+   j["severityText"]   = error ? "ERROR" : "INFO";
+   j["attributes"]["event.name"] = eventName;
+}
+
+/******************************************************************************/
+/*                         o t e l I d e n t i t y                            */
+/******************************************************************************/
+
+std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
+                                       uint32_t userID)
 {
    std::string vo;
 
@@ -250,34 +330,28 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
    if (uit != srv.users.end())
       {const UserInfo& u = uit->second;
        Touch(u.lru);   // a referenced session is active: keep it warm
-       json& user = j["user"];
-       if (!u.user.empty()) user["name"]     = u.user;
-       if (!u.prot.empty()) user["protocol"] = u.prot;
-       if (!u.raw.empty())  user["raw"]      = u.raw;
-       if (!u.authMethod.empty()) user["auth_method"] = u.authMethod;
-       // Client endpoint: classify the descriptor host as IP vs hostname.
+       if (!u.user.empty())       a["user.name"]            = u.user;
+       if (!u.prot.empty())       a["xrootd.user.protocol"] = u.prot;
+       if (!u.raw.empty())        a["xrootd.user.raw"]      = u.raw;
+       if (!u.authMethod.empty()) a["xrootd.auth.method"]   = u.authMethod;
+       // Client endpoint: semconv client.address plus the IP version.
        if (!u.host.empty())
-          {json& client = j["client"];
-           client["host"] = u.host;
-           if (isIPLiteral(u.host)) client["ip"]       = u.host;
-           else                     client["hostname"] = u.host;
-           if (!u.clientVer.empty()) client["version"]    = u.clientVer;
-           if (u.ipVersion)          client["ip_version"] = u.ipVersion;
-           if (!u.site.empty())      client["site"]       = u.site;
+          {a["client.address"] = u.host;
+           if      (u.ipVersion == 4) a["network.type"] = "ipv4";
+           else if (u.ipVersion == 6) a["network.type"] = "ipv6";
+           if (!u.clientVer.empty()) a["xrootd.client.version"] = u.clientVer;
+           if (!u.site.empty())      a["xrootd.client.site"]    = u.site;
           }
        // Application info: structured (&x=/&y=) plus the raw 'i' blob.
-       if (!u.appName.empty() || !u.appInfo.empty())
-          {json& app = j["app"];
-           if (!u.appName.empty()) app["name"] = u.appName;
-           if (!u.appInfo.empty()) app["info"] = u.appInfo;
-          }
+       if (!u.appName.empty()) a["xrootd.app.name"] = u.appName;
+       if (!u.appInfo.empty()) a["xrootd.app.info"] = u.appInfo;
        auto iit = srv.infos.find(u.raw);
        if (iit != srv.infos.end())
-          {Touch(iit->second.lru); j["app"]["raw"] = iit->second.val;}
+          {Touch(iit->second.lru); a["xrootd.app.raw"] = iit->second.val;}
        // VO/role/groups: prefer the token ('T'); fall back to the auth CGI.
-       if (!u.vo.empty())     {vo = u.vo;        user["vo"]     = u.vo;}
-       if (!u.role.empty())   user["role"]   = u.role;
-       if (!u.groups.empty()) user["groups"] = u.groups;
+       if (!u.vo.empty())     {vo = u.vo;         a["wlcg.vo"]     = u.vo;}
+       if (!u.role.empty())   a["wlcg.role"]   = u.role;
+       if (!u.groups.empty()) a["wlcg.groups"] = u.groups;
       }
 
    // Token identity ('T' stream) and experiment/activity ('U' stream) are
@@ -286,20 +360,18 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
    if (tit != srv.tokens.end())
       {const TokenInfo& t = tit->second;
        Touch(t.lru);
-       json& user = j["user"];
-       if (!t.subject.empty()) user["subject"] = t.subject;
-       if (!t.vo.empty())     {vo = t.vo;       user["vo"]     = t.vo;}
-       if (!t.role.empty())    user["role"]   = t.role;
-       if (!t.groups.empty())  user["groups"] = t.groups;
+       if (!t.subject.empty()) a["user.id"]     = t.subject;
+       if (!t.vo.empty())     {vo = t.vo;        a["wlcg.vo"]     = t.vo;}
+       if (!t.role.empty())    a["wlcg.role"]   = t.role;
+       if (!t.groups.empty())  a["wlcg.groups"] = t.groups;
       }
    auto ait = srv.activity.find(userID);
    if (ait != srv.activity.end())
       {Touch(ait->second.lru);
        int expId = ait->second.experiment;
        int actId = ait->second.activity;
-       json& act = j["activity"];
-       if (expId) act["experiment_id"] = expId;
-       if (actId) act["activity_id"]   = actId;
+       if (expId) a["xrootd.activity.experiment_id"] = expId;
+       if (actId) a["xrootd.activity.activity_id"]   = actId;
 
        // Map the numeric SciTags ids to human names via the loaded registry.
        // The experiment name doubles as a VO, used only as a last resort (the
@@ -317,10 +389,10 @@ std::string XrdMonDecode::fillClient(json& j, const Server& srv, uint32_t userID
            }
        }
        if (!expName.empty())
-          {act["experiment"] = expName;
-           if (vo.empty()) {vo = expName; j["user"]["vo"] = expName;}
+          {a["wlcg.activity.experiment"] = expName;
+           if (vo.empty()) {vo = expName; a["wlcg.vo"] = expName;}
           }
-       if (!actName.empty()) act["activity"] = actName;
+       if (!actName.empty()) a["wlcg.activity.activity"] = actName;
       }
 
    return vo;
@@ -357,33 +429,33 @@ void XrdMonDecode::foldSession(Server& srv, uint32_t userID,
 }
 
 /******************************************************************************/
-/*                          f i l l S e s s i o n                             */
+/*                          o t e l S e s s i o n                             */
 /******************************************************************************/
 
-void XrdMonDecode::fillSession(json& j, const UserInfo& u)
+void XrdMonDecode::otelSession(json& a, const UserInfo& u)
 {
-   json& s = j["session"];
-   s["files"]       = u.sFiles;
-   s["transfers"]   = u.sTransfers;
-   s["accesses"]    = u.sAccesses;
-   if (u.sErrors)     s["errors"]      = u.sErrors;
-   if (u.sReadBytes)  s["read_bytes"]  = u.sReadBytes;
-   if (u.sWriteBytes) s["write_bytes"] = u.sWriteBytes;
-   if (u.sFirst > 0)  s["start_time"]  = isoTime(u.sFirst);
-   if (u.sLast  > 0)  s["end_time"]    = isoTime(u.sLast);
-   if (u.sFirst > 0 && u.sLast >= u.sFirst) s["duration_s"] = u.sLast - u.sFirst;
+   a["xrootd.session.files"]     = u.sFiles;
+   a["xrootd.session.transfers"] = u.sTransfers;
+   a["xrootd.session.accesses"]  = u.sAccesses;
+   if (u.sErrors)     a["xrootd.session.errors"]      = u.sErrors;
+   if (u.sReadBytes)  a["xrootd.session.read_bytes"]  = u.sReadBytes;
+   if (u.sWriteBytes) a["xrootd.session.write_bytes"] = u.sWriteBytes;
+   if (u.sFirst > 0)  a["xrootd.session.start_time"]  = isoTime(u.sFirst);
+   if (u.sLast  > 0)  a["xrootd.session.end_time"]    = isoTime(u.sLast);
+   if (u.sFirst > 0 && u.sLast >= u.sFirst)
+      a["xrootd.session.duration"] = u.sLast - u.sFirst;
 
    if (!u.sRecent.empty())
       {json files = json::array();
        for (const auto& f : u.sRecent)
           {json fj;
-           fj["lfn"]   = f.lfn;
-           fj["type"]  = f.whole ? "transfer" : "access";
-           fj["operation"] = f.write ? "write" : "read";
-           fj["bytes"] = f.bytes;
+           fj["file.path"]            = f.lfn;
+           fj["xrootd.transfer.kind"] = f.whole ? "transfer" : "access";
+           fj["xrootd.operation"]     = f.write ? "write" : "read";
+           fj["xrootd.bytes"]         = f.bytes;
            files.push_back(std::move(fj));
           }
-       s["recent_files"] = std::move(files);
+       a["xrootd.session.recent_files"] = std::move(files);
       }
 }
 
@@ -778,6 +850,8 @@ void XrdMonDecode::DecodeIdent(const std::string& src, int32_t stod,
    id.inst = cgiVal(text, "inst");
    id.pgm  = cgiVal(text, "pgm");
    id.ver  = cgiVal(text, "ver");
+   std::string port = cgiVal(text, "port");
+   if (!port.empty()) id.port = atoi(port.c_str());
 
    if (dumpRaw && raw)
       {json j = {{"code", "="}, {"info", first}};
@@ -785,19 +859,15 @@ void XrdMonDecode::DecodeIdent(const std::string& src, int32_t stod,
       }
 
 // Emit a server-identity document, but only when the content changes (the
-// server re-sends this every monitor "ident" interval, default hourly).
+// server re-sends this every monitor "ident" interval, default hourly). All of
+// the identity now lives in the resource block (service.*/server.*/xrootd.*).
 //
    if (text == srv.identRaw) return;
    srv.identRaw = text;
 
    json j;
-   j["type"] = "server_ident";
-   fillServer(j, src, stod, srv);   // hostname/site/instance/name from id
-   json& server = j["server"];
-   if (!id.pgm.empty()) server["program"] = id.pgm;
-   if (!id.ver.empty()) server["version"] = id.ver;
-   std::string port = cgiVal(text, "port");
-   if (!port.empty())   server["port"]    = atoi(port.c_str());
+   otelResource(j, src, stod, srv);
+   otelBegin(j, "xrootd.server_ident", (int32_t)time(nullptr), false);
    if (doc) doc(j.dump());
 }
 
@@ -824,11 +894,21 @@ void XrdMonDecode::DecodeFrm(const std::string& src, int32_t stod, Server& srv,
 
    const char* op = (code == XROOTD_MON_MAPPURG) ? "purge" : "transfer";
 
+// Event time (and size) come from the CGI tail on purge records; parse them
+// first so the envelope carries the right @timestamp/timeUnixNano.
+//
+   int64_t sz = -1;
+   int32_t tEvt = 0;
+   std::string szS, todS;
+   if (!cgi.empty()) {szS = cgiVal(cgi, "sz"); todS = cgiVal(cgi, "tod");}
+   if (!todS.empty()) tEvt = (int32_t)atoll(todS.c_str());
+
    json j;
-   j["type"]      = "frm";
-   j["operation"] = op;
-   fillServer(j, src, stod, srv);
-   if (!path.empty()) j["file"]["lfn"] = path;
+   otelResource(j, src, stod, srv);
+   otelBegin(j, "xrootd.frm", tEvt, false);
+   json& a = j["attributes"];
+   a["xrootd.operation"] = op;         // "purge" or "transfer" (stage/migrate)
+   setFile(a, path);
 
 // who is "<prot>/<user>.<pid>:<sid>@<host>". The FRM agent is the actor here,
 // so it has no user dictionary entry; parse the descriptor inline.
@@ -836,19 +916,13 @@ void XrdMonDecode::DecodeFrm(const std::string& src, int32_t stod, Server& srv,
    auto slash = who.find('/');
    auto at    = who.rfind('@');
    if (slash != std::string::npos)
-      {j["user"]["protocol"] = who.substr(0, slash);
+      {a["xrootd.user.protocol"] = who.substr(0, slash);
        std::string r = who.substr(slash + 1);
-       j["user"]["name"] = r.substr(0, r.find('.'));
+       a["user.name"] = r.substr(0, r.find('.'));
       }
-   if (at != std::string::npos) j["client"]["host"] = who.substr(at + 1);
+   if (at != std::string::npos) a["client.address"] = who.substr(at + 1);
 
-   int64_t sz = -1;
-   if (!cgi.empty())
-      {std::string s = cgiVal(cgi, "sz");
-       if (!s.empty()) {sz = atoll(s.c_str()); j["file"]["size"] = sz;}
-       std::string tod = cgiVal(cgi, "tod");
-       if (!tod.empty()) j["@timestamp"] = isoTime((int32_t)atoll(tod.c_str()));
-      }
+   if (!szS.empty()) {sz = atoll(szS.c_str()); a["file.size"] = sz;}
 
    if (metrics)
       {metrics->counterSeries("xrootd_collector_frm_total", "FRM stage/purge events",
@@ -974,16 +1048,23 @@ void XrdMonDecode::EmitDisc(const std::string& src, int32_t stod, Server& srv,
    if (!emitSessions) return;             // session documents disabled
 
    json j;
-   j["type"] = "session";
-   if (tWin > 0) j["@timestamp"] = isoTime(tWin);
-   fillServer(j, src, stod, srv);
-   fillClient(j, srv, userID);
+   otelResource(j, src, stod, srv);
+   otelBegin(j, "xrootd.session", tWin, false);
+   json& a = j["attributes"];
+   otelIdentity(a, srv, userID);
 
 // Attach the session's aggregated file activity (counters plus a capped recent-
 // file list) accumulated from every close that named this user (see foldSession).
 //
    auto uit = srv.users.find(userID);
-   if (uit != srv.users.end()) fillSession(j, uit->second);
+   if (uit != srv.users.end()) otelSession(a, uit->second);
+
+// The session document is the root span of the client's trace (login ->
+// disconnect); each per-file operation carries the same traceId.
+//
+   std::string sess = sessKey(src, stod, userID);
+   j["traceId"] = traceIdOf(sess);
+   j["spanId"]  = spanIdOf(sess + "|session");
 
    if (metrics)
       metrics->counterSeries("xrootd_collector_sessions_total",
@@ -1014,24 +1095,29 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    uint32_t openUser = 0;      // user dictid from the open (for session rollup)
    std::string openLfn;        // lfn from the open (for the session rollup)
 
-// One per-transfer document in an OpenSearch-friendly nested schema (each nested
-// object indexes as a dotted field, e.g. server.name). Empty/zero fields are
-// omitted. See README.md for the field-to-WLCG mapping.
+// Terminal status is needed up front: it drives the log severity and the
+// whole-file-vs-access decision. "forced" (disconnect-driven) is not a failure
+// on its own; only a trailing XrdXrootdMonStatERR (hasERR) is.
+//
+   const bool forced = (recFlag & XrdXrootdMonFileHdr::forced) != 0;
+   const bool hasErr = (recFlag & XrdXrootdMonFileHdr::hasERR) != 0;
+
+// One OTel log record: process-level j["resource"] (server) plus event-level
+// j["attributes"] with dotted semantic-convention keys. Empty/zero fields are
+// omitted. See README.md for the field-to-semconv/WLCG mapping.
 //
    json j;
-   j["type"]       = "transfer";
-   j["@timestamp"] = isoTime(tWin);
-   fillServer(j, src, stod, srv);
+   otelResource(j, src, stod, srv);
+   otelBegin(j, "xrootd.transfer", tWin, hasErr);
+   json& a = j["attributes"];
 
-   json& transfer = j["transfer"];
-   transfer["end_time"]     = isoTime(tWin);
-   transfer["forced_close"] = (recFlag & XrdXrootdMonFileHdr::forced) != 0;
-   transfer["read_bytes"]   = rdBytes;
-   transfer["readv_bytes"]  = rvBytes;
-   transfer["write_bytes"]  = wrBytes;
+   a["xrootd.transfer.forced_close"] = forced;
+   a["xrootd.transfer.read_bytes"]   = rdBytes;
+   a["xrootd.transfer.readv_bytes"]  = rvBytes;
+   a["xrootd.transfer.write_bytes"]  = wrBytes;
    // Explicit read/write categorisation (WLCG operation_type): any write bytes
    // make it a write, otherwise it is a read.
-   transfer["operation"]    = (wrBytes > 0) ? "write" : "read";
+   a["xrootd.operation"] = (wrBytes > 0) ? "write" : "read";
 
 // Join the matching open record (held since the open packet) to recover the
 // path, the user, and the open time. Resolve the user dictid if we have it.
@@ -1039,47 +1125,50 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    auto fit = srv.files.find(fileID);
    if (fit != srv.files.end())
       {const OpenFile& of = fit->second;
-       transfer["open_seen"]  = true;
+       a["xrootd.transfer.open_seen"] = true;
        haveOpen = true;
        openFsz  = of.fsz;
        openUser = of.user;
        openLfn  = of.lfn;
-       json& file = j["file"];
-       file["lfn"]        = of.lfn;
-       file["size"]       = of.fsz;
-       file["read_write"] = of.rw;
-       transfer["start_time"] = isoTime(of.tOpen);
+       setFile(a, of.lfn);
+       a["file.size"] = of.fsz;
+       a["xrootd.file.read_write"] = of.rw;
+       if (of.tOpen > 0) a["xrootd.transfer.start_time"] = isoTime(of.tOpen);
        if (of.tOpen > 0 && tWin > 0) {durSecs = tWin - of.tOpen;
-                                      transfer["duration_s"] = durSecs;}
+                                      a["xrootd.transfer.duration"] = durSecs;}
 
-       vo = fillClient(j, srv, of.user);
+       vo = otelIdentity(a, srv, of.user);
 
        // LAN/WAN heuristic: tag the transfer local when the client and the
        // reporting server share a registered domain. Only decidable when both
        // are resolvable host names (not IP literals); otherwise left unset.
-       if (!srv.ident.host.empty() && j.contains("client"))
-          {auto cit = j["client"].find("host");
-           if (cit != j["client"].end())
-              {std::string cd = hostDomain(cit->get<std::string>());
-               std::string sd = hostDomain(srv.ident.host);
-               if (!cd.empty() && !sd.empty()) transfer["is_local"] = (cd == sd);
-              }
+       if (!srv.ident.host.empty())
+          {std::string ch = a.value("client.address", std::string());
+           std::string cd = hostDomain(ch);
+           std::string sd = hostDomain(srv.ident.host);
+           if (!cd.empty() && !sd.empty())
+              a["xrootd.transfer.is_local"] = (cd == sd);
           }
        LruDrop(fit->second.lru);   // unlink before erasing the map entry
        srv.files.erase(fit);
       }
-      else {transfer["open_seen"] = false; stats.orphanCls++;}
+      else {a["xrootd.transfer.open_seen"] = false; stats.orphanCls++;}
 
 // Whole-file transfer vs. partial access. The document schema is identical; only
-// the type string differs (see wholeFileClose). A write needs to have ended
+// xrootd.transfer.kind differs (see wholeFileClose). A write needs to have ended
 // cleanly to count as a whole-file producer, so this must be decided after the
 // forced/error flags are known.
 //
-   const bool forced = (recFlag & XrdXrootdMonFileHdr::forced) != 0;
-   const bool hasErr = (recFlag & XrdXrootdMonFileHdr::hasERR) != 0;
    const bool whole  = wholeFileClose(haveOpen, openFsz, rdBytes, rvBytes,
                                       wrBytes, forced, hasErr);
-   j["type"] = whole ? "transfer" : "access";
+   a["xrootd.transfer.kind"] = whole ? "transfer" : "access";
+
+// Trace context: the client session is the trace (keyed by the open's user
+// dictid); this file open->close is a span within it.
+//
+   j["traceId"] = traceIdOf(sessKey(src, stod, openUser));
+   j["spanId"]  = spanIdOf(src + "|" + std::to_string(stod)
+                              + "|f" + std::to_string(fileID));
 
 // Fold this close into its session rollup (emitted in the 'session' document at
 // disconnect). Only possible when the open was joined, which carries the user.
@@ -1094,36 +1183,38 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 //
    if ((recFlag & XrdXrootdMonFileHdr::hasOPS) && recSize >= 8 + 24 + 48)
       {const unsigned char* o = rec + 8 + 24;
-       transfer["read_ops"]   = ri32(o + 0);
-       transfer["readv_ops"]  = ri32(o + 4);
-       transfer["write_ops"]  = ri32(o + 8);
-       transfer["readv_segs"] = ri64(o + 16);
+       a["xrootd.transfer.read_ops"]   = ri32(o + 0);
+       a["xrootd.transfer.readv_ops"]  = ri32(o + 4);
+       a["xrootd.transfer.write_ops"]  = ri32(o + 8);
+       a["xrootd.transfer.readv_segs"] = ri64(o + 16);
 
        // Request-size extremes use 0x7fffffff as the "unset" sentinel; omit
        // them rather than emit a misleading minimum.
        //
        auto minmax = [&](const char* kmn, const char* kmx, int32_t mn, int32_t mx)
-                       {if (mn != 0x7fffffff) {transfer[kmn] = mn; transfer[kmx] = mx;}};
-       minmax("read_min",  "read_max",  ri32(o + 24), ri32(o + 28));
-       minmax("readv_min", "readv_max", ri32(o + 32), ri32(o + 36));
-       minmax("write_min", "write_max", ri32(o + 40), ri32(o + 44));
+                       {if (mn != 0x7fffffff) {a[kmn] = mn; a[kmx] = mx;}};
+       minmax("xrootd.transfer.read_min",  "xrootd.transfer.read_max",
+              ri32(o + 24), ri32(o + 28));
+       minmax("xrootd.transfer.readv_min", "xrootd.transfer.readv_max",
+              ri32(o + 32), ri32(o + 36));
+       minmax("xrootd.transfer.write_min", "xrootd.transfer.write_max",
+              ri32(o + 40), ri32(o + 44));
 
        // Optional sum-of-squares (XrdXrootdMonStatSSQ) when "ssq" configured.
        //
        if ((recFlag & XrdXrootdMonFileHdr::hasSSQ) && recSize >= 8 + 24 + 48 + 32)
           {const unsigned char* s = o + 48;
-           transfer["read_sumsq"]  = rdbl(s + 0);
-           transfer["readv_sumsq"] = rdbl(s + 8);
-           transfer["rsegs_sumsq"] = rdbl(s + 16);
-           transfer["write_sumsq"] = rdbl(s + 24);
+           a["xrootd.transfer.read_sumsq"]  = rdbl(s + 0);
+           a["xrootd.transfer.readv_sumsq"] = rdbl(s + 8);
+           a["xrootd.transfer.rsegs_sumsq"] = rdbl(s + 16);
+           a["xrootd.transfer.write_sumsq"] = rdbl(s + 24);
           }
       }
 
 // Terminal status (WLCG operation_state). A close carrying a trailing
 // XrdXrootdMonStatERR (hasERR) reports an aborted/failed transfer; the error
 // block trails any XrdXrootdMonStatOPS/SSQ blocks. Otherwise the close is the
-// authoritative success report. Note: "forced" (disconnect-driven) is not a
-// failure on its own.
+// authoritative success report.
 //
    int errOff = 8 + 24;
    if (recFlag & XrdXrootdMonFileHdr::hasOPS)
@@ -1131,17 +1222,16 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        if (recFlag & XrdXrootdMonFileHdr::hasSSQ) errOff += 32;
       }
    if ((recFlag & XrdXrootdMonFileHdr::hasERR) && recSize >= errOff + 8)
-      {fillError(transfer, rec + errOff, recSize - errOff);
+      {std::string cat = otelError(a, rec + errOff, recSize - errOff);
        stats.failed++;
        if (metrics)
           metrics->counterSeries("xrootd_collector_failed_operations_total",
                        "operations that concluded unsuccessfully",
                        {{"server", src},
-                        {"category", transfer.value("error_category",
-                                                    std::string("unknown"))}})
+                        {"category", cat.empty() ? "unknown" : cat}})
                   += 1;
       }
-   else transfer["operation_state"] = "Successful";
+   else a["xrootd.operation.state"] = "Successful";
 
 // Aggregate into bounded-cardinality Prometheus series (label only by the
 // reporting server). Per-transfer detail stays in the document sink; here we
@@ -1163,11 +1253,12 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
           metrics->counterSeries("xrootd_collector_vo_transfers_total",
                         "completed transfers per VO",
                         {{"server", src}, {"vo", vo}}) += 1;
-       if (transfer.contains("is_local"))
+       if (a.contains("xrootd.transfer.is_local"))
           metrics->counterSeries("xrootd_collector_locality_transfers_total",
                         "completed transfers by client/server locality",
                         {{"server", src}, {"locality",
-                         transfer["is_local"].get<bool>() ? "local" : "remote"}})
+                         a["xrootd.transfer.is_local"].get<bool>() ? "local"
+                                                                   : "remote"}})
                   += 1;
        metrics->histogramSeries("xrootd_collector_transfer_size_bytes",
                         "bytes moved per transfer",
@@ -1184,21 +1275,23 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 }
 
 /******************************************************************************/
-/*                             f i l l E r r o r                              */
+/*                             o t e l E r r o r                              */
 /******************************************************************************/
 
-void XrdMonDecode::fillError(json& transfer, const unsigned char* err,
-                             int errLen)
+std::string XrdMonDecode::otelError(json& a, const unsigned char* err,
+                                    int errLen)
 {
 // XrdXrootdMonStatERR: ecode(4) + ecat(1) + rsvd(3) + null-terminated message.
 //
-   if (errLen < 8) return;
-   transfer["operation_state"] = "Failed";
-   transfer["error_code"]      = ri32(err);
-   transfer["error_category"]  = errCatName((unsigned char)err[4]);
+   if (errLen < 8) return "";
+   std::string cat = errCatName((unsigned char)err[4]);
+   a["xrootd.operation.state"] = "Failed";
+   a["error.type"]             = cat;           // semconv low-cardinality type
+   a["xrootd.error.code"]      = ri32(err);
    const char* m = (const char*)(err + 8);
    std::string msg(m, strnlen(m, errLen - 8));
-   if (!msg.empty()) transfer["error_message"] = msg;
+   if (!msg.empty()) a["error.message"] = msg;
+   return cat;
 }
 
 /******************************************************************************/
@@ -1217,32 +1310,35 @@ void XrdMonDecode::EmitError(const std::string& src, int32_t stod, Server& srv,
    if (recSize < 8 + 4) {stats.malformed++; return;}
 
    json j;
-   j["type"]       = "transfer";
-   j["@timestamp"] = isoTime(tWin);
-   fillServer(j, src, stod, srv);
+   otelResource(j, src, stod, srv);
+   otelBegin(j, "xrootd.transfer", tWin, true);   // a terminal error: ERROR
+   json& a = j["attributes"];
 
-   json& transfer = j["transfer"];
-   transfer["end_time"] = isoTime(tWin);
-
-   std::string vo;
+   uint32_t user = 0;
    int off = 8;
    if ((recFlag & XrdXrootdMonFileHdr::hasLFN) && recSize > 12)
-      {uint32_t user = rd32(rec + 8);
+      {user = rd32(rec + 8);
        const char* l = (const char*)(rec + 12);
        std::string lfn(l, strnlen(l, recSize - 12));
-       j["file"]["lfn"] = lfn;
+       setFile(a, lfn);
        off = 12 + (int)lfn.size() + 1;       // past the lfn's terminating null
-       vo = fillClient(j, srv, user);
+       otelIdentity(a, srv, user);
       }
 
-   fillError(transfer, rec + off, recSize - off);
+   std::string cat = otelError(a, rec + off, recSize - off);
+
+// Trace context: session trace keyed by the (inline) user dictid; the failed
+// operation is its own span.
+//
+   std::string sess = sessKey(src, stod, user);
+   j["traceId"] = traceIdOf(sess);
+   j["spanId"]  = spanIdOf(sess + "|err|" + std::to_string(tWin));
 
    if (metrics)
       metrics->counterSeries("xrootd_collector_failed_operations_total",
                    "operations that concluded unsuccessfully",
                    {{"server", src},
-                    {"category", transfer.value("error_category",
-                                                std::string("unknown"))}}) += 1;
+                    {"category", cat.empty() ? "unknown" : cat}}) += 1;
 
    stats.failed++;
    stats.docs++;
@@ -1275,56 +1371,60 @@ void XrdMonDecode::DecodeTStream(const std::string& src, int32_t stod,
         if (!traces) continue;   // only counting unless trace emission is on
 
         json j;
-        if (tWin > 0) j["@timestamp"] = isoTime(tWin);
-        fillServer(j, src, stod, srv);
+        otelResource(j, src, stod, srv);
+        json& a = j["attributes"];
+        const char* ev = nullptr;   // event.name, set once the record type known
 
         auto lfnOf = [&](uint32_t id)
             {auto it = srv.paths.find(id);
              if (it != srv.paths.end())
-                {Touch(it->second.lru); j["file"]["lfn"] = it->second.val;}
-             j["file"]["id"] = id;
+                {Touch(it->second.lru); setFile(a, it->second.val);}
+             a["xrootd.file.id"] = id;
             };
 
         if ((disc & 0x80) == 0)            // read/write I/O entry
            {int64_t  offset = ri64(a0);
             int32_t  length = ri32(a1);
-            j["type"]   = length < 0 ? "write" : "read";
-            j["offset"] = offset;
-            j["length"] = length < 0 ? -(int64_t)length : (int64_t)length;
+            ev = length < 0 ? "xrootd.write" : "xrootd.read";
+            a["xrootd.io.offset"] = offset;
+            a["xrootd.io.length"] = length < 0 ? -(int64_t)length
+                                               :  (int64_t)length;
             lfnOf(rd32(a2));
            }
         else switch(disc)
            {case XROOTD_MON_OPEN:
                  {unsigned char b[8]; std::memcpy(b, a0, 8); b[0] = 0;
-                  j["type"] = "open"; j["file_size"] = (int64_t)rd64(b);
+                  ev = "xrootd.open"; a["file.size"] = (int64_t)rd64(b);
                   lfnOf(rd32(a2));
                  }
                  break;
             case XROOTD_MON_CLOSE:
                  {uint64_t rB = (uint64_t)rd32(a0 + 4) << a0[1];
                   uint64_t wB = (uint64_t)rd32(a1)     << a0[2];
-                  j["type"] = "close"; j["read_bytes"] = rB;
-                  j["write_bytes"] = wB; lfnOf(rd32(a2));
+                  ev = "xrootd.close";
+                  a["xrootd.transfer.read_bytes"]  = rB;
+                  a["xrootd.transfer.write_bytes"] = wB; lfnOf(rd32(a2));
                  }
                  break;
             case XROOTD_MON_DISC:
-                 {j["type"] = "disconnect";
-                  j["duration_s"] = ri32(a1);
-                  fillClient(j, srv, rd32(a2));
+                 {ev = "xrootd.disconnect";
+                  a["xrootd.session.duration"] = ri32(a1);
+                  otelIdentity(a, srv, rd32(a2));
                  }
                  break;
             case XROOTD_MON_READV:
             case XROOTD_MON_READU:
-                 j["type"] = "readv"; lfnOf(rd32(a2));
+                 ev = "xrootd.readv"; lfnOf(rd32(a2));
                  break;
             case XROOTD_MON_APPID:
                  {char b[13]; std::memcpy(b, a0 + 4, 12); b[12] = 0;
-                  j["type"] = "appid"; j["appinfo"] = b;
+                  ev = "xrootd.appid"; a["xrootd.app.info"] = b;
                  }
                  break;
             default: continue;   // REDHOST and anything else: skip
            }
 
+        otelBegin(j, ev, tWin, false);
         if (doc) doc(j.dump());
        }
 }
@@ -1521,12 +1621,13 @@ void XrdMonDecode::DecodeGStream(const std::string& src, int32_t stod,
                     // (b) forward the record (structured payload) as a document.
                     if (gstream && doc)
                        {json j;
-                        j["type"]     = "gstream";
-                        j["provider"] = provider;
-                        fillServer(j, src, stod, srv);
-                        j["@timestamp"]   = isoTime(tEnd ? tEnd : tBeg);
-                        if (payload.is_discarded()) j["data"] = line;
-                           else j["data"] = payload;
+                        otelResource(j, src, stod, srv);
+                        otelBegin(j, "xrootd.gstream", tEnd ? tEnd : tBeg, false);
+                        json& a = j["attributes"];
+                        a["xrootd.gstream.provider"] = provider;
+                        if (payload.is_discarded())
+                             a["xrootd.gstream.data"] = line;
+                        else a["xrootd.gstream.data"] = payload;
                         doc(j.dump());
                        }
                    }
@@ -1608,31 +1709,34 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
                           {{"server", src}, {"kind", kind}}) += 1;
          if (redirects)
             {// A redirect concludes the operation from this (redirector) node's
-             // point of view, so it is reported in the same type:"transfer"
-             // concluded-operation schema as closes and errors, with
-             // operation_state "Redirected" and the destination under "redirect".
+             // point of view, so it is reported in the same concluded-operation
+             // schema as closes and errors, with xrootd.operation.state
+             // "Redirected" and the destination under xrootd.redirect.*.
              json j;
-             j["type"] = "transfer";
-             if (tWin > 0) j["@timestamp"] = isoTime(tWin);
-             fillServer(j, src, stod, srv);
+             otelResource(j, src, stod, srv);
+             otelBegin(j, "xrootd.transfer", tWin, false);
+             json& a = j["attributes"];
 
-             json& transfer = j["transfer"];
-             transfer["operation"]       = redirOp(type & 0x0f);
-             transfer["operation_state"] = "Redirected";
-
-             json& redirect = j["redirect"];
-             redirect["kind"]        = kind;
-             redirect["target_port"] = port;
+             a["xrootd.operation"]       = redirOp(type & 0x0f);
+             a["xrootd.operation.state"] = "Redirected";
+             a["xrootd.redirect.kind"]        = kind;
+             a["xrootd.redirect.target.port"] = port;
              // hp is "<host>:<path>": the host is the redirect target, the path
              // the lfn the client is being redirected for.
              auto colon = hp.find(':');
              if (colon != std::string::npos)
-                {if (colon > 0) redirect["target_host"] = hp.substr(0, colon);
-                 j["file"]["lfn"] = hp.substr(colon + 1);
+                {if (colon > 0)
+                    a["xrootd.redirect.target.address"] = hp.substr(0, colon);
+                 setFile(a, hp.substr(colon + 1));
                 }
-                else if (!hp.empty()) redirect["target_host"] = hp;
+                else if (!hp.empty()) a["xrootd.redirect.target.address"] = hp;
 
-             fillClient(j, srv, did);
+             otelIdentity(a, srv, did);
+
+             std::string sess = sessKey(src, stod, did);
+             j["traceId"] = traceIdOf(sess);
+             j["spanId"]  = spanIdOf(sess + "|redir|" + std::to_string(tWin));
+
              stats.docs++;
              if (doc) doc(j.dump());
             }

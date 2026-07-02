@@ -279,6 +279,7 @@ struct ServerIdent
    std::string pgm;
    std::string ver;
    std::string user;      // login user.pid of the reporting daemon
+   int         port = 0;  // &port= the reporting server's listen port
 };
 
 // An open file awaiting its close, from the 'f' stream open record.
@@ -329,10 +330,12 @@ void     EmitDisc(const std::string& src, int32_t stod, Server& srv,
 void     EmitError(const std::string& src, int32_t stod, Server& srv,
                    unsigned char recFlag, const unsigned char* rec,
                    int recSize, int32_t tWin);
-//! Fill the terminal-error fields (operation_state/error_code/category/message)
-//! of a transfer document from a XrdXrootdMonStatERR block of `errLen` bytes.
-void     fillError(nlohmann::json& transfer, const unsigned char* err,
-                   int errLen);
+//! Fill the terminal-error attributes (error.type/error.message plus vendor
+//! xrootd.error.code and xrootd.operation.state) into the event `attributes`
+//! object from a XrdXrootdMonStatERR block of `errLen` bytes. Returns the
+//! low-cardinality error category (open/read/write/close/auth) for metric labels.
+std::string otelError(nlohmann::json& attrs, const unsigned char* err,
+                      int errLen);
 void     DecodeTStream(const std::string& src, int32_t stod, Server& srv,
                        const unsigned char* p, int len);
 void     DecodeGStream(const std::string& src, int32_t stod, Server& srv,
@@ -385,24 +388,36 @@ static std::size_t bytesOf(const UserActivity& a);
 static std::size_t bytesOf(const StringEntry& s, const std::string& key);
 
 // Document-building helpers shared by every emitter so all document types use
-// one nested, OpenSearch-friendly schema (server.*, client.*, user.*, ...).
+// one OpenTelemetry-aligned schema: a process-level j["resource"] object and an
+// event-level j["attributes"] object, both keyed by dotted semantic-convention
+// names (service.*, server.*, host.*, file.*, client.*, user.*, error.*) with
+// XRootD/WLCG-specific fields under the xrootd.*/wlcg.* vendor namespaces.
 //
-//! Fill the j["server"] object (ip/start/id/hostname/site/instance/name).
-void     fillServer(nlohmann::json& j, const std::string& src, int32_t stod,
-                    const Server& srv);
-//! Fill j["user"], j["client"], j["app"], j["activity"] from the user
-//! dictionary entry (and the token/activity streams keyed by the same dictid).
-//! Returns the resolved VO (token preferred, else auth CGI) for metric labels.
-std::string fillClient(nlohmann::json& j, const Server& srv, uint32_t userID);
+//! Fill the j["resource"] object (service.*/server.*/host.name plus the
+//! xrootd.server.* vendor keys) from the server incarnation identity.
+void     otelResource(nlohmann::json& j, const std::string& src, int32_t stod,
+                      const Server& srv);
+//! Set the log-record envelope: instrumentation scope, event.name, severity,
+//! and the @timestamp/timeUnixNano/observedTimeUnixNano fields. `tSecs` is the
+//! event time in Unix seconds (0 to omit the event-time fields); `error` picks
+//! ERROR vs INFO severity.
+void     otelBegin(nlohmann::json& j, const char* eventName, int32_t tSecs,
+                   bool error);
+//! Fill the identity attributes (user.*, client.*, wlcg.*, xrootd.*) into the
+//! event `attributes` object from the user dictionary entry (and the token and
+//! activity streams keyed by the same dictid). Returns the resolved VO (token
+//! preferred, else auth CGI, else SciTags experiment) for metric labels.
+std::string otelIdentity(nlohmann::json& attrs, const Server& srv,
+                         uint32_t userID);
 //! Fold one finished file close into the user's session rollup (counters and a
 //! capped recent-file list), keeping the entry's LRU weight in step. No-op when
 //! the user dictid is unknown (e.g. user monitoring off or the 'u' record lost).
 void     foldSession(Server& srv, uint32_t userID, const std::string& lfn,
                      int64_t bytes, bool write, bool whole, bool error,
                      int32_t tWin);
-//! Fill the j["session"] object (totals plus the capped recent-file list) from
-//! a user's accumulated session rollup.
-void     fillSession(nlohmann::json& j, const UserInfo& u);
+//! Fill the xrootd.session.* attributes (totals plus the capped recent-file
+//! list) into the event `attributes` object from a user's session rollup.
+void     otelSession(nlohmann::json& attrs, const UserInfo& u);
 
 std::unordered_map<std::string, Server> servers;
 // Previous cumulative values for g-stream providers that report running
@@ -440,7 +455,7 @@ std::string localHost;
 // human names. sciExp: expId -> expName (doubles as a VO); sciAct: the packed
 // key (expId<<32)|activityId -> activityName. Empty when no registry is loaded.
 // Guarded by scitagsMtx so a background refresh thread can swap them in while
-// the decode thread reads them in fillClient().
+// the decode thread reads them in otelIdentity().
 std::mutex                                 scitagsMtx;
 std::unordered_map<int, std::string>       sciExp;
 std::unordered_map<long long, std::string> sciAct;
