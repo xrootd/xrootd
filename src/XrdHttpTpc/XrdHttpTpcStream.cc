@@ -121,15 +121,17 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
             }
             else if (bytes_accepted != size && size) {
                 size_t new_accept = (*entry_iter)->Accept(offset + bytes_accepted, buf + bytes_accepted, size - bytes_accepted);
-                    // Partial accept; buffer should be writable which means we should free it up
-                    // for next iteration
-                if (new_accept && new_accept != size - bytes_accepted) {
+                if (new_accept) {
+                    // Accepting bytes can make this buffer full and contiguous
+                    // with m_offset.  Flush it now so a completed transfer
+                    // returns its reorder buffer before the scheduler starts
+                    // looking for more available buffers.
                     int retval3 = (*entry_iter)->Write(*this, false);
                     if (retval3 == SFS_ERROR) {
                         if (!m_error_buf.size()) {m_error_buf = "Unknown filesystem write failure.";}
                         return SFS_ERROR;
                     }
-                    buffer_was_written = true;
+                    buffer_was_written |= retval3 > 0;
                 }
                 bytes_accepted += new_accept;
             }
@@ -148,6 +150,16 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
             return SFS_ERROR;
         }
         m_avail_count --;
+        // This new buffer may already be complete and writable; do not wait for
+        // a later callback to discover that, as all curl handles may now be idle.
+        int retval4 = avail_entry->Write(*this, false);
+        if (retval4 == SFS_ERROR) {
+            if (!m_error_buf.size()) {m_error_buf = "Unknown filesystem write failure.";}
+            return SFS_ERROR;
+        }
+        if (retval4 > 0) {
+            m_avail_count ++;
+        }
     }
 
     // If we have low buffer occupancy, then release memory.
