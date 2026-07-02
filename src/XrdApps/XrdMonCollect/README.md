@@ -334,6 +334,27 @@ curl -s -H 'Content-Type: application/json' \
 Drop the `data_stream` block from the template (and omit `--os-datastream`) to
 use a plain rolling index with an ISM rollover policy instead.
 
+#### Dashboards
+
+A ready-to-import OpenSearch Dashboards saved-objects file is provided in
+[`opensearch-dashboards.ndjson`](opensearch-dashboards.ndjson): an
+`xrootd-transfers*` index pattern plus a *XRootD Transfers (xrdmoncollect)*
+dashboard built on the log records — throughput over time, transfer/access
+rates, VO / auth-method / locality breakdowns, error categories, transfer
+duration distribution, and top files/users/sites. Import it under **Dashboards
+Management → Saved Objects → Import** (or via the API):
+
+```sh
+curl -s -u admin:secret -H 'osd-xsrf: true' \
+     -XPOST 'https://dashboards:5601/api/saved_objects/_import?overwrite=true' \
+     --form file=@opensearch-dashboards.ndjson
+```
+
+Traces (the `--spans` OTLP stream) are not shown here: their natural home is the
+tracing backend the OTLP collector feeds (e.g. Tempo or Jaeger), which render
+the `traceId`/`spanId` correlation as trace waterfalls. The Prometheus metrics
+have their own [`grafana-dashboard.json`](grafana-dashboard.json).
+
 ### Examples
 
 ```sh
