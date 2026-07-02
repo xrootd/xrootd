@@ -98,9 +98,10 @@ All document types — the file-close transfer/access records, `session`,
 one OpenTelemetry-aligned schema: a process-level `resource` object and an
 event-level `attributes` object keyed by dotted semantic-convention names (with
 XRootD/WLCG-specific fields under the `xrootd.*`/`wlcg.*` vendor namespaces).
-OpenSearch expands the dots, so each key indexes as a dotted field
-(`attributes.file.path`, `resource.server.address`, …); the committed
-`opensearch-template.json` maps these dotted fields. There is no top-level
+A document store that expands dotted field names (such as OpenSearch) indexes
+each key as a nested field (`attributes.file.path`, `resource.server.address`,
+…); the committed `opensearch-template.json` maps these for that sink. There is
+no top-level
 `type` field: the record kind is `attributes["event.name"]` and the
 whole-file/partial distinction is `attributes["xrootd.transfer.kind"]`.
 
@@ -338,9 +339,10 @@ xrootd.monitor all flush 30 fstat 30 lfn ops ssq xfr 1 auth \
 The per-transfer document uses an OpenTelemetry-aligned schema: a process-level
 `resource` object and an event-level `attributes` object, both keyed by dotted
 semantic-convention names (with XRootD/WLCG-specific fields under the
-`xrootd.*`/`wlcg.*` vendor namespaces). OpenSearch expands the dots, so each key
-indexes as a dotted field (`resource.server.address`, `attributes.client.address`,
-`attributes.xrootd.transfer.read_bytes`). One object per file close, for example:
+`xrootd.*`/`wlcg.*` vendor namespaces). A store that expands dotted field names
+(such as OpenSearch) indexes each key as a nested field (`resource.server.address`,
+`attributes.client.address`, `attributes.xrootd.transfer.read_bytes`). One object
+per file close, for example:
 
 ```json
 {

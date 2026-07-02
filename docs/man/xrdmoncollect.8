@@ -32,8 +32,9 @@ keyed by dotted semantic-convention names (with XRootD/WLCG-specific fields unde
 the \fBxrootd.*\fR/\fBwlcg.*\fR vendor namespaces; for example
 \fBresource.server.address\fR, \fBattributes.client.address\fR,
 \fBattributes.wlcg.vo\fR, \fBattributes.xrootd.transfer.read_bytes\fR).
-OpenSearch expands the dots, so each key indexes as a dotted field, and empty or
-zero-valued fields are omitted. There is no top-level \fBtype\fR field: the
+A store that expands dotted field names (such as OpenSearch) indexes each key as
+a nested field, and empty or zero-valued fields are omitted. There is no
+top-level \fBtype\fR field: the
 record kind is \fBattributes["event.name"]\fR and the whole-file/partial
 distinction is \fBattributes["xrootd.transfer.kind"]\fR.
 .P
