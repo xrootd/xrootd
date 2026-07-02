@@ -119,7 +119,11 @@ function setup_moncollect() {
 		        > "${PWD}/${NAME}/otlp.log" 2>&1 < /dev/null &
 		echo $! > "${OTLP_PID}"
 		disown 2>/dev/null || true
+		# --otlp-token exercises the bearer-auth path; the token is read from a
+		# file (@<path>) so the secret is not passed on the command line.
+		printf 'secrettoken123' > "${PWD}/${NAME}/otlp.token"
 		OTLP_ARGS="--otlp-url http://127.0.0.1:${OTLP_PORT} --spans \
+		           --otlp-token @${PWD}/${NAME}/otlp.token \
 		           --cache-dir ${OTLP_CACHE}"
 		sleep 1   # let it bind before the first export
 	fi
@@ -195,6 +199,8 @@ function test_moncollect() {
 		assert grep -q '^/v1/logs ' "${OTLP_OUT}"
 		assert grep -q '"resourceLogs"' "${OTLP_OUT}"
 		assert grep -q '"key":"xrootd.operation_state"' "${OTLP_OUT}"
+		# the bearer token (read from @file) must reach the endpoint
+		assert grep -q '^authz /v1/logs Bearer secrettoken123' "${OTLP_OUT}"
 		for _ in $(seq 1 15); do
 			grep -q 'resourceSpans' "${OTLP_OUT}" 2>/dev/null && break; sleep 1
 		done

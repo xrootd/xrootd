@@ -168,13 +168,15 @@ size_t otlpDiscardCB(char* ptr, size_t sz, size_t nm, void* userp)
 }
 }
 
-XrdMonOtlp::XrdMonOtlp(const std::string& url, bool insec)
+XrdMonOtlp::XrdMonOtlp(const std::string& url, const std::string& token,
+                       bool insec)
           : curl(nullptr), insecure(insec), maxRetry(4)
 {
    std::string base = url;
    if (!base.empty() && base.back() == '/') base.pop_back();
    logsURL   = base + "/v1/logs";
    tracesURL = base + "/v1/traces";
+   if (!token.empty()) authHdr = "Authorization: Bearer " + token;
 }
 
 XrdMonOtlp::~XrdMonOtlp()
@@ -197,6 +199,7 @@ bool XrdMonOtlp::post(const std::string& url, const std::string& body,
 
    struct curl_slist* hdrs = nullptr;
    hdrs = curl_slist_append(hdrs, "Content-Type: application/json");
+   if (!authHdr.empty()) hdrs = curl_slist_append(hdrs, authHdr.c_str());
 
    int  backoff = 1;
    bool ok = false;

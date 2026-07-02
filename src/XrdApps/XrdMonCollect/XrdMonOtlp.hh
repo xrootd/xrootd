@@ -95,8 +95,10 @@ public:
 
 //! @param url      base OTLP/HTTP endpoint, e.g. "http://collector:4318". The
 //!                 signal paths /v1/logs and /v1/traces are appended.
+//! @param token    bearer token sent as "Authorization: Bearer <token>"
+//!                 (empty for none).
 //! @param insecure skip TLS certificate verification when true.
-XrdMonOtlp(const std::string& url, bool insecure);
+XrdMonOtlp(const std::string& url, const std::string& token, bool insecure);
 ~XrdMonOtlp();
 
 //! Initialize the libcurl handle. @return true on success, else sets err.
@@ -112,6 +114,7 @@ bool post(const std::string& url, const std::string& body, std::string& err);
 void*       curl;       // CURL* (opaque to avoid leaking the header)
 std::string logsURL;
 std::string tracesURL;
+std::string authHdr;    // "Authorization: Bearer <token>" or empty
 bool        insecure;
 int         maxRetry;
 };

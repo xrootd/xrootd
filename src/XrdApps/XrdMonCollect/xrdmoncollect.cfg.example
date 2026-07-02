@@ -21,17 +21,23 @@ port = 9930
 # Write the file/stdout sink in OpenSearch _bulk format for this index.
 # bulk = xrootd-transfers
 
-# Post documents to an OpenSearch cluster's _bulk API.
+# Post documents to an OpenSearch cluster's _bulk API. Authenticate with either
+# basic auth (os-user/os-pass) or a bearer token (os-token, sent as
+# "Authorization: Bearer <token>"); the token wins if both are set. A token of
+# the form @<file> is read from that file so it does not appear in ps/argv.
 # os-url = https://opensearch.example.org:9200
 # os-index = xrootd-transfers
 # os-user = collector
 # os-pass = secret
+# os-token = @/etc/xrootd/opensearch.token
 # os-insecure = false
 # os-datastream = false
 
 # Export as OTLP/JSON to an OpenTelemetry collector (Alloy / OTel Collector):
 # logs to <url>/v1/logs and, with spans = true, traces to <url>/v1/traces.
+# Optional bearer token (Authorization: Bearer); @<file> reads it from a file.
 # otlp-url = http://collector.example.org:4318
+# otlp-token = @/etc/xrootd/otlp.token
 # otlp-insecure = false
 
 # On-failure disk cache (shared by the OpenSearch and OTLP sinks): bodies that

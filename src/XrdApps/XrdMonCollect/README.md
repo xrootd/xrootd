@@ -15,8 +15,8 @@ addition. See `xrootd-new-metrics.md`, Phase 5.
 ```
 xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
               [--os-url <url> [--os-index <name>] [--os-user <u>]
-               [--os-pass <p>] [--os-insecure] [--os-datastream]]
-              [--otlp-url <url> [--otlp-insecure]]
+               [--os-pass <p>] [--os-token <t>] [--os-insecure] [--os-datastream]]
+              [--otlp-url <url> [--otlp-token <t>] [--otlp-insecure]]
               [--forward <host:port>]
               [--flush-count <n>] [--flush-secs <n>] [--dump] [-v]
 
@@ -29,10 +29,14 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --os-index <n>   index/data-stream name (default: xrootd-transfers)
   --os-user <u>    basic-auth user
   --os-pass <p>    basic-auth password
+  --os-token <t>   bearer token (Authorization: Bearer); wins over basic auth;
+                   @<file> reads the token from a file
   --os-insecure    skip TLS certificate verification
   --os-datastream  target is a data stream (use the "create" bulk action)
   --otlp-url <url> POST OTLP/JSON to an OTel collector (logs -> /v1/logs,
                    spans -> /v1/traces with --spans)
+  --otlp-token <t> bearer token (Authorization: Bearer); @<file> reads it from
+                   a file
   --otlp-insecure  skip TLS verification for the OTLP endpoint
   --cache-dir <d>  cache _bulk bodies that fail to POST under <d> and retry them
                    (oldest-first, replayed on startup; default: off = drop)
@@ -262,6 +266,24 @@ fallback when no other sink is configured (`-o` always adds a file too):
   connection is lazily (re)established with a short cool-down; documents
   produced while the consumer is down are dropped (durable buffering is the
   downstream's job). Dependency-free, so it is built even without libcurl.
+
+#### Authentication
+
+Both HTTP sinks authenticate to their endpoint:
+
+- **Basic auth** (OpenSearch only): `--os-user`/`--os-pass`, sent as
+  `Authorization: Basic`.
+- **Bearer token** (both sinks): `--os-token` / `--otlp-token`, sent as
+  `Authorization: Bearer <token>` on every request. This is the usual scheme for
+  OTLP collectors (Grafana Alloy, a gateway OTel Collector) and for token-secured
+  OpenSearch. For OpenSearch a bearer token takes precedence over basic auth if
+  both are configured (they share the `Authorization` header).
+
+A token given as `@<file>` is read from that file (trailing whitespace stripped)
+instead of being taken literally, so the secret stays out of `ps`/argv; a
+config-file value (a `[xrdmoncollect]` `os-token`/`otlp-token` key in a
+mode-`0600` file) works the same way. The TCP `--forward` sink is a plain socket
+with no application-layer auth — put it behind a trusted network or a TLS proxy.
 
 ### Pipeline and durability
 

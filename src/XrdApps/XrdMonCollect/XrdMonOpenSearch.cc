@@ -39,7 +39,8 @@ size_t writeCB(char* ptr, size_t sz, size_t nm, void* userp)
 XrdMonOpenSearch::XrdMonOpenSearch(const std::string& url,
                                    const std::string& index,
                                    const std::string& user,
-                                   const std::string& pass, bool insec,
+                                   const std::string& pass,
+                                   const std::string& token, bool insec,
                                    bool dataStream)
                 : curl(nullptr), idx(index), insecure(insec),
                   useCreate(dataStream), maxRetry(4)
@@ -48,6 +49,7 @@ XrdMonOpenSearch::XrdMonOpenSearch(const std::string& url,
    if (!bulkURL.empty() && bulkURL.back() == '/') bulkURL.pop_back();
    bulkURL += "/_bulk";
    if (!user.empty()) {userpwd = user; userpwd += ':'; userpwd += pass;}
+   if (!token.empty()) authHdr = "Authorization: Bearer " + token;
 }
 
 XrdMonOpenSearch::~XrdMonOpenSearch()
@@ -80,6 +82,7 @@ bool XrdMonOpenSearch::Bulk(const std::string& body, std::string& err)
 
    struct curl_slist* hdrs = nullptr;
    hdrs = curl_slist_append(hdrs, "Content-Type: application/x-ndjson");
+   if (!authHdr.empty()) hdrs = curl_slist_append(hdrs, authHdr.c_str());
 
    int backoff = 1;
    bool ok = false;
@@ -94,7 +97,10 @@ bool XrdMonOpenSearch::Bulk(const std::string& body, std::string& err)
         curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, writeCB);
         curl_easy_setopt(c, CURLOPT_WRITEDATA, &resp);
         curl_easy_setopt(c, CURLOPT_TIMEOUT, 30L);
-        if (!userpwd.empty()) curl_easy_setopt(c, CURLOPT_USERPWD, userpwd.c_str());
+        // A bearer token wins over basic auth: both set Authorization, so avoid
+        // sending two conflicting credentials.
+        if (!userpwd.empty() && authHdr.empty())
+           curl_easy_setopt(c, CURLOPT_USERPWD, userpwd.c_str());
         if (insecure)
            {curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L);
             curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);

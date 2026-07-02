@@ -81,10 +81,14 @@ void usage(const char* prog)
      "  --os-index <n>   index/data-stream name (default: xrootd-transfers)\n"
      "  --os-user <u>    basic-auth user\n"
      "  --os-pass <p>    basic-auth password\n"
+     "  --os-token <t>   bearer token (Authorization: Bearer); wins over basic\n"
+     "                   auth; @<file> reads the token from a file\n"
      "  --os-insecure    skip TLS certificate verification\n"
      "  --os-datastream  target is a data stream (use the \"create\" action)\n"
      "  --otlp-url <url> POST OTLP/JSON to an OTel collector: logs to <url>/v1/logs\n"
      "                   and (with --spans) traces to <url>/v1/traces\n"
+     "  --otlp-token <t> bearer token (Authorization: Bearer); @<file> reads it\n"
+     "                   from a file\n"
      "  --otlp-insecure  skip TLS verification for the OTLP endpoint\n"
      "  --cache-dir <d>  cache _bulk bodies that fail to POST under <d> and retry\n"
      "                   (oldest-first, replayed on startup; default: off=drop)\n"
@@ -139,6 +143,27 @@ std::size_t parseSize(const char* s)
    if (*end == 'b' || *end == 'B') end++;          // accept e.g. "256MB"
    if (*end != '\0') return 0;
    return (std::size_t)(v * (double)mul);
+}
+
+// Resolve a secret (e.g. a bearer token) that may be given inline or, with a
+// leading '@', read from a file so it does not appear in argv/ps or the config.
+// The file's contents are used verbatim minus trailing whitespace/newlines.
+//
+std::string loadSecret(const std::string& spec)
+{
+   if (spec.empty() || spec[0] != '@') return spec;
+   FILE* f = fopen(spec.c_str() + 1, "r");
+   if (!f)
+      {fprintf(stderr, "xrdmoncollect: cannot read secret file '%s'\n",
+               spec.c_str() + 1);
+       return "";
+      }
+   std::string s; char buf[4096]; size_t n;
+   while ((n = fread(buf, 1, sizeof(buf), f)) > 0) s.append(buf, n);
+   fclose(f);
+   while (!s.empty() && (s.back()=='\n' || s.back()=='\r' ||
+                         s.back()==' '  || s.back()=='\t')) s.pop_back();
+   return s;
 }
 
 // Create and bind a UDP socket. With no bind address, an IPv6 dual-stack
@@ -324,13 +349,14 @@ int main(int argc, char* argv[])
    size_t      maxMemory  = 256ull << 20;   // ~256 MiB correlation-state budget
    size_t      maxEntries = 0;              // optional hard entry cap (off)
    long        serverTtl  = 86400;          // reap incarnations idle > 24h
-   std::string osUrl, osUser, osPass;
+   std::string osUrl, osUser, osPass, osToken;
    std::string osIndex = "xrootd-transfers";
    bool        osInsecure = false;
    bool        osDataStream = false;
    std::string cacheDir;            // disk cache for failed POSTs (off if empty)
    std::string fwdHost; int fwdPort = 0;
    std::string otlpUrl;             // OTLP/HTTP endpoint (off if empty)
+   std::string otlpToken;           // OTLP bearer token (off if empty)
    bool        otlpInsecure = false;
    size_t      flushCount = 500;     // packets per receive batch (one batch->POST)
    long        flushSecs  = 5;       // max age of a partial receive batch
@@ -383,9 +409,11 @@ int main(int argc, char* argv[])
        osIndex      = cfg.Get(sec, "os-index", osIndex);
        osUser       = cfg.Get(sec, "os-user", osUser);
        osPass       = cfg.Get(sec, "os-pass", osPass);
+       osToken      = cfg.Get(sec, "os-token", osToken);
        osInsecure   = cfg.GetBoolean(sec, "os-insecure", osInsecure);
        osDataStream = cfg.GetBoolean(sec, "os-datastream", osDataStream);
        otlpUrl      = cfg.Get(sec, "otlp-url", otlpUrl);
+       otlpToken    = cfg.Get(sec, "otlp-token", otlpToken);
        otlpInsecure = cfg.GetBoolean(sec, "otlp-insecure", otlpInsecure);
        cacheDir     = cfg.Get(sec, "cache-dir", cacheDir);
        std::string fwd = cfg.Get(sec, "forward", "");
@@ -426,7 +454,8 @@ int main(int argc, char* argv[])
 //
    enum
    {  OPT_BULK = 256, OPT_OS_URL, OPT_OS_INDEX, OPT_OS_USER, OPT_OS_PASS,
-      OPT_OS_INSECURE, OPT_OS_DATASTREAM, OPT_OTLP_URL, OPT_OTLP_INSECURE,
+      OPT_OS_TOKEN, OPT_OS_INSECURE, OPT_OS_DATASTREAM,
+      OPT_OTLP_URL, OPT_OTLP_TOKEN, OPT_OTLP_INSECURE,
       OPT_CACHE_DIR, OPT_FORWARD,
       OPT_FLUSH_COUNT,
       OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
@@ -441,9 +470,11 @@ int main(int argc, char* argv[])
       {"os-index",        required_argument, nullptr, OPT_OS_INDEX},
       {"os-user",         required_argument, nullptr, OPT_OS_USER},
       {"os-pass",         required_argument, nullptr, OPT_OS_PASS},
+      {"os-token",        required_argument, nullptr, OPT_OS_TOKEN},
       {"os-insecure",     no_argument,       nullptr, OPT_OS_INSECURE},
       {"os-datastream",   no_argument,       nullptr, OPT_OS_DATASTREAM},
       {"otlp-url",        required_argument, nullptr, OPT_OTLP_URL},
+      {"otlp-token",      required_argument, nullptr, OPT_OTLP_TOKEN},
       {"otlp-insecure",   no_argument,       nullptr, OPT_OTLP_INSECURE},
       {"cache-dir",       required_argument, nullptr, OPT_CACHE_DIR},
       {"forward",         required_argument, nullptr, OPT_FORWARD},
@@ -482,9 +513,11 @@ int main(int argc, char* argv[])
          case OPT_OS_INDEX:      osIndex      = optarg;             break;
          case OPT_OS_USER:       osUser       = optarg;             break;
          case OPT_OS_PASS:       osPass       = optarg;             break;
+         case OPT_OS_TOKEN:      osToken      = optarg;             break;
          case OPT_OS_INSECURE:   osInsecure   = true;               break;
          case OPT_OS_DATASTREAM: osDataStream = true;               break;
          case OPT_OTLP_URL:      otlpUrl      = optarg;             break;
+         case OPT_OTLP_TOKEN:    otlpToken    = optarg;             break;
          case OPT_OTLP_INSECURE: otlpInsecure = true;               break;
          case OPT_CACHE_DIR:     cacheDir     = optarg;             break;
          case OPT_FORWARD:
@@ -534,8 +567,8 @@ int main(int argc, char* argv[])
    if (!osUrl.empty())
       {
 #ifdef XRDMON_HAVE_CURL
-       os = new XrdMonOpenSearch(osUrl, osIndex, osUser, osPass, osInsecure,
-                                 osDataStream);
+       os = new XrdMonOpenSearch(osUrl, osIndex, osUser, osPass,
+                                 loadSecret(osToken), osInsecure, osDataStream);
        std::string e;
        if (!os->Init(e))
           {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}
@@ -556,7 +589,7 @@ int main(int argc, char* argv[])
    if (!otlpUrl.empty())
       {
 #ifdef XRDMON_HAVE_CURL
-       otlp = new XrdMonOtlp(otlpUrl, otlpInsecure);
+       otlp = new XrdMonOtlp(otlpUrl, loadSecret(otlpToken), otlpInsecure);
        std::string e;
        if (!otlp->Init(e))
           {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}

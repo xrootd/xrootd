@@ -6,8 +6,8 @@ xrdmoncollect - collect and correlate XRootD detailed monitoring streams
 
 \fBxrdmoncollect\fR \fB-p\fR \fIport\fR [\fB-b\fR \fIbindaddr\fR] [\fB-o\fR \fIfile\fR] [\fB--bulk\fR \fIindex\fR]
               [\fB--os-url\fR \fIurl\fR [\fB--os-index\fR \fIname\fR] [\fB--os-user\fR \fIuser\fR]
-               [\fB--os-pass\fR \fIpass\fR] [\fB--os-insecure\fR] [\fB--os-datastream\fR]]
-              [\fB--otlp-url\fR \fIurl\fR [\fB--otlp-insecure\fR]]
+               [\fB--os-pass\fR \fIpass\fR] [\fB--os-token\fR \fItoken\fR] [\fB--os-insecure\fR] [\fB--os-datastream\fR]]
+              [\fB--otlp-url\fR \fIurl\fR [\fB--otlp-token\fR \fItoken\fR] [\fB--otlp-insecure\fR]]
               [\fB--cache-dir\fR \fIdir\fR]
               [\fB--forward\fR \fIhost:port\fR] [\fB--metrics-port\fR \fIport\fR]
               [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR]
@@ -122,6 +122,14 @@ Index or data-stream name (default: \fBxrootd-transfers\fR).
 .RS 5
 HTTP basic-auth credentials for the OpenSearch endpoint.
 .RE
+\fB--os-token\fR \fItoken\fR
+.RS 5
+Bearer token for the OpenSearch endpoint, sent as an
+\fBAuthorization: Bearer \fR\fItoken\fR header. Takes precedence over basic auth
+(\fB--os-user\fR/\fB--os-pass\fR) when both are given. If \fItoken\fR begins with
+\fB@\fR, the remainder is a path to a file the token is read from (trailing
+whitespace stripped), so the secret need not appear in \fBps\fR/argv.
+.RE
 \fB--os-insecure\fR
 .RS 5
 Skip TLS certificate verification for the OpenSearch endpoint.
@@ -142,6 +150,13 @@ envelope with typed \fBKeyValue\fR attributes. Batched per flush on a dedicated
 output thread with retry/backoff; with \fB--cache-dir\fR a body that still fails
 is written to disk and retried later (see \fB--cache-dir\fR), otherwise it is
 dropped. Requires that \fBxrdmoncollect\fR was built with libcurl.
+.RE
+\fB--otlp-token\fR \fItoken\fR
+.RS 5
+Bearer token for the OTLP endpoint, sent as an \fBAuthorization: Bearer \fR\fItoken\fR
+header on every export (many collectors, e.g. Grafana Alloy or a gateway
+Collector, gate ingestion on it). If \fItoken\fR begins with \fB@\fR, the remainder
+is a path to a file the token is read from (trailing whitespace stripped).
 .RE
 \fB--otlp-insecure\fR
 .RS 5
