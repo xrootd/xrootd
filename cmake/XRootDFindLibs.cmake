@@ -89,16 +89,9 @@ if( ENABLE_XRDOSSARC )
 endif()
 
 if( ENABLE_TESTS )
-  if( FORCE_ENABLED )
-    find_package( GTest REQUIRED )
-  else()
-    find_package( GTest )
-  endif()
-  if( GTEST_FOUND )
-    set( BUILD_TESTS TRUE )
-  else()
-    set( BUILD_TESTS FALSE )
-  endif()
+  add_subdirectory(vendor/googletest EXCLUDE_FROM_ALL)
+
+  set( BUILD_TESTS TRUE )
 
   if( ENABLE_SERVER_TESTS )
     # Enable only by hand for now

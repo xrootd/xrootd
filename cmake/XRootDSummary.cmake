@@ -22,7 +22,7 @@ component_status( PYTHON    BUILD_PYTHON      Python_Interpreter_FOUND AND Pytho
 component_status( READLINE  ENABLE_READLINE   READLINE_FOUND )
 component_status( SCITOKENS ENABLE_SCITOKENS  BUILD_SCITOKENS )
 component_status( SERVER_TESTS ENABLE_SERVER_TESTS TRUE_VAR )
-component_status( TESTS     BUILD_TESTS       GTEST_FOUND )
+component_status( TESTS     ENABLE_TESTS      BUILD_TESTS )
 component_status( TPC       ENABLE_HTTP       BUILD_TPC )
 component_status( VOMSXRD   ENABLE_VOMS       BUILD_VOMS )
 component_status( XRDCL     ENABLE_XRDCL      TRUE_VAR )
