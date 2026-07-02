@@ -16,20 +16,17 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
-#include "XrdCl/XrdClOptimizers.hh"
-
-#include <cstdlib>
-#include <cctype>
-#include <vector>
-#include <sstream>
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <sstream>
+#include <vector>
 
 namespace XrdCl
 {
@@ -144,6 +141,9 @@ namespace XrdCl
 
     if( !ParseHostInfo( hostInfo ) )
     {
+      log->Debug( UtilityMsg, "Failed to parse host info from URL: %s",
+                  obfuscateAuth( url ).c_str() );
+      log->Dump( UtilityMsg, "Host info component: %s", obfuscateAuth( hostInfo ).c_str() );
       Clear();
       return false;
     }
@@ -156,23 +156,6 @@ namespace XrdCl
 
     ComputeURL();
 
-    //--------------------------------------------------------------------------
-    // Dump the url
-    //--------------------------------------------------------------------------
-    std::string urlLog = url;
-    if( unlikely(log->GetLevel() >= Log::DumpMsg)) {
-      urlLog = obfuscateAuth(urlLog);
-    }
-    log->Dump( UtilityMsg,
-               "URL: %s\n"
-               "Protocol:  %s\n"
-               "User Name: %s\n"
-               "Password:  %s\n"
-               "Host Name: %s\n"
-               "Port:      %d\n"
-               "Path:      %s\n",
-               urlLog.c_str(), pProtocol.c_str(), pUserName.c_str(),
-               pPassword.c_str(), pHostName.c_str(), pPort, pPath.c_str() );
     return true;
   }
 
