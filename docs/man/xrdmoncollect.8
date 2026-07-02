@@ -7,6 +7,7 @@ xrdmoncollect - collect and correlate XRootD detailed monitoring streams
 \fBxrdmoncollect\fR \fB-p\fR \fIport\fR [\fB-b\fR \fIbindaddr\fR] [\fB-o\fR \fIfile\fR] [\fB--bulk\fR \fIindex\fR]
               [\fB--os-url\fR \fIurl\fR [\fB--os-index\fR \fIname\fR] [\fB--os-user\fR \fIuser\fR]
                [\fB--os-pass\fR \fIpass\fR] [\fB--os-insecure\fR] [\fB--os-datastream\fR]]
+              [\fB--otlp-url\fR \fIurl\fR [\fB--otlp-insecure\fR]]
               [\fB--cache-dir\fR \fIdir\fR]
               [\fB--forward\fR \fIhost:port\fR] [\fB--metrics-port\fR \fIport\fR]
               [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR]
@@ -74,7 +75,8 @@ with \fBfile.path\fR, \fBxrootd.transfer.kind\fR, \fBxrootd.operation\fR, and
 list is bounded, so a long session that opens many files stays memory-bounded.
 .P
 Documents are emitted as newline-delimited JSON (NDJSON) to a file or standard
-output, posted directly to an OpenSearch cluster, and/or streamed over TCP to a
+output, posted directly to an OpenSearch cluster, exported as OTLP/JSON to an
+OpenTelemetry collector (\fB--otlp-url\fR), and/or streamed over TCP to a
 buffering frontend. The collector can additionally serve aggregated Prometheus
 metrics over HTTP.
 .P
@@ -128,6 +130,21 @@ Skip TLS certificate verification for the OpenSearch endpoint.
 .RS 5
 Target is an OpenSearch data stream; use the \fBcreate\fR bulk action instead of
 \fBindex\fR.
+.RE
+\fB--otlp-url\fR \fIurl\fR
+.RS 5
+Export documents as OTLP/JSON to an OpenTelemetry endpoint (an OpenTelemetry
+Collector, Grafana Alloy, or any OTLP/HTTP receiver): logs are POSTed to
+\fIurl\fR\fB/v1/logs\fR and, with \fB--spans\fR, spans to \fIurl\fR\fB/v1/traces\fR,
+with \fBContent-Type: application/json\fR. The nested \fBresource\fR/\fBattributes\fR
+objects are re-encoded into the strict OTLP \fBresourceLogs\fR/\fBresourceSpans\fR
+envelope with typed \fBKeyValue\fR attributes. Batched per flush on a dedicated
+output thread with retry/backoff; a body that still fails is dropped (there is no
+disk cache on this path). Requires that \fBxrdmoncollect\fR was built with libcurl.
+.RE
+\fB--otlp-insecure\fR
+.RS 5
+Skip TLS certificate verification for the OTLP endpoint.
 .RE
 \fB--cache-dir\fR \fIdir\fR
 .RS 5

@@ -16,6 +16,7 @@ addition. See `xrootd-new-metrics.md`, Phase 5.
 xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
               [--os-url <url> [--os-index <name>] [--os-user <u>]
                [--os-pass <p>] [--os-insecure] [--os-datastream]]
+              [--otlp-url <url> [--otlp-insecure]]
               [--forward <host:port>]
               [--flush-count <n>] [--flush-secs <n>] [--dump] [-v]
 
@@ -30,6 +31,9 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --os-pass <p>    basic-auth password
   --os-insecure    skip TLS certificate verification
   --os-datastream  target is a data stream (use the "create" bulk action)
+  --otlp-url <url> POST OTLP/JSON to an OTel collector (logs -> /v1/logs,
+                   spans -> /v1/traces with --spans)
+  --otlp-insecure  skip TLS verification for the OTLP endpoint
   --cache-dir <d>  cache _bulk bodies that fail to POST under <d> and retry them
                    (oldest-first, replayed on startup; default: off = drop)
   --forward <h:p>  also stream documents as NDJSON over TCP to host:port
@@ -237,6 +241,19 @@ fallback when no other sink is configured (`-o` always adds a file too):
   HTTP 429/5xx) are retried with exponential backoff. With `--cache-dir` a body
   that still fails is written to disk and retried later (see *Pipeline and
   durability*).
+- **OTLP/HTTP** (`--otlp-url`): posts the documents to an OpenTelemetry endpoint
+  as OTLP/JSON — logs to `<url>/v1/logs` and, with `--spans`, spans to
+  `<url>/v1/traces` — so xrdmoncollect feeds an **OpenTelemetry Collector** or
+  **Grafana Alloy** natively; the collector then routes to Loki, Tempo,
+  Elasticsearch, Kafka, and so on. The nested `resource`/`attributes` objects are
+  re-encoded into the strict OTLP `resourceLogs`/`resourceSpans` envelope with
+  typed `KeyValue` attributes; the log/span envelope fields (severity, times,
+  trace/span ids, name/kind/status) pass through since they are already
+  OTLP-shaped. Batched per flush on a dedicated output thread with retry/backoff;
+  a body that still fails is dropped (counted), so run a collector with its own
+  queue for durability. Requires libcurl; `--otlp-insecure` skips TLS
+  verification. This is the log/trace analogue of the metrics OTLP push in
+  `XrdHttpMetricsExporter`.
 - **TCP forward** (`--forward host:port`): streams the same NDJSON over a plain
   TCP connection to a buffering/forwarding frontend — Logstash (`tcp` input),
   Fluentd (`in_tcp`), Vector (`socket` source), or a message-broker bridge. The

@@ -53,6 +53,7 @@
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #ifdef XRDMON_HAVE_CURL
 #include "XrdApps/XrdMonCollect/XrdMonOpenSearch.hh"
+#include "XrdApps/XrdMonCollect/XrdMonOtlp.hh"
 #include <curl/curl.h>
 #endif
 
@@ -81,6 +82,9 @@ void usage(const char* prog)
      "  --os-pass <p>    basic-auth password\n"
      "  --os-insecure    skip TLS certificate verification\n"
      "  --os-datastream  target is a data stream (use the \"create\" action)\n"
+     "  --otlp-url <url> POST OTLP/JSON to an OTel collector: logs to <url>/v1/logs\n"
+     "                   and (with --spans) traces to <url>/v1/traces\n"
+     "  --otlp-insecure  skip TLS verification for the OTLP endpoint\n"
      "  --cache-dir <d>  cache _bulk bodies that fail to POST under <d> and retry\n"
      "                   (oldest-first, replayed on startup; default: off=drop)\n"
      "  --forward <h:p>  also stream documents as NDJSON over TCP to host:port\n"
@@ -324,6 +328,8 @@ int main(int argc, char* argv[])
    bool        osDataStream = false;
    std::string cacheDir;            // disk cache for failed POSTs (off if empty)
    std::string fwdHost; int fwdPort = 0;
+   std::string otlpUrl;             // OTLP/HTTP endpoint (off if empty)
+   bool        otlpInsecure = false;
    size_t      flushCount = 500;     // packets per receive batch (one batch->POST)
    long        flushSecs  = 5;       // max age of a partial receive batch
    size_t      rcvbuf     = 16ull << 20;  // kernel UDP receive buffer (SO_RCVBUF)
@@ -377,6 +383,8 @@ int main(int argc, char* argv[])
        osPass       = cfg.Get(sec, "os-pass", osPass);
        osInsecure   = cfg.GetBoolean(sec, "os-insecure", osInsecure);
        osDataStream = cfg.GetBoolean(sec, "os-datastream", osDataStream);
+       otlpUrl      = cfg.Get(sec, "otlp-url", otlpUrl);
+       otlpInsecure = cfg.GetBoolean(sec, "otlp-insecure", otlpInsecure);
        cacheDir     = cfg.Get(sec, "cache-dir", cacheDir);
        std::string fwd = cfg.Get(sec, "forward", "");
        if (!fwd.empty())
@@ -416,7 +424,8 @@ int main(int argc, char* argv[])
 //
    enum
    {  OPT_BULK = 256, OPT_OS_URL, OPT_OS_INDEX, OPT_OS_USER, OPT_OS_PASS,
-      OPT_OS_INSECURE, OPT_OS_DATASTREAM, OPT_CACHE_DIR, OPT_FORWARD,
+      OPT_OS_INSECURE, OPT_OS_DATASTREAM, OPT_OTLP_URL, OPT_OTLP_INSECURE,
+      OPT_CACHE_DIR, OPT_FORWARD,
       OPT_FLUSH_COUNT,
       OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
       OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
@@ -432,6 +441,8 @@ int main(int argc, char* argv[])
       {"os-pass",         required_argument, nullptr, OPT_OS_PASS},
       {"os-insecure",     no_argument,       nullptr, OPT_OS_INSECURE},
       {"os-datastream",   no_argument,       nullptr, OPT_OS_DATASTREAM},
+      {"otlp-url",        required_argument, nullptr, OPT_OTLP_URL},
+      {"otlp-insecure",   no_argument,       nullptr, OPT_OTLP_INSECURE},
       {"cache-dir",       required_argument, nullptr, OPT_CACHE_DIR},
       {"forward",         required_argument, nullptr, OPT_FORWARD},
       {"flush-count",     required_argument, nullptr, OPT_FLUSH_COUNT},
@@ -471,6 +482,8 @@ int main(int argc, char* argv[])
          case OPT_OS_PASS:       osPass       = optarg;             break;
          case OPT_OS_INSECURE:   osInsecure   = true;               break;
          case OPT_OS_DATASTREAM: osDataStream = true;               break;
+         case OPT_OTLP_URL:      otlpUrl      = optarg;             break;
+         case OPT_OTLP_INSECURE: otlpInsecure = true;               break;
          case OPT_CACHE_DIR:     cacheDir     = optarg;             break;
          case OPT_FORWARD:
              {std::string hp = optarg;
@@ -531,10 +544,31 @@ int main(int argc, char* argv[])
 #endif
       }
 
-// The file/stdout sink is the fallback when no network sink is configured.
-// -o always enables a file in addition to any OpenSearch/forward sink.
+// Set up the OTLP/HTTP export sink if requested (logs -> /v1/logs, spans ->
+// /v1/traces on an OpenTelemetry Collector, Grafana Alloy, or any OTLP receiver).
 //
-   bool  fileSink = outFile || (!osEnabled && fwdPort <= 0);
+   bool otlpEnabled = false;
+#ifdef XRDMON_HAVE_CURL
+   XrdMonOtlp* otlp = nullptr;
+#endif
+   if (!otlpUrl.empty())
+      {
+#ifdef XRDMON_HAVE_CURL
+       otlp = new XrdMonOtlp(otlpUrl, otlpInsecure);
+       std::string e;
+       if (!otlp->Init(e))
+          {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}
+       otlpEnabled = true;
+#else
+       fprintf(stderr, "%s: --otlp-url requires building with libcurl\n", argv[0]);
+       return 2;
+#endif
+      }
+
+// The file/stdout sink is the fallback when no network sink is configured.
+// -o always enables a file in addition to any OpenSearch/OTLP/forward sink.
+//
+   bool  fileSink = outFile || (!osEnabled && !otlpEnabled && fwdPort <= 0);
    FILE* out      = stdout;
    if (outFile && !(out = fopen(outFile, "a")))
       {fprintf(stderr, "%s: cannot open '%s': %s\n", argv[0], outFile,
@@ -589,8 +623,17 @@ int main(int argc, char* argv[])
        if (!cache->Init(e))
           {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}
       }
+
+   // OTLP export state. Documents are accumulated into an OTLP batch (grouped by
+   // resource) and, at each flush, one logs body and one traces body are handed
+   // to a dedicated OTLP output thread through its own bounded pipe. A body that
+   // still fails to POST after retries is dropped (counted) — no disk cache.
+   struct OtlpMsg {bool traces = false; std::string body;};
+   XrdMonOtlpBatch       otlpBatch;
+   XrdMonPipe<OtlpMsg>   otlpPipe(kPostQueueDepth);
+   std::atomic<uint64_t> otlpFailures{0};
 #endif
-   // Hand the current _bulk batch to the output thread (one POST per batch).
+   // Hand the current batch to the output threads (one POST per batch, per sink).
    auto flush = [&]()
       {
 #ifdef XRDMON_HAVE_CURL
@@ -600,6 +643,18 @@ int main(int argc, char* argv[])
            std::swap(body, batch);     // body <- accumulated bulk; batch <- empty
            batchCount = 0;
            postPipe.submit(std::move(body));
+          }
+       if (otlpEnabled && (otlpBatch.haveLogs() || otlpBatch.haveTraces()))
+          {if (otlpBatch.haveLogs())
+              {OtlpMsg m; otlpPipe.acquire(m);
+               m.traces = false; m.body = otlpBatch.takeLogsBody();
+               otlpPipe.submit(std::move(m));
+              }
+           if (otlpBatch.haveTraces())
+              {OtlpMsg m; otlpPipe.acquire(m);
+               m.traces = true; m.body = otlpBatch.takeTracesBody();
+               otlpPipe.submit(std::move(m));
+              }
           }
 #endif
       };
@@ -616,6 +671,11 @@ int main(int argc, char* argv[])
              }
 #ifdef XRDMON_HAVE_CURL
           if (osEnabled) {os->Add(batch, d); batchCount++;}
+          if (otlpEnabled)
+             {// Re-parse the just-serialized document to re-encode it as OTLP.
+              nlohmann::json od = nlohmann::json::parse(d, nullptr, false);
+              if (!od.is_discarded()) otlpBatch.add(od);
+             }
 #endif
           if (fwd)
              {std::string e;
@@ -822,6 +882,36 @@ int main(int argc, char* argv[])
                  }
              }
          });
+
+// OTLP output thread: POSTs each accumulated logs/traces body to the OTLP
+// endpoint off the serializer thread. A body that fails after retries is dropped
+// (counted); there is no disk cache for the OTLP path.
+//
+   std::thread otlpOutput;
+   time_t otlpWarn = 0;
+   if (otlpEnabled)
+      otlpOutput = std::thread([&]()
+         {OtlpMsg m;
+          for (;;)
+             {if (otlpPipe.take(m))
+                 {std::string e;
+                  bool ok = m.traces ? otlp->PostTraces(m.body, e)
+                                     : otlp->PostLogs(m.body, e);
+                  if (!ok)
+                     {otlpFailures++;
+                      time_t now = time(0);
+                      if (now - otlpWarn >= 10)
+                         {otlpWarn = now;
+                          fprintf(stderr, "xrdmoncollect: OTLP %s post failed: "
+                                  "%s\n", m.traces ? "traces" : "logs", e.c_str());
+                         }
+                     }
+                  m.body.clear();
+                  otlpPipe.recycle(std::move(m));
+                 }
+                 else if (otlpPipe.closedDrained()) break;
+             }
+         });
 #endif
 
 // Serializer thread: owns the decoder exclusively (preserving its single-thread
@@ -847,7 +937,8 @@ int main(int argc, char* argv[])
           }
        flush();                           // hand off anything after the pipe closed
 #ifdef XRDMON_HAVE_CURL
-       if (osEnabled) postPipe.close();   // let the output thread drain and exit
+       if (osEnabled)   postPipe.close(); // let the output thread drain and exit
+       if (otlpEnabled) otlpPipe.close();
 #endif
       });
 
@@ -895,7 +986,8 @@ int main(int argc, char* argv[])
    recvPipe.close();
    serializer.join();          // drains the decode pipe, then closes postPipe
 #ifdef XRDMON_HAVE_CURL
-   if (output.joinable()) output.join();   // drains the POST pipe
+   if (output.joinable())     output.join();      // drains the POST pipe
+   if (otlpOutput.joinable()) otlpOutput.join();  // drains the OTLP pipe
 #endif
 
    if (exporter.joinable()) {exporterStop = true; exporter.join();}
@@ -928,6 +1020,7 @@ int main(int argc, char* argv[])
    delete fwd;
 #ifdef XRDMON_HAVE_CURL
    delete os;
+   delete otlp;
    delete cache;
 #endif
    return 0;

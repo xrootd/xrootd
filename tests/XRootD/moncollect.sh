@@ -16,6 +16,13 @@ COLLECTOR_PORT=8096
 COLLECTOR_OUT="${PWD}/${NAME}/collected.ndjson"
 COLLECTOR_PID="${PWD}/${NAME}/collector.pid"
 
+# Mock OTLP/HTTP receiver: when python3 is available the collector additionally
+# exports OTLP logs/traces here, and the test asserts they arrive. Optional so
+# the e2e still runs on hosts without python3.
+OTLP_PORT=8097
+OTLP_OUT="${PWD}/${NAME}/otlp.captured"
+OTLP_PID="${PWD}/${NAME}/otlp.pid"
+
 # Security fragment that moncollect.cfg continues into (see the cfg). Generated
 # at setup time so its contents can depend on whether VOMS is built. The name has
 # no underscore because XRootD's inline $var substitution stops at non-alnum.
@@ -102,13 +109,26 @@ function setup_moncollect() {
 		setup_moncollect_voms
 	fi
 
+	# When python3 is available, start the mock OTLP receiver and point the
+	# collector at it (also enabling --spans so the traces export is exercised).
+	OTLP_ARGS=""
+	if command -v python3 >/dev/null 2>&1; then
+		: > "${OTLP_OUT}"
+		python3 "${SOURCE_DIR}/otlp_mock.py" "${OTLP_PORT}" "${OTLP_OUT}" \
+		        > "${PWD}/${NAME}/otlp.log" 2>&1 < /dev/null &
+		echo $! > "${OTLP_PID}"
+		disown 2>/dev/null || true
+		OTLP_ARGS="--otlp-url http://127.0.0.1:${OTLP_PORT} --spans"
+		sleep 1   # let it bind before the first export
+	fi
+
 	# Start the collector before the server so the f-stream destination has a
 	# listener. The PID file lands in ${NAME}/ so the harness teardown kills it.
 	# Redirect all of its fds (and detach) so it does not inherit and hold open
 	# the test runner's stdout pipe, which would block ctest.
 	: > "${COLLECTOR_OUT}"
 	xrdmoncollect -p "${COLLECTOR_PORT}" -o "${COLLECTOR_OUT}" \
-	              --flush-secs 1 --flush-count 1 \
+	              --flush-secs 1 --flush-count 1 ${OTLP_ARGS} \
 	              > "${PWD}/${NAME}/collector.log" 2>&1 < /dev/null &
 	echo $! > "${COLLECTOR_PID}"
 	disown 2>/dev/null || true
@@ -160,6 +180,26 @@ function test_moncollect() {
 	# and server.address must never be the literal "::1".
 	assert grep -Eq '"host.name":"[^"]+"' "${COLLECTOR_OUT}"
 	assert_failure grep -Eq '"server.address":"::1"' "${COLLECTOR_OUT}"
+
+	# OTLP export (when the mock receiver is running): the collector must POST an
+	# OTLP logs export to /v1/logs (resourceLogs envelope with typed KeyValue
+	# attributes) and, with --spans, a traces export to /v1/traces.
+	if [ -f "${OTLP_PID}" ]; then
+		for _ in $(seq 1 30); do
+			grep -q 'resourceLogs' "${OTLP_OUT}" 2>/dev/null && break
+			xrdcp -f "${TMPDIR}/ok.ref" "${HOST}/${TMPDIR}/ok.ref" >/dev/null 2>&1 || true
+			sleep 1
+		done
+		assert grep -q '^/v1/logs ' "${OTLP_OUT}"
+		assert grep -q '"resourceLogs"' "${OTLP_OUT}"
+		assert grep -q '"key":"xrootd.operation_state"' "${OTLP_OUT}"
+		for _ in $(seq 1 15); do
+			grep -q 'resourceSpans' "${OTLP_OUT}" 2>/dev/null && break; sleep 1
+		done
+		assert grep -q '^/v1/traces ' "${OTLP_OUT}"
+		assert grep -q '"resourceSpans"' "${OTLP_OUT}"
+		echo "found: OTLP logs + traces export"
+	fi
 
 	# With VOMS, the proxy's fake VOMS attribute certificate must surface on the
 	# monitoring stream: gsi extracts it into XrdSecEntity.vorg, the server emits

@@ -29,6 +29,11 @@ port = 9930
 # os-insecure = false
 # os-datastream = false
 
+# Export as OTLP/JSON to an OpenTelemetry collector (Alloy / OTel Collector):
+# logs to <url>/v1/logs and, with spans = true, traces to <url>/v1/traces.
+# otlp-url = http://collector.example.org:4318
+# otlp-insecure = false
+
 # On-failure disk cache: _bulk bodies that fail to POST are written here and
 # retried oldest-first (and replayed on startup). Unset = drop on failure.
 # cache-dir = /var/lib/xrootd/moncollect

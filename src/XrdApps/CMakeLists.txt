@@ -68,13 +68,15 @@ if(NOT XRDCL_ONLY)
       XrdMonCollect/XrdMonCollect.cc
       XrdMonCollect/XrdMonForward.cc
       XrdMonCollect/XrdMonDiskCache.cc
+      XrdMonCollect/XrdMonOtlp.cc
       XrdMonCollect/XrdMonOpenSearch.cc)
     target_compile_definitions(xrdmoncollect PRIVATE XRDMON_HAVE_CURL)
     target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils CURL::libcurl Threads::Threads)
   else()
     add_executable(xrdmoncollect
       XrdMonCollect/XrdMonCollect.cc
-      XrdMonCollect/XrdMonForward.cc)
+      XrdMonCollect/XrdMonForward.cc
+      XrdMonCollect/XrdMonOtlp.cc)
     target_link_libraries(xrdmoncollect XrdAppUtils XrdUtils Threads::Threads)
   endif()
   # Header-only INI parser (vendor/inih) for the optional configuration file.
