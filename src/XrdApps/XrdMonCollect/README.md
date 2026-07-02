@@ -571,6 +571,18 @@ xrootd_collector_frm_purge_bytes_total{server="..."}
 
 Point a Prometheus scrape job at `http://<collector-host>:<p>/metrics`.
 
+### Grafana dashboard
+
+`grafana-dashboard.json` (next to this README) is a ready-to-import dashboard
+covering the metrics above: collector health (ingest/decode rates, correlation
+memory, queue depth), sink health (POST failures, drops, queue and disk-cache
+backlog for both the OpenSearch and OTLP sinks), transfer activity per server
+(throughput, active transfers, failed operations, duration/size histogram
+quantiles, VO and locality breakdowns), and the `g`/`x`/`p`-stream backends
+(redirects, TPC, PFC, OSS, HTTP, throttle, FRM). Import it in Grafana
+(*Dashboards → New → Import*), then pick the Prometheus data source that scrapes
+the collector; a **Server** variable multi-selects the reporting servers.
+
 ## Notes and limitations
 
 - Correlation state (the user/path/token/activity dictionaries and the open-file
