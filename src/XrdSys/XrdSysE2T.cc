@@ -43,11 +43,9 @@
 namespace
 {
 static const int           errSlots = 144;
-XrdSysMutex                e2sMutex;
-std::map<int, std::string> e2sMap;
        const char*         Errno2String[errSlots] = {0};
 
-int initErrTable()
+int initErrTable(std::map<int, std::string> &e2sMap)
 {
    char *eTxt, eBuff[80];
    int lastGood = 0;
@@ -94,7 +92,6 @@ int initErrTable()
    return lastGood;
 }
 
-int maxErrno = initErrTable();
 }
 
 /******************************************************************************/
@@ -103,6 +100,9 @@ int maxErrno = initErrTable();
   
 const char *XrdSysE2T(int errcode)
 {
+   static XrdSysMutex &e2sMutex = *new XrdSysMutex;
+   static std::map<int, std::string> &e2sMap = *new std::map<int, std::string>;
+   static const int maxErrno = initErrTable(e2sMap);
    char eBuff[80];
 
 // Check if we can return this immediately
