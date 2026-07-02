@@ -89,14 +89,7 @@ if( ENABLE_XRDOSSARC )
 endif()
 
 if( ENABLE_TESTS )
-
-  include(FetchContent)
-
-  FetchContent_Declare(
-      googletest
-      SOURCE_DIR "${CMAKE_SOURCE_DIR}/vendor/googletest"
-  )
-  FetchContent_MakeAvailable(googletest)
+  add_subdirectory(vendor/googletest EXCLUDE_FROM_ALL)
 
   set( BUILD_TESTS TRUE )
 
