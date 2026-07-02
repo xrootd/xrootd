@@ -174,7 +174,7 @@ TEST_F(Transfer, SuccessfulCloseStateIsSuccessful)
   feedClose();  // a plain close (no error block)
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Successful");
+  EXPECT_EQ(j["attributes"]["xrootd.operation_state"], "Successful");
   EXPECT_FALSE(j["attributes"].contains("error.message"));
   EXPECT_EQ(dec.GetStats().failed, 0u);
 }
@@ -218,7 +218,7 @@ TEST_F(Transfer, FailedOpenEmitsFailedState)
   EXPECT_EQ(j["attributes"]["event.name"], "xrootd.transfer");
   EXPECT_EQ(j["attributes"]["file.path"], "/store/data/missing.root");
   EXPECT_EQ(j["attributes"]["user.name"], "alice");   // resolved from the inline dictid
-  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Failed");
+  EXPECT_EQ(j["attributes"]["xrootd.operation_state"], "Failed");
   EXPECT_EQ(j["attributes"]["xrootd.error.code"], 3011);
   EXPECT_EQ(j["attributes"]["error.type"], "auth");
   EXPECT_EQ(j["attributes"]["error.message"], "permission denied");
@@ -258,7 +258,7 @@ TEST_F(Transfer, AbortedTransferCloseHasError)
   EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");  // joined to the open
   EXPECT_EQ(j["attributes"]["xrootd.transfer.read_bytes"], 4096);    // partial bytes preserved
   EXPECT_EQ(j["attributes"]["xrootd.transfer.read_ops"], 2);
-  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Failed");
+  EXPECT_EQ(j["attributes"]["xrootd.operation_state"], "Failed");
   EXPECT_EQ(j["attributes"]["error.type"], "read");
   EXPECT_EQ(j["attributes"]["error.message"], "read error: connection reset");
   EXPECT_EQ(dec.GetStats().failed, 1u);
@@ -422,7 +422,7 @@ TEST(XrdMonCollect, RedirectStreamDecoded)
   // operation_state "Redirected" and the destination under "redirect".
   EXPECT_EQ(j["attributes"]["event.name"], "xrootd.transfer");
   EXPECT_EQ(j["attributes"]["xrootd.operation"], "open-read");
-  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Redirected");
+  EXPECT_EQ(j["attributes"]["xrootd.operation_state"], "Redirected");
   EXPECT_EQ(j["attributes"]["xrootd.redirect.kind"], "remote");
   EXPECT_EQ(j["attributes"]["xrootd.redirect.target.address"], "host.example");
   EXPECT_EQ(j["attributes"]["xrootd.redirect.target.port"], 1094);

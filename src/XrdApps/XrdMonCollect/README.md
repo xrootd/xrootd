@@ -92,16 +92,25 @@ supplied via `/etc/default/xrdmoncollect` or `/etc/sysconfig/xrdmoncollect`. The
 default UDP port (9930) is unprivileged; for a port below 1024 add
 `CAP_NET_BIND_SERVICE` to the unit's `CapabilityBoundingSet`/`AmbientCapabilities`.
 
-All document types — `transfer`, `access`, `session`, `server_ident`,
-`frm`, `redirect`, the `t`-stream traces and `gstream` — share one nested,
-OpenSearch-friendly schema (`server.*`, `client.*`, `user.*`, `file.*`,
-`transfer.*`, …; each nested object indexes as a dotted field).
+All document types — the file-close transfer/access records, `session`,
+`server_ident`, `frm`, `redirect`, the `t`-stream traces and `gstream` — share
+one OpenTelemetry-aligned schema: a process-level `resource` object and an
+event-level `attributes` object keyed by dotted semantic-convention names (with
+XRootD/WLCG-specific fields under the `xrootd.*`/`wlcg.*` vendor namespaces).
+OpenSearch expands the dots, so each key indexes as a dotted field
+(`attributes.file.path`, `resource.server.address`, …); the committed
+`opensearch-template.json` maps these dotted fields. There is no top-level
+`type` field: the record kind is `attributes["event.name"]` and the
+whole-file/partial distinction is `attributes["xrootd.transfer.kind"]`.
 
-A file close is reported as one of two types that share an identical schema:
+A file close is reported with `attributes["event.name"]` = `xrootd.transfer`
+and one of two values of `attributes["xrootd.transfer.kind"]` that share an
+identical schema:
 
 - `transfer` — a **whole-file** copy: a read that covered the whole file
-  (`transfer.read_bytes + transfer.readv_bytes >= file.size`, the size captured
-  at open) or a write that completed cleanly (an upload producing the file).
+  (`xrootd.transfer.read_bytes + xrootd.transfer.readv_bytes >= file.size`, the
+  size captured at open) or a write that completed cleanly (an upload producing
+  the file).
 - `access` — finer-grained or partial data access: a short read, a read whose
   open size is unknown (no matching open record), or a write cut short by a
   forced (disconnect-driven) close or an error. XRootD serves both whole-file
@@ -119,22 +128,26 @@ finer-grained events:
 
 - `--sessions` enables per-session activity correlation: every file close that
   named the user is folded into a per-session rollup, and a `session` document
-  is emitted on each client disconnect (`isDisc`). The `session` object carries
-  running totals (`files`, `transfers`, `accesses`, `read_bytes`, `write_bytes`,
-  `errors`, `start_time`/`end_time`/`duration_s`) and a capped `recent_files`
-  list (the most recent closed files, each with `lfn`, `type`, `operation`,
-  `bytes`). The totals cover every closed file; only the `recent_files` list is
-  bounded, so a long session (a batch job opening many files in a dataset) stays
+  (`attributes["event.name"]` = `xrootd.session`) is emitted on each client
+  disconnect (`isDisc`). The session `attributes` carry running totals
+  (`xrootd.session.files`, `.transfers`, `.accesses`, `.read_bytes`,
+  `.write_bytes`, `.errors`, `.start_time`/`.end_time`/`.duration`) and a capped
+  `xrootd.session.recent_files` list (the most recent closed files, each with
+  `file.path`, `xrootd.transfer.kind`, `xrootd.operation`, `xrootd.bytes`). The
+  totals cover every closed file; only the `recent_files` list is bounded, so a
+  long session (a batch job opening many files in a dataset) stays
   memory-bounded. A client that hits an error and disconnects therefore yields
   one document with as much of its activity as the server reported. **Off by
   default** — when disabled no rollup is accumulated and no `session` document is
   produced, saving the per-session memory and receive-thread work for
   deployments that only consume the per-transfer/access documents.
-- `--traces` turns each `t` (I/O trace) record into a document: `read`/`write`
-  (with offset, length and the resolved `file.lfn`), `open`, `close`,
-  `disconnect`, and `appid`. This is **high volume** (one record per I/O) —
-  enable only when the detail is needed. Requires `io` in the server's monitor
-  `dest` list and the path dictionary (`d` stream) to resolve file names.
+- `--traces` turns each `t` (I/O trace) record into a document
+  (`attributes["event.name"]` = `xrootd.read`/`xrootd.write` with
+  `xrootd.io.offset`, `xrootd.io.length` and the resolved `file.path`,
+  `xrootd.open`, `xrootd.close`, `xrootd.disconnect`, and `xrootd.appid`). This
+  is **high volume** (one record per I/O) — enable only when the detail is
+  needed. Requires `io` in the server's monitor `dest` list and the path
+  dictionary (`d` stream) to resolve file names.
 - `--gstream` forwards each `g` (plugin) record — from the `oss`, `pfc`,
   `throttle`, `tpc`, `http` g-streams — as a document tagged with its provider,
   embedding the plugin's JSON payload. Requires `xrootd.mongstream` on the
@@ -144,15 +157,18 @@ finer-grained events:
   `io_total`, `http` counts) are converted to counter deltas. `ccm` and
   `tcpmon` are forwarded only.
 - The `x` (FRM stage/migrate) and `p` (FRM purge) records are always decoded
-  into an `frm` document (operation, `user.name`, `file.lfn`, and — for purge —
-  `file.size`) and counted in `xrootd_collector_frm_total{server,op}` /
+  into an `frm` document (`attributes["event.name"]` = `xrootd.frm`;
+  `xrootd.operation`, `user.name`, `file.path`, and — for purge — `file.size`)
+  and counted in `xrootd_collector_frm_total{server,op}` /
   `xrootd_collector_frm_purge_bytes_total`. Emitted by a File Residency
   Manager.
 - `--redirects` turns each `r` (redirect) record into a concluded-operation
-  document: a `type:"transfer"` report with `transfer.operation_state`
-  `"Redirected"`, the triggering `transfer.operation`, the destination under
-  `redirect` (`kind`, `target_host`, `target_port`), the redirected `file.lfn`,
-  and the joined `user`/`client`. A redirect concludes the operation from the
+  document: an `attributes["event.name"]` = `xrootd.transfer` report with
+  `attributes["xrootd.transfer.kind"]` `"transfer"` and `xrootd.operation_state`
+  `"Redirected"`, the triggering `xrootd.operation`, the destination
+  (`xrootd.redirect.kind`, `xrootd.redirect.target.address`,
+  `xrootd.redirect.target.port`), the redirected `file.path`, and the joined
+  user/client attributes. A redirect concludes the operation from the
   redirector's point of view (the data server that ultimately serves the file
   emits its own `Successful`/`Failed` close). Emitted mainly by
   redirectors/managers; requires `redir` in the monitor `dest` list. Redirects
@@ -161,31 +177,34 @@ finer-grained events:
 
 The `u` (user), `d` (path) and `i` (appinfo) dictionaries are always consumed:
 they resolve identities and paths for the other streams, and the appinfo (`i`)
-is joined to each transfer document by session descriptor (adds `app.raw`
+is joined to each transfer document by session descriptor (adds `xrootd.app.raw`
 when the client set one).
 
 The `=` (server identity), `T` (token) and `U` (user experiment/activity)
 records are also always consumed:
 
-- `=` (`MAPIDNT`) yields a one-off `server_ident` document per server
-  incarnation (`server.{site,hostname,instance,program,version,port}`) and its
-  host/site/instance are joined into every transfer document's `server` object.
-  Re-sent identically each `ident` interval; the collector emits the document
-  only when it changes.
+- `=` (`MAPIDNT`) yields a one-off `server_ident` document
+  (`attributes["event.name"]` = `xrootd.server_ident`) per server incarnation
+  (its `resource`: `xrootd.server.site`, `xrootd.server.instance`,
+  `xrootd.server.program`, `service.version`, `server.address`/`host.name`,
+  `server.port`) and its host/site/instance are joined into every transfer
+  document's `resource`. Re-sent identically each `ident` interval; the
+  collector emits the document only when it changes.
 - `T` (`MAPTOKN`) carries the token identity (subject, VO, role, groups). Keyed
-  by the user dictid, it joins onto each transfer as
-  `user.{subject,vo,role,groups}`, and drives
+  by the user dictid, it joins onto each transfer as `user.id`, `wlcg.vo`,
+  `wlcg.role`, `wlcg.groups`, and drives
   `xrootd_collector_vo_transfers_total{server,vo}`.
 - `U` (`MAPUEAC`) carries the SciTags packet-marking flow labels (experiment
-  and activity ids), joined onto transfers as `activity.{experiment_id,activity_id}`.
+  and activity ids), joined onto transfers as
+  `xrootd.activity.experiment_id`/`xrootd.activity.activity_id`.
   With `--scitags <src>` pointing at a SciTags registry (the scitags.org schema:
   a top-level `"experiments"` array of `{expId, expName, activities:[{activityId,
   activityName}]}`), those numeric ids are additionally mapped to human names —
-  `activity.experiment` and `activity.activity` — and the experiment name is used
-  as a `user.vo` fallback (only when neither the `T` token nor the auth CGI `&o=`
-  supplied a VO). The numeric ids are always emitted, so the field is present with
-  or without the registry; a missing/unparseable source is warned about at
-  start-up and otherwise ignored.
+  `wlcg.activity.experiment` and `wlcg.activity.activity` — and the experiment
+  name is used as a `wlcg.vo` fallback (only when neither the `T` token nor the
+  auth CGI `&o=` supplied a VO). The numeric ids are always emitted, so the field
+  is present with or without the registry; a missing/unparseable source is warned
+  about at start-up and otherwise ignored.
 
   `<src>` is either a local file path or an `http(s)://` URL (e.g. the official
   `https://www.scitags.org/api.json`). A URL source is re-fetched in the
@@ -246,8 +265,10 @@ the recommended shape for this append-only, time-series data: pass
 `--os-datastream` so the collector uses the `_bulk` `create` action (data
 streams reject `index`) and relies on the `@timestamp` every document carries.
 
-A composable index template with an explicit, ECS-style mapping for the dotted
-field names is provided in [`opensearch-template.json`](opensearch-template.json)
+A composable index template with an explicit mapping for the dotted
+semantic-convention field names (the `resource.*`, `attributes.*`,
+`xrootd.*`, and `wlcg.*` keys) is provided in
+[`opensearch-template.json`](opensearch-template.json)
 (IPs as `ip`, byte counters as `long`, identifiers as `keyword`, strings mapped
 to `keyword` by default rather than analyzed `text`). Apply it once before
 ingesting; it also creates the data stream backing the `xrootd-transfers` name:
@@ -293,9 +314,9 @@ enriches the user dictionary with the authentication method and VO (see the
 field table below); without it those fields are simply absent.
 
 The VO path (gsi → VOMS attribute certificate → `XrdSecEntity.vorg` → MAPUSER
-`&o=` → `user.vo`) is exercised end-to-end by the `XRootD::moncollect`
+`&o=` → `wlcg.vo`) is exercised end-to-end by the `XRootD::moncollect`
 integration test when the VOMS plug-in is built: it mints a fake VOMS proxy with
-`voms-proxy-fake` and asserts `user.vo` appears on the transfer document.
+`voms-proxy-fake` and asserts `wlcg.vo` appears on the transfer document.
 
 ```
 xrootd.monitor all flush 30 fstat 30 lfn ops ssq xfr 1 auth \
@@ -304,86 +325,114 @@ xrootd.monitor all flush 30 fstat 30 lfn ops ssq xfr 1 auth \
 
 ## Output document
 
-The per-transfer document uses an OpenSearch-friendly nested schema: each nested
-object indexes as a dotted field (`server.name`, `client.ip`, `transfer.read_bytes`).
-One object per file close, for example:
+The per-transfer document uses an OpenTelemetry-aligned schema: a process-level
+`resource` object and an event-level `attributes` object, both keyed by dotted
+semantic-convention names (with XRootD/WLCG-specific fields under the
+`xrootd.*`/`wlcg.*` vendor namespaces). OpenSearch expands the dots, so each key
+indexes as a dotted field (`resource.server.address`, `attributes.client.address`,
+`attributes.xrootd.transfer.read_bytes`). One object per file close, for example:
 
 ```json
 {
-  "type": "transfer",
-  "@timestamp": "2026-06-23T15:57:53Z",
-  "server": { "name": "srv.example.org", "ip": "::1", "hostname": "srv.example.org",
-              "site": "T1_DE_KIT", "instance": "manager",
-              "id": 53605690318209, "start": 1782230264 },
-  "client": { "host": "wn42.example.org", "hostname": "wn42.example.org",
-              "version": "v5.6.1", "ip_version": 4, "site": "T2_DE_DESY" },
-  "user":   { "name": "amadio", "protocol": "xroot", "auth_method": "gsi",
-              "vo": "atlas", "role": "production", "subject": "https://issuer/sub42" },
-  "file":   { "lfn": "/store/data/big.dat", "size": 10485760, "read_write": false },
-  "transfer": { "operation": "read", "open_seen": true,
-                "start_time": "2026-06-23T15:57:50Z",
-                "end_time": "2026-06-23T15:57:53Z", "duration_s": 3,
-                "forced_close": false, "is_local": false,
-                "read_bytes": 10485760, "readv_bytes": 0, "write_bytes": 0,
-                "read_ops": 2, "readv_ops": 0, "write_ops": 0 },
-  "activity": { "experiment_id": 1, "activity_id": 7,
-                "experiment": "cms", "activity": "production" },
-  "app":    { "name": "xrdcp", "raw": "..." }
+  "resource": {
+    "service.name": "xrootd",
+    "service.instance.id": "srv1",
+    "service.version": "5.6.1",
+    "server.address": "srv1.example.org",
+    "host.name": "srv1.example.org",
+    "server.port": 1094,
+    "xrootd.server.site": "SITE-A",
+    "xrootd.server.instance": "srv1",
+    "xrootd.server.id": 42,
+    "xrootd.server.incarnation": 1700000000
+  },
+  "scope": { "name": "xrdmoncollect" },
+  "@timestamp": "2026-07-02T10:00:32Z",
+  "timeUnixNano": "1751450432000000000",
+  "observedTimeUnixNano": "1751450432100000000",
+  "severityNumber": 9, "severityText": "INFO",
+  "traceId": "9f1c8b0d4e2a6f37c1a8b0d4e2a6f371",
+  "spanId": "3ab4c1d2e3f40516",
+  "attributes": {
+    "event.name": "xrootd.transfer",
+    "xrootd.transfer.kind": "transfer",
+    "file.path": "/store/data/file.root",
+    "file.name": "file.root",
+    "file.size": 1073741824,
+    "client.address": "wn.example.org",
+    "network.type": "ipv4",
+    "user.name": "alice",
+    "user.id": "https://issuer/sub42",
+    "wlcg.vo": "atlas", "wlcg.role": "production", "wlcg.groups": "/atlas/prod",
+    "xrootd.auth.method": "gsi",
+    "xrootd.client.version": "v5.6.1",
+    "xrootd.client.site": "client-site",
+    "xrootd.app.name": "xrdcp",
+    "xrootd.operation": "read",
+    "xrootd.operation_state": "Successful",
+    "xrootd.transfer.start_time": "2026-07-02T09:55:32Z",
+    "xrootd.transfer.duration": 300,
+    "xrootd.transfer.read_bytes": 1073741824,
+    "xrootd.transfer.read_ops": 320,
+    "xrootd.transfer.is_local": true
+  }
 }
 ```
 
-`transfer.open_seen` is `false` (and the `file`/`user`/`client` objects are
-absent) for a close whose open record was lost or predates the collector — the
-`transfer` byte totals are still reported. Empty/zero fields are omitted, so a
-given document only carries what the server actually reported.
+`xrootd.transfer.open_seen` is `false` (and the `file.*`, `user.*`, `client.*`
+attributes are absent) for a close whose open record was lost or predates the
+collector — the `xrootd.transfer.*` byte totals are still reported. Empty/zero
+fields are omitted, so a given document only carries what the server actually
+reported.
 
 ### WLCG field mapping
 
 The schema covers the WLCG transfer-monitoring fields that XRootD currently puts
 on the wire. Mapping (and the server config each needs):
 
-| WLCG field | Document field | Source / requires |
+| WLCG field | XRootD field | Source / requires |
 | :-- | :-- | :-- |
-| file_name | `file.lfn` | `fstat … lfn` |
-| operation_type | `transfer.operation` (`read`/`write`) | `fstat … xfr` |
-| operation_state | `transfer.operation_state` (`Successful`/`Failed`/`Redirected`) | `fstat` (terminal report); `Redirected` from `r` with `--redirects` |
-| error_message | `transfer.error_message` | `fstat` (failed open / I/O / close) |
-| error_category | `transfer.error_category` + `transfer.error_code` | `fstat` (failed open / I/O / close) |
-| server_name/site | `server.name` / `server.site` | `=` ident (`XRDSITE` for site) |
-| server_ip / hostname | `server.ip` / `server.hostname` | UDP source / `=` ident (loopback → local FQDN) |
-| client_ip / hostname | `client.ip` / `client.hostname` | `u` descriptor (server DNS config) |
-| client_version | `client.version` | login appinfo (`&R=`) |
-| ip_version | `client.ip_version` | login appinfo (`&I=`) |
-| client_site | `client.site` | login appinfo (`&S=`, client `XRDSITE`/`XRD_SITE`) |
-| auth_method | `user.auth_method` | **`… auth`** |
-| user | `user.name` / `user.subject` | `u` / `T` token |
-| vo | `user.vo` | `T` token, else `… auth` (`&o=`), else SciTags experiment (`--scitags`) |
-| activity | `activity.experiment`/`activity.activity` (names), `activity.*_id` (numeric), `user.role` | `U` SciTags + `--scitags` registry; `T` token for role |
-| start_time / end_time | `transfer.start_time` / `.end_time` | f-stream `FileTOD` window |
-| bytes | `transfer.{read,readv,write}_bytes` | `fstat … xfr` |
-| is_local (LAN/WAN) | `transfer.is_local` | derived: client vs server domain (needs `=` ident) |
+| file_name | `file.path` | `fstat … lfn` |
+| operation_type | `xrootd.operation` (`read`/`write`) | `fstat … xfr` |
+| operation_state | `xrootd.operation_state` (`Successful`/`Failed`/`Redirected`) | `fstat` (terminal report); `Redirected` from `r` with `--redirects` |
+| error_message | `error.message` | `fstat` (failed open / I/O / close) |
+| error_category | `error.type` + `xrootd.error.code` | `fstat` (failed open / I/O / close) |
+| server_name/site | `server.address` / `xrootd.server.site` | `=` ident (`XRDSITE` for site) |
+| server_ip / hostname | `server.address` / `host.name` | UDP source / `=` ident (loopback → local FQDN) |
+| client_ip / hostname | `client.address` | `u` descriptor (server DNS config) |
+| client_version | `xrootd.client.version` | login appinfo (`&R=`) |
+| ip_version | `network.type` (`ipv4`/`ipv6`) | login appinfo (`&I=`) |
+| client_site | `xrootd.client.site` | login appinfo (`&S=`, client `XRDSITE`/`XRD_SITE`) |
+| auth_method | `xrootd.auth.method` | **`… auth`** |
+| user | `user.name` / `user.id` | `u` / `T` token |
+| vo | `wlcg.vo` | `T` token, else `… auth` (`&o=`), else SciTags experiment (`--scitags`) |
+| activity | `wlcg.activity.experiment`/`wlcg.activity.activity` (names), `xrootd.activity.*_id` (numeric), `wlcg.role` | `U` SciTags + `--scitags` registry; `T` token for role |
+| start_time / end_time | `xrootd.transfer.start_time` / `.end_time` | f-stream `FileTOD` window |
+| bytes | `xrootd.transfer.{read,readv,write}_bytes` | `fstat … xfr` |
+| is_local (LAN/WAN) | `xrootd.transfer.is_local` | derived: client vs server domain (needs `=` ident) |
 
-`server.hostname` precedence is: the host advertised on the `=` ident stream
+`host.name` precedence is: the host advertised on the `=` ident stream
 (when it is a real name, not an IP literal), else — for a server reporting from
 the loopback address (the common co-located collector + server setup, where the
 UDP source is `::1`/`127.0.0.1`) — the collector's own local FQDN, since the
-reporting server runs on the same host. `server.name` falls back to the numeric
-`server.ip` when neither is available. `--no-resolve` disables the loopback
-substitution (leaving the numeric address). A *remote* server is never
-reverse-resolved here — that hostname comes from its `=` ident, and a blocking
-reverse-DNS lookup of an arbitrary source IP would stall the UDP receive loop.
+reporting server runs on the same host. `server.address` falls back to the
+numeric IP (it carries the IP when no hostname is available). `--no-resolve`
+disables the loopback substitution (leaving the numeric address). A *remote*
+server is never reverse-resolved here — that hostname comes from its `=` ident,
+and a blocking reverse-DNS lookup of an arbitrary source IP would stall the UDP
+receive loop.
 
-`transfer.is_local` is a heuristic: it is `true` when the client and the
+`xrootd.transfer.is_local` is a heuristic: it is `true` when the client and the
 reporting server share a registered domain (the part after the first host
 label), `false` when they differ, and **omitted** when either side is an IP
 literal or the server host is unknown (no `=` ident yet). It also drives
 `xrootd_collector_locality_transfers_total{server,locality}`.
 
-`transfer.operation_state` is the authoritative success/failure of the
+`xrootd.operation_state` is the authoritative success/failure of the
 operation: a plain close reports `Successful`, while a failed open, a
 mid-transfer read/write error, or a failed close reports `Failed` together with
-`transfer.error_category` (`open`/`read`/`write`/`close`/`auth`),
-`transfer.error_code` (the XRootD error code), and `transfer.error_message`. A
+`error.type` (`open`/`read`/`write`/`close`/`auth`),
+`xrootd.error.code` (the XRootD error code), and `error.message`. A
 failed open never produced any close record before; the server now emits a
 terminal `isError` f-stream record, and sets `hasERR` on the close for a failed
 close or a terminal `read`/`readv`/`pgread`/`write`/`writev`/`pgwrite` error
@@ -394,25 +443,26 @@ denials that bypass `fsError` — notably a second writer rejected with
 `kXR_FileLocked`. All are keyed on
 `xrootd_collector_failed_operations_total{server,category}`. This requires only
 the existing `fstat` setup — no extra directive. A disconnect-driven
-(`transfer.forced_close`) close is **not** a failure unless an error was
-actually recorded. The `error_message` is the server's own SFS reason verbatim
+(`xrootd.transfer.forced_close`) close is **not** a failure unless an error was
+actually recorded. The `error.message` is the server's own SFS reason verbatim
 (e.g. `Unable to open …; no such file or directory` for a missing file); the
 `XRootD::moncollect` test asserts that specific reason per-document for both a
 failed open and the readv-past-EOF case.
 
 A third terminal state, `"Redirected"`, is reported for `r`-stream redirect
 records (with `--redirects`): from the redirector's point of view the operation
-concluded by sending the client elsewhere. The redirect destination travels
-under the `redirect` object (`kind`, `target_host`, `target_port`); the data
-server that ultimately serves the file emits its own `Successful`/`Failed`
-close.
+concluded by sending the client elsewhere. The redirect destination travels as
+`xrootd.redirect.kind`, `xrootd.redirect.target.address`, and
+`xrootd.redirect.target.port`; the data server that ultimately serves the file
+emits its own `Successful`/`Failed` close.
 
-`client.site` is the site the *client* advertises for itself: an XRootD client
-that has `XRDSITE` (or `XRD_SITE`, which takes precedence) set in its environment
-sends it in the login CGI (`xrd.site`), the server folds it into the user-map
-appinfo (`&S=`), and the collector surfaces it as `client.site`. It is absent
-when the client does not advertise one. (This is distinct from `server.site`,
-which is the *reporting server's* `XRDSITE` from the `=` ident record.)
+`xrootd.client.site` is the site the *client* advertises for itself: an XRootD
+client that has `XRDSITE` (or `XRD_SITE`, which takes precedence) set in its
+environment sends it in the login CGI (`xrd.site`), the server folds it into the
+user-map appinfo (`&S=`), and the collector surfaces it as `xrootd.client.site`.
+It is absent when the client does not advertise one. (This is distinct from
+`xrootd.server.site`, which is the *reporting server's* `XRDSITE` from the `=`
+ident record.)
 
 ## Aggregated metrics (Prometheus)
 

@@ -331,7 +331,7 @@ void     EmitError(const std::string& src, int32_t stod, Server& srv,
                    unsigned char recFlag, const unsigned char* rec,
                    int recSize, int32_t tWin);
 //! Fill the terminal-error attributes (error.type/error.message plus vendor
-//! xrootd.error.code and xrootd.operation.state) into the event `attributes`
+//! xrootd.error.code and xrootd.operation_state) into the event `attributes`
 //! object from a XrdXrootdMonStatERR block of `errLen` bytes. Returns the
 //! low-cardinality error category (open/read/write/close/auth) for metric labels.
 std::string otelError(nlohmann::json& attrs, const unsigned char* err,

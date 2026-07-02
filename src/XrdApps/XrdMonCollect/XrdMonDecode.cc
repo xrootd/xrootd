@@ -1231,7 +1231,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
                         {"category", cat.empty() ? "unknown" : cat}})
                   += 1;
       }
-   else a["xrootd.operation.state"] = "Successful";
+   else a["xrootd.operation_state"] = "Successful";
 
 // Aggregate into bounded-cardinality Prometheus series (label only by the
 // reporting server). Per-transfer detail stays in the document sink; here we
@@ -1285,7 +1285,7 @@ std::string XrdMonDecode::otelError(json& a, const unsigned char* err,
 //
    if (errLen < 8) return "";
    std::string cat = errCatName((unsigned char)err[4]);
-   a["xrootd.operation.state"] = "Failed";
+   a["xrootd.operation_state"] = "Failed";
    a["error.type"]             = cat;           // semconv low-cardinality type
    a["xrootd.error.code"]      = ri32(err);
    const char* m = (const char*)(err + 8);
@@ -1710,7 +1710,7 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
          if (redirects)
             {// A redirect concludes the operation from this (redirector) node's
              // point of view, so it is reported in the same concluded-operation
-             // schema as closes and errors, with xrootd.operation.state
+             // schema as closes and errors, with xrootd.operation_state
              // "Redirected" and the destination under xrootd.redirect.*.
              json j;
              otelResource(j, src, stod, srv);
@@ -1718,7 +1718,7 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
              json& a = j["attributes"];
 
              a["xrootd.operation"]       = redirOp(type & 0x0f);
-             a["xrootd.operation.state"] = "Redirected";
+             a["xrootd.operation_state"] = "Redirected";
              a["xrootd.redirect.kind"]        = kind;
              a["xrootd.redirect.target.port"] = port;
              // hp is "<host>:<path>": the host is the redirect target, the path

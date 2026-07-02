@@ -147,7 +147,7 @@ function test_moncollect() {
 	#    second until the document is observed (tolerates UDP loss). XRD_SITE is
 	#    advertised by the client at login and surfaces as client.site.
 	export XRD_SITE=CLIENT-TEST-SITE
-	drive_until '"xrootd.operation.state":"Successful"' "successful transfer document" \
+	drive_until '"xrootd.operation_state":"Successful"' "successful transfer document" \
 		"xrdcp -f '${TMPDIR}/ok.ref' '${HOST}/${TMPDIR}/ok.ref' \
 		 && xrdcp -f '${HOST}/${TMPDIR}/ok.ref' '${TMPDIR}/ok.dat'"
 
@@ -174,7 +174,7 @@ function test_moncollect() {
 
 	# 2. A failed open: reading a nonexistent file fails before any close, so
 	#    the server emits a terminal isError record -> operation_state "Failed".
-	drive_until '"xrootd.operation.state":"Failed"' "failed-open document" \
+	drive_until '"xrootd.operation_state":"Failed"' "failed-open document" \
 		"xrdcp '${HOST}/${TMPDIR}/does-not-exist.root' '${TMPDIR}/x.dat'"
 
 	# The failed-open report must, on a SINGLE document, name the missing file
@@ -183,7 +183,7 @@ function test_moncollect() {
 	# error code (kXR_NotFound = 3011). Pin the checks to one record so they
 	# cannot pass by matching fields spread across different documents.
 	open_doc=$(grep -E '"file.path":"[^"]*does-not-exist\.root"' "${COLLECTOR_OUT}" \
-		| grep -E '"xrootd.operation.state":"Failed"' | head -n1)
+		| grep -E '"xrootd.operation_state":"Failed"' | head -n1)
 	test -n "${open_doc}" || error "no failed-open transfer document found"
 	assert grep -Eq '"error.type":"open"' <<<"${open_doc}"
 	assert grep -Eq '"xrootd.error.code":3011' <<<"${open_doc}"
@@ -201,7 +201,7 @@ function test_moncollect() {
 	# the readv-past-EOF close must report category "read" with the server's
 	# "illegal seek" reason (kXR_FSError = 3005), not just any error.
 	readv_doc=$(grep -E '"xrootd.app.name":"xrdreadv-eof"' "${COLLECTOR_OUT}" \
-		| grep -E '"xrootd.operation.state":"Failed"' | head -n1)
+		| grep -E '"xrootd.operation_state":"Failed"' | head -n1)
 	test -n "${readv_doc}" || error "no failed-readv transfer document found"
 	assert grep -Eq '"error.type":"read"' <<<"${readv_doc}"
 	assert grep -Eq '"xrootd.error.code":3005' <<<"${readv_doc}"

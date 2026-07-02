@@ -26,13 +26,21 @@ correlates them into self-contained JSON documents.
 The principal output is one document per file close, joining the
 \fIf\fR-stream close record with the user, path, application-info, token, and
 activity dictionaries into a single record carrying WLCG-aligned identity,
-location, and transfer fields. Documents use a nested, OpenSearch-friendly
-schema (for example \fBserver.name\fR, \fBclient.ip\fR, \fBuser.vo\fR,
-\fBtransfer.read_bytes\fR), and empty or zero-valued fields are omitted.
+location, and transfer fields. Documents use an OpenTelemetry-aligned schema: a
+process-level \fBresource\fR object and an event-level \fBattributes\fR object
+keyed by dotted semantic-convention names (with XRootD/WLCG-specific fields under
+the \fBxrootd.*\fR/\fBwlcg.*\fR vendor namespaces; for example
+\fBresource.server.address\fR, \fBattributes.client.address\fR,
+\fBattributes.wlcg.vo\fR, \fBattributes.xrootd.transfer.read_bytes\fR).
+OpenSearch expands the dots, so each key indexes as a dotted field, and empty or
+zero-valued fields are omitted. There is no top-level \fBtype\fR field: the
+record kind is \fBattributes["event.name"]\fR and the whole-file/partial
+distinction is \fBattributes["xrootd.transfer.kind"]\fR.
 .P
-Each close is typed as a whole-file \fItransfer\fR or a partial \fIaccess\fR,
-which share the same schema. A close is a \fItransfer\fR when a read covered the
-whole file (\fBtransfer.read_bytes\fR + \fBtransfer.readv_bytes\fR reaches
+Each close is a whole-file \fItransfer\fR or a partial \fIaccess\fR
+(the \fBxrootd.transfer.kind\fR value), which share the same schema. A close is a
+\fItransfer\fR when a read covered the whole file
+(\fBxrootd.transfer.read_bytes\fR + \fBxrootd.transfer.readv_bytes\fR reaches
 \fBfile.size\fR, the size captured at open) or a write completed cleanly;
 otherwise — a short read, a read with no known open size, or a write cut short
 by a forced close or an error — it is an \fIaccess\fR. This separates whole-file
@@ -40,27 +48,29 @@ copies from finer-grained remote data access; the two are also counted in
 \fBxrootd_collector_transfers_total\fR and \fBxrootd_collector_accesses_total\fR.
 .P
 A transfer document also carries the terminal status of the operation in
-\fBtransfer.operation_state\fR: a normal close reports \fBSuccessful\fR, while a
+\fBxrootd.operation_state\fR: a normal close reports \fBSuccessful\fR, while a
 failed open, a mid-transfer read/write error, or a failed close reports
-\fBFailed\fR together with \fBtransfer.error_category\fR
+\fBFailed\fR together with \fBerror.type\fR
 (\fBopen\fR, \fBread\fR, \fBwrite\fR, \fBclose\fR, or \fBauth\fR),
-\fBtransfer.error_code\fR, and \fBtransfer.error_message\fR. Failed opens, which
+\fBxrootd.error.code\fR, and \fBerror.message\fR. Failed opens, which
 produce no close record, are reported by the server as a dedicated terminal
 record on the \fIf\fR-stream; mid-transfer and close failures travel with the
 close record itself. A redirect (\fIr\fR-stream, with \fB--redirects\fR) is a
 third terminal state, \fBRedirected\fR: from the redirector's point of view the
-operation concluded by sending the client elsewhere, with the destination under
-the \fBredirect\fR object.
+operation concluded by sending the client elsewhere, with the destination in the
+\fBxrootd.redirect.*\fR attributes.
 .P
-With \fB--sessions\fR, a \fIsession\fR document aggregates each disconnecting
-client's whole session (off by default; when disabled no session rollup is kept
-and no session document is emitted):
-every file close that named the user is folded into a \fBsession\fR object with
-running totals (\fBfiles\fR, \fBtransfers\fR, \fBaccesses\fR, \fBread_bytes\fR,
-\fBwrite_bytes\fR, \fBerrors\fR, and start/end/duration) plus a capped
-\fBrecent_files\fR list (each with \fBlfn\fR, \fBtype\fR, \fBoperation\fR, and
-\fBbytes\fR). The totals cover every closed file; only the recent-file list is
-bounded, so a long session that opens many files stays memory-bounded.
+With \fB--sessions\fR, a \fIsession\fR document
+(\fBattributes["event.name"]\fR = \fBxrootd.session\fR) aggregates each
+disconnecting client's whole session (off by default; when disabled no session
+rollup is kept and no session document is emitted):
+every file close that named the user is folded into running totals
+(\fBxrootd.session.files\fR, \fB.transfers\fR, \fB.accesses\fR,
+\fB.read_bytes\fR, \fB.write_bytes\fR, \fB.errors\fR, and
+start/end/duration) plus a capped \fBxrootd.session.recent_files\fR list (each
+with \fBfile.path\fR, \fBxrootd.transfer.kind\fR, \fBxrootd.operation\fR, and
+\fBxrootd.bytes\fR). The totals cover every closed file; only the recent-file
+list is bounded, so a long session that opens many files stays memory-bounded.
 .P
 Documents are emitted as newline-delimited JSON (NDJSON) to a file or standard
 output, posted directly to an OpenSearch cluster, and/or streamed over TCP to a
@@ -190,8 +200,8 @@ upgrades (default \fB86400\fR; \fB0\fR = never).
 Load a SciTags registry (the scitags.org schema: a top-level \fBexperiments\fR
 array of \fB{expId, expName, activities:[{activityId, activityName}]}\fR). The
 numeric SciTags experiment/activity ids carried on the \fIU\fR stream are then
-additionally mapped to their names (\fBactivity.experiment\fR,
-\fBactivity.activity\fR), and the experiment name is used as a \fBuser.vo\fR
+additionally mapped to their names (\fBwlcg.activity.experiment\fR,
+\fBwlcg.activity.activity\fR), and the experiment name is used as a \fBwlcg.vo\fR
 fallback when neither a token nor the auth CGI supplied a VO. The numeric ids
 are emitted either way; a missing or unparseable source is warned about and
 otherwise ignored.
@@ -211,7 +221,7 @@ current registry. Ignored for a file source.
 .RS 5
 Do not substitute the collector's local fully-qualified hostname for a server
 that reports from the loopback address (\fB::1\fR/\fB127.0.0.1\fR, the common
-co-located setup). With this flag \fBserver.name\fR keeps the numeric address
+co-located setup). With this flag \fBserver.address\fR keeps the numeric address
 unless a hostname arrives on the \fI=\fR ident stream. Remote servers are never
 reverse-resolved; their hostname comes from the \fI=\fR ident.
 .RE
@@ -232,8 +242,9 @@ Emit a document per \fIg\fR-stream (plugin) record.
 \fB--redirects\fR
 .RS 5
 Emit a concluded-operation document per \fIr\fR-stream redirect record
-(\fBtransfer.operation_state\fR \fBRedirected\fR, with the destination under
-\fBredirect\fR). Emitted mainly by redirectors/managers. Redirects are counted
+(\fBxrootd.operation_state\fR \fBRedirected\fR, with the destination in the
+\fBxrootd.redirect.*\fR attributes). Emitted mainly by redirectors/managers.
+Redirects are counted
 in the aggregated metrics regardless of this flag.
 .RE
 \fB--dump\fR
@@ -246,9 +257,9 @@ Print decoder statistics on exit.
 .RE
 .SH SERVER CONFIGURATION
 The richness of the transfer document depends on the server's
-\fBxrootd.monitor\fR directive. File-level fields (\fBfile.lfn\fR, byte counts,
+\fBxrootd.monitor\fR directive. File-level fields (\fBfile.path\fR, byte counts,
 operation counts, and squared sums) require \fBfstat\fR with \fBlfn ops ssq
-xfr\fR; identity fields such as \fBuser.auth_method\fR and the auth-derived VO
+xfr\fR; identity fields such as \fBxrootd.auth.method\fR and the auth-derived VO
 require the \fBauth\fR option. A representative configuration is:
 .P
 .RS 5
@@ -258,15 +269,15 @@ xrootd.monitor all flush 30s ident 5m fstat 60s lfn ops ssq xfr 1 \\
 .fi
 .RE
 .P
-When \fBauth\fR is omitted, \fBuser.auth_method\fR and the auth-derived VO are
+When \fBauth\fR is omitted, \fBxrootd.auth.method\fR and the auth-derived VO are
 absent, but client version, IP version, and the remaining fields still
 populate.
 .P
-The \fBclient.site\fR field is populated when the connecting client advertises a
-site of its own: a client with \fBXRDSITE\fR (or \fBXRD_SITE\fR, which takes
-precedence) set in its environment sends it at login, and the server forwards it
-on the \fIu\fR-stream. This is independent of the reporting server's own
-\fBserver.site\fR.
+The \fBxrootd.client.site\fR field is populated when the connecting client
+advertises a site of its own: a client with \fBXRDSITE\fR (or \fBXRD_SITE\fR,
+which takes precedence) set in its environment sends it at login, and the server
+forwards it on the \fIu\fR-stream. This is independent of the reporting server's
+own \fBxrootd.server.site\fR.
 .SH CONFIGURATION FILE
 Options may be supplied in an INI configuration file as an alternative to the
 command line. The file is loaded from the path given with \fB-c\fR, or
