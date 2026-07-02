@@ -147,14 +147,8 @@ namespace XrdCl
       return false;
     }
 
-    if( !ParsePath( path ) )
-    {
-      Clear();
-      return false;
-    }
-
+    ParsePath( path );
     ComputeURL();
-
     return true;
   }
 
