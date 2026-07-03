@@ -4,6 +4,7 @@
 /usr/lib/*/libXrdFileCache-6.so
 /usr/lib/*/libXrdHttp-6.so
 /usr/lib/*/libXrdHttpCors-6.so
+/usr/lib/*/libXrdHttpMetricsExporter-6.so
 /usr/lib/*/libXrdHttpTPC-6.so
 /usr/lib/*/libXrdMacaroons-6.so
 /usr/lib/*/libXrdN2No2p-6.so
