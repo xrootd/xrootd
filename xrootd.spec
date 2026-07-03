@@ -613,6 +613,7 @@ fi
 %{_libdir}/libXrdCmsRedirectLocal-6.so
 %{_libdir}/libXrdFileCache-6.so
 %{_libdir}/libXrdHttp-6.so
+%{_libdir}/libXrdHttpMetricsExporter-6.so
 %{_libdir}/libXrdHttpTPC-6.so
 %{_libdir}/libXrdHttpCors-6.so
 %{_libdir}/libXrdMacaroons-6.so
