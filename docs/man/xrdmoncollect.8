@@ -150,6 +150,8 @@ envelope with typed \fBKeyValue\fR attributes. Batched per flush on a dedicated
 output thread with retry/backoff; with \fB--cache-dir\fR a body that still fails
 is written to disk and retried later (see \fB--cache-dir\fR), otherwise it is
 dropped. Requires that \fBxrdmoncollect\fR was built with libcurl.
+Pointing \fIurl\fR at Loki's OTLP endpoint (e.g. \fBhttp://loki:3100/otlp\fR)
+feeds the ready-to-import \fBgrafana-loki-dashboard.json\fR; see the README.
 .RE
 \fB--otlp-token\fR \fItoken\fR
 .RS 5

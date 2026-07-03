@@ -355,6 +355,42 @@ tracing backend the OTLP collector feeds (e.g. Tempo or Jaeger), which render
 the `traceId`/`spanId` correlation as trace waterfalls. The Prometheus metrics
 have their own [`grafana-dashboard.json`](grafana-dashboard.json).
 
+##### Loki / Grafana
+
+The same log records can drive a Grafana dashboard backed by
+[Grafana Loki](https://grafana.com/oss/loki/) instead of OpenSearch. Point the
+OTLP sink at Loki's OTLP endpoint (optionally through an OpenTelemetry Collector
+or Grafana Alloy in between):
+
+```sh
+xrdmoncollect -p 9930 --otlp-url http://loki:3100/otlp
+```
+
+`xrdmoncollect` appends `/v1/logs` to the OTLP URL, matching Loki's OTLP ingest
+path. This requires **Loki ≥ 3.0** with structured metadata and OTLP ingestion
+enabled (both on by default in 3.x). Loki promotes only a small set of *resource*
+attributes to stream labels — for our records `service.name` (always `xrootd`)
+and `service.instance.id` — and stores everything else, including all event
+attributes, as **structured metadata** with dots rewritten to underscores. So the
+OpenSearch field `attributes.xrootd.transfer.kind` becomes the queryable label
+`xrootd_transfer_kind`, and a typical query reads:
+
+```logql
+sum by (xrootd_transfer_kind) (
+  count_over_time({service_name="xrootd"} | event_name="xrootd.transfer" [$__auto])
+)
+```
+
+A ready-to-import dashboard is provided in
+[`grafana-loki-dashboard.json`](grafana-loki-dashboard.json) — the same panels as
+the OpenSearch dashboard (throughput, rate by kind, VO / auth / locality / state
+breakdowns, error categories, top files/users/sites, sessions). Import it under
+**Grafana → Dashboards → New → Import** and select your Loki data source for the
+`DS_LOKI` input. Two panels are approximations, because LogQL lacks the matching
+aggregation: *Distinct clients* (no native count-distinct) and *Transfer duration
+quantiles* (p50/p90/p99, standing in for OpenSearch's fixed-bucket duration
+histogram).
+
 ### Examples
 
 ```sh
