@@ -6,6 +6,6 @@
 #
 
 add_library( XrdOssTests MODULE XrdOssTests.cc )
-target_link_libraries( XrdOssTests XrdServer )
+target_link_libraries( XrdOssTests XrdServer XrdUtils )
 
 set_target_properties( XrdOssTests PROPERTIES OUTPUT_NAME "XrdOssTests-${PLUGIN_VERSION}" SUFFIX ".so" )

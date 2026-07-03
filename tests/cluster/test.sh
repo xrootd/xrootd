@@ -262,6 +262,43 @@ for src in "${!srcs[@]}"; do
     fi
 done
 
+# test redirects
+${XRDCP} "${LCLDATADIR}/srv1.ref" "${HOST_SRV1}//cluster_redirfile1"
+${XRDCP} "${LCLDATADIR}/srv1.ref" "${HOST_SRV1}//cluster_redirfile2"
+${XRDCP} "${LCLDATADIR}/srv3.ref" "${HOST_SRV3}//cluster_redirfile3"
+
+set +e
+${XRDCP} -f "${HOST_SRV1}//cluster_redirfile1" /dev/null 2> /tmp/err.txt
+ret1=$?
+grep -q "\[ERROR\] Local error: no such file or directory" /tmp/err.txt
+ret2=$?
+if [ $ret1 -ne 54 -o $ret2 -ne 0 ]; then
+  echo "cluster test with cluster_redirfile1 directly from srv1 did not fail as expected"
+  echo "ret1=$ret1 ret2=$ret2"
+  exit 1
+fi
+
+XRD_LOGLEVEL=Dump ${XRDCP} -f "${HOST_METAMAN}//cluster_redirfile1" /dev/null 2> /tmp/err.txt
+ret1=$?
+grep -q ":10940\] Got notification that outgoing message kXR_open (file: /cluster_redirfile1?tried=" /tmp/err.txt
+ret2=$?
+if [ $ret1 -eq 0 -o $ret2 -ne 0 ]; then
+  echo "cluster test with cluster_redirfile1 via meta-manager did not fail as expected"
+  echo "ret1=$ret1 ret2=$ret2"
+  exit 1
+fi
+
+XRD_LOGLEVEL=Dump ${XRDCP} -f "${HOST_METAMAN}//cluster_redirfile2" /dev/null 2> /tmp/err.txt
+ret1=$?
+grep -q ":10940\] Got notification that outgoing message kXR_open (file: /cluster_redirfile2?tried=" /tmp/err.txt
+ret2=$?
+if [ $ret1 -eq 0 -o $ret2 -ne 0 ]; then
+  echo "cluster test with cluster_redirfile2 via meta-manager did not fail as expected"
+  echo "ret1=$ret1 ret2=$ret2"
+  exit 1
+fi
+set -e
+
 # Remove local file once after the loop
 rm -f "${LCLDATADIR}/srv1.ref" &
 wait
