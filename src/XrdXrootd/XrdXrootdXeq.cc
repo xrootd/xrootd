@@ -1197,6 +1197,12 @@ int XrdXrootdProtocol::do_Login()
    Entity.addrInfo = Link->AddrInfo();
    Client = &Entity;
 
+// Format the numeric client address for monitoring (no DNS lookup)
+//
+   char ipBuff[64];
+   addrP->Format(ipBuff, sizeof(ipBuff), XrdNetAddrInfo::fmtAddr,
+                 XrdNetAddrInfo::prefipv4 | XrdNetAddrInfo::noPortRaw);
+
 // Check if we need to process a login environment
 //
    if (Request.login.dlen > 8)
@@ -1214,10 +1220,10 @@ int XrdXrootdProtocol::do_Login()
            locInfo.TimeZone = tzNum & 0xff;
            Link->setLocation(locInfo);
           }
-       if (Monitor.Ready() && (appXQ || aInfo || sName))
+       if (Monitor.Ready())
           {char apBuff[1024];
-           snprintf(apBuff, sizeof(apBuff), "&R=%s&x=%s&y=%s&S=%s&I=%c",
-                    (rnumb ? rnumb : ""),
+           snprintf(apBuff, sizeof(apBuff), "&a=%s&R=%s&x=%s&y=%s&S=%s&I=%c",
+                    ipBuff, (rnumb ? rnumb : ""),
                     (appXQ ? appXQ : ""), (aInfo ? aInfo : ""),
                     (sName ? sName : ""),
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
@@ -1232,6 +1238,12 @@ int XrdXrootdProtocol::do_Login()
           }
        if (appXQ) AppName = strdup(appXQ);
       }
+      else if (Monitor.Ready())
+              {char apBuff[80];
+               snprintf(apBuff, sizeof(apBuff), "&a=%s&I=%c", ipBuff,
+                        (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
+               Entity.moninfo = strdup(apBuff);
+              }
 
 // Allocate a monitoring object, if needed for this connection
 //

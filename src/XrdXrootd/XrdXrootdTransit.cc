@@ -314,10 +314,18 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
 // Allocate a monitoring object, if needed for this connection and record login
 //
    if (Monitor.Ready())
-      {Monitor.Register(linkP->ID, linkP->Host(), protP);
+      {char apBuff[80], ipBuff[64];
+       addrP->Format(ipBuff, sizeof(ipBuff), XrdNetAddrInfo::fmtAddr,
+                     XrdNetAddrInfo::prefipv4 | XrdNetAddrInfo::noPortRaw);
+       snprintf(apBuff, sizeof(apBuff), "&a=%s&I=%c", ipBuff,
+                (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
+       Entity.moninfo = strdup(apBuff);
+       Monitor.Register(linkP->ID, linkP->Host(), protP);
        if (Monitor.Logins())
           {if (Monitor.Auths() && seceP) MonAuth();
-              else Monitor.Report(Monitor.Auths() ? "" : 0);
+              else {Monitor.Report(Entity.moninfo);
+                    free(Entity.moninfo); Entity.moninfo = 0;
+                   }
           }
       }
 
