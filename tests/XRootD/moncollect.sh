@@ -183,9 +183,21 @@ function test_moncollect() {
 	# The collector runs co-located with the server, so the monitor datagrams
 	# arrive from the loopback address. The resource must still carry a real
 	# host.name (the local FQDN substituted for loopback, or the '=' ident host),
-	# and server.address must never be the literal "::1".
+	# and server.address/host.name must never be a loopback literal or name.
 	assert grep -Eq '"host.name":"[^"]+"' "${COLLECTOR_OUT}"
-	assert_failure grep -Eq '"server.address":"::1"' "${COLLECTOR_OUT}"
+	assert_failure grep -Eq '"(server\.address|host\.name)":"(localhost[^"]*|127\.[0-9.]+|::1|::ffff:127\.[0-9.]+)"' "${COLLECTOR_OUT}"
+
+	# client.address must be the numeric client IP from the login "&a=" CGI,
+	# never a hostname or a loopback literal (the loopback client is renamed to
+	# this host's public address). The reverse-resolved client hostname is kept
+	# separately in xrootd.client.host.
+	assert grep -Eq '"client.address":"([0-9]{1,3}(\.[0-9]{1,3}){3}|[0-9a-fA-F:]*:[0-9a-fA-F:.]+)"' "${COLLECTOR_OUT}"
+	assert_failure grep -Eq '"client.address":"(localhost[^"]*|127\.[0-9.]+|::1|::ffff:127\.[0-9.]+)"' "${COLLECTOR_OUT}"
+	assert grep -Eq '"xrootd.client.host":"[^"]+"' "${COLLECTOR_OUT}"
+
+	# all.sitename (common.cfg sets it to the instance name) must surface
+	# verbatim as the server resource's site.
+	assert grep -Eq '"xrootd.server.site":"moncollect"' "${COLLECTOR_OUT}"
 
 	# OTLP export (when the mock receiver is running): the collector must POST an
 	# OTLP logs export to /v1/logs (resourceLogs envelope with typed KeyValue

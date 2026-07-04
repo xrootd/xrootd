@@ -947,7 +947,8 @@ void feedTransferFrom(XrdMonDecode& dec, const std::string& src)
 }
 
 // A co-located server reports from the loopback address; the collector should
-// substitute the local FQDN rather than emit the literal "::1".
+// substitute a real local identity (the FQDN, or the kernel host name when the
+// FQDN is itself a loopback name) rather than emit the literal "::1".
 TEST(XrdMonCollect, LoopbackServerResolvesToLocalHost)
 {
   std::string doc;
@@ -957,12 +958,17 @@ TEST(XrdMonCollect, LoopbackServerResolvesToLocalHost)
   ASSERT_FALSE(doc.empty());
   json j = json::parse(doc);
   EXPECT_TRUE(j["resource"].contains("server.address"));  // always usable
+  EXPECT_NE(j["resource"]["server.address"], "::1");
 
-  const char* me = XrdNetUtils::MyHostName();
-  if (me && *me && std::string(me).find(':') == std::string::npos)
-     {EXPECT_EQ(j["resource"]["host.name"], me);
-      EXPECT_EQ(j["resource"]["server.address"], me);
-      EXPECT_NE(j["resource"]["server.address"], "::1");
+  if (j["resource"].contains("host.name"))
+     {std::string host = j["resource"]["host.name"];
+      EXPECT_NE(host, "localhost");                   // never a loopback name
+      EXPECT_EQ(j["resource"]["server.address"], host);
+      // When the advertised FQDN is usable, it is the name substituted.
+      const char* me = XrdNetUtils::MyHostName();
+      if (me && *me && std::string(me).find(':') == std::string::npos
+          && strncmp(me, "localhost", 9) != 0)
+         EXPECT_EQ(host, me);
      }
 }
 
