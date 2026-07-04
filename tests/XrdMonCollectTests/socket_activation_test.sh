@@ -13,7 +13,8 @@ test -x "${BIN}" || { echo "usage: $0 <xrdmoncollect>"; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 not found"; exit 77; }
 
 exec python3 - "${BIN}" <<'EOF'
-import json, os, signal, socket, struct, subprocess, sys, tempfile, time
+import atexit, json, os, shutil, signal, socket, struct, subprocess, sys
+import tempfile, time
 
 BIN = sys.argv[1]
 STOD = 1700000000
@@ -37,6 +38,7 @@ sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sender.bind(('127.0.0.1', 0))
 
 tmp = tempfile.mkdtemp(prefix='xrdmon-sd-')
+atexit.register(shutil.rmtree, tmp, ignore_errors=True)
 out = os.path.join(tmp, 'out.ndjson')
 
 def start(logname):
