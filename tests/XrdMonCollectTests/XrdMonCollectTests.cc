@@ -1119,7 +1119,77 @@ TEST(XrdMonCollect, PacketLossDetected)
 
   EXPECT_EQ(dec.GetStats().lost, 1u);
   std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
-  EXPECT_NE(out.find("xrootd_collector_packets_lost_total{server=\"h:1\"} 1"),
+  EXPECT_NE(out.find("xrootd_collector_packets_lost_total{server=\"h:1\",stream=\"main\"} 1"),
+            std::string::npos) << out;
+}
+
+// The server does NOT stamp one pseq per destination: the f-stream (and each
+// g-stream provider) runs its own counter while everything else shares the
+// per-destination one. Interleaving two independent counters must not be
+// mistaken for loss, and a real gap must be attributed to its stream.
+TEST(XrdMonCollect, PacketLossTrackedPerStream)
+{
+  XrdMetrics::Collector collector("xrootd");
+  XrdMonDecode dec([](const std::string&){}, nullptr,
+                   false, false, false, false, &collector.subsystem("collector"));
+
+  // An empty (header-only after the TOD-less payload) f-stream packet with a
+  // chosen pseq: one 24-byte isTime record keeps it structurally valid.
+  auto fstatPkt = [](uint8_t pseq)
+     {auto pkt = packet('f', kStod, todRec(kOpenT, 42));
+      pkt[1] = pseq;
+      return pkt;
+     };
+
+  // Interleave the two independent counters, each gap-free: u 0, f 0, u 1,
+  // f 1, ... A shared tracker would see 0,0,1,1,2,2 and count phantom gaps.
+  for (uint8_t seq : {0, 1, 2, 3})
+     {auto u = userPkt(seq, seq);
+      dec.Process("h:1", (const char*)u.data(), u.size());
+      auto f = fstatPkt(seq);
+      dec.Process("h:1", (const char*)f.data(), f.size());}
+  EXPECT_EQ(dec.GetStats().lost, 0u);
+
+  // Now a real gap on the f stream only (4 -> 6): attributed to stream "f".
+  auto f = fstatPkt(6);
+  dec.Process("h:1", (const char*)f.data(), f.size());
+  EXPECT_EQ(dec.GetStats().lost, 2u);
+
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
+  EXPECT_NE(out.find("xrootd_collector_packets_lost_total{server=\"h:1\",stream=\"f\"} 2"),
+            std::string::npos) << out;
+  EXPECT_EQ(out.find("stream=\"main\""), std::string::npos) << out;
+}
+
+// Malformed packets are counted per stream and reason.
+TEST(XrdMonCollect, MalformedLabeledByStreamAndReason)
+{
+  XrdMetrics::Collector collector("xrootd");
+  XrdMonDecode dec([](const std::string&){}, nullptr,
+                   false, false, false, false, &collector.subsystem("collector"));
+
+  // A 'u' packet whose plen claims more than the datagram carries.
+  auto u = userPkt(1, 0);
+  u[2] = 0x40; u[3] = 0;               // plen = 16384 > actual size
+  EXPECT_FALSE(dec.Process("h:1", (const char*)u.data(), u.size()));
+
+  // A 't' payload that is not a whole number of 16-byte records.
+  std::vector<unsigned char> tr(24, 0); // 1.5 records
+  auto t = packet('t', kStod, tr);
+  dec.Process("h:1", (const char*)t.data(), t.size());
+
+  // An 'f' packet with an impossible record size.
+  W bad; bad.u8(1); bad.u8(0); bad.u16(3); bad.u32(0);  // recSize 3 < 8
+  auto f = packet('f', kStod, bad.b);
+  dec.Process("h:1", (const char*)f.data(), f.size());
+
+  EXPECT_EQ(dec.GetStats().malformed, 3u);
+  std::string out; XrdMetrics::PrometheusTextSerializer ser(out); collector.serialize(ser);
+  EXPECT_NE(out.find("xrootd_collector_malformed_total{server=\"h:1\",stream=\"u\",reason=\"bad_plen\"} 1"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_malformed_total{server=\"h:1\",stream=\"t\",reason=\"trailing_bytes\"} 1"),
+            std::string::npos) << out;
+  EXPECT_NE(out.find("xrootd_collector_malformed_total{server=\"h:1\",stream=\"f\",reason=\"bad_record\"} 1"),
             std::string::npos) << out;
 }
 

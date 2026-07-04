@@ -347,11 +347,22 @@ struct Server
    std::string resolvedHost; // reverse-resolved sender hostname (cached)
    bool    resolved = false; // resolvedHost computed yet (once per incarnation)
    int64_t sID = 0;
-   int     lastPseq = -1;    // last packet sequence (header pseq) for loss det.
+   // Last packet sequence (header pseq) per stream class, for loss detection.
+   // The server does NOT stamp one sequence per destination: the f-stream and
+   // each g-stream provider run their own independent counters, while the
+   // trace/redirect/map streams share the per-destination one ("main").
+   // Tracking them together would register the interleaving of independent
+   // counters as permanent phantom gaps.
+   std::unordered_map<std::string, int> lastPseq;
    time_t  lastSeen = 0;     // wall-clock of the last packet (for idle reaping)
 };
 
 Server&  ServerFor(const std::string& src, int32_t stod);
+//! Count one structural problem in a packet from `src`: bumps the aggregate
+//! stats.malformed and the labeled malformed_total{server,stream,reason}
+//! metric series (stream is derived from the header code byte).
+void     Malformed(const std::string& src, unsigned char code,
+                   const char* reason);
 void     DecodeMap(unsigned char code, Server& srv,
                    uint32_t dictid, const char* info, int ilen);
 void     DecodeIdent(const std::string& src, int32_t stod, Server& srv,

@@ -733,8 +733,8 @@ namespace
 {
 // On-disk state format version. Bump whenever the persisted shape changes; a
 // mismatched snapshot is discarded on load (one restart's blind window instead
-// of misdecoded state).
-constexpr int kStateVersion = 1;
+// of misdecoded state). v2: per-stream pseq tracking.
+constexpr int kStateVersion = 2;
 
 // One list of Stats counters shared by save and load so they cannot diverge.
 #define XRDMON_STATS_FIELDS(X) \
@@ -761,7 +761,7 @@ bool XrdMonDecode::SaveState(const std::string& path) const
    for (const auto& [key, s] : servers)
       {json o;
        o["sid"]  = s.sID;
-       o["pseq"] = s.lastPseq;
+       o["pseq"] = s.lastPseq;   // per-stream-class map
        o["seen"] = (int64_t)s.lastSeen;
        o["resolved"] = s.resolved;
        if (!s.resolvedHost.empty()) o["rhost"]    = s.resolvedHost;
@@ -884,7 +884,8 @@ bool XrdMonDecode::LoadState(const std::string& path, long maxAgeSec,
           {const json& o = jsv.at(key);
            Server& srv  = servers[key];
            srv.sID      = o.value("sid", (int64_t)0);
-           srv.lastPseq = o.value("pseq", -1);
+           if (auto ps = o.find("pseq"); ps != o.end() && ps->is_object())
+              srv.lastPseq = ps->get<std::unordered_map<std::string, int>>();
            srv.lastSeen = (time_t)seen;
            srv.resolved = o.value("resolved", false);
            srv.resolvedHost = o.value("rhost", std::string());
@@ -1023,6 +1024,44 @@ bool XrdMonDecode::LoadState(const std::string& path, long maxAgeSec,
 /*                             P r o c e s s                                  */
 /******************************************************************************/
 
+namespace
+{
+// Defined with DecodeGStream below; also needed here for the pseq class.
+const char* gsProvider(unsigned char t);
+
+// Stream label for the malformed metric, from the header code byte. Bounded
+// cardinality: anything but the known codes collapses into "unknown".
+const char* streamOf(unsigned char code)
+{
+   switch(code)
+         {case XROOTD_MON_MAPUSER: return "u";
+          case XROOTD_MON_MAPPATH: return "d";
+          case XROOTD_MON_MAPINFO: return "i";
+          case XROOTD_MON_MAPTOKN: return "T";
+          case XROOTD_MON_MAPUEAC: return "U";
+          case XROOTD_MON_MAPIDNT: return "=";
+          case XROOTD_MON_MAPXFER: return "x";
+          case XROOTD_MON_MAPPURG: return "p";
+          case XROOTD_MON_MAPFSTA: return "f";
+          case XROOTD_MON_MAPTRCE: return "t";
+          case XROOTD_MON_MAPGSTA: return "g";
+          case XROOTD_MON_MAPREDR: return "r";
+          default:                 return "unknown";
+         }
+}
+}
+
+void XrdMonDecode::Malformed(const std::string& src, unsigned char code,
+                             const char* reason)
+{
+   stats.malformed++;
+   if (metrics)
+      metrics->counterSeries("malformed_total",
+           "structurally invalid monitor packets by stream and reason",
+           {{"server", src}, {"stream", streamOf(code)},
+            {"reason", reason}}) += 1;
+}
+
 bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
 {
    const unsigned char* p = (const unsigned char*)buff;
@@ -1031,33 +1070,48 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
 
 // Every packet starts with an 8-byte XrdXrootdMonHeader.
 //
-   if (blen < 8) {stats.malformed++; return false;}
+   if (blen < 8)
+      {Malformed(src, blen >= 1 ? p[0] : 0, "short_packet"); return false;}
 
    unsigned char code = p[0];
    int           plen = rd16(p + 2);
    int32_t       stod = ri32(p + 4);
 
-   if (plen < 8 || plen > blen) {stats.malformed++; return false;}
+   if (plen < 8 || plen > blen) {Malformed(src, code, "bad_plen"); return false;}
 
    Server& srv = ServerFor(src, stod);
 
-// Packet-loss estimate. The server stamps every datagram to one destination
-// with a single sequence counter (header pseq, wrapping at 256), regardless of
-// stream. A forward gap means lost packets; a small backward step is reordering
-// (UDP) and is ignored.
+// Packet-loss estimate from the header pseq (wrapping at 256). The sequence
+// counters are per stream class, NOT per destination: the f-stream and each
+// g-stream provider stamp their own independent counters, while the trace/
+// redirect/map streams share the per-destination one ("main"); see
+// XrdXrootdMonFile::Flush and XrdXrootdGSReal vs XrdXrootdMonitor::Send. A
+// forward gap within a class means lost packets; a small backward step is
+// reordering (UDP) and is ignored.
 //
    unsigned char pseq = p[1];
-   if (srv.lastPseq >= 0)
-      {int gap = ((int)pseq - ((srv.lastPseq + 1) & 0xff)) & 0xff;
-       if (gap > 0 && gap < 128)
-          {stats.lost += gap;
-           if (metrics)
-              metrics->counterSeries("packets_lost_total",
-                   "estimated lost packets (pseq gaps)",
-                   {{"server", src}}) += gap;
-          }
-      }
-   srv.lastPseq = pseq;
+   {const char* sclass = "main";
+    std::string gclass;
+    if (code == XROOTD_MON_MAPFSTA) sclass = "f";
+       else if (code == XROOTD_MON_MAPGSTA)
+       {gclass = "g:";              // per provider (top byte of the sID)
+        gclass += (plen >= 24 ? gsProvider(p[16]) : "unknown");
+        sclass = gclass.c_str();
+       }
+    auto it = srv.lastPseq.find(sclass);
+    if (it == srv.lastPseq.end()) srv.lastPseq.emplace(sclass, pseq);
+       else
+       {int gap = ((int)pseq - ((it->second + 1) & 0xff)) & 0xff;
+        if (gap > 0 && gap < 128)
+           {stats.lost += gap;
+            if (metrics)
+               metrics->counterSeries("packets_lost_total",
+                    "estimated lost packets (pseq gaps)",
+                    {{"server", src}, {"stream", sclass}}) += gap;
+           }
+        it->second = pseq;
+       }
+   }
 
    switch(code)
          {case XROOTD_MON_MAPUSER:
@@ -1066,7 +1120,7 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
           case XROOTD_MON_MAPTOKN:
           case XROOTD_MON_MAPUEAC:
                // XrdXrootdMonMap: header(8) + dictid(4) + info[]
-               if (plen < 12) {stats.malformed++; return false;}
+               if (plen < 12) {Malformed(src, code, "short_packet"); return false;}
                {uint32_t dictid = rd32(p + 8);
                 DecodeMap(code, srv, dictid, (const char*)(p + 12), plen - 12);
                }
@@ -1074,7 +1128,7 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
 
           case XROOTD_MON_MAPIDNT:
                // Server self-identification: header(8) + dictid(4, =0) + info[]
-               if (plen < 12) {stats.malformed++; return false;}
+               if (plen < 12) {Malformed(src, code, "short_packet"); return false;}
                DecodeIdent(src, stod, srv, (const char*)(p + 12), plen - 12);
                break;
 
@@ -1082,7 +1136,7 @@ bool XrdMonDecode::Process(const std::string& src, const char* buff, int blen)
           case XROOTD_MON_MAPPURG:
                // FRM stage/migrate ('x') and purge ('p'): map record with
                // dictid 0 and info "<who>\n<path>[\n&cgi]".
-               if (plen < 12) {stats.malformed++; return false;}
+               if (plen < 12) {Malformed(src, code, "short_packet"); return false;}
                DecodeFrm(src, stod, srv, code, (const char*)(p + 12), plen - 12);
                break;
 
@@ -1473,7 +1527,8 @@ void XrdMonDecode::DecodeFStream(const std::string& src, int32_t stod,
          unsigned char recFlag = rec[1];
          int           recSize = rd16(rec + 2);
 
-         if (recSize < 8 || off + recSize > len) {stats.malformed++; break;}
+         if (recSize < 8 || off + recSize > len)
+            {Malformed(src, XROOTD_MON_MAPFSTA, "bad_record"); break;}
          stats.records++;
 
          if (dumpRaw && raw)
@@ -1612,7 +1667,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
 {
 // Always-present transfer byte totals (XrdXrootdMonStatXFR after the 8-byte hdr).
 //
-   if (recSize < 8 + 24) {stats.malformed++; return;}
+   if (recSize < 8 + 24) {Malformed(src, XROOTD_MON_MAPFSTA, "bad_record"); return;}
    int64_t rdBytes = ri64(rec + 8);
    int64_t rvBytes = ri64(rec + 16);
    int64_t wrBytes = ri64(rec + 24);
@@ -1848,7 +1903,7 @@ void XrdMonDecode::EmitError(const std::string& src, int32_t stod, Server& srv,
 // XrdXrootdMonStatERR. The lfn and user are carried inline (hasLFN) because a
 // failed open creates no path/open dictionary entry to join against.
 //
-   if (recSize < 8 + 4) {stats.malformed++; return;}
+   if (recSize < 8 + 4) {Malformed(src, XROOTD_MON_MAPFSTA, "bad_record"); return;}
 
    json j;
    otelResource(j, src, stod, srv);
@@ -1904,7 +1959,11 @@ void XrdMonDecode::DecodeTStream(const std::string& src, int32_t stod,
 // The "t" stream is an array of fixed 16-byte XrdXrootdMonTrace records. The
 // first byte discriminates the record; values with the high bit clear are I/O
 // (read/write) entries, the rest are markers (open/close/disc/window/...).
+// A payload that is not a whole number of records was truncated somewhere;
+// the leftover bytes are dropped, but the packet is flagged.
 //
+   if (len % 16) Malformed(src, XROOTD_MON_MAPTRCE, "trailing_bytes");
+
    for (int off = 0; off + 16 <= len; off += 16)
        {const unsigned char* a0 = p + off;       // arg0 (8)
         const unsigned char* a1 = p + off + 8;   // arg1 (4)
@@ -2141,7 +2200,7 @@ void XrdMonDecode::DecodeGStream(const std::string& src, int32_t stod,
 // the top byte of sID. The remainder is newline-separated plugin records
 // (JSON or CGI), produced by the oss/pfc/throttle/tpc/http g-streams.
 //
-   if (plen < 24) {stats.malformed++; return;}
+   if (plen < 24) {Malformed(src, XROOTD_MON_MAPGSTA, "short_packet"); return;}
    int32_t  tBeg = ri32(p + 8);
    int32_t  tEnd = ri32(p + 12);
    uint64_t sID  = rd64(p + 16);
@@ -2222,7 +2281,7 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
 // "<host>:<path>" string occupying its Dent (slot) count of further records.
 //
    const int RSZ = 8;
-   if (plen < 16) {stats.malformed++; return;}
+   if (plen < 16) {Malformed(src, XROOTD_MON_MAPREDR, "short_packet"); return;}
 
    int32_t tWin = 0;
    int off = 16;                              // past header + sID block
@@ -2241,10 +2300,16 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
          int      port  = rd16(rec + 2);
          uint32_t did   = rd32(rec + 4);       // user/session dictid
 
-         // The "<host>:<path>" string spans the next `slots` records.
+         // The "<host>:<path>" string spans the next `slots` records. A slot
+         // count that runs past the packet means the record was truncated:
+         // salvage what is there, but flag the packet.
          const char* sp = (const char*)(p + off + RSZ);
          int savail = plen - (off + RSZ);
-         int slen = (int)slots * RSZ; if (slen > savail) slen = savail;
+         int slen = (int)slots * RSZ;
+         if (slen > savail)
+            {Malformed(src, XROOTD_MON_MAPREDR, "truncated_string");
+             slen = savail;
+            }
          std::string hp(sp, slen > 0 ? strnlen(sp, slen) : 0);
 
          stats.redirs++;
