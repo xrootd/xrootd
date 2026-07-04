@@ -107,10 +107,12 @@ void usage(const char* prog)
      "  --server-ttl <s> reclaim a server incarnation idle for >s seconds\n"
      "                   (default 86400; 0=never)\n"
      "  --scitags <src>  SciTags registry mapping experiment/activity ids to\n"
-     "                   names (and a VO); a file path or an http(s):// URL.\n"
+     "                   names; a file path or an http(s):// URL.\n"
      "                   Numeric ids are kept either way\n"
      "  --scitags-refresh <s> re-fetch a URL registry every <s> seconds\n"
      "                   (default 3600; 0 disables; URL sources only)\n"
+     "  --dataset <re>   POSIX extended regex; capture group 1, matched\n"
+     "                   against each file path, is emitted as xrootd.dataset\n"
      "  --no-resolve     do not substitute the local FQDN for a loopback server\n"
      "  --sessions       correlate per-session activity and emit a session\n"
      "                   document per client disconnect (off by default)\n"
@@ -364,6 +366,7 @@ int main(int argc, char* argv[])
    int         queueDepth = 64;      // receive->serialize batches in flight
    std::string scitags;
    long        scitagsRefresh = 3600;
+   std::string dataset;              // --dataset capture regex (off if empty)
    bool        resolve = true;
    bool        sessions = false;      // per-session rollup + session documents
    bool        spans    = false;      // companion OTLP span documents
@@ -437,6 +440,7 @@ int main(int argc, char* argv[])
        serverTtl   = cfg.GetInteger(sec, "server-ttl", serverTtl);
        scitags     = cfg.Get(sec, "scitags", scitags);
        scitagsRefresh = cfg.GetInteger(sec, "scitags-refresh", scitagsRefresh);
+       dataset     = cfg.Get(sec, "dataset", dataset);
        resolve     = !cfg.GetBoolean(sec, "no-resolve", !resolve);
        sessions    = cfg.GetBoolean(sec, "sessions", sessions);
        spans       = cfg.GetBoolean(sec, "spans", spans);
@@ -460,7 +464,8 @@ int main(int argc, char* argv[])
       OPT_FLUSH_COUNT,
       OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
       OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
-      OPT_SERVER_TTL, OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_NO_RESOLVE,
+      OPT_SERVER_TTL, OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_DATASET,
+      OPT_NO_RESOLVE,
       OPT_SESSIONS, OPT_SPANS, OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
    };
    static const struct option longOpts[] =
@@ -488,6 +493,7 @@ int main(int argc, char* argv[])
       {"server-ttl",      required_argument, nullptr, OPT_SERVER_TTL},
       {"scitags",         required_argument, nullptr, OPT_SCITAGS},
       {"scitags-refresh", required_argument, nullptr, OPT_SCITAGS_REFRESH},
+      {"dataset",         required_argument, nullptr, OPT_DATASET},
       {"no-resolve",      no_argument,       nullptr, OPT_NO_RESOLVE},
       {"sessions",        no_argument,       nullptr, OPT_SESSIONS},
       {"spans",           no_argument,       nullptr, OPT_SPANS},
@@ -540,6 +546,7 @@ int main(int argc, char* argv[])
          case OPT_SERVER_TTL:    serverTtl    = atol(optarg);         break;
          case OPT_SCITAGS:       scitags      = optarg;               break;
          case OPT_SCITAGS_REFRESH: scitagsRefresh = atol(optarg);     break;
+         case OPT_DATASET:       dataset      = optarg;               break;
          case OPT_NO_RESOLVE:    resolve      = false;               break;
          case OPT_SESSIONS:      sessions     = true;                break;
          case OPT_SPANS:         spans        = true;                break;
@@ -769,6 +776,11 @@ int main(int argc, char* argv[])
    decoder.SetResolveHosts(resolve);
    decoder.SetEmitSessions(sessions);
    decoder.SetEmitSpans(spans);
+   if (!dataset.empty() && !decoder.SetDatasetRegex(dataset))
+      {fprintf(stderr, "%s: --dataset '%s' is not a valid POSIX extended "
+               "regular expression\n", argv[0], dataset.c_str());
+       return 2;
+      }
 #ifdef XRDMON_HAVE_CURL
    // The OpenSearch sink initializes libcurl globally; do it here too when a URL
    // registry is the only curl user, before the first (main-thread) fetch and

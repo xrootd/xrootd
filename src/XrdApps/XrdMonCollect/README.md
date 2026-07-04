@@ -326,6 +326,27 @@ records are also always consumed:
   atomic with respect to the decode loop, and a failed re-fetch keeps the current
   registry. A URL source requires that the collector was built with libcurl.
 
+### Dataset capture (`--dataset`)
+
+Every document that carries a `file.path` also carries the OTel-semconv
+`file.directory` (the path's directory, no trailing slash). For dataset-level
+popularity (see [Data popularity dashboards](#data-popularity-dashboards)),
+`--dataset <re>` additionally emits `xrootd.dataset`: `<re>` is a POSIX
+extended regular expression matched against each file path, and its first
+capture group becomes the attribute value. For a CMS-style namespace
+(`/store/<class>/<era>/<primary-dataset>/…`):
+
+```sh
+xrdmoncollect ... --dataset '^/store/[^/]+/[^/]+/([^/]+)/'
+```
+
+Pick the group per namespace (an EOS instance might capture the project
+directory, ATLAS the dataset container). The pattern is compiled once at
+start-up (an uncompilable one is rejected) and matched once per *emitted*
+document on the serializer thread — never in the UDP receive path — so the
+cost is negligible at realistic close rates; keep it anchored and simple. A
+path the pattern does not match simply gets no `xrootd.dataset`.
+
 ### Output document
 
 The per-transfer document uses the OpenTelemetry-aligned schema described under
@@ -356,6 +377,7 @@ event-level `attributes` object. One object per file close, for example:
     "xrootd.transfer.kind": "transfer",
     "file.path": "/store/data/file.root",
     "file.name": "file.root",
+    "file.directory": "/store/data",
     "file.size": 1073741824,
     "client.address": "192.0.2.17",
     "xrootd.client.host": "wn.example.org",
@@ -391,7 +413,8 @@ on the wire. Mapping (and the server config each needs):
 
 | WLCG field | XRootD field | Source / requires |
 | :-- | :-- | :-- |
-| file_name | `file.path` | `fstat … lfn` |
+| file_name | `file.path` (+ `file.name`/`file.directory`) | `fstat … lfn` |
+| dataset | `xrootd.dataset` | `--dataset <regex>` capture on `file.path` |
 | operation_type | `xrootd.operation` (`read`/`write`) | `fstat … xfr` |
 | operation_state | `xrootd.operation_state` (`Successful`/`Failed`/`Redirected`) | `fstat` (terminal report); `Redirected` from `r` with `--redirects` |
 | error_message | `error.message` | `fstat` (failed open / I/O / close) |

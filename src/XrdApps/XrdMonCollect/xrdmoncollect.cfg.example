@@ -72,6 +72,13 @@ port = 9930
 # scitags = /etc/xrootd/scitags.json
 # scitags-refresh = 3600
 
+# Dataset capture: a POSIX extended regex whose first capture group, matched
+# against each file path, is emitted as the xrootd.dataset attribute (feeds
+# the data-popularity dashboards). Matched once per emitted document; keep
+# the pattern anchored and simple. Example for a CMS-style namespace
+# (/store/<class>/<era>/<primary-dataset>/...):
+# dataset = ^/store/[^/]+/[^/]+/([^/]+)/
+
 # Do not substitute the local FQDN for a loopback (co-located) server.
 # no-resolve = false
 

@@ -31,6 +31,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <regex.h>
+
 #include "XrdOuc/XrdOucJson.hh"
 
 namespace XrdMetrics { class Subsystem; }
@@ -174,7 +176,15 @@ bool LoadScitagsJson(const std::string& text);
                        dumpRaw(emitRaw), traces(emitTraces),
                        gstream(emitGstream), redirects(emitRedirects),
                        metrics(subsystem) {resolveLocalHost();}
-        ~XrdMonDecode() {}
+        ~XrdMonDecode() {if (hasDataset) regfree(&datasetRe);}
+
+//! Set (or clear, with an empty pattern) the dataset-capture expression: an
+//! extended POSIX regex whose first capture group, matched against each
+//! emitted file path, becomes the xrootd.dataset attribute. Compiled once
+//! here; matched once per emitted document (never in the receive path).
+//! Returns false (leaving no pattern set) when the expression does not
+//! compile.
+bool SetDatasetRegex(const std::string& pattern);
 
 private:
 
@@ -473,6 +483,12 @@ std::string publicFor(const std::string& ip) const;
 std::string localHost;
 std::string localIP4;
 std::string localIP6;
+
+// file.path/file.name/file.directory attributes from an LFN, plus the
+// xrootd.dataset capture when a --dataset pattern is set.
+void    setFile(nlohmann::json& a, const std::string& lfn) const;
+regex_t datasetRe;                // compiled --dataset pattern
+bool    hasDataset = false;       // datasetRe holds a compiled pattern
 
 // SciTags registry (loaded from --scitags), mapping numeric flow-label ids to
 // human names. sciExp: expId -> expName (doubles as a VO); sciAct: the packed

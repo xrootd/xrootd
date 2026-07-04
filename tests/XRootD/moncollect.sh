@@ -132,9 +132,12 @@ function setup_moncollect() {
 	# listener. The PID file lands in ${NAME}/ so the harness teardown kills it.
 	# Redirect all of its fds (and detach) so it does not inherit and hold open
 	# the test runner's stdout pipe, which would block ctest.
+	# --dataset captures the per-run mktemp leaf (test-XXXXXX) of the paths the
+	# test transfers, standing in for an experiment dataset name.
 	: > "${COLLECTOR_OUT}"
 	xrdmoncollect -p "${COLLECTOR_PORT}" -o "${COLLECTOR_OUT}" \
 	              --flush-secs 1 --flush-count 1 ${OTLP_ARGS} \
+	              --dataset '/(test-[A-Za-z0-9]+)/' \
 	              > "${PWD}/${NAME}/collector.log" 2>&1 < /dev/null &
 	echo $! > "${COLLECTOR_PID}"
 	disown 2>/dev/null || true
@@ -199,6 +202,11 @@ function test_moncollect() {
 	# all.sitename (common.cfg sets it to the instance name) must surface
 	# verbatim as the server resource's site.
 	assert grep -Eq '"xrootd.server.site":"moncollect"' "${COLLECTOR_OUT}"
+
+	# file.path is decomposed into the semconv file.directory, and the
+	# --dataset capture group surfaces as xrootd.dataset.
+	assert grep -Fq "\"file.directory\":\"${TMPDIR}\"" "${COLLECTOR_OUT}"
+	assert grep -Eq '"xrootd.dataset":"test-[A-Za-z0-9]+"' "${COLLECTOR_OUT}"
 
 	# OTLP export (when the mock receiver is running): the collector must POST an
 	# OTLP logs export to /v1/logs (resourceLogs envelope with typed KeyValue

@@ -66,9 +66,10 @@
             "event":   { "properties": { "name": { "type": "keyword" } } },
             "file": {
               "properties": {
-                "path": { "type": "keyword", "ignore_above": 4096 },
-                "name": { "type": "keyword" },
-                "size": { "type": "long" }
+                "path":      { "type": "keyword", "ignore_above": 4096 },
+                "name":      { "type": "keyword" },
+                "directory": { "type": "keyword", "ignore_above": 4096 },
+                "size":      { "type": "long" }
               }
             },
             "client":  { "properties": { "address": { "type": "keyword" } } },
@@ -104,6 +105,7 @@
               "properties": {
                 "operation":       { "type": "keyword" },
                 "operation_state": { "type": "keyword" },
+                "dataset":         { "type": "keyword" },
                 "auth":   { "properties": { "method": { "type": "keyword" } } },
                 "user": {
                   "properties": {

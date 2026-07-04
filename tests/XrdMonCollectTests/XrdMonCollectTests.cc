@@ -466,6 +466,55 @@ TEST_F(Transfer, AppInfoEnrichesTransfer)
   EXPECT_FALSE(j["attributes"].contains("xrootd.user.raw"));
 }
 
+// file.path is decomposed into file.name and the semconv file.directory.
+TEST_F(Transfer, FileDirectoryDerived)
+{
+  feedUserMap();
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");
+  EXPECT_EQ(j["attributes"]["file.name"], "file.root");
+  EXPECT_EQ(j["attributes"]["file.directory"], "/store/data");
+}
+
+// A --dataset pattern's first capture group becomes xrootd.dataset.
+TEST_F(Transfer, DatasetRegexCaptures)
+{
+  ASSERT_TRUE(dec.SetDatasetRegex("^/store/([^/]+)/"));
+  feedUserMap();
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["attributes"]["xrootd.dataset"], "data");
+}
+
+// A path the pattern does not match gets no dataset attribute.
+TEST_F(Transfer, DatasetRegexNoMatchOmitted)
+{
+  ASSERT_TRUE(dec.SetDatasetRegex("^/eos/([^/]+)/"));
+  feedUserMap();
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_FALSE(j["attributes"].contains("xrootd.dataset"));
+}
+
+// An uncompilable pattern is rejected; an empty one clears the capture.
+TEST(XrdMonCollect, DatasetRegexInvalidRejected)
+{
+  XrdMonDecode dec([](const std::string&){});
+  EXPECT_FALSE(dec.SetDatasetRegex("(["));
+  EXPECT_TRUE(dec.SetDatasetRegex("^/store/([^/]+)/"));
+  EXPECT_TRUE(dec.SetDatasetRegex(""));    // clear
+}
+
 // The 'i' blob is only emitted when it adds information over the login &y=.
 TEST_F(Transfer, AppRawSuppressedWhenEqualToAppInfo)
 {

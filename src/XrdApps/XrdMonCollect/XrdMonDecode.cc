@@ -190,18 +190,6 @@ bool wholeFileClose(bool haveOpen, int64_t fsz, int64_t rdBytes,
 // list is bounded, keeping a long-lived session's memory in check.
 constexpr std::size_t kSessionFilesMax = 64;
 
-// Set the OpenTelemetry file.path (and derived file.name) attributes from an
-// LFN, skipping an empty path.
-//
-void setFile(json& a, const std::string& lfn)
-{
-   if (lfn.empty()) return;
-   a["file.path"] = lfn;
-   auto slash = lfn.rfind('/');
-   if (slash != std::string::npos && slash + 1 < lfn.size())
-      a["file.name"] = lfn.substr(slash + 1);
-}
-
 // FNV-1a hash used to synthesize deterministic OpenTelemetry trace/span ids from
 // the monitoring stream's own correlation keys (server incarnation, user dictid,
 // file id). Deterministic ids let a downstream tracing backend stitch a client
@@ -361,6 +349,46 @@ std::string XrdMonDecode::publicFor(const std::string& ip) const
    if (!other.empty())     return other;
    if (!localHost.empty()) return localHost;
    return ip;
+}
+
+/******************************************************************************/
+/*                               s e t F i l e                                */
+/******************************************************************************/
+
+// Set the OpenTelemetry file.path, file.name, and file.directory attributes
+// from an LFN (skipping an empty path), plus the xrootd.dataset capture when
+// a --dataset pattern is set. The pattern was compiled once at startup; it is
+// matched once per emitted document, in the serializer thread — never in the
+// UDP receive path.
+//
+void XrdMonDecode::setFile(json& a, const std::string& lfn) const
+{
+   if (lfn.empty()) return;
+   a["file.path"] = lfn;
+   auto slash = lfn.rfind('/');
+   if (slash != std::string::npos && slash + 1 < lfn.size())
+      a["file.name"] = lfn.substr(slash + 1);
+   if (slash != std::string::npos)
+      a["file.directory"] = slash ? lfn.substr(0, slash) : "/";
+   if (hasDataset)
+      {regmatch_t m[2];
+       if (!regexec(&datasetRe, lfn.c_str(), 2, m, 0)
+           && m[1].rm_so >= 0 && m[1].rm_eo >= m[1].rm_so)
+          a["xrootd.dataset"] = lfn.substr(m[1].rm_so, m[1].rm_eo - m[1].rm_so);
+      }
+}
+
+/******************************************************************************/
+/*                      S e t D a t a s e t R e g e x                         */
+/******************************************************************************/
+
+bool XrdMonDecode::SetDatasetRegex(const std::string& pattern)
+{
+   if (hasDataset) {regfree(&datasetRe); hasDataset = false;}
+   if (pattern.empty()) return true;
+   if (regcomp(&datasetRe, pattern.c_str(), REG_EXTENDED)) return false;
+   hasDataset = true;
+   return true;
 }
 
 /******************************************************************************/
