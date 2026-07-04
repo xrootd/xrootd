@@ -780,6 +780,39 @@ aggregation: *Distinct clients* (no native count-distinct) and *Transfer duratio
 quantiles* (p50/p90/p99, standing in for OpenSearch's fixed-bucket duration
 histogram).
 
+### Data popularity dashboards
+
+Dataset popularity — which datasets are read, how much, by whom — has been a
+long-standing request from the experiments (CMS in particular, for dynamic
+data placement and cache/cleanup decisions). Two ready-to-import dashboards
+present the same visualizations on each stack, built entirely from the
+transfer log records:
+
+- [`opensearch-popularity.ndjson`](opensearch-popularity.ndjson) — *XRootD
+  Data Popularity (xrdmoncollect)* for OpenSearch Dashboards; import exactly
+  like the transfers dashboard above (it reuses the same `xrootd-transfers`
+  index pattern, so importing both files with `overwrite=true` is fine).
+- [`grafana-loki-popularity-dashboard.json`](grafana-loki-popularity-dashboard.json)
+  — *XRootD Data Popularity (Loki)* for Grafana on Loki; import and select
+  the Loki data source for `DS_LOKI`.
+
+Both follow the same three-zone layout: top-level stats (total bytes read,
+active users, distinct datasets/directories), stacked read-volume time series
+(by SciTags experiment, by VO, by client site, and transfers vs accesses),
+and top-10 leaderboards (datasets by bytes and by accesses, users by bytes,
+client sites) with a dataset-activity-over-time panel to catch datasets
+suddenly becoming popular.
+
+The dataset dimension comes from the collector's
+[`--dataset` capture](#dataset-capture---dataset); without it the
+dataset panels stay empty while the directory/user/VO panels still work. The
+Loki variant groups by structured metadata, which is comparatively expensive
+over long ranges — prefer hours-to-days ranges there (OpenSearch aggregations
+handle longer windows better). Collector-health and aggregate-rate panels
+stay in the Prometheus dashboard ([below](#aggregated-metrics-prometheus));
+the Prometheus metrics deliberately carry no per-dataset labels (unbounded
+cardinality), so popularity is a log-analytics concern.
+
 ### Aggregated metrics (Prometheus)
 
 With `--metrics-port <p>` the collector also runs a small HTTP exporter that
