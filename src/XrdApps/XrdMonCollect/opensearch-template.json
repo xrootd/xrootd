@@ -46,13 +46,11 @@
                 "port":    { "type": "integer" }
               }
             },
-            "host": { "properties": { "name": { "type": "keyword" } } },
             "xrootd": {
               "properties": {
                 "server": {
                   "properties": {
                     "site":        { "type": "keyword" },
-                    "instance":    { "type": "keyword" },
                     "program":     { "type": "keyword" },
                     "id":          { "type": "long" },
                     "incarnation": { "type": "long" }
@@ -109,8 +107,7 @@
                 "auth":   { "properties": { "method": { "type": "keyword" } } },
                 "user": {
                   "properties": {
-                    "protocol": { "type": "keyword" },
-                    "raw":      { "type": "keyword", "ignore_above": 2048 }
+                    "protocol": { "type": "keyword" }
                   }
                 },
                 "client": {

@@ -399,11 +399,12 @@ void XrdMonDecode::otelResource(json& j, const std::string& src, int32_t stod,
    json& r = j["resource"];
    std::string ip = src.substr(0, src.rfind(':'));   // UDP source (strip :port)
 
-   // Hostname precedence: the '=' ident's advertised host (when it is a real
-   // name, not an IP literal — "localhost" is renamed to the real FQDN), else
-   // the reverse-resolved sender, else the numeric source IP with loopback
-   // replaced by the public address (server.address always carries something
-   // usable).
+   // server.address precedence: the '=' ident's advertised host (when it is a
+   // real name, not an IP literal — "localhost" is renamed to the real FQDN),
+   // else the reverse-resolved sender, else the numeric source IP with
+   // loopback replaced by the public address. It is the single canonical
+   // server-name field (a separate host.name would always duplicate it), and
+   // service.instance.id the single instance field.
    //
    std::string host;
    if (!srv.ident.host.empty() && !isIPLiteral(srv.ident.host))
@@ -416,7 +417,6 @@ void XrdMonDecode::otelResource(json& j, const std::string& src, int32_t stod,
    r["service.name"]        = "xrootd";
    r["service.instance.id"] = srv.ident.inst.empty() ? name : srv.ident.inst;
    r["server.address"]      = name;
-   if (!host.empty())            r["host.name"]              = host;
    if (srv.ident.port > 0)       r["server.port"]            = srv.ident.port;
    if (!srv.ident.ver.empty())   r["service.version"]        = srv.ident.ver;
    // A site of only dots is XrdOucSiteName's sanitization of an all-invalid
@@ -425,7 +425,6 @@ void XrdMonDecode::otelResource(json& j, const std::string& src, int32_t stod,
    if (!srv.ident.site.empty() &&
        srv.ident.site.find_first_not_of('.') != std::string::npos)
                                  r["xrootd.server.site"]     = srv.ident.site;
-   if (!srv.ident.inst.empty())  r["xrootd.server.instance"] = srv.ident.inst;
    if (!srv.ident.pgm.empty())   r["xrootd.server.program"]  = srv.ident.pgm;
    if (srv.sID)                  r["xrootd.server.id"]       = srv.sID;
    r["xrootd.server.incarnation"] = stod;             // incarnation key
@@ -508,7 +507,6 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
        Touch(u.lru);   // a referenced session is active: keep it warm
        if (!u.user.empty())       a["user.name"]            = u.user;
        if (!u.prot.empty())       a["xrootd.user.protocol"] = u.prot;
-       if (!u.raw.empty())        a["xrootd.user.raw"]      = u.raw;
        if (!u.authMethod.empty()) a["xrootd.auth.method"]   = u.authMethod;
        // Client endpoint: semconv client.address carries the numeric IP from
        // the '&a=' login CGI; an older server only sends the descriptor host,
@@ -529,12 +527,16 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
           }
        if (!chost.empty() && !isIPLiteral(chost) && chost != caddr)
           a["xrootd.client.host"] = chost;
-       // Application info: structured (&x=/&y=) plus the raw 'i' blob.
+       // Application info: structured (&x=/&y=) plus the raw 'i' blob, the
+       // latter only when it adds information over the login &y= appinfo.
        if (!u.appName.empty()) a["xrootd.app.name"] = u.appName;
        if (!u.appInfo.empty()) a["xrootd.app.info"] = u.appInfo;
        auto iit = srv.infos.find(u.raw);
        if (iit != srv.infos.end())
-          {Touch(iit->second.lru); a["xrootd.app.raw"] = iit->second.val;}
+          {Touch(iit->second.lru);
+           if (iit->second.val != u.appInfo)
+              a["xrootd.app.raw"] = iit->second.val;
+          }
        // VO/role/groups: prefer the token ('T'); fall back to the auth CGI.
        if (!u.vo.empty())     {vo = u.vo;         a["wlcg.vo"]     = u.vo;}
        if (!u.role.empty())   a["wlcg.role"]   = u.role;

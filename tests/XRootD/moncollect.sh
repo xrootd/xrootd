@@ -181,11 +181,12 @@ function test_moncollect() {
 	assert grep -Eq '"xrootd.client.site":"CLIENT-TEST-SITE"' "${COLLECTOR_OUT}"
 
 	# The collector runs co-located with the server, so the monitor datagrams
-	# arrive from the loopback address. The resource must still carry a real
-	# host.name (the local FQDN substituted for loopback, or the '=' ident host),
-	# and server.address/host.name must never be a loopback literal or name.
-	assert grep -Eq '"host.name":"[^"]+"' "${COLLECTOR_OUT}"
-	assert_failure grep -Eq '"(server\.address|host\.name)":"(localhost[^"]*|127\.[0-9.]+|::1|::ffff:127\.[0-9.]+)"' "${COLLECTOR_OUT}"
+	# arrive from the loopback address. The resource's server.address (the one
+	# canonical server-name field) must carry a real identity (the local FQDN
+	# substituted for loopback, or the '=' ident host) and must never be a
+	# loopback literal or name.
+	assert grep -Eq '"server.address":"[^"]+"' "${COLLECTOR_OUT}"
+	assert_failure grep -Eq '"server\.address":"(localhost[^"]*|127\.[0-9.]+|::1|::ffff:127\.[0-9.]+)"' "${COLLECTOR_OUT}"
 
 	# client.address must be the numeric client IP from the login "&a=" CGI,
 	# never a hostname or a loopback literal (the loopback client is renamed to

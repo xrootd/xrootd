@@ -461,6 +461,34 @@ TEST_F(Transfer, AppInfoEnrichesTransfer)
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
   EXPECT_EQ(j["attributes"]["xrootd.app.raw"], "test-app-v1");
+  // The 'u' descriptor is decomposed into user.name/protocol/client fields;
+  // the raw line itself is not duplicated into the document.
+  EXPECT_FALSE(j["attributes"].contains("xrootd.user.raw"));
+}
+
+// The 'i' blob is only emitted when it adds information over the login &y=.
+TEST_F(Transfer, AppRawSuppressedWhenEqualToAppInfo)
+{
+  { W body; body.u32(7);
+    std::string info = "xroot/alice.123:4@wn.example.org\n&R=v5&x=xrdcp"
+                       "&y=test-app-v1&I=4";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('u', kStod, pl);
+    dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  { W body; body.u32(9);
+    std::string info = "xroot/alice.123:4@wn.example.org\ntest-app-v1";
+    std::vector<unsigned char> pl = body.b;
+    pl.insert(pl.end(), info.begin(), info.end());
+    auto pkt = packet('i', kStod, pl);
+    dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["attributes"]["xrootd.app.info"], "test-app-v1");
+  EXPECT_FALSE(j["attributes"].contains("xrootd.app.raw"));   // same as &y=
 }
 
 TEST(XrdMonCollect, RedirectStreamDecoded)
@@ -986,19 +1014,16 @@ TEST(XrdMonCollect, LoopbackServerResolvesToLocalHost)
 
   ASSERT_FALSE(doc.empty());
   json j = json::parse(doc);
-  EXPECT_TRUE(j["resource"].contains("server.address"));  // always usable
-  EXPECT_NE(j["resource"]["server.address"], "::1");
-
-  if (j["resource"].contains("host.name"))
-     {std::string host = j["resource"]["host.name"];
-      EXPECT_NE(host, "localhost");                   // never a loopback name
-      EXPECT_EQ(j["resource"]["server.address"], host);
-      // When the advertised FQDN is usable, it is the name substituted.
-      const char* me = XrdNetUtils::MyHostName();
-      if (me && *me && std::string(me).find(':') == std::string::npos
-          && strncmp(me, "localhost", 9) != 0)
-         EXPECT_EQ(host, me);
-     }
+  ASSERT_TRUE(j["resource"].contains("server.address"));  // always usable
+  std::string name = j["resource"]["server.address"];
+  EXPECT_NE(name, "::1");
+  EXPECT_NE(name, "localhost");                   // never a loopback name
+  EXPECT_FALSE(j["resource"].contains("host.name"));  // single canonical field
+  // When the advertised FQDN is usable, it is the name substituted.
+  const char* me = XrdNetUtils::MyHostName();
+  if (me && *me && std::string(me).find(':') == std::string::npos
+      && strncmp(me, "localhost", 9) != 0)
+     EXPECT_EQ(name, me);
 }
 
 // With resolution disabled, the loopback source stays numeric.
@@ -1011,7 +1036,6 @@ TEST(XrdMonCollect, NoResolveKeepsLoopbackNumeric)
 
   json j = json::parse(doc);
   EXPECT_EQ(j["resource"]["server.address"], "::1");
-  EXPECT_FALSE(j["resource"].contains("host.name"));
 }
 
 namespace
@@ -1470,8 +1494,10 @@ TEST(XrdMonCollect, ServerIdentDecoded)
   json j = json::parse(docs[0]);
   EXPECT_EQ(j["attributes"]["event.name"], "xrootd.server_ident");
   EXPECT_EQ(j["resource"]["xrootd.server.site"], "T1_DE_KIT");
-  EXPECT_EQ(j["resource"]["host.name"], "srv.example.org");
-  EXPECT_EQ(j["resource"]["xrootd.server.instance"], "manager");
+  EXPECT_EQ(j["resource"]["server.address"], "srv.example.org");
+  EXPECT_EQ(j["resource"]["service.instance.id"], "manager");
+  EXPECT_FALSE(j["resource"].contains("host.name"));
+  EXPECT_FALSE(j["resource"].contains("xrootd.server.instance"));
   EXPECT_EQ(j["resource"]["xrootd.server.program"], "xrootd");
   EXPECT_EQ(j["resource"]["service.version"], "v6.1.0");
   EXPECT_EQ(j["resource"]["server.port"], 1094);

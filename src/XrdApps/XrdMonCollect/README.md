@@ -287,15 +287,15 @@ Several opt-in streams add finer-grained events:
 The `u` (user), `d` (path) and `i` (appinfo) dictionaries are always consumed:
 they resolve identities and paths for the other streams, and the appinfo (`i`)
 is joined to each transfer document by session descriptor (adds `xrootd.app.raw`
-when the client set one).
+when the client set one and it differs from the login `&y=` appinfo).
 
 The `=` (server identity), `T` (token) and `U` (user experiment/activity)
 records are also always consumed:
 
 - `=` (`MAPIDNT`) yields a one-off `server_ident` document
   (`attributes["event.name"]` = `xrootd.server_ident`) per server incarnation
-  (its `resource`: `xrootd.server.site`, `xrootd.server.instance`,
-  `xrootd.server.program`, `service.version`, `server.address`/`host.name`,
+  (its `resource`: `xrootd.server.site`, `service.instance.id`,
+  `xrootd.server.program`, `service.version`, `server.address`,
   `server.port`) and its host/site/instance are joined into every transfer
   document's `resource`. Re-sent identically each `ident` interval; the
   collector emits the document only when it changes.
@@ -339,10 +339,8 @@ event-level `attributes` object. One object per file close, for example:
     "service.instance.id": "srv1",
     "service.version": "5.6.1",
     "server.address": "srv1.example.org",
-    "host.name": "srv1.example.org",
     "server.port": 1094,
     "xrootd.server.site": "SITE-A",
-    "xrootd.server.instance": "srv1",
     "xrootd.server.id": 42,
     "xrootd.server.incarnation": 1700000000
   },
@@ -399,7 +397,7 @@ on the wire. Mapping (and the server config each needs):
 | error_message | `error.message` | `fstat` (failed open / I/O / close) |
 | error_category | `error.type` + `xrootd.error.code` | `fstat` (failed open / I/O / close) |
 | server_name/site | `server.address` / `xrootd.server.site` | `=` ident (`all.sitename`/`XRDSITE` for site) |
-| server_ip / hostname | `server.address` / `host.name` | UDP source / `=` ident (loopback → public address / local FQDN) |
+| server_ip / hostname | `server.address` | `=` ident, else UDP source (loopback → public address / local FQDN) |
 | client_ip / hostname | `client.address` / `xrootd.client.host` | login CGI `&a=` (numeric IP, 6.x+) / `u` descriptor (server DNS config) |
 | client_version | `xrootd.client.version` | login appinfo (`&R=`) |
 | ip_version | `network.type` (`ipv4`/`ipv6`) | login appinfo (`&I=`) |
@@ -419,13 +417,13 @@ on the server's DNS configuration. When the server reverse-resolved the client
 to a hostname, that name is kept in `xrootd.client.host` (omitted when it
 would just repeat `client.address`).
 
-`host.name` precedence is: the host advertised on the `=` ident stream
-(when it is a real name, not an IP literal; a `localhost*` name is replaced by
-the collector's own FQDN), else — for a server reporting from the loopback
-address (the common co-located collector + server setup, where the UDP source
-is `::1`/`127.0.0.1`) — the collector's own local FQDN, since the reporting
-server runs on the same host. `server.address` falls back to the numeric IP
-(it carries the IP when no hostname is available).
+`server.address` is the single canonical server-name field. Its precedence
+is: the host advertised on the `=` ident stream (when it is a real name, not
+an IP literal; a `localhost*` name is replaced by the collector's own FQDN),
+else — for a server reporting from the loopback address (the common
+co-located collector + server setup, where the UDP source is
+`::1`/`127.0.0.1`) — the collector's own local FQDN, since the reporting
+server runs on the same host, else the numeric source IP.
 
 Loopback literals (`127.0.0.0/8`, `::1`) that would otherwise be emitted in
 `client.address`/`server.address` are replaced with this host's public
@@ -656,7 +654,7 @@ default UDP port (9930) is unprivileged; for a port below 1024 add
 
 The collector can run **co-located** with a server (the common case: the server
 reports from the loopback address and the collector substitutes its own FQDN for
-`host.name`, see [WLCG field mapping](#wlcg-field-mapping)) or as a **central**
+`server.address`, see [WLCG field mapping](#wlcg-field-mapping)) or as a **central**
 receiver for many servers, each pointed at `<collector-host>:9930`.
 
 ### Capacity and tuning
