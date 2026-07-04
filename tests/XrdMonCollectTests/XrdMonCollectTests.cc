@@ -1087,7 +1087,7 @@ TEST(XrdMonCollect, LoopbackServerResolvesToLocalHost)
   const char* me = XrdNetUtils::MyHostName();
   if (me && *me && std::string(me).find(':') == std::string::npos
       && strncmp(me, "localhost", 9) != 0)
-     EXPECT_EQ(name, me);
+     {EXPECT_EQ(name, me);}
 }
 
 // With resolution disabled, the loopback source stays numeric.
