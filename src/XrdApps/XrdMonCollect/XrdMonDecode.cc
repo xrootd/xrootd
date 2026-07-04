@@ -25,10 +25,16 @@
 #include <ctime>
 #include <fstream>
 #include <sstream>
+#include <vector>
+
+#include <unistd.h>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
+#include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucJson.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 
@@ -131,7 +137,18 @@ std::string hostDomain(const std::string& h)
 //
 bool isLoopback(const std::string& ip)
 {
-   return ip == "::1" || ip == "127.0.0.1" || ip == "::ffff:127.0.0.1";
+   return ip == "::1" || ip.rfind("127.", 0) == 0
+       || ip.rfind("::ffff:127.", 0) == 0;
+}
+
+// A loopback host name ("localhost", "localhost.localdomain", ...): the named
+// counterpart of isLoopback(), produced when a server reverse-resolves a
+// loopback peer. Replaced with the real FQDN just like a loopback literal is
+// replaced with the public address.
+//
+bool isLocalName(const std::string& h)
+{
+   return h == "localhost" || h.rfind("localhost.", 0) == 0;
 }
 
 // Whole-file transfer vs. partial access. XRootD serves both whole-file copies
@@ -236,7 +253,99 @@ void XrdMonDecode::resolveLocalHost()
 {
    const char* me = XrdNetUtils::MyHostName();
    std::string h = me ? me : "";
-   if (!h.empty() && !isIPLiteral(h)) localHost = h;
+   if (!h.empty() && !isIPLiteral(h) && !isLocalName(h)) localHost = h;
+
+// When the advertised FQDN is itself a loopback name (a host whose
+// "hostname -f" is localhost, common in containers), fall back to the kernel
+// host name for the address lookup below; it usually resolves to the real
+// interface addresses even when the canonical name does not.
+//
+   std::string lookup = localHost;
+   if (lookup.empty())
+      {char hn[256] = {0};
+       if (!gethostname(hn, sizeof(hn) - 1) && *hn && !isLocalName(hn))
+          lookup = hn;
+      }
+   if (lookup.empty()) return;
+
+// Also resolve the name's own addresses once, caching the first public
+// (non-loopback) address of each family. These stand in for loopback literals
+// that would otherwise surface in client.address/server.address. On a multi-
+// homed host the addresses the name resolves to are the ones remote peers
+// would use, which makes them the canonical public identity.
+//
+   std::vector<XrdNetAddr> aVec;
+   if (!XrdNetUtils::GetAddrs(lookup, aVec, nullptr, XrdNetUtils::allIPv64,
+                              XrdNetUtils::NoPortRaw))
+      for (XrdNetAddr& a : aVec)
+          {if (a.isLoopback()) continue;
+           std::string& slot = (a.isIPType(XrdNetAddrInfo::IPv4) || a.isMapped())
+                             ? localIP4 : localIP6;
+           if (!slot.empty()) continue;
+           char buf[64];
+           if (a.Format(buf, sizeof(buf), XrdNetAddrInfo::fmtAddr,
+                        XrdNetAddrInfo::prefipv4 | XrdNetAddrInfo::noPortRaw) > 0)
+              slot = buf;
+          }
+
+// Interface-scan fallback: when name resolution could not produce a non-
+// loopback address for a family (common where /etc/hosts pins the host name
+// to 127.0.1.1), take the first public — else first private — up interface
+// address of that family instead.
+//
+   if (localIP4.empty() || localIP6.empty())
+      {XrdOucTList* ifList = nullptr;
+       if (XrdNetIF::GetIF(&ifList) > 0)
+          {std::string pub4, prv4, pub6, prv6;
+           while (ifList)
+                 {std::string a = ifList->text;
+                  if (a.size() > 1 && a.front() == '[' && a.back() == ']')
+                     a = a.substr(1, a.size() - 2);
+                  bool v6 = a.find(':') != std::string::npos;
+                  std::string& slot = ifList->sval[1] ? (v6 ? prv6 : prv4)
+                                                      : (v6 ? pub6 : pub4);
+                  if (slot.empty()) slot = a;
+                  XrdOucTList* next = ifList->next;
+                  delete ifList; ifList = next;
+                 }
+           if (localIP4.empty()) localIP4 = !pub4.empty() ? pub4 : prv4;
+           if (localIP6.empty()) localIP6 = !pub6.empty() ? pub6 : prv6;
+          }
+      }
+
+// If the FQDN was unusable, name this host from a public address (a one-time
+// reverse lookup — still at startup, never in the receive loop), falling back
+// to the kernel host name.
+//
+   if (localHost.empty() && (!localIP4.empty() || !localIP6.empty()))
+      {std::string spec = !localIP4.empty() ? localIP4
+                                            : "[" + localIP6 + "]";
+       XrdNetAddr na;
+       const char* n = nullptr;
+       if (!na.Set(spec.c_str(), 0)) n = na.Name();
+       if (n && !isIPLiteral(n) && !isLocalName(n)) localHost = n;
+          else localHost = lookup;
+      }
+}
+
+/******************************************************************************/
+/*                             p u b l i c F o r                              */
+/******************************************************************************/
+
+// The public stand-in for an address that would be emitted as a loopback
+// literal: the cached local address of the same family, else the other
+// family, else the FQDN, else the literal unchanged. Non-loopback input is
+// returned as-is.
+//
+std::string XrdMonDecode::publicFor(const std::string& ip) const
+{
+   if (!resolveHosts || !isLoopback(ip)) return ip;
+   const std::string& same  = (ip == "::1") ? localIP6 : localIP4;
+   const std::string& other = (ip == "::1") ? localIP4 : localIP6;
+   if (!same.empty())      return same;
+   if (!other.empty())     return other;
+   if (!localHost.empty()) return localHost;
+   return ip;
 }
 
 /******************************************************************************/
@@ -276,15 +385,18 @@ void XrdMonDecode::otelResource(json& j, const std::string& src, int32_t stod,
    std::string ip = src.substr(0, src.rfind(':'));   // UDP source (strip :port)
 
    // Hostname precedence: the '=' ident's advertised host (when it is a real
-   // name, not an IP literal), else the reverse-resolved sender, else the
-   // numeric source IP (server.address always carries something usable).
+   // name, not an IP literal — "localhost" is renamed to the real FQDN), else
+   // the reverse-resolved sender, else the numeric source IP with loopback
+   // replaced by the public address (server.address always carries something
+   // usable).
    //
    std::string host;
    if (!srv.ident.host.empty() && !isIPLiteral(srv.ident.host))
-      host = srv.ident.host;
+      host = (resolveHosts && isLocalName(srv.ident.host) && !localHost.empty())
+           ? localHost : srv.ident.host;
    else if (!srv.resolvedHost.empty())
       host = srv.resolvedHost;
-   std::string name = host.empty() ? ip : host;
+   std::string name = host.empty() ? publicFor(ip) : host;
 
    r["service.name"]        = "xrootd";
    r["service.instance.id"] = srv.ident.inst.empty() ? name : srv.ident.inst;
@@ -292,7 +404,12 @@ void XrdMonDecode::otelResource(json& j, const std::string& src, int32_t stod,
    if (!host.empty())            r["host.name"]              = host;
    if (srv.ident.port > 0)       r["server.port"]            = srv.ident.port;
    if (!srv.ident.ver.empty())   r["service.version"]        = srv.ident.ver;
-   if (!srv.ident.site.empty())  r["xrootd.server.site"]     = srv.ident.site;
+   // A site of only dots is XrdOucSiteName's sanitization of an all-invalid
+   // name (e.g. a stray XRDSITE env var inherited by a server with no
+   // all.sitename directive) — it carries no information, so drop it.
+   if (!srv.ident.site.empty() &&
+       srv.ident.site.find_first_not_of('.') != std::string::npos)
+                                 r["xrootd.server.site"]     = srv.ident.site;
    if (!srv.ident.inst.empty())  r["xrootd.server.instance"] = srv.ident.inst;
    if (!srv.ident.pgm.empty())   r["xrootd.server.program"]  = srv.ident.pgm;
    if (srv.sID)                  r["xrootd.server.id"]       = srv.sID;
@@ -378,14 +495,25 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
        if (!u.prot.empty())       a["xrootd.user.protocol"] = u.prot;
        if (!u.raw.empty())        a["xrootd.user.raw"]      = u.raw;
        if (!u.authMethod.empty()) a["xrootd.auth.method"]   = u.authMethod;
-       // Client endpoint: semconv client.address plus the IP version.
-       if (!u.host.empty())
-          {a["client.address"] = u.host;
+       // Client endpoint: semconv client.address carries the numeric IP from
+       // the '&a=' login CGI; an older server only sends the descriptor host,
+       // which may be a reverse-resolved name. Loopback values are renamed to
+       // this host's public identity (publicFor/localHost). The resolved
+       // hostname, when it adds information, is kept in xrootd.client.host.
+       std::string chost = u.host;
+       if (resolveHosts && isLocalName(chost) && !localHost.empty())
+          chost = localHost;
+       std::string caddr = !u.addr.empty() ? publicFor(u.addr)
+                         : (isIPLiteral(chost) ? publicFor(chost) : chost);
+       if (!caddr.empty())
+          {a["client.address"] = caddr;
            if      (u.ipVersion == 4) a["network.type"] = "ipv4";
            else if (u.ipVersion == 6) a["network.type"] = "ipv6";
            if (!u.clientVer.empty()) a["xrootd.client.version"] = u.clientVer;
            if (!u.site.empty())      a["xrootd.client.site"]    = u.site;
           }
+       if (!chost.empty() && !isIPLiteral(chost) && chost != caddr)
+          a["xrootd.client.host"] = chost;
        // Application info: structured (&x=/&y=) plus the raw 'i' blob.
        if (!u.appName.empty()) a["xrootd.app.name"] = u.appName;
        if (!u.appInfo.empty()) a["xrootd.app.info"] = u.appInfo;
@@ -668,9 +796,9 @@ std::size_t XrdMonDecode::bytesOf(const UserInfo& u)
    std::size_t recent = 0;
    for (const auto& f : u.sRecent) recent += sizeof(f) + f.lfn.size();
    return kEntryOverhead + u.raw.size() + u.user.size() + u.prot.size()
-        + u.host.size() + u.authMethod.size() + u.vo.size() + u.role.size()
-        + u.groups.size() + u.clientVer.size() + u.appName.size()
-        + u.appInfo.size() + u.site.size() + recent;
+        + u.host.size() + u.addr.size() + u.authMethod.size() + u.vo.size()
+        + u.role.size() + u.groups.size() + u.clientVer.size()
+        + u.appName.size() + u.appInfo.size() + u.site.size() + recent;
 }
 
 std::size_t XrdMonDecode::bytesOf(const OpenFile& f)
@@ -791,8 +919,11 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
           }
        if (at != std::string::npos) u.host = first.substr(at + 1);
        // CGI tail (after the descriptor line): login appinfo is always present
-       // (&R= &x= &y= &I=); auth info (&p= &o= &r= &g=) only with "... auth".
-       // cgiVal scans the whole string; the descriptor line carries no "&key=".
+       // (&a= &R= &x= &y= &I=); auth info (&p= &o= &r= &g=) only with "...
+       // auth". cgiVal scans the whole string; the descriptor line carries no
+       // "&key=". The &a= numeric client IP (added in 6.x) is preferred over
+       // the descriptor @host, which may be a reverse-resolved name.
+       u.addr       = cgiVal(text, "a");
        u.authMethod = cgiVal(text, "p");
        u.vo         = cgiVal(text, "o");
        u.role       = cgiVal(text, "r");
@@ -964,7 +1095,11 @@ void XrdMonDecode::DecodeFrm(const std::string& src, int32_t stod, Server& srv,
        std::string r = who.substr(slash + 1);
        a["user.name"] = r.substr(0, r.find('.'));
       }
-   if (at != std::string::npos) a["client.address"] = who.substr(at + 1);
+   if (at != std::string::npos)
+      {std::string h = who.substr(at + 1);
+       if (resolveHosts && isLocalName(h) && !localHost.empty()) h = localHost;
+       a["client.address"] = publicFor(h);
+      }
 
    if (!szS.empty()) {sz = atoll(szS.c_str()); a["file.size"] = sz;}
 
@@ -1195,8 +1330,11 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        // LAN/WAN heuristic: tag the transfer local when the client and the
        // reporting server share a registered domain. Only decidable when both
        // are resolvable host names (not IP literals); otherwise left unset.
+       // The client name lives in xrootd.client.host now that client.address
+       // is numeric; fall back to client.address for pre-&a= servers.
        if (!srv.ident.host.empty())
-          {std::string ch = a.value("client.address", std::string());
+          {std::string ch = a.value("xrootd.client.host",
+                            a.value("client.address", std::string()));
            std::string cd = hostDomain(ch);
            std::string sd = hostDomain(srv.ident.host);
            if (!cd.empty() && !sd.empty())

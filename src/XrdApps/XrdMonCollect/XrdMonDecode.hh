@@ -203,15 +203,16 @@ using LruIt = std::list<LruNode>::iterator;
 
 // Identity parsed from a 'u' (MAPUSER) dictionary entry. The first line is the
 // "<prot>/<user>.<pid>:<sfd>@<host>" descriptor; the rest is a CGI tail carrying
-// the login appinfo (always: &R= &x= &y= &I=) and, when "xrootd.monitor ... auth"
-// is configured, the authentication info (&p= &o= &r= &g=).
+// the login appinfo (always: &a= &R= &x= &y= &I=) and, when "xrootd.monitor ...
+// auth" is configured, the authentication info (&p= &o= &r= &g=).
 //
 struct UserInfo
 {
    std::string raw;        // full first line of the map info
    std::string user;
    std::string prot;
-   std::string host;
+   std::string host;       // descriptor @host: may be a reverse-resolved name
+   std::string addr;       // &a= numeric client IP (DNS-free; empty pre-6.x)
    std::string authMethod; // &p= security protocol (gsi/krb5/sss/unix/ztn)
    std::string vo;         // &o= VO / organisation (auth-derived; token preferred)
    std::string role;       // &r= role
@@ -464,9 +465,14 @@ bool     emitSpans    = false;   // companion OTLP span documents (--spans)
 
 // Local FQDN substituted for a loopback (co-located) server, resolved at most
 // once for the whole process (MyHostName is the same regardless of which
-// server reports), then reused for every loopback incarnation.
+// server reports), then reused for every loopback incarnation. localIP4/6 are
+// the first public (non-loopback) address of each family the FQDN resolves
+// to, substituted for loopback literals that would otherwise be emitted.
 void        resolveLocalHost();   // resolve localHost once, at construction
+std::string publicFor(const std::string& ip) const;
 std::string localHost;
+std::string localIP4;
+std::string localIP6;
 
 // SciTags registry (loaded from --scitags), mapping numeric flow-label ids to
 // human names. sciExp: expId -> expName (doubles as a VO); sciAct: the packed

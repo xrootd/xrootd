@@ -355,7 +355,8 @@ event-level `attributes` object. One object per file close, for example:
     "file.path": "/store/data/file.root",
     "file.name": "file.root",
     "file.size": 1073741824,
-    "client.address": "wn.example.org",
+    "client.address": "192.0.2.17",
+    "xrootd.client.host": "wn.example.org",
     "network.type": "ipv4",
     "user.name": "alice",
     "user.id": "https://issuer/sub42",
@@ -393,9 +394,9 @@ on the wire. Mapping (and the server config each needs):
 | operation_state | `xrootd.operation_state` (`Successful`/`Failed`/`Redirected`) | `fstat` (terminal report); `Redirected` from `r` with `--redirects` |
 | error_message | `error.message` | `fstat` (failed open / I/O / close) |
 | error_category | `error.type` + `xrootd.error.code` | `fstat` (failed open / I/O / close) |
-| server_name/site | `server.address` / `xrootd.server.site` | `=` ident (`XRDSITE` for site) |
-| server_ip / hostname | `server.address` / `host.name` | UDP source / `=` ident (loopback → local FQDN) |
-| client_ip / hostname | `client.address` | `u` descriptor (server DNS config) |
+| server_name/site | `server.address` / `xrootd.server.site` | `=` ident (`all.sitename`/`XRDSITE` for site) |
+| server_ip / hostname | `server.address` / `host.name` | UDP source / `=` ident (loopback → public address / local FQDN) |
+| client_ip / hostname | `client.address` / `xrootd.client.host` | login CGI `&a=` (numeric IP, 6.x+) / `u` descriptor (server DNS config) |
 | client_version | `xrootd.client.version` | login appinfo (`&R=`) |
 | ip_version | `network.type` (`ipv4`/`ipv6`) | login appinfo (`&I=`) |
 | client_site | `xrootd.client.site` | login appinfo (`&S=`, client `XRDSITE`/`XRD_SITE`) |
@@ -407,21 +408,39 @@ on the wire. Mapping (and the server config each needs):
 | bytes | `xrootd.transfer.{read,readv,write}_bytes` | `fstat … xfr` |
 | is_local (LAN/WAN) | `xrootd.transfer.is_local` | derived: client vs server domain (needs `=` ident) |
 
-`host.name` precedence is: the host advertised on the `=` ident stream
-(when it is a real name, not an IP literal), else — for a server reporting from
-the loopback address (the common co-located collector + server setup, where the
-UDP source is `::1`/`127.0.0.1`) — the collector's own local FQDN, since the
-reporting server runs on the same host. `server.address` falls back to the
-numeric IP (it carries the IP when no hostname is available). `--no-resolve`
-disables the loopback substitution (leaving the numeric address). A *remote*
-server is never reverse-resolved here — that hostname comes from its `=` ident,
-and a blocking reverse-DNS lookup of an arbitrary source IP would stall the UDP
-receive loop.
+`client.address` is the numeric client IP the server puts in the login CGI
+(`&a=`, XRootD 6.x+; never a DNS name). Against an older server it falls back
+to the `u` descriptor's host, which may be a reverse-resolved name depending
+on the server's DNS configuration. When the server reverse-resolved the client
+to a hostname, that name is kept in `xrootd.client.host` (omitted when it
+would just repeat `client.address`).
 
-`xrootd.transfer.is_local` is a heuristic: it is `true` when the client and the
-reporting server share a registered domain (the part after the first host
-label), `false` when they differ, and **omitted** when either side is an IP
-literal or the server host is unknown (no `=` ident yet). It also drives
+`host.name` precedence is: the host advertised on the `=` ident stream
+(when it is a real name, not an IP literal; a `localhost*` name is replaced by
+the collector's own FQDN), else — for a server reporting from the loopback
+address (the common co-located collector + server setup, where the UDP source
+is `::1`/`127.0.0.1`) — the collector's own local FQDN, since the reporting
+server runs on the same host. `server.address` falls back to the numeric IP
+(it carries the IP when no hostname is available).
+
+Loopback literals (`127.0.0.0/8`, `::1`) that would otherwise be emitted in
+`client.address`/`server.address` are replaced with this host's public
+address: at startup (never in the receive loop) the collector resolves its own
+FQDN once and caches the first non-loopback IPv4 and IPv6 address; when name
+resolution yields nothing usable (e.g. `/etc/hosts` pinning the host name to
+`127.0.1.1`), the first public — else private — interface address of each
+family is used instead. A loopback of one family is replaced by the cached
+address of the same family, falling back to the other family, then to the
+FQDN. `--no-resolve` disables all of these substitutions (leaving the numeric
+addresses and names as received). A *remote* server is never reverse-resolved
+here — that hostname comes from its `=` ident, and a blocking reverse-DNS
+lookup of an arbitrary source IP would stall the UDP receive loop.
+
+`xrootd.transfer.is_local` is a heuristic: it is `true` when the client
+(`xrootd.client.host`, falling back to `client.address`) and the reporting
+server share a registered domain (the part after the first host label),
+`false` when they differ, and **omitted** when either side is an IP literal or
+the server host is unknown (no `=` ident yet). It also drives
 `xrootd_collector_locality_transfers_total{server,locality}`.
 
 `xrootd.operation_state` is the authoritative success/failure of the
@@ -457,8 +476,11 @@ client that has `XRDSITE` (or `XRD_SITE`, which takes precedence) set in its
 environment sends it in the login CGI (`xrd.site`), the server folds it into the
 user-map appinfo (`&S=`), and the collector surfaces it as `xrootd.client.site`.
 It is absent when the client does not advertise one. (This is distinct from
-`xrootd.server.site`, which is the *reporting server's* `XRDSITE` from the `=`
-ident record.)
+`xrootd.server.site`, which is the *reporting server's* site — `all.sitename`
+in its config, exported as `XRDSITE` — from the `=` ident record. A site that
+is only dots — `XrdOucSiteName`'s sanitization of an entirely invalid name,
+e.g. a stray `XRDSITE` env var inherited by a daemon with no `all.sitename`
+directive — is dropped as carrying no information.)
 
 ## Sinks
 
@@ -557,7 +579,8 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
   --scitags <src>  SciTags registry (file path or http(s):// URL) mapping
                    experiment/activity ids to names
   --scitags-refresh <s> re-fetch a URL registry every <s> seconds (default 3600)
-  --no-resolve     do not substitute the local FQDN for a loopback server
+  --no-resolve     do not substitute the local FQDN / public address for
+                   loopback addresses and localhost names
   --sessions       correlate per-session activity and emit a session document
                    per client disconnect (off by default)
   --spans          also emit OpenTelemetry span documents alongside the logs
