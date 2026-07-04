@@ -8,11 +8,30 @@
 
 [xrdmoncollect]
 
-# UDP port to listen on (required; same as -p).
+# UDP port to listen on (same as -p / --udp-port; required unless tcp-port is
+# set). The udp-port key is an accepted alias.
 port = 9930
 
 # Address to bind (default: all interfaces, dual-stack). Same as -b.
 # bind = 0.0.0.0
+
+# Also accept UDP packets encapsulated over TCP from remote xrdmoncollect
+# instances running in shoveler mode (see the shovel key below), optionally
+# requiring a shared-secret token in the connection hello. A token of the form
+# @<file> is read from that file. With tcp-port set, port/-p is optional (a
+# TCP-only central collector).
+# tcp-port = 9931
+# tcp-token = @/etc/xrootd/shovel.token
+
+# Shoveler mode: instead of decoding, relay the received UDP packets over TCP
+# to a central collector's tcp-port (host:port). Decode/sink options are
+# ignored (with a warning) in this mode, so shovelers and the central
+# collector can share this file. While the collector is unreachable, framed
+# buffers spool under <cache-dir>/shovel, capped by spool-max (K/M/G suffix;
+# 0 = unbounded), evicting the oldest buffers when full.
+# shovel = collector.example.org:9931
+# shovel-token = @/etc/xrootd/shovel.token
+# spool-max = 1G
 
 # Append decoded documents to this file (default: stdout unless an OpenSearch or
 # forward sink is configured). Same as -o.

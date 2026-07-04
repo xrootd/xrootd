@@ -184,6 +184,77 @@ Health signals to watch (with `--metrics-port`):
 `xrootd_collector_dropped_bulk_total`; the OTLP sink has the analogous
 `otlp_cache_*` / `otlp_dropped_total` series.
 
+### Shoveler mode (reliable TCP transport)
+
+UDP is fine on the loopback or a quiet LAN, but when the collector sits far
+from the packet sources (a central collector for a large or distributed
+cluster), loss on the long-haul UDP leg becomes non-negligible — visible as a
+climbing `xrootd_collector_packets_lost_total`. The fix, modeled on the OSG
+shoveler, is to keep the UDP hop local and relay the datagrams over TCP: run
+one `xrdmoncollect --shovel` next to every daemon and point the daemons'
+`xrootd.monitor ... dest` at it; the shoveler encapsulates each datagram
+(together with its original source address) and streams it to the central
+collector's `--tcp-port`, which re-injects it into the normal pipeline as if
+it had arrived by UDP:
+
+```
+ node A ─ xrootd/cmsd ─ UDP ─▶ xrdmoncollect --shovel ──┐(TCP, XSHV frames)
+ node B ─ xrootd/cmsd ─ UDP ─▶ xrdmoncollect --shovel ──┤
+ node C ─ xrootd/cmsd ─ UDP ─▶ xrdmoncollect --shovel ──┤
+                                                        ▼
+                                central xrdmoncollect --tcp-port [-p ...]
+                                  (decode, correlate, sinks as usual)
+```
+
+Because every frame carries the datagram's **original source address**, the
+central collector attributes packets to the emitting daemon — per-server
+incarnation state, `server.address` resolution, and the `pseq`-gap loss
+estimation all keep working, and now measure only the (local) UDP leg. In
+shoveler mode there is no decoding, correlation, or document sink; the relay
+is deliberately cheap. `--shovel` cannot be combined with `--tcp-port` (no
+relay chaining), and options that only make sense with decoding active are
+warned about and ignored, so one config file can serve a whole cluster.
+
+While the central collector is unreachable, the shoveler spools framed
+buffers to disk under `<cache-dir>/shovel/` (files named like the other
+caches, with a `.frames` suffix) and replays them **oldest-first, ahead of
+new traffic**, on reconnect — the same order-preserving choreography as the
+HTTP sinks' caches. The spool is capped by `--spool-max` (default 1G; 0 =
+unbounded), evicting the **oldest** buffers when full: during a long outage
+fresh data is worth more than day-old data, and replay latency stays bounded.
+Without `--cache-dir` the buffers are dropped and counted.
+
+The wire protocol ("XSHV", version 1) is a simple length-prefixed framing;
+all integers are network byte order, and any malformed field drops the
+connection (the shoveler reconnects and replays from its spool). One hello,
+then data frames:
+
+| frame | offset | size | field |
+| :-- | --: | --: | :-- |
+| hello (once) | 0 | 4 | magic `"XSHV"` |
+| | 4 | 1 | protocol version (1) |
+| | 5 | 1 | flags (reserved, 0) |
+| | 6 | 2 | auth token length T (max 4096) |
+| | 8 | T | auth token bytes (may be empty) |
+| hello reply | 0 | 1 | `0x01` accepted, `0x00` rejected (then close) |
+| data (repeated) | 0 | 1 | frame type: `0x01` = data |
+| | 1 | 1 | address family: 4 or 6 |
+| | 2 | 2 | original UDP source port |
+| | 4 | 4 or 16 | original source address |
+| | — | 4 | payload length L (1 ≤ L ≤ 65536) |
+| | — | L | one raw UDP monitoring datagram |
+
+The hello carries an optional shared-secret token (`--shovel-token` on the
+shoveler, `--tcp-token` on the collector; both accept `@<file>`), compared in
+constant time. A rejected hello backs the shoveler off for 30s (it is a
+configuration error, not a network blip; network failures retry after 5s).
+
+One caveat: plain TCP has no application-level acknowledgement, so datagrams
+already accepted by the kernel's socket buffer when the collector dies
+abruptly are lost without being counted as drops (typically one flush window
+per outage). The spool covers everything from the moment the failure is
+detected.
+
 ## Quick start
 
 ```sh
@@ -200,6 +271,15 @@ xrdmoncollect -p 9930 --otlp-url http://alloy:4318 --spans
 
 # Forward NDJSON to a Logstash/Fluentd TCP input for buffering
 xrdmoncollect -p 9930 --forward logstash.example.org:5044
+
+# Shoveler on every cluster node: relay the local UDP stream over TCP
+xrdmoncollect -p 9930 --shovel collector.example.org:9931 \
+              --shovel-token @/etc/xrootd/shovel.token \
+              --cache-dir /var/spool/xrootd/moncollect
+
+# Central collector for the shovelers (TCP only; add -p to also take UDP)
+xrdmoncollect --tcp-port 9931 --tcp-token @/etc/xrootd/shovel.token \
+              --os-url https://opensearch:9200 --os-datastream
 ```
 
 ## Streams and documents
@@ -558,6 +638,15 @@ config-file value (a `[xrdmoncollect]` `os-token`/`otlp-token` key in a
 mode-`0600` file) works the same way. The TCP `--forward` sink is a plain socket
 with no application-layer auth — put it behind a trusted network or a TLS proxy.
 
+The **shovel channel** authenticates with its own shared secret: the shoveler
+sends `--shovel-token` in the XSHV hello and the collector, when `--tcp-token`
+is set, requires a constant-time match before accepting any frames (rejections
+are counted in `xrootd_collector_tcp_auth_failures_total`). Both accept
+`@<file>`. Without `--tcp-token` the collector accepts any well-formed hello —
+acceptable inside a trusted network, but set the token when the port is
+reachable from outside the cluster. The channel itself is plain TCP (no TLS);
+route it through a trusted network or a TLS tunnel if it must cross one.
+
 ## Configuration
 
 ### Command-line options
@@ -568,11 +657,24 @@ xrdmoncollect -p <port> [-b <bindaddr>] [-o <file>] [--bulk <index>]
                [--os-pass <p>] [--os-token <t>] [--os-insecure] [--os-datastream]]
               [--otlp-url <url> [--otlp-token <t>] [--otlp-insecure]]
               [--forward <host:port>]
+              [--tcp-port <p> [--tcp-token <t>]]
+              [--shovel <host:port> [--shovel-token <t>] [--spool-max <sz>]]
               [--flush-count <n>] [--flush-secs <n>] [--dump] [-v]
 
   -c <file>        load options from an INI config file (see Configuration)
-  -p <port>        UDP port to listen on (required)
+  -p <port>        UDP port to listen on (long form: --udp-port; required
+                   unless --tcp-port is given)
   -b <bindaddr>    address to bind (default: all interfaces, dual-stack)
+  --tcp-port <p>   also accept UDP packets encapsulated over TCP from remote
+                   collectors running in shoveler mode
+  --tcp-token <t>  shared secret shovelers must present; @<file> reads it from
+                   a file (default: accept any connection)
+  --shovel <h:p>   shoveler mode: relay received UDP packets over TCP to a
+                   central collector's --tcp-port instead of decoding them
+  --shovel-token <t> shared secret for the --shovel connection; @<file> reads
+                   it from a file
+  --spool-max <sz> cap the shovel disk spool under --cache-dir, evicting the
+                   oldest buffers (K/M/G; default 1G; 0=unbounded)
   -o <file>        append output to <file> (default: stdout unless a network sink)
   --bulk <index>   write OpenSearch _bulk format to the file/stdout sink
   --os-url <url>   POST documents to an OpenSearch cluster's _bulk API
@@ -678,7 +780,11 @@ default UDP port (9930) is unprivileged; for a port below 1024 add
 The collector can run **co-located** with a server (the common case: the server
 reports from the loopback address and the collector substitutes its own FQDN for
 `server.address`, see [WLCG field mapping](#wlcg-field-mapping)) or as a **central**
-receiver for many servers, each pointed at `<collector-host>:9930`.
+receiver for many servers, each pointed at `<collector-host>:9930`. For a
+central receiver, prefer the [shoveler chain](#shoveler-mode-reliable-tcp-transport)
+over long-haul UDP: the same unit file works for a shoveler — its config just
+sets `shovel = <collector-host>:<tcp-port>` (plus `cache-dir`) instead of the
+sink options, and the central host's config sets `tcp-port`.
 
 ### Capacity and tuning
 
@@ -843,6 +949,35 @@ xrootd_collector_cache_replayed_total       (cached bodies replayed)
 xrootd_collector_dropped_bulk_total         (bodies dropped: no/failed cache)
 ```
 
+With `--tcp-port`, the shovel listener adds:
+
+```
+xrootd_collector_tcp_connections_total      (shovel connections accepted)
+xrootd_collector_tcp_connections_active     (gauge: currently open)
+xrootd_collector_tcp_auth_failures_total    (rejected by the token check)
+xrootd_collector_tcp_frames_total           (shoveled datagrams received)
+xrootd_collector_tcp_malformed_total        (connections dropped for protocol violations)
+xrootd_collector_tcp_bytes_total            (bytes received on shovel connections)
+```
+
+A shoveler (`--shovel`) exposes its own, smaller set under the
+`xrootd_shoveler_` prefix instead:
+
+```
+xrootd_shoveler_packets_total               (UDP datagrams received)
+xrootd_shoveler_frames_sent_total           (datagrams relayed to the collector)
+xrootd_shoveler_frames_spooled_total        (datagrams written to the disk spool)
+xrootd_shoveler_frames_dropped_total        (datagrams dropped: no usable spool)
+xrootd_shoveler_connects_total              (successful connect+handshakes)
+xrootd_shoveler_connected                   (gauge: collector connection up)
+xrootd_shoveler_recv_queue_batches          (gauge: receiver->sender depth)
+xrootd_shoveler_spool_files                 (gauge: buffers awaiting replay)
+xrootd_shoveler_spool_bytes                 (gauge: spool bytes on disk)
+xrootd_shoveler_spool_stored_total          (buffers written to the spool)
+xrootd_shoveler_spool_replayed_total        (buffers replayed)
+xrootd_shoveler_spool_dropped_total         (oldest buffers evicted by --spool-max)
+```
+
 From the `g` (plugin) streams (when `--gstream` data is flowing):
 
 ```
@@ -870,7 +1005,10 @@ Point a Prometheus scrape job at `http://<collector-host>:<p>/metrics`.
 [`grafana-dashboard.json`](grafana-dashboard.json) (next to this README) is a
 ready-to-import dashboard covering the metrics above: collector health (ingest/decode rates, correlation
 memory, queue depth), sink health (POST failures, drops, queue and disk-cache
-backlog for both the OpenSearch and OTLP sinks), transfer activity per server
+backlog for both the OpenSearch and OTLP sinks), shovel transport (collector
+TCP connections and shoveled-datagram rates, plus per-shoveler pipeline, spool
+backlog, and connectivity — scrape the shovelers' `--metrics-port` with the
+same Prometheus), transfer activity per server
 (throughput, active transfers, failed operations, duration/size histogram
 quantiles, VO and locality breakdowns), and the `g`/`x`/`p`-stream backends
 (redirects, TPC, PFC, OSS, HTTP, throttle, FRM). Import it in Grafana
@@ -890,7 +1028,10 @@ the collector; a **Server** variable multi-selects the reporting servers.
   datagram to one destination with a single sequence number (header `pseq`), so
   the collector estimates loss from forward gaps in it —
   `xrootd_collector_packets_lost_total{server}` and the `-v` `lost=` count.
-  (Reordering, a small backward step, is not counted as loss.)
+  (Reordering, a small backward step, is not counted as loss.) The
+  [shoveler chain](#shoveler-mode-reliable-tcp-transport) confines this to the
+  local hop; its own TCP leg is lossless except for the un-acked kernel-buffer
+  window when the collector dies abruptly (see the caveat there).
 - Only the `f` stream is correlated today. The `t` (per-I/O trace) and `g`
   (plugin) streams are decoded enough to be counted and optionally emitted as
   documents, but are not joined into the transfer correlation.

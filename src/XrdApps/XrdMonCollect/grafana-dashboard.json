@@ -1373,6 +1373,478 @@
       ]
     },
     {
+      "id": 40,
+      "type": "row",
+      "title": "Shovel transport (TCP relay)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "panels": []
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "Shovel connections (collector)",
+      "description": "The central collector's TCP listener: open shoveler connections, accept rate, and rejected/violating connections (auth failures mean a token mismatch; malformed means a protocol violation or hello timeout).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisCenteredZero": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(xrootd_collector_tcp_connections_active)",
+          "legendFormat": "active",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_collector_tcp_connections_total[$__rate_interval]))",
+          "legendFormat": "accepted/s",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_collector_tcp_auth_failures_total[$__rate_interval]))",
+          "legendFormat": "auth failures/s",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_collector_tcp_malformed_total[$__rate_interval]))",
+          "legendFormat": "malformed/s",
+          "range": true,
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "Shoveled datagrams/s",
+      "description": "Datagrams entering the collector over TCP vs. datagrams the shovelers report having sent; a persistent gap suggests a shoveler cannot reach this collector.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisCenteredZero": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_collector_tcp_frames_total[$__rate_interval]))",
+          "legendFormat": "received (collector)",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_shoveler_frames_sent_total[$__rate_interval]))",
+          "legendFormat": "sent (shovelers)",
+          "range": true,
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "type": "timeseries",
+      "title": "Shovel TCP throughput",
+      "description": "Bytes received on the collector's shovel connections.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisCenteredZero": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_collector_tcp_bytes_total[$__rate_interval]))",
+          "legendFormat": "received",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "type": "timeseries",
+      "title": "Shoveler pipeline/s",
+      "description": "Each shoveler's datagram flow: received over UDP, relayed live, spooled to disk while the collector was unreachable, and dropped (no usable spool).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 42
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisCenteredZero": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_shoveler_packets_total[$__rate_interval]))",
+          "legendFormat": "udp received",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_shoveler_frames_sent_total[$__rate_interval]))",
+          "legendFormat": "sent",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_shoveler_frames_spooled_total[$__rate_interval]))",
+          "legendFormat": "spooled",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_shoveler_frames_dropped_total[$__rate_interval]))",
+          "legendFormat": "dropped",
+          "range": true,
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "type": "timeseries",
+      "title": "Shoveler spool backlog (bytes)",
+      "description": "On-disk spool per shoveler; it grows during a collector outage and drains (oldest-first) on reconnect. Sustained growth toward --spool-max means evictions are coming.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 42
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisCenteredZero": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "xrootd_shoveler_spool_bytes",
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "type": "timeseries",
+      "title": "Shoveler connectivity",
+      "description": "Per-shoveler connection state (1 = connected), the connect/handshake rate (reconnect churn), and spool evictions forced by --spool-max (lost data).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 42
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisCenteredZero": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "xrootd_shoveler_connected",
+          "legendFormat": "up {{instance}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_shoveler_connects_total[$__rate_interval]))",
+          "legendFormat": "connects/s",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(xrootd_shoveler_spool_dropped_total[$__rate_interval]))",
+          "legendFormat": "spool evictions/s",
+          "range": true,
+          "refId": "C"
+        }
+      ]
+    },
+    {
       "id": 20,
       "type": "row",
       "title": "Transfer activity (per server)",
@@ -1381,7 +1853,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 49
       },
       "panels": []
     },
@@ -1398,7 +1870,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 35
+        "y": 50
       },
       "fieldConfig": {
         "defaults": {
@@ -1472,7 +1944,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 35
+        "y": 50
       },
       "fieldConfig": {
         "defaults": {
@@ -1546,7 +2018,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 35
+        "y": 50
       },
       "fieldConfig": {
         "defaults": {
@@ -1609,7 +2081,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 43
+        "y": 58
       },
       "fieldConfig": {
         "defaults": {
@@ -1672,7 +2144,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 43
+        "y": 58
       },
       "fieldConfig": {
         "defaults": {
@@ -1754,7 +2226,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 43
+        "y": 58
       },
       "fieldConfig": {
         "defaults": {
@@ -1835,7 +2307,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 51
+        "y": 66
       },
       "fieldConfig": {
         "defaults": {
@@ -1892,7 +2364,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 51
+        "y": 66
       },
       "fieldConfig": {
         "defaults": {
@@ -1952,7 +2424,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 51
+        "y": 66
       },
       "fieldConfig": {
         "defaults": {
@@ -2008,7 +2480,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 59
+        "y": 74
       },
       "panels": []
     },
@@ -2025,7 +2497,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 60
+        "y": 75
       },
       "fieldConfig": {
         "defaults": {
@@ -2085,7 +2557,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 60
+        "y": 75
       },
       "fieldConfig": {
         "defaults": {
@@ -2145,7 +2617,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 60
+        "y": 75
       },
       "fieldConfig": {
         "defaults": {
@@ -2205,7 +2677,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 67
+        "y": 82
       },
       "fieldConfig": {
         "defaults": {
@@ -2268,7 +2740,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 67
+        "y": 82
       },
       "fieldConfig": {
         "defaults": {
@@ -2342,7 +2814,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 67
+        "y": 82
       },
       "fieldConfig": {
         "defaults": {
@@ -2413,7 +2885,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 74
+        "y": 89
       },
       "fieldConfig": {
         "defaults": {
@@ -2484,7 +2956,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 74
+        "y": 89
       },
       "fieldConfig": {
         "defaults": {
@@ -2555,7 +3027,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 74
+        "y": 89
       },
       "fieldConfig": {
         "defaults": {

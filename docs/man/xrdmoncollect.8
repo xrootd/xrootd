@@ -10,6 +10,8 @@ xrdmoncollect - collect and correlate XRootD detailed monitoring streams
               [\fB--otlp-url\fR \fIurl\fR [\fB--otlp-token\fR \fItoken\fR] [\fB--otlp-insecure\fR]]
               [\fB--cache-dir\fR \fIdir\fR]
               [\fB--forward\fR \fIhost:port\fR] [\fB--metrics-port\fR \fIport\fR]
+              [\fB--tcp-port\fR \fIport\fR [\fB--tcp-token\fR \fItoken\fR]]
+              [\fB--shovel\fR \fIhost:port\fR [\fB--shovel-token\fR \fItoken\fR] [\fB--spool-max\fR \fIsz\fR]]
               [\fB--flush-count\fR \fIn\fR] [\fB--flush-secs\fR \fIn\fR]
               [\fB--rcvbuf\fR \fIsz\fR] [\fB--queue-depth\fR \fIn\fR] [\fB--max-entries\fR \fIn\fR]
               [\fB--sessions\fR] [\fB--spans\fR] [\fB--traces\fR] [\fB--gstream\fR] [\fB--redirects\fR] [\fB--dump\fR] [\fB-v\fR]
@@ -80,6 +82,19 @@ OpenTelemetry collector (\fB--otlp-url\fR), and/or streamed over TCP to a
 buffering frontend. The collector can additionally serve aggregated Prometheus
 metrics over HTTP.
 .P
+For large or distributed clusters, where long-haul UDP to a central collector
+is lossy, \fBxrdmoncollect\fR can also run as a \fIshoveler\fR: started with
+\fB--shovel\fR \fIhost:port\fR next to each daemon, it does not decode at all
+but encapsulates every received UDP datagram (together with its original source
+address) in a simple length-prefixed TCP framing and relays it to a central
+collector listening with \fB--tcp-port\fR, which re-injects the datagrams into
+its normal pipeline attributed to the original sender. The channel carries an
+optional shared-secret token (\fB--shovel-token\fR / \fB--tcp-token\fR), and the
+shoveler spools frames to disk under \fB--cache-dir\fR while the collector is
+unreachable, replaying them oldest-first on reconnect (capped by
+\fB--spool-max\fR, evicting the oldest buffers). See the README for the frame
+layout and deployment guidance.
+.P
 Usage synopsis can be displayed by typing "\fBxrdmoncollect --help\fR".
 .SH OPTIONS
 \fB-c\fR \fIfile\fR
@@ -91,9 +106,9 @@ file \fI/etc/xrootd/xrdmoncollect.cfg\fR is loaded if it exists (a missing
 default is silently ignored). A named-but-unreadable or malformed file is a
 fatal error. See the \fBCONFIGURATION FILE\fR section.
 .RE
-\fB-p\fR \fIport\fR
+\fB-p\fR \fIport\fR, \fB--udp-port\fR \fIport\fR
 .RS 5
-UDP port to listen on (required).
+UDP port to listen on (required unless \fB--tcp-port\fR is given).
 .RE
 \fB-b\fR \fIbindaddr\fR
 .RS 5
@@ -166,12 +181,15 @@ Skip TLS certificate verification for the OTLP endpoint.
 .RE
 \fB--cache-dir\fR \fIdir\fR
 .RS 5
-Directory for the on-failure disk cache, shared by the OpenSearch and OTLP sinks.
-When set, a body that still fails to POST after retries is written under \fIdir\fR
+Directory for the on-failure disk cache, shared by the OpenSearch and OTLP sinks
+(and, in shoveler mode, the frame spool). When set, a body that still fails to
+POST after retries is written under \fIdir\fR
 and retried oldest-first once the sink recovers; files left by a previous run are
 replayed on startup. The OpenSearch \fB_bulk\fR bodies live directly under
 \fIdir\fR; the OTLP bodies live under the \fBotlp-logs\fR and \fBotlp-traces\fR
-subdirectories (they replay to different endpoints). The cache has no size limit.
+subdirectories (they replay to different endpoints); shoveled frame buffers live
+under \fBshovel\fR. The sink caches have no size limit (the shovel spool is
+capped by \fB--spool-max\fR).
 When unset (the default), a body that cannot be posted is dropped (counted in
 \fBxrootd_collector_dropped_bulk_total\fR / \fBxrootd_collector_otlp_dropped_total\fR).
 .RE
@@ -185,7 +203,48 @@ is unreachable are dropped.
 \fB--metrics-port\fR \fIport\fR
 .RS 5
 Serve aggregated metrics in Prometheus exposition format over HTTP on
-\fIport\fR.
+\fIport\fR. A shoveler serves its own metric set under the
+\fBxrootd_shoveler_\fR prefix.
+.RE
+\fB--tcp-port\fR \fIport\fR
+.RS 5
+Also listen on TCP \fIport\fR for UDP monitoring datagrams encapsulated by
+remote \fBxrdmoncollect\fR instances running in shoveler mode. Each received
+datagram enters the normal pipeline attributed to its original source, so
+correlation and packet-loss estimation are transport-agnostic. With
+\fB--tcp-port\fR the UDP port becomes optional (a TCP-only central collector).
+.RE
+\fB--tcp-token\fR \fItoken\fR
+.RS 5
+Shared secret shovelers must present in the connection hello; compared in
+constant time, with rejected connections counted in
+\fBxrootd_collector_tcp_auth_failures_total\fR. If \fItoken\fR begins with
+\fB@\fR, the remainder is a path to a file the token is read from. When unset,
+any well-formed hello is accepted.
+.RE
+\fB--shovel\fR \fIhost:port\fR
+.RS 5
+Shoveler mode: relay every received UDP datagram over TCP to the central
+collector's \fB--tcp-port\fR at \fIhost:port\fR instead of decoding it. No
+correlation or document sink is active; options that require decoding are
+warned about and ignored, so shovelers and the central collector can share one
+configuration file. Cannot be combined with \fB--tcp-port\fR.
+.RE
+\fB--shovel-token\fR \fItoken\fR
+.RS 5
+Shared secret sent in the shovel connection hello; \fB@\fR\fIfile\fR reads it
+from a file. An explicit rejection by the collector (token or protocol-version
+mismatch) backs off for 30 seconds; plain network failures retry after 5.
+.RE
+\fB--spool-max\fR \fIsz\fR
+.RS 5
+Cap the shoveler's disk spool (under \fI--cache-dir\fR\fB/shovel\fR) at
+approximately \fIsz\fR bytes, accepting a \fBK\fR/\fBM\fR/\fBG\fR suffix
+(default \fB1G\fR; \fB0\fR = unbounded). When a new buffer would exceed the
+cap, the \fIoldest\fR spooled buffers are evicted first (counted in
+\fBxrootd_shoveler_spool_dropped_total\fR): during a long outage fresh
+monitoring data is worth more than day-old data, and replay latency stays
+bounded.
 .RE
 \fB--flush-count\fR \fIn\fR
 .RS 5
