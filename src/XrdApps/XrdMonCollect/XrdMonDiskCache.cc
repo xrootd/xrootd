@@ -36,10 +36,10 @@
 
 namespace
 {
-bool endsWith(const std::string& s, const char* suffix)
+bool endsWith(const std::string& s, const std::string& suffix)
 {
-   std::size_t n = std::strlen(suffix);
-   return s.size() >= n && s.compare(s.size() - n, n, suffix) == 0;
+   return s.size() >= suffix.size() &&
+          s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 }
 
@@ -59,8 +59,8 @@ bool XrdMonDiskCache::Init(std::string& err)
    std::vector<std::string> names;
    for (struct dirent* e; (e = readdir(d)); )
       {std::string n = e->d_name;
-       if (endsWith(n, ".tmp"))    {unlink(path(n).c_str()); continue;}
-       if (endsWith(n, ".ndjson")) names.push_back(n);
+       if (endsWith(n, ".tmp"))  {unlink(path(n).c_str()); continue;}
+       if (endsWith(n, suffix))  names.push_back(n);
       }
    closedir(d);
    std::sort(names.begin(), names.end());
@@ -76,14 +76,32 @@ bool XrdMonDiskCache::Init(std::string& err)
    return true;
 }
 
+// Evict the oldest pending body to make room under the byte cap.
+//
+void XrdMonDiskCache::dropOldest()
+{
+   const std::string p = path(pending.front());
+   struct stat st;
+   std::uint64_t sz = (stat(p.c_str(), &st) == 0) ? (std::uint64_t)st.st_size : 0;
+   unlink(p.c_str());
+   pending.pop_front();
+   files = pending.size();
+   if (bytes >= sz) bytes -= sz;
+   ++dropped;
+}
+
 bool XrdMonDiskCache::Store(const std::string& body, std::string& err)
 {
+   while (maxBytes && !pending.empty() && bytes + body.size() > maxBytes)
+      dropOldest();
+
    using namespace std::chrono;
    std::uint64_t ms = (std::uint64_t)duration_cast<milliseconds>(
                          system_clock::now().time_since_epoch()).count();
    char name[64];
-   std::snprintf(name, sizeof(name), "%013llu-%06llu.ndjson",
-                 (unsigned long long)ms, (unsigned long long)seq++);
+   std::snprintf(name, sizeof(name), "%013llu-%06llu%s",
+                 (unsigned long long)ms, (unsigned long long)seq++,
+                 suffix.c_str());
 
    std::string tmp = path(name) + ".tmp";
    {std::ofstream f(tmp, std::ios::binary | std::ios::trunc);

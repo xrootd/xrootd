@@ -28,15 +28,16 @@
 #include <string>
 
 //-----------------------------------------------------------------------------
-//! On-failure disk cache for serialized OpenSearch `_bulk` bodies. When a POST
-//! fails after retries, the body is written to a file in the cache directory and
-//! retried later (oldest first), surviving process restarts. Files are named
-//! `<epoch_ms>-<seq>.ndjson` (zero-padded so lexical order is chronological) and
-//! written via a `.tmp` partial + atomic rename, so a crash never leaves a
-//! half-written body to be replayed.
+//! On-failure disk cache for serialized bodies (OpenSearch `_bulk`, OTLP, or
+//! shovel frame buffers). When a send fails after retries, the body is written
+//! to a file in the cache directory and retried later (oldest first),
+//! surviving process restarts. Files are named `<epoch_ms>-<seq><suffix>`
+//! (zero-padded so lexical order is chronological) and written via a `.tmp`
+//! partial + atomic rename, so a crash never leaves a half-written body to be
+//! replayed.
 //!
-//! Used exclusively by the collector's output thread, so the pending list needs
-//! no locking; only the metric accessors are atomic, for the HTTP exporter to
+//! Used exclusively by one output thread, so the pending list needs no
+//! locking; only the metric accessors are atomic, for the HTTP exporter to
 //! read concurrently.
 //-----------------------------------------------------------------------------
 
@@ -44,7 +45,14 @@ class XrdMonDiskCache
 {
 public:
 
-   explicit XrdMonDiskCache(std::string dir) : dir(std::move(dir)) {}
+   explicit XrdMonDiskCache(std::string dir, std::string suffix = ".ndjson")
+                           : dir(std::move(dir)), suffix(std::move(suffix)) {}
+
+   //! Bound the cache to ~cap bytes (0 = unbounded, the default). When a Store
+   //! would exceed the cap, the OLDEST pending bodies are dropped to make room:
+   //! fresh monitoring data is worth more than day-old data during a long
+   //! outage, and replay latency stays bounded.
+   void SetMaxBytes(std::uint64_t cap) { maxBytes = cap; }
 
    //! Create the directory if needed and seed the pending list from files left
    //! by a previous run (oldest first), removing any stale `.tmp` partials.
@@ -68,18 +76,23 @@ public:
    std::uint64_t Bytes()    const { return bytes.load(); }
    std::uint64_t Stored()   const { return stored.load(); }
    std::uint64_t Replayed() const { return replayed.load(); }
+   std::uint64_t Dropped()  const { return dropped.load(); }
 
 private:
 
    std::string path(const std::string& name) const { return dir + "/" + name; }
+   void        dropOldest();
 
    std::string                dir;
+   std::string                suffix;        // cache file suffix, e.g. ".ndjson"
    std::deque<std::string>    pending;       // file names, oldest first
    std::uint64_t              seq = 0;        // disambiguates same-millisecond
+   std::uint64_t              maxBytes = 0;   // ~cap on cached bytes (0 = off)
    std::atomic<std::size_t>   files{0};
    std::atomic<std::uint64_t> bytes{0};
    std::atomic<std::uint64_t> stored{0};
    std::atomic<std::uint64_t> replayed{0};
+   std::atomic<std::uint64_t> dropped{0};     // oldest bodies evicted by the cap
 };
 
 #endif

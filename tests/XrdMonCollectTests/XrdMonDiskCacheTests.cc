@@ -137,3 +137,56 @@ TEST(XrdMonDiskCache, InitRemovesStalePartials)
    ASSERT_EQ(rec.seen.size(), 1u);
    EXPECT_EQ(rec.seen[0], "good");
 }
+
+TEST(XrdMonDiskCache, CustomSuffixStoredAndRescanned)
+{
+   std::string dir = freshDir("dc-suffix");
+   std::string e;
+   {  XrdMonDiskCache c(dir, ".frames");
+      ASSERT_TRUE(c.Init(e)) << e;
+      ASSERT_TRUE(c.Store("framed-bytes", e)) << e;
+   }
+   // A rescan with the same suffix recovers the body; the default-suffix
+   // cache sharing the directory does not see it.
+   XrdMonDiskCache same(dir, ".frames");
+   ASSERT_TRUE(same.Init(e)) << e;
+   EXPECT_EQ(same.Files(), 1u);
+
+   XrdMonDiskCache other(dir);
+   ASSERT_TRUE(other.Init(e)) << e;
+   EXPECT_EQ(other.Files(), 0u);
+
+   Recorder rec;
+   auto cb = [&](const std::string& b){ return rec(b); };
+   EXPECT_EQ(same.ReplayOldest(cb, e), 1);
+   ASSERT_EQ(rec.seen.size(), 1u);
+   EXPECT_EQ(rec.seen[0], "framed-bytes");
+}
+
+TEST(XrdMonDiskCache, MaxBytesDropsOldest)
+{
+   XrdMonDiskCache c(freshDir("dc-cap"));
+   c.SetMaxBytes(10);
+   std::string e;
+   ASSERT_TRUE(c.Init(e)) << e;
+
+   ASSERT_TRUE(c.Store("aaaa", e)) << e;    // 4 bytes
+   ASSERT_TRUE(c.Store("bbbb", e)) << e;    // 8 bytes total
+   EXPECT_EQ(c.Dropped(), 0u);
+   ASSERT_TRUE(c.Store("cccc", e)) << e;    // would be 12: drops "aaaa"
+   EXPECT_EQ(c.Dropped(), 1u);
+   EXPECT_EQ(c.Files(), 2u);
+   EXPECT_LE(c.Bytes(), 10u);
+
+   // A body larger than what remains evicts everything older, then stores.
+   ASSERT_TRUE(c.Store("ddddddddd", e)) << e;   // 9 bytes: drops both
+   EXPECT_EQ(c.Dropped(), 3u);
+   EXPECT_EQ(c.Files(), 1u);
+
+   Recorder rec;
+   auto cb = [&](const std::string& b){ return rec(b); };
+   EXPECT_EQ(c.ReplayOldest(cb, e), 1);
+   EXPECT_EQ(c.ReplayOldest(cb, e), 0);
+   ASSERT_EQ(rec.seen.size(), 1u);
+   EXPECT_EQ(rec.seen[0], "ddddddddd");     // only the newest survived
+}
