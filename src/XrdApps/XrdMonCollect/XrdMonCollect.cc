@@ -44,6 +44,10 @@
 #include <thread>
 #include <vector>
 
+#ifdef HAVE_SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
+
 #include "INIReader.h"
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
@@ -65,6 +69,42 @@ namespace
 {
 volatile sig_atomic_t stopFlag = 0;
 void onSignal(int) {stopFlag = 1;}
+
+// systemd integration. With a companion .socket unit (socket activation) the
+// listening sockets are created and held by systemd, so they survive service
+// restarts: datagrams simply queue in the kernel receive buffer while the
+// collector is down, giving zero-loss restarts up to that buffer.
+// sdInheritedSocket returns the inherited fd matching the given socket type
+// and configured port, or -1 (also when built without libsystemd or not
+// socket-activated), in which case the caller binds the socket itself as
+// usual. sdNotify forwards service state to systemd (Type=notify) and is a
+// no-op outside of it.
+//
+int sdInheritedSocket(int type, int port)
+{
+#ifdef HAVE_SYSTEMD
+   int n = sd_listen_fds(0);
+   for (int i = 0; i < n; i++)
+      {int fd = SD_LISTEN_FDS_START + i;
+       if (sd_is_socket_inet(fd, AF_UNSPEC, type,
+                             type == SOCK_STREAM ? 1 : -1,
+                             (uint16_t)port) > 0)
+          return fd;
+      }
+#else
+   (void)type; (void)port;
+#endif
+   return -1;
+}
+
+void sdNotify(const char* state)
+{
+#ifdef HAVE_SYSTEMD
+   sd_notify(0, state);
+#else
+   (void)state;
+#endif
+}
 
 void usage(const char* prog)
 {
@@ -215,6 +255,16 @@ std::string loadSecret(const std::string& spec)
 //
 int openUDP(int port, const char* bindStr)
 {
+// A socket inherited from systemd (socket activation) is already bound; it
+// also outlives us, so datagrams keep queueing across a service restart.
+//
+   int sdFd = sdInheritedSocket(SOCK_DGRAM, port);
+   if (sdFd >= 0)
+      {fprintf(stderr, "xrdmoncollect: using systemd-provided UDP socket on "
+               "port %d\n", port);
+       return sdFd;
+      }
+
    if (bindStr)
       {addrinfo hints; memset(&hints, 0, sizeof(hints));
        hints.ai_family   = AF_UNSPEC;
@@ -537,6 +587,7 @@ int runShoveler(const char* prog, const ShovelerOpts& o)
 // source address (the sender re-encodes the sockaddr on the wire; no per-
 // packet host:port formatting is needed).
 //
+   sdNotify("READY=1");
    Batch  cur;
    recvPipe.acquire(cur);
    time_t batchStart = time(0);
@@ -572,6 +623,7 @@ int runShoveler(const char* prog, const ShovelerOpts& o)
             }
         }
 
+   sdNotify("STOPPING=1");
    if (!cur.empty()) recvPipe.submit(std::move(cur));
    recvPipe.close();
    sender.join();
@@ -1159,6 +1211,12 @@ int main(int argc, char* argv[])
    if (tcpPort > 0)
       {tcpSrv = new XrdMonTcpServer(tcpPort, bindStr, loadSecret(tcpToken),
                                     recvPipe, flushCount, flushSecs);
+       int sdFd = sdInheritedSocket(SOCK_STREAM, tcpPort);
+       if (sdFd >= 0)
+          {fprintf(stderr, "xrdmoncollect: using systemd-provided TCP socket "
+                   "on port %d\n", tcpPort);
+           tcpSrv->SetInheritedFd(sdFd);
+          }
        std::string e;
        if (!tcpSrv->Start(e))
           {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}
@@ -1495,6 +1553,7 @@ int main(int argc, char* argv[])
 // collector) the main thread just waits for a signal while the TCP connection
 // threads produce.
 //
+   sdNotify("READY=1");
    if (fd >= 0)
       {Batch   cur;
        recvPipe.acquire(cur);
@@ -1540,6 +1599,7 @@ int main(int argc, char* argv[])
 // pipe (the serializer drains the remaining batches, does a final flush, and
 // returns) and join.
 //
+   sdNotify("STOPPING=1");
    if (tcpSrv) tcpSrv->Stop();
    recvPipe.close();
    serializer.join();          // drains the decode pipe, then closes postPipe

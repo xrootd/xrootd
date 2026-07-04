@@ -6,7 +6,11 @@ After=network-online.target local-fs.target time-sync.target
 Wants=network-online.target local-fs.target time-sync.target
 
 [Service]
-Type=simple
+# The collector signals readiness via sd_notify (built with libsystemd). For
+# zero-loss restarts enable the companion socket unit, which holds the
+# listening sockets open across restarts:
+#   systemctl enable --now xrdmoncollect.socket
+Type=notify
 User=xrootd
 Group=xrootd
 Environment="TZ=:/etc/localtime"

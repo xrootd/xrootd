@@ -23,4 +23,16 @@ if(TARGET xrdmoncollect)
   add_test(NAME XrdMonCollect::ConfigFile
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/config_test.sh
             $<TARGET_FILE:xrdmoncollect>)
+
+  # Systemd socket activation (LISTEN_FDS): the harness plays PID 1, holds the
+  # UDP socket across a collector restart, and asserts that packets sent while
+  # no collector was running come out fully correlated afterwards. Only
+  # meaningful when built with libsystemd (sd_listen_fds).
+  if(SYSTEMD_FOUND)
+    add_test(NAME XrdMonCollect::SocketActivation
+      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/socket_activation_test.sh
+              $<TARGET_FILE:xrdmoncollect>)
+    set_tests_properties(XrdMonCollect::SocketActivation
+      PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+  endif()
 endif()

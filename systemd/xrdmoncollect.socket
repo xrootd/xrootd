@@ -1,0 +1,24 @@
+[Unit]
+Description=XRootD monitoring collector sockets
+Documentation=man:xrdmoncollect(8)
+
+[Socket]
+# The ports must match udp-port (and, if enabled, tcp-port) in
+# /etc/xrootd/xrdmoncollect.cfg: the collector matches the inherited sockets
+# by type and port, and binds any socket itself when no inherited one fits,
+# so a mismatch merely loses the zero-loss-restart property.
+#
+# Because systemd owns these sockets they stay open across service restarts:
+# datagrams queue in the kernel receive buffer (sized by ReceiveBuffer below,
+# no net.core.rmem_max cap since it is set by systemd as root) and shovel
+# connections queue in the listen backlog, so a restart or crash-and-restart
+# of the collector loses nothing that fits in the buffer.
+ListenDatagram=9930
+# Uncomment on a central collector that accepts shoveled packets over TCP.
+#ListenStream=9931
+ReceiveBuffer=16M
+BindIPv6Only=both
+Service=xrdmoncollect.service
+
+[Install]
+WantedBy=sockets.target

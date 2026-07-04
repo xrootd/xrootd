@@ -382,6 +382,7 @@ install -m 644 systemd/cmsd@.service %{buildroot}%{_unitdir}
 install -m 644 systemd/frm_xfrd@.service %{buildroot}%{_unitdir}
 install -m 644 systemd/frm_purged@.service %{buildroot}%{_unitdir}
 install -m 644 systemd/xrdmoncollect.service %{buildroot}%{_unitdir}
+install -m 644 systemd/xrdmoncollect.socket %{buildroot}%{_unitdir}
 
 mkdir -p %{buildroot}%{_sysusersdir}
 install -m 644 systemd/%{name}-sysusers.conf %{buildroot}%{_sysusersdir}/%{name}.conf

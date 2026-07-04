@@ -430,6 +430,36 @@ forward = logstash.example.org:5044
 max-memory = 256M
 .fi
 .RE
+.SH SYSTEMD INTEGRATION
+The bundled \fBxrdmoncollect.service\fR unit runs the collector as
+\fBType=notify\fR: the daemon signals readiness once its listeners and worker
+threads are up, and signals \fBSTOPPING=1\fR when shutdown begins.
+.P
+For zero-loss restarts, enable the companion socket unit:
+.P
+.RS 5
+.nf
+systemctl enable --now xrdmoncollect.socket
+.fi
+.RE
+.P
+With socket activation, systemd creates and \fIholds\fR the listening
+sockets (\fBListenDatagram=\fR for the UDP monitor port, optionally
+\fBListenStream=\fR for the TCP shovel listener) and passes them to the
+collector, which matches them against its configured ports by socket type and
+port number. Because the sockets never close across a service restart —
+whether a clean \fBsystemctl restart\fR or a crash with \fBRestart=on-failure\fR
+— datagrams keep queueing in the kernel receive buffer (sized with the socket
+unit's \fBReceiveBuffer=\fR, applied by systemd as root and therefore not
+capped by \fBnet.core.rmem_max\fR) and shovel connections queue in the listen
+backlog. Combined with \fB--state-file\fR, a collector restart is invisible to
+the monitoring pipeline as long as the downtime fits the receive buffer.
+.P
+The ports in the socket unit must match \fBudp-port\fR/\fBtcp-port\fR in the
+configuration file; when no inherited socket fits a configured port the
+collector binds that socket itself, so a mismatch merely loses the zero-loss
+property. Without the socket unit (or outside systemd) nothing changes: the
+collector binds its sockets as usual.
 .SH NOTES
 Documentation for all components associated with \fBxrdmoncollect\fR can be
 found at https://xrootd.org/docs.html

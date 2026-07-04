@@ -62,6 +62,17 @@ bool readFully(int fd, void* buf, std::size_t n)
 
 bool XrdMonTcpServer::Start(std::string& err)
 {
+// A pre-bound listener (systemd socket activation) is already bound and
+// listening; there is nothing to create. It also survives service restarts,
+// so pending shovel connections just queue in its backlog while we are down.
+//
+   if (inheritedFd >= 0)
+      {listenFd = inheritedFd;
+       setRecvTimeout(listenFd, 1);       // accept() wakes to check stopping
+       accepter = std::thread(&XrdMonTcpServer::acceptLoop, this);
+       return true;
+      }
+
 // Create the listen socket: dual-stack IPv6 by default (like the UDP socket),
 // or the family of an explicit bind address.
 //

@@ -86,6 +86,11 @@ if(NOT XRDCL_ONLY)
   endif()
   # Header-only INI parser (vendor/inih) for the optional configuration file.
   target_include_directories(xrdmoncollect PRIVATE ${CMAKE_SOURCE_DIR}/vendor/inih)
+  # systemd socket activation (sd_listen_fds) and readiness (sd_notify).
+  if(SYSTEMD_FOUND)
+    target_include_directories(xrdmoncollect PRIVATE ${SYSTEMD_INCLUDE_DIRS})
+    target_link_libraries(xrdmoncollect ${SYSTEMD_LIBRARIES})
+  endif()
 
   add_executable(wait41 XrdWait41.cc)
   target_link_libraries(wait41

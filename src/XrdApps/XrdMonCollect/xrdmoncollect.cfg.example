@@ -9,7 +9,11 @@
 [xrdmoncollect]
 
 # UDP port to listen on (same as -p / --udp-port; required unless tcp-port is
-# set). The udp-port key is an accepted alias.
+# set). The udp-port key is an accepted alias. Under systemd with the
+# xrdmoncollect.socket unit enabled, sockets matching these ports are
+# inherited from systemd (socket activation) and stay open across service
+# restarts for zero-loss restarts; keep the ports here and in the socket
+# unit in sync.
 port = 9930
 
 # Address to bind (default: all interfaces, dual-stack). Same as -b.

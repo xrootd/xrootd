@@ -67,6 +67,12 @@ public:
 
    ~XrdMonTcpServer() { Stop(); }
 
+   //! Use a pre-bound, already-listening socket (e.g. inherited from systemd
+   //! socket activation) instead of creating one. Call before Start(), which
+   //! then skips its own socket/bind/listen. The server takes ownership of
+   //! the fd (Stop() closes it).
+   void SetInheritedFd(int fd) { inheritedFd = fd; }
+
    //! Bind, listen, and start the accept thread. False (with err) on failure.
    bool Start(std::string& err);
 
@@ -96,6 +102,7 @@ private:
    long        flushSecs;
 
    int               listenFd = -1;
+   int               inheritedFd = -1;   // pre-bound listener (socket activation)
    std::thread       accepter;
    std::atomic<bool> stopping{false};
 
