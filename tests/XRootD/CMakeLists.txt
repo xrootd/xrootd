@@ -1,5 +1,5 @@
 
-list(APPEND XROOTD_CONFIGS noauth gsi host unix sss cache posix diglib mirage moncollect)
+list(APPEND XROOTD_CONFIGS noauth gsi host unix sss cache posix diglib mirage moncollect shovel)
 
 # Tiny XrdCl driver that issues a vector read past EOF; the moncollect test uses
 # it to provoke a terminal mid-transfer read error on the server's f-stream.
