@@ -302,7 +302,11 @@ records are also always consumed:
 - `T` (`MAPTOKN`) carries the token identity (subject, VO, role, groups). Keyed
   by the user dictid, it joins onto each transfer as `user.id`, `wlcg.vo`,
   `wlcg.role`, `wlcg.groups`, and drives
-  `xrootd_collector_vo_transfers_total{server,vo}`.
+  `xrootd_collector_vo_transfers_total{server,vo}`. `wlcg.vo` comes from the
+  token when present, else from the auth CGI `&o=` — but only for methods that
+  can actually convey a VO (gsi with VOMS, sss, ztn, http/https); a `&o=` from
+  unix/krb5/pwd/host auth is ignored rather than surfacing fake VO values.
+  (For SciTokens the `T` record's own `&o=` is the token *issuer*.)
 - `U` (`MAPUEAC`) carries the SciTags packet-marking flow labels (experiment
   and activity ids), joined onto transfers as
   `scitags.experiment_id`/`scitags.activity_id`.

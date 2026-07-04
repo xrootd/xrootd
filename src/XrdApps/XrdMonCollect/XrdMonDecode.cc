@@ -151,6 +151,21 @@ bool isLocalName(const std::string& h)
    return h == "localhost" || h.rfind("localhost.", 0) == 0;
 }
 
+// Whether an authentication method can put a genuine VO into the auth CGI's
+// &o= (XrdSecEntity.vorg): gsi fills it from a VOMS attribute certificate,
+// sss unpacks it from the trusted key-holder's registered entity, and the
+// http(s) bridge forwards the VOMS-derived value from the TLS client cert.
+// ztn never sets vorg at login (the token identity arrives on the 'T' stream,
+// which takes precedence anyway) but is accepted as a token-class method.
+// unix/krb5/pwd/host never convey a VO — anything a custom seclib puts there
+// is noise, and surfaced as fake VOs in dashboards before this gate.
+//
+bool authConveysVO(const std::string& m)
+{
+   return m == "gsi" || m == "sss" || m == "ztn"
+       || m == "https" || m == "http";
+}
+
 // Whole-file transfer vs. partial access. XRootD serves both whole-file copies
 // (the file moved in or out in its entirety) and finer-grained remote data
 // access (sparse/partial reads, random or appended writes). A close is a
@@ -925,6 +940,9 @@ void XrdMonDecode::DecodeMap(unsigned char code, Server& srv,
        u.addr       = cgiVal(text, "a");
        u.authMethod = cgiVal(text, "p");
        u.vo         = cgiVal(text, "o");
+       // Gate the auth-CGI VO once per login: only methods that can actually
+       // convey one keep it (see authConveysVO). The 'T' token VO is separate.
+       if (!authConveysVO(u.authMethod)) u.vo.clear();
        u.role       = cgiVal(text, "r");
        u.groups     = cgiVal(text, "g");
        u.clientVer  = cgiVal(text, "R");

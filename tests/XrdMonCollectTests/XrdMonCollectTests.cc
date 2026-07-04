@@ -703,6 +703,34 @@ TEST_F(Transfer, AuthTailEnrichesTransfer)
   EXPECT_EQ(j["attributes"]["client.address"], "198.51.100.7");
 }
 
+// The auth-CGI &o= is honoured only for methods that can convey a real VO;
+// a unix-auth &o= (e.g. a unix group from a custom seclib) is dropped.
+TEST_F(Transfer, AuthVoIgnoredForNonVoMethod)
+{
+  feedUserMapTail(dec, "&p=unix&n=alice&h=198.51.100.7&o=zp&r=&g=zp users"
+                       "&m=&R=v5.6.1&x=xrdcp&y=&I=4");
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["attributes"]["xrootd.auth.method"], "unix");
+  EXPECT_FALSE(j["attributes"].contains("wlcg.vo"));    // &o= gated out
+  EXPECT_EQ(j["attributes"]["wlcg.groups"], "zp users"); // groups stay
+}
+
+// sss registers the entity through a trusted key holder, so its &o= is a VO.
+TEST_F(Transfer, AuthVoKeptForSss)
+{
+  feedUserMapTail(dec, "&p=sss&n=daemon&h=h&o=eos&r=&g=&m=&I=4");
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["attributes"]["wlcg.vo"], "eos");
+}
+
 TEST_F(Transfer, NoAuthLoginAppinfoStillEnriches)
 {
   // Without "... auth" the 'u' tail is only the login appinfo (no &p=/&o=).
