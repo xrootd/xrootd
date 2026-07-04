@@ -184,3 +184,48 @@ TEST(MetricsConfig, PushgatewayURLTrimsTrailingSlash)
    EXPECT_EQ(Config::PushgatewayURL("http://gw:9091/", "xrootd", "node1"),
              "http://gw:9091/metrics/job/xrootd/instance/node1");
 }
+
+TEST(MetricsConfig, ScrapeTTLDefault)
+{
+   Config cfg;
+   EXPECT_EQ(cfg.scrapeTTL, 10);
+}
+
+TEST(MetricsConfig, ScrapeTTLParsed)
+{
+   EXPECT_EQ(parse("metrics.scrapettl 5\n").scrapeTTL, 5);
+   EXPECT_EQ(parse("metrics.scrapettl 0\n").scrapeTTL, 0);   // 0 = disabled
+   EXPECT_EQ(parse("metrics.scrapettl 60\n").scrapeTTL, 60);
+}
+
+TEST(MetricsConfig, ScrapeTTLNegativeIgnored)
+{
+   Config cfg = parse("metrics.scrapettl -1\n");
+   EXPECT_EQ(cfg.scrapeTTL, 10);   // keeps default
+}
+
+TEST(MetricsConfig, ScrapeRateLimitDefault)
+{
+   Config cfg;
+   EXPECT_EQ(cfg.scrapeRateLimit, 100);
+}
+
+TEST(MetricsConfig, ScrapeRateLimitParsed)
+{
+   EXPECT_EQ(parse("metrics.scraperatelimit 50\n").scrapeRateLimit, 50);
+   EXPECT_EQ(parse("metrics.scraperatelimit 0\n").scrapeRateLimit, 0);   // 0 = unlimited
+   EXPECT_EQ(parse("metrics.scraperatelimit 200\n").scrapeRateLimit, 200);
+}
+
+TEST(MetricsConfig, ScrapeRateLimitNegativeIgnored)
+{
+   Config cfg = parse("metrics.scraperatelimit -10\n");
+   EXPECT_EQ(cfg.scrapeRateLimit, 100);   // keeps default
+}
+
+TEST(MetricsConfig, DefaultsIncludeScrapeLimits)
+{
+   Config cfg;
+   EXPECT_EQ(cfg.scrapeTTL, 10);
+   EXPECT_EQ(cfg.scrapeRateLimit, 100);
+}

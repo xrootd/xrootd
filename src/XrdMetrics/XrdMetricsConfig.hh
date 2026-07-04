@@ -72,6 +72,8 @@ std::string pushJob  = "xrootd";          // Pushgateway job label
 int         pushEvery = 30;               // Pushgateway push period (seconds)
 std::string otelURL;                       // OTLP/HTTP metrics URL ("" => off)
 int         otelEvery = 30;               // OTLP push period (seconds)
+int         scrapeTTL = 10;              // cached scrape body lifetime (s); 0 = disabled
+int         scrapeRateLimit = 100;       // max scrapes per second; 0 = unlimited
 
 //! The process-wide instance, shared by the core load and the exporter.
 static Config& Instance();

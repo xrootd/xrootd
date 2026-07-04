@@ -62,7 +62,8 @@ const char *Config::DirectiveList()
    return "metrics.enable metrics.label metrics.subsystems "
           "metrics.path metrics.instance "
           "metrics.pushurl metrics.pushinterval metrics.pushjob "
-          "metrics.otelurl metrics.otelinterval all.role";
+          "metrics.otelurl metrics.otelinterval "
+          "metrics.scrapettl metrics.scraperatelimit all.role";
 }
 
 /******************************************************************************/
@@ -116,6 +117,14 @@ void Config::parse(XrdOucGatherConf &conf)
          else if (!strcmp(d, "metrics.otelinterval"))
                  {char *v = conf.GetToken(); int n = v ? atoi(v) : 0;
                   if (n > 0) otelEvery = n;
+                 }
+         else if (!strcmp(d, "metrics.scrapettl"))
+                 {char *v = conf.GetToken(); int n = v ? atoi(v) : -1;
+                  if (n >= 0) scrapeTTL = n;
+                 }
+         else if (!strcmp(d, "metrics.scraperatelimit"))
+                 {char *v = conf.GetToken(); int n = v ? atoi(v) : -1;
+                  if (n >= 0) scrapeRateLimit = n;
                  }
          else if (!strcmp(d, "all.role"))
                  {char *v = conf.GetToken(); if (v && *v) role = v;}

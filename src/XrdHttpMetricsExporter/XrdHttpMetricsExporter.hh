@@ -22,6 +22,7 @@
 /******************************************************************************/
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <string>
@@ -79,5 +80,15 @@ std::thread  m_otelThread;
 std::mutex              m_pushMtx;
 std::condition_variable m_pushCV;
 std::atomic<bool>       m_stop{false};
+
+// Scrape TTL cache and per-second rate limiter state.
+// Both share m_scrapeMtx so the window-reset + increment + cache-check
+// sequence in ProcessReq() is atomic.
+//
+std::mutex              m_scrapeMtx;
+std::string             m_cachedBody;
+std::chrono::steady_clock::time_point m_cacheTime{};
+int                     m_reqInWindow{0};
+std::chrono::steady_clock::time_point m_windowStart{};
 };
 #endif

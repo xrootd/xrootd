@@ -241,14 +241,57 @@ int XrdHttpMetricsExporter::ProcessReq(XrdHttpExtReq &req)
 // Cache the scrape counter handle once (creating a family per request would
 // register a duplicate each time); the static init is thread-safe.
 //
-   static XrdMetrics::Counter<std::uint64_t>& scrapes = XrdMetrics::Default().subsystem("metrics")
-            .counter<std::uint64_t>("scrapes_total", "Number of times the metrics endpoint has been scraped");
+   static XrdMetrics::Counter<std::uint64_t>& scrapes =
+      XrdMetrics::Default().subsystem("metrics")
+         .counter<std::uint64_t>("scrapes_total",
+                                 "Number of times the metrics endpoint has been scraped");
+   static XrdMetrics::Counter<std::uint64_t>& rate_limited =
+      XrdMetrics::Default().subsystem("metrics")
+         .counter<std::uint64_t>("scrapes_rate_limited_total",
+                                 "Scrapes rejected by the per-second rate limit");
+   static XrdMetrics::Counter<std::uint64_t>& cache_hits =
+      XrdMetrics::Default().subsystem("metrics")
+         .counter<std::uint64_t>("scrapes_cache_hits_total",
+                                 "Scrapes served from the TTL cache");
    ++scrapes;
 
+   XrdMetrics::Config &cfg = XrdMetrics::Config::Instance();
+   auto now = std::chrono::steady_clock::now();
+   using Seconds = std::chrono::seconds;
+
+   std::unique_lock<std::mutex> lk(m_scrapeMtx);
+
+   // Rate limiter: fixed 1-second window; reset on window expiry.
+   if (m_windowStart == std::chrono::steady_clock::time_point{} ||
+       now - m_windowStart >= Seconds(1))
+      {m_windowStart = now; m_reqInWindow = 0;}
+   ++m_reqInWindow;
+   if (cfg.scrapeRateLimit > 0 && m_reqInWindow > cfg.scrapeRateLimit)
+      {lk.unlock();
+       ++rate_limited;
+       return req.SendSimpleResp(503, nullptr, "Retry-After: 1",
+                                 "Too many scrape requests.", 0);
+      }
+
+   // TTL cache: serve the cached body if still fresh.
+   if (cfg.scrapeTTL > 0 && !m_cachedBody.empty() &&
+       now - m_cacheTime < Seconds(cfg.scrapeTTL))
+      {std::string body = m_cachedBody;
+       lk.unlock();
+       ++cache_hits;
+       return req.SendSimpleResp(200, nullptr, promType, body.c_str(),
+                                 (long long)body.size());
+      }
+
+   // Fresh serialization; lock is held to prevent a thundering herd on miss.
    std::string body;
    XrdMetrics::PrometheusTextSerializer ser(body);
    XrdMetrics::CollectorRegistry::instance().serialize(ser, SubsystemFilter());
-   for (auto *r : XrdMetrics::CollectorRegistry::instance().collectors()) r->runTextCollectors(body);
+   for (auto *r : XrdMetrics::CollectorRegistry::instance().collectors())
+       r->runTextCollectors(body);
+   m_cachedBody = body;
+   m_cacheTime  = now;
+   lk.unlock();
 
    return req.SendSimpleResp(200, nullptr, promType, body.c_str(),
                              (long long)body.size());
