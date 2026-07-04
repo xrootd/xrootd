@@ -256,7 +256,16 @@ Directives are parsed by `XrdMetrics::Config` (`metrics.*`, plus `all.role`):
 | `metrics.pushjob <name>` | Pushgateway `job` label | `xrootd` |
 | `metrics.otelurl <url>` | OTLP/HTTP metrics URL (`""` = off) | off |
 | `metrics.otelinterval <sec>` | OTLP push period | 30 |
+| `metrics.scrapettl <sec>` | reuse serialized scrape body within TTL (`0` = off) | 10 |
+| `metrics.scraperatelimit <n>` | max scrapes/second, else HTTP 503 (`0` = off) | 100 |
+| `metrics.requireauth <bool>` | require a credential to scrape `/metrics` | off |
+| `metrics.authtoken <token>` | accept `Authorization: Bearer <token>` (`""` = off) | off |
+| `metrics.authpassword <pw>` | accept HTTP Basic Auth password (`""` = off) | off |
 | `all.role <role>` | source for the `role` global label | — |
+
+The `metrics.scrape*` and `metrics.auth*`/`metrics.requireauth` directives govern
+the pull endpoint served by `XrdHttpMetricsExporter`; see that component's README
+for the caching, rate-limiting, and authentication behaviour.
 
 `metrics.subsystems` token syntax: `-name` denies a subsystem, `+name` (or a bare
 `name`) allows it. When any allow token is present the filter is default-deny —

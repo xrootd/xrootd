@@ -25,6 +25,62 @@ Like any HTTP external handler it requires TLS unless `+notls` is given.
 server's HTTP port. The pull endpoint always serves the Prometheus text format;
 OTLP is push-only.
 
+### Caching and rate limiting
+
+The pull endpoint protects itself against redundant work and abuse. Both apply
+to the scrape path only (the push threads serialize independently):
+
+- **TTL cache** (`metrics.scrapettl`, default 10 s) — the serialized body is
+  reused across scrapes within the TTL window, so several Prometheus replicas
+  scraping the same server do not each pay for a full registry walk. A cache
+  miss serializes once under a mutex; concurrent waiters then hit the freshly
+  populated cache (no thundering herd). Set `0` to serialize on every request.
+- **Rate limiter** (`metrics.scraperatelimit`, default 100 req/s) — requests
+  beyond the per-second cap get `HTTP 503` with `Retry-After: 1`. Set `0` to
+  disable. The auth check (below) runs *before* the limiter, so unauthenticated
+  probes cannot exhaust a legitimate scraper's allowance.
+
+The endpoint reports on itself through counters in the `metrics` subsystem:
+`xrootd_metrics_scrapes_total`, `..._scrapes_cache_hits_total`,
+`..._scrapes_rate_limited_total`, and `..._scrapes_auth_failed_total`.
+
+### Authentication
+
+By default `/metrics` is open (like most Prometheus exporters). Setting any of
+`metrics.requireauth`, `metrics.authtoken`, or `metrics.authpassword` turns on a
+check that a request must pass in one of three ways, tried in order:
+
+1. **Bearer token** — `Authorization: Bearer <token>` matching `metrics.authtoken`
+   (constant-time compare). This is the simplest option for Prometheus: the admin
+   generates a shared secret and hands it to the monitoring team as a scoped,
+   long-lived scrape credential.
+2. **HTTP Basic Auth** — `Authorization: Basic base64(user:pass)` whose password
+   matches `metrics.authpassword` (the username is ignored).
+3. **TLS client certificate** — any request carrying a client certificate whose
+   DN was validated by XrdHttp (i.e. `SecEntity.moninfo` is populated) is admitted.
+
+A request that satisfies none of the configured methods receives `HTTP 401` with a
+`WWW-Authenticate` header offering both `Bearer` and `Basic`. `metrics.requireauth
+yes` on its own admits only certificate-bearing clients (no shared secret).
+
+> **Note on tokens.** HTTP external handlers are dispatched before XrdHttp's
+> `Bridge::Login()`, so the XrdSec token stack (SciTokens, macaroons) and
+> `XrdAccAuthorize` are **not** consulted for `/metrics`. `metrics.authtoken` is a
+> plain shared secret compared by this handler, not a validated bearer token.
+> Certificate DNs, however, *are* validated by XrdHttp during the TLS handshake.
+
+Prometheus scrape config using a Bearer token:
+
+```yaml
+scrape_configs:
+  - job_name: xrootd
+    scheme: https
+    authorization:
+      credentials: <metrics.authtoken value>
+    static_configs:
+      - targets: ['xrootd-host:1094']
+```
+
 ## Push (optional)
 
 When a push URL is configured the plugin starts a background thread per target.
@@ -51,13 +107,22 @@ metrics.label        <k> <v>    # constant global label on every series (repeata
 metrics.subsystems   <list>     # per-subsystem enable/disable (see below)
 
 # Exporter
-metrics.path         <path>     # served request path (default /metrics)
-metrics.instance     <name>     # instance label / resource id (default hostname)
-metrics.pushurl      <url>      # Pushgateway base URL; enables Pushgateway push
-metrics.pushinterval <seconds>  # Pushgateway push period (default 30)
-metrics.pushjob      <name>     # Pushgateway job label (default xrootd)
-metrics.otelurl      <url>      # OTLP/HTTP metrics URL; enables OTLP push
-metrics.otelinterval <seconds>  # OTLP push period (default 30)
+metrics.path           <path>     # served request path (default /metrics)
+metrics.instance       <name>     # instance label / resource id (default hostname)
+metrics.pushurl        <url>      # Pushgateway base URL; enables Pushgateway push
+metrics.pushinterval   <seconds>  # Pushgateway push period (default 30)
+metrics.pushjob        <name>     # Pushgateway job label (default xrootd)
+metrics.otelurl        <url>      # OTLP/HTTP metrics URL; enables OTLP push
+metrics.otelinterval   <seconds>  # OTLP push period (default 30)
+
+# Scrape endpoint protection (pull path only)
+metrics.scrapettl      <seconds>  # reuse serialized body within TTL (default 10; 0 = off)
+metrics.scraperatelimit <n>       # max scrapes per second (default 100; 0 = unlimited)
+
+# Scrape endpoint authentication (pull path only)
+metrics.requireauth    yes|no     # require a credential to scrape (default no)
+metrics.authtoken      <token>    # accept Authorization: Bearer <token>
+metrics.authpassword   <password> # accept HTTP Basic Auth with this password
 ```
 
 ### Global labels
