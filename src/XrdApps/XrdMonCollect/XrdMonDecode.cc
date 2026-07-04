@@ -542,13 +542,15 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
       {Touch(ait->second.lru);
        int expId = ait->second.experiment;
        int actId = ait->second.activity;
-       if (expId) a["xrootd.activity.experiment_id"] = expId;
-       if (actId) a["xrootd.activity.activity_id"]   = actId;
+       if (expId) a["scitags.experiment_id"] = expId;
+       if (actId) a["scitags.activity_id"]   = actId;
 
        // Map the numeric SciTags ids to human names via the loaded registry.
-       // The experiment name doubles as a VO, used only as a last resort (the
-       // token and auth CGI both take precedence). The lock covers a background
-       // refresh thread swapping the registry; lookups copy out the names.
+       // The names stand on their own (dashboards group by them); they are
+       // deliberately not folded into wlcg.vo, which carries only genuine VO
+       // information from the token or a VO-bearing auth method. The lock
+       // covers a background refresh thread swapping the registry; lookups
+       // copy out the names.
        std::string expName, actName;
        {std::lock_guard<std::mutex> lk(scitagsMtx);
         if (expId)
@@ -560,11 +562,8 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
             if (kit != sciAct.end()) actName = kit->second;
            }
        }
-       if (!expName.empty())
-          {a["wlcg.activity.experiment"] = expName;
-           if (vo.empty()) {vo = expName; a["wlcg.vo"] = expName;}
-          }
-       if (!actName.empty()) a["wlcg.activity.activity"] = actName;
+       if (!expName.empty()) a["scitags.experiment"] = expName;
+       if (!actName.empty()) a["scitags.activity"]   = actName;
       }
 
    return vo;

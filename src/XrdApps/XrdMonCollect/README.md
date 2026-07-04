@@ -305,15 +305,15 @@ records are also always consumed:
   `xrootd_collector_vo_transfers_total{server,vo}`.
 - `U` (`MAPUEAC`) carries the SciTags packet-marking flow labels (experiment
   and activity ids), joined onto transfers as
-  `xrootd.activity.experiment_id`/`xrootd.activity.activity_id`.
+  `scitags.experiment_id`/`scitags.activity_id`.
   With `--scitags <src>` pointing at a SciTags registry (the scitags.org schema:
   a top-level `"experiments"` array of `{expId, expName, activities:[{activityId,
   activityName}]}`), those numeric ids are additionally mapped to human names —
-  `wlcg.activity.experiment` and `wlcg.activity.activity` — and the experiment
-  name is used as a `wlcg.vo` fallback (only when neither the `T` token nor the
-  auth CGI `&o=` supplied a VO). The numeric ids are always emitted, so the field
-  is present with or without the registry; a missing/unparseable source is warned
-  about at start-up and otherwise ignored.
+  `scitags.experiment` and `scitags.activity`. These stand on their own (group
+  by them in dashboards); they are deliberately not folded into `wlcg.vo`,
+  which carries only genuine VO information. The numeric ids are always
+  emitted, so the field is present with or without the registry; a
+  missing/unparseable source is warned about at start-up and otherwise ignored.
 
   `<src>` is either a local file path or an `http(s)://` URL (e.g. the official
   `https://www.scitags.org/api.json`). A URL source is re-fetched in the
@@ -402,8 +402,8 @@ on the wire. Mapping (and the server config each needs):
 | client_site | `xrootd.client.site` | login appinfo (`&S=`, client `XRDSITE`/`XRD_SITE`) |
 | auth_method | `xrootd.auth.method` | **`… auth`** |
 | user | `user.name` / `user.id` | `u` / `T` token |
-| vo | `wlcg.vo` | `T` token, else `… auth` (`&o=`), else SciTags experiment (`--scitags`) |
-| activity | `wlcg.activity.experiment`/`wlcg.activity.activity` (names), `xrootd.activity.*_id` (numeric), `wlcg.role` | `U` SciTags + `--scitags` registry; `T` token for role |
+| vo | `wlcg.vo` | `T` token, else `… auth` (`&o=` from a VO-bearing method: gsi/sss/ztn/http(s)) |
+| activity | `scitags.experiment`/`scitags.activity` (names), `scitags.*_id` (numeric), `wlcg.role` | `U` SciTags + `--scitags` registry; `T` token for role |
 | start_time / end_time | `xrootd.transfer.start_time` / `.end_time` | f-stream `FileTOD` window |
 | bytes | `xrootd.transfer.{read,readv,write}_bytes` | `fstat … xfr` |
 | is_local (LAN/WAN) | `xrootd.transfer.is_local` | derived: client vs server domain (needs `=` ident) |

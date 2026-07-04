@@ -423,7 +423,7 @@ void     emitSpan(const nlohmann::json& src, const char* name, int32_t tBeg,
 //! Fill the identity attributes (user.*, client.*, wlcg.*, xrootd.*) into the
 //! event `attributes` object from the user dictionary entry (and the token and
 //! activity streams keyed by the same dictid). Returns the resolved VO (token
-//! preferred, else auth CGI, else SciTags experiment) for metric labels.
+//! preferred, else the auth CGI of a VO-bearing method) for metric labels.
 std::string otelIdentity(nlohmann::json& attrs, const Server& srv,
                          uint32_t userID);
 //! Fold one finished file close into the user's session rollup (counters and a

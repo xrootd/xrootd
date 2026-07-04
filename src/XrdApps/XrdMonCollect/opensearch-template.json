@@ -91,13 +91,15 @@
               "properties": {
                 "vo":     { "type": "keyword" },
                 "role":   { "type": "keyword" },
-                "groups": { "type": "keyword" },
-                "activity": {
-                  "properties": {
-                    "experiment": { "type": "keyword" },
-                    "activity":   { "type": "keyword" }
-                  }
-                }
+                "groups": { "type": "keyword" }
+              }
+            },
+            "scitags": {
+              "properties": {
+                "experiment":    { "type": "keyword" },
+                "activity":      { "type": "keyword" },
+                "experiment_id": { "type": "integer" },
+                "activity_id":   { "type": "integer" }
               }
             },
             "xrootd": {
@@ -128,12 +130,6 @@
                   "properties": {
                     "id":         { "type": "long" },
                     "read_write": { "type": "boolean" }
-                  }
-                },
-                "activity": {
-                  "properties": {
-                    "experiment_id": { "type": "integer" },
-                    "activity_id":   { "type": "integer" }
                   }
                 },
                 "io": {
