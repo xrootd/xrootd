@@ -51,6 +51,7 @@
 #include "XrdApps/XrdMonCollect/XrdMonForward.hh"
 #include "XrdApps/XrdMonCollect/XrdMonPipe.hh"
 #include "XrdApps/XrdMonCollect/XrdMonShovelFrame.hh"
+#include "XrdApps/XrdMonCollect/XrdMonTcpServer.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #ifdef XRDMON_HAVE_CURL
@@ -74,8 +75,13 @@ void usage(const char* prog)
      "  -c <file>        load options from an INI config file (a [xrdmoncollect]\n"
      "                   section; default /etc/xrootd/xrdmoncollect.cfg if present;\n"
      "                   command-line options override file values)\n"
-     "  -p <port>        UDP port to listen on (required)\n"
+     "  -p <port>        UDP port to listen on (long form: --udp-port; required\n"
+     "                   unless --tcp-port is given)\n"
      "  -b <bindaddr>    address to bind (default: all interfaces, dual-stack)\n"
+     "  --tcp-port <p>   also accept UDP packets encapsulated over TCP from\n"
+     "                   remote collectors running in shoveler mode\n"
+     "  --tcp-token <t>  shared secret shovelers must present; @<file> reads it\n"
+     "                   from a file (default: accept any connection)\n"
      "  -o <file>        append output to <file> (default: stdout unless --os-url)\n"
      "  --bulk <index>   write OpenSearch _bulk format to the file/stdout sink\n"
      "  --os-url <url>   POST documents to an OpenSearch cluster's _bulk API\n"
@@ -326,6 +332,8 @@ bool loadScitags(XrdMonDecode& dec, const std::string& src, std::string& err)
 int main(int argc, char* argv[])
 {
    int         port    = 0;
+   int         tcpPort = 0;         // TCP listener for shoveled packets (off)
+   std::string tcpToken;            // shared secret for shovel hellos (off)
    const char* bindStr = nullptr;
    const char* outFile = nullptr;
    std::string bulkIdx;
@@ -390,6 +398,9 @@ int main(int argc, char* argv[])
            return 2;}
        const char* sec = "xrdmoncollect";
        port       = (int)cfg.GetInteger(sec, "port", port);
+       port       = (int)cfg.GetInteger(sec, "udp-port", port);  // alias
+       tcpPort    = (int)cfg.GetInteger(sec, "tcp-port", tcpPort);
+       tcpToken   = cfg.Get(sec, "tcp-token", tcpToken);
        bindStore  = cfg.Get(sec, "bind", "");
        if (!bindStore.empty()) bindStr = bindStore.c_str();
        outStore   = cfg.Get(sec, "output", "");
@@ -447,7 +458,7 @@ int main(int argc, char* argv[])
    {  OPT_BULK = 256, OPT_OS_URL, OPT_OS_INDEX, OPT_OS_USER, OPT_OS_PASS,
       OPT_OS_TOKEN, OPT_OS_INSECURE, OPT_OS_DATASTREAM,
       OPT_OTLP_URL, OPT_OTLP_TOKEN, OPT_OTLP_INSECURE,
-      OPT_CACHE_DIR, OPT_FORWARD,
+      OPT_CACHE_DIR, OPT_FORWARD, OPT_TCP_PORT, OPT_TCP_TOKEN,
       OPT_FLUSH_COUNT,
       OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
       OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
@@ -457,6 +468,9 @@ int main(int argc, char* argv[])
    };
    static const struct option longOpts[] =
    {  {"config",          required_argument, nullptr, 'c'},
+      {"udp-port",        required_argument, nullptr, 'p'},
+      {"tcp-port",        required_argument, nullptr, OPT_TCP_PORT},
+      {"tcp-token",       required_argument, nullptr, OPT_TCP_TOKEN},
       {"bulk",            required_argument, nullptr, OPT_BULK},
       {"os-url",          required_argument, nullptr, OPT_OS_URL},
       {"os-index",        required_argument, nullptr, OPT_OS_INDEX},
@@ -513,6 +527,8 @@ int main(int argc, char* argv[])
          case OPT_OTLP_TOKEN:    otlpToken    = optarg;             break;
          case OPT_OTLP_INSECURE: otlpInsecure = true;               break;
          case OPT_CACHE_DIR:     cacheDir     = optarg;             break;
+         case OPT_TCP_PORT:      tcpPort      = atoi(optarg);       break;
+         case OPT_TCP_TOKEN:     tcpToken     = optarg;             break;
          case OPT_FORWARD:
              {std::string hp = optarg;
               auto c = hp.rfind(':');
@@ -548,8 +564,9 @@ int main(int argc, char* argv[])
       {fprintf(stderr, "%s: unexpected argument '%s'\n", argv[0], argv[optind]);
        usage(argv[0]); return 2;}
 
-   if (port <= 0 || port > 65535)
-      {fprintf(stderr, "%s: a valid -p <port> is required\n", argv[0]);
+   if ((port <= 0 && tcpPort <= 0) || port > 65535 || tcpPort > 65535)
+      {fprintf(stderr, "%s: a valid -p/--udp-port or --tcp-port is required\n",
+               argv[0]);
        usage(argv[0]); return 2;}
 
 // Set up the OpenSearch sink if requested.
@@ -610,22 +627,27 @@ int main(int argc, char* argv[])
    size_t fwdDrops = 0;
    time_t fwdWarn  = 0;
 
-// Create and bind the UDP socket (dual-stack by default)
+// Create and bind the UDP socket (dual-stack by default). With --tcp-port the
+// UDP port is optional: a TCP-only collector serves only shoveled packets.
 //
-   int fd = openUDP(port, bindStr);
-   if (fd < 0) return 4;
+   int fd = -1;
+   if (port > 0)
+      {fd = openUDP(port, bindStr);
+       if (fd < 0) return 4;
 
 // Enlarge the kernel UDP receive buffer so bursts (and the brief windows when
 // the receiver waits on a full pipeline) are absorbed without the kernel
 // dropping datagrams. SO_RCVBUFFORCE bypasses the rmem_max cap when privileged;
 // fall back to SO_RCVBUF otherwise. Best-effort: a failure is not fatal.
 //
-   if (rcvbuf > 0)
-      {int want = (int)rcvbuf;
+       if (rcvbuf > 0)
+          {int want = (int)rcvbuf;
 #ifdef SO_RCVBUFFORCE
-       if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &want, sizeof(want)) != 0)
+           if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &want,
+                          sizeof(want)) != 0)
 #endif
-          setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &want, sizeof(want));
+              setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &want, sizeof(want));
+          }
       }
 
 // Batch state for the OpenSearch sink and a flush helper.
@@ -756,6 +778,19 @@ int main(int argc, char* argv[])
 //
    XrdMonPipe<Batch> recvPipe((size_t)(queueDepth > 0 ? queueDepth : 1));
 
+// The TCP listener for shoveled packets produces into the same pipe as the
+// UDP receiver (the pipe is mutex-protected on the producer side), so the
+// serializer cannot tell the transports apart.
+//
+   XrdMonTcpServer* tcpSrv = nullptr;
+   if (tcpPort > 0)
+      {tcpSrv = new XrdMonTcpServer(tcpPort, bindStr, loadSecret(tcpToken),
+                                    recvPipe, flushCount, flushSecs);
+       std::string e;
+       if (!tcpSrv->Start(e))
+          {fprintf(stderr, "%s: %s\n", argv[0], e.c_str()); return 4;}
+      }
+
    XrdMonDecode decoder(docSink, rawSink, dump, traces, gstream, redirects, subsystem);
    decoder.SetMaxBytes(maxMemory);
    decoder.SetMaxEntries(maxEntries);
@@ -833,6 +868,20 @@ int main(int argc, char* argv[])
           .add({}, [&]{return (int64_t)decoder.ResidentBytes();});
        subsystem->observeGauge<std::int64_t>("recv_queue_batches", "packet batches queued from the receiver to the serializer")
           .add({}, [&]{return (int64_t)recvPipe.readyDepth();});
+       if (tcpSrv)
+          {subsystem->observeCounter<std::uint64_t>("tcp_connections_total", "shovel TCP connections accepted")
+              .add({}, [&]{return tcpSrv->Connections();});
+           subsystem->observeGauge<std::int64_t>("tcp_connections_active", "shovel TCP connections currently open")
+              .add({}, [&]{return tcpSrv->Active();});
+           subsystem->observeCounter<std::uint64_t>("tcp_auth_failures_total", "shovel TCP connections rejected by the token check")
+              .add({}, [&]{return tcpSrv->AuthFailures();});
+           subsystem->observeCounter<std::uint64_t>("tcp_frames_total", "shoveled datagrams received over TCP")
+              .add({}, [&]{return tcpSrv->Frames();});
+           subsystem->observeCounter<std::uint64_t>("tcp_malformed_total", "shovel TCP connections dropped for protocol violations")
+              .add({}, [&]{return tcpSrv->Malformed();});
+           subsystem->observeCounter<std::uint64_t>("tcp_bytes_total", "bytes received on shovel TCP connections")
+              .add({}, [&]{return tcpSrv->BytesIn();});
+          }
 #ifdef XRDMON_HAVE_CURL
        subsystem->observeGauge<std::int64_t>("post_queue_bodies", "serialized _bulk bodies queued for the OpenSearch POST")
           .add({}, [&]{return (int64_t)postPipe.readyDepth();});
@@ -881,8 +930,10 @@ int main(int argc, char* argv[])
    sigaction(SIGINT,  &sa, nullptr);
    sigaction(SIGTERM, &sa, nullptr);
 
-   struct timeval tv; tv.tv_sec = 1; tv.tv_usec = 0;
-   setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+   if (fd >= 0)
+      {struct timeval tv; tv.tv_sec = 1; tv.tv_usec = 0;
+       setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+      }
 
 // Output thread: performs the (blocking) OpenSearch _bulk POST off the serializer
 // thread, so a slow or unreachable OpenSearch holds up neither decoding nor
@@ -1056,47 +1107,56 @@ int main(int argc, char* argv[])
 // batches and hand them to the serializer. It touches neither the decoder nor
 // the sinks, so a slow POST can never stall packet reception; under sustained
 // backlog it waits on the pipe (backpressure) rather than dropping, with the
-// enlarged SO_RCVBUF absorbing the gap.
+// enlarged SO_RCVBUF absorbing the gap. Without a UDP port (a TCP-only
+// collector) the main thread just waits for a signal while the TCP connection
+// threads produce.
 //
-   Batch   cur;
-   recvPipe.acquire(cur);
-   time_t  batchStart = time(0);
-   char    buff[64*1024];
-   while(!stopFlag)
-        {sockaddr_storage from;
-         socklen_t fromLen = sizeof(from);
-         ssize_t n = recvfrom(fd, buff, sizeof(buff), 0,
-                              (sockaddr*)&from, &fromLen);
-         if (n < 0)
-            {if (errno == EINTR) continue;
-             if (errno == EAGAIN || errno == EWOULDBLOCK)
-                {if (!cur.empty() && time(0)-batchStart >= flushSecs)
-                    {recvPipe.submit(std::move(cur));
-                     if (!recvPipe.acquire(cur)) break;
-                     batchStart = time(0);
+   if (fd >= 0)
+      {Batch   cur;
+       recvPipe.acquire(cur);
+       time_t  batchStart = time(0);
+       char    buff[64*1024];
+       while(!stopFlag)
+            {sockaddr_storage from;
+             socklen_t fromLen = sizeof(from);
+             ssize_t n = recvfrom(fd, buff, sizeof(buff), 0,
+                                  (sockaddr*)&from, &fromLen);
+             if (n < 0)
+                {if (errno == EINTR) continue;
+                 if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    {if (!cur.empty() && time(0)-batchStart >= flushSecs)
+                        {recvPipe.submit(std::move(cur));
+                         if (!recvPipe.acquire(cur)) break;
+                         batchStart = time(0);
+                        }
+                     continue;
                     }
-                 continue;
+                 perror("recvfrom"); break;
                 }
-             perror("recvfrom"); break;
-            }
 
-         Packet pkt;
-         pkt.src = XrdMonSenderName((sockaddr*)&from, fromLen);
-         pkt.data.assign(buff, (size_t)n);
-         memcpy(&pkt.addr, &from, fromLen);
-         pkt.addrLen = fromLen;
-         cur.push_back(std::move(pkt));
-         if (cur.size() >= flushCount || time(0)-batchStart >= flushSecs)
-            {recvPipe.submit(std::move(cur));
-             if (!recvPipe.acquire(cur)) break;
-             batchStart = time(0);
+             Packet pkt;
+             pkt.src = XrdMonSenderName((sockaddr*)&from, fromLen);
+             pkt.data.assign(buff, (size_t)n);
+             memcpy(&pkt.addr, &from, fromLen);
+             pkt.addrLen = fromLen;
+             cur.push_back(std::move(pkt));
+             if (cur.size() >= flushCount || time(0)-batchStart >= flushSecs)
+                {recvPipe.submit(std::move(cur));
+                 if (!recvPipe.acquire(cur)) break;
+                 batchStart = time(0);
+                }
             }
-        }
+       if (!cur.empty()) recvPipe.submit(std::move(cur));
+      }
+      else
+      while (!stopFlag) sleep(1);
 
-// Shutdown: hand off any partial batch, close the pipe (the serializer drains
-// the remaining batches, does a final flush, and returns), then join.
+// Shutdown: stop the TCP listener first (its connection threads are pipe
+// producers, so they must be joined before the pipe closes), then close the
+// pipe (the serializer drains the remaining batches, does a final flush, and
+// returns) and join.
 //
-   if (!cur.empty()) recvPipe.submit(std::move(cur));
+   if (tcpSrv) tcpSrv->Stop();
    recvPipe.close();
    serializer.join();          // drains the decode pipe, then closes postPipe
 #ifdef XRDMON_HAVE_CURL
@@ -1130,7 +1190,8 @@ int main(int argc, char* argv[])
       }
 
    if (out != stdout) fclose(out);
-   close(fd);
+   if (fd >= 0) close(fd);
+   delete tcpSrv;
    delete fwd;
 #ifdef XRDMON_HAVE_CURL
    delete os;
