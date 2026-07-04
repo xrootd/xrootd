@@ -111,6 +111,14 @@ const kXR_char XROOTD_MON_MAPREDR       = 'r';
 const kXR_char XROOTD_MON_MAPSTAG       = 's'; // Internal use only!
 const kXR_char XROOTD_MON_MAPTRCE       = 't';
 const kXR_char XROOTD_MON_MAPTOKN       = 'T';
+
+// The MAPUSER record is "<prot>/<user>.<pid>:<sid>@<host>\n<cgi>". The CGI
+// always includes "&a=<numeric client IP>" (never a DNS name, unlike <host>)
+// and the login environment "&R=<release>&x=<appname>&y=<appinfo>&S=<site>
+// &I=<4|6>"; when auth monitoring is enabled the authentication attributes
+// "&p=<prot>&n=<name>&h=<host>&o=<org>&r=<role>&g=<groups>&m=<info>" precede
+// them.
+//
 const kXR_char XROOTD_MON_MAPUSER       = 'u';
 const kXR_char XROOTD_MON_MAPUEAC       = 'U'; // User experiment/activity
 const kXR_char XROOTD_MON_MAPXFER       = 'x';
