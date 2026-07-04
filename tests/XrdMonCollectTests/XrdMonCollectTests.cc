@@ -5,9 +5,12 @@
 //------------------------------------------------------------------------------
 
 #include <cstring>
+#include <ctime>
 #include <fstream>
 #include <string>
 #include <vector>
+
+#include <unistd.h>
 
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
@@ -79,6 +82,8 @@ protected:
   std::vector<std::string> allDocs;
   XrdMonDecode dec{[&](const std::string& d){ lastDoc = d;
                                               allDocs.push_back(d); }};
+  XrdMonDecode* alt = nullptr;   // when set, the feed helpers feed this decoder
+  XrdMonDecode& target() {return alt ? *alt : dec;}
 
   void feedUserMap()
   {
@@ -87,7 +92,7 @@ protected:
      std::string info = "xroot/alice.123:4@wn.example.org\nrole=prod";
      pl.insert(pl.end(), info.begin(), info.end());
      auto pkt = packet('u', kStod, pl);
-     dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+     target().Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
   }
 
   void feedOpen()
@@ -102,7 +107,7 @@ protected:
      auto r = rec(1 /*isOpen*/, 0x01 | 0x02 /*hasLFN|hasRW*/, body.b);
      payload.insert(payload.end(), r.begin(), r.end());
      auto pkt = packet('f', kStod, payload);
-     dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+     target().Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
   }
 
   void feedClose()
@@ -125,7 +130,7 @@ protected:
      auto r = rec(0 /*isClose*/, 0x02 /*hasOPS*/, body.b);
      payload.insert(payload.end(), r.begin(), r.end());
      auto pkt = packet('f', kStod, payload);
-     dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+     target().Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
   }
 };
 
@@ -1665,4 +1670,103 @@ TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
             std::string::npos) << out;
   EXPECT_NE(out.find("xrootd_collector_http_requests_total{server=\"h:1\",method=\"GET\",status=\"200\"} 5"),
             std::string::npos) << out;
+}
+
+//------------------------------------------------------------------------------
+// State persistence: SaveState/LoadState round-trip the correlation state so a
+// close arriving after a restart still correlates against pre-restart maps.
+//------------------------------------------------------------------------------
+
+class StateFile : public Transfer
+{
+protected:
+  std::string path = ::testing::TempDir() + "xrdmon-state-" +
+                     std::to_string(::getpid()) + ".json";
+  void TearDown() override {::unlink(path.c_str());}
+};
+
+TEST_F(StateFile, CloseCorrelatesAfterReload)
+{
+  feedUserMap();
+  feedOpen();
+  ASSERT_TRUE(dec.SaveState(path));
+
+  std::string doc2;
+  XrdMonDecode dec2([&](const std::string& d){doc2 = d;});
+  std::string note;
+  ASSERT_TRUE(dec2.LoadState(path, 900, note));
+  EXPECT_NE(note.find("restored 1 server incarnation(s)"), std::string::npos)
+      << note;
+  EXPECT_FALSE(std::ifstream(path).good());  // single-use snapshot was removed
+  EXPECT_GT(dec2.ResidentBytes(), 0u);       // LRU accounting was rebuilt
+
+  alt = &dec2;
+  feedClose();
+
+  ASSERT_FALSE(doc2.empty());
+  json j = json::parse(doc2);
+  EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");
+  EXPECT_EQ(j["attributes"]["user.name"], "alice");
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.open_seen"], true);
+  EXPECT_EQ(j["attributes"]["file.size"], 123456);
+  EXPECT_EQ(j["attributes"]["xrootd.transfer.duration"], kCloseT - kOpenT);
+  EXPECT_EQ(j["resource"]["xrootd.server.id"], 42);
+
+  const XrdMonDecode::Stats& s = dec2.GetStats();
+  EXPECT_EQ(s.opens, 1u);       // stats restored from the snapshot...
+  EXPECT_EQ(s.closes, 1u);      // ...and advanced by the post-reload close
+  EXPECT_EQ(s.orphanCls, 0u);
+}
+
+TEST_F(StateFile, StaleSnapshotStartsFresh)
+{
+  feedUserMap();
+  feedOpen();
+  ASSERT_TRUE(dec.SaveState(path));
+
+  // Age the snapshot beyond the reload limit.
+  json j = json::parse(std::ifstream(path));
+  j["saved"] = (int64_t)time(nullptr) - 3600;
+  std::ofstream(path) << j.dump();
+
+  XrdMonDecode dec2([](const std::string&){});
+  std::string note;
+  EXPECT_FALSE(dec2.LoadState(path, 900, note));
+  EXPECT_NE(note.find("starting fresh"), std::string::npos) << note;
+  EXPECT_FALSE(std::ifstream(path).good());  // discarded snapshot was removed
+  EXPECT_EQ(dec2.GetStats().opens, 0u);
+}
+
+TEST_F(StateFile, VersionMismatchStartsFresh)
+{
+  feedUserMap();
+  ASSERT_TRUE(dec.SaveState(path));
+
+  json j = json::parse(std::ifstream(path));
+  j["version"] = 999;
+  std::ofstream(path) << j.dump();
+
+  XrdMonDecode dec2([](const std::string&){});
+  std::string note;
+  EXPECT_FALSE(dec2.LoadState(path, 900, note));
+  EXPECT_NE(note.find("format version"), std::string::npos) << note;
+  EXPECT_EQ(dec2.GetStats().mapUser, 0u);
+}
+
+TEST_F(StateFile, CorruptSnapshotStartsFresh)
+{
+  std::ofstream(path) << "this is not json {";
+
+  XrdMonDecode dec2([](const std::string&){});
+  std::string note;
+  EXPECT_FALSE(dec2.LoadState(path, 900, note));
+  EXPECT_NE(note.find("starting fresh"), std::string::npos) << note;
+}
+
+TEST_F(StateFile, MissingSnapshotIsSilent)
+{
+  XrdMonDecode dec2([](const std::string&){});
+  std::string note;
+  EXPECT_FALSE(dec2.LoadState(path + ".nonexistent", 900, note));
+  EXPECT_TRUE(note.empty());
 }

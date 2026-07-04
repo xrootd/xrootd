@@ -293,6 +293,32 @@ baselines) once it has reported nothing for more than \fIs\fR seconds, bounding
 the accumulation of dead incarnations across server restarts and rolling
 upgrades (default \fB86400\fR; \fB0\fR = never).
 .RE
+\fB--state-file\fR \fIfile\fR
+.RS 5
+Persist the correlation state across restarts: on shutdown (SIGTERM/SIGINT)
+the whole state — the per-server dictionaries and open-file tables, the
+\fIg\fR-stream counter baselines, and the decode statistics — is written to
+\fIfile\fR as a single versioned JSON document (atomically, via a \fB.tmp\fR
+rename), and on the next start it is reloaded before the first packet is
+decoded, so a clean restart does not open a blind window while the
+dictionaries repopulate. A snapshot is good for exactly one restart (the file
+is removed once read) and is discarded when its format version does not match
+or it is older than \fB--state-ttl\fR.
+.sp
+Under systemd the option defaults to
+\fB$STATE_DIRECTORY/xrdmoncollect-state.json\fR (the bundled unit sets
+\fBStateDirectory=xrootd\fR, so \fB/var/lib/xrootd/xrdmoncollect-state.json\fR);
+outside systemd it is off unless given. An explicitly empty value disables
+persistence.
+.RE
+\fB--state-ttl\fR \fIdur\fR
+.RS 5
+Discard a state snapshot older than \fIdur\fR on reload, accepting an
+\fBs\fR/\fBm\fR/\fBh\fR/\fBd\fR suffix (default \fB15m\fR). After that long a
+stop most correlation entries would be stale anyway (opens have closed, the
+servers may have restarted with new dictids), so the collector starts fresh
+instead.
+.RE
 \fB--scitags\fR \fIsrc\fR
 .RS 5
 Load a SciTags registry (the scitags.org schema: a top-level \fBexperiments\fR

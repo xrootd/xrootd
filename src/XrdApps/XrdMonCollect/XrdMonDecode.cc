@@ -21,6 +21,8 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -721,6 +723,300 @@ bool XrdMonDecode::LoadScitagsJson(const std::string& text)
    sciExp.swap(exp);
    sciAct.swap(act);
    return true;
+}
+
+/******************************************************************************/
+/*                  S a v e S t a t e  /  L o a d S t a t e                   */
+/******************************************************************************/
+
+namespace
+{
+// On-disk state format version. Bump whenever the persisted shape changes; a
+// mismatched snapshot is discarded on load (one restart's blind window instead
+// of misdecoded state).
+constexpr int kStateVersion = 1;
+
+// One list of Stats counters shared by save and load so they cannot diverge.
+#define XRDMON_STATS_FIELDS(X) \
+   X(packets) X(malformed) X(records) X(mapUser) X(mapPath) X(mapInfo)    \
+   X(mapIdnt) X(mapTokn) X(mapUeac) X(opens) X(closes) X(xfrs) X(discs)   \
+   X(docs) X(failed) X(orphanCls) X(traces) X(gevents) X(redirs) X(spans) \
+   X(frmEvents) X(lost) X(evicted) X(reaped) X(unknown)
+}
+
+bool XrdMonDecode::SaveState(const std::string& path) const
+{
+   json j;
+   j["version"] = kStateVersion;
+   j["saved"]   = (int64_t)time(nullptr);
+
+   json& jst = j["stats"];
+#define X(fld) jst[#fld] = stats.fld;
+   XRDMON_STATS_FIELDS(X)
+#undef X
+
+   j["gsprev"] = gsPrev;
+
+   json& jsv = j["servers"] = json::object();
+   for (const auto& [key, s] : servers)
+      {json o;
+       o["sid"]  = s.sID;
+       o["pseq"] = s.lastPseq;
+       o["seen"] = (int64_t)s.lastSeen;
+       o["resolved"] = s.resolved;
+       if (!s.resolvedHost.empty()) o["rhost"]    = s.resolvedHost;
+       if (!s.identRaw.empty())     o["identraw"] = s.identRaw;
+       o["ident"] = {{"site", s.ident.site}, {"host", s.ident.host},
+                     {"inst", s.ident.inst}, {"pgm",  s.ident.pgm},
+                     {"ver",  s.ident.ver},  {"user", s.ident.user},
+                     {"port", s.ident.port}};
+
+       json& ju = o["users"] = json::object();
+       for (const auto& [id, u] : s.users)
+          {json e = {{"raw",  u.raw},       {"user",   u.user},
+                     {"prot", u.prot},      {"host",   u.host},
+                     {"addr", u.addr},      {"auth",   u.authMethod},
+                     {"vo",   u.vo},        {"role",   u.role},
+                     {"groups", u.groups},  {"cver",   u.clientVer},
+                     {"app",  u.appName},   {"info",   u.appInfo},
+                     {"site", u.site},      {"ipv",    u.ipVersion}};
+           if (u.sFiles || u.sErrors)
+              {json& ss = e["session"];
+               ss = {{"files", u.sFiles},     {"xfers", u.sTransfers},
+                     {"accs",  u.sAccesses},  {"errs",  u.sErrors},
+                     {"rb",    u.sReadBytes}, {"wb",    u.sWriteBytes},
+                     {"first", u.sFirst},     {"last",  u.sLast}};
+               json& fr = ss["recent"] = json::array();
+               for (const auto& f : u.sRecent)
+                   fr.push_back({{"lfn", f.lfn}, {"b", f.bytes},
+                                 {"w", f.write}, {"whole", f.whole}});
+              }
+           ju[std::to_string(id)] = std::move(e);
+          }
+
+       json& jf = o["files"] = json::object();
+       for (const auto& [id, f] : s.files)
+           jf[std::to_string(id)] = {{"lfn", f.lfn},   {"user", f.user},
+                                     {"fsz", f.fsz},   {"topen", f.tOpen},
+                                     {"rw",  f.rw}};
+
+       json& jp = o["paths"] = json::object();
+       for (const auto& [id, e] : s.paths) jp[std::to_string(id)] = e.val;
+
+       json& ji = o["infos"] = json::object();
+       for (const auto& [k, e] : s.infos) ji[k] = e.val;
+
+       json& jt = o["tokens"] = json::object();
+       for (const auto& [id, t] : s.tokens)
+           jt[std::to_string(id)] = {{"sub", t.subject}, {"name", t.username},
+                                     {"vo",  t.vo},      {"role", t.role},
+                                     {"groups", t.groups}};
+
+       json& ja = o["activity"] = json::object();
+       for (const auto& [id, a] : s.activity)
+           ja[std::to_string(id)] = {{"exp", a.experiment}, {"act", a.activity}};
+
+       jsv[key] = std::move(o);
+      }
+
+// Atomic write: a partial .tmp never replaces a good snapshot.
+//
+   std::string tmp = path + ".tmp";
+   std::ofstream out(tmp, std::ios::trunc);
+   if (!out) return false;
+   out << j.dump();
+   out.flush();
+   if (!out) {out.close(); unlink(tmp.c_str()); return false;}
+   out.close();
+   if (std::rename(tmp.c_str(), path.c_str()) != 0)
+      {unlink(tmp.c_str()); return false;}
+   return true;
+}
+
+bool XrdMonDecode::LoadState(const std::string& path, long maxAgeSec,
+                             std::string& note)
+{
+   note.clear();
+   std::ifstream in(path);
+   if (!in) return false;             // no snapshot: silent fresh start
+   std::ostringstream ss;
+   ss << in.rdbuf();
+   in.close();
+   unlink(path.c_str());              // a snapshot is good for one restart only
+
+   json j = json::parse(ss.str(), nullptr, false);
+   if (j.is_discarded() || !j.is_object())
+      {note = "state file is not valid JSON; starting fresh";
+       return false;}
+
+   int version = j.value("version", -1);
+   if (version != kStateVersion)
+      {note = "state file has format version " + std::to_string(version)
+            + " (expected " + std::to_string(kStateVersion)
+            + "); starting fresh";
+       return false;}
+
+   int64_t age = (int64_t)time(nullptr) - j.value("saved", (int64_t)0);
+   if (age < 0 || age > maxAgeSec)
+      {note = "state snapshot is " + std::to_string(age) + "s old (limit "
+            + std::to_string(maxAgeSec) + "s); starting fresh";
+       return false;}
+
+   try
+      {const json& jst = j.at("stats");
+#define X(fld) stats.fld = jst.value(#fld, (uint64_t)0);
+       XRDMON_STATS_FIELDS(X)
+#undef X
+
+       if (auto it = j.find("gsprev"); it != j.end())
+          gsPrev = it->get<std::unordered_map<std::string, uint64_t>>();
+
+       // Restore incarnations oldest-first so the rebuilt LRU order
+       // approximates recency (entries of long-idle servers evict first).
+       const json& jsv = j.at("servers");
+       std::vector<std::pair<int64_t, std::string>> order;
+       for (const auto& [key, o] : jsv.items())
+           order.emplace_back(o.value("seen", (int64_t)0), key);
+       std::sort(order.begin(), order.end());
+
+       size_t nUsers = 0, nFiles = 0;
+       for (const auto& [seen, key] : order)
+          {const json& o = jsv.at(key);
+           Server& srv  = servers[key];
+           srv.sID      = o.value("sid", (int64_t)0);
+           srv.lastPseq = o.value("pseq", -1);
+           srv.lastSeen = (time_t)seen;
+           srv.resolved = o.value("resolved", false);
+           srv.resolvedHost = o.value("rhost", std::string());
+           srv.identRaw     = o.value("identraw", std::string());
+           if (auto it = o.find("ident"); it != o.end())
+              {srv.ident.site = it->value("site", std::string());
+               srv.ident.host = it->value("host", std::string());
+               srv.ident.inst = it->value("inst", std::string());
+               srv.ident.pgm  = it->value("pgm",  std::string());
+               srv.ident.ver  = it->value("ver",  std::string());
+               srv.ident.user = it->value("user", std::string());
+               srv.ident.port = it->value("port", 0);
+              }
+
+           if (auto it = o.find("users"); it != o.end())
+              for (const auto& [id, e] : it->items())
+                 {UserInfo u;
+                  u.raw        = e.value("raw",    std::string());
+                  u.user       = e.value("user",   std::string());
+                  u.prot       = e.value("prot",   std::string());
+                  u.host       = e.value("host",   std::string());
+                  u.addr       = e.value("addr",   std::string());
+                  u.authMethod = e.value("auth",   std::string());
+                  u.vo         = e.value("vo",     std::string());
+                  u.role       = e.value("role",   std::string());
+                  u.groups     = e.value("groups", std::string());
+                  u.clientVer  = e.value("cver",   std::string());
+                  u.appName    = e.value("app",    std::string());
+                  u.appInfo    = e.value("info",   std::string());
+                  u.site       = e.value("site",   std::string());
+                  u.ipVersion  = e.value("ipv",    0);
+                  if (auto sn = e.find("session"); sn != e.end())
+                     {u.sFiles      = sn->value("files", 0u);
+                      u.sTransfers  = sn->value("xfers", 0u);
+                      u.sAccesses   = sn->value("accs",  0u);
+                      u.sErrors     = sn->value("errs",  0u);
+                      u.sReadBytes  = sn->value("rb", (int64_t)0);
+                      u.sWriteBytes = sn->value("wb", (int64_t)0);
+                      u.sFirst      = sn->value("first", 0);
+                      u.sLast       = sn->value("last",  0);
+                      if (auto fr = sn->find("recent"); fr != sn->end())
+                         for (const auto& f : *fr)
+                             u.sRecent.push_back(
+                                {f.value("lfn", std::string()),
+                                 f.value("b", (int64_t)0),
+                                 f.value("w", false), f.value("whole", false)});
+                     }
+                  uint32_t k32 = (uint32_t)std::stoul(id);
+                  std::size_t w = bytesOf(u);
+                  lruPut(&srv, Dict::Users, srv.users, k32, k32, std::string(),
+                         std::move(u), w);
+                  nUsers++;
+                 }
+
+           if (auto it = o.find("files"); it != o.end())
+              for (const auto& [id, e] : it->items())
+                 {OpenFile f;
+                  f.lfn   = e.value("lfn", std::string());
+                  f.user  = e.value("user", 0u);
+                  f.fsz   = e.value("fsz", (int64_t)0);
+                  f.tOpen = e.value("topen", 0);
+                  f.rw    = e.value("rw", false);
+                  uint32_t k32 = (uint32_t)std::stoul(id);
+                  std::size_t w = bytesOf(f);
+                  lruPut(&srv, Dict::Files, srv.files, k32, k32, std::string(),
+                         std::move(f), w);
+                  nFiles++;
+                 }
+
+           if (auto it = o.find("paths"); it != o.end())
+              for (const auto& [id, v] : it->items())
+                 {StringEntry e;
+                  e.val = v.get<std::string>();
+                  uint32_t k32 = (uint32_t)std::stoul(id);
+                  std::size_t w = bytesOf(e, std::string());
+                  lruPut(&srv, Dict::Paths, srv.paths, k32, k32, std::string(),
+                         std::move(e), w);
+                 }
+
+           if (auto it = o.find("infos"); it != o.end())
+              for (const auto& [ikey, v] : it->items())
+                 {StringEntry e;
+                  e.val = v.get<std::string>();
+                  std::size_t w = bytesOf(e, ikey);
+                  lruPut(&srv, Dict::Infos, srv.infos, ikey, 0, ikey,
+                         std::move(e), w);
+                 }
+
+           if (auto it = o.find("tokens"); it != o.end())
+              for (const auto& [id, e] : it->items())
+                 {TokenInfo t;
+                  t.subject  = e.value("sub",    std::string());
+                  t.username = e.value("name",   std::string());
+                  t.vo       = e.value("vo",     std::string());
+                  t.role     = e.value("role",   std::string());
+                  t.groups   = e.value("groups", std::string());
+                  uint32_t k32 = (uint32_t)std::stoul(id);
+                  std::size_t w = bytesOf(t);
+                  lruPut(&srv, Dict::Tokens, srv.tokens, k32, k32,
+                         std::string(), std::move(t), w);
+                 }
+
+           if (auto it = o.find("activity"); it != o.end())
+              for (const auto& [id, e] : it->items())
+                 {UserActivity a;
+                  a.experiment = e.value("exp", 0);
+                  a.activity   = e.value("act", 0);
+                  uint32_t k32 = (uint32_t)std::stoul(id);
+                  std::size_t w = bytesOf(a);
+                  lruPut(&srv, Dict::Activity, srv.activity, k32, k32,
+                         std::string(), std::move(a), w);
+                 }
+          }
+
+       note = "restored " + std::to_string(servers.size())
+            + " server incarnation(s), " + std::to_string(nUsers)
+            + " user(s), " + std::to_string(nFiles)
+            + " open file(s) from a " + std::to_string(age)
+            + "s old snapshot";
+       return true;
+      }
+   catch (const std::exception& e)
+      {// A partial restore would leave dangling LRU accounting: start fresh.
+       servers.clear();
+       gsPrev.clear();
+       lru.clear();
+       lruBytes = 0;
+       stats = Stats{};
+       note = std::string("state file could not be decoded (") + e.what()
+            + "); starting fresh";
+       return false;
+      }
 }
 
 /******************************************************************************/

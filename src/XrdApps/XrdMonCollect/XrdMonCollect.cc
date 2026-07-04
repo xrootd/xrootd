@@ -121,6 +121,12 @@ void usage(const char* prog)
      "  --max-entries <n> optional hard cap on correlation entries (0=off)\n"
      "  --server-ttl <s> reclaim a server incarnation idle for >s seconds\n"
      "                   (default 86400; 0=never)\n"
+     "  --state-file <f> save the correlation state to <f> on shutdown and\n"
+     "                   reload it on startup (default: $STATE_DIRECTORY/\n"
+     "                   xrdmoncollect-state.json under systemd, else off;\n"
+     "                   an empty value disables)\n"
+     "  --state-ttl <d>  discard a state snapshot older than this on reload\n"
+     "                   (s/m/h/d suffix; default 15m)\n"
      "  --scitags <src>  SciTags registry mapping experiment/activity ids to\n"
      "                   names; a file path or an http(s):// URL.\n"
      "                   Numeric ids are kept either way\n"
@@ -160,6 +166,25 @@ std::size_t parseSize(const char* s)
    if (*end == 'b' || *end == 'B') end++;          // accept e.g. "256MB"
    if (*end != '\0') return 0;
    return (std::size_t)(v * (double)mul);
+}
+
+// Parse a duration with an optional s/m/h/d suffix (a bare number is seconds).
+// Returns 0 on a malformed value. Used for --state-ttl.
+//
+long parseDuration(const char* s)
+{
+   char* end = nullptr;
+   long v = strtol(s, &end, 10);
+   if (end == s || v < 0) return 0;
+   switch (*end)
+         {case 'd': case 'D': v *= 24;  [[fallthrough]];
+          case 'h': case 'H': v *= 60;  [[fallthrough]];
+          case 'm': case 'M': v *= 60;  end++; break;
+          case 's': case 'S': end++;    break;
+          default: break;
+         }
+   if (*end != '\0') return 0;
+   return v;
 }
 
 // Resolve a secret (e.g. a bearer token) that may be given inline or, with a
@@ -587,6 +612,8 @@ int main(int argc, char* argv[])
    size_t      maxMemory  = 256ull << 20;   // ~256 MiB correlation-state budget
    size_t      maxEntries = 0;              // optional hard entry cap (off)
    long        serverTtl  = 86400;          // reap incarnations idle > 24h
+   std::string stateFile;                   // state snapshot path (off if empty)
+   long        stateTtl   = 900;            // max snapshot age to reload (15m)
    std::string osUrl, osUser, osPass, osToken;
    std::string osIndex = "xrootd-transfers";
    bool        osInsecure = false;
@@ -607,6 +634,18 @@ int main(int argc, char* argv[])
    bool        sessions = false;      // per-session rollup + session documents
    bool        spans    = false;      // companion OTLP span documents
    std::string bindStore, outStore;   // backing storage for config bind/output
+
+// Under systemd (StateDirectory=xrdmoncollect) default the state snapshot into
+// the provided state directory; a config/command-line --state-file overrides
+// this, and an explicitly empty value disables persistence. The variable may
+// hold several ':'-separated directories; the first one is ours.
+//
+   if (const char* sd = getenv("STATE_DIRECTORY"))
+      {std::string dir(sd);
+       auto colon = dir.find(':');
+       if (colon != std::string::npos) dir.resize(colon);
+       if (!dir.empty()) stateFile = dir + "/xrdmoncollect-state.json";
+      }
 
 // Load a configuration file before parsing the command line, so command-line
 // options override file values. The path is taken from -c/--config if given,
@@ -689,6 +728,9 @@ int main(int argc, char* argv[])
        if (!mm.empty()) maxMemory = parseSize(mm.c_str());
        maxEntries  = (size_t)cfg.GetInteger(sec, "max-entries", (long)maxEntries);
        serverTtl   = cfg.GetInteger(sec, "server-ttl", serverTtl);
+       stateFile   = cfg.Get(sec, "state-file", stateFile);
+       std::string sttl = cfg.Get(sec, "state-ttl", "");
+       if (!sttl.empty()) stateTtl = parseDuration(sttl.c_str());
        scitags     = cfg.Get(sec, "scitags", scitags);
        scitagsRefresh = cfg.GetInteger(sec, "scitags-refresh", scitagsRefresh);
        dataset     = cfg.Get(sec, "dataset", dataset);
@@ -716,7 +758,8 @@ int main(int argc, char* argv[])
       OPT_FLUSH_COUNT,
       OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
       OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
-      OPT_SERVER_TTL, OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_DATASET,
+      OPT_SERVER_TTL, OPT_STATE_FILE, OPT_STATE_TTL,
+      OPT_SCITAGS, OPT_SCITAGS_REFRESH, OPT_DATASET,
       OPT_NO_RESOLVE,
       OPT_SESSIONS, OPT_SPANS, OPT_TRACES, OPT_GSTREAM, OPT_REDIRECTS, OPT_DUMP
    };
@@ -749,6 +792,8 @@ int main(int argc, char* argv[])
       {"max-memory",      required_argument, nullptr, OPT_MAX_MEMORY},
       {"max-entries",     required_argument, nullptr, OPT_MAX_ENTRIES},
       {"server-ttl",      required_argument, nullptr, OPT_SERVER_TTL},
+      {"state-file",      required_argument, nullptr, OPT_STATE_FILE},
+      {"state-ttl",       required_argument, nullptr, OPT_STATE_TTL},
       {"scitags",         required_argument, nullptr, OPT_SCITAGS},
       {"scitags-refresh", required_argument, nullptr, OPT_SCITAGS_REFRESH},
       {"dataset",         required_argument, nullptr, OPT_DATASET},
@@ -816,6 +861,8 @@ int main(int argc, char* argv[])
          case OPT_MAX_MEMORY:    maxMemory    = parseSize(optarg);    break;
          case OPT_MAX_ENTRIES:   maxEntries   = (size_t)atol(optarg); break;
          case OPT_SERVER_TTL:    serverTtl    = atol(optarg);         break;
+         case OPT_STATE_FILE:    stateFile    = optarg;               break;
+         case OPT_STATE_TTL:     stateTtl     = parseDuration(optarg); break;
          case OPT_SCITAGS:       scitags      = optarg;               break;
          case OPT_SCITAGS_REFRESH: scitagsRefresh = atol(optarg);     break;
          case OPT_DATASET:       dataset      = optarg;               break;
@@ -1128,6 +1175,17 @@ int main(int argc, char* argv[])
       {fprintf(stderr, "%s: --dataset '%s' is not a valid POSIX extended "
                "regular expression\n", argv[0], dataset.c_str());
        return 2;
+      }
+
+// Reload the correlation state saved by the previous incarnation, so a clean
+// restart does not open a blind window while dictionaries repopulate. Runs
+// before any packet is decoded (the decoder is still single-threaded here).
+//
+   if (!stateFile.empty())
+      {std::string note;
+       decoder.LoadState(stateFile, stateTtl, note);
+       if (!note.empty())
+          fprintf(stderr, "xrdmoncollect: %s\n", note.c_str());
       }
 #ifdef XRDMON_HAVE_CURL
    // The OpenSearch sink initializes libcurl globally; do it here too when a URL
@@ -1485,6 +1543,20 @@ int main(int argc, char* argv[])
    if (tcpSrv) tcpSrv->Stop();
    recvPipe.close();
    serializer.join();          // drains the decode pipe, then closes postPipe
+
+// The serializer has stopped, so the correlation state is quiescent: snapshot
+// it for the next incarnation to reload.
+//
+   if (!stateFile.empty())
+      {if (decoder.SaveState(stateFile))
+          {if (verbose)
+              fprintf(stderr, "xrdmoncollect: correlation state saved to %s\n",
+                      stateFile.c_str());
+          }
+          else
+          fprintf(stderr, "xrdmoncollect: cannot save correlation state to "
+                  "'%s': %s\n", stateFile.c_str(), strerror(errno));
+      }
 #ifdef XRDMON_HAVE_CURL
    if (output.joinable())     output.join();      // drains the POST pipe
    if (otlpOutput.joinable()) otlpOutput.join();  // drains the OTLP pipe

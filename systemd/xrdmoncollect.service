@@ -21,7 +21,10 @@ LogsDirectory=xrootd
 LogsDirectoryMode=0750
 # Durable, writable area for the on-failure disk cache (created as
 # /var/lib/xrootd). To enable it, set "cache-dir = /var/lib/xrootd/moncollect"
-# in /etc/xrootd/xrdmoncollect.cfg.
+# in /etc/xrootd/xrdmoncollect.cfg. The exported STATE_DIRECTORY also makes
+# the collector save its correlation state to
+# /var/lib/xrootd/xrdmoncollect-state.json on shutdown and reload it on the
+# next start (override or disable with "state-file" in the config).
 StateDirectory=xrootd
 StateDirectoryMode=0750
 UMask=0027

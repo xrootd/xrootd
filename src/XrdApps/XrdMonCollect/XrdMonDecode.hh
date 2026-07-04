@@ -178,6 +178,24 @@ bool LoadScitagsJson(const std::string& text);
                        metrics(subsystem) {resolveLocalHost();}
         ~XrdMonDecode() {if (hasDataset) regfree(&datasetRe);}
 
+//! Persist the whole correlation state (server incarnations with their
+//! dictionaries and open-file tables, g-stream counter baselines, and the
+//! decode statistics) to `path` as a single versioned JSON document, written
+//! atomically (.tmp + rename). Meant to be called once, at shutdown, after the
+//! decode thread has stopped. Returns false when the file cannot be written
+//! (errno is left set).
+bool SaveState(const std::string& path) const;
+
+//! Reload the state written by SaveState. The snapshot is discarded (and the
+//! file removed) when its format version does not match or it is older than
+//! `maxAgeSec` seconds — a long-stopped collector starts fresh rather than
+//! resurrecting stale dictionaries. On success the file is also removed (a
+//! snapshot is only ever good for one restart) and the LRU index and memory
+//! accounting are rebuilt. Call before the first Process(). `note` receives a
+//! one-line human-readable outcome (empty when there is no state file).
+//! Returns true only when state was actually restored.
+bool LoadState(const std::string& path, long maxAgeSec, std::string& note);
+
 //! Set (or clear, with an empty pattern) the dataset-capture expression: an
 //! extended POSIX regex whose first capture group, matched against each
 //! emitted file path, becomes the xrootd.dataset attribute. Compiled once

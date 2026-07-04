@@ -87,6 +87,15 @@ port = 9930
 # max-entries = 0
 # server-ttl = 86400
 
+# Correlation-state persistence: save the state to this file on shutdown and
+# reload it on startup, so a clean restart does not open a blind window while
+# the dictionaries repopulate. A snapshot older than state-ttl (s/m/h/d
+# suffix) is discarded. Under systemd the file defaults into the service's
+# StateDirectory ($STATE_DIRECTORY/xrdmoncollect-state.json); an explicitly
+# empty state-file disables persistence.
+# state-file = /var/lib/xrootd/xrdmoncollect-state.json
+# state-ttl = 15m
+
 # SciTags registry (a file path or http(s):// URL) and its refresh interval.
 # scitags = /etc/xrootd/scitags.json
 # scitags-refresh = 3600
