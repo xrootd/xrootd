@@ -75,6 +75,14 @@ int         otelEvery = 30;               // OTLP push period (seconds)
 int         scrapeTTL = 10;              // cached scrape body lifetime (s); 0 = disabled
 int         scrapeRateLimit = 100;       // max scrapes per second; 0 = unlimited
 
+// Scrape endpoint authentication settings (metrics.requireauth / metrics.authtoken /
+// metrics.authpassword). When any of these is set, each request to /metrics must
+// present a matching credential or hold a valid TLS client certificate.
+//
+bool        requireAuth{false};          // if true, require cert or secret
+std::string authToken;                   // Bearer token shared secret ("" = disabled)
+std::string authPassword;                // HTTP Basic Auth password  ("" = disabled)
+
 //! The process-wide instance, shared by the core load and the exporter.
 static Config& Instance();
 

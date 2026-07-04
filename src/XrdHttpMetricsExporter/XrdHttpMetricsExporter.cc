@@ -30,6 +30,7 @@
 
 #include "XrdHttpMetricsExporter/XrdHttpMetricsExporter.hh"
 #include "XrdMetrics/XrdMetricsConfig.hh"
+#include "XrdSec/XrdSecEntity.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -40,6 +41,46 @@ namespace
 // Content type for the Prometheus text exposition format (version 0.0.4).
 //
 const char *promType = "Content-Type: text/plain; version=0.0.4; charset=utf-8";
+
+// RFC 4648 §4 base64 decoder used only for HTTP Basic Auth header parsing.
+// Ignores whitespace and silently drops malformed trailing groups.
+//
+static std::string Base64Decode(const std::string &in)
+{
+   static const signed char tbl[256] = {
+      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, // 0x00
+      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, // 0x10
+      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63, // 0x20  + /
+      52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-2,-1,-1, // 0x30  0-9  (=→-2)
+      -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14, // 0x40  A-O
+      15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1, // 0x50  P-Z
+      -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40, // 0x60  a-o
+      41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1, // 0x70  p-z
+   };
+   std::string out;
+   out.reserve((in.size() * 3) / 4);
+   unsigned acc = 0;
+   int bits = 0;
+   for (unsigned char c : in)
+       {signed char v = (c < 128) ? tbl[c] : -1;
+        if (v == -1) continue;        // whitespace or unknown → skip
+        if (v == -2) break;           // padding '=' → done
+        acc = (acc << 6) | (unsigned)v;
+        bits += 6;
+        if (bits >= 8) {bits -= 8; out += (char)((acc >> bits) & 0xFF);}
+       }
+   return out;
+}
+
+// Constant-time string comparison — resists timing side-channels on secret comparison.
+//
+static bool TimingSafeEqual(const std::string &a, const std::string &b)
+{
+   if (a.size() != b.size()) return false;
+   unsigned char diff = 0;
+   for (size_t i = 0; i < a.size(); i++) diff |= (unsigned char)(a[i] ^ b[i]);
+   return diff == 0;
+}
 
 // Content type for the OpenTelemetry OTLP/JSON encoding.
 //
@@ -253,9 +294,53 @@ int XrdHttpMetricsExporter::ProcessReq(XrdHttpExtReq &req)
       XrdMetrics::Default().subsystem("metrics")
          .counter<std::uint64_t>("scrapes_cache_hits_total",
                                  "Scrapes served from the TTL cache");
+   static XrdMetrics::Counter<std::uint64_t>& auth_failed =
+      XrdMetrics::Default().subsystem("metrics")
+         .counter<std::uint64_t>("scrapes_auth_failed_total",
+                                 "Scrapes rejected by authentication check");
    ++scrapes;
 
    XrdMetrics::Config &cfg = XrdMetrics::Config::Instance();
+
+   // Auth check: run before rate-limiting so unauthenticated probes do not
+   // burn the per-second allowance of legitimate scrapers.
+   if (cfg.requireAuth || !cfg.authToken.empty() || !cfg.authPassword.empty())
+      {bool authed = false;
+
+       auto it = req.headers.find("authorization");
+       if (it != req.headers.end())
+          {const std::string &hval = it->second;
+
+           // Bearer token: Authorization: Bearer <token>
+           if (!cfg.authToken.empty() && hval.size() > 7 &&
+               !strncasecmp(hval.c_str(), "bearer ", 7))
+              authed = TimingSafeEqual(hval.substr(7), cfg.authToken);
+
+           // HTTP Basic: Authorization: Basic base64(user:password)
+           if (!authed && !cfg.authPassword.empty() && hval.size() > 6 &&
+               !strncasecmp(hval.c_str(), "basic ", 6))
+              {std::string decoded = Base64Decode(hval.substr(6));
+               auto colon = decoded.find(':');
+               if (colon != std::string::npos)
+                  authed = TimingSafeEqual(decoded.substr(colon + 1), cfg.authPassword);
+              }
+          }
+
+       // TLS client certificate: SecEntity.moninfo holds the certificate DN.
+       if (!authed)
+          {const char *dn = req.GetSecEntity().moninfo;
+           authed = dn && *dn;
+          }
+
+       if (!authed)
+          {++auth_failed;
+           return req.SendSimpleResp(401, nullptr,
+                                     "WWW-Authenticate: Bearer realm=\"XRootD metrics\", "
+                                     "Basic realm=\"XRootD metrics\"",
+                                     "Authentication required.", 0);
+          }
+      }
+
    auto now = std::chrono::steady_clock::now();
    using Seconds = std::chrono::seconds;
 

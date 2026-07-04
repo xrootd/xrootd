@@ -229,3 +229,69 @@ TEST(MetricsConfig, DefaultsIncludeScrapeLimits)
    EXPECT_EQ(cfg.scrapeTTL, 10);
    EXPECT_EQ(cfg.scrapeRateLimit, 100);
 }
+
+// --- Auth directives --------------------------------------------------------
+
+TEST(MetricsConfig, RequireAuthDefault)
+{
+   Config cfg;
+   EXPECT_FALSE(cfg.requireAuth);
+}
+
+TEST(MetricsConfig, RequireAuthParsed)
+{
+   EXPECT_TRUE (parse("metrics.requireauth yes\n").requireAuth);
+   EXPECT_TRUE (parse("metrics.requireauth 1\n").requireAuth);
+   EXPECT_TRUE (parse("metrics.requireauth true\n").requireAuth);
+   EXPECT_FALSE(parse("metrics.requireauth no\n").requireAuth);
+   EXPECT_FALSE(parse("metrics.requireauth false\n").requireAuth);
+   EXPECT_FALSE(parse("metrics.requireauth 0\n").requireAuth);
+}
+
+TEST(MetricsConfig, AuthTokenDefault)
+{
+   Config cfg;
+   EXPECT_TRUE(cfg.authToken.empty());
+}
+
+TEST(MetricsConfig, AuthTokenParsed)
+{
+   EXPECT_EQ(parse("metrics.authtoken mysecret\n").authToken, "mysecret");
+   EXPECT_EQ(parse("metrics.authtoken abc123\n").authToken, "abc123");
+}
+
+TEST(MetricsConfig, AuthTokenEmptyValueIgnored)
+{
+   // Directive with no value leaves field at default.
+   Config cfg = parse("metrics.authtoken\n");
+   EXPECT_TRUE(cfg.authToken.empty());
+}
+
+TEST(MetricsConfig, AuthPasswordDefault)
+{
+   Config cfg;
+   EXPECT_TRUE(cfg.authPassword.empty());
+}
+
+TEST(MetricsConfig, AuthPasswordParsed)
+{
+   EXPECT_EQ(parse("metrics.authpassword hunter2\n").authPassword, "hunter2");
+   EXPECT_EQ(parse("metrics.authpassword s3cr3t\n").authPassword, "s3cr3t");
+}
+
+TEST(MetricsConfig, AuthPasswordEmptyValueIgnored)
+{
+   Config cfg = parse("metrics.authpassword\n");
+   EXPECT_TRUE(cfg.authPassword.empty());
+}
+
+TEST(MetricsConfig, AuthDirectivesIndependent)
+{
+   // All three auth directives can coexist.
+   Config cfg = parse("metrics.requireauth yes\n"
+                      "metrics.authtoken tok\n"
+                      "metrics.authpassword pw\n");
+   EXPECT_TRUE (cfg.requireAuth);
+   EXPECT_EQ   (cfg.authToken,    "tok");
+   EXPECT_EQ   (cfg.authPassword, "pw");
+}

@@ -63,7 +63,8 @@ const char *Config::DirectiveList()
           "metrics.path metrics.instance "
           "metrics.pushurl metrics.pushinterval metrics.pushjob "
           "metrics.otelurl metrics.otelinterval "
-          "metrics.scrapettl metrics.scraperatelimit all.role";
+          "metrics.scrapettl metrics.scraperatelimit "
+          "metrics.requireauth metrics.authtoken metrics.authpassword all.role";
 }
 
 /******************************************************************************/
@@ -126,6 +127,12 @@ void Config::parse(XrdOucGatherConf &conf)
                  {char *v = conf.GetToken(); int n = v ? atoi(v) : -1;
                   if (n >= 0) scrapeRateLimit = n;
                  }
+         else if (!strcmp(d, "metrics.requireauth"))
+                 {char *v = conf.GetToken(); requireAuth = parseBool(v);}
+         else if (!strcmp(d, "metrics.authtoken"))
+                 {char *v = conf.GetToken(); if (v && *v) authToken = v;}
+         else if (!strcmp(d, "metrics.authpassword"))
+                 {char *v = conf.GetToken(); if (v && *v) authPassword = v;}
          else if (!strcmp(d, "all.role"))
                  {char *v = conf.GetToken(); if (v && *v) role = v;}
         }
