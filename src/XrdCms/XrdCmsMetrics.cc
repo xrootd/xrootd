@@ -82,31 +82,35 @@ void XrdCmsCluster::RegisterMetrics(XrdMetrics::Collector &collector)
 // at most every 500ms. DiskTotal is in GB and DiskFree in MB, so convert both to
 // bytes.
 //
+   struct SpaceSnapshot
+   {
+      double total = 0.0, free = 0.0;
+   };
    struct SpaceCache
    {
       std::mutex                            mtx;
       std::chrono::steady_clock::time_point when{};
-      double                                total = 0.0, free = 0.0;
+      SpaceSnapshot                         space;
       bool                                  primed = false;
    };
    auto cache = std::make_shared<SpaceCache>();
-   auto snapshot = [this, cache]() -> std::pair<double,double>
+   auto snapshot = [this, cache]() -> SpaceSnapshot
    {
       std::lock_guard<std::mutex> lk(cache->mtx);
       auto now = std::chrono::steady_clock::now();
       if (!cache->primed ||
           now - cache->when > std::chrono::milliseconds(500))
          {XrdCms::SpaceData s; Space(s, ~SMask_t(0));
-          cache->total  = (double)s.Total * (1024.0*1024.0*1024.0);
-          cache->free   = (double)s.TotFr * (1024.0*1024.0);
+          cache->space.total = (double)s.Total * (1024.0*1024.0*1024.0);
+          cache->space.free  = (double)s.TotFr * (1024.0*1024.0);
           cache->when   = now;
           cache->primed = true;
          }
-      return {cache->total, cache->free};
+      return cache->space;
    };
    auto &spc = subsystem.observeGauge<double>("space_bytes", "aggregate cluster disk space", {}, {"state"});
-   spc.add({"total"}, [snapshot]{return snapshot().first;});
-   spc.add({"free"},  [snapshot]{return snapshot().second;});
+   spc.add({"total"}, [snapshot]{return snapshot().total;});
+   spc.add({"free"},  [snapshot]{return snapshot().free;});
 }
 
 /******************************************************************************/
