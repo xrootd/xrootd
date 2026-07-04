@@ -148,6 +148,18 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
    if (i < numgs && !MP) MP = new MonParms;
       else if (!MP) return true;
 
+// When a monitor buffer size (mbuff) was configured but no fstat buffer size
+// (fbsz), size the fstat buffer like the trace buffer. An admin who tuned
+// mbuff to the path MTU (to avoid IP fragmentation) would otherwise silently
+// get the compiled-in 64K fstat datagrams, each fragmenting into dozens of IP
+// fragments where a single lost fragment drops the whole datagram.
+//
+   if (MP->monMBval > 0 && MP->monFbsz <= 0)
+      {MP->monFbsz = MP->monMBval;
+       eDest.Say("Config fstat buffer size (fbsz) defaulted to the mbuff "
+                 "value; specify fbsz to override.");
+      }
+
 // Set monitor defaults, this has to be done first
 //
    XrdXrootdMonitor::Defaults(MP->monMBval, MP->monRBval, MP->monWWval,
