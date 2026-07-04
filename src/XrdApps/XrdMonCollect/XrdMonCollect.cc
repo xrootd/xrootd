@@ -50,6 +50,7 @@
 #include "XrdApps/XrdMonCollect/XrdMonDiskCache.hh"
 #include "XrdApps/XrdMonCollect/XrdMonForward.hh"
 #include "XrdApps/XrdMonCollect/XrdMonPipe.hh"
+#include "XrdApps/XrdMonCollect/XrdMonShovelFrame.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdMetrics/XrdMetricsSerializer.hh"
 #ifdef XRDMON_HAVE_CURL
@@ -258,25 +259,11 @@ void serveMetrics(int port, std::atomic<bool>& stop)
    close(ls);
 }
 
-// Numeric host:port string for a datagram sender (no DNS lookup).
+// One received datagram (host:port + raw bytes) and batches of them are the
+// XrdMonPacket/XrdMonBatch types shared with the shovel framing code.
 //
-std::string senderName(const sockaddr* sa, socklen_t sl)
-{
-   char host[NI_MAXHOST], serv[NI_MAXSERV];
-   if (getnameinfo(sa, sl, host, sizeof(host), serv, sizeof(serv),
-                   NI_NUMERICHOST | NI_NUMERICSERV) != 0)
-      return "unknown";
-   std::string s = host;
-   s += ':';
-   s += serv;
-   return s;
-}
-
-// One received datagram: the sender's numeric host:port and the raw bytes. The
-// receiver thread fills these and hands batches of them to the serializer.
-//
-struct Packet { std::string src; std::string data; };
-using  Batch  = std::deque<Packet>;
+using Packet = XrdMonPacket;
+using Batch  = XrdMonBatch;
 
 // A SciTags registry source given as an http(s) URL (vs. a local file path).
 //
@@ -1093,8 +1080,12 @@ int main(int argc, char* argv[])
              perror("recvfrom"); break;
             }
 
-         cur.push_back(Packet{senderName((sockaddr*)&from, fromLen),
-                              std::string(buff, (size_t)n)});
+         Packet pkt;
+         pkt.src = XrdMonSenderName((sockaddr*)&from, fromLen);
+         pkt.data.assign(buff, (size_t)n);
+         memcpy(&pkt.addr, &from, fromLen);
+         pkt.addrLen = fromLen;
+         cur.push_back(std::move(pkt));
          if (cur.size() >= flushCount || time(0)-batchStart >= flushSecs)
             {recvPipe.submit(std::move(cur));
              if (!recvPipe.acquire(cur)) break;

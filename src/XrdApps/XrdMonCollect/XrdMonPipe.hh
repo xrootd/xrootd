@@ -29,13 +29,16 @@
 #include <utility>
 
 //-----------------------------------------------------------------------------
-//! A bounded single-producer/single-consumer hand-off with buffer recycling,
-//! used to connect the xrdmoncollect pipeline stages (receiver -> serializer ->
-//! output). The producer `acquire()`s a recycled (or freshly created) buffer,
-//! fills it, and `submit()`s it; the consumer `take()`s it, drains it, and
-//! `recycle()`s it back. At most `capacity` buffers ever exist, so a slow
-//! consumer applies backpressure: `acquire()` blocks until a buffer is free
-//! rather than letting the producer allocate without bound.
+//! A bounded producer/consumer hand-off with buffer recycling, used to connect
+//! the xrdmoncollect pipeline stages (receiver -> serializer -> output). Every
+//! operation takes the internal mutex, so multiple producers may acquire() and
+//! submit() concurrently (the UDP receiver and the TCP connection threads);
+//! the consumer side is single-threaded. The producer `acquire()`s a recycled
+//! (or freshly created) buffer, fills it, and `submit()`s it; the consumer
+//! `take()`s it, drains it, and `recycle()`s it back. At most `capacity`
+//! buffers ever exist, so a slow consumer applies backpressure: `acquire()`
+//! blocks until a buffer is free rather than letting the producer allocate
+//! without bound.
 //!
 //! Recycling avoids per-hand-off allocation churn (the same buffers cycle round
 //! the loop). `close()` unblocks both ends for shutdown: after it, `acquire()`
