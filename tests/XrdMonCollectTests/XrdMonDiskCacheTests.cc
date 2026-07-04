@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -14,10 +15,19 @@
 
 namespace
 {
+// ::testing::TempDir() is not public in the GoogleTest shipped with EL8.
+std::string tempDir()
+{
+   const char* dir = std::getenv("TMPDIR");
+   std::string path = (dir && *dir) ? dir : "/tmp";
+   if (path.back() != '/') path += '/';
+   return path;
+}
+
 // A fresh, empty cache directory under the test's temp dir.
 std::string freshDir(const std::string& name)
 {
-   std::string d = std::string(::testing::TempDir()) + "/" + name;
+   std::string d = tempDir() + name;
    // Best-effort clean: remove known files from a prior run.
    std::string cmd = "rm -rf '" + d + "'";
    if (system(cmd.c_str()) != 0) { /* ignore */ }
