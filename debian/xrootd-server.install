@@ -7,6 +7,7 @@
 /usr/bin/mpxstats
 /usr/bin/wait41
 /usr/bin/xrdacctest
+/usr/bin/xrdmoncollect
 /usr/bin/xrdpfc_print
 /usr/bin/xrdpwdadmin
 /usr/bin/xrdsssadmin
@@ -17,6 +18,7 @@
 /usr/share/man/man8/frm_xfragent.8
 /usr/share/man/man8/frm_xfrd.8
 /usr/share/man/man8/mpxstats.8
+/usr/share/man/man8/xrdmoncollect.8
 /usr/share/man/man8/xrdpfc_print.8
 /usr/share/man/man8/xrdpwdadmin.8
 /usr/share/man/man8/xrdsssadmin.8
