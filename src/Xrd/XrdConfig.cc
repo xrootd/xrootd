@@ -542,7 +542,13 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Set the site name if we have one
 //
-   if (mySitName) mySitName = XrdOucSiteName::Set(mySitName, 63);
+   if (mySitName)
+      {const char *sitArg = mySitName;
+       mySitName = XrdOucSiteName::Set(sitArg, 63);
+       if (strcmp(mySitName, sitArg))
+          Log.Emsg("Config", "sitename contains invalid characters or is too "
+                   "long; using '", mySitName, "'.");
+      }
 
 // Drop into non-privileged state if so requested
 //
@@ -2370,7 +2376,11 @@ int XrdConfig::xsit(XrdSysError *eDest, XrdOucStream &Config)
 
     if (mySitName) eDest->Emsg("Config", "sitename already specified, using '",
                                mySitName, "'.");
-       else mySitName = XrdOucSiteName::Set(val, 63);
+       else {mySitName = XrdOucSiteName::Set(val, 63);
+             if (strcmp(mySitName, val))
+                eDest->Emsg("Config", "sitename contains invalid characters or "
+                            "is too long; using '", mySitName, "'.");
+            }
     return 0;
 }
 
