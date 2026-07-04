@@ -413,6 +413,31 @@ advertises a site of its own: a client with \fBXRDSITE\fR (or \fBXRD_SITE\fR,
 which takes precedence) set in its environment sends it at login, and the server
 forwards it on the \fIu\fR-stream. This is independent of the reporting server's
 own \fBxrootd.server.site\fR.
+.SS Tuning for pipeline resilience
+The monitor streams are UDP: a datagram larger than the path MTU is fragmented
+at the IP layer and the loss of any one fragment drops the whole datagram.
+Keep \fIevery\fR stream buffer at or below the MTU: \fBmbuff\fR (trace),
+\fBfbsz\fR (fstat, \fBdefault 65472\fR), \fBrbuff\fR (redirect, default 32K)
+and \fBgbuff\fR (g-stream, default 32K) — 1472 for a 1500-byte IPv4 path, 1452
+for IPv6. Note that before XRootD 6.1 \fBfbsz\fR does \fInot\fR follow
+\fBmbuff\fR: setting \fBmbuff 1472\fR alone still emits ~64K fstat datagrams
+(~44 fragments each), which is the stream the transfer documents are built
+from — set \fBfbsz\fR explicitly on such servers. Do not go far below the MTU
+either: a single fstat record (a close with a long LFN and an error message)
+must fit the buffer or the server drops it.
+.P
+\fBflush\fR/\fBfstat\fR/\fBwindow\fR bound latency, not loss: smaller buffers
+just flush more often. In the collector's metrics,
+\fBpackets_lost_total{server,stream}\fR reports pseq gaps per stream class
+(\fBmain\fR, \fBf\fR, \fBg:<provider>\fR — the server runs independent
+sequence counters for the fstat stream and each g-stream provider); loss
+concentrated on \fBf\fR while \fBt\fR arrives fine is the fragmentation
+signature, loss on all streams points at the network or the collector's
+receive buffer. \fBmalformed_total{server,stream,reason}\fR breaks out
+structurally invalid packets (\fBbad_plen\fR, \fBshort_packet\fR,
+\fBbad_record\fR, \fBtrailing_bytes\fR, \fBtruncated_string\fR), and
+\fBunknown_packets_total\fR counts unhandled stream codes (usually stray
+traffic on the port).
 .SH CONFIGURATION FILE
 Options may be supplied in an INI configuration file as an alternative to the
 command line. The file is loaded from the path given with \fB-c\fR, or

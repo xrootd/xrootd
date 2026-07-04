@@ -759,6 +759,71 @@ xrootd.monitor all flush 30 fstat 30 lfn ops ssq xfr 1 auth \
                dest fstat info user <collector-host>:9930
 ```
 
+### Tuning `xrootd.monitor` for pipeline resilience
+
+The monitor streams are UDP: once a datagram is larger than the path MTU it is
+fragmented at the IP layer, and the loss of any *one* fragment silently drops
+the *whole* datagram. Keeping every stream's buffer at or below the MTU is the
+single most effective resilience knob on the server side.
+
+**Size every buffer, not just `mbuff`.** Four independent buffer sizes become
+UDP datagrams:
+
+| Buffer | Directive option | Default | Streams |
+| :-- | :-- | :-- | :-- |
+| trace buffer | `mbuff <sz>` | 16K | `t` (I/O traces) |
+| fstat buffer | `fbsz <sz>` | **65472** | `f` (open/close/xfr) |
+| redirect buffer | `rbuff <sz>` | 32K | `r` (redirects) |
+| g-stream buffer | `gbuff <sz>` | 32K | `g` (pfc/tpc/oss/... plugin records) |
+
+Until XRootD 6.1 `fbsz` does **not** follow `mbuff`: a cluster that sets
+`mbuff 1472` (to fit a 1500-byte MTU) but leaves `fbsz` alone still emits
+fstat datagrams of up to 65472 bytes — ~44 IP fragments each, so even a 0.1%
+fragment loss rate kills a few percent of the fstat stream, which is exactly
+the stream the transfer documents are built from. Newer servers default `fbsz`
+to the `mbuff` value when only `mbuff` is given; on older servers set it
+explicitly:
+
+```
+xrootd.monitor all auth flush io 60s fstat 60s lfn ops ssq xfr 10 \
+               mbuff 1472 fbsz 1472 rbuff 1472 gbuff 1472 window 15s \
+               dest files fstat io info redir user <collector-host>:9930
+```
+
+For a 1500-byte MTU, 1472 leaves room for the IPv4+UDP headers (28 bytes);
+use 1452 when the path is IPv6 (40+8). Do not go far below that: a single
+fstat record must fit the buffer, and a close record carrying a long LFN plus
+an error message can reach several hundred bytes — records that do not fit
+are dropped by the server.
+
+**`flush`/`window` bound latency, not loss.** `flush <t>` forces the trace
+buffer out even when not full, `fstat <t>` is the file-stats reporting
+interval, and `window <t>` is the timestamp granularity inside trace buffers.
+Smaller buffers simply flush more often (more, smaller datagrams — fine);
+short windows spend buffer slots on window marks, so with a small `mbuff`
+prefer `window 15s`-ish over very short windows. None of these cause loss by
+themselves; fragmentation and receive-buffer overflow do.
+
+**Reading the collector's loss/malformed metrics.** The server does *not*
+stamp one packet sequence number per destination: the `f` stream and each
+g-stream provider run their own independent `pseq` counters, while the
+trace/redirect/map streams share one. The collector therefore tracks loss per
+stream class, and the metrics tell them apart:
+
+- `packets_lost_total{server,stream}` — pseq gaps, per stream class (`main`,
+  `f`, `g:<provider>`). Loss concentrated on `f` with `mbuff`-sized `t`
+  packets arriving fine is the fragmentation signature above. Loss across
+  *all* streams points at the network or at the collector's receive buffer
+  (`rcvbuf`, and `ReceiveBuffer=` in the socket unit — see
+  [Running as a service](#running-as-a-service)).
+- `malformed_total{server,stream,reason}` — structurally invalid packets:
+  `bad_plen`/`short_packet` (truncation or stray traffic on the port),
+  `bad_record` (`f`-stream record inconsistencies), `trailing_bytes`
+  (`t`-stream payload not a whole number of records), `truncated_string`
+  (`r`-stream host:path running past the packet).
+- `unknown_packets_total` — packets with an unhandled stream code (usually
+  stray traffic, e.g. a scanner hitting the port).
+
 ## Deployment and tuning
 
 ### Running as a service
