@@ -67,6 +67,7 @@ if(NOT XRDCL_ONLY)
     add_executable(xrdmoncollect
       XrdMonCollect/XrdMonCollect.cc
       XrdMonCollect/XrdMonForward.cc
+      XrdMonCollect/XrdMonShovel.cc
       XrdMonCollect/XrdMonTcpServer.cc
       XrdMonCollect/XrdMonDiskCache.cc
       XrdMonCollect/XrdMonOtlp.cc
@@ -77,6 +78,7 @@ if(NOT XRDCL_ONLY)
     add_executable(xrdmoncollect
       XrdMonCollect/XrdMonCollect.cc
       XrdMonCollect/XrdMonForward.cc
+      XrdMonCollect/XrdMonShovel.cc
       XrdMonCollect/XrdMonTcpServer.cc
       XrdMonCollect/XrdMonDiskCache.cc
       XrdMonCollect/XrdMonOtlp.cc)

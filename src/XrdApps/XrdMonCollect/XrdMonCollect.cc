@@ -50,6 +50,7 @@
 #include "XrdApps/XrdMonCollect/XrdMonDiskCache.hh"
 #include "XrdApps/XrdMonCollect/XrdMonForward.hh"
 #include "XrdApps/XrdMonCollect/XrdMonPipe.hh"
+#include "XrdApps/XrdMonCollect/XrdMonShovel.hh"
 #include "XrdApps/XrdMonCollect/XrdMonShovelFrame.hh"
 #include "XrdApps/XrdMonCollect/XrdMonTcpServer.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
@@ -82,6 +83,13 @@ void usage(const char* prog)
      "                   remote collectors running in shoveler mode\n"
      "  --tcp-token <t>  shared secret shovelers must present; @<file> reads it\n"
      "                   from a file (default: accept any connection)\n"
+     "  --shovel <h:p>   shoveler mode: relay received UDP packets over TCP to\n"
+     "                   a central collector's --tcp-port instead of decoding\n"
+     "                   them (document sinks are inactive in this mode)\n"
+     "  --shovel-token <t> shared secret for the --shovel connection; @<file>\n"
+     "                   reads it from a file\n"
+     "  --spool-max <sz> cap the shovel disk spool under --cache-dir, evicting\n"
+     "                   the oldest buffers (K/M/G; default 1G; 0=unbounded)\n"
      "  -o <file>        append output to <file> (default: stdout unless --os-url)\n"
      "  --bulk <index>   write OpenSearch _bulk format to the file/stdout sink\n"
      "  --os-url <url>   POST documents to an OpenSearch cluster's _bulk API\n"
@@ -327,6 +335,235 @@ bool loadScitags(XrdMonDecode& dec, const std::string& src, std::string& err)
    if (!dec.LoadScitags(src)) {err = "cannot read or parse the file"; return false;}
    return true;
 }
+
+/******************************************************************************/
+/*                         S h o v e l e r   m o d e                          */
+/******************************************************************************/
+
+// In shoveler mode there is no decoding, correlation, or document sink:
+// received UDP datagrams are XSHV-framed and relayed over TCP to a central
+// collector's --tcp-port, with an optional disk spool bridging collector
+// outages. Deployed next to the daemons, it turns the lossy long-haul UDP leg
+// into a local one plus a reliable TCP hop.
+//
+struct ShovelerOpts
+{
+   int         udpPort;
+   const char* bindStr;
+   std::string host;         // central collector
+   int         port;         // central collector TCP port
+   std::string token;        // shared secret for the hello (may be empty)
+   std::string cacheDir;     // spool root (no spool if empty)
+   std::size_t spoolMax;     // spool byte cap (0 = unbounded)
+   std::size_t flushCount;
+   long        flushSecs;
+   std::size_t rcvbuf;
+   int         queueDepth;
+   int         metricsPort;
+   bool        verbose;
+};
+
+int runShoveler(const char* prog, const ShovelerOpts& o)
+{
+   XrdMonShovel shovel(o.host, o.port, o.token);
+
+   XrdMonDiskCache* spool = nullptr;
+   if (!o.cacheDir.empty())
+      {mkdir(o.cacheDir.c_str(), 0750);   // parent (Init's mkdir is single-level)
+       spool = new XrdMonDiskCache(o.cacheDir + "/shovel", ".frames");
+       spool->SetMaxBytes(o.spoolMax);
+       std::string e;
+       if (!spool->Init(e))
+          {fprintf(stderr, "%s: %s\n", prog, e.c_str()); return 4;}
+      }
+
+   int fd = openUDP(o.udpPort, o.bindStr);
+   if (fd < 0) return 4;
+   if (o.rcvbuf > 0)
+      {int want = (int)o.rcvbuf;
+#ifdef SO_RCVBUFFORCE
+       if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &want, sizeof(want)) != 0)
+#endif
+          setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &want, sizeof(want));
+      }
+
+   XrdMonPipe<Batch> recvPipe((size_t)(o.queueDepth > 0 ? o.queueDepth : 1));
+
+   std::atomic<std::uint64_t> packets{0},       framesSent{0},
+                              framesSpooled{0}, framesDropped{0};
+
+// The shoveler's own metrics, under the "shoveler" subsystem (so a Prometheus
+// scrape distinguishes a relay from a full collector on the same dashboard).
+//
+   std::atomic<bool> exporterStop{false};
+   std::thread       exporter;
+   if (o.metricsPort > 0)
+      {XrdMetrics::Subsystem& sub = collectorRegistry().subsystem("shoveler");
+       sub.observeCounter<std::uint64_t>("packets_total", "UDP monitor packets received")
+          .add({}, [&]{return packets.load();});
+       sub.observeCounter<std::uint64_t>("frames_sent_total", "datagrams relayed to the central collector")
+          .add({}, [&]{return framesSent.load();});
+       sub.observeCounter<std::uint64_t>("frames_spooled_total", "datagrams written to the disk spool while the collector was unreachable")
+          .add({}, [&]{return framesSpooled.load();});
+       sub.observeCounter<std::uint64_t>("frames_dropped_total", "datagrams dropped (collector unreachable and no usable spool)")
+          .add({}, [&]{return framesDropped.load();});
+       sub.observeCounter<std::uint64_t>("connects_total", "successful connect+handshakes to the collector")
+          .add({}, [&]{return shovel.Connects();});
+       sub.observeGauge<std::int64_t>("connected", "whether the collector connection is currently up")
+          .add({}, [&]{return (int64_t)(shovel.Connected() ? 1 : 0);});
+       sub.observeGauge<std::int64_t>("recv_queue_batches", "packet batches queued from the receiver to the sender")
+          .add({}, [&]{return (int64_t)recvPipe.readyDepth();});
+       if (spool)
+          {sub.observeGauge<std::int64_t>("spool_files", "spooled frame buffers awaiting replay")
+              .add({}, [&]{return (int64_t)spool->Files();});
+           sub.observeGauge<std::int64_t>("spool_bytes", "bytes of spooled frame buffers on disk")
+              .add({}, [&]{return (int64_t)spool->Bytes();});
+           sub.observeCounter<std::uint64_t>("spool_stored_total", "frame buffers written to the disk spool")
+              .add({}, [&]{return spool->Stored();});
+           sub.observeCounter<std::uint64_t>("spool_replayed_total", "spooled frame buffers successfully replayed")
+              .add({}, [&]{return spool->Replayed();});
+           sub.observeCounter<std::uint64_t>("spool_dropped_total", "oldest spooled buffers evicted by --spool-max")
+              .add({}, [&]{return spool->Dropped();});
+          }
+       exporter = std::thread(serveMetrics, o.metricsPort, std::ref(exporterStop));
+      }
+
+   struct sigaction sa;
+   memset(&sa, 0, sizeof(sa));
+   sa.sa_handler = onSignal;
+   sigemptyset(&sa.sa_mask);
+   sa.sa_flags = 0;
+   sigaction(SIGINT,  &sa, nullptr);
+   sigaction(SIGTERM, &sa, nullptr);
+
+   {struct timeval tv; tv.tv_sec = 1; tv.tv_usec = 0;
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));}
+
+// Sender thread: frames each batch into one contiguous buffer and ships it.
+// While the collector is unreachable, buffers go to the disk spool (and are
+// replayed oldest-first on idle wake-ups and ahead of new buffers, preserving
+// order); without a spool they are dropped and counted.
+//
+   std::thread sender([&]()
+      {const int kDrainPerIter = 64;   // cap spool replays per wake-up
+       std::size_t dropTally = 0;      // total drops, for the rate-limited warn
+       time_t      warnAt    = 0;
+
+       auto ship = [&](const std::string& b)->bool
+          {std::string e;
+           return shovel.Send(b, e);
+          };
+       auto drain = [&]()
+          {if (!spool) return;
+           std::string e;
+           for (int i = 0; i < kDrainPerIter; i++)
+              {int r = spool->ReplayOldest(ship, e);
+               if (!e.empty())
+                  {fprintf(stderr, "xrdmoncollect: %s\n", e.c_str()); e.clear();}
+               if (r != 1) break;       // 0 = empty, -1 = collector still down
+              }
+          };
+       auto complain = [&](std::size_t n, const std::string& why)
+          {framesDropped += n;
+           dropTally     += n;
+           time_t now = time(0);
+           if (now - warnAt >= 10)      // rate-limit to once per 10 seconds
+              {warnAt = now;
+               fprintf(stderr, "xrdmoncollect: shovel dropped %zu datagram(s): "
+                       "%s\n", dropTally, why.c_str());
+              }
+          };
+
+       Batch       b;
+       std::string buf;
+       for (;;)
+          {if (recvPipe.takeFor(b, 1000))
+              {buf.clear();
+               std::size_t n = 0;
+               for (auto& p : b)
+                   if (XrdMonShovelEncode(buf, (const sockaddr*)&p.addr,
+                                          p.data.data(), p.data.size())) n++;
+               std::string e;
+               if (!n) {}                             // nothing encodable
+                  else if (spool && !spool->Empty())
+                  {// Preserve order: queue behind the backlog, then drain.
+                   if (spool->Store(buf, e)) framesSpooled += n;
+                      else complain(n, e);
+                   drain();
+                  }
+                  else if (shovel.Send(buf, e)) framesSent += n;
+                  else if (spool)
+                  {std::string se;
+                   if (spool->Store(buf, se)) framesSpooled += n;
+                      else complain(n, se);
+                  }
+                  else complain(n, e);
+               b.clear();
+               recvPipe.recycle(std::move(b));
+              }
+              else
+              {if (recvPipe.closedDrained()) break;
+               drain();                 // idle: make progress on the backlog
+              }
+          }
+      });
+
+// Receiver loop: same shape as the collector's, but records only the raw
+// source address (the sender re-encodes the sockaddr on the wire; no per-
+// packet host:port formatting is needed).
+//
+   Batch  cur;
+   recvPipe.acquire(cur);
+   time_t batchStart = time(0);
+   char   buff[64*1024];
+   while (!stopFlag)
+        {sockaddr_storage from;
+         socklen_t fromLen = sizeof(from);
+         ssize_t n = recvfrom(fd, buff, sizeof(buff), 0,
+                              (sockaddr*)&from, &fromLen);
+         if (n < 0)
+            {if (errno == EINTR) continue;
+             if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {if (!cur.empty() && time(0)-batchStart >= o.flushSecs)
+                    {recvPipe.submit(std::move(cur));
+                     if (!recvPipe.acquire(cur)) break;
+                     batchStart = time(0);
+                    }
+                 continue;
+                }
+             perror("recvfrom"); break;
+            }
+
+         packets++;
+         Packet pkt;
+         pkt.data.assign(buff, (size_t)n);
+         memcpy(&pkt.addr, &from, fromLen);
+         pkt.addrLen = fromLen;
+         cur.push_back(std::move(pkt));
+         if (cur.size() >= o.flushCount || time(0)-batchStart >= o.flushSecs)
+            {recvPipe.submit(std::move(cur));
+             if (!recvPipe.acquire(cur)) break;
+             batchStart = time(0);
+            }
+        }
+
+   if (!cur.empty()) recvPipe.submit(std::move(cur));
+   recvPipe.close();
+   sender.join();
+   if (exporter.joinable()) {exporterStop = true; exporter.join();}
+
+   if (o.verbose)
+      fprintf(stderr, "xrdmoncollect: shoveler packets=%llu sent=%llu "
+              "spooled=%llu dropped=%llu\n",
+              (unsigned long long)packets.load(),
+              (unsigned long long)framesSent.load(),
+              (unsigned long long)framesSpooled.load(),
+              (unsigned long long)framesDropped.load());
+
+   close(fd);
+   delete spool;
+   return 0;
+}
 }
 
 int main(int argc, char* argv[])
@@ -334,6 +571,10 @@ int main(int argc, char* argv[])
    int         port    = 0;
    int         tcpPort = 0;         // TCP listener for shoveled packets (off)
    std::string tcpToken;            // shared secret for shovel hellos (off)
+   std::string shovelHost;          // shoveler mode destination (off if empty)
+   int         shovelPort = 0;
+   std::string shovelToken;         // shared secret for the shovel hello
+   size_t      spoolMax = 1ull << 30;  // shovel disk spool cap (~1 GiB)
    const char* bindStr = nullptr;
    const char* outFile = nullptr;
    std::string bulkIdx;
@@ -401,6 +642,18 @@ int main(int argc, char* argv[])
        port       = (int)cfg.GetInteger(sec, "udp-port", port);  // alias
        tcpPort    = (int)cfg.GetInteger(sec, "tcp-port", tcpPort);
        tcpToken   = cfg.Get(sec, "tcp-token", tcpToken);
+       std::string shv = cfg.Get(sec, "shovel", "");
+       if (!shv.empty())
+          {auto c = shv.rfind(':');
+           if (c == std::string::npos || c == 0 || c+1 >= shv.size())
+              {fprintf(stderr, "%s: config 'shovel' needs host:port\n", argv[0]);
+               return 2;}
+           shovelHost = shv.substr(0, c);
+           shovelPort = atoi(shv.c_str() + c + 1);
+          }
+       shovelToken = cfg.Get(sec, "shovel-token", shovelToken);
+       std::string sm = cfg.Get(sec, "spool-max", "");
+       if (!sm.empty()) spoolMax = parseSize(sm.c_str());
        bindStore  = cfg.Get(sec, "bind", "");
        if (!bindStore.empty()) bindStr = bindStore.c_str();
        outStore   = cfg.Get(sec, "output", "");
@@ -459,6 +712,7 @@ int main(int argc, char* argv[])
       OPT_OS_TOKEN, OPT_OS_INSECURE, OPT_OS_DATASTREAM,
       OPT_OTLP_URL, OPT_OTLP_TOKEN, OPT_OTLP_INSECURE,
       OPT_CACHE_DIR, OPT_FORWARD, OPT_TCP_PORT, OPT_TCP_TOKEN,
+      OPT_SHOVEL, OPT_SHOVEL_TOKEN, OPT_SPOOL_MAX,
       OPT_FLUSH_COUNT,
       OPT_FLUSH_SECS, OPT_RCVBUF, OPT_QUEUE_DEPTH,
       OPT_METRICS_PORT, OPT_MAX_MEMORY, OPT_MAX_ENTRIES,
@@ -471,6 +725,9 @@ int main(int argc, char* argv[])
       {"udp-port",        required_argument, nullptr, 'p'},
       {"tcp-port",        required_argument, nullptr, OPT_TCP_PORT},
       {"tcp-token",       required_argument, nullptr, OPT_TCP_TOKEN},
+      {"shovel",          required_argument, nullptr, OPT_SHOVEL},
+      {"shovel-token",    required_argument, nullptr, OPT_SHOVEL_TOKEN},
+      {"spool-max",       required_argument, nullptr, OPT_SPOOL_MAX},
       {"bulk",            required_argument, nullptr, OPT_BULK},
       {"os-url",          required_argument, nullptr, OPT_OS_URL},
       {"os-index",        required_argument, nullptr, OPT_OS_INDEX},
@@ -529,6 +786,18 @@ int main(int argc, char* argv[])
          case OPT_CACHE_DIR:     cacheDir     = optarg;             break;
          case OPT_TCP_PORT:      tcpPort      = atoi(optarg);       break;
          case OPT_TCP_TOKEN:     tcpToken     = optarg;             break;
+         case OPT_SHOVEL:
+             {std::string hp = optarg;
+              auto c = hp.rfind(':');
+              if (c == std::string::npos || c == 0 || c+1 >= hp.size())
+                 {fprintf(stderr, "%s: --shovel needs host:port\n", argv[0]);
+                  return 2;}
+              shovelHost = hp.substr(0, c);
+              shovelPort = atoi(hp.c_str() + c + 1);
+             }
+             break;
+         case OPT_SHOVEL_TOKEN:  shovelToken  = optarg;             break;
+         case OPT_SPOOL_MAX:     spoolMax     = parseSize(optarg);  break;
          case OPT_FORWARD:
              {std::string hp = optarg;
               auto c = hp.rfind(':');
@@ -568,6 +837,63 @@ int main(int argc, char* argv[])
       {fprintf(stderr, "%s: a valid -p/--udp-port or --tcp-port is required\n",
                argv[0]);
        usage(argv[0]); return 2;}
+
+// Shoveler mode: relay only. It needs the UDP port to receive on and must not
+// itself accept shoveled TCP traffic (no relay chaining — it would make
+// forwarding loops too easy to configure by accident). Options that only make
+// sense with decoding active are warned about and ignored, so one config file
+// can be shared by the shovelers and the central collector.
+//
+   if (!shovelHost.empty())
+      {if (tcpPort > 0)
+          {fprintf(stderr, "%s: --shovel cannot be combined with --tcp-port\n",
+                   argv[0]);
+           return 2;}
+       if (port <= 0)
+          {fprintf(stderr, "%s: shoveler mode requires -p/--udp-port\n",
+                   argv[0]);
+           return 2;}
+       if (shovelPort <= 0 || shovelPort > 65535)
+          {fprintf(stderr, "%s: --shovel needs a valid port\n", argv[0]);
+           return 2;}
+       std::string secret = loadSecret(shovelToken);
+       if (secret.size() > kShovelMaxToken)
+          {fprintf(stderr, "%s: --shovel-token exceeds %zu bytes\n", argv[0],
+                   kShovelMaxToken);
+           return 2;}
+       auto ignored = [&](const char* opt)
+          {fprintf(stderr, "%s: warning: %s is ignored in shoveler mode\n",
+                   argv[0], opt);};
+       if (!osUrl.empty())   ignored("--os-url");
+       if (!otlpUrl.empty()) ignored("--otlp-url");
+       if (fwdPort > 0)      ignored("--forward");
+       if (outFile)          ignored("-o");
+       if (!bulkIdx.empty()) ignored("--bulk");
+       if (!scitags.empty()) ignored("--scitags");
+       if (!dataset.empty()) ignored("--dataset");
+       if (sessions)         ignored("--sessions");
+       if (spans)            ignored("--spans");
+       if (traces)           ignored("--traces");
+       if (gstream)          ignored("--gstream");
+       if (redirects)        ignored("--redirects");
+       if (dump)             ignored("--dump");
+
+       ShovelerOpts so;
+       so.udpPort     = port;
+       so.bindStr     = bindStr;
+       so.host        = shovelHost;
+       so.port        = shovelPort;
+       so.token       = secret;
+       so.cacheDir    = cacheDir;
+       so.spoolMax    = spoolMax;
+       so.flushCount  = flushCount;
+       so.flushSecs   = flushSecs;
+       so.rcvbuf      = rcvbuf;
+       so.queueDepth  = queueDepth;
+       so.metricsPort = metricsPort;
+       so.verbose     = verbose;
+       return runShoveler(argv[0], so);
+      }
 
 // Set up the OpenSearch sink if requested.
 //
