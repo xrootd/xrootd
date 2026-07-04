@@ -28,6 +28,7 @@
 #include "XrdHttpMetricsExporter/XrdHttpMetricsExporterPush.hh"
 #endif
 
+#include "XrdHttp/XrdHttpUtils.hh"
 #include "XrdHttpMetricsExporter/XrdHttpMetricsExporter.hh"
 #include "XrdMetrics/XrdMetricsConfig.hh"
 #include "XrdSec/XrdSecEntity.hh"
@@ -41,36 +42,6 @@ namespace
 // Content type for the Prometheus text exposition format (version 0.0.4).
 //
 const char *promType = "Content-Type: text/plain; version=0.0.4; charset=utf-8";
-
-// RFC 4648 §4 base64 decoder used only for HTTP Basic Auth header parsing.
-// Ignores whitespace and silently drops malformed trailing groups.
-//
-static std::string Base64Decode(const std::string &in)
-{
-   static const signed char tbl[256] = {
-      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, // 0x00
-      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, // 0x10
-      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63, // 0x20  + /
-      52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-2,-1,-1, // 0x30  0-9  (=→-2)
-      -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14, // 0x40  A-O
-      15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1, // 0x50  P-Z
-      -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40, // 0x60  a-o
-      41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1, // 0x70  p-z
-   };
-   std::string out;
-   out.reserve((in.size() * 3) / 4);
-   unsigned acc = 0;
-   int bits = 0;
-   for (unsigned char c : in)
-       {signed char v = (c < 128) ? tbl[c] : -1;
-        if (v == -1) continue;        // whitespace or unknown → skip
-        if (v == -2) break;           // padding '=' → done
-        acc = (acc << 6) | (unsigned)v;
-        bits += 6;
-        if (bits >= 8) {bits -= 8; out += (char)((acc >> bits) & 0xFF);}
-       }
-   return out;
-}
 
 // Constant-time string comparison — resists timing side-channels on secret comparison.
 //
@@ -319,7 +290,9 @@ int XrdHttpMetricsExporter::ProcessReq(XrdHttpExtReq &req)
            // HTTP Basic: Authorization: Basic base64(user:password)
            if (!authed && !cfg.authPassword.empty() && hval.size() > 6 &&
                !strncasecmp(hval.c_str(), "basic ", 6))
-              {std::string decoded = Base64Decode(hval.substr(6));
+              {std::vector<uint8_t> raw;
+               base64ToBytes(hval.substr(6), raw);
+               std::string decoded(raw.begin(), raw.end());
                auto colon = decoded.find(':');
                if (colon != std::string::npos)
                   authed = TimingSafeEqual(decoded.substr(colon + 1), cfg.authPassword);
