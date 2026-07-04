@@ -1190,6 +1190,13 @@ int XrdXrootdProtocol::do_Login()
    Entity.addrInfo = Link->AddrInfo();
    Client = &Entity;
 
+// Format the numeric client address for monitoring (no DNS lookup)
+//
+   char ipBuff[64] = "";
+   if (Monitor.Ready())
+      addrP->Format(ipBuff, sizeof(ipBuff), XrdNetAddrInfo::fmtAddr,
+                    XrdNetAddrInfo::prefipv4 | XrdNetAddrInfo::noPortRaw);
+
 // Check if we need to process a login environment
 //
    if (Request.login.dlen > 8)
@@ -1207,14 +1214,14 @@ int XrdXrootdProtocol::do_Login()
            locInfo.TimeZone = tzNum & 0xff;
            Link->setLocation(locInfo);
           }
-       if (Monitor.Ready() && (appXQ || aInfo || sName))
+       if (Monitor.Ready())
           {char apBuff[1024], sBuff[64];
            snprintf(sBuff, sizeof(sBuff), "%s", (sName ? sName : ""));
            for (char *cP = sBuff; *cP; cP++)
                if (!isalnum((unsigned char)*cP) && !strchr("_-:", *cP))
                   *cP = '.';
-           snprintf(apBuff, sizeof(apBuff), "&I=%c&S=%s&R=%s&x=%s&y=%s",
-                    (clientPV & XrdOucEI::uIPv4 ? '4' : '6'), sBuff,
+           snprintf(apBuff, sizeof(apBuff), "&a=%s&I=%c&S=%s&R=%s&x=%s&y=%s",
+                    ipBuff, (clientPV & XrdOucEI::uIPv4 ? '4' : '6'), sBuff,
                     (rnumb ? rnumb : ""),
                     (appXQ ? appXQ : ""), (aInfo ? aInfo : ""));
            Entity.moninfo = strdup(apBuff);
@@ -1228,6 +1235,12 @@ int XrdXrootdProtocol::do_Login()
           }
        if (appXQ) AppName = strdup(appXQ);
       }
+      else if (Monitor.Ready())
+              {char apBuff[80];
+               snprintf(apBuff, sizeof(apBuff), "&a=%s&I=%c", ipBuff,
+                        (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
+               Entity.moninfo = strdup(apBuff);
+              }
 
 // Allocate a monitoring object, if needed for this connection
 //
@@ -4356,7 +4369,9 @@ void XrdXrootdProtocol::MonAuth()
       else {const char *mInfo = (Entity.moninfo ? Entity.moninfo : "");
             char iBuff[8] = "";
             int hLen = 0;
-            if (!strncmp(mInfo, "&I=", 3)) hLen = 1 + strcspn(mInfo+1, "&");
+            if (!strncmp(mInfo, "&a=", 3)) hLen = 1 + strcspn(mInfo+1, "&");
+            if (!strncmp(mInfo+hLen, "&I=", 3))
+               hLen += 1 + strcspn(mInfo+hLen+1, "&");
                else snprintf(iBuff, sizeof(iBuff), "&I=%c",
                              (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
             if (!strncmp(mInfo+hLen, "&S=", 3))
