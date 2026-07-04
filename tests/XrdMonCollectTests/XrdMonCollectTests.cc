@@ -4,6 +4,7 @@
 // src/XrdXrootd/XrdXrootdMonData.hh.
 //------------------------------------------------------------------------------
 
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -72,6 +73,15 @@ std::vector<unsigned char> todRec(int32_t tEnd, int64_t sID)
 const int32_t kStod  = 1700000000;
 const int32_t kOpenT = 1700000000;
 const int32_t kCloseT= 1700000082;
+
+// ::testing::TempDir() is not public in the GoogleTest shipped with EL8.
+std::string tempDir()
+{
+   const char* dir = std::getenv("TMPDIR");
+   std::string path = (dir && *dir) ? dir : "/tmp";
+   if (path.back() != '/') path += '/';
+   return path;
+}
 }
 
 // Build: 'u' user map, then 'f' open, then 'f' close -> one transfer doc.
@@ -635,7 +645,7 @@ void feedActivity(XrdMonDecode& dec, int expId, int actId)
 // Write a SciTags registry JSON to a temp file; return its path.
 std::string writeScitags(const std::string& name, const std::string& body)
 {
-   std::string path = std::string(::testing::TempDir()) + "/" + name;
+   std::string path = tempDir() + name;
    std::ofstream(path) << body;
    return path;
 }
@@ -1750,7 +1760,7 @@ TEST(XrdMonCollect, GStreamThrottleAndHttpMetrics)
 class StateFile : public Transfer
 {
 protected:
-  std::string path = ::testing::TempDir() + "xrdmon-state-" +
+  std::string path = tempDir() + "xrdmon-state-" +
                      std::to_string(::getpid()) + ".json";
   void TearDown() override {::unlink(path.c_str());}
 };
