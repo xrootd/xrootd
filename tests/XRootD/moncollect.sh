@@ -273,13 +273,14 @@ function test_moncollect() {
 
 	# As with the open failure, verify the specific reason on a single document:
 	# the readv-past-EOF close must report category "read" with the server's
-	# "illegal seek" reason (kXR_FSError = 3005), not just any error.
+	# ESPIPE reason (kXR_FSError = 3005), not just any error. The strerror text
+	# differs by libc: "illegal seek" (glibc) vs "invalid seek" (musl).
 	readv_doc=$(grep -E '"xrootd.app.name":"xrdreadv-eof"' "${COLLECTOR_OUT}" \
 		| grep -E '"xrootd.operation_state":"Failed"' | head -n1)
 	test -n "${readv_doc}" || error "no failed-readv transfer document found"
 	assert grep -Eq '"error.type":"read"' <<<"${readv_doc}"
 	assert grep -Eq '"xrootd.error.code":3005' <<<"${readv_doc}"
-	assert grep -Eq '"error.message":"Unable to readv[^"]*illegal seek"' \
+	assert grep -Eq '"error.message":"Unable to readv[^"]*(illegal|invalid) seek"' \
 		<<<"${readv_doc}"
 
 	# 4. A lock-denied open: a second writer of an already-open file is rejected
