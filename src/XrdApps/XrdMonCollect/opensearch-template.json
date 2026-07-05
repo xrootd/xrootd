@@ -30,7 +30,12 @@
         "eventName":            { "type": "keyword" },
         "traceId":              { "type": "keyword" },
         "spanId":               { "type": "keyword" },
-        "scope": { "properties": { "name": { "type": "keyword" } } },
+        "scope": {
+          "properties": {
+            "name":    { "type": "keyword" },
+            "version": { "type": "keyword" }
+          }
+        },
 
         "resource": {
           "properties": {
@@ -77,16 +82,25 @@
             "client":  { "properties": { "address": { "type": "keyword" } } },
             "network": {
               "properties": {
-                "type":     { "type": "keyword" },
-                "peer":     { "properties": { "address": { "type": "keyword" } } },
-                "protocol": { "properties": { "name":    { "type": "keyword" } } }
+                "type":      { "type": "keyword" },
+                "transport": { "type": "keyword" },
+                "peer":      { "properties": { "address": { "type": "keyword" } } },
+                "protocol":  { "properties": { "name":    { "type": "keyword" } } }
               }
             },
-            "url": { "properties": { "scheme": { "type": "keyword" } } },
+            "url":     { "properties": { "scheme": { "type": "keyword" } } },
+            "session": { "properties": { "id":     { "type": "keyword" } } },
+            "user_agent": {
+              "properties": {
+                "name":    { "type": "keyword" },
+                "version": { "type": "keyword" }
+              }
+            },
             "user": {
               "properties": {
-                "name": { "type": "keyword" },
-                "id":   { "type": "keyword", "ignore_above": 2048 }
+                "name":  { "type": "keyword" },
+                "id":    { "type": "keyword", "ignore_above": 2048 },
+                "roles": { "type": "keyword" }
               }
             },
             "error": {
@@ -97,7 +111,6 @@
             "wlcg": {
               "properties": {
                 "vo":     { "type": "keyword" },
-                "role":   { "type": "keyword" },
                 "groups": { "type": "keyword" }
               }
             },
@@ -121,8 +134,7 @@
                 "auth":   { "properties": { "method": { "type": "keyword" } } },
                 "client": {
                   "properties": {
-                    "version": { "type": "keyword" },
-                    "site":    { "type": "keyword" }
+                    "site": { "type": "keyword" }
                   }
                 },
                 "app": {

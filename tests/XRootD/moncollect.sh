@@ -250,7 +250,7 @@ function test_moncollect() {
 	if [ "${MONCOLLECT_VOMS}" = 1 ]; then
 		drive_until '"wlcg.vo":"dteam"' "VO surfaced on transfer document" \
 			"xrdcp -f '${TMPDIR}/ok.ref' '${HOST}/${TMPDIR}/ok.ref'"
-		assert grep -Eq '"wlcg.role":"production"' "${COLLECTOR_OUT}"
+		assert grep -Eq '"user.roles":\["production"\]' "${COLLECTOR_OUT}"
 	fi
 
 	# 2. A failed open: reading a nonexistent file fails before any close, so

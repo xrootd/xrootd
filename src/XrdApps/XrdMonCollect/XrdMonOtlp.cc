@@ -19,6 +19,8 @@
 /* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
 /******************************************************************************/
 
+#include "XrdVersion.hh"
+
 #include "XrdApps/XrdMonCollect/XrdMonOtlp.hh"
 
 using json = nlohmann::json;
@@ -29,10 +31,14 @@ using json = nlohmann::json;
 
 namespace
 {
+const char* const kScopeVersion = XrdVERSION;
+
 // Encode one JSON scalar (or, as a fallback, a nested value) as an OTLP AnyValue.
-// 64-bit integers are strings per proto3 JSON; nested objects/arrays are encoded
-// as their JSON text under stringValue (a pragmatic choice that keeps the export
-// flat and lossless without an explicit kvlist/array mapping).
+// 64-bit integers are strings per proto3 JSON; arrays of scalars (e.g. the
+// semconv user.roles string array) become a proper arrayValue; nested objects
+// (and arrays holding objects) are encoded as their JSON text under stringValue
+// (a pragmatic choice that keeps the export flat and lossless without an
+// explicit kvlist mapping).
 //
 json toAnyValue(const json& v)
 {
@@ -43,6 +49,16 @@ json toAnyValue(const json& v)
    if (v.is_number_integer())
       return json{{"intValue", std::to_string(v.get<std::int64_t>())}};
    if (v.is_number_float())     return json{{"doubleValue", v.get<double>()}};
+   if (v.is_array())
+      {bool scalars = true;
+       for (const json& e : v)
+           if (e.is_structured()) {scalars = false; break;}
+       if (scalars)
+          {json vals = json::array();
+           for (const json& e : v) vals.push_back(toAnyValue(e));
+           return json{{"arrayValue", json{{"values", std::move(vals)}}}};
+          }
+      }
    return json{{"stringValue", v.dump()}};
 }
 
@@ -134,7 +150,8 @@ std::string XrdMonOtlpBatch::takeBody(std::map<std::string, Group>& groups,
    json blocks = json::array();
    for (auto& kv : groups)
        {json scope;
-        scope["scope"]["name"] = "xrdmoncollect";
+        scope["scope"]["name"]    = "xrdmoncollect";
+        scope["scope"]["version"] = kScopeVersion;
         scope[recordsKey]      = std::move(kv.second.records);
 
         json block;

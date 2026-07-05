@@ -31,6 +31,8 @@
 
 #include <unistd.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdApps/XrdMonCollect/XrdMonDecode.hh"
 #include "XrdMetrics/XrdMetricsRegistry.hh"
 #include "XrdNet/XrdNetAddr.hh"
@@ -474,7 +476,8 @@ void XrdMonDecode::otelResource(json& j, const std::string& src, int32_t stod,
 void XrdMonDecode::otelBegin(json& j, const char* eventName, int32_t tSecs,
                              bool error)
 {
-   j["scope"]["name"] = "xrdmoncollect";
+   j["scope"]["name"]    = "xrdmoncollect";
+   j["scope"]["version"] = XrdVERSION;
    if (tSecs > 0)
       {j["@timestamp"]   = isoTime(tSecs);
        j["timeUnixNano"] = unixNano(tSecs);
@@ -577,9 +580,15 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
        if (!caddr.empty())
           {a["client.address"] = caddr;
            if (!cip.empty() && cip != caddr) a["network.peer.address"] = cip;
+           a["network.transport"] = "tcp";   // all XRootD/HTTP traffic is TCP
            if      (u.ipVersion == 4) a["network.type"] = "ipv4";
            else if (u.ipVersion == 6) a["network.type"] = "ipv6";
-           if (!u.clientVer.empty()) a["xrootd.client.version"] = u.clientVer;
+           // The login '&R=' release identifies the client software: semconv
+           // user_agent.name/.version (any client software, not just HTTP).
+           if (!u.clientVer.empty())
+              {a["user_agent.name"]    = "xrootd";
+               a["user_agent.version"] = u.clientVer;
+              }
            if (!u.site.empty())      a["xrootd.client.site"]    = u.site;
           }
        // Application info: structured (&x=/&y=) plus the raw 'i' blob, the
@@ -593,8 +602,10 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
               a["xrootd.app.raw"] = iit->second.val;
           }
        // VO/role/groups: prefer the token ('T'); fall back to the auth CGI.
+       // The role lives in the semconv user.roles (a string array); VO and
+       // groups have no semconv home and stay under wlcg.*.
        if (!u.vo.empty())     {vo = u.vo;         a["wlcg.vo"]     = u.vo;}
-       if (!u.role.empty())   a["wlcg.role"]   = u.role;
+       if (!u.role.empty())   a["user.roles"]  = json::array({u.role});
        if (!u.groups.empty()) a["wlcg.groups"] = u.groups;
       }
 
@@ -606,7 +617,7 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
        Touch(t.lru);
        if (!t.subject.empty()) a["user.id"]     = t.subject;
        if (!t.vo.empty())     {vo = t.vo;        a["wlcg.vo"]     = t.vo;}
-       if (!t.role.empty())    a["wlcg.role"]   = t.role;
+       if (!t.role.empty())    a["user.roles"]  = json::array({t.role});
        if (!t.groups.empty())  a["wlcg.groups"] = t.groups;
       }
    auto ait = srv.activity.find(userID);
@@ -1667,6 +1678,7 @@ void XrdMonDecode::EmitDisc(const std::string& src, int32_t stod, Server& srv,
    std::string sess = sessKey(src, stod, userID);
    j["traceId"] = traceIdOf(sess);
    j["spanId"]  = spanIdOf(sess + "|session");
+   a["session.id"] = j["traceId"];   // semconv: queryable session correlator
 
    if (metrics)
       metrics->counterSeries("sessions_total",
@@ -1782,6 +1794,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    j["traceId"] = traceIdOf(sessKey(src, stod, openUser));
    j["spanId"]  = spanIdOf(src + "|" + std::to_string(stod)
                               + "|f" + std::to_string(fileID));
+   a["session.id"] = j["traceId"];   // semconv: queryable session correlator
 
 // Fold this close into its session rollup (emitted in the 'session' document at
 // disconnect). Only possible when the open was joined, which carries the user.
@@ -1958,6 +1971,7 @@ void XrdMonDecode::EmitError(const std::string& src, int32_t stod, Server& srv,
    std::string sess = sessKey(src, stod, user);
    j["traceId"] = traceIdOf(sess);
    j["spanId"]  = spanIdOf(sess + "|err|" + std::to_string(tWin));
+   a["session.id"] = j["traceId"];   // semconv: queryable session correlator
 
    if (metrics)
       metrics->counterSeries("failed_operations_total",
@@ -2377,6 +2391,7 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
              std::string sess = sessKey(src, stod, did);
              j["traceId"] = traceIdOf(sess);
              j["spanId"]  = spanIdOf(sess + "|redir|" + std::to_string(tWin));
+             a["session.id"] = j["traceId"];   // semconv session correlator
 
              stats.docs++;
              if (doc) doc(j.dump());

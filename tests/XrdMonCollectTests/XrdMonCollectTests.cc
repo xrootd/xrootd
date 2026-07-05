@@ -171,6 +171,11 @@ TEST_F(Transfer, CorrelatesCloseWithOpenAndUser)
   EXPECT_EQ(j["attributes"]["file.size"], 123456);
   EXPECT_EQ(j["attributes"]["xrootd.transfer.duration"], kCloseT - kOpenT);
   EXPECT_EQ(j["resource"]["xrootd.server.id"], 42);
+  // semconv session correlator: the attribute mirrors the session traceId.
+  EXPECT_EQ(j["attributes"]["session.id"], j["traceId"]);
+  EXPECT_EQ(j["attributes"]["network.transport"], "tcp");
+  EXPECT_EQ(j["scope"]["name"], "xrdmoncollect");
+  EXPECT_TRUE(j["scope"].contains("version"));
 
   const XrdMonDecode::Stats& s = dec.GetStats();
   EXPECT_EQ(s.docs, 1u);
@@ -657,7 +662,7 @@ TEST_F(Transfer, TokenAndActivityEnrichTransfer)
   json j = json::parse(lastDoc);
   EXPECT_EQ(j["attributes"]["user.id"], "https://issuer/sub42");
   EXPECT_EQ(j["attributes"]["wlcg.vo"], "atlas");
-  EXPECT_EQ(j["attributes"]["wlcg.role"], "production");
+  EXPECT_EQ(j["attributes"]["user.roles"], json::array({"production"}));
   EXPECT_EQ(j["attributes"]["wlcg.groups"], "/atlas/prod");
   EXPECT_EQ(j["attributes"]["scitags.experiment_id"], 42);
   EXPECT_EQ(j["attributes"]["scitags.activity_id"], 7);
@@ -827,8 +832,8 @@ TEST_F(Transfer, AuthTailEnrichesTransfer)
   json j = json::parse(lastDoc);
   EXPECT_EQ(j["attributes"]["xrootd.auth.method"], "gsi");
   EXPECT_EQ(j["attributes"]["wlcg.vo"], "atlas");   // auth-derived VO (no token here)
-  EXPECT_EQ(j["attributes"]["wlcg.role"], "production");
-  EXPECT_EQ(j["attributes"]["xrootd.client.version"], "v5.6.1");
+  EXPECT_EQ(j["attributes"]["user.roles"], json::array({"production"}));
+  EXPECT_EQ(j["attributes"]["user_agent.version"], "v5.6.1");
   EXPECT_EQ(j["attributes"]["network.type"], "ipv4");
   EXPECT_EQ(j["attributes"]["xrootd.app.name"], "xrdcp");
   EXPECT_EQ(j["attributes"]["client.address"], "198.51.100.7");
@@ -910,7 +915,7 @@ TEST_F(Transfer, NoAuthLoginAppinfoStillEnriches)
 
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["attributes"]["xrootd.client.version"], "v5.6.1");
+  EXPECT_EQ(j["attributes"]["user_agent.version"], "v5.6.1");
   EXPECT_EQ(j["attributes"]["network.type"], "ipv6");
   EXPECT_FALSE(j["attributes"].contains("xrootd.auth.method"));  // no &p= without auth
   EXPECT_FALSE(j["attributes"].contains("wlcg.vo"));             // no &o= and no token
@@ -928,7 +933,7 @@ TEST_F(Transfer, ClientSiteAdvertised)
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
   EXPECT_EQ(j["attributes"]["xrootd.client.site"], "CERN-PROD");
-  EXPECT_EQ(j["attributes"]["xrootd.client.version"], "v5.6.1");  // neighbouring fields intact
+  EXPECT_EQ(j["attributes"]["user_agent.version"], "v5.6.1");  // neighbouring fields intact
   EXPECT_EQ(j["attributes"]["xrootd.app.name"], "xrdcp");
 }
 

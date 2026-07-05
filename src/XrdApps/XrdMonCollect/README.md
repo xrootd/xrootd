@@ -334,7 +334,10 @@ Several opt-in streams add finer-grained events:
   client session `src|stod|user`, the span by the file id), so the span document
   simply re-frames the same identity with the OTLP span fields (`name`, `kind`,
   `startTimeUnixNano`/`endTimeUnixNano`, `status`, `parentSpanId`) for a tracing
-  backend. **Off by default**; like the logs it can be high volume.
+  backend. The same session identity is also emitted as the semconv
+  `session.id` attribute, so log stores without a tracing UI (Loki structured
+  metadata, OpenSearch) can group a session's documents directly.
+  **Off by default**; like the logs it can be high volume.
 - `--traces` turns each `t` (I/O trace) record into a document
   (`attributes["event.name"]` = `xrootd.read`/`xrootd.write` with
   `xrootd.io.offset`, `xrootd.io.length` and the resolved `file.path`,
@@ -386,7 +389,7 @@ records are also always consumed:
   collector emits the document only when it changes.
 - `T` (`MAPTOKN`) carries the token identity (subject, VO, role, groups). Keyed
   by the user dictid, it joins onto each transfer as `user.id`, `wlcg.vo`,
-  `wlcg.role`, `wlcg.groups`, and drives
+  `user.roles`, `wlcg.groups`, and drives
   `xrootd_collector_vo_transfers_total{server,vo}`. `wlcg.vo` comes from the
   token when present, else from the auth CGI `&o=` — but only for methods that
   can actually convey a VO (gsi with VOMS, sss, ztn, http/https); a `&o=` from
@@ -471,12 +474,14 @@ event-level `attributes` object. One object per file close, for example:
     "client.address": "wn.example.org",
     "network.peer.address": "192.0.2.17",
     "network.type": "ipv4",
+    "network.transport": "tcp",
     "network.protocol.name": "xroot",
+    "session.id": "9f1c8b0d4e2a6f37c1a8b0d4e2a6f371",
     "user.name": "alice",
     "user.id": "https://issuer/sub42",
-    "wlcg.vo": "atlas", "wlcg.role": "production", "wlcg.groups": "/atlas/prod",
+    "wlcg.vo": "atlas", "user.roles": ["production"], "wlcg.groups": "/atlas/prod",
     "xrootd.auth.method": "gsi",
-    "xrootd.client.version": "v5.6.1",
+    "user_agent.name": "xrootd", "user_agent.version": "v5.6.1",
     "xrootd.client.site": "client-site",
     "xrootd.app.name": "xrdcp",
     "xrootd.operation.name": "read",
@@ -512,13 +517,13 @@ on the wire. Mapping (and the server config each needs):
 | server_name/site | `server.address` / `xrootd.server.site` | `=` ident (`all.sitename`/`XRDSITE` for site) |
 | server_ip / hostname | `server.address` | `=` ident, else UDP source (loopback → public address / local FQDN) |
 | client_ip / hostname | `client.address` (name first) / `network.peer.address` (IP) | `u` descriptor (server DNS config) / login CGI `&a=` (numeric IP, 6.x+) |
-| client_version | `xrootd.client.version` | login appinfo (`&R=`) |
+| client_version | `user_agent.version` (with `user_agent.name` = `xrootd`) | login appinfo (`&R=`) |
 | ip_version | `network.type` (`ipv4`/`ipv6`) | login appinfo (`&I=`) |
 | client_site | `xrootd.client.site` | login appinfo (`&S=`, client `XRDSITE`/`XRD_SITE`) |
 | auth_method | `xrootd.auth.method` | **`… auth`** |
 | user | `user.name` / `user.id` | `u` / `T` token |
 | vo | `wlcg.vo` | `T` token, else `… auth` (`&o=` from a VO-bearing method: gsi/sss/ztn/http(s)) |
-| activity | `scitags.experiment`/`scitags.activity` (names), `scitags.*_id` (numeric), `wlcg.role` | `U` SciTags + `--scitags` registry; `T` token for role |
+| activity | `scitags.experiment`/`scitags.activity` (names), `scitags.*_id` (numeric), `user.roles` | `U` SciTags + `--scitags` registry; `T` token for role |
 | start_time / end_time | `xrootd.transfer.start_time` / `.end_time` | f-stream `FileTOD` window |
 | bytes | `xrootd.transfer.{read,readv,write}_bytes` | `fstat … xfr` |
 | is_local (LAN/WAN) | `xrootd.transfer.is_local` | derived: client vs server domain (needs `=` ident) |
