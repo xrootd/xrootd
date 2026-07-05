@@ -465,6 +465,7 @@ event-level `attributes` object. One object per file close, for example:
     "client.address": "wn.example.org",
     "network.peer.address": "192.0.2.17",
     "network.type": "ipv4",
+    "network.protocol.name": "xroot",
     "user.name": "alice",
     "user.id": "https://issuer/sub42",
     "wlcg.vo": "atlas", "wlcg.role": "production", "wlcg.groups": "/atlas/prod",
@@ -527,6 +528,13 @@ server puts in the login CGI (`&a=`, XRootD 6.x+) is kept as
 an older server). The client's port is never reported: it is not on the
 monitoring wire (the `&a=` CGI strips it by construction, and the
 descriptor's `:<n>` field is a server-side file descriptor, not a port).
+
+The client's access protocol (the descriptor's `<prot>` field) travels as
+`network.protocol.name` (`xroot`, `http`); a session that came in over the
+HTTP bridge additionally carries `url.scheme` (`http`/`https`). Per-request
+HTTP detail (method, status code) is not on the monitoring wire — the `http`
+g-stream reports only cumulative per-method/status counters, which feed the
+aggregated `xrootd_collector_http_requests_total` metric.
 
 `server.address` is the single canonical server-name field. Its precedence
 is: the host advertised on the `=` ident stream (when it is a real name, not

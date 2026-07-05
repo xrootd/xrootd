@@ -543,7 +543,15 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
       {const UserInfo& u = uit->second;
        Touch(u.lru);   // a referenced session is active: keep it warm
        if (!u.user.empty())       a["user.name"]            = u.user;
-       if (!u.prot.empty())       a["xrootd.user.protocol"] = u.prot;
+       // Access protocol (descriptor prot): semconv network.protocol.name,
+       // plus url.scheme when the session came in over HTTP(S).
+       if (!u.prot.empty())
+          {if (u.prot == "http" || u.prot == "https")
+              {a["url.scheme"]           = u.prot;
+               a["network.protocol.name"] = "http";
+              }
+              else a["network.protocol.name"] = u.prot;
+          }
        if (!u.authMethod.empty()) a["xrootd.auth.method"]   = u.authMethod;
        // Client endpoint: semconv wants client.address to carry the resolved
        // name, with the IP only as a fallback. The name is the descriptor
@@ -1499,7 +1507,7 @@ void XrdMonDecode::DecodeFrm(const std::string& src, int32_t stod, Server& srv,
    auto slash = who.find('/');
    auto at    = who.rfind('@');
    if (slash != std::string::npos)
-      {a["xrootd.user.protocol"] = who.substr(0, slash);
+      {a["network.protocol.name"] = who.substr(0, slash);
        std::string r = who.substr(slash + 1);
        a["user.name"] = r.substr(0, r.find('.'));
       }

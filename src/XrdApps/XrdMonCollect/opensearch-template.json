@@ -76,10 +76,12 @@
             "client":  { "properties": { "address": { "type": "keyword" } } },
             "network": {
               "properties": {
-                "type": { "type": "keyword" },
-                "peer": { "properties": { "address": { "type": "keyword" } } }
+                "type":     { "type": "keyword" },
+                "peer":     { "properties": { "address": { "type": "keyword" } } },
+                "protocol": { "properties": { "name":    { "type": "keyword" } } }
               }
             },
+            "url": { "properties": { "scheme": { "type": "keyword" } } },
             "user": {
               "properties": {
                 "name": { "type": "keyword" },
@@ -116,11 +118,6 @@
                 },
                 "dataset":         { "type": "keyword" },
                 "auth":   { "properties": { "method": { "type": "keyword" } } },
-                "user": {
-                  "properties": {
-                    "protocol": { "type": "keyword" }
-                  }
-                },
                 "client": {
                   "properties": {
                     "version": { "type": "keyword" },

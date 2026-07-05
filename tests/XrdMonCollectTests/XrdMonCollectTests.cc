@@ -156,7 +156,8 @@ TEST_F(Transfer, CorrelatesCloseWithOpenAndUser)
   EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "transfer");
   EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");
   EXPECT_EQ(j["attributes"]["user.name"], "alice");
-  EXPECT_EQ(j["attributes"]["xrootd.user.protocol"], "xroot");
+  EXPECT_EQ(j["attributes"]["network.protocol.name"], "xroot");
+  EXPECT_FALSE(j["attributes"].contains("url.scheme"));   // not an HTTP session
   EXPECT_EQ(j["attributes"]["client.address"], "wn.example.org");
   EXPECT_EQ(j["attributes"]["xrootd.transfer.read_bytes"], 10485760);
   EXPECT_EQ(j["attributes"]["xrootd.operation.name"], "read");
@@ -827,6 +828,25 @@ TEST_F(Transfer, AuthTailEnrichesTransfer)
   EXPECT_EQ(j["attributes"]["network.type"], "ipv4");
   EXPECT_EQ(j["attributes"]["xrootd.app.name"], "xrdcp");
   EXPECT_EQ(j["attributes"]["client.address"], "198.51.100.7");
+}
+
+// An HTTP(S) session (descriptor prot "https") surfaces the semconv
+// url.scheme, with network.protocol.name normalized to "http".
+TEST_F(Transfer, HttpSessionGetsUrlScheme)
+{
+  W body; body.u32(7);
+  std::string info = "https/alice.123:4@wn.example.org\n&p=ztn&I=4";
+  std::vector<unsigned char> pl = body.b;
+  pl.insert(pl.end(), info.begin(), info.end());
+  auto pkt = packet('u', kStod, pl);
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["attributes"]["url.scheme"], "https");
+  EXPECT_EQ(j["attributes"]["network.protocol.name"], "http");
 }
 
 // client.address is name-first (semconv): the server-resolved descriptor host
