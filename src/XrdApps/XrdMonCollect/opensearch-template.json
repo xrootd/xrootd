@@ -87,8 +87,7 @@
             },
             "error": {
               "properties": {
-                "type":    { "type": "keyword" },
-                "message": { "type": "keyword", "ignore_above": 2048 }
+                "type": { "type": "keyword", "ignore_above": 2048 }
               }
             },
             "wlcg": {
@@ -108,8 +107,12 @@
             },
             "xrootd": {
               "properties": {
-                "operation":       { "type": "keyword" },
-                "operation_state": { "type": "keyword" },
+                "operation": {
+                  "properties": {
+                    "name":  { "type": "keyword" },
+                    "state": { "type": "keyword" }
+                  }
+                },
                 "dataset":         { "type": "keyword" },
                 "auth":   { "properties": { "method": { "type": "keyword" } } },
                 "user": {

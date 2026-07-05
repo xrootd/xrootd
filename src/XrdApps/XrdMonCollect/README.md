@@ -313,7 +313,7 @@ Several opt-in streams add finer-grained events:
   (`xrootd.session.files`, `.transfers`, `.accesses`, `.read_bytes`,
   `.write_bytes`, `.errors`, `.start_time`/`.end_time`/`.duration`) and a capped
   `xrootd.session.recent_files` list (the most recent closed files, each with
-  `file.path`, `xrootd.transfer.kind`, `xrootd.operation`, `xrootd.bytes`). The
+  `file.path`, `xrootd.transfer.kind`, `xrootd.operation.name`, `xrootd.bytes`). The
   totals cover every closed file; only the `recent_files` list is bounded, so a
   long session (a batch job opening many files in a dataset) stays
   memory-bounded. A client that hits an error and disconnects therefore yields
@@ -347,14 +347,14 @@ Several opt-in streams add finer-grained events:
   `tcpmon` are forwarded only.
 - The `x` (FRM stage/migrate) and `p` (FRM purge) records are always decoded
   into an `frm` document (`attributes["event.name"]` = `xrootd.frm`;
-  `xrootd.operation`, `user.name`, `file.path`, and — for purge — `file.size`)
+  `xrootd.operation.name`, `user.name`, `file.path`, and — for purge — `file.size`)
   and counted in `xrootd_collector_frm_total{server,op}` /
   `xrootd_collector_frm_purge_bytes_total`. Emitted by a File Residency
   Manager.
 - `--redirects` turns each `r` (redirect) record into a concluded-operation
   document: an `attributes["event.name"]` = `xrootd.transfer` report with
-  `attributes["xrootd.transfer.kind"]` `"transfer"` and `xrootd.operation_state`
-  `"Redirected"`, the triggering `xrootd.operation`, the destination
+  `attributes["xrootd.transfer.kind"]` `"transfer"` and `xrootd.operation.state`
+  `"Redirected"`, the triggering `xrootd.operation.name`, the destination
   (`xrootd.redirect.kind`, `xrootd.redirect.target.address`,
   `xrootd.redirect.target.port`), the redirected `file.path`, and the joined
   user/client attributes. A redirect concludes the operation from the
@@ -469,8 +469,8 @@ event-level `attributes` object. One object per file close, for example:
     "xrootd.client.version": "v5.6.1",
     "xrootd.client.site": "client-site",
     "xrootd.app.name": "xrdcp",
-    "xrootd.operation": "read",
-    "xrootd.operation_state": "Successful",
+    "xrootd.operation.name": "read",
+    "xrootd.operation.state": "Successful",
     "xrootd.transfer.start_time": "2026-07-02T09:55:32Z",
     "xrootd.transfer.duration": 300,
     "xrootd.transfer.read_bytes": 1073741824,
@@ -495,10 +495,10 @@ on the wire. Mapping (and the server config each needs):
 | :-- | :-- | :-- |
 | file_name | `file.path` (+ `file.name`/`file.directory`) | `fstat … lfn` |
 | dataset | `xrootd.dataset` | `--dataset <regex>` capture on `file.path` |
-| operation_type | `xrootd.operation` (`read`/`write`) | `fstat … xfr` |
-| operation_state | `xrootd.operation_state` (`Successful`/`Failed`/`Redirected`) | `fstat` (terminal report); `Redirected` from `r` with `--redirects` |
-| error_message | `error.message` | `fstat` (failed open / I/O / close) |
-| error_category | `error.type` + `xrootd.error.code` | `fstat` (failed open / I/O / close) |
+| operation_type | `xrootd.operation.name` (`read`/`write`) | `fstat … xfr` |
+| operation_state | `xrootd.operation.state` (`Successful`/`Failed`/`Redirected`) | `fstat` (terminal report); `Redirected` from `r` with `--redirects` |
+| error_message | `error.type` | `fstat` (failed open / I/O / close) |
+| error_category | `xrootd.operation.name` + `xrootd.error.code` | `fstat` (failed open / I/O / close) |
 | server_name/site | `server.address` / `xrootd.server.site` | `=` ident (`all.sitename`/`XRDSITE` for site) |
 | server_ip / hostname | `server.address` | `=` ident, else UDP source (loopback → public address / local FQDN) |
 | client_ip / hostname | `client.address` (name first) / `network.peer.address` (IP) | `u` descriptor (server DNS config) / login CGI `&a=` (numeric IP, 6.x+) |
@@ -553,11 +553,16 @@ server share a registered domain (the part after the first host label),
 the server host is unknown (no `=` ident yet). It also drives
 `xrootd_collector_locality_transfers_total{server,locality}`.
 
-`xrootd.operation_state` is the authoritative success/failure of the
+`xrootd.operation.state` is the authoritative success/failure of the
 operation: a plain close reports `Successful`, while a failed open, a
-mid-transfer read/write error, or a failed close reports `Failed` together with
-`error.type` (`open`/`read`/`write`/`close`/`auth`),
-`xrootd.error.code` (the XRootD error code), and `error.message`. A
+mid-transfer read/write error, or a failed close reports `Failed` together
+with `xrootd.operation.name` (the operation that failed:
+`open`/`read`/`write`/`close`/`auth`; named after semconv's
+`nfs.operation.name`), `xrootd.error.code` (the XRootD error code), and
+`error.type` (the server's error message). On a failed *close* the record
+keeps its byte-derived `read`/`write` operation name — the error-category
+byte still drives the
+`xrootd_collector_failed_operations_total{server,category}` metric label. A
 failed open never produced any close record before; the server now emits a
 terminal `isError` f-stream record, and sets `hasERR` on the close for a failed
 close or a terminal `read`/`readv`/`pgread`/`write`/`writev`/`pgwrite` error
@@ -565,11 +570,10 @@ recorded during the session (the common "readv past EOF" surfaces as a `read`
 failure). The `isError` record covers open failures reported synchronously
 (`fsError`), asynchronously (the deferred-open callback), and the early `do_Open`
 denials that bypass `fsError` — notably a second writer rejected with
-`kXR_FileLocked`. All are keyed on
-`xrootd_collector_failed_operations_total{server,category}`. This requires only
+`kXR_FileLocked`. This requires only
 the existing `fstat` setup — no extra directive. A disconnect-driven
 (`xrootd.transfer.forced_close`) close is **not** a failure unless an error was
-actually recorded. The `error.message` is the server's own SFS reason verbatim
+actually recorded. The `error.type` is the server's own SFS reason verbatim
 (e.g. `Unable to open …; no such file or directory` for a missing file); the
 `XRootD::moncollect` test asserts that specific reason per-document for both a
 failed open and the readv-past-EOF case.

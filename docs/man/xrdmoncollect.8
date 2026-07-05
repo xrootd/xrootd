@@ -52,11 +52,12 @@ copies from finer-grained remote data access; the two are also counted in
 \fBxrootd_collector_transfers_total\fR and \fBxrootd_collector_accesses_total\fR.
 .P
 A transfer document also carries the terminal status of the operation in
-\fBxrootd.operation_state\fR: a normal close reports \fBSuccessful\fR, while a
+\fBxrootd.operation.state\fR: a normal close reports \fBSuccessful\fR, while a
 failed open, a mid-transfer read/write error, or a failed close reports
-\fBFailed\fR together with \fBerror.type\fR
+\fBFailed\fR together with \fBxrootd.operation.name\fR
 (\fBopen\fR, \fBread\fR, \fBwrite\fR, \fBclose\fR, or \fBauth\fR),
-\fBxrootd.error.code\fR, and \fBerror.message\fR. Failed opens, which
+\fBxrootd.error.code\fR, and the server's error message in
+\fBerror.type\fR. Failed opens, which
 produce no close record, are reported by the server as a dedicated terminal
 record on the \fIf\fR-stream; mid-transfer and close failures travel with the
 close record itself. A redirect (\fIr\fR-stream, with \fB--redirects\fR) is a
@@ -72,7 +73,7 @@ every file close that named the user is folded into running totals
 (\fBxrootd.session.files\fR, \fB.transfers\fR, \fB.accesses\fR,
 \fB.read_bytes\fR, \fB.write_bytes\fR, \fB.errors\fR, and
 start/end/duration) plus a capped \fBxrootd.session.recent_files\fR list (each
-with \fBfile.path\fR, \fBxrootd.transfer.kind\fR, \fBxrootd.operation\fR, and
+with \fBfile.path\fR, \fBxrootd.transfer.kind\fR, \fBxrootd.operation.name\fR, and
 \fBxrootd.bytes\fR). The totals cover every closed file; only the recent-file
 list is bounded, so a long session that opens many files stays memory-bounded.
 .P
@@ -377,7 +378,7 @@ Emit a document per \fIg\fR-stream (plugin) record.
 \fB--redirects\fR
 .RS 5
 Emit a concluded-operation document per \fIr\fR-stream redirect record
-(\fBxrootd.operation_state\fR \fBRedirected\fR, with the destination in the
+(\fBxrootd.operation.state\fR \fBRedirected\fR, with the destination in the
 \fBxrootd.redirect.*\fR attributes). Emitted mainly by redirectors/managers.
 Redirects are counted
 in the aggregated metrics regardless of this flag.

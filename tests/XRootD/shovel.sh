@@ -80,7 +80,7 @@ function test_shovel() {
 
 	# 1. A successful transfer through the whole chain: server -> UDP ->
 	#    shoveler -> TCP -> central collector -> document.
-	drive_until '"xrootd.operation_state":"Successful"' \
+	drive_until '"xrootd.operation.state":"Successful"' \
 		"successful transfer document (via shovel chain)" \
 		"xrdcp -f '${TMPDIR}/ok.ref' '${HOST}/${TMPDIR}/ok.ref' \
 		 && xrdcp -f '${HOST}/${TMPDIR}/ok.ref' '${TMPDIR}/ok.dat'"

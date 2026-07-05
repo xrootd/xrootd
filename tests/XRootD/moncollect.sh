@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-# End-to-end test for the xrdmoncollect terminal operation reports (WLCG
-# operation_state / error_message / error_category). A real xrootd server is
+# End-to-end test for the xrdmoncollect terminal operation reports
+# (xrootd.operation.state / xrootd.operation.name / error.type). A real
+# xrootd server is
 # pointed at a local xrdmoncollect instance; we drive a successful transfer and
 # a failed open, then assert the collector emits the matching documents.
 #
@@ -172,11 +173,11 @@ function test_moncollect() {
 	assert openssl rand -base64 -out "${TMPDIR}/ok.ref" $((1024 * 64))
 
 	# 1. A successful transfer: upload then download a file. The close produces
-	#    a transfer document with operation_state "Successful". Re-driven each
+	#    a transfer document with operation state "Successful". Re-driven each
 	#    second until the document is observed (tolerates UDP loss). XRD_SITE is
 	#    advertised by the client at login and surfaces as client.site.
 	export XRD_SITE=CLIENT-TEST-SITE
-	drive_until '"xrootd.operation_state":"Successful"' "successful transfer document" \
+	drive_until '"xrootd.operation.state":"Successful"' "successful transfer document" \
 		"xrdcp -f '${TMPDIR}/ok.ref' '${HOST}/${TMPDIR}/ok.ref' \
 		 && xrdcp -f '${HOST}/${TMPDIR}/ok.ref' '${TMPDIR}/ok.dat'"
 
@@ -220,7 +221,7 @@ function test_moncollect() {
 		done
 		assert grep -q '^/v1/logs ' "${OTLP_OUT}"
 		assert grep -q '"resourceLogs"' "${OTLP_OUT}"
-		assert grep -q '"key":"xrootd.operation_state"' "${OTLP_OUT}"
+		assert grep -q '"key":"xrootd.operation.state"' "${OTLP_OUT}"
 		# the bearer token (read from @file) must reach the endpoint
 		assert grep -q '^authz /v1/logs Bearer secrettoken123' "${OTLP_OUT}"
 		for _ in $(seq 1 15); do
@@ -248,40 +249,41 @@ function test_moncollect() {
 	fi
 
 	# 2. A failed open: reading a nonexistent file fails before any close, so
-	#    the server emits a terminal isError record -> operation_state "Failed".
-	drive_until '"xrootd.operation_state":"Failed"' "failed-open document" \
+	#    the server emits a terminal isError record -> operation state "Failed".
+	drive_until '"xrootd.operation.state":"Failed"' "failed-open document" \
 		"xrdcp '${HOST}/${TMPDIR}/does-not-exist.root' '${TMPDIR}/x.dat'"
 
 	# The failed-open report must, on a SINGLE document, name the missing file
-	# and carry category "open" with the *specific* server-side reason (the real
-	# "no such file or directory", not merely a non-empty string) and the kXR
-	# error code (kXR_NotFound = 3011). Pin the checks to one record so they
-	# cannot pass by matching fields spread across different documents.
+	# and carry operation name "open" with the *specific* server-side reason
+	# (the real "no such file or directory", not merely a non-empty string) and
+	# the kXR error code (kXR_NotFound = 3011). Pin the checks to one record so
+	# they cannot pass by matching fields spread across different documents.
 	open_doc=$(grep -E '"file.path":"[^"]*does-not-exist\.root"' "${COLLECTOR_OUT}" \
-		| grep -E '"xrootd.operation_state":"Failed"' | head -n1)
+		| grep -E '"xrootd.operation.state":"Failed"' | head -n1)
 	test -n "${open_doc}" || error "no failed-open transfer document found"
-	assert grep -Eq '"error.type":"open"' <<<"${open_doc}"
+	assert grep -Eq '"xrootd.operation.name":"open"' <<<"${open_doc}"
 	assert grep -Eq '"xrootd.error.code":3011' <<<"${open_doc}"
-	assert grep -Eq '"error.message":"Unable to open[^"]*no such file or directory"' \
+	assert grep -Eq '"error.type":"Unable to open[^"]*no such file or directory"' \
 		<<<"${open_doc}"
 
 	# 3. A mid-transfer read error: a vector read past EOF fails on the server,
 	#    which records the terminal error on the file so its close reports
-	#    operation_state "Failed" with error_category "read". xrdreadv-eof opens
+	#    operation state "Failed" with operation name "read". xrdreadv-eof opens
 	#    the existing file and issues the failing readv, then closes.
-	drive_until '"error.type":"read"' "failed-readv close document" \
+	drive_until '"error.type":"Unable to readv' "failed-readv close document" \
 		"xrdreadv-eof '${HOST}/${TMPDIR}/ok.ref'"
 
 	# As with the open failure, verify the specific reason on a single document:
-	# the readv-past-EOF close must report category "read" with the server's
-	# ESPIPE reason (kXR_FSError = 3005), not just any error. The strerror text
-	# differs by libc: "illegal seek" (glibc) vs "invalid seek" (musl).
+	# the readv-past-EOF close must report operation name "read" with the
+	# server's ESPIPE reason (kXR_FSError = 3005), not just any error. The
+	# strerror text differs by libc: "illegal seek" (glibc) vs "invalid seek"
+	# (musl).
 	readv_doc=$(grep -E '"xrootd.app.name":"xrdreadv-eof"' "${COLLECTOR_OUT}" \
-		| grep -E '"xrootd.operation_state":"Failed"' | head -n1)
+		| grep -E '"xrootd.operation.state":"Failed"' | head -n1)
 	test -n "${readv_doc}" || error "no failed-readv transfer document found"
-	assert grep -Eq '"error.type":"read"' <<<"${readv_doc}"
+	assert grep -Eq '"xrootd.operation.name":"read"' <<<"${readv_doc}"
 	assert grep -Eq '"xrootd.error.code":3005' <<<"${readv_doc}"
-	assert grep -Eq '"error.message":"Unable to readv[^"]*(illegal|invalid) seek"' \
+	assert grep -Eq '"error.type":"Unable to readv[^"]*(illegal|invalid) seek"' \
 		<<<"${readv_doc}"
 
 	# 4. A lock-denied open: a second writer of an already-open file is rejected
@@ -290,15 +292,15 @@ function test_moncollect() {
 	#    so used to bypass the terminal-error report. xrdopen-denied opens the
 	#    existing file for write twice; the second open must surface as a failed
 	#    open with the lock reason.
-	drive_until '"error.message":"[^"]*open denied' "lock-denied open document" \
+	drive_until '"error.type":"[^"]*open denied' "lock-denied open document" \
 		"xrdopen-denied '${HOST}/${TMPDIR}/ok.ref'"
 
-	locked_doc=$(grep -E '"error.message":"[^"]*open denied' "${COLLECTOR_OUT}" \
+	locked_doc=$(grep -E '"error.type":"[^"]*open denied' "${COLLECTOR_OUT}" \
 		| head -n1)
 	test -n "${locked_doc}" || error "no lock-denied open document found"
-	assert grep -Eq '"error.type":"open"' <<<"${locked_doc}"
+	assert grep -Eq '"xrootd.operation.name":"open"' <<<"${locked_doc}"
 	assert grep -Eq '"xrootd.error.code":3003' <<<"${locked_doc}"
-	assert grep -Eq '"error.message":"[^"]*is already opened by[^"]*open denied' \
+	assert grep -Eq '"error.type":"[^"]*is already opened by[^"]*open denied' \
 		<<<"${locked_doc}"
 
 	echo "collector documents:"

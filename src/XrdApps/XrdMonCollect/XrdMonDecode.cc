@@ -512,8 +512,8 @@ void XrdMonDecode::emitSpan(const json& src, const char* name, int32_t tBeg,
    if (src.value("severityText", std::string()) == "ERROR")
       {status["code"] = "STATUS_CODE_ERROR";
        if (src.contains("attributes") &&
-           src["attributes"].contains("error.message"))
-          status["message"] = src["attributes"]["error.message"];
+           src["attributes"].contains("error.type"))
+          status["message"] = src["attributes"]["error.type"];
       }
       else status["code"] = "STATUS_CODE_OK";
    sp["status"] = status;
@@ -672,8 +672,8 @@ void XrdMonDecode::otelSession(json& a, const UserInfo& u)
        for (const auto& f : u.sRecent)
           {json fj;
            fj["file.path"]            = f.lfn;
-           fj["xrootd.transfer.kind"] = f.whole ? "transfer" : "access";
-           fj["xrootd.operation"]     = f.write ? "write" : "read";
+           fj["xrootd.transfer.kind"]   = f.whole ? "transfer" : "access";
+           fj["xrootd.operation.name"]  = f.write ? "write" : "read";
            fj["xrootd.bytes"]         = f.bytes;
            files.push_back(std::move(fj));
           }
@@ -1483,7 +1483,7 @@ void XrdMonDecode::DecodeFrm(const std::string& src, int32_t stod, Server& srv,
    otelResource(j, src, stod, srv);
    otelBegin(j, "xrootd.frm", tEvt, false);
    json& a = j["attributes"];
-   a["xrootd.operation"] = op;         // "purge" or "transfer" (stage/migrate)
+   a["xrootd.operation.name"] = op;    // "purge" or "transfer" (stage/migrate)
    setFile(a, path);
 
 // who is "<prot>/<user>.<pid>:<sid>@<host>". The FRM agent is the actor here,
@@ -1706,7 +1706,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
    a["xrootd.transfer.write_bytes"]  = wrBytes;
    // Explicit read/write categorisation (WLCG operation_type): any write bytes
    // make it a write, otherwise it is a read.
-   a["xrootd.operation"] = (wrBytes > 0) ? "write" : "read";
+   a["xrootd.operation.name"] = (wrBytes > 0) ? "write" : "read";
 
 // Join the matching open record (held since the open packet) to recover the
 // path, the user, and the open time. Resolve the user dictid if we have it.
@@ -1803,7 +1803,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
           }
       }
 
-// Terminal status (WLCG operation_state). A close carrying a trailing
+// Terminal status (xrootd.operation.state). A close carrying a trailing
 // XrdXrootdMonStatERR (hasERR) reports an aborted/failed transfer; the error
 // block trails any XrdXrootdMonStatOPS/SSQ blocks. Otherwise the close is the
 // authoritative success report.
@@ -1823,7 +1823,7 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
                         {"category", cat.empty() ? "unknown" : cat}})
                   += 1;
       }
-   else a["xrootd.operation_state"] = "Successful";
+   else a["xrootd.operation.state"] = "Successful";
 
 // Aggregate into bounded-cardinality Prometheus series (label only by the
 // reporting server). Per-transfer detail stays in the document sink; here we
@@ -1881,15 +1881,20 @@ std::string XrdMonDecode::otelError(json& a, const unsigned char* err,
                                     int errLen)
 {
 // XrdXrootdMonStatERR: ecode(4) + ecat(1) + rsvd(3) + null-terminated message.
+// The category byte names the operation that failed (open/read/write/close/
+// auth): it becomes xrootd.operation.name unless the record already carries
+// one (a failed close keeps its read/write direction; the category still
+// reaches the failed_operations_total{category} metric via the return value).
+// The server's verbatim reason travels as error.type.
 //
    if (errLen < 8) return "";
    std::string cat = errCatName((unsigned char)err[4]);
-   a["xrootd.operation_state"] = "Failed";
-   a["error.type"]             = cat;           // semconv low-cardinality type
+   a["xrootd.operation.state"] = "Failed";
+   if (!a.contains("xrootd.operation.name")) a["xrootd.operation.name"] = cat;
    a["xrootd.error.code"]      = ri32(err);
    const char* m = (const char*)(err + 8);
    std::string msg(m, strnlen(m, errLen - 8));
-   if (!msg.empty()) a["error.message"] = msg;
+   if (!msg.empty()) a["error.type"] = msg;
    return cat;
 }
 
@@ -2325,15 +2330,15 @@ void XrdMonDecode::DecodeRStream(const std::string& src, int32_t stod,
          if (redirects)
             {// A redirect concludes the operation from this (redirector) node's
              // point of view, so it is reported in the same concluded-operation
-             // schema as closes and errors, with xrootd.operation_state
+             // schema as closes and errors, with xrootd.operation.state
              // "Redirected" and the destination under xrootd.redirect.*.
              json j;
              otelResource(j, src, stod, srv);
              otelBegin(j, "xrootd.transfer", tWin, false);
              json& a = j["attributes"];
 
-             a["xrootd.operation"]       = redirOp(type & 0x0f);
-             a["xrootd.operation_state"] = "Redirected";
+             a["xrootd.operation.name"]  = redirOp(type & 0x0f);
+             a["xrootd.operation.state"] = "Redirected";
              a["xrootd.redirect.kind"]        = kind;
              a["xrootd.redirect.target.port"] = port;
              // hp is "<host>:<path>": the host is the redirect target, the path

@@ -159,7 +159,7 @@ TEST_F(Transfer, CorrelatesCloseWithOpenAndUser)
   EXPECT_EQ(j["attributes"]["xrootd.user.protocol"], "xroot");
   EXPECT_EQ(j["attributes"]["client.address"], "wn.example.org");
   EXPECT_EQ(j["attributes"]["xrootd.transfer.read_bytes"], 10485760);
-  EXPECT_EQ(j["attributes"]["xrootd.operation"], "read");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.name"], "read");
   EXPECT_EQ(j["attributes"]["xrootd.transfer.read_ops"], 320);
   EXPECT_EQ(j["attributes"]["xrootd.transfer.read_max"], 1048576);
   EXPECT_EQ(j["attributes"]["xrootd.transfer.open_seen"], true);
@@ -191,8 +191,8 @@ TEST_F(Transfer, SuccessfulCloseStateIsSuccessful)
   feedClose();  // a plain close (no error block)
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["attributes"]["xrootd.operation_state"], "Successful");
-  EXPECT_FALSE(j["attributes"].contains("error.message"));
+  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Successful");
+  EXPECT_FALSE(j["attributes"].contains("error.type"));
   EXPECT_EQ(dec.GetStats().failed, 0u);
 }
 
@@ -271,10 +271,10 @@ TEST_F(Transfer, FailedOpenEmitsFailedState)
   EXPECT_EQ(j["attributes"]["event.name"], "xrootd.transfer");
   EXPECT_EQ(j["attributes"]["file.path"], "/store/data/missing.root");
   EXPECT_EQ(j["attributes"]["user.name"], "alice");   // resolved from the inline dictid
-  EXPECT_EQ(j["attributes"]["xrootd.operation_state"], "Failed");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Failed");
   EXPECT_EQ(j["attributes"]["xrootd.error.code"], 3011);
-  EXPECT_EQ(j["attributes"]["error.type"], "auth");
-  EXPECT_EQ(j["attributes"]["error.message"], "permission denied");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.name"], "auth");
+  EXPECT_EQ(j["attributes"]["error.type"], "permission denied");
   EXPECT_EQ(dec.GetStats().failed, 1u);
 }
 
@@ -341,9 +341,9 @@ TEST_F(Transfer, AbortedTransferCloseHasError)
   EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");  // joined to the open
   EXPECT_EQ(j["attributes"]["xrootd.transfer.read_bytes"], 4096);    // partial bytes preserved
   EXPECT_EQ(j["attributes"]["xrootd.transfer.read_ops"], 2);
-  EXPECT_EQ(j["attributes"]["xrootd.operation_state"], "Failed");
-  EXPECT_EQ(j["attributes"]["error.type"], "read");
-  EXPECT_EQ(j["attributes"]["error.message"], "read error: connection reset");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Failed");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.name"], "read");
+  EXPECT_EQ(j["attributes"]["error.type"], "read error: connection reset");
   EXPECT_EQ(dec.GetStats().failed, 1u);
 }
 
@@ -581,10 +581,10 @@ TEST(XrdMonCollect, RedirectStreamDecoded)
   EXPECT_EQ(dec.GetStats().redirs, 1u);
   json j = json::parse(out);
   // A redirect is a concluded-operation report: type:"transfer" with
-  // operation_state "Redirected" and the destination under "redirect".
+  // operation state "Redirected" and the destination under "redirect".
   EXPECT_EQ(j["attributes"]["event.name"], "xrootd.transfer");
-  EXPECT_EQ(j["attributes"]["xrootd.operation"], "open-read");
-  EXPECT_EQ(j["attributes"]["xrootd.operation_state"], "Redirected");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.name"], "open-read");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.state"], "Redirected");
   EXPECT_EQ(j["attributes"]["xrootd.redirect.kind"], "remote");
   EXPECT_EQ(j["attributes"]["xrootd.redirect.target.address"], "host.example");
   EXPECT_EQ(j["attributes"]["xrootd.redirect.target.port"], 1094);
@@ -891,7 +891,7 @@ TEST_F(Transfer, WriteOperationDerived)
   dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
 
   json j = json::parse(lastDoc);
-  EXPECT_EQ(j["attributes"]["xrootd.operation"], "write");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.name"], "write");
   EXPECT_EQ(j["attributes"]["xrootd.transfer.write_bytes"], 2097152);
   EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "transfer");  // a clean write produces a whole file
 }
@@ -936,7 +936,7 @@ TEST_F(Transfer, PartialReadIsAccess)
 
   json j = json::parse(lastDoc);
   EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "access");
-  EXPECT_EQ(j["attributes"]["xrootd.operation"], "read");   // shared schema otherwise
+  EXPECT_EQ(j["attributes"]["xrootd.operation.name"], "read");   // shared schema otherwise
 }
 
 // readv bytes count toward whole-file coverage just like plain reads.
@@ -961,7 +961,7 @@ TEST_F(Transfer, ForcedWriteIsAccess)
 
   json j = json::parse(lastDoc);
   EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "access");
-  EXPECT_EQ(j["attributes"]["xrootd.operation"], "write");
+  EXPECT_EQ(j["attributes"]["xrootd.operation.name"], "write");
 }
 
 // A close with no matching open has no known size, so it cannot be proven a
@@ -1420,11 +1420,11 @@ TEST(XrdMonCollect, FrmStageAndPurge)
   ASSERT_EQ(docs.size(), 2u);
   json x = json::parse(docs[0]);
   EXPECT_EQ(x["attributes"]["event.name"], "xrootd.frm");
-  EXPECT_EQ(x["attributes"]["xrootd.operation"], "transfer");
+  EXPECT_EQ(x["attributes"]["xrootd.operation.name"], "transfer");
   EXPECT_EQ(x["attributes"]["user.name"], "alice");
   EXPECT_EQ(x["attributes"]["file.path"], "/store/data/f.root");
   json p = json::parse(docs[1]);
-  EXPECT_EQ(p["attributes"]["xrootd.operation"], "purge");
+  EXPECT_EQ(p["attributes"]["xrootd.operation.name"], "purge");
   EXPECT_EQ(p["attributes"]["file.size"], 1048576);
   EXPECT_EQ(dec.GetStats().frmEvents, 2u);
 

@@ -385,7 +385,7 @@
       "id": 5,
       "type": "stat",
       "title": "Failed operations",
-      "description": "Transfers whose terminal operation_state is Failed.",
+      "description": "Transfers whose terminal operation state is Failed.",
       "datasource": {
         "type": "loki",
         "uid": "${DS_LOKI}"
@@ -578,7 +578,7 @@
       "id": 8,
       "type": "piechart",
       "title": "Operations by state",
-      "description": "Terminal WLCG operation_state distribution.",
+      "description": "Terminal operation state distribution.",
       "datasource": {
         "type": "loki",
         "uid": "${DS_LOKI}"
@@ -994,8 +994,8 @@
             "uid": "${DS_LOKI}"
           },
           "editorMode": "code",
-          "expr": "sum by (error_type)(count_over_time({service_name=\"xrootd\", service_instance_id=~\"$server\"} | event_name=\"xrootd.transfer\" | xrootd_operation_state=\"Failed\" [$__range]))",
-          "legendFormat": "{{error_type}}",
+          "expr": "sum by (xrootd_operation_name)(count_over_time({service_name=\"xrootd\", service_instance_id=~\"$server\"} | event_name=\"xrootd.transfer\" | xrootd_operation_state=\"Failed\" [$__range]))",
+          "legendFormat": "{{xrootd_operation_name}}",
           "queryType": "instant",
           "refId": "A"
         }
