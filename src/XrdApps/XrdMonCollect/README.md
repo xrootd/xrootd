@@ -441,7 +441,10 @@ path the pattern does not match simply gets no `xrootd.dataset`.
 
 The per-transfer document uses the OpenTelemetry-aligned schema described under
 [Serialization](#serialization): a process-level `resource` object and an
-event-level `attributes` object. One object per file close, for example:
+event-level `attributes` object. One object per file close. The example below
+shows a fully-populated successful whole-file read (server configured with
+`lfn ops ssq xfr auth`, token and SciTags records present, `--dataset` and
+`--scitags` set):
 
 ```json
 {
@@ -452,10 +455,11 @@ event-level `attributes` object. One object per file close, for example:
     "server.address": "srv1.example.org",
     "server.port": 1094,
     "xrootd.server.site": "SITE-A",
+    "xrootd.server.program": "xrootd",
     "xrootd.server.id": 42,
     "xrootd.server.incarnation": 1700000000
   },
-  "scope": { "name": "xrdmoncollect" },
+  "scope": { "name": "xrdmoncollect", "version": "v6.1.0" },
   "@timestamp": "2026-07-02T10:00:32Z",
   "timeUnixNano": "1751450432000000000",
   "observedTimeUnixNano": "1751450432100000000",
@@ -466,11 +470,13 @@ event-level `attributes` object. One object per file close, for example:
   "attributes": {
     "event.name": "xrootd.transfer",
     "xrootd.transfer.kind": "transfer",
-    "file.path": "/store/data/file.root",
+    "file.path": "/store/data/Run2026A-PromptReco/file.root",
     "file.name": "file.root",
-    "file.directory": "/store/data",
+    "file.directory": "/store/data/Run2026A-PromptReco",
     "file.extension": "root",
     "file.size": 1073741824,
+    "xrootd.dataset": "Run2026A-PromptReco",
+    "xrootd.file.read_write": false,
     "client.address": "wn.example.org",
     "network.peer.address": "192.0.2.17",
     "network.type": "ipv4",
@@ -479,21 +485,53 @@ event-level `attributes` object. One object per file close, for example:
     "session.id": "9f1c8b0d4e2a6f37c1a8b0d4e2a6f371",
     "user.name": "alice",
     "user.id": "https://issuer/sub42",
-    "wlcg.vo": "atlas", "user.roles": ["production"], "wlcg.groups": "/atlas/prod",
+    "user.roles": ["production"],
+    "wlcg.vo": "atlas", "wlcg.groups": "/atlas/prod",
     "xrootd.auth.method": "gsi",
     "user_agent.name": "xrootd", "user_agent.version": "v5.6.1",
     "xrootd.client.site": "client-site",
     "xrootd.app.name": "xrdcp",
+    "xrootd.app.info": "task=prod-copy",
+    "xrootd.app.raw": "job=1234",
+    "scitags.experiment_id": 8, "scitags.experiment": "cms",
+    "scitags.activity_id": 3, "scitags.activity": "analysis",
     "xrootd.operation.name": "read",
     "xrootd.operation.state": "Successful",
+    "xrootd.transfer.open_seen": true,
+    "xrootd.transfer.forced_close": false,
     "xrootd.transfer.start_time": "2026-07-02T09:55:32Z",
     "xrootd.transfer.duration": 300,
-    "xrootd.transfer.read_bytes": 1073741824,
+    "xrootd.transfer.read_bytes": 805306368,
+    "xrootd.transfer.readv_bytes": 268435456,
+    "xrootd.transfer.write_bytes": 0,
     "xrootd.transfer.read_ops": 320,
+    "xrootd.transfer.readv_ops": 16,
+    "xrootd.transfer.write_ops": 0,
+    "xrootd.transfer.readv_segs": 4096,
+    "xrootd.transfer.read_min": 4096,
+    "xrootd.transfer.read_max": 8388608,
+    "xrootd.transfer.readv_min": 1024,
+    "xrootd.transfer.readv_max": 4194304,
+    "xrootd.transfer.read_sumsq": 8.1e18,
+    "xrootd.transfer.readv_sumsq": 2.9e17,
+    "xrootd.transfer.rsegs_sumsq": 1.2e9,
+    "xrootd.transfer.write_sumsq": 0.0,
     "xrootd.transfer.is_local": true
   }
 }
 ```
+
+A few transfer-document fields cannot appear in this (successful, xroot)
+example because they are situational: a failed operation replaces
+`"Successful"` with `"Failed"` and adds `error.type` (the server's verbatim
+reason) and `xrootd.error.code`; a session over the HTTP bridge carries
+`url.scheme` (`http`/`https`, with `network.protocol.name` `"http"`); a
+redirect report (`--redirects`) carries `xrootd.operation.state`
+`"Redirected"` plus `xrootd.redirect.kind` and
+`xrootd.redirect.target.{address,port}`. The request-size extremes
+(`*_min`/`*_max`) are omitted for operation kinds that never ran (here a pure
+read carries no `write_min`/`write_max`), and the `*_sumsq` fields appear
+only with `ssq` in the server config.
 
 `xrootd.transfer.open_seen` is `false` (and the `file.*`, `user.*`, `client.*`
 attributes are absent) for a close whose open record was lost or predates the
