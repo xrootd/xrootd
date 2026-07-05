@@ -38,20 +38,24 @@ All examples below use `namespace XrdMetrics`.
 
 A subsystem author grabs a `Subsystem`, creates instruments once (they are returned
 by reference and cached — hold the reference, do not re-look-up on the hot path),
-then updates them. From `src/Xrd/XrdScheduler.cc`:
+then updates them:
 
 ```cpp
 #include "XrdMetrics/XrdMetricsInstrument.hh"   // Counter, Gauge, Histogram, Summary
 #include "XrdMetrics/XrdMetricsRegistry.hh"     // Collector, Subsystem, CollectorRegistry
 
-XrdMetrics::Subsystem& sched = XrdMetrics::Default().subsystem("sched");
+XrdMetrics::Subsystem& ofs = XrdMetrics::Default().subsystem("ofs");
 
-m_Jobs    = &sched.counter<std::uint64_t>("jobs_total", "jobs scheduled");
-m_TCreate = &sched.counter<std::uint64_t>("threads_created_total", "worker threads created");
+m_Opens = &ofs.counter<std::uint64_t>("opens_total", "file opens");
 
 // ... later, on the hot path (lock-free):
-++*m_Jobs;
+++*m_Opens;
 ```
+
+When the tally must stay in a pre-existing field for ABI reasons (installed
+headers are a binary-compatibility contract), keep the field as the source of
+truth and register an *observed* counter that reads it at scrape time instead
+(see `src/Xrd/XrdScheduler.cc`).
 
 The full metric name is `<prefix>_<subsystem>_<name>`, e.g. `xrootd_sched_jobs_total`.
 Metric and label names are validated at creation (`[a-zA-Z_:][a-zA-Z0-9_:]*` /

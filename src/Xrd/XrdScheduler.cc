@@ -347,7 +347,7 @@ void XrdScheduler::Run()
                if (num_Layoffs > 0)
                   {num_Layoffs--;
                    if (waiting)
-                      {++*m_TDestroy; num_Workers--;
+                      {num_TDestroy++; num_Workers--;
                        TRACE(SCHED, "terminating thread; workers=" <<num_Workers);
                        SchedMutex.UnLock();
                        return;
@@ -391,7 +391,7 @@ void XrdScheduler::Schedule(XrdJob *jp)
 
 // Calculate statistics
 //
-   ++*m_Jobs;
+   num_Jobs++;
    num_JobsinQ++;
    if (num_JobsinQ > max_QLength) max_QLength = num_JobsinQ;
 
@@ -422,7 +422,7 @@ void XrdScheduler::Schedule(int numjobs, XrdJob *jfirst, XrdJob *jlast)
 
 // Calculate statistics
 //
-   *m_Jobs     += numjobs;
+   num_Jobs    += numjobs;
    num_JobsinQ += numjobs;
    if (num_JobsinQ > max_QLength) max_QLength = num_JobsinQ;
 
@@ -650,12 +650,12 @@ int XrdScheduler::Stats(char *buff, int blen, int do_sync)
 //
    if (do_sync) SchedMutex.Lock();
    cnt_Workers = num_Workers;
-   cnt_Jobs    = (int)m_Jobs->value();
+   cnt_Jobs    = num_Jobs;
    cnt_JobsinQ = num_JobsinQ;
    xam_QLength = max_QLength;
-   cnt_TCreate = (int)m_TCreate->value();
-   cnt_TDestroy= (int)m_TDestroy->value();
-   cnt_Limited = (int)m_Limited->value();
+   cnt_TCreate = num_TCreate;
+   cnt_TDestroy= num_TDestroy;
+   cnt_Limited = num_Limited;
    if (do_sync) SchedMutex.UnLock();
 
 // Format the stats and return them
@@ -707,14 +707,14 @@ void XrdScheduler::hireWorker(int dotrace)
 //
    SchedMutex.Lock();
    if (num_Workers >= max_Workers)
-      {++*m_Limited;
-       if ((m_Limited->value() & 4095) == 1)
+      {num_Limited++;
+       if ((num_Limited & 4095) == 1)
            XrdLog->Emsg("Scheduler","Thread limit has been reached!");
        SchedMutex.UnLock();
        return;
       }
    num_Workers++;
-   ++*m_TCreate;
+   num_TCreate++;
    SchedMutex.UnLock();
 
 // Start a new thread. We do this without the schedMutex to avoid hang-ups. If
@@ -728,7 +728,7 @@ void XrdScheduler::hireWorker(int dotrace)
       {XrdLog->Emsg("Scheduler", retc, "create worker thread");
        SchedMutex.Lock();
        num_Workers--;
-       ++*m_TDestroy;
+       num_TDestroy++;
        max_Workers = num_Workers;
        min_Workers = (max_Workers/10 ? max_Workers/10 : 1);
        stk_Workers = max_Workers/4*3;
@@ -749,22 +749,29 @@ void XrdScheduler::Init(int minw, int maxw, int maxi)
    num_JobsinQ =  0;
    stk_Workers =  maxw - (maxw/4*3);
    idl_Workers =  0;
+   num_Jobs    =  0;
    max_QLength =  0;
+   num_TCreate =  0;
+   num_TDestroy=  0;
    num_Layoffs =  0;
+   num_Limited =  0;
    firstPID    =  0;
    WorkFirst = WorkLast = TimerQueue = 0;
 
-// Wire the scheduler's metrics into the process-wide registry. The event-tally
-// counters are owned by the new system (the metric is the counter); the legacy
-// <stats id="sched"> XML reads them via value(). The live-state gauges stay
-// plain scheduler ints (control-flow state) and are surfaced read-only via
-// observed metrics that read the int at scrape time.
+// Wire the scheduler's metrics into the process-wide registry. All the fields
+// stay plain scheduler ints in their historical layout (the installed header
+// is an ABI contract) and are surfaced read-only via observed metrics that
+// read the int at scrape time.
 //
    XrdMetrics::Subsystem& subsystem = XrdMetrics::Default().subsystem("sched");
-   m_Jobs     = &subsystem.counter<std::uint64_t>("jobs_total", "jobs scheduled");
-   m_TCreate  = &subsystem.counter<std::uint64_t>("threads_created_total", "worker threads created");
-   m_TDestroy = &subsystem.counter<std::uint64_t>("threads_destroyed_total", "worker threads destroyed");
-   m_Limited  = &subsystem.counter<std::uint64_t>("thread_limit_hits_total", "times the worker-thread maximum was reached");
+   subsystem.observeCounter<std::uint64_t>("jobs_total", "jobs scheduled")
+     .add({}, [this]{return (uint64_t)num_Jobs;});
+   subsystem.observeCounter<std::uint64_t>("threads_created_total", "worker threads created")
+     .add({}, [this]{return (uint64_t)num_TCreate;});
+   subsystem.observeCounter<std::uint64_t>("threads_destroyed_total", "worker threads destroyed")
+     .add({}, [this]{return (uint64_t)num_TDestroy;});
+   subsystem.observeCounter<std::uint64_t>("thread_limit_hits_total", "times the worker-thread maximum was reached")
+     .add({}, [this]{return (uint64_t)num_Limited;});
 
    subsystem.observeGauge<std::int64_t>("threads", "worker threads")
      .add({}, [this]{return (int64_t)num_Workers;});

@@ -29,7 +29,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <cstdint>
 #include <unistd.h>
 #include <sys/types.h>
 
@@ -40,8 +39,6 @@ class XrdOucTrace;
 class XrdSchedulerPID;
 class XrdSysError;
 class XrdSysTrace;
-
-namespace XrdMetrics { template <class T> class Counter; }
 
 #define MAX_SCHED_PROCS 30000
 #define DFL_SCHED_PROCS  8192
@@ -79,16 +76,15 @@ void          TimeSched();
 
 void          setNproc(const bool limlower);
 
-// Event-tally counters live in the process-wide XrdMetrics registry as their
-// source of truth (bound in Init); the legacy <stats id="sched"> XML reads them
-// via value(). The live-state gauges below stay plain ints owned by the
-// scheduler and are exposed read-only via observed metrics (see Init).
+// Statistical information. These stay plain ints in their historical layout
+// (the installed header is an ABI contract); the XrdMetrics registry exposes
+// them read-only via observed metrics registered in Init.
 //
-XrdMetrics::Counter<std::uint64_t>  *m_TCreate;  // Number of threads created
-XrdMetrics::Counter<std::uint64_t>  *m_TDestroy; // Number of threads destroyed
-XrdMetrics::Counter<std::uint64_t>  *m_Jobs;     // Number of jobs scheduled
-XrdMetrics::Counter<std::uint64_t>  *m_Limited;  // Number of times the thread max was reached
+int        num_TCreate; // Number of threads created
+int        num_TDestroy;// Number of threads destroyed
+int        num_Jobs;    // Number of jobs scheduled
 int        max_QLength; // Longest queue length we had
+int        num_Limited; // Number of times max was reached
 
 // This is the preferred constructor
 //
