@@ -357,11 +357,11 @@ std::string XrdMonDecode::publicFor(const std::string& ip) const
 /*                               s e t F i l e                                */
 /******************************************************************************/
 
-// Set the OpenTelemetry file.path, file.name, and file.directory attributes
-// from an LFN (skipping an empty path), plus the xrootd.dataset capture when
-// a --dataset pattern is set. The pattern was compiled once at startup; it is
-// matched once per emitted document, in the serializer thread — never in the
-// UDP receive path.
+// Set the OpenTelemetry file.path, file.name, file.directory, and
+// file.extension attributes from an LFN (skipping an empty path), plus the
+// xrootd.dataset capture when a --dataset pattern is set. The pattern was
+// compiled once at startup; it is matched once per emitted document, in the
+// serializer thread — never in the UDP receive path.
 //
 void XrdMonDecode::setFile(json& a, const std::string& lfn) const
 {
@@ -369,7 +369,14 @@ void XrdMonDecode::setFile(json& a, const std::string& lfn) const
    a["file.path"] = lfn;
    auto slash = lfn.rfind('/');
    if (slash != std::string::npos && slash + 1 < lfn.size())
-      a["file.name"] = lfn.substr(slash + 1);
+      {std::string name = lfn.substr(slash + 1);
+       // Semconv file.extension: the last extension without the leading dot
+       // ("gz" for .tar.gz); a dotfile (".bashrc") has none.
+       auto dot = name.rfind('.');
+       if (dot != std::string::npos && dot > 0 && dot + 1 < name.size())
+          a["file.extension"] = name.substr(dot + 1);
+       a["file.name"] = std::move(name);
+      }
    if (slash != std::string::npos)
       a["file.directory"] = slash ? lfn.substr(0, slash) : "/";
    if (hasDataset)

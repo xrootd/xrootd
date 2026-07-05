@@ -409,7 +409,9 @@ records are also always consumed:
 ### Dataset capture (`--dataset`)
 
 Every document that carries a `file.path` also carries the OTel-semconv
-`file.directory` (the path's directory, no trailing slash). For dataset-level
+`file.name`, `file.directory` (the path's directory, no trailing slash), and
+`file.extension` (the last extension without the leading dot — `gz` for
+`.tar.gz`; omitted for dotfiles and extension-less names). For dataset-level
 popularity (see [Data popularity dashboards](#data-popularity-dashboards)),
 `--dataset <re>` additionally emits `xrootd.dataset`: `<re>` is a POSIX
 extended regular expression matched against each file path, and its first
@@ -458,6 +460,7 @@ event-level `attributes` object. One object per file close, for example:
     "file.path": "/store/data/file.root",
     "file.name": "file.root",
     "file.directory": "/store/data",
+    "file.extension": "root",
     "file.size": 1073741824,
     "client.address": "wn.example.org",
     "network.peer.address": "192.0.2.17",
@@ -493,7 +496,7 @@ on the wire. Mapping (and the server config each needs):
 
 | WLCG field | XRootD field | Source / requires |
 | :-- | :-- | :-- |
-| file_name | `file.path` (+ `file.name`/`file.directory`) | `fstat … lfn` |
+| file_name | `file.path` (+ `file.name`/`file.directory`/`file.extension`) | `fstat … lfn` |
 | dataset | `xrootd.dataset` | `--dataset <regex>` capture on `file.path` |
 | operation_type | `xrootd.operation.name` (`read`/`write`) | `fstat … xfr` |
 | operation_state | `xrootd.operation.state` (`Successful`/`Failed`/`Redirected`) | `fstat` (terminal report); `Redirected` from `r` with `--redirects` |

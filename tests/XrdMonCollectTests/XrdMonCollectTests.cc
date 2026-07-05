@@ -481,7 +481,8 @@ TEST_F(Transfer, AppInfoEnrichesTransfer)
   EXPECT_FALSE(j["attributes"].contains("xrootd.user.raw"));
 }
 
-// file.path is decomposed into file.name and the semconv file.directory.
+// file.path is decomposed into file.name, the semconv file.directory, and
+// file.extension (last extension, no leading dot).
 TEST_F(Transfer, FileDirectoryDerived)
 {
   feedUserMap();
@@ -493,6 +494,39 @@ TEST_F(Transfer, FileDirectoryDerived)
   EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");
   EXPECT_EQ(j["attributes"]["file.name"], "file.root");
   EXPECT_EQ(j["attributes"]["file.directory"], "/store/data");
+  EXPECT_EQ(j["attributes"]["file.extension"], "root");
+}
+
+// file.extension is the LAST extension ("gz" for .tar.gz); a dotfile has none.
+TEST_F(Transfer, FileExtensionEdgeCases)
+{
+  auto openClose = [&](uint32_t fileID, const std::string& lfn)
+  {
+     { W body;
+       body.u32(fileID); body.u64(123456); body.u32(7);
+       body.raw(lfn); body.u8(0);
+       auto payload = todRec(kOpenT, 42);
+       auto r = rec(1 /*isOpen*/, 0x01 | 0x02 /*hasLFN|hasRW*/, body.b);
+       payload.insert(payload.end(), r.begin(), r.end());
+       auto pkt = packet('f', kStod, payload);
+       dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+     { W body;
+       body.u32(fileID); body.u64(4096); body.u64(0); body.u64(0);
+       auto payload = todRec(kCloseT, 42);
+       auto r = rec(0 /*isClose*/, 0, body.b);
+       payload.insert(payload.end(), r.begin(), r.end());
+       auto pkt = packet('f', kStod, payload);
+       dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size()); }
+     return json::parse(lastDoc);
+  };
+
+  feedUserMap();
+  json tgz = openClose(200, "/store/archive.tar.gz");
+  EXPECT_EQ(tgz["attributes"]["file.extension"], "gz");
+  json dotfile = openClose(201, "/home/alice/.bashrc");
+  EXPECT_FALSE(dotfile["attributes"].contains("file.extension"));
+  json noext = openClose(202, "/store/data/README");
+  EXPECT_FALSE(noext["attributes"].contains("file.extension"));
 }
 
 // A --dataset pattern's first capture group becomes xrootd.dataset.

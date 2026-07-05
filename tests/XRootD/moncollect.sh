@@ -205,9 +205,11 @@ function test_moncollect() {
 	# verbatim as the server resource's site.
 	assert grep -Eq '"xrootd.server.site":"moncollect"' "${COLLECTOR_OUT}"
 
-	# file.path is decomposed into the semconv file.directory, and the
-	# --dataset capture group surfaces as xrootd.dataset.
+	# file.path is decomposed into the semconv file.directory and
+	# file.extension, and the --dataset capture group surfaces as
+	# xrootd.dataset.
 	assert grep -Fq "\"file.directory\":\"${TMPDIR}\"" "${COLLECTOR_OUT}"
+	assert grep -Fq '"file.extension":"ref"' "${COLLECTOR_OUT}"
 	assert grep -Eq '"xrootd.dataset":"test-[A-Za-z0-9]+"' "${COLLECTOR_OUT}"
 
 	# OTLP export (when the mock receiver is running): the collector must POST an

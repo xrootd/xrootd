@@ -69,6 +69,7 @@
                 "path":      { "type": "keyword", "ignore_above": 4096 },
                 "name":      { "type": "keyword" },
                 "directory": { "type": "keyword", "ignore_above": 4096 },
+                "extension": { "type": "keyword" },
                 "size":      { "type": "long" }
               }
             },
