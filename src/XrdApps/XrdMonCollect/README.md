@@ -533,6 +533,91 @@ redirect report (`--redirects`) carries `xrootd.operation.state`
 read carries no `write_min`/`write_max`), and the `*_sumsq` fields appear
 only with `ssq` in the server config.
 
+Failures come in two shapes (both logged at `severityText` `ERROR`,
+`severityNumber` 17; see [WLCG field mapping](#wlcg-field-mapping) for the
+semantics). A **failed open** never produced a close, so the server reports it
+as a dedicated terminal record: the document carries the identity and `file.*`
+attributes but no `xrootd.transfer.*` byte totals, and the failed operation
+*is* the operation name. Abbreviated to the fields that differ from the
+successful example (`resource` and the remaining identity attributes are as
+above):
+
+```json
+{
+  "resource": { "service.name": "xrootd", "server.address": "srv1.example.org" },
+  "scope": { "name": "xrdmoncollect", "version": "v6.1.0" },
+  "@timestamp": "2026-07-02T10:02:07Z",
+  "timeUnixNano": "1751450527000000000",
+  "observedTimeUnixNano": "1751450527100000000",
+  "severityNumber": 17, "severityText": "ERROR",
+  "traceId": "9f1c8b0d4e2a6f37c1a8b0d4e2a6f371",
+  "spanId": "5c6d7e8f90a1b2c3",
+  "eventName": "xrootd.transfer",
+  "attributes": {
+    "event.name": "xrootd.transfer",
+    "file.path": "/store/data/missing.root",
+    "file.name": "missing.root",
+    "file.directory": "/store/data",
+    "file.extension": "root",
+    "client.address": "wn.example.org",
+    "session.id": "9f1c8b0d4e2a6f37c1a8b0d4e2a6f371",
+    "user.name": "alice",
+    "xrootd.operation.name": "open",
+    "xrootd.operation.state": "Failed",
+    "xrootd.error.code": 3011,
+    "error.type": "Unable to open /store/data/missing.root; no such file or directory"
+  }
+}
+```
+
+A **failed transfer** (a terminal read/write error recorded during the
+session, or a failed close) is reported on the close record itself, so the
+document keeps the full transfer shape — partial byte totals, `ops`/`ssq`
+detail, `open_seen`, the byte-derived `read`/`write` operation name — and adds
+the error fields (the error-category byte, `read` here, feeds the
+`failed_operations_total{category}` metric label instead):
+
+```json
+{
+  "resource": { "service.name": "xrootd", "server.address": "srv1.example.org" },
+  "scope": { "name": "xrdmoncollect", "version": "v6.1.0" },
+  "@timestamp": "2026-07-02T10:03:12Z",
+  "timeUnixNano": "1751450592000000000",
+  "observedTimeUnixNano": "1751450592100000000",
+  "severityNumber": 17, "severityText": "ERROR",
+  "traceId": "9f1c8b0d4e2a6f37c1a8b0d4e2a6f371",
+  "spanId": "7a8b9c0d1e2f3041",
+  "eventName": "xrootd.transfer",
+  "attributes": {
+    "event.name": "xrootd.transfer",
+    "xrootd.transfer.kind": "access",
+    "file.path": "/store/data/Run2026A-PromptReco/file.root",
+    "file.name": "file.root",
+    "file.directory": "/store/data/Run2026A-PromptReco",
+    "file.extension": "root",
+    "file.size": 1073741824,
+    "client.address": "wn.example.org",
+    "session.id": "9f1c8b0d4e2a6f37c1a8b0d4e2a6f371",
+    "user.name": "alice",
+    "xrootd.operation.name": "read",
+    "xrootd.operation.state": "Failed",
+    "xrootd.error.code": 3005,
+    "error.type": "Unable to readv /store/data/Run2026A-PromptReco/file.root; illegal seek",
+    "xrootd.transfer.open_seen": true,
+    "xrootd.transfer.forced_close": false,
+    "xrootd.transfer.start_time": "2026-07-02T10:02:52Z",
+    "xrootd.transfer.duration": 20,
+    "xrootd.transfer.read_bytes": 4096,
+    "xrootd.transfer.readv_bytes": 0,
+    "xrootd.transfer.write_bytes": 0
+  }
+}
+```
+
+Note the `kind` here: an aborted or failed *write* is always an `access` (a
+whole-file producer must end cleanly), while a *read* is classed purely by
+coverage — this failed read moved 4 KiB of a 1 GiB file, hence `access`.
+
 `xrootd.transfer.open_seen` is `false` (and the `file.*`, `user.*`, `client.*`
 attributes are absent) for a close whose open record was lost or predates the
 collector — the `xrootd.transfer.*` byte totals are still reported. Empty/zero
