@@ -27,6 +27,7 @@
         "observedTimeUnixNano": { "type": "keyword" },
         "severityNumber":       { "type": "integer" },
         "severityText":         { "type": "keyword" },
+        "eventName":            { "type": "keyword" },
         "traceId":              { "type": "keyword" },
         "spanId":               { "type": "keyword" },
         "scope": { "properties": { "name": { "type": "keyword" } } },

@@ -482,6 +482,12 @@ void XrdMonDecode::otelBegin(json& j, const char* eventName, int32_t tSecs,
    j["observedTimeUnixNano"] = unixNano((int64_t)time(nullptr));
    j["severityNumber"] = error ? 17 : 9;               // OTel SeverityNumber
    j["severityText"]   = error ? "ERROR" : "INFO";
+   // The event name lives in the top-level EventName LogRecord field (its
+   // semconv home since the event.name attribute was deprecated), duplicated
+   // as the attribute because Loki only surfaces attributes as queryable
+   // structured metadata (grafana/loki#19260) — drop the attribute once Loki
+   // learns the field.
+   j["eventName"] = eventName;
    j["attributes"]["event.name"] = eventName;
 }
 

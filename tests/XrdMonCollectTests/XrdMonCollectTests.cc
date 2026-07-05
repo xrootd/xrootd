@@ -153,6 +153,10 @@ TEST_F(Transfer, CorrelatesCloseWithOpenAndUser)
   ASSERT_FALSE(lastDoc.empty());
   json j = json::parse(lastDoc);
 
+  // The event name lives in the top-level EventName LogRecord field, with the
+  // deprecated attribute kept as a duplicate for Loki (grafana/loki#19260).
+  EXPECT_EQ(j["eventName"], "xrootd.transfer");
+  EXPECT_EQ(j["attributes"]["event.name"], "xrootd.transfer");
   EXPECT_EQ(j["attributes"]["xrootd.transfer.kind"], "transfer");
   EXPECT_EQ(j["attributes"]["file.path"], "/store/data/file.root");
   EXPECT_EQ(j["attributes"]["user.name"], "alice");

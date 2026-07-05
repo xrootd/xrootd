@@ -102,12 +102,23 @@ void XrdMonOtlpBatch::add(const json& doc)
        std::string tr = strField(doc, "traceId"), sp = strField(doc, "spanId");
        if (!tr.empty()) rec["traceId"] = tr;
        if (!sp.empty()) rec["spanId"]  = sp;
-       // A human-readable body from the event name (also kept in attributes).
-       auto ait = doc.find("attributes");
-       if (ait != doc.end())
-          {auto eit = ait->find("event.name");
-           if (eit != ait->end() && eit->is_string())
-              rec["body"] = json{{"stringValue", eit->get<std::string>()}};
+       // The event name: the top-level LogRecord EventName field (semconv home
+       // since the event.name attribute was deprecated) plus a human-readable
+       // body. The attribute duplicate rides along in attrs until Loki can
+       // query the field itself (grafana/loki#19260).
+       std::string ev = strField(doc, "eventName");
+       if (ev.empty())
+          {// Older cached documents predate the top-level field.
+           auto ait = doc.find("attributes");
+           if (ait != doc.end())
+              {auto eit = ait->find("event.name");
+               if (eit != ait->end() && eit->is_string())
+                  ev = eit->get<std::string>();
+              }
+          }
+       if (!ev.empty())
+          {rec["eventName"] = ev;
+           rec["body"] = json{{"stringValue", std::move(ev)}};
           }
        rec["attributes"] = std::move(attrs);
       }

@@ -224,6 +224,9 @@ function test_moncollect() {
 		assert grep -q '^/v1/logs ' "${OTLP_OUT}"
 		assert grep -q '"resourceLogs"' "${OTLP_OUT}"
 		assert grep -q '"key":"xrootd.operation.state"' "${OTLP_OUT}"
+		# the event name must ride in the top-level LogRecord EventName field
+		# (the event.name attribute stays as a duplicate for Loki)
+		assert grep -q '"eventName":"xrootd.transfer"' "${OTLP_OUT}"
 		# the bearer token (read from @file) must reach the endpoint
 		assert grep -q '^authz /v1/logs Bearer secrettoken123' "${OTLP_OUT}"
 		for _ in $(seq 1 15); do

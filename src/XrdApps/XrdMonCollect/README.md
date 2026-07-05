@@ -106,9 +106,13 @@ Every document — the file-close transfer/access records, `session`,
 one OpenTelemetry-aligned schema: a process-level `resource` object and an
 event-level `attributes` object, both keyed by dotted semantic-convention names
 (with XRootD/WLCG-specific fields under the `xrootd.*`/`wlcg.*` vendor
-namespaces). There is no top-level `type` field: the record kind is
-`attributes["event.name"]`. This one in-memory shape is then framed differently
-per wire sink.
+namespaces). There is no top-level `type` field: the record kind is the
+top-level `eventName` (the OTLP LogRecord EventName field, its semconv home
+since the `event.name` attribute was deprecated), duplicated as
+`attributes["event.name"]` because Loki only exposes *attributes* as
+queryable structured metadata ([grafana/loki#19260](https://github.com/grafana/loki/issues/19260));
+the attribute can be dropped once Loki surfaces the field. This one in-memory
+shape is then framed differently per wire sink.
 
 #### OpenSearch `_bulk`
 
@@ -137,14 +141,15 @@ grouped by resource (one group per server incarnation), and classified as
 **logs** (the default) or **spans** (documents that carry a `kind`, produced with
 `--spans`). Logs POST to `<url>/v1/logs`, spans to `<url>/v1/traces`; the
 log/span envelope fields (severity, times, trace/span ids, name/kind/status) pass
-through since they are already OTLP-shaped, and the log `body` is the record's
-`event.name`:
+through since they are already OTLP-shaped, and the record's event name rides
+in the LogRecord `eventName` field with a matching human-readable `body`:
 
 ```json
 {"resourceLogs":[{
   "resource":{"attributes":[{"key":"service.name","value":{"stringValue":"xrootd"}}, …]},
   "scopeLogs":[{"scope":{"name":"xrdmoncollect"},
     "logRecords":[{"timeUnixNano":"…","severityNumber":9,
+      "eventName":"xrootd.transfer",
       "body":{"stringValue":"xrootd.transfer"},
       "attributes":[{"key":"file.path","value":{"stringValue":"/store/…"}}, …]}]}]}]}
 ```
@@ -454,6 +459,7 @@ event-level `attributes` object. One object per file close, for example:
   "severityNumber": 9, "severityText": "INFO",
   "traceId": "9f1c8b0d4e2a6f37c1a8b0d4e2a6f371",
   "spanId": "3ab4c1d2e3f40516",
+  "eventName": "xrootd.transfer",
   "attributes": {
     "event.name": "xrootd.transfer",
     "xrootd.transfer.kind": "transfer",

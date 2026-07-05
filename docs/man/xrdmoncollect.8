@@ -37,8 +37,10 @@ the \fBxrootd.*\fR/\fBwlcg.*\fR vendor namespaces; for example
 \fBattributes.wlcg.vo\fR, \fBattributes.xrootd.transfer.read_bytes\fR).
 A store that expands dotted field names (such as OpenSearch) indexes each key as
 a nested field, and empty or zero-valued fields are omitted. There is no
-top-level \fBtype\fR field: the
-record kind is \fBattributes["event.name"]\fR and the whole-file/partial
+top-level \fBtype\fR field: the record kind is the top-level \fBeventName\fR
+(the OTLP LogRecord EventName field), duplicated as
+\fBattributes["event.name"]\fR for stores that only query attributes (such as
+Loki structured metadata), and the whole-file/partial
 distinction is \fBattributes["xrootd.transfer.kind"]\fR.
 .P
 Each close is a whole-file \fItransfer\fR or a partial \fIaccess\fR
