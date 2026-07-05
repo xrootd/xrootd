@@ -73,7 +73,12 @@
               }
             },
             "client":  { "properties": { "address": { "type": "keyword" } } },
-            "network": { "properties": { "type":    { "type": "keyword" } } },
+            "network": {
+              "properties": {
+                "type": { "type": "keyword" },
+                "peer": { "properties": { "address": { "type": "keyword" } } }
+              }
+            },
             "user": {
               "properties": {
                 "name": { "type": "keyword" },

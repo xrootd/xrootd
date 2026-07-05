@@ -459,8 +459,8 @@ event-level `attributes` object. One object per file close, for example:
     "file.name": "file.root",
     "file.directory": "/store/data",
     "file.size": 1073741824,
-    "client.address": "192.0.2.17",
-    "xrootd.client.host": "wn.example.org",
+    "client.address": "wn.example.org",
+    "network.peer.address": "192.0.2.17",
     "network.type": "ipv4",
     "user.name": "alice",
     "user.id": "https://issuer/sub42",
@@ -501,7 +501,7 @@ on the wire. Mapping (and the server config each needs):
 | error_category | `error.type` + `xrootd.error.code` | `fstat` (failed open / I/O / close) |
 | server_name/site | `server.address` / `xrootd.server.site` | `=` ident (`all.sitename`/`XRDSITE` for site) |
 | server_ip / hostname | `server.address` | `=` ident, else UDP source (loopback → public address / local FQDN) |
-| client_ip / hostname | `client.address` / `xrootd.client.host` | login CGI `&a=` (numeric IP, 6.x+) / `u` descriptor (server DNS config) |
+| client_ip / hostname | `client.address` (name first) / `network.peer.address` (IP) | `u` descriptor (server DNS config) / login CGI `&a=` (numeric IP, 6.x+) |
 | client_version | `xrootd.client.version` | login appinfo (`&R=`) |
 | ip_version | `network.type` (`ipv4`/`ipv6`) | login appinfo (`&I=`) |
 | client_site | `xrootd.client.site` | login appinfo (`&S=`, client `XRDSITE`/`XRD_SITE`) |
@@ -513,12 +513,17 @@ on the wire. Mapping (and the server config each needs):
 | bytes | `xrootd.transfer.{read,readv,write}_bytes` | `fstat … xfr` |
 | is_local (LAN/WAN) | `xrootd.transfer.is_local` | derived: client vs server domain (needs `=` ident) |
 
-`client.address` is the numeric client IP the server puts in the login CGI
-(`&a=`, XRootD 6.x+; never a DNS name). Against an older server it falls back
-to the `u` descriptor's host, which may be a reverse-resolved name depending
-on the server's DNS configuration. When the server reverse-resolved the client
-to a hostname, that name is kept in `xrootd.client.host` (omitted when it
-would just repeat `client.address`).
+`client.address` carries the client's resolved name when one is known, with
+the IP address only as a fallback (per the OTel semantic conventions). The
+name is the `u` descriptor's host, which the *server* reverse-resolved at
+login time depending on its DNS configuration — the collector itself never
+does DNS in the receive path. When the name wins, the numeric client IP the
+server puts in the login CGI (`&a=`, XRootD 6.x+) is kept as
+`network.peer.address` (the direct peer). When no name is available,
+`client.address` is that numeric IP (or the descriptor's IP literal against
+an older server). The client's port is never reported: it is not on the
+monitoring wire (the `&a=` CGI strips it by construction, and the
+descriptor's `:<n>` field is a server-side file descriptor, not a port).
 
 `server.address` is the single canonical server-name field. Its precedence
 is: the host advertised on the `=` ident stream (when it is a real name, not
@@ -542,7 +547,7 @@ here — that hostname comes from its `=` ident, and a blocking reverse-DNS
 lookup of an arbitrary source IP would stall the UDP receive loop.
 
 `xrootd.transfer.is_local` is a heuristic: it is `true` when the client
-(`xrootd.client.host`, falling back to `client.address`) and the reporting
+(`client.address`, which is name-first) and the reporting
 server share a registered domain (the part after the first host label),
 `false` when they differ, and **omitted** when either side is an IP literal or
 the server host is unknown (no `=` ident yet). It also drives

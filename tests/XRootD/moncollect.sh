@@ -191,13 +191,14 @@ function test_moncollect() {
 	assert grep -Eq '"server.address":"[^"]+"' "${COLLECTOR_OUT}"
 	assert_failure grep -Eq '"server\.address":"(localhost[^"]*|127\.[0-9.]+|::1|::ffff:127\.[0-9.]+)"' "${COLLECTOR_OUT}"
 
-	# client.address must be the numeric client IP from the login "&a=" CGI,
-	# never a hostname or a loopback literal (the loopback client is renamed to
-	# this host's public address). The reverse-resolved client hostname is kept
-	# separately in xrootd.client.host.
-	assert grep -Eq '"client.address":"([0-9]{1,3}(\.[0-9]{1,3}){3}|[0-9a-fA-F:]*:[0-9a-fA-F:.]+)"' "${COLLECTOR_OUT}"
+	# client.address carries the server-resolved client name when one is known,
+	# with the numeric "&a=" IP as the fallback (and as network.peer.address
+	# when the name wins). It must never be a loopback literal or name (the
+	# loopback client is renamed to this host's public identity). There is no
+	# separate xrootd.client.host field.
+	assert grep -Eq '"client.address":"[^"]+"' "${COLLECTOR_OUT}"
 	assert_failure grep -Eq '"client.address":"(localhost[^"]*|127\.[0-9.]+|::1|::ffff:127\.[0-9.]+)"' "${COLLECTOR_OUT}"
-	assert grep -Eq '"xrootd.client.host":"[^"]+"' "${COLLECTOR_OUT}"
+	assert_failure grep -q '"xrootd.client.host"' "${COLLECTOR_OUT}"
 
 	# all.sitename (common.cfg sets it to the instance name) must surface
 	# verbatim as the server resource's site.

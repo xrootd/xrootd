@@ -538,25 +538,29 @@ std::string XrdMonDecode::otelIdentity(json& a, const Server& srv,
        if (!u.user.empty())       a["user.name"]            = u.user;
        if (!u.prot.empty())       a["xrootd.user.protocol"] = u.prot;
        if (!u.authMethod.empty()) a["xrootd.auth.method"]   = u.authMethod;
-       // Client endpoint: semconv client.address carries the numeric IP from
-       // the '&a=' login CGI; an older server only sends the descriptor host,
-       // which may be a reverse-resolved name. Loopback values are renamed to
-       // this host's public identity (publicFor/localHost). The resolved
-       // hostname, when it adds information, is kept in xrootd.client.host.
+       // Client endpoint: semconv wants client.address to carry the resolved
+       // name, with the IP only as a fallback. The name is the descriptor
+       // host, reverse-resolved by the *server* at login time — never here
+       // (the receive path does no DNS). When the name wins, the numeric IP
+       // from the '&a=' login CGI is kept as network.peer.address (the direct
+       // peer). Loopback values are renamed to this host's public identity
+       // (publicFor/localHost).
        std::string chost = u.host;
        if (resolveHosts && isLocalName(chost) && !localHost.empty())
           chost = localHost;
-       std::string caddr = !u.addr.empty() ? publicFor(u.addr)
-                         : (isIPLiteral(chost) ? publicFor(chost) : chost);
+       std::string cip = !u.addr.empty()        ? publicFor(u.addr)
+                       : (isIPLiteral(chost)    ? publicFor(chost)
+                                                : std::string());
+       std::string caddr = (!chost.empty() && !isIPLiteral(chost)
+                            && !isLocalName(chost)) ? chost : cip;
        if (!caddr.empty())
           {a["client.address"] = caddr;
+           if (!cip.empty() && cip != caddr) a["network.peer.address"] = cip;
            if      (u.ipVersion == 4) a["network.type"] = "ipv4";
            else if (u.ipVersion == 6) a["network.type"] = "ipv6";
            if (!u.clientVer.empty()) a["xrootd.client.version"] = u.clientVer;
            if (!u.site.empty())      a["xrootd.client.site"]    = u.site;
           }
-       if (!chost.empty() && !isIPLiteral(chost) && chost != caddr)
-          a["xrootd.client.host"] = chost;
        // Application info: structured (&x=/&y=) plus the raw 'i' blob, the
        // latter only when it adds information over the login &y= appinfo.
        if (!u.appName.empty()) a["xrootd.app.name"] = u.appName;
@@ -1728,11 +1732,10 @@ void XrdMonDecode::EmitClose(const std::string& src, int32_t stod, Server& srv,
        // LAN/WAN heuristic: tag the transfer local when the client and the
        // reporting server share a registered domain. Only decidable when both
        // are resolvable host names (not IP literals); otherwise left unset.
-       // The client name lives in xrootd.client.host now that client.address
-       // is numeric; fall back to client.address for pre-&a= servers.
+       // client.address is name-first, so it is the client name when one is
+       // known (hostDomain() returns empty for IP literals).
        if (!srv.ident.host.empty())
-          {std::string ch = a.value("xrootd.client.host",
-                            a.value("client.address", std::string()));
+          {std::string ch = a.value("client.address", std::string());
            std::string cd = hostDomain(ch);
            std::string sd = hostDomain(srv.ident.host);
            if (!cd.empty() && !sd.empty())

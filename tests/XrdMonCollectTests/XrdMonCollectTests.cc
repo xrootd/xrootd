@@ -795,6 +795,26 @@ TEST_F(Transfer, AuthTailEnrichesTransfer)
   EXPECT_EQ(j["attributes"]["client.address"], "198.51.100.7");
 }
 
+// client.address is name-first (semconv): the server-resolved descriptor host
+// wins, and the numeric '&a=' IP is then kept as network.peer.address.
+TEST_F(Transfer, ClientNameWinsAddressAndIpBecomesPeer)
+{
+  W body; body.u32(7);
+  std::string info = "xroot/alice.123:4@wn.example.org\n&p=gsi&a=198.51.100.7&I=4";
+  std::vector<unsigned char> pl = body.b;
+  pl.insert(pl.end(), info.begin(), info.end());
+  auto pkt = packet('u', kStod, pl);
+  dec.Process("10.0.0.1:9930", (const char*)pkt.data(), pkt.size());
+  feedOpen();
+  feedClose();
+
+  ASSERT_FALSE(lastDoc.empty());
+  json j = json::parse(lastDoc);
+  EXPECT_EQ(j["attributes"]["client.address"], "wn.example.org");
+  EXPECT_EQ(j["attributes"]["network.peer.address"], "198.51.100.7");
+  EXPECT_FALSE(j["attributes"].contains("xrootd.client.host"));
+}
+
 // The auth-CGI &o= is honoured only for methods that can convey a real VO;
 // a unix-auth &o= (e.g. a unix group from a custom seclib) is dropped.
 TEST_F(Transfer, AuthVoIgnoredForNonVoMethod)
