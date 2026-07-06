@@ -88,6 +88,48 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Resolve an integer setting
+  //----------------------------------------------------------------------------
+  bool Env::ResolveInt( const std::string                         &key,
+                        const std::string                         &shellKey,
+                        const std::map<std::string, std::string> *pluginConfig,
+                        int                                       &value,
+                        int                                        defaultValue )
+  {
+    PutInt( key, defaultValue );
+    if( !shellKey.empty() && ImportInt( key, shellKey ) )
+    {
+      GetInt( key, value );
+      return true;
+    }
+
+    if( pluginConfig )
+    {
+      const auto strValue = GetPluginConfigValue( *pluginConfig, key );
+      if( !strValue.empty() )
+      {
+        char *endPtr = nullptr;
+        const int parsed = static_cast<int>( strtol( strValue.c_str(), &endPtr, 0 ) );
+        if( endPtr && *endPtr == '\0' )
+        {
+          PutInt( key, parsed );
+          value = parsed;
+          return true;
+        }
+
+        Log *log = DefaultEnv::GetLog();
+        log->Error( UtilityMsg,
+                    "Env: Unable to import %s as %s: %s is not a proper integer",
+                    strValue.c_str(), key.c_str(), strValue.c_str() );
+      }
+    }
+
+    value = defaultValue;
+    PutInt( key, defaultValue );
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
   // Get string
   //----------------------------------------------------------------------------
   bool Env::GetString( const std::string &k, std::string &value )
