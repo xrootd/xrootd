@@ -734,10 +734,10 @@ Filesystem::Stat(const std::string      &path,
                  time_t                  timeout)
 {
     auto cleaned_path = Factory::CleanObjectName(path);
-    std::string https_url, err_msg, obj;
+    std::string https_url, obj;
     const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), cleaned_path);
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+    if (auto st = Factory::GenerateHttpUrl(s3_url, https_url, &obj); !st.IsOK()) {
+        return st;
     }
     auto query = obj.find('?');
     if (query != std::string::npos) {

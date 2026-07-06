@@ -176,9 +176,9 @@ File::Open(const std::string      &url,
 
     if (flags & (XrdCl::OpenFlags::Write | XrdCl::OpenFlags::Update |
                  XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::New)) {
-        std::string https_url, obj, err_msg;
-        if (!Factory::GenerateHttpUrl(url, https_url, &obj, err_msg)) {
-            return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+        std::string https_url, obj;
+        if (auto st = Factory::GenerateHttpUrl(url, https_url, &obj); !st.IsOK()) {
+            return st;
         }
         auto query = obj.find('?');
         if (query != std::string::npos) {

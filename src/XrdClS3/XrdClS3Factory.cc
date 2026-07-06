@@ -440,8 +440,8 @@ Factory::GenerateHttpUrl(const std::string &s3_url,
                 bucket.erase(query);
             }
             if (bucket.empty()) {
-                err_msg = "Provided S3 URL does not contain a bucket in path";
-                return false;
+                return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0,
+                                           "Provided S3 URL does not contain a bucket in path");
             }
         } else {
             bucket = s3_url.substr(old_loc, loc - old_loc);
