@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClPlugInInterface.hh"
 
 #include <condition_variable>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -51,6 +52,9 @@ public:
     // Get the header timeout value, taking into consideration the provided command timeout, and XrdCl's default values
     static struct timespec GetHeaderTimeoutWithDefault(time_t oper_timeout);
 
+    // Store plug-in configuration from client.plugins.d for this library.
+    static void SetPluginConfig(const std::map<std::string, std::string> &config);
+
     // Hand off a given curl operation to the factory's worker pool.
     void Produce(std::unique_ptr<XrdClHttp::CurlOperation> operation);
 
@@ -70,6 +74,7 @@ private:
     static void Shutdown();
 
     static bool m_initialized;
+    static std::map<std::string, std::string> m_plugin_config;
     static std::shared_ptr<XrdClHttp::HandlerQueue> m_queue;
     static XrdCl::Log *m_log;
     const static unsigned m_poll_threads{8};
