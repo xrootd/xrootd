@@ -233,7 +233,7 @@ CurlOperation::FinishSetup(CURL *curl)
     {
         InjectBearerToken(*m_parsed_url, m_headers_list, m_logger);
     }
-    
+
     // The client asks every request to carry the headers given by the HttpHeaders
     // environment setting.  HeaderBuilder interprets the contents.
     std::string spec;

@@ -1,5 +1,6 @@
 add_unit_tests(
   SOURCES
+    XrdOucBearerTokenTests.cc
     XrdOucCRCCombine.cc
     XrdOucHashVal.cc
     XrdOucUtils.cc
