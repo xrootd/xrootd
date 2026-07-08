@@ -21,14 +21,15 @@
 
 extern XrdSysXAttr *XrdSysXAttrActive;
 
-namespace XrdPfc
-{
-   const char *trace_what_strings[] = {"","error ","warning ","info ","debug ","dump "};
-}
-
-using namespace XrdPfc;
-
 XrdVERSIONINFO(XrdOucGetCache, XrdPfc);
+
+namespace XrdPfc {
+
+const char *trace_what_strings[] = {"","error ","warning ","info ","debug ","dump "};
+
+//----------------------------------------------------------------------------
+// Configuration
+//----------------------------------------------------------------------------
 
 Configuration::Configuration() :
    m_write_through(false),
@@ -65,6 +66,50 @@ Configuration::Configuration() :
    m_qfsredir(true)
 {}
 
+//----------------------------------------------------------------------------
+// snprintf_wrapper
+//----------------------------------------------------------------------------
+
+const size_t snprintf_wrapper::s_MAX_SIZE = 10 * 1024 * 1024; // 10MB limit
+
+snprintf_wrapper::snprintf_wrapper(const std::string& exc_prefix, int size) :
+   f_exc_prefix(exc_prefix)
+{
+   if (size < 64) size = 64;
+   f_string.resize(size);
+   f_string[0] = 0;
+   f_pos = 0;
+}
+
+void snprintf_wrapper::operator()(const char *fmt, ...)
+{
+   va_list ap;
+   bool done = false;
+   while ( ! done) {
+      va_start(ap, fmt);
+      size_t space_left = f_string.size() - f_pos;
+      int rc = vsnprintf(f_string.data() + f_pos, space_left, fmt, ap);
+      va_end(ap);
+      if (rc < 0) {
+         throw std::runtime_error(f_exc_prefix + " - vsnprintf failure" + std::to_string(rc));
+      }
+      size_t would_write = (size_t) rc;
+      if (would_write >= space_left) {
+         size_t new_size = f_string.size() * 2;
+         if (new_size > s_MAX_SIZE) {
+            throw std::runtime_error(f_exc_prefix + " - exceeding " + std::to_string(s_MAX_SIZE) + " bytes limit");
+         }
+         f_string.resize(f_string.size() * 2);
+      } else {
+         f_pos += would_write;
+         done = true;
+      }
+   }
+}
+
+//==============================================================================
+// Cache
+//==============================================================================
 
 bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name) const
 {
@@ -681,62 +726,61 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
          snprintf(urlcgi_npref, sizeof(urlcgi_npref), "%d %d",
                   CFG.m_cgi_min_prefetch_max_blocks, CFG.m_cgi_max_prefetch_max_blocks);
 
-      char buff[8192];
-      int  loff = 0;
-      loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
-                      "       pfc.cschk %s uvkeep %s\n"
-                      "       pfc.blocksize %lldk\n"
-                      "       pfc.prefetch %d\n"
-                      "       pfc.urlcgi blocksize %s prefetch %s\n"
-                      "       pfc.ram %.fg\n"
-                      "       pfc.writequeue %d %d\n"
-                      "       # Total available disk: %lld\n"
-                      "       pfc.diskusage %lld %lld files %lld %lld %lld purgeinterval %d purgecoldfiles %d\n"
-                      "       pfc.spaces %s %s\n"
-                      "       pfc.trace %d\n"
-                      "       pfc.flush %lld\n"
-                      "       pfc.acchistorysize %d\n"
-                      "       pfc.onlyIfCachedMinBytes %lld\n"
-                      "       pfc.onlyIfCachedMinFrac %.2f\n",
-                      config_filename,
-                      csc[int(m_configuration.m_cs_Chk)], uvk,
-                      m_configuration.m_bufferSize >> 10,
-                      m_configuration.m_prefetch_max_blocks,
-                      urlcgi_blks, urlcgi_npref,
-                      ram_gb,
-                      m_configuration.m_wqueue_blocks, m_configuration.m_wqueue_threads,
-                      sP.Total,
-                      m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM,
-                      m_configuration.m_fileUsageBaseline, m_configuration.m_fileUsageNominal, m_configuration.m_fileUsageMax,
-                      m_configuration.m_purgeInterval, m_configuration.m_purgeColdFilesAge,
-                      m_configuration.m_data_space.c_str(),
-                      m_configuration.m_meta_space.c_str(),
-                      m_trace->What,
-                      m_configuration.m_flushCnt,
-                      m_configuration.m_accHistorySize,
-                      m_configuration.m_onlyIfCachedMinSize,
-                      m_configuration.m_onlyIfCachedMinFrac);
+      snprintf_wrapper cfg_printf("XrdPfc::Cache::Config print effective configuration", 8192);
+
+      cfg_printf("Config effective %s pfc configuration:\n"
+                 "       pfc.cschk %s uvkeep %s\n"
+                 "       pfc.blocksize %lldk\n"
+                 "       pfc.prefetch %d\n"
+                 "       pfc.urlcgi blocksize %s prefetch %s\n"
+                 "       pfc.ram %.fg\n"
+                 "       pfc.writequeue %d %d\n"
+                 "       # Total available disk: %lld\n"
+                 "       pfc.diskusage %lld %lld files %lld %lld %lld purgeinterval %d purgecoldfiles %d\n"
+                 "       pfc.spaces %s %s\n"
+                 "       pfc.trace %d\n"
+                 "       pfc.flush %lld\n"
+                 "       pfc.acchistorysize %d\n"
+                 "       pfc.onlyIfCachedMinBytes %lld\n"
+                 "       pfc.onlyIfCachedMinFrac %.2f\n",
+                 config_filename,
+                 csc[int(m_configuration.m_cs_Chk)], uvk,
+                 m_configuration.m_bufferSize >> 10,
+                 m_configuration.m_prefetch_max_blocks,
+                 urlcgi_blks, urlcgi_npref,
+                 ram_gb,
+                 m_configuration.m_wqueue_blocks, m_configuration.m_wqueue_threads,
+                 sP.Total,
+                 m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM,
+                 m_configuration.m_fileUsageBaseline, m_configuration.m_fileUsageNominal, m_configuration.m_fileUsageMax,
+                 m_configuration.m_purgeInterval, m_configuration.m_purgeColdFilesAge,
+                 m_configuration.m_data_space.c_str(),
+                 m_configuration.m_meta_space.c_str(),
+                 m_trace->What,
+                 m_configuration.m_flushCnt,
+                 m_configuration.m_accHistorySize,
+                 m_configuration.m_onlyIfCachedMinSize,
+                 m_configuration.m_onlyIfCachedMinFrac);
 
       if (m_configuration.is_dir_stat_reporting_on())
       {
-         loff += snprintf(buff + loff, sizeof(buff) - loff,
-                          "       pfc.dirstats interval %d maxdepth %d (internal: size_of_dirlist %d, size_of_globlist %d)\n",
-                          m_configuration.m_dirStatsInterval, m_configuration.m_dirStatsStoreDepth,
-                          (int) m_configuration.m_dirStatsDirs.size(), (int) m_configuration.m_dirStatsDirGlobs.size());
-         loff += snprintf(buff + loff, sizeof(buff) - loff, "           dirlist:\n");
+         cfg_printf("       pfc.dirstats interval %d maxdepth %d (internal: size_of_dirlist %d, size_of_globlist %d)\n",
+                    m_configuration.m_dirStatsInterval, m_configuration.m_dirStatsStoreDepth,
+                    (int) m_configuration.m_dirStatsDirs.size(), (int) m_configuration.m_dirStatsDirGlobs.size());
+         cfg_printf( "           dirlist:\n");
          for (std::set<std::string>::iterator i = m_configuration.m_dirStatsDirs.begin(); i != m_configuration.m_dirStatsDirs.end(); ++i)
-            loff += snprintf(buff + loff, sizeof(buff) - loff, "               %s\n", i->c_str());
-         loff += snprintf(buff + loff, sizeof(buff) - loff, "           globlist:\n");
+            cfg_printf("               %s\n", i->c_str());
+         cfg_printf("           globlist:\n");
          for (std::set<std::string>::iterator i = m_configuration.m_dirStatsDirGlobs.begin(); i != m_configuration.m_dirStatsDirGlobs.end(); ++i)
-            loff += snprintf(buff + loff, sizeof(buff) - loff, "               %s/*\n", i->c_str());
+            cfg_printf("               %s/*\n", i->c_str());
       }
 
       if (m_configuration.m_hdfsmode)
       {
-         loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
+         cfg_printf("       pfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
       }
 
-      loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.writethrough %s\n", m_configuration.m_write_through ? "on" : "off");
+      cfg_printf("       pfc.writethrough %s\n", m_configuration.m_write_through ? "on" : "off");
 
       if (m_configuration.m_username.empty())
       {
@@ -746,19 +790,19 @@ bool Cache::Config(const char *config_filename, const char *parameters, XrdOucEn
       }
       else
       {
-         loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.user %s\n", m_configuration.m_username.c_str());
+         cfg_printf("       pfc.user %s\n", m_configuration.m_username.c_str());
       }
 
       if (m_configuration.m_httpcc)
       {
-         loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.httpcc on\n");
+         cfg_printf("       pfc.httpcc on\n");
       }
       if (m_configuration.m_qfsredir)
       {
-         loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.qfsredir on\n");
+         cfg_printf("       pfc.qfsredir on\n");
       }
 
-      m_log.Say(buff);
+      m_log.Say(cfg_printf.c_str());
 
       m_env->Put("XRDPFC.SEGSIZE", std::to_string(m_configuration.m_bufferSize).c_str());
    }
@@ -1228,3 +1272,5 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
 
    return true;
 }
+
+} // end namespace XrdPfc
