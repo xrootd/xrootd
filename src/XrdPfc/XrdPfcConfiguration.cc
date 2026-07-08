@@ -91,7 +91,7 @@ void snprintf_wrapper::operator()(const char *fmt, ...)
       int rc = vsnprintf(f_string.data() + f_pos, space_left, fmt, ap);
       va_end(ap);
       if (rc < 0) {
-         throw std::runtime_error(f_exc_prefix + " - vsnprintf failure" + std::to_string(rc));
+         throw std::runtime_error(f_exc_prefix + " - vsnprintf failure: " + std::to_string(rc));
       }
       size_t would_write = (size_t) rc;
       if (would_write >= space_left) {
