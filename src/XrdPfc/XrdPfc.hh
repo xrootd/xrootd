@@ -157,6 +157,21 @@ struct TmpConfiguration
    {}
 };
 
+//------------------------------------------------------------------------------
+
+struct snprintf_wrapper {
+   std::vector<char> f_string;
+   size_t            f_pos;
+   std::string       f_exc_prefix;
+
+   static const size_t s_MAX_SIZE;
+
+   snprintf_wrapper(const std::string& exc_prefix, int size = 1024);
+
+   void operator()(const char *fmt, ...);
+
+   const char* c_str() const { return f_string.data(); }
+};
 
 //==============================================================================
 // Cache
