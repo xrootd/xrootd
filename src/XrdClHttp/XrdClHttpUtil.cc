@@ -18,40 +18,41 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdClHttpFile.hh"
-#include "XrdClHttpOps.hh"
-#include "XrdClHttpOptionsCache.hh"
 #include "XrdClHttpUtil.hh"
-#include "XrdClHttpWorker.hh"
+
+#include <curl/curl.h>
+#include <fcntl.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <unistd.h>
 
 #include <XProtocol/XProtocol.hh>
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClLog.hh>
 #include <XrdCl/XrdClURL.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
+#include <XrdOuc/XrdOucBearerToken.hh>
 #include <XrdOuc/XrdOucCRC.hh>
 #include <XrdOuc/XrdOucPrivateUtils.hh>
 #include <XrdSys/XrdSysPageSize.hh>
 #include <XrdVersion.hh>
+#include <cerrno>
+#include <cstring>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
 
-#include <curl/curl.h>
-#include <openssl/bio.h>
-#include <openssl/evp.h>
+#include "XrdClHttpFile.hh"
+#include "XrdClHttpOps.hh"
+#include "XrdClHttpOptionsCache.hh"
+#include "XrdClHttpWorker.hh"
 
-#include <fcntl.h>
-#include <fstream>
 #ifdef __APPLE__
 #include <pthread.h>
 #else
 #include <sys/syscall.h>
 #include <sys/types.h>
 #endif
-#include <unistd.h>
-
-#include <charconv>
-#include <sstream>
-#include <stdexcept>
-#include <utility>
 
 using namespace XrdClHttp;
 
@@ -669,6 +670,50 @@ XrdClHttp::GetHandle(bool verbose) {
     curl_easy_setopt(result, CURLOPT_BUFFERSIZE, 32*1024);
 
     return result;
+}
+
+std::string XrdClHttp::GetBearerToken(XrdCl::Log* logger) {
+    auto result = XrdOucBearerToken::Discover();
+    if (result.status == XrdOucBearerToken::Status::Found) return result.token;
+
+    if (logger && result.status == XrdOucBearerToken::Status::Error) {
+        std::string emsg;
+        switch (result.errnum) {
+            case EPERM:
+                emsg = "token file must be readable only by its owner";
+                break;
+            case EMSGSIZE:
+                emsg = "token exceeds the maximum allowed size";
+                break;
+            case EIO:
+                emsg = "unable to read the complete token from file";
+                break;
+            default:
+                emsg = strerror(result.errnum);
+                break;
+        }
+
+        logger->Warning(kLogXrdClHttp, "Bearer token discovery failed at %s: %s",
+                        result.location.c_str(), emsg.c_str());
+    }
+
+    return {};
+}
+
+void XrdClHttp::InjectBearerToken(const XrdCl::URL& url, std::vector<std::pair<std::string, std::string>>& headers,
+                                  XrdCl::Log* logger) {
+    if (url.GetParams().count("authz")) return;
+    for (const auto& h : headers) {
+        if (h.first.compare("Authorization") == 0) return;
+    }
+
+    auto tok = GetBearerToken(logger);
+    if (tok.empty()) return;
+
+    if (logger) {
+        logger->Debug(kLogXrdClHttp, "Injecting bearer token from environment for %s", url.GetURL().c_str());
+    }
+    headers.emplace_back("Authorization", "Bearer " + tok);
 }
 
 CURL *

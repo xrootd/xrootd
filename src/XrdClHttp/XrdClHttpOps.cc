@@ -19,25 +19,27 @@
 /******************************************************************************/
 
 #include "XrdClHttpOps.hh"
+
+#include <arpa/inet.h>
+#include <unistd.h>
+
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClLog.hh>
+#include <XrdCl/XrdClURL.hh>
+#include <XrdCl/XrdClXRootDResponses.hh>
+#include <chrono>
+#include <cmath>
+#include <utility>
+
 #include "XrdClHttpResponses.hh"
 #include "XrdClHttpUtil.hh"
 #include "XrdClHttpWorker.hh"
 
-#include <XrdCl/XrdClDefaultEnv.hh>
-#include <XrdCl/XrdClLog.hh>
-#include <XrdCl/XrdClXRootDResponses.hh>
-
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <chrono>
-#include <cmath>
 #ifdef __APPLE__
 #include <stdlib.h>
 #else
 #include <sys/random.h>
 #endif
-#include <utility>
-
 using namespace XrdClHttp;
 
 std::chrono::steady_clock::duration CurlOperation::m_stall_interval{CurlOperation::m_default_stall_interval};
@@ -215,6 +217,10 @@ CurlOperation::FailCallback(XErrorCode ecode, const std::string &emsg) {
 bool
 CurlOperation::FinishSetup(CURL *curl)
 {
+    if (m_parsed_url) {
+        XrdClHttp::InjectBearerToken(*m_parsed_url, m_headers_list, m_logger);
+    }
+
     if (!m_header_callout) {
         m_header_slist.reset();
         for (const auto &header : m_headers_list) {
