@@ -56,8 +56,9 @@ bool HTTPStatusIsError(unsigned status);
 
 std::pair<uint16_t, uint32_t> HTTPStatusConvert(unsigned status);
 
-// Read a bearer token from the standard XrdCl environment options, falling
-// back to the corresponding process environment variables.
+// Locate a bearer token. An explicit XrdCl BearerToken setting takes
+// priority; otherwise use the shared WLCG discovery rules, then an explicit
+// XrdCl BearerTokenFile setting.
 std::string GetBearerToken(XrdCl::Log *logger = nullptr);
 
 // Return whether bearer-token authentication is the first available method
