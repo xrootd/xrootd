@@ -31,6 +31,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -40,6 +41,7 @@ struct curl_slist;
 
 namespace XrdCl {
 
+class Env;
 class ResponseHandler;
 class Log;
 
@@ -55,11 +57,31 @@ bool HTTPStatusIsError(unsigned status);
 
 std::pair<uint16_t, uint32_t> HTTPStatusConvert(unsigned status);
 
+// Returns true if the use of a client X.509 credential is enabled in the
+// XrdCl environment (the HttpDisableX509 knob).
+bool ClientX509Enabled(XrdCl::Env *env);
+
+// Returns the client X.509 certificate and key file configured in the
+// XrdCl environment.
+std::tuple<std::string, std::string> ClientX509CertKeyFromEnv(XrdCl::Env *env);
+
+// Apply a client X.509 certificate and key file to a curl handle.
+// A no-op when the certificate is empty.
+void SetClientX509(CURL *curl, const std::string &cert, const std::string &key,
+                   XrdCl::Log *log);
+
+// Read a bearer token from the standard XrdCl environment options, falling
+// back to the corresponding process environment variables.
+std::string GetBearerToken();
+
 // Trim the left side of a string_view for space
 std::string_view ltrim_view(const std::string_view &input_view);
 
 // Trim the left and right side of a string_view of whitespace
 std::string_view trim_view(const std::string_view &input_view);
+
+// Apply the common XrdClHttp configuration to a curl handle.
+void ConfigureHandle(CURL *curl, bool verbose);
 
 // Returns a newly-created curl handle (no internal caching) with the
 // various configurations needed to be used by XrdClHttp

@@ -44,6 +44,7 @@ class Log;
 namespace XrdClHttp {
 
 class HandlerQueue;
+class CurlOperation;
 
 class Filesystem final : public XrdCl::FileSystemPlugIn {
 public:
@@ -70,6 +71,13 @@ public:
                                       XrdCl::ResponseHandler   *handler,
                                       time_t                    timeout) override;
 
+    virtual XrdCl::XRootDStatus Prepare(
+        const std::vector<std::string> &fileList,
+        XrdCl::PrepareFlags::Flags      flags,
+        uint8_t                         priority,
+        XrdCl::ResponseHandler         *handler,
+        time_t                          timeout) override;
+
     virtual XrdCl::XRootDStatus Rm(const std::string      &path,
                                    XrdCl::ResponseHandler *handler,
                                    time_t                  timeout) override;
@@ -91,6 +99,10 @@ public:
                                       time_t                   timeout) override;
 
 private:
+    XrdCl::XRootDStatus QueueOperation(
+        std::unique_ptr<CurlOperation> operation,
+        const char *description);
+
     // Return a function pointer to the connection callout
     // Returns nullptr if this file isn't using the callout
     CreateConnCalloutType GetConnCallout() const;

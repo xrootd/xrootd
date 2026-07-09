@@ -28,6 +28,7 @@
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClLog.hh>
 #include <XrdCl/XrdClURL.hh>
+#include <XrdCl/XrdClUtils.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
 #include <XrdOuc/XrdOucCRC.hh>
 #include <XrdOuc/XrdOucPrivateUtils.hh>
@@ -105,6 +106,62 @@ pid_t getthreadid() {
 
 bool XrdClHttp::HTTPStatusIsError(unsigned status) {
      return (status < 100) || (status >= 400);
+}
+
+bool XrdClHttp::ClientX509Enabled(XrdCl::Env *env) {
+    if (!env) return false;
+    int disable_x509 = 0;
+    return env->GetInt("HttpDisableX509", disable_x509) && !disable_x509;
+}
+
+std::tuple<std::string, std::string> XrdClHttp::ClientX509CertKeyFromEnv(XrdCl::Env *env) {
+    std::string cert, key;
+    if (env) {
+        env->GetString("HttpClientCertFile", cert);
+        env->GetString("HttpClientKeyFile", key);
+    }
+    return std::make_tuple(cert, key);
+}
+
+void XrdClHttp::SetClientX509(CURL *curl, const std::string &cert, const std::string &key,
+                              XrdCl::Log *log) {
+    if (cert.empty()) return;
+    if (log) log->Debug(kLogXrdClHttp, "Using client X.509 credential found at %s", cert.c_str());
+    curl_easy_setopt(curl, CURLOPT_SSLCERT, cert.c_str());
+    if (key.empty()) {
+        if (log) log->Error(kLogXrdClHttp, "X.509 client credential specified but not the client key");
+        return;
+    }
+    curl_easy_setopt(curl, CURLOPT_SSLKEY, key.c_str());
+}
+
+std::string XrdClHttp::GetBearerToken()
+{
+    auto env = XrdCl::DefaultEnv::GetEnv();
+    if (!env) return {};
+
+    std::string token;
+    if (!env->GetString("BearerToken", token) || token.empty()) {
+        env->ImportString("BearerToken", "BEARER_TOKEN");
+        env->GetString("BearerToken", token);
+    }
+    if (!token.empty()) {
+        XrdCl::Utils::Trim(token);
+        return token;
+    }
+
+    std::string token_file;
+    if (!env->GetString("BearerTokenFile", token_file) || token_file.empty()) {
+        env->ImportString("BearerTokenFile", "BEARER_TOKEN_FILE");
+        env->GetString("BearerTokenFile", token_file);
+    }
+    if (token_file.empty()) return {};
+
+    std::ifstream input(token_file);
+    if (!input) return {};
+    std::getline(input, token);
+    XrdCl::Utils::Trim(token);
+    return token;
 }
 
 std::pair<uint16_t, uint32_t> XrdClHttp::HTTPStatusConvert(unsigned status) {
@@ -319,7 +376,9 @@ bool HeaderParser::Parse(const std::string &header_line)
 
     std::string header_name = header_line.substr(0, found);
     if (!Canonicalize(header_name)) {
-        return false;
+        // libcurl has already accepted and framed this response.  An invalid
+        // field name cannot be interpreted as response metadata, so skip it.
+        return true;
     }
 
     found += 1;
@@ -631,18 +690,13 @@ std::string_view XrdClHttp::ltrim_view(const std::string_view &input_view) {
     return "";
 }
 
-CURL *
-XrdClHttp::GetHandle(bool verbose) {
-    auto result = curl_easy_init();
-    if (result == nullptr) {
-        return result;
-    }
-
-    curl_easy_setopt(result, CURLOPT_USERAGENT, "xrdcl-http/" XrdVERSION);
-    curl_easy_setopt(result, CURLOPT_DEBUGFUNCTION, DumpHeader);
-    curl_easy_setopt(result, CURLOPT_DEBUGDATA, XrdCl::DefaultEnv::GetLog());
+void
+XrdClHttp::ConfigureHandle(CURL *curl, bool verbose) {
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "xrdcl-http/" XrdVERSION);
+    curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, DumpHeader);
+    curl_easy_setopt(curl, CURLOPT_DEBUGDATA, XrdCl::DefaultEnv::GetLog());
     if (verbose)
-        curl_easy_setopt(result, CURLOPT_VERBOSE, 1L);
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
     auto env = XrdCl::DefaultEnv::GetEnv();
     std::string ca_file;
@@ -653,7 +707,7 @@ XrdClHttp::GetHandle(bool verbose) {
         }
     }
     if (!ca_file.empty()) {
-        curl_easy_setopt(result, CURLOPT_CAINFO, ca_file.c_str());
+        curl_easy_setopt(curl, CURLOPT_CAINFO, ca_file.c_str());
     }
     std::string ca_dir;
     if (!env->GetString("HttpCertDir", ca_dir) || ca_dir.empty()) {
@@ -663,10 +717,20 @@ XrdClHttp::GetHandle(bool verbose) {
         }
     }
     if (!ca_dir.empty()) {
-        curl_easy_setopt(result, CURLOPT_CAPATH, ca_dir.c_str());
+        curl_easy_setopt(curl, CURLOPT_CAPATH, ca_dir.c_str());
     }
 
-    curl_easy_setopt(result, CURLOPT_BUFFERSIZE, 32*1024);
+    curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 32*1024);
+}
+
+CURL *
+XrdClHttp::GetHandle(bool verbose) {
+    auto result = curl_easy_init();
+    if (result == nullptr) {
+        return result;
+    }
+
+    XrdClHttp::ConfigureHandle(result, verbose);
 
     return result;
 }
@@ -907,9 +971,8 @@ CurlWorker::CurlWorker(std::shared_ptr<HandlerQueue> queue, VerbsCache &cache, X
     m_shutdown_pipe_w = pipeInfo[1];
 
     // Handle setup of the X509 authentication
-    auto env = XrdCl::DefaultEnv::GetEnv();
-    env->GetString("HttpClientCertFile", m_x509_client_cert_file);
-    env->GetString("HttpClientKeyFile", m_x509_client_key_file);
+    std::tie(m_x509_client_cert_file, m_x509_client_key_file) =
+        ClientX509CertKeyFromEnv(XrdCl::DefaultEnv::GetEnv());
 }
 
 std::tuple<std::string, std::string> CurlWorker::ClientX509CertKeyFile() const
@@ -1182,6 +1245,8 @@ CurlWorker::Run() {
             op->SetContinueQueue(m_continue_queue);
 
             if (op->IsDone()) {
+                op->ReleaseHandle();
+                queue.RecycleHandle(curl);
                 continue;
             }
             m_op_map[curl] = {op, std::chrono::system_clock::now()};
@@ -1578,10 +1643,33 @@ CurlWorker::Run() {
                                 curl_multi_add_handle(multi_handle, iter->first);
                             }
                         } else if (!options_op) {
+                            // A multi-step operation may reset and reconfigure its
+                            // easy handle from Success().  Remove the completed
+                            // request before invoking it so libcurl no longer owns
+                            // the request configuration being replaced.
+                            curl_multi_remove_handle(multi_handle, iter->first);
                             op->Success();
-                            op->ReleaseHandle();
-                            // If the handle was successful, then we can recycle it.
-                            queue.RecycleHandle(iter->first);
+                            if (op->IsDone()) {
+                                op->ReleaseHandle();
+                                // If the handle was successful, then we can recycle it.
+                                queue.RecycleHandle(iter->first);
+                            } else {
+                                // Multi-step operations may configure their easy handle
+                                // for another request from Success().  Keep ownership of
+                                // the handle and run the next request through this worker's
+                                // multi-handle like any other operation.
+                                auto next_res = curl_multi_add_handle(multi_handle, iter->first);
+                                if (next_res == CURLM_OK) {
+                                    keep_handle = true;
+                                    OpRecord(*op, OpKind::Start);
+                                } else {
+                                    op->Fail(XrdCl::errInternal, next_res,
+                                        "Unable to add the next operation request to the curl multi-handle");
+                                    OpRecord(*op, OpKind::Error);
+                                    op->ReleaseHandle();
+                                    queue.RecycleHandle(iter->first);
+                                }
+                            }
                         }
                     }
                 } else if (res == CURLE_COULDNT_CONNECT && op->UseConnectionCallout() && !op->GetTriedBoker()) {

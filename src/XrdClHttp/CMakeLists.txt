@@ -25,8 +25,10 @@ add_library(XrdClHttpObj OBJECT
   XrdClHttpOpReadV.cc
   XrdClHttpOps.cc            XrdClHttpOps.hh
   XrdClHttpOpStat.cc
+  XrdClHttpOpTape.cc
   XrdClHttpOptionsCache.cc   XrdClHttpOptionsCache.hh
   XrdClHttpParseTimeout.cc   XrdClHttpParseTimeout.hh
+  XrdClHttpTape.cc           XrdClHttpTape.hh
   XrdClHttpUtil.cc           XrdClHttpUtil.hh
   XrdClHttpWorker.hh
 )

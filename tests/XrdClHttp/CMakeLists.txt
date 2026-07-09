@@ -1,16 +1,32 @@
-# XrdClHttp tests depend on scitokens fixture for authentication
-if(NOT BUILD_SCITOKENS)
-  return()
-endif()
-
 # The final shared library has its symbols stripped; we need the symbols available
 # to allow unit tests to access them.  Rather than build the objects twice, we
 # create an internal object library and just link twice -- once stripping the symbols,
 # once without.
+find_package(CURL REQUIRED)
+
 add_library(XrdClHttpTesting SHARED)
 target_link_libraries(XrdClHttpTesting PRIVATE XrdClHttpObj)
 
 include(GoogleTest)
+
+add_executable(xrdcl-http-unit-tests
+  HeaderParserTest.cc
+  ParseTimeoutTest.cc
+  TapeTest.cc
+)
+
+target_link_libraries(xrdcl-http-unit-tests
+  XrdClHttpTesting XrdCl CURL::libcurl GTest::gtest_main)
+target_include_directories(xrdcl-http-unit-tests
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src")
+
+gtest_discover_tests(xrdcl-http-unit-tests TEST_PREFIX XrdClHttp::
+  PROPERTIES DISCOVERY_TIMEOUT 10)
+
+# XrdClHttp integration tests depend on scitokens fixture for authentication
+if(NOT BUILD_SCITOKENS)
+  return()
+endif()
 
 find_program(OPENSSL_BIN openssl REQUIRED)
 
@@ -27,7 +43,6 @@ add_executable(xrdcl-test
 # Tests depending on XrdClHttp linkage
 add_executable(xrdcl-http-test
   CopyTest.cc
-  ParseTimeoutTest.cc
   VectorReadTest.cc
 )
 

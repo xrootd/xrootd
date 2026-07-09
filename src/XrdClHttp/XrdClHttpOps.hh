@@ -24,9 +24,11 @@
 #include "XrdClHttpConnectionCallout.hh"
 #include "XrdClHttpHeaderCallout.hh"
 #include "XrdClHttpResponseInfo.hh"
+#include "XrdClHttpTape.hh"
 #include "XrdClHttpUtil.hh"
 
 #include <XrdCl/XrdClBuffer.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
 
 #include <atomic>
@@ -62,6 +64,7 @@ public:
         DELETE,
         HEAD,
         GET,
+        POST,
         MKCOL,
         OPTIONS,
         PROPFIND,
@@ -173,8 +176,8 @@ public:
     // Invoked after the OPTIONS request is done and results are available
     void virtual OptionsDone() {}
 
-    // Returns the URL that was used for the operation.
-    const std::string &GetUrl() const {return m_url;}
+    // Returns the URL used by the current request.
+    const std::string &GetUrl() const {return m_request_url;}
 
     // Returns the response info for the operation
     std::unique_ptr<ResponseInfo> GetResponseInfo();
@@ -288,6 +291,11 @@ public:
 
 protected:
 
+    // Prepare the current easy handle for another HTTP request in a
+    // multi-step operation.  The operation deadline and response handler are
+    // preserved while per-request curl, header, and callout state is reset.
+    bool SetupNextRequest(const std::string &url, CurlWorker &worker);
+
     // Update the count of bytes transferred
     void UpdateBytes(uint64_t bytes) {m_bytes += bytes;}
 
@@ -391,6 +399,9 @@ private:
 protected:
     void SetDone(bool has_failed) {m_done = true; m_has_failed.store(has_failed, std::memory_order_release);}
     const std::string m_url;
+    // Multi-step operations retain their immutable input URL in m_url while
+    // advancing the URL used for each individual HTTP request here.
+    std::string m_request_url;
     XrdCl::ResponseHandler *m_handler{nullptr};
     std::unique_ptr<CURL, void(*)(CURL *)> m_curl;
     HeaderParser m_headers;
@@ -606,6 +617,55 @@ public:
 
     int  m_queryCode;
     std::string m_queryVal;
+};
+
+class CurlTapeOp : public CurlOperation {
+public:
+    ~CurlTapeOp() override;
+
+    bool Setup(CURL *curl, CurlWorker &worker) override;
+    void Fail(uint16_t errCode, uint32_t errNum,
+              const std::string &message) override;
+    void ReleaseHandle() override;
+    void Success() override;
+
+    HttpVerb GetVerb() const override;
+
+protected:
+    CurlTapeOp(XrdCl::ResponseHandler *handler, const std::string &url,
+        std::unique_ptr<TapeOperation> tape, struct timespec timeout,
+        XrdCl::Log *logger, CreateConnCalloutType callout,
+        HeaderCallout *header_callout);
+
+private:
+    bool ConfigureRequest();
+    void Complete(const std::string &response);
+    std::string RequestDescription() const;
+    static size_t WriteCallback(char *buffer, size_t size, size_t nitems,
+                                void *data);
+    size_t Write(char *buffer, size_t size);
+
+    std::unique_ptr<TapeOperation> m_tape;
+    TapeHttpRequest m_request;
+    CurlWorker *m_worker{nullptr};
+    std::string m_response;
+};
+
+class CurlTapePrepareOp final : public CurlTapeOp {
+public:
+    CurlTapePrepareOp(XrdCl::ResponseHandler *handler, const std::string &url,
+        const std::vector<std::string> &file_list,
+        XrdCl::PrepareFlags::Flags flags, struct timespec timeout,
+        XrdCl::Log *logger, CreateConnCalloutType callout,
+        HeaderCallout *header_callout);
+};
+
+class CurlTapeQueryOp final : public CurlTapeOp {
+public:
+    CurlTapeQueryOp(XrdCl::ResponseHandler *handler, const std::string &url,
+        XrdCl::QueryCode::Code query_code, const XrdCl::Buffer &arg,
+        struct timespec timeout, XrdCl::Log *logger,
+        CreateConnCalloutType callout, HeaderCallout *header_callout);
 };
 
 class CurlReadOp : public CurlOperation {

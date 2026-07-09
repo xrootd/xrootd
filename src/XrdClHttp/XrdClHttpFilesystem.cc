@@ -23,6 +23,12 @@
 #include "XrdClHttpOps.hh"
 #include "XrdClHttpResponses.hh"
 
+#include "XrdCl/XrdClAnyObject.hh"
+
+#include <cerrno>
+#include <exception>
+#include <new>
+
 using namespace XrdClHttp;
 
 Filesystem::Filesystem(const std::string &url, std::shared_ptr<HandlerQueue> queue, XrdCl::Log *log)
@@ -40,6 +46,38 @@ Filesystem::Filesystem(const std::string &url, std::shared_ptr<HandlerQueue> que
 }
 
 Filesystem::~Filesystem() noexcept {}
+
+XrdCl::XRootDStatus
+Filesystem::QueueOperation(std::unique_ptr<CurlOperation> operation,
+                           const char *description)
+{
+    try
+    {
+        m_queue->Produce(std::move(operation));
+    }
+    catch(const std::bad_alloc &ex)
+    {
+        m_logger->Warning(kLogXrdClHttp,
+            "Failed to add %s to queue: %s", description, ex.what());
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
+            ENOMEM, "out of memory while queueing HTTP operation");
+    }
+    catch(const std::exception &ex)
+    {
+        m_logger->Warning(kLogXrdClHttp,
+            "Failed to add %s to queue: %s", description, ex.what());
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
+            EIO, ex.what());
+    }
+    catch(...)
+    {
+        m_logger->Warning(kLogXrdClHttp,
+            "Failed to add %s to queue: unknown exception", description);
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
+            EIO, "unknown exception while queueing HTTP operation");
+    }
+    return XrdCl::XRootDStatus();
+}
 
 XrdCl::XRootDStatus
 Filesystem::DirList(const std::string          &path,
@@ -154,75 +192,95 @@ XrdCl::XRootDStatus Filesystem::MkDir(const std::string        &path,
     return XrdCl::XRootDStatus();
 }
 
+XrdCl::XRootDStatus Filesystem::Prepare(
+    const std::vector<std::string> &fileList,
+    XrdCl::PrepareFlags::Flags      flags,
+    uint8_t                         priority,
+    XrdCl::ResponseHandler         *handler,
+    time_t                          timeout)
+{
+    (void)priority;
+
+    if(fileList.empty())
+    {
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs,
+            EINVAL, "missing prepare file list");
+    }
+
+    const auto ts = XrdClHttp::Factory::GetHeaderTimeoutWithDefault(timeout);
+    auto tapeOp = std::make_unique<CurlTapePrepareOp>(
+        handler, m_url.GetURL(), fileList, flags, ts, m_logger,
+        GetConnCallout(),
+        m_header_callout.load(std::memory_order_acquire));
+    return QueueOperation(std::move(tapeOp), "Tape prepare operation");
+}
+
 XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
     const XrdCl::Buffer     &arg,
     XrdCl::ResponseHandler  *handler,
     time_t                   timeout)
 {
-    auto ts = XrdClHttp::Factory::GetHeaderTimeoutWithDefault(timeout);
+    const auto ts = XrdClHttp::Factory::GetHeaderTimeoutWithDefault(timeout);
+    std::unique_ptr<CurlOperation> operation;
+    const char *description = nullptr;
 
-    if (queryCode == XrdCl::QueryCode::Checksum)
+    switch(queryCode)
     {
-        auto url = GetCurrentURL(arg.ToString());
-        m_logger->Debug(kLogXrdClHttp, "XrdClHttp::Filesystem::Query checksum path %s", url.c_str());
-
-        XrdClHttp::ChecksumType preferred = XrdClHttp::ChecksumType::kCRC32C;
-        XrdCl::URL url_obj;
-        url_obj.FromString(url);
-        auto iter = url_obj.GetParams().find("cks.type");
-        if (iter != url_obj.GetParams().end())
+        case XrdCl::QueryCode::Prepare:
+        case XrdCl::QueryCode::Opaque:
+            operation = std::make_unique<CurlTapeQueryOp>(
+                handler, m_url.GetURL(), queryCode, arg, ts, m_logger,
+                GetConnCallout(),
+                m_header_callout.load(std::memory_order_acquire));
+            description = "Tape query operation";
+            break;
+        case XrdCl::QueryCode::Checksum:
         {
-            preferred = XrdClHttp::GetTypeFromString(iter->second);
-            if (preferred == XrdClHttp::ChecksumType::kUnknown)
+            const auto url = GetCurrentURL(arg.ToString());
+            m_logger->Debug(kLogXrdClHttp,
+                "XrdClHttp::Filesystem::Query checksum path %s", url.c_str());
+
+            XrdClHttp::ChecksumType preferred =
+                XrdClHttp::ChecksumType::kCRC32C;
+            XrdCl::URL urlObj;
+            urlObj.FromString(url);
+            const auto iter = urlObj.GetParams().find("cks.type");
+            if(iter != urlObj.GetParams().end())
             {
-                m_logger->Error(kLogXrdClHttp, "Unknown checksum type %s", iter->second.c_str());
-                preferred = XrdClHttp::ChecksumType::kCRC32C;
+                preferred = XrdClHttp::GetTypeFromString(iter->second);
+                if(preferred == XrdClHttp::ChecksumType::kUnknown)
+                {
+                    m_logger->Error(kLogXrdClHttp,
+                        "Unknown checksum type %s", iter->second.c_str());
+                    preferred = XrdClHttp::ChecksumType::kCRC32C;
+                }
             }
-        }
-        // On miss, queue a checksum operation
-        std::unique_ptr<CurlChecksumOp> cksumOp(
-            new CurlChecksumOp(
+            operation = std::make_unique<CurlChecksumOp>(
                 handler, url, preferred, ts, m_logger, SendResponseInfo(),
-                GetConnCallout(), m_header_callout.load(std::memory_order_acquire)
-            )
-        );
-        try
-        {
-            m_queue->Produce(std::move(cksumOp));
+                GetConnCallout(),
+                m_header_callout.load(std::memory_order_acquire));
+            description = "checksum operation";
+            break;
         }
-        catch (...)
+        case XrdCl::QueryCode::XAttr:
         {
-            m_logger->Warning(kLogXrdClHttp, "Failed to add checksum operation to queue");
-            return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError);
+            const std::string path = arg.ToString();
+            m_logger->Debug(kLogXrdClHttp,
+                "XrdClHttp::Filesystem::Query xattr full_url %s, path %s",
+                m_url.GetURL().c_str(), path.c_str());
+            operation = std::make_unique<CurlQueryOp>(
+                handler, path, ts, m_logger, SendResponseInfo(),
+                GetConnCallout(), queryCode,
+                m_header_callout.load(std::memory_order_acquire));
+            description = "xattr query operation";
+            break;
         }
+        default:
+            return XrdCl::XRootDStatus(
+                XrdCl::stError, XrdCl::errNotImplemented);
     }
-    else if (queryCode == XrdCl::QueryCode::XAttr)
-    {
-        std::string path = arg.ToString();
-        std::string full_url = m_url.GetURL();
-        m_logger->Debug(kLogXrdClHttp, "XrdClHttp::Filesystem::Query xattr full_url %s, path %s", full_url.c_str(), path.c_str());
-        full_url = m_url.GetURL();
-        std::unique_ptr<CurlQueryOp> queryOp(
-            new CurlQueryOp(
-                handler, path, ts, m_logger,SendResponseInfo(),
-                GetConnCallout(), queryCode, m_header_callout.load(std::memory_order_acquire)
-            )
-        );
-        try
-        {
-            m_queue->Produce(std::move(queryOp));
-        }
-        catch (...)
-        {
-            m_logger->Warning(kLogXrdClHttp, "Failed to add xattr query operation to queue");
-            return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError);
-        }
-    }
-    else
-    {
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errNotImplemented);
-    }
-    return XrdCl::XRootDStatus();
+
+    return QueueOperation(std::move(operation), description);
 }
 
 XrdCl::XRootDStatus

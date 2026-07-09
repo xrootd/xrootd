@@ -180,6 +180,7 @@ CurlOperation::CurlOperation(XrdCl::ResponseHandler *handler, const std::string 
     m_header_start(m_last_reset),
     m_conn_callout(callout),
     m_url(DavToHttp(url)),
+    m_request_url(m_url),
     m_handler(handler),
     m_curl(nullptr, &curl_easy_cleanup),
     m_logger(logger)
@@ -225,9 +226,12 @@ CurlOperation::FinishSetup(CURL *curl)
     }
     const auto &verb = GetVerbString(GetVerb());
 
-    auto extra_headers = m_header_callout->GetHeaders(verb, m_url, m_headers_list);
+    auto extra_headers = m_header_callout->GetHeaders(
+        verb, m_request_url, m_headers_list);
     if (!extra_headers) {
-        m_logger->Error(kLogXrdClHttp, "Failed to get headers from header callout for %s", m_url.c_str());
+        m_logger->Error(kLogXrdClHttp,
+            "Failed to get headers from header callout for %s",
+            m_request_url.c_str());
         return false;
     }
     m_header_slist.reset();
@@ -253,6 +257,8 @@ CurlOperation::GetVerbString(CurlOperation::HttpVerb verb)
         return "DELETE";
     case HttpVerb::GET:
         return "GET";
+    case HttpVerb::POST:
+        return "POST";
     case HttpVerb::HEAD:
         return "HEAD";
     case HttpVerb::MKCOL:
@@ -311,12 +317,12 @@ CurlOperation::Redirect(std::string &target)
 
     auto location = m_headers.GetLocation();
     if (location.empty()) {
-        m_logger->Warning(kLogXrdClHttp, "After request to %s, server returned a redirect with no new location", m_url.c_str());
+        m_logger->Warning(kLogXrdClHttp, "After request to %s, server returned a redirect with no new location", m_request_url.c_str());
         Fail(XrdCl::errErrorResponse, kXR_ServerError, "Server returned redirect without updated location");
         return RedirectAction::Fail;
     }
     if (location.size() && location[0] == '/') { // hostname not included in the location - redirect to self.
-        std::string_view orig_url(m_url);
+        std::string_view orig_url(m_request_url);
         auto scheme_loc = orig_url.find("://");
         if (scheme_loc == std::string_view::npos) {
             Fail(XrdCl::errErrorResponse, kXR_ServerError, "Server returned a location with unknown hostname");
@@ -324,34 +330,29 @@ CurlOperation::Redirect(std::string &target)
         }
         auto path_loc = orig_url.find('/', scheme_loc + 3);
         if (path_loc == std::string_view::npos) {
-            location = m_url + location;
+            location = m_request_url + location;
         } else {
             location = std::string(orig_url.substr(0, path_loc)) + location;
         }
     }
-    m_logger->Debug(kLogXrdClHttp, "Request for %s redirected to %s", m_url.c_str(), location.c_str());
-    target = location;
-    curl_easy_setopt(m_curl.get(), CURLOPT_URL, location.c_str());
-    int disable_x509;
+    m_logger->Debug(kLogXrdClHttp, "Request for %s redirected to %s", m_request_url.c_str(), location.c_str());
+    m_request_url = DavToHttp(location);
+    target = m_request_url;
+    curl_easy_setopt(m_curl.get(), CURLOPT_URL, m_request_url.c_str());
     auto env = XrdCl::DefaultEnv::GetEnv();
-    if (env->GetInt("HttpDisableX509", disable_x509) && !disable_x509) {
-        std::string cert, key;
-        env->GetString("HttpClientCertFile", cert);
-        env->GetString("HttpClientKeyFile", key);
-        if (!cert.empty())
-            curl_easy_setopt(m_curl.get(), CURLOPT_SSLCERT, cert.c_str());
-        if (!key.empty())
-            curl_easy_setopt(m_curl.get(), CURLOPT_SSLKEY, key.c_str());
+    if (ClientX509Enabled(env)) {
+        auto [cert, key] = ClientX509CertKeyFromEnv(env);
+        SetClientX509(m_curl.get(), cert, key, m_logger);
     }
     m_headers = HeaderParser();
 
     if (m_conn_callout) {
-        auto conn_callout = m_conn_callout(location, *m_response_info);
+        auto conn_callout = m_conn_callout(m_request_url, *m_response_info);
         if (conn_callout != nullptr) {
 
-            auto [host, port] = ParseHostPort(location);
+            auto [host, port] = ParseHostPort(m_request_url);
             if (host.empty() || port == -1) {
-                Fail(XrdCl::errInternal, 0, "Failed to parse host and port from URL " + location);
+                Fail(XrdCl::errInternal, 0, "Failed to parse host and port from URL " + m_request_url);
                 return RedirectAction::Fail;
             }
             auto fake_addr = GetFakeEndpointForHost(host, port);
@@ -535,7 +536,7 @@ CurlOperation::Setup(CURL *curl, CurlWorker &worker)
 
     m_curl.reset(curl);
     m_curl_error_buffer[0] = '\0';
-    curl_easy_setopt(m_curl.get(), CURLOPT_URL, m_url.c_str());
+    curl_easy_setopt(m_curl.get(), CURLOPT_URL, m_request_url.c_str());
     curl_easy_setopt(m_curl.get(), CURLOPT_ERRORBUFFER, m_curl_error_buffer);
     curl_easy_setopt(m_curl.get(), CURLOPT_HEADERFUNCTION, CurlStatOp::HeaderCallback);
     curl_easy_setopt(m_curl.get(), CURLOPT_HEADERDATA, this);
@@ -548,34 +549,26 @@ CurlOperation::Setup(CURL *curl, CurlWorker &worker)
     // Before we set it, we saw deadlocks (and partial deadlocks) in practice.
     curl_easy_setopt(m_curl.get(), CURLOPT_NOSIGNAL, 1L);
 
-    m_parsed_url.reset(new XrdCl::URL(m_url));
+    m_parsed_url = std::make_unique<XrdCl::URL>(m_request_url);
     auto env = XrdCl::DefaultEnv::GetEnv();
-    int disable_x509;
-    if ((env->GetInt("HttpDisableX509", disable_x509) && !disable_x509)) {
+    if (ClientX509Enabled(env)) {
         auto [cert, key] = worker.ClientX509CertKeyFile();
-        if (!cert.empty()) {
-            m_logger->Debug(kLogXrdClHttp, "Using client X.509 credential found at %s", cert.c_str());
-            curl_easy_setopt(m_curl.get(), CURLOPT_SSLCERT, cert.c_str());
-            if (key.empty()) {
-                m_logger->Error(kLogXrdClHttp, "X.509 client credential specified but not the client key");
-            } else {
-                curl_easy_setopt(m_curl.get(), CURLOPT_SSLKEY, key.c_str());
-            }
-        }
+        SetClientX509(m_curl.get(), cert, key, m_logger);
     }
 
     if (m_conn_callout) {
         ResponseInfo info;
-        auto callout = m_conn_callout(m_url, info);
+        auto callout = m_conn_callout(m_request_url, info);
         if (callout) {
             m_callout.reset(callout);
             m_conn_callout_listener = -1;
             m_conn_callout_result = -1;
             m_tried_broker = false;
 
-            auto [host, port] = ParseHostPort(m_url);
+            auto [host, port] = ParseHostPort(m_request_url);
             if (host.empty() || port == -1) {
-                throw std::runtime_error ("Failed to parse host and port from URL " + m_url);
+                throw std::runtime_error(
+                    "Failed to parse host and port from URL " + m_request_url);
             }
             auto fake_addr = GetFakeEndpointForHost(host, port);
             if (!fake_addr || fake_addr->empty()) {
@@ -597,6 +590,36 @@ CurlOperation::Setup(CURL *curl, CurlWorker &worker)
     }
 
     return true;
+}
+
+bool
+CurlOperation::SetupNextRequest(const std::string &url, CurlWorker &worker)
+{
+    if (!m_curl) return false;
+
+    curl_easy_reset(m_curl.get());
+    ConfigureHandle(m_curl.get(), false);
+
+    m_request_url = DavToHttp(url);
+    m_headers = HeaderParser();
+    m_headers_list.clear();
+    m_header_slist.reset();
+    m_response_info.reset();
+    m_resolve_slist.reset();
+    m_callout.reset();
+    m_conn_callout_listener = -1;
+    m_conn_callout_result = -1;
+    m_tried_broker = false;
+    m_received_header = false;
+    m_error = OpError::ErrNone;
+    m_callback_error_code = kXR_noErrorYet;
+    m_callback_error_str.clear();
+    m_last_xfer = {};
+    m_last_xfer_count = 0;
+    m_ema_rate = -1.0;
+
+    CURL *curl = m_curl.release();
+    return CurlOperation::Setup(curl, worker);
 }
 
 void
