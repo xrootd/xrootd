@@ -242,6 +242,9 @@ scitokens.trace debug info warning error
 
 ofs.osslib ++ $BINARY_DIR/lib/libXrdOssSlowOpen.so
 
+# WLCG Tape REST API handler used by the XrdClHttp Tape client tests.
+http.exthandler xrdhttptapeapi libXrdHttpTapeApi.so
+
 # Required for the COPY tests
 http.exthandler xrdtpc libXrdHttpTPC.so
 tpc.allow local

@@ -88,6 +88,10 @@ set_tests_properties(XrdClHttp::teardown
 add_test(NAME XrdClHttp::test
   COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/test.sh" curl)
 
+add_test(NAME XrdClHttp::tape
+  COMMAND "${PROJECT_SOURCE_DIR}/vendor/bats/bin/bats"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tape.bats")
+
 list(APPEND CURL_TEST_LOGS ${CMAKE_CURRENT_BINARY_DIR}/tests/curl/origin.log)
 list(APPEND CURL_TEST_LOGS ${CMAKE_CURRENT_BINARY_DIR}/tests/curl/cache.log)
 list(APPEND CURL_TEST_LOGS ${CMAKE_CURRENT_BINARY_DIR}/tests/curl/client.log)
@@ -98,6 +102,16 @@ set_tests_properties(XrdClHttp::test
       XrdClHttp
     ENVIRONMENT
       "BINARY_DIR=${CMAKE_BINARY_DIR}"
+    ATTACHED_FILES_ON_FAIL
+      "${CURL_TEST_LOGS}"
+)
+
+set_tests_properties(XrdClHttp::tape
+  PROPERTIES
+    FIXTURES_REQUIRED
+      XrdClHttp
+    ENVIRONMENT
+      "BATS_LIB_PATH=${PROJECT_SOURCE_DIR}/vendor/bats/lib/bats;BINARY_DIR=${CMAKE_BINARY_DIR}"
     ATTACHED_FILES_ON_FAIL
       "${CURL_TEST_LOGS}"
 )
