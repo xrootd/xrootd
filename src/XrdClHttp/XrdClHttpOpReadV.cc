@@ -33,7 +33,11 @@ CurlVectorReadOp::CurlVectorReadOp(XrdCl::ResponseHandler *handler, const std::s
         CurlOperation(handler, url, timeout, logger, callout, header_callout),
         m_vr(new XrdCl::VectorReadInfo()),
         m_chunk_list(op_list)
-    {}
+    {
+        m_remainderbuflen = 0;
+        m_doublebuf = NULL;
+        m_doublebufsz = 0;
+    }
 
 bool
 CurlVectorReadOp::Setup(CURL *curl, CurlWorker &worker)
@@ -145,6 +149,23 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
 
     auto buffer = orig_buffer;
     auto length = orig_length;
+    
+    if (m_remainderbuflen) {
+        // Do we have unprocessed bytes from the previous chunk?
+        if (m_doublebufsz < length) {
+            if (!m_doublebufsz)
+                m_doublebuf = (char *)malloc(length+1024);
+            else
+                m_doublebuf = (char *)realloc(m_doublebuf, length+1024);
+            
+            m_doublebufsz = length;
+        }
+        memcpy(m_doublebuf, m_remainderbuf, m_remainderbuflen);
+        memcpy(m_doublebuf+m_remainderbuflen, buffer, orig_length);
+        buffer = m_doublebuf;
+        length += m_remainderbuflen;
+        m_remainderbuflen = 0;
+    }
 
     while (length) {
         // If we're in the middle of a response chunk, copy as much data as possible.
@@ -205,6 +226,17 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
         // We are at the boundary between chunks; we must parse header lines to understand the
         // next thing to do.
 
+        // Attention! We could be close to the end of the incoming chunk, hence the
+        // separator/header we are looking for might have been truncated.
+        // If we are less than 1KB form the end of the curl chunk, save this
+        // less-than-one-kb
+        // to a temporary buffer. The next chunk will have to be appended to it
+        if (length && (length < 1024)) {
+            memcpy(m_remainderbuf, buffer, length);
+            m_remainderbuflen = length;
+            length = 0;
+            return orig_length;
+        }
         // The following lambda function returns a string view to the next complete header line,
         // potentially partially from the previous buffer from curl.  If the second item in
         // the returned pair is false, then we ran out of buffer from curl before finding a

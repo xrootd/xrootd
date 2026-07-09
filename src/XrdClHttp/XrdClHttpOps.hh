@@ -701,7 +701,10 @@ class CurlVectorReadOp : public CurlOperation {
         CurlVectorReadOp(XrdCl::ResponseHandler *handler, const std::string &url, struct timespec timeout,
             const XrdCl::ChunkList &op_list, XrdCl::Log *logger, CreateConnCalloutType callout, HeaderCallout *header_callout);
 
-        virtual ~CurlVectorReadOp() {}
+        virtual ~CurlVectorReadOp() {
+            if (m_doublebuf)
+                free(m_doublebuf);
+        }
 
         bool Setup(CURL *curl, CurlWorker &) override;
         void Fail(uint16_t errCode, uint32_t errNum, const std::string &msg) override;
@@ -736,6 +739,14 @@ class CurlVectorReadOp : public CurlOperation {
         off_t m_chunk_buffer_idx{0}; // Current offset in requested chunk where we are writing bytes.
         off_t m_bytes_consumed{0}; // Total number of bytes used for results serving the request.
         uint64_t m_skip_bytes{0}; // Count of bytes to skip in the next response (if response chunk contains unneeded bytes).
+        
+        // The number of bytes that have not been processed from the previous callback buffer
+        // and that have to be prepended to the incoming one
+        size_t m_remainderbuflen;
+        char m_remainderbuf[1024];
+        char *m_doublebuf;
+        size_t m_doublebufsz;
+        
         std::string m_response_headers; // Buffer of an incomplete response line from a prior curl write operation.
         std::pair<off_t, off_t> m_current_op{-1, -1}; // The (offset, length) of the current response chunk.
         std::unique_ptr<XrdCl::VectorReadInfo> m_vr; // The response buffers for the client.
