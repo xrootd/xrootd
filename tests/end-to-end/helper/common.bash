@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Prefer command-line tools from the active CMake build when CTest provides it.
+if [[ -n "${BINARY_DIR:-}" ]]; then
+    export PATH="${BINARY_DIR}/bin:${PATH}"
+fi
+
 launch_xrootd() {
     local config=$1
     local name=$2
