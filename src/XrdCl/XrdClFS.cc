@@ -37,10 +37,13 @@
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstdio>
+#include <getopt.h>
 #include <iostream>
 #include <iomanip>
+#include <iterator>
 #include <cmath>
 
 #ifdef HAVE_READLINE
@@ -49,6 +52,105 @@
 #endif
 
 using namespace XrdCl;
+
+namespace
+{
+  enum URLCommandResult
+  {
+    NotURLCommand,
+    ValidURLCommand,
+    InvalidURLCommand
+  };
+
+  bool SupportsFullURLs( const std::string &command )
+  {
+    static const char *commands[] = {
+      "cache", "cat", "chmod", "locate", "ls", "mkdir", "mv",
+      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs",
+      "tail", "truncate", "xattr"
+    };
+
+    return std::find( std::begin( commands ), std::end( commands ), command )
+           != std::end( commands );
+  }
+
+  bool IsCompleteURL( const std::string &argument )
+  {
+    return argument.find( "://" ) != std::string::npos;
+  }
+
+  URL EndpointURL( const URL &url )
+  {
+    URL endpoint( url );
+    endpoint.SetPath( "" );
+    endpoint.SetParams( URL::ParamsMap() );
+    return endpoint;
+  }
+
+  std::string OperandPath( const URL &url )
+  {
+    std::string path = url.GetPathWithParams();
+    if( path.empty() || path[0] != '/' )
+      path.insert( path.begin(), '/' );
+    return path;
+  }
+
+  URLCommandResult ParseURLCommand( FSExecutor::CommandParams &arguments,
+                                    URL &endpoint, std::string &error )
+  {
+    if( arguments.empty() )
+      return NotURLCommand;
+
+    if( arguments[0] == "query" )
+    {
+      for( std::size_t i = 1; i < arguments.size(); ++i )
+      {
+        if( IsCompleteURL( arguments[i] ) )
+        {
+          error = "command-first full URLs are not supported for 'query'";
+          return InvalidURLCommand;
+        }
+      }
+      return NotURLCommand;
+    }
+
+    if( !SupportsFullURLs( arguments[0] ) )
+      return NotURLCommand;
+
+    bool foundURL = false;
+    for( std::size_t i = 1; i < arguments.size(); ++i )
+    {
+      if( !IsCompleteURL( arguments[i] ) )
+        continue;
+
+      URL operand( arguments[i] );
+      if( !operand.IsValid() || operand.GetProtocol().empty()
+          || operand.GetHostName().empty()
+          || operand.GetProtocol() == "file"
+          || operand.GetProtocol() == "stdio" )
+      {
+        error = "invalid remote URL operand";
+        return InvalidURLCommand;
+      }
+
+      URL operandEndpoint = EndpointURL( operand );
+      if( !foundURL )
+      {
+        endpoint = operandEndpoint;
+        foundURL = true;
+      }
+      else if( endpoint.GetURL() != operandEndpoint.GetURL() )
+      {
+        error = "all URL operands must use the same endpoint";
+        return InvalidURLCommand;
+      }
+
+      arguments[i] = OperandPath( operand );
+    }
+
+    return foundURL ? ValidURLCommand : NotURLCommand;
+  }
+}
 
 //------------------------------------------------------------------------------
 // Build a path
@@ -1959,6 +2061,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "Usage:\n"                                                          );
   printf( "   xrdfs [--no-cwd] host[:port]              - interactive mode\n" );
   printf( "   xrdfs            host[:port] command args - batch mode\n\n"     );
+  printf( "   xrdfs            command args-with-URLs   - URL batch mode\n\n" );
 
   printf( "Available options:\n\n"                                            );
 
@@ -2135,15 +2238,8 @@ FSExecutor *CreateExecutor( const URL &url )
 //------------------------------------------------------------------------------
 // Execute command
 //------------------------------------------------------------------------------
-int ExecuteCommand( FSExecutor *ex, int argc, char **argv )
+int ExecuteCommand( FSExecutor *ex, const FSExecutor::CommandParams &args )
 {
-  // std::vector<std::string> args (argv, argv + argc);
-  std::vector<std::string> args;
-  args.reserve(argc);
-  for (int i = 0; i < argc; ++i)
-  {
-    args.push_back(argv[i]);
-  }
   XRootDStatus st = ex->Execute( args );
   if( !st.IsOK() )
     std::cerr << st.ToStr() << std::endl;
@@ -2326,21 +2422,11 @@ int ExecuteInteractive( const URL &url, bool noCwd = false )
 //------------------------------------------------------------------------------
 // Execute command
 //------------------------------------------------------------------------------
-int ExecuteCommand( const URL &url, int argc, char **argv )
+int ExecuteCommand( const URL &url, const FSExecutor::CommandParams &args )
 {
-  //----------------------------------------------------------------------------
-  // Build the command to be executed
-  //----------------------------------------------------------------------------
-  std::string commandline;
-  for( int i = 0; i < argc; ++i )
-  {
-    commandline += argv[i];
-    commandline += " ";
-  }
-
   FSExecutor *ex = CreateExecutor( url );
   ex->GetEnv()->PutInt( "NoCWD", 1 );
-  int st = ExecuteCommand( ex, argc, argv );
+  int st = ExecuteCommand( ex, args );
   delete ex;
   return st;
 }
@@ -2350,40 +2436,62 @@ int ExecuteCommand( const URL &url, int argc, char **argv )
 //------------------------------------------------------------------------------
 int main( int argc, char **argv )
 {
-  //----------------------------------------------------------------------------
-  // Check the commandline parameters
-  //----------------------------------------------------------------------------
   XrdCl::FSExecutor::CommandParams params;
-  if( argc == 1 )
+  enum { NoCwdOption = 256 };
+  static const option options[] = {
+    { "help",   no_argument, 0, 'h' },
+    { "no-cwd", no_argument, 0, NoCwdOption },
+    { 0, 0, 0, 0 }
+  };
+
+  bool noCwd = false;
+  opterr = 0;
+  int option = 0;
+  while( (option = getopt_long( argc, argv, "+h", options, 0 )) != -1 )
+  {
+    switch( option )
+    {
+      case 'h':
+        PrintHelp( 0, 0, params );
+        return 0;
+      case NoCwdOption:
+        noCwd = true;
+        break;
+      default:
+        PrintHelp( 0, 0, params );
+        return 1;
+    }
+  }
+
+  if( optind == argc )
   {
     PrintHelp( 0, 0, params );
     return 1;
   }
 
-  if( !strcmp( argv[1], "--help" ) ||
-      !strcmp( argv[1], "-h" ) )
+  FSExecutor::CommandParams arguments( argv + optind, argv + argc );
+  URL url;
+  std::string error;
+  URLCommandResult result = ParseURLCommand( arguments, url, error );
+  if( result == InvalidURLCommand )
   {
-    PrintHelp( 0, 0, params );
-    return 0;
+    std::cerr << "xrdfs: " << error << std::endl;
+    return 1;
   }
 
-  bool noCwd = false;
-  int urlIndex = 1;
-  if( !strcmp( argv[1], "--no-cwd") )
-  {
-    ++urlIndex;
-    noCwd = true;
-  }
+  if( result == ValidURLCommand )
+    return ExecuteCommand( url, arguments );
 
-  URL url( argv[urlIndex] );
+  url = URL( arguments[0] );
   if( !url.IsValid() )
   {
     PrintHelp( 0, 0, params );
     return 1;
   }
 
-  if( argc == urlIndex + 1 )
+  if( arguments.size() == 1 )
     return ExecuteInteractive( url, noCwd );
-  int shift = urlIndex + 1;
-  return ExecuteCommand( url, argc-shift, argv+shift );
+
+  arguments.erase( arguments.begin() );
+  return ExecuteCommand( url, arguments );
 }

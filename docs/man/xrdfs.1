@@ -6,14 +6,19 @@ xrdfs - xrootd file and directory meta-data utility
 
 \fBxrdfs\fR \fI[--no-cwd]\fR \fIhost[:port]\fR \fI[command [args]]\fR
 
-\fBcommand\fR: help, chmod, ls, locate, mkdir, mv, stat, statvfs, query, rm, rmdir,
-           truncate, prepare, cat, tail, spaceinfo
+\fBxrdfs\fR \fIcommand\fR \fI[args containing complete URLs]\fR
+
+\fBcommand\fR: help, cache, chmod, ls, locate, mkdir, mv, stat, statvfs, query,
+           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, xattr
 .fi
 .br
 .ad l
 .SH DESCRIPTION
 The \fBxrdfs\fR utility executes meta-data oriented operations
 (e.g., ls, mv, rm, etc.) on one or more xrootd servers.
+In batch mode, the endpoint may either be provided separately before the
+command or inferred from complete URL path operands following the command.
+All complete URLs in one command must refer to the same endpoint.
 Command help is available by invoking \fBxrdfs\fR with no command
 line options or parameters and then typing "help" in response to the
 input prompt.
@@ -22,6 +27,22 @@ input prompt.
 \fB--no-cwd\fR
 .RS 3
 No CWD is being preset in interactive mode.
+.RE
+
+.SH EXAMPLES
+The existing server-first form remains supported:
+.PP
+.nf
+\fBxrdfs root.example.org stat /store/file\fR
+.fi
+.PP
+Path-oriented commands also accept complete URLs:
+.PP
+.nf
+\fBxrdfs stat root://root.example.org//store/file\fR
+\fBxrdfs ls root://root.example.org//store/directory\fR
+\fBxrdfs mv root://root.example.org//store/old root://root.example.org//store/new\fR
+.fi
 
 .SH COMMANDS
 \fBchmod\fR \fIpath\fR \fI<user><group><other>\fR
