@@ -38,14 +38,15 @@ version numbers, such as "5.6.0", where:
 
 #### Library versions
 
-When a library evolves compatibly: existing interfaces are preserved, but new
-ones are added the library’s minor version number must be incremented. Since
-nothing has been done that would break applications constructed earlier, it is
-OK for older applications to be linked with the newer library at run-time.
+When a library evolves compatibly, existing interfaces are preserved while new
+ones are added. In that case, the library’s minor version number must be
+incremented. Since nothing has been done that would break applications
+constructed earlier, it is OK for older applications to be linked with the
+newer library at run-time.
 
 If the interfaces in a library shared object change incompatibly, then the major
 revision number associated with the library must be incremented. Doing so will
-cause run-time linking errors for the applictions constructed with the older
+cause run-time linking errors for the applications constructed with the older
 versions of the library and thus will prevent them from running, as opposed to
 crashing in an uncontrollable way.
 
@@ -54,44 +55,44 @@ More information on library versioning is available
 and
 [here](https://www.akkadia.org/drepper/dsohowto.pdf).
 
-The project policy is that a change to public interfaces (as defined in the
-installed headers) requires a major release - bumping the major version number.
+The project policy is that an incompatible change to public interfaces (as
+defined in the installed headers) requires a major release and a corresponding
+major library version bump. Compatible additions may be made in a minor release
+with the corresponding minor library version bump.
 
 ### Releases and Release Procedure
 
-Feature releases with current developments will normally be built a few times 
-per year. Each `master` release is preceded by one or more release candidates
-that get tested for bugs and deployment issues in a possibly wide range of
-environments. When the release candidates are deemed sufficiently stable, then 
-the final release is built.
+Feature releases with current developments will normally be built a few times
+per year. A feature release may be preceded by one or more release candidates
+that are tested for bugs and deployment issues in a wide range of environments.
+When release candidates are used and deemed sufficiently stable, the final
+release is built.
 
-In addition to the `master` or "feature" releases, "bug fix" releases may be built
-whenever needed. These are for bug fixes only, so they normally should not need
-release candidates (due to the reduced need for additional testing).
+In addition to feature releases, bug-fix releases may be built whenever needed.
+These are for bug fixes only, so they normally do not need release candidates
+due to the reduced need for additional testing.
 
-RPM packages are built for each release, including release candidates. All the
-packages are pushed to the testing yum repository. Additionally, all the bug fix
-releases and all the final `master` releases are pushed to the stable repository.
-See the [download](https://xrootd.org/dload.html) page for details.
+RPM and DEB packages are built for releases. Release candidates and other
+prerelease builds may be published to the testing repositories, while final
+releases are published to the stable repositories. See the
+[download](https://xrootd.org/dload.html) page for details.
 
-### Stable and Develoment Branches
+### Development and Maintenance Branches
 
-Beginning with XRootD 5.6.0, the development model is based on two long-term
-branches: `master`, and `devel`.
+The `master` branch is the main development branch. It contains the latest
+release as well as changes intended for future feature releases. New features
+and changes that only affect the latest development code are normally based on
+`master`.
 
-The `master` branch is the stable branch. It contains released versions of
-XRootD and may also contain unreleased bug fixes which do not require a new
-minor release. Each patch release for a given major+minor series is created from
-the `master` branch by adding any required bug fixes from the `devel` branch to
-the `master` branch and tagging a new release, such that all XRootD releases may
-be found linearly in git history.
+Supported release series may have maintenance branches named `vMAJOR.MINOR.x`,
+for example `v5.9.x`. A bug fix should be developed on the oldest maintained
+branch affected by the bug. Fixes are then merged forward into newer maintained
+branches and `master` as appropriate.
 
-The `devel` branch is the development branch where all new features and other
-developments happen. Each new feature release is created by rebasing, then
-(perharps partially) merging the `devel` branch into the `master` branch, then
-tagging the relase on `master`. The `devel` branch will be kept current with the
-`master` branch by rebasing it after each patch release, to ensure that all bug
-fixes are always included in both `master` and `devel`.
+Feature releases are tagged from `master`. Patch releases for an older,
+maintained release series are tagged from its maintenance branch. Merging fixes
+forward ensures that newer releases contain the applicable fixes from older
+release series.
 
 ### Guidelines for Contributors
 
@@ -105,19 +106,18 @@ https://github.com/git/git/blob/master/Documentation/SubmittingPatches.
 In general, always base your work on the oldest branch that your
 change is relevant to.
 
-* A bug fix should be based on the latest release tag in general. If
-  the bug is not present there, then base it on `master`. Otherwise,
-  if it is only present on `devel`, or a feature branch, then base it
-  on the tip of `devel` or the relevant feature branch.
+* A bug fix should be based on the oldest maintained `vMAJOR.MINOR.x` branch
+  affected by the bug. If the bug is only present on `master` or an unmerged
+  topic branch, base the fix on `master` or the relevant topic branch.
 
-* A new feature should be based on `devel` in general. If the new
+* A new feature should be based on `master` in general. If the new
   feature depends on topics which are not yet merged, fork a branch
-  from the tip of `devel`, merge these topics to the branch, and work
+  from the tip of `master`, merge these topics to the branch, and work
   on that branch.  You can get an idea of how the branches relate to
   each other with `git log --first-parent master..` or with
   `git log --all --decorate --graph --oneline`.
 
-* Corrections and enhancements to a topic not yet merged into `devel`
+* Corrections and enhancements to a topic not yet merged into `master`
   should be based on the tip of that topic. Before merging, we recommend
   cleaning up the history by squashing commits that are fixups for
   earlier commits in the same branch rather than committing a bad change
@@ -186,7 +186,7 @@ This commit changes the default value of foo to 1024
 ```
 or
 ```
-Changed default default value of foo to 1024
+Changed default value of foo to 1024
 ```
 
 Examples of good commit messages:
