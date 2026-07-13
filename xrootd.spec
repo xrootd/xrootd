@@ -82,7 +82,6 @@ BuildRequires:	python3-sphinx
 BuildRequires:	attr
 BuildRequires:	coreutils
 BuildRequires:	curl
-BuildRequires:	gtest-devel
 BuildRequires:	jq
 BuildRequires:	krb5-server
 BuildRequires:	krb5-workstation

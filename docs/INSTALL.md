@@ -19,7 +19,6 @@ together with the extra dependencies required to enable them.
 | SciTokens             | scitokens-cpp-devel                      |
 | systemd support       | systemd-devel                            |
 | VOMS                  | voms-devel                               |
-| Testing               | gtest-devel                              |
 
 Other optional dependencies: libxml2-devel. If not available, only the XML
 reader based on tinyxml will be available to parse metalink files. In the
@@ -47,7 +46,6 @@ dnf install \
     fuse-devel \
     gcc-c++ \
     git \
-    gtest-devel \
     json-c-devel \
     krb5-devel \
     libmacaroons-devel \
@@ -78,7 +76,6 @@ apt install \
     g++ \
     libcurl4-openssl-dev \
     libfuse-dev \
-    libgtest-dev \
     libisal-dev \
     libjson-c-dev \
     libkrb5-dev \

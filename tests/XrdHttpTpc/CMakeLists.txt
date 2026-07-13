@@ -5,7 +5,7 @@ add_library(XrdHttpTpcUtils
 )
 
 target_link_libraries(XrdHttpTpcUtils
-        PRIVATE
+        PUBLIC
         OpenSSL::SSL
         OpenSSL::Crypto)
 
