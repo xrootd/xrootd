@@ -2240,6 +2240,7 @@ namespace XrdCl
   {
     URL::ParamsMap cgi;
     std::string    tried;
+    HostList::reverse_iterator itst = pHosts->rbegin();
 
     //--------------------------------------------------------------------------
     // In case a data server responded with a kXR_redirect and we fail at the
@@ -2248,14 +2249,20 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pEffectiveDataServerUrl )
     {
+      for( ; itst != pHosts->rend(); ++itst )
+      {
+        if( itst->url.GetURL() == pEffectiveDataServerUrl->GetURL() )
+          break;
+      }
       tried = pEffectiveDataServerUrl->GetHostName();
       delete pEffectiveDataServerUrl;
       pEffectiveDataServerUrl = 0;
     }
     //--------------------------------------------------------------------------
-    // Otherwise use the current URL.
+    // Otherwise use the current URL. If it's a local url, we don't add
+    // localhost to the tried list but will try to set any managers.
     //--------------------------------------------------------------------------
-    else
+    else if ( !pUrl.IsLocalFile() )
       tried = pUrl.GetHostName();
 
     // Report the reason for the failure to the next location
@@ -2275,17 +2282,22 @@ namespace XrdCl
     if( pLoadBalancer.url.IsValid() && (pLoadBalancer.flags & kXR_attrMeta) )
     {
       HostList::reverse_iterator it;
-      for( it = pHosts->rbegin()+1; it != pHosts->rend(); ++it )
+      if( itst == pHosts->rend() )
+        itst = pHosts->rbegin();
+      for( it = itst+1; it != pHosts->rend(); ++it )
       {
         if( it->loadBalancer )
           break;
 
-        tried += "," + it->url.GetHostName();
+        tried += ( tried.length() ? "," : "" ) + it->url.GetHostName();
 
         if( it->flags & kXR_isManager )
           break;
       }
     }
+
+    if( !tried.length() )
+      return;
 
     cgi["tried"] = tried;
     XRootDTransport::UnMarshallRequest( pRequest );
