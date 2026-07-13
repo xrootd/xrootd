@@ -29,6 +29,19 @@ function test_http() {
 	echo "server: XRootD $(xrdfs "${DAV_HOST}" query config version 2>&1)"
 	echo
 
+	# Non-interactive xrdfs sets NoCWD: relative paths must be rejected client-side
+	if out=$(xrdfs "${DAV_HOST}" mkdir foo 2>&1); then
+		error "mkdir foo should fail"
+	fi
+	echo "${out}" | grep -F "Creating relative path 'foo' is disallowed." \
+		|| error "unexpected mkdir relative-path error: ${out}"
+
+	if out=$(xrdfs "${DAV_HOST}" rmdir foo 2>&1); then
+		error "rmdir foo should fail"
+	fi
+	echo "${out}" | grep -F "Removing relative path 'foo' is disallowed." \
+		|| error "unexpected rmdir relative-path error: ${out}"
+
 	# create local temporary directory under LOCAL_DIR so common teardown removes it
 	TMPDIR=$(mktemp -d "${LOCAL_DIR}/test-XXXXXX")
 
@@ -37,6 +50,8 @@ function test_http() {
 	# this will get cleaned up by CMake upon fixture tear down
 	assert xrdfs "${DAV_HOST}" mkdir -p "${TMPDIR}"
 
+	assert xrdfs "${DAV_HOST}" mkdir -p "${TMPDIR}/nocwd-abs"
+	assert xrdfs "${DAV_HOST}" rmdir "${TMPDIR}/nocwd-abs"
 	# create local files with random contents using OpenSSL
 
 	FILES=$(seq -w 1 "${NFILES:-10}")

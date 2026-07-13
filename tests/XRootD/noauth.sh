@@ -147,5 +147,21 @@ function test_noauth() {
 	# remove 1 existing, 2 not existing should error
 	assert_failure xrdfs "${HOST}" rm "${TMPDIR}"/6.exists.ref "${TMPDIR}"/not_exists_{5,6}.ref
 
+	# Non-interactive xrdfs sets NoCWD: relative paths must be rejected client-side
+	if out=$(xrdfs "${HOST}" mkdir foo 2>&1); then
+		error "mkdir foo should fail"
+	fi
+	echo "${out}" | grep -F "Creating relative path 'foo' is disallowed." \
+		|| error "unexpected mkdir relative-path error: ${out}"
+
+	if out=$(xrdfs "${HOST}" rmdir foo 2>&1); then
+		error "rmdir foo should fail"
+	fi
+	echo "${out}" | grep -F "Removing relative path 'foo' is disallowed." \
+		|| error "unexpected rmdir relative-path error: ${out}"
+
+	assert xrdfs "${HOST}" mkdir -p "${TMPDIR}/nocwd-abs"
+	assert xrdfs "${HOST}" rmdir "${TMPDIR}/nocwd-abs"
+
 	assert xrdfs "${HOST}" rmdir "${TMPDIR}"
 }
