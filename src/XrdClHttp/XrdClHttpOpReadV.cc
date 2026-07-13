@@ -177,6 +177,7 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
                     m_response_idx++;
                     if (m_current_op.second == chunk.GetLength()) {
                         m_current_op.first = m_current_op.second = -1;
+                        m_multipart_boundary = true;
                     } else {
                         // We may need to skip the remaining bytes or, potentially, the server
                         // coalesced two adjacent requests into one larger response.
@@ -194,6 +195,7 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
                     m_bytes_consumed += m_chunk_buffer_idx;
                     m_chunk_buffer_idx = 0;
                     m_current_op.first = m_current_op.second = -1;
+                    m_multipart_boundary = true;
                     m_response_idx++;
                 }
             }
@@ -217,19 +219,22 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
                 length = 0;
                 return std::make_pair(std::string_view(), false);
             } else {
-                auto line = chunk_header.substr(0, pos);
+                auto line_part = chunk_header.substr(0, pos);
                 if (!m_response_headers.empty()) {
-                    m_response_headers += line;
-                    line = m_response_headers;
+                    m_response_headers += line_part;
+                    m_header_line = std::move(m_response_headers);
+                } else {
+                    m_header_line.assign(line_part);
                 }
                 buffer += pos + 2;
                 length -= pos + 2;
-                return std::make_pair(line, true);
+                return std::make_pair(std::string_view(m_header_line), true);
             }
         };
 
         // Consume the boundary line.
         bool last_segment = false;
+        if (m_multipart_boundary) {
         while (true) {
             auto [line, ok] = get_next_line();
             if (!ok) {
@@ -250,6 +255,7 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
             ss << "Server has responded with an invalid boundary line: '" << line << "' (expected '" << m_headers.MultipartSeparator() << "')";
             return FailCallback(kXR_ServerError, ss.str());
         }
+        }
         if (last_segment) {
             length = 0;
             break;
@@ -258,6 +264,7 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
         while (true) {
             auto [line, ok] = get_next_line();
             if (!ok) {
+                m_multipart_boundary = false;
                 return orig_length;
             }
             if (line.empty()) {
@@ -342,6 +349,8 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
             // We now have a valid response range; locate a buffer where we will copy the bytes into.
             CalculateNextBuffer();
         }
+        m_multipart_boundary = true;
+
         // Check to see if the Content-Range was missing.
         if (!last_segment && (m_current_op.first == -1 || m_current_op.second == -1)) {
             return FailCallback(kXR_ServerError, "Response segment is missing a Content-Range header");

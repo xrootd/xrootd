@@ -28,6 +28,9 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
+#include <vector>
+
 class CurlVectorFixture : public TransferFixture {};
 
 TEST_F(CurlVectorFixture, Test)
@@ -148,4 +151,49 @@ TEST_F(CurlVectorFixture, WriteTest)
     ASSERT_EQ(b[1], 'b');
     ASSERT_EQ(d[0], 'd');
     ASSERT_EQ(d[1], 'd');
+}
+
+// Multipart header lines may be split across successive curl write callbacks.
+// CurlVectorReadOp::Write() must reassemble them via m_response_headers and then
+// clear that buffer.  Feed the first Content-Range across three writes so the
+// middle chunk never completes a header line (no '\r\n' in that piece).
+TEST_F(CurlVectorFixture, WriteTestSplitMultipartHeaderAcrossWrites)
+{
+    auto logger = XrdCl::DefaultEnv::GetLog();
+
+    std::vector<char> a(2);
+    std::vector<char> b(2);
+
+    XrdCl::ChunkList chunks;
+    chunks.emplace_back(0, 2, a.data());
+    chunks.emplace_back(2, 2, b.data());
+
+    XrdClHttp::CurlVectorReadOp vr(nullptr, "https://example.com", {10, 0}, chunks, logger, nullptr, nullptr);
+    vr.SetStatusCode(206);
+    vr.SetSeparator("123456");
+
+    const char *part1 =
+        "\r\n--123456\r\n"
+        "Content-type: text/plain; charset=UTF-8\r\n"
+        "Content-Range: by";
+    const char *part2 = "tes 0-";
+    const char *part3 =
+        "1/8\r\n"
+        "\r\n"
+        "aa"
+        "\r\n--123456\r\n"
+        "Content-type: text/plain; charset=UTF-8\r\n"
+        "Content-Range: bytes 2-3/8\r\n"
+        "\r\n"
+        "bb"
+        "\r\n--123456--\r\n";
+
+    ASSERT_EQ(strlen(part1), vr.Write(const_cast<char *>(part1), strlen(part1)));
+    ASSERT_EQ(strlen(part2), vr.Write(const_cast<char *>(part2), strlen(part2)));
+    ASSERT_EQ(strlen(part3), vr.Write(const_cast<char *>(part3), strlen(part3)));
+
+    ASSERT_EQ('a', a[0]);
+    ASSERT_EQ('a', a[1]);
+    ASSERT_EQ('b', b[0]);
+    ASSERT_EQ('b', b[1]);
 }
