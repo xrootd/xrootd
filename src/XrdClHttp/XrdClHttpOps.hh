@@ -731,12 +731,15 @@ class CurlVectorReadOp : public CurlOperation {
         // Sets the m_response_idx and m_skip_bytes
         void CalculateNextBuffer();
 
+        bool m_multipart_boundary {true}; // 
+
     protected:
         size_t m_response_idx{0}; // The offset in the m_chunk_list which the current response chunk will write into.
         off_t m_chunk_buffer_idx{0}; // Current offset in requested chunk where we are writing bytes.
         off_t m_bytes_consumed{0}; // Total number of bytes used for results serving the request.
         uint64_t m_skip_bytes{0}; // Count of bytes to skip in the next response (if response chunk contains unneeded bytes).
         std::string m_response_headers; // Buffer of an incomplete response line from a prior curl write operation.
+        std::string m_header_line; // Storage for the last complete header line returned by get_next_line.
         std::pair<off_t, off_t> m_current_op{-1, -1}; // The (offset, length) of the current response chunk.
         std::unique_ptr<XrdCl::VectorReadInfo> m_vr; // The response buffers for the client.
         XrdCl::ChunkList m_chunk_list; // The requested chunks from the client.
