@@ -30,6 +30,7 @@ target_sources(XrdUtils
                          XrdOucHash.icc
     XrdOucHashVal.cc
                          XrdOucJson.hh
+                         XrdOucJsonUtils.hh
     XrdOucLogging.cc     XrdOucLogging.hh
                          XrdOucMapP2X.hh
     XrdOucMsubs.cc       XrdOucMsubs.hh

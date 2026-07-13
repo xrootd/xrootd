@@ -1,6 +1,7 @@
 #undef NDEBUG
 
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucJson.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
@@ -8,11 +9,78 @@
 #include <array>
 #include <map>
 #include <string>
+#include <stdexcept>
 #include <unordered_set>
 
 #include <gtest/gtest.h>
 
 class XrdOucUtilsTests : public ::testing::Test {};
+
+TEST(XrdOucUtilsTests, JoinUrl)
+{
+  EXPECT_EQ(XrdOucUtils::JoinUrl("https://example.org", "/api/v1"),
+            "https://example.org/api/v1");
+  EXPECT_EQ(XrdOucUtils::JoinUrl("https://example.org/", "///api/v1"),
+            "https://example.org/api/v1");
+  EXPECT_EQ(XrdOucUtils::JoinUrl("https://example.org", "api/v1"),
+            "https://example.org/api/v1");
+  EXPECT_EQ(XrdOucUtils::JoinUrl("", "/api/v1"), "/api/v1");
+  EXPECT_EQ(XrdOucUtils::JoinUrl("https://example.org", ""),
+            "https://example.org");
+}
+
+TEST(XrdOucUtilsTests, NormalizePath)
+{
+  EXPECT_EQ(XrdOucUtils::NormalizePath("/foo/bar"), "/foo/bar");
+  EXPECT_EQ(XrdOucUtils::NormalizePath("//foo////bar"), "/foo/bar");
+  EXPECT_EQ(XrdOucUtils::NormalizePath("///"), "/");
+  EXPECT_EQ(XrdOucUtils::NormalizePath("/foo/bar/"), "/foo/bar/");
+  EXPECT_EQ(XrdOucUtils::NormalizePath("/foo/baz//../bar"),
+            "/foo/baz/../bar");
+  EXPECT_EQ(XrdOucUtils::NormalizePath("/foo/./bar"), "/foo/./bar");
+  EXPECT_EQ(XrdOucUtils::NormalizePath(""), "");
+}
+
+TEST(XrdOucUtilsTests, ToUint8)
+{
+  EXPECT_EQ(XrdOucUtils::touint8_t("0"), 0);
+  EXPECT_EQ(XrdOucUtils::touint8_t("255"), 255);
+  EXPECT_THROW(XrdOucUtils::touint8_t("1x"), std::invalid_argument);
+  EXPECT_THROW(XrdOucUtils::touint8_t("256"), std::out_of_range);
+}
+
+TEST(XrdOucUtilsTests, GetOptionalUnsignedInteger)
+{
+  nlohmann::json json = {
+    {"unsigned", 42u},
+    {"signed", 7},
+    {"negative", -1},
+    {"large", 256u},
+    {"text", "1"}
+  };
+  std::uint8_t value = 0;
+  bool present = false;
+
+  EXPECT_TRUE(XrdOucJsonUtils::GetOptionalUnsignedInteger(
+    json, "unsigned", value, present));
+  EXPECT_TRUE(present);
+  EXPECT_EQ(value, 42);
+
+  EXPECT_TRUE(XrdOucJsonUtils::GetOptionalUnsignedInteger(
+    json, "signed", value, present));
+  EXPECT_TRUE(present);
+  EXPECT_EQ(value, 7);
+
+  EXPECT_TRUE(XrdOucJsonUtils::GetOptionalUnsignedInteger(
+    json, "missing", value, present));
+  EXPECT_FALSE(present);
+  EXPECT_FALSE(XrdOucJsonUtils::GetOptionalUnsignedInteger(
+    json, "negative", value, present));
+  EXPECT_FALSE(XrdOucJsonUtils::GetOptionalUnsignedInteger(
+    json, "large", value, present));
+  EXPECT_FALSE(XrdOucJsonUtils::GetOptionalUnsignedInteger(
+    json, "text", value, present));
+}
 
 /* String we replace token values with */
 static const std::string redacted = "REDACTED";

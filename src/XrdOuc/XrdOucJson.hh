@@ -25714,3 +25714,5 @@ inline void swap(nlohmann::NLOHMANN_BASIC_JSON_TPL& j1, nlohmann::NLOHMANN_BASIC
 
 #endif  // INCLUDE_NLOHMANN_JSON_HPP_
 #endif
+
+#include "XrdOuc/XrdOucJsonUtils.hh"
