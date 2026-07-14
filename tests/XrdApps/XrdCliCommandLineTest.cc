@@ -46,6 +46,19 @@ namespace
     return nullptr;
   }
 
+  void ExpectEnvironmentValue( const CommandLineResult &result,
+                               const std::string &name,
+                               const std::string &expected )
+  {
+    const std::string *value = EnvironmentValue( result, name );
+    if( value == nullptr )
+    {
+      ADD_FAILURE() << "Missing environment value: " << name;
+      return;
+    }
+    EXPECT_EQ( *value, expected );
+  }
+
   bool EnvironmentIsUnset( const CommandLineResult &result,
                            const std::string &name )
   {
@@ -83,17 +96,14 @@ namespace
        "root://host//file"} );
 
     ASSERT_EQ( result.action, CommandLineAction::Execute );
-    ASSERT_NE( EnvironmentValue( result, "XRD_LOGLEVEL" ), nullptr );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_LOGLEVEL" ), "Info" );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_REQUESTTIMEOUT" ), "30" );
-    EXPECT_EQ( *EnvironmentValue( result, "X509_USER_CERT" ), "/tmp/cert" );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_HTTPCLIENTCERTFILE" ),
-               "/tmp/cert" );
-    EXPECT_EQ( *EnvironmentValue( result, "X509_USER_KEY" ), "/tmp/key" );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_HTTPCLIENTKEYFILE" ),
-               "/tmp/key" );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_NETWORKSTACK" ), "IPv4" );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_LOGFILE" ), "/tmp/xrd.log" );
+    ExpectEnvironmentValue( result, "XRD_LOGLEVEL", "Info" );
+    ExpectEnvironmentValue( result, "XRD_REQUESTTIMEOUT", "30" );
+    ExpectEnvironmentValue( result, "X509_USER_CERT", "/tmp/cert" );
+    ExpectEnvironmentValue( result, "XRD_HTTPCLIENTCERTFILE", "/tmp/cert" );
+    ExpectEnvironmentValue( result, "X509_USER_KEY", "/tmp/key" );
+    ExpectEnvironmentValue( result, "XRD_HTTPCLIENTKEYFILE", "/tmp/key" );
+    ExpectEnvironmentValue( result, "XRD_NETWORKSTACK", "IPv4" );
+    ExpectEnvironmentValue( result, "XRD_LOGFILE", "/tmp/xrd.log" );
     EXPECT_TRUE( EnvironmentIsUnset( result, "X509_USER_PROXY" ) );
     EXPECT_TRUE( EnvironmentIsUnset( result, "XrdSecCREDS" ) );
   }
@@ -104,20 +114,15 @@ namespace
       {"stat", "--cert", "/tmp/proxy.pem", "root://host//file"} );
 
     ASSERT_EQ( result.action, CommandLineAction::Execute );
-    EXPECT_EQ( *EnvironmentValue( result, "X509_USER_CERT" ),
-               "/tmp/proxy.pem" );
-    EXPECT_EQ( *EnvironmentValue( result, "X509_USER_KEY" ),
-               "/tmp/proxy.pem" );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_HTTPCLIENTCERTFILE" ),
-               "/tmp/proxy.pem" );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_HTTPCLIENTKEYFILE" ),
-               "/tmp/proxy.pem" );
-    EXPECT_EQ( *EnvironmentValue( result, "XrdSecGSIUSERCERT" ),
-               "/tmp/proxy.pem" );
-    EXPECT_EQ( *EnvironmentValue( result, "XrdSecGSIUSERKEY" ),
-               "/tmp/proxy.pem" );
-    EXPECT_EQ( *EnvironmentValue( result, "XrdSecGSIUSERPROXY" ),
-               "/tmp/proxy.pem" );
+    ExpectEnvironmentValue( result, "X509_USER_CERT", "/tmp/proxy.pem" );
+    ExpectEnvironmentValue( result, "X509_USER_KEY", "/tmp/proxy.pem" );
+    ExpectEnvironmentValue( result, "XRD_HTTPCLIENTCERTFILE",
+                            "/tmp/proxy.pem" );
+    ExpectEnvironmentValue( result, "XRD_HTTPCLIENTKEYFILE",
+                            "/tmp/proxy.pem" );
+    ExpectEnvironmentValue( result, "XrdSecGSIUSERCERT", "/tmp/proxy.pem" );
+    ExpectEnvironmentValue( result, "XrdSecGSIUSERKEY", "/tmp/proxy.pem" );
+    ExpectEnvironmentValue( result, "XrdSecGSIUSERPROXY", "/tmp/proxy.pem" );
     EXPECT_TRUE( EnvironmentIsUnset( result, "X509_USER_PROXY" ) );
     EXPECT_TRUE( EnvironmentIsUnset( result, "XrdSecCREDS" ) );
   }
@@ -213,7 +218,7 @@ namespace
                (std::vector<std::string>{"--force", "--path", "--recursive",
                  "--streams", "4", "--cksum", "adler32:01234567",
                  "root://host//file", "/tmp/file"}) );
-    EXPECT_EQ( *EnvironmentValue( result, "XRD_CPTIMEOUT" ), "30" );
+    ExpectEnvironmentValue( result, "XRD_CPTIMEOUT", "30" );
   }
 
   TEST( XrdCliCommandLine, DeduplicatesFlagsAndUsesLastOptionValue )
@@ -290,8 +295,7 @@ namespace
 
     EXPECT_EQ( common.action, CommandLineAction::Execute );
     EXPECT_EQ( EnvironmentValue( common, "XRD_REQUESTTIMEOUT" ), nullptr );
-    ASSERT_NE( EnvironmentValue( copy, "XRD_CPTIMEOUT" ), nullptr );
-    EXPECT_EQ( *EnvironmentValue( copy, "XRD_CPTIMEOUT" ), "0" );
+    ExpectEnvironmentValue( copy, "XRD_CPTIMEOUT", "0" );
     EXPECT_EQ( copy.invocation.arguments,
                (std::vector<std::string>{"root://host//file", "/tmp/file"}) );
   }
