@@ -20,7 +20,9 @@ setup() {
 }
 
 teardown() {
-    kill_pid_files
+    # The server can exit between the last command and teardown. Cleanup must
+    # remain idempotent when a recorded PID has already disappeared.
+    kill_pid_files 2>/dev/null || true
 }
 
 bats::on_failure() {
