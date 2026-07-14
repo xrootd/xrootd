@@ -19,6 +19,10 @@ The \fBxrdfs\fR utility executes meta-data oriented operations
 In batch mode, the endpoint may either be provided separately before the
 command or inferred from complete URL path operands following the command.
 All complete URLs in one command must refer to the same endpoint.
+The command-first complete-URL form is supported by cache, cat, chmod, locate,
+ls, mkdir, mv, prepare, rm, rmdir, spaceinfo, stat, statvfs, tail, truncate,
+and xattr. Raw query arguments remain available only through the server-first
+form because their positional layout is query-specific.
 Command help is available by invoking \fBxrdfs\fR with no command
 line options or parameters and then typing "help" in response to the
 input prompt.

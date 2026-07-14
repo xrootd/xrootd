@@ -53,6 +53,23 @@ bats::on_failure() {
     assert_success
 }
 
+@test "URL-valued xattrs are not treated as path operands" {
+    run "$XRDFS" xattr root://localhost:11965//examplefile set \
+        'user.url=https://example.test/value'
+    assert_success
+
+    run "$XRDFS" xattr root://localhost:11965//examplefile get user.url
+    assert_success
+    assert_output --partial 'https://example.test/value'
+}
+
+@test "URL-shaped prepare request IDs are not treated as path operands" {
+    run "$XRDFS" prepare -a 'https://request.example/id' \
+        root://localhost:11965//examplefile
+
+    refute_output --partial 'all URL operands must use the same endpoint'
+}
+
 @test "mixed URL endpoints are rejected before execution" {
     run "$XRDFS" mv root://localhost:11965//examplefile \
         root://127.0.0.1:11965//renamed
@@ -61,9 +78,12 @@ bats::on_failure() {
 }
 
 @test "local URLs are rejected" {
-    run "$XRDFS" stat file:///tmp/examplefile
-    assert_failure 1
-    assert_output 'xrdfs: invalid remote URL operand'
+    for url in file:///tmp/examplefile FILE://localhost/tmp/examplefile \
+        STDIO://-/examplefile; do
+        run "$XRDFS" stat "$url"
+        assert_failure 1
+        assert_output 'xrdfs: invalid remote URL operand'
+    done
 }
 
 @test "command-first raw queries remain unsupported" {

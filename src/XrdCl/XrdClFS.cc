@@ -38,6 +38,7 @@
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <cstdio>
 #include <getopt.h>
@@ -76,7 +77,30 @@ namespace
 
   bool IsCompleteURL( const std::string &argument )
   {
-    return argument.find( "://" ) != std::string::npos;
+    const std::size_t separator = argument.find( "://" );
+    if( separator == std::string::npos || separator == 0 ||
+        std::isalpha( static_cast<unsigned char>( argument[0] ) ) == 0 )
+      return false;
+
+    for( std::size_t i = 1; i < separator; ++i )
+    {
+      const unsigned char character = argument[i];
+      if( std::isalnum( character ) == 0 && character != '+' &&
+          character != '-' && character != '.' )
+        return false;
+    }
+    return true;
+  }
+
+  bool IsPathOperand( const FSExecutor::CommandParams &arguments,
+                      std::size_t index )
+  {
+    if( arguments[0] == "xattr" )
+      return index == 1;
+    if( arguments[0] == "prepare" && index > 1 &&
+        (arguments[index - 1] == "-a" || arguments[index - 1] == "-p") )
+      return false;
+    return true;
   }
 
   URL EndpointURL( const URL &url )
@@ -120,14 +144,19 @@ namespace
     bool foundURL = false;
     for( std::size_t i = 1; i < arguments.size(); ++i )
     {
-      if( !IsCompleteURL( arguments[i] ) )
+      if( !IsPathOperand( arguments, i ) || !IsCompleteURL( arguments[i] ) )
         continue;
 
       URL operand( arguments[i] );
+      std::string protocol = operand.GetProtocol();
+      std::transform( protocol.begin(), protocol.end(), protocol.begin(),
+                      []( unsigned char character )
+      {
+        return static_cast<char>( std::tolower( character ) );
+      } );
       if( !operand.IsValid() || operand.GetProtocol().empty()
           || operand.GetHostName().empty()
-          || operand.GetProtocol() == "file"
-          || operand.GetProtocol() == "stdio" )
+          || protocol == "file" || protocol == "stdio" )
       {
         error = "invalid remote URL operand";
         return InvalidURLCommand;
