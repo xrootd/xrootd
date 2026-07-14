@@ -8,6 +8,10 @@ set(MAN1PAGES
   xrdmapc.1
 )
 
+# Keep the provisional migration frontend page renderable for review without
+# installing it before its final name and packaging policy are agreed.
+configure_file(xrd.1 xrd.1 @ONLY)
+
 set(MAN8PAGES
     cmsd.8
     frm_admin.8

@@ -1,0 +1,223 @@
+.TH xrd 1 "@XRootD_VERSION_STRING@"
+.SH NAME
+xrd \- provisional thin migration frontend for XRootD client commands
+.SH SYNOPSIS
+.B xrd
+.I command
+[\fIoptions\fR] \fIarguments\fR
+.SH DESCRIPTION
+.B xrd
+provides a small command-oriented compatibility surface for operators moving
+from the GFAL command-line utilities to native XRootD tools.
+The executable name and packaging are provisional and remain subject to
+upstream review.
+.PP
+The frontend performs command and option translation only. It replaces itself
+with
+.BR xrdfs (1)
+for filesystem operations or
+.BR xrdcp (1)
+for transfers. It does not implement storage operations, protocol handling,
+output formatting, or transfer logic.
+.PP
+Standard output, standard error, signals, and the delegated command's exit
+status are preserved. The initial implementation therefore produces native
+XRootD output and exit codes; exact GFAL output and POSIX-errno compatibility
+are not yet provided.
+.SH COMMANDS
+.TP
+.BI "stat " URL
+Execute
+.BR "xrdfs stat " URL .
+.TP
+.BI "ls [" options "] " URL
+Execute
+.BR "xrdfs ls " URL
+with supported option translations.
+.TP
+.BI "cat [" options "] " URL...
+Execute
+.BR "xrdfs cat " URL...
+and concatenate one or more files from the same endpoint.
+.TP
+.BI "xattr " URL " [" ATTRIBUTE "]"
+Execute a read-only
+.B xrdfs xattr
+list or get operation. Attribute assignment is rejected.
+.TP
+.BI "copy [" options "] " SOURCE " " DESTINATION
+Execute
+.BR xrdcp (1)
+with supported option translations.
+.TP
+.BI "cp [" options "] " SOURCE " " DESTINATION
+Alias for
+.BR copy .
+.SH COMMON OPTIONS
+.TP
+.B \-h, \-\-help
+Show command help and exit.
+.TP
+.B \-V, \-\-version
+Show the XRootD version and exit.
+.TP
+.B \-v, \-\-verbose
+Increase native client logging. One occurrence sets
+.BR XRD_LOGLEVEL=Warning ,
+two set
+.BR Info ,
+and three or more set
+.BR Debug .
+.TP
+.BI "\-t, \-\-timeout " SECONDS
+Set
+.B XRD_REQUESTTIMEOUT
+for the delegated command.
+A value of zero is accepted as a GFAL compatibility no-op because zero has
+different immediate-expiry semantics in XrdCl.
+.TP
+.BI "\-E, \-\-cert " FILE
+Set the X.509 certificate for native XRootD and HTTP clients.
+.TP
+.BI "\-\-key " FILE
+Override the X.509 key selected by
+.BR \-\-cert .
+Without this option, the certificate file is also used as the key. Explicit
+credentials take precedence over an inherited
+.BR X509_USER_PROXY
+and the default
+.B /tmp/x509up_u<uid>
+GSI proxy path. Inherited serialized
+.B XrdSecCREDS
+are also cleared.
+.TP
+.B \-4
+Set
+.B XRD_NETWORKSTACK=IPv4
+for the delegated command.
+.TP
+.B \-6
+Set
+.B XRD_NETWORKSTACK=IPv6
+for the delegated command.
+.TP
+.BI "\-\-log-file " FILE
+Set
+.B XRD_LOGFILE
+for the delegated command.
+.TP
+.BI "\-D, \-\-definition " VALUE
+Accepted for command-line migration and ignored with a warning because it has
+no direct XRootD equivalent.
+.TP
+.BI "\-C, \-\-client-info " INFO
+Accepted for command-line migration and ignored with a warning until native
+client-information plumbing is selected.
+.SH LS OPTIONS
+.TP
+.B \-a, \-\-all
+Accepted as a no-op. Native
+.B xrdfs
+does not hide dot-prefixed directory entries.
+.TP
+.B \-l, \-\-long
+Translate to
+.BR "xrdfs ls -l" .
+.TP
+.B \-H, \-\-human-readable
+Translate to
+.BR "xrdfs ls -h" .
+.TP
+.BI "\-\-color " auto|never
+Accepted as a no-op because native output is not colored.
+.PP
+Options that require GFAL-specific formatting, including
+.BR \-\-time-style ,
+.BR \-\-full-time ,
+.BR \-\-xattr ,
+.BR "\-\-color always" ,
+and
+.BR \-d ,
+fail clearly instead of claiming unsupported behavior.
+.SH CAT OPTIONS
+.TP
+.B \-b, \-\-bytes
+Accepted as a no-op because
+.B xrdfs cat
+already streams raw bytes.
+.PP
+All URLs must use the same endpoint. A single delegated
+.B xrdfs
+invocation does not yet provide the mixed-endpoint behavior of
+.BR gfal-cat .
+.SH COPY OPTIONS
+.TP
+.B \-f, \-\-force
+Translate to
+.BR "xrdcp --force" .
+.TP
+.B \-p, \-\-parent
+Translate to
+.BR "xrdcp --path"
+to create missing destination directories.
+.TP
+.B \-r, \-\-recursive
+Translate to
+.BR "xrdcp --recursive" .
+.TP
+.BI "\-K, \-\-checksum " TYPE[:VALUE]
+Translate to
+.BR "xrdcp --cksum" .
+The algorithm spelling is normalized to lowercase.
+.TP
+.BI "\-n, \-\-nbstreams " COUNT
+Translate to
+.BR "xrdcp --streams" .
+Zero keeps the native default control-stream behavior.
+.TP
+.BI "\-T, \-\-transfer-timeout " SECONDS
+Set
+.B XRD_CPTIMEOUT
+for the delegated classical copy job.
+Zero disables this native timeout.
+.TP
+.BI "\-\-from-file " FILE
+Translate to
+.BR "xrdcp --infiles" .
+Exactly one destination must also be supplied.
+.PP
+The initial compatibility surface accepts one source and one destination.
+GFAL chained destinations and copy options without a faithful
+.B xrdcp
+equivalent are rejected with an explanation.
+.SH XATTR OPERATIONS
+Without an attribute name,
+.B xrd xattr
+delegates to
+.BR "xrdfs xattr URL list" .
+With an attribute name, it delegates to
+.BR "xrdfs xattr URL get ATTRIBUTE" .
+An argument containing
+.B =
+is rejected so this initial surface cannot set an extended attribute.
+.SH EXAMPLES
+Inspect a complete XRootD URL:
+.PP
+.nf
+xrd stat root://eospublic.cern.ch//eos/opendata/example
+.fi
+.PP
+List a directory using familiar GFAL option spellings:
+.PP
+.nf
+xrd ls -lH root://eospublic.cern.ch//eos/opendata/
+.fi
+.PP
+Download a remote file without modifying remote storage:
+.PP
+.nf
+xrd copy root://host//path/file /tmp/file
+.fi
+.SH SEE ALSO
+.BR xrdfs (1),
+.BR xrdcp (1)

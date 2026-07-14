@@ -9,6 +9,7 @@ add_subdirectory(unit)
 add_subdirectory(common)
 
 add_subdirectory(XrdCl)
+add_subdirectory(XrdApps)
 add_subdirectory(XrdCeph)
 add_subdirectory(XrdEc)
 add_subdirectory(XrdPosix)

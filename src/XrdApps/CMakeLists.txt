@@ -37,6 +37,19 @@ target_link_libraries(xrdreplay
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
+add_executable(xrd
+  XrdCli.cc
+  XrdCliCommandLine.cc
+)
+
+set_target_properties(xrd PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED TRUE
+)
+
+# The target is intentionally not installed while its name and packaging are
+# still under discussion in issue #2863.
+
 install(
   TARGETS
     xrdreplay
