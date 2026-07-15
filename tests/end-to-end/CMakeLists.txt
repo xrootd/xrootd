@@ -1,9 +1,14 @@
 #-------------------------------------------------------------------------------
 # End-to-end tests driven by BATS (Bash Automated Testing System).
 #
-# Every *.bats file under this directory is registered as an individual CTest
-# test. The tests run with the BATS interpreter vendored in vendor/bats and
-# exercise the server and client binaries from the build tree.
+# The whole suite is run by a single CTest test; the individual @test cases are
+# deliberately NOT registered with CTest. Which BATS formatter is used depends on
+# whether this build submits to CDash:
+#
+#   * CDash builds (-DCDASH=ON, set by test.cmake): bats-format-cdash writes
+#     every test case into Testing/BatsTest.xml, in CTest's own Test.xml format,
+#     which test.cmake then submits via ctest_submit alongside Test.xml.
+#   * otherwise: the default (tap) formatter, for readable local output.
 #-------------------------------------------------------------------------------
 
 find_program(BASH_PROGRAM bash)
@@ -16,18 +21,24 @@ endif()
 set(BATS ${PROJECT_SOURCE_DIR}/vendor/bats/bin/bats)
 set(BATS_LIB_PATH ${PROJECT_SOURCE_DIR}/vendor/bats/lib/bats)
 
-file(GLOB_RECURSE BATS_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.bats)
+if(CDASH)
+  set(BATS_FORMATTER ${CMAKE_CURRENT_SOURCE_DIR}/helper/bats-format-cdash)
+else()
+  set(BATS_FORMATTER tap)
+endif()
 
-foreach(bats_file ${BATS_FILES})
-  file(RELATIVE_PATH relative_path ${CMAKE_CURRENT_SOURCE_DIR} ${bats_file})
-  string(REGEX REPLACE "\\.bats$" "" test_name "${relative_path}")
-  string(REPLACE "/" "::" test_name "${test_name}")
+# BATS_LIB_PATH lets bats_load_library find the vendored bats-support and
+# bats-assert helpers; PATH exposes the freshly built xrootd/xrdcp binaries.
+# The BATS_XML_* variables are only consumed by bats-format-cdash; the Site
+# identity (BuildName/BuildStamp/Name) is completed at run time by test.cmake.
+set(BATS_ENVIRONMENT
+  "BATS_LIB_PATH=${BATS_LIB_PATH}"
+  "PATH=${CMAKE_BINARY_DIR}/bin:$ENV{PATH}"
+  "BATS_XML_FILE=${CMAKE_BINARY_DIR}/Testing/BatsTest.xml"
+  "BATS_XML_SOURCE_ROOT=${PROJECT_SOURCE_DIR}")
 
-  add_test(NAME XRootD::end-to-end::${test_name}
-    COMMAND ${BASH_PROGRAM} ${BATS} --formatter tap --timing ${bats_file})
+add_test(NAME XRootD::end-to-end
+  COMMAND ${BASH_PROGRAM} ${BATS} --recursive --timing
+          --formatter ${BATS_FORMATTER} ${CMAKE_CURRENT_SOURCE_DIR})
 
-  # BATS_LIB_PATH lets bats_load_library find the vendored bats-support and
-  # bats-assert helpers; PATH exposes the freshly built xrootd/xrdcp binaries.
-  set_tests_properties(XRootD::end-to-end::${test_name} PROPERTIES
-    ENVIRONMENT "BATS_LIB_PATH=${BATS_LIB_PATH};PATH=${CMAKE_BINARY_DIR}/bin:$ENV{PATH}")
-endforeach()
+set_tests_properties(XRootD::end-to-end PROPERTIES ENVIRONMENT "${BATS_ENVIRONMENT}")

@@ -248,6 +248,14 @@ endif()
 endsection()
 
 section("Configure")
+
+# When submitting to CDash, tell the build to use the CDash BATS formatter so
+# the end-to-end tests are captured as Testing/BatsTest.xml (see
+# tests/end-to-end/CMakeLists.txt).
+if(CDASH OR (DEFINED ENV{CDASH} AND "$ENV{CDASH}"))
+  list(APPEND CMAKE_ARGS -DCDASH=ON)
+endif()
+
 foreach(FILENAME ${OS_NAME}${OS_VERSION}.cmake ${OS_NAME}.cmake config.cmake)
   if(EXISTS "${CTEST_SOURCE_DIRECTORY}/.ci/${FILENAME}")
     message("Using CMake cache file ${FILENAME}")
@@ -276,6 +284,16 @@ endif()
 if(NOT ${BUILD_RESULT} EQUAL 0)
   message(SEND_ERROR "Build failed")
 else()
+  # Hand the Site identity to bats-format-cdash (via the environment inherited by
+  # the end-to-end test) so Testing/BatsTest.xml attaches to the same CDash build
+  # as Test.xml. BuildStamp is "<tag>-<track>", the first two lines of Testing/TAG.
+  file(STRINGS "${CTEST_BINARY_DIRECTORY}/Testing/TAG" BATS_TAG_LINES LIMIT_COUNT 2)
+  list(GET BATS_TAG_LINES 0 BATS_BUILD_TAG)
+  list(GET BATS_TAG_LINES 1 BATS_BUILD_TRACK)
+  set(ENV{BATS_XML_SITE} "${CTEST_SITE}")
+  set(ENV{BATS_XML_BUILDNAME} "${CTEST_BUILD_NAME}")
+  set(ENV{BATS_XML_BUILDSTAMP} "${BATS_BUILD_TAG}-${BATS_BUILD_TRACK}")
+
   if(NOT DEFINED CTEST_MEMORYCHECK_TYPE)
     section("Test")
     ctest_test(RETURN_VALUE TEST_RESULT
@@ -325,6 +343,10 @@ if(CDASH OR (DEFINED ENV{CDASH} AND "$ENV{CDASH}"))
     RETURN_VALUE SUBMIT_RESULT
     CAPTURE_CMAKE_ERROR SUBMIT_ERROR
     QUIET)
+
+  if(EXISTS "${CTEST_BINARY_DIRECTORY}/Testing/BatsTest.xml")
+    ctest_submit(FILES "${CTEST_BINARY_DIRECTORY}/Testing/BatsTest.xml" QUIET)
+  endif()
 
   if(NOT SUBMIT_RESULT EQUAL 0 OR NOT SUBMIT_ERROR EQUAL 0)
     message(WARNING "CDash submission failed")
