@@ -52,3 +52,5 @@ add_subdirectory( TPCTests )
 add_subdirectory( badredir )
 add_subdirectory( xcachewithcsi )
 add_subdirectory(XrdSysTests)
+
+add_subdirectory(end-to-end)
