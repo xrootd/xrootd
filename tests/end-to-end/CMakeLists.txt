@@ -25,14 +25,17 @@ set(BATS_FORMATTER ${CMAKE_CURRENT_SOURCE_DIR}/helper/bats-format-cdash)
 
 # BATS_LIB_PATH lets bats_load_library find the vendored bats-support and
 # bats-assert helpers; PATH exposes the freshly built xrootd/xrdcp binaries.
-# BATS_XML_SOURCE_ROOT is only consumed by bats-format-cdash (to make <Path>
-# relative). The output directory (BATS_XML_DIR) and the Site identity
+# BATS_XML_SOURCE_ROOT and BATS_XML_TEST_ROOT are only consumed by
+# bats-format-cdash: the former makes <Path> relative to the repo root, the
+# latter builds each test's "end-to-end <file>" display prefix relative to this
+# test tree. The output directory (BATS_XML_DIR) and the Site identity
 # (BuildName/BuildStamp/Name) are inherited at run time from test.cmake, which
 # knows CTEST_BINARY_DIRECTORY, so they are deliberately NOT pinned here.
 set(BATS_ENVIRONMENT
   "BATS_LIB_PATH=${BATS_LIB_PATH}"
   "PATH=${CMAKE_BINARY_DIR}/bin:$ENV{PATH}"
-  "BATS_XML_SOURCE_ROOT=${PROJECT_SOURCE_DIR}")
+  "BATS_XML_SOURCE_ROOT=${PROJECT_SOURCE_DIR}"
+  "BATS_XML_TEST_ROOT=${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_test(NAME XRootD::end-to-end
   COMMAND ${BASH_PROGRAM} ${BATS} --recursive --timing

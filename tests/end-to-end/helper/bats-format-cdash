@@ -44,6 +44,11 @@ source "$BATS_ROOT/$BATS_LIBDIR/bats-core/formatter.bash"
 source_root="${BATS_XML_SOURCE_ROOT:-$PWD}"
 source_root="${source_root%/}"
 
+# Root of the end-to-end test tree, used to build each test's display prefix
+# (see bats_display_prefix). Falls back to source_root for manual runs.
+test_root="${BATS_XML_TEST_ROOT:-$source_root}"
+test_root="${test_root%/}"
+
 resolve_output_file() { # -> path of the BatsTest<N>.xml to write
   # An explicit filename always wins (tests / manual runs).
   if [[ -n ${BATS_XML_FILE:-} ]]; then
@@ -102,6 +107,19 @@ relative_path() { # <absolute file> -> "./<dir relative to source root>"
   else
     printf '%s' "$dir"
   fi
+}
+
+bats_display_prefix() { # <absolute .bats file> -> "end-to-end <rel path, no .bats>"
+  # Prefix each test's displayed name with the end-to-end suite label and the
+  # source .bats file (relative to the test root, extension stripped) so the
+  # cases are identifiable and grouped by their file in CDash.
+  local file=${1%.bats}
+  if [[ $file == "$test_root"/* ]]; then
+    file=${file#"$test_root"/}
+  else
+    file=${file##*/}
+  fi
+  printf 'end-to-end %s' "$file"
 }
 
 bats_tap_stream_plan() { # <count>
@@ -184,12 +202,15 @@ mkdir -p "$(dirname "$output_file")" 2>/dev/null || true
   printf '\t\t<TestList>\n'
   for (( i = 1; i <= count; i++ )); do
     printf '\t\t\t<Test>%s/%s</Test>\n' \
-      "$(xml_escape "${case_path[i]-.}")" "$(xml_escape "${case_name[i]-}")"
+      "$(xml_escape "${case_path[i]-.}")" \
+      "$(xml_escape "$(bats_display_prefix "${case_file[i]-}") ${case_name[i]-}")"
   done
   printf '\t\t</TestList>\n'
 
   for (( i = 1; i <= count; i++ )); do
-    name=$(xml_escape "${case_name[i]-}")
+    # Displayed name carries the "end-to-end <file>" prefix; case_name stays raw
+    # so the --filter command line below still matches the real @test name.
+    name=$(xml_escape "$(bats_display_prefix "${case_file[i]-}") ${case_name[i]-}")
     path=$(xml_escape "${case_path[i]-.}")
     status="${case_status[i]-notrun}"
     ms="${case_ms[i]-0}"
