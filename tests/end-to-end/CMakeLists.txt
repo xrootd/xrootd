@@ -1,13 +1,16 @@
 #-------------------------------------------------------------------------------
 # End-to-end tests driven by BATS (Bash Automated Testing System).
 #
-# The whole suite is run by a single CTest test; the individual @test cases are
-# deliberately NOT registered with CTest. Which BATS formatter is used depends on
-# whether this build submits to CDash:
+# Each .bats file is registered as its own CTest test, so CTest runs BATS once
+# per file (in parallel with the rest, like every other CTest test) and reports
+# each file individually. The @test cases inside a file are deliberately NOT
+# registered with CTest. Which BATS formatter is used depends on whether this
+# build submits to CDash:
 #
 #   * CDash builds (-DCDASH=ON, set by test.cmake): bats-format-cdash writes
-#     every test case into Testing/BatsTest.xml, in CTest's own Test.xml format,
-#     which test.cmake then submits via ctest_submit alongside Test.xml.
+#     every test case into Testing/BatsTest<N>.xml, in CTest's own Test.xml
+#     format, which test.cmake then submits via ctest_submit alongside Test.xml.
+#     Each per-file BATS run produces its own numbered BatsTest<N>.xml.
 #   * otherwise: the default (tap) formatter, for readable local output.
 #-------------------------------------------------------------------------------
 
@@ -37,8 +40,22 @@ set(BATS_ENVIRONMENT
   "BATS_XML_SOURCE_ROOT=${PROJECT_SOURCE_DIR}"
   "BATS_XML_TEST_ROOT=${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_test(NAME XRootD::end-to-end
-  COMMAND ${BASH_PROGRAM} ${BATS} --recursive --timing
-          --formatter ${BATS_FORMATTER} ${CMAKE_CURRENT_SOURCE_DIR})
+# Discover every .bats file and register each as its own CTest test, so BATS is
+# run once per file instead of once recursively over the whole tree.
+# CONFIGURE_DEPENDS re-globs at build time so newly added .bats files are picked
+# up without a manual re-run of CMake.
+file(GLOB_RECURSE BATS_FILES CONFIGURE_DEPENDS
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*.bats)
 
-set_tests_properties(XRootD::end-to-end PROPERTIES ENVIRONMENT "${BATS_ENVIRONMENT}")
+foreach(BATS_FILE ${BATS_FILES})
+  # Name the test after the file with the .bats extension stripped, e.g.
+  # example/example.bats -> XRootD::end-to-end::example/example.
+  string(REGEX REPLACE "\\.bats$" "" BATS_NAME "${BATS_FILE}")
+  set(BATS_TEST XRootD::end-to-end::${BATS_NAME})
+
+  add_test(NAME ${BATS_TEST}
+    COMMAND ${BASH_PROGRAM} ${BATS} --timing
+            --formatter ${BATS_FORMATTER} ${CMAKE_CURRENT_SOURCE_DIR}/${BATS_FILE})
+
+  set_tests_properties(${BATS_TEST} PROPERTIES ENVIRONMENT "${BATS_ENVIRONMENT}")
+endforeach()

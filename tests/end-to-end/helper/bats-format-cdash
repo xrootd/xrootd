@@ -71,9 +71,14 @@ resolve_output_file() { # -> path of the BatsTest<N>.xml to write
   done
   [[ -n $latest ]] && dir="$base_dir/$latest"
 
-  # One BatsTest<N>.xml per bats run; pick the next free number.
+  mkdir -p "$dir" 2>/dev/null || true
+
+  # One BatsTest<N>.xml per bats run; claim the next free number atomically.
+  # CTest runs one bats process per .bats file in parallel, so several formatters
+  # race for a name here: `set -o noclobber` makes the redirect create the file
+  # with O_EXCL and fail if it already exists, so each run claims a distinct N.
   local n=1
-  while [[ -e "$dir/BatsTest${n}.xml" ]]; do
+  until ( set -o noclobber; : > "$dir/BatsTest${n}.xml" ) 2>/dev/null; do
     n=$(( n + 1 ))
   done
   printf '%s' "$dir/BatsTest${n}.xml"
