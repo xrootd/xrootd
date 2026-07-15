@@ -5,7 +5,20 @@
 # (via ctest_submit) alongside the results CTest produces itself. Every @test in
 # every .bats file becomes its own <Test> element.
 #
-# The XML is written to the file named by BATS_XML_FILE (default ./BatsTest.xml).
+# Where the XML lands is resolved at run time:
+#
+#     BATS_XML_FILE  -> exact output path (wins if set; used by tests/manual runs)
+#     BATS_XML_DIR   -> directory to write into. When it holds CTest run
+#                       subdirectories named by date_time (Testing/<TAG>, e.g.
+#                       20260715-1459), the file lands in the most recent one so
+#                       it sits beside that run's Test.xml; otherwise it lands in
+#                       BATS_XML_DIR itself. A fresh BatsTest<N>.xml (N = next
+#                       free number) is written on every bats invocation.
+#
+# Numbering each file means repeated runs never clobber each other and test.cmake
+# can submit them all. With neither variable set it falls back to ./BatsTest1.xml
+# in the current directory.
+#
 # To land on the same CDash build as the main submission, the <Site> header is
 # filled from these environment variables (normally exported by the CTest
 # dashboard script, so they match Test.xml exactly):
@@ -16,7 +29,7 @@
 #     BATS_XML_SOURCE_ROOT  -> repo root, used to make <Path> relative
 #
 # Usage:
-#     BATS_XML_FILE=.../BatsTest.xml \
+#     BATS_XML_DIR=.../build/Testing \
 #       bats --recursive --timing \
 #            --formatter /abs/path/to/bats-format-cdash tests/end-to-end
 #
@@ -28,9 +41,38 @@ trap '' INT
 # shellcheck source=../../../vendor/bats/lib/bats-core/formatter.bash
 source "$BATS_ROOT/$BATS_LIBDIR/bats-core/formatter.bash"
 
-output_file="${BATS_XML_FILE:-BatsTest.xml}"
 source_root="${BATS_XML_SOURCE_ROOT:-$PWD}"
 source_root="${source_root%/}"
+
+resolve_output_file() { # -> path of the BatsTest<N>.xml to write
+  # An explicit filename always wins (tests / manual runs).
+  if [[ -n ${BATS_XML_FILE:-} ]]; then
+    printf '%s' "$BATS_XML_FILE"
+    return
+  fi
+
+  local base_dir="${BATS_XML_DIR:-.}"
+  base_dir="${base_dir%/}"
+
+  # CTest stores each run's results in a date_time-named subdirectory of Testing
+  # (e.g. Testing/20260715-1459); land in the most recent one so BatsTest<N>.xml
+  # sits beside that run's Test.xml. Fall back to base_dir if there is none. The
+  # date_time format is lexically sortable, so a plain string compare finds it.
+  local dir="$base_dir" latest='' d name
+  for d in "$base_dir"/*/; do
+    name=${d%/}; name=${name##*/}
+    [[ $name == [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9] ]] || continue
+    [[ -z $latest || $name > $latest ]] && latest=$name
+  done
+  [[ -n $latest ]] && dir="$base_dir/$latest"
+
+  # One BatsTest<N>.xml per bats run; pick the next free number.
+  local n=1
+  while [[ -e "$dir/BatsTest${n}.xml" ]]; do
+    n=$(( n + 1 ))
+  done
+  printf '%s' "$dir/BatsTest${n}.xml"
+}
 
 # Indexed arrays keyed by the (numeric, global) test index, for Bash 3.2.
 declare -a case_name case_status case_ms case_path case_file case_output
@@ -123,6 +165,7 @@ site_name=$(xml_escape "${BATS_XML_SITE:-$(hostname)}")
 build_name=$(xml_escape "${BATS_XML_BUILDNAME}")
 build_stamp=$(xml_escape "${BATS_XML_BUILDSTAMP}")
 
+output_file=$(resolve_output_file)
 mkdir -p "$(dirname "$output_file")" 2>/dev/null || true
 
 {
