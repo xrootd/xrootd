@@ -353,54 +353,73 @@ XRootDStatus DoLS( FileSystem                      *fs,
   // Check up the args
   //----------------------------------------------------------------------------
   Log *log = DefaultEnv::GetLog();
-  uint32_t    argc     = args.size();
   bool        stats    = false;
   bool        showUrls = false;
   bool        hascks   = false;
   bool        human    = false;
+  bool        directory= false;
   uint64_t base        = 1024;
   std::string path;
   DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
-  if( argc > 6 )
+  auto applyOption = [&]( char option )
   {
-    log->Error( AppMsg, "Too many arguments." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+    switch( option )
+    {
+      case 'l':
+        stats = true;
+        flags |= DirListFlags::Stat;
+        break;
+      case 'u':
+        showUrls = true;
+        break;
+      case 'R':
+        flags |= DirListFlags::Recursive;
+        break;
+      case 'D':
+        flags &= ~DirListFlags::Merge;
+        break;
+      case 'Z':
+        flags |= DirListFlags::Zip;
+        break;
+      case 'C':
+        hascks = true;
+        stats = true;
+        flags |= DirListFlags::Cksm;
+        break;
+      case 'h':
+      case 'H':
+        human = true;
+        break;
+      case 'd':
+        directory = true;
+        break;
+    }
+  };
 
+  const std::string shortOptions = "luRDZChHd";
+  bool parseOptions = true;
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-l" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions && args[i] == "--long" )
     {
       stats = true;
       flags |= DirListFlags::Stat;
     }
-    else if( args[i] == "-u" )
-      showUrls = true;
-    else if( args[i] == "-R" )
-    {
-      flags |= DirListFlags::Recursive;
-    }
-    else if( args[i] == "-D" )
-    {
-      // show duplicates
-      flags &= ~DirListFlags::Merge;
-    }
-    else if( args[i] == "-Z" )
-    {
-      // check if file is a ZIP archive if yes list content
-      flags |= DirListFlags::Zip;
-    }
-    else if( args[i] == "-C" )
-    {
-      // query checksum for each entry in the directory
-      hascks = true;
-      stats  = true;
-      flags |= DirListFlags::Cksm;
-    }
-    else if ( args [i] == "-h" )
-    {
+    else if( parseOptions && args[i] == "--human-readable" )
       human = true;
+    else if( parseOptions && args[i] == "--directory" )
+      directory = true;
+    else if( parseOptions && args[i].size() > 1 && args[i][0] == '-' &&
+             args[i][1] != '-' &&
+             args[i].find_first_not_of( shortOptions, 1 ) == std::string::npos )
+    {
+      for( std::size_t j = 1; j < args[i].size(); ++j )
+        applyOption( args[i][j] );
     }
     else
       path = args[i];
@@ -437,8 +456,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
     return st;
   }
 
-  if( !info->TestFlags( StatInfo::IsDir ) &&
-      !( flags & DirListFlags::Zip ) )
+  if( directory ||
+      (!info->TestFlags( StatInfo::IsDir ) &&
+       !( flags & DirListFlags::Zip )) )
   {
     if( stats )
       PrintDirListStatInfo( info, false, 0, 0, 0, human, base );
@@ -1528,10 +1548,22 @@ XRootDStatus DoCat( FileSystem                      *fs,
 
   std::vector<std::string> remotes;
   std::string local;
+  bool parseOptions = true;
 
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-o" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions &&
+             ( args[i] == "-b" || args[i] == "--bytes" ) )
+    {
+      // gfal-cat exposes this Python 3 compatibility flag. xrdfs always
+      // streams byte-preserving data, so no mode change is required.
+      continue;
+    }
+    else if( parseOptions && args[i] == "-o" )
     {
       if( i < args.size()-1 )
       {
@@ -1551,6 +1583,12 @@ XRootDStatus DoCat( FileSystem                      *fs,
   if( !local.empty() && remotes.size() > 1 )
   {
     log->Error( AppMsg, "If '-o' is used only can be used with only one remote file." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  if( remotes.empty() )
+  {
+    log->Error( AppMsg, "Missing remote file." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
@@ -1984,14 +2022,17 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     Modify permissions. Permission string example:\n"             );
   printf( "     rwxr-x--x\n\n"                                                );
 
-  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [dirname]\n"                   );
+  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [-h|-H] [-d] [--] [dirname]\n" );
   printf( "     Get directory listing.\n"                                     );
-  printf( "     -l stat every entry and print long listing\n"                 );
+  printf( "     -l|--long stat every entry and print long listing\n"          );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries\n"                                  );
   printf( "     -Z if a ZIP archive list its content\n"                       );
-  printf( "     -C checksum every entry\n\n"                                  );
+  printf( "     -C checksum every entry\n"                                    );
+  printf( "     -h|-H|--human-readable print human-readable sizes\n"          );
+  printf( "     -d|--directory list the entry instead of its contents\n"      );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"    );
 
   printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                  );
   printf( "     Get the locations of the path.\n"                             );
@@ -2079,9 +2120,12 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -a abort stage request\n"                                   );
   printf( "     -e evict the file from disk cache\n\n"                      );
 
-  printf( "   cat [-o local file] files\n"                                  );
+  printf( "   cat [-b|--bytes] [-o local file] [--] files\n"                );
   printf( "     Print contents of one or more files to stdout.\n"           );
-  printf( "     -o print to the specified local file\n\n"                   );
+  printf( "     -b, --bytes accepted for gfal-cat compatibility; output\n"  );
+  printf( "                 is always byte-preserving\n"                    );
+  printf( "     -o print to the specified local file\n"                     );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"  );
 
   printf( "   tail [-c bytes] [-f] file\n"                                  );
   printf( "     Output last part of files to stdout.\n"                     );
