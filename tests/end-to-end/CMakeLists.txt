@@ -48,13 +48,11 @@ file(GLOB_RECURSE BATS_FILES CONFIGURE_DEPENDS
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*.bats)
 
 foreach(BATS_FILE ${BATS_FILES})
-  # Name the test after the file with the .bats extension stripped, e.g.
-  # example/example.bats -> XRootD::end-to-end::example/example.
   string(REGEX REPLACE "\\.bats$" "" BATS_NAME "${BATS_FILE}")
-  set(BATS_TEST XRootD::end-to-end::${BATS_NAME})
+  set(BATS_TEST "end-to-end ${BATS_NAME}")
 
   add_test(NAME ${BATS_TEST}
-    COMMAND ${BASH_PROGRAM} ${BATS} --timing
+    COMMAND ${BASH_PROGRAM} ${BATS} --timing --verbose-run --show-output-of-passing-tests
             --formatter ${BATS_FORMATTER} ${CMAKE_CURRENT_SOURCE_DIR}/${BATS_FILE})
 
   set_tests_properties(${BATS_TEST} PROPERTIES ENVIRONMENT "${BATS_ENVIRONMENT}")
