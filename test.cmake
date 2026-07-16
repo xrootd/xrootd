@@ -249,13 +249,6 @@ endsection()
 
 section("Configure")
 
-# When submitting to CDash, tell the build to use the CDash BATS formatter so
-# the end-to-end tests are captured as Testing/BatsTest.xml (see
-# tests/end-to-end/CMakeLists.txt).
-if(CDASH OR (DEFINED ENV{CDASH} AND "$ENV{CDASH}"))
-  list(APPEND CMAKE_ARGS -DCDASH=ON)
-endif()
-
 foreach(FILENAME ${OS_NAME}${OS_VERSION}.cmake ${OS_NAME}.cmake config.cmake)
   if(EXISTS "${CTEST_SOURCE_DIRECTORY}/.ci/${FILENAME}")
     message("Using CMake cache file ${FILENAME}")
