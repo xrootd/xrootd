@@ -94,6 +94,19 @@ int XrdOssMirageXAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 
 int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const char *Path,  int fd,  int isNew)
 {
+    if (isNew == MIRAGE_MAGIC)
+    {
+        static std::once_flag xattr_injection_flag;
+        std::call_once(xattr_injection_flag, [this, Aval]() noexcept
+            {
+                auto value = static_cast<XrdOss *>(const_cast<void *>(Aval));
+                if (XrdOssMirage * const oss = dynamic_cast<XrdOssMirage *>(value); oss != nullptr)
+                    this->oss = oss;
+            });
+
+        return 0;
+    }
+
     if (this->oss == nullptr)
         return -ENOTSUP;
 

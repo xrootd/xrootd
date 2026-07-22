@@ -9,6 +9,8 @@
 #include <optional>
 #include <unordered_map>
 
+constexpr int MIRAGE_MAGIC = 0x4412A6E;
+
 class XrdOssMirage : public XrdOss {
 private:
     std::unordered_map<std::string, XrdOssMirageEntryPtr> entries;

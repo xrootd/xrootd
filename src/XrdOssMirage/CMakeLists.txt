@@ -4,6 +4,10 @@ add_library(${XrdOssMirage} MODULE XrdOssMirage.cc
     XrdOssMirageDir.cc
     XrdOssMirageFile.cc
     XrdOssMirageXAttr.cc
+    XrdOssMirageXAttrWrapper.cc
+    XrdOssMirageWrapper.cc
+    XrdOssMirageWrapperDir.cc
+    XrdOssMirageWrapperFile.cc
     )
 
 target_link_libraries(${XrdOssMirage} PRIVATE XrdUtils XrdServer)
