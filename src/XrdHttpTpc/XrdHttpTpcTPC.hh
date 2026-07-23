@@ -82,6 +82,11 @@ private:
         std::string remote;
         std::string name;
         std::string clID;
+        // Keeps the shared CA/CRL store alive for the duration of the transfer.
+        // Declared here, rather than alongside the curl handle, so that it outlives
+        // every handle the request creates -- including the duplicates that
+        // multi-stream transfers make, which inherit the pointer to this record.
+        std::shared_ptr<X509_STORE> ca_store;
         static XrdXrootdTpcMon* tpcMonitor;
         timeval     begT;
         off_t bytes_transferred;
@@ -102,8 +107,13 @@ private:
     static std::string GetAuthz(XrdHttpExtReq &req);
 
     // Configure curl handle's CA settings.  The CA files present here should
-    // be valid for the lifetime of the process.
-    void ConfigureCurlCA(CURL *curl);
+    // be valid for the lifetime of the process.  The record takes a reference to
+    // the shared CA store, so it must outlive the curl handle.
+    //
+    // Returns false if no trust anchors could be configured, in which case the
+    // transfer must be failed: letting it proceed would leave libcurl verifying
+    // against its built-in default CA bundle instead of the configured one.
+    bool ConfigureCurlCA(CURL *curl, TPCLogRecord &rec);
 
     // Redirect the transfer according to the contents of an XrdOucErrInfo object.
     int RedirectTransfer(CURL *curl, const std::string &redirect_resource, XrdHttpExtReq &req,
@@ -181,6 +191,11 @@ private:
     bool usingEC; // indicate if XrdEC is used
 
     static bool allowMissingCRL;
+
+    // Whether the libcurl we are linked against supports CURLOPT_SSL_CTX_FUNCTION,
+    // which only its OpenSSL-family TLS backends do.  Probed once at configuration
+    // time because without it the shared CA store cannot be installed.
+    bool m_sslctx_supported{false};
 
     // Time to connect the curl socket to the remote server uses the linux's default value
     // of 60 seconds

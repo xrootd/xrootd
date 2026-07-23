@@ -185,10 +185,22 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
  * https://curl.se/libcurl/c/CURLOPT_SSL_CTX_FUNCTION.html
  */
 int TPCHandler::ssl_ctx_callback(CURL *curl, void *ssl_ctx, void *clientp) {
-    //TPCLogRecord * rec = (TPCLogRecord *)clientp;
+    TPCLogRecord * rec = (TPCLogRecord *)clientp;
     SSL_CTX* ctx = static_cast<SSL_CTX*>(ssl_ctx);
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
-    return CURL_SOCKOPT_OK;
+
+    if (rec && rec->ca_store) {
+        // Bumps the store's reference count instead of re-parsing the CA and CRL
+        // bundles for this connection.  libcurl runs this callback after it has
+        // applied its own TLS options, so this replaces whatever store it built.
+        SSL_CTX_set1_cert_store(ctx, rec->ca_store.get());
+    }
+    if (allowMissingCRL) {
+        // verify_callback only excuses X509_V_ERR_UNABLE_TO_GET_CRL, i.e. a CA in
+        // the chain for which no CRL could be found.  Every other verification rule
+        // still applies, including revocation itself whenever a CRL is present.
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
+    }
+    return CURLE_OK;
 }
 
 int TPCHandler::verify_callback(int preverify_ok, X509_STORE_CTX* ctx) {
@@ -252,9 +264,33 @@ std::string encode_xrootd_opaque_to_uri(CURL *curl, const std::string &opaque)
 /*           T P C H a n d l e r : : C o n f i g u r e C u r l C A            */
 /******************************************************************************/
   
-void
-TPCHandler::ConfigureCurlCA(CURL *curl)
+bool
+TPCHandler::ConfigureCurlCA(CURL *curl, TPCLogRecord &rec)
 {
+    // Preferred path: hand libcurl the CA/CRL store that XrdTlsTempCA already
+    // parsed, rather than the bundle filenames.  Passing filenames makes libcurl
+    // build a private X509_STORE per connection, which costs tens of MB for a grid
+    // CA directory and is held for the whole transfer; sharing one store makes that
+    // a reference count.  See https://github.com/xrootd/xrootd/issues/2873
+    //
+    // Skipped when m_cafile is set, so that the http.cafile precedence established
+    // at the bottom of this function is preserved.
+    if (m_ca_file && m_sslctx_supported && m_cafile.empty()) {
+        rec.ca_store = m_ca_file->CAStore();
+        if (!rec.ca_store) {
+            m_log.Log(Error, "TpcHandler", "No CA store is available; refusing to "
+                      "fall back to libcurl's default CA bundle");
+            return false;
+        }
+        // Stop libcurl loading its build-time default bundle, which the callback
+        // below would only discard; the callback supplies the trust anchors.
+        curl_easy_setopt(curl, CURLOPT_CAINFO, static_cast<char *>(nullptr));
+        curl_easy_setopt(curl, CURLOPT_CAPATH, static_cast<char *>(nullptr));
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, ssl_ctx_callback);
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, &rec);
+        return true;
+    }
+
     auto ca_filename = m_ca_file ? m_ca_file->CAFilename() : "";
     auto crl_filename = m_ca_file ? m_ca_file->CRLFilename() : "";
     if (!ca_filename.empty() && !crl_filename.empty()) {
@@ -281,6 +317,7 @@ TPCHandler::ConfigureCurlCA(CURL *curl)
     if (!m_cafile.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, m_cafile.c_str());
     }
+    return true;
 }
 
 
@@ -946,7 +983,15 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         fh->close();
         return resp_result;
     }
-    ConfigureCurlCA(curl);
+    if (!ConfigureCurlCA(curl, rec)) {
+        std::stringstream ss;
+        ss << "Failed to configure the certificate authorities for the transfer";
+        rec.status = 500;
+        logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", ss.str());
+        int resp_result = req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+        fh->close();
+        return resp_result;
+    }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
     Stream stream(std::move(fh), 0, 0, m_log);
@@ -1075,7 +1120,13 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     std::string full_url = prepareURL(req);
     std::string authz = GetAuthz(req);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
-    ConfigureCurlCA(curl);
+    if (!ConfigureCurlCA(curl, rec)) {
+        std::stringstream ss;
+        ss << "Failed to configure the certificate authorities for the transfer";
+        rec.status = 500;
+        logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+    }
     uint64_t sourceFileContentLength = 0;
     {
         //Get the content-length of the source file and pass it to the OSS layer
