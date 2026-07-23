@@ -39,7 +39,7 @@ TEST_F(XrdOssMirageFileFixture, TruncateReducesFileSize)
     file.Ftruncate(1000);
     file.Close();
 
-    ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size());
+    ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFileFixture, TruncateIncreasesFileSize)
@@ -48,7 +48,7 @@ TEST_F(XrdOssMirageFileFixture, TruncateIncreasesFileSize)
     file.Ftruncate(1000000);
     file.Close();
 
-    ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size());
+    ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFileFixture, OpenInWriteModeShouldSucceed)
@@ -153,7 +153,7 @@ TEST_F(XrdOssMirageFileFixture, ReadWithPropertiesFailsWithSpecifiedCodeAtSpecif
 
 TEST_F(XrdOssMirageFileFixture, ReadWithPropertyPatternReturnsContentFullOfSpecifiedChar)
 {
-    oss.get_entry_write("/dummy").value()->set_pattern("a");
+    oss.get_entry_write("/dummy").value()->pattern = "a";
 
     file.Open("/dummy", O_RDONLY, {}, env);
 
@@ -165,7 +165,7 @@ TEST_F(XrdOssMirageFileFixture, ReadWithPropertyPatternReturnsContentFullOfSpeci
 
 TEST_F(XrdOssMirageFileFixture, ReadWithPropertyPatternReturnsContentFullOfSpecifiedString)
 {
-    oss.get_entry_write("/dummy").value()->set_pattern("abc");
+    oss.get_entry_write("/dummy").value()->pattern = "abc";
 
     file.Open("/dummy", O_RDONLY, {}, env);
 
@@ -188,7 +188,7 @@ TEST_F(XrdOssMirageFileFixture, WriteUpdatesItsSize)
     file.Write(nullptr, 0, 1000);
     file.Close();
 
-    ASSERT_EQ(10999, oss.get_entry_read("/dummy").value().size());
+    ASSERT_EQ(10999, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFileFixture, WriteWithPropertyReturnCodeOnlyFailsWithSpecifiedCode)

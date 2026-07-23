@@ -41,7 +41,7 @@ int XrdOssMirageXAttr::Del(const char *Aname, const char *Path, int fd)
     else if (name == "U.write.return_position"sv)
         entry->write.return_position = {};
     else if (name == "U.pattern"sv)
-        entry->set_pattern({});
+        entry->pattern = {};
     else
         return -ENODATA;
 
@@ -91,7 +91,7 @@ int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *
     else if (name == "U.write.return_position"sv)
         value = std::to_string(entry.write.return_position);
     else if (name == "U.pattern"sv)
-        value = entry.pattern();
+        value = entry.pattern;
     else
         return -ENODATA;
 
@@ -154,7 +154,7 @@ int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const 
         else if (name == "U.write.return_position"sv)
             entry->write.return_position = std::stoll(value);
         else if (name == "U.pattern"sv)
-            entry->set_pattern(value);
+            entry->pattern = value;
         else
             return -ENODATA;
     }

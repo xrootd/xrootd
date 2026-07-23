@@ -35,7 +35,7 @@ TEST_F(XrdOssMirageFixture, OverwriteFileResetsItsSize)
 {
     oss.Create(nullptr, "/dummy", {}, env);
 
-    ASSERT_EQ(0, oss.get_entry_read("/dummy").value().size());
+    ASSERT_EQ(0, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFixture, OverwriteFileDoesNotResetItsWriteExtendedAttributes)
@@ -63,7 +63,7 @@ TEST_F(XrdOssMirageFixture, RenameFileThatAlreadyExistsMovesEntryToAnotherFilePa
     oss.Rename("/dummy", "/dummy_renamed");
 
     ASSERT_TRUE(oss.get_entry_read("/dummy_renamed"));
-    ASSERT_EQ(9999, oss.get_entry_read("/dummy_renamed").value().size());
+    ASSERT_EQ(9999, oss.get_entry_read("/dummy_renamed").value().size);
 }
 
 TEST_F(XrdOssMirageFixture, RenameFileThatDoesNotExistFailsWithNOENT)
@@ -106,14 +106,14 @@ TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsReducesSize)
 {
     oss.Truncate("/dummy", 1000);
     
-    ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size());
+    ASSERT_EQ(1000, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsIncreasesSize)
 {
     oss.Truncate("/dummy", 1000000);
     
-    ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size());
+    ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFixture, TruncateFileThatDoesNotExistFailsWithNOENT)
