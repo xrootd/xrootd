@@ -27,8 +27,9 @@ int XrdOssMirageFile::Fchmod(mode_t mode)
 int XrdOssMirageFile::Fstat(struct stat *buf)
 {
     *buf = {};
-    buf->st_mode = S_IFREG;
-    buf->st_size = entry->size;
+    buf->st_size = entry->size();
+    if (!entry->pattern().empty())
+        buf->st_mode = S_IFREG;
     return XrdOssOK;
 }
 
@@ -44,8 +45,7 @@ int XrdOssMirageFile::Fsync(XrdSfsAio *aiop)
 
 int XrdOssMirageFile::Ftruncate(unsigned long long flen)
 {
-    entry->size = flen;
-    entry->checksum.clear();
+    entry->set_size(flen);
     return XrdOssOK;
 }
 
@@ -108,14 +108,14 @@ ssize_t XrdOssMirageFile::Read(void *buffer, off_t offset, size_t size)
         entry->read.return_position <= static_cast<std::size_t>(offset + size))
         return -entry->read.return_code;
 
-    const std::size_t num_bytes = std::min(size, static_cast<std::size_t>(entry->size - offset));
+    const std::size_t num_bytes = std::min(size, static_cast<std::size_t>(entry->size() - offset));
 
-    if (entry->pattern.size() == 1)
-        std::fill_n(static_cast<char *>(buffer), num_bytes, entry->pattern.front());
+    if (entry->pattern().size() == 1)
+        std::fill_n(static_cast<char *>(buffer), num_bytes, entry->pattern().front());
 
-    if (entry->pattern.size() > 1)
-        std::generate_n(static_cast<char *>(buffer), num_bytes, [i = offset % entry->pattern.size(), this] () mutable {
-            return entry->pattern[i++ % entry->pattern.size()]; 
+    if (entry->pattern().size() > 1)
+        std::generate_n(static_cast<char *>(buffer), num_bytes, [i = offset % entry->pattern().size(), this] () mutable {
+            return entry->pattern()[i++ % entry->pattern().size()]; 
         });
 
     return num_bytes;
@@ -138,7 +138,7 @@ ssize_t XrdOssMirageFile::Write(const void *buffer, off_t offset, size_t size)
         entry->write.return_position <= static_cast<std::size_t>(offset + size))
         return -entry->write.return_code;
 
-    entry->size += size;
+    entry->set_size(entry->size() + size);
     return size;
 }
 

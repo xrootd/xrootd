@@ -7,8 +7,9 @@
 #include <unordered_map>
 #include <vector>
 
-struct XrdOssMirageEntry
+class XrdOssMirageEntry
 {
+public:
     struct
     {
        int return_code{XrdOssOK};
@@ -26,10 +27,33 @@ struct XrdOssMirageEntry
         std::size_t return_position{};
     } write;
 
-    std::string pattern{};
-    std::size_t size{};
-
     std::unordered_map<std::string, std::vector<char>> checksum{};
+
+    const std::string& pattern() const
+    {
+        return _pattern;
+    }
+
+    void set_pattern(std::string pattern)
+    {
+        _pattern = pattern;
+        checksum.clear();
+    }
+
+    std::size_t size()  const
+    {
+        return _size; 
+    }
+
+    void set_size(std::size_t size)
+    {
+        _size = size;
+        checksum.clear();
+    }
+
+private:
+    std::string _pattern{};
+    std::size_t _size{};
 };
 
 using XrdOssMirageEntryPtr = std::shared_ptr<XrdOssMirageEntry>;

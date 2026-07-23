@@ -34,7 +34,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesChangesTheirValues)
     EXPECT_EQ(3, entry.read.return_position);
     EXPECT_EQ(4, entry.write.return_code);
     EXPECT_EQ(5, entry.write.return_position);
-    EXPECT_EQ("6", entry.pattern);
+    EXPECT_EQ("6", entry.pattern());
 }
 
 TEST_F(XrdOssMirageXAttrFixture, SetInvalidPropertyFailsWithNODATA)
@@ -89,7 +89,7 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsNumberOfReadBytes)
         entry->read.return_position = 3;
         entry->write.return_code = 4;
         entry->write.return_position = 5;
-        entry->pattern = "6";
+        entry->set_pattern("6");
     }
 
     char value = 0;
@@ -110,7 +110,7 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsTheirChangedValues)
         entry->read.return_position = 3;
         entry->write.return_code = 4;
         entry->write.return_position = 5;
-        entry->pattern = "6";
+        entry->set_pattern("6");
     }
 
     char value = 0;
@@ -174,7 +174,7 @@ TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesResetsTheirValues)
         entry->read.return_position = 3;
         entry->write.return_code = 4;
         entry->write.return_position = 5;
-        entry->pattern = "6";
+        entry->set_pattern("6");
     }
 
     xattr.Del("U.open.return_code", "/dummy", 0);
@@ -191,7 +191,7 @@ TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesResetsTheirValues)
     EXPECT_EQ(0, entry.read.return_position);
     EXPECT_EQ(0, entry.write.return_code);
     EXPECT_EQ(0, entry.write.return_position);
-    EXPECT_EQ("", entry.pattern);
+    EXPECT_EQ("", entry.pattern());
 }
 
 TEST_F(XrdOssMirageXAttrFixture, DeleteInvalidPropertyFailsWithNODATA)
