@@ -43,7 +43,7 @@ int XrdOssMirageXAttr::Del(const char *Aname, const char *Path, int fd)
     else if (name == "U.pattern"sv)
         entry->pattern = {};
     else
-        return -EINVAL;
+        return -ENODATA;
 
     return 0;
 }
@@ -64,6 +64,20 @@ int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *
     const auto entry = opt.value();
 
     const std::string_view name{Aname};
+
+    if (name.compare(0, 7, "XrdCks.") == 0)
+    {
+        if (entry.checksum.find(name.data()) == entry.checksum.end())
+            return -ENODATA;
+
+        auto value = entry.checksum.at(name.data());
+
+        const int num_bytes = std::min(static_cast<std::size_t>(Avsz), value.size());
+        std::copy_n(value.begin(), num_bytes, static_cast<char *>(Aval));
+
+        return num_bytes;
+    }
+
     std::string value{};
 
     if (name == "U.open.return_code"sv)
@@ -79,7 +93,7 @@ int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *
     else if (name == "U.pattern"sv)
         value = entry.pattern;
     else
-        return -EINVAL;
+        return -ENODATA;
 
     const int num_bytes = std::min(static_cast<std::size_t>(Avsz), value.size());
     std::copy_n(value.begin(), num_bytes, static_cast<char *>(Aval));
@@ -117,6 +131,14 @@ int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const 
     auto entry = opt.value();
 
     const std::string_view name{Aname};
+
+    if (name.compare(0, 7, "XrdCks.") == 0)
+    {
+        const std::vector<char> value(static_cast<const char *>(Aval), static_cast<const char *>(Aval) + Avsz);
+        entry->checksum.insert_or_assign(name.data(), value);
+        return 0;
+    }
+
     const std::string value(static_cast<const char *>(Aval), Avsz);
 
     try
@@ -134,7 +156,7 @@ int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const 
         else if (name == "U.pattern"sv)
             entry->pattern = value;
         else
-            return -EINVAL;
+            return -ENODATA;
     }
     catch(std::out_of_range &)
     {

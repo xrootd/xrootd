@@ -37,9 +37,9 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesChangesTheirValues)
     EXPECT_EQ("6", entry.pattern);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetInvalidPropertyFailsWithINVAL)
+TEST_F(XrdOssMirageXAttrFixture, SetInvalidPropertyFailsWithNODATA)
 {
-    ASSERT_EQ(-EINVAL, xattr.Set("invalid", "1", 1, "/dummy", 0, 0));
+    ASSERT_EQ(-ENODATA, xattr.Set("invalid", "1", 1, "/dummy", 0, 0));
 }
 
 TEST_F(XrdOssMirageXAttrFixture, SetPropertyOfAFileThatDoesNotExistFailsWithINVAL)
@@ -138,9 +138,9 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsTheirChangedValues)
     EXPECT_EQ('6', value);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, GetInvalidPropertyFailsWithINVAL)
+TEST_F(XrdOssMirageXAttrFixture, GetInvalidPropertyFailsWithNODATA)
 {
-    ASSERT_EQ(-EINVAL, xattr.Get("invalid", nullptr, 0, "/dummy", 0));
+    ASSERT_EQ(-ENODATA, xattr.Get("invalid", nullptr, 0, "/dummy", 0));
 }
 
 TEST_F(XrdOssMirageXAttrFixture, GetPropertyOfAFileThatDoesNotExistFailsWithINVAL)
@@ -194,9 +194,9 @@ TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesResetsTheirValues)
     EXPECT_EQ("", entry.pattern);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, DeleteInvalidPropertyFailsWithINVAL)
+TEST_F(XrdOssMirageXAttrFixture, DeleteInvalidPropertyFailsWithNODATA)
 {
-    ASSERT_EQ(-EINVAL, xattr.Del("invalid", "/dummy", 0));
+    ASSERT_EQ(-ENODATA, xattr.Del("invalid", "/dummy", 0));
 }
 
 TEST_F(XrdOssMirageXAttrFixture, DeletePropertyOfAFileThatDoesNotExistFailsWithINVAL)

@@ -4,6 +4,8 @@
 #include "XrdOss/XrdOss.hh"
 
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 struct XrdOssMirageEntry
 {
@@ -26,6 +28,8 @@ struct XrdOssMirageEntry
 
     std::string pattern{};
     std::size_t size{};
+
+    std::unordered_map<std::string, std::vector<char>> checksum{};
 };
 
 using XrdOssMirageEntryPtr = std::shared_ptr<XrdOssMirageEntry>;
