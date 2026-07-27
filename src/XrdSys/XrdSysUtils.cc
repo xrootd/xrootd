@@ -51,6 +51,7 @@
 #include <sys/types.h>
 #include <sys/utsname.h>
 #endif
+#include "XrdSysPlugin.hh"
 #include "XrdSysUtils.hh"
 
 /******************************************************************************/
