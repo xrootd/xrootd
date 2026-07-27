@@ -51,14 +51,14 @@
 #else
 #include "XrdSys/XrdWin32.hh"
 #endif
-  
+
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdVersion.hh"
 #include "XrdVersionPlugin.hh"
- 
+
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -68,7 +68,7 @@ struct XrdSysPlugin::PLlist *XrdSysPlugin::plList = 0;
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
-  
+
 XrdSysPlugin::~XrdSysPlugin()
 {
    if (libHandle) dlclose(libHandle);
@@ -78,7 +78,7 @@ XrdSysPlugin::~XrdSysPlugin()
 /******************************************************************************/
 /* Private:                   b a d V e r s i o n                             */
 /******************************************************************************/
-  
+
 XrdSysPlugin::cvResult XrdSysPlugin::badVersion(XrdVersionInfo &urInfo,
                                                 char mmv, int majv, int minv)
 {
@@ -98,11 +98,11 @@ XrdSysPlugin::cvResult XrdSysPlugin::badVersion(XrdVersionInfo &urInfo,
 
    return cvBad;
 }
-  
+
 /******************************************************************************/
 /* Private:                   c h k V e r s i o n                             */
 /******************************************************************************/
-  
+
 XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
                                                 const char     *pname,
                                                 void           *lHandle)
@@ -219,7 +219,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 /******************************************************************************/
 /* Private:                      D L F l a g s                                */
 /******************************************************************************/
-  
+
 int XrdSysPlugin::DLflags()
 {
 #if    defined(__APPLE__)
@@ -234,7 +234,7 @@ int XrdSysPlugin::DLflags()
 /******************************************************************************/
 /* Private:                         F i n d                                   */
 /******************************************************************************/
-  
+
 void *XrdSysPlugin::Find(const char *libpath)
 {
    struct PLlist *plP = plList;
@@ -251,7 +251,7 @@ void *XrdSysPlugin::Find(const char *libpath)
 /******************************************************************************/
 /*                            g e t L i b r a r y                             */
 /******************************************************************************/
-  
+
 void *XrdSysPlugin::getLibrary(bool allMsgs, bool global)
 {
    void *myHandle;
@@ -381,11 +381,11 @@ void XrdSysPlugin::Inform(const char *txt1, const char *txt2, const char *txt3,
             }
       }
 }
-  
+
 /******************************************************************************/
 /* Private:                       l i b M s g                                 */
 /******************************************************************************/
-  
+
 XrdSysPlugin::cvResult XrdSysPlugin::libMsg(const char *txt1, const char *txt2,
                                             const char *mSym)
 {
@@ -427,11 +427,11 @@ const char *XrdSysPlugin::msgSuffix(const char *Word, char *buff, int bsz)
       else      snprintf(buff, bsz,"%sexecutable image", Word);
    return (libPath ? libPath : "");
 }
-  
+
 /******************************************************************************/
 /*                               P r e l o a d                                */
 /******************************************************************************/
-  
+
 bool XrdSysPlugin::Preload(const char *path,  char *ebuff, int eblen)
 {
    struct PLlist *plP;
@@ -468,7 +468,7 @@ bool XrdSysPlugin::Preload(const char *path,  char *ebuff, int eblen)
 /******************************************************************************/
 /*                                V e r C m p                                 */
 /******************************************************************************/
-  
+
 bool XrdSysPlugin::VerCmp(XrdVersionInfo &vInfo1,
                           XrdVersionInfo &vInfo2, bool noMsg)
 {
