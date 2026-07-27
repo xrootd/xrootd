@@ -52,7 +52,7 @@
 #include <sys/utsname.h>
 #endif
 #include "XrdSysUtils.hh"
-  
+
 /******************************************************************************/
 /*                              E x e c N a m e                               */
 /******************************************************************************/
@@ -113,7 +113,7 @@ const char *XrdSysUtils::ExecName()
 /******************************************************************************/
 /*                              F m t U n a m e                               */
 /******************************************************************************/
-  
+
 int XrdSysUtils::FmtUname(char *buff, int blen)
 {
 #if defined(WINDOWS)
@@ -139,7 +139,7 @@ int XrdSysUtils::FmtUname(char *buff, int blen)
 #endif
 #endif
 }
-  
+
 /******************************************************************************/
 /*                             G e t S i g N u m                              */
 /******************************************************************************/
@@ -161,7 +161,7 @@ namespace
                         };
    static int snum = sizeof(sigtab)/sizeof(struct SigTab);
 };
-  
+
 int XrdSysUtils::GetSigNum(const char *sname)
 {
    int i;
@@ -184,7 +184,7 @@ extern "C" void __gcov_dump(void);
 /******************************************************************************/
 /*                              S i g B l o c k                               */
 /******************************************************************************/
-  
+
 bool XrdSysUtils::SigBlock()
 {
    sigset_t  myset;
@@ -217,7 +217,7 @@ bool XrdSysUtils::SigBlock()
 }
 
 /******************************************************************************/
-  
+
 bool XrdSysUtils::SigBlock(int numsig)
 {
    sigset_t  myset;
