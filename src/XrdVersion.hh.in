@@ -75,7 +75,7 @@ extern "C" void __gcov_dump(void);
 #endif
 
 #ifndef FINISH_HANDLER
-#define FINISH_HANDLER
+#define FINISH_HANDLER(x)
 #endif
 
 // The following structure defines the standard way to record a version. You can
@@ -109,7 +109,7 @@ struct XrdVersionInfo {int vNum; const char vOpt; const char vPfx[3];\
 //
 #define XrdVERSIONINFO(x,y) \
         extern "C" {XrdVERSIONINFODEF(x##_,y,XrdVNUMBER,XrdVERSION);\
-                    void _##x () {COVERAGE_CALL ; FINISH_HANDLER ;}\
+                    void _##x () {COVERAGE_CALL ; FINISH_HANDLER(x) ;}\
                    }
 
 // The following macro is an easy way to declare externally defined version
