@@ -195,10 +195,15 @@ bool XrdSysUtils::SigBlock()
    signal(SIGPIPE, SIG_IGN);  // Solaris optimization
 
 #ifdef ENABLE_COVERAGE
-   // Dump coverage information and exit upon receiving a TERM signal
-   signal(SIGTERM, [](int) { __gcov_dump(); XrdSysPlugin::Finish();
-                             _exit(EXIT_SUCCESS); });
+#define COVERAGE_CALL __gcov_dump();
+#else
+#define COVERAGE_CALL
 #endif
+
+// Perform a psuedo unload and then exit when receiving a SIGTERM signal
+//
+   signal(SIGTERM, [](int) { COVERAGE_CALL XrdSysPlugin::Finish();
+                             _exit(EXIT_SUCCESS); });
 
 // Add the standard signals we normally always block
 //
