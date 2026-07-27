@@ -65,6 +65,8 @@
 
 struct XrdSysPlugin::PLlist *XrdSysPlugin::plList = 0;
 
+std::set<void (*)()> XrdSysPlugin::piSet;
+
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
@@ -249,6 +251,17 @@ void *XrdSysPlugin::Find(const char *libpath)
 }
 
 /******************************************************************************/
+/*                                F i n i s h                                 */
+/******************************************************************************/
+
+void XrdSysPlugin::Finish()
+{
+// Call Finish() for every plugin in our loaded plugin set
+//
+   for (auto it = piSet.begin(); it != piSet.end(); it++) (*it)();
+}
+
+/******************************************************************************/
 /*                            g e t L i b r a r y                             */
 /******************************************************************************/
 
@@ -319,9 +332,17 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
        return 0;
       }
 
-// Check if we need to verify version compatibility
+// Check if we need to verify version compatibility. If acceptable, record
+// it's psuedo unload handler, if any.
 //
    if ((cvRC = chkVersion(urInfo, pname, myHandle)) == cvBad) return 0;
+      else {void (*pUnLoad)(void);
+            char nUnLoad[512];
+            if (snprintf(nUnLoad, sizeof(nUnLoad), "%s%s", XrdVERSIONINFOSFX,
+                         pname) < (int)sizeof(nUnLoad)
+                && (pUnLoad = (void (*)())dlsym(myHandle, nUnLoad))
+               )  piSet.insert(pUnLoad);
+           }
 
 // Print the loaded version unless message is suppressed or not needed
 //

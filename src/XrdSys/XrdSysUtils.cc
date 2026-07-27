@@ -195,7 +195,8 @@ bool XrdSysUtils::SigBlock()
 
 #ifdef ENABLE_COVERAGE
    // Dump coverage information and exit upon receiving a TERM signal
-   signal(SIGTERM, [](int) { __gcov_dump(); _exit(EXIT_SUCCESS); });
+   signal(SIGTERM, [](int) { __gcov_dump(); XrdSysPlugin::Finish();
+                             _exit(EXIT_SUCCESS); });
 #endif
 
 // Add the standard signals we normally always block

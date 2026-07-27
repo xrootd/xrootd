@@ -59,6 +59,25 @@
 #define XrdMinorVNUM(x) x/100%100
 #define XrdPatchVNUM(x) x%100
 
+// The following is used to define the contents of the pseudo unload function.
+// This is the function that is called right before the process exits to
+// complete any required final functions. This is necessary because plugin
+// libraries are never unloaded. The plugin system handles the call. The
+// possible code ceverage monitor is hanled by default. If an additional
+// monitor needs to be handled, then define the FINISH_HANDLER as a call
+// to any other function that should be called after the coverage call.
+//
+#ifdef ENABLE_COVERAGE
+extern "C" void __gcov_dump(void);
+#define COVERAGE_CALL __gcov_dump();
+#else
+#define COVERAGE_CALL
+#endif
+
+#ifndef FINISH_HANDLER
+#define FINISH_HANDLER
+#endif
+
 // The following structure defines the standard way to record a version. You can
 // determine component version numbers within an object file by simply executing
 // "strings <objectfile> | grep '@V:'".
@@ -69,6 +88,7 @@ struct XrdVersionInfo {int vNum; const char vOpt; const char vPfx[3];\
 // Macro to define the suffix to use when generating the extern version symbol.
 // This is used by SysPlugin. We cannot use it here as cpp does not expand the
 // macro when catenating tokens togther and we want to avoid yet another macro.
+// The suffix is also used as the prefix of the psuedo unload function.
 //
 #define XrdVERSIONINFOSFX "_"
 
@@ -88,7 +108,9 @@ struct XrdVersionInfo {int vNum; const char vOpt; const char vPfx[3];\
 // y -> An unquoted 1- to 15-character component name (e.g. cmsd, seckrb5, etc).
 //
 #define XrdVERSIONINFO(x,y) \
-        extern "C" {XrdVERSIONINFODEF(x##_,y,XrdVNUMBER,XrdVERSION);}
+        extern "C" {XrdVERSIONINFODEF(x##_,y,XrdVNUMBER,XrdVERSION);\
+                    void _##x () {COVERAGE_CALL ; FINISH_HANDLER ;}\
+                   }
 
 // The following macro is an easy way to declare externally defined version
 // information. This macro must be used at file level.

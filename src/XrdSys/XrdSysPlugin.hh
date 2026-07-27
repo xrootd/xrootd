@@ -29,8 +29,9 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
-  
+
 #include <cstring>
+#include <set>
 
 struct XrdVersionInfo;
 
@@ -52,6 +53,14 @@ class XrdSysError;
 class XrdSysPlugin
 {
 public:
+
+//------------------------------------------------------------------------------
+//! Invoke the pseudo-destructor for all loaded plugins. This should only
+//! be called at exit time since plugins are not automatically unloaded.
+//------------------------------------------------------------------------------
+
+static
+void  Finish();
 
 //------------------------------------------------------------------------------
 //! Prepare shared library for use (optional call).
@@ -246,5 +255,6 @@ struct PLlist {PLlist  *next;
               };
 
 static PLlist *plList;
+static std::set<void (*)()> piSet;
 };
 #endif
