@@ -47,7 +47,6 @@ int XrdOssMirage::Create(const char *tid, const char *path, mode_t mode, XrdOucE
     // preserve previous configuration but reset the size in case it already exists
     entries.try_emplace(path, std::make_shared<XrdOssMirageEntry>());
     entries[path]->size = 0;
-    entries[path]->checksum.clear();
 
     static std::once_flag xattr_injection_flag;
     std::call_once(xattr_injection_flag, [this, path]() noexcept
@@ -103,8 +102,9 @@ int XrdOssMirage::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv 
         return -ENOENT;
 
     *buff = {};
-    buff->st_mode = S_IFREG;
     buff->st_size = entries[path]->size;
+    if (!entries[path]->pattern.empty())
+        buff->st_mode = S_IFREG;
 
     return XrdOssOK;
 }
@@ -120,7 +120,6 @@ int XrdOssMirage::Truncate(const char *path, unsigned long long fsize, XrdOucEnv
         return -EBUSY;
 
     entries[path]->size = fsize;
-    entries[path]->checksum.clear();
 
     return XrdOssOK;
 }

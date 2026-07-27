@@ -28,8 +28,6 @@ struct XrdOssMirageEntry
 
     std::string pattern{};
     std::size_t size{};
-
-    std::unordered_map<std::string, std::vector<char>> checksum{};
 };
 
 using XrdOssMirageEntryPtr = std::shared_ptr<XrdOssMirageEntry>;

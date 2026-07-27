@@ -7,10 +7,27 @@
 
 #include <XrdSys/XrdSysXAttr.hh>
 
+#include <tuple>
+
+using TupleChecksum = std::tuple<std::string, std::string, std::size_t>;
+
+struct TupleHash {
+    template <typename... Ts>
+    std::size_t operator()(const std::tuple<Ts...>& t) const {
+        std::size_t seed = 0;
+        std::apply([&](const auto&... args) {
+            ((seed = seed * 31 + std::hash<std::decay_t<decltype(args)>>{}(args)), ...);
+        }, t);
+        return seed;
+    }
+};
+
 class XrdOssMirageXAttr : public XrdSysXAttr
 {
 private:
     XrdOssMirage *oss{nullptr};
+
+    std::unordered_map<TupleChecksum, std::string, TupleHash> checksum{};
 
 public:
     XrdOssMirageXAttr() = default;

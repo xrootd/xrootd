@@ -1,6 +1,8 @@
 #include "XrdOssMirageXAttr.hh"
 #include "XrdVersion.hh"
 
+#include "XrdCks/XrdCksData.hh"
+
 #include <algorithm>
 #include <stdexcept>
 #include <string_view>
@@ -67,15 +69,18 @@ int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *
 
     if (name.compare(0, 7, "XrdCks.") == 0)
     {
-        if (entry.checksum.find(name.data()) == entry.checksum.end())
+        auto tuple = std::make_tuple(name.substr(7).data(), entry.pattern, entry.size);
+        if (checksum.find(tuple) == checksum.end())
             return -ENODATA;
 
-        auto value = entry.checksum.at(name.data());
+        std::string hash_name = name.substr(7).data();
+        std::string hash_value = checksum.at(tuple);
 
-        const int num_bytes = std::min(static_cast<std::size_t>(Avsz), value.size());
-        std::copy_n(value.begin(), num_bytes, static_cast<char *>(Aval));
+        auto cks_data = static_cast<XrdCksData *>(const_cast<void *>(Aval));
+        cks_data->Set(hash_name.c_str());
+        cks_data->Set(hash_value.c_str(), hash_value.length());
 
-        return num_bytes;
+        return Avsz;
     }
 
     std::string value{};
@@ -134,8 +139,18 @@ int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const 
 
     if (name.compare(0, 7, "XrdCks.") == 0)
     {
-        const std::vector<char> value(static_cast<const char *>(Aval), static_cast<const char *>(Aval) + Avsz);
-        entry->checksum.insert_or_assign(name.data(), value);
+        auto cks_data = static_cast<XrdCksData *>(const_cast<void *>(Aval));
+        if (!cks_data->HasValue())
+            return -ENODATA;
+
+        std::string hash_name = name.substr(7).data();
+
+        char hash_value[cks_data->ValuSize];
+        cks_data->Get(hash_value, sizeof(hash_value));
+
+        auto tuple = std::make_tuple(hash_name, entry->pattern, entry->size);
+        checksum.insert_or_assign(tuple, hash_value);
+
         return 0;
     }
 

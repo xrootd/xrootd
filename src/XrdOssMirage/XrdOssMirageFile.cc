@@ -27,8 +27,9 @@ int XrdOssMirageFile::Fchmod(mode_t mode)
 int XrdOssMirageFile::Fstat(struct stat *buf)
 {
     *buf = {};
-    buf->st_mode = S_IFREG;
     buf->st_size = entry->size;
+    if (!entry->pattern.empty())
+        buf->st_mode = S_IFREG;
     return XrdOssOK;
 }
 
@@ -45,7 +46,6 @@ int XrdOssMirageFile::Fsync(XrdSfsAio *aiop)
 int XrdOssMirageFile::Ftruncate(unsigned long long flen)
 {
     entry->size = flen;
-    entry->checksum.clear();
     return XrdOssOK;
 }
 
