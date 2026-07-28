@@ -41,7 +41,6 @@
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
 #include "XrdCrypto/XrdCryptosslX509Crl.hh"
-#include "XrdVersion.hh"
 
 #include "XrdTlsTempCA.hh"
 

@@ -23,7 +23,6 @@
 #include <set>
 
 #include "Xrd/XrdScheduler.hh"
-#include "XrdVersion.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
@@ -38,6 +37,8 @@ class XrdOucStream;
 class XrdSysError;
 class XrdSysTrace;
 class XrdXrootdGStream;
+
+struct XrdVersionInfo;
 
 namespace XrdPfc
 {

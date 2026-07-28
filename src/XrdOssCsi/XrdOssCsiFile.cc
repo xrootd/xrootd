@@ -38,7 +38,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysPageSize.hh"
-#include "XrdVersion.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 
 #include <string>

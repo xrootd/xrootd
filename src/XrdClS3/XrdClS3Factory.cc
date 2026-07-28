@@ -18,6 +18,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdVersion.hh"
+
 #include "XrdClS3Factory.hh"
 #include "XrdClS3File.hh"
 #include "XrdClS3Filesystem.hh"
