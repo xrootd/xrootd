@@ -646,6 +646,22 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoZipMtlnCksum ) )
     env->PutInt( "ZipMtlnCksum", 1 );
 
+  //----------------------------------------------------------------------------
+  // Headers to inject into the HTTP requests. These are handed to the XrdClHttp
+  // plug-in verbatim, as a newline separated list; that plug-in owns all of the
+  // parsing and validation of their contents.
+  //----------------------------------------------------------------------------
+  if( !config.HttpHeaders.empty() )
+  {
+    std::string headers;
+    for( auto &header : config.HttpHeaders )
+    {
+      if( !headers.empty() ) headers += '\n';
+      headers += header;
+    }
+    env->PutString( "HttpHeaders", headers );
+  }
+
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
 
