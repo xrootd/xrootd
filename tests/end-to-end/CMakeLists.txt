@@ -13,4 +13,5 @@ function(add_bats_test name script)
 endfunction()
 
 add_subdirectory(cks)
+add_subdirectory(http)
 add_subdirectory(xrdfs)
