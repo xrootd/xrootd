@@ -96,6 +96,11 @@ static XrdSysError *Log;            // -> Error message object
 
 std::vector<std::string> AddCksVal; // -> Additional checksum argument
 
+std::vector<std::string> HttpHeaders; // -> -H | --header settings, as given.
+                                      //    These are passed through verbatim;
+                                      //    XrdClHttp does all the parsing and
+                                      //    validation of their contents.
+
 static const uint64_t    OpCksum        =  'C';  // -adler -MD5 legacy -> DoCksrc
 static const uint64_t    DoCksrc        =  0x0000000000000001LL; // --cksum <type>:source
 static const uint64_t    DoCksum        =  0x0000000000000002LL; // --cksum <type>
@@ -116,7 +121,7 @@ static const uint64_t    DoHelp         =  0x0000000000000040LL; // -h | --help
 static const uint64_t    OpIfile        =  'I';
 static const uint64_t    DoIfile        =  0x0000000000000080LL; // -I | --infiles
 
-static const uint64_t    OpLicense      =  'H';                  // -H | --license
+static const uint64_t    OpLicense      = 0x14;                  //      --license
 
 static const uint64_t    OpNoPbar       =  'N';        // -N | --nopbar | -np {legacy}
 static const uint64_t    DoNoPbar       =  0x0000000000000100LL;
@@ -202,6 +207,9 @@ static const uint64_t    DoRetryPolicy     = 0x0000000400000000LL; // --retry-po
 
 static const uint64_t    OpZipAppend       = 0x13;
 static const uint64_t    DoZipAppend       = 0x0000000800000000LL; // --zip-append
+
+static const uint64_t    OpHttpHeader      =  'H';
+static const uint64_t    DoHttpHeader      = 0x0000001000000000LL; // -H | --header
 
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.
