@@ -76,11 +76,20 @@ namespace XrdCpConfiguration
 {
 static XrdSysLogger Logger;
 static XrdSysError  eDest(&Logger, "");
+
+// Returns true if the protocol is one that carries HTTP requests.
+//
+static bool isHttpProt(XrdCpFile::PType pType)
+                      {return pType == XrdCpFile::isHttp
+                           || pType == XrdCpFile::isHttps;
+                      }
 };
+
+using XrdCpConfiguration::isHttpProt;
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
 
-const char   *XrdCpConfig::opLetters = ":C:d:D:EfFhHI:NpPrRsS:t:T:vVX:y:z:ZA";
+const char   *XrdCpConfig::opLetters = ":C:d:D:EfFhH:I:NpPrRsS:t:T:vVX:y:z:ZA";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -90,6 +99,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "debug",          1, 0, XrdCpConfig::OpDebug},
       {OPT_TYPE "dynamic-src",    0, 0, XrdCpConfig::OpDynaSrc},
       {OPT_TYPE "force",          0, 0, XrdCpConfig::OpForce},
+      {OPT_TYPE "header",         1, 0, XrdCpConfig::OpHttpHeader},
       {OPT_TYPE "help",           0, 0, XrdCpConfig::OpHelp},
       {OPT_TYPE "infiles",        1, 0, XrdCpConfig::OpIfile},
       {OPT_TYPE "license",        0, 0, XrdCpConfig::OpLicense},
@@ -241,6 +251,9 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpZip:           OpSpec |= DoZip;
                                 if (zipFile) free(zipFile);
                                 zipFile = strdup(optarg);
+                                break;
+          case OpHttpHeader:    OpSpec |= DoHttpHeader;
+                                HttpHeaders.push_back(optarg);
                                 break;
           case OpHelp:          Usage(0);
                                 break;
@@ -430,6 +443,16 @@ do{while(optind < Argc && Legacy(optind)) {}
    if (isLcl && Opts & optNoLclCp)
       FMSG("All files are local; use 'cp' instead!", 1);
 
+// Injected headers only apply to http and https endpoints
+//
+   if (OpSpec & DoHttpHeader)
+      {bool isHttp = isHttpProt(dstFile->Protocol);
+       for (XrdCpFile *pF = srcFile; pF && !isHttp; pF = pF->Next)
+           isHttp = isHttpProt(pF->Protocol);
+       if (!isHttp)
+          UMSG("'--header' requires an http or https source or destination.");
+      }
+
 // Check for checksum spec conflicts
 //
    if (OpSpec & DoCksum)
@@ -465,7 +488,7 @@ do{while(optind < Argc && Legacy(optind)) {}
                          <<(numFiles != 1 ? " files." : " file."));
       }
 }
-  
+
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
@@ -930,8 +953,8 @@ void XrdCpConfig::Usage(int rc)
 
    static const char *Options= "\n"
    "Options: [--cksum <args>] [--coerce] [--continue]\n"
-   "         [--debug <lvl>] [--dynamic-src] [--force] [--help]\n"
-   "         [--infiles <fn>] [--license] [--nopbar] [--notlsok]\n"
+   "         [--debug <lvl>] [--dynamic-src] [--force] [--header <name: value>]\n"
+   "         [--help] [--infiles <fn>] [--license] [--nopbar] [--notlsok]\n"
    "         [--parallel <n>] [--posc] [--proxy <host>:<port>]\n"
    "         [--recursive] [--retry <n>] [--retry-policy <force|continue>]\n"
    "         [--rm-bad-cksum] [--server] [--silent] [--sources <n>]\n"
@@ -969,9 +992,25 @@ void XrdCpConfig::Usage(int rc)
    "-d | --debug <lvl>            sets the debug level: 0 off, 1 low, 2 medium, 3 high\n"
    "-Z | --dynamic-src            file size may change during the copy\n"
    "-f | --force                  replaces any existing output file\n"
+   "-H | --header <name: value>   adds the given header to the requests sent to the\n"
+   "                              http or https endpoint. May be repeated to add more\n"
+   "                              than one header. Requires an http or https source or\n"
+   "                              destination and applies to the first such endpoint\n"
+   "                              contacted. The hop-by-hop and message framing headers\n"
+   "                              are reserved and may not be overridden.\n"
+   "                              With --tpc, the headers go to the server the client\n"
+   "                              connects to: the destination server in 'pull' mode,\n"
+   "                              or the source server in 'push' mode. To send a header\n"
+   "                              to the other server, prepend 'TransferHeader' to the\n"
+   "                              header name. Example, in 'pull' mode:\n"
+   "                                -H \"Authorization: Bearer <destination-token>\"\n"
+   "                                -H \"TransferHeaderAuthorization: Bearer <source-token>\"\n"
+   "                              The destination server gets the Authorization header,\n"
+   "                              and sends the value of TransferHeaderAuthorization as\n"
+   "                              the Authorization header of its request to the source.\n"
    "-h | --help                   prints this information\n"
    "-I | --infiles <fname>        specifies the file that contains a list of input files\n"
-   "-H | --license                prints license terms and conditions\n"
+   "     --license                prints license terms and conditions\n"
    "-N | --nopbar                 does not print the progress bar\n"
    "     --notlsok                if server is too old to support TLS encryption fallback\n"
    "                              to unencrypted communication\n"
