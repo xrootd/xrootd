@@ -1,6 +1,8 @@
 
 #include <fcntl.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOuca2x.hh"

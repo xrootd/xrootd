@@ -38,8 +38,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "XrdVersion.hh"
-
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdNet/XrdNetSecurity.hh"

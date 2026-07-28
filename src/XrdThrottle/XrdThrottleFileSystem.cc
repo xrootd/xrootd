@@ -3,6 +3,8 @@
 
 #include "XrdThrottle/XrdThrottle.hh"
 
+#include "XrdVersion.hh"
+
 using namespace XrdThrottle;
 
 /*
