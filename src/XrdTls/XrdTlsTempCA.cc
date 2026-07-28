@@ -91,7 +91,7 @@ public:
      * tempfile.
      *
      * The fname argument is used solely for debugging.
-     * 
+     *
      * Returns true on success.
      */
     bool processFile(file_smart_ptr &fd, const std::string &fname);

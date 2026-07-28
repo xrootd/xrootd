@@ -157,7 +157,7 @@ int XrdOssCsiFile::pageAndFileOpen(const char *fn, const int dflags, const int O
       {
          return XrdOssOK;
       }
-     
+
       pageret = createPageUpdater(Oflag, Env);
       if (pageret == XrdOssOK)
       {

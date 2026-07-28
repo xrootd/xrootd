@@ -108,7 +108,7 @@ FileSystem::~FileSystem() {}
 
 void
 FileSystem::Initialize(FileSystem      *&fs,
-                       XrdSfsFileSystem *native_fs, 
+                       XrdSfsFileSystem *native_fs,
                        XrdSysLogger     *lp,
                        const char       *configfn,
                        XrdOucEnv        *envP)

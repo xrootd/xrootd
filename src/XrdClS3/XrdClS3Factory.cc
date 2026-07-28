@@ -506,7 +506,7 @@ Factory::GenerateV4Signature(const std::string &url, const std::string &verb, st
 
     // The canonical headers must include the Host header, so add that
     // now if we don't have it.
-    if (std::find_if(headers.begin(), headers.end(), 
+    if (std::find_if(headers.begin(), headers.end(),
                         [](const auto &pair) { return pair.first == "Host"; }) == headers.end()) {
         auto host = ExtractHostname(url);
         if (host.empty()) {
