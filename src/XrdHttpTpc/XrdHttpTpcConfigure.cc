@@ -1,6 +1,7 @@
 
 #include "XrdHttpTpcTPC.hh"
 
+#include <climits>
 #include <dlfcn.h>
 #include <fcntl.h>
 
@@ -115,7 +116,27 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
             if(authHdr != hdr2cgimap.end()) {
               hdr2cgimap.erase(authHdr);
             }
-        }  else if (!strcmp("tpc.timeout", val)) {
+        } else if (!strcmp("tpc.low_speed", val)) {
+            if (!(val = Config.GetWord())) {
+                Config.Close();
+                m_log.Emsg("Config", "tpc.low_speed rate not specified.");
+                return false;
+            }
+
+            long long low_speed_limit;
+            if (XrdOuca2x::a2sz(m_log, "low speed rate", val, &low_speed_limit, 0, LONG_MAX)) {
+                return false;
+            }
+            m_low_speed_limit = static_cast<long>(low_speed_limit);
+
+            if ((val = Config.GetWord())) {
+                int low_speed_time;
+                if (XrdOuca2x::a2tm(m_log, "low speed time", val, &low_speed_time, 1)) {
+                    return false;
+                }
+                m_low_speed_time = low_speed_time;
+            }
+        } else if (!strcmp("tpc.timeout", val)) {
             if (!(val = Config.GetWord())) {
                 Config.Close();
                 m_log.Emsg("Config","tpc.timeout value not specified.");  return false;
