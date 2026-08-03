@@ -320,6 +320,19 @@ TPCHandler::ConfigureCurlCA(CURL *curl, TPCLogRecord &rec)
     return true;
 }
 
+void
+TPCHandler::ConfigureCurlLowSpeed(CURL *curl)
+{
+    // Older versions have poor transfer performance when low-speed limits are
+    // enabled; this was corrected in curl commit cacdc27f for version 7.38.0.
+    curl_version_info_data *curl_ver = curl_version_info(CURLVERSION_NOW);
+    if (m_low_speed_limit > 0 && curl_ver && curl_ver->age > 0 &&
+        curl_ver->version_num >= 0x072600) {
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, m_low_speed_time);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, m_low_speed_limit);
+    }
+}
+
 
 bool TPCHandler::MatchesPath(const char *verb, const char *path) {
     return !strcmp(verb, "COPY") || !strcmp(verb, "OPTIONS");
@@ -407,6 +420,8 @@ TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
         m_allow_private(true),
         m_desthttps(false),
         m_fixed_route(false),
+        m_low_speed_limit(10*1024),
+        m_low_speed_time(2*60),
         m_timeout(60),
         m_first_timeout(120),
         m_log(log->logger(), "TPC_"),
@@ -968,6 +983,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", ss.str());
         return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
+    ConfigureCurlLowSpeed(curl);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
@@ -1069,6 +1085,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
         return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
+    ConfigureCurlLowSpeed(curl);
 
     // ddavila 2023-01-05:
     // The following change was required by the Rucio/SENSE project where

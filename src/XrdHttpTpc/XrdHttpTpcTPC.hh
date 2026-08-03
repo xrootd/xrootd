@@ -115,6 +115,9 @@ private:
     // against its built-in default CA bundle instead of the configured one.
     bool ConfigureCurlCA(CURL *curl, TPCLogRecord &rec);
 
+    // Configure the minimum transfer rate and the permitted time below it.
+    void ConfigureCurlLowSpeed(CURL *curl);
+
     // Redirect the transfer according to the contents of an XrdOucErrInfo object.
     int RedirectTransfer(CURL *curl, const std::string &redirect_resource, XrdHttpExtReq &req,
         XrdOucErrInfo &error, TPCLogRecord &);
@@ -172,6 +175,8 @@ private:
     bool m_desthttps;
     bool m_fixed_route;  // If 'true' the Destination IP in an HTTP-TPC is forced to be the same as the IP used to contact the server
                            // when 'false' any IP available can be selected
+    long m_low_speed_limit; // Minimum transfer rate in bytes per second; zero disables the check.
+    long m_low_speed_time; // Time the transfer may remain below m_low_speed_limit before it is aborted.
     int m_timeout; // the 'timeout interval'; if no bytes have been received during this time period, abort the transfer.
     int m_first_timeout; // the 'first timeout interval'; the amount of time we're willing to wait to get the first byte.
                          // Unless explicitly specified, this is 2x the timeout interval.
