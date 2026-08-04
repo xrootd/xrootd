@@ -83,6 +83,17 @@ namespace
           while( !(pFlags.load() & kDisabled) ) pCnd.Wait();
         }
 
+         //--------------------------------------------------------------------
+         // In case the poller is started with existing SocketCallBacks (e.g.
+         // after a fork) we are called before reestablishing callbacks. We
+         // should reset flags, e.g. kIdSet so that pSelfId of new callback
+         // thread is recorded on the first of the new callbacks.
+         //--------------------------------------------------------------------
+         void Restart()
+         {
+            pFlags.fetch_and( ~kIdSet );
+         }
+
          std::atomic<int>      pFlags;
          XrdSysCondVar         pCnd;
          pthread_t             pSelfId;
@@ -235,6 +246,15 @@ namespace XrdCl
     {
       PollerHelper *helper = (PollerHelper*)it->second;
       Socket       *socket = it->first;
+
+      // static cast for the downcast as we're sure it's a SocketCallBack
+      auto *scb = static_cast<SocketCallBack*>( helper->callBack );
+      if( scb )
+      {
+        auto dc = scb->GetControl();
+        if( dc ) dc->Restart();
+      }
+
       helper->channel = new IOEvents::Channel( RegisterAndGetPoller( socket ), socket->GetFD(),
                                                helper->callBack );
       if( helper->readEnabled )
