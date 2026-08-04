@@ -332,3 +332,20 @@ TEST_F(ThreadingTest, MultiStreamReadMonitorTest)
   env->PutInt( "SubStreamsPerChannel", 4 );
   ReadTestFunc(0);
 }
+
+//------------------------------------------------------------------------------
+// Read fork test and a TTL expiry after (regres. xrootd #2879 / ATLINFR-6145)
+//------------------------------------------------------------------------------
+TEST_F(ThreadingTest, ReadForkTestWithTTLTimeout)
+{
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt( "RunForkHandler", 1 );
+  env->PutInt("DataServerTTL", 2);
+  env->PutInt("LoadBalancerTTL", 2);
+  env->PutInt("TimeoutResolution", 2);
+  ReadTestFunc(&forkAndRead);
+  sleep(3);
+  env->DelInt("TimeoutResolution");
+  env->DelInt("LoadBalancerTTL");
+  env->DelInt("DataServerTTL");
+}
