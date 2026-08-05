@@ -267,7 +267,7 @@ static uint32_t crc32c_hw(uint32_t crc, void const *buf, size_t len) {
    version.  Otherwise, use the software version. */
 uint32_t crc32c(uint32_t crc, void const *buf, size_t len) {
     int sse42;
-    
+
     SSE42(sse42);
     return sse42 ? crc32c_hw(crc, buf, len) : crc32c_sw(crc, buf, len);
 }
@@ -428,6 +428,118 @@ uint32_t crc32c_sw(uint32_t crc, void const *buf, size_t len) {
     else
         return crc32c_sw_big(crc, buf, len);
 }
+
+/******************************************************************************/
+/*                        c r c 3 2 c _ c o m b i n e                         */
+/******************************************************************************/
+
+/// merge two CRC32 such that result = crc32(dataB, lengthB, crc32(dataA, lengthA))
+uint32_t crc32c_combine(uint32_t crcA, uint32_t crcB, size_t lengthB)
+{
+  // Original source from Stephan Brumme
+  // https://github.com/stbrumme/crc32
+  // https://create.stephan-brumme.com/crc32/
+  // based on Mark Adler's crc_combine from
+  // https://github.com/madler/pigz/blob/master/pigz.c
+
+  // main idea:
+  // - if you have two equally-sized blocks A and B,
+  //   then you can create a block C = A ^ B
+  //   which has the property crc(C) = crc(A) ^ crc(B)
+  // - if you append length(B) zeros to A and call it A' (think of it as AAAA000)
+  //   and   prepend length(A) zeros to B and call it B' (think of it as 0000BBB)
+  //   then exists a C' = A' ^ B'
+  // - remember: if you XOR someting with zero, it remains unchanged: X ^ 0 = X
+  // - that means C' = A concat B so that crc(A concat B) = crc(C') = crc(A') ^ crc(B')
+  // - the trick is to compute crc(A') based on crc(A)
+  //                       and crc(B') based on crc(B)
+  // - since B' starts with many zeros, the crc of those initial zeros is still zero
+  // - that means crc(B') = crc(B)
+  // - unfortunately the trailing zeros of A' change the crc, so usually crc(A') != crc(A)
+  // - the following code is a fast algorithm to compute crc(A')
+  // - starting with crc(A) and appending length(B) zeros, needing just log2(length(B)) iterations
+  // - the details are explained by the original author at
+  //   https://stackoverflow.com/questions/23122312/crc-calculation-of-a-mostly-static-data-stream/23126768
+  //
+  // notes:
+  // - I squeezed everything into one function to keep global namespace clean (original code two helper functions)
+  // - most original comments are still in place, I added comments where these helper functions where made inline code
+  // - performance-wise there isn't any differenze to the original zlib/pigz code
+
+  // degenerated case
+  if (lengthB == 0)
+    return crcA;
+
+  /// CRC32 => 32 bits
+  const uint32_t CrcBits = 32;
+
+  uint32_t odd [CrcBits]; // odd-power-of-two  zeros operator
+  uint32_t even[CrcBits]; // even-power-of-two zeros operator
+
+  // put operator for one zero bit in odd
+  odd[0] = POLY;          // CRC-32 polynomial
+  for (int i = 1; i < (int)CrcBits; i++)
+    odd[i] = 1 << (i - 1);
+
+  // put operator for two zero bits in even
+  // same as gf2_matrix_square(even, odd);
+  for (int i = 0; i < (int)CrcBits; i++)
+  {
+    uint32_t vec = odd[i];
+    even[i] = 0;
+    for (int j = 0; vec != 0; j++, vec >>= 1)
+      if (vec & 1)
+        even[i] ^= odd[j];
+  }
+  // put operator for four zero bits in odd
+  // same as gf2_matrix_square(odd, even);
+  for (int i = 0; i < (int)CrcBits; i++)
+  {
+    uint32_t vec = even[i];
+    odd[i] = 0;
+    for (int j = 0; vec != 0; j++, vec >>= 1)
+      if (vec & 1)
+        odd[i] ^= even[j];
+  }
+
+  // the following loop becomes much shorter if I keep swapping even and odd
+  uint32_t* a = even;
+  uint32_t* b = odd;
+  // apply secondLength zeros to firstCrc32
+  for (; lengthB > 0; lengthB >>= 1)
+  {
+    // same as gf2_matrix_square(a, b);
+    for (int i = 0; i < (int)CrcBits; i++)
+    {
+      uint32_t vec = b[i];
+      a[i] = 0;
+      for (int j = 0; vec != 0; j++, vec >>= 1)
+        if (vec & 1)
+          a[i] ^= b[j];
+    }
+
+    // apply zeros operator for this bit
+    if (lengthB & 1)
+    {
+      // same as firstCrc32 = gf2_matrix_times(a, firstCrc32);
+      uint32_t sum = 0;
+      for (int i = 0; crcA != 0; i++, crcA >>= 1)
+        if (crcA & 1)
+          sum ^= a[i];
+      crcA = sum;
+    }
+
+    // switch even and odd
+    uint32_t* t = a; a = b; b = t;
+  }
+
+  // return combined crc
+  return crcA ^ crcB;
+}
+
+/******************************************************************************/
+/*                                  m a i n                                   */
+/******************************************************************************/
 
 #ifdef TEST
 
