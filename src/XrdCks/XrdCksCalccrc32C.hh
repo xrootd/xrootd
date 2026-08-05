@@ -42,15 +42,27 @@
 class XrdCksCalccrc32C : public XrdCksCalc
 {
 public:
-    char *Final();
-    
-    void Init();
-    
-    XrdCksCalc *New(); 
-    void Update(const char *Buff, int BLen);
-    const char *Type(int &csSz);
-    XrdCksCalccrc32C(); 
-    virtual ~XrdCksCalccrc32C(); 
+
+    bool  Combinable() override {return true;}
+
+    const char* Combine(const char* Cksum, int DLen) override;
+
+    const char* Combine(const char* Cksum1, const char* Cksum2, int DLen)
+                        override;
+
+    char *Final() override;
+
+    void  Init() override {C32CResult = C32C_XINIT;}
+
+    XrdCksCalc *New() override;
+
+    const char *Type(int &csSz) override
+                    {csSz = sizeof(TheResult); return "crc32c";}
+
+    void Update(const char *Buff, int BLen) override;
+
+    XrdCksCalccrc32C() {Init();}
+    virtual ~XrdCksCalccrc32C() {}
 
 private:
     static const unsigned int C32C_XINIT = 0;

@@ -6,7 +6,7 @@
 
     This file contains:
         functions implementing the methods of the XrdCksCalc class
-    
+
     Provided by:
         Anton Schwarz
         University of Heidelberg
@@ -17,23 +17,50 @@
 
 */
 
-void XrdCksCalccrc32C::Update(const char *Buff, int BLen)
+/******************************************************************************/
+/*                            C o m b i n e   V 1                             */
+/******************************************************************************/
+
+const char* XrdCksCalccrc32C::Combine(const char* Cksum, int DLen)
 {
-    C32CResult = (unsigned int)XrdOucCRC::Calc32C(Buff, BLen, C32CResult);
+   uint32_t crc2;
+   memcpy(&crc2, Cksum, sizeof(crc2));
+
+#ifndef Xrd_Big_Endian
+    crc2 = ntohl(crc2);
+#endif
+
+   C32CResult = XrdOucCRC::Combine32C(C32CResult, crc2, (size_t)DLen);
+   return Final();
 }
 
-const char *XrdCksCalccrc32C::Type(int &csSz)
+/******************************************************************************/
+/*                            C o m b i n e   V 2                             */
+/******************************************************************************/
+
+const char* XrdCksCalccrc32C::Combine(const char* Cksum1, const char* Cksum2,
+                                      int DLen)
 {
-    csSz = sizeof(TheResult);
-    return "crc32c";
+   uint32_t crc1, crc2;
+   memcpy(&crc1, Cksum1, sizeof(crc1));
+   memcpy(&crc2, Cksum2, sizeof(crc2));
+
+#ifndef Xrd_Big_Endian
+    crc1 = ntohl(crc1);
+    crc2 = ntohl(crc2);
+#endif
+
+   TheResult = XrdOucCRC::Combine32C(crc1, crc2, (size_t)DLen);
+
+#ifndef Xrd_Big_Endian
+    TheResult = htonl(TheResult);
+#endif
+    return (char *)&TheResult;
 }
 
-XrdCksCalc *XrdCksCalccrc32C::New() { return (XrdCksCalc *)new XrdCksCalccrc32C; }
-
-void XrdCksCalccrc32C::Init()
-{
-    C32CResult = C32C_XINIT;
-}
+/******************************************************************************/
+/*                                 F i n a l                                  */
+/******************************************************************************/
 
 char *XrdCksCalccrc32C::Final()
 {
@@ -44,6 +71,18 @@ char *XrdCksCalccrc32C::Final()
     return (char *)&TheResult;
 }
 
-XrdCksCalccrc32C::XrdCksCalccrc32C() { Init(); }
+/******************************************************************************/
+/*                                   N e w                                    */
+/******************************************************************************/
 
-XrdCksCalccrc32C::~XrdCksCalccrc32C() {};
+XrdCksCalc *XrdCksCalccrc32C::New()
+{ return (XrdCksCalc *)new XrdCksCalccrc32C; }
+
+/******************************************************************************/
+/*                                U p d a t e                                 */
+/******************************************************************************/
+
+void XrdCksCalccrc32C::Update(const char *Buff, int BLen)
+{
+    C32CResult = (unsigned int)XrdOucCRC::Calc32C(Buff, BLen, C32CResult);
+}
