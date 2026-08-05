@@ -124,16 +124,23 @@ public:
         return current_offset;
     }
 
-    int Flush() {
-        int last_error = 0;
+    // Flush every stream to the local filesystem.  Returns State::errNone and
+    // leaves error_msg untouched if all the streams could be flushed; otherwise
+    // returns the error code of the first failure encountered and sets error_msg
+    // to the corresponding error message.
+    int Flush(std::string &error_msg) {
+        int error_code = State::errNone;
         for (std::vector<State*>::iterator state_it = m_states.begin();
              state_it != m_states.end();
              state_it++)
         {
-            int error = (*state_it)->Flush();
-            if (error) {last_error = error;}
+            if (((*state_it)->Flush() == -1) && !error_code) {
+                error_code = State::errFlush;
+                error_msg = (*state_it)->GetFinalizeErrorMessage();
+                if (error_msg.empty()) {error_msg = "(no error message provided)";}
+            }
         }
-        return last_error;
+        return error_code;
     }
 
     off_t BytesTransferred() const {
@@ -324,7 +331,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
                 const char *log_prefix = rec.log_prefix.c_str();
                 bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
 
-                mch.SetErrorCode(10);
+                mch.SetErrorCode(State::errTimeout);
                 std::stringstream ss;
                 ss << "Transfer failed because no bytes have been "
                    << (tpc_pull ? "received from the source (pull mode) in "
@@ -429,7 +436,18 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         throw std::runtime_error("Internal state error in libcurl");
     }
 
-    mch.Flush();
+    // A failure to flush the file to the local filesystem is always logged and is
+    // appended to the error reported to the client, but it never replaces the
+    // transfer failure itself: the flush failure is usually a consequence of it.
+    std::string flushErrorMsg;
+    const int flushErrorCode = mch.Flush(flushErrorMsg);
+    std::string flushErrorSuffix;
+    if (flushErrorCode) {
+        std::replace(flushErrorMsg.begin(), flushErrorMsg.end(), '\n', ' ');
+        flushErrorMsg = "Failed to flush the file to the local filesystem. " + flushErrorMsg;
+        logTransferEvent(LogMask::Error, rec, "FLUSH_FAIL", flushErrorMsg);
+        flushErrorSuffix = "; " + flushErrorMsg;
+    }
 
     rec.bytes_transferred = mch.BytesTransferred();
     rec.tpc_status = mch.GetStatusCode();
@@ -445,7 +463,16 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             std::replace(err.begin(), err.end(), '\n', ' ');
             ss2 << "; error message: \"" << err << "\"";
         }
-        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss2 << flushErrorSuffix;
+        ss << generateClientErr(ss2, rec);
+    } else if (mch.GetErrorCode() == State::errTimeout) {
+        // The stall detector fired; its message already describes precisely
+        // what happened, report it as-is.
+        std::stringstream ss2;
+        ss2 << mch.GetErrorMessage();
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss2 << flushErrorSuffix;
         ss << generateClientErr(ss2, rec);
     } else if (mch.GetErrorCode()) {
         std::string err = mch.GetErrorMessage();
@@ -454,6 +481,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         std::stringstream ss2;
         ss2 << "Error when interacting with local filesystem: " << err;
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss2 << flushErrorSuffix;
         ss << generateClientErr(ss2, rec);
     } else if (res != CURLE_OK) {
         std::stringstream ss2;
@@ -461,17 +489,29 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         std::stringstream ss3;
         ss3 << ss2.str() << ":" << curl_easy_strerror(res);
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss3.str());
+        ss2 << flushErrorSuffix;
         ss << generateClientErr(ss2, rec, res);
     } else if (current_offset != content_size) {
         std::stringstream ss2;
         ss2 << "Internal logic error led to early abort; current offset is " <<
               current_offset << " while full size is " << content_size;
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss2 << flushErrorSuffix;
+        ss << generateClientErr(ss2, rec);
+    } else if (flushErrorCode) {
+        // Nothing else went wrong: the flush failure is the reason of the failure.
+        std::stringstream ss2;
+        ss2 << flushErrorMsg;
         ss << generateClientErr(ss2, rec);
     } else {
         if (!handles[0]->Finalize()) {
             std::stringstream ss2;
             ss2 << "Failed to finalize and close file handle.";
+            std::string handleErrMsg = handles[0]->GetFinalizeErrorMessage();
+            if(handleErrMsg.size()) {
+              std::replace(handleErrMsg.begin(), handleErrMsg.end(), '\n', ' ');
+              ss2 << " " << handleErrMsg;
+            }
             ss << generateClientErr(ss2, rec);
             logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR",
                 ss2.str());

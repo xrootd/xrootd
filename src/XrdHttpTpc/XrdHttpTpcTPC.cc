@@ -750,7 +750,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
                 const char *log_prefix = rec.log_prefix.c_str();
                 bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
 
-                state.SetErrorCode(10);
+                state.SetErrorCode(State::errTimeout);
                 std::stringstream ss;
                 ss << "Transfer failed because no bytes have been "
                    << (tpc_pull ? "received from the source (pull mode) in "
@@ -845,6 +845,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     }
     curl_multi_cleanup(multi_handle);
 
+    // The transfer is over at this point: any error recorded so far - a failed
+    // write to the local filesystem or the stall detector having fired - is the
+    // reason why the transfer failed.  Flushing and closing the destination file
+    // below may fail as well but, as such a failure is usually a consequence of
+    // the transfer failure, it must not be reported instead of it.
+    const int transferErrorCode = state.GetErrorCode();
+    std::string transferErrorMsg = state.GetErrorMessage();
+
     state.Flush();
 
     rec.bytes_transferred = state.BytesTransferred();
@@ -855,6 +863,25 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     // requests can occur before the filesystem is done closing the handle -
     // and those requests may occur against partial data.
     state.Finalize();
+
+    // A failure to flush or to close the destination file is always logged and is
+    // appended to the error reported to the client, but it never replaces the
+    // transfer failure itself: it is usually a consequence of it.
+    std::string finalizeErrorMsg, finalizeErrorSuffix;
+    if (state.GetFinalizeErrorCode()) {
+        std::stringstream ss2;
+        ss2 << (state.GetFinalizeErrorCode() == State::errFlush
+                    ? "Failed to flush the file to the local filesystem."
+                    : "Failed to finalize and close file handle.");
+        std::string err = state.GetFinalizeErrorMessage();
+        if (!err.empty()) {
+            std::replace(err.begin(), err.end(), '\n', ' ');
+            ss2 << " " << err;
+        }
+        finalizeErrorMsg = ss2.str();
+        logTransferEvent(LogMask::Error, rec, "CLOSE_FAIL", finalizeErrorMsg);
+        finalizeErrorSuffix = "; " + finalizeErrorMsg;
+    }
 
     // Generate the final response back to the client.
     std::stringstream ss;
@@ -868,14 +895,23 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             ss2 << "; error message: \"" << err << "\"";
         }
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss2 << finalizeErrorSuffix;
         ss << generateClientErr(ss2, rec);
-    } else if (state.GetErrorCode()) {
-        std::string err = state.GetErrorMessage();
-        if (err.empty()) {err = "(no error message provided)";}
-        else {std::replace(err.begin(), err.end(), '\n', ' ');}
+    } else if (transferErrorCode == State::errTimeout) {
+        // The stall detector fired; its message already describes precisely
+        // what happened, report it as-is.
         std::stringstream ss2;
-        ss2 << "Error when interacting with local filesystem: " << err;
+        ss2 << transferErrorMsg;
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss2 << finalizeErrorSuffix;
+        ss << generateClientErr(ss2, rec);
+    } else if (transferErrorCode) {
+        if (transferErrorMsg.empty()) {transferErrorMsg = "(no error message provided)";}
+        else {std::replace(transferErrorMsg.begin(), transferErrorMsg.end(), '\n', ' ');}
+        std::stringstream ss2;
+        ss2 << "Error when interacting with local filesystem: " << transferErrorMsg;
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss2 << finalizeErrorSuffix;
         ss << generateClientErr(ss2, rec);
     } else if (res != CURLE_OK) {
         std::stringstream ss2;
@@ -883,7 +919,13 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         std::stringstream ss3;
         ss3 << ss2.str() << ": " << curl_easy_strerror(res);
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss3.str());
+        ss2 << finalizeErrorSuffix;
         ss << generateClientErr(ss2, rec, res);
+    } else if (!finalizeErrorMsg.empty()) {
+        // Nothing else went wrong: the flush/close failure is the reason of the failure.
+        std::stringstream ss2;
+        ss2 << finalizeErrorMsg;
+        ss << generateClientErr(ss2, rec);
     } else {
         ss << "success: Created";
         success = true;
