@@ -210,6 +210,7 @@ XrdOfs::XrdOfs() : dMask{0000,0775}, fMask{0000,0775}, // Legacy
 //
    CksRTCalc = 0;
    CksRTName = 0;
+   CksRTDflt = 0;
    Cks       = 0;
    CksPfn    = true;
    CksRdr    = true;
@@ -2761,7 +2762,9 @@ int XrdOfs::SetupCksRT(XrdCksCalc*& cP, XrdOucEnv& Env,const char*& cT)
 // Check if the cipher can come from the environment
 //
    if (CksRTCgi && (cT = Env.Get("cks.type")))
-      return (ValidCST(cT) && (cP=Cks->Object(cT)) ? 0 : -ENOTSUP);
+      {if (!strcmp("default", cT)) cT = CksRTDflt;
+       return (ValidCST(cT) && (cP=Cks->Object(cT)) ? 0 : -ENOTSUP);
+      }
 
 // Set of auto real-time is enabled
 //
