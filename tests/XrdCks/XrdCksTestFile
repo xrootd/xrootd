@@ -1,0 +1,15 @@
+#ifndef __XrdBuffer_H__
+#define __XrdBuffer_H__
+/******************************************************************************/
+/*                                                                            */
+/*                          X r d B u f f e r . h h                           */
+/*                                                                            */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* F
