@@ -478,6 +478,7 @@ XrdOfsPrepare    *prepHandler;    // Plugin   prepare
 XrdCks           *Cks;            // Checksum manager
 XrdCksCalc       *CksRTCalc;      // Automatic realtime checksum calculator
 char             *CksRTName;      // Automatic realtime checksum cipher
+char             *CksRTDflt;      // The default r/t checksum, if any
 bool              CksPfn;         // Checksum needs a pfn
 bool              CksRdr;         // Checksum may be redirected (i.e. not local)
 bool              prepAuth;       // Prepare requires authorization

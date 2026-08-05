@@ -534,12 +534,16 @@ int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
        return 1;
       }
 
+// Record the default checksum that is to be used
+//
+   CksRTDflt = strdup(csList[0].c_str());
+
 // Configure the automatic checksum if applicable
 //
    if (CksRTName)
       {if (!strcmp(CksRTName, "default"))
           {free(CksRTName);
-           CksRTName = strdup(csList[0].c_str());
+           CksRTName = CksRTDflt;
           }
 
        if (!(CksRTCalc = Cks->Object(CksRTName)))
