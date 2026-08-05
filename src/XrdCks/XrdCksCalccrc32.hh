@@ -30,49 +30,37 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <cstring>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <cinttypes>
+#include <cstdint>
 
 #include "XrdCks/XrdCksCalc.hh"
-#include "XrdSys/XrdSysPlatform.hh"
-  
+
 class XrdCksCalccrc32 : public XrdCksCalc
 {
 public:
 
-char *Final() {char buff[sizeof(long long)];
-               long long tLcs = TotLen;
-               int i = 0;
-               if (tLcs)
-                  {while(tLcs) {buff[i++] = tLcs & 0xff ; tLcs >>= 8;}
-                   Update(buff, i);
-                  }
-               TheResult = C32Result ^ CRC32_XOROT;
-#ifndef Xrd_Big_Endian
-               TheResult = htonl(TheResult);
-#endif
-               return (char *)&TheResult;
-              }
+bool        Combinable() override {return true;}
 
-void        Init() {C32Result = CRC32_XINIT; TotLen = 0;}
+const char* Combine(const char* Cksum, int DLen) override;
 
-XrdCksCalc *New() {return (XrdCksCalc *)new XrdCksCalccrc32;}
+const char* Combine(const char* Cksum1, const char* Cksum2, int DLen) override;
 
-void        Update(const char *Buff, int BLen);
+char *Final() override;
 
-const char *Type(int &csSz) {csSz = sizeof(TheResult); return "crc32";}
+void        Init() override;
+
+XrdCksCalc *New() override {return (XrdCksCalc *)new XrdCksCalccrc32;}
+
+void        Update(const char *Buff, int BLen) override;
+
+const char *Type(int &csSz) override {csSz = sizeof(pCheckSum); return "crc32";}
 
             XrdCksCalccrc32() {Init();}
 virtual    ~XrdCksCalccrc32() {}
 
 private:
-static const unsigned int CRC32_XINIT = 0;
-static const unsigned int CRC32_XOROT = 0xffffffff;
-static       unsigned int crctable[256];
-             unsigned int C32Result;
-             unsigned int TheResult;
-             long long    TotLen;
+
+uint32_t pCheckSum;
+uint32_t pCheckSumTmp;
+
 };
 #endif
