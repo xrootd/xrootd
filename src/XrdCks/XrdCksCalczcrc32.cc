@@ -26,18 +26,24 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#ifndef __XRDCKSCALCZCRC32_HH__
-#define __XRDCKSCALCZCRC32_HH__
-
-#include "XrdCks/XrdCksCalc.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdVersion.hh"
 #include <cstdint>
+#include <cstring>
 #include <zlib.h>
+
+#include "XrdVersion.hh"
+#include "XrdCks/XrdCksCalc.hh"
+
+class XrdSysError;
 
 //------------------------------------------------------------------------------
 // CRC32 checkum according to the algorithm implemented in zlib
+// WARNING: zlib always output the result in the endian byte order that is
+//          natural to the machine being used. Normally, today this is usually
+//          little endian and corresponds to RFC1952 for gzip files which is
+//          not particularly useful for other file formats. Use crc32 which
+//          consistently outputs big endian format regardless of the hardware.
 //------------------------------------------------------------------------------
+
 class XrdCksCalczcrc32: public XrdCksCalc
 {
   public:
@@ -58,9 +64,38 @@ class XrdCksCalczcrc32: public XrdCksCalc
     }
 
     //--------------------------------------------------------------------------
+    //! Combinable trait
+    //--------------------------------------------------------------------------
+     bool Combinable() override {return true;}
+
+    //--------------------------------------------------------------------------
+    //! Combine checksum into current checksum
+    //--------------------------------------------------------------------------
+    const char* Combine(const char* Cksum, int DLen) override
+    {
+       uint32_t crc2;
+       memcpy(&crc2, Cksum, sizeof(crc2)); // The crc32 as returned by zlib
+       pCheckSum = crc32_combine(pCheckSum, crc2, (z_off_t)DLen);
+       return (char *)&pCheckSum;
+    }
+
+    //--------------------------------------------------------------------------
+    //! Combine two checksums and return result
+    //--------------------------------------------------------------------------
+    const char* Combine(const char* Cksum1, const char* Cksum2, int DLen)
+                       override
+    {
+       uint32_t crc1, crc2;
+       memcpy(&crc1, Cksum1, sizeof(crc1)); // The crc32 as returned by zlib
+       memcpy(&crc2, Cksum2, sizeof(crc2)); // The crc32 as returned by zlib
+       pCheckSumTmp = crc32_combine(crc1, crc2, (z_off_t)DLen);
+       return (char *)&pCheckSumTmp;
+    }
+
+    //--------------------------------------------------------------------------
     //! Final checksum
     //--------------------------------------------------------------------------
-    char *Final()
+    char *Final() override
     {
       return (char *)&pCheckSum;
     }
@@ -68,7 +103,7 @@ class XrdCksCalczcrc32: public XrdCksCalc
     //--------------------------------------------------------------------------
     //! Initialize
     //--------------------------------------------------------------------------
-    void Init()
+    void Init() override
     {
       pCheckSum = crc32( 0L, Z_NULL, 0 );
     }
@@ -76,7 +111,7 @@ class XrdCksCalczcrc32: public XrdCksCalc
     //--------------------------------------------------------------------------
     //! Virtual constructor
     //--------------------------------------------------------------------------
-    XrdCksCalc *New()
+    XrdCksCalc *New() override
     {
       return new XrdCksCalczcrc32();
     }
@@ -84,7 +119,7 @@ class XrdCksCalczcrc32: public XrdCksCalc
     //--------------------------------------------------------------------------
     //! Update current checksum
     //--------------------------------------------------------------------------
-    void Update( const char *Buff, int BLen )
+    void Update( const char *Buff, int BLen ) override
     {
       pCheckSum = crc32( pCheckSum, (const Bytef*)Buff, BLen );
     }
@@ -92,13 +127,14 @@ class XrdCksCalczcrc32: public XrdCksCalc
     //--------------------------------------------------------------------------
     //! Checksum algorithm name
     //--------------------------------------------------------------------------
-    const char *Type(int &csSz)
+    const char *Type(int &csSz) override
     {
       csSz = 4; return "zcrc32";
     }
 
   private:
     uint32_t pCheckSum;
+    uint32_t pCheckSumTmp;
 };
 
 //------------------------------------------------------------------------------
@@ -113,5 +149,3 @@ extern "C" XrdCksCalc *XrdCksCalcInit(XrdSysError *eDest,
 }
 
 XrdVERSIONINFO(XrdCksCalcInit, zcrc32);
-
-#endif // __XRDCKSCALCZCRC32_HH__
