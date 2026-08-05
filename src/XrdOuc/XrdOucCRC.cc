@@ -139,11 +139,11 @@ unsigned int XrdOucCRC::crctable[256] =
 /*****************************************************************/
 /*                   End of CRC Lookup Table                     */
 /*****************************************************************/
-  
+
 /******************************************************************************/
 /*                                 C R C 3 2                                  */
 /******************************************************************************/
-  
+
 /* Calculate CRC-32 Checksum for NAACCR Record,
    skipping area of record containing checksum field.
 
@@ -186,7 +186,7 @@ uint32_t XrdOucCRC::CRC32(const unsigned char *p, int reclen)
 /******************************************************************************/
 /*                                C R C 3 2 C                                 */
 /******************************************************************************/
-  
+
 uint32_t XrdOucCRC::Calc32C(const void* data, size_t count, uint32_t prevcs)
 {
 
@@ -196,7 +196,7 @@ uint32_t XrdOucCRC::Calc32C(const void* data, size_t count, uint32_t prevcs)
 }
 
 /******************************************************************************/
-  
+
 void XrdOucCRC::Calc32C(const void* data, size_t count, uint32_t* csval)
 {
    int i, numpages = count/XrdSys::PageSize;
@@ -216,9 +216,18 @@ void XrdOucCRC::Calc32C(const void* data, size_t count, uint32_t* csval)
 }
 
 /******************************************************************************/
+/*                            C o m b i n e 3 2 C                             */
+/******************************************************************************/
+
+uint32_t XrdOucCRC::Combine32C(uint32_t Cksum1, uint32_t Cksum2, int DLen)
+{
+   return crc32c_combine(Cksum1, Cksum2, (size_t)DLen);
+}
+
+/******************************************************************************/
 /*                                V e r 3 2 C                                 */
 /******************************************************************************/
-  
+
 bool XrdOucCRC::Ver32C(const void*    data,  size_t    count,
                        const uint32_t csval, uint32_t* valcs)
 {

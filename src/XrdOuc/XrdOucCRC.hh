@@ -81,6 +81,22 @@ static uint32_t Calc32C(const void* data, size_t count, uint32_t prevcs=0);
 static void Calc32C(const void* data, size_t count, uint32_t* csval);
 
 //------------------------------------------------------------------------------
+//! Combine a CRC32C checksum with a checksum computed for an adjacent block.
+//!
+//! @param    Cksum1 -> The first checksum.
+//! @param    Cksum2 -> The subsequent adjacent checksum.
+//! @param    DLen   -> Length of the data used to compute the Cksum2.
+//!
+//! @return   The combined checksum.
+//!
+//! @note      Warning! The Cksum2 *must* have been computed for the adjacent
+//!            block of data relative to the computation of Cksum1 otherwise
+//!            the combined checksum will be invalid.
+//------------------------------------------------------------------------------
+
+static uint32_t Combine32C(uint32_t Cksum1, uint32_t Cksum2, int DLen);
+
+//------------------------------------------------------------------------------
 //! Verify a CRC32C checksum using hardware assist if available.
 //!
 //! @param  data   Pointer to the data whose checksum it to be verified.
