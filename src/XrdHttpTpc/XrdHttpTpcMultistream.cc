@@ -147,6 +147,24 @@ public:
         return m_bytes_transferred;
     }
 
+    // Number of bytes that have actually been transferred so far: the bytes of
+    // the requests that already completed plus the bytes of the requests that
+    // are still in flight.  The two are disjoint: FinishCurlXfer() accumulates
+    // the counter of a state into m_bytes_transferred and then zeroes it via
+    // State::ResetAfterRequest(), so no byte is counted twice.
+    // Note this is not the same quantity as the scheduling offset maintained by
+    // StartTransfers(), which is advanced as soon as a range request is handed
+    // over to libcurl, hence before any byte of that range has been received.
+    off_t BytesInFlightAndTransferred() const {
+        off_t bytes = m_bytes_transferred;
+        for (std::vector<State*>::const_iterator state_iter = m_states.begin();
+             state_iter != m_states.end();
+             state_iter++) {
+            bytes += (*state_iter)->BytesTransferred();
+        }
+        return bytes;
+    }
+
     int GetStatusCode() const {
         return m_status_code;
     }
@@ -317,11 +335,16 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
-            if (current_offset > last_advance_bytes) {
-                last_advance_bytes = current_offset;
+            // Report - and watch for progress on - the bytes that have really
+            // been transferred, not the offset up to which the range requests
+            // have been scheduled: the latter runs ahead of the transfer by up
+            // to concurrency * m_block_size bytes.
+            const off_t bytes_transferred = mch.BytesInFlightAndTransferred();
+            if (bytes_transferred > last_advance_bytes) {
+                last_advance_bytes = bytes_transferred;
                 last_advance_time = now;
             }
-            if (SendPerfMarker(req, rec, handles, current_offset)) {
+            if (SendPerfMarker(req, rec, handles, bytes_transferred)) {
                 logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL",
                     "Failed to send a perf marker to the TPC client");
                 return -1;
@@ -392,7 +415,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
                 }
             } else if (running_handles == 0) {
                 logTransferEvent(LogMask::Debug, rec, "MULTISTREAM_IDLE",
-                    "Unable to start new transfers; breaking loop.");
+                    "All the ranges have been scheduled and all the handles are done; ending the transfer loop.");
                 break;
             }
         }
