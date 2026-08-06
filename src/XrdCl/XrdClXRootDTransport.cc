@@ -163,7 +163,7 @@ namespace XrdCl
         uint16_t ret    = 0;
         size_t   minval = std::numeric_limits<size_t>::max();
 
-        for( uint16_t i = 0; i < connected.size() && i < strmqueues.size(); ++i )
+        for( size_t i = 0; i < connected.size() && i < strmqueues.size(); ++i )
         {
           if( !connected[i] ) continue;
 
