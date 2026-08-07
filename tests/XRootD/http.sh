@@ -146,7 +146,7 @@ function test_http() {
   assert_eq "$expectedBody" "$receivedBody" "GET range-request test failed (second body)"
   ## Check the amount of boundary delimiters there is in the body
   expectedDelimiters=3
-  receivedDelimiters=$(grep -c '\-\-123456' "$outputFilePath")
+  receivedDelimiters=$(grep -cF -- '--123456' "$outputFilePath")
   assert_eq "$expectedDelimiters" "$receivedDelimiters" "GET range-request test failed (boundary delimiters)"
   ## GET with trailers
   curl -v -L --raw -H "X-Transfer-Status: true" -H "TE: trailers" "${HTTP_HOST}/$alphabetFilePath" --output - | tr -d '\r' > "$outputFilePath"

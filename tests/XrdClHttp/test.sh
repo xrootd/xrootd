@@ -175,7 +175,6 @@ fi
 
 ##
 # It's unfortunate but there's no good machine-readable output from the HTTP protocol.
-# Switch to using xrdfs which also isn't great formatting -- but at least workable with egrep.
 CACHE_ROOT_URL="$(echo "$CACHE_URL" | sed 's|https://|roots://|')"
 echo "Listing directory $CACHE_ROOT_URL via root protocol"
 #export XRD_LOGLEVEL=Debug
@@ -193,8 +192,8 @@ fi
 
 echo "Output from xrdfs:"
 cat "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out"
-assert egrep -q -e '-r-----r-- (.*) 0 (.*) /test-public/subdir/test1' "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out"
-assert egrep -q -e '-r-----r-- (.*) 14 (.*) /test-public/subdir/test2' "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out"
-assert egrep -q -e 'dr-x---r-x (.*) /test-public/subdir/test3' "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out"
+assert grep -Eq -e '-r-----r-- (.*) 0 (.*) /test-public/subdir/test1' "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out"
+assert grep -Eq -e '-r-----r-- (.*) 14 (.*) /test-public/subdir/test2' "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out"
+assert grep -Eq -e 'dr-x---r-x (.*) /test-public/subdir/test3' "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out"
 assert_eq 3 "$(wc -l "$BINARY_DIR/tests/$TEST_NAME/xrdfs.out" | awk '{print $1}')"
 
