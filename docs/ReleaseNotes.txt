@@ -6,6 +6,25 @@ Release Notes
 =============
 
 -------------
+Version 5.9.7
+-------------
+
++ **Major bug fixes**
+  **[XrdHttpTPC]** Fix issue with multi-stream PULL (#2108)
+  **[XrdHttpTPC]** Share one parsed CA/CRL store across transfers (#2873)
+  **[XrdHttpTPC]** Improve error message when close fails on destination (#2878)
+
++ **Minor bug fixes**
+  **[Client,Server]** Fix various Clang-Tidy and CodeQL reported issues
+  **[XrdHttpTPC]** Report actual bytes transferred in performance markers (#2874)
+  **[XrdXrootd]** Fix wrong port in redirect monitoring record (#2736)
+
++ **Miscellaneous**
+  **[Docs]** Add man page for xrootd-config command
+  **[XrdHttpTPC]** Make low-speed timeout configurable (#2881)
+  **[XrdHttpTPC]** Allow missing CRL checking if configured via xrd.tlsca (#2681)
+
+-------------
 Version 5.9.6
 -------------
 
