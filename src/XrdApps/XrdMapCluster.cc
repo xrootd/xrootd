@@ -38,6 +38,7 @@
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
   
+#include <algorithm>
 #include <cerrno>
 #include <getopt.h>
 #include <cstdlib>
@@ -47,6 +48,7 @@
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include <vector>
 
 #include "XProtocol/XProtocol.hh"
 #include "XrdCl/XrdClEnv.hh"
@@ -448,6 +450,8 @@ void PrintJson(clMap *clmP)
 {
    clMap *clnow;
    const char *st;
+   std::vector<clMap*> nodes;
+   size_t i;
 
    printf("{\"name\":\"%s\",\"type\":\"manager\"", clmP->name);
 
@@ -460,36 +464,48 @@ void PrintJson(clMap *clmP)
    if (clmP->verfile != ' ' && clmP->verfile != '?')
       printf(",\"verified\":%s", clmP->verfile == '+' ? "true" : "false");
 
+   // Emit children sorted by name so topology JSON is deterministic.
+   // Locate response order is otherwise not stable.
+   //
    if (clmP->nextSrv && listSrv)
-      {printf(",\"servers\":[");
-       clnow = clmP->nextSrv;
-       while(clnow)
-            {PrintJsonSrv(clnow);
-             clnow = clnow->nextSrv;
-             if (clnow) putchar(',');
-            }
+      {nodes.clear();
+       for (clnow = clmP->nextSrv; clnow; clnow = clnow->nextSrv)
+           nodes.push_back(clnow);
+       std::sort(nodes.begin(), nodes.end(),
+                 [](const clMap *a, const clMap *b)
+                 { return strcmp(a->name, b->name) < 0; });
+       printf(",\"servers\":[");
+       for (i = 0; i < nodes.size(); ++i)
+          {if (i) putchar(',');
+           PrintJsonSrv(nodes[i]);
+          }
        putchar(']');
       }
 
    if (clmP->nextMan && listMan)
-      {printf(",\"managers\":[");
-       clnow = clmP->nextMan;
-       while(clnow)
-            {if (clnow->nextLvl)
-                {if (*clnow->state) clnow->nextLvl->state = clnow->state;
-                 PrintJson(clnow->nextLvl);
-                }
-             else
-                {printf("{\"name\":\"%s\",\"type\":\"manager\"", clnow->name);
-                 if (*clnow->state)
-                    {st = clnow->state; while (*st == ' ') st++;
-                     printf(",\"state\":\"%s\"", st);
-                    }
-                 putchar('}');
-                }
-             clnow = clnow->nextMan;
-             if (clnow) putchar(',');
-            }
+      {nodes.clear();
+       for (clnow = clmP->nextMan; clnow; clnow = clnow->nextMan)
+           nodes.push_back(clnow);
+       std::sort(nodes.begin(), nodes.end(),
+                 [](const clMap *a, const clMap *b)
+                 { return strcmp(a->name, b->name) < 0; });
+       printf(",\"managers\":[");
+       for (i = 0; i < nodes.size(); ++i)
+          {if (i) putchar(',');
+           clnow = nodes[i];
+           if (clnow->nextLvl)
+              {if (*clnow->state) clnow->nextLvl->state = clnow->state;
+               PrintJson(clnow->nextLvl);
+              }
+           else
+              {printf("{\"name\":\"%s\",\"type\":\"manager\"", clnow->name);
+               if (*clnow->state)
+                  {st = clnow->state; while (*st == ' ') st++;
+                   printf(",\"state\":\"%s\"", st);
+                  }
+               putchar('}');
+              }
+          }
        putchar(']');
       }
 
@@ -531,7 +547,8 @@ void Usage(const char *emsg)
    if (!emsg)
       {std::cerr <<
 "--format  | -f 'text' prints human-readable output (default), 'json' prints\n"
-"               a JSON representation of the cluster topology.\n"
+"               a JSON representation of the cluster topology (managers and\n"
+"               servers arrays are sorted by name).\n"
 "--list    | -l 'all' lists managers and servers (default), 'm' lists only\n"
 "               managers and 's' lists only servers.\n"
 "--quiet   | -q does not print error messages to std::cerr; errors appear inline.\n"
