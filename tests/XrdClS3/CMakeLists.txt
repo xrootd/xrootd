@@ -83,6 +83,9 @@ set_tests_properties(${S3Tests}
     ENVIRONMENT "XRD_LOGLEVEL=Debug;ENV_FILE=${CMAKE_BINARY_DIR}/tests/s3/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/s3/client.plugins.d"
 )
 
+gtest_add_tests(TARGET xrdcl-s3-unittest TEST_LIST S3UnitTests)
+
+
 ######################################
 # Integration tests.
 ######################################
