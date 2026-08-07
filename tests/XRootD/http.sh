@@ -29,7 +29,13 @@ function test_http() {
 	echo "server: XRootD $(xrdfs "${DAV_HOST}" query config version 2>&1)"
 	echo
 
-	# Non-interactive xrdfs sets NoCWD: relative paths must be rejected client-side
+	# BuildPath client-side checks (non-interactive xrdfs sets NoCWD)
+	if out=$(xrdfs "${DAV_HOST}" mkdir -p 2>&1); then
+		error "mkdir -p without a path should fail"
+	fi
+	echo "${out}" | grep -F "A path is required." \
+		|| error "unexpected empty-path error: ${out}"
+
 	if out=$(xrdfs "${DAV_HOST}" mkdir foo 2>&1); then
 		error "mkdir foo should fail"
 	fi
@@ -41,6 +47,30 @@ function test_http() {
 	fi
 	echo "${out}" | grep -F "Removing relative path 'foo' is disallowed." \
 		|| error "unexpected rmdir relative-path error: ${out}"
+
+	if out=$(xrdfs "${DAV_HOST}" rm foo 2>&1); then
+		error "rm foo should fail"
+	fi
+	echo "${out}" | grep -F "Removing relative path 'foo' is disallowed." \
+		|| error "unexpected rm relative-path error: ${out}"
+
+	if out=$(xrdfs "${DAV_HOST}" ls foo 2>&1); then
+		error "ls foo should fail"
+	fi
+	echo "${out}" | grep -F "Listing relative path 'foo' is disallowed." \
+		|| error "unexpected ls relative-path error: ${out}"
+
+	# Under NoCWD, ../path is rejected as relative before .. collapse
+	if out=$(xrdfs "${DAV_HOST}" mkdir ../foo 2>&1); then
+		error "mkdir ../foo should fail"
+	fi
+	echo "${out}" | grep -F "Creating relative path '../foo' is disallowed." \
+		|| error "unexpected mkdir ../ relative-path error: ${out}"
+
+	# Interactive mode leaves NoCWD unset: relative ../ from CWD=/ escapes root
+	out=$(printf 'mkdir ../foo\nexit\n' | xrdfs "${DAV_HOST}" 2>&1) || true
+	echo "${out}" | grep -F "Path '../foo' escapes above root." \
+		|| error "unexpected escape-above-root error: ${out}"
 
 	# create local temporary directory under LOCAL_DIR so common teardown removes it
 	TMPDIR=$(mktemp -d "${LOCAL_DIR}/test-XXXXXX")
