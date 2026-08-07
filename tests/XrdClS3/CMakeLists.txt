@@ -66,6 +66,7 @@ add_executable(xrdcl-s3-test
 
 add_executable(xrdcl-s3-unittest
   UrlParseTest.cc
+  DownloadHandlerTest.cc
 )
 
 target_link_libraries(xrdcl-s3-test XrdClS3Obj XrdClHttpTransferTest GTest::gtest_main)
