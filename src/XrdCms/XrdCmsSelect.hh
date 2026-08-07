@@ -141,17 +141,17 @@ enum           {Disable = 0x0001,
 class XrdCmsSelector
 {
 public:
-const  char *reason;
-       int   delay;
-       short nPick;
-       char  needNet;
-       char  needSpace;
-       char  selPack;
-       bool  xFull;
-       bool  xNoNet;
-       bool  xOff;
-       bool  xOvld;
-       bool  xSusp;
+const  char *reason{nullptr};
+       int   delay{0};
+       short nPick{0};
+       char  needNet{0};
+       char  needSpace{0};
+       char  selPack{0};
+       bool  xFull{false};
+       bool  xNoNet{false};
+       bool  xOff{false};
+       bool  xOvld{false};
+       bool  xSusp{false};
 
 inline void  Reset() {reason = 0; delay = 0; nPick = 0;
                       xFull = xNoNet = xOff = xOvld = xSusp = false;

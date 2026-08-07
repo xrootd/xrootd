@@ -956,9 +956,9 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
          BlockMap_i bi = m_block_map.find(block_idx);
 
          // overlap and read
-         long long off;     // offset in user buffer
-         long long blk_off; // offset in block
-         int       size;    // size to copy
+         long long off = 0;     // offset in user buffer
+         long long blk_off = 0; // offset in block
+         int       size = 0;    // size to copy
 
          overlap(block_idx, m_block_size, iUserOff, iUserSize, off, blk_off, size);
 

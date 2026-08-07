@@ -1569,7 +1569,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
 {   char *val;
     const char *etxt = "invalid delay option";
     int  i, ppp, minV = 1, ispercent = 0, noStage = 0;
-    static struct delayopts {const char *opname; int *oploc; int istime;}
+    struct delayopts {const char *opname; int *oploc; int istime;}
            dyopts[] =
        {
         {"delnode",  &DELDelay, 1},
@@ -2672,7 +2672,7 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
     int  i, ppp, V_hntry = -1;
-    static struct schedopts {const char *opname; int maxv; int *oploc;}
+    struct schedopts {const char *opname; int maxv; int *oploc;}
            scopts[] =
        {
         {"cpu",      100, &P_cpu},

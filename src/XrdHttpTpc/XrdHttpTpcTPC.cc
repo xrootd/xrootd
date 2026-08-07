@@ -187,10 +187,22 @@ int TPCHandler::closesocket_callback(void *clientp, curl_socket_t fd) {
  * https://curl.se/libcurl/c/CURLOPT_SSL_CTX_FUNCTION.html
  */
 int TPCHandler::ssl_ctx_callback(CURL *curl, void *ssl_ctx, void *clientp) {
-    //TPCLogRecord * rec = (TPCLogRecord *)clientp;
+    TPCLogRecord * rec = (TPCLogRecord *)clientp;
     SSL_CTX* ctx = static_cast<SSL_CTX*>(ssl_ctx);
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
-    return CURL_SOCKOPT_OK;
+
+    if (rec && rec->ca_store) {
+        // Bumps the store's reference count instead of re-parsing the CA and CRL
+        // bundles for this connection.  libcurl runs this callback after it has
+        // applied its own TLS options, so this replaces whatever store it built.
+        SSL_CTX_set1_cert_store(ctx, rec->ca_store.get());
+    }
+    if (allowMissingCRL) {
+        // verify_callback only excuses X509_V_ERR_UNABLE_TO_GET_CRL, i.e. a CA in
+        // the chain for which no CRL could be found.  Every other verification rule
+        // still applies, including revocation itself whenever a CRL is present.
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
+    }
+    return CURLE_OK;
 }
 
 int TPCHandler::verify_callback(int preverify_ok, X509_STORE_CTX* ctx) {
@@ -279,9 +291,33 @@ std::string encode_xrootd_opaque_to_uri(CURL *curl, const std::string &opaque)
 /*           T P C H a n d l e r : : C o n f i g u r e C u r l C A            */
 /******************************************************************************/
   
-void
-TPCHandler::ConfigureCurlCA(CURL *curl)
+bool
+TPCHandler::ConfigureCurlCA(CURL *curl, TPCLogRecord &rec)
 {
+    // Preferred path: hand libcurl the CA/CRL store that XrdTlsTempCA already
+    // parsed, rather than the bundle filenames.  Passing filenames makes libcurl
+    // build a private X509_STORE per connection, which costs tens of MB for a grid
+    // CA directory and is held for the whole transfer; sharing one store makes that
+    // a reference count.  See https://github.com/xrootd/xrootd/issues/2873
+    //
+    // Skipped when m_cafile is set, so that the http.cafile precedence established
+    // at the bottom of this function is preserved.
+    if (m_ca_file && m_sslctx_supported && m_cafile.empty()) {
+        rec.ca_store = m_ca_file->CAStore();
+        if (!rec.ca_store) {
+            m_log.Log(Error, "TpcHandler", "No CA store is available; refusing to "
+                      "fall back to libcurl's default CA bundle");
+            return false;
+        }
+        // Stop libcurl loading its build-time default bundle, which the callback
+        // below would only discard; the callback supplies the trust anchors.
+        curl_easy_setopt(curl, CURLOPT_CAINFO, static_cast<char *>(nullptr));
+        curl_easy_setopt(curl, CURLOPT_CAPATH, static_cast<char *>(nullptr));
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, ssl_ctx_callback);
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, &rec);
+        return true;
+    }
+
     auto ca_filename = m_ca_file ? m_ca_file->CAFilename() : "";
     auto crl_filename = m_ca_file ? m_ca_file->CRLFilename() : "";
     if (!ca_filename.empty() && !crl_filename.empty()) {
@@ -307,6 +343,20 @@ TPCHandler::ConfigureCurlCA(CURL *curl)
     }
     if (!m_cafile.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, m_cafile.c_str());
+    }
+    return true;
+}
+
+void
+TPCHandler::ConfigureCurlLowSpeed(CURL *curl)
+{
+    // Older versions have poor transfer performance when low-speed limits are
+    // enabled; this was corrected in curl commit cacdc27f for version 7.38.0.
+    curl_version_info_data *curl_ver = curl_version_info(CURLVERSION_NOW);
+    if (m_low_speed_limit > 0 && curl_ver && curl_ver->age > 0 &&
+        curl_ver->version_num >= 0x072600) {
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, m_low_speed_time);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, m_low_speed_limit);
     }
 }
 
@@ -397,6 +447,8 @@ TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
         m_allow_private(true),
         m_desthttps(false),
         m_fixed_route(false),
+        m_low_speed_limit(10*1024),
+        m_low_speed_time(2*60),
         m_timeout(60),
         m_first_timeout(120),
         m_log(log->logger(), "TPC_"),
@@ -788,7 +840,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
                 const char *log_prefix = rec.log_prefix.c_str();
                 bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
 
-                state.SetErrorCode(10);
+                state.SetErrorCode(State::errTimeout);
                 std::stringstream ss;
                 ss << "Transfer failed because no bytes have been "
                    << (tpc_pull ? "received from the source (pull mode) in "
@@ -883,6 +935,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     }
     curl_multi_cleanup(multi_handle);
 
+    // The transfer is over at this point: any error recorded so far - a failed
+    // write to the local filesystem or the stall detector having fired - is the
+    // reason why the transfer failed.  Flushing and closing the destination file
+    // below may fail as well but, as such a failure is usually a consequence of
+    // the transfer failure, it must not be reported instead of it.
+    const int transferErrorCode = state.GetErrorCode();
+    std::string transferErrorMsg = state.GetErrorMessage();
+
     state.Flush();
 
     rec.bytes_transferred = state.BytesTransferred();
@@ -893,6 +953,25 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     // requests can occur before the filesystem is done closing the handle -
     // and those requests may occur against partial data.
     state.Finalize();
+
+    // A failure to flush or to close the destination file is always logged and is
+    // appended to the error reported to the client, but it never replaces the
+    // transfer failure itself: it is usually a consequence of it.
+    std::string finalizeErrorMsg, finalizeErrorSuffix;
+    if (state.GetFinalizeErrorCode()) {
+        std::stringstream ss2;
+        ss2 << (state.GetFinalizeErrorCode() == State::errFlush
+                    ? "Failed to flush the file to the local filesystem."
+                    : "Failed to finalize and close file handle.");
+        std::string err = state.GetFinalizeErrorMessage();
+        if (!err.empty()) {
+            std::replace(err.begin(), err.end(), '\n', ' ');
+            ss2 << " " << err;
+        }
+        finalizeErrorMsg = ss2.str();
+        logTransferEvent(LogMask::Error, rec, "CLOSE_FAIL", finalizeErrorMsg);
+        finalizeErrorSuffix = "; " + finalizeErrorMsg;
+    }
 
     // Generate the final response back to the client.
     std::stringstream ss;
@@ -906,14 +985,23 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             ss2 << "; error message: \"" << err << "\"";
         }
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss2 << finalizeErrorSuffix;
         ss << generateClientErr(ss2, rec);
-    } else if (state.GetErrorCode()) {
-        std::string err = state.GetErrorMessage();
-        if (err.empty()) {err = "(no error message provided)";}
-        else {std::replace(err.begin(), err.end(), '\n', ' ');}
+    } else if (transferErrorCode == State::errTimeout) {
+        // The stall detector fired; its message already describes precisely
+        // what happened, report it as-is.
         std::stringstream ss2;
-        ss2 << "Error when interacting with local filesystem: " << err;
+        ss2 << transferErrorMsg;
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss2 << finalizeErrorSuffix;
+        ss << generateClientErr(ss2, rec);
+    } else if (transferErrorCode) {
+        if (transferErrorMsg.empty()) {transferErrorMsg = "(no error message provided)";}
+        else {std::replace(transferErrorMsg.begin(), transferErrorMsg.end(), '\n', ' ');}
+        std::stringstream ss2;
+        ss2 << "Error when interacting with local filesystem: " << transferErrorMsg;
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss2 << finalizeErrorSuffix;
         ss << generateClientErr(ss2, rec);
     } else if (res != CURLE_OK) {
         std::stringstream ss2;
@@ -921,7 +1009,13 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         std::stringstream ss3;
         ss3 << ss2.str() << ": " << curl_easy_strerror(res);
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss3.str());
+        ss2 << finalizeErrorSuffix;
         ss << generateClientErr(ss2, rec, res);
+    } else if (!finalizeErrorMsg.empty()) {
+        // Nothing else went wrong: the flush/close failure is the reason of the failure.
+        std::stringstream ss2;
+        ss2 << finalizeErrorMsg;
+        ss << generateClientErr(ss2, rec);
     } else {
         ss << "success: Created";
         success = true;
@@ -964,6 +1058,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", ss.str());
         return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
+    ConfigureCurlLowSpeed(curl);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long) CURL_HTTP_VERSION_1_1);
@@ -1021,7 +1116,15 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         fh->close();
         return resp_result;
     }
-    ConfigureCurlCA(curl);
+    if (!ConfigureCurlCA(curl, rec)) {
+        std::stringstream ss;
+        ss << "Failed to configure the certificate authorities for the transfer";
+        rec.status = 500;
+        logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", ss.str());
+        int resp_result = req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+        fh->close();
+        return resp_result;
+    }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
     Stream stream(std::move(fh), 0, 0, m_log);
@@ -1057,6 +1160,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
         return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
+    ConfigureCurlLowSpeed(curl);
 
     // ddavila 2023-01-05:
     // The following change was required by the Rucio/SENSE project where
@@ -1140,7 +1244,13 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     std::string full_url = prepareURL(req);
     std::string authz = GetAuthz(req);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
-    ConfigureCurlCA(curl);
+    if (!ConfigureCurlCA(curl, rec)) {
+        std::stringstream ss;
+        ss << "Failed to configure the certificate authorities for the transfer";
+        rec.status = 500;
+        logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+    }
     uint64_t sourceFileContentLength = 0;
     {
         //Get the content-length of the source file and pass it to the OSS layer

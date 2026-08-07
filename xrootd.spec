@@ -543,6 +543,7 @@ fi
 
 %files devel
 %{_bindir}/xrootd-config
+%{_mandir}/man1/xrootd-config.1*
 %dir %{_includedir}/%{name}
 %{_includedir}/%{name}/XProtocol
 %{_includedir}/%{name}/Xrd
@@ -694,6 +695,9 @@ fi
 %endif
 
 %changelog
+
+* Fri Aug 07 2026 Guilherme Amadio <amadio@cern.ch> - 1:5.9.7-1
+- XRootD 5.9.7
 
 * Fri Jun 19 2026 Guilherme Amadio <amadio@cern.ch> - 1:6.1.0-1
 - XRootD 6.1.0

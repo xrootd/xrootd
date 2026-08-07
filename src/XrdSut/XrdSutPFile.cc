@@ -1316,7 +1316,7 @@ kXR_int32 XrdSutPFile::WriteInd(kXR_int32 ofs, XrdSutPFEntInd ind)
    // Fill the buffer
    kXR_int32 lp = 0;
    // Name length
-   kXR_int32 lnam = strlen(ind.name);
+   kXR_int32 lnam = ind.name ? strlen(ind.name) : 0;
    memcpy(bout+lp,&lnam,sizeof(kXR_int32));
    lp += sizeof(kXR_int32);
    // Offset of next index entry
@@ -2100,7 +2100,7 @@ kXR_int32 XrdSutPFile::SearchEntries(const char *tag, char opt,
       // Check compatibility
       int match = 0;
       if (opt == 0) {
-         if (!strncmp(ind.name,tag,strlen(tag)))
+         if (tag && ind.name && !strncmp(ind.name,tag,strlen(tag)))
             match = 1;
       } else if (opt == 1) {
          match = smatch.matches(ind.name);

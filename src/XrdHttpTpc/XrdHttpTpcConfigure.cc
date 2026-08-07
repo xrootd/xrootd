@@ -1,6 +1,7 @@
 
 #include "XrdHttpTpcTPC.hh"
 
+#include <climits>
 #include <dlfcn.h>
 #include <fcntl.h>
 
@@ -115,7 +116,27 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
             if(authHdr != hdr2cgimap.end()) {
               hdr2cgimap.erase(authHdr);
             }
-        }  else if (!strcmp("tpc.timeout", val)) {
+        } else if (!strcmp("tpc.low_speed", val)) {
+            if (!(val = Config.GetWord())) {
+                Config.Close();
+                m_log.Emsg("Config", "tpc.low_speed rate not specified.");
+                return false;
+            }
+
+            long long low_speed_limit;
+            if (XrdOuca2x::a2sz(m_log, "low speed rate", val, &low_speed_limit, 0, LONG_MAX)) {
+                return false;
+            }
+            m_low_speed_limit = static_cast<long>(low_speed_limit);
+
+            if ((val = Config.GetWord())) {
+                int low_speed_time;
+                if (XrdOuca2x::a2tm(m_log, "low speed time", val, &low_speed_time, 1)) {
+                    return false;
+                }
+                m_low_speed_time = low_speed_time;
+            }
+        } else if (!strcmp("tpc.timeout", val)) {
             if (!(val = Config.GetWord())) {
                 Config.Close();
                 m_log.Emsg("Config","tpc.timeout value not specified.");  return false;
@@ -138,11 +159,31 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     auto env_cadir = getenv("XRDTPC_CADIR");
     if (env_cadir) m_cadir = env_cadir;
 
+    // Sharing a single pre-parsed CA/CRL store between transfers relies on
+    // CURLOPT_SSL_CTX_FUNCTION, which only libcurl's OpenSSL, mbedTLS and wolfSSL
+    // backends implement; the others reject it with CURLE_NOT_BUILT_IN.  libcurl
+    // checks this against the backend selected at run time rather than at build
+    // time, so probe an actual handle, and do it here so that an unsupported build
+    // is reported at startup instead of silently costing memory per transfer.
+    {
+        ManagedCurlHandle probe(curl_easy_init());
+        m_sslctx_supported = probe &&
+            curl_easy_setopt(probe.get(), CURLOPT_SSL_CTX_FUNCTION,
+                             ssl_ctx_callback) == CURLE_OK;
+        if (!m_sslctx_supported) {
+            m_log.Emsg("Config", "libcurl does not support CURLOPT_SSL_CTX_FUNCTION; "
+                       "each transfer will parse the CA and CRL bundles for itself, "
+                       "which costs significant memory per concurrent transfer.");
+        }
+    }
+
     const char *cadir = nullptr, *cafile = nullptr;
     if ((cadir = env_cadir ? env_cadir : myEnv->Get("http.cadir"))) {
         m_cadir = cadir;
         if (!env_cadir) {
-            m_ca_file.reset(new XrdTlsTempCA(&m_log, m_cadir));
+            // Only ask for the pre-parsed store when we can actually install it;
+            // maintaining one costs tens of MB that the fallback path never reads.
+            m_ca_file.reset(new XrdTlsTempCA(&m_log, m_cadir, m_sslctx_supported));
             if (!m_ca_file->IsValid()) {
                 m_log.Emsg("Config", "CAs / CRL generation for libcurl failed.");
                 return false;

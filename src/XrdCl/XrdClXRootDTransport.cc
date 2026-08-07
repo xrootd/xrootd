@@ -165,7 +165,7 @@ namespace XrdCl
         uint16_t ret    = 0;
         size_t   minval = std::numeric_limits<size_t>::max();
 
-        for( uint16_t i = 0; i < connected.size() && i < strmqueues.size(); ++i )
+        for( size_t i = 0; i < connected.size() && i < strmqueues.size(); ++i )
         {
           if( !connected[i] ) continue;
 
@@ -1649,6 +1649,7 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    if( !info ) return NoAction;
     XrdSysMutexHelper scopedLock( info->mutex );
     Log *log = DefaultEnv::GetLog();
 
@@ -1764,6 +1765,7 @@ namespace XrdCl
     // only those.
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    if( !info ) return;
     XrdSysMutexHelper scopedLock( info->mutex );
     ClientRequest *req = (ClientRequest*)msg->GetBuffer();
     uint16_t reqid = ntohs( req->header.requestid );

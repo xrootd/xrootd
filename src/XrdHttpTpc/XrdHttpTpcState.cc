@@ -86,14 +86,6 @@ bool State::InstallHandlers(CURL *curl) {
       curl_easy_setopt(curl,CURLOPT_UNRESTRICTED_AUTH,1L);
     }
 
-    // Only use low-speed limits with libcurl v7.38 or later.
-    // Older versions have poor transfer performance, corrected in curl commit cacdc27f.
-    curl_version_info_data *curl_ver = curl_version_info(CURLVERSION_NOW);
-    if (curl_ver->age > 0 && curl_ver->version_num >= 0x072600) {
-        // Require a minimum speed from the transfer: 2 minute average must at least 10KB/s
-        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 2*60);
-        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 10*1024);
-    }
     return true;
 }
 
@@ -308,11 +300,19 @@ ssize_t State::Write(char *buffer, size_t size) {
     ssize_t retval = m_stream->Write(m_start_offset + m_offset, buffer, size, false);
     if (retval == SFS_ERROR) {
         m_error_buf = m_stream->GetErrorMessage();
-        m_error_code = 1;
+        m_error_code = errWrite;
         return -1;
     }
     m_offset += retval;
     return retval;
+}
+
+void State::RecordFinalizeError(int error_code, const std::string &error_msg) {
+    if (m_finalize_error_code) {
+        return;
+    }
+    m_finalize_error_code = error_code;
+    m_finalize_error_buf = error_msg;
 }
 
 int State::Flush() {
@@ -322,8 +322,7 @@ int State::Flush() {
 
     ssize_t retval = m_stream->Write(m_start_offset + m_offset, 0, 0, true);
     if (retval == SFS_ERROR) {
-        m_error_buf = m_stream->GetErrorMessage();
-        m_error_code = 2;
+        RecordFinalizeError(errFlush, m_stream->GetErrorMessage());
         return -1;
     }
     m_offset += retval;
@@ -392,8 +391,7 @@ void State::DumpBuffers() const
 bool State::Finalize()
 {
     if (!m_stream->Finalize()) {
-        m_error_buf = m_stream->GetErrorMessage();
-        m_error_code = 3;
+        RecordFinalizeError(errClose, m_stream->GetErrorMessage());
         return false;
     }
     return true;

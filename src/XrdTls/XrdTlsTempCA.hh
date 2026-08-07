@@ -29,6 +29,10 @@
 #include <string>
 #include <memory>
 
+#include <openssl/x509.h>
+
+#include "XrdSys/XrdSysPthread.hh"
+
 // Forward dec'ls.
 class XrdSysError;
 
@@ -39,34 +43,66 @@ class XrdSysError;
  *
  * This will hand out the CA file directly, allowing external libraries (such
  * as libcurl) do the loading of CAs directly.
+ *
+ * Parsing those files is expensive -- a grid CA directory costs tens of MB of
+ * heap once parsed -- so a pre-parsed X509_STORE covering the same CAs and CRLs
+ * is maintained alongside them; see CAStore().
  */
 class XrdTlsTempCA {
 public:
     class TempCAGuard;
 
-    XrdTlsTempCA(XrdSysError *log, std::string ca_dir);
+    /**
+     * Set build_store when the caller intends to use CAStore().  Maintaining the
+     * store costs tens of MB of resident memory, so callers that only need the
+     * bundle filenames should leave it off.
+     */
+    XrdTlsTempCA(XrdSysError *log, std::string ca_dir, bool build_store = true);
     ~XrdTlsTempCA();
 
     /**
-     * Returns true if object is valid.
+     * Returns true if object is valid, i.e. the CA and CRL bundles were generated,
+     * and parsed into a store if one was asked for.  Failing to build a requested
+     * store is fatal rather than recoverable: falling back to having every consumer
+     * parse the bundles for itself is what the store exists to avoid.
      */
-    bool IsValid() const {return m_ca_file.get() && m_crl_file.get();}
+    bool IsValid() const {XrdSysMutexHelper lock(m_mutex);
+                          return m_ca_file.get() && m_crl_file.get()
+                              && (!m_build_store || m_ca_store.get());}
 
     /**
      * Returns the current location of the CA temp file.
      */
-    std::string CAFilename() const {auto file_ref = m_ca_file; return file_ref ? *file_ref : "";}
+    std::string CAFilename() const {XrdSysMutexHelper lock(m_mutex); return m_ca_file ? *m_ca_file : "";}
 
     /**
      * Returns the current location of the CA temp file.
      */
-    std::string CRLFilename() const {auto file_ref = m_crl_file; return file_ref ? *file_ref : "";}
+    std::string CRLFilename() const {XrdSysMutexHelper lock(m_mutex); return m_crl_file ? *m_crl_file : "";}
 
     /**
      * Returns true if a valid CRL file has been found during the Maintenance thread execution
      * false otherwise
      */
-    bool atLeastOneValidCRLFound() const { return m_atLeastOneCRLFound; }
+    bool atLeastOneValidCRLFound() const {XrdSysMutexHelper lock(m_mutex); return m_atLeastOneCRLFound;}
+
+    /**
+     * Returns the CA and CRL contents pre-parsed into a single X509_STORE, rebuilt
+     * once per maintenance cycle.  An X509_STORE is reference counted and internally
+     * locked by OpenSSL, so a single instance may be shared across any number of
+     * concurrent TLS handshakes -- e.g. via SSL_CTX_set1_cert_store() -- instead of
+     * having every connection parse the CA and CRL bundles for itself.
+     *
+     * The returned reference keeps the store alive for as long as the caller holds
+     * it, so a maintenance cycle may publish a replacement without disturbing the
+     * TLS sessions still using the previous one.
+     *
+     * Only ever null before the first successful maintenance run, which IsValid()
+     * reports on; a maintenance run that cannot build a store keeps the previous
+     * one rather than withdrawing it.  Callers should treat a null store as a hard
+     * error, not as a cue to load the bundles themselves.
+     */
+    std::shared_ptr<X509_STORE> CAStore() const {XrdSysMutexHelper lock(m_mutex); return m_ca_store;}
 
     /**
      * Manages the temporary file associated with the curl handle
@@ -111,6 +147,19 @@ private:
     bool Maintenance();
 
     /**
+     * Parse the freshly-generated CA and CRL bundles into a single X509_STORE.
+     * The CRL bundle is only added -- and CRL checking only enabled -- when it
+     * holds at least one valid CRL, mirroring the behaviour of the callers that
+     * hand these files to libcurl directly.
+     *
+     * Returns nullptr on failure, in which case the caller publishes nothing and
+     * leaves consumers on the previously loaded store.
+     */
+    std::shared_ptr<X509_STORE> BuildCAStore(const std::string &ca_fname,
+                                             const std::string &crl_fname,
+                                             bool use_crls);
+
+    /**
      * Thread managing the invocation of the CA maintenance routines
      */
     static void *MaintenanceThread(void *myself_raw);
@@ -125,8 +174,13 @@ private:
     int m_maintenance_thread_pipe_w{-1};
     XrdSysError &m_log;
     const std::string m_ca_dir;
+    const bool m_build_store;
+        // Guards the published state below; taken once per consumer request (not
+        // per I/O), so the critical sections are deliberately kept to a pointer copy.
+    mutable XrdSysMutex m_mutex;
     std::shared_ptr<std::string> m_ca_file;
     std::shared_ptr<std::string> m_crl_file;
+    std::shared_ptr<X509_STORE> m_ca_store;
     bool m_atLeastOneCRLFound = false;
 
         // After success, how long to wait until the next CA reload.

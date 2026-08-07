@@ -21,6 +21,17 @@ class Stream;
 class State {
 public:
 
+    // Error codes recorded on a transfer state.  They are exposed so that the
+    // TPC handler is able to tell the various failure modes apart when it
+    // composes the error sent back to the client.
+    enum ErrorCode {
+        errNone    = 0,
+        errWrite   = 1,  // Failure while writing the received data to the local file.
+        errFlush   = 2,  // Failure while flushing the local file.
+        errClose   = 3,  // Failure while closing the local file.
+        errTimeout = 10  // The transfer did not make any progress within the timeout.
+    };
+
     State() :
         m_push(true),
         m_recv_status_line(false),
@@ -109,6 +120,15 @@ public:
 
     void SetErrorMessage(const std::string &error_msg) {m_error_buf = error_msg;}
 
+    // Error recorded while flushing and closing the local file at the end of the
+    // transfer (see Flush() and Finalize()).  It is deliberately kept apart from
+    // the transfer error above: a failure to flush or close the file must not
+    // hide the reason why the transfer itself failed, e.g. a libcurl error or a
+    // stalled transfer.
+    int GetFinalizeErrorCode() const {return m_finalize_error_code;}
+
+    std::string GetFinalizeErrorMessage() const {return m_finalize_error_buf;}
+
     void ResetAfterRequest();
 
     CURL *GetHandle() const {return m_curl;}
@@ -135,12 +155,16 @@ public:
     // system).
     //
     // Returns true on success; false otherwise.  Failures can happen, for example, if
-    // not all buffers have been reordered by the underlying stream.
+    // not all buffers have been reordered by the underlying stream.  A failure is
+    // recorded in the finalization error (GetFinalizeErrorCode()), not in the
+    // transfer error.
     bool Finalize();
 
     // Flush the data in memory to disk, even if it may cause unaligned or short
     // writes.  Typically, only done while shutting down the transfer (note some
     // backends may be unable to handle unaligned writes unless it's the last write).
+    // Returns -1 on failure, in which case the error is recorded in the
+    // finalization error (GetFinalizeErrorCode()), not in the transfer error.
     int Flush();
 
     // Retrieve the description of the remote connection; is of the form:
@@ -151,6 +175,11 @@ public:
 
 private:
     bool InstallHandlers(CURL *curl);
+
+    // Record a failure that happened while flushing or closing the local file.
+    // Only the first failure is kept: the ones that follow are almost always a
+    // consequence of it.
+    void RecordFinalizeError(int error_code, const std::string &error_msg);
 
     State(const State&);
     // Add back once C++11 is available
@@ -185,6 +214,8 @@ private:
     std::vector<std::string> m_headers_copy; // Copies of custom headers.
     std::string m_resp_protocol;  // Response protocol in the HTTP status line.
     std::string m_error_buf;  // Any error associated with a response.
+    int m_finalize_error_code = 0; // error code from flushing / closing the local file.
+    std::string m_finalize_error_buf; // error message from flushing / closing the local file.
     bool m_is_transfer_state; // If set to true, this state will be used to perform some transfers
     bool tpcForwardCreds = false; // if set to true, the redirection will send user credentials to the redirection host
     std::map<std::string, std::string> m_repr_digests; // Repr-Digest values received from the passive server (PULL)

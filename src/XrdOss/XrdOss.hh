@@ -952,7 +952,8 @@ virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *envP=0)=0;
 //-----------------------------------------------------------------------------
 
 virtual int       Lfn2Pfn(const char *Path, char *buff, int blen)
-                         {if ((int)strlen(Path) >= blen) return -ENAMETOOLONG;
+                         {if (!Path || !buff) return -EINVAL;
+                          if ((int)strlen(Path) >= blen) return -ENAMETOOLONG;
                           strcpy(buff, Path); return 0;
                          }
 

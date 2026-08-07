@@ -2448,7 +2448,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 // of a crash.
 //
    if (cannot_overwrite)
-      {XrdSfsFileExistence exists_flag;
+      {XrdSfsFileExistence exists_flag = XrdSfsFileExistNo;
        if (SFS_OK != exists(new_name, exists_flag, einfo, client, infoN))
           {// File existence check itself failed; we can't prove that data won't
            // be overwritten so we return an error.

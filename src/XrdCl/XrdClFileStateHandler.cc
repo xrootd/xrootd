@@ -2762,6 +2762,7 @@ namespace XrdCl
       {
         StatInfo *info = 0;
         response->Get( info );
+        if( !info ) break;
         delete self->pStatInfo;
         self->pStatInfo = new StatInfo( *info );
         break;

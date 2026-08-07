@@ -451,7 +451,7 @@ static int xrootdfs_create(const char *path, mode_t mode, struct fuse_file_info 
  * returns:     0 on success, -errno on error.
  */
 {
-    int res, fd;
+    int res, fd = -1;
     if (!S_ISREG(mode))
         return -EPERM;
     if (usingEC)
@@ -934,7 +934,7 @@ static int xrootdfs_release(const char *path, struct fuse_file_info *fi)
        unimplemented */
 
     int fd, oflag;
-    struct stat xrdfile, cnsfile;
+    struct stat xrdfile = {}, cnsfile = {};
     char rootpath[MAXROOTURLLEN];
 
     fd = (int) fi->fh;

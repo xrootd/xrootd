@@ -384,7 +384,7 @@ void XrdCmsManager::Rerun(char *newMans)
         {if ((eText = manAddr.Set(hP)))
             {Say.Emsg("Config","Ignoring manager", hP, eText); continue;}
          tP = newManList;
-         while(tP && strcmp(hP, tP->text)) tP = tP->next;
+         while(tP && tP->text && strcmp(hP, tP->text)) tP = tP->next;
          if (tP) {Say.Emsg("Config","Ignoring duplicate manager", hP);
                   continue;
                  }

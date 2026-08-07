@@ -317,6 +317,7 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 
 // Build the url
 //
+   if (!XrdPosixGlobals::protoTab[0].name) return 0;
    strcpy(buff, XrdPosixGlobals::protoTab[0].name);
    strcat(buff, xpnow->server);
    strcat(buff, "/");

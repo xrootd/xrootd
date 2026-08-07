@@ -82,6 +82,11 @@ private:
         std::string remote;
         std::string name;
         std::string clID;
+        // Keeps the shared CA/CRL store alive for the duration of the transfer.
+        // Declared here, rather than alongside the curl handle, so that it outlives
+        // every handle the request creates -- including the duplicates that
+        // multi-stream transfers make, which inherit the pointer to this record.
+        std::shared_ptr<X509_STORE> ca_store;
         static XrdXrootdTpcMon* tpcMonitor;
         timeval     begT;
         off_t bytes_transferred;
@@ -102,8 +107,16 @@ private:
     static std::string GetAuthz(XrdHttpExtReq &req);
 
     // Configure curl handle's CA settings.  The CA files present here should
-    // be valid for the lifetime of the process.
-    void ConfigureCurlCA(CURL *curl);
+    // be valid for the lifetime of the process.  The record takes a reference to
+    // the shared CA store, so it must outlive the curl handle.
+    //
+    // Returns false if no trust anchors could be configured, in which case the
+    // transfer must be failed: letting it proceed would leave libcurl verifying
+    // against its built-in default CA bundle instead of the configured one.
+    bool ConfigureCurlCA(CURL *curl, TPCLogRecord &rec);
+
+    // Configure the minimum transfer rate and the permitted time below it.
+    void ConfigureCurlLowSpeed(CURL *curl);
 
     // Redirect the transfer according to the contents of an XrdOucErrInfo object.
     int RedirectTransfer(CURL *curl, const std::string &redirect_resource, XrdHttpExtReq &req,
@@ -175,6 +188,8 @@ private:
     bool m_desthttps;
     bool m_fixed_route;  // If 'true' the Destination IP in an HTTP-TPC is forced to be the same as the IP used to contact the server
                            // when 'false' any IP available can be selected
+    long m_low_speed_limit; // Minimum transfer rate in bytes per second; zero disables the check.
+    long m_low_speed_time; // Time the transfer may remain below m_low_speed_limit before it is aborted.
     int m_timeout; // the 'timeout interval'; if no bytes have been received during this time period, abort the transfer.
     int m_first_timeout; // the 'first timeout interval'; the amount of time we're willing to wait to get the first byte.
                          // Unless explicitly specified, this is 2x the timeout interval.
@@ -194,6 +209,11 @@ private:
     bool usingEC; // indicate if XrdEC is used
 
     static bool allowMissingCRL;
+
+    // Whether the libcurl we are linked against supports CURLOPT_SSL_CTX_FUNCTION,
+    // which only its OpenSSL-family TLS backends do.  Probed once at configuration
+    // time because without it the shared CA store cannot be installed.
+    bool m_sslctx_supported{false};
 
     // Time to connect the curl socket to the remote server uses the linux's default value
     // of 60 seconds
