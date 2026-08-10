@@ -299,6 +299,50 @@ TEST_F(XrdHttpTpcStreamTests, ZeroSizeWriteForcesFlushOfPartialBuffer) {
   EXPECT_TRUE(stream.Finalize());
 }
 
+TEST_F(XrdHttpTpcStreamTests, RepeatedFlushesPushOutBufferedDataOnce) {
+  XrdSysLogger logger(STDERR_FILENO, 0);
+  XrdSysError log(&logger, "StreamTest");
+  auto file = std::make_unique<MemorySfsFile>();
+  auto raw_file = file.get();
+  TPC::Stream stream(std::move(file), 2, 8, log);
+
+  ASSERT_EQ(4, stream.Write(0, "abcd", 4, false));
+  ASSERT_TRUE(raw_file->Writes().empty());
+
+  // TPC::State::Flush() ends up here.  In the multistream case every transfer
+  // state shares this stream and each of them flushes it, hence the repeated
+  // calls; none of them may fail, whatever offset the states stopped at.
+  EXPECT_EQ(0, stream.Flush());
+  EXPECT_EQ(0, stream.Flush());
+  ASSERT_EQ(1u, raw_file->Writes().size());
+  EXPECT_EQ(0, raw_file->Writes()[0].first);
+  EXPECT_EQ(4, raw_file->Writes()[0].second);
+  EXPECT_EQ(AsBytes("abcd"), raw_file->Data());
+  EXPECT_TRUE(stream.GetErrorMessage().empty());
+  EXPECT_TRUE(stream.Finalize());
+}
+
+TEST_F(XrdHttpTpcStreamTests, FlushSucceedsWhenNothingIsBuffered) {
+  XrdSysLogger logger(STDERR_FILENO, 0);
+  XrdSysError log(&logger, "StreamTest");
+  auto file = std::make_unique<MemorySfsFile>();
+  auto raw_file = file.get();
+  TPC::Stream stream(std::move(file), 2, 8, log);
+
+  // A buffer that gets exactly filled is written out straight away, so nothing
+  // is left in memory.  This is what the end of a transfer looks like when the
+  // size of the file is a multiple of the block size.
+  ASSERT_EQ(8, stream.Write(0, "abcdefgh", 8, false));
+  ASSERT_EQ(1u, raw_file->Writes().size());
+
+  EXPECT_EQ(0, stream.Flush());
+  EXPECT_EQ(0, stream.Flush());
+  EXPECT_EQ(1u, raw_file->Writes().size());
+  EXPECT_EQ(AsBytes("abcdefgh"), raw_file->Data());
+  EXPECT_TRUE(stream.GetErrorMessage().empty());
+  EXPECT_TRUE(stream.Finalize());
+}
+
 TEST_F(XrdHttpTpcStreamTests, FilesystemWriteFailureIsPropagated) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");

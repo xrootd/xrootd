@@ -124,23 +124,18 @@ public:
         return current_offset;
     }
 
-    // Flush every stream to the local filesystem.  Returns State::errNone and
-    // leaves error_msg untouched if all the streams could be flushed; otherwise
-    // returns the error code of the first failure encountered and sets error_msg
-    // to the corresponding error message.
+    // Flush the file to the local filesystem.  All the states share the same
+    // underlying stream, hence a single flush is enough -- and required: a
+    // second one would be a no-op at best.  Returns State::errNone and leaves
+    // error_msg untouched on success; otherwise returns State::errFlush and sets
+    // error_msg to the corresponding error message.
     int Flush(std::string &error_msg) {
-        int error_code = State::errNone;
-        for (std::vector<State*>::iterator state_it = m_states.begin();
-             state_it != m_states.end();
-             state_it++)
-        {
-            if (((*state_it)->Flush() == -1) && !error_code) {
-                error_code = State::errFlush;
-                error_msg = (*state_it)->GetFinalizeErrorMessage();
-                if (error_msg.empty()) {error_msg = "(no error message provided)";}
-            }
+        if (m_states.empty() || (m_states[0]->Flush() != -1)) {
+            return State::errNone;
         }
-        return error_code;
+        error_msg = m_states[0]->GetFinalizeErrorMessage();
+        if (error_msg.empty()) {error_msg = "(no error message provided)";}
+        return State::errFlush;
     }
 
     off_t BytesTransferred() const {
