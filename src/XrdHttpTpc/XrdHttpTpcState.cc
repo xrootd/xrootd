@@ -230,13 +230,11 @@ int State::Flush() {
         return 0;
     }
 
-    ssize_t retval = m_stream->Write(m_start_offset + m_offset, 0, 0, true);
-    if (retval == SFS_ERROR) {
+    if (m_stream->Flush() == SFS_ERROR) {
         RecordFinalizeError(errFlush, m_stream->GetErrorMessage());
         return -1;
     }
-    m_offset += retval;
-    return retval;
+    return 0;
 }
 
 size_t State::ReadCB(void *buffer, size_t size, size_t nitems, void *userdata) {
