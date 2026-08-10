@@ -54,6 +54,20 @@ public:
     // the error code and error message for the stream
     ssize_t Write(off_t offset, const char *buffer, size_t size, bool force);
 
+    // Force the data still held in the re-ordering buffers out to the underlying
+    // file handle, even if it results in unaligned or short writes.  Typically
+    // only done while shutting down the transfer.
+    //
+    // The flush is deliberately issued at the current offset of the stream: the
+    // offset a given transfer state stopped at is not necessarily the offset the
+    // stream has been written up to.  In the multistream case, all the states
+    // share this stream, and all but the one that happened to serve the last
+    // range end up before it -- flushing at their offset would be rejected as a
+    // write to a prior offset.
+    //
+    // Returns 0 on success; SFS_ERROR on failure.
+    ssize_t Flush() {return Write(m_offset, nullptr, 0, true);}
+
     size_t AvailableBuffers() const {return m_avail_count;}
 
     void DumpBuffers() const;
