@@ -155,8 +155,8 @@ int TPCHandler::opensocket_callback(void *clientp,
 
   std::stringstream connectErrMsg;
   if(!rec->pmarkManager.connect(fd, &(aInfo->addr), aInfo->addrlen, CONNECT_TIMEOUT, connectErrMsg)) {
+    // at this point fd has already been closed
     rec->m_log->Emsg(rec->log_prefix.c_str(), "Unable to connect socket: ", connectErrMsg.str().c_str());
-    close(fd);
     return CURL_SOCKET_BAD;
   }
 
