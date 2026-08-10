@@ -1,91 +1,21 @@
 #!/usr/bin/env bash
 #
-# bats-format-cdash — a Bats output formatter that writes the test results as a
-# CTest "Test.xml"-format document, so they can be submitted to a CDash server
-# (via ctest_submit) alongside the results CTest produces itself. Every @test in
-# every .bats file becomes its own <Test> element.
+# BATS formatter that writes a CDash Test.xml report.
 #
-# Where the XML lands is resolved at run time:
-#
-#     BATS_XML_FILE  -> exact output path (wins if set; used by tests/manual runs)
-#     BATS_XML_DIR   -> directory to write into. When it holds CTest run
-#                       subdirectories named by date_time (Testing/<TAG>, e.g.
-#                       20260715-1459), the file lands in the most recent one so
-#                       it sits beside that run's Test.xml; otherwise it lands in
-#                       BATS_XML_DIR itself. A fresh BatsTest<N>.xml (N = next
-#                       free number) is written on every bats invocation.
-#
-# Numbering each file means repeated runs never clobber each other and test.cmake
-# can submit them all. With neither variable set it falls back to ./BatsTest1.xml
-# in the current directory.
-#
-# To land on the same CDash build as the main submission, the <Site> header is
-# filled from these environment variables (normally exported by the CTest
-# dashboard script, so they match Test.xml exactly):
-#
-#     BATS_XML_SITE         -> Site Name       (default: hostname)
-#     BATS_XML_BUILDNAME    -> Site BuildName
-#     BATS_XML_BUILDSTAMP   -> Site BuildStamp  (e.g. "20260715-1343-Experimental")
-#     BATS_XML_SOURCE_ROOT  -> repo root, used to make <Path> relative
-#
-# Usage:
-#     BATS_XML_DIR=.../build/Testing \
-#       bats --recursive --timing \
-#            --formatter /abs/path/to/bats-format-cdash tests/end-to-end
-#
-# The formatter protocol (bats_tap_stream_* callbacks + the parser) comes from
-# Bats' own formatter library, exactly like the bundled tap/junit formatters.
+# CDash attaches the report to the build with the Site attributes. Set
+# CDASH_SITE, CDASH_BUILD_NAME, and CDASH_BUILD_STAMP to the values of the
+# CTest build. Without them, CDash creates a separate build for the report.
 
+set -e
 trap '' INT
 
-# shellcheck source=../../../vendor/bats/lib/bats-core/formatter.bash
+# shellcheck source=lib/bats-core/formatter.bash
 source "$BATS_ROOT/$BATS_LIBDIR/bats-core/formatter.bash"
 
-source_root="${BATS_XML_SOURCE_ROOT:-$PWD}"
-source_root="${source_root%/}"
-
-# Root of the end-to-end test tree, used to build each test's display prefix
-# (see bats_display_prefix). Falls back to source_root for manual runs.
-test_root="${BATS_XML_TEST_ROOT:-$source_root}"
-test_root="${test_root%/}"
-
-resolve_output_file() { # -> path of the BatsTest<N>.xml to write
-  # An explicit filename always wins (tests / manual runs).
-  if [[ -n ${BATS_XML_FILE:-} ]]; then
-    printf '%s' "$BATS_XML_FILE"
-    return
-  fi
-
-  local base_dir="${BATS_XML_DIR:-.}"
-  base_dir="${base_dir%/}"
-
-  # CTest stores each run's results in a date_time-named subdirectory of Testing
-  # (e.g. Testing/20260715-1459); land in the most recent one so BatsTest<N>.xml
-  # sits beside that run's Test.xml. Fall back to base_dir if there is none. The
-  # date_time format is lexically sortable, so a plain string compare finds it.
-  local dir="$base_dir" latest='' d name
-  for d in "$base_dir"/*/; do
-    name=${d%/}; name=${name##*/}
-    [[ $name == [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9] ]] || continue
-    [[ -z $latest || $name > $latest ]] && latest=$name
-  done
-  [[ -n $latest ]] && dir="$base_dir/$latest"
-
-  mkdir -p "$dir" 2>/dev/null || true
-
-  # One BatsTest<N>.xml per bats run; claim the next free number atomically.
-  # CTest runs one bats process per .bats file in parallel, so several formatters
-  # race for a name here: `set -o noclobber` makes the redirect create the file
-  # with O_EXCL and fail if it already exists, so each run claims a distinct N.
-  local n=1
-  until ( set -o noclobber; : > "$dir/BatsTest${n}.xml" ) 2>/dev/null; do
-    n=$(( n + 1 ))
-  done
-  printf '%s' "$dir/BatsTest${n}.xml"
-}
-
-# Indexed arrays keyed by the (numeric, global) test index, for Bash 3.2.
 declare -a case_name case_status case_ms case_path case_file case_output
+
+declare -r base_path="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+declare -r command_line="$(tr '\0' ' ' < "/proc/$PPID/cmdline" 2>/dev/null)"
 
 count=0
 current=0
@@ -94,159 +24,127 @@ current_file=''
 start_epoch=$(date +%s)
 start_human=$(date '+%b %d %H:%M %Z')
 
+site_name="${CDASH_SITE:-$(uname -n)}"
+build_name="${CDASH_BUILD_NAME:-$(uname -s)-$(uname -m)}"
+build_stamp="${CDASH_BUILD_STAMP:-$(date '+%Y%m%d-%H%M')-Experimental}"
+
 xml_escape() { # <text> -> XML-escaped text on stdout
   local text=$1
-  text=${text//&/&amp;}
-  text=${text//</&lt;}
-  text=${text//>/&gt;}
-  text=${text//\"/&quot;}
+  # Escape '&' in each replacement: bash 5.2 expands a bare '&' to the match.
+  text=${text//&/\&amp;}
+  text=${text//</\&lt;}
+  text=${text//>/\&gt;}
+  text=${text//\"/\&quot;}
   printf '%s' "$text"
 }
 
-relative_path() { # <absolute file> -> "./<dir relative to source root>"
-  local dir=${1%/*}
-  if [[ $dir == "$source_root"/* ]]; then
-    printf './%s' "${dir#"$source_root"/}"
-  elif [[ $dir == "$source_root" ]]; then
-    printf '.'
-  else
-    printf '%s' "$dir"
-  fi
-}
+print_report() {
+  local end_epoch i name path
+  end_epoch=$(date +%s)
 
-bats_display_prefix() { # <absolute .bats file> -> "end-to-end <rel path, no .bats>"
-  # Prefix each test's displayed name with the end-to-end suite label and the
-  # source .bats file (relative to the test root, extension stripped) so the
-  # cases are identifiable and grouped by their file in CDash.
-  local file=${1%.bats}
-  if [[ $file == "$test_root"/* ]]; then
-    file=${file#"$test_root"/}
-  else
-    file=${file##*/}
-  fi
-  printf 'end-to-end %s' "$file"
-}
-
-bats_tap_stream_plan() { # <count>
-  count="$1"
-}
-
-bats_tap_stream_suite() { # <file>
-  current_file="$1"
-  current_path="$(relative_path "$1")"
-}
-
-bats_tap_stream_begin() { # <index> <name>
-  current="$1"
-  case_path[$1]="$current_path"
-  case_file[$1]="$current_file"
-}
-
-bats_tap_stream_ok() { # <index> <name>
-  current="$1"
-  case_name[$1]="$2"
-  case_status[$1]=passed
-  case_ms[$1]="${BATS_FORMATTER_TEST_DURATION:-0}"
-}
-
-bats_tap_stream_skipped() { # <index> <name> <reason>
-  current="$1"
-  case_name[$1]="$2"
-  case_status[$1]=notrun
-  case_ms[$1]="${BATS_FORMATTER_TEST_DURATION:-0}"
-  case_output[$1]="Skipped${3:+: $3}"
-}
-
-bats_tap_stream_not_ok() { # <index> <name>
-  current="$1"
-  case_name[$1]="$2"
-  case_status[$1]=failed
-  case_ms[$1]="${BATS_FORMATTER_TEST_DURATION:-0}"
-}
-
-bats_tap_stream_comment() { # <text> <scope>
-  [[ -n $current ]] && case_output[$current]+="$1"$'\n'
-  return 0
-}
-
-bats_tap_stream_unknown() { # <line> <scope>
-  [[ -n $current ]] && case_output[$current]+="$1"$'\n'
-  return 0
-}
-
-bats_parse_internal_extended_tap
-
-#-------------------------------------------------------------------------------
-# Emit the Test.xml document
-#-------------------------------------------------------------------------------
-
-end_epoch=$(date +%s)
-end_human=$(date '+%b %d %H:%M %Z')
-elapsed_minutes=$(( (end_epoch - start_epoch) / 60 ))
-
-site_name=$(xml_escape "${BATS_XML_SITE:-$(hostname)}")
-build_name=$(xml_escape "${BATS_XML_BUILDNAME}")
-build_stamp=$(xml_escape "${BATS_XML_BUILDSTAMP}")
-
-output_file=$(resolve_output_file)
-mkdir -p "$(dirname "$output_file")" 2>/dev/null || true
-
-{
   printf '<?xml version="1.0" encoding="UTF-8"?>\n'
-  printf '<Site BuildName="%s"\n' "$build_name"
-  printf '\tBuildStamp="%s"\n' "$build_stamp"
-  printf '\tName="%s"\n' "$site_name"
-  printf '\tGenerator="bats-format-cdash"\n'
-  printf '\tOSName="%s"\n' "$(xml_escape "$(uname -s)")"
-  printf '\tHostname="%s"\n' "$site_name"
-  printf '\tOSPlatform="%s"\n' "$(xml_escape "$(uname -m)")"
-  printf '\t>\n'
+  printf '<Site BuildName="%s" BuildStamp="%s" Name="%s" Generator="bats-format-cdash">\n' \
+    "$(xml_escape "$build_name")" "$(xml_escape "$build_stamp")" "$(xml_escape "$site_name")"
   printf '\t<Testing>\n'
   printf '\t\t<StartDateTime>%s</StartDateTime>\n' "$start_human"
   printf '\t\t<StartTestTime>%s</StartTestTime>\n' "$start_epoch"
+
   printf '\t\t<TestList>\n'
-  for (( i = 1; i <= count; i++ )); do
-    printf '\t\t\t<Test>%s/%s</Test>\n' \
-      "$(xml_escape "${case_path[i]-.}")" \
-      "$(xml_escape "$(bats_display_prefix "${case_file[i]-}") ${case_name[i]-}")"
+  for ((i = 1; i <= count; i++)); do
+    printf '\t\t\t<Test>%s</Test>\n' \
+      "$(xml_escape "${case_path[i]}/${case_file[i]} ${case_name[i]}")"
   done
   printf '\t\t</TestList>\n'
 
-  for (( i = 1; i <= count; i++ )); do
-    # Displayed name carries the "end-to-end <file>" prefix; case_name stays raw
-    # so the --filter command line below still matches the real @test name.
-    name=$(xml_escape "$(bats_display_prefix "${case_file[i]-}") ${case_name[i]-}")
-    path=$(xml_escape "${case_path[i]-.}")
-    status="${case_status[i]-notrun}"
-    ms="${case_ms[i]-0}"
-    printf -v seconds '%g' "${ms}e-3" # milliseconds -> seconds
-    command_line=$(xml_escape "bats --filter \"${case_name[i]-}\" ${case_file[i]-}")
-    encoded_output=$(printf '%s' "${case_output[i]-}" | base64 | tr -d '\n')
+  for ((i = 1; i <= count; i++)); do
+    name=$(xml_escape "${case_file[i]} ${case_name[i]}")
+    path=$(xml_escape "${case_path[i]}")
+    printf -v seconds '%g' "${case_ms[i]}e-3" # milliseconds -> seconds
 
-    printf '\t\t<Test Status="%s">\n' "$status"
+    printf '\t\t<Test Status="%s">\n' "${case_status[i]}"
     printf '\t\t\t<Name>%s</Name>\n' "$name"
     printf '\t\t\t<Path>%s</Path>\n' "$path"
     printf '\t\t\t<FullName>%s/%s</FullName>\n' "$path" "$name"
-    printf '\t\t\t<FullCommandLine>%s</FullCommandLine>\n' "$command_line"
+    printf '\t\t\t<FullCommandLine>%s</FullCommandLine>\n' "$(xml_escape "$command_line")"
     printf '\t\t\t<Results>\n'
-    if [[ $status == failed ]]; then
-      printf '\t\t\t\t<NamedMeasurement type="text/string" name="Exit Code"><Value>Failed</Value></NamedMeasurement>\n'
-      printf '\t\t\t\t<NamedMeasurement type="text/string" name="Exit Value"><Value>1</Value></NamedMeasurement>\n'
+    printf '\t\t\t\t<NamedMeasurement type="numeric/double" name="Execution Time">\n'
+    printf '\t\t\t\t\t<Value>%s</Value>\n' "$seconds"
+    printf '\t\t\t\t</NamedMeasurement>\n'
+    printf '\t\t\t\t<NamedMeasurement type="text/string" name="Completion Status">\n'
+    printf '\t\t\t\t\t<Value>Completed</Value>\n'
+    printf '\t\t\t\t</NamedMeasurement>\n'
+    printf '\t\t\t\t<NamedMeasurement type="text/string" name="Command Line">\n'
+    printf '\t\t\t\t\t<Value>%s</Value>\n' "$(xml_escape "$command_line")"
+    printf '\t\t\t\t</NamedMeasurement>\n'
+    printf '\t\t\t\t<Measurement>\n'
+    if [[ -z "${case_output[i]}" ]]; then
+      printf '\t\t\t\t\t<Value></Value>\n'
+    else
+      # CDash decompresses the value with zlib, not with the gzip file format.
+      printf '\t\t\t\t\t<Value encoding="base64" compression="gzip">%s</Value>\n' \
+        "$(printf '%s' "${case_output[i]}" | openssl zlib -e | base64)"
     fi
-    if [[ $status != notrun ]]; then
-      printf '\t\t\t\t<NamedMeasurement type="numeric/double" name="Execution Time"><Value>%s</Value></NamedMeasurement>\n' "$seconds"
-    fi
-    printf '\t\t\t\t<NamedMeasurement type="numeric/double" name="Processors"><Value>1</Value></NamedMeasurement>\n'
-    printf '\t\t\t\t<NamedMeasurement type="text/string" name="Completion Status"><Value>Completed</Value></NamedMeasurement>\n'
-    printf '\t\t\t\t<NamedMeasurement type="text/string" name="Command Line"><Value>%s</Value></NamedMeasurement>\n' "$command_line"
-    printf '\t\t\t\t<Measurement><Value encoding="base64">%s</Value></Measurement>\n' "$encoded_output"
+    printf '\t\t\t\t</Measurement>\n'
     printf '\t\t\t</Results>\n'
     printf '\t\t</Test>\n'
   done
 
-  printf '\t\t<EndDateTime>%s</EndDateTime>\n' "$end_human"
+  printf '\t\t<EndDateTime>%s</EndDateTime>\n' "$(date '+%b %d %H:%M %Z')"
   printf '\t\t<EndTestTime>%s</EndTestTime>\n' "$end_epoch"
-  printf '\t\t<ElapsedMinutes>%s</ElapsedMinutes>\n' "$elapsed_minutes"
+  printf '\t\t<ElapsedMinutes>%s</ElapsedMinutes>\n' "$(((end_epoch - start_epoch) / 60))"
   printf '\t</Testing>\n'
   printf '</Site>\n'
-} > "$output_file"
+}
+
+trap print_report EXIT
+
+bats_tap_stream_plan() {
+  :
+}
+
+bats_tap_stream_suite() { # <file>
+  local file="$(realpath "$1")"
+  file="${file#"$base_path"/}"
+  current_path=$(dirname "$file")
+  current_file=$(basename "$file" .bats)
+}
+
+bats_tap_stream_begin() { # <index>
+  current="$1"
+  ((count < current)) && count="$current"
+  case_path[current]="$current_path"
+  case_file[current]="$current_file"
+  case_name[current]=''
+  case_status[current]='notrun'
+  case_ms[current]=0
+  case_output[current]=''
+  return 0
+}
+
+bats_tap_stream_ok() { # <index> <name>
+  case_name[$1]="$2"
+  case_status[$1]='passed'
+  case_ms[$1]="${BATS_FORMATTER_TEST_DURATION:-0}"
+}
+
+bats_tap_stream_skipped() { # <index> <name> <reason>
+  case_name[$1]="$2"
+  case_status[$1]='notrun'
+  case_output[$1]="Skipped${3:+: $3}"
+}
+
+bats_tap_stream_not_ok() { # <index> <name>
+  case_name[$1]="$2"
+  case_status[$1]='failed'
+  case_ms[$1]="${BATS_FORMATTER_TEST_DURATION:-0}"
+}
+
+bats_tap_stream_comment() { # <text>
+  case_output[current]+="$1"$'\n'
+}
+
+bats_tap_stream_unknown() { # <line>
+  case_output[current]+="$1"$'\n'
+}
+
+bats_parse_internal_extended_tap

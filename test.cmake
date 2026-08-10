@@ -277,19 +277,6 @@ endif()
 if(NOT ${BUILD_RESULT} EQUAL 0)
   message(SEND_ERROR "Build failed")
 else()
-  # Hand the output directory and Site identity to bats-format-cdash (via the
-  # environment inherited by the end-to-end test) so the BatsTest<N>.xml files it
-  # writes land in this run's Testing/<date_time> directory and attach to the
-  # same CDash build as Test.xml. BuildStamp is "<tag>-<track>", the first two
-  # lines of Testing/TAG.
-  file(STRINGS "${CTEST_BINARY_DIRECTORY}/Testing/TAG" BATS_TAG_LINES LIMIT_COUNT 2)
-  list(GET BATS_TAG_LINES 0 BATS_BUILD_TAG)
-  list(GET BATS_TAG_LINES 1 BATS_BUILD_TRACK)
-  set(ENV{BATS_XML_DIR} "${CTEST_BINARY_DIRECTORY}/Testing")
-  set(ENV{BATS_XML_SITE} "${CTEST_SITE}")
-  set(ENV{BATS_XML_BUILDNAME} "${CTEST_BUILD_NAME}")
-  set(ENV{BATS_XML_BUILDSTAMP} "${BATS_BUILD_TAG}-${BATS_BUILD_TRACK}")
-
   if(NOT DEFINED CTEST_MEMORYCHECK_TYPE)
     section("Test")
     ctest_test(RETURN_VALUE TEST_RESULT
@@ -340,10 +327,11 @@ if(CDASH OR (DEFINED ENV{CDASH} AND "$ENV{CDASH}"))
     CAPTURE_CMAKE_ERROR SUBMIT_ERROR
     QUIET)
 
-  # bats-format-cdash writes one BatsTest<N>.xml per run into this run's
-  # Testing/<date_time> directory; submit every one of them.
+  # CTest stores the tag of the current run in the first line of this file.
+  file(STRINGS "${CTEST_BINARY_DIRECTORY}/Testing/TAG" BATS_BUILD_TAG LIMIT_COUNT 1)
+
   file(GLOB BATS_XML_FILES
-    "${CTEST_BINARY_DIRECTORY}/Testing/${BATS_BUILD_TAG}/BatsTest*.xml")
+    "${CTEST_BINARY_DIRECTORY}/Testing/${BATS_BUILD_TAG}/BatsTest.*.xml")
   if(BATS_XML_FILES)
     ctest_submit(FILES ${BATS_XML_FILES} BUILD_ID BUILDID QUIET)
   endif()
