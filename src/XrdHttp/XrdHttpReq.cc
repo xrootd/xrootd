@@ -852,18 +852,9 @@ void XrdHttpReq::parseResource(char *res) {
     // to the resource string. Here we choose to ignore it as a protection measure
     sanitizeResourcePfx();
 
-    std::string resourceDecoded = decode_str(resource.c_str());
-    resource = resourceDecoded.c_str();
+    const std::string resourceDecoded = decode_str(resource.c_str());
     resourceplusopaque = resourceDecoded.c_str();
-
-
-    // Sanitize the resource string, removing double slashes
-    int pos = 0;
-    do {
-      pos = resource.find("//", pos);
-      if (pos != STR_NPOS)
-        resource.erase(pos, 1);
-    } while (pos != STR_NPOS);
+    resource = httpCollapseSlashes(resourceDecoded).c_str();
 
     return;
   }
@@ -877,15 +868,7 @@ void XrdHttpReq::parseResource(char *res) {
   // to the resource string. Here we choose to ignore it as a protection measure
   sanitizeResourcePfx();
 
-  resource = decode_str(resource.c_str()).c_str();
-
-  // Sanitize the resource string, removing double slashes
-  int pos = 0;
-  do {
-    pos = resource.find("//", pos);
-    if (pos != STR_NPOS)
-      resource.erase(pos, 1);
-  } while (pos != STR_NPOS);
+  resource = httpCollapseSlashes(decode_str(resource.c_str())).c_str();
 
   resourceplusopaque = resource;
   // Whatever comes after is opaque data to be parsed
