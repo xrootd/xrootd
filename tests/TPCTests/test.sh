@@ -62,16 +62,19 @@ check_commands "${ADLER32}" "${CRC32C}" "${XRDCP}" "${XRDFS}" "${OPENSSL}" "${CU
 declare -a hosts=(
     "root://localhost:10951"
     "root://localhost:10952"
+    "root://localhost:10953"
 )
 
 declare -a hosts_http=(
     "https://localhost:10951"
     "https://localhost:10952"
+    "https://localhost:10953"
 )
 
 declare -a hosts_abbrev=(
     "srv1"
     "srv2"
+    "srv3"
 )
 
 # Files used by the multistream HTTP TPC tests.  Both sizes are transferred on
@@ -127,14 +130,14 @@ cleanup() {
     done
 
     # Cleanup local and remote files
-    for src_idx in {0..1}; do
+    for src_idx in {0..2}; do
         src=${hosts_abbrev[${src_idx}]}
         rm "${LCLDATADIR}/${src}.dat" || :
         rm "${LCLDATADIR}/${src}.ref" || :
 
         ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}.ref" || :
 
-        for dst_idx in {0..1}; do
+        for dst_idx in {0..2}; do
            dst=${hosts_abbrev[${dst_idx}]}
            rm "${LCLDATADIR}/${src}_to_${dst}.dat" || :
            rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_pull" || :
@@ -291,6 +294,15 @@ plain_http_tpc() {
     pull)
         http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
             --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+            -H "Authorization: Bearer ${token_src}" \
+            -H "TransferHeaderAuthorization: Bearer ${token_dst}" \
+            -H "Source: ${src}" "${dst}")
+    ;;
+
+    pullsci)
+        http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
+            --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+            -H "scitag: 0" \
             -H "Authorization: Bearer ${token_src}" \
             -H "TransferHeaderAuthorization: Bearer ${token_dst}" \
             -H "Source: ${src}" "${dst}")
@@ -522,6 +534,11 @@ cleanup
 
 assert_eq "400" "$(plain_http_tpc pull "file:///etc/os-release" "$BEARER_TOKEN" "${hosts_http[0]}/${RMTDATADIR}/os-release" "$BEARER_TOKEN")" "Did not reject disallowed protocol"
 assert_eq "400" "$(plain_http_tpc push "${hosts_http[0]}" "$BEARER_TOKEN" "${hosts_http[0]/https/root}/${RMTDATADIR}/fake.root" "$BEARER_TOKEN")" "Did not reject disallowed protocol"
+
+# this test may cause the server to crash
+export XRD_CONNECTIONRETRY=0
+assert_eq "500" "$(plain_http_tpc pullsci "https://255.255.255.255//tffile1" "$BEARER_TOKEN" "${hosts_http[2]}/${RMTDATADIR}/tffile1" "$BEARER_TOKEN")" "Did not fail with broadcast address"
+unset XRD_CONNECTIONRETRY
 
 echo "ALL TESTS PASSED"
 exit 0
