@@ -5,6 +5,7 @@
 #include "XrdHttp/XrdHttpChecksumHandler.hh"
 #include "XrdHttp/XrdHttpReadRangeHandler.hh"
 #include "XrdHttp/XrdHttpHeaderUtils.hh"
+#include "XrdHttp/XrdHttpUtils.hh"
 #include "XrdHttpCors/XrdHttpCorsHandler.hh"
 #include <exception>
 #include <gtest/gtest.h>
@@ -632,6 +633,51 @@ TEST(XrdHttpTests,encodeOpaqueTest) {
   for(auto [decoded,encoded]: decodedEncodedOpaque) {
     ASSERT_EQ(encoded,encode_opaque(decoded));
   }
+}
+
+TEST(XrdHttpTests, pathFromAbsoluteUrl) {
+  EXPECT_STREQ("/store/a", httpPathFromAbsoluteUrl("https://site.example:1094/store/a"));
+  EXPECT_STREQ("//pfn/path", httpPathFromAbsoluteUrl("root://host:1094//pfn/path"));
+  EXPECT_EQ(nullptr, httpPathFromAbsoluteUrl("https://site.example"));
+  EXPECT_EQ(nullptr, httpPathFromAbsoluteUrl("site.example"));
+  EXPECT_EQ(nullptr, httpPathFromAbsoluteUrl(nullptr));
+}
+
+TEST(XrdHttpTests, buildRedirectLocationHostPort) {
+  EXPECT_EQ("Location: https://site.example:1094/store/lfn",
+            httpBuildRedirectLocation(true, 1094, "site.example", "/store/lfn"));
+  EXPECT_EQ("Location: http://site.example:1094/store/lfn",
+            httpBuildRedirectLocation(false, 1094, "site.example", "/store/lfn"));
+}
+
+TEST(XrdHttpTests, buildRedirectLocationAbsoluteUrl) {
+  // port < 0 => URL-form: do not double the scheme or append the original LFN.
+  EXPECT_EQ("Location: https://site.example:443//dcache/store/file.root",
+            httpBuildRedirectLocation(
+                true, -1, "https://site.example:443//dcache/store/file.root", "/store/lfn"));
+  // No explicit port, and a '//' in the PFN path, are both preserved verbatim.
+  EXPECT_EQ("Location: https://site.example//pfn/file.root",
+            httpBuildRedirectLocation(true, -1, "https://site.example//pfn/file.root",
+                                      "/store/lfn"));
+  // XrdCmsRedirLocal sends localroot + path, so the LFN is already in the URL.
+  EXPECT_EQ("Location: file:///data/localroot/store/lfn",
+            httpBuildRedirectLocation(false, -1, "file:///data/localroot/store/lfn",
+                                      "/store/lfn"));
+}
+
+TEST(XrdHttpTests, collapseSlashes) {
+  EXPECT_EQ("/pfn/path", httpCollapseSlashes("//pfn/path"));
+  EXPECT_EQ("/a/b", httpCollapseSlashes("///a////b"));
+  EXPECT_EQ("/store/plain", httpCollapseSlashes("/store/plain"));
+  EXPECT_EQ("/", httpCollapseSlashes("//"));
+  EXPECT_EQ("", httpCollapseSlashes(""));
+
+  // decode_str() then collapse is the canonical request path: both ends of a
+  // redirect must produce the same string or the token hash will not validate.
+  EXPECT_EQ("/store/a b", httpCollapseSlashes(decode_str("/store//a%20b")));
+  EXPECT_EQ("/store/a+b", httpCollapseSlashes(decode_str("/store/a%2Bb")));
+  // Collapsing does not decode, so it cannot decode a second time.
+  EXPECT_EQ("/store/a%20b", httpCollapseSlashes(decode_str("/store/a%2520b")));
 }
 
 static inline const std::pair<std::string, std::map<std::string,std::string>> reprDigest[] {

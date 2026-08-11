@@ -197,16 +197,9 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
     // passed all checks, now to actual business
     // prepend manually configured localroot
     std::string ppath = "file://" + localroot + path;
-    if (strncmp(dialect.c_str(), "http", 4) == 0)
-    {
-      // set info which will be sent to client
-      // eliminate the resource name so it is not doubled in XrdHttpReq::Redir.
-      Resp.setErrInfo(-1, ppath.substr(0, ppath.find(path)).c_str());
-    }
-    else{
-      // set info which will be sent to client
-      Resp.setErrInfo(-1, ppath.c_str());
-    }
+    // A negative port tells the client the error text is a complete URL
+    // the path must be included for every dialect.
+    Resp.setErrInfo(-1, ppath.c_str());
     return SFS_REDIRECT;
   }
   return rcode;
