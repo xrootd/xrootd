@@ -6,6 +6,28 @@ Release Notes
 =============
 
 -------------
+Version 6.1.1
+-------------
+
+All bugfixes and improvements from XRootD 5.9.7 are also in XRootD 6.1.1.
+
++ **Bugfixes**
+  **[XrdClHttp]** Fix errors in complex vectored reads (#2858)
+  **[XrdClS3]** Fix use-after-move crash when synchronous read fails (#2790)
+  **[XrdCl]** Fix deadlock in poller after fork handler has run (#2879)
+  **[XrdCl]** Fix wrong path when falling back to load-balancer (#2394)
+  **[XrdHttpTpc]** Fix double close of file descriptor (#2889)
+  **[XrdHttpTpc]** Fix flush of destination file in multistream mode (#2891)
+  **[XrdHttp]** Fix invalid XML output in HTTP monitoring streams (#2843)
+  **[XrdPfc]** Fix snprintf handling in config printout (#2860)
+
++ **Miscellaneous**
+  **[CI]** Tolerate transient CDash upload failures (#2880)
+  **[Tests]** Add bundled GoogleTest, GoogleMock, and BATS frameworks (#2849, #2851)
+  **[XrdClS3]** Enable prefeth in full download for chunked encoding (#2850)
+  **[XrdCl]** Switch to new constructors to initialize XrdCl::File (#2848)
+
+-------------
 Version 6.1.0
 -------------
 
