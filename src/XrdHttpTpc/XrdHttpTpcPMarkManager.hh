@@ -72,7 +72,8 @@ public:
    * Will connect the socket attached to the file descriptor within a certain timeout and add the file descriptor to the.
    * packet marking manager so packet marking can be done achieved later on
    * If pmark is not enabled, this function will just return true without trying to connect (libcurl will
-   * perform the connection). False will be returned in case the connection could not have been done.
+   * perform the connection). False will be returned in case the connection could not be done and
+   * the file descritor will be closed.
    *
    * @param fd the fd associated to the socket
    * @param sockP the connection information
