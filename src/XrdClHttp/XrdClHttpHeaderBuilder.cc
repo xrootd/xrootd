@@ -112,9 +112,11 @@ HeaderBuilder::Build(const std::string &spec, HeaderList &headers)
     // aside and hand it over only once every entry has been accepted.
     headers.clear();
 
-    // Walk the newline separated entries, stopping at the first unusable one.
+    // Walk the newline separated entries, reporting every unusable one so a user
+    // who wrote several mistakes sees them all at once.
     // An empty specification simply yields no headers.
     HeaderList requested;
+    bool usable = true;
     const std::string_view all(spec);
     for (auto pos = all.begin(); pos != all.end(); ) {
         const auto eol = std::find(pos, all.end(), '\n');
@@ -129,32 +131,63 @@ HeaderBuilder::Build(const std::string &spec, HeaderList &headers)
         }
 
         // The value may itself contain colons, so split on the first one only.
+        // Without a colon the entry carries no value, so the log can show the
+        // whole entry without showing a value the user keeps private.
         const auto colon = std::find(entry.begin(), entry.end(), ':');
         if (colon == entry.end()) {
-            return false;
+            m_logger->Error(kLogXrdClHttp, "Requested header %s holds no colon;"
+                " each header must read \"<name>: <value>\"",
+                std::string(entry).c_str());
+            usable = false;
+            continue;
         }
         const auto split = static_cast<std::string_view::size_type>(colon - entry.begin());
 
         // The name must be a non-empty RFC 7230 token.
         const auto name = Trim(entry.substr(0, split), ows);
-        if (name.empty() || !std::all_of(name.begin(), name.end(), [](char c) {
+        if (name.empty()) {
+            m_logger->Error(kLogXrdClHttp, "Requested header holds no name before"
+                " its colon");
+            usable = false;
+            continue;
+        }
+        if (!std::all_of(name.begin(), name.end(), [](char c) {
                 return Contains(tchar, c);
             }))
         {
-            return false;
+            m_logger->Error(kLogXrdClHttp, "Requested header %s holds a name that"
+                " is not an HTTP token", std::string(name).c_str());
+            usable = false;
+            continue;
         }
         if (IsForbiddenHeader(std::string(name))) {
-            return false;
+            m_logger->Error(kLogXrdClHttp, "Requested header %s must not be set by"
+                " the client", std::string(name).c_str());
+            usable = false;
+            continue;
         }
 
         // A newline separates entries and so cannot occur in a value, but an
         // embedded carriage return would let one forge part of the request.
         const auto value = Trim(entry.substr(split + 1), ows);
-        if (value.empty() || Contains(value, '\r')) {
-            return false;
+        if (value.empty()) {
+            m_logger->Error(kLogXrdClHttp, "Requested header %s holds no value",
+                std::string(name).c_str());
+            usable = false;
+            continue;
+        }
+        if (Contains(value, '\r')) {
+            m_logger->Error(kLogXrdClHttp, "Requested header %s holds a carriage"
+                " return in its value", std::string(name).c_str());
+            usable = false;
+            continue;
         }
 
         requested.emplace_back(name, value);
+    }
+
+    if (!usable) {
+        return false;
     }
 
     if (requested.empty()) {

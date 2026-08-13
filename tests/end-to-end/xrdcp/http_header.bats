@@ -289,6 +289,73 @@ teardown() {
 }
 
 #
+# what the client log says about a header it refused, one message per fault
+#
+
+@test "a header without a separator should say the colon is missing" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H 'nocolon' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header nocolon holds no colon' client.log
+}
+
+@test "a header without a name should say the name is missing" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H ': novalue' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header holds no name before its colon' client.log
+}
+
+@test "a header with a space in the name should say the name is not a token" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H 'X Test: value' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header X Test holds a name that is not an HTTP token' client.log
+}
+
+@test "a header with a parenthesis in the name should say the name is not a token" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H 'X(Test): value' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header X(Test) holds a name that is not an HTTP token' client.log
+}
+
+@test "a reserved header should say the client must not set it" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H 'Host: evil.example.com' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header Host must not be set by the client' client.log
+}
+
+@test "a header without a value should say the value is missing" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H 'X-Test-Header:' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header X-Test-Header holds no value' client.log
+}
+
+@test "a header with a carriage return should say the value holds one" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H $'X-Test-Header: a\rEvil: b' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header X-Test-Header holds a carriage return in its value' client.log
+}
+
+# Every header is examined, so a command line with several mistakes reports each
+# of them instead of only the first.
+@test "two unusable headers should report the first one" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H 'nocolon' -H 'X-Test-Header:' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header nocolon holds no colon' client.log
+}
+
+@test "two unusable headers should report the second one" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H 'nocolon' -H 'X-Test-Header:' $HOST//examplefile -
+	run -0 grep -F -- 'Requested header X-Test-Header holds no value' client.log
+}
+
+# The name of a refused header reaches the log, but its value never does.
+@test "a refused header should not write its value to the client log" {
+	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
+		run ! xrdcp -H 'Host: evil.example.com' $HOST//examplefile -
+	run ! grep -F -- 'evil.example.com' client.log
+}
+
+#
 # options -H took over
 #
 
