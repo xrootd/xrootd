@@ -31,10 +31,8 @@
 
 #include <atomic>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -289,30 +287,6 @@ public:
         m_minimum_transfer_rate = rate;
     }
 
-    // Returns true if the named header may not be injected by the client.
-    static bool IsForbiddenHeader(const std::string &name);
-
-    // Assemble the headers to send with this request into `headers`.
-    //
-    // These are the operation's own headers plus any requested through the
-    // HttpHeaders environment setting, which xrdcp fills in from its --header
-    // option.  The setting is a newline separated list of "<name>: <value>"
-    // entries; this is the only place those are interpreted, so callers pass the
-    // user's input through verbatim.
-    //
-    // Requested headers never displace one the operation set for itself, and bind
-    // to the first endpoint that receives them: requests to any other host do not
-    // get them, so a credential meant for one host is not handed to another when a
-    // transfer involves more than one HTTP endpoint.
-    //
-    // Returns false if any requested header is malformed or names one that may not
-    // be overridden, in which case the request must not be sent -- quietly
-    // dropping it could send a request without its credentials.
-    //
-    // Note: made public to help unit testing of the class; not intended for
-    // direct invocation.
-    bool BuildRequestHeaders(HeaderList &headers);
-
 protected:
 
     // Update the count of bytes transferred
@@ -361,31 +335,6 @@ private:
     // This is also used for the calculation of the interval of the EMA rate
     static constexpr std::chrono::steady_clock::duration m_default_stall_interval{std::chrono::seconds(60)};
     static std::chrono::steady_clock::duration m_stall_interval;
-
-    // Headers that may not be injected by the client.
-    //
-    // These are the RFC 7230 hop-by-hop and message framing headers plus Host.
-    // Overriding them permits request smuggling (Content-Length,
-    // Transfer-Encoding, TE, Trailer), cache poisoning and routing confusion
-    // (Host), leaking proxy credentials to an origin (Proxy-*), or protocol
-    // switch attempts (Upgrade, Connection, Keep-Alive).  Several are also owned
-    // by libcurl or by the header callout and overriding them would corrupt the
-    // request framing -- Content-Length in particular is set from
-    // CURLOPT_INFILESIZE_LARGE.
-    //
-    // Held in lower case; IsForbiddenHeader folds the name before looking it up.
-    static const std::unordered_set<std::string_view> m_forbidden_headers;
-
-    // The "host:port" the requested headers are bound to, empty until the first
-    // request receives them; guarded by m_injected_mutex.
-    static std::string m_injected_host;
-
-    // The specification the binding above was made for.  A change of
-    // specification starts a new transfer and so releases the binding; guarded by
-    // m_injected_mutex.
-    static std::string m_injected_spec;
-
-    static std::mutex m_injected_mutex;
 
     OpError m_error{ErrNone};
     XErrorCode m_callback_error_code{kXR_noErrorYet}; // Stored error that occurred in a callback.

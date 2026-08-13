@@ -61,13 +61,14 @@ re-creates a file if it is already present.
 .RE
 \fB-H\fR | \fB--header\fR \fIname: value\fR
 .RS 5
-adds the given header to the requests sent to the http or https endpoint. May be
+adds the given header to the requests sent to an http or https endpoint. May be
 repeated to add more than one header. Requires that the source or the destination
-is an http or https URL, and applies to the first such endpoint contacted. The
-\fBConnection\fR, \fBContent-Length\fR, \fBExpect\fR, \fBHost\fR, \fBKeep-Alive\fR,
+is an http or https URL. The \fBAuthorization\fR, \fBConnection\fR,
+\fBContent-Length\fR, \fBExpect\fR, \fBHost\fR, \fBKeep-Alive\fR,
 \fBProxy-Authenticate\fR, \fBProxy-Authorization\fR, \fBProxy-Connection\fR,
-\fBTE\fR, \fBTrailer\fR, \fBTransfer-Encoding\fR and \fBUpgrade\fR headers are
-reserved and may not be overridden.
+\fBTE\fR, \fBTrailer\fR, \fBTransfer-Encoding\fR,
+\fBTransferHeaderAuthorization\fR and \fBUpgrade\fR headers are reserved and may
+not be overridden.
 .PP
 In a third party copy (\fB--tpc\fR), the headers go to the server the client
 connects to: the destination server in \fBpull\fR mode, or the source server in
@@ -76,13 +77,13 @@ connect to, prepend \fBTransferHeader\fR to the header name. For example, in
 \fBpull\fR mode:
 .PP
 .RS 3
-\fB-H\fR "Authorization: Bearer <destination-token>"
+\fB-H\fR "X-Request-Id: <destination-id>"
 .br
-\fB-H\fR "TransferHeaderAuthorization: Bearer <source-token>"
+\fB-H\fR "TransferHeaderX-Request-Id: <source-id>"
 .RE
 .PP
-The destination server gets the \fBAuthorization\fR header, and sends the value of
-\fBTransferHeaderAuthorization\fR as the \fBAuthorization\fR header of its request
+The destination server gets the \fBX-Request-Id\fR header, and sends the value of
+\fBTransferHeaderX-Request-Id\fR as the \fBX-Request-Id\fR header of its request
 to the source server.
 
 .RE

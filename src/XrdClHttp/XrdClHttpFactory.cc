@@ -193,8 +193,8 @@ Factory::Initialize()
         // Headers to inject into outgoing requests, given as a newline separated
         // list of "<name>: <value>" entries.  Set programmatically by xrdcp for
         // its --header option, so only fall back to the environment variable when
-        // no value was provided.  CurlOperation::BuildRequestHeaders is what reads
-        // and interprets it, once per request.
+        // no value was provided.  HeaderBuilder::Build is what interprets it, once
+        // per request.
         //
         // Note this deliberately does not use SetIfEmpty: header values routinely
         // carry credentials and must not be written to the log.

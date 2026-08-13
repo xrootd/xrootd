@@ -204,6 +204,14 @@ teardown() {
 	run ! xrdcp -H 'Connection: close' $HOST//examplefile -
 }
 
+@test "--header naming Authorization fails" {
+	run ! xrdcp -H 'Authorization: Bearer token' $HOST//examplefile -
+}
+
+@test "--header naming TransferHeaderAuthorization fails" {
+	run ! xrdcp -H 'TransferHeaderAuthorization: Bearer token' $HOST//examplefile -
+}
+
 @test "a reserved header should reject the whole command line" {
 	run ! xrdcp -H 'X-Test-Header: e2e-value' -H 'Host: evil.example.com' \
 		$HOST//examplefile -
@@ -264,20 +272,20 @@ teardown() {
 	assert_output --partial 'Invalid header requested'
 }
 
-# Header values routinely carry credentials, so the value must never reach the
-# log even at the most verbose level; only the name may be reported.
-@test "a header value should not be written to the client log" {
-	# the download has to succeed, otherwise the value is missing from the log
-	# only because no request was ever made
+# A reserved header is refused before any request is built, so neither its name
+# nor its value can reach the log.
+@test "a rejected credential should not be written to the client log" {
 	XRD_LOGLEVEL=Dump XRD_LOGFILE=client.log \
-		run -0 xrdcp -H 'Authorization: Bearer SUPERSECRETTOKEN' $HOST//examplefile -
+		run ! xrdcp -H 'Authorization: Bearer SUPERSECRETTOKEN' $HOST//examplefile -
 	run ! grep -F -- 'SUPERSECRETTOKEN' client.log
 }
 
+# The name is reported so that a transfer can be told apart from one that sent
+# no header at all.
 @test "a header name should be written to the client log" {
 	XRD_LOGLEVEL=Dump XRD_LOGFILE=client.log \
-		run xrdcp -H 'Authorization: Bearer SUPERSECRETTOKEN' $HOST//examplefile -
-	run -0 grep -F -- 'Authorization' client.log
+		run -0 xrdcp -H 'X-Test-Header: e2e-value' $HOST//examplefile -
+	run -0 grep -F -- 'X-Test-Header' client.log
 }
 
 #

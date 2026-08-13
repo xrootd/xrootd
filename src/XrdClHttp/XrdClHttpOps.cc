@@ -19,6 +19,7 @@
 /******************************************************************************/
 
 #include "XrdClHttpOps.hh"
+#include "XrdClHttpHeaderBuilder.hh"
 #include "XrdClHttpResponses.hh"
 #include "XrdClHttpUtil.hh"
 #include "XrdClHttpWorker.hh"
@@ -30,10 +31,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <cmath>
-#include <iterator>
 #ifdef __APPLE__
 #include <stdlib.h>
 #else
@@ -45,25 +44,6 @@ using namespace XrdClHttp;
 
 std::chrono::steady_clock::duration CurlOperation::m_stall_interval{CurlOperation::m_default_stall_interval};
 int CurlOperation::m_minimum_transfer_rate{CurlOperation::m_default_minimum_rate};
-
-const std::unordered_set<std::string_view> CurlOperation::m_forbidden_headers{
-    "connection",
-    "content-length",
-    "expect",
-    "host",
-    "keep-alive",
-    "proxy-authenticate",
-    "proxy-authorization",
-    "proxy-connection",
-    "te",
-    "trailer",
-    "transfer-encoding",
-    "upgrade"
-};
-
-std::string CurlOperation::m_injected_host;
-std::string CurlOperation::m_injected_spec;
-std::mutex CurlOperation::m_injected_mutex;
 
 namespace {
 
@@ -176,41 +156,14 @@ std::string DavToHttp(const std::string &url) {
     return url;
 }
 
-// Helpers for the injected header handling below.
-
-// The characters RFC 7230 permits in a header name.
-constexpr std::string_view tchar{
-    "!#$%&'*+-.^_`|~"
-    "0123456789"
-    "abcdefghijklmnopqrstuvwxyz"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-};
-
-// The whitespace that may surround a header name or value.
-constexpr std::string_view ows{" \t"};
-
-// Returns true if `text` contains `c`.
-bool Contains(std::string_view text, char c) {
-    return std::find(text.begin(), text.end(), c) != text.end();
-}
-
-// Returns `text` with any leading and trailing characters of `strip` removed.
-std::string_view Trim(std::string_view text, std::string_view strip) {
-    const auto discard = [strip](char c) {return Contains(strip, c);};
-
-    const auto first = std::find_if_not(text.begin(), text.end(), discard);
-    const auto last = std::find_if_not(text.rbegin(),
-        std::make_reverse_iterator(first), discard).base();
-
-    return text.substr(first - text.begin(), last - first);
-}
-
-// Returns true if the two header names are the same, ignoring case.
-bool SameHeaderName(std::string_view lhs, std::string_view rhs) {
-    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
-        [](unsigned char a, unsigned char b) {
-            return std::tolower(a) == std::tolower(b);
-        });
+// Returns the headers the client asks every request to carry, as given by the
+// HttpHeaders environment setting.  HeaderBuilder interprets the contents.
+std::string RequestedHeaderSpec() {
+    std::string spec;
+    if (auto env = XrdCl::DefaultEnv::GetEnv()) {
+        env->GetString("HttpHeaders", spec);
+    }
+    return spec;
 }
 
 } // namespace
@@ -272,137 +225,23 @@ CurlOperation::FailCallback(XErrorCode ecode, const std::string &emsg) {
 }
 
 bool
-CurlOperation::IsForbiddenHeader(const std::string &name)
-{
-    std::string lowered(name.size(), '\0');
-    std::transform(name.begin(), name.end(), lowered.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
-
-    // count rather than contains: this builds under C++17 as well as C++20.
-    return m_forbidden_headers.count(lowered) != 0;
-}
-
-bool
-CurlOperation::BuildRequestHeaders(HeaderList &headers)
-{
-    // Start from what the operation itself requires.  These always win: an
-    // injected Range, Depth or Want-Digest would corrupt the request.
-    headers = m_headers_list;
-
-    std::string spec;
-    if (auto env = XrdCl::DefaultEnv::GetEnv()) {
-        env->GetString("HttpHeaders", spec);
-    }
-
-    // Walk the newline separated entries, stopping at the first unusable one.
-    // An empty specification simply yields nothing to add.
-    const std::string_view all(spec);
-    HeaderList requested;
-    for (auto pos = all.begin(); pos != all.end(); ) {
-        const auto eol = std::find(pos, all.end(), '\n');
-
-        // A CRLF separator leaves the CR behind; drop it along with any padding.
-        const auto entry = Trim(all.substr(pos - all.begin(), eol - pos), " \t\r");
-        pos = eol == all.end() ? eol : std::next(eol);
-
-        // Tolerate blank entries so a trailing newline is not an error.
-        if (entry.empty()) {
-            continue;
-        }
-
-        // The value may itself contain colons, so split on the first one only.
-        const auto colon = std::find(entry.begin(), entry.end(), ':');
-        if (colon == entry.end()) {
-            return false;
-        }
-        const auto split = static_cast<std::string_view::size_type>(colon - entry.begin());
-
-        // The name must be a non-empty RFC 7230 token.
-        const auto name = Trim(entry.substr(0, split), ows);
-        if (name.empty() || !std::all_of(name.begin(), name.end(), [](char c) {
-                return Contains(tchar, c);
-            }))
-        {
-            return false;
-        }
-        if (IsForbiddenHeader(std::string(name))) {
-            return false;
-        }
-
-        // A newline separates entries and so cannot occur in a value, but an
-        // embedded carriage return would let one forge part of the request.
-        const auto value = Trim(entry.substr(split + 1), ows);
-        if (value.empty() || Contains(value, '\r')) {
-            return false;
-        }
-
-        requested.emplace_back(name, value);
-    }
-
-    const auto hostport = ParseHostPort(m_url);
-    const auto endpoint = hostport.first + ":" + std::to_string(hostport.second);
-
-    std::unique_lock lock(m_injected_mutex);
-
-    // A change of specification starts a new transfer, so release the binding.
-    // This must happen even when nothing was requested, so that clearing the
-    // setting does not leave the previous endpoint bound.
-    if (m_injected_spec != spec) {
-        m_injected_spec = spec;
-        m_injected_host.clear();
-    }
-
-    if (requested.empty()) {
-        return true;
-    }
-
-    if (m_injected_host.empty()) {
-        m_injected_host = endpoint;
-
-        // Name the headers but never their values, which may be credentials.
-        std::string names;
-        for (const auto &header : requested) {
-            if (!names.empty()) names += ", ";
-            names += header.first;
-        }
-        m_logger->Debug(kLogXrdClHttp, "Injecting headers %s into requests to %s",
-            names.c_str(), endpoint.c_str());
-    } else if (m_injected_host != endpoint) {
-        m_logger->Debug(kLogXrdClHttp, "Not injecting headers into request for %s;"
-            " the headers are bound to %s", endpoint.c_str(), m_injected_host.c_str());
-        return true;
-    }
-
-    // Append only the names the operation has not already set for itself.
-    for (const auto &header : requested) {
-        const auto present = std::any_of(headers.cbegin(), headers.cend(),
-            [&header](const auto &existing) {
-                return SameHeaderName(existing.first, header.first);
-            });
-        if (!present) {
-            headers.emplace_back(header);
-        }
-    }
-
-    return true;
-}
-
-bool
 CurlOperation::FinishSetup(CURL *curl)
 {
     // Refuse to send anything when the requested headers could not be understood;
-    // quietly omitting them could send a request without its credentials.
+    // quietly omitting them changes what the request asks for.
     //
     // Fail here rather than leaving it to the caller, whose failure message for a
     // setup error would suggest the wrong cause entirely.
-    HeaderList headers_list;
-    if (!BuildRequestHeaders(headers_list)) {
+    HeaderList requested;
+    if (!HeaderBuilder(m_logger).Build(RequestedHeaderSpec(), requested)) {
         m_logger->Error(kLogXrdClHttp, "Not sending request to %s: the requested"
             " headers could not be used", m_url.c_str());
         Fail(XrdCl::errInvalidArgs, EINVAL, "Invalid header requested");
         return false;
     }
+
+    auto headers_list = m_headers_list;
+    HeaderBuilder::AppendMissing(requested, headers_list);
 
     if (!m_header_callout) {
         m_header_slist.reset();
@@ -421,7 +260,7 @@ CurlOperation::FinishSetup(CURL *curl)
     }
     m_header_slist.reset();
     for (const auto &header : *extra_headers) {
-        if (SameHeaderName(header.first, "Content-Length")) {
+        if (HeaderBuilder::SameHeaderName(header.first, "Content-Length")) {
             auto upload_size = std::stoull(header.second);
             curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, upload_size);
             continue;
