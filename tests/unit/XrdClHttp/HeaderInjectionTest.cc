@@ -167,6 +167,9 @@ TEST(IsForbiddenHeader, AuthorizationIsForbiddenWhenCapitalized)
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Authorization"));
 }
 
+// The TransferHeader prefix aims a header at the far server of a third party
+// copy, and so must not let a forbidden header through.
+
 TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("transferheaderauthorization"));
@@ -175,6 +178,81 @@ TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsForbidden)
 TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderAuthorization"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderConnectionIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderConnection"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderContentLengthIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderContent-Length"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderExpectIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderExpect"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderHostIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderHost"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderKeepAliveIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderKeep-Alive"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderProxyAuthenticateIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderProxy-Authenticate"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderProxyAuthorizationIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderProxy-Authorization"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderProxyConnectionIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderProxy-Connection"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderTeIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderTE"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderTrailerIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderTrailer"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderTransferEncodingIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderTransfer-Encoding"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderUpgradeIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderUpgrade"));
+}
+
+TEST(IsForbiddenHeader, ARepeatedTransferHeaderPrefixOnAForbiddenNameIsForbidden)
+{
+    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderTransferHeaderHost"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderOnACustomHeaderIsAllowed)
+{
+    EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("TransferHeaderX-Test-Header"));
+}
+
+TEST(IsForbiddenHeader, TheTransferHeaderPrefixAloneIsAllowed)
+{
+    EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("TransferHeader"));
 }
 
 TEST(IsForbiddenHeader, RangeIsAllowed)

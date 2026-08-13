@@ -28,6 +28,9 @@ public:
     explicit HeaderBuilder(XrdCl::Log *logger);
 
     // Returns true if the named header may not be injected by the client.
+    //
+    // A forbidden name stays forbidden under the TransferHeader prefix, which
+    // aims a header at the far server of a third party copy.
     [[nodiscard]] static bool IsForbiddenHeader(const std::string &name);
 
     // Returns true if the two header names are the same, ignoring case.
@@ -61,13 +64,15 @@ private:
     // and the two credential headers.  Overriding them permits request smuggling
     // (Content-Length, Transfer-Encoding, TE, Trailer), cache poisoning and
     // routing confusion (Host), leaking a credential to an endpoint the user did
-    // not name (Authorization, TransferHeaderAuthorization, Proxy-*), or protocol
-    // switch attempts (Upgrade, Connection, Keep-Alive).  Several are also owned
-    // by libcurl or by the header callout and overriding them would corrupt the
-    // request framing -- Content-Length in particular is set from
-    // CURLOPT_INFILESIZE_LARGE.
+    // not name (Authorization, Proxy-*), or protocol switch attempts (Upgrade,
+    // Connection, Keep-Alive).  Several are also owned by libcurl or by the
+    // header callout and overriding them would corrupt the request framing --
+    // Content-Length in particular is set from CURLOPT_INFILESIZE_LARGE.
     //
-    // Held in lower case; IsForbiddenHeader folds the name before looking it up.
+    // Held in lower case and without the TransferHeader prefix;
+    // IsForbiddenHeader folds the name and strips the prefix before looking it
+    // up, so each name is forbidden for the far server of a third party copy as
+    // well as for the server the client connects to.
     static const std::unordered_set<std::string_view> m_forbidden_headers;
 };
 

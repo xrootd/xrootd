@@ -22,11 +22,13 @@ const std::unordered_set<std::string_view> HeaderBuilder::m_forbidden_headers{
     "te",
     "trailer",
     "transfer-encoding",
-    "transferheaderauthorization",
     "upgrade"
 };
 
 namespace {
+
+// The prefix that aims a header at the far server of a third party copy.
+constexpr std::string_view transfer_header_prefix{"transferheader"};
 
 // The characters RFC 7230 permits in a header name.
 constexpr std::string_view tchar{
@@ -69,8 +71,15 @@ HeaderBuilder::IsForbiddenHeader(const std::string &name)
         return static_cast<char>(std::tolower(c));
     });
 
+    // A forbidden header stays forbidden when the TransferHeader prefix aims it
+    // at the far server of a third party copy, however often the prefix repeats.
+    std::string_view bare(lowered);
+    while (bare.substr(0, transfer_header_prefix.size()) == transfer_header_prefix) {
+        bare.remove_prefix(transfer_header_prefix.size());
+    }
+
     // count rather than contains: this builds under C++17 as well as C++20.
-    return m_forbidden_headers.count(lowered) != 0;
+    return m_forbidden_headers.count(bare) != 0;
 }
 
 bool

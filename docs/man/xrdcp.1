@@ -66,9 +66,9 @@ repeated to add more than one header. Requires that the source or the destinatio
 is an http or https URL. The \fBAuthorization\fR, \fBConnection\fR,
 \fBContent-Length\fR, \fBExpect\fR, \fBHost\fR, \fBKeep-Alive\fR,
 \fBProxy-Authenticate\fR, \fBProxy-Authorization\fR, \fBProxy-Connection\fR,
-\fBTE\fR, \fBTrailer\fR, \fBTransfer-Encoding\fR,
-\fBTransferHeaderAuthorization\fR and \fBUpgrade\fR headers are reserved and may
-not be overridden.
+\fBTE\fR, \fBTrailer\fR, \fBTransfer-Encoding\fR and \fBUpgrade\fR headers are
+reserved and cannot be overridden. Each of these names prepended with
+\fBTransferHeader\fR is reserved as well.
 .PP
 In a third party copy (\fB--tpc\fR), the headers go to the server the client
 connects to: the destination server in \fBpull\fR mode, or the source server in
