@@ -21,11 +21,6 @@ setup() {
 
 	sleep 0.5
 
-	# route http:// through the XrdClHttp plug-in
-	XRD_PLUGINCONFDIR=$BATS_TEST_TMPDIR/client.plugins.d
-	mkdir -p $XRD_PLUGINCONFDIR
-	cp $BATS_TEST_DIRNAME/http.conf $XRD_PLUGINCONFDIR/
-
 	echo 'example file!' | xrdcp - $ROOT//examplefile
 }
 
