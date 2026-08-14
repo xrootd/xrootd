@@ -4,8 +4,14 @@ if(NOT TARGET XrdClHttpObj)
 endif()
 
 add_executable(xrdclhttp-tests-unit
-        HeaderInjectionTest.cc
+        HeaderBuilderAppendMissingTest.cc
+        HeaderBuilderEntrySeparationTest.cc
+        HeaderBuilderForbiddenEntryTest.cc
+        HeaderBuilderForbiddenHeaderTest.cc
+        HeaderBuilderParsingTest.cc
         )
+
+target_include_directories(xrdclhttp-tests-unit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(xrdclhttp-tests-unit
         XrdClHttpObj
