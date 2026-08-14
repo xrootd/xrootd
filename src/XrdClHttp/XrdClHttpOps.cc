@@ -156,16 +156,6 @@ std::string DavToHttp(const std::string &url) {
     return url;
 }
 
-// Returns the headers the client asks every request to carry, as given by the
-// HttpHeaders environment setting.  HeaderBuilder interprets the contents.
-std::string RequestedHeaderSpec() {
-    std::string spec;
-    if (auto env = XrdCl::DefaultEnv::GetEnv()) {
-        env->GetString("HttpHeaders", spec);
-    }
-    return spec;
-}
-
 } // namespace
 
 std::chrono::steady_clock::time_point CalculateExpiry(struct timespec timeout) {
@@ -227,25 +217,32 @@ CurlOperation::FailCallback(XErrorCode ecode, const std::string &emsg) {
 bool
 CurlOperation::FinishSetup(CURL *curl)
 {
-    // Refuse to send anything when the requested headers could not be understood;
-    // quietly omitting them changes what the request asks for.
-    //
-    // Fail here rather than leaving it to the caller, whose failure message for a
-    // setup error would suggest the wrong cause entirely.
-    HeaderList requested;
-    if (!HeaderBuilder(m_logger).Build(RequestedHeaderSpec(), requested)) {
-        m_logger->Error(kLogXrdClHttp, "Not sending request to %s: the requested"
-            " headers could not be used", m_url.c_str());
-        Fail(XrdCl::errInvalidArgs, EINVAL, "Invalid header requested");
-        return false;
+    // The client asks every request to carry the headers given by the HttpHeaders
+    // environment setting.  HeaderBuilder interprets the contents.
+    std::string spec;
+    if (auto env = XrdCl::DefaultEnv::GetEnv()) {
+        env->GetString("HttpHeaders", spec);
     }
 
-    auto headers_list = m_headers_list;
-    HeaderBuilder::AppendMissing(requested, headers_list);
+    if (!spec.empty()) {
+        // Refuse to send anything when the requested headers could not be understood;
+        // quietly omitting them changes what the request asks for.
+        //
+        // Fail here rather than leaving it to the caller, whose failure message for a
+        // setup error would suggest the wrong cause entirely.
+        HeaderList requested;
+        if (!HeaderBuilder::Build(spec, requested)) {
+            m_logger->Error(kLogXrdClHttp, "Not sending request to %s: the requested"
+                " headers could not be used", m_url.c_str());
+            Fail(XrdCl::errInvalidArgs, EINVAL, "Invalid header requested");
+            return false;
+        }
+        HeaderBuilder::AppendMissing(requested, m_headers_list);
+    }
 
     if (!m_header_callout) {
         m_header_slist.reset();
-        for (const auto &header : headers_list) {
+        for (const auto &header : m_headers_list) {
             m_header_slist.reset(curl_slist_append(m_header_slist.release(),
                 (header.first + ": " + header.second).c_str()));
         }
@@ -253,7 +250,7 @@ CurlOperation::FinishSetup(CURL *curl)
     }
     const auto &verb = GetVerbString(GetVerb());
 
-    auto extra_headers = m_header_callout->GetHeaders(verb, m_url, headers_list);
+    auto extra_headers = m_header_callout->GetHeaders(verb, m_url, m_headers_list);
     if (!extra_headers) {
         m_logger->Error(kLogXrdClHttp, "Failed to get headers from header callout for %s", m_url.c_str());
         return false;

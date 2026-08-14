@@ -1,8 +1,5 @@
 #include "XrdClHttp/XrdClHttpHeaderBuilder.hh"
 
-#include <XrdCl/XrdClDefaultEnv.hh>
-#include <XrdCl/XrdClLog.hh>
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -22,7 +19,6 @@ namespace {
 // option: a newline separated specification, handed to the builder verbatim.
 class HeaderFixture : public testing::Test {
 protected:
-    HeaderBuilder             builder{XrdCl::DefaultEnv::GetLog()};
     HeaderBuilder::HeaderList headers;
 };
 
@@ -301,7 +297,7 @@ TEST_F(HeaderFixture, ARequestedHeaderIsAdded)
 {
     const std::string spec{"X-Test-Header: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test-Header", "value")));
 }
 
@@ -309,7 +305,7 @@ TEST_F(HeaderFixture, TheFirstOfSeveralEntriesIsAdded)
 {
     const std::string spec{"X-First: one\nX-Second: two\nX-Third: three"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, Contains(Pair("X-First", "one")));
 }
 
@@ -317,7 +313,7 @@ TEST_F(HeaderFixture, AMiddleEntryIsAdded)
 {
     const std::string spec{"X-First: one\nX-Second: two\nX-Third: three"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, Contains(Pair("X-Second", "two")));
 }
 
@@ -325,7 +321,7 @@ TEST_F(HeaderFixture, TheLastOfSeveralEntriesIsAdded)
 {
     const std::string spec{"X-First: one\nX-Second: two\nX-Third: three"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, Contains(Pair("X-Third", "three")));
 }
 
@@ -333,7 +329,7 @@ TEST_F(HeaderFixture, TheColonNeedNotBeFollowedByASpace)
 {
     const std::string spec{"X-Test:value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
@@ -341,7 +337,7 @@ TEST_F(HeaderFixture, WhitespaceBeforeTheNameIsTrimmed)
 {
     const std::string spec{" \t X-Test: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
@@ -349,7 +345,7 @@ TEST_F(HeaderFixture, WhitespaceAfterTheNameIsTrimmed)
 {
     const std::string spec{"X-Test \t : value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
@@ -357,7 +353,7 @@ TEST_F(HeaderFixture, WhitespaceBeforeTheValueIsTrimmed)
 {
     const std::string spec{"X-Test: \t value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
@@ -365,7 +361,7 @@ TEST_F(HeaderFixture, WhitespaceAfterTheValueIsTrimmed)
 {
     const std::string spec{"X-Test: value \t "};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
@@ -374,7 +370,7 @@ TEST_F(HeaderFixture, AValueMayContainAColon)
 {
     const std::string spec{"X-Test: a:b"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "a:b")));
 }
 
@@ -382,7 +378,7 @@ TEST_F(HeaderFixture, AValueMayContainASpace)
 {
     const std::string spec{"X-Test: a b"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "a b")));
 }
 
@@ -392,7 +388,7 @@ TEST_F(HeaderFixture, ADigitIsAcceptedInAName)
 {
     const std::string spec{"X1Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X1Y", "value")));
 }
 
@@ -400,7 +396,7 @@ TEST_F(HeaderFixture, AnExclamationMarkIsAcceptedInAName)
 {
     const std::string spec{"X!Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X!Y", "value")));
 }
 
@@ -408,7 +404,7 @@ TEST_F(HeaderFixture, AHashIsAcceptedInAName)
 {
     const std::string spec{"X#Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X#Y", "value")));
 }
 
@@ -416,7 +412,7 @@ TEST_F(HeaderFixture, ADollarSignIsAcceptedInAName)
 {
     const std::string spec{"X$Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X$Y", "value")));
 }
 
@@ -424,7 +420,7 @@ TEST_F(HeaderFixture, APercentSignIsAcceptedInAName)
 {
     const std::string spec{"X%Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X%Y", "value")));
 }
 
@@ -432,7 +428,7 @@ TEST_F(HeaderFixture, AnAmpersandIsAcceptedInAName)
 {
     const std::string spec{"X&Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X&Y", "value")));
 }
 
@@ -440,7 +436,7 @@ TEST_F(HeaderFixture, AnApostropheIsAcceptedInAName)
 {
     const std::string spec{"X'Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X'Y", "value")));
 }
 
@@ -448,7 +444,7 @@ TEST_F(HeaderFixture, AnAsteriskIsAcceptedInAName)
 {
     const std::string spec{"X*Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X*Y", "value")));
 }
 
@@ -456,7 +452,7 @@ TEST_F(HeaderFixture, APlusSignIsAcceptedInAName)
 {
     const std::string spec{"X+Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X+Y", "value")));
 }
 
@@ -464,7 +460,7 @@ TEST_F(HeaderFixture, AHyphenIsAcceptedInAName)
 {
     const std::string spec{"X-Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Y", "value")));
 }
 
@@ -472,7 +468,7 @@ TEST_F(HeaderFixture, APeriodIsAcceptedInAName)
 {
     const std::string spec{"X.Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X.Y", "value")));
 }
 
@@ -480,7 +476,7 @@ TEST_F(HeaderFixture, ACaretIsAcceptedInAName)
 {
     const std::string spec{"X^Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X^Y", "value")));
 }
 
@@ -488,7 +484,7 @@ TEST_F(HeaderFixture, AnUnderscoreIsAcceptedInAName)
 {
     const std::string spec{"X_Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X_Y", "value")));
 }
 
@@ -496,7 +492,7 @@ TEST_F(HeaderFixture, ABackquoteIsAcceptedInAName)
 {
     const std::string spec{"X`Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X`Y", "value")));
 }
 
@@ -504,7 +500,7 @@ TEST_F(HeaderFixture, AVerticalBarIsAcceptedInAName)
 {
     const std::string spec{"X|Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X|Y", "value")));
 }
 
@@ -512,7 +508,7 @@ TEST_F(HeaderFixture, ATildeIsAcceptedInAName)
 {
     const std::string spec{"X~Y: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X~Y", "value")));
 }
 
@@ -522,7 +518,7 @@ TEST_F(HeaderFixture, ALeadingBlankEntryIsSkipped)
 {
     const std::string spec{"\nX-Test: value"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
@@ -530,7 +526,7 @@ TEST_F(HeaderFixture, AnEmbeddedBlankEntryIsSkipped)
 {
     const std::string spec{"X-First: one\n\nX-Second: two"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-First", "one"), Pair("X-Second", "two")));
 }
 
@@ -538,7 +534,7 @@ TEST_F(HeaderFixture, ATrailingBlankEntryIsSkipped)
 {
     const std::string spec{"X-Test: value\n"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
@@ -546,7 +542,7 @@ TEST_F(HeaderFixture, AnEmptySpecificationYieldsNoHeaders)
 {
     const std::string spec{""};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, IsEmpty());
 }
 
@@ -558,28 +554,28 @@ TEST_F(HeaderFixture, AnEntryWithoutAColonIsRejected)
 {
     const std::string spec{"nocolon"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnEntryWithoutANameIsRejected)
 {
     const std::string spec{": value"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnEntryWithoutAValueIsRejected)
 {
     const std::string spec{"X-Test:"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnEntryWithABlankValueIsRejected)
 {
     const std::string spec{"X-Test:   "};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 // A name is an RFC 7230 token, so none of the characters below belongs in one.
@@ -588,28 +584,28 @@ TEST_F(HeaderFixture, ASpaceIsRejectedInAName)
 {
     const std::string spec{"X Y: value"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATabIsRejectedInAName)
 {
     const std::string spec{"X\tY: value"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AParenthesisIsRejectedInAName)
 {
     const std::string spec{"X(Y: value"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AQuoteIsRejectedInAName)
 {
     const std::string spec{"X\"Y: value"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 // A newline separates entries, so it cannot appear inside a value; a bare
@@ -618,7 +614,7 @@ TEST_F(HeaderFixture, ACarriageReturnInAValueIsRejected)
 {
     const std::string spec{"X-Test: a\rEvil: b"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 // A CRLF is the wire form of the separator, so it yields two entries.
@@ -627,7 +623,7 @@ TEST_F(HeaderFixture, ACrlfEndsTheEntryBeforeIt)
 {
     const std::string spec{"X-Test: a\r\nX-Other: b"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, Contains(Pair("X-Test", "a")));
 }
 
@@ -635,7 +631,7 @@ TEST_F(HeaderFixture, ACrlfStartsTheEntryAfterIt)
 {
     const std::string spec{"X-Test: a\r\nX-Other: b"};
 
-    ASSERT_TRUE(builder.Build(spec, headers));
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, Contains(Pair("X-Other", "b")));
 }
 
@@ -645,203 +641,203 @@ TEST_F(HeaderFixture, AForbiddenEntryAfterACrlfIsRejected)
 {
     const std::string spec{"X-Test: a\r\nHost: evil"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnAuthorizationEntryIsRejected)
 {
     const std::string spec{"authorization: Bearer token"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnAuthorizationEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Authorization: Bearer token"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATransferHeaderAuthorizationEntryIsRejected)
 {
     const std::string spec{"transferheaderauthorization: Bearer token"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATransferHeaderAuthorizationEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"TransferHeaderAuthorization: Bearer token"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AConnectionEntryIsRejected)
 {
     const std::string spec{"connection: close"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AConnectionEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Connection: close"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AContentLengthEntryIsRejected)
 {
     const std::string spec{"content-length: 0"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AContentLengthEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Content-Length: 0"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnExpectEntryIsRejected)
 {
     const std::string spec{"expect: 100-continue"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnExpectEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Expect: 100-continue"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AHostEntryIsRejected)
 {
     const std::string spec{"host: evil.example.com"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AHostEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Host: evil.example.com"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AKeepAliveEntryIsRejected)
 {
     const std::string spec{"keep-alive: timeout=5"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AKeepAliveEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Keep-Alive: timeout=5"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AProxyAuthenticateEntryIsRejected)
 {
     const std::string spec{"proxy-authenticate: Basic"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AProxyAuthenticateEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Proxy-Authenticate: Basic"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AProxyAuthorizationEntryIsRejected)
 {
     const std::string spec{"proxy-authorization: Basic dXNlcg=="};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AProxyAuthorizationEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Proxy-Authorization: Basic dXNlcg=="};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AProxyConnectionEntryIsRejected)
 {
     const std::string spec{"proxy-connection: close"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AProxyConnectionEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Proxy-Connection: close"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATeEntryIsRejected)
 {
     const std::string spec{"te: trailers"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATeEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"TE: trailers"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATrailerEntryIsRejected)
 {
     const std::string spec{"trailer: Expires"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATrailerEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Trailer: Expires"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATransferEncodingEntryIsRejected)
 {
     const std::string spec{"transfer-encoding: chunked"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, ATransferEncodingEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Transfer-Encoding: chunked"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnUpgradeEntryIsRejected)
 {
     const std::string spec{"upgrade: websocket"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 TEST_F(HeaderFixture, AnUpgradeEntryIsRejectedWhenCapitalized)
 {
     const std::string spec{"Upgrade: websocket"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 // A forbidden entry must reject the whole request rather than silently dropping
@@ -850,7 +846,7 @@ TEST_F(HeaderFixture, AForbiddenEntryRejectsTheWholeRequest)
 {
     const std::string spec{"X-Good: value\nHost: evil.example.com\nX-Also-Good: value"};
 
-    EXPECT_FALSE(builder.Build(spec, headers));
+    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
 // Rejection must not leave a half-built list behind for a caller that ignores
@@ -859,7 +855,7 @@ TEST_F(HeaderFixture, RejectionYieldsNoRequestedHeaders)
 {
     const std::string spec{"X-Good: value\nnocolon"};
 
-    ASSERT_FALSE(builder.Build(spec, headers));
+    ASSERT_FALSE(HeaderBuilder::Build(spec, headers));
     EXPECT_THAT(headers, IsEmpty());
 }
 
