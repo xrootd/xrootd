@@ -85,6 +85,10 @@ connect to, prepend \fBTransferHeader\fR to the header name. For example, in
 The destination server gets the \fBX-Request-Id\fR header, and sends the value of
 \fBTransferHeaderX-Request-Id\fR as the \fBX-Request-Id\fR header of its request
 to the source server.
+.PP
+If the option is not specified, the \fBXRD_HTTPHEADERS\fR environment variable is
+used instead. It holds the headers as a newline separated list of
+"\fIname: value\fR" entries.
 
 .RE
 \fB-h\fR | \fB--help\fR
