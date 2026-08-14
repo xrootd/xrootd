@@ -7,29 +7,11 @@ bats_require_minimum_version 1.5.0
 bats_load_library 'bats-support'
 bats_load_library 'bats-assert'
 
-load ../../helper/common.bash
-
 HOST=http://localhost:1097
-ROOT=root://localhost:1097
 
 setup() {
 	# workdir as test tmp dir (all files are removed after execution)
 	cd $BATS_TEST_TMPDIR
-
-	launch_xrootd header.cfg header
-
-	sleep 0.5
-
-	# route http:// through the XrdClHttp plug-in
-	XRD_PLUGINCONFDIR=$BATS_TEST_TMPDIR/client.plugins.d
-	mkdir -p $XRD_PLUGINCONFDIR
-	cp $BATS_TEST_DIRNAME/http.conf $XRD_PLUGINCONFDIR/
-
-	echo 'example file!' | xrdcp - $ROOT//examplefile
-}
-
-teardown() {
-    kill_pid_files
 }
 
 #
