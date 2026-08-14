@@ -30,7 +30,6 @@
 
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <algorithm>
 #include <chrono>
 #include <cmath>
 #ifdef __APPLE__
