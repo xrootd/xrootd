@@ -123,3 +123,41 @@ setup() {
 		$HOST//examplefile -
 	run ! grep -F -- 'got hdr line: X-Test-Header: e2e-value' header.log
 }
+
+#
+# the same headers aimed at the far server of a third party copy, which the
+# TransferHeader prefix must not let through
+#
+
+@test "--header naming TransferHeaderHost fails" {
+	run ! xrdcp -H 'TransferHeaderHost: evil.example.com' $HOST//examplefile -
+}
+
+@test "--header naming TransferHeaderTransfer-Encoding fails" {
+	run ! xrdcp -H 'TransferHeaderTransfer-Encoding: chunked' $HOST//examplefile -
+}
+
+@test "--header naming TransferHeaderContent-Length fails" {
+	run ! xrdcp -H 'TransferHeaderContent-Length: 0' $HOST//examplefile -
+}
+
+@test "--header naming TransferHeaderConnection fails" {
+	run ! xrdcp -H 'TransferHeaderConnection: close' $HOST//examplefile -
+}
+
+@test "a reserved TransferHeader should reject the whole command line" {
+	run ! xrdcp -H 'X-Test-Header: e2e-value' \
+		-H 'TransferHeaderHost: evil.example.com' $HOST//examplefile -
+}
+
+@test "a rejected command line should not send the reserved TransferHeader" {
+	run xrdcp -H 'X-Test-Header: e2e-value' \
+		-H 'TransferHeaderHost: evil.example.com' $HOST//examplefile -
+	run ! grep -F -- 'got hdr line: TransferHeaderHost: evil.example.com' header.log
+}
+
+@test "a command line rejected for a TransferHeader should not send the accepted header either" {
+	run xrdcp -H 'X-Test-Header: e2e-value' \
+		-H 'TransferHeaderHost: evil.example.com' $HOST//examplefile -
+	run ! grep -F -- 'got hdr line: X-Test-Header: e2e-value' header.log
+}

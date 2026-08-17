@@ -55,12 +55,12 @@ teardown() {
 }
 
 @test "repeating --header should send the first header" {
-	run xrdcp -H 'X-First: one' -H 'X-Second: two' $HOST//examplefile -
+	run xrdcp --header 'X-First: one' --header 'X-Second: two' $HOST//examplefile -
 	run -0 grep -F -- 'got hdr line: X-First: one' header.log
 }
 
 @test "repeating --header should send the second header" {
-	run xrdcp -H 'X-First: one' -H 'X-Second: two' $HOST//examplefile -
+	run xrdcp --header 'X-First: one' --header 'X-Second: two' $HOST//examplefile -
 	run -0 grep -F -- 'got hdr line: X-Second: two' header.log
 }
 
@@ -109,8 +109,7 @@ teardown() {
 @test "upload with an injected header should store the file contents" {
 	echo 'uploaded!' > localfile
 	run xrdcp -H 'X-Test-Header: e2e-value' localfile $HOST//uploadedfile
-	run xrdcp $ROOT//uploadedfile -
-	assert_output 'uploaded!'
+	assert_equal "$(cat header/uploadedfile)" 'uploaded!'
 }
 
 #

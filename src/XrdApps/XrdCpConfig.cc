@@ -446,10 +446,7 @@ do{while(optind < Argc && Legacy(optind)) {}
 // Injected headers only apply to http and https endpoints
 //
    if (OpSpec & DoHttpHeader)
-      {bool isHttp = isHttpProt(dstFile->Protocol);
-       for (XrdCpFile *pF = srcFile; pF && !isHttp; pF = pF->Next)
-           isHttp = isHttpProt(pF->Protocol);
-       if (!isHttp)
+      {if (!isHttpProt(srcFile->Protocol) && !isHttpProt(dstFile->Protocol))
           UMSG("'--header' requires an http or https source or destination.");
       }
 
