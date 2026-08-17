@@ -16,34 +16,6 @@ class ForbiddenEntry : public HeaderBuilderFixture {};
 /*                 B u i l d :  f o r b i d d e n  e n t r y                  */
 /******************************************************************************/
 
-TEST_F(ForbiddenEntry, AnAuthorizationEntryIsRejected)
-{
-    const std::string spec{"authorization: Bearer token"};
-
-    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
-}
-
-TEST_F(ForbiddenEntry, AnAuthorizationEntryIsRejectedWhenCapitalized)
-{
-    const std::string spec{"Authorization: Bearer token"};
-
-    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
-}
-
-TEST_F(ForbiddenEntry, ATransferHeaderAuthorizationEntryIsRejected)
-{
-    const std::string spec{"transferheaderauthorization: Bearer token"};
-
-    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
-}
-
-TEST_F(ForbiddenEntry, ATransferHeaderAuthorizationEntryIsRejectedWhenCapitalized)
-{
-    const std::string spec{"TransferHeaderAuthorization: Bearer token"};
-
-    EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
-}
-
 TEST_F(ForbiddenEntry, AConnectionEntryIsRejected)
 {
     const std::string spec{"connection: close"};

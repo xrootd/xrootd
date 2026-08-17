@@ -107,14 +107,6 @@ setup() {
 	run ! xrdcp -H 'Connection: close' $HOST//examplefile -
 }
 
-@test "--header naming Authorization fails" {
-	run ! xrdcp -H 'Authorization: Bearer token' $HOST//examplefile -
-}
-
-@test "--header naming TransferHeaderAuthorization fails" {
-	run ! xrdcp -H 'TransferHeaderAuthorization: Bearer token' $HOST//examplefile -
-}
-
 @test "a reserved header should reject the whole command line" {
 	run ! xrdcp -H 'X-Test-Header: e2e-value' -H 'Host: evil.example.com' \
 		$HOST//examplefile -

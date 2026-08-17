@@ -69,6 +69,28 @@ teardown() {
 	run -0 grep -F -- 'got hdr line: X-Test-Header: a:b c:d' header.log
 }
 
+# A user who holds a token has to be able to present it, so Authorization is the
+# caller's to set. The server log holds the name but redacts the credential, so
+# the tests below assert the name alone.
+
+@test "download with an injected Authorization header should succeed" {
+	run -0 xrdcp -H 'Authorization: Bearer e2e-token' $HOST//examplefile -
+}
+
+@test "download with an injected Authorization header should send the header" {
+	run xrdcp -H 'Authorization: Bearer e2e-token' $HOST//examplefile -
+	run -0 grep -F -- 'got hdr line: Authorization:' header.log
+}
+
+@test "download with an injected TransferHeaderAuthorization header should succeed" {
+	run -0 xrdcp -H 'TransferHeaderAuthorization: Bearer e2e-token' $HOST//examplefile -
+}
+
+@test "download with an injected TransferHeaderAuthorization header should send the header" {
+	run xrdcp -H 'TransferHeaderAuthorization: Bearer e2e-token' $HOST//examplefile -
+	run -0 grep -F -- 'got hdr line: TransferHeaderAuthorization:' header.log
+}
+
 #
 # injecting a header on upload
 #

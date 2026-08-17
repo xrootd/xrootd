@@ -29,6 +29,26 @@ TEST_F(HeaderParsing, ARequestedHeaderIsAdded)
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test-Header", "value")));
 }
 
+// A user who holds a token has to be able to present it, so an Authorization
+// entry is built like any other, for the near server and for the far one.
+
+TEST_F(HeaderParsing, AnAuthorizationEntryIsAdded)
+{
+    const std::string spec{"Authorization: Bearer token"};
+
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
+    EXPECT_THAT(headers, ElementsAre(Pair("Authorization", "Bearer token")));
+}
+
+TEST_F(HeaderParsing, ATransferHeaderAuthorizationEntryIsAdded)
+{
+    const std::string spec{"TransferHeaderAuthorization: Bearer token"};
+
+    ASSERT_TRUE(HeaderBuilder::Build(spec, headers));
+    EXPECT_THAT(headers,
+        ElementsAre(Pair("TransferHeaderAuthorization", "Bearer token")));
+}
+
 TEST_F(HeaderParsing, TheColonNeedNotBeFollowedByASpace)
 {
     const std::string spec{"X-Test:value"};

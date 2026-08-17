@@ -14,13 +14,12 @@ namespace {
 using namespace std::string_view_literals;
 
 // Headers the client must not inject: the RFC 7230 hop-by-hop and message
-// framing headers, Host, and the credential headers.  Overriding one permits
-// request smuggling, cache poisoning, a leaked credential, or corrupt framing.
+// framing headers, and Host.  Overriding one permits request smuggling, cache
+// poisoning, or corrupt framing.
 //
 // Held in lower case and without the TransferHeader prefix, the form
 // IsForbiddenHeader reduces a name to before it looks the name up.
 constexpr std::array forbidden_headers{
-    "authorization"sv,
     "connection"sv,
     "content-length"sv,
     "expect"sv,

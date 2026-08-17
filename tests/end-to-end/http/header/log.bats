@@ -22,7 +22,15 @@ setup() {
 # nor its value can reach the log.
 @test "a rejected credential should not be written to the client log" {
 	XRD_LOGLEVEL=Dump XRD_LOGFILE=client.log \
-		run ! xrdcp -H 'Authorization: Bearer SUPERSECRETTOKEN' $HOST//examplefile -
+		run ! xrdcp -H 'Proxy-Authorization: Basic SUPERSECRETTOKEN' $HOST//examplefile -
+	run ! grep -F -- 'SUPERSECRETTOKEN' client.log
+}
+
+# An accepted credential is put in the request, and its value stays out of the
+# log even at the highest level.
+@test "an accepted credential should not be written to the client log" {
+	XRD_LOGLEVEL=Dump XRD_LOGFILE=client.log \
+		run xrdcp -H 'Authorization: Bearer SUPERSECRETTOKEN' $HOST//examplefile -
 	run ! grep -F -- 'SUPERSECRETTOKEN' client.log
 }
 

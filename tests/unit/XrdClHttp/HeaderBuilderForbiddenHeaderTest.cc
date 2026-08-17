@@ -133,28 +133,31 @@ TEST(IsForbiddenHeader, ACustomHeaderIsAllowed)
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("X-Test-Header"));
 }
 
-TEST(IsForbiddenHeader, AuthorizationIsForbidden)
+// A user who holds a token has to be able to present it, so Authorization is
+// the caller's to set, on the near server and on the far one alike.
+
+TEST(IsForbiddenHeader, AuthorizationIsAllowed)
 {
-    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("authorization"));
+    EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("authorization"));
 }
 
-TEST(IsForbiddenHeader, AuthorizationIsForbiddenWhenCapitalized)
+TEST(IsForbiddenHeader, AuthorizationIsAllowedWhenCapitalized)
 {
-    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Authorization"));
+    EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("Authorization"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsAllowed)
+{
+    EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("transferheaderauthorization"));
+}
+
+TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsAllowedWhenCapitalized)
+{
+    EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("TransferHeaderAuthorization"));
 }
 
 // The TransferHeader prefix aims a header at the far server of a third party
 // copy, and so must not let a forbidden header through.
-
-TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsForbidden)
-{
-    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("transferheaderauthorization"));
-}
-
-TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsForbiddenWhenCapitalized)
-{
-    EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderAuthorization"));
-}
 
 TEST(IsForbiddenHeader, TransferHeaderConnectionIsForbidden)
 {
