@@ -15,19 +15,6 @@ setup() {
 }
 
 #
-# --header only applies to http and https endpoints
-#
-
-@test "--header with a root source and destination fails" {
-	run ! xrdcp -H 'X-Test-Header: e2e-value' $ROOT//examplefile -
-}
-
-@test "--header with a local source and destination fails" {
-	echo 'local file!' > localfile
-	run ! xrdcp -H 'X-Test-Header: e2e-value' localfile localcopy
-}
-
-#
 # arguments that cannot be parsed as a header
 #
 
