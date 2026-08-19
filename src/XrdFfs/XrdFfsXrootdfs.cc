@@ -1327,7 +1327,7 @@ static int xrootdfs_opt_proc(void* data, const char* arg, int key, struct fuse_a
         return 0;
       case OPT_KEY_HELP:
         xrootdfs_usage(outargs->argv[0]);
-        fuse_opt_add_arg(outargs, "-ho");
+        fuse_opt_add_arg(outargs, "--help");
         fuse_main(outargs->argc, outargs->argv, &xrootdfs_oper, NULL);
         exit(1);
       default:
