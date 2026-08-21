@@ -1,5 +1,6 @@
 /******************************************************************************/
-/* Copyright (C) 2025, Pelican Project, Morgridge Institute for Research      */
+/*                                                                            */
+/* (c) 2026 by the XRootD Collaboration                                       */
 /*                                                                            */
 /* This file is part of the XrdClHttp client plugin for XRootD.               */
 /*                                                                            */
@@ -13,9 +14,10 @@
 /* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
 /* License for more details.                                                  */
 /*                                                                            */
-/* The copyright holder's institutional names and contributor's names may not */
-/* be used to endorse or promote products derived from this software without  */
-/* specific prior written permission of the institution or contributor.       */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
 /******************************************************************************/
 
 #ifndef XRDCLHTTPCHECKSUM_HH_
