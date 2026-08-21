@@ -6,7 +6,8 @@ if(ENABLE_FUSE_TESTS)
 endif()
 
 if(ENABLE_HTTP_TESTS)
-  list(APPEND XROOTD_CONFIGS http tpcredir)
+  list(APPEND XROOTD_CONFIGS http httpsredirect tpcredir)
+  list(APPEND httpsredirect_FIXTURES TLS)
   # Test-only XrdXrootdRedirPI plugin loaded by tpcredir.cfg.
   add_subdirectory(redir_test)
 endif()
