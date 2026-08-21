@@ -248,6 +248,7 @@ endif()
 endsection()
 
 section("Configure")
+
 foreach(FILENAME ${OS_NAME}${OS_VERSION}.cmake ${OS_NAME}.cmake config.cmake)
   if(EXISTS "${CTEST_SOURCE_DIRECTORY}/.ci/${FILENAME}")
     message("Using CMake cache file ${FILENAME}")
@@ -325,6 +326,15 @@ if(CDASH OR (DEFINED ENV{CDASH} AND "$ENV{CDASH}"))
     RETURN_VALUE SUBMIT_RESULT
     CAPTURE_CMAKE_ERROR SUBMIT_ERROR
     QUIET)
+
+  # CTest stores the tag of the current run in the first line of this file.
+  file(STRINGS "${CTEST_BINARY_DIRECTORY}/Testing/TAG" BATS_BUILD_TAG LIMIT_COUNT 1)
+
+  file(GLOB BATS_XML_FILES
+    "${CTEST_BINARY_DIRECTORY}/Testing/${BATS_BUILD_TAG}/BatsTest.*.xml")
+  if(BATS_XML_FILES)
+    ctest_submit(FILES ${BATS_XML_FILES} BUILD_ID BUILDID QUIET)
+  endif()
 
   if(NOT SUBMIT_RESULT EQUAL 0 OR NOT SUBMIT_ERROR EQUAL 0)
     message(WARNING "CDash submission failed")
