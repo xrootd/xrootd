@@ -1,7 +1,10 @@
 /******************************************************************************/
-/* Copyright (C) 2025, Pelican Project, Morgridge Institute for Research      */
 /*                                                                            */
-/* This file is part of the XrdClHttp client plugin for XRootD.               */
+/*                  X r d C l H t t p O p T a p e . c c                       */
+/*                                                                            */
+/* (c) 2026 by the XRootD Collaboration                                       */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
 /*                                                                            */
 /* XRootD is free software: you can redistribute it and/or modify it under    */
 /* the terms of the GNU Lesser General Public License as published by the     */
@@ -13,21 +16,64 @@
 /* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
 /* License for more details.                                                  */
 /*                                                                            */
-/* The copyright holder's institutional names and contributor's names may not */
-/* be used to endorse or promote products derived from this software without  */
-/* specific prior written permission of the institution or contributor.       */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
 /******************************************************************************/
 
 #include "XrdClHttpOps.hh"
 #include "XrdClHttpTape.hh"
+#include "XrdClHttpWorker.hh"
 
 #include <XrdCl/XrdClAnyObject.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
 
 #include <cerrno>
+#include <cstdlib>
 #include <exception>
-#include <new>
+#include <stdexcept>
 
 using namespace XrdClHttp;
+
+namespace
+{
+class TapeError : public std::runtime_error
+{
+public:
+    TapeError(uint16_t statusCode, uint32_t code,
+              const std::string &message):
+        std::runtime_error(message), m_statusCode(statusCode), m_code(code)
+    {
+    }
+
+    uint16_t statusCode() const { return m_statusCode; }
+    uint32_t code() const { return m_code; }
+
+private:
+    uint16_t m_statusCode;
+    uint32_t m_code;
+};
+
+TapeError GetTapeError(const std::exception_ptr &exception,
+                       const std::string &context)
+{
+    try
+    {
+        if(exception) std::rethrow_exception(exception);
+    }
+    catch(const TapeError &ex)
+    {
+        return ex;
+    }
+    catch(...)
+    {
+    }
+
+    const auto ex = DescribeException(exception, context);
+    return TapeError(XrdCl::errInternal, ex.code, ex.message);
+}
+}
 
 CurlTapeOp::CurlTapeOp(XrdCl::ResponseHandler *handler,
     const std::string &url, std::unique_ptr<TapeOperation> tape,
@@ -73,45 +119,30 @@ CurlTapeOp::Setup(CURL *curl, CurlWorker &worker)
         const auto status = m_tape->Start(m_request);
         if(!status.IsOK())
         {
-            m_curl.reset(curl);
-            Fail(status.code, status.errNo, status.GetErrorMessage());
-            return false;
+            throw TapeError(status.code, status.errNo,
+                            status.GetErrorMessage());
         }
 
         m_request_url = m_request.url;
         if(!CurlOperation::Setup(curl, worker))
         {
-            Fail(XrdCl::errInternal, EIO,
+            throw TapeError(XrdCl::errInternal, EIO,
                 "failed to initialize " + RequestDescription());
-            return false;
         }
         m_worker = &worker;
         if(!ConfigureRequest())
         {
-            Fail(XrdCl::errInternal, EIO,
+            throw TapeError(XrdCl::errInternal, EIO,
                 "failed to configure " + RequestDescription());
-            return false;
         }
         return true;
-    }
-    catch(const std::bad_alloc &)
-    {
-        if(!m_curl) m_curl.reset(curl);
-        Fail(XrdCl::errInternal, ENOMEM,
-            "out of memory while preparing a Tape REST request");
-    }
-    catch(const std::exception &ex)
-    {
-        if(!m_curl) m_curl.reset(curl);
-        Fail(XrdCl::errInternal, EIO,
-            "exception while preparing a Tape REST request: "
-            + std::string(ex.what()));
     }
     catch(...)
     {
         if(!m_curl) m_curl.reset(curl);
-        Fail(XrdCl::errInternal, EIO,
-            "unknown exception while preparing a Tape REST request");
+        const auto ex = GetTapeError(std::current_exception(),
+            "while preparing a Tape REST request");
+        Fail(ex.statusCode(), ex.code(), ex.what());
     }
     return false;
 }
@@ -123,10 +154,19 @@ CurlTapeOp::ConfigureRequest()
 
     m_response.clear();
     m_headers_list.emplace_back("Accept", "application/json");
-    // CurlOperation::Setup configures the worker's X.509 credential.  A bearer
-    // token is added independently when one is available.
+
+    bool hasX509Credential = false;
+    auto env = XrdCl::DefaultEnv::GetEnv();
+    if(m_worker && ClientX509Enabled(env))
+    {
+        const auto [cert, key] = m_worker->ClientX509CertKeyFile();
+        hasX509Credential = !cert.empty() && !key.empty();
+    }
     const std::string token = GetBearerToken();
-    if(!token.empty())
+    const char *configuredProtocols = std::getenv("XrdSecPROTOCOL");
+    if(ShouldUseBearerToken(
+         configuredProtocols ? configuredProtocols : "",
+         hasX509Credential, !token.empty()))
     {
         m_headers_list.emplace_back("Authorization", "Bearer " + token);
     }
@@ -194,8 +234,8 @@ CurlTapeOp::Success()
             nextRequest, response, complete);
         if(!status.IsOK())
         {
-            Fail(status.code, status.errNo, status.GetErrorMessage());
-            return;
+            throw TapeError(status.code, status.errNo,
+                            status.GetErrorMessage());
         }
         if(complete)
         {
@@ -206,43 +246,30 @@ CurlTapeOp::Success()
         m_request = std::move(nextRequest);
         if(!m_worker)
         {
-            Fail(XrdCl::errInternal, EIO,
+            throw TapeError(XrdCl::errInternal, EIO,
                 "worker unavailable before starting " + RequestDescription());
-            return;
         }
         if(!SetupNextRequest(m_request.url, *m_worker))
         {
-            Fail(XrdCl::errInternal, EIO,
+            throw TapeError(XrdCl::errInternal, EIO,
                 "failed to reset the curl handle for " + RequestDescription());
-            return;
         }
         if(!ConfigureRequest())
         {
-            Fail(XrdCl::errInternal, EIO,
+            throw TapeError(XrdCl::errInternal, EIO,
                 "failed to configure " + RequestDescription());
-            return;
         }
         if(!FinishSetup(m_curl.get()))
         {
-            Fail(XrdCl::errInternal, EIO,
+            throw TapeError(XrdCl::errInternal, EIO,
                 "failed to configure headers for " + RequestDescription());
         }
     }
-    catch(const std::bad_alloc &)
-    {
-        Fail(XrdCl::errInternal, ENOMEM,
-            "out of memory while processing a Tape REST request");
-    }
-    catch(const std::exception &ex)
-    {
-        Fail(XrdCl::errInternal, EIO,
-            "exception while processing " + RequestDescription()
-            + ": " + ex.what());
-    }
     catch(...)
     {
-        Fail(XrdCl::errInternal, EIO,
-            "unknown exception while processing " + RequestDescription());
+        const auto ex = GetTapeError(std::current_exception(),
+            "while processing " + RequestDescription());
+        Fail(ex.statusCode(), ex.code(), ex.what());
     }
 }
 
@@ -309,21 +336,11 @@ CurlTapeOp::Write(char *buffer, size_t size)
         UpdateBytes(size);
         return size;
     }
-    catch(const std::bad_alloc &)
-    {
-        return FailCallback(kXR_ServerError,
-            "out of memory while buffering a Tape REST response");
-    }
-    catch(const std::exception &ex)
-    {
-        return FailCallback(kXR_ServerError,
-            "exception while buffering a Tape REST response: "
-            + std::string(ex.what()));
-    }
     catch(...)
     {
-        return FailCallback(kXR_ServerError,
-            "unknown exception while buffering a Tape REST response");
+        const auto ex = DescribeException(std::current_exception(),
+            "while buffering a Tape REST response");
+        return FailCallback(kXR_ServerError, ex.message);
     }
 }
 

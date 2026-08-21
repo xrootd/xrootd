@@ -29,8 +29,11 @@
 #include <gtest/gtest.h>
 
 #include <cerrno>
+#include <exception>
 #include <memory>
+#include <new>
 #include <string>
+#include <system_error>
 #include <vector>
 
 using Json = nlohmann::json;
@@ -74,6 +77,44 @@ void StartAndDiscover(XrdClHttp::TapeOperation &operation,
                              response, complete));
   EXPECT_FALSE(complete);
 }
+}
+
+TEST(XrdClHttpUtility, SelectsFirstAvailableConfiguredAuthentication)
+{
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("", true, true));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("gsi,ztn", true, true));
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("ztn,gsi", true, true));
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("gsi, ztn", false, true));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("ztn,gsi", true, false));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("unix", false, true));
+}
+
+TEST(XrdClHttpUtility, DescribesExceptionsConsistently)
+{
+  std::exception_ptr exception;
+  try
+  {
+    throw std::system_error(EACCES, std::generic_category(), "denied");
+  }
+  catch(...)
+  {
+    exception = std::current_exception();
+  }
+  auto info = XrdClHttp::DescribeException(exception, "while testing");
+  EXPECT_EQ(info.code, EACCES);
+  EXPECT_NE(info.message.find("denied"), std::string::npos);
+
+  try
+  {
+    throw std::bad_alloc();
+  }
+  catch(...)
+  {
+    exception = std::current_exception();
+  }
+  info = XrdClHttp::DescribeException(exception, "while testing");
+  EXPECT_EQ(info.code, ENOMEM);
+  EXPECT_EQ(info.message, "out of memory while testing");
 }
 
 TEST(TapeRestApi, DiscoversSupportedEndpoint)

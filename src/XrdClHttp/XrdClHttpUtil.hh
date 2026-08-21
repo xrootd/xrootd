@@ -28,6 +28,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -73,6 +74,23 @@ void SetClientX509(CURL *curl, const std::string &cert, const std::string &key,
 // Read a bearer token from the standard XrdCl environment options, falling
 // back to the corresponding process environment variables.
 std::string GetBearerToken();
+
+// Return whether bearer-token authentication is the first available method
+// requested through XrdSecPROTOCOL.  With no explicit preference, use a token
+// whenever one is available.
+bool ShouldUseBearerToken(const std::string &protocols,
+                          bool hasX509Credential,
+                          bool hasBearerToken);
+
+struct ExceptionInfo
+{
+    uint32_t code;
+    std::string message;
+};
+
+// Convert an arbitrary exception into an errno-style code and useful message.
+ExceptionInfo DescribeException(const std::exception_ptr &exception,
+                                const std::string &context);
 
 // Trim the left side of a string_view for space
 std::string_view ltrim_view(const std::string_view &input_view);

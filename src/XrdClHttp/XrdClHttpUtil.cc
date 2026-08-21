@@ -49,9 +49,14 @@
 #endif
 #include <unistd.h>
 
+#include <algorithm>
+#include <cerrno>
+#include <cctype>
 #include <charconv>
+#include <new>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 #include <utility>
 
 using namespace XrdClHttp;
@@ -162,6 +167,53 @@ std::string XrdClHttp::GetBearerToken()
     std::getline(input, token);
     XrdCl::Utils::Trim(token);
     return token;
+}
+
+bool XrdClHttp::ShouldUseBearerToken(const std::string &protocols,
+                                     bool hasX509Credential,
+                                     bool hasBearerToken)
+{
+    if(protocols.empty()) return hasBearerToken;
+
+    std::vector<std::string> requested;
+    XrdCl::Utils::splitString(requested, protocols, ",");
+    for(auto protocol : requested)
+    {
+        XrdCl::Utils::Trim(protocol);
+        std::transform(protocol.begin(), protocol.end(), protocol.begin(),
+            [](unsigned char c) { return std::tolower(c); });
+        if(protocol == "gsi" && hasX509Credential) return false;
+        if(protocol == "ztn" && hasBearerToken) return true;
+    }
+    return false;
+}
+
+XrdClHttp::ExceptionInfo XrdClHttp::DescribeException(
+    const std::exception_ptr &exception, const std::string &context)
+{
+    try
+    {
+        if(exception) std::rethrow_exception(exception);
+    }
+    catch(const std::bad_alloc &)
+    {
+        return {ENOMEM, "out of memory " + context};
+    }
+    catch(const std::system_error &ex)
+    {
+        const int code = ex.code().value();
+        return {code > 0 ? static_cast<uint32_t>(code) : EIO,
+                context + ": " + ex.what()};
+    }
+    catch(const std::exception &ex)
+    {
+        return {EIO, "exception " + context + ": " + ex.what()};
+    }
+    catch(...)
+    {
+        return {EIO, "unknown exception " + context};
+    }
+    return {EIO, "unknown exception " + context};
 }
 
 std::pair<uint16_t, uint32_t> XrdClHttp::HTTPStatusConvert(unsigned status) {

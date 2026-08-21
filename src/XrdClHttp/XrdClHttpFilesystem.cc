@@ -55,26 +55,15 @@ Filesystem::QueueOperation(std::unique_ptr<CurlOperation> operation,
     {
         m_queue->Produce(std::move(operation));
     }
-    catch(const std::bad_alloc &ex)
-    {
-        m_logger->Warning(kLogXrdClHttp,
-            "Failed to add %s to queue: %s", description, ex.what());
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
-            ENOMEM, "out of memory while queueing HTTP operation");
-    }
-    catch(const std::exception &ex)
-    {
-        m_logger->Warning(kLogXrdClHttp,
-            "Failed to add %s to queue: %s", description, ex.what());
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
-            EIO, ex.what());
-    }
     catch(...)
     {
+        const auto ex = DescribeException(
+            std::current_exception(), "while queueing HTTP operation");
         m_logger->Warning(kLogXrdClHttp,
-            "Failed to add %s to queue: unknown exception", description);
+            "Failed to add %s to queue: %s", description,
+            ex.message.c_str());
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
-            EIO, "unknown exception while queueing HTTP operation");
+            ex.code, ex.message);
     }
     return XrdCl::XRootDStatus();
 }
