@@ -43,6 +43,121 @@ done
 
 set -e
 
+# The host tables have to be declared before anything iterates them: bash
+# expands an unset array to nothing, so a loop placed above these silently does
+# not run at all (which is what happened to the query-config checks below).
+
+# hostname-address pair, so that we can keep track of files more easily
+declare -A hosts
+hosts["metaman"]="${HOST_METAMAN}"
+hosts["man1"]="${HOST_MAN1}"
+hosts["man2"]="${HOST_MAN2}"
+hosts["srv1"]="${HOST_SRV1}"
+hosts["srv2"]="${HOST_SRV2}"
+hosts["srv3"]="${HOST_SRV3}"
+hosts["srv4"]="${HOST_SRV4}"
+
+declare -A hosts_http
+hosts_http["metaman"]="${HOST_HTTP_METAMAN}"
+hosts_http["man1"]="${HOST_HTTP_MAN1}"
+hosts_http["man2"]="${HOST_HTTP_MAN2}"
+hosts_http["srv1"]="${HOST_HTTP_SRV1}"
+hosts_http["srv2"]="${HOST_HTTP_SRV2}"
+hosts_http["srv3"]="${HOST_HTTP_SRV3}"
+hosts_http["srv4"]="${HOST_HTTP_SRV4}"
+
+RMTDATADIR="/srvdata"
+LCLDATADIR="${PWD}/localdata"  # client folder
+
+mkdir -p ${LCLDATADIR}
+
+# Every file each host is uploaded under. Declared here rather than next to the
+# upload loop so cleanup() below can name them however early the script dies.
+HTTP_SUFFIX=(".ref_http" ".ref_%23_http")
+declare -A MAP_HTTP_XRD_SUFFIX=( [".ref_http"]=".ref_http" [".ref_%23_http"]=".ref_#_http" )
+
+# Hosts the MOVE test uploads to, and the HTTP status each must answer with.
+declare -A srcs=(
+    [metaman]=501
+    [man1]=201
+    [srv1]=201
+)
+
+# The redirect tests below write these into the export root rather than into
+# ${RMTDATADIR}, so they need naming separately for the cleanup.
+declare -A redirfiles
+redirfiles["cluster_redirfile1"]="${HOST_SRV1}"
+redirfiles["cluster_redirfile2"]="${HOST_SRV1}"
+redirfiles["cluster_redirfile3"]="${HOST_SRV3}"
+
+# Captured stderr for the redirect assertions. A fixed path (this used to be
+# /tmp/err.txt) is shared with tests/badredir/test.sh, which sits behind a
+# different CTest fixture and therefore runs concurrently under ctest -j: each
+# clobbered the other's capture before grep read it.
+ERRFILE=$(mktemp)
+
+assert_xrdmapc_json() {
+       expected_json='{"name":"localhost:10940","type":"manager","managers":[{"name":"localhost:10941","type":"manager","servers":[{"name":"localhost:10943"},{"name":"localhost:10944"}]},{"name":"localhost:10942","type":"manager","servers":[{"name":"localhost:10945"},{"name":"localhost:10946"}]}]}'
+       actual_json="$(${XRDMAPC} --format json localhost:10940)"
+
+       if [[ "${actual_json}" != "${expected_json}" ]]; then
+               echo 1>&2 "$(basename $0): error: xrdmapc JSON output does not match expected topology"
+               echo "Expected: ${expected_json}"
+               echo "Actual:   ${actual_json}"
+               exit 1
+       fi
+
+       # Print cluster topology in string format
+       ${XRDMAPC} localhost:10940
+
+}
+
+# Remove everything this test creates, on the failure path as well as the happy
+# one. Anything left behind is not merely untidy: the uploads below would find
+# it on the next run, so a single failure used to wedge every later run in the
+# same build tree. Nothing here may fail -- hence the trailing "|| :" on every
+# command -- because the trap must not change the script's exit status, and it
+# runs on the successful path too.
+#
+# The generated fixtures under data/<srv>/data are deliberately NOT touched:
+# setup.sh spends a 2GB openssl rand and 4000 uuidgen calls on them and caches
+# them for the life of the build tree.
+cleanup() {
+       rm -rf ${LCLDATADIR} || :
+       rm -f ${ERRFILE} || :
+
+       for host in "${!hosts[@]}"; do
+              ${XRDFS} ${HOST_METAMAN} rm ${RMTDATADIR}/${host}.ref 2>/dev/null || :
+              for suffix in "${HTTP_SUFFIX[@]}"; do
+                     ${XRDFS} ${HOST_METAMAN} rm \
+                            "${RMTDATADIR}/${host}${MAP_HTTP_XRD_SUFFIX[$suffix]}" \
+                            2>/dev/null || :
+              done
+       done
+
+       for src in "${!srcs[@]}"; do
+              ${XRDFS} ${HOST_METAMAN} rm ${RMTDATADIR}/old_file_${src} 2>/dev/null || :
+              ${XRDFS} ${HOST_METAMAN} rm ${RMTDATADIR}/new_file_${src} 2>/dev/null || :
+       done
+
+       for file in "${!redirfiles[@]}"; do
+              ${XRDFS} ${redirfiles[$file]} rm /${file} 2>/dev/null || :
+       done
+
+       ${XRDFS} ${HOST_METAMAN} rmdir ${RMTDATADIR} 2>/dev/null || :
+}
+# Only EXIT runs cleanup. A signal trap that called cleanup directly would
+# replace bash's default terminating behaviour: after the handler returns, the
+# script would carry on past the interrupted command, now with its state
+# removed. Exiting explicitly keeps the conventional 128+signal status and
+# fires the EXIT trap exactly once.
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 131' QUIT
+
+assert_xrdmapc_json
+
 ${XRDCP} --version
 
 for host in "${!hosts[@]}"; do
@@ -64,57 +179,6 @@ ${XRDFS} ${HOST_METAMAN} stat /
 ${XRDFS} ${HOST_METAMAN} statvfs /
 ${XRDFS} ${HOST_METAMAN} spaceinfo /
 
-RMTDATADIR="/srvdata"
-LCLDATADIR="${PWD}/localdata"  # client folder
-
-mkdir -p ${LCLDATADIR}
-
-# hostname-address pair, so that we can keep track of files more easily
-declare -A hosts
-hosts["metaman"]="${HOST_METAMAN}"
-hosts["man1"]="${HOST_MAN1}"
-hosts["man2"]="${HOST_MAN2}"
-hosts["srv1"]="${HOST_SRV1}"
-hosts["srv2"]="${HOST_SRV2}"
-hosts["srv3"]="${HOST_SRV3}"
-hosts["srv4"]="${HOST_SRV4}"
-
-declare -A hosts_http
-hosts_http["metaman"]="${HOST_HTTP_METAMAN}"
-hosts_http["man1"]="${HOST_HTTP_MAN1}"
-hosts_http["man2"]="${HOST_HTTP_MAN2}"
-hosts_http["srv1"]="${HOST_HTTP_SRV1}"
-hosts_http["srv2"]="${HOST_HTTP_SRV2}"
-hosts_http["srv3"]="${HOST_HTTP_SRV3}"
-hosts_http["srv4"]="${HOST_HTTP_SRV4}"
-
-assert_xrdmapc_json() {
-       expected_json='{"name":"localhost:10940","type":"manager","managers":[{"name":"localhost:10941","type":"manager","servers":[{"name":"localhost:10943"},{"name":"localhost:10944"}]},{"name":"localhost:10942","type":"manager","servers":[{"name":"localhost:10945"},{"name":"localhost:10946"}]}]}'
-       actual_json="$(${XRDMAPC} --format json localhost:10940)"
-
-       if [[ "${actual_json}" != "${expected_json}" ]]; then
-               echo 1>&2 "$(basename $0): error: xrdmapc JSON output does not match expected topology"
-               echo "Expected: ${expected_json}"
-               echo "Actual:   ${actual_json}"
-               exit 1
-       fi
-
-       # Print cluster topology in string format
-       ${XRDMAPC} localhost:10940
-
-}
-
-cleanup() {
-       echo "Error occurred. Cleaning up..."
-       for host in "${!hosts[@]}"; do
-              rm -rf ${LCLDATADIR}/${host}.dat
-              rm -rf ${LCLDATADIR}/${host}.ref
-       done
-}
-trap "cleanup; exit 1" ABRT
-
-assert_xrdmapc_json
-
 # create local files with random contents using OpenSSL
 
 for host in "${!hosts[@]}"; do
@@ -122,11 +186,8 @@ for host in "${!hosts[@]}"; do
 done
 
 # upload local files to the servers in parallel
-HTTP_SUFFIX=(".ref_http" ".ref_%23_http")
-declare -A MAP_HTTP_XRD_SUFFIX=( [".ref_http"]=".ref_http" [".ref_%23_http"]=".ref_#_http" )
-
 for host in "${!hosts[@]}"; do
-       ${XRDCP} ${LCLDATADIR}/${host}.ref ${hosts[$host]}/${RMTDATADIR}/${host}.ref
+       ${XRDCP} -f ${LCLDATADIR}/${host}.ref ${hosts[$host]}/${RMTDATADIR}/${host}.ref
 
        for suffix in "${HTTP_SUFFIX[@]}"; do
               ${CURL} -v -L ${hosts_http[$host]}/${RMTDATADIR}/${host}${suffix} -T ${LCLDATADIR}/${host}.ref
@@ -141,7 +202,7 @@ for host in "${!hosts[@]}"; do
 done
 
 for host in "${!hosts[@]}"; do
-       ${XRDCP} ${hosts[$host]}/${RMTDATADIR}/${host}.ref ${LCLDATADIR}/${host}.dat
+       ${XRDCP} -f ${hosts[$host]}/${RMTDATADIR}/${host}.ref ${LCLDATADIR}/${host}.dat
        count=0
 
        for suffix in "${HTTP_SUFFIX[@]}"; do
@@ -213,12 +274,6 @@ done
 # Not sure why this is the expected behaviour
 # https://github.com/xrootd/xrootd/blob/8ac19b1d2b74521acff9ed0200052a2e373092cc/src/XrdHttp/XrdHttpReq.cc#L1746-L1752
 
-declare -A srcs=(
-    [metaman]=501
-    [man1]=201
-    [srv1]=201
-)
-
 # Upload files
 for src in "${!srcs[@]}"; do
     curl -s -S -L -v -T "${LCLDATADIR}/srv1.ref" \
@@ -240,37 +295,18 @@ for src in "${!srcs[@]}"; do
     fi
 done
 
-for host in "${!hosts[@]}"; do
-       ${XRDFS} ${HOST_METAMAN} rm ${RMTDATADIR}/${host}.ref &
-       rm ${LCLDATADIR}/${host}.dat &
-       count=0
-
-       for suffix in "${HTTP_SUFFIX[@]}"; do
-               ${XRDFS} ${HOST_METAMAN} rm "${RMTDATADIR}/${host}${MAP_HTTP_XRD_SUFFIX[$suffix]}" &
-               rm ${LCLDATADIR}/${host}.dat_http${count} &
-               count=$((count + 1))
-       done
-done
-wait
-
-# Additional cleanup for move operation files
-for src in "${!srcs[@]}"; do
-    if [[ "$src" == "man1" || "$src" == "srv1" ]]; then
-        ${XRDFS} "${HOST_METAMAN}" rm "${RMTDATADIR}/new_file_${src}" &
-    else
-        ${XRDFS} "${HOST_METAMAN}" rm "${RMTDATADIR}/old_file_${src}" &
-    fi
-done
+# Everything uploaded so far, and the local copies of it, are removed by
+# cleanup() on the way out -- on this path and on every failing one.
 
 # test redirects
-${XRDCP} "${LCLDATADIR}/srv1.ref" "${HOST_SRV1}//cluster_redirfile1"
-${XRDCP} "${LCLDATADIR}/srv1.ref" "${HOST_SRV1}//cluster_redirfile2"
-${XRDCP} "${LCLDATADIR}/srv3.ref" "${HOST_SRV3}//cluster_redirfile3"
+${XRDCP} -f "${LCLDATADIR}/srv1.ref" "${HOST_SRV1}//cluster_redirfile1"
+${XRDCP} -f "${LCLDATADIR}/srv1.ref" "${HOST_SRV1}//cluster_redirfile2"
+${XRDCP} -f "${LCLDATADIR}/srv3.ref" "${HOST_SRV3}//cluster_redirfile3"
 
 set +e
-${XRDCP} -f "${HOST_SRV1}//cluster_redirfile1" /dev/null 2> /tmp/err.txt
+${XRDCP} -f "${HOST_SRV1}//cluster_redirfile1" /dev/null 2> ${ERRFILE}
 ret1=$?
-grep -q "\[ERROR\] Local error: no such file or directory" /tmp/err.txt
+grep -q "\[ERROR\] Local error: no such file or directory" ${ERRFILE}
 ret2=$?
 if [ $ret1 -ne 54 -o $ret2 -ne 0 ]; then
   echo "cluster test with cluster_redirfile1 directly from srv1 did not fail as expected"
@@ -278,9 +314,9 @@ if [ $ret1 -ne 54 -o $ret2 -ne 0 ]; then
   exit 1
 fi
 
-XRD_LOGLEVEL=Dump ${XRDCP} -f "${HOST_METAMAN}//cluster_redirfile1" /dev/null 2> /tmp/err.txt
+XRD_LOGLEVEL=Dump ${XRDCP} -f "${HOST_METAMAN}//cluster_redirfile1" /dev/null 2> ${ERRFILE}
 ret1=$?
-grep -q ":10940\] Got notification that outgoing message kXR_open (file: /cluster_redirfile1?tried=" /tmp/err.txt
+grep -q ":10940\] Got notification that outgoing message kXR_open (file: /cluster_redirfile1?tried=" ${ERRFILE}
 ret2=$?
 if [ $ret1 -eq 0 -o $ret2 -ne 0 ]; then
   echo "cluster test with cluster_redirfile1 via meta-manager did not fail as expected"
@@ -288,9 +324,9 @@ if [ $ret1 -eq 0 -o $ret2 -ne 0 ]; then
   exit 1
 fi
 
-XRD_LOGLEVEL=Dump ${XRDCP} -f "${HOST_METAMAN}//cluster_redirfile2" /dev/null 2> /tmp/err.txt
+XRD_LOGLEVEL=Dump ${XRDCP} -f "${HOST_METAMAN}//cluster_redirfile2" /dev/null 2> ${ERRFILE}
 ret1=$?
-grep -q ":10940\] Got notification that outgoing message kXR_open (file: /cluster_redirfile2?tried=" /tmp/err.txt
+grep -q ":10940\] Got notification that outgoing message kXR_open (file: /cluster_redirfile2?tried=" ${ERRFILE}
 ret2=$?
 if [ $ret1 -eq 0 -o $ret2 -ne 0 ]; then
   echo "cluster test with cluster_redirfile2 via meta-manager did not fail as expected"
@@ -298,12 +334,6 @@ if [ $ret1 -eq 0 -o $ret2 -ne 0 ]; then
   exit 1
 fi
 set -e
-
-# Remove local file once after the loop
-rm -f "${LCLDATADIR}/srv1.ref" &
-wait
-
-${XRDFS} ${HOST_METAMAN} rmdir ${RMTDATADIR}
 
 echo "ALL TESTS PASSED"
 exit 0

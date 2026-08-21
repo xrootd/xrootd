@@ -61,11 +61,16 @@ formatfiles() {
 
 generate(){
 
-       # check if files are in the data directory already...
-       if [[ -e ${DATAFOLDER}/${i} ]]; then
+       # The fixtures below cost a 2GB openssl rand, 4x1000 uuidgen calls and
+       # ten 16MB files, so they are generated once and cached for the life of
+       # the build tree. The sentinel is written last, which is the point: an
+       # interrupted generation leaves no sentinel and is redone, where testing
+       # for the data directory itself would treat a half-built tree as done.
+       if [[ -e ${DATAFOLDER}/.generated ]]; then
               return
        fi
 
+       rm -rf ${DATAFOLDER}
        mkdir -p ${TMPDATAFOLDER}
 
        for i in ${filenames[@]}; do
@@ -144,9 +149,14 @@ generate(){
        done
 
        rm -rf ${TMPDATAFOLDER}
+
+       touch ${DATAFOLDER}/.generated
 }
 
 start(){
+       # A previous run killed part way through leaves its servers holding the
+       # ports and its instance directories on disk.
+       stop
        generate
        set -x
        # start for each component
@@ -162,11 +172,20 @@ start(){
        sleep 1
 }
 
+# Signal only pids that are still alive. A crashed or SIGKILLed instance leaves
+# a stale pidfile behind, and killing it blindly under `set -e` would abort the
+# script -- which, since this is the fixture *cleanup*, reports the whole
+# cluster teardown as failed and leaves the instance directories in place.
 stop() {
 	for i in "${servernames[@]}"; do
 		if [[ -d "${i}" ]]; then
-			kill -s TERM $(cat ${i}/cmsd.pid)
-			kill -s TERM $(cat ${i}/xrootd.pid)
+			for pidfile in "${i}"/cmsd.pid "${i}"/xrootd.pid; do
+				test -s "${pidfile}" || continue
+				pid="$(ps -o pid= "$(cat "${pidfile}")" || true)"
+				if test -n "${pid}"; then
+					kill -s TERM "${pid}"
+				fi
+			done
 			rm -rf "${i}"
 		fi
 	done
