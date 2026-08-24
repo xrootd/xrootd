@@ -2058,6 +2058,8 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
 
   printf( "Available options:\n\n"                                            );
 
+  printf( "   -4, --ipv4          use only the IPv4 network stack\n"          );
+  printf( "   -6, --ipv6          use only the IPv6 network stack\n"          );
   printf( "   -d, --debug <level> set debug level: 0 off, 1 low, 2 medium,\n" );
   printf( "                       3 high\n"                                  );
   printf( "   -h, --help show this help\n"                                    );
@@ -2435,6 +2437,8 @@ int main( int argc, char **argv )
   XrdCl::FSExecutor::CommandParams params;
   enum { NoCwdOption = 256 };
   static const option options[] = {
+    { "ipv4",   no_argument,       0, '4' },
+    { "ipv6",   no_argument,       0, '6' },
     { "debug",  required_argument, 0, 'd' },
     { "help",   no_argument, 0, 'h' },
     { "no-cwd", no_argument, 0, NoCwdOption },
@@ -2443,12 +2447,29 @@ int main( int argc, char **argv )
 
   bool noCwd = false;
   int debugLevel = 0;
+  std::string networkStack;
   opterr = 0;
   int option = 0;
-  while( (option = getopt_long( argc, argv, "+d:h", options, 0 )) != -1 )
+  while( (option = getopt_long( argc, argv, "+46d:h", options, 0 )) != -1 )
   {
     switch( option )
     {
+      case '4':
+        if( networkStack == "IPv6" )
+        {
+          std::cerr << "xrdfs: -4 and -6 are mutually exclusive" << std::endl;
+          return 1;
+        }
+        networkStack = "IPv4";
+        break;
+      case '6':
+        if( networkStack == "IPv4" )
+        {
+          std::cerr << "xrdfs: -4 and -6 are mutually exclusive" << std::endl;
+          return 1;
+        }
+        networkStack = "IPv6";
+        break;
       case 'd':
       {
         char *end = 0;
@@ -2473,6 +2494,9 @@ int main( int argc, char **argv )
         return 1;
     }
   }
+
+  if( !networkStack.empty() )
+    DefaultEnv::GetEnv()->PutString( "NetworkStack", networkStack );
 
   if( debugLevel )
   {
