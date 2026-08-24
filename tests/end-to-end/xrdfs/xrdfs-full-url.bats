@@ -104,3 +104,18 @@ bats::on_failure() {
     run -1 xrdfs --debug 4 stat root://localhost:11965//examplefile
     assert_output "xrdfs: invalid debug level '4' (expected 0-3)"
 }
+
+@test "IPv4 network stack can be selected" {
+    run -0 xrdfs -d 2 -4 stat root://localhost:11965//examplefile
+    assert_output --partial 'Network Stack: IPv4'
+}
+
+@test "IPv6 network stack can be selected" {
+    run -0 xrdfs -d 2 -6 stat root://localhost:11965//examplefile
+    assert_output --partial 'Network Stack: IPv6'
+}
+
+@test "network stack selections are mutually exclusive" {
+    run -1 xrdfs --ipv4 --ipv6 stat root://localhost:11965//examplefile
+    assert_output 'xrdfs: -4 and -6 are mutually exclusive'
+}
