@@ -312,6 +312,17 @@ CurlOperation::CurlOperation(XrdCl::ResponseHandler *handler, const std::string 
 CurlOperation::~CurlOperation() {}
 
 void
+CurlOperation::ExtendDeadline(struct timespec timeout)
+{
+    auto expiry = CalculateExpiry(timeout);
+    auto current = m_header_expiry.load(std::memory_order_relaxed);
+    while (expiry > current &&
+           !m_header_expiry.compare_exchange_weak(current, expiry,
+                                                  std::memory_order_relaxed))
+        ;
+}
+
+void
 CurlOperation::Fail(uint16_t errCode, uint32_t errNum, const std::string &msg)
 {
     SetDone(true);
@@ -502,7 +513,10 @@ CurlOperation::Redirect(std::string &target)
             m_callout.reset(conn_callout);
             std::string err;
             SetTriedBoker();
-            if ((m_conn_callout_listener = m_callout->BeginCallout(err, m_header_expiry)) == -1) {
+            // BeginCallout takes the expiration by non-const reference; hand it
+            // a copy rather than the atomic's storage.
+            auto expiry = GetHeaderExpiry();
+            if ((m_conn_callout_listener = m_callout->BeginCallout(err, expiry)) == -1) {
                 auto errMsg = "Failed to start a connection callout request: " + err;
                 Fail(XrdCl::errInternal, 0, errMsg.c_str());
                 return RedirectAction::Fail;
@@ -546,7 +560,8 @@ CurlOperation::SetPaused(bool paused) {
 bool
 CurlOperation::StartConnectionCallout(std::string &err)
 {
-    if ((m_conn_callout_listener = m_callout->BeginCallout(err, m_header_expiry)) == -1) {
+    auto expiry = GetHeaderExpiry();
+    if ((m_conn_callout_listener = m_callout->BeginCallout(err, expiry)) == -1) {
         err = "Failed to start a callout for a socket connection: " + err;
         Fail(XrdCl::errInternal, 1, err.c_str());
         return false;
@@ -586,7 +601,7 @@ bool
 CurlOperation::HeaderTimeoutExpired(const std::chrono::steady_clock::time_point &now) {
     if (m_received_header) return false;
 
-    if (now > m_header_expiry) {
+    if (now > GetHeaderExpiry()) {
         if (m_error == OpError::ErrNone) m_error = OpError::ErrHeaderTimeout;
         return true;
     }
@@ -829,7 +844,8 @@ CurlOperation::OpenSocketCallback(void *clientp, curlsocktype purpose, struct cu
     me->m_conn_callout_result = -1;
     if (fd == -1) {
         std::string err;
-        if ((me->m_conn_callout_listener = me->m_callout->BeginCallout(err, me->m_header_expiry)) == -1) {
+        auto expiry = me->GetHeaderExpiry();
+        if ((me->m_conn_callout_listener = me->m_callout->BeginCallout(err, expiry)) == -1) {
             me->m_logger->Debug(kLogXrdClHttp, "Failed to start a connection callout request: %s", err.c_str());
         }
         return CURL_SOCKET_BAD;

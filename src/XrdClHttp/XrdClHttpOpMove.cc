@@ -23,7 +23,7 @@ CurlMoveOp::CurlMoveOp(XrdCl::ResponseHandler *handler,
         m_destination = "http://" + m_destination.substr(6);
     else if (m_destination.compare(0, 7, "davs://") == 0)
         m_destination = "https://" + m_destination.substr(7);
-    m_operation_expiry = m_header_expiry;
+    m_operation_expiry = GetHeaderExpiry();
 }
 
 bool CurlMoveOp::Setup(CURL *curl, CurlWorker &worker) {

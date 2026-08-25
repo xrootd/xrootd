@@ -25,7 +25,7 @@ CurlSpaceOp::CurlSpaceOp(XrdCl::ResponseHandler *handler,
               "<d:quota-available-bytes/><d:quota-used-bytes/>"
               "</d:prop></d:propfind>")
 {
-    m_operation_expiry = m_header_expiry;
+    m_operation_expiry = GetHeaderExpiry();
 }
 
 bool CurlSpaceOp::Setup(CURL *curl, CurlWorker &worker) {
