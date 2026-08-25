@@ -31,7 +31,6 @@
 /******************************************************************************/
 
 #include <cstring>
-#include <set>
 
 struct XrdVersionInfo;
 
@@ -255,6 +254,5 @@ struct PLlist {PLlist  *next;
               };
 
 static PLlist *plList;
-static std::set<void (*)()> piSet;
 };
 #endif

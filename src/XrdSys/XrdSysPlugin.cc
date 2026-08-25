@@ -52,6 +52,8 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 
+#include <set>
+
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -63,9 +65,12 @@
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
-struct XrdSysPlugin::PLlist *XrdSysPlugin::plList = 0;
+namespace
+{
+std::set<void (*)()> piUnload_Callbacks;
+}
 
-std::set<void (*)()> XrdSysPlugin::piSet;
+struct XrdSysPlugin::PLlist *XrdSysPlugin::plList = 0;
 
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
@@ -258,7 +263,7 @@ void XrdSysPlugin::Finish()
 {
 // Call Finish() for every plugin in our loaded plugin set
 //
-   for (auto it = piSet.begin(); it != piSet.end(); it++) (*it)();
+   for (auto& plugin : piUnload_Callbacks) plugin();
 }
 
 /******************************************************************************/
@@ -336,13 +341,12 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 // it's psuedo unload handler, if any.
 //
    if ((cvRC = chkVersion(urInfo, pname, myHandle)) == cvBad) return 0;
-      else {void (*pUnLoad)(void);
-            char nUnLoad[512];
-            if (snprintf(nUnLoad, sizeof(nUnLoad), "%s%s", XrdVERSIONINFOSFX,
-                         pname) < (int)sizeof(nUnLoad)
-                && (pUnLoad = (void (*)())dlsym(myHandle, nUnLoad))
-               )  piSet.insert(pUnLoad);
-           }
+      {void (*pUnLoad)(void);
+       std::string unlSym = std::string(XrdVERSIONINFOSFX) + pname;
+       if ((pUnLoad = (void (*)())dlsym(myHandle, unlSym.c_str())))
+          piUnload_Callbacks.insert(pUnLoad);
+          else Inform("No virtual unload ", unlSym.c_str(), " in ", libPath);
+      }
 
 // Print the loaded version unless message is suppressed or not needed
 //
