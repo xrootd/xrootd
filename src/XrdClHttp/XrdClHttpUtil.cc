@@ -447,7 +447,8 @@ bool HeaderParser::Parse(const std::string &header_line)
         std::string_view val(header_value);
         while (!val.empty()) {
             auto found = val.find(',');
-            auto method = val.substr(0, found);
+            std::string method(val.substr(0, found));
+            XrdCl::Utils::Trim(method);
             if (method == "PROPFIND") {
                 auto new_verbs = static_cast<unsigned>(m_allow_verbs) | static_cast<unsigned>(VerbsCache::HttpVerb::kPROPFIND);
                 m_allow_verbs = static_cast<VerbsCache::HttpVerb>(new_verbs);
@@ -1285,9 +1286,8 @@ CurlWorker::Run() {
         std::shared_ptr<CurlOptionsOp> options_op;
         CURL *options_handle = nullptr;
         try {
-            std::string modified_url;
             options_op = std::make_shared<CurlOptionsOp>(parent_handle, parent_op,
-                std::string(VerbsCache::GetUrlKey(target, modified_url)),
+                target,
                 m_logger, parent_op->GetConnCalloutFunc());
             options_handle = queue.GetHandle();
             if (!options_handle || !options_op->Setup(options_handle, *this)) {
