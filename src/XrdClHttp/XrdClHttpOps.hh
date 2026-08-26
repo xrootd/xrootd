@@ -814,8 +814,10 @@ public:
 
 class CurlListdirOp final : public CurlOperation {
 public:
-    CurlListdirOp(XrdCl::ResponseHandler *handler, const std::string &url, const std::string &host_addr, bool response_info,
-        struct timespec timeout, XrdCl::Log *logger, CreateConnCalloutType callout, HeaderCallout *header_callout);
+    CurlListdirOp(XrdCl::ResponseHandler *handler, const std::string &url,
+        const std::string &parent, const std::string &host_addr,
+        bool response_info, struct timespec timeout, XrdCl::Log *logger,
+        CreateConnCalloutType callout, HeaderCallout *header_callout);
 
     virtual ~CurlListdirOp() {}
 
@@ -853,6 +855,9 @@ private:
 
     // Response body from the PROPFIND request.
     std::string m_response;
+
+    // Path whose entries are returned by the PROPFIND request.
+    std::string m_parent;
 
     // Host address (hostname:port) of the data federation
     std::string m_host_addr;

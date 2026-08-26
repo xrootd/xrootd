@@ -29,11 +29,14 @@
 
 using namespace XrdClHttp;
 
-CurlListdirOp::CurlListdirOp(XrdCl::ResponseHandler *handler, const std::string &url, const std::string &host_addr,
-    bool set_response_info, struct timespec timeout, XrdCl::Log *logger, CreateConnCalloutType callout,
+CurlListdirOp::CurlListdirOp(XrdCl::ResponseHandler *handler,
+    const std::string &url, const std::string &parent,
+    const std::string &host_addr, bool set_response_info,
+    struct timespec timeout, XrdCl::Log *logger, CreateConnCalloutType callout,
     HeaderCallout *header_callout) :
     CurlOperation(handler, url, timeout, logger, callout, header_callout),
     m_response_info(set_response_info),
+    m_parent(parent),
     m_host_addr(host_addr)
 {
     m_minimum_rate = 1024.0 * 1;
@@ -171,6 +174,7 @@ CurlListdirOp::Success()
     m_logger->Debug(kLogXrdClHttp, "CurlListdirOp::Success");
 
     std::unique_ptr<XrdCl::DirectoryList> dirlist(m_response_info ? new DirectoryListResponse() : new XrdCl::DirectoryList());
+    dirlist->SetParentName(m_parent);
 
     TiXmlDocument doc;
     doc.Parse(m_response.c_str());
