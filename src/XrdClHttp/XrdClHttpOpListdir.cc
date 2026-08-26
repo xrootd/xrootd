@@ -29,11 +29,26 @@
 
 using namespace XrdClHttp;
 
-CurlListdirOp::CurlListdirOp(XrdCl::ResponseHandler *handler, const std::string &url, const std::string &host_addr,
-    bool set_response_info, struct timespec timeout, XrdCl::Log *logger, CreateConnCalloutType callout,
+namespace {
+bool SafeDavChildName(const std::string &name)
+{
+    if (name.empty() || name == "." || name == ".." ||
+        name.find_first_of("/\\?#") != std::string::npos) return false;
+    for (unsigned char c : name) {
+        if (c < 0x20 || c == 0x7f) return false;
+    }
+    return true;
+}
+}
+
+CurlListdirOp::CurlListdirOp(XrdCl::ResponseHandler *handler,
+    const std::string &url, const std::string &parent,
+    const std::string &host_addr, bool set_response_info,
+    struct timespec timeout, XrdCl::Log *logger, CreateConnCalloutType callout,
     HeaderCallout *header_callout) :
     CurlOperation(handler, url, timeout, logger, callout, header_callout),
     m_response_info(set_response_info),
+    m_parent(parent),
     m_host_addr(host_addr)
 {
     m_minimum_rate = 1024.0 * 1;
@@ -103,12 +118,10 @@ bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
                 return false;
             }
             entry.m_lastmodified = timegm(&tm);
-        } else if (strcasecmp(child->Value(), "D:href") == 0) {
-            auto href = child->GetText();
-            if (href == nullptr) {
-                return false;
-            }
-            entry.m_name = href;
+        } else if (!strcasecmp(child->Value(), "D:href")) {
+            // An href belongs to D:response. A property must not override the
+            // direct-child name derived from that response's href.
+            return false;
         } else if (!strcasecmp(child->Value(), "D:executable") || !strcasecmp(child->Value(), "lp1:executable")) {
             auto val = child->GetText();
             if (val == nullptr) {
@@ -171,6 +184,7 @@ CurlListdirOp::Success()
     m_logger->Debug(kLogXrdClHttp, "CurlListdirOp::Success");
 
     std::unique_ptr<XrdCl::DirectoryList> dirlist(m_response_info ? new DirectoryListResponse() : new XrdCl::DirectoryList());
+    dirlist->SetParentName(m_parent);
 
     TiXmlDocument doc;
     doc.Parse(m_response.c_str());
@@ -202,6 +216,10 @@ CurlListdirOp::Success()
         if (skip) {
             skip = false;
         } else {
+            if (!SafeDavChildName(entry.m_name)) {
+                Fail(XrdCl::errErrorResponse, kXR_FSError, "Server returned an unsafe directory entry");
+                return;
+            }
             uint32_t flags = XrdCl::StatInfo::Flags::IsReadable;
             if (entry.m_isdir) {
                 flags |= XrdCl::StatInfo::Flags::IsDir;

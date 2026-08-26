@@ -1,5 +1,6 @@
 add_unit_tests(
   SOURCES
+    XrdClFileSystem.cc
     XrdClEnv.cc
     XrdClLocalFileHandler.cc
     XrdClPlugInManager.cc

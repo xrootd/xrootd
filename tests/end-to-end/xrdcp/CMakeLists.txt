@@ -8,3 +8,5 @@ add_bats_tests(tpc.bats)
 add_bats_tests(transfer.bats)
 add_bats_tests(xattr.bats)
 add_bats_tests(zip.bats)
+
+add_bats_tests(directories.bats)

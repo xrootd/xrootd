@@ -343,12 +343,40 @@ void AppendCGI( std::string &url, const char *newCGI )
     ++newCGI;
 
   if( url.find( '?' ) == std::string::npos )
-    url += "?";
-
-  if( url.find( '&' ) == std::string::npos )
-    url += "&";
+    url += '?';
+  else if( url.back() != '?' && url.back() != '&' )
+    url += '&';
 
   url += newCGI;
+}
+
+//------------------------------------------------------------------------------
+// A recursive listing supplies relative names which may become local paths.
+// Reject components which could escape the selected destination.
+//------------------------------------------------------------------------------
+bool SafeRelativePath( const std::string &path, bool httpSource )
+{
+  if( path.empty() || path.front() == '/' ||
+      path.find( '?' ) != std::string::npos ||
+      ( httpSource && ( path.find( '\\' ) != std::string::npos ||
+                        path.find( '#' ) != std::string::npos ) ) )
+    return false;
+
+  size_t begin = 0;
+  do
+  {
+    size_t end = path.find( '/', begin );
+    std::string component = path.substr( begin, end - begin );
+    if( component.empty() || component == "." || component == ".." )
+      return false;
+    for( unsigned char c : component )
+      if( c < 0x20 || c == 0x7f )
+        return false;
+    if( end == std::string::npos )
+      break;
+    begin = end + 1;
+  } while( true );
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -392,6 +420,15 @@ const char *FileType2String( XrdCpFile::PType type )
 }
 
 //------------------------------------------------------------------------------
+// Return whether a remote protocol supports filesystem directory operations
+//------------------------------------------------------------------------------
+bool SupportsRemoteDirectories( XrdCpFile::PType type )
+{
+  return type == XrdCpFile::isXroot  || type == XrdCpFile::isXroots ||
+         type == XrdCpFile::isHttp   || type == XrdCpFile::isHttps;
+}
+
+//------------------------------------------------------------------------------
 // Count the sources
 //------------------------------------------------------------------------------
 uint32_t CountSources( XrdCpFile *file )
@@ -431,31 +468,57 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
   Log *log = DefaultEnv::GetLog();
   log->Debug( AppMsg, "Indexing %s", basePath.c_str() );
 
+  URL source( basePath );
+  const std::string &protocol = source.GetProtocol();
+  bool httpSource = protocol == "http" || protocol == "https" ||
+                    protocol == "dav" || protocol == "davs";
   DirectoryList *dirList = 0;
-  XRootDStatus st = fs->DirList( URL( basePath ).GetPath(), DirListFlags::Recursive
+  XRootDStatus st = fs->DirList( source.GetPathWithParams(), DirListFlags::Recursive
       | DirListFlags::Locate | DirListFlags::Merge, dirList );
-  if( !st.IsOK() )
+  if( !st.IsOK() || st.code == suPartial || !dirList )
   {
-    log->Info( AppMsg, "Failed to get directory listing for %s: %s",
-                       basePath.c_str(),
-                       st.GetErrorMessage().c_str() );
+    log->Error( AppMsg, "Incomplete directory listing for %s: %s",
+                        basePath.c_str(), st.ToString().c_str() );
+    delete dirList;
     return 0;
   }
 
   XrdCpFile start, *current = 0;
   XrdCpFile *end   = &start;
+  std::string parent = dirList->GetParentName();
+  parent = parent.substr( 0, parent.find( '?' ) );
+  if( parent.empty() || parent.back() != '/' )
+    parent += '/';
+  auto discard = [&start]() {
+    while( start.Next )
+    {
+      XrdCpFile *next = start.Next->Next;
+      delete start.Next;
+      start.Next = next;
+    }
+  };
   int       badUrl = 0;
   for( auto itr = dirList->Begin(); itr != dirList->End(); ++itr )
   {
     DirectoryList::ListEntry *e = *itr;
     if( e->GetStatInfo()->TestFlags( StatInfo::IsDir ) )
       continue;
-    std::string path = basePath + '/' + e->GetName();
-    current = new XrdCpFile( path.c_str(), badUrl );
+    if( !SafeRelativePath( e->GetName(), httpSource ) )
+    {
+      log->Error( AppMsg, "Unsafe directory entry in %s", basePath.c_str() );
+      delete dirList;
+      discard();
+      return 0;
+    }
+    URL child( source );
+    child.SetPath( parent + e->GetName() );
+    current = new XrdCpFile( child.GetURL().c_str(), badUrl );
     if( badUrl )
     {
       log->Error( AppMsg, "Bad URL: %s", current->Path );
       delete current;
+      delete dirList;
+      discard();
       return 0;
     }
 
@@ -729,6 +792,7 @@ int main( int argc, char **argv )
     }
   }
   dest += config.dstFile->Path;
+  AppendCGI( dest, config.dstOpq );
 
   //----------------------------------------------------------------------------
   // A destination that ends in / is a directory. Several sources are allowed,
@@ -771,12 +835,9 @@ int main( int argc, char **argv )
     }
   }
 
-  // root:// and roots:// may already be a directory even when the path does
-  // not end in /. Ask the server, and add the source file name if it is.
-  // http://, https://, and s3:// are directories only when the path ends in /.
-  if( !targetIsDir &&
-      ( config.dstFile->Protocol == XrdCpFile::isXroot ||
-        config.dstFile->Protocol == XrdCpFile::isXroots ) )
+  // Probe existing XRootD and WebDAV directories without a trailing slash.
+  // S3 directory destinations are indicated by a trailing slash.
+  if( !targetIsDir && SupportsRemoteDirectories( config.dstFile->Protocol ) )
   {
     URL target( dest );
     FileSystem fs( target );
@@ -812,14 +873,15 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   bool remoteSrcIsDir = false;
   if( config.Want( XrdCpConfig::DoRecurse ) &&
-      (config.srcFile->Protocol == XrdCpFile::isXroot ||
-       config.srcFile->Protocol == XrdCpFile::isXroots) )
+      SupportsRemoteDirectories( config.srcFile->Protocol ) )
   {
-    URL          source( config.srcFile->Path );
+    std::string sourceURL = config.srcFile->Path;
+    AppendCGI( sourceURL, config.srcOpq );
+    URL          source( sourceURL );
     FileSystem  *fs       = new FileSystem( source );
     StatInfo    *statInfo = 0;
 
-    XRootDStatus st = fs->Stat( source.GetPath(), statInfo );
+    XRootDStatus st = fs->Stat( source.GetPathWithParams(), statInfo );
     if( st.IsOK() && statInfo->TestFlags( StatInfo::IsDir ) )
     {
       remoteSrcIsDir = true;
@@ -830,7 +892,8 @@ int main( int argc, char **argv )
       //------------------------------------------------------------------------
       delete config.srcFile;
       std::string url = source.GetURL();
-      config.srcFile = IndexRemote( fs, url, url.size() );
+      config.srcFile = IndexRemote( fs, url,
+                                   url.size() - source.GetParamsAsString().size() );
       if ( !config.srcFile )
       {
         std::cerr << "Error indexing remote directory.";
@@ -875,7 +938,8 @@ int main( int argc, char **argv )
       }
     }
 
-    AppendCGI( source, config.srcOpq );
+    if( !remoteSrcIsDir )
+      AppendCGI( source, config.srcOpq );
 
     std::string sourcePathObf = sourceFile->Path;
     std::string destPathObf = dest;
@@ -903,26 +967,28 @@ int main( int argc, char **argv )
     // if this is a recursive copy make sure we preserve the directory structure
     if( config.Want( XrdCpConfig::DoRecurse ) && srcIsDir )
     {
+      // Keep query parameters out of the local directory hierarchy.
+      std::string srcPath = sourceFile->Path;
+      if( remoteSrcIsDir )
+        srcPath = srcPath.substr( 0, srcPath.find( '?' ) );
       // get the source directory
-      std::string srcDir( sourceFile->Path, sourceFile->Doff );
+      std::string srcDir( srcPath, 0, sourceFile->Doff );
       // remove the trailing slash
       if( !srcDir.empty() && srcDir.back() == '/' )
         srcDir.pop_back();
       size_t diroff = srcDir.rfind( '/' );
-      // A relative name has no slash, so the whole name is kept. Otherwise move
-      // past the slash in front of the directory name. Keeping it would write
-      // two slashes into the destination.
-      if( diroff == std::string::npos )
-        diroff = 0;
-      else
-        ++diroff;
-      if( target.empty() || target.back() != '/' )
-        target += '/';
-      target += sourceFile->Path + diroff;
-      // remove the filename from destination path as it will be appended later anyway
-      target = target.substr( 0 , target.rfind('/') );
+      // A relative name has no slash, so keep the whole name.
+      diroff = diroff == std::string::npos ? 0 : diroff + 1;
+      URL targetURL( target );
+      std::string targetPath = targetURL.GetPath();
+      if( targetPath.empty() || targetPath.back() != '/' )
+        targetPath += '/';
+      targetPath += srcPath.substr( diroff );
+      // The copy process appends the filename to this directory.
+      targetPath.erase( targetPath.rfind( '/' ) );
+      targetURL.SetPath( targetPath );
+      target = targetURL.GetURL();
     }
-    AppendCGI( target, config.dstOpq );
 
     properties.Set( "source",          source                 );
     properties.Set( "target",          target                 );
@@ -1024,4 +1090,3 @@ int main( int argc, char **argv )
   CleanUpResults( resultVect );
   return 0;
 }
-
