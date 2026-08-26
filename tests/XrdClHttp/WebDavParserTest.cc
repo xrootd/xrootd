@@ -34,6 +34,15 @@ bool ParseProperties(const char *xml, XrdClHttp::WebDavProperties &properties)
         XrdClHttp::ParseWebDavProperties(document.RootElement(), properties);
 }
 
+bool ParseResponseProperties(const char *xml,
+                             XrdClHttp::WebDavProperties &properties)
+{
+    TiXmlDocument document;
+    document.Parse(xml);
+    return !document.Error() && XrdClHttp::ParseWebDavResponseProperties(
+        document.RootElement(), properties);
+}
+
 }
 
 TEST(WebDavParser, ParsesWhitespaceSeparatedAllowMethods)
@@ -104,4 +113,32 @@ TEST(WebDavParser, RejectsInvalidContentLength)
         xml += "</d:getcontentlength></d:prop>";
         EXPECT_FALSE(ParseProperties(xml.c_str(), properties)) << value;
     }
+}
+
+TEST(WebDavParser, IgnoresUnsuccessfulPropstatEntries)
+{
+    XrdClHttp::WebDavProperties properties;
+    ASSERT_TRUE(ParseResponseProperties(
+        "<d:response xmlns:d=\"DAV:\">"
+        "<d:propstat>"
+        "<d:status>HTTP/1.1 200 OK</d:status>"
+        "<d:prop><d:getcontentlength>123</d:getcontentlength></d:prop>"
+        "</d:propstat>"
+        "<d:propstat>"
+        "<d:status>HTTP/1.1 404 Not Found</d:status><d:prop/>"
+        "</d:propstat>"
+        "</d:response>", properties));
+
+    EXPECT_EQ(properties.m_size, 123);
+}
+
+TEST(WebDavParser, RequiresSuccessfulPropstatEntry)
+{
+    XrdClHttp::WebDavProperties properties;
+    EXPECT_FALSE(ParseResponseProperties(
+        "<d:response xmlns:d=\"DAV:\">"
+        "<d:propstat>"
+        "<d:status>HTTP/1.1 404 Not Found</d:status><d:prop/>"
+        "</d:propstat>"
+        "</d:response>", properties));
 }

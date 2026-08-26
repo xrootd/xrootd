@@ -157,21 +157,11 @@ CurlStatOp::GetStatInfo() {
         m_logger->Error(kLogXrdClHttp, "Failed to find response element in XML response: %s", m_response.substr(0, 1024).c_str());
         return {-1, false};
     }
-    for (auto child = elem->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
-        if (!WebDavElementNameEquals(child, "propstat")) {
-            continue;
-        }
-        for (auto prop = child->FirstChildElement(); prop != nullptr; prop = prop->NextSiblingElement()) {
-            if (WebDavElementNameEquals(prop, "prop")) {
-                WebDavProperties properties;
-                if (!ParseWebDavProperties(prop, properties)) {
-                    return {-1, false};
-                }
-                m_length = properties.m_size;
-                m_is_dir = properties.m_is_dir;
-                return {m_length, m_is_dir};
-            }
-        }
+    WebDavProperties properties;
+    if (ParseWebDavResponseProperties(elem, properties)) {
+        m_length = properties.m_size;
+        m_is_dir = properties.m_is_dir;
+        return {m_length, m_is_dir};
     }
     m_logger->Error(kLogXrdClHttp, "Failed to find properties in XML response: %s", m_response.substr(0, 1024).c_str());
     return {-1, false};

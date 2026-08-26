@@ -101,24 +101,14 @@ CurlListdirOp::ParseResponse(TiXmlElement *response)
             }
             continue;
         }
-        if (!WebDavElementNameEquals(child, "propstat")) {
-            continue;
-        }
-        for (auto propstat = child->FirstChildElement(); propstat != nullptr; propstat = propstat->NextSiblingElement()) {
-            if (!WebDavElementNameEquals(propstat, "prop")) {
-                continue;
-            }
-            WebDavProperties properties;
-            success = ParseWebDavProperties(propstat, properties);
-            if (!success) {
-                return {entry, success};
-            }
-            entry.m_isdir = properties.m_is_dir;
-            entry.m_isexec = properties.m_is_executable;
-            entry.m_size = properties.m_size;
-            entry.m_lastmodified = properties.m_last_modified;
-        }
     }
+    WebDavProperties properties;
+    success = ParseWebDavResponseProperties(response, properties);
+    if (!success) return {entry, false};
+    entry.m_isdir = properties.m_is_dir;
+    entry.m_isexec = properties.m_is_executable;
+    entry.m_size = properties.m_size;
+    entry.m_lastmodified = properties.m_last_modified;
     return {entry, success};
 }
 
