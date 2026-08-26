@@ -28,6 +28,11 @@ setup() {
 	assert_equal "$(cat $DST_DATA/file_dst$N)" 'source content'
 }
 
+@test "pull copy does not require a separate directory stat of the destination" {
+	xrdcp -T only "$SRC_HTTP//file_src" "$DST_HTTP//file_dst$N"
+	run -1 grep -E 'got hdr line: (PROPFIND|HEAD) ' "$DST_LOG"
+}
+
 @test "pull copy sends the Source header to the destination server" {
 	run -0 xrdcp -T only $SRC_HTTP//file_src $DST_HTTP//file_dst$N
 	run -0 grep "Source: $SRC_HTTP//file_src" <(server_log dst)
