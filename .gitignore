@@ -1,7 +1,25 @@
-# CMake build directory
+# CMake build directories and local configuration
 build/
+build-*/
+cmake-build-*/
+CMakeUserPresets.json
+/compile_commands.json
+
+# IDE metadata
+.idea/
+.vscode/
+
+# macOS metadata
+.DS_Store
+
 # docker builds
 docker/xrootd.tar.gz
-# Python build artifacts
+
+# Python build artifacts and environments
 dist/
 *.egg-info
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
