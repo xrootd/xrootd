@@ -141,12 +141,27 @@ endif()
 cxx_library(gtest_main "${cxx_strict}" src/gtest_main.cc)
 set_target_properties(gtest_main PROPERTIES VERSION ${GOOGLETEST_VERSION})
 string(REPLACE ";" "$<SEMICOLON>" dirs "${gtest_build_include_dirs}")
-target_include_directories(gtest SYSTEM INTERFACE
-  "$<BUILD_INTERFACE:${dirs}>"
-  "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
-target_include_directories(gtest_main SYSTEM INTERFACE
-  "$<BUILD_INTERFACE:${dirs}>"
-  "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+if(NOT MSVC AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Keep the build-tree headers ahead of unrelated system prefixes while
+  # retaining system-header diagnostics behavior for Google Test itself.
+  target_include_directories(gtest BEFORE INTERFACE
+    "$<BUILD_INTERFACE:${dirs}>")
+  target_include_directories(gtest SYSTEM BEFORE INTERFACE
+    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+  target_include_directories(gtest_main BEFORE INTERFACE
+    "$<BUILD_INTERFACE:${dirs}>")
+  target_include_directories(gtest_main SYSTEM BEFORE INTERFACE
+    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+  target_compile_options(gtest INTERFACE
+    "$<BUILD_INTERFACE:--system-header-prefix=gtest/>")
+else()
+  target_include_directories(gtest SYSTEM BEFORE INTERFACE
+    "$<BUILD_INTERFACE:${dirs}>"
+    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+  target_include_directories(gtest_main SYSTEM BEFORE INTERFACE
+    "$<BUILD_INTERFACE:${dirs}>"
+    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+endif()
 if(CMAKE_SYSTEM_NAME MATCHES "QNX" AND CMAKE_SYSTEM_VERSION VERSION_GREATER_EQUAL 7.1)
   target_link_libraries(gtest PUBLIC regex)
 endif()
