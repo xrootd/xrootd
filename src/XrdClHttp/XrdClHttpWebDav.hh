@@ -43,6 +43,11 @@ bool WebDavElementNameEquals(const TiXmlElement *element,
 // Collections may omit their content length; regular resources may not.
 bool ParseWebDavProperties(TiXmlElement *prop, WebDavProperties &properties);
 
+// Select a successful propstat from a WebDAV response and parse its
+// properties. Explicitly unsuccessful propstat entries are ignored.
+bool ParseWebDavResponseProperties(TiXmlElement *response,
+                                   WebDavProperties &properties);
+
 }
 
 #endif

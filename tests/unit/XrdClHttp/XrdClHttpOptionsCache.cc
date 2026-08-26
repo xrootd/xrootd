@@ -24,26 +24,28 @@
 
 using XrdClHttp::VerbsCache;
 
-TEST(OptionsCache, KeysCapabilitiesByResourcePath)
+TEST(OptionsCacheTest, KeysCapabilitiesByResourcePath)
 {
     EXPECT_EQ(VerbsCache::GetUrlKey("https://example.org/namespace/file-a"),
               "https://example.org:443/namespace/file-a");
     EXPECT_EQ(VerbsCache::GetUrlKey("https://example.org/namespace/file-b"),
               "https://example.org:443/namespace/file-b");
-    EXPECT_NE(VerbsCache::GetUrlKey("https://example.org/namespace/file-a"),
-              VerbsCache::GetUrlKey("https://example.org/namespace/file-b"));
 }
 
-TEST(OptionsCache, ExcludesCredentialsAndRequestParameters)
+TEST(OptionsCacheTest, ExcludesCredentialsAndRequestParameters)
 {
     EXPECT_EQ(VerbsCache::GetUrlKey(
                   "https://user:secret@example.org/data?authz=token#fragment"),
               "https://example.org:443/data");
+}
+
+TEST(OptionsCacheTest, UsesTheRootPathForAnOriginWithoutAPath)
+{
     EXPECT_EQ(VerbsCache::GetUrlKey("https://example.org"),
               "https://example.org:443/");
 }
 
-TEST(OptionsCache, DoesNotShareVerbsBetweenPaths)
+TEST(OptionsCacheTest, DoesNotShareVerbsBetweenPaths)
 {
     auto &cache = VerbsCache::Instance();
     const std::string head_url = "https://options-cache.invalid/head-only";

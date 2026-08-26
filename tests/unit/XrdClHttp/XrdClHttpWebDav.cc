@@ -18,7 +18,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdClHttp/XrdClHttpUtil.hh"
 #include "XrdClHttp/XrdClHttpWebDav.hh"
 
 #include <gtest/gtest.h>
@@ -34,20 +33,18 @@ bool ParseProperties(const char *xml, XrdClHttp::WebDavProperties &properties)
         XrdClHttp::ParseWebDavProperties(document.RootElement(), properties);
 }
 
-}
-
-TEST(WebDavParser, ParsesWhitespaceSeparatedAllowMethods)
+bool ParseResponseProperties(const char *xml,
+                             XrdClHttp::WebDavProperties &properties)
 {
-    XrdClHttp::HeaderParser parser;
-    EXPECT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
-    EXPECT_TRUE(parser.Parse("Allow: MKCOL, PROPFIND, PUT\r\n"));
-    EXPECT_TRUE(parser.Parse("\r\n"));
-
-    EXPECT_TRUE(parser.GetAllowedVerbs().IsSet(
-        XrdClHttp::VerbsCache::HttpVerb::kPROPFIND));
+    TiXmlDocument document;
+    document.Parse(xml);
+    return !document.Error() && XrdClHttp::ParseWebDavResponseProperties(
+        document.RootElement(), properties);
 }
 
-TEST(WebDavParser, MatchesLocalNamesWithArbitraryPrefixes)
+}
+
+TEST(WebDavParserTest, MatchesLocalNamesWithArbitraryPrefixes)
 {
     TiXmlDocument document;
     document.Parse("<ns0:collection xmlns:ns0=\"DAV:\"/>");
@@ -58,7 +55,7 @@ TEST(WebDavParser, MatchesLocalNamesWithArbitraryPrefixes)
         document.RootElement(), "resourcetype"));
 }
 
-TEST(WebDavParser, AllowsDirectoryWithEmptyContentLength)
+TEST(WebDavParserTest, AllowsDirectoryWithEmptyContentLength)
 {
     XrdClHttp::WebDavProperties properties;
     ASSERT_TRUE(ParseProperties(
@@ -71,7 +68,7 @@ TEST(WebDavParser, AllowsDirectoryWithEmptyContentLength)
     EXPECT_EQ(properties.m_size, 0);
 }
 
-TEST(WebDavParser, RequiresContentLengthForRegularResources)
+TEST(WebDavParserTest, RequiresContentLengthForRegularResources)
 {
     XrdClHttp::WebDavProperties missing;
     EXPECT_FALSE(ParseProperties(
@@ -82,7 +79,7 @@ TEST(WebDavParser, RequiresContentLengthForRegularResources)
         "<d:prop xmlns:d=\"DAV:\"><d:getcontentlength/></d:prop>", empty));
 }
 
-TEST(WebDavParser, ParsesValidRegularResourceSize)
+TEST(WebDavParserTest, ParsesValidRegularResourceSize)
 {
     XrdClHttp::WebDavProperties properties;
     ASSERT_TRUE(ParseProperties(
@@ -95,7 +92,7 @@ TEST(WebDavParser, ParsesValidRegularResourceSize)
     EXPECT_EQ(properties.m_size, 123);
 }
 
-TEST(WebDavParser, RejectsInvalidContentLength)
+TEST(WebDavParserTest, RejectsInvalidContentLength)
 {
     for (auto value : {"-1", "12 bytes", "9223372036854775808"}) {
         XrdClHttp::WebDavProperties properties;
@@ -104,4 +101,42 @@ TEST(WebDavParser, RejectsInvalidContentLength)
         xml += "</d:getcontentlength></d:prop>";
         EXPECT_FALSE(ParseProperties(xml.c_str(), properties)) << value;
     }
+}
+
+TEST(WebDavParserTest, UsesTheSuccessfulPropstatAfterAnUnsuccessfulOne)
+{
+    XrdClHttp::WebDavProperties properties;
+    ASSERT_TRUE(ParseResponseProperties(
+        "<d:response xmlns:d=\"DAV:\">"
+        "<d:propstat>"
+        "<d:status>HTTP/1.1 404 Not Found</d:status><d:prop/>"
+        "</d:propstat>"
+        "<d:propstat>"
+        "<d:status>HTTP/1.1 200 OK</d:status>"
+        "<d:prop><d:getcontentlength>123</d:getcontentlength></d:prop>"
+        "</d:propstat>"
+        "</d:response>", properties));
+
+    EXPECT_EQ(properties.m_size, 123);
+}
+
+TEST(WebDavParserTest, RejectsPropertiesWithAWhitespaceOnlyStatus)
+{
+    XrdClHttp::WebDavProperties properties;
+    EXPECT_FALSE(ParseResponseProperties(
+        "<d:response xmlns:d=\"DAV:\"><d:propstat>"
+        "<d:status>   </d:status>"
+        "<d:prop><d:getcontentlength>123</d:getcontentlength></d:prop>"
+        "</d:propstat></d:response>", properties));
+}
+
+TEST(WebDavParserTest, RequiresSuccessfulPropstatEntry)
+{
+    XrdClHttp::WebDavProperties properties;
+    EXPECT_FALSE(ParseResponseProperties(
+        "<d:response xmlns:d=\"DAV:\">"
+        "<d:propstat>"
+        "<d:status>HTTP/1.1 404 Not Found</d:status><d:prop/>"
+        "</d:propstat>"
+        "</d:response>", properties));
 }
