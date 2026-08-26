@@ -43,6 +43,7 @@ add_executable(xrdcl-test
 # Tests depending on XrdClHttp linkage
 add_executable(xrdcl-http-test
   CopyTest.cc
+  OptionsCacheTest.cc
   VectorReadTest.cc
   WebDavParserTest.cc
 )
