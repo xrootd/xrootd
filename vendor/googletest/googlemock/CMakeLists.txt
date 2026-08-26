@@ -103,12 +103,27 @@ else()
 endif()
 
 string(REPLACE ";" "$<SEMICOLON>" dirs "${gmock_build_include_dirs}")
-target_include_directories(gmock SYSTEM INTERFACE
-  "$<BUILD_INTERFACE:${dirs}>"
-  "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
-target_include_directories(gmock_main SYSTEM INTERFACE
-  "$<BUILD_INTERFACE:${dirs}>"
-  "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+if(NOT MSVC AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Keep the build-tree headers ahead of unrelated system prefixes while
+  # retaining system-header diagnostics behavior for Google Mock itself.
+  target_include_directories(gmock BEFORE INTERFACE
+    "$<BUILD_INTERFACE:${dirs}>")
+  target_include_directories(gmock SYSTEM BEFORE INTERFACE
+    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+  target_include_directories(gmock_main BEFORE INTERFACE
+    "$<BUILD_INTERFACE:${dirs}>")
+  target_include_directories(gmock_main SYSTEM BEFORE INTERFACE
+    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+  target_compile_options(gmock INTERFACE
+    "$<BUILD_INTERFACE:--system-header-prefix=gmock/>")
+else()
+  target_include_directories(gmock SYSTEM BEFORE INTERFACE
+    "$<BUILD_INTERFACE:${dirs}>"
+    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+  target_include_directories(gmock_main SYSTEM BEFORE INTERFACE
+    "$<BUILD_INTERFACE:${dirs}>"
+    "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+endif()
 
 ########################################################################
 #
