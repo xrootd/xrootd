@@ -44,6 +44,7 @@ add_executable(xrdcl-test
 add_executable(xrdcl-http-test
   CopyTest.cc
   VectorReadTest.cc
+  WebDavParserTest.cc
 )
 
 target_link_libraries(xrdcl-test XrdClHttpTransferTest GTest::gtest_main)

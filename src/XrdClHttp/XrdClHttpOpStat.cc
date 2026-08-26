@@ -134,7 +134,10 @@ CurlStatOp::ParseProp(TiXmlElement *prop) {
                 m_length = std::stoll(len);
             }
         } else if (!strcasecmp(child->Value(), "D:resourcetype") || !strcasecmp(child->Value(), "lp1:resourcetype")) {
-            m_is_dir = child->FirstChildElement("D:collection") != nullptr;
+            auto type = child->FirstChildElement();
+            m_is_dir = type != nullptr &&
+                (!strcasecmp(type->Value(), "D:collection") ||
+                 !strcasecmp(type->Value(), "lp1:collection"));
         }
     }
     if (m_length < 0 && m_is_dir) {

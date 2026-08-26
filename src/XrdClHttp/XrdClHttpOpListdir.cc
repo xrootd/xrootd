@@ -85,13 +85,12 @@ bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
             }
         } else if (!strcasecmp(child->Value(), "D:getcontentlength") || !strcasecmp(child->Value(), "lp1:getcontentlength")) {
             auto size = child->GetText();
-            if (size == nullptr) {
-                return false;
-            }
-            try {
-                entry.m_size = std::stoll(size);
-            } catch (std::invalid_argument &e) {
-                return false;
+            if (size != nullptr) {
+                try {
+                    entry.m_size = std::stoll(size);
+                } catch (std::invalid_argument &e) {
+                    return false;
+                }
             }
         } else if (!strcasecmp(child->Value(), "D:getlastmodified") || !strcasecmp(child->Value(), "lp1:getlastmodified")) {
             auto lastmod = child->GetText();
