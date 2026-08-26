@@ -93,3 +93,49 @@ XrdClHttp::ParseWebDavProperties(TiXmlElement *prop,
     }
     return has_size;
 }
+
+bool
+XrdClHttp::ParseWebDavResponseProperties(TiXmlElement *response,
+                                         WebDavProperties &properties)
+{
+    if (!response) return false;
+
+    for (auto propstat = response->FirstChildElement(); propstat != nullptr;
+         propstat = propstat->NextSiblingElement()) {
+        if (!WebDavElementNameEquals(propstat, "propstat")) continue;
+
+        TiXmlElement *prop = nullptr;
+        const char *status = nullptr;
+        for (auto child = propstat->FirstChildElement(); child != nullptr;
+             child = child->NextSiblingElement()) {
+            if (WebDavElementNameEquals(child, "prop")) {
+                prop = child;
+            } else if (WebDavElementNameEquals(child, "status")) {
+                status = child->GetText();
+            }
+        }
+
+        if (status) {
+            auto value = trim_view(status);
+            auto code_begin = value.find(' ');
+            if (code_begin == std::string_view::npos) continue;
+            code_begin = value.find_first_not_of(' ', code_begin);
+            if (code_begin == std::string_view::npos) continue;
+            auto code_end = value.find(' ', code_begin);
+            auto code_limit = value.data() +
+                (code_end == std::string_view::npos ? value.size() : code_end);
+
+            int code = 0;
+            auto result = std::from_chars(
+                value.data() + code_begin, code_limit, code);
+            if (result.ec != std::errc() || result.ptr != code_limit ||
+                code < 200 || code >= 300) {
+                continue;
+            }
+        }
+
+        if (!prop) return false;
+        return ParseWebDavProperties(prop, properties);
+    }
+    return false;
+}
