@@ -76,7 +76,7 @@ Filesystem::DirList(const std::string          &path,
 
     m_logger->Debug(kLogXrdClHttp, "Filesystem::DirList path %s", path.c_str());
     auto listdirOp = std::make_unique<XrdClHttp::CurlListdirOp>(
-        handler, full_url,
+        handler, full_url, path,
         m_url.GetHostName() + ":" + std::to_string(m_url.GetPort()),
         SendResponseInfo(), ts, m_logger,
         GetConnCallout(), m_header_callout.load(std::memory_order_acquire));
