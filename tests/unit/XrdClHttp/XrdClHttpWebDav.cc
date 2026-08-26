@@ -19,8 +19,22 @@
 /******************************************************************************/
 
 #include "XrdClHttp/XrdClHttpUtil.hh"
+#include "XrdClHttp/XrdClHttpWebDav.hh"
 
 #include <gtest/gtest.h>
+#include <tinyxml.h>
+
+namespace {
+
+bool ParseProperties(const char *xml, XrdClHttp::WebDavProperties &properties)
+{
+    TiXmlDocument document;
+    document.Parse(xml);
+    return !document.Error() &&
+        XrdClHttp::ParseWebDavProperties(document.RootElement(), properties);
+}
+
+}
 
 TEST(WebDavParser, ParsesWhitespaceSeparatedAllowMethods)
 {
@@ -31,4 +45,63 @@ TEST(WebDavParser, ParsesWhitespaceSeparatedAllowMethods)
 
     EXPECT_TRUE(parser.GetAllowedVerbs().IsSet(
         XrdClHttp::VerbsCache::HttpVerb::kPROPFIND));
+}
+
+TEST(WebDavParser, MatchesLocalNamesWithArbitraryPrefixes)
+{
+    TiXmlDocument document;
+    document.Parse("<ns0:collection xmlns:ns0=\"DAV:\"/>");
+
+    EXPECT_TRUE(XrdClHttp::WebDavElementNameEquals(
+        document.RootElement(), "collection"));
+    EXPECT_FALSE(XrdClHttp::WebDavElementNameEquals(
+        document.RootElement(), "resourcetype"));
+}
+
+TEST(WebDavParser, AllowsDirectoryWithEmptyContentLength)
+{
+    XrdClHttp::WebDavProperties properties;
+    ASSERT_TRUE(ParseProperties(
+        "<d:prop xmlns:d=\"DAV:\">"
+        "<d:getcontentlength/>"
+        "<d:resourcetype><d:collection/></d:resourcetype>"
+        "</d:prop>", properties));
+
+    EXPECT_TRUE(properties.m_is_dir);
+    EXPECT_EQ(properties.m_size, 0);
+}
+
+TEST(WebDavParser, RequiresContentLengthForRegularResources)
+{
+    XrdClHttp::WebDavProperties missing;
+    EXPECT_FALSE(ParseProperties(
+        "<d:prop xmlns:d=\"DAV:\"><d:resourcetype/></d:prop>", missing));
+
+    XrdClHttp::WebDavProperties empty;
+    EXPECT_FALSE(ParseProperties(
+        "<d:prop xmlns:d=\"DAV:\"><d:getcontentlength/></d:prop>", empty));
+}
+
+TEST(WebDavParser, ParsesValidRegularResourceSize)
+{
+    XrdClHttp::WebDavProperties properties;
+    ASSERT_TRUE(ParseProperties(
+        "<d:prop xmlns:d=\"DAV:\">"
+        "<d:getcontentlength> 123 </d:getcontentlength>"
+        "<d:resourcetype/>"
+        "</d:prop>", properties));
+
+    EXPECT_FALSE(properties.m_is_dir);
+    EXPECT_EQ(properties.m_size, 123);
+}
+
+TEST(WebDavParser, RejectsInvalidContentLength)
+{
+    for (auto value : {"-1", "12 bytes", "9223372036854775808"}) {
+        XrdClHttp::WebDavProperties properties;
+        std::string xml = "<d:prop xmlns:d=\"DAV:\"><d:getcontentlength>";
+        xml += value;
+        xml += "</d:getcontentlength></d:prop>";
+        EXPECT_FALSE(ParseProperties(xml.c_str(), properties)) << value;
+    }
 }
