@@ -40,9 +40,9 @@ teardown() {
     assert_output --partial 'Size:   17'
 }
 
-@test "stat sends OPTIONS to the origin" {
+@test "stat probes the file at the origin with OPTIONS" {
     xrdfs "$ORIGIN_HTTP" stat /file
-    run -0 grep -F 'got hdr line: OPTIONS / HTTP/1.1' "$ORIGIN_LOG"
+    run -0 grep -F 'got hdr line: OPTIONS /file HTTP/1.1' "$ORIGIN_LOG"
 }
 
 @test "stat sends PROPFIND to the origin" {
@@ -55,9 +55,9 @@ teardown() {
     run -0 grep -F "Redirecting to Location: http://localhost:$TARGET_PORT/file" "$ORIGIN_LOG"
 }
 
-@test "stat sends OPTIONS to the target after the redirect" {
+@test "stat probes the file at the target with OPTIONS after the redirect" {
     xrdfs "$ORIGIN_HTTP" stat /file
-    run -0 grep -F 'got hdr line: OPTIONS / HTTP/1.1' "$TARGET_LOG"
+    run -0 grep -F 'got hdr line: OPTIONS /file HTTP/1.1' "$TARGET_LOG"
 }
 
 @test "stat sends PROPFIND to the target after the redirect" {
