@@ -169,6 +169,47 @@ def test_query_sync():
   assert response
   print(response)
 
+def test_checksum_sync():
+  c = client.FileSystem(SERVER_URL)
+  f = client.File()
+  status, response = f.open(smallfile, OpenFlags.DELETE)
+  assert status.ok
+  f.write(smallbuffer)
+  f.close()
+
+  status, response = c.checksum('/tmp/spam')
+  assert status.ok
+  assert response.algorithm
+  assert response.value
+
+
+def test_checksum_async_response():
+  raw_status = {'ok': True, 'message': 'ok'}
+
+  class Recorder(object):
+    def query(self, querycode, path, timeout, callback):
+      self.args = (querycode, path, timeout)
+      callback(raw_status, 'adler32 deadbeef\0', [])
+      return raw_status
+
+  class FileSystem(object):
+    def __init__(self):
+      self._FileSystem__fs = Recorder()
+
+  responses = []
+  filesystem = FileSystem()
+  status = client.FileSystem.checksum(
+    filesystem, '/tmp/file', timeout=12,
+    callback=lambda *args: responses.append(args))
+
+  assert status.ok
+  assert filesystem._FileSystem__fs.args == (
+    QueryCode.CHECKSUM, '/tmp/file', 12)
+  assert len(responses) == 1
+  assert responses[0][0].ok
+  assert responses[0][1].algorithm == 'adler32'
+  assert responses[0][1].value == 'deadbeef'
+
 def test_query_async():
   c = client.FileSystem(SERVER_URL)
   handler = AsyncResponseHandler()

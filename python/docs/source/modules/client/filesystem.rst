@@ -18,6 +18,7 @@ Methods
 *******
 
 .. automethod:: XRootD.client.FileSystem.copy
+.. automethod:: XRootD.client.FileSystem.checksum
 .. automethod:: XRootD.client.FileSystem.locate
 .. automethod:: XRootD.client.FileSystem.deeplocate
 .. automethod:: XRootD.client.FileSystem.mv
