@@ -227,7 +227,29 @@ def test_mkdir_flags():
   assert status.ok
   c.rm('/tmp/dir1/dir2')
   c.rm('/tmp/dir1')
-  
+
+def test_mkdir_p():
+  c = client.FileSystem(SERVER_URL)
+  status, response = c.mkdir_p('/tmp/dir1/dir2', flags=MkDirFlags.NONE)
+  assert status.ok
+  c.rm('/tmp/dir1/dir2')
+  c.rm('/tmp/dir1')
+
+
+def test_mkdir_p_preserves_flags():
+  class Recorder(object):
+    def mkdir(self, path, flags=0, mode=0, timeout=0, callback=None):
+      self.args = (path, flags, mode, timeout, callback)
+      return 'result'
+
+  recorder = Recorder()
+  callback = object()
+  result = client.FileSystem.mkdir_p(recorder, '/tmp/dir', flags=4, mode=0o750,
+                                     timeout=12, callback=callback)
+
+  assert result == 'result'
+  assert recorder.args == ('/tmp/dir', 4 | MkDirFlags.MAKEPATH, 0o750, 12,
+                           callback)
 
 def test_args():
   c = client.FileSystem(url=SERVER_URL)
