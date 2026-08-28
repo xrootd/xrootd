@@ -9,7 +9,6 @@ queries, copy, rename, and delete.
 from __future__ import print_function
 
 from XRootD import client
-from XRootD.client.flags import QueryCode
 
 
 endpoint = 'root://localhost/'
@@ -30,7 +29,7 @@ print(status, protocol)
 status, _ = fs.copy(source, target, force=True)
 print(status)
 
-status, checksum = fs.query(QueryCode.CHECKSUM, target, timeout=10)
+status, checksum = fs.checksum(target, timeout=10)
 print(status, checksum)
 
 status, _ = fs.mv(target, renamed, timeout=10)

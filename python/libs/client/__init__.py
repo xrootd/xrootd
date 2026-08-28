@@ -30,5 +30,6 @@ from .responses import XRootDTemporaryError
 from .responses import XRootDUnsupportedError
 from .responses import XRootDOperationError
 from .responses import raise_on_error
+from .responses import ChecksumInfo
 
 import XRootD.client.finalize
