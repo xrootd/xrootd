@@ -388,6 +388,26 @@ class ProtocolInfo(Struct):
   def __init__(self, info):
     super(ProtocolInfo, self).__init__(info)
 
+
+class ChecksumInfo(Struct):
+  """Structured checksum response.
+
+  :param response: raw response returned by ``QueryCode.CHECKSUM``
+  :type  response: string
+  :var algorithm: checksum algorithm name, for example ``adler32``
+  :var value:     checksum value
+  """
+
+  def __init__(self, response):
+    parts = response.strip('\n\0').split(None, 1)
+    if len(parts) != 2:
+      raise ValueError('Invalid checksum response: %r' % response)
+    algorithm, value = parts
+    super(ChecksumInfo, self).__init__({
+      'algorithm': algorithm,
+      'value': value,
+    })
+
 class StatInfo(Struct):
   """Status information for files and directories.
 
