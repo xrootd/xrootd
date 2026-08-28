@@ -28,7 +28,7 @@ from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
 from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
 from XRootD.client.responses import ChecksumInfo
 from XRootD.client.utils import CallbackWrapper
-from XRootD.client.flags import AccessMode, QueryCode
+from XRootD.client.flags import AccessMode, MkDirFlags, QueryCode
 
 class FileSystem(object):
   """Interact with an ``xrootd`` server to perform filesystem-based operations
@@ -214,6 +214,22 @@ class FileSystem(object):
 
     status, response = self.__fs.mkdir(path, flags, mode, timeout)
     return XRootDStatus(status), None
+
+  def mkdir_p(self, path, flags=0, mode=0, timeout=0, callback=None):
+    """Create a directory and any missing parent directories.
+
+    This is a convenience wrapper around :meth:`mkdir` using
+    :data:`XRootD.client.flags.MkDirFlags.MAKEPATH`.
+
+    :param  path: path to the directory to create
+    :type   path: string
+    :param flags: Additional `ORed` flags from
+                  :mod:`XRootD.client.flags.MkDirFlags`
+    :param  mode: the initial file access mode, an `ORed` combination of
+                  :mod:`XRootD.client.flags.AccessMode`
+    """
+    return self.mkdir(path, flags | MkDirFlags.MAKEPATH, mode, timeout,
+                      callback)
 
   def rmdir(self, path, timeout=0, callback=None):
     """Remove a directory.
