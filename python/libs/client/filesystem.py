@@ -26,8 +26,9 @@ from __future__ import absolute_import, division, print_function
 from pyxrootd import client
 from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
 from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
+from XRootD.client.responses import ChecksumInfo
 from XRootD.client.utils import CallbackWrapper
-from XRootD.client.flags import AccessMode
+from XRootD.client.flags import AccessMode, QueryCode
 
 class FileSystem(object):
   """Interact with an ``xrootd`` server to perform filesystem-based operations
@@ -139,6 +140,23 @@ class FileSystem(object):
       return XRootDStatus(self.__fs.query(querycode, arg, timeout, callback))
 
     status, response = self.__fs.query(querycode, arg, timeout)
+    return XRootDStatus(status), response
+
+  def checksum(self, path, timeout=0, callback=None):
+    """Obtain a structured checksum for a path.
+
+    :param path: path to the file
+    :type  path: string
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                 object and :mod:`XRootD.client.responses.ChecksumInfo` object
+    """
+    if callback:
+      callback = CallbackWrapper(callback, ChecksumInfo)
+      return XRootDStatus(self.__fs.query(QueryCode.CHECKSUM, path, timeout,
+                                          callback))
+
+    status, response = self.__fs.query(QueryCode.CHECKSUM, path, timeout)
+    if response: response = ChecksumInfo(response)
     return XRootDStatus(status), response
 
   def truncate(self, path, size, timeout=0, callback=None):
