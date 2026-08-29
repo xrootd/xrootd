@@ -1167,7 +1167,7 @@ namespace XrdCl
                                    time_t              timeout )
   {
     SyncResponseHandler handler;
-    Status st = Locate( path, flags, &handler, timeout );
+    XRootDStatus st = Locate( path, flags, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1195,7 +1195,7 @@ namespace XrdCl
                                        time_t              timeout )
   {
     SyncResponseHandler handler;
-    Status st = DeepLocate( path, flags, &handler, timeout );
+    XRootDStatus st = DeepLocate( path, flags, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1242,7 +1242,7 @@ namespace XrdCl
                                time_t             timeout )
   {
     SyncResponseHandler handler;
-    Status st = Mv( source, dest, &handler, timeout );
+    XRootDStatus st = Mv( source, dest, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1284,7 +1284,7 @@ namespace XrdCl
                                   time_t            timeout )
   {
     SyncResponseHandler handler;
-    Status st = Query( queryCode, arg, &handler, timeout );
+    XRootDStatus st = Query( queryCode, arg, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1327,7 +1327,7 @@ namespace XrdCl
                                      time_t             timeout )
   {
     SyncResponseHandler handler;
-    Status st = Truncate( path, size, &handler, timeout );
+    XRootDStatus st = Truncate( path, size, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1370,7 +1370,7 @@ namespace XrdCl
                                time_t             timeout )
   {
     SyncResponseHandler handler;
-    Status st = Rm( path, &handler, timeout );
+    XRootDStatus st = Rm( path, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1416,7 +1416,7 @@ namespace XrdCl
                                   time_t             timeout )
   {
     SyncResponseHandler handler;
-    Status st = MkDir( path, flags, mode, &handler, timeout );
+    XRootDStatus st = MkDir( path, flags, mode, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1456,7 +1456,7 @@ namespace XrdCl
                                   time_t             timeout )
   {
     SyncResponseHandler handler;
-    Status st = RmDir( path, &handler, timeout );
+    XRootDStatus st = RmDir( path, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1499,7 +1499,7 @@ namespace XrdCl
                                   time_t             timeout )
   {
     SyncResponseHandler handler;
-    Status st = ChMod( path, mode, &handler, timeout );
+    XRootDStatus st = ChMod( path, mode, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1533,7 +1533,7 @@ namespace XrdCl
   XRootDStatus FileSystem::Ping( time_t   timeout  )
   {
     SyncResponseHandler handler;
-    Status st = Ping( &handler, timeout );
+    XRootDStatus st = Ping( &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1578,7 +1578,7 @@ namespace XrdCl
                                  time_t              timeout )
   {
     SyncResponseHandler handler;
-    Status st = Stat( path, &handler, timeout );
+    XRootDStatus st = Stat( path, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1620,7 +1620,7 @@ namespace XrdCl
                                     time_t              timeout )
   {
     SyncResponseHandler handler;
-    Status st = StatVFS( path, &handler, timeout );
+    XRootDStatus st = StatVFS( path, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1656,7 +1656,7 @@ namespace XrdCl
                                      time_t         timeout )
   {
     SyncResponseHandler handler;
-    Status st = Protocol( &handler, timeout );
+    XRootDStatus st = Protocol( &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1913,7 +1913,7 @@ namespace XrdCl
                                       time_t              timeout )
   {
     SyncResponseHandler handler;
-    Status st = SendCache( info, &handler, timeout );
+    XRootDStatus st = SendCache( info, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -1940,7 +1940,7 @@ namespace XrdCl
                                      time_t              timeout )
   {
     SyncResponseHandler handler;
-    Status st = SendInfo( info, &handler, timeout );
+    XRootDStatus st = SendInfo( info, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -2022,7 +2022,7 @@ namespace XrdCl
                                     time_t                           timeout )
   {
     SyncResponseHandler handler;
-    Status st = Prepare( fileList, flags, priority, &handler, timeout );
+    XRootDStatus st = Prepare( fileList, flags, priority, &handler, timeout );
     if( !st.IsOK() )
       return st;
 

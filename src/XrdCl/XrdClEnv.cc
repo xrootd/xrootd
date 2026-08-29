@@ -17,6 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include <cstdlib>
+#include <algorithm>
 
 #include "XrdCl/XrdClEnv.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -25,6 +26,109 @@
 
 namespace XrdCl
 {
+  //----------------------------------------------------------------------------
+  // Normalize a configuration key
+  //----------------------------------------------------------------------------
+  std::string Env::UnifyKey( std::string key )
+  {
+    std::transform( key.begin(), key.end(), key.begin(), ::tolower );
+
+    static const char prefix[] = "xrd_";
+    if( key.compare( 0, sizeof( prefix ) - 1, prefix ) == 0 )
+      key = key.substr( sizeof( prefix ) - 1 );
+
+    return key;
+  }
+
+  //----------------------------------------------------------------------------
+  // Look up a value in a plug-in configuration map
+  //----------------------------------------------------------------------------
+  std::string Env::GetPluginConfigValue(
+      const std::map<std::string, std::string> &pluginConfig,
+      const std::string                         &key )
+  {
+    const auto unified = UnifyKey( key );
+    for( const auto &entry : pluginConfig )
+    {
+      if( UnifyKey( entry.first ) == unified )
+        return entry.second;
+    }
+    return "";
+  }
+
+  //----------------------------------------------------------------------------
+  // Resolve a string setting
+  //----------------------------------------------------------------------------
+  bool Env::ResolveString( const std::string                         &key,
+                           const std::string                         &shellKey,
+                           const std::map<std::string, std::string> *pluginConfig,
+                           std::string                               &value,
+                           const std::string                         &defaultValue )
+  {
+    value.clear();
+    PutString( key, "" );
+    if( !shellKey.empty() )
+      ImportString( key, shellKey );
+
+    if( GetString( key, value ) && !value.empty() )
+      return true;
+
+    if( pluginConfig )
+    {
+      value = GetPluginConfigValue( *pluginConfig, key );
+      if( !value.empty() )
+      {
+        PutString( key, value );
+        return true;
+      }
+    }
+
+    value = defaultValue;
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Resolve an integer setting
+  //----------------------------------------------------------------------------
+  bool Env::ResolveInt( const std::string                         &key,
+                        const std::string                         &shellKey,
+                        const std::map<std::string, std::string> *pluginConfig,
+                        int                                       &value,
+                        int                                        defaultValue )
+  {
+    PutInt( key, defaultValue );
+    if( !shellKey.empty() && ImportInt( key, shellKey ) )
+    {
+      GetInt( key, value );
+      return true;
+    }
+
+    if( pluginConfig )
+    {
+      const auto strValue = GetPluginConfigValue( *pluginConfig, key );
+      if( !strValue.empty() )
+      {
+        char *endPtr = nullptr;
+        const int parsed = static_cast<int>( strtol( strValue.c_str(), &endPtr, 0 ) );
+        if( endPtr && *endPtr == '\0' )
+        {
+          PutInt( key, parsed );
+          value = parsed;
+          return true;
+        }
+
+        Log *log = DefaultEnv::GetLog();
+        log->Error( UtilityMsg,
+                    "Env: Unable to import %s as %s: %s is not a proper integer",
+                    strValue.c_str(), key.c_str(), strValue.c_str() );
+      }
+    }
+
+    value = defaultValue;
+    PutInt( key, defaultValue );
+    return false;
+  }
+
   //----------------------------------------------------------------------------
   // Get string
   //----------------------------------------------------------------------------

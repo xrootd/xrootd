@@ -28,6 +28,7 @@ add_executable(xrdcl-test
 add_executable(xrdcl-http-test
   CopyTest.cc
   ParseTimeoutTest.cc
+  PluginConfigTest.cc
   VectorReadTest.cc
 )
 
