@@ -436,6 +436,12 @@ bool HeaderParser::Base64Decode(
 // are passed on to the callback".
 bool HeaderParser::Parse(const std::string &header_line)
 {
+    return Parse(header_line, {});
+}
+
+bool HeaderParser::Parse(const std::string &header_line,
+                         std::string_view toleratedInvalidFieldName)
+{
     if (m_recv_all_headers) {
         m_recv_all_headers = false;
         m_recv_status_line = false;
@@ -477,9 +483,11 @@ bool HeaderParser::Parse(const std::string &header_line)
         return false;
     }
 
-    std::string header_name = header_line.substr(0, found);
+    const std::string_view raw_header_name(header_line.data(), found);
+    std::string header_name(raw_header_name);
     if (!Canonicalize(header_name)) {
-        return false;
+        return !toleratedInvalidFieldName.empty()
+            && raw_header_name == toleratedInvalidFieldName;
     }
 
     found += 1;

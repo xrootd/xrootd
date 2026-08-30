@@ -450,7 +450,8 @@ CurlOperation::HeaderCallback(char *buffer, size_t size, size_t nitems, void *th
 bool
 CurlOperation::Header(const std::string &header)
 {
-    auto result = m_headers.Parse(header);
+    auto result = m_headers.Parse(
+        header, ToleratedInvalidResponseFieldName());
     // m_logger->Debug(kLogXrdClHttp, "Got header: %s", header.c_str());
     if (!result) {
         m_logger->Debug(kLogXrdClHttp, "Failed to parse response header: %s", header.c_str());

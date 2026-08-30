@@ -66,6 +66,46 @@ TEST(HeaderParser, RejectsInvalidResponseFieldNames)
   EXPECT_FALSE(parser.Parse("application/type: json\r\n"));
 }
 
+TEST(HeaderParser, SkipsOnlyConfiguredInvalidResponseFieldName)
+{
+  XrdClHttp::HeaderParser parser;
+  EXPECT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
+  EXPECT_TRUE(parser.Parse("application/type: json\r\n", "application/type"));
+  EXPECT_TRUE(parser.Parse("Content-Type: application/json\r\n"));
+  EXPECT_TRUE(parser.Parse("Content-Length: 2\r\n"));
+  EXPECT_TRUE(parser.Parse("\r\n"));
+
+  EXPECT_TRUE(parser.HeadersDone());
+  EXPECT_EQ(parser.GetContentLength(), 2);
+
+  auto headers = parser.MoveHeaders();
+  EXPECT_EQ(headers.count("application/type"), 0u);
+
+  const auto contentType = headers.find("Content-Type");
+  ASSERT_NE(contentType, headers.end());
+  ASSERT_EQ(contentType->second.size(), 1u);
+  EXPECT_EQ(contentType->second.front(), "application/json");
+
+  const auto contentLength = headers.find("Content-Length");
+  ASSERT_NE(contentLength, headers.end());
+  ASSERT_EQ(contentLength->second.size(), 1u);
+  EXPECT_EQ(contentLength->second.front(), "2");
+}
+
+TEST(HeaderParser, RejectsOtherInvalidResponseFieldNames)
+{
+  XrdClHttp::HeaderParser parser;
+  EXPECT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
+  EXPECT_FALSE(parser.Parse("other/type: json\r\n", "application/type"));
+}
+
+TEST(HeaderParser, RejectsColonlessResponseField)
+{
+  XrdClHttp::HeaderParser parser;
+  EXPECT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
+  EXPECT_FALSE(parser.Parse("application/type json\r\n", "application/type"));
+}
+
 TEST(HeaderParser, ParsesSupportedDigestAlgorithms)
 {
   XrdClHttp::ChecksumInfo checksums;
