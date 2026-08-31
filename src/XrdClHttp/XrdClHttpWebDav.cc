@@ -28,6 +28,27 @@
 
 using namespace XrdClHttp;
 
+namespace {
+
+bool WebDavStatusIsSuccessful(const char *status)
+{
+    if (!status) return true;
+    auto value = trim_view(status);
+    auto code_begin = value.find(' ');
+    if (code_begin == std::string_view::npos) return false;
+    code_begin = value.find_first_not_of(' ', code_begin);
+    if (code_begin == std::string_view::npos) return false;
+    auto code_end = value.find(' ', code_begin);
+    auto code_limit = value.data() +
+        (code_end == std::string_view::npos ? value.size() : code_end);
+    int code = 0;
+    auto result = std::from_chars(value.data() + code_begin, code_limit, code);
+    return result.ec == std::errc() && result.ptr == code_limit &&
+        code >= 200 && code < 300;
+}
+
+}
+
 bool
 XrdClHttp::WebDavElementNameEquals(const TiXmlElement *element,
                                    const char *expected)
@@ -115,27 +136,49 @@ XrdClHttp::ParseWebDavResponseProperties(TiXmlElement *response,
             }
         }
 
-        if (status) {
-            auto value = trim_view(status);
-            auto code_begin = value.find(' ');
-            if (code_begin == std::string_view::npos) continue;
-            code_begin = value.find_first_not_of(' ', code_begin);
-            if (code_begin == std::string_view::npos) continue;
-            auto code_end = value.find(' ', code_begin);
-            auto code_limit = value.data() +
-                (code_end == std::string_view::npos ? value.size() : code_end);
-
-            int code = 0;
-            auto result = std::from_chars(
-                value.data() + code_begin, code_limit, code);
-            if (result.ec != std::errc() || result.ptr != code_limit ||
-                code < 200 || code >= 300) {
-                continue;
-            }
-        }
+        if (!WebDavStatusIsSuccessful(status)) continue;
 
         if (!prop) return false;
         return ParseWebDavProperties(prop, properties);
+    }
+    return false;
+}
+
+bool
+XrdClHttp::ParseWebDavResponseQuota(TiXmlElement *response, WebDavQuota &quota)
+{
+    if (!response) return false;
+    for (auto propstat = response->FirstChildElement(); propstat != nullptr;
+         propstat = propstat->NextSiblingElement()) {
+        if (!WebDavElementNameEquals(propstat, "propstat")) continue;
+        TiXmlElement *prop = nullptr;
+        const char *status = nullptr;
+        for (auto child = propstat->FirstChildElement(); child != nullptr;
+             child = child->NextSiblingElement()) {
+            if (WebDavElementNameEquals(child, "prop")) prop = child;
+            if (WebDavElementNameEquals(child, "status")) status = child->GetText();
+        }
+        if (!WebDavStatusIsSuccessful(status) || !prop) continue;
+        bool has_available = false;
+        bool has_used = false;
+        for (auto child = prop->FirstChildElement(); child != nullptr;
+             child = child->NextSiblingElement()) {
+            auto text = child->GetText();
+            if (!text) continue;
+            auto value = trim_view(text);
+            uint64_t parsed = 0;
+            auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
+            if (result.ec != std::errc() || result.ptr != value.data() + value.size())
+                return false;
+            if (WebDavElementNameEquals(child, "quota-available-bytes")) {
+                quota.m_available = parsed;
+                has_available = true;
+            } else if (WebDavElementNameEquals(child, "quota-used-bytes")) {
+                quota.m_used = parsed;
+                has_used = true;
+            }
+        }
+        if (has_available && has_used) return true;
     }
     return false;
 }

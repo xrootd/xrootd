@@ -3,6 +3,8 @@ import pytest
 from XRootD.client.responses import XRootDStatus, XRootDNotFoundError, \
   XRootDAuthorizationError, \
   XRootDTimeoutError, XRootDChecksumError, XRootDOperationError, \
+  XRootDAlreadyExistsError, XRootDQuotaError, XRootDTemporaryError, \
+  XRootDUnsupportedError, \
   raise_on_error
 
 
@@ -44,6 +46,12 @@ def test_status_error_name_and_exceptions():
   (3034, XRootDTimeoutError),
   (3035, XRootDTimeoutError),
   (3019, XRootDChecksumError),
+  (3018, XRootDAlreadyExistsError),
+  (3032, XRootDAlreadyExistsError),
+  (3021, XRootDQuotaError),
+  (3003, XRootDTemporaryError),
+  (3024, XRootDTemporaryError),
+  (3013, XRootDUnsupportedError),
   (3012, XRootDOperationError),
 ])
 def test_server_error_exceptions(errno, exception_type):

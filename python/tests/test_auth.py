@@ -100,6 +100,37 @@ def test_non_xrootd_urls_are_unchanged():
     context.close()
 
 
+def test_http_bearer_is_object_scoped_and_preserves_signed_query():
+  context = AuthContext.bearer(token_file='/tmp/token file',
+                               ca_file='/tmp/custom ca.pem')
+  authenticated = context.apply(
+    'davs://storage.example/data?X-Amz-Signature=abc+def==&empty=')
+  query = _query(authenticated)
+
+  assert 'X-Amz-Signature=abc+def==' in authenticated
+  assert 'empty=' in authenticated
+  assert query['xrdcl.http.bearertokenfile'] == ['/tmp/token file']
+  assert query['xrdcl.http.cafile'] == ['/tmp/custom ca.pem']
+  assert 'xrd.wantprot' not in query
+
+
+def test_http_x509_and_anonymous_contexts():
+  x509 = AuthContext.x509(proxy='/tmp/proxy', verify=False)
+  anonymous = AuthContext.anonymous()
+
+  x509_query = _query(x509.apply('https://storage.example/data'))
+  anonymous_query = _query(anonymous.apply('https://storage.example/data'))
+  assert x509_query['xrdcl.http.clientcert'] == ['/tmp/proxy']
+  assert x509_query['xrdcl.http.clientkey'] == ['/tmp/proxy']
+  assert x509_query['xrdcl.http.noverify'] == ['1']
+  assert anonymous_query['xrdcl.http.noauth'] == ['1']
+
+
+def test_anonymous_context_rejects_root_protocol():
+  with pytest.raises(ValueError):
+    AuthContext.anonymous().apply('root://storage.example//data')
+
+
 def test_xroots_url_is_authenticated():
   context = AuthContext.x509(proxy='/tmp/proxy')
   assert _query(context.apply('xroots://localhost//data'))['xrd.wantprot'] == ['gsi']

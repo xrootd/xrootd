@@ -56,6 +56,25 @@ class CurlWorker;
 class File;
 class ResponseInfo;
 
+// Authentication and TLS settings encoded in client-only URL parameters.
+// These parameters are removed before a request is sent to the server.
+struct HttpClientConfig {
+    std::string bearer_token_file;
+    std::string client_cert;
+    std::string client_key;
+    std::string ca_file;
+    std::string ca_dir;
+    bool no_auth{false};
+    bool no_verify{false};
+};
+
+// Extract XrdClHttp client-only parameters from a URL.  All unrelated query
+// parameters retain their original spelling and order, which is required for
+// signed URLs.  If client_query is provided, it receives the extracted,
+// still-encoded parameter fragments for propagation by FileSystem operations.
+std::string ExtractHttpClientConfig(const std::string &url,
+    HttpClientConfig &config, std::string *client_query = nullptr);
+
 class CurlOperation {
 public:
     using HeaderList = std::vector<std::pair<std::string, std::string>>;
@@ -167,6 +186,10 @@ public:
 
     // Returns the URL used by the current request.
     const std::string &GetUrl() const {return m_request_url;}
+
+    // Return object-scoped settings for internal sub-operations such as the
+    // authenticated OPTIONS probe.
+    const HttpClientConfig &GetClientConfig() const {return m_client_config;}
 
     // Returns the response info for the operation
     std::unique_ptr<ResponseInfo> GetResponseInfo();
@@ -387,6 +410,7 @@ private:
 
 protected:
     void SetDone(bool has_failed) {m_done = true; m_has_failed.store(has_failed, std::memory_order_release);}
+    HttpClientConfig m_client_config;
     const std::string m_url;
     // Multi-step operations retain their immutable input URL in m_url while
     // advancing the URL used for each individual HTTP request here.
@@ -413,6 +437,7 @@ public:
         m_parent(op),
         m_parent_curl(curl)
     {
+        m_client_config = op->GetClientConfig();
         m_operation_expiry = m_header_expiry;
     }
 
@@ -585,6 +610,44 @@ CurlMkcolOp(XrdCl::ResponseHandler *handler, const std::string &url,
 
 private:
     bool m_response_info{false}; // Indicate whether to give extended information in the response.
+};
+
+// Operation issuing a WebDAV MOVE request to the remote server.
+class CurlMoveOp final : public CurlOperation {
+public:
+    CurlMoveOp(XrdCl::ResponseHandler *handler, const std::string &source,
+        const std::string &destination, struct timespec timeout,
+        XrdCl::Log *logger, CreateConnCalloutType callout,
+        HeaderCallout *header_callout);
+
+    void Fail(uint16_t errCode, uint32_t errNum, const std::string &msg) override;
+    bool Setup(CURL *curl, CurlWorker &) override;
+    void Success() override;
+    void ReleaseHandle() override;
+
+    HttpVerb GetVerb() const override {return HttpVerb::MOVE;}
+
+private:
+    std::string m_destination;
+};
+
+// RFC 4331 quota query, returned using the XRootD QueryCode::Space format.
+class CurlSpaceOp final : public CurlOperation {
+public:
+    CurlSpaceOp(XrdCl::ResponseHandler *handler, const std::string &url,
+        struct timespec timeout, XrdCl::Log *logger,
+        CreateConnCalloutType callout, HeaderCallout *header_callout);
+
+    bool Setup(CURL *curl, CurlWorker &) override;
+    void Success() override;
+    void ReleaseHandle() override;
+    HttpVerb GetVerb() const override {return HttpVerb::PROPFIND;}
+
+private:
+    static size_t WriteCallback(char *buffer, size_t size, size_t nitems,
+        void *this_ptr);
+    std::string m_response;
+    const std::string m_request;
 };
 
 //  Cache control query

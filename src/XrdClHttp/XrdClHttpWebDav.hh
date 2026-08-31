@@ -35,6 +35,11 @@ struct WebDavProperties {
     time_t m_last_modified{-1};
 };
 
+struct WebDavQuota {
+    uint64_t m_available{0};
+    uint64_t m_used{0};
+};
+
 // Compare an XML element's local name, ignoring any namespace prefix.
 bool WebDavElementNameEquals(const TiXmlElement *element,
                              const char *expected);
@@ -47,6 +52,9 @@ bool ParseWebDavProperties(TiXmlElement *prop, WebDavProperties &properties);
 // properties. Explicitly unsuccessful propstat entries are ignored.
 bool ParseWebDavResponseProperties(TiXmlElement *response,
                                    WebDavProperties &properties);
+
+// Parse RFC 4331 quota properties from a successful WebDAV propstat.
+bool ParseWebDavResponseQuota(TiXmlElement *response, WebDavQuota &quota);
 
 }
 

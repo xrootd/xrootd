@@ -26,7 +26,106 @@
 #include "XrdCl/XrdClAnyObject.hh"
 
 #include <cerrno>
+#include <chrono>
+#include <cmath>
 #include <exception>
+
+namespace {
+
+class MkPathHandler final : public XrdCl::ResponseHandler {
+public:
+    MkPathHandler(XrdClHttp::Filesystem *filesystem,
+        std::vector<std::string> paths, XrdCl::Access::Mode mode,
+        XrdCl::ResponseHandler *handler, time_t timeout) :
+        m_filesystem(filesystem), m_paths(std::move(paths)), m_mode(mode),
+        m_handler(handler), m_timeout(timeout),
+        m_deadline(std::chrono::steady_clock::now() + std::chrono::seconds(timeout))
+    {}
+
+    XrdCl::XRootDStatus Start() {return StartNext();}
+
+    void HandleResponse(XrdCl::XRootDStatus *status,
+                        XrdCl::AnyObject *response) override {
+        delete response;
+        if (!status->IsOK() && status->errNo != kXR_ItExists) {
+            auto handler = m_handler;
+            m_handler = nullptr;
+            handler->HandleResponse(status, nullptr);
+            delete this;
+            return;
+        }
+        delete status;
+        ++m_index;
+        if (m_index == m_paths.size()) {
+            auto handler = m_handler;
+            m_handler = nullptr;
+            handler->HandleResponse(new XrdCl::XRootDStatus(), nullptr);
+            delete this;
+            return;
+        }
+        auto queued = StartNext();
+        if (!queued.IsOK()) {
+            auto handler = m_handler;
+            m_handler = nullptr;
+            handler->HandleResponse(new XrdCl::XRootDStatus(queued), nullptr);
+            delete this;
+        }
+    }
+
+private:
+    XrdCl::XRootDStatus StartNext() {
+        time_t remaining = m_timeout;
+        if (m_timeout > 0) {
+            auto duration = std::chrono::duration<double>(
+                m_deadline - std::chrono::steady_clock::now()).count();
+            if (duration <= 0)
+                return XrdCl::XRootDStatus(XrdCl::stError,
+                    XrdCl::errOperationExpired, kXR_ReqTimedOut,
+                    "MKCOL path creation deadline expired");
+            remaining = static_cast<time_t>(std::ceil(duration));
+        }
+        return m_filesystem->MkDir(m_paths[m_index], XrdCl::MkDirFlags::None,
+            m_mode, this, remaining);
+    }
+
+    XrdClHttp::Filesystem *m_filesystem;
+    std::vector<std::string> m_paths;
+    XrdCl::Access::Mode m_mode;
+    XrdCl::ResponseHandler *m_handler;
+    time_t m_timeout;
+    std::chrono::steady_clock::time_point m_deadline;
+    size_t m_index{0};
+};
+
+std::vector<std::string> DirectoryPrefixes(const std::string &path) {
+    std::vector<std::string> result;
+    auto query_position = path.find('?');
+    auto path_only = path.substr(0, query_position);
+    auto query = query_position == std::string::npos ? std::string() :
+        path.substr(query_position);
+    std::string current;
+    size_t begin = 0;
+    while (begin < path_only.size()) {
+        while (begin < path_only.size() && path_only[begin] == '/') ++begin;
+        if (begin == path_only.size()) break;
+        auto end = path_only.find('/', begin);
+        auto component = path_only.substr(begin,
+            end == std::string::npos ? std::string::npos : end - begin);
+        if (component == ".") {
+            // Nothing.
+        } else if (component == "..") {
+            return {};
+        } else {
+            current += "/" + component;
+            result.emplace_back(current + query);
+        }
+        if (end == std::string::npos) break;
+        begin = end + 1;
+    }
+    return result;
+}
+
+}
 
 using namespace XrdClHttp;
 
@@ -39,6 +138,9 @@ Filesystem::Filesystem(const std::string &url, std::shared_ptr<HandlerQueue> que
     // When constructed from the root protocol handler, we've observed it include the
     // path here (the code paths appear to be slightly different from http://).  Strip
     // it out so it's not included twice later.
+    HttpClientConfig client_config;
+    auto cleaned_url = ExtractHttpClientConfig(url, client_config, &m_client_query);
+    m_url.FromString(cleaned_url);
     m_url.SetPath("/");
     XrdCl::URL::ParamsMap map;
     m_url.SetParams(map);
@@ -145,6 +247,18 @@ XrdCl::XRootDStatus Filesystem::MkDir(const std::string        &path,
                                       XrdCl::ResponseHandler   *handler,
                                       time_t                    timeout)
 {
+    if (flags & XrdCl::MkDirFlags::MakePath) {
+        auto paths = DirectoryPrefixes(path);
+        if (paths.empty())
+            return XrdCl::XRootDStatus(XrdCl::stError,
+                XrdCl::errInvalidArgs, kXR_InvalidRequest,
+                "Invalid or empty directory path");
+        auto path_handler = new MkPathHandler(this, std::move(paths), mode,
+            handler, timeout);
+        auto status = path_handler->Start();
+        if (!status.IsOK()) delete path_handler;
+        return status;
+    }
     auto ts = XrdClHttp::Factory::GetHeaderTimeoutWithDefault(timeout);
 
     auto full_url = GetCurrentURL(path);
@@ -177,6 +291,24 @@ XrdCl::XRootDStatus Filesystem::Prepare(
         GetConnCallout(),
         m_header_callout.load(std::memory_order_acquire));
     return QueueOperation(std::move(tapeOp), "Tape prepare operation");
+}
+
+XrdCl::XRootDStatus
+Filesystem::Mv(const std::string &source, const std::string &dest,
+               XrdCl::ResponseHandler *handler, time_t timeout)
+{
+    auto ts = XrdClHttp::Factory::GetHeaderTimeoutWithDefault(timeout);
+    auto source_url = GetCurrentURL(source);
+    auto destination_url = GetCurrentURL(dest);
+    std::unique_ptr<CurlMoveOp> move_op(new CurlMoveOp(handler, source_url,
+        destination_url, ts, m_logger, GetConnCallout(),
+        m_header_callout.load(std::memory_order_acquire)));
+    try {
+        m_queue->Produce(std::move(move_op));
+    } catch (...) {
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError);
+    }
+    return XrdCl::XRootDStatus();
 }
 
 XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
@@ -239,6 +371,15 @@ XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
                 GetConnCallout(), queryCode,
                 m_header_callout.load(std::memory_order_acquire));
             description = "xattr query operation";
+            break;
+        }
+        case XrdCl::QueryCode::Space:
+        {
+            const auto url = GetCurrentURL(arg.ToString());
+            operation = std::make_unique<CurlSpaceOp>(
+                handler, url, ts, m_logger, GetConnCallout(),
+                m_header_callout.load(std::memory_order_acquire));
+            description = "space query operation";
             break;
         }
         default:
@@ -330,12 +471,16 @@ std::string Filesystem::GetCurrentURL(const std::string &path) const {
         path_view = path_view.substr(1);
     auto retval = std::string(prefix_view) + "/" + std::string(path_view);
 
+    if (!m_client_query.empty()) {
+        retval += ((retval.find('?') == std::string::npos) ? '?' : '&') + m_client_query;
+    }
+
     // Add in the query parameters, if relevant.
     {
         std::shared_lock lock(m_properties_mutex);
         auto iter = m_properties.find("XrdClHttpQueryParam");
         if (iter != m_properties.end() && !iter->second.empty()) {
-            retval += ((retval.find('?') == std::string::npos) ? '?' : ':') + iter->second;
+            retval += ((retval.find('?') == std::string::npos) ? '?' : '&') + iter->second;
         }
     }
     return retval;
