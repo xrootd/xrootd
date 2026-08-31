@@ -148,6 +148,28 @@ class StorageClient(object):
     status.raise_on_error()
     return info
 
+  def checksum(self, url, algorithm=None, timeout=None):
+    """Return the checksum algorithm and value for a remote resource.
+
+    :param algorithm: preferred checksum algorithm, such as ``adler32``;
+                      endpoints may return another supported algorithm
+    :returns: a two-item ``(algorithm, value)`` tuple
+    """
+    filesystem, path = self._filesystem(url)
+    if algorithm:
+      separator = '&' if '?' in path else '?'
+      path = '{}{}cks.type={}'.format(path, separator, algorithm)
+    status, response = filesystem.query(
+      QueryCode.CHECKSUM, path,
+      timeout=self._remaining(self._deadline(timeout)))
+    status.raise_on_error()
+    if isinstance(response, bytes):
+      response = response.decode('ascii')
+    checksum = str(response).strip('\n\0').split(None, 1)
+    if len(checksum) != 2:
+      raise ValueError('invalid checksum response: {!r}'.format(response))
+    return tuple(checksum)
+
   def exists(self, url, timeout=None):
     """Return whether a remote resource exists."""
     try:
