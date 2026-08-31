@@ -88,12 +88,12 @@ XrdOucPinKing<XrdSecEntityPin> KingPin;
 
 XrdOucEnv theEnv;
 };
-  
+
 /******************************************************************************/
 /*                        X r d S e c P r o t B i n d                         */
 /******************************************************************************/
 
-class XrdSecProtBind 
+class XrdSecProtBind
 {
 public:
 XrdSecProtBind        *next;
@@ -114,16 +114,16 @@ int                    Match(const char *hname);
                               if (SecToken.buffer) free(SecToken.buffer);
                              }
 };
-  
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
+
 XrdSecProtBind::XrdSecProtBind(char *th, char *st, XrdSecPMask_t pmask)
 {
    char *starp;
    next     = 0;
-   thost    = th; 
+   thost    = th;
    if (!(starp = index(thost, '*')))
       {tsfxlen = -1;
        thostsfx = (char *)0;
@@ -138,7 +138,7 @@ XrdSecProtBind::XrdSecProtBind(char *th, char *st, XrdSecPMask_t pmask)
       else {SecToken.buffer = 0;          SecToken.size = 0;}
    ValidProts = (pmask ? pmask : ~(XrdSecPMask_t)0);
 }
- 
+
 /******************************************************************************/
 /*                                  F i n d                                   */
 /******************************************************************************/
@@ -151,11 +151,11 @@ XrdSecProtBind *XrdSecProtBind::Find(const char *hname)
 
    return bp;
 }
-  
+
 /******************************************************************************/
 /*                                 M a t c h                                  */
 /******************************************************************************/
-  
+
 int XrdSecProtBind::Match(const char *hname)
 {
     int i;
@@ -225,11 +225,11 @@ const char  *who;
 };
 
 XrdSecProtParm *XrdSecProtParm::First = 0;
-  
+
 /******************************************************************************/
 /*                                   C a t                                    */
 /******************************************************************************/
-  
+
 int XrdSecProtParm::Cat(char *token)
 {
    int alen;
@@ -239,7 +239,7 @@ int XrdSecProtParm::Cat(char *token)
        return 0;
       }
    *bp++ = ' ';
-   strcpy(bp, token); 
+   strcpy(bp, token);
    bp += alen;
    return 1;
 }
@@ -260,11 +260,11 @@ XrdSecProtParm *XrdSecProtParm::Find(char *pid, int remove)
       }
    return pp;
 }
-  
+
 /******************************************************************************/
 /*                                I n s e r t                                 */
 /******************************************************************************/
-  
+
 int XrdSecProtParm::Insert(char oct)
 {
    if (bsize-(bp-buff) < 1)
@@ -309,11 +309,11 @@ XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(lp, "sec_")
    Enforce     = false;
    implauth    = false;
 }
-  
+
 /******************************************************************************/
 /*                              g e t P a r m s                               */
 /******************************************************************************/
-  
+
 const char *XrdSecServer::getParms(int &size, XrdNetAddrInfo *endPoint)
 {
    EPNAME("getParms")
@@ -338,7 +338,7 @@ const char *XrdSecServer::getParms(int &size, XrdNetAddrInfo *endPoint)
 // If we have a binding, return that else return the default
 //
    if (!bp) bp = bpDefault;
-   if (bp->SecToken.buffer) 
+   if (bp->SecToken.buffer)
       {DEBUG(buff <<" sectoken=" <<bp->SecToken.buffer);
        size = bp->SecToken.size;
        return bp->SecToken.buffer;
@@ -399,11 +399,11 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
 //
    return PManager.Get(host, endPoint, cred->buffer, &einfo);
 }
-  
+
 /******************************************************************************/
 /*                           P o s t P r o c e s s                            */
 /******************************************************************************/
-  
+
 bool XrdSecServer::PostProcess(XrdSecEntity &entity, XrdOucErrInfo &einfo)
 {
 // Return correct result. Make sure there is some kind of message returned.
@@ -437,7 +437,7 @@ bool XrdSecServer::PostProcess(XrdSecEntity &entity, XrdOucErrInfo &einfo)
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
-  
+
 int XrdSecServer::Configure(const char *cfn)
 /*
   Function: Establish default values using a configuration file.
@@ -530,7 +530,7 @@ int XrdSecServer::Configure(const char *cfn)
 /******************************************************************************/
 /*                            C o n f i g F i l e                             */
 /******************************************************************************/
-  
+
 int XrdSecServer::ConfigFile(const char *ConfigFN)
 /*
   Function: Establish default values using a configuration file.
@@ -579,7 +579,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
    if ((retc = Config.LastError()))
       NoGo = eDest.Emsg("Config",-retc,"reading config file", ConfigFN);
       else {char buff[128];
-            snprintf(buff, sizeof(buff), 
+            snprintf(buff, sizeof(buff),
                      " %d authentication directives processed in ", recs);
             eDest.Say("Config", buff, ConfigFN);
            }
@@ -607,7 +607,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 /******************************************************************************/
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
-  
+
 int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
 {
 
@@ -626,7 +626,7 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute
     Config.Echo();
     return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x e n l i b                                 */
 /******************************************************************************/
@@ -687,7 +687,7 @@ int XrdSecServer::xenlib(XrdOucStream &Config, XrdSysError &Eroute)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x l e v e l                                 */
 /******************************************************************************/
@@ -777,7 +777,7 @@ int XrdSecServer::xlevel(XrdOucStream &Config, XrdSysError &Eroute)
       }
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x p b i n d                                 */
 /******************************************************************************/
@@ -868,7 +868,10 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdSysError &Eroute)
       {XrdNetAddr myIPAddr(0);
        free(thost);
        thost = strdup(myIPAddr.Name("localhost"));
-      }
+      } else if (!strcmp("=localhost", thost) || !strcmp("loopback", thost))
+                {free(thost);
+                 thost = strdup("localhost");
+                }
 
 // Create new bind object
 //
@@ -985,7 +988,7 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdSysError &Eroute)
 //
    return add2token(Eroute, pid, &STBuff, STBlen, mymask);
 }
-  
+
 /******************************************************************************/
 /*                                x p p a r m                                 */
 /******************************************************************************/
@@ -1053,7 +1056,7 @@ int XrdSecServer::xpparm(XrdOucStream &Config, XrdSysError &Eroute)
   do {if (!pp->Cat(val)) return 1;} while((val = Config.GetWord()));
   return 0;
 }
-  
+
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
@@ -1147,11 +1150,11 @@ int XrdSecServer::add2token(XrdSysError &Eroute, char *pid,
    pmask    |= protnum;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                     P r o t B i n d _ C o m p l e t e                      */
 /******************************************************************************/
-  
+
 int XrdSecServer::ProtBind_Complete(XrdSysError &Eroute)
 {
     EPNAME("ProtBind_Complete")
@@ -1185,7 +1188,7 @@ int XrdSecServer::ProtBind_Complete(XrdSysError &Eroute)
    free(SToken); SToken = STBuff = 0; STBlen = 0;
    return 0;
 }
- 
+
 /******************************************************************************/
 /*                      X r d S e c g e t S e r v i c e                       */
 /******************************************************************************/
