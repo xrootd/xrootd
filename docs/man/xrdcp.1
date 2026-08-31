@@ -18,6 +18,7 @@ xrdcp - copy files
 [\fB--notlsok\fR] [\fB--tlsnodata\fR] [\fB--tlsmetalink\fR]
 [\fB--zip-mtln-cksum\fR] [\fB--rm-bad-cksum\fR] [\fB--continue\fR]
 [\fB--xrate-threshold\fR] [\fB--retry-policy\fR]
+[\fB--header\fR \fIname: value\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -58,12 +59,44 @@ file corruption if not properly used.
 re-creates a file if it is already present.
 
 .RE
+\fB-H\fR | \fB--header\fR \fIname: value\fR
+.RS 5
+adds the given header to the requests sent to an http or https endpoint. May be
+repeated to add more than one header. Requires that the source or the destination
+is an http or https URL. The \fBConnection\fR,
+\fBContent-Length\fR, \fBExpect\fR, \fBHost\fR, \fBKeep-Alive\fR,
+\fBProxy-Authenticate\fR, \fBProxy-Authorization\fR, \fBProxy-Connection\fR,
+\fBTE\fR, \fBTrailer\fR, \fBTransfer-Encoding\fR and \fBUpgrade\fR headers are
+reserved and cannot be overridden. Each of these names prepended with
+\fBTransferHeader\fR is reserved as well.
+.PP
+In a third party copy (\fB--tpc\fR), the headers go to the server the client
+connects to: the destination server in \fBpull\fR mode, or the source server in
+\fBpush\fR mode. To send a header to the other server, the one the client does not
+connect to, prepend \fBTransferHeader\fR to the header name. For example, in
+\fBpull\fR mode:
+.PP
+.RS 3
+\fB-H\fR "X-Request-Id: <destination-id>"
+.br
+\fB-H\fR "TransferHeaderX-Request-Id: <source-id>"
+.RE
+.PP
+The destination server gets the \fBX-Request-Id\fR header, and sends the value of
+\fBTransferHeaderX-Request-Id\fR as the \fBX-Request-Id\fR header of its request
+to the source server.
+.PP
+If the option is not specified, the \fBXRD_HTTPHEADERS\fR environment variable is
+used instead. It holds the headers as a newline separated list of
+"\fIname: value\fR" entries.
+
+.RE
 \fB-h\fR | \fB--help\fR
 .RS 5
 displays usage information.
 
 .RE
-\fB-H\fR | \fB--license\fR
+\fB--license\fR
 .RS 5
 displays license terms and conditions.
 

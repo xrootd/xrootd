@@ -19,6 +19,7 @@
 /******************************************************************************/
 
 #include "XrdClHttpOps.hh"
+#include "XrdClHttpHeaderBuilder.hh"
 #include "XrdClHttpResponses.hh"
 #include "XrdClHttpUtil.hh"
 #include "XrdClHttpWorker.hh"
@@ -215,6 +216,29 @@ CurlOperation::FailCallback(XErrorCode ecode, const std::string &emsg) {
 bool
 CurlOperation::FinishSetup(CURL *curl)
 {
+    // The client asks every request to carry the headers given by the HttpHeaders
+    // environment setting.  HeaderBuilder interprets the contents.
+    std::string spec;
+    if (auto env = XrdCl::DefaultEnv::GetEnv()) {
+        env->GetString("HttpHeaders", spec);
+    }
+
+    if (!spec.empty()) {
+        // Refuse to send anything when the requested headers could not be understood;
+        // quietly omitting them changes what the request asks for.
+        //
+        // Fail here rather than leaving it to the caller, whose failure message for a
+        // setup error would suggest the wrong cause entirely.
+        HeaderList requested;
+        if (!HeaderBuilder::Build(spec, requested)) {
+            m_logger->Error(kLogXrdClHttp, "Not sending request to %s: the requested"
+                " headers could not be used", m_url.c_str());
+            Fail(XrdCl::errInvalidArgs, EINVAL, "Invalid header requested");
+            return false;
+        }
+        HeaderBuilder::AppendMissing(requested, m_headers_list);
+    }
+
     if (!m_header_callout) {
         m_header_slist.reset();
         for (const auto &header : m_headers_list) {
@@ -232,7 +256,7 @@ CurlOperation::FinishSetup(CURL *curl)
     }
     m_header_slist.reset();
     for (const auto &header : *extra_headers) {
-        if (!strcasecmp(header.first.c_str(), "Content-Length")) {
+        if (HeaderBuilder::SameHeaderName(header.first, "Content-Length")) {
             auto upload_size = std::stoull(header.second);
             curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, upload_size);
             continue;
