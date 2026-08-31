@@ -189,7 +189,7 @@ def test_checksum_async_response():
   class Recorder(object):
     def query(self, querycode, path, timeout, callback):
       self.args = (querycode, path, timeout)
-      callback(raw_status, 'adler32 deadbeef\0', [])
+      callback(raw_status, b'adler32 deadbeef\0', [])
       return raw_status
 
   class FileSystem(object):
