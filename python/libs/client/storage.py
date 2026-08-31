@@ -16,7 +16,7 @@ from urllib.parse import urlsplit, urlunsplit
 from XRootD.client.auth import AuthContext
 from XRootD.client.copyprocess import CopyProcess
 from XRootD.client.filesystem import FileSystem
-from XRootD.client.flags import MkDirFlags, QueryCode
+from XRootD.client.flags import QueryCode
 from XRootD.client.responses import XRootDAlreadyExistsError, XRootDNotFoundError
 
 
@@ -159,16 +159,10 @@ class StorageClient(object):
     if algorithm:
       separator = '&' if '?' in path else '?'
       path = '{}{}cks.type={}'.format(path, separator, algorithm)
-    status, response = filesystem.query(
-      QueryCode.CHECKSUM, path,
-      timeout=self._remaining(self._deadline(timeout)))
+    status, response = filesystem.checksum(
+      path, timeout=self._remaining(self._deadline(timeout)))
     status.raise_on_error()
-    if isinstance(response, bytes):
-      response = response.decode('ascii')
-    checksum = str(response).strip('\n\0').split(None, 1)
-    if len(checksum) != 2:
-      raise ValueError('invalid checksum response: {!r}'.format(response))
-    return tuple(checksum)
+    return response.algorithm, response.value
 
   def exists(self, url, timeout=None):
     """Return whether a remote resource exists."""
@@ -189,9 +183,8 @@ class StorageClient(object):
   def mkdir_p(self, url, timeout=None):
     """Create a remote directory and all missing parents."""
     filesystem, path = self._filesystem(url)
-    status, _ = filesystem.mkdir(path, flags=MkDirFlags.MAKEPATH,
-                                 timeout=self._remaining(
-                                   self._deadline(timeout)))
+    status, _ = filesystem.mkdir_p(
+      path, timeout=self._remaining(self._deadline(timeout)))
     status.raise_on_error()
 
   def space(self, url, timeout=None):

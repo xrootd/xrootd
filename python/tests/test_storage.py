@@ -56,8 +56,8 @@ def test_put_uses_one_scoped_copy_job(monkeypatch, tmp_path):
     def __init__(self, endpoint, auth=None):
       calls.append(('filesystem', endpoint, auth))
 
-    def mkdir(self, path, flags=0, timeout=0):
-      calls.append(('mkdir', path, flags, timeout))
+    def mkdir_p(self, path, timeout=0):
+      calls.append(('mkdir_p', path, timeout))
       return OkStatus(), None
 
   monkeypatch.setattr(storage_module, 'CopyProcess', NativeCopyProcess)
@@ -70,9 +70,9 @@ def test_put_uses_one_scoped_copy_job(monkeypatch, tmp_path):
 
   assert result['size'] == 4
   job = next(call for call in calls if call[0] == 'job')
-  mkdir = next(call for call in calls if call[0] == 'mkdir')
+  mkdir = next(call for call in calls if call[0] == 'mkdir_p')
   assert mkdir[1] == '/data'
-  assert mkdir[2] == storage_module.MkDirFlags.MAKEPATH
+  assert 1 <= mkdir[2] <= 20
   assert job[1] == Path(source).resolve().as_uri()
   assert job[2] == 'davs://storage.example/data/file'
   assert job[3]['mkdir'] is False
@@ -101,9 +101,10 @@ def test_checksum_returns_algorithm_and_value(monkeypatch):
     def __init__(self, endpoint, auth=None):
       calls.append(('endpoint', endpoint, auth))
 
-    def query(self, code, path, timeout=0):
-      calls.append(('query', code, path, timeout))
-      return OkStatus(), b'adler32 deadbeef\n\0'
+    def checksum(self, path, timeout=0):
+      calls.append(('checksum', path, timeout))
+      return OkStatus(), type('Checksum', (), {
+        'algorithm': 'adler32', 'value': 'deadbeef'})()
 
   monkeypatch.setattr(storage_module, 'FileSystem', NativeFileSystem)
 
@@ -111,7 +112,6 @@ def test_checksum_returns_algorithm_and_value(monkeypatch):
     'root://storage.example/data/file', algorithm='adler32')
 
   assert result == ('adler32', 'deadbeef')
-  assert calls[1][0:3] == (
-    'query', storage_module.QueryCode.CHECKSUM,
-    '/data/file?cks.type=adler32')
-  assert 1 <= calls[1][3] <= 10
+  assert calls[1][0:2] == (
+    'checksum', '/data/file?cks.type=adler32')
+  assert 1 <= calls[1][2] <= 10
