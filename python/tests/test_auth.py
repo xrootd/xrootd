@@ -126,6 +126,57 @@ def test_http_x509_and_anonymous_contexts():
   assert anonymous_query['xrdcl.http.noauth'] == ['1']
 
 
+def test_environment_context_prefers_explicit_token(tmp_path):
+  proxy = tmp_path / 'proxy'
+  proxy.write_text('proxy')
+  context = AuthContext.from_environment(
+    token='explicit-token',
+    environ={'X509_USER_PROXY': str(proxy), 'X509_CERT_DIR': '/missing'})
+  try:
+    query = _query(context.apply('root://localhost//data'))
+    assert query['xrd.wantprot'] == ['ztn']
+    with open(query['xrd.ztn'][0]) as token_file:
+      assert token_file.read() == 'explicit-token'
+  finally:
+    context.close()
+
+
+def test_environment_context_uses_proxy_and_tls_snapshot(tmp_path):
+  proxy = tmp_path / 'proxy'
+  ca_dir = tmp_path / 'certificates'
+  proxy.write_text('proxy')
+  ca_dir.mkdir()
+  context = AuthContext.from_environment(environ={
+    'X509_USER_PROXY': str(proxy),
+    'X509_CERT_DIR': str(ca_dir),
+  })
+
+  query = _query(context.apply('davs://storage.example/data'))
+  assert query['xrdcl.http.clientcert'] == [str(proxy)]
+  assert query['xrdcl.http.cadir'] == [str(ca_dir)]
+
+
+def test_environment_context_fails_closed_without_credentials():
+  context = AuthContext.from_environment(
+    environ={}, fallback='none', use_defaults=False)
+
+  root_query = _query(context.apply('root://localhost//data'))
+  http_query = _query(context.apply('https://storage.example/data'))
+  assert root_query['xrd.wantprot'] == ['none']
+  assert http_query['xrdcl.http.noauth'] == ['1']
+
+
+def test_environment_context_can_require_credentials():
+  with pytest.raises(ValueError, match='no usable authentication'):
+    AuthContext.from_environment(
+      environ={}, fallback='error', use_defaults=False)
+
+
+def test_environment_context_rejects_selected_empty_proxy():
+  with pytest.raises(ValueError, match='must not be empty'):
+    AuthContext.from_environment(environ={'X509_USER_PROXY': ''})
+
+
 def test_anonymous_context_rejects_root_protocol():
   with pytest.raises(ValueError):
     AuthContext.anonymous().apply('root://storage.example//data')

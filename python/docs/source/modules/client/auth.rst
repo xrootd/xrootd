@@ -24,3 +24,11 @@ X.509 proxy example::
   copy.add_job('root://storage.example//data/file', 'file:///tmp/file')
   copy.prepare()
   status, results = copy.run()
+
+Environment-snapshot example::
+
+  auth = client.AuthContext.from_environment(fallback='none')
+
+This resolves standard bearer, XRootD GSI, X.509, and TLS environment values
+once without mutating them.  ``fallback='none'`` prevents later ambient
+credential selection when no usable credential is present.

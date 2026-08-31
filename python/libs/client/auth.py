@@ -27,9 +27,20 @@ from urllib.parse import quote, urlsplit, urlunsplit
 
 def _credential_path(path):
   path = os.fsdecode(os.fspath(path))
+  path = os.path.expandvars(os.path.expanduser(path))
+  if not path:
+    raise ValueError('credential paths must not be empty')
   if any(separator in path for separator in ('&', '?', '#')):
     raise ValueError('credential paths cannot contain URL query separators')
   return path
+
+
+def _existing_path(path, directory=False):
+  if not path:
+    return None
+  path = os.path.expandvars(os.path.expanduser(path))
+  predicate = os.path.isdir if directory else os.path.isfile
+  return path if predicate(path) else None
 
 
 class AuthContext(object):
@@ -121,6 +132,94 @@ class AuthContext(object):
     parameters = [('xrdcl.http.noauth', '1')]
     cls._add_tls_parameters(parameters, ca_file, ca_dir, verify)
     return cls(None, parameters)
+
+  @classmethod
+  def no_credentials(cls, ca_file=None, ca_dir=None, verify=True):
+    """Create a context which never selects ambient credentials.
+
+    HTTP URLs are explicitly anonymous. XRootD URLs request no security
+    protocol, allowing public endpoints while failing against endpoints which
+    require authentication.
+    """
+    parameters = [('xrdcl.http.noauth', '1')]
+    cls._add_tls_parameters(parameters, ca_file, ca_dir, verify)
+    return cls('none', parameters)
+
+  @classmethod
+  def from_environment(cls, token=None, token_file=None, proxy=None,
+                       cert=None, key=None, ca_file=None, ca_dir=None,
+                       verify=True, fallback='none', environ=None,
+                       use_bearer_environment=True, use_defaults=True):
+    """Snapshot credentials from explicit values and the environment.
+
+    Explicit bearer or X.509 arguments take precedence. Standard bearer,
+    XRootD GSI, X.509, and TLS environment variables are then considered,
+    followed by conventional proxy and ``~/.globus`` paths. No process-global
+    setting is modified.
+
+    :param fallback: ``'none'`` to suppress all ambient authentication,
+                     ``'anonymous'`` for HTTP-only anonymous access, or
+                     ``'error'`` to reject a missing credential
+    :param environ: optional environment mapping, primarily for applications
+                    which need a deterministic snapshot
+    """
+    environ = os.environ if environ is None else environ
+
+    if ca_file is None:
+      ca_file = _existing_path(
+        environ.get('X509_CERT_FILE') or environ.get('SSL_CERT_FILE'))
+    if ca_dir is None:
+      ca_dir = _existing_path(
+        environ.get('X509_CERT_DIR') or environ.get('SSL_CERT_DIR'),
+        directory=True)
+    tls = {'ca_file': ca_file, 'ca_dir': ca_dir, 'verify': verify}
+
+    if token is not None or token_file is not None:
+      return cls.bearer(token=token, token_file=token_file, **tls)
+    if use_bearer_environment:
+      if 'BEARER_TOKEN_FILE' in environ:
+        return cls.bearer(token_file=environ['BEARER_TOKEN_FILE'], **tls)
+      if 'BEARER_TOKEN' in environ:
+        return cls.bearer(token=environ['BEARER_TOKEN'], **tls)
+
+    if proxy is not None:
+      return cls.x509(proxy=proxy, **tls)
+    if cert is not None or key is not None:
+      return cls.x509(cert=cert, key=key, **tls)
+
+    for variable in ('XrdSecGSIUSERPROXY', 'X509_USER_PROXY'):
+      if variable in environ:
+        return cls.x509(proxy=environ[variable], **tls)
+
+    cert_variable = next((variable for variable in (
+      'XrdSecGSIUSERCERT', 'X509_USER_CERT') if variable in environ), None)
+    key_variable = next((variable for variable in (
+      'XrdSecGSIUSERKEY', 'X509_USER_KEY') if variable in environ), None)
+    if cert_variable is not None or key_variable is not None:
+      return cls.x509(
+        cert=environ.get(cert_variable) if cert_variable else None,
+        key=environ.get(key_variable) if key_variable else None,
+        **tls)
+
+    if use_defaults and hasattr(os, 'geteuid'):
+      default_proxy = _existing_path('/tmp/x509up_u%d' % os.geteuid())
+      if default_proxy is not None:
+        return cls.x509(proxy=default_proxy, **tls)
+    if use_defaults:
+      default_cert = _existing_path(os.path.join(
+        os.path.expanduser('~'), '.globus', 'usercert.pem'))
+      default_key = _existing_path(os.path.join(
+        os.path.expanduser('~'), '.globus', 'userkey.pem'))
+      if default_cert is not None and default_key is not None:
+        return cls.x509(cert=default_cert, key=default_key, **tls)
+
+    if fallback == 'none':
+      return cls.no_credentials(**tls)
+    if fallback == 'anonymous':
+      return cls.anonymous(**tls)
+    if fallback == 'error':
+      raise ValueError('no usable authentication credential was found')
+    raise ValueError("fallback must be 'none', 'anonymous', or 'error'")
 
   @staticmethod
   def _add_tls_parameters(parameters, ca_file, ca_dir, verify):
