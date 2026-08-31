@@ -399,6 +399,8 @@ class ChecksumInfo(Struct):
   """
 
   def __init__(self, response):
+    if isinstance(response, bytes):
+      response = response.decode('ascii')
     parts = response.strip('\n\0').split(None, 1)
     if len(parts) != 2:
       raise ValueError('Invalid checksum response: %r' % response)

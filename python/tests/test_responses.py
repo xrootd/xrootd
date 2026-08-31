@@ -74,6 +74,10 @@ def test_checksum_info():
   assert checksum.algorithm == 'adler32'
   assert checksum.value == 'deadbeef'
 
+  checksum = ChecksumInfo(b'adler32 deadbeef\0')
+  assert checksum.algorithm == 'adler32'
+  assert checksum.value == 'deadbeef'
+
   checksum = ChecksumInfo('md5 abc123\0')
   assert checksum.algorithm == 'md5'
   assert checksum.value == 'abc123'
