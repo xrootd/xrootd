@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function
 
 import math
 import os
+import posixpath
 import time
 
 from pathlib import Path
@@ -16,7 +17,7 @@ from XRootD.client.auth import AuthContext
 from XRootD.client.copyprocess import CopyProcess
 from XRootD.client.filesystem import FileSystem
 from XRootD.client.flags import MkDirFlags, QueryCode
-from XRootD.client.responses import XRootDNotFoundError
+from XRootD.client.responses import XRootDAlreadyExistsError, XRootDNotFoundError
 
 
 class StorageClient(object):
@@ -93,9 +94,16 @@ class StorageClient(object):
   def put(self, source, destination, timeout=None, force=False,
           create_parents=True):
     """Upload one local path, optionally creating destination parents."""
-    return self._copy(self._local_url(source), destination,
-                      self._deadline(timeout), force=force,
-                      mkdir=create_parents)
+    deadline = self._deadline(timeout)
+    parsed = urlsplit(str(destination))
+    if create_parents and not parsed.query:
+      parent = posixpath.dirname(parsed.path)
+      if parent and parent != '/':
+        parent_url = urlunsplit(parsed._replace(
+          path=parent, query='', fragment=''))
+        self.mkdir_p(parent_url, timeout=self._remaining(deadline))
+    return self._copy(self._local_url(source), destination, deadline,
+                      force=force)
 
   def delete(self, url, timeout=None):
     """Delete a file or collection; partial WebDAV deletes raise an error."""
@@ -104,7 +112,7 @@ class StorageClient(object):
       self._deadline(timeout)))
     status.raise_on_error()
 
-  def move(self, source, destination, timeout=None):
+  def move(self, source, destination, timeout=None, create_parents=True):
     """Atomically rename a resource within one storage endpoint."""
     source_parsed = urlsplit(str(source))
     destination_parsed = urlsplit(str(destination))
@@ -113,10 +121,24 @@ class StorageClient(object):
       raise ValueError('move source and destination must share an endpoint')
     if source_parsed.query or destination_parsed.query:
       raise ValueError('move does not accept URL query parameters')
+    deadline = self._deadline(timeout)
     filesystem, source_path = self._filesystem(source)
-    status, _ = filesystem.mv(source_path, destination_parsed.path,
-                              timeout=self._remaining(self._deadline(timeout)))
-    status.raise_on_error()
+
+    def perform_move():
+      status, _ = filesystem.mv(source_path, destination_parsed.path,
+                                timeout=self._remaining(deadline))
+      status.raise_on_error()
+
+    try:
+      perform_move()
+    except XRootDAlreadyExistsError:
+      parent = posixpath.dirname(destination_parsed.path)
+      if not create_parents or not parent or parent == '/':
+        raise
+      parent_url = urlunsplit(destination_parsed._replace(
+        path=parent, query='', fragment=''))
+      self.mkdir_p(parent_url, timeout=self._remaining(deadline))
+      perform_move()
 
   def stat(self, url, timeout=None):
     """Return metadata for a remote resource."""

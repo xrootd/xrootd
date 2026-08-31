@@ -52,7 +52,16 @@ def test_put_uses_one_scoped_copy_job(monkeypatch, tmp_path):
       calls.append(('run',))
       return OkStatus(), [{'status': OkStatus(), 'size': 4}]
 
+  class NativeFileSystem(object):
+    def __init__(self, endpoint, auth=None):
+      calls.append(('filesystem', endpoint, auth))
+
+    def mkdir(self, path, flags=0, timeout=0):
+      calls.append(('mkdir', path, flags, timeout))
+      return OkStatus(), None
+
   monkeypatch.setattr(storage_module, 'CopyProcess', NativeCopyProcess)
+  monkeypatch.setattr(storage_module, 'FileSystem', NativeFileSystem)
   source = tmp_path / 'source'
   source.write_bytes(b'data')
   auth = AuthContext.x509(proxy='/tmp/proxy')
@@ -60,11 +69,15 @@ def test_put_uses_one_scoped_copy_job(monkeypatch, tmp_path):
     source, 'davs://storage.example/data/file', create_parents=True)
 
   assert result['size'] == 4
-  assert calls[0][1] == Path(source).resolve().as_uri()
-  assert calls[0][2] == 'davs://storage.example/data/file'
-  assert calls[0][3]['mkdir'] is True
-  assert calls[0][3]['source_auth'] is auth
-  assert calls[0][3]['target_auth'] is auth
+  job = next(call for call in calls if call[0] == 'job')
+  mkdir = next(call for call in calls if call[0] == 'mkdir')
+  assert mkdir[1] == '/data'
+  assert mkdir[2] == storage_module.MkDirFlags.MAKEPATH
+  assert job[1] == Path(source).resolve().as_uri()
+  assert job[2] == 'davs://storage.example/data/file'
+  assert job[3]['mkdir'] is False
+  assert job[3]['source_auth'] is auth
+  assert job[3]['target_auth'] is auth
 
 
 def test_space_returns_application_friendly_counts(monkeypatch):
