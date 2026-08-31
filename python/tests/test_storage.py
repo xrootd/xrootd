@@ -92,3 +92,26 @@ def test_space_returns_application_friendly_counts(monkeypatch):
   assert StorageClient(timeout=10).space('https://storage.example/data') == {
     'total': 100, 'free': 75, 'used': 25,
   }
+
+
+def test_checksum_returns_algorithm_and_value(monkeypatch):
+  calls = []
+
+  class NativeFileSystem(object):
+    def __init__(self, endpoint, auth=None):
+      calls.append(('endpoint', endpoint, auth))
+
+    def query(self, code, path, timeout=0):
+      calls.append(('query', code, path, timeout))
+      return OkStatus(), b'adler32 deadbeef\n\0'
+
+  monkeypatch.setattr(storage_module, 'FileSystem', NativeFileSystem)
+
+  result = StorageClient(timeout=10).checksum(
+    'root://storage.example/data/file', algorithm='adler32')
+
+  assert result == ('adler32', 'deadbeef')
+  assert calls[1][0:3] == (
+    'query', storage_module.QueryCode.CHECKSUM,
+    '/data/file?cks.type=adler32')
+  assert 1 <= calls[1][3] <= 10
