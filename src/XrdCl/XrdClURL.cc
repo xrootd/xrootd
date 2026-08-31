@@ -483,7 +483,7 @@ namespace XrdCl
 
   //------------------------------------------------------------------------
   //Get the host part of the URL (user:password\@host:port) plus channel
-  //specific CGI (xrdcl.identity & xrd.gsiusrpxy)
+  //specific CGI (intent, authentication context, and credentials)
   //------------------------------------------------------------------------
   std::string URL::GetChannelId() const
   {
@@ -491,6 +491,7 @@ namespace XrdCl
     bool hascgi = false;
 
     std::string keys[] = { "xrdcl.intent",
+                           "xrdcl.authctx",
                            "xrd.gsiusrpxy",
                            "xrd.gsiusrcrt",
                            "xrd.gsiusrkey",
