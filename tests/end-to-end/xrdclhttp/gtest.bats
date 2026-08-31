@@ -126,3 +126,7 @@ gtest() {
 @test "CurlVectorFixture.WriteTestBinaryPayloadLooksLikeFraming" {
     gtest xrdcl-http-test
 }
+
+@test "CurlMoveFixture.RenameWithinEndpoint" {
+    gtest xrdcl-test
+}

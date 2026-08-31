@@ -22,7 +22,7 @@ import os
 import tempfile
 import uuid
 
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 
 def _credential_path(path):
@@ -44,6 +44,7 @@ class AuthContext(object):
   """
 
   _ROOT_SCHEMES = frozenset(('root', 'roots', 'xroot', 'xroots'))
+  _HTTP_SCHEMES = frozenset(('http', 'https', 'dav', 'davs'))
 
   def __init__(self, protocol, parameters, token_handle=None):
     self.__protocol = protocol
@@ -53,7 +54,8 @@ class AuthContext(object):
     self.__closed = False
 
   @classmethod
-  def bearer(cls, token=None, token_file=None):
+  def bearer(cls, token=None, token_file=None, ca_file=None, ca_dir=None,
+             verify=True):
     """Create a bearer-token authentication context.
 
     Exactly one of ``token`` or ``token_file`` must be supplied.  A token
@@ -77,10 +79,14 @@ class AuthContext(object):
     else:
       token_file = _credential_path(token_file)
 
-    return cls('ztn', (('xrd.ztn', token_file),), token_handle)
+    parameters = [('xrd.ztn', token_file),
+                  ('xrdcl.http.bearertokenfile', token_file)]
+    cls._add_tls_parameters(parameters, ca_file, ca_dir, verify)
+    return cls('ztn', parameters, token_handle)
 
   @classmethod
-  def x509(cls, proxy=None, cert=None, key=None):
+  def x509(cls, proxy=None, cert=None, key=None, ca_file=None, ca_dir=None,
+           verify=True):
     """Create an X.509 authentication context.
 
     Supply either a proxy path or both a certificate and private-key path.
@@ -93,13 +99,37 @@ class AuthContext(object):
       raise ValueError('cert and key must be supplied together')
 
     if has_proxy:
-      parameters = (('xrd.gsiusrpxy', _credential_path(proxy)),)
+      proxy = _credential_path(proxy)
+      parameters = [('xrd.gsiusrpxy', proxy),
+                    ('xrdcl.http.clientcert', proxy),
+                    ('xrdcl.http.clientkey', proxy)]
     else:
-      parameters = (
+      cert = _credential_path(cert)
+      key = _credential_path(key)
+      parameters = [
         ('xrd.gsiusrcrt', _credential_path(cert)),
         ('xrd.gsiusrkey', _credential_path(key)),
-      )
+        ('xrdcl.http.clientcert', cert),
+        ('xrdcl.http.clientkey', key),
+      ]
+    cls._add_tls_parameters(parameters, ca_file, ca_dir, verify)
     return cls('gsi', parameters)
+
+  @classmethod
+  def anonymous(cls, ca_file=None, ca_dir=None, verify=True):
+    """Disable ambient credentials for public or presigned HTTP URLs."""
+    parameters = [('xrdcl.http.noauth', '1')]
+    cls._add_tls_parameters(parameters, ca_file, ca_dir, verify)
+    return cls(None, parameters)
+
+  @staticmethod
+  def _add_tls_parameters(parameters, ca_file, ca_dir, verify):
+    if ca_file is not None:
+      parameters.append(('xrdcl.http.cafile', _credential_path(ca_file)))
+    if ca_dir is not None:
+      parameters.append(('xrdcl.http.cadir', _credential_path(ca_dir)))
+    if not verify:
+      parameters.append(('xrdcl.http.noverify', '1'))
 
   def apply(self, url):
     """Return ``url`` with this context's client authentication parameters."""
@@ -108,19 +138,31 @@ class AuthContext(object):
 
     url = str(url)
     parsed = urlsplit(url)
-    if parsed.scheme not in self._ROOT_SCHEMES:
+    if parsed.scheme not in self._ROOT_SCHEMES | self._HTTP_SCHEMES:
       return url
 
-    owned_keys = set(key for key, _ in self.__parameters)
-    owned_keys.update(('xrd.wantprot', 'xrdcl.authctx'))
+    is_root = parsed.scheme in self._ROOT_SCHEMES
+    parameters_for_scheme = [
+      (key, value) for key, value in self.__parameters
+      if (is_root and not key.startswith('xrdcl.http.')) or
+         (not is_root and key.startswith('xrdcl.http.'))
+    ]
+    owned_keys = set(key for key, _ in parameters_for_scheme)
+    owned_keys.add('xrdcl.authctx')
+    if is_root:
+      owned_keys.add('xrd.wantprot')
     parameters = [
       parameter
       for parameter in parsed.query.split('&')
       if parameter and parameter.split('=', 1)[0] not in owned_keys
     ]
-    parameters.append('xrd.wantprot={}'.format(self.__protocol))
+    if is_root:
+      if self.__protocol is None:
+        raise ValueError('anonymous authentication is only supported for HTTP URLs')
+      parameters.append('xrd.wantprot={}'.format(self.__protocol))
     parameters.extend(
-      '{}={}'.format(key, value) for key, value in self.__parameters)
+      '{}={}'.format(key, quote(value, safe='/'))
+      for key, value in parameters_for_scheme)
     parameters.append('xrdcl.authctx={}'.format(self.__identity))
     query = '&'.join(parameters)
     return urlunsplit(parsed._replace(query=query))

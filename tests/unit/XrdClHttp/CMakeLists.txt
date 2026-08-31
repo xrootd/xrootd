@@ -8,6 +8,7 @@ find_package(CURL REQUIRED)
 add_unit_tests(
   SOURCES
     XrdClHttpWebDav.cc
+    XrdClHttpClientConfig.cc
     XrdClHttpOptionsCache.cc
     XrdClHttpHeaderBuilderAppendMissing.cc
     XrdClHttpHeaderBuilderEntrySeparation.cc

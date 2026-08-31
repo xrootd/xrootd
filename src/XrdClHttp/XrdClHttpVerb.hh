@@ -35,6 +35,7 @@ namespace XrdClHttp
     GET,
     POST,
     MKCOL,
+    MOVE,
     OPTIONS,
     PROPFIND,
     PUT,
