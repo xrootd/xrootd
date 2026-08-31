@@ -9,6 +9,8 @@ from .copyprocess import CopyProcess
 from .tape import TapeClient
 from .auth import AuthContext
 from .storage import StorageClient
+from .storage import StorageInfo
+from .storage import STORAGE_CLIENT_API_VERSION
 from .env import EnvPutString
 from .env import EnvGetString
 from .env import EnvDelString
