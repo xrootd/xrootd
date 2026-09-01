@@ -88,8 +88,16 @@ bool IsTrue(const std::string &value) {
 bool ReadBearerToken(const std::string &path, std::string &token) {
     std::ifstream input(path, std::ios::binary);
     if (!input) return false;
-    token.assign(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
-    if (token.size() > 1024 * 1024) return false;
+    constexpr size_t max_token_size = 1024 * 1024;
+    char buffer[4096];
+    token.clear();
+    while (input) {
+        input.read(buffer, sizeof(buffer));
+        const auto count = static_cast<size_t>(input.gcount());
+        if (count > max_token_size - token.size()) return false;
+        token.append(buffer, count);
+    }
+    if (!input.eof()) return false;
     auto first = token.find_first_not_of(" \t\r\n");
     auto last = token.find_last_not_of(" \t\r\n");
     if (first == std::string::npos) return false;
