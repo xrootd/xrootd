@@ -126,11 +126,14 @@ RUNDIR="$BINARY_DIR/tests/$TEST_NAME"
 echo "Using $RUNDIR as the test run's home directory."
 cd "$RUNDIR" || exit 1
 
-XROOTD_EXPORTDIR="$RUNDIR/export"
-rm -rf "$XROOTD_EXPORTDIR"
+TAPE_API_ROOT="$RUNDIR/tape-api"
+XROOTD_EXPORTDIR="$TAPE_API_ROOT/disk"
+rm -rf "$TAPE_API_ROOT"
+mkdir -p "$TAPE_API_ROOT/archive/test/tape" || exit 1
 mkdir -p "$XROOTD_EXPORTDIR/test" || exit 1
 XROOTD_PUBLIC_EXPORTDIR="$XROOTD_EXPORTDIR/test-public"
 mkdir -p "$XROOTD_PUBLIC_EXPORTDIR" || exit 1
+printf '%s\n' 'tape contents' > "$TAPE_API_ROOT/archive/test/tape/file" || exit 1
 
 mkdir -p "$XROOTD_EXPORTDIR"/.well-known || exit 1
 cp "$SOURCE_DIR/tests/XrdClHttp/openid-configuration" "$XROOTD_EXPORTDIR/.well-known/openid-configuration" || exit 1
@@ -216,6 +219,7 @@ http.header2cgi Authorization authz strip-on-redirect
 ofs.osslib ++ libXrdOssStats.so
 all.adminpath $XROOTD_RUNDIR/origin
 all.pidpath $XROOTD_RUNDIR/origin
+all.sitename xrootd-ci
 
 oss.localroot $XROOTD_EXPORTDIR
 
@@ -241,6 +245,9 @@ xrd.network nodnr
 scitokens.trace debug info warning error
 
 ofs.osslib ++ $BINARY_DIR/lib/libXrdOssSlowOpen.so
+
+# WLCG Tape REST API handler used by the XrdClHttp Tape client tests.
+http.exthandler xrdhttptapeapi libXrdHttpTapeApi.so $TAPE_API_ROOT
 
 # Required for the COPY tests
 http.exthandler xrdtpc libXrdHttpTPC.so
