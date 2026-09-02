@@ -217,6 +217,11 @@ CurlOperation::FailCallback(XErrorCode ecode, const std::string &emsg) {
 bool
 CurlOperation::FinishSetup(CURL *curl)
 {
+    if(m_parsed_url)
+    {
+        InjectBearerToken(*m_parsed_url, m_headers_list, m_logger);
+    }
+
     if (!m_header_callout) {
         m_header_slist.reset();
         for (const auto &header : m_headers_list) {

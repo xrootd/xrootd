@@ -41,6 +41,7 @@
 #include <openssl/evp.h>
 
 #include <fcntl.h>
+#include <fstream>
 #ifdef __APPLE__
 #include <pthread.h>
 #else
@@ -110,6 +111,97 @@ pid_t getthreadid() {
 
 bool XrdClHttp::HTTPStatusIsError(unsigned status) {
      return (status < 100) || (status >= 400);
+}
+
+std::string XrdClHttp::GetBearerToken(XrdCl::Log *)
+{
+    auto env = XrdCl::DefaultEnv::GetEnv();
+    if (!env) return {};
+
+    std::string token;
+    if (!env->GetString("BearerToken", token) || token.empty()) {
+        env->ImportString("BearerToken", "BEARER_TOKEN");
+        env->GetString("BearerToken", token);
+    }
+    if (!token.empty()) {
+        XrdCl::Utils::Trim(token);
+        return token;
+    }
+
+    std::string token_file;
+    if (!env->GetString("BearerTokenFile", token_file) || token_file.empty()) {
+        env->ImportString("BearerTokenFile", "BEARER_TOKEN_FILE");
+        env->GetString("BearerTokenFile", token_file);
+    }
+    if (token_file.empty()) return {};
+
+    std::ifstream input(token_file);
+    if (!input) return {};
+    std::getline(input, token);
+    XrdCl::Utils::Trim(token);
+    return token;
+}
+
+bool XrdClHttp::ShouldUseBearerToken(const std::string &protocols,
+                                     bool hasX509Credential,
+                                     bool hasBearerToken)
+{
+    if(protocols.empty()) return hasBearerToken;
+
+    std::vector<std::string> requested;
+    XrdCl::Utils::splitString(requested, protocols, ",");
+    for(auto protocol : requested)
+    {
+        XrdCl::Utils::Trim(protocol);
+        std::transform(protocol.begin(), protocol.end(), protocol.begin(),
+            [](unsigned char c) { return std::tolower(c); });
+        if(protocol == "gsi" && hasX509Credential) return false;
+        if(protocol == "ztn" && hasBearerToken) return true;
+    }
+    return false;
+}
+
+void XrdClHttp::InjectBearerToken(
+    const XrdCl::URL &url,
+    std::vector<std::pair<std::string, std::string>> &headers,
+    XrdCl::Log *logger)
+{
+    if(url.GetParams().count("authz")) return;
+    for(const auto &header : headers)
+    {
+        if(header.first == "Authorization") return;
+    }
+
+    const std::string token = GetBearerToken(logger);
+    if(token.empty()) return;
+
+    bool hasX509Credential = false;
+    auto env = XrdCl::DefaultEnv::GetEnv();
+    if(env)
+    {
+        int disableX509 = 0;
+        std::string certificate;
+        hasX509Credential =
+            env->GetInt("HttpDisableX509", disableX509)
+            && !disableX509
+            && env->GetString("HttpClientCertFile", certificate)
+            && !certificate.empty();
+    }
+
+    const char *configuredProtocols = std::getenv("XrdSecPROTOCOL");
+    if(!ShouldUseBearerToken(configuredProtocols ? configuredProtocols : "",
+                             hasX509Credential, true))
+    {
+        return;
+    }
+
+    if(logger)
+    {
+        logger->Debug(kLogXrdClHttp,
+                      "Injecting bearer token from environment for %s",
+                      url.GetURL().c_str());
+    }
+    headers.emplace_back("Authorization", "Bearer " + token);
 }
 
 std::pair<uint16_t, uint32_t> XrdClHttp::HTTPStatusConvert(unsigned status) {
