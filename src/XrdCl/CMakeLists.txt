@@ -175,7 +175,11 @@ if(NOT XRDCL_LIB_ONLY)
     XrdAppUtils
   )
 
-  add_executable(xrdfs XrdClFS.cc XrdClFSExecutor.cc XrdClFSExecutor.hh)
+  add_executable(xrdfs
+    XrdClFS.cc
+    XrdClFSCompatibility.cc XrdClFSCompatibility.hh
+    XrdClFSExecutor.cc XrdClFSExecutor.hh
+    XrdClFSURLCommand.cc XrdClFSURLCommand.hh)
 
   target_link_libraries(xrdfs
     XrdCl

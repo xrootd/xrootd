@@ -1,5 +1,9 @@
 add_executable(xrdcl-unit-tests
+  ${PROJECT_SOURCE_DIR}/src/XrdCl/XrdClFSCompatibility.cc
+  ${PROJECT_SOURCE_DIR}/src/XrdCl/XrdClFSURLCommand.cc
   XrdClEnv.cc
+  XrdClFSCompatibilityTest.cc
+  XrdClFSURLCommandTest.cc
   XrdClURL.cc
   XrdClPoller.cc
   XrdClSocket.cc

@@ -25,7 +25,35 @@
 
 #include <tinyxml.h>
 
+#include <algorithm>
+#include <cstring>
+
 using namespace XrdClHttp;
+
+namespace {
+
+bool ElementNameEquals(const TiXmlElement *element, const char *expected)
+{
+    if (!element || !element->Value()) return false;
+    const char *name = element->Value();
+    const char *separator = std::strrchr(name, ':');
+    return !strcasecmp(separator ? separator + 1 : name, expected);
+}
+
+void SetDepthHeader(
+    std::vector<std::pair<std::string, std::string>> &headers,
+    const std::string &value)
+{
+    auto depth = std::find_if(headers.begin(), headers.end(),
+        [](const auto &header) { return !strcasecmp(header.first.c_str(), "Depth"); });
+    if (depth == headers.end()) {
+        headers.emplace_back("Depth", value);
+    } else {
+        depth->second = value;
+    }
+}
+
+}
 
 // OPTIONS information is available.
 //
@@ -38,9 +66,14 @@ CurlStatOp::OptionsDone()
     auto verbs = instance.Get(target.empty() ? m_url : target);
     if (verbs.IsSet(VerbsCache::HttpVerb::kPROPFIND)) {
         curl_easy_setopt(m_curl.get(), CURLOPT_CUSTOMREQUEST, "PROPFIND");
-        m_headers_list.emplace_back("Depth", "0");
+        SetDepthHeader(m_headers_list, "0");
         curl_easy_setopt(m_curl.get(), CURLOPT_NOBODY, 0L);
         m_is_propfind = true;
+        if (!FinishSetup(m_curl.get())) {
+            m_logger->Error(kLogXrdClHttp,
+                "Failed to apply PROPFIND headers after OPTIONS for %s",
+                m_url.c_str());
+        }
     } else {
         m_is_propfind = false;
         curl_easy_setopt(m_curl.get(), CURLOPT_NOBODY, 1L);
@@ -64,9 +97,14 @@ CurlStatOp::Redirect(std::string &target)
 
     if (verbs.IsSet(VerbsCache::HttpVerb::kPROPFIND)) {
         curl_easy_setopt(m_curl.get(), CURLOPT_CUSTOMREQUEST, "PROPFIND");
-        m_headers_list.emplace_back("Depth", "0");
+        SetDepthHeader(m_headers_list, "0");
         curl_easy_setopt(m_curl.get(), CURLOPT_NOBODY, 0L);
         m_is_propfind = true;
+        if (!FinishSetup(m_curl.get())) {
+            Fail(XrdCl::errInternal, 0,
+                 "Failed to apply PROPFIND headers after redirect");
+            return CurlOperation::RedirectAction::Fail;
+        }
     } else {
         m_is_propfind = false;
         curl_easy_setopt(m_curl.get(), CURLOPT_NOBODY, 1L);
@@ -128,13 +166,20 @@ CurlStatOp::ParseProp(TiXmlElement *prop) {
         return {-1, false};
     }
     for (auto child = prop->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
-        if (!strcasecmp(child->Value(), "D:getcontentlength") || !strcasecmp(child->Value(), "lp1:getcontentlength")) {
+        if (ElementNameEquals(child, "getcontentlength")) {
             auto len = child->GetText();
             if (len) {
                 m_length = std::stoll(len);
             }
-        } else if (!strcasecmp(child->Value(), "D:resourcetype") || !strcasecmp(child->Value(), "lp1:resourcetype")) {
-            m_is_dir = child->FirstChildElement("D:collection") != nullptr;
+        } else if (ElementNameEquals(child, "resourcetype")) {
+            m_is_dir = false;
+            for (auto type = child->FirstChildElement(); type != nullptr;
+                 type = type->NextSiblingElement()) {
+                if (ElementNameEquals(type, "collection")) {
+                    m_is_dir = true;
+                    break;
+                }
+            }
         }
     }
     if (m_length < 0 && m_is_dir) {
@@ -162,13 +207,13 @@ CurlStatOp::GetStatInfo() {
     }
 
     auto elem = doc.RootElement();
-    if (strcasecmp(elem->Value(), "D:multistatus")) {
+    if (!ElementNameEquals(elem, "multistatus")) {
         m_logger->Error(kLogXrdClHttp, "Unexpected XML response: %s", m_response.substr(0, 1024).c_str());
         return {-1, false};
     }
     auto found_response = false;
     for (auto response = elem->FirstChildElement(); response != nullptr; response = response->NextSiblingElement()) {
-        if (!strcasecmp(response->Value(), "D:response")) {
+        if (ElementNameEquals(response, "response")) {
             found_response = true;
             elem = response;
             break;
@@ -179,15 +224,15 @@ CurlStatOp::GetStatInfo() {
         return {-1, false};
     }
     for (auto child = elem->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
-		if (strcasecmp(child->Value(), "D:propstat")) {
+        if (!ElementNameEquals(child, "propstat")) {
             continue;
         }
         for (auto prop = child->FirstChildElement(); prop != nullptr; prop = prop->NextSiblingElement()) {
-            if (!strcasecmp(prop->Value(), "D:prop")) {
+            if (ElementNameEquals(prop, "prop")) {
                 return ParseProp(prop);
             }
         }
-	}
+    }
     m_logger->Error(kLogXrdClHttp, "Failed to find properties in XML response: %s", m_response.substr(0, 1024).c_str());
     return {-1, false};
 }

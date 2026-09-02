@@ -27,7 +27,21 @@
 
 #include <tinyxml.h>
 
+#include <cstring>
+
 using namespace XrdClHttp;
+
+namespace {
+
+bool ElementNameEquals(const TiXmlElement *element, const char *expected)
+{
+    if (!element || !element->Value()) return false;
+    const char *name = element->Value();
+    const char *separator = std::strrchr(name, ':');
+    return !strcasecmp(separator ? separator + 1 : name, expected);
+}
+
+}
 
 CurlListdirOp::CurlListdirOp(XrdCl::ResponseHandler *handler, const std::string &url, const std::string &host_addr,
     bool set_response_info, struct timespec timeout, XrdCl::Log *logger, CreateConnCalloutType callout,
@@ -77,13 +91,19 @@ CurlListdirOp::WriteCallback(char *buffer, size_t size, size_t nitems, void *thi
 bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
 {
     for (auto child = prop->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
-        if (!strcasecmp(child->Value(), "D:resourcetype") || !strcasecmp(child->Value(), "lp1:resourcetype")) {
-            auto collection = child->FirstChildElement("D:collection");
-            entry.m_isdir = collection != nullptr;
+        if (ElementNameEquals(child, "resourcetype")) {
+            entry.m_isdir = false;
+            for (auto type = child->FirstChildElement(); type != nullptr;
+                 type = type->NextSiblingElement()) {
+                if (ElementNameEquals(type, "collection")) {
+                    entry.m_isdir = true;
+                    break;
+                }
+            }
             if (entry.m_isdir && entry.m_size < 0) {
                 entry.m_size = 0;
             }
-        } else if (!strcasecmp(child->Value(), "D:getcontentlength") || !strcasecmp(child->Value(), "lp1:getcontentlength")) {
+        } else if (ElementNameEquals(child, "getcontentlength")) {
             auto size = child->GetText();
             if (size == nullptr) {
                 return false;
@@ -93,7 +113,7 @@ bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
             } catch (std::invalid_argument &e) {
                 return false;
             }
-        } else if (!strcasecmp(child->Value(), "D:getlastmodified") || !strcasecmp(child->Value(), "lp1:getlastmodified")) {
+        } else if (ElementNameEquals(child, "getlastmodified")) {
             auto lastmod = child->GetText();
             if (lastmod == nullptr) {
                 return false;
@@ -103,13 +123,13 @@ bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
                 return false;
             }
             entry.m_lastmodified = timegm(&tm);
-        } else if (strcasecmp(child->Value(), "D:href") == 0) {
+        } else if (ElementNameEquals(child, "href")) {
             auto href = child->GetText();
             if (href == nullptr) {
                 return false;
             }
             entry.m_name = href;
-        } else if (!strcasecmp(child->Value(), "D:executable") || !strcasecmp(child->Value(), "lp1:executable")) {
+        } else if (ElementNameEquals(child, "executable")) {
             auto val = child->GetText();
             if (val == nullptr) {
                 return false;
@@ -128,7 +148,7 @@ CurlListdirOp::ParseResponse(TiXmlElement *response)
     DavEntry entry;
     bool success = false;
     for (auto child = response->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
-        if (!strcasecmp(child->Value(), "D:href")) {
+        if (ElementNameEquals(child, "href")) {
             auto href = child->GetText();
             if (href == nullptr) {
                 return {entry, false};
@@ -148,11 +168,11 @@ CurlListdirOp::ParseResponse(TiXmlElement *response)
             }
             continue;
         }
-        if (strcasecmp(child->Value(), "D:propstat")) {
+        if (!ElementNameEquals(child, "propstat")) {
             continue;
         }
         for (auto propstat = child->FirstChildElement(); propstat != nullptr; propstat = propstat->NextSiblingElement()) {
-            if (strcasecmp(propstat->Value(), "D:prop")) {
+            if (!ElementNameEquals(propstat, "prop")) {
                 continue;
             }
             success = ParseProp(entry, propstat);
@@ -181,14 +201,14 @@ CurlListdirOp::Success()
     }
 
     auto elem = doc.RootElement();
-    if (strcasecmp(elem->Value(), "D:multistatus")) {
+    if (!ElementNameEquals(elem, "multistatus")) {
         m_logger->Error(kLogXrdClHttp, "Unexpected XML response: %s", m_response.substr(0, 1024).c_str());
         Fail(XrdCl::errErrorResponse, kXR_FSError, "Server responded to directory listing unexpected XML root");
         return;
     }
     bool skip = true;
     for (auto response = elem->FirstChildElement(); response != nullptr; response = response->NextSiblingElement()) {
-        if (strcasecmp(response->Value(), "D:response")) {
+        if (!ElementNameEquals(response, "response")) {
             continue;
         }
 

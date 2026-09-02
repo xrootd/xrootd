@@ -21,7 +21,9 @@
 #ifndef XRDCLHTTPCHECKSUM_HH_
 #define XRDCLHTTPCHECKSUM_HH_
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <string>
 #include <tuple>
 
@@ -82,17 +84,23 @@ inline size_t GetChecksumLength(ChecksumType ctype) {
 }
 
 inline ChecksumType GetTypeFromString(const std::string &str) {
-    if (str == "adler" || str == "adler32") {
+    std::string normalized(str);
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+        [](unsigned char character) {
+            return static_cast<char>(std::tolower(character));
+        });
+
+    if (normalized == "adler" || normalized == "adler32") {
         return ChecksumType::kADLER32;
-    } else if (str == "crc32") {
+    } else if (normalized == "crc32") {
         return ChecksumType::kCRC32;
-    } else if (str == "crc32c") {
+    } else if (normalized == "crc32c") {
         return ChecksumType::kCRC32C;
-    } else if (str == "md5") {
+    } else if (normalized == "md5") {
         return ChecksumType::kMD5;
-    } else if (str == "sha1") {
+    } else if (normalized == "sha1") {
         return ChecksumType::kSHA1;
-    } else if (str == "sha256") {
+    } else if (normalized == "sha256") {
         return ChecksumType::kSHA256;
     }
     return ChecksumType::kUnknown;

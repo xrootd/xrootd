@@ -45,6 +45,8 @@ TEST_F(CurlMkcolFixture, Test)
     st = fs.Stat(fname + "?authz=" + GetReadToken(), response, 10);
     response_ptr.reset(response);
     ASSERT_TRUE(st.IsOK()) << "Stat of created directory failed: " << st.ToString();
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->TestFlags(XrdCl::StatInfo::IsDir));
 }
 
 TEST_F(CurlMkcolFixture, MkpathTest)
@@ -66,4 +68,6 @@ TEST_F(CurlMkcolFixture, MkpathTest)
     st = fs.Stat(fname + "?authz=" + GetReadToken(), response, 10);
     response_ptr.reset(response);
     ASSERT_TRUE(st.IsOK()) << "Stat of created directory failed: " << st.ToString();
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->TestFlags(XrdCl::StatInfo::IsDir));
 }
