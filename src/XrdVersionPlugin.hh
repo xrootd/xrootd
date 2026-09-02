@@ -185,6 +185,7 @@
          "libXrdCmsRedirectLocal.so", \
          "libXrdCryptossl.so",       \
          "libXrdHttp.so",            \
+         "libXrdHttpTapeApi.so",     \
          "libXrdHttpTPC.so",         \
          "libXrdHttpCors.so",         \
          "libXrdMacaroons.so",       \

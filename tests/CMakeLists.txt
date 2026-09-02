@@ -15,6 +15,8 @@ add_subdirectory(XrdPosix)
 
 add_subdirectory(XrdHttpTests)
 
+add_subdirectory(XrdHttpTapeApi)
+
 add_subdirectory(XrdMacaroons)
 
 add_subdirectory(XrdOucTests)
