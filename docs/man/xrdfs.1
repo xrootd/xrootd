@@ -9,7 +9,7 @@ xrdfs - xrootd file and directory meta-data utility
 \fBxrdfs\fR \fI[global-options]\fR \fIcommand\fR \fI[args containing complete URLs]\fR
 
 \fBcommand\fR: help, cache, chmod, ls, locate, mkdir, mv, stat, statvfs, query,
-           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, sum, xattr
+           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, sum, token, xattr
 .fi
 .br
 .ad l
@@ -29,7 +29,7 @@ Local \fBfile://\fR and \fBstdio://\fR operands are not remote endpoints and are
 rejected in command-first form.
 The command-first complete-URL form is supported by cache, cat, chmod, locate,
 ls, mkdir, mv, prepare, rm, rmdir, spaceinfo, stat, statvfs, sum, tail, truncate,
-and xattr.
+token, and xattr.
 Command help is available by invoking \fBxrdfs\fR with no command
 line options or parameters and then typing "help" in response to the
 input prompt.
@@ -74,6 +74,10 @@ In an XRootD URL, the double slash after the host consists of the slash
 separating the authority from the path and the leading slash of the absolute
 path. A single slash is also accepted and normalized to an absolute command
 path.
+.PP
+.nf
+\fBxrdfs token --validity 30 https://storage.example.org/store/file DOWNLOAD\fR
+.fi
 
 .SH COMMANDS
 \fBchmod\fR \fIpath\fR \fI<user><group><other>\fR
@@ -285,6 +289,26 @@ Output last part of files to stdout.
 \fI-c\fR num_bytes out last num_bytes
 .br
 \fI-f\fR           output appended data as file grows
+
+.RE
+\fBtoken\fR \fI[-w|--write]\fR \fI[--validity minutes]\fR \fI[--issuer URL]\fR \fI[--]\fR \fIpath\fR \fI[activity ...]\fR
+.RS 3
+Request a token for a storage path and print it to standard output.
+The storage endpoint must use HTTPS or DAVS. Without explicit activities, the
+request uses LIST and DOWNLOAD for read access; write access also adds MANAGE,
+UPLOAD, and DELETE.
+.br
+\fI-w\fR, \fI--write\fR request write access instead of read access
+.br
+\fI--validity minutes\fR request a nonnegative validity in minutes (default: 60)
+.br
+\fI--issuer URL\fR request the token through an explicit HTTPS or DAVS issuer. The
+client discovers an OAuth token endpoint using RFC 8414 and OpenID metadata,
+then tries the supported SciTokens and macaroon flows. If issuer discovery is
+unavailable, the request falls back to direct storage issuance. Omit this
+option to request a storage-issued token directly
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
 
 .RE
 \fBspaceinfo\fR \fIpath\fR

@@ -657,6 +657,51 @@ public:
         CreateConnCalloutType callout, HeaderCallout *header_callout);
 };
 
+// Perform a bounded HTTPS token request and extract one string from its JSON
+// response.  Token discovery uses GET while token issuance uses POST; keeping
+// both in the same operation ensures they share the redirect and response-body
+// safety rules.
+class CurlTokenOp final : public CurlOperation {
+public:
+    CurlTokenOp(XrdCl::ResponseHandler *handler,
+        std::shared_ptr<XrdCl::ResponseHandler> handler_owner,
+        const std::string &url, HttpVerb verb, HeaderList headers,
+        const std::string &request_body, const std::string &response_key,
+        struct timespec timeout, XrdCl::Log *log,
+        CreateConnCalloutType callout);
+
+    CurlTokenOp(XrdCl::ResponseHandler *handler,
+        std::shared_ptr<XrdCl::ResponseHandler> handler_owner,
+        const std::string &url, HttpVerb verb, HeaderList headers,
+        const std::string &request_body, const std::string &response_key,
+        std::chrono::steady_clock::time_point expiry, XrdCl::Log *log,
+        CreateConnCalloutType callout);
+
+    // Convenience constructor for the direct storage macaroon workflow.
+    CurlTokenOp(XrdCl::ResponseHandler *handler, const std::string &url,
+        const std::string &request_body, struct timespec timeout,
+        XrdCl::Log *log, CreateConnCalloutType callout);
+
+    virtual ~CurlTokenOp() {}
+
+    bool Setup(CURL *curl, CurlWorker &) override;
+    void Success() override;
+    void ReleaseHandle() override;
+    RedirectAction Redirect(std::string &target) override;
+
+    virtual HttpVerb GetVerb() const override {return m_verb;}
+
+private:
+    static size_t WriteCallback(char *buffer, size_t size, size_t nitems,
+                                void *this_ptr);
+    size_t Write(const char *buffer, size_t length);
+
+    std::shared_ptr<XrdCl::ResponseHandler> m_handler_owner;
+    HttpVerb m_verb;
+    std::string m_request_body;
+    std::string m_response_key;
+    std::string m_response;
+};
 class CurlReadOp : public CurlOperation {
 public:
     CurlReadOp(XrdCl::ResponseHandler *handler, std::shared_ptr<XrdCl::ResponseHandler> default_handler,

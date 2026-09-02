@@ -22,7 +22,7 @@ namespace
     static const char *commands[] = {
       "cache", "cat", "chmod", "locate", "ls", "mkdir", "mv",
       "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs", "sum",
-      "tail", "truncate", "xattr"
+      "tail", "token", "truncate", "xattr"
     };
 
     return std::find( std::begin( commands ), std::end( commands ), command )
@@ -57,10 +57,54 @@ namespace
     return index > 1 && arguments[index - 1] == option;
   }
 
+  bool IsLongOptionAbbreviation( const std::string &argument,
+                                 const char        *option )
+  {
+    const std::string fullOption( option );
+    return argument.size() > 2 && argument.size() < fullOption.size() &&
+           fullOption.compare( 0, argument.size(), argument ) == 0;
+  }
+
   bool IsPathOperand( const std::vector<std::string> &arguments,
                       std::size_t index )
   {
     const std::string &command = arguments[0];
+
+    if( command == "token" )
+    {
+      bool parseOptions = true;
+      for( std::size_t i = 1; i < arguments.size(); ++i )
+      {
+        if( parseOptions && arguments[i] == "--" )
+        {
+          parseOptions = false;
+          continue;
+        }
+        if( parseOptions &&
+            (arguments[i] == "-w" || arguments[i] == "--write" ||
+             IsLongOptionAbbreviation( arguments[i], "--write" )) )
+          continue;
+        if( parseOptions &&
+            (arguments[i] == "--validity" || arguments[i] == "--issuer" ||
+             IsLongOptionAbbreviation( arguments[i], "--validity" ) ||
+             IsLongOptionAbbreviation( arguments[i], "--issuer" )) )
+        {
+          // The command parser reports a missing value. Here it is enough to
+          // make sure an option value is never mistaken for the storage path.
+          if( i + 1 < arguments.size() ) ++i;
+          continue;
+        }
+        if( parseOptions &&
+            (arguments[i].compare( 0, 11, "--validity=" ) == 0 ||
+             arguments[i].compare( 0, 9, "--issuer=" ) == 0) )
+          continue;
+        if( parseOptions && !arguments[i].empty() && arguments[i][0] == '-' )
+          continue;
+
+        return i == index;
+      }
+      return false;
+    }
 
     if( command == "cache" )
       return index == 2;

@@ -99,6 +99,64 @@ TEST( XrdClFSURLCommand, AcceptsPluginBackedHTTPSURL )
              (std::vector<std::string>{"stat", "/store/file"}) );
 }
 
+TEST( XrdClFSURLCommand, NormalizesOnlyTokenPathOperand )
+{
+  NormalizedCommand command = Normalize(
+    {"token", "--write", "--validity", "15", "--issuer",
+              "https://issuer.example/token",
+              "https://storage.example/eos/file?opaque=value",
+              "DOWNLOAD", "https://activity.example/not-a-path"} );
+
+  ASSERT_EQ( command.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( command.endpoint.GetProtocol(), "https" );
+  EXPECT_EQ( command.endpoint.GetHostName(), "storage.example" );
+  EXPECT_EQ( command.arguments,
+             (std::vector<std::string>{
+               "token", "--write", "--validity", "15", "--issuer",
+               "https://issuer.example/token", "/eos/file?opaque=value",
+               "DOWNLOAD", "https://activity.example/not-a-path"}) );
+}
+
+TEST( XrdClFSURLCommand, TokenDoubleDashStillSeparatesPathFromActivities )
+{
+  NormalizedCommand command = Normalize(
+    {"token", "--validity=5", "--",
+              "davs://storage.example/eos/file",
+              "https://activity.example/not-a-path"} );
+
+  ASSERT_EQ( command.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( command.endpoint.GetProtocol(), "davs" );
+  EXPECT_EQ( command.endpoint.GetHostName(), "storage.example" );
+  EXPECT_EQ( command.arguments,
+             (std::vector<std::string>{
+               "token", "--validity=5", "--", "/eos/file",
+               "https://activity.example/not-a-path"}) );
+}
+
+TEST( XrdClFSURLCommand, RoutesTokenOptionAbbreviationsToCommandParser )
+{
+  NormalizedCommand command = Normalize(
+    {"token", "--val", "5", "https://storage.example/eos/file"} );
+
+  ASSERT_EQ( command.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( command.endpoint.GetProtocol(), "https" );
+  EXPECT_EQ( command.arguments,
+             (std::vector<std::string>{
+               "token", "--val", "5", "/eos/file"}) );
+}
+
+TEST( XrdClFSURLCommand, PreservesEmptyTokenIssuerForCommandValidation )
+{
+  NormalizedCommand command = Normalize(
+    {"token", "--issuer=", "https://storage.example/eos/file"} );
+
+  ASSERT_EQ( command.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( command.endpoint.GetProtocol(), "https" );
+  EXPECT_EQ( command.arguments,
+             (std::vector<std::string>{
+               "token", "--issuer=", "/eos/file"}) );
+}
+
 TEST( XrdClFSURLCommand, ReducesURLsUsingTheSameEffectiveEndpoint )
 {
   NormalizedCommand command = Normalize(
