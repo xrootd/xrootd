@@ -13,6 +13,8 @@ setup() {
 
     run bats_pipe -0 echo 'full URL test' \| xrdcp - \
         root://localhost:11965//examplefile
+    run bats_pipe -0 echo 'dash-prefixed file' \| xrdcp - \
+        root://localhost:11965//-b
 }
 
 teardown() {
@@ -35,6 +37,45 @@ bats::on_failure() {
 
 @test "command-first syntax accepts a full URL" {
     run -0 xrdfs stat root://localhost:11965//examplefile
+}
+
+@test "cat accepts byte aliases" {
+    run -0 xrdfs cat -b root://localhost:11965//examplefile
+    assert_output 'full URL test'
+
+    run -0 xrdfs cat --bytes root://localhost:11965//examplefile
+    assert_output 'full URL test'
+}
+
+@test "cat option delimiter preserves dash-prefixed paths" {
+    run -0 xrdfs cat -- root://localhost:11965//-b
+    assert_output 'dash-prefixed file'
+}
+
+@test "cat parses interspersed and attached options" {
+    local target=$BATS_TEST_TMPDIR/cat-output
+    run -0 xrdfs cat root://localhost:11965//examplefile -bo"$target"
+    run -0 cat "$target"
+    assert_output 'full URL test'
+}
+
+@test "cat rejects unknown options and missing output arguments" {
+    run xrdfs cat root://localhost:11965//examplefile --unknown
+    assert_failure
+    assert_output --partial 'Invalid arguments'
+
+    run xrdfs cat root://localhost:11965//examplefile -o
+    assert_failure
+    assert_output --partial 'Invalid arguments'
+}
+
+@test "cat resets option parsing after an interactive error" {
+    run bats_pipe -0 printf \
+        'cd /\ncat -bx\ncat -- -b\ncat --bytes examplefile\nexit\n' \
+        \| xrdfs root://localhost:11965
+    assert_output --partial 'Invalid arguments'
+    assert_output --partial 'dash-prefixed file'
+    assert_output --partial 'full URL test'
 }
 
 @test "subcommand options are not consumed as global options" {
