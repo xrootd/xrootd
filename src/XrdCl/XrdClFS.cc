@@ -23,6 +23,7 @@
 //------------------------------------------------------------------------------
 
 #include "XProtocol/XProtocol.hh"
+#include "XrdCl/XrdClFSRemove.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -62,6 +63,8 @@
 #endif
 
 using namespace XrdCl;
+
+bool IsXRootDProtocol( Env *env );
 
 namespace
 {
@@ -109,6 +112,76 @@ namespace
 
     validity = static_cast<std::uint64_t>( parsed );
     return true;
+  }
+
+  bool NeedsWebDAVRemovalGuard( Env *env )
+  {
+    std::string server;
+    if( !env->GetString( "ServerURL", server ) ) return false;
+    return IsWebDAVProtocol( URL( server ).GetProtocol() );
+  }
+
+  XRootDStatus RemovalDecisionStatus(
+    NonRecursiveRemovalDecision decision )
+  {
+    switch( decision )
+    {
+      case NonRecursiveRemovalDecision::Allow:
+        return XRootDStatus();
+      case NonRecursiveRemovalDecision::IsDirectory:
+        return XRootDStatus(
+          stError, errErrorResponse, kXR_isDirectory,
+          "Target is a directory; recursive removal was not requested." );
+      case NonRecursiveRemovalDecision::NotDirectory:
+        return XRootDStatus(
+          stError, errErrorResponse, kXR_InvalidRequest,
+          "Target is not a directory." );
+      case NonRecursiveRemovalDecision::NotEmpty:
+        return XRootDStatus(
+          stError, errErrorResponse, kXR_ItExists,
+          "Directory is not empty." );
+    }
+    return XRootDStatus( stError, errInternal, 0,
+                         "Unknown removal safety decision." );
+  }
+
+  XRootDStatus GuardWebDAVRemoval( FileSystem          *fs,
+                                   const std::string   &path,
+                                   NonRecursiveRemoval  removal )
+  {
+    StatInfo *rawStat = nullptr;
+    XRootDStatus status = fs->Stat( path, rawStat );
+    std::unique_ptr<StatInfo> stat( rawStat );
+    if( !status.IsOK() ) return status;
+    if( !IsCompleteSuccess( status ) )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Stat did not return a complete response." );
+    if( !stat )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Stat succeeded without target metadata." );
+
+    const bool isDirectory = stat->TestFlags( StatInfo::IsDir );
+    if( removal == NonRecursiveRemoval::File )
+      return RemovalDecisionStatus( EvaluateNonRecursiveRemoval(
+        removal, isDirectory, 0 ) );
+
+    if( !isDirectory )
+      return RemovalDecisionStatus( EvaluateNonRecursiveRemoval(
+        removal, false, 0 ) );
+
+    DirectoryList *rawList = nullptr;
+    status = fs->DirList( path, DirListFlags::None, rawList );
+    std::unique_ptr<DirectoryList> list( rawList );
+    if( !status.IsOK() ) return status;
+    if( !IsCompleteSuccess( status ) )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Directory listing was incomplete." );
+    if( !list )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Directory listing succeeded without a response." );
+
+    return RemovalDecisionStatus( EvaluateNonRecursiveRemoval(
+      removal, true, list->GetSize() ) );
   }
 }
 
@@ -194,51 +267,6 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
   if( newPath.length() > 1 )
     newPath.erase( newPath.length()-1, 1 );
 
-  return XRootDStatus();
-}
-
-//------------------------------------------------------------------------------
-// Convert mode string to uint16_t
-//------------------------------------------------------------------------------
-XRootDStatus ConvertMode( Access::Mode &mode, const std::string &modeStr )
-{
-  if( modeStr.length() != 9 )
-    return XRootDStatus( stError, errInvalidArgs );
-
-  mode = Access::None;
-  for( int i = 0; i < 3; ++i )
-  {
-    if( modeStr[i] == 'r' )
-      mode |= Access::UR;
-    else if( modeStr[i] == 'w' )
-      mode |= Access::UW;
-    else if( modeStr[i] == 'x' )
-      mode |= Access::UX;
-    else if( modeStr[i] != '-' )
-      return XRootDStatus( stError, errInvalidArgs );
-  }
-  for( int i = 3; i < 6; ++i )
-  {
-    if( modeStr[i] == 'r' )
-      mode |= Access::GR;
-    else if( modeStr[i] == 'w' )
-      mode |= Access::GW;
-    else if( modeStr[i] == 'x' )
-      mode |= Access::GX;
-    else if( modeStr[i] != '-' )
-      return XRootDStatus( stError, errInvalidArgs );
-  }
-  for( int i = 6; i < 9; ++i )
-  {
-    if( modeStr[i] == 'r' )
-      mode |= Access::OR;
-    else if( modeStr[i] == 'w' )
-      mode |= Access::OW;
-    else if( modeStr[i] == 'x' )
-      mode |= Access::OX;
-    else if( modeStr[i] != '-' )
-      return XRootDStatus( stError, errInvalidArgs );
-  }
   return XRootDStatus();
 }
 
@@ -487,6 +515,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
         return true;
       case 'a':
         // xrdfs already includes entries whose names begin with a dot.
+        return true;
+      case '1':
+        // Compatibility no-op: xrdfs already emits one entry per line without -l.
         return true;
       default:
         return false;
@@ -748,52 +779,95 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   // Check up the args
   //----------------------------------------------------------------------------
-  Log         *log     = DefaultEnv::GetLog();
-  uint32_t     argc    = args.size();
+  Log *log = DefaultEnv::GetLog();
+  MkDirFlags::Flags flags = MkDirFlags::None;
+  std::vector<std::string> modeStrings( 1, "rwxr-x---" );
+  std::vector<std::string> paths;
+  bool parseOptions = true;
 
-  if( argc < 2 || argc > 4 )
+  for( std::size_t i = 1; i < args.size(); ++i )
   {
-    log->Error( AppMsg, "Too few arguments." );
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions && (args[i] == "-p" ||
+                              args[i] == "--parents") )
+    {
+      flags |= MkDirFlags::MakePath;
+    }
+    else if( parseOptions && (args[i] == "-m" ||
+                              args[i] == "--mode") )
+    {
+      if( i + 1 == args.size() )
+      {
+        log->Error( AppMsg, "Parameter '%s' requires an argument.",
+                    args[i].c_str() );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      modeStrings.emplace_back( args[++i] );
+    }
+    else if( parseOptions && args[i].compare( 0, 7, "--mode=" ) == 0 )
+    {
+      modeStrings.emplace_back( args[i].substr( 7 ) );
+    }
+    else if( parseOptions && args[i].compare( 0, 2, "-m" ) == 0 )
+    {
+      modeStrings.emplace_back( args[i].substr( 2 ) );
+    }
+    else if( parseOptions && args[i].size() > 1 && args[i][0] == '-' )
+    {
+      log->Error( AppMsg, "Unsupported option: %s.", args[i].c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    else
+    {
+      paths.emplace_back( args[i] );
+    }
+  }
+
+  if( paths.empty() )
+  {
+    log->Error( AppMsg, "No directory path specified." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  MkDirFlags::Flags flags = MkDirFlags::None;
-  Access::Mode mode    = Access::None;
-  std::string  modeStr = "rwxr-x---";
-  std::string  path    = "";
-
-  for( uint32_t i = 1; i < args.size(); ++i )
+  Access::Mode mode = Access::None;
+  for( const std::string &modeString : modeStrings )
   {
-    if( args[i] == "-p" )
-      flags |= MkDirFlags::MakePath;
-    else if( !args[i].compare( 0, 2, "-m" ) )
-      modeStr = args[i].substr( 2, 9 );
-    else
-      path = args[i];
+    if( ParseAccessMode( mode, modeString ) == AccessModeFormat::Invalid )
+    {
+      log->Error( AppMsg, "Invalid mode string: %s.", modeString.c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
   }
 
-  XRootDStatus st = ConvertMode( mode, modeStr );
-  if( !st.IsOK() )
+  std::vector<std::string> newPaths;
+  newPaths.reserve( paths.size() );
+  for( const std::string &path : paths )
   {
-    log->Error( AppMsg, "Invalid mode string." );
-    return st;
+    std::string newPath;
+    if( !BuildPath( newPath, env, path ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid path: %s.", path.c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    newPaths.emplace_back( std::move( newPath ) );
   }
 
-  std::string newPath;
-  XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
-  if( !pathSt.IsOK() )
-    return pathSt;
-
   //----------------------------------------------------------------------------
-  // Run the query
+  // Run the queries sequentially, matching gfal-mkdir's ordering.
   //----------------------------------------------------------------------------
-  st = fs->MkDir( newPath, flags, mode );
-  if( !st.IsOK() )
+  for( const std::string &newPath : newPaths )
   {
-    log->Error( AppMsg, "Unable create directory %s: %s",
-                        newPath.c_str(),
-                        st.ToStr().c_str() );
-    return st;
+    XRootDStatus st = fs->MkDir( newPath, flags, mode );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Unable create directory %s: %s",
+                          newPath.c_str(),
+                          st.ToStr().c_str() );
+      return st;
+    }
   }
 
   return XRootDStatus();
@@ -822,6 +896,18 @@ XRootDStatus DoRmDir( FileSystem                      *query,
   XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Removing" );
   if( !pathSt.IsOK() )
     return pathSt;
+
+  if( NeedsWebDAVRemovalGuard( env ) )
+  {
+    XRootDStatus st = GuardWebDAVRemoval(
+      query, fullPath, NonRecursiveRemoval::Directory );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Unable to safely remove directory %s: %s",
+                          fullPath.c_str(), st.ToStr().c_str() );
+      return st;
+    }
+  }
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -897,12 +983,201 @@ XRootDStatus DoRm( FileSystem                      *fs,
   // Check up the args
   //----------------------------------------------------------------------------
   Log         *log     = DefaultEnv::GetLog();
-  uint32_t     argc    = args.size();
-
-  if( argc < 2 )
+  RemoveCommand command;
+  std::string parseError;
+  if( !ParseRemoveCommand( args, command, parseError ) )
   {
-    log->Error( AppMsg, "Wrong number of arguments." );
+    log->Error( AppMsg, "%s", parseError.c_str() );
     return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::vector<std::string> fullPaths;
+  fullPaths.reserve( command.paths.size() );
+  for( const std::string &path : command.paths )
+  {
+    if( command.recursive &&
+        !ValidateRecursiveRemovePath( path, parseError ) )
+    {
+      log->Error( AppMsg, "Invalid recursive removal path %s: %s",
+                          RemovalDisplayPath( path ).c_str(),
+                          parseError.c_str() );
+      return XRootDStatus( stError, errInvalidArgs, 0, parseError );
+    }
+
+    std::string fullPath;
+    if( !BuildPath( fullPath, env, path ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid path: %s",
+                          RemovalDisplayPath( path ).c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    fullPaths.emplace_back( std::move( fullPath ) );
+  }
+
+  if( command.recursive )
+  {
+    // Validate every resolved operand before the first mutation. This also
+    // catches relative paths which resolve to the namespace root.
+    for( const std::string &fullPath : fullPaths )
+    {
+      if( !ValidateRecursiveRemovePath( fullPath, parseError ) )
+      {
+        log->Error( AppMsg, "Invalid recursive removal path %s: %s",
+                            RemovalDisplayPath( fullPath ).c_str(),
+                            parseError.c_str() );
+        return XRootDStatus( stError, errInvalidArgs, 0, parseError );
+      }
+    }
+  }
+
+  if( command.dryRun )
+  {
+    DryRunRemoveOperations operations;
+    operations.force = command.force;
+    operations.stat = [fs]( const std::string &path, bool &isDirectory )
+    {
+      StatInfo *rawStat = nullptr;
+      XRootDStatus status = fs->Stat( path, rawStat );
+      std::unique_ptr<StatInfo> stat( rawStat );
+      if( !status.IsOK() || status.code != suDone ) return status;
+      if( !stat )
+        return XRootDStatus( stError, errInvalidResponse, 0,
+                             "Stat succeeded without target metadata." );
+      isDirectory = stat->TestFlags( StatInfo::IsDir );
+      return status;
+    };
+    operations.list = [fs]( const std::string &path,
+                            std::vector<std::string> &children )
+    {
+      DirectoryList *rawList = nullptr;
+      XRootDStatus status = fs->DirList( path, DirListFlags::None, rawList );
+      std::unique_ptr<DirectoryList> list( rawList );
+      if( !status.IsOK() || status.code != suDone ) return status;
+      if( !list )
+        return XRootDStatus( stError, errInvalidResponse, 0,
+                             "Directory listing succeeded without a response." );
+
+      children.reserve( list->GetSize() );
+      for( DirectoryList::ConstIterator entry = list->Begin();
+           entry != list->End(); ++entry )
+      {
+        if( !*entry )
+          return XRootDStatus( stError, errInvalidResponse, 0,
+                               "Directory listing contained a null entry." );
+        children.push_back( (*entry)->GetName() );
+      }
+      return status;
+    };
+    operations.report = []( const std::string &path, bool isDirectory )
+    {
+      std::cout << RemovalDisplayPath( path ) << '\t'
+                << (isDirectory ? "SKIP DIR" : "SKIP") << '\n';
+    };
+    operations.reportFailure = []( const std::string &path,
+                                   const XRootDStatus &status )
+    {
+      if( status.errNo == kXR_NotFound )
+        std::cout << RemovalDisplayPath( path ) << "\tMISSING\n";
+      else if( status.errNo != kXR_isDirectory )
+        std::cout << RemovalDisplayPath( path ) << "\tFAILED\n";
+    };
+
+    std::string failedPath;
+    XRootDStatus status = PlanRemoval(
+      fullPaths, command.recursive, operations, failedPath );
+    if( !status.IsOK() )
+    {
+      // ExecuteCommand prints a returned failure again, so sanitize the
+      // status itself rather than only the diagnostic emitted here.
+      const XRootDStatus sanitized = SanitizeRemovalStatus( status );
+      log->Error( AppMsg, "Unable to plan removal of %s: %s",
+                          RemovalDisplayPath( failedPath ).c_str(),
+                          sanitized.ToStr().c_str() );
+      return sanitized;
+    }
+    return XRootDStatus();
+  }
+
+  if( command.recursive )
+  {
+    RecursiveRemoveOperations operations;
+    operations.nativeXRootD = IsXRootDProtocol( env );
+    operations.force = command.force;
+    operations.remove = [fs]( const std::string &path )
+    {
+      // Trying Rm first is important: a native directory symlink is unlinked
+      // here instead of being followed by a metadata operation.
+      return fs->Rm( path );
+    };
+    operations.list = [fs]( const std::string &path,
+                            std::vector<std::string> &children )
+    {
+      DirectoryList *rawList = nullptr;
+      XRootDStatus status = fs->DirList( path, DirListFlags::None, rawList );
+      std::unique_ptr<DirectoryList> list( rawList );
+      if( !status.IsOK() || status.code != suDone ) return status;
+      if( !list )
+        return XRootDStatus( stError, errInvalidResponse, 0,
+                             "Directory listing succeeded without a response." );
+
+      children.reserve( list->GetSize() );
+      for( DirectoryList::ConstIterator entry = list->Begin();
+           entry != list->End(); ++entry )
+      {
+        if( !*entry )
+          return XRootDStatus( stError, errInvalidResponse, 0,
+                               "Directory listing contained a null entry." );
+        children.push_back( (*entry)->GetName() );
+      }
+      return status;
+    };
+    operations.removeDirectory = [fs]( const std::string &path )
+    {
+      return fs->RmDir( path );
+    };
+
+    bool haveFailure = false;
+    XRootDStatus firstFailure;
+    // Process operands in command-line order. A failed tree is abandoned, but
+    // later top-level operands are still attempted, matching multi-file rm.
+    for( const std::string &fullPath : fullPaths )
+    {
+      std::string failedPath;
+      XRootDStatus status = RemoveRecursively(
+        {fullPath}, operations, failedPath );
+      if( !status.IsOK() )
+      {
+        if( command.force && status.errNo == kXR_NotFound )
+          continue;
+        log->Error( AppMsg, "Unable to recursively remove %s: %s",
+                            failedPath.c_str(), status.ToStr().c_str() );
+        if( !haveFailure )
+        {
+          firstFailure = status;
+          haveFailure = true;
+        }
+        continue;
+      }
+      std::cout << "rm " << fullPath << " : " << status.ToString() << '\n';
+    }
+    return haveFailure ? firstFailure : XRootDStatus();
+  }
+
+  if( NeedsWebDAVRemovalGuard( env ) )
+  {
+    for( const std::string &fullPath : fullPaths )
+    {
+      XRootDStatus st = GuardWebDAVRemoval(
+        fs, fullPath, NonRecursiveRemoval::File );
+      if( !st.IsOK() )
+      {
+        if( command.force && st.errNo == kXR_NotFound )
+          continue;
+        log->Error( AppMsg, "Unable to safely remove %s: %s",
+                            fullPath.c_str(), st.ToStr().c_str() );
+        return st;
+      }
+    }
   }
 
   struct print_t
@@ -915,27 +1190,40 @@ XRootDStatus DoRm( FileSystem                      *fs,
     std::mutex mtx;
   };
   std::shared_ptr<print_t> print;
-  if( argc - 1 > 0 )
+  if( !fullPaths.empty() )
     print = std::make_shared<print_t>();
 
   std::vector<Pipeline> rms;
-  rms.reserve( argc - 1 );
-  for( size_t i = 1; i < argc; ++i )
+  rms.reserve( fullPaths.size() );
+  std::mutex failureMtx;
+  bool haveNonForceFailure = false;
+  XRootDStatus nonForceFailure;
+
+  for( const std::string &fullPath : fullPaths )
   {
-    std::string fullPath;
-    XRootDStatus pathSt = BuildPath( fullPath, env, args[i], "Removing" );
-    if( !pathSt.IsOK() )
-      return pathSt;
+    const bool force = command.force;
     rms.emplace_back( Rm( fs, fullPath ) >>
-                      [log, fullPath, print]( XRootDStatus &st )
+                      [log, fullPath, print, force, &failureMtx,
+                       &haveNonForceFailure, &nonForceFailure]( XRootDStatus &st )
                       {
                         if( !st.IsOK() )
                         {
+                          if( force && st.errNo == kXR_NotFound )
+                            return;
+
+                          {
+                            std::unique_lock<std::mutex> lck( failureMtx );
+                            if( !haveNonForceFailure )
+                            {
+                              haveNonForceFailure = true;
+                              nonForceFailure = st;
+                            }
+                          }
                           log->Error( AppMsg, "Unable remove %s: %s",
                                               fullPath.c_str(),
                                               st.ToStr().c_str() );
                         }
-                        if( print )
+                        else if( print )
                         {
                           print->print( "rm " + fullPath + " : " + st.ToString() );
                         }
@@ -949,6 +1237,13 @@ XRootDStatus DoRm( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   const size_t rs = rms.size();
   XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rs ) );
+  if( command.force )
+  {
+    std::unique_lock<std::mutex> lck( failureMtx );
+    if( haveNonForceFailure )
+      return nonForceFailure;
+    return XRootDStatus();
+  }
   if( !st.IsOK() )
     return st;
 
@@ -1021,23 +1316,35 @@ XRootDStatus DoChMod( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  Access::Mode mode = Access::None;
+  std::string path;
+  const AccessModeFormat secondFormat = ParseAccessMode( mode, args[2] );
+  if( secondFormat != AccessModeFormat::Invalid )
+  {
+    // Preserve the historical path-first form, including a path whose name
+    // itself looks like an octal mode.
+    path = args[1];
+  }
+  else
+  {
+    const AccessModeFormat firstFormat = ParseAccessMode( mode, args[1] );
+    if( firstFormat != AccessModeFormat::Octal )
+    {
+      log->Error( AppMsg, "Invalid mode string." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    path = args[2];
+  }
+
   std::string fullPath;
-  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Modifying" );
+  XRootDStatus pathSt = BuildPath( fullPath, env, path, "Modifying" );
   if( !pathSt.IsOK() )
     return pathSt;
-
-  Access::Mode mode = Access::None;
-  XRootDStatus st = ConvertMode( mode, args[2] );
-  if( !st.IsOK() )
-  {
-    log->Error( AppMsg, "Invalid mode string." );
-    return st;
-  }
 
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  st = fs->ChMod( fullPath, mode );
+  XRootDStatus st = fs->ChMod( fullPath, mode );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable change mode of %s: %s",
@@ -2714,9 +3021,11 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   cd <path>\n"                                                    );
   printf( "     Change the current working directory\n\n"                     );
 
-  printf( "   chmod <path> <user><group><other>\n"                            );
-  printf( "     Modify permissions. Permission string example:\n"             );
-  printf( "     rwxr-x--x\n\n"                                                );
+  printf( "   chmod <path> <mode>\n"                                           );
+  printf( "   chmod <octal-mode> <path>\n"                                     );
+  printf( "     Modify permissions. Modes may be symbolic (for example,\n"      );
+  printf( "     rwxr-x--x) or octal (for example, 0751). The mode-first\n"      );
+  printf( "     form accepts octal modes.\n\n"                                 );
 
   printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [-h|-H] [-d] [-a]\n"       );
   printf( "      [--color=never] [--xattr name] [dirname]\n"               );
@@ -2746,8 +3055,10 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -i ignore network dependencies\n"                             );
   printf( "     -p be passive: ignore tried/triedrc cgi opaque info\n\n"      );
 
-  printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"                );
-  printf( "     Creates a directory/tree of directories.\n\n"                 );
+  printf( "   mkdir [-p|--parents] [-m mode|--mode mode] <dirname>...\n"       );
+  printf( "     Creates one or more directories/trees of directories. Modes\n" );
+  printf( "     may be symbolic or octal; the default remains 0750. Use --\n"  );
+  printf( "     before a directory name beginning with a dash.\n\n"           );
 
   printf( "   mv <path1> <path2>\n"                                           );
   printf( "     Move path1 to path2 locally on the same server.\n\n"          );
@@ -2803,11 +3114,22 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     xattr          <path>   Extended attributes\n"            );
   printf( "     prepare        <reqid> [filenames]  Prepare request status\n\n" );
 
-  printf( "   rm <filename>\n"                                              );
-  printf( "     Remove a file.\n\n"                                         );
+  printf( "   rm [-r|-R|--recursive] [--dry-run] [--] <path>...\n"          );
+  printf( "     Remove one or more files or directory trees.\n"              );
+  printf( "     -r, -R, --recursive remove directories and their contents\n" );
+  printf( "                         without following directory symlinks\n"   );
+  printf( "                         WebDAV uses collection DELETE directly\n"  );
+  printf( "     --dry-run inspect and print the removal plan without changing\n" );
+  printf( "               storage; files use SKIP and directories SKIP DIR\n"   );
+  printf( "               Plans are bounded to 4096 directory levels.\n"        );
+  printf( "               Directory-symlink plans are advisory (no lstat).\n"    );
+  printf( "     Recursive root and traversal paths are rejected up front.\n"   );
+  printf( "     Later operands continue after a failure; the first error is\n"   );
+  printf( "     returned, so multi-path removal is not transactional.\n"        );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"   );
 
   printf( "   rmdir <dirname>\n"                                            );
-  printf( "     Remove a directory.\n\n"                                    );
+  printf( "     Remove an empty directory.\n\n"                              );
 
   printf( "   truncate <filename> <length>\n"                               );
   printf( "     Truncate a file.\n\n"                                       );

@@ -65,6 +65,54 @@ namespace
            fullOption.compare( 0, argument.size(), argument ) == 0;
   }
 
+  bool IsMkDirPathOperand( const std::vector<std::string> &arguments,
+                           std::size_t index )
+  {
+    bool parseOptions = true;
+    for( std::size_t i = 1; i < arguments.size(); ++i )
+    {
+      const std::string &argument = arguments[i];
+      if( parseOptions && argument == "--" )
+      {
+        parseOptions = false;
+        continue;
+      }
+      if( parseOptions &&
+          (argument == "-p" || argument == "--parents") )
+        continue;
+      if( parseOptions &&
+          (argument == "-m" || argument == "--mode") )
+      {
+        // Keep a URL-shaped mode value out of endpoint selection. The command
+        // parser is responsible for reporting a missing or invalid value.
+        if( i + 1 < arguments.size() ) ++i;
+        continue;
+      }
+      if( parseOptions &&
+          ((argument.size() > 2 && argument.compare( 0, 2, "-m" ) == 0) ||
+           argument.compare( 0, 7, "--mode=" ) == 0) )
+        continue;
+      if( parseOptions && !argument.empty() && argument[0] == '-' )
+        continue;
+
+      if( i == index ) return true;
+    }
+    return false;
+  }
+
+  bool IsChModPathOperand( const std::vector<std::string> &arguments,
+                           std::size_t index )
+  {
+    if( arguments.size() < 2 ) return false;
+
+    // xrdfs historically accepts "chmod path mode", while gfal-chmod uses
+    // "chmod mode path". A command-first URL in the first position
+    // unambiguously selects the legacy form; otherwise the second operand is
+    // the path.
+    if( HasURLSeparator( arguments[1] ) ) return index == 1;
+    return index == 2;
+  }
+
   bool IsPathOperand( const std::vector<std::string> &arguments,
                       std::size_t index )
   {
@@ -106,11 +154,15 @@ namespace
       return false;
     }
 
+    if( command == "mkdir" )
+      return IsMkDirPathOperand( arguments, index );
+    if( command == "chmod" )
+      return IsChModPathOperand( arguments, index );
     if( command == "cache" )
       return index == 2;
-    if( command == "chmod" || command == "rmdir" ||
-        command == "spaceinfo" || command == "statvfs" || command == "sum" ||
-        command == "truncate" || command == "xattr" )
+    if( command == "rmdir" || command == "spaceinfo" ||
+        command == "statvfs" || command == "sum" || command == "truncate" ||
+        command == "xattr" )
       return index == 1;
     if( command == "mv" )
       return index == 1 || index == 2;
@@ -127,7 +179,7 @@ namespace
       return !IsOptionValue( arguments, index, "-a" ) &&
              !IsOptionValue( arguments, index, "-p" );
 
-    // locate, mkdir, and rm have no options with separate values.
+    // locate and rm have no options with separate values.
     return true;
   }
 

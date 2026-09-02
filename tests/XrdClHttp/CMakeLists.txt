@@ -38,6 +38,14 @@ target_include_directories(xrdcl-http-unit-tests
 gtest_discover_tests(xrdcl-http-unit-tests TEST_PREFIX XrdClHttp::
   PROPERTIES DISCOVERY_TIMEOUT 10)
 
+add_executable(xrdcl-http-delete-test
+  DeleteMultiStatusTest.cc
+)
+
+target_link_libraries(xrdcl-http-delete-test XrdClHttpTesting XrdTestUtils GTest::gtest_main)
+
+gtest_add_tests(TARGET xrdcl-http-delete-test TEST_LIST CurlDeleteTests)
+
 # XrdClHttp integration tests depend on scitokens fixture for authentication
 if(NOT BUILD_SCITOKENS)
   return()

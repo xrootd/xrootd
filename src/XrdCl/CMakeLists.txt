@@ -179,6 +179,7 @@ if(NOT XRDCL_LIB_ONLY)
     XrdClFS.cc
     XrdClFSCompatibility.cc XrdClFSCompatibility.hh
     XrdClFSExecutor.cc XrdClFSExecutor.hh
+    XrdClFSRemove.cc XrdClFSRemove.hh
     XrdClFSURLCommand.cc XrdClFSURLCommand.hh)
 
   target_link_libraries(xrdfs

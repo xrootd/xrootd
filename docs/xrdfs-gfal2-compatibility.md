@@ -1,7 +1,7 @@
-# Using XRootD tools for read-only gfal2-util workflows
+# Using XRootD tools for gfal2-util workflows
 
-This document covers the first compatibility slice for operators moving common
-read-only workflows from gfal2-util to XRootD tools.
+This document covers compatibility work for operators moving common read-only
+and namespace workflows from gfal2-util to XRootD tools.
 
 The metadata implementation stays inside `xrdfs`. It does not add an `xrd`
 application, a wrapper, or a second execution layer. Complete URLs and
@@ -40,6 +40,8 @@ Assume these example operands:
 
 ```sh
 DIR='root://storage.example.org//store/data/'
+DIR_A='root://storage.example.org//store/data/new-a/'
+DIR_B='root://storage.example.org//store/data/new-b/'
 FILE_A='root://storage.example.org//store/data/a.dat'
 FILE_B='root://storage.example.org//store/data/b.dat'
 ```
@@ -50,6 +52,7 @@ FILE_B='root://storage.example.org//store/data/b.dat'
 | `gfal-ls "$DIR"` | `xrdfs ls "$DIR"` | Lists the contents of the directory. |
 | `gfal-ls -lH "$DIR"` | `xrdfs ls -lH "$DIR"` | Accepts the gfal-style `-H` human-readable-size option, including grouped `-lH`. The existing `xrdfs ls -h` spelling remains supported. |
 | `gfal-ls -d "$DIR"` | `xrdfs ls -d "$DIR"` | Prints the directory operand itself instead of listing its contents. |
+| `gfal-ls -1 "$DIR"` | `xrdfs ls -1 "$DIR"` | Accepts `-1` as a compatibility option for one-entry-per-line formatting. |
 | `gfal-ls -a "$DIR"` | `xrdfs ls -a "$DIR"` | Accepts `-a` / `--all` as a compatibility no-op because native `xrdfs ls` already includes dotfiles. |
 | `gfal-ls --color=never "$DIR"` | `xrdfs ls --color=never "$DIR"` | Accepts the explicitly uncolored form as a compatibility no-op. |
 | `gfal-ls -l --xattr user.status "$FILE_A"` | `xrdfs ls -l --xattr user.status "$FILE_A"` | Appends the requested virtual or native attribute value to long output. The option is repeatable and preserves order. As in GFAL, it has no visible effect without `-l`. |
@@ -101,6 +104,119 @@ HTTP(S) Tape REST virtual attributes exposed by XrdClHttp are a separate
 feature. They are not enumerated by this shorthand and are not claimed as part
 of the GFAL virtual-attribute compatibility described here.
 
+## Namespace mutations
+
+The namespace compatibility layer only parses gfal-style operands and then
+calls the existing XrdCl `MkDir`, `ChMod`, and `Mv` operations. It does not add
+a second namespace implementation.
+
+| gfal2-util | `xrdfs` | Compatibility provided |
+| --- | --- | --- |
+| `gfal-mkdir -p -m 0755 "$DIR"` | `xrdfs mkdir -p -m 0755 "$DIR"` | Accepts separated octal modes, complete URLs, and the existing `-p` spelling. |
+| `gfal-mkdir --parents --mode=0755 "$DIR"` | `xrdfs mkdir --parents --mode=0755 "$DIR"` | Adds the long gfal option spellings; `-m0755` and `--mode 0755` also work. |
+| `gfal-mkdir -m 0755 "$DIR_A" "$DIR_B"` | `xrdfs mkdir -m 0755 "$DIR_A" "$DIR_B"` | Validates every supplied mode, the endpoint, and every path before the first mutation, then creates directories in operand order. |
+| `gfal-chmod 0750 "$FILE_A"` | `xrdfs chmod 0750 "$FILE_A"` | Adds gfal's octal mode-first order. |
+| — | `xrdfs chmod "$FILE_A" rwxr-x---` | Preserves xrdfs's symbolic path-first form. Octal path-first mode remains supported too. |
+| `gfal-rename "$FILE_A" "$FILE_B"` | `xrdfs mv "$FILE_A" "$FILE_B"` | Renames a file or directory through the existing XrdCl move operation on one ROOT endpoint. |
+| `gfal-rm "$FILE_A" "$FILE_B"` | `xrdfs rm "$FILE_A" "$FILE_B"` | Removes files through the existing XrdCl `Rm` operation. All URL operands must use one endpoint. |
+| `gfal-rm -f "$FILE_A"` | `xrdfs rm -f "$FILE_A"` | Accepts `-f` and `--force`; missing files and arguments are ignored. |
+| `gfal-rm -r "$DIR"` | `xrdfs rm -r "$DIR"` | Adds `-r`, `-R`, and `--recursive`; native directory trees use an iterative CLI-local postorder traversal. Grouped flags like `-rf` are accepted. |
+| `gfal-rm --dry-run "$FILE_A"` | `xrdfs rm --dry-run "$FILE_A"` | Uses XrdCl metadata operations to print tab-separated `<path>` and `SKIP` fields without issuing a removal operation. |
+| `gfal-rm -r --dry-run "$DIR"` | `xrdfs rm -r --dry-run "$DIR"` | Lists the tree and prints files before directories; directories use `SKIP DIR`. Remote storage is not changed. |
+
+`mkdir` deliberately retains xrdfs's historical default mode of `0750`.
+Scripts that depend on gfal-mkdir's different default should pass an explicit
+mode, which makes the intended permissions portable and reviewable.
+
+For `chmod`, path-first interpretation wins when the second operand is a valid
+symbolic or octal mode. Otherwise, the first operand must be a valid octal mode
+and is interpreted using gfal's mode-first order. Symbolic mode-first input is
+rejected, avoiding an ambiguous change to the legacy xrdfs grammar.
+
+`mv` accepts two complete URLs when their protocol, credentials, host, and
+effective port identify the same endpoint. It is a namespace rename, not a
+cross-storage copy: mixed endpoints are rejected before the remote operation,
+while the legacy `xrdfs <endpoint> mv <source> <destination>` form remains
+supported.
+
+On the usual local XrdOss backend, an authorized rename replaces an existing
+regular-file destination. Authorization policy and other storage backends can
+apply different overwrite rules. Directory collisions and exact error or exit
+statuses are likewise backend-specific; migration code should depend on the
+success or failure of the operation rather than a particular diagnostic.
+
+This rename mapping is currently claimed only for native XRootD protocols.
+XrdClHttp does not implement the XrdCl `Mv` operation, so parsing complete
+HTTP(S) or DAV(S) operands does not provide a WebDAV rename operation.
+
+These namespace operations use the native XRootD protocol directly. Its server
+always grants owner read, write, and execute permissions when creating a
+directory, even when fewer owner permissions were requested. Complete HTTPS or
+DAVS URLs still require the installed XrdClHttp plugin, and support for
+permissions and namespace flags depends on that backend; WebDAV parity is
+tracked separately.
+
+### Removal safety and recursive removal
+
+Native XRootD distinguishes file removal from directory removal and lets the
+server enforce that `rmdir` only removes an empty directory. WebDAV instead
+defines DELETE on a collection as recursive. Before using HTTP(S) or DAV(S)
+DELETE, `xrdfs rm` therefore verifies that every operand is a file, and
+`xrdfs rmdir` verifies that its operand is an empty directory. Any failed,
+partial, or ambiguous metadata response is rejected without sending DELETE.
+
+The checks are deliberately limited to WebDAV-backed protocols. Native ROOT
+removal continues to use the existing server operation directly, including its
+symlink behavior. The WebDAV checks are client-side preflights rather than an
+atomic server primitive, so callers must still exclude concurrent namespace
+changes while removing a directory.
+
+With `-r`, `-R`, or `--recursive`, `xrdfs rm` remains a thin client of existing
+XrdCl operations rather than adding a recursive filesystem API. For each native
+ROOT operand it first tries `Rm`, which removes ordinary files and safely
+unlinkable symlinks without a metadata lookup. A directory response is checked
+with `RmDir`: an empty directory is removed immediately, while only an explicit
+nonempty-directory response permits a non-recursive `DirList`. Children are
+then processed by an iterative postorder stack and the directory is removed
+with `RmDir`. This avoids call-stack depth limits and never uses
+`DirListFlags::Recursive`.
+
+The native probe is important for directory symlinks. Some Linux backends can
+report a directory error when `Rm` sees an absolute symlink to a directory;
+`RmDir` fails on the symlink itself, so `xrdfs` stops instead of listing and
+following its target. Partial listings, unsafe child names, HTTP 207
+Multi-Status, and other ambiguous errors are terminal for that tree. Later
+top-level operands are still attempted, and the first error is returned.
+
+WebDAV collection DELETE is recursive by protocol definition. A successful
+DELETE therefore completes that operand directly. `xrdfs` does not emulate a
+second client-side traversal after success, and a 207 Multi-Status remains a
+failure because it can describe partially deleted descendants.
+
+Every recursive operand is checked before any mutation. Empty paths, the
+namespace root, and dot or dot-dot traversal components (including encoded
+forms) are rejected. Child paths retain the operand's URL query parameters.
+Use `--` before a dash-prefixed path.
+
+`--dry-run` takes a separate metadata-only path before both the WebDAV safety
+guard and the destructive recursive walker. A non-recursive plan calls `Stat`
+for each operand. A recursive plan calls `Stat`, lists directories without the
+recursive listing flag, and uses an iterative postorder stack so planned files
+are reported before their parent directory. It never calls `Rm` or `RmDir`, and
+an HTTP(S) or DAV(S) dry-run never sends DELETE. If one tree cannot be fully
+inspected, that tree stops, later top-level operands are still planned, and the
+first failure is returned. Output uses gfal's `SKIP`, `SKIP DIR`, and `MISSING`
+labels where applicable.
+
+Signed query parameters are preserved on every descendant metadata request.
+`authz` values are redacted from dry-run output and diagnostics. XrdCl does not
+provide an lstat operation, so a metadata-only plan can follow a directory
+symlink and should be treated as advisory. The planner fails a tree before it
+would exceed 4096 directory levels, so cyclic or hostile listings cannot make
+the metadata traversal grow indefinitely. This limit applies only to dry-run;
+actual recursive removal continues to use its non-following `Rm`/`RmDir`
+checks.
+
 ## Remote-to-local copies with `xrdcp`
 
 `gfal-copy` and `gfal-cp` downloads map to the existing `xrdcp` application.
@@ -150,7 +266,8 @@ part of this read-only compatibility work.
 ## Testing approach
 
 The XRootD tests exercise the compatibility behavior against a local XRootD
-server and controlled fixtures. They cover:
+server and controlled fixtures. Namespace tests mutate only that ephemeral
+localhost fixture. They cover:
 
 - complete-URL parsing and preservation of URL parameters;
 - legacy server-first syntax;
@@ -161,7 +278,20 @@ server and controlled fixtures. They cover:
 - GFAL virtual xattr shorthand and explicit native xattr list/get;
 - remote-to-local `xrdcp` downloads, including overwrite, checksum validation,
   input lists, and stdout;
-- rejection of local URLs and mixed remote endpoints.
+- rejection of local URLs and mixed remote endpoints;
+- octal and symbolic namespace modes, all supported `mkdir` option spellings,
+  multiple directory operands, legacy syntax, and pre-mutation validation;
+- same-endpoint ROOT renames through complete-URL and legacy syntax, including
+  regular-file replacement, directory trees, failure preservation, and
+  mixed-endpoint prevalidation;
+- fail-closed WebDAV non-recursive removal decisions;
+- recursive native ROOT trees, empty directories, multiple operands, missing
+  targets, special names, root and traversal guards, deep trees, and directory
+  symlink target preservation;
+- successful WebDAV collection DELETE and terminal multi-status handling;
+- metadata-only file and recursive removal plans, including postorder output,
+  continuation after a missing operand, signed-query preservation, authz
+  redaction, and zero native or WebDAV removal requests;
 
 The expected behavior is derived from the corresponding gfal2-util commands,
 but gfal2 is not a build-time or runtime dependency of `xrdfs`, and it is not
@@ -178,8 +308,9 @@ XRDFS_GFAL2_REFERENCE=1 \
   -R '^XrdCl::xrdfs-gfal2-reference$'
 ```
 
-The enabled suite starts its own localhost XRootD server, uses generated test
-data, and writes copy destinations only below the test temporary directory.
+The enabled suite starts its own localhost XRootD server and uses generated
+test data. Namespace mutations and copy destinations remain below the test
+temporary directory.
 Optional read-only protocol comparisons can also be enabled by setting all
 four of these variables to equivalent accessible fixtures:
 
@@ -216,11 +347,15 @@ an operation such as directory listing still depends on that plugin and the
 remote server. Protocols supported by GFAL but without an XrdCl implementation
 are not added by this compatibility work.
 
-The following are intentionally outside this first slice:
+In particular, XrdClHttp does not currently implement `Mv`; HTTPS and DAV
+rename compatibility is not claimed here.
+
+The following are intentionally outside the compatibility covered here:
 
 - a new `xrd` command;
 - raw `query` in command-first form;
+- gfal-rm auxiliary modes (`--just-delete`, `--from-file`, and `--bulk`);
 - uploads, third-party copies, or any other copy with a remote destination;
-- exact recursive-copy layout, copy-chain, or dry-run parity;
+- exact recursive-copy layout, copy-chain, or `gfal-copy` dry-run parity;
 - full gfal2 common-option parity;
 - exact output, diagnostic, or exit-code parity.

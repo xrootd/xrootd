@@ -80,13 +80,17 @@ path.
 .fi
 
 .SH COMMANDS
-\fBchmod\fR \fIpath\fR \fI<user><group><other>\fR
+\fBchmod\fR \fIpath\fR \fImode\fR
+.br
+\fBchmod\fR \fIoctal-mode\fR \fIpath\fR
 .RS 3
-Modify permissions of the \fIpath\fR. Permission string example:
-\fIrwxr-x--x\fR
+Modify permissions of the \fIpath\fR. The path-first form accepts either a
+nine-character symbolic mode, such as \fIrwxr-x--x\fR, or an unsigned octal
+mode no greater than \fI0777\fR. The gfal-compatible mode-first form accepts an
+octal mode. The historical path-first form remains supported.
 
 .RE
-\fBls\fR \fI[-l]\fR \fI[-u]\fR \fI[-R]\fR \fI[-D]\fR \fI[-Z]\fR \fI[-C]\fR \fI[-h|-H]\fR \fI[-d]\fR \fI[-a]\fR \fI[--color=never]\fR \fI[--xattr name]\fR \fI[dirname]\fR
+\fBls\fR \fI[-l]\fR \fI[-u]\fR \fI[-R]\fR \fI[-D]\fR \fI[-Z]\fR \fI[-C]\fR \fI[-h|-H]\fR \fI[-d]\fR \fI[-a]\fR \fI[-1]\fR \fI[--color=never]\fR \fI[--xattr name]\fR \fI[dirname]\fR
 .RS 3
 Get directory listing.
 .br
@@ -107,6 +111,8 @@ Get directory listing.
 \fI-d\fR, \fI--directory\fR list the directory entry instead of its contents
 .br
 \fI-a\fR, \fI--all\fR accepted for gfal-ls compatibility; xrdfs already includes entries whose names begin with a dot
+.br
+\fI-1\fR accepted for gfal-ls compatibility; xrdfs already emits one entry per line when long output is not selected
 .br
 \fI--color=never\fR accepted for gfal-ls compatibility; xrdfs output is already uncolored
 .br
@@ -133,13 +139,22 @@ Get the locations of the path.
 
 
 .RE
-\fBmkdir\fR \fI[-p] [-m<user><group><other>] <dirname>\fR
+\fBmkdir\fR \fI[-p|--parents] [-m mode|--mode mode] <dirname>...\fR
 .RS 3
-Creates a directory/tree of directories.
+Creates one or more directories or directory trees. Every operand is validated
+before the first directory is created, and directories are then created in
+command-line order.
 .br
-\fI-p\fR create the entire directory tree recursively
+\fI-p\fR, \fI--parents\fR create the entire directory tree recursively
 .br
-\fI-m\fR\fB<user><group><other>\fR permissions for newly created directories
+\fI-m\fR \fImode\fR, \fI--mode\fR \fImode\fR set permissions for newly created
+directories. Attached forms such as \fI-m0755\fR and \fI--mode=0755\fR are also
+accepted. A mode may be a nine-character symbolic value or an unsigned octal
+value no greater than \fI0777\fR. The default remains \fI0750\fR. The native
+XRootD server always grants owner read, write, and execute permissions when it
+creates a directory; other backends may enforce additional mode policy.
+.br
+\fI--\fR stop option parsing, allowing a directory name beginning with a dash
 
 .RE
 \fBmv\fR \fI<path1> <path2>\fR
@@ -237,14 +252,54 @@ l - connection statistics
 
 
 .RE
-\fBrm\fR \fI<filename>\fR \fI[<filenames>]\fR
+\fBrm\fR \fI[-r|-R|--recursive]\fR \fI[-f|--force]\fR \fI[--dry-run]\fR \fI[--]\fR
+\fI<path>\fR \fI[<paths>]\fR
 .RS 3
-Remove a file.
+Remove one or more files. For HTTP(S) and DAV(S) endpoints, each target is
+verified not to be a collection before any DELETE request is sent. This avoids
+using WebDAV's recursive collection DELETE for a non-recursive file removal.
+.br
+\fI-r\fR, \fI-R\fR, \fI--recursive\fR remove directories and their contents.
+Native XRootD trees are traversed iteratively in postorder with existing
+\fIRm\fR, \fIDirList\fR, and \fIRmDir\fR operations. File removal is attempted
+first, and directory symlinks are never followed. A successful WebDAV
+collection DELETE completes the recursive operand without client traversal.
+Partial or ambiguous responses fail closed.
+.br
+\fI-f\fR, \fI--force\fR ignore nonexistent files and arguments, matching POSIX and gfal-rm
+.br
+Every recursive operand is validated before the first mutation. Empty paths,
+the namespace root, and paths containing dot or dot-dot traversal components
+are rejected. URL query parameters are preserved while addressing descendants.
+.br
+If one top-level tree fails, its remaining children are not attempted, but
+later top-level operands are still processed. The first failure is returned;
+multi-path recursive removal is therefore not transactional.
+.br
+\fI--dry-run\fR inspect every target without changing remote storage. Files
+that would be removed are printed with \fISKIP\fR; recursively planned
+directories are printed with \fISKIP DIR\fR after their children. Missing
+targets are printed with \fIMISSING\fR. Dry-run performs only metadata
+operations (\fIStat\fR and, for recursive directories, \fIDirList\fR); it
+never calls \fIRm\fR or \fIRmDir\fR and never sends WebDAV DELETE. A failed
+tree is abandoned, later top-level operands are still planned, and the first
+failure is returned. Query parameters are retained for descendant metadata
+requests, while \fIauthz\fR values are redacted from output and diagnostics.
+.br
+XrdCl does not provide an lstat operation. Metadata inspection can therefore
+follow a directory symlink, so a dry-run directory-symlink plan is advisory.
+To keep metadata planning finite even for cyclic or hostile listings, dry-run
+fails a tree that would descend beyond 4096 directory levels. The actual
+recursive removal path retains its non-following symlink checks and is not
+subject to this dry-run-only limit.
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash.
 
 .RE
 \fBrmdir\fR \fI<dirname>\fR
 .RS 3
-Remove a directory.
+Remove an empty directory. For HTTP(S) and DAV(S) endpoints, the target is
+verified to be an empty collection before DELETE is sent.
 
 .RE
 \fBtruncate\fR \fI<filename> <length>\fR
@@ -273,7 +328,7 @@ Prepare one or more files for access.
 .RE
 \fBcat\fR \fI[-b|--bytes]\fR \fI[-o localfile]\fR \fI[--]\fR \fIfiles\fR
 .RS 3
-Print contents of one or mote files to stdout
+Print contents of one or more files to stdout
 .br
 \fI-b\fR, \fI--bytes\fR accepted for gfal-cat compatibility; output is always byte-preserving
 .br
@@ -374,7 +429,7 @@ The explicit codes operate on native XRootD file attributes:
 \fB55\fR  : query response was negative (this is not an error)
 
 .SH NOTES
-For the list of available environment variables please refere to xrdcopy(1)
+For the list of available environment variables please refer to xrdcopy(1)
 
 .SH DIAGNOSTICS
 Errors yield an error message and a non-zero exit status.

@@ -12,9 +12,9 @@ XRDCP=${XRDCP:-xrdcp}
 
 # This suite is a live behavioral comparison with gfal2-util. It is opt-in so
 # that gfal2 remains neither a build dependency nor a normal test dependency.
-# All remote operations target the ephemeral XRootD server created below. The
-# only setup write is the native xattr fixture; every command under comparison
-# is read-only, and every copy destination is local to BATS_TEST_TMPDIR.
+# All remote operations target the ephemeral XRootD server created below.
+# Namespace mutations are confined to that localhost fixture, and every copy
+# destination is local to BATS_TEST_TMPDIR.
 
 require_gfal2_reference() {
     if [[ "${XRDFS_GFAL2_REFERENCE:-0}" != 1 ]]; then
@@ -33,6 +33,15 @@ require_gfal2_reference() {
     # the server so such environments skip instead of producing false failures.
     if ! gfal-stat --version >/dev/null 2>&1; then
         skip 'the installed gfal2-util commands are not functional'
+    fi
+}
+
+require_gfal2_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        skip "$1 is required by this gfal2 reference case"
+    fi
+    if ! "$1" --version >/dev/null 2>&1; then
+        skip "the installed $1 command is not functional"
     fi
 }
 
@@ -85,6 +94,14 @@ checksum_digest() {
     awk 'NF { print $NF; exit }' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
+local_mode() {
+    if stat -c '%a' "$1" >/dev/null 2>&1; then
+        stat -c '%a' "$1"
+    else
+        stat -f '%Lp' "$1"
+    fi
+}
+
 producer_pipe_status() {
     set +e
     "$@" 2>/dev/null | head -c 1 >/dev/null
@@ -95,6 +112,7 @@ producer_pipe_status() {
 
 setup() {
     require_gfal2_reference
+    umask 022
 
     local root="$BATS_TEST_TMPDIR/xrdfs-gfal2-reference"
     mkdir -p \
@@ -159,6 +177,282 @@ teardown() {
 
 bats::on_failure() {
     print_log_files
+}
+
+@test "reference mkdir: explicit octal modes and multiple operands agree" {
+    require_gfal2_command gfal-mkdir
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+    local gfal_one=$TEST_ENDPOINT//mkdir-reference/gfal-one
+    local gfal_two=$TEST_ENDPOINT//mkdir-reference/gfal-two
+    local xrd_one=$TEST_ENDPOINT//mkdir-reference/xrd-one
+    local xrd_two=$TEST_ENDPOINT//mkdir-reference/xrd-two
+
+    run gfal-mkdir -p -m 0751 "$gfal_one" "$gfal_two"
+    assert_success
+    run "$XRDFS" mkdir --parents --mode=0751 "$xrd_one" "$xrd_two"
+    assert_success
+
+    run local_mode "$root/mkdir-reference/gfal-one"
+    assert_success
+    local gfal_mode=$output
+    run local_mode "$root/mkdir-reference/xrd-one"
+    assert_success
+    assert_output "$gfal_mode"
+
+    run local_mode "$root/mkdir-reference/gfal-two"
+    assert_success
+    gfal_mode=$output
+    run local_mode "$root/mkdir-reference/xrd-two"
+    assert_success
+    assert_output "$gfal_mode"
+}
+
+@test "reference mkdir: the documented default mode remains distinct" {
+    require_gfal2_command gfal-mkdir
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+
+    run gfal-mkdir "$TEST_ENDPOINT//gfal-default-mode"
+    assert_success
+    run "$XRDFS" mkdir "$TEST_ENDPOINT//xrdfs-default-mode"
+    assert_success
+
+    run local_mode "$root/gfal-default-mode"
+    assert_success
+    assert_output 755
+    run local_mode "$root/xrdfs-default-mode"
+    assert_success
+    assert_output 750
+}
+
+@test "reference chmod: gfal and xrdfs mode-first forms agree" {
+    require_gfal2_command gfal-chmod
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+    local gfal_path=$TEST_ENDPOINT//gfal-chmod-reference
+    local xrd_path=$TEST_ENDPOINT//xrdfs-chmod-reference
+
+    run "$XRDFS" mkdir "$gfal_path" "$xrd_path"
+    assert_success
+    run gfal-chmod 0715 "$gfal_path"
+    assert_success
+    run "$XRDFS" chmod 0715 "$xrd_path"
+    assert_success
+
+    run local_mode "$root/gfal-chmod-reference"
+    assert_success
+    local gfal_mode=$output
+    run local_mode "$root/xrdfs-chmod-reference"
+    assert_success
+    assert_output "$gfal_mode"
+}
+
+@test "reference rename: regular-file replacement agrees" {
+    require_gfal2_command gfal-rename
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+
+    printf 'replacement' > "$root/gfal-rename-source"
+    printf 'replacement' > "$root/xrdfs-mv-source"
+    printf 'stale' > "$root/gfal-rename-destination"
+    printf 'stale' > "$root/xrdfs-mv-destination"
+
+    run gfal-rename \
+        "$TEST_ENDPOINT//gfal-rename-source" \
+        "$TEST_ENDPOINT//gfal-rename-destination"
+    assert_success
+    run "$XRDFS" mv \
+        "$TEST_ENDPOINT//xrdfs-mv-source" \
+        "$TEST_ENDPOINT//xrdfs-mv-destination"
+    assert_success
+
+    run test ! -e "$root/gfal-rename-source"
+    assert_success
+    run test ! -e "$root/xrdfs-mv-source"
+    assert_success
+    run cmp \
+        "$root/gfal-rename-destination" \
+        "$root/xrdfs-mv-destination"
+    assert_success
+    run test "$(cat "$root/xrdfs-mv-destination")" = replacement
+    assert_success
+}
+
+@test "reference rename: directory trees agree" {
+    require_gfal2_command gfal-rename
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+
+    mkdir -p \
+        "$root/gfal-rename-tree/nested" \
+        "$root/gfal-rename-tree/empty-child" \
+        "$root/xrdfs-mv-tree/nested" \
+        "$root/xrdfs-mv-tree/empty-child"
+    printf 'leaf' > "$root/gfal-rename-tree/nested/leaf.txt"
+    printf 'leaf' > "$root/xrdfs-mv-tree/nested/leaf.txt"
+    printf 'hidden' > "$root/gfal-rename-tree/.hidden.txt"
+    printf 'hidden' > "$root/xrdfs-mv-tree/.hidden.txt"
+
+    run gfal-rename \
+        "$TEST_ENDPOINT//gfal-rename-tree" \
+        "$TEST_ENDPOINT//gfal-renamed-tree"
+    assert_success
+    run "$XRDFS" mv \
+        "$TEST_ENDPOINT//xrdfs-mv-tree" \
+        "$TEST_ENDPOINT//xrdfs-moved-tree"
+    assert_success
+
+    run test ! -e "$root/gfal-rename-tree"
+    assert_success
+    run test ! -e "$root/xrdfs-mv-tree"
+    assert_success
+    run diff -r "$root/gfal-renamed-tree" "$root/xrdfs-moved-tree"
+    assert_success
+}
+
+@test "reference rename: missing and directory destinations fail safely" {
+    require_gfal2_command gfal-rename
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+
+    run gfal-rename \
+        "$TEST_ENDPOINT//gfal-missing-rename-source" \
+        "$TEST_ENDPOINT//gfal-missing-rename-destination"
+    assert_failure
+    run "$XRDFS" mv \
+        "$TEST_ENDPOINT//xrdfs-missing-mv-source" \
+        "$TEST_ENDPOINT//xrdfs-missing-mv-destination"
+    assert_failure
+    run test ! -e "$root/gfal-missing-rename-destination"
+    assert_success
+    run test ! -e "$root/xrdfs-missing-mv-destination"
+    assert_success
+
+    printf 'source' > "$root/gfal-directory-collision-source"
+    printf 'source' > "$root/xrdfs-directory-collision-source"
+    mkdir -p \
+        "$root/gfal-directory-collision-destination" \
+        "$root/xrdfs-directory-collision-destination"
+    printf 'marker' \
+        > "$root/gfal-directory-collision-destination/marker.txt"
+    printf 'marker' \
+        > "$root/xrdfs-directory-collision-destination/marker.txt"
+
+    run gfal-rename \
+        "$TEST_ENDPOINT//gfal-directory-collision-source" \
+        "$TEST_ENDPOINT//gfal-directory-collision-destination"
+    assert_failure
+    run "$XRDFS" mv \
+        "$TEST_ENDPOINT//xrdfs-directory-collision-source" \
+        "$TEST_ENDPOINT//xrdfs-directory-collision-destination"
+    assert_failure
+
+    run test "$(cat "$root/gfal-directory-collision-source")" = source
+    assert_success
+    run test "$(cat "$root/xrdfs-directory-collision-source")" = source
+    assert_success
+    run test \
+        "$(cat "$root/gfal-directory-collision-destination/marker.txt")" \
+        = marker
+    assert_success
+    run test \
+        "$(cat "$root/xrdfs-directory-collision-destination/marker.txt")" \
+        = marker
+    assert_success
+}
+
+@test "reference rm: recursive nested and empty trees agree" {
+    require_gfal2_command gfal-rm
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+    local gfal_tree=$root/rm-reference/gfal-tree
+    local xrdfs_tree=$root/rm-reference/xrdfs-tree
+    mkdir -p "$gfal_tree/nested/empty" "$gfal_tree/empty-child" \
+        "$xrdfs_tree/nested/empty" "$xrdfs_tree/empty-child"
+    printf 'gfal' > "$gfal_tree/nested/file"
+    printf 'xrdfs' > "$xrdfs_tree/nested/file"
+
+    run gfal-rm -r "$TEST_ENDPOINT//rm-reference/gfal-tree"
+    assert_success
+    run "$XRDFS" rm --recursive \
+        "$TEST_ENDPOINT//rm-reference/xrdfs-tree"
+    assert_success
+
+    run test ! -e "$gfal_tree"
+    assert_success
+    run test ! -e "$xrdfs_tree"
+    assert_success
+}
+
+@test "reference rm: recursive dry-run plans agree without mutation" {
+    require_gfal2_command gfal-rm
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+    local gfal_tree=$root/rm-reference/gfal-dry-run-tree
+    local xrdfs_tree=$root/rm-reference/xrdfs-dry-run-tree
+    mkdir -p "$gfal_tree/nested/empty" "$xrdfs_tree/nested/empty"
+    printf 'gfal' > "$gfal_tree/nested/file"
+    printf 'xrdfs' > "$xrdfs_tree/nested/file"
+
+    run gfal-rm -r --dry-run \
+        "$TEST_ENDPOINT//rm-reference/gfal-dry-run-tree"
+    assert_success
+    assert_output --partial $'/nested/file\tSKIP'
+    assert_output --partial $'/rm-reference/gfal-dry-run-tree\tSKIP DIR'
+
+    run "$XRDFS" rm --dry-run --recursive \
+        "$TEST_ENDPOINT//rm-reference/xrdfs-dry-run-tree"
+    assert_success
+    assert_output --partial $'/nested/file\tSKIP'
+    assert_output --partial $'/rm-reference/xrdfs-dry-run-tree\tSKIP DIR'
+
+    run test -f "$gfal_tree/nested/file"
+    assert_success
+    run test -d "$gfal_tree/nested/empty"
+    assert_success
+    run test -f "$xrdfs_tree/nested/file"
+    assert_success
+    run test -d "$xrdfs_tree/nested/empty"
+    assert_success
+}
+
+@test "reference rm: dry-run missing and later file outcomes agree" {
+    require_gfal2_command gfal-rm
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+    printf 'gfal' > "$root/rm-reference/gfal-dry-run-later"
+    printf 'xrdfs' > "$root/rm-reference/xrdfs-dry-run-later"
+
+    run gfal-rm --dry-run \
+        "$TEST_ENDPOINT//rm-reference/gfal-dry-run-missing" \
+        "$TEST_ENDPOINT//rm-reference/gfal-dry-run-later"
+    assert_failure
+    assert_output --partial $'/gfal-dry-run-missing\tMISSING'
+    assert_output --partial $'/gfal-dry-run-later\tSKIP'
+
+    run "$XRDFS" rm --dry-run \
+        "$TEST_ENDPOINT//rm-reference/xrdfs-dry-run-missing" \
+        "$TEST_ENDPOINT//rm-reference/xrdfs-dry-run-later"
+    assert_failure
+    assert_output --partial $'/xrdfs-dry-run-missing\tMISSING'
+    assert_output --partial $'/xrdfs-dry-run-later\tSKIP'
+
+    run test -f "$root/rm-reference/gfal-dry-run-later"
+    assert_success
+    run test -f "$root/rm-reference/xrdfs-dry-run-later"
+    assert_success
+}
+
+@test "reference rm: nonrecursive directory rejection agrees" {
+    require_gfal2_command gfal-rm
+    local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+    local gfal_tree=$root/rm-reference/gfal-nonrecursive
+    local xrdfs_tree=$root/rm-reference/xrdfs-nonrecursive
+    mkdir -p "$gfal_tree" "$xrdfs_tree"
+    printf 'keep' > "$gfal_tree/marker"
+    printf 'keep' > "$xrdfs_tree/marker"
+
+    run gfal-rm "$TEST_ENDPOINT//rm-reference/gfal-nonrecursive"
+    assert_failure
+    run "$XRDFS" rm "$TEST_ENDPOINT//rm-reference/xrdfs-nonrecursive"
+    assert_failure
+
+    run test -f "$gfal_tree/marker"
+    assert_success
+    run test -f "$xrdfs_tree/marker"
+    assert_success
 }
 
 @test "reference stat: regular and empty files have matching size semantics" {

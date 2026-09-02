@@ -157,6 +157,126 @@ TEST( XrdClFSURLCommand, PreservesEmptyTokenIssuerForCommandValidation )
                "token", "--issuer=", "/eos/file"}) );
 }
 
+TEST( XrdClFSURLCommand, NormalizesEveryMkdirPathAndSkipsOptionValues )
+{
+  NormalizedCommand command = Normalize(
+    {"mkdir", "-p", "--parents",
+              "-m", "https://short-mode.example/value",
+              "--mode", "https://long-mode.example/value",
+              "-mrwxr-x---", "--mode=rwx------",
+              "root://root.example.org//store/one",
+              "root://root.example.org//store/two"} );
+
+  ASSERT_EQ( command.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( command.endpoint.GetHostName(), "root.example.org" );
+  EXPECT_EQ( command.arguments,
+             (std::vector<std::string>{
+               "mkdir", "-p", "--parents",
+               "-m", "https://short-mode.example/value",
+               "--mode", "https://long-mode.example/value",
+               "-mrwxr-x---", "--mode=rwx------",
+               "/store/one", "/store/two"}) );
+}
+
+TEST( XrdClFSURLCommand, MkdirDoubleDashEndsOptionParsing )
+{
+  NormalizedCommand command = Normalize(
+    {"mkdir", "--parents", "--",
+              "root://root.example.org//store/one",
+              "root://root.example.org//store/two"} );
+
+  ASSERT_EQ( command.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( command.arguments,
+             (std::vector<std::string>{
+               "mkdir", "--parents", "--", "/store/one", "/store/two"}) );
+}
+
+TEST( XrdClFSURLCommand, NormalizesLegacyAndGfalChmodLayouts )
+{
+  NormalizedCommand legacy = Normalize(
+    {"chmod", "root://root.example.org//store/legacy", "rwxr-x---"} );
+  ASSERT_EQ( legacy.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( legacy.arguments,
+             (std::vector<std::string>{
+               "chmod", "/store/legacy", "rwxr-x---"}) );
+
+  NormalizedCommand legacyURLMode = Normalize(
+    {"chmod", "root://root.example.org//store/legacy",
+              "https://mode.example/value"} );
+  ASSERT_EQ( legacyURLMode.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( legacyURLMode.arguments,
+             (std::vector<std::string>{
+               "chmod", "/store/legacy", "https://mode.example/value"}) );
+
+  NormalizedCommand gfal = Normalize(
+    {"chmod", "0755", "root://root.example.org//store/one"} );
+  ASSERT_EQ( gfal.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( gfal.arguments,
+             (std::vector<std::string>{
+               "chmod", "0755", "/store/one"}) );
+
+  NormalizedCommand invalidMode = Normalize(
+    {"chmod", "not-octal", "root://root.example.org//store/file"} );
+  ASSERT_EQ( invalidMode.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( invalidMode.arguments,
+             (std::vector<std::string>{
+               "chmod", "not-octal", "/store/file"}) );
+}
+
+TEST( XrdClFSURLCommand, NormalizesEveryMvAndRmPath )
+{
+  NormalizedCommand mv = Normalize(
+    {"mv", "root://root.example.org//store/source",
+           "root://root.example.org//store/destination"} );
+  ASSERT_EQ( mv.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( mv.arguments,
+             (std::vector<std::string>{
+               "mv", "/store/source", "/store/destination"}) );
+
+  NormalizedCommand rm = Normalize(
+    {"rm", "root://root.example.org//store/one", "/store/two",
+           "root://root.example.org//store/three"} );
+  ASSERT_EQ( rm.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( rm.arguments,
+             (std::vector<std::string>{
+               "rm", "/store/one", "/store/two", "/store/three"}) );
+}
+
+TEST( XrdClFSURLCommand, KeepsRecursiveRmOptionsOutsideURLNormalization )
+{
+  for( const char *option : {"-r", "-R", "--recursive"} )
+  {
+    NormalizedCommand command = Normalize(
+      {"rm", option, "root://root.example.org//store/tree?auth=value"} );
+    ASSERT_EQ( command.result, XrdCl::ValidURLCommand ) << option;
+    EXPECT_EQ( command.endpoint.GetProtocol(), "root" ) << option;
+    EXPECT_EQ( command.arguments,
+               (std::vector<std::string>{
+                 "rm", option, "/store/tree?auth=value"}) ) << option;
+  }
+}
+
+TEST( XrdClFSURLCommand, KeepsDryRunOptionsOutsideURLNormalization )
+{
+  NormalizedCommand command = Normalize(
+    {"rm", "--dry-run", "-r",
+     "root://root.example.org//store/tree?authz=value&signature=signed"} );
+  ASSERT_EQ( command.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( command.endpoint.GetProtocol(), "root" );
+  EXPECT_EQ( command.arguments,
+             (std::vector<std::string>{
+               "rm", "--dry-run", "-r",
+               "/store/tree?authz=value&signature=signed"}) );
+
+  NormalizedCommand delimited = Normalize(
+    {"rm", "--dry-run", "--",
+     "root://root.example.org//store/-tree"} );
+  ASSERT_EQ( delimited.result, XrdCl::ValidURLCommand );
+  EXPECT_EQ( delimited.arguments,
+             (std::vector<std::string>{
+               "rm", "--dry-run", "--", "/store/-tree"}) );
+}
+
 TEST( XrdClFSURLCommand, ReducesURLsUsingTheSameEffectiveEndpoint )
 {
   NormalizedCommand command = Normalize(
@@ -197,6 +317,30 @@ TEST( XrdClFSURLCommand, RejectsMixedEndpointsWithoutChangingArguments )
   }
 }
 
+TEST( XrdClFSURLCommand, RejectsMixedNamespaceEndpointsBeforeExecution )
+{
+  const std::vector<std::vector<std::string>> cases = {
+    {"mkdir", "--parents", "-m", "0755",
+              "root://one.example.org//one",
+              "root://two.example.org//two"},
+    {"mv", "root://one.example.org//one",
+           "root://two.example.org//two"},
+    {"rm", "root://one.example.org//one",
+           "root://two.example.org//two"}
+  };
+
+  for( const std::vector<std::string> &original : cases )
+  {
+    std::vector<std::string> arguments( original );
+    XrdCl::URL endpoint;
+    std::string error;
+    EXPECT_EQ( XrdCl::NormalizeFSURLCommand( arguments, endpoint, error ),
+               XrdCl::InvalidURLCommand );
+    EXPECT_EQ( error, "all URL operands must use the same endpoint" );
+    EXPECT_EQ( arguments, original );
+  }
+}
+
 TEST( XrdClFSURLCommand, RejectsMalformedAndLocalURLs )
 {
   const char *urls[] = {
@@ -213,6 +357,28 @@ TEST( XrdClFSURLCommand, RejectsMalformedAndLocalURLs )
     NormalizedCommand command = Normalize( {"stat", url} );
     EXPECT_EQ( command.result, XrdCl::InvalidURLCommand ) << url;
     EXPECT_EQ( command.error, "invalid remote URL operand" ) << url;
+  }
+}
+
+TEST( XrdClFSURLCommand, RejectsInvalidNamespaceURLOperands )
+{
+  const std::vector<std::vector<std::string>> cases = {
+    {"mkdir", "-m", "0755", "root_://root.example.org//one"},
+    {"mkdir", "--", "file:///tmp/one"},
+    {"chmod", "0755", "root_://root.example.org//one"},
+    {"chmod", "root_://root.example.org//one", "0755"},
+    {"chmod", "file:///tmp/one", "0755"}
+  };
+
+  for( const std::vector<std::string> &original : cases )
+  {
+    std::vector<std::string> arguments( original );
+    XrdCl::URL endpoint;
+    std::string error;
+    EXPECT_EQ( XrdCl::NormalizeFSURLCommand( arguments, endpoint, error ),
+               XrdCl::InvalidURLCommand );
+    EXPECT_EQ( error, "invalid remote URL operand" );
+    EXPECT_EQ( arguments, original );
   }
 }
 
