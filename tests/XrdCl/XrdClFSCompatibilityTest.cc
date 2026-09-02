@@ -124,3 +124,44 @@ TEST( XrdClFSCompatibility, MapsGFALDiskAndTapeStatus )
                 "ONLINE_AND_NEARLINE" );
   EXPECT_STREQ( XrdCl::GetGFALFileStatus( true, false ), "UNKNOWN" );
 }
+TEST( XrdClFSCompatibility, MapsGFALTapeRestLocality )
+{
+  EXPECT_STREQ( XrdCl::GetGFALTapeFileStatus( "DISK" ), "ONLINE" );
+  EXPECT_STREQ( XrdCl::GetGFALTapeFileStatus( "TAPE" ), "NEARLINE" );
+  EXPECT_STREQ( XrdCl::GetGFALTapeFileStatus( "DISK_AND_TAPE" ),
+                "ONLINE_AND_NEARLINE" );
+  EXPECT_EQ( XrdCl::GetGFALTapeFileStatus( "UNAVAILABLE" ), nullptr );
+}
+
+TEST( XrdClFSCompatibility, FormatsGFALXAttrFailuresWithoutServerDetails )
+{
+  const XrdCl::XRootDStatus status(
+    XrdCl::stError, XrdCl::errErrorResponse, kXR_Unsupported,
+    "Unable to query xattrs.\n/eos/pilot/private/path" );
+
+  EXPECT_EQ( XrdCl::FormatGFALXAttrFailure( "xroot.xattr", status ),
+             "Failed to get the xattr \"xroot.xattr\" "
+             "(Operation not supported)" );
+}
+
+TEST( XrdClFSCompatibility, FormatsGFALXAttrFailuresWithoutErrno )
+{
+  const XrdCl::XRootDStatus status(
+    XrdCl::stError, XrdCl::errNotSupported, 0,
+    "Protocol-specific detail" );
+
+  EXPECT_EQ( XrdCl::FormatGFALXAttrFailure( "xroot.xattr", status ),
+             "Failed to get the xattr \"xroot.xattr\" "
+             "(Operation not supported)" );
+}
+
+TEST( XrdClFSCompatibility, FormatsMissingXAttrsPortably )
+{
+  const XrdCl::XRootDStatus status(
+    XrdCl::stError, XrdCl::errErrorResponse, kXR_AttrNotFound,
+    "Attribute not found" );
+
+  EXPECT_EQ( XrdCl::FormatGFALXAttrFailure( "user.missing", status ),
+             "Failed to get the xattr \"user.missing\" "
+             "(No data available)" );
+}

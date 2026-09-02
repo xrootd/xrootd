@@ -248,7 +248,11 @@ l - connection statistics
 .RE
 \fIxattr\fR          \fB<path>\fR   Extended attributes
 .br
-\fIprepare\fR        \fB<reqid> [filenames]\fR  Prepare request status
+\fIprepare\fR        \fB[-d|--delete] <reqid> [filenames]\fR  Prepare request status or deletion
+.br
+\fItape\fR           \fB[discover | archiveinfo <paths...> | delete <reqid>]\fR  WLCG Tape REST queries
+.br
+\fIarchiveinfo\fR    \fB<paths...>\fR  Archive locality and tape metadata query
 
 
 .RE
@@ -307,23 +311,33 @@ verified to be an empty collection before DELETE is sent.
 Truncate a file.
 
 .RE
-\fBprepare\fR \fI[-c]\fR \fI[-f]\fR \fI[-s]\fR \fI[-w]\fR \fI[-e]\fR \fI[-p priority]\fR \fI[-a requestid]\fR \fIfilenames\fR
+\fBprepare\fR \fI[-c|--colocate]\fR \fI[-f|--fresh]\fR \fI[-s|--stage]\fR \fI[-w|--write]\fR \fI[-e|--evict|--release]\fR \fI[-p|--priority priority]\fR \fI[-a|--abort|--cancel requestid]\fR \fI[--pin-lifetime duration]\fR \fI[--metadata json]\fR \fI[--wait]\fR \fI[--timeout seconds]\fR \fI[--]\fR \fIfilenames\fR
 .RS 3
-Prepare one or more files for access.
+Prepare one or more files for access or stage them from tape.
 .br
-\fI-c\fR co-locate staged files if possible
+\fI-c\fR, \fI--colocate\fR co-locate staged files if possible
 .br
-\fI-f\fR refresh file access time even if the location is known
+\fI-f\fR, \fI--fresh\fR refresh file access time even if the location is known
 .br
-\fI-s\fR stage the files to disk if they are not online
+\fI-s\fR, \fI--stage\fR stage the files to disk if they are not online
 .br
-\fI-w\fR when files will be accessed for modification
+\fI-w\fR, \fI--write\fR when files will be accessed for modification
 .br
-\fI-p\fR priority of the request, 0 (lowest) - 3 (highest)
+\fI-p\fR, \fI--priority\fR priority of the request, 0 (lowest) - 3 (highest)
 .br
-\fI-a\fR abort the request
+\fI-a\fR, \fI--abort\fR, \fI--cancel\fR abort/cancel stage request
 .br
-\fI-e\fR evict the file from disk cache
+\fI-e\fR, \fI--evict\fR, \fI--release\fR evict/release the file from disk cache
+.br
+\fI--pin-lifetime duration\fR desired disk pin duration (seconds or ISO-8601 duration like PT24H)
+.br
+\fI--metadata json\fR targeted storage metadata for stage request
+.br
+\fI--wait\fR poll synchronously until staging is completed or failed
+.br
+\fI--timeout seconds\fR maximum polling timeout in seconds
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
 
 .RE
 \fBcat\fR \fI[-b|--bytes]\fR \fI[-o localfile]\fR \fI[--]\fR \fIfiles\fR
@@ -394,11 +408,13 @@ ONLINE, NEARLINE, ONLINE_AND_NEARLINE, or UNKNOWN values. An unrecognized
 single attribute name falls back to the native XRootD get operation and prints
 the raw value.
 .br
-The bare virtual list and the XRootD-specific virtual names are available for
-XRootD protocols. The checksum virtual attribute can also be used through a
-different protocol plugin when that plugin implements checksum queries.
-HTTP(S) Tape REST virtual attributes exposed by XrdClHttp are separate and are
-not part of this shorthand.
+The XRootD-specific virtual names are available for XRootD protocols. For
+HTTP(S) and WebDAV URLs, the bare virtual list instead reports the discovered
+\fItaperestapi.version\fR, \fItaperestapi.uri\fR, and
+\fItaperestapi.sitename\fR values. On those protocols, \fIuser.status\fR queries
+Tape REST archive locality and maps it to the same GFAL status values. The
+checksum virtual attribute can also be used through a different protocol plugin
+when that plugin implements checksum queries.
 .br
 Use \fI--\fR before a virtual attribute name that would otherwise be parsed as
 an explicit code.

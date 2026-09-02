@@ -124,4 +124,12 @@ namespace XrdCl
     if( onDisk ) return "ONLINE";
     return "UNKNOWN";
   }
+
+  const char *GetGFALTapeFileStatus( const std::string &locality )
+  {
+    if( locality == "DISK" ) return "ONLINE";
+    if( locality == "TAPE" ) return "NEARLINE";
+    if( locality == "DISK_AND_TAPE" ) return "ONLINE_AND_NEARLINE";
+    return nullptr;
+  }
 }

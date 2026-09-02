@@ -51,6 +51,8 @@ namespace XrdCl
     NonRecursiveRemoval removal, bool isDirectory, std::size_t childCount );
 
   const char *GetGFALFileStatus( bool offline, bool backupExists );
+
+  const char *GetGFALTapeFileStatus( const std::string &locality );
 }
 
 #endif // __XRD_CL_FS_COMPATIBILITY_HH__

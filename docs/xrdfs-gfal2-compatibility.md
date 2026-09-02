@@ -62,7 +62,7 @@ FILE_B='root://storage.example.org//store/data/b.dat'
 | `gfal-xattr "$FILE_A"` | `xrdfs xattr "$FILE_A"` | Lists the GFAL virtual XRootD attributes available through existing checksum and space queries. |
 | `gfal-xattr "$FILE_A" xroot.cksum` | `xrdfs xattr "$FILE_A" xroot.cksum` | Resolves a GFAL virtual attribute through the existing XrdCl checksum query. |
 | `gfal-xattr "$FILE_A" user.checksum.adler32` | `xrdfs xattr "$FILE_A" user.checksum.adler32` | Selects the requested checksum algorithm and prints only its digest. |
-| `gfal-xattr "$FILE_A" user.status` | `xrdfs xattr "$FILE_A" user.status` | Derives GFAL's disk/tape status value from the existing XrdCl stat result. |
+| `gfal-xattr "$FILE_A" user.status` | `xrdfs xattr "$FILE_A" user.status` | Derives GFAL's disk/tape status from XRootD stat flags or WebDAV Tape REST locality. |
 
 Known GFAL virtual attribute names use a thin adapter implemented with
 operations that already exist in XrdCl:
@@ -74,14 +74,19 @@ operations that already exist in XrdCl:
 | `xroot.space` | Space query. |
 | `xroot.xattr` | XRootD xattr query. |
 | `spacetoken` | Existing space-info helper, formatted as the GFAL JSON object. |
-| `user.status` | Stat query; `Offline` and `BackUpExists` map to `ONLINE`, `NEARLINE`, `ONLINE_AND_NEARLINE`, or `UNKNOWN`. |
+| `user.status` | XRootD stat query or WebDAV Tape REST archive-info query; both map to `ONLINE`, `NEARLINE`, `ONLINE_AND_NEARLINE`, or `UNKNOWN`. |
+| `taperestapi.version` | WebDAV Tape REST discovery API version. |
+| `taperestapi.uri` | WebDAV Tape REST discovery endpoint URI. |
+| `taperestapi.sitename` | WebDAV Tape REST discovery site name. |
 
 The bare shorthand list is available for XRootD protocols and queries the four
 fixed attributes `xroot.cksum`, `xroot.space`, `xroot.xattr`, and `spacetoken`.
 `user.checksum.<algorithm>` and `user.status` are requested by name rather than
-included in that list. The checksum shorthand can also work through another
-protocol plugin, such as XrdClHttp, when that plugin supports the checksum
-query. The other listed virtual attributes are specific to XRootD protocols.
+included in that list. For WebDAV URLs, the bare shorthand list instead exposes
+the three `taperestapi.*` discovery attributes above. The checksum shorthand can
+also work through another protocol plugin, such as XrdClHttp, when that plugin
+supports the checksum query. The remaining `xroot.*` and `spacetoken` virtual
+attributes are specific to XRootD protocols.
 
 An unrecognized single attribute name falls back to the native XRootD get
 operation and prints its raw value. This preserves the existing shorthand for
@@ -262,6 +267,25 @@ or TCP-buffer options do not have a general remote-to-local mapping.
 Only downloads to a local path or stdout are in scope here. Uploads and any
 other copy with a remote destination, including third-party copies, are not
 part of this read-only compatibility work.
+
+## Tape REST and HSM operations
+
+Tape staging, locality queries, cancellation, and eviction use the native XRootD
+prepare/query engine and the XrdClHttp WLCG Tape REST client.
+
+| gfal2-util | `xrdfs` | Compatibility provided |
+| --- | --- | --- |
+| `gfal-bringonline "$FILE"` | `xrdfs prepare -s "$FILE"` | Submits a stage request from tape to disk buffer and prints the Request ID. |
+| `gfal-bringonline --pin-lifetime 86400 "$FILE"` | `xrdfs prepare -s --pin-lifetime 86400 "$FILE"` | Passes the requested disk retention lifetime (`diskLifetime`). |
+| `gfal-bringonline --polling-timeout 600 "$FILE"` | `xrdfs prepare -s --wait --timeout 600 "$FILE"` | Polls synchronously until all staged files reach a terminal state (`COMPLETED` or `FAILED`). |
+| `gfal-stage-status "$ENDPOINT" "$REQ_ID"` | `xrdfs "$ENDPOINT" query prepare "$REQ_ID"` | Queries the status and per-file state of an existing stage request. |
+| `gfal-stage-cancel "$ENDPOINT" "$REQ_ID" "$FILE"` | `xrdfs prepare -a "$REQ_ID" "$FILE"` | Cancels/aborts a stage request for the specified complete URLs. |
+| `gfal-evict "$FILE" "$REQ_ID"` | `xrdfs prepare -e "$REQ_ID" "$FILE"` | Releases complete-URL disk-pinned files back to tape-only. |
+| `gfal-archivepoll "$FILE"` | `xrdfs "$ENDPOINT" query tape archiveinfo "$FILE"` | Queries archive locality information (`ONLINE`, `NEARLINE`, `ONLINE_AND_NEARLINE`). |
+| `gfal-xattr "$FILE" user.status` | `xrdfs xattr "$FILE" user.status` | Maps Tape REST locality to GFAL's `ONLINE`, `NEARLINE`, or `ONLINE_AND_NEARLINE` values for WebDAV URLs. |
+| `gfal-xattr "$FILE"` | `xrdfs xattr "$FILE"` | Lists `taperestapi.version`, `taperestapi.uri`, and `taperestapi.sitename` discovered from a WebDAV endpoint. |
+| — | `xrdfs "$ENDPOINT" query tape discover` | Discovers WLCG Tape REST API endpoint version, site name, and base URI. |
+| — | `xrdfs "$ENDPOINT" query prepare -d "$REQ_ID"` | Deletes a stage request record from the tape REST server. |
 
 ## Testing approach
 

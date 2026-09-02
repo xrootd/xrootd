@@ -1095,3 +1095,22 @@ request_query_count() {
     run "$XRDFS" rm -rf "$TEST_ENDPOINT//data/definitely-missing-dir"
     assert_success
 }
+
+@test "prepare accepts options with complete URLs" {
+    run "$XRDFS" prepare -s --pin-lifetime 3600 "$TEST_FILE"
+    assert_success
+
+    run "$XRDFS" prepare -f -w -p 2 "$TEST_FILE"
+    assert_success
+
+    run "$XRDFS" prepare -c "$TEST_FILE"
+    assert_success
+}
+
+@test "query supports server configuration and stats queries" {
+    run "$XRDFS" "$TEST_ENDPOINT" query config version
+    assert_success
+
+    run "$XRDFS" "$TEST_ENDPOINT" query stats a
+    assert_success
+}

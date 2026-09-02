@@ -177,7 +177,15 @@ namespace
       return !IsOptionValue( arguments, index, "-c" );
     if( command == "prepare" )
       return !IsOptionValue( arguments, index, "-a" ) &&
-             !IsOptionValue( arguments, index, "-p" );
+             !IsOptionValue( arguments, index, "--abort" ) &&
+             !IsOptionValue( arguments, index, "--cancel" ) &&
+             !IsOptionValue( arguments, index, "-p" ) &&
+             !IsOptionValue( arguments, index, "--priority" ) &&
+             !IsOptionValue( arguments, index, "--pin-lifetime" ) &&
+             !IsOptionValue( arguments, index, "--disk-lifetime" ) &&
+             !IsOptionValue( arguments, index, "--metadata" ) &&
+             !IsOptionValue( arguments, index, "--staging-metadata" ) &&
+             !IsOptionValue( arguments, index, "--timeout" );
 
     // locate and rm have no options with separate values.
     return true;
