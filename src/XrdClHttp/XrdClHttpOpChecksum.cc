@@ -25,6 +25,7 @@
 #include <XrdCl/XrdClLog.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
 
+#include <cerrno>
 #include <iomanip>
 #include <sstream>
 
@@ -81,20 +82,34 @@ CurlChecksumOp::Success()
     SetDone(false);
     auto checksums = m_headers.GetChecksums();
 
+    const auto fail = [&](uint16_t code, uint32_t errNo,
+                          const std::string &message) {
+        m_logger->Error(kLogXrdClHttp, "%s for %s", message.c_str(),
+                        m_url.c_str());
+        auto handle = m_handler;
+        m_handler = nullptr;
+        handle->HandleResponse(new XrdCl::XRootDStatus(
+            XrdCl::stError, code, errNo, message), nullptr);
+    };
+
     std::array<unsigned char, XrdClHttp::g_max_checksum_length> value;
     auto type = XrdClHttp::ChecksumType::kUnknown;
-    if (checksums.IsSet(m_preferred_cksum)) {
+    if (m_preferred_cksum != XrdClHttp::ChecksumType::kAll) {
+        if (!checksums.IsSet(m_preferred_cksum)) {
+            fail(XrdCl::errNotSupported, ENOTSUP,
+                 "server did not return the requested checksum type '" +
+                 XrdClHttp::GetTypeString(m_preferred_cksum) + "'");
+            return;
+        }
         value = checksums.Get(m_preferred_cksum);
         type = m_preferred_cksum;
     } else {
         bool isset;
         std::tie(type, value, isset) = checksums.GetFirst();
         if (!isset) {
-            m_logger->Error(kLogXrdClHttp, "Checksums not found in response for %s", m_url.c_str());
-            auto handle = m_handler;
-            m_handler = nullptr;
-            handle->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errCheckSumError), nullptr);
-            return; 
+            fail(XrdCl::errCheckSumError, ENOMSG,
+                 "server did not return a supported checksum");
+            return;
         }
     }
     std::stringstream ss;

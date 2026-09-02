@@ -29,6 +29,7 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 

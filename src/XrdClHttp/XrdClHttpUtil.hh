@@ -61,6 +61,9 @@ std::string_view ltrim_view(const std::string_view &input_view);
 // Trim the left and right side of a string_view of whitespace
 std::string_view trim_view(const std::string_view &input_view);
 
+// Apply the common XrdClHttp configuration to a curl handle.
+void ConfigureHandle(CURL *curl, bool verbose);
+
 // Returns a newly-created curl handle (no internal caching) with the
 // various configurations needed to be used by XrdClHttp
 CURL *GetHandle(bool verbose);
@@ -125,7 +128,9 @@ public:
     static void ParseDigest(const std::string &digest, XrdClHttp::ChecksumInfo &info);
 
     // Decode a base64-encoded string into a binary buffer.
-    static bool Base64Decode(std::string_view input, std::array<unsigned char, 32> &output);
+    static bool Base64Decode(
+        std::string_view input,
+        std::array<unsigned char, g_max_checksum_length> &output);
 
     // Convert a checksum type to a RFC 3230 digest name.
     static std::string ChecksumTypeToDigestName(XrdClHttp::ChecksumType type);
