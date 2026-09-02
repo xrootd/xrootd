@@ -14,8 +14,13 @@ list of optional features and which dependencies are required to enable them.
 XRootD unit and integration tests are enabled via the CMake configuration option
 `-DENABLE_TESTS=ON`. Unit and integration tests may depend on GoogleTest.
 Therefore, the development packages for GoogleTest are needed in order to enable
-all available tests. Here we discuss how to use the [test.cmake](../test.cmake) 
-CTest script to run all steps to configure and build the project, then run all 
+all available tests. When the Python bindings are enabled as well, the test
+suite includes the tests for the bindings, which are driven by
+[pytest](https://pytest.org). It must be importable by the Python interpreter
+used for the build, and configuration fails when it is not, so install pytest,
+or disable the tests that need it with `-DENABLE_PYTHON=OFF` or
+`-DENABLE_SERVER_TESTS=OFF`. Here we discuss how to use the [test.cmake](../test.cmake)
+CTest script to run all steps to configure and build the project, then run all
 tests using CTest. The script [test.cmake](../test.cmake) can be generically
 called from the top directory of the repository as shown below
 
@@ -206,17 +211,6 @@ installation procedure is working as expected, by inspecting the contents of the
 
 ```sh
 xrootd $ ctest -DINSTALL=1 -S test.cmake
-   Each . represents 1024 bytes of output
-    ..... Size of output: 4K
-   Each symbol represents 1024 bytes of output.
-   '!' represents an error and '*' a warning.
-    ..................................................  Size: 49K
-    .. Size of output: 52K
-   Each symbol represents 1024 bytes of output.
-   '!' represents an error and '*' a warning.
-    ............................................*!....  Size: 49K
-    . Size of output: 50K
-Error(s) when building project
 xrootd $ tree -L 3 -d build/install
 build/install
 └── usr
@@ -232,11 +226,6 @@ build/install
 
 11 directories
 ```
-
-Note that, as shown above, `CTest` erroneously shows build errors when
-installing XRootD with this command. This is because of a deprecation
-warning emitted by `pip` while installing the Python bindings and can be
-safely ignored.
 
 ### Dependencies Required for Coverage, Memory Checking, and Static Analysis
 
