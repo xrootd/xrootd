@@ -25,6 +25,7 @@
 #include <tinyxml.h>
 #include <XrdCl/XrdClURL.hh>
 #include <XrdCl/XrdClLog.hh>
+#include <XrdOuc/XrdOucUtils.hh>
 
 #include <charconv>
 
@@ -49,19 +50,6 @@ std::string urlquote(const std::string input) {
 		}
 	}
 	return output;
-}
-
-// Helper function for joining two URLs without introducing a double '/'
-std::string JoinUrl(const std::string & base, const std::string & path) {
-    std::string result = base;
-    if (!base.empty() && base[base.size()-1] == '/') {
-        size_t idx = 0;
-        while (idx < path.size() && path[idx] == '/') idx++;
-        result.append(path.data() + idx, path.size() - idx);
-    } else {
-        result += path;
-    }
-    return result;
 }
 
 class StatHandler : public XrdCl::ResponseHandler {
@@ -171,7 +159,7 @@ StatHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *r
     // We got a "file not found" type of response.  In this case, we could interpret
     // this as a directory.
     std::string https_url, err_msg;
-    const auto s3_url = JoinUrl(m_s3_url, m_path);
+    const auto s3_url = XrdOucUtils::JoinUrl(m_s3_url, m_path);
     std::string obj;
     if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
         if (m_handler) return m_handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg), nullptr);
@@ -473,7 +461,7 @@ Filesystem::DirList(const std::string          &path,
                     time_t                      timeout)
 {
     std::string https_url, err_msg;
-    const auto s3_url = JoinUrl(m_url.GetURL(), path);
+    const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), path);
     std::string obj;
     if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
@@ -498,7 +486,7 @@ Filesystem::DirList(const std::string          &path,
 
 std::pair<XrdCl::XRootDStatus, XrdCl::FileSystem*>
 Filesystem::GetFSHandle(const std::string &path) {
-    const auto s3_url = JoinUrl(m_url.GetURL(), path);
+    const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), path);
     std::string https_url, err_msg;
     if (!Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg)) {
         return std::make_pair(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg), nullptr);
@@ -586,7 +574,7 @@ Filesystem::MkDir(const std::string        &input_path,
 
     // Try creating a zero-sized sentinel.
     std::string https_url, err_msg;
-    const auto s3_url = JoinUrl(m_url.GetURL(), path);
+    const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), path);
     if (!Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg)) {
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
     }

@@ -149,6 +149,10 @@ static bool PidFile(XrdSysError &eDest, const char *path);
 
 static int getModificationTime(const char * path, time_t & modificationTime);
 
+static std::string JoinUrl(const std::string &base, const std::string &path);
+
+static std::string NormalizePath(const std::string &path);
+
 static void trim(std::string & str);
 
 static void trim(std::string_view & sv);

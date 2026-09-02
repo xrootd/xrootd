@@ -1545,6 +1545,33 @@ int XrdOucUtils::getModificationTime(const char *path, time_t &modificationTime)
     return statRet;
 }
 
+std::string XrdOucUtils::JoinUrl(const std::string &base,
+                                const std::string &path) {
+    if (base.empty()) return path;
+    if (path.empty()) return base;
+
+    size_t pathStart = 0;
+    while (pathStart < path.size() && path[pathStart] == '/') ++pathStart;
+
+    std::string result = base;
+    if (result.back() != '/') result.push_back('/');
+    result.append(path, pathStart, std::string::npos);
+    return result;
+}
+
+std::string XrdOucUtils::NormalizePath(const std::string &path) {
+    std::string result;
+    result.reserve(path.size());
+
+    bool previousSlash = false;
+    for (const char value : path) {
+        if (value == '/' && previousSlash) continue;
+        result.push_back(value);
+        previousSlash = value == '/';
+    }
+    return result;
+}
+
 void XrdOucUtils::trim(std::string &str) {
     // Trim leading non-letters
     while( str.size() && !isgraph(str[0]) ) str.erase(str.begin());
@@ -1570,14 +1597,14 @@ uint8_t XrdOucUtils::touint8_t(const std::string_view sv) {
   unsigned int temp; // wider type for parsing
   auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), temp);
 
-  if (ec == std::errc::invalid_argument) {
+  if (ec == std::errc::invalid_argument || ptr != sv.data() + sv.size()) {
     throw std::invalid_argument("Invalid number format");
   }
   if (ec == std::errc::result_out_of_range || temp > std::numeric_limits<uint8_t>::max()) {
-    throw std::out_of_range("Value out of range for unsigned short");
+    throw std::out_of_range("Value out of range for uint8_t");
   }
 
-  return static_cast<unsigned short>(temp);
+  return static_cast<uint8_t>(temp);
 }
 
 /**
