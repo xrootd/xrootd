@@ -44,17 +44,17 @@ target_link_libraries(XrdClHttpObj
     Threads::Threads
 )
 
-set_target_properties(XrdClHttpObj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(XrdClHttpObj
+  PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN TRUE
+    POSITION_INDEPENDENT_CODE TRUE
+)
 
 set(XrdClHttp "XrdClHttp-${PLUGIN_VERSION}")
 
 add_library(${XrdClHttp} MODULE)
 target_link_libraries(${XrdClHttp} PRIVATE XrdClHttpObj)
-
-if(NOT APPLE)
-  target_link_options(${XrdClHttp} PRIVATE
-    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/configs/export-lib-symbols")
-endif()
 
 install(TARGETS ${XrdClHttp} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 

@@ -56,9 +56,10 @@ target_include_directories(${XrdMacaroons}
     ${MACAROONS_INCLUDES}
 )
 
-if(NOT APPLE)
-  target_link_options(${XrdMacaroons} PRIVATE
-    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export-lib-symbols")
-endif()
+set_target_properties(${XrdMacaroons}
+  PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN TRUE
+)
 
 install(TARGETS ${XrdMacaroons} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

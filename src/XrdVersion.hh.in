@@ -72,6 +72,16 @@ struct XrdVersionInfo {int vNum; const char vOpt; const char vPfx[3];\
 //
 #define XrdVERSIONINFOSFX "_"
 
+// Macro to mark a symbol as visible outside a shared library. Plug-ins built
+// with hidden default visibility use it to expose their entry points and any
+// other symbols that must remain reachable via dlsym().
+//
+#ifdef __GNUC__
+#define XrdEXPORT __attribute__((visibility("default")))
+#else
+#define XrdEXPORT
+#endif
+
 // The following macro defines a local copy of version information. Parameters:
 // x  -> The variable name of the version information structure
 // y  -> An unquoted 1- to 15-character component name (e.g. cmsd, seckrb5)
@@ -88,7 +98,7 @@ struct XrdVersionInfo {int vNum; const char vOpt; const char vPfx[3];\
 // y -> An unquoted 1- to 15-character component name (e.g. cmsd, seckrb5, etc).
 //
 #define XrdVERSIONINFO(x,y) \
-        extern "C" {XrdVERSIONINFODEF(x##_,y,XrdVNUMBER,XrdVERSION);}
+        extern "C" {XrdEXPORT XrdVERSIONINFODEF(x##_,y,XrdVNUMBER,XrdVERSION);}
 
 // The following macro is an easy way to declare externally defined version
 // information. This macro must be used at file level.

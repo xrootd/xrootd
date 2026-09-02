@@ -1,8 +1,0 @@
-{
-global:
-  XrdAccAuthorizeObject*;
-  XrdAccAuthorizeObjAdd*;
-
-local:
-  *;
-};

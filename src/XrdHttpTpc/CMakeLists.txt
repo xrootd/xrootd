@@ -40,9 +40,10 @@ target_link_libraries(${XrdHttpTPC}
     ${CMAKE_DL_LIBS}
 )
 
-if(NOT APPLE)
-  target_link_options(${XrdHttpTPC} PRIVATE
-    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export-lib-symbols")
-endif()
+set_target_properties(${XrdHttpTPC}
+  PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN TRUE
+)
 
 install(TARGETS ${XrdHttpTPC} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
