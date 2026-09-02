@@ -77,11 +77,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
   target_link_libraries(xrdcl-s3-unittest stdc++fs)
 endif()
 
+# See tests/XrdClHttp/CMakeLists.txt: X509_USER_PROXY points at a path that
+# can never exist, so that a grid proxy belonging to the user running the
+# tests is never presented to minio, which cannot verify it.
+
 gtest_add_tests(TARGET xrdcl-s3-test TEST_LIST S3Tests)
 set_tests_properties(${S3Tests}
   PROPERTIES
     FIXTURES_REQUIRED XrdClS3::s3
-    ENVIRONMENT "XRD_LOGLEVEL=Debug;ENV_FILE=${CMAKE_BINARY_DIR}/tests/s3/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/s3/client.plugins.d"
+    ENVIRONMENT "XRD_LOGLEVEL=Debug;ENV_FILE=${CMAKE_BINARY_DIR}/tests/s3/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/s3/client.plugins.d;X509_USER_PROXY=/dev/null/x509"
 )
 
 gtest_add_tests(TARGET xrdcl-s3-unittest TEST_LIST S3UnitTests)

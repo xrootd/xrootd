@@ -392,6 +392,10 @@ export XRDCLS3_ACCESSKEYLOCATION="$RUNDIR/access_key"
 export XRDCLS3_SECRETKEYLOCATION="$RUNDIR/secret_key"
 export XRDCLS3_URLSTYLE=path
 export X509_CERT_FILE=$MINIO_CERTSDIR/CAs/tlsca.pem
+# The gateway is an HTTP client of minio and would pick up a grid proxy of
+# the user running the tests from /tmp/x509up_u<uid>, which minio cannot
+# verify. Point it at a path that can never exist instead.
+export X509_USER_PROXY=/dev/null/x509
 "$XROOTD_BIN" -c "$XROOTD_CONFIG" -l "$BINARY_DIR/tests/$TEST_NAME/server.log" 0<&- 2>>"$BINARY_DIR/tests/$TEST_NAME/server.log" >>"$BINARY_DIR/tests/$TEST_NAME/server.log" &
 XROOTD_PID=$!
 echo "xrootd daemon PID: $XROOTD_PID"
@@ -422,6 +426,7 @@ echo "xrootd started at $XROOTD_URL"
 
 cat >> "$BINARY_DIR/tests/$TEST_NAME/setup.sh" <<EOF
 XROOTD_PID=$XROOTD_PID
+XROOTD_RUNDIR=$XROOTD_RUNDIR
 XROOTD_URL=$XROOTD_URL
 BUCKET_NAME=$BUCKET_NAME
 ORIGIN_URL=$MINIO_URL
