@@ -478,54 +478,116 @@ XRootDStatus DoLS( FileSystem                      *fs,
   // Check up the args
   //----------------------------------------------------------------------------
   Log *log = DefaultEnv::GetLog();
-  uint32_t    argc     = args.size();
   bool        stats    = false;
   bool        showUrls = false;
   bool        hascks   = false;
   bool        human    = false;
+  bool        directory = false;
   uint64_t base        = 1024;
   std::string path;
   DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
-  if( argc > 6 )
+  auto applyOption = [&]( char option )
   {
-    log->Error( AppMsg, "Too many arguments." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+    switch( option )
+    {
+      case 'l':
+        stats = true;
+        flags |= DirListFlags::Stat;
+        return true;
+      case 'u':
+        showUrls = true;
+        return true;
+      case 'R':
+        flags |= DirListFlags::Recursive;
+        return true;
+      case 'D':
+        flags &= ~DirListFlags::Merge;
+        return true;
+      case 'Z':
+        flags |= DirListFlags::Zip;
+        return true;
+      case 'C':
+        hascks = true;
+        stats = true;
+        flags |= DirListFlags::Cksm;
+        return true;
+      case 'h':
+      case 'H':
+        human = true;
+        return true;
+      case 'd':
+        directory = true;
+        return true;
+      case 'a':
+        // Entries whose names begin with a dot are already included.
+        return true;
+      case '1':
+        // Entries are already emitted one per line without long output.
+        return true;
+      default:
+        return false;
+    }
+  };
 
+  bool parseOptions = true;
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-l" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions && args[i] == "--long" )
     {
       stats = true;
       flags |= DirListFlags::Stat;
     }
-    else if( args[i] == "-u" )
-      showUrls = true;
-    else if( args[i] == "-R" )
-    {
-      flags |= DirListFlags::Recursive;
-    }
-    else if( args[i] == "-D" )
-    {
-      // show duplicates
-      flags &= ~DirListFlags::Merge;
-    }
-    else if( args[i] == "-Z" )
-    {
-      // check if file is a ZIP archive if yes list content
-      flags |= DirListFlags::Zip;
-    }
-    else if( args[i] == "-C" )
-    {
-      // query checksum for each entry in the directory
-      hascks = true;
-      stats  = true;
-      flags |= DirListFlags::Cksm;
-    }
-    else if ( args [i] == "-h" )
-    {
+    else if( parseOptions && args[i] == "--human-readable" )
       human = true;
+    else if( parseOptions && args[i] == "--directory" )
+      directory = true;
+    else if( parseOptions && args[i] == "--all" )
+    {
+      // Entries whose names begin with a dot are already included.
+      continue;
+    }
+    else if( parseOptions && args[i] == "--color=never" )
+    {
+      // Output is already uncolored.
+      continue;
+    }
+    else if( parseOptions && args[i] == "--color" )
+    {
+      if( i + 1 == args.size() )
+      {
+        log->Error( AppMsg, "Parameter '--color' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      if( args[i + 1] != "never" )
+      {
+        log->Error( AppMsg, "Unsupported --color value: %s.",
+                    args[i + 1].c_str() );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      ++i;
+    }
+    else if( parseOptions && args[i].size() > 2 && args[i][0] == '-' &&
+             args[i][1] == '-' )
+    {
+      log->Error( AppMsg, "Unsupported option: %s.", args[i].c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    else if( parseOptions && args[i].size() > 1 && args[i][0] == '-' &&
+             args[i][1] != '-' )
+    {
+      for( std::size_t j = 1; j < args[i].size(); ++j )
+      {
+        if( !applyOption( args[i][j] ) )
+        {
+          log->Error( AppMsg, "Invalid option: %s.", args[i].c_str() );
+          return XRootDStatus( stError, errInvalidArgs );
+        }
+      }
     }
     else
       path = args[i];
@@ -560,8 +622,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
     return st;
   }
 
-  if( !info->TestFlags( StatInfo::IsDir ) &&
-      !( flags & DirListFlags::Zip ) )
+  if( directory ||
+      (!info->TestFlags( StatInfo::IsDir ) &&
+       !( flags & DirListFlags::Zip )) )
   {
     if( stats )
       PrintDirListStatInfo( info, false, 0, 0, 0, human, base );
@@ -2102,14 +2165,21 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     Modify permissions. Permission string example:\n"             );
   printf( "     rwxr-x--x\n\n"                                                );
 
-  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [dirname]\n"                   );
+  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [-h|-H] [-d] [-a] [-1]\n"   );
+  printf( "      [--color=never] [--] [dirname]\n"                          );
   printf( "     Get directory listing.\n"                                     );
-  printf( "     -l stat every entry and print long listing\n"                 );
+  printf( "     -l|--long stat every entry and print long listing\n"          );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries\n"                                  );
   printf( "     -Z if a ZIP archive list its content\n"                       );
-  printf( "     -C checksum every entry\n\n"                                  );
+  printf( "     -C checksum every entry\n"                                    );
+  printf( "     -h|-H|--human-readable print human-readable sizes\n"          );
+  printf( "     -d|--directory list the entry instead of its contents\n"      );
+  printf( "     -a|--all include entries whose names begin with a dot\n"      );
+  printf( "     -1 print one entry per line\n"                                );
+  printf( "     --color=never disable colored output\n"                       );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"    );
 
   printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                  );
   printf( "     Get the locations of the path.\n"                             );

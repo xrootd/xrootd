@@ -15,6 +15,13 @@ setup() {
         root://localhost:11965//examplefile
     run bats_pipe -0 echo 'dash-prefixed file' \| xrdcp - \
         root://localhost:11965//-b
+    run -0 xrdfs root://localhost:11965 mkdir /data
+    run bats_pipe -0 dd if=/dev/zero bs=1025 count=1 \| xrdcp - \
+        root://localhost:11965//data/largefile
+    run bats_pipe -0 echo 'hidden file' \| xrdcp - \
+        root://localhost:11965//.hidden
+    run bats_pipe -0 echo 'dash-prefixed file' \| xrdcp - \
+        root://localhost:11965//-dash
 }
 
 teardown() {
@@ -55,6 +62,53 @@ bats::on_failure() {
 @test "subcommand options are not consumed as global options" {
     run -0 xrdfs ls -l root://localhost:11965//
     assert_output --partial examplefile
+}
+
+@test "ls accepts grouped and long display options" {
+    run -0 xrdfs ls -lH root://localhost:11965//data
+    assert_output --partial largefile
+    assert_output --partial '1.1K'
+
+    run -0 xrdfs ls --long --human-readable --directory \
+        root://localhost:11965//data
+    assert_output --partial /data
+    refute_output --partial largefile
+}
+
+@test "ls accepts visibility and color options" {
+    run -0 xrdfs ls root://localhost:11965//
+    local default_output=$output
+    assert_output --partial .hidden
+
+    run -0 xrdfs ls -a root://localhost:11965//
+    assert_output "$default_output"
+
+    run -0 xrdfs ls --all --color=never root://localhost:11965//
+    assert_output "$default_output"
+
+    run -0 xrdfs ls --color never root://localhost:11965//
+    assert_output "$default_output"
+
+    run -0 xrdfs ls -1a root://localhost:11965//
+    assert_output "$default_output"
+}
+
+@test "ls rejects unsupported options" {
+    run xrdfs ls --color=auto root://localhost:11965//
+    assert_output --partial 'Invalid arguments'
+
+    run xrdfs ls --unknown-option root://localhost:11965//
+    assert_output --partial 'Invalid arguments'
+
+    run xrdfs ls -x root://localhost:11965//
+    assert_output --partial 'Invalid arguments'
+}
+
+@test "ls option delimiter preserves dash-prefixed paths" {
+    run bash -c \
+        'printf "cd /\nls -- -dash\nexit\n" | xrdfs root://localhost:11965'
+    assert_success
+    assert_output --partial /-dash
 }
 
 @test "URL parameters are preserved in the operand path" {

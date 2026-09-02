@@ -93,9 +93,9 @@ bats::on_failure() {
 
     run -0 xrdfs "$endpoint" ls
 
-    run xrdfs "$endpoint" ls -l -u -R -D -Z -C //dir
-    assert_failure
-    assert_output --partial 'Invalid arguments'
+    run -0 xrdfs "$endpoint" ls -l -u -R -D -Z -C //dir
+    assert_output --partial 'root://'
+    assert_output --partial 'sub'
 
     run xrdfs "$endpoint" ls relative
     assert_failure
