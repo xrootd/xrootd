@@ -67,7 +67,7 @@
 /******************************************************************************/
 /*                         l o c a l   d e f i n e s                          */
 /******************************************************************************/
-  
+
 #define MaxARGC 64
 #define XrdOucStream_EOM  0x01
 #define XrdOucStream_BUSY 0x02
@@ -88,7 +88,7 @@
 /******************************************************************************/
 /*              S t a t i c   M e m b e r s   &   O b j e c t s               */
 /******************************************************************************/
-  
+
 // The following mutex is used to allow only one fork at a time so that
 // we do not leak file descriptors. It is a short-lived lock.
 //
@@ -131,7 +131,7 @@ void  Add(const char *sfx) {tlP = new XrdOucTList(sfx,(int)strlen(sfx),tlP);}
                     }
 };
 }
-  
+
 /******************************************************************************/
 /*                       L o c a l   F u n c t i o n s                        */
 /******************************************************************************/
@@ -183,7 +183,7 @@ bool KeepFile(const char *fname, XrdOucTList *tlP)
 /******************************************************************************/
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
 /******************************************************************************/
-  
+
 XrdOucStream::XrdOucStream(XrdSysError *erobj, const char *ifname,
                            XrdOucEnv   *anEnv, const char *Pfx)
 {
@@ -248,8 +248,8 @@ int XrdOucStream::AttachIO(int infd, int outfd, int bsz)
     FE = outfd;
     return 0;
 }
-  
-int XrdOucStream::Attach(int FileDescriptor, int bsz) 
+
+int XrdOucStream::Attach(int FileDescriptor, int bsz)
 {
 
     // Close the current stream. Close will handle unopened streams.
@@ -278,11 +278,11 @@ int XrdOucStream::Attach(int FileDescriptor, int bsz)
     xline  = 0;
     sawif  = 0;
     skpel  = 0;
-    if (llBuff) 
+    if (llBuff)
        {llBcur = llBuff; *llBuff = '\0'; llBleft = llBsz; llBok = 0;}
     return  0;
 }
-  
+
 /******************************************************************************/
 /*                               C a p t u r e                                */
 /******************************************************************************/
@@ -363,8 +363,8 @@ void XrdOucStream::Close(int hold)
 /******************************************************************************/
 /*                                 D r a i n                                  */
 /******************************************************************************/
-  
-int XrdOucStream::Drain() 
+
+int XrdOucStream::Drain()
 {
     int Status = 0;
 
@@ -385,7 +385,7 @@ int XrdOucStream::Drain()
 #endif
     return Status;
 }
-  
+
 /******************************************************************************/
 /*                                  E c h o                                   */
 /******************************************************************************/
@@ -411,11 +411,11 @@ void XrdOucStream::Echo(bool capture)
       }
    llBok = 0;
 }
-  
+
 /******************************************************************************/
 /*                               E   x   e   c                                */
 /******************************************************************************/
-  
+
 int XrdOucStream::Exec(const char *theCmd, int inrd, int efd)
 {
     int j;
@@ -428,7 +428,7 @@ int XrdOucStream::Exec(const char *theCmd, int inrd, int efd)
     //
     origcmd = cmd = (char *)malloc(strlen(theCmd)+1);
     strcpy(cmd, theCmd);
-  
+
     // Construct the argv array based on passed command line.
     //
     for (j = 0; j < MaxARGC-1 && *cmd; j++)
@@ -550,7 +550,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
 /******************************************************************************/
 /*                               G e t L i n e                                */
 /******************************************************************************/
-  
+
 char *XrdOucStream::GetLine()
 {
    int bcnt, retc;
@@ -574,7 +574,7 @@ char *XrdOucStream::GetLine()
                 return recp;
                }
                else if (notabs && *bp == '\t') *bp = ' ';
-  
+
    // There is no next record, so move up data in the buffer.
    //
       bnext = stpncpy(buff, bnext, bleft);
@@ -627,7 +627,7 @@ char *XrdOucStream::GetLine()
 /******************************************************************************/
 /*                              G e t T o k e n                               */
 /******************************************************************************/
-  
+
 char *XrdOucStream::GetToken(int lowcase) {
      char *tpoint;
 
@@ -692,7 +692,7 @@ char *XrdOucStream::GetFirstWord(int lowcase)
 /******************************************************************************/
 /*                        G e t M y F i r s t W o r d                         */
 /******************************************************************************/
-  
+
 char *XrdOucStream::GetMyFirstWord(int lowcase)
 {
    char *var;
@@ -741,7 +741,7 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
 /******************************************************************************/
 /*                               G e t W o r d                                */
 /******************************************************************************/
-  
+
 char *XrdOucStream::GetWord(int lowcase)
 {
      char *wp, *ep;
@@ -805,7 +805,7 @@ do  {while(GetLine())
 /******************************************************************************/
 /*                               G e t R e s t                                */
 /******************************************************************************/
-  
+
 int XrdOucStream::GetRest(char *theBuff, int Blen, int lowcase)
 {
    char *tp, *myBuff = theBuff;
@@ -831,7 +831,7 @@ int XrdOucStream::GetRest(char *theBuff, int Blen, int lowcase)
 /******************************************************************************/
 /*                              R e t T o k e n                               */
 /******************************************************************************/
-  
+
 void XrdOucStream::RetToken()
 {
      // Check if we can back up
@@ -841,7 +841,7 @@ void XrdOucStream::RetToken()
      // Find the null byte for the token and remove it, if possible
      //
      while(*token && token != recp) token--;
-     if (token != recp) 
+     if (token != recp)
         {if (token+1 != bnext) *token = ' ';
          token--;
          while(*token && *token != ' ' && token != recp) token--;
@@ -897,11 +897,11 @@ int XrdOucStream::Put(const char *datavec[], const int dlenvec[]) {
         }
     return 0;
 }
- 
+
 /******************************************************************************/
 /*                               P u t L i n e                                */
 /******************************************************************************/
-  
+
 int XrdOucStream::PutLine(const char *data, int dlen)
 {
    static const int plSize = 2048;
@@ -954,7 +954,7 @@ int XrdOucStream::Wait4Data(int msMax)
 //
    return (polltab.revents & (POLLIN|POLLRDNORM) ? 0 : EIO);
 }
-  
+
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
@@ -968,7 +968,7 @@ void XrdOucStream::add2CFG(const char *data, bool isCMT)
    theCFG->append(data);
    theCFG->append('\n');
 }
-  
+
 /******************************************************************************/
 /*                               a d d 2 l l B                                */
 /******************************************************************************/
@@ -1003,11 +1003,11 @@ char *XrdOucStream::add2llB(char *tok, int reset)
       }
    return tok;
 }
-  
+
 /******************************************************************************/
 /*                                  E c h o                                   */
 /******************************************************************************/
-  
+
 bool XrdOucStream::Echo(int ec, const char *t1, const char *t2, const char *t3)
 {
    if (Eroute)
@@ -1022,7 +1022,7 @@ bool XrdOucStream::Echo(int ec, const char *t1, const char *t2, const char *t3)
 /******************************************************************************/
 /*                                d o c o n t                                 */
 /******************************************************************************/
-  
+
 bool XrdOucStream::docont()
 {
    char *theWord;
@@ -1068,7 +1068,7 @@ bool XrdOucStream::docont()
 // if (Eroute) Eroute->Say(llPrefix, "continue ", bnext);
    return docont(cH.path, cH.tlP);
 }
-  
+
 /******************************************************************************/
 
 bool XrdOucStream::docont(const char *path, XrdOucTList *tlP)
@@ -1126,7 +1126,7 @@ bool XrdOucStream::docont(const char *path, XrdOucTList *tlP)
 /******************************************************************************/
 /*                               d o c o n t D                                */
 /******************************************************************************/
-  
+
 bool XrdOucStream::docontD(const char *path, XrdOucTList *tlP)
 {
    static const mode_t isXeq = S_IXUSR | S_IXGRP | S_IXOTH;
@@ -1165,7 +1165,7 @@ bool XrdOucStream::docontD(const char *path, XrdOucTList *tlP)
    myInfo->itFC = myInfo->fcList->begin();
    return true;
 }
-  
+
 /******************************************************************************/
 /*                                 c o n t F                                  */
 /******************************************************************************/
@@ -1203,7 +1203,7 @@ bool XrdOucStream::docontF(const char *path, bool noentok)
    close(cFD);
    return true;
 }
-  
+
 /******************************************************************************/
 /*                                d o e l s e                                 */
 /******************************************************************************/
@@ -1248,7 +1248,7 @@ char *XrdOucStream::doelse()
       } while(var && !strcmp("else", var));
    return var;
 }
-  
+
 /******************************************************************************/
 /*                                  d o i f                                   */
 /******************************************************************************/
@@ -1313,7 +1313,7 @@ char *XrdOucStream::doif()
 
 // Make sure we have a fi
 //
-   if (!var) 
+   if (!var)
       {if (Eroute) Eroute->Emsg("Stream", "Missing 'fi' for last 'if'.");
        ecode = EINVAL;
       }
@@ -1323,7 +1323,7 @@ char *XrdOucStream::doif()
 /******************************************************************************/
 /*                              g e t V a l u e                               */
 /******************************************************************************/
-  
+
 int XrdOucStream::getValue(const char *path, char *vbuff, int  vbsz)
 {
    struct stat Stat;
@@ -1345,11 +1345,11 @@ int XrdOucStream::getValue(const char *path, char *vbuff, int  vbsz)
    close(vFD);
    return rc;
 }
-  
+
 /******************************************************************************/
 /*                                 i s S e t                                  */
 /******************************************************************************/
-  
+
 int XrdOucStream::isSet(char *var)
 {
    static const char *Mtxt1[2] = {"setenv", "set"};
@@ -1389,7 +1389,7 @@ int XrdOucStream::isSet(char *var)
       {sawIT = *vp; *vp = '\0'; vp++;}
    if (strlcpy(Vname, tp, sizeof(Vname)) >= sizeof(Vname))
       return xMsg(Mtxt2[Set],tp,"is too long.");
-   if (!Set && !strncmp("XRD", Vname, 3))
+   if (!Set && !strncmp("XRD", Vname, 3) && strncmp("XRDCLS3_", Vname, 8))
       return xMsg("Setenv variable",tp,"may not start with 'XRD'.");
 
 // Verify that variable is only an alphanum
@@ -1466,7 +1466,7 @@ int XrdOucStream::isSet(char *var)
 /******************************************************************************/
 /*                                 v S u b s                                  */
 /******************************************************************************/
-  
+
 char *XrdOucStream::vSubs(char *Var)
 {
    char *vp, *sp, *dp, *vnp, ec, bkp, valbuff[maxVLen], Nil = 0;

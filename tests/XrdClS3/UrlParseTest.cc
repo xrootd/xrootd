@@ -160,6 +160,11 @@ TEST(Factory, GenerateHttpUrl) {
     s3_url = "s3://s3.amazonaws.com/bucket-name/path";
     ASSERT_TRUE(Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg));
     ASSERT_TRUE(err_msg.empty());
+    ASSERT_EQ(https_url, "https://us-east-1.s3.amazonaws.com/bucket-name/path");
+
+    Factory::SetRegion("");
+    ASSERT_TRUE(Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg));
+    ASSERT_TRUE(err_msg.empty());
     ASSERT_EQ(https_url, "https://s3.amazonaws.com/bucket-name/path");
 }
 

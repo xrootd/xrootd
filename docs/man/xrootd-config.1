@@ -1,0 +1,38 @@
+.TH xrootd-config 1 "" "XRootD @XRootD_VERSION_STRING@"
+.SH NAME
+xrootd-config \- Get configuration information to compile programs which use XRootD
+.SH SYNOPSIS
+.SY xrootd-config
+.RI [ options ]
+.YS
+.SH DESCRIPTION
+The
+.B xrootd-config
+command line utility makes it easier to build applications that use XRootD.
+
+It can print the installation prefix, compiler flags, and plugin version
+needed to link against XRootD.
+.SH OPTIONS
+.TP
+.B \-\-cflags
+Print pre-processor and compiler flags on standard output.
+.TP
+.B \-\-help
+Print a usage message on standard output.
+.TP
+.B \-\-plugin-version
+Print plugin version on standard output.
+.TP
+.B \-\-prefix
+Print installation prefix on standard output.
+.TP
+.B \-\-version
+Print version information on standard output.
+.BR
+.SH EXIT STATUS
+If
+.B xrootd-config
+succeeds, it will exit with 0. Otherwise, if an error occurs, it will exit with a non-zero value.
+.SH SEE ALSO
+.BR cmsd(8)
+.BR xrootd(8)

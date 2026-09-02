@@ -31,7 +31,7 @@ public:
     {
         m_buffers.reserve(max_blocks);
         for (size_t idx=0; idx < max_blocks; idx++) {
-            m_buffers.push_back(new Entry(buffer_size));
+            m_buffers.push_back(std::make_unique<Entry>(buffer_size));
         }
         m_open_for_write = true;
     }
@@ -53,6 +53,20 @@ public:
     // Returns the number of bytes written; on error, returns -1 and sets
     // the error code and error message for the stream
     ssize_t Write(off_t offset, const char *buffer, size_t size, bool force);
+
+    // Force the data still held in the re-ordering buffers out to the underlying
+    // file handle, even if it results in unaligned or short writes.  Typically
+    // only done while shutting down the transfer.
+    //
+    // The flush is deliberately issued at the current offset of the stream: the
+    // offset a given transfer state stopped at is not necessarily the offset the
+    // stream has been written up to.  In the multistream case, all the states
+    // share this stream, and all but the one that happened to serve the last
+    // range end up before it -- flushing at their offset would be rejected as a
+    // write to a prior offset.
+    //
+    // Returns 0 on success; SFS_ERROR on failure.
+    ssize_t Flush() {return Write(m_offset, nullptr, 0, true);}
 
     size_t AvailableBuffers() const {return m_avail_count;}
 
@@ -81,7 +95,11 @@ private:
 
         bool Available() const {return m_offset == -1;}
 
-        int Write(Stream &stream, bool force) {
+        // Writes the contents of this buffer out to the stream, returning the
+        // number of bytes written (0 if the buffer is not eligible for a write
+        // yet) or SFS_ERROR.  On success the buffer is emptied and becomes
+        // available again.
+        ssize_t Write(Stream &stream, bool force) {
             if (Available() || !CanWrite(stream)) {return 0;}
             // Only full buffer writes are accepted unless the stream forces a flush
             // (i.e., we are at EOF) because the multistream code uses buffer occupancy
@@ -131,15 +149,7 @@ private:
 
         void ShrinkIfUnused() {
            if (!Available()) {return;}
-#if __cplusplus > 199711L
            m_buffer.shrink_to_fit();
-#endif
-        }
-
-        void Move(Entry &other) {
-            m_buffer.swap(other.m_buffer);
-            m_offset = other.m_offset;
-            m_size = other.m_size;
         }
 
         off_t GetOffset() const {return m_offset;}
@@ -162,11 +172,31 @@ private:
 
     ssize_t WriteImpl(off_t offset, const char *buffer, size_t size);
 
+    // Copies as much of [buffer, buffer+size) as possible into the buffers that
+    // are already holding data and can be extended contiguously.  This is pure
+    // bookkeeping: it never touches the underlying filesystem.
+    //
+    // Returns the number of bytes consumed.
+    size_t AcceptIntoBuffers(off_t offset, const char *buffer, size_t size);
+
+    // Writes out every buffer that is contiguous with m_offset, repeating until
+    // no further progress is made: flushing one buffer advances m_offset, which
+    // can in turn make another buffer writable.  Only completely full buffers
+    // are written unless force is set (see Entry::Write).
+    //
+    // This is the only place where m_avail_count is computed.
+    //
+    // Returns the number of buffers written out, or SFS_ERROR.
+    ssize_t FlushBuffers(bool force);
+
+    // Returns the first empty buffer, or nullptr if all of them hold data.
+    Entry *FirstAvailableBuffer();
+
     bool m_open_for_write;
     size_t m_avail_count;
     std::unique_ptr<XrdSfsFile> m_fh;
     off_t m_offset;
-    std::vector<Entry*> m_buffers;
+    std::vector<std::unique_ptr<Entry>> m_buffers;
     XrdSysError &m_log;
     std::string m_error_buf;
 };

@@ -382,7 +382,7 @@ XrdSecCredentials *XrdSecProtocolztn::getCredentials(XrdSecParameters *parms,
    static std::vector<XrdOucString> dfltVec(dfltLoc, dfltLocEnd);
 
    XrdSecCredentials *resp;
-   bool isbad;
+   bool isbad = false;
 
 // If this is a continuation, then handle as such
 //

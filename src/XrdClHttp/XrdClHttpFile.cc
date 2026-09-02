@@ -309,26 +309,6 @@ File::Open(const std::string      &url,
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp);
     }
 
-    // Note: workaround for a design flaw of the XrdCl API.
-    //
-    // Any properties we set on the file *prior* to opening it are sent to the
-    // XrdCl base implementation, not the plugin object.  Hence, they are effectively
-    // ignored because the later `GetProperty` accesses a different object.  We want
-    // the SetProperty calls to take effect because they are needed for successfully
-    // `Open`ing the file.  There's no way to "setup the plugin", "set properties", and
-    // then "open file" because the first and third operations are part of the same API
-    // call.  We thus allow the caller to trigger the plugin loading by doing a special
-    // `Open` call (flags set to Compress, access mode None) that is a no-op.
-    //
-    // Contrast the XrdCl::File plugin loading style with XrdCl::Filesystem; the latter
-    // gets a target URL on construction, before any operations are done, allowing
-    // the `SetProperty` to work.
-    if ((flags == XrdCl::OpenFlags::Compress) && (mode == XrdCl::Access::None) &&
-        (handler == nullptr) && (timeout == 0))
-    {
-        return XrdCl::XRootDStatus();
-    }
-
     m_open_flags = flags;
 
     m_header_timeout.tv_nsec = m_default_header_timeout.tv_nsec;
@@ -671,7 +651,9 @@ File::ReadPrefetch(uint64_t offset, uint64_t size, void *buffer, XrdCl::Response
         return std::make_tuple(XrdCl::XRootDStatus{}, false);
     }
     std::unique_lock lock(m_default_prefetch_handler->m_prefetch_mutex);
-    if (m_prefetch_size == -1) {
+    // In full-download mode the transfer is a single GET whose end is detected on transfer completion
+    // This is similar to a read to end case
+    if (m_prefetch_size == -1 && !m_full_download.load(std::memory_order_relaxed)) {
         m_logger->Debug(kLogXrdClHttp, "%sRead prefetch skipping due to unknown file size", isPgRead ? "Pg": "");
         m_prefetch_reads_miss.fetch_add(1, std::memory_order_relaxed);
         m_default_prefetch_handler->m_prefetch_enabled = false;

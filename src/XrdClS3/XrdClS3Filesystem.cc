@@ -591,12 +591,7 @@ Filesystem::MkDir(const std::string        &input_path,
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
     }
 
-    XrdCl::File *http_file(new XrdCl::File());
-    auto status = http_file->Open(https_url, XrdCl::OpenFlags::Compress, XrdCl::Access::None, nullptr, time_t(0));
-    if (!status.IsOK()) {
-        delete http_file;
-        return status;
-    }
+    XrdCl::File *http_file(new XrdCl::File(https_url));
 
     auto callout_loc = reinterpret_cast<long long>(&m_header_callout);
     size_t buf_size = 16;

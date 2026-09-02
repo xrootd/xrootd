@@ -4,13 +4,30 @@
 //
 
 #include "XrdOss/XrdOssWrapper.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdVersion.hh"
 
+#include <array>
 #include <memory>
 #include <string>
 #include <unistd.h>
+#include <fcntl.h>
 
 namespace {
+
+struct trig_s {
+   const char *fn;
+   const char *url;
+};
+
+//
+// Used by one of the tests in cluster/test.sh
+constexpr const std::array<trig_s, 2> URLRedirTriggers = {{
+    { "cluster_redirfile1",
+      "file://localhost//tmp/cluster_redirfile1_local" },
+    { "cluster_redirfile2",
+      "root://localhost:10944//cluster_redirfile3" } // redirect to srv2 in cluster test
+    }};
 
 class File final : public XrdOssWrapDF {
   public:
@@ -38,7 +55,28 @@ class File final : public XrdOssWrapDF {
         } else if (leaf == "unreadable_file") {
             errorCode = EBADF;
             m_read_fail = true;
+        } else {
+            if ((Oflag & O_ACCMODE) == O_RDONLY) {
+              for(const auto &s: URLRedirTriggers) {
+                if (leaf == s.fn) {
+                  env.Put("FileURL", s.url);
+                  return -EDESTADDRREQ;
+              }
+            }
+          }
         }
+
+        // If we want to give errors during Read or Write must make sure the
+        // server isn't using sendfile(). We need this depend on the particular
+        // file, so we can not signal through feature flags. Making getFD()
+        // return -1 will also disable sendfile, but will also disable Clone().
+        if (m_read_fail  || m_read_fail_with_offset ||
+            m_write_fail || m_write_fail_with_offset) {
+          m_fdavail = false;
+        } else {
+          m_fdavail = true;
+        }
+
         return wrapDF.Open(path, Oflag, Mode, env);
     }
 
@@ -58,13 +96,19 @@ class File final : public XrdOssWrapDF {
         return wrapDF.Write(buffer, offset, size);
     }
 
-    int getFD() override {return -1;}
+    int getFD() override {
+        if (m_fdavail) {
+          return wrapDF.getFD();
+        }
+        return -1;
+    }
 
   private:
     bool m_read_fail{false}; //fail on initial read 
     bool m_read_fail_with_offset{false}; //fail for subsequent read chunks
     bool m_write_fail{false}; // fail on initial write 
     bool m_write_fail_with_offset{false}; //fail for subsequent write chunks
+    bool m_fdavail{false}; // if we allow return descriptor via getFD
     int errorCode{-1}; //error code to return on failure
     std::unique_ptr<XrdOssDF> m_wrapped;
 };

@@ -318,9 +318,20 @@ else()
 endif()
 
 if(CDASH OR (DEFINED ENV{CDASH} AND "$ENV{CDASH}"))
-  ctest_submit(BUILD_ID BUILDID QUIET)
-  message("CDash URL: https://my.cdash.org/index.php?project=XRootD")
-  if(BUILDID)
-    message("Build result URL: https://my.cdash.org/builds/${BUILDID}")
+  ctest_submit(
+    BUILD_ID BUILDID
+    RETRY_COUNT 3
+    RETRY_DELAY 5
+    RETURN_VALUE SUBMIT_RESULT
+    CAPTURE_CMAKE_ERROR SUBMIT_ERROR
+    QUIET)
+
+  if(NOT SUBMIT_RESULT EQUAL 0 OR NOT SUBMIT_ERROR EQUAL 0)
+    message(WARNING "CDash submission failed")
+  else()
+    message("CDash URL: https://my.cdash.org/index.php?project=XRootD")
+    if(BUILDID)
+      message("Build result URL: https://my.cdash.org/builds/${BUILDID}")
+    endif()
   endif()
 endif()

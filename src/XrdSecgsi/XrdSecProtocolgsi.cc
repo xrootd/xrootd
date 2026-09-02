@@ -1129,7 +1129,8 @@ int XrdSecProtocolgsi::Encrypt(const char *inbuf,  // Data to be encrypted
    if (!buf)
       return -ENOMEM;
    // IV at beginning
-   memcpy(buf, iv, liv);
+   if (liv > 0 && iv)
+      memcpy(buf, iv, liv);
 
    // Encrypt
    int len = sessionKey->Encrypt(inbuf, inlen, buf + liv) + liv; // the size of initialization vector which is being appended at

@@ -13,12 +13,11 @@ list of optional features and which dependencies are required to enable them.
 
 XRootD unit and integration tests are enabled via the CMake configuration option
 `-DENABLE_TESTS=ON`. Unit and integration tests may depend on GoogleTest.
-Therefore, the development packages for GoogleTest (i.e. `gtest-devel` or
-equivalent) are needed in order to enable all available tests. Here we discuss
-how to use the [test.cmake](../test.cmake) CTest script to run all steps to
-configure and build the project, then run all tests using CTest. The script
-[test.cmake](../test.cmake) can be generically called from the top directory of
-the repository as shown below
+Therefore, the development packages for GoogleTest are needed in order to enable
+all available tests. Here we discuss how to use the [test.cmake](../test.cmake) 
+CTest script to run all steps to configure and build the project, then run all 
+tests using CTest. The script [test.cmake](../test.cmake) can be generically
+called from the top directory of the repository as shown below
 
 ```sh
 xrootd $ ctest -V -S test.cmake

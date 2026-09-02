@@ -41,7 +41,6 @@
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
 #include "XrdCrypto/XrdCryptosslX509Crl.hh"
-#include "XrdVersion.hh"
 
 #include "XrdTlsTempCA.hh"
 
@@ -91,7 +90,7 @@ public:
      * tempfile.
      *
      * The fname argument is used solely for debugging.
-     * 
+     *
      * Returns true on success.
      */
     bool processFile(file_smart_ptr &fd, const std::string &fname);
@@ -333,9 +332,10 @@ XrdTlsTempCA::TempCAGuard::TempCAGuard(int ca_fd, int crl_fd, const std::string 
     {}
 
 
-XrdTlsTempCA::XrdTlsTempCA(XrdSysError *err, std::string ca_dir)
+XrdTlsTempCA::XrdTlsTempCA(XrdSysError *err, std::string ca_dir, bool build_store)
     : m_log(*err),
-      m_ca_dir(ca_dir)
+      m_ca_dir(ca_dir),
+      m_build_store(build_store)
 {
     // Setup communication pipes; we write one byte to the child to tell it to shutdown;
     // it'll write one byte back to acknowledge before our destructor exits.
@@ -383,6 +383,63 @@ XrdTlsTempCA::~XrdTlsTempCA()
 }
 
 
+std::shared_ptr<X509_STORE>
+XrdTlsTempCA::BuildCAStore(const std::string &ca_fname, const std::string &crl_fname,
+                          bool use_crls)
+{
+    std::shared_ptr<X509_STORE> store(X509_STORE_new(), &X509_STORE_free);
+    if (!store) {
+        m_log.Emsg("TempCA", "Failed to allocate a certificate store");
+        return nullptr;
+    }
+
+    if (1 != X509_STORE_load_locations(store.get(), ca_fname.c_str(), nullptr)) {
+        m_log.Emsg("TempCA", "Failed to load the CA bundle into the certificate store",
+                   ca_fname.c_str());
+        return nullptr;
+    }
+
+    // The verification flags below mirror what libcurl applies when it is handed
+    // these same files through CURLOPT_CAINFO / CURLOPT_CRLFILE; see
+    // ossl_populate_x509_store() in its lib/vtls/openssl.c.  Consumers install this
+    // store in place of the one libcurl built, so any flag left out here is lost.
+    unsigned long x509flags;
+
+    if (use_crls) {
+        X509_LOOKUP *lookup = X509_STORE_add_lookup(store.get(), X509_LOOKUP_file());
+        if (!lookup) {
+            m_log.Emsg("TempCA", "Failed to add a file lookup to the certificate store");
+            return nullptr;
+        }
+        if (X509_load_crl_file(lookup, crl_fname.c_str(), X509_FILETYPE_PEM) <= 0) {
+            m_log.Emsg("TempCA", "Failed to load the CRL bundle into the certificate store",
+                       crl_fname.c_str());
+            return nullptr;
+        }
+        x509flags = X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL;
+    } else {
+        // Treat non-self-signed certificates in the store as trust anchors, so that
+        // a server can be verified from an intermediate alone.  This is not an
+        // OpenSSL default, but libcurl enables it unless asked not to, so leaving it
+        // out would reject chains that are accepted today.  It is deliberately not
+        // combined with CRL checking, which OpenSSL does not support:
+        // https://github.com/openssl/openssl/issues/5081
+        x509flags = X509_V_FLAG_PARTIAL_CHAIN;
+    }
+
+    X509_STORE_set_flags(store.get(), x509flags);
+
+    // Purely an optimization; OpenSSL sorts the store itself when it needs to.
+    // Adding objects to a store leaves its lookup stack unsorted, and OpenSSL
+    // sorts lazily on first use -- under a write lock, while every other thread
+    // verifying against this store waits.  Sorting here means the concurrent
+    // verifications that follow a reload only ever need the read lock.
+    sk_X509_OBJECT_sort(X509_STORE_get0_objects(store.get()));
+
+    return store;
+}
+
+
 bool
 XrdTlsTempCA::Maintenance()
 {
@@ -414,6 +471,7 @@ XrdTlsTempCA::Maintenance()
     }
 
     struct dirent *result;
+    bool atLeastOneCRLFound = false;
     errno = 0;
     {
       CASet ca_builder(new_file->getCAFD(), m_log);
@@ -459,7 +517,7 @@ XrdTlsTempCA::Maintenance()
       if (!crl_builder.processCRLWithCriticalExt()) {
         m_log.Emsg("Maintenance", "Failed to insert CRLs with critical extension for CRLs", result->d_name);
       }
-      m_atLeastOneCRLFound = crl_builder.atLeastOneValidCRLFound();
+      atLeastOneCRLFound = crl_builder.atLeastOneValidCRLFound();
     }
 
     if (!new_file->commit()) {
@@ -468,8 +526,47 @@ XrdTlsTempCA::Maintenance()
     }
     //m_log.Emsg("Maintenance", "Successfully created CA and CRL files", new_file->getCAFilename().c_str(),
     //    new_file->getCRLFilename().c_str());
-    m_ca_file.reset(new std::string(new_file->getCAFilename()));
-    m_crl_file.reset(new std::string(new_file->getCRLFilename()));
+    const std::string ca_fname = new_file->getCAFilename();
+    const std::string crl_fname = new_file->getCRLFilename();
+
+    std::shared_ptr<X509_STORE> new_store;
+    if (m_build_store) {
+        // An empty CRL bundle makes every verification fail, so CRL checking is only
+        // enabled once we know at least one CRL was written out.
+        // See https://github.com/xrootd/xrootd/issues/1543
+        struct stat crl_stat;
+        const bool use_crls = atLeastOneCRLFound
+                           && !stat(crl_fname.c_str(), &crl_stat)
+                           && crl_stat.st_size > 0;
+        if (!use_crls) {
+            std::stringstream ss;
+            ss << "No valid CRL file has been found in the file " << crl_fname
+               << ". Disabling CRL checking.";
+            m_log.Emsg("Maintenance", ss.str().c_str());
+        }
+
+        // Parse the bundles once here rather than once per consumer.  This is the
+        // expensive part of a reload, so it is deliberately done before taking the
+        // lock that publishes the result.
+        new_store = BuildCAStore(ca_fname, crl_fname, use_crls);
+        if (!new_store) {
+            // Deliberately publish nothing and let the maintenance thread retry on
+            // the short interval, leaving consumers on the previous store.  The
+            // tempting alternative -- carrying on and letting each consumer load the
+            // bundles for itself -- silently reinstates the per-transfer parsing that
+            // this store exists to avoid, turning a CA refresh problem into memory
+            // exhaustion.  See https://github.com/xrootd/xrootd/issues/2873
+            m_log.Emsg("Maintenance", "Failed to build the certificate store; "
+                                      "retaining the previously loaded CAs and CRLs");
+            return false;
+        }
+    }
+
+    XrdSysMutexHelper lock(m_mutex);
+    m_ca_file.reset(new std::string(ca_fname));
+    m_crl_file.reset(new std::string(crl_fname));
+    m_atLeastOneCRLFound = atLeastOneCRLFound;
+    m_ca_store = std::move(new_store);
 
     return true;
 }

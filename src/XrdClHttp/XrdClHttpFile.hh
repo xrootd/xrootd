@@ -337,7 +337,7 @@ private:
     // Last prefetch handler on the stack.
     PrefetchResponseHandler *m_last_prefetch_handler{nullptr};
 
-    // Size of prefetch operation
+    // Size of prefetch operation (-1 = unknown; INT64_MAX / off_t max = full object)
     off_t m_prefetch_size{-1};
 
     // Offset of the next write operation;

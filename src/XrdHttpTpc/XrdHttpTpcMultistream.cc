@@ -124,20 +124,40 @@ public:
         return current_offset;
     }
 
-    int Flush() {
-        int last_error = 0;
-        for (std::vector<State*>::iterator state_it = m_states.begin();
-             state_it != m_states.end();
-             state_it++)
-        {
-            int error = (*state_it)->Flush();
-            if (error) {last_error = error;}
+    // Flush the file to the local filesystem.  All the states share the same
+    // underlying stream, hence a single flush is enough -- and required: a
+    // second one would be a no-op at best.  Returns State::errNone and leaves
+    // error_msg untouched on success; otherwise returns State::errFlush and sets
+    // error_msg to the corresponding error message.
+    int Flush(std::string &error_msg) {
+        if (m_states.empty() || (m_states[0]->Flush() != -1)) {
+            return State::errNone;
         }
-        return last_error;
+        error_msg = m_states[0]->GetFinalizeErrorMessage();
+        if (error_msg.empty()) {error_msg = "(no error message provided)";}
+        return State::errFlush;
     }
 
     off_t BytesTransferred() const {
         return m_bytes_transferred;
+    }
+
+    // Number of bytes that have actually been transferred so far: the bytes of
+    // the requests that already completed plus the bytes of the requests that
+    // are still in flight.  The two are disjoint: FinishCurlXfer() accumulates
+    // the counter of a state into m_bytes_transferred and then zeroes it via
+    // State::ResetAfterRequest(), so no byte is counted twice.
+    // Note this is not the same quantity as the scheduling offset maintained by
+    // StartTransfers(), which is advanced as soon as a range request is handed
+    // over to libcurl, hence before any byte of that range has been received.
+    off_t BytesInFlightAndTransferred() const {
+        off_t bytes = m_bytes_transferred;
+        for (std::vector<State*>::const_iterator state_iter = m_states.begin();
+             state_iter != m_states.end();
+             state_iter++) {
+            bytes += (*state_iter)->BytesTransferred();
+        }
+        return bytes;
     }
 
     int GetStatusCode() const {
@@ -310,11 +330,16 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
-            if (current_offset > last_advance_bytes) {
-                last_advance_bytes = current_offset;
+            // Report - and watch for progress on - the bytes that have really
+            // been transferred, not the offset up to which the range requests
+            // have been scheduled: the latter runs ahead of the transfer by up
+            // to concurrency * m_block_size bytes.
+            const off_t bytes_transferred = mch.BytesInFlightAndTransferred();
+            if (bytes_transferred > last_advance_bytes) {
+                last_advance_bytes = bytes_transferred;
                 last_advance_time = now;
             }
-            if (SendPerfMarker(req, rec, handles, current_offset)) {
+            if (SendPerfMarker(req, rec, handles, bytes_transferred)) {
                 logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL",
                     "Failed to send a perf marker to the TPC client");
                 return -1;
@@ -324,7 +349,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
                 const char *log_prefix = rec.log_prefix.c_str();
                 bool tpc_pull = strncmp("Pull", log_prefix, 4) == 0;
 
-                mch.SetErrorCode(10);
+                mch.SetErrorCode(State::errTimeout);
                 std::stringstream ss;
                 ss << "Transfer failed because no bytes have been "
                    << (tpc_pull ? "received from the source (pull mode) in "
@@ -385,7 +410,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
                 }
             } else if (running_handles == 0) {
                 logTransferEvent(LogMask::Debug, rec, "MULTISTREAM_IDLE",
-                    "Unable to start new transfers; breaking loop.");
+                    "All the ranges have been scheduled and all the handles are done; ending the transfer loop.");
                 break;
             }
         }
@@ -429,7 +454,18 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         throw std::runtime_error("Internal state error in libcurl");
     }
 
-    mch.Flush();
+    // A failure to flush the file to the local filesystem is always logged and is
+    // appended to the error reported to the client, but it never replaces the
+    // transfer failure itself: the flush failure is usually a consequence of it.
+    std::string flushErrorMsg;
+    const int flushErrorCode = mch.Flush(flushErrorMsg);
+    std::string flushErrorSuffix;
+    if (flushErrorCode) {
+        std::replace(flushErrorMsg.begin(), flushErrorMsg.end(), '\n', ' ');
+        flushErrorMsg = "Failed to flush the file to the local filesystem. " + flushErrorMsg;
+        logTransferEvent(LogMask::Error, rec, "FLUSH_FAIL", flushErrorMsg);
+        flushErrorSuffix = "; " + flushErrorMsg;
+    }
 
     rec.bytes_transferred = mch.BytesTransferred();
     rec.tpc_status = mch.GetStatusCode();
@@ -445,7 +481,16 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             std::replace(err.begin(), err.end(), '\n', ' ');
             ss2 << "; error message: \"" << err << "\"";
         }
-        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss2 << flushErrorSuffix;
+        ss << generateClientErr(ss2, rec);
+    } else if (mch.GetErrorCode() == State::errTimeout) {
+        // The stall detector fired; its message already describes precisely
+        // what happened, report it as-is.
+        std::stringstream ss2;
+        ss2 << mch.GetErrorMessage();
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss2 << flushErrorSuffix;
         ss << generateClientErr(ss2, rec);
     } else if (mch.GetErrorCode()) {
         std::string err = mch.GetErrorMessage();
@@ -454,6 +499,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         std::stringstream ss2;
         ss2 << "Error when interacting with local filesystem: " << err;
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss2 << flushErrorSuffix;
         ss << generateClientErr(ss2, rec);
     } else if (res != CURLE_OK) {
         std::stringstream ss2;
@@ -461,19 +507,27 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         std::stringstream ss3;
         ss3 << ss2.str() << ":" << curl_easy_strerror(res);
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss3.str());
+        ss2 << flushErrorSuffix;
         ss << generateClientErr(ss2, rec, res);
     } else if (current_offset != content_size) {
         std::stringstream ss2;
         ss2 << "Internal logic error led to early abort; current offset is " <<
               current_offset << " while full size is " << content_size;
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss2 << flushErrorSuffix;
+        ss << generateClientErr(ss2, rec);
+    } else if (flushErrorCode) {
+        // Nothing else went wrong: the flush failure is the reason of the failure.
+        std::stringstream ss2;
+        ss2 << flushErrorMsg;
         ss << generateClientErr(ss2, rec);
     } else {
         if (!handles[0]->Finalize()) {
             std::stringstream ss2;
             ss2 << "Failed to finalize and close file handle.";
-            std::string handleErrMsg = handles[0]->GetErrorMessage();
+            std::string handleErrMsg = handles[0]->GetFinalizeErrorMessage();
             if(handleErrMsg.size()) {
+              std::replace(handleErrMsg.begin(), handleErrMsg.end(), '\n', ' ');
               ss2 << " " << handleErrMsg;
             }
             ss << generateClientErr(ss2, rec);

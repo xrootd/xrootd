@@ -22,50 +22,175 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClFileSystemUtils.hh"
-#include "XrdCl/XrdClFSExecutor.hh"
-#include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XProtocol/XProtocol.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClFSExecutor.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFileSystemOperations.hh"
+#include "XrdCl/XrdClFileSystemUtils.hh"
+#include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClParallelOperation.hh"
+#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
-#include <cstdlib>
-#include <cstdio>
-#include <iostream>
-#include <iomanip>
+#include <algorithm>
+#include <cctype>
+#include <getopt.h>
+#include <iterator>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
 
 #ifdef HAVE_READLINE
-#include <readline/readline.h>
 #include <readline/history.h>
+#include <readline/readline.h>
 #endif
 
 using namespace XrdCl;
+
+namespace
+{
+  enum URLCommandResult
+  {
+    NotURLCommand,
+    ValidURLCommand,
+    InvalidURLCommand
+  };
+
+  bool SupportsFullURLs( const std::string &command )
+  {
+    static const char *commands[] = {
+      "cache", "cat", "chmod", "locate", "ls", "mkdir", "mv",
+      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs",
+      "tail", "truncate", "xattr"
+    };
+
+    return std::find( std::begin( commands ), std::end( commands ), command )
+           != std::end( commands );
+  }
+
+  // XrdCl::URL also accepts bare hosts and local paths. Keep this small check
+  // to distinguish explicit URL operands from those shorthand forms and from
+  // values such as "name=https://example.org".
+  bool HasExplicitURLScheme( const std::string &argument )
+  {
+    std::string::size_type separator = argument.find( "://" );
+    if( separator == std::string::npos || separator == 0
+        || !std::isalpha( static_cast<unsigned char>( argument[0] ) ) )
+      return false;
+
+    for( std::string::size_type i = 1; i < separator; ++i )
+    {
+      unsigned char character = static_cast<unsigned char>( argument[i] );
+      if( !std::isalnum( character ) && character != '+'
+          && character != '-' && character != '.' )
+        return false;
+    }
+
+    return true;
+  }
+
+  URLCommandResult ParseURLCommand( FSExecutor::CommandParams &arguments,
+                                    URL &endpoint, std::string &error )
+  {
+    if( arguments.empty() )
+      return NotURLCommand;
+
+    if( arguments[0] == "query" )
+    {
+      for( std::size_t i = 1; i < arguments.size(); ++i )
+      {
+        if( HasExplicitURLScheme( arguments[i] ) )
+        {
+          error = "command-first full URLs are not supported for 'query'";
+          return InvalidURLCommand;
+        }
+      }
+      return NotURLCommand;
+    }
+
+    if( !SupportsFullURLs( arguments[0] ) )
+      return NotURLCommand;
+
+    bool foundURL = false;
+    for( std::size_t i = 1; i < arguments.size(); ++i )
+    {
+      if( !HasExplicitURLScheme( arguments[i] ) )
+        continue;
+
+      URL operand( arguments[i] );
+      if( !operand.IsValid() || operand.GetProtocol() == "file"
+          || operand.GetProtocol() == "stdio" )
+      {
+        error = "invalid remote URL operand";
+        return InvalidURLCommand;
+      }
+
+      if( !foundURL )
+      {
+        endpoint = operand;
+        endpoint.SetPath( "" );
+        endpoint.SetParams( URL::ParamsMap() );
+        foundURL = true;
+      }
+      else if( endpoint.GetProtocol() != operand.GetProtocol()
+               || endpoint.GetHostId() != operand.GetHostId() )
+      {
+        error = "all URL operands must use the same endpoint";
+        return InvalidURLCommand;
+      }
+
+      arguments[i] = operand.GetPathWithParams();
+      if( arguments[i].empty() || arguments[i][0] != '/' )
+        arguments[i].insert( arguments[i].begin(), '/' );
+    }
+
+    return foundURL ? ValidURLCommand : NotURLCommand;
+  }
+}
 
 //------------------------------------------------------------------------------
 // Build a path
 //------------------------------------------------------------------------------
 XRootDStatus BuildPath( std::string &newPath, Env *env,
-                        const std::string &path )
+                        const std::string &path,
+                        const char *op = nullptr )
 {
+  Log *log = DefaultEnv::GetLog();
+
   if( path.empty() )
-    return XRootDStatus( stError, errInvalidArgs );
+  {
+    const std::string msg = "A path is required.";
+    log->Error( AppMsg, "%s", msg.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, msg );
+  }
 
   int noCwd = 0;
   env->GetInt( "NoCWD", noCwd );
 
-  if( path[0] == '/' || noCwd )
+  if( path[0] == '/' )
   {
     newPath = path;
     return XRootDStatus();
+  }
+  else if( noCwd )
+  {
+    std::string msg;
+    if( op )
+      msg = std::string( op ) + " relative path '" + path + "' is disallowed.";
+    else
+      msg = "Relative path '" + path + "' is disallowed.";
+    log->Error( AppMsg, "%s", msg.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, msg );
   }
 
   std::string cwd = "/";
@@ -92,7 +217,11 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
     if( *it == ".." )
     {
       if( it == pathComponents.begin() )
-        return XRootDStatus( stError, errInvalidArgs );
+      {
+        const std::string msg = "Path '" + path + "' escapes above root.";
+        log->Error( AppMsg, "%s", msg.c_str() );
+        return XRootDStatus( stError, errInvalidArgs, 0, msg );
+      }
       std::list<std::string>::iterator it1 = it;
       --it1;
       it = pathComponents.erase( it1 );
@@ -186,11 +315,9 @@ XRootDStatus DoCache( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[2] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid cache path." );
-    return XRootDStatus( stError, errInvalidArgs, 0, "Invalid cache path." );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[2], "Caching" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Create the command 
@@ -244,11 +371,9 @@ XRootDStatus DoCD( FileSystem                      *fs,
   env->PutInt( "NoCWD", 0 );
 
   std::string newPath;
-  if( !BuildPath( newPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( newPath, env, args[1], "Changing" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Check if the path exist and is not a directory
@@ -416,11 +541,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
     env->GetString( "CWD", newPath );
   else
   {
-    if( !BuildPath( newPath, env, path ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid arguments. Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( newPath, env, path, "Listing" );
+    if( !pathSt.IsOK() )
+      return pathSt;
   }
 
   //----------------------------------------------------------------------------
@@ -560,11 +683,9 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
   }
 
   std::string newPath;
-  if( !BuildPath( newPath, env, path ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -601,11 +722,9 @@ XRootDStatus DoRmDir( FileSystem                      *query,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Removing" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -642,18 +761,14 @@ XRootDStatus DoMv( FileSystem                      *fs,
   }
 
   std::string fullPath1;
-  if( !BuildPath( fullPath1, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid source path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath1, env, args[1], "Renaming" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   std::string fullPath2;
-  if( !BuildPath( fullPath2, env, args[2] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid destination path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  pathSt = BuildPath( fullPath2, env, args[2], "Renaming to" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   if( is_subdirectory(fullPath1, fullPath2) )
     return XRootDStatus( stError, errInvalidArgs, 0,
@@ -711,11 +826,9 @@ XRootDStatus DoRm( FileSystem                      *fs,
   for( size_t i = 1; i < argc; ++i )
   {
     std::string fullPath;
-    if( !BuildPath( fullPath, env, args[i] ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path: %s", fullPath.c_str() );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( fullPath, env, args[i], "Removing" );
+    if( !pathSt.IsOK() )
+      return pathSt;
     rms.emplace_back( Rm( fs, fullPath ) >>
                       [log, fullPath, print]( XRootDStatus &st )
                       {
@@ -765,11 +878,9 @@ XRootDStatus DoTruncate( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Truncating" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   char *result;
   uint64_t size = ::strtoll( args[2].c_str(), &result, 0 );
@@ -814,11 +925,9 @@ XRootDStatus DoChMod( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Modifying" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   Access::Mode mode = Access::None;
   XRootDStatus st = ConvertMode( mode, args[2] );
@@ -900,11 +1009,9 @@ XRootDStatus DoLocate( FileSystem                      *fs,
     fullPath = path;
   else
   {
-    if( !BuildPath( fullPath, env, path ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( fullPath, env, path, "Locating" );
+    if( !pathSt.IsOK() )
+      return pathSt;
   }
 
   //----------------------------------------------------------------------------
@@ -1085,11 +1192,9 @@ XRootDStatus DoStat( FileSystem                      *fs,
   for( auto &path : paths )
   {
     std::string fullPath;
-    if( !BuildPath( fullPath, env, path ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( fullPath, env, path, "Stating" );
+    if( !pathSt.IsOK() )
+      return pathSt;
     std::future<XrdCl::StatInfo> ftr;
     stats.emplace_back( XrdCl::Stat( fs, fullPath ) >> ftr );
     results.emplace_back( std::move( ftr ), std::move( fullPath ) );
@@ -1195,11 +1300,9 @@ XRootDStatus DoStatVFS( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Stating" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -1295,11 +1398,9 @@ XRootDStatus DoQuery( FileSystem                      *fs,
     for( size_t i = 3; i < args.size(); ++i )
     {
       std::string path = args[i];
-      if( !BuildPath( path, env, path ).IsOK() )
-      {
-        log->Error( AppMsg, "Invalid path." );
-        return XRootDStatus( stError, errInvalidArgs );
-      }
+      XRootDStatus pathSt = BuildPath( path, env, path, "Preparing" );
+      if( !pathSt.IsOK() )
+        return pathSt;
       // we use new line character as delimiter
       strArg += '\n';
       strArg += path;
@@ -1312,11 +1413,9 @@ XRootDStatus DoQuery( FileSystem                      *fs,
         qCode == QueryCode::Checksum       ||
         qCode == QueryCode::XAttr )
     {
-      if( !BuildPath( strArg, env, args[2] ).IsOK() )
-      {
-        log->Error( AppMsg, "Invalid path." );
-        return XRootDStatus( stError, errInvalidArgs );
-      }
+      XRootDStatus pathSt = BuildPath( strArg, env, args[2], "Querying" );
+      if( !pathSt.IsOK() )
+        return pathSt;
     }
   }
 
@@ -1559,11 +1658,9 @@ XRootDStatus DoCat( FileSystem                      *fs,
   for( auto &remote : remotes )
   {
     std::string remoteFile;
-    if( !BuildPath( remoteFile, env, remote ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path." );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( remoteFile, env, remote, "Opening" );
+    if( !pathSt.IsOK() )
+      return pathSt;
 
     remoteUrls.emplace_back( server );
     remoteUrls.back().SetPath( remoteFile );
@@ -1674,11 +1771,9 @@ XRootDStatus DoTail( FileSystem                      *fs,
   }
 
   std::string remoteFile;
-  if( !BuildPath( remoteFile, env, remote ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( remoteFile, env, remote, "Opening" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   URL remoteUrl( server );
   remoteUrl.SetPath( remoteFile );
@@ -1821,11 +1916,9 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
   }
 
   std::string path;
-  if( !BuildPath( path, env, args[1] ).IsOK() )
-  {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+  XRootDStatus pathSt = BuildPath( path, env, args[1], "Accessing" );
+  if( !pathSt.IsOK() )
+    return pathSt;
 
   //----------------------------------------------------------------------------
   // Issue the xattr operation
@@ -1957,12 +2050,20 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
                         const FSExecutor::CommandParams & )
 {
   printf( "Usage:\n"                                                          );
-  printf( "   xrdfs [--no-cwd] host[:port]              - interactive mode\n" );
-  printf( "   xrdfs            host[:port] command args - batch mode\n\n"     );
+  printf( "   xrdfs [options] host[:port]              - interactive mode\n"  );
+  printf( "   xrdfs [options] host[:port] command args - server-first batch\n" );
+  printf( "   xrdfs [options] command args-with-URLs   - command-first batch\n\n" );
+
+  printf( "The two batch forms cannot be mixed.\n\n"                          );
 
   printf( "Available options:\n\n"                                            );
 
-  printf( "   --no-cwd no CWD is being preset\n\n"                            );
+  printf( "   -4, --ipv4          use only the IPv4 network stack\n"          );
+  printf( "   -6, --ipv6          use only the IPv6 network stack\n"          );
+  printf( "   -d, --debug <level> set debug level: 0 off, 1 low, 2 medium,\n" );
+  printf( "                       3 high\n"                                  );
+  printf( "   -h, --help show this help\n"                                    );
+  printf( "   --no-cwd    do not preset a CWD in interactive mode\n\n"        );
 
   printf( "Available commands:\n\n"                                           );
 
@@ -2135,15 +2236,8 @@ FSExecutor *CreateExecutor( const URL &url )
 //------------------------------------------------------------------------------
 // Execute command
 //------------------------------------------------------------------------------
-int ExecuteCommand( FSExecutor *ex, int argc, char **argv )
+int ExecuteCommand( FSExecutor *ex, const FSExecutor::CommandParams &args )
 {
-  // std::vector<std::string> args (argv, argv + argc);
-  std::vector<std::string> args;
-  args.reserve(argc);
-  for (int i = 0; i < argc; ++i)
-  {
-    args.push_back(argv[i]);
-  }
   XRootDStatus st = ex->Execute( args );
   if( !st.IsOK() )
     std::cerr << st.ToStr() << std::endl;
@@ -2326,21 +2420,11 @@ int ExecuteInteractive( const URL &url, bool noCwd = false )
 //------------------------------------------------------------------------------
 // Execute command
 //------------------------------------------------------------------------------
-int ExecuteCommand( const URL &url, int argc, char **argv )
+int ExecuteCommand( const URL &url, const FSExecutor::CommandParams &args )
 {
-  //----------------------------------------------------------------------------
-  // Build the command to be executed
-  //----------------------------------------------------------------------------
-  std::string commandline;
-  for( int i = 0; i < argc; ++i )
-  {
-    commandline += argv[i];
-    commandline += " ";
-  }
-
   FSExecutor *ex = CreateExecutor( url );
   ex->GetEnv()->PutInt( "NoCWD", 1 );
-  int st = ExecuteCommand( ex, argc, argv );
+  int st = ExecuteCommand( ex, args );
   delete ex;
   return st;
 }
@@ -2350,40 +2434,132 @@ int ExecuteCommand( const URL &url, int argc, char **argv )
 //------------------------------------------------------------------------------
 int main( int argc, char **argv )
 {
-  //----------------------------------------------------------------------------
-  // Check the commandline parameters
-  //----------------------------------------------------------------------------
   XrdCl::FSExecutor::CommandParams params;
-  if( argc == 1 )
+  enum { NoCwdOption = 256 };
+  static const option options[] = {
+    { "ipv4",   no_argument,       0, '4' },
+    { "ipv6",   no_argument,       0, '6' },
+    { "debug",  required_argument, 0, 'd' },
+    { "help",   no_argument, 0, 'h' },
+    { "no-cwd", no_argument, 0, NoCwdOption },
+    { 0, 0, 0, 0 }
+  };
+
+  bool noCwd = false;
+  int debugLevel = 0;
+  std::string networkStack;
+  opterr = 0;
+  int option = 0;
+  while( (option = getopt_long( argc, argv, "+46d:h", options, 0 )) != -1 )
+  {
+    switch( option )
+    {
+      case '4':
+        if( networkStack == "IPv6" )
+        {
+          std::cerr << "xrdfs: -4 and -6 are mutually exclusive" << std::endl;
+          return 1;
+        }
+        networkStack = "IPv4";
+        break;
+      case '6':
+        if( networkStack == "IPv4" )
+        {
+          std::cerr << "xrdfs: -4 and -6 are mutually exclusive" << std::endl;
+          return 1;
+        }
+        networkStack = "IPv6";
+        break;
+      case 'd':
+      {
+        char *end = 0;
+        long level = std::strtol( optarg, &end, 10 );
+        if( !*optarg || *end || level < 0 || level > 3 )
+        {
+          std::cerr << "xrdfs: invalid debug level '" << optarg
+                    << "' (expected 0-3)" << std::endl;
+          return 1;
+        }
+        debugLevel = static_cast<int>( level );
+        break;
+      }
+      case 'h':
+        PrintHelp( 0, 0, params );
+        return 0;
+      case NoCwdOption:
+        noCwd = true;
+        break;
+      default:
+        PrintHelp( 0, 0, params );
+        return 1;
+    }
+  }
+
+  if( !networkStack.empty() )
+    DefaultEnv::GetEnv()->PutString( "NetworkStack", networkStack );
+
+  if( debugLevel )
+  {
+    Log *log = DefaultEnv::GetLog();
+    if( debugLevel == 1 )
+      log->SetLevel( Log::InfoMsg );
+    else if( debugLevel == 2 )
+      log->SetLevel( Log::DebugMsg );
+    else
+      log->SetLevel( Log::DumpMsg );
+  }
+
+  if( optind == argc )
   {
     PrintHelp( 0, 0, params );
     return 1;
   }
 
-  if( !strcmp( argv[1], "--help" ) ||
-      !strcmp( argv[1], "-h" ) )
+  FSExecutor::CommandParams arguments( argv + optind, argv + argc );
+  URL url;
+  std::string error;
+  URLCommandResult result = ParseURLCommand( arguments, url, error );
+  if( result == InvalidURLCommand )
   {
-    PrintHelp( 0, 0, params );
-    return 0;
+    std::cerr << "xrdfs: " << error << std::endl;
+    return 1;
   }
 
-  bool noCwd = false;
-  int urlIndex = 1;
-  if( !strcmp( argv[1], "--no-cwd") )
-  {
-    ++urlIndex;
-    noCwd = true;
-  }
+  if( result == ValidURLCommand )
+    return ExecuteCommand( url, arguments );
 
-  URL url( argv[urlIndex] );
+  url = URL( arguments[0] );
   if( !url.IsValid() )
   {
     PrintHelp( 0, 0, params );
     return 1;
   }
 
-  if( argc == urlIndex + 1 )
+  if( arguments.size() == 1 )
     return ExecuteInteractive( url, noCwd );
-  int shift = urlIndex + 1;
-  return ExecuteCommand( url, argc-shift, argv+shift );
+
+  arguments.erase( arguments.begin() );
+
+  // Raw query parameters are implementation-dependent and may themselves look
+  // like URLs, so query intentionally remains server-first only.
+  if( arguments[0] != "query" )
+  {
+    URL inferredEndpoint;
+    result = ParseURLCommand( arguments, inferredEndpoint, error );
+    if( result == InvalidURLCommand )
+    {
+      std::cerr << "xrdfs: " << error << std::endl;
+      return 1;
+    }
+
+    if( result == ValidURLCommand )
+    {
+      std::cerr << "xrdfs: cannot mix a leading endpoint with full URL "
+                   "operands; use either server-first or command-first syntax"
+                << std::endl;
+      return 1;
+    }
+  }
+
+  return ExecuteCommand( url, arguments );
 }

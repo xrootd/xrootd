@@ -123,7 +123,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Zero()
       {
-        memset( pBuffer, 0, pSize );
+        if( pBuffer && pSize ) memset( pBuffer, 0, pSize );
       }
 
       //------------------------------------------------------------------------
@@ -167,7 +167,7 @@ namespace XrdCl
         if( remaining < size )
           ReAllocate( pCursor+size );
 
-        memcpy( pBuffer+pCursor, buffer, size );
+        if( size ) memcpy( pBuffer+pCursor, buffer, size );
         pCursor += size;
       }
 
@@ -180,7 +180,7 @@ namespace XrdCl
         if( remaining < size )
           ReAllocate( offset+size );
 
-        memcpy( pBuffer+offset, buffer, size );
+        if( size ) memcpy( pBuffer+offset, buffer, size );
       }
 
       //------------------------------------------------------------------------

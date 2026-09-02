@@ -731,13 +731,22 @@ namespace XrdCl
         // Rewrite the message in a way required to send it to another server
         //----------------------------------------------------------------------
         newUrl.SetParams( cgiURL.GetParams() );
-        Status st = RewriteRequestRedirect( newUrl );
+        std::string prevPath;
+        Status st = RewriteRequestRedirect( newUrl, prevPath );
         if( !st.IsOK() )
         {
           pStatus = st;
           HandleResponse();
           return;
         }
+
+        //----------------------------------------------------------------------
+        // Make sure new url does include the pathname: if we return to this
+        // url later (e.g. as a load-balancer after failing at another server)
+        // we may need to change the pathname back to what it was at this point.
+        //----------------------------------------------------------------------
+        if( newUrl.GetPath().empty() )
+          newUrl.SetPath( prevPath );
 
         //----------------------------------------------------------------------
         // Make sure we don't change the protocol by accident (root vs roots)
@@ -1946,56 +1955,30 @@ namespace XrdCl
 
   //----------------------------------------------------------------------------
   // Perform the changes to the original request needed by the redirect
-  // procedure - allocate new streamid, append redirection data and such
+  // procedure - i.e. possibly new path and modified cgi.
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::RewriteRequestRedirect( const URL &newUrl )
+  Status XRootDMsgHandler::RewriteRequestRedirect( const URL &newUrl, std::string &opath )
   {
     Log *log = DefaultEnv::GetLog();
-
-    Status st;
-    // Append any "xrd.*" parameters present in newCgi so that any authentication
-    // requirements are properly enforced
     const URL::ParamsMap &newCgi = newUrl.GetParams();
-    std::string xrdCgi = "";
-    std::ostringstream ossXrd;
-    for(URL::ParamsMap::const_iterator it = newCgi.begin(); it != newCgi.end(); ++it )
-    {
-      if( it->first.compare( 0, 4, "xrd." ) )
-        continue;
-      ossXrd << it->first << '=' << it->second << '&';
-    }
 
-    xrdCgi = ossXrd.str();
-    // Redirection URL containing also any original xrd.* opaque parameters
-    XrdCl::URL authUrl;
-
-    if (xrdCgi.empty())
+    if ( !newUrl.IsValid() )
     {
-      authUrl = newUrl;
-    }
-    else
-    {
-      std::string surl = newUrl.GetURL();
-      (surl.find('?') == std::string::npos) ? (surl += '?') :
-          ((*surl.rbegin() != '&') ? (surl += '&') : (surl += ""));
-      surl += xrdCgi;
-      if (!authUrl.FromString(surl))
-      {
-        std::string surlLog = surl;
-        if( unlikely( log->GetLevel() >= Log::ErrorMsg ) ) {
-          surlLog = obfuscateAuth(surlLog);
-        }
-        log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data: %s",
-                    newUrl.GetHostId().c_str(), surl.c_str());
-        return Status(stError, errInvalidRedirectURL);
+      std::string surlLog = newUrl.GetURL();
+      if( unlikely( log->GetLevel() >= Log::ErrorMsg ) ) {
+        surlLog = obfuscateAuth(surlLog);
       }
+      log->Error( XRootDMsg, "[%s] Failed to build redirection URL from data: %s",
+                  newUrl.GetHostId().c_str(), surlLog.c_str());
+       return Status(stError, errInvalidRedirectURL);
     }
 
     //--------------------------------------------------------------------------
     // Rewrite particular requests
     //--------------------------------------------------------------------------
     XRootDTransport::UnMarshallRequest( pRequest );
-    MessageUtils::RewriteCGIAndPath( pRequest, newCgi, true, newUrl.GetPath() );
+    MessageUtils::RewriteCGIAndPath( pRequest, newCgi, true, newUrl.GetPath(),
+                                     &opath );
     XRootDTransport::MarshallRequest( pRequest );
     return Status();
   }
@@ -2088,7 +2071,7 @@ namespace XrdCl
     //    kXR_NotFound
     // 4) in the case of kXR_NotFound a kXR_refresh flags needs to be set
     //--------------------------------------------------------------------------
-    if( status.code == errErrorResponse )
+    if( status.code == errErrorResponse || status.code == errLocalError )
     {
       if( RetriableErrorResponse( status ) )
       {
@@ -2183,6 +2166,19 @@ namespace XrdCl
       pHosts->push_back( url );
 
       //------------------------------------------------------------------------
+      // Make sure path in the request corresponds to our retry-at url.
+      // In the case of redirection the request has already been updated, but
+      // in the case of return to a load balancer this is needed.
+      //------------------------------------------------------------------------
+      if( pUrl.GetPath() != url.GetPath() )
+      {
+        URL::ParamsMap cgi;
+        XRootDTransport::UnMarshallRequest( pRequest );
+        MessageUtils::RewriteCGIAndPath( pRequest, cgi, false, url.GetPath() );
+        XRootDTransport::MarshallRequest( pRequest );
+      }
+
+      //------------------------------------------------------------------------
       // Assign a new stream id to the message
       //------------------------------------------------------------------------
 
@@ -2244,6 +2240,7 @@ namespace XrdCl
   {
     URL::ParamsMap cgi;
     std::string    tried;
+    HostList::reverse_iterator itst = pHosts->rbegin();
 
     //--------------------------------------------------------------------------
     // In case a data server responded with a kXR_redirect and we fail at the
@@ -2252,14 +2249,20 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pEffectiveDataServerUrl )
     {
+      for( ; itst != pHosts->rend(); ++itst )
+      {
+        if( itst->url.GetURL() == pEffectiveDataServerUrl->GetURL() )
+          break;
+      }
       tried = pEffectiveDataServerUrl->GetHostName();
       delete pEffectiveDataServerUrl;
       pEffectiveDataServerUrl = 0;
     }
     //--------------------------------------------------------------------------
-    // Otherwise use the current URL.
+    // Otherwise use the current URL. If it's a local url, we don't add
+    // localhost to the tried list but will try to set any managers.
     //--------------------------------------------------------------------------
-    else
+    else if ( !pUrl.IsLocalFile() )
       tried = pUrl.GetHostName();
 
     // Report the reason for the failure to the next location
@@ -2279,17 +2282,22 @@ namespace XrdCl
     if( pLoadBalancer.url.IsValid() && (pLoadBalancer.flags & kXR_attrMeta) )
     {
       HostList::reverse_iterator it;
-      for( it = pHosts->rbegin()+1; it != pHosts->rend(); ++it )
+      if( itst == pHosts->rend() )
+        itst = pHosts->rbegin();
+      for( it = itst+1; it != pHosts->rend(); ++it )
       {
         if( it->loadBalancer )
           break;
 
-        tried += "," + it->url.GetHostName();
+        tried += ( tried.length() ? "," : "" ) + it->url.GetHostName();
 
         if( it->flags & kXR_isManager )
           break;
       }
     }
+
+    if( !tried.length() )
+      return;
 
     cgi["tried"] = tried;
     XRootDTransport::UnMarshallRequest( pRequest );

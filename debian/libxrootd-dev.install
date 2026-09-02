@@ -14,3 +14,4 @@
 /usr/lib/*/libXrdUtils.so
 /usr/lib/*/libXrdXml.so
 /usr/lib/*/cmake/XRootD
+/usr/share/man/man1/xrootd-config.1

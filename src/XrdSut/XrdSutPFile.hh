@@ -92,7 +92,7 @@ public:
    XrdSutPFEntInd(const XrdSutPFEntInd &ei);
    virtual ~XrdSutPFEntInd() { if (name) delete[] name; } 
 
-   kXR_int32 Length() const { return (strlen(name) + 4*sizeof(kXR_int32)); }
+   kXR_int32 Length() const { return ((name ? strlen(name) : 0) + 4*sizeof(kXR_int32)); }
    void SetName(const char *n = 0);
 
    // Assignement operator

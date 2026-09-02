@@ -2164,6 +2164,7 @@ bool SavePuk()
       PRT("SavePuk: Cannot create array of temporary buckets");
       return 0;
    }
+   memset(bck, 0, sizeof(XrdSutBucket *) * ncrypt);
    //
    // First loop over ciphers to determine the size
    int lout = 0, i = 0;

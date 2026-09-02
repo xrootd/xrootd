@@ -69,6 +69,9 @@ private:
         virtual ~ReadHandler() noexcept = default;
 
         virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) override;
+
+        // Release ownership of the parent handler back to the caller
+        std::unique_ptr<S3DownloadHandler> TakeParent() { return std::move(m_parent); }
     private:
         std::unique_ptr<S3DownloadHandler> m_parent; // Pointer to the parent handler to access its members
     };
@@ -108,9 +111,13 @@ S3DownloadHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObj
     }
 
     // Open succeeded, so we can now read the file.
-    auto st = m_file->Read(0, S3DownloadHandler::kReadSize, m_buffer->GetBufferAtCursor(), new ReadHandler(std::move(self)), timeout);
+    std::unique_ptr<ReadHandler> readHandler(new ReadHandler(std::move(self)));
+    auto st = m_file->Read(0, S3DownloadHandler::kReadSize, m_buffer->GetBufferAtCursor(), readHandler.get(), timeout);
+
     if (!st.IsOK()) {
-        // If the read request failed, we close the file and return the error.
+        // The read request failed; take ownership of 'this' back
+        self = readHandler->TakeParent();
+        // We close the file and return the error
         std::unique_ptr<CloseHandler> closeHandler(new CloseHandler(std::move(self), std::unique_ptr<XrdCl::XRootDStatus>(new XrdCl::XRootDStatus(st))));
         auto close_st = m_file->Close(closeHandler.get(), timeout);
         if (close_st.IsOK()) {
@@ -122,6 +129,9 @@ S3DownloadHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObj
         }
         return;
     }
+
+    // if read succeeds relinquish ownership
+    readHandler.release(); // Read now owns the handler
 }
 
 void
@@ -185,9 +195,11 @@ S3DownloadHandler::ReadHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, 
     // Read was successful; read additional data if available.
     m_parent->m_buffer->AdvanceCursor(chunkInfo->GetLength());
     m_parent->m_buffer->ReAllocate(m_parent->m_buffer->GetCursor() + S3DownloadHandler::kReadSize);
-    auto st = m_parent->m_file->Read(m_parent->m_buffer->GetCursor(), kReadSize, m_parent->m_buffer->GetBufferAtCursor(), self.release(), timeout);
+    // Pass to Read a non-owning pointer
+    auto st = m_parent->m_file->Read(m_parent->m_buffer->GetCursor(), kReadSize, m_parent->m_buffer->GetBufferAtCursor(), self.get(), timeout);
     if (!st.IsOK()) {
         // If the read request failed, close or delete the parent handler.
+        // We still own the handler, pass it to close handler
         auto parent = m_parent.get();
         std::unique_ptr<CloseHandler> closeHandler(new CloseHandler(std::move(m_parent), nullptr));
         auto close_st = parent->m_file->Close(closeHandler.get(), timeout);
@@ -196,7 +208,11 @@ S3DownloadHandler::ReadHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, 
         } else if (parent->m_handler) {
             parent->m_handler->HandleResponse(new XrdCl::XRootDStatus(close_st), nullptr);
         }
+        return;
     }
+
+    // Release ownership if Read returns successfully
+    self.release();
 }
 
 void
@@ -234,15 +250,7 @@ S3DownloadHandler::CloseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw,
 XrdCl::XRootDStatus
 XrdClS3::DownloadUrl(const std::string &url, XrdClHttp::HeaderCallout *header_callout, XrdCl::ResponseHandler *handler, time_t timeout)
 {
-    std::unique_ptr<XrdCl::File> http_file(new XrdCl::File());
-    // Hack - we need to set a few properties on the file object before the open occurs.
-    // However, the "real" (plugin) file object is not created until the open call.
-    // This forces the plugin object to be created, so we can set the properties and Open later.
-    auto status = http_file->Open(url, XrdCl::OpenFlags::Compress, XrdCl::Access::None, nullptr, time_t(0));
-    if (!status.IsOK()) {
-        return status;
-    }
-
+    std::unique_ptr<XrdCl::File> http_file(new XrdCl::File(url));
 
     if (header_callout) {
         auto callout_loc = reinterpret_cast<long long>(header_callout);

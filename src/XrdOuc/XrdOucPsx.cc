@@ -830,9 +830,9 @@ void XrdOucPsx::SetRoot(const char *lroot, const char *rroot)
 //
    if (LocalRoot) free(LocalRoot);
    if (!lroot) LocalRoot = 0;
-      {LocalRoot = strdup(lroot);
-       xLfn2Pfn = true;
-      }
+      else {LocalRoot = strdup(lroot);
+            xLfn2Pfn = true;
+           }
 
 // Handle the oss local root
 //

@@ -38,8 +38,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "XrdVersion.hh"
-
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdNet/XrdNetSecurity.hh"
@@ -119,7 +117,7 @@ bool         XrdPssSys::reProxy   = false;
 namespace XrdProxy
 {
 static XrdPosixXrootd  *Xroot;
-  
+
 extern XrdSysError      eDest;
 
 extern XrdOucSid       *sidP;
@@ -155,7 +153,7 @@ using namespace XrdProxy;
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
-  
+
 int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 {
 /*
@@ -332,7 +330,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
               else strcpy(theRdr, outeq);
    XrdOucEnv::Export("XRDXROOTD_PROXY",  theRdr);
    XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr); // Backward compatibility
-   if (HostArena) XrdOucEnv::Export("XRDXROOTD_PROXYARENA", HostArena); 
+   if (HostArena) XrdOucEnv::Export("XRDXROOTD_PROXYARENA", HostArena);
 
 // Construct the contact URL header
 //
@@ -378,7 +376,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 /******************************************************************************/
 /*                           C o n f i g M a p I D                            */
 /******************************************************************************/
-  
+
 bool XrdPssSys::ConfigMapID()
 {
    XrdSecsssCon *conTracker;
@@ -442,7 +440,7 @@ bool XrdPssSys::ConfigMapID()
 /******************************************************************************/
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/
-  
+
 int XrdPssSys::ConfigProc(const char *Cfn)
 {
   char *var;
@@ -546,7 +544,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    Config.Echo();
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 x c o n f                                  */
 /******************************************************************************/
@@ -585,7 +583,7 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(Xopts[i].Key, val)) break;
 
             kval = strtol(val, &kvp, 10);
             if (*kvp || !kval)
-               {Eroute->Emsg("Config", Xopts[i].Key, 
+               {Eroute->Emsg("Config", Xopts[i].Key,
                              "config value is invalid -", val);
                 return 1;
                }
@@ -646,7 +644,7 @@ int XrdPssSys::xdca(XrdSysError *errp, XrdOucStream &Config)
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x d e f                                   */
 /******************************************************************************/
@@ -654,7 +652,7 @@ int XrdPssSys::xdca(XrdSysError *errp, XrdOucStream &Config)
 /* Function: xdef
 
    Purpose:  Parse: defaults <default options>
-                              
+
    Notes: See the oss configuration manual for the meaning of each option.
           The actual implementation is defined in XrdOucExport.
 
@@ -666,7 +664,7 @@ int XrdPssSys::xdef(XrdSysError *Eroute, XrdOucStream &Config)
    DirFlags = XrdOucExport::ParseDefs(Config, *Eroute, DirFlags);
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                  x e x p                                   */
 /******************************************************************************/
@@ -861,7 +859,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
    free(mval);
    return tp != 0;
 }
-  
+
 /******************************************************************************/
 /*                                 x p e r m                                  */
 /******************************************************************************/
@@ -900,7 +898,7 @@ do {if (!(val = Config.GetWord()))
 
     return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 x p e r s                                  */
 /******************************************************************************/

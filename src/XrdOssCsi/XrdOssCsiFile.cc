@@ -38,7 +38,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysPageSize.hh"
-#include "XrdVersion.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 
 #include <string>
@@ -157,7 +156,7 @@ int XrdOssCsiFile::pageAndFileOpen(const char *fn, const int dflags, const int O
       {
          return XrdOssOK;
       }
-     
+
       pageret = createPageUpdater(Oflag, Env);
       if (pageret == XrdOssOK)
       {

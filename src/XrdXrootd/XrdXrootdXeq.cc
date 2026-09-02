@@ -3924,7 +3924,7 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        if( ecode < -1 && !( clientPV & XrdOucEI::uRedirFlgs ) )
            ecode = -1;
        if (XrdXrootdMonitor::Redirect() && Path && opC)
-           XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
+           XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, ecode, opC, Path);
        if (TRACING(TRACE_REDIR))
           {if (ecode < 0)
               {TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg);}

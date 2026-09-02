@@ -2057,7 +2057,7 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       tmps->SetBuf(hs->Pent->buf1.buf, hs->Pent->buf1.len);
       //
       // Save input bucket if creds have to be kept
-      if (KeepCreds) {
+      if (KeepCreds && cbuf) {
          memcpy(cbuf, "pwd:", 4);
          memcpy(cbuf+4, creds->buffer, creds->size);
       }
@@ -2084,7 +2084,7 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       // Compare
       if (!strncmp(pass_crypt, hs->Pent->buf1.buf, hs->Pent->buf1.len + 1))
          match = 1;
-      if (match && KeepCreds) {
+      if (match && KeepCreds && cbuf) {
          memcpy(cbuf, "cpt:", 4);
          memcpy(cbuf+4, creds->buffer, creds->size);
          creds->SetBuf(cbuf, len);

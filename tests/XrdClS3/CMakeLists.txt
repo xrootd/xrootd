@@ -66,6 +66,7 @@ add_executable(xrdcl-s3-test
 
 add_executable(xrdcl-s3-unittest
   UrlParseTest.cc
+  DownloadHandlerTest.cc
 )
 
 target_link_libraries(xrdcl-s3-test XrdClS3Obj XrdClHttpTransferTest GTest::gtest_main)
@@ -82,6 +83,9 @@ set_tests_properties(${S3Tests}
     FIXTURES_REQUIRED XrdClS3::s3
     ENVIRONMENT "XRD_LOGLEVEL=Debug;ENV_FILE=${CMAKE_BINARY_DIR}/tests/s3/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/s3/client.plugins.d"
 )
+
+gtest_add_tests(TARGET xrdcl-s3-unittest TEST_LIST S3UnitTests)
+
 
 ######################################
 # Integration tests.

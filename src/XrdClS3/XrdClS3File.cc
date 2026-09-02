@@ -148,14 +148,7 @@ File::GetFileHandle(const std::string &s3_url) {
         return std::make_tuple(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, "Invalid generated XrdCl URL"), "", nullptr);
     }
     m_url = https_url;
-    std::unique_ptr<XrdCl::File> wrapped_file(new XrdCl::File());
-    // Hack - we need to set a few properties on the file object before the open occurs.
-    // However, the "real" (plugin) file object is not created until the open call.
-    // This forces the plugin object to be created, so we can set the properties and Open later.
-    auto status = wrapped_file->Open(url.GetURL(), XrdCl::OpenFlags::Compress, XrdCl::Access::None, nullptr, time_t(0));
-    if (!status.IsOK()) {
-        return std::make_tuple(status, "", nullptr);
-    }
+    std::unique_ptr<XrdCl::File> wrapped_file(new XrdCl::File(https_url));
 
     std::stringstream ss;
     ss << std::hex << reinterpret_cast<long long>(&m_header_callout);

@@ -6,6 +6,28 @@ Release Notes
 =============
 
 -------------
+Version 6.1.1
+-------------
+
+All bugfixes and improvements from XRootD 5.9.7 are also in XRootD 6.1.1.
+
++ **Bugfixes**
+  **[XrdClHttp]** Fix errors in complex vectored reads (#2858)
+  **[XrdClS3]** Fix use-after-move crash when synchronous read fails (#2790)
+  **[XrdCl]** Fix deadlock in poller after fork handler has run (#2879)
+  **[XrdCl]** Fix wrong path when falling back to load-balancer (#2394)
+  **[XrdHttpTpc]** Fix double close of file descriptor (#2889)
+  **[XrdHttpTpc]** Fix flush of destination file in multistream mode (#2891)
+  **[XrdHttp]** Fix invalid XML output in HTTP monitoring streams (#2843)
+  **[XrdPfc]** Fix snprintf handling in config printout (#2860)
+
++ **Miscellaneous**
+  **[CI]** Tolerate transient CDash upload failures (#2880)
+  **[Tests]** Add bundled GoogleTest, GoogleMock, and BATS frameworks (#2849, #2851)
+  **[XrdClS3]** Enable prefeth in full download for chunked encoding (#2850)
+  **[XrdCl]** Switch to new constructors to initialize XrdCl::File (#2848)
+
+-------------
 Version 6.1.0
 -------------
 
@@ -163,6 +185,25 @@ Version 6.0.0
   **[XrdOuc]** Update XrdOucJson.hh to nlohmann_json 3.12.0
   **[XrdOuc]** Use nlohmann_json from the system when possible
   **[XrdXrootd]** Define oss.coloc as URL encoded and provide encode/decode util
+
+-------------
+Version 5.9.7
+-------------
+
++ **Major bug fixes**
+  **[XrdHttpTPC]** Fix issue with multi-stream PULL (#2108)
+  **[XrdHttpTPC]** Share one parsed CA/CRL store across transfers (#2873)
+  **[XrdHttpTPC]** Improve error message when close fails on destination (#2878)
+
++ **Minor bug fixes**
+  **[Client,Server]** Fix various Clang-Tidy and CodeQL reported issues
+  **[XrdHttpTPC]** Report actual bytes transferred in performance markers (#2874)
+  **[XrdXrootd]** Fix wrong port in redirect monitoring record (#2736)
+
++ **Miscellaneous**
+  **[Docs]** Add man page for xrootd-config command
+  **[XrdHttpTPC]** Make low-speed timeout configurable (#2881)
+  **[XrdHttpTPC]** Allow missing CRL checking if configured via xrd.tlsca (#2681)
 
 -------------
 Version 5.9.6

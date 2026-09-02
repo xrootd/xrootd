@@ -48,6 +48,7 @@ bool PMarkManager::connect(int fd, const struct sockaddr *sockP, size_t sockPLen
     if(couldConnect) {
       addFd(fd,sockP);
     } else {
+      // in this case the ConnectWithTimeout function has closed fd
       return false;
     }
   }

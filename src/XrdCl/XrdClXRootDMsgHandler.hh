@@ -491,7 +491,7 @@ namespace XrdCl
       //! Perform the changes to the original request needed by the redirect
       //! procedure - allocate new streamid, append redirection data and such
       //------------------------------------------------------------------------
-      Status RewriteRequestRedirect( const URL &newUrl );
+      Status RewriteRequestRedirect( const URL &newUrl, std::string &opath );
 
       //------------------------------------------------------------------------
       //! Some requests need to be rewritten also after getting kXR_wait - sigh

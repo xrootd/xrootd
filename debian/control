@@ -9,7 +9,6 @@ Build-Depends:
  dh-python,
  attr,
  cmake,
- libgtest-dev,
  pkgconf,
  libfuse-dev [linux-any kfreebsd-any],
  libkrb5-dev,

@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "XrdVersion.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
@@ -14,6 +13,7 @@
 class XrdSysLogger;
 class XrdOucStream;
 
+struct XrdVersionInfo;
 
 namespace XrdThrottle {
 

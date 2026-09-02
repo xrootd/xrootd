@@ -126,7 +126,7 @@ int XrdOfsTPCAllow::Match(const XrdSecEntity *Who, const char *Host)
 //
    if (theHN && (!Host        || !(theHN->NameKO(Host  )))) return 0;
    if (theDN && (!(Who->name) || strcmp(theDN, Who->name))) return 0;
-   if (theVO && (!(Who->vorg) || strcmp(theDN, Who->vorg))) return 0;
+   if (theVO && (!(Who->vorg) || strcmp(theVO, Who->vorg))) return 0;
    if (!theGN) return 1;
    if (Who->grps)
       {char gBuff[1028], Group[64];

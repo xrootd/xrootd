@@ -20,6 +20,7 @@
 
 #include "XrdClHttp/XrdClHttpOps.hh"
 #include "XrdClHttp/XrdClHttpFile.hh"
+#include "XrdClHttp/XrdClHttpHeaderCallout.hh"
 #include "XrdClHttp/XrdClHttpWorker.hh"
 #include "../XrdClHttpCommon/TransferTest.hh"
 
@@ -28,6 +29,7 @@
 
 #include <gtest/gtest.h>
 
+#include <charconv>
 #include <memory>
 
 class CurlReadFixture : public TransferFixture {
@@ -216,4 +218,65 @@ TEST_F(CurlReadFixture, ConcurrentTest)
 
     rv = fh.Close();
     ASSERT_TRUE(rv.IsOK());
+}
+
+// Full-download against a chunked/unknown-size response must keep prefetch enabled.
+//
+// The origin returns Transfer-Encoding: chunked (no Content-Length) when the client
+// sends TE: trailers and X-Transfer-Status: true. Combined with the full-download
+// Range fix (no Range header), PrefetchSize becomes -1 and sequential reads still
+// hit the ongoing prefetch stream.
+TEST_F(CurlReadFixture, FullDownloadUnknownSizePrefetchTest)
+{
+    auto chunk_ctr = 10;
+    auto chunk_size = chunk_ctr * 10'000;
+    auto file_size = chunk_ctr * 100'000;
+    char starting_char = 'a';
+    auto url = GetOriginURL() + "/test/read_fulldownload_unknown_" + std::to_string(chunk_ctr);
+    ASSERT_NO_FATAL_FAILURE(WritePattern(url, file_size, starting_char, chunk_size));
+
+    class TrailersCallout : public XrdClHttp::HeaderCallout {
+    public:
+        TrailersCallout(const std::string &token) : m_token(token) {}
+        virtual ~TrailersCallout() = default;
+
+        virtual std::shared_ptr<HeaderList> GetHeaders(const std::string & /*verb*/,
+                                                       const std::string & /*url*/,
+                                                       const HeaderList &input_headers) override
+        {
+            auto headers = std::make_shared<HeaderList>(input_headers);
+            headers->emplace_back("Authorization", "Bearer " + m_token);
+            headers->emplace_back("TE", "trailers");
+            headers->emplace_back("X-Transfer-Status", "true");
+            return headers;
+        }
+
+    private:
+        std::string m_token;
+    };
+
+    TrailersCallout callout(GetReadToken());
+    // Construct with URL so the HTTP client plug-in is loaded before SetProperty.
+    XrdCl::File fh(url);
+
+    auto callout_loc = reinterpret_cast<long long>(&callout);
+    char callout_buf[16];
+    auto result = std::to_chars(callout_buf, callout_buf + sizeof(callout_buf) - 1, callout_loc, 16);
+    ASSERT_EQ(result.ec, std::errc{});
+    std::string callout_str(callout_buf, result.ptr - callout_buf);
+    ASSERT_TRUE(fh.SetProperty("XrdClHttpHeaderCallout", callout_str));
+    ASSERT_TRUE(fh.SetProperty("XrdClHttpFullDownload", "true"));
+
+    auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
+    ASSERT_TRUE(rv.IsOK()) << rv.ToString();
+
+    std::string prefetch_size;
+    ASSERT_TRUE(fh.GetProperty("XrdClHttpPrefetchSize", prefetch_size));
+    ASSERT_EQ(prefetch_size, "-1") << "Expected unknown size under chunked full-download";
+
+    std::string is_prefetching;
+    ASSERT_TRUE(fh.GetProperty("IsPrefetching", is_prefetching));
+    ASSERT_EQ(is_prefetching, "true");
+
+    ASSERT_NO_FATAL_FAILURE(VerifyContents(fh, file_size, starting_char, chunk_size));
 }

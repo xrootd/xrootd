@@ -42,7 +42,7 @@ template<class T>
 class XrdSsiRRTableItem
 {
 public:
-      XrdSsiRRTableItem() : item(0) { }
+      XrdSsiRRTableItem() : item(0), tab(nullptr), reqid(0) { }
 
       XrdSsiRRTableItem(T* _item, XrdSsiRRTable<T> *_tab, uint64_t itemID) :
          item(_item), tab(_tab), reqid(itemID) { }

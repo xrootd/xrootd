@@ -4,7 +4,7 @@ set -ex
 
 : "${XROOTD:=$(command -v xrootd)}"
 
-servernames=("srv1" "srv2")
+servernames=("srv1" "srv2" "srv3")
 DATAFOLDER="./data"
 
 setup() {
@@ -18,7 +18,16 @@ setup() {
     # Start XRootD servers
     for srv in "${servernames[@]}"; do
         echo "Starting XRootD on ${srv}..."
-        ${XROOTD} -b -k fifo -n "${srv}" -l "${srv}"/xrootd.log -s "${srv}"/xrootd.pid -c "${srv}".cfg
+        # srv3 has an intercepted close() to check for #2889
+        PPFX=""
+        if [[ "$srv" == "srv3" ]]; then
+          if [ -e "../../lib/libcheckclose.so" ]; then
+            PPFX="LD_PRELOAD=../../lib/libcheckclose.so"
+          elif [ -e "../../lib/libcheckclose.dylib" ]; then
+            PPFX="DYLD_INSERT_LIBRARIES=../../lib/libcheckclose.dylib"
+          fi
+        fi
+        eval ${PPFX} ${XROOTD} -b -k fifo -n "${srv}" -l "${srv}"/xrootd.log -s "${srv}"/xrootd.pid -c "${srv}".cfg
     done
 
     sleep 2

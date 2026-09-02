@@ -4,6 +4,8 @@ endif()
 
 include(GoogleTest)
 
+add_subdirectory(unit)
+
 add_subdirectory(common)
 
 add_subdirectory(XrdCl)
@@ -32,6 +34,8 @@ add_subdirectory(XrdOssMirageTests)
 if(NOT ENABLE_SERVER_TESTS)
   return()
 endif()
+
+add_subdirectory(end-to-end)
 
 add_subdirectory(krb5)
 add_subdirectory(scitokens)

@@ -4,24 +4,73 @@ xrdfs - xrootd file and directory meta-data utility
 .SH SYNOPSIS
 .nf
 
-\fBxrdfs\fR \fI[--no-cwd]\fR \fIhost[:port]\fR \fI[command [args]]\fR
+\fBxrdfs\fR \fI[global-options]\fR \fIhost[:port]\fR \fI[command [args]]\fR
 
-\fBcommand\fR: help, chmod, ls, locate, mkdir, mv, stat, statvfs, query, rm, rmdir,
-           truncate, prepare, cat, tail, spaceinfo
+\fBxrdfs\fR \fI[global-options]\fR \fIcommand\fR \fI[args containing complete URLs]\fR
+
+\fBcommand\fR: help, cache, chmod, ls, locate, mkdir, mv, stat, statvfs, query,
+           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, xattr
 .fi
 .br
 .ad l
 .SH DESCRIPTION
 The \fBxrdfs\fR utility executes meta-data oriented operations
 (e.g., ls, mv, rm, etc.) on one or more xrootd servers.
+In batch mode, the endpoint may either be provided separately before the
+command or inferred from complete URL path operands following the command.
+Global options must precede the endpoint or command.
+The server-first and command-first forms are alternatives and may not be mixed.
+All complete URLs in one command must use the same scheme, user information,
+host, and effective port; an omitted default port compares equal to the same
+port specified explicitly.
+The \fBquery\fR command remains server-first because its implementation-dependent
+parameters may themselves look like URLs.
+Local \fBfile://\fR and \fBstdio://\fR operands are not remote endpoints and are
+rejected in command-first form.
 Command help is available by invoking \fBxrdfs\fR with no command
 line options or parameters and then typing "help" in response to the
 input prompt.
 
 .SH OPTIONS
+\fB-4, --ipv4\fR
+.RS 3
+Use only the IPv4 network stack and addresses.
+.RE
+.PP
+\fB-6, --ipv6\fR
+.RS 3
+Use only the IPv6 network stack and addresses.
+.RE
+.PP
+\fB-d, --debug\fR \fIlevel\fR
+.RS 3
+Set the debug level: 0 off, 1 low, 2 medium, or 3 high.
+.RE
+.PP
+\fB-h, --help\fR
+.RS 3
+Display help and exit.
+.RE
+.PP
 \fB--no-cwd\fR
 .RS 3
-No CWD is being preset in interactive mode.
+Do not preset a CWD in interactive mode.
+.RE
+
+.SH EXAMPLES
+The following server-first and command-first invocations are equivalent:
+.PP
+.nf
+\fBServer-first\fR                    \fBCommand-first\fR
+xrdfs host stat /path           xrdfs stat root://host//path
+xrdfs host ls /dir              xrdfs ls root://host//dir
+xrdfs host mv /old /new         xrdfs mv root://host//old root://host//new
+.fi
+.PP
+In an XRootD URL, the double slash after the host consists of the slash
+separating the authority from the path and the leading slash of the absolute
+path. A single slash is also accepted and normalized to an absolute command
+path.
 
 .SH COMMANDS
 \fBchmod\fR \fIpath\fR \fI<user><group><other>\fR

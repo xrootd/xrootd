@@ -393,11 +393,11 @@ echo "Origin PID: $ORIGIN_PID"
 
 echo "Origin logs are available at $BINARY_DIR/tests/$TEST_NAME/origin.log"
 
-ORIGIN_PORT=$(grep -E -a '\-\-\-\-\-\- xrootd origin@.*:[0-9]+ initialization completed' "$BINARY_DIR/tests/$TEST_NAME/origin.log" | tr ':' ' ' | awk '{print $4}')
+ORIGIN_PORT=$(grep -E -a -e '------ xrootd origin@.*:[0-9]+ initialization completed' "$BINARY_DIR/tests/$TEST_NAME/origin.log" | tr ':' ' ' | awk '{print $4}')
 IDX=0
 while [ -z "$ORIGIN_PORT" ]; do
   sleep 1
-  ORIGIN_PORT=$(grep -E -a '\-\-\-\-\-\- xrootd origin@.*:[0-9]+ initialization completed' "$BINARY_DIR/tests/$TEST_NAME/origin.log" | tr ':' ' ' | awk '{print $4}')
+  ORIGIN_PORT=$(grep -E -a -e '------ xrootd origin@.*:[0-9]+ initialization completed' "$BINARY_DIR/tests/$TEST_NAME/origin.log" | tr ':' ' ' | awk '{print $4}')
   IDX=$((IDX+1))
   if [ $IDX -gt 1 ]; then
     echo "Waiting for origin to start ($IDX seconds so far) ..."
@@ -422,11 +422,11 @@ echo "Cache PID: $ORIGIN_PID"
 
 echo "Cache logs are available at $BINARY_DIR/tests/$TEST_NAME/cache.log"
 
-CACHE_PORT=$(grep -E -a '\-\-\-\-\-\- xrootd cache@.*:[0-9]+ initialization completed' "$BINARY_DIR/tests/$TEST_NAME/cache.log" | tr ':' ' ' | awk '{print $4}')
+CACHE_PORT=$(grep -E -a -e '------ xrootd cache@.*:[0-9]+ initialization completed' "$BINARY_DIR/tests/$TEST_NAME/cache.log" | tr ':' ' ' | awk '{print $4}')
 IDX=0
 while [ -z "$CACHE_PORT" ]; do
   sleep 1
-  CACHE_PORT=$(grep -E -a '\-\-\-\-\-\- xrootd cache@.*:[0-9]+ initialization completed' "$BINARY_DIR/tests/$TEST_NAME/cache.log" | tr ':' ' ' | awk '{print $4}')
+  CACHE_PORT=$(grep -E -a -e '------ xrootd cache@.*:[0-9]+ initialization completed' "$BINARY_DIR/tests/$TEST_NAME/cache.log" | tr ':' ' ' | awk '{print $4}')
   IDX=$((IDX+1))
   if [ $IDX -gt 1 ]; then
     echo "Waiting for cache to start ($IDX seconds so far) ..."
