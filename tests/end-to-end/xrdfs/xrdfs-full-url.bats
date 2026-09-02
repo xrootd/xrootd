@@ -25,6 +25,11 @@ setup() {
 }
 
 teardown() {
+    # Restore access to the restrictive chmod fixture before Bats cleanup.
+    local mode_path="$BATS_TEST_TMPDIR/xrdfs-full-url/0755"
+    if [[ -d "$mode_path" ]]; then
+        chmod u+rwx "$mode_path"
+    fi
     kill_pid_files 2>/dev/null || true
 }
 
@@ -333,6 +338,37 @@ local_mode() {
     run -0 local_mode "$BATS_TEST_TMPDIR/xrdfs-full-url/zero-mode"
     # The server always adds owner rwx when creating directories.
     assert_output 700
+}
+
+@test "chmod accepts mode-first and path-first forms" {
+    local path=$BATS_TEST_TMPDIR/xrdfs-full-url/chmod-options
+    local url=root://localhost:11965//chmod-options
+
+    run -0 xrdfs mkdir "$url"
+
+    run -0 xrdfs chmod 0715 "$url"
+    run -0 local_mode "$path"
+    assert_output 715
+
+    run -0 xrdfs chmod "$url" rwxr-x---
+    run -0 local_mode "$path"
+    assert_output 750
+
+    run -0 xrdfs root://localhost:11965 chmod /chmod-options 0704
+    run -0 local_mode "$path"
+    assert_output 704
+}
+
+@test "chmod preserves dash-prefixed modes and mode-shaped path precedence" {
+    run -0 xrdfs mkdir root://localhost:11965//0755
+    run bats_pipe -0 printf \
+        'chmod 0755 0700\nexit\n' \| xrdfs root://localhost:11965
+    run -0 local_mode "$BATS_TEST_TMPDIR/xrdfs-full-url/0755"
+    assert_output 700
+
+    run -0 xrdfs root://localhost:11965 chmod /0755 ---------
+    run -0 local_mode "$BATS_TEST_TMPDIR/xrdfs-full-url/0755"
+    assert_output 0
 }
 
 @test "URL parameters are preserved in the operand path" {
