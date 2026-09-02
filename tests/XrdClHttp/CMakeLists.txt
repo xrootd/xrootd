@@ -25,8 +25,8 @@ target_include_directories(xrdcl-http-unit-tests
 gtest_discover_tests(xrdcl-http-unit-tests TEST_PREFIX XrdClHttp::
   PROPERTIES DISCOVERY_TIMEOUT 10)
 
-# XrdClHttp integration tests depend on scitokens fixture for authentication
-if(NOT BUILD_SCITOKENS)
+# The remaining XrdClHttp tests depend on the server and SciTokens fixtures.
+if(NOT ENABLE_SERVER_TESTS OR NOT BUILD_SCITOKENS)
   return()
 endif()
 find_program(OPENSSL_BIN openssl REQUIRED)
