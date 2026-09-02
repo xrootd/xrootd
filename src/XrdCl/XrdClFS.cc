@@ -1028,18 +1028,31 @@ XRootDStatus DoChMod( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  Access::Mode mode = Access::None;
+  std::string path;
+  XRootDStatus st = ConvertMode( mode, args[2] );
+  if( st.IsOK() )
+  {
+    // Preserve the historical path-first form, including mode-shaped paths.
+    path = args[1];
+  }
+  else
+  {
+    const bool octal = !args[1].empty() &&
+      args[1].find_first_not_of( "01234567" ) == std::string::npos;
+    st = ConvertMode( mode, args[1] );
+    if( !st.IsOK() || !octal )
+    {
+      log->Error( AppMsg, "Invalid mode string." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    path = args[2];
+  }
+
   std::string fullPath;
-  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Modifying" );
+  XRootDStatus pathSt = BuildPath( fullPath, env, path, "Modifying" );
   if( !pathSt.IsOK() )
     return pathSt;
-
-  Access::Mode mode = Access::None;
-  XRootDStatus st = ConvertMode( mode, args[2] );
-  if( !st.IsOK() )
-  {
-    log->Error( AppMsg, "Invalid mode string." );
-    return st;
-  }
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -2507,9 +2520,9 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   cd <path>\n"                                                    );
   printf( "     Change the current working directory\n\n"                     );
 
-  printf( "   chmod <path> <user><group><other>\n"                            );
-  printf( "     Modify permissions. Permission string example:\n"             );
-  printf( "     rwxr-x--x\n\n"                                                );
+  printf( "   chmod <path> <mode>\n"                                         );
+  printf( "   chmod <octal-mode> <path>\n"                                  );
+  printf( "     Modify permissions using symbolic or octal modes.\n\n"       );
 
   printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [-h|-H] [-d] [-a] [-1]\n"   );
   printf( "      [--color=never] [--] [dirname]\n"                          );
