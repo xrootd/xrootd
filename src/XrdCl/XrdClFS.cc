@@ -49,6 +49,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 #ifdef HAVE_READLINE
 #include <readline/history.h>
@@ -2075,6 +2076,169 @@ XRootDStatus DoSpaceInfo( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Return whether the active filesystem uses the native XRootD protocol
+//------------------------------------------------------------------------------
+bool IsXRootDProtocol( Env *env )
+{
+  std::string server;
+  env->GetString( "ServerURL", server );
+  URL url( server );
+  std::string protocol = url.GetProtocol();
+  std::transform( protocol.begin(), protocol.end(), protocol.begin(),
+                  []( unsigned char character )
+  {
+    return static_cast<char>( std::tolower( character ) );
+  } );
+  return protocol == "root" || protocol == "roots" ||
+         protocol == "xroot" || protocol == "xroots";
+}
+
+//------------------------------------------------------------------------------
+// Query a text response through an existing XrdCl query code
+//------------------------------------------------------------------------------
+XRootDStatus QueryText( FileSystem             *fs,
+                        QueryCode::Code         code,
+                        const std::string      &path,
+                        std::string            &value )
+{
+  Buffer request( path.size() );
+  request.FromString( path );
+  Buffer *rawResponse = 0;
+  XRootDStatus status = fs->Query( code, request, rawResponse );
+  std::unique_ptr<Buffer> response( rawResponse );
+  if( !status.IsOK() ) return status;
+  if( !response )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Query returned no response." );
+  value = response->ToString();
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Return whether an attribute belongs to the virtual XRootD namespace
+//------------------------------------------------------------------------------
+bool IsVirtualXAttr( const std::string &attribute )
+{
+  static const std::string checksumPrefix = "user.checksum.";
+  return attribute.compare( 0, checksumPrefix.size(), checksumPrefix ) == 0 ||
+         attribute == "xroot.cksum" || attribute == "xroot.space" ||
+         attribute == "xroot.xattr" || attribute == "spacetoken" ||
+         attribute == "user.status";
+}
+
+//------------------------------------------------------------------------------
+// Read one native XRootD file attribute without changing its value formatting
+//------------------------------------------------------------------------------
+XRootDStatus GetNativeXAttrValue( FileSystem        *fs,
+                                 const std::string &path,
+                                 const std::string &attribute,
+                                 std::string       &value )
+{
+  std::vector<std::string> attributes( 1, attribute );
+  std::vector<XAttr> result;
+  XRootDStatus status = fs->GetXAttr( path, attributes, result );
+  if( !status.IsOK() ) return status;
+  if( result.empty() )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Attribute query returned no response." );
+  if( !result.front().status.IsOK() ) return result.front().status;
+  value = result.front().value;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Resolve virtual XRootD attributes through native XrdCl operations
+//------------------------------------------------------------------------------
+XRootDStatus GetVirtualXAttr( FileSystem        *fs,
+                             Env               *env,
+                             const std::string &path,
+                             const std::string &attribute,
+                             std::string       &value )
+{
+  static const std::string checksumPrefix = "user.checksum.";
+  const bool isXRootD = IsXRootDProtocol( env );
+
+  if( attribute.compare( 0, checksumPrefix.size(), checksumPrefix ) == 0 )
+  {
+    const std::string requested = attribute.substr( checksumPrefix.size() );
+    if( requested.empty() )
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "Checksum type cannot be empty." );
+    std::string algorithm;
+    std::string digest;
+    XRootDStatus status = QueryChecksum(
+      fs, path, requested, algorithm, digest );
+    if( status.IsOK() ) value = std::move( digest );
+    return status;
+  }
+
+  if( !isXRootD )
+  {
+    return XRootDStatus(
+      stError, errNotSupported, 0,
+      "Virtual attribute is not available for this protocol: " + attribute );
+  }
+
+  if( attribute == "xroot.cksum" )
+  {
+    std::string algorithm;
+    std::string digest;
+    XRootDStatus status = QueryChecksum(
+      fs, path, "", algorithm, digest );
+    if( status.IsOK() ) value = algorithm + " " + digest;
+    return status;
+  }
+
+  if( attribute == "xroot.space" )
+    return QueryText( fs, QueryCode::Space, path, value );
+
+  if( attribute == "xroot.xattr" )
+    return QueryText( fs, QueryCode::XAttr, path, value );
+
+  if( attribute == "spacetoken" )
+  {
+    FileSystemUtils::SpaceInfo *rawInfo = 0;
+    XRootDStatus status = FileSystemUtils::GetSpaceInfo( rawInfo, fs, path );
+    std::unique_ptr<FileSystemUtils::SpaceInfo> info( rawInfo );
+    if( !status.IsOK() ) return status;
+    if( !info )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Space query returned no response." );
+
+    std::ostringstream output;
+    output << "{ \"totalsize\": " << info->GetTotal()
+           << ", \"unusedsize\": " << info->GetFree()
+           << ", \"usedsize\": " << info->GetUsed()
+           << ", \"guaranteedsize\": " << info->GetLargestFreeChunk()
+           << " }";
+    value = output.str();
+    return XRootDStatus();
+  }
+
+  if( attribute == "user.status" )
+  {
+    StatInfo *rawInfo = 0;
+    XRootDStatus status = fs->Stat( path, rawInfo );
+    std::unique_ptr<StatInfo> info( rawInfo );
+    if( !status.IsOK() ) return status;
+    if( !info )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Stat returned no response." );
+
+    const bool onDisk = !info->TestFlags( StatInfo::Offline );
+    const bool backedUp = info->TestFlags( StatInfo::BackUpExists );
+    if( onDisk && backedUp ) value = "ONLINE_AND_NEARLINE";
+    else if( backedUp ) value = "NEARLINE";
+    else if( onDisk ) value = "ONLINE";
+    else value = "UNKNOWN";
+    return XRootDStatus();
+  }
+
+  return XRootDStatus( stError, errNotFound, 0,
+                        "Unknown virtual attribute: " + attribute );
+}
+
+//------------------------------------------------------------------------------
 // Carry out xattr operation
 //------------------------------------------------------------------------------
 XRootDStatus DoXAttr( FileSystem                      *fs,
@@ -2087,22 +2251,34 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc < 3 )
+  if( argc < 2 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
+  if( argc == 3 && args[2] == "--" )
+  {
+    log->Error( AppMsg, "Missing attribute name after '--'." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  const bool implicitList = argc == 2;
+  const bool delimitedGet = argc == 4 && args[2] == "--";
+  const bool implicitGet = delimitedGet ||
+                           (argc == 3 && args[2] != "set" &&
+                            args[2] != "get" && args[2] != "del" &&
+                            args[2] != "list");
 
   kXR_char code = 0;
-  if( args[2] == "set")
+  if( !implicitList && !implicitGet && args[2] == "set")
     code = kXR_fattrSet;
-  else if( args[2] == "get" )
+  else if( !implicitList && !implicitGet && args[2] == "get" )
     code = kXR_fattrGet;
-  else if( args[2] == "del" )
+  else if( !implicitList && !implicitGet && args[2] == "del" )
     code = kXR_fattrDel;
-  else if( args[2] == "list" )
+  else if( !implicitList && !implicitGet && args[2] == "list" )
     code = kXR_fattrList;
-  else
+  else if( !implicitList && !implicitGet )
   {
     log->Error( AppMsg, "Invalid xattr code." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -2112,6 +2288,46 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
   XRootDStatus pathSt = BuildPath( path, env, args[1], "Accessing" );
   if( !pathSt.IsOK() )
     return pathSt;
+
+  if( implicitGet )
+  {
+    const std::string &attribute = delimitedGet ? args[3] : args[2];
+    std::string value;
+    XRootDStatus status = IsVirtualXAttr( attribute ) ?
+      GetVirtualXAttr( fs, env, path, attribute, value ) :
+      GetNativeXAttrValue( fs, path, attribute, value );
+    if( !status.IsOK() )
+      log->Error( AppMsg, "Unable to get attribute %s: %s",
+                  attribute.c_str(), status.ToStr().c_str() );
+    else
+      std::cout << value << '\n';
+    return status;
+  }
+
+  if( implicitList )
+  {
+    if( !IsXRootDProtocol( env ) )
+    {
+      log->Error( AppMsg,
+                  "Virtual attribute listing is not available for this protocol." );
+      return XRootDStatus( stError, errNotSupported );
+    }
+
+    static const char *attributes[] = {
+      "xroot.cksum", "xroot.space", "xroot.xattr", "spacetoken"
+    };
+    for( const char *attribute : attributes )
+    {
+      std::string value;
+      XRootDStatus status = GetVirtualXAttr(
+        fs, env, path, attribute, value );
+      if( status.IsOK() )
+        std::cout << attribute << " = " << value << '\n';
+      else
+        std::cout << attribute << " FAILED: " << status.ToStr() << '\n';
+    }
+    return XRootDStatus();
+  }
 
   //----------------------------------------------------------------------------
   // Issue the xattr operation
@@ -2397,8 +2613,14 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   sum path checksum_type\n"                                     );
   printf( "     Query the file checksum using the selected algorithm.\n\n"  );
 
-  printf( "   xattr <path> <code> <params> \n"                              );
-  printf( "     Operation on extended attributes. Codes:\n\n"               );
+  printf( "   xattr <path> [attribute]\n"                                  );
+  printf( "   xattr <path> -- <attribute>\n"                               );
+  printf( "   xattr <path> <code> <params>\n"                              );
+  printf( "     Query virtual attributes or operate on native attributes.\n" );
+  printf( "     Virtual attributes: xroot.cksum, xroot.space, xroot.xattr,\n" );
+  printf( "                         spacetoken, user.checksum.<algorithm>,\n" );
+  printf( "                         user.status\n"                           );
+  printf( "     Native attribute codes:\n\n"                              );
   printf( "     set   <attr>          Set extended attribute; <attr> is\n"  );
   printf( "                             string of form name=value\n"        );
   printf( "     get   <name>          Get extended attribute\n"             );

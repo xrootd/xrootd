@@ -130,6 +130,40 @@ bats::on_failure() {
     assert_output --regexp '^adler32 [[:xdigit:]]{8}$'
 }
 
+@test "xattr queries virtual attributes" {
+    run -0 xrdfs root://localhost:11965 query checksum /examplefile
+    local checksum=$output
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile xroot.cksum
+    assert_output "$checksum"
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile \
+        user.checksum.adler32
+    assert_output "${checksum#* }"
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile user.status
+    assert_output ONLINE
+}
+
+@test "xattr lists the fixed virtual attributes" {
+    run -0 xrdfs xattr root://localhost:11965//examplefile
+    assert_output --partial 'xroot.cksum = adler32 '
+    assert_output --partial 'xroot.space = '
+    assert_output --partial 'xroot.xattr '
+    assert_output --partial 'spacetoken = { "totalsize": '
+}
+
+@test "xattr shorthand falls back to native attributes" {
+    run -0 xrdfs xattr root://localhost:11965//examplefile set \
+        user.short=value
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile user.short
+    assert_output value
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile -- user.short
+    assert_output value
+}
+
 @test "URL parameters are preserved in the operand path" {
     run -0 xrdfs stat 'root://localhost:11965//examplefile?xrdcl.test=1'
 }

@@ -294,9 +294,23 @@ Get space statistics for given path.
 Query the file checksum using the selected algorithm.
 
 .RE
+\fBxattr\fR \fI<path> [virtual-attribute]\fR
+.br
+\fBxattr\fR \fI<path> -- <virtual-attribute>\fR
+.br
 \fBxattr\fR \fI<path> <code> <params>\fR
 .RS 3
-Operation on extended attributes. Codes:
+With no attribute, query the fixed virtual attributes \fIxroot.cksum\fR,
+\fIxroot.space\fR, \fIxroot.xattr\fR, and \fIspacetoken\fR. With one
+attribute, query its value. \fIuser.checksum.<algorithm>\fR selects a checksum
+algorithm, and \fIuser.status\fR reports ONLINE, NEARLINE,
+ONLINE_AND_NEARLINE, or UNKNOWN from the file status flags. An unrecognized
+name falls back to a native XRootD attribute lookup.
+.br
+Use \fI--\fR before an attribute named \fIset\fR, \fIget\fR, \fIdel\fR, or
+\fIlist\fR.
+.br
+The explicit codes operate on native XRootD file attributes:
 .br
 \fIset\fR         \fB<attr>\fR   Set extended attribute; 
                      <attr> is string of form name=value
