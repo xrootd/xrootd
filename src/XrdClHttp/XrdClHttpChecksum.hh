@@ -31,16 +31,22 @@ constexpr size_t g_max_checksum_length = 32;
 
 // Checksum types known to this cache
 enum class ChecksumType {
+    kADLER32,
+    kCRC32,
     kCRC32C,
     kMD5,
     kSHA1,
     kSHA256,
-    kAll,     // Short-hand for setting all checksums at once.
+    kAll,     // Select any supported checksum.
     kUnknown, // Indicates an unset value; `kUnknown - 1` is used in for-loops to iterate through all checksums.
 };
 
 inline const std::string GetTypeString(ChecksumType ctype) {
     switch (ctype) {
+        case ChecksumType::kADLER32:
+            return "adler32";
+        case ChecksumType::kCRC32:
+            return "crc32";
         case ChecksumType::kCRC32C:
             return "crc32c";
         case ChecksumType::kMD5:
@@ -58,6 +64,8 @@ inline const std::string GetTypeString(ChecksumType ctype) {
 
 inline size_t GetChecksumLength(ChecksumType ctype) {
     switch (ctype) {
+        case ChecksumType::kADLER32:
+        case ChecksumType::kCRC32:
         case ChecksumType::kCRC32C:
             return 4;
         case ChecksumType::kMD5:
@@ -74,7 +82,11 @@ inline size_t GetChecksumLength(ChecksumType ctype) {
 }
 
 inline ChecksumType GetTypeFromString(const std::string &str) {
-    if (str == "crc32c") {
+    if (str == "adler" || str == "adler32") {
+        return ChecksumType::kADLER32;
+    } else if (str == "crc32") {
+        return ChecksumType::kCRC32;
+    } else if (str == "crc32c") {
         return ChecksumType::kCRC32C;
     } else if (str == "md5") {
         return ChecksumType::kMD5;

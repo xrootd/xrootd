@@ -134,14 +134,25 @@ TEST_F(CurlChecksumFixture, Basic)
     XrdCl::FileSystem fs{XrdCl::URL(GetCacheURL())};
 
     XrdCl::Buffer buffer;
-    buffer.FromString(source_url + "?cks.type=md5&directread&authz=" + GetReadToken());
+    buffer.FromString(source_url + "?directread&authz=" + GetReadToken());
     SyncResponseHandler srh;
     auto st = fs.Query(XrdCl::QueryCode::Checksum, buffer, &srh, 0);
     ASSERT_TRUE(st.IsOK());
     srh.Wait();
     auto [status, obj] = srh.Status();
-    ASSERT_EQ(status->IsOK(), true) << "MD5 checksum query failed with " << status->ToString();
+    ASSERT_EQ(status->IsOK(), true)
+      << "Automatic checksum query failed with " << status->ToString();
     XrdCl::Buffer *resp{nullptr};
+    obj->Get(resp);
+    ASSERT_EQ(resp->ToString(), "adler32 487a0c31");
+
+    buffer.FromString(source_url + "?cks.type=md5&directread&authz=" + GetReadToken());
+    st = fs.Query(XrdCl::QueryCode::Checksum, buffer, &srh, 0);
+    ASSERT_TRUE(st.IsOK());
+    srh.Wait();
+    std::tie(status, obj) = srh.Status();
+    ASSERT_EQ(status->IsOK(), true) << "MD5 checksum query failed with " << status->ToString();
+    resp = nullptr;
     obj->Get(resp);
 
     ASSERT_EQ(resp->ToString(), expected_response);

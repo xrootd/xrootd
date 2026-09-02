@@ -28,7 +28,9 @@
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClLog.hh>
 #include <XrdCl/XrdClURL.hh>
+#include <XrdCl/XrdClUtils.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
+#include <XrdCks/XrdCksData.hh>
 #include <XrdOuc/XrdOucCRC.hh>
 #include <XrdOuc/XrdOucPrivateUtils.hh>
 #include <XrdSys/XrdSysPageSize.hh>
@@ -39,7 +41,6 @@
 #include <openssl/evp.h>
 
 #include <fcntl.h>
-#include <fstream>
 #ifdef __APPLE__
 #include <pthread.h>
 #else
@@ -48,9 +49,13 @@
 #endif
 #include <unistd.h>
 
-#include <charconv>
+#include <algorithm>
+#include <cerrno>
+#include <cctype>
+#include <cstdlib>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 #include <utility>
 
 using namespace XrdClHttp;
@@ -243,8 +248,12 @@ std::pair<uint16_t, uint32_t> CurlCodeConvert(CURLcode res) {
     }
 }
 
-bool HeaderParser::Base64Decode(std::string_view input, std::array<unsigned char, 32> &output) {
-    if (input.size() > 44 || input.size() % 4 != 0) return false;
+bool HeaderParser::Base64Decode(
+    std::string_view input,
+    std::array<unsigned char, g_max_checksum_length> &output) {
+    if (input.size() > 4 * ((output.size() + 2) / 3)
+        || input.size() % 4 != 0)
+        return false;
     if (input.size() == 0) return true;
 
     std::unique_ptr<BIO, decltype(&BIO_free_all)> b64(BIO_new(BIO_f_base64()), &BIO_free_all);
@@ -435,7 +444,7 @@ bool HeaderParser::Parse(const std::string &header_line)
 // If the parsing fails, the second element of the tuple will be false.
 void HeaderParser::ParseDigest(const std::string &digest, XrdClHttp::ChecksumInfo &info) {
     std::string_view view(digest);
-    std::array<unsigned char, 32> checksum_value;
+    std::array<unsigned char, g_max_checksum_length> checksum_value{};
     std::string digest_lower;
     while (!view.empty()) {
         auto nextsep = view.find(',');
@@ -446,45 +455,54 @@ void HeaderParser::ParseDigest(const std::string &digest, XrdClHttp::ChecksumInf
             view = view.substr(nextsep + 1);
         }
         nextsep = entry.find('=');
-        auto name = entry.substr(0, nextsep);
-        auto value = entry.substr(nextsep + 1);
+        if (nextsep == std::string_view::npos) continue;
+        auto name = trim_view(entry.substr(0, nextsep));
+        auto value = trim_view(entry.substr(nextsep + 1));
         digest_lower.clear();
         digest_lower.resize(name.size());
         std::transform(name.begin(), name.end(), digest_lower.begin(), [](unsigned char c) {
             return std::tolower(c);
         });
-        if (digest_lower == "md5") {
-            if (value.size() != 24) {
-                continue;
+        const auto setHex32 = [&](ChecksumType type) {
+            if (value.empty() || value.size() > 8) return;
+            std::string padded(8 - value.size(), '0');
+            padded.append(value.data(), value.size());
+            XrdCksData checksum;
+            if (!checksum.Set(padded.c_str(), padded.size())) return;
+            std::copy_n(
+                reinterpret_cast<const unsigned char *>(checksum.Value),
+                GetChecksumLength(type), checksum_value.begin());
+            info.Set(type, checksum_value);
+        };
+        const auto setBase64 = [&](ChecksumType type) {
+            const size_t decodedSize = GetChecksumLength(type);
+            const size_t encodedSize = 4 * ((decodedSize + 2) / 3);
+            if (value.size() == encodedSize
+                && Base64Decode(value, checksum_value))
+            {
+                info.Set(type, checksum_value);
             }
-            if (Base64Decode(value, checksum_value)) {
-                info.Set(XrdClHttp::ChecksumType::kMD5, checksum_value);
-            }
+        };
+        if (digest_lower == "adler" || digest_lower == "adler32") {
+            setHex32(ChecksumType::kADLER32);
+        } else if (digest_lower == "crc32") {
+            setHex32(ChecksumType::kCRC32);
+        } else if (digest_lower == "md5") {
+            setBase64(ChecksumType::kMD5);
+        } else if (digest_lower == "sha" || digest_lower == "sha1") {
+            setBase64(ChecksumType::kSHA1);
+        } else if (digest_lower == "sha-256" || digest_lower == "sha256") {
+            setBase64(ChecksumType::kSHA256);
         } else if (digest_lower == "crc32c") {
             // XRootD currently incorrectly base64-encodes crc32c checksums; see
             // https://github.com/xrootd/xrootd/issues/2456
             // For backward comaptibility, if this looks like base64 encoded (8
             // bytes long and last two bytes are padding), then we base64 decode.
             if (value.size() == 8 && value[6] == '=' && value[7] == '=') {
-                if (Base64Decode(value, checksum_value)) {
-                    info.Set(XrdClHttp::ChecksumType::kCRC32C, checksum_value);
-                }
+                setBase64(ChecksumType::kCRC32C);
                 continue;
             }
-            std::size_t pos{0};
-            unsigned long val;
-            try {
-                val = std::stoul(value.data(), &pos, 16);
-            } catch (...) {
-                continue;
-            }
-            if (pos == value.size()) {
-                checksum_value[0] = (val >> 24) & 0xFF;
-                checksum_value[1] = (val >> 16) & 0xFF;
-                checksum_value[2] = (val >> 8) & 0xFF;
-                checksum_value[3] = val & 0xFF;
-                info.Set(XrdClHttp::ChecksumType::kCRC32C, checksum_value);
-            }
+            setHex32(ChecksumType::kCRC32C);
         }
     }
 }
@@ -493,6 +511,10 @@ void HeaderParser::ParseDigest(const std::string &digest, XrdClHttp::ChecksumInf
 // https://www.iana.org/assignments/http-dig-alg/http-dig-alg.xhtml
 std::string HeaderParser::ChecksumTypeToDigestName(XrdClHttp::ChecksumType type) {
     switch (type) {
+        case XrdClHttp::ChecksumType::kADLER32:
+            return "adler32";
+        case XrdClHttp::ChecksumType::kCRC32:
+            return "crc32";
         case XrdClHttp::ChecksumType::kMD5:
             return "MD5";
         case XrdClHttp::ChecksumType::kCRC32C:
@@ -501,6 +523,17 @@ std::string HeaderParser::ChecksumTypeToDigestName(XrdClHttp::ChecksumType type)
             return "SHA";
         case XrdClHttp::ChecksumType::kSHA256:
             return "SHA-256";
+        case XrdClHttp::ChecksumType::kAll: {
+            std::string result;
+            for (int value = 0;
+                 value < static_cast<int>(XrdClHttp::ChecksumType::kAll);
+                 ++value) {
+                if (!result.empty()) result += ',';
+                result += ChecksumTypeToDigestName(
+                    static_cast<XrdClHttp::ChecksumType>(value));
+            }
+            return result;
+        }
         default:
             return "";
     }
@@ -562,12 +595,15 @@ HandlerQueue::HandlerQueue(unsigned max_pending_ops) :
     int filedes[2];
     auto result = pipe(filedes);
     if (result == -1) {
-        throw std::runtime_error(strerror(errno));
+        throw std::system_error(errno, std::generic_category(),
+                                "failed to create HTTP worker pipe");
     }
     if (fcntl(filedes[0], F_SETFL, O_NONBLOCK | O_CLOEXEC) == -1 || fcntl(filedes[1], F_SETFL, O_NONBLOCK | O_CLOEXEC) == -1) {
+        const int error = errno;
         close(filedes[0]);
         close(filedes[1]);
-        throw std::runtime_error(strerror(errno));
+        throw std::system_error(error, std::generic_category(),
+                                "failed to configure HTTP worker pipe");
     }
     m_read_fd = filedes[0];
     m_write_fd = filedes[1];
@@ -631,18 +667,13 @@ std::string_view XrdClHttp::ltrim_view(const std::string_view &input_view) {
     return "";
 }
 
-CURL *
-XrdClHttp::GetHandle(bool verbose) {
-    auto result = curl_easy_init();
-    if (result == nullptr) {
-        return result;
-    }
-
-    curl_easy_setopt(result, CURLOPT_USERAGENT, "xrdcl-http/" XrdVERSION);
-    curl_easy_setopt(result, CURLOPT_DEBUGFUNCTION, DumpHeader);
-    curl_easy_setopt(result, CURLOPT_DEBUGDATA, XrdCl::DefaultEnv::GetLog());
+void
+XrdClHttp::ConfigureHandle(CURL *curl, bool verbose) {
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "xrdcl-http/" XrdVERSION);
+    curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, DumpHeader);
+    curl_easy_setopt(curl, CURLOPT_DEBUGDATA, XrdCl::DefaultEnv::GetLog());
     if (verbose)
-        curl_easy_setopt(result, CURLOPT_VERBOSE, 1L);
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
     auto env = XrdCl::DefaultEnv::GetEnv();
     std::string ca_file;
@@ -653,7 +684,7 @@ XrdClHttp::GetHandle(bool verbose) {
         }
     }
     if (!ca_file.empty()) {
-        curl_easy_setopt(result, CURLOPT_CAINFO, ca_file.c_str());
+        curl_easy_setopt(curl, CURLOPT_CAINFO, ca_file.c_str());
     }
     std::string ca_dir;
     if (!env->GetString("HttpCertDir", ca_dir) || ca_dir.empty()) {
@@ -663,10 +694,20 @@ XrdClHttp::GetHandle(bool verbose) {
         }
     }
     if (!ca_dir.empty()) {
-        curl_easy_setopt(result, CURLOPT_CAPATH, ca_dir.c_str());
+        curl_easy_setopt(curl, CURLOPT_CAPATH, ca_dir.c_str());
     }
 
-    curl_easy_setopt(result, CURLOPT_BUFFERSIZE, 32*1024);
+    curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 32*1024);
+}
+
+CURL *
+XrdClHttp::GetHandle(bool verbose) {
+    auto result = curl_easy_init();
+    if (result == nullptr) {
+        return result;
+    }
+
+    XrdClHttp::ConfigureHandle(result, verbose);
 
     return result;
 }
@@ -778,7 +819,8 @@ HandlerQueue::Produce(std::shared_ptr<CurlOperation> handler)
                 // as if we successfully wrote the notification to the pipe.
                 break;
             }
-            throw std::runtime_error(strerror(errno));
+            throw std::system_error(errno, std::generic_category(),
+                                    "failed to notify HTTP worker");
         }
         break;
     }
@@ -811,7 +853,8 @@ HandlerQueue::Consume(std::chrono::steady_clock::duration dur)
                 // as if we successfully read the byte.
                 break;
             }
-            throw std::runtime_error(strerror(errno));
+            throw std::system_error(errno, std::generic_category(),
+                                    "failed to consume HTTP worker notification");
         }
         break;
     }
@@ -859,7 +902,8 @@ HandlerQueue::TryConsume()
                 // as if we successfully read the byte.
                 break;
             }
-            throw std::runtime_error(strerror(errno));
+            throw std::system_error(errno, std::generic_category(),
+                                    "failed to consume HTTP worker notification");
         }   
         break;
     }
@@ -1182,6 +1226,8 @@ CurlWorker::Run() {
             op->SetContinueQueue(m_continue_queue);
 
             if (op->IsDone()) {
+                op->ReleaseHandle();
+                queue.RecycleHandle(curl);
                 continue;
             }
             m_op_map[curl] = {op, std::chrono::system_clock::now()};
@@ -1578,10 +1624,33 @@ CurlWorker::Run() {
                                 curl_multi_add_handle(multi_handle, iter->first);
                             }
                         } else if (!options_op) {
+                            // A multi-step operation may reset and reconfigure its
+                            // easy handle from Success().  Remove the completed
+                            // request before invoking it so libcurl no longer owns
+                            // the request configuration being replaced.
+                            curl_multi_remove_handle(multi_handle, iter->first);
                             op->Success();
-                            op->ReleaseHandle();
-                            // If the handle was successful, then we can recycle it.
-                            queue.RecycleHandle(iter->first);
+                            if (op->IsDone()) {
+                                op->ReleaseHandle();
+                                // If the handle was successful, then we can recycle it.
+                                queue.RecycleHandle(iter->first);
+                            } else {
+                                // Multi-step operations may configure their easy handle
+                                // for another request from Success().  Keep ownership of
+                                // the handle and run the next request through this worker's
+                                // multi-handle like any other operation.
+                                auto next_res = curl_multi_add_handle(multi_handle, iter->first);
+                                if (next_res == CURLM_OK) {
+                                    keep_handle = true;
+                                    OpRecord(*op, OpKind::Start);
+                                } else {
+                                    op->Fail(XrdCl::errInternal, next_res,
+                                        "Unable to add the next operation request to the curl multi-handle");
+                                    OpRecord(*op, OpKind::Error);
+                                    op->ReleaseHandle();
+                                    queue.RecycleHandle(iter->first);
+                                }
+                            }
                         }
                     }
                 } else if (res == CURLE_COULDNT_CONNECT && op->UseConnectionCallout() && !op->GetTriedBoker()) {
