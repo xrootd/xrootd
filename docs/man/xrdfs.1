@@ -126,13 +126,16 @@ Get the locations of the path.
 
 
 .RE
-\fBmkdir\fR \fI[-p] [-m<user><group><other>] <dirname>\fR
+\fBmkdir\fR \fI[-p|--parents] [-m mode|--mode mode] <dirname>...\fR
 .RS 3
-Creates a directory/tree of directories.
+Create one or more directories. Every mode and path is validated before the
+first directory is created. Modes may be symbolic or octal; the default is
+\fI0750\fR.
 .br
-\fI-p\fR create the entire directory tree recursively
+\fI-p\fR, \fI--parents\fR create the entire directory tree recursively
 .br
-\fI-m\fR\fB<user><group><other>\fR permissions for newly created directories
+\fI-m mode\fR, \fI-mmode\fR, \fI--mode mode\fR, \fI--mode=mode\fR set the
+permissions for newly created directories
 
 .RE
 \fBmv\fR \fI<path1> <path2>\fR

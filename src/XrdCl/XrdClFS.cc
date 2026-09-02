@@ -38,6 +38,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <algorithm>
@@ -301,6 +302,20 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
 //------------------------------------------------------------------------------
 XRootDStatus ConvertMode( Access::Mode &mode, const std::string &modeStr )
 {
+  if( !modeStr.empty() &&
+      modeStr.find_first_not_of( "01234567" ) == std::string::npos )
+  {
+    // Limit significant octal digits before mode2mask's mode_t conversion.
+    const auto first = modeStr.find_first_not_of( '0' );
+    if( first != std::string::npos && modeStr.size() - first > 3 )
+      return XRootDStatus( stError, errInvalidArgs );
+    mode_t mask;
+    if( !XrdOucUtils::mode2mask( modeStr.c_str(), mask ) )
+      return XRootDStatus( stError, errInvalidArgs );
+    mode = static_cast<Access::Mode>( mask );
+    return XRootDStatus();
+  }
+
   if( modeStr.length() != 9 )
     return XRootDStatus( stError, errInvalidArgs );
 
@@ -719,52 +734,73 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   // Check up the args
   //----------------------------------------------------------------------------
-  Log         *log     = DefaultEnv::GetLog();
-  uint32_t     argc    = args.size();
-
-  if( argc < 2 || argc > 4 )
-  {
-    log->Error( AppMsg, "Too few arguments." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
-
+  Log *log = DefaultEnv::GetLog();
   MkDirFlags::Flags flags = MkDirFlags::None;
-  Access::Mode mode    = Access::None;
-  std::string  modeStr = "rwxr-x---";
-  std::string  path    = "";
-
-  for( uint32_t i = 1; i < args.size(); ++i )
+  std::vector<std::string> modeStrings( 1, "rwxr-x---" );
+  std::vector<std::string> paths;
+  static const option options[] = {
+    { "parents", no_argument,       nullptr, 'p' },
+    { "mode",    required_argument, nullptr, 'm' },
+    { nullptr, 0, nullptr, 0 }
+  };
+  CommandOptions parser( args );
+  int option;
+  while( (option = parser.Next( "pm:", options )) != -1 )
   {
-    if( args[i] == "-p" )
-      flags |= MkDirFlags::MakePath;
-    else if( !args[i].compare( 0, 2, "-m" ) )
-      modeStr = args[i].substr( 2, 9 );
-    else
-      path = args[i];
+    switch( option )
+    {
+      case 'p':
+        flags |= MkDirFlags::MakePath;
+        break;
+      case 'm':
+        modeStrings.emplace_back( optarg );
+        break;
+      default:
+        log->Error( AppMsg, "Invalid mkdir option or missing option argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+    }
+  }
+  paths = std::move( parser.operands );
+
+  if( paths.empty() )
+  {
+    std::string unused;
+    return BuildPath( unused, env, "" );
   }
 
-  XRootDStatus st = ConvertMode( mode, modeStr );
-  if( !st.IsOK() )
+  Access::Mode mode = Access::None;
+  for( const std::string &modeString : modeStrings )
   {
-    log->Error( AppMsg, "Invalid mode string." );
-    return st;
+    if( !ConvertMode( mode, modeString ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid mode string: %s.", modeString.c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
   }
 
-  std::string newPath;
-  XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
-  if( !pathSt.IsOK() )
-    return pathSt;
+  std::vector<std::string> newPaths;
+  newPaths.reserve( paths.size() );
+  for( const std::string &path : paths )
+  {
+    std::string newPath;
+    XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
+    if( !pathSt.IsOK() ) return pathSt;
+    newPaths.emplace_back( std::move( newPath ) );
+  }
 
   //----------------------------------------------------------------------------
-  // Run the query
+  // Run the queries
   //----------------------------------------------------------------------------
-  st = fs->MkDir( newPath, flags, mode );
-  if( !st.IsOK() )
+  for( const std::string &newPath : newPaths )
   {
-    log->Error( AppMsg, "Unable create directory %s: %s",
-                        newPath.c_str(),
-                        st.ToStr().c_str() );
-    return st;
+    XRootDStatus st = fs->MkDir( newPath, flags, mode );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Unable create directory %s: %s",
+                          newPath.c_str(),
+                          st.ToStr().c_str() );
+      return st;
+    }
   }
 
   return XRootDStatus();
@@ -2501,8 +2537,9 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -i ignore network dependencies\n"                             );
   printf( "     -p be passive: ignore tried/triedrc cgi opaque info\n\n"      );
 
-  printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"                );
-  printf( "     Creates a directory/tree of directories.\n\n"                 );
+  printf( "   mkdir [-p|--parents] [-m mode|--mode mode] <dirname>...\n"      );
+  printf( "     Create one or more directories. Modes may be symbolic or\n"   );
+  printf( "     octal; the default is 0750.\n\n"                             );
 
   printf( "   mv <path1> <path2>\n"                                           );
   printf( "     Move path1 to path2 locally on the same server.\n\n"          );
