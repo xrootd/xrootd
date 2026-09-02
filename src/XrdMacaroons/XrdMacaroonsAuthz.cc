@@ -3,6 +3,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSec/XrdSecEntityAttr.hh"
 
@@ -345,7 +346,7 @@ bool Authz::Validate(const char   *token,
 AuthzCheck::AuthzCheck(const char *req_path, const Access_Operation req_oper, ssize_t max_duration, XrdSysError &log)
       : m_max_duration(max_duration),
         m_log(log),
-        m_path(NormalizeSlashes(req_path)),
+        m_path(XrdOucUtils::NormalizePath(req_path)),
         m_oper(req_oper),
         m_now(time(nullptr))
 {
@@ -493,7 +494,7 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
 {
     std::string pred_str_raw(reinterpret_cast<const char *>(pred), pred_sz);
     if (strncmp("path:", pred_str_raw.c_str(), 5)) {return 1;}
-    std::string pred_str = NormalizeSlashes(pred_str_raw.substr(5));
+    std::string pred_str = XrdOucUtils::NormalizePath(pred_str_raw.substr(5));
     m_log.Log(LogMask::Debug, "AuthzCheck", "running verify path", pred_str.c_str());
 
     if ((m_path.find("/./") != std::string::npos) ||

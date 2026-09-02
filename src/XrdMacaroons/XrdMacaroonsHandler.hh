@@ -1,5 +1,4 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
-#include "XrdMacaroonsUtils.hh"
 
 #include <memory>
 #include <stdexcept>

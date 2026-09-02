@@ -8,29 +8,6 @@
 
 using namespace Macaroons;
 
-// Path normalization only collapses runs of consecutive slashes.  It does not
-// resolve "." or ".." components, nor does it strip trailing slashes, so paths
-// that differ only by those remain distinct.
-TEST(XrdMacaroons, NormalizeSlashes)
-{
-    // Already-normal paths are returned unchanged.
-    EXPECT_EQ(NormalizeSlashes("/foo/bar"), "/foo/bar");
-    EXPECT_EQ(NormalizeSlashes("/"), "/");
-    EXPECT_EQ(NormalizeSlashes(""), "");
-
-    // Runs of slashes are collapsed to a single slash.
-    EXPECT_EQ(NormalizeSlashes("//foo////bar"), "/foo/bar");
-    EXPECT_EQ(NormalizeSlashes("/foo//bar"), "/foo/bar");
-    EXPECT_EQ(NormalizeSlashes("///"), "/");
-
-    // Trailing slashes are significant and must be preserved.
-    EXPECT_EQ(NormalizeSlashes("/foo/bar/"), "/foo/bar/");
-
-    // "." and ".." are not treated as a hierarchy and survive normalization.
-    EXPECT_EQ(NormalizeSlashes("/foo/baz//../bar"), "/foo/baz/../bar");
-    EXPECT_EQ(NormalizeSlashes("/foo/./bar"), "/foo/./bar");
-}
-
 // ISO 8601 duration parsing for the macaroon 'validity' field.
 TEST(XrdMacaroons, DetermineValidityValid)
 {

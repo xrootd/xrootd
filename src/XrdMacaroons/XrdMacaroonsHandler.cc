@@ -1,8 +1,10 @@
 #include "XrdMacaroonsHandler.hh"
+#include "XrdMacaroonsUtils.hh"
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdAcc/XrdAccPrivs.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysError.hh"
 
@@ -90,7 +92,7 @@ if (m_log->getMsgMask() & LogMask::Debug)
    {
     std::stringstream ss;
     ss << "ID=" << result << ", ";
-    ss << "resource=" << NormalizeSlashes(resource) << ", ";
+    ss << "resource=" << XrdOucUtils::NormalizePath(resource) << ", ";
     if (entity.prot[0] != '\0') {ss << "protocol=" << entity.prot << ", ";}
     if (entity.name) {ss << "name=" << entity.name << ", ";}
     if (entity.host) {ss << "host=" << entity.host << ", ";}
@@ -486,7 +488,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
         return req.SendSimpleResp(500, nullptr, nullptr, "Internal error adding 'activity' caveat to macaroon", 0);
     }
 
-    // Note we don't call `NormalizeSlashes` here; for backward compatibility reasons, we ensure the
+    // Note we don't call `NormalizePath` here; for backward compatibility reasons, we ensure the
     // token issued is identical to what was working with prior versions of XRootD.  This allows for a
     // mix of old/new versions in a single cluster to interoperate.  In a few years, it might be reasonable
     // to invoke it here as well.
