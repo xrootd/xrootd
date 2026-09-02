@@ -280,19 +280,37 @@ namespace XrdCl
                                          const std::string &checkSumType,
                                          const URL         &url )
   {
-    FileSystem   *fs = new FileSystem( url );
-    // add the 'cks.type' cgi tag in order to
-    // select the proper checksum type in case
-    // the server supports more than one checksum
-    size_t pos = url.GetPath().find( '?' );
-    std::string cksPath = url.GetPath() + ( pos == std::string::npos ? '?' : '&' ) + "cks.type=" + checkSumType;
+    FileSystem fs( url );
+    std::string algorithm, digest;
+    XRootDStatus status = GetRemoteCheckSum(
+      fs, url.GetPathWithParams(), checkSumType, algorithm, digest );
+    if( status.IsOK() )
+      checkSum = algorithm + ":" + NormalizeChecksum( algorithm, digest );
+    return status;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get remote checksum using an existing filesystem
+  //----------------------------------------------------------------------------
+  XRootDStatus Utils::GetRemoteCheckSum( FileSystem        &fs,
+                                         const std::string &path,
+                                         const std::string &checkSumType,
+                                         std::string       &algorithm,
+                                         std::string       &digest )
+  {
+    std::string cksPath = path;
+    if( !checkSumType.empty() )
+    {
+      cksPath += path.find( '?' ) == std::string::npos ? '?' : '&';
+      cksPath += "cks.type=" + checkSumType;
+    }
     Buffer        arg; arg.FromString( cksPath );
     Buffer       *cksResponse = 0;
     XRootDStatus  st;
     Log          *log    = DefaultEnv::GetLog();
 
-    st = fs->Query( QueryCode::Checksum, arg, cksResponse );
-    delete fs;
+    st = fs.Query( QueryCode::Checksum, arg, cksResponse );
+    std::unique_ptr<Buffer> response( cksResponse );
 
     if( !st.IsOK() )
     {
@@ -307,19 +325,18 @@ namespace XrdCl
 
     std::vector<std::string> elems;
     Utils::splitString( elems, cksResponse->ToString(), " " );
-    delete cksResponse;
 
     if( elems.size() != 2 )
       return XRootDStatus( stError, errInvalidResponse, 0, "Got invalid response while querying the checksum!" );
 
-    if( elems[0] != checkSumType )
+    if( !checkSumType.empty() && elems[0] != checkSumType )
       return XRootDStatus( stError, errCheckSumError );
 
-    checkSum = elems[0] + ":";
-    checkSum += NormalizeChecksum( elems[0], elems[1] );
+    algorithm = std::move( elems[0] );
+    digest = std::move( elems[1] );
 
-    log->Dump( UtilityMsg, "Checksum for %s checksum: %s",
-               url.GetPath().c_str(), checkSum.c_str() );
+    log->Dump( UtilityMsg, "Checksum for %s checksum: %s:%s",
+               path.c_str(), algorithm.c_str(), digest.c_str() );
 
     return XRootDStatus();
   }

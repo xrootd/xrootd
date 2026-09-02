@@ -9,7 +9,7 @@ xrdfs - xrootd file and directory meta-data utility
 \fBxrdfs\fR \fI[global-options]\fR \fIcommand\fR \fI[args containing complete URLs]\fR
 
 \fBcommand\fR: help, cache, chmod, ls, locate, mkdir, mv, stat, statvfs, query,
-           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, xattr
+           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, cksum, xattr
 .fi
 .br
 .ad l
@@ -287,6 +287,16 @@ Output last part of files to stdout.
 \fBspaceinfo\fR \fIpath\fR
 .RS 3
 Get space statistics for given path.
+
+.RE
+\fBcksum\fR [\fI-a algorithm\fR | \fI--algorithm algorithm\fR] [\fI--\fR] \fIpath\fR
+.RS 3
+Query the checksum of exactly one remote file using the selected algorithm.
+Accept \fI-a TYPE\fR, \fI--algorithm TYPE\fR, and \fI--algorithm=TYPE\fR.
+Without an algorithm option, request the server default. Output is
+\fIalgorithm digest\fR. Algorithm availability depends on the server.
+Unlike the local cksum utility, this command uses the server checksum default
+and response format; it does not read standard input.
 
 .RE
 \fBxattr\fR \fI<path> <code> <params>\fR

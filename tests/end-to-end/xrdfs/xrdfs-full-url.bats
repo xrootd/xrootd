@@ -153,6 +153,73 @@ bats::on_failure() {
     assert_output --partial /-dash
 }
 
+@test "cksum selects algorithms using short and long options" {
+    local algorithm query_output
+    for algorithm in adler32 crc32c md5; do
+        run -0 xrdfs root://localhost:11965 query checksum \
+            "/examplefile?cks.type=$algorithm"
+        query_output=$output
+
+        run -0 xrdfs cksum -a "$algorithm" root://localhost:11965//examplefile
+        assert_output "$query_output"
+
+        run -0 xrdfs cksum --algorithm="$algorithm" \
+            root://localhost:11965//examplefile
+        assert_output "$query_output"
+
+        run -0 xrdfs root://localhost:11965 cksum \
+            --algorithm "$algorithm" /examplefile
+        assert_output "$query_output"
+    done
+}
+
+@test "cksum defaults to the server algorithm" {
+    run -0 xrdfs root://localhost:11965 query checksum /examplefile
+    local query_output=$output
+    run -0 xrdfs cksum root://localhost:11965//examplefile
+    assert_output "$query_output"
+}
+
+@test "cksum preserves URL parameters and accepts interspersed options" {
+    run -0 env POSIXLY_CORRECT=1 xrdfs cksum \
+        'root://localhost:11965//examplefile?xrdcl.test=1' -aADLER32
+    assert_output --regexp '^adler32 [[:xdigit:]]{8}$'
+}
+
+@test "cksum preserves leading zeros in the server digest" {
+    run bats_pipe -0 printf a \| xrdcp - root://localhost:11965//short
+    run -0 xrdfs cksum -a adler32 root://localhost:11965//short
+    assert_output 'adler32 00620062'
+}
+
+@test "cksum rejects invalid options operands and algorithms" {
+    local option
+    for option in --unknown -a --algorithm --algorithm= '--algorithm=bad&type'; do
+        run xrdfs cksum root://localhost:11965//examplefile "$option"
+        assert_failure
+        assert_output --partial 'Invalid arguments'
+    done
+    run xrdfs root://localhost:11965 cksum -a md5
+    assert_failure
+    run xrdfs cksum root://localhost:11965//examplefile md5
+    assert_failure
+    run xrdfs cksum -a not_a_checksum root://localhost:11965//examplefile
+    assert_failure
+    run xrdfs cksum root://localhost:11965//missing
+    assert_failure
+}
+
+@test "cksum resets parsing between interactive commands and handles delimiters" {
+    run -0 xrdfs root://localhost:11965 query checksum '/-b?cks.type=md5'
+    local checksum=$output
+    run bats_pipe -0 printf \
+        'cksum -ax -z\ncksum --algorithm=md5 -- -b\ncksum --algorithm\ncksum /examplefile -a adler32\nexit\n' \
+        \| xrdfs root://localhost:11965
+    assert_output --partial 'Invalid arguments'
+    assert_output --partial "$checksum"
+    assert_output --regexp 'adler32 [[:xdigit:]]{8}'
+}
+
 @test "URL parameters are preserved in the operand path" {
     run -0 xrdfs stat 'root://localhost:11965//examplefile?xrdcl.test=1'
 }

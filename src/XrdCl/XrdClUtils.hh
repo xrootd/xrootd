@@ -41,6 +41,7 @@
 
 namespace XrdCl
 {
+  class FileSystem;
   class Message;
 
   //----------------------------------------------------------------------------
@@ -128,6 +129,17 @@ namespace XrdCl
       static XRootDStatus GetRemoteCheckSum( std::string       &checkSum,
                                              const std::string &checkSumType,
                                              const URL         &url );
+
+      //------------------------------------------------------------------------
+      //! Get a remote checksum using an existing filesystem and path (with CGI).
+      //! An empty requested type selects the server default. Return the server's
+      //! algorithm and digest separately, without normalizing the digest.
+      //------------------------------------------------------------------------
+      static XRootDStatus GetRemoteCheckSum( FileSystem        &fs,
+                                             const std::string &path,
+                                             const std::string &checkSumType,
+                                             std::string       &algorithm,
+                                             std::string       &digest );
 
       //------------------------------------------------------------------------
       //! Get a checksum from local file
