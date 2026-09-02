@@ -87,11 +87,18 @@ def test_discover_uses_opaque_query():
   ]
 
 
-def test_stage_requires_files_when_url_is_string():
+def test_stage_accepts_single_url():
   client = tape.TapeClient()
+  status, response = client.stage(
+    'root://xrootd.example.org/store/file')
 
-  with pytest.raises(ValueError):
-    client.stage('root://xrootd.example.org/store/file')
+  assert status.ok
+  assert response.request_id == 'request-1'
+  assert FakeFileSystem.instances[0].url == 'root://xrootd.example.org'
+  assert FakeFileSystem.instances[0].calls == [
+    ('prepare', ['root://xrootd.example.org/store/file'],
+     PrepareFlags.STAGE, 0, 0),
+  ]
 
 
 def test_stage_uses_prepare_and_returns_request_id():

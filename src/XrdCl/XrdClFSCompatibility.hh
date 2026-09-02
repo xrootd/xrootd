@@ -50,6 +50,9 @@ namespace XrdCl
   NonRecursiveRemovalDecision EvaluateNonRecursiveRemoval(
     NonRecursiveRemoval removal, bool isDirectory, std::size_t childCount );
 
+  std::string FormatGFALXAttrFailure( const std::string  &attribute,
+                                      const XRootDStatus &status );
+
   const char *GetGFALFileStatus( bool offline, bool backupExists );
 
   const char *GetGFALTapeFileStatus( const std::string &locality );

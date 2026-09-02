@@ -27,10 +27,13 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <ctime>
 #include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -40,6 +43,7 @@ struct curl_slist;
 
 namespace XrdCl {
 
+class Env;
 class ResponseHandler;
 class Log;
 class URL;
@@ -55,6 +59,21 @@ const uint64_t kLogXrdClHttp = 73173;
 bool HTTPStatusIsError(unsigned status);
 
 std::pair<uint16_t, uint32_t> HTTPStatusConvert(unsigned status);
+
+// Returns true if the use of a client X.509 credential is enabled in the
+// XrdCl environment (the HttpDisableX509 knob).
+bool ClientX509Enabled(XrdCl::Env *env);
+
+// Returns the client X.509 certificate and key file configured in the
+// XrdCl environment.
+std::tuple<std::string, std::string> ClientX509CertKeyFromEnv(XrdCl::Env *env);
+
+// Apply a client X.509 certificate and optional separate key file to a curl
+// handle. A no-op when the certificate is empty. When the key is empty,
+// libcurl can load it from a combined certificate and key file. Returns false
+// if libcurl rejects either credential option.
+bool SetClientX509(CURL *curl, const std::string &cert, const std::string &key,
+                   XrdCl::Log *log);
 
 // Read a bearer token from the standard XrdCl environment options, falling
 // back to the corresponding process environment variables.
@@ -74,11 +93,23 @@ void InjectBearerToken(
     std::vector<std::pair<std::string, std::string>> &headers,
     XrdCl::Log *logger = nullptr);
 
+// Add the configured bearer token to an operation when selected by the
+// XrdSecPROTOCOL preference. Preserve an explicitly supplied Authorization
+// header.
+void AddBearerTokenHeader(
+    std::vector<std::pair<std::string, std::string>> &headers,
+    const std::string &protocols, bool hasX509Credential,
+    const std::string &token);
+
 // Trim the left side of a string_view for space
 std::string_view ltrim_view(const std::string_view &input_view);
 
 // Trim the left and right side of a string_view of whitespace
 std::string_view trim_view(const std::string_view &input_view);
+
+// Parse an HTTP date using libcurl's supported formats.  Missing or malformed
+// dates fall back to the current time.
+time_t ParseHttpDate(std::string_view value);
 
 // Apply the common XrdClHttp configuration to a curl handle.
 void ConfigureHandle(CURL *curl, bool verbose);
@@ -139,6 +170,7 @@ public:
     const std::string &GetLocation() const {return m_location;}
     const std::string &GetETag() const {return m_etag;}
     const std::string &GetCacheControl() const {return m_cache_control;}
+    const std::string &GetLastModified() const {return m_last_modified;}
 
     // Returns a reference to the checksums parsed from the headers.
     const XrdClHttp::ChecksumInfo &GetChecksums() const {return m_checksums;}
@@ -174,6 +206,7 @@ private:
     std::string m_multipart_sep;
     std::string m_etag;
     std::string m_cache_control;
+    std::string m_last_modified;
 
     ResponseInfo::HeaderMap m_headers;
 

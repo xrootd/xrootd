@@ -56,7 +56,8 @@ bats::on_failure() {
   assert_success
   assert_output --partial '"locality":"TAPE"'
 
-  run "$XRDFS_BIN" prepare -s --pin-lifetime 86400 "$TAPE_FILE_URL"
+  run "$XRDFS_BIN" prepare -s --pin-lifetime 86400 \
+    --metadata '{"example-site":{"queue":"bulk"}}' "$TAPE_FILE_URL"
   assert_success
   request_id="$output"
   if [[ ! "$request_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then

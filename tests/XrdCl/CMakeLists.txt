@@ -6,6 +6,7 @@ add_executable(xrdcl-unit-tests
   XrdClFSCompatibilityTest.cc
   XrdClFSRemoveTest.cc
   XrdClFSURLCommandTest.cc
+  XrdClStatInfoTest.cc
   XrdClURL.cc
   XrdClPoller.cc
   XrdClSocket.cc

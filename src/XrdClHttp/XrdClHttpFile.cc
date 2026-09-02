@@ -480,9 +480,12 @@ File::Stat(bool                    /*force*/,
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidResponse);
     }
 
+    std::string last_modified;
+    GetProperty("LastModified", last_modified);
+
     m_logger->Debug(kLogXrdClHttp, "Successful stat operation on %s (size %lld)", m_url.c_str(), static_cast<long long>(content_length));
     auto stat_info = new XrdCl::StatInfo("nobody", content_length,
-        XrdCl::StatInfo::Flags::IsReadable, time(NULL));
+        XrdCl::StatInfo::Flags::IsReadable, ParseHttpDate(last_modified));
     auto obj = new XrdCl::AnyObject();
     obj->Set(stat_info);
 

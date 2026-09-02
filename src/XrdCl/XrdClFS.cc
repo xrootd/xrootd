@@ -42,6 +42,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdOuc/XrdOucJson.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <algorithm>
@@ -56,6 +57,9 @@
 #include <iostream>
 #include <iterator>
 #include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #ifdef HAVE_READLINE
 #include <readline/history.h>
@@ -68,6 +72,133 @@ bool IsXRootDProtocol( Env *env );
 
 namespace
 {
+  void SetEndpointPath( URL &url, const std::string &path )
+  {
+    // URL stores WebDAV paths without the URI separator, while native XRootD
+    // absolute paths retain their leading slash (root://host//path).
+    if( IsWebDAVProtocol( url.GetProtocol() ) && !path.empty() && path[0] == '/' )
+      url.SetPath( path.substr( 1 ) );
+    else
+      url.SetPath( path );
+  }
+
+  struct StatFlagDescriptor
+  {
+    StatInfo::Flags flag;
+    const char     *name;
+  };
+
+  const StatFlagDescriptor statFlagDescriptors[] = {
+    { StatInfo::XBitSet,      "XBitSet" },
+    { StatInfo::IsDir,        "IsDir" },
+    { StatInfo::Other,        "Other" },
+    { StatInfo::Offline,      "Offline" },
+    { StatInfo::POSCPending,  "POSCPending" },
+    { StatInfo::IsReadable,   "IsReadable" },
+    { StatInfo::IsWritable,   "IsWritable" },
+    { StatInfo::BackUpExists, "BackUpExists" }
+  };
+
+  const StatFlagDescriptor *FindStatFlag( const std::string &name )
+  {
+    for( const StatFlagDescriptor &descriptor : statFlagDescriptors )
+      if( name == descriptor.name ) return &descriptor;
+    return nullptr;
+  }
+
+  std::vector<std::string> StatFlagNames( const StatInfo *info = nullptr )
+  {
+    std::vector<std::string> names;
+    for( const StatFlagDescriptor &descriptor : statFlagDescriptors )
+      if( !info || info->TestFlags( descriptor.flag ) )
+        names.emplace_back( descriptor.name );
+    return names;
+  }
+
+  std::string JoinStatFlagNames( const StatInfo *info,
+                                 const char     *separator )
+  {
+    const std::vector<std::string> names = StatFlagNames( info );
+    std::string joined;
+    for( const std::string &name : names )
+    {
+      if( !joined.empty() ) joined += separator;
+      joined += name;
+    }
+    return joined;
+  }
+
+  const char *StatType( const StatInfo &info )
+  {
+    if( info.TestFlags( StatInfo::IsDir ) ) return "directory";
+    if( info.TestFlags( StatInfo::Other ) ) return "other";
+    return "file";
+  }
+
+  using StatJsonXAttr = std::pair<std::string, std::string>;
+
+  XRootDStatus SerializeStatInfoJSON(
+    const std::string                 &path,
+    const StatInfo                    &info,
+    std::string                       &serialized,
+    const std::vector<StatJsonXAttr>  &xattrs =
+      std::vector<StatJsonXAttr>(),
+    const std::string                 *checksum = nullptr )
+  {
+    serialized.clear();
+    nlohmann::json output = {
+      { "path",        path },
+      { "type",        StatType( info ) },
+      { "size",        info.GetSize() },
+      { "mtime",       info.GetModTime() },
+      { "atime",       info.GetAccessTime() },
+      { "ctime",       info.GetChangeTime() },
+      { "flags",       info.GetFlags() },
+      { "flag_names",  StatFlagNames( &info ) },
+      { "extended",    info.ExtendedFormat() },
+      { "mode",        nullptr },
+      { "permissions", nullptr },
+      { "owner",       nullptr },
+      { "group",       nullptr },
+      { "checksum",    nullptr },
+      { "xattrs",      nlohmann::json::array() }
+    };
+
+    if( info.ExtendedFormat() )
+    {
+      output["mode"] = info.GetModeAsString();
+      output["permissions"] = info.GetModeAsOctString();
+      output["owner"] = info.GetOwner();
+      output["group"] = info.GetGroup();
+    }
+
+    if( checksum )
+      output["checksum"] = *checksum;
+    else if( info.HasChecksum() )
+      output["checksum"] = info.GetChecksum();
+
+    for( const StatJsonXAttr &xattr : xattrs )
+    {
+      output["xattrs"].push_back( {
+        { "name", xattr.first },
+        { "value", xattr.second }
+      } );
+    }
+
+    try
+    {
+      serialized = output.dump();
+    }
+    catch( const nlohmann::json::exception &error )
+    {
+      return XRootDStatus(
+        stError, errDataError, 0,
+        std::string( "Unable to serialize metadata as JSON: " ) +
+          error.what() );
+    }
+    return XRootDStatus();
+  }
+
   class ScopedGetoptState
   {
     public:
@@ -190,9 +321,11 @@ namespace
 //------------------------------------------------------------------------------
 XRootDStatus BuildPath( std::string &newPath, Env *env,
                         const std::string &path,
-                        const char *op = nullptr )
+                        const char *op = nullptr,
+                        const std::string *displayPath = nullptr )
 {
   Log *log = DefaultEnv::GetLog();
+  const std::string &diagnosticPath = displayPath ? *displayPath : path;
 
   if( path.empty() )
   {
@@ -213,9 +346,10 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
   {
     std::string msg;
     if( op )
-      msg = std::string( op ) + " relative path '" + path + "' is disallowed.";
+      msg = std::string( op ) + " relative path '" + diagnosticPath +
+            "' is disallowed.";
     else
-      msg = "Relative path '" + path + "' is disallowed.";
+      msg = "Relative path '" + diagnosticPath + "' is disallowed.";
     log->Error( AppMsg, "%s", msg.c_str() );
     return XRootDStatus( stError, errInvalidArgs, 0, msg );
   }
@@ -245,7 +379,8 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
     {
       if( it == pathComponents.begin() )
       {
-        const std::string msg = "Path '" + path + "' escapes above root.";
+        const std::string msg = "Path '" + diagnosticPath +
+                                "' escapes above root.";
         log->Error( AppMsg, "%s", msg.c_str() );
         return XRootDStatus( stError, errInvalidArgs, 0, msg );
       }
@@ -408,6 +543,11 @@ XRootDStatus GetNativeXAttrValue( FileSystem        *fs,
                                  const std::string &path,
                                  const std::string &attribute,
                                  std::string       &value );
+XRootDStatus QueryChecksum( FileSystem        *fs,
+                            const std::string &path,
+                            const std::string &requested,
+                            std::string       &algorithm,
+                            std::string       &digest );
 
 void PrintDirListStatInfo( StatInfo *info, bool hascks = false, uint32_t ownerwidth = 0, uint32_t groupwidth = 0, uint32_t sizewidth = 0, bool human = false, uint64_t base = 1000 )
 {
@@ -476,6 +616,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
   bool        hascks   = false;
   bool        human    = false;
   bool        directory = false;
+  bool        jsonOutput = false;
   uint64_t base        = 1024;
   std::string path;
   std::vector<std::string> xattrs;
@@ -538,6 +679,12 @@ XRootDStatus DoLS( FileSystem                      *fs,
     }
     else if( parseOptions && args[i] == "--human-readable" )
       human = true;
+    else if( parseOptions && args[i] == "--json" )
+    {
+      jsonOutput = true;
+      stats = true;
+      flags |= DirListFlags::Stat;
+    }
     else if( parseOptions && args[i] == "--directory" )
       directory = true;
     else if( parseOptions && args[i] == "--all" )
@@ -615,6 +762,22 @@ XRootDStatus DoLS( FileSystem                      *fs,
     // in case we print the full URL
     flags &= ~DirListFlags::Merge;
 
+  std::string serverURL;
+  std::string urlProtocol;
+  if( showUrls )
+  {
+    if( env->GetString( "ServerURL", serverURL ) )
+      urlProtocol = URL( serverURL ).GetProtocol();
+  }
+
+  auto appendURLPath = []( const std::string &base, const std::string &path )
+  {
+    const std::string protocol = URL( base ).GetProtocol();
+    if( IsWebDAVProtocol( protocol ) )
+      return XrdOucUtils::JoinUrl( base, path );
+    return base + path;
+  };
+
   auto getXAttrValues = [&]( const std::string       &xattrPath,
                              std::vector<std::string> &values )
   {
@@ -639,6 +802,53 @@ XRootDStatus DoLS( FileSystem                      *fs,
     return XRootDStatus();
   };
 
+  auto getJSONPath = [&]( const std::string &entryPath,
+                          const std::string &hostAddress )
+  {
+    if( !showUrls ) return entryPath;
+    if( !hostAddress.empty() )
+    {
+      std::string protocol = urlProtocol;
+      if( protocol.empty() )
+      {
+        std::string url;
+        if( fs->GetProperty( "LastURL", url ) )
+          protocol = URL( url ).GetProtocol();
+      }
+      if( protocol.empty() ) protocol = "root";
+      return appendURLPath(
+        protocol + "://" + hostAddress + "/", entryPath );
+    }
+
+    std::string url;
+    if( !fs->GetProperty( "LastURL", url ) || url.empty() )
+      url = serverURL;
+    return appendURLPath( url, entryPath );
+  };
+
+  auto printJSON = [&]( const std::string              &jsonPath,
+                        const StatInfo                 &jsonInfo,
+                        const std::vector<std::string> &values,
+                        const std::string              *checksum )
+  {
+    std::vector<StatJsonXAttr> jsonXAttrs;
+    jsonXAttrs.reserve( xattrs.size() );
+    for( std::size_t i = 0; i < xattrs.size(); ++i )
+      jsonXAttrs.emplace_back( xattrs[i], values[i] );
+
+    std::string serialized;
+    XRootDStatus status = SerializeStatInfoJSON(
+      jsonPath, jsonInfo, serialized, jsonXAttrs, checksum );
+    if( !status.IsOK() )
+    {
+      log->Error( AppMsg, "Unable to serialize JSON metadata: %s",
+                  status.ToStr().c_str() );
+      return status;
+    }
+    std::cout << serialized << '\n';
+    return XRootDStatus();
+  };
+
   std::string newPath = "/";
   if( path.empty() )
     env->GetString( "CWD", newPath );
@@ -648,6 +858,12 @@ XRootDStatus DoLS( FileSystem                      *fs,
     if( !pathSt.IsOK() )
       return pathSt;
   }
+
+  std::string fallbackParent;
+  std::string fallbackQuery;
+  splitHostCgi( newPath, fallbackParent, fallbackQuery );
+  if( !fallbackParent.empty() && fallbackParent.back() != '/' )
+    fallbackParent += '/';
 
   //----------------------------------------------------------------------------
   // Stat the entry so we know if it is a file or a directory
@@ -670,6 +886,28 @@ XRootDStatus DoLS( FileSystem                      *fs,
     std::vector<std::string> values;
     st = getXAttrValues( newPath, values );
     if( !st.IsOK() ) return st;
+
+    if( jsonOutput )
+    {
+      std::string checksum;
+      const std::string *checksumPtr = nullptr;
+      if( hascks && !info->TestFlags( StatInfo::IsDir ) )
+      {
+        std::string algorithm;
+        std::string digest;
+        st = QueryChecksum( fs, newPath, "", algorithm, digest );
+        if( !st.IsOK() )
+        {
+          log->Error( AppMsg, "Unable to query checksum: %s",
+                      st.ToStr().c_str() );
+          return st;
+        }
+        checksum = algorithm + ":" + digest;
+        checksumPtr = &checksum;
+      }
+      return printJSON(
+        getJSONPath( newPath, "" ), *info, values, checksumPtr );
+    }
 
     if( stats )
       PrintDirListStatInfo( info, false, 0, 0, 0, human, base );
@@ -710,7 +948,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
 
   uint32_t ownerwidth = 0, groupwidth = 0, sizewidth = 0, ckswidth = 0;
   DirectoryList::Iterator it;
-  for( it = list->Begin(); it != list->End() && stats; ++it )
+  for( it = list->Begin(); it != list->End() && stats && !jsonOutput; ++it )
   {
     StatInfo *info = (*it)->GetStatInfo();
     if( !info ) continue;
@@ -739,17 +977,30 @@ XRootDStatus DoLS( FileSystem                      *fs,
   for( it = list->Begin(); it != list->End(); ++it )
   {
     StatInfo *entryInfo = stats ? (*it)->GetStatInfo() : 0;
+    const std::string &reportedParent = list->GetParentName();
+    const bool useFallbackParent = jsonOutput && reportedParent.empty();
+    const std::string entryPath =
+      ( useFallbackParent ? fallbackParent : reportedParent ) +
+      (*it)->GetName() + ( useFallbackParent ? fallbackQuery : "" );
+    if( jsonOutput && !entryInfo ) continue;
     if( stats && !xattrs.empty() && !entryInfo )
     {
       // gfal-ls omits dangling entries before requesting their attributes.
       continue;
     }
 
-    const std::string entryPath =
-      list->GetParentName() + (*it)->GetName();
     std::vector<std::string> values;
     st = getXAttrValues( entryPath, values );
     if( !st.IsOK() ) return st;
+
+    if( jsonOutput )
+    {
+      st = printJSON(
+        getJSONPath( entryPath, (*it)->GetHostAddress() ),
+        *entryInfo, values, nullptr );
+      if( !st.IsOK() ) return st;
+      continue;
+    }
 
     if( stats )
     {
@@ -828,8 +1079,8 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
 
   if( paths.empty() )
   {
-    log->Error( AppMsg, "No directory path specified." );
-    return XRootDStatus( stError, errInvalidArgs );
+    std::string unused;
+    return BuildPath( unused, env, "" );
   }
 
   Access::Mode mode = Access::None;
@@ -847,11 +1098,8 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
   for( const std::string &path : paths )
   {
     std::string newPath;
-    if( !BuildPath( newPath, env, path ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path: %s.", path.c_str() );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
+    if( !pathSt.IsOK() ) return pathSt;
     newPaths.emplace_back( std::move( newPath ) );
   }
 
@@ -953,6 +1201,9 @@ XRootDStatus DoMv( FileSystem                      *fs,
   if( !pathSt.IsOK() )
     return pathSt;
 
+  if( fullPath1 == fullPath2 )
+    return XRootDStatus();
+
   if( is_subdirectory(fullPath1, fullPath2) )
     return XRootDStatus( stError, errInvalidArgs, 0,
       "cannot move directory to a subdirectory of itself." );
@@ -1005,12 +1256,10 @@ XRootDStatus DoRm( FileSystem                      *fs,
     }
 
     std::string fullPath;
-    if( !BuildPath( fullPath, env, path ).IsOK() )
-    {
-      log->Error( AppMsg, "Invalid path: %s",
-                          RemovalDisplayPath( path ).c_str() );
-      return XRootDStatus( stError, errInvalidArgs );
-    }
+    const std::string displayPath = RemovalDisplayPath( path );
+    XRootDStatus pathSt = BuildPath(
+      fullPath, env, path, "Removing", &displayPath );
+    if( !pathSt.IsOK() ) return pathSt;
     fullPaths.emplace_back( std::move( fullPath ) );
   }
 
@@ -1232,21 +1481,13 @@ XRootDStatus DoRm( FileSystem                      *fs,
 
   //----------------------------------------------------------------------------
   // Run the query:
-  // Parallel() will take the vector of Pipeline by reference and empty the
-  // vector, so rms.size() will change after the call.
+  // A zero success threshold makes AtLeast wait for every operation. The
+  // callbacks reference the failure state below, so none may outlive DoRm.
   //----------------------------------------------------------------------------
-  const size_t rs = rms.size();
-  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rs ) );
-  if( command.force )
-  {
-    std::unique_lock<std::mutex> lck( failureMtx );
-    if( haveNonForceFailure )
-      return nonForceFailure;
-    return XRootDStatus();
-  }
-  if( !st.IsOK() )
-    return st;
+  WaitFor( Parallel( rms ).AtLeast( 0 ) );
 
+  std::unique_lock<std::mutex> lck( failureMtx );
+  if( haveNonForceFailure ) return nonForceFailure;
   return XRootDStatus();
 }
 
@@ -1495,59 +1736,44 @@ XRootDStatus ProcessStatQuery( StatInfo &info, const std::string &query )
   //----------------------------------------------------------------------------
   // Process the query
   //----------------------------------------------------------------------------
-  bool isOrQuery = false;
-  bool status    = true;
-  if( query.find( '|' ) != std::string::npos )
-  {
-    isOrQuery = true;
-    status    = false;
-  }
-  std::vector<std::string> queryFlags;
+  const bool isOrQuery = query.find( '|' ) != std::string::npos;
+  std::vector<std::string> queryFlagNames;
   if( isOrQuery )
-    Utils::splitString( queryFlags, query, "|" );
+    Utils::splitString( queryFlagNames, query, "|" );
   else
-    Utils::splitString( queryFlags, query, "&" );
+    Utils::splitString( queryFlagNames, query, "&" );
 
   //----------------------------------------------------------------------------
-  // Initialize flag translation map and check the input flags
+  // Resolve and check the input flags
   //----------------------------------------------------------------------------
-  std::map<std::string, StatInfo::Flags> flagMap;
-  flagMap["XBitSet"]      = StatInfo::XBitSet;
-  flagMap["IsDir"]        = StatInfo::IsDir;
-  flagMap["Other"]        = StatInfo::Other;
-  flagMap["Offline"]      = StatInfo::Offline;
-  flagMap["POSCPending"]  = StatInfo::POSCPending;
-  flagMap["IsReadable"]   = StatInfo::IsReadable;
-  flagMap["IsWritable"]   = StatInfo::IsWritable;
-  flagMap["BackUpExists"] = StatInfo::BackUpExists;
-
-  std::vector<std::string>::iterator it;
-  for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-    if( flagMap.find( *it ) == flagMap.end() )
+  std::vector<const StatFlagDescriptor *> queryFlags;
+  queryFlags.reserve( queryFlagNames.size() );
+  for( const std::string &name : queryFlagNames )
+  {
+    const StatFlagDescriptor *descriptor = FindStatFlag( name );
+    if( !descriptor )
     {
-      log->Error( AppMsg, "Flag '%s' is not recognized.", it->c_str() );
+      log->Error( AppMsg, "Flag '%s' is not recognized.", name.c_str() );
       return XRootDStatus( stError, errInvalidArgs );
     }
+    queryFlags.emplace_back( descriptor );
+  }
 
   //----------------------------------------------------------------------------
   // Process the query
   //----------------------------------------------------------------------------
   if( isOrQuery )
   {
-    for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-      if( info.TestFlags( flagMap[*it] ) )
+    for( const StatFlagDescriptor *descriptor : queryFlags )
+      if( info.TestFlags( descriptor->flag ) )
         return XRootDStatus();
-  }
-  else
-  {
-    for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-      if( !info.TestFlags( flagMap[*it] ) )
-        return XRootDStatus( stError, errResponseNegative );
+    return XRootDStatus( stError, errResponseNegative );
   }
 
-  if( status )
-    return XRootDStatus();
-  return XRootDStatus( stError, errResponseNegative );
+  for( const StatFlagDescriptor *descriptor : queryFlags )
+    if( !info.TestFlags( descriptor->flag ) )
+      return XRootDStatus( stError, errResponseNegative );
+  return XRootDStatus();
 }
 
 //------------------------------------------------------------------------------
@@ -1571,10 +1797,20 @@ XRootDStatus DoStat( FileSystem                      *fs,
 
   std::vector<std::string> paths;
   std::string query;
+  bool jsonOutput = false;
+  bool parseOptions = true;
 
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-q" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions && args[i] == "--json" )
+    {
+      jsonOutput = true;
+    }
+    else if( parseOptions && args[i] == "-q" )
     {
       if( i < args.size()-1 )
       {
@@ -1589,6 +1825,12 @@ XRootDStatus DoStat( FileSystem                      *fs,
     }
     else
       paths.emplace_back( args[i] );
+  }
+
+  if( paths.empty() )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
   }
 
   std::vector<XrdCl::Pipeline> stats;
@@ -1617,61 +1859,59 @@ XRootDStatus DoStat( FileSystem                      *fs,
   {
     auto &ftr      = std::get<0>( tpl );
     auto &fullPath = std::get<1>( tpl );
-    std::cout << std::endl;
+    if( !jsonOutput ) std::cout << std::endl;
     try
     {
       XrdCl::StatInfo info( ftr.get() );
-      std::string flags;
-
-      if( info.TestFlags( StatInfo::XBitSet ) )
-        flags += "XBitSet|";
-      if( info.TestFlags( StatInfo::IsDir ) )
-        flags += "IsDir|";
-      if( info.TestFlags( StatInfo::Other ) )
-        flags += "Other|";
-      if( info.TestFlags( StatInfo::Offline ) )
-        flags += "Offline|";
-      if( info.TestFlags( StatInfo::POSCPending ) )
-        flags += "POSCPending|";
-      if( info.TestFlags( StatInfo::IsReadable ) )
-        flags += "IsReadable|";
-      if( info.TestFlags( StatInfo::IsWritable ) )
-        flags += "IsWritable|";
-      if( info.TestFlags( StatInfo::BackUpExists ) )
-        flags += "BackUpExists|";
-
-      if( !flags.empty() )
-        flags.erase( flags.length()-1, 1 );
-
-      std::cout <<   "Path:   " << fullPath << std::endl;
-      std::cout <<   "Id:     " << info.GetId() << std::endl;
-      std::cout <<   "Size:   " << info.GetSize() << std::endl;
-      std::cout <<   "MTime:  " << info.GetModTimeAsString() << std::endl;
-      // if extended stat information is available we can print also
-      // change time and access time
-      if( info.ExtendedFormat() )
+      if( jsonOutput )
       {
-        std::cout << "CTime:  " << info.GetChangeTimeAsString() << std::endl;
-        std::cout << "ATime:  " << info.GetAccessTimeAsString() << std::endl;
+        std::string serialized;
+        XRootDStatus jsonStatus = SerializeStatInfoJSON(
+          fullPath, info, serialized );
+        if( !jsonStatus.IsOK() )
+        {
+          st = jsonStatus;
+          log->Error( AppMsg, "Unable to serialize JSON metadata: %s",
+                      jsonStatus.ToStr().c_str() );
+        }
+        else
+          std::cout << serialized << '\n';
       }
-      std::cout << "Flags:  " << info.GetFlags() << " (" << flags << ")";
-
-      // check if extended stat information is available
-      if( info.ExtendedFormat() )
+      else
       {
-        std::cout << "\nMode:   " << info.GetModeAsString() << std::endl;
-        std::cout << "Owner:  " << info.GetOwner() << std::endl;
-        std::cout << "Group:  " << info.GetGroup();
-      }
+        const std::string flags = JoinStatFlagNames( &info, "|" );
 
-      std::cout << std::endl;
+        std::cout <<   "Path:   " << fullPath << std::endl;
+        std::cout <<   "Id:     " << info.GetId() << std::endl;
+        std::cout <<   "Size:   " << info.GetSize() << std::endl;
+        std::cout <<   "MTime:  " << info.GetModTimeAsString() << std::endl;
+        // if extended stat information is available we can print also
+        // change time and access time
+        if( info.ExtendedFormat() )
+        {
+          std::cout << "CTime:  " << info.GetChangeTimeAsString() << std::endl;
+          std::cout << "ATime:  " << info.GetAccessTimeAsString() << std::endl;
+        }
+        std::cout << "Flags:  " << info.GetFlags() << " (" << flags << ")";
+
+        // check if extended stat information is available
+        if( info.ExtendedFormat() )
+        {
+          std::cout << "\nMode:   " << info.GetModeAsString() << std::endl;
+          std::cout << "Owner:  " << info.GetOwner() << std::endl;
+          std::cout << "Group:  " << info.GetGroup();
+        }
+
+        std::cout << std::endl;
+      }
 
       if( query.length() != 0 )
       {
         XRootDStatus s = ProcessStatQuery( info, query );
         if( !s.IsOK() )
           st = s;
-        std::cout << "Query:  " << query << " " << std::endl;
+        if( !jsonOutput )
+          std::cout << "Query:  " << query << " " << std::endl;
       }
     }
     catch( XrdCl::PipelineException &ex )
@@ -1795,13 +2035,9 @@ XRootDStatus DoQuery( FileSystem                      *fs,
       for( size_t i = startIdx; i < args.size(); ++i )
       {
         if( args[i] == "--json" ) { jsonOutput = true; continue; }
-        std::string path;
-        if( !BuildPath( path, env, args[i] ).IsOK() )
-        {
-          log->Error( AppMsg, "Invalid path: %s", args[i].c_str() );
-          return XRootDStatus( stError, errInvalidArgs );
-        }
-        strArg += '\n' + path;
+        // XrdClHttpTape validates complete storage URLs, including endpoint
+        // consistency, before issuing the request.
+        strArg += '\n' + args[i];
       }
     }
     else if( tapeCmd == "delete" || tapeCmd == "stage_delete" )
@@ -2322,6 +2558,7 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
   uint8_t                  priority    = 0;
   std::string              pinLifetime;
   std::string              targetedMetadata;
+  bool                     metadataProvided = false;
   bool                     waitPolling = false;
   uint32_t                 timeoutSecs = 0;
   bool                     parseOptions = true;
@@ -2396,6 +2633,7 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
       if( i + 1 < args.size() )
       {
         targetedMetadata = args[i+1];
+        metadataProvided = true;
         ++i;
       }
       else
@@ -2451,6 +2689,17 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
     pinLifetime = "PT" + pinLifetime + "S";
   }
 
+  nlohmann::json stageMetadata;
+  if( metadataProvided )
+  {
+    stageMetadata = nlohmann::json::parse(
+      targetedMetadata, nullptr, false );
+    if( !stageMetadata.is_object() )
+    {
+      log->Error( AppMsg, "Targeted metadata must be a JSON object." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+  }
   std::string server;
   env->GetString( "ServerURL", server );
   URL endpointUrl( server );
@@ -2476,16 +2725,14 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
       continue;
     }
 
-    if( isHttp && (flags & PrepareFlags::Stage) && (!pinLifetime.empty() || !targetedMetadata.empty()) )
+    if( isHttp && (flags & PrepareFlags::Stage) &&
+        (!pinLifetime.empty() || metadataProvided) )
     {
       nlohmann::json obj;
       obj["path"] = path;
       if( !pinLifetime.empty() ) obj["diskLifetime"] = pinLifetime;
-      if( !targetedMetadata.empty() )
-      {
-        auto metaJson = nlohmann::json::parse( targetedMetadata, nullptr, false );
-        if( metaJson.is_object() ) obj["targetedMetadata"] = metaJson;
-      }
+      if( metadataProvided )
+        obj["targetedMetadata"] = stageMetadata;
       files.push_back( "xrdclhttp.tape.stage:" + obj.dump() );
     }
     else
@@ -2723,7 +2970,7 @@ XRootDStatus DoCat( FileSystem                      *fs,
       return pathSt;
 
     remoteUrls.emplace_back( server );
-    remoteUrls.back().SetPath( remoteFile );
+    SetEndpointPath( remoteUrls.back(), remoteFile );
   }
 
   //----------------------------------------------------------------------------
@@ -2732,6 +2979,7 @@ XRootDStatus DoCat( FileSystem                      *fs,
   CopyProgressHandler *handler = 0; ProgressDisplay d;
   CopyProcess process;
   std::vector<PropertyList> props( remoteUrls.size() ), results( remoteUrls.size() );
+  const bool dynamicSource = IsXRootDProtocol( env );
 
   for( size_t i = 0; i < remoteUrls.size(); ++i )
   {
@@ -2744,7 +2992,8 @@ XRootDStatus DoCat( FileSystem                      *fs,
     else
       props[i].Set( "target", "stdio://-" );
 
-    props[i].Set( "dynamicSource", true );
+    if( dynamicSource )
+      props[i].Set( "dynamicSource", true );
 
     XRootDStatus st = process.AddJob( props[i], &results[i] );
     if( !st.IsOK() )
@@ -2836,7 +3085,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
     return pathSt;
 
   URL remoteUrl( server );
-  remoteUrl.SetPath( remoteFile );
+  SetEndpointPath( remoteUrl, remoteFile );
 
   //----------------------------------------------------------------------------
   // Fetch the data
@@ -3267,10 +3516,13 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
       GetGFALVirtualXAttr( fs, env, path, attribute, value ) :
       GetNativeXAttrValue( fs, path, attribute, value );
     if( !status.IsOK() )
-      log->Error( AppMsg, "Unable to get attribute %s: %s",
-                  attribute.c_str(), status.ToStr().c_str() );
-    else
-      std::cout << value << '\n';
+    {
+      if( status.code == errErrorResponse )
+        return XRootDStatus(
+          status, FormatGFALXAttrFailure( attribute, status ) );
+      return status;
+    }
+    std::cout << value << '\n';
     return status;
   }
 
@@ -3316,7 +3568,8 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
       if( status.IsOK() )
         std::cout << attribute << " = " << value << '\n';
       else
-        std::cout << attribute << " FAILED: " << status.ToStr() << '\n';
+        std::cout << attribute << " FAILED: "
+                  << FormatGFALXAttrFailure( attribute, status ) << '\n';
     }
     return XRootDStatus();
   }
@@ -3450,6 +3703,8 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
 XRootDStatus PrintHelp( FileSystem *, Env *,
                         const FSExecutor::CommandParams & )
 {
+  const std::string statFlags = JoinStatFlagNames( nullptr, ", " );
+
   printf( "Usage:\n"                                                          );
   printf( "   xrdfs [options] host[:port]              - interactive mode\n"  );
   printf( "   xrdfs [options] host[:port] command args - server-first batch\n" );
@@ -3489,7 +3744,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     form accepts octal modes.\n\n"                                 );
 
   printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [-h|-H] [-d] [-a]\n"       );
-  printf( "      [--color=never] [--xattr name] [dirname]\n"               );
+  printf( "      [--color=never] [--xattr name] [--json] [dirname]\n"      );
   printf( "     Get directory listing.\n"                                     );
   printf( "     -l|--long stat every entry and print long listing\n"          );
   printf( "     -u print paths as URLs\n"                                     );
@@ -3502,8 +3757,12 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -a|--all accepted for gfal-ls compatibility; xrdfs already\n" );
   printf( "        includes entries whose names begin with a dot\n"            );
   printf( "     --color=never accepted for uncolored gfal-ls compatibility\n" );
-  printf( "     --xattr name append an attribute value to long output; may\n" );
-  printf( "        be repeated and has no visible effect without -l\n"         );
+  printf( "     --xattr name append an attribute value to long or JSON\n"    );
+  printf( "        output; may be repeated and has no visible effect without\n" );
+  printf( "        -l or --json\n"                                            );
+  printf( "     --json print one JSON object per entry; implies stat metadata\n" );
+  printf( "        and includes requested --xattr values in request order\n"   );
+  printf( "        -u emits full URLs in path; -C requests file checksums\n"    );
   printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"     );
 
   printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                  );
@@ -3524,15 +3783,16 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   mv <path1> <path2>\n"                                           );
   printf( "     Move path1 to path2 locally on the same server.\n\n"          );
 
-  printf( "   stat [-q query] <path>\n"                                       );
+  printf( "   stat [--json] [-q query] [--] <path>...\n"                       );
   printf( "     Get info about the file or directory.\n"                      );
+  printf( "     --json print one JSON object per path without blank lines\n"  );
   printf( "     -q query optional flag query parameter that makes\n"          );
   printf( "              xrdfs return error code to the shell if the\n"       );
   printf( "              requested flag combination is not present;\n"        );
   printf( "              flags may be combined together using '|' or '&'\n"   );
   printf( "              Available flags:\n"                                  );
-  printf( "              XBitSet, IsDir, Other, Offline, POSCPending,\n"      );
-  printf( "              IsReadable, IsWritable\n\n"                          );
+  printf( "              %s\n", statFlags.c_str()                              );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"     );
 
   printf( "   statvfs <path>\n"                                               );
   printf( "     Get info about a virtual file system.\n\n"                    );

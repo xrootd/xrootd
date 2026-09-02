@@ -4,16 +4,17 @@
 
 import argparse
 import json
+import socketserver
 import ssl
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 SCI_BODY = "grant_type=client_credentials"
 
 
-class TokenIssuerServer(ThreadingHTTPServer):
+class TokenIssuerServer(socketserver.ThreadingMixIn, HTTPServer):
     """HTTP server carrying the trace location and advertised endpoint URL."""
 
     allow_reuse_address = True

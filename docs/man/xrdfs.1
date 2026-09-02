@@ -90,7 +90,7 @@ mode no greater than \fI0777\fR. The gfal-compatible mode-first form accepts an
 octal mode. The historical path-first form remains supported.
 
 .RE
-\fBls\fR \fI[-l]\fR \fI[-u]\fR \fI[-R]\fR \fI[-D]\fR \fI[-Z]\fR \fI[-C]\fR \fI[-h|-H]\fR \fI[-d]\fR \fI[-a]\fR \fI[-1]\fR \fI[--color=never]\fR \fI[--xattr name]\fR \fI[dirname]\fR
+\fBls\fR \fI[-l]\fR \fI[-u]\fR \fI[-R]\fR \fI[-D]\fR \fI[-Z]\fR \fI[-C]\fR \fI[-h|-H]\fR \fI[-d]\fR \fI[-a]\fR \fI[-1]\fR \fI[--color=never]\fR \fI[--xattr name]\fR \fI[--json]\fR \fI[dirname]\fR
 .RS 3
 Get directory listing.
 .br
@@ -116,7 +116,13 @@ Get directory listing.
 .br
 \fI--color=never\fR accepted for gfal-ls compatibility; xrdfs output is already uncolored
 .br
-\fI--xattr name\fR append the named GFAL virtual or native XRootD attribute to long output; may be repeated and preserves request order; accepted without visible effect when long output is not selected
+\fI--xattr name\fR append the named GFAL virtual or native XRootD attribute to long or JSON output; may be repeated and preserves request order; accepted without visible effect when neither long nor JSON output is selected
+.br
+\fI--json\fR print one JSON object per directory entry. This implies stat
+metadata, suppresses the human-readable listing, and includes values requested
+with \fI--xattr\fR in request order. With \fI-d\fR, print one object for the
+operand itself. With \fI-u\fR, the \fIpath\fR field contains a complete URL.
+For file operands, \fI-C\fR requests and includes the checksum.
 .br
 \fI--\fR stop option parsing, allowing a path beginning with a dash
 
@@ -162,9 +168,13 @@ creates a directory; other backends may enforce additional mode policy.
 Move path1 to path2 locally on the same server.
 
 .RE
-\fBstat\fR \fI<path>\fR \fI[<paths>]\fR
+\fBstat\fR \fI[--json]\fR \fI[-q flags]\fR \fI[--]\fR \fI<path>\fR \fI[<paths>]\fR
 .RS 3
 Get info about the file(s) or directory(ies).
+.br
+\fI--json\fR print one JSON object per path without the leading blank lines or
+human-readable field labels. Query checks selected with \fI-q\fR still affect
+the exit status.
 .br
 \fI-q\fR \fB<flags>\fR Makes
 xrdfs return error code 55 to the shell if the
@@ -173,7 +183,19 @@ flags may be combined together using '|' or '&'
 .br
 Available flags:
 \fBXBitSet\fR, \fBIsDir\fR, \fBOther\fR, \fBOffline\fR, \fBPOSCPending\fR,
-\fBIsReadable\fR, \fBIsWriteable\fR, \fBBackUpExists\fR
+\fBIsReadable\fR, \fBIsWritable\fR, \fBBackUpExists\fR
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
+.br
+Each JSON object contains \fIpath\fR, \fItype\fR, \fIsize\fR, integer
+\fImtime\fR, \fIatime\fR, and \fIctime\fR values, numeric \fIflags\fR,
+\fIflag_names\fR, \fIextended\fR, nullable \fImode\fR, \fIpermissions\fR,
+\fIowner\fR, \fIgroup\fR, and \fIchecksum\fR fields, and an ordered
+\fIxattrs\fR array. Metadata unavailable without an extended stat response is
+represented by null fields; unavailable access and change times are zero.
+\fImode\fR is the raw octal mode string and \fIpermissions\fR is its symbolic
+nine-character representation. JSON strings must be valid UTF-8; invalid input
+causes the command to fail rather than silently replacing bytes.
 
 .RE
 \fBstatvfs\fR \fI<path>\fR

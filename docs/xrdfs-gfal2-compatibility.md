@@ -49,13 +49,15 @@ FILE_B='root://storage.example.org//store/data/b.dat'
 | gfal2-util | `xrdfs` | Compatibility provided |
 | --- | --- | --- |
 | `gfal-stat "$FILE_A"` | `xrdfs stat "$FILE_A"` | Stats a complete URL using the existing `xrdfs stat` implementation. |
+| — | `xrdfs stat --json "$FILE_A"` | Emits one stable JSON object per operand for compatibility wrappers and other machine consumers. |
 | `gfal-ls "$DIR"` | `xrdfs ls "$DIR"` | Lists the contents of the directory. |
 | `gfal-ls -lH "$DIR"` | `xrdfs ls -lH "$DIR"` | Accepts the gfal-style `-H` human-readable-size option, including grouped `-lH`. The existing `xrdfs ls -h` spelling remains supported. |
 | `gfal-ls -d "$DIR"` | `xrdfs ls -d "$DIR"` | Prints the directory operand itself instead of listing its contents. |
 | `gfal-ls -1 "$DIR"` | `xrdfs ls -1 "$DIR"` | Accepts `-1` as a compatibility option for one-entry-per-line formatting. |
 | `gfal-ls -a "$DIR"` | `xrdfs ls -a "$DIR"` | Accepts `-a` / `--all` as a compatibility no-op because native `xrdfs ls` already includes dotfiles. |
 | `gfal-ls --color=never "$DIR"` | `xrdfs ls --color=never "$DIR"` | Accepts the explicitly uncolored form as a compatibility no-op. |
-| `gfal-ls -l --xattr user.status "$FILE_A"` | `xrdfs ls -l --xattr user.status "$FILE_A"` | Appends the requested virtual or native attribute value to long output. The option is repeatable and preserves order. As in GFAL, it has no visible effect without `-l`. |
+| `gfal-ls -l --xattr user.status "$FILE_A"` | `xrdfs ls -l --xattr user.status "$FILE_A"` | Appends the requested virtual or native attribute value to long or JSON output. The option is repeatable and preserves order. As in GFAL, it has no visible effect without `-l` unless `--json` is selected. |
+| — | `xrdfs ls --json --xattr user.status "$DIR"` | Emits one JSON object per entry, implies stat metadata, and preserves requested attribute order. |
 | `gfal-cat -b "$FILE_A"` | `xrdfs cat -b "$FILE_A"` | Accepts `-b` as a compatibility no-op because `xrdfs cat` already writes file data to standard output without text conversion. |
 | `gfal-cat -b "$FILE_A" "$FILE_B"` | `xrdfs cat -b "$FILE_A" "$FILE_B"` | Concatenates multiple files from the same endpoint. |
 | `gfal-sum "$FILE_A" ADLER32` | `xrdfs sum "$FILE_A" ADLER32` | Selects the requested checksum algorithm and validates that the server returned that algorithm. |
@@ -87,6 +89,28 @@ the three `taperestapi.*` discovery attributes above. The checksum shorthand can
 also work through another protocol plugin, such as XrdClHttp, when that plugin
 supports the checksum query. The remaining `xroot.*` and `spacetoken` virtual
 attributes are specific to XRootD protocols.
+
+### Machine-readable metadata
+
+`stat --json` and `ls --json` emit newline-delimited JSON: each successful path
+or directory entry is written as one complete object on one line. This permits
+multi-path stat and large listings to be consumed incrementally. JSON mode
+suppresses the usual labels, spacing, and long-listing columns. For `ls`, it
+implies stat metadata; `-d` selects the operand itself, and repeated `--xattr`
+requests are returned in order as `{"name": ..., "value": ...}` objects.
+Unstatable directory entries are omitted. With `-u`, `path` contains a complete
+URL; for file operands, `-C` requests and includes the checksum.
+
+Every object has the same fields: `path`, `type`, `size`, integer `mtime`,
+`atime`, and `ctime`, numeric `flags`, ordered `flag_names`, `extended`,
+nullable `mode`, `permissions`, `owner`, `group`, and `checksum`, plus the
+`xattrs` array. `type` is `file`, `directory`, or `other`. When the server does
+not return extended stat data, its mode and ownership fields are `null` and the
+unavailable access and change times are zero. `mode` is the raw octal string;
+`permissions` is the symbolic nine-character form. All JSON strings are UTF-8.
+Invalid byte sequences make the command fail rather than being silently
+replaced. Use `--` before a dash-prefixed `stat` path, including a path named
+`--json`.
 
 An unrecognized single attribute name falls back to the native XRootD get
 operation and prints its raw value. This preserves the existing shorthand for
@@ -277,6 +301,7 @@ prepare/query engine and the XrdClHttp WLCG Tape REST client.
 | --- | --- | --- |
 | `gfal-bringonline "$FILE"` | `xrdfs prepare -s "$FILE"` | Submits a stage request from tape to disk buffer and prints the Request ID. |
 | `gfal-bringonline --pin-lifetime 86400 "$FILE"` | `xrdfs prepare -s --pin-lifetime 86400 "$FILE"` | Passes the requested disk retention lifetime (`diskLifetime`). |
+| `gfal-bringonline --staging-metadata '{"example-site":{"queue":"bulk"}}' "$FILE"` | `xrdfs prepare -s --metadata '{"example-site":{"queue":"bulk"}}' "$FILE"` | Passes the site-defined object as Tape REST `targetedMetadata`. |
 | `gfal-bringonline --polling-timeout 600 "$FILE"` | `xrdfs prepare -s --wait --timeout 600 "$FILE"` | Polls synchronously until all staged files reach a terminal state (`COMPLETED` or `FAILED`). |
 | `gfal-stage-status "$ENDPOINT" "$REQ_ID"` | `xrdfs "$ENDPOINT" query prepare "$REQ_ID"` | Queries the status and per-file state of an existing stage request. |
 | `gfal-stage-cancel "$ENDPOINT" "$REQ_ID" "$FILE"` | `xrdfs prepare -a "$REQ_ID" "$FILE"` | Cancels/aborts a stage request for the specified complete URLs. |
@@ -350,10 +375,11 @@ metadata queries and reads; downloads remain local.
 
 ## Compatibility boundaries
 
-The output remains native `xrdfs` output. In particular, `stat`, long `ls`, and
-xattr formatting may differ from gfal2-util in field names, ordering, path
-presentation, size rounding, timestamps, and diagnostics. Scripts that parse
-gfal2-util output should not assume identical text.
+The default output remains native `xrdfs` output. In particular, human-readable
+`stat`, long `ls`, and xattr formatting may differ from gfal2-util in field
+names, ordering, path presentation, size rounding, timestamps, and diagnostics.
+Scripts that parse gfal2-util output should use the explicit JSON mode as their
+metadata interface rather than assuming identical human-readable text.
 
 Exit statuses also remain XRootD statuses. Portable migration code should
 distinguish success from failure rather than depending on a particular nonzero

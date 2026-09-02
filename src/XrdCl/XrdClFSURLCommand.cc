@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iterator>
+#include <utility>
 
 namespace
 {
@@ -201,10 +202,18 @@ namespace
     return value;
   }
 
+  std::string CanonicalProtocol( std::string value )
+  {
+    value = LowerCase( std::move( value ) );
+    if( value == "xroot" ) return "root";
+    if( value == "xroots" ) return "roots";
+    return value;
+  }
+
   bool SameEndpoint( const XrdCl::URL &left, const XrdCl::URL &right )
   {
-    return LowerCase( left.GetProtocol() ) ==
-             LowerCase( right.GetProtocol() ) &&
+    return CanonicalProtocol( left.GetProtocol() ) ==
+             CanonicalProtocol( right.GetProtocol() ) &&
            left.GetUserName() == right.GetUserName() &&
            left.GetPassword() == right.GetPassword() &&
            LowerCase( left.GetHostName() ) ==
@@ -215,7 +224,7 @@ namespace
   XrdCl::URL EndpointURL( const XrdCl::URL &url )
   {
     XrdCl::URL endpoint( url );
-    endpoint.SetProtocol( LowerCase( endpoint.GetProtocol() ) );
+    endpoint.SetProtocol( CanonicalProtocol( endpoint.GetProtocol() ) );
     endpoint.SetHostName( LowerCase( endpoint.GetHostName() ) );
     endpoint.SetPath( "" );
     endpoint.SetParams( XrdCl::URL::ParamsMap() );

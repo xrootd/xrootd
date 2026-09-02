@@ -32,6 +32,7 @@
 #include <cerrno>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #ifdef __APPLE__
 #include <stdlib.h>
 #else

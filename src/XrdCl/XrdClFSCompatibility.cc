@@ -10,9 +10,12 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClFSCompatibility.hh"
+#include "XProtocol/XProtocol.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 
 namespace XrdCl
 {
@@ -114,6 +117,41 @@ namespace XrdCl
     if( !isDirectory ) return NonRecursiveRemovalDecision::NotDirectory;
     if( childCount != 0 ) return NonRecursiveRemovalDecision::NotEmpty;
     return NonRecursiveRemovalDecision::Allow;
+  }
+
+  std::string FormatGFALXAttrFailure( const std::string  &attribute,
+                                      const XRootDStatus &status )
+  {
+    std::string errorText;
+    if( status.errNo == kXR_AttrNotFound )
+    {
+      // Match the Linux/gfal2 wording on platforms such as macOS, where the
+      // native ENOATTR text is "Attribute not found" instead.
+      errorText = "No data available";
+    }
+    else if( status.errNo )
+    {
+      int errorNumber = status.errNo;
+      if( errorNumber >= kXR_ArgInvalid )
+        errorNumber = XProtocol::toErrno( errorNumber );
+      errorText = XrdSysE2T( errorNumber );
+    }
+    else
+    {
+      errorText = status.ToString();
+      const std::string::size_type prefixEnd = errorText.find( "] " );
+      if( prefixEnd != std::string::npos )
+        errorText.erase( 0, prefixEnd + 2 );
+    }
+
+    if( !errorText.empty() )
+      errorText.front() = static_cast<char>(
+        std::toupper( static_cast<unsigned char>( errorText.front() ) ) );
+
+    std::ostringstream message;
+    message << "Failed to get the xattr \"" << attribute << "\" ("
+            << errorText << ')';
+    return message.str();
   }
 
   const char *GetGFALFileStatus( bool offline, bool backupExists )

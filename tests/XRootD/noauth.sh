@@ -172,6 +172,16 @@ function test_noauth() {
 	echo "${out}" | grep -F "Removing relative path 'foo' is disallowed." \
 		|| error "unexpected rm relative-path error: ${out}"
 
+	if out=$(xrdfs "${HOST}" rm 'foo?authz=relative-secret' 2>&1); then
+		error "rm with a relative credential-bearing path should fail"
+	fi
+	echo "${out}" | grep -F \
+		"Removing relative path 'foo?authz=REDACTED' is disallowed." \
+		|| error "unexpected redacted rm path error: ${out}"
+	if echo "${out}" | grep -Fq 'relative-secret'; then
+		error "rm relative-path diagnostics exposed an authz credential"
+	fi
+
 	if out=$(xrdfs "${HOST}" ls foo 2>&1); then
 		error "ls foo should fail"
 	fi

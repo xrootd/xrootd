@@ -26,6 +26,27 @@
 
 #include <gtest/gtest.h>
 
+#include <ctime>
+
+TEST(HttpDateParser, ParsesStandardHttpDate)
+{
+  EXPECT_EQ(XrdClHttp::ParseHttpDate("Sun, 06 Nov 1994 08:49:37 GMT"),
+            static_cast<time_t>(784111777));
+}
+
+TEST(HttpDateParser, UsesCurrentTimeForMissingOrMalformedDate)
+{
+  const auto before = time(NULL);
+  const auto missing = XrdClHttp::ParseHttpDate("");
+  const auto malformed = XrdClHttp::ParseHttpDate("not an HTTP date");
+  const auto after = time(NULL);
+
+  EXPECT_GE(missing, before);
+  EXPECT_LE(missing, after);
+  EXPECT_GE(malformed, before);
+  EXPECT_LE(malformed, after);
+}
+
 namespace
 {
 void ExpectSequentialChecksum(const XrdClHttp::ChecksumInfo &checksums,
@@ -83,4 +104,16 @@ TEST(HeaderParser, BuildsChecksumNegotiationValues)
   EXPECT_EQ(XrdClHttp::HeaderParser::ChecksumTypeToDigestName(
               XrdClHttp::ChecksumType::kAll),
             "adler32,crc32,CRC32c,MD5,SHA,SHA-256");
+}
+
+TEST(HeaderParser, RecordsLastModified)
+{
+  XrdClHttp::HeaderParser parser;
+  EXPECT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
+  EXPECT_TRUE(parser.Parse(
+    "Last-Modified: Wed, 21 Oct 2015 07:28:00 GMT\r\n"));
+  EXPECT_TRUE(parser.Parse("\r\n"));
+
+  EXPECT_EQ(parser.GetLastModified(),
+            "Wed, 21 Oct 2015 07:28:00 GMT");
 }

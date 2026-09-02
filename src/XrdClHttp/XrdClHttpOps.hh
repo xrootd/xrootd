@@ -475,6 +475,12 @@ protected:
     // object is leaked
     void SuccessImpl(bool returnObj);
 
+    // Return the Last-Modified value reported by the stat response.
+    const std::string &GetLastModified() const
+    {
+        return m_is_propfind ? m_last_modified : m_headers.GetLastModified();
+    }
+
 private:
     // Parse the properties element of a PROPFIND response.
     std::pair<int64_t, bool> ParseProp(TiXmlElement *prop);
@@ -488,6 +494,7 @@ private:
     // Whether the stat response indicated that the object is a directory.
     bool m_is_dir{false};
     std::string m_response; // Body of the response (if using PROPFIND)
+    std::string m_last_modified; // Last-Modified value from a PROPFIND response
     int64_t m_length{-1}; // Length of the object from the response
 };
 
@@ -876,7 +883,7 @@ private:
         bool m_isdir{false};
         bool m_isexec{false};
         int64_t m_size{-1};
-        time_t m_lastmodified{-1};
+        std::string m_lastmodified;
     };
     // Parses the properties element of a PROPFIND response into a DavEntry object
     //

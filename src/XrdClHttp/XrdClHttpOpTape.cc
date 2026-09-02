@@ -27,7 +27,6 @@
 #include "XrdClHttpWorker.hh"
 
 #include <XrdCl/XrdClAnyObject.hh>
-
 #include <cerrno>
 #include <exception>
 #include <stdexcept>

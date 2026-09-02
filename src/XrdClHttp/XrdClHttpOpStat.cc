@@ -20,6 +20,7 @@
 
 #include "XrdClHttpOps.hh"
 #include "XrdClHttpResponses.hh"
+#include "XrdClHttpUtil.hh"
 
 #include <XrdCl/XrdClLog.hh>
 
@@ -180,6 +181,9 @@ CurlStatOp::ParseProp(TiXmlElement *prop) {
                     break;
                 }
             }
+        } else if (ElementNameEquals(child, "getlastmodified")) {
+            auto last_modified = child->GetText();
+            if (last_modified) m_last_modified = last_modified;
         }
     }
     if (m_length < 0 && m_is_dir) {
@@ -268,16 +272,17 @@ CurlStatOp::SuccessImpl(bool returnObj)
         } else {
             m_logger->Debug(kLogXrdClHttp, "Successful stat operation on %s (size %lld)", m_url.c_str(), static_cast<long long>(size));
         }
+        const auto modification_time = ParseHttpDate(GetLastModified());
 
         XrdCl::StatInfo *stat_info;
         if (m_response_info){
             auto info = new XrdClHttp::StatResponse("nobody", size,
-            XrdCl::StatInfo::Flags::IsReadable | (isdir ? XrdCl::StatInfo::Flags::IsDir : 0), time(NULL));
+            XrdCl::StatInfo::Flags::IsReadable | (isdir ? XrdCl::StatInfo::Flags::IsDir : 0), modification_time);
             info->SetResponseInfo(MoveResponseInfo());
             stat_info = info;
         } else {
             stat_info = new XrdCl::StatInfo("nobody", size,
-            XrdCl::StatInfo::Flags::IsReadable | (isdir ? XrdCl::StatInfo::Flags::IsDir : 0), time(NULL));
+            XrdCl::StatInfo::Flags::IsReadable | (isdir ? XrdCl::StatInfo::Flags::IsDir : 0), modification_time);
         }
         obj = new XrdCl::AnyObject();
         obj->Set(stat_info);

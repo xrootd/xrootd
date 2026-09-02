@@ -39,7 +39,7 @@ TEST(HttpChecksum, MapsAdler32Type) {
               XrdClHttp::ChecksumType::kADLER32);
     EXPECT_EQ(XrdClHttp::HeaderParser::ChecksumTypeToDigestName(
                   XrdClHttp::ChecksumType::kADLER32),
-              "ADLER32");
+              "adler32");
 }
 
 TEST(HttpChecksum, ParsesAdler32Digest) {

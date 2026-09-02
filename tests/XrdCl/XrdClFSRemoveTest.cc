@@ -77,8 +77,10 @@ TEST( XrdClFSRemove, ParsesRecursiveOptionsAndOperands )
       << error;
     EXPECT_TRUE( command.recursive );
     if( arguments == cases[3] )
+    {
       EXPECT_EQ( command.paths,
                  (std::vector<std::string>{"/one", "/two"}) );
+    }
   }
 
   XrdCl::RemoveCommand command;

@@ -412,6 +412,7 @@ bats::on_failure() {
 @test "reference rm: dry-run missing and later file outcomes agree" {
     require_gfal2_command gfal-rm
     local root=$BATS_TEST_TMPDIR/xrdfs-gfal2-reference
+    mkdir -p "$root/rm-reference"
     printf 'gfal' > "$root/rm-reference/gfal-dry-run-later"
     printf 'xrdfs' > "$root/rm-reference/xrdfs-dry-run-later"
 

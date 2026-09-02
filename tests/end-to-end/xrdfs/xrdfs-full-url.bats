@@ -95,6 +95,71 @@ request_query_count() {
     assert_output --partial 'Size:   5'
 }
 
+@test "stat JSON emits one stable object per path without blank lines" {
+    run "$XRDFS" stat --json "$TEST_FILE" "$TEST_SUBDIRECTORY"
+    assert_success
+    local json_output=$output
+
+    run python3 -c '
+import json
+import sys
+
+text = sys.argv[1]
+assert not text.startswith("\n")
+records = [json.loads(line) for line in text.splitlines()]
+assert len(records) == 2
+required = {
+    "path", "type", "size", "mtime", "atime", "ctime", "flags",
+    "flag_names", "extended", "mode", "permissions", "owner", "group",
+    "checksum", "xattrs",
+}
+assert all(set(record) == required for record in records)
+assert records[0]["path"] == "/data/first.txt"
+assert records[0]["type"] == "file"
+assert records[0]["size"] == 5
+assert records[0]["flag_names"] == ["IsReadable", "IsWritable"]
+assert records[1]["path"].rstrip("/") == "/data/subdir"
+assert records[1]["type"] == "directory"
+assert records[1]["flag_names"] == [
+    "XBitSet", "IsDir", "IsReadable", "IsWritable"
+]
+for record in records:
+    assert all(isinstance(record[name], int) for name in (
+        "size", "mtime", "atime", "ctime", "flags"
+    ))
+    assert isinstance(record["flag_names"], list)
+    assert isinstance(record["extended"], bool)
+    assert record["checksum"] is None
+    assert record["xattrs"] == []
+    if record["extended"]:
+        assert all(isinstance(record[name], str) for name in (
+            "mode", "permissions", "owner", "group"
+        ))
+    else:
+        assert all(record[name] is None for name in (
+            "mode", "permissions", "owner", "group"
+        ))
+        assert record["atime"] == 0
+        assert record["ctime"] == 0
+' "$json_output"
+    assert_success
+}
+
+@test "stat JSON retains query exit behavior and clean output" {
+    run "$XRDFS" stat --json -q IsReadable "$TEST_FILE"
+    assert_success
+    refute_output --partial 'Query:'
+    run python3 -c 'import json, sys; json.loads(sys.argv[1])' "$output"
+    assert_success
+
+    run "$XRDFS" stat -q IsDir --json "$TEST_FILE"
+    assert_failure 55
+    refute_output --partial 'Query:'
+    run python3 -c 'import json, sys; json.loads(sys.argv[1].splitlines()[0])' \
+        "$output"
+    assert_success
+}
+
 @test "legacy and complete-URL ls forms have identical output" {
     run "$XRDFS" "$TEST_ENDPOINT" ls -l /data/
     assert_success
@@ -104,6 +169,147 @@ request_query_count() {
     assert_success
     assert_output "$legacy_output"
     assert_output --partial first.txt
+}
+
+@test "ls JSON implies metadata and streams one object per entry" {
+    ln -s missing-target \
+        "$BATS_TEST_TMPDIR/xrdfs-full-url/data/dangling-link"
+    run "$XRDFS" ls --json "$TEST_DIRECTORY"
+    assert_success
+    local json_output=$output
+
+    run python3 -c '
+import json
+import sys
+
+records = [json.loads(line) for line in sys.argv[1].splitlines()]
+assert records
+by_path = {record["path"]: record for record in records}
+assert by_path["/data/first.txt"]["type"] == "file"
+assert by_path["/data/first.txt"]["size"] == 5
+assert by_path["/data/subdir"]["type"] == "directory"
+assert "/data/dangling-link" not in by_path
+for record in records:
+    assert isinstance(record["flags"], int)
+    assert isinstance(record["flag_names"], list)
+    assert isinstance(record["mtime"], int)
+    assert record["xattrs"] == []
+' "$json_output"
+    assert_success
+}
+
+@test "ls JSON rejects invalid UTF-8 with a clean status" {
+    python3 -c '
+import os
+import subprocess
+import sys
+
+subprocess.run([
+    os.fsencode(sys.argv[1]), b"xattr", os.fsencode(sys.argv[2]), b"set",
+    b"user.invalid-json=\xff",
+], check=True)
+' "$XRDFS" "$TEST_FILE"
+
+    run "$XRDFS" ls --json --xattr user.invalid-json "$TEST_FILE"
+    assert_failure 50
+    assert_output --partial 'Unable to serialize metadata as JSON'
+    assert_output --partial 'invalid UTF-8'
+    refute_output --partial '"path":'
+}
+
+@test "ls JSON fills checksums for direct file and directory-mode operands" {
+    run "$XRDFS" ls --json -C "$TEST_FILE"
+    assert_success
+    local direct_output=$output
+
+    run "$XRDFS" ls --json -C -d "$TEST_FILE"
+    assert_success
+    local directory_mode_output=$output
+
+    run python3 -c '
+import json
+import sys
+
+direct = json.loads(sys.argv[1])
+directory_mode = json.loads(sys.argv[2])
+for record in (direct, directory_mode):
+    assert record["path"] == "/data/first.txt"
+    assert isinstance(record["checksum"], str)
+    assert record["checksum"].startswith("adler32:")
+assert direct["checksum"] == directory_mode["checksum"]
+' "$direct_output" "$directory_mode_output"
+    assert_success
+}
+
+@test "ls JSON applies URL output to the path field" {
+    run "$XRDFS" ls --json -u "$TEST_SUBDIRECTORY"
+    assert_success
+    local listing_output=$output
+
+    run "$XRDFS" ls --json -u -d "$TEST_FILE"
+    assert_success
+    local direct_output=$output
+
+    run python3 -c '
+import json
+import re
+import sys
+
+listing = json.loads(sys.argv[1])
+direct = json.loads(sys.argv[2])
+assert re.match(r"^root://[^/]+//data/subdir/nested[.]txt$", listing["path"])
+assert re.match(r"^root://[^/]+//data/first[.]txt$", direct["path"])
+' "$listing_output" "$direct_output"
+    assert_success
+}
+
+@test "ls JSON respects directory, checksum, and ordered xattr requests" {
+    run "$XRDFS" ls --json -d "$TEST_DIRECTORY"
+    assert_success
+    local json_output=$output
+
+    run python3 -c '
+import json
+import sys
+
+record = json.loads(sys.argv[1])
+assert record["path"].rstrip("/") == "/data"
+assert record["type"] == "directory"
+' "$json_output"
+    assert_success
+
+    run "$XRDFS" ls --json --xattr user.status \
+        --xattr=user.test "$TEST_FILE"
+    assert_success
+    json_output=$output
+
+    run python3 -c '
+import json
+import sys
+
+record = json.loads(sys.argv[1])
+assert record["path"] == "/data/first.txt"
+assert record["type"] == "file"
+assert record["xattrs"] == [
+    {"name": "user.status", "value": "ONLINE"},
+    {"name": "user.test", "value": "fixture"},
+]
+' "$json_output"
+    assert_success
+
+    run "$XRDFS" ls --json -C "$TEST_SUBDIRECTORY"
+    assert_success
+    run python3 -c '
+import json
+import sys
+
+records = [json.loads(line) for line in sys.argv[1].splitlines()]
+assert len(records) == 1
+assert records[0]["path"] == "/data/subdir/nested.txt"
+assert isinstance(records[0]["checksum"], str)
+assert records[0]["checksum"]
+' "$output"
+    assert_success
 }
 
 @test "mkdir accepts gfal octal modes and multiple complete URLs" {
@@ -268,6 +474,29 @@ request_query_count() {
     run test ! -e "$root/mv-legacy-source"
     assert_success
     run test "$(cat "$root/mv-legacy-destination")" = legacy
+    assert_success
+}
+
+@test "mv accepts self moves and xroot protocol aliases" {
+    local root=$BATS_TEST_TMPDIR/xrdfs-full-url
+    local xroot_endpoint=${TEST_ENDPOINT/root:/xroot:}
+
+    printf 'self' > "$root/mv-self"
+    run "$XRDFS" mv \
+        "$TEST_ENDPOINT//mv-self" \
+        "$TEST_ENDPOINT//mv-self"
+    assert_success
+    run test "$(cat "$root/mv-self")" = self
+    assert_success
+
+    printf 'alias' > "$root/mv-alias-source"
+    run "$XRDFS" mv \
+        "$TEST_ENDPOINT//mv-alias-source" \
+        "$xroot_endpoint//mv-alias-destination"
+    assert_success
+    run test ! -e "$root/mv-alias-source"
+    assert_success
+    run test "$(cat "$root/mv-alias-destination")" = alias
     assert_success
 }
 
@@ -560,6 +789,8 @@ request_query_count() {
     local plugins=$mock/client.plugins.d
     local port_file=$mock/port
     local requests=$mock/requests.log
+    local head_port_file=$mock/head-port
+    local head_requests=$mock/head-requests.log
     mkdir -p "$plugins"
     printf '%s\n' \
         'url = http://*;https://*;dav://*;davs://*' \
@@ -570,10 +801,14 @@ request_query_count() {
         "$port_file" "$requests" &
     local mock_pid=$!
     printf '%s\n' "$mock_pid" > "$mock/webdav-removal.pid"
+    python3 "$BATS_TEST_DIRNAME/webdav-removal-mock.py" \
+        "$head_port_file" "$head_requests" head &
+    local head_mock_pid=$!
+    printf '%s\n' "$head_mock_pid" > "$mock/webdav-head.pid"
 
     local ready=false
     for _ in {1..50}; do
-        if [[ -s "$port_file" ]]; then
+        if [[ -s "$port_file" && -s "$head_port_file" ]]; then
             ready=true
             break
         fi
@@ -582,6 +817,58 @@ request_query_count() {
     "$ready"
 
     local endpoint=http://127.0.0.1:$(<"$port_file")
+    local head_endpoint=http://127.0.0.1:$(<"$head_port_file")
+
+    run env XRD_PLUGINCONFDIR="$plugins" \
+        "$XRDFS" "$endpoint" cat /file
+    assert_success
+    assert_output data
+
+    run env XRD_PLUGINCONFDIR="$plugins" \
+        "$XRDFS" ls --json -u -d "$endpoint/json-file"
+    assert_success
+    local json_file_output=$output
+
+    run env XRD_PLUGINCONFDIR="$plugins" \
+        "$XRDFS" ls --json -u "$endpoint/json-directory"
+    assert_success
+    local json_directory_output=$output
+
+    run env XRD_PLUGINCONFDIR="$plugins" \
+        "$XRDFS" stat --json "$head_endpoint/head-file"
+    assert_success
+    local json_head_output=$output
+
+    run python3 -c '
+import json
+import sys
+
+endpoint = sys.argv[1]
+direct = json.loads(sys.argv[2])
+listing = [json.loads(line) for line in sys.argv[3].splitlines()]
+head = json.loads(sys.argv[4])
+assert direct["path"] == endpoint + "/json-file"
+assert direct["extended"] is False
+assert direct["mtime"] == 784111777
+assert direct["atime"] == 0
+assert direct["ctime"] == 0
+assert direct["flag_names"] == ["IsReadable"]
+assert direct["xattrs"] == []
+assert all(direct[name] is None for name in (
+    "mode", "permissions", "owner", "group", "checksum"
+))
+assert [record["path"] for record in listing] == [
+    endpoint + "/json-directory/child"
+]
+assert listing[0]["mtime"] == 784111777
+assert head["mtime"] == 1445412480
+' "$endpoint" "$json_file_output" "$json_directory_output" \
+        "$json_head_output"
+    assert_success
+
+    run request_count HEAD /head-file "$head_requests"
+    assert_success
+    assert_output 1
 
     run env XRD_PLUGINCONFDIR="$plugins" \
         "$XRDFS" rm --dry-run \
@@ -730,7 +1017,10 @@ request_query_count() {
 
     kill "$mock_pid"
     wait "$mock_pid" 2>/dev/null || true
+    kill "$head_mock_pid"
+    wait "$head_mock_pid" 2>/dev/null || true
     : > "$mock/webdav-removal.pid"
+    : > "$mock/webdav-head.pid"
 }
 
 @test "ls accepts gfal human-readable and directory options" {
@@ -931,6 +1221,13 @@ request_query_count() {
         assert_success
         assert_output "reserved-$attribute"
     done
+}
+
+@test "xattr shorthand formats missing native attributes like gfal" {
+    run "$XRDFS" xattr "$TEST_FILE" user.missing
+    assert_failure
+    assert_output --partial \
+        'Failed to get the xattr "user.missing" (No data available)'
 }
 
 @test "xattr rejects a checksum attribute without an algorithm" {

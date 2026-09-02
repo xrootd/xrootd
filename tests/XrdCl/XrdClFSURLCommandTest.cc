@@ -292,6 +292,37 @@ TEST( XrdClFSURLCommand, ReducesURLsUsingTheSameEffectiveEndpoint )
                "cat", "/store/one", "/store/two", "/store/three"}) );
 }
 
+TEST( XrdClFSURLCommand, TreatsXRootProtocolsAsRootAliases )
+{
+  const struct
+  {
+    const char *source;
+    const char *destination;
+    const char *expectedProtocol;
+  } cases[] = {
+    {"root://root.example.org//store/source",
+     "xroot://root.example.org//store/destination", "root"},
+    {"xroot://root.example.org//store/source",
+     "root://root.example.org//store/destination", "root"},
+    {"roots://root.example.org//store/source",
+     "xroots://root.example.org//store/destination", "roots"},
+    {"xroots://root.example.org//store/source",
+     "roots://root.example.org//store/destination", "roots"}
+  };
+
+  for( const auto &testCase : cases )
+  {
+    NormalizedCommand command = Normalize(
+      {"mv", testCase.source, testCase.destination} );
+
+    ASSERT_EQ( command.result, XrdCl::ValidURLCommand );
+    EXPECT_EQ( command.endpoint.GetProtocol(), testCase.expectedProtocol );
+    EXPECT_EQ( command.arguments,
+               (std::vector<std::string>{
+                 "mv", "/store/source", "/store/destination"}) );
+  }
+}
+
 TEST( XrdClFSURLCommand, RejectsMixedEndpointsWithoutChangingArguments )
 {
   const std::vector<std::vector<std::string>> cases = {

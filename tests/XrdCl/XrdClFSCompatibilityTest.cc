@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClFSCompatibility.hh"
+#include "XProtocol/XProtocol.hh"
 
 #include <gtest/gtest.h>
 

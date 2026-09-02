@@ -113,6 +113,47 @@ bool XrdClHttp::HTTPStatusIsError(unsigned status) {
      return (status < 100) || (status >= 400);
 }
 
+time_t XrdClHttp::ParseHttpDate(std::string_view value)
+{
+    if (!value.empty()) {
+        const std::string date(value);
+        const auto parsed = curl_getdate(date.c_str(), nullptr);
+        if (parsed != -1) return parsed;
+    }
+    return time(NULL);
+}
+
+bool XrdClHttp::ClientX509Enabled(XrdCl::Env *env) {
+    if (!env) return false;
+    int disable_x509 = 0;
+    return env->GetInt("HttpDisableX509", disable_x509) && !disable_x509;
+}
+
+std::tuple<std::string, std::string> XrdClHttp::ClientX509CertKeyFromEnv(XrdCl::Env *env) {
+    std::string cert, key;
+    if (env) {
+        env->GetString("HttpClientCertFile", cert);
+        env->GetString("HttpClientKeyFile", key);
+    }
+    return std::make_tuple(cert, key);
+}
+
+bool XrdClHttp::SetClientX509(CURL *curl, const std::string &cert, const std::string &key,
+                              XrdCl::Log *log) {
+    if (cert.empty()) return true;
+    if (log) log->Debug(kLogXrdClHttp, "Using client X.509 credential found at %s", cert.c_str());
+    CURLcode result = curl_easy_setopt(curl, CURLOPT_SSLCERT, cert.c_str());
+    if (result == CURLE_OK && !key.empty())
+        result = curl_easy_setopt(curl, CURLOPT_SSLKEY, key.c_str());
+    if (result != CURLE_OK) {
+        if (log) log->Error(kLogXrdClHttp,
+            "Failed to configure the client X.509 credential: %s",
+            curl_easy_strerror(result));
+        return false;
+    }
+    return true;
+}
+
 std::string XrdClHttp::GetBearerToken(XrdCl::Log *)
 {
     auto env = XrdCl::DefaultEnv::GetEnv();
@@ -202,6 +243,24 @@ void XrdClHttp::InjectBearerToken(
                       url.GetURL().c_str());
     }
     headers.emplace_back("Authorization", "Bearer " + token);
+}
+
+void XrdClHttp::AddBearerTokenHeader(
+    std::vector<std::pair<std::string, std::string>> &headers,
+    const std::string &protocols, bool hasX509Credential,
+    const std::string &token)
+{
+    if (!ShouldUseBearerToken(protocols, hasX509Credential,
+                              !token.empty())) {
+        return;
+    }
+    auto authorization = std::find_if(headers.begin(), headers.end(),
+        [](const auto &header) {
+            return !strcasecmp(header.first.c_str(), "Authorization");
+        });
+    if (authorization == headers.end()) {
+        headers.emplace_back("Authorization", "Bearer " + token);
+    }
 }
 
 std::pair<uint16_t, uint32_t> XrdClHttp::HTTPStatusConvert(unsigned status) {
@@ -526,6 +585,10 @@ bool HeaderParser::Parse(const std::string &header_line)
     else if (header_name == "Cache-Control")
     {
         m_cache_control = header_value;
+    }
+    else if (header_name == "Last-Modified")
+    {
+        m_last_modified = header_value;
     }
 
     return true;

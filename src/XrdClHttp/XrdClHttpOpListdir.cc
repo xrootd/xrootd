@@ -115,14 +115,7 @@ bool CurlListdirOp::ParseProp(DavEntry &entry, TiXmlElement *prop)
             }
         } else if (ElementNameEquals(child, "getlastmodified")) {
             auto lastmod = child->GetText();
-            if (lastmod == nullptr) {
-                return false;
-            }
-            struct tm tm;
-            if (strptime(lastmod, "%a, %d %b %Y %H:%M:%S", &tm) == nullptr) {
-                return false;
-            }
-            entry.m_lastmodified = timegm(&tm);
+            if (lastmod) entry.m_lastmodified = lastmod;
         } else if (ElementNameEquals(child, "href")) {
             auto href = child->GetText();
             if (href == nullptr) {
@@ -229,7 +222,9 @@ CurlListdirOp::Success()
             if (entry.m_isexec) {
                 flags |= XrdCl::StatInfo::Flags::XBitSet;
             }
-            dirlist->Add(new XrdCl::DirectoryList::ListEntry(m_host_addr, entry.m_name, new XrdCl::StatInfo("nobody", entry.m_size, flags, entry.m_lastmodified)));
+            dirlist->Add(new XrdCl::DirectoryList::ListEntry(m_host_addr, entry.m_name,
+                new XrdCl::StatInfo("nobody", entry.m_size, flags,
+                    ParseHttpDate(entry.m_lastmodified))));
         }
     }
 
