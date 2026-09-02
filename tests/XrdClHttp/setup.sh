@@ -197,7 +197,7 @@ EOF
 # limits.  Hence, we explicitly place the XRootD rundir in /tmp
 XROOTD_RUNDIR="$(mktemp -d -p /tmp xrdcl-http-rundir.XXXXXXXX)"
 chmod 0755 "$XROOTD_RUNDIR"
-mkdir -p "$XROOTD_RUNDIR/cache" "XROOTD_RUNDIR/origin"
+mkdir -p "$XROOTD_RUNDIR/cache" "$XROOTD_RUNDIR/origin"
 XROOTD_CONFIGDIR="$RUNDIR/xrootd"
 rm -rf "$XROOTD_CONFIGDIR"
 mkdir -p "$XROOTD_CONFIGDIR"
@@ -374,6 +374,10 @@ export XRD_HTTPSLOWRATEBYTESSEC=1024
 export XRD_HTTPSTALLTIMEOUT=2
 export XRD_HTTPCERTFILE=$CA_DIR/tlsca.pem
 export XRD_LOGLEVEL=Debug
+# The cache is itself an HTTP client of the origin and would pick up a grid
+# proxy of the user running the tests from /tmp/x509up_u<uid>, which the test
+# CA cannot verify. Point it at a path that can never exist instead.
+export X509_USER_PROXY=/dev/null/x509
 set -x
 exec "$XROOTD_BIN" "\$@"
 EOF
