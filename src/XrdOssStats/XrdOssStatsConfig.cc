@@ -104,6 +104,7 @@ bool XrdOssStats::detail::ParseDuration(const std::string &duration, std::chrono
 
 extern "C" {
 
+XrdEXPORT
 XrdOss *XrdOssAddStorageSystem2(XrdOss       *curr_oss,
                                 XrdSysLogger *logger,
                                 const char   *config_fn,

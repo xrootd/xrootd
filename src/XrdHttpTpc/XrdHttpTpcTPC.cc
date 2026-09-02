@@ -1345,6 +1345,7 @@ std::string TPCHandler::generateClientErr(std::stringstream &err_ss, const TPCLo
   
 extern "C" {
 
+XrdEXPORT
 XrdHttpExtHandler *XrdHttpGetExtHandler(XrdSysError *log, const char * config, const char * /*parms*/, XrdOucEnv *myEnv) {
     if (curl_global_init(CURL_GLOBAL_DEFAULT)) {
         log->Emsg("TPCInitialize", "libcurl failed to initialize");

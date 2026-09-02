@@ -1,11 +1,4 @@
-# The final shared library has its symbols stripped; we need the symbols available
-# to allow unit tests to access them.  Rather than build the objects twice, we
-# create an internal object library and just link twice -- once stripping the symbols,
-# once without.
 find_package(CURL REQUIRED)
-
-add_library(XrdClHttpTesting SHARED)
-target_link_libraries(XrdClHttpTesting PRIVATE XrdClHttpObj)
 
 include(GoogleTest)
 
@@ -16,7 +9,7 @@ add_executable(xrdcl-http-unit-tests
 )
 
 target_link_libraries(xrdcl-http-unit-tests
-  XrdClHttpTesting XrdCl CURL::libcurl GTest::gtest_main)
+  XrdClHttpObj XrdCl CURL::libcurl GTest::gtest_main)
 target_include_directories(xrdcl-http-unit-tests
   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src")
 
@@ -47,7 +40,7 @@ add_executable(xrdcl-http-test
 )
 
 target_link_libraries(xrdcl-test XrdClHttpTransferTest GTest::gtest_main)
-target_link_libraries(xrdcl-http-test XrdClHttpTesting XrdClHttpTransferTest GTest::gtest_main)
+target_link_libraries(xrdcl-http-test XrdClHttpObj XrdClHttpTransferTest GTest::gtest_main)
 
 gtest_add_tests(TARGET xrdcl-test TEST_LIST CurlClOnlyTests)
 gtest_add_tests(TARGET xrdcl-http-test TEST_LIST CurlTests)

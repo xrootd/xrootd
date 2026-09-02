@@ -8,9 +8,10 @@ add_library(${XrdOssStats} MODULE
 
 target_link_libraries(${XrdOssStats} PRIVATE XrdServer XrdUtils)
 
-if(NOT APPLE)
-  target_link_options(${XrdOssStats} PRIVATE
-    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export-lib-symbols")
-endif()
+set_target_properties(${XrdOssStats}
+  PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN TRUE
+)
 
 install(TARGETS ${XrdOssStats} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -25,16 +25,16 @@ target_link_libraries(XrdClS3Obj
     Threads::Threads
 )
 
-set_target_properties(XrdClS3Obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(XrdClS3Obj
+  PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN TRUE
+    POSITION_INDEPENDENT_CODE TRUE
+)
 
 set(XrdClS3 "XrdClS3-${PLUGIN_VERSION}")
 
 add_library(${XrdClS3} MODULE)
 target_link_libraries(${XrdClS3} PRIVATE XrdClS3Obj)
-
-if(NOT APPLE)
-  target_link_options(${XrdClS3} PRIVATE
-    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/configs/export-lib-symbols")
-endif()
 
 install(TARGETS ${XrdClS3} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

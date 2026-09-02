@@ -352,7 +352,7 @@ Factory::CreateFileSystem(const std::string & url) {
 
 extern "C"
 {
-    void *XrdClGetPlugIn(const void*)
+    XrdEXPORT void *XrdClGetPlugIn(const void*)
     {
         return static_cast<void*>(new Factory());
     }

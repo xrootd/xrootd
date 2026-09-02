@@ -26,10 +26,11 @@ extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
                                                      const char     *parm,
                                                      XrdVersionInfo &myVer);
 
-XrdSciTokensHelper *SciTokensHelper = nullptr;
+XrdEXPORT XrdSciTokensHelper *SciTokensHelper = nullptr;
 
 extern "C" {
 
+XrdEXPORT
 XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *log,
                                        const char   *config,
                                        const char   *params,
@@ -50,6 +51,7 @@ XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *log,
     }
 }
 
+XrdEXPORT
 XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
                                        const char   *config,
                                        const char   *parms)
@@ -121,6 +123,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
 }
 
 
+XrdEXPORT
 XrdHttpExtHandler *XrdHttpGetExtHandler(
     XrdSysError *log, const char * config,
     const char * parms, XrdOucEnv *env)

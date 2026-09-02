@@ -853,7 +853,7 @@ Factory::TrimView(const std::string_view input_view) {
 
 extern "C"
 {
-    void *XrdClGetPlugIn(const void*)
+    XrdEXPORT void *XrdClGetPlugIn(const void*)
     {
         return static_cast<void*>(new Factory());
     }
