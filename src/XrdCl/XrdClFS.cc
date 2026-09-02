@@ -70,7 +70,7 @@ namespace
   {
     static const char *commands[] = {
       "cache", "cat", "chmod", "locate", "ls", "mkdir", "mv",
-      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs",
+      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs", "sum",
       "tail", "truncate", "xattr"
     };
 
@@ -1507,6 +1507,119 @@ XRootDStatus DoQuery( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Normalize a checksum algorithm before using it in a query parameter
+//------------------------------------------------------------------------------
+XRootDStatus NormalizeChecksumType( const std::string &input,
+                                    std::string       &normalized )
+{
+  if( input.empty() )
+    return XRootDStatus( stError, errInvalidArgs, 0,
+                         "Checksum type cannot be empty." );
+
+  normalized = input;
+  for( char &character : normalized )
+  {
+    const unsigned char value = static_cast<unsigned char>( character );
+    if( std::isalnum( value ) == 0 && character != '-' && character != '_' )
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "Invalid checksum type: " + input );
+    character = static_cast<char>( std::tolower( value ) );
+  }
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Query a file checksum using a selected algorithm
+//------------------------------------------------------------------------------
+XRootDStatus QueryChecksum( FileSystem        *fs,
+                            const std::string &path,
+                            const std::string &requested,
+                            std::string       &algorithm,
+                            std::string       &digest )
+{
+  std::string queryPath = path;
+  std::string normalized;
+  if( !requested.empty() )
+  {
+    XRootDStatus status = NormalizeChecksumType( requested, normalized );
+    if( !status.IsOK() ) return status;
+
+    queryPath += queryPath.find( '?' ) == std::string::npos ? '?' : '&';
+    queryPath += "cks.type=";
+    queryPath += normalized;
+  }
+
+  Buffer request( queryPath.size() );
+  request.FromString( queryPath );
+  Buffer *rawResponse = 0;
+  XRootDStatus status = fs->Query(
+    QueryCode::Checksum, request, rawResponse );
+  std::unique_ptr<Buffer> response( rawResponse );
+  if( !status.IsOK() ) return status;
+  if( !response )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Checksum query returned no response." );
+
+  std::vector<std::string> fields;
+  Utils::splitString( fields, response->ToString(), " " );
+  if( fields.size() != 2 )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Invalid checksum response: " + response->ToString() );
+
+  std::transform( fields[0].begin(), fields[0].end(), fields[0].begin(),
+                  []( unsigned char character )
+  {
+    return static_cast<char>( std::tolower( character ) );
+  } );
+  if( !normalized.empty() && fields[0] != normalized )
+  {
+    return XRootDStatus(
+      stError, errCheckSumError, 0,
+      "Checksum response used " + fields[0] + " instead of " + normalized );
+  }
+
+  algorithm = std::move( fields[0] );
+  digest = std::move( fields[1] );
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Query a file checksum
+//------------------------------------------------------------------------------
+XRootDStatus DoSum( FileSystem                      *fs,
+                    Env                             *env,
+                    const FSExecutor::CommandParams &args )
+{
+  Log *log = DefaultEnv::GetLog();
+  if( args.size() != 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string path;
+  if( !BuildPath( path, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string algorithm;
+  std::string digest;
+  XRootDStatus status = QueryChecksum(
+    fs, path, args[2], algorithm, digest );
+  if( !status.IsOK() )
+  {
+    log->Error( AppMsg, "Unable to query %s checksum: %s", args[2].c_str(),
+                status.ToStr().c_str() );
+    return status;
+  }
+
+  std::cout << algorithm << " " << digest << std::endl;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Query the server
 //------------------------------------------------------------------------------
 XRootDStatus DoPrepare( FileSystem                      *fs,
@@ -2281,6 +2394,9 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   spaceinfo path\n"                                             );
   printf( "     Get space statistics for given path.\n\n"                   );
 
+  printf( "   sum path checksum_type\n"                                     );
+  printf( "     Query the file checksum using the selected algorithm.\n\n"  );
+
   printf( "   xattr <path> <code> <params> \n"                              );
   printf( "     Operation on extended attributes. Codes:\n\n"               );
   printf( "     set   <attr>          Set extended attribute; <attr> is\n"  );
@@ -2318,6 +2434,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "cat",         DoCat        );
   executor->AddCommand( "tail",        DoTail       );
   executor->AddCommand( "spaceinfo",   DoSpaceInfo  );
+  executor->AddCommand( "sum",         DoSum        );
   executor->AddCommand( "xattr",       DoXAttr      );
   return executor;
 }

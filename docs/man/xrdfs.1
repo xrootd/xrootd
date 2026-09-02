@@ -9,7 +9,7 @@ xrdfs - xrootd file and directory meta-data utility
 \fBxrdfs\fR \fI[global-options]\fR \fIcommand\fR \fI[args containing complete URLs]\fR
 
 \fBcommand\fR: help, cache, chmod, ls, locate, mkdir, mv, stat, statvfs, query,
-           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, xattr
+           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, sum, xattr
 .fi
 .br
 .ad l
@@ -287,6 +287,11 @@ Output last part of files to stdout.
 \fBspaceinfo\fR \fIpath\fR
 .RS 3
 Get space statistics for given path.
+
+.RE
+\fBsum\fR \fIpath checksum_type\fR
+.RS 3
+Query the file checksum using the selected algorithm.
 
 .RE
 \fBxattr\fR \fI<path> <code> <params>\fR

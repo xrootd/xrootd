@@ -111,6 +111,25 @@ bats::on_failure() {
     assert_output --partial /-dash
 }
 
+@test "sum selects the requested checksum algorithm" {
+    run -0 xrdfs root://localhost:11965 query checksum \
+        '/examplefile?cks.type=adler32'
+    local query_output=$output
+
+    run -0 xrdfs sum root://localhost:11965//examplefile ADLER32
+    assert_output "$query_output"
+    assert_output --regexp '^adler32 [[:xdigit:]]{8}$'
+
+    run -0 xrdfs root://localhost:11965 sum /examplefile adler32
+    assert_output "$query_output"
+}
+
+@test "sum preserves URL parameters" {
+    run -0 xrdfs sum \
+        'root://localhost:11965//examplefile?xrdcl.test=1' ADLER32
+    assert_output --regexp '^adler32 [[:xdigit:]]{8}$'
+}
+
 @test "URL parameters are preserved in the operand path" {
     run -0 xrdfs stat 'root://localhost:11965//examplefile?xrdcl.test=1'
 }
