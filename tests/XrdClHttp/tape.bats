@@ -137,7 +137,7 @@ bats::on_failure() {
   assert_success
   assert_line "taperestapi.version = v1"
   assert_line "taperestapi.uri = $ORIGIN_URL/api/v1"
-  assert_line "taperestapi.sitename = XRootD Tape Test"
+  assert_line "taperestapi.sitename = xrootd-ci"
 
   run "$XRDFS_BIN" xattr "$TAPE_FILE_URL" taperestapi.version
   assert_success
