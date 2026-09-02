@@ -59,6 +59,58 @@ using namespace XrdCl;
 
 namespace
 {
+  // Adapt interactive command vectors to libc option parsing. xrdfs accepts
+  // options between operands, independently of POSIXLY_CORRECT and libc's
+  // default argv permutation policy. Only operand traversal is handled here;
+  // getopt_long handles option names, grouping, arguments and the delimiter.
+  class CommandOptions
+  {
+    public:
+      explicit CommandOptions( const FSExecutor::CommandParams &args ):
+        arguments( args ), savedOpterr( opterr )
+      {
+        for( std::string &argument : arguments )
+          argv.push_back( &argument[0] );
+        argv.push_back( nullptr );
+#if defined(__APPLE__) || defined(__FreeBSD__)
+        optind = 1;
+        optreset = 1;
+#else
+        optind = 0;
+#endif
+        opterr = 0;
+      }
+
+      ~CommandOptions() { opterr = savedOpterr; }
+
+      int Next( const char *shortOptions, const option *longOptions )
+      {
+        const std::string options = std::string( "+:" ) + shortOptions;
+        const int argc = arguments.size();
+        while( true )
+        {
+          const int previous = optind;
+          const int result = getopt_long(
+            argc, argv.data(), options.c_str(), longOptions, nullptr );
+          if( result != -1 ) return result;
+          if( optind > previous && std::string( argv[optind - 1] ) == "--" )
+          {
+            while( optind < argc ) operands.emplace_back( argv[optind++] );
+            return -1;
+          }
+          if( optind == argc ) return -1;
+          operands.emplace_back( argv[optind++] );
+        }
+      }
+
+      std::vector<std::string> operands;
+
+    private:
+      FSExecutor::CommandParams arguments;
+      std::vector<char *> argv;
+      int savedOpterr;
+  };
+
   enum URLCommandResult
   {
     NotURLCommand,
@@ -1627,29 +1679,38 @@ XRootDStatus DoCat( FileSystem                      *fs,
 
   std::vector<std::string> remotes;
   std::string local;
-
-  for( uint32_t i = 1; i < args.size(); ++i )
+  static const option options[] = {
+    { "bytes", no_argument, nullptr, 'b' },
+    { nullptr, 0, nullptr, 0 }
+  };
+  CommandOptions parser( args );
+  int option;
+  while( (option = parser.Next( "bo:", options )) != -1 )
   {
-    if( args[i] == "-o" )
+    switch( option )
     {
-      if( i < args.size()-1 )
-      {
-        local = args[i+1];
-        ++i;
-      }
-      else
-      {
-        log->Error( AppMsg, "Parameter '-o' requires an argument." );
+      case 'b':
+        // Output is already byte-preserving.
+        break;
+      case 'o':
+        local = optarg;
+        break;
+      default:
+        log->Error( AppMsg, "Invalid cat option or missing option argument." );
         return XRootDStatus( stError, errInvalidArgs );
-      }
     }
-    else
-      remotes.emplace_back( args[i] );
   }
+  remotes = std::move( parser.operands );
 
   if( !local.empty() && remotes.size() > 1 )
   {
     log->Error( AppMsg, "If '-o' is used only can be used with only one remote file." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  if( remotes.empty() )
+  {
+    log->Error( AppMsg, "Missing remote file." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
@@ -2180,9 +2241,11 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -a abort stage request\n"                                   );
   printf( "     -e evict the file from disk cache\n\n"                      );
 
-  printf( "   cat [-o local file] files\n"                                  );
+  printf( "   cat [-b|--bytes] [-o local file] [--] files\n"                );
   printf( "     Print contents of one or more files to stdout.\n"           );
-  printf( "     -o print to the specified local file\n\n"                   );
+  printf( "     -b, --bytes output bytes\n"                                );
+  printf( "     -o print to the specified local file\n"                     );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"  );
 
   printf( "   tail [-c bytes] [-f] file\n"                                  );
   printf( "     Output last part of files to stdout.\n"                     );
