@@ -169,6 +169,47 @@ def test_query_sync():
   assert response
   print(response)
 
+def test_checksum_sync():
+  c = client.FileSystem(SERVER_URL)
+  f = client.File()
+  status, response = f.open(smallfile, OpenFlags.DELETE)
+  assert status.ok
+  f.write(smallbuffer)
+  f.close()
+
+  status, response = c.checksum('/tmp/spam')
+  assert status.ok
+  assert response.algorithm
+  assert response.value
+
+
+def test_checksum_async_response():
+  raw_status = {'ok': True, 'message': 'ok'}
+
+  class Recorder(object):
+    def query(self, querycode, path, timeout, callback):
+      self.args = (querycode, path, timeout)
+      callback(raw_status, b'adler32 deadbeef\0', [])
+      return raw_status
+
+  class FileSystem(object):
+    def __init__(self):
+      self._FileSystem__fs = Recorder()
+
+  responses = []
+  filesystem = FileSystem()
+  status = client.FileSystem.checksum(
+    filesystem, '/tmp/file', timeout=12,
+    callback=lambda *args: responses.append(args))
+
+  assert status.ok
+  assert filesystem._FileSystem__fs.args == (
+    QueryCode.CHECKSUM, '/tmp/file', 12)
+  assert len(responses) == 1
+  assert responses[0][0].ok
+  assert responses[0][1].algorithm == 'adler32'
+  assert responses[0][1].value == 'deadbeef'
+
 def test_query_async():
   c = client.FileSystem(SERVER_URL)
   handler = AsyncResponseHandler()
@@ -186,7 +227,29 @@ def test_mkdir_flags():
   assert status.ok
   c.rm('/tmp/dir1/dir2')
   c.rm('/tmp/dir1')
-  
+
+def test_mkdir_p():
+  c = client.FileSystem(SERVER_URL)
+  status, response = c.mkdir_p('/tmp/dir1/dir2', flags=MkDirFlags.NONE)
+  assert status.ok
+  c.rm('/tmp/dir1/dir2')
+  c.rm('/tmp/dir1')
+
+
+def test_mkdir_p_preserves_flags():
+  class Recorder(object):
+    def mkdir(self, path, flags=0, mode=0, timeout=0, callback=None):
+      self.args = (path, flags, mode, timeout, callback)
+      return 'result'
+
+  recorder = Recorder()
+  callback = object()
+  result = client.FileSystem.mkdir_p(recorder, '/tmp/dir', flags=4, mode=0o750,
+                                     timeout=12, callback=callback)
+
+  assert result == 'result'
+  assert recorder.args == ('/tmp/dir', 4 | MkDirFlags.MAKEPATH, 0o750, 12,
+                           callback)
 
 def test_args():
   c = client.FileSystem(url=SERVER_URL)
@@ -198,6 +261,14 @@ def test_args():
 def test_creation():
   c = client.FileSystem(SERVER_URL)
   assert c.url is not None
+
+def test_context_manager():
+  with client.FileSystem(SERVER_URL) as c:
+    assert c.url is not None
+
+  with pytest.raises(RuntimeError):
+    with client.FileSystem(SERVER_URL):
+      raise RuntimeError('failure')
 
 def test_deletion():
   c = client.FileSystem(SERVER_URL)

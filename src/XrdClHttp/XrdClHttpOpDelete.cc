@@ -51,6 +51,11 @@ CurlDeleteOp::Setup(CURL *curl, CurlWorker &worker) {
 
 void
 CurlDeleteOp::Success() {
+    if (GetStatusCode() == 207) {
+        Fail(XrdCl::errErrorResponse, kXR_ServerError,
+            "WebDAV DELETE completed only partially (207 Multi-Status)");
+        return;
+    }
     SetDone(false);
     m_logger->Debug(kLogXrdClHttp, "CurlDeleteOp::Success");
     if (m_handler == nullptr) {return;}
