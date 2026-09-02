@@ -13,6 +13,8 @@ setup() {
 
     run bats_pipe -0 echo 'full URL test' \| xrdcp - \
         root://localhost:11965//examplefile
+    run bats_pipe -0 echo 'dash-prefixed file' \| xrdcp - \
+        root://localhost:11965//-b
 }
 
 teardown() {
@@ -35,6 +37,19 @@ bats::on_failure() {
 
 @test "command-first syntax accepts a full URL" {
     run -0 xrdfs stat root://localhost:11965//examplefile
+}
+
+@test "cat accepts byte aliases" {
+    run -0 xrdfs cat -b root://localhost:11965//examplefile
+    assert_output 'full URL test'
+
+    run -0 xrdfs cat --bytes root://localhost:11965//examplefile
+    assert_output 'full URL test'
+}
+
+@test "cat option delimiter preserves dash-prefixed paths" {
+    run -0 xrdfs cat -- root://localhost:11965//-b
+    assert_output 'dash-prefixed file'
 }
 
 @test "subcommand options are not consumed as global options" {

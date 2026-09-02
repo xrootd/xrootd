@@ -1627,10 +1627,21 @@ XRootDStatus DoCat( FileSystem                      *fs,
 
   std::vector<std::string> remotes;
   std::string local;
+  bool parseOptions = true;
 
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-o" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions &&
+             ( args[i] == "-b" || args[i] == "--bytes" ) )
+    {
+      // Output is already byte-preserving, so no mode change is required.
+      continue;
+    }
+    else if( parseOptions && args[i] == "-o" )
     {
       if( i < args.size()-1 )
       {
@@ -1650,6 +1661,12 @@ XRootDStatus DoCat( FileSystem                      *fs,
   if( !local.empty() && remotes.size() > 1 )
   {
     log->Error( AppMsg, "If '-o' is used only can be used with only one remote file." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  if( remotes.empty() )
+  {
+    log->Error( AppMsg, "Missing remote file." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
@@ -2180,9 +2197,11 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -a abort stage request\n"                                   );
   printf( "     -e evict the file from disk cache\n\n"                      );
 
-  printf( "   cat [-o local file] files\n"                                  );
+  printf( "   cat [-b|--bytes] [-o local file] [--] files\n"                );
   printf( "     Print contents of one or more files to stdout.\n"           );
-  printf( "     -o print to the specified local file\n\n"                   );
+  printf( "     -b, --bytes output bytes\n"                                );
+  printf( "     -o print to the specified local file\n"                     );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"  );
 
   printf( "   tail [-c bytes] [-f] file\n"                                  );
   printf( "     Output last part of files to stdout.\n"                     );

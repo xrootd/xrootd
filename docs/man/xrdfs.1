@@ -252,11 +252,15 @@ Prepare one or more files for access.
 \fI-e\fR evict the file from disk cache
 
 .RE
-\fBcat\fR \fI[-o localfile]\fR \fIfiles\fR
+\fBcat\fR \fI[-b|--bytes]\fR \fI[-o localfile]\fR \fI[--]\fR \fIfiles\fR
 .RS 3
 Print contents of one or mote files to stdout
 .br
+\fI-b\fR, \fI--bytes\fR output bytes
+.br
 \fI-o\fR print to the specified local file
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
 
 .RE
 \fBtail\fR \fI[-c bytes] [-f]\fR \fIfile\fR
