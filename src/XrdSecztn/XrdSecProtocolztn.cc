@@ -30,16 +30,16 @@
 
 #define __STDC_FORMAT_MACROS 1
 
-#include <cctype>
-#include <cerrno>
 #include <fcntl.h>
+
+#include <cerrno>
 #include <cinttypes>
-#include <iostream>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <iostream>
 #include <vector>
 
 #ifndef __FreeBSD__
@@ -47,24 +47,23 @@
 #endif
 
 #include <arpa/inet.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#include <strings.h>
 #include <unistd.h>
 
-#include "XrdVersion.hh"
-
 #include "XrdNet/XrdNetAddrInfo.hh"
+#include "XrdOuc/XrdOucBearerToken.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSciTokens/XrdSciTokensHelper.hh"
-#include "XrdSys/XrdSysE2T.hh"
-#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSys/XrdSysE2T.hh"
+#include "XrdVersion.hh"
 
 #ifndef EAUTH
 #define EAUTH EBADE
@@ -248,7 +247,6 @@ XrdSecCredentials *readFail(XrdOucErrInfo *erp, const char *path, int rc);
 XrdSecCredentials *readToken(XrdOucErrInfo *erp, const char *path, bool &isbad);
 XrdSecCredentials *retToken(XrdOucErrInfo *erp, const char *tkn, int tsz);
 int                SendAI(XrdOucErrInfo *erp, XrdSecParameters **parms);
-const char        *Strip(const char *bTok, int &sz);
 
 XrdSciTokensHelper *sthP;
 const char         *tokName;
@@ -319,38 +317,19 @@ XrdSecCredentials *XrdSecProtocolztn::findToken(XrdOucErrInfo *erp,
                                                 bool &isbad)
 {
    XrdSecCredentials *resp;
-   const char *aTok, *bTok;
-   int sz;
 
 // Look through all of the possible envars
 //
    for (int i = 0; i < (int)Vec.size(); i++)
        {tokName = Vec[i].c_str();
-
-        if (Vec[i].beginswith('/') == 1)
-           {char tokPath[MAXPATHLEN+8];
-            snprintf(tokPath, sizeof(tokPath), tokName, int(geteuid()));
-            resp = readToken(erp, tokPath, isbad);
-            if (resp || isbad) return resp;
-            continue;
+        auto result = XrdOucBearerToken::TryEntry(tokName, maxTSize);
+        if (result.status == XrdOucBearerToken::Status::Found)
+           return retToken(erp, result.token.c_str(),
+                           static_cast<int>(result.token.size()));
+        if (result.status == XrdOucBearerToken::Status::Error)
+           {isbad = true;
+            return readFail(erp, result.location.c_str(), result.errnum);
            }
-
-        if (!(aTok = getenv(Vec[i].c_str())) || !*(aTok)) continue;
-
-        if (Vec[i].endswith("_DIR"))
-           {char tokPath[MAXPATHLEN+8];
-            snprintf(tokPath,sizeof(tokPath),"%s/bt_u%d",aTok,int(geteuid()));
-            resp = readToken(erp, tokPath, isbad);
-            if (resp || isbad) return resp;
-            continue;
-           }
-
-        if (Vec[i].endswith("_FILE"))
-           {if ((resp = readToken(erp, aTok, isbad)) || isbad) return resp;
-            continue;
-           }
-
-        if ((bTok = Strip(aTok, sz))) return retToken(erp, bTok, sz);
        }
 
 // We support passing the credential cache path via Url parameter
@@ -452,60 +431,21 @@ XrdSecCredentials *XrdSecProtocolztn::readFail(XrdOucErrInfo *erp,
 XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
                                                 const char *path, bool &isbad)
 {
-   struct stat Stat;
-   const char *bTok;
-   char *buff;
-   int rdLen, sz, tokFD;
-
-// Be pessimistic
-//
    isbad = true;
 
-// Get the size of the file
-//
-   if (stat(path, &Stat))
-      {if (errno != ENOENT) return readFail(erp, path, errno);
-       isbad = false;
-       return 0;
+   auto result = XrdOucBearerToken::ReadFile(path, maxTSize);
+   if (result.status == XrdOucBearerToken::Status::Found)
+      {isbad = false;
+       return retToken(erp, result.token.c_str(),
+                       static_cast<int>(result.token.size()));
       }
 
-// Make sure token is not too big
-//
-   if (Stat.st_size > maxTSize) return readFail(erp, path, EMSGSIZE);
-   buff = (char *)alloca(Stat.st_size+1);
-
-// Open the token file
-//
-   if ((tokFD = open(path, O_RDONLY)) < 0)
-      return readFail(erp, path, errno);
-
-// Read in the token
-//
-   if ((rdLen = read(tokFD, buff, Stat.st_size)) != Stat.st_size)
-      {int rc = (rdLen < 0 ? errno : EIO);
-       close(tokFD);
-       return readFail(erp, path, rc);
-      }
-   close(tokFD);
-
-// Make sure the token ends with a null byte
-//
-   buff[Stat.st_size] = 0;
-
-// Strip the token
-//
-   if (!(bTok = Strip(buff, sz)))
+   if (result.status == XrdOucBearerToken::Status::NotFound)
       {isbad = false;
        return 0;
       }
 
-// Make sure the file is not accessible to anyone but the owner
-//
-   if (Stat.st_mode & (S_IRWXG | S_IRWXO)) return readFail(erp, path, EPERM);
-
-// Return response
-//
-   return retToken(erp, bTok, sz);
+   return readFail(erp, result.location.c_str(), result.errnum);
 }
   
 /******************************************************************************/
@@ -544,40 +484,6 @@ XrdSecCredentials *XrdSecProtocolztn::retToken(XrdOucErrInfo *erp,
 // Now return it
 //
    return new XrdSecCredentials((char *)tResp, rspLen);
-}
-  
-/******************************************************************************/
-/* Private:                        S t r i p                                  */
-/******************************************************************************/
-
-const char *XrdSecProtocolztn::Strip(const char *bTok, int &sz)
-{
-   int j, k, n = strlen(bTok);
-
-// Make sure we have at least one character here
-//
-   if (!n) return 0;
-
-// Find first non-whitespace character
-//
-   for (j = 0; j < n; j++) if (!isspace(static_cast<int>(bTok[j]))) break;
-
-// Make sure we have at least one character
-//
-   if (j >= n) return 0;
-
-// Find last non-whitespace character
-//
-   for (k = n-1; k > j; k--) if (!isspace(static_cast<int>(bTok[k]))) break;
-
-// Compute length and allocate enough storage to copy the token
-//
-   if (k <= j) return 0;
-
-// Compute length and return pointer to the token
-//
-   sz = k - j + 1;
-   return bTok + j;
 }
   
 /******************************************************************************/

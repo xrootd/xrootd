@@ -21,18 +21,17 @@
 #ifndef XRDCLHTTPUTIL_HH
 #define XRDCLHTTPUTIL_HH
 
-#include "XrdClHttpChecksum.hh"
-#include "XrdClHttpOptionsCache.hh"
-#include "XrdClHttpResponseInfo.hh"
-
 #include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <unordered_map>
 #include <vector>
+
+#include "XrdClHttpChecksum.hh"
+#include "XrdClHttpOptionsCache.hh"
+#include "XrdClHttpResponseInfo.hh"
 
 // Forward dec'ls
 typedef void CURL;
@@ -41,6 +40,13 @@ struct curl_slist;
 namespace XrdCl {
 
 class ResponseHandler;
+class Log;
+class URL;
+
+}  // namespace XrdCl
+
+namespace XrdCl {
+
 class Log;
 
 }
@@ -64,6 +70,14 @@ std::string_view trim_view(const std::string_view &input_view);
 // Returns a newly-created curl handle (no internal caching) with the
 // various configurations needed to be used by XrdClHttp
 CURL *GetHandle(bool verbose);
+
+// Locate a bearer token using the shared WLCG discovery rules
+std::string GetBearerToken(XrdCl::Log* logger = nullptr);
+
+// Add an Authorization header from discovered bearer token when the URL and
+// headers do not already carry credentials.
+void InjectBearerToken(const XrdCl::URL& url, std::vector<std::pair<std::string,
+                       std::string>>& headers, XrdCl::Log* logger = nullptr);
 
 // Parser for headers as emitted by libcurl.
 //

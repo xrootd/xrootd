@@ -19,6 +19,8 @@ add_subdirectory(XrdMacaroons)
 
 add_subdirectory(XrdOucTests)
 
+add_subdirectory(XrdSecztnTests)
+
 add_subdirectory(XrdThrottleTests)
 
 add_subdirectory( XrdSsiTests )

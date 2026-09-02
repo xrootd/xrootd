@@ -59,6 +59,7 @@ target_sources(XrdUtils
     XrdOucTrace.cc       XrdOucTrace.hh
     XrdOucUri.cc         XrdOucUri.hh
     XrdOucUtils.cc       XrdOucUtils.hh
+    XrdOucBearerToken.cc XrdOucBearerToken.hh
     XrdOucVerName.cc     XrdOucVerName.hh
                          XrdOucChain.hh
                          XrdOucDLlist.hh
