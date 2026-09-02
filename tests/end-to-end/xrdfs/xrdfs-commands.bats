@@ -424,8 +424,10 @@ teardown() {
     run xrdfs "$endpoint" xattr //file list extra
     assert_failure
 
-    run xrdfs "$endpoint" xattr //file
-    assert_failure
+    run -0 xrdfs "$endpoint" xattr //file
+    assert_output --partial 'xroot.space = '
+    assert_output --partial 'xroot.xattr = '
+    assert_output --partial 'spacetoken = { "totalsize": '
 
     run xrdfs "$endpoint" xattr //file get
     assert_failure
