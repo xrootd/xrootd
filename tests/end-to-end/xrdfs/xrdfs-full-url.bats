@@ -220,6 +220,59 @@ bats::on_failure() {
     assert_output --regexp 'adler32 [[:xdigit:]]{8}'
 }
 
+@test "xattr queries virtual attributes" {
+    run -0 xrdfs root://localhost:11965 query checksum /examplefile
+    local checksum=$output
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile xroot.cksum
+    assert_output "$checksum"
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile \
+        user.checksum.adler32
+    assert_output "${checksum#* }"
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile user.status
+    assert_output ONLINE
+}
+
+@test "xattr lists the fixed virtual attributes" {
+    run -0 xrdfs xattr root://localhost:11965//examplefile
+    assert_output --partial 'xroot.cksum = adler32 '
+    assert_output --partial 'xroot.space = '
+    assert_output --partial 'xroot.xattr '
+    assert_output --partial 'spacetoken = { "totalsize": '
+}
+
+@test "xattr succeeds when only some virtual attributes resolve" {
+    run -0 xrdfs xattr root://localhost:11965//data
+    assert_output --partial 'xroot.cksum FAILED:'
+    assert_output --partial 'xroot.space = '
+}
+
+@test "xattr fails when all virtual attribute queries fail" {
+    kill_pid_files
+    run env XRD_CONNECTIONWINDOW=1 XRD_CONNECTIONRETRY=1 \
+        XRD_REQUESTTIMEOUT=1 XRD_STREAMTIMEOUT=1 \
+        xrdfs xattr root://localhost:11965//examplefile
+    assert_failure
+    local attribute
+    for attribute in xroot.cksum xroot.space xroot.xattr spacetoken; do
+        assert_output --partial "$attribute FAILED:"
+        refute_output --partial "$attribute = "
+    done
+}
+
+@test "xattr shorthand falls back to native attributes" {
+    run -0 xrdfs xattr root://localhost:11965//examplefile set \
+        user.short=value
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile user.short
+    assert_output value
+
+    run -0 xrdfs xattr root://localhost:11965//examplefile -- user.short
+    assert_output value
+}
+
 @test "URL parameters are preserved in the operand path" {
     run -0 xrdfs stat 'root://localhost:11965//examplefile?xrdcl.test=1'
 }
