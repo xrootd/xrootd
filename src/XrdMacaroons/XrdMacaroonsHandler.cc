@@ -20,39 +20,6 @@
 
 using namespace Macaroons;
 
-char *unquote(const char *str) {
-  int l = strlen(str);
-  char *r = (char *) malloc(l + 1);
-  r[0] = '\0';
-  int i, j = 0;
-
-  for (i = 0; i < l; i++) {
-
-    if (str[i] == '%') {
-      char savec[3];
-      if (l <= i + 3) {
-        free(r);
-        return nullptr;
-      }
-      savec[0] = str[i + 1];
-      savec[1] = str[i + 2];
-      savec[2] = '\0';
-
-      r[j] = strtol(savec, 0, 16);
-
-      i += 2;
-    } else if (str[i] == '+') r[j] = ' ';
-    else r[j] = str[i];
-
-    j++;
-  }
-
-  r[j] = '\0';
-
-  return r;
-
-}
-
 static bool is_reserved_caveat(const std::string &cv)
 {
   return cv.compare(0, 5, "name:")     == 0 ||
@@ -220,15 +187,9 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
             if ((validity = std::strtoll(value.c_str(), nullptr, 10)) <= 0)
                 return req.SendSimpleResp(400, nullptr, nullptr, "Expiration request has invalid value.", 0);
         }
-        else if (key == "scope")
+        else if (key == "scope" || key == "scopes")
         {
-            char *value_raw = unquote(value.c_str());
-            if (value_raw == nullptr)
-            {
-                return req.SendSimpleResp(400, nullptr, nullptr, "Unable to unquote scope.", 0);
-            }
-            scope = value_raw;
-            free(value_raw);
+            scope = XrdOucUtils::UrlDecode(value);
         }
     }
     if (!found_grant_type)

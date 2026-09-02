@@ -124,7 +124,8 @@ namespace XrdCl
                                                    pOwner( pimpl.pOwner ),
                                                    pGroup( pimpl.pGroup ),
                                                    pExtended( pimpl.pExtended ),
-                                                   pHasCksum( pimpl.pHasCksum )
+                                                   pHasCksum( pimpl.pHasCksum ),
+                                                   pCksum( pimpl.pCksum )
       {
       }
 

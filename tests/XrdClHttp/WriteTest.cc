@@ -26,6 +26,7 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <thread>
 
 class CurlWriteFixture : public TransferFixture {
@@ -66,6 +67,44 @@ TEST_F(CurlWriteFixture, ParallelTest)
     for (unsigned ctr=0; ctr<10; ctr++) {
         threads[ctr].join();
     }
+}
+
+// A PUT is one curl operation that spans all Write()s made by the client, and the
+// origin only sends a response at the end, when the body is complete. Ensure the
+// upload is not capped by the header timeout derived from the first write, but that
+// each individual write is within the timeout.
+//
+// `xrdclhttp.timeout` is reduced by a second when parsed, so the header timeout
+// here is 2s while the writes span about 4s.  Every individual gap is well
+// inside both that and the 10s timeout each Write() asks for.
+TEST_F(CurlWriteFixture, SlowClientWriteTest)
+{
+    constexpr uint32_t chunkSize = 10'000;
+    constexpr unsigned chunkCount = 5;
+
+    XrdCl::File fh;
+    auto name = GetOriginURL() + "/test/write_slow_client";
+    auto url = name + "?authz=" + GetWriteToken()
+             + "&oss.asize=" + std::to_string(chunkCount * chunkSize)
+             + "&xrdclhttp.timeout=3s";
+    auto rv = fh.Open(url, XrdCl::OpenFlags::Write, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
+    ASSERT_TRUE(rv.IsOK()) << "Failed to open " << name << " for write: " << rv.ToStr();
+
+    unsigned char chunkByte = 'a';
+    uint64_t offset = 0;
+    for (unsigned ctr = 0; ctr < chunkCount; ctr++) {
+        if (ctr) std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::string writeBuffer(chunkSize, chunkByte);
+        rv = fh.Write(offset, chunkSize, writeBuffer.data(), static_cast<time_t>(10));
+        ASSERT_TRUE(rv.IsOK()) << "Failed to write chunk " << ctr << " of " << name << ": " << rv.ToStr();
+        offset += chunkSize;
+        chunkByte += 1;
+    }
+
+    rv = fh.Close();
+    ASSERT_TRUE(rv.IsOK()) << "Failed to close " << name << ": " << rv.ToStr();
+
+    VerifyContents(name, chunkCount * chunkSize, 'a', chunkSize);
 }
 
 // Ensure that writes fail after the PUT times out.

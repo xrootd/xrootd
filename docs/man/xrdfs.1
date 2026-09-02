@@ -9,7 +9,7 @@ xrdfs - xrootd file and directory meta-data utility
 \fBxrdfs\fR \fI[global-options]\fR \fIcommand\fR \fI[args containing complete URLs]\fR
 
 \fBcommand\fR: help, cache, chmod, ls, locate, mkdir, mv, stat, statvfs, query,
-           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, xattr
+           rm, rmdir, truncate, prepare, cat, tail, spaceinfo, sum, token, xattr
 .fi
 .br
 .ad l
@@ -27,6 +27,9 @@ The \fBquery\fR command remains server-first because its implementation-dependen
 parameters may themselves look like URLs.
 Local \fBfile://\fR and \fBstdio://\fR operands are not remote endpoints and are
 rejected in command-first form.
+The command-first complete-URL form is supported by cache, cat, chmod, locate,
+ls, mkdir, mv, prepare, rm, rmdir, spaceinfo, stat, statvfs, sum, tail, truncate,
+token, and xattr.
 Command help is available by invoking \fBxrdfs\fR with no command
 line options or parameters and then typing "help" in response to the
 input prompt.
@@ -71,19 +74,27 @@ In an XRootD URL, the double slash after the host consists of the slash
 separating the authority from the path and the leading slash of the absolute
 path. A single slash is also accepted and normalized to an absolute command
 path.
+.PP
+.nf
+\fBxrdfs token --validity 30 https://storage.example.org/store/file DOWNLOAD\fR
+.fi
 
 .SH COMMANDS
-\fBchmod\fR \fIpath\fR \fI<user><group><other>\fR
+\fBchmod\fR \fIpath\fR \fImode\fR
+.br
+\fBchmod\fR \fIoctal-mode\fR \fIpath\fR
 .RS 3
-Modify permissions of the \fIpath\fR. Permission string example:
-\fIrwxr-x--x\fR
+Modify permissions of the \fIpath\fR. The path-first form accepts either a
+nine-character symbolic mode, such as \fIrwxr-x--x\fR, or an unsigned octal
+mode no greater than \fI0777\fR. The gfal-compatible mode-first form accepts an
+octal mode. The historical path-first form remains supported.
 
 .RE
-\fBls\fR \fI[-l]\fR \fI[-u]\fR \fI[-R]\fR \fI[-D]\fR \fI[-Z]\fR \fI[-C]\fR \fI[dirname]\fR
+\fBls\fR \fI[-l]\fR \fI[-u]\fR \fI[-R]\fR \fI[-D]\fR \fI[-Z]\fR \fI[-C]\fR \fI[-h|-H]\fR \fI[-d]\fR \fI[-a]\fR \fI[-1]\fR \fI[--color=never]\fR \fI[--xattr name]\fR \fI[--json]\fR \fI[dirname]\fR
 .RS 3
 Get directory listing.
 .br
-\fI-l\fR stat every entry and print long listing
+\fI-l\fR, \fI--long\fR stat every entry and print long listing
 .br
 \fI-u\fR print paths as URLs
 .br
@@ -94,6 +105,26 @@ Get directory listing.
 \fI-Z\fR check if file is a ZIP archive and if yes list its content
 .br
 \fI-C\fR checksum every entry
+.br
+\fI-h\fR, \fI-H\fR, \fI--human-readable\fR print human-readable sizes
+.br
+\fI-d\fR, \fI--directory\fR list the directory entry instead of its contents
+.br
+\fI-a\fR, \fI--all\fR accepted for gfal-ls compatibility; xrdfs already includes entries whose names begin with a dot
+.br
+\fI-1\fR accepted for gfal-ls compatibility; xrdfs already emits one entry per line when long output is not selected
+.br
+\fI--color=never\fR accepted for gfal-ls compatibility; xrdfs output is already uncolored
+.br
+\fI--xattr name\fR append the named GFAL virtual or native XRootD attribute to long or JSON output; may be repeated and preserves request order; accepted without visible effect when neither long nor JSON output is selected
+.br
+\fI--json\fR print one JSON object per directory entry. This implies stat
+metadata, suppresses the human-readable listing, and includes values requested
+with \fI--xattr\fR in request order. With \fI-d\fR, print one object for the
+operand itself. With \fI-u\fR, the \fIpath\fR field contains a complete URL.
+For file operands, \fI-C\fR requests and includes the checksum.
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
 
 .RE
 \fBlocate\fR \fI[-n]\fR \fI[-r]\fR \fI[-d]\fR \fI[-m]\fR \fI[-i]\fR \fI[-p]\fR \fI<path>\fR
@@ -114,13 +145,22 @@ Get the locations of the path.
 
 
 .RE
-\fBmkdir\fR \fI[-p] [-m<user><group><other>] <dirname>\fR
+\fBmkdir\fR \fI[-p|--parents] [-m mode|--mode mode] <dirname>...\fR
 .RS 3
-Creates a directory/tree of directories.
+Creates one or more directories or directory trees. Every operand is validated
+before the first directory is created, and directories are then created in
+command-line order.
 .br
-\fI-p\fR create the entire directory tree recursively
+\fI-p\fR, \fI--parents\fR create the entire directory tree recursively
 .br
-\fI-m\fR\fB<user><group><other>\fR permissions for newly created directories
+\fI-m\fR \fImode\fR, \fI--mode\fR \fImode\fR set permissions for newly created
+directories. Attached forms such as \fI-m0755\fR and \fI--mode=0755\fR are also
+accepted. A mode may be a nine-character symbolic value or an unsigned octal
+value no greater than \fI0777\fR. The default remains \fI0750\fR. The native
+XRootD server always grants owner read, write, and execute permissions when it
+creates a directory; other backends may enforce additional mode policy.
+.br
+\fI--\fR stop option parsing, allowing a directory name beginning with a dash
 
 .RE
 \fBmv\fR \fI<path1> <path2>\fR
@@ -128,9 +168,13 @@ Creates a directory/tree of directories.
 Move path1 to path2 locally on the same server.
 
 .RE
-\fBstat\fR \fI<path>\fR \fI[<paths>]\fR
+\fBstat\fR \fI[--json]\fR \fI[-q flags]\fR \fI[--]\fR \fI<path>\fR \fI[<paths>]\fR
 .RS 3
 Get info about the file(s) or directory(ies).
+.br
+\fI--json\fR print one JSON object per path without the leading blank lines or
+human-readable field labels. Query checks selected with \fI-q\fR still affect
+the exit status.
 .br
 \fI-q\fR \fB<flags>\fR Makes
 xrdfs return error code 55 to the shell if the
@@ -139,7 +183,19 @@ flags may be combined together using '|' or '&'
 .br
 Available flags:
 \fBXBitSet\fR, \fBIsDir\fR, \fBOther\fR, \fBOffline\fR, \fBPOSCPending\fR,
-\fBIsReadable\fR, \fBIsWriteable\fR, \fBBackUpExists\fR
+\fBIsReadable\fR, \fBIsWritable\fR, \fBBackUpExists\fR
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
+.br
+Each JSON object contains \fIpath\fR, \fItype\fR, \fIsize\fR, integer
+\fImtime\fR, \fIatime\fR, and \fIctime\fR values, numeric \fIflags\fR,
+\fIflag_names\fR, \fIextended\fR, nullable \fImode\fR, \fIpermissions\fR,
+\fIowner\fR, \fIgroup\fR, and \fIchecksum\fR fields, and an ordered
+\fIxattrs\fR array. Metadata unavailable without an extended stat response is
+represented by null fields; unavailable access and change times are zero.
+\fImode\fR is the raw octal mode string and \fIpermissions\fR is its symbolic
+nine-character representation. JSON strings must be valid UTF-8; invalid input
+causes the command to fail rather than silently replacing bytes.
 
 .RE
 \fBstatvfs\fR \fI<path>\fR
@@ -214,18 +270,62 @@ l - connection statistics
 .RE
 \fIxattr\fR          \fB<path>\fR   Extended attributes
 .br
-\fIprepare\fR        \fB<reqid> [filenames]\fR  Prepare request status
+\fIprepare\fR        \fB[-d|--delete] <reqid> [filenames]\fR  Prepare request status or deletion
+.br
+\fItape\fR           \fB[discover | archiveinfo <paths...> | delete <reqid>]\fR  WLCG Tape REST queries
+.br
+\fIarchiveinfo\fR    \fB<paths...>\fR  Archive locality and tape metadata query
 
 
 .RE
-\fBrm\fR \fI<filename>\fR \fI[<filenames>]\fR
+\fBrm\fR \fI[-r|-R|--recursive]\fR \fI[-f|--force]\fR \fI[--dry-run]\fR \fI[--]\fR
+\fI<path>\fR \fI[<paths>]\fR
 .RS 3
-Remove a file.
+Remove one or more files. For HTTP(S) and DAV(S) endpoints, each target is
+verified not to be a collection before any DELETE request is sent. This avoids
+using WebDAV's recursive collection DELETE for a non-recursive file removal.
+.br
+\fI-r\fR, \fI-R\fR, \fI--recursive\fR remove directories and their contents.
+Native XRootD trees are traversed iteratively in postorder with existing
+\fIRm\fR, \fIDirList\fR, and \fIRmDir\fR operations. File removal is attempted
+first, and directory symlinks are never followed. A successful WebDAV
+collection DELETE completes the recursive operand without client traversal.
+Partial or ambiguous responses fail closed.
+.br
+\fI-f\fR, \fI--force\fR ignore nonexistent files and arguments, matching POSIX and gfal-rm
+.br
+Every recursive operand is validated before the first mutation. Empty paths,
+the namespace root, and paths containing dot or dot-dot traversal components
+are rejected. URL query parameters are preserved while addressing descendants.
+.br
+If one top-level tree fails, its remaining children are not attempted, but
+later top-level operands are still processed. The first failure is returned;
+multi-path recursive removal is therefore not transactional.
+.br
+\fI--dry-run\fR inspect every target without changing remote storage. Files
+that would be removed are printed with \fISKIP\fR; recursively planned
+directories are printed with \fISKIP DIR\fR after their children. Missing
+targets are printed with \fIMISSING\fR. Dry-run performs only metadata
+operations (\fIStat\fR and, for recursive directories, \fIDirList\fR); it
+never calls \fIRm\fR or \fIRmDir\fR and never sends WebDAV DELETE. A failed
+tree is abandoned, later top-level operands are still planned, and the first
+failure is returned. Query parameters are retained for descendant metadata
+requests, while \fIauthz\fR values are redacted from output and diagnostics.
+.br
+XrdCl does not provide an lstat operation. Metadata inspection can therefore
+follow a directory symlink, so a dry-run directory-symlink plan is advisory.
+To keep metadata planning finite even for cyclic or hostile listings, dry-run
+fails a tree that would descend beyond 4096 directory levels. The actual
+recursive removal path retains its non-following symlink checks and is not
+subject to this dry-run-only limit.
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash.
 
 .RE
 \fBrmdir\fR \fI<dirname>\fR
 .RS 3
-Remove a directory.
+Remove an empty directory. For HTTP(S) and DAV(S) endpoints, the target is
+verified to be an empty collection before DELETE is sent.
 
 .RE
 \fBtruncate\fR \fI<filename> <length>\fR
@@ -233,30 +333,44 @@ Remove a directory.
 Truncate a file.
 
 .RE
-\fBprepare\fR \fI[-c]\fR \fI[-f]\fR \fI[-s]\fR \fI[-w]\fR \fI[-e]\fR \fI[-p priority]\fR \fI[-a requestid]\fR \fIfilenames\fR
+\fBprepare\fR \fI[-c|--colocate]\fR \fI[-f|--fresh]\fR \fI[-s|--stage]\fR \fI[-w|--write]\fR \fI[-e|--evict|--release]\fR \fI[-p|--priority priority]\fR \fI[-a|--abort|--cancel requestid]\fR \fI[--pin-lifetime duration]\fR \fI[--metadata json]\fR \fI[--wait]\fR \fI[--timeout seconds]\fR \fI[--]\fR \fIfilenames\fR
 .RS 3
-Prepare one or more files for access.
+Prepare one or more files for access or stage them from tape.
 .br
-\fI-c\fR co-locate staged files if possible
+\fI-c\fR, \fI--colocate\fR co-locate staged files if possible
 .br
-\fI-f\fR refresh file access time even if the location is known
+\fI-f\fR, \fI--fresh\fR refresh file access time even if the location is known
 .br
-\fI-s\fR stage the files to disk if they are not online
+\fI-s\fR, \fI--stage\fR stage the files to disk if they are not online
 .br
-\fI-w\fR when files will be accessed for modification
+\fI-w\fR, \fI--write\fR when files will be accessed for modification
 .br
-\fI-p\fR priority of the request, 0 (lowest) - 3 (highest)
+\fI-p\fR, \fI--priority\fR priority of the request, 0 (lowest) - 3 (highest)
 .br
-\fI-a\fR abort the request
+\fI-a\fR, \fI--abort\fR, \fI--cancel\fR abort/cancel stage request
 .br
-\fI-e\fR evict the file from disk cache
+\fI-e\fR, \fI--evict\fR, \fI--release\fR evict/release the file from disk cache
+.br
+\fI--pin-lifetime duration\fR desired disk pin duration (seconds or ISO-8601 duration like PT24H)
+.br
+\fI--metadata json\fR targeted storage metadata for stage request
+.br
+\fI--wait\fR poll synchronously until staging is completed or failed
+.br
+\fI--timeout seconds\fR maximum polling timeout in seconds
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
 
 .RE
-\fBcat\fR \fI[-o localfile]\fR \fIfiles\fR
+\fBcat\fR \fI[-b|--bytes]\fR \fI[-o localfile]\fR \fI[--]\fR \fIfiles\fR
 .RS 3
-Print contents of one or mote files to stdout
+Print contents of one or more files to stdout
+.br
+\fI-b\fR, \fI--bytes\fR accepted for gfal-cat compatibility; output is always byte-preserving
 .br
 \fI-o\fR print to the specified local file
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
 
 .RE
 \fBtail\fR \fI[-c bytes] [-f]\fR \fIfile\fR
@@ -268,14 +382,66 @@ Output last part of files to stdout.
 \fI-f\fR           output appended data as file grows
 
 .RE
+\fBtoken\fR \fI[-w|--write]\fR \fI[--validity minutes]\fR \fI[--issuer URL]\fR \fI[--]\fR \fIpath\fR \fI[activity ...]\fR
+.RS 3
+Request a token for a storage path and print it to standard output.
+The storage endpoint must use HTTPS or DAVS. Without explicit activities, the
+request uses LIST and DOWNLOAD for read access; write access also adds MANAGE,
+UPLOAD, and DELETE.
+.br
+\fI-w\fR, \fI--write\fR request write access instead of read access
+.br
+\fI--validity minutes\fR request a nonnegative validity in minutes (default: 60)
+.br
+\fI--issuer URL\fR request the token through an explicit HTTPS or DAVS issuer. The
+client discovers an OAuth token endpoint using RFC 8414 and OpenID metadata,
+then tries the supported SciTokens and macaroon flows. If issuer discovery is
+unavailable, the request falls back to direct storage issuance. Omit this
+option to request a storage-issued token directly
+.br
+\fI--\fR stop option parsing, allowing a path beginning with a dash
+
+.RE
 \fBspaceinfo\fR \fIpath\fR
 .RS 3
 Get space statistics for given path.
 
 .RE
+\fBsum\fR \fIpath checksum_type\fR
+.RS 3
+Query the file checksum using the requested algorithm. The positional layout
+matches \fBgfal-sum\fR; for example, \fBxrdfs sum URL ADLER32\fR.
+
+.RE
+\fBxattr\fR \fI<path> [virtual-attribute]\fR
+.br
+\fBxattr\fR \fI<path> -- <virtual-attribute>\fR
+.br
 \fBxattr\fR \fI<path> <code> <params>\fR
 .RS 3
-Operation on extended attributes. Codes:
+With no attribute, query the fixed GFAL virtual XRootD attributes
+\fIxroot.cksum\fR, \fIxroot.space\fR, \fIxroot.xattr\fR, and
+\fIspacetoken\fR. With one virtual attribute, query its value. This shorthand
+is a thin adapter over existing checksum, space, and stat operations; it does
+not list native XRootD file attributes. In addition to the fixed names,
+\fIuser.checksum.<algorithm>\fR selects a checksum algorithm and
+\fIuser.status\fR maps the stat Offline and BackUpExists flags to GFAL's
+ONLINE, NEARLINE, ONLINE_AND_NEARLINE, or UNKNOWN values. An unrecognized
+single attribute name falls back to the native XRootD get operation and prints
+the raw value.
+.br
+The XRootD-specific virtual names are available for XRootD protocols. For
+HTTP(S) and WebDAV URLs, the bare virtual list instead reports the discovered
+\fItaperestapi.version\fR, \fItaperestapi.uri\fR, and
+\fItaperestapi.sitename\fR values. On those protocols, \fIuser.status\fR queries
+Tape REST archive locality and maps it to the same GFAL status values. The
+checksum virtual attribute can also be used through a different protocol plugin
+when that plugin implements checksum queries.
+.br
+Use \fI--\fR before a virtual attribute name that would otherwise be parsed as
+an explicit code.
+.br
+The explicit codes operate on native XRootD file attributes:
 .br
 \fIset\fR         \fB<attr>\fR   Set extended attribute; 
                      <attr> is string of form name=value
@@ -301,7 +467,7 @@ Operation on extended attributes. Codes:
 \fB55\fR  : query response was negative (this is not an error)
 
 .SH NOTES
-For the list of available environment variables please refere to xrdcopy(1)
+For the list of available environment variables please refer to xrdcopy(1)
 
 .SH DIAGNOSTICS
 Errors yield an error message and a non-zero exit status.

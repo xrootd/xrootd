@@ -113,6 +113,47 @@ bool XrdClHttp::HTTPStatusIsError(unsigned status) {
      return (status < 100) || (status >= 400);
 }
 
+time_t XrdClHttp::ParseHttpDate(std::string_view value)
+{
+    if (!value.empty()) {
+        const std::string date(value);
+        const auto parsed = curl_getdate(date.c_str(), nullptr);
+        if (parsed != -1) return parsed;
+    }
+    return time(NULL);
+}
+
+bool XrdClHttp::ClientX509Enabled(XrdCl::Env *env) {
+    if (!env) return false;
+    int disable_x509 = 0;
+    return env->GetInt("HttpDisableX509", disable_x509) && !disable_x509;
+}
+
+std::tuple<std::string, std::string> XrdClHttp::ClientX509CertKeyFromEnv(XrdCl::Env *env) {
+    std::string cert, key;
+    if (env) {
+        env->GetString("HttpClientCertFile", cert);
+        env->GetString("HttpClientKeyFile", key);
+    }
+    return std::make_tuple(cert, key);
+}
+
+bool XrdClHttp::SetClientX509(CURL *curl, const std::string &cert, const std::string &key,
+                              XrdCl::Log *log) {
+    if (cert.empty()) return true;
+    if (log) log->Debug(kLogXrdClHttp, "Using client X.509 credential found at %s", cert.c_str());
+    CURLcode result = curl_easy_setopt(curl, CURLOPT_SSLCERT, cert.c_str());
+    if (result == CURLE_OK && !key.empty())
+        result = curl_easy_setopt(curl, CURLOPT_SSLKEY, key.c_str());
+    if (result != CURLE_OK) {
+        if (log) log->Error(kLogXrdClHttp,
+            "Failed to configure the client X.509 credential: %s",
+            curl_easy_strerror(result));
+        return false;
+    }
+    return true;
+}
+
 std::string XrdClHttp::GetBearerToken(XrdCl::Log *)
 {
     auto env = XrdCl::DefaultEnv::GetEnv();
@@ -202,6 +243,24 @@ void XrdClHttp::InjectBearerToken(
                       url.GetURL().c_str());
     }
     headers.emplace_back("Authorization", "Bearer " + token);
+}
+
+void XrdClHttp::AddBearerTokenHeader(
+    std::vector<std::pair<std::string, std::string>> &headers,
+    const std::string &protocols, bool hasX509Credential,
+    const std::string &token)
+{
+    if (!ShouldUseBearerToken(protocols, hasX509Credential,
+                              !token.empty())) {
+        return;
+    }
+    auto authorization = std::find_if(headers.begin(), headers.end(),
+        [](const auto &header) {
+            return !strcasecmp(header.first.c_str(), "Authorization");
+        });
+    if (authorization == headers.end()) {
+        headers.emplace_back("Authorization", "Bearer " + token);
+    }
 }
 
 std::pair<uint16_t, uint32_t> XrdClHttp::HTTPStatusConvert(unsigned status) {
@@ -377,6 +436,12 @@ bool HeaderParser::Base64Decode(
 // are passed on to the callback".
 bool HeaderParser::Parse(const std::string &header_line)
 {
+    return Parse(header_line, {});
+}
+
+bool HeaderParser::Parse(const std::string &header_line,
+                         std::string_view toleratedInvalidFieldName)
+{
     if (m_recv_all_headers) {
         m_recv_all_headers = false;
         m_recv_status_line = false;
@@ -418,9 +483,11 @@ bool HeaderParser::Parse(const std::string &header_line)
         return false;
     }
 
-    std::string header_name = header_line.substr(0, found);
+    const std::string_view raw_header_name(header_line.data(), found);
+    std::string header_name(raw_header_name);
     if (!Canonicalize(header_name)) {
-        return false;
+        return !toleratedInvalidFieldName.empty()
+            && raw_header_name == toleratedInvalidFieldName;
     }
 
     found += 1;
@@ -446,7 +513,8 @@ bool HeaderParser::Parse(const std::string &header_line)
         std::string_view val(header_value);
         while (!val.empty()) {
             auto found = val.find(',');
-            auto method = val.substr(0, found);
+            std::string method(val.substr(0, found));
+            XrdCl::Utils::Trim(method);
             if (method == "PROPFIND") {
                 auto new_verbs = static_cast<unsigned>(m_allow_verbs) | static_cast<unsigned>(VerbsCache::HttpVerb::kPROPFIND);
                 m_allow_verbs = static_cast<VerbsCache::HttpVerb>(new_verbs);
@@ -526,6 +594,10 @@ bool HeaderParser::Parse(const std::string &header_line)
     else if (header_name == "Cache-Control")
     {
         m_cache_control = header_value;
+    }
+    else if (header_name == "Last-Modified")
+    {
+        m_last_modified = header_value;
     }
 
     return true;
@@ -920,6 +992,46 @@ HandlerQueue::Produce(std::shared_ptr<CurlOperation> handler)
     lk.unlock();
     m_consumer_cv.notify_one();
     m_ops_produced.fetch_add(1, std::memory_order_relaxed);
+}
+
+bool
+HandlerQueue::TryProduce(std::shared_ptr<CurlOperation> handler)
+{
+    const auto handler_expiry = handler->GetOperationExpiry();
+    std::unique_lock<std::mutex> lk{m_mutex};
+    if (m_shutdown || m_ops.size() >= m_max_pending_ops ||
+        std::chrono::steady_clock::now() > handler_expiry) {
+        m_ops_rejected.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
+
+    try {
+        m_ops.push_back(std::move(handler));
+    } catch (...) {
+        m_ops_rejected.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
+
+    char ready[] = "1";
+    while (true) {
+        auto result = write(m_write_fd, ready, 1);
+        if (result == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                m_ops.pop_back();
+                m_ops_rejected.fetch_add(1, std::memory_order_relaxed);
+                return false;
+            }
+        }
+        break;
+    }
+
+    lk.unlock();
+    m_consumer_cv.notify_one();
+    m_ops_produced.fetch_add(1, std::memory_order_relaxed);
+    return true;
 }
 
 std::shared_ptr<CurlOperation>
@@ -1327,13 +1439,10 @@ CurlWorker::Run() {
             // If the operation requires the result of the OPTIONS verb to function, then
             // we add that to the multi-handle instead, chaining the two calls together.
             if (op->RequiresOptions()) {
-                std::string modified_url;
                 std::shared_ptr<CurlOptionsOp> options_op(
                     new CurlOptionsOp(
                         curl, op,
-                        std::string(
-                            VerbsCache::GetUrlKey(op->GetUrl(), modified_url)
-                        ),
+                        op->GetUrl(),
                         m_logger, op->GetConnCalloutFunc()
                     )
                 );
@@ -1655,8 +1764,6 @@ CurlWorker::Run() {
                                     // operation can continue.  Inject a new CurlOptionsOp and chain it to the one
                                     // being processed.  Once the OPTIONS request is done, then we'll restart this
                                     // operation.
-                                    std::string modified_url;
-                                    target = VerbsCache::GetUrlKey(target, modified_url);
                                     options_op = new CurlOptionsOp(iter->first, op, target, m_logger, op->GetConnCalloutFunc());
                                     std::shared_ptr<CurlOperation> new_op(options_op);
                                     auto curl = queue.GetHandle();

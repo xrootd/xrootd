@@ -17,20 +17,25 @@ add_library(XrdClHttpObj OBJECT
   XrdClHttpOpDelete.cc
   XrdClHttpOpListdir.cc
   XrdClHttpOpMkcol.cc
+  XrdClHttpOpMove.cc
   XrdClHttpOpOpen.cc
   XrdClHttpOpOptions.cc
   XrdClHttpOpPut.cc
   XrdClHttpOpQuery.cc
   XrdClHttpOpRead.cc
   XrdClHttpOpReadV.cc
+  XrdClHttpOpSpace.cc
   XrdClHttpOps.cc            XrdClHttpOps.hh
   XrdClHttpOpStat.cc
   XrdClHttpOpTape.cc
+  XrdClHttpOpToken.cc
   XrdClHttpOptionsCache.cc   XrdClHttpOptionsCache.hh
   XrdClHttpParseTimeout.cc   XrdClHttpParseTimeout.hh
   XrdClHttpTape.cc           XrdClHttpTape.hh
+  XrdClHttpToken.cc          XrdClHttpToken.hh
   XrdClHttpUtil.cc           XrdClHttpUtil.hh
-                           XrdClHttpVerb.hh
+                              XrdClHttpVerb.hh
+  XrdClHttpWebDav.cc         XrdClHttpWebDav.hh
   XrdClHttpWorker.hh
 )
 

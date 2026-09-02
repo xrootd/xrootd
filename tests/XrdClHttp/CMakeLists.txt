@@ -1,3 +1,20 @@
+include(GoogleTest)
+
+# Token request and response parsing has no authentication fixture dependency.
+add_executable(xrdcl-http-token-unit-tests
+  TokenTest.cc
+  ${PROJECT_SOURCE_DIR}/src/XrdClHttp/XrdClHttpToken.cc
+)
+
+target_link_libraries(xrdcl-http-token-unit-tests
+  GTest::gtest_main
+)
+
+gtest_discover_tests(xrdcl-http-token-unit-tests
+  TEST_PREFIX XrdClHttp::
+  PROPERTIES DISCOVERY_TIMEOUT 10
+)
+
 # The final shared library has its symbols stripped; we need the symbols available
 # to allow unit tests to access them.  Rather than build the objects twice, we
 # create an internal object library and just link twice -- once stripping the symbols,
@@ -7,27 +24,34 @@ find_package(CURL REQUIRED)
 add_library(XrdClHttpTesting SHARED)
 target_link_libraries(XrdClHttpTesting PRIVATE XrdClHttpObj)
 
-include(GoogleTest)
-
 add_executable(xrdcl-http-unit-tests
+  ClientConfigTest.cc
   HeaderParserTest.cc
   ParseTimeoutTest.cc
   TapeTest.cc
+  WebDavParserTest.cc
 )
 
 target_link_libraries(xrdcl-http-unit-tests
-  XrdClHttpTesting XrdCl CURL::libcurl GTest::gtest_main)
+  XrdClHttpTesting XrdCl XrdXml CURL::libcurl GTest::gtest_main)
 target_include_directories(xrdcl-http-unit-tests
   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src")
 
 gtest_discover_tests(xrdcl-http-unit-tests TEST_PREFIX XrdClHttp::
   PROPERTIES DISCOVERY_TIMEOUT 10)
 
+add_executable(xrdcl-http-delete-test
+  DeleteMultiStatusTest.cc
+)
+
+target_link_libraries(xrdcl-http-delete-test XrdClHttpTesting XrdTestUtils GTest::gtest_main)
+
+gtest_add_tests(TARGET xrdcl-http-delete-test TEST_LIST CurlDeleteTests)
+
 # XrdClHttp integration tests depend on scitokens fixture for authentication
-if(NOT BUILD_SCITOKENS)
+if(NOT ENABLE_SERVER_TESTS OR NOT BUILD_SCITOKENS)
   return()
 endif()
-
 find_program(OPENSSL_BIN openssl REQUIRED)
 
 # All tests that only depend on the pure XrdCl interfaces and
@@ -36,18 +60,22 @@ add_executable(xrdcl-test
   ChecksumTest.cc
   DeleteTest.cc
   MkcolTest.cc
+  MoveTest.cc
   ReadTest.cc
   WriteTest.cc
 )
 
 # Tests depending on XrdClHttp linkage
 add_executable(xrdcl-http-test
+  ChecksumParserTest.cc
   CopyTest.cc
+  HandlerQueueTest.cc
+  OptionsCacheTest.cc
   VectorReadTest.cc
 )
 
 target_link_libraries(xrdcl-test XrdClHttpTransferTest GTest::gtest_main)
-target_link_libraries(xrdcl-http-test XrdClHttpTesting XrdClHttpTransferTest GTest::gtest_main)
+target_link_libraries(xrdcl-http-test XrdClHttpTesting XrdClHttpTransferTest XrdXml GTest::gtest_main)
 
 gtest_add_tests(TARGET xrdcl-test TEST_LIST CurlClOnlyTests)
 gtest_add_tests(TARGET xrdcl-http-test TEST_LIST CurlTests)

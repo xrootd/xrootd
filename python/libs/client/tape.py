@@ -180,11 +180,13 @@ class TapeClient(object):
       endpoint = TapeEndpoint(endpoint)
     return status, endpoint
 
-  def stage(self, url, files=None, disk_lifetime=None, targeted_metadata=None):
+  def stage(self, url, files=None, disk_lifetime=None,
+            targeted_metadata=None):
     """Submit a Tape REST stage request.
 
-    :param url: Storage URL used for endpoint discovery, or the file list if
-                each file entry contains a URL
+    :param url: Storage URL used for endpoint discovery and, when ``files`` is
+                omitted, the single file to stage; alternatively, a file list
+                whose entries contain URLs
     :param files: Sequence of file URLs or dictionaries with ``url`` or
                   ``path``, optional ``diskLifetime``, and optional
                   ``targeted_metadata``
@@ -193,12 +195,13 @@ class TapeClient(object):
     """
     if files is None:
       if isinstance(url, string_types):
-        raise ValueError('files must be provided when url is a string')
-      files = list(url)
-      url = self._derive_url(files)
-      if not self._is_url(url):
-        raise ValueError('url must be provided when file entries do not '
-                         'contain URLs')
+        files = [url]
+      else:
+        files = list(url)
+        url = self._derive_url(files)
+        if not self._is_url(url):
+          raise ValueError('url must be provided when file entries do not '
+                           'contain URLs')
     elif isinstance(files, (string_types, dict)):
       files = [files]
     else:

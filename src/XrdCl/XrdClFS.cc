@@ -23,10 +23,13 @@
 //------------------------------------------------------------------------------
 
 #include "XProtocol/XProtocol.hh"
+#include "XrdCl/XrdClFSRemove.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClFSCompatibility.hh"
 #include "XrdCl/XrdClFSExecutor.hh"
+#include "XrdCl/XrdClFSURLCommand.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFileSystemOperations.hh"
@@ -38,17 +41,25 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
+#include "XrdOuc/XrdOucJson.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
-#include <getopt.h>
-#include <iterator>
+#include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <getopt.h>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #ifdef HAVE_READLINE
 #include <readline/history.h>
@@ -57,104 +68,251 @@
 
 using namespace XrdCl;
 
+bool IsXRootDProtocol( Env *env );
+
 namespace
 {
-  enum URLCommandResult
+  void SetEndpointPath( URL &url, const std::string &path )
   {
-    NotURLCommand,
-    ValidURLCommand,
-    InvalidURLCommand
-  };
-
-  bool SupportsFullURLs( const std::string &command )
-  {
-    static const char *commands[] = {
-      "cache", "cat", "chmod", "locate", "ls", "mkdir", "mv",
-      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs",
-      "tail", "truncate", "xattr"
-    };
-
-    return std::find( std::begin( commands ), std::end( commands ), command )
-           != std::end( commands );
+    // URL stores WebDAV paths without the URI separator, while native XRootD
+    // absolute paths retain their leading slash (root://host//path).
+    if( IsWebDAVProtocol( url.GetProtocol() ) && !path.empty() && path[0] == '/' )
+      url.SetPath( path.substr( 1 ) );
+    else
+      url.SetPath( path );
   }
 
-  // XrdCl::URL also accepts bare hosts and local paths. Keep this small check
-  // to distinguish explicit URL operands from those shorthand forms and from
-  // values such as "name=https://example.org".
-  bool HasExplicitURLScheme( const std::string &argument )
+  struct StatFlagDescriptor
   {
-    std::string::size_type separator = argument.find( "://" );
-    if( separator == std::string::npos || separator == 0
-        || !std::isalpha( static_cast<unsigned char>( argument[0] ) ) )
-      return false;
+    StatInfo::Flags flag;
+    const char     *name;
+  };
 
-    for( std::string::size_type i = 1; i < separator; ++i )
+  const StatFlagDescriptor statFlagDescriptors[] = {
+    { StatInfo::XBitSet,      "XBitSet" },
+    { StatInfo::IsDir,        "IsDir" },
+    { StatInfo::Other,        "Other" },
+    { StatInfo::Offline,      "Offline" },
+    { StatInfo::POSCPending,  "POSCPending" },
+    { StatInfo::IsReadable,   "IsReadable" },
+    { StatInfo::IsWritable,   "IsWritable" },
+    { StatInfo::BackUpExists, "BackUpExists" }
+  };
+
+  const StatFlagDescriptor *FindStatFlag( const std::string &name )
+  {
+    for( const StatFlagDescriptor &descriptor : statFlagDescriptors )
+      if( name == descriptor.name ) return &descriptor;
+    return nullptr;
+  }
+
+  std::vector<std::string> StatFlagNames( const StatInfo *info = nullptr )
+  {
+    std::vector<std::string> names;
+    for( const StatFlagDescriptor &descriptor : statFlagDescriptors )
+      if( !info || info->TestFlags( descriptor.flag ) )
+        names.emplace_back( descriptor.name );
+    return names;
+  }
+
+  std::string JoinStatFlagNames( const StatInfo *info,
+                                 const char     *separator )
+  {
+    const std::vector<std::string> names = StatFlagNames( info );
+    std::string joined;
+    for( const std::string &name : names )
     {
-      unsigned char character = static_cast<unsigned char>( argument[i] );
-      if( !std::isalnum( character ) && character != '+'
-          && character != '-' && character != '.' )
-        return false;
+      if( !joined.empty() ) joined += separator;
+      joined += name;
+    }
+    return joined;
+  }
+
+  const char *StatType( const StatInfo &info )
+  {
+    if( info.TestFlags( StatInfo::IsDir ) ) return "directory";
+    if( info.TestFlags( StatInfo::Other ) ) return "other";
+    return "file";
+  }
+
+  using StatJsonXAttr = std::pair<std::string, std::string>;
+
+  XRootDStatus SerializeStatInfoJSON(
+    const std::string                 &path,
+    const StatInfo                    &info,
+    std::string                       &serialized,
+    const std::vector<StatJsonXAttr>  &xattrs =
+      std::vector<StatJsonXAttr>(),
+    const std::string                 *checksum = nullptr )
+  {
+    serialized.clear();
+    nlohmann::json output = {
+      { "path",        path },
+      { "type",        StatType( info ) },
+      { "size",        info.GetSize() },
+      { "mtime",       info.GetModTime() },
+      { "atime",       info.GetAccessTime() },
+      { "ctime",       info.GetChangeTime() },
+      { "flags",       info.GetFlags() },
+      { "flag_names",  StatFlagNames( &info ) },
+      { "extended",    info.ExtendedFormat() },
+      { "mode",        nullptr },
+      { "permissions", nullptr },
+      { "owner",       nullptr },
+      { "group",       nullptr },
+      { "checksum",    nullptr },
+      { "xattrs",      nlohmann::json::array() }
+    };
+
+    if( info.ExtendedFormat() )
+    {
+      output["mode"] = info.GetModeAsString();
+      output["permissions"] = info.GetModeAsOctString();
+      output["owner"] = info.GetOwner();
+      output["group"] = info.GetGroup();
     }
 
+    if( checksum )
+      output["checksum"] = *checksum;
+    else if( info.HasChecksum() )
+      output["checksum"] = info.GetChecksum();
+
+    for( const StatJsonXAttr &xattr : xattrs )
+    {
+      output["xattrs"].push_back( {
+        { "name", xattr.first },
+        { "value", xattr.second }
+      } );
+    }
+
+    try
+    {
+      serialized = output.dump();
+    }
+    catch( const nlohmann::json::exception &error )
+    {
+      return XRootDStatus(
+        stError, errDataError, 0,
+        std::string( "Unable to serialize metadata as JSON: " ) +
+          error.what() );
+    }
+    return XRootDStatus();
+  }
+
+  class ScopedGetoptState
+  {
+    public:
+      ScopedGetoptState():
+        pOptind( optind ), pOpterr( opterr ), pOptopt( optopt ),
+        pOptarg( optarg )
+      {
+        // optind == 0 requests a complete parser reset with both GNU and BSD
+        // getopt implementations. This is required for repeated interactive
+        // xrdfs commands and for the earlier top-level option parse.
+        optind = 0;
+        opterr = 0;
+        optopt = 0;
+        optarg = nullptr;
+      }
+
+      ~ScopedGetoptState()
+      {
+        optind = pOptind;
+        opterr = pOpterr;
+        optopt = pOptopt;
+        optarg = pOptarg;
+      }
+
+    private:
+      int   pOptind;
+      int   pOpterr;
+      int   pOptopt;
+      char *pOptarg;
+  };
+
+  bool ParseTokenValidity( const char *argument, std::uint64_t &validity )
+  {
+    if( !argument || !*argument ) return false;
+    for( const unsigned char character : std::string( argument ) )
+      if( !std::isdigit( character ) ) return false;
+
+    errno = 0;
+    char *end = nullptr;
+    const unsigned long long parsed = std::strtoull( argument, &end, 10 );
+    if( errno == ERANGE || !end || *end ) return false;
+
+    validity = static_cast<std::uint64_t>( parsed );
     return true;
   }
 
-  URLCommandResult ParseURLCommand( FSExecutor::CommandParams &arguments,
-                                    URL &endpoint, std::string &error )
+  bool NeedsWebDAVRemovalGuard( Env *env )
   {
-    if( arguments.empty() )
-      return NotURLCommand;
+    std::string server;
+    if( !env->GetString( "ServerURL", server ) ) return false;
+    return IsWebDAVProtocol( URL( server ).GetProtocol() );
+  }
 
-    if( arguments[0] == "query" )
+  XRootDStatus RemovalDecisionStatus(
+    NonRecursiveRemovalDecision decision )
+  {
+    switch( decision )
     {
-      for( std::size_t i = 1; i < arguments.size(); ++i )
-      {
-        if( HasExplicitURLScheme( arguments[i] ) )
-        {
-          error = "command-first full URLs are not supported for 'query'";
-          return InvalidURLCommand;
-        }
-      }
-      return NotURLCommand;
+      case NonRecursiveRemovalDecision::Allow:
+        return XRootDStatus();
+      case NonRecursiveRemovalDecision::IsDirectory:
+        return XRootDStatus(
+          stError, errErrorResponse, kXR_isDirectory,
+          "Target is a directory; recursive removal was not requested." );
+      case NonRecursiveRemovalDecision::NotDirectory:
+        return XRootDStatus(
+          stError, errErrorResponse, kXR_InvalidRequest,
+          "Target is not a directory." );
+      case NonRecursiveRemovalDecision::NotEmpty:
+        return XRootDStatus(
+          stError, errErrorResponse, kXR_ItExists,
+          "Directory is not empty." );
     }
+    return XRootDStatus( stError, errInternal, 0,
+                         "Unknown removal safety decision." );
+  }
 
-    if( !SupportsFullURLs( arguments[0] ) )
-      return NotURLCommand;
+  XRootDStatus GuardWebDAVRemoval( FileSystem          *fs,
+                                   const std::string   &path,
+                                   NonRecursiveRemoval  removal )
+  {
+    StatInfo *rawStat = nullptr;
+    XRootDStatus status = fs->Stat( path, rawStat );
+    std::unique_ptr<StatInfo> stat( rawStat );
+    if( !status.IsOK() ) return status;
+    if( !IsCompleteSuccess( status ) )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Stat did not return a complete response." );
+    if( !stat )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Stat succeeded without target metadata." );
 
-    bool foundURL = false;
-    for( std::size_t i = 1; i < arguments.size(); ++i )
-    {
-      if( !HasExplicitURLScheme( arguments[i] ) )
-        continue;
+    const bool isDirectory = stat->TestFlags( StatInfo::IsDir );
+    if( removal == NonRecursiveRemoval::File )
+      return RemovalDecisionStatus( EvaluateNonRecursiveRemoval(
+        removal, isDirectory, 0 ) );
 
-      URL operand( arguments[i] );
-      if( !operand.IsValid() || operand.GetProtocol() == "file"
-          || operand.GetProtocol() == "stdio" )
-      {
-        error = "invalid remote URL operand";
-        return InvalidURLCommand;
-      }
+    if( !isDirectory )
+      return RemovalDecisionStatus( EvaluateNonRecursiveRemoval(
+        removal, false, 0 ) );
 
-      if( !foundURL )
-      {
-        endpoint = operand;
-        endpoint.SetPath( "" );
-        endpoint.SetParams( URL::ParamsMap() );
-        foundURL = true;
-      }
-      else if( endpoint.GetProtocol() != operand.GetProtocol()
-               || endpoint.GetHostId() != operand.GetHostId() )
-      {
-        error = "all URL operands must use the same endpoint";
-        return InvalidURLCommand;
-      }
+    DirectoryList *rawList = nullptr;
+    status = fs->DirList( path, DirListFlags::None, rawList );
+    std::unique_ptr<DirectoryList> list( rawList );
+    if( !status.IsOK() ) return status;
+    if( !IsCompleteSuccess( status ) )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Directory listing was incomplete." );
+    if( !list )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Directory listing succeeded without a response." );
 
-      arguments[i] = operand.GetPathWithParams();
-      if( arguments[i].empty() || arguments[i][0] != '/' )
-        arguments[i].insert( arguments[i].begin(), '/' );
-    }
-
-    return foundURL ? ValidURLCommand : NotURLCommand;
+    return RemovalDecisionStatus( EvaluateNonRecursiveRemoval(
+      removal, true, list->GetSize() ) );
   }
 }
 
@@ -163,9 +321,11 @@ namespace
 //------------------------------------------------------------------------------
 XRootDStatus BuildPath( std::string &newPath, Env *env,
                         const std::string &path,
-                        const char *op = nullptr )
+                        const char *op = nullptr,
+                        const std::string *displayPath = nullptr )
 {
   Log *log = DefaultEnv::GetLog();
+  const std::string &diagnosticPath = displayPath ? *displayPath : path;
 
   if( path.empty() )
   {
@@ -186,9 +346,10 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
   {
     std::string msg;
     if( op )
-      msg = std::string( op ) + " relative path '" + path + "' is disallowed.";
+      msg = std::string( op ) + " relative path '" + diagnosticPath +
+            "' is disallowed.";
     else
-      msg = "Relative path '" + path + "' is disallowed.";
+      msg = "Relative path '" + diagnosticPath + "' is disallowed.";
     log->Error( AppMsg, "%s", msg.c_str() );
     return XRootDStatus( stError, errInvalidArgs, 0, msg );
   }
@@ -218,7 +379,8 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
     {
       if( it == pathComponents.begin() )
       {
-        const std::string msg = "Path '" + path + "' escapes above root.";
+        const std::string msg = "Path '" + diagnosticPath +
+                                "' escapes above root.";
         log->Error( AppMsg, "%s", msg.c_str() );
         return XRootDStatus( stError, errInvalidArgs, 0, msg );
       }
@@ -240,51 +402,6 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
   if( newPath.length() > 1 )
     newPath.erase( newPath.length()-1, 1 );
 
-  return XRootDStatus();
-}
-
-//------------------------------------------------------------------------------
-// Convert mode string to uint16_t
-//------------------------------------------------------------------------------
-XRootDStatus ConvertMode( Access::Mode &mode, const std::string &modeStr )
-{
-  if( modeStr.length() != 9 )
-    return XRootDStatus( stError, errInvalidArgs );
-
-  mode = Access::None;
-  for( int i = 0; i < 3; ++i )
-  {
-    if( modeStr[i] == 'r' )
-      mode |= Access::UR;
-    else if( modeStr[i] == 'w' )
-      mode |= Access::UW;
-    else if( modeStr[i] == 'x' )
-      mode |= Access::UX;
-    else if( modeStr[i] != '-' )
-      return XRootDStatus( stError, errInvalidArgs );
-  }
-  for( int i = 3; i < 6; ++i )
-  {
-    if( modeStr[i] == 'r' )
-      mode |= Access::GR;
-    else if( modeStr[i] == 'w' )
-      mode |= Access::GW;
-    else if( modeStr[i] == 'x' )
-      mode |= Access::GX;
-    else if( modeStr[i] != '-' )
-      return XRootDStatus( stError, errInvalidArgs );
-  }
-  for( int i = 6; i < 9; ++i )
-  {
-    if( modeStr[i] == 'r' )
-      mode |= Access::OR;
-    else if( modeStr[i] == 'w' )
-      mode |= Access::OW;
-    else if( modeStr[i] == 'x' )
-      mode |= Access::OX;
-    else if( modeStr[i] != '-' )
-      return XRootDStatus( stError, errInvalidArgs );
-  }
   return XRootDStatus();
 }
 
@@ -416,6 +533,22 @@ std::string getSizeStr(uint64_t size, bool human, uint64_t base) {
   return oss.str();
 }
 
+bool IsGFALVirtualXAttr( const std::string &attribute );
+XRootDStatus GetGFALVirtualXAttr( FileSystem        *fs,
+                                 Env               *env,
+                                 const std::string &path,
+                                 const std::string &attribute,
+                                 std::string       &value );
+XRootDStatus GetNativeXAttrValue( FileSystem        *fs,
+                                 const std::string &path,
+                                 const std::string &attribute,
+                                 std::string       &value );
+XRootDStatus QueryChecksum( FileSystem        *fs,
+                            const std::string &path,
+                            const std::string &requested,
+                            std::string       &algorithm,
+                            std::string       &digest );
+
 void PrintDirListStatInfo( StatInfo *info, bool hascks = false, uint32_t ownerwidth = 0, uint32_t groupwidth = 0, uint32_t sizewidth = 0, bool human = false, uint64_t base = 1000 )
 {
   if( info->ExtendedFormat() )
@@ -478,54 +611,147 @@ XRootDStatus DoLS( FileSystem                      *fs,
   // Check up the args
   //----------------------------------------------------------------------------
   Log *log = DefaultEnv::GetLog();
-  uint32_t    argc     = args.size();
   bool        stats    = false;
   bool        showUrls = false;
   bool        hascks   = false;
   bool        human    = false;
+  bool        directory = false;
+  bool        jsonOutput = false;
   uint64_t base        = 1024;
   std::string path;
+  std::vector<std::string> xattrs;
   DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
-  if( argc > 6 )
+  auto applyOption = [&]( char option )
   {
-    log->Error( AppMsg, "Too many arguments." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
+    switch( option )
+    {
+      case 'l':
+        stats = true;
+        flags |= DirListFlags::Stat;
+        return true;
+      case 'u':
+        showUrls = true;
+        return true;
+      case 'R':
+        flags |= DirListFlags::Recursive;
+        return true;
+      case 'D':
+        flags &= ~DirListFlags::Merge;
+        return true;
+      case 'Z':
+        flags |= DirListFlags::Zip;
+        return true;
+      case 'C':
+        hascks = true;
+        stats = true;
+        flags |= DirListFlags::Cksm;
+        return true;
+      case 'h':
+      case 'H':
+        human = true;
+        return true;
+      case 'd':
+        directory = true;
+        return true;
+      case 'a':
+        // xrdfs already includes entries whose names begin with a dot.
+        return true;
+      case '1':
+        // Compatibility no-op: xrdfs already emits one entry per line without -l.
+        return true;
+      default:
+        return false;
+    }
+  };
 
+  bool parseOptions = true;
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-l" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions && args[i] == "--long" )
     {
       stats = true;
       flags |= DirListFlags::Stat;
     }
-    else if( args[i] == "-u" )
-      showUrls = true;
-    else if( args[i] == "-R" )
-    {
-      flags |= DirListFlags::Recursive;
-    }
-    else if( args[i] == "-D" )
-    {
-      // show duplicates
-      flags &= ~DirListFlags::Merge;
-    }
-    else if( args[i] == "-Z" )
-    {
-      // check if file is a ZIP archive if yes list content
-      flags |= DirListFlags::Zip;
-    }
-    else if( args[i] == "-C" )
-    {
-      // query checksum for each entry in the directory
-      hascks = true;
-      stats  = true;
-      flags |= DirListFlags::Cksm;
-    }
-    else if ( args [i] == "-h" )
-    {
+    else if( parseOptions && args[i] == "--human-readable" )
       human = true;
+    else if( parseOptions && args[i] == "--json" )
+    {
+      jsonOutput = true;
+      stats = true;
+      flags |= DirListFlags::Stat;
+    }
+    else if( parseOptions && args[i] == "--directory" )
+      directory = true;
+    else if( parseOptions && args[i] == "--all" )
+    {
+      // Compatibility no-op: unlike gfal-ls, xrdfs does not hide dotfiles.
+      continue;
+    }
+    else if( parseOptions && args[i] == "--color=never" )
+    {
+      // Compatibility no-op: xrdfs output is already uncolored.
+      continue;
+    }
+    else if( parseOptions && args[i] == "--color" )
+    {
+      if( i + 1 == args.size() )
+      {
+        log->Error( AppMsg, "Parameter '--color' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      if( args[i + 1] != "never" )
+      {
+        log->Error( AppMsg, "Unsupported --color value: %s.",
+                    args[i + 1].c_str() );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      ++i;
+    }
+    else if( parseOptions && args[i] == "--xattr" )
+    {
+      if( i + 1 == args.size() )
+      {
+        log->Error( AppMsg, "Parameter '--xattr' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      if( args[i + 1].empty() )
+      {
+        log->Error( AppMsg, "Parameter '--xattr' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      xattrs.emplace_back( args[++i] );
+    }
+    else if( parseOptions && args[i].compare( 0, 8, "--xattr=" ) == 0 )
+    {
+      if( args[i].size() == 8 )
+      {
+        log->Error( AppMsg, "Parameter '--xattr' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      xattrs.emplace_back( args[i].substr( 8 ) );
+    }
+    else if( parseOptions && args[i].size() > 2 && args[i][0] == '-' &&
+             args[i][1] == '-' )
+    {
+      log->Error( AppMsg, "Unsupported option: %s.", args[i].c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    else if( parseOptions && args[i].size() > 1 && args[i][0] == '-' &&
+             args[i][1] != '-' )
+    {
+      for( std::size_t j = 1; j < args[i].size(); ++j )
+      {
+        if( !applyOption( args[i][j] ) )
+        {
+          log->Error( AppMsg, "Invalid option: %s.", args[i].c_str() );
+          return XRootDStatus( stError, errInvalidArgs );
+        }
+      }
     }
     else
       path = args[i];
@@ -536,6 +762,93 @@ XRootDStatus DoLS( FileSystem                      *fs,
     // in case we print the full URL
     flags &= ~DirListFlags::Merge;
 
+  std::string serverURL;
+  std::string urlProtocol;
+  if( showUrls )
+  {
+    if( env->GetString( "ServerURL", serverURL ) )
+      urlProtocol = URL( serverURL ).GetProtocol();
+  }
+
+  auto appendURLPath = []( const std::string &base, const std::string &path )
+  {
+    const std::string protocol = URL( base ).GetProtocol();
+    if( IsWebDAVProtocol( protocol ) )
+      return XrdOucUtils::JoinUrl( base, path );
+    return base + path;
+  };
+
+  auto getXAttrValues = [&]( const std::string       &xattrPath,
+                             std::vector<std::string> &values )
+  {
+    if( !stats ) return XRootDStatus();
+
+    values.reserve( xattrs.size() );
+    for( const std::string &attribute : xattrs )
+    {
+      std::string value;
+      XRootDStatus status = IsGFALVirtualXAttr( attribute ) ?
+        GetGFALVirtualXAttr( fs, env, xattrPath, attribute, value ) :
+        GetNativeXAttrValue( fs, xattrPath, attribute, value );
+      if( !status.IsOK() )
+      {
+        log->Error( AppMsg, "Unable to get attribute %s for %s: %s",
+                    attribute.c_str(), xattrPath.c_str(),
+                    status.ToStr().c_str() );
+        return status;
+      }
+      values.emplace_back( std::move( value ) );
+    }
+    return XRootDStatus();
+  };
+
+  auto getJSONPath = [&]( const std::string &entryPath,
+                          const std::string &hostAddress )
+  {
+    if( !showUrls ) return entryPath;
+    if( !hostAddress.empty() )
+    {
+      std::string protocol = urlProtocol;
+      if( protocol.empty() )
+      {
+        std::string url;
+        if( fs->GetProperty( "LastURL", url ) )
+          protocol = URL( url ).GetProtocol();
+      }
+      if( protocol.empty() ) protocol = "root";
+      return appendURLPath(
+        protocol + "://" + hostAddress + "/", entryPath );
+    }
+
+    std::string url;
+    if( !fs->GetProperty( "LastURL", url ) || url.empty() )
+      url = serverURL;
+    return appendURLPath( url, entryPath );
+  };
+
+  auto printJSON = [&]( const std::string              &jsonPath,
+                        const StatInfo                 &jsonInfo,
+                        const std::vector<std::string> &values,
+                        const std::string              *checksum )
+  {
+    std::vector<StatJsonXAttr> jsonXAttrs;
+    jsonXAttrs.reserve( xattrs.size() );
+    for( std::size_t i = 0; i < xattrs.size(); ++i )
+      jsonXAttrs.emplace_back( xattrs[i], values[i] );
+
+    std::string serialized;
+    XRootDStatus status = SerializeStatInfoJSON(
+      jsonPath, jsonInfo, serialized, jsonXAttrs, checksum );
+    if( !status.IsOK() )
+    {
+      log->Error( AppMsg, "Unable to serialize JSON metadata: %s",
+                  status.ToStr().c_str() );
+      return status;
+    }
+    std::cout << serialized << '\n';
+    return XRootDStatus();
+  };
+
   std::string newPath = "/";
   if( path.empty() )
     env->GetString( "CWD", newPath );
@@ -545,6 +858,12 @@ XRootDStatus DoLS( FileSystem                      *fs,
     if( !pathSt.IsOK() )
       return pathSt;
   }
+
+  std::string fallbackParent;
+  std::string fallbackQuery;
+  splitHostCgi( newPath, fallbackParent, fallbackQuery );
+  if( !fallbackParent.empty() && fallbackParent.back() != '/' )
+    fallbackParent += '/';
 
   //----------------------------------------------------------------------------
   // Stat the entry so we know if it is a file or a directory
@@ -560,9 +879,36 @@ XRootDStatus DoLS( FileSystem                      *fs,
     return st;
   }
 
-  if( !info->TestFlags( StatInfo::IsDir ) &&
-      !( flags & DirListFlags::Zip ) )
+  if( directory ||
+      (!info->TestFlags( StatInfo::IsDir ) &&
+       !( flags & DirListFlags::Zip )) )
   {
+    std::vector<std::string> values;
+    st = getXAttrValues( newPath, values );
+    if( !st.IsOK() ) return st;
+
+    if( jsonOutput )
+    {
+      std::string checksum;
+      const std::string *checksumPtr = nullptr;
+      if( hascks && !info->TestFlags( StatInfo::IsDir ) )
+      {
+        std::string algorithm;
+        std::string digest;
+        st = QueryChecksum( fs, newPath, "", algorithm, digest );
+        if( !st.IsOK() )
+        {
+          log->Error( AppMsg, "Unable to query checksum: %s",
+                      st.ToStr().c_str() );
+          return st;
+        }
+        checksum = algorithm + ":" + digest;
+        checksumPtr = &checksum;
+      }
+      return printJSON(
+        getJSONPath( newPath, "" ), *info, values, checksumPtr );
+    }
+
     if( stats )
       PrintDirListStatInfo( info, false, 0, 0, 0, human, base );
 
@@ -572,7 +918,10 @@ XRootDStatus DoLS( FileSystem                      *fs,
       fs->GetProperty( "LastURL", url );
       std::cout << url;
     }
-    std::cout << newPath << std::endl;
+    std::cout << newPath;
+    for( const std::string &value : values )
+      std::cout << '\t' << value;
+    std::cout << std::endl;
     return XRootDStatus();
   }
 
@@ -589,6 +938,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
     log->Error( AppMsg, "Unable to list the path: %s", st.ToStr().c_str() );
     return st;
   }
+  std::unique_ptr<DirectoryList> listPtr( list );
 
   if( st.code == suPartial )
   {
@@ -598,9 +948,10 @@ XRootDStatus DoLS( FileSystem                      *fs,
 
   uint32_t ownerwidth = 0, groupwidth = 0, sizewidth = 0, ckswidth = 0;
   DirectoryList::Iterator it;
-  for( it = list->Begin(); it != list->End() && stats; ++it )
+  for( it = list->Begin(); it != list->End() && stats && !jsonOutput; ++it )
   {
     StatInfo *info = (*it)->GetStatInfo();
+    if( !info ) continue;
 
     std::string size = getSizeStr(info->GetSize(),human,base);
     uint32_t sizeWidthComp;
@@ -625,19 +976,47 @@ XRootDStatus DoLS( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   for( it = list->Begin(); it != list->End(); ++it )
   {
+    StatInfo *entryInfo = stats ? (*it)->GetStatInfo() : 0;
+    const std::string &reportedParent = list->GetParentName();
+    const bool useFallbackParent = jsonOutput && reportedParent.empty();
+    const std::string entryPath =
+      ( useFallbackParent ? fallbackParent : reportedParent ) +
+      (*it)->GetName() + ( useFallbackParent ? fallbackQuery : "" );
+    if( jsonOutput && !entryInfo ) continue;
+    if( stats && !xattrs.empty() && !entryInfo )
+    {
+      // gfal-ls omits dangling entries before requesting their attributes.
+      continue;
+    }
+
+    std::vector<std::string> values;
+    st = getXAttrValues( entryPath, values );
+    if( !st.IsOK() ) return st;
+
+    if( jsonOutput )
+    {
+      st = printJSON(
+        getJSONPath( entryPath, (*it)->GetHostAddress() ),
+        *entryInfo, values, nullptr );
+      if( !st.IsOK() ) return st;
+      continue;
+    }
+
     if( stats )
     {
-      StatInfo *info = (*it)->GetStatInfo();
-      if( !info )
+      if( !entryInfo )
         std::cout << "---- 0000-00-00 00:00:00            ? ";
       else
-        PrintDirListStatInfo( info, hascks, ownerwidth, groupwidth, sizewidth, human, base );
+        PrintDirListStatInfo( entryInfo, hascks, ownerwidth, groupwidth,
+                              sizewidth, human, base );
     }
     if( showUrls )
       std::cout << "root://" << (*it)->GetHostAddress() << "/";
-    std::cout << list->GetParentName() << (*it)->GetName() << std::endl;
+    std::cout << entryPath;
+    for( const std::string &value : values )
+      std::cout << '\t' << value;
+    std::cout << std::endl;
   }
-  delete list;
   return XRootDStatus();
 }
 
@@ -651,52 +1030,92 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   // Check up the args
   //----------------------------------------------------------------------------
-  Log         *log     = DefaultEnv::GetLog();
-  uint32_t     argc    = args.size();
-
-  if( argc < 2 || argc > 4 )
-  {
-    log->Error( AppMsg, "Too few arguments." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
-
+  Log *log = DefaultEnv::GetLog();
   MkDirFlags::Flags flags = MkDirFlags::None;
-  Access::Mode mode    = Access::None;
-  std::string  modeStr = "rwxr-x---";
-  std::string  path    = "";
+  std::vector<std::string> modeStrings( 1, "rwxr-x---" );
+  std::vector<std::string> paths;
+  bool parseOptions = true;
 
-  for( uint32_t i = 1; i < args.size(); ++i )
+  for( std::size_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-p" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions && (args[i] == "-p" ||
+                              args[i] == "--parents") )
+    {
       flags |= MkDirFlags::MakePath;
-    else if( !args[i].compare( 0, 2, "-m" ) )
-      modeStr = args[i].substr( 2, 9 );
+    }
+    else if( parseOptions && (args[i] == "-m" ||
+                              args[i] == "--mode") )
+    {
+      if( i + 1 == args.size() )
+      {
+        log->Error( AppMsg, "Parameter '%s' requires an argument.",
+                    args[i].c_str() );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      modeStrings.emplace_back( args[++i] );
+    }
+    else if( parseOptions && args[i].compare( 0, 7, "--mode=" ) == 0 )
+    {
+      modeStrings.emplace_back( args[i].substr( 7 ) );
+    }
+    else if( parseOptions && args[i].compare( 0, 2, "-m" ) == 0 )
+    {
+      modeStrings.emplace_back( args[i].substr( 2 ) );
+    }
+    else if( parseOptions && args[i].size() > 1 && args[i][0] == '-' )
+    {
+      log->Error( AppMsg, "Unsupported option: %s.", args[i].c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
     else
-      path = args[i];
+    {
+      paths.emplace_back( args[i] );
+    }
   }
 
-  XRootDStatus st = ConvertMode( mode, modeStr );
-  if( !st.IsOK() )
+  if( paths.empty() )
   {
-    log->Error( AppMsg, "Invalid mode string." );
-    return st;
+    std::string unused;
+    return BuildPath( unused, env, "" );
   }
 
-  std::string newPath;
-  XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
-  if( !pathSt.IsOK() )
-    return pathSt;
+  Access::Mode mode = Access::None;
+  for( const std::string &modeString : modeStrings )
+  {
+    if( ParseAccessMode( mode, modeString ) == AccessModeFormat::Invalid )
+    {
+      log->Error( AppMsg, "Invalid mode string: %s.", modeString.c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+  }
+
+  std::vector<std::string> newPaths;
+  newPaths.reserve( paths.size() );
+  for( const std::string &path : paths )
+  {
+    std::string newPath;
+    XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
+    if( !pathSt.IsOK() ) return pathSt;
+    newPaths.emplace_back( std::move( newPath ) );
+  }
 
   //----------------------------------------------------------------------------
-  // Run the query
+  // Run the queries sequentially, matching gfal-mkdir's ordering.
   //----------------------------------------------------------------------------
-  st = fs->MkDir( newPath, flags, mode );
-  if( !st.IsOK() )
+  for( const std::string &newPath : newPaths )
   {
-    log->Error( AppMsg, "Unable create directory %s: %s",
-                        newPath.c_str(),
-                        st.ToStr().c_str() );
-    return st;
+    XRootDStatus st = fs->MkDir( newPath, flags, mode );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Unable create directory %s: %s",
+                          newPath.c_str(),
+                          st.ToStr().c_str() );
+      return st;
+    }
   }
 
   return XRootDStatus();
@@ -725,6 +1144,18 @@ XRootDStatus DoRmDir( FileSystem                      *query,
   XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Removing" );
   if( !pathSt.IsOK() )
     return pathSt;
+
+  if( NeedsWebDAVRemovalGuard( env ) )
+  {
+    XRootDStatus st = GuardWebDAVRemoval(
+      query, fullPath, NonRecursiveRemoval::Directory );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Unable to safely remove directory %s: %s",
+                          fullPath.c_str(), st.ToStr().c_str() );
+      return st;
+    }
+  }
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -770,6 +1201,9 @@ XRootDStatus DoMv( FileSystem                      *fs,
   if( !pathSt.IsOK() )
     return pathSt;
 
+  if( fullPath1 == fullPath2 )
+    return XRootDStatus();
+
   if( is_subdirectory(fullPath1, fullPath2) )
     return XRootDStatus( stError, errInvalidArgs, 0,
       "cannot move directory to a subdirectory of itself." );
@@ -800,12 +1234,199 @@ XRootDStatus DoRm( FileSystem                      *fs,
   // Check up the args
   //----------------------------------------------------------------------------
   Log         *log     = DefaultEnv::GetLog();
-  uint32_t     argc    = args.size();
-
-  if( argc < 2 )
+  RemoveCommand command;
+  std::string parseError;
+  if( !ParseRemoveCommand( args, command, parseError ) )
   {
-    log->Error( AppMsg, "Wrong number of arguments." );
+    log->Error( AppMsg, "%s", parseError.c_str() );
     return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::vector<std::string> fullPaths;
+  fullPaths.reserve( command.paths.size() );
+  for( const std::string &path : command.paths )
+  {
+    if( command.recursive &&
+        !ValidateRecursiveRemovePath( path, parseError ) )
+    {
+      log->Error( AppMsg, "Invalid recursive removal path %s: %s",
+                          RemovalDisplayPath( path ).c_str(),
+                          parseError.c_str() );
+      return XRootDStatus( stError, errInvalidArgs, 0, parseError );
+    }
+
+    std::string fullPath;
+    const std::string displayPath = RemovalDisplayPath( path );
+    XRootDStatus pathSt = BuildPath(
+      fullPath, env, path, "Removing", &displayPath );
+    if( !pathSt.IsOK() ) return pathSt;
+    fullPaths.emplace_back( std::move( fullPath ) );
+  }
+
+  if( command.recursive )
+  {
+    // Validate every resolved operand before the first mutation. This also
+    // catches relative paths which resolve to the namespace root.
+    for( const std::string &fullPath : fullPaths )
+    {
+      if( !ValidateRecursiveRemovePath( fullPath, parseError ) )
+      {
+        log->Error( AppMsg, "Invalid recursive removal path %s: %s",
+                            RemovalDisplayPath( fullPath ).c_str(),
+                            parseError.c_str() );
+        return XRootDStatus( stError, errInvalidArgs, 0, parseError );
+      }
+    }
+  }
+
+  if( command.dryRun )
+  {
+    DryRunRemoveOperations operations;
+    operations.force = command.force;
+    operations.stat = [fs]( const std::string &path, bool &isDirectory )
+    {
+      StatInfo *rawStat = nullptr;
+      XRootDStatus status = fs->Stat( path, rawStat );
+      std::unique_ptr<StatInfo> stat( rawStat );
+      if( !status.IsOK() || status.code != suDone ) return status;
+      if( !stat )
+        return XRootDStatus( stError, errInvalidResponse, 0,
+                             "Stat succeeded without target metadata." );
+      isDirectory = stat->TestFlags( StatInfo::IsDir );
+      return status;
+    };
+    operations.list = [fs]( const std::string &path,
+                            std::vector<std::string> &children )
+    {
+      DirectoryList *rawList = nullptr;
+      XRootDStatus status = fs->DirList( path, DirListFlags::None, rawList );
+      std::unique_ptr<DirectoryList> list( rawList );
+      if( !status.IsOK() || status.code != suDone ) return status;
+      if( !list )
+        return XRootDStatus( stError, errInvalidResponse, 0,
+                             "Directory listing succeeded without a response." );
+
+      children.reserve( list->GetSize() );
+      for( DirectoryList::ConstIterator entry = list->Begin();
+           entry != list->End(); ++entry )
+      {
+        if( !*entry )
+          return XRootDStatus( stError, errInvalidResponse, 0,
+                               "Directory listing contained a null entry." );
+        children.push_back( (*entry)->GetName() );
+      }
+      return status;
+    };
+    operations.report = []( const std::string &path, bool isDirectory )
+    {
+      std::cout << RemovalDisplayPath( path ) << '\t'
+                << (isDirectory ? "SKIP DIR" : "SKIP") << '\n';
+    };
+    operations.reportFailure = []( const std::string &path,
+                                   const XRootDStatus &status )
+    {
+      if( status.errNo == kXR_NotFound )
+        std::cout << RemovalDisplayPath( path ) << "\tMISSING\n";
+      else if( status.errNo != kXR_isDirectory )
+        std::cout << RemovalDisplayPath( path ) << "\tFAILED\n";
+    };
+
+    std::string failedPath;
+    XRootDStatus status = PlanRemoval(
+      fullPaths, command.recursive, operations, failedPath );
+    if( !status.IsOK() )
+    {
+      // ExecuteCommand prints a returned failure again, so sanitize the
+      // status itself rather than only the diagnostic emitted here.
+      const XRootDStatus sanitized = SanitizeRemovalStatus( status );
+      log->Error( AppMsg, "Unable to plan removal of %s: %s",
+                          RemovalDisplayPath( failedPath ).c_str(),
+                          sanitized.ToStr().c_str() );
+      return sanitized;
+    }
+    return XRootDStatus();
+  }
+
+  if( command.recursive )
+  {
+    RecursiveRemoveOperations operations;
+    operations.nativeXRootD = IsXRootDProtocol( env );
+    operations.force = command.force;
+    operations.remove = [fs]( const std::string &path )
+    {
+      // Trying Rm first is important: a native directory symlink is unlinked
+      // here instead of being followed by a metadata operation.
+      return fs->Rm( path );
+    };
+    operations.list = [fs]( const std::string &path,
+                            std::vector<std::string> &children )
+    {
+      DirectoryList *rawList = nullptr;
+      XRootDStatus status = fs->DirList( path, DirListFlags::None, rawList );
+      std::unique_ptr<DirectoryList> list( rawList );
+      if( !status.IsOK() || status.code != suDone ) return status;
+      if( !list )
+        return XRootDStatus( stError, errInvalidResponse, 0,
+                             "Directory listing succeeded without a response." );
+
+      children.reserve( list->GetSize() );
+      for( DirectoryList::ConstIterator entry = list->Begin();
+           entry != list->End(); ++entry )
+      {
+        if( !*entry )
+          return XRootDStatus( stError, errInvalidResponse, 0,
+                               "Directory listing contained a null entry." );
+        children.push_back( (*entry)->GetName() );
+      }
+      return status;
+    };
+    operations.removeDirectory = [fs]( const std::string &path )
+    {
+      return fs->RmDir( path );
+    };
+
+    bool haveFailure = false;
+    XRootDStatus firstFailure;
+    // Process operands in command-line order. A failed tree is abandoned, but
+    // later top-level operands are still attempted, matching multi-file rm.
+    for( const std::string &fullPath : fullPaths )
+    {
+      std::string failedPath;
+      XRootDStatus status = RemoveRecursively(
+        {fullPath}, operations, failedPath );
+      if( !status.IsOK() )
+      {
+        if( command.force && status.errNo == kXR_NotFound )
+          continue;
+        log->Error( AppMsg, "Unable to recursively remove %s: %s",
+                            failedPath.c_str(), status.ToStr().c_str() );
+        if( !haveFailure )
+        {
+          firstFailure = status;
+          haveFailure = true;
+        }
+        continue;
+      }
+      std::cout << "rm " << fullPath << " : " << status.ToString() << '\n';
+    }
+    return haveFailure ? firstFailure : XRootDStatus();
+  }
+
+  if( NeedsWebDAVRemovalGuard( env ) )
+  {
+    for( const std::string &fullPath : fullPaths )
+    {
+      XRootDStatus st = GuardWebDAVRemoval(
+        fs, fullPath, NonRecursiveRemoval::File );
+      if( !st.IsOK() )
+      {
+        if( command.force && st.errNo == kXR_NotFound )
+          continue;
+        log->Error( AppMsg, "Unable to safely remove %s: %s",
+                            fullPath.c_str(), st.ToStr().c_str() );
+        return st;
+      }
+    }
   }
 
   struct print_t
@@ -818,27 +1439,40 @@ XRootDStatus DoRm( FileSystem                      *fs,
     std::mutex mtx;
   };
   std::shared_ptr<print_t> print;
-  if( argc - 1 > 0 )
+  if( !fullPaths.empty() )
     print = std::make_shared<print_t>();
 
   std::vector<Pipeline> rms;
-  rms.reserve( argc - 1 );
-  for( size_t i = 1; i < argc; ++i )
+  rms.reserve( fullPaths.size() );
+  std::mutex failureMtx;
+  bool haveNonForceFailure = false;
+  XRootDStatus nonForceFailure;
+
+  for( const std::string &fullPath : fullPaths )
   {
-    std::string fullPath;
-    XRootDStatus pathSt = BuildPath( fullPath, env, args[i], "Removing" );
-    if( !pathSt.IsOK() )
-      return pathSt;
+    const bool force = command.force;
     rms.emplace_back( Rm( fs, fullPath ) >>
-                      [log, fullPath, print]( XRootDStatus &st )
+                      [log, fullPath, print, force, &failureMtx,
+                       &haveNonForceFailure, &nonForceFailure]( XRootDStatus &st )
                       {
                         if( !st.IsOK() )
                         {
+                          if( force && st.errNo == kXR_NotFound )
+                            return;
+
+                          {
+                            std::unique_lock<std::mutex> lck( failureMtx );
+                            if( !haveNonForceFailure )
+                            {
+                              haveNonForceFailure = true;
+                              nonForceFailure = st;
+                            }
+                          }
                           log->Error( AppMsg, "Unable remove %s: %s",
                                               fullPath.c_str(),
                                               st.ToStr().c_str() );
                         }
-                        if( print )
+                        else if( print )
                         {
                           print->print( "rm " + fullPath + " : " + st.ToString() );
                         }
@@ -847,14 +1481,13 @@ XRootDStatus DoRm( FileSystem                      *fs,
 
   //----------------------------------------------------------------------------
   // Run the query:
-  // Parallel() will take the vector of Pipeline by reference and empty the
-  // vector, so rms.size() will change after the call.
+  // A zero success threshold makes AtLeast wait for every operation. The
+  // callbacks reference the failure state below, so none may outlive DoRm.
   //----------------------------------------------------------------------------
-  const size_t rs = rms.size();
-  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rs ) );
-  if( !st.IsOK() )
-    return st;
+  WaitFor( Parallel( rms ).AtLeast( 0 ) );
 
+  std::unique_lock<std::mutex> lck( failureMtx );
+  if( haveNonForceFailure ) return nonForceFailure;
   return XRootDStatus();
 }
 
@@ -924,23 +1557,35 @@ XRootDStatus DoChMod( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  Access::Mode mode = Access::None;
+  std::string path;
+  const AccessModeFormat secondFormat = ParseAccessMode( mode, args[2] );
+  if( secondFormat != AccessModeFormat::Invalid )
+  {
+    // Preserve the historical path-first form, including a path whose name
+    // itself looks like an octal mode.
+    path = args[1];
+  }
+  else
+  {
+    const AccessModeFormat firstFormat = ParseAccessMode( mode, args[1] );
+    if( firstFormat != AccessModeFormat::Octal )
+    {
+      log->Error( AppMsg, "Invalid mode string." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    path = args[2];
+  }
+
   std::string fullPath;
-  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Modifying" );
+  XRootDStatus pathSt = BuildPath( fullPath, env, path, "Modifying" );
   if( !pathSt.IsOK() )
     return pathSt;
-
-  Access::Mode mode = Access::None;
-  XRootDStatus st = ConvertMode( mode, args[2] );
-  if( !st.IsOK() )
-  {
-    log->Error( AppMsg, "Invalid mode string." );
-    return st;
-  }
 
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  st = fs->ChMod( fullPath, mode );
+  XRootDStatus st = fs->ChMod( fullPath, mode );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable change mode of %s: %s",
@@ -1091,59 +1736,44 @@ XRootDStatus ProcessStatQuery( StatInfo &info, const std::string &query )
   //----------------------------------------------------------------------------
   // Process the query
   //----------------------------------------------------------------------------
-  bool isOrQuery = false;
-  bool status    = true;
-  if( query.find( '|' ) != std::string::npos )
-  {
-    isOrQuery = true;
-    status    = false;
-  }
-  std::vector<std::string> queryFlags;
+  const bool isOrQuery = query.find( '|' ) != std::string::npos;
+  std::vector<std::string> queryFlagNames;
   if( isOrQuery )
-    Utils::splitString( queryFlags, query, "|" );
+    Utils::splitString( queryFlagNames, query, "|" );
   else
-    Utils::splitString( queryFlags, query, "&" );
+    Utils::splitString( queryFlagNames, query, "&" );
 
   //----------------------------------------------------------------------------
-  // Initialize flag translation map and check the input flags
+  // Resolve and check the input flags
   //----------------------------------------------------------------------------
-  std::map<std::string, StatInfo::Flags> flagMap;
-  flagMap["XBitSet"]      = StatInfo::XBitSet;
-  flagMap["IsDir"]        = StatInfo::IsDir;
-  flagMap["Other"]        = StatInfo::Other;
-  flagMap["Offline"]      = StatInfo::Offline;
-  flagMap["POSCPending"]  = StatInfo::POSCPending;
-  flagMap["IsReadable"]   = StatInfo::IsReadable;
-  flagMap["IsWritable"]   = StatInfo::IsWritable;
-  flagMap["BackUpExists"] = StatInfo::BackUpExists;
-
-  std::vector<std::string>::iterator it;
-  for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-    if( flagMap.find( *it ) == flagMap.end() )
+  std::vector<const StatFlagDescriptor *> queryFlags;
+  queryFlags.reserve( queryFlagNames.size() );
+  for( const std::string &name : queryFlagNames )
+  {
+    const StatFlagDescriptor *descriptor = FindStatFlag( name );
+    if( !descriptor )
     {
-      log->Error( AppMsg, "Flag '%s' is not recognized.", it->c_str() );
+      log->Error( AppMsg, "Flag '%s' is not recognized.", name.c_str() );
       return XRootDStatus( stError, errInvalidArgs );
     }
+    queryFlags.emplace_back( descriptor );
+  }
 
   //----------------------------------------------------------------------------
   // Process the query
   //----------------------------------------------------------------------------
   if( isOrQuery )
   {
-    for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-      if( info.TestFlags( flagMap[*it] ) )
+    for( const StatFlagDescriptor *descriptor : queryFlags )
+      if( info.TestFlags( descriptor->flag ) )
         return XRootDStatus();
-  }
-  else
-  {
-    for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-      if( !info.TestFlags( flagMap[*it] ) )
-        return XRootDStatus( stError, errResponseNegative );
+    return XRootDStatus( stError, errResponseNegative );
   }
 
-  if( status )
-    return XRootDStatus();
-  return XRootDStatus( stError, errResponseNegative );
+  for( const StatFlagDescriptor *descriptor : queryFlags )
+    if( !info.TestFlags( descriptor->flag ) )
+      return XRootDStatus( stError, errResponseNegative );
+  return XRootDStatus();
 }
 
 //------------------------------------------------------------------------------
@@ -1167,10 +1797,20 @@ XRootDStatus DoStat( FileSystem                      *fs,
 
   std::vector<std::string> paths;
   std::string query;
+  bool jsonOutput = false;
+  bool parseOptions = true;
 
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-q" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions && args[i] == "--json" )
+    {
+      jsonOutput = true;
+    }
+    else if( parseOptions && args[i] == "-q" )
     {
       if( i < args.size()-1 )
       {
@@ -1185,6 +1825,12 @@ XRootDStatus DoStat( FileSystem                      *fs,
     }
     else
       paths.emplace_back( args[i] );
+  }
+
+  if( paths.empty() )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
   }
 
   std::vector<XrdCl::Pipeline> stats;
@@ -1213,61 +1859,59 @@ XRootDStatus DoStat( FileSystem                      *fs,
   {
     auto &ftr      = std::get<0>( tpl );
     auto &fullPath = std::get<1>( tpl );
-    std::cout << std::endl;
+    if( !jsonOutput ) std::cout << std::endl;
     try
     {
       XrdCl::StatInfo info( ftr.get() );
-      std::string flags;
-
-      if( info.TestFlags( StatInfo::XBitSet ) )
-        flags += "XBitSet|";
-      if( info.TestFlags( StatInfo::IsDir ) )
-        flags += "IsDir|";
-      if( info.TestFlags( StatInfo::Other ) )
-        flags += "Other|";
-      if( info.TestFlags( StatInfo::Offline ) )
-        flags += "Offline|";
-      if( info.TestFlags( StatInfo::POSCPending ) )
-        flags += "POSCPending|";
-      if( info.TestFlags( StatInfo::IsReadable ) )
-        flags += "IsReadable|";
-      if( info.TestFlags( StatInfo::IsWritable ) )
-        flags += "IsWritable|";
-      if( info.TestFlags( StatInfo::BackUpExists ) )
-        flags += "BackUpExists|";
-
-      if( !flags.empty() )
-        flags.erase( flags.length()-1, 1 );
-
-      std::cout <<   "Path:   " << fullPath << std::endl;
-      std::cout <<   "Id:     " << info.GetId() << std::endl;
-      std::cout <<   "Size:   " << info.GetSize() << std::endl;
-      std::cout <<   "MTime:  " << info.GetModTimeAsString() << std::endl;
-      // if extended stat information is available we can print also
-      // change time and access time
-      if( info.ExtendedFormat() )
+      if( jsonOutput )
       {
-        std::cout << "CTime:  " << info.GetChangeTimeAsString() << std::endl;
-        std::cout << "ATime:  " << info.GetAccessTimeAsString() << std::endl;
+        std::string serialized;
+        XRootDStatus jsonStatus = SerializeStatInfoJSON(
+          fullPath, info, serialized );
+        if( !jsonStatus.IsOK() )
+        {
+          st = jsonStatus;
+          log->Error( AppMsg, "Unable to serialize JSON metadata: %s",
+                      jsonStatus.ToStr().c_str() );
+        }
+        else
+          std::cout << serialized << '\n';
       }
-      std::cout << "Flags:  " << info.GetFlags() << " (" << flags << ")";
-
-      // check if extended stat information is available
-      if( info.ExtendedFormat() )
+      else
       {
-        std::cout << "\nMode:   " << info.GetModeAsString() << std::endl;
-        std::cout << "Owner:  " << info.GetOwner() << std::endl;
-        std::cout << "Group:  " << info.GetGroup();
-      }
+        const std::string flags = JoinStatFlagNames( &info, "|" );
 
-      std::cout << std::endl;
+        std::cout <<   "Path:   " << fullPath << std::endl;
+        std::cout <<   "Id:     " << info.GetId() << std::endl;
+        std::cout <<   "Size:   " << info.GetSize() << std::endl;
+        std::cout <<   "MTime:  " << info.GetModTimeAsString() << std::endl;
+        // if extended stat information is available we can print also
+        // change time and access time
+        if( info.ExtendedFormat() )
+        {
+          std::cout << "CTime:  " << info.GetChangeTimeAsString() << std::endl;
+          std::cout << "ATime:  " << info.GetAccessTimeAsString() << std::endl;
+        }
+        std::cout << "Flags:  " << info.GetFlags() << " (" << flags << ")";
+
+        // check if extended stat information is available
+        if( info.ExtendedFormat() )
+        {
+          std::cout << "\nMode:   " << info.GetModeAsString() << std::endl;
+          std::cout << "Owner:  " << info.GetOwner() << std::endl;
+          std::cout << "Group:  " << info.GetGroup();
+        }
+
+        std::cout << std::endl;
+      }
 
       if( query.length() != 0 )
       {
         XRootDStatus s = ProcessStatQuery( info, query );
         if( !s.IsOK() )
           st = s;
-        std::cout << "Query:  " << query << " " << std::endl;
+        if( !jsonOutput )
+          std::cout << "Query:  " << query << " " << std::endl;
       }
     }
     catch( XrdCl::PipelineException &ex )
@@ -1341,6 +1985,7 @@ XRootDStatus DoStatVFS( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Query the server
 //------------------------------------------------------------------------------
 XRootDStatus DoQuery( FileSystem                      *fs,
@@ -1353,10 +1998,149 @@ XRootDStatus DoQuery( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
+  if( !( argc >= 2 ) )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  if( args[1] == "tape" || args[1] == "archiveinfo" )
+  {
+    bool jsonOutput = false;
+    std::string tapeCmd = (args[1] == "archiveinfo") ? "archiveinfo" : "discover";
+    size_t startIdx = 2;
+    if( args[1] == "tape" && args.size() > 2 )
+    {
+      if( args[2] == "--json" )
+      {
+        jsonOutput = true;
+        if( args.size() > 3 ) tapeCmd = args[3];
+        startIdx = 4;
+      }
+      else
+      {
+        tapeCmd = args[2];
+        startIdx = 3;
+      }
+    }
+
+    std::string strArg;
+    if( tapeCmd == "discover" || tapeCmd == "discovery" )
+    {
+      strArg = "tape.discover";
+    }
+    else if( tapeCmd == "archiveinfo" || tapeCmd == "archivepoll" )
+    {
+      strArg = "tape.archiveinfo";
+      for( size_t i = startIdx; i < args.size(); ++i )
+      {
+        if( args[i] == "--json" ) { jsonOutput = true; continue; }
+        // XrdClHttpTape validates complete storage URLs, including endpoint
+        // consistency, before issuing the request.
+        strArg += '\n' + args[i];
+      }
+    }
+    else if( tapeCmd == "delete" || tapeCmd == "stage_delete" )
+    {
+      if( startIdx >= args.size() )
+      {
+        log->Error( AppMsg, "Missing request ID for tape delete." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+      strArg = "tape.stage_delete\n" + args[startIdx];
+    }
+    else
+    {
+      log->Error( AppMsg, "Unknown tape query command: %s", tapeCmd.c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+
+    Buffer arg( strArg.size() );
+    arg.FromString( strArg );
+    Buffer *response = nullptr;
+    XRootDStatus st = fs->Query( QueryCode::Opaque, arg, response );
+    std::unique_ptr<Buffer> respPtr( response );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Tape query failed: %s", st.ToStr().c_str() );
+      return st;
+    }
+    if( !response ) return XRootDStatus();
+
+    std::string respStr = response->ToString();
+    while( !respStr.empty() && (respStr.back() == '\0' || respStr.back() == '\n' || respStr.back() == '\r') )
+      respStr.pop_back();
+
+    if( jsonOutput )
+    {
+      std::cout << respStr << '\n';
+      return XRootDStatus();
+    }
+
+    if( tapeCmd == "discover" || tapeCmd == "discovery" )
+    {
+      auto json = nlohmann::json::parse( respStr, nullptr, false );
+      if( json.is_object() )
+      {
+        std::cout << "Tape REST Discovery:\n";
+        if( json.contains( "sitename" ) && !json["sitename"].is_null() )
+          std::cout << "  Site Name:     " << json["sitename"].get<std::string>() << '\n';
+        if( json.contains( "version" ) && !json["version"].is_null() )
+          std::cout << "  API Version:   " << json["version"].get<std::string>() << '\n';
+        if( json.contains( "uri" ) && !json["uri"].is_null() )
+          std::cout << "  Endpoint URI:  " << json["uri"].get<std::string>() << '\n';
+        return XRootDStatus();
+      }
+    }
+    else if( tapeCmd == "archiveinfo" || tapeCmd == "archivepoll" )
+    {
+      auto json = nlohmann::json::parse( respStr, nullptr, false );
+      if( json.is_array() )
+      {
+        for( const auto &entry : json )
+        {
+          if( entry.is_object() )
+          {
+            std::string p = entry.value( "path", entry.value( "url", "" ) );
+            std::string loc = entry.value( "locality", "UNKNOWN" );
+            std::cout << p << '\t' << loc;
+            if( entry.contains( "error" ) && !entry["error"].is_null() )
+              std::cout << "\tERROR: " << entry["error"].dump();
+            std::cout << '\n';
+          }
+        }
+        return XRootDStatus();
+      }
+    }
+
+    std::cout << respStr << '\n';
+    return XRootDStatus();
+  }
+
   if( !( argc >= 3 ) )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  if( args[1] == "prepare" && args.size() > 2 && (args[2] == "-d" || args[2] == "--delete") )
+  {
+    if( args.size() < 4 )
+    {
+      log->Error( AppMsg, "Missing request ID for stage delete." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    std::string strArg = "tape.stage_delete\n" + args[3];
+    Buffer arg( strArg.size() );
+    arg.FromString( strArg );
+    Buffer *response = nullptr;
+    XRootDStatus st = fs->Query( QueryCode::Opaque, arg, response );
+    delete response;
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Stage delete failed: %s", st.ToStr().c_str() );
+    }
+    return st;
   }
 
   QueryCode::Code qCode;
@@ -1444,7 +2228,313 @@ XRootDStatus DoQuery( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
-// Query the server
+// Normalize a checksum algorithm before using it in a query parameter
+//------------------------------------------------------------------------------
+XRootDStatus NormalizeChecksumType( const std::string &input,
+                                    std::string       &normalized )
+{
+  if( input.empty() )
+    return XRootDStatus( stError, errInvalidArgs, 0,
+                         "Checksum type cannot be empty." );
+
+  normalized = input;
+  for( char &character : normalized )
+  {
+    const unsigned char value = static_cast<unsigned char>( character );
+    if( std::isalnum( value ) == 0 && character != '-' && character != '_' )
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "Invalid checksum type: " + input );
+    character = static_cast<char>( std::tolower( value ) );
+  }
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Query a checksum through the existing XrdCl filesystem operation
+//------------------------------------------------------------------------------
+XRootDStatus QueryChecksum( FileSystem        *fs,
+                            const std::string &path,
+                            const std::string &requested,
+                            std::string       &algorithm,
+                            std::string       &digest )
+{
+  std::string queryPath = path;
+  std::string normalized;
+  if( !requested.empty() )
+  {
+    XRootDStatus status = NormalizeChecksumType( requested, normalized );
+    if( !status.IsOK() ) return status;
+
+    queryPath += queryPath.find( '?' ) == std::string::npos ? '?' : '&';
+    queryPath += "cks.type=";
+    queryPath += normalized;
+  }
+
+  Buffer request( queryPath.size() );
+  request.FromString( queryPath );
+  Buffer *rawResponse = 0;
+  XRootDStatus status = fs->Query(
+    QueryCode::Checksum, request, rawResponse );
+  std::unique_ptr<Buffer> response( rawResponse );
+  if( !status.IsOK() ) return status;
+  if( !response )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Checksum query returned no response." );
+
+  std::vector<std::string> fields;
+  Utils::splitString( fields, response->ToString(), " " );
+  if( fields.size() != 2 )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Invalid checksum response: " + response->ToString() );
+
+  std::transform( fields[0].begin(), fields[0].end(), fields[0].begin(),
+                  []( unsigned char character )
+  {
+    return static_cast<char>( std::tolower( character ) );
+  } );
+  if( !normalized.empty() && fields[0] != normalized )
+  {
+    return XRootDStatus(
+      stError, errCheckSumError, 0,
+      "Checksum response used " + fields[0] + " instead of " + normalized );
+  }
+
+  algorithm = std::move( fields[0] );
+  digest = std::move( fields[1] );
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Query a file checksum using gfal-sum's positional layout
+//------------------------------------------------------------------------------
+XRootDStatus DoSum( FileSystem                      *fs,
+                    Env                             *env,
+                    const FSExecutor::CommandParams &args )
+{
+  Log *log = DefaultEnv::GetLog();
+  if( args.size() != 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string path;
+  if( !BuildPath( path, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string algorithm;
+  std::string digest;
+  XRootDStatus status = QueryChecksum(
+    fs, path, args[2], algorithm, digest );
+  if( !status.IsOK() )
+  {
+    log->Error( AppMsg, "Unable to query %s checksum: %s", args[2].c_str(),
+                status.ToStr().c_str() );
+    return status;
+  }
+
+  std::cout << algorithm << " " << digest << std::endl;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Request a storage-issued token
+//------------------------------------------------------------------------------
+XRootDStatus DoToken( FileSystem                      *fs,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
+{
+  Log *log = DefaultEnv::GetLog();
+
+  enum
+  {
+    TokenValidityOption = 256,
+    TokenIssuerOption
+  };
+  static const option options[] = {
+    { "write",    no_argument,       nullptr, 'w' },
+    { "validity", required_argument, nullptr, TokenValidityOption },
+    { "issuer",   required_argument, nullptr, TokenIssuerOption },
+    { nullptr, 0, nullptr, 0 }
+  };
+
+  bool writeAccess = false;
+  std::uint64_t validity = 60;
+  std::string issuer;
+  std::string parseError;
+  int firstOperand = 0;
+
+  // getopt_long requires a mutable argv even though it does not modify the
+  // argument strings. Keep this command's parser state isolated from main()
+  // and from subsequent commands in interactive mode.
+  std::vector<std::string> commandArguments( args );
+  std::vector<char *> argv;
+  argv.reserve( commandArguments.size() + 1 );
+  for( std::string &argument : commandArguments )
+    argv.push_back( argument.data() );
+  argv.push_back( nullptr );
+
+  // getopt_long accepts unique long-option abbreviations.  Reject them so the
+  // command-first URL scanner and the command parser use the same grammar.
+  for( std::size_t i = 1; i < commandArguments.size(); ++i )
+  {
+    const std::string &argument = commandArguments[i];
+    if( argument == "--" || argument.empty() || argument[0] != '-' )
+      break;
+    if( argument.compare( 0, 2, "--" ) != 0 )
+      continue;
+    if( argument == "--write" )
+      continue;
+    if( argument == "--validity" || argument == "--issuer" )
+    {
+      if( i + 1 < commandArguments.size() ) ++i;
+      continue;
+    }
+    if( argument.compare( 0, 11, "--validity=" ) == 0 ||
+        argument.compare( 0, 9, "--issuer=" ) == 0 )
+      continue;
+
+    parseError = "Invalid token option: " + argument;
+    break;
+  }
+
+  if( parseError.empty() )
+  {
+    ScopedGetoptState getoptState;
+    int parsedOption = 0;
+    while( (parsedOption = getopt_long(
+              static_cast<int>( commandArguments.size() ), argv.data(),
+              "+:w", options, nullptr )) != -1 )
+    {
+      switch( parsedOption )
+      {
+        case 'w':
+          writeAccess = true;
+          break;
+        case TokenValidityOption:
+          if( !ParseTokenValidity( optarg, validity ) )
+            parseError = "Validity must be a number >= 0.";
+          break;
+        case TokenIssuerOption:
+          issuer = optarg ? optarg : "";
+          if( issuer.empty() )
+            parseError = "Issuer URL cannot be empty.";
+          break;
+        case ':':
+          if( optopt == TokenValidityOption )
+            parseError = "Parameter '--validity' requires an argument.";
+          else if( optopt == TokenIssuerOption )
+            parseError = "Parameter '--issuer' requires an argument.";
+          else
+            parseError = "A token option requires an argument.";
+          break;
+        default:
+        {
+          const int invalidIndex = optind > 0 ? optind - 1 : 0;
+          const std::string invalid =
+            invalidIndex < static_cast<int>( commandArguments.size() ) ?
+              commandArguments[invalidIndex] : std::string();
+          parseError = invalid.empty() ? "Invalid token option." :
+                       "Invalid token option: " + invalid;
+          break;
+        }
+      }
+
+      if( !parseError.empty() ) break;
+    }
+    firstOperand = optind;
+  }
+
+  if( !parseError.empty() )
+  {
+    log->Error( AppMsg, "%s", parseError.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, parseError );
+  }
+
+  if( firstOperand >= static_cast<int>( commandArguments.size() ) )
+  {
+    const std::string error = "Missing path for token request.";
+    log->Error( AppMsg, "%s", error.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, error );
+  }
+
+  std::string path;
+  if( !BuildPath( path, env, commandArguments[firstOperand] ).IsOK() )
+  {
+    const std::string error = "Invalid path for token request.";
+    log->Error( AppMsg, "%s", error.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, error );
+  }
+
+  std::string server;
+  env->GetString( "ServerURL", server );
+  URL endpoint( server );
+  std::string protocol = endpoint.GetProtocol();
+  std::transform( protocol.begin(), protocol.end(), protocol.begin(),
+                  []( unsigned char character )
+  {
+    return static_cast<char>( std::tolower( character ) );
+  } );
+  if( protocol != "https" && protocol != "davs" )
+  {
+    const std::string error =
+      "Token requests require an HTTPS or DAVS storage endpoint.";
+    log->Error( AppMsg, "%s", error.c_str() );
+    return XRootDStatus( stError, errNotSupported, 0, error );
+  }
+
+  std::vector<std::string> activities;
+  for( std::size_t i = static_cast<std::size_t>( firstOperand + 1 );
+       i < commandArguments.size(); ++i )
+  {
+    if( commandArguments[i].empty() )
+    {
+      const std::string error = "Token activities cannot be empty.";
+      log->Error( AppMsg, "%s", error.c_str() );
+      return XRootDStatus( stError, errInvalidArgs, 0, error );
+    }
+    activities.emplace_back( commandArguments[i] );
+  }
+
+  nlohmann::json request = {
+    { "path", path },
+    { "validity", validity },
+    { "write", writeAccess },
+    { "activities", activities }
+  };
+  if( !issuer.empty() ) request["issuer"] = issuer;
+
+  Buffer argument;
+  argument.FromString( request.dump() );
+
+  Buffer *rawResponse = nullptr;
+  XRootDStatus status = fs->Query(
+    QueryCode::Visa, argument, rawResponse );
+  std::unique_ptr<Buffer> response( rawResponse );
+  if( !status.IsOK() )
+  {
+    // The path may contain an authz query parameter; do not copy it into the
+    // client log on failure.
+    log->Error( AppMsg, "Unable to request token: %s",
+                status.ToStr().c_str() );
+    return status;
+  }
+  if( !response )
+  {
+    const std::string error = "Token query returned no response.";
+    log->Error( AppMsg, "%s", error.c_str() );
+    return XRootDStatus( stError, errInvalidResponse, 0, error );
+  }
+
+  std::cout << response->ToString() << '\n';
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Prepare files
 //------------------------------------------------------------------------------
 XRootDStatus DoPrepare( FileSystem                      *fs,
                         Env                             *env,
@@ -1462,23 +2552,34 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  PrepareFlags::Flags      flags    = PrepareFlags::None;
-  std::vector<std::string> files;
-  uint8_t                  priority = 0;
-  std::string              reqid;
+  PrepareFlags::Flags      flags       = PrepareFlags::None;
+  std::vector<std::string> rawFiles;
+  std::string              requestId;
+  uint8_t                  priority    = 0;
+  std::string              pinLifetime;
+  std::string              targetedMetadata;
+  bool                     metadataProvided = false;
+  bool                     waitPolling = false;
+  uint32_t                 timeoutSecs = 0;
+  bool                     parseOptions = true;
 
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-p" )
+    const std::string &arg = args[i];
+    if( parseOptions && arg == "--" )
     {
-      if( i < args.size()-1 )
+      parseOptions = false;
+      continue;
+    }
+    if( parseOptions && (arg == "-p" || arg == "--priority") )
+    {
+      if( i + 1 < args.size() )
       {
-        char *result;
+        char *result = nullptr;
         int32_t param = ::strtol( args[i+1].c_str(), &result, 0 );
         if( *result != 0 || param > 3 || param < 0 )
         {
-          log->Error( AppMsg, "Size priotiry needs to be an integer between 0 "
-                      "and 3" );
+          log->Error( AppMsg, "Priority needs to be an integer between 0 and 3." );
           return XRootDStatus( stError, errInvalidArgs );
         }
         priority = (uint8_t)param;
@@ -1486,63 +2587,251 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
       }
       else
       {
-        log->Error( AppMsg, "Parameter '-p' requires an argument." );
+        log->Error( AppMsg, "Parameter '%s' requires an argument.", arg.c_str() );
         return XRootDStatus( stError, errInvalidArgs );
       }
     }
-    else if( args[i] == "-c" )
+    else if( parseOptions && (arg == "-c" || arg == "--colocate") )
       flags |= PrepareFlags::Colocate;
-    else if( args[i] == "-f" )
+    else if( parseOptions && (arg == "-f" || arg == "--fresh") )
       flags |= PrepareFlags::Fresh;
-    else if( args[i] == "-s" )
+    else if( parseOptions && (arg == "-s" || arg == "--stage") )
       flags |= PrepareFlags::Stage;
-    else if( args[i] == "-w" )
+    else if( parseOptions && (arg == "-w" || arg == "--write") )
       flags |= PrepareFlags::WriteMode;
-    else if( args[i] == "-e" )
+    else if( parseOptions && (arg == "-e" || arg == "--evict" || arg == "--release") )
       flags |= PrepareFlags::Evict;
-    else if( args[i] == "-a" )
+    else if( parseOptions && (arg == "-a" || arg == "--abort" || arg == "--cancel") )
     {
       flags |= PrepareFlags::Cancel;
-      if( i < args.size()-1 )
+      if( i + 1 < args.size() )
       {
-        // by convention the request ID appears as the the first token
-        // in the list of files
-        files.push_back( args[i+1] );
+        requestId = args[i+1];
         ++i;
       }
       else
       {
-        log->Error( AppMsg, "Parameter '-a' requires an argument." );
+        log->Error( AppMsg, "Parameter '%s' requires a request ID.", arg.c_str() );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else if( parseOptions && (arg == "--pin-lifetime" || arg == "--disk-lifetime") )
+    {
+      if( i + 1 < args.size() )
+      {
+        pinLifetime = args[i+1];
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '%s' requires a duration argument.", arg.c_str() );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else if( parseOptions && (arg == "--metadata" || arg == "--staging-metadata") )
+    {
+      if( i + 1 < args.size() )
+      {
+        targetedMetadata = args[i+1];
+        metadataProvided = true;
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '%s' requires a JSON object argument.", arg.c_str() );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else if( parseOptions && arg == "--wait" )
+    {
+      waitPolling = true;
+    }
+    else if( parseOptions && arg == "--timeout" )
+    {
+      if( i + 1 < args.size() )
+      {
+        char *result = nullptr;
+        long param = ::strtol( args[i+1].c_str(), &result, 0 );
+        if( *result != 0 || param < 0 )
+        {
+          log->Error( AppMsg, "Timeout must be a non-negative integer." );
+          return XRootDStatus( stError, errInvalidArgs );
+        }
+        timeoutSecs = static_cast<uint32_t>( param );
+        waitPolling = true;
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '--timeout' requires an integer argument." );
         return XRootDStatus( stError, errInvalidArgs );
       }
     }
     else
-      files.push_back( args[i] );
+    {
+      rawFiles.push_back( arg );
+    }
   }
 
-  if( files.empty() )
+  if( (flags & PrepareFlags::Cancel) && !requestId.empty() )
   {
-    log->Error( AppMsg, "Filename missing." );
+    rawFiles.insert( rawFiles.begin(), requestId );
+  }
+
+  if( rawFiles.empty() )
+  {
+    log->Error( AppMsg, "Filename or request ID missing." );
     return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  if( !pinLifetime.empty() && std::all_of( pinLifetime.begin(), pinLifetime.end(), ::isdigit ) )
+  {
+    pinLifetime = "PT" + pinLifetime + "S";
+  }
+
+  nlohmann::json stageMetadata;
+  if( metadataProvided )
+  {
+    stageMetadata = nlohmann::json::parse(
+      targetedMetadata, nullptr, false );
+    if( !stageMetadata.is_object() )
+    {
+      log->Error( AppMsg, "Targeted metadata must be a JSON object." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+  }
+  std::string server;
+  env->GetString( "ServerURL", server );
+  URL endpointUrl( server );
+  std::string protocol = endpointUrl.GetProtocol();
+  std::transform( protocol.begin(), protocol.end(), protocol.begin(),
+                  []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
+  const bool isHttp = (protocol == "http" || protocol == "https" ||
+                       protocol == "dav" || protocol == "davs");
+
+  std::vector<std::string> files;
+  files.reserve( rawFiles.size() );
+  for( size_t idx = 0; idx < rawFiles.size(); ++idx )
+  {
+    const std::string &path = rawFiles[idx];
+    if( (flags & PrepareFlags::Cancel) && idx == 0 )
+    {
+      files.push_back( path );
+      continue;
+    }
+    if( (flags & PrepareFlags::Evict) && rawFiles.size() > 1 && idx == 0 && path.find('/') == std::string::npos )
+    {
+      files.push_back( path );
+      continue;
+    }
+
+    if( isHttp && (flags & PrepareFlags::Stage) &&
+        (!pinLifetime.empty() || metadataProvided) )
+    {
+      nlohmann::json obj;
+      obj["path"] = path;
+      if( !pinLifetime.empty() ) obj["diskLifetime"] = pinLifetime;
+      if( metadataProvided )
+        obj["targetedMetadata"] = stageMetadata;
+      files.push_back( "xrdclhttp.tape.stage:" + obj.dump() );
+    }
+    else
+    {
+      files.push_back( path );
+    }
   }
 
   //----------------------------------------------------------------------------
   // Run the command
   //----------------------------------------------------------------------------
-  Buffer *response = 0;
+  Buffer *response = nullptr;
   XRootDStatus st = fs->Prepare( files, flags, priority, response );
+  std::unique_ptr<Buffer> respPtr( response );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Prepare request failed: %s", st.ToStr().c_str() );
     return st;
   }
 
-  if( ( flags & PrepareFlags::Stage ) && response )
+  std::string respStr;
+  if( response )
   {
-    std::cout << response->ToString() << '\n';
+    respStr = response->ToString();
+    while( !respStr.empty() && (respStr.back() == '\0' || respStr.back() == '\n' || respStr.back() == '\r') )
+      respStr.pop_back();
   }
 
-  delete response;
+  if( ( flags & PrepareFlags::Stage ) && !respStr.empty() )
+  {
+    std::cout << respStr << '\n';
+  }
+
+  if( ( flags & PrepareFlags::Stage ) && waitPolling && !respStr.empty() )
+  {
+    std::string pollReqId = respStr;
+    auto json = nlohmann::json::parse( respStr, nullptr, false );
+    if( json.is_object() && json.contains( "requestId" ) )
+      pollReqId = json["requestId"].get<std::string>();
+
+    uint32_t sleepSeconds = 1;
+    uint32_t elapsed = 0;
+    while( true )
+    {
+      if( timeoutSecs > 0 && elapsed >= timeoutSecs )
+      {
+        std::cout << "Stage request " << pollReqId << " polling timed out after " << timeoutSecs << " seconds.\n";
+        break;
+      }
+      sleep( sleepSeconds );
+      elapsed += sleepSeconds;
+      sleepSeconds = std::min( sleepSeconds * 2, 30u );
+
+      Buffer qArg;
+      qArg.FromString( pollReqId );
+      Buffer *qResp = nullptr;
+      XRootDStatus qSt = fs->Query( QueryCode::Prepare, qArg, qResp );
+      std::unique_ptr<Buffer> qRespPtr( qResp );
+      if( !qSt.IsOK() || !qResp ) continue;
+
+      std::string qStr = qResp->ToString();
+      auto qJson = nlohmann::json::parse( qStr, nullptr, false );
+      if( qJson.is_object() && qJson.contains( "files" ) && qJson["files"].is_array() )
+      {
+        size_t total = qJson["files"].size();
+        size_t completed = 0;
+        size_t failed = 0;
+        for( const auto &f : qJson["files"])
+        {
+          if( !f.is_object() ) continue;
+
+          if( f.contains( "state" ) && f["state"].is_string() )
+          {
+            std::string stStr = f["state"].get<std::string>();
+            if( stStr == "COMPLETED" ) ++completed;
+            else if( stStr == "FAILED" || stStr == "CANCELLED" ) ++failed;
+          }
+          else if( f.value( "onDisk", false ) )
+          {
+            ++completed;
+          }
+          else if( f.contains( "error" ) && f["error"].is_string() &&
+                   !f["error"].get_ref<const std::string &>().empty() )
+          {
+            ++failed;
+          }
+        }
+        if( completed + failed == total )
+        {
+          if( failed > 0 )
+            std::cout << "Stage request " << pollReqId << " completed with " << failed << " failures.\n";
+          else
+            std::cout << "Stage request " << pollReqId << " completed successfully.\n";
+          break;
+        }
+      }
+    }
+  }
+
   return XRootDStatus();
 }
 
@@ -1627,10 +2916,22 @@ XRootDStatus DoCat( FileSystem                      *fs,
 
   std::vector<std::string> remotes;
   std::string local;
+  bool parseOptions = true;
 
   for( uint32_t i = 1; i < args.size(); ++i )
   {
-    if( args[i] == "-o" )
+    if( parseOptions && args[i] == "--" )
+    {
+      parseOptions = false;
+    }
+    else if( parseOptions &&
+             ( args[i] == "-b" || args[i] == "--bytes" ) )
+    {
+      // gfal-cat exposes this Python 3 compatibility flag. xrdfs always
+      // streams byte-preserving data, so no mode change is required.
+      continue;
+    }
+    else if( parseOptions && args[i] == "-o" )
     {
       if( i < args.size()-1 )
       {
@@ -1653,6 +2954,12 @@ XRootDStatus DoCat( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  if( remotes.empty() )
+  {
+    log->Error( AppMsg, "Missing remote file." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
   std::vector<URL> remoteUrls;
   remoteUrls.reserve( remotes.size() );
   for( auto &remote : remotes )
@@ -1663,7 +2970,7 @@ XRootDStatus DoCat( FileSystem                      *fs,
       return pathSt;
 
     remoteUrls.emplace_back( server );
-    remoteUrls.back().SetPath( remoteFile );
+    SetEndpointPath( remoteUrls.back(), remoteFile );
   }
 
   //----------------------------------------------------------------------------
@@ -1672,6 +2979,7 @@ XRootDStatus DoCat( FileSystem                      *fs,
   CopyProgressHandler *handler = 0; ProgressDisplay d;
   CopyProcess process;
   std::vector<PropertyList> props( remoteUrls.size() ), results( remoteUrls.size() );
+  const bool dynamicSource = IsXRootDProtocol( env );
 
   for( size_t i = 0; i < remoteUrls.size(); ++i )
   {
@@ -1684,7 +2992,8 @@ XRootDStatus DoCat( FileSystem                      *fs,
     else
       props[i].Set( "target", "stdio://-" );
 
-    props[i].Set( "dynamicSource", true );
+    if( dynamicSource )
+      props[i].Set( "dynamicSource", true );
 
     XRootDStatus st = process.AddJob( props[i], &results[i] );
     if( !st.IsOK() )
@@ -1776,7 +3085,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
     return pathSt;
 
   URL remoteUrl( server );
-  remoteUrl.SetPath( remoteFile );
+  SetEndpointPath( remoteUrl, remoteFile );
 
   //----------------------------------------------------------------------------
   // Fetch the data
@@ -1882,6 +3191,273 @@ XRootDStatus DoSpaceInfo( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Return whether the active filesystem uses the native XRootD protocol
+//------------------------------------------------------------------------------
+bool IsXRootDProtocol( Env *env )
+{
+  std::string server;
+  env->GetString( "ServerURL", server );
+  URL url( server );
+  std::string protocol = url.GetProtocol();
+  std::transform( protocol.begin(), protocol.end(), protocol.begin(),
+                  []( unsigned char character )
+  {
+    return static_cast<char>( std::tolower( character ) );
+  } );
+  return protocol == "root" || protocol == "roots" ||
+         protocol == "xroot" || protocol == "xroots";
+}
+
+//------------------------------------------------------------------------------
+// Query a text response through an existing XrdCl query code
+//------------------------------------------------------------------------------
+XRootDStatus QueryText( FileSystem             *fs,
+                        QueryCode::Code         code,
+                        const std::string      &path,
+                        std::string            &value )
+{
+  Buffer request( path.size() );
+  request.FromString( path );
+  Buffer *rawResponse = 0;
+  XRootDStatus status = fs->Query( code, request, rawResponse );
+  std::unique_ptr<Buffer> response( rawResponse );
+  if( !status.IsOK() ) return status;
+  if( !response )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Query returned no response." );
+  value = response->ToString();
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Return whether an attribute name belongs to gfal2's virtual namespace
+//------------------------------------------------------------------------------
+bool IsGFALVirtualXAttr( const std::string &attribute )
+{
+  static const std::string checksumPrefix = "user.checksum.";
+  return attribute.compare( 0, checksumPrefix.size(), checksumPrefix ) == 0 ||
+         attribute == "xroot.cksum" || attribute == "xroot.space" ||
+         attribute == "xroot.xattr" || attribute == "spacetoken" ||
+         attribute == "user.status" ||
+         attribute == "taperestapi.version" ||
+         attribute == "taperestapi.uri" ||
+         attribute == "taperestapi.sitename";
+}
+
+namespace
+{
+  bool UsesWebDAVProtocol( Env *env )
+  {
+    std::string server;
+    env->GetString( "ServerURL", server );
+    return IsWebDAVProtocol( URL( server ).GetProtocol() );
+  }
+
+  XRootDStatus QueryTapeJson( FileSystem             *fs,
+                              const std::string      &request,
+                              nlohmann::json         &response )
+  {
+    std::string rawResponse;
+    XRootDStatus status = QueryText(
+      fs, QueryCode::Opaque, request, rawResponse );
+    if( !status.IsOK() ) return status;
+
+    response = nlohmann::json::parse( rawResponse, nullptr, false );
+    if( response.is_discarded() )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Tape REST query returned malformed JSON." );
+    return XRootDStatus();
+  }
+
+  XRootDStatus ReadTapeDiscoveryAttribute( const nlohmann::json &discovery,
+                                           const std::string    &attribute,
+                                           std::string          &value )
+  {
+    static const std::string prefix = "taperestapi.";
+    const std::string field = attribute.substr( prefix.size() );
+    if( !discovery.is_object() || !discovery.contains( field ) ||
+        !discovery[field].is_string() )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Tape REST discovery attribute is missing: " +
+                           field );
+    value = discovery[field].get<std::string>();
+    return XRootDStatus();
+  }
+
+  XRootDStatus GetTapeDiscoveryAttribute( FileSystem        *fs,
+                                          const std::string &attribute,
+                                          std::string       &value )
+  {
+    nlohmann::json discovery;
+    XRootDStatus status = QueryTapeJson(
+      fs, "tape.discover", discovery );
+    if( !status.IsOK() ) return status;
+    return ReadTapeDiscoveryAttribute( discovery, attribute, value );
+  }
+
+  XRootDStatus GetTapeFileStatus( FileSystem        *fs,
+                                  Env               *env,
+                                  const std::string &path,
+                                  std::string       &value )
+  {
+    std::string server;
+    env->GetString( "ServerURL", server );
+    URL fileUrl( server );
+    SetEndpointPath( fileUrl, path );
+
+    nlohmann::json archiveInfo;
+    XRootDStatus status = QueryTapeJson(
+      fs, "tape.archiveinfo\n" + fileUrl.GetURL(), archiveInfo );
+    if( !status.IsOK() ) return status;
+    if( !archiveInfo.is_array() )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Tape REST archive info is not an array." );
+
+    for( const auto &entry : archiveInfo )
+    {
+      if( !entry.is_object() ||
+          (entry.value( "url", "" ) != fileUrl.GetURL() &&
+           entry.value( "path", "" ) != path ) )
+        continue;
+      if( entry.contains( "error" ) && entry["error"].is_string() )
+        return XRootDStatus( stError, errErrorResponse, kXR_NotFound,
+                             entry["error"].get<std::string>() );
+      if( !entry.contains( "locality" ) || !entry["locality"].is_string() )
+        return XRootDStatus( stError, errInvalidResponse, 0,
+                             "Tape REST locality is missing." );
+
+      const std::string locality = entry["locality"].get<std::string>();
+      const char *fileStatus = GetGFALTapeFileStatus( locality );
+      if( !fileStatus )
+        return XRootDStatus( stError, errInvalidResponse, 0,
+                             "Unsupported Tape REST locality: " + locality );
+      value = fileStatus;
+      return XRootDStatus();
+    }
+
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Tape REST archive info omitted the requested path." );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Read one native XRootD file attribute without changing its value formatting
+//------------------------------------------------------------------------------
+XRootDStatus GetNativeXAttrValue( FileSystem        *fs,
+                                 const std::string &path,
+                                 const std::string &attribute,
+                                 std::string       &value )
+{
+  std::vector<std::string> attributes( 1, attribute );
+  std::vector<XAttr> result;
+  XRootDStatus status = fs->GetXAttr( path, attributes, result );
+  if( !status.IsOK() ) return status;
+  if( result.empty() )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Attribute query returned no response." );
+  if( !result.front().status.IsOK() ) return result.front().status;
+  value = result.front().value;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Resolve gfal2's virtual XRootD attributes through native XrdCl operations
+//------------------------------------------------------------------------------
+XRootDStatus GetGFALVirtualXAttr( FileSystem        *fs,
+                                 Env               *env,
+                                 const std::string &path,
+                                 const std::string &attribute,
+                                 std::string       &value )
+{
+  static const std::string checksumPrefix = "user.checksum.";
+  static const std::string tapePrefix = "taperestapi.";
+  const bool isXRootD = IsXRootDProtocol( env );
+
+  if( attribute.compare( 0, checksumPrefix.size(), checksumPrefix ) == 0 )
+  {
+    const std::string requested = attribute.substr( checksumPrefix.size() );
+    if( requested.empty() )
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "Checksum type cannot be empty." );
+    std::string algorithm;
+    std::string digest;
+    XRootDStatus status = QueryChecksum(
+      fs, path, requested, algorithm, digest );
+    if( status.IsOK() ) value = std::move( digest );
+    return status;
+  }
+
+  if( !isXRootD )
+  {
+    if( UsesWebDAVProtocol( env ) )
+    {
+      if( attribute.compare( 0, tapePrefix.size(), tapePrefix ) == 0 )
+        return GetTapeDiscoveryAttribute( fs, attribute, value );
+      if( attribute == "user.status" )
+        return GetTapeFileStatus( fs, env, path, value );
+    }
+    return XRootDStatus(
+      stError, errNotSupported, 0,
+      "GFAL virtual attribute is not available for this protocol: " +
+      attribute );
+  }
+
+  if( attribute == "xroot.cksum" )
+  {
+    std::string algorithm;
+    std::string digest;
+    XRootDStatus status = QueryChecksum(
+      fs, path, "", algorithm, digest );
+    if( status.IsOK() ) value = algorithm + " " + digest;
+    return status;
+  }
+
+  if( attribute == "xroot.space" )
+    return QueryText( fs, QueryCode::Space, path, value );
+
+  if( attribute == "xroot.xattr" )
+    return QueryText( fs, QueryCode::XAttr, path, value );
+
+  if( attribute == "spacetoken" )
+  {
+    FileSystemUtils::SpaceInfo *rawInfo = 0;
+    XRootDStatus status = FileSystemUtils::GetSpaceInfo( rawInfo, fs, path );
+    std::unique_ptr<FileSystemUtils::SpaceInfo> info( rawInfo );
+    if( !status.IsOK() ) return status;
+    if( !info )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Space query returned no response." );
+
+    std::ostringstream output;
+    output << "{ \"totalsize\": " << info->GetTotal()
+           << ", \"unusedsize\": " << info->GetFree()
+           << ", \"usedsize\": " << info->GetUsed()
+           << ", \"guaranteedsize\": " << info->GetLargestFreeChunk()
+           << " }";
+    value = output.str();
+    return XRootDStatus();
+  }
+
+  if( attribute == "user.status" )
+  {
+    StatInfo *rawInfo = 0;
+    XRootDStatus status = fs->Stat( path, rawInfo );
+    std::unique_ptr<StatInfo> info( rawInfo );
+    if( !status.IsOK() ) return status;
+    if( !info )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Stat returned no response." );
+    value = GetGFALFileStatus(
+      info->TestFlags( StatInfo::Offline ),
+      info->TestFlags( StatInfo::BackUpExists ) );
+    return XRootDStatus();
+  }
+
+  return XRootDStatus( stError, errNotFound, 0,
+                        "Unknown GFAL virtual attribute: " + attribute );
+}
+
+//------------------------------------------------------------------------------
 // Carry out xattr operation
 //------------------------------------------------------------------------------
 XRootDStatus DoXAttr( FileSystem                      *fs,
@@ -1894,22 +3470,34 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc < 3 )
+  if( argc < 2 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
+  if( argc == 3 && args[2] == "--" )
+  {
+    log->Error( AppMsg, "Missing attribute name after '--'." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  const bool implicitList = argc == 2;
+  const bool delimitedGet = argc == 4 && args[2] == "--";
+  const bool implicitGet = delimitedGet ||
+                           (argc == 3 && args[2] != "set" &&
+                            args[2] != "get" && args[2] != "del" &&
+                            args[2] != "list");
 
   kXR_char code = 0;
-  if( args[2] == "set")
+  if( !implicitList && !implicitGet && args[2] == "set")
     code = kXR_fattrSet;
-  else if( args[2] == "get" )
+  else if( !implicitList && !implicitGet && args[2] == "get" )
     code = kXR_fattrGet;
-  else if( args[2] == "del" )
+  else if( !implicitList && !implicitGet && args[2] == "del" )
     code = kXR_fattrDel;
-  else if( args[2] == "list" )
+  else if( !implicitList && !implicitGet && args[2] == "list" )
     code = kXR_fattrList;
-  else
+  else if( !implicitList && !implicitGet )
   {
     log->Error( AppMsg, "Invalid xattr code." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -1919,6 +3507,72 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
   XRootDStatus pathSt = BuildPath( path, env, args[1], "Accessing" );
   if( !pathSt.IsOK() )
     return pathSt;
+
+  if( implicitGet )
+  {
+    const std::string &attribute = delimitedGet ? args[3] : args[2];
+    std::string value;
+    XRootDStatus status = IsGFALVirtualXAttr( attribute ) ?
+      GetGFALVirtualXAttr( fs, env, path, attribute, value ) :
+      GetNativeXAttrValue( fs, path, attribute, value );
+    if( !status.IsOK() )
+    {
+      if( status.code == errErrorResponse )
+        return XRootDStatus(
+          status, FormatGFALXAttrFailure( attribute, status ) );
+      return status;
+    }
+    std::cout << value << '\n';
+    return status;
+  }
+
+  if( implicitList )
+  {
+    const bool isXRootD = IsXRootDProtocol( env );
+    const bool isWebDAV = UsesWebDAVProtocol( env );
+    if( !isXRootD && !isWebDAV )
+    {
+      log->Error( AppMsg,
+                  "Virtual attribute listing is not available for this protocol." );
+      return XRootDStatus( stError, errNotSupported );
+    }
+
+    static const char *xrootdAttributes[] = {
+      "xroot.cksum", "xroot.space", "xroot.xattr", "spacetoken"
+    };
+    static const char *tapeAttributes[] = {
+      "taperestapi.version", "taperestapi.uri", "taperestapi.sitename"
+    };
+
+    if( isWebDAV )
+    {
+      nlohmann::json discovery;
+      XRootDStatus status = QueryTapeJson(
+        fs, "tape.discover", discovery );
+      if( !status.IsOK() ) return status;
+      for( const char *attribute : tapeAttributes )
+      {
+        std::string value;
+        status = ReadTapeDiscoveryAttribute( discovery, attribute, value );
+        if( !status.IsOK() ) return status;
+        std::cout << attribute << " = " << value << '\n';
+      }
+      return XRootDStatus();
+    }
+
+    for( const char *attribute : xrootdAttributes )
+    {
+      std::string value;
+      XRootDStatus status = GetGFALVirtualXAttr(
+        fs, env, path, attribute, value );
+      if( status.IsOK() )
+        std::cout << attribute << " = " << value << '\n';
+      else
+        std::cout << attribute << " FAILED: "
+                  << FormatGFALXAttrFailure( attribute, status ) << '\n';
+    }
+    return XRootDStatus();
+  }
 
   //----------------------------------------------------------------------------
   // Issue the xattr operation
@@ -2049,6 +3703,8 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
 XRootDStatus PrintHelp( FileSystem *, Env *,
                         const FSExecutor::CommandParams & )
 {
+  const std::string statFlags = JoinStatFlagNames( nullptr, ", " );
+
   printf( "Usage:\n"                                                          );
   printf( "   xrdfs [options] host[:port]              - interactive mode\n"  );
   printf( "   xrdfs [options] host[:port] command args - server-first batch\n" );
@@ -2081,18 +3737,33 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   cd <path>\n"                                                    );
   printf( "     Change the current working directory\n\n"                     );
 
-  printf( "   chmod <path> <user><group><other>\n"                            );
-  printf( "     Modify permissions. Permission string example:\n"             );
-  printf( "     rwxr-x--x\n\n"                                                );
+  printf( "   chmod <path> <mode>\n"                                           );
+  printf( "   chmod <octal-mode> <path>\n"                                     );
+  printf( "     Modify permissions. Modes may be symbolic (for example,\n"      );
+  printf( "     rwxr-x--x) or octal (for example, 0751). The mode-first\n"      );
+  printf( "     form accepts octal modes.\n\n"                                 );
 
-  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [dirname]\n"                   );
+  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [-h|-H] [-d] [-a]\n"       );
+  printf( "      [--color=never] [--xattr name] [--json] [dirname]\n"      );
   printf( "     Get directory listing.\n"                                     );
-  printf( "     -l stat every entry and print long listing\n"                 );
+  printf( "     -l|--long stat every entry and print long listing\n"          );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries\n"                                  );
   printf( "     -Z if a ZIP archive list its content\n"                       );
-  printf( "     -C checksum every entry\n\n"                                  );
+  printf( "     -C checksum every entry\n"                                    );
+  printf( "     -h|-H|--human-readable print human-readable sizes\n"           );
+  printf( "     -d|--directory list the entry instead of its contents\n"       );
+  printf( "     -a|--all accepted for gfal-ls compatibility; xrdfs already\n" );
+  printf( "        includes entries whose names begin with a dot\n"            );
+  printf( "     --color=never accepted for uncolored gfal-ls compatibility\n" );
+  printf( "     --xattr name append an attribute value to long or JSON\n"    );
+  printf( "        output; may be repeated and has no visible effect without\n" );
+  printf( "        -l or --json\n"                                            );
+  printf( "     --json print one JSON object per entry; implies stat metadata\n" );
+  printf( "        and includes requested --xattr values in request order\n"   );
+  printf( "        -u emits full URLs in path; -C requests file checksums\n"    );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"     );
 
   printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                  );
   printf( "     Get the locations of the path.\n"                             );
@@ -2104,21 +3775,24 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -i ignore network dependencies\n"                             );
   printf( "     -p be passive: ignore tried/triedrc cgi opaque info\n\n"      );
 
-  printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"                );
-  printf( "     Creates a directory/tree of directories.\n\n"                 );
+  printf( "   mkdir [-p|--parents] [-m mode|--mode mode] <dirname>...\n"       );
+  printf( "     Creates one or more directories/trees of directories. Modes\n" );
+  printf( "     may be symbolic or octal; the default remains 0750. Use --\n"  );
+  printf( "     before a directory name beginning with a dash.\n\n"           );
 
   printf( "   mv <path1> <path2>\n"                                           );
   printf( "     Move path1 to path2 locally on the same server.\n\n"          );
 
-  printf( "   stat [-q query] <path>\n"                                       );
+  printf( "   stat [--json] [-q query] [--] <path>...\n"                       );
   printf( "     Get info about the file or directory.\n"                      );
+  printf( "     --json print one JSON object per path without blank lines\n"  );
   printf( "     -q query optional flag query parameter that makes\n"          );
   printf( "              xrdfs return error code to the shell if the\n"       );
   printf( "              requested flag combination is not present;\n"        );
   printf( "              flags may be combined together using '|' or '&'\n"   );
   printf( "              Available flags:\n"                                  );
-  printf( "              XBitSet, IsDir, Other, Offline, POSCPending,\n"      );
-  printf( "              IsReadable, IsWritable\n\n"                          );
+  printf( "              %s\n", statFlags.c_str()                              );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"     );
 
   printf( "   statvfs <path>\n"                                               );
   printf( "     Get info about a virtual file system.\n\n"                    );
@@ -2159,30 +3833,52 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "                               z - synchronized statistics\n"    );
   printf( "                               l - connection statistics\n"      );
   printf( "     xattr          <path>   Extended attributes\n"            );
-  printf( "     prepare        <reqid> [filenames]  Prepare request status\n\n" );
+  printf( "     prepare        [-d|--delete] <reqid> [filenames]  Prepare request status\n" );
+  printf( "     tape           [discover | archiveinfo <paths...> | delete <reqid>]\n" );
+  printf( "     archiveinfo    <paths...>\n\n" );
 
-  printf( "   rm <filename>\n"                                              );
-  printf( "     Remove a file.\n\n"                                         );
+  printf( "   rm [-r|-R|--recursive] [--dry-run] [--] <path>...\n"          );
+  printf( "     Remove one or more files or directory trees.\n"              );
+  printf( "     -r, -R, --recursive remove directories and their contents\n" );
+  printf( "                         without following directory symlinks\n"   );
+  printf( "                         WebDAV uses collection DELETE directly\n"  );
+  printf( "     --dry-run inspect and print the removal plan without changing\n" );
+  printf( "               storage; files use SKIP and directories SKIP DIR\n"   );
+  printf( "               Plans are bounded to 4096 directory levels.\n"        );
+  printf( "               Directory-symlink plans are advisory (no lstat).\n"    );
+  printf( "     Recursive root and traversal paths are rejected up front.\n"   );
+  printf( "     Later operands continue after a failure; the first error is\n"   );
+  printf( "     returned, so multi-path removal is not transactional.\n"        );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"   );
 
   printf( "   rmdir <dirname>\n"                                            );
-  printf( "     Remove a directory.\n\n"                                    );
+  printf( "     Remove an empty directory.\n\n"                              );
 
   printf( "   truncate <filename> <length>\n"                               );
   printf( "     Truncate a file.\n\n"                                       );
 
-  printf( "   prepare [-c] [-f] [-s] [-w] [-e] [-p priority] [-a requestid] filenames\n"   );
+  printf( "   prepare [-c] [-f] [-s] [-w] [-e] [-p priority] [-a requestid]\n" );
+  printf( "           [--pin-lifetime duration] [--metadata json] [--wait] [--timeout seconds] [--] filenames\n" );
   printf( "     Prepare one or more files for access.\n"                    );
-  printf( "     -c co-locate staged files if possible\n"                    );
-  printf( "     -f refresh file access time even if the location is known\n" );
-  printf( "     -s stage the files to disk if they are not online\n"        );
-  printf( "     -w the files will be accessed for modification\n"           );
-  printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n"     );
-  printf( "     -a abort stage request\n"                                   );
-  printf( "     -e evict the file from disk cache\n\n"                      );
+  printf( "     -c, --colocate co-locate staged files if possible\n"        );
+  printf( "     -f, --fresh refresh file access time even if known\n"       );
+  printf( "     -s, --stage stage files from tape to disk\n"                );
+  printf( "     -w, --write files will be accessed for modification\n"      );
+  printf( "     -p, --priority priority of request (0-3)\n"                 );
+  printf( "     -a, --abort, --cancel abort/cancel stage request\n"         );
+  printf( "     -e, --evict, --release evict/release file from disk cache\n");
+  printf( "     --pin-lifetime duration in seconds or ISO-8601 duration\n"  );
+  printf( "     --metadata JSON storage metadata\n"                         );
+  printf( "     --wait wait/poll until stage completion\n"                  );
+  printf( "     --timeout maximum polling timeout in seconds\n"             );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"  );
 
-  printf( "   cat [-o local file] files\n"                                  );
+  printf( "   cat [-b|--bytes] [-o local file] [--] files\n"                );
   printf( "     Print contents of one or more files to stdout.\n"           );
-  printf( "     -o print to the specified local file\n\n"                   );
+  printf( "     -b, --bytes accepted for gfal-cat compatibility; output\n"  );
+  printf( "                 is always byte-preserving\n"                    );
+  printf( "     -o print to the specified local file\n"                     );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"  );
 
   printf( "   tail [-c bytes] [-f] file\n"                                  );
   printf( "     Output last part of files to stdout.\n"                     );
@@ -2192,6 +3888,25 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   spaceinfo path\n"                                             );
   printf( "     Get space statistics for given path.\n\n"                   );
 
+  printf( "   sum <path> <checksum type>\n"                                 );
+  printf( "     Query a file checksum using the requested algorithm.\n\n"   );
+
+  printf( "   token [-w|--write] [--validity minutes] [--issuer URL]\n"      );
+  printf( "         [--] <path> [activity ...]\n"                            );
+  printf( "     Request a token for a storage path.\n"                       );
+  printf( "     The storage endpoint must use HTTPS or DAVS.\n"              );
+  printf( "     -w|--write request write access; otherwise request read\n"    );
+  printf( "                access\n"                                        );
+  printf( "     --validity token validity in minutes (default: 60)\n"         );
+  printf( "     --issuer request through an explicit HTTPS or DAVS issuer;\n" );
+  printf( "              omit it to request directly from the storage\n"      );
+  printf( "              endpoint\n"                                          );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n"      );
+  printf( "     Optional activities override the read/write defaults.\n\n"   );
+
+  printf( "   xattr <path> [attribute]\n"                                   );
+  printf( "     With no attribute, list attributes; with one attribute,\n"   );
+  printf( "     get its value. Explicit native forms follow.\n\n"           );
   printf( "   xattr <path> <code> <params> \n"                              );
   printf( "     Operation on extended attributes. Codes:\n\n"               );
   printf( "     set   <attr>          Set extended attribute; <attr> is\n"  );
@@ -2229,6 +3944,8 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "cat",         DoCat        );
   executor->AddCommand( "tail",        DoTail       );
   executor->AddCommand( "spaceinfo",   DoSpaceInfo  );
+  executor->AddCommand( "sum",         DoSum        );
+  executor->AddCommand( "token",       DoToken      );
   executor->AddCommand( "xattr",       DoXAttr      );
   return executor;
 }
@@ -2518,7 +4235,7 @@ int main( int argc, char **argv )
   FSExecutor::CommandParams arguments( argv + optind, argv + argc );
   URL url;
   std::string error;
-  URLCommandResult result = ParseURLCommand( arguments, url, error );
+  URLCommandResult result = NormalizeFSURLCommand( arguments, url, error );
   if( result == InvalidURLCommand )
   {
     std::cerr << "xrdfs: " << error << std::endl;
@@ -2545,7 +4262,7 @@ int main( int argc, char **argv )
   if( arguments[0] != "query" )
   {
     URL inferredEndpoint;
-    result = ParseURLCommand( arguments, inferredEndpoint, error );
+    result = NormalizeFSURLCommand( arguments, inferredEndpoint, error );
     if( result == InvalidURLCommand )
     {
       std::cerr << "xrdfs: " << error << std::endl;

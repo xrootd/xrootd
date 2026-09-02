@@ -60,6 +60,7 @@ CurlOpenOp::SetOpenProperties(bool setSize)
             m_file->SetProperty("XrdClHttpPrefetchSize", std::to_string(size));
         }
     }
+    m_file->SetProperty("LastModified", GetLastModified());
 
     if (!m_headers.GetETag().empty())
     {

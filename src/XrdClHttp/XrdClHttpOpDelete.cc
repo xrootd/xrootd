@@ -51,6 +51,12 @@ CurlDeleteOp::Setup(CURL *curl, CurlWorker &worker) {
 
 void
 CurlDeleteOp::Success() {
+    if (GetStatusCode() == 207) {
+        Fail(XrdCl::errErrorResponse, kXR_ServerError,
+            "DELETE returned HTTP 207 Multi-Status; one or more resources were not removed");
+        return;
+    }
+
     SetDone(false);
     m_logger->Debug(kLogXrdClHttp, "CurlDeleteOp::Success");
     if (m_handler == nullptr) {return;}

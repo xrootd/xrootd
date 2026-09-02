@@ -56,7 +56,8 @@ bats::on_failure() {
   assert_success
   assert_output --partial '"locality":"TAPE"'
 
-  run "$XRDFS_BIN" prepare -s "$TAPE_FILE_URL"
+  run "$XRDFS_BIN" prepare -s --pin-lifetime 86400 \
+    --metadata '{"example-site":{"queue":"bulk"}}' "$TAPE_FILE_URL"
   assert_success
   request_id="$output"
   if [[ ! "$request_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
@@ -103,12 +104,8 @@ bats::on_failure() {
   run authenticated_cat "$TAPE_FILE_PATH"
   assert_failure
 
-  run curl --silent --show-error --cacert "$X509_CA_FILE" \
-    --header "Authorization: Bearer $(<"$WRITE_TOKEN")" \
-    --request DELETE --output /dev/null --write-out '%{http_code}' \
-    "$ORIGIN_URL/api/v1/stage/$request_id"
+  run "$XRDFS_BIN" "$ORIGIN_URL" query prepare -d "$request_id"
   assert_success
-  assert_output "200"
 
   run curl --silent --show-error --cacert "$X509_CA_FILE" \
     --header "Authorization: Bearer $(<"$WRITE_TOKEN")" \
@@ -116,6 +113,42 @@ bats::on_failure() {
     "$ORIGIN_URL/api/v1/stage/$request_id"
   assert_success
   assert_output "404"
+}
+
+@test "xrdfs supports tape discovery and archiveinfo queries" {
+  run "$XRDFS_BIN" "$ORIGIN_URL" query tape discover
+  assert_success
+  assert_output --partial "Tape REST Discovery:"
+
+  run "$XRDFS_BIN" "$ORIGIN_URL" query tape --json discover
+  assert_success
+  assert_output --partial '"uri"'
+
+  run "$XRDFS_BIN" "$ORIGIN_URL" query tape archiveinfo "$TAPE_FILE_URL"
+  assert_success
+
+  run "$XRDFS_BIN" "$ORIGIN_URL" query tape --json archiveinfo "$TAPE_FILE_URL"
+  assert_success
+  assert_output --partial '"locality"'
+}
+
+@test "xrdfs exposes GFAL Tape REST virtual attributes" {
+  run "$XRDFS_BIN" xattr "$TAPE_FILE_URL"
+  assert_success
+  assert_line "taperestapi.version = v1"
+  assert_line "taperestapi.uri = $ORIGIN_URL/api/v1"
+  assert_line "taperestapi.sitename = xrootd-ci"
+
+  run "$XRDFS_BIN" xattr "$TAPE_FILE_URL" taperestapi.version
+  assert_success
+  assert_output "v1"
+
+  run "$XRDFS_BIN" xattr "$TAPE_FILE_URL" user.status
+  assert_success
+  if [[ "$output" != "NEARLINE" &&
+        "$output" != "ONLINE_AND_NEARLINE" ]]; then
+    fail "unexpected GFAL tape status: $output"
+  fi
 }
 
 @test "xrdfs rejects unsupported Tape REST prepare flags" {

@@ -29,8 +29,11 @@ API Reference
    :maxdepth: 1
 
    modules/client/filesystem
+   modules/client/tape
    modules/client/file
    modules/client/copyprocess
+   modules/client/auth
+   modules/client/storage
    modules/client/responses
    modules/client/env
    modules/client/flags

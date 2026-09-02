@@ -2,14 +2,13 @@
 Common FileSystem workflows.
 
 This example maps common ``xrdfs`` and ``xrdcp`` operations to the Python
-bindings, including authentication environment values, endpoint checks, checksum
+bindings, including object-scoped authentication, endpoint checks, checksum
 queries, copy, rename, and delete.
 """
 
 from __future__ import print_function
 
 from XRootD import client
-from XRootD.client.flags import QueryCode
 
 
 endpoint = 'root://localhost/'
@@ -18,10 +17,8 @@ target = endpoint + '/tmp/target.dat'
 renamed = endpoint + '/tmp/renamed.dat'
 
 
-client.EnvPutString('XrdSecPROTOCOL', 'ztn')
-client.EnvPutString('BEARER_TOKEN', 'replace-with-token')
-
-fs = client.FileSystem(endpoint)
+auth = client.AuthContext.bearer(token='replace-with-token')
+fs = client.FileSystem(endpoint, auth=auth)
 
 status, _ = fs.ping(timeout=10)
 print(status)
@@ -32,7 +29,7 @@ print(status, protocol)
 status, _ = fs.copy(source, target, force=True)
 print(status)
 
-status, checksum = fs.query(QueryCode.CHECKSUM, target, timeout=10)
+status, checksum = fs.checksum(target, timeout=10)
 print(status, checksum)
 
 status, _ = fs.mv(target, renamed, timeout=10)
@@ -40,3 +37,5 @@ print(status)
 
 status, _ = fs.rm(renamed, timeout=10)
 print(status)
+
+auth.close()

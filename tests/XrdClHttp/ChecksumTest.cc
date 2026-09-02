@@ -157,6 +157,22 @@ TEST_F(CurlChecksumFixture, Basic)
 
     ASSERT_EQ(resp->ToString(), expected_response);
 
+    source_url = "/test/checksum_adler32";
+    WriteString(GetOriginURL() + source_url, "Wiki");
+
+    buffer.FromString(source_url + "?cks.type=adler32&directread&authz=" +
+                      GetReadToken());
+    auto adler_status = fs.Query(XrdCl::QueryCode::Checksum, buffer, &srh, 0);
+    ASSERT_TRUE(adler_status.IsOK());
+    srh.Wait();
+    auto [adler_response_status, adler_object] = srh.Status();
+    ASSERT_TRUE(adler_response_status->IsOK())
+        << "ADLER32 checksum query failed with "
+        << adler_response_status->ToString();
+    resp = nullptr;
+    adler_object->Get(resp);
+    ASSERT_EQ(resp->ToString(), "adler32 03da0195");
+
     source_url = "/test/checksum_crc32c";
     WriteString(GetOriginURL() + source_url, "dog");
     

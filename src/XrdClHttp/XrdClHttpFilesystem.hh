@@ -78,6 +78,11 @@ public:
         XrdCl::ResponseHandler         *handler,
         time_t                          timeout) override;
 
+    virtual XrdCl::XRootDStatus Mv(const std::string &source,
+                                   const std::string &dest,
+                                   XrdCl::ResponseHandler *handler,
+                                   time_t timeout) override;
+
     virtual XrdCl::XRootDStatus Rm(const std::string      &path,
                                    XrdCl::ResponseHandler *handler,
                                    time_t                  timeout) override;
@@ -124,6 +129,7 @@ private:
     std::atomic<XrdClHttp::HeaderCallout *> m_header_callout{};
     XrdCl::Log *m_logger{nullptr};
     XrdCl::URL m_url;
+    std::string m_client_query;
     std::unordered_map<std::string, std::string> m_properties;
 };
 

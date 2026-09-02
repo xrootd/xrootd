@@ -767,6 +767,7 @@ namespace XrdClHttp
     }
 
     XrdCl::XRootDStatus ValidateArchiveUrls(
+      const std::string &storageUrl,
       const std::vector<std::string> &urls,
       std::vector<std::string> &paths)
     {
@@ -775,7 +776,14 @@ namespace XrdClHttp
         return ErrorStatus(XrdCl::errInvalidArgs, "missing URL");
       }
 
-      std::string firstEndpoint;
+      std::string storageEndpoint;
+      std::string storagePath;
+      std::string error;
+      if(!UrlEndpointAndPath(storageUrl, storageEndpoint, storagePath, error))
+      {
+        return ErrorStatus(XrdCl::errInvalidArgs, error);
+      }
+
       paths.clear();
       paths.reserve(urls.size());
       for(const auto &url : urls)
@@ -787,11 +795,10 @@ namespace XrdClHttp
         {
           return ErrorStatus(XrdCl::errInvalidArgs, error);
         }
-        if(firstEndpoint.empty()) firstEndpoint = endpoint;
-        else if(endpoint != firstEndpoint)
+        if(endpoint != storageEndpoint)
         {
           return ErrorStatus(XrdCl::errInvalidArgs,
-            "archiveinfo URLs must belong to the same storage endpoint");
+            "archiveinfo URLs must belong to the storage endpoint");
         }
         paths.push_back(path);
       }
@@ -935,7 +942,8 @@ namespace XrdClHttp
           return;
         }
       }
-      pImpl->initialStatus = ValidateArchiveUrls(pImpl->urls, pImpl->paths);
+      pImpl->initialStatus = ValidateArchiveUrls(
+        pImpl->storageUrl, pImpl->urls, pImpl->paths);
       if(pImpl->initialStatus.IsOK()) pImpl->kind = Impl::Kind::ArchiveInfo;
       return;
     }
