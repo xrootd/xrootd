@@ -37,11 +37,14 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdOuc/XrdOucJson.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
+#include <cstdint>
 #include <getopt.h>
 #include <iterator>
 #include <cmath>
@@ -71,7 +74,7 @@ namespace
     static const char *commands[] = {
       "cache", "cat", "chmod", "locate", "ls", "mkdir", "mv",
       "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs",
-      "tail", "truncate", "xattr"
+      "tail", "token", "truncate", "xattr"
     };
 
     return std::find( std::begin( commands ), std::end( commands ), command )
@@ -99,6 +102,49 @@ namespace
     return true;
   }
 
+  bool IsLongOptionAbbreviation( const std::string &argument,
+                                 const char        *option )
+  {
+    const std::string fullOption( option );
+    return argument.size() > 2 && argument.size() < fullOption.size() &&
+           fullOption.compare( 0, argument.size(), argument ) == 0;
+  }
+
+  bool IsTokenPathOperand( const FSExecutor::CommandParams &arguments,
+                           std::size_t index )
+  {
+    bool parseOptions = true;
+    for( std::size_t i = 1; i < arguments.size(); ++i )
+    {
+      if( parseOptions && arguments[i] == "--" )
+      {
+        parseOptions = false;
+        continue;
+      }
+      if( parseOptions &&
+          (arguments[i] == "-w" || arguments[i] == "--write" ||
+           IsLongOptionAbbreviation( arguments[i], "--write" )) )
+        continue;
+      if( parseOptions &&
+          (arguments[i] == "--validity" || arguments[i] == "--issuer" ||
+           IsLongOptionAbbreviation( arguments[i], "--validity" ) ||
+           IsLongOptionAbbreviation( arguments[i], "--issuer" )) )
+      {
+        if( i + 1 < arguments.size() ) ++i;
+        continue;
+      }
+      if( parseOptions &&
+          (arguments[i].compare( 0, 11, "--validity=" ) == 0 ||
+           arguments[i].compare( 0, 9, "--issuer=" ) == 0) )
+        continue;
+      if( parseOptions && !arguments[i].empty() && arguments[i][0] == '-' )
+        continue;
+
+      return i == index;
+    }
+    return false;
+  }
+
   URLCommandResult ParseURLCommand( FSExecutor::CommandParams &arguments,
                                     URL &endpoint, std::string &error )
   {
@@ -124,6 +170,8 @@ namespace
     bool foundURL = false;
     for( std::size_t i = 1; i < arguments.size(); ++i )
     {
+      if( arguments[0] == "token" && !IsTokenPathOperand( arguments, i ) )
+        continue;
       if( !HasExplicitURLScheme( arguments[i] ) )
         continue;
 
@@ -155,6 +203,49 @@ namespace
     }
 
     return foundURL ? ValidURLCommand : NotURLCommand;
+  }
+
+  class ScopedGetoptState
+  {
+    public:
+      ScopedGetoptState():
+        pOptind( optind ), pOpterr( opterr ), pOptopt( optopt ),
+        pOptarg( optarg )
+      {
+        optind = 0;
+        opterr = 0;
+        optopt = 0;
+        optarg = nullptr;
+      }
+
+      ~ScopedGetoptState()
+      {
+        optind = pOptind;
+        opterr = pOpterr;
+        optopt = pOptopt;
+        optarg = pOptarg;
+      }
+
+    private:
+      int   pOptind;
+      int   pOpterr;
+      int   pOptopt;
+      char *pOptarg;
+  };
+
+  bool ParseTokenValidity( const char *argument, std::uint64_t &validity )
+  {
+    if( !argument || !*argument ) return false;
+    for( const unsigned char character : std::string( argument ) )
+      if( !std::isdigit( character ) ) return false;
+
+    errno = 0;
+    char *end = nullptr;
+    const unsigned long long parsed = std::strtoull( argument, &end, 10 );
+    if( errno == ERANGE || !end || *end ) return false;
+
+    validity = static_cast<std::uint64_t>( parsed );
+    return true;
   }
 }
 
@@ -1444,6 +1535,199 @@ XRootDStatus DoQuery( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Request a storage-issued token
+//------------------------------------------------------------------------------
+XRootDStatus DoToken( FileSystem                      *fs,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
+{
+  Log *log = DefaultEnv::GetLog();
+
+  enum
+  {
+    TokenValidityOption = 256,
+    TokenIssuerOption
+  };
+  static const option options[] = {
+    { "write",    no_argument,       nullptr, 'w' },
+    { "validity", required_argument, nullptr, TokenValidityOption },
+    { "issuer",   required_argument, nullptr, TokenIssuerOption },
+    { nullptr, 0, nullptr, 0 }
+  };
+
+  bool writeAccess = false;
+  std::uint64_t validity = 60;
+  std::string issuer;
+  std::string parseError;
+  int firstOperand = 0;
+
+  // getopt_long requires a mutable argv even though it does not modify the
+  // argument strings. Keep this command's parser state isolated from main()
+  // and from subsequent commands in interactive mode.
+  std::vector<std::string> commandArguments( args );
+  std::vector<char *> argv;
+  argv.reserve( commandArguments.size() + 1 );
+  for( std::string &argument : commandArguments )
+    argv.push_back( argument.data() );
+  argv.push_back( nullptr );
+
+  // getopt_long accepts unique long-option abbreviations. Reject them so the
+  // command-first URL scanner and the command parser use the same grammar.
+  for( std::size_t i = 1; i < commandArguments.size(); ++i )
+  {
+    const std::string &argument = commandArguments[i];
+    if( argument == "--" || argument.empty() || argument[0] != '-' )
+      break;
+    if( argument.compare( 0, 2, "--" ) != 0 )
+      continue;
+    if( argument == "--write" )
+      continue;
+    if( argument == "--validity" || argument == "--issuer" )
+    {
+      if( i + 1 < commandArguments.size() ) ++i;
+      continue;
+    }
+    if( argument.compare( 0, 11, "--validity=" ) == 0 ||
+        argument.compare( 0, 9, "--issuer=" ) == 0 )
+      continue;
+
+    parseError = "Invalid token option: " + argument;
+    break;
+  }
+
+  if( parseError.empty() )
+  {
+    ScopedGetoptState getoptState;
+    int parsedOption = 0;
+    while( (parsedOption = getopt_long(
+              static_cast<int>( commandArguments.size() ), argv.data(),
+              "+:w", options, nullptr )) != -1 )
+    {
+      switch( parsedOption )
+      {
+        case 'w':
+          writeAccess = true;
+          break;
+        case TokenValidityOption:
+          if( !ParseTokenValidity( optarg, validity ) )
+            parseError = "Validity must be a number >= 0.";
+          break;
+        case TokenIssuerOption:
+          issuer = optarg ? optarg : "";
+          if( issuer.empty() )
+            parseError = "Issuer URL cannot be empty.";
+          break;
+        case ':':
+          if( optopt == TokenValidityOption )
+            parseError = "Parameter '--validity' requires an argument.";
+          else if( optopt == TokenIssuerOption )
+            parseError = "Parameter '--issuer' requires an argument.";
+          else
+            parseError = "A token option requires an argument.";
+          break;
+        default:
+        {
+          const int invalidIndex = optind > 0 ? optind - 1 : 0;
+          const std::string invalid =
+            invalidIndex < static_cast<int>( commandArguments.size() ) ?
+              commandArguments[invalidIndex] : std::string();
+          parseError = invalid.empty() ? "Invalid token option." :
+                       "Invalid token option: " + invalid;
+          break;
+        }
+      }
+
+      if( !parseError.empty() ) break;
+    }
+    firstOperand = optind;
+  }
+
+  if( !parseError.empty() )
+  {
+    log->Error( AppMsg, "%s", parseError.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, parseError );
+  }
+
+  if( firstOperand >= static_cast<int>( commandArguments.size() ) )
+  {
+    const std::string error = "Missing path for token request.";
+    log->Error( AppMsg, "%s", error.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, error );
+  }
+
+  std::string path;
+  if( !BuildPath( path, env, commandArguments[firstOperand] ).IsOK() )
+  {
+    const std::string error = "Invalid path for token request.";
+    log->Error( AppMsg, "%s", error.c_str() );
+    return XRootDStatus( stError, errInvalidArgs, 0, error );
+  }
+
+  std::string server;
+  env->GetString( "ServerURL", server );
+  URL endpoint( server );
+  std::string protocol = endpoint.GetProtocol();
+  std::transform( protocol.begin(), protocol.end(), protocol.begin(),
+                  []( unsigned char character )
+  {
+    return static_cast<char>( std::tolower( character ) );
+  } );
+  if( protocol != "https" && protocol != "davs" )
+  {
+    const std::string error =
+      "Token requests require an HTTPS or DAVS storage endpoint.";
+    log->Error( AppMsg, "%s", error.c_str() );
+    return XRootDStatus( stError, errNotSupported, 0, error );
+  }
+
+  std::vector<std::string> activities;
+  for( std::size_t i = static_cast<std::size_t>( firstOperand + 1 );
+       i < commandArguments.size(); ++i )
+  {
+    if( commandArguments[i].empty() )
+    {
+      const std::string error = "Token activities cannot be empty.";
+      log->Error( AppMsg, "%s", error.c_str() );
+      return XRootDStatus( stError, errInvalidArgs, 0, error );
+    }
+    activities.emplace_back( commandArguments[i] );
+  }
+
+  nlohmann::json request = {
+    { "path", path },
+    { "validity", validity },
+    { "write", writeAccess },
+    { "activities", activities }
+  };
+  if( !issuer.empty() ) request["issuer"] = issuer;
+
+  Buffer argument;
+  argument.FromString( request.dump() );
+
+  Buffer *rawResponse = nullptr;
+  XRootDStatus status = fs->Query(
+    QueryCode::Visa, argument, rawResponse );
+  std::unique_ptr<Buffer> response( rawResponse );
+  if( !status.IsOK() )
+  {
+    // The path may contain an authz query parameter; do not copy it into the
+    // client log on failure.
+    log->Error( AppMsg, "Unable to request token: %s",
+                status.ToStr().c_str() );
+    return status;
+  }
+  if( !response )
+  {
+    const std::string error = "Token query returned no response.";
+    log->Error( AppMsg, "%s", error.c_str() );
+    return XRootDStatus( stError, errInvalidResponse, 0, error );
+  }
+
+  std::cout << response->ToString() << '\n';
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Query the server
 //------------------------------------------------------------------------------
 XRootDStatus DoPrepare( FileSystem                      *fs,
@@ -2192,6 +2476,19 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   spaceinfo path\n"                                             );
   printf( "     Get space statistics for given path.\n\n"                   );
 
+  printf( "   token [-w|--write] [--validity minutes] [--issuer URL]\n"      );
+  printf( "         [--] <path> [activity ...]\n"                            );
+  printf( "     Request a token for a storage path.\n"                       );
+  printf( "     The storage endpoint must use HTTPS or DAVS.\n"              );
+  printf( "     -w|--write request write access; otherwise request read\n"    );
+  printf( "                access\n"                                        );
+  printf( "     --validity token validity in minutes (default: 60)\n"         );
+  printf( "     --issuer request through an explicit HTTPS or DAVS issuer;\n" );
+  printf( "              omit it to request directly from the storage\n"      );
+  printf( "              endpoint\n"                                         );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n"      );
+  printf( "     Optional activities override the read/write defaults.\n\n"   );
+
   printf( "   xattr <path> <code> <params> \n"                              );
   printf( "     Operation on extended attributes. Codes:\n\n"               );
   printf( "     set   <attr>          Set extended attribute; <attr> is\n"  );
@@ -2229,6 +2526,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "cat",         DoCat        );
   executor->AddCommand( "tail",        DoTail       );
   executor->AddCommand( "spaceinfo",   DoSpaceInfo  );
+  executor->AddCommand( "token",       DoToken      );
   executor->AddCommand( "xattr",       DoXAttr      );
   return executor;
 }

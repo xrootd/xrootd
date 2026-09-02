@@ -194,6 +194,11 @@ public:
 
     void Produce(std::shared_ptr<CurlOperation> handler);
 
+    // Enqueue without waiting for capacity.  This is intended for operations
+    // submitted by a curl worker callback, where waiting for another worker to
+    // drain a full queue can stall the entire worker pool.
+    bool TryProduce(std::shared_ptr<CurlOperation> handler);
+
     std::shared_ptr<CurlOperation> Consume(std::chrono::steady_clock::duration);
     std::shared_ptr<CurlOperation> TryConsume();
 

@@ -1,3 +1,20 @@
+include(GoogleTest)
+
+# Token request and response parsing has no authentication fixture dependency.
+add_executable(xrdcl-http-token-unit-tests
+  TokenTest.cc
+  ${PROJECT_SOURCE_DIR}/src/XrdClHttp/XrdClHttpToken.cc
+)
+
+target_link_libraries(xrdcl-http-token-unit-tests
+  GTest::gtest_main
+)
+
+gtest_discover_tests(xrdcl-http-token-unit-tests
+  TEST_PREFIX XrdClHttp::
+  PROPERTIES DISCOVERY_TIMEOUT 10
+)
+
 # The final shared library has its symbols stripped; we need the symbols available
 # to allow unit tests to access them.  Rather than build the objects twice, we
 # create an internal object library and just link twice -- once stripping the symbols,
@@ -6,8 +23,6 @@ find_package(CURL REQUIRED)
 
 add_library(XrdClHttpTesting SHARED)
 target_link_libraries(XrdClHttpTesting PRIVATE XrdClHttpObj)
-
-include(GoogleTest)
 
 add_executable(xrdcl-http-unit-tests
   HeaderParserTest.cc
@@ -27,7 +42,6 @@ gtest_discover_tests(xrdcl-http-unit-tests TEST_PREFIX XrdClHttp::
 if(NOT BUILD_SCITOKENS)
   return()
 endif()
-
 find_program(OPENSSL_BIN openssl REQUIRED)
 
 # All tests that only depend on the pure XrdCl interfaces and
@@ -43,6 +57,7 @@ add_executable(xrdcl-test
 # Tests depending on XrdClHttp linkage
 add_executable(xrdcl-http-test
   CopyTest.cc
+  HandlerQueueTest.cc
   VectorReadTest.cc
 )
 
