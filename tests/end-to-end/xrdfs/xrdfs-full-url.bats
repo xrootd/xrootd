@@ -32,6 +32,14 @@ bats::on_failure() {
     print_log_files
 }
 
+local_mode() {
+    if stat -c '%a' "$1" >/dev/null 2>&1; then
+        stat -c '%a' "$1"
+    else
+        stat -f '%Lp' "$1"
+    fi
+}
+
 @test "legacy server-first syntax remains supported" {
     run -0 xrdfs root://localhost:11965 stat //examplefile
 }
@@ -271,6 +279,60 @@ bats::on_failure() {
 
     run -0 xrdfs xattr root://localhost:11965//examplefile -- user.short
     assert_output value
+}
+
+@test "mkdir accepts separated and long mode options" {
+    run -0 xrdfs mkdir -p -m 0755 \
+        root://localhost:11965//mkdir/separated/a \
+        root://localhost:11965//mkdir/separated/b
+    run -0 xrdfs stat root://localhost:11965//mkdir/separated/a
+    run -0 xrdfs stat root://localhost:11965//mkdir/separated/b
+
+    run -0 xrdfs mkdir --parents --mode=0700 \
+        root://localhost:11965//mkdir/long/child
+    run -0 xrdfs stat root://localhost:11965//mkdir/long/child
+}
+
+@test "mkdir preserves attached and symbolic mode forms" {
+    run -0 xrdfs mkdir -p -m0755 \
+        root://localhost:11965//mkdir/attached/child
+    run -0 xrdfs mkdir -p -mrwxr-x--- \
+        root://localhost:11965//mkdir/symbolic/child
+}
+
+@test "mkdir accepts grouped and interspersed options" {
+    run -0 env POSIXLY_CORRECT=1 xrdfs mkdir \
+        root://localhost:11965//mkdir/grouped/first -pm0700 \
+        root://localhost:11965//mkdir/grouped/second
+    run -0 local_mode "$BATS_TEST_TMPDIR/xrdfs-full-url/mkdir/grouped/first"
+    assert_output 700
+    run -0 local_mode "$BATS_TEST_TMPDIR/xrdfs-full-url/mkdir/grouped/second"
+    assert_output 700
+}
+
+@test "mkdir validates all options before creating paths" {
+    local option
+    for option in --unknown -m --mode --mode= --mode=0788 \
+        --mode=1000 --mode=40000000000 --mode=777777777777777777777777; do
+        run xrdfs mkdir root://localhost:11965//not-created "$option"
+        assert_failure
+        [[ ! -e "$BATS_TEST_TMPDIR/xrdfs-full-url/not-created" ]]
+    done
+    run xrdfs mkdir -m invalid -m 0700 root://localhost:11965//not-created
+    assert_failure
+    [[ ! -e "$BATS_TEST_TMPDIR/xrdfs-full-url/not-created" ]]
+}
+
+@test "mkdir resets parsing and accepts dash-prefixed modes and paths" {
+    run bats_pipe -0 printf \
+        'mkdir -pxm0700 invalid\nmkdir -- -directory\nmkdir --mode --------- zero-mode\nmkdir -pm0700 nested/child\nexit\n' \
+        \| xrdfs root://localhost:11965
+    assert_output --partial 'Invalid arguments'
+    [[ -d "$BATS_TEST_TMPDIR/xrdfs-full-url/-directory" ]]
+    [[ -d "$BATS_TEST_TMPDIR/xrdfs-full-url/nested/child" ]]
+    run -0 local_mode "$BATS_TEST_TMPDIR/xrdfs-full-url/zero-mode"
+    # The server always adds owner rwx when creating directories.
+    assert_output 700
 }
 
 @test "URL parameters are preserved in the operand path" {
