@@ -56,6 +56,25 @@ class CurlWorker;
 class File;
 class ResponseInfo;
 
+// Authentication and TLS settings encoded in client-only URL parameters.
+// These parameters are removed before a request is sent to the server.
+struct HttpClientConfig {
+    std::string bearer_token_file;
+    std::string client_cert;
+    std::string client_key;
+    std::string ca_file;
+    std::string ca_dir;
+    bool no_auth{false};
+    bool no_verify{false};
+};
+
+// Extract XrdClHttp client-only parameters from a URL.  All unrelated query
+// parameters retain their original spelling and order, which is required for
+// signed URLs.  If client_query is provided, it receives the extracted,
+// still-encoded parameter fragments for propagation by FileSystem operations.
+std::string ExtractHttpClientConfig(const std::string &url,
+    HttpClientConfig &config, std::string *client_query = nullptr);
+
 class CurlOperation {
 public:
     using HeaderList = std::vector<std::pair<std::string, std::string>>;
@@ -99,14 +118,31 @@ public:
     // Returns when the curl header timeout expires.
     //
     // The first byte of the header must be received before this time.
-    std::chrono::steady_clock::time_point GetHeaderExpiry() const {return m_header_expiry;}
+    std::chrono::steady_clock::time_point GetHeaderExpiry() const {
+        return m_header_expiry.load(std::memory_order_relaxed);
+    }
+
+    // Push the header deadline out to `timeout` from now, if that is later than
+    // the current deadline; never brings it forward.
+    //
+    // A chunked PUT is a single curl operation that spans many client writes,
+    // each carrying its own timeout.  Without this, the whole upload would stay
+    // bound by the deadline derived from the very first write.
+    void ExtendDeadline(struct timespec timeout);
 
     // Returns when the curl operation expires
     std::chrono::steady_clock::time_point GetOperationExpiry() {
-        if (m_last_xfer == std::chrono::steady_clock::time_point()) {
-            return GetHeaderExpiry();
+        if (m_last_xfer != std::chrono::steady_clock::time_point()) {
+            return m_last_xfer + m_stall_interval;
         }
-        return m_last_xfer + m_stall_interval;
+        // Headers have arrived but no payload byte has been accounted for yet.
+        // The header deadline no longer applies (HeaderTimeoutExpired stops
+        // enforcing it at the same point), so anchor the stall clock on the
+        // last header activity instead of reviving a deadline that is moot.
+        if (m_received_header) {
+            return m_header_lastop + m_stall_interval;
+        }
+        return GetHeaderExpiry();
     }
 
     // Clean up the thread-local DNS cache for fake lookups associated with the
@@ -167,6 +203,10 @@ public:
 
     // Returns the URL used by the current request.
     const std::string &GetUrl() const {return m_request_url;}
+
+    // Return object-scoped settings for internal sub-operations such as the
+    // authenticated OPTIONS probe.
+    const HttpClientConfig &GetClientConfig() const {return m_client_config;}
 
     // Returns the response info for the operation
     std::unique_ptr<ResponseInfo> GetResponseInfo();
@@ -312,7 +352,10 @@ protected:
     std::chrono::steady_clock::time_point m_operation_expiry;
 
     // The expiration time for receiving the first header.
-    std::chrono::steady_clock::time_point m_header_expiry;
+    //
+    // Atomic because ExtendDeadline() is invoked from the client thread that
+    // submits writes while the curl worker thread evaluates the deadline.
+    std::atomic<std::chrono::steady_clock::time_point> m_header_expiry;
 
     // Any additional headers to send with the request.
     HeaderCallout *m_header_callout;
@@ -387,6 +430,7 @@ private:
 
 protected:
     void SetDone(bool has_failed) {m_done = true; m_has_failed.store(has_failed, std::memory_order_release);}
+    HttpClientConfig m_client_config;
     const std::string m_url;
     // Multi-step operations retain their immutable input URL in m_url while
     // advancing the URL used for each individual HTTP request here.
@@ -413,7 +457,8 @@ public:
         m_parent(op),
         m_parent_curl(curl)
     {
-        m_operation_expiry = m_header_expiry;
+        m_client_config = op->GetClientConfig();
+        m_operation_expiry = GetHeaderExpiry();
     }
 
     virtual ~CurlOptionsOp() {}
@@ -449,7 +494,7 @@ public:
     CurlOperation(handler, url, timeout, log, callout, header_callout),
     m_response_info(response_info)
     {
-        m_operation_expiry = m_header_expiry;
+        m_operation_expiry = GetHeaderExpiry();
     }
 
     virtual ~CurlStatOp() {}
@@ -482,8 +527,6 @@ protected:
     }
 
 private:
-    // Parse the properties element of a PROPFIND response.
-    std::pair<int64_t, bool> ParseProp(TiXmlElement *prop);
     // Callback for writing the response body to the internal buffer.
     static size_t WriteCallback(char *buffer, size_t size, size_t nitems, void *this_ptr);
 
@@ -594,6 +637,44 @@ CurlMkcolOp(XrdCl::ResponseHandler *handler, const std::string &url,
 
 private:
     bool m_response_info{false}; // Indicate whether to give extended information in the response.
+};
+
+// Operation issuing a WebDAV MOVE request to the remote server.
+class CurlMoveOp final : public CurlOperation {
+public:
+    CurlMoveOp(XrdCl::ResponseHandler *handler, const std::string &source,
+        const std::string &destination, struct timespec timeout,
+        XrdCl::Log *logger, CreateConnCalloutType callout,
+        HeaderCallout *header_callout);
+
+    void Fail(uint16_t errCode, uint32_t errNum, const std::string &msg) override;
+    bool Setup(CURL *curl, CurlWorker &) override;
+    void Success() override;
+    void ReleaseHandle() override;
+
+    HttpVerb GetVerb() const override {return HttpVerb::MOVE;}
+
+private:
+    std::string m_destination;
+};
+
+// RFC 4331 quota query, returned using the XRootD QueryCode::Space format.
+class CurlSpaceOp final : public CurlOperation {
+public:
+    CurlSpaceOp(XrdCl::ResponseHandler *handler, const std::string &url,
+        struct timespec timeout, XrdCl::Log *logger,
+        CreateConnCalloutType callout, HeaderCallout *header_callout);
+
+    bool Setup(CURL *curl, CurlWorker &) override;
+    void Success() override;
+    void ReleaseHandle() override;
+    HttpVerb GetVerb() const override {return HttpVerb::PROPFIND;}
+
+private:
+    static size_t WriteCallback(char *buffer, size_t size, size_t nitems,
+        void *this_ptr);
+    std::string m_response;
+    const std::string m_request;
 };
 
 //  Cache control query
@@ -887,12 +968,6 @@ private:
         int64_t m_size{-1};
         std::string m_lastmodified;
     };
-    // Parses the properties element of a PROPFIND response into a DavEntry object
-    //
-    // - prop: The properties element to parse
-    // - Returns: A pair containing the DavEntry object and a boolean indicating success or not
-    bool ParseProp(DavEntry &entry, TiXmlElement *prop);
-
     // Indicate whether the operation should use the extended "response info" object in response
     const bool m_response_info{false};
 

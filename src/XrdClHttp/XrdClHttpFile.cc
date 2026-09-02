@@ -195,7 +195,7 @@ private:
 // Note: these values are typically overwritten by `CurlFactory::CurlFactory`;
 // they are set here just to avoid uninitialized globals.
 struct timespec XrdClHttp::File::m_min_client_timeout = {2, 0};
-struct timespec XrdClHttp::File::m_default_header_timeout = {9, 5};
+struct timespec XrdClHttp::File::m_default_header_timeout = {9, 500'000'000};
 struct timespec XrdClHttp::File::m_fed_timeout = {5, 0};
 
 
@@ -412,7 +412,7 @@ File::Close(XrdCl::ResponseHandler *handler,
             m_logger->Debug(kLogXrdClHttp, "Flushing final write buffer on close");
             auto put_handler = m_put_handler.load(std::memory_order_acquire);
             if (put_handler) {
-                return put_handler->QueueWrite(std::make_pair(nullptr, 0), handler);
+                return put_handler->QueueWrite(std::make_pair(nullptr, 0), handler, GetHeaderTimeout(timeout));
             } else {
                 m_logger->Error(kLogXrdClHttp, "Internal state error - put operation ongoing without handle");
                 return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError);
@@ -822,7 +822,7 @@ File::Write(uint64_t                offset,
         PutResponseHandler *expected_value = nullptr;
         if (!m_put_handler.compare_exchange_strong(expected_value, handler_wrapper, std::memory_order_acq_rel)) {
             delete handler_wrapper;
-            return expected_value->QueueWrite(std::make_pair(buffer, size), handler);
+            return expected_value->QueueWrite(std::make_pair(buffer, size), handler, ts);
         }
 
         if (offset != 0) {
@@ -855,7 +855,7 @@ File::Write(uint64_t                offset,
             static_cast<long long>(offset), static_cast<long long>(old_offset));
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs, 0, "Requested write offset does not match current offset");
     }
-    return handler_wrapper->QueueWrite(std::make_pair(buffer, size), handler);
+    return handler_wrapper->QueueWrite(std::make_pair(buffer, size), handler, ts);
 }
 
 XrdCl::XRootDStatus
@@ -880,7 +880,7 @@ File::Write(uint64_t                offset,
         PutResponseHandler *expected_value = nullptr;
         if (!m_put_handler.compare_exchange_strong(expected_value, handler_wrapper, std::memory_order_acq_rel)) {
             delete handler_wrapper;
-            return expected_value->QueueWrite(std::move(buffer), handler);
+            return expected_value->QueueWrite(std::move(buffer), handler, ts);
         }
 
         if (offset != 0) {
@@ -912,7 +912,7 @@ File::Write(uint64_t                offset,
             static_cast<long long>(offset), static_cast<long long>(old_offset));
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs, 0, "Requested write offset does not match current offset");
     }
-    return handler_wrapper->QueueWrite(std::move(buffer), handler);
+    return handler_wrapper->QueueWrite(std::move(buffer), handler, ts);
 }
 
 XrdCl::XRootDStatus
@@ -1340,7 +1340,7 @@ File::PutResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl:
 }
 
 XrdCl::XRootDStatus
-File::PutResponseHandler::QueueWrite(std::variant<std::pair<const void *, size_t>, XrdCl::Buffer> buffer, XrdCl::ResponseHandler *handler)
+File::PutResponseHandler::QueueWrite(std::variant<std::pair<const void *, size_t>, XrdCl::Buffer> buffer, XrdCl::ResponseHandler *handler, struct timespec timeout)
 {
     if (m_op->HasFailed()) {
         auto sc = m_op->GetStatusCode();
@@ -1354,6 +1354,14 @@ File::PutResponseHandler::QueueWrite(std::variant<std::pair<const void *, size_t
         }
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp, 0, "Cannot continue writing to open file after error");
     }
+    // The PUT is one curl operation spanning every write the client makes, but
+    // the origin sends no response header until the body is complete.  Without
+    // pushing the deadline out per write, the header timeout derived from the
+    // first write would cap the whole upload regardless of how much data is
+    // still flowing.  A wedged transfer is still caught by the stall and
+    // slow-transfer detectors.
+    m_op->ExtendDeadline(timeout);
+
     std::lock_guard<std::mutex> lg(m_mutex);
     if (!m_active) {
         m_active = true;

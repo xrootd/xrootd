@@ -105,7 +105,7 @@ TransferFixture::WritePattern(const std::string &name, const off_t writeSize,
 
     auto url = name + "?authz=" + GetWriteToken() + "&oss.asize=" + std::to_string(writeSize);
     auto rv = fh.Open(url, XrdCl::OpenFlags::Write, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
-    ASSERT_TRUE(rv.IsOK()) << "Failed to open " << name << " for write: " << rv.ToString();
+    ASSERT_TRUE(rv.IsOK()) << "Failed to open " << name << " for write: " << rv.ToStr();
 
     size_t sizeToWrite = (static_cast<off_t>(chunkSize) >= writeSize)
                                                         ? static_cast<size_t>(writeSize)
@@ -117,7 +117,8 @@ TransferFixture::WritePattern(const std::string &name, const off_t writeSize,
         std::string writeBuffer(sizeToWrite, curChunkByte);
 
         rv = fh.Write(offset, sizeToWrite, writeBuffer.data(), static_cast<time_t>(10));
-        ASSERT_TRUE(rv.IsOK()) << "Failed to write " << name << ": " << rv.ToString();
+        ASSERT_TRUE(rv.IsOK()) << "Failed to write " << name << " at offset " << offset
+                               << " (" << sizeToWrite << " bytes): " << rv.ToStr();
         
         curWriteSize -= sizeToWrite;
         offset += sizeToWrite;
@@ -128,7 +129,7 @@ TransferFixture::WritePattern(const std::string &name, const off_t writeSize,
     }
 
     rv = fh.Close();
-    ASSERT_TRUE(rv.IsOK());
+    ASSERT_TRUE(rv.IsOK()) << "Failed to close " << name << " after write: " << rv.ToStr();
     m_log->Debug(XrdCl::UtilityMsg, "Finished writing transfer pattern to %s", name.c_str());
 
     VerifyContents(name, writeSize, chunkByte, chunkSize);
@@ -141,7 +142,7 @@ TransferFixture::VerifyContents(const std::string &obj,
     XrdCl::File fh;
     auto url = obj + "?authz=" + GetReadToken();
     auto rv = fh.Open(url, XrdCl::OpenFlags::Read, XrdCl::Access::Mode(0755), static_cast<time_t>(0));
-    ASSERT_TRUE(rv.IsOK());
+    ASSERT_TRUE(rv.IsOK()) << "Failed to open " << obj << " for read: " << rv.ToStr();
 
     return VerifyContents(fh, expectedSize, chunkByte, chunkSize);
 }
@@ -160,7 +161,8 @@ TransferFixture::VerifyContents(XrdCl::File &fh,
         std::string readBuffer(sizeToRead, curChunkByte - 1);
         uint32_t bytesRead;
         auto rv = fh.Read(offset, sizeToRead, readBuffer.data(), bytesRead, static_cast<time_t>(0));
-        ASSERT_TRUE(rv.IsOK());
+        ASSERT_TRUE(rv.IsOK()) << "Failed to read at offset " << offset
+                               << " (" << sizeToRead << " bytes): " << rv.ToStr();
         ASSERT_EQ(bytesRead, sizeToRead);
         readBuffer.resize(sizeToRead);
 
@@ -176,7 +178,7 @@ TransferFixture::VerifyContents(XrdCl::File &fh,
     }
 
     auto rv = fh.Close();
-    ASSERT_TRUE(rv.IsOK());
+    ASSERT_TRUE(rv.IsOK()) << "Failed to close after read: " << rv.ToStr();
 }
 
 void

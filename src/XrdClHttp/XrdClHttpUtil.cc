@@ -505,7 +505,8 @@ bool HeaderParser::Parse(const std::string &header_line)
         std::string_view val(header_value);
         while (!val.empty()) {
             auto found = val.find(',');
-            auto method = val.substr(0, found);
+            std::string method(val.substr(0, found));
+            XrdCl::Utils::Trim(method);
             if (method == "PROPFIND") {
                 auto new_verbs = static_cast<unsigned>(m_allow_verbs) | static_cast<unsigned>(VerbsCache::HttpVerb::kPROPFIND);
                 m_allow_verbs = static_cast<VerbsCache::HttpVerb>(new_verbs);
@@ -1430,13 +1431,10 @@ CurlWorker::Run() {
             // If the operation requires the result of the OPTIONS verb to function, then
             // we add that to the multi-handle instead, chaining the two calls together.
             if (op->RequiresOptions()) {
-                std::string modified_url;
                 std::shared_ptr<CurlOptionsOp> options_op(
                     new CurlOptionsOp(
                         curl, op,
-                        std::string(
-                            VerbsCache::GetUrlKey(op->GetUrl(), modified_url)
-                        ),
+                        op->GetUrl(),
                         m_logger, op->GetConnCalloutFunc()
                     )
                 );
@@ -1758,8 +1756,6 @@ CurlWorker::Run() {
                                     // operation can continue.  Inject a new CurlOptionsOp and chain it to the one
                                     // being processed.  Once the OPTIONS request is done, then we'll restart this
                                     // operation.
-                                    std::string modified_url;
-                                    target = VerbsCache::GetUrlKey(target, modified_url);
                                     options_op = new CurlOptionsOp(iter->first, op, target, m_logger, op->GetConnCalloutFunc());
                                     std::shared_ptr<CurlOperation> new_op(options_op);
                                     auto curl = queue.GetHandle();
