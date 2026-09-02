@@ -95,6 +95,7 @@ XrdClHttp::ParseWebDavProperties(TiXmlElement *prop,
         } else if (WebDavElementNameEquals(child, "getlastmodified")) {
             auto last_modified = child->GetText();
             if (!last_modified) return false;
+            properties.m_last_modified_text = last_modified;
             struct tm parsed_time{};
             if (!strptime(last_modified, "%a, %d %b %Y %H:%M:%S",
                           &parsed_time)) {

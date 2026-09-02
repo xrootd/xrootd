@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <ctime>
+#include <string>
 
 class TiXmlElement;
 
@@ -33,6 +34,7 @@ struct WebDavProperties {
     bool m_is_executable{false};
     int64_t m_size{-1};
     time_t m_last_modified{-1};
+    std::string m_last_modified_text;
 };
 
 struct WebDavQuota {

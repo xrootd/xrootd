@@ -523,7 +523,13 @@ protected:
     // Return the Last-Modified value reported by the stat response.
     const std::string &GetLastModified() const
     {
-        return m_is_propfind ? m_last_modified : m_headers.GetLastModified();
+        return m_is_propfind ? m_last_modified_text : m_headers.GetLastModified();
+    }
+
+    time_t GetModificationTime() const
+    {
+        return m_is_propfind ? m_last_modified
+                             : ParseHttpDate(m_headers.GetLastModified());
     }
 
 private:
@@ -537,7 +543,8 @@ private:
     // Whether the stat response indicated that the object is a directory.
     bool m_is_dir{false};
     std::string m_response; // Body of the response (if using PROPFIND)
-    std::string m_last_modified; // Last-Modified value from a PROPFIND response
+    time_t m_last_modified{-1}; // Parsed PROPFIND modification time
+    std::string m_last_modified_text; // Raw PROPFIND Last-Modified value
     int64_t m_length{-1}; // Length of the object from the response
 };
 
@@ -966,7 +973,7 @@ private:
         bool m_isdir{false};
         bool m_isexec{false};
         int64_t m_size{-1};
-        std::string m_lastmodified;
+        time_t m_lastmodified{-1};
     };
     // Indicate whether the operation should use the extended "response info" object in response
     const bool m_response_info{false};
