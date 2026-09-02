@@ -476,8 +476,6 @@ protected:
     void SuccessImpl(bool returnObj);
 
 private:
-    // Parse the properties element of a PROPFIND response.
-    std::pair<int64_t, bool> ParseProp(TiXmlElement *prop);
     // Callback for writing the response body to the internal buffer.
     static size_t WriteCallback(char *buffer, size_t size, size_t nitems, void *this_ptr);
 
@@ -833,12 +831,6 @@ private:
         int64_t m_size{-1};
         time_t m_lastmodified{-1};
     };
-    // Parses the properties element of a PROPFIND response into a DavEntry object
-    //
-    // - prop: The properties element to parse
-    // - Returns: A pair containing the DavEntry object and a boolean indicating success or not
-    bool ParseProp(DavEntry &entry, TiXmlElement *prop);
-
     // Indicate whether the operation should use the extended "response info" object in response
     const bool m_response_info{false};
 
