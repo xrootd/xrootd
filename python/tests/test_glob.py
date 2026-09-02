@@ -1,17 +1,41 @@
 import pytest
 import os
 import glob as norm_glob
+import shutil
+import tempfile
 import XRootD.client.glob_funcs as glob
+from XRootD import client
+from XRootD.client.flags import OpenFlags
 from pathlib import Path
+from env import *
 
-LHCB_EOS_PUBLIC_PREFIX = (
-    "root://eospublic.cern.ch//eos/opendata/lhcb/Collision11/CHARM/"
-    "LHCb_2011_Beam3500GeV_VeloClosed_MagDown_RealData_Reco14_Stripping21r1_CHARM_MDST/"
-)
+
+@pytest.fixture(scope='module')
+def remote_tree():
+    """Create a small directory tree on the test server to glob over.
+
+    Parent directories are created on demand when a file is opened for
+    writing, and the whole tree is removed together with the server area
+    when the server fixture is torn down.
+    """
+    for path in ('dataset1/run_1.dat', 'dataset1/run_2.dat',
+                 'dataset1/run_10.dat', 'dataset2/run_3.dat'):
+        f = client.File()
+        status, __ = f.open(SERVER_URL + '/tmp/glob/' + path, OpenFlags.DELETE)
+        assert status.ok
+        status, __ = f.write('data')
+        assert status.ok
+        status, __ = f.close()
+        assert status.ok
+
+    return SERVER_URL + '/tmp/glob'
 
 
 @pytest.fixture
-def tmptree(tmpdir):
+def tmptree():
+    # Use a short-lived directory instead of the pytest tmpdir, which is
+    # retained for a few runs, so that nothing is left behind under /tmp.
+    tmpdir = Path(tempfile.mkdtemp(prefix='pyxrootd-glob-', dir='/tmp'))
     subdir1 = tmpdir / "subdir1"
     subdir1.mkdir()
     subdir2 = tmpdir / "subdir2"
@@ -19,7 +43,8 @@ def tmptree(tmpdir):
     for i in range(3):
         dummy = subdir1 / ("a_file_%d.txt" % i)
         dummy.write_text("This is file %d\n" % i, encoding="utf-8")
-    return tmpdir
+    yield tmpdir
+    shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def test_glob_local(tmptree):
@@ -37,14 +62,14 @@ def test_glob_local(tmptree):
     assert str(tmptree) in str(excinfo.value)
 
 
-def test_glob_remote(tmptree):
-    assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoad/")) == 0
-    assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoa*")) == 2
-    assert len(glob.glob("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/*")) > 0
-    assert len(glob.glob("root://eospublic.cern.ch//eos/root-*/cms_opendata_2012_nanoaod/*")) > 0
+def test_glob_remote(remote_tree):
+    assert len(glob.glob(remote_tree + "/nonexistent/")) == 0
+    assert len(glob.glob(remote_tree + "/dataset*")) == 2
+    assert len(glob.glob(remote_tree + "/dataset1/*")) == 3
+    assert len(glob.glob(remote_tree + "/dataset*/*.dat")) == 4
 
     with pytest.raises(RuntimeError) as excinfo:
-        glob.glob("root://eospublic.cern.ch//eos/root-NOTREAL/cms_opendata_2012_nanoaod/*", raise_error=True)
+        glob.glob(remote_tree + "/nonexistent/*", raise_error=True)
     assert "[ERROR]" in str(excinfo.value)
 
 
@@ -120,48 +145,46 @@ def test_iglob_with_url_params(tmptree):
         assert "?key1=val1&key2=val2" in result
 
 
-def test_glob_remote_with_url_params():
+def test_glob_remote_with_url_params(remote_tree):
     """Test that URL parameters work with remote XRootD paths"""
 
-    # Test with public endpoint and URL parameters
-    base_path = "root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/*"
     url_params = "?xrd.wantprot=unix"
 
-    results = glob.glob(base_path + url_params)
+    results = glob.glob(remote_tree + "/dataset1/*" + url_params)
 
     # Should get results
-    assert len(results) > 0
+    assert len(results) == 3
 
     # All results should have URL parameters preserved
     for result in results:
-        assert url_params in result
+        assert result.endswith(url_params)
 
 
-def test_multiple_glob_with_url_params():
+def test_multiple_glob_with_url_params(remote_tree):
     """Test multiple glob patterns with URL parameters"""
-    results = glob.glob(LHCB_EOS_PUBLIC_PREFIX + "00041840/*/*.mdst?xrd.wantprot=unix")
+    results = glob.glob(remote_tree + "/dataset*/*.dat?xrd.wantprot=unix")
 
     # Ensure we have results from all subdirectories
-    assert len(results) > 4000
+    assert len(results) == 4
 
     # Check that URL parameters are preserved in all results
     for result in results:
         assert "?xrd.wantprot=unix" in result
 
 
-def test_folder_glob_with_url_params(tmptree):
-    """Test globbing for folders with URL parameters"""
-    pattern = (
-        LHCB_EOS_PUBLIC_PREFIX + "00041840/*/00041840_000?4866_1.charm.mdst?xrd.wantprot=unix"
-    )
-    results = glob.glob(pattern)
+def test_folder_glob_with_url_params(remote_tree):
+    """Test globbing across folders with URL parameters"""
+
+    # The single character wildcard must match run_1 to run_3, but not run_10,
+    # and must not be confused with the start of the URL parameters.
+
+    results = glob.glob(remote_tree + "/dataset*/run_?.dat?xrd.wantprot=unix")
     expected = [
-        "00041840/0001/00041840_00014866_1.charm.mdst?xrd.wantprot=unix",
-        "00041840/0003/00041840_00034866_1.charm.mdst?xrd.wantprot=unix",
-        "00041840/0004/00041840_00044866_1.charm.mdst?xrd.wantprot=unix",
-        "00041840/0006/00041840_00064866_1.charm.mdst?xrd.wantprot=unix",
+        "dataset1/run_1.dat?xrd.wantprot=unix",
+        "dataset1/run_2.dat?xrd.wantprot=unix",
+        "dataset2/run_3.dat?xrd.wantprot=unix",
     ]
-    assert results == [LHCB_EOS_PUBLIC_PREFIX + path for path in expected]
+    assert sorted(results) == [remote_tree + "/" + path for path in expected]
 
 
 def test_glob_backward_compatibility(tmptree):

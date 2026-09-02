@@ -26,6 +26,15 @@ Python_add_library(client MODULE WITH_SOABI
 
 target_compile_options(client PRIVATE -w) # TODO: fix build warnings
 
+# The module exchanges off_t with the client library, so it must agree with it
+# on the size of a file offset. This is set for the whole project in
+# XRootDOSDefs.cmake, but when building the bindings standalone against an
+# installed XRootD this directory is configured as a project of its own and
+# does not inherit the definitions, so set them here explicitly.
+
+target_compile_definitions(client PRIVATE
+  _LARGEFILE_SOURCE _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
+
 if(APPLE)
   set(CMAKE_MACOSX_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)

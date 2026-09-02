@@ -49,7 +49,6 @@ BuildRequires:	systemd-rpm-macros
 BuildRequires:	systemd-devel
 BuildRequires:	python3-devel
 BuildRequires:	python3-pip
-BuildRequires:	python3-pytest
 BuildRequires:	python3-setuptools
 BuildRequires:	python3-wheel
 BuildRequires:	json-c-devel
@@ -88,6 +87,7 @@ BuildRequires:	krb5-server
 BuildRequires:	krb5-workstation
 BuildRequires:	openssl
 BuildRequires:	procps-ng
+BuildRequires:	python3-pytest
 BuildRequires:	sqlite
 %endif
 
@@ -355,14 +355,14 @@ doxygen Doxyfile
 	rm -f %{buildroot}%{_libdir}/libXrdCephPosix.so
 %endif
 
+%{__python3} -m pip install \
+	--no-deps --ignore-installed --disable-pip-version-check --verbose \
+	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/python/dist/*.whl
+
 rm -f %{buildroot}%{python3_sitearch}/xrootd-*.*-info/direct_url.json
 rm -f %{buildroot}%{python3_sitearch}/xrootd-*.*-info/RECORD
 [ -r %{buildroot}%{python3_sitearch}/xrootd-*.*-info/INSTALLER ] && \
 	sed s/pip/rpm/ -i %{buildroot}%{python3_sitearch}/xrootd-*.*-info/INSTALLER
-
-%{__python3} -m pip install \
-	--no-deps --ignore-installed --disable-pip-version-check --verbose \
-	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/python
 
 %if %{with docs}
 LD_LIBRARY_PATH=%{buildroot}%{_libdir} \

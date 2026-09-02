@@ -29,22 +29,17 @@ cmdline_args = []
 # of a regular CMake build or a Python build using setup.py.
 
 if not srcdir.startswith('$'):
-    # When building the Python bindings as part of a standard CMake build,
-    # propagate down which cmake command to use, and the build type, C++
-    # compiler, build flags, and how to link libXrdCl from the main build.
+    # As part of a standard CMake build, the extension module has already been
+    # compiled by the enclosing build, which knows how to link it against the
+    # client library and tracks its dependencies. All that is left to do here
+    # is to pick it up from where CMake left it and package it into a wheel.
 
-    cmake = '${CMAKE_COMMAND}'
+    prebuilt = '${CMAKE_CURRENT_BINARY_DIR}/extension'
 
-    cmdline_args += [
-        '-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}',
-        '-DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}',
-        '-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}',
-        '-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}',
-        '-DXRootD_CLIENT_LIBRARY=${CMAKE_BINARY_DIR}/lib/libXrdCl${CMAKE_SHARED_LIBRARY_SUFFIX}',
-        '-DXRootD_UTILS_LIBRARY=${CMAKE_BINARY_DIR}/lib/libXrdUtils${CMAKE_SHARED_LIBRARY_SUFFIX}',
-        '-DXRootD_INCLUDE_DIR=${CMAKE_SOURCE_DIR}/src;${CMAKE_BINARY_DIR}/src',
-    ]
+    cmake = None
 else:
+    prebuilt = None
+
     srcdir = '.'
 
     cmake = which("cmake3") or which("cmake")
@@ -88,11 +83,20 @@ class CMakeExtension(Extension):
 
 class CMakeBuild(build_ext):
     def build_extensions(self):
-        if cmake is None:
-            raise RuntimeError('Cannot find CMake executable')
-
         for ext in self.extensions:
             extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+            destdir = os.path.join(extdir, ext.name)
+
+            if prebuilt is not None:
+                self.mkpath(destdir)
+
+                for entry in sorted(os.listdir(prebuilt)):
+                    self.copy_file(os.path.join(prebuilt, entry), destdir)
+
+                continue
+
+            if cmake is None:
+                raise RuntimeError('Cannot find CMake executable')
 
             # Use relative RPATHs to ensure the correct libraries are picked up.
             # The RPATH below covers most cases where a non-standard path is
@@ -105,7 +109,7 @@ class CMakeBuild(build_ext):
                 '-DPython_EXECUTABLE={}'.format(sys.executable),
                 '-DCMAKE_BUILD_WITH_INSTALL_RPATH=TRUE',
                 '-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY={}/{}'.format(self.build_temp, ext.name),
-                '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}/{}'.format(extdir, ext.name),
+                '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}'.format(destdir),
             ]
 
             if sys.platform == 'darwin':

@@ -29,15 +29,24 @@ def test_filesystem():
                (c.prepare,    (['/tmp/foo'], PrepareFlags.STAGE), True),
                ]
 
+  # Each pass consumes the file: it is truncated, renamed, and then removed.
+
+  create(smallfile)
+
   for func, args, hasReturnObject in funcspecs:
       sync (func, args, hasReturnObject)
 
-  # Create new temp file
-  f = client.File()
-  status, response = f.open(smallfile, OpenFlags.NEW)
+  create(smallfile)
 
   for func, args, hasReturnObject in funcspecs:
       run_async(func, args, hasReturnObject)
+
+def create(path):
+  f = client.File()
+  status, response = f.open(path, OpenFlags.DELETE)
+  assert status.ok
+  status, response = f.close()
+  assert status.ok
 
 def sync(func, args, hasReturnObject):
   status, response = func(*args)
