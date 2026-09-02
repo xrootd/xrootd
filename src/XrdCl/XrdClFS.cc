@@ -530,58 +530,72 @@ XRootDStatus DoLS( FileSystem                      *fs,
   // Check up the args
   //----------------------------------------------------------------------------
   Log *log = DefaultEnv::GetLog();
-  uint32_t    argc     = args.size();
   bool        stats    = false;
   bool        showUrls = false;
   bool        hascks   = false;
   bool        human    = false;
+  bool        directory = false;
   uint64_t base        = 1024;
   std::string path;
   DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
-  if( argc > 6 )
+  enum { ColorOption = 256 };
+  static const option options[] = {
+    { "long",           no_argument,       nullptr, 'l' },
+    { "human-readable", no_argument,       nullptr, 'h' },
+    { "directory",      no_argument,       nullptr, 'd' },
+    { "all",            no_argument,       nullptr, 'a' },
+    { "color",          required_argument, nullptr, ColorOption },
+    { nullptr, 0, nullptr, 0 }
+  };
+  CommandOptions parser( args );
+  int option;
+  while( (option = parser.Next( "luRDZChHda1", options )) != -1 )
   {
-    log->Error( AppMsg, "Too many arguments." );
-    return XRootDStatus( stError, errInvalidArgs );
+    switch( option )
+    {
+      case 'l':
+        stats = true;
+        flags |= DirListFlags::Stat;
+        break;
+      case 'u':
+        showUrls = true;
+        break;
+      case 'R':
+        flags |= DirListFlags::Recursive;
+        break;
+      case 'D':
+        flags &= ~DirListFlags::Merge;
+        break;
+      case 'Z':
+        flags |= DirListFlags::Zip;
+        break;
+      case 'C':
+        hascks = true;
+        stats = true;
+        flags |= DirListFlags::Cksm;
+        break;
+      case 'h':
+      case 'H':
+        human = true;
+        break;
+      case 'd':
+        directory = true;
+        break;
+      case 'a':
+      case '1':
+        // Hidden entries and one entry per line are already the default.
+        break;
+      case ColorOption:
+        if( std::string( optarg ) == "never" ) break;
+        log->Error( AppMsg, "Unsupported --color value: %s.", optarg );
+        return XRootDStatus( stError, errInvalidArgs );
+      default:
+        log->Error( AppMsg, "Invalid ls option or missing option argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+    }
   }
-
-  for( uint32_t i = 1; i < args.size(); ++i )
-  {
-    if( args[i] == "-l" )
-    {
-      stats = true;
-      flags |= DirListFlags::Stat;
-    }
-    else if( args[i] == "-u" )
-      showUrls = true;
-    else if( args[i] == "-R" )
-    {
-      flags |= DirListFlags::Recursive;
-    }
-    else if( args[i] == "-D" )
-    {
-      // show duplicates
-      flags &= ~DirListFlags::Merge;
-    }
-    else if( args[i] == "-Z" )
-    {
-      // check if file is a ZIP archive if yes list content
-      flags |= DirListFlags::Zip;
-    }
-    else if( args[i] == "-C" )
-    {
-      // query checksum for each entry in the directory
-      hascks = true;
-      stats  = true;
-      flags |= DirListFlags::Cksm;
-    }
-    else if ( args [i] == "-h" )
-    {
-      human = true;
-    }
-    else
-      path = args[i];
-  }
+  if( !parser.operands.empty() ) path = parser.operands.back();
 
   if( showUrls )
     // we don't merge the duplicate entries
@@ -612,8 +626,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
     return st;
   }
 
-  if( !info->TestFlags( StatInfo::IsDir ) &&
-      !( flags & DirListFlags::Zip ) )
+  if( directory ||
+      (!info->TestFlags( StatInfo::IsDir ) &&
+       !( flags & DirListFlags::Zip )) )
   {
     if( stats )
       PrintDirListStatInfo( info, false, 0, 0, 0, human, base );
@@ -2146,14 +2161,21 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     Modify permissions. Permission string example:\n"             );
   printf( "     rwxr-x--x\n\n"                                                );
 
-  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [dirname]\n"                   );
+  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [-h|-H] [-d] [-a] [-1]\n"   );
+  printf( "      [--color=never] [--] [dirname]\n"                          );
   printf( "     Get directory listing.\n"                                     );
-  printf( "     -l stat every entry and print long listing\n"                 );
+  printf( "     -l|--long stat every entry and print long listing\n"          );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries\n"                                  );
   printf( "     -Z if a ZIP archive list its content\n"                       );
-  printf( "     -C checksum every entry\n\n"                                  );
+  printf( "     -C checksum every entry\n"                                    );
+  printf( "     -h|-H|--human-readable print human-readable sizes\n"          );
+  printf( "     -d|--directory list the entry instead of its contents\n"      );
+  printf( "     -a|--all include entries whose names begin with a dot\n"      );
+  printf( "     -1 print one entry per line\n"                                );
+  printf( "     --color=never disable colored output\n"                       );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"    );
 
   printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                  );
   printf( "     Get the locations of the path.\n"                             );
