@@ -14,6 +14,7 @@
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <sstream>
 
@@ -134,7 +135,10 @@ namespace XrdCl
       int errorNumber = status.errNo;
       if( errorNumber >= kXR_ArgInvalid )
         errorNumber = XProtocol::toErrno( errorNumber );
-      errorText = XrdSysE2T( errorNumber );
+      // musl calls ENOTSUP "Not supported", while gfal2's established
+      // diagnostic uses the glibc wording on every platform.
+      errorText = errorNumber == ENOTSUP ? "Operation not supported" :
+                                           XrdSysE2T( errorNumber );
     }
     else
     {
