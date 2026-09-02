@@ -122,7 +122,7 @@ namespace
   {
     static const char *commands[] = {
       "cache", "cat", "chmod", "locate", "ls", "mkdir", "mv",
-      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs",
+      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs", "cksum",
       "tail", "truncate", "xattr"
     };
 
@@ -1511,6 +1511,96 @@ XRootDStatus DoQuery( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Normalize a checksum algorithm before using it in a query parameter
+//------------------------------------------------------------------------------
+XRootDStatus NormalizeChecksumType( const std::string &input,
+                                    std::string       &normalized )
+{
+  if( input.empty() )
+    return XRootDStatus( stError, errInvalidArgs, 0,
+                         "Checksum type cannot be empty." );
+
+  normalized = input;
+  for( char &character : normalized )
+  {
+    const unsigned char value = static_cast<unsigned char>( character );
+    if( std::isalnum( value ) == 0 && character != '-' && character != '_' )
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "Invalid checksum type: " + input );
+    character = static_cast<char>( std::tolower( value ) );
+  }
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Query a file checksum using a selected algorithm
+//------------------------------------------------------------------------------
+XRootDStatus QueryChecksum( FileSystem        *fs,
+                            const std::string &path,
+                            const std::string &requested,
+                            std::string       &algorithm,
+                            std::string       &digest )
+{
+  std::string normalized;
+  if( !requested.empty() )
+  {
+    XRootDStatus status = NormalizeChecksumType( requested, normalized );
+    if( !status.IsOK() ) return status;
+  }
+
+  return Utils::GetRemoteCheckSum( *fs, path, normalized, algorithm, digest );
+}
+
+//------------------------------------------------------------------------------
+// Query a file checksum
+//------------------------------------------------------------------------------
+XRootDStatus DoCksum( FileSystem                      *fs,
+                    Env                             *env,
+                    const FSExecutor::CommandParams &args )
+{
+  Log *log = DefaultEnv::GetLog();
+  static const option options[] = {
+    { "algorithm", required_argument, nullptr, 'a' },
+    { nullptr, 0, nullptr, 0 }
+  };
+  CommandOptions parser( args );
+  std::string requested;
+  int option;
+  while( (option = parser.Next( "a:", options )) != -1 )
+  {
+    if( option != 'a' )
+    {
+      log->Error( AppMsg, "Invalid cksum option or missing option argument." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    XRootDStatus status = NormalizeChecksumType( optarg, requested );
+    if( !status.IsOK() ) return status;
+  }
+  if( parser.operands.size() != 1 )
+  {
+    log->Error( AppMsg, "Exactly one checksum path is required." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string path;
+  XRootDStatus status = BuildPath( path, env, parser.operands.front() );
+  if( !status.IsOK() ) return status;
+
+  std::string algorithm;
+  std::string digest;
+  status = QueryChecksum( fs, path, requested, algorithm, digest );
+  if( !status.IsOK() )
+  {
+    log->Error( AppMsg, "Unable to query %s checksum: %s", requested.c_str(),
+                status.ToStr().c_str() );
+    return status;
+  }
+
+  std::cout << algorithm << " " << digest << std::endl;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Query the server
 //------------------------------------------------------------------------------
 XRootDStatus DoPrepare( FileSystem                      *fs,
@@ -2277,6 +2367,10 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   spaceinfo path\n"                                             );
   printf( "     Get space statistics for given path.\n\n"                   );
 
+  printf( "   cksum [-a algorithm | --algorithm algorithm] [--] path\n"                                     );
+  printf( "     Query a checksum; defaults to the server algorithm.\n"  );
+  printf( "     Output: algorithm digest. Exactly one path is required.\n\n" );
+
   printf( "   xattr <path> <code> <params> \n"                              );
   printf( "     Operation on extended attributes. Codes:\n\n"               );
   printf( "     set   <attr>          Set extended attribute; <attr> is\n"  );
@@ -2314,6 +2408,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "cat",         DoCat        );
   executor->AddCommand( "tail",        DoTail       );
   executor->AddCommand( "spaceinfo",   DoSpaceInfo  );
+  executor->AddCommand( "cksum",       DoCksum        );
   executor->AddCommand( "xattr",       DoXAttr      );
   return executor;
 }
