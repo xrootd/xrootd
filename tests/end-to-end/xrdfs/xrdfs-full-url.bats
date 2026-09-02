@@ -32,6 +32,14 @@ bats::on_failure() {
     print_log_files
 }
 
+local_mode() {
+    if stat -c '%a' "$1" >/dev/null 2>&1; then
+        stat -c '%a' "$1"
+    else
+        stat -f '%Lp' "$1"
+    fi
+}
+
 @test "legacy server-first syntax remains supported" {
     run -0 xrdfs root://localhost:11965 stat //examplefile
 }
@@ -181,6 +189,25 @@ bats::on_failure() {
         root://localhost:11965//mkdir/attached/child
     run -0 xrdfs mkdir -p -mrwxr-x--- \
         root://localhost:11965//mkdir/symbolic/child
+}
+
+@test "chmod accepts mode-first and path-first forms" {
+    local path=$BATS_TEST_TMPDIR/xrdfs-full-url/chmod-options
+    local url=root://localhost:11965//chmod-options
+
+    run -0 xrdfs mkdir "$url"
+
+    run -0 xrdfs chmod 0715 "$url"
+    run -0 local_mode "$path"
+    assert_output 715
+
+    run -0 xrdfs chmod "$url" rwxr-x---
+    run -0 local_mode "$path"
+    assert_output 750
+
+    run -0 xrdfs root://localhost:11965 chmod /chmod-options 0704
+    run -0 local_mode "$path"
+    assert_output 704
 }
 
 @test "URL parameters are preserved in the operand path" {
