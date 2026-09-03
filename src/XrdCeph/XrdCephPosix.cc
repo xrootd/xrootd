@@ -111,6 +111,8 @@ XrdSysMutex g_init_mutex;
 //JW Counter for number of times a given cluster is resolved.
 std::map<unsigned int, unsigned long long> g_idxCntr;
 
+double g_ECcorrectionFactor;
+
 /// Accessor to next ceph pool index
 /// Note that this is not thread safe, but we do not care
 /// as we only want a rough load balancing
@@ -645,6 +647,18 @@ void ceph_posix_set_logfunc(void (*logfunc) (char *, va_list argp)) {
   g_logfunc = logfunc;
 };
 
+int maxSubstringLength(const std::string& path, char delimiter) {
+    std::stringstream ss(path);
+    std::string token;
+    size_t maxLength = 0;
+
+    // Split the string by the specified delimiter
+    while (std::getline(ss, token, delimiter)) {
+        maxLength = std::max(maxLength, token.length());
+    }
+    return maxLength;
+};
+
 static int ceph_posix_internal_truncate(const CephFile &file, unsigned long long size);
 
 /**
@@ -662,7 +676,17 @@ static int ceph_posix_internal_truncate(const CephFile &file, unsigned long long
  * */
 
 int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode){
-
+  if (std::strlen(pathname)>1020){
+  logwrapper((char*)"path name too long");
+  return -ENAMETOOLONG;
+  }
+  else{
+  std::string pathstr(pathname);
+  if (maxSubstringLength(pathstr, '/') > 254){
+    logwrapper((char*)"file/subpath name too long");
+    return -ENAMETOOLONG;
+    }
+  }
   CephFileRef fr = getCephFileRef(pathname, env, flags, mode, 0);
 
   struct stat buf;
@@ -1215,7 +1239,7 @@ ssize_t ceph_aio_read(int fd, XrdSfsAio *aiop, AioCB *cb) {
 int ceph_posix_fstat(int fd, struct stat *buf) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
-    logwrapper((char*)__FUNCTION__,": fd %d", fd);
+    logwrapper((char*)"%s: fd %d", __FUNCTION__, fd);
     // minimal stat : only size and times are filled
     // atime, mtime and ctime are set all to the same value
     // mode is set arbitrarily to 0666 | S_IFREG
@@ -1508,7 +1532,7 @@ int ceph_posix_stat_pool(char const *poolName, long long *usedSpace) {
 
   } else {
  
-    *usedSpace = stat[poolName].num_kb * 1024;
+    *usedSpace = stat[poolName].num_kb * 1024 * g_ECcorrectionFactor; // num_kb is in KB, convert to bytes and apply EC correction factor;
     return XrdOssOK;
 
   }
