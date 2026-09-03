@@ -214,7 +214,15 @@ private:
 
         virtual void HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *response_raw) override;
 
-        XrdCl::XRootDStatus QueueWrite(std::variant<std::pair<const void *, size_t>, XrdCl::Buffer> buffer, XrdCl::ResponseHandler *handler);
+        // Queue another chunk of the in-progress PUT.
+        //
+        // `timeout` is the caller's timeout for this particular write; it
+        // extends the deadline of the underlying curl operation so that a
+        // multi-write upload is not bound by the first write's timeout.
+        // It is retained alongside queued writes so the deadline can be
+        // re-extended when each queued write actually starts.
+        XrdCl::XRootDStatus QueueWrite(std::variant<std::pair<const void *, size_t>, XrdCl::Buffer> buffer,
+                                       XrdCl::ResponseHandler *handler, struct timespec timeout);
 
         void SetOp(std::shared_ptr<XrdClHttp::CurlPutOp> op) {m_op = op;}
 
@@ -227,7 +235,7 @@ private:
         XrdCl::ResponseHandler *m_active_handler;
         std::condition_variable m_cv;
         std::mutex m_mutex;
-        std::deque<std::tuple<std::variant<std::pair<const void *, size_t>, XrdCl::Buffer>, XrdCl::ResponseHandler*>> m_pending_writes;
+        std::deque<std::tuple<std::variant<std::pair<const void *, size_t>, XrdCl::Buffer>, XrdCl::ResponseHandler*, struct timespec>> m_pending_writes;
 
         // Start the next pending write operation.
         // Returns false if the active handler was invoked due to an error.
