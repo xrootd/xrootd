@@ -435,6 +435,13 @@ namespace XrdCl
                      "loaded, skipping %s", lib.c_str());
           return false;
         }
+      } else if (!factory) {
+        // a disabled default plug-in config; there is nothing to disable and
+        // installing a helper holding a null factory would shadow factories
+        // registered for specific URLs
+        log->Debug(PlugInMgrMsg, "No default plugin loaded, nothing to "
+                   "disable for %s", lib.c_str());
+        return false;
       } else {
         pDefaultFactory = new FactoryHelper();
         pDefaultFactory->factory = factory;
