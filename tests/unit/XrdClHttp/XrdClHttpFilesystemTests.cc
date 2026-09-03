@@ -13,6 +13,8 @@
 #include <fstream>
 #include <stdexcept>
 
+#include <unistd.h>
+
 using namespace std::string_literals;
 
 using namespace testing;
@@ -60,8 +62,12 @@ class HttpThirdPartyCopyFixture : public testing::Test
 {
 protected:
     Filesystem fs;
-    const std::string token_file_path{(std::filesystem::temp_directory_path() / "xrdclhttp-tests-token-file").string()};
-    const std::string missing_token_file_path{(std::filesystem::temp_directory_path() / "xrdclhttp-tests-missing-token-file").string()};
+    // Suffixed with the pid because ctest may run the tests of this suite in
+    // parallel, each in its own process, and they share the temp directory.
+    const std::string token_file_path{(std::filesystem::temp_directory_path() /
+        ("xrdclhttp-tests-token-file-" + std::to_string(getpid()))).string()};
+    const std::string missing_token_file_path{(std::filesystem::temp_directory_path() /
+        ("xrdclhttp-tests-missing-token-file-" + std::to_string(getpid()))).string()};
 
     HttpThirdPartyCopyFixture() :
         fs(std::string("mock://unresolvable:1094//file"), std::make_shared<HandlerQueue>(100), XrdCl::DefaultEnv::GetLog())
