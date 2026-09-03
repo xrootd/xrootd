@@ -99,14 +99,31 @@ public:
     // Returns when the curl header timeout expires.
     //
     // The first byte of the header must be received before this time.
-    std::chrono::steady_clock::time_point GetHeaderExpiry() const {return m_header_expiry;}
+    std::chrono::steady_clock::time_point GetHeaderExpiry() const {
+        return m_header_expiry.load(std::memory_order_relaxed);
+    }
+
+    // Push the header deadline out to `timeout` from now, if that is later than
+    // the current deadline; never brings it forward.
+    //
+    // A chunked PUT is a single curl operation that spans many client writes,
+    // each carrying its own timeout.  Without this, the whole upload would stay
+    // bound by the deadline derived from the very first write.
+    void ExtendDeadline(struct timespec timeout);
 
     // Returns when the curl operation expires
     std::chrono::steady_clock::time_point GetOperationExpiry() {
-        if (m_last_xfer == std::chrono::steady_clock::time_point()) {
-            return GetHeaderExpiry();
+        if (m_last_xfer != std::chrono::steady_clock::time_point()) {
+            return m_last_xfer + m_stall_interval;
         }
-        return m_last_xfer + m_stall_interval;
+        // Headers have arrived but no payload byte has been accounted for yet.
+        // The header deadline no longer applies (HeaderTimeoutExpired stops
+        // enforcing it at the same point), so anchor the stall clock on the
+        // last header activity instead of reviving a deadline that is moot.
+        if (m_received_header) {
+            return m_header_lastop + m_stall_interval;
+        }
+        return GetHeaderExpiry();
     }
 
     // Clean up the thread-local DNS cache for fake lookups associated with the
@@ -312,7 +329,10 @@ protected:
     std::chrono::steady_clock::time_point m_operation_expiry;
 
     // The expiration time for receiving the first header.
-    std::chrono::steady_clock::time_point m_header_expiry;
+    //
+    // Atomic because ExtendDeadline() is invoked from the client thread that
+    // submits writes while the curl worker thread evaluates the deadline.
+    std::atomic<std::chrono::steady_clock::time_point> m_header_expiry;
 
     // Any additional headers to send with the request.
     HeaderCallout *m_header_callout;
@@ -413,7 +433,7 @@ public:
         m_parent(op),
         m_parent_curl(curl)
     {
-        m_operation_expiry = m_header_expiry;
+        m_operation_expiry = GetHeaderExpiry();
     }
 
     virtual ~CurlOptionsOp() {}
@@ -449,7 +469,7 @@ public:
     CurlOperation(handler, url, timeout, log, callout, header_callout),
     m_response_info(response_info)
     {
-        m_operation_expiry = m_header_expiry;
+        m_operation_expiry = GetHeaderExpiry();
     }
 
     virtual ~CurlStatOp() {}
