@@ -9,6 +9,8 @@
 #include <fstream>
 #include <string>
 
+#include <unistd.h>
+
 using namespace std::string_literals;
 
 using namespace testing;
@@ -18,7 +20,10 @@ using namespace testing;
 class ParseTokenFileFixture : public testing::Test
 {
 protected:
-    const std::string token_file_path{(std::filesystem::temp_directory_path() / "xrdclhttp-tests-parse-token-file").string()};
+    // Suffixed with the pid because ctest may run the tests of this suite in
+    // parallel, each in its own process, and they share the temp directory.
+    const std::string token_file_path{(std::filesystem::temp_directory_path() /
+        ("xrdclhttp-tests-parse-token-file-" + std::to_string(getpid()))).string()};
 
     XrdClHttp::CurlCopyOp::Headers src_hdrs;
     XrdClHttp::CurlCopyOp::Headers dst_hdrs;
