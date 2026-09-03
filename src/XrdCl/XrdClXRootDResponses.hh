@@ -1234,25 +1234,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static ResponseHandler* Wrap( std::function<void(XRootDStatus*, AnyObject*)> func );
   };
-
-  //----------------------------------------------------------------------------
-  //! Handle the progress of an asynchronous operation
-  //----------------------------------------------------------------------------
-  class ProgressHandler
-  {
-    public:
-      virtual ~ProgressHandler() = default;
-
-      //------------------------------------------------------------------------
-      //! Called when the associated operation makes progress
-      //!
-      //! @param processed number of bytes processed until the moment of the call
-      //! @param total     total number of bytes, zero if the operation does not
-      //!                  know it
-      //------------------------------------------------------------------------
-      virtual void HandleProgress( std::size_t processed,
-                                   std::size_t total = 0 ) = 0;
-  };
 }
 
 #endif // __XRD_CL_XROOTD_RESPONSES_HH__

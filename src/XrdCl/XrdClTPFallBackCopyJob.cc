@@ -24,6 +24,7 @@
 
 #include "XrdCl/XrdClTPFallBackCopyJob.hh"
 #include "XrdCl/XrdClThirdPartyCopyJob.hh"
+#include "XrdCl/XrdClThirdPartyCopyPlugIn.hh"
 #include "XrdCl/XrdClClassicCopyJob.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
@@ -100,14 +101,12 @@ namespace XrdCl
     // try with the plugins
     if (st.code == errNotSupported)
     {
-      FileSystem fs(GetSource());
-
       std::optional<PlugInProgressHandler> progress_handler;
       if( progress )
         progress_handler.emplace( pJobId, *progress );
 
-      st = fs.ThirdPartyCopy(GetSource().GetURL(), GetTarget().GetURL(), pProperties,
-                             progress_handler ? &progress_handler.value() : nullptr);
+      st = ThirdPartyCopy(GetSource(), GetTarget(), pProperties,
+                          progress_handler ? &progress_handler.value() : nullptr);
       if (st.IsOK())
         return st;
     }
