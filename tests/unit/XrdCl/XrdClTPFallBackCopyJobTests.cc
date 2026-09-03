@@ -6,6 +6,7 @@
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClPlugInInterface.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
+#include "XrdCl/XrdClThirdPartyCopyPlugIn.hh"
 
 
 using namespace testing;
@@ -18,7 +19,8 @@ public:
   MOCK_METHOD(FileSystemPlugIn *, CreateFileSystem, (const std::string &), (override));
 };
 
-class MockPluginFileSystem : public XrdCl::FileSystemPlugIn
+class MockPluginFileSystem : public XrdCl::FileSystemPlugIn,
+                             public XrdCl::ThirdPartyCopyPlugIn
 {
 public:
   MOCK_METHOD(XRootDStatus, ThirdPartyCopy, (const std::string &, const std::string &, const PropertyList *, ProgressHandler *, time_t), (override));

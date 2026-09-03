@@ -30,6 +30,7 @@
 
 #include <XrdCl/XrdClBuffer.hh>
 #include <XrdCl/XrdClFileSystem.hh>
+#include <XrdCl/XrdClThirdPartyCopyPlugIn.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
 
 #include <atomic>

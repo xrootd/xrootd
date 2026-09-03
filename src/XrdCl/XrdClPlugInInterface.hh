@@ -602,18 +602,6 @@ namespace XrdCl
         (void)name; (void)value;
         return false;
       }
-
-      //------------------------------------------------------------------------
-      //! @see FileSystem::ThirdPartyCopy
-      //------------------------------------------------------------------------
-      virtual XRootDStatus ThirdPartyCopy( [[maybe_unused]] const std::string  &source,
-                                           [[maybe_unused]] const std::string  &dest,
-                                           [[maybe_unused]] const PropertyList *properties,
-                                           [[maybe_unused]] ProgressHandler    *progress_handler,
-                                           [[maybe_unused]] time_t              timeout )
-      {
-        return XRootDStatus( stError, errNotImplemented );
-      }
   };
 
   //----------------------------------------------------------------------------
