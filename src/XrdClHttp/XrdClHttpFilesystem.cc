@@ -22,13 +22,273 @@
 #include "XrdClHttpFilesystem.hh"
 #include "XrdClHttpOps.hh"
 #include "XrdClHttpResponses.hh"
+#include "XrdClHttpToken.hh"
 
 #include "XrdCl/XrdClAnyObject.hh"
 
 #include <cerrno>
+#include <chrono>
 #include <exception>
+#include <memory>
+#include <new>
 
 using namespace XrdClHttp;
+
+namespace {
+
+std::chrono::steady_clock::time_point
+TokenWorkflowExpiry(struct timespec timeout)
+{
+    // Match CurlOperation's zero-timeout default, but calculate it only once
+    // so discovery and all fallback requests share one operation deadline.
+    auto now = std::chrono::steady_clock::now();
+    if (timeout.tv_sec == 0 && timeout.tv_nsec == 0) {
+        return now + std::chrono::seconds(30);
+    }
+    return now + std::chrono::seconds(timeout.tv_sec) +
+        std::chrono::nanoseconds(timeout.tv_nsec);
+}
+
+struct TokenWorkflowQueueError {};
+struct TokenWorkflowExpired {};
+
+// Coordinate the issuer workflow without blocking a curl worker.  Each step is
+// a regular CurlTokenOp queued through the same worker pool as any other HTTP
+// filesystem request; this handler only interprets the step result and queues
+// its successor.
+class TokenIssuerWorkflow final
+    : public XrdCl::ResponseHandler,
+      public std::enable_shared_from_this<TokenIssuerWorkflow> {
+public:
+    TokenIssuerWorkflow(std::shared_ptr<HandlerQueue> queue,
+                        XrdCl::ResponseHandler *handler,
+                        std::string target_url, TokenRequest request,
+                        struct timespec timeout, XrdCl::Log *logger,
+                        CreateConnCalloutType callout)
+        : m_queue(std::move(queue)), m_handler(handler),
+          m_target_url(std::move(target_url)), m_request(std::move(request)),
+          m_expiry(TokenWorkflowExpiry(timeout)), m_logger(logger),
+          m_callout(callout)
+    {}
+
+    // Queue the first stage.  A false return means nothing was queued and the
+    // caller should return an immediate error without invoking the handler.
+    bool Start()
+    {
+        try {
+            BeginSciTokensDiscovery();
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    void HandleResponse(XrdCl::XRootDStatus *status_raw,
+                        XrdCl::AnyObject *response_raw) override
+    {
+        std::unique_ptr<XrdCl::XRootDStatus> status(status_raw);
+        std::unique_ptr<XrdCl::AnyObject> response(response_raw);
+
+        try {
+            bool success = status && status->IsOK();
+            std::string value;
+            if (success) {
+                XrdCl::Buffer *buffer = nullptr;
+                if (response) response->Get(buffer);
+                if (buffer) {
+                    value = buffer->ToString();
+                } else {
+                    success = false;
+                }
+            }
+
+            switch (m_stage) {
+            case Stage::SciTokensDiscovery:
+                if (success) BeginSciTokensRequest(value);
+                else BeginOAuthDiscovery();
+                return;
+            case Stage::SciTokensRequest:
+                if (success) Finish(std::move(status), std::move(response));
+                else BeginOAuthDiscovery();
+                return;
+            case Stage::OAuthDiscovery:
+                if (success) BeginOAuthRequest(value);
+                else BeginOpenIdDiscovery();
+                return;
+            case Stage::OpenIdDiscovery:
+                if (success) BeginOAuthRequest(value);
+                else BeginDirectRequest();
+                return;
+            case Stage::OAuthRequest:
+            case Stage::DirectRequest:
+                if (success) {
+                    Finish(std::move(status), std::move(response));
+                } else if (status && !status->IsOK()) {
+                    Finish(std::move(status), std::move(response));
+                } else {
+                    FinishError(XrdCl::errInvalidResponse, 0,
+                                "Token request returned an invalid response");
+                }
+                return;
+            }
+        } catch (const TokenWorkflowExpired &) {
+            FinishError(XrdCl::errOperationExpired, 0,
+                        "Token issuer workflow expired");
+        } catch (...) {
+            FinishError(XrdCl::errOSError, 0,
+                        "Failed to queue the next token request stage");
+        }
+    }
+
+private:
+    enum class Stage {
+        SciTokensDiscovery,
+        SciTokensRequest,
+        OAuthDiscovery,
+        OpenIdDiscovery,
+        OAuthRequest,
+        DirectRequest
+    };
+
+    using HttpVerb = CurlOperation::HttpVerb;
+    using HeaderList = CurlOperation::HeaderList;
+
+    void Queue(Stage stage, const std::string &url, HttpVerb verb,
+               HeaderList headers, const std::string &body,
+               const std::string &response_key)
+    {
+        if (std::chrono::steady_clock::now() > m_expiry) {
+            throw TokenWorkflowExpired{};
+        }
+        m_stage = stage;
+        auto self = shared_from_this();
+        std::unique_ptr<CurlTokenOp> operation(new CurlTokenOp(
+            this, std::move(self), url, verb, std::move(headers), body,
+            response_key, m_expiry, m_logger, m_callout));
+        // Start() runs on the caller thread and follows the normal queue
+        // backpressure behavior. Successor stages run from a curl worker
+        // callback, where blocking behind a full queue could stall every
+        // worker.
+        if (m_first_stage) {
+            m_first_stage = false;
+            m_queue->Produce(std::move(operation));
+        } else if (!m_queue->TryProduce(std::move(operation))) {
+            if (std::chrono::steady_clock::now() > m_expiry) {
+                throw TokenWorkflowExpired{};
+            }
+            throw TokenWorkflowQueueError{};
+        }
+    }
+
+    void BeginSciTokensDiscovery()
+    {
+        std::string url;
+        if (!BuildOAuthAuthorizationServerUrl(m_request.issuer, url)) {
+            BeginOAuthDiscovery();
+            return;
+        }
+        Queue(Stage::SciTokensDiscovery, url, HttpVerb::GET, {}, {},
+              "token_endpoint");
+    }
+
+    void BeginSciTokensRequest(const std::string &endpoint)
+    {
+        std::string url;
+        if (!NormalizeTokenUrl(endpoint, url)) {
+            BeginOAuthDiscovery();
+            return;
+        }
+        Queue(Stage::SciTokensRequest, url, HttpVerb::POST,
+              {{"Content-Type", "application/x-www-form-urlencoded"},
+               {"Accept", "application/json"}},
+              BuildSciTokensRequest(), "access_token");
+    }
+
+    void BeginOAuthDiscovery()
+    {
+        std::string url;
+        if (!BuildOAuthAuthorizationServerUrl(m_request.issuer, url)) {
+            BeginOpenIdDiscovery();
+            return;
+        }
+        Queue(Stage::OAuthDiscovery, url, HttpVerb::GET, {}, {},
+              "token_endpoint");
+    }
+
+    void BeginOpenIdDiscovery()
+    {
+        std::string url;
+        if (!BuildOpenIdConfigurationUrl(m_request.issuer, url)) {
+            BeginDirectRequest();
+            return;
+        }
+        Queue(Stage::OpenIdDiscovery, url, HttpVerb::GET, {}, {},
+              "token_endpoint");
+    }
+
+    void BeginOAuthRequest(const std::string &endpoint)
+    {
+        std::string url;
+        std::string body;
+        std::string error;
+        if (!NormalizeTokenUrl(endpoint, url)) {
+            if (m_stage == Stage::OAuthDiscovery) {
+                BeginOpenIdDiscovery();
+            } else {
+                BeginDirectRequest();
+            }
+            return;
+        }
+        if (!BuildOAuthMacaroonRequest(m_request.path, m_request.validity,
+                                       m_request.activities, body, error)) {
+            FinishError(XrdCl::errInvalidArgs, 0, error);
+            return;
+        }
+        Queue(Stage::OAuthRequest, url, HttpVerb::POST,
+              {{"Content-Type", "application/x-www-form-urlencoded"},
+               {"Accept", "application/json"}},
+              body, "access_token");
+    }
+
+    void BeginDirectRequest()
+    {
+        Queue(Stage::DirectRequest, m_target_url, HttpVerb::POST,
+              {{"Content-Type", "application/macaroon-request"}},
+              BuildMacaroonRequest(m_request.validity,
+                                   m_request.activities),
+              "macaroon");
+    }
+
+    void Finish(std::unique_ptr<XrdCl::XRootDStatus> status,
+                std::unique_ptr<XrdCl::AnyObject> response)
+    {
+        auto handler = m_handler;
+        m_handler = nullptr;
+        if (handler) {
+            handler->HandleResponse(status.release(), response.release());
+        }
+    }
+
+    void FinishError(uint16_t err_code, uint32_t err_num,
+                     const std::string &message)
+    {
+        auto status = std::make_unique<XrdCl::XRootDStatus>(
+            XrdCl::stError, err_code, err_num, message);
+        Finish(std::move(status), {});
+    }
+
+    std::shared_ptr<HandlerQueue> m_queue;
+    XrdCl::ResponseHandler *m_handler{nullptr};
+    std::string m_target_url;
+    TokenRequest m_request;
+    std::chrono::steady_clock::time_point m_expiry;
+    XrdCl::Log *m_logger{nullptr};
+    CreateConnCalloutType m_callout{nullptr};
+    Stage m_stage{Stage::SciTokensDiscovery};
+    bool m_first_stage{true};
+};
+
+} // anonymous namespace
 
 Filesystem::Filesystem(const std::string &url, std::shared_ptr<HandlerQueue> queue, XrdCl::Log *log)
     : m_queue(queue),
@@ -239,6 +499,66 @@ XrdCl::XRootDStatus Filesystem::Query(XrdCl::QueryCode::Code  queryCode,
                 GetConnCallout(), queryCode,
                 m_header_callout.load(std::memory_order_acquire));
             description = "xattr query operation";
+            break;
+        }
+        case XrdCl::QueryCode::Visa:
+        {
+            std::size_t size = arg.GetSize();
+            if (size && arg.GetBuffer()[size - 1] == '\0') --size;
+            std::string input;
+            if (size) input.assign(arg.GetBuffer(), size);
+
+            TokenRequest request;
+            std::string error;
+            if (!ParseTokenRequest(input, request, error)) {
+                return XrdCl::XRootDStatus(
+                    XrdCl::stError, XrdCl::errInvalidArgs, 0, error
+                );
+            }
+
+            std::string target_url;
+            if (!NormalizeTokenUrl(GetCurrentURL(request.path), target_url)) {
+                return XrdCl::XRootDStatus(
+                    XrdCl::stError, XrdCl::errNotSupported, 0,
+                    "Token requests require an HTTPS or DAVS filesystem URL"
+                );
+            }
+
+            if (!request.issuer.empty()) {
+                std::string normalized_issuer;
+                if (!NormalizeTokenUrl(request.issuer, normalized_issuer)) {
+                    return XrdCl::XRootDStatus(
+                        XrdCl::stError, XrdCl::errNotSupported, 0,
+                        "Token issuers require an HTTPS or DAVS URL"
+                    );
+                }
+                std::string discovery_url;
+                if (!BuildOAuthAuthorizationServerUrl(request.issuer,
+                                                      discovery_url)) {
+                    return XrdCl::XRootDStatus(
+                        XrdCl::stError, XrdCl::errInvalidArgs, 0,
+                        "Invalid token issuer URL"
+                    );
+                }
+                auto workflow = std::make_shared<TokenIssuerWorkflow>(
+                    m_queue, handler, target_url, std::move(request), ts,
+                    m_logger, GetConnCallout());
+                if (!workflow->Start()) {
+                    m_logger->Warning(kLogXrdClHttp,
+                        "Failed to add issuer token workflow to queue");
+                    return XrdCl::XRootDStatus(XrdCl::stError,
+                                               XrdCl::errOSError);
+                }
+                return XrdCl::XRootDStatus();
+            }
+
+            operation = std::make_unique<CurlTokenOp>(
+                handler, target_url,
+                BuildMacaroonRequest(request.validity,
+                                     request.activities),
+                ts, m_logger, GetConnCallout()
+            );
+            description = "token operation";
             break;
         }
         default:

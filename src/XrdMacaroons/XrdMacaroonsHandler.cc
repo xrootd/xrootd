@@ -30,7 +30,7 @@ char *unquote(const char *str) {
 
     if (str[i] == '%') {
       char savec[3];
-      if (l <= i + 3) {
+      if (l < i + 3) {
         free(r);
         return nullptr;
       }
@@ -220,7 +220,7 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
             if ((validity = std::strtoll(value.c_str(), nullptr, 10)) <= 0)
                 return req.SendSimpleResp(400, nullptr, nullptr, "Expiration request has invalid value.", 0);
         }
-        else if (key == "scope")
+        else if (key == "scope" || key == "scopes")
         {
             char *value_raw = unquote(value.c_str());
             if (value_raw == nullptr)

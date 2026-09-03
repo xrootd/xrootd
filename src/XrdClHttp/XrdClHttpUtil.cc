@@ -922,6 +922,46 @@ HandlerQueue::Produce(std::shared_ptr<CurlOperation> handler)
     m_ops_produced.fetch_add(1, std::memory_order_relaxed);
 }
 
+bool
+HandlerQueue::TryProduce(std::shared_ptr<CurlOperation> handler)
+{
+    const auto handler_expiry = handler->GetOperationExpiry();
+    std::unique_lock<std::mutex> lk{m_mutex};
+    if (m_shutdown || m_ops.size() >= m_max_pending_ops ||
+        std::chrono::steady_clock::now() > handler_expiry) {
+        m_ops_rejected.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
+
+    try {
+        m_ops.push_back(std::move(handler));
+    } catch (...) {
+        m_ops_rejected.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
+
+    char ready[] = "1";
+    while (true) {
+        auto result = write(m_write_fd, ready, 1);
+        if (result == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                m_ops.pop_back();
+                m_ops_rejected.fetch_add(1, std::memory_order_relaxed);
+                return false;
+            }
+        }
+        break;
+    }
+
+    lk.unlock();
+    m_consumer_cv.notify_one();
+    m_ops_produced.fetch_add(1, std::memory_order_relaxed);
+    return true;
+}
+
 std::shared_ptr<CurlOperation>
 HandlerQueue::Consume(std::chrono::steady_clock::duration dur)
 {
