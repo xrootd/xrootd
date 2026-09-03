@@ -379,6 +379,15 @@ const char *FileType2String( XrdCpFile::PType type )
 }
 
 //------------------------------------------------------------------------------
+// Return whether a remote protocol supports filesystem directory operations
+//------------------------------------------------------------------------------
+bool SupportsRemoteDirectories( XrdCpFile::PType type )
+{
+  return type == XrdCpFile::isXroot  || type == XrdCpFile::isXroots ||
+         type == XrdCpFile::isHttp   || type == XrdCpFile::isHttps;
+}
+
+//------------------------------------------------------------------------------
 // Count the sources
 //------------------------------------------------------------------------------
 uint32_t CountSources( XrdCpFile *file )
@@ -713,8 +722,7 @@ int main( int argc, char **argv )
   bool targetExists = false;
   if( config.dstFile->Protocol == XrdCpFile::isDir )
     targetIsDir = true;
-  else if( config.dstFile->Protocol == XrdCpFile::isXroot ||
-           config.dstFile->Protocol == XrdCpFile::isXroots )
+  else if( SupportsRemoteDirectories( config.dstFile->Protocol ) )
   {
     URL target( dest );
     FileSystem fs( target );
@@ -769,8 +777,7 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   bool remoteSrcIsDir = false;
   if( config.Want( XrdCpConfig::DoRecurse ) &&
-      (config.srcFile->Protocol == XrdCpFile::isXroot ||
-       config.srcFile->Protocol == XrdCpFile::isXroots) )
+      SupportsRemoteDirectories( config.srcFile->Protocol ) )
   {
     URL          source( config.srcFile->Path );
     FileSystem  *fs       = new FileSystem( source );
@@ -970,4 +977,3 @@ int main( int argc, char **argv )
   CleanUpResults( resultVect );
   return 0;
 }
-
