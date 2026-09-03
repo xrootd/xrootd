@@ -28,17 +28,25 @@ from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
 from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
 from XRootD.client.utils import CallbackWrapper
 from XRootD.client.flags import AccessMode
+from XRootD.client.auth import AuthContext
 
 class FileSystem(object):
   """Interact with an ``xrootd`` server to perform filesystem-based operations
   such as copying files, creating directories, changing file permissions,
   listing directories, etc.
 
-  :param url: The URL of the server to connect with
-  :type  url: string
+  :param  url: The URL of the server to connect with
+  :type   url: string
+  :param auth: Optional object-scoped authentication context
+  :type  auth: :class:`XRootD.client.AuthContext`
   """
 
-  def __init__(self, url):
+  def __init__(self, url, auth=None):
+    if auth is not None and not isinstance(auth, AuthContext):
+      raise TypeError('auth must be an AuthContext')
+    self.__auth = auth
+    if auth is not None:
+      url = auth.apply(url)
     self.__fs = client.FileSystem(url)
 
   @property
@@ -65,6 +73,9 @@ class FileSystem(object):
     :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                    object and None
     """
+    if self.__auth is not None:
+      source = self.__auth.apply(source)
+      target = self.__auth.apply(target)
     result = self.__fs.copy(source=source, target=target, force=force)[0]
     return XRootDStatus(result), None
 
@@ -372,6 +383,9 @@ class FileSystem(object):
     :type  path: string
     """
     source = self.__fs.url.hostid + '/' + path
+    if self.__auth is not None:
+      source = '{}://{}'.format(self.__fs.url.protocol, source)
+      source = self.__auth.apply(source)
     return self.__fs.cat(source)
 
   def set_xattr(self, path, attrs, timeout=0, callback=None):
