@@ -2,8 +2,10 @@
 /*                                                                            */
 /*                    X r d C k s C a l c c r c 3 2 . c c                     */
 /*                                                                            */
-/* Copyright (c) 2026 by European Organization of Nuclear Research (CERN)     */
-/* Produced by Lukasz Janyst <ljanyst@cern.ch>                                */
+/* (c) 2011 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -68,9 +70,13 @@ const char* XrdCksCalccrc32::Combine(const char* Cksum, int DLen)
 {
    uint32_t crc2 = getCS(Cksum);
 
-   pCheckSum = crc32_combine(pCheckSum, crc2, (z_off_t)DLen);
+   pCheckSumTmp = pCheckSum = crc32_combine(pCheckSum, crc2, (z_off_t)DLen);
 
-   return (char *)&pCheckSum;
+#ifndef Xrd_Big_Endian
+   pCheckSumTmp = ntohl(pCheckSumTmp);
+#endif
+
+   return (char *)&pCheckSumTmp;
 }
 
 //--------------------------------------------------------------------------
