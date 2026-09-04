@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
 // We write the first short block of the file, then leave a hole until
 // the very end where we then fill it. We know the file is at least 1k.
 //
-   char buff[512];
+   char buff[256];
    uint64_t halfSZ = sizeof(buff)/2;
 
    if (pread(lclFD, buff, sizeof(buff), 0) < 0)
@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
    Status = clFile.Write(0, halfSZ, buff);
    if (!Status.IsOK()) Fatal(Status, "Unable to write urlfile;");
 
-   FlushFile(halfSZ, lclFD, clFile);
+   FlushFile(sizeof(buff), lclFD, clFile);
 
    Status = clFile.Write(halfSZ, halfSZ, buff+halfSZ);
    if (!Status.IsOK()) Fatal(Status, "Unable to write urlfile;");
