@@ -12,4 +12,5 @@ function(add_bats_test name script)
     "${environment}")
 endfunction()
 
+add_subdirectory(cks)
 add_subdirectory(xrdfs)
