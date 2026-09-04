@@ -20,21 +20,34 @@
 
 #include "XrdClHttpOps.hh"
 
+#include <string>
+
 using namespace XrdClHttp;
+using namespace std::string_literals;
 
 CurlCopyOp::CurlCopyOp(XrdCl::ResponseHandler *handler, const std::string &source_url, const Headers &source_hdrs,
-    const std::string &dest_url, const Headers &dest_hdrs, struct timespec timeout, XrdCl::Log *logger,
+    const std::string &dest_url, const Headers &dest_hdrs, const Headers &connection_hdrs, TpcMode mode, struct timespec timeout, XrdCl::Log *logger,
     CreateConnCalloutType callout) :
-        CurlOperation(handler, dest_url, timeout, logger, callout, nullptr),
-        m_source_url(source_url)
+        CurlOperation(handler, mode == TpcMode::Pull ? dest_url : source_url, timeout, logger, callout, nullptr)
     {
         m_minimum_rate = 1;
-    
-        for (const auto &info : source_hdrs) {
-            m_headers_list.emplace_back(std::string("TransferHeader") + info.first, info.second);
-        }
-        for (const auto &info : dest_hdrs) {
-            m_headers_list.emplace_back(info.first, info.second);
+
+        // The headers of the endpoint the client contacts go on the request
+        // itself. The headers of the remote endpoint are forwarded by that
+        // endpoint, thus they need the 'TransferHeader' prefix.
+        const Headers &regular_hdrs  = mode == TpcMode::Pull ? dest_hdrs : source_hdrs;
+        const Headers &transfer_hdrs = mode == TpcMode::Pull ? source_hdrs : dest_hdrs;
+
+        if (mode == TpcMode::Pull)
+            m_headers_list.emplace_back("Source"s, source_url);
+        else
+            m_headers_list.emplace_back("Destination"s, dest_url);
+
+        std::copy(connection_hdrs.begin(), connection_hdrs.end(), std::back_inserter(m_headers_list));
+        std::copy(regular_hdrs.begin(),    regular_hdrs.end(),    std::back_inserter(m_headers_list));
+
+        for (const auto &info : transfer_hdrs) {
+            m_headers_list.emplace_back("TransferHeader"s + info.first, info.second);
         }
     }
     
@@ -47,7 +60,6 @@ CurlCopyOp::CurlCopyOp(XrdCl::ResponseHandler *handler, const std::string &sourc
         curl_easy_setopt(m_curl.get(), CURLOPT_WRITEFUNCTION, CurlCopyOp::WriteCallback);
         curl_easy_setopt(m_curl.get(), CURLOPT_WRITEDATA, this);
         curl_easy_setopt(m_curl.get(), CURLOPT_CUSTOMREQUEST, "COPY");
-        m_headers_list.emplace_back("Source", m_source_url);
 
         return true;
     }
@@ -75,7 +87,13 @@ CurlCopyOp::CurlCopyOp(XrdCl::ResponseHandler *handler, const std::string &sourc
         curl_easy_setopt(m_curl.get(), CURLOPT_XFERINFOFUNCTION, nullptr);
         CurlOperation::ReleaseHandle();
     }
-    
+
+    void
+    CurlCopyOp::SetProgressHandler(XrdCl::ProgressHandler *handler) noexcept
+    {
+        m_progress_handler = handler;
+    }
+
     size_t
     CurlCopyOp::WriteCallback(char *buffer, size_t size, size_t nitems, void *this_ptr)
     {
@@ -83,8 +101,10 @@ CurlCopyOp::CurlCopyOp(XrdCl::ResponseHandler *handler, const std::string &sourc
         me->UpdateBytes(size * nitems);
         std::string_view str_data(buffer, size * nitems);
         size_t end_line;
-        while ((end_line = str_data.find('\n')) != std::string_view::npos) {
+        while ((end_line = std::min(str_data.size(), str_data.find('\n'))) > 0) {
+
             auto cur_line = str_data.substr(0, end_line);
+
             if (me->m_line_buffer.empty()) {
                 me->HandleLine(cur_line);
             } else {
@@ -92,6 +112,10 @@ CurlCopyOp::CurlCopyOp(XrdCl::ResponseHandler *handler, const std::string &sourc
                 me->HandleLine(me->m_line_buffer);
                 me->m_line_buffer.clear();
             }
+
+            if (end_line == str_data.size())
+                break;
+
             str_data = str_data.substr(end_line + 1);
         }
         me->m_line_buffer = str_data;
@@ -105,8 +129,8 @@ CurlCopyOp::CurlCopyOp(XrdCl::ResponseHandler *handler, const std::string &sourc
         if (line == "Perf Marker") {
             m_bytemark = -1;
         } else if (line == "End") {
-            if (m_bytemark > -1 && m_callback) {
-                m_callback->Progress(m_bytemark);
+            if (m_bytemark > -1 && m_progress_handler) {
+                m_progress_handler->HandleProgress(static_cast<std::size_t>(m_bytemark));
             }
         } else {
             auto key_end_pos = line.find(':');
