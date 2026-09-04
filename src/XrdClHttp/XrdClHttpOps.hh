@@ -878,6 +878,16 @@ private:
     std::string m_host_addr;
 };
 
+// The side of a third-party-copy which the client drives.
+//
+// In pull mode the client sends the COPY to the destination and the
+// destination reads from the source. In push mode the client sends the COPY to
+// the source and the source writes to the destination.
+enum class TpcMode {
+    Pull,
+    Push
+};
+
 // A third-party-copy operation
 //
 // Invoke the COPY verb to move a file between two HTTP endpoints.
@@ -885,7 +895,7 @@ class CurlCopyOp final : public CurlOperation {
 public:
     using Headers = std::vector<std::pair<std::string, std::string>>;
 
-    CurlCopyOp(XrdCl::ResponseHandler *handler, const std::string &source_url, const Headers &source_hdrs, const std::string &dest_url, const Headers &dest_hdrs, struct timespec timeout,
+    CurlCopyOp(XrdCl::ResponseHandler *handler, const std::string &source_url, const Headers &source_hdrs, const std::string &dest_url, const Headers &dest_hdrs, const Headers &connection_hdrs, TpcMode mode, struct timespec timeout,
         XrdCl::Log *logger, CreateConnCalloutType callout);
 
     virtual ~CurlCopyOp() {}
@@ -894,15 +904,16 @@ public:
     void Success() override;
     void ReleaseHandle() override;
 
-    class CurlProgressCallback {
-    public:
-        virtual ~CurlProgressCallback() {}
-        virtual void Progress(off_t bytemark) = 0;
-    };
-
-    void SetCallback(std::unique_ptr<CurlProgressCallback> callback);
+    // Set the handler notified when a performance marker is received.
+    //
+    // The handler is not owned by this operation and must outlive it. Give
+    // nullptr to send no notification.
+    void SetProgressHandler(XrdCl::ProgressHandler *handler) noexcept;
 
     virtual HttpVerb GetVerb() const override {return HttpVerb::COPY;}
+
+    bool IsSentSucessfully() {return m_sent_success;}
+    std::string GetSendingFailureMessage() {return m_failure;}
 
 private:
     // Callback for writing the response body to the internal buffer.
@@ -914,14 +925,11 @@ private:
     // Returns true if the control channel has not gotten data recently enough.
     bool ControlChannelTimeoutExpired() const;
 
-    // Source of the TPC transfer
-    std::string m_source_url;
-
     // Buffer of current response line
     std::string m_line_buffer;
 
-    // A callback object for when a performance marker is received
-    std::unique_ptr<CurlProgressCallback> m_callback;
+    // Handler notified when a performance marker is received; not owned.
+    XrdCl::ProgressHandler *m_progress_handler{nullptr};
 
     // The performance marker indication of bytes processed.
     off_t m_bytemark{-1};

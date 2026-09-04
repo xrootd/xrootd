@@ -40,6 +40,9 @@
 #include <iostream>
 #include <iomanip>
 #include <limits>
+#include <string>
+
+using namespace std::string_literals;
 
 //------------------------------------------------------------------------------
 // Progress notifier
@@ -510,13 +513,17 @@ int main( int argc, char **argv )
   bool         recurse       = false;
   bool         zipappend     = false;
   bool         doserver      = false;
-  std::string thirdParty = "none";
+  std::string thirdParty     = "none"s;
+  std::string thirdPartyMode = "pull"s;
 
-  if( config.Want( XrdCpConfig::DoPosc ) )      posc       = true;
-  if( config.Want( XrdCpConfig::DoForce ) )     force      = true;
-  if( config.Want( XrdCpConfig::DoCoerce ) )    coerce     = true;
-  if( config.Want( XrdCpConfig::DoTpc ) )       thirdParty = "first";
-  if( config.Want( XrdCpConfig::DoTpcOnly ) )   thirdParty = "only";
+  const std::string thirdPartyTokenFile = config.tcpTokenFile ? config.tcpTokenFile : ""s;
+
+  if( config.Want( XrdCpConfig::DoPosc ) )        posc           = true;
+  if( config.Want( XrdCpConfig::DoForce ) )       force          = true;
+  if( config.Want( XrdCpConfig::DoCoerce ) )      coerce         = true;
+  if( config.Want( XrdCpConfig::DoTpc ) )         thirdParty     = "first"s;
+  if( config.Want( XrdCpConfig::DoTpcOnly ) )     thirdParty     = "only"s;
+  if( config.Want( XrdCpConfig::DoTpcModePush ) ) thirdPartyMode = "push"s;
   if( config.Want( XrdCpConfig::DoZipAppend ) ) zipappend  = true;
   if( config.Want( XrdCpConfig::DoServer ) )    doserver   = true;
   if( config.Want( XrdCpConfig::DoTpcDlgt ) )
@@ -881,6 +888,7 @@ int main( int argc, char **argv )
     properties.Set( "makeDir",         makedir                );
     properties.Set( "dynamicSource",   dynSrc                 );
     properties.Set( "thirdParty",      thirdParty             );
+    properties.Set( "thirdPartyMode",  thirdPartyMode         );
     properties.Set( "checkSumMode",    checkSumMode           );
     properties.Set( "checkSumType",    checkSumType           );
     properties.Set( "checkSumPreset",  checkSumPreset         );
@@ -906,6 +914,8 @@ int main( int argc, char **argv )
     if( xcp )
       properties.Set( "nbXcpSources",  nbSources              );
 
+    if( !thirdPartyTokenFile.empty() )
+      properties.Set( "thirdPartyTokenFile",  thirdPartyTokenFile  );
 
     XRootDStatus st = process.AddJob( properties, results );
     if( !st.IsOK() )

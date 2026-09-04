@@ -28,31 +28,60 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include <optional>
 #include <string>
+
+using namespace std::string_literals;
 
 namespace XrdCl
 {
+  namespace
+  {
+    //--------------------------------------------------------------------------
+    //! Forwards the progress of a plug-in third party copy to the copy job
+    //! progress handler.
+    //!
+    //! The plug-in reports the total size only when it knows it. This handler
+    //! keeps the last reported total for the notifications which follow.
+    //--------------------------------------------------------------------------
+    class PlugInProgressHandler final : public ProgressHandler
+    {
+      public:
+        PlugInProgressHandler( uint32_t             job_id,
+                               CopyProgressHandler &progress ):
+          progress( progress ),
+          job_id( job_id )
+        {
+        }
+
+        void HandleProgress( std::size_t processed,
+                             std::size_t total ) override
+        {
+          if( total )
+            this->total = total;
+
+          progress.JobProgress( job_id, processed, this->total );
+        }
+
+      private:
+        CopyProgressHandler &progress;
+        const uint32_t       job_id;
+        std::size_t          total = 0;
+    };
+  }
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
   TPFallBackCopyJob::TPFallBackCopyJob( uint32_t      jobId,
                                         PropertyList *jobProperties,
                                         PropertyList *jobResults ):
-    CopyJob( jobId, jobProperties, jobResults ),
-    pJob( 0 )
+    CopyJob( jobId, jobProperties, jobResults )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Creating a third party fall back copy job, "
                 "from %s to %s", GetSource().GetObfuscatedURL().c_str(),
                 GetTarget().GetObfuscatedURL().c_str() );
-  }
-
-  //------------------------------------------------------------------------
-  // Destructor
-  //------------------------------------------------------------------------
-  TPFallBackCopyJob::~TPFallBackCopyJob()
-  {
-    delete pJob;
   }
 
   //----------------------------------------------------------------------------
@@ -63,16 +92,25 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Set up the job
     //--------------------------------------------------------------------------
-    std::string  tmp;
-    bool         tpcFallBack = false;
+    const bool tpcFallBack = pProperties->Get<std::string>( "thirdParty" ) == "first"s;
 
-    pProperties->Get( "thirdParty", tmp );
-    if( tmp == "first" )
-      tpcFallBack = true;
-
-    pJob = new ThirdPartyCopyJob( pJobId, pProperties, pResults );
-    XRootDStatus st = pJob->Run( progress );
+    XRootDStatus st = ThirdPartyCopyJob(pJobId, pProperties, pResults).Run(progress);
     if( st.IsOK() ) return st; // we are done
+
+    // try with the plugins
+    if (st.code == errNotSupported)
+    {
+      FileSystem fs(GetSource());
+
+      std::optional<PlugInProgressHandler> progress_handler;
+      if( progress )
+        progress_handler.emplace( pJobId, *progress );
+
+      st = fs.ThirdPartyCopy(GetSource().GetURL(), GetTarget().GetURL(), pProperties,
+                             progress_handler ? &progress_handler.value() : nullptr);
+      if (st.IsOK())
+        return st;
+    }
 
     // check if we can fall back to streaming
     if( tpcFallBack && ( st.code == errNotSupported || st.code == errOperationExpired ) )
@@ -80,9 +118,7 @@ namespace XrdCl
       Log *log = DefaultEnv::GetLog();
       log->Debug( UtilityMsg, "TPC is not supported, falling back to streaming mode." );
 
-      delete pJob;
-      pJob = new ClassicCopyJob( pJobId, pProperties, pResults );
-      return pJob->Run( progress );
+      return ClassicCopyJob(pJobId, pProperties, pResults).Run(progress);
     }
 
     return st;
