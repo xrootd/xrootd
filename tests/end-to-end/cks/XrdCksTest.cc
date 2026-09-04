@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                       T e s t C h e c k S u m . c c                        */
+/*                        X r d C k s T e s t . c c                           */
 /*                                                                            */
 /* (c) 2026 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -28,17 +28,15 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cerrno>
 #include <cstdio>
-#include <errno.h>
+#include <cstring>
 #include <fcntl.h>
 #include <initializer_list>
 #include <iostream>
-#include <strings.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-#include <sys/uio.h>
 
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
@@ -67,8 +65,8 @@ void Usage(int rc)
 {
    std::cerr <<"\nUsage: "<<thePgm <<" <cstst> <csname> <csval> <lclfile> <urlfile>\n\n"
           "<cstst>   the type of checksum test; an arbitrary value for messages\n"
-          "<csname>  the name of the checksum (e.g.md5)\n"
-          "<csval>   the hexadeimal value of the checksum\n"
+          "<csname>  the name of the checksum (e.g. md5)\n"
+          "<csval>   the hexadecimal value of the checksum\n"
           "<lclfile> path to local file having specified checksum\n"
           "<urlfile> the url to use for the target server test"
           <<std::endl;
@@ -121,11 +119,14 @@ void FlushFile(off_t fOffs, int infd, XrdCl::File& clFile)
    XrdCl::XRootDStatus Status;
    ssize_t rwSize = sizeof(buff);
 
-// Copy the file as described
+// Copy the file as described. A short read ends the copy. A zero-length
+// read must not produce a zero-length write, as happens when the file
+// size is an exact multiple of the buffer size.
 //
-   while(rwSize == sizeof(buff))
-        {if ((rwSize = pread(infd, buff, rwSize, fOffs)) < 0)
-            Emsg(-errno, {"Unable to read the local file; ", strerror(errno)});
+   while(rwSize == (ssize_t)sizeof(buff))
+        {if ((rwSize = pread(infd, buff, sizeof(buff), fOffs)) < 0)
+            Emsg(-errno, {"Unable to read the local file; ", std::strerror(errno)});
+         if (rwSize == 0) break;
 
          Status = clFile.Write((uint64_t)fOffs, (uint32_t)rwSize, buff);
          if (!Status.IsOK()) Fatal(Status, "Unable to write urlfile;");
@@ -165,7 +166,7 @@ int main(int argc, char *argv[])
 
 // Get the name of this program
 //
-   char* slash = rindex(argv[0], '/');
+   char* slash = std::strrchr(argv[0], '/');
    thePgm = (slash ? slash+1 : argv[0]);
 
 // There must be exactly 5 arguments.
@@ -182,8 +183,9 @@ int main(int argc, char *argv[])
 
 // Append checksum name to the url
 //
-   if (!index(urlFile.c_str(), '?')) urlFile += "?";
-   urlFile += "&cks.type="; // It's OK to always use '&' prefix
+   if (std::strchr(urlFile.c_str(), '?')) urlFile += "&";
+      else                                urlFile += "?";
+   urlFile += "cks.type=";
    urlFile += csName;
 
 // Validate the URL
@@ -200,7 +202,7 @@ int main(int argc, char *argv[])
    struct stat Stat;
    int lclFD;
    if ((lclFD = open(lclFile, O_RDONLY)) < 0 || fstat(lclFD, &Stat) < 0)
-      Emsg(-errno, {"Unable to open ", lclFile, "; ", strerror(errno)});
+      Emsg(-errno, {"Unable to open ", lclFile, "; ", std::strerror(errno)});
 
 // Verify that the file has at least 1024 bytes
 //
@@ -225,7 +227,7 @@ int main(int argc, char *argv[])
    uint64_t halfSZ = sizeof(buff)/2;
 
    if (pread(lclFD, buff, sizeof(buff), 0) < 0)
-      Emsg(-errno, {"Unable to read the local file; ", strerror(errno)});
+      Emsg(-errno, {"Unable to read the local file; ", std::strerror(errno)});
 
    Status = clFile.Write(0, halfSZ, buff);
    if (!Status.IsOK()) Fatal(Status, "Unable to write urlfile;");
