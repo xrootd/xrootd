@@ -37,6 +37,7 @@ add_library(XrdCl SHARED
   XrdClCopyProcess.cc            XrdClCopyProcess.hh
   XrdClClassicCopyJob.cc         XrdClClassicCopyJob.hh
   XrdClThirdPartyCopyJob.cc      XrdClThirdPartyCopyJob.hh
+  XrdClThirdPartyCopyPlugIn.cc   XrdClThirdPartyCopyPlugIn.hh
   XrdClAsyncSocketHandler.cc     XrdClAsyncSocketHandler.hh
   XrdClChannelHandlerList.cc     XrdClChannelHandlerList.hh
   XrdClForkHandler.cc            XrdClForkHandler.hh
