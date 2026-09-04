@@ -24,11 +24,82 @@
 #include "XrdClHttpResponses.hh"
 
 #include "XrdCl/XrdClAnyObject.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPropertyList.hh"
+
+#include "XrdOuc/XrdOucJson.hh"
 
 #include <cerrno>
+#include <condition_variable>
+#include <chrono>
 #include <exception>
+#include <fstream>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <sstream>
+#include <string>
 
 using namespace XrdClHttp;
+using namespace std::string_literals;
+
+namespace
+{
+
+// Blocks the calling thread until the operation it is given to completes.
+class SyncResponseHandler final : public XrdCl::ResponseHandler
+{
+public:
+    // The operation gives the ownership of both objects to this handler. The
+    // result of the operation comes from the operation itself, thus this
+    // handler reads neither of them and releases them immediately.
+    void HandleResponse(XrdCl::XRootDStatus *status,
+                        XrdCl::AnyObject    *response) override
+    {
+        if (status != nullptr)
+        {
+            const std::unique_ptr<XrdCl::XRootDStatus> owned_status{status};
+        }
+
+        if (response != nullptr)
+        {
+            const std::unique_ptr<XrdCl::AnyObject> owned_response{response};
+        }
+
+        {
+            const std::lock_guard<std::mutex> lock{mutex};
+            is_ready = true;
+        }
+
+        is_ready_changed.notify_all();
+    }
+
+    // Return false when the wait takes more than the timeout.
+    bool wait(std::chrono::seconds timeout = std::chrono::seconds(0))
+    {
+        const auto start = std::chrono::steady_clock::now();
+
+        std::unique_lock<std::mutex> lock{mutex};
+
+        if (timeout.count() > 0)
+            is_ready_changed.wait_for(lock, timeout, [this]{ return is_ready; });
+        else
+            is_ready_changed.wait(lock, [this]{ return is_ready; });
+
+        is_ready = false;
+
+        const auto elapsed = std::chrono::steady_clock::now() - start;
+
+        return timeout.count() == 0 || elapsed <= timeout;
+    }
+
+private:
+    std::mutex mutex{};
+    std::condition_variable is_ready_changed{};
+    bool is_ready{false};
+};
+
+}
 
 Filesystem::Filesystem(const std::string &url, std::shared_ptr<HandlerQueue> queue, XrdCl::Log *log)
     : m_queue(queue),
@@ -309,6 +380,196 @@ Filesystem::Stat(const std::string      &path,
         handler, full_url, ts, m_logger, SendResponseInfo(),
         GetConnCallout(), m_header_callout.load(std::memory_order_acquire));
     return QueueOperation(std::move(statOp), "filesystem stat operation");
+}
+
+// Reads the tokens held by the given token file and appends the corresponding
+// 'Authorization' headers to the <src> and/or <dst> header lists.
+//
+// A JSON token file holds the tokens in the 'src' and/or 'dst' properties,
+// any other file holds the <src> token in the first line and the <dst> one
+// in the second line. An absent or empty token means the corresponding side
+// is given no token at all.
+//
+// Returns false if the file cannot be opened or holds no token at all, in
+// which case no header is appended.
+static bool ParseTokenFile( const std::string   &token_file,
+                            CurlCopyOp::Headers &src_hdrs,
+                            CurlCopyOp::Headers &dst_hdrs,
+                            XrdCl::Log          *log )
+{
+    std::ifstream file(token_file);
+
+    if (!file.is_open())
+    {
+        log->Warning(kLogXrdClHttp, "Failed to open token file");
+        return false;
+    }
+
+    constexpr std::streamsize max_token_file_size = 10 * 1024;
+
+    std::string content(max_token_file_size, '\0');
+    file.read(&content[0], max_token_file_size);
+    content.resize(file.gcount());
+
+    std::string src_token;
+    std::string dst_token;
+
+    if (const auto json = nlohmann::json::parse(content, nullptr, false); json.is_object())
+    {
+        const auto read_token = [&json, log] (const char *key, std::string &token)
+        {
+            if (const auto value = json.find(key); value != json.end() && value->is_string() && !value->get_ref<const std::string &>().empty())
+                token = value->get_ref<const std::string &>();
+            else
+                log->Warning(kLogXrdClHttp, "Property '%s' of the token file is not a non-empty string", key);
+        };
+
+        read_token("src", src_token);
+        read_token("dst", dst_token);
+    }
+    else
+    {
+        std::istringstream lines(content);
+        std::getline(lines, src_token);
+        std::getline(lines, dst_token);
+    }
+
+    if (src_token.empty() && dst_token.empty())
+    {
+        log->Warning(kLogXrdClHttp, "Token file holds neither a <src> nor a <dst> token");
+        return false;
+    }
+
+    const auto add_token = [] (CurlCopyOp::Headers &headers, const std::string &token)
+    {
+        if (!token.empty())
+            headers.emplace_back("Authorization"s, "Bearer "s + token);
+    };
+
+    add_token(src_hdrs, src_token);
+    add_token(dst_hdrs, dst_token);
+
+    return true;
+}
+
+// Returns true if the URL uses the http or the https protocol. A third party
+// copy is possible only between these two protocols.
+static bool is_http_url( const std::string &url )
+{
+    const std::string protocol = XrdCl::URL(url).GetProtocol();
+    return protocol == "http" || protocol == "https";
+}
+
+// The operations a third party copy runs. The unit tests replace them by
+// declaring XrdClHttp::StatOp and XrdClHttp::CopyOp before they include this
+// file, because the lookup of the unqualified name stops at namespace
+// XrdClHttp.
+namespace XrdClHttp
+{
+    namespace ThirdPartyCopyOpTypes
+    {
+        using StatOp = CurlStatOp;
+        using CopyOp = CurlCopyOp;
+    }
+}
+
+using namespace XrdClHttp::ThirdPartyCopyOpTypes;
+
+XrdCl::XRootDStatus Filesystem::ThirdPartyCopy( const std::string            &source,
+                                                const std::string            &dest,
+                                                const XrdCl::PropertyList    *properties,
+                                                XrdCl::ProgressHandler       *progress_handler,
+                                                time_t                        timeout )
+{
+    XrdCl::Log *const log = XrdCl::DefaultEnv::GetLog();
+    log->Debug(kLogXrdClHttp, "XrdClHttp::ThirdPartyCopy src %s dst %s", source.c_str(), dest.c_str());
+
+    if (!is_http_url(source) || !is_http_url(dest))
+    {
+        log->Error(kLogXrdClHttp, "Third party copy can only be done between http(s) protocols");
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs, 0,
+                                   "Third party copy can only be done between http(s) protocols");
+    }
+
+    std::size_t size = 0;
+
+    TpcMode mode = TpcMode::Pull;
+    int number_of_streams = 1;
+    time_t init_timeout = 0;
+    time_t tpc_timeout = 0;
+    std::string token_file;
+    bool force_overwrite = false;
+
+    if (properties)
+    {
+        mode = properties->Get<std::string>("thirdPartyMode") != "push" ? TpcMode::Pull : TpcMode::Push;
+        properties->Get("initTimeout", init_timeout);
+        properties->Get("tpcTimeout", tpc_timeout);
+        token_file = properties->Get<std::string>("thirdPartyTokenFile");
+        force_overwrite = properties->Get<std::string>("force") == "1";
+    }
+
+    if (auto env = XrdCl::DefaultEnv::GetEnv(); env)
+        env->GetInt("SubStreamsPerChannel", number_of_streams);
+
+    CurlCopyOp::Headers headers;
+    CurlCopyOp::Headers src_hdrs;
+    CurlCopyOp::Headers dst_hdrs;
+
+    if (!token_file.empty() && !ParseTokenFile(token_file, src_hdrs, dst_hdrs, log))
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errAuthFailed, 0,
+                                   "Failed to parse the token file '" + token_file + "'");
+
+    headers.emplace_back("X-Number-Of-Streams"s, std::to_string(number_of_streams));
+    headers.emplace_back("Overwrite"s, force_overwrite ? "T"s : "F"s);
+
+    if (progress_handler)
+    {
+        try
+        {
+            const auto rh = std::make_shared<SyncResponseHandler>();
+            const auto op = std::make_shared<StatOp>(rh.get(), source, timespec{init_timeout,0}, log, true, nullptr, nullptr);
+
+            m_queue->Produce(std::shared_ptr<StatOp>(op.get(), [rh, op](auto _){}));
+
+            if (!rh->wait(std::chrono::seconds(init_timeout)))
+                log->Warning(kLogXrdClHttp, "Failed to get source file size: Operation timed out. Continuing...");
+            else if (!op->IsDone() || op->HasFailed())
+                log->Warning(kLogXrdClHttp, "Failed to get source file size");
+            else
+                size = static_cast<std::size_t>(op->GetStatInfo().first);
+        }
+        catch (...) {
+            log->Warning(kLogXrdClHttp, "Failed to add stat op to queue");
+        }
+
+        progress_handler->HandleProgress(0, size);
+    }
+
+    const auto rh = std::make_shared<SyncResponseHandler>();
+    const auto op = std::make_shared<CopyOp>(rh.get(), source, src_hdrs, dest, dst_hdrs, headers,
+                                                  mode, timespec{tpc_timeout, 0}, log, nullptr);
+    op->SetProgressHandler(progress_handler);
+
+    try
+    {
+        m_queue->Produce(std::shared_ptr<CopyOp>(op.get(), [rh, op](auto _){}));
+    }
+    catch (...) {
+        log->Warning(kLogXrdClHttp, "Failed to add copy op to queue");
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInternal);
+    }
+
+    if (!rh->wait(std::chrono::seconds(tpc_timeout)))
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOperationExpired, 0, "Operation expired: Operation timed out"s);
+
+    if (op->IsDone() && !op->IsSentSucessfully())
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errPipelineFailed, 0, op->GetSendingFailureMessage());
+
+    if (progress_handler && size > 0)
+        progress_handler->HandleProgress(size, size);
+
+    return XrdCl::XRootDStatus();
 }
 
 bool Filesystem::SendResponseInfo() const {

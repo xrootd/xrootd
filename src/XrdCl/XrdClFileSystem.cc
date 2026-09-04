@@ -2216,6 +2216,22 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // ThirdPartyCopy for plugins
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::ThirdPartyCopy( const std::string  &source,
+                                           const std::string  &dest,
+                                           const PropertyList *properties,
+                                           ProgressHandler    *progress_handler,
+                                           time_t              timeout )
+  {
+    if( !pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pPlugIn->ThirdPartyCopy( source, dest, properties,
+                                    progress_handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
   // Generic implementation of xattr operation
   //------------------------------------------------------------------------
   template<typename T>

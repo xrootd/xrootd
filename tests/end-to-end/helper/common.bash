@@ -29,4 +29,5 @@ print_log_files() {
 
 kill_pid_files() {
     find $BATS_TEST_TMPDIR -name '*.pid' -type f ! -empty -exec awk '{ print }' {} \; | xargs -r kill -9
+    print_log_files
 }

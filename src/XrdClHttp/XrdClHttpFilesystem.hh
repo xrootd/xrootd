@@ -39,6 +39,8 @@ namespace XrdCl {
 
 class Log;
 
+class PropertyList;
+
 }
 
 namespace XrdClHttp {
@@ -97,7 +99,13 @@ public:
                                       const XrdCl::Buffer     &arg,
                                       XrdCl::ResponseHandler  *handler,
                                       time_t                   timeout) override;
-
+                                      
+    virtual XrdCl::XRootDStatus ThirdPartyCopy( const std::string            &source,
+                                                const std::string            &dest,
+                                                const XrdCl::PropertyList    *properties,
+                                                XrdCl::ProgressHandler       *progress_handler,
+                                                time_t                        timeout = 0 ) override;
+    
 private:
     XrdCl::XRootDStatus QueueOperation(
         std::unique_ptr<CurlOperation> operation,

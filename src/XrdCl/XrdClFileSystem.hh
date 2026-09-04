@@ -197,6 +197,8 @@ namespace XrdCl
   };
   XRDOUC_ENUM_OPERATORS( PrepareFlags::Flags )
 
+  class PropertyList;
+
   //----------------------------------------------------------------------------
   //! Forward declaration of the implementation class holding the data members
   //----------------------------------------------------------------------------
@@ -882,6 +884,27 @@ namespace XrdCl
       //! @see FileSystem::SetProperty for property list
       //------------------------------------------------------------------------
       bool GetProperty( const std::string &name, std::string &value ) const;
+
+      //------------------------------------------------------------------------
+      //! Third party copy
+      //!
+      //! The copy runs to completion before this method returns.
+      //!
+      //! @param source           the file to be copied from
+      //! @param dest             the location the file is copied to
+      //! @param properties       properties of the copy, none if null
+      //! @param progress_handler handler notified while the copy runs, none if
+      //!                         null
+      //! @param timeout          timeout value, if 0 the environment default
+      //!                         is used
+      //! @return                 status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ThirdPartyCopy( const std::string  &source,
+                                   const std::string  &dest,
+                                   const PropertyList *properties,
+                                   ProgressHandler    *progress_handler,
+                                   time_t              timeout = 0 )
+                                   XRD_WARN_UNUSED_RESULT;
 
     private:
       FileSystem(const FileSystem &other);
