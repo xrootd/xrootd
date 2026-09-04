@@ -1,2 +1,0 @@
-xrootd.chksum adler32 crc32 crc32c md5
-all.export /tmp
