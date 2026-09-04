@@ -92,6 +92,8 @@ XrdCpFile          *dstFile;        // The destination for the copy
 
 char               *zipFile;        // The file name if the URL points to a ZIP archive
 
+char               *tcpTokenFile;   // The file name with TPC src and dst tokens
+
 static XrdSysError *Log;            // -> Error message object
 
 std::vector<std::string> AddCksVal; // -> Additional checksum argument
@@ -146,7 +148,7 @@ static const uint64_t    DoSources      =  0x0000000000008000LL; // -y | --sourc
 static const uint64_t    OpStreams      =  'S';
 static const uint64_t    DoStreams      =  0x0000000000010000LL; // -S | --streams
 
-static const uint64_t    OpTpc          =  'T'; // -T | --tpc [delegate] {first | only}
+static const uint64_t    OpTpc          =  'T'; // -T | --tpc [delegate] [push] {first | only}
 static const uint64_t    DoTpc          =  0x0000000000020000LL; // --tpc {first | only}
 static const uint64_t    DoTpcOnly      =  0x0000000000100000LL; // --tpc          only
 static const uint64_t    DoTpcDlgt      =  0x0000000000800000LL; // --tpc delegate ...
@@ -202,6 +204,11 @@ static const uint64_t    DoRetryPolicy     = 0x0000000400000000LL; // --retry-po
 
 static const uint64_t    OpZipAppend       = 0x13;
 static const uint64_t    DoZipAppend       = 0x0000000800000000LL; // --zip-append
+
+static const uint64_t    OpTpcTokenFile    = 0x14;
+static const uint64_t    DoTpcTokenFile    = 0x0000001000000000LL; // --tpc-token-file
+
+static const uint64_t    DoTpcModePush     = 0x0000002000000000LL; // --tpc ... push ...
 
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.

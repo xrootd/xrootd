@@ -110,6 +110,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "tlsmetalink",    0, 0, XrdCpConfig::OpTlsMLF},
       {OPT_TYPE "tlsnodata",      0, 0, XrdCpConfig::OpTlsNoData},
       {OPT_TYPE "tpc",            1, 0, XrdCpConfig::OpTpc},
+      {OPT_TYPE "tpc-token-file", 1, 0, XrdCpConfig::OpTpcTokenFile},
       {OPT_TYPE "verbose",        0, 0, XrdCpConfig::OpVerbose},
       {OPT_TYPE "version",        0, 0, XrdCpConfig::OpVersion},
       {OPT_TYPE "xattr",          0, 0, XrdCpConfig::OpXAttr},
@@ -160,6 +161,10 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    parmVal  = 0;
    parmCnt  = 0;
    zipFile  = 0;
+
+   tcpTokenFile = 0;
+   if (const auto value = getenv("BEARER_TOKEN_FILE"); value != nullptr)
+      tcpTokenFile = strdup(value);
 }
 
 /******************************************************************************/
@@ -177,6 +182,7 @@ XrdCpConfig::~XrdCpConfig()
    if (CksObj)  delete CksObj;
    if (CksMan)  delete CksMan;
    if (zipFile) free(zipFile);
+   if (tcpTokenFile) free(tcpTokenFile);
    if (dstFile) delete dstFile;
 
    while((pNow = pFile)) {pFile = pFile->Next; delete pNow;}
@@ -297,12 +303,24 @@ do{while(optind < Argc && Legacy(optind)) {}
                                        }
                                     optarg = Argv[optind++];
                                    }
+                                if (!strcmp("push",  optarg))
+                                   {OpSpec|= DoTpcModePush;
+                                    if (optind >= Argc)
+                                       {UMSG("Missing tpc qualifier after "
+                                             "'push'");
+                                       }
+                                    optarg = Argv[optind++];
+                                   }
                                 if (!strcmp("only",  optarg)) OpSpec|= DoTpcOnly;
                                    else if (strcmp("first", optarg))
                                            {optind--;
                                             UMSG("Invalid option, '" <<OpName()
                                                  <<' ' <<optarg <<"' ");
                                            }
+                                break;
+          case OpTpcTokenFile:  OpSpec |= DoTpcTokenFile;
+                                if (tcpTokenFile) free(tcpTokenFile);
+                                tcpTokenFile = strdup(optarg);
                                 break;
           case OpVerbose:       OpSpec |= DoVerbose;
                                 Verbose = 1;
@@ -936,7 +954,8 @@ void XrdCpConfig::Usage(int rc)
    "         [--recursive] [--retry <n>] [--retry-policy <force|continue>]\n"
    "         [--rm-bad-cksum] [--server] [--silent] [--sources <n>]\n"
    "         [--streams <n>] [--tlsmetalink] [--tlsnodata]\n"
-   "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
+   "         [--tpc [delegate] [push] {first|only}] [--verbose] [--version]\n"
+   "         [--tpc-token-file <file>]\n"
    "         [--xattr] [--xrate <rate>] [--xrate-threshold <rate>]\n"
    "         [--zip <file>] [--zip-append] [--zip-mtln-cksum]\n";
 
@@ -994,6 +1013,18 @@ void XrdCpConfig::Usage(int rc)
    "                              Both the src and dest must allow tpc mode. Argument\n"
    "                              'first' tries tpc and if it fails, does a normal copy;\n"
    "                              while 'only' fails the copy unless tpc succeeds.\n"
+   "                              Argument 'push' drives the copy from the source server,\n"
+   "                              which pushes the data to the destination; by default the\n"
+   "                              destination server pulls the data from the source. A push\n"
+   "                              copy only applies to tpc over HTTP(S).\n"
+   "     --tpc-token-file <file>  Specify a token file containing in the first line the\n"
+   "                              <src> token and in the second line the <dst> token. In\n"
+   "                              case the file is a JSON object, the <src> and <dst>\n"
+   "                              tokens are taken from its 'src' and 'dst' properties.\n"
+   "                              Either token may be left out, by an empty line or by an\n"
+   "                              omitted property, but not both.\n"
+   "                              In case no file is specified the BEARER_TOKEN_FILE env\n"
+   "                              variable will be used.\n"
    "-v | --verbose                produces more information about the copy\n"
    "-V | --version                prints the version number\n"
    "     --xattr                  preserve extended attributes\n"
