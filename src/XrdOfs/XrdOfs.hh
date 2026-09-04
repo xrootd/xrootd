@@ -439,6 +439,7 @@ XrdOfsEvr     evrObject;      // Event receiver
 XrdCmsClient *Finder;         // ->Cluster Management Service
 
 virtual int   ConfigXeq(char *var, XrdOucStream &, XrdSysError &);
+const char   *DfltCST();
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    XrdOfsHandle *hP, bool posChk=false, bool chktype=true);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,

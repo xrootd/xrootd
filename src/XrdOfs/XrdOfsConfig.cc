@@ -539,7 +539,7 @@ int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
    if (CksRTName)
       {if (!strcmp(CksRTName, "default"))
           {free(CksRTName);
-           CksRTName = strdup(csList[0].c_str());
+           CksRTName = strdup(DfltCST());
           }
 
        if (!(CksRTCalc = Cks->Object(CksRTName)))
@@ -916,6 +916,18 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     Eroute.Say("Config warning: ignoring unknown directive '",var,"'.");
     Config.Echo();
     return 0;
+}
+
+/******************************************************************************/
+/*                               D f l t C S T                                */
+/******************************************************************************/
+
+// Return the default checksum type; that is, the first one specified on the
+// xrootd.chksum directive. A nil pointer means no checksums are configured.
+
+const char *XrdOfs::DfltCST()
+{
+   return (csList.empty() ? 0 : csList[0].c_str());
 }
 
 /******************************************************************************/

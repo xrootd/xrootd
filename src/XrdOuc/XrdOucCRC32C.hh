@@ -13,6 +13,10 @@
 // crc == 0.  crc32c() uses the Intel crc32 hardware instruction if available.
 uint32_t crc32c(uint32_t crc, void const *buf, size_t len);
 
+// Return the result of combining crcA with crcB computed from an adjacent
+// block of size lengthB.
+uint32_t crc32c_combine(uint32_t crcA, uint32_t crcB, size_t lengthB);
+
 // crc32c_sw() is the same, but does not use the hardware instruction, even if
 // available.
 uint32_t crc32c_sw(uint32_t crc, void const *buf, size_t len);

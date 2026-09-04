@@ -4230,7 +4230,7 @@ char *XrdXrootdProtocol::getCksType(char *opaque, char *cspec, int cslen)
 //
    if (opaque && *opaque)
       {XrdOucEnv jobEnv(opaque);
-       if ((cksT = jobEnv.Get("cks.type")))
+       if ((cksT = jobEnv.Get("cks.type")) && strcmp("default", cksT))
           {XrdOucTList *tP = JobCKTLST;
            while(tP && strcasecmp(tP->text, cksT)) tP = tP->next;
            if (!tP && cspec) snprintf(cspec, cslen, "%s", cksT);
