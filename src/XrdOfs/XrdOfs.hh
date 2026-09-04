@@ -439,6 +439,7 @@ XrdOfsEvr     evrObject;      // Event receiver
 XrdCmsClient *Finder;         // ->Cluster Management Service
 
 virtual int   ConfigXeq(char *var, XrdOucStream &, XrdSysError &);
+const char   *DfltCST();
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    XrdOfsHandle *hP, bool posChk=false, bool chktype=true);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
@@ -478,7 +479,6 @@ XrdOfsPrepare    *prepHandler;    // Plugin   prepare
 XrdCks           *Cks;            // Checksum manager
 XrdCksCalc       *CksRTCalc;      // Automatic realtime checksum calculator
 char             *CksRTName;      // Automatic realtime checksum cipher
-char             *CksRTDflt;      // The default r/t checksum, if any
 bool              CksPfn;         // Checksum needs a pfn
 bool              CksRdr;         // Checksum may be redirected (i.e. not local)
 bool              prepAuth;       // Prepare requires authorization
