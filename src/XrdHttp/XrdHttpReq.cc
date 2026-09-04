@@ -603,7 +603,6 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
 
 
 
-  char buf[512];
   char hash[512];
   hash[0] = '\0';
 
@@ -622,20 +621,15 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
     return keepalive;
   }
 
-  if (prot->isdesthttps)
-    redirdest = "Location: https://";
-  else
-    redirdest = "Location: http://";
-
-  // port < 0 signals switch to full URL
-  if (port < 0)
-  {
-    if (strncmp(hname, "file://", 7) == 0)
-    {
-      TRACE(REQ, " XrdHttpReq::Redir Switching to file:// ");
-      redirdest = "Location: "; // "file://" already contained in hname
-    }
+  // port < 0 means XRootD URL-form redirect: hname is a full scheme://… URL
+  // (host+port+path).
+  // Do not prefix http(s):// and do not append the original resource
+  // otherwise, that would produce https://https://…/pfn/lfn.
+  const bool fullUrl = (port < 0);
+  if (fullUrl) {
+    TRACE(REQ, " XrdHttpReq::Redir using absolute URL: " << hname);
   }
+
   // Beware, certain Ofs implementations (e.g. EOS) add opaque data directly to the host name
   // This must be correctly treated here and appended to the opaque info
   // that we may already have
@@ -643,25 +637,36 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   char *vardata = 0;
   if (pp) {
     *pp = '\0';
-    redirdest += hname;
     vardata = pp+1;
     int varlen = strlen(vardata);
 
     //Now extract the remaining, vardata points to it
     while(*vardata == '&' && varlen) {vardata++; varlen--;}
+  }
 
-    // Put the question mark back where it was
+  // If the destination speaks cleartext HTTP, it needs the
+  // secret hash to reconstruct authorization info.
+  const bool destHttpCleartext =
+      fullUrl ? (strncmp(hname, "http://", 7) == 0) : (!prot->isdesthttps);
+
+  std::string urlHashPath;
+  {
+    const std::string encodedResource =
+        fullUrl ? std::string() : encode_str(resource.c_str());
+    redirdest = httpBuildRedirectLocation(prot->isdesthttps, port, hname,
+                                          encodedResource.c_str()).c_str();
+
+    // Derive the token path while hname is still truncated at '?', so the CGI
+    // stays out of the hash and both ends digest the same string.
+    if (fullUrl && destHttpCleartext) {
+      if (const char *urlPath = httpPathFromAbsoluteUrl(hname))
+        urlHashPath = httpCollapseSlashes(decode_str(urlPath));
+    }
+  }
+
+  // Restore '?' so later uses of hname see the original string.
+  if (pp)
     *pp = '?';
-  }
-  else
-    redirdest += hname;
-
-  if (port > 0) {
-    sprintf(buf, ":%d", port);
-    redirdest += buf;
-  }
-
-  redirdest += encode_str(resource.c_str()).c_str();
 
   // Here we put back the opaque info, if any
   if (vardata) {
@@ -676,11 +681,12 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
 
 
   time_t timenow = 0;
-  if (!prot->isdesthttps && prot->ishttps) {
+  if (destHttpCleartext && prot->ishttps) {
+    const char *hashPath = urlHashPath.empty() ? resource.c_str() : urlHashPath.c_str();
     // If the destination is not https, then we suppose that it
     // will need this token to fill its authorization info
     timenow = time(0);
-    calcHashes(hash, this->resource.c_str(), (kXR_int16) request,
+    calcHashes(hash, hashPath, (kXR_int16) request,
             &prot->SecEntity,
             timenow,
             prot->secretkey);
@@ -846,18 +852,9 @@ void XrdHttpReq::parseResource(char *res) {
     // to the resource string. Here we choose to ignore it as a protection measure
     sanitizeResourcePfx();
 
-    std::string resourceDecoded = decode_str(resource.c_str());
-    resource = resourceDecoded.c_str();
+    const std::string resourceDecoded = decode_str(resource.c_str());
     resourceplusopaque = resourceDecoded.c_str();
-
-
-    // Sanitize the resource string, removing double slashes
-    int pos = 0;
-    do {
-      pos = resource.find("//", pos);
-      if (pos != STR_NPOS)
-        resource.erase(pos, 1);
-    } while (pos != STR_NPOS);
+    resource = httpCollapseSlashes(resourceDecoded).c_str();
 
     return;
   }
@@ -871,15 +868,7 @@ void XrdHttpReq::parseResource(char *res) {
   // to the resource string. Here we choose to ignore it as a protection measure
   sanitizeResourcePfx();
 
-  resource = decode_str(resource.c_str()).c_str();
-
-  // Sanitize the resource string, removing double slashes
-  int pos = 0;
-  do {
-    pos = resource.find("//", pos);
-    if (pos != STR_NPOS)
-      resource.erase(pos, 1);
-  } while (pos != STR_NPOS);
+  resource = httpCollapseSlashes(decode_str(resource.c_str())).c_str();
 
   resourceplusopaque = resource;
   // Whatever comes after is opaque data to be parsed

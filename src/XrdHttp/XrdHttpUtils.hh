@@ -252,6 +252,22 @@ int mapErrNoToHttp(int err);
 
 std::string httpStatusToString(int status);
 
+//! Path starting at the first `/` after the authority, or nullptr.
+const char *httpPathFromAbsoluteUrl(const char *hname);
+
+//! Collapse duplicate slashes in a path. Applied to an already-decoded path,
+//! `decode_str()` then this yields the canonical request path. Shared by
+//! XrdHttpReq::parseResource() and the redirect token path so that the two
+//! ends of a redirect always hash an identical string.
+std::string httpCollapseSlashes(std::string path);
+
+//! Build the `Location:` header for an HTTP redirect (without auth opaque).
+//! When port < 0, hname is a full URL (XRootD URL-form redirect): emit as-is
+//! and ignore encodedResource. Otherwise:
+//! `Location: http(s)://hname[:port]<encodedResource>`.
+std::string httpBuildRedirectLocation(bool destHttps, int port, const char *hname,
+                                      const char *encodedResource);
+
 typedef std::vector<XrdOucIOVec2> XrdHttpIOList;
 
 

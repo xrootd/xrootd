@@ -481,15 +481,18 @@ public:
   );
 
   //-----------------------------------------------------------------------------
-  //! Redirect the client to another host:port.
+  //! Redirect the client to another host:port (or absolute URL).
   //!
   //! The Redir() method is called when the client must be redirected to another
   //! host.
   //!
   //! @param  info    the context associated with the result.
-  //! @param  port    the port number in host byte format.
-  //! @param  hname   the DNS name of the host or IP address is IPV4 or IPV6
-  //!                 format (i.e. "n.n.n.n" or "[ipv6_addr]").
+  //! @param  port    destination port in host byte order; when port < 0 and
+  //!                 hname is an absolute URL (`scheme://…`), Location is that
+  //!                 URL as-is (path included) and the original resource is
+  //!                 not appended. Otherwise Location is built as
+  //!                 http(s)://hname[:port]<resource>.
+  //! @param  hname   DNS name / IP, or absolute URL when port < 0.
   //!
   //! @return true    continue normal processing.
   //!         false   terminate the bridge and close the link.
