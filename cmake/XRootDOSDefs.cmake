@@ -18,14 +18,6 @@ define_default( LIBRARY_PATH_PREFIX "lib" )
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ Standard")
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-if( ENABLE_ASAN )
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fsanitize=address")
-endif()
-
-if( ENABLE_TSAN )
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fsanitize=thread")
-endif()
-
 # Set baseline warning level for GCC and Clang
 
 add_compile_options(

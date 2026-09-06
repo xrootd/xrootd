@@ -1,4 +1,3 @@
-%bcond_with    asan
 %bcond_with    ceph
 %bcond_with    clang
 %bcond_with    docs
@@ -9,7 +8,7 @@
 
 Name:		xrootd
 Epoch:		1
-Release:	1%{?dist}%{?with_clang:.clang}%{?with_asan:.asan}
+Release:	1%{?dist}%{?with_clang:.clang}
 Summary:	Extended ROOT File Server
 Group:		System Environment/Daemons
 License:	LGPL-3.0-or-later AND BSD-2-Clause AND BSD-3-Clause AND curl AND MIT AND Zlib
@@ -58,10 +57,6 @@ BuildRequires:	libuuid-devel
 BuildRequires:	voms-devel
 BuildRequires:	scitokens-cpp-devel
 BuildRequires:  libxcrypt-devel
-
-%if %{with asan}
-BuildRequires:	libasan
-%endif
 
 %if %{with ceph}
 BuildRequires:	librados-devel
@@ -309,7 +304,6 @@ export CXX=clang++
 
 %cmake \
     -DFORCE_ENABLED:BOOL=TRUE \
-    -DENABLE_ASAN:BOOL=%{with asan} \
     -DENABLE_CEPH:BOOL=%{with ceph} \
     -DENABLE_FUSE:BOOL=TRUE \
     -DENABLE_KRB5:BOOL=TRUE \

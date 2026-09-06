@@ -17,8 +17,6 @@ option( XRDCL_LIB_ONLY   "Build only the client libraries and necessary dependen
 option( PYPI_BUILD       "The project is being built for PyPI release"                    FALSE )
 option( ENABLE_VOMS      "Enable VOMS plug-in if possible."                               TRUE )
 option( ENABLE_XRDEC     "Enable erasure coding component (deprecated)."                  FALSE )
-option( ENABLE_ASAN      "Enable adress sanitizer."                                       FALSE )
-option( ENABLE_TSAN      "Enable thread sanitizer."                                       FALSE )
 option( ENABLE_XRDOSSARC "Enable XrdOssArc plugin."                                       TRUE  )
 cmake_dependent_option( ENABLE_SCITOKENS "Enable SciTokens plugin." TRUE "NOT XRDCL_ONLY" FALSE )
 cmake_dependent_option( ENABLE_MACAROONS "Enable Macaroons plugin." TRUE "NOT XRDCL_ONLY" FALSE )

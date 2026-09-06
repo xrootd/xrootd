@@ -162,8 +162,8 @@ to override the defaults without having to edit the pre-loaded cache file.
 
 Use `-DSANITIZE=<type>` to build with a sanitizer, where `<type>` is what the
 compiler expects after `-fsanitize=`. The options `ENABLE_ASAN` and
-`ENABLE_TSAN` are obsolete: they add a compiler flag and nothing else, so none
-of the setup below applies to them.
+`ENABLE_TSAN` are gone. They added a compiler flag and nothing else, so none of
+the setup below applied to them.
 
 ```sh
 xrootd $ ctest -V -DSANITIZE=address -S test.cmake
