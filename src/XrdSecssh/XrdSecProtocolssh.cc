@@ -11,6 +11,7 @@
 
 #define __STDC_FORMAT_MACROS 1
 
+#include <algorithm>
 #include <arpa/inet.h>
 #include <atomic>
 #include <cctype>
@@ -32,6 +33,7 @@
 #include <vector>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -51,6 +53,7 @@
 
 #include "XrdVersion.hh"
 #include "XrdNet/XrdNetAddrInfo.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -109,10 +112,15 @@ int FatalS(XrdOucErrInfo *erp, const char *eMsg, int rc, bool hdr=true)
    return -1;
 }
 
-static const uint8_t kProtoVersion = 0;
+// Protocol version 1: the challenge response carries the hostname the client
+// connected to and the signed payload binds nonce, key fingerprint and that
+// hostname (see challengePayload()).
+static const uint8_t kProtoVersion = 1;
 static const int kDefaultMaxCredSize = 8192;
 static const int kDefaultNonceTTL = 30;
-static const size_t kMaxPendingChallenges = 10000;
+static const int kMinRsaBits = 2048;
+static const int kAgentIoTimeoutSec = 10;
+static const size_t kMaxHostnameLen = 255;
 static const size_t kMaxSshWireFieldLen = 65536;
 static const size_t kMaxKeysFileLineLen = 8192;
 static const size_t kMaxKeysFileB64Len = 16384;
@@ -142,6 +150,26 @@ bool isValidMappedUsername(const std::string &user)
          if (!isalnum(c) && c != '_' && c != '-' && c != '.') return false;
       }
    return true;
+}
+
+// Canonical form of a hostname for comparison: lower-case, no trailing dot,
+// no IPv6 brackets. Returns an empty string for values that cannot be a
+// hostname or IP literal.
+std::string normalizeHostname(const std::string &in)
+{
+   std::string h = in;
+   if (h.size() >= 2 && h.front() == '[' && h.back() == ']')
+      h = h.substr(1, h.size() - 2);
+   while (!h.empty() && h.back() == '.') h.pop_back();
+   if (h.empty() || h.size() > kMaxHostnameLen) return std::string();
+   for (char &c : h)
+      {
+         unsigned char uc = static_cast<unsigned char>(c);
+         if (!isalnum(uc) && uc != '-' && uc != '.' && uc != ':' && uc != '_')
+            return std::string();
+         c = static_cast<char>(tolower(uc));
+      }
+   return h;
 }
 
 bool hasPrefix(const char *s, const char *pfx)
@@ -424,7 +452,7 @@ bool readU16(const char *&p, const char *e, uint16_t &v)
    return true;
 }
 
-bool readU32(const char *&p, const char *e, uint32_t &v)
+[[maybe_unused]] bool readU32(const char *&p, const char *e, uint32_t &v)
 {
    if (e - p < 4) return false;
    memcpy(&v, p, 4);
@@ -484,6 +512,9 @@ struct TrustedKey
    EvpPkeyPtr pkey;
 };
 
+// Per-connection challenge state. Lives inside the XrdSecProtocolssh object
+// that issued the challenge, so it disappears with the connection and cannot
+// be consumed by, or block, any other connection.
 struct PendingChallenge
 {
    std::string nonce;
@@ -494,29 +525,106 @@ struct PendingChallenge
    time_t      expiresAt = 0;
 };
 
+// Revocation entries (loaded from -revoked-keys-file, hot-reloaded).
+struct RevocationList
+{
+   std::unordered_map<std::string, bool> keyFps;   // SHA256 fp of key or cert blob
+   std::unordered_map<uint64_t, bool>    serials;  // certificate serial numbers
+   std::unordered_map<std::string, bool> keyIds;   // certificate key ids
+   bool empty() const {return keyFps.empty() && serials.empty() && keyIds.empty();}
+};
+
+// Hot-reload bookkeeping for a file that is re-read when its inode/mtime
+// changes. The owning mutex also protects the parsed data derived from it.
+struct HotFileState
+{
+   bool   statValid = false;
+   ino_t  ino = 0;
+   time_t mtime = 0;
+};
+
+// Trust anchors: populated once in XrdSecProtocolsshInit() (under Gm) and read
+// without locking afterwards.
 std::mutex Gm;
-std::mutex PrincipalMapMu;
 std::unordered_map<std::string, TrustedKey> TrustedByFP;
 std::unordered_map<std::string, TrustedKey> TrustedCAByFP;
-std::unordered_map<std::string, std::string> PrincipalMap;
-std::unordered_map<std::string, PendingChallenge> PendingByTid;
 std::string KeysFile = "/etc/xrootd/ssh_authorized_keys";
 std::string CAKeysFile;
-std::string PrincipalMapFile;
 bool PrincipalAsUser = false;
-bool PrincipalMapStatValid = false;
-ino_t PrincipalMapIno = 0;
-time_t PrincipalMapMTime = 0;
+bool AllowEmptyPrincipals = false;
+std::unordered_map<std::string, bool> DenyUsers = {{"root", true}};
+std::unordered_map<std::string, bool> AcceptedHosts;
+
+// Hot-reloaded data.
+std::mutex PrincipalMapMu;
+std::unordered_map<std::string, std::string> PrincipalMap;
+std::string PrincipalMapFile;
+HotFileState PrincipalMapState;
+
+std::mutex RevokedMu;
+RevocationList Revoked;
+std::string RevokedKeysFile;
+HotFileState RevokedState;
+
 std::atomic<int> MaxCredSize{kDefaultMaxCredSize};
 std::atomic<int> NonceTTL{kDefaultNonceTTL};
 std::atomic<bool> DebugSSH{false};
 XrdSysLogger SSHLogger;
-XrdSysError SSHLog(0, "secssh_");
+XrdSysError SSHLog(&SSHLogger, "secssh_");
 
 void debugLog(const char *where, const std::string &msg)
 {
    if (!DebugSSH.load(std::memory_order_relaxed)) return;
    SSHLog.Emsg(where, "ssh", msg.c_str());
+}
+
+// Unconditional server-side log line (configuration warnings, rejected
+// authentications). Never returned to the client.
+void warnLog(const char *where, const std::string &msg)
+{
+   SSHLog.Emsg(where, "ssh", msg.c_str());
+}
+
+// Message returned to a client for rejections whose detail must not be
+// disclosed (key -> account mapping, trusted-CA set, ...).
+static const char *kGenericAuthFailure = "SSH authentication failed.";
+
+bool isDeniedUser(const std::string &user)
+{
+   return DenyUsers.find(user) != DenyUsers.end();
+}
+
+bool isAcceptedHost(const std::string &host)
+{
+   std::string h = normalizeHostname(host);
+   if (h.empty()) return false;
+   return AcceptedHosts.find(h) != AcceptedHosts.end();
+}
+
+void addAcceptedHost(const std::string &host)
+{
+   std::string h = normalizeHostname(host);
+   if (!h.empty()) AcceptedHosts[h] = true;
+}
+
+// Default accepted hostnames: the canonical name, the kernel hostname and the
+// loopback names. Explicit -hostnames entries are added on top.
+void addDefaultAcceptedHosts()
+{
+   char hn[256];
+   memset(hn, 0, sizeof(hn));
+   if (gethostname(hn, sizeof(hn) - 1) == 0 && *hn)
+      {
+         addAcceptedHost(hn);
+         const char *dot = strchr(hn, '.');
+         if (dot && dot != hn) addAcceptedHost(std::string(hn, dot - hn));
+      }
+   char *fqdn = XrdNetUtils::MyHostName(0);
+   if (fqdn) {addAcceptedHost(fqdn); free(fqdn);}
+   addAcceptedHost("localhost");
+   addAcceptedHost("localhost.localdomain");
+   addAcceptedHost("127.0.0.1");
+   addAcceptedHost("::1");
 }
 
 bool validateAgentSocket(const char *sockPath, std::string &emsg)
@@ -547,12 +655,15 @@ bool validateAgentSocket(const char *sockPath, std::string &emsg)
    return true;
 }
 
-bool safeStatPrivateKeyFile(const char *path, std::string &emsg)
+// Opens a client private key file with O_NOFOLLOW and validates it via fstat().
+// On success returns the open descriptor (caller owns it) so that the key is
+// read from the very inode that was checked; returns -1 on failure.
+int openCheckedPrivateKeyFile(const char *path, std::string &emsg)
 {
    emsg.clear();
    if (!path || !*path)
       {emsg = "private key path is empty";
-       return false;
+       return -1;
       }
    int flags = O_RDONLY;
 #ifdef O_NOFOLLOW
@@ -562,28 +673,43 @@ bool safeStatPrivateKeyFile(const char *path, std::string &emsg)
    if (fd < 0)
       {emsg = std::string("unable to open private key file: ") + path
             + " (" + XrdSysE2T(errno) + ")";
-       return false;
+       return -1;
       }
    struct stat st;
    if (fstat(fd, &st) != 0)
       {int rc = errno; close(fd);
        emsg = std::string("unable to stat private key file: ") + path
             + " (" + XrdSysE2T(rc) + ")";
-       return false;
+       return -1;
       }
-   close(fd);
    if (!S_ISREG(st.st_mode))
-      {emsg = std::string("private key path is not a regular file: ") + path;
-       return false;
+      {close(fd);
+       emsg = std::string("private key path is not a regular file: ") + path;
+       return -1;
       }
    if (st.st_uid != geteuid())
-      {emsg = std::string("private key file owner must match effective uid: ") + path;
-       return false;
+      {close(fd);
+       emsg = std::string("private key file owner must match effective uid: ") + path;
+       return -1;
       }
    if (st.st_mode & (S_IRWXG | S_IRWXO))
-      {emsg = std::string("private key file must not be group/other accessible: ") + path;
-       return false;
+      {close(fd);
+       emsg = std::string("private key file must not be group/other accessible: ") + path;
+       return -1;
       }
+   if (st.st_size > 1024 * 1024)
+      {close(fd);
+       emsg = std::string("private key file too large: ") + path;
+       return -1;
+      }
+   return fd;
+}
+
+[[maybe_unused]] bool safeStatPrivateKeyFile(const char *path, std::string &emsg)
+{
+   int fd = openCheckedPrivateKeyFile(path, emsg);
+   if (fd < 0) return false;
+   close(fd);
    return true;
 }
 
@@ -594,6 +720,12 @@ int connectAgentSocket(const char *sockPath)
    if (!validateAgentSocket(sockPath, emsg)) return -1;
    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
    if (fd < 0) return -1;
+   // Bound every read/write so a wedged agent cannot hang the client forever.
+   struct timeval tv;
+   tv.tv_sec = kAgentIoTimeoutSec;
+   tv.tv_usec = 0;
+   (void)setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+   (void)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
    struct sockaddr_un addr;
    memset(&addr, 0, sizeof(addr));
    addr.sun_family = AF_UNIX;
@@ -713,9 +845,16 @@ bool makePkeyFromSshBlob(const std::string &alg, const std::string &blob, EvpPke
          std::string nBin, eBin;
          if (!extractRsaNEFromSshBlob(blob, nBin, eBin)) return false;
          pk = makeRSAPublicKeyFromNE(nBin, eBin);
-         return static_cast<bool>(pk);
+         if (!pk) return false;
+         if (EVP_PKEY_bits(pk.get()) < kMinRsaBits) {pk.reset(); return false;}
+         return true;
       }
    return false;
+}
+
+bool rsaKeySizeOk(EVP_PKEY *pk)
+{
+   return pk && EVP_PKEY_base_id(pk) == EVP_PKEY_RSA && EVP_PKEY_bits(pk) >= kMinRsaBits;
 }
 
 void clearTrustedMap(std::unordered_map<std::string, TrustedKey> &m)
@@ -933,12 +1072,14 @@ bool safeReadFile(const char *path, SafeFileResult &result, std::string &emsg)
    return true;
 }
 
-// Caller must hold PrincipalMapMu.
-bool loadPrincipalMapLocked(const SafeFileResult &sfr, std::string &emsg)
+// Parses principal-map contents into newMap. Performs user resolution (NSS)
+// and therefore must be called without holding PrincipalMapMu.
+bool parsePrincipalMap(const std::string &contents,
+                       std::unordered_map<std::string, std::string> &newMap,
+                       std::string &emsg)
 {
-   if (PrincipalMapFile.empty()) return true;
-   std::istringstream in(sfr.contents);
-   std::unordered_map<std::string, std::string> newMap;
+   newMap.clear();
+   std::istringstream in(contents);
    std::string line;
    int lineNo = 0;
    while (std::getline(in, line))
@@ -973,94 +1114,270 @@ bool loadPrincipalMapLocked(const SafeFileResult &sfr, std::string &emsg)
                     + std::to_string(lineNo);
              return false;
             }
+         if (newMap.count(principal))
+            warnLog("Init", "principal-map-file: duplicate principal '" + std::string(principal)
+                            + "' at line " + std::to_string(lineNo) + " overrides earlier entry");
          newMap[principal] = resolved;
       }
+   return true;
+}
+
+// Installs freshly parsed principal-map data. Caller must hold PrincipalMapMu.
+void installPrincipalMapLocked(std::unordered_map<std::string, std::string> &newMap,
+                               const SafeFileResult &sfr)
+{
    PrincipalMap.swap(newMap);
-   PrincipalMapIno = sfr.ino;
-   PrincipalMapMTime = sfr.mtime;
-   PrincipalMapStatValid = true;
+   PrincipalMapState.ino = sfr.ino;
+   PrincipalMapState.mtime = sfr.mtime;
+   PrincipalMapState.statValid = true;
    debugLog("Init", std::string("loaded principal map entries=")
                     + std::to_string(PrincipalMap.size()));
-   return true;
 }
 
 bool loadPrincipalMap(const SafeFileResult &sfr, std::string &emsg)
 {
+   if (PrincipalMapFile.empty()) return true;
+   std::unordered_map<std::string, std::string> newMap;
+   if (!parsePrincipalMap(sfr.contents, newMap, emsg)) return false;
    std::lock_guard<std::mutex> lock(PrincipalMapMu);
-   return loadPrincipalMapLocked(sfr, emsg);
+   installPrincipalMapLocked(newMap, sfr);
+   return true;
 }
 
-bool ensurePrincipalMapFresh(std::string &emsg)
+// Parses a revocation file. Accepted line forms (comments with '#'):
+//   <alg> <base64-blob> [comment]      revoke this public key (raw or as cert subject)
+//   sha256:<fp> | SHA256:<fp>          revoke by key/cert fingerprint
+//   serial:<n>                          revoke certificate serial number
+//   id:<key-id>                         revoke certificate key id
+bool parseRevocationList(const std::string &contents, RevocationList &out, std::string &emsg)
 {
-   if (PrincipalMapFile.empty()) return true;
+   out = RevocationList();
+   std::istringstream in(contents);
+   std::string line;
+   int lineNo = 0;
+   while (std::getline(in, line))
+      {
+         lineNo++;
+         std::string t = trim(line);
+         if (t.empty() || t[0] == '#') continue;
+         if (t.size() > kMaxKeysFileLineLen)
+            {emsg = "revoked-keys-file line too long at line " + std::to_string(lineNo);
+             return false;
+            }
+         std::vector<char> lineBuf(t.begin(), t.end());
+         lineBuf.push_back('\0');
+         XrdOucTokenizer tok(lineBuf.data());
+         tok.GetLine();
+         char *a = tok.GetToken();
+         char *b = tok.GetToken();
+         if (!a) continue;
+         std::string tag(a);
+         std::string lower;
+         for (char c : tag) lower.push_back(static_cast<char>(tolower(static_cast<unsigned char>(c))));
+         auto valueAfterColon = [&](const std::string &pfx, std::string &val) -> bool
+            {
+               if (lower.compare(0, pfx.size(), pfx) != 0) return false;
+               val = tag.substr(pfx.size());
+               if (val.empty() && b) val = b;   // "serial: 123" form
+               return true;
+            };
+         std::string val;
+         if (valueAfterColon("serial:", val))
+            {
+               if (val.empty() || !std::all_of(val.begin(), val.end(),
+                                               [](char c){return isdigit(static_cast<unsigned char>(c));}))
+                  {emsg = "invalid serial in revoked-keys-file at line " + std::to_string(lineNo);
+                   return false;
+                  }
+               out.serials[strtoull(val.c_str(), nullptr, 10)] = true;
+               continue;
+            }
+         if (valueAfterColon("id:", val))
+            {
+               if (val.empty())
+                  {emsg = "empty key id in revoked-keys-file at line " + std::to_string(lineNo);
+                   return false;
+                  }
+               out.keyIds[val] = true;
+               continue;
+            }
+         if (valueAfterColon("sha256:", val))
+            {
+               if (val.empty())
+                  {emsg = "empty fingerprint in revoked-keys-file at line " + std::to_string(lineNo);
+                   return false;
+                  }
+               while (!val.empty() && val.back() == '=') val.pop_back();
+               out.keyFps["SHA256:" + val] = true;
+               continue;
+            }
+         if (hasPrefix(a, "ssh-") || hasPrefix(a, "ecdsa-") || hasPrefix(a, "sk-"))
+            {
+               if (!b)
+                  {emsg = "missing key material in revoked-keys-file at line " + std::to_string(lineNo);
+                   return false;
+                  }
+               std::string blob, fp;
+               if (!b64Decode(b, blob) || !sha256Base64(blob, fp))
+                  {emsg = "invalid key material in revoked-keys-file at line " + std::to_string(lineNo);
+                   return false;
+                  }
+               out.keyFps[fp] = true;
+               continue;
+            }
+         emsg = "unrecognised revoked-keys-file entry at line " + std::to_string(lineNo);
+         return false;
+      }
+   return true;
+}
+
+bool loadRevocationList(const SafeFileResult &sfr, std::string &emsg)
+{
+   if (RevokedKeysFile.empty()) return true;
+   RevocationList rl;
+   if (!parseRevocationList(sfr.contents, rl, emsg)) return false;
+   std::lock_guard<std::mutex> lock(RevokedMu);
+   Revoked = rl;
+   RevokedState.ino = sfr.ino;
+   RevokedState.mtime = sfr.mtime;
+   RevokedState.statValid = true;
+   debugLog("Init", std::string("loaded revocation entries keys=")
+                    + std::to_string(rl.keyFps.size()) + " serials="
+                    + std::to_string(rl.serials.size()) + " ids="
+                    + std::to_string(rl.keyIds.size()));
+   return true;
+}
+
+// Generic hot-reload driver: stat-only probe first, full read+parse only when
+// the inode or mtime changed. `loader` must do its own locking.
+bool ensureHotFileFresh(const std::string &path, const char *what,
+                        std::mutex &mu, HotFileState &state,
+                        bool (*loader)(const SafeFileResult &, std::string &),
+                        std::string &emsg)
+{
+   if (path.empty()) return true;
 
    ino_t curIno = 0;
    time_t curMtime = 0;
    bool curFound = false;
-   if (!statTrustedFileMeta(PrincipalMapFile.c_str(), curIno, curMtime, curFound, emsg))
+   if (!statTrustedFileMeta(path.c_str(), curIno, curMtime, curFound, emsg))
       return false;
    if (!curFound)
-      {emsg = std::string("principal-map-file disappeared: ") + PrincipalMapFile;
+      {emsg = std::string(what) + " disappeared: " + path;
        return false;
       }
 
    {
-      std::lock_guard<std::mutex> lock(PrincipalMapMu);
-      if (PrincipalMapStatValid && curIno == PrincipalMapIno && curMtime == PrincipalMapMTime)
+      std::lock_guard<std::mutex> lock(mu);
+      if (state.statValid && curIno == state.ino && curMtime == state.mtime)
          return true;
    }
 
    SafeFileResult sfr;
-   if (!safeReadFile(PrincipalMapFile.c_str(), sfr, emsg)) return false;
+   if (!safeReadFile(path.c_str(), sfr, emsg)) return false;
    if (!sfr.found)
-      {emsg = std::string("principal-map-file disappeared: ") + PrincipalMapFile;
+      {emsg = std::string(what) + " disappeared: " + path;
        return false;
       }
-
-   std::lock_guard<std::mutex> lock(PrincipalMapMu);
-   if (PrincipalMapStatValid && sfr.ino == PrincipalMapIno && sfr.mtime == PrincipalMapMTime)
-      return true;
-   if (!loadPrincipalMapLocked(sfr, emsg)) return false;
-   debugLog("Auth", std::string("reloaded principal map file='") + PrincipalMapFile + "'");
+   {
+      std::lock_guard<std::mutex> lock(mu);
+      if (state.statValid && sfr.ino == state.ino && sfr.mtime == state.mtime)
+         return true;
+   }
+   if (!loader(sfr, emsg)) return false;
+   debugLog("Auth", std::string("reloaded ") + what + " file='" + path + "'");
    return true;
 }
 
+bool ensurePrincipalMapFresh(std::string &emsg)
+{
+   return ensureHotFileFresh(PrincipalMapFile, "principal-map-file",
+                             PrincipalMapMu, PrincipalMapState, loadPrincipalMap, emsg);
+}
+
+bool ensureRevocationFresh(std::string &emsg)
+{
+   return ensureHotFileFresh(RevokedKeysFile, "revoked-keys-file",
+                             RevokedMu, RevokedState, loadRevocationList, emsg);
+}
+
+bool principalMappingEnabled()
+{
+   if (PrincipalAsUser) return true;
+   std::lock_guard<std::mutex> lock(PrincipalMapMu);
+   return !PrincipalMap.empty();
+}
+
+// Revocation check for a raw key or a certificate. Any of: subject/raw key
+// fingerprint, certificate fingerprint, serial or key id.
+bool isRevoked(const std::string &keyFp, const std::string &certFp,
+               bool isCert, uint64_t serial, const std::string &keyId,
+               std::string &why)
+{
+   std::lock_guard<std::mutex> lock(RevokedMu);
+   if (Revoked.empty()) return false;
+   if (!keyFp.empty() && Revoked.keyFps.count(keyFp))
+      {why = "key is revoked"; return true;}
+   if (isCert)
+      {
+         if (!certFp.empty() && Revoked.keyFps.count(certFp))
+            {why = "certificate is revoked"; return true;}
+         if (Revoked.serials.count(serial))
+            {why = "certificate serial is revoked"; return true;}
+         if (!keyId.empty() && Revoked.keyIds.count(keyId))
+            {why = "certificate key id is revoked"; return true;}
+      }
+   return false;
+}
+
+// Maps certificate principals to a local user. When the client requested a
+// specific user, a principal that maps to that user is preferred over the
+// first mappable principal (OpenSSH semantics: any listed principal is valid).
+// NSS lookups happen outside PrincipalMapMu.
 bool mapPrincipalsToUser(const std::vector<std::string> &principals,
+                         const std::string &reqUser,
                          std::string &mappedUser,
                          std::string &mapMethod,
                          std::string &emsg)
 {
    mappedUser.clear();
    mapMethod.clear();
-   std::lock_guard<std::mutex> lock(PrincipalMapMu);
    if (principals.empty())
       {emsg = "SSH certificate principals are required for principal mapping";
        return false;
       }
-   if (PrincipalAsUser)
+
+   // Snapshot the file-map targets for all principals under the lock.
+   std::vector<std::string> fileTargets(principals.size());
+   {
+      std::lock_guard<std::mutex> lock(PrincipalMapMu);
+      for (size_t i = 0; i < principals.size(); ++i)
+         {
+            auto it = PrincipalMap.find(principals[i]);
+            if (it != PrincipalMap.end() && isValidMappedUsername(it->second))
+               fileTargets[i] = it->second;
+         }
+   }
+
+   std::string firstUser, firstMethod;
+   for (size_t i = 0; i < principals.size(); ++i)
       {
-         for (const auto &p : principals)
+         std::string cand, method;
+         if (PrincipalAsUser)
             {
                std::string resolved;
-               if (!resolveLocalUser(p, resolved)) continue;
-               if (!isValidMappedUsername(resolved)) continue;
-               mappedUser = resolved;
-               mapMethod = "principal-as-user";
-               return true;
+               if (resolveLocalUser(principals[i], resolved) && isValidMappedUsername(resolved))
+                  {cand = resolved; method = "principal-as-user";}
             }
+         if (cand.empty() && !fileTargets[i].empty())
+            {cand = fileTargets[i]; method = "principal-map-file";}
+         if (cand.empty()) continue;
+         if (!reqUser.empty() && cand == reqUser)
+            {mappedUser = cand; mapMethod = method; return true;}
+         if (firstUser.empty()) {firstUser = cand; firstMethod = method;}
       }
-   if (!PrincipalMap.empty())
-      {
-         for (const auto &p : principals)
-            {
-               auto it = PrincipalMap.find(p);
-               if (it == PrincipalMap.end()) continue;
-               if (!isValidMappedUsername(it->second)) continue;
-               mappedUser = it->second;
-               mapMethod = "principal-map-file";
-               return true;
-            }
-      }
+   if (!firstUser.empty())
+      {mappedUser = firstUser; mapMethod = firstMethod; return true;}
    emsg = "No principal could be mapped to a valid local user";
    return false;
 }
@@ -1152,16 +1469,40 @@ bool loadTrustedKeyFile(const std::string &path,
                }
           }
 
-       if (alg != "ssh-ed25519" && alg != "ssh-rsa") continue;
-       if (keyb64.size() > kMaxKeysFileB64Len) continue;
+       const std::string where = path + ":" + std::to_string(lineNo);
+       if (alg != "ssh-ed25519" && alg != "ssh-rsa")
+          {warnLog("Init", "skipping " + where + ": unsupported key type '" + alg + "'");
+           continue;
+          }
+       if (keyb64.size() > kMaxKeysFileB64Len)
+          {warnLog("Init", "skipping " + where + ": key material too long");
+           continue;
+          }
 
        std::string blob;
-       if (!b64Decode(keyb64, blob)) continue;
+       if (!b64Decode(keyb64, blob))
+          {warnLog("Init", "skipping " + where + ": invalid base64 key material");
+           continue;
+          }
        EvpPkeyPtr pk;
-       if (!makePkeyFromSshBlob(alg, blob, pk) || !pk) continue;
+       if (!makePkeyFromSshBlob(alg, blob, pk) || !pk)
+          {warnLog("Init", "skipping " + where + ": malformed " + alg
+                           + " key blob (or RSA modulus below "
+                           + std::to_string(kMinRsaBits) + " bits)");
+           continue;
+          }
 
        std::string fp;
-       if (!sha256Base64(blob, fp)) continue;
+       if (!sha256Base64(blob, fp))
+          {warnLog("Init", "skipping " + where + ": unable to fingerprint key");
+           continue;
+          }
+       auto dup = outMap.find(fp);
+       if (dup != outMap.end())
+          warnLog("Init", where + ": duplicate key fp=" + redactFp(fp)
+                          + (requireUser ? (" (user '" + dup->second.user
+                                            + "' -> '" + user + "')") : std::string())
+                          + " overrides earlier entry");
 
        TrustedKey k;
        k.user = user;
@@ -1234,13 +1575,20 @@ bool loadTrustedCAKeys(std::string &emsg)
    return true;
 }
 
+struct CertInfo
+{
+   uint64_t    serial = 0;
+   std::string keyId;
+};
+
 bool validateUserCert(const std::string &certBlob,
                       const std::string &reqUser,
                       std::string &mappedUser,
                       std::string &verifyAlg,
                       std::string &verifyBlob,
                       std::string &fp,
-                      std::string &emsg)
+                      std::string &emsg,
+                      CertInfo *info = nullptr)
 {
    mappedUser.clear();
    verifyAlg.clear();
@@ -1350,12 +1698,20 @@ bool validateUserCert(const std::string &certBlob,
        return false;
       }
 
+   if (info) {info->serial = serial; info->keyId = keyId;}
+
+   const bool mappingEnabled = principalMappingEnabled();
+   if (principals.empty() && !mappingEnabled && !AllowEmptyPrincipals)
+      {emsg = "SSH certificate has no principals (rejected; see -allow-empty-principals)";
+       return false;
+      }
+
    if (reqUser.empty())
       {
-         if (PrincipalAsUser || !PrincipalMap.empty())
+         if (mappingEnabled)
             {
                std::string ignoredMethod;
-               if (!mapPrincipalsToUser(principals, mappedUser, ignoredMethod, emsg)) return false;
+               if (!mapPrincipalsToUser(principals, "", mappedUser, ignoredMethod, emsg)) return false;
             }
          else
             {
@@ -1368,10 +1724,10 @@ bool validateUserCert(const std::string &certBlob,
       }
    else
       {
-         if (PrincipalAsUser || !PrincipalMap.empty())
+         if (mappingEnabled)
             {
                std::string ignoredMethod;
-               if (!mapPrincipalsToUser(principals, mappedUser, ignoredMethod, emsg)) return false;
+               if (!mapPrincipalsToUser(principals, reqUser, mappedUser, ignoredMethod, emsg)) return false;
                if (mappedUser != reqUser)
                   {emsg = "Requested user does not match mapped principal user";
                    return false;
@@ -1406,8 +1762,11 @@ bool validateUserCert(const std::string &certBlob,
       }
    if (caIt->second.alg == "ssh-rsa")
       {
-         if (sigAlg != "ssh-rsa" && sigAlg != "rsa-sha2-256")
-            {emsg = "Unsupported RSA CA signature algorithm in certificate: " + sigAlg;
+         // Only SHA-256 RSA signatures are verified; the legacy SHA-1 "ssh-rsa"
+         // label is rejected outright rather than silently failing verification.
+         if (sigAlg != "rsa-sha2-256")
+            {emsg = "Unsupported RSA CA signature algorithm in certificate: " + sigAlg
+                  + " (rsa-sha2-256 required)";
              return false;
             }
       }
@@ -1504,13 +1863,171 @@ bool verifyData(EVP_PKEY *pub, const std::string &msg, const std::string &sig)
    return ok;
 }
 
-std::string challengePayload(const std::string &nonce, const std::string &fp)
+// Signed payload. Length-prefixed fields avoid delimiter ambiguity. `host` is
+// the (normalised) hostname the client connected to; the server only accepts
+// names it is known under, so a signature obtained by a rogue server cannot be
+// relayed to another server.
+std::string challengePayload(const std::string &nonce, const std::string &fp,
+                             const std::string &host)
 {
-   std::string p("xrdsec-ssh-v1|");
-   p += nonce;
-   p += "|";
-   p += fp;
+   std::string p("xrdsec-ssh-v2");
+   appendSshString(p, host);
+   appendSshString(p, nonce);
+   appendSshString(p, fp);
    return p;
+}
+
+/******************************************************************************/
+/*      O p e n S S H   p r i v a t e   k e y   f o r m a t   ( c l i e n t ) */
+/******************************************************************************/
+
+// Decodes an unencrypted "-----BEGIN OPENSSH PRIVATE KEY-----" file as written
+// by ssh-keygen. Encrypted keys are refused with a pointer to ssh-agent.
+bool parseOpenSshPrivateKey(const std::string &text, EvpPkeyPtr &out, std::string &emsg)
+{
+   out.reset();
+   static const char kBegin[] = "-----BEGIN OPENSSH PRIVATE KEY-----";
+   static const char kEnd[]   = "-----END OPENSSH PRIVATE KEY-----";
+   size_t b = text.find(kBegin);
+   if (b == std::string::npos) {emsg = "not an OpenSSH private key"; return false;}
+   b += sizeof(kBegin) - 1;
+   size_t e = text.find(kEnd, b);
+   if (e == std::string::npos) {emsg = "truncated OpenSSH private key"; return false;}
+   std::string b64;
+   for (size_t i = b; i < e; ++i)
+      {
+         unsigned char c = static_cast<unsigned char>(text[i]);
+         if (!isspace(c)) b64.push_back(static_cast<char>(c));
+      }
+   std::string bin;
+   if (!b64Decode(b64, bin)) {emsg = "invalid base64 in OpenSSH private key"; return false;}
+
+   static const char kMagic[] = "openssh-key-v1";
+   if (bin.size() < sizeof(kMagic) || memcmp(bin.data(), kMagic, sizeof(kMagic)) != 0)
+      {emsg = "bad OpenSSH private key magic"; return false;}
+   size_t at = sizeof(kMagic);
+   std::string cipher, kdf, kdfOpts, pubBlob, privBlob;
+   uint32_t nKeys = 0;
+   if (!readBlob(bin, at, cipher) || !readBlob(bin, at, kdf) || !readBlob(bin, at, kdfOpts)
+   ||  !readU32BE(bin, at, nKeys))
+      {emsg = "malformed OpenSSH private key header"; return false;}
+   if (cipher != "none" || kdf != "none")
+      {emsg = "encrypted OpenSSH private keys are not supported; decrypt it or use ssh-agent";
+       return false;
+      }
+   if (nKeys != 1) {emsg = "OpenSSH private key must contain exactly one key"; return false;}
+   if (!readBlob(bin, at, pubBlob) || !readBlob(bin, at, privBlob))
+      {emsg = "malformed OpenSSH private key body"; return false;}
+
+   size_t pat = 0;
+   uint32_t check1 = 0, check2 = 0;
+   std::string alg;
+   if (!readU32BE(privBlob, pat, check1) || !readU32BE(privBlob, pat, check2) || check1 != check2
+   ||  !readBlob(privBlob, pat, alg))
+      {emsg = "malformed OpenSSH private key section"; return false;}
+
+   if (alg == "ssh-ed25519")
+      {
+         std::string pub, priv;
+         if (!readBlob(privBlob, pat, pub) || !readBlob(privBlob, pat, priv)
+         ||  pub.size() != 32 || priv.size() != 64 || priv.compare(32, 32, pub) != 0)
+            {emsg = "malformed OpenSSH ed25519 private key"; return false;}
+         out.reset(EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr,
+                   reinterpret_cast<const unsigned char *>(priv.data()), 32));
+         if (!out) {emsg = "unable to import ed25519 private key"; return false;}
+         return true;
+      }
+   if (alg == "ssh-rsa")
+      {
+         std::string n, e, d, iqmp, p, q;
+         if (!readBlob(privBlob, pat, n) || !readBlob(privBlob, pat, e) || !readBlob(privBlob, pat, d)
+         ||  !readBlob(privBlob, pat, iqmp) || !readBlob(privBlob, pat, p) || !readBlob(privBlob, pat, q))
+            {emsg = "malformed OpenSSH rsa private key"; return false;}
+         auto toBn = [](const std::string &s) -> BignumPtr
+            {return BignumPtr(BN_bin2bn(reinterpret_cast<const unsigned char *>(s.data()),
+                                        static_cast<int>(s.size()), nullptr));};
+         BignumPtr bnN = toBn(n), bnE = toBn(e), bnD = toBn(d), bnIqmp = toBn(iqmp),
+                   bnP = toBn(p), bnQ = toBn(q);
+         if (!bnN || !bnE || !bnD || !bnIqmp || !bnP || !bnQ)
+            {emsg = "unable to import rsa private key"; return false;}
+         // CRT exponents are not stored by OpenSSH; derive them.
+         BignumPtr dmp1(BN_new()), dmq1(BN_new()), tmp(BN_new());
+         std::unique_ptr<BN_CTX, void(*)(BN_CTX*)> ctx(BN_CTX_new(), BN_CTX_free);
+         if (!dmp1 || !dmq1 || !tmp || !ctx
+         ||  !BN_sub(tmp.get(), bnP.get(), BN_value_one()) || !BN_mod(dmp1.get(), bnD.get(), tmp.get(), ctx.get())
+         ||  !BN_sub(tmp.get(), bnQ.get(), BN_value_one()) || !BN_mod(dmq1.get(), bnD.get(), tmp.get(), ctx.get()))
+            {emsg = "unable to derive rsa CRT parameters"; return false;}
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+         EvpPkeyCtxPtr pctx(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr));
+         OsslParamBldPtr bld(OSSL_PARAM_BLD_new());
+         if (!pctx || !bld
+         ||  OSSL_PARAM_BLD_push_BN(bld.get(), "n", bnN.get()) <= 0
+         ||  OSSL_PARAM_BLD_push_BN(bld.get(), "e", bnE.get()) <= 0
+         ||  OSSL_PARAM_BLD_push_BN(bld.get(), "d", bnD.get()) <= 0
+         ||  OSSL_PARAM_BLD_push_BN(bld.get(), "rsa-factor1", bnP.get()) <= 0
+         ||  OSSL_PARAM_BLD_push_BN(bld.get(), "rsa-factor2", bnQ.get()) <= 0
+         ||  OSSL_PARAM_BLD_push_BN(bld.get(), "rsa-exponent1", dmp1.get()) <= 0
+         ||  OSSL_PARAM_BLD_push_BN(bld.get(), "rsa-exponent2", dmq1.get()) <= 0
+         ||  OSSL_PARAM_BLD_push_BN(bld.get(), "rsa-coefficient1", bnIqmp.get()) <= 0)
+            {emsg = "unable to build rsa key parameters"; return false;}
+         OsslParamPtr params(OSSL_PARAM_BLD_to_param(bld.get()));
+         EVP_PKEY *raw = nullptr;
+         if (!params || EVP_PKEY_fromdata_init(pctx.get()) <= 0
+         ||  EVP_PKEY_fromdata(pctx.get(), &raw, EVP_PKEY_KEYPAIR, params.get()) <= 0)
+            {emsg = "unable to import rsa private key"; return false;}
+         out.reset(raw);
+#else
+         RsaPtr rsa(RSA_new());
+         if (!rsa
+         ||  RSA_set0_key(rsa.get(), bnN.get(), bnE.get(), bnD.get()) != 1)
+            {emsg = "unable to import rsa private key"; return false;}
+         bnN.release(); bnE.release(); bnD.release();
+         if (RSA_set0_factors(rsa.get(), bnP.get(), bnQ.get()) != 1)
+            {emsg = "unable to import rsa private key"; return false;}
+         bnP.release(); bnQ.release();
+         if (RSA_set0_crt_params(rsa.get(), dmp1.get(), dmq1.get(), bnIqmp.get()) != 1)
+            {emsg = "unable to import rsa private key"; return false;}
+         dmp1.release(); dmq1.release(); bnIqmp.release();
+         EvpPkeyPtr pkey(EVP_PKEY_new());
+         if (!pkey || EVP_PKEY_assign_RSA(pkey.get(), rsa.get()) != 1)
+            {emsg = "unable to import rsa private key"; return false;}
+         rsa.release();
+         out = std::move(pkey);
+#endif
+         return true;
+      }
+   emsg = "unsupported OpenSSH private key type '" + alg + "' (supported: ssh-ed25519, ssh-rsa)";
+   return false;
+}
+
+// Loads a client private key from an already-validated descriptor. Accepts
+// PEM/PKCS#8 (via OpenSSL) and the OpenSSH native format.
+bool readClientPrivateKey(int fd, EvpPkeyPtr &out, std::string &emsg)
+{
+   out.reset();
+   std::string contents;
+   char buf[4096];
+   for (;;)
+      {
+         ssize_t n = read(fd, buf, sizeof(buf));
+         if (n < 0) {if (errno == EINTR) continue; emsg = "read error on private key"; return false;}
+         if (n == 0) break;
+         contents.append(buf, static_cast<size_t>(n));
+         if (contents.size() > 1024 * 1024) {emsg = "private key file too large"; return false;}
+      }
+   if (contents.find("-----BEGIN OPENSSH PRIVATE KEY-----") != std::string::npos)
+      return parseOpenSshPrivateKey(contents, out, emsg);
+   BioPtr bio(BIO_new_mem_buf(contents.data(), static_cast<int>(contents.size())));
+   if (!bio) {emsg = "out of memory"; return false;}
+   ERR_clear_error();
+   // Never prompt on the terminal for a passphrase; encrypted keys are refused.
+   auto noPassword = [](char *, int, int, void *) -> int {return 0;};
+   out.reset(PEM_read_bio_PrivateKey(bio.get(), nullptr, noPassword, nullptr));
+   if (!out)
+      {emsg = "unable to parse private key; use an unencrypted PEM/PKCS8 or OpenSSH ed25519/rsa key";
+       return false;
+      }
+   return true;
 }
 }
 
@@ -1522,7 +2039,10 @@ public:
    XrdSecCredentials *getCredentials(XrdSecParameters *parms, XrdOucErrInfo *einfo=0);
    bool needTLS() {return true;}
 
-   XrdSecProtocolssh(const char *parms, XrdOucErrInfo *erp, bool &aOK);
+   // Client-side constructor: `hname` is the host the client connected to and
+   // is bound into the signed challenge response.
+   XrdSecProtocolssh(const char *hname, const char *parms, XrdOucErrInfo *erp, bool &aOK);
+   // Server-side constructor.
    XrdSecProtocolssh(const char *hname, XrdNetAddrInfo &endPoint)
       : XrdSecProtocol("ssh"), maxCredSize(MaxCredSize)
    {
@@ -1537,7 +2057,7 @@ public:
       if (Entity.creds) free(Entity.creds);
    }
 
-   static const int sshVersion = 0;
+   static const int sshVersion = kProtoVersion;
 
 private:
    XrdSecCredentials *makeInitCred(XrdOucErrInfo *erp);
@@ -1546,10 +2066,16 @@ private:
    bool loadClientKeyFromFile(const char *kPath, XrdOucErrInfo *erp);
    bool loadClientKeyFromAgent(const char *sockPath, XrdOucErrInfo *erp);
    bool signWithAgent(const std::string &msg, std::string &sigOut, XrdOucErrInfo *erp);
+   int  rejectAuth(XrdOucErrInfo *erp, const std::string &detail, const char *clientMsg,
+                   int rc = EAUTH);
 
    int      maxCredSize = 0;
+   // server side
+   std::unique_ptr<PendingChallenge> pending;
+   // client side
    EvpPkeyPtr privKey;
    bool useAgent = false;
+   std::string targetHost;
    std::string clientUser;
    std::string clientSshBlob;
    std::string clientFingerprint;
@@ -1557,10 +2083,29 @@ private:
    std::string agentSock;
 };
 
-XrdSecProtocolssh::XrdSecProtocolssh(const char *parms, XrdOucErrInfo *erp, bool &aOK)
+// Logs the detailed reason server-side and returns the (possibly generic)
+// message to the client.
+int XrdSecProtocolssh::rejectAuth(XrdOucErrInfo *erp, const std::string &detail,
+                                  const char *clientMsg, int rc)
+{
+   warnLog("Auth", std::string(Entity.tident ? Entity.tident : "?") + " rejected: " + detail);
+   return FatalS(erp, clientMsg ? clientMsg : detail.c_str(), rc, false);
+}
+
+XrdSecProtocolssh::XrdSecProtocolssh(const char *hname, const char *parms,
+                                     XrdOucErrInfo *erp, bool &aOK)
    : XrdSecProtocol("ssh"), maxCredSize(0)
 {
    aOK = false;
+   if (!hname || !*hname)
+      {FatalC(erp, "Target host name not available for SSH challenge binding.", EINVAL);
+       return;
+      }
+   targetHost = normalizeHostname(hname);
+   if (targetHost.empty())
+      {FatalC(erp, "Target host name is not a valid hostname.", EINVAL);
+       return;
+      }
    if (!parms || !*parms)
       {FatalC(erp, "Client parameters not specified.", EINVAL);
        return;
@@ -1644,25 +2189,27 @@ bool XrdSecProtocolssh::ensureClientKeyLoaded(XrdOucErrInfo *erp)
 bool XrdSecProtocolssh::loadClientKeyFromFile(const char *kPath, XrdOucErrInfo *erp)
 {
    std::string statMsg;
-   if (!safeStatPrivateKeyFile(kPath, statMsg))
+   int fd = openCheckedPrivateKeyFile(kPath, statMsg);
+   if (fd < 0)
       {FatalC(erp, statMsg.c_str(), EACCES);
        return false;
       }
-   BioPtr bio(BIO_new_file(kPath, "r"));
-   if (!bio)
-      {FatalC(erp, "Unable to open private key file.", errno ? errno : EINVAL);
-       return false;
-      }
-   ERR_clear_error();
-   EvpPkeyPtr k(PEM_read_bio_PrivateKey(bio.get(), nullptr, nullptr, nullptr));
-   if (!k)
-      {FatalC(erp, "Unable to parse private key; use PEM/PKCS8 ed25519 or rsa key.", EINVAL);
+   EvpPkeyPtr k;
+   std::string keyMsg;
+   bool okRead = readClientPrivateKey(fd, k, keyMsg);
+   close(fd);
+   if (!okRead || !k)
+      {FatalC(erp, keyMsg.c_str(), EINVAL);
        return false;
       }
 
    std::string blob;
    std::string alg;
    int ktype = EVP_PKEY_base_id(k.get());
+   if (ktype == EVP_PKEY_RSA && !rsaKeySizeOk(k.get()))
+      {FatalC(erp, "RSA private key is too small (minimum 2048 bits).", EINVAL);
+       return false;
+      }
    if (ktype == EVP_PKEY_ED25519)
       {
          size_t pubLen = 32;
@@ -1838,11 +2385,11 @@ bool XrdSecProtocolssh::signWithAgent(const std::string &msg, std::string &sigOu
       }
    if (sigExpectAlg == "ssh-rsa")
       {
-         if (sigAlg != "ssh-rsa" && sigAlg != "rsa-sha2-256")
+         if (sigAlg != "rsa-sha2-256")
             {
                std::string emsg("ssh-agent returned unsupported RSA signature algorithm: ");
                emsg += sigAlg;
-               emsg += " (expected ssh-rsa or rsa-sha2-256)";
+               emsg += " (expected rsa-sha2-256)";
                FatalC(erp, emsg.c_str(), EPROTO);
                return false;
             }
@@ -1887,20 +2434,20 @@ XrdSecCredentials *XrdSecProtocolssh::makeResponseCred(XrdSecParameters *parms, 
    if (memcmp(h->id, "ssh", 4) != 0 || h->op != OpChallenge || h->ver != kProtoVersion)
       return FatalC(erp, "Invalid SSH challenge format.", EINVAL);
    p += sizeof(WireHdr);
-   uint32_t ts = 0;
    uint16_t nLen = 0, fLen = 0;
-   if (!readU32(p, e, ts) || !readU16(p, e, nLen) || !readU16(p, e, fLen))
+   if (!readU16(p, e, nLen) || !readU16(p, e, fLen))
       return FatalC(erp, "Malformed SSH challenge.", EINVAL);
-   if (nLen == 0 || fLen == 0 || (e - p) < (nLen + fLen))
+   if (nLen == 0 || fLen == 0 || (e - p) != (nLen + fLen))
       return FatalC(erp, "Malformed SSH challenge lengths.", EINVAL);
    std::string nonce(p, nLen);
    p += nLen;
    std::string fp(p, fLen);
-   (void)ts;
    if (fp != clientFingerprint)
       return FatalC(erp, "Server challenge key fingerprint mismatch.", EAUTH);
+   if (targetHost.empty())
+      return FatalC(erp, "Target host name not available for SSH challenge binding.", EINVAL);
 
-   std::string payload = challengePayload(nonce, fp);
+   std::string payload = challengePayload(nonce, fp, targetHost);
    std::string sig;
    bool okSign = useAgent ? signWithAgent(payload, sig, erp)
                           : signData(privKey.get(), payload, sig);
@@ -1915,7 +2462,9 @@ XrdSecCredentials *XrdSecProtocolssh::makeResponseCred(XrdSecParameters *parms, 
    rh.rsvd[0] = rh.rsvd[1] = 0;
    out.append(reinterpret_cast<const char *>(&rh), sizeof(rh));
    putU16(out, static_cast<uint16_t>(sig.size()));
+   putU16(out, static_cast<uint16_t>(targetHost.size()));
    out.append(sig);
+   out.append(targetHost);
    if (static_cast<int>(out.size()) > maxCredSize)
       return FatalC(erp, "SSH response credential too large.", EMSGSIZE);
    XrdSecCredentials *ret = makeCredentialsFromString(out);
@@ -1945,10 +2494,13 @@ int XrdSecProtocolssh::Authenticate(XrdSecCredentials *cred, XrdSecParameters **
 
    if (h->op == OpInit)
       {
+         // A new init invalidates any challenge issued earlier on this connection.
+         pending.reset();
+
          uint16_t uLen = 0, bLen = 0;
          if (!readU16(p, e, uLen) || !readU16(p, e, bLen))
             return FatalS(erp, "Malformed SSH init request.", EINVAL, false);
-         if (uLen == 0 || bLen == 0 || (e - p) < (uLen + bLen))
+         if (uLen == 0 || bLen == 0 || (e - p) != (uLen + bLen))
             return FatalS(erp, "Malformed SSH init lengths.", EINVAL, false);
          std::string reqUser(p, uLen);
          p += uLen;
@@ -1962,6 +2514,7 @@ int XrdSecProtocolssh::Authenticate(XrdSecCredentials *cred, XrdSecParameters **
          std::string verifyAlg;
          std::string verifyBlob;
          std::string certBaseAlg;
+         CertInfo certInfo;
          if (isSshUserCertAlg(blobAlg, certBaseAlg))
             {
                (void)certBaseAlg;
@@ -1973,61 +2526,58 @@ int XrdSecProtocolssh::Authenticate(XrdSecCredentials *cred, XrdSecParameters **
                   return FatalS(erp, "Unable to fingerprint SSH key blob.", EINVAL, false);
             }
 
-         {
-            std::lock_guard<std::mutex> lock(Gm);
+         std::string emsg;
+         if (!ensurePrincipalMapFresh(emsg) || !ensureRevocationFresh(emsg))
+            return rejectAuth(erp, emsg, "SSH server configuration error.");
+
+         if (isCert)
             {
-               time_t gcNow = time(0);
-               for (auto it = PendingByTid.begin(); it != PendingByTid.end(); )
+               if (!validateUserCert(blob, reqUser, mappedUser, verifyAlg, verifyBlob, fp,
+                                     emsg, &certInfo))
                   {
-                     if (it->second.expiresAt < gcNow)
-                        it = PendingByTid.erase(it);
-                     else
-                        ++it;
+                     // Do not disclose which CAs are trusted.
+                     const bool sensitive = emsg.find("signer is not trusted") != std::string::npos;
+                     return rejectAuth(erp, emsg, sensitive ? kGenericAuthFailure : emsg.c_str());
                   }
             }
-            if (isCert)
-               {
-                  std::string emsg;
-                  if (!ensurePrincipalMapFresh(emsg))
-                     {
-                        debugLog("Auth", std::string("reject ") + emsg);
-                        return FatalS(erp, emsg.c_str(), EAUTH, false);
-                     }
-                  if (!validateUserCert(blob, reqUser, mappedUser, verifyAlg, verifyBlob, fp, emsg))
-                     {
-                        debugLog("Auth", std::string("reject ") + emsg);
-                        return FatalS(erp, emsg.c_str(), EAUTH, false);
-                     }
-               }
-            else
-               {
-                  auto it = TrustedByFP.find(fp);
-                  if (it == TrustedByFP.end())
-                     {
-                        std::string m = "SSH public key not trusted (fp=" + fp + ")";
-                        debugLog("Auth", std::string("reject ") + m);
-                        return FatalS(erp, m.c_str(), EAUTH, false);
-                     }
-                  mappedUser = it->second.user;
-                  verifyBlob = it->second.sshBlob.empty() ? blob : it->second.sshBlob;
-                  verifyAlg = it->second.alg;
-                  if (verifyAlg.empty())
-                     {
-                        if (!getSshBlobAlg(verifyBlob, verifyAlg))
-                           return FatalS(erp, "Unable to determine SSH key algorithm.", EAUTH, false);
-                     }
-                  if (!reqUser.empty() && reqUser != mappedUser)
-                     {
-                        std::string m = "SSH username/key mapping mismatch"
-                                        " (requested='" + reqUser
-                                      + "', mapped='" + mappedUser + "')";
-                        debugLog("Auth", std::string("reject ") + m);
-                        return FatalS(erp, m.c_str(), EAUTH, false);
-                     }
-               }
+         else
+            {
+               auto it = TrustedByFP.find(fp);
+               if (it == TrustedByFP.end())
+                  return rejectAuth(erp, "SSH public key not trusted (fp=" + fp + ")",
+                                    kGenericAuthFailure);
+               mappedUser = it->second.user;
+               verifyBlob = it->second.sshBlob.empty() ? blob : it->second.sshBlob;
+               verifyAlg = it->second.alg;
+               if (verifyAlg.empty())
+                  {
+                     if (!getSshBlobAlg(verifyBlob, verifyAlg))
+                        return FatalS(erp, "Unable to determine SSH key algorithm.", EAUTH, false);
+                  }
+               if (!reqUser.empty() && reqUser != mappedUser)
+                  // Do not disclose the key -> account mapping.
+                  return rejectAuth(erp, "SSH username/key mapping mismatch (requested='"
+                                         + reqUser + "', mapped='" + mappedUser + "', fp="
+                                         + fp + ")", kGenericAuthFailure);
+            }
+
+         // Revocation applies to the raw key, the certificate subject key, the
+         // certificate itself, its serial and its key id.
+         {
+            std::string subjectFp;
+            if (isCert && !verifyBlob.empty()) sha256Base64(verifyBlob, subjectFp);
+            std::string why;
+            if (isRevoked(isCert ? subjectFp : fp, fp, isCert, certInfo.serial,
+                          certInfo.keyId, why))
+               return rejectAuth(erp, why + " (fp=" + fp + ")", "SSH key or certificate is revoked.");
          }
+
          if (!isValidMappedUsername(mappedUser))
-            return FatalS(erp, "Invalid mapped username for SSH authentication.", EAUTH, false);
+            return rejectAuth(erp, "invalid mapped username '" + mappedUser + "'",
+                              "Invalid mapped username for SSH authentication.");
+         if (isDeniedUser(mappedUser))
+            return rejectAuth(erp, "mapped user '" + mappedUser + "' is denied (-deny-users)",
+                              "Mapped user is not permitted to authenticate via SSH.");
 
          debugLog("Auth", std::string("init")
                         + " auth_mode='" + (isCert ? "ssh-cert" : "raw-key") + "'"
@@ -2038,26 +2588,13 @@ int XrdSecProtocolssh::Authenticate(XrdSecCredentials *cred, XrdSecParameters **
          if (RAND_bytes(reinterpret_cast<unsigned char *>(&nonce[0]), nonce.size()) != 1)
             return FatalS(erp, "Unable to generate SSH challenge nonce.", EIO, false);
 
-         if (!Entity.tident || !*Entity.tident)
-            return FatalS(erp, "Missing transport identity for SSH challenge state.",
-                          EAUTH, false);
-
-         PendingChallenge pc;
-         pc.nonce = nonce;
-         pc.fp = fp;
-         pc.user = mappedUser;
-         pc.verifyAlg = verifyAlg;
-         pc.verifyBlob = verifyBlob;
-         pc.expiresAt = time(0) + NonceTTL.load(std::memory_order_relaxed);
-
-         {
-            std::lock_guard<std::mutex> lock(Gm);
-            if (PendingByTid.size() >= kMaxPendingChallenges)
-               return FatalS(erp, "Too many pending SSH challenges.", EBUSY, false);
-            if (!PendingByTid.emplace(Entity.tident, pc).second)
-               return FatalS(erp, "SSH challenge already pending for this connection.",
-                             EBUSY, false);
-         }
+         auto pc = std::make_unique<PendingChallenge>();
+         pc->nonce = nonce;
+         pc->fp = fp;
+         pc->user = mappedUser;
+         pc->verifyAlg = verifyAlg;
+         pc->verifyBlob = verifyBlob;
+         pc->expiresAt = time(0) + NonceTTL.load(std::memory_order_relaxed);
 
          std::string out;
          WireHdr ch;
@@ -2066,68 +2603,61 @@ int XrdSecProtocolssh::Authenticate(XrdSecCredentials *cred, XrdSecParameters **
          ch.op = OpChallenge;
          ch.rsvd[0] = ch.rsvd[1] = 0;
          out.append(reinterpret_cast<const char *>(&ch), sizeof(ch));
-         putU32(out, static_cast<uint32_t>(time(0)));
          putU16(out, static_cast<uint16_t>(nonce.size()));
          putU16(out, static_cast<uint16_t>(fp.size()));
          out.append(nonce);
          out.append(fp);
          *parms = makeParametersFromString(out);
          if (!*parms) return FatalS(erp, "Insufficient memory.", ENOMEM, false);
+         pending = std::move(pc);
          return 1;
       }
    if (h->op == OpResponse)
       {
-         uint16_t sLen = 0;
-         if (!readU16(p, e, sLen))
+         uint16_t sLen = 0, hLen = 0;
+         if (!readU16(p, e, sLen) || !readU16(p, e, hLen))
             return FatalS(erp, "Malformed SSH response.", EINVAL, false);
-         if (sLen == 0 || (e - p) < sLen)
-            return FatalS(erp, "Malformed SSH signature length.", EINVAL, false);
+         if (sLen == 0 || hLen == 0 || (e - p) != (sLen + hLen))
+            return FatalS(erp, "Malformed SSH response lengths.", EINVAL, false);
          std::string sig(p, sLen);
+         p += sLen;
+         std::string host(p, hLen);
 
-         if (!Entity.tident || !*Entity.tident)
-            return FatalS(erp, "Missing transport identity for SSH challenge state.",
-                          EAUTH, false);
-         std::string tid = Entity.tident;
-         PendingChallenge pc;
+         // Single use: the challenge is consumed whatever the outcome.
+         std::unique_ptr<PendingChallenge> pc = std::move(pending);
+         if (!pc)
+            return FatalS(erp, "No pending SSH challenge.", EAUTH, false);
+         if (pc->expiresAt < time(0))
+            return FatalS(erp, "SSH challenge expired.", EAUTH, false);
+
+         std::string normHost = normalizeHostname(host);
+         if (normHost.empty() || normHost != host)
+            return rejectAuth(erp, "response carries malformed target host '" + host + "'",
+                              "Malformed SSH response host.");
+         if (!isAcceptedHost(normHost))
+            return rejectAuth(erp, "response bound to unknown target host '" + host
+                                   + "' (fp=" + pc->fp + "); add it with -hostnames if legitimate",
+                              "SSH challenge is bound to a different server.");
+
          EvpPkeyPtr verifyKey;
-         {
-            std::lock_guard<std::mutex> lock(Gm);
-            {
-               time_t gcNow = time(0);
-               for (auto it = PendingByTid.begin(); it != PendingByTid.end(); )
-                  {
-                     if (it->second.expiresAt < gcNow)
-                        it = PendingByTid.erase(it);
-                     else
-                        ++it;
-                  }
-            }
-            auto pit = PendingByTid.find(tid);
-            if (pit == PendingByTid.end())
-               return FatalS(erp, "No pending SSH challenge.", EAUTH, false);
-            if (pit->second.expiresAt < time(0))
-               {PendingByTid.erase(pit);
-                return FatalS(erp, "SSH challenge expired.", EAUTH, false);
-               }
-            pc = pit->second;
-            PendingByTid.erase(pit); // single-use
-         }
-         if (!makePkeyFromSshBlob(pc.verifyAlg, pc.verifyBlob, verifyKey) || !verifyKey)
+         if (!makePkeyFromSshBlob(pc->verifyAlg, pc->verifyBlob, verifyKey) || !verifyKey)
             return FatalS(erp, "Unable to reconstruct SSH verify key.", EAUTH, false);
 
-         std::string payload = challengePayload(pc.nonce, pc.fp);
-         bool okVerify = verifyData(verifyKey.get(), payload, sig);
-         if (!okVerify) return FatalS(erp, "SSH signature validation failed.", EAUTH, false);
+         std::string payload = challengePayload(pc->nonce, pc->fp, normHost);
+         if (!verifyData(verifyKey.get(), payload, sig))
+            return rejectAuth(erp, "signature validation failed (fp=" + pc->fp + ")",
+                              "SSH signature validation failed.");
 
-         if (!isValidMappedUsername(pc.user))
+         if (!isValidMappedUsername(pc->user) || isDeniedUser(pc->user))
             return FatalS(erp, "Invalid mapped username for SSH authentication.", EAUTH, false);
 
          if (Entity.name) free(Entity.name);
-         Entity.name = strdup(pc.user.c_str());
+         Entity.name = strdup(pc->user.c_str());
          strncpy(Entity.prot, "ssh", sizeof(Entity.prot));
          debugLog("Auth", std::string("success")
-                        + " key_alg='" + pc.verifyAlg + "'"
-                        + " fp='" + redactFp(pc.fp) + "'");
+                        + " key_alg='" + pc->verifyAlg + "'"
+                        + " fp='" + redactFp(pc->fp) + "'"
+                        + " host='" + normHost + "'");
          return 0;
       }
 
@@ -2145,6 +2675,7 @@ char *XrdSecProtocolsshInit(const char mode, const char *parms, XrdOucErrInfo *e
    if (dbg && *dbg && strcmp(dbg, "0") != 0) DebugSSH.store(true, std::memory_order_relaxed);
    if (mode == 'c') return &nilstr;
 
+   std::vector<std::string> extraHosts;
    if (parms && *parms)
       {
          std::vector<char> cfgBuf(parms, parms + strlen(parms) + 1);
@@ -2201,6 +2732,54 @@ char *XrdSecProtocolsshInit(const char mode, const char *parms, XrdOucErrInfo *e
                      {
                         DebugSSH.store(true, std::memory_order_relaxed);
                      }
+                  else if (!strcmp(val, "-revoked-keys-file"))
+                     {
+                        if (!(val = cfg.GetToken()))
+                           {FatalC(erp, "-revoked-keys-file argument missing", EINVAL); return 0;}
+                        RevokedKeysFile = val;
+                     }
+                  else if (!strcmp(val, "-allow-empty-principals"))
+                     {
+                        AllowEmptyPrincipals = true;
+                     }
+                  else if (!strcmp(val, "-deny-users"))
+                     {
+                        if (!(val = cfg.GetToken()))
+                           {FatalC(erp, "-deny-users argument missing", EINVAL); return 0;}
+                        DenyUsers.clear();
+                        if (strcmp(val, "none"))
+                           {
+                              std::string list(val), item;
+                              std::istringstream ls(list);
+                              while (std::getline(ls, item, ','))
+                                 {
+                                    item = trim(item);
+                                    if (item.empty()) continue;
+                                    if (!isValidMappedUsername(item))
+                                       {FatalC(erp, "-deny-users contains an invalid username", EINVAL);
+                                        return 0;
+                                       }
+                                    DenyUsers[item] = true;
+                                 }
+                           }
+                     }
+                  else if (!strcmp(val, "-hostnames"))
+                     {
+                        if (!(val = cfg.GetToken()))
+                           {FatalC(erp, "-hostnames argument missing", EINVAL); return 0;}
+                        std::string list(val), item;
+                        std::istringstream ls(list);
+                        while (std::getline(ls, item, ','))
+                           {
+                              item = trim(item);
+                              if (item.empty()) continue;
+                              if (normalizeHostname(item).empty())
+                                 {FatalC(erp, "-hostnames contains an invalid hostname", EINVAL);
+                                  return 0;
+                                 }
+                              extraHosts.push_back(item);
+                           }
+                     }
                   else {XrdOucString eTxt("Invalid parameter - "); eTxt += val;
                         FatalC(erp, eTxt.c_str(), EINVAL); return 0;
                        }
@@ -2211,7 +2790,11 @@ char *XrdSecProtocolsshInit(const char mode, const char *parms, XrdOucErrInfo *e
    {
       std::lock_guard<std::mutex> lock(Gm);
       clearTrusted();
-      PrincipalMap.clear();
+      {
+         std::lock_guard<std::mutex> pl(PrincipalMapMu);
+         PrincipalMap.clear();
+         PrincipalMapState = HotFileState();
+      }
       const bool allowEmptyKeysFile = !CAKeysFile.empty();
       if (!loadTrustedKeys(emsg, allowEmptyKeysFile))
          {FatalC(erp, emsg.c_str(), EINVAL);
@@ -2242,7 +2825,36 @@ char *XrdSecProtocolsshInit(const char mode, const char *parms, XrdOucErrInfo *e
                 return 0;
                }
          }
-      PendingByTid.clear();
+      {
+         std::lock_guard<std::mutex> rl(RevokedMu);
+         Revoked = RevocationList();
+         RevokedState = HotFileState();
+      }
+      if (!RevokedKeysFile.empty())
+         {
+            SafeFileResult rkSfr;
+            if (!safeReadFile(RevokedKeysFile.c_str(), rkSfr, emsg))
+               {FatalC(erp, emsg.c_str(), EACCES);
+                return 0;
+               }
+            if (!rkSfr.found)
+               {FatalC(erp, (std::string("revoked-keys-file not found: ") + RevokedKeysFile).c_str(), EACCES);
+                return 0;
+               }
+            if (!loadRevocationList(rkSfr, emsg))
+               {FatalC(erp, emsg.c_str(), EINVAL);
+                return 0;
+               }
+         }
+      AcceptedHosts.clear();
+      addDefaultAcceptedHosts();
+      for (const auto &hst : extraHosts) addAcceptedHost(hst);
+      if (DebugSSH.load(std::memory_order_relaxed))
+         {
+            std::string hl;
+            for (const auto &kv : AcceptedHosts) {if (!hl.empty()) hl += ","; hl += kv.first;}
+            debugLog("Init", "accepted target hostnames: " + hl);
+         }
    }
 
    char buff[256];
@@ -2268,7 +2880,7 @@ XrdSecProtocol *XrdSecProtocolsshObject(const char mode,
    if (mode == 'c')
       {
          bool aOK = false;
-         auto prot = std::make_unique<XrdSecProtocolssh>(parms, erp, aOK);
+         auto prot = std::make_unique<XrdSecProtocolssh>(hostname, parms, erp, aOK);
          if (aOK) return prot.release();
          return nullptr;
       }

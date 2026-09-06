@@ -15,8 +15,9 @@ for SSH-key-based authentication over TLS.
 - Two round-trips (four messages):
   1. client sends user + SSH key/certificate blob
   2. server sends nonce challenge
-  3. client signs challenge with private key
-  4. server verifies signature and maps to local username
+  3. client signs `nonce + key fingerprint + hostname it connected to`
+  4. server checks the hostname is one of its own, verifies the signature and
+     maps to a local username
 
 ## Server configuration
 
@@ -35,12 +36,31 @@ Certificate-only deployments may omit or leave `keys-file` empty when
 sec.protocol ssh \
   -keys-file /etc/xrootd/ssh_authorized_keys \
   -ca-keys-file /etc/xrootd/ssh_ca_keys \
+  -revoked-keys-file /etc/xrootd/ssh_revoked_keys \
   -principal-as-user \
   -principal-map \
+  -hostnames data1.example.org,storage.example.org \
+  -deny-users root,daemon \
   -maxsz 8192 \
   -nonce-ttl 30 \
   -debug
 ```
+
+All options:
+
+| option | default | meaning |
+|---|---|---|
+| `-keys-file <path>` | `/etc/xrootd/ssh_authorized_keys` | raw key -> user mapping (read at init) |
+| `-ca-keys-file <path>` | unset | trusted CA public keys for user certificates (read at init) |
+| `-revoked-keys-file <path>` | unset | revoked keys / certificates (hot-reloaded) |
+| `-principal-as-user` | off | map a certificate principal directly to a local account |
+| `-principal-map` / `-principal-map-file <path>` | unset | principal -> user map (hot-reloaded) |
+| `-allow-empty-principals` | off | accept certificates with an empty principals list for any user |
+| `-deny-users <a,b,...>` \| `none` | `root` | local accounts that may never be the result of a mapping |
+| `-hostnames <a,b,...>` | see below | additional names/IPs under which clients may address this server |
+| `-maxsz <bytes>` | `8192` | maximum credential size (`1`..`524288`) |
+| `-nonce-ttl <seconds>` | `30` | challenge lifetime (`1`..`600`) |
+| `-debug` | off | verbose logging |
 
 Certificate-only example (no raw keys):
 
@@ -62,8 +82,13 @@ at init time as long as the CA file loads successfully.
 - must not be group/other writable
 - must not exceed 10 MB
 
-The same security checks apply to `ca-keys-file` when configured.
-The same security checks apply to `principal-map-file` when configured.
+The same security checks apply to `ca-keys-file`, `revoked-keys-file` and
+`principal-map-file` when configured.
+
+Lines in `keys-file` / `ca-keys-file` that cannot be used (unsupported key
+type, bad base64, RSA modulus below 2048 bits) are skipped with a warning in the
+server log; a fingerprint that appears twice also logs a warning (the later
+mapping wins).
 
 > **Note:** the ownership check requires the file to be owned by the *effective*
 > uid the `xrootd` process runs as. A `root`-owned key file will be rejected when
@@ -71,8 +96,21 @@ The same security checks apply to `principal-map-file` when configured.
 > that account.
 
 `-keys-file` and `-ca-keys-file` are read once at plugin initialization, so a
-restart is required to pick up changes. Only the `principal-map-file` is
-hot-reloaded (see below).
+restart is required to pick up changes. `principal-map-file` and
+`revoked-keys-file` are hot-reloaded (see below).
+
+### Hostname binding
+
+The client signs the hostname it connected to (as given in the `root://` URL or
+redirect) and sends it with the response. The server accepts a response only if
+that name is one of its own: the canonical FQDN, the kernel hostname (long and
+short), `localhost`, `127.0.0.1`, `::1`, and anything listed in `-hostnames`.
+Names are compared case-insensitively without a trailing dot.
+
+If clients reach the server through an alias, a load-balancer name or an IP
+literal, list those with `-hostnames`; otherwise authentication fails with
+"SSH challenge is bound to a different server" and the server log shows the name
+the client used.
 
 Validated option ranges:
 
@@ -121,15 +159,15 @@ When a user certificate is presented, the server validates:
   i.e. the server fails closed on options such as `force-command` or
   `source-address` that it does not enforce)
 - principals contain requested user (if principals list is non-empty)
+- the certificate, its subject key, serial and key id are not revoked
+- RSA subject keys are at least 2048 bits; RSA CA signatures must be
+  `rsa-sha2-256` (the legacy SHA-1 `ssh-rsa` label is rejected)
 
-> **Security note:** following OpenSSH semantics, a certificate with an *empty*
-> principals list is treated as valid for any requested user when neither
-> `-principal-as-user` nor `-principal-map` is enabled. Because the CA is fully
-> trusted, only issue zero-principal user certificates if every holder is meant
-> to authenticate as an arbitrary account.
->
-> When `-principal-as-user` or `-principal-map` is enabled, an empty principals
-> list is rejected (mapping requires at least one principal to resolve).
+> **Empty principals:** OpenSSH treats a certificate with an *empty* principals
+> list as valid for any user. This plugin rejects such certificates by default.
+> Set `-allow-empty-principals` to restore the OpenSSH behaviour; even then the
+> `-deny-users` list (default `root`) still applies. When `-principal-as-user`
+> or `-principal-map` is enabled an empty principals list is always rejected.
 
 ### Principal mapping options (cert mode)
 
@@ -145,7 +183,9 @@ Server options:
   use a custom principal mapping file.
 
 If both direct and file mapping are enabled, direct principal->local-user
-mapping is tried first, then the map file.
+mapping is tried first, then the map file. When the client requested a specific
+user, a principal that maps to that user is preferred over the first mappable
+principal, so a certificate listing `alice` and `bob` can be used as either.
 
 Map file format:
 
@@ -160,6 +200,29 @@ The principal map file is monitored during authentication. On each auth the
 plugin first checks inode/mtime with a stat-only probe; the file is read and
 parsed only when it changed.
 
+### revoked-keys-file format (optional)
+
+Hot-reloaded like the principal map. One entry per line:
+
+```text
+# a public key (raw key, or certificate subject key)
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... alice@laptop
+# by fingerprint of a key or of a whole certificate
+SHA256:base64fingerprint
+# certificate serial number / key id
+serial: 42
+id: alice-2026-01
+```
+
+Binary OpenSSH KRL files are not supported; use `ssh-keygen -L` to obtain the
+serial and key id of a certificate to revoke.
+
+### deny-users
+
+`-deny-users` lists local accounts that may never be the result of any mapping
+(raw key, certificate principal, principal map). The default is `root`; pass
+`-deny-users none` to disable the list.
+
 ## Client configuration
 
 The client receives `TLS:<version>:<maxsz>:` from the server init token. The
@@ -171,10 +234,14 @@ credential size.
 > certificate, the client must use `ssh-agent` mode (the certificate identity is
 > selected from the agent).
 
-Default mode uses a private key file (PEM/PKCS8 format; supported key types: ed25519, rsa):
+Default mode uses a private key file. Both the OpenSSH native format written by
+`ssh-keygen` (`-----BEGIN OPENSSH PRIVATE KEY-----`) and PEM/PKCS8 are accepted
+for ed25519 and rsa keys; RSA keys must be at least 2048 bits. Passphrase
+protected keys are refused (the client never prompts) -- use `ssh-agent` for
+those.
 
 ```sh
-export XRD_SSH_KEY_FILE=/path/to/ed25519-private.pem
+export XRD_SSH_KEY_FILE=$HOME/.ssh/id_ed25519
 ```
 
 `XRD_SSH_PRIVATE_KEY_FILE` is accepted as an alias and is consulted when
@@ -240,10 +307,10 @@ uid, mode `0600`):
 alice ssh-ed25519 AAAA...
 ```
 
-Client access with a PEM private key:
+Client access with the key `ssh-keygen -t ed25519` produced:
 
 ```sh
-export XRD_SSH_KEY_FILE="$HOME/.ssh/id_ed25519.pem"
+export XRD_SSH_KEY_FILE="$HOME/.ssh/id_ed25519"
 export XRD_SSH_USER=alice
 xrdfs -s root://localhost:1094/ ls /
 ```
@@ -256,23 +323,37 @@ xrdfs -s root://localhost:1094/ ls /
   loaded key metadata (alg/user/fingerprint) and authentication key selection
 - RSA signatures (challenge responses and certificate signatures) use
   `rsa-sha2-256`. Legacy `ssh-rsa` (SHA-1) signatures are not accepted, so RSA
-  certificates must be signed by a CA using `rsa-sha2-256`.
+  certificates must be signed by a CA using `rsa-sha2-256`. RSA keys below 2048
+  bits are rejected everywhere.
+- `ssh-agent` I/O is bounded by a 10 s timeout.
 - Supported key algorithms: `ssh-ed25519`, `ssh-rsa` (and matching user-cert
   variants). ECDSA, FIDO/`sk-*`, and other OpenSSH key types are not supported in
   V1.
 
 ## Security considerations
 
-- This protocol authenticates the *client* to the server. It does not
-  authenticate the server within the handshake and provides no channel binding
-  between the SSH challenge/response and the underlying TLS session. Its safety
-  therefore relies on TLS with server-certificate verification to prevent
-  man-in-the-middle relay of the signed challenge; do not disable TLS peer
+- This protocol authenticates the *client* to the server; server
+  authentication and confidentiality come from TLS, so do not disable TLS peer
   verification.
-- The challenge is signed over `xrdsec-ssh-v1|<nonce>|<fingerprint>`, binding the
-  response to the presented key/certificate and the single-use server nonce.
-- Only one pending challenge is allowed per transport identity (`tident`); a
-  second init on the same connection is rejected with `EBUSY`.
+- The signed payload is `"xrdsec-ssh-v2" || string(host) || string(nonce) ||
+  string(fingerprint)` where `host` is the name the client connected to. A
+  server that receives a response bound to a name it is not known under rejects
+  it, so a rogue or compromised server (for example one reached through a
+  redirect) cannot relay a client's signature to another server in the
+  federation. This is not full TLS channel binding, but it closes the relay
+  path while keeping the plugin independent of the TLS implementation.
+- Challenge state is kept inside the per-connection protocol object: it is
+  single-use, expires after `-nonce-ttl`, disappears when the connection
+  closes, and cannot be exhausted or consumed by other connections. A new init
+  on the same connection simply replaces the outstanding challenge.
+- Clients receive a generic "SSH authentication failed." for an untrusted key,
+  a key/username mismatch or an untrusted CA; the specific reason (including the
+  full fingerprint and the mapped account) is written to the server log only.
+- `-deny-users` (default `root`) is enforced after every mapping path;
+  certificates without principals are rejected unless `-allow-empty-principals`
+  is set.
+- Client private keys are read from the same descriptor that passed the
+  ownership/permission checks (no re-open by path).
 - SSH wire string fields are capped at 64 KiB; `keys-file` lines and base64 key
   material have separate limits to reduce parser DoS risk at init.
 - Client private key files must be owned by the effective uid and must not be
@@ -282,8 +363,9 @@ xrdfs -s root://localhost:1094/ ls /
   being stored in `XrdSecEntity.name`.
 - Debug logging (`-debug` / `XrdSecDEBUG=1`) prints redacted key fingerprints
   and omits transport usernames and socket paths.
-- The principal map file is reloaded under a mutex so lookups are not racy with
-  hot reload.
+- The principal map and revocation files are reloaded under their own mutexes;
+  NSS (`getpwnam`) lookups are performed outside those locks and no global lock
+  is held on the authentication path.
 - In certificate mode the CA is fully trusted: any principal it issues is
   accepted (subject to the validity window, `type=1`, and the no-critical-options
   rule). Restrict the CA key set in `ca-keys-file` accordingly.
