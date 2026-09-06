@@ -53,6 +53,9 @@ if(ERROR)
   message(FATAL_ERROR "Cannot detect system information")
 endif()
 
+string(REGEX REPLACE ".+CMAKE_CXX_COMPILER \"([^\"]+)\".*$" "\\1"
+  COMPILER "${CMAKE_SYSTEM_INFORMATION}")
+
 string(REGEX REPLACE ".+CMAKE_CXX_COMPILER_ID \"([-0-9A-Za-z ]+)\".*$" "\\1"
   COMPILER_ID "${CMAKE_SYSTEM_INFORMATION}")
 string(REPLACE "GNU" "GCC" COMPILER_ID "${COMPILER_ID}")
@@ -107,30 +110,106 @@ if(MEMCHECK)
   endif()
 endif()
 
+if(NOT DEFINED CTEST_SOURCE_DIRECTORY)
+  set(CTEST_SOURCE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
+endif()
+
+if(NOT DEFINED CTEST_BINARY_DIRECTORY)
+  get_filename_component(CTEST_BINARY_DIRECTORY "build" REALPATH)
+endif()
+
 if(SANITIZE)
   list(PREPEND CMAKE_C_FLAGS -fsanitize=${SANITIZE})
   list(PREPEND CMAKE_CXX_FLAGS -fsanitize=${SANITIZE})
   set(ENV{LD_LIBRARY_PATH} ${CTEST_BINARY_DIRECTORY}/lib)
 
-  if(SANITIZE STREQUAL "address")
-    set(CTEST_MEMORYCHECK_TYPE "AddressSanitizer")
-    set(ENV{ASAN_OPTIONS} "detect_leaks=0,detect_odr_violation=0")
-    set(CTEST_MEMORYCHECK_SANITIZER_OPTIONS "$ENV{ASAN_OPTIONS}")
-  elseif(SANITIZE STREQUAL "leak")
-    set(CTEST_MEMORYCHECK_TYPE "LeakSanitizer")
-  elseif(SANITIZE STREQUAL "memory")
-    set(CTEST_MEMORYCHECK_TYPE "MemorySanitizer")
-  elseif(SANITIZE STREQUAL "thread")
-    set(CTEST_MEMORYCHECK_TYPE "ThreadSanitizer")
-  elseif(SANITIZE STREQUAL "undefined")
-    set(CTEST_MEMORYCHECK_TYPE "UndefinedBehaviorSanitizer")
+  if(NOT CMAKE_CXX_FLAGS MATCHES "-fno-omit-frame-pointer")
+    list(APPEND CMAKE_C_FLAGS -fno-omit-frame-pointer)
+    list(APPEND CMAKE_CXX_FLAGS -fno-omit-frame-pointer)
   endif()
 
-  if(DEFINED CTEST_MEMORYCHECK_TYPE)
+  list(APPEND CMAKE_C_FLAGS -fno-optimize-sibling-calls)
+  list(APPEND CMAKE_CXX_FLAGS -fno-optimize-sibling-calls)
+
+  if(SANITIZE STREQUAL "address")
+    set(CTEST_MEMORYCHECK_TYPE "AddressSanitizer")
+    set(OPTIONS detect_leaks=0 detect_odr_violation=1 verify_asan_link_order=0)
+    set(RUNTIME asan)
+  elseif(SANITIZE STREQUAL "leak")
+    set(CTEST_MEMORYCHECK_TYPE "LeakSanitizer")
+    set(RUNTIME lsan)
+  elseif(SANITIZE STREQUAL "memory")
+    set(CTEST_MEMORYCHECK_TYPE "MemorySanitizer")
+    set(RUNTIME msan)
+  elseif(SANITIZE STREQUAL "thread")
+    set(CTEST_MEMORYCHECK_TYPE "ThreadSanitizer")
+    set(RUNTIME tsan)
+  elseif(SANITIZE STREQUAL "undefined")
+    set(CTEST_MEMORYCHECK_TYPE "UndefinedBehaviorSanitizer")
+    list(APPEND CMAKE_CXX_FLAGS -fno-sanitize=vptr)
+    set(OPTIONS print_stacktrace=1 halt_on_error=1)
+    set(RUNTIME ubsan)
+  endif()
+
+  if(SANITIZE MATCHES "^(address|leak|memory|thread|undefined)$")
     string(APPEND CTEST_BUILD_NAME " [${CTEST_MEMORYCHECK_TYPE}]")
   else()
     string(APPEND CTEST_BUILD_NAME " [-fsanitize=${SANITIZE}]")
   endif()
+
+  if(EXISTS "${CTEST_SOURCE_DIRECTORY}/.ci/${RUNTIME}.supp")
+    list(APPEND OPTIONS suppressions=${CTEST_SOURCE_DIRECTORY}/.ci/${RUNTIME}.supp)
+  endif()
+
+  # If available, use the leak suppressions also when running the address sanitizer
+  if(SANITIZE STREQUAL "address" AND EXISTS "${CTEST_SOURCE_DIRECTORY}/.ci/lsan.supp")
+    set(ENV{LSAN_OPTIONS} "suppressions=${CTEST_SOURCE_DIRECTORY}/.ci/lsan.supp")
+  endif()
+
+  if(OPTIONS)
+    string(JOIN "," OPTIONS ${OPTIONS})
+    string(TOUPPER ${RUNTIME}_OPTIONS OPTIONS_VARIABLE)
+    set(ENV{${OPTIONS_VARIABLE}} "${OPTIONS}")
+    set(CTEST_MEMORYCHECK_SANITIZER_OPTIONS "${OPTIONS}")
+  endif()
+
+  # Sanitizer builds need more thread-local storage than usual, ask for more.
+  # This is needed so that a program which is not instrumented (e.g. Python)
+  # can load instrumented libraries without static TLS allocation failures.
+  set(ENV{GLIBC_TUNABLES} "glibc.rtld.optional_static_tls=65536")
+
+  if(COMPILER_ID MATCHES "Clang")
+    execute_process(COMMAND ${COMPILER} -print-runtime-dir
+      OUTPUT_VARIABLE RUNTIME_DIR OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+
+    if(RUNTIME_DIR)
+      get_filename_component(RUNTIME_DIR "${RUNTIME_DIR}" REALPATH)
+    endif()
+
+    if(IS_DIRECTORY "${RUNTIME_DIR}")
+      message("Sanitizer runtime directory: ${RUNTIME_DIR}")
+      foreach(TYPE EXE MODULE SHARED)
+        list(PREPEND CMAKE_ARGS
+          "-DCMAKE_${TYPE}_LINKER_FLAGS=-shared-libsan -Wl,-rpath,${RUNTIME_DIR}")
+      endforeach()
+    else()
+      message(WARNING "Could not find the Clang runtime directory. Tests which "
+                      "load the libraries into a program that is not "
+                      "instrumented may fail.")
+    endif()
+  endif()
+
+  set(IGNORELIST ${CTEST_SOURCE_DIRECTORY}/.ci/ignorelist.txt)
+
+  if(COMPILER_ID MATCHES "Clang" AND EXISTS "${IGNORELIST}")
+    list(APPEND CMAKE_C_FLAGS -fsanitize-ignorelist=${IGNORELIST})
+    list(APPEND CMAKE_CXX_FLAGS -fsanitize-ignorelist=${IGNORELIST})
+  endif()
+
+  # Discover the tests just before they run, instead of during the build.
+  # This matters with a sanitizer, since the build otherwise fails on
+  # whatever the sanitizer finds while trying to discover the tests.
+  list(PREPEND CMAKE_ARGS -DCMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE=PRE_TEST)
 endif()
 
 if(STATIC_ANALYSIS)
@@ -200,14 +279,6 @@ endif()
 
 if(NOT DEFINED GROUP)
   set(GROUP ${MODEL})
-endif()
-
-if(NOT DEFINED CTEST_SOURCE_DIRECTORY)
-  set(CTEST_SOURCE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
-endif()
-
-if(NOT DEFINED CTEST_BINARY_DIRECTORY)
-  get_filename_component(CTEST_BINARY_DIRECTORY "build" REALPATH)
 endif()
 
 if(IS_DIRECTORY "${CTEST_BINARY_DIRECTORY}")

@@ -148,17 +148,68 @@ CXXFLAGS='-flto -Werror=odr -Werror=lto-type-mismatch -Werror=strict-aliasing'
 
 This turns some important warnings into errors to avoid potential runtime issues
 with LTO. Please see GCC's manual page for descriptions of each of the warnings
-above. XRootD also support using address and thread sanitizers, via the options
-`-DENABLE_ASAN=ON` and `-DENABLE_TSAN=ON`, respectively. These should be enabled
-using `CMAKE_ARGS`, as shown below
+above. Extra CMake options can be given through `CMAKE_ARGS`, as shown below
 
 ```sh
-$ env CMAKE_ARGS="-DENABLE_TSAN=1" ctest -V -S test.cmake
+$ env CMAKE_ARGS="-DENABLE_XRDEC=1" ctest -V -S test.cmake
 ```
 
 Note that options passed by setting `CMAKE_ARGS` in the environment have higher
 precedence than what is in the pre-loaded cache file, so this method can be used
 to override the defaults without having to edit the pre-loaded cache file.
+
+#### Building with a sanitizer
+
+Use `-DSANITIZE=<type>` to build with a sanitizer, where `<type>` is what the
+compiler expects after `-fsanitize=`. The options `ENABLE_ASAN` and
+`ENABLE_TSAN` are obsolete: they add a compiler flag and nothing else, so none
+of the setup below applies to them.
+
+```sh
+xrootd $ ctest -V -DSANITIZE=address -S test.cmake
+xrootd $ env CC=clang CXX=clang++ ctest -V -DSANITIZE=thread -S test.cmake
+```
+
+`test.cmake` prepares the build and the environment for both GCC and Clang:
+
+- It selects the matching `CTEST_MEMORYCHECK_TYPE`, so that the tests run under
+  `ctest_memcheck` and the findings reach CDash.
+- It sets the options of the runtime in `ASAN_OPTIONS` and the other
+  `<RUNTIME>_OPTIONS` variables. The undefined behavior sanitizer needs
+  `halt_on_error=1`, since it otherwise reports and continues, and the tests
+  pass even when it finds something.
+- It leaves out the `vptr` check of the undefined behavior sanitizer. That
+  check refers to the type information of every polymorphic class it sees.
+  `XrdUtils` only declares `XrdOss`, `XrdOssDF`, and `XrdSecProtector`, so the
+  link fails with `undefined reference to typeinfo for ...`.
+- With Clang, it links the libraries against the shared runtime with
+  `-shared-libsan`, and adds the directory of the runtime to the RPATH. Clang
+  links a static runtime into executables only, and leaves shared libraries
+  with undefined sanitizer symbols. A program which is not instrumented, like
+  the interpreter which runs the tests for the Python bindings, cannot resolve
+  them.
+- It sets `verify_asan_link_order=0`, since such a program receives the runtime
+  only when it opens one of the libraries, which the address sanitizer rejects
+  by default.
+- It raises the reserve of static TLS with `GLIBC_TUNABLES`. Without it, the
+  same program cannot open a library built with the thread or leak sanitizer,
+  and fails with `cannot allocate memory in static TLS block`.
+- With Clang, it leaves the sources under `vendor/` uninstrumented, through the
+  special case list in [.ci/ignorelist.txt](../.ci/ignorelist.txt). GCC has no
+  equivalent option.
+
+To silence a known finding, add an entry to `.ci/<runtime>.supp`, where
+`<runtime>` is `asan`, `lsan`, `msan`, `tsan`, or `ubsan`. `test.cmake` passes
+the file to the runtime with the `suppressions` option when it exists. Prefer a
+suppression over turning a whole check off, and prefer both over an entry in
+the special case list, which removes the instrumentation altogether. Only
+[.ci/lsan.supp](../.ci/lsan.supp) exists today.
+
+The address sanitizer runs with `detect_odr_violation=1`, which reports a
+global defined twice only when the two definitions have different sizes. A few
+components are compiled into both a library and a program which loads it, and
+the plug-in loader expects every library to define the version of its own entry
+points. Those duplicates are normal, and level 2 reports all of them.
 
 #### Enabling coverage, memory checking, and static analysis
 

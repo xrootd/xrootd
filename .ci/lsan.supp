@@ -1,0 +1,8 @@
+# Leak sanitizer suppressions, used by test.cmake for builds with the address
+# or the leak sanitizer. See https://clang.llvm.org/docs/LeakSanitizer.html
+#
+# OpenSSL builds its cache of fetched algorithm implementations on first use,
+# and releases it only in OPENSSL_cleanup(), which does not run when the
+# process exits without unloading libcrypto. All of these allocations pass
+# through ossl_method_construct().
+leak:ossl_method_construct

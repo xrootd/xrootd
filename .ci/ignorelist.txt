@@ -1,0 +1,15 @@
+#!special-case-list-v2
+
+# Sanitizer special case list, used by test.cmake for builds with a sanitizer.
+# Clang reads it with -fsanitize-ignorelist; GCC has no equivalent option.
+#
+# An entry here removes the instrumentation at compile time, so the sanitizer
+# doesn't report problems in vendored code.
+#
+# To silence a finding in XRootD itself, add an entry to the suppression file,
+# .ci/<runtime>.supp, which keeps the instrumentation in place.
+#
+# See https://clang.llvm.org/docs/SanitizerSpecialCaseList.html
+
+# Bundled third-party code: googletest, bats, inih, picojson.
+src:*/vendor/*
