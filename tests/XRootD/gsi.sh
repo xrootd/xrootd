@@ -61,6 +61,11 @@ function test_gsi() {
 	# Check that authentication fails with a revoked proxy certificate
 	assert_failure env X509_USER_PROXY=rproxy.crt xrdfs "${HOST}" query config version
 
+	# Check that the server does not act as an RSA signing oracle and that an
+	# old client (version 10600) can still authenticate.
+	assert xrd-gsi-oracle "${HOSTNAME:-localhost}" "${XRD_PORT}" \
+		"${X509_CERT_DIR}/host.pem"
+
 	# Check that authentication fails with a bad (insecure) proxy certificate
 	chmod 644 "${X509_USER_PROXY}"
 	assert_failure xrdfs "${HOST/root/roots}" ls /
