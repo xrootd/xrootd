@@ -69,9 +69,9 @@
 
 XrdVERSIONINFO(XrdSecProtocolsshObject,secssh);
 
-// RAII wrappers for OpenSSL handles. Defined at file scope (not in an anonymous
-// namespace) because XrdSecProtocolssh, which has external linkage, uses
-// EvpPkeyPtr as a member type.
+// Types used as members of XrdSecProtocolssh. Defined at file scope (not in an
+// anonymous namespace) so the class, which has external linkage, does not
+// trigger -Wsubobject-linkage when this .cc is included by the unit tests.
 struct EvpPkeyDeleter    {void operator()(EVP_PKEY *p)     const noexcept {EVP_PKEY_free(p);}};
 struct EvpMdCtxDeleter   {void operator()(EVP_MD_CTX *p)   const noexcept {EVP_MD_CTX_free(p);}};
 struct BignumDeleter     {void operator()(BIGNUM *p)       const noexcept {BN_free(p);}};
@@ -93,6 +93,19 @@ using OsslParamPtr    = std::unique_ptr<OSSL_PARAM, OsslParamDeleter>;
 struct RsaDeleter {void operator()(RSA *p) const noexcept {RSA_free(p);}};
 using RsaPtr = std::unique_ptr<RSA, RsaDeleter>;
 #endif
+
+// Per-connection challenge state. Lives inside the XrdSecProtocolssh object
+// that issued the challenge, so it disappears with the connection and cannot
+// be consumed by, or block, any other connection.
+struct PendingChallenge
+{
+   std::string nonce;
+   std::string fp;
+   std::string user;
+   std::string verifyAlg;
+   std::string verifyBlob;
+   time_t      expiresAt = 0;
+};
 
 namespace
 {
@@ -510,19 +523,6 @@ struct TrustedKey
    std::string fp;
    std::string sshBlob;
    EvpPkeyPtr pkey;
-};
-
-// Per-connection challenge state. Lives inside the XrdSecProtocolssh object
-// that issued the challenge, so it disappears with the connection and cannot
-// be consumed by, or block, any other connection.
-struct PendingChallenge
-{
-   std::string nonce;
-   std::string fp;
-   std::string user;
-   std::string verifyAlg;
-   std::string verifyBlob;
-   time_t      expiresAt = 0;
 };
 
 // Revocation entries (loaded from -revoked-keys-file, hot-reloaded).
