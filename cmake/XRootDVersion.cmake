@@ -12,19 +12,25 @@
 #  * If none of the above worked, a fallback version is set using the current date.
 #
 
-if(NOT DEFINED XRootD_VERSION_STRING)
+if(NOT DEFINED XRootD_VERSION_STRING OR XRootD_VERSION_STRING STREQUAL "")
   file(READ "${PROJECT_SOURCE_DIR}/VERSION" XRootD_VERSION_STRING)
-  string(STRIP ${XRootD_VERSION_STRING} XRootD_VERSION_STRING)
+  string(STRIP "${XRootD_VERSION_STRING}" XRootD_VERSION_STRING)
 endif()
 
-if(XRootD_VERSION_STRING MATCHES "Format:" AND IS_DIRECTORY ${PROJECT_SOURCE_DIR}/.git)
+if(XRootD_VERSION_STRING MATCHES "Format:")
   find_package(Git QUIET)
   if(Git_FOUND)
     message(VERBOSE "Determining version with git")
-    execute_process(COMMAND
-      ${GIT_EXECUTABLE} --git-dir ${PROJECT_SOURCE_DIR}/.git describe
-      OUTPUT_VARIABLE XRootD_VERSION_STRING ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set(XRootD_VERSION_STRING "${XRootD_VERSION_STRING}" CACHE INTERNAL "XRootD Version")
+    execute_process(
+      COMMAND "${GIT_EXECUTABLE}" describe
+      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+      RESULT_VARIABLE XRootD_GIT_RESULT
+      OUTPUT_VARIABLE XRootD_GIT_VERSION
+      ERROR_QUIET
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(XRootD_GIT_RESULT EQUAL 0 AND NOT XRootD_GIT_VERSION STREQUAL "")
+      set(XRootD_VERSION_STRING "${XRootD_GIT_VERSION}")
+    endif()
   endif()
 endif()
 
@@ -49,7 +55,7 @@ if(XRootD_VERSION_STRING MATCHES "^v?([0-9]+)[.]*([0-9]*)[.]*([0-9]*)[.]*([0-9]*
     "10000 * ${XRootD_VERSION_MAJOR} + 100 * ${XRootD_VERSION_MINOR} + ${XRootD_VERSION_PATCH}"
     OUTPUT_FORMAT DECIMAL)
 else()
-  message(WARNING "Failed to determine XRootD version, using a timestamp as fallback."
+  message(WARNING "Failed to determine XRootD version, using a timestamp as fallback. "
     "You can override this by setting -DXRootD_VERSION_STRING=x.y.z during configuration.")
   set(XRootD_VERSION_MAJOR 6)
   set(XRootD_VERSION_MINOR 0)
