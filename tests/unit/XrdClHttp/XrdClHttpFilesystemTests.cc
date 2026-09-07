@@ -38,7 +38,7 @@ public:
     MOCK_METHOD(void, ctor, (XrdCl::ResponseHandler *, const std::string &, const XrdClHttp::CurlCopyOp::Headers &, const std::string &, const XrdClHttp::CurlCopyOp::Headers &, const XrdClHttp::CurlCopyOp::Headers &, XrdClHttp::TpcMode, struct timespec, XrdCl::Log *, XrdClHttp::CreateConnCalloutType));
     MOCK_METHOD(void, SetProgressHandler, (XrdCl::ProgressHandler *handler));
     MOCK_METHOD(bool, IsDone, ());
-    MOCK_METHOD(bool, IsSentSucessfully, ());
+    MOCK_METHOD(bool, IsSentSuccessfully, ());
     MOCK_METHOD(std::string, GetSendingFailureMessage, ());
     MOCK_METHOD(void, Success, (), (override));
     MOCK_METHOD(HttpVerb, GetVerb, (), (override, const));
@@ -208,7 +208,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsErrPipelineFailedWhenTheCopyIsNotSent)
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
         EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
-        EXPECT_CALL(*mock, IsSentSucessfully()).WillOnce(Return(false));
+        EXPECT_CALL(*mock, IsSentSuccessfully()).WillOnce(Return(false));
     });
 
     XrdCl::XRootDStatus status = fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr);
@@ -228,7 +228,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheCompletedProgressToTheProgressHandlerW
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
         EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
-        EXPECT_CALL(*mock, IsSentSucessfully()).WillOnce(Return(true));
+        EXPECT_CALL(*mock, IsSentSuccessfully()).WillOnce(Return(true));
     });
 
     NiceMock<MockProgressHandler> mock_progress;
@@ -250,7 +250,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenTheCopySucceeds)
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
         EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
-        EXPECT_CALL(*mock, IsSentSucessfully()).WillOnce(Return(true));
+        EXPECT_CALL(*mock, IsSentSuccessfully()).WillOnce(Return(true));
     });
 
     NiceMock<MockProgressHandler> mock_progress;
@@ -358,10 +358,34 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheHttpProtocol)
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
         EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
-        EXPECT_CALL(*mock, IsSentSucessfully()).WillOnce(Return(true));
+        EXPECT_CALL(*mock, IsSentSuccessfully()).WillOnce(Return(true));
     });
 
     XrdCl::XRootDStatus status = fs.ThirdPartyCopy("http://unresolvable:1094//file_src", "http://unresolvable:1094//file_dst", nullptr, nullptr);
+    ASSERT_EQ(status.status, XrdCl::stOK);
+}
+
+TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheDavProtocol)
+{
+    XrdClHttp::CopyOp::AddOperation([](auto *mock)
+    {
+        EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
+        EXPECT_CALL(*mock, IsSentSuccessfully()).WillOnce(Return(true));
+    });
+
+    XrdCl::XRootDStatus status = fs.ThirdPartyCopy("dav://unresolvable:1094//file_src", "dav://unresolvable:1094//file_dst", nullptr, nullptr);
+    ASSERT_EQ(status.status, XrdCl::stOK);
+}
+
+TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheDavsProtocol)
+{
+    XrdClHttp::CopyOp::AddOperation([](auto *mock)
+    {
+        EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
+        EXPECT_CALL(*mock, IsSentSuccessfully()).WillOnce(Return(true));
+    });
+
+    XrdCl::XRootDStatus status = fs.ThirdPartyCopy("davs://unresolvable:1094//file_src", "davs://unresolvable:1094//file_dst", nullptr, nullptr);
     ASSERT_EQ(status.status, XrdCl::stOK);
 }
 

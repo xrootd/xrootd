@@ -11,7 +11,7 @@ launch_xrootd() {
 
     pushd $(pwd) 1>/dev/null
     cd $BATS_TEST_TMPDIR
-    BATS_TEST_DIRNAME=${BATS_TEST_DIRNAME} NAME=$name xrootd -b -c ${BATS_TEST_DIRNAME}/$config -l $name.log -s $name.pid
+    BATS_TEST_DIRNAME=${BATS_TEST_DIRNAME} BATS_SUITE_TMPDIR=${BATS_SUITE_TMPDIR} NAME=$name xrootd -b -c ${BATS_TEST_DIRNAME}/$config -l $name.log -s $name.pid
     popd 1>/dev/null
 }
 

@@ -36,6 +36,8 @@ namespace XrdCl
   // Destructor anchors the vtable and typeinfo in libXrdCl so that the
   // dynamic_cast below works on plug-in objects from dlopened libraries.
   //----------------------------------------------------------------------------
+  ProgressHandler::~ProgressHandler() = default;
+
   ThirdPartyCopyPlugIn::~ThirdPartyCopyPlugIn() = default;
 
   //----------------------------------------------------------------------------

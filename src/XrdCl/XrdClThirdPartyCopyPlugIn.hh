@@ -42,7 +42,7 @@ namespace XrdCl
   class ProgressHandler
   {
     public:
-      virtual ~ProgressHandler() = default;
+      virtual ~ProgressHandler();
 
       //------------------------------------------------------------------------
       //! Called when the associated operation makes progress

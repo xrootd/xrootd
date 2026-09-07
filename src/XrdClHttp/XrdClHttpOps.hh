@@ -913,7 +913,7 @@ public:
 
     virtual HttpVerb GetVerb() const override {return HttpVerb::COPY;}
 
-    bool IsSentSucessfully() {return m_sent_success;}
+    bool IsSentSuccessfully() {return m_sent_success;}
     std::string GetSendingFailureMessage() {return m_failure;}
 
 private:

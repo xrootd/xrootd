@@ -458,7 +458,7 @@ static bool ParseTokenFile( const std::string   &token_file,
 static bool is_http_url( const std::string &url )
 {
     const std::string protocol = XrdCl::URL(url).GetProtocol();
-    return protocol == "http" || protocol == "https";
+    return protocol == "http" || protocol == "https" || protocol == "dav" || protocol == "davs";
 }
 
 // The operations a third party copy runs. The unit tests replace them by
@@ -554,8 +554,8 @@ XrdCl::XRootDStatus Filesystem::ThirdPartyCopy( const std::string            &so
             else
                 size = static_cast<std::size_t>(op->GetStatInfo().first);
         }
-        catch (...) {
-            log->Warning(kLogXrdClHttp, "Failed to add stat op to queue");
+        catch (const std::exception &e) {
+            log->Warning(kLogXrdClHttp, "Failed to add stat op to queue - %s", e.what());
         }
 
         progress_handler->HandleProgress(0, size);
@@ -570,15 +570,15 @@ XrdCl::XRootDStatus Filesystem::ThirdPartyCopy( const std::string            &so
     {
         m_queue->Produce(std::shared_ptr<CopyOp>(op.get(), [rh, op](auto _){}));
     }
-    catch (...) {
-        log->Warning(kLogXrdClHttp, "Failed to add copy op to queue");
+    catch (const std::exception &e) {
+        log->Warning(kLogXrdClHttp, "Failed to add copy op to queue - %s", e.what());
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInternal);
     }
 
     if (!rh->wait(std::chrono::seconds(tpc_timeout)))
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOperationExpired, 0, "Operation expired: Operation timed out"s);
 
-    if (op->IsDone() && !op->IsSentSucessfully())
+    if (op->IsDone() && !op->IsSentSuccessfully())
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errPipelineFailed, 0, op->GetSendingFailureMessage());
 
     if (progress_handler && size > 0)
