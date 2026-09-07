@@ -6,6 +6,7 @@ load ../../helper/common.bash
 load ../../helper/ssl.bash
 
 export XRD_LOGLEVEL=Debug
+export XRD_HTTPCERTFILE="$BATS_FILE_TMPDIR/ca.pem"
 
 setup_file() {
 	cd $BATS_FILE_TMPDIR
@@ -46,61 +47,61 @@ teardown() {
 }
 
 @test "pull copy without a token fails" {
-	run ! xrdcp -T only http://localhost:7094//file_src http://localhost:7095//file_dst
+	run ! xrdcp -T only https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "pull copy with --tpc-token-file holding both tokens succeeds" {
-	run -0 xrdcp -T only --tpc-token-file token-file http://localhost:7094//file_src http://localhost:7095//file_dst
+	run -0 xrdcp -T only --tpc-token-file token-file https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "pull copy with the BEARER_TOKEN_FILE variable holding both tokens succeeds" {
 	BEARER_TOKEN_FILE=token-file \
-	run -0 xrdcp -T only http://localhost:7094//file_src http://localhost:7095//file_dst
+	run -0 xrdcp -T only https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "pull copy with --tpc-token-file without the destination token fails" {
-	run ! xrdcp -T only --tpc-token-file token-file-src http://localhost:7094//file_src http://localhost:7095//file_dst
+	run ! xrdcp -T only --tpc-token-file token-file-src https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "pull copy with a JSON --tpc-token-file holding both tokens succeeds" {
-	run -0 xrdcp -T only --tpc-token-file token-file.json http://localhost:7094//file_src http://localhost:7095//file_dst
+	run -0 xrdcp -T only --tpc-token-file token-file.json https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "pull copy with the BEARER_TOKEN_FILE variable holding a JSON token file succeeds" {
 	BEARER_TOKEN_FILE=token-file.json \
-	run -0 xrdcp -T only http://localhost:7094//file_src http://localhost:7095//file_dst
+	run -0 xrdcp -T only https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "pull copy with a JSON --tpc-token-file without the destination token fails" {
-	run ! xrdcp -T only --tpc-token-file token-file-src.json http://localhost:7094//file_src http://localhost:7095//file_dst
+	run ! xrdcp -T only --tpc-token-file token-file-src.json https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "push copy without a token fails" {
-	run ! xrdcp -T push only http://localhost:7094//file_src http://localhost:7095//file_dst
+	run ! xrdcp -T push only https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "push copy with --tpc-token-file holding both tokens succeeds" {
-	run -0 xrdcp -T push only --tpc-token-file token-file http://localhost:7094//file_src http://localhost:7095//file_dst
+	run -0 xrdcp -T push only --tpc-token-file token-file https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "push copy with the BEARER_TOKEN_FILE variable holding both tokens succeeds" {
 	BEARER_TOKEN_FILE=token-file \
-	run -0 xrdcp -T push only http://localhost:7094//file_src http://localhost:7095//file_dst
+	run -0 xrdcp -T push only https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "push copy with --tpc-token-file without the source token fails" {
-	run ! xrdcp -T push only --tpc-token-file token-file-dst http://localhost:7094//file_src http://localhost:7095//file_dst
+	run ! xrdcp -T push only --tpc-token-file token-file-dst https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "push copy with a JSON --tpc-token-file holding both tokens succeeds" {
-	run -0 xrdcp -T push only --tpc-token-file token-file.json http://localhost:7094//file_src http://localhost:7095//file_dst
+	run -0 xrdcp -T push only --tpc-token-file token-file.json https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "push copy with the BEARER_TOKEN_FILE variable holding a JSON token file succeeds" {
 	BEARER_TOKEN_FILE=token-file.json \
-	run -0 xrdcp -T push only http://localhost:7094//file_src http://localhost:7095//file_dst
+	run -0 xrdcp -T push only https://localhost:7094//file_src https://localhost:7095//file_dst
 }
 
 @test "push copy with a JSON --tpc-token-file without the source token fails" {
-	run ! xrdcp -T push only --tpc-token-file token-file-dst.json http://localhost:7094//file_src http://localhost:7095//file_dst
+	run ! xrdcp -T push only --tpc-token-file token-file-dst.json https://localhost:7094//file_src https://localhost:7095//file_dst
 }

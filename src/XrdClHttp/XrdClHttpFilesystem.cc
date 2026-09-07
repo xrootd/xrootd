@@ -29,6 +29,7 @@
 
 #include "XrdOuc/XrdOucJson.hh"
 
+#include <algorithm>
 #include <cerrno>
 #include <condition_variable>
 #include <chrono>
@@ -519,6 +520,20 @@ XrdCl::XRootDStatus Filesystem::ThirdPartyCopy( const std::string            &so
     if (!token_file.empty() && !ParseTokenFile(token_file, src_hdrs, dst_hdrs, log))
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errAuthFailed, 0,
                                    "Failed to parse the token file '" + token_file + "'");
+
+    const auto is_unsecure = [] (const CurlCopyOp::Headers &hdrs, const std::string &url)
+    {
+        return XrdCl::URL(url).GetProtocol() != "https"s &&
+               std::any_of(hdrs.begin(), hdrs.end(),
+                           [] (const auto &header) { return header.first == "Authorization"s; });
+    };
+
+    if (is_unsecure(src_hdrs, source) || is_unsecure(dst_hdrs, dest))
+    {
+        log->Error(kLogXrdClHttp, "Refusing to send an Authorization header over an unencrypted http URL");
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs, 0,
+                                   "Refusing to send an Authorization header over an unencrypted http URL");
+    }
 
     headers.emplace_back("X-Number-Of-Streams"s, std::to_string(number_of_streams));
     headers.emplace_back("Overwrite"s, force_overwrite ? "T"s : "F"s);
