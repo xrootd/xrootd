@@ -7,7 +7,7 @@ add_executable(xrdcl-unit-tests
 )
 
 target_link_libraries(xrdcl-unit-tests
-  XrdTestUtils GTest::GTest GTest::gtest_main OpenSSL::Crypto)
+  XrdTestUtils GTest::gtest GTest::gtest_main OpenSSL::Crypto)
 
 gtest_discover_tests(xrdcl-unit-tests TEST_PREFIX XrdCl:: 
   PROPERTIES DISCOVERY_TIMEOUT 10)
