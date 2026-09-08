@@ -176,11 +176,12 @@ void DirState::update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink
       // Clean empty leaf directories. Only do one level at a time.
       // Note that root will never get purged.
       bool increment_iter = true;
+      // A pending close still points at this DirState while m_NFilesOpen > 0,
+      // and m_NDirectories can undercount, so check m_subdirs as well.
       if (purge_empty_dirs && sub_ds.m_here_stats.m_NDirectoriesRemoved == 0 &&
-          sub_ds.m_here_usage.m_NDirectories == 0 && sub_ds.m_here_usage.m_NFiles == 0)
+          sub_ds.m_here_usage.m_NDirectories == 0 && sub_ds.m_here_usage.m_NFiles == 0 &&
+          sub_ds.m_here_usage.m_NFilesOpen == 0 && sub_ds.m_subdirs.empty())
       {
-         assert(sub_ds.m_subdirs.empty());
-
          std::string dir_path;
          dir_path.reserve(1024);
          sub_ds.generate_dir_path(dir_path);
