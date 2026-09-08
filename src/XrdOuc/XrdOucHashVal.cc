@@ -39,7 +39,8 @@ unsigned long XrdOucHashVal(const char *KeyVal)
 
 unsigned long XrdOucHashVal2(const char *KeyVal, int KeyLen)
 {  int j;
-   unsigned long *lp, lword, hval = 0;
+   const char *cp;
+   unsigned long lword, hval = 0;
    int hl = sizeof(hval);
 
 // If name is shorter than the hash length, use the name.
@@ -57,12 +58,15 @@ unsigned long XrdOucHashVal2(const char *KeyVal, int KeyLen)
       {memcpy(&lword, KeyVal, (size_t)hl);
        hval ^= lword;
       }
-   lp = (unsigned long *)&KeyVal[j];
+   cp = &KeyVal[j];
 
-// Compute and return the full hash.
+// Compute and return the full hash. The key is walked with a byte pointer
+// since it is not aligned for unsigned long; memcpy() does the unaligned
+// load, and the word arithmetic happens on the copy.
 //
    while(KeyLen--)
-        {memcpy(&lword, lp++, (size_t)hl);
+        {memcpy(&lword, cp, (size_t)hl);
+         cp += hl;
          hval ^= lword;
         }
    return (hval ? hval : 1);
