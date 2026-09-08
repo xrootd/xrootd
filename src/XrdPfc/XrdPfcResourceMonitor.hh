@@ -6,9 +6,10 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <list>
+#include <set>
 #include <string>
 #include <vector>
-#include <list>
 
 class XrdOss;
 
@@ -130,6 +131,18 @@ class ResourceMonitor
       XrdSysCondVar     &f_cond;
       bool              &f_checked;
    };
+
+   // Top-level directories the traversal does not enter, so they have no DirState.
+   std::set<std::string>    m_protected_top_dirs;
+
+   bool is_in_protected_top_dir(const std::string &path) const {
+      size_t b = path.find_first_not_of('/');
+      if (b == std::string::npos) return false;
+      size_t e = path.find('/', b);
+      return m_protected_top_dirs.find(
+                path.substr(b, e == std::string::npos ? std::string::npos : e - b))
+             != m_protected_top_dirs.end();
+   }
 
    XrdSysMutex              m_dir_scan_mutex;
    std::list<LfnCondRecord> m_dir_scan_open_requests;
