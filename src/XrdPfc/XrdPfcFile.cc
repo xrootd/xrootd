@@ -625,7 +625,7 @@ bool File::Open(XrdOucCacheIO *inputIO)
       return false;
    }
 
-   m_state_cond.Lock();
+   // No m_state_cond: no other thread uses these members until GetFile() publishes the File.
    m_block_size = m_cfi.GetBufferSize();
    m_num_blocks = m_cfi.GetNBlocks();
    m_prefetch_state = (m_cfi.IsComplete()) ? kComplete : kStopped; // Will engage in AddIO().
@@ -640,8 +640,6 @@ bool File::Open(XrdOucCacheIO *inputIO)
    m_resmon_report_threshold = std::min(std::max(10 * MB, m_file_size / 20), 500 * MB);
    // m_resmon_report_threshold_scaler; // something like 10% of original threshold, to adjust
    // actual threshold based on return values from register_file_update_stats().
-
-   m_state_cond.UnLock();
 
    return true;
 }
