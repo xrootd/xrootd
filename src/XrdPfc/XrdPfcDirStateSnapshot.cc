@@ -126,7 +126,6 @@ void DataFsSnapshot::write_json_file(const std::string &file_path, XrdOss& oss, 
    if ((cret = oss.Create(myUser, cinfo_path.c_str(), mode, myEnv, XRDOSS_mkpath)) != XrdOssOK)
    {
       TRACE(Error, "Create failed for info file " << cinfo_path << ERRNO_AND_ERRSTR(-cret));
-      myFile->Close(); delete myFile;
       return;
    }
 
@@ -135,7 +134,6 @@ void DataFsSnapshot::write_json_file(const std::string &file_path, XrdOss& oss, 
    {
       TRACE(Error, "Open failed for info file " << cinfo_path << ERRNO_AND_ERRSTR(-cret));
       delete myInfoFile;
-      myFile->Close(); delete myFile;
       return;
    }
 
