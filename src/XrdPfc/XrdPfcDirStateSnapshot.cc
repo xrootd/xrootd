@@ -76,7 +76,7 @@ void DataFsSnapshot::write_json_file(const std::string &file_path, XrdOss& oss, 
 
    const char* size_str = "524288";
    myEnv.Put("oss.asize",  size_str); // advisory size
-   myEnv.Put("oss.cgroup", conf.m_data_space.c_str()); // AMT: data or metadata space
+   myEnv.Put("oss.cgroup", conf.m_data_space.c_str());
 
    mode_t mode = 0644;
 
@@ -119,9 +119,12 @@ void DataFsSnapshot::write_json_file(const std::string &file_path, XrdOss& oss, 
    myFile->Write(os.str().c_str(), 0, os.str().size());
    myFile->Close();     delete myFile;
 
-   // Create the info file.
+   // The info file goes in the meta space, as in File::Open().
 
    std::string cinfo_path(file_path + Info::s_infoExtension);
+
+   myEnv.Put("oss.asize", "64k");
+   myEnv.Put("oss.cgroup", conf.m_meta_space.c_str());
 
    if ((cret = oss.Create(myUser, cinfo_path.c_str(), mode, myEnv, XRDOSS_mkpath)) != XrdOssOK)
    {
