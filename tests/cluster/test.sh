@@ -144,12 +144,32 @@ cleanup() {
        rm -f ${ERRFILE} || :
        remove_uploads
 }
+
+dump_logs() {
+       for i in metaman man1 man2; do
+              for log in cmsd xrootd; do
+                     echo "===== ${i}/${log}.log (tail) ====="
+                     grep -a -v "Xrd_Poll\|Xrd_Link\|Xrd_Sched\|received dump" \
+                            "${i}/${log}.log" 2>/dev/null | tail -n 150 || :
+              done
+       done
+}
+
 # Only EXIT runs cleanup. A signal trap that called cleanup directly would
 # replace bash's default terminating behaviour: after the handler returns, the
 # script would carry on past the interrupted command, now with its state
 # removed. Exiting explicitly keeps the conventional 128+signal status and
-# fires the EXIT trap exactly once.
-trap cleanup EXIT
+# fires the EXIT trap exactly once. The exit status is saved first, since the
+# commands in the trap would otherwise overwrite it. The logs are printed
+# before the cleanup, which adds its own requests to them.
+on_exit() {
+       local rc=$?
+       if [[ ${rc} -ne 0 ]]; then
+              dump_logs
+       fi
+       cleanup
+}
+trap on_exit EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 131' QUIT
@@ -177,8 +197,9 @@ ${XRDFS} ${HOST_METAMAN} stat /
 ${XRDFS} ${HOST_METAMAN} statvfs /
 ${XRDFS} ${HOST_METAMAN} spaceinfo /
 
-# Leftovers from a run that CTest killed on timeout would break the MOVE step.
-remove_uploads
+for src in "${!srcs[@]}"; do
+       ${XRDFS} ${HOST_METAMAN} rm ${RMTDATADIR}/new_file_${src} >/dev/null 2>&1 || :
+done
 
 # create local files with random contents using OpenSSL
 
@@ -191,7 +212,7 @@ for host in "${!hosts[@]}"; do
        ${XRDCP} -f ${LCLDATADIR}/${host}.ref ${hosts[$host]}/${RMTDATADIR}/${host}.ref
 
        for suffix in "${HTTP_SUFFIX[@]}"; do
-              ${CURL} -v -L ${hosts_http[$host]}/${RMTDATADIR}/${host}${suffix} -T ${LCLDATADIR}/${host}.ref
+              ${CURL} -v --fail -L ${hosts_http[$host]}/${RMTDATADIR}/${host}${suffix} -T ${LCLDATADIR}/${host}.ref
        done
 
 done
@@ -207,7 +228,7 @@ for host in "${!hosts[@]}"; do
        count=0
 
        for suffix in "${HTTP_SUFFIX[@]}"; do
-               ${CURL} -v -L ${hosts_http[$host]}/${RMTDATADIR}/${host}${suffix} -o ${LCLDATADIR}/${host}.dat_http${count}
+               ${CURL} -v --fail -L ${hosts_http[$host]}/${RMTDATADIR}/${host}${suffix} -o ${LCLDATADIR}/${host}.dat_http${count}
                count=$((count + 1))
        done
 done
