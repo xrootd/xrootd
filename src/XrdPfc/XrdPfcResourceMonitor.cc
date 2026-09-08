@@ -97,7 +97,8 @@ void ResourceMonitor::cross_check_or_process_oob_lfn(const std::string &lfn, FsT
    std::string dir = (pos == std::string::npos) ? "" : lfn.substr(0, pos);
 
    XrdOssDF *dhp = m_oss.newDir(trc_pfx);
-   if (dhp->Opendir(dir.c_str(), fst.default_env()) == XrdOssOK)
+   bool opened = (dhp->Opendir(dir.c_str(), fst.default_env()) == XrdOssOK);
+   if (opened)
    {
       fst.slurp_dir_ll(*dhp, ds->m_depth, dir.c_str(), trc_pfx);
 
@@ -112,7 +113,9 @@ void ResourceMonitor::cross_check_or_process_oob_lfn(const std::string &lfn, FsT
       }
    }
    delete dhp;
-   ds->m_scanned = true;
+   // Only a directory that was read counts as scanned, else its files are skipped.
+   if (opened)
+      ds->m_scanned = true;
 }
 
 void ResourceMonitor::scan_dir_and_recurse(FsTraversal &fst)
