@@ -535,6 +535,18 @@ cleanup
 assert_eq "400" "$(plain_http_tpc pull "file:///etc/os-release" "$BEARER_TOKEN" "${hosts_http[0]}/${RMTDATADIR}/os-release" "$BEARER_TOKEN")" "Did not reject disallowed protocol"
 assert_eq "400" "$(plain_http_tpc push "${hosts_http[0]}" "$BEARER_TOKEN" "${hosts_http[0]/https/root}/${RMTDATADIR}/fake.root" "$BEARER_TOKEN")" "Did not reject disallowed protocol"
 
+# Identical source and destination
+#
+# Copying a file onto itself would truncate it before anything is read back, so
+# the server must reject the request rather than destroy the file.
+
+tpc_same="${hosts_http[0]}/${RMTDATADIR}/${hosts_abbrev[0]}.ref"
+
+assert_eq "400" "$(plain_http_tpc pull "${tpc_same}" "$BEARER_TOKEN" "${tpc_same}" "$BEARER_TOKEN")" \
+    "Did not reject a pull whose source is its own destination"
+assert_eq "400" "$(plain_http_tpc push "${tpc_same}" "$BEARER_TOKEN" "${tpc_same}" "$BEARER_TOKEN")" \
+    "Did not reject a push whose destination is its own source"
+
 # this test may cause the server to crash
 export XRD_CONNECTIONRETRY=0
 assert_eq "500" "$(plain_http_tpc pullsci "https://255.255.255.255//tffile1" "$BEARER_TOKEN" "${hosts_http[2]}/${RMTDATADIR}/tffile1" "$BEARER_TOKEN")" "Did not fail with broadcast address"

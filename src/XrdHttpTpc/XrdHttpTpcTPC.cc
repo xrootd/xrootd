@@ -13,6 +13,7 @@
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdHttpTpc/XrdHttpTpcUtils.hh"
+#include "XrdHttpTpc/XrdHttpTpcTPCCheck.hh"
 #include "XrdHttp/XrdHttpUtils.hh"
 
 #include <curl/curl.h>
@@ -391,6 +392,21 @@ static bool IsAllowedScheme(const std::string& url)
   return false;
 }
 
+// Hand the request over to XrdHttpTpcTPCCheck, which takes what it needs of it
+// as plain values so that it can be unit tested.
+static bool IsCopyOntoItself(const std::string &remote_url, XrdHttpExtReq &req)
+{
+  auto host_header = XrdOucTUtils::caseInsensitiveFind(req.headers, "host");
+  const std::string host = (host_header != req.headers.end() ? host_header->second
+                                                             : std::string());
+
+  const XrdSecEntity &sec = req.GetSecEntity();
+  const int socket = (sec.addrInfo ? sec.addrInfo->SockFD() : -1);
+
+  return XrdHttpTpcTPCCheck::isCopyOntoItself(remote_url, req.resource, host,
+                                              socket);
+}
+
 /******************************************************************************/
 /*                T P C H a n d l e r : : P r o c e s s R e q                 */
 /******************************************************************************/
@@ -414,6 +430,11 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
             m_log.Emsg("ProcessReq", error_src, src.c_str());
             return req.SendSimpleResp(400, NULL, NULL, error_src, 0);
         }
+        if (IsCopyOntoItself(src, req)) {
+            const char *error_self = "COPY rejected: the source and the destination are the same file";
+            m_log.Emsg("ProcessReq", error_self, src.c_str());
+            return req.SendSimpleResp(400, NULL, NULL, error_self, 0);
+        }
         return ProcessPullReq(src, req);
     }
     header = XrdOucTUtils::caseInsensitiveFind(req.headers,"destination");
@@ -423,6 +444,11 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
             const char *error_dst = "COPY rejected: disallowed scheme in destination URL";
             m_log.Emsg("ProcessReq", error_dst, dst.c_str());
             return req.SendSimpleResp(400, NULL, NULL, error_dst, 0);
+        }
+        if (IsCopyOntoItself(dst, req)) {
+            const char *error_self = "COPY rejected: the source and the destination are the same file";
+            m_log.Emsg("ProcessReq", error_self, dst.c_str());
+            return req.SendSimpleResp(400, NULL, NULL, error_self, 0);
         }
         return ProcessPushReq(header->second, req);
     }
