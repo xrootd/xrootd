@@ -153,20 +153,31 @@ generate(){
        touch ${DATAFOLDER}/.generated
 }
 
+# Launch one daemon in the background and, if it fails, print its log. With -b
+# the daemon writes its configuration errors only to the log file and reports
+# success or failure through a pipe to the parent, so the test output would
+# otherwise end at the trace line for the failed instance with no reason.
+launch() {
+       local prog=$1 name=$2 log=$3
+       if ! ${prog} -b -k fifo -n ${name} -l ${log}.log -s ${log}.pid -c ${name}.cfg; then
+              echo "${log} failed to start for ${name}; ${name}/${log}.log follows:"
+              cat "${name}/${log}.log"
+              exit 1
+       fi
+}
+
 start(){
        # A previous run killed part way through leaves its servers holding the
        # ports and its instance directories on disk.
        stop
        generate
        set -x
-       # start for each component
+       # Start each instance top-down (meta manager, managers, servers), and
+       # its cmsd before its xrootd: xrootd connects to the local cmsd through
+       # the admin path at start, so the cmsd must already be there.
        for i in "${servernames[@]}"; do
-              ${XROOTD} -b -k fifo -n ${i} -l xrootd.log -s xrootd.pid -c ${i}.cfg
-       done
-
-       # start cmsd in the redirectors
-       for i in "${servernames[@]}"; do
-              ${CMSD} -b -k fifo -n ${i} -l cmsd.log -s cmsd.pid -c ${i}.cfg
+              launch ${CMSD} ${i} cmsd
+              launch ${XROOTD} ${i} xrootd
        done
 
        sleep 1
@@ -176,18 +187,36 @@ start(){
 # a stale pidfile behind, and killing it blindly under `set -e` would abort the
 # script -- which, since this is the fixture *cleanup*, reports the whole
 # cluster teardown as failed and leaves the instance directories in place.
+# `kill -0` is used for the liveness test because it works the same on procps,
+# BusyBox and macOS, where `ps` differs in whether it accepts a pid argument.
+#
+# After TERM, wait for the daemons to exit before their directories are
+# removed: start() calls stop() first, and a daemon still shutting down would
+# hold its port. All daemons get TERM first, so their waits overlap. A daemon
+# still alive after 10s gets KILL.
 stop() {
+	local pids=() pid pidfile i alive
 	for i in "${servernames[@]}"; do
-		if [[ -d "${i}" ]]; then
-			for pidfile in "${i}"/cmsd.pid "${i}"/xrootd.pid; do
-				test -s "${pidfile}" || continue
-				pid="$(ps -o pid= "$(cat "${pidfile}")" || true)"
-				if test -n "${pid}"; then
-					kill -s TERM "${pid}"
-				fi
-			done
-			rm -rf "${i}"
-		fi
+		for pidfile in "${i}"/cmsd.pid "${i}"/xrootd.pid; do
+			test -s "${pidfile}" || continue
+			pid="$(cat "${pidfile}")"
+			kill -0 "${pid}" 2>/dev/null || continue
+			kill -s TERM "${pid}" 2>/dev/null && pids+=("${pid}")
+		done
+	done
+	for _ in $(seq 100); do
+		alive=0
+		for pid in "${pids[@]}"; do
+			kill -0 "${pid}" 2>/dev/null && alive=1
+		done
+		test ${alive} -eq 1 || break
+		sleep 0.1
+	done
+	for pid in "${pids[@]}"; do
+		kill -s KILL "${pid}" 2>/dev/null || :
+	done
+	for i in "${servernames[@]}"; do
+		rm -rf "${i}"
 	done
 }
 
