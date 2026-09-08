@@ -32,7 +32,10 @@ namespace
 ResourceMonitor::ResourceMonitor(XrdOss& oss) :
    m_fs_state(* new DataFsState),
    m_oss(oss)
-{}
+{
+   // XXXX This should come from config. Also: N2N?
+   m_protected_top_dirs.insert("pfc-stats");
+}
 
 ResourceMonitor::~ResourceMonitor()
 {
@@ -180,7 +183,7 @@ bool ResourceMonitor::perform_initial_scan()
 
    DirState   *root_ds = m_fs_state.get_root();
    FsTraversal fst(m_oss);
-   fst.m_protected_top_dirs.insert("pfc-stats"); // XXXX This should come from config. Also: N2N?
+   fst.m_protected_top_dirs = m_protected_top_dirs;
 
    if ( ! fst.begin_traversal(root_ds, "/"))
       return false;
@@ -309,7 +312,12 @@ int ResourceMonitor::process_queues()
       // i.id: directory-path, i.record: PurgeRecord
       DirState *ds = m_fs_state.get_root()->find_path(i.id, -1, false, false);
       if ( ! ds) {
-         TRACE(Error, trc_pfx << "DirState not found for directory path '" << i.id << "'.");
+         if (is_in_protected_top_dir(i.id)) {
+            TRACE(Debug, trc_pfx << "no DirState for '" << i.id
+                  << "', as expected under a protected top directory.");
+         } else {
+            TRACE(Error, trc_pfx << "DirState not found for directory path '" << i.id << "'.");
+         }
          // find_path can return the last dir found ... but this clearly isn't a valid purge record.
          continue;
       }
@@ -322,7 +330,12 @@ int ResourceMonitor::process_queues()
       // i.id: LFN, i.record: size of file in st_blocks
       DirState *ds = m_fs_state.get_root()->find_path(i.id, -1, true, false);
       if ( ! ds) {
-         TRACE(Error, trc_pfx << "DirState not found for LFN path '" << i.id << "'.");
+         if (is_in_protected_top_dir(i.id)) {
+            TRACE(Debug, trc_pfx << "no DirState for '" << i.id
+                  << "', as expected under a protected top directory.");
+         } else {
+            TRACE(Error, trc_pfx << "DirState not found for LFN path '" << i.id << "'.");
+         }
          continue;
       }
       ds->m_here_stats.m_StBlocksRemoved += i.record;
