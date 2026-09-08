@@ -13,6 +13,7 @@
 #include "XrdOuc/XrdOucPrivateUtils.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
 #include "XrdHttpTpc/XrdHttpTpcUtils.hh"
+#include "XrdHttpTpc/XrdHttpTpcTPCCheck.hh"
 #include "XrdHttp/XrdHttpUtils.hh"
 
 #include <curl/curl.h>
@@ -391,6 +392,38 @@ static bool IsAllowedScheme(const std::string& url)
   return false;
 }
 
+// Hand the request over to XrdHttpTpcTPCCheck, which takes what it needs of it
+// as plain values so that it can be unit tested.
+static bool IsCopyOntoItself(const std::string &remote_url, XrdHttpExtReq &req,
+                             const std::string &dfs_domain, std::string &errMsg)
+{
+  auto host_header = XrdOucTUtils::caseInsensitiveFind(req.headers, "host");
+  const std::string host = (host_header != req.headers.end() ? host_header->second
+                                                             : std::string());
+
+  const XrdSecEntity &sec = req.GetSecEntity();
+  const int socket = (sec.addrInfo ? sec.addrInfo->SockFD() : -1);
+
+  if (!XrdHttpTpcTPCCheck::isCopyOntoItself(remote_url, req.resource, host,
+                                            socket, dfs_domain, &errMsg)) {
+    return false;
+  }
+  errMsg = "COPY rejected: " + errMsg;
+  return true;
+}
+
+// The URL the last request on this handle ended up on, which differs from the
+// one it was given whenever the remote end redirected it.
+static std::string EffectiveURL(CURL *curl, const std::string &url)
+{
+  char *effective = nullptr;
+  if (curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effective) != CURLE_OK
+  ||  !effective) {
+    return url;
+  }
+  return effective;
+}
+
 /******************************************************************************/
 /*                T P C H a n d l e r : : P r o c e s s R e q                 */
 /******************************************************************************/
@@ -423,6 +456,11 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
             m_log.Emsg("ProcessReq", error_src, src.c_str());
             return req.SendSimpleResp(400, NULL, NULL, error_src, 0);
         }
+        std::string error_self;
+        if (IsCopyOntoItself(src, req, m_dfs_domain, error_self)) {
+            m_log.Emsg("ProcessReq", error_self.c_str(), src.c_str());
+            return req.SendSimpleResp(400, NULL, NULL, error_self.c_str(), 0);
+        }
         return ProcessPullReq(src, req);
     }
     if (dstHeader != req.headers.end()) {
@@ -431,6 +469,11 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
             const char *error_dst = "COPY rejected: disallowed scheme in destination URL";
             m_log.Emsg("ProcessReq", error_dst, dst.c_str());
             return req.SendSimpleResp(400, NULL, NULL, error_dst, 0);
+        }
+        std::string error_self;
+        if (IsCopyOntoItself(dst, req, m_dfs_domain, error_self)) {
+            m_log.Emsg("ProcessReq", error_self.c_str(), dst.c_str());
+            return req.SendSimpleResp(400, NULL, NULL, error_self.c_str(), 0);
         }
         return ProcessPushReq(dst, req);
     }
@@ -670,7 +713,10 @@ int TPCHandler::PerformHEADRequest(CURL *curl, XrdHttpExtReq &req, State &state,
     }
 
     if (rec.tpc_status >= 400) {
-      logTransferEvent(LogMask::Error, rec, "HEAD_FAIL", ss.str());
+      // Otherwise the caller decides whether this fails the transfer, e.g. a push
+      // to a file that does not exist yet
+      logTransferEvent(shouldReturnErrorToClient ? LogMask::Error : LogMask::Debug,
+                       rec, "HEAD_FAIL", ss.str());
       return shouldReturnErrorToClient ? req.SendSimpleResp(rec.tpc_status, NULL, NULL, generateClientErr(ss, rec, res).c_str(), 0) : -1;
     }
 
@@ -701,6 +747,34 @@ int TPCHandler::GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_
     contentLength = state.GetContentLength();
     reprDigest = state.GetReprDigest();
     return result;
+}
+  
+/******************************************************************************/
+/*       T P C H a n d l e r : : P r o b e P u s h D e s t i n a t i o n      */
+/******************************************************************************/
+
+void TPCHandler::ProbePushDestination(CURL *curl, XrdHttpExtReq &req,
+                                      const std::string &resource, TPCLogRecord &rec,
+                                      int &status, std::string &effectiveURL)
+{
+    // An extra round trip, and the only way to learn that a destination naming a
+    // manager redirects back to this very server.
+    const int tpc_status = rec.tpc_status;
+    {
+        State probe(curl, req.tpcForwardCreds);
+        probe.SetupHeadersForHEAD(req);
+        // Not an error for the push itself: the destination may not exist yet.
+        bool success = false;
+        PerformHEADRequest(curl, req, probe, success, rec, false);
+        status = probe.GetStatusCode();
+    }
+    // PerformHEADRequest leaves this set. With it the destination's error body
+    // never reaches PushRespCB, and a push has always uploaded without it.
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 0L);
+    rec.tpc_status = tpc_status;
+
+    // Even when the HEAD failed: a redirect may have named us before that.
+    effectiveURL = EffectiveURL(curl, resource);
 }
   
 /******************************************************************************/
@@ -1135,6 +1209,39 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
+    // Last chance to answer with a status: RunCurlWithUpdates() starts the
+    // response before transferring anything.
+    int head_status = -1;
+    std::string effective_url;
+    ProbePushDestination(curl, req, resource, rec, head_status, effective_url);
+
+    std::string error_msg;
+    int reject_status = 0;
+    if (IsCopyOntoItself(effective_url, req, m_dfs_domain, error_msg)) {
+        reject_status = 400;
+    } else if (!XrdHttpTpcTPCCheck::isPushAllowed(XrdHttpTpcUtils::isOverwriteAllowed(req.headers),
+                                                  head_status, &error_msg)) {
+        error_msg = "COPY rejected: " + error_msg;
+        reject_status = 412;
+    }
+    if (reject_status) {
+        std::stringstream ss;
+        ss << error_msg;
+        rec.status = reject_status;
+        logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", ss.str());
+        int resp_result = req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+        fh->close();
+        return resp_result;
+    }
+
+    // Let the passive server enforce it too: SetupHeaders() forwards it on the PUT
+    // like any TransferHeader, replacing whatever value the client gave there.
+    if (!XrdHttpTpcUtils::isOverwriteAllowed(req.headers)) {
+        auto forwarded = XrdOucTUtils::caseInsensitiveFind(req.headers, "transferheaderoverwrite");
+        req.headers[forwarded != req.headers.end() ? forwarded->first
+                                                   : "TransferHeaderOverwrite"] = "F";
+    }
+
     Stream stream(std::move(fh), 0, 0, m_log);
     State state(0, stream, curl, true, req.tpcForwardCreds);
     state.SetupHeaders(req);
@@ -1225,8 +1332,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         redirect_resource = query_header->second;
     }
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
-    auto overwrite_header = XrdOucTUtils::caseInsensitiveFind(req.headers,"overwrite");
-    if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
+    if (XrdHttpTpcUtils::isOverwriteAllowed(req.headers)) {
         if (! usingEC) mode = SFS_O_TRUNC;
     }
     int streams = 1;
@@ -1279,6 +1385,17 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             // just exit here
             return 0;
         }
+    }
+    // The HEAD above follows redirects, so a source naming a manager has just
+    // named the server holding the file, which may be this one. Nothing is open
+    // yet, so the client still gets a 400.
+    std::string error_self;
+    if (IsCopyOntoItself(EffectiveURL(curl, resource), req, m_dfs_domain, error_self)) {
+        std::stringstream ss;
+        ss << error_self;
+        rec.status = 400;
+        logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY,
                                     0644 | SFS_O_MKPTH,

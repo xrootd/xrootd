@@ -12,6 +12,9 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdHttp/XrdHttpProtocol.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
+#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdNet/XrdNetUtils.hh"
+#include "XrdHttpTpc/XrdHttpTpcTPCCheck.hh"
 
 using namespace TPC;
 
@@ -104,6 +107,30 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
                 m_log.Emsg("Config", "tpc.fixed_route value is invalid", val);
                 return false;
             }
+        } else if (!strcmp("tpc.dfs", val)) {
+            if (!m_dfs_domain.empty()) {
+                Config.Close();
+                m_log.Emsg("Config", "tpc.dfs specified more than once");
+                return false;
+            }
+            if (!(val = Config.GetWord())) {
+                Config.Close();
+                m_log.Emsg("Config", "tpc.dfs domain not specified");
+                return false;
+            }
+            std::string domain(val);
+            XrdOucUtils::toLower(&domain[0]);
+            if (!XrdHttpTpcTPCCheck::isValidDomain(domain)) {
+                Config.Close();
+                m_log.Emsg("Config", "tpc.dfs domain is invalid, it must be a plain domain name like example.org:", val);
+                return false;
+            }
+            if ((val = Config.GetWord())) {
+                Config.Close();
+                m_log.Emsg("Config", "tpc.dfs takes a single domain, extra value:", val);
+                return false;
+            }
+            m_dfs_domain = domain;
         } else if (!strcmp("tpc.header2cgi",val)) {
             // header2cgi parsing
             if(XrdHttpProtocol::parseHeader2CGI(Config,m_log,hdr2cgimap)){
@@ -151,6 +178,15 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
         }
     }
     Config.Close();
+
+    if (!m_dfs_domain.empty()) {
+        char *myName = XrdNetUtils::MyHostName(nullptr);
+        if (!myName || !XrdHttpTpcTPCCheck::isInDomain(myName, m_dfs_domain)) {
+            m_log.Emsg("Config", "warning: this server is not in the tpc.dfs domain",
+                       m_dfs_domain.c_str());
+        }
+        free(myName);
+    }
 
     // Internal override: allow xrdtpc to use a different ca dir from the one prepared by the xrootd
     // framework.  meant for exceptional situations where the site might need a specially-prepared set

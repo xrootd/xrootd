@@ -69,3 +69,8 @@ std::string XrdHttpTpcUtils::prepareOpenURL(PrepareOpenURLParams & params) {
 
   return params.reqResource + opaque.str();
 }
+
+bool XrdHttpTpcUtils::isOverwriteAllowed(const std::map<std::string,std::string> & reqHeaders) {
+  auto header = XrdOucTUtils::caseInsensitiveFind(reqHeaders, "overwrite");
+  return header == reqHeaders.end() || header->second == "T";
+}
