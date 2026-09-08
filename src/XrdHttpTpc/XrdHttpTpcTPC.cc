@@ -379,9 +379,18 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
             return req.SendSimpleResp(400, NULL, NULL, "COPY requestd an unsupported Credential type", 0);
         }
     }
-    header = XrdOucTUtils::caseInsensitiveFind(req.headers,"source");
-    if (header != req.headers.end()) {
-        std::string src = PrepareURL(header->second);
+    auto srcHeader = XrdOucTUtils::caseInsensitiveFind(req.headers,"source");
+    auto dstHeader = XrdOucTUtils::caseInsensitiveFind(req.headers,"destination");
+    // A Source header asks for a pull, a Destination header for a push; asking
+    // for both at once is ambiguous, so the request is rejected instead of
+    // arbitrarily honouring one of the two.
+    if (srcHeader != req.headers.end() && dstHeader != req.headers.end()) {
+        const char *error_both = "COPY rejected: both a Source and a Destination header were specified";
+        m_log.Emsg("ProcessReq", error_both);
+        return req.SendSimpleResp(400, NULL, NULL, error_both, 0);
+    }
+    if (srcHeader != req.headers.end()) {
+        std::string src = PrepareURL(srcHeader->second);
         if (!IsAllowedScheme(src)) {
             const char *error_src = "COPY rejected: disallowed scheme in source URL";
             m_log.Emsg("ProcessReq", error_src, src.c_str());
@@ -389,15 +398,14 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
         }
         return ProcessPullReq(src, req);
     }
-    header = XrdOucTUtils::caseInsensitiveFind(req.headers,"destination");
-    if (header != req.headers.end()) {
-        const std::string& dst = header->second;
+    if (dstHeader != req.headers.end()) {
+        const std::string& dst = dstHeader->second;
         if (!IsAllowedScheme(dst)) {
             const char *error_dst = "COPY rejected: disallowed scheme in destination URL";
             m_log.Emsg("ProcessReq", error_dst, dst.c_str());
             return req.SendSimpleResp(400, NULL, NULL, error_dst, 0);
         }
-        return ProcessPushReq(header->second, req);
+        return ProcessPushReq(dst, req);
     }
     m_log.Emsg("ProcessReq", "COPY verb requested but no source or destination specified.");
     return req.SendSimpleResp(400, NULL, NULL, "No Source or Destination specified", 0);

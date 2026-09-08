@@ -313,6 +313,30 @@ plain_http_tpc() {
     return 0
 }
 
+# A COPY request carrying both a Source and a Destination header is ambiguous:
+# the server cannot tell whether a pull or a push was meant, so it must be
+# rejected instead of silently picking one of the two.
+# $1 is the resource the COPY is sent to, $2 the Source header, $3 the
+# Destination header.
+plain_http_tpc_source_and_destination() {
+    local resource="$1"
+    local src="$2"
+    local dst="$3"
+
+    local http_code
+
+    http_code=$(${CURL} -X COPY -L -s -o >(cat >&2) -w "%{http_code}" \
+        --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+        -H "Authorization: Bearer ${BEARER_TOKEN}" \
+        -H "TransferHeaderAuthorization: Bearer ${BEARER_TOKEN}" \
+        -H "Source: ${src}" \
+        -H "Destination: ${dst}" \
+        "${resource}")
+
+    echo "$http_code"
+    return 0
+}
+
 download_file() {
     local src=$1
     local dest=$2
@@ -522,6 +546,16 @@ cleanup
 
 assert_eq "400" "$(plain_http_tpc pull "file:///etc/os-release" "$BEARER_TOKEN" "${hosts_http[0]}/${RMTDATADIR}/os-release" "$BEARER_TOKEN")" "Did not reject disallowed protocol"
 assert_eq "400" "$(plain_http_tpc push "${hosts_http[0]}" "$BEARER_TOKEN" "${hosts_http[0]/https/root}/${RMTDATADIR}/fake.root" "$BEARER_TOKEN")" "Did not reject disallowed protocol"
+
+# Both Source and Destination headers in the same COPY request
+
+tpc_src="${hosts_http[0]}/${RMTDATADIR}/${hosts_abbrev[0]}.ref"
+tpc_dst="${hosts_http[1]}/${RMTDATADIR}/${hosts_abbrev[1]}.ref"
+
+assert_eq "400" "$(plain_http_tpc_source_and_destination "${tpc_dst}" "${tpc_src}" "${tpc_dst}")" \
+    "Did not reject a COPY carrying both a Source and a Destination header"
+assert_eq "400" "$(plain_http_tpc_source_and_destination "${tpc_src}" "${tpc_src}" "${tpc_dst}")" \
+    "Did not reject a COPY carrying both a Source and a Destination header"
 
 echo "ALL TESTS PASSED"
 exit 0
