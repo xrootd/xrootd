@@ -565,6 +565,22 @@ bool File::Open(XrdOucCacheIO* inputIO)
    }
 
    m_cfi.WriteIOStatAttach();
+
+   // An open file must have a token, else its usage is never accounted.
+   m_resmon_token = Cache::ResMon().register_file_open(m_filename, time(0), ! initialize_info_file);
+   if (m_resmon_token < 0)
+   {
+      TRACEF(Error, tpfx << "no resource-monitor token available, not caching it; "
+                            "this indicates a token leak in XrdPfc, please report it.");
+      m_info_file->Close(); delete m_info_file; m_info_file = nullptr;
+      m_data_file->Close(); delete m_data_file; m_data_file = nullptr;
+      // Remove only what this call created.
+      if ( ! info_existed) myOss.Unlink(ifn.c_str());
+      if ( ! data_existed) myOss.Unlink(m_filename.c_str());
+      errno = EMFILE;
+      return false;
+   }
+
    m_state_cond.Lock();
    m_block_size = m_cfi.GetBufferSize();
    m_num_blocks = m_cfi.GetNBlocks();
@@ -576,7 +592,6 @@ bool File::Open(XrdOucCacheIO* inputIO)
    m_data_file->Fstat(&data_stat);
    m_st_blocks = data_stat.st_blocks;
 
-   m_resmon_token = Cache::ResMon().register_file_open(m_filename, time(0), ! initialize_info_file);
    constexpr long long MB = 1024 * 1024;
    m_resmon_report_threshold = std::min(std::max(10 * MB, m_file_size / 20), 500 * MB);
    // m_resmon_report_threshold_scaler; // something like 10% of original threshold, to adjust
