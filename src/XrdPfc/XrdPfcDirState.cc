@@ -177,9 +177,23 @@ void DirState::update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink
       // Note that root will never get purged.
       bool increment_iter = true;
       if (purge_empty_dirs && sub_ds.m_here_stats.m_NDirectoriesRemoved == 0 &&
-          sub_ds.m_here_usage.m_NDirectories == 0 && sub_ds.m_here_usage.m_NFiles == 0)
+          sub_ds.m_here_usage.m_NDirectories == 0 && sub_ds.m_here_usage.m_NFiles == 0 &&
+          sub_ds.m_here_usage.m_NFilesOpen == 0 && sub_ds.m_subdirs.empty())
       {
-         assert(sub_ds.m_subdirs.empty());
+         // m_subdirs.empty() used to be an assert() here -- but it is compiled out
+         // in release builds (-DNDEBUG) and it does trigger: m_NDirectories can be
+         // short of the real child count when a node's creation went unrecorded.
+         // Reaping such a node would erase a whole live subtree while reporting a
+         // single removal, so treat it as a condition instead.
+         //
+         // m_NFilesOpen == 0 is required for memory safety, not just for accounting:
+         // ResourceMonitor::AccessToken holds a bare DirState* from the time the open
+         // record is processed until the close record is, and the close handler
+         // dereferences it (XrdPfcResourceMonitor.cc, m_file_close_q loop). A file
+         // that is evicted or purged while still open (Cache::UnlinkFile ->
+         // File::initiate_emergency_shutdown) takes m_NFiles back to 0 while the
+         // File object is still alive, so without this term the directory would be
+         // reaped and the pending close would write through a dangling pointer.
 
          std::string dir_path;
          dir_path.reserve(1024);
