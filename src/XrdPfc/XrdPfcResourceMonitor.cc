@@ -289,12 +289,11 @@ int ResourceMonitor::process_queues()
       ds->m_here_stats.m_NFilesClosed += 1;
       ds->m_here_usage.m_LastCloseTime = i.record.m_close_time;
 
-      at.clear();
    }
-   { // Release the AccessToken slots under lock.
+   { // Under the lock: clear() writes fields register_file_update_stats() uses.
       XrdSysMutexHelper _lock(&m_queue_mutex);
       for (auto &i : m_file_close_q.read_queue())
-         m_access_tokens_free_slots.push_back(i.id);
+         m_access_tokens.release(i.id);
    }
 
    for (auto &i : m_file_purge_q1.read_queue())
@@ -362,6 +361,8 @@ void ResourceMonitor::heart_beat()
    time_t next_purge_report_time     = now + s_purge_report_interval;
    time_t next_purge_cold_files_time = now + s_purge_cold_files_interval;
 
+   long long n_reported_token_failures = 0;
+
    while (true)
    {
       time_t start = time(0);
@@ -392,6 +393,18 @@ void ResourceMonitor::heart_beat()
       int n_processed = process_queues();
       next_queue_proc_time = queue_swap_time + s_queue_proc_interval;
       TRACE(Dump, tpfx << "process_queues -- n_records=" << n_processed);
+
+      {  // Access-token space exhausted -- should be unreachable, so say so loudly.
+         long long taf;
+         { XrdSysMutexHelper _lock(&m_queue_mutex); taf = m_token_alloc_failures; }
+         if (taf > n_reported_token_failures) {
+            TRACE(Error, tpfx << "access-token space exhausted "
+                  << taf - n_reported_token_failures << " time(s) (total " << taf
+                  << "); those files are open but not accounted for. Raise MaxChunks "
+                     "on ResourceMonitor::m_access_tokens.");
+            n_reported_token_failures = taf;
+         }
+      }
 
       // Always update basic info on m_fs_state (space, usage, file_usage).
       update_vs_and_file_usage_info();

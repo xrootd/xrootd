@@ -28,7 +28,8 @@ add_library(${XrdPfc} MODULE
   XrdPfcPurge.cc
                             XrdPfcPurgePin.hh
   XrdPfcResourceMonitor.cc  XrdPfcResourceMonitor.hh
-                            XrdPfcStats.hh
+                            XrdPfcStableChunkVector.hh
+  XrdPfcStats.hh
                             XrdPfcTypes.hh
 )
 
