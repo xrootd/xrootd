@@ -1671,13 +1671,9 @@ namespace XrdCl
                                     ResponseHandler     *handler,
                                     time_t               timeout )
   {
-    if( pPlugIn )
-      return pPlugIn->DirList( path, flags, handler, timeout );
-
-    URL url = URL( path );
     std::string fPath = FilterXrdClCgi( path );
 
-    if( flags & DirListFlags::Zip )
+    if( !pPlugIn && ( flags & DirListFlags::Zip ) )
     {
       // stat the file to check if it is a directory or a file
       // the ZIP handler will take care of the rest
@@ -1688,6 +1684,20 @@ namespace XrdCl
       return st;
     }
 
+    if( flags & DirListFlags::Recursive )
+    {
+      handler = new RecursiveDirListHandler( *pImpl->fsdata->pUrl,
+                                             path, flags,
+                                             handler, timeout );
+      flags = ( flags & (~DirListFlags::Recursive) ) | DirListFlags::Stat;
+    }
+
+    if( flags & DirListFlags::Merge )
+      handler = new MergeDirListHandler( flags & DirListFlags::Chunked, handler );
+
+    if( pPlugIn )
+      return pPlugIn->DirList( path, flags, handler, timeout );
+
     Message           *msg;
     ClientDirlistRequest *req;
     MessageUtils::CreateRequest( msg, req, fPath.length() );
@@ -1695,17 +1705,11 @@ namespace XrdCl
     req->requestid  = kXR_dirlist;
     req->dlen       = fPath.length();
 
-    if( ( flags & DirListFlags::Stat ) || ( flags & DirListFlags::Recursive ) )
+    if( flags & DirListFlags::Stat )
       req->options[0] = kXR_dstat;
 
     if( ( flags & DirListFlags::Cksm ) )
       req->options[0] = kXR_dstat | kXR_dcksm;
-
-    if( flags & DirListFlags::Recursive )
-      handler = new RecursiveDirListHandler( *pImpl->fsdata->pUrl, url.GetPath(), flags, handler, timeout );
-
-    if( flags & DirListFlags::Merge )
-      handler = new MergeDirListHandler( flags & DirListFlags::Chunked, handler );
 
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
