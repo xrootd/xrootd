@@ -347,7 +347,8 @@ void ResourceMonitor::heart_beat()
    const Configuration &conf = Cache::Conf();
 
    const int s_queue_proc_interval   = 10;
-   const int s_sshot_report_interval = conf.m_dirStatsInterval; // 1, 5, 10, 15, 30 or 60 minutes
+   const int s_sshot_report_interval = conf.m_dirStatsInterval; // one of 60, 120, 300,
+                                                                //  600, 900, 1200, 1800, 3600 s
    const int s_purge_check_interval  = 60;
    const int s_purge_report_interval = conf.m_purgeInterval;
    const int s_purge_cold_files_interval = conf.m_purgeInterval * conf.m_purgeAgeBasedPeriod;
@@ -496,12 +497,25 @@ void ResourceMonitor::fill_sshot_vec_children(const DirState &parent_ds,
                                               std::vector<DirStateElement> &vec,
                                               int max_depth)
 {
-   int pos = vec.size();
-   int n_children = parent_ds.m_subdirs.size();
+   const int pos0       = (int) vec.size();
+   const int n_children = (int) parent_ds.m_subdirs.size();
 
-   DirStateElement &parent_dse = vec[parent_idx];
-   parent_dse.m_daughters_begin = pos;
-   parent_dse.m_daughters_end   = pos + n_children;
+   // maxdepth 0 is the root alone: a node at max_depth is emitted, its children are not.
+   if (parent_ds.m_depth >= max_depth)
+   {
+      // Truncated here: keep the daughter range at (-1, -1). No children: empty range.
+      if (n_children == 0) {
+         DirStateElement &dse = vec[parent_idx];
+         dse.m_daughters_begin = dse.m_daughters_end = pos0;
+      }
+      return;
+   }
+
+   {  // scoped: the emplace_back loop below can reallocate vec
+      DirStateElement &parent_dse = vec[parent_idx];
+      parent_dse.m_daughters_begin = pos0;
+      parent_dse.m_daughters_end   = pos0 + n_children;
+   }
 
    if (n_children == 0) return;
 
@@ -510,13 +524,11 @@ void ResourceMonitor::fill_sshot_vec_children(const DirState &parent_ds,
       vec.emplace_back( DirStateElement(child, parent_idx) );
    }
 
-   if (parent_ds.m_depth < max_depth)
+   int pos = pos0;
+   for (auto const & [name, child] : parent_ds.m_subdirs)
    {
-      for (auto const & [name, child] : parent_ds.m_subdirs)
-      {
-         fill_sshot_vec_children(child, pos, vec, max_depth);
-         ++pos;
-      }
+      fill_sshot_vec_children(child, pos, vec, max_depth);
+      ++pos;
    }
 }
 
@@ -525,12 +537,25 @@ void ResourceMonitor::fill_pshot_vec_children(const DirState &parent_ds,
                                               std::vector<DirPurgeElement> &vec,
                                               int max_depth)
 {
-   int pos = vec.size();
-   int n_children = parent_ds.m_subdirs.size();
+   const int pos0       = (int) vec.size();
+   const int n_children = (int) parent_ds.m_subdirs.size();
 
-   DirPurgeElement &parent_dpe = vec[parent_idx];
-   parent_dpe.m_daughters_begin = pos;
-   parent_dpe.m_daughters_end   = pos + n_children;
+   // maxdepth 0 is the root alone: a node at max_depth is emitted, its children are not.
+   if (parent_ds.m_depth >= max_depth)
+   {
+      // Truncated here: keep the daughter range at (-1, -1). No children: empty range.
+      if (n_children == 0) {
+         DirPurgeElement &dse = vec[parent_idx];
+         dse.m_daughters_begin = dse.m_daughters_end = pos0;
+      }
+      return;
+   }
+
+   {  // scoped: the emplace_back loop below can reallocate vec
+      DirPurgeElement &parent_dse = vec[parent_idx];
+      parent_dse.m_daughters_begin = pos0;
+      parent_dse.m_daughters_end   = pos0 + n_children;
+   }
 
    if (n_children == 0) return;
 
@@ -539,13 +564,11 @@ void ResourceMonitor::fill_pshot_vec_children(const DirState &parent_ds,
       vec.emplace_back( DirPurgeElement(child, child.m_here_usage, child.m_recursive_subdir_usage, parent_idx) );
    }
 
-   if (parent_ds.m_depth < max_depth)
+   int pos = pos0;
+   for (auto const & [name, child] : parent_ds.m_subdirs)
    {
-      for (auto const & [name, child] : parent_ds.m_subdirs)
-      {
-         fill_pshot_vec_children(child, pos, vec, max_depth);
-         ++pos;
-      }
+      fill_pshot_vec_children(child, pos, vec, max_depth);
+      ++pos;
    }
 }
 
