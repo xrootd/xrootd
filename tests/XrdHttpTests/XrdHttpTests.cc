@@ -636,11 +636,16 @@ TEST(XrdHttpTests,encodeOpaqueTest) {
 }
 
 TEST(XrdHttpTests, pathFromAbsoluteUrl) {
-  EXPECT_STREQ("/store/a", httpPathFromAbsoluteUrl("https://site.example:1094/store/a"));
-  EXPECT_STREQ("//pfn/path", httpPathFromAbsoluteUrl("root://host:1094//pfn/path"));
-  EXPECT_EQ(nullptr, httpPathFromAbsoluteUrl("https://site.example"));
-  EXPECT_EQ(nullptr, httpPathFromAbsoluteUrl("site.example"));
-  EXPECT_EQ(nullptr, httpPathFromAbsoluteUrl(nullptr));
+  EXPECT_EQ("/store/a", httpPathFromAbsoluteUrl("https://site.example:1094/store/a"));
+  EXPECT_EQ("//pfn/path", httpPathFromAbsoluteUrl("root://host:1094//pfn/path"));
+  // HTTP clients request "/" when the URL has no path.
+  EXPECT_EQ("/", httpPathFromAbsoluteUrl("https://site.example"));
+  EXPECT_EQ("/", httpPathFromAbsoluteUrl("http://site.example:1094"));
+  EXPECT_EQ("/", httpPathFromAbsoluteUrl("site.example"));
+  EXPECT_EQ("/", httpPathFromAbsoluteUrl(nullptr));
+  // Redir hashes decode_str() then collapse, matching parseResource().
+  EXPECT_EQ("/store/a b", httpCollapseSlashes(decode_str(
+      httpPathFromAbsoluteUrl("http://host/store//a%20b"))));
 }
 
 TEST(XrdHttpTests, buildRedirectLocationHostPort) {
