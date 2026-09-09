@@ -257,17 +257,7 @@ int ResourceMonitor::process_queues()
       DirState *last_existing_ds = nullptr;
       DirState *ds = m_fs_state.find_dirstate_for_lfn(at.m_filename, &last_existing_ds);
       at.m_dir_state = ds;
-      ds->m_here_stats.m_NFilesOpened += 1;
-
-      // If this is a new file figure out how many new parent dirs got created along the way.
-      if ( ! i.record.m_existing_file) {
-         ds->m_here_stats.m_NFilesCreated += 1;
-         DirState *pp = ds;
-         while (pp != last_existing_ds) {
-            pp = pp->get_parent();
-            pp->m_here_stats.m_NDirectoriesCreated += 1;
-         }
-      }
+      note_file_open(ds, last_existing_ds, i.record.m_existing_file);
 
       ds->m_here_usage.m_LastOpenTime = i.record.m_open_time;
    }
@@ -748,12 +738,27 @@ void ResourceMonitor::perform_purge_check(bool purge_cold_files, int tl)
    //     deletion -- eg, by comparing stat time of cinfo + doing the is-active / is-purge-protected.
 
    const DirState &root_ds = *m_fs_state.get_root();
-   const int n_calc_dirs  = 1 + root_ds.m_here_usage.m_NDirectories + root_ds.m_recursive_subdir_usage.m_NDirectories;
-#ifdef RM_DEBUG
+
+   // Size from the tree itself; the usage counters can be off (#2808).
    const int n_pshot_dirs = root_ds.count_dirs_to_level(9999);
+
+   // Report a counters-vs-tree mismatch when it appears or changes.
+   const int n_calc_dirs = 1 + root_ds.m_here_usage.m_NDirectories
+                             + root_ds.m_recursive_subdir_usage.m_NDirectories;
    dprintf("purge dir count recursive=%d vs from_usage=%d\n", n_pshot_dirs, n_calc_dirs);
-#endif
-   ps.m_dir_vec.reserve(n_calc_dirs);
+   const int discrepancy = n_calc_dirs - n_pshot_dirs;
+   if (discrepancy != m_dir_count_discrepancy)
+   {
+      if (discrepancy != 0) {
+         TRACE(Error, trc_pfx << "directory count mismatch: usage counters " << n_calc_dirs
+               << ", tree " << n_pshot_dirs << ", previous difference " << m_dir_count_discrepancy);
+      } else {
+         TRACE(Info, trc_pfx << "directory count consistent again: " << n_pshot_dirs);
+      }
+      m_dir_count_discrepancy = discrepancy;
+   }
+
+   ps.m_dir_vec.reserve(n_pshot_dirs);
    ps.m_dir_vec.emplace_back( DirPurgeElement(root_ds, root_ds.m_here_usage, root_ds.m_recursive_subdir_usage, -1) );
    fill_pshot_vec_children(root_ds, 0, ps.m_dir_vec, 9999);
 
