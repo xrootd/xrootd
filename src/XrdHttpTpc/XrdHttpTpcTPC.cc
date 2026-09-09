@@ -407,6 +407,18 @@ static bool IsCopyOntoItself(const std::string &remote_url, XrdHttpExtReq &req)
                                               socket);
 }
 
+// The URL the last request on this handle ended up on, which differs from the
+// one it was given whenever the remote end redirected it.
+static std::string EffectiveURL(CURL *curl, const std::string &url)
+{
+  char *effective = nullptr;
+  if (curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effective) != CURLE_OK
+  ||  !effective) {
+    return url;
+  }
+  return effective;
+}
+
 /******************************************************************************/
 /*                T P C H a n d l e r : : P r o c e s s R e q                 */
 /******************************************************************************/
@@ -719,6 +731,32 @@ int TPCHandler::GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_
     contentLength = state.GetContentLength();
     reprDigest = state.GetReprDigest();
     return result;
+}
+  
+/******************************************************************************/
+/*           T P C H a n d l e r : : I s P u s h O n t o I t s e l f          */
+/******************************************************************************/
+
+bool TPCHandler::IsPushOntoItself(CURL *curl, XrdHttpExtReq &req,
+                                  const std::string &resource, TPCLogRecord &rec)
+{
+    // An extra round trip, and the only way to learn that a destination naming a
+    // manager redirects back to this very server.
+    const int tpc_status = rec.tpc_status;
+    bool success = false;
+    {
+        State probe(curl, req.tpcForwardCreds);
+        probe.SetupHeadersForHEAD(req);
+        // A destination we cannot read is no error: it may not exist yet, and a
+        // file that is not there cannot be destroyed.
+        PerformHEADRequest(curl, req, probe, success, rec, false);
+    }
+    // PerformHEADRequest leaves this set. With it the destination's error body
+    // never reaches PushRespCB, and a push has always uploaded without it.
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 0L);
+    rec.tpc_status = tpc_status;
+
+    return success && IsCopyOntoItself(EffectiveURL(curl, resource), req);
 }
   
 /******************************************************************************/
@@ -1153,6 +1191,18 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
+    // Last chance to answer with a status: RunCurlWithUpdates() starts the
+    // response before transferring anything.
+    if (IsPushOntoItself(curl, req, resource, rec)) {
+        std::stringstream ss;
+        ss << "COPY rejected: the source and the destination are the same file";
+        rec.status = 400;
+        logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", ss.str());
+        int resp_result = req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
+        fh->close();
+        return resp_result;
+    }
+
     Stream stream(std::move(fh), 0, 0, m_log);
     State state(0, stream, curl, true, req.tpcForwardCreds);
     state.SetupHeaders(req);
@@ -1297,6 +1347,16 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             // just exit here
             return 0;
         }
+    }
+    // The HEAD above follows redirects, so a source naming a manager has just
+    // named the server holding the file, which may be this one. Nothing is open
+    // yet, so the client still gets a 400.
+    if (IsCopyOntoItself(EffectiveURL(curl, resource), req)) {
+        std::stringstream ss;
+        ss << "COPY rejected: the source and the destination are the same file";
+        rec.status = 400;
+        logTransferEvent(LogMask::Error, rec, "PULL_FAIL", ss.str());
+        return req.SendSimpleResp(rec.status, NULL, NULL, generateClientErr(ss, rec).c_str(), 0);
     }
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY,
                                     0644 | SFS_O_MKPTH,

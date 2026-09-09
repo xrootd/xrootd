@@ -131,6 +131,11 @@ private:
 
     int GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t & contentLength, std::map<std::string,std::string> & reprDigest, bool & success, TPCLogRecord &rec);
 
+    // Ask the destination which server holds the file, catching a push aimed at a
+    // manager standing in front of this very server.
+    bool IsPushOntoItself(CURL *curl, XrdHttpExtReq &req,
+                          const std::string &resource, TPCLogRecord &rec);
+
     // Send a 'performance marker' back to the TPC client, informing it of our
     // progress.  The TPC client will use this information to determine whether
     // the transfer is making sufficient progress and/or other monitoring info
