@@ -664,7 +664,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
         
         CurrentReq.appendOpaque(dest, &SecEntity, hash, timenow);
-        SendSimpleResp(302, NULL, (char *) dest.c_str(), 0, 0, true);
+        SendSimpleResp(302, NULL, (char *) dest.c_str(), 0, 0, false);
         CurrentReq.reset();
         return -1;
       }
