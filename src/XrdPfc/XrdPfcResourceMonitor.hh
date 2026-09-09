@@ -110,6 +110,7 @@ class ResourceMonitor
    // DirPurge queue -- not needed? But we do need last-change timestamp in DirState.
 
    long long    m_current_usage_in_st_blocks = 0;  // aggregate disk usage by files
+   int          m_dir_count_discrepancy = 0;       // last reported usage-vs-tree mismatch
 
    XrdSysMutex  m_queue_mutex;        // mutex shared between queues
    unsigned int m_queue_swap_u1 = 0u; // identifier of current swap cycle

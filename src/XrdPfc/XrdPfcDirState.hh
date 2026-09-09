@@ -111,6 +111,27 @@ struct DirState : public DirStateBase
 };
 
 
+//! Count the DirState nodes a lookup created, from node up to last_existing.
+inline void note_created_dirs(DirState *node, DirState *last_existing)
+{
+   for (DirState *p = node; p != last_existing; )
+   {
+      p = p->get_parent();
+      p->m_here_stats.m_NDirectoriesCreated += 1;
+   }
+}
+
+//! Account one file open. Created directories are counted even when the data
+//! file already existed (#2808).
+inline void note_file_open(DirState *node, DirState *last_existing, bool existing_file)
+{
+   node->m_here_stats.m_NFilesOpened += 1;
+   note_created_dirs(node, last_existing);
+   if ( ! existing_file)
+      node->m_here_stats.m_NFilesCreated += 1;
+}
+
+
 //==============================================================================
 // DataFsState
 //==============================================================================
