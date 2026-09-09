@@ -686,11 +686,15 @@ std::string httpStatusToString(int status) {
   }
 }
 
-const char *httpPathFromAbsoluteUrl(const char *hname) {
-  if (!hname) return nullptr;
-  const char *scheme = strstr(hname, "://");
-  if (!scheme) return nullptr;
-  return strchr(scheme + 3, '/');
+std::string httpPathFromAbsoluteUrl(const char *hname) {
+  std::string path = "/";
+  if (hname) {
+    if (const char *scheme = strstr(hname, "://")) {
+      if (const char *urlPath = strchr(scheme + 3, '/'))
+        path = urlPath;
+    }
+  }
+  return path;
 }
 
 std::string httpCollapseSlashes(std::string path) {

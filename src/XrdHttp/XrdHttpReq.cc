@@ -658,10 +658,8 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
 
     // Derive the token path while hname is still truncated at '?', so the CGI
     // stays out of the hash and both ends digest the same string.
-    if (fullUrl && destHttpCleartext) {
-      if (const char *urlPath = httpPathFromAbsoluteUrl(hname))
-        urlHashPath = httpCollapseSlashes(decode_str(urlPath));
-    }
+    if (fullUrl && destHttpCleartext)
+      urlHashPath = httpCollapseSlashes(decode_str(httpPathFromAbsoluteUrl(hname)));
   }
 
   // Restore '?' so later uses of hname see the original string.

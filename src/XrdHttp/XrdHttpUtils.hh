@@ -252,8 +252,8 @@ int mapErrNoToHttp(int err);
 
 std::string httpStatusToString(int status);
 
-//! Path starting at the first `/` after the authority, or nullptr.
-const char *httpPathFromAbsoluteUrl(const char *hname);
+//! Path starting at the first `/` after the authority. An absent path is `/`.
+std::string httpPathFromAbsoluteUrl(const char *hname);
 
 //! Collapse duplicate slashes in a path. Applied to an already-decoded path,
 //! `decode_str()` then this yields the canonical request path. Shared by
