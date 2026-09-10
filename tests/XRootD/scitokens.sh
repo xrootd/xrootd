@@ -107,6 +107,8 @@ function test_scitokens() {
 	export BEARER_TOKEN_FILE=scitokens/token_create
 	xrdcp "$SOURCE_DIR/scitokens.cfg" "$HOST/protected/subdir/root/scitokens.cfg"
 	assert_failure xrdcp -f "$HOST/protected/subdir/root/scitokens.cfg" .
+	assert xrdcp -f "$HOST/protected/subdir/root/scitokens.cfg?xrd.ztn=$PWD/scitokens/token" .
+	assert diff -u "$SOURCE_DIR/scitokens.cfg" scitokens.cfg
 	export BEARER_TOKEN_FILE=scitokens/token
 	assert xrdcp -f "$HOST/protected/subdir/root/scitokens.cfg" .
 	assert diff -u "$SOURCE_DIR/scitokens.cfg" scitokens.cfg

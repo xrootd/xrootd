@@ -7,6 +7,7 @@ from pyxrootd.client import setXAttrAdler32_cpp as setXAttrAdler32
 from .url import URL
 from .copyprocess import CopyProcess
 from .tape import TapeClient
+from .auth import AuthContext
 from .env import EnvPutString
 from .env import EnvGetString
 from .env import EnvDelString

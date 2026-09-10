@@ -31,6 +31,7 @@ API Reference
    modules/client/filesystem
    modules/client/file
    modules/client/copyprocess
+   modules/client/auth
    modules/client/responses
    modules/client/env
    modules/client/flags
