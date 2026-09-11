@@ -599,6 +599,9 @@ bool File::Open(XrdOucCacheIO *inputIO)
    m_data_file->Fstat(&data_stat);
    m_st_blocks = data_stat.st_blocks;
 
+   // No early return between here and the matching Close(): the token holds a bare
+   // DirState* and m_NFilesOpen > 0 is what keeps that DirState from being reaped
+   // (XrdPfcDirState.cc), so a lost close leaks a permanently unreapable directory.
    m_resmon_token = Cache::ResMon().register_file_open(m_filename, time(0), data_existed);
    constexpr long long MB = 1024 * 1024;
    m_resmon_report_threshold = std::min(std::max(10 * MB, m_file_size / 20), 500 * MB);

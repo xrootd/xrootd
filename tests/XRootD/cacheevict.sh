@@ -57,7 +57,10 @@ function test_cacheevict() {
 
 	assert xrdcp -f "${HOST}//${lfn}" evict-full.dat
 	assert cmp evict.dat evict-full.dat
-	wait_for_access_record "${cinfo}" 2
+	# Not wait_for_access_record 2: the refused only-if-cached open above may or
+	# may not have left a record of its own (see below), so the count here is
+	# either 2 or 3. Wait on the state this assertion is actually about.
+	wait_for_cinfo_complete "${cinfo}"
 	assert_eq "${PFC_NBLOCKS} ${PFC_NBLOCKS} complete" "$(cinfo_blocks "${cinfo}")" \
 		"the full read should have completed the file"
 

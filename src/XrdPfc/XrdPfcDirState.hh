@@ -111,6 +111,56 @@ struct DirState : public DirStateBase
 };
 
 
+//------------------------------------------------------------------------------
+//! Record the DirState nodes that a find_path() / find_dirstate_for_lfn() call
+//! has just created, by walking from the node it returned up to -- but not
+//! including -- the deepest one that already existed.
+//!
+//! This has to happen for *every* open, not only for opens of files that are
+//! new: find_path() creates the chain either way, and a node whose creation
+//! goes unrecorded while its eventual removal is recorded drives
+//! m_NDirectories negative, which is issue #2808. When all the directories
+//! already existed, node == last_existing and this does nothing.
+//!
+//! Free function rather than inline code in ResourceMonitor::process_queues()
+//! so that it can be unit-tested: process_queues() needs the Cache singleton,
+//! this does not.
+//------------------------------------------------------------------------------
+
+inline void note_created_dirs(DirState *node, DirState *last_existing)
+{
+   for (DirState *p = node; p != last_existing; )
+   {
+      p = p->get_parent();
+      p->m_here_stats.m_NDirectoriesCreated += 1;
+   }
+}
+
+//------------------------------------------------------------------------------
+//! The whole accounting for one file-open event: the open itself, any DirState
+//! nodes the lookup had to create, and -- only if the data file was not already
+//! on disk -- the file creation.
+//!
+//! @param node           what find_dirstate_for_lfn() returned
+//! @param last_existing  the deepest node on that path that already existed
+//! @param existing_file  File::Open()'s data_existed
+//!
+//! The *directory* accounting is unconditional while the *file* accounting is
+//! not, and conflating the two is issue #2808: node creation used to be
+//! recorded only for new files, so a directory created while opening a file
+//! that was already on disk went unrecorded while its later removal did not,
+//! and the count drifted one lower per reap until it went negative.
+//------------------------------------------------------------------------------
+
+inline void note_file_open(DirState *node, DirState *last_existing, bool existing_file)
+{
+   node->m_here_stats.m_NFilesOpened += 1;
+   note_created_dirs(node, last_existing);
+   if ( ! existing_file)
+      node->m_here_stats.m_NFilesCreated += 1;
+}
+
+
 //==============================================================================
 // DataFsState
 //==============================================================================
