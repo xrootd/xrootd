@@ -216,6 +216,16 @@ function cinfo_block_map() {
 	sed -n '/^printing /,/^Access records/p' | sed -n 's/^ *[0-9]\{1,\} \([x.]\{1,\}\)$/\1/p' | tr -d '\n'
 }
 
+function report_cinfo_state() {
+	if [[ -f "$1" ]]; then
+		echo "  cinfo $1: n_acc=$(cinfo_n_acc "$1") blocks=$(cinfo_blocks "$1")"
+	else
+		echo "  cinfo $1: does not exist"
+	fi
+}
+
+# Wait for exactly $2 access records. Use only where the count is determined:
+# a refused open can still add a record.
 function wait_for_access_record() {
 	for _ in $(seq 100); do
 		if [[ -f "$1" ]] && [[ "$(cinfo_n_acc "$1")" == "$2" ]]; then
@@ -223,5 +233,21 @@ function wait_for_access_record() {
 		fi
 		sleep 0.2
 	done
+	report_cinfo_state "$1"
 	error "timed out after 20 s waiting for access record $2 of $1"
+}
+
+function wait_for_cinfo_complete() {
+	local nblk ndone state
+	for _ in $(seq 100); do
+		if [[ -f "$1" ]]; then
+			read -r nblk ndone state <<< "$(cinfo_blocks "$1")"
+			if [[ "${state}" == complete ]] && [[ "${nblk}" == "${ndone}" ]]; then
+				return 0
+			fi
+		fi
+		sleep 0.2
+	done
+	report_cinfo_state "$1"
+	error "timed out after 20 s waiting for $1 to be complete"
 }

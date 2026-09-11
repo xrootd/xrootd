@@ -57,7 +57,8 @@ function test_cacheevict() {
 
 	assert xrdcp -f "${HOST}//${lfn}" evict-full.dat
 	assert cmp evict.dat evict-full.dat
-	wait_for_access_record "${cinfo}" 2
+	# The refused open above may have added an access record, so wait on completeness.
+	wait_for_cinfo_complete "${cinfo}"
 	assert_eq "${PFC_NBLOCKS} ${PFC_NBLOCKS} complete" "$(cinfo_blocks "${cinfo}")" \
 		"the full read should have completed the file"
 
