@@ -11,7 +11,8 @@ xrdcp - copy files
 [\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
 [\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR]
 [\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
-[\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR] [\fB--verbose\fR]
+[\fB--tpc\fR [\fBdelegate\fR] [\fBpush\fR] \fBfirst\fR|\fBonly\fR]
+[\fB--tpc-token-file\fR \fIfile\fR] [\fB--verbose\fR]
 [\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 [\fB--dynamic-src\fR] [\fB--infiles\fR \fIfn\fR]
 [\fB--parallel\fR \fIn\fR] [\fB--xattr\fR]
@@ -120,7 +121,7 @@ in this case not used to carry out the transfer).
 The maximum value is 15. The default is 0 (i.e., use only the control stream).
 
 .RE
-\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR
+\fB--tpc\fR [\fBdelegate\fR] [\fBpush\fR] \fBfirst\fR|\fBonly\fR
 .RS 5
 copies the file from remote server to remote server using third-party-copy
 protocol (i.e., data flows from server to server). The source and destination
@@ -131,7 +132,30 @@ while '\fBonly\fR' fails the copy unless tpc succeeds. When '\fBdelegate\fR' is
 specified, the copy delegates the command issuer's credentials to the target
 server which uses those credentials to authenticate with the source server.
 Delegation is ignored if the target server is not configured to use delegated
-credentials. Currently, only gsi credentials can be delegated.
+credentials. Currently, only gsi credentials can be delegated. When '\fBpush\fR'
+is specified, the copy is driven by the source server which pushes the data to
+the destination. By default, the copy is driven by the destination server which
+pulls the data from the source. Push copies only apply to third-party copies
+performed over HTTP(S).
+
+.RE
+\fB--tpc-token-file\fR \fIfile\fR
+.RS 5
+specifies the file holding the bearer tokens used to authenticate the
+third-party copy. The first line of \fIfile\fR contains the token presented to
+the source and the second line the token presented to the destination.
+Alternatively, \fIfile\fR may hold a JSON object whose '\fBsrc\fR' property is
+the token presented to the source and whose '\fBdst\fR' property is the token
+presented to the destination, as in '\fB{ "src": "<token>", "dst": "<token>" }\fR'.
+In both formats a token may be left out, by an empty line or by an omitted
+property, in which case the corresponding side is given no token, so a pull or a
+push may well be authenticated with a single token. Each token is sent as
+an '\fBAuthorization: Bearer\fR' header, so the option only applies to
+third-party copies performed over HTTP(S). If the option is not specified, the
+file named by
+the \fBBEARER_TOKEN_FILE\fR environment variable is used instead. The copy fails
+if \fIfile\fR cannot be opened or if it holds neither a source nor a destination
+token.
 
 .RE
 \fB-v\fR | \fB--verbose\fR
