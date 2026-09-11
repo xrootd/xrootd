@@ -216,6 +216,25 @@ function cinfo_block_map() {
 	sed -n '/^printing /,/^Access records/p' | sed -n 's/^ *[0-9]\{1,\} \([x.]\{1,\}\)$/\1/p' | tr -d '\n'
 }
 
+# Dump what a cinfo actually holds. Called when a wait gives up: a bare
+# "timed out" says nothing about whether the value was short, exact or already
+# past the one waited for, and that is the first thing you need to know.
+function report_cinfo_state() {
+	if [[ -f "$1" ]]; then
+		echo "  cinfo $1: n_acc=$(cinfo_n_acc "$1") blocks=$(cinfo_blocks "$1")"
+	else
+		echo "  cinfo $1: does not exist"
+	fi
+}
+
+# Wait for the cinfo to report exactly $2 access records.
+#
+# Use this only where the count is genuinely determined. An access record is
+# appended when a File attaches, and the cinfo is written and synced repeatedly
+# over the File's life -- not once at close -- so the count is live, and an open
+# that is refused after the File was constructed still leaves a record behind.
+# Where that can happen, wait on the final state instead: see
+# wait_for_cinfo_complete().
 function wait_for_access_record() {
 	for _ in $(seq 100); do
 		if [[ -f "$1" ]] && [[ "$(cinfo_n_acc "$1")" == "$2" ]]; then
@@ -223,5 +242,29 @@ function wait_for_access_record() {
 		fi
 		sleep 0.2
 	done
+	echo "timed out after 20 s waiting for access record $2 of $1"
+	report_cinfo_state "$1"
 	error "timed out after 20 s waiting for access record $2 of $1"
+}
+
+# Wait for every block of the file to be on disk.
+#
+# Completeness is monotonic -- a file becomes complete once and stays complete
+# -- so unlike an access count there is nothing to overshoot and no baseline to
+# sample. Prefer this wherever the assertion that follows is about the file
+# being fully cached.
+function wait_for_cinfo_complete() {
+	local nblk ndone state
+	for _ in $(seq 100); do
+		if [[ -f "$1" ]]; then
+			read -r nblk ndone state <<< "$(cinfo_blocks "$1")"
+			if [[ "${state}" == complete ]] && [[ "${nblk}" == "${ndone}" ]]; then
+				return 0
+			fi
+		fi
+		sleep 0.2
+	done
+	echo "timed out after 20 s waiting for $1 to be complete"
+	report_cinfo_state "$1"
+	error "timed out after 20 s waiting for $1 to be complete"
 }
