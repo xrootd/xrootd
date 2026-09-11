@@ -1,0 +1,6 @@
+add_bats_test(XrdHttp::header-option option.bats)
+add_bats_test(XrdHttp::header-protocol protocol.bats)
+add_bats_test(XrdHttp::header-inject inject.bats)
+add_bats_test(XrdHttp::header-reject reject.bats)
+add_bats_test(XrdHttp::header-log log.bats)
+add_bats_test(XrdHttp::header-env env.bats)
