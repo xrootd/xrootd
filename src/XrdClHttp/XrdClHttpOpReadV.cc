@@ -148,7 +148,10 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
 
     while (length) {
         // If we're in the middle of a response chunk, copy as much data as possible.
-        if (m_current_op.first != -1 && m_current_op.second != -1) {
+        // m_multipart_boundary is false while part headers are still being assembled
+        // across curl writes. Content-Range may already have filled m_current_op, but
+        // the terminating blank line (and thus the payload) has not arrived yet.
+        if (m_multipart_boundary && m_current_op.first != -1 && m_current_op.second != -1) {
             //m_logger->Debug(kLogXrdClHttp, "Processing response buffer of (%lld, %lld)", static_cast<long long>(m_current_op.first), static_cast<long long>(m_current_op.second));
             if (m_skip_bytes) {
                 //m_logger->Debug(kLogXrdClHttp, "Skipping %lld bytes", static_cast<long long>(m_skip_bytes));
@@ -213,6 +216,17 @@ CurlVectorReadOp::Write(char *orig_buffer, size_t orig_length)
         // complete line.
         auto get_next_line = [&]() {
             std::string_view chunk_header(buffer, length);
+            // CRLF may be split across curl writes: previous chunk ended with \r
+            // and this one starts with \n.  find("\r\n") would otherwise glue this
+            // line to the next header (e.g. "--123456\r" + "\nContent-type: ...\r\n").
+            if (!m_response_headers.empty() && m_response_headers.back() == '\r' &&
+                !chunk_header.empty() && chunk_header.front() == '\n') {
+                m_response_headers.pop_back();
+                m_header_line = std::move(m_response_headers);
+                buffer += 1;
+                length -= 1;
+                return std::make_pair(std::string_view(m_header_line), true);
+            }
             auto pos = chunk_header.find("\r\n");
             if (pos == std::string_view::npos) {
                 m_response_headers += chunk_header;
