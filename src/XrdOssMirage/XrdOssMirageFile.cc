@@ -112,9 +112,20 @@ ssize_t XrdOssMirageFile::Read(void *buffer, off_t offset, size_t size)
         std::fill_n(static_cast<char *>(buffer), num_bytes, entry->pattern.front());
 
     if (entry->pattern.size() > 1)
-        std::generate_n(static_cast<char *>(buffer), num_bytes, [i = offset % entry->pattern.size(), this] () mutable {
-            return entry->pattern[i++ % entry->pattern.size()]; 
+    {
+        std::call_once(pattern_buffer_once, [this, size] () {
+            while (pattern_buffer.size() < size)
+                pattern_buffer.insert(pattern_buffer.end(), entry->pattern.begin(), entry->pattern.end());
         });
+
+        const std::size_t start = offset % entry->pattern.size();
+        const std::size_t first_chunk = std::min(num_bytes, pattern_buffer.size() - start);
+
+        char *out = static_cast<char *>(buffer);
+        std::copy(pattern_buffer.begin() + start, pattern_buffer.begin() + start + first_chunk, out);
+        if (first_chunk < num_bytes)
+            std::copy(pattern_buffer.begin(), pattern_buffer.begin() + (num_bytes - first_chunk), out + first_chunk);
+    }
 
     return num_bytes;
 }

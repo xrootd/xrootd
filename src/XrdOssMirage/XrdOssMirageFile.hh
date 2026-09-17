@@ -5,13 +5,18 @@
 
 #include <XrdOss/XrdOss.hh>
 
+#include <mutex>
 #include <variant>
+#include <vector>
 
 class XrdOssMirageFile : public XrdOssDF {
 private:
     XrdOssMirage &oss;
     std::variant<XrdOssMirageEntry, XrdOssMirageEntryPtr> entry_storage;
     XrdOssMirageEntry *entry;
+    
+    std::vector<char> pattern_buffer;
+    std::once_flag pattern_buffer_once;
 
 public:
     XrdOssMirageFile(XrdOssMirage &oss);
