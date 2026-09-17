@@ -14,6 +14,11 @@ struct XrdOssMirageEntry
 
     struct
     {
+       int return_code{XrdOssOK};
+    } close;
+
+    struct
+    {
         int return_code{XrdOssOK};
         std::size_t return_position{};
     } read;
