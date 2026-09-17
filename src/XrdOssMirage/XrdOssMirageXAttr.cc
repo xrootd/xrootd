@@ -32,6 +32,8 @@ int XrdOssMirageXAttr::Del(const char *Aname, const char *Path, int fd)
 
     if (name == "U.open.return_code"sv)
         entry->open.return_code = {};
+    else if (name == "U.close.return_code"sv)
+        entry->close.return_code = {};
     else if (name == "U.read.return_code"sv)
         entry->read.return_code = {};
     else if (name == "U.read.return_position"sv)
@@ -68,6 +70,8 @@ int XrdOssMirageXAttr::Get(const char *Aname, void *Aval, int Avsz, const char *
 
     if (name == "U.open.return_code"sv)
         value = std::to_string(entry.open.return_code);
+    else if (name == "U.close.return_code"sv)
+        value = std::to_string(entry.close.return_code);
     else if (name == "U.read.return_code"sv)
         value = std::to_string(entry.read.return_code);
     else if (name == "U.read.return_position"sv)
@@ -110,6 +114,8 @@ int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const 
     {
         if (name == "U.open.return_code"sv)
             entry->open.return_code = std::stoi(value);
+        else if (name == "U.close.return_code"sv)
+            entry->close.return_code = std::stoi(value);
         else if (name == "U.read.return_code"sv)
             entry->read.return_code = std::stoi(value);
         else if (name == "U.read.return_position"sv)
