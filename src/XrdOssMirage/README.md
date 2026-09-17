@@ -23,6 +23,7 @@ ofs.osslib libXrdOssMirage.so
 If extended configuration options are required, the plugin also supports settings such as:
 
 - custom return code when opening files
+- custom return code when closing files
 - custom return code when reading files (optionally at specific offset)
 - custom return code when writing files (optionally at specific offset)
 - configurable content data patterns
@@ -97,6 +98,23 @@ Run: [ERROR] Server responded with an error: [3008] Unable to open /remotefile; 
 $ xrdcp -f localfile root://localhost//remotefile
 [0B/0B][100%][==================================================][0B/s]  
 Run: [ERROR] Server responded with an error: [3008] Unable to open /remotefile; cannot allocate memory (destination)
+```
+
+### Custom return code when closing a file
+
+To simulate a custom error when closing a file, a fake extended attribute `close.return_code` can be set.
+
+```
+xrdfs root://localhost/ xattr /remotefile set close.return_code=CODE
+```
+
+Example:
+
+```
+$ xrdfs root://localhost/ xattr /remotefile set close.return_code=12
+$ xrdcp root://localhost//remotefile localfile
+[0B/0B][100%][==================================================][0B/s]  
+Run: [ERROR] Server responded with an error: [3008] Unable to close /remotefile; cannot allocate memory (source)
 ```
 
 ### Custom return code when reading a file at a specific position
