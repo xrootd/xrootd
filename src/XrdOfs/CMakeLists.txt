@@ -38,3 +38,14 @@ add_library(${XrdOfsPrepGPI} MODULE XrdOfsPrepGPI.cc)
 target_link_libraries(${XrdOfsPrepGPI} PRIVATE XrdUtils)
 
 install(TARGETS ${XrdOfsPrepGPI} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+# Optional protocol-neutral, durable coordinator around an XrdOfsPrepare backend.
+add_library(XrdOfsPrepPersistCore STATIC XrdOfsPrepStore.cc XrdOfsPrepPersist.cc)
+set_target_properties(XrdOfsPrepPersistCore PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_link_libraries(XrdOfsPrepPersistCore PUBLIC XrdUtils Threads::Threads uuid::uuid)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
+  target_link_libraries(XrdOfsPrepPersistCore PUBLIC stdc++fs)
+endif()
+add_library(XrdOfsPrepPersist-${PLUGIN_VERSION} MODULE XrdOfsPrepPersistEntry.cc)
+target_link_libraries(XrdOfsPrepPersist-${PLUGIN_VERSION} PRIVATE XrdOfsPrepPersistCore)
+install(TARGETS XrdOfsPrepPersist-${PLUGIN_VERSION} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
