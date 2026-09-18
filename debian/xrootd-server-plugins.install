@@ -9,6 +9,7 @@
 /usr/lib/*/libXrdMacaroons-6.so
 /usr/lib/*/libXrdN2No2p-6.so
 /usr/lib/*/libXrdOfsPrepGPI-6.so
+/usr/lib/*/libXrdOfsPrepPersist-6.so
 /usr/lib/*/libXrdOssArc-6.so
 /usr/lib/*/libXrdOssCsi-6.so
 /usr/lib/*/libXrdOssMirage-6.so
