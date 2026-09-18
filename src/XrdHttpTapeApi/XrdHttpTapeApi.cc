@@ -23,7 +23,10 @@
 /******************************************************************************/
 
 #include "XrdHttp/XrdHttpExtHandler.hh"
-#include "XrdHttpTapeApiStore.hh"
+#include "XrdOfs/XrdOfsPrepProtocol.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include <arpa/inet.h>
+#include <set>
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucJson.hh"
 #include "XrdOuc/XrdOucTUtils.hh"
@@ -46,19 +49,22 @@ constexpr char kStagePrefix[] = "/api/v1/stage/";
 constexpr char kStageCancelSuffix[] = "/cancel";
 constexpr char kReleasePrefix[] = "/api/v1/release/";
 constexpr char kArchiveInfoPath[] = "/api/v1/archiveinfo";
+constexpr unsigned kEvictOperation = 0x10000 | kXR_evict;
 constexpr long long kDefaultMaxRequestSize = 4 * 1024 * 1024;
 
-class TapeApiHandler final : public XrdHttpExtHandler
+class TapeApiHandler final : public XrdHttpExtHandlerBridge
 {
   public:
-    TapeApiHandler(const std::string &root, long long maxRequestSize,
-                   const std::string &siteName)
-      : m_store(root), m_maxRequestSize(maxRequestSize),
+    TapeApiHandler(long long maxRequestSize, const std::string &siteName)
+      : m_maxRequestSize(maxRequestSize),
         m_siteName(siteName) {}
 
     bool MatchesPath(const char *verb, const char *path) override;
     int ProcessReq(XrdHttpExtReq &req) override;
-    int Init(const char *cfgfile) override;
+    int Init(const char * /*cfgfile*/) override { return 0; }
+    bool RequiresBridge(const char *, const char *path) const override {
+      return path && std::string(path) != kDiscoveryPath;
+    }
     const std::string &InitializationError() const { return m_initError; }
 
   private:
@@ -67,9 +73,10 @@ class TapeApiHandler final : public XrdHttpExtHandler
                         const std::string &additionalHeaders = {});
     static int SendError(XrdHttpExtReq &req, int code,
                          const std::string &message);
-    static int SendStatus(XrdHttpExtReq &req,
-                          const XrdHttpTapeApiStore::Status &status,
-                          const std::string &body = {});
+    static int Native(XrdHttpExtReq &req, unsigned operation, const std::string &id,
+                      const Json &files, bool stage = false, bool archive = false);
+    static std::string Payload(XrdHttpExtReq &req, const Json &files,
+                               const std::string &requestId = {});
     bool ReadBody(XrdHttpExtReq &req, std::string &body,
                   int &errorCode, std::string &error);
     static bool ParseJsonBody(const std::string &body, Json &json,
@@ -89,7 +96,6 @@ class TapeApiHandler final : public XrdHttpExtHandler
                 const std::string &body);
     int ArchiveInfo(XrdHttpExtReq &req, const std::string &body);
 
-    XrdHttpTapeApiStore m_store;
     long long m_maxRequestSize;
     std::string m_siteName;
     std::string m_initError;
@@ -118,12 +124,103 @@ int TapeApiHandler::SendError(XrdHttpExtReq &req, int code,
     "Content-Type: application/problem+json", body.c_str(), body.size());
 }
 
-int TapeApiHandler::SendStatus(
-  XrdHttpExtReq &req, const XrdHttpTapeApiStore::Status &status,
-  const std::string &body)
+std::string TapeApiHandler::Payload(XrdHttpExtReq &req, const Json &files,
+                                     const std::string &requestId)
 {
-  return status ? SendJson(req, status.code, body)
-                : SendError(req, status.code, status.message);
+  using namespace XrdOfsPrepProtocol;
+  if (files.size() > MaxFiles) Fail(E2BIG, "prepare batch exceeds 48 files");
+  std::string authorization;
+  const auto full = req.headers.find("xrd-http-fullresource");
+  if (full != req.headers.end()) {
+    const auto marker = full->second.find('?');
+    if (marker != std::string::npos) {
+      XrdOucEnv query(full->second.c_str() + marker + 1);
+      const char *authz = query.Get("authz");
+      if (authz && *authz) authorization = std::string("authz=") + authz;
+    }
+  }
+  std::set<std::string> seen;
+  std::string payload;
+  for (const auto &file : files) {
+    const auto path = Path(file.is_string() ? file.get<std::string>()
+                                          : file.at("path").get<std::string>());
+    if (!seen.insert(path).second) Fail(EINVAL, "duplicate prepare path");
+    std::string cgi;
+    if (!file.is_string()) cgi = "xrd.prepare.file=" + Hex(Metadata(file).dump());
+    if (!requestId.empty()) {
+      if (!cgi.empty()) cgi += '&';
+      cgi += "xrd.prepare.request=" + requestId;
+    }
+    if (!authorization.empty()) {
+      if (!cgi.empty()) cgi += '&';
+      cgi += authorization;
+    }
+    payload += path;
+    if (!cgi.empty()) payload += "?" + cgi;
+    payload += '\n';
+  }
+  return payload;
+}
+
+int TapeApiHandler::Native(XrdHttpExtReq &req, unsigned operation,
+                           const std::string &id, const Json &files,
+                           bool stage, bool archive)
+{
+  using namespace XrdOfsPrepProtocol;
+  ClientRequest native{};
+  std::string payload;
+  if (operation == kXR_query) {
+    native.header.requestid = htons(kXR_query);
+    native.query.infotype = htons(kXR_QPrep);
+    payload = id + "\n" + Payload(req, files);
+  } else {
+    native.header.requestid = htons(kXR_prepare);
+    if (stage) native.prepare.options = kXR_stage;
+    else if (operation == kXR_cancel) {
+      native.prepare.options = kXR_cancel;
+      payload = id + "\n";
+    } else native.prepare.optionX = htons(kXR_evict);
+    payload += Payload(req, files, operation == kEvictOperation && !stage ? id : "");
+  }
+  native.header.dlen = htonl(payload.size());
+  const int rc = req.RunNative(native, payload,
+    [stage, archive, operation](XrdHttpExtReq &request, const XrdHttpExtReq::NativeResponse &result) {
+      if (result.kind == XrdHttpExtReq::NativeResponse::Redirect)
+        return SendError(request, 503, "prepare redirect requires a configured Tape REST owning endpoint");
+      if (result.kind == XrdHttpExtReq::NativeResponse::Error) {
+        int status = 500;
+        switch (result.code) {
+          case kXR_NotAuthorized: status = 403; break;
+          case kXR_NotFound: status = 404; break;
+          case kXR_ArgInvalid: case kXR_ArgMissing: status = 400; break;
+          case kXR_ArgTooLong: status = 413; break;
+          case kXR_Unsupported: status = 501; break;
+          case kXR_overQuota: status = 429; break;
+          case kXR_inProgress: case kXR_noserver: case kXR_Cancelled: status = 503; break;
+          default: break;
+        }
+        return SendError(request, status, result.data);
+      }
+      std::string body = result.data;
+      while (!body.empty() && body.back() == '\0') body.pop_back();
+      if (stage) {
+        if (!IsId(body)) return SendError(request, 502, "backend returned an invalid prepare request ID");
+        return SendJson(request, 201, Json({{"requestId", body}}).dump(),
+                        "Location: /api/v1/stage/" + body);
+      }
+      if (operation == kXR_query) {
+        try {
+          auto json = Json::parse(body);
+          if ((archive && !json.is_array()) || (!archive && !json.is_object()))
+            return SendError(request, 502, "invalid structured prepare response");
+          return SendJson(request, 200, json.dump());
+        } catch (const Json::exception &) {
+          return SendError(request, 502, "invalid structured prepare response");
+        }
+      }
+      return SendJson(request, 200, "");
+    });
+  return rc == XrdHttpExtReq::Pending ? rc : SendError(req, 503, "native prepare bridge unavailable");
 }
 
 bool TapeApiHandler::ReadBody(XrdHttpExtReq &req, std::string &body,
@@ -221,6 +318,7 @@ bool TapeApiHandler::MatchesPath(const char * /*verb*/, const char *path)
 
 int TapeApiHandler::ProcessReq(XrdHttpExtReq &req)
 {
+  try {
   const std::string resource = req.resource;
 
   std::string body;
@@ -266,13 +364,13 @@ int TapeApiHandler::ProcessReq(XrdHttpExtReq &req)
     return Release(req, requestId, body);
   }
   return SendError(req, 404, "unexpected Tape REST API path");
-}
-
-int TapeApiHandler::Init(const char * /*cfgfile*/)
-{
-  const auto status = m_store.Initialize();
-  m_initError = status.message;
-  return status ? 0 : 1;
+  } catch (const std::system_error &ex) {
+    return SendError(req, ex.code().value() == E2BIG ? 413 : 400, ex.what());
+  } catch (const Json::exception &) {
+    return SendError(req, 400, "invalid prepare request JSON");
+  } catch (const std::exception &) {
+    return SendError(req, 500, "could not process prepare request");
+  }
 }
 
 int TapeApiHandler::Discovery(XrdHttpExtReq &req)
@@ -288,7 +386,7 @@ int TapeApiHandler::Discovery(XrdHttpExtReq &req)
   Json body;
   body["sitename"] = m_siteName;
   body["endpoints"] = Json::array({
-    {{"uri", "https://" + host + "/api/v1"}, {"version", "v1"}}
+    {{"uri", req.headers.at("xrd-http-prot") + "://" + host + "/api/v1"}, {"version", "v1"}}
   });
   return SendJson(req, 200, body.dump());
 }
@@ -316,21 +414,15 @@ int TapeApiHandler::Stage(XrdHttpExtReq &req, const std::string &body)
     }
   }
 
-  std::string requestId;
-  const auto status = m_store.CreateStage(json["files"], requestId);
-  if(!status) return SendError(req, status.code, status.message);
-  const std::string response = Json({{"requestId", requestId}}).dump();
-  return SendJson(req, 201, response,
-                  "Location: /api/v1/stage/" + requestId);
+  return Native(req, kXR_stage, "", json["files"], true);
 }
 
 int TapeApiHandler::StageStatus(XrdHttpExtReq &req,
                                 const std::string &requestId)
 {
   if(req.verb != "GET") return SendError(req, 405, "expected GET");
-  Json response;
-  const auto status = m_store.GetStage(requestId, response);
-  return SendStatus(req, status, response.dump());
+  if (!XrdOfsPrepProtocol::IsId(requestId)) return SendError(req, 404, "unknown prepare request");
+  return Native(req, kXR_query, requestId, Json::array());
 }
 
 int TapeApiHandler::StageCancel(XrdHttpExtReq &req,
@@ -341,14 +433,17 @@ int TapeApiHandler::StageCancel(XrdHttpExtReq &req,
   Json paths;
   std::string error;
   if(!ParsePaths(body, paths, error)) return SendError(req, 400, error);
-  return SendStatus(req, m_store.CancelStage(requestId, paths));
+  if (!XrdOfsPrepProtocol::IsId(requestId)) return SendError(req, 404, "unknown prepare request");
+  return Native(req, kXR_cancel, requestId, paths);
 }
 
 int TapeApiHandler::StageDelete(XrdHttpExtReq &req,
                                 const std::string &requestId)
 {
   if(req.verb != "DELETE") return SendError(req, 405, "expected DELETE");
-  return SendStatus(req, m_store.DeleteStage(requestId));
+  if (!XrdOfsPrepProtocol::IsId(requestId)) return SendError(req, 404, "unknown prepare request");
+  return Native(req, kXR_cancel, std::string(XrdOfsPrepProtocol::DeletePrefix) + requestId,
+                Json::array());
 }
 
 int TapeApiHandler::Release(XrdHttpExtReq &req,
@@ -359,7 +454,8 @@ int TapeApiHandler::Release(XrdHttpExtReq &req,
   Json paths;
   std::string error;
   if(!ParsePaths(body, paths, error)) return SendError(req, 400, error);
-  return SendStatus(req, m_store.Release(requestId, paths));
+  if (!XrdOfsPrepProtocol::IsId(requestId)) return SendError(req, 404, "unknown prepare request");
+  return Native(req, kEvictOperation, requestId, paths);
 }
 
 int TapeApiHandler::ArchiveInfo(XrdHttpExtReq &req,
@@ -369,9 +465,7 @@ int TapeApiHandler::ArchiveInfo(XrdHttpExtReq &req,
   Json paths;
   std::string error;
   if(!ParsePaths(body, paths, error)) return SendError(req, 400, error);
-  Json response;
-  const auto status = m_store.ArchiveInfo(paths, response);
-  return SendStatus(req, status, response.dump());
+  return Native(req, kXR_query, XrdOfsPrepProtocol::ArchiveQuery, paths, false, true);
 }
 }
 
@@ -381,40 +475,17 @@ extern "C"
 {
 XrdHttpExtHandler *XrdHttpGetExtHandler(
   XrdSysError *eDest, const char *confg, const char *parms,
-  XrdOucEnv * /*myEnv*/)
+  XrdOucEnv *myEnv)
 {
-  if(!parms || !*parms)
-  {
-    eDest->Emsg("TapeApiInitialize",
-                "Tape API handler requires a local state directory");
+  const char *profile = myEnv ? myEnv->Get("xrd.prepare.profile") : nullptr;
+  if (!profile || std::string(profile) != "v1") {
+    eDest->Emsg("TapeApiInitialize", "a prepare backend implementing durable profile v1 is required");
     return nullptr;
   }
-
-  std::string parameters(parms);
-  XrdOucTokenizer options(parameters.data());
-  options.GetLine();
-  const char *root = options.GetToken();
-  const char *maxRequestSizeOption = options.GetToken();
-  if(!root || !*root)
-  {
-    eDest->Emsg("TapeApiInitialize",
-                "Tape API handler requires a local state directory");
-    return nullptr;
-  }
-
   long long maxRequestSize = kDefaultMaxRequestSize;
-  if(maxRequestSizeOption
-     && XrdOuca2x::a2sz(*eDest, "Tape API maximum request size",
-                        maxRequestSizeOption, &maxRequestSize, 1, INT_MAX))
-  {
+  if (parms && *parms && XrdOuca2x::a2sz(*eDest, "Tape API maximum request size",
+                                         parms, &maxRequestSize, 1, 4 * 1024 * 1024))
     return nullptr;
-  }
-  if(options.GetToken())
-  {
-    eDest->Emsg("TapeApiInitialize",
-                "Tape API handler received unexpected parameters");
-    return nullptr;
-  }
 
   const char *siteName = std::getenv("XRDSITE");
   if(!siteName || !*siteName)
@@ -424,7 +495,7 @@ XrdHttpExtHandler *XrdHttpGetExtHandler(
     return nullptr;
   }
 
-  auto *handler = new TapeApiHandler(root, maxRequestSize, siteName);
+  auto *handler = new TapeApiHandler(maxRequestSize, siteName);
   if(handler->Init(confg) != 0)
   {
     eDest->Emsg("TapeApiInitialize", handler->InitializationError().c_str());
