@@ -27,6 +27,14 @@
 #include "XrdHttpProtocol.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
+int XrdHttpExtReq::RunNative(const ClientRequest &request,
+                             const std::string &payload,
+                             NativeCallback callback, size_t maxResponse)
+{
+  if (!prot) return -1;
+  return prot->CurrentReq.RunNative(request, payload, std::move(callback), maxResponse);
+}
+
 int XrdHttpExtReq::SendSimpleResp(int code, const char* desc, const char* header_to_add, const char* body, long long bodylen)
 {
   if (!prot) return -1;
