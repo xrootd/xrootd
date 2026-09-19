@@ -50,4 +50,10 @@ function test_mirage() {
 	output=$(xrdcp -f "${HOST}"//mirage.cfg - 2>&1)
 	[[ "$output" == *"cannot allocate memory"* ]]
 	assert xrdfs "${HOST}"/ xattr /mirage.cfg del read.return_code
+
+	# Close return code
+	assert xrdfs "${HOST}"/ xattr /mirage.cfg set close.return_code=12
+	output=$(xrdcp -f "${HOST}"//mirage.cfg - 2>&1)
+	[[ "$output" == *"cannot allocate memory"* ]]
+	assert xrdfs "${HOST}"/ xattr /mirage.cfg del close.return_code
 }
