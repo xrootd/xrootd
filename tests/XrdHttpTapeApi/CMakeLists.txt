@@ -1,17 +1,12 @@
-if(NOT TARGET XrdHttpTapeApiStore)
+if(NOT BUILD_HTTP)
   return()
 endif()
 
-add_executable(xrd-http-tape-api-unit-tests XrdHttpTapeApiStoreTest.cc)
-
-target_link_libraries(xrd-http-tape-api-unit-tests
-  XrdHttpTapeApiStore GTest::gtest_main)
-
-target_include_directories(xrd-http-tape-api-unit-tests
-  BEFORE PRIVATE
-    "${PROJECT_SOURCE_DIR}/vendor/googletest/googletest/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/XrdHttpTapeApi")
-
-gtest_discover_tests(xrd-http-tape-api-unit-tests
-  TEST_PREFIX XrdHttpTapeApi::
-  PROPERTIES DISCOVERY_TIMEOUT 10)
+# Compile the production adapter separately. The test supplies only the
+# XrdHttpExtReq transport methods; linking XrdHttpUtils would replace that seam.
+add_executable(xrd-http-tape-api-tests
+  XrdHttpTapeApiTests.cc
+  ${PROJECT_SOURCE_DIR}/src/XrdHttpTapeApi/XrdHttpTapeApi.cc)
+target_link_libraries(xrd-http-tape-api-tests PRIVATE XrdUtils GTest::gtest_main)
+gtest_discover_tests(xrd-http-tape-api-tests
+  TEST_PREFIX XrdHttpTapeApi:: DISCOVERY_TIMEOUT 30)
