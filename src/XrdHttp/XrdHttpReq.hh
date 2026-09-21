@@ -44,6 +44,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdHttpMonState.hh"
+#include "XrdHttpExtHandler.hh"
 
 #include <chrono>
 #include <map>
@@ -93,6 +94,13 @@ public:
   };
 
 private:
+  XrdHttpExtReq::NativeCallback m_nativeCallback;
+  XrdHttpExtReq::NativeResponse m_nativeResponse;
+  std::string m_nativePayload;
+  size_t m_nativeMaxResponse = 0;
+  bool FinishNative();
+  void ClearNative();
+
   // HTTP response parameters to be sent back to the user
   int httpStatusCode{-1};
 
@@ -384,6 +392,8 @@ public:
   ///  1->request processed
   ///  -1->error
   int ProcessHTTPReq();
+  int RunNative(const ClientRequest &request, const std::string &payload,
+                XrdHttpExtReq::NativeCallback callback, size_t maxResponse);
 
 
   // ------------
