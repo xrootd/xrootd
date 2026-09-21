@@ -19,3 +19,14 @@ gtest_discover_tests(xrdofs-prep-gpi-tests
   PROPERTIES TIMEOUT 30
 )
 
+if(ENABLE_SERVER_TESTS)
+  find_package(Python3 COMPONENTS Interpreter)
+  if(Python3_Interpreter_FOUND)
+    add_library(XrdOfsPrepPathAuth MODULE PathAuth.cc)
+    target_link_libraries(XrdOfsPrepPathAuth PRIVATE XrdUtils)
+    add_test(NAME XrdOfsPrepGPI::PathAuthorization
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/authorization.py
+        ${PROJECT_BINARY_DIR} $<TARGET_FILE:XrdOfsPrepPathAuth>)
+    set_tests_properties(XrdOfsPrepGPI::PathAuthorization PROPERTIES TIMEOUT 60)
+  endif()
+endif()
