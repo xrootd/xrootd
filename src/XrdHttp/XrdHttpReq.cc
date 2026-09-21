@@ -37,6 +37,7 @@
  *
  */
 #include "XrdVersion.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdHttpReq.hh"
 #include "XrdHttpTrace.hh"
 #include "XrdHttpExtHandler.hh"
@@ -503,6 +504,74 @@ std::string XrdHttpReq::buildPartialHdrEnd(char *token) {
   return s.str();
 }
 
+int XrdHttpReq::RunNative(const ClientRequest &request,
+                           const std::string &payload,
+                           XrdHttpExtReq::NativeCallback callback,
+                           size_t maxResponse)
+{
+  const auto operation = ntohs(request.header.requestid);
+  if (!prot->Bridge || m_nativeCallback || !callback || !maxResponse ||
+      payload.size() > 4 * 1024 * 1024 ||
+      ntohl(request.header.dlen) != payload.size() ||
+      (operation != kXR_prepare && operation != kXR_query) ||
+      (operation == kXR_query && ntohs(request.query.infotype) != kXR_QPrep))
+    return -1;
+
+  // Request-specific credentials must reach ID-only operations too. This is a
+  // transient bridge attribute, never part of a persisted request or script argv.
+  const char *cgi = strchr(resourceplusopaque.c_str(), '?');
+  prot->SecEntity.eaAPI->Add("request.cgi", cgi ? cgi + 1 : "", true);
+  for (const char *key : {"request.name", "token.subject", "token.issuer"})
+    prot->SecEntity.eaAPI->Add(key, "", true);
+  xrdreq = request;
+  m_nativePayload = payload;
+  m_nativeResponse = {};
+  m_nativeMaxResponse = maxResponse;
+  m_nativeCallback = std::move(callback);
+  if (!prot->Bridge->Run(reinterpret_cast<char *>(&xrdreq),
+                         m_nativePayload.empty() ? nullptr : &m_nativePayload[0],
+                         static_cast<int>(m_nativePayload.size()))) {
+    ClearNative();
+    return -1;
+  }
+  return XrdHttpExtReq::Pending;
+}
+
+void XrdHttpReq::ClearNative()
+{
+  // reset() is also called during construction; only touch the protocol's
+  // security entity when we actually installed an operation.
+  if (m_nativeCallback)
+    for (const char *key : {"request.cgi", "request.name", "token.subject", "token.issuer"})
+      prot->SecEntity.eaAPI->Add(key, "", true);
+  m_nativeCallback = {};
+  m_nativePayload.clear();
+  m_nativeResponse = {};
+  m_nativeMaxResponse = 0;
+}
+
+bool XrdHttpReq::FinishNative()
+{
+  const bool keep = keepalive;
+  auto callback = std::move(m_nativeCallback);
+  auto response = std::move(m_nativeResponse);
+  for (const char *key : {"request.cgi", "request.name", "token.subject", "token.issuer"})
+    prot->SecEntity.eaAPI->Add(key, "", true);
+  int rc = -1;
+  try {
+    XrdHttpExtReq request(this, prot);
+    rc = callback(request, response);
+  } catch (...) {
+    rc = prot->SendSimpleResp(500, nullptr, "Content-Type: application/problem+json",
+                             "{\"status\":500,\"title\":\"Native response handler failed\"}",
+                             0, false);
+    reset();
+    return false;
+  }
+  reset();
+  return rc >= 0 && keep;
+}
+
 bool XrdHttpReq::Data(XrdXrootd::Bridge::Context &info, //!< the result context
         const
         struct iovec *iovP_, //!< pointer to data array
@@ -511,6 +580,22 @@ bool XrdHttpReq::Data(XrdXrootd::Bridge::Context &info, //!< the result context
         bool final_ //!< true -> final result
         ) {
 
+  if (m_nativeCallback) {
+    for (int i = 0; i < iovN_; ++i) {
+      if (iovP_[i].iov_len > m_nativeMaxResponse - m_nativeResponse.data.size()) {
+        m_nativeResponse.kind = XrdHttpExtReq::NativeResponse::Error;
+        m_nativeResponse.code = kXR_ArgTooLong;
+        m_nativeResponse.data = "Native prepare response exceeds configured limit";
+        // A partial native response cannot be abandoned on a reusable bridge.
+        keepalive = false;
+        FinishNative();
+        return false;
+      }
+      m_nativeResponse.data.append(static_cast<const char *>(iovP_[i].iov_base),
+                                   iovP_[i].iov_len);
+    }
+    return !final_ || FinishNative();
+  }
   TRACE(REQ, " XrdHttpReq::Data! final=" << final);
 
   this->xrdresp = kXR_ok;
@@ -551,6 +636,7 @@ int XrdHttpReq::File(XrdXrootd::Bridge::Context &info, //!< the result context
 
 bool XrdHttpReq::Done(XrdXrootd::Bridge::Context & info) {
 
+  if (m_nativeCallback) return FinishNative();
   TRACE(REQ, " XrdHttpReq::Done");
 
   xrdresp = kXR_ok;
@@ -571,6 +657,12 @@ bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
         const char *etext_ //!< associated error message
         ) {
 
+  if (m_nativeCallback) {
+    m_nativeResponse.kind = XrdHttpExtReq::NativeResponse::Error;
+    m_nativeResponse.code = ecode;
+    m_nativeResponse.data = etext_ ? etext_ : "Native prepare operation failed";
+    return FinishNative();
+  }
   TRACE(REQ, " XrdHttpReq::Error");
 
   xrdresp = kXR_error;
@@ -603,6 +695,12 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
 
 
 
+  if (m_nativeCallback) {
+    m_nativeResponse.kind = XrdHttpExtReq::NativeResponse::Redirect;
+    m_nativeResponse.port = port;
+    m_nativeResponse.data = hname ? hname : "";
+    return FinishNative();
+  }
   char hash[512];
   hash[0] = '\0';
 
@@ -980,7 +1078,10 @@ int XrdHttpReq::ProcessHTTPReq() {
     if (exthandler) {
       XrdHttpExtReq xreq(this, prot);
       int r = exthandler->ProcessReq(xreq);
+      if (r == XrdHttpExtReq::Pending && m_nativeCallback) return 0;
+      const bool keep = keepalive;
       reset();
+      if (!keep) return -1;
       if (!r) return 1; // All went fine, response sent
       if (r < 0) return -1; // There was a hard error... close the connection
 
@@ -2756,6 +2857,8 @@ void XrdHttpReq::addETagHeader(std::string &headers) {
 }
 
 void XrdHttpReq::reset() {
+
+  ClearNative();
 
   TRACE(REQ, " XrdHttpReq request ended.");
 
