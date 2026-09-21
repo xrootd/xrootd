@@ -5,9 +5,11 @@ permissions:
 
 on:
   push:
-    branches: [durable-prepare-persist, prep-gpi-fixes]
+    branches: [tape-rest-durable-prepare]
   pull_request:
     paths:
+      - 'src/XrdHttp/**'
+      - 'src/XrdHttpTapeApi/**'
       - 'src/XrdOfs/**'
       - 'src/XrdSciTokens/**'
       - 'tests/**'
@@ -29,14 +31,23 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake g++ libssl-dev uuid-dev zlib1g-dev libcurl4-openssl-dev libxml2-dev libkrb5-dev python3
+          sudo apt-get install -y cmake g++ libssl-dev uuid-dev zlib1g-dev \
+            libcurl4-openssl-dev libxml2-dev libkrb5-dev python3
       - name: Configure
-        run: cmake -S . -B build -DENABLE_TESTS=ON -DENABLE_SERVER_TESTS=ON -DENABLE_PYTHON=OFF -DCMAKE_BUILD_TYPE=Debug
+        run: >-
+          cmake -S . -B build -DENABLE_TESTS=ON -DENABLE_SERVER_TESTS=ON
+          -DENABLE_PYTHON=OFF -DCMAKE_BUILD_TYPE=Debug
       - name: Build prepare modules and tests
         run: |
-          cmake --build build -j2 --target xrootd xrdfs XrdOfsPrepPersist-6 XrdOfsPrepGPI-6 xrd-ofs-prep-tests xrdofs-prep-gpi-tests XrdOfsPrepPathAuth XrdSec-6 XrdSecunix-6
-      - name: Test durable store, coordinator and GPI mock
-        run: ctest --test-dir build -R '^(XrdOfsPrep|XrdOfsPrepGPI)::' --output-on-failure -j2
+          cmake --build build -j2 --target xrootd xrdfs XrdHttp-6 \
+            XrdHttpTapeApi-6 XrdOfsPrepPersist-6 XrdOfsPrepGPI-6 XrdSec-6 \
+            XrdSecunix-6 XrdOfsPrepTestAuth XrdOfsPrepTestHttpHandler xrd-ofs-prep-tests \
+            xrdofs-prep-gpi-tests XrdOfsPrepPathAuth xrd-http-tape-api-tests
+      - name: Test prepare and Tape REST
+        run: >-
+          ctest --test-dir build
+          -R '^(XrdOfsPrep::|XrdOfsPrepGPI::|XrdHttpTapeApi::)'
+          --output-on-failure -j2
       - name: Check installed prepare SDK and package ownership
         run: |
           cmake --build build -j2
