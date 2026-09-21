@@ -235,14 +235,14 @@ mount scheduling or real disk-lifetime expiration.
 CTest runs store/coordinator unit tests, seven Python mock tests, and a loopback
 integration fixture that exercises actual HTTP/native requests through OFS, the
 wrapper and GPI. The synthetic authorization library is test-only and never
-installed. The existing SciTokens-authenticated `XrdClHttp::tape` fixture uses the
+installed. The existing SciTokens-authenticated `end-to-end.xrdclhttp.tape` fixture uses the
 same GPI mock, with polling adapted for asynchronous completion.
 
 ```
 cmake -S . -B build -DENABLE_TESTS=ON -DENABLE_SERVER_TESTS=ON
 cmake --build build -j4
 ctest --test-dir build -R '^XrdOfsPrep::' --output-on-failure
-ctest --test-dir build -R '^XrdClHttp::tape$' --output-on-failure
+ctest --test-dir build -R '^end-to-end[.]xrdclhttp[.]tape$' --output-on-failure
 ```
 
 Run server tests as a non-root user. The second command group requires the
