@@ -1,0 +1,53 @@
+name: Tape prepare
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [durable-prepare-persist, prep-gpi-fixes]
+  pull_request:
+    paths:
+      - 'src/XrdOfs/**'
+      - 'src/XrdSciTokens/**'
+      - 'tests/**'
+      - '.github/workflows/tape-prepare.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: tape-prepare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libssl-dev uuid-dev zlib1g-dev libcurl4-openssl-dev libxml2-dev libkrb5-dev python3
+      - name: Configure
+        run: cmake -S . -B build -DENABLE_TESTS=ON -DENABLE_SERVER_TESTS=ON -DENABLE_PYTHON=OFF -DCMAKE_BUILD_TYPE=Debug
+      - name: Build prepare modules and tests
+        run: |
+          cmake --build build -j2 --target xrootd xrdfs XrdOfsPrepPersist-6 XrdOfsPrepGPI-6 xrd-ofs-prep-tests xrdofs-prep-gpi-tests XrdOfsPrepPathAuth XrdSec-6 XrdSecunix-6
+      - name: Test durable store, coordinator and GPI mock
+        run: ctest --test-dir build -R '^(XrdOfsPrep|XrdOfsPrepGPI)::' --output-on-failure -j2
+      - name: Check installed prepare SDK and package ownership
+        run: |
+          cmake --build build -j2
+          cmake --install build --prefix "$RUNNER_TEMP/xrootd-sdk"
+          cmake -S tests/XrdOfsPrep/installed-consumer -B "$RUNNER_TEMP/prepare-consumer" -DXROOTD_PREFIX="$RUNNER_TEMP/xrootd-sdk"
+          cmake --build "$RUNNER_TEMP/prepare-consumer"
+          ctest --test-dir "$RUNNER_TEMP/prepare-consumer" --output-on-failure
+          python3 tests/XrdOfsPrep/check-packaging.py . "$RUNNER_TEMP/xrootd-sdk"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: tape-prepare-test-logs
+          path: build/Testing/Temporary/
+          retention-days: 7
