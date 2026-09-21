@@ -651,6 +651,10 @@ public:
         const auto &token_subject = access_rules->get_token_subject();
         if (!token_subject.empty()) {
             Entity->eaAPI->Add("token.subject", token_subject, true);
+            // Subjects are only unique within an issuer. Publish the verified
+            // pair for durable request ownership, including when distinct token
+            // principals map to the same local account (prepare coordinator).
+            Entity->eaAPI->Add("token.issuer", issuer, true);
         }
 
         // When the scope authorized this access, allow immediately.  Otherwise, chain
