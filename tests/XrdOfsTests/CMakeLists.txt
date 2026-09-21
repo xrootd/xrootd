@@ -19,6 +19,19 @@ gtest_discover_tests(xrdofs-prep-gpi-tests
   PROPERTIES TIMEOUT 30
 )
 
+if(BUILD_SCITOKENS)
+  add_executable(xrdofs-verified-principal-tests VerifiedPrincipalTests.cc)
+  target_include_directories(xrdofs-verified-principal-tests PRIVATE ${SCITOKENS_CPP_INCLUDE_DIR})
+  target_link_libraries(xrdofs-verified-principal-tests PRIVATE XrdUtils GTest::gtest_main
+    ${SCITOKENS_CPP_LIBRARIES} OpenSSL::Crypto ${CMAKE_DL_LIBS})
+  target_compile_definitions(xrdofs-verified-principal-tests PRIVATE
+    SCITOKENS_MODULE="$<TARGET_FILE:XrdAccSciTokens-${PLUGIN_VERSION}>")
+  add_dependencies(xrdofs-verified-principal-tests XrdAccSciTokens-${PLUGIN_VERSION})
+  add_dependencies(xrdofs-prep-gpi-tests xrdofs-verified-principal-tests)
+  gtest_discover_tests(xrdofs-verified-principal-tests TEST_PREFIX XrdOfsPrepGPI::
+    DISCOVERY_TIMEOUT 10 PROPERTIES TIMEOUT 30)
+endif()
+
 if(ENABLE_SERVER_TESTS)
   find_package(Python3 COMPONENTS Interpreter)
   if(Python3_Interpreter_FOUND)
