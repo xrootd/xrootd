@@ -14,6 +14,7 @@ add_subdirectory(XrdEc)
 add_subdirectory(XrdPosix)
 
 add_subdirectory(XrdHttpTests)
+add_subdirectory(XrdHttpTapeApi)
 
 add_subdirectory(XrdOfsPrep)
 
