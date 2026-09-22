@@ -14,7 +14,7 @@ function setup() {
 	openssl genrsa -out host.key 4096
 	openssl req -config tls.conf -new -key host.key -outform PEM -out host.csr -subj '/CN=localhost'
 	openssl ca -batch -config tls.conf -in host.csr -extensions xrootd_crt_ext -out host.pem
-	openssl verify -CAfile ca.pem host.pem
+	openssl verify -x509_strict -CAfile ca.pem host.pem
 
 	# Create private key and certificate for the XRootD client
 	openssl genrsa -out client.key 4096

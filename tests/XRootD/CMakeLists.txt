@@ -6,7 +6,8 @@ if(ENABLE_FUSE_TESTS)
 endif()
 
 if(ENABLE_HTTP_TESTS)
-  list(APPEND XROOTD_CONFIGS http)
+  list(APPEND XROOTD_CONFIGS http httpsredirect)
+  list(APPEND httpsredirect_FIXTURES TLS)
 endif()
 
 if(BUILD_KRB5 AND NOT APPLE)
