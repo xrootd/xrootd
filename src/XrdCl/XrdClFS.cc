@@ -38,6 +38,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdOuc/XrdOucPrivateUtils.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <algorithm>
@@ -49,6 +50,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 #ifdef HAVE_READLINE
 #include <readline/history.h>
@@ -59,6 +61,58 @@ using namespace XrdCl;
 
 namespace
 {
+  // Adapt interactive command vectors to libc option parsing. xrdfs accepts
+  // options between operands, independently of POSIXLY_CORRECT and libc's
+  // default argv permutation policy. Only operand traversal is handled here;
+  // getopt_long handles option names, grouping, arguments and the delimiter.
+  class CommandOptions
+  {
+    public:
+      explicit CommandOptions( const FSExecutor::CommandParams &args ):
+        arguments( args ), savedOpterr( opterr )
+      {
+        for( std::string &argument : arguments )
+          argv.push_back( &argument[0] );
+        argv.push_back( nullptr );
+#if defined(__APPLE__) || defined(__FreeBSD__)
+        optind = 1;
+        optreset = 1;
+#else
+        optind = 0;
+#endif
+        opterr = 0;
+      }
+
+      ~CommandOptions() { opterr = savedOpterr; }
+
+      int Next( const char *shortOptions, const option *longOptions )
+      {
+        const std::string options = std::string( "+:" ) + shortOptions;
+        const int argc = arguments.size();
+        while( true )
+        {
+          const int previous = optind;
+          const int result = getopt_long(
+            argc, argv.data(), options.c_str(), longOptions, nullptr );
+          if( result != -1 ) return result;
+          if( optind > previous && std::string( argv[optind - 1] ) == "--" )
+          {
+            while( optind < argc ) operands.emplace_back( argv[optind++] );
+            return -1;
+          }
+          if( optind == argc ) return -1;
+          operands.emplace_back( argv[optind++] );
+        }
+      }
+
+      std::vector<std::string> operands;
+
+    private:
+      FSExecutor::CommandParams arguments;
+      std::vector<char *> argv;
+      int savedOpterr;
+  };
+
   enum URLCommandResult
   {
     NotURLCommand,
@@ -70,7 +124,7 @@ namespace
   {
     static const char *commands[] = {
       "cache", "cat", "chmod", "locate", "ls", "mkdir", "mv",
-      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs",
+      "prepare", "rm", "rmdir", "spaceinfo", "stat", "statvfs", "cksum",
       "tail", "truncate", "xattr"
     };
 
@@ -248,6 +302,20 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
 //------------------------------------------------------------------------------
 XRootDStatus ConvertMode( Access::Mode &mode, const std::string &modeStr )
 {
+  if( !modeStr.empty() &&
+      modeStr.find_first_not_of( "01234567" ) == std::string::npos )
+  {
+    // Limit significant octal digits before mode2mask's mode_t conversion.
+    const auto first = modeStr.find_first_not_of( '0' );
+    if( first != std::string::npos && modeStr.size() - first > 3 )
+      return XRootDStatus( stError, errInvalidArgs );
+    mode_t mask;
+    if( !XrdOucUtils::mode2mask( modeStr.c_str(), mask ) )
+      return XRootDStatus( stError, errInvalidArgs );
+    mode = static_cast<Access::Mode>( mask );
+    return XRootDStatus();
+  }
+
   if( modeStr.length() != 9 )
     return XRootDStatus( stError, errInvalidArgs );
 
@@ -478,58 +546,72 @@ XRootDStatus DoLS( FileSystem                      *fs,
   // Check up the args
   //----------------------------------------------------------------------------
   Log *log = DefaultEnv::GetLog();
-  uint32_t    argc     = args.size();
   bool        stats    = false;
   bool        showUrls = false;
   bool        hascks   = false;
   bool        human    = false;
+  bool        directory = false;
   uint64_t base        = 1024;
   std::string path;
   DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
-  if( argc > 6 )
+  enum { ColorOption = 256 };
+  static const option options[] = {
+    { "long",           no_argument,       nullptr, 'l' },
+    { "human-readable", no_argument,       nullptr, 'h' },
+    { "directory",      no_argument,       nullptr, 'd' },
+    { "all",            no_argument,       nullptr, 'a' },
+    { "color",          required_argument, nullptr, ColorOption },
+    { nullptr, 0, nullptr, 0 }
+  };
+  CommandOptions parser( args );
+  int option;
+  while( (option = parser.Next( "luRDZChHda1", options )) != -1 )
   {
-    log->Error( AppMsg, "Too many arguments." );
-    return XRootDStatus( stError, errInvalidArgs );
+    switch( option )
+    {
+      case 'l':
+        stats = true;
+        flags |= DirListFlags::Stat;
+        break;
+      case 'u':
+        showUrls = true;
+        break;
+      case 'R':
+        flags |= DirListFlags::Recursive;
+        break;
+      case 'D':
+        flags &= ~DirListFlags::Merge;
+        break;
+      case 'Z':
+        flags |= DirListFlags::Zip;
+        break;
+      case 'C':
+        hascks = true;
+        stats = true;
+        flags |= DirListFlags::Cksm;
+        break;
+      case 'h':
+      case 'H':
+        human = true;
+        break;
+      case 'd':
+        directory = true;
+        break;
+      case 'a':
+      case '1':
+        // Hidden entries and one entry per line are already the default.
+        break;
+      case ColorOption:
+        if( std::string( optarg ) == "never" ) break;
+        log->Error( AppMsg, "Unsupported --color value: %s.", optarg );
+        return XRootDStatus( stError, errInvalidArgs );
+      default:
+        log->Error( AppMsg, "Invalid ls option or missing option argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+    }
   }
-
-  for( uint32_t i = 1; i < args.size(); ++i )
-  {
-    if( args[i] == "-l" )
-    {
-      stats = true;
-      flags |= DirListFlags::Stat;
-    }
-    else if( args[i] == "-u" )
-      showUrls = true;
-    else if( args[i] == "-R" )
-    {
-      flags |= DirListFlags::Recursive;
-    }
-    else if( args[i] == "-D" )
-    {
-      // show duplicates
-      flags &= ~DirListFlags::Merge;
-    }
-    else if( args[i] == "-Z" )
-    {
-      // check if file is a ZIP archive if yes list content
-      flags |= DirListFlags::Zip;
-    }
-    else if( args[i] == "-C" )
-    {
-      // query checksum for each entry in the directory
-      hascks = true;
-      stats  = true;
-      flags |= DirListFlags::Cksm;
-    }
-    else if ( args [i] == "-h" )
-    {
-      human = true;
-    }
-    else
-      path = args[i];
-  }
+  if( !parser.operands.empty() ) path = parser.operands.back();
 
   if( showUrls )
     // we don't merge the duplicate entries
@@ -560,8 +642,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
     return st;
   }
 
-  if( !info->TestFlags( StatInfo::IsDir ) &&
-      !( flags & DirListFlags::Zip ) )
+  if( directory ||
+      (!info->TestFlags( StatInfo::IsDir ) &&
+       !( flags & DirListFlags::Zip )) )
   {
     if( stats )
       PrintDirListStatInfo( info, false, 0, 0, 0, human, base );
@@ -651,52 +734,73 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   // Check up the args
   //----------------------------------------------------------------------------
-  Log         *log     = DefaultEnv::GetLog();
-  uint32_t     argc    = args.size();
-
-  if( argc < 2 || argc > 4 )
-  {
-    log->Error( AppMsg, "Too few arguments." );
-    return XRootDStatus( stError, errInvalidArgs );
-  }
-
+  Log *log = DefaultEnv::GetLog();
   MkDirFlags::Flags flags = MkDirFlags::None;
-  Access::Mode mode    = Access::None;
-  std::string  modeStr = "rwxr-x---";
-  std::string  path    = "";
-
-  for( uint32_t i = 1; i < args.size(); ++i )
+  std::vector<std::string> modeStrings( 1, "rwxr-x---" );
+  std::vector<std::string> paths;
+  static const option options[] = {
+    { "parents", no_argument,       nullptr, 'p' },
+    { "mode",    required_argument, nullptr, 'm' },
+    { nullptr, 0, nullptr, 0 }
+  };
+  CommandOptions parser( args );
+  int option;
+  while( (option = parser.Next( "pm:", options )) != -1 )
   {
-    if( args[i] == "-p" )
-      flags |= MkDirFlags::MakePath;
-    else if( !args[i].compare( 0, 2, "-m" ) )
-      modeStr = args[i].substr( 2, 9 );
-    else
-      path = args[i];
+    switch( option )
+    {
+      case 'p':
+        flags |= MkDirFlags::MakePath;
+        break;
+      case 'm':
+        modeStrings.emplace_back( optarg );
+        break;
+      default:
+        log->Error( AppMsg, "Invalid mkdir option or missing option argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+    }
+  }
+  paths = std::move( parser.operands );
+
+  if( paths.empty() )
+  {
+    std::string unused;
+    return BuildPath( unused, env, "" );
   }
 
-  XRootDStatus st = ConvertMode( mode, modeStr );
-  if( !st.IsOK() )
+  Access::Mode mode = Access::None;
+  for( const std::string &modeString : modeStrings )
   {
-    log->Error( AppMsg, "Invalid mode string." );
-    return st;
+    if( !ConvertMode( mode, modeString ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid mode string: %s.", modeString.c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
   }
 
-  std::string newPath;
-  XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
-  if( !pathSt.IsOK() )
-    return pathSt;
+  std::vector<std::string> newPaths;
+  newPaths.reserve( paths.size() );
+  for( const std::string &path : paths )
+  {
+    std::string newPath;
+    XRootDStatus pathSt = BuildPath( newPath, env, path, "Creating" );
+    if( !pathSt.IsOK() ) return pathSt;
+    newPaths.emplace_back( std::move( newPath ) );
+  }
 
   //----------------------------------------------------------------------------
-  // Run the query
+  // Run the queries
   //----------------------------------------------------------------------------
-  st = fs->MkDir( newPath, flags, mode );
-  if( !st.IsOK() )
+  for( const std::string &newPath : newPaths )
   {
-    log->Error( AppMsg, "Unable create directory %s: %s",
-                        newPath.c_str(),
-                        st.ToStr().c_str() );
-    return st;
+    XRootDStatus st = fs->MkDir( newPath, flags, mode );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Unable create directory %s: %s",
+                          newPath.c_str(),
+                          st.ToStr().c_str() );
+      return st;
+    }
   }
 
   return XRootDStatus();
@@ -924,18 +1028,31 @@ XRootDStatus DoChMod( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  Access::Mode mode = Access::None;
+  std::string path;
+  XRootDStatus st = ConvertMode( mode, args[2] );
+  if( st.IsOK() )
+  {
+    // Preserve the historical path-first form, including mode-shaped paths.
+    path = args[1];
+  }
+  else
+  {
+    const bool octal = !args[1].empty() &&
+      args[1].find_first_not_of( "01234567" ) == std::string::npos;
+    st = ConvertMode( mode, args[1] );
+    if( !st.IsOK() || !octal )
+    {
+      log->Error( AppMsg, "Invalid mode string." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    path = args[2];
+  }
+
   std::string fullPath;
-  XRootDStatus pathSt = BuildPath( fullPath, env, args[1], "Modifying" );
+  XRootDStatus pathSt = BuildPath( fullPath, env, path, "Modifying" );
   if( !pathSt.IsOK() )
     return pathSt;
-
-  Access::Mode mode = Access::None;
-  XRootDStatus st = ConvertMode( mode, args[2] );
-  if( !st.IsOK() )
-  {
-    log->Error( AppMsg, "Invalid mode string." );
-    return st;
-  }
 
   //----------------------------------------------------------------------------
   // Run the query
@@ -1444,6 +1561,96 @@ XRootDStatus DoQuery( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Normalize a checksum algorithm before using it in a query parameter
+//------------------------------------------------------------------------------
+XRootDStatus NormalizeChecksumType( const std::string &input,
+                                    std::string       &normalized )
+{
+  if( input.empty() )
+    return XRootDStatus( stError, errInvalidArgs, 0,
+                         "Checksum type cannot be empty." );
+
+  normalized = input;
+  for( char &character : normalized )
+  {
+    const unsigned char value = static_cast<unsigned char>( character );
+    if( std::isalnum( value ) == 0 && character != '-' && character != '_' )
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "Invalid checksum type: " + input );
+    character = static_cast<char>( std::tolower( value ) );
+  }
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Query a file checksum using a selected algorithm
+//------------------------------------------------------------------------------
+XRootDStatus QueryChecksum( FileSystem        *fs,
+                            const std::string &path,
+                            const std::string &requested,
+                            std::string       &algorithm,
+                            std::string       &digest )
+{
+  std::string normalized;
+  if( !requested.empty() )
+  {
+    XRootDStatus status = NormalizeChecksumType( requested, normalized );
+    if( !status.IsOK() ) return status;
+  }
+
+  return Utils::GetRemoteCheckSum( *fs, path, normalized, algorithm, digest );
+}
+
+//------------------------------------------------------------------------------
+// Query a file checksum
+//------------------------------------------------------------------------------
+XRootDStatus DoCksum( FileSystem                      *fs,
+                    Env                             *env,
+                    const FSExecutor::CommandParams &args )
+{
+  Log *log = DefaultEnv::GetLog();
+  static const option options[] = {
+    { "algorithm", required_argument, nullptr, 'a' },
+    { nullptr, 0, nullptr, 0 }
+  };
+  CommandOptions parser( args );
+  std::string requested;
+  int option;
+  while( (option = parser.Next( "a:", options )) != -1 )
+  {
+    if( option != 'a' )
+    {
+      log->Error( AppMsg, "Invalid cksum option or missing option argument." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    XRootDStatus status = NormalizeChecksumType( optarg, requested );
+    if( !status.IsOK() ) return status;
+  }
+  if( parser.operands.size() != 1 )
+  {
+    log->Error( AppMsg, "Exactly one checksum path is required." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string path;
+  XRootDStatus status = BuildPath( path, env, parser.operands.front() );
+  if( !status.IsOK() ) return status;
+
+  std::string algorithm;
+  std::string digest;
+  status = QueryChecksum( fs, path, requested, algorithm, digest );
+  if( !status.IsOK() )
+  {
+    log->Error( AppMsg, "Unable to query %s checksum: %s", requested.c_str(),
+                status.ToStr().c_str() );
+    return status;
+  }
+
+  std::cout << algorithm << " " << digest << std::endl;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Query the server
 //------------------------------------------------------------------------------
 XRootDStatus DoPrepare( FileSystem                      *fs,
@@ -1627,29 +1834,38 @@ XRootDStatus DoCat( FileSystem                      *fs,
 
   std::vector<std::string> remotes;
   std::string local;
-
-  for( uint32_t i = 1; i < args.size(); ++i )
+  static const option options[] = {
+    { "bytes", no_argument, nullptr, 'b' },
+    { nullptr, 0, nullptr, 0 }
+  };
+  CommandOptions parser( args );
+  int option;
+  while( (option = parser.Next( "bo:", options )) != -1 )
   {
-    if( args[i] == "-o" )
+    switch( option )
     {
-      if( i < args.size()-1 )
-      {
-        local = args[i+1];
-        ++i;
-      }
-      else
-      {
-        log->Error( AppMsg, "Parameter '-o' requires an argument." );
+      case 'b':
+        // Output is already byte-preserving.
+        break;
+      case 'o':
+        local = optarg;
+        break;
+      default:
+        log->Error( AppMsg, "Invalid cat option or missing option argument." );
         return XRootDStatus( stError, errInvalidArgs );
-      }
     }
-    else
-      remotes.emplace_back( args[i] );
   }
+  remotes = std::move( parser.operands );
 
   if( !local.empty() && remotes.size() > 1 )
   {
     log->Error( AppMsg, "If '-o' is used only can be used with only one remote file." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  if( remotes.empty() )
+  {
+    log->Error( AppMsg, "Missing remote file." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
@@ -1882,6 +2098,169 @@ XRootDStatus DoSpaceInfo( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Return whether the active filesystem uses the native XRootD protocol
+//------------------------------------------------------------------------------
+bool IsXRootDProtocol( Env *env )
+{
+  std::string server;
+  env->GetString( "ServerURL", server );
+  URL url( server );
+  std::string protocol = url.GetProtocol();
+  std::transform( protocol.begin(), protocol.end(), protocol.begin(),
+                  []( unsigned char character )
+  {
+    return static_cast<char>( std::tolower( character ) );
+  } );
+  return protocol == "root" || protocol == "roots" ||
+         protocol == "xroot" || protocol == "xroots";
+}
+
+//------------------------------------------------------------------------------
+// Query a text response through an existing XrdCl query code
+//------------------------------------------------------------------------------
+XRootDStatus QueryText( FileSystem             *fs,
+                        QueryCode::Code         code,
+                        const std::string      &path,
+                        std::string            &value )
+{
+  Buffer request( path.size() );
+  request.FromString( path );
+  Buffer *rawResponse = 0;
+  XRootDStatus status = fs->Query( code, request, rawResponse );
+  std::unique_ptr<Buffer> response( rawResponse );
+  if( !status.IsOK() ) return status;
+  if( !response )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Query returned no response." );
+  value = response->ToString();
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Return whether an attribute belongs to the virtual XRootD namespace
+//------------------------------------------------------------------------------
+bool IsVirtualXAttr( const std::string &attribute )
+{
+  static const std::string checksumPrefix = "user.checksum.";
+  return attribute.compare( 0, checksumPrefix.size(), checksumPrefix ) == 0 ||
+         attribute == "xroot.cksum" || attribute == "xroot.space" ||
+         attribute == "xroot.xattr" || attribute == "spacetoken" ||
+         attribute == "user.status";
+}
+
+//------------------------------------------------------------------------------
+// Read one native XRootD file attribute without changing its value formatting
+//------------------------------------------------------------------------------
+XRootDStatus GetNativeXAttrValue( FileSystem        *fs,
+                                 const std::string &path,
+                                 const std::string &attribute,
+                                 std::string       &value )
+{
+  std::vector<std::string> attributes( 1, attribute );
+  std::vector<XAttr> result;
+  XRootDStatus status = fs->GetXAttr( path, attributes, result );
+  if( !status.IsOK() ) return status;
+  if( result.empty() )
+    return XRootDStatus( stError, errInvalidResponse, 0,
+                         "Attribute query returned no response." );
+  if( !result.front().status.IsOK() ) return result.front().status;
+  value = result.front().value;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Resolve virtual XRootD attributes through native XrdCl operations
+//------------------------------------------------------------------------------
+XRootDStatus GetVirtualXAttr( FileSystem        *fs,
+                             Env               *env,
+                             const std::string &path,
+                             const std::string &attribute,
+                             std::string       &value )
+{
+  static const std::string checksumPrefix = "user.checksum.";
+  const bool isXRootD = IsXRootDProtocol( env );
+
+  if( attribute.compare( 0, checksumPrefix.size(), checksumPrefix ) == 0 )
+  {
+    const std::string requested = attribute.substr( checksumPrefix.size() );
+    if( requested.empty() )
+      return XRootDStatus( stError, errInvalidArgs, 0,
+                           "Checksum type cannot be empty." );
+    std::string algorithm;
+    std::string digest;
+    XRootDStatus status = QueryChecksum(
+      fs, path, requested, algorithm, digest );
+    if( status.IsOK() ) value = std::move( digest );
+    return status;
+  }
+
+  if( !isXRootD )
+  {
+    return XRootDStatus(
+      stError, errNotSupported, 0,
+      "Virtual attribute is not available for this protocol: " + attribute );
+  }
+
+  if( attribute == "xroot.cksum" )
+  {
+    std::string algorithm;
+    std::string digest;
+    XRootDStatus status = QueryChecksum(
+      fs, path, "", algorithm, digest );
+    if( status.IsOK() ) value = algorithm + " " + digest;
+    return status;
+  }
+
+  if( attribute == "xroot.space" )
+    return QueryText( fs, QueryCode::Space, path, value );
+
+  if( attribute == "xroot.xattr" )
+    return QueryText( fs, QueryCode::XAttr, path, value );
+
+  if( attribute == "spacetoken" )
+  {
+    FileSystemUtils::SpaceInfo *rawInfo = 0;
+    XRootDStatus status = FileSystemUtils::GetSpaceInfo( rawInfo, fs, path );
+    std::unique_ptr<FileSystemUtils::SpaceInfo> info( rawInfo );
+    if( !status.IsOK() ) return status;
+    if( !info )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Space query returned no response." );
+
+    std::ostringstream output;
+    output << "{ \"totalsize\": " << info->GetTotal()
+           << ", \"unusedsize\": " << info->GetFree()
+           << ", \"usedsize\": " << info->GetUsed()
+           << ", \"guaranteedsize\": " << info->GetLargestFreeChunk()
+           << " }";
+    value = output.str();
+    return XRootDStatus();
+  }
+
+  if( attribute == "user.status" )
+  {
+    StatInfo *rawInfo = 0;
+    XRootDStatus status = fs->Stat( path, rawInfo );
+    std::unique_ptr<StatInfo> info( rawInfo );
+    if( !status.IsOK() ) return status;
+    if( !info )
+      return XRootDStatus( stError, errInvalidResponse, 0,
+                           "Stat returned no response." );
+
+    const bool onDisk = !info->TestFlags( StatInfo::Offline );
+    const bool backedUp = info->TestFlags( StatInfo::BackUpExists );
+    if( onDisk && backedUp ) value = "ONLINE_AND_NEARLINE";
+    else if( backedUp ) value = "NEARLINE";
+    else if( onDisk ) value = "ONLINE";
+    else value = "UNKNOWN";
+    return XRootDStatus();
+  }
+
+  return XRootDStatus( stError, errNotFound, 0,
+                        "Unknown virtual attribute: " + attribute );
+}
+
+//------------------------------------------------------------------------------
 // Carry out xattr operation
 //------------------------------------------------------------------------------
 XRootDStatus DoXAttr( FileSystem                      *fs,
@@ -1894,22 +2273,34 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc < 3 )
+  if( argc < 2 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
+  if( argc == 3 && args[2] == "--" )
+  {
+    log->Error( AppMsg, "Missing attribute name after '--'." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  const bool implicitList = argc == 2;
+  const bool delimitedGet = argc == 4 && args[2] == "--";
+  const bool implicitGet = delimitedGet ||
+                           (argc == 3 && args[2] != "set" &&
+                            args[2] != "get" && args[2] != "del" &&
+                            args[2] != "list");
 
   kXR_char code = 0;
-  if( args[2] == "set")
+  if( !implicitList && !implicitGet && args[2] == "set")
     code = kXR_fattrSet;
-  else if( args[2] == "get" )
+  else if( !implicitList && !implicitGet && args[2] == "get" )
     code = kXR_fattrGet;
-  else if( args[2] == "del" )
+  else if( !implicitList && !implicitGet && args[2] == "del" )
     code = kXR_fattrDel;
-  else if( args[2] == "list" )
+  else if( !implicitList && !implicitGet && args[2] == "list" )
     code = kXR_fattrList;
-  else
+  else if( !implicitList && !implicitGet )
   {
     log->Error( AppMsg, "Invalid xattr code." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -1919,6 +2310,54 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
   XRootDStatus pathSt = BuildPath( path, env, args[1], "Accessing" );
   if( !pathSt.IsOK() )
     return pathSt;
+
+  if( implicitGet )
+  {
+    const std::string &attribute = delimitedGet ? args[3] : args[2];
+    std::string value;
+    XRootDStatus status = IsVirtualXAttr( attribute ) ?
+      GetVirtualXAttr( fs, env, path, attribute, value ) :
+      GetNativeXAttrValue( fs, path, attribute, value );
+    if( !status.IsOK() )
+      log->Error( AppMsg, "Unable to get attribute %s: %s",
+                  attribute.c_str(), status.ToStr().c_str() );
+    else
+      std::cout << value << '\n';
+    return status;
+  }
+
+  if( implicitList )
+  {
+    if( !IsXRootDProtocol( env ) )
+    {
+      log->Error( AppMsg,
+                  "Virtual attribute listing is not available for this protocol." );
+      return XRootDStatus( stError, errNotSupported );
+    }
+
+    static const char *attributes[] = {
+      "xroot.cksum", "xroot.space", "xroot.xattr", "spacetoken"
+    };
+    bool resolved = false;
+    XRootDStatus failure;
+    for( const char *attribute : attributes )
+    {
+      std::string value;
+      XRootDStatus status = GetVirtualXAttr(
+        fs, env, path, attribute, value );
+      if( status.IsOK() )
+      {
+        resolved = true;
+        std::cout << attribute << " = " << value << '\n';
+      }
+      else
+      {
+        failure = status;
+        std::cout << attribute << " FAILED: " << status.ToStr() << '\n';
+      }
+    }
+    return resolved ? XRootDStatus() : failure;
+  }
 
   //----------------------------------------------------------------------------
   // Issue the xattr operation
@@ -2081,18 +2520,25 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   cd <path>\n"                                                    );
   printf( "     Change the current working directory\n\n"                     );
 
-  printf( "   chmod <path> <user><group><other>\n"                            );
-  printf( "     Modify permissions. Permission string example:\n"             );
-  printf( "     rwxr-x--x\n\n"                                                );
+  printf( "   chmod <path> <mode>\n"                                         );
+  printf( "   chmod <octal-mode> <path>\n"                                  );
+  printf( "     Modify permissions using symbolic or octal modes.\n\n"       );
 
-  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [dirname]\n"                   );
+  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [-h|-H] [-d] [-a] [-1]\n"   );
+  printf( "      [--color=never] [--] [dirname]\n"                          );
   printf( "     Get directory listing.\n"                                     );
-  printf( "     -l stat every entry and print long listing\n"                 );
+  printf( "     -l|--long stat every entry and print long listing\n"          );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries\n"                                  );
   printf( "     -Z if a ZIP archive list its content\n"                       );
-  printf( "     -C checksum every entry\n\n"                                  );
+  printf( "     -C checksum every entry\n"                                    );
+  printf( "     -h|-H|--human-readable print human-readable sizes\n"          );
+  printf( "     -d|--directory list the entry instead of its contents\n"      );
+  printf( "     -a|--all include entries whose names begin with a dot\n"      );
+  printf( "     -1 print one entry per line\n"                                );
+  printf( "     --color=never disable colored output\n"                       );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"    );
 
   printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                  );
   printf( "     Get the locations of the path.\n"                             );
@@ -2104,8 +2550,9 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -i ignore network dependencies\n"                             );
   printf( "     -p be passive: ignore tried/triedrc cgi opaque info\n\n"      );
 
-  printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"                );
-  printf( "     Creates a directory/tree of directories.\n\n"                 );
+  printf( "   mkdir [-p|--parents] [-m mode|--mode mode] <dirname>...\n"      );
+  printf( "     Create one or more directories. Modes may be symbolic or\n"   );
+  printf( "     octal; the default is 0750.\n\n"                             );
 
   printf( "   mv <path1> <path2>\n"                                           );
   printf( "     Move path1 to path2 locally on the same server.\n\n"          );
@@ -2180,9 +2627,11 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -a abort stage request\n"                                   );
   printf( "     -e evict the file from disk cache\n\n"                      );
 
-  printf( "   cat [-o local file] files\n"                                  );
+  printf( "   cat [-b|--bytes] [-o local file] [--] files\n"                );
   printf( "     Print contents of one or more files to stdout.\n"           );
-  printf( "     -o print to the specified local file\n\n"                   );
+  printf( "     -b, --bytes output bytes\n"                                );
+  printf( "     -o print to the specified local file\n"                     );
+  printf( "     -- stop option parsing, allowing a dash-prefixed path\n\n"  );
 
   printf( "   tail [-c bytes] [-f] file\n"                                  );
   printf( "     Output last part of files to stdout.\n"                     );
@@ -2192,8 +2641,18 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   spaceinfo path\n"                                             );
   printf( "     Get space statistics for given path.\n\n"                   );
 
-  printf( "   xattr <path> <code> <params> \n"                              );
-  printf( "     Operation on extended attributes. Codes:\n\n"               );
+  printf( "   cksum [-a algorithm | --algorithm algorithm] [--] path\n"                                     );
+  printf( "     Query a checksum; defaults to the server algorithm.\n"  );
+  printf( "     Output: algorithm digest. Exactly one path is required.\n\n" );
+
+  printf( "   xattr <path> [attribute]\n"                                  );
+  printf( "   xattr <path> -- <attribute>\n"                               );
+  printf( "   xattr <path> <code> <params>\n"                              );
+  printf( "     Query virtual attributes or operate on native attributes.\n" );
+  printf( "     Virtual attributes: xroot.cksum, xroot.space, xroot.xattr,\n" );
+  printf( "                         spacetoken, user.checksum.<algorithm>,\n" );
+  printf( "                         user.status\n"                           );
+  printf( "     Native attribute codes:\n\n"                              );
   printf( "     set   <attr>          Set extended attribute; <attr> is\n"  );
   printf( "                             string of form name=value\n"        );
   printf( "     get   <name>          Get extended attribute\n"             );
@@ -2229,6 +2688,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "cat",         DoCat        );
   executor->AddCommand( "tail",        DoTail       );
   executor->AddCommand( "spaceinfo",   DoSpaceInfo  );
+  executor->AddCommand( "cksum",       DoCksum        );
   executor->AddCommand( "xattr",       DoXAttr      );
   return executor;
 }
