@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XrdSecssh for XRootD</title>
+<style>
+  :root {
+    --bg: #070707;
+    --panel: #161416;
+    --ink: #f7f4ef;
+    --muted: #c9bfb6;
+    --line: rgba(184, 146, 58, 0.32);
+    --gold: #b8923a;
+    --gold2: #c4a04a;
+    --pink: #e8a0bf;
+    --pink2: #f4c1d4;
+    --ok: #b8923a;
+    --warn: #e8a0bf;
+    --accent: #b8923a;
+    --cyan: #e8a0bf;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; color: var(--ink); font-family: var(--sans); }
+  body {
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 90% 55% at 12% -10%, rgba(184,146,58,0.10), transparent 52%),
+      radial-gradient(ellipse 70% 50% at 100% 110%, rgba(232,160,191,0.10), transparent 50%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 7px),
+      linear-gradient(165deg, #2a2a2e 0%, #121214 28%, #070707 62%, #0c0a0c 100%);
+  }
+  .deck { height: 100%; display: flex; flex-direction: column; }
+  .chrome {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.55rem 1.35rem 0.45rem; border-bottom: 1px solid var(--line);
+    min-height: 3.4rem;
+  }
+  .logo-xrd { height: 52px; width: auto; display: block; }
+  .logo-cern { height: 48px; width: 48px; display: block; }
+  footer.nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.7rem 1.5rem; font-size: 0.85rem; color: var(--ink);
+    border-top: 1px solid var(--gold); gap: 0.9rem;
+    background: #000;
+  }
+  #pos { color: var(--gold); letter-spacing: 0.08em; font-weight: 650; min-width: 4.5rem; text-align: right; }
+  .slides { flex: 1; position: relative; }
+  .slide { display: none; position: absolute; inset: 0; padding: 1.7rem 3rem 1.8rem; overflow: auto; }
+  .slide.on { display: block; }
+  .slide.title { display: none; }
+  .slide.title.on { display: flex; flex-direction: column; justify-content: center; padding: 2rem 4rem 3rem; }
+  .rule { width: 7.5rem; height: 2px; margin: 1.15rem 0 1.25rem;
+    background: linear-gradient(90deg, var(--gold), var(--pink)); }
+  .author { font-size: 1.18rem; color: var(--pink); margin: 0 0 0.45rem; }
+  .event { font-size: 0.92rem; color: var(--gold); letter-spacing: 0.14em; text-transform: uppercase; margin: 0; }
+  .repo { font-size: 0.95rem; margin: 0.85rem 0 0; }
+  .repo a { color: var(--gold); text-decoration: none; }
+  .repo a:hover { color: var(--pink); }
+  h1 { font-size: 2.4rem; font-weight: 650; margin: 0 0 0.4rem; letter-spacing: -0.03em; color: var(--ink); }
+  .slide.title h1 { font-size: 2.85rem; max-width: 44rem; line-height: 1.15; }
+  h2 { font-size: 1.65rem; font-weight: 650; margin: 0 0 0.7rem; letter-spacing: -0.02em; }
+  .kicker { color: var(--pink); font-size: 0.78rem; letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 0.4rem; }
+  p.lead { font-size: 1.08rem; color: var(--muted); max-width: 50rem; line-height: 1.4; margin: 0 0 1rem; }
+  .cols { display: grid; gap: 0.85rem; }
+  .cols.two { grid-template-columns: 1fr 1fr; }
+  .cols.three { grid-template-columns: 1fr 1fr 1fr; }
+  .card { background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.22));
+    border: 1px solid var(--line); border-radius: 8px; padding: 0.85rem 1rem; }
+  .card h3 { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--gold); }
+  .card p, .card li { font-size: 0.92rem; line-height: 1.38; }
+  ul.tight { margin: 0; padding-left: 1.05rem; }
+  ul.tight li { margin: 0.22rem 0; }
+  code { font-family: var(--mono); font-size: 0.86em; color: var(--pink2); }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  table.cmp th, table.cmp td { text-align: left; padding: 0.38rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.cmp th { color: var(--gold); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  table.cmp td.m { color: var(--muted); }
+  .note { font-size: 0.8rem; color: var(--muted); margin-top: 0.75rem; }
+  .prog { flex: 1; height: 10px; background: #3a3a3a; border: 1px solid var(--gold); border-radius: 2px; }
+  .prog > i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--pink)); width: 0; }
+  button { background: transparent; color: var(--ink); border: 1px solid var(--gold);
+    border-radius: 4px; padding: 0.26rem 0.7rem; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--gold); color: var(--gold); }
+  .agenda { list-style: none; padding: 0; margin: 0; max-width: 42rem; }
+  .agenda li { display: flex; gap: 0.9rem; padding: 0.5rem 0; border-bottom: 1px solid var(--line); font-size: 1.08rem; }
+  .agenda .n { color: var(--gold); font-family: var(--mono); width: 1.6rem; }
+  .lbl { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.25rem; }
+  .lbl.now { color: var(--gold); }
+  .lbl.later { color: var(--pink); }
+  .lbl.why { color: var(--pink); }
+  .figwrap { background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.28));
+    border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.35rem; }
+  svg.fig { width: 100%; height: auto; display: block; }
+  @media (max-width: 980px) {
+    .slide { padding: 1.1rem; }
+    .cols.two, .cols.three { grid-template-columns: 1fr; }
+    h1, .slide.title h1 { font-size: 1.6rem; } h2 { font-size: 1.28rem; }
+  }
+  @media print {
+    body { overflow: visible; background: #111; color: #fff; }
+    .chrome, footer.nav { display: none; }
+    .slide { display: block !important; position: static; page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+  <div class="chrome">
+    <img class="logo-xrd" src="slides-assets/xrootd-logo.png" alt="XRootD">
+    <img class="logo-cern" src="slides-assets/cern-logo.svg" alt="CERN">
+  </div>
+  <div class="slides">
+
+    <section class="slide title on">
+      <h1>XrdSecssh for XRootD</h1>
+      <div class="rule"></div>
+      <p class="author">Dr. Andreas-Joachim Peters - CERN IT-SD-PSS</p>
+      <p class="event">XRootD Workshop Lyon 2026</p>
+      <p class="repo"><a href="https://github.com/cern-eos/xrootd/tree/XrdSecssh">github.com/cern-eos/xrootd</a> - branch XrdSecssh</p>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">XRootD</div>
+      <h1>SSH-key login, over TLS only</h1>
+      <p class="lead"><code>sec.protocol ssh</code> authenticates a client with
+      an SSH public key or an OpenSSH user certificate. The server never sees
+      a password. TLS authenticates the server and carries the handshake;
+      the plugin maps a proven key to a local username.</p>
+      <div class="cols three" style="margin-top:1.2rem">
+        <div class="card"><div class="lbl now">Authn</div><h3>XrdSecssh</h3>
+          <p>Who is this? Challenge/response over a key or user cert. Sets
+          <code>XrdSecEntity.name</code>. No path decision.</p></div>
+        <div class="card"><div class="lbl now">Trust</div><h3>Keys or CA</h3>
+          <p>A <code>keys-file</code> maps raw keys to users. A
+          <code>ca-keys-file</code> validates OpenSSH user certificates.
+          Either source is enough.</p></div>
+        <div class="card"><div class="lbl later">Bound</div><h3>Host in the signature</h3>
+          <p>The client signs the hostname it connected to. A rogue redirect
+          target cannot replay that signature onto another server.</p></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Talk</div>
+      <h2>Contents</h2>
+      <ol class="agenda">
+        <li><span class="n">1</span> Why SSH keys - and why not libssh</li>
+        <li><span class="n">2</span> Handshake: init, challenge, signed host</li>
+        <li><span class="n">3</span> Raw keys vs OpenSSH user certificates</li>
+        <li><span class="n">4</span> Principal mapping, policy, revocation</li>
+        <li><span class="n">5</span> Client keys, ssh-agent, configuration</li>
+        <li><span class="n">6</span> Hardening, tests and status</li>
+      </ol>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Design</div>
+      <h2>A key you already have, not another token</h2>
+      <p class="lead">Unix and host protocols trust the connection. GSI and
+      OIDC bring a PKI or an issuer. SSH keys are already on laptops and in
+      <code>authorized_keys</code>. This plugin reuses that material on
+      <code>root://</code> over TLS.</p>
+      <table class="cmp">
+        <tr><th></th><th>unix / host</th><th>This plugin</th></tr>
+        <tr><td>Who am I?</td><td class="m">Peer address or local uid</td><td>Proven SSH key or user certificate</td></tr>
+        <tr><td>Secret on the wire</td><td class="m">None / implicit</td><td>Signature of a server nonce + host + fingerprint</td></tr>
+        <tr><td>Server proof</td><td class="m">None in the sec handshake</td><td>TLS server certificate (mandatory)</td></tr>
+        <tr><td>Federation risk</td><td class="m">N/A</td><td>Host binding stops a redirect-target relay</td></tr>
+        <tr><td>HTTPS</td><td class="m">Separate</td><td>Native <code>root://</code> only; TLS is still required</td></tr>
+      </table>
+      <p class="note">This is client authentication only. Do not disable TLS
+      peer verification. Authorization is the usual <code>ofs.authlib</code>
+      / <code>acc</code> stack after login.</p>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Dependencies</div>
+      <h2>We use SSH key formats, not the SSH protocol</h2>
+      <p class="lead"><code>libssh</code> and <code>libssh2</code> implement
+      RFC 4253: KEX, channels, SFTP, a second TCP stack. This plugin never
+      opens an SSH session. It proves possession of a key over the TLS
+      connection XRootD already has, using OpenSSL (already linked).</p>
+      <table class="cmp">
+        <tr><th></th><th>libssh / libssh2</th><th>What we actually need</th></tr>
+        <tr><td>Transport</td><td class="m">SSH binary packet + KEX + MAC</td><td>XRootD credentials on TLS</td></tr>
+        <tr><td>Crypto</td><td class="m">Their own OpenSSL/gcrypt wrapper</td><td>OpenSSL EVP - already in the tree</td></tr>
+        <tr><td>Keys</td><td class="m">Full client identity + known_hosts</td><td>Parse <code>ssh-ed25519</code> / <code>ssh-rsa</code> blobs and OpenSSH certs</td></tr>
+        <tr><td>Agent</td><td class="m">Whole agent client</td><td>Two RPCs: list identities, sign (plus euid / mode checks)</td></tr>
+        <tr><td>Policy</td><td class="m">OpenSSH server semantics</td><td>Host binding, deny-users, fail-closed critical options</td></tr>
+      </table>
+      <p class="note">A second SSH library would add a packaging dependency,
+      unused attack surface, and a handshake we would still have to replace.
+      The wire format is <code>xrdsec-ssh-v2</code>, not SSH.</p>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Architecture</div>
+      <h2>Two round-trips, one per-connection challenge</h2>
+      <p class="lead">Protocol version 1. The signed payload is
+      <code>xrdsec-ssh-v2 || string(host) || string(nonce) || string(fp)</code>.
+      Challenge state lives on the protocol object, not in a global table.</p>
+      <div class="figwrap">
+        <svg class="fig" viewBox="0 0 980 300" xmlns="http://www.w3.org/2000/svg">
+          <style>
+            .t { fill:#eef3f8; font: 600 13px sans-serif; }
+            .s { fill:#9aabba; font: 12px sans-serif; }
+            .now { fill:#1e2a36; stroke:#b8923a; stroke-width:1.5; }
+            .box { fill:#1e2a36; stroke:#e8a0bf; stroke-width:1.5; }
+            .g { fill:#1e2a36; stroke:#2b3a4a; stroke-width:1.2; }
+            .ln { stroke:#e8a0bf; stroke-width:1.4; fill:none; }
+          </style>
+          <rect class="now" x="20" y="18" width="220" height="72" rx="8"/>
+          <text class="t" x="130" y="46" text-anchor="middle">1  Init</text>
+          <text class="s" x="130" y="66" text-anchor="middle">user + key / cert blob</text>
+          <rect class="now" x="280" y="18" width="200" height="72" rx="8"/>
+          <text class="t" x="380" y="46" text-anchor="middle">2  Challenge</text>
+          <text class="s" x="380" y="66" text-anchor="middle">nonce + fingerprint</text>
+          <rect class="box" x="520" y="18" width="220" height="72" rx="8"/>
+          <text class="t" x="630" y="46" text-anchor="middle">3  Response</text>
+          <text class="s" x="630" y="66" text-anchor="middle">sig + connected host</text>
+          <rect class="g" x="780" y="18" width="180" height="72" rx="8"/>
+          <text class="t" x="870" y="46" text-anchor="middle">4  Entity</text>
+          <text class="s" x="870" y="66" text-anchor="middle">name · prot=ssh</text>
+          <line class="ln" x1="240" y1="54" x2="280" y2="54"/>
+          <line class="ln" x1="480" y1="54" x2="520" y2="54"/>
+          <line class="ln" x1="740" y1="54" x2="780" y2="54"/>
+          <rect class="now" x="120" y="118" width="740" height="72" rx="8"/>
+          <text class="t" x="490" y="148" text-anchor="middle">TLS is mandatory  ·  needTLS() == true</text>
+          <text class="s" x="490" y="170" text-anchor="middle">non-TLS constructors refuse the protocol</text>
+          <rect class="g" x="120" y="208" width="350" height="72" rx="8"/>
+          <text class="t" x="295" y="238" text-anchor="middle">PendingChallenge</text>
+          <text class="s" x="295" y="258" text-anchor="middle">per object · single-use · -nonce-ttl</text>
+          <rect class="g" x="510" y="208" width="350" height="72" rx="8"/>
+          <text class="t" x="685" y="238" text-anchor="middle">Verify</text>
+          <text class="s" x="685" y="258" text-anchor="middle">host ∈ accepted · sig · mapping</text>
+        </svg>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Trust</div>
+      <h2>Raw keys and user certificates</h2>
+      <p class="lead">Init requires at least one usable trust source.
+      Certificate-only sites may leave <code>keys-file</code> empty when
+      <code>-ca-keys-file</code> loads.</p>
+      <div class="cols two">
+        <div class="card">
+          <div class="lbl now">Raw key</div>
+          <h3>keys-file</h3>
+          <ul class="tight">
+            <li><code>alice ssh-ed25519 AAAA…</code></li>
+            <li>or authorized_keys style <code>ssh-ed25519 AAAA… alice@host</code></li>
+            <li>Fingerprint must match a loaded key</li>
+            <li>Requested user must match the mapped account</li>
+            <li>Read once at plugin init</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="lbl later">User cert</div>
+          <h3>ca-keys-file</h3>
+          <ul class="tight">
+            <li><code>ssh-ed25519-cert-v01@openssh.com</code></li>
+            <li><code>ssh-rsa-cert-v01@openssh.com</code></li>
+            <li>CA signature, type=1, validity window</li>
+            <li>Any critical option is a fail-closed reject</li>
+            <li>Client must present the cert via ssh-agent</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">V1 algorithms: <code>ssh-ed25519</code>, <code>ssh-rsa</code>
+      (≥ 2048 bit). ECDSA and FIDO <code>sk-*</code> are not supported.
+      RSA signatures must be <code>rsa-sha2-256</code>.</p>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Host binding</div>
+      <h2>A signature is only good for the host you reached</h2>
+      <p class="lead">Without a host in the signed payload, a malicious data
+      server (or a redirect you followed) can relay the client’s signature
+      onto every other server that trusts the same keys.</p>
+      <div class="cols two">
+        <div class="card">
+          <div class="lbl now">Client</div>
+          <h3>Signs the URL host</h3>
+          <ul class="tight">
+            <li><code>XrdSecProtocolsshObject</code> gets the connected hostname</li>
+            <li>Normalised: lower-case, no trailing dot, no <code>[ipv6]</code></li>
+            <li>Response carries that host next to the signature</li>
+            <li>Fingerprint in the challenge must match the presented key</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="lbl later">Server</div>
+          <h3>Accepts only its own names</h3>
+          <ul class="tight">
+            <li>FQDN, kernel hostname (long + short)</li>
+            <li><code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code></li>
+            <li>Plus <code>-hostnames a,b,…</code> for aliases and VIPs</li>
+            <li>Unknown host → “bound to a different server”</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">This is not TLS channel binding. It closes the relay
+      path while staying independent of the TLS stack. List load-balancer
+      names with <code>-hostnames</code>.</p>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Certificates</div>
+      <h2>What must be true of a user cert</h2>
+      <p class="lead">The CA is fully trusted. Restrict
+      <code>ca-keys-file</code>. Empty principals are not a wildcard unless
+      you opt in.</p>
+      <table class="cmp">
+        <tr><th>Check</th><th>Rule</th></tr>
+        <tr><td>TLS</td><td>Plugin constructors refuse non-TLS connections</td></tr>
+        <tr><td>Type</td><td>User certificate only (<code>type=1</code>)</td></tr>
+        <tr><td>Validity</td><td><code>valid_after</code> / <code>valid_before</code></td></tr>
+        <tr><td>Critical options</td><td>Any option (<code>force-command</code>, <code>source-address</code>, …) is rejected</td></tr>
+        <tr><td>Principals</td><td>Must contain the requested user if the list is non-empty</td></tr>
+        <tr><td>Empty principals</td><td>Rejected unless <code>-allow-empty-principals</code></td></tr>
+        <tr><td>RSA</td><td>≥ 2048 bit subject key; CA sig label <code>rsa-sha2-256</code></td></tr>
+        <tr><td>Revocation</td><td>Subject key, cert fingerprint, serial, key id</td></tr>
+      </table>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Mapping</div>
+      <h2>From principal to local account</h2>
+      <p class="lead">When mapping is enabled, the requested user is preferred
+      if it is a listed, mappable principal. <code>[root, alice]</code> +
+      request <code>alice</code> works.</p>
+      <div class="cols two">
+        <div class="card">
+          <div class="lbl now">Options</div>
+          <h3>Direct and file</h3>
+          <ul class="tight">
+            <li><code>-principal-as-user</code> - principal is a local name or uid</li>
+            <li><code>-principal-map</code> - <code>/etc/xrootd/ssh_principals.map</code></li>
+            <li><code>-principal-map-file &lt;path&gt;</code></li>
+            <li>Direct mapping is tried first, then the file</li>
+            <li>Map file is hot-reloaded (stat inode / mtime)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="lbl later">Policy</div>
+          <h3>After every path</h3>
+          <ul class="tight">
+            <li>Username charset + length cap (64)</li>
+            <li><code>-deny-users</code> default <code>root</code></li>
+            <li><code>-deny-users none</code> clears the list</li>
+            <li>NSS lookups run outside the map mutex</li>
+            <li>No global lock on the auth path</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Revocation</div>
+      <h2>A text list, hot-reloaded</h2>
+      <p class="lead">Binary OpenSSH KRLs are not parsed. Use
+      <code>ssh-keygen -L</code> for serial and key id, then list them.</p>
+      <div class="cols two">
+        <div class="card">
+          <h3>revoked-keys-file</h3>
+          <ul class="tight">
+            <li><code>ssh-ed25519 AAAA…</code> - raw or subject key</li>
+            <li><code>SHA256:base64fingerprint</code></li>
+            <li><code>serial: 42</code></li>
+            <li><code>id: alice-2026-01</code></li>
+            <li>Same file-safety checks as the keys file</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Checked on init</h3>
+          <ul class="tight">
+            <li>Raw key fingerprint</li>
+            <li>Certificate fingerprint</li>
+            <li>Certificate subject-key fingerprint</li>
+            <li>Serial and OpenSSH key id</li>
+            <li>Client sees “key or certificate is revoked”</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Client</div>
+      <h2>PEM, OpenSSH files, or ssh-agent</h2>
+      <p class="lead">The first usable source wins. Certificate identities
+      require the agent. Encrypted keys are refused - the client never prompts.</p>
+      <table class="cmp">
+        <tr><th>#</th><th>Source</th><th>Notes</th></tr>
+        <tr><td>1</td><td><code>XRD_SSH_KEY_FILE</code></td><td>OpenSSH native or PEM/PKCS8; alias <code>XRD_SSH_PRIVATE_KEY_FILE</code></td></tr>
+        <tr><td>2</td><td><code>SSH_AUTH_SOCK</code></td><td>Used if no key file, or when <code>XRD_SSH_AGENT=1</code></td></tr>
+        <tr><td>3</td><td><code>~/.ssh/id_ed25519</code> then <code>id_rsa</code></td><td>Only if neither env is set and <code>XRD_SSH_USER</code> is unset</td></tr>
+        <tr><td>-</td><td><code>XRD_SSH_USER</code></td><td>Else <code>USER</code></td></tr>
+        <tr><td>-</td><td><code>XRD_SSH_AGENT_FINGERPRINT</code></td><td>Pick one agent identity</td></tr>
+      </table>
+      <p class="note">Key files and agent sockets must be euid-owned and not
+      group/other accessible. Keys are read from the checked fd
+      (<code>O_NOFOLLOW</code>). Agent I/O times out after 10 s.</p>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Configuration</div>
+      <h2>sec.protocol ssh …</h2>
+      <div class="cols two">
+        <div class="card">
+          <h3>xrootd.cf</h3>
+          <ul class="tight">
+            <li><code>xrootd.seclib libXrdSec.so</code></li>
+            <li><code>xrootd.tls all</code></li>
+            <li><code>sec.protocol ssh -keys-file /etc/xrootd/ssh_authorized_keys</code></li>
+            <li><code>-ca-keys-file /etc/xrootd/ssh_ca_keys</code></li>
+            <li><code>-revoked-keys-file /etc/xrootd/ssh_revoked_keys</code></li>
+            <li><code>-principal-as-user -principal-map</code></li>
+            <li><code>-hostnames data1.example.org,vip</code></li>
+            <li><code>-deny-users root,daemon</code></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Defaults and ranges</h3>
+          <ul class="tight">
+            <li>keys-file <code>/etc/xrootd/ssh_authorized_keys</code></li>
+            <li><code>-maxsz</code> 8192 (1 … 524288)</li>
+            <li><code>-nonce-ttl</code> 30 s (1 … 600)</li>
+            <li>keys / CA files: init only</li>
+            <li>principal-map and revoked: hot-reload</li>
+            <li>Files: regular, euid owner, not group/other writable, <code>O_NOFOLLOW</code>, ≤ 10 MB</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Hardening</div>
+      <h2>What we refuse to do on the hot path</h2>
+      <table class="cmp">
+        <tr><th>Risk</th><th>Mitigation</th></tr>
+        <tr><td>Signature relay via redirect</td><td>Host in the signed payload; accepted-name set + <code>-hostnames</code></td></tr>
+        <tr><td>Global challenge table DoS</td><td>Per-object <code>PendingChallenge</code>; dies with the connection</td></tr>
+        <tr><td>Empty-principal wildcard / root</td><td>Reject empty principals by default; <code>-deny-users root</code></td></tr>
+        <tr><td>Mapping leak to the client</td><td>Generic “SSH authentication failed.”; detail in the server log</td></tr>
+        <tr><td>Small RSA / SHA-1 labels</td><td>≥ 2048 bit; <code>rsa-sha2-256</code> only</td></tr>
+        <tr><td>Key-file TOCTOU / symlink</td><td><code>O_NOFOLLOW</code>, fstat, read the checked fd</td></tr>
+        <tr><td>Wedged ssh-agent</td><td>10 s send/receive timeout</td></tr>
+        <tr><td>Parser DoS</td><td>64 KiB wire fields; line / base64 / cred size caps</td></tr>
+      </table>
+      <p class="note">Debug (<code>-debug</code> / <code>XrdSecDEBUG=1</code>)
+      redacts fingerprints and omits usernames and socket paths.</p>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Tests</div>
+      <h2>Unit coverage in xrdsecssh-unit-tests</h2>
+      <p class="lead">The test TU includes the protocol object. CMake links
+      the vendored <code>GTest::gtest</code> targets (same as master).</p>
+      <div class="cols three">
+        <div class="card">
+          <h3>Wire / crypto</h3>
+          <ul class="tight">
+            <li>ed25519 / RSA sign-verify</li>
+            <li>Host binding and aliases</li>
+            <li>Trailing bytes, maxsz</li>
+            <li>Per-object challenge lifetime</li>
+            <li>OpenSSH-format and encrypted keys</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Policy</h3>
+          <ul class="tight">
+            <li>Empty principals default / opt-in</li>
+            <li>deny-users on raw and cert</li>
+            <li>Requested-principal preference</li>
+            <li>Generic client errors</li>
+            <li>Small RSA rejected everywhere</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Ops</h3>
+          <ul class="tight">
+            <li>Safe file reader / symlink</li>
+            <li>Cert type, expiry, critical opts</li>
+            <li>Revocation parse + hot-reload</li>
+            <li>Init option ranges</li>
+            <li>Cert-only init without keys-file</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">68 tests. Run <code>ctest -R xrdsecssh-unit-tests</code>.</p>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Outlook</div>
+      <h2>Status</h2>
+      <div class="cols three">
+        <div class="card">
+          <div class="lbl now">Done</div>
+          <ul class="tight">
+            <li><code>sec.protocol ssh</code> + TLS gate</li>
+            <li>Raw keys and OpenSSH user certs</li>
+            <li>Host-bound challenge (v1 wire)</li>
+            <li>Principal map, deny-users, revoke</li>
+            <li>OpenSSH private-key files + agent</li>
+            <li>68 unit tests, packaging</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="lbl later">Not done</div>
+          <ul class="tight">
+            <li>TLS channel binding / exporter</li>
+            <li>ECDSA / FIDO <code>sk-*</code></li>
+            <li>Binary OpenSSH KRL files</li>
+            <li>HTTPS / XrdHttp handshake</li>
+            <li>Encrypted private keys (use agent)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="lbl why">Next</div>
+          <ul class="tight">
+            <li>Propose the plugin for xrootd/master</li>
+            <li>Always set <code>-hostnames</code> for aliases</li>
+            <li>Keep CAs tight; prefer mapping + deny-users</li>
+            <li>Docs: <code>src/XrdSecssh/README.md</code></li>
+          </ul>
+        </div>
+      </div>
+      <p class="lead" style="margin-top:1rem">XrdSecssh authenticates the
+      client with an SSH key or user certificate on TLS <code>root://</code>.
+      The server is authenticated by TLS. The signed host name stops a
+      federation relay. Acc authorizes paths afterwards.</p>
+    </section>
+
+  </div>
+  <footer class="nav">
+    <button type="button" id="prev">Prev</button>
+    <div class="prog"><i id="bar"></i></div>
+    <div id="pos">1 / 16</div>
+    <button type="button" id="next">Next</button>
+  </footer>
+</div>
+<script>
+(function () {
+  const slides = Array.from(document.querySelectorAll(".slide"));
+  const pos = document.getElementById("pos");
+  const bar = document.getElementById("bar");
+  let i = 0;
+  function show(n) {
+    i = (n + slides.length) % slides.length;
+    slides.forEach((s, k) => s.classList.toggle("on", k === i));
+    pos.textContent = (i + 1) + " / " + slides.length;
+    bar.style.width = ((i + 1) / slides.length * 100) + "%";
+  }
+  document.getElementById("prev").onclick = () => show(i - 1);
+  document.getElementById("next").onclick = () => show(i + 1);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); show(i + 1); }
+    if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(i - 1); }
+    if (e.key === "Home") show(0);
+    if (e.key === "End") show(slides.length - 1);
+  });
+  show(0);
+})();
+</script>
+</body>
+</html>
