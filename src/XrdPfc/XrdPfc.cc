@@ -431,9 +431,11 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
       int res = io->Fstat(st);
       if (res < 0) {
          errno = res;
+         filesize = -1;
          TRACE(Error, "GetFile, could not get valid stat");
       } else if (res > 0) {
          errno = ENOTSUP;
+         filesize = -1;
          TRACE(Error, "GetFile, stat returned positive value, this should NOT happen here");
       } else {
          filesize = st.st_size;
@@ -1095,7 +1097,8 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    }
 
    struct stat sbuff;
-   if (m_oss->Stat(i_name.c_str(), &sbuff) == XrdOssOK)
+   if (m_oss->Stat(i_name.c_str(), &sbuff) == XrdOssOK &&
+       m_oss->Stat(f_name.c_str(), &sbuff) == XrdOssOK)
    {
       TRACE(Dump, "Prepare defer open " << f_name);
       return 1;

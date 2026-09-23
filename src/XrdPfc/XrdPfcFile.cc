@@ -546,6 +546,11 @@ bool File::Open(XrdOucCacheIO* inputIO)
       m_cfi.Write(m_info_file, ifn.c_str());
       m_info_file->Fsync();
       cache()->WriteFileSizeXAttr(m_info_file->getFD(), m_file_size);
+      // There is still a chance we had an orphaned data-file.
+      if (data_existed && ! info_existed) {
+         m_data_file->Ftruncate(0);
+         // Resource-monitor does not count orphaned files (planned for 6.x) so no register_purge().
+      }
       TRACEF(Debug, tpfx << "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << m_cfi.GetNBlocks()
                          << " block size = " << pfc_blocksize);
    }
@@ -571,7 +576,7 @@ bool File::Open(XrdOucCacheIO* inputIO)
    m_data_file->Fstat(&data_stat);
    m_st_blocks = data_stat.st_blocks;
 
-   m_resmon_token = Cache::ResMon().register_file_open(m_filename, time(0), data_existed);
+   m_resmon_token = Cache::ResMon().register_file_open(m_filename, time(0), ! initialize_info_file);
    constexpr long long MB = 1024 * 1024;
    m_resmon_report_threshold = std::min(std::max(10 * MB, m_file_size / 20), 500 * MB);
    // m_resmon_report_threshold_scaler; // something like 10% of original threshold, to adjust

@@ -78,16 +78,18 @@ int IOFile::initialStat(struct stat &sbuff)
    static const char* trace_pfx = "initialStat ";
 
    std::string fname = GetFilename();
-   if (m_cache.GetOss()->Stat(fname.c_str(), &sbuff) == XrdOssOK)
+   std::string iname = fname + Info::s_infoExtension;
+   if (m_cache.GetOss()->Stat(iname.c_str(), &sbuff) == XrdOssOK &&
+       m_cache.GetOss()->Stat(fname.c_str(), &sbuff) == XrdOssOK)
    {
       long long file_size = m_cache.DetermineFullFileSize(fname + Info::s_infoExtension);
       if (file_size >= 0)
       {
          sbuff.st_size = file_size;
-         TRACEIO(Info, trace_pfx << "successfully read size " << sbuff.st_size << " from info file");
+         TRACE(Info, trace_pfx << "successfully read size " << sbuff.st_size << " from info file " << iname);
          return 0;
       }
-      TRACEIO(Error, trace_pfx << "failed reading from info file " << XrdSysE2T(-file_size));
+      TRACE(Error, trace_pfx << "failed reading from info file " << iname  << " " << XrdSysE2T(-file_size));
    }
 
    int res = GetInput()->Fstat(sbuff);
