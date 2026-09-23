@@ -578,6 +578,13 @@ void HeaderParser::ParseDigest(const std::string &digest, XrdClHttp::ChecksumInf
         if (digest_lower == "adler" || digest_lower == "adler32") {
             setHex32(ChecksumType::kADLER32);
         } else if (digest_lower == "crc32") {
+            // Accept padded base64 alongside the existing hexadecimal form.
+            // Require "==" to distinguish a four-byte base64 checksum from
+            // short hexadecimal values, which may also be valid unpadded base64.
+            if (value.size() == 8 && value[6] == '=' && value[7] == '=') {
+                setBase64(ChecksumType::kCRC32);
+                continue;
+            }
             setHex32(ChecksumType::kCRC32);
         } else if (digest_lower == "md5") {
             setBase64(ChecksumType::kMD5);
