@@ -1,0 +1,49 @@
+name: Lint
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - .github/workflows/lint.yml
+      - .pre-commit-config.yaml
+      - pyproject.toml
+      - 'python/**'
+  pull_request:
+    paths:
+      - .github/workflows/lint.yml
+      - .pre-commit-config.yaml
+      - pyproject.toml
+      - 'python/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.14"
+
+    - name: Install pre-commit
+      run: python -m pip install pre-commit
+
+    - name: Run Python linters
+      run: pre-commit run ruff --all-files --show-diff-on-failure
