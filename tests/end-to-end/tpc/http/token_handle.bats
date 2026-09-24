@@ -20,14 +20,10 @@ setup() {
 
 	openssl rand -base64 -out macaroon-secret 64
 
-	sleep 0.5
-
 	# xrootd_auth demands a token for a read and for a write, over http or https.
 	# xrootd_noauth demands no token, over http or https.
 	PORT=${XROOTD_AUTH##*:} launch_xrootd macaroon.cfg xrootd_auth
 	PORT=${XROOTD_NOAUTH##*:} launch_xrootd https.cfg    xrootd_noauth
-
-	sleep 0.5
 
 	auth_token=$(curl -k --cert $BATS_SUITE_TMPDIR/client.crt --key $BATS_SUITE_TMPDIR/client.key -X POST -d '{ "caveats": [ "activity:READ_METADATA,UPDATE_METADATA,LIST,DOWNLOAD,UPLOAD,MANAGE,DELETE" ], "validity": "PT1H" }' -H 'Content-Type: application/macaroon-request' https://${XROOTD_AUTH}/ | jq -r .macaroon)
 

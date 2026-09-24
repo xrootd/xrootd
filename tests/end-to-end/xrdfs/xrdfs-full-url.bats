@@ -9,7 +9,6 @@ load ../helper/common.bash
 
 setup() {
     launch_xrootd xrdfs-full-url.cfg xrdfs-full-url
-    sleep 0.5
 
     run bats_pipe -0 echo 'full URL test' \| xrdcp - \
         root://localhost:11965//examplefile
@@ -17,10 +16,6 @@ setup() {
 
 teardown() {
     kill_pid_files 2>/dev/null || true
-}
-
-bats::on_failure() {
-    print_log_files
 }
 
 @test "legacy server-first syntax remains supported" {

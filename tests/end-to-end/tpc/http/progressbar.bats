@@ -22,12 +22,8 @@ setup_file() {
 setup() {
 	cd $BATS_TEST_TMPDIR
 
-	sleep 0.5
-
 	PORT=${XROOTD_SRC##*:} launch_xrootd progressbar.cfg xrootd_src
 	PORT=${XROOTD_DST##*:} launch_xrootd progressbar.cfg xrootd_dst
-
-	sleep 0.5
 
 	head -c 1048576 /dev/zero | xrdcp - http://${XROOTD_SRC}//file_src
 }

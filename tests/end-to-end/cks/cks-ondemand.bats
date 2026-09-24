@@ -11,15 +11,10 @@ PORT=11967
 
 setup() {
     launch_xrootd cks-ondemand.cfg cks-ondemand
-    sleep 0.5
 }
 
 teardown() {
     kill_pid_files 2>/dev/null || true
-}
-
-bats::on_failure() {
-    print_log_files
 }
 
 # The helper writes the local file to the server out of order, then asks

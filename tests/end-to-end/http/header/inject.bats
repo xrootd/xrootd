@@ -20,8 +20,6 @@ setup() {
 
 	PORT=9877 launch_xrootd header.cfg header
 
-	sleep 0.5
-
 	echo 'example file!' | xrdcp - $ROOT//examplefile
 }
 

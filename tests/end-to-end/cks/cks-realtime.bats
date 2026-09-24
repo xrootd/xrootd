@@ -11,15 +11,10 @@ PORT=11968
 
 setup() {
     launch_xrootd cks-realtime.cfg cks-realtime
-    sleep 0.5
 }
 
 teardown() {
     kill_pid_files 2>/dev/null || true
-}
-
-bats::on_failure() {
-    print_log_files
 }
 
 # The helper writes the local file to the server out of order: the first
