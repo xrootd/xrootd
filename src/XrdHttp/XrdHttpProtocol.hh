@@ -144,6 +144,14 @@ public:
 
 private:
 
+  /// Process one request, or one step of it. Process() calls it again while
+  /// requests which the client pipelined wait in the buffer.
+  int ProcessRequest(XrdLink *lp);
+
+  /// The number of bytes which the TLS layer has, but did not give to us yet
+  int TLSPending();
+  /// True if the buffer or the TLS layer has data from the client
+  bool InputPending();
 
   /// The resume function
   int (XrdHttpProtocol::*Resume)();
@@ -319,6 +327,9 @@ private:
 
   /// Indicates whether we've attempted to send app info.
   bool DoneSetInfo;
+
+  /// Process() asked the bridge to call it again, for a pipelined request
+  bool pipelineRecall;
   
   /// Tells that we are just waiting to have N bytes in the buffer
   long ResumeBytes;
