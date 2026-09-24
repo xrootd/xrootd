@@ -2869,6 +2869,27 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    XrdSutBucket *brt = buf->GetBucket(kXRS_rtag);
    if (brt && sessionKsig) {
       //
+      // The signature has no digest and no padding of its own, so we must
+      // never sign a value that the counter part chose. Accept only a well
+      // formed random tag, whatever version the counter part claims to run
+      if (!XrdSecgsiRtagIsValid(brt->buffer, brt->size)) {
+         PRINT("malformed random tag ("<<brt->size<<" bytes): refuse to sign");
+         return -1;
+      }
+      //
+      // From XrdSecgsiVersRtagHash on we sign the context bound digest of
+      // the tag. The digest is not a DigestInfo, so the signature cannot be
+      // replayed against a PKCS#1 v1.5 verifier
+      if (hs->RemVers >= XrdSecgsiVersRtagHash) {
+         char rtd[kXRSrtagMDMax] = {0};
+         int lrtd = XrdSecgsiRtagDigest(sessionCF, brt->buffer, brt->size,
+                                        rtd, kXRSrtagMDMax);
+         if (lrtd <= 0 || brt->SetBuf(rtd, lrtd) != 0) {
+            PRINT("error hashing random tag");
+            return -1;
+         }
+      }
+      //
       // Encrypt random tag with session cipher
       if (sessionKsig->EncryptPrivate(*brt) <= 0) {
          PRINT("error encrypting random tag");
@@ -4279,8 +4300,24 @@ bool XrdSecProtocolgsi::CheckRtag(XrdSutBuffer *bm, String &emsg)
          return 0;
       } 
       //
-      // Random tag cross-check: content
-      if (memcmp(brt->buffer,hs->Cref->buf1.buf,hs->Cref->buf1.len)) {
+      // Work out what the counter part must have signed: from
+      // XrdSecgsiVersRtagHash on this is the context bound digest of the
+      // tag we sent, and the tag itself before that
+      const char *ref = hs->Cref->buf1.buf;
+      int lref = hs->Cref->buf1.len;
+      char rtd[kXRSrtagMDMax] = {0};
+      if (hs->RemVers >= XrdSecgsiVersRtagHash) {
+         lref = XrdSecgsiRtagDigest(sessionCF, hs->Cref->buf1.buf,
+                                    hs->Cref->buf1.len, rtd, kXRSrtagMDMax);
+         if (lref <= 0) {
+            emsg = "error hashing random tag";
+            return 0;
+         }
+         ref = rtd;
+      }
+      //
+      // Random tag cross-check: size and content
+      if (brt->size != lref || memcmp(brt->buffer, ref, lref)) {
          emsg = "random tag content mismatch";
          SafeDelete(hs->Cref);
          // Remove: should not be checked a second time

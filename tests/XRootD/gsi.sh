@@ -24,7 +24,7 @@ function setup_gsi() {
 }
 
 function teardown_gsi() {
-	pwd && ls && rm authdb gridmap proxy.{crt,crtp}
+	pwd && ls && rm -f authdb gridmap {,i,r}proxy.{crt,crtp}
 }
 
 function test_gsi() {
@@ -53,10 +53,27 @@ function test_gsi() {
 	# Check against original file
 	assert diff -u "${SOURCE_DIR}"/gsi.cfg gsi.cfg
 
+	# Check that the client signed requests and the server verified them
+	assert grep -c "XrdSecProtect loaded" "${XRD_LOGFILE}"
+	STATS=$(xrdfs "${HOST}" query stats p)
+	[[ "${STATS}" =~ \<sig\>\<ok\>([0-9]+)\</ok\>\<bad\>([0-9]+)\</bad\> ]] ||
+		error "no signature statistics in: ${STATS}"
+	echo "signatures: ok=${BASH_REMATCH[1]} bad=${BASH_REMATCH[2]}"
+	assert_ne 0 "${BASH_REMATCH[1]}" "signed requests verified by the server"
+	assert_eq 0 "${BASH_REMATCH[2]}" "signed requests rejected by the server"
+
 	assert truncate -s 0 "${XRD_LOGFILE}"
 
 	# Check that authentication fails with a bad (invalid) proxy certificate
 	assert_failure env X509_USER_PROXY=iproxy.crt xrdfs "${HOST}" query config version
+
+	# Check that authentication fails with a revoked proxy certificate
+	assert_failure env X509_USER_PROXY=rproxy.crt xrdfs "${HOST}" query config version
+
+	# Check that the server does not act as an RSA signing oracle and that an
+	# old client (version 10600) can still authenticate.
+	assert xrd-gsi-oracle "${HOSTNAME:-localhost}" "${XRD_PORT}" \
+		"${X509_CERT_DIR}/host.pem"
 
 	# Check that authentication fails with a bad (insecure) proxy certificate
 	chmod 644 "${X509_USER_PROXY}"

@@ -187,6 +187,22 @@ Version 6.0.0
   **[XrdXrootd]** Define oss.coloc as URL encoded and provide encode/decode util
 
 -------------
+Version 5.9.8
+-------------
+
++ **Major bug fixes**
+   **[XrdCl]** Bound the kXR_protocol security requirements copy
+   **[XrdCl]** Reject response lengths that wrap the buffer size
+   **[XrdCrypto]** Fix CRL revocation check
+   **[XrdHttpTPC]** Do not accept Source AND Destination header in COPY (#2931)
+   **[XrdHttpTpc]** Fix double close of file descriptor (#2889)
+   **[XrdSecgsi]** Fix GSI random tag signing
+
++ **Minor bug fixes**
+   **[XrdHttp]** Fix HTTPS-to-HTTP redirect keepalive (#2895)
+   **[XrdHttpTpc]** Fix the flush of the destination file in multistream mode (#2891)
+
+-------------
 Version 5.9.7
 -------------
 

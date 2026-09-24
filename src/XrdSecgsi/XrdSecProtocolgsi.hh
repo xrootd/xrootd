@@ -55,6 +55,8 @@
 
 #include "XrdCrypto/XrdCryptogsiX509Chain.hh"
 
+#include "XrdSecgsi/XrdSecgsiRtag.hh"
+
 /******************************************************************************/
 /*                               D e f i n e s                                */
 /******************************************************************************/
@@ -64,7 +66,7 @@ typedef XrdCryptogsiX509Chain X509Chain;
   
 #define XrdSecPROTOIDENT    "gsi"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
-#define XrdSecgsiVERSION    10600
+#define XrdSecgsiVERSION    10700
 #define XrdSecNOIPCHK       0x0001
 #define XrdSecDEBUG         0x1000
 #define XrdCryptoMax        10
@@ -76,6 +78,9 @@ typedef XrdCryptogsiX509Chain X509Chain;
                                       // of server DH parameters 
 #define XrdSecgsiVersCertKey   10600  // Version at which started supporting
                                       // authentication with cert/key only
+#define XrdSecgsiVersRtagHash  10700  // Version at which started signing the
+                                      // context bound digest of the random
+                                      // tag instead of the tag itself
 
 //
 // Message codes either returned by server or included in buffers
