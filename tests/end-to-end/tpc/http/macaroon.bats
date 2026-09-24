@@ -19,9 +19,9 @@ setup() {
 	PORT=${XROOTD_SRC##*:} launch_xrootd macaroon.cfg xrootd_src
 	PORT=${XROOTD_DST##*:} launch_xrootd macaroon.cfg xrootd_dst
 
-	src_token=$(curl --fail --show-error -k --cert $BATS_SUITE_TMPDIR/client.crt --key $BATS_SUITE_TMPDIR/client.key -X POST -d '{ "caveats": [ "activity:READ_METADATA,UPDATE_METADATA,LIST,DOWNLOAD,UPLOAD,MANAGE,DELETE" ], "validity": "PT1H" }' -H 'Content-Type: application/macaroon-request' https://${XROOTD_SRC}/ | jq -r .macaroon)
+	src_token=$(request_macaroon https://${XROOTD_SRC}/)
 	echo $src_token >  token-file
-	dst_token=$(curl --fail --show-error -k --cert $BATS_SUITE_TMPDIR/client.crt --key $BATS_SUITE_TMPDIR/client.key -X POST -d '{ "caveats": [ "activity:READ_METADATA,UPDATE_METADATA,LIST,DOWNLOAD,UPLOAD,MANAGE,DELETE" ], "validity": "PT1H" }' -H 'Content-Type: application/macaroon-request' https://${XROOTD_DST}/ | jq -r .macaroon)
+	dst_token=$(request_macaroon https://${XROOTD_DST}/)
 	echo $dst_token >> token-file
 
 	printf '%s\n\n' "$src_token" > token-file-src

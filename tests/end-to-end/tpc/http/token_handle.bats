@@ -25,7 +25,7 @@ setup() {
 	PORT=${XROOTD_AUTH##*:} launch_xrootd macaroon.cfg xrootd_auth
 	PORT=${XROOTD_NOAUTH##*:} launch_xrootd https.cfg    xrootd_noauth
 
-	auth_token=$(curl -k --cert $BATS_SUITE_TMPDIR/client.crt --key $BATS_SUITE_TMPDIR/client.key -X POST -d '{ "caveats": [ "activity:READ_METADATA,UPDATE_METADATA,LIST,DOWNLOAD,UPLOAD,MANAGE,DELETE" ], "validity": "PT1H" }' -H 'Content-Type: application/macaroon-request' https://${XROOTD_AUTH}/ | jq -r .macaroon)
+	auth_token=$(request_macaroon https://${XROOTD_AUTH}/)
 
 	printf '%s\n\n' "$auth_token" > token-file-src
 	printf '\n%s\n' "$auth_token" > token-file-dst
