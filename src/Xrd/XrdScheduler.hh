@@ -124,8 +124,12 @@ XrdSysSemaphore        WorkAvail;
 XrdSysMutex            SchedMutex; // Protects private area
 
 XrdJob                *TimerQueue; // Pending work
-XrdSysCondVar          TimerRings;
 XrdSysMutex            TimerMutex; // Protects scheduler area
+XrdSysCondVar2         TimerRings; // Waits on TimerMutex
+// Pads TimerRings to the size of the XrdSysCondVar it replaced, so the class
+// size and the offsets of later members are unchanged. Remove at the next ABI
+// break. TimerMutex precedes TimerRings so that it is constructed first.
+char                   TimerPad[sizeof(XrdSysCondVar)-sizeof(XrdSysCondVar2)];
 
 XrdSchedulerPID       *firstPID;
 XrdSysMutex            ReaperMutex;

@@ -97,7 +97,8 @@ void *XrdStartWorking(void *carg)
 XrdScheduler::XrdScheduler(XrdSysError *eP, XrdSysTrace *tP,
                            int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
-                 XrdTraceOld(0), WorkAvail(0, "sched work")
+                 XrdTraceOld(0), WorkAvail(0, "sched work"),
+                 TimerRings(TimerMutex)
 {
    Boot(eP, tP, minw, maxw, maxi);
 }
@@ -108,7 +109,8 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdSysTrace *tP,
 XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
                            int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
-                XrdTraceOld(tP), WorkAvail(0, "sched work")
+                XrdTraceOld(tP), WorkAvail(0, "sched work"),
+                TimerRings(TimerMutex)
 {
 
 // Invoke the main initialization function with a new style trace object
@@ -122,7 +124,8 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 //
 XrdScheduler::XrdScheduler(int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
-                XrdTraceOld(0), WorkAvail(0, "sched work")
+                XrdTraceOld(0), WorkAvail(0, "sched work"),
+                TimerRings(TimerMutex)
 {
    XrdSysLogger *Logger;
    int eFD;
@@ -679,8 +682,8 @@ void XrdScheduler::TimeSched()
        if (TimerQueue) wtime = TimerQueue->SchedTime-time(0);
           else wtime = 60*60;
        if (wtime > 0)
-          {TimerMutex.UnLock();
-           TimerRings.Wait(wtime);
+          {TimerRings.Wait(wtime);
+           TimerMutex.UnLock();
           } else {
            jp = TimerQueue;
            TimerQueue = jp->NextJob;
