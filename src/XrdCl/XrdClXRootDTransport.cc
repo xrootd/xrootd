@@ -233,7 +233,6 @@ namespace XrdCl
       openFiles(0),
       waitBarrier(0),
       protection(0),
-      protRespBody(0),
       protRespSize(0),
       encrypted(false),
       istpc(false)
@@ -275,7 +274,7 @@ namespace XrdCl
     uint32_t                           openFiles;
     time_t                             waitBarrier;
     XrdSecProtect                     *protection;
-    ServerResponseBody_Protocol       *protRespBody;
+    std::vector<char>                  protRespBuff;
     unsigned int                       protRespSize;
     std::unique_ptr<StreamSelector>    strmSelector;
     bool                               encrypted;
@@ -2096,9 +2095,12 @@ namespace XrdCl
 
     if( rsp->hdr.dlen > 8 )
     {
-      info->protRespBody = new ServerResponseBody_Protocol();
-      info->protRespBody->flags = rsp->body.protocol.flags;
-      info->protRespBody->pval  = rsp->body.protocol.pval;
+      info->protRespBuff.assign( sizeof( ServerResponseBody_Protocol ), 0 );
+      info->protRespSize = 0;
+      ServerResponseBody_Protocol *protRespBody =
+        reinterpret_cast<ServerResponseBody_Protocol*>( info->protRespBuff.data() );
+      protRespBody->flags = rsp->body.protocol.flags;
+      protRespBody->pval  = rsp->body.protocol.pval;
 
       char*  bodybuff = reinterpret_cast<char*>( &rsp->body.protocol.secreq );
       size_t bodysize = rsp->hdr.dlen - 8;
@@ -2185,10 +2187,25 @@ namespace XrdCl
     // Parse security requirements
     //--------------------------------------------------------------------------
     XrdProto::secReqs *secreq = reinterpret_cast<XrdProto::secReqs*>( bodybuff );
-    if( bodysize >= 6 /*XrdProto::secReqs*/ && secreq->theTag == 'S' )
+    static const size_t secHdrLen = sizeof( XrdProto::secReqs ) -
+                                    sizeof( ServerResponseSVec_Protocol );
+    if( bodysize >= secHdrLen && secreq->theTag == 'S' )
     {
-      memcpy( &info->protRespBody->secreq, secreq, bodysize );
-      info->protRespSize = bodysize + 8 /*pval & flags*/;
+      //------------------------------------------------------------------------
+      // Copy only the header and the secvsz entries of the security vector,
+      // the server may send fewer bytes than declared or trailing garbage
+      //------------------------------------------------------------------------
+      size_t secsize = secHdrLen + secreq->secvsz *
+                                   sizeof( ServerResponseSVec_Protocol );
+      if( bodysize < secsize )
+        return XRootDStatus( stError, errDataError, 0, "Received incomplete "
+                             "protocol response." );
+
+      size_t respsize = kXR_ShortProtRespLen + secsize;
+      if( info->protRespBuff.size() < respsize )
+        info->protRespBuff.resize( respsize, 0 );
+      memcpy( info->protRespBuff.data() + kXR_ShortProtRespLen, secreq, secsize );
+      info->protRespSize = respsize;
     }
 
     return XRootDStatus();
@@ -2552,9 +2569,11 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Do we need protection?
         //----------------------------------------------------------------------
-        if( info->protRespBody )
+        if( !info->protRespBuff.empty() )
         {
-          int rc = XrdSecGetProtection( info->protection, *info->authProtocol, *info->protRespBody, info->protRespSize );
+          ServerResponseBody_Protocol *protRespBody =
+            reinterpret_cast<ServerResponseBody_Protocol*>( info->protRespBuff.data() );
+          int rc = XrdSecGetProtection( info->protection, *info->authProtocol, *protRespBody, info->protRespSize );
           if( rc > 0 )
           {
             log->Debug( XRootDTransportMsg,
@@ -2784,12 +2803,8 @@ namespace XrdCl
       CleanUpAuthentication( info );
     }
 
-    if( info->protRespBody )
-    {
-      delete info->protRespBody;
-      info->protRespBody = 0;
-      info->protRespSize = 0;
-    }
+    info->protRespBuff.clear();
+    info->protRespSize = 0;
 
     return Status();
   }
