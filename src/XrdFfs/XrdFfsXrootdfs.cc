@@ -27,7 +27,11 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#define FUSE_USE_VERSION 26
+/* Converted from FUSE 2.6 API to FUSE 3.x API. FUSE_USE_VERSION 31
+ * targets libfuse >= 3.1; requires linking against libfuse3
+ * (pkg-config fuse3) instead of libfuse.
+ */
+#define FUSE_USE_VERSION 31
 
 #include <cstdio>
 #include <cstdlib>
@@ -41,8 +45,14 @@
 #endif
 #endif
 
+/* Under libfuse3, these headers live under a "fuse3" include dir
+ * (e.g. /usr/include/fuse3). Build with `pkg-config --cflags fuse3`
+ * so the plain <fuse.h> / <fuse_opt.h> names below resolve correctly;
+ * fuse.h pulls in fuse_common.h which declares fuse_opt_parse() etc.,
+ * so the separate fuse_opt.h include is kept only for clarity.
+ */
 #include <fuse.h>
-#include <fuse/fuse_opt.h>
+#include <fuse_opt.h>
 #include <cctype>
 #include <cstring>
 #include <fcntl.h>
@@ -90,8 +100,16 @@ enum { OPT_KEY_HELP, OPT_KEY_SECSSS, };
 
 bool usingEC = false;
 
-static void* xrootdfs_init(struct fuse_conn_info *conn)
+static void* xrootdfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 {
+    (void) conn;
+    /* cfg carries mount-time settings (use_ino, direct_io, etc.) that used
+     * to be set only via command-line/mount options in FUSE 2.x. We don't
+     * need to change any of xrootdfs's prior defaults here, so cfg is left
+     * untouched -- but it must be accepted since FUSE 3.x always passes it.
+     */
+    (void) cfg;
+
     struct passwd pw, *pwp;
     char *pwbuf;
     size_t pwbuflen;
@@ -163,8 +181,14 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
     return NULL;
 }
 
-static int xrootdfs_getattr(const char *path, struct stat *stbuf)
+static int xrootdfs_getattr(const char *path, struct stat *stbuf,
+                             struct fuse_file_info *fi)
 {
+/* fgetattr() was removed in FUSE 3.x; getattr() now receives fi and
+ * may be called with fi != NULL for an already-open file. xrootdfs never
+ * implemented fgetattr()'s fd-based fast path, so fi is accepted but
+ * unused here, matching prior FUSE 2.6 behavior exactly. */
+    (void) fi;
 //  int res, fd;
     int res;
     char rootpath[MAXROOTURLLEN];
@@ -306,13 +330,15 @@ static int xrootdfs_readlink(const char *path, char *buf, size_t size)
 }
 
 static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                       off_t offset, struct fuse_file_info *fi)
+                       off_t offset, struct fuse_file_info *fi,
+                       enum fuse_readdir_flags flags)
 {
     DIR *dp;
     struct dirent *de;
 
     (void) offset;
     (void) fi;
+    (void) flags;
 
     char rootpath[MAXROOTURLLEN];
 
@@ -340,7 +366,7 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
             st.st_ino = de->d_ino;
             st.st_mode = de->d_type << 12;
  */
-            if (filler(buf, de->d_name, NULL, 0))
+            if (filler(buf, de->d_name, NULL, 0, (fuse_fill_dir_flags)0))
                 break;
         }
         XrdFfsPosix_closedir(dp);
@@ -354,7 +380,7 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
          n = XrdFfsPosix_readdirall(xrootdfs.rdr, path, &dnarray, fuse_get_context()->uid);
 
          for (i = 0; i < n; i++)
-             if (filler(buf, dnarray[i], NULL, 0)) break;
+             if (filler(buf, dnarray[i], NULL, 0, (fuse_fill_dir_flags)0)) break;
 
 /* 
   this loop should not be merged with the above loop because all members of 
@@ -602,11 +628,17 @@ static int xrootdfs_symlink(const char *from, const char *to)
     return -EIO;
 }
 
-static int xrootdfs_rename(const char *from, const char *to)
+static int xrootdfs_rename(const char *from, const char *to, unsigned int flags)
 {
     int res;
     char from_path[MAXROOTURLLEN], to_path[MAXROOTURLLEN];
     struct stat stbuf;
+
+/* FUSE 3.x added a flags param (RENAME_NOREPLACE, RENAME_EXCHANGE, etc.,
+ * from renameat2(2)). xrootdfs never implemented these semantics under
+ * FUSE 2.x either, so flags is accepted but unused -- matching prior
+ * behavior exactly. */
+    (void) flags;
 
     from_path[0]='\0';
     strncat(from_path, xrootdfs.rdr, MAXROOTURLLEN - strlen(from_path) -1);
@@ -671,8 +703,9 @@ static int xrootdfs_link(const char *from, const char *to)
     return -EMLINK;
 }
 
-static int xrootdfs_chmod(const char *path, mode_t mode)
+static int xrootdfs_chmod(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
+    (void) fi;
 /*
     int res;
 
@@ -683,8 +716,9 @@ static int xrootdfs_chmod(const char *path, mode_t mode)
     return 0;
 }
 
-static int xrootdfs_chown(const char *path, uid_t uid, gid_t gid)
+static int xrootdfs_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi)
 {
+    (void) fi;
 /*
     int res;
 
@@ -695,41 +729,30 @@ static int xrootdfs_chown(const char *path, uid_t uid, gid_t gid)
     return 0;
 }
 
-/* _ftruncate() will only work with kernel >= 2.6.15. See FUSE ChangeLog */
-static int xrootdfs_ftruncate(const char *path, off_t size,
-                              struct fuse_file_info *fi)
-{
-    int fd, res;
-//  char rootpath[1024];
-                                                                                                                                           
-    fd = (int) fi->fh;
-    XrdFfsWcache_flush(fd);
-    res = XrdFfsPosix_ftruncate(fd, size);
-    if (res == -1)
-        return -errno;
-                                                                                                                              
-/* 
-   There is no need to update the size of the CNS shadow file now. That
-   should be updated when the file is closed 
-
-    if (xrootdfs.cns != NULL) 
-    {
-        rootpath[0]='\0';
-        strcat(rootpath,xrootdfs.cns);
-        strcat(rootpath,path);
-
-        res = XrdFfsPosix_truncate(rootpath, size);
-        if (res == -1)
-            return -errno;
-    }
-*/
-    return 0;
-}
-
-static int xrootdfs_truncate(const char *path, off_t size)
+/* FUSE 3.x removed the separate ftruncate() operation (and fgetattr()).
+ * truncate() now receives an fi pointer: fi != NULL means the kernel is
+ * truncating an already-open file (the old ftruncate() case, fd-based
+ * via fi->fh); fi == NULL means the old path-based truncate() case.
+ * _ftruncate()'s old fd-based logic is preserved below as the fi != NULL
+ * branch. It will only work with kernel >= 2.6.15, per the FUSE ChangeLog. */
+static int xrootdfs_truncate(const char *path, off_t size, struct fuse_file_info *fi)
 {
     int res;
     char rootpath[MAXROOTURLLEN];
+
+    if (fi != NULL)
+    {
+        int fd = (int) fi->fh;
+        XrdFfsWcache_flush(fd);
+        res = XrdFfsPosix_ftruncate(fd, size);
+        if (res == -1)
+            return -errno;
+/*
+   There is no need to update the size of the CNS shadow file now. That
+   should be updated when the file is closed
+*/
+        return 0;
+    }
 
     rootpath[0]='\0';
     strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
@@ -761,8 +784,10 @@ static int xrootdfs_truncate(const char *path, off_t size)
     return 0;
 }
 
-static int xrootdfs_utimens(const char *path, const struct timespec ts[2])
+static int xrootdfs_utimens(const char *path, const struct timespec ts[2],
+                             struct fuse_file_info *fi)
 {
+    (void) fi;
 /*
     int res;
     struct timeval tv[2];
@@ -1268,7 +1293,7 @@ static void xrootdfs_usage(const char *progname)
 "    -h -help --help          print help\n"
 "\n"
 "Default options:\n"
-"    fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5\n"
+"    fsname=xrootdfs,allow_other,attr_timeout=10,entry_timeout=10,negative_timeout=5\n"
 "  In case of an Erasure Encoding storage, entry_timeout=0\n"
 "\n"
 "[Required]\n"
@@ -1302,7 +1327,7 @@ static int xrootdfs_opt_proc(void* data, const char* arg, int key, struct fuse_a
         return 0;
       case OPT_KEY_HELP:
         xrootdfs_usage(outargs->argv[0]);
-        fuse_opt_add_arg(outargs, "-ho");
+        fuse_opt_add_arg(outargs, "--help");
         fuse_main(outargs->argc, outargs->argv, &xrootdfs_oper, NULL);
         exit(1);
       default:
@@ -1328,7 +1353,9 @@ int main(int argc, char *argv[])
     xrootdfs_oper.link		= xrootdfs_link;
     xrootdfs_oper.chmod		= xrootdfs_chmod;
     xrootdfs_oper.chown		= xrootdfs_chown;
-    xrootdfs_oper.ftruncate	= xrootdfs_ftruncate;
+    /* xrootdfs_oper.ftruncate removed: FUSE 3.x dropped this member.
+     * Its logic is now inside xrootdfs_truncate() (see the fi != NULL
+     * branch there), reached when truncate() is called on an open fd. */
     xrootdfs_oper.truncate	= xrootdfs_truncate;
     xrootdfs_oper.utimens	= xrootdfs_utimens;
     xrootdfs_oper.open		= xrootdfs_open;
@@ -1350,19 +1377,22 @@ int main(int argc, char *argv[])
     cmdline_opts = (char **) malloc(sizeof(char*) * (argc -1 + 3));
     cmdline_opts[0] = argv[0];
     cmdline_opts[1] = strdup("-o");
+/* max_write is no longer a valid -o mount option under FUSE 3.x; it's
+ * negotiated automatically via fuse_conn_info instead (and FUSE 3.x's
+ * default already matches the 131072 this used to request explicitly). */
     if (getenv("XROOTDFS_NO_ALLOW_OTHER") != NULL && ! strcmp(getenv("XROOTDFS_NO_ALLOW_OTHER"),"1") )
      {
         if (! usingEC)
-            cmdline_opts[2] = strdup("fsname=xrootdfs,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
+            cmdline_opts[2] = strdup("fsname=xrootdfs,attr_timeout=10,entry_timeout=10,negative_timeout=5");
         else
-            cmdline_opts[2] = strdup("fsname=xrootdfs,max_write=131072,attr_timeout=10,entry_timeout=0,negative_timeout=5");
+            cmdline_opts[2] = strdup("fsname=xrootdfs,attr_timeout=10,entry_timeout=0,negative_timeout=5");
     }
     else
     {
         if (! usingEC)
-            cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
+            cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,attr_timeout=10,entry_timeout=10,negative_timeout=5");
         else
-            cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=0,negative_timeout=5");
+            cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,attr_timeout=10,entry_timeout=0,negative_timeout=5");
     }
 
     for (int i = 1; i < argc; i++)
