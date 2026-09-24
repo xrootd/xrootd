@@ -60,10 +60,18 @@ teardown() {
 	run -0 grep "Destination: http://${XROOTD_DST}//file_dst" xrootd_src.log
 }
 
-@test "push copy without --force fails when the destination exists" {
-	skip "known bug: the push copy replaces the destination without --force"
+@test "push copy forwards the Overwrite header to the destination" {
+	run -0 xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst
+	run -0 grep "TransferHeaderOverwrite: F" xrootd_src.log
+}
 
+@test "push copy without --force fails when the destination exists" {
 	run ! xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst_overwrite
+}
+
+@test "push copy without --force keeps the destination content" {
+	run ! xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst_overwrite
+	assert_equal "$(cat xrootd_dst/file_dst_overwrite)" 'overwrite me!'
 }
 
 @test "push copy with --force succeeds when the destination exists" {

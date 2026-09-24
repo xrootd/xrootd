@@ -62,9 +62,12 @@ teardown() {
 }
 
 @test "push copy without --force fails when the destination exists" {
-	skip "known bug: the push copy replaces the destination without --force"
-
 	run ! xrdcp -T push only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
+}
+
+@test "push copy without --force keeps the destination content" {
+	run ! xrdcp -T push only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
+	assert_equal "$(cat xrootd_dst/file_dst_overwrite)" 'overwrite me!'
 }
 
 @test "push copy with --force succeeds when the destination exists" {
