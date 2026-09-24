@@ -353,6 +353,10 @@ namespace XrdCl
     ServerResponseHeader* rsphdr = (ServerResponseHeader*)message.GetBuffer();
     bodySize = rsphdr->dlen;
 
+    if( bodySize > std::numeric_limits<uint32_t>::max() - 8 )
+      return XRootDStatus( stError, errInvalidMessage, 0,
+                           "Response body too large." );
+
     if( message.GetSize() < bodySize + 8 )
       message.ReAllocate( bodySize + 8 );
 
@@ -389,12 +393,19 @@ namespace XrdCl
     //--------------------------------------------------------------------------
 
     uint32_t bodySize = rsphdr->dlen;
+    if( bodySize > std::numeric_limits<uint32_t>::max() - 8 )
+      return XRootDStatus( stError, errInvalidMessage, 0,
+                          "kXR_status: response body too large." );
     if( bodySize+8 < sizeof( ServerResponseStatus ) )
       return XRootDStatus( stError, errInvalidMessage, 0,
                           "kXR_status: invalid message size." );
 
     ServerResponseStatus *rspst = (ServerResponseStatus*)message.GetBuffer();
-    bodySize += rspst->bdy.dlen;
+    uint32_t moreSize = static_cast<uint32_t>( rspst->bdy.dlen );
+    if( moreSize > std::numeric_limits<uint32_t>::max() - 8 - bodySize )
+      return XRootDStatus( stError, errInvalidMessage, 0,
+                           "kXR_status: response body too large." );
+    bodySize += moreSize;
 
     if( message.GetSize() < bodySize + 8 )
       message.ReAllocate( bodySize + 8 );
