@@ -58,6 +58,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
+#include <utility>
 
 #define XRHTTP_TK_GRACETIME     600
 
@@ -395,7 +396,69 @@ BIO *XrdHttpProtocol::CreateBIO(XrdLink *lp)
 #undef  TRACELINK
 #define TRACELINK Link
 
+// An HTTP/1.1 client may send the next requests before it gets a response
+// (pipelining), thus they can already be in the buffer, or in the TLS layer.
+// The poller calls us only for new data on the socket, so Process() must run
+// them. ProcessRequest() returns:
+//
+//  0  call again when the bridge request ends, to do the next step,
+//  1  do not call again: the request ended, or it waits for data,
+// -1  close the connection.
+//
+// The request methods decide only about their own steps. Process() decides
+// for all of them about the next request, so no method can forget it.
+
 int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
+{
+  // The bridge calls us again only because Process() asked for it below, and
+  // its request ended. If the HTTP request did not end, it waits for data from
+  // the socket, as before. The poller does not see the data which the TLS
+  // layer has, thus read it now, as for an event of the socket.
+  if (std::exchange(pipelineRecall, false) && !lp &&
+      CurrentReq.request != XrdHttpReq::rtUnset) {
+    if (TLSPending() <= 0)
+      return 1;
+    lp = Link;
+  }
+
+  int rc = ProcessRequest(lp);
+
+  // The request ended: run the next ones at once
+  while (rc > 0 && CurrentReq.request == XrdHttpReq::rtUnset && InputPending()) {
+    const int used = BuffUsed();
+    if (used > 0) {
+      rc = ProcessRequest(nullptr);
+      if (rc <= 0 || BuffUsed() != used)
+        continue; // the loop condition decides
+    }
+
+    // The buffer has no complete line. Read the data which the TLS layer
+    // already has: SSL_read() then does not wait, and the poller does not see
+    // this data. Else wait for data from the socket.
+    if (TLSPending() <= 0 || BuffFree() <= 0)
+      break;
+    if (getDataOneShot(BuffFree()) < 0)
+      return -1;
+  }
+
+  // The request waits for the bridge, and it can be the last step: then the
+  // next request must not wait for data from the socket. Ask the bridge to call
+  // us again, which the bridge does only if a bridge request runs. A write
+  // takes its data from the buffer, thus that data is no next request.
+  int unread = BuffUsed();
+  if (CurrentReq.xrdreq.header.requestid == htons(kXR_write))
+    unread -= ntohl(CurrentReq.xrdreq.write.dlen);
+
+  if (rc > 0 && Bridge && CurrentReq.request != XrdHttpReq::rtUnset &&
+      (unread > 0 || TLSPending() > 0)) {
+    pipelineRecall = true;
+    return 0;
+  }
+
+  return rc;
+}
+
+int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
 {
   int rc = 0;
 
@@ -505,8 +568,10 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       if (BuffUsed() < ResumeBytes) return 1;
 
 
-    } else
+    } else if (CurrentReq.request != XrdHttpReq::rtUnset) {
+      // Advance the request, unless it ended and the buffer holds the next one
       CurrentReq.reqstate++;
+    }
   } else if (!DoneSetInfo && !CurrentReq.userAgent().empty()) { // DoingLogin is true, meaning the login finished.
     std::string mon_info = "monitor info " + CurrentReq.userAgent();
     DoneSetInfo = true;
@@ -1326,6 +1391,26 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
   return 0;
 }
 
+/******************************************************************************/
+/*                       I n p u t P e n d i n g                              */
+/******************************************************************************/
+
+/// The number of bytes which the TLS layer decrypted, but did not give to us
+
+int XrdHttpProtocol::TLSPending() {
+  return (ishttps && ssldone && ssl) ? SSL_pending(ssl) : 0;
+}
+
+/// True if a request can wait in the buffer or in the TLS layer
+
+bool XrdHttpProtocol::InputPending() {
+  return BuffUsed() > 0 || TLSPending() > 0;
+}
+
+/******************************************************************************/
+/*                          B u f f A v a i l a b l e                         */
+/******************************************************************************/
+
 /// How many bytes still fit into the buffer after the data
 
 int XrdHttpProtocol::BuffAvailable() {
@@ -1911,6 +1996,7 @@ void XrdHttpProtocol::Reset() {
 
   DoingLogin = false;
   DoneSetInfo = false;
+  pipelineRecall = false;
 
   ResumeBytes = 0;
   Resume = 0;
