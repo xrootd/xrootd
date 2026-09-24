@@ -6,7 +6,7 @@ load ../../helper/common.bash
 
 export XRD_LOGLEVEL=Debug
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
-export XRD_HTTPCERTFILE="$BATS_FILE_TMPDIR/ca.pem"
+export XRD_HTTPCERTFILE="$BATS_SUITE_TMPDIR/ca.pem"
 
 readonly XROOTD_SRC="localhost:8488"
 readonly XROOTD_DST="localhost:8489"
@@ -20,13 +20,14 @@ setup_file() {
 
 	sed "s|issuer =.*|issuer = ${IAM_OAUTH_ISSUER}|" ${BATS_TEST_DIRNAME}/oauth-module.cfg > oauth-module.cfg
 
-	endpoint=$(curl -s "${IAM_OAUTH_ISSUER}/.well-known/openid-configuration" | jq -r .token_endpoint)
+	endpoint=$(curl --fail --silent --show-error "${IAM_OAUTH_ISSUER}/.well-known/openid-configuration" | jq -er .token_endpoint)
 
 	scope='storage.read:/ storage.modify:/ storage.create:/ storage.stage:/'
-	export TOKEN=$(curl --fail --show-error -s -X POST --user "${IAM_OAUTH_CLIENT_ID}:${IAM_OAUTH_CLIENT_SECRET}" \
+	TOKEN=$(curl --fail --show-error -s -X POST --user "${IAM_OAUTH_CLIENT_ID}:${IAM_OAUTH_CLIENT_SECRET}" \
 		-H "Content-Type: application/x-www-form-urlencoded" \
 		--data "grant_type=client_credentials&scope=${scope}" \
-		${endpoint} | jq -r .access_token)
+		${endpoint} | jq -er .access_token)
+	export TOKEN
 }
 
 setup() {

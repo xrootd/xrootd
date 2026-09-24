@@ -33,32 +33,32 @@ teardown() {
 }
 
 @test "pull copy progress bar displays the transferred size and the total size" {
-	run -0 script -q -c "xrdcp -T only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
+	run -0 script -e -q -c "xrdcp -T only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
 	assert_output --partial '[1024kB/1024kB]'
 }
 
 @test "pull copy progress bar displays 100% when the copy completes" {
-	run -0 script -q -c "xrdcp -T only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
+	run -0 script -e -q -c "xrdcp -T only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
 	assert_output --partial '[100%][==================================================]'
 }
 
 @test "pull copy progress bar displays the transfer rate" {
-	run -0 script -q -c "xrdcp -T only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
+	run -0 script -e -q -c "xrdcp -T only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
 	assert_output --partial '[1024kB/s]'
 }
 
 @test "push copy progress bar displays the transferred size and the total size" {
-	run -0 script -q -c "xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
+	run -0 script -e -q -c "xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
 	assert_output --partial '[1024kB/1024kB]'
 }
 
 @test "push copy progress bar displays 100% when the copy completes" {
-	run -0 script -q -c "xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
+	run -0 script -e -q -c "xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
 	assert_output --partial '[100%][==================================================]'
 }
 
 @test "push copy progress bar displays the transfer rate" {
-	run -0 script -q -c "xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
+	run -0 script -e -q -c "xrdcp -T push only http://${XROOTD_SRC}//file_src http://${XROOTD_DST}//file_dst"
 	assert_output --partial '[1024kB/s]'
 }
 

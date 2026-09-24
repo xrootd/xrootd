@@ -102,3 +102,16 @@ kill_pid_files() {
 bats::on_failure() {
     print_log_files
 }
+
+# Ask the server at the given URL for a macaroon with full access, over TLS
+# verified against the test CA. Fails if the server returns no macaroon.
+request_macaroon() {
+    local url=$1
+
+    curl --fail --silent --show-error \
+        --cacert "$BATS_SUITE_TMPDIR/ca.pem" \
+        --cert "$BATS_SUITE_TMPDIR/client.crt" --key "$BATS_SUITE_TMPDIR/client.key" \
+        -X POST -H 'Content-Type: application/macaroon-request' \
+        -d '{ "caveats": [ "activity:READ_METADATA,UPDATE_METADATA,LIST,DOWNLOAD,UPLOAD,MANAGE,DELETE" ], "validity": "PT1H" }' \
+        "$url" | jq -er .macaroon
+}

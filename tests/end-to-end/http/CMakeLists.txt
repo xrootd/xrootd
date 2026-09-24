@@ -1,2 +1,5 @@
 add_subdirectory(header)
-add_subdirectory(put)
+
+if(BUILD_HTTP)
+  add_subdirectory(put)
+endif()
