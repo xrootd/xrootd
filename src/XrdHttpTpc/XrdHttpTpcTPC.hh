@@ -201,9 +201,10 @@ private:
     XrdSfsFileSystem *m_sfs;
     std::shared_ptr<XrdTlsTempCA> m_ca_file;
 
-    // 16 blocks in flight at 16 MB each, meaning that there will be up to 256MB
-    // in flight; this is equal to the bandwidth delay product of a 200ms transcontinental
-    // connection at 10Gbps.
+    // 16 requests of 16 MB each for each stream. The requests are not
+    // pipelined: one request for each stream is in flight, and the others wait
+    // in libcurl for a free connection. Thus each stream waits one round trip
+    // between its blocks.
     static const int m_pipelining_multiplier = 16;
 
     bool usingEC; // indicate if XrdEC is used
