@@ -322,6 +322,12 @@ XrdSecCredentials *XrdSecProtocolztn::findToken(XrdOucErrInfo *erp,
    const char *aTok, *bTok;
    int sz;
 
+// An explicitly selected credential cache belongs to this client request and
+// must take precedence over process-wide defaults.
+//
+   char *ccn = (erp && erp->getEnv()) ? erp->getEnv()->Get("xrd.ztn") : 0;
+   if (ccn) return readToken(erp, ccn, isbad);
+
 // Look through all of the possible envars
 //
    for (int i = 0; i < (int)Vec.size(); i++)
@@ -353,16 +359,6 @@ XrdSecCredentials *XrdSecProtocolztn::findToken(XrdOucErrInfo *erp,
         if ((bTok = Strip(aTok, sz))) return retToken(erp, bTok, sz);
        }
 
-// We support passing the credential cache path via Url parameter
-//
-   char *ccn = (erp && erp->getEnv()) ? erp->getEnv()->Get("xrd.ztn") : 0;
-   if (ccn)
-     {
-       resp = readToken(erp, ccn, isbad);
-       if (resp || isbad) return resp;
-     }
-
-// Look through all of the possible envars   
 // Nothing found
 //
   isbad = false;

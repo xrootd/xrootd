@@ -27,6 +27,7 @@ from pyxrootd import client
 from XRootD.client.url import URL
 from XRootD.client.responses import XRootDStatus
 from .env import EnvGetInt, EnvGetString
+from .auth import AuthContext
 
 class ProgressHandlerWrapper(object):
   """Internal progress handler wrapper to convert parameters to friendly 
@@ -57,9 +58,17 @@ class ProgressHandlerWrapper(object):
 class CopyProcess(object):
   """Add multiple individually-configurable copy jobs to a "copy process" and
   run them in parallel (yes, in parallel, because ``xrootd`` isn't limited
-  by the `GIL`."""
+  by the `GIL`.
 
-  def __init__(self):
+  :param auth: Optional default authentication context for source and target
+  :type  auth: :class:`XRootD.client.AuthContext`
+  """
+
+  def __init__(self, auth=None):
+    if auth is not None and not isinstance(auth, AuthContext):
+      raise TypeError('auth must be an AuthContext')
+    self.__auth = auth
+    self.__auth_contexts = []
     self.__process = client.CopyProcess()
 
   def parallel(self, parallel):
@@ -94,7 +103,9 @@ class CopyProcess(object):
               xrate           = 0,
               retry           = EnvGetInt('CpRetry'),
               cont            = False,
-              rtrplc          = EnvGetString('CpRetryPolicy') ):
+              rtrplc          = EnvGetString('CpRetryPolicy'),
+              source_auth     = None,
+              target_auth     = None ):
     """Add a job to the copy process.
 
     :param         source: original source URL
@@ -145,7 +156,24 @@ class CopyProcess(object):
     :type      cont: boolean
     :param     rtrplc: the retry polic (force or continue)
     :type      rtrplc: string
+    :param source_auth: authentication context for the source URL; defaults to
+                        the context passed to :class:`CopyProcess`
+    :type  source_auth: :class:`XRootD.client.AuthContext`
+    :param target_auth: authentication context for the target URL; defaults to
+                        the context passed to :class:`CopyProcess`
+    :type  target_auth: :class:`XRootD.client.AuthContext`
     """
+    source_auth = self.__auth if source_auth is None else source_auth
+    target_auth = self.__auth if target_auth is None else target_auth
+    for auth in (source_auth, target_auth):
+      if auth is not None and not isinstance(auth, AuthContext):
+        raise TypeError('source_auth and target_auth must be AuthContext objects')
+    self.__auth_contexts.extend(
+      auth for auth in (source_auth, target_auth) if auth is not None)
+    if source_auth is not None:
+      source = source_auth.apply(source)
+    if target_auth is not None:
+      target = target_auth.apply(target)
     self.__process.add_job(source, target, sourcelimit, force, posc,
                            coerce, mkdir, thirdparty, checksummode, checksumtype,
                            checksumpreset, dynamicsource, chunksize, parallelchunks, inittimeout,
