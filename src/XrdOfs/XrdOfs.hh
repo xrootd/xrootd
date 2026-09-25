@@ -360,7 +360,7 @@ virtual int            Configure(XrdSysError &, XrdOucEnv *);
 
         int            SetupCksRT(XrdCksCalc*&, XrdOucEnv&, const char*&);
 
-        bool           WantCksRT() {return (CksRTCgi || CksRTCalc != 0);}
+        bool           WantCksRT() {return (CksRTCgi || CksRTName != 0);}
 
                        XrdOfs();
 virtual               ~XrdOfs() {}  // Too complicate to delete :-)
@@ -477,8 +477,7 @@ XrdOfsConfigPI   *ofsConfig;      // Plugin   configurator
 XrdOfsPrepare    *prepHandler;    // Plugin   prepare
 XrdCks           *Cks;            // Checksum manager
 XrdCksCalc       *CksRTCalc;      // Automatic realtime checksum calculator
-char             *CksRTName;      // Automatic realtime checksum cipher
-char             *CksRTDflt;      // The default r/t checksum, if any
+char             *CksRTName;      // Realtime checksum cipher only if auto on
 bool              CksPfn;         // Checksum needs a pfn
 bool              CksRdr;         // Checksum may be redirected (i.e. not local)
 bool              prepAuth;       // Prepare requires authorization
