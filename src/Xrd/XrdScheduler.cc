@@ -97,7 +97,8 @@ void *XrdStartWorking(void *carg)
 XrdScheduler::XrdScheduler(XrdSysError *eP, XrdSysTrace *tP,
                            int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
-                 XrdTraceOld(0), WorkAvail(0, "sched work")
+                 XrdTraceOld(0), WorkAvail(0, "sched work"),
+                 TimerRings(0, "sched timer")
 {
    Boot(eP, tP, minw, maxw, maxi);
 }
@@ -108,7 +109,8 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdSysTrace *tP,
 XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
                            int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
-                XrdTraceOld(tP), WorkAvail(0, "sched work")
+                XrdTraceOld(tP), WorkAvail(0, "sched work"),
+                TimerRings(0, "sched timer")
 {
 
 // Invoke the main initialization function with a new style trace object
@@ -122,7 +124,8 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 //
 XrdScheduler::XrdScheduler(int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
-                XrdTraceOld(0), WorkAvail(0, "sched work")
+                XrdTraceOld(0), WorkAvail(0, "sched work"),
+                TimerRings(0, "sched timer")
 {
    XrdSysLogger *Logger;
    int eFD;
@@ -188,7 +191,7 @@ void XrdScheduler::Cancel(XrdJob *jp)
 
 // Lock the queue
 //
-   TimerMutex.Lock();
+   TimerRings.Lock();
 
 // Find the matching job, if any
 //
@@ -205,7 +208,7 @@ void XrdScheduler::Cancel(XrdJob *jp)
 
 // All done
 //
-   TimerMutex.UnLock();
+   TimerRings.UnLock();
 }
   
 /******************************************************************************/
@@ -449,7 +452,7 @@ void XrdScheduler::Schedule(XrdJob *jp, time_t atime)
    if (TRACING(TRACE_SCHED) && *(jp->Comment) != '.')
       {TRACE(SCHED, "scheduling " <<jp->Comment <<" in " <<atime-time(0) <<" seconds");}
    jp->SchedTime = atime;
-   TimerMutex.Lock();
+   TimerRings.Lock();
 
 // Find the insertion point for the work element
 //
@@ -464,7 +467,7 @@ void XrdScheduler::Schedule(XrdJob *jp, time_t atime)
 
 // All done
 //
-   TimerMutex.UnLock();
+   TimerRings.UnLock();
 }
 
 /******************************************************************************/
@@ -675,17 +678,23 @@ void XrdScheduler::TimeSched()
 
 // Continuous loop until we find some work here
 //
-   do {TimerMutex.Lock();
+// The timer queue is guarded by TimerRings' own mutex, the one its wait
+// releases. Reading the queue and starting to wait are then one atomic step,
+// so a Schedule() that puts an earlier job at the head cannot signal in
+// between. With a separate mutex such a signal could be lost, and timed jobs
+// then ran late, once the wait expired.
+//
+   do {TimerRings.Lock();
        if (TimerQueue) wtime = TimerQueue->SchedTime-time(0);
           else wtime = 60*60;
        if (wtime > 0)
-          {TimerMutex.UnLock();
-           TimerRings.Wait(wtime);
+          {TimerRings.Wait(wtime);
+           TimerRings.UnLock();
           } else {
            jp = TimerQueue;
            TimerQueue = jp->NextJob;
            Schedule(jp);
-           TimerMutex.UnLock();
+           TimerRings.UnLock();
           }
        } while(1);
 }
