@@ -237,3 +237,29 @@ TEST_F(XrdOssMirageFileFixture, CloseReleasesFileLock)
 
     ASSERT_TRUE(oss.get_entry_write("/dummy"));
 }
+
+TEST_F(XrdOssMirageFileFixture, CloseShouldSucceed)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+
+    ASSERT_EQ(XrdOssOK, file.Close());
+}
+
+TEST_F(XrdOssMirageFileFixture, CloseWithExtendedAttributeCloseReturnCodeFailsWithSpecifiedCode)
+{
+    oss.get_entry_write("/dummy").value()->close.return_code = 1111;
+
+    file.Open("/dummy", O_WRONLY, {}, env);
+
+    ASSERT_EQ(-1111, file.Close());
+}
+
+TEST_F(XrdOssMirageFileFixture, CloseWithExtendedAttributeCloseReturnCodeStillReleasesFileLock)
+{
+    oss.get_entry_write("/dummy").value()->close.return_code = 1111;
+
+    file.Open("/dummy", O_WRONLY, {}, env);
+    file.Close();
+
+    ASSERT_TRUE(oss.get_entry_write("/dummy"));
+}

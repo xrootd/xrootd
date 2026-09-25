@@ -147,7 +147,13 @@ int XrdOssMirageFile::Write(XrdSfsAio *aiop)
 
 int XrdOssMirageFile::Close(long long *retsz)
 {
+    const int return_code = entry->close.return_code;
+
     if (std::holds_alternative<XrdOssMirageEntryPtr>(entry_storage))
         std::get<XrdOssMirageEntryPtr>(entry_storage).reset();
+
+    if (return_code != XrdOssOK)
+        return -return_code;
+
     return XrdOssOK;
 }
