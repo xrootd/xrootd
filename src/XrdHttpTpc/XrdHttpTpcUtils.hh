@@ -64,6 +64,9 @@ public:
    * @return the XRootD open URL that will contain at least one opaque parameter (oss.task)
    */
   static std::string prepareOpenURL(PrepareOpenURLParams & params);
+
+  /// Overwrite: T is the default of a COPY, any other value forbids overwriting.
+  static bool isOverwriteAllowed(const std::map<std::string,std::string> & reqHeaders);
 };
 
 

@@ -559,6 +559,117 @@ cleanup
 assert_eq "400" "$(plain_http_tpc pull "file:///etc/os-release" "$BEARER_TOKEN" "${hosts_http[0]}/${RMTDATADIR}/os-release" "$BEARER_TOKEN")" "Did not reject disallowed protocol"
 assert_eq "400" "$(plain_http_tpc push "${hosts_http[0]}" "$BEARER_TOKEN" "${hosts_http[0]/https/root}/${RMTDATADIR}/fake.root" "$BEARER_TOKEN")" "Did not reject disallowed protocol"
 
+# Identical source and destination
+#
+# Copying a file onto itself would truncate it before anything is read back, so
+# the server must reject the request rather than destroy the file.
+
+tpc_same="${hosts_http[0]}/${RMTDATADIR}/${hosts_abbrev[0]}.ref"
+
+assert_eq "400" "$(plain_http_tpc pull "${tpc_same}" "$BEARER_TOKEN" "${tpc_same}" "$BEARER_TOKEN")" \
+    "Did not reject a pull whose source is its own destination"
+assert_eq "400" "$(plain_http_tpc push "${tpc_same}" "$BEARER_TOKEN" "${tpc_same}" "$BEARER_TOKEN")" \
+    "Did not reject a push whose destination is its own source"
+
+# Same path on a server sharing the filesystem (tpc.dfs)
+#
+# srv4 sees the files of srv1 through a link, so srv1 and srv4 name the same file
+# for the same path, although they are two servers on two ports.
+
+srv4_http="https://localhost:10954"
+dfs_path="${RMTDATADIR}/dfs.ref"
+dfs_ref="${LCLDATADIR}/dfs.ref"
+dfs_dat="${LCLDATADIR}/dfs.dat"
+
+mkdir -p "${LCLDATADIR}"
+generate_file "${dfs_ref}"
+upload_file "${dfs_ref}" "${hosts[0]}/${dfs_path}"
+
+assert_eq "400" "$(plain_http_tpc pull "${hosts_http[0]}/${dfs_path}" "$BEARER_TOKEN" "${srv4_http}/${dfs_path}" "$BEARER_TOKEN")" \
+    "Did not reject a pull from a server sharing the filesystem, same path"
+assert_eq "400" "$(plain_http_tpc push "${srv4_http}/${dfs_path}" "$BEARER_TOKEN" "${hosts_http[0]}/${dfs_path}" "$BEARER_TOKEN")" \
+    "Did not reject a push to a server sharing the filesystem, same path"
+
+download_file "${hosts[0]}/${dfs_path}" "${dfs_dat}"
+cmp -s "${dfs_ref}" "${dfs_dat}" || error "a rejected COPY damaged ${dfs_path}"
+
+# Another path of the shared filesystem is another file
+assert_eq "202" "$(plain_http_tpc pull "${hosts_http[0]}/${dfs_path}" "$BEARER_TOKEN" "${srv4_http}/${dfs_path}.copy" "$BEARER_TOKEN")" \
+    "Rejected a pull from a server sharing the filesystem, another path"
+
+${XRDFS} "${hosts[0]}" rm "${dfs_path}" || :
+${XRDFS} "${hosts[0]}" rm "${dfs_path}.copy" || :
+rm -f "${dfs_ref}" "${dfs_dat}"
+
+# Overwrite: F on a push
+#
+# The destination is only written when it is known to be missing: a push over an
+# existing file, or to a destination that cannot be asked, fails with 412.
+
+ow_src="${RMTDATADIR}/overwrite_src.ref"
+ow_dst="${RMTDATADIR}/overwrite_dst.ref"
+ow_new="${RMTDATADIR}/overwrite_new.ref"
+ow_src_ref="${LCLDATADIR}/overwrite_src.ref"
+ow_dst_ref="${LCLDATADIR}/overwrite_dst.ref"
+ow_dat="${LCLDATADIR}/overwrite.dat"
+
+# Echoes the status code of a push of ${ow_src} from srv1, leaving the response
+# body in ${TPC_RESPONSE_BODY}. $1 is the destination URL, $2 the Overwrite
+# header value, none if empty.
+push_overwrite() {
+    local dst="$1" overwrite="$2"
+    local -a overwrite_header=()
+    if [[ -n "${overwrite}" ]]; then
+        overwrite_header=(-H "Overwrite: ${overwrite}")
+    fi
+    ${CURL} -X COPY -L -s -o "${TPC_RESPONSE_BODY}" -w "%{http_code}" \
+        --cacert "${BINARY_DIR}/tests/issuer/tlsca.pem" \
+        -H "Authorization: Bearer ${BEARER_TOKEN}" \
+        -H "TransferHeaderAuthorization: Bearer ${BEARER_TOKEN}" \
+        "${overwrite_header[@]}" \
+        -H "Destination: ${dst}" "${hosts_http[0]}/${ow_src}"
+}
+
+# $1 is the remote file, $2 the local file it must be equal to
+assert_content() {
+    rm -f "${ow_dat}"
+    download_file "$1" "${ow_dat}"
+    cmp -s "$2" "${ow_dat}" || error "$1 does not have the expected content"
+}
+
+generate_file "${ow_src_ref}"
+generate_file "${ow_dst_ref}"
+upload_file "${ow_src_ref}" "${hosts[0]}/${ow_src}"
+upload_file "${ow_dst_ref}" "${hosts[1]}/${ow_dst}"
+
+assert_eq "412" "$(push_overwrite "${hosts_http[1]}/${ow_dst}" F)" \
+    "Did not reject a push with 'Overwrite: F' over an existing file"
+grep -q "already exists" "${TPC_RESPONSE_BODY}" ||
+    error "unexpected response: $(tr '\n' ' ' < "${TPC_RESPONSE_BODY}")"
+assert_content "${hosts[1]}/${ow_dst}" "${ow_dst_ref}"
+
+# Nothing listens on that port: whether the file exists cannot be verified
+assert_eq "412" "$(push_overwrite "https://localhost:10959/${ow_new}" F)" \
+    "Did not reject a push with 'Overwrite: F' to a destination that cannot be asked"
+grep -q "could not be verified" "${TPC_RESPONSE_BODY}" ||
+    error "unexpected response: $(tr '\n' ' ' < "${TPC_RESPONSE_BODY}")"
+
+assert_eq "202" "$(push_overwrite "${hosts_http[1]}/${ow_new}" F)" \
+    "Rejected a push with 'Overwrite: F' to a missing file"
+assert_tpc_success "Push with 'Overwrite: F' to a missing file failed"
+assert_content "${hosts[1]}/${ow_new}" "${ow_src_ref}"
+
+# Without the header, a push still overwrites
+assert_eq "202" "$(push_overwrite "${hosts_http[1]}/${ow_dst}")" \
+    "Rejected a push over an existing file without the Overwrite header"
+assert_tpc_success "Push over an existing file without the Overwrite header failed"
+assert_content "${hosts[1]}/${ow_dst}" "${ow_src_ref}"
+
+${XRDFS} "${hosts[0]}" rm "${ow_src}" || :
+${XRDFS} "${hosts[1]}" rm "${ow_dst}" || :
+${XRDFS} "${hosts[1]}" rm "${ow_new}" || :
+rm -f "${ow_src_ref}" "${ow_dst_ref}" "${ow_dat}"
+
 # this test may cause the server to crash
 export XRD_CONNECTIONRETRY=0
 assert_eq "500" "$(plain_http_tpc pullsci "https://255.255.255.255//tffile1" "$BEARER_TOKEN" "${hosts_http[2]}/${RMTDATADIR}/tffile1" "$BEARER_TOKEN")" "Did not fail with broadcast address"

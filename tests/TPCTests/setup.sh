@@ -4,16 +4,19 @@ set -ex
 
 : "${XROOTD:=$(command -v xrootd)}"
 
-servernames=("srv1" "srv2" "srv3")
+servernames=("srv1" "srv2" "srv3" "srv4")
 DATAFOLDER="./data"
 
 setup() {
     echo "Setting up XRootD with ${servernames[*]}"
 
     mkdir -p "${DATAFOLDER}"
-    for srv in "${servernames[@]}"; do
+    for srv in "srv1" "srv2" "srv3"; do
         mkdir -p "${DATAFOLDER}/${srv}"
     done
+    # srv4 shares the filesystem of srv1 (tpc.dfs)
+    rm -rf "${DATAFOLDER}/srv4"
+    ln -s srv1 "${DATAFOLDER}/srv4"
 
     # Start XRootD servers
     for srv in "${servernames[@]}"; do

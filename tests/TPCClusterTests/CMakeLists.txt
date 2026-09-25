@@ -12,26 +12,26 @@ if (BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
   list(APPEND XRDENV "BINARY_DIR=${CMAKE_BINARY_DIR}")
   list(APPEND XRDENV "XDG_CACHE_HOME=${CMAKE_CURRENT_BINARY_DIR}/.cache")
 
-  foreach(config srv1 srv2 srv3 srv4 common)
-    configure_file(${config}.cfg ${CMAKE_CURRENT_BINARY_DIR}/${config}.cfg @ONLY)
+  foreach(config common man1 srv1 srv2)
+    configure_file(${config}.cfg ${config}.cfg @ONLY)
   endforeach()
 
-  add_library(checkclose SHARED checkclose.cc)
-
-  add_test(NAME XRootD::tpc::start
+  # Named to contain "XRootD::tpc::test" so that -R on it selects this suite too.
+  add_test(NAME XRootD::tpc::test::cluster::start
     COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/setup.sh start")
-  set_tests_properties(XRootD::tpc::start
-    PROPERTIES ENVIRONMENT "${XRDENV}" FIXTURES_SETUP XRootD_TPC
+  set_tests_properties(XRootD::tpc::test::cluster::start
+    PROPERTIES ENVIRONMENT "${XRDENV}" FIXTURES_SETUP XRootD_TPC_Cluster
                FIXTURES_REQUIRED "XRootD::scitokens;SciTokens")
 
-  add_test(NAME XRootD::tpc::test
+  add_test(NAME XRootD::tpc::test::cluster
     COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/test.sh")
-  set_tests_properties(XRootD::tpc::test
-    PROPERTIES ENVIRONMENT "${XRDENV}" FIXTURES_REQUIRED "XRootD_TPC;XRootD::scitokens;SciTokens")
+  set_tests_properties(XRootD::tpc::test::cluster
+    PROPERTIES ENVIRONMENT "${XRDENV}"
+               FIXTURES_REQUIRED "XRootD_TPC_Cluster;XRootD::scitokens;SciTokens")
 
-  add_test(NAME XRootD::tpc::teardown
-    COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/setup.sh teardown")
-  set_tests_properties(XRootD::tpc::teardown
-    PROPERTIES ENVIRONMENT "${XRDENV}" FIXTURES_CLEANUP XRootD_TPC)
+  add_test(NAME XRootD::tpc::test::cluster::stop
+    COMMAND sh -c "${CMAKE_CURRENT_SOURCE_DIR}/setup.sh stop")
+  set_tests_properties(XRootD::tpc::test::cluster::stop
+    PROPERTIES ENVIRONMENT "${XRDENV}" FIXTURES_CLEANUP XRootD_TPC_Cluster)
 
 endif()

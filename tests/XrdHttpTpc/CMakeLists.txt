@@ -1,4 +1,11 @@
-add_executable(xrdhttptpc-unit-tests XrdHttpTpcTests.cc)
+if(NOT BUILD_HTTP)
+  return()
+endif()
+
+add_executable(xrdhttptpc-unit-tests
+  XrdHttpTpcTests.cc
+  ${PROJECT_SOURCE_DIR}/src/XrdHttpTpc/XrdHttpTpcTPCCheck.cc
+)
 
 add_library(XrdHttpTpcUtils
   ${PROJECT_SOURCE_DIR}/src/XrdHttpTpc/XrdHttpTpcUtils.cc
@@ -11,6 +18,8 @@ target_link_libraries(XrdHttpTpcUtils
 
 target_link_libraries(xrdhttptpc-unit-tests
         XrdHttpTpcUtils
+        XrdHttpUtils
+        XrdUtils
         GTest::gtest
         GTest::gtest_main)
 
