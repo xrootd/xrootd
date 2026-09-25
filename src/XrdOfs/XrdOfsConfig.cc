@@ -949,15 +949,15 @@ bool XrdOfs::ValidCST(const char* cst)
 
 /* Function: xcksrt
 
-   Purpose:  To parse the directive: cksrt [auto <cipher>] [chkcgi]
+   Purpose:  To parse the directive: cksrt [auto {on | off}] [chkcgi]
 
              auto    Specifies that realtime checksums be automatically
-                     computed using the specified cipher. If cgi is allowed
+                     computed using the default cipher. If cgi is allowed
                      and specified, the cipher in the cgi is used. Specifying
                      'auto none' or 'auto off', disables automatic real-time
-                     checksums, this is the default. Specifying 'auto default'
-                     uses the default checksum speciied by the xrootd.chksum
-                     directive.
+                     checksums, this is the default. Specifying 'auto on' or
+                     'auto default' uses the default checksum speciied by the
+                     xrootd.chksum directive.
 
              chkcgi  A realtime checksum can be request using the cgi element
                      "cks.type=<cipher>" on the open request URL, where <cipher>
@@ -992,7 +992,12 @@ int XrdOfs::xcksrt(XrdOucStream &Config, XrdSysError &Eroute)
                  }
               if (CksRTName) {free(CksRTName); CksRTName = 0;}
               if (strcmp(val, "none") && strcmp(val, "off"))
-                 CksRTName = strdup(val);
+                 {if (strcmp(val, "on") && strcmp(val, "default"))
+                     {Eroute.Emsg("Config","Invalid cksrt auto argument -",val);
+                      return 1;
+                     }
+                  CksRTName = strdup(val);
+                 }
               continue;
              }
           if (!strcmp(val, "chkcgi"))   {cgi = true;  continue;}
