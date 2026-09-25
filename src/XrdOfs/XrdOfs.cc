@@ -2279,10 +2279,14 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
 // supposed to apply authorization.
 //
    if (prepAuth)
-      while(tp)
-           {AUTHORIZE(client,0,AOP_Read,"prepare",tp->text,out_error);
+      {XrdOucTList *opaque = pargs.oinfo;
+       while(tp)
+           {XrdOucEnv pathEnv(opaque ? opaque->text : nullptr, 0, client);
+            AUTHORIZE(client,&pathEnv,AOP_Read,"prepare",tp->text,out_error);
             tp = tp->next;
+            if (opaque) opaque = opaque->next;
            }
+      }
 
 // If there is a prepare plugin, invoke it and return the result.
 //
