@@ -600,6 +600,7 @@ fi
 %files server-libs
 %{_libdir}/libXrdHttpUtils.so.*
 %{_libdir}/libXrdServer.so.*
+%{_libdir}/libXrdOfsPrepPersist.so.*
 # Plugins
 %{_libdir}/libXrdBlacklistDecision-6.so
 %{_libdir}/libXrdBwm-6.so
@@ -612,6 +613,7 @@ fi
 %{_libdir}/libXrdMacaroons-6.so
 %{_libdir}/libXrdN2No2p-6.so
 %{_libdir}/libXrdOfsPrepGPI-6.so
+%{_libdir}/libXrdOfsPrepPersist-6.so
 %{_libdir}/libXrdOssArc-6.so
 %{_libdir}/libXrdOssCsi-6.so
 %{_libdir}/libXrdOssMirage-6.so
@@ -636,6 +638,7 @@ fi
 %{_includedir}/%{name}/XrdXrootd
 %{_libdir}/libXrdHttpUtils.so
 %{_libdir}/libXrdServer.so
+%{_libdir}/libXrdOfsPrepPersist.so
 
 %files private-devel
 %{_includedir}/%{name}/private
