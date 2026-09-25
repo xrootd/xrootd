@@ -74,6 +74,52 @@ TEST(HeaderParser, AcceptsAdlerDigestAlias)
     checksums, XrdClHttp::ChecksumType::kADLER32, 4);
 }
 
+TEST(HeaderParser, AcceptsBase64Crc32Digest)
+{
+  XrdClHttp::ChecksumInfo checksums;
+  XrdClHttp::HeaderParser::ParseDigest("crc32=AAECAw==", checksums);
+  ExpectSequentialChecksum(
+    checksums, XrdClHttp::ChecksumType::kCRC32, 4);
+}
+
+TEST(HeaderParser, PreservesShortHexCrc32WhenBase64IsAmbiguous)
+{
+  XrdClHttp::ChecksumInfo checksums;
+  XrdClHttp::HeaderParser::ParseDigest("crc32=AAAAAA", checksums);
+
+  ASSERT_TRUE(checksums.IsSet(XrdClHttp::ChecksumType::kCRC32));
+  const auto &value = checksums.Get(XrdClHttp::ChecksumType::kCRC32);
+  EXPECT_EQ(value[0], 0);
+  EXPECT_EQ(value[1], 0xaa);
+  EXPECT_EQ(value[2], 0xaa);
+  EXPECT_EQ(value[3], 0xaa);
+}
+
+TEST(HeaderParser, UsesPaddingToDisambiguateBase64Crc32)
+{
+  XrdClHttp::ChecksumInfo checksums;
+  XrdClHttp::HeaderParser::ParseDigest("crc32=AAAAAA==", checksums);
+
+  ASSERT_TRUE(checksums.IsSet(XrdClHttp::ChecksumType::kCRC32));
+  const auto &value = checksums.Get(XrdClHttp::ChecksumType::kCRC32);
+  EXPECT_EQ(value[0], 0);
+  EXPECT_EQ(value[1], 0);
+  EXPECT_EQ(value[2], 0);
+  EXPECT_EQ(value[3], 0);
+}
+
+TEST(HeaderParser, RejectsMalformedCrc32Digest)
+{
+  for(const auto *digest : {"crc32=", "crc32=0001020300", "crc32=AAEC?w==",
+                           "crc32=AAECAw", "crc32=AAECAw=", "crc32=AAECAw===",
+                           "crc32=AAECAwA="})
+  {
+    XrdClHttp::ChecksumInfo checksums;
+    XrdClHttp::HeaderParser::ParseDigest(digest, checksums);
+    EXPECT_FALSE(checksums.IsSet(XrdClHttp::ChecksumType::kCRC32)) << digest;
+  }
+}
+
 TEST(HeaderParser, BuildsChecksumNegotiationValues)
 {
   EXPECT_EQ(XrdClHttp::GetTypeFromString("adler"),
