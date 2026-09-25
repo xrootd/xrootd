@@ -148,6 +148,14 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
    if (i < numgs && !MP) MP = new MonParms;
       else if (!MP) return true;
 
+// Default the fstat buffer size (fbsz) to mbuff, to avoid IP fragmentation
+//
+   if (MP->monMBval > 0 && MP->monFbsz <= 0)
+      {MP->monFbsz = MP->monMBval;
+       eDest.Say("Config fstat buffer size (fbsz) defaulted to the mbuff "
+                 "value; specify fbsz to override.");
+      }
+
 // Set monitor defaults, this has to be done first
 //
    XrdXrootdMonitor::Defaults(MP->monMBval, MP->monRBval, MP->monWWval,

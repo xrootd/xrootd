@@ -701,7 +701,14 @@ int XrdXrootdProtocol::do_Close()
 // while the response is sent.
 //
    int retval = 0;
-   if (SFS_OK != rc) retval = fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+   if (SFS_OK != rc)
+      {if (rc == SFS_ERROR && Monitor.Fstat() && fp->Stats.MonEnt != -1)
+          {int ecode;
+           const char *emsg = fp->XrdSfsp->error.getErrText(ecode);
+           fp->Stats.setCloseErr(XProtocol::mapError(ecode), monErrClose, emsg);
+          }
+       retval = fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+      }
 
 // Delete the file from the file table. If the file object is deleted then it
 // will unlock the file In all cases, final monitoring records will be produced.
@@ -1190,6 +1197,12 @@ int XrdXrootdProtocol::do_Login()
    Entity.addrInfo = Link->AddrInfo();
    Client = &Entity;
 
+// Format the numeric client address for monitoring (no DNS lookup)
+//
+   char ipBuff[64];
+   addrP->Format(ipBuff, sizeof(ipBuff), XrdNetAddrInfo::fmtAddr,
+                 XrdNetAddrInfo::prefipv4 | XrdNetAddrInfo::noPortRaw);
+
 // Check if we need to process a login environment
 //
    if (Request.login.dlen > 8)
@@ -1199,6 +1212,7 @@ int XrdXrootdProtocol::do_Login()
        char *tzVal = loginEnv.Get("xrd.tz");
        char *appXQ = loginEnv.Get("xrd.appname");
        char *aInfo = loginEnv.Get("xrd.info");
+       char *sName = loginEnv.Get("xrd.site");
        int   tzNum = (tzVal ? atoi(tzVal) : 0);
        if (cCode && *cCode && tzNum >= -12 && tzNum <= 14)
           {XrdNetAddrInfo::LocInfo locInfo;
@@ -1206,11 +1220,12 @@ int XrdXrootdProtocol::do_Login()
            locInfo.TimeZone = tzNum & 0xff;
            Link->setLocation(locInfo);
           }
-       if (Monitor.Ready() && (appXQ || aInfo))
+       if (Monitor.Ready())
           {char apBuff[1024];
-           snprintf(apBuff, sizeof(apBuff), "&R=%s&x=%s&y=%s&I=%c",
-                    (rnumb ? rnumb : ""),
+           snprintf(apBuff, sizeof(apBuff), "&a=%s&R=%s&x=%s&y=%s&S=%s&I=%c",
+                    ipBuff, (rnumb ? rnumb : ""),
                     (appXQ ? appXQ : ""), (aInfo ? aInfo : ""),
+                    (sName ? sName : ""),
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
            Entity.moninfo = strdup(apBuff);
           }
@@ -1223,6 +1238,12 @@ int XrdXrootdProtocol::do_Login()
           }
        if (appXQ) AppName = strdup(appXQ);
       }
+      else if (Monitor.Ready())
+              {char apBuff[80];
+               snprintf(apBuff, sizeof(apBuff), "&a=%s&I=%c", ipBuff,
+                        (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
+               Entity.moninfo = strdup(apBuff);
+              }
 
 // Allocate a monitoring object, if needed for this connection
 //
@@ -1641,6 +1662,9 @@ int XrdXrootdProtocol::do_Open()
                     "%s file %s is already opened by %d %s; open denied.",
                     ('r' == usage ? "Input" : "Output"), fn, rc, who);
            eDest.Emsg("Xeq", ebuff);
+           if (Monitor.Fstat())
+              XrdXrootdMonFile::OpenErr(fn, Monitor.Did, kXR_FileLocked,
+                                        monErrOpen, ebuff);
            return Response.Send(kXR_FileLocked, ebuff);
           } else oHelp.mode = usage;
       }
@@ -1655,6 +1679,9 @@ int XrdXrootdProtocol::do_Open()
    if (!fp)
       {snprintf(ebuff, sizeof(ebuff)-1,"Insufficient memory to open %s",fn);
        eDest.Emsg("Xeq", ebuff);
+       if (Monitor.Fstat())
+          XrdXrootdMonFile::OpenErr(fn, Monitor.Did, kXR_NoMemory,
+                                    monErrOpen, ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
    oHelp.fp = fp;
@@ -1699,6 +1726,9 @@ int XrdXrootdProtocol::do_Open()
    if (!xp)
       {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
+       if (Monitor.Fstat())
+          XrdXrootdMonFile::OpenErr(fn, Monitor.Did, kXR_NoMemory,
+                                    monErrOpen, ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
    oHelp.xp = xp;
@@ -2665,7 +2695,8 @@ int XrdXrootdProtocol::do_ReadAll()
        if (rc == SFS_OK)
           {if (!IO.IOLen)    return 0;
            if (IO.IOLen < 0) return -1;  // Otherwise retry using read()
-          } else return fsError(rc, 0, IO.File->XrdSfsp->error, 0, 0);
+          } else return fsError(rc, 0, IO.File->XrdSfsp->error, 0, 0,
+                                 IO.File, monErrRead);
       }
 
 // Make sure we have a large enough buffer
@@ -2689,7 +2720,8 @@ int XrdXrootdProtocol::do_ReadAll()
 // Determine why we ended here
 //
    if (xframt == 0) return Response.Send();
-   return fsError(xframt, 0, IO.File->XrdSfsp->error, 0, 0);
+   return fsError(xframt, 0, IO.File->XrdSfsp->error, 0, 0,
+                  IO.File, monErrRead);
 }
 
 /******************************************************************************/
@@ -2892,7 +2924,8 @@ int XrdXrootdProtocol::do_ReadV()
           {xfrSZ = SFS_ERROR;
            IO.File->XrdSfsp->error.setErrInfo(-ENODATA,"readv past EOF");
           }
-       return fsError(xfrSZ, 0, IO.File->XrdSfsp->error, 0, 0);
+       return fsError(xfrSZ, 0, IO.File->XrdSfsp->error, 0, 0,
+                      IO.File, monErrRead);
       }
 
 // All done, return result of the last segment or just zero
@@ -3543,7 +3576,9 @@ int XrdXrootdProtocol::do_WriteNoneMsg()
       return Response.Send((XErrorCode)IO.EInfo[1],
                            IO.File->XrdSfsp->error.getErrText());
 
-   if (IO.EInfo[0]) return fsError(IO.EInfo[0], 0, IO.File->XrdSfsp->error, 0, 0);
+   if (IO.EInfo[0])
+      return fsError(IO.EInfo[0], 0, IO.File->XrdSfsp->error, 0, 0,
+                     IO.File, monErrWrite);
 
    return Response.Send(kXR_FSError, IO.File->XrdSfsp->error.getErrText());
 }
@@ -3822,7 +3857,8 @@ do{if (IO.IOLen > 0)
 // If we got here then there was a write error (file pointer is valid).
 //
    if (wvInfo) {free(wvInfo); wvInfo = 0;}
-   return fsError((int)xfrSZ, 0, IO.File->XrdSfsp->error, 0, 0);
+   return fsError((int)xfrSZ, 0, IO.File->XrdSfsp->error, 0, 0,
+                  IO.File, monErrWrite);
 }
 
 /******************************************************************************/
@@ -3881,8 +3917,11 @@ void XrdXrootdProtocol::SetFD(int fildes)
 /*                               f s E r r o r                                */
 /******************************************************************************/
 
+// If fP and ioErrCat are given, record an error for the f-stream close record
+//
 int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
-                               const char *Path, char *Cgi)
+                               const char *Path, char *Cgi,
+                               XrdXrootdFile *fP, char ioErrCat)
 {
    int ecode, popt, rs;
    const char *eMsg = myError.getErrText(ecode);
@@ -3892,6 +3931,9 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
+
+       if (fP && ioErrCat && Monitor.Fstat() && fP->Stats.MonEnt != -1)
+          fP->Stats.setCloseErr(rc, ioErrCat, eMsg);
 
        if (Path && (rc == kXR_Overloaded) && (opC == XROOTD_MON_OPENR
                 || opC == XROOTD_MON_OPENW || opC == XROOTD_MON_OPENC))
@@ -3910,7 +3952,14 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
               else  rs = Response.Send(kXR_redirect,
                                        Route[popt].Port[rdType],
                                        Route[popt].Host[rdType]);
-          } else rs = Response.Send((XErrorCode)rc, eMsg);
+          } else {
+           if (Path && Monitor.Fstat()
+           && (opC == XROOTD_MON_OPENR || opC == XROOTD_MON_OPENW
+                                       || opC == XROOTD_MON_OPENC))
+              XrdXrootdMonFile::OpenErr(Path, Monitor.Did, rc,
+                     (rc == kXR_NotAuthorized ? monErrAuth : monErrOpen), eMsg);
+           rs = Response.Send((XErrorCode)rc, eMsg);
+          }
        if (myError.extData()) myError.Reset();
        return rs;
       }

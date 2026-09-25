@@ -164,10 +164,31 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
        cRec.Ssq.write.dlong = htonll(xval.dlong);
       }
 
+// Append the error block, if any, and set hasERR
+//
+   int recSize = crecSize;
+   if (fsP->closeErr)
+      {int mLen   = strlen(fsP->closeMsg) + 1;
+       int errLen = (int)sizeof(XrdXrootdMonStatERR) - 1 + mLen;
+       recSize = (crecSize + errLen + 3) & ~0x00000003;
+       if (recSize > 32767) recSize = crecSize;  // too big; drop the error block
+       else {cRec.Hdr.recFlag |= XrdXrootdMonFileHdr::hasERR;
+             cRec.Hdr.recSize  = htons(static_cast<short>(recSize));
+            }
+      }
+
 // Get a pointer to the next slot (the buffer gets locked)
 //
-   cP = GetSlot(crecSize);
+   cP = GetSlot(recSize);
    memcpy(cP, &cRec, crecSize);
+   if (recSize > crecSize)
+      {XrdXrootdMonStatERR *e = (XrdXrootdMonStatERR *)(cP + crecSize);
+       memset(cP + crecSize, 0, recSize - crecSize);
+       e->ecode = htonl(fsP->closeErr);
+       e->ecat  = fsP->closeCat;
+       strncpy(e->emsg, fsP->closeMsg, recSize - crecSize
+                                     - ((int)sizeof(XrdXrootdMonStatERR) - 1));
+      }
    bfMutex.UnLock();
 }
 
@@ -525,5 +546,67 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
        oP->ufn.user = uDID;
        strncpy(oP->ufn.lfn, Path, pLen);
       }
+   bfMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                               O p e n E r r                                */
+/******************************************************************************/
+
+void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
+                               int ecode, char ecat, const char *emsg)
+{
+   static const int hdrLen = sizeof(XrdXrootdMonFileHdr);
+   static const int errFix = sizeof(XrdXrootdMonStatERR) - 1;
+   XrdXrootdMonFileHdr *h;
+   XrdXrootdMonStatERR *e;
+   char *slot, *cur;
+   int pLen, mLen, ufnLen, rLen;
+
+// Do nothing if fstat monitoring is off
+//
+   if (!repBuff) return;
+   if (!Path) Path = "";
+   if (!emsg) emsg = "";
+   pLen = strlen(Path) + 1;
+   mLen = strlen(emsg) + 1;
+
+// Compute the record size, aligned to 4 bytes
+//
+   ufnLen = sizeof(kXR_unt32) + pLen;
+   rLen   = hdrLen + ufnLen + errFix + mLen;
+   rLen   = (rLen + 3) & ~0x00000003;
+
+// Drop the record if it does not fit in a datagram or in recSize
+//
+   if (rLen <= 0 || rLen > 32767
+   ||  rLen > fBsz - (int)(sizeof(XrdXrootdMonHeader)+sizeof(XrdXrootdMonFileTOD)))
+      return;
+
+// Get a pointer to the next slot (the buffer gets locked)
+//
+   slot = GetSlot(rLen);
+   memset(slot, 0, rLen);
+
+// Fill out the record header
+//
+   h = (XrdXrootdMonFileHdr *)slot;
+   h->recType = XrdXrootdMonFileHdr::isError;
+   h->recFlag = XrdXrootdMonFileHdr::hasLFN;
+   h->recSize = htons(static_cast<short>(rLen));
+   h->fileID  = 0;
+
+// Fill out the user dictid (already in network order) and the lfn
+//
+   cur = slot + hdrLen;
+   memcpy(cur, &uDID, sizeof(kXR_unt32));
+   memcpy(cur + sizeof(kXR_unt32), Path, pLen);
+
+// Fill out the error block
+//
+   e = (XrdXrootdMonStatERR *)(slot + hdrLen + ufnLen);
+   e->ecode = htonl(ecode);
+   e->ecat  = ecat;
+   memcpy(e->emsg, emsg, mLen);
    bfMutex.UnLock();
 }
