@@ -200,6 +200,23 @@ XrdXrootdFile *XrdXrootdCBJob::DoClose(XrdOucErrInfo *eInfo)
        eInfo->setErrInfo(kXR_FSError, "Internal error; file close forced");
       }
 
+// Record a terminal close failure so the f-stream close record reports it.
+// XrdXrootdProtocol::do_Close does this for a synchronous close; a deferred
+// one only learns the result here. There is no protocol Monitor object in this
+// context, so we let XrdXrootdMonFile::Close decide whether anything is
+// reported, exactly as sendError below does for OpenErr.
+//
+   if (Result == SFS_ERROR)
+      {int ecode;
+       const char *emsg = eInfo->getErrText(ecode);
+       fP->Stats.setCloseErr(XProtocol::mapError(ecode), monErrClose, emsg);
+      }
+
+// Emit the close record. XrdXrootdFileTable::Del left it to us, since the
+// result was unknown when the file left the open table.
+//
+   XrdXrootdMonFile::Close(&fP->Stats, false);
+
 // Send appropriate response (OK or error)
 //
    if (Result == SFS_OK) cbFunc->sendResp(eInfo, kXR_ok);

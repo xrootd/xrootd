@@ -310,7 +310,12 @@ XrdXrootdFile *XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum,
        if (monP) monP->Close(Stats.FileID,
                              Stats.xfr.read + Stats.xfr.readv,
                              Stats.xfr.write);
-       XrdXrootdMonFile::Close(&Stats, false);
+
+// A deferred close (dodel false, i.e. close() returned SFS_STARTED) does not
+// know yet whether it succeeded, so its f-stream record cannot be written
+// here. XrdXrootdCBJob::DoClose writes it once the callback has the result.
+//
+       if (dodel) XrdXrootdMonFile::Close(&Stats, false);
        if (dodel) {delete fp; fp = 0;}  // Will do the close
           else {if (!fhProc) fhProc = new XrdXrootdFileHP;
                    else fhProc->Ref();
