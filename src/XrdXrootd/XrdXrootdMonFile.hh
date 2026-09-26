@@ -59,6 +59,11 @@ static void Open(XrdXrootdFileStats *fsP,
 static void OpenErr(const char *Path, unsigned int uDID,
                     int ecode, char ecat, const char *emsg);
 
+//! Smallest fstat buffer that can hold the largest record we emit. Defaults()
+//! raises anything below this, so no record is ever refused by a valid config.
+//
+static const int fbszMin;
+
        XrdXrootdMonFile() : XrdJob("monitor fstat") {}
       ~XrdXrootdMonFile() {}
 
@@ -67,6 +72,14 @@ private:
 static void                 DoXFR();
 static void                 DoXFR(XrdXrootdFileStats *fsP);
 static void                 Flush();
+
+//! Reserve slotSZ bytes in the report buffer, flushing it first if needed.
+//!
+//! @return A pointer to the slot with bfMutex held; the caller fills the slot
+//!         in and unlocks. A null return means the slot was refused because it
+//!         cannot fit an empty buffer; bfMutex is NOT held and the caller must
+//!         return at once without unlocking.
+//
 static char                *GetSlot(int slotSZ);
                           
 static XrdSysMutex          bfMutex;
@@ -81,7 +94,8 @@ static char                *repFirst;
 static char                *repLast;
 static int                  totRecs;
 static int                  xfrRecs;
-static int                  repSize;
+static int                  drpRecs;   // Records refused by GetSlot
+static int                  maxSlot;   // Largest slot GetSlot will grant
 static int                  repTime;
 static int                  fmHWM;
 static int                  crecSize;

@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdio>
 #include <cstring>
 
 #include "Xrd/XrdScheduler.hh"
@@ -51,6 +52,39 @@ extern int32_t       startTime;
 }
 
 /******************************************************************************/
+/*                             C o n s t a n t s                              */
+/******************************************************************************/
+
+namespace
+{
+// Every datagram starts with a header and a time record; the first record can
+// only go after them.
+//
+const int monPfxSz  = sizeof(XrdXrootdMonHeader) + sizeof(XrdXrootdMonFileTOD);
+
+// The fixed part of an open record, i.e. everything but the variable lfn.
+//
+const int minRecSz  = sizeof(XrdXrootdMonFileOPN)-sizeof(XrdXrootdMonFileLFN);
+
+// Longest lfn we will copy. Chosen so that an open record never exceeds the
+// XrdXrootdMonFileOPN structure that collectors are compiled against.
+//
+const int maxLfnSz  = 1020;
+
+// Largest record any of the emitters below can produce.
+//
+const int maxRecSz  = sizeof(XrdXrootdMonFileOPN);
+
+// recSize is a signed short on the wire, so no record may exceed this even
+// when the buffer itself is much larger (fbsz may be up to 65535).
+//
+const int maxWireSz = 32767;
+
+static_assert(((minRecSz + (int)sizeof(kXR_unt32) + maxLfnSz + 8) & ~3)
+              == maxRecSz, "lfn clamp and XrdXrootdMonFileOPN disagree");
+}
+
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
                           
@@ -66,7 +100,8 @@ char                *XrdXrootdMonFile::repFirst = 0;
 char                *XrdXrootdMonFile::repLast  = 0;
 int                  XrdXrootdMonFile::totRecs  = 0;
 int                  XrdXrootdMonFile::xfrRecs  = 0;
-int                  XrdXrootdMonFile::repSize  = 0;
+int                  XrdXrootdMonFile::drpRecs  = 0;
+int                  XrdXrootdMonFile::maxSlot  = 0;
 int                  XrdXrootdMonFile::repTime  = 0;
 int                  XrdXrootdMonFile::fmHWM    =-1;
 int                  XrdXrootdMonFile::crecSize = 0;
@@ -82,6 +117,11 @@ char                 XrdXrootdMonFile::fsOPS    = 0;
 char                 XrdXrootdMonFile::fsSSQ    = 0;
 char                 XrdXrootdMonFile::fsXFR    = 0;
 char                 XrdXrootdMonFile::crecFlag = 0;
+
+const int            XrdXrootdMonFile::fbszMin  = 1088;
+
+static_assert(XrdXrootdMonFile::fbszMin >= monPfxSz + maxRecSz + 1,
+              "fbszMin cannot hold the largest record");
   
 /******************************************************************************/
 /*                                 C l o s e                                  */
@@ -180,6 +220,7 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
 // Get a pointer to the next slot (the buffer gets locked)
 //
    cP = GetSlot(recSize);
+   if (!cP) return;
    memcpy(cP, &cRec, crecSize);
    if (recSize > crecSize)
       {XrdXrootdMonStatERR *e = (XrdXrootdMonStatERR *)(cP + crecSize);
@@ -233,6 +274,7 @@ void XrdXrootdMonFile::Disc(unsigned int usrID)
 // Get a pointer to the next slot (the buffer gets locked)
 //
    dP = (XrdXrootdMonFileDSC *)GetSlot(sizeof(XrdXrootdMonFileDSC));
+   if (!dP) return;
 
 // Fill out the record. It's pretty simple
 //
@@ -255,11 +297,23 @@ void XrdXrootdMonFile::DoIt()
    xfrRem--;
    if (!xfrRem) DoXFR();
 
-// Check if we should flush the buffer
+// Check if we should flush the buffer and pick up any refused records
 //
    bfMutex.Lock();
    if (repNext) Flush();
+   int nDrop = drpRecs; drpRecs = 0;
    bfMutex.UnLock();
+
+// A refused record is invisible downstream: the collector's sequence numbers
+// only show whole lost datagrams, and the time record's count never included
+// it. So report it here. This should not happen, since Defaults() keeps the
+// buffer large enough for the largest record we emit.
+//
+   if (nDrop && XrdXrootdMonInfo::eDest)
+      {char buff[80];
+       snprintf(buff, sizeof(buff), "%d fstat record(s) dropped;", nDrop);
+       XrdXrootdMonInfo::eDest->Emsg("MonFile", buff, "fbsz is too small.");
+      }
 
 // Reschedule ourselves
 //
@@ -333,6 +387,7 @@ void XrdXrootdMonFile::DoXFR(XrdXrootdFileStats *fsP)
 // Get a pointer to the next slot (the buffer gets locked)
 //
    cP = GetSlot(sizeof(xfrRec));
+   if (!cP) return;
    memcpy(cP, &xfrRec, sizeof(xfrRec));
    xfrRecs++;
    bfMutex.UnLock();
@@ -378,6 +433,13 @@ bool XrdXrootdMonFile::Init()
 //
    repLast = repBuff+fBsz-1;
    repNext = 0;
+
+// Compute the largest slot we will ever grant. It is what fits an empty
+// buffer, capped by what the 16-bit recSize field can express. This and the
+// pointers above are set once, at start-up, and are read-only afterwards.
+//
+   maxSlot = repLast - repFirst;
+   if (maxSlot > maxWireSz) maxSlot = maxWireSz;
 
 // Calculate the close record size and the initial flags
 //
@@ -452,6 +514,17 @@ char *XrdXrootdMonFile::GetSlot(int slotSZ)
 {
    char *myRec;
 
+// Refuse any slot that could not fit even an empty buffer, or that could not
+// be expressed in the record's 16-bit recSize. maxSlot is zero until Init()
+// runs, so this also covers calls made before (or without) fstat monitoring
+// being configured. We return with bfMutex unlocked; the caller must not
+// unlock it.
+//
+   if (slotSZ <= 0 || slotSZ > maxSlot)
+      {bfMutex.Lock(); drpRecs++; bfMutex.UnLock();
+       return 0;
+      }
+
 // Lock this code to prevent interference (we should use double buffering)
 // Note that the caller must do the unlock when finished with the slot.
 //
@@ -470,7 +543,9 @@ char *XrdXrootdMonFile::GetSlot(int slotSZ)
        repNext = repFirst;
       }
 
-// Return the slot
+// Return the slot. No second bounds test is needed: both branches above leave
+// repNext at repFirst, and the test at entry guarantees that
+// repFirst + slotSZ <= repFirst + maxSlot <= repLast.
 //
    totRecs++;
    myRec = repNext;
@@ -485,8 +560,6 @@ char *XrdXrootdMonFile::GetSlot(int slotSZ)
 void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
                             unsigned int uDID, bool isRW)
 {
-   static const int minRecSz = sizeof(XrdXrootdMonFileOPN)
-                             - sizeof(XrdXrootdMonFileLFN);
    XrdXrootdMonFileOPN *oP;
    int i = 0, sNum = -1, rLen, pLen = 0;
 
@@ -530,6 +603,7 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
 // Get a pointer to the next slot (the buffer gets locked)
 //
    oP = (XrdXrootdMonFileOPN *)GetSlot(rLen);
+   if (!oP) return;
 
 // Fill out the record
 //
