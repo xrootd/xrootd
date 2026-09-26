@@ -844,12 +844,20 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
 // Copy in the username and path
 //
    map.dictid = GetDictID();
-   strcpy(map.info, uInfo.Name);
    size = uInfo.Len;
-   if (path)
+   if (size > (int)sizeof(map.info)-1) size = (int)sizeof(map.info)-1;
+   memcpy(map.info, uInfo.Name, size);
+   map.info[size] = 0;
+
+// Append the path, if any. strlcpy truncates it to the room that is left, so
+// the length must be recomputed from what was actually copied. Taking it from
+// the source instead would make the record claim more bytes than the struct
+// holds, and Send() would then put whatever follows map on the wire.
+//
+   if (path && size < (int)sizeof(map.info)-2)
       {*(map.info+size) = '\n';
        strlcpy(map.info+size+1, path, sizeof(map.info)-size-1);
-       size = size + strlen(path) + 1;
+       size = size + (int)strlen(map.info+size+1) + 1;
       }
 
 // Fill in the header
