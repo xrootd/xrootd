@@ -697,8 +697,15 @@ void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
 
 // Fill out the error block
 //
+// The error block follows a variable-length string, so it is only 2-byte
+// aligned for an odd path length. Store the code through memcpy rather than a
+// 32-bit assignment, which would trap on a strict-alignment platform. Padding
+// the lfn instead would change the wire format, and collectors locate this
+// block by walking the lfn's actual length.
+//
    e = (XrdXrootdMonStatERR *)(slot + hdrLen + ufnLen);
-   e->ecode = htonl(ecode);
+   kXR_int32 nEcode = htonl(ecode);
+   memcpy(&e->ecode, &nEcode, sizeof(nEcode));
    e->ecat  = ecat;
    memcpy(e->emsg, emsg, mLen - 1);
    bfMutex.UnLock();
