@@ -594,6 +594,7 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
    rLen = minRecSz;
    if (fsLFN)
       {pLen  = strlen(Path);
+       if (pLen > maxLfnSz) pLen = maxLfnSz;
        rLen += sizeof(kXR_unt32) + pLen;
        i     = (rLen + 8) & ~0x00000003;
        pLen  = pLen + (i - rLen);
@@ -619,6 +620,7 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
       {oP->Hdr.recFlag |= XrdXrootdMonFileHdr::hasLFN;
        oP->ufn.user = uDID;
        strncpy(oP->ufn.lfn, Path, pLen);
+       oP->ufn.lfn[pLen-1] = 0;   // strncpy leaves a truncated path unterminated
       }
    bfMutex.UnLock();
 }
