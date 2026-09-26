@@ -245,7 +245,7 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbsz)
    repTime = intv;
    xfrCnt  = xfrcnt;
    xfrRem  = xfrcnt;
-   fBsz   =  (fbsz <= 0 ? 65472 : fbsz);
+   fBsz   =  (fbsz <= 0 ? 65472 : (fbsz < fbszMin ? fbszMin : fbsz));
 
 // Expand out the options
 //
