@@ -80,6 +80,11 @@ const int maxRecSz  = sizeof(XrdXrootdMonFileOPN);
 //
 const int maxWireSz = 32767;
 
+// Longest error message we will copy into a record. The sources run to a
+// couple of kilobytes, and a diagnostic that long is of no use to a collector.
+//
+const int maxErrMsg = 256;
+
 static_assert(((minRecSz + (int)sizeof(kXR_unt32) + maxLfnSz + 8) & ~3)
               == maxRecSz, "lfn clamp and XrdXrootdMonFileOPN disagree");
 }
@@ -217,7 +222,7 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
       {int mLen   = strlen(fsP->closeMsg) + 1;
        int errLen = (int)sizeof(XrdXrootdMonStatERR) - 1 + mLen;
        recSize = (crecSize + errLen + 3) & ~0x00000003;
-       if (recSize > 32767) recSize = crecSize;  // too big; drop the error block
+       if (recSize > maxSlot) recSize = crecSize; // too big; drop the error block
        else {cRec.Hdr.recFlag |= XrdXrootdMonFileHdr::hasERR;
              cRec.Hdr.recSize  = htons(static_cast<short>(recSize));
             }
@@ -643,15 +648,25 @@ void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
    XrdXrootdMonFileHdr *h;
    XrdXrootdMonStatERR *e;
    char *slot, *cur;
-   int pLen, mLen, ufnLen, rLen;
+   int pLen, mLen, ufnLen, rLen, pMax;
 
 // Do nothing if fstat monitoring is off
 //
    if (!repBuff) return;
    if (!Path) Path = "";
    if (!emsg) emsg = "";
-   pLen = strlen(Path) + 1;
-   mLen = strlen(emsg) + 1;
+   pLen = strlen(Path) + 1;          // include the terminating null
+   mLen = strlen(emsg) + 1;          // include the terminating null
+   if (mLen > maxErrMsg) mLen = maxErrMsg;
+
+// Budget the lfn against what the buffer can actually hold, and then against
+// the lfn size collectors are compiled for. A failed open is still worth
+// reporting with a shortened path; dropping it would lose the event outright.
+//
+   pMax = maxSlot - hdrLen - (int)sizeof(kXR_unt32) - errFix - mLen - 3;
+   if (pMax > maxLfnSz + 1) pMax = maxLfnSz + 1;
+   if (pMax < 1) return;
+   if (pLen > pMax) pLen = pMax;
 
 // Compute the record size, aligned to 4 bytes
 //
@@ -659,15 +674,11 @@ void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
    rLen   = hdrLen + ufnLen + errFix + mLen;
    rLen   = (rLen + 3) & ~0x00000003;
 
-// Drop the record if it does not fit in a datagram or in recSize
-//
-   if (rLen <= 0 || rLen > 32767
-   ||  rLen > fBsz - (int)(sizeof(XrdXrootdMonHeader)+sizeof(XrdXrootdMonFileTOD)))
-      return;
-
-// Get a pointer to the next slot (the buffer gets locked)
+// Get a pointer to the next slot (the buffer gets locked). GetSlot is the one
+// place that decides what fits, so there is no separate pre-check here.
 //
    slot = GetSlot(rLen);
+   if (!slot) return;
    memset(slot, 0, rLen);
 
 // Fill out the record header
@@ -682,13 +693,13 @@ void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
 //
    cur = slot + hdrLen;
    memcpy(cur, &uDID, sizeof(kXR_unt32));
-   memcpy(cur + sizeof(kXR_unt32), Path, pLen);
+   memcpy(cur + sizeof(kXR_unt32), Path, pLen - 1);
 
 // Fill out the error block
 //
    e = (XrdXrootdMonStatERR *)(slot + hdrLen + ufnLen);
    e->ecode = htonl(ecode);
    e->ecat  = ecat;
-   memcpy(e->emsg, emsg, mLen);
+   memcpy(e->emsg, emsg, mLen - 1);
    bfMutex.UnLock();
 }
