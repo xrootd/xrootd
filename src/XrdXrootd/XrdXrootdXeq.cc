@@ -702,7 +702,7 @@ int XrdXrootdProtocol::do_Close()
 //
    int retval = 0;
    if (SFS_OK != rc)
-      {if (rc == SFS_ERROR && Monitor.Fstat() && fp->Stats.MonEnt != -1)
+      {if (rc == SFS_ERROR && Monitor.Fstat())
           {int ecode;
            const char *emsg = fp->XrdSfsp->error.getErrText(ecode);
            fp->Stats.setCloseErr(XProtocol::mapError(ecode), monErrClose, emsg);
@@ -3932,7 +3932,7 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
 
-       if (fP && ioErrCat && Monitor.Fstat() && fP->Stats.MonEnt != -1)
+       if (fP && ioErrCat && Monitor.Fstat())
           fP->Stats.setCloseErr(rc, ioErrCat, eMsg);
 
        if (Path && (rc == kXR_Overloaded) && (opC == XROOTD_MON_OPENR
