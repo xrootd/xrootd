@@ -310,7 +310,7 @@ XrdXrootdFile *XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum,
        if (monP) monP->Close(Stats.FileID,
                              Stats.xfr.read + Stats.xfr.readv,
                              Stats.xfr.write);
-       if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, false);
+       XrdXrootdMonFile::Close(&Stats, false);
        if (dodel) {delete fp; fp = 0;}  // Will do the close
           else {if (!fhProc) fhProc = new XrdXrootdFileHP;
                    else fhProc->Ref();
@@ -343,7 +343,7 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP)
            if (monP) monP->Close(Stats.FileID,
                                  Stats.xfr.read+Stats.xfr.readv,
                                  Stats.xfr.write);
-           if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, true);
+           XrdXrootdMonFile::Close(&Stats, true);
            delete FTab[i]; FTab[i] = 0;
           }
 
@@ -356,7 +356,7 @@ if (XTab)
            if (monP) monP->Close(Stats.FileID,
                                  Stats.xfr.read+Stats.xfr.readv,
                                  Stats.xfr.write);
-           if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, true);
+           XrdXrootdMonFile::Close(&Stats, true);
            delete XTab[i];
           }
        }

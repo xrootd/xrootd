@@ -133,6 +133,12 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
    char *cP;
    int iEnt, iMap, iSlot;
 
+// Do nothing if file-stat monitoring is not active (no report buffer). The
+// guard lives here, as it does in Open(), so that callers need not know
+// whether this file was ever registered for I/O reporting.
+//
+   if (!repBuff) return;
+
 // If this object was registered for I/O reporting, deregister it.
 //
    if (fsP->MonEnt != -1)
