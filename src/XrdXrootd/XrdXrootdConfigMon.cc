@@ -40,6 +40,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 
 #include "XrdXrootd/XrdXrootdGSReal.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdTpcMon.hh"
@@ -156,6 +157,19 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
                  "value; specify fbsz to override.");
       }
 
+// A single fstat record must fit the buffer, so raise anything below the
+// minimum rather than silently dropping records. Defaults() applies the same
+// floor, but it runs before there is anywhere to report it.
+//
+   if (MP->monFbsz > 0 && MP->monFbsz < XrdXrootdMonFile::fbszMin)
+      {char msg[128];
+       snprintf(msg, sizeof(msg), "Config fstat buffer size (fbsz) raised from "
+                "%d to the %d byte minimum.", MP->monFbsz,
+                XrdXrootdMonFile::fbszMin);
+       eDest.Say(msg);
+       MP->monFbsz = XrdXrootdMonFile::fbszMin;
+      }
+
 // Set monitor defaults, this has to be done first
 //
    XrdXrootdMonitor::Defaults(MP->monMBval, MP->monRBval, MP->monWWval,
@@ -218,6 +232,8 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
                             xfr <n>- inserts i/o stats for open files every
                                      <sec>*<n>. Minimum is 1.
          fbsz   <sz>        size of message buffer for file stream monitoring.
+                            Values below 1088 are raised to that minimum, as a
+                            single record must fit the buffer.
          gbuff  <sz>        size of message buffer for g-stream    monitoring.
          ident {<sec>|off}  time (seconds, M, H) between identification records.
                             The keyword "off" turns them off.
