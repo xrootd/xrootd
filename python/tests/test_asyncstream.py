@@ -28,8 +28,7 @@ def open_stream(request):
             return await aio.open(url, mode)
     else:
         pytest.importorskip('fsspec', minversion='2024.2.0')
-        module = pytest.importorskip('XRootD.client.fsspec')
-        XRootDFileSystem = module.XRootDFileSystem
+        from XRootD.client.fsspec import XRootDFileSystem
 
         async def open_file(url, mode='rb'):
             fs = XRootDFileSystem(hostid=client.URL(url).hostid,
