@@ -369,3 +369,41 @@ This avoids replacing `fsspec-xrootd` for other applications merely because
 XRootD is installed. Cancellation of an already submitted native request
 still does not abort the XrdCl operation.
 
+## Testing Python contracts and coverage
+
+The Python CI workflow builds this revision's native server and bindings and
+runs the complete Python suite with both the minimum fsspec release
+(`2024.2.0`, Python 3.11) and current fsspec (Python 3.13). The existing Alma 8
+job continues to exercise the core bindings with Python 3.6 and its system
+pytest. Version-policy tests verify lazy imports, rejection before optional
+dependencies load, and continued use of the classic bindings after rejection.
+CTest omits unsupported async suites on Python < 3.11, while running the
+classic and version-policy suites. Tests create a temporary local XRootD server;
+they do not require an external EOS endpoint.
+
+With a CMake build in `build/`, the Linux coverage run can be reproduced with:
+
+```sh
+export PYTHONPATH="$PWD/build/python/site-packages"
+export LD_LIBRARY_PATH="$PWD/build/lib"
+export XROOTD="$PWD/build/bin/xrootd"
+export XRDFS="$PWD/build/bin/xrdfs"
+export COVERAGE_RCFILE="$PWD/python/.coveragerc"
+python -m coverage run -m pytest -q python/tests
+python -m coverage report
+python -m coverage html
+```
+
+On macOS, use `DYLD_LIBRARY_PATH` instead of `LD_LIBRARY_PATH`. Install pytest,
+coverage and the optional fsspec dependency in the test environment first.
+CI requires at least 95% combined statement/branch coverage **per module** for
+`_asyncio`, `aio`, `asyncstream`, `stream`, and `fsspec`, and uploads HTML/XML
+reports. This is a gate for the new Python interfaces, not a repository-wide
+coverage claim.
+
+The tests combine real server round trips, comparisons with ordinary Python
+file objects, and controlled failures. They cover repeated cancellation,
+late/duplicate callbacks, cursor ownership, concurrent ranges, malformed
+vector responses, cache invalidation and eviction, source fallback, and local
+transfer threads. Failure tests verify resource cleanup and error identity,
+not only that an exception was raised.

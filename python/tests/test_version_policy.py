@@ -1,6 +1,7 @@
 """Classic bindings remain usable when optional modern APIs are rejected."""
 
 import asyncio
+import json
 import os
 from pathlib import Path
 import runpy
@@ -23,12 +24,17 @@ def run_python(source, *args):
     result = subprocess.run([sys.executable, '-c', source] + list(args),
                             env=environ, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, universal_newlines=True,
-                            timeout=30)
+                            timeout=180)
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_classic_import_does_not_load_modern_interfaces():
+def test_import_policy_preserves_classic_bindings():
+    # Use one fresh interpreter for all import checks. Loading the native
+    # libraries can be slow on macOS runners; repeating it for every rejected
+    # import can exhaust CTest's deadline before the assertions finish.
     run_python('''
+import importlib
+import json
 import sys
 from XRootD import client
 for name in ('_asyncio', 'aio', 'asyncstream', 'fsspec'):
@@ -37,33 +43,44 @@ assert callable(client.open)
 assert client.File() is not None
 assert client.FileSystem('root://localhost') is not None
 assert 'fsspec' not in sys.modules
-''')
+runtime_version = sys.version_info
+modules, versions = json.loads(sys.argv[1])
+for version in versions:
+    for module in modules:
+        name = 'XRootD.client.' + module
+        context = '%s on Python %s' % (name, version)
+        assert name not in sys.modules, context
+        sys.version_info = tuple(version)
+        try:
+            try:
+                importlib.import_module(name)
+            except ImportError as error:
+                assert 'require Python >= 3.11' in str(error), context
+                assert 'classic XRootD.client bindings' in str(error), context
+            else:
+                raise AssertionError('unsupported import: ' + context)
+        finally:
+            sys.version_info = runtime_version
+        assert name not in sys.modules, context
+        assert 'XRootD.client._asyncio' not in sys.modules, context
+        assert 'fsspec' not in sys.modules, context
+        assert client.File() is not None, context
+        assert client.FileSystem('root://localhost') is not None, context
+        assert callable(client.open), context
 
-
-@pytest.mark.parametrize('module', MODULES)
-@pytest.mark.parametrize('version', OLDER_VERSIONS)
-def test_unsupported_import_preserves_classic_bindings(module, version):
-    run_python('''
-import importlib
-import sys
-from XRootD import client
-version = sys.version_info
-sys.version_info = tuple(int(part) for part in sys.argv[2].split('.'))
-try:
-    try:
-        importlib.import_module('XRootD.client.' + sys.argv[1])
-    except ImportError as error:
-        assert 'require Python >= 3.11' in str(error)
-        assert 'classic XRootD.client bindings' in str(error)
+# Test the actual runtime last, because successful imports remain cached.
+for name in ('aio', 'asyncstream'):
+    if sys.version_info < (3, 11):
+        try:
+            importlib.import_module('XRootD.client.' + name)
+        except ImportError as error:
+            assert 'require Python >= 3.11' in str(error)
+        else:
+            raise AssertionError('unsupported feature was imported')
     else:
-        raise AssertionError('unsupported feature was imported')
-finally:
-    sys.version_info = version
-assert 'fsspec' not in sys.modules
+        importlib.import_module('XRootD.client.' + name)
 assert client.File() is not None
-assert client.FileSystem('root://localhost') is not None
-assert callable(client.open)
-''', module, '.'.join(str(part) for part in version))
+''', json.dumps([MODULES, OLDER_VERSIONS]))
 
 
 @pytest.mark.parametrize('version', OLDER_VERSIONS)
@@ -81,25 +98,6 @@ def test_version_guard_accepts_supported_python(monkeypatch, version):
     monkeypatch.setattr(sys, 'version_info', version)
     namespace = runpy.run_path(str(source))
     assert namespace['asyncio'] is asyncio
-
-
-def test_actual_runtime_policy():
-    run_python('''
-import importlib
-import sys
-from XRootD import client
-for name in ('aio', 'asyncstream'):
-    if sys.version_info < (3, 11):
-        try:
-            importlib.import_module('XRootD.client.' + name)
-        except ImportError as error:
-            assert 'require Python >= 3.11' in str(error)
-        else:
-            raise AssertionError('unsupported feature was imported')
-    else:
-        importlib.import_module('XRootD.client.' + name)
-assert client.File() is not None
-''')
 
 
 def test_packaged_sources_compile_on_actual_interpreter():

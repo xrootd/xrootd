@@ -127,6 +127,11 @@ jobs:
         tests/post-install.sh
         tests/check-headers.sh
 
+    - name: Verify installed bindings on Alma 8 system Python
+      run: |
+        python3 -c 'import sys; assert sys.version_info[:2] == (3, 6)'
+        python3 -m pytest -q python/tests/test_version_policy.py
+
   alma9:
     name: Alma 9
     runs-on: ubuntu-latest

@@ -1,0 +1,14 @@
+[run]
+branch = True
+source = XRootD.client
+
+[report]
+precision = 2
+show_missing = True
+include =
+    */client/_asyncio.py
+    */client/aio.py
+    */client/asyncstream.py
+    */client/fsspec.py
+    */client/stream.py
+fail_under = 95
