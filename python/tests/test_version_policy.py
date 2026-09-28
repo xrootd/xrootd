@@ -12,7 +12,7 @@ import pytest
 from XRootD import client
 
 
-MODULES = ['aio', 'asyncstream']
+MODULES = ['aio', 'asyncstream', 'fsspec']
 OLDER_VERSIONS = [(3, 6), (3, 8), (3, 9), (3, 10)]
 
 

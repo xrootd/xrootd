@@ -6,8 +6,8 @@ The classic bindings and synchronous helpers support Python 3.6 or later,
 including AlmaLinux 8's system Python. The optional ``XRootD.client.aio``,
 ``asyncstream`` and ``fsspec`` modules require Python 3.11 or later. Importing
 these modules on older Python raises ``ImportError``; importing and using
-``XRootD.client`` remains supported. The ``fsspec`` extra installs its dependency
-only on Python >= 3.11 and does not enable the adapter on older interpreters.
+``XRootD.client`` remains supported. The adapter is included in the bindings;
+install ``fsspec>=2024.2.0`` separately to use it on Python >=3.11.
 All packaged Python sources retain Python 3.6-compatible syntax.
 
 For general instructions on how to use ``pip`` to install Python packages, please

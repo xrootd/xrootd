@@ -106,11 +106,10 @@ Python **3.11 or later**. Importing them on an older interpreter raises a clear
 `ImportError` without preventing subsequent use of the classic bindings.
 Importing `XRootD.client` does not load these optional modules or fsspec.
 
-Both package entry points declare `python_requires >= 3.6`. The `fsspec` extra
-installs its dependency only on Python >= 3.11; requesting that extra on an older
-interpreter still installs the classic bindings, but does not enable the adapter.
-All packaged modules retain Python 3.6-compatible syntax so installation and
-byte-compilation work there. Modern asyncio APIs are used after the version
+Both package entry points declare `python_requires >= 3.6`. The adapter is
+included in the bindings; install `fsspec>=2024.2.0` separately to use it on
+Python >=3.11. All packaged modules retain Python 3.6-compatible syntax so
+installation and byte-compilation work there. Modern asyncio APIs are used after the version
 check, which runs before importing optional dependencies.
 
 `XRootD.client.aio` provides awaitable file and filesystem operations backed by
@@ -289,4 +288,84 @@ and `unlink` use standard `OSError` subclasses. The original awaitable methods
 such as `stat`, `dirlist`, and `rm` retain their native response objects and
 XRootD exception classes. Cancelling filesystem operations stops waiting;
 an already submitted mutation may still finish on the server.
+
+To use the optional `root` fsspec implementation on Python >=3.11, install
+fsspec alongside the bindings:
+
+```sh
+python -m pip install xrootd 'fsspec>=2024.2.0'
+```
+
+The adapter is included in the bindings; fsspec is an optional dependency
+installed separately. The same class supports normal synchronous fsspec
+methods and asynchronous calls:
+
+```python
+from XRootD.client.fsspec import XRootDFileSystem
+
+fs = XRootDFileSystem(hostid='host', asynchronous=True)
+data = await fs._cat_file('/path/to/file', start=0, end=1024)
+async with await fs.open_async('/path/to/file', 'rb') as file:
+    first_kib = await file.read(1024)
+```
+
+Remote open, stat, read, write, list, and namespace operations submit native
+XrdCl requests with callbacks. Completion moves from an XrdCl thread to the
+asyncio loop with `call_soon_threadsafe`; the loop does not wait in a worker
+thread for remote I/O. Local files used by fsspec upload/download run through
+an executor. The ordinary `client.open()` and fsspec `fs.open()` methods
+are synchronous and should not be used directly inside an event loop. Python
+argument handling, request submission, and result handling still run on the
+calling thread, so this does not promise zero event-loop latency.
+
+The fsspec adapter now batches scattered ranges through XRootD vector reads,
+reuses bounded read handles, and can locate an alternate source if an open fails.
+It also supports common metadata, `touch`, `chmod`, checksum queries, append,
+and in-place updates. Cached idle read handles are closed after their TTL, and
+`invalidate_cache(path)` discards listings and read handles after another client
+changes a file. Async callers can await `invalidate_cache_async(path)` for
+completion. Downloads accept `chunk_size` as in `fsspec-xrootd`. For synchronous
+callers:
+
+```python
+fs = XRootDFileSystem(hostid='host')
+parts = fs.cat_ranges(['/data/file'] * 2, [0, 4096], [1024, 5120])
+with fs.open('/data/file', 'rb') as file:
+    header = file.read(1024)
+fs.close()
+```
+
+Permission changes drain the native request and invalidate this instance's
+cached listings and read handles before propagating cancellation, including
+when the remote outcome is uncertain. Server authorization still determines
+the effect on reads that are already active.
+
+Alternate sources use the native client's authentication and redirect behavior.
+`valid_sources` filters located hostnames; it does not confine later redirects
+or isolate credentials. Set `locate_all_sources=False` to disable this adapter's
+alternate-source lookup, and apply native redirect/authentication policy when
+endpoint confinement is required.
+
+The optional fsspec adapter requires Python 3.11 or later, including its
+synchronous methods, because it shares the modern async implementation. Its
+minimum fsspec dependency remains `fsspec>=2024.2.0`. The classic bindings and
+synchronous helpers retain Python 3.6 support for AlmaLinux 8.
+
+`fsspec-xrootd` provides most of those sync operations already, including
+vector reads, but its `open_async` returns a synchronous file object. Here,
+`open_async` returns a file with awaitable `read`, `write`, `seek`, and `close`.
+The native adapter does not register the `root` protocol automatically. To use
+it through `fsspec.open()` or an application that selects filesystems by URL,
+choose it explicitly before opening a `root://` URL:
+
+```python
+import fsspec
+from XRootD.client.fsspec import XRootDFileSystem
+
+fsspec.register_implementation('root', XRootDFileSystem, clobber=True)
+```
+
+This avoids replacing `fsspec-xrootd` for other applications merely because
+XRootD is installed. Cancellation of an already submitted native request
+still does not abort the XrdCl operation.
 
