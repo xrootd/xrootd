@@ -47,6 +47,7 @@ OpenFlags = enum(
 # ASYNC     = 64,
   REFRESH   = 128,
   MAKEPATH  = 256,
+  PREFNAME  = 256,  # Prefer hostnames in locate responses.
 # APPEND    = 512,
 # RETSTAT   = 1024,
   REPLICA   = 2048,

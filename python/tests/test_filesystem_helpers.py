@@ -192,7 +192,7 @@ def test_copy_one_handles_job_status():
                 fs.rm(path)
 
 
-@pytest.mark.parametrize('asynchronous', [False])
+@pytest.mark.parametrize('asynchronous', [False, True])
 def test_stat_info_and_unlink_contract(asynchronous):
     fs_type = client.FileSystem
     if asynchronous:

@@ -95,7 +95,10 @@ set(PYXROOTD_SOURCES
   README.md
   libs/__init__.py
   libs/client/__init__.py
+  libs/client/_asyncio.py
   libs/client/_version.py
+  libs/client/aio.py
+  libs/client/asyncstream.py
   libs/client/copyprocess.py
   libs/client/env.py
   libs/client/file.py
@@ -227,7 +230,12 @@ list(APPEND ENVIRON "XROOTD=$<TARGET_FILE:xrootd>")
 list(APPEND ENVIRON "XRDFS=$<TARGET_FILE:xrdfs>")
 list(APPEND ENVIRON "PYTHONDONTWRITEBYTECODE=1")
 
-set(PYXROOTD_TESTS copy file filesystem filesystem_helpers glob stream threads url)
+set(PYXROOTD_TESTS copy file filesystem filesystem_helpers glob stream threads
+                  url version_policy)
+
+if(Python_VERSION VERSION_GREATER_EQUAL 3.11)
+  list(APPEND PYXROOTD_TESTS aio aio_helpers asyncstream)
+endif()
 
 foreach(test IN LISTS PYXROOTD_TESTS)
   add_test(NAME PyXRootD::${test}
