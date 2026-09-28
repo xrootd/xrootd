@@ -97,3 +97,196 @@ These helpers raise standard `OSError` subclasses on failure; the lower-level
 status-tuple methods and configurable multi-job `CopyProcess` remain available.
 The core helpers use syntax compatible with Python 3.6 for AlmaLinux 8.
 
+## Asyncio and fsspec (draft)
+
+The classic bindings, synchronous Python helpers and callback API remain
+installable and usable with Python 3.6, including AlmaLinux 8's system Python.
+The optional `XRootD.client.aio`, `asyncstream` and `fsspec` interfaces require
+Python **3.11 or later**. Importing them on an older interpreter raises a clear
+`ImportError` without preventing subsequent use of the classic bindings.
+Importing `XRootD.client` does not load these optional modules or fsspec.
+
+Both package entry points declare `python_requires >= 3.6`. The `fsspec` extra
+installs its dependency only on Python >= 3.11; requesting that extra on an older
+interpreter still installs the classic bindings, but does not enable the adapter.
+All packaged modules retain Python 3.6-compatible syntax so installation and
+byte-compilation work there. Modern asyncio APIs are used after the version
+check, which runs before importing optional dependencies.
+
+`XRootD.client.aio` provides awaitable file and filesystem operations backed by
+XrdCl callbacks. It does not use a thread pool for remote I/O. Calls made through
+the low-level `aio.File` interface must use bounded reads; cancellation stops
+waiting for a request but does not abort an already submitted XrdCl operation.
+
+Before, an asyncio caller had to bridge the existing callback API manually
+(shown for a file that is already open):
+
+```python
+import asyncio
+from XRootD import client
+
+loop = asyncio.get_running_loop()
+future = loop.create_future()
+
+def on_read(status, data, hosts):
+    def finish():
+        try:
+            client.raise_on_error(status)
+        except Exception as error:
+            future.set_exception(error)
+        else:
+            future.set_result(data)
+    loop.call_soon_threadsafe(finish)
+
+client.raise_on_error(file.read(offset=0, size=1024, callback=on_read))
+data = await future
+```
+
+After, the adapter handles callback completion and status errors:
+
+```python
+from XRootD.client.aio import File
+
+file = await File().open('root://host//path/to/file')
+async with file:
+    data = await file.read(0, 1024)
+```
+
+For ordinary sequential file access, `aio.open` manages opening, the cursor,
+and closing. It works independently of fsspec and raises standard `OSError`
+subclasses, with the native status available as `error.xrootd_status`:
+
+```python
+from XRootD.client import aio
+
+async with aio.open('root://host//path/to/file', 'rb', timeout=30) as file:
+    header = await file.read(1024)
+    await file.seek(0)
+    async for line in file:
+        process(line)  # bytes, including the trailing newline
+
+async with aio.open('root://host//path/to/output', 'wb') as file:
+    await file.write(b'hello\n')
+    await file.flush()
+```
+
+The binary modes `rb`, `wb`, `xb`, `ab`, and their `+` variants are supported.
+`read()`, `readline()`, `readinto()`, `write()`, `seek()`, `truncate()`, `flush()`,
+and `close()` are awaitable; `tell()` and `closed` report local state. You may
+also use `file = await aio.open(url)` and later `await file.aclose()`.
+`read()` without a size reads to EOF in bounded native requests and assembles
+the result in memory. Use `iter_chunks(size)` or line iteration for large files.
+
+One stream serializes operations on its shared cursor. Use `read_at(offset,
+size)` for concurrent reads at independent positions on the same handle; these
+leave the cursor and any read-ahead buffer unchanged. Closing waits for all
+positioned reads. Concurrent reads and writes do not provide snapshot isolation. Cancelling a stream operation
+waits for the current native request to complete before releasing its lock;
+cancelling an open closes any handle obtained by the pending request. Context
+exit and `close()` also finish cleanup when cancelled. This prevents closing a
+handle while its read or write is still pending. Cancellation does not roll
+back writes, and may advance the cursor. Set `timeout` to bound native waits.
+Append obtains the current EOF before writing; concurrent writers on separate
+handles do not have an atomic append guarantee. These stream interfaces require
+Python 3.11 or later.
+
+#### Concurrent ranges and bounded-memory iteration
+
+Previously, concurrent ranges required manually managing the lifetime of a
+low-level `aio.File`, supplying offsets to every read, and ensuring pending
+callbacks completed before close. The stream now owns that lifecycle:
+
+```python
+import asyncio
+from XRootD.client import aio
+
+async def read_ranges(url):
+    async with aio.open(url, timeout=10) as file:
+        header = await file.read(4)
+        first, second = await asyncio.gather(
+            file.read_at(1024, 65536),
+            file.read_at(1024 * 1024, 65536),
+        )
+        assert file.tell() == 4
+        return header, first, second
+```
+
+For sequential processing, blocks are read only as the consumer requests them:
+
+```python
+async def process_file(url):
+    async with aio.open(url, timeout=10) as file:
+        async for block in file.iter_chunks(1024 * 1024):
+            await consume(block)
+```
+
+Each block is at most the requested size, and the last block may be shorter.
+Breaking out of iteration submits no further reads; the enclosing `async with`
+closes the stream. `read_at` assembles its requested range in memory, so use
+bounded ranges and limit the number of concurrent tasks for large workloads.
+These methods are also available on fsspec's `open_async` files.
+
+For a complete command-line example, including timeout handling and optional
+`TaskGroup`, see
+[`examples/async_streams/read.py`](examples/async_streams/read.py). It requires
+Python 3.11 or later and uses `asyncio.run`. Public async stream methods
+carry type annotations, and the package includes a `py.typed` marker.
+
+#### Cancellation and resource ownership
+
+The sequential streams returned by `aio.open` and fsspec's `open_async`
+share the same implementation and cancellation contract:
+
+| Operation | What cancellation means |
+| --- | --- |
+| Waiting for the cursor lock | No new request is submitted. |
+| Opening | Wait for completion, then close a successfully opened handle. |
+| Reading or writing | Finish the current native request before releasing the handle. Earlier chunks may already have advanced the cursor; writes are not rolled back. |
+| Closing or leaving `async with` | Complete cleanup even if cancellation is requested again. |
+| Cached fsspec reads | Retain the cache reference until native completion; vector batches also drain before an error is propagated. |
+
+`asyncio.wait_for` cancels the Python task. It cannot abort an XrdCl request,
+so cleanup may outlast the asyncio deadline. A positive native `timeout`
+bounds individual network requests, not a whole multi-request transfer or
+its cleanup. `timeout=0` uses XrdCl's configured default.
+`asyncio.wait_for` waits for cancellation cleanup to finish on supported
+interpreters. `asyncio.timeout` and `TaskGroup` follow the same native resource
+ownership requirements.
+
+The low-level `aio.request` and `aio.File` APIs remain available for callers
+which manage native request ownership themselves. Their cancellation stops
+waiting immediately; arguments are retained until the callback arrives, but
+callers must not close or reuse a handle with outstanding requests. Prefer
+`aio.open` for automatic ownership and cleanup.
+
+The filesystem also provides awaitable Python-style helpers. Previously each
+caller had to inspect stat flags, listing responses, and native errors:
+
+```python
+status, listing = client.FileSystem('root://host').dirlist('/data')
+client.raise_on_error(status)
+names = [entry.name for entry in listing]
+```
+
+With the asynchronous helpers:
+
+```python
+fs = aio.FileSystem('root://host')
+names = await fs.listdir('/data')
+for entry in await fs.scandir('/data'):
+    if entry.is_file():
+        print(entry.path, entry.size)
+await fs.makedirs('/data/output', exist_ok=True)
+info = await fs.stat_info('/data/input')
+exists = await fs.exists('/data/input')
+algorithm, digest = await fs.checksum('/data/input', algorithm='adler32')
+await fs.unlink('/data/temporary', missing_ok=True)
+```
+
+`exists`, `is_file`, and `is_dir` return false for missing paths and propagate
+permission and connection errors. `listdir`, `scandir`, `makedirs`, `checksum`,
+and `unlink` use standard `OSError` subclasses. The original awaitable methods
+such as `stat`, `dirlist`, and `rm` retain their native response objects and
+XRootD exception classes. Cancelling filesystem operations stops waiting;
+an already submitted mutation may still finish on the server.
+
