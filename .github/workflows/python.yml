@@ -24,6 +24,67 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  python-coverage:
+    name: Python contracts and coverage (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: '3.11'
+            fsspec: 'fsspec==2024.2.0'
+          - python: '3.13'
+            fsspec: 'fsspec'
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install build and test dependencies
+      env:
+        FSSPEC_REQUIREMENT: ${{ matrix.fsspec }}
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y cmake libssl-dev libcurl4-openssl-dev \
+          libxml2-dev zlib1g-dev uuid-dev libkrb5-dev libreadline-dev
+        python -m pip install setuptools wheel pytest 'coverage>=7' \
+          "$FSSPEC_REQUIREMENT"
+    - name: Build server and bindings from this revision
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+          -DENABLE_PYTHON=ON -DENABLE_TESTS=OFF -DENABLE_HTTP=OFF \
+          -DPython_EXECUTABLE="$(command -v python)"
+        cmake --build build --parallel 2
+    - name: Test Python contracts and enforce branch coverage
+      env:
+        PYTHONPATH: ${{ github.workspace }}/build/python/site-packages
+        LD_LIBRARY_PATH: ${{ github.workspace }}/build/lib
+        XROOTD: ${{ github.workspace }}/build/bin/xrootd
+        XRDFS: ${{ github.workspace }}/build/bin/xrdfs
+        COVERAGE_RCFILE: ${{ github.workspace }}/python/.coveragerc
+      run: |
+        python -m coverage run -m pytest -q python/tests
+        python -m coverage xml -o python-coverage.xml
+        python -m coverage html -d python-coverage-html
+        # Each new interface module must meet the floor independently.
+        for module in _asyncio aio asyncstream fsspec stream; do
+          python -m coverage report --include="*/client/$module.py" \
+            --fail-under=95
+        done
+    - name: Upload Python coverage
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: python-coverage-${{ matrix.python }}
+        path: |
+          python-coverage.xml
+          python-coverage-html
+        if-no-files-found: warn
+
   sdist:
     name: Source distribution
     runs-on: ubuntu-latest
