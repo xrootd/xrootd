@@ -25,7 +25,7 @@ from __future__ import absolute_import, division, print_function
 
 from pyxrootd import client
 from XRootD.client.url import URL
-from XRootD.client.responses import XRootDStatus
+from XRootD.client.responses import XRootDStatus, raise_as_oserror
 from .env import EnvGetInt, EnvGetString
 
 class ProgressHandlerWrapper(object):
@@ -61,6 +61,22 @@ class CopyProcess(object):
 
   def __init__(self):
     self.__process = client.CopyProcess()
+
+  @classmethod
+  def copy_one(cls, source, target, handler=None, **options):
+    """Run one configurable copy job, raising for preparation or copy errors.
+
+    ``options`` are passed to :meth:`add_job`. The per-job result dictionary
+    is returned so callers can inspect transfer statistics.
+    """
+    process = cls()
+    process.add_job(source, target, **options)
+    raise_as_oserror(process.prepare(), source)
+    status, results = process.run(handler=handler)
+    result = results[0] if results else {}
+    raise_as_oserror(result.get('status', status), target)
+    raise_as_oserror(status, target)
+    return result
 
   def parallel(self, parallel):
     """ Add a config job to the copy process in order to set the number of
