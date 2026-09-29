@@ -4,8 +4,10 @@
 #include "XrdOuc/XrdOucTrace.hh"
 
 #include <gtest/gtest.h>
-#include <fstream>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <string>
 #include <unistd.h>
 
 class XrdThrottleUserLimitsTests : public ::testing::Test {
@@ -29,8 +31,9 @@ protected:
 
     // Helper function to create a temporary config file
     std::string CreateTempConfig(const std::string& content) {
-        char template_path[] = "/tmp/throttle_test_XXXXXX";
-        int fd = mkstemp(template_path);
+        std::string template_path = (std::filesystem::temp_directory_path() /
+                                     "throttle_test_XXXXXX").string();
+        int fd = mkstemp(template_path.data());
         if (fd < 0) {
             return "";
         }
@@ -40,7 +43,7 @@ protected:
         file << content;
         file.close();
 
-        return std::string(template_path);
+        return template_path;
     }
 
     // Helper function to remove a temporary file
