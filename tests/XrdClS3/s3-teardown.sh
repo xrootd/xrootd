@@ -57,7 +57,7 @@ stop() {
 stop minio "$MINIO_PID"
 stop xrootd "$XROOTD_PID"
 
-# The setup created the run directory with mktemp under /tmp; remove it here
+# The setup created the run directory with mktemp in TMPDIR; remove it here
 # so that runs do not accumulate directories there.
 
 if [ -n "$XROOTD_RUNDIR" ] && [ -d "$XROOTD_RUNDIR" ]; then

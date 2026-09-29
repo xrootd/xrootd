@@ -19,6 +19,11 @@ if [ ! -d "$SOURCE_DIR" ]; then
   exit 1
 fi
 
+# The teardown reads the test environment file. Remove the one of an earlier
+# run, so that the teardown never acts on the servers or files of that run.
+ENV_FILE="$BINARY_DIR/tests/$TEST_NAME/setup.sh"
+rm -f "$ENV_FILE"
+
 echo "Setting up S3 server for $TEST_NAME test"
 
 if [ -z "$MINIO_BIN" ]; then
@@ -58,7 +63,18 @@ MINIO_CLIENTDIR="$RUNDIR/minio-client"
 MINIO_CERTSDIR="$RUNDIR/minio-certs"
 XROOTD_CONFIGDIR="$RUNDIR/xrootd-config"
 mkdir -p "$XROOTD_CONFIGDIR"
-XROOTD_RUNDIR=$(mktemp -d -p /tmp xrootd_test.XXXXXXXX)
+# XRootD places unix sockets in the rundir, and their paths must fit in
+# sun_path (104 bytes on macOS). The teardown also sources the path unquoted.
+# Hence, use TMPDIR only when it is short and has no special characters.
+RUNDIR_BASE="${TMPDIR%/}"
+case "$RUNDIR_BASE" in
+  ""|*[!A-Za-z0-9/._-]*) RUNDIR_BASE=/tmp ;;
+esac
+[ ${#RUNDIR_BASE} -le 40 ] || RUNDIR_BASE=/tmp
+# Record the rundir and each server PID at once, so that the teardown also
+# cleans up after a failed setup.
+XROOTD_RUNDIR=$(mktemp -d "$RUNDIR_BASE/xrootd_test.XXXXXXXX")
+echo "XROOTD_RUNDIR=$XROOTD_RUNDIR" > "$ENV_FILE"
 
 mkdir -p "$MINIO_DATADIR"
 mkdir -p "$MINIO_CERTSDIR/ca"
@@ -160,6 +176,7 @@ printf "%s" "$MINIO_PASSWORD" > "$RUNDIR/secret_key"
 # Launch minio
 "$MINIO_BIN" --certs-dir "$MINIO_CERTSDIR" server --address "${HOST}:0" "$MINIO_DATADIR" 0<&- >"$BINARY_DIR/tests/$TEST_NAME/server.log" 2>&1 &
 MINIO_PID=$!
+echo "MINIO_PID=$MINIO_PID" >> "$ENV_FILE"
 echo "minio daemon PID: $MINIO_PID"
 sleep 1
 MINIO_URL=$(grep "API: " "$BINARY_DIR/tests/$TEST_NAME/server.log" | tr ':' ' ' | awk '{print $NF}' | tail -n 1)
@@ -180,14 +197,13 @@ MINIO_PORT=$MINIO_URL
 MINIO_URL=https://${HOST}:$MINIO_URL
 echo "Minio API server started on $MINIO_URL"
 
-cat > "$BINARY_DIR/tests/$TEST_NAME/setup.sh" <<EOF
+cat >> "$ENV_FILE" <<EOF
 MINIO_URL=$MINIO_URL
-MINIO_PID=$MINIO_PID
 ACCESS_KEY_FILE=$RUNDIR/access_key
 SECRET_KEY_FILE=$RUNDIR/secret_key
 X509_CA_FILE=$MINIO_CERTSDIR/CAs/tlsca.pem
 EOF
-echo "Test environment written to $BINARY_DIR/tests/$TEST_NAME/setup.sh"
+echo "Test environment written to $ENV_FILE"
 
 echo "minio logs are available at $BINARY_DIR/tests/$TEST_NAME/server.log"
 
@@ -398,6 +414,7 @@ export X509_CERT_FILE=$MINIO_CERTSDIR/CAs/tlsca.pem
 export X509_USER_PROXY=/dev/null/x509
 "$XROOTD_BIN" -c "$XROOTD_CONFIG" -l "$BINARY_DIR/tests/$TEST_NAME/server.log" 0<&- 2>>"$BINARY_DIR/tests/$TEST_NAME/server.log" >>"$BINARY_DIR/tests/$TEST_NAME/server.log" &
 XROOTD_PID=$!
+echo "XROOTD_PID=$XROOTD_PID" >> "$ENV_FILE"
 echo "xrootd daemon PID: $XROOTD_PID"
 
 XROOTD_URL=$(grep "Xrd_ProtLoad: enabling port" "$BINARY_DIR/tests/$TEST_NAME/server.log" | grep 'for protocol XrdHttp' | awk '{print $7}')
@@ -424,9 +441,7 @@ done
 XROOTD_URL="https://${HOST}:$XROOTD_URL/"
 echo "xrootd started at $XROOTD_URL"
 
-cat >> "$BINARY_DIR/tests/$TEST_NAME/setup.sh" <<EOF
-XROOTD_PID=$XROOTD_PID
-XROOTD_RUNDIR=$XROOTD_RUNDIR
+cat >> "$ENV_FILE" <<EOF
 XROOTD_URL=$XROOTD_URL
 BUCKET_NAME=$BUCKET_NAME
 ORIGIN_URL=$MINIO_URL
