@@ -37,5 +37,3 @@ if(NOT APPLE)
   target_link_options(${XrdHttpTapeApi} PRIVATE
     "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export-lib-symbols")
 endif()
-
-install(TARGETS ${XrdHttpTapeApi} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
