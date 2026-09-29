@@ -26,6 +26,9 @@ done
 
 set -xe
 
+ERRFILE=$(mktemp)
+trap 'rm -f "${ERRFILE}"' EXIT
+
 ${XRDCP} --version
 
 # hostname-address pair, so that we can keep track of files more easily
@@ -49,28 +52,27 @@ done
 
 set +e
 
-XRD_CONNECTIONRETRY=0 ${TIMEOUTCMD} 10 ${XRDFS} ${HOST_SRV1} chmod /nofile rwx------ 2> /tmp/err.txt
+XRD_CONNECTIONRETRY=0 ${TIMEOUTCMD} 10 ${XRDFS} ${HOST_SRV1} chmod /nofile rwx------ 2> "${ERRFILE}"
 ret1=$?
-grep -q "\[FATAL\] Connection error" /tmp/err.txt
+grep -q "\[FATAL\] Connection error" "${ERRFILE}"
 ret2=$?
-cat /tmp/err.txt
+cat "${ERRFILE}"
 if [ $ret1 -ne 51 -o $ret2 -ne 0 ]; then
   echo "${host}: bad redirect test 1 did not fail as expected"
   exit 1
 fi
 
-XRD_CONNECTIONRETRY=0 ${TIMEOUTCMD} 10 ${XRDFS} ${HOST_SRV2} chmod /nofile rwx------ 2> /tmp/err.txt
+XRD_CONNECTIONRETRY=0 ${TIMEOUTCMD} 10 ${XRDFS} ${HOST_SRV2} chmod /nofile rwx------ 2> "${ERRFILE}"
 ret1=$?
-grep -q "\[FATAL\] Invalid address" /tmp/err.txt
+grep -q "\[FATAL\] Invalid address" "${ERRFILE}"
 ret2=$?
-cat /tmp/err.txt
+cat "${ERRFILE}"
 if [ $ret1 -ne 51 -o $ret2 -ne 0 ]; then
   echo "${host}: bad redirect test 2 did not fail as expected"
   exit 1
 fi
 
 set -e
-rm -f /tmp/err.txt
 
 echo "ALL TESTS PASSED"
 exit 0
