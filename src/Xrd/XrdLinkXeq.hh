@@ -64,6 +64,9 @@ int           Close(bool defer=false);
 
 void          DoIt(); // Override
 
+void          DoItPinned(unsigned int instance);
+
+void          Terminate(unsigned int instance);
 
        int    getIOStats(long long &inbytes, long long &outbytes,
                               int  &numstall,     int  &numtardy)
@@ -149,6 +152,8 @@ XrdPollInfo   PollInfo;
 
 protected:
 
+int    CloseInstance(unsigned int instance);
+bool   EndActivity();
 int    RecvIOV(const struct iovec *iov, int iocnt);
 void   Reset();
 int    sendData(const char *Buff, int Blen);

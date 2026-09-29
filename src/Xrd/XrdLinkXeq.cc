@@ -83,6 +83,31 @@ extern int            devNull;
 };
 
 using namespace XrdGlobal;
+
+// Give each closer its own wakeup so concurrent waits cannot consume it.
+struct XrdLinkActivityWaiter
+{
+   XrdSysSemaphore Wake{0, "link activity"};
+   XrdLinkActivityWaiter *Next = 0;
+};
+
+namespace
+{
+class LinkActivity;
+thread_local LinkActivity *currentActivity = 0;
+
+// Track activity ownership so public Close can defer a self-close.
+class LinkActivity
+{
+public:
+   LinkActivity(XrdLinkXeq *link) : Link(link), Previous(currentActivity)
+      {currentActivity = this;}
+  ~LinkActivity() {currentActivity = Previous;}
+
+   XrdLinkXeq *Link;
+   LinkActivity *Previous;
+};
+}
   
 /******************************************************************************/
 /*                               S t a t i c s                                */
@@ -172,7 +197,6 @@ int XrdLinkXeq::Client(char *nbuf, int nbsz)
   
 int XrdLinkXeq::Close(bool defer)
 {  XrdSysMutexHelper opHelper(LinkInfo.opMutex);
-   int csec, fd, rc = 0;
 
 // If a defer close is requested, we can close the descriptor but we must
 // keep the slot number to prevent a new client getting the same fd number.
@@ -204,6 +228,20 @@ int XrdLinkXeq::Close(bool defer)
 // If we got here then this is not a deferred close so we just need to check
 // if there is a sendq appendage we need to get rid of.
 //
+   if (LinkInfo.InUse < 1) return 0;
+   const unsigned int instance = Instance;
+   // An activity owner leaves final close to its epilogue to avoid self-wait.
+   PollInfo.closePending = true;
+   for (LinkActivity *scope = currentActivity; scope; scope = scope->Previous)
+       if (scope->Link == this) return 0;
+   opHelper.UnLock();
+   return CloseInstance(instance);
+}
+
+int XrdLinkXeq::CloseInstance(unsigned int instance)
+{  XrdSysMutexHelper opHelper(LinkInfo.opMutex);
+   int csec, fd, rc = 0;
+   if (Instance != instance || LinkInfo.InUse < 1) return 0;
    if (sendQ)
       {wrMutex.Lock();
        sendQ->Terminate();
@@ -214,12 +252,19 @@ int XrdLinkXeq::Close(bool defer)
 // Multiple protocols may be bound to this link. If it is in use, defer the
 // actual close until the use count drops to one.
 //
-   while(LinkInfo.InUse > 1)
-      {opHelper.UnLock();
-       TRACEI(DEBUG, "Close FD "<<LinkInfo.FD <<" deferred, use count="
-                     <<LinkInfo.InUse);
-       Serialize();
+   while(LinkInfo.InUse > 1 || PollInfo.Activity)
+      {TRACEI(DEBUG, "Close FD "<<LinkInfo.FD<<" deferred, use count="
+                    <<LinkInfo.InUse<<", activity="<<PollInfo.Activity);
+       if (LinkInfo.InUse > 1)
+          {opHelper.UnLock();
+           Serialize();
+          }
+          else {XrdLinkActivityWaiter waiter;
+                waiter.Next = PollInfo.ActivityWaitQ; PollInfo.ActivityWaitQ = &waiter;
+                opHelper.UnLock(); waiter.Wake.Wait();
+               }
        opHelper.Lock(&LinkInfo.opMutex);
+       if (Instance != instance || LinkInfo.InUse < 1) return 0;
       }
    LinkInfo.InUse--;
    Instance = 0;
@@ -257,6 +302,7 @@ int XrdLinkXeq::Close(bool defer)
 // do some fancy footwork to prevent multiple closes of this link.
 //
    fd = abs(LinkInfo.FD);
+   const bool keepFD = KeepFD;
    if (PollInfo.FD > 0)
       {if (PollInfo.Poller) {XrdPoll::Detach(PollInfo); PollInfo.Poller = 0;}
        PollInfo.FD = -1;
@@ -279,7 +325,7 @@ int XrdLinkXeq::Close(bool defer)
 // Close the file descriptor if it isn't being shared. Do it as the last
 // thing because closes and accepts and not interlocked.
 //
-   if (fd >= 2) {if (KeepFD) rc = 0;
+   if (fd >= 2) {if (keepFD) rc = 0;
                     else rc = (close(fd) < 0 ? errno : 0);
                 }
    if (rc) Log.Emsg("Link", rc, "close", ID);
@@ -292,7 +338,26 @@ int XrdLinkXeq::Close(bool defer)
  
 void XrdLinkXeq::DoIt()
 {
-   int rc;
+   XrdSysMutexHelper opHelper(LinkInfo.opMutex);
+   const unsigned int instance = Instance;
+   opHelper.UnLock();
+   DoItPinned(instance);
+}
+
+void XrdLinkXeq::DoItPinned(unsigned int instance)
+{
+   XrdProtocol *protocol;
+   {XrdSysMutexHelper opHelper(LinkInfo.opMutex);
+    if (Instance != instance || PollInfo.closePending
+    ||  PollInfo.terminalState == XrdPollInfo::terminalStarted) return;
+    protocol = Protocol;
+    if (!protocol) {Log.Emsg("Link", "Dispatch on closed link", ID); return;}
+    PollInfo.Activity++;
+   }
+
+   bool doCl = false, retirementPending = false;
+   {LinkActivity activity(this);
+    int rc;
 
 // The Process() return code tells us what to do:
 // < 0 -> Stop getting requests, 
@@ -301,27 +366,61 @@ void XrdLinkXeq::DoIt()
 // = 0 -> OK, get next request, if allowed, o/w enable the link
 // > 0 -> Slow link, stop getting requests  and enable the link
 //
-   if (Protocol)
-      do {rc = Protocol->Process(this);} while (!rc && Sched.canStick());
-      else {Log.Emsg("Link", "Dispatch on closed link", ID);
-            return;
-           }
+   do {rc = protocol->Process(this);
+       XrdSysMutexHelper opHelper(LinkInfo.opMutex);
+       retirementPending = PollInfo.closePending ||
+                           PollInfo.terminalState != XrdPollInfo::terminalNone;
+       if (!retirementPending) protocol = Protocol;
+      } while (!retirementPending && !rc && protocol && Sched.canStick());
 
 // Either re-enable the link and cycle back waiting for a new request, leave
 // disabled, or terminate the connection.
 //
-   bool doCl = false;
    if (rc >= 0)
-      {if (PollInfo.Poller && !PollInfo.Poller->Enable(PollInfo)) doCl = true;}
-      else if (rc != -EINPROGRESS) doCl = true;
-
-   if (doCl)
-      {if (CloseRequestCb)
-         {const bool res = CloseRequestCb(CloseRequestCbArg);
-          if (!res) return;
-         }
-       Close();
+      {if (!retirementPending && PollInfo.Poller
+                         && !PollInfo.Poller->Enable(PollInfo)) doCl = true;
       }
+      else if (rc != -EINPROGRESS) doCl = true;
+   }
+
+   if (EndActivity()) CloseInstance(instance);
+      else if (doCl) Terminate(instance);
+}
+
+bool XrdLinkXeq::EndActivity()
+{
+   XrdSysMutexHelper opHelper(LinkInfo.opMutex);
+   if (--PollInfo.Activity) return false;
+   while(PollInfo.ActivityWaitQ)
+      {XrdLinkActivityWaiter *waiter = PollInfo.ActivityWaitQ;
+       PollInfo.ActivityWaitQ = waiter->Next;
+       waiter->Wake.Post();
+      }
+   return PollInfo.closePending;
+}
+
+/******************************************************************************/
+/*                            T e r m i n a t e                               */
+/******************************************************************************/
+
+void XrdLinkXeq::Terminate(unsigned int instance)
+{
+   XrdSysMutexHelper opHelper(LinkInfo.opMutex);
+   if (Instance != instance || LinkInfo.InUse < 1 || PollInfo.closePending
+   ||  PollInfo.terminalState == XrdPollInfo::terminalStarted) return;
+   // Block dispatch and pin callback storage before dropping the operation lock.
+   PollInfo.terminalState = XrdPollInfo::terminalStarted;
+   bool (*callback)(void *) = CloseRequestCb;
+   void *argument = CloseRequestCbArg;
+   if (callback) PollInfo.Activity++;
+   opHelper.UnLock();
+   if (callback)
+      {bool approved;
+       {LinkActivity activity(this); approved = callback(argument);}
+       if (EndActivity()) {CloseInstance(instance); return;}
+       if (!approved) return;
+      }
+   CloseInstance(instance);
 }
 
 /******************************************************************************/
@@ -1046,6 +1145,7 @@ void XrdLinkXeq::Shutdown(bool getLock)
    if (getLock) LinkInfo.opMutex.Lock();
 
 // If there is something to do, do it now
+// A terminal marker keeps generation zero from looking live after shutdown.
 //
    temp = Instance; Instance = 0;
    if (!KeepFD)
@@ -1054,7 +1154,8 @@ void XrdLinkXeq::Shutdown(bool getLock)
           {Instance = temp;
            Log.Emsg("Link", errno, "shutdown FD for", ID);
           }
-      }
+          else PollInfo.terminalState = XrdPollInfo::terminalStarted;
+      } else PollInfo.terminalState = XrdPollInfo::terminalStarted;
 
 // All done
 //

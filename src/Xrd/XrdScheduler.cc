@@ -28,6 +28,7 @@
 /******************************************************************************/
 
 #include <cerrno>
+#include <climits>
 #include <fcntl.h>
 #include <signal.h>
 #include <cstdio>
@@ -460,11 +461,14 @@ void XrdScheduler::Schedule(XrdJob *jp, time_t atime)
 //
    jp->NextJob = p;
    if (pp)  pp->NextJob = jp;
-      else {TimerQueue = jp; TimerRings.Signal();}
+      else TimerQueue = jp;
 
 // All done
 //
    TimerMutex.UnLock();
+
+// Signal under the condition lock after releasing TimerMutex (the wait order).
+   if (!pp) {XrdSysCondVarHelper timerLock(TimerRings); TimerRings.Signal();}
 }
 
 /******************************************************************************/
@@ -675,8 +679,12 @@ void XrdScheduler::TimeSched()
 
 // Continuous loop until we find some work here
 //
-   do {TimerMutex.Lock();
-       if (TimerQueue) wtime = TimerQueue->SchedTime-time(0);
+// Hold the condition lock across the queue check and wait to avoid lost wakes.
+   do {XrdSysCondVarHelper timerLock(TimerRings);
+       TimerMutex.Lock();
+       if (TimerQueue)
+          {time_t delay = TimerQueue->SchedTime-time(0); wtime =
+             (delay > INT_MAX/1000 ? INT_MAX/1000 : (delay > 0 ? int(delay) : 0));}
           else wtime = 60*60;
        if (wtime > 0)
           {TimerMutex.UnLock();

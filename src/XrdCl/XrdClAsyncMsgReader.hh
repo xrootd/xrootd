@@ -85,6 +85,8 @@ namespace XrdCl
 
         while( true )
         {
+          if( readstage != ReadDone && strm.HasIncomingTimeout( substrmnb ) )
+            return XRootDStatus( stError, errOperationExpired );
           switch( readstage )
           {
             //------------------------------------------------------------------

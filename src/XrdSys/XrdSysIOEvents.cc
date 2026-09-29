@@ -30,6 +30,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <climits>
   
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"
@@ -45,9 +46,9 @@
 namespace
 {
 // Status code to name array corresponding to:
-// enum Status   {isClear = 0, isCBMode, isDead};
+// enum Status   {isClear = 0, isCBMode, isChanged, isDead};
 //
-   const char *statName[] = {"isClear", "isCBMode", "isDead"};
+   const char *statName[] = {"isClear", "isCBMode", "isChanged", "isDead"};
 }
   
 /******************************************************************************/
@@ -225,8 +226,9 @@ bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
             }
 
 bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
-            {bool rc = Init(cP, eNum, eTxt, isLocked);
-             IF_TRACE(Modify,cP->GetFD(), "Init() returned " <<BOOLNAME(rc));
+            {int traceFD = cP->GetFD();
+             bool rc = Init(cP, eNum, eTxt, isLocked);
+             IF_TRACE(Modify,traceFD, "Init() returned " <<BOOLNAME(rc));
              return rc;
             }
 
@@ -381,9 +383,9 @@ bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 // poller may or may not unlock this channel during the process.
 //
    if (newev != curev)
-      {chEvents = newev;
+      {const int traceFD = chFD; chEvents = newev;
        retval = chPoller->Modify(this, eNum, eText, isLocked);
-       TRACE_MOD(Disable,chFD,newev);
+       TRACE_MOD(Disable,traceFD,newev);
       } else {
        TRACE_NOD(Disable,chFD,newev);
       }
@@ -451,8 +453,8 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 // we call modify. We let modify determine what to do.
 //
    if (newev)
-      {retval = chPoller->Modify(this, eNum, eText, isLocked);
-       TRACE_MOD(Enable,chFD,(curev | events));
+      {const int traceFD = chFD; retval = chPoller->Modify(this, eNum, eText, isLocked);
+       TRACE_MOD(Enable,traceFD,(curev | events));
       } else {
        retval = true;
        TRACE_NOD(Enable,chFD,(curev | events));
@@ -462,11 +464,13 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 // queue and the poller is waiting. We also optimize for the case where the
 // poller thread is always woken up to perform an action in which case it
 // doesn't need a separate wakeup. We only do this if the enable succeeed. Note
-// that we cannot hold the channel mutex for this call because it may wait.
+// that Modify may already have unlocked and allowed channel destruction.
 //
+   Poller *wakePoller = isLocked ? chPollXQ : 0;
    if (isLocked) chMutex.UnLock();
-   bool isWakePend = CPP_ATOMIC_LOAD(chPollXQ->wakePend, std::memory_order_consume);
-   if (retval && !isWakePend && setTO && isLocked) chPollXQ->WakeUp();
+   if (wakePoller && retval && setTO &&
+       !CPP_ATOMIC_LOAD(wakePoller->wakePend, std::memory_order_consume))
+      wakePoller->WakeUp();
 
 // All done
 //
@@ -543,6 +547,7 @@ void XrdSys::IOEvents::Channel::SetFD(int fd)
       {chMutex.UnLock();
        return;
       }
+   if (chStat == isCBMode) chStat = isChanged;
 
 // This is a tricky deal here because we need to protect ourselves from other
 // threads as well as the poller trying to do a callback. We first, set the
@@ -640,6 +645,7 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    XrdSysMutexHelper cbkMHelp(cP->chMutex);
    char oldEvents;
    bool cbok, retval, isRead, isWrite, isLocked = true;
+   bool fatal = false;
 
 // Perform any required tracing
 //
@@ -696,16 +702,9 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    if (eNum)
       {if (cP->chEvents & Channel::errorEvents)
           {cP->chPoller = &pollErr1; cP->chFault = eNum;
-           cP->chStat   = Channel::isCBMode;
-           chDead       = false;
-           cbkMHelp.UnLock();
-           cP->chCB->Fatal(cP,cP->chCBA, eNum, eTxt);
-           if (chDead) return true;
-           cbkMHelp.Lock(&(cP->chMutex));
-           cP->inPSet   = 0;
-           return false;
+           fatal = true;
           }
-            if (REVENTS(cP->chEvents)) events = CallBack::ReadyToRead;
+       else if (REVENTS(cP->chEvents)) events = CallBack::ReadyToRead;
        else if (WEVENTS(cP->chEvents)) events = CallBack::ReadyToWrite;
        else    {cP->chPoller = &pollErr1; cP->chFault = eNum; cP->inPSet = 0;
                 return false;
@@ -723,17 +722,18 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    void *cba = cP->chCBA;
    cbkMHelp.UnLock();
    IF_TRACE(CbkXeq,cP->chFD,"invoking callback; events=" <<events);
-   cbok = cb->Event(cP,cba, events);
-   IF_TRACE(CbkXeq,cP->chFD,"callback returned " <<BOOLNAME(cbok));
+   if (fatal) {cb->Fatal(cP,cba,eNum,eTxt); cbok = false;}
+      else cbok = cb->Event(cP,cba, events);
 
 // If channel destroyed by the callback, bail really fast. Otherwise, regain
 // the channel lock.
 //
    if (chDead) return true;
    cbkMHelp.Lock(&(cP->chMutex));
+   IF_TRACE(CbkXeq,cP->chFD,"callback returned " <<BOOLNAME(cbok));
 
 // If the channel is being destroyed; then another thread must have done so.
-// Tell it the callback has finished and just return.
+// Tell it the callback has finished and just return. SetFD also gets here.
 //
    if (cP->chStat != Channel::isCBMode)
       {if (cP->chStat == Channel::isDead)
@@ -742,6 +742,7 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
            cbkMHelp.UnLock();
            theSem->Post();
           }
+          else cP->chStat = Channel::isClear;
        return true;
       }
    cP->chStat = Channel::isClear;
@@ -749,7 +750,7 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 // Handle enable or disable here. If we keep the channel enabled then reset
 // the timeout if it hasn't been handled via a call from the callback.
 //
-        if (!cbok) Detach(cP,isLocked,false);
+        if (!cbok) Detach(cP,isLocked,fatal);
    else if ((isRead || isWrite) && !(cP->inTOQ) && (cP->chRTO || cP->chWTO))
            TmoAdd(cP, 0);
 
@@ -917,6 +918,7 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
 // The channel must be locked upon entry!
 //
    bool retval;
+   int traceFD = cP->chFD;
 
 
 // If we are already in progress then simply update the shadow events and
@@ -945,19 +947,18 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
        return false;
       }
 
-// So, now we can include the channel in the poll set. We will include it
-// with no events enabled to prevent callbacks prior to completion here.
+// Publish complete state first: Include may unlock, allowing Channel deletion.
 //
-   cP->chPoller = &pollWait; cP->reMod = cP->chEvents; cP->chEvents = 0;
+   cP->chPoller = cP->chPollXQ; cP->inPSet = 1;
    retval = cP->chPollXQ->Include(cP, eNum, eTxt, isLocked);
-   IF_TRACE(Init,cP->chFD,"Include() returned " <<BOOLNAME(retval) <<TRACE_LOK);
-   if (!isLocked) {cP->chMutex.Lock(); isLocked = true;}
+   IF_TRACE(Init,traceFD,"Include() returned " <<BOOLNAME(retval) <<TRACE_LOK);
+   if (!isLocked) return retval; // The Channel may already have been deleted.
 
 // Determine what future poller to use. If we can use the regular poller then
 // set the correct event mask for the channel. Note that we could have lost
 // control but the correct events will be reflected in the "reMod" member.
 //
-   if (!retval) {cP->chPoller = &pollErr1; cP->chFault = eNum;}
+   if (!retval) {cP->inPSet = 0; cP->chPoller = &pollErr1; cP->chFault = eNum;}
       else {cP->chPoller = cP->chPollXQ;
             cP->inPSet   = 1;
             if (cP->reMod)
@@ -1195,8 +1196,8 @@ int XrdSys::IOEvents::Poller::TmoGet()
 // we will need to drop the timeout lock as we don't have the channel lock.
 //
    do {if (!tmoBase) {wtval = -1; break;}
-       wtval = (tmoBase->deadLine - time(0)) * 1000;
-       if (wtval > 0) break;
+       time_t delay = tmoBase->deadLine - time(0);
+       if (delay > 0) {wtval = (delay > INT_MAX/1000 ? INT_MAX : int(delay)*1000); break;}
        toMutex.UnLock();
        CbkTMO();
        toMutex.Lock();

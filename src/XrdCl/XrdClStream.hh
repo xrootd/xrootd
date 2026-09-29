@@ -418,6 +418,8 @@ namespace XrdCl
 
     private:
 
+      friend class AsyncMsgReader;
+      bool HasIncomingTimeout( uint16_t subStream ) const;
       //------------------------------------------------------------------------
       //! Check if message is a partial response
       //------------------------------------------------------------------------

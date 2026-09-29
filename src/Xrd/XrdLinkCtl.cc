@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ctime>
+#include <new>
 
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLinkCtl.hh"
@@ -62,7 +63,7 @@ using namespace XrdGlobal;
 /******************************************************************************/
 
        XrdLinkCtl    **XrdLinkCtl::LinkTab  = 0;
-       char           *XrdLinkCtl::LinkBat  = 0;
+       std::atomic<char> *XrdLinkCtl::LinkBat = 0;
        // Compute the number of link objects we should allocate at a time.
        // Generally, we like to allocate 8k of them at a time but always
        // as a power of two.
@@ -123,7 +124,7 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
 // Make sure that the link slot is available
 //
    LTMutex.Lock();
-   if (LinkBat[peerFD])
+   if (LinkBat[peerFD].load() != XRDLINK_FREE)
       {LTMutex.UnLock();
        snprintf(hName, sizeof(hName), "%d", peerFD);
        Log.Emsg("Link", "attempt to reuse active link FD -",hName);
@@ -133,6 +134,7 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
 // Check if we already have a link object in this slot. If not, allocate
 // a quantum of link objects and put them in the table.
 //
+// Hide Reset and initialization from deferred and lock-free users of the slot.
    if (!(lp = LinkTab[peerFD]))
       {unsigned int i;
        XrdLinkCtl **blp, *nlp = new XrdLinkCtl[LinkAlloc]();
@@ -144,9 +146,10 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
        blp = &LinkTab[peerFD/LinkAlloc*LinkAlloc];
        for (i = 0; i < LinkAlloc; i++, blp++) *blp = &nlp[i];
        lp = LinkTab[peerFD];
+       lp->LinkInfo.opMutex.Lock();
       }
-      else lp->Reset();
-   LinkBat[peerFD] = XRDLINK_USED;
+      else {lp->LinkInfo.opMutex.Lock(); lp->Reset();}
+   LinkBat[peerFD].store(LinkInit, std::memory_order_relaxed);
    if (peerFD > LTLast) LTLast = peerFD;
    LTMutex.UnLock();
 
@@ -156,6 +159,7 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
 //
    instMutex.Lock();
    lp->Instance = myInstance++;
+   lp->PollInfo.Generation = lp->Instance;
    instMutex.UnLock();
 
 // Establish the address and connection name of this link
@@ -178,6 +182,9 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
 //
    lp->LockReads = (0 != (opts & XRDLINK_RDLOCK));
    lp->KeepFD    = (0 != (opts & XRDLINK_NOCLOSE));
+   // Publish all initialized fields to lock-free table readers.
+   LinkBat[peerFD].store(XRDLINK_USED, std::memory_order_release);
+   lp->LinkInfo.opMutex.UnLock();
 
 // Update statistics and return the link. We need to actually get the stats
 // mutex even when using atomics because we need to use compound operations.
@@ -203,7 +210,6 @@ XrdLink *XrdLinkCtl::Find(int &curr, XrdLinkMatch *who)
 {
    XrdLinkCtl *lp;
    const int MaxSeek = 16;
-   unsigned int myINS;
    int i, seeklim = MaxSeek;
 
 // Do initialization
@@ -217,15 +223,16 @@ XrdLink *XrdLinkCtl::Find(int &curr, XrdLinkMatch *who)
 // other critical operations to occur.
 //
    for (i = curr+1; i <= LTLast; i++)
-       {if ((lp = LinkTab[i]) && LinkBat[i] && lp->HostName)
+       {if ((lp = LinkTab[i]) && isUsed(i) && lp->HostName)
            if (!who 
            ||   who->Match(lp->ID,lp->Lname-lp->ID-1,lp->HostName,lp->HNlen))
-              {myINS = lp->Instance;
-               LTMutex.UnLock();
-               lp->setRef(1);
-               curr = i;
-               if (myINS == lp->Instance) return lp;
-               LTMutex.Lock();
+              {XrdSysMutexHelper opHelper(lp->LinkInfo.opMutex);
+               if (lp->LinkInfo.InUse > 0)
+                  {lp->LinkInfo.InUse++;
+                   LTMutex.UnLock();
+                   curr = i;
+                   return lp;
+                  }
               }
         if (!seeklim--) {LTMutex.UnLock(); seeklim = MaxSeek; LTMutex.Lock();}
        }
@@ -257,7 +264,7 @@ int XrdLinkCtl::getName(int &curr, char *nbuf, int nbsz, XrdLinkMatch *who)
 //
    LTMutex.Lock();
    for (i = curr+1; i <= LTLast; i++)
-       {if ((lp = LinkTab[i]) && LinkBat[i] && lp->HostName)
+       {if ((lp = LinkTab[i]) && isUsed(i) && lp->HostName)
            if (!who 
            ||   who->Match(lp->ID,lp->Lname-lp->ID-1,lp->HostName,lp->HNlen))
               {ulen = lp->Client(nbuf, nbsz);
@@ -297,7 +304,7 @@ void XrdLinkCtl::idleScan()
 // so we don't need any special kind of lock for these
 //
    for (i = 0; i <= ltlast; i++)
-       {if (LinkBat[i] != XRDLINK_USED
+       {if (!isUsed(i)
         || !(lp = LinkTab[i])) continue;
         lnum++;
         lp->LinkInfo.opMutex.Lock();
@@ -347,9 +354,8 @@ int XrdLinkCtl::Setup(int maxfds, int idlewait)
 
 // Create the slot status table
 //
-   if (!(LinkBat = (char *)malloc(maxfds*sizeof(char)+LinkAlloc)))
+   if (!(LinkBat = new (std::nothrow) std::atomic<char>[maxfds+LinkAlloc]()))
       {Log.Emsg("Link", ENOMEM, "create LinkBat"); return 0;}
-   memset((void *)LinkBat, XRDLINK_FREE, maxfds*sizeof(char));
 
 // Create an idle connection scan job
 //
@@ -382,7 +388,7 @@ void XrdLinkCtl::SyncAll()
 // Run through all the links and sync the statistics
 //
    for (int i = 0; i <= myLTLast; i++)
-       {if (LinkBat[i] == XRDLINK_USED && LinkTab[i]) LinkTab[i]->syncStats();}
+       {if (isUsed(i) && LinkTab[i]) LinkTab[i]->syncStats();}
 }
 
 /******************************************************************************/
@@ -395,8 +401,8 @@ void XrdLinkCtl::Unhook(int fd)
 // Indicate link no longer actvely neing used
 //
    LTMutex.Lock();
-   LinkBat[fd] = XRDLINK_FREE;
-   if (fd == LTLast) while(LTLast && !(LinkBat[LTLast])) LTLast--;
+   LinkBat[fd].store(XRDLINK_FREE, std::memory_order_release);
+   if (fd == LTLast) while(LTLast && LinkBat[LTLast].load(std::memory_order_acquire) == XRDLINK_FREE) LTLast--;
    LTMutex.UnLock();
 }
 

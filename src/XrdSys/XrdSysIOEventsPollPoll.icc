@@ -28,6 +28,7 @@
 /******************************************************************************/
 
 #include <unistd.h>
+#include <cstdint>
 #include <cstdlib>
 #include <signal.h>
   
@@ -67,9 +68,16 @@ protected:
 
 private:
        void  Dispatch(int ptent, int pollEv);
-       void  FDMod(int ptnum, int fd, int events);
-       void  FDRem(int ptnum);
+       void  FDMod(int ptnum, int events, uint64_t tag);
+       void  FDRem(int ptnum, uint64_t tag);
        bool  Process();
+// PipeData::fd carries low tag bits; ChnlEnt keeps the fd. Recover the newest
+// full tag at the counter snapshot; ambiguity requires 2^32 later allocations.
+inline uint64_t ExpandTag(uint32_t lowTag)
+               {XrdSysMutexHelper mHelper(tagMutex);
+                return nextTag - uint32_t(uint32_t(nextTag)-lowTag);}
+inline uint64_t NextTag()
+               {XrdSysMutexHelper mHelper(tagMutex); return ++nextTag;}
 
 static const int disFD = 0x80000000;
 
@@ -78,9 +86,12 @@ struct pollfd      *pollTab;
        int          pollMax;
        int          pollNum;
 struct pollfd      *pnewTab;
-       Channel    **chnlTab;
+struct ChnlEnt      {Channel *chan; uint64_t tag; int fd;};
+       ChnlEnt     *chnlTab;
        int          chnlMax;
        int          chnlNum;
+XrdSysMutex         tagMutex;
+uint64_t            nextTag = 0;
 };
 };
 };
@@ -148,12 +159,12 @@ XrdSys::IOEvents::PollPoll::PollPoll(int &rc, int numfd, int pFD[2])
 
 // Allocate initial channel table
 //
-   if (!(chnlTab = (Channel **)malloc(numfd*sizeof(Channel *))))
+   if (!(chnlTab = (ChnlEnt *)malloc(numfd*sizeof(ChnlEnt))))
       {rc = errno; return;}
 
 // Initialize it
 //
-   memset(chnlTab, 0, numfd*sizeof(Channel *));
+   memset(chnlTab, 0, numfd*sizeof(ChnlEnt));
    chnlMax = numfd;
    chnlNum = 1;
 
@@ -234,7 +245,7 @@ void XrdSys::IOEvents::PollPoll::Dispatch(int ptent, int pollEv)
 
 // Check if we really have a channel here
 //
-   if (!(cP = chnlTab[ptent])) {FDRem(ptent); return;}
+   if (!(cP = chnlTab[ptent].chan)) {FDRem(ptent, NextTag()); return;}
 
 // Translate the event to something reasonable
 //
@@ -254,7 +265,7 @@ void XrdSys::IOEvents::PollPoll::Dispatch(int ptent, int pollEv)
 
 // Execute the callback
 //
-   if (!CbkXeq(cP, events, eNum, eTxt)) FDRem(ptent);
+   if (!CbkXeq(cP, events, eNum, eTxt)) FDRem(ptent, NextTag());
 }
 
 /******************************************************************************/
@@ -265,12 +276,15 @@ void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
                                          bool &isLocked,  bool dover)
 {
    int ctnum;
+   uint64_t tag = NextTag();
 
 // Verify that this channel is assigned.
 //
-   ctnum = GetPollEnt(cP);
+   ctnum = GetPollEnt(cP); SetPollEnt(cP, 0);
+   // Avoid waiting for pollMutex while holding the callback's channel lock.
+   if (!ISPOLLER && isLocked) {isLocked = false; UnLockChannel(cP);}
    pollMutex.Lock();
-   if (chnlTab[ctnum] != cP) {pollMutex.UnLock(); return;}
+   if (chnlTab[ctnum].chan != cP) {pollMutex.UnLock(); return;}
    pollMutex.UnLock();
 
 // If we are the poller thread then we can remove this now. Note that we will
@@ -280,11 +294,10 @@ void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
 // This message always synchronizes with the poller.
 //
    if (ISPOLLER)
-      {FDRem(ctnum);
+      {FDRem(ctnum, tag);
        return;
       } else {
-       PipeData cmdbuff((char)PipeData::RmFD,0,(short)ctnum,cP->GetFD());
-       if (isLocked) {isLocked = false; UnLockChannel(cP);}
+       PipeData cmdbuff((char)PipeData::RmFD,0,(short)ctnum,(int)tag);
        SendCmd(cmdbuff);
       }
 }
@@ -293,11 +306,16 @@ void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
 /* Private:                        F D M o d                                  */
 /******************************************************************************/
 
-// pollMutex must be locked
+// Serialize validation and the poll-table update.
 //
-void XrdSys::IOEvents::PollPoll::FDMod(int ptnum, int fd, int events)
+void XrdSys::IOEvents::PollPoll::FDMod(int ptnum, int events, uint64_t tag)
 {
    XrdSysMutexHelper mHelper(pollMutex);
+
+// Ignore a command queued before this slot was removed or reused.
+//
+   if (!chnlTab[ptnum].chan || tag < chnlTab[ptnum].tag) return;
+   chnlTab[ptnum].tag = tag;
 
 // First step is to see if we need to swap to a new poll table
 //
@@ -310,7 +328,7 @@ void XrdSys::IOEvents::PollPoll::FDMod(int ptnum, int fd, int events)
 
 // Initialize poll table entry
 //
-   pollTab[ptnum].fd      = fd;
+   pollTab[ptnum].fd      = chnlTab[ptnum].fd;
    pollTab[ptnum].events  = 0;
    pollTab[ptnum].revents = 0;
    if (events & Channel:: readEvents)
@@ -329,20 +347,23 @@ void XrdSys::IOEvents::PollPoll::FDMod(int ptnum, int fd, int events)
 /* Private:                        F D R e m                                  */
 /******************************************************************************/
   
-// pollMutex must be locked
+// TmoGet can invoke an overdue callback before Begin reacquires pollMutex.
 //
-void XrdSys::IOEvents::PollPoll::FDRem(int ptnum)
+void XrdSys::IOEvents::PollPoll::FDRem(int ptnum, uint64_t tag)
 {
+   XrdSysMutexHelper mHelper(pollMutex);
    int ctnum = ptnum;
+
+   if (tag < chnlTab[ctnum].tag) return;
 
 // Free up the channel
 //
-   chnlTab[ctnum] = 0;
+   chnlTab[ctnum].chan = 0;
 
 // See if we need to adjust the channel count
 //
    if (ctnum == chnlNum-1)
-      {while(ctnum > 0 && !chnlTab[ctnum]) ctnum--;
+      {while(ctnum > 0 && !chnlTab[ctnum].chan) ctnum--;
        chnlNum = ctnum+1;
       }
 
@@ -370,9 +391,10 @@ bool XrdSys::IOEvents::PollPoll::Include(XrdSys::IOEvents::Channel *cP,
                                          bool                      &isLocked)
 {
    static const int incVal = 256;
-   static const int cpSz = sizeof(Channel *);
+   static const int cpSz = sizeof(ChnlEnt);
    static const int ptSz = sizeof(struct pollfd);
    int fd, ctnum;
+   uint64_t tag;
 
 // Validate the file descriptor
 //
@@ -394,15 +416,16 @@ bool XrdSys::IOEvents::PollPoll::Include(XrdSys::IOEvents::Channel *cP,
 // Get the next channel table entry to be used
 //
    pollMutex.Lock();
+   tag = NextTag();
    ctnum = 1;
-   while((ctnum < chnlMax) && (chnlTab[ctnum] != 0)) ctnum++;
+   while((ctnum < chnlMax) && (chnlTab[ctnum].chan != 0)) ctnum++;
 
 // Reallocate channel table if we don't have enough space. We also pre-allocate
 // a new poll table so that we can reflect failure to the caller as the poller
 // can't do that. The poller will swap the new one for the old one.
 //
    if (ctnum >= chnlMax)
-      {Channel **cnewTab = (Channel **)realloc(chnlTab,(chnlMax+incVal)*cpSz);
+      {ChnlEnt *cnewTab = (ChnlEnt *)realloc(chnlTab,(chnlMax+incVal)*cpSz);
        if (pnewTab) free(pnewTab);
        pnewTab = (struct pollfd *)malloc((chnlMax+incVal)*ptSz);
        if (!cnewTab || !pnewTab)
@@ -420,7 +443,9 @@ bool XrdSys::IOEvents::PollPoll::Include(XrdSys::IOEvents::Channel *cP,
 
 // Record the poll table entry in the channel
 //
-   chnlTab[ctnum] = cP;
+   chnlTab[ctnum].chan = cP;
+   chnlTab[ctnum].tag = tag;
+   chnlTab[ctnum].fd = fd;
    SetPollEnt(cP, ctnum);
    pollMutex.UnLock();
 
@@ -430,11 +455,11 @@ bool XrdSys::IOEvents::PollPoll::Include(XrdSys::IOEvents::Channel *cP,
 // the channel lock to prevent deadlocks. The caller will relock as needed.
 //
    if (ISPOLLER)
-      {FDMod(ctnum, fd, cP->GetEvents());
+      {FDMod(ctnum, cP->GetEvents(), tag);
        return true;
       } else {
        PipeData cmdbuff((char)PipeData::MiFD, (char)cP->GetEvents(),
-                        (short)ctnum,         fd, 0);
+                        (short)ctnum,         (int)tag);
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
        SendCmd(cmdbuff);
       }
@@ -453,17 +478,18 @@ bool XrdSys::IOEvents::PollPoll::Modify(XrdSys::IOEvents::Channel *cP,
                                         const char               **eTxt,
                                         bool                      &isLocked)
 {
+   uint64_t tag = NextTag();
 
 // If we are the poller thread, then modify the poll entry in-line. Otherwise,
 // send a modification message to the poller. This requires that we unlock the
 // channel to prevent any deadlocks. The caller will relock it as needed.
 //
    if (ISPOLLER)
-      {FDMod(GetPollEnt(cP), cP->GetFD(), cP->GetEvents());
+      {FDMod(GetPollEnt(cP), cP->GetEvents(), tag);
        return true;
       } else {
        PipeData cmdbuff((char)PipeData::MdFD, (char)cP->GetEvents(),
-                        (short)GetPollEnt(cP), cP->GetFD(), 0);
+                        (short)GetPollEnt(cP), (int)tag);
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
        SendCmd(cmdbuff);
       }
@@ -483,12 +509,15 @@ bool XrdSys::IOEvents::PollPoll::Process()
 //
   while(GetRequest())
        {switch(reqBuff.req)
-              {case PipeData::MdFD: FDMod(reqBuff.ent, reqBuff.fd, reqBuff.evt);
+              {case PipeData::MdFD: FDMod(reqBuff.ent, reqBuff.evt,
+                                          ExpandTag((uint32_t)reqBuff.fd));
                                     break;
-               case PipeData::MiFD: FDMod(reqBuff.ent, reqBuff.fd, reqBuff.evt);
+               case PipeData::MiFD: FDMod(reqBuff.ent, reqBuff.evt,
+                                          ExpandTag((uint32_t)reqBuff.fd));
                                     reqBuff.theSem->Post();
                                     break;
-               case PipeData::RmFD: FDRem(reqBuff.ent);
+               case PipeData::RmFD: FDRem(reqBuff.ent,
+                                          ExpandTag((uint32_t)reqBuff.fd));
                                     reqBuff.theSem->Post();
                                     break;
                case PipeData::NoOp: break;
