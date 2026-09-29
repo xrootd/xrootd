@@ -29,6 +29,11 @@ target_link_libraries(xrdthrottle-unit-tests
     GTest::gtest_main
 )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+  AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
+  target_link_libraries(xrdthrottle-unit-tests PRIVATE stdc++fs)
+endif()
+
 target_include_directories(xrdthrottle-unit-tests
   PRIVATE
     ${PROJECT_SOURCE_DIR}/src
