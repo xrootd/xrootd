@@ -6,6 +6,40 @@ Release Notes
 =============
 
 -------------
+Version 6.2.0
+-------------
+
+All bugfixes and improvements from XRootD 5.9.8 are also in XRootD 6.2.0.
+
++ **New Features**
+  **[Python]** Add status exception helpers (#2830)
+  **[Server]** Allow protbind to bind to localhost using =localhost or loopback (#2908, #2909)
+  **[XrdCks]** Allow cks.type=default to be specified as CGI (#2883)
+  **[XrdCks]** Allow the crc32 checksums to handle out of order writes (#2883)
+  **[XrdCl,XrdClHttp]** Add -H / --header command line option to xrdcp (#2888)
+  **[XrdCl,XrdClHttp]** Add client support for WLCG Tape REST API (#2836, #2862)
+  **[XrdCl,XrdClHttp]** Add support for HTTP third party copy to xrdcp (#2886)
+  **[XrdCl]** Accept gfal-style full URL syntax commands in xrdfs (#1664, #2865)
+  **[XrdCl]** Add -4 / -6 command line options to xrdfs (#2105, #2865)
+
++ **Bugfixes**
+  **[XrdClHttp]** Fix multipart parsing when curl splits CRLF or part headers (#2936)
+  **[XrdClHttp]** Move PUT timeout forward on each client write (#2901)
+  **[XrdCl]** Disallow relative path mkdirs and rmdir with davs:// (#2792, #2841)
+  **[XrdCl]** Give user plug-in configs priority over /etc (#2618)
+  **[XrdCl]** Redact tokens from logs in more cases (#2852, #2944)
+  **[XrdHttp]** Fix URL form redirects in XrdHttp (#2893)
+
++ **Miscellaneous**
+  **[CMake]** Improve sanitizer build configurations in test.cmake (#2919)
+  **[CMake]** Make Git version detection resilient (#2903)
+  **[CMake]** Remove the ENABLE_ASAN and ENABLE_TSAN options (#2912)
+  **[Python]** Include py.typed marker (#2834)
+  **[Python]** Integrate build and tests into main build (#2912)
+  **[Tests]** Make test suite more robust, enable plugin coverage (#2899, #2919)
+  **[XrdApps]** Sort xrdmapc JSON managers and servers by name (#2887)
+
+-------------
 Version 6.1.1
 -------------
 
