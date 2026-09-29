@@ -4,6 +4,7 @@ export XrdSecPROTOCOL=krb5
 
 export KRB5CCNAME=${BINARY_DIR}/tests/krb5/krb5cc
 export KRB5_CONFIG=${BINARY_DIR}/tests/krb5/krb5.conf
+export KRB5RCACHEDIR=${BINARY_DIR}/tests/krb5
 
 function setup_krb5() {
 	require_commands kinit
