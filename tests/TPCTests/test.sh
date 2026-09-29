@@ -105,7 +105,11 @@ setup_scitokens() {
 	chmod 0600 "$PWD/generated_tokens/token"
 }
 
-# Cleanup function
+# Remove everything this test creates, on the failure path as well as on the
+# successful one. The uploads fail if a file from an earlier run is still on the
+# servers, so one failure used to make every later run in the same build tree
+# fail too. No command here may fail, because the trap must not change the exit
+# status of the script.
 # shellcheck disable=SC2317
 cleanup() {
     ## Cleanup multistream files
@@ -114,47 +118,53 @@ cleanup() {
     src=${hosts_abbrev[${src_idx}]}
     dst=${hosts_abbrev[${dst_idx}]}
     for suffix in "${multistream_suffixes[@]}"; do
-        rm "${LCLDATADIR}/${src}${suffix}.ref" || :
-        rm "${LCLDATADIR}/${src}_to_${dst}${suffix}.dat_http_pull" || :
-        ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}${suffix}.ref" || :
-        ${XRDFS} "${hosts[$dst_idx]}" rm "${RMTDATADIR}/${src}_to_${dst}${suffix}.ref_http_pull" || :
+        rm "${LCLDATADIR}/${src}${suffix}.ref" 2>/dev/null || :
+        rm "${LCLDATADIR}/${src}_to_${dst}${suffix}.dat_http_pull" 2>/dev/null || :
+        ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}${suffix}.ref" 2>/dev/null || :
+        ${XRDFS} "${hosts[$dst_idx]}" rm "${RMTDATADIR}/${src}_to_${dst}${suffix}.ref_http_pull" 2>/dev/null || :
     done
 
     ## Cleanup empty files
-    rm "${LCLDATADIR}/${src}_empty.dat" || :
-    rm "${LCLDATADIR}/${src}_empty.ref" || :
-    ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}_empty.ref" || :
+    rm "${LCLDATADIR}/${src}_empty.dat" 2>/dev/null || :
+    rm "${LCLDATADIR}/${src}_empty.ref" 2>/dev/null || :
+    ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}_empty.ref" 2>/dev/null || :
     for mode in "_http_pull" "_http_push" ""; do
-        rm "${LCLDATADIR}/${src}_to_${dst}_empty.dat${mode}" || :
-        ${XRDFS} "${hosts[$dst_idx]}" rm "${RMTDATADIR}/${src}_to_${dst}_empty.ref${mode}" || :
+        rm "${LCLDATADIR}/${src}_to_${dst}_empty.dat${mode}" 2>/dev/null || :
+        ${XRDFS} "${hosts[$dst_idx]}" rm "${RMTDATADIR}/${src}_to_${dst}_empty.ref${mode}" 2>/dev/null || :
     done
 
     # Cleanup local and remote files
     for src_idx in {0..2}; do
         src=${hosts_abbrev[${src_idx}]}
-        rm "${LCLDATADIR}/${src}.dat" || :
-        rm "${LCLDATADIR}/${src}.ref" || :
+        rm "${LCLDATADIR}/${src}.dat" 2>/dev/null || :
+        rm "${LCLDATADIR}/${src}.ref" 2>/dev/null || :
 
-        ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}.ref" || :
+        ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${src}.ref" 2>/dev/null || :
 
         for dst_idx in {0..2}; do
            dst=${hosts_abbrev[${dst_idx}]}
-           rm "${LCLDATADIR}/${src}_to_${dst}.dat" || :
-           rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_pull" || :
-           rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_push" || :
+           rm "${LCLDATADIR}/${src}_to_${dst}.dat" 2>/dev/null || :
+           rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_pull" 2>/dev/null || :
+           rm "${LCLDATADIR}/${src}_to_${dst}.dat_http_push" 2>/dev/null || :
 
-           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref" || :
-           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref_http_push" || :
-           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref_http_pull" || :
+           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref" 2>/dev/null || :
+           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref_http_push" 2>/dev/null || :
+           ${XRDFS} "${hosts[$src_idx]}" rm "${RMTDATADIR}/${dst}_to_${src}.ref_http_pull" 2>/dev/null || :
         done
-       
-    ${XRDFS} "${hosts[$src_idx]}" rmdir "${RMTDATADIR}" || :
+
+        ${XRDFS} "${hosts[$src_idx]}" rmdir "${RMTDATADIR}" 2>/dev/null || :
     done
 
-    rmdir "${LCLDATADIR}" || :
-    rm "${TPC_RESPONSE_BODY}" || :
+    rmdir "${LCLDATADIR}" 2>/dev/null || :
+    rm "${TPC_RESPONSE_BODY}" 2>/dev/null || :
 }
-trap "cleanup" ERR
+# The ERR trap alone does not run for 'exit 1' in error(). Only EXIT runs the
+# cleanup; the signal traps exit with the conventional 128+signal status, which
+# then fires the EXIT trap exactly once.
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 131' QUIT
 
 
 
@@ -551,8 +561,6 @@ for idx in "${!multistream_suffixes[@]}"; do
         "${LCLDATADIR}/${src}_to_${dst}${suffix}.dat_http_pull" \
         "${hosts[$dst_idx]}" "${RMTDATADIR}/${src}_to_${dst}${suffix}.ref_http_pull"
 done
-
-cleanup
 
 # Invalid source/destination in TPC URLs
 
