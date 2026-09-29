@@ -19,6 +19,11 @@ if [ ! -d "$SOURCE_DIR" ]; then
   exit 1
 fi
 
+# The teardown reads the test environment file. Remove the one of an earlier
+# run, so that the teardown never acts on the servers or files of that run.
+ENV_FILE="$BINARY_DIR/tests/$TEST_NAME/setup.sh"
+rm -f "$ENV_FILE"
+
 #######################################
 # Create X509 certificates for server #
 #######################################
@@ -195,10 +200,24 @@ enable = true
 
 EOF
 
-# Create configuration and runtime directory structure
-# Note that XRootD places unix sockets in the rundirs; these have strict length
-# limits.  Hence, we explicitly place the XRootD rundir in /tmp
-XROOTD_RUNDIR="$(mktemp -d -p /tmp xrdcl-http-rundir.XXXXXXXX)"
+# Create configuration and runtime directory structure.
+# XRootD places unix sockets in the rundir, and their paths must fit in
+# sun_path (104 bytes on macOS). The teardown also sources the path unquoted.
+# Hence, use TMPDIR only when it is a short, absolute path to a directory
+# with no special characters.
+# POSIX test cannot match a character class, so use case for this check.
+RUNDIR_BASE="${TMPDIR%/}"
+case "$RUNDIR_BASE" in
+  ""|[!/]*|*[!A-Za-z0-9/._-]*) RUNDIR_BASE=/tmp ;;
+esac
+[ ${#RUNDIR_BASE} -le 40 ] && [ -d "$RUNDIR_BASE" ] || RUNDIR_BASE=/tmp
+# Record the rundir and each server PID at once, so that the teardown also
+# cleans up after a failed setup.
+if ! XROOTD_RUNDIR="$(mktemp -d "$RUNDIR_BASE/xrdcl-http-rundir.XXXXXXXX")"; then
+  echo "Failed to create the XRootD run directory; cannot run test"
+  exit 1
+fi
+echo "XROOTD_RUNDIR=$XROOTD_RUNDIR" > "$ENV_FILE"
 chmod 0755 "$XROOTD_RUNDIR"
 mkdir -p "$XROOTD_RUNDIR/cache" "$XROOTD_RUNDIR/origin"
 XROOTD_CONFIGDIR="$RUNDIR/xrootd"
@@ -400,6 +419,7 @@ echo > "$BINARY_DIR/tests/$TEST_NAME/client.log"
 echo > "$BINARY_DIR/tests/$TEST_NAME/origin.log"
 "$BINDIR/xrootd" -n origin -c "$ORIGIN_CONFIG" 0<&- >"$BINARY_DIR/tests/$TEST_NAME/origin.log" 2>&1 &
 ORIGIN_PID=$!
+echo "ORIGIN_PID=$ORIGIN_PID" >> "$ENV_FILE"
 echo "Origin PID: $ORIGIN_PID"
 
 echo "Origin logs are available at $BINARY_DIR/tests/$TEST_NAME/origin.log"
@@ -429,7 +449,8 @@ echo "Origin started at port $ORIGIN_PORT"
 echo > "$BINARY_DIR/tests/$TEST_NAME/cache.log"
 "$BINDIR/xrootd" -n cache -c "$CACHE_CONFIG" 0<&- >"$BINARY_DIR/tests/$TEST_NAME/cache.log" 2>&1 &
 CACHE_PID=$!
-echo "Cache PID: $ORIGIN_PID"
+echo "CACHE_PID=$CACHE_PID" >> "$ENV_FILE"
+echo "Cache PID: $CACHE_PID"
 
 echo "Cache logs are available at $BINARY_DIR/tests/$TEST_NAME/cache.log"
 
@@ -474,9 +495,7 @@ echo "Sample write token available at $RUNDIR/write.token"
 printf "%s" "Authorization: Bearer " > "$RUNDIR/authz_header"
 cat "$RUNDIR/token" >> "$RUNDIR/authz_header"
 
-cat > "$BINARY_DIR/tests/$TEST_NAME/setup.sh" <<EOF
-CACHE_PID=$CACHE_PID
-ORIGIN_PID=$ORIGIN_PID
+cat >> "$ENV_FILE" <<EOF
 ORIGIN_URL=https://localhost:$ORIGIN_PORT
 CACHE_URL=https://localhost:$CACHE_PORT
 HEADER_FILE=$RUNDIR/authz_header
@@ -484,7 +503,6 @@ X509_CA_FILE=$CA_DIR/tlsca.pem
 PUBLIC_TEST_FILE=$PELICAN_PUBLIC_EXPORTDIR/hello_world-1mb.txt
 WRITE_TOKEN=$RUNDIR/write.token
 READ_TOKEN=$RUNDIR/token
-XROOTD_RUNDIR=$XROOTD_RUNDIR
 EOF
 
-echo "Test environment written to $BINARY_DIR/tests/$TEST_NAME/setup.sh"
+echo "Test environment written to $ENV_FILE"
