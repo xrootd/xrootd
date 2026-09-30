@@ -63,6 +63,7 @@ int           Client(char *buff, int blen);
 int           Close(bool defer=false);
 
 void          DoIt(); // Override
+void          DoItPinned(unsigned int instance);
 
 
        int    getIOStats(long long &inbytes, long long &outbytes,
@@ -150,6 +151,7 @@ XrdPollInfo   PollInfo;
 protected:
 
 int    CloseInstance(unsigned int instance);
+bool   EndActivity();
 int    RecvIOV(const struct iovec *iov, int iocnt);
 void   Reset();
 int    sendData(const char *Buff, int Blen);
