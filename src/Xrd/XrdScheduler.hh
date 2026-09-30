@@ -124,7 +124,7 @@ XrdSysSemaphore        WorkAvail;
 XrdSysMutex            SchedMutex; // Protects private area
 
 XrdJob                *TimerQueue; // Pending work
-XrdSysCondVar          TimerRings;
+XrdSysCondVar          TimerRings{0};
 XrdSysMutex            TimerMutex; // Protects scheduler area
 
 XrdSchedulerPID       *firstPID;
