@@ -347,13 +347,14 @@ void XrdLinkXeq::DoItPinned(unsigned int instance)
 {
    XrdProtocol *protocol;
    {XrdSysMutexHelper opHelper(LinkInfo.opMutex);
-    if (Instance != instance || PollInfo.closePending) return;
+    if (Instance != instance || PollInfo.closePending
+    ||  PollInfo.terminalState == XrdPollInfo::terminalStarted) return;
     protocol = Protocol;
     if (!protocol) {Log.Emsg("Link", "Dispatch on closed link", ID); return;}
     PollInfo.Activity++;
    }
 
-   bool doCl = false, retirementPending = false, callbackApproved = true;
+   bool doCl = false, retirementPending = false;
    {LinkActivity activity(this);
     int rc;
 
@@ -366,7 +367,8 @@ void XrdLinkXeq::DoItPinned(unsigned int instance)
 //
    do {rc = protocol->Process(this);
        XrdSysMutexHelper opHelper(LinkInfo.opMutex);
-       retirementPending = PollInfo.closePending;
+       retirementPending = PollInfo.closePending ||
+                           PollInfo.terminalState != XrdPollInfo::terminalNone;
        if (!retirementPending) protocol = Protocol;
       } while (!retirementPending && !rc && protocol && Sched.canStick());
 
@@ -378,11 +380,10 @@ void XrdLinkXeq::DoItPinned(unsigned int instance)
                               && !PollInfo.Poller->Enable(PollInfo)) doCl = true;}
       else if (rc != -EINPROGRESS) doCl = true;
 
-   if (doCl && CloseRequestCb) callbackApproved = CloseRequestCb(CloseRequestCbArg);
    }
 
    if (EndActivity()) CloseInstance(instance);
-      else if (doCl && callbackApproved) CloseInstance(instance);
+      else if (doCl) Terminate(instance);
 }
 
 bool XrdLinkXeq::EndActivity()
@@ -395,6 +396,30 @@ bool XrdLinkXeq::EndActivity()
        waiter->Wake.Post();
       }
    return PollInfo.closePending;
+}
+
+/******************************************************************************/
+/*                            T e r m i n a t e                               */
+/******************************************************************************/
+
+void XrdLinkXeq::Terminate(unsigned int instance)
+{
+   XrdSysMutexHelper opHelper(LinkInfo.opMutex);
+   if (Instance != instance || LinkInfo.InUse < 1 || PollInfo.closePending
+   ||  PollInfo.terminalState == XrdPollInfo::terminalStarted) return;
+   // Block dispatch and pin callback storage before dropping the operation lock.
+   PollInfo.terminalState = XrdPollInfo::terminalStarted;
+   bool (*callback)(void *) = CloseRequestCb;
+   void *argument = CloseRequestCbArg;
+   if (callback) PollInfo.Activity++;
+   opHelper.UnLock();
+   if (callback)
+      {bool approved;
+       {LinkActivity activity(this); approved = callback(argument);}
+       if (EndActivity()) {CloseInstance(instance); return;}
+       if (!approved) return;
+      }
+   CloseInstance(instance);
 }
 
 /******************************************************************************/
@@ -1121,13 +1146,14 @@ void XrdLinkXeq::Shutdown(bool getLock)
 // If there is something to do, do it now
 //
    temp = Instance; Instance = 0;
+// A terminal marker keeps generation zero from looking live after shutdown.
    if (!KeepFD)
       {shutdown(PollInfo.FD, SHUT_RDWR);
        if (dup2(devNull, PollInfo.FD) < 0)
           {Instance = temp;
            Log.Emsg("Link", errno, "shutdown FD for", ID);
-          }
-      }
+          } else PollInfo.terminalState = XrdPollInfo::terminalStarted;
+      } else PollInfo.terminalState = XrdPollInfo::terminalStarted;
 
 // All done
 //

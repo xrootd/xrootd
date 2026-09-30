@@ -65,6 +65,8 @@ int           Close(bool defer=false);
 void          DoIt(); // Override
 void          DoItPinned(unsigned int instance);
 
+void          Terminate(unsigned int instance);
+
 
        int    getIOStats(long long &inbytes, long long &outbytes,
                               int  &numstall,     int  &numtardy)
