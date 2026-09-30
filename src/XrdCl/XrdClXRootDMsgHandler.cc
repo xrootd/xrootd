@@ -351,8 +351,7 @@ namespace XrdCl
       log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
                   pUrl.GetHostId().c_str() );
       pStatus = st;
-      HandleRspOrQueue();
-      return Ignore;
+      return RemoveHandler;
     }
 
     //--------------------------------------------------------------------------
@@ -411,6 +410,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::Process()
   {
+    if( !pStatus.IsOK() ) { HandleResponse(); return; }
+
     Log *log = DefaultEnv::GetLog();
 
     ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
