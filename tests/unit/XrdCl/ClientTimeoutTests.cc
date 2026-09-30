@@ -1,9 +1,11 @@
 // These tests use real nonblocking sockets: positive reads are stOK, and only
 // an empty socket returns suRetry. No impossible socket-count/status mocks.
 #include "XrdCl/XrdClAsyncMsgReader.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClInQueue.hh"
 #include "XrdCl/XrdClPoller.hh"
+#include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClStream.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
@@ -13,8 +15,12 @@
 #include <chrono>
 #include <cstring>
 #include <fcntl.h>
+#include <new>
 #include <stdexcept>
 #include <sys/ioctl.h>
+#ifdef __linux__
+#include <sys/mman.h>
+#endif
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
@@ -252,6 +258,148 @@ namespace
                         sizeof( header ) ) + body;
   }
 
+
+#ifdef __linux__
+  class DropResponse : public XrdCl::ResponseHandler
+  {
+    public:
+      void HandleResponse( XrdCl::XRootDStatus *status,
+                           XrdCl::AnyObject *response ) override
+      {
+        code.store( status->code, std::memory_order_relaxed );
+        calls.fetch_add( 1, std::memory_order_release );
+        delete status;
+        delete response;
+      }
+
+      static std::atomic<unsigned> calls;
+      static std::atomic<uint16_t> code;
+  };
+
+  std::atomic<unsigned> DropResponse::calls{ 0 };
+  std::atomic<uint16_t> DropResponse::code{ 0 };
+
+  // Keep the freed object's page inaccessible so a stale dynamic_cast faults
+  // deterministically instead of depending on allocator reuse or a sanitizer.
+  class GuardPageHandler : public XrdCl::XRootDMsgHandler
+  {
+    public:
+      using XrdCl::XRootDMsgHandler::XRootDMsgHandler;
+
+      uint16_t InspectStatusRsp() override
+      {
+        const uint16_t action = XrdCl::XRootDMsgHandler::InspectStatusRsp();
+        inspectedAction.store( action, std::memory_order_release );
+        return action;
+      }
+
+      static void *operator new( std::size_t size )
+      {
+        const std::size_t page = static_cast<std::size_t>(
+          sysconf( _SC_PAGESIZE ) );
+        const std::size_t bytes = ( size + page - 1 ) / page * page;
+        void *ptr = mmap( nullptr, bytes, PROT_READ | PROT_WRITE,
+                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0 );
+        if( ptr == MAP_FAILED ) throw std::bad_alloc();
+        guardedBytes.store( bytes, std::memory_order_relaxed );
+        return ptr;
+      }
+
+      static void operator delete( void *ptr ) noexcept
+      {
+        const std::size_t bytes = guardedBytes.load( std::memory_order_relaxed );
+        if( !bytes || mprotect( ptr, bytes, PROT_NONE ) ) _exit( 90 );
+        deleted.store( true, std::memory_order_release );
+      }
+
+      static void operator delete( void *ptr, std::size_t ) noexcept
+      {
+        operator delete( ptr );
+      }
+
+      static std::atomic<bool> deleted;
+      static std::atomic<std::size_t> guardedBytes;
+      static std::atomic<uint16_t> inspectedAction;
+  };
+
+  std::atomic<bool> GuardPageHandler::deleted{ false };
+  std::atomic<std::size_t> GuardPageHandler::guardedBytes{ 0 };
+  std::atomic<uint16_t> GuardPageHandler::inspectedAction{ 0 };
+
+  [[noreturn]] void RunTruncatedStatusDispatch( uint8_t responseType,
+                                                bool probeQueue = false )
+  {
+    GuardPageHandler::deleted.store( false, std::memory_order_relaxed );
+    GuardPageHandler::guardedBytes.store( 0, std::memory_order_relaxed );
+    GuardPageHandler::inspectedAction.store( 0, std::memory_order_relaxed );
+    DropResponse::calls.store( 0, std::memory_order_relaxed );
+    DropResponse::code.store( 0, std::memory_order_relaxed );
+    ReaderSession session( time( 0 ) + 60 );
+    session.stream.SetJobManager(
+      XrdCl::DefaultEnv::GetPostMaster()->GetJobManager() );
+    session.incoming.RemoveMessageHandler( &session.handler );
+
+    auto *request = new XrdCl::Message( sizeof( ClientPgReadRequest ) );
+    memset( request->GetBuffer(), 0, request->GetSize() );
+    auto *req = reinterpret_cast<ClientPgReadRequest*>( request->GetBuffer() );
+    req->streamid[0] = 0x34;
+    req->streamid[1] = 0x12;
+    req->requestid = htons( kXR_pgread );
+    DropResponse responseHandler;
+    auto *handler = new GuardPageHandler(
+      request, &responseHandler, &session.url, {}, nullptr );
+    handler->SetExpiration( time( 0 ) + 60 );
+    handler->OnReadyToSend( request );
+    handler->OnStatusReady( request, XrdCl::XRootDStatus() );
+    bool removed = false;
+    session.incoming.AddMessageHandler( handler, removed );
+
+    auto response = std::make_shared<XrdCl::Message>(
+      sizeof( ServerResponseStatus ) );
+    memset( response->GetBuffer(), 0, response->GetSize() );
+    auto *status = reinterpret_cast<ServerResponseStatus*>(
+      response->GetBuffer() );
+    status->hdr.streamid[0] = 0x34;
+    status->hdr.streamid[1] = 0x12;
+    status->hdr.status = kXR_status;
+    status->hdr.dlen = sizeof( ServerResponseBody_Status );
+    status->bdy.streamID[0] = 0x34;
+    status->bdy.streamID[1] = 0x12;
+    status->bdy.requestid = kXR_pgread - kXR_1stRequest;
+    status->bdy.resptype = responseType;
+
+    if( session.stream.InstallIncHandler( response, 0 ) ) _exit( 91 );
+    XrdCl::MsgHandler *raw = nullptr;
+    if( session.stream.InspectStatusRsp( 0, raw ) != XrdCl::MsgHandler::None )
+      _exit( 92 );
+
+    const uint16_t action =
+      GuardPageHandler::inspectedAction.load( std::memory_order_acquire );
+    if( !( action & XrdCl::MsgHandler::RemoveHandler ) )
+    {
+      const auto bound = std::chrono::steady_clock::now() +
+                         std::chrono::seconds( 5 );
+      while( !GuardPageHandler::deleted.load( std::memory_order_acquire ) &&
+             std::chrono::steady_clock::now() < bound )
+        std::this_thread::yield();
+    }
+
+    const uint32_t bytes = response->GetSize();
+    session.stream.OnIncoming( 0, std::move( response ), bytes );
+    const auto bound = std::chrono::steady_clock::now() +
+                       std::chrono::seconds( 5 );
+    while( !GuardPageHandler::deleted.load( std::memory_order_acquire ) &&
+           std::chrono::steady_clock::now() < bound )
+      std::this_thread::yield();
+    if( !GuardPageHandler::deleted.load( std::memory_order_acquire ) )
+      _exit( 93 );
+    if( probeQueue ) session.incoming.ReportTimeout( time( 0 ) + 120 );
+    if( DropResponse::calls.load( std::memory_order_acquire ) != 1 ) _exit( 94 );
+    if( DropResponse::code.load( std::memory_order_relaxed ) !=
+        XrdCl::errInvalidMessage ) _exit( 95 );
+    _exit( 0 );
+  }
+#endif
 }
 
 // User: A server finishes a reply header after its request deadline but leaves
@@ -963,3 +1111,41 @@ TEST( ClientTimeouts, ChunkedResponseFenceSpansQueuedProcessingOnly )
              XrdCl::MsgHandler::RemoveHandler );
   session.incoming.RemoveMessageHandler( &handler );
 }
+
+#ifdef __linux__
+// User: A broken or older server truncates a page-read kXR_status reply. Final
+// error processing may delete the request handler before the socket reader
+// dispatches that frame; the reader must not touch the released handler.
+// Valid-path control: current master 3bb3c0c32 and PR 2955 both pass. This
+// guards the fix from touching a released handler for a final error response.
+TEST( ClientTimeouts, FinalStatusDispatchDoesNotTouchAReleasedHandler )
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_EXIT( RunTruncatedStatusDispatch( XrdProto::kXR_FinalResult ),
+    ::testing::ExitedWithCode( 0 ), ".*" );
+}
+
+// User: A broken server labels the same truncated page-read status as partial.
+// Its invalid-response callback can still finish before socket dispatch, and
+// partial-frame cleanup must not dereference the handler after that handoff.
+// Fails on current master 3bb3c0c32 and PR 2955 with SIGSEGV: partial
+// cleanup accesses the handler after its error callback releases it.
+TEST( ClientTimeouts, MalformedPartialStatusDoesNotTouchAReleasedHandler )
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_EXIT( RunTruncatedStatusDispatch( XrdProto::kXR_PartialResult ),
+    ::testing::ExitedWithCode( 0 ), ".*" );
+}
+
+// User: After a truncated page-read status is rejected, a later timeout tick
+// walks the channel's remaining requests. The rejected handler must leave that
+// queue before its final callback destroys it, or this ordinary tick uses it.
+// Fails on current master 3bb3c0c32 and PR 2955 with SIGSEGV: Ignore leaves
+// the released handler in InQueue, where ReportTimeout later reaches it.
+TEST( ClientTimeouts, InvalidStatusLeavesNoReleasedHandlerInTheQueue )
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_EXIT( RunTruncatedStatusDispatch( XrdProto::kXR_FinalResult, true ),
+    ::testing::ExitedWithCode( 0 ), ".*" );
+}
+#endif
