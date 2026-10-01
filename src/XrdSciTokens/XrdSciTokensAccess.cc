@@ -651,6 +651,7 @@ public:
         const auto &token_subject = access_rules->get_token_subject();
         if (!token_subject.empty()) {
             Entity->eaAPI->Add("token.subject", token_subject, true);
+            Entity->eaAPI->Add("token.issuer", issuer, true);
         }
 
         // When the scope authorized this access, allow immediately.  Otherwise, chain
