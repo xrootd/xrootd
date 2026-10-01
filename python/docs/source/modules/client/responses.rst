@@ -30,3 +30,4 @@ requests to an `XRootD` server.
 .. autoclass:: XRootD.client.responses.HostList()
 .. autoclass:: XRootD.client.responses.HostInfo()
 .. autoclass:: XRootD.client.responses.ProtocolInfo()
+.. autoclass:: XRootD.client.responses.ChecksumInfo()
