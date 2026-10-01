@@ -822,7 +822,7 @@ int File::ReadBlocksFromDisk(std::vector<XrdOucIOVec>& ioVec, int expected_size)
 int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadReqRH *rh)
 {
    // rrc_func is ONLY called from async processing.
-   // If this function returns anything other than -EWOULDBLOCK, rrc_func needs to be called by the caller.
+   // If this function returns anything other than kReadPending, rrc_func needs to be called by the caller.
    // This streamlines implementation of synchronous IO::Read().
 
    TRACEF(Dump, "Read() sid: " << Xrd::hex1 << rh->m_seq_id << " size: " << iUserSize);
@@ -1119,7 +1119,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
       else
       {
          m_state_cond.UnLock();
-         return -EWOULDBLOCK;
+         return kReadPending;
       }
    }
    else

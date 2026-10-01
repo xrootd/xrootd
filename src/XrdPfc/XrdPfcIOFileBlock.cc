@@ -370,7 +370,7 @@ int IOFileBlock::Read(char *buff, long long off, int size)
 
          rh.m_cond.Lock();
          retvalBlock = fb->Read(this, buff, off, readBlockSize, &rh);
-         if (retvalBlock == -EWOULDBLOCK)
+         if (retvalBlock == kReadPending)
          {
             rh.m_cond.Wait();
             retvalBlock = rh.m_retval;
