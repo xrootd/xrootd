@@ -40,6 +40,9 @@ kXR_unt32           FileID;   // Unique file id used for monitoring
 short               MonEnt;   // Set by mon: entry in reporting table or -1
 char                monLvl;   // Set by mon: level of data collection needed
 char                xfrXeq;   // Transfer has occurred
+int                 closeErr; // Error code for the close record (0 = none)
+char                closeCat; // Error category (monErrCat)
+char                closeMsg[120]; // Error message
 long long           fSize;    // Size of file when opened
 XrdXrootdMonStatXFR xfr;
 XrdXrootdMonStatOPS ops;
@@ -54,12 +57,20 @@ enum monLevel {monOff = 0, monOn = 1, monOps = 2, monSsq = 3};
 
        void Init()
                 {FileID = 0; MonEnt = -1; monLvl = xfrXeq = 0;
+                 closeErr = 0; closeCat = 0; closeMsg[0] = 0;
                  memset(&xfr, 0, sizeof(xfr));
                  memset(&ops, 0, sizeof(ops));
                  memset(&prw, 0, sizeof(prw));
                  ops.rsMin = 0x7fff;
                  ops.rdMin = ops.rvMin = ops.wrMin = 0x7fffffff;
                  ssq.read  = ssq.readv = ssq.write = ssq.rsegs = 0.0;
+                };
+
+       void setCloseErr(int code, char cat, const char *msg)
+                {closeErr = code; closeCat = cat;
+                 if (msg) {strncpy(closeMsg, msg, sizeof(closeMsg)-1);
+                           closeMsg[sizeof(closeMsg)-1] = 0;}
+                 else closeMsg[0] = 0;
                 };
 
 inline void pgrOps(int rsz, bool isRetry=false)

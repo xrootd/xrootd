@@ -111,6 +111,9 @@ const kXR_char XROOTD_MON_MAPREDR       = 'r';
 const kXR_char XROOTD_MON_MAPSTAG       = 's'; // Internal use only!
 const kXR_char XROOTD_MON_MAPTRCE       = 't';
 const kXR_char XROOTD_MON_MAPTOKN       = 'T';
+
+// The MAPUSER CGI has "&a=<client IP>&R=&x=&y=&S=&I=", after any auth info
+//
 const kXR_char XROOTD_MON_MAPUSER       = 'u';
 const kXR_char XROOTD_MON_MAPUEAC       = 'U'; // User experiment/activity
 const kXR_char XROOTD_MON_MAPXFER       = 'x';
@@ -177,13 +180,15 @@ enum  recTval {isClose = 0,   // Record for close
                isOpen,        // Record for open
                isTime,        // Record for time
                isXfr,         // Record for transfers
-               isDisc         // Record for disconnection
+               isDisc,        // Record for disconnection
+               isError        // Record for a failed/aborted operation
               };
 
 enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
                hasOPS  =0x02, // If recFlag == isClose MonStatXFR + MonStatOPS
                hasSSQ  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
                hasCSE  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
+               hasERR  =0x08, // If recFlag == isClose MonStatERR trails the rec
                hasLFN  =0x01, // If recFlag == isOpen  the lfn is present
                hasRW   =0x02, // If recFlag == isOpen  file opened r/w
                hasSID  =0x01  // if recFlag == isTime sID is present (new rec)
@@ -291,14 +296,41 @@ long long           write;    // Bytes written to file so far
 // The record always contains XrdXrootdMonStatXFR after   XrdXrootdMonFileHdr.
 // If (recFlag & hasOPS) TRUE XrdXrootdMonStatOPS follows XrdXrootdMonStatXFR
 // If (recFlag & hasSSQ) TRUE XrdXrootdMonStatSQV follows XrdXrootdMonStatOPS
+// If (recFlag & hasERR) TRUE XrdXrootdMonStatERR is the last (variable) block
 // The XrdXrootdMonStatSSQ information is present only if "ssq" was specified.
 //
-struct XrdXrootdMonFileCLS    // 32 | 80 | 96 Bytes
+struct XrdXrootdMonFileCLS    // 32 | 80 | 96 Bytes (+ trailing MonStatERR)
 {
 XrdXrootdMonFileHdr Hdr;      // Always present (recSize has full length)
 XrdXrootdMonStatXFR Xfr;      // Always present
 XrdXrootdMonStatOPS Ops;      // Only   present when (recFlag & hasOPS) is True
 XrdXrootdMonStatSSQ Ssq;      // Only   present when (recFlag & hasSSQ) is True
+};
+
+// The following describes a failed operation. It has variable length.
+//
+enum  monErrCat {monErrOpen  = 1,  // The open  failed
+                 monErrRead  = 2,  // A  read   failed
+                 monErrWrite = 3,  // A  write  failed
+                 monErrClose = 4,  // The close failed
+                 monErrAuth  = 5   // Authentication/authorization failed
+                };
+
+struct XrdXrootdMonStatERR    // Variable length, walk via recSize
+{
+kXR_int32           ecode;    // XRootD/XProtocol error code (network order)
+char                ecat;     // One of monErrCat: the operation that failed
+char                rsvd[3];  // Reserved (zero); alignment and future use
+char                emsg[1];  // Null-terminated message, use recSize for length
+};
+
+// The following is reported when an open fails.
+//
+struct XrdXrootdMonFileERR    // Variable length, walk via recSize
+{
+XrdXrootdMonFileHdr Hdr;      // recType == isError; recFlag carries hasLFN
+XrdXrootdMonFileLFN ufn;      // user dictid + lfn (variable length)
+XrdXrootdMonStatERR err;      // Terminal error status (find via recSize)
 };
 
 // The following is reported when a user ends a session.

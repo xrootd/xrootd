@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdio>
 #include <cstring>
 
 #include "Xrd/XrdScheduler.hh"
@@ -51,6 +52,44 @@ extern int32_t       startTime;
 }
 
 /******************************************************************************/
+/*                             C o n s t a n t s                              */
+/******************************************************************************/
+
+namespace
+{
+// Every datagram starts with a header and a time record; the first record can
+// only go after them.
+//
+const int monPfxSz  = sizeof(XrdXrootdMonHeader) + sizeof(XrdXrootdMonFileTOD);
+
+// The fixed part of an open record, i.e. everything but the variable lfn.
+//
+const int minRecSz  = sizeof(XrdXrootdMonFileOPN)-sizeof(XrdXrootdMonFileLFN);
+
+// Longest lfn we will copy. Chosen so that an open record never exceeds the
+// XrdXrootdMonFileOPN structure that collectors are compiled against.
+//
+const int maxLfnSz  = 1020;
+
+// Largest record any of the emitters below can produce.
+//
+const int maxRecSz  = sizeof(XrdXrootdMonFileOPN);
+
+// recSize is a signed short on the wire, so no record may exceed this even
+// when the buffer itself is much larger (fbsz may be up to 65535).
+//
+const int maxWireSz = 32767;
+
+// Longest error message we will copy into a record. The sources run to a
+// couple of kilobytes, and a diagnostic that long is of no use to a collector.
+//
+const int maxErrMsg = 256;
+
+static_assert(((minRecSz + (int)sizeof(kXR_unt32) + maxLfnSz + 8) & ~3)
+              == maxRecSz, "lfn clamp and XrdXrootdMonFileOPN disagree");
+}
+
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
                           
@@ -66,7 +105,8 @@ char                *XrdXrootdMonFile::repFirst = 0;
 char                *XrdXrootdMonFile::repLast  = 0;
 int                  XrdXrootdMonFile::totRecs  = 0;
 int                  XrdXrootdMonFile::xfrRecs  = 0;
-int                  XrdXrootdMonFile::repSize  = 0;
+int                  XrdXrootdMonFile::drpRecs  = 0;
+int                  XrdXrootdMonFile::maxSlot  = 0;
 int                  XrdXrootdMonFile::repTime  = 0;
 int                  XrdXrootdMonFile::fmHWM    =-1;
 int                  XrdXrootdMonFile::crecSize = 0;
@@ -82,6 +122,11 @@ char                 XrdXrootdMonFile::fsOPS    = 0;
 char                 XrdXrootdMonFile::fsSSQ    = 0;
 char                 XrdXrootdMonFile::fsXFR    = 0;
 char                 XrdXrootdMonFile::crecFlag = 0;
+
+const int            XrdXrootdMonFile::fbszMin  = 1088;
+
+static_assert(XrdXrootdMonFile::fbszMin >= monPfxSz + maxRecSz + 1,
+              "fbszMin cannot hold the largest record");
   
 /******************************************************************************/
 /*                                 C l o s e                                  */
@@ -92,6 +137,12 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
    XrdXrootdMonFileCLS cRec;
    char *cP;
    int iEnt, iMap, iSlot;
+
+// Do nothing if file-stat monitoring is not active (no report buffer). The
+// guard lives here, as it does in Open(), so that callers need not know
+// whether this file was ever registered for I/O reporting.
+//
+   if (!repBuff) return;
 
 // If this object was registered for I/O reporting, deregister it.
 //
@@ -164,10 +215,32 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
        cRec.Ssq.write.dlong = htonll(xval.dlong);
       }
 
+// Append the error block, if any, and set hasERR
+//
+   int recSize = crecSize;
+   if (fsP->closeErr)
+      {int mLen   = strlen(fsP->closeMsg) + 1;
+       int errLen = (int)sizeof(XrdXrootdMonStatERR) - 1 + mLen;
+       recSize = (crecSize + errLen + 3) & ~0x00000003;
+       if (recSize > maxSlot) recSize = crecSize; // too big; drop the error block
+       else {cRec.Hdr.recFlag |= XrdXrootdMonFileHdr::hasERR;
+             cRec.Hdr.recSize  = htons(static_cast<short>(recSize));
+            }
+      }
+
 // Get a pointer to the next slot (the buffer gets locked)
 //
-   cP = GetSlot(crecSize);
+   cP = GetSlot(recSize);
+   if (!cP) return;
    memcpy(cP, &cRec, crecSize);
+   if (recSize > crecSize)
+      {XrdXrootdMonStatERR *e = (XrdXrootdMonStatERR *)(cP + crecSize);
+       memset(cP + crecSize, 0, recSize - crecSize);
+       e->ecode = htonl(fsP->closeErr);
+       e->ecat  = fsP->closeCat;
+       strncpy(e->emsg, fsP->closeMsg, recSize - crecSize
+                                     - ((int)sizeof(XrdXrootdMonStatERR) - 1));
+      }
    bfMutex.UnLock();
 }
 
@@ -183,7 +256,7 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbsz)
    repTime = intv;
    xfrCnt  = xfrcnt;
    xfrRem  = xfrcnt;
-   fBsz   =  (fbsz <= 0 ? 65472 : fbsz);
+   fBsz   =  (fbsz <= 0 ? 65472 : (fbsz < fbszMin ? fbszMin : fbsz));
 
 // Expand out the options
 //
@@ -212,6 +285,7 @@ void XrdXrootdMonFile::Disc(unsigned int usrID)
 // Get a pointer to the next slot (the buffer gets locked)
 //
    dP = (XrdXrootdMonFileDSC *)GetSlot(sizeof(XrdXrootdMonFileDSC));
+   if (!dP) return;
 
 // Fill out the record. It's pretty simple
 //
@@ -234,11 +308,23 @@ void XrdXrootdMonFile::DoIt()
    xfrRem--;
    if (!xfrRem) DoXFR();
 
-// Check if we should flush the buffer
+// Check if we should flush the buffer and pick up any refused records
 //
    bfMutex.Lock();
    if (repNext) Flush();
+   int nDrop = drpRecs; drpRecs = 0;
    bfMutex.UnLock();
+
+// A refused record is invisible downstream: the collector's sequence numbers
+// only show whole lost datagrams, and the time record's count never included
+// it. So report it here. This should not happen, since Defaults() keeps the
+// buffer large enough for the largest record we emit.
+//
+   if (nDrop && XrdXrootdMonInfo::eDest)
+      {char buff[80];
+       snprintf(buff, sizeof(buff), "%d fstat record(s) dropped;", nDrop);
+       XrdXrootdMonInfo::eDest->Emsg("MonFile", buff, "fbsz is too small.");
+      }
 
 // Reschedule ourselves
 //
@@ -312,6 +398,7 @@ void XrdXrootdMonFile::DoXFR(XrdXrootdFileStats *fsP)
 // Get a pointer to the next slot (the buffer gets locked)
 //
    cP = GetSlot(sizeof(xfrRec));
+   if (!cP) return;
    memcpy(cP, &xfrRec, sizeof(xfrRec));
    xfrRecs++;
    bfMutex.UnLock();
@@ -357,6 +444,13 @@ bool XrdXrootdMonFile::Init()
 //
    repLast = repBuff+fBsz-1;
    repNext = 0;
+
+// Compute the largest slot we will ever grant. It is what fits an empty
+// buffer, capped by what the 16-bit recSize field can express. This and the
+// pointers above are set once, at start-up, and are read-only afterwards.
+//
+   maxSlot = repLast - repFirst;
+   if (maxSlot > maxWireSz) maxSlot = maxWireSz;
 
 // Calculate the close record size and the initial flags
 //
@@ -431,6 +525,17 @@ char *XrdXrootdMonFile::GetSlot(int slotSZ)
 {
    char *myRec;
 
+// Refuse any slot that could not fit even an empty buffer, or that could not
+// be expressed in the record's 16-bit recSize. maxSlot is zero until Init()
+// runs, so this also covers calls made before (or without) fstat monitoring
+// being configured. We return with bfMutex unlocked; the caller must not
+// unlock it.
+//
+   if (slotSZ <= 0 || slotSZ > maxSlot)
+      {bfMutex.Lock(); drpRecs++; bfMutex.UnLock();
+       return 0;
+      }
+
 // Lock this code to prevent interference (we should use double buffering)
 // Note that the caller must do the unlock when finished with the slot.
 //
@@ -449,7 +554,9 @@ char *XrdXrootdMonFile::GetSlot(int slotSZ)
        repNext = repFirst;
       }
 
-// Return the slot
+// Return the slot. No second bounds test is needed: both branches above leave
+// repNext at repFirst, and the test at entry guarantees that
+// repFirst + slotSZ <= repFirst + maxSlot <= repLast.
 //
    totRecs++;
    myRec = repNext;
@@ -464,8 +571,6 @@ char *XrdXrootdMonFile::GetSlot(int slotSZ)
 void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
                             unsigned int uDID, bool isRW)
 {
-   static const int minRecSz = sizeof(XrdXrootdMonFileOPN)
-                             - sizeof(XrdXrootdMonFileLFN);
    XrdXrootdMonFileOPN *oP;
    int i = 0, sNum = -1, rLen, pLen = 0;
 
@@ -500,6 +605,7 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
    rLen = minRecSz;
    if (fsLFN)
       {pLen  = strlen(Path);
+       if (pLen > maxLfnSz) pLen = maxLfnSz;
        rLen += sizeof(kXR_unt32) + pLen;
        i     = (rLen + 8) & ~0x00000003;
        pLen  = pLen + (i - rLen);
@@ -509,6 +615,7 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
 // Get a pointer to the next slot (the buffer gets locked)
 //
    oP = (XrdXrootdMonFileOPN *)GetSlot(rLen);
+   if (!oP) return;
 
 // Fill out the record
 //
@@ -524,6 +631,82 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
       {oP->Hdr.recFlag |= XrdXrootdMonFileHdr::hasLFN;
        oP->ufn.user = uDID;
        strncpy(oP->ufn.lfn, Path, pLen);
+       oP->ufn.lfn[pLen-1] = 0;   // strncpy leaves a truncated path unterminated
       }
+   bfMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                               O p e n E r r                                */
+/******************************************************************************/
+
+void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
+                               int ecode, char ecat, const char *emsg)
+{
+   static const int hdrLen = sizeof(XrdXrootdMonFileHdr);
+   static const int errFix = sizeof(XrdXrootdMonStatERR) - 1;
+   XrdXrootdMonFileHdr *h;
+   XrdXrootdMonStatERR *e;
+   char *slot, *cur;
+   int pLen, mLen, ufnLen, rLen, pMax;
+
+// Do nothing if fstat monitoring is off
+//
+   if (!repBuff) return;
+   if (!Path) Path = "";
+   if (!emsg) emsg = "";
+   pLen = strlen(Path) + 1;          // include the terminating null
+   mLen = strlen(emsg) + 1;          // include the terminating null
+   if (mLen > maxErrMsg) mLen = maxErrMsg;
+
+// Budget the lfn against what the buffer can actually hold, and then against
+// the lfn size collectors are compiled for. A failed open is still worth
+// reporting with a shortened path; dropping it would lose the event outright.
+//
+   pMax = maxSlot - hdrLen - (int)sizeof(kXR_unt32) - errFix - mLen - 3;
+   if (pMax > maxLfnSz + 1) pMax = maxLfnSz + 1;
+   if (pMax < 1) return;
+   if (pLen > pMax) pLen = pMax;
+
+// Compute the record size, aligned to 4 bytes
+//
+   ufnLen = sizeof(kXR_unt32) + pLen;
+   rLen   = hdrLen + ufnLen + errFix + mLen;
+   rLen   = (rLen + 3) & ~0x00000003;
+
+// Get a pointer to the next slot (the buffer gets locked). GetSlot is the one
+// place that decides what fits, so there is no separate pre-check here.
+//
+   slot = GetSlot(rLen);
+   if (!slot) return;
+   memset(slot, 0, rLen);
+
+// Fill out the record header
+//
+   h = (XrdXrootdMonFileHdr *)slot;
+   h->recType = XrdXrootdMonFileHdr::isError;
+   h->recFlag = XrdXrootdMonFileHdr::hasLFN;
+   h->recSize = htons(static_cast<short>(rLen));
+   h->fileID  = 0;
+
+// Fill out the user dictid (already in network order) and the lfn
+//
+   cur = slot + hdrLen;
+   memcpy(cur, &uDID, sizeof(kXR_unt32));
+   memcpy(cur + sizeof(kXR_unt32), Path, pLen - 1);
+
+// Fill out the error block
+//
+// The error block follows a variable-length string, so it is only 2-byte
+// aligned for an odd path length. Store the code through memcpy rather than a
+// 32-bit assignment, which would trap on a strict-alignment platform. Padding
+// the lfn instead would change the wire format, and collectors locate this
+// block by walking the lfn's actual length.
+//
+   e = (XrdXrootdMonStatERR *)(slot + hdrLen + ufnLen);
+   kXR_int32 nEcode = htonl(ecode);
+   memcpy(&e->ecode, &nEcode, sizeof(nEcode));
+   e->ecat  = ecat;
+   memcpy(e->emsg, emsg, mLen - 1);
    bfMutex.UnLock();
 }
