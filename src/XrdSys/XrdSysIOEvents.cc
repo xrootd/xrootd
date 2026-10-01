@@ -225,8 +225,9 @@ bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
             }
 
 bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
-            {bool rc = Init(cP, eNum, eTxt, isLocked);
-             IF_TRACE(Modify,cP->GetFD(), "Init() returned " <<BOOLNAME(rc));
+            {int traceFD = cP->GetFD();
+             bool rc = Init(cP, eNum, eTxt, isLocked);
+             IF_TRACE(Modify,traceFD, "Init() returned " <<BOOLNAME(rc));
              return rc;
             }
 
@@ -381,9 +382,9 @@ bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 // poller may or may not unlock this channel during the process.
 //
    if (newev != curev)
-      {chEvents = newev;
+      {const int traceFD = chFD; chEvents = newev;
        retval = chPoller->Modify(this, eNum, eText, isLocked);
-       TRACE_MOD(Disable,chFD,newev);
+       TRACE_MOD(Disable,traceFD,newev);
       } else {
        TRACE_NOD(Disable,chFD,newev);
       }
@@ -451,8 +452,8 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 // we call modify. We let modify determine what to do.
 //
    if (newev)
-      {retval = chPoller->Modify(this, eNum, eText, isLocked);
-       TRACE_MOD(Enable,chFD,(curev | events));
+      {const int traceFD = chFD; retval = chPoller->Modify(this, eNum, eText, isLocked);
+       TRACE_MOD(Enable,traceFD,(curev | events));
       } else {
        retval = true;
        TRACE_NOD(Enable,chFD,(curev | events));
@@ -462,11 +463,13 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 // queue and the poller is waiting. We also optimize for the case where the
 // poller thread is always woken up to perform an action in which case it
 // doesn't need a separate wakeup. We only do this if the enable succeeed. Note
-// that we cannot hold the channel mutex for this call because it may wait.
+// that Modify may already have unlocked and allowed channel destruction.
 //
+   Poller *wakePoller = isLocked ? chPollXQ : 0;
    if (isLocked) chMutex.UnLock();
-   bool isWakePend = CPP_ATOMIC_LOAD(chPollXQ->wakePend, std::memory_order_consume);
-   if (retval && !isWakePend && setTO && isLocked) chPollXQ->WakeUp();
+   if (wakePoller && retval && setTO &&
+       !CPP_ATOMIC_LOAD(wakePoller->wakePend, std::memory_order_consume))
+      wakePoller->WakeUp();
 
 // All done
 //
@@ -917,6 +920,7 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
 // The channel must be locked upon entry!
 //
    bool retval;
+   int traceFD = cP->chFD;
 
 
 // If we are already in progress then simply update the shadow events and
@@ -945,19 +949,18 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
        return false;
       }
 
-// So, now we can include the channel in the poll set. We will include it
-// with no events enabled to prevent callbacks prior to completion here.
+// Publish complete state first: Include may unlock, allowing Channel deletion.
 //
-   cP->chPoller = &pollWait; cP->reMod = cP->chEvents; cP->chEvents = 0;
+   cP->chPoller = cP->chPollXQ; cP->inPSet = 1;
    retval = cP->chPollXQ->Include(cP, eNum, eTxt, isLocked);
-   IF_TRACE(Init,cP->chFD,"Include() returned " <<BOOLNAME(retval) <<TRACE_LOK);
-   if (!isLocked) {cP->chMutex.Lock(); isLocked = true;}
+   IF_TRACE(Init,traceFD,"Include() returned " <<BOOLNAME(retval) <<TRACE_LOK);
+   if (!isLocked) return retval; // The Channel may already have been deleted.
 
 // Determine what future poller to use. If we can use the regular poller then
 // set the correct event mask for the channel. Note that we could have lost
 // control but the correct events will be reflected in the "reMod" member.
 //
-   if (!retval) {cP->chPoller = &pollErr1; cP->chFault = eNum;}
+   if (!retval) {cP->inPSet = 0; cP->chPoller = &pollErr1; cP->chFault = eNum;}
       else {cP->chPoller = cP->chPollXQ;
             cP->inPSet   = 1;
             if (cP->reMod)
