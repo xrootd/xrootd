@@ -25,6 +25,7 @@
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
+#include <climits>
 #include <functional>
 #include <list>
 #include <map>
@@ -45,6 +46,12 @@ struct ReadVBlockListRAM;
 struct ReadVChunkListRAM;
 struct ReadVBlockListDisk;
 struct ReadVChunkListDisk;
+
+// Returned by File::Read()/ReadV() when the request is queued and its ReadReqRH will
+// be called later.  Must not be a -errno: the former -EWOULDBLOCK equals -EAGAIN on
+// Linux, so a read that failed with EAGAIN was mistaken for a pending one.  Not
+// INT_MIN itself, so that negating it, as error paths do, stays well defined.
+constexpr int kReadPending = INT_MIN + 1;
 
 struct ReadReqRH : public XrdOucCacheIOCB
 {
