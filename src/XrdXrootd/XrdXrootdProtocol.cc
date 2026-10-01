@@ -691,17 +691,25 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
    ||  gdCtl.Status == GetDataCtl::inDataIov)) gdCtl.CallBack->gdFail();
 
 // If this is a bound stream then we cannot release the resources until
-// all activity ceases on this stream (i.e., lp == 0). At link retirement an
-// active mark belongs to queued or link-waiting parallel I/O; redrive it so
-// that it releases its references and waiters.
+// all activity ceases on this stream (i.e., lp == 0). A queued or link-waiting
+// operation can be cancelled here; an executing operation must finish itself.
 //
    if (lp && Status == XRD_BOUNDPATH)
-      {streamMutex.Lock();
+       {streamMutex.Lock();
        isNOP = true;
-       if (isActive)
-          {streamMutex.UnLock();
-           do_OffloadIO();
-          } else streamMutex.UnLock();
+       while(isActive)
+            {if (newPio || isLinkWT)
+                {streamMutex.UnLock();
+                 do_OffloadIO();
+                 streamMutex.Lock();
+                }
+                else {XrdSysCondVar2 aioDone(streamMutex);
+                      endNote = &aioDone;
+                      aioDone.Wait();
+                      endNote = 0;
+                     }
+            }
+       streamMutex.UnLock();
        boundRecycle->Post();
        if (lp) return;  // Async close
       }
@@ -1503,6 +1511,7 @@ void XrdXrootdProtocol::Reset()
    reTry              = 0;
    boundRecycle       = 0;
    endNote            = 0;
+   offloadLink        = 0;
    PathID             = 0;
    newPio             = false;
    rvSeq              = 0;

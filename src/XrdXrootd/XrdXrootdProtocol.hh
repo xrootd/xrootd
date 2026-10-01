@@ -604,6 +604,7 @@ XrdSysMutex                streamMutex;
 XrdSysSemaphore           *reTry;
 XrdSysSemaphore           *boundRecycle;
 XrdSysCondVar2            *endNote;
+XrdLink                   *offloadLink;
 XrdXrootdProtocol         *Stream[maxStreams];
 unsigned int               mySID;
 bool                       isActive;
