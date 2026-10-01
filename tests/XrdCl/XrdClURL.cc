@@ -132,3 +132,15 @@ TEST(URLTest, InvalidURLs)
     EXPECT_FALSE(XrdCl::URL(url).IsValid()) << "URL " << url << " is not invalid" << std::endl;
 }
 
+TEST(URLTest, AuthenticationContextSeparatesChannels)
+{
+  XrdCl::URL first(
+    "root://localhost//data?xrd.wantprot=ztn&xrd.ztn=/tmp/token&xrdcl.authctx=first");
+  XrdCl::URL second(
+    "root://localhost//data?xrd.wantprot=ztn&xrd.ztn=/tmp/token&xrdcl.authctx=second");
+
+  EXPECT_NE(first.GetChannelId(), second.GetChannelId());
+  EXPECT_NE(first.GetChannelId().find("xrdcl.authctx=first"), std::string::npos);
+  EXPECT_EQ(first.GetPathWithFilteredParams(),
+            "/data?xrd.wantprot=ztn&xrd.ztn=/tmp/token");
+}

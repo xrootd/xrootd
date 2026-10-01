@@ -26,12 +26,20 @@ from __future__ import absolute_import, division, print_function
 from pyxrootd import client
 from XRootD.client.responses import XRootDStatus, StatInfo, VectorReadInfo
 from XRootD.client.utils import CallbackWrapper
+from XRootD.client.auth import AuthContext
 
 class File(object):
   """Interact with an ``xrootd`` server to perform file-based operations such
-  as reading, writing, vector reading, etc."""
+  as reading, writing, vector reading, etc.
 
-  def __init__(self):
+  :param auth: Optional object-scoped authentication context
+  :type  auth: :class:`XRootD.client.AuthContext`
+  """
+
+  def __init__(self, auth=None):
+    if auth is not None and not isinstance(auth, AuthContext):
+      raise TypeError('auth must be an AuthContext')
+    self.__auth = auth
     self.__file = client.File()
 
   def __enter__(self):
@@ -63,6 +71,8 @@ class File(object):
     :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
     """
+    if self.__auth is not None:
+      url = self.__auth.apply(url)
     if callback:
       callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__file.open(url, flags, mode, timeout, callback))
@@ -86,6 +96,8 @@ class File(object):
     :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
     """
+    if self.__auth is not None:
+      url = self.__auth.apply(url)
     if callback:
       callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__file.openusingtemplate(src_file.__file, url, flags, mode, timeout, callback))
