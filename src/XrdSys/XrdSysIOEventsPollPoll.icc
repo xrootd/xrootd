@@ -265,11 +265,14 @@ void XrdSys::IOEvents::PollPoll::Dispatch(int ptent, int pollEv)
 void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
                                          bool &isLocked,  bool dover)
 {
-   int ctnum;
+   int ctnum, fd;
 
 // Verify that this channel is assigned.
 //
-   ctnum = GetPollEnt(cP);
+   ctnum = GetPollEnt(cP); SetPollEnt(cP, 0);
+   fd = cP->GetFD();
+   // Avoid waiting for pollMutex while holding the callback's channel lock.
+   if (!ISPOLLER && isLocked) {isLocked = false; UnLockChannel(cP);}
    pollMutex.Lock();
    if (chnlTab[ctnum] != cP) {pollMutex.UnLock(); return;}
    pollMutex.UnLock();
@@ -284,8 +287,7 @@ void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
       {FDRem(ctnum);
        return;
       } else {
-       PipeData cmdbuff((char)PipeData::RmFD,0,(short)ctnum,cP->GetFD());
-       if (isLocked) {isLocked = false; UnLockChannel(cP);}
+       PipeData cmdbuff((char)PipeData::RmFD,0,(short)ctnum,fd);
        SendCmd(cmdbuff);
       }
 }
@@ -334,7 +336,23 @@ void XrdSys::IOEvents::PollPoll::FDMod(int ptnum, int fd, int events)
 //
 void XrdSys::IOEvents::PollPoll::FDRem(int ptnum)
 {
+   XrdSysMutexHelper mHelper(pollMutex);
    int ctnum = ptnum;
+
+// Install an expanded poll table before accessing its new entries.
+//
+   if (pnewTab)
+      {memcpy(pnewTab, pollTab, pollMax*sizeof(struct pollfd));
+       free(pollTab);
+       pollTab = pnewTab; pnewTab = 0; pollMax = chnlMax;
+      }
+
+// Let the queued initial add consume removal of its reserved entry.
+//
+   if (pollTab[ptnum].fd < 0 && pollTab[ptnum].fd > delFD)
+      {pollTab[ptnum].fd = delFD;
+       return;
+      }
 
 // Free up the channel
 //
