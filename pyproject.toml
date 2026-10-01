@@ -1,3 +1,33 @@
 [build-system]
 requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+force-exclude = true
+extend-exclude = [
+    "python/examples",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = [
+    # Existing Python binding code predates the lint setup. Keep the initial
+    # hook focused on syntax and serious name errors, then tighten in follow-up
+    # cleanup PRs.
+    "E401",
+    "E701",
+    "E703",
+    "E712",
+    "E741",
+    "F401",
+    "F403",
+    "F405",
+    "F841",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
