@@ -118,6 +118,9 @@ if( NOT XRDCL_ONLY )
     XrdPfc/XrdPfcDecision.hh
     XrdOfs/XrdOfsFSctl_PI.hh
     XrdOfs/XrdOfsPrepare.hh
+    XrdOfs/XrdOfsPrepBackend.hh
+    XrdOfs/XrdOfsPrepPersist.hh
+    XrdOfs/XrdOfsPrepStorage.hh
     XrdOss/XrdOss.hh
     XrdOss/XrdOssVS.hh
     XrdOss/XrdOssDefaultSS.hh

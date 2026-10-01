@@ -1,1 +1,2 @@
 /usr/lib/*/libXrdServer.so.*
+/usr/lib/*/libXrdOfsPrepPersist.so.*
