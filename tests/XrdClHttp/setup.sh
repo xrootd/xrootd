@@ -246,8 +246,11 @@ scitokens.trace debug info warning error
 
 ofs.osslib ++ $BINARY_DIR/lib/libXrdOssSlowOpen.so
 
-# WLCG Tape REST API handler used by the XrdClHttp Tape client tests.
-http.exthandler xrdhttptapeapi libXrdHttpTapeApi.so $TAPE_API_ROOT
+# Both HTTP and native prepare use the durable wrapper and the GPI mock.
+# The production handler never sees archive/ or disk/.
+ofs.preplib libXrdOfsPrepGPI.so -admit stage,query,cancel,evict -cgi -maxfiles 48 -maxresp 1m -run $SOURCE_DIR/tests/XrdOfsPrep/mock_tape.py
+ofs.preplib ++ libXrdOfsPrepPersist.so $TAPE_API_ROOT/registry xrootd-ci replay-safe
+http.exthandler xrdhttptapeapi libXrdHttpTapeApi.so
 
 # Required for the COPY tests
 http.exthandler xrdtpc libXrdHttpTPC.so
@@ -377,6 +380,8 @@ BINDIR="$RUNDIR/bin"
 mkdir -p -- "$BINDIR"
 cat > "$BINDIR/xrootd" << EOF
 #!/bin/sh
+export XRD_PREP_MOCK_ROOT=$TAPE_API_ROOT
+export XDG_CACHE_HOME=$XDG_CACHE_HOME
 export XRD_HTTPSLOWRATEBYTESSEC=1024
 export XRD_HTTPSTALLTIMEOUT=2
 export XRD_HTTPCERTFILE=$CA_DIR/tlsca.pem
@@ -485,6 +490,10 @@ PUBLIC_TEST_FILE=$PELICAN_PUBLIC_EXPORTDIR/hello_world-1mb.txt
 WRITE_TOKEN=$RUNDIR/write.token
 READ_TOKEN=$RUNDIR/token
 XROOTD_RUNDIR=$XROOTD_RUNDIR
+TAPE_API_ROOT=$TAPE_API_ROOT
+ORIGIN_CONFIG=$ORIGIN_CONFIG
+ORIGIN_WRAPPER=$BINDIR/xrootd
+ORIGIN_LOG=$BINARY_DIR/tests/$TEST_NAME/origin.log
 EOF
 
 echo "Test environment written to $BINARY_DIR/tests/$TEST_NAME/setup.sh"

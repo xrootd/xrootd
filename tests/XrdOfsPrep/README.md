@@ -58,7 +58,11 @@ CTest registers targets under the `XrdOfsPrep::` prefix:
   cancellation during callbacks, retention in one record and locality queries.
 - **`XrdOfsPrep::Mock`** — the Python mock unit tests, including replay after a
   lost acknowledgement and credential-boundary checks.
-The dependent HTTP PR adds loopback HTTP/native and SciTokens fixtures.
+This HTTP layer adds `integration.py`, `TestAuth.cc` and `TestHttpHandler.cc`:
+loopback HTTP/native, synthetic authorization and real legacy/bridge lifecycle
+fixtures. The shared backend documentation remains in the coordinator layer.
+`XrdOfsPrep::Integration` exercises these fixtures; `XrdClHttp::tape` is the
+separate SciTokens-authenticated client integration.
 
 ## Running
 
