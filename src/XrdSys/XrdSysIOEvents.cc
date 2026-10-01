@@ -45,9 +45,9 @@
 namespace
 {
 // Status code to name array corresponding to:
-// enum Status   {isClear = 0, isCBMode, isDead};
+// enum Status   {isClear = 0, isCBMode, isChanged, isDead};
 //
-   const char *statName[] = {"isClear", "isCBMode", "isDead"};
+   const char *statName[] = {"isClear", "isCBMode", "isChanged", "isDead"};
 }
   
 /******************************************************************************/
@@ -543,6 +543,7 @@ void XrdSys::IOEvents::Channel::SetFD(int fd)
       {chMutex.UnLock();
        return;
       }
+   if (chStat == isCBMode) chStat = isChanged;
 
 // This is a tricky deal here because we need to protect ourselves from other
 // threads as well as the poller trying to do a callback. We first, set the
@@ -640,6 +641,7 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    XrdSysMutexHelper cbkMHelp(cP->chMutex);
    char oldEvents;
    bool cbok, retval, isRead, isWrite, isLocked = true;
+   bool fatal = false;
 
 // Perform any required tracing
 //
@@ -696,16 +698,9 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    if (eNum)
       {if (cP->chEvents & Channel::errorEvents)
           {cP->chPoller = &pollErr1; cP->chFault = eNum;
-           cP->chStat   = Channel::isCBMode;
-           chDead       = false;
-           cbkMHelp.UnLock();
-           cP->chCB->Fatal(cP,cP->chCBA, eNum, eTxt);
-           if (chDead) return true;
-           cbkMHelp.Lock(&(cP->chMutex));
-           cP->inPSet   = 0;
-           return false;
+           fatal = true;
           }
-            if (REVENTS(cP->chEvents)) events = CallBack::ReadyToRead;
+       else if (REVENTS(cP->chEvents)) events = CallBack::ReadyToRead;
        else if (WEVENTS(cP->chEvents)) events = CallBack::ReadyToWrite;
        else    {cP->chPoller = &pollErr1; cP->chFault = eNum; cP->inPSet = 0;
                 return false;
@@ -723,17 +718,18 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    void *cba = cP->chCBA;
    cbkMHelp.UnLock();
    IF_TRACE(CbkXeq,cP->chFD,"invoking callback; events=" <<events);
-   cbok = cb->Event(cP,cba, events);
-   IF_TRACE(CbkXeq,cP->chFD,"callback returned " <<BOOLNAME(cbok));
+   if (fatal) {cb->Fatal(cP,cba,eNum,eTxt); cbok = false;}
+      else cbok = cb->Event(cP,cba, events);
 
 // If channel destroyed by the callback, bail really fast. Otherwise, regain
 // the channel lock.
 //
    if (chDead) return true;
    cbkMHelp.Lock(&(cP->chMutex));
+   IF_TRACE(CbkXeq,cP->chFD,"callback returned " <<BOOLNAME(cbok));
 
 // If the channel is being destroyed; then another thread must have done so.
-// Tell it the callback has finished and just return.
+// Tell it the callback has finished and just return. SetFD also gets here.
 //
    if (cP->chStat != Channel::isCBMode)
       {if (cP->chStat == Channel::isDead)
@@ -742,6 +738,7 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
            cbkMHelp.UnLock();
            theSem->Post();
           }
+          else cP->chStat = Channel::isClear;
        return true;
       }
    cP->chStat = Channel::isClear;
@@ -749,9 +746,12 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 // Handle enable or disable here. If we keep the channel enabled then reset
 // the timeout if it hasn't been handled via a call from the callback.
 //
-        if (!cbok) Detach(cP,isLocked,false);
+        if (!cbok) Detach(cP,isLocked,fatal);
    else if ((isRead || isWrite) && !(cP->inTOQ) && (cP->chRTO || cP->chWTO))
            TmoAdd(cP, 0);
+#if defined(__sun)
+   if (cbok) Modify(cP,eNum,&eTxt,isLocked);
+#endif
 
 // All done. While the mutex should not have been unlocked, we relock it if
 // it has to keep the mutex helper from croaking.
