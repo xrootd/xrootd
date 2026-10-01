@@ -44,6 +44,8 @@
 #include <memory>
 #include <algorithm>
 #include <iterator>
+#include <map>
+#include <mutex>
 
 namespace
 {
@@ -500,17 +502,49 @@ namespace
   //----------------------------------------------------------------------------
   // Recursive dirlist common context for all handlers
   //----------------------------------------------------------------------------
+  std::string NormalizeDirListParent( const std::string &path )
+  {
+    std::string parent = path.substr( 0, path.find( '?' ) );
+    if( parent.empty() || parent.back() != '/' )
+      parent += '/';
+    return parent;
+  }
+
+  bool SafeDirListName( const std::string &name, bool httpSource )
+  {
+    if( name.empty() || name == "." || name == ".." ||
+        name.find( '/' ) != std::string::npos ||
+        name.find( '?' ) != std::string::npos ||
+        ( httpSource && ( name.find( '\\' ) != std::string::npos ||
+                          name.find( '#' ) != std::string::npos ) ) )
+      return false;
+    for( unsigned char c : name )
+      if( c < 0x20 || c == 0x7f )
+        return false;
+    return true;
+  }
+
   struct RecursiveDirListCtx
   {
       RecursiveDirListCtx( const XrdCl::URL &url, const std::string &path,
                            XrdCl::DirListFlags::Flags flags,
-                           XrdCl::ResponseHandler *handler, time_t expires ) :
+                           XrdCl::ResponseHandler *handler, time_t expires,
+                           const std::map<std::string, std::string> &properties ) :
                              finalst( 0 ), pending( 1 ),
                              dirList( new XrdCl::DirectoryList() ), expires( expires ),
                              handler( handler ), flags( flags ),
+                             httpSource( url.GetProtocol() == "http" ||
+                                         url.GetProtocol() == "https" ||
+                                         url.GetProtocol() == "dav" ||
+                                         url.GetProtocol() == "davs" ),
                              fs( new XrdCl::FileSystem( url ) )
       {
-        dirList->SetParentName( path );
+        for( const auto &property : properties )
+          fs->SetProperty( property.first, property.second );
+        auto query = path.find( '?' );
+        if( query != std::string::npos )
+          params = path.substr( query );
+        dirList->SetParentName( NormalizeDirListParent( path ) );
       }
 
       ~RecursiveDirListCtx()
@@ -542,8 +576,10 @@ namespace
       time_t                      expires;
       XrdCl::ResponseHandler     *handler;
       XrdCl::DirListFlags::Flags  flags;
+      bool                        httpSource;
       XrdCl::FileSystem          *fs;
       XrdSysMutex                 mtx;
+      std::string                 params;
   };
 
   //----------------------------------------------------------------------------
@@ -557,16 +593,18 @@ namespace
                                const std::string &path,
                                XrdCl::DirListFlags::Flags flags,
                                XrdCl::ResponseHandler *handler,
-                               time_t timeout )
+                               time_t timeout,
+                               const std::map<std::string, std::string> &properties )
       {
         time_t expires = 0;
         if( timeout )
           expires = ::time( 0 ) + timeout;
-        pCtx = new RecursiveDirListCtx( url, path, flags,
-                                        handler, expires );
+        pCtx = std::make_shared<RecursiveDirListCtx>( url, path, flags,
+                                                       handler, expires,
+                                                       properties );
       }
 
-      RecursiveDirListHandler( RecursiveDirListCtx *ctx ) : pCtx( ctx )
+      RecursiveDirListHandler( std::shared_ptr<RecursiveDirListCtx> ctx ) : pCtx( ctx )
       {
 
       }
@@ -595,6 +633,8 @@ namespace
           response->Get( dirList );
 
           std::string parent = pCtx->dirList->GetParentName();
+          std::string responseParent = NormalizeDirListParent(
+              dirList->GetParentName() );
 
           DirectoryList::Iterator itr;
           for( itr = dirList->Begin(); itr != dirList->End(); ++itr )
@@ -609,7 +649,14 @@ namespace
               pCtx->UpdateStatus( XRootDStatus( stError, errNotSupported ) );
               continue;
             }
-            std::string path = dirList->GetParentName() + entry->GetName();
+            if( !SafeDirListName( entry->GetName(), pCtx->httpSource ) )
+            {
+              log->Error( FileMsg, "Unsafe directory entry in %s",
+                          responseParent.c_str() );
+              pCtx->UpdateStatus( XRootDStatus( stError, errErrorResponse ) );
+              continue;
+            }
+            std::string path = responseParent + entry->GetName();
 
             // add new entry to the result
             path = path.substr( parent.size() );
@@ -621,15 +668,11 @@ namespace
             // if it's a directory do a recursive call
             if( info->TestFlags( StatInfo::IsDir ) )
             {
-              // bump the pending counter
-              ++pCtx->pending;
               // switch of the recursive flag, we will
               // provide the respective handler ourself,
               // make sure that stat is on
               DirListFlags::Flags flags = ( pCtx->flags & (~DirListFlags::Recursive) )
                                           | DirListFlags::Stat;
-              // the recursive dir list handler
-              RecursiveDirListHandler *handler = new RecursiveDirListHandler( pCtx );
               // timeout
               time_t timeout = 0;
               if( pCtx->expires )
@@ -645,12 +688,17 @@ namespace
               }
               // send the request
               std::string child = parent + path;
-              XRootDStatus st = pCtx->fs->DirList( child, flags, handler, timeout );
+              auto handler = new RecursiveDirListHandler( pCtx );
+              ++pCtx->pending;
+              XRootDStatus st = pCtx->fs->DirList( child + pCtx->params,
+                                                  flags, handler, timeout );
               if( !st.IsOK() )
               {
                 log->Error( FileMsg, "Recursive directory list operation for %s failed: %s",
                             child.c_str(), st.ToString().c_str() );
                 pCtx->UpdateStatus( st );
+                --pCtx->pending;
+                delete handler;
                 continue;
               }
             }
@@ -666,9 +714,7 @@ namespace
           pCtx->handler->HandleResponse( pCtx->finalst, resp );
           pCtx->finalst = 0; // status is no longer owned by pCtx
 
-          // finalize the common context
           scoped.UnLock();
-          delete pCtx;
         }
         // if the user requested chunked response we give what we have to the user handler
         else if( status->IsOK() && ( pCtx->flags & DirListFlags::Chunked ) )
@@ -691,7 +737,7 @@ namespace
 
     private:
 
-      RecursiveDirListCtx *pCtx;
+      std::shared_ptr<RecursiveDirListCtx> pCtx;
   };
 
   //----------------------------------------------------------------------------
@@ -1026,6 +1072,8 @@ namespace XrdCl
     }
 
     std::shared_ptr<FileSystemData> fsdata;
+    std::mutex propertiesMutex;
+    std::map<std::string, std::string> properties;
   };
 
   //------------------------------------------------------------------------
@@ -1671,13 +1719,9 @@ namespace XrdCl
                                     ResponseHandler     *handler,
                                     time_t               timeout )
   {
-    if( pPlugIn )
-      return pPlugIn->DirList( path, flags, handler, timeout );
-
-    URL url = URL( path );
     std::string fPath = FilterXrdClCgi( path );
 
-    if( flags & DirListFlags::Zip )
+    if( !pPlugIn && ( flags & DirListFlags::Zip ) )
     {
       // stat the file to check if it is a directory or a file
       // the ZIP handler will take care of the rest
@@ -1688,6 +1732,39 @@ namespace XrdCl
       return st;
     }
 
+    std::unique_ptr<RecursiveDirListHandler> recursiveHandler;
+    std::unique_ptr<MergeDirListHandler> mergeHandler;
+    if( flags & DirListFlags::Recursive )
+    {
+      std::map<std::string, std::string> properties;
+      {
+        std::lock_guard<std::mutex> lock( pImpl->propertiesMutex );
+        properties = pImpl->properties;
+      }
+      recursiveHandler.reset( new RecursiveDirListHandler(
+          *pImpl->fsdata->pUrl, path, flags, handler, timeout, properties ) );
+      handler = recursiveHandler.get();
+      flags = ( flags & (~DirListFlags::Recursive) ) | DirListFlags::Stat;
+    }
+
+    if( flags & DirListFlags::Merge )
+    {
+      mergeHandler.reset( new MergeDirListHandler(
+          flags & DirListFlags::Chunked, handler ) );
+      handler = mergeHandler.get();
+    }
+
+    if( pPlugIn )
+    {
+      auto st = pPlugIn->DirList( path, flags, handler, timeout );
+      if( st.IsOK() )
+      {
+        recursiveHandler.release();
+        mergeHandler.release();
+      }
+      return st;
+    }
+
     Message           *msg;
     ClientDirlistRequest *req;
     MessageUtils::CreateRequest( msg, req, fPath.length() );
@@ -1695,17 +1772,11 @@ namespace XrdCl
     req->requestid  = kXR_dirlist;
     req->dlen       = fPath.length();
 
-    if( ( flags & DirListFlags::Stat ) || ( flags & DirListFlags::Recursive ) )
+    if( flags & DirListFlags::Stat )
       req->options[0] = kXR_dstat;
 
     if( ( flags & DirListFlags::Cksm ) )
       req->options[0] = kXR_dstat | kXR_dcksm;
-
-    if( flags & DirListFlags::Recursive )
-      handler = new RecursiveDirListHandler( *pImpl->fsdata->pUrl, url.GetPath(), flags, handler, timeout );
-
-    if( flags & DirListFlags::Merge )
-      handler = new MergeDirListHandler( flags & DirListFlags::Chunked, handler );
 
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
@@ -1714,7 +1785,13 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
+    auto st = FileSystemData::Send( pImpl->fsdata, msg, handler, params );
+    if( st.IsOK() )
+    {
+      recursiveHandler.release();
+      mergeHandler.release();
+    }
+    return st;
   }
 
   //----------------------------------------------------------------------------
@@ -1798,7 +1875,7 @@ namespace XrdCl
         bool           partial      = st.code == suPartial ? true : false;
 
         response = new DirectoryList();
-        response->SetParentName( path );
+        response->SetParentName( NormalizeDirListParent( path ) );
 
         for( uint32_t i = 0; i < locations->GetSize(); ++i )
         {
@@ -2176,12 +2253,20 @@ namespace XrdCl
                                 const std::string &value )
   {
     if( pPlugIn )
-      return pPlugIn->SetProperty( name, value );
+    {
+      if( !pPlugIn->SetProperty( name, value ) )
+        return false;
+      std::lock_guard<std::mutex> lock( pImpl->propertiesMutex );
+      pImpl->properties[name] = value;
+      return true;
+    }
 
     if( name == "FollowRedirects" )
     {
       if( value == "true" ) pImpl->fsdata->pFollowRedirects = true;
       else pImpl->fsdata->pFollowRedirects = false;
+      std::lock_guard<std::mutex> lock( pImpl->propertiesMutex );
+      pImpl->properties[name] = value;
       return true;
     }
     return false;

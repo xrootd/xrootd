@@ -94,6 +94,25 @@ function test_noauth() {
 	    fi
 	done
 
+	# Native XRootD filenames may contain characters that HTTP child names
+	# cannot use directly in URLs. Recursive copies must preserve them.
+	assert mkdir -p "${TMPDIR}/native-src"
+	assert xrdfs "${HOST}" mkdir -p "${TMPDIR}/native-remote"
+	for name in 'run#1.root' 'run\1.root'; do
+		printf 'native name %s\n' "${name}" > "${TMPDIR}/native-src/${name}"
+		assert xrdcp -np "${TMPDIR}/native-src/${name}" \
+			"${HOST}/${TMPDIR}/native-remote/${name}"
+	done
+	NATIVE_DOWNLOAD=$(mktemp -d "${TMPDIR}/native-download-XXXXXX")
+	assert xrdcp --recursive "${HOST}/${TMPDIR}/native-remote" \
+		"${NATIVE_DOWNLOAD}"
+	for name in 'run#1.root' 'run\1.root'; do
+		assert cmp "${TMPDIR}/native-src/${name}" \
+			"${NATIVE_DOWNLOAD}/native-remote/${name}"
+		assert xrdfs "${HOST}" rm "${TMPDIR}/native-remote/${name}"
+	done
+	assert xrdfs "${HOST}" rmdir "${TMPDIR}/native-remote"
+
 	assert xrdfs "${HOST}" ls -R /
 
 	for i in $FILES; do
