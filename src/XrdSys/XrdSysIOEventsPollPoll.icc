@@ -354,6 +354,14 @@ void XrdSys::IOEvents::PollPoll::FDRem(int ptnum, uint64_t tag)
    XrdSysMutexHelper mHelper(pollMutex);
    int ctnum = ptnum;
 
+// Install an expanded poll table before accessing its new entries.
+//
+   if (pnewTab)
+      {memcpy(pnewTab, pollTab, pollMax*sizeof(struct pollfd));
+       free(pollTab);
+       pollTab = pnewTab; pnewTab = 0; pollMax = chnlMax;
+      }
+
    if (tag < chnlTab[ctnum].tag) return;
 
 // Free up the channel
