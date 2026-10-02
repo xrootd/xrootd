@@ -95,16 +95,21 @@ set(PYXROOTD_SOURCES
   README.md
   libs/__init__.py
   libs/client/__init__.py
+  libs/client/_asyncio.py
   libs/client/_version.py
+  libs/client/aio.py
+  libs/client/asyncstream.py
   libs/client/copyprocess.py
   libs/client/env.py
   libs/client/file.py
+  libs/client/fsspec.py
   libs/client/filesystem.py
   libs/client/finalize.py
   libs/client/flags.py
   libs/client/glob_funcs.py
   libs/client/py.typed
   libs/client/responses.py
+  libs/client/stream.py
   libs/client/url.py
   libs/client/utils.py
   src/__init__.py)
@@ -226,7 +231,26 @@ list(APPEND ENVIRON "XROOTD=$<TARGET_FILE:xrootd>")
 list(APPEND ENVIRON "XRDFS=$<TARGET_FILE:xrdfs>")
 list(APPEND ENVIRON "PYTHONDONTWRITEBYTECODE=1")
 
-foreach(test copy file filesystem glob threads url)
+set(PYXROOTD_TESTS copy file filesystem filesystem_helpers glob stream threads
+                  url version_policy)
+
+if(Python_VERSION VERSION_GREATER_EQUAL 3.11)
+  list(APPEND PYXROOTD_TESTS aio aio_helpers asyncstream)
+endif()
+
+# fsspec is an optional Python dependency. A module-level pytest skip with no
+# collected tests exits with status 5, which CTest would report as a failure.
+execute_process(COMMAND ${Python_EXECUTABLE} -c "import fsspec"
+  RESULT_VARIABLE PYXROOTD_FSSPEC_STATUS
+  OUTPUT_QUIET ERROR_QUIET)
+
+if(Python_VERSION VERSION_GREATER_EQUAL 3.11 AND PYXROOTD_FSSPEC_STATUS EQUAL 0)
+  list(APPEND PYXROOTD_TESTS fsspec fsspec_contracts)
+else()
+  message(STATUS "fsspec tests require Python >= 3.11 and fsspec; skipping PyXRootD::fsspec")
+endif()
+
+foreach(test IN LISTS PYXROOTD_TESTS)
   add_test(NAME PyXRootD::${test}
     COMMAND ${Python_EXECUTABLE} -m pytest -p no:cacheprovider
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_${test}.py)

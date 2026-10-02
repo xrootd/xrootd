@@ -30,6 +30,7 @@ API Reference
 
    modules/client/filesystem
    modules/client/file
+   modules/client/aio
    modules/client/copyprocess
    modules/client/responses
    modules/client/env
