@@ -11,6 +11,7 @@ class XrdOssMirageXAttrFixture : public XrdOssMirageFixture
 TEST_F(XrdOssMirageXAttrFixture, SetPropertiesShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Set("U.open.return_code", "1", 1, "/dummy", 0, 0));
+    EXPECT_EQ(0, xattr.Set("U.close.return_code", "7", 1, "/dummy", 0, 0));
     EXPECT_EQ(0, xattr.Set("U.read.return_code", "2", 1, "/dummy", 0, 0));
     EXPECT_EQ(0, xattr.Set("U.read.return_position", "3", 1, "/dummy", 0, 0));
     EXPECT_EQ(0, xattr.Set("U.write.return_code", "4", 1, "/dummy", 0, 0));
@@ -21,6 +22,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesShouldSucceed)
 TEST_F(XrdOssMirageXAttrFixture, SetPropertiesChangesTheirValues)
 {
     xattr.Set("U.open.return_code", "1", 1, "/dummy", 0, 0);
+    xattr.Set("U.close.return_code", "7", 1, "/dummy", 0, 0);
     xattr.Set("U.read.return_code", "2", 1, "/dummy", 0, 0);
     xattr.Set("U.read.return_position", "3", 1, "/dummy", 0, 0);
     xattr.Set("U.write.return_code", "4", 1, "/dummy", 0, 0);
@@ -30,6 +32,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesChangesTheirValues)
     auto entry = oss.get_entry_read("/dummy").value();
 
     EXPECT_EQ(1, entry.open.return_code);
+    EXPECT_EQ(7, entry.close.return_code);
     EXPECT_EQ(2, entry.read.return_code);
     EXPECT_EQ(3, entry.read.return_position);
     EXPECT_EQ(4, entry.write.return_code);
@@ -57,6 +60,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertyOfAFileThatIsBeingWrittenFailsWithIN
 TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeFailsWithINVAL)
 {
     EXPECT_EQ(-EINVAL, xattr.Set("U.open.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
+    EXPECT_EQ(-EINVAL, xattr.Set("U.close.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
     EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
     EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_position", "18446744073709551615", 20, "/dummy", 0, 0));
     EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
@@ -66,6 +70,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeFailsWithINVAL
 TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeDoesNotChangeTheirValues)
 {
     xattr.Set("U.open.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
+    xattr.Set("U.close.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
     xattr.Set("U.read.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
     xattr.Set("U.read.return_position", "18446744073709551615", 20, "/dummy", 0, 0);
     xattr.Set("U.write.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
@@ -74,6 +79,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeDoesNotChangeT
     auto entry = oss.get_entry_read("/dummy").value();
 
     EXPECT_EQ(0, entry.open.return_code);
+    EXPECT_EQ(0, entry.close.return_code);
     EXPECT_EQ(0, entry.read.return_code);
     EXPECT_EQ(0, entry.read.return_position);
     EXPECT_EQ(0, entry.write.return_code);
@@ -85,6 +91,7 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsNumberOfReadBytes)
     {
         auto entry = oss.get_entry_write("/dummy").value();
         entry->open.return_code = 1;
+        entry->close.return_code = 7;
         entry->read.return_code = 2;
         entry->read.return_position = 3;
         entry->write.return_code = 4;
@@ -94,6 +101,7 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsNumberOfReadBytes)
 
     char value = 0;
     EXPECT_EQ(1, xattr.Get("U.open.return_code", &value, 1, "/dummy", 0));
+    EXPECT_EQ(1, xattr.Get("U.close.return_code", &value, 1, "/dummy", 0));
     EXPECT_EQ(1, xattr.Get("U.read.return_code", &value, 1, "/dummy", 0));
     EXPECT_EQ(1, xattr.Get("U.read.return_position", &value, 1, "/dummy", 0));
     EXPECT_EQ(1, xattr.Get("U.write.return_code", &value, 1, "/dummy", 0));
@@ -106,6 +114,7 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsTheirChangedValues)
     {
         auto entry = oss.get_entry_write("/dummy").value();
         entry->open.return_code = 1;
+        entry->close.return_code = 7;
         entry->read.return_code = 2;
         entry->read.return_position = 3;
         entry->write.return_code = 4;
@@ -116,6 +125,10 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsTheirChangedValues)
     char value = 0;
     xattr.Get("U.open.return_code", &value, 1, "/dummy", 0);
     EXPECT_EQ('1', value);
+
+    value = 0;
+    xattr.Get("U.close.return_code", &value, 1, "/dummy", 0);
+    EXPECT_EQ('7', value);
 
     value = 0;
     xattr.Get("U.read.return_code", &value, 1, "/dummy", 0);
@@ -158,6 +171,7 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertyOfAFileThatIsBeingWrittenFailsWithIN
 TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Del("U.open.return_code", "/dummy", 0));
+    EXPECT_EQ(0, xattr.Del("U.close.return_code", "/dummy", 0));
     EXPECT_EQ(0, xattr.Del("U.read.return_code", "/dummy", 0));
     EXPECT_EQ(0, xattr.Del("U.read.return_position", "/dummy", 0));
     EXPECT_EQ(0, xattr.Del("U.write.return_code", "/dummy", 0));
@@ -170,6 +184,7 @@ TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesResetsTheirValues)
     {
         auto entry = oss.get_entry_write("/dummy").value();
         entry->open.return_code = 1;
+        entry->close.return_code = 7;
         entry->read.return_code = 2;
         entry->read.return_position = 3;
         entry->write.return_code = 4;
@@ -178,6 +193,7 @@ TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesResetsTheirValues)
     }
 
     xattr.Del("U.open.return_code", "/dummy", 0);
+    xattr.Del("U.close.return_code", "/dummy", 0);
     xattr.Del("U.read.return_code", "/dummy", 0);
     xattr.Del("U.read.return_position", "/dummy", 0);
     xattr.Del("U.write.return_code", "/dummy", 0);
@@ -187,6 +203,7 @@ TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesResetsTheirValues)
     auto entry = oss.get_entry_read("/dummy").value();
 
     EXPECT_EQ(0, entry.open.return_code);
+    EXPECT_EQ(0, entry.close.return_code);
     EXPECT_EQ(0, entry.read.return_code);
     EXPECT_EQ(0, entry.read.return_position);
     EXPECT_EQ(0, entry.write.return_code);
