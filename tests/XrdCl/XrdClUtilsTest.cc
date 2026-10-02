@@ -24,6 +24,10 @@
 
 #include <gtest/gtest.h>
 #include "XrdCl/XrdClAnyObject.hh"
+#include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClPlugInInterface.hh"
+#include "XrdCl/XrdClPlugInManager.hh"
+#include "XrdCl/XrdClUtils.hh"
 #include "GTestXrdHelpers.hh"
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
@@ -249,4 +253,120 @@ TEST(UtilsTest, PropertyListTest)
   EXPECT_TRUE( l.Get( "vector", v2 ) );
   for( size_t i = 0; i < v1.size(); ++i )
     EXPECT_EQ( v1[i], v2[i] );
+}
+
+// Exercise checksum handling through the existing filesystem plug-in interface,
+// including responses that a healthy end-to-end server will not produce.
+namespace
+{
+  struct ChecksumReply
+  {
+    std::string body = "adler32 00620062";
+    std::string request;
+    XrdCl::XRootDStatus status;
+    bool missing = false;
+  };
+
+  class ChecksumFileSystem : public XrdCl::FileSystemPlugIn
+  {
+    public:
+      explicit ChecksumFileSystem( ChecksumReply &reply ): reply( reply ) {}
+
+      XrdCl::XRootDStatus Query( XrdCl::QueryCode::Code code,
+                                const XrdCl::Buffer &arg,
+                                XrdCl::ResponseHandler *handler,
+                                time_t ) override
+      {
+        EXPECT_EQ( code, XrdCl::QueryCode::Checksum );
+        reply.request = arg.ToString();
+        if( !reply.status.IsOK() ) return reply.status;
+        auto response = new XrdCl::AnyObject;
+        if( !reply.missing )
+        {
+          auto buffer = new XrdCl::Buffer;
+          buffer->FromString( reply.body );
+          response->Set( buffer );
+        }
+        handler->HandleResponse( new XrdCl::XRootDStatus, response );
+        return XrdCl::XRootDStatus();
+      }
+
+    private:
+      ChecksumReply &reply;
+  };
+
+  class ChecksumFactory : public XrdCl::PlugInFactory
+  {
+    public:
+      explicit ChecksumFactory( ChecksumReply &reply ): reply( reply ) {}
+      XrdCl::FilePlugIn *CreateFile( const std::string & ) override
+      { return nullptr; }
+      XrdCl::FileSystemPlugIn *CreateFileSystem( const std::string & ) override
+      { return new ChecksumFileSystem( reply ); }
+
+    private:
+      ChecksumReply &reply;
+  };
+}
+
+class RemoteChecksumTest : public ::testing::Test
+{
+  protected:
+    void SetUp() override
+    {
+      ASSERT_TRUE( XrdCl::DefaultEnv::GetPlugInManager()->RegisterFactory(
+        endpoint, new ChecksumFactory( reply ) ) );
+    }
+    void TearDown() override
+    {
+      XrdCl::DefaultEnv::GetPlugInManager()->RegisterFactory( endpoint, nullptr );
+    }
+    const std::string endpoint = "root://checksum.test:1094";
+    ChecksumReply reply;
+};
+
+TEST_F(RemoteChecksumTest, SelectedAndDefaultAlgorithms)
+{
+  XrdCl::FileSystem fs{ XrdCl::URL( endpoint ) };
+  std::string algorithm, digest;
+  ASSERT_TRUE( XrdCl::Utils::GetRemoteCheckSum(
+    fs, "/file?authz=test", "adler32", algorithm, digest ).IsOK() );
+  EXPECT_EQ( reply.request, "/file?authz=test&cks.type=adler32" );
+  EXPECT_EQ( algorithm, "adler32" );
+  EXPECT_EQ( digest, "00620062" );
+
+  ASSERT_TRUE( XrdCl::Utils::GetRemoteCheckSum(
+    fs, "/file?authz=test", "", algorithm, digest ).IsOK() );
+  EXPECT_EQ( reply.request, "/file?authz=test" );
+  EXPECT_EQ( algorithm, "adler32" );
+  EXPECT_EQ( digest, "00620062" );
+}
+
+TEST_F(RemoteChecksumTest, ExistingURLHelperPreservesNormalization)
+{
+  std::string checksum;
+  ASSERT_TRUE( XrdCl::Utils::GetRemoteCheckSum(
+    checksum, "adler32", XrdCl::URL( endpoint + "//file?authz=test" ) ).IsOK() );
+  EXPECT_EQ( reply.request, "/file?authz=test&cks.type=adler32" );
+  EXPECT_EQ( checksum, "adler32:620062" );
+}
+
+TEST_F(RemoteChecksumTest, RejectsFailedMissingMalformedAndMismatchedResponses)
+{
+  XrdCl::FileSystem fs{ XrdCl::URL( endpoint ) };
+  std::string algorithm, digest;
+  reply.status = XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+  EXPECT_EQ( XrdCl::Utils::GetRemoteCheckSum(
+    fs, "/file", "md5", algorithm, digest ).code, XrdCl::errNotSupported );
+  reply.status = XrdCl::XRootDStatus();
+  reply.missing = true;
+  EXPECT_FALSE( XrdCl::Utils::GetRemoteCheckSum(
+    fs, "/file", "md5", algorithm, digest ).IsOK() );
+  reply.missing = false;
+  reply.body = "not-a-checksum";
+  EXPECT_EQ( XrdCl::Utils::GetRemoteCheckSum(
+    fs, "/file", "md5", algorithm, digest ).code, XrdCl::errInvalidResponse );
+  reply.body = "adler32 00620062";
+  EXPECT_EQ( XrdCl::Utils::GetRemoteCheckSum(
+    fs, "/file", "md5", algorithm, digest ).code, XrdCl::errCheckSumError );
 }
