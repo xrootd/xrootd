@@ -347,7 +347,7 @@ time_t         deadLine;    // The deadline in effect (read or write)
 char           dlType;      // The deadline type in deadLine as CallBack type
 char           chEvents;    // Enabled events as Channel type
 char           chStat;      // Channel status below (!0 -> in callback mode)
-enum Status   {isClear = 0, isCBMode, isDead};
+enum Status   {isClear = 0, isCBMode, isChanged, isDead};
 char           inTOQ;       // True if the channel is in the timeout queue
 char           inPSet;      // FD is in the actual poll set
 char           reMod;       // Modify issued while deferred, re-issue needed
