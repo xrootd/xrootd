@@ -9,6 +9,8 @@
 #include <optional>
 #include <unordered_map>
 
+constexpr int MIRAGE_MAGIC = 0x4412A6E;
+
 class XrdOssMirage : public XrdOss {
 private:
     std::unordered_map<std::string, XrdOssMirageEntryPtr> entries;
@@ -17,8 +19,10 @@ private:
     bool has_entry(const char *path);
     bool is_entry_being_written(const char *path);
 
+    const std::string prefix_path;
+
 public:
-    XrdOssMirage() = default;
+    XrdOssMirage(const std::string path = {});
     virtual ~XrdOssMirage() = default;
 
     virtual XrdOssDF *newDir(const char *tident) override;
@@ -33,6 +37,8 @@ public:
     virtual int       Stat(const char *path, struct stat *buff, int opts=0, XrdOucEnv *envP=0) override;
     virtual int       Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP=0) override;
     virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *envP=0) override;
+
+    const std::string &get_prefix_path() const;
 
     std::optional<XrdOssMirageEntry>     get_entry_read(const char *path);
     std::optional<XrdOssMirageEntryPtr>  get_entry_write(const char *path);

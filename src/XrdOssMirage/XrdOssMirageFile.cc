@@ -114,6 +114,10 @@ ssize_t XrdOssMirageFile::Read(void *buffer, off_t offset, size_t size)
 
     const std::size_t num_bytes = static_cast<std::size_t>(std::min<std::uint64_t>(size, entry->size - offset));
 
+    // avoid sending real data when used in stack mode
+    if (entry->pattern.empty() && !oss.get_prefix_path().empty())
+        std::fill_n(static_cast<char *>(buffer), num_bytes, '0');
+
     if (entry->pattern.size() == 1)
         std::fill_n(static_cast<char *>(buffer), num_bytes, entry->pattern.front());
 

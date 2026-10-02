@@ -22,6 +22,7 @@ public:
     virtual int  List(AList **aPL, const char *Path, int fd=-1, int getSz=0) override;
     virtual int  Set(const char *Aname, const void *Aval, int Avsz, const char *Path,  int fd=-1,  int isNew=0) override;
 
+    const XrdOssMirage * getOss() const;
     void setOss(XrdOssMirage &oss);
 };
 
