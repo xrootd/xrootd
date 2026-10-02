@@ -145,7 +145,7 @@ void XrdPollE::Disable(XrdPollInfo &pInfo, const char *etxt)
 // Check if this link needs to be rescheduled. If so, the caller better have
 // the link opMutex lock held for this to work!
 //
-   if (etxt && Finish(pInfo, etxt)) Sched.Schedule((XrdJob *)&pInfo.Link);
+   if (etxt && Finish(pInfo, etxt)) Sched.Schedule(XrdPollDispatchJob::Alloc(&pInfo));
 }
 
 /******************************************************************************/
@@ -300,7 +300,6 @@ void XrdPollE::Start(XrdSysSemaphore *syncsem, int &retcode)
    bool haveWaiters;
    XrdJob *jfirst, *jlast;
    const short pollOK = EPOLLIN | EPOLLPRI;
-   XrdLink *lp;
    XrdPollInfo *pInfo;
 
    if ((rc = AddWaitFd()))
@@ -337,12 +336,14 @@ void XrdPollE::Start(XrdSysSemaphore *syncsem, int &retcode)
                   remFD(*pInfo, PollTab[i].events);
                   else {pInfo->isEnabled = 0;
                         if (!(PollTab[i].events & pollOK)
-                        ||   (PollTab[i].events & POLLRDHUP))
-                           Finish(*pInfo, x2Text(PollTab[i].events, eBuff));
-                        lp = &(pInfo->Link);
-                        lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
-                        if (!jlast) jlast=(XrdJob *)lp;
-                        num2sched++;
+                        ||   (PollTab[i].events & POLLRDHUP)) Sched.Schedule(
+                           new XrdPollFinishJob(pInfo, x2Text(PollTab[i].events, eBuff)));
+                        else
+                           {XrdJob *job = XrdPollDispatchJob::Alloc(pInfo);
+                            job->NextJob = jfirst; jfirst = job;
+                            if (!jlast) jlast = job;
+                            num2sched++;
+                           }
 #ifndef EPOLLONESHOT
                         PollTab[i].events  = 0;
                         if (epoll_ctl(PollDfd,EPOLL_CTL_MOD,pInfo.FD,&PollTab[i]))
