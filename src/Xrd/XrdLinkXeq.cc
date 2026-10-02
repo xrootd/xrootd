@@ -172,7 +172,6 @@ int XrdLinkXeq::Client(char *nbuf, int nbsz)
   
 int XrdLinkXeq::Close(bool defer)
 {  XrdSysMutexHelper opHelper(LinkInfo.opMutex);
-   int csec, fd, rc = 0;
 
 // If a defer close is requested, we can close the descriptor but we must
 // keep the slot number to prevent a new client getting the same fd number.
@@ -204,6 +203,16 @@ int XrdLinkXeq::Close(bool defer)
 // If we got here then this is not a deferred close so we just need to check
 // if there is a sendq appendage we need to get rid of.
 //
+   if (LinkInfo.InUse < 1) return 0;
+   const unsigned int instance = Instance;
+   opHelper.UnLock();
+   return CloseInstance(instance);
+}
+
+int XrdLinkXeq::CloseInstance(unsigned int instance)
+{  XrdSysMutexHelper opHelper(LinkInfo.opMutex);
+   int csec, fd, rc = 0;
+   if ((Instance && Instance != instance) || LinkInfo.InUse < 1) return 0;
    if (sendQ)
       {wrMutex.Lock();
        sendQ->Terminate();
@@ -215,11 +224,13 @@ int XrdLinkXeq::Close(bool defer)
 // actual close until the use count drops to one.
 //
    while(LinkInfo.InUse > 1)
-      {opHelper.UnLock();
+      {LinkInfo.doPost++; // Register before this generation can be reused.
+       opHelper.UnLock();
        TRACEI(DEBUG, "Close FD "<<LinkInfo.FD <<" deferred, use count="
                      <<LinkInfo.InUse);
-       Serialize();
+       LinkInfo.IOSemaphore.Wait();
        opHelper.Lock(&LinkInfo.opMutex);
+       if ((Instance && Instance != instance) || LinkInfo.InUse < 1) return 0;
       }
    LinkInfo.InUse--;
    Instance = 0;
@@ -257,6 +268,7 @@ int XrdLinkXeq::Close(bool defer)
 // do some fancy footwork to prevent multiple closes of this link.
 //
    fd = abs(LinkInfo.FD);
+   const bool keepFD = KeepFD;
    if (PollInfo.FD > 0)
       {if (PollInfo.Poller) {XrdPoll::Detach(PollInfo); PollInfo.Poller = 0;}
        PollInfo.FD = -1;
@@ -279,7 +291,7 @@ int XrdLinkXeq::Close(bool defer)
 // Close the file descriptor if it isn't being shared. Do it as the last
 // thing because closes and accepts and not interlocked.
 //
-   if (fd >= 2) {if (KeepFD) rc = 0;
+   if (fd >= 2) {if (keepFD) rc = 0;
                     else rc = (close(fd) < 0 ? errno : 0);
                 }
    if (rc) Log.Emsg("Link", rc, "close", ID);

@@ -149,6 +149,7 @@ XrdPollInfo   PollInfo;
 
 protected:
 
+int    CloseInstance(unsigned int instance);
 int    RecvIOV(const struct iovec *iov, int iocnt);
 void   Reset();
 int    sendData(const char *Buff, int Blen);
