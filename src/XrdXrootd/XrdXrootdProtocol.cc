@@ -691,28 +691,25 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
    ||  gdCtl.Status == GetDataCtl::inDataIov)) gdCtl.CallBack->gdFail();
 
 // If this is a bound stream then we cannot release the resources until
-// all activity ceases on this stream (i.e., lp == 0). This is only relevant for
-// writes that read from the link. if we are still tagged as active and not
-// waiting for link activity then ask to be signalled once activity stops.
-// Otherwise, redrive the parallel I/O so that it cleans up.
+// all activity ceases on this stream (i.e., lp == 0). A queued or link-waiting
+// operation can be cancelled here; an executing operation must finish itself.
 //
    if (lp && Status == XRD_BOUNDPATH)
-      {streamMutex.Lock();
+       {streamMutex.Lock();
        isNOP = true;
-       if (isActive)
-          {if (isLinkWT)
-              {streamMutex.UnLock();
-               do_OffloadIO();
-              } else {
-               while(isActive)
-                    {XrdSysCondVar2 aioDone(streamMutex);
-                     endNote = &aioDone;
-                     aioDone.Wait();
-                     endNote = 0;
-                    }
-               streamMutex.UnLock();
-              }
-          } else streamMutex.UnLock();
+       while(isActive)
+            {if (newPio || isLinkWT)
+                {streamMutex.UnLock();
+                 do_OffloadIO();
+                 streamMutex.Lock();
+                }
+                else {XrdSysCondVar2 aioDone(streamMutex);
+                      endNote = &aioDone;
+                      aioDone.Wait();
+                      endNote = 0;
+                     }
+            }
+       streamMutex.UnLock();
        boundRecycle->Post();
        if (lp) return;  // Async close
       }
@@ -1514,6 +1511,7 @@ void XrdXrootdProtocol::Reset()
    reTry              = 0;
    boundRecycle       = 0;
    endNote            = 0;
+   offloadLink        = 0;
    PathID             = 0;
    newPio             = false;
    rvSeq              = 0;
