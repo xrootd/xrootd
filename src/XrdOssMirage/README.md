@@ -8,15 +8,108 @@ It is also possible to upload an empty or very small file and then truncate it t
 
 No data is persisted: the entire filesystem exists only in the volatile memory.
 
+The plugin runs in one of two modes:
+
+- **Standalone mode**: the plugin serves the whole namespace.
+- **Stacked mode**: the plugin serves only one path prefix. Other paths go to the plugin below it (for example, the default disk storage).
+
 ## Configuration
 
-The plugin is a runtime-only plugin that requires no configuration.
+### Standalone mode
 
-To enable it, simply add the following line to the configuration file:
+The plugin needs no configuration parameter.
+
+To enable it, add the following line to the configuration file:
 
 ```
 ofs.osslib libXrdOssMirage.so
 ```
+
+### Stacked mode
+
+To stack the plugin on top of another OSS plugin, use `++` and give the mirage path as the plugin parameter:
+
+```
+ofs.osslib ++ libXrdOssMirage.so /mirage_test/
+```
+
+The mirage path is mandatory. The server does not start in these cases:
+
+| Configuration | Result |
+|---|---|
+| No mirage path | Error: `no mirage path given in the plugin parameters` |
+| Mirage path `/` | Error: `mirage path '/' is not allowed` (it covers the whole namespace) |
+
+The plugin reads only the first word of the parameter.
+
+### Summary of setups
+
+| Mode | Extended options | Configuration |
+|---|---|---|
+| Standalone | No | `ofs.osslib libXrdOssMirage.so` |
+| Standalone | Yes | `ofs.osslib libXrdOssMirage.so`<br>`ofs.xattrlib libXrdOssMirage.so` |
+| Stacked | No | `ofs.osslib ++ libXrdOssMirage.so /mirage_test/` |
+| Stacked | Yes | `ofs.osslib ++ libXrdOssMirage.so /mirage_test/`<br>`ofs.xattrlib ++ libXrdOssMirage.so` |
+
+Full example of a stacked configuration with extended options:
+
+```
+all.export /
+oss.localroot /data
+
+ofs.osslib   ++ libXrdOssMirage.so /mirage_test/
+ofs.xattrlib ++ libXrdOssMirage.so
+```
+
+## Stacked mode behavior
+
+### Path routing
+
+A path belongs to the mirage plugin when it starts with the mirage path. The plugin always appends a trailing `/` to the mirage path. The match covers one directory tree only. The plugin routes each operation by its path:
+
+- **Mirage path**: the plugin handles the operation in memory. It stores no data and no file on disk.
+- **Other path**: the plugin forwards the operation unchanged to the stacked plugin.
+
+The routing applies to these operations: create, open, stat, mkdir, rmdir, rename, truncate, unlink, chmod, and directory open.
+
+Example: mirage path `/mirage` becomes `/mirage/`. The path `/mirage/under_mirage` matches. The path `/mirage2/file` does not match.
+
+Example (mirage path `/mirage_test/`):
+
+```
+$ echo 'stored on disk' | xrdcp - root://localhost//diskfile
+$ echo 'discarded content' | xrdcp - root://localhost//mirage_test/memfile
+$ ls /data
+diskfile
+$ xrdfs root://localhost/ stat /mirage_test/memfile
+...
+Size:   18
+```
+
+### Content returned when reading
+
+In stacked mode, a read of a mirage file returns the pattern `0` (the character `0` repeated up to the file size) when no `pattern` attribute is set. The plugin does not return arbitrary memory content in this mode.
+
+```
+$ head -c 10 /dev/zero | xrdcp -f - root://localhost//mirage_test/memfile
+$ xrdfs root://localhost/ cat /mirage_test/memfile
+0000000000
+```
+
+The `pattern` attribute overrides this default (see [Custom generated pattern for file contents](#custom-generated-pattern-for-file-contents)).
+
+In standalone mode, the plugin keeps the original behavior and can return arbitrary memory content.
+
+A file outside the mirage path returns its exact stored content.
+
+### Directories
+
+- A directory outside the mirage path can be listed as usual.
+- A directory listing under the mirage path returns an error.
+
+### Physical file name
+
+The mirage plugin does not add `oss.localroot` to a mirage path. The physical name of a mirage path is equal to its logical name. A path outside the mirage path goes to the stacked plugin, which applies its own name translation.
 
 ## Extendend options
 
@@ -33,6 +126,18 @@ To use the extended options, the extended attribute lib must be enabled with:
 ```
 ofs.xattrlib libXrdOssMirage.so
 ```
+
+In stacked mode, use `++` so that the attribute plugin stacks on the current one:
+
+```
+ofs.xattrlib ++ libXrdOssMirage.so
+```
+
+In stacked mode, the plugin routes each attribute operation by path:
+
+- **Mirage path**: the attribute is a mirage option, as described in this document. The mirage plugin must have created at least one file before it can accept attributes.
+- **Other path**: the stacked attribute plugin stores the attribute as an ordinary attribute. The name has no special meaning. For example, `open.return_code` or `pattern` on a real file does not inject an error and does not change the content.
+- **Other path that does not exist**: the operation fails, because the stacked plugin has no file for the attribute.
 
 ## Usage
 
