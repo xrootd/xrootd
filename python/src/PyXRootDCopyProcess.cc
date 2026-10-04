@@ -111,12 +111,13 @@ namespace PyXRootD
     env->GetInt( "CPTimeout", val );
     time_t cpTimeout = val;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHbHLLLbs:add_job",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHO&O&bO&LLLbs:add_job",
          (char**) kwlist,
          &source, &target, &sourceLimit, &force, &posc,
          &coerce, &mkdir, &thirdParty, &checkSumMode, &checkSumType,
-         &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks, &initTimeout,
-         &tpcTimeout, &rmBadCksum, &cpTimeout, &xRateThreshold, &xRate,
+         &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks,
+         ConvertTimeout, &initTimeout, ConvertTimeout, &tpcTimeout,
+         &rmBadCksum, ConvertTimeout, &cpTimeout, &xRateThreshold, &xRate,
          &retry, &cont, &rtrplc ) )
       return NULL;
 

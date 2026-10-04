@@ -89,8 +89,9 @@ namespace PyXRootD
     PyObject               *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|HO:locate",
-         (char**) kwlist, &path, &flags_val, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|O&O:locate",
+         (char**) kwlist, &path, &flags_val, ConvertTimeout, &timeout,
+         &callback ) )
       return NULL;
 
     XrdCl::OpenFlags::Flags flags =
@@ -132,8 +133,9 @@ namespace PyXRootD
     PyObject               *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|HO:deeplocate",
-         (char**) kwlist, &path, &flags_val, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|O&O:deeplocate",
+         (char**) kwlist, &path, &flags_val, ConvertTimeout, &timeout,
+         &callback ) )
       return NULL;
 
     XrdCl::OpenFlags::Flags flags =
@@ -174,8 +176,10 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HO:mv", (char**) kwlist,
-        &source, &dest, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|O&O:mv",
+         (char**) kwlist, &source, &dest, ConvertTimeout, &timeout,
+         &callback ) )
+      return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -209,8 +213,9 @@ namespace PyXRootD
     XrdCl::XRootDStatus    status;
     XrdCl::Buffer          argbuffer;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "Is|HO:query",
-         (char**) kwlist, &queryCode_val, &arg, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "Is|O&O:query",
+         (char**) kwlist, &queryCode_val, &arg, ConvertTimeout, &timeout,
+         &callback ) )
       return NULL;
 
     XrdCl::QueryCode::Code queryCode =
@@ -252,8 +257,9 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sK|HO:truncate",
-         (char**) kwlist, &path, &size, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sK|O&O:truncate",
+         (char**) kwlist, &path, &size, ConvertTimeout, &timeout, &callback ) )
+      return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -284,8 +290,9 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rm", (char**) kwlist,
-        &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|O&O:rm",
+         (char**) kwlist, &path, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -321,8 +328,9 @@ namespace PyXRootD
     PyObject                *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus      status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|IIHO:mkdir",
-         (char**) kwlist, &path, &flags_val, &mode_val, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|IIO&O:mkdir",
+         (char**) kwlist, &path, &flags_val, &mode_val,
+         ConvertTimeout, &timeout, &callback ) )
       return NULL;
 
     XrdCl::MkDirFlags::Flags flags =
@@ -359,8 +367,9 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rmdir", (char**) kwlist,
-        &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|O&O:rmdir",
+         (char**) kwlist, &path, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -393,8 +402,9 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|HO:chmod",
-         (char**) kwlist, &path, &mode_val, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|O&O:chmod",
+         (char**) kwlist, &path, &mode_val, ConvertTimeout, &timeout,
+         &callback ) )
       return NULL;
 
     XrdCl::Access::Mode mode =
@@ -428,8 +438,8 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:ping", (char**) kwlist,
-        &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|O&O:ping",
+         (char**) kwlist, ConvertTimeout, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -460,8 +470,9 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:stat", (char**) kwlist,
-        &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|O&O:stat",
+         (char**) kwlist, &path, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
@@ -496,8 +507,9 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:statvfs", (char**) kwlist,
-        &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|O&O:statvfs",
+         (char**) kwlist, &path, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfoVFS>( callback );
@@ -531,8 +543,8 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:protocol", (char**) kwlist,
-         &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|O&O:protocol",
+         (char**) kwlist, ConvertTimeout, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::ProtocolInfo>( callback );
@@ -570,8 +582,9 @@ namespace PyXRootD
     PyObject                  *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus        status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|IHO:dirlist",
-         (char**) kwlist, &path, &flags_val, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|IO&O:dirlist",
+         (char**) kwlist, &path, &flags_val, ConvertTimeout, &timeout,
+         &callback ) )
       return NULL;
 
     XrdCl::DirListFlags::Flags flags =
@@ -610,8 +623,9 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:sendinfo",
-         (char**) kwlist, &info, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|O&O:sendinfo",
+         (char**) kwlist, &info, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
@@ -649,8 +663,9 @@ namespace PyXRootD
     PyObject                  *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus        status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "OI|bHO:prepare",
-         (char**) kwlist, &pyfiles, &flags_val, &priority, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "OI|bO&O:prepare",
+         (char**) kwlist, &pyfiles, &flags_val, &priority,
+         ConvertTimeout, &timeout, &callback ) )
       return NULL;
 
     if ( !PyList_Check( pyfiles ) ) {
@@ -782,8 +797,10 @@ namespace PyXRootD
     PyObject    *pyattrs  = NULL,  *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|HO:set_xattr",
-         (char**) kwlist, &path, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|O&O:set_xattr",
+         (char**) kwlist, &path, &pyattrs, ConvertTimeout, &timeout,
+         &callback ) )
+      return NULL;
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -851,8 +868,10 @@ namespace PyXRootD
     PyObject    *pyattrs  = NULL,  *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|HO:set_xattr",
-         (char**) kwlist, &path, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|O&O:set_xattr",
+         (char**) kwlist, &path, &pyattrs, ConvertTimeout, &timeout,
+         &callback ) )
+      return NULL;
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -908,8 +927,10 @@ namespace PyXRootD
     PyObject    *pyattrs  = NULL,  *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|HO:set_xattr",
-         (char**) kwlist, &path, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|O&O:set_xattr",
+         (char**) kwlist, &path, &pyattrs, ConvertTimeout, &timeout,
+         &callback ) )
+      return NULL;
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -963,8 +984,9 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:set_xattr",
-         (char**) kwlist, &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|O&O:set_xattr",
+         (char**) kwlist, &path, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<std::vector<XrdCl::XAttr>>( callback );

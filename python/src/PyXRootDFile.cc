@@ -246,8 +246,9 @@ namespace PyXRootD
     PyObject               *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|IIHO:open",
-         (char**) kwlist, &url, &flags_val, &mode_val, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|IIO&O:open",
+         (char**) kwlist, &url, &flags_val, &mode_val, ConvertTimeout, &timeout,
+         &callback ) )
       return NULL;
 
     XrdCl::OpenFlags::Flags flags =
@@ -283,8 +284,8 @@ namespace PyXRootD
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:close", (char**) kwlist,
-        &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|O&O:close",
+         (char**) kwlist, ConvertTimeout, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -317,8 +318,9 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO:stat", (char**) kwlist,
-        &force, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iO&O:stat",
+         (char**) kwlist, &force, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
@@ -688,8 +690,8 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:sync", (char**) kwlist,
-        &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|O&O:sync",
+         (char**) kwlist, ConvertTimeout, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -860,8 +862,9 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|HO:fcntl",
-          (char**) kwlist, &buffer, &buffSize, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|O&O:fcntl",
+         (char**) kwlist, &buffer, &buffSize, ConvertTimeout, &timeout,
+         &callback ) )
       return NULL;
 
     XrdCl::Buffer arg; arg.Append( buffer, buffSize );
@@ -902,8 +905,8 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:visa",
-          (char**) kwlist, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|O&O:visa",
+         (char**) kwlist, ConvertTimeout, &timeout, &callback ) )
       return NULL;
 
     if ( callback && callback != Py_None )
@@ -990,8 +993,9 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|HO:set_xattr",
-         (char**) kwlist, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|O&O:set_xattr",
+         (char**) kwlist, &pyattrs, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -1061,8 +1065,9 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|HO:set_xattr",
-         (char**) kwlist, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|O&O:set_xattr",
+         (char**) kwlist, &pyattrs, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -1120,8 +1125,9 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|HO:set_xattr",
-         (char**) kwlist, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|O&O:set_xattr",
+         (char**) kwlist, &pyattrs, ConvertTimeout, &timeout,
+         &callback ) ) return NULL;
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -1178,8 +1184,8 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:set_xattr",
-         (char**) kwlist, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|O&O:set_xattr",
+         (char**) kwlist, ConvertTimeout, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<std::vector<XrdCl::XAttr>>( callback );
@@ -1221,9 +1227,9 @@ namespace PyXRootD
     XrdCl::XRootDStatus     status;
     PyObject               *tfile   = NULL;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O!s|IIHO:open",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O!s|IIO&O:open",
          (char**) kwlist, &FileType, &tfile, &url, &flags_val, &mode_val,
-         &timeout, &callback ) )
+         ConvertTimeout, &timeout, &callback ) )
       return NULL;
 
     XrdCl::OpenFlags::Flags flags =
@@ -1263,14 +1269,16 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "locs", "timeout", "callback", NULL };
 
-    PyObject    *locs_list   = NULL;
+    PyObject           *locs_list = NULL;
     time_t              timeout  = 0;
     PyObject           *callback = NULL;
 
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O!|HO:clone",
-         (char**) kwlist, &PyList_Type, &locs_list, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O!|O&O:clone",
+         (char**) kwlist, &PyList_Type, &locs_list, ConvertTimeout, &timeout,
+         &callback ) )
+      return NULL;
 
     if ( !locs_list || locs_list == Py_None ) {
       PyErr_SetString( PyExc_TypeError, "clone() expects a list of locations" );

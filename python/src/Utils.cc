@@ -25,6 +25,8 @@
 #include "Utils.hh"
 #include "PyXRootDURL.hh"
 
+#include <limits>
+
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------
@@ -144,5 +146,42 @@ namespace PyXRootD
 
     *val = tmp;
     return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  // Convert Python object to a timeout (time_t), for the "O&" format
+  //----------------------------------------------------------------------------
+  int ConvertTimeout(PyObject *py_val, void *val)
+  {
+    if (!PyLong_Check(py_val))
+    {
+      PyErr_SetString(PyExc_TypeError, "integer argument expected for timeout");
+      return 0;
+    }
+
+    const long long tmp = PyLong_AsLongLong(py_val);
+
+    if ((tmp == -1) && PyErr_Occurred())
+    {
+      if (PyErr_ExceptionMatches(PyExc_OverflowError))
+        PyErr_SetString(PyExc_OverflowError, "timeout too big for time_t");
+      return 0;
+    }
+
+    if (tmp < 0)
+    {
+      PyErr_SetString(PyExc_OverflowError,
+                      "negative timeout cannot be converted to time_t");
+      return 0;
+    }
+
+    if (tmp > std::numeric_limits<time_t>::max())
+    {
+      PyErr_SetString(PyExc_OverflowError, "timeout too big for time_t");
+      return 0;
+    }
+
+    *static_cast<time_t*>(val) = static_cast<time_t>(tmp);
+    return 1;
   }
 }
