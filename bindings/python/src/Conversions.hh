@@ -127,9 +127,9 @@ namespace PyXRootD
       {
         return Py_BuildValue("{sNsNsNsNsN}",
             "id",         Py_BuildValue("s", info->GetId().c_str()),
-            "size",       Py_BuildValue("k", info->GetSize()),
+            "size",       Py_BuildValue("K", info->GetSize()),
             "flags",      Py_BuildValue("I", info->GetFlags()),
-            "modtime",    Py_BuildValue("k", info->GetModTime()),
+            "modtime",    Py_BuildValue("K", info->GetModTime()),
             "modtimestr", Py_BuildValue("s",
                                         info->GetModTimeAsString().c_str()));
       }
@@ -139,7 +139,7 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::StatInfoVFS *info )
       {
-        return Py_BuildValue( "{sksksksksbsb}",
+        return Py_BuildValue( "{sKsKsKsKsbsb}",
             "nodes_rw",            info->GetNodesRW(),
             "nodes_staging",       info->GetNodesStaging(),
             "free_rw",             info->GetFreeRW(),
@@ -275,7 +275,7 @@ namespace PyXRootD
 
           PyList_SET_ITEM( pychunks, i,
               Py_BuildValue( "{sNsNsO}",
-                  "offset", Py_BuildValue( "k", chunk.offset ),
+                  "offset", Py_BuildValue( "K", chunk.offset ),
                   "length", Py_BuildValue( "I", chunk.length ),
                   "buffer", buffer ) );
           Py_DECREF( buffer );
@@ -323,7 +323,7 @@ namespace PyXRootD
           key = "size";
           if(result->HasProperty(key))
           {
-            uint64_t s;
+            unsigned long long s;
             result->Get(key, s);
             kO = Py_BuildValue("s", key);
             vO = Py_BuildValue("K", s);
