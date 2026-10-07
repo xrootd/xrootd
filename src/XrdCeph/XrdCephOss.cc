@@ -364,6 +364,7 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
            Eroute.Emsg("Config", "Missing value for ceph.reportingpools in config file", configfn);
            return 1; 
          }
+       }
          // EC correction factor for pool reporting
          if (!strncmp(var, "ceph.ECcorrectionFactor", 23)) { // size in bytes
            var = Config.GetWord();
@@ -371,7 +372,7 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
              double value = strtod(var, 0);
              if (value > 0 and value <= 1) {
                g_ECcorrectionFactor = value;
-               Eroute.Emsg("Config", "ceph.ECcorrectionFactor", std::to_string(g_ECcorrectionFactor).c_str() ); 
+               Eroute.Emsg("Config", "ceph.ECcorrectionFactor", std::to_string(g_ECcorrectionFactor).c_str() );
              } else {
                Eroute.Emsg("Config", "Invalid value for ceph.ECcorrectionFactor in config file; enter a value between 0 and 1", configfn, var);
                return 1;
@@ -379,10 +380,8 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
          } else {
            Eroute.Emsg("Config", "Missing value for ceph.ECcorrectionFactor in config file. Setting default 8/11", configfn);
            g_ECcorrectionFactor = 0.727272; // default 8/11 EC correction factor
-           return 1;
            }
          }
-       }
      } // while
 
      // Now check if any errors occurred during file i/o

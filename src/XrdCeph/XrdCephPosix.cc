@@ -111,7 +111,7 @@ XrdSysMutex g_init_mutex;
 //JW Counter for number of times a given cluster is resolved.
 std::map<unsigned int, unsigned long long> g_idxCntr;
 
-double g_ECcorrectionFactor;
+double g_ECcorrectionFactor = 1.0;
 
 /// Accessor to next ceph pool index
 /// Note that this is not thread safe, but we do not care
@@ -682,7 +682,7 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
   }
   else{
   std::string pathstr(pathname);
-  if (maxSubstringLength(pathstr, '/') > 254){
+  if (maxSubstringLength(pathstr, '/') > 255){
     logwrapper((char*)"file/subpath name too long");
     return -ENAMETOOLONG;
     }
