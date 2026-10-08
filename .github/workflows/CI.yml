@@ -321,7 +321,7 @@ jobs:
     - name: Install development tools
       run: |
         apt update -qq
-        apt install -y build-essential devscripts equivs git
+        apt install -y build-essential devscripts equivs git nodejs npm
 
     - name: Clone repository
       uses: actions/checkout@v6
