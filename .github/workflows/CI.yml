@@ -324,9 +324,12 @@ jobs:
         apt install -y build-essential devscripts equivs git
 
     - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+      run: |
+        git clone \
+          --branch "${GITHUB_HEAD_REF}" \
+          --single-branch \
+          "https://github.com/${GITHUB_REPOSITORY}.git" \
+          .
 
     - name: Install XRootD build dependencies
       run: mk-build-deps --install --remove -s sudo debian/control <<< yes
