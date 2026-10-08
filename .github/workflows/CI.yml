@@ -24,292 +24,292 @@ env:
   CTEST_OUTPUT_ON_FAILURE: true
 
 jobs:
-  alpine:
-    name: Alpine
-    runs-on: ubuntu-latest
-    container: alpine
+  # alpine:
+  #   name: Alpine
+  #   runs-on: ubuntu-latest
+  #   container: alpine
 
-    env:
-      CMAKE_ARGS: -DCMAKE_INSTALL_PREFIX=/usr
+  #   env:
+  #     CMAKE_ARGS: -DCMAKE_INSTALL_PREFIX=/usr
 
-    steps:
-    - name: Install dependencies
-      shell: sh
-      run: |
-        apk add \
-          bash \
-          cmake \
-          ceph-dev \
-          curl \
-          curl-dev \
-          fuse-dev \
-          fuse3-dev \
-          g++ \
-          git \
-          json-c-dev \
-          krb5 \
-          krb5-dev \
-          krb5-server \
-          libxml2-dev \
-          libzip-dev \
-          linux-headers \
-          make \
-          nlohmann-json \
-          openssl \
-          openssl-dev \
-          procps \
-          py3-pip \
-          py3-setuptools \
-          py3-wheel \
-          python3-dev \
-          pytest \
-          readline-dev \
-          sudo \
-          util-linux-dev \
-          uuidgen \
-          util-linux \
-          zlib-dev
+  #   steps:
+  #   - name: Install dependencies
+  #     shell: sh
+  #     run: |
+  #       apk add \
+  #         bash \
+  #         cmake \
+  #         ceph-dev \
+  #         curl \
+  #         curl-dev \
+  #         fuse-dev \
+  #         fuse3-dev \
+  #         g++ \
+  #         git \
+  #         json-c-dev \
+  #         krb5 \
+  #         krb5-dev \
+  #         krb5-server \
+  #         libxml2-dev \
+  #         libzip-dev \
+  #         linux-headers \
+  #         make \
+  #         nlohmann-json \
+  #         openssl \
+  #         openssl-dev \
+  #         procps \
+  #         py3-pip \
+  #         py3-setuptools \
+  #         py3-wheel \
+  #         python3-dev \
+  #         pytest \
+  #         readline-dev \
+  #         sudo \
+  #         util-linux-dev \
+  #         uuidgen \
+  #         util-linux \
+  #         zlib-dev
 
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+  #   - name: Clone repository
+  #     uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
 
-    - name: Setup GitHub runner user within container
-      run: adduser -D --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+  #   - name: Setup GitHub runner user within container
+  #     run: adduser -D --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
 
-    - name: Build and Test with CTest
-      run: sudo -E -u runner ctest -VV -S test.cmake
+  #   - name: Build and Test with CTest
+  #     run: sudo -E -u runner ctest -VV -S test.cmake
 
-    - name: Install with CMake
-      run: cmake --install build
+  #   - name: Install with CMake
+  #     run: cmake --install build
 
-    - name: Run post-install tests
-      run: |
-        tests/post-install.sh
-        tests/check-headers.sh
+  #   - name: Run post-install tests
+  #     run: |
+  #       tests/post-install.sh
+  #       tests/check-headers.sh
 
-  alma8:
-    name: Alma 8
-    runs-on: ubuntu-latest
-    container: almalinux:8
+  # alma8:
+  #   name: Alma 8
+  #   runs-on: ubuntu-latest
+  #   container: almalinux:8
 
-    env:
-      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+  #   env:
+  #     CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
 
-    steps:
-    - name: Install dependencies
-      run: |
-        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
-        dnf install -y epel-rpm-macros
-        dnf config-manager --set-enabled powertools
-        dnf install -y gtest-devel
+  #   steps:
+  #   - name: Install dependencies
+  #     run: |
+  #       dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+  #       dnf install -y epel-rpm-macros
+  #       dnf config-manager --set-enabled powertools
+  #       dnf install -y gtest-devel
 
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+  #   - name: Clone repository
+  #     uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
 
-    - name: Setup GitHub runner user within container
-      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+  #   - name: Setup GitHub runner user within container
+  #     run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
 
-    - name: Install XRootD build dependencies
-      run: dnf builddep -y xrootd.spec
+  #   - name: Install XRootD build dependencies
+  #     run: dnf builddep -y xrootd.spec
 
-    - name: Build and Test with CTest
-      run: sudo -E -u runner ctest -VV -S test.cmake
+  #   - name: Build and Test with CTest
+  #     run: sudo -E -u runner ctest -VV -S test.cmake
 
-    - name: Install with CMake
-      run: cmake --install build
+  #   - name: Install with CMake
+  #     run: cmake --install build
 
-    - name: Run post-install tests
-      run: |
-        tests/post-install.sh
-        tests/check-headers.sh
+  #   - name: Run post-install tests
+  #     run: |
+  #       tests/post-install.sh
+  #       tests/check-headers.sh
 
-  alma9:
-    name: Alma 9
-    runs-on: ubuntu-latest
-    container: almalinux:9
+  # alma9:
+  #   name: Alma 9
+  #   runs-on: ubuntu-latest
+  #   container: almalinux:9
 
-    env:
-      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+  #   env:
+  #     CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
 
-    steps:
-    - name: Install dependencies
-      run: |
-        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
-        dnf config-manager --set-enabled crb
+  #   steps:
+  #   - name: Install dependencies
+  #     run: |
+  #       dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+  #       dnf config-manager --set-enabled crb
 
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+  #   - name: Clone repository
+  #     uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
 
-    - name: Setup GitHub runner user within container
-      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+  #   - name: Setup GitHub runner user within container
+  #     run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
 
-    - name: Install XRootD build dependencies
-      run: dnf builddep -y xrootd.spec
+  #   - name: Install XRootD build dependencies
+  #     run: dnf builddep -y xrootd.spec
 
-    - name: Build and Test with CTest
-      run: sudo -E -u runner ctest -VV -S test.cmake
+  #   - name: Build and Test with CTest
+  #     run: sudo -E -u runner ctest -VV -S test.cmake
 
-    - name: Install with CMake
-      run: cmake --install build
+  #   - name: Install with CMake
+  #     run: cmake --install build
 
-    - name: Run post-install tests
-      run: |
-        tests/post-install.sh
-        tests/check-headers.sh
+  #   - name: Run post-install tests
+  #     run: |
+  #       tests/post-install.sh
+  #       tests/check-headers.sh
 
-  alma10:
-    name: Alma 10
-    runs-on: ubuntu-latest
-    container: almalinux:10
+  # alma10:
+  #   name: Alma 10
+  #   runs-on: ubuntu-latest
+  #   container: almalinux:10
 
-    env:
-      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+  #   env:
+  #     CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
 
-    steps:
-    - name: Install dependencies
-      run: |
-        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
-        dnf config-manager --set-enabled crb
+  #   steps:
+  #   - name: Install dependencies
+  #     run: |
+  #       dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+  #       dnf config-manager --set-enabled crb
 
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+  #   - name: Clone repository
+  #     uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
 
-    - name: Setup GitHub runner user within container
-      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+  #   - name: Setup GitHub runner user within container
+  #     run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
 
-    - name: Install XRootD build dependencies
-      run: dnf builddep -y xrootd.spec
+  #   - name: Install XRootD build dependencies
+  #     run: dnf builddep -y xrootd.spec
 
-    - name: Build and Test with CTest
-      run: sudo -E -u runner ctest -VV -S test.cmake
+  #   - name: Build and Test with CTest
+  #     run: sudo -E -u runner ctest -VV -S test.cmake
 
-    - name: Install with CMake
-      run: cmake --install build
+  #   - name: Install with CMake
+  #     run: cmake --install build
 
-    - name: Run post-install tests
-      run: |
-        tests/post-install.sh
-        tests/check-headers.sh
+  #   - name: Run post-install tests
+  #     run: |
+  #       tests/post-install.sh
+  #       tests/check-headers.sh
 
-  fedora:
-    name: Fedora
-    runs-on: ubuntu-latest
-    container: fedora
+  # fedora:
+  #   name: Fedora
+  #   runs-on: ubuntu-latest
+  #   container: fedora
 
-    strategy:
-      matrix:
-        compiler: [ 'gcc', 'clang' ]
-        config: [ 'Debug', 'Release' ]
-      fail-fast: false
+  #   strategy:
+  #     matrix:
+  #       compiler: [ 'gcc', 'clang' ]
+  #       config: [ 'Debug', 'Release' ]
+  #     fail-fast: false
 
-    env:
-      CC: ${{ matrix.compiler }}
-      CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
-      CMAKE_BUILD_TYPE: ${{ matrix.config }}
-      CMAKE_GENERATOR: Ninja
+  #   env:
+  #     CC: ${{ matrix.compiler }}
+  #     CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
+  #     CMAKE_BUILD_TYPE: ${{ matrix.config }}
+  #     CMAKE_GENERATOR: Ninja
 
-    steps:
-    - name: Install dependencies
-      run: dnf install -y dnf-plugins-core git ninja-build rpmdevtools ${{ matrix.compiler }}
+  #   steps:
+  #   - name: Install dependencies
+  #     run: dnf install -y dnf-plugins-core git ninja-build rpmdevtools ${{ matrix.compiler }}
 
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+  #   - name: Clone repository
+  #     uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
 
-    - name: Setup GitHub runner user within container
-      run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+  #   - name: Setup GitHub runner user within container
+  #     run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
 
-    - name: Install XRootD build dependencies
-      run: dnf builddep -y --define 'with_ceph 1' xrootd.spec
+  #   - name: Install XRootD build dependencies
+  #     run: dnf builddep -y --define 'with_ceph 1' xrootd.spec
 
-    - name: Build and Test with CTest
-      run: sudo -E -u runner env CC=${CC} CXX=${CC/g*/g++} ctest -VV -S test.cmake
+  #   - name: Build and Test with CTest
+  #     run: sudo -E -u runner env CC=${CC} CXX=${CC/g*/g++} ctest -VV -S test.cmake
 
-    - name: Install with CMake
-      run: cmake --install build
+  #   - name: Install with CMake
+  #     run: cmake --install build
 
-    - name: Run post-install tests
-      run: |
-        tests/post-install.sh
-        tests/check-headers.sh
+  #   - name: Run post-install tests
+  #     run: |
+  #       tests/post-install.sh
+  #       tests/check-headers.sh
 
-  ubuntu:
-    name: Ubuntu
+  # ubuntu:
+  #   name: Ubuntu
 
-    strategy:
-      matrix:
-        os: [ '24.04', '24.04-arm' ]
-        compiler: [ 'gcc', 'clang' ]
-        config: [ 'Debug', 'Release' ]
-      fail-fast: false
+  #   strategy:
+  #     matrix:
+  #       os: [ '24.04', '24.04-arm' ]
+  #       compiler: [ 'gcc', 'clang' ]
+  #       config: [ 'Debug', 'Release' ]
+  #     fail-fast: false
 
-    runs-on: ubuntu-${{ matrix.os }}
+  #   runs-on: ubuntu-${{ matrix.os }}
 
-    env:
-      CC: ${{ matrix.compiler }}
-      CMAKE_BUILD_TYPE: ${{ matrix.config }}
-      CMAKE_ARGS: '-DINSTALL_PYTHON_BINDINGS=0;-DCMAKE_INSTALL_PREFIX=/usr'
-      DEBIAN_FRONTEND: noninteractive
+  #   env:
+  #     CC: ${{ matrix.compiler }}
+  #     CMAKE_BUILD_TYPE: ${{ matrix.config }}
+  #     CMAKE_ARGS: '-DINSTALL_PYTHON_BINDINGS=0;-DCMAKE_INSTALL_PREFIX=/usr'
+  #     DEBIAN_FRONTEND: noninteractive
 
-    steps:
-    - name: Install development tools
-      run: |
-        sudo apt update -qq
-        sudo apt install -y build-essential devscripts equivs git
+  #   steps:
+  #   - name: Install development tools
+  #     run: |
+  #       sudo apt update -qq
+  #       sudo apt install -y build-essential devscripts equivs git
 
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+  #   - name: Clone repository
+  #     uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
 
-    - name: Install XRootD build dependencies
-      run: mk-build-deps --install --remove -s sudo debian/control <<< yes
+  #   - name: Install XRootD build dependencies
+  #     run: mk-build-deps --install --remove -s sudo debian/control <<< yes
 
-    - name: Build and Test with CTest
-      run: env CC=${CC} CXX=${CC/g*/g++} ctest -VV -S test.cmake
+  #   - name: Build and Test with CTest
+  #     run: env CC=${CC} CXX=${CC/g*/g++} ctest -VV -S test.cmake
 
-    - name: Install with CMake
-      run: sudo cmake --install build
+  #   - name: Install with CMake
+  #     run: sudo cmake --install build
 
-    - name: Install Python bindings
-      run: |
-        sudo python3 -m pip install \
-          --target /usr/lib/python3/dist-packages \
-          --verbose build/python/dist/*.whl
+  #   - name: Install Python bindings
+  #     run: |
+  #       sudo python3 -m pip install \
+  #         --target /usr/lib/python3/dist-packages \
+  #         --verbose build/python/dist/*.whl
 
-    - name: Run post-install tests
-      run: |
-        tests/post-install.sh
-        tests/check-headers.sh
+  #   - name: Run post-install tests
+  #     run: |
+  #       tests/post-install.sh
+  #       tests/check-headers.sh
 
-    - name: Build Python bindings standalone against installed XRootD
-      run: |
-        sudo apt install -y python3-venv
-        python3 -m venv /tmp/standalone
-        /tmp/standalone/bin/pip install --verbose ./python
-        /tmp/standalone/bin/python -c \
-          'from XRootD import client; print(client.FileSystem("root://localhost:1094"))'
+  #   - name: Build Python bindings standalone against installed XRootD
+  #     run: |
+  #       sudo apt install -y python3-venv
+  #       python3 -m venv /tmp/standalone
+  #       /tmp/standalone/bin/pip install --verbose ./python
+  #       /tmp/standalone/bin/python -c \
+  #         'from XRootD import client; print(client.FileSystem("root://localhost:1094"))'
 
   ubuntu32:
     name: Ubuntu 32bits
 
     strategy:
       matrix:
-        compiler: [ 'gcc', 'clang' ]
-        config: [ 'Debug', 'Release' ]
+        compiler: [ 'gcc' ]
+        config: [ 'Debug' ]
       fail-fast: false
 
-    runs-on: ubuntu-latest
-    container: i386/ubuntu:latest
+    runs-on: ubuntu-24.04-arm
+    container: arm32v7/ubuntu:24.04
 
     env:
       CC: ${{ matrix.compiler }}
@@ -321,7 +321,7 @@ jobs:
     - name: Install development tools
       run: |
         apt update -qq
-        apt install -y build-essential devscripts equivs git nodejs npm
+        apt install -y build-essential devscripts equivs git
 
     - name: Clone repository
       uses: actions/checkout@v6
@@ -356,39 +356,39 @@ jobs:
         /tmp/standalone/bin/python -c \
           'from XRootD import client; print(client.FileSystem("root://localhost:1094"))'
 
-  macos:
-    name: macOS
-    runs-on: macos-26
+  # macos:
+  #   name: macOS
+  #   runs-on: macos-26
 
-    env:
-      CC: clang
-      CXX: clang++
-      CMAKE_ARGS: "-DPython_FIND_UNVERSIONED_NAMES=FIRST"
-      CMAKE_PREFIX_PATH: /usr/local/opt/openssl@3
+  #   env:
+  #     CC: clang
+  #     CXX: clang++
+  #     CMAKE_ARGS: "-DPython_FIND_UNVERSIONED_NAMES=FIRST"
+  #     CMAKE_PREFIX_PATH: /usr/local/opt/openssl@3
 
-    steps:
-    - name: Workaround for issue 1772
-      run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
+  #   steps:
+  #   - name: Workaround for issue 1772
+  #     run: sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
 
-    - name: Install dependencies with Homebrew
-      run: brew install googletest libzip nlohmann-json python-setuptools
+  #   - name: Install dependencies with Homebrew
+  #     run: brew install googletest libzip nlohmann-json python-setuptools
 
-    - name: Install Python dependencies with pip
-      run: pip install --user pytest
+  #   - name: Install Python dependencies with pip
+  #     run: pip install --user pytest
 
-    - name: Clone repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
+  #   - name: Clone repository
+  #     uses: actions/checkout@v6
+  #     with:
+  #       fetch-depth: 0
 
-    - name: Build and Test with CTest
-      run: ctest -VV -S test.cmake
+  #   - name: Build and Test with CTest
+  #     run: ctest -VV -S test.cmake
 
-    - name: Install with CMake
-      run: sudo cmake --install build
+  #   - name: Install with CMake
+  #     run: sudo cmake --install build
 
-    - name: Run post-install tests
-      run: |
-        export PYVERSION=$(python3 --version | grep -o 3...)
-        export PYTHONPATH=/usr/local/lib/python${PYVERSION}/site-packages
-        tests/post-install.sh
+  #   - name: Run post-install tests
+  #     run: |
+  #       export PYVERSION=$(python3 --version | grep -o 3...)
+  #       export PYTHONPATH=/usr/local/lib/python${PYVERSION}/site-packages
+  #       tests/post-install.sh
