@@ -116,6 +116,30 @@ TEST_F(XrdOssMirageFixture, TruncateFileThatAlreadyExistsIncreasesSize)
     ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size);
 }
 
+TEST_F(XrdOssMirageFixture, TruncateFileToMaximumOffsetShouldSucceed)
+{
+    ASSERT_EQ(XrdOssOK, oss.Truncate("/dummy", 9223372036854775807ULL));
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileToMaximumOffsetChangesSize)
+{
+    oss.Truncate("/dummy", 9223372036854775807ULL);
+
+    ASSERT_EQ(9223372036854775807ULL, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileBeyondMaximumOffsetFailsWithFBIG)
+{
+    ASSERT_EQ(-EFBIG, oss.Truncate("/dummy", 9223372036854775808ULL));
+}
+
+TEST_F(XrdOssMirageFixture, TruncateFileBeyondMaximumOffsetDoesNotChangeSize)
+{
+    oss.Truncate("/dummy", 9223372036854775808ULL);
+
+    ASSERT_EQ(9999, oss.get_entry_read("/dummy").value().size);
+}
+
 TEST_F(XrdOssMirageFixture, TruncateFileThatDoesNotExistFailsWithNOENT)
 {
     ASSERT_EQ(-ENOENT, oss.Truncate("/inexistent", 1000));
