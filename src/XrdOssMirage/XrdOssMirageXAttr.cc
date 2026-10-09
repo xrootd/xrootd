@@ -112,24 +112,48 @@ int XrdOssMirageXAttr::Set(const char *Aname, const void *Aval, int Avsz, const 
 
     try
     {
+        constexpr static auto parse_return_code = [](auto value) {
+
+            auto code = std::stoi(value);
+            if (code < 0)
+                throw std::invalid_argument("return code is negative");
+
+            return code;
+        };
+
+        constexpr static auto parse_return_position = [](auto value) {
+
+            auto position = std::stoll(value);
+            if (position < 0)
+                throw std::invalid_argument("return code is negative");
+            if (static_cast<std::uint64_t>(position) > XrdOssMirageEntry::max_file_size)
+                throw std::invalid_argument("return position is greater than the max file size");
+
+            return position;
+        };
+
         if (name == "U.open.return_code"sv)
-            entry->open.return_code = std::stoi(value);
+            entry->open.return_code = parse_return_code(value);
         else if (name == "U.close.return_code"sv)
-            entry->close.return_code = std::stoi(value);
+            entry->close.return_code = parse_return_code(value);
         else if (name == "U.read.return_code"sv)
-            entry->read.return_code = std::stoi(value);
+            entry->read.return_code = parse_return_code(value);
         else if (name == "U.read.return_position"sv)
-            entry->read.return_position = std::stoll(value);
+            entry->read.return_position = parse_return_position(value);
         else if (name == "U.write.return_code"sv)
-            entry->write.return_code = std::stoi(value);
+            entry->write.return_code = parse_return_code(value);
         else if (name == "U.write.return_position"sv)
-            entry->write.return_position = std::stoll(value);
+            entry->write.return_position = parse_return_position(value);
         else if (name == "U.pattern"sv)
             entry->pattern = value;
         else
             return -EINVAL;
     }
     catch(std::out_of_range &)
+    {
+        return -EINVAL;
+    }
+    catch(std::invalid_argument &)
     {
         return -EINVAL;
     }
