@@ -114,6 +114,9 @@ int XrdOssMirage::Truncate(const char *path, unsigned long long fsize, XrdOucEnv
     if (!has_entry(path))
         return -ENOENT;
 
+    if (fsize > XrdOssMirageEntry::max_file_size)
+        return -EFBIG;
+
     if (is_entry_being_written(path))
         return -EBUSY;
 
