@@ -16,6 +16,8 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
+#include <cerrno>
+#include <climits>
 #include <cstdlib>
 #include <algorithm>
 
@@ -113,12 +115,15 @@ namespace XrdCl
       const auto strValue = GetPluginConfigValue( *pluginConfig, key );
       if( !strValue.empty() )
       {
+        errno = 0;
         char *endPtr = nullptr;
-        const int parsed = static_cast<int>( strtol( strValue.c_str(), &endPtr, 0 ) );
-        if( endPtr && *endPtr == '\0' )
+        const long parsed = strtol( strValue.c_str(), &endPtr, 0 );
+        if( errno != ERANGE && endPtr && *endPtr == '\0' &&
+            parsed >= INT_MIN && parsed <= INT_MAX )
         {
-          PutInt( key, parsed );
-          value = parsed;
+          const int intValue = static_cast<int>( parsed );
+          PutInt( key, intValue );
+          value = intValue;
           return true;
         }
 
