@@ -577,15 +577,11 @@ CurlOperation::Setup(CURL *curl, CurlWorker &worker)
     if (curl == nullptr) {
         throw std::runtime_error("Unable to setup curl operation with no handle");
     }
-    struct timespec now;
-    if (clock_gettime(CLOCK_MONOTONIC, &now) == -1) {
-        throw std::runtime_error("Unable to get current time");
-    }
+    m_curl.reset(curl);
 
     m_pause_start = {};
     m_last_header_reset = m_last_reset = m_start_op = m_header_start = m_header_lastop = std::chrono::steady_clock::now();
 
-    m_curl.reset(curl);
     m_curl_error_buffer[0] = '\0';
     curl_easy_setopt(m_curl.get(), CURLOPT_URL, m_request_url.c_str());
     curl_easy_setopt(m_curl.get(), CURLOPT_ERRORBUFFER, m_curl_error_buffer);
