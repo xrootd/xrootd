@@ -191,6 +191,8 @@ public:
 
                       ~XrdOfsFile() {viaDel = 1; if (oh) close();}
 
+inline static bool     ocFsync = false;
+
 protected:
 
 const char    *tident;
