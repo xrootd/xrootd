@@ -1251,14 +1251,119 @@ CurlWorker::Run() {
     std::unordered_map<int, WaitingForBroker> broker_reqs;
     std::vector<struct curl_waitfd> waitfds;
 
+    // Detach the handle before clearing the operation's curl callbacks.  The
+    // caller may still hold the operation after this worker stops using it.
+    auto release_handle = [&](const std::shared_ptr<CurlOperation> &op, CURL *handle) {
+        if (!handle) return;
+        curl_multi_remove_handle(multi_handle, handle);
+        if (op->GetCurlHandle()) op->ReleaseHandle();
+        curl_easy_cleanup(handle);
+    };
+    auto remove_op = [&](CURL *handle) {
+        auto iter = m_op_map.find(handle);
+        if (iter == m_op_map.end()) return;
+        const auto &[op, started_at] = iter->second;
+        release_handle(op, handle);
+        m_op_map.erase(iter);
+        running_handles -= 1;
+        for (auto req = broker_reqs.begin(); req != broker_reqs.end();) {
+            if (req->second.curl == handle) {
+                req = broker_reqs.erase(req);
+            } else {
+                ++req;
+            }
+        }
+    };
+    auto start_options = [&](CURL *parent_handle, const std::shared_ptr<CurlOperation> &parent_op,
+                             const std::string &target) {
+        std::shared_ptr<CurlOptionsOp> options_op;
+        CURL *options_handle = nullptr;
+        try {
+            std::string modified_url;
+            options_op = std::make_shared<CurlOptionsOp>(parent_handle, parent_op,
+                std::string(VerbsCache::GetUrlKey(target, modified_url)),
+                m_logger, parent_op->GetConnCalloutFunc());
+            options_handle = queue.GetHandle();
+            if (!options_handle || !options_op->Setup(options_handle, *this)) {
+                throw std::runtime_error("Failed to setup the curl handle for OPTIONS");
+            }
+        } catch (...) {
+            m_logger->Debug(kLogXrdClHttp, "Failed to setup the curl handle for OPTIONS");
+            if (options_op) {
+                options_op->Fail(XrdCl::errInternal, ENOMEM,
+                    "Failed to setup the curl handle for the OPTIONS operation");
+                release_handle(options_op, options_handle);
+            }
+            parent_op->Fail(XrdCl::errInternal, ENOMEM,
+                "Failed to setup the curl handle for the OPTIONS operation");
+            OpRecord(*parent_op, OpKind::Error);
+            return false;
+        }
+        m_op_map[options_handle] = {options_op, std::chrono::system_clock::now()};
+        OpRecord(*options_op, OpKind::Start);
+        running_handles += 1;
+        auto options_res = curl_multi_add_handle(multi_handle, options_handle);
+        if (options_res == CURLM_OK) return true;
+        options_op->Fail(XrdCl::errInternal, options_res,
+            "Unable to add OPTIONS operation to the curl multi-handle");
+        OpRecord(*options_op, OpKind::Error);
+        parent_op->Fail(XrdCl::errInternal, options_res,
+            "Unable to add OPTIONS operation to the curl multi-handle");
+        OpRecord(*parent_op, OpKind::Error);
+        remove_op(options_handle);
+        return false;
+    };
+    auto reactivate_parent = [&](const std::shared_ptr<CurlOptionsOp> &options_op) {
+        auto parent_op = options_op->GetOperation();
+        auto parent_handle = options_op->GetParentCurlHandle();
+        if (parent_op->IsDone()) {
+            remove_op(parent_handle);
+            return false;
+        }
+        // OPTIONS is advisory, including for redirect targets.  Resolve a
+        // pending redirect before adding the parent's handle back to libcurl.
+        if (parent_op->IsRedirect()) {
+            std::string target;
+            auto action = parent_op->Redirect(target);
+            if (action == CurlOperation::RedirectAction::Fail) {
+                OpRecord(*parent_op, OpKind::Error);
+                remove_op(parent_handle);
+                return false;
+            }
+            if (action == CurlOperation::RedirectAction::ReinvokeAfterAllow) {
+                if (start_options(parent_handle, parent_op, target)) return true;
+                remove_op(parent_handle);
+                return false;
+            }
+        }
+        OpRecord(*parent_op, OpKind::Start);
+        auto callout_socket = parent_op->WaitSocket();
+        if (callout_socket >= 0) {
+            broker_reqs[callout_socket] = {parent_handle, time(nullptr) + 20};
+            m_conncall_req.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }
+        auto parent_res = curl_multi_add_handle(multi_handle, parent_handle);
+        if (parent_res == CURLM_OK) return true;
+        m_logger->Debug(kLogXrdClHttp,
+            "Unable to re-add the parent operation to the curl multi-handle: %s",
+            curl_multi_strerror(parent_res));
+        parent_op->Fail(XrdCl::errInternal, parent_res,
+            "Unable to re-add the parent operation to the curl multi-handle");
+        OpRecord(*parent_op, OpKind::Error);
+        remove_op(parent_handle);
+        return false;
+    };
+
     bool want_shutdown = false;
     while (!want_shutdown) {
         m_last_completed_cycle.store(std::chrono::system_clock::now().time_since_epoch().count());
         auto oldest_op = std::chrono::system_clock::now();
-        for (const auto &entry : m_op_map) {
-            OpRecord(*entry.second.first, OpKind::Update);
-            if (entry.second.second < oldest_op) {
-                oldest_op = entry.second.second;
+        for (const auto &[handle, entry] : m_op_map) {
+            const auto &[op, started_at] = entry;
+            OpRecord(*op, OpKind::Update);
+            if (started_at < oldest_op) {
+                oldest_op = started_at;
             }
         }
         m_oldest_op.store(oldest_op.time_since_epoch().count());
@@ -1280,17 +1385,14 @@ CurlWorker::Run() {
             if (!op->ContinueHandle()) {
                 op->Fail(XrdCl::errInternal, 0, "Failed to continue the curl handle for the operation");
                 OpRecord(*op, OpKind::Error);
-                op->ReleaseHandle();
-                if (curl) {
-                    curl_multi_remove_handle(multi_handle, curl);
-                    curl_easy_cleanup(curl);
-                    m_op_map.erase(curl);
-                }
-                running_handles -= 1;
+                remove_op(curl);
                 continue;
             } else {
                 auto iter = m_op_map.find(curl);
-                if (iter != m_op_map.end()) iter->second.second = std::chrono::system_clock::now();
+                if (iter != m_op_map.end()) {
+                    auto &[operation, started_at] = iter->second;
+                    started_at = std::chrono::system_clock::now();
+                }
             }
 		}
         // Consume from the shared new operation queue
@@ -1310,16 +1412,19 @@ CurlWorker::Run() {
                 if (!rv) {
                     m_logger->Debug(kLogXrdClHttp, "Failed to setup the curl handle");
                     op->Fail(XrdCl::errInternal, ENOMEM, "Failed to setup the curl handle for the operation");
+                    release_handle(op, curl);
                     continue;
                 }
                 if (!op->FinishSetup(curl)) {
                     m_logger->Debug(kLogXrdClHttp, "Failed to finish setup of the curl handle");
                     op->Fail(XrdCl::errInternal, ENOMEM, "Failed to finish setup of the curl handle for the operation");
+                    release_handle(op, curl);
                     continue;
                 }
             } catch (...) {
                 m_logger->Debug(kLogXrdClHttp, "Unable to setup the curl handle");
                 op->Fail(XrdCl::errInternal, ENOMEM, "Failed to setup the curl handle for the operation");
+                release_handle(op, curl);
                 continue;
             }
             op->SetContinueQueue(m_continue_queue);
@@ -1330,51 +1435,27 @@ CurlWorker::Run() {
                 continue;
             }
             m_op_map[curl] = {op, std::chrono::system_clock::now()};
+            running_handles += 1;
 
             // If the operation requires the result of the OPTIONS verb to function, then
             // we add that to the multi-handle instead, chaining the two calls together.
             if (op->RequiresOptions()) {
-                std::string modified_url;
-                std::shared_ptr<CurlOptionsOp> options_op(
-                    new CurlOptionsOp(
-                        curl, op,
-                        std::string(
-                            VerbsCache::GetUrlKey(op->GetUrl(), modified_url)
-                        ),
-                        m_logger, op->GetConnCalloutFunc()
-                    )
-                );
-                // Note this `curl` variable is not local to the conditional; it is the curl handle of the
-                // CurlOptionsOp and will be added below to the multi-handle, causing it - not the parent's
-                // curl handle - to be executed.
-                curl = queue.GetHandle();
-                if (curl == nullptr) {
-                    m_logger->Debug(kLogXrdClHttp, "Unable to allocate a curl handle");
-                    op->Fail(XrdCl::errInternal, ENOMEM, "Unable to get allocate a curl handle");
-                    OpRecord(*op, OpKind::Error);
+                if (!start_options(curl, op, op->GetUrl())) {
+                    remove_op(curl);
                     continue;
                 }
-                auto rv = options_op->Setup(curl, *this);
-                if (!rv) {
-                    m_logger->Debug(kLogXrdClHttp, "Failed to allocate a curl handle for OPTIONS");
-                    continue;
-                }
-                m_op_map[curl] = {options_op, std::chrono::system_clock::now()};
-                OpRecord(*options_op, OpKind::Start);
-                running_handles += 1;
             } else {
                 OpRecord(*op, OpKind::Start);
-            }
-
-            auto mres = curl_multi_add_handle(multi_handle, curl);
-            if (mres != CURLM_OK) {
-                m_logger->Debug(kLogXrdClHttp, "Unable to add operation to the curl multi-handle");
-                op->Fail(XrdCl::errInternal, mres, "Unable to add operation to the curl multi-handle");
-                OpRecord(*op, OpKind::Error);
-                continue;
+                auto add_res = curl_multi_add_handle(multi_handle, curl);
+                if (add_res != CURLM_OK) {
+                    m_logger->Debug(kLogXrdClHttp, "Unable to add operation to the curl multi-handle");
+                    op->Fail(XrdCl::errInternal, add_res, "Unable to add operation to the curl multi-handle");
+                    OpRecord(*op, OpKind::Error);
+                    remove_op(curl);
+                    continue;
+                }
             }
             m_logger->Debug(kLogXrdClHttp, "Added request for URL %s to worker thread for processing", op->GetUrl().c_str());
-            running_handles += 1;
         }
 
         // Maintain the periodic reporting of thread activity and fail any operations
@@ -1390,51 +1471,24 @@ CurlWorker::Run() {
 
             // Timeout all the pending broker requests.
             std::vector<std::pair<int, CURL *>> expired_ops;
-            for (const auto &entry : broker_reqs) {
-                if (entry.second.expiry < now) {
-                    expired_ops.emplace_back(entry.first, entry.second.curl);
+            for (const auto &[fd, request] : broker_reqs) {
+                if (request.expiry < now) {
+                    expired_ops.emplace_back(fd, request.curl);
                 }
             }
-            for (const auto &entry : expired_ops) {
-                auto iter = m_op_map.find(entry.second);
+            for (const auto &[fd, handle] : expired_ops) {
+                auto iter = m_op_map.find(handle);
                 if (iter == m_op_map.end()) {
                     m_logger->Warning(kLogXrdClHttp, "Found an expired curl handle with no corresponding operation!");
                 } else {
-
-                    CurlOptionsOp *options_op = nullptr;
-                    if ((options_op = dynamic_cast<CurlOptionsOp*>(iter->second.first.get())) != nullptr) {
-                        auto parent_op = options_op->GetOperation();
-                        bool parent_op_failed = false;
-                        if (parent_op->IsRedirect()) {
-                            std::string target;
-                            if (parent_op->Redirect(target) == CurlOperation::RedirectAction::Fail) {
-                                auto iter = m_op_map.find(options_op->GetParentCurlHandle());
-                                if (iter != m_op_map.end()) {
-                                    OpRecord(*iter->second.first, OpKind::Error);
-                                    iter->second.first->Fail(XrdCl::errErrorResponse, 0, "Failed to send OPTIONS to redirect target");
-                                    m_op_map.erase(iter);
-                                    running_handles -= 1;
-                                }
-                                parent_op_failed = true;
-                            } else {
-                                OpRecord(*parent_op, OpKind::Start);
-                            }
-                        } else {
-                            OpRecord(*parent_op, OpKind::Start);
-                        }
-                        if (!parent_op_failed){
-                            curl_multi_add_handle(multi_handle, options_op->GetParentCurlHandle());
-                        }
-                    }
-
-                    iter->second.first->Fail(XrdCl::errConnectionError, 1, "Timeout: connection never provided for request");
-                    iter->second.first->ReleaseHandle();
-                    OpRecord(*(iter->second.first), OpKind::ConncallTimeout);
-                    m_op_map.erase(entry.second);
-                    curl_easy_cleanup(entry.second);
-                    running_handles -= 1;
+                    auto [op, started_at] = iter->second;
+                    op->Fail(XrdCl::errConnectionError, 1, "Timeout: connection never provided for request");
+                    OpRecord(*op, OpKind::ConncallTimeout);
+                    if (auto options_op = std::dynamic_pointer_cast<CurlOptionsOp>(op))
+                        reactivate_parent(options_op);
+                    remove_op(handle);
                 }
-                broker_reqs.erase(entry.first);
+                broker_reqs.erase(fd);
                 m_conncall_timeout.fetch_add(1, std::memory_order_relaxed);
             }
 
@@ -1456,8 +1510,8 @@ CurlWorker::Run() {
         waitfds[2].events = CURL_WAIT_POLLIN | CURL_WAIT_POLLPRI;
 
         int idx = 3;
-        for (const auto &entry : broker_reqs) {
-            waitfds[idx].fd = entry.first;
+        for (const auto &[fd, request] : broker_reqs) {
+            waitfds[idx].fd = fd;
             waitfds[idx].events = CURL_WAIT_POLLIN|CURL_WAIT_POLLPRI;
             waitfds[idx].revents = 0;
             idx += 1;
@@ -1499,7 +1553,9 @@ CurlWorker::Run() {
             if ((entry.revents & CURL_WAIT_POLLIN) != CURL_WAIT_POLLIN) {
                 continue;
             }
-            auto handle = broker_reqs[entry.fd].curl;
+            auto request = broker_reqs.find(entry.fd);
+            if (request == broker_reqs.end()) continue;
+            auto handle = request->second.curl;
             auto iter = m_op_map.find(handle);
             if (iter == m_op_map.end()) {
                 m_logger->Warning(kLogXrdClHttp, "Internal error: broker responded on FD %d but no corresponding curl operation", entry.fd);
@@ -1508,53 +1564,39 @@ CurlWorker::Run() {
                 continue;
             }
             std::string err;
-            auto result = iter->second.first->WaitSocketCallback(err);
+            auto [op, started_at] = iter->second;
+            auto result = op->WaitSocketCallback(err);
             if (result == -1) {
                 m_logger->Warning(kLogXrdClHttp, "Error when invoking the broker callback: %s", err.c_str());
-
-                CurlOptionsOp *options_op = nullptr;
-                if ((options_op = dynamic_cast<CurlOptionsOp*>(iter->second.first.get())) != nullptr) {
-                    auto parent_op = options_op->GetOperation();
-                    bool parent_op_failed = false;
-                    if (parent_op->IsRedirect()) {
-                        std::string target;
-                        if (parent_op->Redirect(target) == CurlOperation::RedirectAction::Fail) {
-                            auto iter = m_op_map.find(options_op->GetParentCurlHandle());
-                            if (iter != m_op_map.end()) {
-                                OpRecord(*iter->second.first, OpKind::Error);
-                                iter->second.first->Fail(XrdCl::errErrorResponse, 0, "Failed to send OPTIONS to redirect target");
-                                m_op_map.erase(iter);
-                                running_handles -= 1;
-                            }
-                            parent_op_failed = true;
-                        } else {
-                            OpRecord(*parent_op, OpKind::Start);
-                        }
-                    } else {
-                        OpRecord(*parent_op, OpKind::Start);
-                    }
-                    if (!parent_op_failed){
-                        curl_multi_add_handle(multi_handle, options_op->GetParentCurlHandle());
-                    }
-                }
-
-                iter->second.first->Fail(XrdCl::errErrorResponse, 1, err);
-                OpRecord(*iter->second.first, OpKind::Error);
-                m_op_map.erase(handle);
+                op->Fail(XrdCl::errErrorResponse, 1, err);
+                OpRecord(*op, OpKind::Error);
+                if (auto options_op = std::dynamic_pointer_cast<CurlOptionsOp>(op))
+                    reactivate_parent(options_op);
+                remove_op(handle);
                 broker_reqs.erase(entry.fd);
                 m_conncall_errors.fetch_add(1, std::memory_order_relaxed);
-                running_handles -= 1;
             } else {
                 broker_reqs.erase(entry.fd);
-                curl_multi_add_handle(multi_handle, handle);
+                auto add_res = curl_multi_add_handle(multi_handle, handle);
+                if (add_res != CURLM_OK) {
+                    op->Fail(XrdCl::errInternal, add_res,
+                        "Unable to add operation to the curl multi-handle after the broker callback");
+                    OpRecord(*op, OpKind::Error);
+                    if (auto options_op = std::dynamic_pointer_cast<CurlOptionsOp>(op))
+                        reactivate_parent(options_op);
+                    remove_op(handle);
+                    m_conncall_errors.fetch_add(1, std::memory_order_relaxed);
+                    continue;
+                }
                 m_conncall_success.fetch_add(1, std::memory_order_relaxed);
             }
         }
 
         // Do maintenance on the multi-handle
         int still_running;
-        auto mres = curl_multi_perform(multi_handle, &still_running);
+        mres = curl_multi_perform(multi_handle, &still_running);
         if (mres == CURLM_CALL_MULTI_PERFORM) {
+            mres = CURLM_OK;
             continue;
         } else if (mres != CURLM_OK) {
             m_logger->Warning(kLogXrdClHttp, "Failed to perform multi-handle operation: %d", mres);
@@ -1571,183 +1613,120 @@ CurlWorker::Run() {
                     mres = CURLM_BAD_EASY_HANDLE;
                     break;
                 }
-                auto iter = m_op_map.find(msg->easy_handle);
+                CURL *const easy_handle = msg->easy_handle;
+                auto iter = m_op_map.find(easy_handle);
                 if (iter == m_op_map.end()) {
                     m_logger->Error(kLogXrdClHttp, "Logic error: got a callback for an entry that doesn't exist");
                     mres = CURLM_BAD_EASY_HANDLE;
                     break;
                 }
-                auto op = iter->second.first;
+                auto [op, started_at] = iter->second;
                 auto res = msg->data.result;
+                // Completion callbacks may reconfigure or release their handle.
+                // Stop libcurl from owning it before invoking operation methods.
+                curl_multi_remove_handle(multi_handle, easy_handle);
                 bool keep_handle = false;
                 bool waiting_on_callout = false;
+                bool options_pending = false;
                 if (res == CURLE_OK) {
                     auto sc = op->GetStatusCode();
                     OpRecord(*op, OpKind::Finish);
                     if (HTTPStatusIsError(sc)) {
-                        auto httpErr = HTTPStatusConvert(sc);
-                        op->Fail(httpErr.first, httpErr.second, op->GetStatusMessage());
+                        auto [code, number] = HTTPStatusConvert(sc);
+                        op->Fail(code, number, op->GetStatusMessage());
                         op->ReleaseHandle();
                         // If this was a failed CurlOptionsOp, then we re-activate the parent handle.
                         // If the parent handle was stopped at a redirect that now returns failure, then
                         // we'll clean it up.
-                        CurlOptionsOp *options_op = nullptr;
-                        if ((options_op = dynamic_cast<CurlOptionsOp*>(op.get())) != nullptr) {
-                            auto parent_op = options_op->GetOperation();
-                            bool parent_op_failed = false;
-                            if (parent_op->IsRedirect()) {
-                                std::string target;
-                                if (parent_op->Redirect(target) == CurlOperation::RedirectAction::Fail) {
-                                    OpRecord(*parent_op, OpKind::Error);
-                                    m_op_map.erase(options_op->GetParentCurlHandle());
-                                    running_handles -= 1;
-                                    parent_op_failed = true;
-                                } else {
-                                    OpRecord(*parent_op, OpKind::Start);
-                                }
-                            } else {
-                                OpRecord(*parent_op, OpKind::Start);
-                            }
-                            // Have curl execute the parent operation
-                            if (!parent_op_failed) {
-                                curl_multi_add_handle(multi_handle, options_op->GetParentCurlHandle());
-                            }
-                        }
+                        if (auto options_op = std::dynamic_pointer_cast<CurlOptionsOp>(op))
+                            reactivate_parent(options_op);
                         // The curl operation was successful, it's just the HTTP request failed; recycle the handle.
-                        queue.RecycleHandle(iter->first);
+                        queue.RecycleHandle(easy_handle);
                     } else {
-                        CurlOptionsOp *options_op = nullptr;
-                        // If this was a successful OPTIONS op, invoke the parent operation.
-                        if ((options_op = dynamic_cast<CurlOptionsOp*>(op.get()))) {
+                        // The child and suspended parent own distinct handles.
+                        // Complete the child, then resume or fail the parent without
+                        // treating the parent's redirect as a child request.
+                        if (auto options_op = std::dynamic_pointer_cast<CurlOptionsOp>(op)) {
                             options_op->Success();
                             options_op->ReleaseHandle();
-                            // Note: op is scoped external to the conditional block
-                            op = options_op->GetOperation();
-                            op->OptionsDone();
-                            OpRecord(*op, OpKind::Start);
-                            curl_multi_add_handle(multi_handle, options_op->GetParentCurlHandle());
-                            curl_multi_remove_handle(multi_handle, iter->first);
-                            queue.RecycleHandle(iter->first);
-                        }
-                        // Check to see if the operation ended in a redirect (note: this might)
-                        // be invoked a second time if this was the parent operation of an OPTIONS
-                        // op.
-                        if (op->IsRedirect()) {
-                            std::string target;
-                            switch (op->Redirect(target)) {
-                                case CurlOperation::RedirectAction::Fail:
-                                    if (options_op) {
-                                        // In this case, we failed immediately after an OPTIONS finished.
-                                        // Since there's a Start recorded after the OPTIONS processing, we
-                                        // must record an error.
-                                        // In the non-OPTIONS case, we never recorded a second start and
-                                        // don't need a matching failure.
-                                        OpRecord(*op, OpKind::Error);
-                                    }
-                                    keep_handle = false;
-                                    break;
-                                case CurlOperation::RedirectAction::Reinvoke:
-                                    if (!options_op) {
-                                        // In this case, the redirect occurred without any prior
-                                        // OPTIONS call.  This implies that `op` is the original call
-                                        // and we need to restart it later and record another op start.
+                            if (!options_op->GetOperation()->IsDone()) {
+                                options_op->GetOperation()->OptionsDone();
+                            }
+                            reactivate_parent(options_op);
+                            queue.RecycleHandle(easy_handle);
+                        } else {
+                            if (op->IsRedirect()) {
+                                std::string target;
+                                switch (op->Redirect(target)) {
+                                    case CurlOperation::RedirectAction::Fail:
+                                        keep_handle = false;
+                                        break;
+                                    case CurlOperation::RedirectAction::Reinvoke:
                                         keep_handle = true;
                                         OpRecord(*op, OpKind::Start);
-                                    }
-                                    break;
-                                case CurlOperation::RedirectAction::ReinvokeAfterAllow:
-                                {
-                                    // The redirect resulted in a new endpoint where the cache lookup failed;
-                                    // we need to know what HTTP verbs are in the server's Allow list before this
-                                    // operation can continue.  Inject a new CurlOptionsOp and chain it to the one
-                                    // being processed.  Once the OPTIONS request is done, then we'll restart this
-                                    // operation.
-                                    std::string modified_url;
-                                    target = VerbsCache::GetUrlKey(target, modified_url);
-                                    options_op = new CurlOptionsOp(iter->first, op, target, m_logger, op->GetConnCalloutFunc());
-                                    std::shared_ptr<CurlOperation> new_op(options_op);
-                                    auto curl = queue.GetHandle();
-                                    if (curl == nullptr) {
-                                        m_logger->Debug(kLogXrdClHttp, "Unable to allocate a curl handle");
-                                        op->Fail(XrdCl::errInternal, ENOMEM, "Unable to get allocate a curl handle");
-                                        keep_handle = false;
-                                        options_op = nullptr;
                                         break;
-                                    }
-                                    OpRecord(*new_op, OpKind::Start);
-                                    try {
-                                        auto rv = new_op->Setup(curl, *this);
-                                        if (!rv) {
-                                            m_logger->Debug(kLogXrdClHttp,  "Unable to configure a curl handle for OPTIONS");
+                                    case CurlOperation::RedirectAction::ReinvokeAfterAllow:
+                                    {
+                                        // The redirect resulted in a new endpoint where the cache lookup failed;
+                                        // we need to know what HTTP verbs are in the server's Allow list before this
+                                        // operation can continue.  Inject a new CurlOptionsOp and chain it to the one
+                                        // being processed.  Once the OPTIONS request is done, then we'll restart this
+                                        // operation.
+                                        if (!start_options(easy_handle, op, target)) {
                                             keep_handle = false;
-                                            options_op = nullptr;
                                             break;
                                         }
-                                    } catch (...) {
-                                        m_logger->Debug(kLogXrdClHttp, "Unable to setup the curl handle for the OPTIONS operation");
-                                        new_op->Fail(XrdCl::errInternal, ENOMEM, "Failed to setup the curl handle for the OPTIONS operation");
-                                        OpRecord(*new_op, OpKind::Error);
-                                        keep_handle = false;
-                                        break;
+                                        m_logger->Debug(kLogXrdClHttp, "Invoking the OPTIONS operation before redirect to %s", target.c_str());
+                                        // The original curl operation needs to be kept around without re-adding its handle
+                                        // to the multi-handle until the OPTIONS operation completes.
+                                        options_pending = true;
+                                        keep_handle = true;
                                     }
-                                    new_op->SetContinueQueue(m_continue_queue);
-                                    m_op_map[curl] = {new_op, std::chrono::system_clock::now()};
-                                    auto mres = curl_multi_add_handle(multi_handle, curl);
-                                    if (mres != CURLM_OK) {
-                                        m_logger->Debug(kLogXrdClHttp, "Unable to add OPTIONS operation to the curl multi-handle: %s", curl_multi_strerror(mres));
-                                        op->Fail(XrdCl::errInternal, mres, "Unable to add OPTIONS operation to the curl multi-handle");
-                                        OpRecord(*new_op, OpKind::Error);
-                                        break;
-                                    }
-                                    running_handles += 1;
-                                    m_logger->Debug(kLogXrdClHttp, "Invoking the OPTIONS operation before redirect to %s", target.c_str());
-                                    // The original curl operation needs to be kept around.  Note that because options_op
-                                    // is non-nil, we won't re-add the handle to the multi-handle.
-                                    keep_handle = true;
+                                }
+                                int callout_socket = op->WaitSocket();
+                                if ((waiting_on_callout = keep_handle && !options_pending && callout_socket >= 0)) {
+                                    auto expiry = time(nullptr) + 20;
+                                    m_logger->Debug(kLogXrdClHttp, "Creating a callout wait request on socket %d", callout_socket);
+                                    broker_reqs[callout_socket] = {easy_handle, expiry};
+                                    m_conncall_req.fetch_add(1, std::memory_order_relaxed);
                                 }
                             }
-                            int callout_socket = op->WaitSocket();
-                            if ((waiting_on_callout = callout_socket >= 0)) {
-                                auto expiry = time(nullptr) + 20;
-                                m_logger->Debug(kLogXrdClHttp, "Creating a callout wait request on socket %d", callout_socket);
-                                broker_reqs[callout_socket] = {iter->first, expiry};
-                                m_conncall_req.fetch_add(1, std::memory_order_relaxed);
-                            }
-                        } else if (options_op) {
-                            // In this case, the OPTIONS call happened before the parent operation was started.
-                            curl_multi_add_handle(multi_handle, options_op->GetParentCurlHandle());
-                        }
-                        if (keep_handle) {
-                            curl_multi_remove_handle(multi_handle, iter->first);
-                            if (!waiting_on_callout && !options_op) {
-                                curl_multi_add_handle(multi_handle, iter->first);
-                            }
-                        } else if (!options_op) {
-                            // A multi-step operation may reset and reconfigure its
-                            // easy handle from Success().  Remove the completed
-                            // request before invoking it so libcurl no longer owns
-                            // the request configuration being replaced.
-                            curl_multi_remove_handle(multi_handle, iter->first);
-                            op->Success();
-                            if (op->IsDone()) {
-                                op->ReleaseHandle();
-                                // If the handle was successful, then we can recycle it.
-                                queue.RecycleHandle(iter->first);
+                            if (keep_handle) {
+                                if (!waiting_on_callout && !options_pending) {
+                                    auto redirect_res = curl_multi_add_handle(multi_handle, easy_handle);
+                                    if (redirect_res != CURLM_OK) {
+                                        op->Fail(XrdCl::errInternal, redirect_res,
+                                            "Unable to add redirected operation to the curl multi-handle");
+                                        OpRecord(*op, OpKind::Error);
+                                        op->ReleaseHandle();
+                                        queue.RecycleHandle(easy_handle);
+                                        keep_handle = false;
+                                    }
+                                }
                             } else {
-                                // Multi-step operations may configure their easy handle
-                                // for another request from Success().  Keep ownership of
-                                // the handle and run the next request through this worker's
-                                // multi-handle like any other operation.
-                                auto next_res = curl_multi_add_handle(multi_handle, iter->first);
-                                if (next_res == CURLM_OK) {
-                                    keep_handle = true;
-                                    OpRecord(*op, OpKind::Start);
-                                } else {
-                                    op->Fail(XrdCl::errInternal, next_res,
-                                        "Unable to add the next operation request to the curl multi-handle");
-                                    OpRecord(*op, OpKind::Error);
+                                if (!op->IsDone()) {
+                                    op->Success();
+                                }
+                                if (op->IsDone()) {
                                     op->ReleaseHandle();
-                                    queue.RecycleHandle(iter->first);
+                                    // If the handle was successful, then we can recycle it.
+                                    queue.RecycleHandle(easy_handle);
+                                } else {
+                                    // Multi-step operations may configure their easy handle
+                                    // for another request from Success().  Keep ownership of
+                                    // the handle and run the next request through this worker's
+                                    // multi-handle like any other operation.
+                                    auto next_res = curl_multi_add_handle(multi_handle, easy_handle);
+                                    if (next_res == CURLM_OK) {
+                                        keep_handle = true;
+                                        OpRecord(*op, OpKind::Start);
+                                    } else {
+                                        op->Fail(XrdCl::errInternal, next_res,
+                                            "Unable to add the next operation request to the curl multi-handle");
+                                        OpRecord(*op, OpKind::Error);
+                                        op->ReleaseHandle();
+                                        queue.RecycleHandle(easy_handle);
+                                    }
                                 }
                             }
                         }
@@ -1761,13 +1740,18 @@ CurlWorker::Run() {
                     int wait_socket = -1;
                     if (!op->StartConnectionCallout(err) || (wait_socket=op->WaitSocket()) == -1) {
                         m_logger->Error(kLogXrdClHttp, "Failed to start broker-based connection: %s", err.c_str());
+                        if (!op->IsDone())
+                            op->Fail(XrdCl::errConnectionError, 1, err);
+                        OpRecord(*op, OpKind::Error);
+                        if (auto options_op = std::dynamic_pointer_cast<CurlOptionsOp>(op))
+                            reactivate_parent(options_op);
                         op->ReleaseHandle();
                         keep_handle = false;
                     } else {
-                        curl_multi_remove_handle(multi_handle, iter->first);
+                        curl_multi_remove_handle(multi_handle, easy_handle);
                         auto expiry = time(nullptr) + 20;
                         m_logger->Debug(kLogXrdClHttp, "Curl operation requires a new TCP socket; waiting for callout to respond on socket %d", wait_socket);
-                        broker_reqs[wait_socket] = {iter->first, expiry};
+                        broker_reqs[wait_socket] = {easy_handle, expiry};
                         m_conncall_req.fetch_add(1, std::memory_order_relaxed);
                     }
                 } else {
@@ -1810,88 +1794,56 @@ CurlWorker::Run() {
                             OpRecord(*op, OpKind::Error);
                             break;
                         };
-                        CurlOptionsOp *options_op = nullptr;
-                        if ((options_op = dynamic_cast<CurlOptionsOp*>(op.get())) != nullptr) {
-                            auto parent_op = options_op->GetOperation();
-                            bool parent_op_failed = false;
-                            if (parent_op->IsRedirect()) {
-                                std::string target;
-                                if (parent_op->Redirect(target) == CurlOperation::RedirectAction::Fail) {
-                                    auto iter = m_op_map.find(options_op->GetParentCurlHandle());
-                                    if (iter != m_op_map.end()) {
-                                        OpRecord(*iter->second.first, OpKind::Error);
-                                        iter->second.first->Fail(XrdCl::errErrorResponse, 0, "Failed to send OPTIONS to redirect target");
-                                        m_op_map.erase(iter);
-                                        running_handles -= 1;
-                                    }
-                                    parent_op_failed = true;
-                                } else {
-                                    OpRecord(*parent_op, OpKind::Start);
-                                }
-                            } else {
-                                OpRecord(*parent_op, OpKind::Start);
-                            }
-                            if (!parent_op_failed){
-                                curl_multi_add_handle(multi_handle, options_op->GetParentCurlHandle());
-                            }
-                        }
+                        if (auto options_op = std::dynamic_pointer_cast<CurlOptionsOp>(op))
+                            reactivate_parent(options_op);
                     } else {
-                        auto xrdCode = CurlCodeConvert(res);
+                        auto [code, number] = CurlCodeConvert(res);
                         const auto curl_err = op->GetCurlErrorMessage();
                         const char *curl_easy_err = curl_easy_strerror(res);
                         const std::string fail_err = !curl_err.empty() ? curl_err : curl_easy_err;
                         m_logger->Debug(kLogXrdClHttp, "Curl generated an error: %s (%d)", fail_err.c_str(), res);
-                        op->Fail(xrdCode.first, xrdCode.second, fail_err);
+                        op->Fail(code, number, fail_err);
                         OpRecord(*op, OpKind::Error);
-                        CurlOptionsOp *options_op = nullptr;
-                        if ((options_op = dynamic_cast<CurlOptionsOp*>(op.get())) != nullptr) {
-                            auto parent_op = options_op->GetOperation();
-                            bool parent_op_failed = false;
-                            if (parent_op->IsRedirect()) {
-                                std::string target;
-                                if (parent_op->Redirect(target) == CurlOperation::RedirectAction::Fail) {
-                                    auto iter = m_op_map.find(options_op->GetParentCurlHandle());
-                                    if (iter != m_op_map.end()) {
-                                        OpRecord(*iter->second.first, OpKind::Error);
-                                        iter->second.first->Fail(XrdCl::errErrorResponse, 0, "Failed to send OPTIONS to redirect target");
-                                        m_op_map.erase(iter);
-                                        running_handles -= 1;
-                                    }
-                                    parent_op_failed = true;
-                                }
-                            }
-                            if (!parent_op_failed){
-                                curl_multi_add_handle(multi_handle, options_op->GetParentCurlHandle());
-                            }
-                        }
+                        if (auto options_op = std::dynamic_pointer_cast<CurlOptionsOp>(op))
+                            reactivate_parent(options_op);
                     }
                     op->ReleaseHandle();
                 }
                 if (!keep_handle) {
-                    curl_multi_remove_handle(multi_handle, iter->first);
+                    curl_multi_remove_handle(multi_handle, easy_handle);
                     if (res != CURLE_OK) {
-                        curl_easy_cleanup(iter->first);
+                        curl_easy_cleanup(easy_handle);
                     }
-                    for (auto &req : broker_reqs) {
-                        if (req.second.curl == iter->first) {
+                    for (auto req = broker_reqs.begin(); req != broker_reqs.end();) {
+                        if (req->second.curl == easy_handle) {
                             m_logger->Warning(kLogXrdClHttp, "Curl handle finished while a broker operation was outstanding");
                             m_conncall_errors.fetch_add(1, std::memory_order_relaxed);
+                            req = broker_reqs.erase(req);
+                        } else {
+                            ++req;
                         }
                     }
-                    m_op_map.erase(iter);
+                    m_op_map.erase(easy_handle);
                     running_handles -= 1;
                 }
             }
         } while (msg);
+        if (mres != CURLM_OK) break;
     }
 
-    for (auto map_entry : m_op_map) {
-        if (mres) {
-            map_entry.second.first->Fail(XrdCl::errInternal, mres, curl_multi_strerror(mres));
-            OpRecord(*map_entry.second.first, OpKind::Error);
+    for (const auto &[handle, entry] : m_op_map) {
+        const auto &[op, started_at] = entry;
+        if (!op->IsDone()) {
+            const auto err_num = mres == CURLM_OK ? ECANCELED : static_cast<int>(mres);
+            const std::string err_msg = mres == CURLM_OK
+                ? "Curl worker shut down before the operation completed"
+                : curl_multi_strerror(mres);
+            op->Fail(XrdCl::errInternal, err_num, err_msg);
+            OpRecord(*op, OpKind::Error);
         }
-        if (multi_handle && map_entry.first) curl_multi_remove_handle(multi_handle, map_entry.first);
+        release_handle(op, handle);
     }
+    m_op_map.clear();
 
     m_queue->ReleaseHandles();
     curl_multi_cleanup(multi_handle);
