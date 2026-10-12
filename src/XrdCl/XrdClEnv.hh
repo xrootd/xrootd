@@ -159,10 +159,12 @@ namespace XrdCl
           const std::string                         &key );
 
       //------------------------------------------------------------------------
-      //! Resolve a string setting using shell environment, then plug-in
-      //! configuration, then @a defaultValue.
+      //! Resolve a string setting.
       //!
-      //! The resolved value is stored in the environment under @a key.
+      //! An existing non-empty entry is kept. Otherwise the value comes
+      //! from the shell variable, then the plug-in configuration, then
+      //! @a defaultValue. A shell or plug-in value is stored under @a key.
+      //! @a defaultValue is written only to @a value.
       //! @param key          : environment key to store the resolved value
       //!                       under
       //! @param shellKey     : shell environment variable to import from;
@@ -171,11 +173,12 @@ namespace XrdCl
       //!                       client.plugins.d; may be null
       //! @param value        : output parameter, receives the resolved
       //!                       value
-      //! @param defaultValue : fallback value when neither the shell nor
-      //!                       plug-in configuration provides a setting
-      //! @return             : true if @a value came from the shell or
-      //!                       plug-in configuration, false if
-      //!                       @a defaultValue was used
+      //! @param defaultValue : fallback value when no earlier source
+      //!                       provides a setting
+      //! @return             : true if @a value came from an existing
+      //!                       entry, the shell, or the plug-in
+      //!                       configuration, false if @a defaultValue
+      //!                       was used
       //------------------------------------------------------------------------
       bool ResolveString( const std::string                         &key,
                           const std::string                         &shellKey,
@@ -184,10 +187,12 @@ namespace XrdCl
                           const std::string                         &defaultValue = "" );
 
       //------------------------------------------------------------------------
-      //! Resolve an integer setting using shell environment, then plug-in
-      //! configuration, then @a defaultValue.
+      //! Resolve an integer setting.
       //!
-      //! The resolved value is stored in the environment under @a key.
+      //! An existing entry is kept, including zero. Otherwise the value
+      //! comes from the shell variable, then the plug-in configuration,
+      //! then @a defaultValue. A shell, plug-in, or default value is
+      //! stored under @a key.
       //! @param key          : environment key to store the resolved value
       //!                       under
       //! @param shellKey     : shell environment variable to import from;
@@ -196,11 +201,12 @@ namespace XrdCl
       //!                       client.plugins.d; may be null
       //! @param value        : output parameter, receives the resolved
       //!                       value
-      //! @param defaultValue : fallback value when neither the shell nor
-      //!                       plug-in configuration provides a setting
-      //! @return             : true if @a value came from the shell or
-      //!                       plug-in configuration, false if
-      //!                       @a defaultValue was used
+      //! @param defaultValue : fallback value when no earlier source
+      //!                       provides a setting
+      //! @return             : true if @a value came from an existing
+      //!                       entry, the shell, or the plug-in
+      //!                       configuration, false if @a defaultValue
+      //!                       was used
       //------------------------------------------------------------------------
       bool ResolveInt( const std::string                         &key,
                        const std::string                         &shellKey,
