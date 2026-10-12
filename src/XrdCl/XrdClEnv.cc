@@ -65,12 +65,13 @@ namespace XrdCl
                            std::string                               &value,
                            const std::string                         &defaultValue )
   {
-    value.clear();
-    PutString( key, "" );
-    if( !shellKey.empty() )
-      ImportString( key, shellKey );
-
+    // A value already stored in the environment, for example by PutString,
+    // takes precedence over the shell and the plug-in configuration.
     if( GetString( key, value ) && !value.empty() )
+      return true;
+
+    if( !shellKey.empty() && ImportString( key, shellKey ) &&
+        GetString( key, value ) && !value.empty() )
       return true;
 
     if( pluginConfig )
@@ -96,7 +97,11 @@ namespace XrdCl
                         int                                       &value,
                         int                                        defaultValue )
   {
-    PutInt( key, defaultValue );
+    // A value already stored in the environment, for example by PutInt,
+    // takes precedence over the shell and the plug-in configuration.
+    if( GetInt( key, value ) )
+      return true;
+
     if( !shellKey.empty() && ImportInt( key, shellKey ) )
     {
       GetInt( key, value );
