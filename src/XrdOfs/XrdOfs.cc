@@ -945,6 +945,10 @@ int XrdOfsFile::close()  // In
            }
    OfsStats.sdMutex.UnLock();
 
+// Do an fsync() on this file prior to closing if it was open r/w
+//
+   if (ocFsync && hP->isRW) hP->Select().Fsync(); // Ignore errors
+
 // If this file was tagged as a POSC then we need to make sure it will persist
 // Note that we unpersist the file immediately when it's inactive or if no hold
 // time is allowed. Also, close events occur only for active handles. If the
