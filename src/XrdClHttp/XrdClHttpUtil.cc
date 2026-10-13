@@ -126,16 +126,6 @@ std::string XrdClHttp::GetBearerToken(XrdCl::Log *logger)
     }
 
     auto result = XrdOucBearerToken::Discover();
-    if (result.status == XrdOucBearerToken::Status::NotFound) {
-        std::string tokenFile;
-        auto env = XrdCl::DefaultEnv::GetEnv();
-        if (env && env->GetString("BearerTokenFile", tokenFile) && !tokenFile.empty()) {
-            const char *envFile = std::getenv("BEARER_TOKEN_FILE");
-            if (!envFile || tokenFile != envFile) {
-                result = XrdOucBearerToken::ReadFile(tokenFile.c_str());
-            }
-        }
-    }
     if (result.status == XrdOucBearerToken::Status::Found) return result.token;
 
     if (logger && result.status == XrdOucBearerToken::Status::Error) {
