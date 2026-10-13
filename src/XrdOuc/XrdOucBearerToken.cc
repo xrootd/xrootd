@@ -2,7 +2,6 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysE2T.hh"
 
 #include <fcntl.h>
 #include <sys/param.h>
@@ -12,6 +11,7 @@
 #include <array>
 #include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <utility>
 
@@ -115,14 +115,25 @@ XrdOucBearerToken::Result XrdOucBearerToken::Discover(size_t maxSize, XrdOucEnv*
 }
 
 std::string XrdOucBearerToken::Result::Failure() const {
-    std::string msg = "Secztn: Unable to find token via ";
-    msg += entry;
-    if (!location.empty()) {
-        msg += '=';
-        msg += location;
+    const char* reason = nullptr;
+    switch (errnum) {
+        case EPERM:
+            reason = "token file must be readable only by its owner";
+            break;
+        case EMSGSIZE:
+            reason = "token exceeds the maximum allowed size";
+            break;
+        case EIO:
+            reason = "unable to read the complete token from file";
+            break;
+        default:
+            reason = strerror(errnum);
+            break;
     }
-    msg += "; ";
-    if (const char* why = XrdSysE2T(errnum)) msg += why;
-    if (errnum == EPERM) msg += " because of excessive permissions";
+
+    std::string msg = "Bearer token discovery failed at ";
+    msg += location.empty() ? entry : location;
+    msg += ": ";
+    if (reason) msg += reason;
     return msg;
 }
