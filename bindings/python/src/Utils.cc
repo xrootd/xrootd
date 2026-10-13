@@ -55,38 +55,10 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  // Convert PyInt to unsigned long (uint64_t)
-  //----------------------------------------------------------------------------
-  int PyIntToUlong(PyObject *py_val, unsigned long *val, const char *name)
-  {
-    const long tmp = PyLong_AsLong(py_val);
-
-    if (tmp == -1 && PyErr_Occurred())
-    {
-      if (PyErr_ExceptionMatches(PyExc_OverflowError))
-        PyErr_Format(PyExc_OverflowError, "%s too big for unsigned long", name);
-      return -1;
-    }
-
-    if (tmp < 0)
-    {
-      PyErr_Format(PyExc_OverflowError,
-                   "negative %s cannot be converted to unsigned long", name);
-      return -1;
-    }
-
-    *val = tmp;
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  // Convert Python object to unsigned long (uint64_t)
+  // Convert Python object to unsigned long
   //----------------------------------------------------------------------------
   int PyObjToUlong(PyObject *py_val, unsigned long *val, const char *name)
   {
-    if (PyLong_Check(py_val))
-      return PyIntToUlong(py_val, val, name);
-
     if (!PyLong_Check(py_val))
     {
       PyErr_Format(PyExc_TypeError, "expected integer %s", name);
@@ -95,7 +67,7 @@ namespace PyXRootD
 
     const unsigned long tmp = PyLong_AsUnsignedLong(py_val);
 
-    if (PyErr_Occurred())
+    if ((tmp == (unsigned long) -1) && PyErr_Occurred())
     {
       if (PyErr_ExceptionMatches(PyExc_OverflowError))
         PyErr_Format(PyExc_OverflowError, "%s too big for unsigned long", name);
@@ -132,9 +104,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   int PyObjToUshrt(PyObject *py_val, unsigned short int *val, const char *name)
   {
-    unsigned int tmp;
+    unsigned long tmp;
 
-    if (PyObjToUint(py_val, &tmp, name))
+    if (PyObjToUlong(py_val, &tmp, name))
       return -1;
 
     if (tmp > USHRT_MAX)
@@ -151,29 +123,16 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   // Convert Python object to unsigned long long (uint64_t)
   //----------------------------------------------------------------------------
-  int PyObjToUllong(PyObject *py_val, unsigned PY_LONG_LONG *val,
+  int PyObjToUllong(PyObject *py_val, unsigned long long *val,
                     const char *name)
   {
-    if (PyLong_Check(py_val))
-    {
-      unsigned long tmp;
-
-      if (!PyIntToUlong(py_val, &tmp, name))
-      {
-        *val = tmp;
-        return 0;
-      }
-
-      return -1;
-    }
-
     if (!PyLong_Check(py_val))
     {
       PyErr_Format(PyExc_TypeError, "integer argument expected for %s", name);
       return -1;
     }
 
-    const unsigned PY_LONG_LONG tmp = PyLong_AsUnsignedLongLong(py_val);
+    const unsigned long long tmp = PyLong_AsUnsignedLongLong(py_val);
 
     if ((tmp == (unsigned long long) -1) && PyErr_Occurred())
     {
