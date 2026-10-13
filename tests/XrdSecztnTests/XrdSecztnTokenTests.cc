@@ -506,6 +506,67 @@ class XrdSecztnClientTokenTest : public ::testing::Test {
 
 //--- success paths ------------------------------------------------------------
 
+TEST_F(XrdSecztnClientTokenTest, ExplicitTokenSkipsDiscovery) {
+    auto file = TokenFile::Create("secret-token", S_IRUSR | S_IRGRP);
+    ASSERT_TRUE(file.Ok());
+    EnvVar tokenFile("BEARER_TOKEN_FILE", file.Path());
+
+    XrdOucEnv opaque;
+    opaque.Put("BearerToken", "  explicit-token  ");
+    XrdOucErrInfo ei;
+    ei.setEnv(&opaque);
+
+    Protocol prot(m_plugin, kDefaultParms, &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
+    ASSERT_NE(nullptr, cred) << ei.getErrText();
+    EXPECT_EQ("explicit-token", TokenFromCredentials(cred));
+    delete cred;
+
+    ei.setEnv(nullptr);
+}
+
+TEST_F(XrdSecztnClientTokenTest, BlankExplicitTokenFallsThroughToDiscovery) {
+    EnvVar token("BEARER_TOKEN", "env-token");
+
+    XrdOucEnv opaque;
+    opaque.Put("BearerToken", "   ");
+    XrdOucErrInfo ei;
+    ei.setEnv(&opaque);
+
+    Protocol prot(m_plugin, kDefaultParms, &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
+    ASSERT_NE(nullptr, cred) << ei.getErrText();
+    EXPECT_EQ("env-token", TokenFromCredentials(cred));
+    delete cred;
+
+    ei.setEnv(nullptr);
+}
+
+TEST_F(XrdSecztnClientTokenTest, ExplicitTokenDoesNotFallThroughWhenRejected) {
+    auto file = TokenFile::Create("file-token", S_IRUSR | S_IWUSR);
+    ASSERT_TRUE(file.Ok());
+    EnvVar tokenFile("BEARER_TOKEN_FILE", file.Path());
+
+    XrdOucEnv opaque;
+    opaque.Put("BearerToken", "0123456789");
+    XrdOucErrInfo ei;
+    ei.setEnv(&opaque);
+
+    Protocol prot(m_plugin, "0:8:", &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
+    EXPECT_EQ(nullptr, cred);
+    EXPECT_EQ(EMSGSIZE, ei.getErrInfo());
+    EXPECT_EQ("Secztn: Token is too big", std::string(ei.getErrText()));
+
+    ei.setEnv(nullptr);
+}
+
 TEST_F(XrdSecztnClientTokenTest, ReadsBearerTokenFromEnvironment) {
     EnvVar token("BEARER_TOKEN", "  env-token  ");
 

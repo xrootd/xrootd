@@ -316,8 +316,23 @@ XrdSecCredentials *XrdSecProtocolztn::getCredentials(XrdSecParameters *parms,
 //
    if (cont) return getToken(error, parms);
 
-// Token lookup, including an xrd.ztn path in the handshake environment,
-// is entirely the shared helper's job.
+// BearerToken set with XrdCl::Env::PutString is used when it fits the
+// handshake size. Discovery does not run. A blank value falls through.
+//
+   const char *configured = (error && error->getEnv())
+                            ? error->getEnv()->Get("BearerToken") : nullptr;
+   if (configured)
+      {auto parsed = XrdOucBearerToken::FromEnvValue(configured,
+                                                     static_cast<size_t>(maxTSize));
+       if (parsed.status == XrdOucBearerToken::Status::Found)
+          return retToken(error, parsed.token.c_str(),
+                          static_cast<int>(parsed.token.size()));
+       if (parsed.status == XrdOucBearerToken::Status::Error)
+          return Fatal(error, "Token is too big", EMSGSIZE);
+      }
+
+// Otherwise discover a token, including an xrd.ztn path in the handshake
+// environment.
 //
    auto result = XrdOucBearerToken::Discover(static_cast<size_t>(maxTSize),
                                              error ? error->getEnv() : 0);

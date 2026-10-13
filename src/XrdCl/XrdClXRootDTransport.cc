@@ -2544,6 +2544,17 @@ namespace XrdCl
           info->authEnv->Put( it->first.c_str(), it->second.c_str() );
       }
 
+      if( Env *clEnv = DefaultEnv::GetEnv() )
+      {
+        std::string token;
+        if( clEnv->GetString( "BearerToken", token ) )
+        {
+          XrdOucUtils::trim( token );
+          if( !token.empty() )
+            info->authEnv->Put( "BearerToken", token.c_str() );
+        }
+      }
+
       //------------------------------------------------------------------------
       // Initialize some other structs
       //------------------------------------------------------------------------
