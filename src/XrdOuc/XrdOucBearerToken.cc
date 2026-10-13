@@ -1,6 +1,8 @@
 #include "XrdOuc/XrdOucBearerToken.hh"
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 #include <fcntl.h>
 #include <sys/param.h>
@@ -22,9 +24,9 @@ XrdOucBearerToken::Result XrdOucBearerToken::FromEnvValue(const char* value, siz
 
     // location stays empty so the token is not logged. The bound is exclusive,
     // matching ztn retToken: a token as long as maxSize is too big.
-    if (maxSize && token.size() >= maxSize) return {Status::Error, {}, EMSGSIZE, {}};
+    if (maxSize && token.size() >= maxSize) return {Status::Error, {}, EMSGSIZE, {}, {}};
 
-    return {Status::Found, std::move(token), 0, {}};
+    return {Status::Found, std::move(token), 0, {}, {}};
 }
 
 XrdOucBearerToken::Result XrdOucBearerToken::ReadFile(const char* path, size_t maxSize) {
@@ -33,31 +35,31 @@ XrdOucBearerToken::Result XrdOucBearerToken::ReadFile(const char* path, size_t m
     struct stat st;
     if (stat(path, &st) != 0) {
         if (errno == ENOENT) return {};
-        return {Status::Error, {}, errno, path};
+        return {Status::Error, {}, errno, path, {}};
     }
 
     if (maxSize && static_cast<size_t>(st.st_size) > maxSize)
-        return {Status::Error, {}, EMSGSIZE, path};
+        return {Status::Error, {}, EMSGSIZE, path, {}};
 
     // make sure the file is not accessible to anyone but the owner
-    if (st.st_mode & (S_IRWXG | S_IRWXO)) return {Status::Error, {}, EPERM, path};
+    if (st.st_mode & (S_IRWXG | S_IRWXO)) return {Status::Error, {}, EPERM, path, {}};
 
     int fd = open(path, O_RDONLY);
-    if (fd < 0) return {Status::Error, {}, errno, path};
+    if (fd < 0) return {Status::Error, {}, errno, path, {}};
 
     std::string token(static_cast<size_t>(st.st_size), '\0');
     ssize_t nread = read(fd, &token[0], static_cast<size_t>(st.st_size));
     int readErr = errno;
     close(fd);
 
-    if (nread != st.st_size) return {Status::Error, {}, nread < 0 ? readErr : EIO, path};
+    if (nread != st.st_size) return {Status::Error, {}, nread < 0 ? readErr : EIO, path, {}};
 
     XrdOucUtils::trim(token);
     if (token.empty()) return {};
 
-    if (maxSize && token.size() >= maxSize) return {Status::Error, {}, EMSGSIZE, path};
+    if (maxSize && token.size() >= maxSize) return {Status::Error, {}, EMSGSIZE, path, {}};
 
-    return {Status::Found, std::move(token), 0, path};
+    return {Status::Found, std::move(token), 0, path, {}};
 }
 
 XrdOucBearerToken::Result XrdOucBearerToken::ResolveEntry(std::string_view entry, size_t maxSize) {
@@ -92,10 +94,35 @@ XrdOucBearerToken::Result XrdOucBearerToken::Discover(size_t maxSize, const char
 
     for (const auto loc : dfltLoc) {
         auto result = ResolveEntry(loc, maxSize);
-        if (result.status != Status::NotFound) return result;
+        if (result.status != Status::NotFound) {
+            result.entry.assign(loc.data(), loc.size());
+            return result;
+        }
     }
 
-    if (xrdZtnPath && *xrdZtnPath) return ReadFile(xrdZtnPath, maxSize);
+    if (xrdZtnPath && *xrdZtnPath) {
+        auto result = ReadFile(xrdZtnPath, maxSize);
+        result.entry = "xrd.ztn";
+        return result;
+    }
 
     return {};
+}
+
+XrdOucBearerToken::Result XrdOucBearerToken::Discover(size_t maxSize, XrdOucEnv* env) {
+    const char* xrdZtnPath = env ? env->Get("xrd.ztn") : nullptr;
+    return Discover(maxSize, xrdZtnPath);
+}
+
+std::string XrdOucBearerToken::Result::Failure() const {
+    std::string msg = "Secztn: Unable to find token via ";
+    msg += entry;
+    if (!location.empty()) {
+        msg += '=';
+        msg += location;
+    }
+    msg += "; ";
+    if (const char* why = XrdSysE2T(errnum)) msg += why;
+    if (errnum == EPERM) msg += " because of excessive permissions";
+    return msg;
 }
