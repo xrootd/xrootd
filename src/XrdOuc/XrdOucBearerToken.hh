@@ -28,7 +28,8 @@ class XrdOucBearerToken {
         // the whole sequence.
         std::string entry;
 
-        // Text for a discovery failure, including the step name and location.
+        // "Bearer token discovery failed at <place>: <reason>".
+        // place is location when that is a path, otherwise the step name.
         std::string Failure() const;
     };
 

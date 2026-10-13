@@ -37,7 +37,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdSys/XrdSysE2T.hh"
 
 #ifndef XRD_SECZTN_LIB
 #error "XRD_SECZTN_LIB must be defined to the built libXrdSecztn path"
@@ -298,19 +297,28 @@ struct ZtnTokenCredHdr {
 };
 #pragma pack(pop)
 
-// Same sentence XrdOucBearerToken::Result::Failure() is specified to produce.
-std::string ExpectedDiscoveryFailure(const std::string &entry, const std::string &location, int errnum) {
-    const char *why = XrdSysE2T(errnum);
-    EXPECT_NE(nullptr, why) << "XrdSysE2T(" << errnum << ") returned null";
-    std::string msg = "Secztn: Unable to find token via ";
-    msg += entry;
-    if (!location.empty()) {
-        msg += '=';
-        msg += location;
+const char *FailureReason(int errnum) {
+    switch (errnum) {
+        case EPERM:
+            return "token file must be readable only by its owner";
+        case EMSGSIZE:
+            return "token exceeds the maximum allowed size";
+        case EIO:
+            return "unable to read the complete token from file";
+        default:
+            return strerror(errnum);
     }
-    msg += "; ";
+}
+
+// Same sentence Result::Failure() produces. An empty location uses the step
+// name, so the token text is not printed.
+std::string ExpectedDiscoveryFailure(const std::string &entry, const std::string &location, int errnum) {
+    const char *why = FailureReason(errnum);
+    EXPECT_NE(nullptr, why) << "strerror(" << errnum << ") returned null";
+    std::string msg = "Bearer token discovery failed at ";
+    msg += location.empty() ? entry : location;
+    msg += ": ";
     if (why) msg += why;
-    if (errnum == EPERM) msg += " because of excessive permissions";
     return msg;
 }
 
