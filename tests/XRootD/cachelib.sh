@@ -144,6 +144,14 @@ function wait_for_gstream_close() {
 	      "at access_cnt $2; $(gstream_diagnosis)"
 }
 
+# The cache configs flush the g-stream every 1 s; wait several flushes.
+function assert_no_gstream_close() {
+	sleep 5
+	if grep '"event":"file_close"' "$(gstream_log)" 2>/dev/null | grep -q "\"lfn\":\"/$1\""; then
+		error "unexpected g-stream file_close record for /$1"
+	fi
+}
+
 # Why might a record be missing? A dead collector and a cache that never closed
 # the file need different fixes, and the bare timeout cannot tell them apart.
 function gstream_diagnosis() {
