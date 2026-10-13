@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 
+class XrdOucEnv;
+
 /**
  * WLCG bearer-token discovery helpers shared by client components.
  *
@@ -21,6 +23,13 @@ class XrdOucBearerToken {
         std::string token;
         int errnum{0};
         std::string location;
+        // Discovery step that produced this result, such as "BEARER_TOKEN_FILE"
+        // or "xrd.ztn". Set by Discover() for any result other than a miss of
+        // the whole sequence.
+        std::string entry;
+
+        // Text for a discovery failure, including the step name and location.
+        std::string Failure() const;
     };
 
     /**
@@ -87,9 +96,16 @@ class XrdOucBearerToken {
      *                   for no limit
      * @param xrdZtnPath optional path from the xrd.ztn opaque parameter
      * @return the first non-NotFound Result from the sequence, or NotFound if no
-     * token is available
+     *         token is available. Result::entry names the step that produced a
+     *         Found or Error result, and "xrd.ztn" when that path is consulted.
      */
     static Result Discover(size_t maxSize = 0, const char* xrdZtnPath = nullptr);
+
+    /**
+     * Run discovery using the xrd.ztn path stored in @p env, when that
+     * parameter is present.
+     */
+    static Result Discover(size_t maxSize, XrdOucEnv* env);
 };
 
 #endif

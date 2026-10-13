@@ -62,7 +62,6 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSciTokens/XrdSciTokensHelper.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdSys/XrdSysE2T.hh"
 #include "XrdVersion.hh"
 
 #ifndef EAUTH
@@ -202,7 +201,7 @@ public:
 //
         XrdSecProtocolztn(const char *hname, XrdNetAddrInfo &endPoint,
                           XrdSciTokensHelper *sthp)
-                         : XrdSecProtocol("ztn"), sthP(sthp), tokName(""),
+                         : XrdSecProtocol("ztn"), sthP(sthp),
                            maxTSize(MaxTokSize), cont(false),
                            rtGet(false), verJWT(false)
                          {Entity.host = strdup(hname);
@@ -240,16 +239,11 @@ struct TokenResp
        char     tkn[1];  // Sized to actual token length
       };
 
-XrdSecCredentials *findToken(XrdOucErrInfo *erp,
-                             std::vector<XrdOucString> &Vec, bool &isbad);
 XrdSecCredentials *getToken(XrdOucErrInfo *erp, XrdSecParameters *parms);
-XrdSecCredentials *readFail(XrdOucErrInfo *erp, const char *path, int rc);
-XrdSecCredentials *readToken(XrdOucErrInfo *erp, const char *path, bool &isbad);
 XrdSecCredentials *retToken(XrdOucErrInfo *erp, const char *tkn, int tsz);
 int                SendAI(XrdOucErrInfo *erp, XrdSecParameters **parms);
 
 XrdSciTokensHelper *sthP;
-const char         *tokName;
 uint64_t            ztnInfo;
 int                 maxTSize;
 bool                cont;
@@ -267,7 +261,7 @@ bool                verJWT;
 XrdSecProtocolztn::XrdSecProtocolztn(const char *parms, XrdOucErrInfo *erp,
                                      bool       &aOK)
                                     : XrdSecProtocol("ztn"), sthP(0),
-                                      tokName(""), ztnInfo(0), maxTSize(0),
+                                      ztnInfo(0), maxTSize(0),
                                       cont(false), rtGet(false), verJWT(false)
 {
    char *endP;
@@ -309,68 +303,35 @@ XrdSecProtocolztn::XrdSecProtocolztn(const char *parms, XrdOucErrInfo *erp,
 }
 
 /******************************************************************************/
-/* Private:                    f i n d T o k e n                              */
-/******************************************************************************/
-  
-XrdSecCredentials *XrdSecProtocolztn::findToken(XrdOucErrInfo *erp,
-                                                std::vector<XrdOucString> &Vec,
-                                                bool &isbad)
-{
-   XrdSecCredentials *resp;
-
-// Look through all of the possible envars
-//
-   for (int i = 0; i < (int)Vec.size(); i++)
-       {tokName = Vec[i].c_str();
-        auto result = XrdOucBearerToken::ResolveEntry(tokName, maxTSize);
-        if (result.status == XrdOucBearerToken::Status::Found)
-           return retToken(erp, result.token.c_str(),
-                           static_cast<int>(result.token.size()));
-        if (result.status == XrdOucBearerToken::Status::Error)
-           {isbad = true;
-            return readFail(erp, result.location.c_str(), result.errnum);
-           }
-       }
-
-// We support passing the credential cache path via Url parameter
-//
-   char *ccn = (erp && erp->getEnv()) ? erp->getEnv()->Get("xrd.ztn") : 0;
-   if (ccn)
-     {
-       resp = readToken(erp, ccn, isbad);
-       if (resp || isbad) return resp;
-     }
-
-// Look through all of the possible envars   
-// Nothing found
-//
-  isbad = false;
-  return 0;
-}
-
-/******************************************************************************/
 /*                        g e t C r e d e n t i a l s                         */
 /******************************************************************************/
 
 XrdSecCredentials *XrdSecProtocolztn::getCredentials(XrdSecParameters *parms,
                                                      XrdOucErrInfo    *error)
 {
-   static const char  *dfltLoc[] = {"BEARER_TOKEN",    "BEARER_TOKEN_FILE",
-                                    "XDG_RUNTIME_DIR", "/tmp/bt_u%d"};
-   static const char **dfltLocEnd = dfltLoc + sizeof(dfltLoc)/sizeof(char*);
-   static std::vector<XrdOucString> dfltVec(dfltLoc, dfltLocEnd);
-
    XrdSecCredentials *resp;
-   bool isbad = false;
 
 // If this is a continuation, then handle as such
 //
    if (cont) return getToken(error, parms);
 
-// Handle the default search
+// Token lookup, including an xrd.ztn path in the handshake environment,
+// is entirely the shared helper's job.
 //
-   resp = findToken(error, dfltVec, isbad);
-   if (resp || isbad) return resp;
+   auto result = XrdOucBearerToken::Discover(static_cast<size_t>(maxTSize),
+                                             error ? error->getEnv() : 0);
+
+   if (result.status == XrdOucBearerToken::Status::Found)
+      {resp = retToken(error, result.token.c_str(),
+                       static_cast<int>(result.token.size()));
+       if (resp) return resp;
+      }
+   else if (result.status == XrdOucBearerToken::Status::Error)
+      {std::string msg = result.Failure();
+       if (error) error->setErrInfo(result.errnum, msg.c_str());
+          else std::cerr <<msg <<"\n" <<std::flush;
+       return 0;
+      }
 
 // We do not have a envar value then ask the server for a list of
 // token issuers so we can get one, if allowed. Otherwise, it's an error.
@@ -395,57 +356,6 @@ XrdSecCredentials *XrdSecProtocolztn::getToken(XrdOucErrInfo    *erp,
 // We currently do not support dynamic token creation
 //
    return Fatal(erp, "Realtime token creation not supported.", ENOTSUP);
-}
-  
-/******************************************************************************/
-/* Private:                     r e a d F a i l                               */
-/******************************************************************************/
-
-XrdSecCredentials *XrdSecProtocolztn::readFail(XrdOucErrInfo *erp,
-                                               const char *path, int rc)
-{
-   const char *mVec[7];
-   int k = 6;
-
-   mVec[0] = "Secztn: Unable to find token via ";
-   mVec[1] = tokName;
-   mVec[2] = "=";
-   mVec[3] = path;
-   mVec[4] = "; ";
-   mVec[5] = XrdSysE2T(rc);
-   if (rc == EPERM) mVec[k++] = " because of excessive permissions";
-
-
-   if (erp) erp->setErrInfo(rc, mVec, k);
-      else {for (int k = 0; k < 6; k++) std::cerr <<mVec[k];
-            std::cerr <<"\n" <<std::flush;
-           }
-
-   return 0;
-}
-  
-/******************************************************************************/
-/* Private:                    r e a d T o k e n                              */
-/******************************************************************************/
-
-XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
-                                                const char *path, bool &isbad)
-{
-   isbad = true;
-
-   auto result = XrdOucBearerToken::ReadFile(path, maxTSize);
-   if (result.status == XrdOucBearerToken::Status::Found)
-      {isbad = false;
-       return retToken(erp, result.token.c_str(),
-                       static_cast<int>(result.token.size()));
-      }
-
-   if (result.status == XrdOucBearerToken::Status::NotFound)
-      {isbad = false;
-       return 0;
-      }
-
-   return readFail(erp, result.location.c_str(), result.errnum);
 }
   
 /******************************************************************************/

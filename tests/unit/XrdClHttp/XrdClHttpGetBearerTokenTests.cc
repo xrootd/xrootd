@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <gtest/gtest.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -140,12 +141,46 @@ class IsolateDefaultTmpToken {
     bool m_blocked{false};
 };
 
+// Same path and lock as the XrdOuc and ztn token tests. CTest runs those
+// suites in parallel, and each one probes /tmp/bt_u<uid>.
+class DefaultTmpTokenLock {
+   public:
+    DefaultTmpTokenLock() {
+        const std::string path = "/tmp/xrd-bt-u" + std::to_string(static_cast<int>(geteuid())) + ".lock";
+        m_fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+        if (m_fd < 0) return;
+        if (flock(m_fd, LOCK_EX) != 0) {
+            close(m_fd);
+            m_fd = -1;
+        }
+    }
+
+    ~DefaultTmpTokenLock() {
+        if (m_fd < 0) return;
+        flock(m_fd, LOCK_UN);
+        close(m_fd);
+    }
+
+    bool Ok() const { return m_fd >= 0; }
+
+    DefaultTmpTokenLock(const DefaultTmpTokenLock&) = delete;
+    DefaultTmpTokenLock& operator=(const DefaultTmpTokenLock&) = delete;
+
+   private:
+    int m_fd{-1};
+};
+
 }  // anonymous namespace
 
 class XrdClHttpGetBearerTokenTests : public ::testing::Test {
    protected:
-    void SetUp() override { ClearDiscoveryEnv(); }
+    void SetUp() override {
+        ASSERT_TRUE(m_lock.Ok()) << "cannot lock the default bearer-token path";
+        ClearDiscoveryEnv();
+    }
     void TearDown() override { ClearDiscoveryEnv(); }
+
+    DefaultTmpTokenLock m_lock;
 };
 
 TEST_F(XrdClHttpGetBearerTokenTests, ReturnsTokenFromEnvironment) {
