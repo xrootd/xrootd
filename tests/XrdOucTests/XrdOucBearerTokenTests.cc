@@ -15,7 +15,6 @@
 
 #include "XrdOuc/XrdOucBearerToken.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSys/XrdSysE2T.hh"
 
 namespace {
 
@@ -74,20 +73,27 @@ void ClearDiscoveryEnv() {
     unsetenv("XDG_RUNTIME_DIR");
 }
 
-// Failure() is defined as this exact sentence. The errno phrase comes from
-// XrdSysE2T, whose text is platform-specific and lower-cased.
-std::string ExpectedFailure(const std::string& entry, const std::string& location, int errnum) {
-    const char* why = XrdSysE2T(errnum);
-    EXPECT_NE(nullptr, why) << "XrdSysE2T(" << errnum << ") returned null";
-    std::string msg = "Secztn: Unable to find token via ";
-    msg += entry;
-    if (!location.empty()) {
-        msg += '=';
-        msg += location;
+const char* FailureReason(int errnum) {
+    switch (errnum) {
+        case EPERM:
+            return "token file must be readable only by its owner";
+        case EMSGSIZE:
+            return "token exceeds the maximum allowed size";
+        case EIO:
+            return "unable to read the complete token from file";
+        default:
+            return strerror(errnum);
     }
-    msg += "; ";
+}
+
+// Same sentence Result::Failure() and the HTTP client log.
+std::string ExpectedFailure(const std::string& entry, const std::string& location, int errnum) {
+    const char* why = FailureReason(errnum);
+    EXPECT_NE(nullptr, why) << "strerror(" << errnum << ") returned null";
+    std::string msg = "Bearer token discovery failed at ";
+    msg += location.empty() ? entry : location;
+    msg += ": ";
     if (why) msg += why;
-    if (errnum == EPERM) msg += " because of excessive permissions";
     return msg;
 }
 
@@ -545,7 +551,6 @@ TEST_F(XrdOucBearerTokenTests, BearerTokenErrorDoesNotFallThroughToFile) {
 
     auto result = XrdOucBearerToken::Discover(5);
     ExpectError(result, "BEARER_TOKEN", "", EMSGSIZE);
-    EXPECT_EQ(std::string::npos, result.Failure().find("excessive permissions"));
     EXPECT_EQ(std::string::npos, result.Failure().find("0123456789"));
 
     unlink(path.c_str());
@@ -699,7 +704,8 @@ TEST_F(XrdOucBearerTokenTests, FailureOmitsPermissionSuffixUnlessEperm) {
     sized.location = "/tmp/token";
     sized.errnum = EMSGSIZE;
     EXPECT_EQ(ExpectedFailure("BEARER_TOKEN_FILE", "/tmp/token", EMSGSIZE), sized.Failure());
-    EXPECT_EQ(std::string::npos, sized.Failure().find("excessive permissions"));
+    EXPECT_EQ("Bearer token discovery failed at /tmp/token: token exceeds the maximum allowed size",
+              sized.Failure());
 
     XrdOucBearerToken::Result denied;
     denied.entry = "xrd.ztn";
@@ -707,8 +713,6 @@ TEST_F(XrdOucBearerTokenTests, FailureOmitsPermissionSuffixUnlessEperm) {
     denied.errnum = EPERM;
     const std::string text = denied.Failure();
     EXPECT_EQ(ExpectedFailure("xrd.ztn", "/tmp/token", EPERM), text);
-    EXPECT_EQ(0u, text.find("Secztn: Unable to find token via xrd.ztn=/tmp/token; "));
-    EXPECT_NE(std::string::npos, text.find(" because of excessive permissions"));
-    EXPECT_EQ(text.size() - std::strlen(" because of excessive permissions"),
-              text.rfind(" because of excessive permissions"));
+    EXPECT_EQ("Bearer token discovery failed at /tmp/token: token file must be readable only by its owner",
+              text);
 }

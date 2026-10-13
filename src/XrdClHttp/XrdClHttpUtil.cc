@@ -128,26 +128,8 @@ std::string XrdClHttp::GetBearerToken(XrdCl::Log *logger)
     auto result = XrdOucBearerToken::Discover();
     if (result.status == XrdOucBearerToken::Status::Found) return result.token;
 
-    if (logger && result.status == XrdOucBearerToken::Status::Error) {
-        std::string emsg;
-        switch (result.errnum) {
-            case EPERM:
-                emsg = "token file must be readable only by its owner";
-                break;
-            case EMSGSIZE:
-                emsg = "token exceeds the maximum allowed size";
-                break;
-            case EIO:
-                emsg = "unable to read the complete token from file";
-                break;
-            default:
-                emsg = strerror(result.errnum);
-                break;
-        }
-
-        logger->Warning(kLogXrdClHttp, "Bearer token discovery failed at %s: %s",
-                        result.location.c_str(), emsg.c_str());
-    }
+    if (logger && result.status == XrdOucBearerToken::Status::Error)
+        logger->Warning(kLogXrdClHttp, "%s", result.Failure().c_str());
 
     return {};
 }
