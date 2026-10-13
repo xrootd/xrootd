@@ -17,13 +17,16 @@
 
 #include <arpa/inet.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <gtest/gtest.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <array>
 #include <cerrno>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -34,6 +37,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 #ifndef XRD_SECZTN_LIB
 #error "XRD_SECZTN_LIB must be defined to the built libXrdSecztn path"
@@ -294,6 +298,81 @@ struct ZtnTokenCredHdr {
 };
 #pragma pack(pop)
 
+// Same sentence XrdOucBearerToken::Result::Failure() is specified to produce.
+std::string ExpectedDiscoveryFailure(const std::string &entry, const std::string &location, int errnum) {
+    const char *why = XrdSysE2T(errnum);
+    EXPECT_NE(nullptr, why) << "XrdSysE2T(" << errnum << ") returned null";
+    std::string msg = "Secztn: Unable to find token via ";
+    msg += entry;
+    if (!location.empty()) {
+        msg += '=';
+        msg += location;
+    }
+    msg += "; ";
+    if (why) msg += why;
+    if (errnum == EPERM) msg += " because of excessive permissions";
+    return msg;
+}
+
+// Captures only the stderr written while the object is alive.
+class StderrCapture {
+   public:
+    StderrCapture() {
+        char tmpl[] = "/tmp/xrdsecztn-stderr-XXXXXX";
+        m_fd = mkstemp(tmpl);
+        if (m_fd < 0) return;
+        m_path = tmpl;
+        fflush(stderr);
+        m_saved = dup(STDERR_FILENO);
+        if (m_saved < 0 || dup2(m_fd, STDERR_FILENO) < 0) {
+            if (m_saved >= 0) close(m_saved);
+            m_saved = -1;
+        }
+    }
+
+    ~StderrCapture() { Restore(); }
+
+    bool Ok() const { return m_fd >= 0 && m_saved >= 0; }
+
+    std::string Text() {
+        fflush(stderr);
+        std::string out;
+        if (m_fd >= 0 && lseek(m_fd, 0, SEEK_SET) >= 0) {
+            char buf[1024];
+            ssize_t n = 0;
+            while ((n = read(m_fd, buf, sizeof(buf))) > 0)
+                out.append(buf, static_cast<size_t>(n));
+        }
+        Restore();
+        return out;
+    }
+
+    StderrCapture(const StderrCapture &) = delete;
+    StderrCapture &operator=(const StderrCapture &) = delete;
+
+   private:
+    void Restore() {
+        if (m_saved >= 0) {
+            fflush(stderr);
+            dup2(m_saved, STDERR_FILENO);
+            close(m_saved);
+            m_saved = -1;
+        }
+        if (m_fd >= 0) {
+            close(m_fd);
+            m_fd = -1;
+        }
+        if (!m_path.empty()) {
+            unlink(m_path.c_str());
+            m_path.clear();
+        }
+    }
+
+    int m_fd{-1};
+    int m_saved{-1};
+    std::string m_path;
+};
+
 std::string TokenFromCredentials(const XrdSecCredentials *cred) {
     if (!cred || !cred->buffer) return {};
     if (cred->size < static_cast<int>(sizeof(ZtnTokenCredHdr))) return {};
@@ -372,14 +451,49 @@ class Protocol {
 
 }  // namespace
 
+// Same lock file as the XrdOuc and HTTP bearer-token tests. CTest runs those
+// processes alongside this one, and all of them use /tmp/bt_u<uid>.
+class DefaultTmpTokenLock {
+   public:
+    DefaultTmpTokenLock() {
+        const std::string path = "/tmp/xrd-bt-u" + std::to_string(static_cast<int>(geteuid())) + ".lock";
+        m_fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+        if (m_fd < 0) return;
+        if (flock(m_fd, LOCK_EX) != 0) {
+            close(m_fd);
+            m_fd = -1;
+        }
+    }
+
+    ~DefaultTmpTokenLock() {
+        if (m_fd < 0) return;
+        flock(m_fd, LOCK_UN);
+        close(m_fd);
+    }
+
+    bool Ok() const { return m_fd >= 0; }
+
+    DefaultTmpTokenLock(const DefaultTmpTokenLock &) = delete;
+    DefaultTmpTokenLock &operator=(const DefaultTmpTokenLock &) = delete;
+
+   private:
+    int m_fd{-1};
+};
+
 class XrdSecztnClientTokenTest : public ::testing::Test {
    protected:
-    void SetUp() override { ASSERT_TRUE(m_plugin.Ok()) << m_plugin.Error(); }
+    void SetUp() override {
+        ASSERT_TRUE(m_lock.Ok()) << "cannot lock the default bearer-token path";
+        ASSERT_TRUE(m_plugin.Ok()) << m_plugin.Error();
+    }
 
     // Declared first so ambient discovery env is cleared for the whole test and
-    // restored when the fixture is destroyed (after TearDown).
+    // restored when the fixture is destroyed (after TearDown). The lock is a
+    // member, so it is still held while test-body locals such as
+    // IsolateDefaultTmpToken are destroyed.
     DiscoveryEnvGuard m_env;
     ZtnPlugin m_plugin;
+    DefaultTmpTokenLock m_lock;
 };
 
 //--- success paths ------------------------------------------------------------
@@ -509,6 +623,7 @@ TEST_F(XrdSecztnClientTokenTest, RejectsGroupReadableTokenFile) {
     XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
     EXPECT_EQ(nullptr, cred);
     EXPECT_EQ(EPERM, ei.getErrInfo());
+    EXPECT_EQ(ExpectedDiscoveryFailure("BEARER_TOKEN_FILE", file.Path(), EPERM), ei.getErrText());
 }
 
 TEST_F(XrdSecztnClientTokenTest, RejectsTokenFileLargerThanMaxSize) {
@@ -523,6 +638,8 @@ TEST_F(XrdSecztnClientTokenTest, RejectsTokenFileLargerThanMaxSize) {
     XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
     EXPECT_EQ(nullptr, cred);
     EXPECT_EQ(EMSGSIZE, ei.getErrInfo());
+    EXPECT_EQ(ExpectedDiscoveryFailure("BEARER_TOKEN_FILE", file.Path(), EMSGSIZE), ei.getErrText());
+    EXPECT_EQ(std::string::npos, std::string(ei.getErrText()).find("excessive permissions"));
 }
 
 TEST_F(XrdSecztnClientTokenTest, FailsWhenNoTokenIsAvailable) {
@@ -538,4 +655,122 @@ TEST_F(XrdSecztnClientTokenTest, FailsWhenNoTokenIsAvailable) {
     XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
     EXPECT_EQ(nullptr, cred);
     EXPECT_EQ(ENOPROTOOPT, ei.getErrInfo());
+    EXPECT_EQ("Secztn: No token found; runtime fetch disallowed.", std::string(ei.getErrText()));
+}
+
+TEST_F(XrdSecztnClientTokenTest, XrdZtnPermissionErrorNamesThatStep) {
+    IsolateDefaultTmpToken isolate;
+    if (isolate.Blocked()) {
+        GTEST_SKIP() << "cannot move aside " << isolate.Path() << ": " << isolate.Reason();
+    }
+
+    auto file = TokenFile::Create("secret-token", S_IRUSR | S_IRGRP);
+    ASSERT_TRUE(file.Ok());
+
+    XrdOucEnv opaque;
+    opaque.Put("xrd.ztn", file.Path());
+    XrdOucErrInfo ei;
+    ei.setEnv(&opaque);
+
+    Protocol prot(m_plugin, kDefaultParms, &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
+    EXPECT_EQ(nullptr, cred);
+    EXPECT_EQ(EPERM, ei.getErrInfo());
+    const std::string text = ei.getErrText();
+    EXPECT_EQ(ExpectedDiscoveryFailure("xrd.ztn", file.Path(), EPERM), text);
+    EXPECT_EQ(std::string::npos, text.find("/tmp/bt_u"));
+    EXPECT_EQ(std::string::npos, text.find("BEARER_TOKEN"));
+
+    ei.setEnv(nullptr);
+}
+
+TEST_F(XrdSecztnClientTokenTest, MissingXrdZtnPathIsNotAReadFailure) {
+    IsolateDefaultTmpToken isolate;
+    if (isolate.Blocked()) {
+        GTEST_SKIP() << "cannot move aside " << isolate.Path() << ": " << isolate.Reason();
+    }
+
+    char tmpl[] = "/tmp/xrdsecztn-missing-XXXXXX";
+    int fd = mkstemp(tmpl);
+    ASSERT_GE(fd, 0);
+    close(fd);
+    ASSERT_EQ(0, unlink(tmpl));
+
+    XrdOucEnv opaque;
+    opaque.Put("xrd.ztn", tmpl);
+    XrdOucErrInfo ei;
+    ei.setEnv(&opaque);
+
+    Protocol prot(m_plugin, kDefaultParms, &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
+    EXPECT_EQ(nullptr, cred);
+    EXPECT_EQ(ENOPROTOOPT, ei.getErrInfo());
+    EXPECT_EQ("Secztn: No token found; runtime fetch disallowed.", std::string(ei.getErrText()));
+
+    ei.setEnv(nullptr);
+}
+
+TEST_F(XrdSecztnClientTokenTest, AcceptsEnvironmentTokenBelowMaxSize) {
+    EnvVar token("BEARER_TOKEN", "0123456");
+
+    XrdOucErrInfo ei;
+    Protocol prot(m_plugin, "0:8:", &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
+    ASSERT_NE(nullptr, cred) << ei.getErrText();
+    EXPECT_EQ("0123456", TokenFromCredentials(cred));
+    delete cred;
+}
+
+TEST_F(XrdSecztnClientTokenTest, RejectsEnvironmentTokenAtMaxSize) {
+    EnvVar token("BEARER_TOKEN", "01234567");
+
+    XrdOucErrInfo ei;
+    Protocol prot(m_plugin, "0:8:", &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
+    EXPECT_EQ(nullptr, cred);
+    EXPECT_EQ(EMSGSIZE, ei.getErrInfo());
+    const std::string text = ei.getErrText();
+    EXPECT_EQ(ExpectedDiscoveryFailure("BEARER_TOKEN", "", EMSGSIZE), text);
+    EXPECT_EQ(std::string::npos, text.find("01234567"));
+    EXPECT_EQ(std::string::npos, text.find("No token found"));
+}
+
+TEST_F(XrdSecztnClientTokenTest, OversizedEnvironmentTokenNamesBearerToken) {
+    EnvVar token("BEARER_TOKEN", "0123456789");
+
+    XrdOucErrInfo ei;
+    Protocol prot(m_plugin, "0:8:", &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, &ei);
+    EXPECT_EQ(nullptr, cred);
+    EXPECT_EQ(EMSGSIZE, ei.getErrInfo());
+    const std::string text = ei.getErrText();
+    EXPECT_EQ(ExpectedDiscoveryFailure("BEARER_TOKEN", "", EMSGSIZE), text);
+    EXPECT_EQ(std::string::npos, text.find("0123456789"));
+}
+
+TEST_F(XrdSecztnClientTokenTest, DiscoveryFailureWithoutErrInfoGoesToStderr) {
+    auto file = TokenFile::Create("secret-token", S_IRUSR | S_IRGRP);
+    ASSERT_TRUE(file.Ok());
+    EnvVar tokenFile("BEARER_TOKEN_FILE", file.Path());
+
+    XrdOucErrInfo ei;
+    Protocol prot(m_plugin, kDefaultParms, &ei);
+    ASSERT_TRUE(prot) << ei.getErrText();
+
+    StderrCapture captured;
+    ASSERT_TRUE(captured.Ok());
+    XrdSecCredentials *cred = prot.Get()->getCredentials(nullptr, nullptr);
+    const std::string errText = captured.Text();
+    EXPECT_EQ(nullptr, cred);
+    EXPECT_EQ(ExpectedDiscoveryFailure("BEARER_TOKEN_FILE", file.Path(), EPERM) + "\n", errText);
 }
