@@ -15,6 +15,15 @@
 #include <string>
 #include <utility>
 
+namespace {
+// Callers omit the limit or pass 0. A smaller positive value is a tighter cap,
+// such as the ztn handshake size. Anything above the ceiling uses the ceiling.
+size_t TokenLimit(size_t maxSize) {
+    if (maxSize == 0 || maxSize > XrdOucBearerToken::MaxSize) return XrdOucBearerToken::MaxSize;
+    return maxSize;
+}
+}  // namespace
+
 XrdOucBearerToken::Result XrdOucBearerToken::FromEnvValue(const char* value, size_t maxSize) {
     if (!value || !*value) return {};
 
@@ -22,9 +31,10 @@ XrdOucBearerToken::Result XrdOucBearerToken::FromEnvValue(const char* value, siz
     XrdOucUtils::trim(token);
     if (token.empty()) return {};
 
-    // location stays empty so the token is not logged. The bound is exclusive,
-    // matching ztn retToken: a token as long as maxSize is too big.
-    if (maxSize && token.size() >= maxSize) return {Status::Error, {}, EMSGSIZE, {}, {}};
+    // location stays empty so the token is not logged. The bound is exclusive:
+    // a token as long as the limit is too big, matching ztn retToken.
+    const size_t limit = TokenLimit(maxSize);
+    if (token.size() >= limit) return {Status::Error, {}, EMSGSIZE, {}, {}};
 
     return {Status::Found, std::move(token), 0, {}, {}};
 }
@@ -38,8 +48,8 @@ XrdOucBearerToken::Result XrdOucBearerToken::ReadFile(const char* path, size_t m
         return {Status::Error, {}, errno, path, {}};
     }
 
-    if (maxSize && static_cast<size_t>(st.st_size) > maxSize)
-        return {Status::Error, {}, EMSGSIZE, path, {}};
+    const size_t limit = TokenLimit(maxSize);
+    if (static_cast<size_t>(st.st_size) > limit) return {Status::Error, {}, EMSGSIZE, path, {}};
 
     // make sure the file is not accessible to anyone but the owner
     if (st.st_mode & (S_IRWXG | S_IRWXO)) return {Status::Error, {}, EPERM, path, {}};
@@ -57,7 +67,7 @@ XrdOucBearerToken::Result XrdOucBearerToken::ReadFile(const char* path, size_t m
     XrdOucUtils::trim(token);
     if (token.empty()) return {};
 
-    if (maxSize && token.size() >= maxSize) return {Status::Error, {}, EMSGSIZE, path, {}};
+    if (token.size() >= limit) return {Status::Error, {}, EMSGSIZE, path, {}};
 
     return {Status::Found, std::move(token), 0, path, {}};
 }

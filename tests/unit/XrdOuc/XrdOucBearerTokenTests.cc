@@ -621,12 +621,19 @@ TEST_F(XrdOucBearerTokenTests, EmptyXrdZtnPathIsNotConsulted) {
     ExpectMiss(XrdOucBearerToken::Discover(0, ""));
 }
 
-TEST_F(XrdOucBearerTokenTests, UnlimitedSizeAcceptsLongToken) {
-    std::string token(64, 'a');
-    EnvGuard env("BEARER_TOKEN", token.c_str());
+TEST_F(XrdOucBearerTokenTests, DefaultCeilingIsMaxSize) {
+    std::string accepted(XrdOucBearerToken::MaxSize - 1, 'a');
+    {
+        EnvGuard env("BEARER_TOKEN", accepted.c_str());
+        auto result = XrdOucBearerToken::Discover();
+        ExpectFound(result, "BEARER_TOKEN", accepted, "");
+    }
 
-    auto result = XrdOucBearerToken::Discover(0);
-    ExpectFound(result, "BEARER_TOKEN", token, "");
+    std::string rejected(XrdOucBearerToken::MaxSize, 'b');
+    EnvGuard env("BEARER_TOKEN", rejected.c_str());
+    auto result = XrdOucBearerToken::Discover();
+    ExpectError(result, "BEARER_TOKEN", "", EMSGSIZE);
+    EXPECT_EQ(std::string::npos, result.Failure().find(rejected));
 }
 
 TEST_F(XrdOucBearerTokenTests, DiscoverFromEnvUsesXrdZtn) {
