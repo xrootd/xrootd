@@ -27,6 +27,7 @@
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPropertyList.hh"
+#include "XProtocol/XProtocol.hh"
 
 #include <algorithm>
 #include <cerrno>
@@ -75,26 +76,44 @@ public:
     // Return false when the wait takes more than the timeout.
     bool wait(std::chrono::seconds timeout = std::chrono::seconds(0))
     {
-        const auto start = std::chrono::steady_clock::now();
-
         std::unique_lock<std::mutex> lock{mutex};
 
+        bool ready = true;
+
         if (timeout.count() > 0)
-            is_ready_changed.wait_for(lock, timeout, [this]{ return is_ready; });
+            ready = is_ready_changed.wait_for(lock, timeout, [this]{ return is_ready; });
         else
             is_ready_changed.wait(lock, [this]{ return is_ready; });
 
         is_ready = false;
 
-        const auto elapsed = std::chrono::steady_clock::now() - start;
-
-        return timeout.count() == 0 || elapsed <= timeout;
+        return ready;
     }
 
 private:
     std::mutex mutex{};
     std::condition_variable is_ready_changed{};
     bool is_ready{false};
+};
+
+// Adds fixed headers, such as the Authorization header of one endpoint, to
+// the headers of a request.
+class ExtraHeaderCallout final : public XrdClHttp::HeaderCallout
+{
+public:
+    explicit ExtraHeaderCallout(HeaderList extra) : extra(std::move(extra)) {}
+
+    std::shared_ptr<HeaderList> GetHeaders(const std::string &,
+                                           const std::string &,
+                                           const HeaderList &headers) override
+    {
+        auto result = std::make_shared<HeaderList>(headers);
+        result->insert(result->end(), extra.begin(), extra.end());
+        return result;
+    }
+
+private:
+    const HeaderList extra;
 };
 
 }
@@ -403,6 +422,43 @@ namespace XrdClHttp
 
 using namespace XrdClHttp::ThirdPartyCopyOpTypes;
 
+// Inside namespace XrdClHttp for the same name lookup of StatOp as above.
+namespace XrdClHttp
+{
+// Stat the URL with the given extra headers. Returns the size, or nothing when
+// the stat fails, does not finish in time, or cannot be queued.
+static std::optional<std::size_t> stat_size(HandlerQueue              &queue,
+                                            const std::string         &url,
+                                            const CurlCopyOp::Headers &hdrs,
+                                            time_t                     timeout,
+                                            XrdCl::Log                *log,
+                                            const char                *what)
+{
+    try
+    {
+        const auto callout = std::make_shared<ExtraHeaderCallout>(hdrs);
+        const auto rh = std::make_shared<SyncResponseHandler>();
+        const auto op = std::make_shared<StatOp>(rh.get(), url, timespec{timeout, 0}, log, true, nullptr, callout.get());
+
+        // The queue may run the operation after this function returns, thus
+        // the operation keeps its handler and header callout alive.
+        queue.Produce(std::shared_ptr<StatOp>(op.get(), [callout, rh, op](auto){}));
+
+        if (!rh->wait(std::chrono::seconds(timeout)))
+            log->Warning(kLogXrdClHttp, "Failed to stat the %s: Operation timed out", what);
+        else if (!op->IsDone() || op->HasFailed())
+            log->Debug(kLogXrdClHttp, "Failed to stat the %s", what);
+        else
+            return static_cast<std::size_t>(op->GetStatInfo().first);
+    }
+    catch (const std::exception &e) {
+        log->Warning(kLogXrdClHttp, "Failed to stat the %s - %s", what, e.what());
+    }
+
+    return std::nullopt;
+}
+}
+
 XrdCl::XRootDStatus Filesystem::ThirdPartyCopy( const std::string            &source,
                                                 const std::string            &dest,
                                                 const XrdCl::PropertyList    *properties,
@@ -419,8 +475,6 @@ XrdCl::XRootDStatus Filesystem::ThirdPartyCopy( const std::string            &so
                                    "Third party copy can only be done between http(s) protocols");
     }
 
-    std::size_t size = 0;
-
     TpcMode mode = TpcMode::Pull;
     int number_of_streams = 1;
     time_t init_timeout = 0;
@@ -434,8 +488,12 @@ XrdCl::XRootDStatus Filesystem::ThirdPartyCopy( const std::string            &so
         properties->Get("initTimeout", init_timeout);
         properties->Get("tpcTimeout", tpc_timeout);
         token_file = properties->Get<std::string>("thirdPartyTokenFile");
-        force_overwrite = properties->Get<std::string>("force") == "1";
+        properties->Get("force", force_overwrite);
     }
+
+    // The tpcTimeout property takes precedence over the timeout argument.
+    if (tpc_timeout == 0)
+        tpc_timeout = timeout;
 
     if (auto env = XrdCl::DefaultEnv::GetEnv(); env)
         env->GetInt("SubStreamsPerChannel", number_of_streams);
@@ -462,40 +520,39 @@ XrdCl::XRootDStatus Filesystem::ThirdPartyCopy( const std::string            &so
                                    "Refusing to send an Authorization header over an unencrypted http URL");
     }
 
+    // In push mode the source writes the destination with a PUT, which may
+    // replace an existing file whatever the Overwrite header says. Thus check
+    // the destination first, as the destination server may not honor it.
+    if (mode == TpcMode::Push && !force_overwrite &&
+        stat_size(*m_queue, dest, dst_hdrs, init_timeout, log, "destination"))
+    {
+        log->Error(kLogXrdClHttp, "The destination %s exists", dest.c_str());
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errErrorResponse, kXR_ItExists,
+                                   "The destination exists; use --force to replace it");
+    }
+
     headers.emplace_back("X-Number-Of-Streams"s, std::to_string(number_of_streams));
-    headers.emplace_back("Overwrite"s, force_overwrite ? "T"s : "F"s);
+
+    // The destination headers reach the destination in both modes: directly
+    // in pull mode, with the TransferHeader prefix in push mode.
+    dst_hdrs.emplace_back("Overwrite"s, force_overwrite ? "T"s : "F"s);
+
+    std::size_t size = 0;
 
     if (progress_handler)
     {
-        try
-        {
-            const auto rh = std::make_shared<SyncResponseHandler>();
-            const auto op = std::make_shared<StatOp>(rh.get(), source, timespec{init_timeout,0}, log, true, nullptr, nullptr);
-
-            m_queue->Produce(std::shared_ptr<StatOp>(op.get(), [rh, op](auto _){}));
-
-            if (!rh->wait(std::chrono::seconds(init_timeout)))
-                log->Warning(kLogXrdClHttp, "Failed to get source file size: Operation timed out. Continuing...");
-            else if (!op->IsDone() || op->HasFailed())
-                log->Warning(kLogXrdClHttp, "Failed to get source file size");
-            else
-                size = static_cast<std::size_t>(op->GetStatInfo().first);
-        }
-        catch (const std::exception &e) {
-            log->Warning(kLogXrdClHttp, "Failed to add stat op to queue - %s", e.what());
-        }
-
+        size = stat_size(*m_queue, source, src_hdrs, init_timeout, log, "source").value_or(0);
         progress_handler->HandleProgress(0, size);
     }
 
     const auto rh = std::make_shared<SyncResponseHandler>();
     const auto op = std::make_shared<CopyOp>(rh.get(), source, src_hdrs, dest, dst_hdrs, headers,
-                                                  mode, timespec{tpc_timeout, 0}, log, nullptr);
+                                             mode, timespec{tpc_timeout, 0}, log, nullptr);
     op->SetProgressHandler(progress_handler);
 
     try
     {
-        m_queue->Produce(std::shared_ptr<CopyOp>(op.get(), [rh, op](auto _){}));
+        m_queue->Produce(std::shared_ptr<CopyOp>(op.get(), [rh, op](auto){}));
     }
     catch (const std::exception &e) {
         log->Warning(kLogXrdClHttp, "Failed to add copy op to queue - %s", e.what());

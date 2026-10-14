@@ -263,7 +263,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderAsFalseWithoutTheForceP
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
-        EXPECT_CALL(*mock, ctor(_, _, _, _, _, Contains(Pair("Overwrite"s, "F"s)), _, _, _, _));
+        EXPECT_CALL(*mock, ctor(_, _, _, _, Contains(Pair("Overwrite"s, "F"s)), _, _, _, _, _));
     });
 
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr);
@@ -273,11 +273,11 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderAsTrueWithTheForcePrope
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
-        EXPECT_CALL(*mock, ctor(_, _, _, _, _, Contains(Pair("Overwrite"s, "T"s)), _, _, _, _));
+        EXPECT_CALL(*mock, ctor(_, _, _, _, Contains(Pair("Overwrite"s, "T"s)), _, _, _, _, _));
     });
 
     XrdCl::PropertyList properties;
-    properties.Set("force", "1");
+    properties.Set("force", true);
 
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
 }
@@ -413,4 +413,97 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheAuthorizationHeadersFromTheTokenFile)
     properties.Set("thirdPartyTokenFile", token_file_path);
 
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
+}
+
+TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderToTheDestinationInPushMode)
+{
+    XrdClHttp::CopyOp::AddOperation([](auto *mock)
+    {
+        EXPECT_CALL(*mock, ctor(_, _, _, _, Contains(Pair("Overwrite"s, "F"s)), _, XrdClHttp::TpcMode::Push, _, _, _));
+    });
+
+    XrdCl::PropertyList properties;
+    properties.Set("thirdPartyMode", "push");
+
+    fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
+}
+
+TEST_F(HttpThirdPartyCopyFixture, ReturnsItExistsWhenThePushDestinationExistsWithoutTheForceProperty)
+{
+    XrdClHttp::StatOp::AddOperation([](auto *mock)
+    {
+        EXPECT_CALL(*mock, ctor(_, "https://unresolvable:1094//file_dst"s, _, _, _, _, NotNull()));
+        EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
+        EXPECT_CALL(*mock, HasFailed()).WillOnce(Return(false));
+    });
+
+    XrdCl::PropertyList properties;
+    properties.Set("thirdPartyMode", "push");
+
+    XrdCl::XRootDStatus status = fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
+    ASSERT_EQ(status.code, XrdCl::errErrorResponse);
+    ASSERT_EQ(status.errNo, kXR_ItExists);
+}
+
+TEST_F(HttpThirdPartyCopyFixture, SendsNoCopyWhenThePushDestinationExistsWithoutTheForceProperty)
+{
+    XrdClHttp::StatOp::AddOperation([](auto *mock)
+    {
+        EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
+        EXPECT_CALL(*mock, HasFailed()).WillOnce(Return(false));
+    });
+
+    XrdCl::PropertyList properties;
+    properties.Set("thirdPartyMode", "push");
+
+    fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
+    ASSERT_FALSE(XrdClHttp::CopyOp::HasBeenInstantiated());
+}
+
+TEST_F(HttpThirdPartyCopyFixture, SendsTheCopyWhenThePushDestinationDoesNotExist)
+{
+    XrdClHttp::StatOp::AddOperation([](auto *mock)
+    {
+        EXPECT_CALL(*mock, IsDone()).WillOnce(Return(true));
+        EXPECT_CALL(*mock, HasFailed()).WillOnce(Return(true));
+    });
+
+    XrdCl::PropertyList properties;
+    properties.Set("thirdPartyMode", "push");
+
+    fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
+    ASSERT_TRUE(XrdClHttp::CopyOp::HasBeenInstantiated());
+}
+
+TEST_F(HttpThirdPartyCopyFixture, DoesNotStatThePushDestinationWithTheForceProperty)
+{
+    XrdCl::PropertyList properties;
+    properties.Set("thirdPartyMode", "push");
+    properties.Set("force", true);
+
+    fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
+    ASSERT_FALSE(XrdClHttp::StatOp::HasBeenInstantiated());
+}
+
+TEST_F(HttpThirdPartyCopyFixture, UsesTheTimeoutArgumentWithoutTheTpcTimeoutProperty)
+{
+    XrdClHttp::CopyOp::AddOperation([](auto *mock)
+    {
+        EXPECT_CALL(*mock, ctor(_, _, _, _, _, _, _, Field(&timespec::tv_sec, 7), _, _));
+    });
+
+    fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr, 7);
+}
+
+TEST_F(HttpThirdPartyCopyFixture, UsesTheTpcTimeoutPropertyOverTheTimeoutArgument)
+{
+    XrdClHttp::CopyOp::AddOperation([](auto *mock)
+    {
+        EXPECT_CALL(*mock, ctor(_, _, _, _, _, _, _, Field(&timespec::tv_sec, 3), _, _));
+    });
+
+    XrdCl::PropertyList properties;
+    properties.Set("tpcTimeout", 3);
+
+    fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr, 7);
 }
