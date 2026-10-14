@@ -77,7 +77,7 @@ function teardown() {
 		fi
 	fi
 	tail -n "${MAXLINES:-50}" kdc/*.log
-	rm -f "${KRB5CCNAME}" krb5.keytab kdc/{db*,*.{log,pem,srl}}
+	rm -f "${KRB5CCNAME}" krb5.keytab kdc/{db*,*.{log,pem,srl}} ./*.rcache2
 }
 
 [[ $(type -t "$1") == "function" ]] || die "unknown command: $1"
